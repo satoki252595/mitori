@@ -1,0 +1,24 @@
+# secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+# nix / direnv
+.direnv/
+result
+result-*
+# node / bun
+node_modules/
+dist/
+.wrangler/
+*.tsbuildinfo
+coverage/
+# mitori local state (per-user)
+.mitori/cache/
+.mitori/tmp/
+# test artifacts
+test-results/
+playwright-report/
+bench/results/*.local.json
+# os
+.DS_Store
