@@ -261,6 +261,23 @@ export function spySafeWriter(): SafeWriter & { writes: WriteRecord[]; refused: 
   };
 }
 
+/** Golden comparison against `fixtures/golden/<rel>` (`MITORI_UPDATE_GOLDEN=1` rewrites). Local stand-in for testkit's. */
+export function expectGoldenFile(rel: string, actual: string): { ok: boolean; expected: string | null } {
+  const abs = join(import.meta.dir, "../../../../fixtures/golden", rel);
+  if (process.env.MITORI_UPDATE_GOLDEN === "1") {
+    mkdirSync(join(abs, ".."), { recursive: true });
+    writeFileSync(abs, actual);
+    return { ok: true, expected: actual };
+  }
+  let expected: string | null = null;
+  try {
+    expected = readFileSync(abs, "utf8");
+  } catch {
+    expected = null;
+  }
+  return { ok: expected === actual, expected };
+}
+
 /** In-memory SafeWriter (bench / unit tests that never touch disk). */
 export function memSafeWriter(): SafeWriter & { files: Map<string, string>; writes: number } {
   const files = new Map<string, string>();

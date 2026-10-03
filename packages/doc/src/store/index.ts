@@ -20,6 +20,7 @@ import {
   type WriteQueue,
 } from "@mitori/core";
 import type { AiMarkdownValidator, ClaimStamper, DocStore, GenIdSource } from "../contract.ts";
+import { MIGRATIONS } from "./migrations.ts";
 
 /** Factory (pure). */
 export function createAiMarkdownValidator(): AiMarkdownValidator {
@@ -59,4 +60,4 @@ export function createDocStore(deps: {
 }
 
 /** SQLite migrations owned by `@mitori/doc` (`doc_*`). */
-export const DOC_MIGRATIONS: readonly Migration[] = [];
+export const DOC_MIGRATIONS: readonly Migration[] = MIGRATIONS;
