@@ -1,24 +1,11 @@
 /**
  * @mitori/agent — `bridge/` (owner: WP-05). Everything exported here is public (re-exported by `src/index.ts`):
  * export only contract names; keep helpers in sibling files.
- * M0 stubs below throw E_UNSUPPORTED — implement them in place and keep the signatures (contract changes go
- * through the CR batch, packages/core/CR-LEDGER.md).
  */
-import {
-  type Clock,
-  type EffectiveSettings,
-  type EngineId,
-  type EventSink,
-  type Hasher,
-  type Logger,
-  type Metrics,
-  type Migration,
-  type Random,
-  type SseEventPayload,
-  unsupported,
-  type WriteQueue,
-} from "@mitori/core";
+import type { Clock, EffectiveSettings, EngineId, EventSink, Hasher, Logger, Metrics, Migration, Random, SseEventPayload, WriteQueue } from "@mitori/core";
 import type { AgentScheduler, Engine, Spawner, UsageLedger } from "../contract.ts";
+import { LEDGER_MIGRATIONS } from "../ledger/migrations.ts";
+import { assembleBridge, type BridgeExtraDeps } from "./assemble.ts";
 
 /** Factory for the scheduler + engines. */
 export function createAgentBridge(deps: {
@@ -52,8 +39,9 @@ export function createAgentBridge(deps: {
   /** Parent environment (scrubbed per request). */
   env: Readonly<Record<string, string | undefined>>;
 }): { scheduler: AgentScheduler; engines: Record<EngineId, Engine | null> } {
-  return unsupported("agent.createAgentBridge", deps);
+  // CR-PENDING(WP-05): SafeWriter/FsReader (cr-requests/WP-05.md #2) and `fetch` arrive as optional extra deps.
+  return assembleBridge(deps as typeof deps & Partial<BridgeExtraDeps>);
 }
 
 /** Migrations of the usage ledger + calibration (`use_*` in `state.sqlite`). */
-export const AGENT_MIGRATIONS: readonly Migration[] = [];
+export const AGENT_MIGRATIONS: readonly Migration[] = LEDGER_MIGRATIONS;

@@ -1,0 +1,123 @@
+[
+  {
+    "t": "phase",
+    "phase": "think"
+  },
+  {
+    "t": "usage",
+    "final": false,
+    "in": 3731,
+    "cw": 0,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 1,
+    "usd": 0.003736,
+    "reported": null
+  },
+  {
+    "t": "phase",
+    "phase": "read",
+    "detail": "Read $TMP/wt/a.txt",
+    "target": "$TMP/wt/a.txt"
+  },
+  {
+    "t": "tool",
+    "name": "Read",
+    "status": "start",
+    "target": "$TMP/wt/a.txt"
+  },
+  {
+    "t": "tool",
+    "name": "Read",
+    "status": "ok",
+    "target": "$TMP/wt/a.txt"
+  },
+  {
+    "t": "phase",
+    "phase": "read",
+    "detail": "Read $TMP/wt/b.txt",
+    "target": "$TMP/wt/b.txt"
+  },
+  {
+    "t": "tool",
+    "name": "Read",
+    "status": "start",
+    "target": "$TMP/wt/b.txt"
+  },
+  {
+    "t": "tool",
+    "name": "Read",
+    "status": "ok",
+    "target": "$TMP/wt/b.txt"
+  },
+  {
+    "t": "window",
+    "five": 0.36,
+    "billing": "subscription-window"
+  },
+  {
+    "t": "phase",
+    "phase": "edit",
+    "detail": "Edit $TMP/wt/a.txt",
+    "target": "$TMP/wt/a.txt"
+  },
+  {
+    "t": "tool",
+    "name": "Edit",
+    "status": "start",
+    "target": "$TMP/wt/a.txt"
+  },
+  {
+    "t": "tool",
+    "name": "Edit",
+    "status": "ok",
+    "target": "$TMP/wt/a.txt"
+  },
+  {
+    "t": "phase",
+    "phase": "edit",
+    "detail": "Edit $TMP/wt/b.txt",
+    "target": "$TMP/wt/b.txt"
+  },
+  {
+    "t": "tool",
+    "name": "Edit",
+    "status": "start",
+    "target": "$TMP/wt/b.txt"
+  },
+  {
+    "t": "tool",
+    "name": "Edit",
+    "status": "denied",
+    "target": "$TMP/wt/b.txt"
+  },
+  {
+    "t": "usage",
+    "final": true,
+    "in": 3757,
+    "cw": 5153,
+    "cw1h": 0,
+    "cr": 9060,
+    "out": 1008,
+    "usd": 0.016144,
+    "reported": 0.016144
+  },
+  {
+    "t": "result",
+    "stop": "end",
+    "denials": [
+      {
+        "tool": "Edit",
+        "target": "$TMP/wt/b.txt",
+        "reason": "permission denied"
+      }
+    ],
+    "durationMs": 8895,
+    "structured": {
+      "summary": "Successfully replaced 'alpha' with 'EDITED' in a.txt, but encountered permission restriction preventing edit to b.txt."
+    },
+    "text": "{\"summary\":\"Successfully replaced 'alpha' with 'EDITED' in a.txt, but encountered permission restriction preventing edit to b.txt.\"}",
+    "sessionId": "9456369f-75c3-43e0-9dec-9c0cd61f2ecf",
+    "ttftMs": 1845
+  }
+]

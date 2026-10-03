@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mitori:contract/claude/init",
+  "description": "claude stream-json system/init (testing spec §8.4). additionalProperties allowed.",
+  "type": "object",
+  "required": ["type", "subtype", "session_id", "model", "tools", "mcp_servers", "apiKeySource", "permissionMode"],
+  "properties": {
+    "type": { "const": "system" },
+    "subtype": { "const": "init" },
+    "session_id": { "type": "string" },
+    "model": { "type": "string" },
+    "tools": { "type": "array", "items": { "type": "string" } },
+    "mcp_servers": { "type": "array" },
+    "apiKeySource": { "type": "string" },
+    "permissionMode": { "type": "string" },
+    "capabilities": { "type": "array", "items": { "type": "string" } },
+    "skills": { "type": "array" }
+  }
+}

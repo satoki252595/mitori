@@ -1,0 +1,21 @@
+{
+  "v": "mitori.contract-watch/1",
+  "pages": {
+    "https://support.claude.com/en/articles/15036540": {
+      "sha256": "a7112158f53d0a5685cd946a819643a7d8e19101ea77587da1b18d596a4608cd",
+      "at": "2026-10-03T09:38:08.230Z"
+    },
+    "https://code.claude.com/docs/en/legal-and-compliance": {
+      "sha256": "23aa1034e66d4c8a57f842da33417fc236b7aeb05622c735b11fe5f15a933b75",
+      "at": "2026-10-03T09:38:08.319Z"
+    },
+    "https://code.claude.com/docs/en/headless": {
+      "sha256": "975c9fe75b9ec866ee153b8aa9603bd078e1ba8786a5e5c9d7acc29583ad64dc",
+      "at": "2026-10-03T09:38:08.397Z"
+    },
+    "https://code.claude.com/docs/en/authentication": {
+      "sha256": "ea612d6b4a483ed768c38f1c1abd26c7dd3616d6aee1ff248e1cd739509e0e9b",
+      "at": "2026-10-03T09:38:08.469Z"
+    }
+  }
+}

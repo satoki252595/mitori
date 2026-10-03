@@ -1,0 +1,46 @@
+[
+  {
+    "t": "phase",
+    "phase": "think"
+  },
+  {
+    "t": "usage",
+    "final": false,
+    "in": 585,
+    "cw": 0,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 6,
+    "usd": 0.000615,
+    "reported": null
+  },
+  {
+    "t": "text",
+    "text": "KIWI-5063\nTmieq98vj\nNONE"
+  },
+  {
+    "t": "window",
+    "five": 0.35,
+    "billing": "subscription-window"
+  },
+  {
+    "t": "usage",
+    "final": true,
+    "in": 585,
+    "cw": 0,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 182,
+    "usd": 0.001495,
+    "reported": 0.001495
+  },
+  {
+    "t": "result",
+    "stop": "end",
+    "denials": [],
+    "durationMs": 1815,
+    "text": "KIWI-5063\nTmieq98vj\nNONE",
+    "sessionId": "36d4d111-f9aa-4fe8-857d-2fedfdc1aca8",
+    "ttftMs": 1717
+  }
+]
