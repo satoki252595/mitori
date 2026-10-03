@@ -152,6 +152,30 @@ describe("Fix code targets in the Composer (CR ux-F1)", () => {
     c.dispose();
   });
 
+  test("UX-FIX-18: an uncited sentence goes ⚡ only — your session / Copy would get WRITE - (a thread carries no picked range)", async () => {
+    const { c } = fixture(() => ({ cited: [], candidates: [LOAD] }));
+    await settle();
+    c.pickTarget(LOAD);
+    expect(c.pushOnly).toBe(false);
+    expect(c.writeFiles).toEqual(["internal/config/config.go"]);
+    c.setPath("pull");
+    // the pick would be lost on the way: the Composer says so instead of sending a Fix with nothing to write
+    expect(c.pushOnly).toBe(true);
+    expect(c.writeFiles).toEqual([]);
+    c.setPath("copy");
+    expect(c.pushOnly).toBe(true);
+    c.setPath("push");
+    expect(c.pushOnly).toBe(false);
+    c.dispose();
+    // a cited sentence: the thread's own anchor carries the cites, so every path writes them
+    const cited = fixture(() => ({ cited: [FETCH], candidates: [] }));
+    await settle();
+    cited.c.setPath("pull");
+    expect(cited.c.pushOnly).toBe(false);
+    expect(cited.c.writeFiles).toEqual(["internal/meta/fetch.go"]);
+    cited.c.dispose();
+  });
+
   test("UX-FIX-15: questions and the doc-target edit never ask for targets (answers need no write scope)", async () => {
     const { c, routes } = fixture(() => ({ cited: [], candidates: [LOAD] }), "question");
     await settle();

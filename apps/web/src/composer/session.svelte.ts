@@ -192,16 +192,26 @@ export class ComposerSession {
     return this.wantsTargets && this.targets !== null && !this.hasTarget;
   }
 
+  /**
+   * The anchor cites nothing and the Composer sends to your own session (⤴) or copies (⧉): a thread carries no code
+   * range of its own, so its bundle would say `WRITE -` (the agent could only ask back). Picks and `@` travel with ⚡
+   * only (as `context.add`) — cr-requests/ux.md #6.
+   */
+  get pushOnly(): boolean {
+    return this.wantsTargets && this.path !== "push" && this.targets !== null && this.targets.cited.length === 0;
+  }
+
   /** Candidates not picked yet (a pick moves the range into `mentions`). */
   get openCandidates(): CodeTarget[] {
     const picked = (t: CodeTarget) => this.mentions.some((m) => m.path === t.path && m.start === t.start && m.end === t.end);
     return (this.targets?.candidates ?? []).filter((t) => !picked(t));
   }
 
-  /** Files the AI may write (cites + picked / mentioned ranges), shown before sending. */
+  /** Files the AI may write (cites + picked / mentioned ranges — those only when run here), shown before sending. */
   get writeFiles(): string[] {
     const out: string[] = [];
-    for (const p of [...(this.targets?.cited ?? []).map((t) => t.path), ...this.mentions.map((m) => m.path)]) if (!out.includes(p)) out.push(p);
+    const picked = this.path === "push" ? this.mentions.map((m) => m.path) : [];
+    for (const p of [...(this.targets?.cited ?? []).map((t) => t.path), ...picked]) if (!out.includes(p)) out.push(p);
     return out;
   }
 

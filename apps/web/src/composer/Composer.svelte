@@ -59,10 +59,11 @@ const docPrimary = $derived(c.target.anchor.primary === "doc");
 const docTarget = $derived(c.intent === "change" && c.fixTarget === "doc");
 const emptyAsk = $derived(!c.body.trim() && c.intent === "question" && density.emptyBodySends);
 /**
- * A Fix run here (⚡) needs code to write (CR ux-F1): a cite of the anchor, a picked candidate or an `@` mention. Sent to
- * your own session (⤴) or copied (⧉), the agent finds the code itself, so those paths never wait for a target.
+ * A Fix needs code to write (CR ux-F1): a cite of the anchor, a picked candidate or an `@` mention. Run here (⚡) the
+ * pick travels as `context.add`; your own session (⤴) and Copy (⧉) get the router's scope of the thread alone — the
+ * anchor's cites — so an uncited sentence goes ⚡ (cr-requests/ux.md #6).
  */
-const blockedOnTarget = $derived(c.path === "push" && (c.needsTarget || c.targetsPending));
+const blockedOnTarget = $derived(c.targetsPending || c.pushOnly || (c.path === "push" && c.needsTarget));
 const canSend = $derived(docTarget ? c.docChanged : (c.body.trim().length > 0 || emptyAsk) && !blockedOnTarget);
 /** Candidates offered (only while the anchor has no cite: cites ARE the target). ⌥1–4 picks one. */
 const offered = $derived((c.targets?.cited.length ?? 0) > 0 ? [] : c.openCandidates.slice(0, 4));
@@ -363,7 +364,7 @@ const sendLabel = $derived(
   {/if}
 
   {#if c.wantsTargets}
-    <div class="targets" class:need={c.needsTarget} role="group" aria-label={t("composer.targets.label")}>
+    <div class="targets" class:need={c.needsTarget || c.pushOnly} role="group" aria-label={t("composer.targets.label")}>
       <div class="tg-row">
         <span class="tg-k">{t("composer.targets.label")}</span>
         {#if c.targetsPending}<span class="tg-wait">{t("composer.targets.loading")}</span>{/if}
@@ -372,7 +373,7 @@ const sendLabel = $derived(
             ><span class="lb mono" data-user-content>{tg.label}</span>{#if tg.symbol}<span class="sym mono" data-user-content>{tg.symbol}</span>{/if}<span class="tk mono">{fmtTokens(tg.tokens)}</span></span
           >
         {/each}
-        {#each c.mentions as m, i (m.label)}
+        {#each c.path === "push" ? c.mentions : [] as m, i (m.label)}
           <span class="chip tg" title={m.path}
             ><span class="lb mono" data-user-content>{m.label}</span>{#if m.symbol}<span class="sym mono" data-user-content>{m.symbol}</span>{/if}<button
               type="button"
@@ -382,15 +383,23 @@ const sendLabel = $derived(
             ></span
           >
         {/each}
-        {#if c.hasTarget}
-          {#each offered as tg (`${tg.path}:${tg.start}`)}
+        {#if c.hasTarget && !c.pushOnly}
+          {#each c.path === "push" ? offered : [] as tg (`${tg.path}:${tg.start}`)}
             <button type="button" class="chip cand" title={tg.path} onclick={() => c.pickTarget(tg)}>+ <span data-user-content>{tg.label}</span></button>
           {/each}
-          <button type="button" class="chip add" onclick={startMention}>@ {t("composer.chips.add")}</button>
+          {#if c.path === "push"}<button type="button" class="chip add" onclick={startMention}>@ {t("composer.chips.add")}</button>{/if}
           <span class="tg-files" title={c.writeFiles.join("\n")}>{t("composer.targets.files", { n: c.writeFiles.length })}</span>
+          <!-- the anchor's cites are always written (loop spec §3.2, cr-requests/ux.md #2): narrowing = selecting one sentence -->
+          {#if (c.targets?.cited.length ?? 0) > 1}<span class="tg-files">· {t("composer.targets.narrow")}</span>{/if}
         {/if}
       </div>
-      {#if c.needsTarget}
+      {#if c.pushOnly}
+        <!-- a thread carries no code range of its own: ⤴ / ⧉ would hand the agent an empty write scope (WRITE -) -->
+        <div class="tg-none" role="status">
+          <p>{t("composer.targets.pushOnly")}</p>
+          <p class="tg-alt"><button type="button" class="btn btn-sec btn-s" onclick={() => c.setPath("push")}>{t("composer.targets.toPush")}</button></p>
+        </div>
+      {:else if c.needsTarget}
         {#if offered.length > 0}
           <p class="tg-ask">{t("composer.targets.pick")}</p>
           <ul class="tg-cands">
@@ -411,7 +420,7 @@ const sendLabel = $derived(
             <p>{t("composer.targets.none")}</p>
             <p class="tg-alt">
               <button type="button" class="btn btn-sec btn-s" onclick={startMention}>{t("composer.targets.point")}</button>
-              <span>{t("composer.targets.alt", { ask: s.keys.label("Mod+1") })}</span>
+              <span>{t("composer.targets.altAsk", { ask: s.keys.label("Mod+1") })}</span>
             </p>
           </div>
         {/if}
@@ -816,6 +825,12 @@ const sendLabel = $derived(
     margin: 8px 0 4px;
     font-size: var(--fs-label);
     color: var(--text);
+  }
+  /* Japanese UI sentences: no 「ん。」 alone on the last line, no line starting with 。 (JLREQ) */
+  .tg-ask,
+  .tg-none p {
+    line-break: strict;
+    text-wrap: pretty;
   }
   .tg-cands {
     list-style: none;

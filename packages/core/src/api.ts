@@ -1137,14 +1137,15 @@ export interface CodeTarget {
   symbol?: string;
   /**
    * Where it comes from: `cite` = a cite of the anchored claim / block (the router's write scope, loop spec §3.2 —
-   * automatic); `ref` = a code reference written in the selected row / item of the block; `symbol` = a symbol named in
-   * the selection or the request; `search` = a full-text hit. Only `cite` joins the write scope by itself; the others
-   * join when the user picks them (sent as `ContextAdjust.add`).
+   * automatic); `ref` = a code reference written in the selected row / item / sentence of the block (a path, or a
+   * symbol it puts in backticks); `symbol` = a symbol named in the selection or the request; `search` = a full-text
+   * hit; `near` = a cite of a neighbouring block of the same section. Only `cite` joins the write scope by itself; the
+   * others join when the user picks them (sent as `ContextAdjust.add`).
    */
-  source: "cite" | "ref" | "symbol" | "search";
+  source: "cite" | "ref" | "symbol" | "search" | "near";
   /** Token estimate of the range. */
   tokens: number;
-  /** The term that matched (`ref` / `symbol` / `search`). */
+  /** The term that matched (`ref` / `symbol` / `search`; none for `cite` / `near`). */
   match?: string;
 }
 

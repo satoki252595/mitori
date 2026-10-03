@@ -4,10 +4,14 @@
 //   cited       the cites of the anchored claim (else of the block's claims): exactly the ranges the router turns into
 //               the write scope (loop spec §3.2), so the Composer shows them as 「対象コード」 and the estimate agrees.
 //   candidates  never in the scope by themselves — the user confirms one (it is then sent as `ContextAdjust.add`):
-//                 1. `ref`    code references written in the selected row / item of the block (static facts tables:
-//                             `internal/config/config.go:36`, `server.go#Server.listBooks`);
+//                 1. `ref`    code references written in the selected row / item / sentence of the block (static facts
+//                             tables: `internal/config/config.go:36`, `server.go#Server.listBooks`; generated prose:
+//                             the symbols it puts in backticks, `Server.handlePicker`, `sess.PickerContext()`);
 //                 2. `symbol` symbols the selection or the request names exactly (`Fetch`, `Client.fetchOnce`);
-//                 3. `search` full-text hits (facts, symbols) of the same terms (`TSUNDOKU_API_TOKEN` → the env fact).
+//                 3. `search` full-text hits (facts, symbols) of the same terms (`TSUNDOKU_API_TOKEN` → the env fact);
+//                 4. `near`   the cites of the nearest blocks of the same section (a diagram caption, a section intro or
+//                             an inferred sentence sits next to the sentences that cite its code) — so a Japanese-only
+//                             request on an uncited sentence of a generated doc still has its code offered.
 //
 // Deterministic and token-free: same index + doc + input ⇒ same answer. Pure over the ports (no I/O of its own).
 import type { Anchor, Cite, CodeTarget, CodeTargets, ExcludeReason, FileEntry, Glob, LineNo, RepoPath, SearchHit, SymbolEntry } from "@mitori/core";
@@ -19,7 +23,7 @@ import { anchorRanges, mergeRanges } from "../router/ranges.ts";
 
 /** Ports. */
 export interface TargetDeps {
-  doc: Pick<DocStore, "block" | "blockText" | "claims">;
+  doc: Pick<DocStore, "block" | "blockText" | "claims" | "section">;
   indexer: Pick<Indexer, "file" | "enclosingSymbol" | "symbols" | "symbol" | "findSymbols" | "search">;
   /** Deny globs of the workspace (`EffectiveSettings.denyGlobs`). */
   deny: readonly Glob[];
@@ -53,6 +57,10 @@ export const TARGET_LIMITS = {
   textChars: 600,
   /** A selection up to this long is taken as a name to look up (longer is prose). */
   selectionNameChars: 80,
+  /** Code spans of the selected lines looked up as symbol names. */
+  spanNames: 8,
+  /** Blocks on each side whose cites are offered as `near` candidates. */
+  nearBlocks: 3,
 } as const;
 
 /** Files a Fix can never write (router UNWRITABLE, loop spec §3.3). */
@@ -70,8 +78,11 @@ const TEST_PATH = /(^|\/)(tests?|__tests__|spec|e2e)\/|_test\.[a-z]+$|\.(test|sp
 
 const IDENT = /[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*/g;
 const CJK_RUN = /[\p{Script=Han}\p{Script=Katakana}ー]{3,}/gu;
+const KANA_HAN = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
 /** A code span / link target that names a repository path, optionally with `:a[-b]` or `#Qual.name`. */
 const REF = /^(?<path>[A-Za-z0-9_.\-/]+?)(?::(?<a>\d+)(?:[-–](?<b>\d+))?|#(?<sym>[A-Za-z_][\w.]*))?$/;
+/** A code span that names a symbol (`Server.handlePicker`, `writeJSON`, `sess.PickerContext()`): the call parens dropped. */
+const SPAN_NAME = /^(?<name>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)(?:\(\))?$/;
 
 const basename = (p: string) => p.slice(p.lastIndexOf("/") + 1);
 const labelOf = (path: RepoPath, start: LineNo, end: LineNo) => `${basename(path)}:${start}${end !== start ? `-${end}` : ""}`;
@@ -102,10 +113,14 @@ export function refsOf(line: string): string[] {
   return out;
 }
 
+/** Whitespace dropped: the block text follows ANCHOR_TEXT_RULES (no space between CJK and Latin, `UXP-24`), the md does not. */
+const squash = (s: string) => s.replace(/\s+/g, "");
+
 /**
  * The Markdown lines the selection lies on: the k-th line containing the selected text, where k counts the earlier
  * occurrences of that text in the block text (the same text twice in a table resolves to the right row). A whole-block
- * selection is every line. When the text spans lines, the lines sharing its longest word.
+ * selection is every line. When the text spans lines, the lines sharing its longest word. Compared without whitespace
+ * (「`openChanges` で」 in the md is 「openChangesで」 in the block text).
  */
 export function selectedLines(md: string, blockText: string, selStart: number, selEnd: number): string[] {
   const lines = md.split("\n");
@@ -113,10 +128,11 @@ export function selectedLines(md: string, blockText: string, selStart: number, s
   if (exact === "" || (selStart <= 0 && selEnd >= blockText.length)) return lines;
   let k = 0;
   for (let at = blockText.indexOf(exact); at >= 0 && at < selStart; at = blockText.indexOf(exact, at + exact.length)) k++;
+  const want = squash(exact);
   const hits: number[] = [];
   lines.forEach((l, i) => {
-    const plain = mdPlain(l);
-    for (let at = plain.indexOf(exact); at >= 0; at = plain.indexOf(exact, at + exact.length)) hits.push(i);
+    const plain = squash(mdPlain(l));
+    for (let at = plain.indexOf(want); at >= 0; at = plain.indexOf(want, at + want.length)) hits.push(i);
   });
   if (hits.length > 0) return [lines[hits[Math.min(k, hits.length - 1)] as number] as string];
   const word = [...exact.split(/\s+/)].sort((a, b) => b.length - a.length)[0] ?? "";
@@ -124,7 +140,6 @@ export function selectedLines(md: string, blockText: string, selStart: number, s
   return lines.filter((l) => mdPlain(l).includes(word));
 }
 
-/** Identifier and CJK terms of the selection, then of the request (deduplicated, stop words dropped). */
 /**
  * A word that names code rather than being prose: `snake_case`, `camelCase`, `Dotted.name`, `ALL_CAPS`, `Capitalized`
  * (Go's exported names), or anything the request puts in backticks. A plain lowercase word (`repo`, `agent`, `auth`)
@@ -134,6 +149,7 @@ export function nameLike(term: string, quoted: ReadonlySet<string> = new Set()):
   return quoted.has(term) || /[_.]|[a-z0-9][A-Z]|^[A-Z]/.test(term);
 }
 
+/** Identifier and CJK terms of the selection, then of the request (deduplicated, stop words dropped). */
 export function termsOf(selection: string, text: string): string[] {
   const out: string[] = [];
   const req = text.slice(0, TARGET_LIMITS.textChars);
@@ -217,29 +233,43 @@ export function resolveCodeTargets(deps: TargetDeps, input: TargetInput): CodeTa
   const selEnd = Math.max(selStart, Math.min(input.selEnd ?? blockText.length, blockText.length));
   const selection = blockText.slice(selStart, selEnd);
 
-  // 1. code references in the selected row / item
+  // 1. code references in the selected row / item / sentence — the ones inside the selection first. A span that is no
+  //    file but names a symbol (`Server.handlePicker`, `sess.PickerContext()`) is looked up exactly: qualname, else
+  //    its last part (generated prose names methods through their receiver variable).
   if (block) {
-    for (const line of selectedLines(block.md, blockText, selStart, selEnd))
-      for (const raw of refsOf(line)) {
-        const m = REF.exec(raw);
-        const g = m?.groups;
-        if (!g?.path) continue;
-        const f = usable(g.path);
-        if (!f) continue;
-        if (g.sym) {
-          const s = deps.indexer.symbols(f.path).find((x) => x.qualname === g.sym || x.name === g.sym);
-          offer(s ? make(f, s.start, s.end, "ref", raw) : null);
-        } else if (g.a) {
-          const a = Number(g.a);
-          offer(g.b ? make(f, a, Number(g.b), "ref", raw) : aroundLine(f, a, "ref", raw));
-        } else if (f.lines <= TARGET_LIMITS.wholeFileMaxLines) offer(make(f, 1, f.lines, "ref", raw));
+    const refs = selectedLines(block.md, blockText, selStart, selEnd).flatMap((line) => refsOf(line));
+    const inSel = (raw: string) => selection.includes(raw.replace(/\(\)$/, ""));
+    const spanNames: string[] = [];
+    for (const raw of [...refs.filter(inSel), ...refs.filter((r) => !inSel(r))]) {
+      const g = REF.exec(raw)?.groups;
+      const f = g?.path ? usable(g.path) : null;
+      if (!g || !f) {
+        const name = SPAN_NAME.exec(raw)?.groups?.name;
+        if (name && name.length >= 3 && !STOP.has(name.toLowerCase()) && !spanNames.includes(name)) spanNames.push(name);
+        continue;
       }
+      if (g.sym) {
+        const s = deps.indexer.symbols(f.path).find((x) => x.qualname === g.sym || x.name === g.sym);
+        offer(s ? make(f, s.start, s.end, "ref", raw) : null);
+      } else if (g.a) {
+        const a = Number(g.a);
+        offer(g.b ? make(f, a, Number(g.b), "ref", raw) : aroundLine(f, a, "ref", raw));
+      } else if (f.lines <= TARGET_LIMITS.wholeFileMaxLines) offer(make(f, 1, f.lines, "ref", raw));
+    }
+    for (const name of spanNames.slice(0, TARGET_LIMITS.spanNames)) {
+      const last = name.split(".").pop() as string;
+      const hits = deps.indexer.findSymbols(last, TARGET_LIMITS.hitsPerTerm).filter((x) => x.name === last);
+      const exact = hits.filter((x) => x.qualname === name || x.name === name);
+      for (const x of exact.length > 0 ? exact : name.includes(".") ? hits : []) offer(ofSymbol(x, "ref", name));
+    }
   }
 
   // 2. symbols named exactly, 3. full-text hits — selection terms first, then the request's
-  // a short selection names something (`TSUNDOKU_API_TOKEN`); a whole block / long passage is prose, not a name
+  // a short selection names something (`TSUNDOKU_API_TOKEN`, `Client.Fetch`); a whole block, a long passage or a
+  // Japanese sentence is prose — its names are the code spans of tier 1 (「…で VCS を得て」 is not a lookup of `VCS`)
   const wholeBlock = selStart === 0 && selEnd >= blockText.length;
-  const named = !wholeBlock && selection.length <= TARGET_LIMITS.selectionNameChars ? selection : "";
+  const prose = wholeBlock || selection.length > TARGET_LIMITS.selectionNameChars || KANA_HAN.test(selection);
+  const named = prose ? "" : selection;
   const terms = termsOf(named, input.text ?? "");
   for (const term of terms) {
     if (!/^[A-Za-z_]/.test(term)) continue;
@@ -262,7 +292,23 @@ export function resolveCodeTargets(deps: TargetDeps, input: TargetInput): CodeTa
     return f ? aroundLine(f, Number(m[2]), "search", term) : null;
   }
 
-  // by evidence (the row's own reference > an exact name > a text match); inside a tier, distinct files first
+  // 4. the cites of the nearest blocks of the same section (structure, not words: only when the tiers above are short)
+  if (block && found.length < limit) {
+    const blocks = deps.doc.section(block.section)?.blocks ?? [];
+    const at = blocks.findIndex((b) => b.id === block.id);
+    if (at >= 0)
+      for (let d = 1; d <= TARGET_LIMITS.nearBlocks && found.length < limit; d++)
+        for (const nb of [blocks[at - d], blocks[at + d]]) {
+          if (!nb) continue;
+          for (const r of mergeRanges(cites(nb.id).map((c) => ({ path: c.path, start: c.start, end: c.end })))) {
+            const f = usable(r.path);
+            if (f) offer(make(f, r.start, r.end, "near"));
+          }
+        }
+  }
+
+  // by evidence (the row's own reference > an exact name > a text match > a neighbour's cite); inside a tier, distinct
+  // files first
   const out: CodeTarget[] = [];
   // tests come after the code they test (a Fix rarely means the test), unless the request is about tests
   const aboutTests = /test|テスト/i.test(input.text ?? "");
@@ -271,7 +317,7 @@ export function resolveCodeTargets(deps: TargetDeps, input: TargetInput): CodeTa
     const first = of.filter((t, i) => of.findIndex((x) => x.path === t.path) === i);
     return [...first, ...of.filter((t) => !first.includes(t))];
   };
-  for (const tier of ["ref", "symbol", "search"] as const) {
+  for (const tier of ["ref", "symbol", "search", "near"] as const) {
     const all = found.filter((t) => t.source === tier);
     if (aboutTests) out.push(...distinctFirst(all));
     else out.push(...distinctFirst(all.filter((t) => !isTest(t))), ...distinctFirst(all.filter(isTest)));

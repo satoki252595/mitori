@@ -1,12 +1,13 @@
 /**
  * UX drive (finishing pass, track ux): the concept's loop through the REAL web UI (installed Google Chrome via
- * Playwright, 1440×900, light), the in-process daemon and the scripted claude of `ux-router.ts` — zero tokens.
+ * Playwright, 1440×900, light or `--scheme dark`), the in-process daemon and the scripted claude of `ux-router.ts` — zero tokens.
  *
  *   scripts/nd bun scripts/gen-assets.ts && scripts/nd bun test/int/shots/ux.ts [--out docs/progress/ux]
  *
  * A. Fix on a static facts row WITHOUT `@`: the row's own code is offered (⌥1 picks it) → estimate → job → the AI's
  *    doc edit shows IN the prose as a suggestion → Review (decluttered header) → accept.
- * B. Fix on a heading: nothing to point at ⇒ the Composer says how (no estimate request, no 412).
+ * B. Fix on an uncited sentence: nothing to point at ⇒ the Composer says how (no estimate request, no 412); on ⤴ it
+ *    says the pick would not travel (WRITE -) and offers ⚡ back.
  * C. Co-editing: the human writes a cited sentence into the doc (「設計書を直す」) → a Fix on it has its 対象コード
  *    automatically (the cite) → the AI's rewrite of the sentence is accepted on its own after the code (✓ in prose).
  * D. Explain → 「文書に追記」 → the INSERT proposal shows after its block → ✕ rejects it.
@@ -67,7 +68,8 @@ const { ws } = await int.open(repo.root);
 const api = <T = J>(m: string, p: string, b?: unknown) => int.json<T>(m, `/ws/${ws}${p}`, b);
 const nonce = await int.json<{ url: string }>("POST", "/auth/nonce", { to: `/w/${ws}` });
 
-const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: "light" });
+const scheme = opt("--scheme", "light") === "dark" ? "dark" : "light";
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: scheme });
 const page = await ctx.newPage();
 const consoleErrors: string[] = [];
 const badResponses: string[] = [];
@@ -159,7 +161,7 @@ try {
   const tOpen = performance.now();
   await page.keyboard.press("f");
   await composer().waitFor();
-  await composer().getByText("この行が指す場所").first().waitFor({ timeout: 5000 });
+  await composer().getByText("本文が指す場所").first().waitFor({ timeout: 5000 });
   steps.targetsShownMs = ms(tOpen);
   await sleep(300);
   const quote = await composer().locator("blockquote.cm-q").innerText();
@@ -227,6 +229,16 @@ try {
   check(!reqsSince(r1).some((r) => r.includes("/jobs/estimate")), "no estimate request for a Fix with nothing to write");
   check(!(await composer().locator("button.send").isEnabled()), "send stays disabled");
   await shot("ux-06-fix-no-target-hint");
+  // your own session (⤴) would get WRITE - for an uncited sentence: the Composer says so and offers ⚡ back
+  await composer().locator("button.path").click();
+  await composer().getByText("自分のセッションやコピーでは書き込み先が空").waitFor({ timeout: 3000 });
+  check(!(await composer().locator("button.send").isEnabled()), "send stays disabled on ⤴ for an uncited Fix");
+  await sleep(200);
+  await shot("ux-13-fix-push-only");
+  await composer()
+    .getByRole("button", { name: /その場で実行にする/ })
+    .click();
+  await composer().locator(".tg-none", { hasText: "@ でコードを指す" }).waitFor({ timeout: 3000 });
   await page.keyboard.press("Escape");
   await sleep(300);
 
