@@ -47,10 +47,36 @@
 /* the excerpt's lines are blocks and the markup separates them with newlines: no blank line between them */
 .pop.peek pre.peek-code {
   white-space: normal;
+  tab-size: 4;
 }
 .pop.peek pre.peek-code [data-line] {
   white-space: pre;
   min-height: 1lh;
+}
+/* a line-number gutter (the peek is read without the file next to it: the numbers are how a reader says 「:182 の行」) */
+.pop.peek pre.peek-code [data-line]::before {
+  content: attr(data-line);
+  display: inline-block;
+  box-sizing: content-box;
+  width: 5ch;
+  padding: 0 12px 0 4px;
+  text-align: right;
+  color: var(--faint);
+  user-select: none;
+}
+.pop.peek pre.peek-code [data-line].hi::before {
+  color: var(--muted);
+}
+/* the header keeps the whole path:range and gives up the symbol / precision / blob part first */
+.pop.peek .peek-h > .p {
+  flex: none;
+  max-width: calc(100% - 5em);
+}
+.pop.peek .peek-h > .m {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ---------------------------------------------------------------- syntax colours: the exporter's one-letter classes (SHIKI_CLASSES) */

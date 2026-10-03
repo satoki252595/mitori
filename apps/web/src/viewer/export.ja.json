@@ -22,12 +22,12 @@
   "export.map.hint": "部屋をダブルクリック（またはEnter）すると、その節へ移動します。",
   "export.map.none": "この書き出しには見取り図がありません。代わりに節の一覧です。",
   "export.map.quick": "5分で分かる",
+  "export.map.readDoc": "設計書を読む",
   "export.map.tile.claims": "主張",
   "export.map.tile.files": "ファイル",
   "export.map.tile.loc": "行",
   "export.map.tile.modules": "モジュール",
   "export.map.tile.verified": "確認済",
-  "export.map.readDoc": "設計書を読む",
   "export.path.done": "読み終えました",
   "export.path.left": "残り約{min}分",
   "export.path.none": "読書パスはありません",
@@ -37,5 +37,11 @@
   "export.search.foot": "この書き出しの中だけを検索",
   "export.search.placeholder": "節・用語・本文を検索…",
   "export.search.text": "本文",
-  "export.verdict.note": "この書き出しは読み取り専用です。確かめる・質問するはmitori本体で行います。"
+  "export.verdict.note": "この書き出しは読み取り専用です。確かめる・質問するはmitori本体で行います。",
+  "export.view.dark": "ダーク",
+  "export.view.lang": "言語",
+  "export.view.light": "ライト",
+  "export.view.system": "自動",
+  "export.view.theme": "テーマ",
+  "export.view.title": "表示"
 }

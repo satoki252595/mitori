@@ -3,11 +3,11 @@
   Same markup and styling as shell/Rail.svelte; the data is the payload and the links are hash routes.
 -->
 <script lang="ts">
-import type { SectionId } from "@mitori/core";
+import type { ReaderLevel, SectionId, UiLang } from "@mitori/core";
 import { readingMinutes, subtreeStats, tocState } from "../reader/outline.ts";
 import { t } from "../shell/index.ts";
 import { formatHash } from "./route.ts";
-import { useViewer } from "./state.svelte.ts";
+import { type Theme, useViewer } from "./state.svelte.ts";
 
 let { mode }: { mode: "inline" | "drawer" } = $props();
 const v = useViewer();
@@ -80,6 +80,15 @@ $effect(() => {
 });
 
 const counts = outline.counts;
+
+// below 1024 px the header has no room for the level / theme / language switches (base.css): the drawer carries them,
+// so a reader on a phone or a tablet can still pick 初めて (there is no ⌘K on a touch screen)
+const LEVELS: readonly ReaderLevel[] = ["newcomer", "standard", "expert"];
+const THEMES: readonly Theme[] = ["system", "light", "dark"];
+const LANGS: readonly { id: UiLang; label: string }[] = [
+  { id: "ja", label: "日本語" },
+  { id: "en", label: "English" },
+];
 </script>
 
 <aside class="rail" data-mode={mode} data-open={v.railOpen ? "" : undefined} aria-label={t("rail.label")} data-chrome>
@@ -112,6 +121,43 @@ const counts = outline.counts;
       </div>
     {/if}
   </section>
+
+  {#if mode === "drawer"}
+    <section class="vview" aria-label={t("export.view.title")}>
+      <div class="vrow">
+        <span class="vlab">{t("level.label")}</span>
+        <div class="seg vseg" role="radiogroup" aria-label={t("level.label")}>
+          {#each LEVELS as l (l)}
+            <label class:on={v.level === l}
+              ><input type="radio" name="mitori-level-drawer" value={l} checked={v.level === l} onchange={() => v.setLevel(l)} /><span>{t(`level.${l}`)}</span></label
+            >
+          {/each}
+        </div>
+      </div>
+      <div class="vrow">
+        <span class="vlab">{t("export.view.theme")}</span>
+        <div class="seg vseg" role="radiogroup" aria-label={t("export.view.theme")}>
+          {#each THEMES as th (th)}
+            <label class:on={v.theme === th}
+              ><input type="radio" name="mitori-theme-drawer" value={th} checked={v.theme === th} onchange={() => v.setTheme(th)} /><span
+                >{t(`export.view.${th}`)}</span
+              ></label
+            >
+          {/each}
+        </div>
+      </div>
+      <div class="vrow">
+        <span class="vlab">{t("export.view.lang")}</span>
+        <div class="seg vseg" role="radiogroup" aria-label={t("export.view.lang")}>
+          {#each LANGS as lg (lg.id)}
+            <label class:on={v.lang === lg.id} lang={lg.id}
+              ><input type="radio" name="mitori-lang-drawer" value={lg.id} checked={v.lang === lg.id} onchange={() => v.setLang(lg.id)} /><span>{lg.label}</span></label
+            >
+          {/each}
+        </div>
+      </div>
+    </section>
+  {/if}
 
   <nav class="toc-wrap" aria-label={t("toc.label")} bind:this={tocWrap}>
     <h2 class="rail-label">{t("toc.label")}</h2>
@@ -238,6 +284,45 @@ const counts = outline.counts;
     background: var(--sheet);
     color: var(--muted);
     height: 24px;
+  }
+  .vview {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 2px 0 12px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  /* the header still has the switches from 1024 px up (a drawer between 1024 and 1099 does not repeat them) */
+  @media (min-width: 1024px) {
+    .vview {
+      display: none;
+    }
+  }
+  .vrow {
+    display: grid;
+    grid-template-columns: 4.5em minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+  }
+  .vlab {
+    font-size: var(--fs-meta);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .vseg {
+    height: 32px;
+    min-width: 0;
+  }
+  .vseg label {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    padding: 0 6px;
+  }
+  .vseg label span {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .toc-wrap {
     flex: 1 1 0;

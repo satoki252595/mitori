@@ -22,12 +22,12 @@
   "export.map.hint": "Double-click a room (or press Enter) to go to its section.",
   "export.map.none": "This export has no map. Here are the sections instead.",
   "export.map.quick": "Understand in 5 minutes",
+  "export.map.readDoc": "Read the document",
   "export.map.tile.claims": "claims",
   "export.map.tile.files": "files",
   "export.map.tile.loc": "lines",
   "export.map.tile.modules": "modules",
   "export.map.tile.verified": "verified",
-  "export.map.readDoc": "Read the document",
   "export.path.done": "You have read this path",
   "export.path.left": "About {min} min left",
   "export.path.none": "No reading path",
@@ -37,5 +37,11 @@
   "export.search.foot": "Searches this export only",
   "export.search.placeholder": "Search sections, terms, text…",
   "export.search.text": "Text",
-  "export.verdict.note": "This export is read-only. Checking and asking happen in mitori itself."
+  "export.verdict.note": "This export is read-only. Checking and asking happen in mitori itself.",
+  "export.view.dark": "Dark",
+  "export.view.lang": "Language",
+  "export.view.light": "Light",
+  "export.view.system": "Auto",
+  "export.view.theme": "Theme",
+  "export.view.title": "View"
 }

@@ -22,6 +22,11 @@ provideViewer(v);
 
 const layout = $derived(computeLayout(v.width, "doc", "margin", 0, false));
 const map = $derived(v.route.name === "map");
+// the map has no rail column; below 1024 px (no level / theme / language in the header) it still has the drawer
+const drawer = $derived(map ? v.width < 1024 : layout.railMode === "drawer");
+$effect(() => {
+  if (!drawer) v.railOpen = false;
+});
 const meta = $derived(v.payload.meta);
 const exported = $derived(
   new Date(meta.exportedAt).toLocaleString(v.lang === "ja" ? "ja-JP" : "en-US", {
@@ -81,7 +86,7 @@ function skip(e: Event) {
 
 <div class="app viewer" data-mode="viewer">
   <a class="skip" href="#main" onclick={skip}>{t("a11y.skip")}</a>
-  <ViewerHeader />
+  <ViewerHeader {drawer} />
   <div class="vband" role="status">
     <b>{t("export.band.readonly")}</b>
     <span class="sep" aria-hidden="true">&middot;</span><span>{exported}</span>
@@ -93,15 +98,16 @@ function skip(e: Event) {
     <div class="body map-body" style:grid-template-columns="minmax(0,1fr)">
       <ViewerMap />
     </div>
+    {#if drawer}<ViewerRail mode="drawer" />{/if}
   {:else}
     <div class="body reader-body" style:grid-template-columns="{layout.rail}px minmax(0,1fr) {v.width >= 1024 ? layout.ctx : 0}px">
       <ViewerRail mode={layout.railMode} />
       <ViewerReader />
     </div>
-    {#if v.railOpen && layout.railMode === "drawer"}
-      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-      <div class="scrim drawer-scrim" onclick={() => (v.railOpen = false)}></div>
-    {/if}
+  {/if}
+  {#if v.railOpen && drawer}
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div class="scrim drawer-scrim" onclick={() => (v.railOpen = false)}></div>
   {/if}
   {#if v.paletteOpen}<ViewerPalette />{/if}
   {#if v.helpOpen}<ViewerHelp />{/if}

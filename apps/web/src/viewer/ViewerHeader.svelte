@@ -9,6 +9,9 @@ import { t } from "../shell/index.ts";
 import { formatHash } from "./route.ts";
 import { useViewer } from "./state.svelte.ts";
 
+/** The rail is a drawer (the window is too narrow for it inline): the menu button opens it — at any width, so the
+ * 1,100–1,231 px windows where the doc's three columns do not fit but the header is still wide keep their TOC. */
+let { drawer }: { drawer: boolean } = $props();
 const v = useViewer();
 const LEVELS: ReaderLevel[] = ["newcomer", "standard", "expert"];
 const themeNext = $derived(v.theme === "system" ? "light" : v.theme === "light" ? "dark" : "system");
@@ -19,7 +22,7 @@ const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator
 
 <header class="hdr" data-chrome>
   <div class="hdr-l">
-    <button type="button" class="icon-btn menu-btn show" aria-label={t("header.menu")} aria-expanded={v.railOpen} onclick={() => (v.railOpen = !v.railOpen)}><Icon name="menu" /></button>
+    <button type="button" class="icon-btn menu-btn" class:show={drawer} aria-label={t("header.menu")} aria-expanded={drawer ? v.railOpen : undefined} onclick={() => (v.railOpen = !v.railOpen)}><Icon name="menu" /></button>
     <a class="brand" href="#/" aria-label={t("brand.name")} onclick={(e) => { e.preventDefault(); v.go(v.home()); }}>
       <span class="brand-ja" data-brand>{t("brand.name")}</span><span class="brand-en">{t("brand.latin")}</span>
     </a>
@@ -62,12 +65,7 @@ const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator
     background: transparent;
   }
   .menu-btn.show {
-    display: none;
-  }
-  @media (max-width: 1099px) {
-    .menu-btn.show {
-      display: grid;
-    }
+    display: grid;
   }
   @media (max-width: 1280px) {
     .search span {
