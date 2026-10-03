@@ -8,9 +8,9 @@
 //   secrets           the `secrets` fixture, its source and its doc full of planted secrets and `</script>`
 //   MITORI_E2E_CHANNEL=chrome scripts/nd bun run e2e --grep @export
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test, webkit } from "@playwright/test";
 import { checkBudget, envFactor } from "../harness/metrics.ts";
 import { type BuiltExport, buildCase } from "./support/build-exports.ts";
 import { collect, openExport } from "./support/page.ts";
@@ -165,6 +165,53 @@ test.describe("@export opening", () => {
     await page.close();
   });
 
+  test("@export Safari's engine (WebKit): the reader, a level switch, a cite peek and the map work; nothing leaves the file; the CSP holds", async () => {
+    const b = need("crit");
+    test.skip(!existsSync(webkit.executablePath()), "WebKit is not installed (scripts/nd bunx playwright install webkit)");
+    // the suite pins `channel: "chrome"` for chromium and WebKit has no channels: name the WebKit binary itself
+    const browser = await webkit.launch({ executablePath: webkit.executablePath() });
+    try {
+      const ctx = await browser.newContext({ locale: "ja-JP", viewport: { width: 1440, height: 900 } });
+      // WebKit's offline emulation refuses file:// as well: cut the network by routing instead, and record every attempt
+      const network: string[] = [];
+      await ctx.route(/^(?:https?|wss?|ftp):/i, (r) => {
+        network.push(r.request().url());
+        return r.abort();
+      });
+      const page = await ctx.newPage();
+      const errors: string[] = [];
+      page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+      page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+      await page.goto(`file://${b.file}#/s3`);
+      await page.waitForSelector(".blk");
+      await expect(page.locator("h1").first()).toHaveText("主要な流れ");
+      expect(await page.locator("figure.mdiagram svg.dg").count()).toBeGreaterThan(0);
+      await page.locator(".seg.level label", { hasText: "初めて" }).click();
+      await expect(page.locator("html")).toHaveAttribute("data-level", "newcomer");
+      await page.locator(".seg.level label", { hasText: "標準" }).click();
+      const chip = page.locator(".blk a.mcite").first();
+      await chip.scrollIntoViewIfNeeded();
+      await chip.hover();
+      await expect(page.locator(".pop.peek .peek-code [data-line].hi").first()).toBeVisible();
+      await page.mouse.move(5, 500);
+      await page.keyboard.press("Escape");
+      await page.locator('.tab[href="#/map"]').click();
+      await expect(page.locator("svg.plan .room").first()).toBeVisible();
+      const injected = await page.evaluate(async () => {
+        const s = document.createElement("script");
+        s.textContent = "window.__x = 1";
+        document.head.appendChild(s);
+        await new Promise((res) => setTimeout(res, 50));
+        return (window as unknown as { __x?: number }).__x ?? null;
+      });
+      expect(injected, "an injected inline script ran: the CSP does not hold in WebKit").toBeNull();
+      expect(errors.filter((e) => !/Content Security Policy|Refused to execute/i.test(e))).toEqual([]);
+      expect(network).toEqual([]);
+    } finally {
+      await browser.close();
+    }
+  });
+
   test("@export the daemon route: GET /export/html downloads the same document in the asked level and language", async ({ context }) => {
     const meta = JSON.parse(readFileSync(`${OUT}/rich.json`, "utf8")) as { download: { status: number; type: string; disposition: string } };
     expect(meta.download.status).toBe(200);
@@ -309,9 +356,19 @@ test.describe("@export reading", () => {
     expect(Math.max(...heights)).toBeLessThan(40);
     const r = await peek.boundingBox();
     expect(r && r.x >= 0 && r.x + r.width <= 1440 && r.y >= 0).toBe(true);
-    // the header says which file and range, the footer which checks passed
+    // the header says which file and range — the whole of it, the symbol / blob part gives way first — the footer which checks passed
     await expect(peek.locator(".peek-h .p")).toContainText(".go");
+    // (sub-pixel: an ellipsis shows as soon as the text is 0.1 px wider than its box, which scrollWidth rounds away)
+    expect(await peek.locator(".peek-h .p").evaluate((e) => getComputedStyle(e).flexShrink)).toBe("0");
+    expect(await peek.locator(".peek-h .p").evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
     await expect(peek.locator(".peek-f")).toContainText("範囲は実在");
+    // every line carries its number in a gutter (the code does not touch the edge), tabs are 4 wide
+    const gutter = await lines.evaluateAll((els) =>
+      els.map((e) => ({ n: (e as HTMLElement).dataset.line, before: getComputedStyle(e, "::before").content, w: getComputedStyle(e, "::before").width })),
+    );
+    for (const g of gutter) expect(g.before).toBe(`"${g.n}"`);
+    expect(new Set(gutter.map((g) => g.w)).size).toBe(1);
+    expect(await peek.locator(".peek-code").evaluate((e) => getComputedStyle(e).tabSize)).toBe("4");
     await info.attach("peek", { body: await page.screenshot(), contentType: "image/png" });
     await peek.hover();
     await expect(peek).toBeVisible();
@@ -322,6 +379,20 @@ test.describe("@export reading", () => {
     await page.keyboard.press("Escape");
     await expect(peek).toHaveCount(0);
     expect((await collect(page, watch)).network).toEqual([]);
+    await page.close();
+  });
+
+  test("@export the expert level shows each block's line in its Markdown file, never a made-up L0", async ({ context }) => {
+    const b = need("crit");
+    const { page } = await openExport(context, b.file, "#/s3");
+    await page.locator(".seg.level label", { hasText: "詳しい" }).click();
+    const lns = await page.locator(".blk > .mb").evaluateAll((els) => els.map((e) => e.getAttribute("data-ln")));
+    const known = lns.filter((x): x is string => x !== null);
+    expect(known.length).toBeGreaterThan(lns.length / 2);
+    for (const ln of known) expect(Number(ln)).toBeGreaterThan(0);
+    // `## 3.1 ピッカー一覧の取得 <!-- b_av7pbgz4 -->` is line 5 of docs/progress/dogfood/crit/doc/03-key-flows.md
+    await expect(page.locator('.mb[data-block="b_av7pbgz4"]')).toHaveAttribute("data-ln", "5");
+    expect(await page.locator('.mb[data-ln="0"]').count()).toBe(0);
     await page.close();
   });
 
@@ -534,6 +605,12 @@ test.describe("@export chrome", () => {
     await page.locator(".blk").first().click();
     for (const k of ["c", "f", "e"]) await page.keyboard.press(k);
     expect(await page.locator("textarea, .composer").count()).toBe(0);
+    // nothing tells the reader to press a button the file does not have (「生成する」, 「決定として残す」)
+    await expect(page.locator(".ph").first()).toContainText("書き出した時点ではまだ生成されていませんでした");
+    for (const file of [RICH, built.crit?.file, built["m3e-canvas"]?.file].filter((f): f is string => !!f)) {
+      const html = readFileSync(file, "utf8");
+      for (const s of ["で作られます", "決定として残す", "Use “Generate"]) expect(html.includes(s), `${s} in ${file}`).toBe(false);
+    }
     await page.close();
   });
 
@@ -566,7 +643,70 @@ test.describe("@export chrome", () => {
     await page.locator('.toc a[data-toc="s9"]').click();
     await expect(page.locator(".rail")).toBeHidden();
     await expect(page.locator(".sec-num").first()).toHaveText("§9");
+    // the header has no room for the level / theme / language switches here: the drawer has them (no ⌘K on a phone)
+    await expect(page.locator(".hdr .seg.level")).toBeHidden();
+    await page.locator(".menu-btn").click();
+    const view = page.locator(".rail .vview");
+    await expect(view).toBeVisible();
+    await view.locator("label", { hasText: "初めて" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-level", "newcomer");
+    await view.locator("label", { hasText: "ダーク" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await view.locator("label", { hasText: "English" }).click();
+    await expect(page.locator(".vband")).toContainText("Read-only export");
+    await expect(view.locator("label.on")).toHaveText(["Newcomer", "Dark", "English"]);
+    await view.locator("label", { hasText: "Standard" }).click();
+    await view.locator("label", { hasText: "Auto" }).click();
+    await view.locator("label", { hasText: "日本語" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-level", "standard");
+    expect(await page.locator("html").getAttribute("data-theme")).toBeNull();
+    // a phone (390 px): the drawer still has them, and nothing is cut sideways
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(view).toBeVisible();
+    expect(await view.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
     await ctx.close();
+  });
+
+  test("@export every width reaches the TOC: a 1,200 px laptop window opens the rail from the menu button, the map has the drawer on a phone", async ({
+    browser,
+  }) => {
+    const laptop = await browser.newContext({ viewport: { width: 1200, height: 800 }, locale: "ja-JP" });
+    const { page } = await openExport(laptop, RICH, "#/s3");
+    // the three columns do not fit (rail + 672 + margin): the rail is a drawer, so the menu button must be there
+    await expect(page.locator(".rail")).toBeHidden();
+    await expect(page.locator(".menu-btn")).toBeVisible();
+    await expect(page.locator(".hdr .seg.level")).toBeVisible();
+    await page.locator(".menu-btn").click();
+    await expect(page.locator(".rail")).toBeVisible();
+    await expect(page.locator(".rail .vview")).toBeHidden(); // the header still has the switches at this width
+    await page.locator('.toc a[data-toc="s1"]').click();
+    await expect(page.locator(".rail")).toBeHidden();
+    await expect(page.locator(".sec-num").first()).toHaveText("§1");
+    await laptop.close();
+    // wide enough for the rail inline: no menu button
+    const wide = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: "ja-JP" });
+    const w = await openExport(wide, RICH, "#/s3");
+    await expect(w.page.locator(".rail")).toBeVisible();
+    await expect(w.page.locator(".menu-btn")).toBeHidden();
+    await wide.close();
+    // a phone on the map: the drawer has the TOC and the level / theme / language switches too
+    const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "ja-JP" });
+    const m = await openExport(phone, RICH, "#/map");
+    await m.page.locator(".menu-btn").click();
+    await expect(m.page.locator(".rail .vview")).toBeVisible();
+    await m.page.locator(".rail .vview label", { hasText: "初めて" }).click();
+    await expect(m.page.locator("html")).toHaveAttribute("data-level", "newcomer");
+    await m.page.locator('.toc a[data-toc="s3"]').click();
+    await expect(m.page.locator(".sec-num").first()).toHaveText("§3");
+    await expect(m.page.locator(".rail")).toBeHidden();
+    await phone.close();
+  });
+
+  test("@export wide window: the switches stay in the header, the drawer does not repeat them", async ({ context }) => {
+    const { page } = await openExport(context, RICH, "#/s3");
+    await expect(page.locator(".hdr .seg.level")).toBeVisible();
+    expect(await page.locator(".rail .vview").count()).toBe(0);
+    await page.close();
   });
 });
 
