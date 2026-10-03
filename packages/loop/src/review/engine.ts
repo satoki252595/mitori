@@ -671,11 +671,18 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
           params: { estimate: est.est.batchTokens, estimateId: est.est.estimateId },
         });
       }
+      const before = new Map<ThreadId, Pick<Thread, "round" | "batchRound">>();
       const round = await deps.write("review.finish", () =>
         mutate(() => {
           const rec = ensureCollecting();
           const n = rec.round.n;
-          for (const t of targets) save({ ...fire(load(t.id), "dispatch", "human"), batchRound: n, round: n });
+          for (const t of targets) {
+            const cur = load(t.id);
+            const prev: Pick<Thread, "round" | "batchRound"> = { round: cur.round };
+            if (cur.batchRound !== undefined) prev.batchRound = cur.batchRound;
+            before.set(t.id, prev);
+            save({ ...fire(cur, "dispatch", "human"), batchRound: n, round: n });
+          }
           rec.round = { ...rec.round, mode: "push", state: "dispatched", threads: targets.map((t) => t.id), approved: false };
           putRound(rec);
           ensureCollecting();
@@ -697,7 +704,16 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
               for (const id of p.threads) {
                 const t = store.thread(id)?.thread;
                 if (t?.state !== "queued") continue;
-                save(fire(t, "cancel", "system"));
+                // Never sent: undo the dispatch bookkeeping too, or the next pull round would mark the thread
+                // carried and skip the messages no agent has seen.
+                const back = fire(t, "cancel", "system");
+                const prev = before.get(id);
+                if (prev) {
+                  back.round = prev.round;
+                  if (prev.batchRound === undefined) delete back.batchRound;
+                  else back.batchRound = prev.batchRound;
+                }
+                save(back);
                 addMessage_(id, "system", "system", `R${round.n} のジョブを作成できませんでした（${msg}）`);
               }
             }),

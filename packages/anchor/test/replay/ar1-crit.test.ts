@@ -119,19 +119,23 @@ function loadPair(k: number): Pair {
 
 const textOf = (lines: readonly string[]) => (lines.length === 0 ? "" : `${lines.join("\n")}\n`);
 
-/** Code ranges for one commit: 100 random + 50 symbol bodies over the files the commit changes. */
+/** Code ranges for one commit: 100 random + 50 symbol bodies (random ranges when the files have none, e.g. Nix/CSS). */
 function codeRanges(r: () => number, p: Pair): { path: string; start: number; end: number }[] {
   const files = p.changes.filter((c) => c.status !== "A" && (p.before.get(c.path)?.length ?? 0) > 0);
   if (files.length === 0) return [];
   const out: { path: string; start: number; end: number }[] = [];
-  for (let i = 0; i < 100; i++) {
+  const random = (i: number) => {
     const c = files[i % files.length] as Change;
     const lines = p.before.get(c.path) as string[];
     const s = int(r, 1, lines.length);
     out.push({ path: c.path, start: s, end: Math.min(lines.length, s + int(r, 0, 29)) });
-  }
+  };
+  for (let i = 0; i < 100; i++) random(i);
   const syms = files.flatMap((c) => functions(p.before.get(c.path) as string[]).map((f) => ({ path: c.path, ...f })));
-  for (let i = 0; i < 50 && syms.length > 0; i++) out.push(syms[int(r, 0, syms.length - 1)] as (typeof out)[number]);
+  for (let i = 0; i < 50; i++) {
+    if (syms.length > 0) out.push(syms[int(r, 0, syms.length - 1)] as (typeof out)[number]);
+    else random(100 + i);
+  }
   return out;
 }
 
@@ -293,6 +297,7 @@ describe.skipIf(!RUN)("AR1 crit history replay (40 commits)", () => {
       replayDoc(r, p, t);
     }
     report("200/commit", t);
+    expect(t.inputs).toBeGreaterThanOrEqual(40 * 200 * 0.95); // 200 per commit unless a commit has no prose block
     expect(t.outputs).toBe(t.inputs);
     expect(t.remain).toBeGreaterThanOrEqual(100);
     expect(t.rate()).toBeGreaterThanOrEqual(0.95);

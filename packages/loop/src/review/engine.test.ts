@@ -197,6 +197,12 @@ describe("LOOP §2.4 Finish (push)", () => {
     expect(engine.get(q.id)?.state).toBe("open");
     expect(engine.get(q.id)?.messages.at(-1)).toMatchObject({ by: "system", kind: "system" });
     expect(engine.get(c.id)?.state).toBe("queued");
+    // Never sent ⇒ not "carried": the next pull round shows the original question.
+    const back = engine.get(q.id);
+    expect([back?.round, back?.batchRound]).toEqual([1, undefined]);
+    await engine.finish({ mode: "pull", threads: [q.id] });
+    const res2 = await engine.wait(2, 10, new AbortController().signal);
+    expect(res2.stdout).toContain(`## ${q.id} question R2 internal/meta/fetch.go:40-52\n> q\n`);
   });
 });
 
