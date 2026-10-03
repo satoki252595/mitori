@@ -152,6 +152,32 @@ describe("CONS-13 pin store: old blob text survives uncommitted saves", () => {
     expect((await idx.symbolsAt("src/gone.ts", gone))?.map((s) => s.qualname)).toEqual(["gone"]);
   });
 
+  test("update() does not wait for the pin write; blobText() serves the text while the write is queued", async () => {
+    const repo = tempRepo({ "q.ts": "export const q = 0;\n" });
+    cleanup.push(() => repo.dispose());
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    const deps = testDeps(repo.root);
+    const write = deps.write;
+    deps.write = (label, fn) => (label === "idx.pin.save" ? gate.then(() => write(label, fn)) : write(label, fn));
+    const idx = createIndexer(deps);
+    cleanup.push(() => idx.close());
+    await idx.scan();
+    repo.write("q.ts", "export const q = 1;\n");
+    await idx.update([{ kind: "change", path: "q.ts" }]);
+    const first = idx.currentBlob("q.ts") as string;
+    repo.write("q.ts", "export const q = 2;\n");
+    await idx.update([{ kind: "change", path: "q.ts" }]);
+    expect(await idx.blobText(first)).toBe("export const q = 1;\n"); // pin rows not written yet
+    expect(deps.db.get("SELECT 1 AS n FROM idx_blob_text WHERE blob = ?", [first])).toBeNull();
+    release();
+    const stored = () => deps.db.get<{ n: number }>("SELECT 1 AS n FROM idx_blob_text WHERE blob = ? AND bytes IS NOT NULL", [first])?.n;
+    for (let i = 0; i < 400 && stored() === undefined; i++) await Bun.sleep(5);
+    expect(stored()).toBe(1);
+  });
+
   test("pinBlobs() captures a dirty text the background pinning has not reached yet", async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => {

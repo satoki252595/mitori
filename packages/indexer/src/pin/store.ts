@@ -45,30 +45,33 @@ export function createPinStore(db: SqlDb, write: WriteQueue, clock: Clock, metri
       metrics.inc("idx.sql.writes");
       return r.changes;
     });
+  // Texts whose write is still queued: readers see them at once, so callers need not wait for the write queue (a row
+  // whose write failed stays here for the life of the process).
+  const pending = new Map<GitOid, Uint8Array>();
+  const saveRows = (rows: readonly { blob: GitOid; bytes: Uint8Array }[]): Promise<void> => {
+    if (rows.length === 0) return Promise.resolve();
+    for (const r of rows) pending.set(r.blob, r.bytes);
+    return write("idx.pin.save", () => {
+      const now = clock.now();
+      db.tx(() => {
+        for (const r of rows) upsert(r.blob, r.bytes, now);
+      });
+      for (const r of rows) if (pending.get(r.blob) === r.bytes) pending.delete(r.blob);
+      metrics.inc("idx.blob.pinned", rows.length);
+      metrics.inc("idx.sql.writes");
+    });
+  };
   return {
-    save(blob, bytes) {
-      return write("idx.pin.save", () => {
-        upsert(blob, bytes, clock.now());
-        metrics.inc("idx.blob.pinned");
-        metrics.inc("idx.sql.writes");
-      });
-    },
-    saveMany(rows) {
-      if (rows.length === 0) return Promise.resolve();
-      return write("idx.pin.save", () => {
-        const now = clock.now();
-        db.tx(() => {
-          for (const r of rows) upsert(r.blob, r.bytes, now);
-        });
-        metrics.inc("idx.blob.pinned", rows.length);
-        metrics.inc("idx.sql.writes");
-      });
-    },
+    save: (blob, bytes) => saveRows([{ blob, bytes }]),
+    saveMany: saveRows,
     get(blob) {
+      const p = pending.get(blob);
+      if (p !== undefined) return p;
       const row = db.get<{ bytes: Uint8Array | null }>(`SELECT bytes FROM idx_blob_text WHERE blob = ?`, [blob]);
       return row?.bytes ?? null;
     },
     has(blob) {
+      if (pending.has(blob)) return true;
       return db.get<{ n: number }>(`SELECT 1 AS n FROM idx_blob_text WHERE blob = ? AND bytes IS NOT NULL`, [blob]) !== null;
     },
     pin(blobs) {

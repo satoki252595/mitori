@@ -199,7 +199,11 @@ export async function runUpdate(core: Core, changes: readonly FsChange[], warmSc
       core.files.set(r.path, r);
     }
   }
-  if (pins.length > 0) await core.pin.saveMany(pins);
+  // Queued, not awaited: the pin store serves the texts from memory until the write lands (update() latency).
+  if (pins.length > 0)
+    core.pin.saveMany(pins).catch((err: unknown) => {
+      core.log.warn("pin save failed", { error: err instanceof Error ? err.message : String(err) });
+    });
   return finish(core, before, folded.files.keys(), false);
 }
 
