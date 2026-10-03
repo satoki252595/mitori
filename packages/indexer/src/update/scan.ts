@@ -14,7 +14,6 @@ import { INDEXER_FORMAT, LANG_GRAMMAR, type ScanOptions, type ScanTimings } from
 import { enumerate } from "../inventory/enumerate.ts";
 import { computeIndexDigest } from "../inventory/index.ts";
 import { langOfPath } from "../lang/detect.ts";
-import { isTestFile } from "../lang/testfile.ts";
 import { extractorSetVersion } from "../lang/versions.ts";
 import { detectorsFor } from "../parse/detectors.ts";
 import { poolSize } from "../parse/index.ts";
@@ -274,9 +273,8 @@ function prewarm(core: Core, paths: readonly string[]): void {
     const g = LANG_GRAMMAR[lang];
     if (g === null) continue;
     candidates++;
-    const lite = isTestFile(p, lang) || /(^|\/)(tests?|__tests__|spec)\//.test(p);
-    const key = `${g}${lite ? "/lite" : ""}`;
-    if (!want.has(key)) want.set(key, { lang, grammar: g, profile: lite ? "lite" : "full" });
+    // Full profiles only: lite / test / error queries compile on first use, spread over the scan.
+    if (!want.has(g)) want.set(g, { lang, grammar: g, profile: "full" });
   }
   if (candidates === 0) return;
   core.pool.prewarm(poolSize(candidates * 8_192, core.deps.hardware), [...want.values()]);

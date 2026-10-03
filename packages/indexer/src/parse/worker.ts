@@ -34,12 +34,14 @@ import { countLoc, decodeUtf8, lineStarts, splitLines } from "./text.ts";
 let runtime: Promise<void> | null = null;
 const languages = new Map<GrammarId, Promise<Language>>();
 
+/** Compiled queries of one grammar. Only the combined tags query is compiled up front: every Query costs a few ms of
+ * fixed analysis per Worker, which is on the cold-scan critical path. */
 interface GrammarState {
   language: Language;
   tags: Query;
   lite: Query | null;
   tests: Query | null;
-  errors: Query;
+  errors: Query | null;
 }
 
 interface LruTree {
@@ -95,14 +97,7 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
       languages.set(g, lp);
     }
     const language = await lp;
-    const testSrc = TEST_QUERIES[g];
-    const st: GrammarState = {
-      language,
-      tags: new Query(language, combined(g)),
-      lite: null,
-      tests: testSrc === undefined ? null : new Query(language, testSrc),
-      errors: new Query(language, ERROR_QUERY),
-    };
+    const st: GrammarState = { language, tags: new Query(language, combined(g)), lite: null, tests: null, errors: null };
     grammars.set(g, st);
     return st;
   }
@@ -232,6 +227,7 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
           try {
             t = env.now();
             const isTest = it.provisionalClass === "test";
+            const testSrc = TEST_QUERIES[g];
             ex = extract({
               grammar: g,
               lang,
@@ -239,8 +235,8 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
               lineStarts: lineStarts(tx),
               tree,
               tags: it.profile === "lite" ? liteQuery(g, st) : st.tags,
-              testQuery: isTest ? st.tests : null,
-              errorQuery: st.errors,
+              testQuery: isTest && testSrc !== undefined ? () => (st.tests ??= new Query(st.language, testSrc)) : null,
+              errorQuery: () => (st.errors ??= new Query(st.language, ERROR_QUERY)),
               lite: it.profile === "lite",
               decl: langOfPath(it.path).decl,
               isTest,
@@ -332,7 +328,7 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
         st.tags.delete();
         st.lite?.delete();
         st.tests?.delete();
-        st.errors.delete();
+        st.errors?.delete();
       }
       grammars.clear();
       parser.delete();

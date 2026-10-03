@@ -58,8 +58,10 @@ export interface ExtractInput {
   tree: Tree;
   /** Tags query + the decision-node / comment patterns of `CX_QUERIES` compiled together (one traversal). */
   tags: Query;
-  testQuery: Query | null;
-  errorQuery: Query;
+  /** Test-case query (compiled on first use; null when the grammar has none). */
+  testQuery: (() => Query) | null;
+  /** ERROR / MISSING query (compiled on first use: most files have no errors). */
+  errorQuery: () => Query;
   /** `lite` = test files (type/qualified refs disabled by the caller's query object). */
   lite: boolean;
   /** `.d.ts`-style declaration file. */
@@ -323,7 +325,7 @@ export function extract(inp: ExtractInput): Extraction {
   const errorLines: { start: number; end: number }[] = [];
   if (root.hasError) {
     let coveredTo = -1;
-    for (const c of inp.errorQuery.captures(root)) {
+    for (const c of inp.errorQuery().captures(root)) {
       errors++;
       if (c.name === "err") {
         const s = c.node.startIndex;
@@ -829,7 +831,7 @@ function collectTests(defs: readonly Def[], ctx: LangCtx, out: { name: string; l
   if (!inp.isTest || inp.testQuery === null) return;
   if (g === "go") {
     const tests = defs.filter((d) => d.kind === "test");
-    for (const m of inp.testQuery.matches(inp.tree.rootNode)) {
+    for (const m of inp.testQuery().matches(inp.tree.rootNode)) {
       const nm = m.captures.find((c) => c.name === "t.name")?.node;
       if (nm === undefined) continue;
       const pos = nm.startIndex;
@@ -840,7 +842,7 @@ function collectTests(defs: readonly Def[], ctx: LangCtx, out: { name: string; l
   }
   // JS / TS: describe / it / test chains.
   const calls: { s: number; e: number; name: string; leaf: boolean; line: number }[] = [];
-  for (const m of inp.testQuery.matches(inp.tree.rootNode)) {
+  for (const m of inp.testQuery().matches(inp.tree.rootNode)) {
     const fn = m.captures.find((c) => c.name === "t.fn")?.node;
     const nm = m.captures.find((c) => c.name === "t.name")?.node;
     if (fn === undefined || nm === undefined) continue;

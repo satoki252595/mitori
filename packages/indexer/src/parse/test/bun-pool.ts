@@ -3,7 +3,14 @@
 import type { WorkerPool } from "@mitori/core";
 import type { ParseBatchRequest, ParseBatchResponse, ParseWorkerInit } from "../../contract.ts";
 
+const TRACE = process.env.MITORI_POOL_TRACE === "1";
+const T0 = performance.now();
+let slotIds = 0;
+
 interface Slot {
+  id: number;
+  started?: number;
+  bytes?: number;
   w: Worker;
   ready: Promise<void>;
   busy: boolean;
@@ -20,15 +27,21 @@ export function bunWorkerPool(init: ParseWorkerInit): (n: number) => WorkerPool<
     const spawn = (): Slot => {
       const w = new Worker(ENTRY, { smol: process.env.MITORI_WORKER_SMOL === "1" } as WorkerOptions);
       let ready!: () => void;
-      const slot: Slot = { w, ready: new Promise<void>((r) => (ready = r)), busy: false };
+      const slot: Slot = { id: slotIds++, w, ready: new Promise<void>((r) => (ready = r)), busy: false };
+      if (TRACE) console.error(`[pool] w${slot.id} spawn @${(performance.now() - T0).toFixed(0)}`);
       w.onmessage = (e: MessageEvent) => {
         const m = e.data as { type: "ready" } | { type: "res"; res: ParseBatchResponse } | { type: "err"; message: string };
         if (m.type === "ready") {
+          if (TRACE) console.error(`[pool] w${slot.id} ready @${(performance.now() - T0).toFixed(0)}`);
           ready();
           pump();
           return;
         }
         const { resolve, reject } = slot;
+        if (TRACE)
+          console.error(
+            `[pool] w${slot.id} batch ${slot.started?.toFixed(0)}→${(performance.now() - T0).toFixed(0)} (${((slot.bytes ?? 0) / 1024).toFixed(0)} KB)`,
+          );
         slot.busy = false;
         delete slot.resolve;
         delete slot.reject;
@@ -54,6 +67,8 @@ export function bunWorkerPool(init: ParseWorkerInit): (n: number) => WorkerPool<
         const job = queue.shift();
         if (job === undefined) return;
         s.busy = true;
+        s.started = performance.now() - T0;
+        s.bytes = job.req.items.reduce((a, i) => a + i.size, 0);
         s.resolve = job.resolve;
         s.reject = job.reject;
         s.w.postMessage({ type: "batch", req: job.req });
