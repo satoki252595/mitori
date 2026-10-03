@@ -211,3 +211,26 @@ export function migrate(db: SqlDb, migrations: readonly Migration[]): SqlDb {
   for (const m of migrations) db.exec(m.up);
   return db;
 }
+
+/** LockFilePort over the real filesystem (`wx` = O_CREAT|O_EXCL). */
+export const fsLockPort = {
+  tryCreate(path: string, content: string): boolean {
+    try {
+      writeFileSync(path, content, { flag: "wx", mode: 0o600 });
+      return true;
+    } catch (e) {
+      if ((e as { code?: string }).code === "EEXIST") return false;
+      throw e;
+    }
+  },
+  read(path: string): string | null {
+    try {
+      return readFileSync(path, "utf8");
+    } catch {
+      return null;
+    }
+  },
+  remove(path: string): void {
+    rmSync(path, { force: true });
+  },
+};
