@@ -1,0 +1,4 @@
+# Reports of `bun run eval` are committed per run (summary.json + summary.md, testing spec 7.7); raw answers, grades and prompts are not.
+*/raw/
+# the harness self-check on the fake engine is regenerated on demand
+*-smoke/

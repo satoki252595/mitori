@@ -199,6 +199,12 @@
       }
     },
     {
+      "kind": "env",
+      "path": ".env.example",
+      "line": 6,
+      "key": "TSUNDOKU_DEBUG_SQL"
+    },
+    {
       "kind": "cli",
       "path": "bin/tsundoku.js",
       "key": "tsundoku import",
@@ -446,12 +452,6 @@
       "path": "test/repo.test.ts",
       "line": 5,
       "key": "GET /api/books"
-    },
-    {
-      "kind": "env",
-      "path": ".env.example",
-      "line": 6,
-      "key": "TSUNDOKU_DEBUG_SQL"
     }
   ],
   "symbols": [

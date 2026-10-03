@@ -2,7 +2,8 @@
 
 One `<pkg>.json` per owning package (`mitori.budgets/1`: `{ v, budgets[], counters[] }`). Each WP edits only its own file;
 `bun scripts/budgets-merge.ts` concatenates them into `bench/budgets.json` (committed, regenerate after an edit;
-`--check` fails when it is stale). `scripts/check-budgets.ts` (part of `check`) lints shape and cross-file id uniqueness.
+`--check` fails when it is stale). `scripts/check-budgets.ts` (part of `check`) lints shape and cross-file id uniqueness and
+runs that same stale check (CR m0-15), so an edited `<pkg>.json` without a regenerated `bench/budgets.json` fails `check`.
 
 Source of the numbers: the domain specs' tables win over testing spec §6.1 and ARCHITECTURE §10.2 (CONS-29):
 indexer §11.3 (`indexer.json`), loop §0.3 (`loop.json`, `anchor.json`, `agent.json`), generation §7.4 (`gen.json`),

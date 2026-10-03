@@ -1,11 +1,12 @@
 // Locations and the `mitori.fixture/1` descriptor (testing spec §2.2). Internal to testkit.
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { MitoriError } from "@mitori/core";
 import { type FixtureName, TEST_FORMATS } from "../contract.ts";
 
-/** The workspace root (the directory that contains `fixtures/`). */
-export const REPO_ROOT = resolve(import.meta.dir, "../../../..");
+/** The workspace root (the directory that contains `fixtures/`). `import.meta.url`, not Bun's `import.meta.dir`: Playwright loads testkit under Node. */
+export const REPO_ROOT = resolve(fileURLToPath(new URL(".", import.meta.url)), "../../../..");
 
 /** `gen:palette-50k` → `gen-palette-50k` (file-system safe). */
 export const safeName = (name: string): string => name.replace(/[^A-Za-z0-9._-]/g, "-");

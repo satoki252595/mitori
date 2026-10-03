@@ -7,13 +7,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSecretScanner, DEFAULT_DENY_GLOBS } from "@mitori/core";
 import { RED_TEAM_CASES } from "@mitori/loop";
-import type { FixtureName } from "@mitori/testkit";
 import picomatch from "picomatch";
 import { materializeTree } from "../../packages/testkit/src/fixtures/build.ts";
 import { fixtureDir, readSpec } from "../../packages/testkit/src/fixtures/spec.ts";
 
-// CR-PENDING(WP-00b): "secrets" is not in the FixtureName union of testkit/contract.ts yet (docs/design/cr-requests/WP-00b.md, E1)
-const SECRETS = "secrets" as FixtureName;
+const SECRETS = "secrets"; // a FixtureName since CR m0-11
 const fixtures = join(import.meta.dir, "..");
 const scanner = createSecretScanner();
 const denied = picomatch([...DEFAULT_DENY_GLOBS], { dot: true });

@@ -1,0 +1,4 @@
+#!/bin/sh
+# PATH guard (testing spec 1.5-6): tests never reach a real LLM CLI. MITORI_LIVE=1 removes this directory from PATH.
+echo "claude: blocked in tests (set MITORI_LIVE=1 for live suites)" >&2
+exit 97
