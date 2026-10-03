@@ -2,7 +2,7 @@
 // blocks, one trailing LF, ID comment ` <!-- b_… -->` at the end of the last line (`trailing` kinds) or alone on
 // the next line (`own_line` kinds, and any block whose last line is code).
 import type { Block, BlockId, BlockKind, CheckError, DocLang } from "@mitori/core";
-import { BLOCK_ID_COMMENT_RE, type CodecContext, type ParsedDocFile } from "../contract.ts";
+import { BLOCK_ID_COMMENT_RE, BLOCK_ID_PLACEMENT, type CodecContext, type ParsedDocFile } from "../contract.ts";
 import { codeLines, fenceLang, type TopBlock, topBlocks } from "./blocks.ts";
 import { markerize } from "./cite.ts";
 import { blockFragment, inferCallout, unwrapKind } from "./wrap.ts";
@@ -61,9 +61,11 @@ const startOf = (tbs: TopBlock[], i: number): number => (i === 0 ? 0 : (tbs[i]?.
 
 /**
  * Split a commented segment into its owned block (kind inferred from the shape and the placement) and the
- * leading top-level blocks that fit no wrapper (§10.4-4: they become new human blocks).
+ * leading top-level blocks that fit no wrapper (§10.4-4: they become new human blocks). `known` is the sidecar kind
+ * of the id (§10.4-3 infers from the shape only for unknown ids): a `trailing` kind whose text ends in code carries
+ * its comment on its own line too, and must not be read as a code block with a human paragraph before it.
  */
-function classify(lines: string[], own: boolean, lang: DocLang): { kind: BlockKind; md: string; lead: TopBlock[]; from: number } {
+function classify(lines: string[], own: boolean, lang: DocLang, known?: BlockKind): { kind: BlockKind; md: string; lead: TopBlock[]; from: number } {
   const tbs = topBlocks(lines.join("\n"));
   const n = tbs.length;
   const owned = (i: number, kind: BlockKind) => ({
@@ -74,7 +76,7 @@ function classify(lines: string[], own: boolean, lang: DocLang): { kind: BlockKi
   });
   const last = tbs[n - 1];
   if (!last) return { kind: "prose", md: lines.join("\n"), lead: [], from: 0 };
-  if (own) {
+  if (own && (known === undefined || BLOCK_ID_PLACEMENT[known] === "own_line")) {
     if (last.type === "fence" && fenceLang(last.info) === "mermaid") return owned(tbs[n - 2]?.type === "paragraph_open" ? n - 2 : n - 1, "diagram");
     if (last.type === "fence" || last.type === "code_block") return owned(n - 1, "code");
     if (last.type === "table_open") return owned(n - 1, "table");
@@ -106,8 +108,11 @@ function loneBlocks(lines: string[], tbs: TopBlock[], end: number, ctx: CodecCon
   });
 }
 
-/** Parse a doc file (§10.4 steps 1–4, 7). Second occurrences of an id come back with `id: null`. */
-export function parseDoc(text: string, file: string, ctx: CodecContext): ParsedDocFile {
+/**
+ * Parse a doc file (§10.4 steps 1–4, 7). Second occurrences of an id come back with `id: null`. `kindOf` gives the
+ * sidecar kind of a known id (the store passes it; `parseDocFile` infers every kind from the shape).
+ */
+export function parseDoc(text: string, file: string, ctx: CodecContext, kindOf?: (id: BlockId) => BlockKind | undefined): ParsedDocFile {
   const { text: src } = normalizeNewlines(text);
   const lines = src.split("\n");
   if (lines[lines.length - 1] === "") lines.pop();
@@ -140,7 +145,7 @@ export function parseDoc(text: string, file: string, ctx: CodecContext): ParsedD
       problem(i, "unique block id", found, "E_DOC_ID_COLLISION");
       id = null;
     } else seen.add(found);
-    const c = classify(seg, own, ctx.lang);
+    const c = classify(seg, own, ctx.lang, id ? kindOf?.(id) : undefined);
     if (c.lead.length > 0) blocks.push(...loneBlocks(seg, c.lead, c.from, ctx));
     blocks.push(withLinks(id, c.kind, c.md, ctx));
   }

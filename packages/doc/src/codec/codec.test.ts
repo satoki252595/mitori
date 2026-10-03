@@ -2,8 +2,9 @@ import { describe, expect, test } from "bun:test";
 import type { Block, BlockId, BlockKind, Cite } from "@mitori/core";
 import { BLOCK_ID_PLACEMENT, type CodecContext } from "../contract.ts";
 import { hasher } from "../test/helpers.ts";
+import { closeOpenFence } from "./blocks.ts";
 import { deriveClaimSpans, fromMarkerForm, merge3, parseDocFile, semanticHash, serializeDocFile, toMarkerForm, yomiToRomaji } from "./index.ts";
-import { reinterpret } from "./parse.ts";
+import { parseDoc, reinterpret } from "./parse.ts";
 
 const ctx: CodecContext = { lang: "ja", docFile: "doc/modules/internal-session.md", docDirAbs: "/r/.mitori", rootAbs: "/r" };
 const en: CodecContext = { ...ctx, lang: "en" };
@@ -55,6 +56,18 @@ describe("DOC-G-002 ID placement per kind (O8 byte rules)", () => {
   test("a trailing kind whose last line is a closing fence gets an own-line comment", () => {
     const text = serializeDocFile([blk("b_0000000a", "prose", "例:\n\n```sh\nls\n```")], ctx);
     expect(text).toBe("例:\n\n```sh\nls\n```\n<!-- b_0000000a -->\n");
+    // with the sidecar kind the store reads it back as ONE prose block; without it the shape says code + a lead
+    const known = parseDoc(text, "f.md", ctx, (id) => (id === "b_0000000a" ? "prose" : undefined));
+    expect(known.blocks.map((b) => [b.id, b.kindHint, b.md])).toEqual([["b_0000000a", "prose", "例:\n\n```sh\nls\n```"]] as never);
+    expect(parseDocFile(text, "f.md", ctx).blocks.map((b) => b.kindHint)).toEqual(["prose", "code"]);
+  });
+  test("closeOpenFence closes a top-level fence left open at the end; other text is unchanged", () => {
+    expect(closeOpenFence("例:\n\n```ts\nconst x = 1;")).toBe("例:\n\n```ts\nconst x = 1;\n```");
+    expect(closeOpenFence("~~~~sh\nls")).toBe("~~~~sh\nls\n~~~~");
+    // inside a list item the next unindented line (the own-line ID comment) ends the item and the fence with it
+    expect(closeOpenFence("- 手順:\n\n  ~~~~sh\n  ls")).toBe("- 手順:\n\n  ~~~~sh\n  ls");
+    expect(closeOpenFence("```ts\nx\n```")).toBe("```ts\nx\n```");
+    expect(closeOpenFence("`a` と ``` だけ")).toBe("`a` と ``` だけ");
   });
 });
 
@@ -105,6 +118,20 @@ describe("§10.3 cite links ⇄ markers", () => {
       { path: "src/my file.ts", start: 5, end: 5 },
       { path: "src/a.ts", start: 1, end: 3 },
     ]);
+  });
+  test("labels escape Markdown punctuation (`[id].tsx`, `__init__.py`, `a|b`) and still parse; `#` `|` are encoded in hrefs", () => {
+    const cites = [cite("app/[id]/[slug].tsx", 3, 9), cite("pkg/__init__.py", 1, 1), cite("x/a|b#c.ts", 2, 2)];
+    const md = fromMarkerForm("ページを返す[[1]]。", [{ n: 1, cites }], ctx);
+    expect(md).toBe(
+      "ページを返す（[\\[slug&#93;.tsx:3-9](../../../app/[id]/[slug].tsx#L3-L9)、[\\_\\_init\\_\\_.py:1](../../../pkg/__init__.py#L1)、[a\\|b#c.ts:2](../../../x/a%7Cb%23c.ts#L2)）。",
+    );
+    const p = parseDocFile(`${md} <!-- b_aaaaaaaa -->\n`, ctx.docFile, ctx);
+    expect(p.blocks[0]?.links[0]?.cites).toEqual(cites.map(({ path, start, end }) => ({ path, start, end })));
+    expect(toMarkerForm(md, "ja").md).toBe("ページを返す[[1]]。");
+  });
+  test("percent escapes in a hand-written href decode as UTF-8", () => {
+    const p = parseDocFile("返す（[a:1](../../../src/%E3%81%82.ts#L1)）。 <!-- b_aaaaaaaa -->\n", ctx.docFile, ctx);
+    expect(p.blocks[0]?.links[0]?.cites[0]?.path).toBe("src/あ.ts");
   });
   test("links inside code spans are not cite groups", () => {
     expect(toMarkerForm("`（[a.ts:1](../a.ts#L1)）` です（[a.ts:1](../a.ts#L1)）。", "ja").md).toBe("`（[a.ts:1](../a.ts#L1)）` です[[1]]。");

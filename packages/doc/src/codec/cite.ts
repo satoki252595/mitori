@@ -12,13 +12,33 @@ const MARKER_RE = new RegExp(CLAIM_MARKER_RE, "g");
 /** W07: a run of markers right after a sentence terminator (+ closing brackets) moves before the terminator. */
 const W07_RE = /([。．！？!?.][」』）)"']*)((?:\[\[[1-9][0-9]?\]\])+)/g;
 
-/** Percent-encode the characters that would break the link grammar (`%`, space, parentheses). */
+/**
+ * Percent-encode the characters that would break the link grammar or the link itself: `%`, space and parentheses
+ * (the destination), `#` (a fragment would cut the path) and `|` (a table cell boundary).
+ */
 export function encodeHrefPath(p: string): string {
-  return p.replace(/[% ()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`);
+  return p.replace(/[% ()#|]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`);
 }
 
+/** Decode percent escapes as UTF-8 (a hand-written `%E3%81%82` is `あ`); malformed sequences stay as written. */
 function decodeHrefPath(p: string): string {
-  return p.replace(/%[0-9A-Fa-f]{2}/g, (s) => String.fromCharCode(Number.parseInt(s.slice(1), 16)));
+  if (!p.includes("%")) return p;
+  return p.replace(/(?:%[0-9A-Fa-f]{2})+/g, (s) => {
+    try {
+      return decodeURIComponent(s);
+    } catch {
+      return s;
+    }
+  });
+}
+
+/**
+ * Link text of a cite label: Markdown punctuation is escaped so a basename like `__init__.py` is not emphasis and a
+ * `|` does not split a table cell; `]` becomes `&#93;` because the cite-link grammar (`CITE_LINK_FORMAT.groupRe`)
+ * forbids it inside the label (`[id].tsx` must still parse as a cite link).
+ */
+function labelText(s: string): string {
+  return s.replace(/[\\`*_[\]<>&~|]/g, (c) => (c === "]" ? "&#93;" : `\\${c}`));
 }
 
 const isRelative = (href: string): boolean => !/^[a-z][a-z0-9+.-]*:/i.test(href) && !href.startsWith("/") && !href.startsWith("#");
@@ -62,7 +82,7 @@ export function resolveCiteHref(hrefPath: string, ctx: CodecContext): RepoPath {
 /** Link label `<basename>:<start>-<end>` (`:<start>` for one line). */
 export function citeLabel(c: { path: RepoPath; start: LineNo; end: LineNo }): string {
   const base = c.path.slice(c.path.lastIndexOf("/") + 1);
-  return c.start === c.end ? `${base}:${c.start}` : `${base}:${c.start}-${c.end}`;
+  return labelText(c.start === c.end ? `${base}:${c.start}` : `${base}:${c.start}-${c.end}`);
 }
 
 /** One rendered cite group (`（[a](b#L1)、…）` / ` ([a](b#L1), …)`; zero cites → inferred). */

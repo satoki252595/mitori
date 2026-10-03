@@ -37,6 +37,31 @@ export function codeLines(src: string, lineCount: number): boolean[] {
   return code;
 }
 
+const FENCE_PROBE = "mitori-fence-probe";
+
+/** The fence token still open at the end of `src` (it would swallow everything after it), or null. */
+function openFence(src: string): { line: string; markup: string } | null {
+  const probe = `${src}\n\n${FENCE_PROBE}`;
+  const lines = probe.split("\n");
+  for (const t of blockOnly.parse(probe, {})) {
+    if (t.type !== "fence" || !t.map || t.map[1] < lines.length) continue;
+    if (!t.content.includes(FENCE_PROBE)) continue;
+    return { line: lines[t.map[0]] ?? "", markup: t.markup };
+  }
+  return null;
+}
+
+/**
+ * Close a fenced code block left open at the end of a block's md. Unclosed, it would run past the block's ID comment
+ * on the next load and turn every following block of the file into code (orphaning them). Only a top-level fence
+ * can stay open (in a list item or a quote the next unindented line ends the container and the fence with it).
+ */
+export function closeOpenFence(md: string): string {
+  if (!md.includes("```") && !md.includes("~~~")) return md;
+  const open = openFence(md);
+  return open ? `${md}\n${/^ */.exec(open.line)?.[0] ?? ""}${open.markup}` : md;
+}
+
 /** First word of a fence info string (`ts title=x` → `ts`). */
 export function fenceLang(info: string): string {
   return info.split(/\s+/, 1)[0]?.toLowerCase() ?? "";
