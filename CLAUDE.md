@@ -4,7 +4,7 @@
 リポジトリ/プロジェクトを省トークンで解析し、人が読める設計書を生成。設計書上のレビュー・編集を AI エージェントがコード修正/レビュー対応へ反映する。
 
 ## 運用ルール
-- 開発環境は `nix develop`(direnv: `use flake`)。ツール追加は flake.nix に記載(`devShells.default` = ローカル、`devShells.ci` = PR CI)。
+- 開発環境は flake.nix の devShell(`devShells.default` = ローカル、`devShells.ci` = PR CI)。ツール追加は flake.nix に記載。
 - 秘密情報(.env / .dev.vars)はコミットしない。
 - Cloudflare リソースは `mitori-` を接頭辞にする。
 - 月1000円以上のコスト増になる操作は必ず事前承認。

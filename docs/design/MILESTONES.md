@@ -8,7 +8,7 @@
   - 区分: **★ MVP**（M3 = P1 出口に必須）／ **◆ 範囲内**（M4・M5、このセッションで作るが MVP ではない）／ **☆ stretch**（時間があれば。cut line で最初に落とす）。
   - 規模: **S** ≤ 3 agent-day、**M** 4〜7、**L** 8〜12（1 agent-day = 1 体の実装 agent が 1 日で進める量 [仮]、M1 終了時に実績で較正）。
   - モデル: 設計判断・アルゴリズム・セキュリティの重い WP は `claude-opus-5-5`、定型実装・UI・試験整備は `claude-sonnet-5-5`。
-- コマンドはすべて repo root で `nix develop --command <cmd>`（以下 `nd <cmd>` と略記）。
+- コマンドはすべて repo root で `scripts/nd <cmd>`（cached devShell runner。以下 `nd <cmd>` と略記。`nix develop` は直接使わない）。
 
 ---
 
