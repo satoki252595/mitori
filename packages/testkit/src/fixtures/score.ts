@@ -73,13 +73,13 @@ function scoreFacts(indexer: Indexer, truth: FixtureTruth): TruthScore[] {
       .facts(kind)
       .filter((f) => !(f.kind === "route" && f.dynamic === true))
       .map((f) => ({ ...factKey(f), path: f.path, line: f.line, kind: f.kind }));
+    /** Remove the first actual fact matching `t` (stretch facts only need path + key: they are reported, never graded). */
     const take = (t: TruthFact): boolean => {
       const at = pool.findIndex(
         (a) =>
           a.path === t.path &&
           a.key === t.key &&
-          (t.line === undefined || a.line === t.line) &&
-          Object.entries(t.attrs ?? {}).every(([k, v]) => same(a.attrs[k], v)),
+          (t.stretch || ((t.line === undefined || a.line === t.line) && Object.entries(t.attrs ?? {}).every(([k, v]) => same(a.attrs[k], v)))),
       );
       if (at >= 0) pool.splice(at, 1);
       return at >= 0;
@@ -93,7 +93,9 @@ function scoreFacts(indexer: Indexer, truth: FixtureTruth): TruthScore[] {
     }
     for (const t of truth.facts) if (t.kind === kind && t.stretch) take(t);
     const forbidden = truth.forbiddenFacts.filter((f) => f.kind === kind);
-    const unexpected = pool.map((a) => `${forbidden.some((f) => f.path === a.path && f.key === a.key) ? "!" : ""}${label(a)}`);
+    const isForbidden = (a: (typeof pool)[number]) =>
+      forbidden.some((f) => f.path === a.path && f.key === a.key && (f.line === undefined || f.line === a.line));
+    const unexpected = pool.map((a) => `${isForbidden(a) ? "!" : ""}${label(a)}`);
     return { category: kind, precision: ratio(hit, hit + pool.length), recall: ratio(hit, expected.length), missing, unexpected };
   });
 }

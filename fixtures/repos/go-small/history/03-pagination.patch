@@ -1,0 +1,117 @@
+diff --git a/README.md b/README.md
+index bc54933..af9ae8e 100644
+--- a/README.md
++++ b/README.md
+@@ -21,7 +21,7 @@ curl localhost:8080/api/books
+ 
+ | メソッド・パス | 説明 |
+ |---|---|
+-| `GET /api/books` | 一覧 |
++| `GET /api/books?offset=&limit=` | 一覧（既定 50 件、最大 200 件） |
+ | `GET /api/books/{id}` | 1 冊 |
+ | `POST /api/books` | 追加。title が無ければ ISBN から取得する（失敗したら 1 回だけ再試行） |
+ | `DELETE /api/books/{id}` | 削除。存在しない id は 404 |
+diff --git a/cmd/tsundoku/main.go b/cmd/tsundoku/main.go
+index e5478d4..356d56f 100644
+--- a/cmd/tsundoku/main.go
++++ b/cmd/tsundoku/main.go
+@@ -109,7 +109,7 @@ func export(pile store.Store, args []string, out io.Writer) error {
+ 	if *format != "json" {
+ 		return fmt.Errorf("unsupported export format %q", *format)
+ 	}
+-	books, err := pile.List(context.Background())
++	books, err := pile.List(context.Background(), 0, 0)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/internal/server/server.go b/internal/server/server.go
+index d437529..455990a 100644
+--- a/internal/server/server.go
++++ b/internal/server/server.go
+@@ -12,6 +12,12 @@ import (
+ 	"example.com/tsundoku/internal/store"
+ )
+ 
++// Page size limits of GET /api/books.
++const (
++	defaultLimit = 50
++	maxLimit     = 200
++)
++
+ // Server serves the HTTP API.
+ type Server struct {
+ 	store store.Store
+@@ -53,15 +59,28 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
+ }
+ 
+ func (s *Server) listBooks(w http.ResponseWriter, r *http.Request) {
+-	// TODO: paginate list results
+-	books, err := s.store.List(r.Context())
++	offset, limit := pageParams(r)
++	books, err := s.store.List(r.Context(), offset, limit)
+ 	if err != nil {
+ 		writeError(w, http.StatusInternalServerError, err.Error())
+ 		return
+ 	}
++	// TODO: expose the total count (X-Total-Count) so that clients can render page numbers
+ 	writeJSON(w, http.StatusOK, books)
+ }
+ 
++// pageParams reads ?offset= and ?limit=; bad or out-of-range values fall back to the defaults.
++func pageParams(r *http.Request) (offset, limit int) {
++	limit = defaultLimit
++	if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && n > 0 {
++		limit = min(n, maxLimit)
++	}
++	if n, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && n > 0 {
++		offset = n
++	}
++	return offset, limit
++}
++
+ func (s *Server) getBook(w http.ResponseWriter, r *http.Request) {
+ 	id, ok := pathID(w, r)
+ 	if !ok {
+diff --git a/internal/store/memory.go b/internal/store/memory.go
+index 1b42263..cc3a7f0 100644
+--- a/internal/store/memory.go
++++ b/internal/store/memory.go
+@@ -24,7 +24,7 @@ func NewMemoryStore(now func() time.Time) *MemoryStore {
+ }
+ 
+ // List implements Store.
+-func (m *MemoryStore) List(_ context.Context) ([]Book, error) {
++func (m *MemoryStore) List(_ context.Context, offset, limit int) ([]Book, error) {
+ 	m.mu.RLock()
+ 	defer m.mu.RUnlock()
+ 
+@@ -33,6 +33,14 @@ func (m *MemoryStore) List(_ context.Context) ([]Book, error) {
+ 		all = append(all, b)
+ 	}
+ 	sort.Slice(all, func(i, j int) bool { return all[i].ID < all[j].ID })
++
++	if offset > len(all) {
++		offset = len(all)
++	}
++	all = all[offset:]
++	if limit > 0 && limit < len(all) {
++		all = all[:limit]
++	}
+ 	return all, nil
+ }
+ 
+diff --git a/internal/store/store.go b/internal/store/store.go
+index aff4b17..9b06ba0 100644
+--- a/internal/store/store.go
++++ b/internal/store/store.go
+@@ -41,8 +41,8 @@ type Book struct {
+ 
+ // Store is the persistence port used by the HTTP server.
+ type Store interface {
+-	// List returns every book, oldest first.
+-	List(ctx context.Context) ([]Book, error)
++	// List returns up to limit books starting at offset, oldest first. A limit <= 0 means no limit.
++	List(ctx context.Context, offset, limit int) ([]Book, error)
+ 	// Get returns one book or ErrNotFound.
+ 	Get(ctx context.Context, id int64) (Book, error)
+ 	// Create stores b and returns it with its id and AddedAt filled in.

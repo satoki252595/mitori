@@ -1,0 +1,15 @@
+{
+  "v": "mitori.fixture/1",
+  "name": "go-small",
+  "git": true,
+  "objectFormat": "sha1",
+  "branch": "main",
+  "history": [
+    { "message": "init: tsundoku service", "tree": "." },
+    { "message": "meta: retry a failed lookup exactly once", "patch": "history/02-meta-retry.patch" },
+    { "message": "server: paginate GET /api/books", "patch": "history/03-pagination.patch" }
+  ],
+  "generate": [],
+  "symlinks": [],
+  "dirty": [{ "path": "internal/meta/fetch.go", "patch": "dirty/uncommitted.patch", "untracked": ["notes/todo.md"] }]
+}

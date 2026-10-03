@@ -1,0 +1,127 @@
+diff --git a/README.md b/README.md
+index 1b99ff2..bc54933 100644
+--- a/README.md
++++ b/README.md
+@@ -23,7 +23,7 @@ curl localhost:8080/api/books
+ |---|---|
+ | `GET /api/books` | 一覧 |
+ | `GET /api/books/{id}` | 1 冊 |
+-| `POST /api/books` | 追加。title が無ければ ISBN から取得する |
++| `POST /api/books` | 追加。title が無ければ ISBN から取得する（失敗したら 1 回だけ再試行） |
+ | `DELETE /api/books/{id}` | 削除。存在しない id は 404 |
+ | `/healthz` | 死活監視 |
+ 
+diff --git a/internal/meta/fetch.go b/internal/meta/fetch.go
+index ba56aa9..51d29a1 100644
+--- a/internal/meta/fetch.go
++++ b/internal/meta/fetch.go
+@@ -14,6 +14,10 @@ import (
+ // requestTimeout bounds one lookup attempt.
+ const requestTimeout = 10 * time.Second
+ 
++// maxRetries is how many times a failed lookup is repeated.
++// 生成失敗時は正確に 1 回だけ再試行する（初回 + 再試行 1 回 = 最大 2 回の呼び出し）。
++const maxRetries = 1
++
+ // Metadata is what the catalogue knows about a book.
+ type Metadata struct {
+ 	Title   string   `json:"title"`
+@@ -37,15 +41,23 @@ func NormalizeISBN(raw string) string {
+ 	return strings.ToUpper(strings.NewReplacer("-", "", " ", "").Replace(raw))
+ }
+ 
+-// Fetch returns the metadata of isbn. Any failure (network error, HTTP error, unreadable body) is returned as is.
++// Fetch returns the metadata of isbn. A failed attempt (network error, HTTP error, unreadable body) is
++// retried maxRetries times; the error of the last attempt is returned when all of them fail.
+ func (c *Client) Fetch(ctx context.Context, isbn string) (Metadata, error) {
+ 	isbn = NormalizeISBN(isbn)
+ 
+-	md, err := c.fetchOnce(ctx, isbn)
+-	if err != nil {
+-		return Metadata{}, fmt.Errorf("fetch metadata for %s: %w", isbn, err)
++	var lastErr error
++	for attempt := 0; attempt <= maxRetries; attempt++ {
++		md, err := c.fetchOnce(ctx, isbn)
++		if err == nil {
++			return md, nil
++		}
++		lastErr = err
++		if ctx.Err() != nil {
++			break
++		}
+ 	}
+-	return md, nil
++	return Metadata{}, fmt.Errorf("fetch metadata for %s: %w", isbn, lastErr)
+ }
+ 
+ func (c *Client) fetchOnce(ctx context.Context, isbn string) (Metadata, error) {
+diff --git a/internal/meta/fetch_test.go b/internal/meta/fetch_test.go
+new file mode 100644
+index 0000000..1d6825c
+--- /dev/null
++++ b/internal/meta/fetch_test.go
+@@ -0,0 +1,64 @@
++package meta
++
++import (
++	"context"
++	"net/http"
++	"net/http/httptest"
++	"sync/atomic"
++	"testing"
++)
++
++const kokoro = `{"ISBN:9784101010137": {"title": "こころ", "authors": ["夏目漱石"], "pages": 248}}`
++
++func TestFetchMetadata_RetriesOnce(t *testing.T) {
++	var calls atomic.Int32
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
++		if calls.Add(1) == 1 {
++			http.Error(w, "boom", http.StatusInternalServerError)
++			return
++		}
++		w.Write([]byte(kokoro))
++	}))
++	defer srv.Close()
++
++	md, err := NewClient(srv.URL).Fetch(context.Background(), "978-4-10-101013-7")
++	if err != nil {
++		t.Fatalf("Fetch: %v", err)
++	}
++	if md.Title != "こころ" {
++		t.Errorf("title = %q", md.Title)
++	}
++	if got := calls.Load(); got != 2 {
++		t.Errorf("calls = %d; want 2 (one attempt + exactly one retry)", got)
++	}
++
++	// A second failure is not retried again.
++	calls.Store(0)
++	down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
++		calls.Add(1)
++		http.Error(w, "down", http.StatusBadGateway)
++	}))
++	defer down.Close()
++	if _, err := NewClient(down.URL).Fetch(context.Background(), "9784101010137"); err == nil {
++		t.Fatal("Fetch against a dead catalogue succeeded")
++	}
++	if got := calls.Load(); got != 2 {
++		t.Errorf("calls against a dead catalogue = %d; want 2", got)
++	}
++}
++
++func TestFetchMetadata_NoRetryOnSuccess(t *testing.T) {
++	var calls atomic.Int32
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
++		calls.Add(1)
++		w.Write([]byte(kokoro))
++	}))
++	defer srv.Close()
++
++	if _, err := NewClient(srv.URL).Fetch(context.Background(), "9784101010137"); err != nil {
++		t.Fatalf("Fetch: %v", err)
++	}
++	if got := calls.Load(); got != 1 {
++		t.Errorf("calls = %d; want 1", got)
++	}
++}

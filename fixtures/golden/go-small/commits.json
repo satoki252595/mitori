@@ -1,0 +1,9 @@
+{
+  "commits": [
+    "bb7c2da1c33cf8b1e92b5c42354259aac2b64005",
+    "a5e342abcfa363fed1a175286c6f09942d8433b6",
+    "907eb732f5b021fb181c60aa7e68b08a353b84ea"
+  ],
+  "fixture": "go-small",
+  "v": "mitori.fixture-commits/1"
+}
