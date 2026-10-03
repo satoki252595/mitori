@@ -120,7 +120,10 @@ describe("SKEL-AT-01 mitori <repo> --no-open from a dir without node_modules", (
     expect(gz.headers.get("content-encoding")).toBe("gzip");
     const plain = await fetch(`${d.url}${js?.slice(1)}`, { headers: { "accept-encoding": "identity" } });
     expect(plain.headers.get("content-encoding")).toBeNull();
-    expect((await plain.text()).length).toBeGreaterThan(1000);
+    // WP-INT: the first script is WP-10a's ~0.7 KB boot module, so compare with the decoded br body instead of a size floor
+    const text = await plain.text();
+    expect(text.length).toBeGreaterThan(100);
+    expect(text).toBe(await (await fetch(`${d.url}${js?.slice(1)}`, { headers: { "accept-encoding": "br" } })).text());
   });
 
   test("SRV-I-003 Host gate (421) and unknown API routes (404)", async () => {

@@ -25,4 +25,5 @@
 | `LOG_LEVEL` | あり | `src/config.ts:21` |
 | `PORT` | あり | `src/config.ts:23` |
 | `TSUNDOKU_API_TOKEN` | なし | `src/config.ts:26` |
+| `TSUNDOKU_DEBUG_SQL` | なし | `.env.example:6` |
 <!-- b_n17ff8er -->

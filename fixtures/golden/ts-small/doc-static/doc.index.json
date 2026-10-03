@@ -195,13 +195,13 @@
       "depth": "L1",
       "file": "doc/04-quickstart.md",
       "freshness": "fresh",
-      "hash": "5a4da904111e3cdd",
+      "hash": "295e2a806e1432e8",
       "id": "b_7jpkd0se",
       "kind": "facts",
       "lang": "ja",
       "ord": 2,
       "origin": "static",
-      "readingSec": 14,
+      "readingSec": 18,
       "section": "s4",
       "slot": "s4:env",
       "status": "ready"
@@ -655,13 +655,13 @@
       "depth": "L2",
       "file": "doc/08-interfaces.md",
       "freshness": "fresh",
-      "hash": "5a4da904111e3cdd",
+      "hash": "295e2a806e1432e8",
       "id": "b_n17ff8er",
       "kind": "facts",
       "lang": "ja",
       "ord": 3,
       "origin": "static",
-      "readingSec": 14,
+      "readingSec": 18,
       "section": "s8",
       "slot": "s8:env",
       "status": "ready"
@@ -1243,7 +1243,7 @@
     {
       "audience": "newcomer",
       "id": "30min",
-      "readingSec": 157,
+      "readingSec": 161,
       "steps": [
         {
           "section": "s0"
@@ -1321,7 +1321,7 @@
     {
       "audience": "sre",
       "id": "sre",
-      "readingSec": 137,
+      "readingSec": 145,
       "steps": [
         {
           "section": "s4"
@@ -1402,7 +1402,7 @@
       "children": [],
       "file": "doc/04-quickstart.md",
       "id": "s4",
-      "readingSec": 50,
+      "readingSec": 54,
       "state": "static_only",
       "title": "動かしてみる"
     },
@@ -1517,7 +1517,7 @@
       "children": [],
       "file": "doc/08-interfaces.md",
       "id": "s8",
-      "readingSec": 67,
+      "readingSec": 71,
       "state": "static_only",
       "title": "外部インターフェース"
     },

@@ -66,7 +66,9 @@ function tier1(truth: FixtureTruth): FixtureTruth {
       [5, "LOG_LEVEL"],
       [6, "TSUNDOKU_DEBUG_SQL"],
     ] as const)
-      facts.push({ kind: "env", path: ".env.example", line, key, attrs: { hasDefault: false } });
+      // WP-INT: WP-12 already moved TSUNDOKU_DEBUG_SQL into the truth (CR m0-12); do not add a second copy
+      if (!facts.some((f) => f.kind === "env" && f.path === ".env.example" && f.key === key))
+        facts.push({ kind: "env", path: ".env.example", line, key, attrs: { hasDefault: false } });
   return { ...truth, facts, forbiddenFacts };
 }
 
