@@ -226,6 +226,33 @@ describe("DOC-U-006 reload: external edits merge block by block with unflushed c
   });
 });
 
+describe("a sidecar of the wrong shape", () => {
+  for (const [name, mutate] of [
+    ["sections is an object", (ix: Record<string, unknown>) => ({ ...ix, sections: {} })],
+    [
+      "block metadata of the wrong types",
+      (ix: Record<string, unknown>) => ({ ...ix, blocks: Object.fromEntries(Object.keys(ix.blocks as object).map((k) => [k, { section: "s1", claims: 5 }])) }),
+    ],
+    [
+      "claims without cites",
+      (ix: Record<string, unknown>) => ({ ...ix, claims: Object.fromEntries(Object.keys(ix.claims as object).map((k) => [k, { block: 1 }])) }),
+    ],
+  ] as const) {
+    test(`${name}: load reports E_FORMAT_INVALID and keeps the Markdown text`, async () => {
+      const { root } = await written("ts-small");
+      const abs = join(root, ".mitori/doc.index.json");
+      writeFileSync(abs, JSON.stringify(mutate(JSON.parse(readFileSync(abs, "utf8")))));
+      const md = readFileSync(join(root, ".mitori/doc/01-what-why.md"), "utf8");
+      const h = harness({ root, fs: true, writer: spySafeWriter() });
+      const r = await h.store.load();
+      if (name !== "claims without cites") expect(r.problems.map((p) => p.code)).toContain("E_FORMAT_INVALID");
+      expect(h.store.section("s1")?.blocks.some((b) => b.md.startsWith("課題を解く"))).toBe(true);
+      await h.store.flush({ force: true });
+      expect(readFileSync(join(root, ".mitori/doc/01-what-why.md"), "utf8")).toBe(md);
+    });
+  }
+});
+
 describe("SEC-01 symlinks inside docDir", () => {
   test("a doc/ symlink is neither read nor written through", async () => {
     const root = dir("mitori-innerlink-");

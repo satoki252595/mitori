@@ -15,7 +15,7 @@ import {
 } from "@mitori/core";
 import { markerize } from "../codec/cite.ts";
 import { parseDoc, reinterpret } from "../codec/parse.ts";
-import type { CodecContext, DocLoadReport, ParsedDocFile } from "../contract.ts";
+import { BLOCK_ID_PLACEMENT, type CodecContext, type DocLoadReport, type ParsedDocFile } from "../contract.ts";
 import { canonicalMarkers, matchGroups, pendingChecks, rawCite, sameRanges, verdictOf } from "./claims.ts";
 import type { BlockRec, StoreCore } from "./core.ts";
 import { safeSlug, topOf, uniqueSlug } from "./paths.ts";
@@ -40,6 +40,21 @@ export interface LoadResult extends DocLoadReport {
 
 function problem(problems: CheckError[], at: string, expected: string, actual: string, code: CheckError["code"]): void {
   if (problems.length < MAX_PROBLEMS) problems.push({ at, expected, actual: actual.slice(0, 80), code });
+}
+
+/** Block metadata the store can work with (a hand-edited or badly merged sidecar may carry anything). */
+function validMeta(m: unknown): m is DocIndex["blocks"][BlockId] {
+  const v = m as Partial<DocIndex["blocks"][BlockId]> | null;
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    typeof v.section === "string" &&
+    typeof v.kind === "string" &&
+    v.kind in BLOCK_ID_PLACEMENT &&
+    typeof v.hash === "string" &&
+    Array.isArray(v.claims) &&
+    Array.isArray(v.audience)
+  );
 }
 
 /** Restore the model from a parsed sidecar (persisted `file` ignored, slugs validated). */
@@ -85,9 +100,13 @@ function restoreIndex(core: StoreCore, idx: DocIndex, problems: CheckError[]): v
   for (const s of idx.sections ?? []) {
     const node = st.sections.get(rename(s.id));
     if (!node) continue;
-    node.children = s.children.map(rename).filter((c) => st.sections.has(c) && c !== node.id);
+    node.children = (Array.isArray(s.children) ? s.children : []).map(rename).filter((c) => st.sections.has(c) && c !== node.id);
   }
   for (const [id, meta] of Object.entries(idx.blocks ?? {}) as [BlockId, DocIndex["blocks"][BlockId]][]) {
+    if (!validMeta(meta)) {
+      problem(problems, `doc.index.json#/blocks/${id}`, "block metadata", JSON.stringify(meta) ?? "", "E_FORMAT_INVALID");
+      continue;
+    }
     const section = rename(meta.section);
     if (!st.sections.has(section)) continue;
     const rec: BlockRec = { meta: { ...meta, id, section, file: st.fileOf(section) }, marker: "", tick: 0, citeTick: 0, metaTick: 0 };
@@ -95,7 +114,7 @@ function restoreIndex(core: StoreCore, idx: DocIndex, problems: CheckError[]): v
     if (meta.slot) st.slots.set(meta.slot, id);
   }
   for (const [id, c] of Object.entries(idx.claims ?? {}) as [Claim["id"], Claim][]) {
-    if (!st.blocks.has(c.block)) continue;
+    if (typeof c !== "object" || c === null || !Array.isArray(c.cites) || !st.blocks.has(c.block)) continue;
     const cites = c.cites.map((x) => ({ ...x }));
     st.claims.set(id, { claim: { ...c, cites }, fileCites: cites, tick: 0 });
   }
@@ -326,7 +345,15 @@ export async function loadDoc(
     const indexText = await io.read("doc.index.json");
     if (indexText !== null) report.seen.set("doc.index.json", indexText);
     const idx = readJson<DocIndex>(indexText, "mitori/doc-index", FORMAT.docIndex, "doc.index.json", report.problems);
-    if (idx) restoreIndex(core, idx, report.problems);
+    if (idx) {
+      try {
+        restoreIndex(core, idx, report.problems);
+      } catch (e) {
+        // valid JSON of the wrong shape (a bad merge, a hand edit): load the Markdown as if the sidecar were lost
+        problem(report.problems, "doc.index.json", "a doc index of the documented shape", e instanceof Error ? e.message : String(e), "E_FORMAT_INVALID");
+        restoreIndex(core, { ...idx, sections: [], blocks: {}, claims: {}, diagrams: {}, glossary: [], modules: [] }, report.problems);
+      }
+    }
     // live cite positions (re-anchoring) win over the sidecar's last cite flush
     for (const [claim, cites] of core.db.liveCites()) {
       const c = core.st.claims.get(claim);
