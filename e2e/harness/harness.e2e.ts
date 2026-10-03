@@ -104,4 +104,20 @@ test.describe("@harness e2e harness on the skeleton daemon", () => {
     expect(log).toContain("end:漢字");
     expect(log).not.toContain("ENTER-SUBMIT"); // an Enter that confirms a conversion is not a submit
   });
+
+  test("IME composition in Safari order (compositionend before the last Enter keydown) — every project", async ({ page, mitori }) => {
+    await mitori.login(page, "/");
+    await page.evaluate(`document.body.innerHTML = '<textarea id="t"></textarea>';
+      window.log = [];
+      const t = document.getElementById("t");
+      t.addEventListener("keydown", (e) => log.push(e.isComposing || e.keyCode === 229 ? "ime-keydown:" + e.key : "keydown:" + e.key));
+      t.addEventListener("compositionend", (e) => log.push("end:" + e.data));`);
+    await page.focus("#t");
+    await ime.compose(page, "にほん", "日本", { order: "webkit" });
+    expect(await page.inputValue("#t")).toBe("日本");
+    const log = await page.evaluate<string[]>("window.log");
+    // Safari: keydown(Enter, 229, composing) → compositionend → keydown(Enter, 229, not composing): neither is a plain Enter
+    expect(log.slice(-3)).toEqual(["ime-keydown:Enter", "end:日本", "ime-keydown:Enter"]);
+    expect(log).not.toContain("keydown:Enter");
+  });
 });
