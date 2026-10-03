@@ -21,7 +21,8 @@ const isEnv = (ctx: FactLinkContext): ctx is LinkEnv => typeof (ctx as Partial<L
 
 /** Kinds that may only be shown from `main` files (IDX-D12): tooling/example files are kept as `scope: "example"`. */
 const MAIN_ONLY = new Set(["route", "cli", "env"]);
-const TODO_CAP = 2_000;
+/** TODO facts kept per snapshot (the first candidates in path, line order). */
+export const TODO_CAP = 2_000;
 
 function base(c: FactCandidate, ctx: FactLinkContext): Omit<FactBase, "kind"> | null {
   // test files contribute test names only — and `TestMain` (entry.testmain@1 can only match a test file)
