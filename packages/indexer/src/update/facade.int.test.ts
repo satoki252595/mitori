@@ -277,6 +277,7 @@ describe("IDX-AT-04 deny / secret paths are never read", () => {
     await idx.update([{ kind: "add", path: "local/.env" }]);
     const before = deps.reads.length;
     expect(await idx.blobText("")).toBeNull();
+    await idx.pinBlobs([""]);
     expect(await idx.blobText(hasher.gitBlob(new TextEncoder().encode("TOKEN=y\n"), "sha1"))).toBeNull();
     expect(deps.reads.slice(before).filter((p) => p.endsWith(".env"))).toEqual([]);
   });
