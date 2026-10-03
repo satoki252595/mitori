@@ -3,17 +3,17 @@
 //   scripts/nd bun packages/indexer/src/update/test/bench-s01.ts [--repos crit,m3e-canvas,hono,gostd] [--runs 5] [--json out.jsonl]
 // Cold = a fresh child process, a new in-memory DB and new Workers (one discarded run warms the OS page cache);
 // warm = 5 unchanged rescans after the cold scan; update = 20 single-file body edits on a copy of crit.
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { availableParallelism, cpus, homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import type { MetricName } from "@mitori/core";
-import { INVENTORY_SETS, type Indexer } from "../../contract.ts";
+import type { Indexer } from "../../contract.ts";
 import { bunWorkerPool } from "../../parse/test/bun-pool.ts";
 import { corpusDir } from "../../parse/test/corpus.ts";
 import { REPO_ROOT, workerInit } from "../../parse/test/env.ts";
 import { createIndexer } from "../index.ts";
 import { testDeps } from "./deps.ts";
-import { cliGit } from "./git.ts";
+import { cliGit, shadowGit } from "./git.ts";
 
 const args = process.argv.slice(2);
 const arg = (k: string): string | undefined => {
@@ -50,23 +50,7 @@ function workspace(name: string): { root: string; git: ReturnType<typeof cliGit>
   if (name !== "gostd") return { root, git: cliGit(root), kind: "git" };
   // Shadow repository (spec §2.1-b): GIT_DIR outside the user's directory; nothing is written into it.
   const gitDir = join(process.env.MITORI_BENCH_DIR ?? join(homedir(), ".cache", "mitori-bench"), "gostd-shadow.git");
-  const env = { GIT_DIR: gitDir, GIT_WORK_TREE: root };
-  const run = (a: string[]) => Bun.spawnSync(["git", ...a], { env: { ...process.env, ...env, GIT_CONFIG_GLOBAL: "/dev/null" } });
-  if (run(["rev-parse", "--git-dir"]).exitCode !== 0) {
-    mkdirSync(gitDir, { recursive: true });
-    run(["init", "--quiet", "--object-format=sha1"]);
-    for (const [k, v] of [
-      ["core.untrackedCache", "true"],
-      ["core.fsmonitor", "false"],
-      ["core.quotepath", "off"],
-    ] as const)
-      run(["config", k, v]);
-    mkdirSync(join(gitDir, "info"), { recursive: true });
-    writeFileSync(join(gitDir, "info/exclude"), `${INVENTORY_SETS.shadowExcludes.join("\n")}\n`);
-    run(["update-index", "--untracked-cache"]);
-    run(["status", "--porcelain"]);
-  }
-  return { root, git: cliGit(root, env), kind: "shadow" };
+  return { root, git: shadowGit(root, gitDir), kind: "shadow" };
 }
 
 function newIndexer(name: string): { idx: Indexer; deps: ReturnType<typeof testDeps> } {

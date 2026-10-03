@@ -1,6 +1,9 @@
 // Test-only GitReader over the git CLI (the production one is @mitori/platform's, WP-01). Same argv as indexer spec
 // §2.1; `env` carries GIT_DIR / GIT_WORK_TREE for shadow repositories.
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { GitOid, GitReader, RepoPath } from "@mitori/core";
+import { INVENTORY_SETS } from "../../contract.ts";
 
 const dec = new TextDecoder();
 const STAGED = /^(\d{6}) ([0-9a-f]{40,64}) ([0-3])\t/;
@@ -8,6 +11,25 @@ const STAGED = /^(\d{6}) ([0-9a-f]{40,64}) ([0-3])\t/;
 export interface TestGit extends GitReader {
   /** Subprocesses started (warm-path assertions). */
   calls: string[];
+}
+
+/**
+ * A shadow repository for a non-git directory (spec §2.1-b, what the server's WorkspaceManager does on first open):
+ * GIT_DIR in `gitDir`, `info/exclude` = DEFAULT_SHADOW_EXCLUDES, untracked cache on. Nothing is written into `root`.
+ */
+export function shadowGit(root: string, gitDir: string): TestGit {
+  const env = { GIT_DIR: gitDir, GIT_WORK_TREE: root };
+  const run = (...args: string[]) => Bun.spawnSync(["git", ...args], { cwd: root, env: { ...process.env, ...env, GIT_CONFIG_GLOBAL: "/dev/null" } });
+  if (run("rev-parse", "--git-dir").exitCode !== 0) {
+    mkdirSync(gitDir, { recursive: true });
+    run("init", "--quiet", "--object-format=sha1");
+    run("config", "core.untrackedCache", "true");
+    run("config", "core.fsmonitor", "false");
+    run("config", "core.quotepath", "off");
+    mkdirSync(join(gitDir, "info"), { recursive: true });
+    writeFileSync(join(gitDir, "info/exclude"), `${INVENTORY_SETS.shadowExcludes.join("\n")}\n`);
+  }
+  return cliGit(root, env);
 }
 
 export function cliGit(cwd: string, env: Record<string, string> = {}): TestGit {
