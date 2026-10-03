@@ -81,22 +81,25 @@ function wrap(run: EngineRun, onContinue: ((retry: string, signal: Cancel, sessi
     if (r.error) out.error = { code: r.error.code, message: r.error.message, retryable: r.error.retryable };
     return out;
   })();
-  const session = run.session;
+  // `run.session` appears only once the scheduler dispatched the job and the engine spawned its process: read it
+  // when it is needed, never at wrap time (a captured `undefined` left every process parked until its TTL and made
+  // every retry cold) [dogfood 2026-10-04]
   const genRun: GenCallRun = {
     text,
     result,
     stop: (reason) => run.stop(reason),
     close: async () => {
-      await session?.close();
+      await run.session?.close();
     },
   };
-  if (session && onContinue) {
+  if (onContinue) {
     const continueWith = (retry: string, signal: Cancel): GenCallRun => {
-      if (!session.parked()) throw new MitoriError("E_AGENT_EXIT", "the parked process is gone");
+      const session = run.session;
+      if (!session?.parked()) throw new MitoriError("E_AGENT_EXIT", "the parked process is gone");
       return wrap(onContinue(retry, signal, session), onContinue);
     };
     // present only while the process is parked (contract: absent once it is gone ⇒ cold retry)
-    Object.defineProperty(genRun, "continueWith", { get: () => (session.parked() ? continueWith : undefined), enumerable: true });
+    Object.defineProperty(genRun, "continueWith", { get: () => (run.session?.parked() ? continueWith : undefined), enumerable: true });
   }
   return genRun;
 }
