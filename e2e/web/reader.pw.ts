@@ -129,7 +129,15 @@ test("@wp10a TOC thread badges (ux.md §4.3.2-3): an open thread on a §3.1 bloc
   await page.goto(`/w/${WS}/doc/s3/review-cycle`);
   await waitMark(page, "mitori:section:rendered");
   const block = await page.locator('[data-sec="s3/review-cycle"] .blk').first().getAttribute("data-b");
-  const thread = (id: string, state: string) => ({ id, state, intent: "note", anchor: { doc: { block } }, title: "", messages: 1, updatedAt: "2026-10-03T00:00:00Z" });
+  const thread = (id: string, state: string) => ({
+    id,
+    state,
+    intent: "note",
+    anchor: { doc: { block } },
+    title: "",
+    messages: 1,
+    updatedAt: "2026-10-03T00:00:00Z",
+  });
   await emit({ type: "thread.upsert", rev: 900, thread: thread("th_000000000001", "open") });
   await emit({ type: "thread.upsert", rev: 901, thread: thread("th_000000000002", "resolved") });
   await expect(page.locator('.toc a[data-toc="s3/review-cycle"] .tb')).toHaveText("●1");
