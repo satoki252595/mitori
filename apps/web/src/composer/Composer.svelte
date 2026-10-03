@@ -107,13 +107,22 @@ $effect(() => {
   if (!el || placement === "sheet" || typeof ResizeObserver === "undefined") return;
   let last = el.offsetHeight;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // the margin column grows to hold the card one frame later (its min-height follows the layout): when the first
+  // scroll could not reach the bottom yet (a short page), try once more after that layout
+  const reveal = (again: boolean) => {
+    el.scrollIntoView({ block: "nearest" });
+    if (again && el.getBoundingClientRect().bottom > innerHeight + 1) timer = setTimeout(() => reveal(false), 160);
+  };
+  // opened already taller than the room below its block (its 対象コード arrived before this effect ran — ux finishing
+  // pass, 1440×900 on §4): bring it in once at open, too
+  timer = setTimeout(() => reveal(true), 120);
   const ro = new ResizeObserver(() => {
     const h = el.offsetHeight;
     const grew = h > last;
     last = h;
     if (!grew) return;
     clearTimeout(timer);
-    timer = setTimeout(() => el.scrollIntoView({ block: "nearest" }), 80);
+    timer = setTimeout(() => reveal(true), 80);
   });
   ro.observe(el);
   return () => {

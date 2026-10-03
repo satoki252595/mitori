@@ -59,7 +59,19 @@ async function decide(p: DocProposalView, d: "accept" | "reject") {
     } else await s.api.call("POST /ws/:ws/doc/proposals/:pp/reject", { params: { ws, pp: p.id } });
     s.doc.removeProposal(p.id);
   } catch (err) {
-    s.bottom.toast({ id: "loop.proposal", kind: "error", key: "review.toast.failed", params: { error: errorText(MitoriError.from(err).toData()) } });
+    const e = MitoriError.from(err);
+    if (e.code === "E_DOC_BASE_MISMATCH") {
+      // the block moved since the AI proposed (e.g. a static row re-derived from the accepted code): say so ON the
+      // proposal — reject it, or edit the block by hand — instead of a generic failure toast
+      s.doc.upsertProposal({ ...p, conflict: true });
+      s.bottom.toast({ id: "loop.proposal", kind: "warn", key: "proposals.toast.conflict" });
+      return;
+    }
+    if (e.code === "E_PRECONDITION" && e.params?.job) {
+      s.bottom.toast({ id: "loop.proposal", kind: "info", key: "proposals.toast.inReview" });
+      return;
+    }
+    s.bottom.toast({ id: "loop.proposal", kind: "error", key: "review.toast.failed", params: { error: errorText(e.toData()) } });
   }
 }
 
