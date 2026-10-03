@@ -36,14 +36,27 @@ mitori 自身の lean エンジン（claude-cli、`--setting-sources ""`・stdin
 | API 換算 | $1.32 | $1.652 | — |
 | 所要（並列 3） | 145 s | 約 155 s 実働（計 865 s。うち 12 分は計測ハーネスの上限設定による予算停止、修正済み） | — |
 | 最初の AI ブロック | 2.7 s | 2.8 s | — |
-| 再試行率 | 63.2 % | **33.3 %** | < 30 % ❌（あと 1 task） |
-| 1 回目で valid な行 | 80 % | 84.6 % | ≥ 90 % ❌ |
+| 再試行率 | 63.2 % | **33.3 %**（同じ出力を最終コードで再生: **16 %**） | < 30 % 実測 ❌ / 再生 ✅ |
+| 1 回目で valid な行 | 80 % | 84.6 %（再生: 3 / 261 行だけ不合格） | ≥ 90 % 実測 ❌ / 再生 ✅ |
 | citation L0 | 100 % | 100 % | ✅ |
-| citation L1 | 84.8 % | **88.2 %**（この後の修正で推定 ≈ 90.4 %、未再計測） | ≥ 90 % ❌ |
+| citation L1 | 84.8 % | **88.2 %**（再生: **90.6 %**） | ≥ 90 % 実測 ❌ / 再生 ✅ |
 | 見積誤差 $ | +8.5 % | **−0.9 %**（$1.668 → $1.652） | ✅ |
 | 見積誤差 入力 / 出力 token | +92 % / −22 %（素の task 見積） | −5.6 % / −20.6 % | ✅ |
 
 この branch の実エンジン消費は合計 **$3.43**（m3e 2 回 $1.34、§3 再生成 2 回 $0.17、理解テスト $0.26、crit $1.65）。上限 $4.00 内。
+
+### 記録した実出力の再生（`bench/measure/gen-replay.ts`、無料）
+
+crit の実測のあとに入れた修正（範囲の切り詰め、questions の section、exported: 0、Go のパッケージ名）は実エンジンで再計測する
+予算が残らなかったため、`gen-real.ts --record` で記録した**同じ 1 回目の返答**を、最終コードの validator と Verifier に通し直した
+（入力は記録したプロンプトそのもの。プロンプト側の変更は反映されない）。再生の忠実度は m3e after で確認: 実測 25 % / 93.0 % に対し再生 25 % / 92.7 %。
+
+| 記録 | 実測 再試行 / L1 | 最終コードで再生 再試行 / L1 |
+|---|---|---|
+| crit 前回 dogfood（プロンプト @2） | 63 % / 84.8 % | 21 % / 87.8 % |
+| m3e before（今朝の main） | 45.5 % / 84.3 % | 36 % / 94.2 %（TESTS 由来の V17 は入力側の修正なので再生では消えない） |
+| m3e after | 25 % / 93.0 % | 25 % / 92.7 % |
+| crit after | 33 % / 88.2 % | **16 % / 90.6 %** |
 
 ### 初見者理解テスト（m3e-canvas、10 問、`eval/comprehension/run.ts`）
 
@@ -137,8 +150,9 @@ standard と complete の違いが eager の数（≤ 40 / 全 leaf）だけで�
 
 ## 5. 残っている問題（正直に）
 
-1. **crit は目標に届いていない**: 再試行 33 %・L1 88.2 %・1 回目 valid 84.6 %。最後の修正（範囲の切り詰め、questions の section、exported: 0、
-   Go のパッケージ名）は単体テストと記録データの分析では効くはずだが、**実エンジンで再計測していない**（残り予算 $0.57 では crit 1 回 ≈ $1.6 が走らない）。
+1. **crit は実測では目標に届いていない**: 再試行 33 %・L1 88.2 %・1 回目 valid 84.6 %。最後の修正（範囲の切り詰め、questions の section、
+   exported: 0、Go のパッケージ名）は、記録した同じ出力の再生では 16 % / 90.6 % になるが、**実エンジンでの再計測はしていない**
+   （残り予算 $0.57 では crit 1 回 ≈ $1.6 が走らない）。プロンプトが変わると出力も変わるので、次の実測で確かめる必要がある。
 2. **所要時間の見積はまだ +55 %**（m3e 133 s 見積 → 86 s 実測）。出力 token の過大見積（−23 %）と再試行の時間見込みが残っている。
 3. **flows の選び方**: crit の 3 本は「コマンドの振り分け」「プレビュー配信」「story API」で、肝心の「ブラウザでコメント → review ファイル →
    エージェントが読む」が入らない。seed の順位（index の route 優先）に引きずられる。m3e の導出 seed も Editor の先頭 80 行しか本体が見えず、手順が浅い。
@@ -150,6 +164,8 @@ standard と complete の違いが eager の数（≤ 40 / 全 leaf）だけで�
 7. 理解テストは 10 問・各条件 1 回・回答者 Haiku。差は大きいが統計的には弱い。spec の 12 問 × 4 条件（素朴要約 C2 を含む）・人の確認はまだ。
 8. 計測ハーネスの予算停止（product は上限の 80 % で dispatch を止めて run を pause する）で crit の計測が 12 分止まった。
    `gen-real.ts` は product の上限に余裕を持たせ、pause を検知したら止めて報告するよう直した。
+9. 全テスト（2,555 件）を並列で回すと SKEL-AT-02（埋め込み ELK の 120 ms 予算）と IDX-AT-15（parse timeout）が負荷で落ちることがある。
+   どちらも単独では通り、gen の変更とは無関係。
 
 ## 6. 再現
 
@@ -161,6 +177,8 @@ MITORI_LIVE=1 scripts/nd bun bench/measure/gen-real.ts --repo <clone> --home <di
 # §3 だけ作り直す
 scripts/nd bun bench/measure/gen-reset.ts <clone> <home>
 MITORI_LIVE=1 scripts/nd bun bench/measure/gen-real.ts --repo <clone> --home <home> --scope s3 --run --max-usd 0.2 --out <dir>
+# 記録した実出力を今の validator / Verifier に通す（無料。gen-real.ts に --record を付けた run の記録が要る）
+scripts/nd bun bench/measure/gen-replay.ts --rec <record dir> --repo <clone> [--verbose]
 # 初見者理解テスト（出題を再利用すると $0.11）
 MITORI_LIVE=1 scripts/nd bun eval/comprehension/run.ts --repo <clone> --max-usd 0.6 [--quiz <report.json>] --out <dir>
 ```
