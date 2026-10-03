@@ -284,7 +284,7 @@ describe("AC-45 phases: the next phase sees the previous phase's output", () => 
     expect(r2.next).toEqual({ prep: p2.id, phase: 3 });
     const p3 = await h.gen.session.prep({ effort: "standard", continueFrom: p2.id });
     expect(tasksOf(h, p3).map((t) => t.prompt)).toEqual(
-      ["gen.quality", "gen.risks", "gen.decisions", "gen.overview", "gen.flows", "gen.glossary", "gen.questions"].map(v),
+      (["gen.quality", "gen.risks", "gen.decisions", "gen.overview", "gen.flows", "gen.glossary", "gen.questions"] as const).map((id) => v(id)),
     );
     expect(tasksOf(h, p3).find((t) => t.prompt === v("gen.glossary"))?.after.length).toBe(2);
     answer(h, p3);
