@@ -215,7 +215,18 @@ export function spySafeWriter(): SafeWriter & { writes: WriteRecord[]; refused: 
       refused.push(rel);
       throw new MitoriError("E_PATH_OUTSIDE", `bad rel ${rel}`);
     }
-    if (realpathSync(rootReal) !== rootReal) {
+    // CR-PENDING(WP-04): the doc root (docDir) may not exist yet; it is created when its parent is a realpath
+    let rootOk = false;
+    try {
+      rootOk = realpathSync(rootReal) === rootReal;
+    } catch {
+      const parent = rootReal.slice(0, rootReal.lastIndexOf("/"));
+      if (realpathSync(parent) === parent) {
+        mkdirSync(rootReal);
+        rootOk = true;
+      }
+    }
+    if (!rootOk) {
       refused.push(rel);
       throw new MitoriError("E_PATH_SYMLINK", "root is not a realpath");
     }
