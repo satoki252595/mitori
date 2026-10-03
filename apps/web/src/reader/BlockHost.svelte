@@ -8,6 +8,7 @@
 import type { BlockId, BlockView, GlossaryId, ReaderLevel, SectionId } from "@mitori/core";
 import { onMount, untrack } from "svelte";
 import { type StreamingSection, UI_THRESHOLDS } from "../contract.ts";
+import { reservePx } from "../gen/progress.ts";
 import { t } from "../shell/index.ts";
 import { decorateBlock } from "./decorate.ts";
 import { l3Runs, type PageModel } from "./page.ts";
@@ -26,6 +27,10 @@ let {
   onplaceholder,
   onmore,
   head,
+  generating = false,
+  docLang = "ja",
+  tail = null,
+  mutate = (apply: () => void) => apply(),
 }: {
   page: PageModel;
   level: ReaderLevel;
@@ -39,9 +44,62 @@ let {
   onplaceholder: (section: SectionId) => void;
   onmore: (ids: BlockId[]) => void;
   head: import("svelte").Snippet<[import("./page.ts").PagePart]>;
+  /** A generation run is active (pending / partial sections then wait for blocks; otherwise they are placeholders). */
+  generating?: boolean;
+  /** Language of the doc text (H_est uses its chars per token / per line). */
+  docLang?: "ja" | "en";
+  /** Tail line of the running task (`◐ 生成中 · …`, §4.3.9-6). */
+  tail?: string | null;
+  /** Scroll-compensated DOM update (the Reader's anchor capture / restore). */
+  mutate?: (apply: () => void) => void;
 } = $props();
 
 let root: HTMLDivElement | undefined = $state();
+
+// ---------------------------------------------------------------- streaming reservation (ux.md §4.3.9, CLS 0)
+/** Receiving blocks now: generating, or waiting inside an active run, or a partial text is open. */
+function isStreaming(p: import("./page.ts").PagePart): boolean {
+  const st = p.node.state;
+  return streaming.has(p.node.id) || st === "generating" || ((st === "pending" || st === "partial") && generating);
+}
+/** H_est of a section (`SectionNode.est.outTokens`; never shrinks while streaming). */
+function reserveOf(p: import("./page.ts").PagePart): number {
+  return Math.max(streaming.get(p.node.id)?.reservedPx ?? 0, reservePx(p.node.est?.outTokens, docLang));
+}
+/**
+ * A finished section keeps its reserved height while the region is on screen and lets it go once it is not
+ * (above the viewport through the scroll compensation, below it unseen): the reader never sees text jump.
+ */
+let held = $state.raw<ReadonlySet<SectionId>>(new Set());
+let wasStreaming = new Set<SectionId>();
+const streamIds = $derived(new Set(page.parts.filter(isStreaming).map((p) => p.node.id)));
+$effect(() => {
+  const now = streamIds;
+  untrack(() => {
+    const done = [...wasStreaming].filter((id) => !now.has(id));
+    wasStreaming = new Set(now);
+    if (!done.length || !root) return;
+    const keep = done.filter((id) => {
+      const el = root?.querySelector<HTMLElement>(`.sec-body[data-section="${CSS.escape(id)}"]`);
+      const r = el?.getBoundingClientRect();
+      return !!r && r.bottom > 0 && r.top < window.innerHeight;
+    });
+    if (keep.length) held = new Set([...held, ...keep]);
+  });
+});
+$effect(() => {
+  if (held.size === 0 || !root) return;
+  const io = new IntersectionObserver((entries) => {
+    const gone = entries.filter((e) => !e.isIntersecting).map((e) => (e.target as HTMLElement).dataset.section as SectionId);
+    if (gone.length) mutate(() => (held = new Set([...held].filter((id) => !gone.includes(id)))));
+  });
+  for (const id of held) {
+    const el = root.querySelector(`.sec-body[data-section="${CSS.escape(id)}"]`);
+    if (el) io.observe(el);
+  }
+  return () => io.disconnect();
+});
+const reserving = (p: import("./page.ts").PagePart) => streamIds.has(p.node.id) || held.has(p.node.id);
 
 // ---------------------------------------------------------------- rows + windowing
 type Row =
@@ -60,8 +118,7 @@ const partRows = $derived(
       if (n) out.push({ k: "chip", key: `c:${b.id}`, ids: ids.slice(j, j + n) });
       out.push({ k: "blk", key: b.id, b });
     });
-    if (p.node.state === "pending" || p.node.state === "generating" || p.node.state === "partial" || streaming.has(p.node.id))
-      out.push({ k: "stream", key: `s:${p.node.id}`, section: p.node.id });
+    if (isStreaming(p)) out.push({ k: "stream", key: `s:${p.node.id}`, section: p.node.id });
     return out;
   }),
 );
@@ -300,19 +357,28 @@ onMount(() => {
       </div>
     {/if}
   {:else if r.k === "stream"}
+    <!-- the open block: plain text + caret at the end of the reserved region -->
     {@const st = streaming.get(r.section)}
-    <div class="mstream" style:--reserve="{st?.reservedPx ?? 600}px" data-section={r.section}>
-      <p class="stream-note"><span class="caret" aria-hidden="true"></span>{t("reader.generating")}</p>
-      {#if st?.partial}<p class="partial">{st.partial}<span class="caret" aria-hidden="true"></span></p>{/if}
-    </div>
+    {#if st?.partial}<p class="partial">{st.partial}<span class="caret" aria-hidden="true"></span></p>{/if}
   {/if}
 {/snippet}
 
 <div class="reader-root prose" bind:this={root}>
   {#if !virtual}
     {#each page.parts as p, pi (p.node.id)}
+      {@const rs = partRows[pi] ?? []}
       <section class="sec" class:cv={!p.top && !p.blocks.some((b) => b.kind === "diagram")} data-sec={p.node.id}>
-        {#each partRows[pi] ?? [] as r (r.key)}{@render rowView(r)}{/each}
+        {#each rs.filter((r) => r.k === "head") as r (r.key)}{@render rowView(r)}{/each}
+        <!-- one body element in every state: the reservation toggles a class, blocks never remount -->
+        <div class="sec-body" class:mstream={reserving(p)} style:--reserve={reserving(p) ? `${reserveOf(p)}px` : undefined} data-section={p.node.id}>
+          {#if reserving(p)}
+            <!-- kept (hidden) while a finished section holds its reservation: removing it would shift the blocks -->
+            <p class="stream-note" data-chrome class:held={!streamIds.has(p.node.id)} aria-hidden={!streamIds.has(p.node.id) || undefined}>
+              <span class="caret" aria-hidden="true"></span>{t("reader.generating")}{#if tail}<span class="tail mono"> · {tail}</span>{/if}
+            </p>
+          {/if}
+          {#each rs.filter((r) => r.k !== "head") as r (r.key)}{@render rowView(r)}{/each}
+        </div>
       </section>
     {/each}
   {:else}

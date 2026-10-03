@@ -179,7 +179,7 @@
   "rail.notGenerated": "未生成 · 0 tok",
   "rail.optIn": ".mitori/ · commitはopt-in",
   "rail.path": "読書パス",
-  "rail.pathAfterGen": "生成すると30分コースが使えます",
+  "rail.pathAfterGen": "生成すると使えます",
   "rail.pathDefault": "30分コース",
   "rail.pathLeft": "残り約{min}分 · 追加0 tok",
   "rail.pathPick": "読書パスを選ぶ",

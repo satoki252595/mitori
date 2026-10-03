@@ -665,6 +665,10 @@ html.show-cites .mc[data-verdict="verified"]::after {
   min-height: var(--reserve, 600px);
 }
 
+.stream-note.held {
+  visibility: hidden;
+}
+
 .mstream .partial {
   white-space: pre-wrap;
   color: var(--text);

@@ -463,6 +463,13 @@ $effect(() => {
   return () => io.disconnect();
 });
 
+// tail of the running generation (`◐ 生成中 · modules · internal/session`, §4.3.9-6)
+const streamTail = $derived.by(() => {
+  const running = s.gen.tasks.filter((x) => x.state === "running");
+  const last = running[running.length - 1];
+  return last ? `${t(`gen.stage.${last.stage}`)} · ${last.target.id}` : null;
+});
+
 // ---------------------------------------------------------------- placeholders: first click estimates, second runs
 async function onPlaceholder(sec: SectionId) {
   if (s.gen.sectionEstimates.has(sec)) {
@@ -566,6 +573,10 @@ const marginView = $derived(ext?.margin ?? null);
           onhoverblock={onHoverBlock}
           onplaceholder={onPlaceholder}
           onmore={(ids) => (forced = new Set([...forced, ...ids]))}
+          generating={s.gen.run?.state === "running" || s.gen.run?.state === "paused"}
+          docLang={s.doc.lang}
+          tail={streamTail}
+          mutate={(apply) => s.doc.mutate(apply)}
         />
         {#if next && ws}
           <nav class="pager" aria-label={t("reader.pager")} data-chrome>

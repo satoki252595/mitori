@@ -65,10 +65,17 @@ export class DocState implements DocViewStore {
     try {
       const o = await this.api.call("GET /ws/:ws/doc", { params: { ws } });
       if (this.ws() !== ws) return null;
-      this.outline = o;
-      this.index = indexOutline(o);
-      this.lang = o.manifest.primaryLang;
-      this.outlineError = false;
+      // a section that finished drops its reservation in the same, scroll-compensated DOM update (§4.3.9-4)
+      this.mutate(() => {
+        this.outline = o;
+        this.index = indexOutline(o);
+        this.lang = o.manifest.primaryLang;
+        this.outlineError = false;
+        for (const id of [...this.streaming.keys()]) {
+          const st = this.index.nodes.get(id)?.state;
+          if (st === undefined || st === "generated" || st === "static_only") this.streaming.delete(id);
+        }
+      });
       return o;
     } catch {
       this.outlineError = true;
@@ -148,7 +155,9 @@ export class DocState implements DocViewStore {
 
   upsertBlock(b: BlockView): void {
     const h = this.#holder(b.section);
-    this.streaming.delete(b.section);
+    // the open block is now confirmed: its partial text goes, the reservation H_est stays (§4.3.9-2)
+    const cur = this.streaming.get(b.section);
+    if (cur?.partial) this.streaming.set(b.section, { ...cur, partial: "" });
     if (!h) return;
     const [id, v] = h;
     const i = v.blocks.findIndex((x) => x.id === b.id);

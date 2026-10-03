@@ -179,7 +179,7 @@
   "rail.notGenerated": "Not generated · 0 tok",
   "rail.optIn": ".mitori/ · commit is opt-in",
   "rail.path": "Reading path",
-  "rail.pathAfterGen": "Generate the doc to use the 30-minute course",
+  "rail.pathAfterGen": "Available once generated",
   "rail.pathDefault": "30-minute course",
   "rail.pathLeft": "~{min} min left · 0 extra tok",
   "rail.pathPick": "Choose a reading path",

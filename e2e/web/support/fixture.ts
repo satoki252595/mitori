@@ -313,6 +313,11 @@ function makeBlock(
   };
 }
 
+/** A generated block arriving over SSE (`doc.block.upsert`) for the streaming tests. */
+export function streamBlock(n: number, section: SectionId, ord: number): BlockView {
+  return makeBlock(n, section, "doc/01-what.md", ord, "prose", "L1", "ready");
+}
+
 const KINDS: BlockView["kind"][] = ["prose", "prose", "list", "why", "prose", "pitfall", "prose", "deepdive", "prose", "table", "prose", "code"];
 const DEPTHS: BlockView["depth"][] = ["L1", "L1", "L2", "L1", "L2", "L1", "L2", "L3", "L3", "L2", "L1", "L2"];
 

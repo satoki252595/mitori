@@ -10,7 +10,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
 import type { SectionId, SseEvent } from "@mitori/core";
-import { DEFAULTS, docFixture, engines, estimate, type FixtureOptions, mapView, paletteItems, settings, WS, workspaceStatus } from "./fixture.ts";
+import { DEFAULTS, docFixture, engines, estimate, type FixtureOptions, mapView, paletteItems, settings, streamBlock, WS, workspaceStatus } from "./fixture.ts";
 
 const PORT = Number(process.argv[2] ?? process.env.MOCK_PORT ?? 4317);
 const DIST = resolve(import.meta.dir, "../../../apps/web/dist");
@@ -322,6 +322,42 @@ Bun.serve({
       return json({ ok: true, tabs: streams.size });
     }
     if (url.pathname === "/__mock/log") return json(log);
+    // streaming (ux.md §4.3.9): a run, block upserts / partials, a section's state flip + doc.outline
+    if (url.pathname === "/__mock/gen") {
+      const b = body as { state: "running" | "done" };
+      const e = estimate(opts, "standard", "claude-cli", 0);
+      const run = {
+        id: "gr_run00000",
+        ws: WS,
+        effort: "standard",
+        trigger: "user",
+        engine: "claude-cli",
+        scope: [],
+        state: b.state,
+        concurrency: 3,
+        estimate: e,
+        progress: { total: 14, done: b.state === "done" ? 14 : 1, failed: 0, blocks: b.state === "done" ? 40 : 1 },
+        usage: { calls: 1, in: 1000, cacheWrite: 0, cacheRead: 0, out: 200, apiUsd: 0.01 },
+        startedAt: new Date(Date.now() - 5000).toISOString(),
+        ...(b.state === "done" ? { finishedAt: new Date().toISOString() } : {}),
+      };
+      emit({ type: "gen.run", run } as never);
+      return json({ ok: true });
+    }
+    if (url.pathname === "/__mock/stream") {
+      const b = body as { section: SectionId; ord: number; partial?: string };
+      if (b.partial !== undefined) emit({ type: "doc.block.partial", section: b.section, text: b.partial } as never);
+      else emit({ type: "doc.block.upsert", block: streamBlock(5000 + b.ord, b.section, b.ord) } as never);
+      return json({ ok: true });
+    }
+    if (url.pathname === "/__mock/section") {
+      const b = body as { section: SectionId; state: "generated" | "generating" };
+      const node = doc.outline.sections.find((x) => x.id === b.section);
+      if (node) node.state = b.state;
+      doc.outline = { ...doc.outline, outlineRev: doc.outline.outlineRev + 1 };
+      emit({ type: "doc.outline", outlineRev: doc.outline.outlineRev } as never);
+      return json({ ok: true });
+    }
     if (url.pathname.startsWith("/api/")) {
       log.push({ method: req.method, path: url.pathname + url.search, body, at: Date.now() });
       return api(req, url, body);
