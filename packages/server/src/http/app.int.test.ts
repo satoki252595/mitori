@@ -192,6 +192,14 @@ describe("SRV-I-012 security headers", () => {
     }
     expect(responses[0]?.headers.get("cache-control")).toBe("no-store");
     expect(responses[2]?.headers.get("cache-control")).toBe("no-store");
+    // SRV-I-010: no cookie is ever set, not even by the login exchange (the session token lives in localStorage)
+    const n = (await (await h.cli("POST", "/auth/nonce", { to: "/" })).json()) as { url: string };
+    const exchange = await h.req("POST", "/auth/exchange", {
+      body: { nonce: new URL(n.url).hash.slice(3).split("&")[0] },
+      headers: { "sec-fetch-site": "same-origin", "x-mitori-client": "web/test" },
+    });
+    expect(exchange.status).toBe(200);
+    for (const res of [...responses, exchange]) expect(res.headers.get("set-cookie")).toBeNull();
     expect(responses[0]?.headers.get("x-mitori-request-id")).toMatch(/^rq_/);
     const inline = 'document.documentElement.dataset.t="1"';
     const hash = new Bun.CryptoHasher("sha256").update(inline).digest("base64");
@@ -362,7 +370,13 @@ describe("SRV-I-025 static delivery", () => {
     expect(shell.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(shell.headers.get("cache-control")).toBe("no-cache");
     expect((await fetch(`${h.origin}/auth`)).status).toBe(200);
+    // in-app routes whose last segment looks like a file still get the shell (reload on a code view)
+    for (const route of [`/w/${ws}/code/src/main.ts`, `/w/${ws}/doc/s1%2Fv1.2`, "/settings"]) {
+      const res = await fetch(`${h.origin}${route}`);
+      expect([route, res.status, res.headers.get("content-type")]).toEqual([route, 200, "text/html; charset=utf-8"]);
+    }
     expect((await fetch(`${h.origin}/missing.js`)).status).toBe(404);
+    expect((await fetch(`${h.origin}/assets/missing-123.js`)).status).toBe(404);
     expect((await fetch(`${h.origin}/`, { method: "POST" })).status).toBe(404);
   });
 

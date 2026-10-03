@@ -53,12 +53,18 @@ export function securityHeaders(indexHtml: string): Record<string, string> {
   return { ...SECURITY_HEADERS, "content-security-policy": csp };
 }
 
-/** GET/HEAD of a web path; null when it is not a web asset. `/auth` and extensionless paths get the shell. */
+/** In-app History routes (web `APP_ROUTES`): their last segment may look like a file (`/w/<ws>/code/src/main.ts`). */
+const APP_ROUTE_RE = /^\/(?:w\/|settings(?:\/|$))/;
+
+/**
+ * GET/HEAD of a web path; null when it is not a web asset. The shell answers `/`, `/auth`, every in-app route
+ * and any other extensionless path; a missing file elsewhere (`/assets/*`, `/x.png`) stays a 404.
+ */
 export function serveStatic(assets: Assets, req: Request, pathname: string): Response | null {
   if (req.method !== "GET" && req.method !== "HEAD") return null;
   let path = pathname === "/" || pathname === "/auth" ? "/index.html" : pathname;
   let asset = assets.get(path);
-  if (!asset && !/\.[a-z0-9]+$/i.test(path)) {
+  if (!asset && (APP_ROUTE_RE.test(path) || !/\.[a-z0-9]+$/i.test(path))) {
     path = "/index.html";
     asset = assets.get(path);
   }
