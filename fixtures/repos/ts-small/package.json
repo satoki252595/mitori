@@ -1,10 +1,29 @@
 {
   "name": "tsundoku-web",
+  "version": "0.4.2",
   "private": true,
   "type": "module",
+  "description": "tsundoku: keep track of the books you bought and have not read yet.",
   "main": "src/index.ts",
+  "bin": {
+    "tsundoku": "bin/tsundoku.js"
+  },
   "scripts": {
     "dev": "bun run src/index.ts",
-    "test": "bun test"
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint src test",
+    "format": "biome format --write src test"
+  },
+  "dependencies": {
+    "commander": "12.1.0",
+    "drizzle-orm": "0.36.4",
+    "express": "4.21.1",
+    "hono": "4.6.12"
+  },
+  "devDependencies": {
+    "@types/bun": "1.1.13",
+    "typescript": "5.6.3"
   }
 }

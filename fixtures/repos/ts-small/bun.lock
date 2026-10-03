@@ -1,0 +1,25 @@
+{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "tsundoku-web",
+      "dependencies": {
+        "commander": "12.1.0",
+        "drizzle-orm": "0.36.4",
+        "express": "4.21.1",
+        "hono": "4.6.12",
+      },
+      "devDependencies": {
+        "@types/bun": "1.1.13",
+        "typescript": "5.6.3",
+      },
+    },
+  },
+  "packages": {
+    "commander": ["commander@12.1.0", "", {}, "sha512-fixture-not-a-real-integrity-hash-commander"],
+    "drizzle-orm": ["drizzle-orm@0.36.4", "", {}, "sha512-fixture-not-a-real-integrity-hash-drizzle"],
+    "express": ["express@4.21.1", "", {}, "sha512-fixture-not-a-real-integrity-hash-express"],
+    "hono": ["hono@4.6.12", "", {}, "sha512-fixture-not-a-real-integrity-hash-hono"],
+    "typescript": ["typescript@5.6.3", "", {}, "sha512-fixture-not-a-real-integrity-hash-typescript"],
+  }
+}
