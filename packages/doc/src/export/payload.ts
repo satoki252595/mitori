@@ -32,6 +32,7 @@ import {
   type WorkspaceKey,
 } from "@mitori/core";
 import type { BlockRenderer, DiagramLayouter, DocStore } from "../contract.ts";
+import { L } from "../store/i18n.ts";
 import { fromMermaid, mermaidFence } from "./mermaid.ts";
 import type { ExportFile, ExportSource } from "./source.ts";
 import { diagramSvg } from "./svg.ts";
@@ -211,10 +212,15 @@ export async function buildPayload(d: BuildDeps, req: ExportReq): Promise<Payloa
   };
   /** Redact text that is a copy of Markdown the blocks already count (titles, claim quotes). */
   const Q = (s: string): string => (s === "" ? s : secrets.redact(s).text);
-  const gloss = idx.glossary.map((g) => ({ ...g, term: R(g.term), definition: R(g.definition), ...(g.en ? { en: R(g.en) } : {}) }));
+  const dropBlock = (b: { slot?: string | undefined }): boolean => !req.includeDecisions && b.slot === "s10:decisions";
+  // a redaction is counted where its Markdown is: the glossary's entries are the rows of the s12 table block (counted
+  // with that block), a diagram's labels are its block's Mermaid fence — only text with no block of its own counts here
+  const blocksMeta = Object.values(idx.blocks);
+  const G = blocksMeta.some((b) => b.slot === "s12:table" && !dropBlock(b)) ? Q : R;
+  const gloss = idx.glossary.map((g) => ({ ...g, term: G(g.term), definition: G(g.definition), ...(g.en ? { en: G(g.en) } : {}) }));
+  const blockDiagrams = new Set<string>(blocksMeta.flatMap((b) => (b.diagram && !dropBlock(b) ? [b.diagram] : [])));
 
   // ---------------------------------------------------------------- structure (decisions list only on request)
-  const dropBlock = (b: { slot?: string | undefined }): boolean => !req.includeDecisions && b.slot === "s10:decisions";
   const { order: rawOrder, parent } = readingOrder(doc.sections());
   const order: SectionNode[] = rawOrder.map((s) => ({
     ...s,
@@ -233,7 +239,7 @@ export async function buildPayload(d: BuildDeps, req: ExportReq): Promise<Payloa
     if (hit) return hit;
     const ir0 = idx.diagrams[id as keyof typeof idx.diagrams];
     if (!ir0) return null;
-    const ir = redactIr(ir0, R);
+    const ir = redactIr(ir0, blockDiagrams.has(id) ? Q : R);
     const layout = await layouter.layout(ir);
     const v = { ir, layout };
     diagrams.set(id, v);
@@ -253,7 +259,8 @@ export async function buildPayload(d: BuildDeps, req: ExportReq): Promise<Payloa
     const ir0 = fence ? fromMermaid(fence, `dg_${b.id.slice(2)}` as DiagramIR["id"]) : null;
     if (!ir0) return null;
     try {
-      const ir = redactIr(ir0, R);
+      // read back from the block's own Markdown, which that block counts
+      const ir = redactIr(ir0, Q);
       const v = { ir, layout: await layouter.layout(ir) };
       diagrams.set(key, v);
       return v;
@@ -265,9 +272,16 @@ export async function buildPayload(d: BuildDeps, req: ExportReq): Promise<Payloa
   /** The cites of each block (collected while rendering, in parallel; ordered by reading order afterwards, so the file is deterministic). */
   const citesOf = new Map<BlockId, CiteRef[]>();
 
-  const lineOf = (id: BlockId): number => {
+  /** 1-based Markdown line of the block (the store's, else the code side's reading of the written file); 0 = unknown. */
+  const lineOf = async (b: Block): Promise<number> => {
     try {
-      return doc.mdLine(id) ?? 0;
+      const n = doc.mdLine(b.id);
+      if (typeof n === "number" && n > 0) return n;
+    } catch {
+      // CR-PENDING(WP-04): `DocStore.mdLine` is still a stub; the composition root reads the line from the file
+    }
+    try {
+      return (await d.source?.mdLine?.(b)) ?? 0;
     } catch {
       return 0;
     }
@@ -292,6 +306,8 @@ export async function buildPayload(d: BuildDeps, req: ExportReq): Promise<Payloa
         (_m, rest: string) => `<figure class="mdiagram"${rest} data-w="${dg.layout.width}" data-h="${dg.layout.height}">${svg}`,
       );
     }
+    // the static doc tells its reader to press buttons of the app (「生成する」, 「決定として残す」): a file has none
+    inner = readOnlyWording(inner, b);
     // belt and braces: text nodes of the final HTML (the renderer redacted the Markdown already)
     const left = redactHtmlText(inner, secrets);
     redactions += left.n;
@@ -305,10 +321,11 @@ export async function buildPayload(d: BuildDeps, req: ExportReq): Promise<Payloa
       }
     }
     citesOf.set(b.id, refs);
-    // CR-PENDING(WP-04): `DocStore.mdLine` is still a stub; the viewer does not use the line (permalinks need a repo)
-    const mdLine = lineOf(b.id);
+    // the expert level shows 「L<n>」 (the block's line in its Markdown file): never a made-up 「L0」
+    const mdLine = await lineOf(b);
     const lock = b.lock ? ` data-lock="${esc(b.lock)}"` : "";
-    const html = `<div class="mb" data-block="${b.id}" data-kind="${b.kind}" data-depth="${b.depth}" data-fresh="${b.freshness}"${lock} data-ln="${mdLine}">${inner}</div>`;
+    const ln = mdLine > 0 ? ` data-ln="${mdLine}"` : "";
+    const html = `<div class="mb" data-block="${b.id}" data-kind="${b.kind}" data-depth="${b.depth}" data-fresh="${b.freshness}"${lock}${ln}>${inner}</div>`;
     const { md: _md, gen: _gen, hash: _hash, verifiedBy: _by, ...meta } = b;
     return {
       ...meta,
@@ -606,6 +623,40 @@ export function compactShiki(html: string): string {
     .replace(/<span style="color:var\(--shiki-token-([a-z-]+)\)">/g, (all, token: string) =>
       SHIKI_CLASSES[token] ? `<span class="${SHIKI_CLASSES[token]}">` : all,
     );
+}
+
+/** Text as markdown-it writes it into a paragraph (`& < > "` escaped, `'` kept). */
+const mdText = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/** What a file says where the static doc points at a button of the app (the export has no generation and no threads). */
+const READ_ONLY: Record<DocLang, { section: string; module: string; noDecisions: [string, string] }> = {
+  ja: {
+    section: "この節は、書き出した時点ではまだ生成されていませんでした。",
+    module: "このモジュールのページは、書き出した時点ではまだ生成されていませんでした。",
+    noDecisions: [mdText(L.ja.noDecisions), "まだ決定はありません。"],
+  },
+  en: {
+    section: "This section had not been generated yet when this file was exported.",
+    module: "This module page had not been generated yet when this file was exported.",
+    noDecisions: [mdText(L.en.noDecisions), "No decisions yet."],
+  },
+};
+
+/**
+ * The read-only form of a block's HTML: a placeholder says the section was not generated when the file was made
+ * (instead of 「mitori の『生成する』で作られます」), the empty decisions list does not invite promoting a thread.
+ */
+export function readOnlyWording(html: string, b: Pick<Block, "kind" | "lang" | "slot">): string {
+  const w = READ_ONLY[b.lang] ?? READ_ONLY.ja;
+  if (b.kind === "placeholder") {
+    const text = b.slot?.startsWith("m:") ? w.module : w.section;
+    return html.replace(
+      /(<aside class="malert" data-alert="placeholder"><p class="malert-label">[^<]*<\/p>\s*)<p>[\s\S]*?<\/p>/,
+      (_m, head: string) => `${head}<p>${esc(text)}</p>`,
+    );
+  }
+  const [from, to] = w.noDecisions;
+  return html.includes(from) ? html.replace(from, esc(to)) : html;
 }
 
 function plainLines(text: string, first: number): string {

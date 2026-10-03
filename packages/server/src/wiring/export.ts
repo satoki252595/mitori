@@ -9,14 +9,19 @@ import type { ExportSource } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
 import type { RouteCtx, RouteHandlers } from "../routes/types.ts";
 import { containerDiagram } from "./static-input.ts";
+import type { MdLines } from "./views.ts";
 import type { WorkspaceDomain } from "./workspace.ts";
 
 /** Files bigger than this are not read for excerpts (the indexer already skips binaries and excluded paths). */
 const MAX_EXCERPT_FILE_BYTES = 2_000_000;
 
-/** What the exporter reads of the checkout: only indexed (non-excluded) files, so secrets files never get that far. */
-export function exportSource(indexer: Indexer): ExportSource {
+/**
+ * What the exporter reads of the checkout: only indexed (non-excluded) files, so secrets files never get that far. `lines`
+ * is the daemon's reading of the written Markdown (the `L<n>` of the expert level, the same numbers the app shows).
+ */
+export function exportSource(indexer: Indexer, lines?: Pick<MdLines, "lineOf">): ExportSource {
   return {
+    ...(lines ? { mdLine: (b) => lines.lineOf(b) } : {}),
     async file(path) {
       const entry = indexer.file(path);
       if (entry === null) return null;

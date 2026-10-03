@@ -708,7 +708,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
       secrets,
       viewerAssets: deps.viewerAssets,
       clock: deps.clock,
-      source: exportSource(rawIndexer),
+      source: exportSource(rawIndexer, view.lines),
     }),
     view,
     scan: () => scan,

@@ -2,7 +2,7 @@
 // supplied by the composition root (server wiring), optional so a doc-only export still works (cites then carry no
 // code excerpt). CR-PENDING(WP-13): the contract's `createHtmlExporter` deps have no such port — see
 // docs/design/cr-requests/WP-13.md.
-import type { DiagramIR, GitOid, MapView, RepoPath, SourceLang, SymbolKey } from "@mitori/core";
+import type { Block, DiagramIR, GitOid, MapView, RepoPath, SourceLang, SymbolKey } from "@mitori/core";
 
 /** One source file at the current checkout. */
 export interface ExportFile {
@@ -26,4 +26,9 @@ export interface ExportSource {
   head?(): string | null;
   /** The container diagram of the index, used when the doc has none of its own (a doc imported without its sidecar). */
   mapDiagram?(): DiagramIR | null;
+  /**
+   * 1-based line of the block in its written Markdown file (the expert level's 「L<n>」), 0 when unknown. The daemon's
+   * own reading of the file (`DocStore.mdLine` is a stub until WP-04 lands it, CR m1-46).
+   */
+  mdLine?(block: Pick<Block, "id" | "file">): Promise<number>;
 }

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { AWS, block, checks, cite, GH, opts, PASS, payloadOf, REQ, STRIPE, setup, source, viewer } from "./export.fixture.ts";
 import { jsonForScript } from "./html.ts";
-import { exportLinks } from "./payload.ts";
+import { exportLinks, readOnlyWording } from "./payload.ts";
 import { hexToBase64, sha256Hex, utf8 } from "./sha256.ts";
 
 describe("WP13-U-01 sha256 / base64", () => {
@@ -153,6 +153,43 @@ describe("WP13-U-06 secrets", () => {
     expect(peek?.html).not.toContain(STRIPE);
   });
 
+  test("a secret is counted once where its Markdown is: a glossary entry (also the s12 table) and a diagram label (also its fence) are not counted twice", async () => {
+    const count = async (over: { glossary?: boolean; diagram?: boolean }) => {
+      const { h, exporter } = setup();
+      if (over.glossary) h.store.setGlossary([{ term: "鍵", definition: `本番の鍵は ${GH} です`, yomi: "かぎ" }]);
+      const blocks = [block({ md: "安全な本文。" })];
+      if (over.diagram)
+        blocks.push(
+          block({
+            kind: "diagram",
+            aspect: "flow",
+            section: "s3",
+            // the store writes the Mermaid fence from the IR: the label is in the Markdown exactly once
+            md: "入力から鍵へ。",
+            diagram: {
+              kind: "flow",
+              direction: "RIGHT",
+              origin: "ai",
+              nodes: [
+                { id: "a", label: "入力" },
+                { id: "b", label: `鍵 ${GH}` },
+              ],
+              edges: [{ id: "e1", from: "a", to: "b", kind: "data" }],
+              groups: [],
+            },
+          }),
+        );
+      h.store.applyGenerated(blocks, opts);
+      const res = await exporter().export(REQ);
+      expect(res.html).not.toContain(GH);
+      return res.redactions;
+    };
+    const base = await count({});
+    expect(await count({ glossary: true })).toBe(base + 1);
+    expect(await count({ diagram: true })).toBe(base + 1);
+    expect(await count({ glossary: true, diagram: true })).toBe(base + 2);
+  });
+
   test("a redaction in cited code is counted once however many cites share the line", async () => {
     const { h, exporter } = setup();
     h.store.applyGenerated(
@@ -273,5 +310,66 @@ describe("WP13-U-08 diagrams, decisions", () => {
     const slot = (p: typeof withDecisions) => p.sections.find((s) => s.section.id === "s10")?.blocks.length ?? 0;
     expect(slot(withDecisions)).toBeGreaterThan(slot(without));
     expect(h.store.index().blocks).toBeDefined();
+  });
+});
+
+describe("WP13-U-09 read-only wording, Markdown lines", () => {
+  test("a placeholder says the section was not generated when the file was made, never 「mitori の『生成する』で作られます」", async () => {
+    const { exporter } = setup();
+    for (const lang of ["ja", "en"] as const) {
+      const p = payloadOf((await exporter().export({ ...REQ, lang, includeDecisions: true })).html);
+      const blocks = p.sections.flatMap((s) => s.blocks);
+      const ph = blocks.filter((b) => b.kind === "placeholder");
+      expect(ph.length, lang).toBeGreaterThan(0);
+      for (const b of ph) {
+        expect(b.html).not.toMatch(/生成する|Generate/);
+        expect(b.html).toMatch(b.lang === "ja" ? /書き出した時点ではまだ生成されていませんでした/ : /had not been generated yet when this file was exported/);
+        expect(b.html).toContain('<p class="malert-label">');
+      }
+      // the empty decisions list does not invite promoting a thread (there are no threads in a file)
+      const all = blocks.map((b) => b.html).join("");
+      expect(all).not.toContain("決定として残す");
+      expect(all).not.toContain("Promote a thread");
+    }
+  });
+
+  test("readOnlyWording: module placeholders, both languages, other blocks untouched", () => {
+    const ph = (text: string) => `<aside class="malert" data-alert="placeholder"><p class="malert-label">未生成</p>\n<p>${text}</p>\n</aside>\n`;
+    expect(readOnlyWording(ph("このモジュールのページはまだ生成されていません。"), { kind: "placeholder", lang: "ja", slot: "m:md_x:ph" })).toContain(
+      "このモジュールのページは、書き出した時点ではまだ生成されていませんでした。",
+    );
+    expect(readOnlyWording(ph("This section has not been generated yet."), { kind: "placeholder", lang: "en", slot: "s3:ph" })).toContain(
+      "<p>This section had not been generated yet when this file was exported.</p>",
+    );
+    expect(readOnlyWording("<ul>\n<li>No decisions yet. Promote a thread's conclusion to record it here.</li>\n</ul>\n", { kind: "list", lang: "en" })).toBe(
+      "<ul>\n<li>No decisions yet.</li>\n</ul>\n",
+    );
+    const prose = "<p>生成する。mitori の「生成する」で作られます。</p>";
+    expect(readOnlyWording(prose, { kind: "prose", lang: "ja" })).toBe(prose);
+  });
+
+  test("the expert level's 「L<n>」 is the block's Markdown line from the code side, and absent (never 「L0」) when unknown", async () => {
+    const { h, exporter } = setup();
+    h.store.applyGenerated([block({})], opts);
+    const lines = new Map<string, number>();
+    const lineOf = async (b: { id: string }): Promise<number> => {
+      if (!lines.has(b.id)) lines.set(b.id, lines.size + 1);
+      return lines.get(b.id) as number;
+    };
+    const a = payloadOf((await exporter({ ...source, mdLine: lineOf }).export(REQ)).html).sections.flatMap((s) => s.blocks);
+    expect(a.length).toBeGreaterThan(0);
+    for (const b of a) {
+      expect(b.mdLine).toBe(lines.get(b.id) as number);
+      expect(b.html).toContain(`data-ln="${b.mdLine}"`);
+    }
+    // no line known (doc-only export, or a source without the port): no data-ln at all, mdLine 0
+    const c = payloadOf((await exporter(source).export(REQ)).html).sections.flatMap((s) => s.blocks);
+    for (const b of c) {
+      expect(b.mdLine).toBe(0);
+      expect(b.html).not.toContain("data-ln=");
+    }
+    const failing = { ...source, mdLine: async (): Promise<number> => Promise.reject(new Error("unreadable")) };
+    const d = payloadOf((await exporter(failing).export(REQ)).html).sections.flatMap((s) => s.blocks);
+    expect(d.every((b) => b.mdLine === 0)).toBe(true);
   });
 });
