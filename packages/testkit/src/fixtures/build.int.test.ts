@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { FixtureRepo } from "../../src/contract.ts";
-import { buildFixture } from "../../src/fixtures/index.ts";
-import { fixtureDir } from "../../src/fixtures/spec.ts";
+import type { FixtureRepo } from "../contract.ts";
+import { buildFixture } from "./index.ts";
+import { fixtureDir } from "./spec.ts";
 
 const repos: FixtureRepo[] = [];
 const build = async (...args: Parameters<typeof buildFixture>) => {
