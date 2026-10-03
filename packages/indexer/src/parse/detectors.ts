@@ -1,12 +1,12 @@
 // Fact-detector registry seen by the parse Worker and the S0 scheduler (indexer spec §5.1: extract in the Worker while
 // the tree is alive, link on the main thread).
-// CR-PENDING(WP-02): integration point for WP-03 — the tier-1 detectors (`packages/indexer/src/facts/`) are added to
-// `FACT_DETECTORS` when WP-02 and WP-03 are merged (docs/design/cr-requests/WP-02.md §2). Until then no detector runs and
-// `ParseItemResult.facts` is empty.
+// WP-INT: the tier-1 detectors of WP-03 (`packages/indexer/src/facts/registry.ts`) are compiled in here
+// (docs/design/cr-requests/WP-02.md §2).
 import type { FactDetector, FactExtractInput } from "../contract.ts";
+import { FACT_DETECTORS as TIER1_DETECTORS } from "../facts/registry.ts";
 
 /** Detectors compiled into this build (id `<kind>.<name>@<ver>`). */
-export const FACT_DETECTORS: readonly FactDetector[] = [];
+export const FACT_DETECTORS: readonly FactDetector[] = TIER1_DETECTORS;
 
 const byId = new Map<string, FactDetector>();
 for (const d of FACT_DETECTORS) byId.set(d.id, d);

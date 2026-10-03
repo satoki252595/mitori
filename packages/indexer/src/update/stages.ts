@@ -1,8 +1,8 @@
 // Seam between the facade (WP-02: S0–S1, files, symbols, skeleton fragments, update, pin store) and the later stages
 // (WP-03: S2 facts, S3 structure, S4 pack, search). The facade owns all S0/S1 state and hands it to the later stages
 // through `IndexView`; every query in `LaterStages` is answered by them.
-// CR-PENDING(WP-02): WP-03 provides a `LaterStagesFactory` and the integrator passes it in `defaultStagesFactory`
-// (docs/design/cr-requests/WP-02.md §2). Until then the S1-only fallbacks below answer.
+// WP-INT wired WP-03's stages (later.ts) as `defaultStagesFactory` (docs/design/cr-requests/WP-02.md §2); the S1-only
+// fallbacks below remain for tests of the facade alone.
 import {
   type Cancel,
   type FactKind,
@@ -16,6 +16,7 @@ import {
   type TokenizerId,
 } from "@mitori/core";
 import type { FileDetail, ImportRecord, Indexer, IndexerDeps, ResolvedImport, Skeleton, SkeletonTarget, SkeletonTier, SymbolDetail } from "../contract.ts";
+import { laterStages } from "./later.ts";
 import type { Parsed } from "./model.ts";
 
 /** Read-only view of the S0/S1 state. */
@@ -142,5 +143,5 @@ export function s1OnlyStages(view: IndexView): LaterStages {
   };
 }
 
-/** Factory used by `createIndexer` (the integrator swaps in WP-03's). */
-export const defaultStagesFactory: LaterStagesFactory = s1OnlyStages;
+/** Factory used by `createIndexer`: WP-03's stages (wired by WP-INT, later.ts). `s1OnlyStages` stays for tests. */
+export const defaultStagesFactory: LaterStagesFactory = laterStages;
