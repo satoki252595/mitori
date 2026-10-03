@@ -77,9 +77,15 @@ export function createFakeIndexer(repo: FakeRepo, hasher: Hasher): FakeIndexer {
     if (!m) return [];
     return m.children.length === 0 ? m.paths : m.children.flatMap(leafPaths);
   };
-  const symbolEntries = (path: RepoPath): SymbolEntry[] =>
-    (repo.symbols[path] ?? []).map((s) => {
-      const line = lineArr(texts.get(path) ?? "")[s.start - 1] ?? "";
+  // memoized per path + blob, like the real index (an SQLite row read), so perf tests measure gen, not the fake
+  const symbolCache = new Map<string, SymbolEntry[]>();
+  const symbolEntries = (path: RepoPath): SymbolEntry[] => {
+    const memo = `${path}\0${blobOf.get(path) ?? ""}`;
+    const hit = symbolCache.get(memo);
+    if (hit) return hit;
+    const fileLines = lineArr(texts.get(path) ?? "");
+    const entries = (repo.symbols[path] ?? []).map((s): SymbolEntry => {
+      const line = fileLines[s.start - 1] ?? "";
       return {
         key: `${path}#${s.qualname}`,
         path,
@@ -95,6 +101,9 @@ export function createFakeIndexer(repo: FakeRepo, hasher: Hasher): FakeIndexer {
         exported: s.exported,
       };
     });
+    symbolCache.set(memo, entries);
+    return entries;
+  };
   const file = (path: RepoPath): FileEntry | null => {
     const t = texts.get(path);
     if (t === undefined) return null;
