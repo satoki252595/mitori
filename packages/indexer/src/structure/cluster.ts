@@ -438,27 +438,34 @@ export function clusterLeaves(c: ClusterInput): ClusterResult {
     const label = aInit[leaf[0] as number] as number;
     return leaf.every((a) => aWarm[a] === 1 && aInit[a] === label) && warmCount.get(label) === leaf.length;
   };
-  const run = (gamma: number, init: Int32Array | null, visit: Int32Array): RunResult => {
-    const labels = splitDisconnected(
-      ag,
-      louvain(ag, { gamma, maxSize: P.leafLocMax, order: visit, init, hysteresis: P.hysteresis, maxLevels: P.maxLevels }),
-      aOrder,
-    );
+  /** Size post-processing + the γ = 1 polish of a partition (atom labels). */
+  const settle = (labels: Int32Array, gamma: number, visit: Int32Array): RunResult => {
     let leaves = groupsOf(labels, aOrder).flatMap((l) => splitLarge(view, l, gamma, P));
     leaves = mergeSmall(view, leaves, P, minLoc, exempt);
-    // polish: single-atom moves at γ = 1 (the reported modularity) within the soft cap, then re-merge what fell short
+    // polish: single-atom moves at γ = 1 (the reported modularity) within the soft cap, then the size rules again
     const cur = new Int32Array(A);
     leaves.forEach((l, i) => {
       for (const a of l) cur[a] = i;
     });
-    const polished = splitDisconnected(ag, louvain(ag, { gamma: 1, maxSize: P.leafLocMax, order: visit, init: cur, maxLevels: 1 }), aOrder);
-    leaves = mergeSmall(view, groupsOf(polished, aOrder), P, minLoc, exempt);
+    const polished = splitDisconnected(
+      ag,
+      louvain(ag, { gamma: 1, maxSize: P.leafLocMax, order: visit, init: cur, hysteresis: P.hysteresis, maxLevels: 1 }),
+      aOrder,
+    );
+    leaves = groupsOf(polished, aOrder).flatMap((l) => splitLarge(view, l, gamma, P));
+    leaves = mergeSmall(view, leaves, P, minLoc, exempt);
     const out = new Int32Array(A);
     leaves.forEach((l, i) => {
       for (const a of l) out[a] = i;
     });
     return { leaves, q: modularity(ad, out) };
   };
+  const run = (gamma: number, init: Int32Array | null, visit: Int32Array): RunResult =>
+    settle(
+      splitDisconnected(ag, louvain(ag, { gamma, maxSize: P.leafLocMax, order: visit, init, hysteresis: P.hysteresis, maxLevels: P.maxLevels }), aOrder),
+      gamma,
+      visit,
+    );
   type Best = { gamma: number; r: RunResult; s: Stats };
   const ok = (s: Stats) => s.median >= minLoc && s.median <= P.leafLocMax && s.inRange >= 0.8;
   const dist = (s: Stats) => Math.abs(Math.log(Math.max(1, s.median) / P.leafLocTarget));
@@ -474,10 +481,13 @@ export function clusterLeaves(c: ClusterInput): ClusterResult {
     return { gamma, r, s: stats(r.leaves, ag.size, P, minLoc) };
   };
   let best: Best | null = null;
-  if (c.gammaHint !== undefined) {
-    const b = consider(c.gammaHint, aInit);
-    // the previous γ is kept while it still satisfies the size rule (stable partitions across refreshes)
-    if (ok(b.s) && !c.fresh) return finish(b, atoms, c.fg, ug, dep, P);
+  if (!c.fresh) {
+    // a warm start keeps the previous leaves and only settles them (sizes, γ = 1 polish with hysteresis): a forced or
+    // > 10 % refresh of an unchanged region is then a fixed point, and ids follow the members (spec §6.6-2)
+    const gamma = c.gammaHint ?? 1;
+    const r = settle(aInit, gamma, aOrder);
+    const b = { gamma, r, s: stats(r.leaves, ag.size, P, minLoc) };
+    if (ok(b.s)) return finish(b, atoms, c.fg, ug, dep, P);
     best = b;
   }
   // a first clustering starts from the atoms alone (they already carry the directory structure); a warm one from
