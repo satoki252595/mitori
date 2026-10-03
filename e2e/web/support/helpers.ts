@@ -14,6 +14,7 @@ export interface MockOptions {
   policyAcked?: boolean;
   paletteItems?: number;
   utilization?: number;
+  readyJob?: boolean;
 }
 
 export async function configure(o: MockOptions = {}): Promise<void> {

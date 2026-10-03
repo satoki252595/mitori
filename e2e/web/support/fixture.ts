@@ -54,6 +54,8 @@ export interface FixtureOptions {
   paletteItems: number;
   /** 5h-window utilization (0–1) reported by `GET /usage/summary`. */
   utilization: number;
+  /** One job in `ready` (header レビュー tab / `/w/:ws/review` redirect). */
+  readyJob?: boolean;
 }
 
 export const DEFAULTS: FixtureOptions = {

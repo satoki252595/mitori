@@ -32,7 +32,20 @@ export class ReviewState implements ReviewStore {
     this.round = null;
   }
 
-  async load(): Promise<void> {
+  #loading: Promise<void> | null = null;
+
+  /** The current threads / jobs load (a redirect that depends on them waits for it). */
+  whenLoaded(): Promise<void> {
+    return this.#loading ?? Promise.resolve();
+  }
+
+  load(): Promise<void> {
+    const p = this.#load();
+    this.#loading = p;
+    return p;
+  }
+
+  async #load(): Promise<void> {
     const ws = this.ws();
     if (!ws) return;
     const [th, jb] = await Promise.allSettled([

@@ -50,7 +50,7 @@ function emit(e: Partial<SseEvent> & { type: string }) {
 const json = (v: unknown, status = 200) => Response.json(v, { status });
 const err = (code: string, status: number) => json({ error: { code, message: code, retryable: false } }, status);
 
-function api(req: Request, url: URL, body: unknown): Response | Promise<Response> {
+async function api(req: Request, url: URL, body: unknown): Promise<Response> {
   const p = url.pathname.replace(/^\/api\/v1/, "");
   const m = req.method;
   if (m === "GET" && p === "/events") {
@@ -168,7 +168,16 @@ function api(req: Request, url: URL, body: unknown): Response | Promise<Response
     return err("E_NOT_FOUND", 404);
   }
   if (m === "GET" && rest === "/threads") return json({ items: [], next: null });
-  if (m === "GET" && rest === "/jobs") return json({ items: [], next: null });
+  if (m === "GET" && rest === "/jobs") {
+    // slow on purpose: a /review deep link must wait for the jobs before choosing where to go
+    if (opts.readyJob) await Bun.sleep(150);
+    return json({
+      items: opts.readyJob
+        ? [{ id: "j_000000000001", ws: WS, kind: "fix", state: "ready", threads: [], createdAt: "2026-10-03T00:00:00Z", finishedAt: "2026-10-03T00:01:00Z" }]
+        : [],
+      next: null,
+    });
+  }
   if (m === "GET" && /^\/jobs\/j_[0-9a-z]+$/.test(rest))
     return json({
       id: rest.slice(6),

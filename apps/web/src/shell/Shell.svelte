@@ -123,8 +123,12 @@ $effect(() => {
   const r = route;
   untrack(() => {
     if (r.name === "reviewNext") {
-      const job = s.review.oldestReady();
-      void s.router.go(job ? { name: "review", ws: r.ws, job } : { name: "inbox", ws: r.ws, view: "mine" }, { replace: true });
+      // a deep link arrives before the jobs: decide once they are loaded
+      void s.review.whenLoaded().then(() => {
+        if (s.router.route !== r) return;
+        const job = s.review.oldestReady();
+        void s.router.go(job ? { name: "review", ws: r.ws, job } : { name: "inbox", ws: r.ws, view: "mine" }, { replace: true });
+      });
     } else if (r.name === "glossary") {
       void s.router.go({ name: "doc", ws: r.ws, section: "s12" }, { replace: true });
     } else if (r.name === "thread") {
