@@ -358,6 +358,40 @@ describe("AC-10 LLM-written stamps are ignored (W02)", () => {
   });
 });
 
+describe("AC-10 fuzz: 100 lines with LLM-written stamp keys", () => {
+  test("no stamp key survives normalization, at the line, claim or cite level; the line is otherwise unchanged", () => {
+    const STAMPS = ["blob", "snippet", "symbol", "hash", "model", "engine", "promptVer", "indexDigest", "precision", "quote", "verdict", "checks"];
+    let seed = 7;
+    const rnd = (n: number) => {
+      seed = (seed * 1103515245 + 12345) % 2 ** 31;
+      return seed % n;
+    };
+    const sprinkle = (o: Record<string, unknown>) => {
+      for (let k = rnd(3) + 1; k > 0; k--) o[STAMPS[rnd(STAMPS.length)] as string] = rnd(2) ? "deadbeef" : { x: 1 };
+      return o;
+    };
+    const has = (x: unknown): boolean =>
+      Array.isArray(x) ? x.some(has) : typeof x === "object" && x !== null ? Object.entries(x).some(([k, v]) => STAMPS.includes(k) || has(v)) : false;
+    for (let i = 1; i <= 100; i++) {
+      const start = 1 + rnd(300);
+      const cite = sprinkle({ path: "internal/session/store.go", start, end: start + rnd(20) });
+      const full = rnd(2) === 0;
+      const line = sprinkle({
+        t: "block",
+        id: `new:${i}`,
+        aspect: "responsibility",
+        md: `値を返す${i}[[1]]。`,
+        claims: full ? [sprinkle({ n: 1, kind: "behavior", cites: [cite] })] : { "1": `behavior internal/session/store.go:${start}-${cite.end}` },
+      });
+      const v = createLineValidator(ctx()).validate(JSON.stringify(line), 1);
+      expect(v.errors).toEqual([]);
+      expect(v.warnings).toContain("W02");
+      expect(has(v.value)).toBe(false);
+      expect(blockOf(v).claims).toEqual([{ n: 1, kind: "behavior", cites: [{ path: "internal/session/store.go", start, end: cite.end }] }]);
+    }
+  });
+});
+
 describe("W07 marker after the sentence terminator moves before it", () => {
   test("ja and en", () => {
     const { verdicts } = run([
