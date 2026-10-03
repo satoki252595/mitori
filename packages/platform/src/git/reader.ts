@@ -6,7 +6,7 @@ import { type GitOid, type GitReader, type Iso8601, MitoriError, type RepoPath }
 import { gitBlobOid } from "../hash/digest.ts";
 import { CatFileBatch } from "./catfile.ts";
 import { ByteLru } from "./lru.ts";
-import { filterNeutralizers, localConfigKeys } from "./neutralize.ts";
+import { filterNeutralizers, hasIncludes, localConfigKeys, type Neutralizers } from "./neutralize.ts";
 import { createGitRunner, GIT_READ_ENV, nfc, splitZ } from "./run.ts";
 
 /** Options of {@link createGitReader}. */
@@ -140,27 +140,32 @@ export function createGitReader(opts: GitReaderOptions): PlatformGitReader {
     return r.code === 0 && OID_RE.test(r.out) ? r.out : null;
   };
 
-  /** Repo-local filter drivers disabled for `status` (it runs clean filters) [SEC-05]; cached by the config files' mtimes. */
-  let guard: { key: string; args: string[] } | null = null;
-  const statusGuard = async (): Promise<string[]> => {
-    const d = await gitDir();
+  /**
+   * Repo-local filter drivers disabled for `status` (it runs clean filters) [SEC-05]. Cached by the mtimes of the
+   * config files — unless the config includes other files, whose edits those mtimes do not see: then re-read per call.
+   */
+  let guard: { key: string | null; n: Neutralizers } | null = null;
+  const statusGuard = async (): Promise<Neutralizers> => {
+    const [d, c] = await Promise.all([gitDir(), commonDir()]);
     const mtime = (f: string) => {
       try {
-        return statSync(join(d, f)).mtimeMs;
+        return statSync(f).mtimeMs;
       } catch {
         return 0;
       }
     };
-    const key = `${mtime("config")}:${mtime("config.worktree")}`;
-    if (guard?.key !== key) {
+    const key = `${mtime(join(c, "config"))}:${mtime(join(d, "config.worktree"))}`;
+    if (guard === null || guard.key === null || guard.key !== key) {
       const r = await run(["config", "--list", "--show-scope", "--includes", "-z"], { ok: [0, 1] });
-      guard = { key, args: filterNeutralizers(localConfigKeys(new TextDecoder().decode(r.stdout))) };
+      const keys = localConfigKeys(new TextDecoder().decode(r.stdout));
+      guard = { key: hasIncludes(keys) ? null : key, n: filterNeutralizers(keys) };
     }
-    return guard.args;
+    return guard.n;
   };
   const status = async () => {
     const neutral = await statusGuard();
-    const r = await run([...neutral, "status", "--porcelain=v2", "-z", "--no-renames", "--untracked-files=all", "--ignore-submodules=all"]);
+    const args = [...neutral.args, "status", "--porcelain=v2", "-z", "--no-renames", "--untracked-files=all", "--ignore-submodules=all"];
+    const r = await run(args, { env: neutral.env });
     return parseStatus(splitZ(r.stdout));
   };
 

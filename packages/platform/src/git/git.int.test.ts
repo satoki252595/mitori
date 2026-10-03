@@ -239,6 +239,56 @@ describe("PLAT-I-008 GitReader (normal repo)", () => {
     expect(existsSync(marker)).toBe(false);
   });
 
+  test("SEC-05: a driver named `a=b` (which `-c` would split) and a filter in an included config file never run", async () => {
+    const root = makeRepo({ "a.txt": "hello\n", "b.md": "x\n", ".gitattributes": "*.txt filter=a=b\n*.md filter=inc\n" });
+    const marker = join(tempDir(), "pwned");
+    git(root, ["config", "filter.a=b.clean", `sh -c 'touch ${marker}; cat'`]);
+    const included = join(tempDir(), "shared.gitconfig");
+    writeFileSync(included, "");
+    git(root, ["config", "include.path", included]);
+    let n = 0;
+    const touchAll = () => {
+      const t = new Date(Date.now() + 10_000 * ++n);
+      for (const f of ["a.txt", "b.md"]) utimesSync(join(root, f), t, t);
+    };
+    touchAll();
+    git(root, ["status", "--porcelain"]);
+    expect(existsSync(marker)).toBe(true); // control: the `a=b` driver is live for plain git
+    rmSync(marker);
+    const r = reader(root);
+    touchAll();
+    await r.status();
+    expect(existsSync(marker)).toBe(false);
+    // the included file gains a driver; `.git/config` (the cache key) does not change
+    writeFileSync(included, `[filter "inc"]\n\tclean = sh -c 'touch ${marker}; cat'\n`);
+    touchAll();
+    git(root, ["status", "--porcelain"]);
+    expect(existsSync(marker)).toBe(true); // control
+    rmSync(marker);
+    touchAll();
+    expect(await r.statusDirty()).toEqual([]);
+    expect(existsSync(marker)).toBe(false);
+  });
+
+  test("SEC-05 in a linked worktree: a filter added to the main repository's config is picked up", async () => {
+    const main = makeRepo({ "a.txt": "hello\n", ".gitattributes": "*.txt filter=late\n" });
+    const wt = join(tempDir(), "wt");
+    git(main, ["worktree", "add", "-q", "-b", "feature", wt]);
+    const r = reader(wt);
+    expect(await r.status()).toEqual([]); // guard cached with no drivers
+    const marker = join(tempDir(), "pwned");
+    git(main, ["config", "filter.late.clean", `sh -c 'touch ${marker}; cat'`]);
+    const t1 = new Date(Date.now() + 30_000);
+    utimesSync(join(wt, "a.txt"), t1, t1);
+    git(wt, ["status", "--porcelain"]);
+    expect(existsSync(marker)).toBe(true); // control: the worktree uses the main repository's config
+    rmSync(marker);
+    const t2 = new Date(Date.now() + 40_000);
+    utimesSync(join(wt, "a.txt"), t2, t2);
+    await r.status();
+    expect(existsSync(marker)).toBe(false);
+  });
+
   test("parent GIT_* variables never leak into reads", async () => {
     const root = makeRepo({ "a.txt": "a" });
     const decoy = makeRepo({ "decoy.txt": "d" });

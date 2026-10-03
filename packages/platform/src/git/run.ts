@@ -70,7 +70,7 @@ export interface GitResult {
 /** Runs git subcommands. */
 export interface GitRunner {
   /** Run; exit codes outside `ok` (default [0]) throw `E_GIT_FAILED`. */
-  run(args: readonly string[], opts?: { input?: string; ok?: readonly number[] }): Promise<GitResult>;
+  run(args: readonly string[], opts?: { input?: string; ok?: readonly number[]; env?: Readonly<Record<string, string>> }): Promise<GitResult>;
   /** argv prefix (`git` + safety args) for long-lived processes. */
   argv(args: readonly string[]): string[];
 }
@@ -88,7 +88,7 @@ export function createGitRunner(cfg: GitRunnerConfig): GitRunner {
       try {
         proc = Bun.spawn(argv(args), {
           cwd: cfg.cwd,
-          env: cfg.env,
+          env: opts.env ? { ...cfg.env, ...opts.env } : cfg.env,
           stdin: opts.input !== undefined ? "pipe" : "ignore",
           stdout: "pipe",
           stderr: "pipe",
