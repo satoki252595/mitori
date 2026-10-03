@@ -266,6 +266,10 @@ describe("SRV-AT-02 / SRV-I-021 route table", () => {
     expect(unknown.status).toBe(404);
     expect(unknown.headers.get("content-type")).toContain("application/json");
     expect(await errCode(unknown)).toBe("E_NOT_FOUND");
+    for (const path of ["/api/v2/health", "/api", "/api/whatever"]) {
+      const res = await fetch(`${h.origin}${path}`);
+      expect([path, res.status, res.headers.get("content-type")]).toEqual([path, 404, "application/json;charset=utf-8"]);
+    }
     expect(await errCode(await h.cli("GET", "/ws/ws_zzzzzzzzzzzz"))).toBe("E_WS_NOT_FOUND");
     expect(await errCode(await h.cli("GET", "/ws/not-a-key"))).toBe("E_WS_NOT_FOUND");
     expect((await h.cli("GET", `/ws/${ws}/doc/sections/%E0%A4%A`)).status).toBe(400);

@@ -196,6 +196,7 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
       log: o.log.child("settings"),
     });
     let workspacesRef: ReturnType<typeof createWorkspaceManager> | null = null;
+    const waiters = createWaiterRegistry({ clock: o.clock, timers, publish: (p, ws) => hub.publish(p, ws, workspacesRef?.peek(ws)?.rev() ?? null) });
     const trust = createTrustService({
       db: stateDb,
       stateWrite: state.stateWrite,
@@ -223,10 +224,10 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
       metrics: o.metrics,
       log: o.log.child("ws"),
       dev: o.build === "test",
+      waiting: (ws) => waiters.count(ws) > 0,
     });
     workspacesRef = workspaces;
     settings.onChange(() => void workspaces.refreshSettings().catch((e) => o.log.warn("settings refresh failed", { err: String(e) })));
-    const waiters = createWaiterRegistry({ clock: o.clock, timers, publish: (p, ws) => hub.publish(p, ws, workspaces.peek(ws)?.rev() ?? null) });
 
     let port = 0;
     let shuttingDown = false;

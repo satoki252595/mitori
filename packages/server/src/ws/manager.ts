@@ -88,6 +88,8 @@ export interface WorkspaceManagerDeps {
   /** Gate sandbox resolved at daemon start. */
   sandbox: EffectiveSettings["gateSandbox"];
   assemble(base: WorkspaceBase): Promise<WorkspaceParts>;
+  /** `mitori review` waiters of a workspace are present (they block unload like jobs do). */
+  waiting?: (ws: WorkspaceKey) => boolean;
   /** GitHub clones (`gh repo clone`); absent ⇒ URLs cannot be opened. */
   clone?: { spawner: Spawner; gh: string; env: Record<string, string> };
   /** Default {@link DAEMON.workspaceUnloadMs}. */
@@ -247,7 +249,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       return true;
     }
   };
-  const isBusy = (l: Loaded) => workInFlight(l) || hub.connections({ ws: l.rt.info.key }) > 0;
+  const isBusy = (l: Loaded) => workInFlight(l) || hub.connections({ ws: l.rt.info.key }) > 0 || (deps.waiting?.(l.rt.info.key) ?? false);
 
   const pollIdle = async () => {
     const now = clock.now();

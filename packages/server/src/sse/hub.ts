@@ -60,6 +60,9 @@ export interface EndableConnection extends SseConnection {
 
 const META = SSE_EVENT_META as Record<string, SseEventMeta | undefined>;
 
+/** Global events go to every connection; workspace events only to connections of that workspace. */
+const isGlobal = (type: string, ws: WorkspaceKey | null) => (META[type]?.scope ?? (ws === null ? "global" : "workspace")) === "global";
+
 export function createSseHub(opts: HubOptions): SseHubImpl {
   const { clock, metrics, timers } = opts;
   const ringSize = opts.ringSize ?? DAEMON.ringBufferEvents;
@@ -106,7 +109,7 @@ export function createSseHub(opts: HubOptions): SseHubImpl {
         ringLen += 1;
       }
     }
-    const global = (meta?.scope ?? (ws === null ? "global" : "workspace")) === "global";
+    const global = isGlobal(payload.type, ws);
     for (const conn of conns) {
       if (conn.closed) detach(conn);
       else if (global || conn.ws === ws) safeSend(conn, e);
@@ -160,8 +163,7 @@ export function createSseHub(opts: HubOptions): SseHubImpl {
         for (let i = 0; i < ringLen; i++) {
           const e = ring[(ringStart + i) % ringSize] as SseEvent;
           if (e.seq <= resumedFrom) continue;
-          const global = (META[e.type]?.scope ?? "global") === "global";
-          if (global || conn.ws === e.ws) safeSend(conn, e);
+          if (isGlobal(e.type, e.ws) || conn.ws === e.ws) safeSend(conn, e);
         }
       }
       if (conn.closed) return;

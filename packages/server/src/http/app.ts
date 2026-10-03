@@ -192,8 +192,9 @@ export function createHttpApp(opts: HttpAppOptions): HttpApp {
   };
 
   const api = async (req: Request, url: URL, requestId: RequestId, server: ServerLike | undefined): Promise<Response> => {
+    const versioned = url.pathname === API_PREFIX || url.pathname.startsWith(`${API_PREFIX}/`);
     const sub = url.pathname.slice(API_PREFIX.length) || "/";
-    const m = matchRoute(req.method, sub);
+    const m = versioned ? matchRoute(req.method, sub) : null;
     if (!m) throw fail("E_NOT_FOUND", `no route ${req.method} ${url.pathname}`);
     const { key, meta } = m;
     const auth = authenticate(req, meta);
@@ -320,7 +321,8 @@ export function createHttpApp(opts: HttpAppOptions): HttpApp {
   return {
     async fetch(req, server) {
       const url = new URL(req.url);
-      const isApi = url.pathname === API_PREFIX || url.pathname.startsWith(`${API_PREFIX}/`);
+      // everything under /api/ is API (an unknown version must 404 as JSON, not fall back to the SPA shell)
+      const isApi = url.pathname === "/api" || url.pathname.startsWith("/api/");
       const requestId: RequestId | null = isApi
         ? ((header(req, HTTP_HEADERS.requestId, /^rq_[0-9a-z]{1,32}$/) as RequestId | undefined) ?? newId("request", s.random))
         : null;
