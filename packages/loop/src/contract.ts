@@ -1183,7 +1183,7 @@ export interface LoopDeps {
 
 // `createInstaller` → ./install/index.ts
 
-// `LOOP_MIGRATIONS` → ./jobs/index.ts
+// `LOOP_MIGRATIONS` → ./review/index.ts
 
 /* ---- C9. Pull CLI helpers (spec §10) ------------------------------------------ */
 

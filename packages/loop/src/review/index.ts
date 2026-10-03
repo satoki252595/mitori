@@ -10,6 +10,7 @@ import {
   type Decision,
   type DiagramId,
   type Message,
+  type Migration,
   type RepoPath,
   type SectionId,
   type Thread,
@@ -69,3 +70,9 @@ export function anchorLabel(
 ): string {
   return unsupported("loop.anchorLabel", anchor, ctx);
 }
+
+/**
+ * Migrations owned by `@mitori/loop` (`rev_*`, `job_*`; DDL in spec §2.8). Version 1 = the whole §2.8 schema
+ * (WP-07 writes it; later versions are appended here by the S6 stream).
+ */
+export const LOOP_MIGRATIONS: readonly Migration[] = [];

@@ -4,7 +4,7 @@
  * M0 stubs below throw E_UNSUPPORTED — implement them in place and keep the signatures (contract changes go
  * through the CR batch, packages/core/CR-LEDGER.md).
  */
-import { type Migration, unsupported } from "@mitori/core";
+import { unsupported } from "@mitori/core";
 import type { BundleBuilder, GateRunner, GitSafety, JobRunner, LoopDeps, ReviewEngine } from "../contract.ts";
 
 /** Factory (per workspace). */
@@ -22,6 +22,3 @@ export function createLoop(deps: LoopDeps): {
 } {
   return unsupported("loop.createLoop", deps);
 }
-
-/** Migrations owned by `@mitori/loop` (`rev_*`, `job_*`; DDL in spec §2.8). */
-export const LOOP_MIGRATIONS: readonly Migration[] = [];

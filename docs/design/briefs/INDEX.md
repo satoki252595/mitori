@@ -74,9 +74,9 @@ Totals: core 416 · platform 1 · indexer 90 · doc 50 · anchor 20 · agent 55 
 - **src/contracts/index.ts** — functions: applyEditsToText, parseContract
 - **src/gates/index.ts** — functions: gateExcerpt
 - **src/install/index.ts** — functions: createInstaller, renderSkill
-- **src/jobs/index.ts** — consts: LOOP_MIGRATIONS; functions: createLoop
+- **src/jobs/index.ts** — functions: createLoop
 - **src/pull/index.ts** — functions: agentLabelFromEnv, parseTouchHook
-- **src/review/index.ts** — functions: anchorLabel, displayState, planBatch, renderDecisionMarkdown, renderDocEditAsk, renderReviewStdout
+- **src/review/index.ts** — consts: LOOP_MIGRATIONS; functions: anchorLabel, displayState, planBatch, renderDecisionMarkdown, renderDocEditAsk, renderReviewStdout
 - **src/router/index.ts** — functions: deriveWriteScope, route
 
 ## @mitori/server — 36 exports
