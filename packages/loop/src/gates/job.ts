@@ -155,12 +155,23 @@ export async function ensureWorktree(core: RunnerCore, id: JobId, base: GitOid):
   return wt.path;
 }
 
-/** Normalized failure lines (positions dropped) for the base comparison. */
+/**
+ * One failure line without what differs from run to run: positions, durations, goroutine / process ids, ports,
+ * addresses (live run 4: a sandboxed `go test` panicked the same way at the base and at the head, but
+ * `goroutine 4` / `0.237s` vs `goroutine 5` / `0.241s` made the head's failure look new and cost a REPAIR turn).
+ */
+export const failureLine = (l: string): string =>
+  l
+    .replace(/0x[0-9a-f]+/gi, "0x#")
+    .replace(/\d+(?:\.\d+)?/g, "#")
+    .trim();
+
+/** Normalized failure lines for the base comparison. */
 const normalized = (excerpt: string | undefined) =>
   new Set(
     (excerpt ?? "")
       .split("\n")
-      .map((l) => l.replace(/:\d+(?::\d+)?/g, ":#").trim())
+      .map(failureLine)
       .filter((l) => l.length > 0),
   );
 
@@ -201,7 +212,7 @@ export async function checksInWorktree(
       const [atBase] = await core.deps.gates.run(wt, [spec], [...changed], { ...opts, consent: true }, signal);
       if (atBase?.status === "fail") {
         const before = normalized(atBase.excerpt);
-        const added = (failed.excerpt ?? "").split("\n").filter((l) => l.trim() !== "" && !before.has(l.replace(/:\d+(?::\d+)?/g, ":#").trim()));
+        const added = (failed.excerpt ?? "").split("\n").filter((l) => l.trim() !== "" && !before.has(failureLine(l)));
         if (added.length === 0) {
           failed.status = "error";
           failed.excerpt = `(変更前から失敗しています — この変更による失敗ではありません)\n${failed.excerpt ?? ""}`.trim();

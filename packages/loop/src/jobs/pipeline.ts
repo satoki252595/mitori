@@ -25,7 +25,7 @@ import { applyEditsToText, parseContract } from "../contracts/index.ts";
 import { gatePatchTree, treeTexts } from "../gates/job.ts";
 import { scopeFailure } from "../git/scope.ts";
 import { failingGate, failureRanges, failureText, type HeadRange, hunkRanges } from "../repair/ranges.ts";
-import { plainRequest, remainingUsd, repairTurn } from "../repair/turn.ts";
+import { plainRequest, remainingUsd, repairInTokens, repairTurn } from "../repair/turn.ts";
 import { isSensitiveJob } from "../router/index.ts";
 import { type RunnerCore, Stop } from "./core.ts";
 import { addUsage, consume, engineRequest } from "./engine.ts";
@@ -224,7 +224,7 @@ async function parsePatchTurn(
       ranges: plan.scope.ranges,
     });
     const began = core.deps.clock.now();
-    const run = core.deps.scheduler.continueSession(live, msg.text, continueReq(core, id, plan), signal);
+    const run = core.deps.scheduler.continueSession(live, msg.text, continueReq(core, id, plan, msg.text), signal);
     result = await consume(run, (e) => core.emit(id, e), { text: false });
     await record(core, id, result, began);
     if (result.stop !== "end") throw engineError(result);
@@ -232,13 +232,13 @@ async function parsePatchTurn(
   }
 }
 
-function continueReq(core: RunnerCore, id: JobId, plan: JobPlan) {
+function continueReq(core: RunnerCore, id: JobId, plan: JobPlan, message: string) {
   return {
     lane: "interactive" as const,
     ws: core.deps.ws.key,
     scope: { kind: "job" as const, id },
     estimate: { in: plan.estimate.inTokens, out: plan.estimate.outTokens },
-    budget: { usd: Math.max(0.0001, remainingUsd(core, id, plan)), inTokens: Math.max(plan.budget.in * 2, 4000), outTokens: plan.budget.out, ms: 180_000 },
+    budget: { usd: Math.max(0.0001, remainingUsd(core, id, plan)), inTokens: repairInTokens(core, id, plan, message), outTokens: plan.budget.out, ms: 180_000 },
     ref: id,
   };
 }

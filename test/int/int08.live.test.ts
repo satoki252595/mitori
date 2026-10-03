@@ -262,4 +262,39 @@ describe.if(LIVE && MAX_USD > 0)("INT-08 live: agent mode and parallel jobs with
     await api("POST", `/jobs/${rd.id}/reject`, {});
     if (accC.kind === "applied") await api("POST", `/checkpoints/${accC.checkpoint.id}/undo`, { force: false });
   });
+
+  // `-t "3\."` runs this one alone (≈ $0.01–0.03): a patch-mode Fix whose bundle does not show the package's test.
+  // The human asks for the id in the "not found" message; the obvious edit drops the ErrNotFound sentinel an existing
+  // test checks with errors.Is, so the sandboxed `go test` fails and the REPAIR turn — the failure excerpt on the
+  // parked process — must keep both. (Run 4 asked for a literal %d-for-a-string line: the model fixed the verb itself.)
+  test("3. a real REPAIR turn: a check fails on the applied edit, the continuation fixes it, every gate passes", async () => {
+    const FETCH = "internal/store/memory.go";
+    const original = read(FETCH);
+    const at = lineOf(FETCH, "func (m *MemoryStore) Delete");
+    const th = await thread(FETCH, at, at + 9, "存在しない id を Delete したときのエラーメッセージを「book 42 not found」のように id を含む文にして");
+    const { est, job, createdAt } = await dispatch(th, "repair");
+    let j = await jobUntil(job.id, ["ready", "done", "failed"]);
+    const first = facts(est, j, createdAt);
+    report.repair = { first };
+    if (j.state !== "ready") throw new Error(`the first turn ended ${j.state}: ${JSON.stringify(j.failure)}`);
+    const trusted = await trustGates();
+    const t0 = Date.now();
+    const ran = await webApi<Job>("POST", `/jobs/${j.id}/gates/run`, {});
+    const repairedByConsent = ran.state === "queued";
+    j = await jobUntil(j.id, ["ready", "failed"]);
+    const final = facts(est, j, createdAt);
+    const line = j.diff
+      .flatMap((d) => d.hunks.flatMap((h) => h.lines))
+      .filter((l) => l.startsWith("+") && l.includes("return"))
+      .join("\n");
+    report.repair = { first, trustedSets: trusted, repairObserved: repairedByConsent, gatesAndRepairMs: Date.now() - t0, final, line };
+    expect(j.state).toBe("ready");
+    expect(j.gateVerdict).toBe("passed");
+    if (repairedByConsent) {
+      expect(j.attempt).toBeGreaterThan(first.attempt);
+      expect(final.repairs.length).toBeGreaterThan(0);
+    }
+    expect(read(FETCH)).toBe(original);
+    await api("POST", `/jobs/${j.id}/reject`, {});
+  });
 });

@@ -4,6 +4,7 @@
 import { describe, expect, test } from "bun:test";
 import type { GateSpec } from "@mitori/core";
 import { createHasher } from "@mitori/platform";
+import { failureLine } from "./job.ts";
 import { changedTrustInputs, gateTrust, treeSpecs } from "./trust.ts";
 
 const sha256 = createHasher().sha256;
@@ -64,5 +65,15 @@ describe("RT-31 re-trust when the tree changes a gate's trust inputs", () => {
     expect(t.set).toBe("pending");
     trusted.add(t.setHash as string);
     expect(gateTrust(state, sha256, tree).trusted).toEqual([true]);
+  });
+});
+
+describe("base comparison of a failing check (live run 4)", () => {
+  test("the same failure at the base and the head matches although ids, durations and addresses differ", () => {
+    const head = ["goroutine 4 [running]:", "FAIL\texample.com/tsundoku/internal/meta\t0.237s", "main.go:12:3: panic at 0xc000123abc"];
+    const base = ["goroutine 5 [running]:", "FAIL\texample.com/tsundoku/internal/meta\t0.241s", "main.go:14:9: panic at 0xc000999def"];
+    expect(head.map(failureLine)).toEqual(base.map(failureLine));
+    // a different message is still a different line
+    expect(failureLine("store_test.go:20: want Count 3")).not.toBe(failureLine("store_test.go:20: want Size 3"));
   });
 });

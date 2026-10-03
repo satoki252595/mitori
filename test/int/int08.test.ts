@@ -828,6 +828,19 @@ describe("INT-08 external patch (MCP submit_patch → POST /patches): a ready jo
     expect(res.applied).toBe(false);
     expect(res.problems.map((p) => p.code)).toContain("E_SCOPE_VIOLATION");
     expect(read("README.md").startsWith("# pwned")).toBe(false);
+    // `..`, absolute and repository-meta paths never name a write-scope file either
+    const before = userRepoState();
+    for (const path of ["../outside.txt", "internal/../../outside.txt", "/etc/hosts", ".git/config", ".mitori/x.md", ".env"]) {
+      const r = await raw("POST", "/patches", {
+        thread: thread.id,
+        edits: [{ path, start: 1, end: 0, firstLine: "", newText: "x\n" }],
+        docUpdate: null,
+      });
+      const body = (await r.json()) as ExternalPatchRes & { error?: { code: string } };
+      expect(body.applied === true).toBe(false);
+      expect(existsSync(join(repo.root, "..", "outside.txt"))).toBe(false);
+    }
+    expect(userRepoState()).toEqual(before as never);
   });
 });
 

@@ -54,10 +54,10 @@ function session(parked: boolean): EngineSession & { closed: number } {
 }
 
 /** The slice of RunnerCore a repair turn touches. */
-function fakeCore(o: { persist?: boolean; sessionId?: string; spent?: number; continuation?: EngineResult; submits?: EngineResult[] }) {
-  const calls: { kind: "continue" | "submit"; req?: ScheduledRequest; prompt?: string }[] = [];
+function fakeCore(o: { persist?: boolean; sessionId?: string; spent?: number; usage?: Partial<Usage>; continuation?: EngineResult; submits?: EngineResult[] }) {
+  const calls: { kind: "continue" | "submit"; req?: Pick<ScheduledRequest, "budget"> & Partial<ScheduledRequest>; prompt?: string }[] = [];
   const phases: string[] = [];
-  const rec = { job: { usage: { ...zero, apiUsd: o.spent ?? 0 }, ...(o.sessionId ? { sessionId: o.sessionId } : {}) } };
+  const rec = { job: { usage: { ...zero, apiUsd: o.spent ?? 0, ...o.usage }, ...(o.sessionId ? { sessionId: o.sessionId } : {}) } };
   const submits = [...(o.submits ?? [ok()])];
   const core = {
     deps: {
@@ -67,8 +67,8 @@ function fakeCore(o: { persist?: boolean; sessionId?: string; spent?: number; co
       ws: { key: "ws_t" },
       home: "/h",
       scheduler: {
-        continueSession(_s: EngineSession, prompt: string) {
-          calls.push({ kind: "continue", prompt });
+        continueSession(_s: EngineSession, prompt: string, req: ScheduledRequest) {
+          calls.push({ kind: "continue", prompt, req });
           return run(o.continuation ?? ok());
         },
         submit(req: ScheduledRequest) {
@@ -96,6 +96,9 @@ const plan = {
 } as unknown as JobPlan;
 const request = (p: { prompt?: string; promptBlocks?: string[]; resume?: string }) =>
   withPrompt({ mode: "agent", prompt: "orig", budget: { usd: 1, inTokens: 1, outTokens: 1, ms: 1 }, persistSession: false } as ScheduledRequest, p, 0.05);
+/** A patch-mode request whose own input limit is the old 4k default (jobs/engine.ts). */
+const plainLike = (p: { prompt?: string; promptBlocks?: string[]; resume?: string }) =>
+  withPrompt({ mode: "patch", prompt: "orig", budget: { usd: 1, inTokens: 4000, outTokens: 1, ms: 1 }, persistSession: false } as ScheduledRequest, p, 0.05);
 const id = "j_t" as JobId;
 const input = (core: RunnerCore, s: EngineSession | null) => ({
   core,
@@ -161,6 +164,24 @@ describe("LOOP-U-077 repair paths", () => {
     const refused = fakeCore({ persist: true, sessionId: "11111111-1111-4111-8111-111111111111", submits: [gone(), ok()] });
     expect((await repairTurn(input(refused.core, null))).path).toBe("cold");
     expect(refused.calls.map((c) => c.req?.resume ?? "cold")).toEqual(["11111111-1111-4111-8111-111111111111", "cold"]);
+  });
+
+  test("live run 4: the input meter of a REPAIR covers the conversation it re-reads, on every path", async () => {
+    // the first patch turn read 3.3k (system prompt + bundle) and wrote 0.6k; the real REPAIR continuation read 4.6k
+    const usage = { in: 2, cacheWrite: 3279, cacheRead: 0, out: 625 };
+    const cont = fakeCore({ usage });
+    await repairTurn({ ...input(cont.core, session(true)), request: plainLike });
+    const limit = cont.calls[0]?.req?.budget.inTokens ?? 0;
+    expect(limit).toBeGreaterThan(4570);
+    expect(limit).toBeGreaterThanOrEqual(Math.max(plan.budget.in * 2, 4000) + 2 + 3279 + 625);
+    // a fresh spawn (cold) reads the bundle AND the message: never a smaller limit than the request's own
+    const cold = fakeCore({ usage });
+    await repairTurn({ ...input(cold.core, null), request: plainLike });
+    expect(cold.calls[0]?.req?.budget.inTokens).toBe(limit);
+    // agent mode passes its own (larger) limit, which stays
+    const agent = fakeCore({ usage });
+    await repairTurn({ ...input(agent.core, session(true)), limits: { inTokens: 300_000, ms: 1 } });
+    expect(agent.calls[0]?.req?.budget.inTokens).toBe(300_000);
   });
 
   test("a repair turn gets the rest of the job budget (spec §6.2.6)", () => {
