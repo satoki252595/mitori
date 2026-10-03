@@ -79,12 +79,15 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
   const stats: WorkerStats = { parses: 0, deletes: 0, files: 0, bytes: 0 };
   const xxh3s = (s: string) => env.xxh3(s);
 
-  const queryText = (g: GrammarId): string => init.queries[g] ?? TAGS_QUERIES[g];
+  const { queries, objectFormat } = init;
+  // Grammar bytes are dropped once loaded (≈ 5 MB a Worker would otherwise keep for its whole life).
+  const grammarBytes = new Map(Object.entries(init.grammars) as [GrammarId, Uint8Array][]);
+  const queryText = (g: GrammarId): string => queries[g] ?? TAGS_QUERIES[g];
   const combined = (g: GrammarId): string => `${queryText(g)}\n${CX_QUERIES[g]}`;
   const versionOf = (lang: SourceLang): ExtractorVersion => {
     let v = versions.get(lang);
     if (v === undefined) {
-      v = extractorVersion(lang, xxh3s, { ...TAGS_QUERIES, ...init.queries });
+      v = extractorVersion(lang, xxh3s, { ...TAGS_QUERIES, ...queries });
       versions.set(lang, v);
     }
     return v;
@@ -93,13 +96,14 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
   async function grammar(g: GrammarId): Promise<GrammarState | null> {
     const hit = grammars.get(g);
     if (hit) return hit;
-    const bytes = init.grammars[g];
-    if (bytes === undefined) return null;
     let lp = languages.get(g);
     if (lp === undefined) {
+      const bytes = grammarBytes.get(g);
+      if (bytes === undefined) return null;
       lp = Language.load(bytes);
       languages.set(g, lp);
     }
+    grammarBytes.delete(g);
     const language = await lp;
     const st: GrammarState = { language, tags: new Query(language, combined(g)), lite: null, liteBytes: 0, tests: null, errors: null };
     grammars.set(g, st);
@@ -186,7 +190,7 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
     }
     ms.read += env.now() - t;
     t = env.now();
-    const blob = it.knownBlob ?? env.gitBlob(bytes, init.objectFormat);
+    const blob = it.knownBlob ?? env.gitBlob(bytes, objectFormat);
     ms.hash += env.now() - t;
     stats.files++;
     stats.bytes += bytes.length;
