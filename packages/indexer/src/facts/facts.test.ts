@@ -60,13 +60,13 @@ function tier1(truth: FixtureTruth): FixtureTruth {
   if (truth.fixture === "mixed") facts.push({ kind: "entry", path: "tools/indexer-rs/src/main.rs", key: "bin:indexer-rs", stretch: true });
   const forbiddenFacts = truth.forbiddenFacts.filter((f) => !(f.kind === "env" && f.path === ".env.example"));
   if (truth.fixture === "ts-small")
+    // WP-INT: WP-12 already moved TSUNDOKU_DEBUG_SQL into the truth (CR m0-12); do not add a second copy
     for (const [line, key] of [
       [3, "PORT"],
       [4, "DATABASE_URL"],
       [5, "LOG_LEVEL"],
       [6, "TSUNDOKU_DEBUG_SQL"],
     ] as const)
-      // WP-INT: WP-12 already moved TSUNDOKU_DEBUG_SQL into the truth (CR m0-12); do not add a second copy
       if (!facts.some((f) => f.kind === "env" && f.path === ".env.example" && f.key === key))
         facts.push({ kind: "env", path: ".env.example", line, key, attrs: { hasDefault: false } });
   return { ...truth, facts, forbiddenFacts };
