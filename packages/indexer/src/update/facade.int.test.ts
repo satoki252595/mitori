@@ -5,7 +5,7 @@ import { readFileSync, utimesSync } from "node:fs";
 import { join } from "node:path";
 import { MitoriError } from "@mitori/core";
 import type { Indexer } from "../contract.ts";
-import { env, workerInit } from "../parse/test/env.ts";
+import { env, hasher, workerInit } from "../parse/test/env.ts";
 import { createWorkerHandler } from "../parse/worker.ts";
 import { createIndexer } from "./index.ts";
 import { inlinePool, memoryDb, migrate, type TestDeps, testDeps } from "./test/deps.ts";
@@ -254,7 +254,7 @@ describe("IDX-AT-04 deny / secret paths are never read", () => {
       return readFileSync(abs);
     };
     const handler = createWorkerHandler({ ...env, readFile }, workerInit());
-    const { idx, deps } = setup(
+    const { repo, idx, deps } = setup(
       {
         ".env": "TOKEN=x\n",
         "keys/dev.pem": "-----BEGIN PRIVATE KEY-----\n",
@@ -272,6 +272,13 @@ describe("IDX-AT-04 deny / secret paths are never read", () => {
     expect(idx.file(".env")?.class).toBe("secret");
     await expect(idx.read(".env")).rejects.toMatchObject({ code: "E_DENY_GLOB" });
     expect(await idx.currentText(".env")).toBeNull();
+    // blobText()'s last resort (current files with that blob) skips excluded ones, also for an unknown ("") blob.
+    repo.write("local/.env", "TOKEN=y\n"); // untracked: never hashed
+    await idx.update([{ kind: "add", path: "local/.env" }]);
+    const before = deps.reads.length;
+    expect(await idx.blobText("")).toBeNull();
+    expect(await idx.blobText(hasher.gitBlob(new TextEncoder().encode("TOKEN=y\n"), "sha1"))).toBeNull();
+    expect(deps.reads.slice(before).filter((p) => p.endsWith(".env"))).toEqual([]);
   });
 });
 

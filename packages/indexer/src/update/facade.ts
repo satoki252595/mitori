@@ -196,6 +196,7 @@ export function createIndexerWith(deps: IndexerDeps, factory: LaterStagesFactory
   }
 
   async function blobText(blob: GitOid): Promise<string | null> {
+    if (blob === "") return null;
     try {
       return decodeUtf8(await deps.git.catBlob(blob));
     } catch {
@@ -203,8 +204,9 @@ export function createIndexerWith(deps: IndexerDeps, factory: LaterStagesFactory
     }
     const pinned = core.pin.get(blob);
     if (pinned !== null) return decodeUtf8(pinned);
+    // Last resort: the current text of an included file (excluded files — deny / secret above all — are never read).
     for (const r of core.files.values()) {
-      if (r.blob !== blob) continue;
+      if (r.blob !== blob || r.excluded !== undefined) continue;
       try {
         const bytes = await deps.fs.read(absOf(core, r));
         if (deps.hasher.gitBlob(bytes, core.git?.objectFormat ?? "sha1") === blob) return decodeUtf8(bytes);
