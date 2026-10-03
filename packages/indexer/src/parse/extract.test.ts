@@ -272,6 +272,41 @@ func helper() {}
     ]);
     expect(r.refs.filter((x) => x.kind === "qual")).toEqual([]); // lite profile: qualified refs disabled
   });
+
+  test('subtests come from `x.Run("name", …)` calls inside tests only (string literal as the first named argument)', async () => {
+    const r = await parseText(
+      "y/y_test.go",
+      `package y
+
+import "testing"
+
+func TestA(t *testing.T) {
+	t.Run("one", func(t *testing.T) {
+		t.Run("nested", func(t *testing.T) {})
+	})
+	t.Run(\`raw\`, func(t *testing.T) {})
+	t.Run(/* c */ "after-comment", nil)
+	t.Runner("no")
+	s.Run("other receiver", nil)
+	name := "dyn"
+	t.Run(name, nil)
+}
+
+func helper(t *testing.T) { t.Run("outside", nil) }
+
+func BenchmarkB(b *testing.B) { b.Run("sub", nil) }
+`,
+      { profile: "lite", cls: "test" },
+    );
+    expect(r.tests).toEqual([
+      { name: "TestA", line: 5 },
+      { name: "BenchmarkB", line: 19 },
+      { name: "TestA/one", line: 6 },
+      { name: "TestA/nested", line: 7 },
+      { name: "TestA/other receiver", line: 12 },
+      { name: "BenchmarkB/sub", line: 19 },
+    ]);
+  });
 });
 
 describe("IDX-AT-11 Rust", () => {

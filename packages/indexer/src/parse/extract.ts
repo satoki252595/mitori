@@ -236,6 +236,8 @@ export function extract(inp: ExtractInput): Extraction {
   const importNames: Node[] = [];
   const exportSrc: Node[] = [];
   const refRaw: { kind: RefRecord["kind"]; node: Node; qual?: Node }[] = [];
+  /** Go test files: `x.Run` call names (subtests), taken from the tags pass instead of a second query. */
+  const goRuns: Node[] | null = grammar === "go" && inp.isTest ? [] : null;
   let allList: string[] | null = null;
   let packageNode: Node | null = null;
   const comments: Node[] = [];
@@ -258,6 +260,7 @@ export function extract(inp: ExtractInput): Extraction {
       else if (n === "ref.qual.name") qualName = c.node;
       else if (n.startsWith("ref.")) {
         if (!inp.lite || n !== "ref.type") refRaw.push({ kind: n.slice(4) as RefRecord["kind"], node: c.node });
+        if (goRuns !== null && n === "ref.call" && isRunAt(text, c.node.startIndex)) goRuns.push(c.node);
       } else if (n === "import.source") importSrc.push({ node: c.node, kind: "static", spec: "" });
       else if (n === "import.dynamic") importSrc.push({ node: c.node, kind: "dynamic", spec: "" });
       else if (n === "import.mod") importSrc.push({ node: c.node, kind: "mod", spec: "" });
@@ -320,7 +323,7 @@ export function extract(inp: ExtractInput): Extraction {
 
   // ---- tests -----------------------------------------------------------------------------------------
   const tests: { name: string; line: LineNo }[] = [];
-  collectTests(folded, ctx, tests);
+  collectTests(folded, ctx, tests, goRuns);
 
   // ---- errors / degraded ------------------------------------------------------------------------------
   let errors = 0;
@@ -815,7 +818,34 @@ function attachDocs(defs: readonly Def[], ctx: LangCtx, docNodes: readonly Node[
 // tests
 // =====================================================================================================
 
-function collectTests(defs: readonly Def[], ctx: LangCtx, out: { name: string; line: LineNo }[]): void {
+/** `Run` at `at` as a whole identifier (a `ref.call` capture of a Go selector call). */
+function isRunAt(text: string, at: number): boolean {
+  return text.startsWith("Run", at) && identEnd(text, at) === at + 3;
+}
+
+/**
+ * Go subtests `t.Run("name", …)`: the `Run` field of a selector call whose first argument is a string literal (the
+ * argument list's first named child, as the `.` anchor of a query would require).
+ */
+function goSubtests(runs: readonly Node[], tests: readonly Def[], slice: (n: Node) => string, out: { name: string; line: LineNo }[]): void {
+  const seen = new Set<number>();
+  const found: { at: number; name: string; line: number }[] = [];
+  for (const field of runs) {
+    if (seen.has(field.startIndex)) continue;
+    seen.add(field.startIndex);
+    const call = field.parent?.parent;
+    if (call === null || call === undefined || call.type !== "call_expression") continue;
+    const first = call.childForFieldName("arguments")?.firstNamedChild;
+    if (first === null || first === undefined || first.type !== "interpreted_string_literal") continue;
+    const pos = first.startIndex;
+    const owner = tests.find((d) => d.start <= pos && d.end >= pos);
+    if (owner !== undefined) found.push({ at: pos, name: `${owner.name}/${unquote(slice(first))}`, line: first.startPosition.row + 1 });
+  }
+  found.sort((a, b) => a.at - b.at);
+  for (const f of found) out.push({ name: f.name, line: f.line });
+}
+
+function collectTests(defs: readonly Def[], ctx: LangCtx, out: { name: string; line: LineNo }[], goRuns: readonly Node[] | null): void {
   const { inp, slice } = ctx;
   const g = inp.grammar;
   if (g === "go" || g === "python" || g === "rust") {
@@ -832,18 +862,17 @@ function collectTests(defs: readonly Def[], ctx: LangCtx, out: { name: string; l
       out.push({ name, line: d.startLine });
     }
   }
-  if (!inp.isTest || inp.testQuery === null) return;
   if (g === "go") {
-    const tests = defs.filter((d) => d.kind === "test");
-    for (const m of inp.testQuery().matches(inp.tree.rootNode)) {
-      const nm = m.captures.find((c) => c.name === "t.name")?.node;
-      if (nm === undefined) continue;
-      const pos = nm.startIndex;
-      const owner = tests.find((d) => d.start <= pos && d.end >= pos);
-      if (owner !== undefined) out.push({ name: `${owner.name}/${unquote(slice(nm))}`, line: nm.startPosition.row + 1 });
-    }
+    if (goRuns !== null && goRuns.length > 0)
+      goSubtests(
+        goRuns,
+        defs.filter((d) => d.kind === "test"),
+        slice,
+        out,
+      );
     return;
   }
+  if (!inp.isTest || inp.testQuery === null) return;
   // JS / TS: describe / it / test chains.
   const calls: { s: number; e: number; name: string; leaf: boolean; line: number }[] = [];
   for (const m of inp.testQuery().matches(inp.tree.rootNode)) {

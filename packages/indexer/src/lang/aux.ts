@@ -30,13 +30,11 @@ const JS_TESTS = `(call_expression function: [(identifier) (member_expression)] 
 (call_expression function: (call_expression function: (member_expression) @t.fn) arguments: (arguments . [(string) (template_string)] @t.name))
 `;
 
-/** Test-case calls (run on test files only): JS/TS `describe`/`it`/`test`…, Go `t.Run("sub")`. */
+/** Test-case calls (run on test files only): JS/TS `describe`/`it`/`test`… (Go subtests `t.Run("sub")` come from the tags pass). */
 export const TEST_QUERIES: Readonly<Partial<Record<GrammarId, string>>> = {
   typescript: JS_TESTS,
   tsx: JS_TESTS,
   javascript: JS_TESTS,
-  go: `(call_expression function: (selector_expression field: (field_identifier) @t.fn) arguments: (argument_list . (interpreted_string_literal) @t.name) (#eq? @t.fn "Run"))
-`,
 };
 
 /** ERROR / MISSING nodes (run only when the root `hasError`). */
