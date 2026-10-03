@@ -105,3 +105,30 @@ Each request below has a `// CR-PENDING(WP-10a)` workaround in the code (or says
   `notice.*`; the job / thread families have no screen in WP-10a.
 - workaround in place: the WP-10a parity test checks the four families it owns.
 - urgency: nice to have.
+
+## `KeyConflict`: which cross-scope overlaps are conflicts (verifier pass)
+- contract: `apps/web/src/contract.ts` — `KeyConflict` ("same chord, overlapping active scope sets"), `KeyRegistry.conflicts`
+- change: state in the doc comment that two scope pairs are designed precedences, not conflicts: the top layer
+  (`composer` / `palette`) over `global` (`Escape`, `⌘K`), and `review` over `read` inside `ROUTE_SCOPES.docReview`
+  (`[`, `]`, UXP-16); every other pair inside one active set conflicts, including a single chord that is the first
+  chord of a sequence (`g` vs `g h`).
+- why: the first implementation only compared bindings within one scope, so `remap("threads.hideResolved", ["b"])`
+  succeeded and silently hid `pane.nav` in S2.
+- workaround in place: none needed — `apps/web/src/shell/keys.ts` `findConflicts` implements the reading above
+  (unit-tested in `shell/keys.test.ts`, `stores/keys.test.ts`).
+- urgency: nice to have (wording).
+
+## `SectionNode.state "partial"` outside a run (streaming reservation)
+- contract: core `SectionNode.state`; ux.md §4.3.9-1 (`pending | generating | partial` ⇒ one reserved region)
+- change: say that the reservation applies while a run is active (or a `doc.block.partial` is open); a `partial`
+  (or `pending`) section of a doc that is not being generated shows its placeholders only.
+- why: read literally, every page of an ungenerated doc carried a 600 px 「◐ 生成中」 region.
+- workaround in place: `apps/web/src/reader/BlockHost.svelte` `isStreaming` (`generating` prop = run running / paused).
+- urgency: nice to have.
+
+## S1 strip meta: license and commit date
+- contract: api `WorkspaceStatus` / `ScanSummaryView`; ux.md §4.2.1 strip 2行目「言語 · LOC · ライセンス · HEAD7 · 日付」
+- change: carry `license?: string` (SPDX id from the scan) and the HEAD commit date (`snapshot.commitAt?`).
+- why: neither is in the DTOs, so the strip shows 言語 · LOC · files · HEAD7 only.
+- workaround in place: none (the two items are omitted).
+- urgency: nice to have.
