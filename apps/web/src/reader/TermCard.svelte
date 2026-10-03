@@ -6,21 +6,21 @@
 import type { GlossaryEntry } from "@mitori/core";
 import { onMount } from "svelte";
 import { t } from "../shell/index.ts";
+import { followAnchor, popoverPos } from "./popover.ts";
 
 let { entry, anchorEl, href, onenter, onleave }: { entry: GlossaryEntry; anchorEl: HTMLElement; href: string; onenter: () => void; onleave: () => void } =
   $props();
 let el: HTMLDivElement | undefined = $state();
-let pos = $state({ left: 0, top: 0 });
+let pos = $state<{ left: number; top: number; maxH: number | null }>({ left: 0, top: 0, maxH: null });
 
-onMount(() => {
-  const a = anchorEl.getBoundingClientRect();
-  const h = el?.offsetHeight ?? 160;
-  const below = a.bottom + 6 + h <= window.innerHeight - 30;
-  pos = { left: Math.max(16, Math.min(a.left, window.innerWidth - 336)), top: below ? a.bottom + 6 : a.top - 6 - h };
-});
+onMount(() =>
+  followAnchor(() => {
+    pos = popoverPos(anchorEl.getBoundingClientRect(), 320, el?.scrollHeight ?? 160, window.innerWidth, window.innerHeight);
+  }, el),
+);
 </script>
 
-<div class="pop termcard" bind:this={el} style:left="{pos.left}px" style:top="{pos.top}px" role="group" aria-label={entry.term} onpointerenter={onenter} onpointerleave={onleave} data-chrome>
+<div class="pop termcard" bind:this={el} style:left="{pos.left}px" style:top="{pos.top}px" style:max-height={pos.maxH === null ? undefined : `${pos.maxH}px`} style:overflow-y={pos.maxH === null ? undefined : "auto"} role="group" aria-label={entry.term} onpointerenter={onenter} onpointerleave={onleave} data-chrome>
   <p class="tt" data-user-content>{entry.term}</p>
   <p class="ty" data-user-content>{[entry.yomi, entry.en, entry.romaji].filter(Boolean).join(" · ")}</p>
   <p class="td" data-user-content>{entry.definition}</p>

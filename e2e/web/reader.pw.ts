@@ -145,6 +145,28 @@ test("@wp10a TOC thread badges (ux.md §4.3.2-3): an open thread on a §3.1 bloc
   await expect(page.locator('.toc a[data-toc="s4"] .tb')).toHaveCount(0);
 });
 
+test("@wp10a cite peek (ux.md §4.3.6): keyboard focus on a chip opens it touching the chip; it follows the chip when the page scrolls", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}/doc/s3`);
+  await waitMark(page, "mitori:section:rendered");
+  const chip = page.locator(".blk a.mcite").nth(2);
+  await chip.scrollIntoViewIfNeeded();
+  await page.keyboard.press("Tab"); // keyboard modality, so the chip's focus is :focus-visible
+  await chip.focus();
+  const peek = page.locator(".pop.peek");
+  await expect(peek).toBeVisible();
+  await page.waitForTimeout(100);
+  const gap = async () => {
+    const c = await chip.boundingBox();
+    const p = await peek.boundingBox();
+    return c && p ? Math.min(Math.abs(p.y - (c.y + c.height)), Math.abs(c.y - (p.y + p.height))) : 999;
+  };
+  expect(await gap()).toBeLessThanOrEqual(8);
+  await page.mouse.wheel(0, 120);
+  await page.waitForTimeout(150);
+  expect(await gap()).toBeLessThanOrEqual(8);
+});
+
 test("@wp10a dialogs return focus (ux.md §3.6): ? → help → Escape puts focus back on the focused block; j still works", async ({ page }) => {
   await configure({});
   await page.goto(`/w/${WS}/doc/s3`);

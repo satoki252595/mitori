@@ -7,6 +7,7 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { t } from "../shell/index.ts";
+import { followAnchor, popoverPos } from "./popover.ts";
 
 let {
   verdict,
@@ -19,17 +20,18 @@ let {
 }: { verdict: string; anchorEl: HTMLElement; canVerify: boolean; onverify: () => void; onask: () => void; onexpert: () => void; onclose: () => void } =
   $props();
 let el: HTMLDivElement | undefined = $state();
-let pos = $state({ left: 0, top: 0 });
+let pos = $state<{ left: number; top: number; maxH: number | null }>({ left: 0, top: 0, maxH: null });
 
 onMount(() => {
-  const a = anchorEl.getBoundingClientRect();
-  const h = el?.offsetHeight ?? 160;
-  pos = { left: Math.max(16, Math.min(a.left, window.innerWidth - 356)), top: a.bottom + 6 + h <= window.innerHeight - 30 ? a.bottom + 6 : a.top - 6 - h };
+  const stop = followAnchor(() => {
+    pos = popoverPos(anchorEl.getBoundingClientRect(), 340, el?.scrollHeight ?? 160, window.innerWidth, window.innerHeight);
+  }, el);
   (el?.querySelector("button:not([aria-disabled='true'])") as HTMLElement | null)?.focus();
+  return stop;
 });
 </script>
 
-<div class="pop claim" bind:this={el} style:left="{pos.left}px" style:top="{pos.top}px" role="dialog" aria-labelledby="claim-t" data-chrome>
+<div class="pop claim" bind:this={el} style:left="{pos.left}px" style:top="{pos.top}px" style:max-height={pos.maxH === null ? undefined : `${pos.maxH}px`} style:overflow-y={pos.maxH === null ? undefined : "auto"} role="dialog" aria-labelledby="claim-t" data-chrome>
   <p id="claim-t" class="h">{t(`claim.title.${verdict === "unsupported" ? "unsupported" : verdict === "stale" ? "stale" : "inferred"}`)}</p>
   <button type="button" class="opt" aria-disabled={!canVerify} title={canVerify ? undefined : t("claim.verifyNeedsPeek")} onclick={() => canVerify && onverify()}>
     <b>{t("claim.verify")}</b><span>{canVerify ? t("claim.verifyHint") : t("claim.verifyNeedsPeek")}</span>

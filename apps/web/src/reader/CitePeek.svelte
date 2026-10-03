@@ -8,6 +8,7 @@
 import type { CitePeek as CitePeekData, ClaimChecks } from "@mitori/core";
 import { onMount } from "svelte";
 import { t } from "../shell/index.ts";
+import { followAnchor, popoverPos } from "./popover.ts";
 
 let {
   data,
@@ -31,19 +32,17 @@ let {
 
 let el: HTMLDivElement | undefined = $state();
 let body: HTMLPreElement | undefined = $state();
-let pos = $state({ left: 0, top: 0 });
+let pos = $state<{ left: number; top: number; maxH: number | null }>({ left: 0, top: 0, maxH: null });
 
 function place() {
   if (!el) return;
-  const a = anchorEl.getBoundingClientRect();
-  const h = el.offsetHeight;
-  const w = Math.min(560, window.innerWidth - 32);
-  const below = a.bottom + 6 + h <= window.innerHeight - 30;
-  pos = { left: Math.max(16, Math.min(a.left, window.innerWidth - w - 16)), top: below ? a.bottom + 6 : Math.max(60, a.top - 6 - h) };
+  // natural height (the max-height of a previous placement must not shrink the measurement)
+  const h = el.scrollHeight;
+  pos = popoverPos(anchorEl.getBoundingClientRect(), Math.min(560, window.innerWidth - 32), h, window.innerWidth, window.innerHeight);
 }
 
 onMount(() => {
-  place();
+  const stop = followAnchor(place, body);
   if (body) {
     for (const ln of body.querySelectorAll<HTMLElement>("[data-line]")) {
       const n = Number(ln.dataset.line);
@@ -52,6 +51,7 @@ onMount(() => {
     const first = body.querySelector<HTMLElement>(".hi");
     if (first) body.scrollTop = Math.max(0, first.offsetTop - 40);
   }
+  return stop;
 });
 
 const l1Text = $derived(
@@ -64,6 +64,7 @@ const l1Text = $derived(
   bind:this={el}
   style:left="{pos.left}px"
   style:top="{pos.top}px"
+  style:max-height={pos.maxH === null ? undefined : `${pos.maxH}px`}
   role="group"
   aria-label={t("cite.peekLabel", { path: data.path, a: data.start, b: data.end })}
   onpointerenter={onenter}
@@ -95,6 +96,8 @@ const l1Text = $derived(
     width: var(--peek-w);
     max-width: calc(100% - 32px);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   .peek-h {
     display: flex;
@@ -129,6 +132,8 @@ const l1Text = $derived(
     padding: 6px 0;
     font: 0.71875rem / var(--lh-code) var(--font-mono);
     max-height: calc(26 * 0.71875rem * 1.62 + 12px);
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: auto;
     background: var(--sheet);
     color: var(--shiki-foreground);

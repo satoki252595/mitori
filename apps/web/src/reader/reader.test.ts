@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { type MarginCardInput, UI_THRESHOLDS } from "../contract.ts";
 import { blockVisible, layoutMarginCards, permalinkText } from "./index.ts";
 import { stepLevel } from "./levels.ts";
+import { popoverPos } from "./popover.ts";
 
 const card = (id: string, ideal: number, o: Partial<MarginCardInput> = {}): MarginCardInput => ({
   id,
@@ -77,5 +78,19 @@ describe("READER_LEVEL_RULES as data", () => {
       "§3.2 Auth flow — login.go:40-78\nmitori open doc_x#b_y",
     );
     expect(permalinkText({ section: "s4", title: "Quickstart", url: "u" })).toBe("§4 Quickstart\nu");
+  });
+});
+
+describe("reader popovers (ux.md §4.3.6): touching the chip, below or above", () => {
+  test("below when it fits, above otherwise, clamped to the viewport", () => {
+    expect(popoverPos({ left: 100, top: 200, bottom: 220 }, 560, 300, 1440, 900)).toEqual({ left: 100, top: 226, maxH: null });
+    expect(popoverPos({ left: 100, top: 700, bottom: 720 }, 560, 300, 1440, 900)).toEqual({ left: 100, top: 394, maxH: null });
+    expect(popoverPos({ left: 1300, top: 200, bottom: 220 }, 560, 300, 1440, 900).left).toBe(1440 - 560 - 16);
+  });
+
+  test("too tall for both sides: the roomier side with a max height, never covering the chip", () => {
+    // chip at 585–605 in a 900 px viewport, a 575 px peek: 259 px below, 519 px above ⇒ above, 519 px high
+    expect(popoverPos({ left: 100, top: 585, bottom: 605 }, 560, 575, 1440, 900)).toEqual({ left: 100, top: 60, maxH: 519 });
+    expect(popoverPos({ left: 100, top: 120, bottom: 140 }, 560, 800, 1440, 900)).toEqual({ left: 100, top: 146, maxH: 724 });
   });
 });
