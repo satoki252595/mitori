@@ -28,6 +28,19 @@ describe("loop.bundle golden (go-small)", () => {
     });
   }
 
+  // The measure hooks of bench/budgets/loop.json (`…/bundle.test.ts#tokens:<tier>`): every push golden of the tier is in its window.
+  for (const tier of ["XS", "S", "M", "L"] as const) {
+    test(`tokens:${tier}`, async () => {
+      const cases = CASES.filter((c) => c.window && c.tier === tier);
+      expect(cases.length).toBeGreaterThan(0);
+      const [lo, hi] = BUNDLE_TIERS[tier].expect;
+      for (const c of cases) {
+        const { tokens } = await c.run(builder, w);
+        expect([c.name, tokens >= lo && tokens <= hi]).toEqual([c.name, true]);
+      }
+    });
+  }
+
   test("tier windows: S sits at ≈ 1.1k ± 15% (the 1.2k line-numbered figure of spec §4.4 is inside the band)", async () => {
     const change = CASES.find((c) => c.name === "change");
     const r = await (change as NonNullable<typeof change>).run(builder, w);
