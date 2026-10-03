@@ -372,8 +372,10 @@ function upsertStatic(core: StoreCore, spec: StaticSpec, res: ApplyResult): void
     return;
   }
   if (rec.meta.lock) {
-    const dup = core.db.proposals({ state: "pending", block: rec.meta.id }).some((p) => p.md === spec.md);
-    if (!dup)
+    // the human already has this text in front of them (pending) or turned it down (rejected): a static refresh (any
+    // file save) never proposes it again — only a CHANGED generated text is news (ux finishing pass, cr-requests/ux.md #3)
+    const seen = core.db.proposals({ block: rec.meta.id }).some((p) => p.md === spec.md && (p.state === "pending" || p.state === "rejected"));
+    if (!seen)
       res.proposals.push(
         propose(
           core,

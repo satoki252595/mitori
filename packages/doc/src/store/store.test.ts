@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type BlockId, type Cite, type ClaimChecks, canonicalJson, type Decision, DOC_TEMPLATE, type SectionId } from "@mitori/core";
+import { type BlockId, type Cite, type ClaimChecks, canonicalJson, type Decision, DOC_TEMPLATE, type ProposalId, type SectionId } from "@mitori/core";
 import type { GeneratedBlock } from "../contract.ts";
 import { harness, staticInputFromTruth } from "../test/harness.ts";
 import { createAiMarkdownValidator } from "./index.ts";
@@ -165,6 +165,7 @@ describe("DOC-U-007b a human edit of a placeholder (ux finishing pass)", () => {
     await h.store.editBlock(ph?.id as BlockId, ph?.hash as string, "人が書いた、この repo の目的。", "human");
     const edited = h.store.block(ph?.id as BlockId);
     expect(edited?.kind).toBe("prose");
+    expect(edited?.status).toBe("ready"); // not framed as 未生成 (the reader frames status placeholder)
     expect(edited?.lock).toBe("human-edited");
     // the next static applies (any facts change) leave it alone — no "revert to placeholder" proposal, no new placeholder
     for (let i = 0; i < 2; i++) {
@@ -175,6 +176,26 @@ describe("DOC-U-007b a human edit of a placeholder (ux finishing pass)", () => {
     expect(h.store.proposals({ state: "pending" })).toEqual([]);
     expect(h.store.section("s1" as SectionId)?.blocks.filter((b) => b.kind === "placeholder")).toEqual([]);
     expect(h.store.block(ph?.id as BlockId)?.md).toBe("人が書いた、この repo の目的。");
+  });
+});
+
+describe("DOC-U-007c a human-edited static block (ux finishing pass)", () => {
+  test("the refresh proposes the generated text once; a rejected one is not proposed again until the generated text changes", async () => {
+    const h = harness();
+    const input = staticInputFromTruth("go-small");
+    h.store.applyStatic(input);
+    const facts = h.store.section("s4" as SectionId)?.blocks.find((b) => b.kind === "facts");
+    expect(facts).toBeDefined();
+    await h.store.editBlock(facts?.id as BlockId, facts?.hash as string, "| 名前 |\n|---|\n| 人が直した行 |", "human");
+    const first = h.store.applyStatic(input);
+    expect(first.proposals).toHaveLength(1);
+    // pending: the same text is not proposed twice
+    expect(h.store.applyStatic(input).proposals).toEqual([]);
+    h.store.rejectProposal(first.proposals[0] as ProposalId);
+    // rejected: every later refresh (a file save) leaves the human's table alone — no nagging re-proposal
+    for (let i = 0; i < 2; i++) expect(h.store.applyStatic(input).proposals).toEqual([]);
+    expect(h.store.proposals({ state: "pending" })).toEqual([]);
+    expect(h.store.block(facts?.id as BlockId)?.md).toContain("人が直した行");
   });
 });
 

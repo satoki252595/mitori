@@ -499,6 +499,8 @@ class Store implements DocStore {
       // (ux finishing pass, cr-requests/ux.md #3 — seen in the co-editing flow)
       if (rec.meta.kind === "placeholder") {
         rec.meta.kind = "prose";
+        // and it reads as text, not as the 未生成 card with a 生成する button around the human's words
+        rec.meta.status = "ready";
         if (rec.meta.slot && this.st.slots.get(rec.meta.slot) === id) this.st.slots.delete(rec.meta.slot);
         delete rec.meta.slot;
       }
