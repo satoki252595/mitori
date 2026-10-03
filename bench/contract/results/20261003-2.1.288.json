@@ -1,9 +1,9 @@
 {
   "v": "mitori.contract-result/1",
-  "at": "2026-10-03T08:56:34.277Z",
+  "at": "2026-10-03T09:12:39.014Z",
   "cli": "2.1.288 (Claude Code)",
   "model": "claude-haiku-4-5",
-  "live": true,
+  "live": false,
   "spentUsd": 0.047,
   "invariants": [
     {
@@ -64,18 +64,48 @@
     }
   ],
   "ctMap": {
-    "CT-01": ["CC-02", "CC-22"],
-    "CT-02": ["CC-06"],
-    "CT-03": ["CC-03", "CC-04", "CC-12"],
-    "CT-04": ["CC-08", "CC-09"],
-    "CT-05": ["CC-12"],
-    "CT-06": ["CC-17", "CC-21"],
-    "CT-07": ["CC-14", "CC-20"],
-    "CT-08": ["CC-20"],
-    "CT-09": ["CC-16"],
-    "CT-11": ["CC-15"],
-    "CT-13": ["CC-10"],
-    "CT-14": ["CC-23"]
+    "CT-01": [
+      "CC-02",
+      "CC-22"
+    ],
+    "CT-02": [
+      "CC-06"
+    ],
+    "CT-03": [
+      "CC-03",
+      "CC-04",
+      "CC-12"
+    ],
+    "CT-04": [
+      "CC-08",
+      "CC-09"
+    ],
+    "CT-05": [
+      "CC-12"
+    ],
+    "CT-06": [
+      "CC-17",
+      "CC-21"
+    ],
+    "CT-07": [
+      "CC-14",
+      "CC-20"
+    ],
+    "CT-08": [
+      "CC-20"
+    ],
+    "CT-09": [
+      "CC-16"
+    ],
+    "CT-11": [
+      "CC-15"
+    ],
+    "CT-13": [
+      "CC-10"
+    ],
+    "CT-14": [
+      "CC-23"
+    ]
   },
   "results": [
     {
@@ -210,6 +240,5 @@
       "detail": "ephemeral_5m=8905 ephemeral_1h=0",
       "usd": 0.0115
     }
-  ],
-  "note": "2026-10-03 WP-05: 6 partial --live runs (haiku) + 2 probes; total subscription spend ≈ $0.047 API-equivalent. CC-18 (writes the user's session store) and CC-19 (sonnet) not run; CT-08 measured on haiku, not sonnet."
+  ]
 }

@@ -302,6 +302,8 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
           window: deps.window(),
         });
         if (!cs().enabled) s.problems.unshift({ code: "E_AGENT_NOT_INSTALLED", message: "claude-cli is disabled in settings" });
+        // ANTHROPIC_BASE_URL reaches the CLI only via envPassthrough; the engine card says "via proxy" (spec §6.4)
+        if (cs().envPassthrough.includes("ANTHROPIC_BASE_URL") && typeof deps.env.ANTHROPIC_BASE_URL === "string") s.capabilities.push("via-proxy");
         status = { s, at: deps.clock.now() };
         return s;
       } finally {

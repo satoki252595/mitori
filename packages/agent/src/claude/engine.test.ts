@@ -330,6 +330,12 @@ describe("claude-cli engine over a scripted CLI", () => {
     expect((await lack.engines["claude-cli"]?.detect())?.problems[0]?.message).toMatch(/--restricted/);
     const nopin = createTestBridge({ spawner: mk("{}"), settings: (x) => delete x.pins.claude });
     expect((await nopin.engines["claude-cli"]?.detect())?.problems[0]?.code).toBe("E_AGENT_NOT_INSTALLED");
+    const proxied = createTestBridge({
+      spawner: mk(JSON.stringify({ loggedIn: true, authMethod: "claude.ai" })),
+      settings: { engines: { "claude-cli": { envPassthrough: ["ANTHROPIC_BASE_URL"] } } },
+      env: { HOME: "/home/u", ANTHROPIC_BASE_URL: "http://127.0.0.1:8787" },
+    });
+    expect((await proxied.engines["claude-cli"]?.detect())?.capabilities).toContain("via-proxy");
     const failing = createTestBridge({ spawner: createFakeSpawner().script(() => true, { exitCode: 1 }) });
     expect((await failing.engines["claude-cli"]?.detect())?.installed).toBe(false);
   });
