@@ -460,7 +460,7 @@ class Store implements DocStore {
       core.setText(rec, marker);
       core.refreshQuotes(rec);
       core.history(rec, by, "human_edit");
-      refreshDerived(core);
+      refreshDerived(core, [rec.meta.section]);
       core.schedule();
       const checks = stamped.flatMap((s, i) => {
         const at = `${id}#claim${i + 1}`;
@@ -552,7 +552,7 @@ class Store implements DocStore {
 
   acceptProposal(id: ProposalId, md?: string): Block {
     const b = acceptProposal(this.core, id, md, (ids) => this.restamp(ids));
-    refreshDerived(this.core);
+    refreshDerived(this.core, [b.section]);
     this.core.deps.events.emit({ type: "doc.proposal.removed", id });
     this.core.schedule();
     return b;
@@ -627,8 +627,12 @@ class Store implements DocStore {
   }
 
   tombstone(ids: BlockId[]): void {
+    const sections = ids.flatMap((id) => {
+      const s = this.st.blocks.get(id)?.meta.section;
+      return s ? [s] : [];
+    });
     this.core.tombstone(ids);
-    refreshDerived(this.core);
+    refreshDerived(this.core, sections);
     this.core.schedule();
   }
 

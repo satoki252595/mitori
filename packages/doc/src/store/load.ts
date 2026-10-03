@@ -100,6 +100,7 @@ function restoreIndex(core: StoreCore, idx: DocIndex, problems: CheckError[]): v
   }
   for (const [id, d] of Object.entries(idx.diagrams ?? {})) st.diagrams.set(id as DiagramIdOf, d);
   st.glossary = idx.glossary ?? [];
+  core.modulesChanged();
 }
 type DiagramIdOf = Parameters<StoreCore["st"]["diagrams"]["set"]>[0];
 

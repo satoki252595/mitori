@@ -80,6 +80,14 @@ export class StoreCore {
   schedule: () => void = () => {};
   /** Reading paths of the current doc (set by the store). */
   readingPaths: () => ReadingPath[] = () => [];
+  /** Modules that have children (aspect set `s6/parent`); recomputed when the module map changes. */
+  private parents = new Set<string>();
+  private parentsOf = -1;
+
+  /** Forget derived module facts (call after the module map was rebuilt). */
+  modulesChanged(): void {
+    this.parentsOf = -1;
+  }
 
   constructor(readonly deps: StoreDeps) {
     this.db = new DocDb(deps.db);
@@ -172,8 +180,11 @@ export class StoreCore {
     if (section.startsWith("s3/")) return "s3/*";
     if (section.startsWith("s6/")) {
       const mod = this.st.sections.get(section)?.module;
-      const hasChildren = mod ? [...this.st.modules.values()].some((m) => m.parent === mod) : false;
-      return hasChildren ? "s6/parent" : "s6/leaf";
+      if (this.parentsOf !== this.st.modules.size) {
+        this.parents = new Set([...this.st.modules.values()].flatMap((m) => (m.parent ? [m.parent] : [])));
+        this.parentsOf = this.st.modules.size;
+      }
+      return mod && this.parents.has(mod) ? "s6/parent" : "s6/leaf";
     }
     return section in SECTION_ASPECTS ? (section as keyof typeof SECTION_ASPECTS) : null;
   }

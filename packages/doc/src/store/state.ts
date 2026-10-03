@@ -22,6 +22,7 @@ import {
 import { unmarkerize } from "../codec/cite.ts";
 import type { CodecContext } from "../contract.ts";
 import { fileOfSection, topOf } from "./paths.ts";
+import { TrackedMap } from "./tracked.ts";
 
 /** A block: metadata + canonical marker-form text. `tick` bumps on every change of the Markdown fragment. */
 export interface BlockRec {
@@ -56,8 +57,8 @@ export function readingSecOf(kind: BlockMeta["kind"], md: string, lang: DocLang)
 export class DocState {
   manifest: DocManifest | null = null;
   readonly sections = new Map<SectionId, SectionNode>();
-  readonly blocks = new Map<BlockId, BlockRec>();
-  readonly claims = new Map<ClaimId, ClaimRec>();
+  readonly blocks = new TrackedMap<BlockId, BlockRec>();
+  readonly claims = new TrackedMap<ClaimId, ClaimRec>();
   readonly diagrams = new Map<DiagramId, DiagramIR>();
   readonly modules = new Map<ModuleId, DocModuleEntry>();
   readonly slots = new Map<string, BlockId>();
@@ -169,17 +170,20 @@ export class DocState {
     rec.metaTick = rec.tick;
     this.fileTick.set(rec.meta.file, rec.tick);
     this.indexTick = rec.tick;
+    this.blocks.touch(rec.meta.id);
   }
 
   /** Mark metadata-only change (index dirty). */
   touchMeta(rec: BlockRec): void {
     rec.metaTick = this.tick();
     this.indexTick = rec.metaTick;
+    this.blocks.touch(rec.meta.id);
   }
 
   touchClaim(c: ClaimRec): void {
     c.tick = this.tick();
     this.indexTick = c.tick;
+    this.claims.touch(c.claim.id);
   }
 
   touchIndex(): void {

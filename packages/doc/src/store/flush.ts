@@ -15,6 +15,8 @@ const CADENCE_MS = 500;
 const GENERATING_CADENCE_MS = 2000;
 const CITE_QUIET_MS = 10_000;
 const GENERATING_WINDOW_MS = 2000;
+/** Above this many UTF-16 units the ledger keeps no digest (hashing 18 MB costs ≈ 3 ms per flush, DOC-B-001). */
+const LEDGER_DIGEST_MAX = 1 << 20;
 
 interface Pending {
   rel: string;
@@ -255,7 +257,10 @@ export class Flusher {
   recordLedger(root: string, rel: string, content: string): void {
     const fs = this.core.deps.fs;
     const st = fs?.stat(`${root}/${rel}`);
-    this.core.db.setLedger(rel, this.core.deps.hasher.xxh3(content), st?.size ?? new TextEncoder().encode(content).length, st?.mtimeNs ?? 0n);
+    // large files (the sidecar of a big doc) keep size + mtime only: a later mismatch is then treated as foreign,
+    // which for Markdown / the sidecar means "import on the next load" — never an overwrite
+    const digest = content.length <= LEDGER_DIGEST_MAX ? this.core.deps.hasher.xxh3(content) : "";
+    this.core.db.setLedger(rel, digest, st?.size ?? content.length, st?.mtimeNs ?? 0n);
   }
 
   /** After load(): the bytes on disk are what we hold (ledger adopts imported files). */

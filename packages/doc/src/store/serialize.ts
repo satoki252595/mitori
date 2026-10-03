@@ -1,113 +1,158 @@
 // Deterministic serialization of `doc.index.json` / `mitori.json` (gen §10.8) with a fragment memo (PT-11): every
-// block / claim / section object is canonical-JSON'd once per change and the file is assembled by concatenation,
+// block / claim / section object is canonical-JSON'd once per change, ids are grouped in buckets by their first two
+// body characters (contiguous in sorted order), and only buckets with a changed member are re-joined. The output is
 // byte-identical to `canonicalJson(index)` (tested).
-import { canonicalJson, type DocIndex, FORMAT, type ReadingPath } from "@mitori/core";
+import { canonicalJson, type DocIndex, FORMAT, type ReadingPath, type SectionNode } from "@mitori/core";
 import type { BlockRec, ClaimRec, DocState } from "./state.ts";
+import type { TrackedMap } from "./tracked.ts";
 
 /** canonicalJson of `v`, re-indented for nesting at `depth` levels (no trailing newline). */
 function frag(v: unknown, depth: number): string {
-  const s = canonicalJson(v);
-  const body = s.slice(0, -1);
+  const body = canonicalJson(v).slice(0, -1);
   return depth === 0 ? body : body.replace(/\n/g, `\n${"  ".repeat(depth)}`);
 }
 
 const key = (k: string): string => JSON.stringify(k);
+const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 /** Round floats (rank, weight) to 4 decimals (§10.8). */
 export const round4 = (v: number): number => Math.round(v * 1e4) / 1e4;
 
+/** One `"name": { "<id>": {...}, … }` member rendered from buckets. */
+class MapRenderer<V> {
+  private members = new Map<string, Set<string>>();
+  private texts = new Map<string, string>();
+  private order: string[] = [];
+  private frags = new Map<string, { tick: number; text: string }>();
+
+  constructor(
+    private readonly name: string,
+    private readonly prefix: number,
+    private readonly map: TrackedMap<string, V>,
+    private readonly view: (v: V) => { tick: number; obj: unknown },
+  ) {}
+
+  private bucketOf(id: string): string {
+    return id.slice(this.prefix, this.prefix + 2);
+  }
+
+  private bucket(b: string): Set<string> {
+    let s = this.members.get(b);
+    if (!s) {
+      s = new Set();
+      this.members.set(b, s);
+    }
+    return s;
+  }
+
+  private renderBucket(b: string): void {
+    const ids = [...(this.members.get(b) ?? [])].sort(cmp);
+    if (ids.length === 0) {
+      this.members.delete(b);
+      this.texts.delete(b);
+      return;
+    }
+    const parts = ids.map((id) => {
+      const { tick, obj } = this.view(this.map.get(id) as V);
+      let f = this.frags.get(id);
+      if (!f || f.tick !== tick) {
+        f = { tick, text: `    ${key(id)}: ${frag(obj, 2)}` };
+        this.frags.set(id, f);
+      }
+      return f.text;
+    });
+    this.texts.set(b, parts.join(",\n"));
+  }
+
+  /** Append the member's pieces to `out` (joined once by the caller: one copy of an 18 MB sidecar, not two). */
+  render(out: string[]): void {
+    const dirty = this.map.drain();
+    let touched: Set<string>;
+    if (dirty === null) {
+      this.members.clear();
+      this.texts.clear();
+      this.frags.clear();
+      for (const id of this.map.keys()) this.bucket(this.bucketOf(id)).add(id);
+      touched = new Set(this.members.keys());
+    } else {
+      touched = new Set();
+      for (const id of dirty) {
+        const b = this.bucketOf(id);
+        const s = this.bucket(b);
+        if (this.map.has(id)) s.add(id);
+        else {
+          s.delete(id);
+          this.frags.delete(id);
+        }
+        touched.add(b);
+      }
+    }
+    for (const b of touched) this.renderBucket(b);
+    if (touched.size > 0) this.order = [...this.texts.keys()].sort(cmp);
+    if (this.order.length === 0) {
+      out.push(`  ${key(this.name)}: {}`);
+      return;
+    }
+    out.push(`  ${key(this.name)}: {\n`);
+    this.order.forEach((b, i) => {
+      if (i > 0) out.push(",\n");
+      out.push(this.texts.get(b) as string);
+    });
+    out.push("\n  }");
+  }
+}
+
 export class IndexSerializer {
-  private blockMemo = new Map<string, { tick: number; text: string }>();
-  private claimMemo = new Map<string, { tick: number; text: string }>();
-  private sortedBlocks: string[] = [];
-  private sortedClaims: string[] = [];
-  private blockSet = new Set<string>();
-  private claimSet = new Set<string>();
-
-  private sorted(ids: Iterable<string>, kind: "b" | "c"): string[] {
-    const set = kind === "b" ? this.blockSet : this.claimSet;
-    let list = kind === "b" ? this.sortedBlocks : this.sortedClaims;
-    const now = new Set(ids);
-    let changed = now.size !== set.size;
-    if (!changed) for (const id of now) if (!set.has(id)) changed = true;
-    if (changed) {
-      list = [...now].sort();
-      if (kind === "b") {
-        this.sortedBlocks = list;
-        this.blockSet = now;
-      } else {
-        this.sortedClaims = list;
-        this.claimSet = now;
-      }
-    }
-    return list;
-  }
-
-  private mapSection(
-    name: string,
-    ids: string[],
-    get: (id: string) => { tick: number; obj: unknown },
-    memo: Map<string, { tick: number; text: string }>,
-  ): string {
-    if (ids.length === 0) return `  ${key(name)}: {}`;
-    const parts: string[] = [];
-    for (const id of ids) {
-      const { tick, obj } = get(id);
-      let m = memo.get(id);
-      if (!m || m.tick !== tick) {
-        m = { tick, text: `    ${key(id)}: ${frag(obj, 2)}` };
-        memo.set(id, m);
-      }
-      parts.push(m.text);
-    }
-    if (memo.size > ids.length * 2) for (const k of memo.keys()) if (!(name === "blocks" ? this.blockSet : this.claimSet).has(k)) memo.delete(k);
-    return `  ${key(name)}: {\n${parts.join(",\n")}\n  }`;
-  }
+  private blocks: MapRenderer<BlockRec> | null = null;
+  private claims: MapRenderer<ClaimRec> | null = null;
+  private sectionMemo = new Map<string, { sig: string; text: string }>();
 
   private list(name: string, items: unknown[]): string {
     return `  ${key(name)}: ${items.length === 0 ? "[]" : frag(items, 1)}`;
   }
 
+  /** `"sections": [...]` with one memoized fragment per section (signature of everything it serializes). */
+  private sections(list: SectionNode[]): string {
+    if (list.length === 0) return `  "sections": []`;
+    const parts = list.map((s) => {
+      const sig = `${s.title}\u0000${s.file}\u0000${s.state}\u0000${s.readingSec}\u0000${s.module ?? ""}\u0000${s.est ? `${s.est.inTokens}/${s.est.outTokens}` : ""}\u0000${s.children.join(",")}\u0000${s.blocks.length}\u0000${s.blocks.join(",")}`;
+      let m = this.sectionMemo.get(s.id);
+      if (!m || m.sig !== sig) {
+        m = { sig, text: `    ${frag(s, 2)}` };
+        this.sectionMemo.set(s.id, m);
+      }
+      return m.text;
+    });
+    return `  "sections": [\n${parts.join(",\n")}\n  ]`;
+  }
+
   /** The whole sidecar text. */
   serialize(st: DocState, readingPaths: ReadingPath[]): string {
-    const blocks = this.mapSection(
-      "blocks",
-      this.sorted(st.blocks.keys(), "b"),
-      (id) => {
-        const r = st.blocks.get(id as never) as BlockRec;
-        return { tick: r.metaTick, obj: r.meta };
-      },
-      this.blockMemo,
-    );
-    const claims = this.mapSection(
-      "claims",
-      this.sorted(st.claims.keys(), "c"),
-      (id) => {
-        const c = st.claims.get(id as never) as ClaimRec;
-        return { tick: c.tick, obj: { ...c.claim, cites: c.fileCites } };
-      },
-      this.claimMemo,
-    );
-    const diagrams = [...st.diagrams.keys()].sort();
+    this.blocks ??= new MapRenderer<BlockRec>("blocks", 2, st.blocks as unknown as TrackedMap<string, BlockRec>, (r) => ({ tick: r.metaTick, obj: r.meta }));
+    this.claims ??= new MapRenderer<ClaimRec>("claims", 3, st.claims as unknown as TrackedMap<string, ClaimRec>, (c) => ({
+      tick: c.tick,
+      obj: { ...c.claim, cites: c.fileCites },
+    }));
+    const diagrams = [...st.diagrams.keys()].sort(cmp);
     const diagramsText =
-      diagrams.length === 0
-        ? `  "diagrams": {}`
-        : `  "diagrams": {\n${diagrams.map((d) => `    ${key(d)}: ${frag(st.diagrams.get(d as never), 2)}`).join(",\n")}\n  }`;
-    const modules = [...st.modules.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-    return [
-      "{",
-      `${blocks},`,
-      `${claims},`,
-      `${diagramsText},`,
-      `${this.list("glossary", st.glossary)},`,
-      `  "kind": "mitori/doc-index",`,
-      `${this.list("modules", modules)},`,
-      `${this.list("readingPaths", readingPaths)},`,
-      `  "schemaVersion": ${FORMAT.docIndex},`,
-      `${this.list("sections", st.orderedSections())}`,
-      "}",
-      "",
-    ].join("\n");
+      diagrams.length === 0 ? `  "diagrams": {}` : `  "diagrams": {\n${diagrams.map((d) => `    ${key(d)}: ${frag(st.diagrams.get(d), 2)}`).join(",\n")}\n  }`;
+    const modules = [...st.modules.values()].sort((a, b) => cmp(a.id, b.id));
+    const out: string[] = ["{\n"];
+    this.blocks.render(out);
+    out.push(",\n");
+    this.claims.render(out);
+    out.push(
+      ",\n",
+      `${diagramsText},\n`,
+      `${this.list("glossary", st.glossary)},\n`,
+      `  "kind": "mitori/doc-index",\n`,
+      `${this.list("modules", modules)},\n`,
+      `${this.list("readingPaths", readingPaths)},\n`,
+      `  "schemaVersion": ${FORMAT.docIndex},\n`,
+      this.sections(st.orderedSections()),
+      "\n}\n",
+    );
+    return out.join("");
   }
 }
 
@@ -128,6 +173,6 @@ export function indexObject(st: DocState, readingPaths: ReadingPath[]): DocIndex
     diagrams,
     glossary: st.glossary,
     readingPaths,
-    modules: [...st.modules.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    modules: [...st.modules.values()].sort((a, b) => cmp(a.id, b.id)),
   };
 }

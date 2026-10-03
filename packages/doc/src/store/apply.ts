@@ -96,20 +96,27 @@ function hasContent(core: StoreCore, section: SectionId): boolean {
 const STATIC_ONLY = new Set<TopSectionId>(["s4", "s5", "s6", "s8", "appendix"]);
 
 /** Placeholders for sections whose AI content is still missing (the TOC never shows an empty section). */
-function placeholders(core: StoreCore, est: Estimates, schemaFacts: number): StaticSpec[] {
+function placeholders(core: StoreCore, est: Estimates, schemaFacts: number, only?: ReadonlySet<SectionId>): StaticSpec[] {
   const l = L[core.lang()];
   const out: StaticSpec[] = [];
+  const estOf = (s: SectionId) => est[s] ?? core.st.sections.get(s)?.est;
   for (const t of DOC_TEMPLATE) {
-    if (STATIC_ONLY.has(t.id) || hasContent(core, t.id)) continue;
+    if ((only && !only.has(t.id)) || STATIC_ONLY.has(t.id) || hasContent(core, t.id)) continue;
     if (t.id === "s7" && schemaFacts === 0) continue;
     if (t.id === "s12" && core.st.glossary.length > 0) continue;
-    out.push(placeholderSpec(t.id, `${t.id}:ph`, l.placeholder(estText(est[t.id])), RANK.ph));
+    out.push(placeholderSpec(t.id, `${t.id}:ph`, l.placeholder(estText(estOf(t.id))), RANK.ph));
   }
   for (const m of core.st.modules.values()) {
-    if (hasContent(core, m.section)) continue;
-    out.push(placeholderSpec(m.section, `m:${m.id}:ph`, l.lazyModule(estText(est[m.section])), RANK.modulePh));
+    if ((only && !only.has(m.section)) || hasContent(core, m.section)) continue;
+    out.push(placeholderSpec(m.section, `m:${m.id}:ph`, l.lazyModule(estText(estOf(m.section))), RANK.modulePh));
   }
   return out;
+}
+
+/** Placeholder slot of a section (`<section>:ph`, `m:<module>:ph`). */
+function placeholderSlot(core: StoreCore, section: SectionId): string {
+  const mod = core.st.sections.get(section)?.module;
+  return mod ? `m:${mod}:ph` : `${section}:ph`;
 }
 
 /** Store-derived static blocks (decisions, glossary, sources, generation meta). */
@@ -186,6 +193,7 @@ function syncModules(core: StoreCore, input: StaticDocInput, res: ApplyResult): 
   for (const [id, prev] of st.modules) if (!next.has(id)) removeSection(core, prev.section, res);
   st.modules.clear();
   for (const [id, e] of next) st.modules.set(id, e);
+  core.modulesChanged();
   const pages = modulePages(input, st.modules, (m) => (st.modules.get(m.id) as DocModuleEntry).slug);
   const s6 = st.sections.get("s6") as SectionNode;
   const kids = new Map<SectionId, SectionId[]>();
@@ -351,14 +359,22 @@ export function applyStatic(core: StoreCore, input: StaticDocInput): ApplyResult
 }
 
 /** Re-run the store-derived static blocks only (decisions, glossary, sources, meta, placeholders). */
-export function refreshDerived(core: StoreCore): void {
+export function refreshDerived(core: StoreCore, sections?: Iterable<SectionId>): void {
   if (!core.st.manifest) return;
   const res = emptyResult();
-  const specs = [...derived(core), ...placeholders(core, {}, core.lastStatic ? core.lastStatic.facts.filter((f) => f.kind === "schema").length : 0)];
+  const schema = core.lastStatic ? core.lastStatic.facts.filter((f) => f.kind === "schema").length : 0;
+  // with `sections`, only those sections' placeholders are revisited (O(change); applyStatic refreshes the rest)
+  const only = sections ? new Set(sections) : undefined;
+  const specs = [...(only ? [] : derived(core)), ...placeholders(core, {}, schema, only)];
   for (const spec of specs) upsertStatic(core, spec, res);
+  const want = new Set(specs.map((s) => s.slot));
+  const slots = only ? [...only].map((s) => placeholderSlot(core, s)) : [...core.st.slots.keys()].filter((s) => /:ph$/.test(s));
   // a placeholder whose section now has content goes away
-  for (const [slot, id] of [...core.st.slots]) if (/:ph$/.test(slot) && !specs.some((s) => s.slot === slot)) removeStatic(core, id, res);
-  if (!core.st.glossary.length && core.st.slots.has("s12:table")) removeStatic(core, core.st.slots.get("s12:table") as BlockId, res);
+  for (const slot of slots) {
+    const id = core.st.slots.get(slot);
+    if (id && !want.has(slot)) removeStatic(core, id, res);
+  }
+  if (!only && !core.st.glossary.length && core.st.slots.has("s12:table")) removeStatic(core, core.st.slots.get("s12:table") as BlockId, res);
 }
 
 /** Aspect headings exist exactly while their aspect has ≥ 1 block (§4.2). */
@@ -585,7 +601,7 @@ export function applyGenerated(core: StoreCore, blocks: GeneratedBlock[], opts: 
     res.deleted.push(...core.tombstone([id]));
   });
   for (const s of touched) syncAspectHeadings(core, s, res);
-  refreshDerived(core);
+  refreshDerived(core, touched);
   for (const s of touched) {
     const node = st.sections.get(s);
     if (node) st.refreshSection(node);
