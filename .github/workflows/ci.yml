@@ -1,0 +1,42 @@
+# PR gate (MILESTONES WP-00a 成果物 7 / §9): one GitHub-hosted ubuntu job, ≤ 10 min, `bun run ci:pr`.
+# Triggers are pull_request and workflow_dispatch only (no push: keep Actions minutes for PRs).
+# nightly / bench / contract run on the self-hosted Mac via schedule or dispatch in their own files (WP-12, WP-05).
+# Actions are pinned to commit SHAs; the token is read-only.
+name: ci
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 4G
+
+      - name: Install (frozen lockfile; dependency lifecycle scripts never run, trustedDependencies = [])
+        run: nix develop .#ci --command bun install --frozen-lockfile
+
+      - name: ci:pr (check + unit + golden + size)
+        run: nix develop .#ci --command bun run ci:pr
+
+      - name: Binary smoke (linux-x64)
+        run: nix develop .#ci --command bash -c 'bun run build:bin && ./dist/mitori-linux-x64 --version'
