@@ -277,6 +277,14 @@ describe("DOC-U-017 proposals, accept / reject / undo", () => {
     h.store.undoAccept([res.proposals[0] as never]);
     expect(h.store.block(id as BlockId)?.kind).toBe("list");
   });
+  test("the manifest models / prompt versions and the appendix meta follow the AI blocks", async () => {
+    const h = seeded();
+    h.store.applyGenerated([block({ md: "一文。" }), block({ aspect: "users", kind: "list", md: "- 人", gen: { ...gen, promptVer: "gen.overview@2" } })], opts);
+    expect([h.store.manifest()?.models, h.store.manifest()?.generator.prompts]).toEqual([["claude-sonnet-5-5"], { "gen.overview": "gen.overview@2" }]);
+    expect(h.store.section("appendix")?.blocks.find((b) => b.slot === "ap:meta")?.md).toContain("- モデル: claude-sonnet-5-5");
+    await h.store.flush({ force: true });
+    expect(JSON.parse(h.mem?.files.get("mitori.json") ?? "{}").models).toEqual(["claude-sonnet-5-5"]);
+  });
   test("§10.8 diagram IR weights are stored rounded to 4 decimals", () => {
     const h = seeded();
     const diagram = {

@@ -16,7 +16,9 @@ import {
   type DocProposal,
   type MessageAuthor,
   MitoriError,
+  type ModelId,
   type ModuleId,
+  type PromptVersion,
   type ProposalId,
   type SectionId,
   type SectionNode,
@@ -154,18 +156,43 @@ function derived(core: StoreCore): StaticSpec[] {
       audience: ["newcomer", "dev"],
       rank: RANK.post,
     });
-  out.push(sourcesSpec(core));
-  if (st.manifest)
-    out.push({
-      slot: "ap:meta",
-      section: "appendix",
-      kind: "facts",
-      md: metaList(st.manifest, l),
-      depth: "L3",
-      audience: ["reviewer", "dev"],
-      rank: RANK.post2,
-    });
+  out.push(sourcesSpec(core), ...metaSpec(core));
   return out;
+}
+
+/** Appendix generation meta `ap:meta` (from the manifest). */
+function metaSpec(core: StoreCore): StaticSpec[] {
+  const m = core.st.manifest;
+  if (!m) return [];
+  return [
+    { slot: "ap:meta", section: "appendix", kind: "facts", md: metaList(m, L[core.lang()]), depth: "L3", audience: ["reviewer", "dev"], rank: RANK.post2 },
+  ];
+}
+
+/**
+ * Manifest `models` / `generator.prompts` = what produced the current AI blocks (their `gen` stamps). The rest of the
+ * run stamp (effort, usage, snapshot, generatedAt) is the generation run's — CR-PENDING(WP-04): no DocStore method yet.
+ */
+function stampGenerator(core: StoreCore): void {
+  const m = core.st.manifest;
+  if (!m) return;
+  const models = new Set<string>();
+  const prompts: Record<string, PromptVersion> = {};
+  const ver = (v: string) => Number(v.slice(v.lastIndexOf("@") + 1));
+  for (const rec of core.st.blocks.values()) {
+    const g = rec.meta.gen;
+    if (!g || rec.meta.origin !== "ai") continue;
+    models.add(g.model);
+    const id = g.promptVer.slice(0, g.promptVer.lastIndexOf("@"));
+    const cur = prompts[id];
+    if (!cur || ver(g.promptVer) > ver(cur)) prompts[id] = g.promptVer;
+  }
+  const nextModels = [...models].sort() as ModelId[];
+  const nextPrompts = Object.fromEntries(Object.entries(prompts).sort((a, b) => (a[0] < b[0] ? -1 : 1)));
+  if (canonicalJson(nextModels) === canonicalJson(m.models) && canonicalJson(nextPrompts) === canonicalJson(m.generator.prompts)) return;
+  m.models = nextModels;
+  m.generator = { ...m.generator, prompts: nextPrompts };
+  core.st.manifestTick = core.st.tick();
 }
 
 /** Appendix source index `ap:sources` (cited file → number of citing blocks); changes whenever claims do. */
@@ -425,7 +452,7 @@ export function refreshDerived(core: StoreCore, sections?: Iterable<SectionId>):
   // with `sections`, only those sections' placeholders (and the source index, which follows every claim change) are
   // revisited; applyStatic refreshes the rest
   const only = sections ? new Set(sections) : undefined;
-  const specs = [...(only ? [sourcesSpec(core)] : derived(core)), ...placeholders(core, {}, schema, only)];
+  const specs = [...(only ? [sourcesSpec(core), ...metaSpec(core)] : derived(core)), ...placeholders(core, {}, schema, only)];
   for (const spec of specs) upsertStatic(core, spec, res);
   const want = new Set(specs.map((s) => s.slot));
   const slots = only ? [...only].map((s) => placeholderSlot(core, s)) : [...core.st.slots.keys()].filter((s) => /:ph$/.test(s));
@@ -681,6 +708,7 @@ export function applyGenerated(core: StoreCore, blocks: GeneratedBlock[], opts: 
     res.deleted.push(...core.tombstone([id]));
   });
   for (const s of touched) syncAspectHeadings(core, s, res);
+  stampGenerator(core);
   refreshDerived(core, touched);
   for (const s of touched) {
     const node = st.sections.get(s);
