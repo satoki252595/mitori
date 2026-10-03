@@ -94,7 +94,7 @@ export function createGitRunner(cfg: GitRunnerConfig): GitRunner {
         const [stdout, stderr] = await Promise.all([new Response(proc.stdout).bytes(), new Response(proc.stderr).text()]);
         await proc.exited;
         const code = proc.signalCode ? 128 + ((constants.signals as Record<string, number>)[proc.signalCode] ?? 0) : (proc.exitCode ?? 1);
-        const sub = args.find((a) => !a.startsWith("-")) ?? "?";
+        const sub = args.find((a, i) => !a.startsWith("-") && args[i - 1] !== "-c") ?? "?";
         if (timedOut) throw new MitoriError("E_TIMEOUT", `git ${sub} timed out after ${cfg.timeoutMs} ms`, { params: { sub } });
         if (!(opts.ok ?? [0]).includes(code)) {
           const first = stderr.trim().split("\n")[0]?.slice(0, 300) ?? "";

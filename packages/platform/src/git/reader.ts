@@ -1,11 +1,12 @@
 // GitReader over hardened git subprocesses (core §18) for the three flavours: normal working tree, shadow
 // (GIT_DIR=~/.mitori/repos/<ws>/shadow.git + GIT_WORK_TREE=<dir>) and side / bare (GIT_DIR only, no work tree).
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { type GitOid, type GitReader, type Iso8601, MitoriError, type RepoPath } from "@mitori/core";
 import { gitBlobOid } from "../hash/digest.ts";
 import { CatFileBatch } from "./catfile.ts";
 import { ByteLru } from "./lru.ts";
+import { filterNeutralizers, localConfigKeys } from "./neutralize.ts";
 import { createGitRunner, GIT_READ_ENV, nfc, splitZ } from "./run.ts";
 
 /** Options of {@link createGitReader}. */
@@ -22,7 +23,10 @@ export interface GitReaderOptions {
   timeoutMs?: number;
   /** Blob cache budget (default 64 MiB). */
   cacheBytes?: number;
-  /** Extra `-c key=value` args for every call (e.g. loop's `-c filter.x.clean=` neutralizers until trusted). */
+  /**
+   * Extra `-c key=value` args for every call. Independently of it, `status`/`statusDirty` always disable repo-local
+   * filter drivers (the only read that can execute repo-configured commands) [SEC-05].
+   */
   config?: () => readonly string[];
 }
 
@@ -124,6 +128,30 @@ export function createGitReader(opts: GitReaderOptions): PlatformGitReader {
     return r.code === 0 && OID_RE.test(r.out) ? r.out : null;
   };
 
+  /** Repo-local filter drivers disabled for `status` (it runs clean filters) [SEC-05]; cached by the config files' mtimes. */
+  let guard: { key: string; args: string[] } | null = null;
+  const statusGuard = async (): Promise<string[]> => {
+    const d = await gitDir();
+    const mtime = (f: string) => {
+      try {
+        return statSync(join(d, f)).mtimeMs;
+      } catch {
+        return 0;
+      }
+    };
+    const key = `${mtime("config")}:${mtime("config.worktree")}`;
+    if (guard?.key !== key) {
+      const r = await run(["config", "--list", "--show-scope", "--includes", "-z"], { ok: [0, 1] });
+      guard = { key, args: filterNeutralizers(localConfigKeys(new TextDecoder().decode(r.stdout))) };
+    }
+    return guard.args;
+  };
+  const status = async () => {
+    const neutral = await statusGuard();
+    const r = await run([...neutral, "status", "--porcelain=v2", "-z", "--no-renames", "--untracked-files=all", "--ignore-submodules=all"]);
+    return parseStatus(splitZ(r.stdout));
+  };
+
   const fromWorkTree = async (blob: GitOid): Promise<Uint8Array | null> => {
     const path = pathOf.get(blob);
     if (!path || !opts.workTree) return null;
@@ -149,13 +177,9 @@ export function createGitReader(opts: GitReaderOptions): PlatformGitReader {
       const r = await run(["ls-files", "-z", "--others", "--exclude-standard", ...(directories ? ["--directory"] : [])]);
       return splitZ(r.stdout).map(nfc);
     },
-    async status() {
-      const r = await run(["status", "--porcelain=v2", "-z", "--no-renames", "--untracked-files=all", "--ignore-submodules=all"]);
-      return parseStatus(splitZ(r.stdout));
-    },
+    status,
     async statusDirty() {
-      const r = await run(["status", "--porcelain=v2", "-z", "--no-renames", "--untracked-files=all", "--ignore-submodules=all"]);
-      return parseStatus(splitZ(r.stdout)).map((e) => e.path);
+      return (await status()).map((e) => e.path);
     },
     async checkAttr(paths, attrs) {
       if (paths.length === 0 || attrs.length === 0) return {};

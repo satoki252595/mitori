@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { MitoriError } from "@mitori/core";
 import { gitBlobOid } from "../hash/digest.ts";
@@ -172,6 +172,29 @@ describe("PLAT-I-008 GitReader (normal repo)", () => {
     const head = (await r.head()) as string;
     expect(await r.revCount(head, head)).toBeNull();
     expect((await r.lsFiles()).map((f) => f.path)).toEqual(["a.txt"]);
+  });
+
+  test("SEC-05: a repo-local clean filter never runs during status (plain git would run it)", async () => {
+    const root = makeRepo({ "a.txt": "hello\n", ".gitattributes": "*.txt filter=evil\n" });
+    const marker = join(tempDir(), "pwned");
+    git(root, ["config", "filter.evil.clean", `sh -c 'touch ${marker}; cat'`]);
+    git(root, ["config", "filter.evil.required", "true"]);
+    const later = new Date(Date.now() + 10_000);
+    utimesSync(join(root, "a.txt"), later, later);
+    git(root, ["status", "--porcelain"]);
+    expect(existsSync(marker)).toBe(true); // control: the planted filter is live
+    rmSync(marker);
+    const again = new Date(Date.now() + 20_000);
+    utimesSync(join(root, "a.txt"), again, again);
+    const r = reader(root);
+    expect(await r.status()).toEqual([]);
+    expect(await r.statusDirty()).toEqual([]);
+    expect(existsSync(marker)).toBe(false);
+    // a config change is picked up (cache keyed by the config mtime)
+    git(root, ["config", "filter.other.process", `sh -c 'touch ${marker}'`]);
+    writeFileSync(join(root, ".gitattributes"), "*.txt filter=other\n");
+    await r.status();
+    expect(existsSync(marker)).toBe(false);
   });
 
   test("parent GIT_* variables never leak into reads", async () => {
