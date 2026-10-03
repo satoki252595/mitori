@@ -1,0 +1,20 @@
+{
+  "settings.editor": "エディタ（⇧Oで開く）",
+  "settings.editorNone": "使わない",
+  "settings.engines": "エンジン",
+  "settings.general": "一般",
+  "settings.installed": "インストール済み（{version}）",
+  "settings.lang": "表示言語",
+  "settings.langEn": "英語",
+  "settings.langJa": "日本語",
+  "settings.level": "読者レベル（既定）",
+  "settings.notInstalled": "見つかりません",
+  "settings.shortcuts": "ショートカット",
+  "settings.singleKeys": "1文字のショートカットを使う",
+  "settings.singleKeysNote": "オフにすると、ボタン・⌘K・修飾キー付きのキーだけで操作します（WCAG 2.1.4）",
+  "settings.theme": "テーマ",
+  "settings.themeDark": "ダーク",
+  "settings.themeLight": "ライト",
+  "settings.themeSystem": "システムに合わせる",
+  "settings.title": "設定"
+}

@@ -1,0 +1,60 @@
+/*
+ * Reader levels (ux.md §7.1, core READER_LEVEL_RULES): pure CSS on html[data-level] — switching is one attribute
+ * write + one margin re-layout, no network (≤ 50 ms, AC-J20). Deep Dive / Why `open` is set by the Reader once
+ * per level change.
+ */
+
+/* L3 blocks & Deep Dive: newcomer hides (+ "詳しく（n）" chip), standard collapsed, expert expanded */
+html[data-level="newcomer"] .blk[data-depth="L3"]:not(.force),
+html[data-level="newcomer"] .blk[data-kind="deepdive"]:not(.force) {
+  display: none;
+}
+
+html[data-level="newcomer"] .more-chip {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* citations: newcomer = paragraph-end "出典 n"; standard = short; expert = long (+ line numbers via .mb::after) */
+html[data-level="newcomer"] .blk .mcite {
+  display: none;
+}
+
+html[data-level="newcomer"] .cite-end {
+  display: inline-flex;
+}
+
+html.show-cites .blk .mcite {
+  display: inline-flex;
+}
+
+html[data-level="expert"] .mcite .cs {
+  display: none;
+}
+
+html[data-level="expert"] .mcite .cl {
+  display: inline;
+}
+
+/* glossary underline: all / first use per section / none */
+html[data-level="standard"] .mterm:not([data-first]),
+html[data-level="expert"] .mterm {
+  background-image: none;
+}
+
+/* やさしく (cached easy rewrites) only for newcomers */
+.easy {
+  display: none;
+  font-size: var(--fs-body-s);
+  line-height: 1.85;
+  color: var(--text);
+  margin: -2px 0 16px;
+  padding: 12px 16px;
+  border-radius: var(--r-card);
+  background: var(--paper-2);
+}
+
+html[data-level="newcomer"] .easy {
+  display: block;
+}

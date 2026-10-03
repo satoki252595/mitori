@@ -1,0 +1,20 @@
+{
+  "settings.editor": "Editor (opened with ⇧O)",
+  "settings.editorNone": "None",
+  "settings.engines": "Engines",
+  "settings.general": "General",
+  "settings.installed": "installed {version}",
+  "settings.lang": "Interface language",
+  "settings.langEn": "English",
+  "settings.langJa": "Japanese",
+  "settings.level": "Default reader level",
+  "settings.notInstalled": "not installed",
+  "settings.shortcuts": "Shortcuts",
+  "settings.singleKeys": "Use single-key shortcuts",
+  "settings.singleKeysNote": "When off, use buttons, ⌘K and modifier shortcuts only (WCAG 2.1.4)",
+  "settings.theme": "Theme",
+  "settings.themeDark": "Dark",
+  "settings.themeLight": "Light",
+  "settings.themeSystem": "Follow the system",
+  "settings.title": "Settings"
+}

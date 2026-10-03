@@ -1,0 +1,973 @@
+/* mitori — base + shell chrome (ux.md §3, §10, §11). Colours only through tokens (lint mitori/no-raw-color). */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 100%;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  text-autospace: normal;
+  scroll-padding-top: var(--scroll-pad-top);
+  scroll-padding-bottom: var(--bottom-pad, var(--status));
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  font-size: var(--fs-ui);
+  line-height: var(--lh-ui);
+  min-height: 100vh;
+  background: var(--paper);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+kbd {
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  line-height: 1;
+  padding: 3px 5px;
+  border: 1px solid var(--rule);
+  border-bottom-width: 2px;
+  border-radius: var(--r-chip);
+  background: var(--paper-2);
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-ligatures: none;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: var(--code-font-scale);
+  font-variant-ligatures: none;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-variant-ligatures: none;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:focus-visible {
+  outline: var(--focus-w) solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--r-chip);
+}
+
+::selection {
+  background: var(--hl);
+}
+
+::highlight(mitori-sel),
+::highlight(mitori-anchor) {
+  background-color: var(--mark);
+}
+
+::highlight(mitori-claim) {
+  background-color: var(--mark);
+  text-decoration: underline 2px var(--accent);
+}
+
+svg.i {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.skip {
+  position: fixed;
+  left: 12px;
+  top: -60px;
+  z-index: var(--z-skip);
+  padding: 8px 12px;
+  border-radius: var(--r-btn);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: var(--fs-ui-m);
+}
+
+.skip:focus {
+  top: 8px;
+}
+
+/* ---------------------------------------------------------------- header (52px, sticky) */
+.hdr {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  height: var(--hdr);
+  display: grid;
+  /*
+   * The tabs stay centred whatever loads into the side columns (workspace name ≤ 16em, crumbs take only free
+   * space, job chip has a reserved slot): no shift. Side columns never go below their content, so nothing overlaps.
+   */
+  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+  align-items: center;
+  gap: 20px;
+  padding: 0 20px 0 22px;
+  background: var(--hdr-bg);
+  backdrop-filter: var(--hdr-blur);
+  -webkit-backdrop-filter: var(--hdr-blur);
+  border-bottom: 1px solid var(--rule);
+}
+
+.hdr-l {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--ink);
+}
+
+.brand-ja {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lead);
+  font-weight: var(--fw-strong);
+  letter-spacing: 0.06em;
+}
+
+.brand-en {
+  font-size: var(--fs-label);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hdr-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--rule-2);
+}
+
+.proj {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 8px;
+  margin-left: -8px;
+  border-radius: var(--r-btn);
+  min-height: 28px;
+  min-width: 0;
+}
+
+.proj:hover {
+  background: var(--hover);
+}
+
+.proj-name {
+  font-weight: var(--fw-strong);
+  color: var(--ink);
+  font-size: var(--fs-ui-l);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 16em;
+}
+
+.proj-meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--muted);
+}
+
+.kind-badge {
+  font-size: var(--fs-meta);
+  color: var(--muted);
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-pill);
+  padding: 1px 7px;
+}
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  min-width: 0;
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  color: var(--muted);
+  font-size: var(--fs-ui-m);
+  height: 100%;
+  white-space: nowrap;
+  transition: color var(--dur-hover-l);
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.tab[aria-current="page"] {
+  color: var(--ink);
+  font-weight: var(--fw-strong);
+}
+
+.tab[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--ink);
+  border-radius: 2px;
+}
+
+/* badge slot keeps its width when hidden (no layout shift when counts arrive) */
+.tab-count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  color: var(--muted);
+}
+
+.tab-count[data-zero] {
+  visibility: hidden;
+}
+
+.tab-count.prop {
+  color: var(--c-prop);
+  background: var(--c-prop-bg);
+  border-color: transparent;
+}
+
+.hdr-r {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  width: 240px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-input);
+  background: var(--sheet);
+  color: var(--muted);
+  font-size: var(--fs-ui);
+  transition: border-color var(--dur-hover-l);
+}
+
+.search:hover {
+  border-color: var(--rule-2);
+}
+
+.search span {
+  flex: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.seg {
+  display: flex;
+  padding: 2px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-input);
+  background: var(--paper-2);
+  height: 32px;
+}
+
+.seg button,
+.seg label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border-radius: 5px;
+  font-size: var(--fs-ui-s);
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-hover-l),
+    color var(--dur-hover-l);
+}
+
+.seg input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.seg label:focus-within:has(:focus-visible) {
+  outline: var(--focus-w) solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.seg button:hover,
+.seg label:hover {
+  color: var(--ink);
+}
+
+.seg label.on,
+.seg button[aria-pressed="true"],
+.seg button[aria-checked="true"] {
+  background: var(--sheet);
+  color: var(--ink);
+  font-weight: var(--fw-strong);
+  box-shadow:
+    0 0 0 1px var(--rule),
+    var(--shadow-soft);
+}
+
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-input);
+  color: var(--muted);
+}
+
+.icon-btn:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.lang-btn {
+  height: 32px;
+  min-width: 32px;
+  padding: 0 8px;
+  border-radius: var(--r-input);
+  font-size: var(--fs-label);
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.lang-btn:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.menu-btn {
+  display: none;
+}
+
+/* ---------------------------------------------------------------- body grid */
+.body {
+  display: grid;
+  grid-template-columns: var(--col-rail, var(--rail)) minmax(0, 1fr) var(--col-ctx, 0px);
+  min-height: calc(100vh - var(--hdr));
+  padding-bottom: var(--status);
+  transition: grid-template-columns var(--dur-panel) var(--ease-std);
+}
+
+/* explicit tracks: a drawer rail (position: fixed) leaves its 0 px track empty instead of shifting main into it */
+.body > .rail {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.body > main {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.body > aside:not(.rail) {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.rail {
+  position: sticky;
+  top: var(--hdr);
+  height: calc(100vh - var(--hdr) - var(--status));
+  overflow: auto;
+  border-right: 1px solid var(--rule);
+  padding: 22px 14px 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  scrollbar-width: thin;
+  background: var(--paper);
+  min-width: 0;
+}
+
+.rail[data-mode="drawer"] {
+  position: fixed;
+  left: 0;
+  top: var(--hdr);
+  z-index: var(--z-drawer);
+  width: var(--rail-drawer);
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition:
+    transform var(--dur-panel) var(--ease-out),
+    visibility 0s linear var(--dur-panel);
+  box-shadow: var(--shadow-pop);
+}
+
+.rail[data-mode="drawer"][data-open] {
+  transform: none;
+  visibility: visible;
+  transition: transform var(--dur-panel) var(--ease-out);
+}
+
+.rail-label {
+  font-size: var(--fs-meta);
+  letter-spacing: 0.08em;
+  color: var(--faint);
+  margin: 0 0 4px 8px;
+  font-weight: var(--fw-strong);
+}
+
+main {
+  min-width: 0;
+}
+
+main:focus {
+  outline: none;
+}
+
+/* ---------------------------------------------------------------- buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--r-btn);
+  font-size: var(--fs-ui-m);
+  font-weight: var(--fw-strong);
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-hover-l),
+    transform var(--dur-press);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-pri {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.btn-pri:hover {
+  background: color-mix(in srgb, var(--ink) 86%, var(--paper));
+}
+
+.btn-pri[aria-disabled="true"],
+.btn-pri:disabled {
+  background: var(--press);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.btn-pri.warn {
+  background: var(--c-warn);
+  color: var(--paper);
+}
+
+.btn-sec {
+  border: 1px solid var(--rule-2);
+  background: var(--sheet);
+  color: var(--ink);
+}
+
+.btn-sec:hover {
+  background: var(--hover);
+}
+
+.btn-gh {
+  color: var(--muted);
+  height: 30px;
+  padding: 0 10px;
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-ui-s);
+}
+
+.btn-gh:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.btn-s {
+  height: 28px;
+  padding: 0 10px;
+  font-size: var(--fs-label);
+  border-radius: 5px;
+}
+
+.link {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--rule-2);
+  text-underline-offset: 3px;
+}
+
+.link:hover {
+  text-decoration-color: var(--ink);
+}
+
+/* ---------------------------------------------------------------- cards / surfaces */
+.card {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card);
+  background: var(--sheet);
+}
+
+.skel {
+  background: var(--paper-2);
+  border-radius: var(--r-chip);
+  color: transparent;
+}
+
+.err-card {
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--c-bad);
+  border-radius: var(--r-card);
+  background: var(--sheet);
+  padding: 16px 18px;
+  max-width: 36em;
+  font-size: var(--fs-ui);
+}
+
+.err-card h2 {
+  margin: 0 0 6px;
+  font-size: var(--fs-h3);
+  color: var(--ink);
+}
+
+.err-card .rid {
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  color: var(--muted);
+}
+
+/* state glyph pills (shape + colour + label; WCAG 1.4.1) */
+.st-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-strong);
+  padding: 2px 7px 2px 5px;
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c-ok);
+  box-shadow: 0 0 0 3px var(--c-ok-bg);
+  flex: none;
+}
+
+/* ---------------------------------------------------------------- banner (overlays below the header; no layout shift) */
+.banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--hdr);
+  z-index: var(--z-header);
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 20px;
+  font-size: var(--fs-ui);
+  background: var(--c-warn-bg);
+  color: var(--c-warn);
+  border-bottom: 1px solid var(--rule);
+}
+
+.banner.bad {
+  background: var(--c-bad-bg);
+  color: var(--c-bad);
+}
+
+.banner .btn {
+  height: 26px;
+  font-size: var(--fs-label);
+}
+
+/* ---------------------------------------------------------------- status bar (BottomStack bottom row) */
+.status {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--status);
+  z-index: var(--z-bottom);
+  display: flex;
+  align-items: stretch;
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--muted);
+  background: var(--paper-2);
+  border-top: 1px solid var(--rule);
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  container: status / inline-size;
+}
+
+.status > * {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: none;
+  min-height: 24px;
+}
+
+.status .sb-sep {
+  padding: 0;
+  width: 1px;
+  background: var(--rule);
+  margin: 5px 0;
+}
+
+.status button:hover {
+  color: var(--ink);
+  background: var(--hover);
+}
+
+.status .grow {
+  flex: 1;
+}
+
+.status .warn {
+  color: var(--c-warn);
+}
+
+.status .live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c-ok);
+}
+
+.status .live-dot[data-s="retrying"],
+.status .live-dot[data-s="connecting"] {
+  background: var(--c-warn);
+}
+
+.status .live-dot[data-s="stopped"],
+.status .live-dot[data-s="auth_expired"] {
+  background: var(--c-bad);
+}
+
+/* ---------------------------------------------------------------- popovers, dialogs, scrim */
+.pop {
+  position: fixed;
+  z-index: var(--z-popover);
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-pop);
+  animation: pop-in var(--dur-pop) var(--ease-out);
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+dialog.dlg {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-dialog);
+  background: var(--sheet);
+  color: var(--text);
+  box-shadow: var(--shadow-pop);
+  padding: 22px 26px;
+  max-width: calc(100% - 32px);
+  max-height: 80vh;
+}
+
+dialog.dlg::backdrop {
+  background: var(--scrim);
+}
+
+dialog.dlg h2 {
+  font-family: var(--font-serif);
+  font-size: var(--fs-title);
+  font-weight: var(--fw-strong);
+  color: var(--ink);
+  margin: 0 0 14px;
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-scrim);
+  background: var(--scrim);
+}
+
+/* ---------------------------------------------------------------- toasts (BottomStack) */
+.toasts {
+  position: fixed;
+  right: 20px;
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-card);
+  width: var(--toast-w);
+  max-width: calc(100% - 32px);
+  pointer-events: none;
+}
+
+.toast {
+  position: relative;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 46px;
+  padding: 8px 8px 8px 16px;
+  border-radius: var(--r-card);
+  background: var(--toast-bg);
+  color: var(--toast-fg);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--fs-ui);
+  overflow: hidden;
+  animation: pop-in var(--dur-toast-in) var(--ease-out);
+}
+
+.toast .msg {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast .sub {
+  color: var(--toast-fg-2);
+}
+
+.toast button {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--r-btn);
+  font-size: var(--fs-ui-s);
+  font-weight: var(--fw-strong);
+  color: inherit;
+  background: color-mix(in srgb, var(--toast-fg) 14%, transparent);
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.toast kbd {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--toast-fg) 25%, transparent);
+  color: var(--toast-fg-2);
+}
+
+.toast .cd {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: color-mix(in srgb, var(--toast-fg) 45%, transparent);
+  transform-origin: 0 50%;
+  animation: cd var(--dur-toast-life) linear forwards;
+}
+
+.toast:hover .cd,
+.toast:focus-within .cd {
+  animation-play-state: paused;
+}
+
+@keyframes cd {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* ---------------------------------------------------------------- stopped overlay */
+.stopped {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+}
+
+.stopped .card {
+  padding: 26px 30px;
+  max-width: 34em;
+  box-shadow: var(--shadow-pop);
+}
+
+.stopped h2 {
+  font-family: var(--font-serif);
+  font-weight: var(--fw-strong);
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+
+/* ---------------------------------------------------------------- responsive chrome */
+@media (max-width: 1280px) {
+  .search {
+    width: 200px;
+  }
+  .crumbs,
+  .brand-en {
+    display: none;
+  }
+}
+
+@media (max-width: 1240px) {
+  .hdr {
+    gap: 12px;
+    padding: 0 14px 0 16px;
+  }
+  .proj-meta {
+    display: none;
+  }
+  .search {
+    width: auto;
+    padding: 0 8px;
+  }
+  .search span {
+    display: none;
+  }
+  .tab {
+    padding: 0 9px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .hdr {
+    gap: 10px;
+    padding: 0 14px;
+  }
+  .brand-en,
+  .proj-meta,
+  .hdr-sep,
+  .kind-badge,
+  .tab .tab-label-long {
+    display: none;
+  }
+  .search {
+    width: auto;
+    padding: 0 8px;
+  }
+  .search span,
+  .search kbd {
+    display: none;
+  }
+  .tab {
+    padding: 0 7px;
+  }
+  .menu-btn {
+    display: grid;
+  }
+  .body {
+    /* biome-ignore lint/complexity/noImportantStyles: overrides the inline per-view grid of the S1/S2 bodies */
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .body > main,
+  .body > aside:not(.rail) {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .seg.level {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must beat every component rule */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must beat every component rule */
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline-color: Highlight;
+  }
+}
