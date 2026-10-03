@@ -10,10 +10,12 @@ import {
   type JobDetail,
   type JobId,
   type JobReq,
+  type JobState,
   MitoriError,
   newId,
   type RouteReason,
   type ThreadDetail,
+  type ThreadId,
 } from "@mitori/core";
 import type { JobRunner } from "../contract.ts";
 import { ACTIVE, type JobRunnerDeps, RunnerCore, Stop } from "./core.ts";
@@ -27,6 +29,8 @@ const DRIFT = 0.2;
 
 /** The runner plus what `createLoop` and the tests need. */
 export interface JobRunnerHandle extends JobRunner {
+  /** A page of jobs, newest first (`GET /jobs`; not in the contract — CR-PENDING(loop-wiring) #3). */
+  list(q: { state?: JobState; thread?: ThreadId; limit?: number; cursor?: string }): { items: Job[]; next: string | null };
   /** Resolves when every running pipeline has finished. */
   settle(): Promise<void>;
   /** Stop pipelines and close parked processes (daemon stop). */
@@ -320,6 +324,14 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
       }
       await deps.git.gc([...out.requeued, ...out.kept]).catch((e: unknown) => deps.log.warn("git gc failed", { error: MitoriError.from(e).message }));
       return out;
+    },
+
+    list(q) {
+      const limit = Math.min(Math.max(q.limit ?? 50, 1), 200);
+      const offset = q.cursor ? Math.max(0, Number.parseInt(q.cursor, 10) || 0) : 0;
+      const rows = core.store.page({ ...(q.state ? { state: q.state } : {}), ...(q.thread ? { thread: q.thread } : {}), limit: limit + 1, offset });
+      const more = rows.length > limit;
+      return { items: (more ? rows.slice(0, limit) : rows).map((r) => r.job), next: more ? String(offset + limit) : null };
     },
 
     async settle() {

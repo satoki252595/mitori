@@ -104,7 +104,13 @@ function unwrap<T>(r: Result<T>): T {
   throw MitoriError.from(r.error);
 }
 
-function scopeCtx(deps: PlanDeps, mode: ScopeCtx["mode"], req: JobReq, unwritable: ReadonlySet<RepoPath>): ScopeCtx {
+/** The scope derivation context over the index and the doc (shared with the review engine's Finish partition). */
+export function scopeCtx(
+  deps: Pick<PlanDeps, "doc" | "indexer" | "settings">,
+  mode: ScopeCtx["mode"],
+  req: Pick<JobReq, "context">,
+  unwritable: ReadonlySet<RepoPath>,
+): ScopeCtx {
   const claims = () => deps.doc.index().claims;
   return {
     mode,

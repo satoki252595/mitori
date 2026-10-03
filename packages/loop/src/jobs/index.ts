@@ -1,15 +1,17 @@
 /**
  * @mitori/loop — `jobs/` (owner: WP-08b). Everything exported here is public (re-exported by `src/index.ts`):
  * export only contract names; keep helpers in sibling files.
- * M0 stubs below throw E_UNSUPPORTED — implement them in place and keep the signatures (contract changes go
- * through the CR batch, packages/core/CR-LEDGER.md).
  */
 
 import type { Anchor, AnchorInput } from "@mitori/core";
-import { unsupported } from "@mitori/core";
 import type { BundleBuilder, CapturedAnchor, GateRunner, GitSafety, JobRunner, LoopDeps, ReviewEngine } from "../contract.ts";
+import { createLoop as assemble } from "./assemble.ts";
 
-/** Factory (per workspace). */
+/**
+ * Factory (per workspace): the review engine, bundle builder, git safety (side repo), gate runner and job runner,
+ * assembled from the ports in `deps` (see `assemble.ts`). The returned object also carries `close()` (lifecycle; not part
+ * of the contract type — CR-PENDING(loop-wiring), docs/design/cr-requests/loop-wiring.md #2).
+ */
 export function createLoop(deps: LoopDeps): {
   /** Review engine. */
   review: ReviewEngine;
@@ -27,5 +29,5 @@ export function createLoop(deps: LoopDeps): {
    */
   capture(input: AnchorInput, previous: Anchor | null): Promise<CapturedAnchor>;
 } {
-  return unsupported("loop.createLoop", deps);
+  return assemble(deps);
 }

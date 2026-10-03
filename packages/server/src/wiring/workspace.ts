@@ -11,15 +11,21 @@ import {
   type BlockId,
   type DiagramIR,
   type DiagramLayout,
+  type EngineStatus,
   type EventSink,
   type IndexDelta,
+  type JobState,
   MitoriError,
   newId,
   type PaletteIndex,
+  type RepoPath,
   type SafeWriter,
   type ScanStatus,
   type SseEventPayload,
   type SuggestionView,
+  type ThreadId,
+  type ThreadState,
+  type TouchReq,
   type WorkerPool,
   type WorkspaceInfo,
   type WorkspaceSummary,
@@ -38,11 +44,12 @@ import {
 } from "@mitori/doc";
 import { type ClaimReanchor, createGen, createPromptRenderer, createVerifier, type GenDeps, type GenOrchestrator } from "@mitori/gen";
 import { createIndexer, type FsChange, type HardwareInfo, type Indexer, type ModuleSeed } from "@mitori/indexer";
-import { DOC_WATCH_IGNORE, type ServerDeps, type WorkspaceRuntime } from "../contract.ts";
+import { createLoop, type LoopDeps, type LoopDomainEvent } from "@mitori/loop";
+import { DOC_WATCH_IGNORE, type ServerDeps, type TrustService, type WorkspaceRuntime } from "../contract.ts";
 import type { Timers } from "../http/timers.ts";
 import type { WorkspaceBase, WorkspaceParts } from "../ws/manager.ts";
 import { assembleAnchoredItems, distributeReanchor } from "./index.ts";
-import { pendingLoop } from "./loop.ts";
+import { type LoopDepsExt, type LoopExtras, loopExtras } from "./loop.ts";
 import { NEUTRAL_CALIBRATION } from "./ports.ts";
 import { detectLicense, staticDocInput } from "./static-input.ts";
 import { claimReanchor, suggestionViews } from "./suggestions.ts";
@@ -62,6 +69,12 @@ export interface Shared {
   hardware: HardwareInfo;
   /** `~/.mitori/run/empty`. */
   sandboxCwd: string;
+  /** Realpath of `~/.mitori`. */
+  home: string;
+  /** The trust service (state.sqlite `srv_trust`); available once the daemon started. */
+  trust(): TrustService;
+  /** Engine statuses (detection is cached by the engines). */
+  engines(): EngineStatus[];
 }
 
 /** What the domain routes need of a loaded workspace. */
@@ -71,6 +84,8 @@ export interface WorkspaceDomain {
   doc: DocStore;
   gen: GenOrchestrator;
   loop: WorkspaceRuntime["loop"];
+  /** Loop members beyond the contract (bundles, capture, job list, checkpoints; CR-PENDING(loop-wiring)). */
+  extras: LoopExtras;
   renderer: BlockRenderer;
   layouter: DiagramLayouter;
   view: ViewCtx;
@@ -84,11 +99,22 @@ export interface WorkspaceDomain {
   applyDelta(delta: IndexDelta): Promise<void>;
   /** Watcher batches (exposed for tests). */
   onBatch(batch: FsChange[]): Promise<void>;
+  /** Unresolved (not resolved / draft) threads: the header badge and `DocOutline.openThreads`. */
+  openThreads(): number;
+  /** Unresolved threads whose code anchor lies in a module (map overlay). */
+  commentsIn(module: string): number;
+  /** `POST /touch`: record the files in the pull round and mark the blocks citing them stale; returns the block count. */
+  touch(paths: RepoPath[], source: TouchReq["source"]): Promise<number>;
   /** Current S9 suggestions (`GET /ws/:ws/gen/suggestions`). */
   suggestions(): SuggestionView[];
   /** Hook: every finished delta chain (tests, INT-02 timing). */
   onDeltaDone(cb: (delta: IndexDelta) => void): () => void;
 }
+
+/** Thread states whose code anchor follows the code (everything but resolved / draft). */
+const REANCHOR_STATES: ThreadState[] = ["open", "queued", "running", "needs_input", "answered", "proposed", "applied", "rejected", "failed"];
+/** Job states with a pipeline in flight. */
+const ACTIVE_JOB_STATES: JobState[] = ["queued", "waiting_lock", "preparing", "running", "gating", "repairing"];
 
 const docDirAbs = (info: WorkspaceInfo) => (info.docDir.startsWith("/") ? info.docDir : `${info.root.replace(/\/+$/, "")}/${info.docDir}`);
 
@@ -229,7 +255,11 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     },
     renderer,
     lines: new MdLines(deps.fs, docDirAbs(info)),
-    threads: () => ({ open: 0, total: 0 }),
+    // per-block thread badge: unresolved / all non-draft threads whose primary anchor is the block
+    threads: (block) => {
+      const items = loop.review.list({ block, limit: 500 }).items.filter((t) => t.state !== "draft");
+      return { open: items.filter((t) => t.state !== "resolved").length, total: items.length };
+    },
   };
   const publishUpserts = async () => {
     upsertScheduled = false;
@@ -290,7 +320,54 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     fs: deps.fs,
   };
   const gen = createGen(genDeps);
-  const loop = pendingLoop();
+
+  /* ---- loop (review → job → git safety; domain events wired below) -------------------------------------------- */
+  const loopEvents: EventSink<SseEventPayload> = {
+    emit(e) {
+      // the job pipeline asks for gate trust with a request id of its own; the trust service owns ids and dedup
+      if (e.type === "trust.request") sh.trust().request(info.key, e.request.item, e.request.hash, e.request.preview);
+      else base.events.emit(e);
+    },
+  };
+  const loopDeps: LoopDeps & LoopDepsExt = {
+    ws: info,
+    db: base.db,
+    write: base.write,
+    safeWrite: sh.safeWrite,
+    random: deps.random,
+    metrics: deps.metrics,
+    sandbox: deps.gateSandbox,
+    indexer: rawIndexer,
+    doc,
+    anchors: sh.anchors,
+    scheduler,
+    spawner: deps.spawner,
+    settings: base.settings,
+    trust(item, hash) {
+      const state = sh.trust().state(info.key, item, hash);
+      if (state !== "unknown") return state;
+      // gates are requested by the pipeline (with the argv preview); rules / git_config are requested here
+      if (item !== "gates") sh.trust().request(info.key, item, hash, `${item} ${hash.slice(0, 12)}`);
+      return "pending";
+    },
+    secrets,
+    engines: sh.engines,
+    home: sh.home,
+    log: log.child("loop"),
+    clock: deps.clock,
+    hasher: deps.hasher,
+    events: loopEvents,
+    domain: { emit: (e) => onLoopEvent(e) },
+    renderMessage: (md) => renderer.renderMessage(md),
+    // CR-PENDING(loop-wiring) #1: ports LoopDeps has no member for
+    fs: deps.fs,
+    env: { PATH: deps.safePath, HOME: deps.userHome },
+  };
+  const loopImpl = createLoop(loopDeps);
+  const extras = loopExtras(loopImpl);
+  const loop: WorkspaceRuntime["loop"] = { review: loopImpl.review, jobs: loopImpl.jobs, git: loopImpl.git };
+  const unresolvedThreads = () => loop.review.list({ limit: 500 }).items.filter((t) => t.state !== "resolved" && t.state !== "draft").length;
+  const activeJobs = () => ACTIVE_JOB_STATES.reduce((n, state) => n + extras.listJobs({ state, limit: 200 }).items.length, 0);
 
   /* ---- static doc ------------------------------------------------------------------------------------------- */
   let license: string | null | undefined;
@@ -375,8 +452,8 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     const renames = new Map(delta.renames.map((r) => [r.from, r.to]));
     const added = delta.changed.filter((c) => c.oldBlob === null).map((c) => c.path);
     const threads = loop.review
-      .list({ limit: 10_000 } as never)
-      .items.filter((t) => t.state !== "resolved" && t.state !== "draft" && t.anchor.code)
+      .list({ states: REANCHOR_STATES, limit: 500 })
+      .items.filter((t) => t.anchor.code)
       .map((t) => ({ id: t.id, code: t.anchor.code ? { ...t.anchor.code, precision: "exact" as const } : null }));
     const items = assembleAnchoredItems(delta, rawDoc, threads);
     let reanchored: ClaimReanchor = { moved: [], overlapped: [], outdated: [] };
@@ -436,6 +513,58 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     for (const h of deltaHooks) h(delta);
   }
 
+  /* ---- loop domain events (DOMAIN_WIRING job.accepted / round.completed / checkpoint.undone / files.touched) ----- */
+  // The loop already did its slot steps (markStale, doc proposals, the autoCommit doc flush; accept lock order W4). What
+  // is left is the index side: re-index the written files through the SAME serialized chain as the watcher (one
+  // index.delta chain per change, W1/W2), then the doc sync estimate (no engine call: confirm:false, D12).
+  let loopChain: Promise<void> = Promise.resolve();
+  function onLoopEvent(e: LoopDomainEvent): void {
+    loopChain = loopChain.then(() => handleLoopEvent(e)).catch((err: unknown) => log.warn("loop event failed", { type: e.type, error: String(err) }));
+  }
+  const docBlockOf = (t: ThreadId): BlockId[] => {
+    const b = loop.review.get(t)?.anchor.doc?.block;
+    return b === undefined ? [] : [b];
+  };
+  async function syncDoc(blocks: readonly BlockId[], cause: { kind: "job" | "round"; id: string }): Promise<void> {
+    const stale = [...new Set(blocks)].filter((b) => rawDoc.block(b)?.freshness === "stale");
+    if (stale.length === 0) return;
+    try {
+      await gen.syncBlocks(stale, cause, { confirm: false });
+    } catch (err) {
+      if (MitoriError.from(err).code !== "E_UNSUPPORTED") log.warn("gen.syncBlocks failed", { error: String(err) });
+    }
+  }
+  async function handleLoopEvent(e: LoopDomainEvent): Promise<void> {
+    if (closed) return;
+    switch (e.type) {
+      case "job.accepted":
+      case "round.completed":
+      case "checkpoint.undone": {
+        if (e.files.length > 0) await onBatch(e.files.map((path) => ({ kind: "change" as const, path })));
+        if (e.type === "job.accepted") await syncDoc(e.docTargets, { kind: "job", id: e.job });
+        else if (e.type === "round.completed") await syncDoc(e.doneThreads.flatMap(docBlockOf), { kind: "round", id: String(e.round) });
+        return;
+      }
+      case "files.touched":
+        await markTouched(e.paths);
+        return;
+    }
+  }
+  /** `doc.setFreshness(blocksCiting(paths), 'stale')` in its own slot (DOMAIN_WIRING files.touched). Returns the block count. */
+  async function markTouched(paths: readonly RepoPath[]): Promise<number> {
+    const touched = new Set<string>(paths);
+    const blocks = new Set<BlockId>();
+    for (const c of Object.values(rawDoc.index().claims)) if (c.cites.some((x) => touched.has(x.path))) blocks.add(c.block);
+    if (blocks.size > 0) await base.write("wiring.touched", () => rawDoc.setFreshness([...blocks], "stale"));
+    return blocks.size;
+  }
+  /** `POST /touch`: the files join the dispatched pull round, then the blocks citing them go stale before the re-index. */
+  async function touch(paths: RepoPath[]): Promise<number> {
+    if (paths.length === 0) return 0;
+    await base.write("loop.touch", () => loop.review.recordTouched(paths));
+    return markTouched(paths);
+  }
+
   /* ---- watcher ---------------------------------------------------------------------------------------------- */
   const docPrefix = info.docDir.startsWith("/") ? null : `${info.docDir.replace(/\/+$/, "")}/`;
   const docIgnored = (rel: string) => DOC_WATCH_IGNORE.some((g) => rel.startsWith(g.replace(/\*\*$/, "")));
@@ -472,9 +601,9 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
         files: files.length,
         loc,
         modules: rawIndexer.modules().length,
-        openThreads: 0,
+        openThreads: unresolvedThreads(),
         staleBlocks: blocks.filter((b) => b.freshness === "stale").length,
-        runningJobs: 0,
+        runningJobs: activeJobs(),
       },
       doc: {
         exists: m !== null && blocks.length > 0,
@@ -508,6 +637,9 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
       closed = true;
       stopWatch?.();
       stopDocWatch?.();
+      // review waiters get `shutdown`; job pipelines stop and parked engine processes close before the DB goes away
+      await extras.close().catch((err: unknown) => log.warn("loop close failed", { error: String(err) }));
+      await loopChain.catch(() => undefined);
       // a running generation pauses (resumable after the next start, gen §3.7) before the DB goes away
       const run = gen.active();
       if (run?.state === "running") {
@@ -526,7 +658,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
       await rawIndexer.close().catch(() => undefined);
       await (git as { close?: () => Promise<void> }).close?.().catch(() => undefined);
     },
-    busy: () => gen.active()?.state === "running",
+    busy: () => gen.active()?.state === "running" || loop.review.waiters() > 0 || activeJobs() > 0,
     summary,
     settingsChanged(prev, next) {
       if (
@@ -545,6 +677,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     doc,
     gen,
     loop,
+    extras,
     renderer,
     layouter,
     view,
@@ -558,6 +691,16 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     },
     applyDelta,
     onBatch,
+    touch,
+    openThreads: unresolvedThreads,
+    commentsIn(module) {
+      let n = 0;
+      for (const t of loop.review.list({ states: REANCHOR_STATES, limit: 500 }).items) {
+        const path = t.anchor.code?.path;
+        if (path !== undefined && rawIndexer.moduleOf(path) === module) n += 1;
+      }
+      return n;
+    },
     suggestions: () => suggestions,
     onDeltaDone(cb) {
       deltaHooks.add(cb);

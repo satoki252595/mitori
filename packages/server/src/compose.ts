@@ -102,6 +102,12 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
     }),
     hardware: deps.hardware,
     sandboxCwd: `${home}/run/empty`,
+    home,
+    trust: () => {
+      if (!services) throw new MitoriError("E_NOT_READY", "the daemon is still starting", { retryable: true });
+      return services.trust;
+    },
+    engines: () => engineCache,
   };
 
   const migrate = (db: SqlDb, kind: "state" | "workspace") =>
@@ -145,6 +151,10 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
       rescan: (ws, force) => (services ? services.workspaces.rescan(ws, force) : Promise.resolve()),
       engines: () => bridge?.engines ?? ({} as Record<EngineId, Engine | null>),
       ledger: () => shared.agent().ledger,
+      waiters: () => {
+        if (!services) throw new MitoriError("E_NOT_READY", "the daemon is still starting", { retryable: true });
+        return services.waiters;
+      },
       highlighter,
     }),
     domain: {
@@ -158,6 +168,11 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
           genEngine: rt.settings().global.defaultGenEngine ?? null,
         };
         return out;
+      },
+      inbox(rt) {
+        // loop rows (threads needing a human, ready jobs); doc proposals / gen rows are wired with their milestones
+        const d = domains.get(rt.info.key);
+        return { loop: d ? d.loop.review.inbox(null) : [], proposals: [], genRuns: [], suggestions: [] };
       },
       sectionOf(rt, block) {
         return domains.get(rt.info.key)?.doc.block(block)?.section ?? null;

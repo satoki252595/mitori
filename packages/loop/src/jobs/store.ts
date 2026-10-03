@@ -151,6 +151,27 @@ export class JobStore {
       .map((r) => toRecord(this.ws, r));
   }
 
+  /** A page of jobs, newest first (`GET /jobs`). */
+  page(q: { state?: JobState; thread?: ThreadId; limit: number; offset: number }): JobRecord[] {
+    const where: string[] = [];
+    const params: (string | number)[] = [];
+    if (q.state) {
+      where.push("j.state = ?");
+      params.push(q.state);
+    }
+    if (q.thread) {
+      where.push("EXISTS (SELECT 1 FROM json_each(j.threads) t WHERE t.value = ?)");
+      params.push(q.thread);
+    }
+    return this.db
+      .all<Row>(`SELECT j.* FROM job_jobs j ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY j.created_at DESC, j.id DESC LIMIT ? OFFSET ?`, [
+        ...params,
+        q.limit,
+        q.offset,
+      ])
+      .map((r) => toRecord(this.ws, r));
+  }
+
   /** Jobs of a thread, oldest first. */
   ofThread(thread: ThreadId): JobRecord[] {
     return this.db

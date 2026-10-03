@@ -1,7 +1,7 @@
 /**
  * Domain route adapters (server spec §8: thin adapters over the owner's public API; DTO conversion only). Owners:
  * indexer, doc, gen, agent, loop (`ROUTE_OWNERS`). Routes not listed answer 501 `E_UNSUPPORTED` (the router), which is
- * where the M3/M4 features (threads, jobs, review rounds, proposals, export) still are.
+ * where the M4 features (doc proposals, export, integrations) still are.
  */
 import type { Engine, UsageLedger } from "@mitori/agent";
 import {
@@ -26,6 +26,8 @@ import {
 } from "@mitori/core";
 import { DOC_TEXT } from "../contract.ts";
 import type { RouteCtx, RouteHandlers } from "../routes/types.ts";
+import type { WaiterRegistry } from "../routes/waiters.ts";
+import { loopHandlers } from "./loop-routes.ts";
 import { blockView, citePeek, docOutline, fileContent, fileTree, mapView, readingOrder, sectionView } from "./views.ts";
 import type { WorkspaceDomain } from "./workspace.ts";
 
@@ -36,6 +38,8 @@ export interface RouteEnv {
   rescan(ws: WorkspaceKey, force: boolean): Promise<void>;
   engines(): Record<EngineId, Engine | null>;
   ledger(): UsageLedger;
+  /** `mitori review` waiter registry. */
+  waiters(): WaiterRegistry;
   highlighter: Parameters<typeof fileContent>[2];
 }
 
@@ -178,7 +182,7 @@ export function domainHandlers(env: RouteEnv): RouteHandlers {
     "GET /ws/:ws/map": async (ctx) => {
       const x = await d(ctx);
       await x.staticReady();
-      return mapView(x.view, x.indexer, x.layouter, () => 0);
+      return mapView(x.view, x.indexer, x.layouter, (module) => x.commentsIn(module));
     },
     "GET /ws/:ws/diagrams/:dg": async (ctx) => {
       const x = await d(ctx);
@@ -189,7 +193,7 @@ export function domainHandlers(env: RouteEnv): RouteHandlers {
     "GET /ws/:ws/doc": async (ctx) => {
       const x = await d(ctx);
       await x.staticReady();
-      return docOutline(x.doc, x.outlineRev(), 0);
+      return docOutline(x.doc, x.outlineRev(), x.openThreads());
     },
     "GET /ws/:ws/doc/sections/:section": async (ctx) => {
       const x = await d(ctx);
@@ -312,18 +316,7 @@ export function domainHandlers(env: RouteEnv): RouteHandlers {
       return x.gen.session.check(req.path);
     },
 
-    /* ---- loop (reads only until createLoop, WP-08b) ---------------------------------------------------- */
-    "GET /ws/:ws/threads": async (ctx) => {
-      await d(ctx);
-      return { items: [], next: null };
-    },
-    "GET /ws/:ws/jobs": async (ctx) => {
-      await d(ctx);
-      return { items: [], next: null };
-    },
-    "GET /ws/:ws/checkpoints": async (ctx) => {
-      await d(ctx);
-      return [];
-    },
+    /* ---- loop (threads, review rounds, jobs, checkpoints, touch: wiring/loop-routes.ts) ------------------- */
+    ...loopHandlers({ domain: env.domain, waiters: env.waiters }),
   };
 }
