@@ -10,6 +10,7 @@ import {
   type AnchoredItem,
   type LineHunk,
   type LineMap,
+  type LineRun,
   type ReanchorItemResult,
   type ReanchorReport,
 } from "../contract.ts";
@@ -137,14 +138,16 @@ class Batch {
       this.added = [...added].sort();
     }
     for (const p of this.added) want.add(p);
+    // Every read settles on its own (a port that throws, even synchronously, only loses its own text): one failing
+    // path must not leave the others unloaded, which would read as "deleted".
     await Promise.all([
       ...[...want].map(async (p) => {
         const blob = this.blobOf(p);
-        const text = blob === null ? null : await this.ctx.currentText(p).catch(() => null);
+        const text = blob === null ? null : await settle(() => this.ctx.currentText(p));
         this.files.set(p, blob === null || text === null ? null : new FileState(p, blob, text, this.interner));
       }),
       ...[...blobs].map(async (b) => {
-        const text = await this.ctx.blobText(b).catch(() => null);
+        const text = await settle(() => this.ctx.blobText(b));
         if (text === null) this.olds.set(b, null);
         else {
           const lines = splitLines(text);
@@ -173,6 +176,16 @@ function safe<T>(fn: () => T, fallback: T): T {
     return fn();
   } catch {
     return fallback;
+  }
+}
+
+/** Text from an async port; null when it throws (sync or async) or resolves to a non-string. */
+async function settle(fn: () => Promise<string | null>): Promise<string | null> {
+  try {
+    const text = await fn();
+    return typeof text === "string" ? text : null;
+  } catch {
+    return null;
   }
 }
 
@@ -401,9 +414,11 @@ function one(batch: Batch, it: AnchoredItem): ReanchorItemResult {
       if (q.score >= ANCHOR_LIMITS.quoteMovedScore && q.anchor.snippet === a.snippet) {
         return { result: result(same ? "ok" : "moved", "quote", q.anchor, a, q.score), overlapped: overlapped(same), step: "S4" };
       }
-      // A changed (not identical) quote counts only where the old range now is; elsewhere it is a different text.
+      // A changed (not identical) quote counts where the old range now is, or inside text this change inserted (the
+      // range moved and was edited); a hit in untouched text elsewhere is a different passage (e.g. after a deletion).
       const region = lm ? newRegion(lm, a.start, a.end) : null;
-      if (!lm || (region !== null && q.anchor.start <= region[1] && q.anchor.end >= region[0])) {
+      const inRegion = region !== null && q.anchor.start <= region[1] && q.anchor.end >= region[0];
+      if (!lm || inRegion || insertedShare(lm, q.anchor.start, q.anchor.end) >= ANCHOR_LIMITS.diffMinSurvival) {
         return { result: result("fuzzy", "quote", q.anchor, a, Math.min(q.score, 0.94)), overlapped: overlapped(false), step: "S4" };
       }
     }
@@ -429,6 +444,26 @@ function newRegion(lm: LineMap, start: LineNo, end: LineNo): [LineNo, LineNo] | 
     }
   }
   return lo <= hi ? [lo, hi] : null;
+}
+
+/** Share of new lines [start, end] that no equal run covers (text inserted by this change). */
+function insertedShare(lm: LineMap, start: LineNo, end: LineNo): number {
+  const runs = lm.runs;
+  let lo = 0;
+  let hi = runs.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    const r = runs[mid] as LineRun;
+    if (r.newStart + r.len - 1 < start) lo = mid + 1;
+    else hi = mid;
+  }
+  let covered = 0;
+  for (let i = lo; i < runs.length; i++) {
+    const r = runs[i] as LineRun;
+    if (r.newStart > end) break;
+    covered += Math.min(end, r.newStart + r.len - 1) - Math.max(start, r.newStart) + 1;
+  }
+  return 1 - covered / (end - start + 1);
 }
 
 /** Batch re-anchoring (S0–S5). Same order and length as `items`. */

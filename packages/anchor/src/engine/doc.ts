@@ -34,8 +34,12 @@ export function reanchorDocMember(input: DocReanchorInput): ReanchorResult<DocAn
   if (input.blockText !== null && input.blockHash !== null) {
     // D1: unchanged block.
     if (input.blockHash === prev.blockHash) return { health: "ok", method: "identity", anchor: prev, previous: prev, confidence: 1 };
-    // D2: whole-block anchors follow the block whatever its text.
-    if (isWholeBlock(prev)) return { health: "ok", method: "identity", anchor: { ...prev, blockHash: input.blockHash }, previous: prev, confidence: 1 };
+    // D2: whole-block anchors follow the block whatever its text (a claim it was bound to may have left the block).
+    if (isWholeBlock(prev)) {
+      const anchor: DocAnchor = { ...prev, blockHash: input.blockHash };
+      if (anchor.claim !== undefined && !input.claims.some((c) => c.id === anchor.claim)) delete anchor.claim;
+      return { health: "ok", method: "identity", anchor, previous: prev, confidence: 1 };
+    }
     // D3: quote inside the same block.
     const m = findQuote(input.blockText, prev.quote as NonNullable<DocAnchor["quote"]>, prev.offset);
     if (m && m.score >= ANCHOR_LIMITS.quoteAcceptSim) {

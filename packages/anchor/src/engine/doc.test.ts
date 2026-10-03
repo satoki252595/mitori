@@ -26,6 +26,17 @@ describe("AR3 doc anchor D1–D4 (§1.6.1)", () => {
     expect([r.health, r.method, r.anchor.blockHash]).toEqual(["ok", "identity", "h9"]);
   });
 
+  test("D2 keeps a truncated selection's claim only while the block still has it", () => {
+    const long = "長".repeat(2500);
+    const claim = "cl_dddddddd" as ClaimId;
+    const a = eng.docAnchor(B1, long, "h0", 0, 2500, [{ id: claim, start: 0, end: 2500 }]);
+    expect([a.claim, a.quote?.exact.length]).toEqual([claim, 2000]);
+    const kept = eng.reanchorDoc({ anchor: a, blockText: `${long}。`, blockHash: "h1", siblings: [], claims: [{ id: claim, start: 0, end: 2501 }] });
+    expect([kept.health, kept.anchor.claim]).toEqual(["ok", claim]);
+    const dropped = eng.reanchorDoc({ anchor: a, blockText: "書き直した本文", blockHash: "h2", siblings: [], claims: [] });
+    expect([dropped.health, dropped.anchor.block, "claim" in dropped.anchor]).toEqual(["ok", B1, false]);
+  });
+
   test("D3 typo fix elsewhere ⇒ ok; sentence inserted before ⇒ moved; paraphrase ⇒ fuzzy", () => {
     const a = anchorOn(TEXT, "失敗が 5 回続くとロックする");
     const typo = TEXT.replace("認証は", "認証は、");

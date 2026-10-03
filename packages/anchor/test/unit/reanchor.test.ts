@@ -325,6 +325,62 @@ describe("cascade edges", () => {
     expect(rep.results[0]?.result.health).toBe("outdated");
   });
 
+  test("one port failing (even synchronously) loses only its own path; slow reads of the others still land", async () => {
+    const la = codeFile(rng(1), 5);
+    const lb = codeFile(rng(2), 5);
+    const ws = memWorkspace(h, { "a.ts": textOf(la), "b.ts": textOf(lb) });
+    const a = eng.codeAnchor("a.ts", 5, 8, textOf(la), ws.blob("a.ts") as string);
+    const b = eng.codeAnchor("b.ts", 5, 8, textOf(lb), ws.blob("b.ts") as string);
+    const delta = ws.commit({ "a.ts": textOf(["x", ...la]), "b.ts": textOf(["y", ...lb]) });
+    const later = <T>(v: T) => new Promise<T>((res) => setTimeout(() => res(v), 5));
+    const ctx = {
+      ...ws.ctx,
+      currentText: (p: string) => {
+        if (p === "a.ts") throw new Error("sync boom");
+        return ws.ctx.currentText(p).then(later);
+      },
+      blobText: (blob: string) => ws.ctx.blobText(blob).then(later),
+    };
+    const rep = await eng.reanchor(
+      [
+        { kind: "thread", owner: "th_00000000", anchor: a },
+        { kind: "thread", owner: "th_00000001", anchor: b },
+      ],
+      delta,
+      ctx,
+    );
+    expect(rep.results.map((r) => r.result.health)).toEqual(["outdated", "moved"]);
+    expect(rep.results[1]?.result.anchor).toMatchObject({ path: "b.ts", start: 6, end: 9 });
+  });
+
+  test("S4: a moved and edited range is found in the text the change inserted; an edited twin in untouched text is not", async () => {
+    const fn = (name: string) => [
+      `export function ${name}(request, session) {`,
+      ...Array.from({ length: 9 }, (_, i) => `  const value${i}_${name} = request.items[${i}].compute(session, ${i * 7});`),
+      "  return session;",
+      "}",
+    ];
+    const A = fn("alpha");
+    const B = fn("beta");
+    const C = fn("gamma");
+    const edited = A.map((l, i) => (i === 9 ? `${l} // tweaked` : l));
+    const before = ["// header", ...A, ...B, ...C];
+    // Move + edit: A goes to the end with its 10th line changed (beyond the 256-char quote).
+    const ws = memWorkspace(h, { "m.ts": textOf(before) });
+    const anchor = eng.codeAnchor("m.ts", 2, 1 + A.length, textOf(before), ws.blob("m.ts") as string);
+    expect(anchor.quote?.exact.length).toBeLessThan(A.join("\n").length);
+    const delta = ws.commit({ "m.ts": textOf(["// header", ...B, ...C, ...edited]) });
+    const moved = (await eng.reanchor([{ kind: "thread", owner: "th_00000000", anchor }], delta, ws.ctx)).results[0];
+    expect([moved?.result.health, moved?.result.method, moved?.step]).toEqual(["fuzzy", "quote", "S4"]);
+    expect(moved?.result.anchor).toMatchObject({ start: 2 + B.length + C.length, end: 1 + B.length + C.length + A.length });
+    // Deletion: A is removed while an edited copy already existed further down ⇒ outdated, not re-homed onto the copy.
+    const ws2 = memWorkspace(h, { "d.ts": textOf([...before, ...edited]) });
+    const anchor2 = eng.codeAnchor("d.ts", 2, 1 + A.length, textOf([...before, ...edited]), ws2.blob("d.ts") as string);
+    const delta2 = ws2.commit({ "d.ts": textOf(["// header", ...B, ...C, ...edited]) });
+    const gone = (await eng.reanchor([{ kind: "thread", owner: "th_00000000", anchor: anchor2 }], delta2, ws2.ctx)).results[0];
+    expect(gone?.result.health).toBe("outdated");
+  });
+
   test("identity and rename by identity", async () => {
     const lines = codeFile(rng(8), 4);
     const ws = memWorkspace(h, { "r.ts": textOf(lines), "s.ts": "s\n" });
