@@ -446,8 +446,12 @@ describe("agentPathsOk — AGENT_PATH_ALLOWED_RE allowlist (SEC-09), 23 examples
   test("space, comma, glob, bracket, shell and Windows-significant characters, Unicode, leading dash and dot segments are rejected", () => {
     for (const p of rejected) expect([p, AGENT_PATH_ALLOWED_RE.test(p)]).toEqual([p, false]);
   });
-  test("agentPathsOk=false from such a path makes a large change E_UNSUPPORTED", () => {
-    const ok = rejected.slice(0, 3).every((p) => !AGENT_PATH_ALLOWED_RE.test(p));
-    expect(err(base({ anchoredLines: 400, agentPathsOk: !ok })).code).toBe("E_UNSUPPORTED");
+  test("fed through the router: a write scope containing any rejected path cannot use agent mode (R6 ⇒ E_UNSUPPORTED), an allowed one can", () => {
+    // `agentPathsOk` is `paths.every(p => AGENT_PATH_ALLOWED_RE.test(p))` (@mitori/agent `agentPathsOk`).
+    for (const p of [...allowed, ...rejected]) {
+      const agentPathsOk = AGENT_PATH_ALLOWED_RE.test(p);
+      const r = route(base({ anchoredLines: 400, agentPathsOk }), S);
+      expect([p, r.ok && r.value.decision.mode === "agent", !r.ok && r.error.code]).toEqual([p, agentPathsOk, agentPathsOk ? false : "E_UNSUPPORTED"]);
+    }
   });
 });
