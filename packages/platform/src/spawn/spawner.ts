@@ -49,14 +49,21 @@ export function createSpawner(opts: SpawnerOptions = {}): Spawner {
       const env: Record<string, string> = { ...spec.env };
       if (opts.safePath !== undefined) env.PATH = opts.safePath;
       const pipeIn = spec.stdin.length > 0 || spec.keepStdinOpen;
-      const proc = Bun.spawn([resolveCommand(spec.command, env.PATH), ...spec.argv], {
-        cwd: spec.cwd,
-        env,
-        stdin: pipeIn ? "pipe" : "ignore",
-        stdout: "pipe",
-        stderr: "pipe",
-        detached: spec.processGroup,
-      });
+      const command = resolveCommand(spec.command, env.PATH);
+      let proc: ReturnType<typeof Bun.spawn<"pipe" | "ignore", "pipe", "pipe">>;
+      try {
+        proc = Bun.spawn([command, ...spec.argv], {
+          cwd: spec.cwd,
+          env,
+          stdin: pipeIn ? "pipe" : "ignore",
+          stdout: "pipe",
+          stderr: "pipe",
+          detached: spec.processGroup,
+        });
+      } catch (cause) {
+        const code = (cause as { code?: string }).code ?? "?";
+        throw new MitoriError(code === "ENOENT" ? "E_NOT_FOUND" : "E_INTERNAL", `cannot spawn ${command} (${code})`, { cause, params: { command, code } });
+      }
       const out = new LineChannel();
       const err = new LineChannel(STDERR_KEEP_LINES);
       // `exited` does not wait for the pipes: a grandchild may hold them open after the leader exited.

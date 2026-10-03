@@ -97,12 +97,25 @@ export function createGitReader(opts: GitReaderOptions): PlatformGitReader {
     const r = await run(args, ok ? { ok } : {});
     return { code: r.code, out: new TextDecoder().decode(r.stdout).trim() };
   };
+  // memoized per reader; a failed lookup is not memoized (the repo may appear later, e.g. right after `git init`)
   const gitDir = () => {
-    dir ??= text(["rev-parse", "--absolute-git-dir"]).then((r) => r.out);
+    dir ??= text(["rev-parse", "--absolute-git-dir"]).then(
+      (r) => r.out,
+      (err: unknown) => {
+        dir = null;
+        throw err;
+      },
+    );
     return dir;
   };
   const objectFormat = () => {
-    format ??= text(["rev-parse", "--show-object-format"]).then((r) => (r.out === "sha256" ? "sha256" : "sha1"));
+    format ??= text(["rev-parse", "--show-object-format"]).then(
+      (r): "sha1" | "sha256" => (r.out === "sha256" ? "sha256" : "sha1"),
+      (err: unknown) => {
+        format = null;
+        throw err;
+      },
+    );
     return format;
   };
   const isShallow = async () => existsSync(join(await gitDir(), "shallow"));

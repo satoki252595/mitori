@@ -77,6 +77,16 @@ describe("PLAT-I-005 Spawner", () => {
     expect(MitoriError.is(err, "E_NOT_FOUND")).toBe(true);
   });
 
+  test("a missing cwd is E_NOT_FOUND (no raw errno escapes)", () => {
+    let err: unknown;
+    try {
+      spawner.spawn(spec("/bin/echo", ["x"], { cwd: "/definitely/not/here" }));
+    } catch (e) {
+      err = e;
+    }
+    expect(MitoriError.is(err, "E_NOT_FOUND")).toBe(true);
+  });
+
   test("stdout lines: CRLF, multibyte split across chunks, a 1 MB line, unterminated tail", async () => {
     const child = spawner.spawn(spec(process.execPath, [join(import.meta.dir, "test", "emit.ts")]));
     const got = await lines(child.stdout);

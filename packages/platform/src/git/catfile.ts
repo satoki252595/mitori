@@ -109,6 +109,7 @@ export class CatFileBatch {
     void (async () => {
       try {
         for await (const chunk of proc.stdout) {
+          if (this.proc !== proc) break; // closed/replaced: late bytes must not reach the next process's parser
           this.buf.push(chunk);
           this.drain();
         }
