@@ -4,8 +4,45 @@
  * camera updates never touch reactivity.
  */
 import type { MapCamera, ZoomStage } from "../contract.ts";
-import { cameraTransform, centreOn, fitCamera, K_MAX, lerpCamera, lodClass, pan, STAGE_K, stageOf, stepStageK, type Viewport, zoomAt } from "./camera.ts";
-import { type FlowStep, type PlanModel, type PlanText, renderFlow, renderPins, renderPlanSvg } from "./render.ts";
+import { fmtLocShort } from "../shell/fmt.ts";
+import {
+  cameraTransform,
+  centreOn,
+  FIT_MAX_S,
+  fitCamera,
+  K_MAX,
+  lerpCamera,
+  lodClass,
+  pan,
+  STAGE_K,
+  stageOf,
+  stepStageK,
+  type Viewport,
+  zoomAt,
+} from "./camera.ts";
+import { type FlowStep, fitText, LABEL_FONT, type PlanModel, type PlanText, renderFlow, renderPins, renderPlanSvg, roomLabels, textPx } from "./render.ts";
+
+/** Text nodes of one room / zone whose content the label fitting rewrites (looked up once per render). */
+interface RoomTexts {
+  el: SVGElement;
+  name: SVGTextElement | null;
+  path: SVGTextElement | null;
+  size: SVGTextElement | null;
+  chips: SVGGElement[];
+  shown: string;
+}
+interface ZoneTexts {
+  id: string;
+  name: SVGTextElement | null;
+  size: SVGTextElement | null;
+  shown: string;
+}
+
+const show = (el: Element | null, on: boolean) => {
+  if (!el) return;
+  if (on) el.removeAttribute("display");
+  else el.setAttribute("display", "none");
+};
 
 export interface PlanCallbacks {
   onselect(node: string | null): void;
@@ -28,6 +65,9 @@ export class PlanController {
   #flows: SVGGElement | null = null;
   #flow: readonly FlowStep[] | null = null;
   #rooms = new Map<string, SVGElement>();
+  #texts = new Map<string, RoomTexts>();
+  #zoneTexts: ZoneTexts[] = [];
+  #text: PlanText;
   #vp: Viewport = { w: 800, h: 600 };
   #sFit = 1;
   #moved = false;
@@ -46,6 +86,7 @@ export class PlanController {
     this.host = host;
     this.model = model;
     this.#cb = cb;
+    this.#text = text;
     this.allowZ3 = allowZ3;
     this.render(model, text, descId);
     this.#listen();
@@ -53,13 +94,32 @@ export class PlanController {
 
   render(model: PlanModel, text: PlanText, descId: string): void {
     this.model = model;
+    this.#text = text;
     this.host.innerHTML = renderPlanSvg(model, text, descId);
     this.#svg = this.host.querySelector("svg.plan");
     this.#g = this.host.querySelector("g.cam");
     this.#pins = this.host.querySelector("g.pins");
     this.#flows = this.host.querySelector("g.flows");
     this.#rooms.clear();
-    for (const el of this.host.querySelectorAll<SVGElement>(".room")) this.#rooms.set(el.dataset.node ?? "", el);
+    this.#texts.clear();
+    for (const el of this.host.querySelectorAll<SVGElement>(".room")) {
+      const id = el.dataset.node ?? "";
+      this.#rooms.set(id, el);
+      this.#texts.set(id, {
+        el,
+        name: el.querySelector(".rn"),
+        path: el.querySelector(".rp"),
+        size: el.querySelector(".rs"),
+        chips: [...el.querySelectorAll<SVGGElement>(".chip")],
+        shown: "",
+      });
+    }
+    this.#zoneTexts = [...this.host.querySelectorAll<SVGElement>(".zl")].map((z) => ({
+      id: z.dataset.zone ?? "",
+      name: z.querySelector(".zn"),
+      size: z.querySelector(".zs"),
+      shown: "",
+    }));
     this.resize();
     if (this.#selected) this.select(this.#selected, false);
     if (this.#flow) this.setFlow(this.#flow);
@@ -69,7 +129,7 @@ export class PlanController {
   resize(): void {
     const r = this.host.getBoundingClientRect();
     this.#vp = { w: Math.max(1, r.width), h: Math.max(1, r.height) };
-    const fit = fitCamera(this.model.width, this.model.height, this.#vp);
+    const fit = fitCamera(this.model.width, this.model.height, this.#vp, 24, FIT_MAX_S);
     this.#sFit = fit.s;
     if (!this.#moved) this.cam = fit;
     this.#apply(true);
@@ -94,12 +154,18 @@ export class PlanController {
 
   #lod(): void {
     let anyLg = false;
+    const s = this.cam.s;
     for (const r of this.model.rooms) {
       const el = this.#rooms.get(r.id);
       if (!el) continue;
-      const cls = lodClass(r.w * this.cam.s, r.h * this.cam.s);
+      const cls = lodClass(r.w * s, r.h * s);
       if (cls === "lg") anyLg = true;
       if (el.dataset.lod !== cls) el.dataset.lod = cls;
+      this.#fitRoom(r, r.w * s, r.h * s);
+    }
+    for (const z of this.#zoneTexts) {
+      const zm = this.model.zones.find((x) => x.id === z.id);
+      if (zm) this.#fitZone(z, zm.label, zm.loc, zm.w * s);
     }
     const st = stageOf(this.k, anyLg, this.allowZ3);
     if (this.#svg && this.#svg.dataset.z !== st) this.#svg.dataset.z = st;
@@ -108,6 +174,44 @@ export class PlanController {
       this.#cb.onstage(st);
     }
     this.#cb.onzoom?.(this.k);
+  }
+
+  /** Labels never clip: each part is shown whole, shortened with 「…」 or hidden for the room's on-screen size. */
+  #fitRoom(r: PlanModel["rooms"][number], sw: number, sh: number): void {
+    const t = this.#texts.get(r.id);
+    if (!t) return;
+    const L = roomLabels(r, sw, sh, this.#text.files);
+    const key = `${L.name}|${L.size}|${L.path}|${L.chips}`;
+    if (t.shown === key) return;
+    t.shown = key;
+    if (t.name) {
+      if (L.name !== null && t.name.textContent !== L.name) t.name.textContent = L.name;
+      show(t.name, L.name !== null);
+    }
+    if (t.path) {
+      if (L.path !== null && t.path.textContent !== L.path) t.path.textContent = L.path;
+      show(t.path, L.path !== null);
+    }
+    show(t.size, L.size);
+    t.chips.forEach((c, i) => {
+      show(c, i < L.chips);
+    });
+  }
+
+  #fitZone(z: ZoneTexts, label: string, loc: number, sw: number): void {
+    const sizeText = loc > 0 ? fmtLocShort(loc) : "";
+    const sizeW = sizeText ? textPx(sizeText, LABEL_FONT.mono) + 16 : 0;
+    const inner = sw - 20;
+    const size = sizeW > 0 && textPx(label, LABEL_FONT.zone) + sizeW <= inner;
+    const name = fitText(label, size ? inner - sizeW : inner, LABEL_FONT.zone);
+    const key = `${name}|${size}`;
+    if (z.shown === key) return;
+    z.shown = key;
+    if (z.name) {
+      if (name !== null && z.name.textContent !== name) z.name.textContent = name;
+      show(z.name, name !== null);
+    }
+    show(z.size, size);
   }
 
   /** One stage out (Escape on the map, ux.md §4.2.2); arriving at the default stage means "fit". */
@@ -138,7 +242,7 @@ export class PlanController {
 
   fit(): void {
     this.#moved = false;
-    this.moveTo(fitCamera(this.model.width, this.model.height, this.#vp), false);
+    this.moveTo(fitCamera(this.model.width, this.model.height, this.#vp, 24, FIT_MAX_S), false);
   }
 
   stepZoom(dir: 1 | -1): void {
@@ -181,6 +285,11 @@ export class PlanController {
     }
     for (const e of svg.querySelectorAll<SVGElement>(".edge")) e.classList.toggle("on", !!id && (e.dataset.from === id || e.dataset.to === id));
     if (notify) this.#cb.onselect(id);
+  }
+
+  /** On-screen box of a room (null when unknown). */
+  roomRect(id: string): DOMRect | null {
+    return this.#rooms.get(id)?.querySelector("svg")?.getBoundingClientRect() ?? null;
   }
 
   setClass(name: string, on: boolean): void {
@@ -263,13 +372,18 @@ export class PlanController {
     on(
       "wheel",
       (e) => {
-        e.preventDefault();
+        // ⌘/Ctrl + wheel (and trackpad pinch) zooms; a sideways swipe pans; a plain vertical wheel scrolls the
+        // page the map sits in (the stage is part of a scrolling page, so it never traps the wheel)
         if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
           const r = h.getBoundingClientRect();
           this.#moved = true;
           this.cam = zoomAt(this.cam, Math.exp(-e.deltaY * 0.0022), e.clientX - r.left, e.clientY - r.top, this.#sFit);
           this.#apply(false);
-        } else this.panBy(-e.deltaX, -e.deltaY);
+        } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+          e.preventDefault();
+          this.panBy(-e.deltaX, 0);
+        }
       },
       { passive: false },
     );

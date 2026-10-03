@@ -7,8 +7,9 @@ import { describe, expect, test } from "bun:test";
 import type { BlockView, DocOutline, SectionNode, SectionView } from "@mitori/core";
 import { UI_THRESHOLDS } from "../contract.ts";
 import { codeWindow, editorUrl, invalidateCode, loadCode, parseCite } from "./code.ts";
+import { columnKinds, factCite } from "./decorate.ts";
 import { indexOutline, pageSections, readingMinutes, subtreeStats, tocState } from "./outline.ts";
-import { buildPage, l3Runs, sectionsToFetch, stepBlock } from "./page.ts";
+import { buildPage, isTitleBlock, l3Runs, sectionsToFetch, stepBlock } from "./page.ts";
 import { estimateBlockPx, visibleWindows, windowOf } from "./virtual.ts";
 
 const node = (id: string, file: string, children: string[] = [], state = "generated"): SectionNode =>
@@ -152,5 +153,42 @@ describe("code pane", () => {
     expect(codeWindow(5, 6, 40)).toEqual({ start: 1, end: 46 });
     const w = codeWindow(100, 2000, 40);
     expect(w.end - w.start + 1).toBe(UI_THRESHOLDS.maxMountedCodeLines);
+  });
+});
+
+describe("CR m1-103 the section title shows once", () => {
+  const blk = (id: string, kind: string, html: string, ord: number) => ({ id, kind, html, ord, section: "s4" }) as unknown as BlockView;
+  test("the first heading block whose text ends with the title is the page header, not a block", () => {
+    const n = { title: "動かしてみる" } as SectionNode;
+    expect(isTitleBlock(blk("b_1", "heading", '<div class="mb"><h1>4. 動かしてみる</h1></div>', 0), n)).toBe(true);
+    expect(isTitleBlock(blk("b_2", "heading", '<div class="mb"><h2>手順</h2></div>', 0), n)).toBe(false);
+    expect(isTitleBlock(blk("b_3", "prose", "<p>4. 動かしてみる</p>", 0), n)).toBe(false);
+    expect(isTitleBlock(blk("b_4", "heading", "<h1>A &amp; B</h1>", 0), { title: "A & B" } as SectionNode)).toBe(true);
+  });
+  test("buildPage drops it from the blocks and the j/k order but remembers it", () => {
+    const ix = indexOutline({ ...outline(), sections: [node("s4", "doc/04.md")], blocks: [] });
+    const view = { section: "s4", blocks: [blk("b_t", "heading", "<h1>4. s4</h1>", 0), blk("b_p", "prose", "<p>x</p>", 1)] } as unknown as SectionView;
+    const m = buildPage(ix, "s4", (id) => (id === "s4" ? view : undefined));
+    expect(m.parts[0]?.titleBlock).toBe("b_t");
+    expect(m.parts[0]?.blocks.map((b) => b.id)).toEqual(["b_p"]);
+    expect(m.order).toEqual(["b_p"]);
+  });
+});
+
+describe("M1 §5-7 comfortable tables: short / numeric columns and fact cites", () => {
+  test("columns: every cell short ⇒ short, numeric ⇒ num, long prose ⇒ null", () => {
+    const rows = [
+      ["test", "e2e", "cd test/e2e && bash run.sh", "Makefile:87", "未実行", "4,611"],
+      ["test", "e2e-failed", "cd test/e2e && npx playwright test --last-failed", "Makefile:90", "未実行", "12 ms"],
+      ["build", "e2e-gitlab-roundtrip", "./scripts/e2e-gitlab-roundtrip.sh", "Makefile:74", "—", "35%"],
+    ];
+    expect(columnKinds(rows, 6)).toEqual(["short", "short", null, "short", "short", "num"]);
+    expect(columnKinds([["3行"], ["12件"], ["—"]], 1)).toEqual(["num"]);
+  });
+  test("fact cites: repo paths with a line, never host:port or bare words", () => {
+    expect(factCite("internal/server/server.go:224")).toEqual({ path: "internal/server/server.go", start: 224, end: 224 });
+    expect(factCite("Makefile:87")).toEqual({ path: "Makefile", start: 87, end: 87 });
+    expect(factCite("package.json:5-9")).toEqual({ path: "package.json", start: 5, end: 9 });
+    for (const x of ["localhost:8080", "example.com:443", "ANY", "server.go", "a.go:0", "x.go:9-3"]) expect(factCite(x)).toBeNull();
   });
 });

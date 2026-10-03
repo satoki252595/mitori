@@ -1,6 +1,7 @@
 <!--
-  Header job chip (ux.md §3.3-8, contract `JobChipProps`): ◐ running · 🔒 waiting for lock · ◆ ready. Hidden (but its
-  slot kept, so nothing shifts) when all counts are 0. Opens the 440 px job popover.
+  Header job chip (ux.md §3.3-8, contract `JobChipProps`): ◐ running · 🔒 waiting for lock · ◆ ready. Hidden when all
+  counts are 0 (no reserved slot: it only appears after a user action, and the header groups are content-sized so
+  nothing overlaps). Opens the 440 px job popover.
 -->
 <script lang="ts">
 import { HREFS } from "@mitori/core";
@@ -47,7 +48,6 @@ function toggle() {
 <style>
   .chip-slot {
     position: relative;
-    min-width: 64px;
     display: flex;
     justify-content: flex-end;
   }

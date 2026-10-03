@@ -4,7 +4,7 @@
  * `maxMountedCodeLines` lines mounted.
  */
 import type { ApiClient } from "@mitori/client";
-import type { FileContent, LineNo, RepoPath, WorkspaceKey } from "@mitori/core";
+import type { CitePeek, FileContent, LineNo, RepoPath, WorkspaceKey } from "@mitori/core";
 import { UI_THRESHOLDS } from "../contract.ts";
 
 const cache = new Map<string, Promise<FileContent>>();
@@ -63,4 +63,24 @@ export function parseCite(cite: string): { path: RepoPath; start: LineNo; end: L
   if (!m) return null;
   const start = Number(m[1]);
   return { path: cite.slice(0, i), start, end: m[2] === undefined ? start : Number(m[2]) };
+}
+
+/**
+ * Peek of a static fact cite (no claim ⇒ no cited blob): the current file window stands in, marked as current
+ * (`blob = currentBlob`, never stale). The window carries server-highlighted `span[data-line]` lines.
+ */
+export function factPeek(f: FileContent, c: { start: LineNo; end: LineNo }): CitePeek {
+  const lines = Math.max(1, f.text.split("\n").length - (f.text.endsWith("\n") ? 1 : 0));
+  return {
+    path: f.path,
+    start: c.start,
+    end: c.end,
+    blob: f.blob,
+    currentBlob: f.blob,
+    stale: false,
+    html: f.html ?? "",
+    firstLine: f.startLine,
+    lastLine: f.startLine + lines - 1,
+    lang: f.lang,
+  };
 }

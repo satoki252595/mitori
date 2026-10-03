@@ -24,8 +24,12 @@ export class MapState implements MapStore {
     this.ws = ws;
   }
 
+  /**
+   * The floor plan was attempted and failed its quality gate (CR m1-103): only then is the container map a
+   * fallback worth a note. The MVP container map (floor plan flag off ⇒ no `quality`) is the intended view.
+   */
   get fallback(): boolean {
-    return this.view !== null && (this.view.fallback === "container" || this.view.diagram.kind !== "floorplan");
+    return this.view?.fallback === "container" && this.view.quality !== undefined;
   }
 
   async load(force = false): Promise<void> {

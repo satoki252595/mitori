@@ -1,11 +1,13 @@
 <!--
-  Header (52 px, ux.md §3.3): brand │ workspace │ tabs │ crumbs │ ⌘K │ reader level │ job chip │ theme │ lang │ ?
-  Usage is NOT shown here (status bar). Badge slots keep their width at 0 (no layout shift).
+  Header (52 px, ux.md §3.3, prototype `01-first-run-map`): brand │ workspace `{name} {HEAD7} · {tag}` │ tabs │
+  crumbs │ ⌘K │ reader level │ job chip │ usage `今日 $ · tok` / `5h %` (≥ 1400 px only; the status bar keeps the
+  full segment) │ theme │ lang │ ?. Badge slots keep their width at 0 (no layout shift).
 -->
 <script lang="ts">
 import type { ReaderLevel } from "@mitori/core";
 import { HREFS } from "@mitori/core";
 import { currentLayout, setReaderLevel, useStores } from "../stores/app.svelte.ts";
+import { fmtTokensImpl, fmtUsdImpl } from "./fmt.ts";
 import Icon from "./Icon.svelte";
 import { t } from "./index.ts";
 import JobChip from "./JobChip.svelte";
@@ -17,6 +19,9 @@ const ws = $derived("ws" in route ? route.ws : null);
 const status = $derived(s.workspace.status);
 const chip = $derived(s.review.chip);
 const inboxN = $derived(s.inbox.mineCount);
+const tag = $derived(status?.profile?.head?.tag ?? null);
+const today = $derived(s.session.today);
+const fiveH = $derived((s.session.window ?? s.session.engine(status?.genEngine ?? null)?.window ?? null)?.fiveHour ?? null);
 // the rail is a drawer (narrow container, review, code mode): the menu button opens it
 const drawer = $derived("ws" in route && currentLayout(s).railMode === "drawer");
 let wsMenu = $state(false);
@@ -79,7 +84,7 @@ const crumbs = $derived.by(() => {
       <span class="hdr-sep" aria-hidden="true"></span>
       <button type="button" class="proj" aria-haspopup="true" aria-expanded={wsMenu} onclick={toggleWsMenu}>
         <span class="proj-name" data-user-content>{status?.info.name ?? ""}</span>
-        <span class="proj-meta">{s.workspace.head7}</span>
+        <span class="proj-meta">{s.workspace.head7}{#if tag}<span class="tag"> &middot; <span data-user-content>{tag}</span></span>{/if}</span>
         {#if status?.info.kind === "shadow"}<span class="kind-badge" title={t("header.shadowTip")}>{t("header.shadow")}</span>{/if}
         {#if status?.info.kind === "remote-readonly"}<span class="kind-badge">{t("header.readonly")}</span>{/if}
       </button>
@@ -119,7 +124,12 @@ const crumbs = $derived.by(() => {
       {/each}
     </div>
     <JobChip running={chip.running} locked={chip.locked} ready={chip.ready} />
-    <button type="button" class="icon-btn" aria-label={t(`header.theme.${themeNext}`)} title={t(`header.theme.${themeNext}`)} onclick={() => s.prefs.setTheme(themeNext)}><Icon name="theme" /></button>
+    <!-- reserved box: the usage arriving never moves the tabs -->
+    <p class="usage mono">
+      {#if today}<span class="u1">{t("header.usage.today", { usd: fmtUsdImpl(today.apiUsd, "day"), tok: fmtTokensImpl(today.in + today.cacheRead + today.cacheWrite + today.out) })}</span>{/if}
+      {#if fiveH}<span class="u2">{t("header.usage.window", { p: Math.round(fiveH.utilization * 100) })}</span>{/if}
+    </p>
+    <button type="button" class="icon-btn theme-btn" aria-label={t(`header.theme.${themeNext}`)} title={t(`header.theme.${themeNext}`)} onclick={() => s.prefs.setTheme(themeNext)}><Icon name="theme" /></button>
     <button type="button" class="lang-btn" lang={s.prefs.lang === "ja" ? "en" : "ja"} aria-label={t("header.langSwitch")} onclick={() => s.prefs.setLang(s.prefs.lang === "ja" ? "en" : "ja")}>{s.prefs.lang === "ja" ? "EN" : "JA"}</button>
     <button type="button" class="icon-btn" aria-label={t("header.help")} title={t("header.help")} onclick={() => (s.ui.helpOpen = true)}><Icon name="help" /></button>
   </div>
@@ -202,6 +212,33 @@ const crumbs = $derived.by(() => {
     border-top: 1px solid var(--rule-soft);
     margin-top: 4px;
     color: var(--muted);
+  }
+  .usage {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    min-width: 10.5em;
+    margin: 0 2px 0 4px;
+    line-height: 1.25;
+    white-space: nowrap;
+  }
+  .u1 {
+    font-size: var(--fs-label);
+    color: var(--text);
+  }
+  .u2 {
+    font-size: var(--fs-meta);
+    color: var(--muted);
+  }
+  .tag {
+    color: var(--muted);
+  }
+  /* the usage block needs the full 1440 header; the status bar always has the same numbers */
+  @media (max-width: 1399px) {
+    .usage {
+      display: none;
+    }
   }
   @media (max-width: 1280px) {
     .crumbs {

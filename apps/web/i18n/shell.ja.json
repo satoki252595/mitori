@@ -115,6 +115,8 @@
   "header.theme.dark": "テーマ: ダークにする",
   "header.theme.light": "テーマ: ライトにする",
   "header.theme.system": "テーマ: システムに合わせる",
+  "header.usage.today": "今日{usd} · {tok} tok",
+  "header.usage.window": "5h枠{p}%",
   "header.wsMenu": "作業フォルダを切り替える",
   "help.close": "閉じる",
   "help.filter": "動作やキーで絞り込む",

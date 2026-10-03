@@ -141,12 +141,13 @@ svg.i {
   height: var(--hdr);
   display: grid;
   /*
-   * The tabs stay centred whatever loads into the side columns (workspace name ≤ 16em, crumbs take only free
-   * space, job chip has a reserved slot): no shift. Side columns never go below their content, so nothing overlaps.
+   * Side groups take their content width and the tabs are centred in the space between them (prototype
+   * `01-first-run-map`): nothing can overlap. Late content keeps its box (workspace name ≤ 16em, the job chip
+   * and the usage block reserve their slots), so the tabs do not move when it arrives.
    */
-  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   padding: 0 20px 0 22px;
   background: var(--hdr-bg);
   backdrop-filter: var(--hdr-blur);
@@ -228,6 +229,10 @@ svg.i {
   padding: 1px 7px;
 }
 
+.hdr-m {
+  justify-content: safe center;
+}
+
 .tabs {
   display: flex;
   justify-content: center;
@@ -307,7 +312,7 @@ svg.i {
   align-items: center;
   gap: 8px;
   height: 32px;
-  width: 240px;
+  width: 220px;
   padding: 0 6px 0 10px;
   border: 1px solid var(--rule);
   border-radius: var(--r-input);
@@ -937,6 +942,16 @@ dialog.dlg h2 {
   }
   .menu-btn {
     display: grid;
+  }
+  /* 600–1023 (ux.md §3.3): brand · workspace · tabs · search (icon) · job chip · ? — level, theme and language
+     move to ⌘K / settings so the header never overlaps */
+  .hdr .seg.level,
+  .hdr .theme-btn,
+  .hdr .lang-btn {
+    display: none;
+  }
+  .hdr {
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
   }
   .body {
     /* biome-ignore lint/complexity/noImportantStyles: overrides the inline per-view grid of the S1/S2 bodies */

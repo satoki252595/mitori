@@ -5,8 +5,20 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { GenEstimate, GenTaskView } from "@mitori/core";
 import { useCatalog } from "../shell/__tests__/catalog.ts";
-import { billingLine, defaultEffort, estimateValidity, figures, isRange, narrowerEffort, startMode, totalTokens, windowLine } from "./estimate.ts";
-import { elapsedMs, isActive, reservePx, roomTargets, runCounters, stageProgress } from "./progress.ts";
+import {
+  billingLine,
+  defaultEffort,
+  estimateValidity,
+  figures,
+  isRange,
+  narrowerEffort,
+  startMode,
+  tileFigures,
+  tokRange,
+  totalTokens,
+  windowLine,
+} from "./estimate.ts";
+import { elapsedMs, isActive, reservePx, roomTargets, runCounters, runShare, stageProgress, stageRowsLive } from "./progress.ts";
 import { VisibleClock } from "./visibility.ts";
 
 const t = (key: string, params?: Record<string, string | number>) => (params ? `${key}${JSON.stringify(params)}` : key);
@@ -176,5 +188,51 @@ describe("AC-U-DP disclosure visible-time clock", () => {
     expect(c.visibleMs(5000)).toBe(400);
     c.entry(true, 6000, iso);
     expect(c.visibleMs(6700)).toBe(1100);
+  });
+});
+
+describe("prototype 01-first-run-map effort tiles", () => {
+  beforeEach(() => useCatalog("ja"));
+  test("ranges in one unit fit a third of the card; equal minutes collapse", () => {
+    expect(tokRange(69_700, 120_000)).toBe("0.07〜0.12M");
+    expect(tokRange(38_800, 64_700)).toBe("38.8〜64.7k");
+    const e = est({ calibrationN: 1, confidencePct: 25 });
+    expect(tileFigures(e).tokens).toBe("≈0.3〜0.5M");
+    expect(tileFigures(est()).tokens).toBe("≈0.4M");
+    expect(figures(est({ calibrationN: 1, seconds: { p50: 100, p90: 130 } }), false).time).toBe("約2分");
+  });
+});
+
+describe("prototype 01c-generating stage list", () => {
+  const task = (id: string, stage: string, state: string, out = 0) =>
+    ({
+      id,
+      stage,
+      state,
+      target: { kind: "module", id },
+      priority: 0,
+      attempt: 1,
+      blocks: [],
+      ...(out ? { usage: { in: 100, cacheRead: 0, cacheWrite: 0, out, apiUsd: 0, pricingVer: "x", cacheWrite1h: 0 } } : {}),
+    }) as unknown as GenTaskView;
+  test("rows in plan order with ✓ / ◐ / ○ states and confirmed tokens per stage", () => {
+    const run = {
+      estimate: est({
+        stages: [
+          { stage: "S6o", tasks: 2, inTokens: 1000, outTokens: 100, apiUsd: 0, seconds: 1 },
+          { stage: "S5", tasks: 3, inTokens: 3000, outTokens: 300, apiUsd: 0, seconds: 1 },
+          { stage: "S6", tasks: 1, inTokens: 500, outTokens: 50, apiUsd: 0, seconds: 1 },
+        ],
+      }),
+    };
+    const rows = stageRowsLive(run, [task("a", "S6o", "done", 50), task("b", "S6o", "done", 50), task("c", "S5", "running"), task("d", "S5", "done", 10)]);
+    expect(rows.map((r) => [r.stage, r.status, r.done, r.total])).toEqual([
+      ["S6o", "done", 2, 2],
+      ["S5", "running", 1, 3],
+      ["S6", "waiting", 0, 1],
+    ]);
+    expect(rows[0]?.used).toBe(300);
+    expect(rows[2]?.planned).toBe(550);
+    expect(runShare({ progress: { total: 4, done: 1, failed: 1, blocks: 0 } })).toBe(0.5);
   });
 });

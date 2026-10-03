@@ -7,7 +7,6 @@
 import { HREFS, type RepoPath, type WorkspaceKey } from "@mitori/core";
 import { type Component, onMount, untrack } from "svelte";
 import { type AppMode, ROUTE_SCOPES, type ShortcutScope, type ShortcutWhen } from "../contract.ts";
-import { elapsedMs } from "../gen/progress.ts";
 import { applySettings, provideStores, type Stores } from "../stores/app.svelte.ts";
 import { wireSse } from "../stores/sse.ts";
 import Banner from "./Banner.svelte";
@@ -15,10 +14,8 @@ import { copyText } from "./clipboard.ts";
 import { loadExtensions, type UiExtension } from "./ext.ts";
 import { fmtDeltaImpl, fmtDurationImpl, fmtTokensImpl, fmtUsdImpl } from "./fmt.ts";
 import Header from "./Header.svelte";
-import HelpOverlay from "./HelpOverlay.svelte";
 import { switchLang } from "./i18n-cell.svelte.ts";
 import { t } from "./index.ts";
-import Launcher from "./Launcher.svelte";
 import { mark } from "./perf.ts";
 import Rich from "./Rich.svelte";
 import { viewKind } from "./router.ts";
@@ -34,8 +31,9 @@ provideStores(s);
 const route = $derived(s.router.route);
 const kind = $derived(viewKind(route));
 
-// ---------------------------------------------------------------- lazy route views (chunks: map, reader, gen, settings)
+// ---------------------------------------------------------------- lazy route views (chunks: map, reader, gen, settings, launcher)
 const LOADERS: Record<string, () => Promise<{ default: Component<Record<string, never>> }>> = {
+  launcher: () => import("./Launcher.svelte"),
   map: () => import("../map/views.ts").then((m) => ({ default: m.MapPage })),
   doc: () => import("../reader/views.ts").then((m) => ({ default: m.ReaderPage })),
   code: () => import("../reader/views.ts").then((m) => ({ default: m.CodeView })),
@@ -48,6 +46,8 @@ let ext = $state.raw<UiExtension | null>(null);
 
 function loaderKey(): string | null {
   switch (route.name) {
+    case "launcher":
+      return "launcher";
     case "map":
       return "map";
     case "doc":
@@ -209,7 +209,7 @@ function when(w: ShortcutWhen): boolean {
     case "inputEmpty":
       return s.palette.query === "";
     case "citeFocused":
-      return !!document.activeElement?.closest?.("a.mcite") || !!document.querySelector("a.mcite.on");
+      return !!document.activeElement?.closest?.("a.mcite, a.fcite") || !!document.querySelector("a.mcite.on, a.fcite.on");
     case "roomFocused":
       return !!document.activeElement?.closest?.("[data-node]");
     case "targetOrSelection": {
@@ -346,7 +346,7 @@ onMount(() => {
             c: fmtTokensImpl(u.cacheRead),
             out: fmtTokensImpl(u.out),
             usd: fmtUsdImpl(u.apiUsd, "gen"),
-            dur: fmtDurationImpl(elapsedMs(e.run, Date.now()), "job"),
+            dur: fmtDurationImpl(runMs(e.run), "job"),
             delta: fmtDeltaImpl(u.apiUsd, e.run.estimate.apiUsd),
           },
           action: {
@@ -376,6 +376,18 @@ onMount(() => {
   return () => {
     for (const off of offs) off();
   };
+});
+
+/** Wall time of a run (the gen chunk's `elapsedMs` without pulling it into the entry). */
+function runMs(r: { startedAt?: string; finishedAt?: string }): number {
+  if (!r.startedAt) return 0;
+  return Math.max(0, (r.finishedAt ? Date.parse(r.finishedAt) : Date.now()) - Date.parse(r.startedAt));
+}
+
+// help chunk, loaded on the first `?`
+let Help = $state.raw<Component<Record<string, never>> | null>(null);
+$effect(() => {
+  if (s.ui.helpOpen && !Help) void import("./HelpOverlay.svelte").then((m) => (Help = m.default));
 });
 
 // palette chunk, loaded on first ⌘K
@@ -419,9 +431,7 @@ const InboxView = $derived(ext?.views?.inbox ?? null);
   <Banner />
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (delegated link interception) -->
   <div class="body-wrap" bind:this={body} onclick={(e) => s.router.intercept(e)}>
-    {#if route.name === "launcher"}
-      <Launcher />
-    {:else if route.name === "inbox"}
+    {#if route.name === "inbox"}
       {#if InboxView}<InboxView />{:else}<main id="main" class="pending-view" tabindex="-1"><p>{t("app.inboxPending")}</p></main>{/if}
     {:else if View}
       <View />
@@ -433,7 +443,7 @@ const InboxView = $derived(ext?.views?.inbox ?? null);
   <Toasts />
 </div>
 
-{#if s.ui.helpOpen}<HelpOverlay />{/if}
+{#if s.ui.helpOpen && Help}<Help />{/if}
 {#if Palette && s.palette.open}<Palette />{/if}
 
 {#if conn.kind === "stopped"}

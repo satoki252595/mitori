@@ -3,8 +3,23 @@ import { describe, expect, test } from "bun:test";
 import type { EngineStatus, MapView } from "@mitori/core";
 import { ROOM_LOD, UI_THRESHOLDS } from "../contract.ts";
 import { cameraForK, centreOn, fitCamera, K_MAX, K_MIN, lerpCamera, lodClass, STAGE_K, stageOf, stepStageK, zoomAt } from "./camera.ts";
-import { engineProblem } from "./engine.ts";
-import { buildPlanModel, FLOW_BULGE, flowGeometry, type PlanModel, type RoomModel, renderFlow, renderPins, renderPlanSvg } from "./render.ts";
+import { engineProblem, fixSteps } from "./engine.ts";
+import { heroAreas, heroMeta } from "./hero.ts";
+import {
+  buildPlanModel,
+  FLOW_BULGE,
+  fitText,
+  flowGeometry,
+  LABEL_FONT,
+  type PlanModel,
+  pathLine,
+  type RoomModel,
+  renderFlow,
+  renderPins,
+  renderPlanSvg,
+  roomLabels,
+  textPx,
+} from "./render.ts";
 
 describe("camera", () => {
   const vp = { w: 1000, h: 600 };
@@ -129,14 +144,14 @@ describe("plan model + SVG (AC-J06 / AC-U75)", () => {
 
   test("one SVG: escaped labels, rooms as focusable links (one tab stop), zone labels in a clipped top layer", () => {
     const m = buildPlanModel(view());
-    const svg = renderPlanSvg(m, { title: "map", roomHref: (r) => `/w/x?room=${r.id}`, roomLabel: (r) => r.label }, "desc");
+    const svg = renderPlanSvg(m, { title: "map", roomHref: (r) => `/w/x?room=${r.id}`, roomLabel: (r) => r.label, files: (n) => `${n} files` }, "desc");
     expect(svg).toContain("&#60;core&#62; &#38; co");
     expect(svg).toContain("C &#34;x&#34;");
     expect(svg.match(/tabindex="0"/g)?.length).toBe(1);
     expect(svg.match(/tabindex="-1"/g)?.length).toBe(3);
     // zone names come after the rooms (never hidden under a wall) and are clipped by their zone's viewport
     expect(svg.indexOf('class="zlabels"')).toBeGreaterThan(svg.indexOf('class="rooms"'));
-    expect(svg).toMatch(/<svg class="zl" x="0" y="0" width="200" height="300">/);
+    expect(svg).toMatch(/<svg class="zl" data-zone="g_a" x="0" y="0" width="200" height="300">/);
     expect(svg).not.toContain('overflow="visible"><g class="lbl"><text class="zn"');
     expect(renderPins(m, { md_a: 3, md_b: 0 })).toContain(">3</text>");
     expect(renderPins(m, { md_a: 3, md_b: 0 }).match(/class="pin"/g)?.length).toBe(1);
@@ -190,6 +205,7 @@ describe("§3 flow overlay geometry (ux.md §4.2.3)", () => {
       working: 0,
       fresh: "unknown",
       topSymbols: [],
+      chips: [],
     }) as RoomModel;
   const rooms = [room("a", 0, 0), room("b", 400, 0), room("c", 400, 300)];
   const m = { width: 600, height: 400, rooms, zones: [], edges: [], byId: new Map(rooms.map((r) => [r.id, r])), links: new Map() } as PlanModel;
@@ -220,5 +236,85 @@ describe("§3 flow overlay geometry (ux.md §4.2.3)", () => {
     const svg = renderFlow(m, [{ from: "a", to: "c", step: 3 }]);
     expect(svg).toContain('marker-end="url(#pl-arrow)"');
     expect(svg).toContain(">3</text>");
+  });
+});
+
+describe("labels never clip (M1 §5-1): every part is whole, shortened with …, or hidden", () => {
+  const files = (n: number) => `${n} files`;
+  const room = {
+    label: "internal/session · CritJSON",
+    path: "internal/session",
+    loc: 14_000,
+    files: 12,
+    chips: [
+      { name: "session.go", size: "3.1k" },
+      { name: "watch.go", size: "2.3k" },
+    ],
+  };
+
+  test("fitText keeps fitting text, shortens with …, and gives up below two characters", () => {
+    expect(fitText("crit", 100, LABEL_FONT.name)).toBe("crit");
+    const short = fitText("internal/session · CritJSON", 90, LABEL_FONT.name);
+    expect(short?.endsWith("…")).toBe(true);
+    expect(textPx(short ?? "", LABEL_FONT.name)).toBeLessThanOrEqual(90);
+    expect(fitText("見取り図の部屋", 10, LABEL_FONT.name)).toBeNull();
+  });
+
+  test("a room sized for its label shows everything; narrower rooms drop the size, then shorten, then hide", () => {
+    const full = roomLabels(room, 320, 76, files);
+    expect(full).toEqual({ name: room.label, size: true, path: pathLine(room, files), chips: 2 });
+    const mid = roomLabels(room, 200, 76, files);
+    expect(mid.size).toBe(false);
+    expect(mid.name?.endsWith("…")).toBe(true);
+    expect(textPx(mid.name ?? "", LABEL_FONT.name)).toBeLessThanOrEqual(200 - 24);
+    const low = roomLabels(room, 320, 40, files);
+    expect([low.path, low.chips]).toEqual([null, 0]);
+    expect(roomLabels(room, 30, 20, files)).toEqual({ name: null, size: false, path: null, chips: 0 });
+  });
+
+  test("the path line carries the file count; chips that do not fit are dropped from the end", () => {
+    expect(pathLine({ path: "", files: 3 }, files)).toBe("3 files");
+    expect(pathLine({ path: "web", files: 0 }, files)).toBe("web");
+    expect(roomLabels(room, 150, 76, files).chips).toBe(1);
+  });
+});
+
+describe("CR m1-26 hero meta and tiles", () => {
+  const t = (k: string, p?: Record<string, string | number>) =>
+    k === "map.hero.head" ? `${p?.commit}（${p?.date}）` : k === "map.strip.files" ? `${p?.n}ファイル` : k;
+  const scan = {
+    files: 1219,
+    loc: 64_911,
+    languages: [
+      { lang: "go", files: 183, loc: 35_664 },
+      { lang: "javascript", files: 71, loc: 20_971 },
+      { lang: "generic", files: 19, loc: 7973 },
+      { lang: "python", files: 1, loc: 137 },
+    ],
+  } as never;
+  test("profile: remote (linked for known forges) · toolchain · license · HEAD (date)", () => {
+    const profile = {
+      remote: { host: "github.com", path: "tomasz-tomczyk/crit" },
+      head: { commit: "406875dd31e0eacc9af33b7643d54100620e8775", date: "2026-10-02T12:00:00+09:00", tag: "v0.21.1" },
+      license: { spdx: "MIT", path: "LICENSE" },
+      toolchain: { name: "go", version: "1.26", path: "go.mod", line: 3 },
+      readme: null,
+      areas: [{ kind: "code", lang: "go", loc: 45_700, files: 186 }],
+    } as never;
+    expect(heroMeta(profile, scan, "406875d", t).map((m) => m.text)).toEqual(["github.com/tomasz-tomczyk/crit", "Go 1.26", "MIT", "406875d（2026-10-02）"]);
+    expect(heroMeta(profile, scan, "406875d", t)[0]?.href).toBe("https://github.com/tomasz-tomczyk/crit");
+    expect(heroAreas(profile, scan)).toHaveLength(1);
+  });
+  test("no profile: the scan summary stands in; tiles are the main languages (≥ 2 % of the LOC)", () => {
+    expect(heroMeta(null, scan, "406875d", t).map((m) => m.text)).toEqual(["Go", "64.9k LOC", "1,219ファイル", "406875d"]);
+    expect(heroAreas(null, scan).map((a) => a.lang)).toEqual(["go", "javascript"]);
+  });
+});
+
+describe("AC-U-EN engine card: exact steps, the last one re-probes", () => {
+  test.each(["notInstalled", "notLoggedIn", "capabilityLost"] as const)("%s", (p) => {
+    const steps = fixSteps(p);
+    expect(steps[steps.length - 1]).toEqual({ key: "recheck" });
+    expect(steps.slice(0, -1).every((s) => !!s.cmd)).toBe(true);
   });
 });

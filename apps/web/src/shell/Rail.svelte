@@ -10,7 +10,7 @@ import { useStores } from "../stores/app.svelte.ts";
 import { fmtInt, fmtTokensImpl, fmtUsdImpl } from "./fmt.ts";
 import { t } from "./index.ts";
 import { markAfterPaint } from "./perf.ts";
-import { choosePath, selectedPath } from "./reading.ts";
+import { choosePath, plannedPath, selectedPath } from "./reading.ts";
 import { getJson, STORAGE_KEYS } from "./storage.ts";
 
 let { mode, top }: { mode: "inline" | "drawer"; top?: Snippet } = $props();
@@ -49,6 +49,8 @@ $effect(() => {
 // reading path (ux.md §4.3.8 / §7.2)
 // readTick also bumps when the path is chosen (sessionStorage itself is not reactive)
 const path = $derived(s.ui.readTick >= 0 ? selectedPath(outline, ws) : null);
+// before generation the default path is already planned (0 extra tokens later): 「30分コース 0 / 7 · 残り約30分」 (CR m1-103)
+const planned = $derived(path ? null : plannedPath(outline));
 const readMap = $derived(s.ui.readTick >= 0 && ws && path ? (getJson<Record<string, string>>("local", STORAGE_KEYS.read(ws, path.id)) ?? {}) : {});
 const readCount = $derived(path ? path.steps.filter((st) => readMap[st.section]).length : 0);
 const nextStep = $derived(path?.steps.find((st) => !readMap[st.section]) ?? null);
@@ -134,6 +136,12 @@ const covered = $derived(manifest?.coverage ?? null);
         </div>
         <div class="path-s">{t("rail.pathLeft", { min: leftMin })}</div>
       </div>
+    {:else if planned}
+      <svg viewBox="0 0 34 34" aria-hidden="true"><circle class="trk" cx="17" cy="17" r="14" /></svg>
+      <div class="path-h">
+        <div class="path-t">{t("rail.pathDefault")} <span class="mono">0 / {planned.steps}</span></div>
+        <div class="path-s">{t("rail.pathLeft", { min: planned.minutes })}</div>
+      </div>
     {:else}
       <svg viewBox="0 0 34 34" aria-hidden="true"><circle class="trk" cx="17" cy="17" r="14" /></svg>
       <div class="path-h">
@@ -144,6 +152,8 @@ const covered = $derived(manifest?.coverage ?? null);
     <div class="path-f">
       {#if path && nextStep && ws}
         <a class="path-next" href={HREFS.doc(ws, nextStep.section)}>{t("rail.next")} <b>&sect;{ix?.numbers.get(nextStep.section)} <span data-user-content>{ix?.nodes.get(nextStep.section)?.title ?? ""}</span></b></a>
+      {:else if planned && ws}
+        <a class="path-next" href={HREFS.doc(ws, planned.first)}>{t("rail.next")} <b>&sect;{ix?.numbers.get(planned.first)} <span data-user-content>{ix?.nodes.get(planned.first)?.title ?? ""}</span></b></a>
       {:else}
         <span class="path-next muted">{t("rail.next")} &mdash;</span>
       {/if}
@@ -407,6 +417,10 @@ const covered = $derived(manifest?.coverage ?? null);
   }
   .toc a .st {
     padding-right: 0;
+  }
+  /* §6 carries the ± button at the right edge: its state text stops before it */
+  .toc li:has(.mods) a .st {
+    padding-right: 18px;
   }
   .row-skel {
     display: block;

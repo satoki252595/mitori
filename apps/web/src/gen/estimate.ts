@@ -4,12 +4,13 @@
  * catalog-agnostic and unit-testable.
  */
 import { CALIBRATION, type Effort, type EngineId, type GenEstimate } from "@mitori/core";
+import { NUMBER_FORMAT } from "../contract.ts";
 import { fmtDurationImpl, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
 import { tImpl } from "../shell/i18n.ts";
 
 export type T = (key: string, params?: Record<string, string | number>) => string;
 
-export const EFFORTS: readonly Effort[] = ["overview", "standard", "complete"];
+export { EFFORTS } from "./efforts.ts";
 
 export function totalTokens(e: Pick<GenEstimate, "inTokens" | "cacheReadTokens" | "cacheWriteTokens" | "outTokens">): number {
   return e.inTokens + e.cacheReadTokens + e.cacheWriteTokens + e.outTokens;
@@ -48,8 +49,9 @@ export function figures(e: GenEstimate, mainLine: boolean): EstimateFigures {
   const [tl, th] = span(tok, e.confidencePct);
   const [ul, uh] = span(e.apiUsd, e.confidencePct);
   const minutes = (s: number) => Math.max(1, Math.round(s / 60));
+  // 「約2〜2分」 never shows: equal minutes after rounding collapse to one value
   const time =
-    e.seconds.p90 > e.seconds.p50 && e.seconds.p50 >= 60
+    e.seconds.p50 >= 60 && minutes(e.seconds.p90) > minutes(e.seconds.p50)
       ? tImpl("fmt.aboutMinRange", { a: minutes(e.seconds.p50), b: minutes(e.seconds.p90) })
       : fmtDurationImpl(e.seconds.p90 * 1000, "gen");
   return {
@@ -58,6 +60,47 @@ export function figures(e: GenEstimate, mainLine: boolean): EstimateFigures {
     time,
     range: true,
   };
+}
+
+/** `lo〜hi` tokens in ONE unit (the unit of `hi`): `0.07〜0.12M`, `45.2〜70.1k` (separator from `fmt.range`). */
+export function tokRange(lo: number, hi: number): string {
+  const { kThreshold, mThreshold, kDecimals, mDecimals } = NUMBER_FORMAT.tokens;
+  const trim = (v: number, d: number) =>
+    v
+      .toFixed(d)
+      .replace(/(\.\d*?)0+$/, "$1")
+      .replace(/\.$/, "");
+  const r = (a: string, b: string) => tImpl("fmt.range", { a, b });
+  if (hi >= mThreshold) return `${r(trim(lo / 1e6, mDecimals), trim(hi / 1e6, mDecimals))}M`;
+  if (hi >= kThreshold) return `${r(trim(lo / 1e3, kDecimals), trim(hi / 1e3, kDecimals))}k`;
+  return r(String(Math.round(lo)), String(Math.round(hi)));
+}
+
+/**
+ * Effort-tile figures (prototype `01-first-run-map`): `≈0.12M tok` / `$0.4 · 約2分`, and while uncalibrated the
+ * compact one-unit ranges `≈0.07〜0.12M` / `$0.2〜0.4 · 約1〜2分` — short enough for a third of the card.
+ */
+export function tileFigures(e: GenEstimate): EstimateFigures {
+  if (!isRange(e)) return figures(e, false);
+  const f = figures(e, false);
+  const [tl, th] = span(totalTokens(e), e.confidencePct);
+  return { ...f, tokens: `≈${tokRange(tl, th)}` };
+}
+
+/** What the run will read and write: `入力 0.37M（cache 0.11M）· 出力 31k · {model} · 並列 3` (words from `t`). */
+export function detailLine(e: GenEstimate, t: T): string {
+  return t("gen.card.detail", {
+    in: fmtTokensImpl(e.inTokens + e.cacheReadTokens + e.cacheWriteTokens),
+    cache: fmtTokensImpl(e.cacheReadTokens),
+    out: fmtTokensImpl(e.outTokens),
+    model: e.model,
+    c: e.concurrency,
+  });
+}
+
+/** Module chapters the effort writes eagerly (S5 tasks of the plan). */
+export function moduleChapters(e: Pick<GenEstimate, "stages">): number {
+  return e.stages.find((s) => s.stage === "S5")?.tasks ?? 0;
 }
 
 export type BillingTone = "ok" | "warn" | "muted";
