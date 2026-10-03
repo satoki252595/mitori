@@ -65,6 +65,8 @@ interface Live {
   unsubscribe: (() => void) | null;
   pinnedBlobs: GitOid[];
   idle: Deferred;
+  /** 5h window reset time at run start (κ samples are taken only when it did not change, §9.4). */
+  resetsAtStart?: string;
 }
 
 /** Run-task id from the run and the plan task id (unique per run, stable for the run). */
@@ -192,6 +194,8 @@ export class Runner {
     });
     const idle = deferred();
     this.live = { run, plan, pack, rows, running: new Map(), boost: 0, unsubscribe: null, pinnedBlobs: blobs, idle };
+    const resetsAt = deps.scheduler.window()?.fiveHour?.resetsAt;
+    if (resetsAt) this.live.resetsAtStart = resetsAt;
     this.live.unsubscribe = deps.scheduler.subscribe((st) => this.onScheduler(st));
     this.emitRun();
     for (const r of rows.values()) this.emitTask(r);
@@ -419,9 +423,19 @@ export class Runner {
     run.finishedAt ??= new Date(this.deps.clock.now()).toISOString();
     live.unsubscribe?.();
     live.unsubscribe = null;
-    const after = this.deps.scheduler.window()?.fiveHour?.utilization;
-    if (state === "done" && typeof run.windowAtStart === "number" && typeof after === "number" && run.usage.apiUsd >= GEN_ESTIMATE_PARAMS.kappaMinRunUsd) {
-      this.deps.ledger.recordWindowSample({ utilizationBefore: run.windowAtStart, utilizationAfter: after, apiUsd: run.usage.apiUsd, resetsAtUnchanged: true });
+    const w = this.deps.scheduler.window()?.fiveHour;
+    if (
+      state === "done" &&
+      typeof run.windowAtStart === "number" &&
+      typeof w?.utilization === "number" &&
+      run.usage.apiUsd >= GEN_ESTIMATE_PARAMS.kappaMinRunUsd
+    ) {
+      this.deps.ledger.recordWindowSample({
+        utilizationBefore: run.windowAtStart,
+        utilizationAfter: w.utilization,
+        apiUsd: run.usage.apiUsd,
+        resetsAtUnchanged: live.resetsAtStart !== undefined && live.resetsAtStart === w.resetsAt,
+      });
     }
     if (live.pinnedBlobs.length > 0) await this.deps.indexer.unpinBlobs(live.pinnedBlobs);
     this.refreshProgress();
@@ -476,6 +490,19 @@ export class Runner {
   ): Promise<void> {
     const live = this.live as Live;
     live.running.delete(row.task.id);
+    this.deps.log.info("gen.task", {
+      task: row.task.id,
+      prompt: row.plan.prompt,
+      model: row.plan.model,
+      engine: live.run.engine,
+      state: res.state,
+      attempts: res.attempts,
+      calls: res.calls,
+      in: res.usage ? res.usage.in + res.usage.cacheWrite + res.usage.cacheRead : 0,
+      out: res.usage?.out ?? 0,
+      apiUsd: res.usage?.apiUsd ?? 0,
+      error: res.error?.code,
+    });
     row.task.state = res.state;
     row.task.blocks = [...new Set([...row.task.blocks, ...res.blocks])];
     if (res.attempts > 0) row.task.attempt = res.attempts;

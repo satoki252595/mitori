@@ -6,6 +6,7 @@
  * A refusal fails the task without retry; a transport error is re-dispatched once.
  */
 import type {
+  BlockAspect,
   BlockId,
   Cancel,
   Clock,
@@ -18,6 +19,7 @@ import type {
   Metrics,
   MitoriErrorData,
   ModelId,
+  SectionId,
   SseEventPayload,
   Usage,
   WriteQueue,
@@ -37,6 +39,7 @@ import {
   type RenderedTask,
   type RetryPlan,
   type TaskInputs,
+  type ValidationContext,
 } from "../contract.ts";
 import type { GenCallResultExt } from "../engines/scheduler-engine.ts";
 import { createAssembler } from "../line/assembler.ts";
@@ -180,10 +183,17 @@ async function consume(
   callRun: GenCallRun,
   validate: (raw: string, line: number) => LineVerdict,
   sink: ApplySink,
-  primarySection: PlannedTask["sections"][number] | undefined,
+  ctx: ValidationContext,
 ): Promise<{ verdicts: LineVerdict[]; rejected: string[]; result: GenCallResultExt }> {
   const assembler = createAssembler();
   const verdicts: LineVerdict[] = [];
+  let flowSection: SectionId | null = null;
+  // section of the open block for doc.block.partial: explicit ▸ current flow ▸ the task section allowing the aspect
+  const sectionFor = (explicit: SectionId | null, aspect: BlockAspect | undefined): SectionId => {
+    if (explicit) return explicit;
+    if (aspect && flowSection && ctx.aspectsOf(flowSection).includes(aspect)) return flowSection;
+    return (aspect ? ctx.sections.find((s) => ctx.aspectsOf(s).includes(aspect)) : undefined) ?? ctx.primarySection;
+  };
   const rejected: string[] = [];
   let n = 0;
   let lastPartial = Number.NEGATIVE_INFINITY;
@@ -191,8 +201,10 @@ async function consume(
     n++;
     const v = validate(raw, n);
     verdicts.push(v);
-    if (v.value) sink.accept(v.value);
-    else if (v.errors.length > 0) rejected.push(raw);
+    if (v.value) {
+      if (v.value.t === "flow") flowSection = `s3/${v.value.key}`;
+      sink.accept(v.value);
+    } else if (v.errors.length > 0) rejected.push(raw);
   };
   for await (const delta of callRun.text) {
     for (const line of assembler.push(delta)) handle(line);
@@ -200,7 +212,7 @@ async function consume(
     const now = env.clock.now();
     if (p && now - lastPartial >= 100) {
       lastPartial = now;
-      const ev: SseEventPayload = { type: "doc.block.partial", section: p.section ?? primarySection ?? "s0", text: p.md };
+      const ev: SseEventPayload = { type: "doc.block.partial", section: sectionFor(p.section, p.aspect), text: p.md };
       if (p.kind) ev.kind = p.kind;
       if (p.aspect) ev.aspect = p.aspect;
       env.events.emit(ev);
@@ -275,13 +287,13 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   const call = buildCall(run, task, rendered, 1, row.lane, null, env.prompts);
   let callRun = await start(call);
   let validator = createLineValidator(rendered.ctx);
-  let out = await consume(env, callRun, (r, n) => validator.validate(r, n), sink, task.sections[0]);
+  let out = await consume(env, callRun, (r, n) => validator.validate(r, n), sink, rendered.ctx);
   usage = addUsage(usage, out.result.usage);
   if (out.result.stop === "error" && out.verdicts.length === 0 && !run.cancelled()) {
     await callRun.close();
     callRun = await start(call);
     validator = createLineValidator(rendered.ctx);
-    out = await consume(env, callRun, (r, n) => validator.validate(r, n), sink, task.sections[0]);
+    out = await consume(env, callRun, (r, n) => validator.validate(r, n), sink, rendered.ctx);
     usage = addUsage(usage, out.result.usage);
   }
   hooks.state("validating");
@@ -324,7 +336,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
       }
     }
     hooks.state("running");
-    const out2 = await consume(env, run2, (r, n) => validator2.validate(r, n), sink, task.sections[0]);
+    const out2 = await consume(env, run2, (r, n) => validator2.validate(r, n), sink, rendered.ctx);
     usage = addUsage(usage, out2.result.usage);
     hooks.state("validating");
     await env.write("gen.lines", () => env.store.putLines(task.id, 2, out2.verdicts));
@@ -369,7 +381,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
 /** Replay the accepted lines of attempt 1 into a fresh validator (attempt 2 must not repeat them). */
 function replayAccepted(v: ReturnType<typeof createLineValidator>, out: { verdicts: LineVerdict[] }): void {
   let n = 0;
-  for (const x of out.verdicts) if (x.value) v.validate(JSON.stringify(x.value), --n);
+  for (const x of out.verdicts) if (x.value && x.value.t !== "end") v.validate(JSON.stringify(x.value), --n);
 }
 
 function terminalFailure(r: GenCallResultExt, run: RunCtx): MitoriErrorData | null {

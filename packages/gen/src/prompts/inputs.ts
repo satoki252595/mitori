@@ -294,7 +294,9 @@ class Gatherer {
       });
     for (const d of chosen) {
       const isReadme = d.kind === "existing_doc" && d.role === "readme";
-      const slice = await ix.read(d.path, { start: 1, end: isReadme ? 40 : 20 }, { numbered: true });
+      const lines = ix.file(d.path)?.lines ?? 0;
+      if (lines === 0) continue;
+      const slice = await ix.read(d.path, { start: 1, end: Math.min(lines, isReadme ? 40 : 20) }, { numbered: true });
       if (b.add([`=== ${d.path} · lines ${slice.start}-${slice.end}`, ...slice.text.split("\n")])) this.see(d.path, slice.blob);
     }
     return b.done();
@@ -472,10 +474,9 @@ class Gatherer {
       out.push(`> ${m.id} paths=${dir || "."} files=${stats?.files ?? paths.length} loc=${m.loc} rank=${f2(m.rank)}`);
       const symbols = paths.flatMap((p) => ix.symbols(p).filter((s) => s.exported && !s.parent)).slice(0, 5);
       if (symbols.length > 0) out.push(`>   symbols: ${symbols.map((s) => s.name).join(", ")}`);
-      const doc = docs.find(
-        (d) => d.kind === "existing_doc" && paths.some((p) => p.startsWith(d.path.slice(0, d.path.lastIndexOf("/") + 1))) && d.path.includes("/"),
-      );
-      if (doc && doc.kind === "existing_doc") out.push(`>   docs: "${doc.title}"`);
+      // a document living in the module's own directory (root documents describe the repository, not the module)
+      const doc = docs.find((d) => d.kind === "existing_doc" && d.path.includes("/") && d.path.slice(0, d.path.lastIndexOf("/")) === dir);
+      if (doc?.kind === "existing_doc") out.push(`>   docs: "${doc.title}"`);
     }
     return out;
   }
