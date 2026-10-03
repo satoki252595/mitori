@@ -148,13 +148,26 @@ function renderNumbered(inp: SkeletonInput, withDoc: boolean): string {
   return out.length === 0 ? "" : `${out.join("\n")}\n`;
 }
 
-/** Header line of a fragment (spec §7.1): l0 `=== <path> · <lang> · <n> lines`; sig/doc add imports and ` ===`. */
+const LINE_BREAKS = /[\r\n\t\u2028\u2029]/g;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: these are exactly the characters removed
+const CONTROLS = /[\u0000-\u001f\u007f\u0085]/g;
+
+/** A data value on one header line (spec §7.4 escaping): line breaks / TAB → space, other control characters dropped. */
+export function oneLine(s: string): string {
+  return s.replace(LINE_BREAKS, " ").replace(CONTROLS, "");
+}
+
+/**
+ * Header line of a fragment (spec §7.1): l0 `=== <path> · <lang> · <n> lines`; sig/doc add imports and ` ===`. Paths and
+ * import specifiers come from the repository, so they are flattened to one line (git allows newlines in file names;
+ * a raw one would start a line without a §7.1 prefix).
+ */
 export function skeletonHeader(tier: SkeletonTier, path: string, lang: string, lines: number, importSpecs: readonly string[]): string {
-  const base = `=== ${path}${SKELETON_RULES.headerSep}${lang}${SKELETON_RULES.headerSep}${lines} lines`;
+  const base = `=== ${oneLine(path)}${SKELETON_RULES.headerSep}${lang}${SKELETON_RULES.headerSep}${lines} lines`;
   if (tier === "l0") return base;
   const uniq: string[] = [];
   for (const s of importSpecs) {
-    const v = s.replace(/\s+/g, "");
+    const v = oneLine(s).replace(/\s+/g, "");
     if (v !== "" && !uniq.includes(v)) uniq.push(v);
   }
   if (uniq.length === 0) return `${base} ===`;

@@ -1,0 +1,148 @@
+// Failure paths of persistence (IDX-D7: the write queue may fail; nothing may be lost or left poisoned) and state that
+// must survive a daemon restart (R03 include, spec §2.3).
+import { afterEach, describe, expect, test } from "bun:test";
+import type { Logger, SqlDb } from "@mitori/core";
+import type { Indexer } from "../contract.ts";
+import { createIndexer } from "./index.ts";
+import { memoryDb, migrate, settings, testDeps } from "./test/deps.ts";
+import { tempRepo } from "./test/repo.ts";
+
+const cleanup: (() => unknown)[] = [];
+afterEach(async () => {
+  for (const f of cleanup.splice(0)) await f();
+});
+
+/** A workspace DB whose `run` throws once for the n-th statement matching `pattern` (n counted from 0). */
+function flakyDb(): { db: SqlDb; raw: SqlDb; failOn(pattern: RegExp, nth?: number): void } {
+  const raw = memoryDb();
+  migrate(raw);
+  let pattern: RegExp | null = null;
+  let left = 0;
+  const db: SqlDb = {
+    ...raw,
+    run(sql, params) {
+      if (pattern?.test(sql)) {
+        if (left === 0) {
+          pattern = null;
+          throw new Error("disk I/O error");
+        }
+        left--;
+      }
+      return raw.run(sql, params);
+    },
+  };
+  return {
+    db,
+    raw,
+    failOn(p, nth = 0) {
+      pattern = p;
+      left = nth;
+    },
+  };
+}
+
+function capturingLog(): Logger & { warns: string[] } {
+  const warns: string[] = [];
+  const log: Logger & { warns: string[] } = {
+    warns,
+    debug() {},
+    info() {},
+    warn: (msg: string) => {
+      warns.push(msg);
+    },
+    error() {},
+    child: () => log,
+  };
+  return log;
+}
+
+async function until(f: () => boolean, ms = 5_000): Promise<void> {
+  for (let t = 0; t < ms && !f(); t += 5) await Bun.sleep(5);
+}
+
+const persisted = (idx: Indexer) => idx.lastTimings()?.persist !== null;
+
+describe("IDX-D7 persistence failures", () => {
+  test("a rolled-back scan persist keeps skeleton fragments in memory and is retried by the next scan", async () => {
+    const repo = tempRepo({ "a.ts": "export function a(): number {\n  return 1;\n}\n", "b.ts": "export function b(): number {\n  return 2;\n}\n" });
+    cleanup.push(() => repo.dispose());
+    const f = flakyDb();
+    const deps = testDeps(repo.root, { db: f.db });
+    const log = capturingLog();
+    deps.log = log;
+    const idx = createIndexer(deps);
+    cleanup.push(() => idx.close());
+    f.failOn(/INTO idx_skeleton/, 3); // the second file's first fragment: inside the same transaction as the first file
+    await idx.scan();
+    await until(() => log.warns.length > 0);
+    expect(log.warns).toContain("persist failed");
+    expect(f.raw.get<{ n: number }>("SELECT count(*) AS n FROM idx_blobs")?.n).toBe(0); // rolled back
+    for (const p of ["a.ts", "b.ts"]) expect(idx.skeleton({ kind: "file", path: p }, "sig", "claude-v5").text).toContain(`1|export function ${p[0]}(`);
+
+    await idx.scan(); // nothing changed on disk, but the index is not persisted yet
+    await until(() => persisted(idx));
+    expect(f.raw.get<{ n: number }>("SELECT count(*) AS n FROM idx_skeleton")?.n).toBe(6);
+    await idx.close();
+
+    const deps2 = testDeps(repo.root, { db: f.db });
+    const idx2 = createIndexer(deps2);
+    cleanup.push(() => idx2.close());
+    await idx2.scan();
+    expect(deps2.counters.get("idx.parse.calls") ?? 0).toBe(0);
+    expect(idx2.skeleton({ kind: "file", path: "b.ts" }, "sig", "claude-v5").text).toContain("1|export function b(");
+  });
+
+  test("a failed update() write is logged, later updates still work and the rows are written by the next persist", async () => {
+    const repo = tempRepo({ "a.ts": "export const a = 1;\n", "b.ts": "export const b = 1;\n" });
+    cleanup.push(() => repo.dispose());
+    const f = flakyDb();
+    const deps = testDeps(repo.root, { db: f.db });
+    const log = capturingLog();
+    deps.log = log;
+    const idx = createIndexer(deps);
+    cleanup.push(() => idx.close());
+    await idx.scan();
+    await until(() => persisted(idx));
+    const row = (p: string) => f.raw.get<{ blob: string }>("SELECT blob FROM idx_files WHERE path = ?", [p])?.blob;
+
+    f.failOn(/INTO idx_files/);
+    repo.write("a.ts", "export const a = 2;\n");
+    const d1 = await idx.update([{ kind: "change", path: "a.ts" }]);
+    expect(d1.changed.map((c) => c.path)).toEqual(["a.ts"]);
+    expect(log.warns).toContain("persist failed");
+    expect(row("a.ts")).not.toBe(idx.currentBlob("a.ts") as string);
+
+    repo.write("b.ts", "export const b = 2;\n");
+    const d2 = await idx.update([{ kind: "change", path: "b.ts" }]);
+    expect(d2.changed.map((c) => c.path)).toEqual(["b.ts"]);
+    expect(row("b.ts")).toBe(idx.currentBlob("b.ts") as string);
+    expect(row("a.ts")).toBe(idx.currentBlob("a.ts") as string); // retried with the next write
+  });
+});
+
+describe("R03 include survives a restart", () => {
+  test("an included file that looks minified stays source when a restarted daemon re-hashes it", async () => {
+    const repo = tempRepo({ "README.md": "# r\n" });
+    cleanup.push(() => repo.dispose());
+    const long = `export const table = [${"1, ".repeat(1_200)}];\n`;
+    repo.write("gen/table.ts", `${long}${long}`); // untracked, > 300 bytes per line: R12 unless included
+    const db = memoryDb();
+    migrate(db);
+    const s = settings({ include: ["gen/**"] });
+    const deps = testDeps(repo.root, { db, settings: () => s });
+    const idx = createIndexer(deps);
+    await idx.scan();
+    expect(idx.file("gen/table.ts")).toMatchObject({ class: "source" });
+    await until(() => persisted(idx));
+    await idx.close();
+
+    // The first scan saw a fresh mtime (racy), so the restarted daemon hashes and parses the file again.
+    const deps2 = testDeps(repo.root, { db, settings: () => s });
+    const idx2 = createIndexer(deps2);
+    cleanup.push(() => idx2.close());
+    await idx2.scan();
+    expect(deps2.counters.get("idx.files.hashed") ?? 0).toBeGreaterThan(0);
+    expect(idx2.file("gen/table.ts")).toMatchObject({ class: "source" });
+    expect(idx2.file("gen/table.ts")?.excluded).toBeUndefined();
+  });
+});

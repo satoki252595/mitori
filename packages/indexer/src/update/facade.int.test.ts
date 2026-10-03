@@ -211,7 +211,11 @@ describe("IDX-AT-16 / warm path", () => {
 describe("IDX-AT-04 deny / secret paths are never read", () => {
   test("neither the main thread nor the Worker opens .env, keys, CI files or .claude", async () => {
     const workerReads: string[] = [];
-    const handler = createWorkerHandler({ ...env, readFile: (abs) => (workerReads.push(abs), readFileSync(abs)) }, workerInit());
+    const readFile = (abs: string) => {
+      workerReads.push(abs);
+      return readFileSync(abs);
+    };
+    const handler = createWorkerHandler({ ...env, readFile }, workerInit());
     const { idx, deps } = setup(
       {
         ".env": "TOKEN=x\n",

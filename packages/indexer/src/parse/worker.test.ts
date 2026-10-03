@@ -62,6 +62,36 @@ describe("spec §3.7 incremental reparse via tree.edit", () => {
   });
 });
 
+describe("IDX-AT-15 a parse timeout stays with its file", () => {
+  test("the timed-out file falls back to generic with a note; the next file of the same grammar parses normally", async () => {
+    // A clock that races while `slow` is set makes the 250 ms budget expire deterministically.
+    let slow = false;
+    let fake = 0;
+    const clock = {
+      ...env,
+      now: () => {
+        if (!slow) return performance.now();
+        fake += 100;
+        return fake;
+      },
+    };
+    const h = await createWorkerHandler(clock, workerInit());
+    slow = true;
+    const timedOut = (await h.handle({ id: 1, items: [item("t.ts", bigTs(400, "return 'a';"), true)] })).items[0] as ParseOkResult;
+    slow = false;
+    expect(timedOut.note).toBe("parse_timeout");
+    expect(timedOut.symbols.length).toBeGreaterThan(0); // generic line-based definitions
+    const normal = "export class K {\n  m(a: number): number {\n    return a;\n  }\n}\nexport function hello(): void {}\n";
+    const after = (await h.handle({ id: 2, items: [item("n.ts", normal, true)] })).items[0] as ParseOkResult;
+    const fresh = await createWorkerHandler(env, workerInit());
+    const want = (await fresh.handle({ id: 3, items: [item("n.ts", normal, true)] })).items[0] as ParseOkResult;
+    expect([after.note, after.errors]).toEqual([undefined, 0]);
+    expect(after.symbols).toEqual(want.symbols);
+    h.dispose();
+    fresh.dispose();
+  });
+});
+
 describe("IDX-AT-14 tree hygiene", () => {
   test("scan items keep no trees: deletes = parses; update items keep at most 8 big trees until dispose", async () => {
     const h = await createWorkerHandler(env, workerInit());

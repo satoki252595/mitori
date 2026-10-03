@@ -213,8 +213,14 @@ async function finish(core: Core, before: ReadonlyMap<RepoPath, FileRec>, touche
       ? await core.stages.update(paths)
       : { ifaceChanged: [], membershipChanged: [], factsChanged: false, factKinds: [], structureRefreshed: false };
   if (!fromScan && paths.length > 0) {
-    core.persisting = core.persisting.then(async () => {
-      await persist(core, { single: true });
+    // A failed write is logged, never left in the chain: the rows stay unwritten (dbFiles unchanged) and the next
+    // persist retries them; later updates and scans keep working.
+    core.persisting = core.persisting.then(
+      () => persist(core, { single: true }).then(() => undefined),
+      () => undefined,
+    );
+    core.persisting = core.persisting.catch((err: unknown) => {
+      core.log.warn("persist failed", { error: err instanceof Error ? err.message : String(err) });
     });
     await core.persisting;
   }

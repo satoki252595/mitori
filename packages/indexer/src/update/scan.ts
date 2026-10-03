@@ -18,7 +18,7 @@ import { extractorSetVersion } from "../lang/versions.ts";
 import { detectorsFor } from "../parse/detectors.ts";
 import { poolSize } from "../parse/index.ts";
 import type { ParseItemExt, ParseOkResult, ParseResultExt } from "../parse/protocol.ts";
-import { absOf, applyParsed, type Core, cacheKeys, isIncluded, mono, needsContent, profileOf, settingsOf, tokensOf } from "./core.ts";
+import { absOf, applyParsed, type Core, cacheKeys, isIncluded, keyFor, mono, needsContent, profileOf, settingsOf, tokensOf } from "./core.ts";
 import { contentKey, type FileRec, type Parsed, storeSymbols } from "./model.ts";
 import { loadFiles, loadParsed, persist } from "./persist.ts";
 
@@ -62,7 +62,6 @@ export function applyResult(core: Core, r: FileRec, res: ParseResultExt, it: Par
   }
   r.blob = res.blob;
   if (r.tracked) r.dirty = r.blob !== r.indexBlob;
-  const suffix = it.profile === "lite" ? "/lite" : "";
   let p: Parsed;
   if (res.status === "excluded") {
     const key = cacheKeys(core, r)[0] as string;
@@ -91,7 +90,7 @@ export function applyResult(core: Core, r: FileRec, res: ParseResultExt, it: Par
   } else {
     const ok = res as ParseOkResult;
     if (ok.extractor !== null) metrics.inc("idx.parse.calls");
-    const key = it.profile === "text" ? core.textKey : `${core.versions[ok.lang]}${suffix}`;
+    const key = keyFor(core, ok.lang, it.profile);
     p = {
       blob: ok.blob,
       key,

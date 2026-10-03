@@ -6,6 +6,7 @@ import { type CompiledSettings, compileSettings } from "../inventory/classify.ts
 import type { GitState } from "../inventory/enumerate.ts";
 import { needsShebang } from "../lang/detect.ts";
 import { extractorVersions, GENERIC_EXTRACTOR_VERSION } from "../lang/versions.ts";
+import { detectorSetKey } from "../parse/detectors.ts";
 import type { ParsePool } from "../parse/pool.ts";
 import type { PinStore } from "../pin/store.ts";
 import { estimateFromCounts, kindOfFile } from "../tokens/estimate.ts";
@@ -19,6 +20,8 @@ export interface Core {
   versions: Readonly<Record<SourceLang, ExtractorVersion>>;
   /** Cache key of text-profile results. */
   textKey: string;
+  /** Detector-set part of every content key ("" without detectors). */
+  factsKey: string;
   pool: ParsePool;
   pin: PinStore;
   stages: LaterStages;
@@ -34,7 +37,7 @@ export interface Core {
   dbFiles: Map<RepoPath, string>;
   dbLoaded: boolean;
   /** Bound symbols per path (invalidated when the blob changes). */
-  symCache: Map<RepoPath, { blob: string; entries: SymbolEntry[]; details: SymbolDetail[] }>;
+  symCache: Map<RepoPath, { blob: string; key: string; entries: SymbolEntry[]; details: SymbolDetail[] }>;
   renames: Map<RepoPath, RepoPath>;
   /** Background persistence chain. */
   persisting: Promise<void>;
@@ -58,11 +61,26 @@ export function settingsOf(s: EffectiveSettings): { compiled: CompiledSettings; 
   };
 }
 
-export function initialVersions(xxh3: (s: string) => Xxh3): { versions: Readonly<Record<SourceLang, ExtractorVersion>>; textKey: string } {
+export function initialVersions(xxh3: (s: string) => Xxh3): {
+  versions: Readonly<Record<SourceLang, ExtractorVersion>>;
+  textKey: string;
+  factsKey: string;
+} {
+  // The S1 cache also holds the Worker's fact candidates, so the detector set is part of every content key (spec §9:
+  // facts are keyed by blob × detector set). Empty while no detector is compiled in.
+  const dset = detectorSetKey();
+  const factsKey = dset === "" ? "" : `#d${xxh3(`${INDEXER_FORMAT.detectors}\n${dset}`).slice(0, 8)}`;
   return {
     versions: extractorVersions(xxh3),
-    textKey: `text@0.0.0+${xxh3(`text\n${INDEXER_FORMAT.extractorCode}\n${GENERIC_EXTRACTOR_VERSION}`).slice(0, 8)}`,
+    textKey: `text@0.0.0+${xxh3(`text\n${INDEXER_FORMAT.extractorCode}\n${GENERIC_EXTRACTOR_VERSION}`).slice(0, 8)}${factsKey}`,
+    factsKey,
   };
+}
+
+/** Content key (idx_blobs.extractor) of a parse with `lang` and `profile`. */
+export function keyFor(core: Core, lang: SourceLang, profile: ParseProfile): string {
+  if (profile === "text") return core.textKey;
+  return `${core.versions[lang]}${profile === "lite" ? "/lite" : ""}${core.factsKey}`;
 }
 
 const INCLUDED: ReadonlySet<FileClass> = new Set(["source", "test", "docs", "config"]);
@@ -90,10 +108,8 @@ export function profileOf(r: FileRec): ParseProfile {
 export function cacheKeys(core: Core, r: FileRec): string[] {
   const profile = profileOf(r);
   if (profile === "text") return [core.textKey];
-  const suffix = profile === "lite" ? "/lite" : "";
-  if (r.lang === "generic" && needsShebang(r.path))
-    return (["generic", "javascript", "typescript", "python"] as const).map((l) => `${core.versions[l]}${suffix}`);
-  return [`${core.versions[r.lang]}${suffix}`];
+  if (r.lang === "generic" && needsShebang(r.path)) return (["generic", "javascript", "typescript", "python"] as const).map((l) => keyFor(core, l, profile));
+  return [keyFor(core, r.lang, profile)];
 }
 
 /** Copy S1 facts of `p` into `r` (content-rule exclusions included). */
@@ -143,11 +159,11 @@ export function boundSymbols(core: Core, path: RepoPath): { entries: SymbolEntry
   const p = parsedOf(core, r);
   if (r === undefined || p === null) return { entries: [], details: [] };
   const hit = core.symCache.get(path);
-  if (hit !== undefined && hit.blob === r.blob) return hit;
+  if (hit !== undefined && hit.blob === r.blob && hit.key === p.key) return hit;
   const scan = core.deps.settings().global.security.secretScan;
   const redact = scan ? (s: string) => core.deps.secrets.redact(s).text : (s: string) => s;
   const b = bindSymbols(path, r.blob, p.symbols, redact);
-  core.symCache.set(path, { blob: r.blob, ...b });
+  core.symCache.set(path, { blob: r.blob, key: p.key, ...b });
   return b;
 }
 

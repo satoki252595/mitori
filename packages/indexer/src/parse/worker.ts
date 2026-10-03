@@ -150,6 +150,8 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
       if (old !== null) dropTree(old);
     }
     if (tree !== null) stats.parses++;
+    // A cancelled parse would otherwise be resumed by the next parse() call, with another file's text.
+    else parser.reset();
     return tree;
   }
 
@@ -233,6 +235,7 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
           tree = parse(it.path, g, st, tx);
         } catch {
           note = "parse_error";
+          parser.reset();
         }
         ms.parse += env.now() - t;
         if (tree === null) note ??= "parse_timeout";

@@ -13,7 +13,7 @@ const UPDATE = process.env.MITORI_UPDATE_GOLDEN === "1";
  * Bidi controls and zero-width characters never sit raw in the repository (fixtures/truth/security-fixtures.test.ts):
  * goldens store them as `\u{…}` (the injection fixture generates them at build time).
  */
-const INVISIBLE = /[​-‏‪-‮⁦-⁩﻿]/g;
+const INVISIBLE = /[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g;
 const visible = (t: string): string => t.replace(INVISIBLE, (c) => `\\u{${(c.codePointAt(0) ?? 0).toString(16)}}`);
 
 /** Compare `actual` with `fixtures/golden/<rel>` (objects as canonical JSON). */

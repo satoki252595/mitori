@@ -5,7 +5,7 @@ import type { ExtractorVersion, RepoPath, SourceLang } from "@mitori/core";
 import type { FactCandidate, FileScope, GrammarId, ImportRecord, InventoryRuleId, RefRecord, SkeletonTier } from "../contract.ts";
 import type { SkeletonBodies } from "../skeleton/render.ts";
 import { estimateTokensRaw } from "../tokens/index.ts";
-import type { Core } from "./core.ts";
+import { type Core, settingsOf } from "./core.ts";
 import { contentKey, type FileRec, type Parsed, type StoredSymbol } from "./model.ts";
 
 const CHUNK = 2_000;
@@ -72,6 +72,8 @@ export function loadFiles(core: Core): Map<RepoPath, FileRec> {
   core.settingsKey = core.deps.db.get<{ v: string }>(`SELECT v FROM idx_meta WHERE k = 'settings_key'`)?.v ?? null;
   core.dbSettingsKey = core.settingsKey;
   core.dbDigest = core.deps.db.get<{ v: string }>(`SELECT v FROM idx_meta WHERE k = 'last_snapshot'`)?.v ?? null;
+  // `include` is not stored: derived from the current settings (a settings change reclassifies everything anyway).
+  const include = settingsOf(core.deps.settings()).compiled.include;
   for (const row of core.deps.db.all<FileRow>(`SELECT * FROM idx_files`)) {
     const r: FileRec = {
       path: row.path,
@@ -92,7 +94,7 @@ export function loadFiles(core: Core): Map<RepoPath, FileRec> {
       scope: row.scope as FileScope,
       rule: row.rule as InventoryRuleId,
       attrs: {},
-      include: false,
+      include: include.test(row.path),
       lines: 0,
       loc: 0,
       chars: 0,
@@ -296,8 +298,12 @@ function writeParsed(core: Core, p: Parsed, nowS: number): void {
         estimateTokensRaw(text, "code", "claude-v4"),
       ]);
     }
-    p.skeleton = null; // evicted: served from idx_skeleton from now on
   }
+}
+
+/** After the transaction that wrote `p` committed: evict the skeleton (served from idx_skeleton) and mark it clean. */
+function parsedWritten(p: Parsed): void {
+  if (p.skeleton !== undefined && p.skeleton !== null) p.skeleton = null;
   p.dirtyDb = false;
 }
 
@@ -350,32 +356,36 @@ export async function persist(core: Core, opts: { snapshotRow?: { packKey: strin
   const snapChanged = snap !== null && snap.indexDigest !== core.dbDigest && snapRow !== undefined;
   if (changedFiles.length === 0 && removed.length === 0 && dirtyParsed.length === 0 && !settingsChanged && !snapChanged) return 0;
 
-  const steps: (() => void)[] = [];
+  // Each step writes rows inside the transaction and returns the in-memory bookkeeping to apply once it commits (a
+  // rolled-back write leaves everything dirty, so the next persist retries it and no skeleton text is dropped).
+  const steps: (() => () => void)[] = [];
   for (let i = 0; i < dirtyParsed.length; i += CHUNK) {
     const part = dirtyParsed.slice(i, i + CHUNK);
     steps.push(() => {
       for (const p of part) writeParsed(core, p, nowS);
+      return () => {
+        for (const p of part) parsedWritten(p);
+      };
     });
   }
   for (let i = 0; i < changedFiles.length; i += CHUNK) {
     const part = changedFiles.slice(i, i + CHUNK);
     steps.push(() => {
-      for (const r of part) {
+      const sigs = part.map((r) => {
         writeFile(core, r);
-        core.dbFiles.set(r.path, rowSig(r));
-      }
+        return rowSig(r);
+      });
+      return () => {
+        for (let k = 0; k < part.length; k++) core.dbFiles.set((part[k] as FileRec).path, sigs[k] as string);
+      };
     });
   }
   if (removed.length > 0 || settingsChanged || snapChanged) {
     steps.push(() => {
-      for (const p of removed) {
-        db.run(`DELETE FROM idx_files WHERE path = ?`, [p]);
-        core.dbFiles.delete(p);
-      }
-      if (core.settingsKey !== null) {
-        db.run(`INSERT OR REPLACE INTO idx_meta (k, v) VALUES ('settings_key', ?)`, [core.settingsKey]);
-        core.dbSettingsKey = core.settingsKey;
-      }
+      for (const p of removed) db.run(`DELETE FROM idx_files WHERE path = ?`, [p]);
+      const settingsKey = core.settingsKey;
+      if (settingsKey !== null) db.run(`INSERT OR REPLACE INTO idx_meta (k, v) VALUES ('settings_key', ?)`, [settingsKey]);
+      let digest: string | null = null;
       if (snapChanged && snap !== null && snapRow !== undefined) {
         let files = 0;
         let loc = 0;
@@ -401,16 +411,20 @@ export async function persist(core: Core, opts: { snapshotRow?: { packKey: strin
           ],
         );
         db.run(`INSERT OR REPLACE INTO idx_meta (k, v) VALUES ('last_snapshot', ?)`, [snap.indexDigest]);
-        core.dbDigest = snap.indexDigest;
+        digest = snap.indexDigest;
       }
+      return () => {
+        for (const p of removed) core.dbFiles.delete(p);
+        if (settingsKey !== null) core.dbSettingsKey = settingsKey;
+        if (digest !== null) core.dbDigest = digest;
+      };
     });
   }
   const groups = opts.single === true ? [steps] : steps.map((s) => [s]);
   for (const g of groups) {
     await write("idx.persist", () => {
-      db.tx(() => {
-        for (const s of g) s();
-      });
+      const done = db.tx(() => g.map((s) => s()));
+      for (const d of done) d();
       metrics.inc("idx.sql.writes");
     });
   }

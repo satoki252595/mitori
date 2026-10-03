@@ -49,7 +49,7 @@ const SYMBOLS_AT_LRU = 32;
 
 export function createIndexerWith(deps: IndexerDeps, factory: LaterStagesFactory = defaultStagesFactory): Indexer {
   const xxh3 = (s: string) => deps.hasher.xxh3(s);
-  const { versions, textKey } = initialVersions(xxh3);
+  const { versions, textKey, factsKey } = initialVersions(xxh3);
   let stagesRef: Core["stages"] | null = null;
   const core: Core = {
     deps,
@@ -57,6 +57,7 @@ export function createIndexerWith(deps: IndexerDeps, factory: LaterStagesFactory
     xxh3,
     versions,
     textKey,
+    factsKey,
     pool: new ParsePool(deps.parsePool, () => globalThis.performance?.now() ?? deps.clock.now()),
     pin: createPinStore(deps.db, deps.write, deps.clock, deps.metrics),
     get stages() {
