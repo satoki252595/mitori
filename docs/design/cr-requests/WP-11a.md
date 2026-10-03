@@ -1,5 +1,7 @@
 # WP-11a — change requests (walking skeleton, 2026-10-03)
 
+> **Answered in CR batch 1 (2026-10-03)** — decisions in `packages/core/CR-LEDGER.md` §4 (CR m0-10 … m0-23). Append new requests below this line.
+
 Details and measurements: `apps/cli/BUILD-NOTES.md`.
 
 ## `bin.size` target per binary target (linux-x64 runtime floor is 81.3 MB)

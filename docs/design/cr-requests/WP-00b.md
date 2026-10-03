@@ -1,5 +1,7 @@
 # WP-00b — requests and spec conflicts found while writing fixtures, truth and budgets
 
+> **Answered in CR batch 1 (2026-10-03)** — decisions in `packages/core/CR-LEDGER.md` §4 (CR m0-10 … m0-23). Append new requests below this line.
+
 Everything below has a working default in the tree; the architect (or the WP named) decides whether to keep it.
 
 ## A. Truth follows one side of a spec conflict — please confirm or flip (edit `fixtures/truth/<name>.json`, no code change)

@@ -1,5 +1,7 @@
 # WP-00a — contract change requests (found by the M0 verification, round 1)
 
+> **Answered in CR batch 1 (2026-10-03)** — decisions in `packages/core/CR-LEDGER.md` §4 (CR m0-10 … m0-23). Append new requests below this line.
+
 ## `@mitori/client` has no contract of its own
 - contract: `apps/web/src/contract.ts` §5 — `ApiClient`, `SseClient`, `ConnectionState`, `EntityKey`; `packages/client/src/{http,sse}/index.ts` (empty, 0 exports in `briefs/INDEX.md`)
 - change: move these four types to a new `packages/client/src/contract.ts` (re-exported by the web contract under the same
