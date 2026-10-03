@@ -111,6 +111,8 @@ export class Loop {
   accepting = new SvelteMap<JobId, boolean>();
   /** Last estimate (in + out tokens) per block: the selection toolbar's `≈{k}` (only when cached). */
   estimateHint = new SvelteMap<BlockId, number>();
+  /** A doc proposal exists in this workspace (the in-prose proposal layer is loaded from then on). */
+  proposalsSeen = $state(false);
   /** Bumped on every Review decision (the decision Maps of `ReviewStore.decisions` are plain Maps). */
   decisionTick = $state(0);
   /** When a key acted on the live selection (the Reader's own handler of the same key is then ignored). */
@@ -176,15 +178,21 @@ export class Loop {
     }
     this.#ws = ws;
     if (!ws) return;
-    const [rv, tr, ck] = await Promise.allSettled([
+    const [rv, tr, ck, pp] = await Promise.allSettled([
       this.s.api.call("GET /ws/:ws/review", { params: { ws } }),
       this.s.api.call("GET /ws/:ws/trust", { params: { ws } }),
       this.s.api.call("GET /ws/:ws/checkpoints", { params: { ws } }),
+      this.s.api.call("GET /ws/:ws/doc/proposals", { params: { ws }, query: { state: "pending" } }),
     ]);
     if (this.ws !== ws) return;
     if (rv.status === "fulfilled") this.#applyReview(rv.value);
     if (tr.status === "fulfilled") for (const r of tr.value) this.trust.set(r.id, r);
     if (ck.status === "fulfilled") for (const c of ck.value) this.checkpoints.set(c.id, c);
+    // pending proposals of earlier sessions (SSE only brings the new ones)
+    if (pp.status === "fulfilled" && pp.value.length) {
+      for (const p of pp.value) this.s.doc.upsertProposal(p);
+      this.proposalsSeen = true;
+    }
   }
 
   async refreshReview(): Promise<void> {
@@ -282,6 +290,7 @@ export class Loop {
   }
 
   #onProposal(p: DocProposalView): void {
+    if (p.state === "pending") this.proposalsSeen = true;
     const ws = this.ws;
     if (ws)
       this.#inbox((items) =>

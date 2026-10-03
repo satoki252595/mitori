@@ -17,7 +17,7 @@ import { useStores } from "../stores/app.svelte.ts";
 import { selectionCounts } from "../threads/anchor-text.ts";
 import { anchorFromRange } from "../threads/dom-anchor.ts";
 import { loopOf } from "../threads/loop.svelte.ts";
-import { anchorOfTarget, targetOf } from "./targets.ts";
+import { anchorOfTarget, targetOf, targetOfBlock } from "./targets.ts";
 
 const s = useStores();
 const loop = loopOf(s);
@@ -131,7 +131,6 @@ function act(a: "comment" | "explain" | "fix" | "prompt" | "permalink", e?: Keyb
 async function promptForFocused(): Promise<void> {
   const block = s.router.focusedBlock?.();
   if (!block) return;
-  const { targetOfBlock } = await import("./targets.ts");
   const target = targetOfBlock(s, block as `b_${string}`, null);
   if (target) await loop.copyPrompt(anchorOfTarget(target), "", "change");
 }

@@ -3,18 +3,23 @@
   sheet when the margin column is not shown (code mode, < 1024 px), in-prose proposals, the PullBar, and the Finish /
   trust / undo-diverged / merge-conflict dialogs. Global loop keys: ⇧F 「まとめて送る」 (read and inbox scopes) and ⌘Z.
 -->
+<script lang="ts" module>
+// heavy parts are their own chunks, fetched when first shown (boot stays small)
+const loadComposer = () => import("../composer/Composer.svelte");
+const loadProposals = () => import("../proposals/ProposalLayer.svelte");
+const loadFinish = () => import("../review/FinishDialog.svelte");
+const loadTrust = () => import("../trust/TrustDialog.svelte");
+</script>
+
 <script lang="ts">
 import type { ReviewEstimate, ThreadId } from "@mitori/core";
 import { onMount, untrack } from "svelte";
-import Composer from "../composer/Composer.svelte";
 import SelectionToolbar from "../composer/SelectionToolbar.svelte";
-import ProposalLayer from "../proposals/ProposalLayer.svelte";
-import FinishDialog from "../review/FinishDialog.svelte";
 import PullBar from "../review/PullBar.svelte";
 import { t } from "../shell/index.ts";
 import { viewKind } from "../shell/router.ts";
 import { currentLayout, provideStores, type Stores } from "../stores/app.svelte.ts";
-import TrustDialog from "../trust/TrustDialog.svelte";
+import Lazy from "./Lazy.svelte";
 import { loopOf } from "./loop.svelte.ts";
 
 let { stores }: { stores: Stores } = $props();
@@ -79,11 +84,11 @@ onMount(() => {
 
 {#if onDoc}
   <SelectionToolbar />
-  <ProposalLayer />
+  {#if loop.proposalsSeen}<Lazy load={loadProposals} />{/if}
 {/if}
 
 {#if sheet && loop.composer}
-  <div class="sheet">{#key loop.composer.tempKey}<Composer session={loop.composer} placement="sheet" showIds={s.doc.level === "expert"} />{/key}</div>
+  <div class="sheet">{#key loop.composer.tempKey}<Lazy load={loadComposer} props={{ session: loop.composer, placement: "sheet", showIds: s.doc.level === "expert" }} />{/key}</div>
 {/if}
 
 {#if pull && loop.waiting}
@@ -91,30 +96,36 @@ onMount(() => {
 {/if}
 
 {#if loop.finishOpen}
-  <FinishDialog
-    pending={loop.pendingThreads}
-    estimate={est}
-    singleTotalTokens={est?.separateTokens ?? null}
-    waitingClients={loop.waiting?.clients ?? 0}
-    heldNotes={s.review.round?.heldNotes ?? []}
-    defaultMode={loop.execPath() === "pull" ? "pull" : "push"}
-    onfinish={(m) => void finish(m)}
-    {round}
-    {labels}
-    onclose={() => (loop.finishOpen = false)}
-    onsendtoai={(id, on) => void loop.setSendToAi(id, on)}
+  <Lazy
+    load={loadFinish}
+    props={{
+      pending: loop.pendingThreads,
+      estimate: est,
+      singleTotalTokens: est?.separateTokens ?? null,
+      waitingClients: loop.waiting?.clients ?? 0,
+      heldNotes: s.review.round?.heldNotes ?? [],
+      defaultMode: loop.execPath() === "pull" ? "pull" : "push",
+      onfinish: (m: "push" | "pull") => void finish(m),
+      round,
+      labels,
+      onclose: () => (loop.finishOpen = false),
+      onsendtoai: (id: ThreadId, on: boolean) => void loop.setSendToAi(id, on),
+    }}
   />
 {/if}
 
 {#if loop.trustOpen}
   {@const req = loop.trustOpen}
-  <TrustDialog
-    request={req}
-    ondecide={async (d) => {
-      await loop.decideTrust(req.id, d);
-      s.layers.close("trust");
+  <Lazy
+    load={loadTrust}
+    props={{
+      request: req,
+      ondecide: async (d: "trusted" | "denied") => {
+        await loop.decideTrust(req.id, d);
+        s.layers.close("trust");
+      },
+      onclose: () => (loop.trustOpen = null),
     }}
-    onclose={() => (loop.trustOpen = null)}
   />
 {/if}
 
