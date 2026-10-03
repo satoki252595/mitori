@@ -37,7 +37,7 @@
       "tocMs": 93,
       "factsMs": 57,
       "firstScreenMs": 1696,
-      "stderr": "mitori: crit: 879 files, 15 modules (S0–S4 + static doc in 795 ms)\nmitori: open http://127.0.0.1:64752/auth#n=b8yRjljxOGWSne8X4V-pKukHi0ofYycPsa2GyyKAjJ0&to=%2Fw%2Fws_fmheww473zvq"
+      "stderr": "mitori: crit: 879 files, 15 modules (S0–S4 + static doc in 795 ms)\nmitori: open http://127.0.0.1:64752/auth#n=<nonce>&to=%2Fw%2Fws_fmheww473zvq"
     },
     {
       "repo": "crit",
@@ -47,7 +47,7 @@
       "tocMs": 57,
       "factsMs": 54,
       "firstScreenMs": 1051,
-      "stderr": "mitori: crit: 879 files, 15 modules (S0–S4 + static doc in 842 ms)\nmitori: open http://127.0.0.1:64868/auth#n=N5CZIz-O9-ZIc3jtrJkw9wb5k-PYOGJt4JdCdinJJaw&to=%2Fw%2Fws_ckgwb91zw8zc"
+      "stderr": "mitori: crit: 879 files, 15 modules (S0–S4 + static doc in 842 ms)\nmitori: open http://127.0.0.1:64868/auth#n=<nonce>&to=%2Fw%2Fws_ckgwb91zw8zc"
     },
     {
       "repo": "crit",
@@ -57,7 +57,7 @@
       "tocMs": 63,
       "factsMs": 68,
       "firstScreenMs": 1030,
-      "stderr": "mitori: crit: 879 files, 15 modules (S0–S4 + static doc in 804 ms)\nmitori: open http://127.0.0.1:64894/auth#n=trcg226PhPzGe-VNxWElilaeh12Uiv3_uN95p7GsK30&to=%2Fw%2Fws_3ak00bkw92fg"
+      "stderr": "mitori: crit: 879 files, 15 modules (S0–S4 + static doc in 804 ms)\nmitori: open http://127.0.0.1:64894/auth#n=<nonce>&to=%2Fw%2Fws_3ak00bkw92fg"
     },
     {
       "repo": "m3e-canvas",
@@ -67,7 +67,7 @@
       "tocMs": 65,
       "factsMs": 62,
       "firstScreenMs": 557,
-      "stderr": "mitori: m3e-canvas: 87 files, 4 modules (S0–S4 + static doc in 352 ms)\nmitori: open http://127.0.0.1:64921/auth#n=ILKJO-A8Z1vT9tKCFgz9_HnFee2KhBSwUEDv4esFV2Y&to=%2Fw%2Fws_hvakgbrxewqf"
+      "stderr": "mitori: m3e-canvas: 87 files, 4 modules (S0–S4 + static doc in 352 ms)\nmitori: open http://127.0.0.1:64921/auth#n=<nonce>&to=%2Fw%2Fws_hvakgbrxewqf"
     },
     {
       "repo": "m3e-canvas",
@@ -77,7 +77,7 @@
       "tocMs": 64,
       "factsMs": 63,
       "firstScreenMs": 568,
-      "stderr": "mitori: m3e-canvas: 87 files, 4 modules (S0–S4 + static doc in 363 ms)\nmitori: open http://127.0.0.1:64976/auth#n=xUkH3ZknMyzfHlkDrnbbVPsdFMPDK5xOV7oMHzlMInY&to=%2Fw%2Fws_5gyatxfe84cd"
+      "stderr": "mitori: m3e-canvas: 87 files, 4 modules (S0–S4 + static doc in 363 ms)\nmitori: open http://127.0.0.1:64976/auth#n=<nonce>&to=%2Fw%2Fws_5gyatxfe84cd"
     },
     {
       "repo": "m3e-canvas",
@@ -87,7 +87,7 @@
       "tocMs": 41,
       "factsMs": 37,
       "firstScreenMs": 515,
-      "stderr": "mitori: m3e-canvas: 87 files, 4 modules (S0–S4 + static doc in 337 ms)\nmitori: open http://127.0.0.1:64998/auth#n=eyeDlnr7SiaErgV6ArxXROeEI100cjTLbAZc0nSeF_Q&to=%2Fw%2Fws_mwfwv3h4qt3g"
+      "stderr": "mitori: m3e-canvas: 87 files, 4 modules (S0–S4 + static doc in 337 ms)\nmitori: open http://127.0.0.1:64998/auth#n=<nonce>&to=%2Fw%2Fws_mwfwv3h4qt3g"
     },
     {
       "repo": "go-small",
@@ -97,7 +97,7 @@
       "tocMs": 68,
       "factsMs": 65,
       "firstScreenMs": 300,
-      "stderr": "mitori: go-small: 20 files, 1 modules (S0–S4 + static doc in 104 ms)\nmitori: open http://127.0.0.1:65052/auth#n=-tiF-UUoZTj0aKvXZsrIl1SwZl-Ofuh6h1Q5r-RGATQ&to=%2Fw%2Fws_8qa5bf6xs1xp"
+      "stderr": "mitori: go-small: 20 files, 1 modules (S0–S4 + static doc in 104 ms)\nmitori: open http://127.0.0.1:65052/auth#n=<nonce>&to=%2Fw%2Fws_8qa5bf6xs1xp"
     },
     {
       "repo": "go-small",
@@ -107,7 +107,7 @@
       "tocMs": 63,
       "factsMs": 60,
       "firstScreenMs": 299,
-      "stderr": "mitori: go-small: 20 files, 1 modules (S0–S4 + static doc in 108 ms)\nmitori: open http://127.0.0.1:65101/auth#n=6KO4vkm4ivz-cnCF1gYzAt7htgCXbnBUGDWM_ZL_bTQ&to=%2Fw%2Fws_8qa5bf6xs1xp"
+      "stderr": "mitori: go-small: 20 files, 1 modules (S0–S4 + static doc in 108 ms)\nmitori: open http://127.0.0.1:65101/auth#n=<nonce>&to=%2Fw%2Fws_8qa5bf6xs1xp"
     },
     {
       "repo": "go-small",
@@ -117,7 +117,7 @@
       "tocMs": 41,
       "factsMs": 39,
       "firstScreenMs": 283,
-      "stderr": "mitori: go-small: 20 files, 1 modules (S0–S4 + static doc in 101 ms)\nmitori: open http://127.0.0.1:65131/auth#n=GdphepIPfqznuYyco_7RiFOBXF38mwldPN3L-HncE9Q&to=%2Fw%2Fws_8qa5bf6xs1xp"
+      "stderr": "mitori: go-small: 20 files, 1 modules (S0–S4 + static doc in 101 ms)\nmitori: open http://127.0.0.1:65131/auth#n=<nonce>&to=%2Fw%2Fws_8qa5bf6xs1xp"
     }
   ]
 }

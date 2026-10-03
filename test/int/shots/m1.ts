@@ -88,7 +88,7 @@ async function coldRun(browser: Browser, name: string, src: string, shoot: boole
     tocMs: Math.round(m["mitori:toc:painted"] ?? -1),
     factsMs: Math.round(facts),
     firstScreenMs: 0,
-    stderr: err.trim(),
+    stderr: err.trim().replace(/#n=[^&\s]+/g, "#n=<nonce>"),
   };
   run.firstScreenMs = Math.round(tIndex + Math.max(run.mapMs, run.tocMs, run.factsMs));
   if (shoot) {
