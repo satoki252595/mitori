@@ -22,7 +22,7 @@
 - `docs/design/specs/server.md` L36–44 — 2. platform の port（server だけが使うもの） (≈ 313 tok)
 - `docs/design/specs/indexer.md` L301–316 — 3.2 grammar の同梱と版 (≈ 505 tok)
 
-## 3. CR ledger rows that concern this WP (4)
+## 3. CR ledger rows that concern this WP (9)
 
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
@@ -30,6 +30,11 @@
 | CR m0-3 | architect | accepted | `declare function` / `declare const` は所有 WP の sub-directory の `index.ts` に `E_UNSUPPORTED` スタブとして置き、契約ファイルには `// name → module` の印を残す。`priceUsage`（agent）・`canonicalJson`（doc）・`bandOf`（web = `tokenBand`）は core 実装の re-export、`resolveSafePath`（server）は `@mitori/platform` の実装（WP-01）の re-export。migration 配列のスタブは `[]`、値のスタブは触ると `E_UNSUPPORTED` を投げる proxy | 所有ディレクトリ（MILESTONES §1.2）の内側で実装を差し替えられるようにする。署名は変えない（変えるなら CR） |
 | CR m0-7 | architect | accepted | MILESTONES §1.2: WP-03 の所有に `packages/indexer/src/resolve/`（indexer spec 冒頭の構成）、WP-11a に `scripts/build-bin.ts`、WP-10a に `apps/web/{index.html,vite.config.ts}`、S10 に `packages/testkit/src/**`（contract.ts 以外）を追加。root の placeholder script（golden・bench・bench:compare・e2e・eval・contract-test・size）は `scripts/run-owned.ts` が所有者のファイル（`bench/runner/golden.ts` 等）を作られ次第実行する。単独所有パッケージにも sub-directory を計画（platform: sqlite・hash・spawn・worker・watch・fs・lock・log・random・clock・metrics・git、anchor: normalize・linemap・engine、agent: claude・normalize・usage・adapters・scheduler・ledger・bridge、doc: codec・store・render・layout・export、gen: line・prompts・planner・verify・engines・session・orchestrator・incremental・ondemand・translate、client: http・sse、testkit: home・ports・fixtures・golden・cassette・server・perf・browser） | `src/index.ts` は integrator だけが変えるので、公開面の置き場を先に作っておく |
 | CR m0-9 | architect | accepted | `@mitori/testkit` は `packages/testkit`（testing spec §1.2 の root `testkit/` ではなく）。`bunfig.toml [test] preload` は WP-00b/WP-12 が `packages/testkit/src/preload.ts` を作った時点で有効にする | MILESTONES 成果物 1 |
+| CR m0-14 | WP-11a | accepted-modified | server 契約: `migrationsFor(db: Migration["db"]): readonly Migration[]`（スタブ `wiring/`、WP-INT が実装） | 2 関数の提案を 1 関数に。cli は agent を import できないため composition root が集める。`apps/cli/src/daemon/serve.ts` の `CR-PENDING(WP-11a)` は WP-INT 実装後に S9（WP-11）が置き換える |
+| CR m0-18 | WP-11a | accepted | `bunfig.toml [test] pathIgnorePatterns` + `dist/**` | build 出力の `*.test.ts` を拾わない |
+| CR m0-19 | WP-11a | accepted | `apps/cli/package.json` dependencies + `elkjs@0.12.0`・`web-tree-sitter@0.27.0`・`@shikijs/{core,engine-oniguruma,langs}@4.5.0`（`bun.lock` 更新、`--frozen-lockfile` 緑） | hoisted linker に頼らない。Worker entry の server への移設（indexer spec §3.3）は WP-INT のまま |
+| CR m0-20 | WP-11a | accepted-modified | testing spec §6: `bin.size` の target 85 MB は darwin-arm64、linux-x64 は 88 MB（limit は両方 95 MB）。`bench/budgets/cli.json` に `bin.size.linux-x64`（88 / 95）を足し `apps/cli/src/build/size.ts` を target 別にするのは S9（WP-11） | linux-x64 は Bun runtime だけで 81.3 MB |
+| CR m0-21 | WP-11a | accepted | `.claude/skills/mitori-release-build/`（build:bin → size → test/skeleton、release、lock 更新手順） | 繰り返す手順の skill 化 |
 
 ## Review decisions you implement (REVIEW-LOG, verbatim intent)
 
@@ -57,6 +62,11 @@
 - The parse Worker entry belongs in `packages/server/src/workers/parse.ts` per indexer spec §3.3 — that is
   server territory (WP-INT); coordinate through WP-INT, or keep the worker entry under `apps/cli/src/build/` for M0.5.
 - `test/skeleton` (acceptance) is a root `test/` zone: allowed to import anything; spawn the compiled binary there.
+
+## Status: done (M0.5, merged 2026-10-03)
+
+CR batch 1 answered `docs/design/cr-requests/WP-11a.md` (CR m0-14, m0-18 … m0-21); the `serve.ts` migration
+list and the per-target size gate are WP-11's follow-ups (see its brief).
 
 ## Out of scope
 

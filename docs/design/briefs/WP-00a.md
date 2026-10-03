@@ -41,7 +41,7 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 
 - `packages/core/src/errors.ts:111` — `unsupportedValue<T>(what: string): T`
 
-## 4. CR ledger rows that concern this WP (9)
+## 4. CR ledger rows that concern this WP (23)
 
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
@@ -54,6 +54,20 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 | CR m0-7 | architect | accepted | MILESTONES §1.2: WP-03 の所有に `packages/indexer/src/resolve/`（indexer spec 冒頭の構成）、WP-11a に `scripts/build-bin.ts`、WP-10a に `apps/web/{index.html,vite.config.ts}`、S10 に `packages/testkit/src/**`（contract.ts 以外）を追加。root の placeholder script（golden・bench・bench:compare・e2e・eval・contract-test・size）は `scripts/run-owned.ts` が所有者のファイル（`bench/runner/golden.ts` 等）を作られ次第実行する。単独所有パッケージにも sub-directory を計画（platform: sqlite・hash・spawn・worker・watch・fs・lock・log・random・clock・metrics・git、anchor: normalize・linemap・engine、agent: claude・normalize・usage・adapters・scheduler・ledger・bridge、doc: codec・store・render・layout・export、gen: line・prompts・planner・verify・engines・session・orchestrator・incremental・ondemand・translate、client: http・sse、testkit: home・ports・fixtures・golden・cassette・server・perf・browser） | `src/index.ts` は integrator だけが変えるので、公開面の置き場を先に作っておく |
 | CR m0-8 | test | accepted-modified | fixture の truth は `fixtures/truth/<name>.json`（MILESTONES 成果物 10）。testing spec §1.2 の `fixtures/repos/<name>/truth.json` を置き換える。`fixtures/build.ts` の copy 除外はそのまま | WP-00b の所有（`fixtures/truth/*`）と `bun test fixtures/truth` に合わせる |
 | CR m0-9 | architect | accepted | `@mitori/testkit` は `packages/testkit`（testing spec §1.2 の root `testkit/` ではなく）。`bunfig.toml [test] preload` は WP-00b/WP-12 が `packages/testkit/src/preload.ts` を作った時点で有効にする | MILESTONES 成果物 1 |
+| CR m0-10 | WP-00a | accepted-modified | 新 `packages/client/src/contract.ts`: `ConnectionState`・`EntityKey`・`SseClient`・`ApiClient`（web 契約 §5 から移設、web は同名で re-export）+ `ClientAuth`（`session` / `bearer`）・`ClientOptions {base, auth, client:{kind,version}, headers?, fetch?}`・`SseClientOptions {random, clock, onState?}`。スタブ `createApiClient`（`http/`）・`createSseClient`（`sse/`）。`ApiClient.call` の args に `onRev?(rev)` を追加 | 「`x-mitori-rev` も返す」を型で表せる形にした（戻り値の形は不変）。jitter と `live.since` は core の port（client は entropy 免除でない）。実装 WP-09、利用 WP-10a・WP-11 |
+| CR m0-11 | WP-00b | accepted | testkit 契約 `FixtureName` + `"secrets"` | SEC-07 / RT-32。`fixtures/truth/security-fixtures.test.ts` の `as FixtureName` と `CR-PENDING(WP-00b)` は S10（WP-12）が外す。偽の secret 形文字列（`AKIA…`・`sk-ant-api03-FAKE…`・PEM）は意図どおり。push protection が止めたら `fixtures/repos/{injection,secrets,edge-inventory}`・`fixtures/injection/` を allowlist |
+| CR m0-12 | WP-00b | accepted-modified | truth の spec 衝突（cr-requests/WP-00b.md A）: A1・A4・A5・A6・A7・A8 は truth のまま確定。**A2 は反転**: `.env.example` の `TSUNDOKU_DEBUG_SQL` は `forbiddenFacts` から `facts` へ（S10 = WP-12 が `fixtures/truth/ts-small.json` を直す）。A3 は truth のキー（`script:` / `main:`+`bin:`）を採り、indexer spec の `entry.python@1`・`entry.rust@1` 行を合わせた。testing spec §2.3.1・§2.3.9・IDX-U-004 に `ENV_TEMPLATE_GLOBS` の例外を明記。B の規約（`fixtures/truth/README.md`）は採用 | 契約（core `ENV_TEMPLATE_GLOBS`: env 検出器はキー名を読んでよい）が spec 本文に勝つ。`EntryFact.entry` は `script` を持つ |
+| CR m0-13 | loop→idx-2 | accepted | indexer 契約 `Indexer.symbolsAt(path, blob): Promise<SymbolEntry[] \| null>` | 言語の決定に path が要る。null は blob 本文が無いときだけ。実装 WP-02 |
+| CR m0-14 | WP-11a | accepted-modified | server 契約: `migrationsFor(db: Migration["db"]): readonly Migration[]`（スタブ `wiring/`、WP-INT が実装） | 2 関数の提案を 1 関数に。cli は agent を import できないため composition root が集める。`apps/cli/src/daemon/serve.ts` の `CR-PENDING(WP-11a)` は WP-INT 実装後に S9（WP-11）が置き換える |
+| CR m0-15 | WP-00b | accepted-modified | root scripts `fixtures:build`・`corpus:fetch`・`budgets:merge`。`scripts/check-budgets.ts`（`check` の一部）が `budgets-merge --check` 相当（`bench/budgets.json` の陳腐化も検出）。`ci:pr` に `fixtures:build --verify`。testing spec §1.3 の `corpus:fetch` を `scripts/fetch-corpus.ts` に訂正 | PR CI での `fetch-corpus --only crit,flask --verify`（actions/cache）は **deferred**: PR で corpus を読むもの（WP-12 の bench smoke）が入るときに同じ PR で ci.yml に足す（architect に依頼） |
+| CR m0-16 | WP-00b | accepted | `flake.nix` `devShells.default` に go・python3・rustc・cargo・rustfmt（`ci` と同じ `fixtureToolchains`） | testing spec §1.4（ホストの toolchain に頼らない）。go-small・py-small・rust-small を nd で検証済み（go 1.26.8 / Python 3.14.7 / rustc 1.98.1） |
+| CR m0-17 | WP-00b, WP-11a | accepted | `fixtures/`・`bench/`・`test/`・`e2e/`・`eval/` に `tsconfig.json`（全 package を reference）、root `tsconfig.json` から参照 | `tsc -b` が fixtures・truth・budgets・skeleton・今後の int/e2e/eval を検査する |
+| CR m0-18 | WP-11a | accepted | `bunfig.toml [test] pathIgnorePatterns` + `dist/**` | build 出力の `*.test.ts` を拾わない |
+| CR m0-19 | WP-11a | accepted | `apps/cli/package.json` dependencies + `elkjs@0.12.0`・`web-tree-sitter@0.27.0`・`@shikijs/{core,engine-oniguruma,langs}@4.5.0`（`bun.lock` 更新、`--frozen-lockfile` 緑） | hoisted linker に頼らない。Worker entry の server への移設（indexer spec §3.3）は WP-INT のまま |
+| CR m0-20 | WP-11a | accepted-modified | testing spec §6: `bin.size` の target 85 MB は darwin-arm64、linux-x64 は 88 MB（limit は両方 95 MB）。`bench/budgets/cli.json` に `bin.size.linux-x64`（88 / 95）を足し `apps/cli/src/build/size.ts` を target 別にするのは S9（WP-11） | linux-x64 は Bun runtime だけで 81.3 MB |
+| CR m0-21 | WP-11a | accepted | `.claude/skills/mitori-release-build/`（build:bin → size → test/skeleton、release、lock 更新手順） | 繰り返す手順の skill 化 |
+| CR m0-22 | WP-00b | deferred（M1、WP-09 の settings resolver） | core `DEFAULT_LIMITS`（CORE-U-009 の `Limits` 比較） | USD 上限（`jobMaxUsd`・`genRunMaxUsd`・`dailyMaxUsd`）の既定値が spec に無い。WP-09 が既定値を決めたら core に定数を足し、WP-12 が CORE-U-009 に比較を足す |
+| CR m0-23 | WP-00b | deferred（WP-12・各所有 WP） | cr-requests/WP-00b.md E: `gostd` の lock（初回 online の `--update-lock`）、`gen:*` fixture の generator、`indexerFromGolden`（WP-02/03 の golden 後）、`bench/*.bench.ts` の measure、`gen.std.100k`（O2 の実測後） | いずれも担当 WP の作業で、契約変更は不要 |
 
 ## Status: done (M0, 2026-10-03)
 
@@ -70,6 +84,13 @@ contract index, svelte-check); `.github/workflows/ci.yml` (pull_request + workfl
 - Living CR ledger: `packages/core/CR-LEDGER.md` (§3 = M0 decisions). Requests: `docs/design/cr-requests/<WP>.md`.
 - Export index: `docs/design/briefs/INDEX.md` (`bun run contract:index`, checked by `check`).
 - Briefs: `bun run briefs` regenerates `docs/design/briefs/WP-*.md` from MILESTONES + ledger + stubs + `notes/`.
+
+## CR batch 1 (2026-10-03)
+
+Ledger §4 (CR m0-10 … m0-23): `@mitori/client` contract, `FixtureName` `secrets`, truth conflicts, `symbolsAt`,
+`migrationsFor`, root scripts + budgets merge check + fixtures verify in `ci:pr`, fixture toolchains in the default
+devShell, tsconfig zones (`fixtures`/`bench`/`test`/`e2e`/`eval`), bunfig `dist/**`, CLI manifest pins, per-target
+`bin.size`, skill `mitori-release-build`.
 
 ## Out of scope
 

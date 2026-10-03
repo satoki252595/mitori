@@ -26,6 +26,13 @@ contract index, svelte-check); `.github/workflows/ci.yml` (pull_request + workfl
 - Export index: `docs/design/briefs/INDEX.md` (`bun run contract:index`, checked by `check`).
 - Briefs: `bun run briefs` regenerates `docs/design/briefs/WP-*.md` from MILESTONES + ledger + stubs + `notes/`.
 
+## CR batch 1 (2026-10-03)
+
+Ledger §4 (CR m0-10 … m0-23): `@mitori/client` contract, `FixtureName` `secrets`, truth conflicts, `symbolsAt`,
+`migrationsFor`, root scripts + budgets merge check + fixtures verify in `ci:pr`, fixture toolchains in the default
+devShell, tsconfig zones (`fixtures`/`bench`/`test`/`e2e`/`eval`), bunfig `dist/**`, CLI manifest pins, per-target
+`bin.size`, skill `mitori-release-build`.
+
 ## Out of scope
 
 Everything implemented by other WPs; architect duties continue as the weekly CR batch.

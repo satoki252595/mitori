@@ -10,7 +10,7 @@
 - **成果物**: Vite 8 + Svelte 5（runes、store は `.svelte.ts` の class）、head inline script（CSP hash、`mitori_ui`）、Router（`APP_ROUTES`、href は core `HREFS`）、auth（fragment nonce → exchange → localStorage）、SSE client（fetch stream・seq）、Launcher、**S1 = ELK container 図**（FloorPlan 部品の container mode、room 選択・room card・Z0〜Z2、0 tok カード、engine 状態カード）、Reader（BlockHost = innerHTML + 委譲、`READER_LEVEL_RULES`、cite peek、verdict バッジ（`cited` 含む）、Deep Dive、⌥ 長押し + `.` toggle、claim cursor）、目次・ミニマップ、⌘K（Worker、3 つの query 形、top-hit、prefix mode）、keyboard registry（`DEFAULT_KEYMAP`、IME guard R1、`ROUTE_SCOPES`）、ja/en カタログ（namespace）+ parity、和文組版 CSS・ダーク、status bar（AuthKind + billing）、生成の見積りカード（開示行、範囲、billing、window）と進捗（`doc.block.upsert` / `partial` の高さ予約）、幅の計算（ResizeObserver）。キー再割当て editor は ☆。
 - **受け入れ試験**: `nd bun run size --filter web`（初期 JS ≤ 150KB hard・60KB 警告、CSS ≤ 25KB、Web フォント 0）。`nd bun run e2e --grep @wp10a`: 1,000 block の Reader で DOM ≤ 5k、読者レベル切替 ≤ 50 ms、節遷移 p95 ≤ 100 ms、⌘K ≤ 16 ms（5 万件）、CLS 0、AC-U-W01（7 viewport）、AC-J46b、AC-U-DP、AC-U-B01、AC-G-W01、AC-U-EN、AC-J01・J02・J06・J07。IME e2e（変換中の Enter/Esc で何も起きない、keyCode 229 で発火なし + hint）。`nd bun run check`（lint `mitori/ime-guard` ほか 12 規則、i18n parity、ux.md 表の ja 文字列 lint）。
 
-## 2. Read exactly these sections (≈ 80,689 tokens)
+## 2. Read exactly these sections (≈ 79,811 tokens)
 
 - `docs/design/specs/ux.md` L11–40 — 改訂 R1（2026-10-03、レビュー反映） — 本節が本文より優先する (≈ 2,480 tok)
 - `docs/design/specs/ux.md` L71–85 — 1. 原則（拘束力のある 10 か条） (≈ 582 tok)
@@ -43,7 +43,7 @@
 - `docs/design/prototypes/JUDGEMENT.md` L477–492 — 6.16 初期 JS の配分 [仮] (≈ 398 tok)
 - `docs/design/prototypes/JUDGEMENT.md` L493–502 — 6.17 数値の書式（G17。Pro §9 をそのまま正本にする） (≈ 191 tok)
 - `docs/design/prototypes/JUDGEMENT.md` L503–523 — 6.18 状態のラベル（3 案で揺れていた語を統一する） (≈ 366 tok)
-- `apps/web/src/contract.ts` L1–1731 — (whole file) (≈ 25,445 tok)
+- `apps/web/src/contract.ts` L1–1679 — (whole file) (≈ 24,567 tok)
 - `docs/design/design-tokens.css` L1–569 — (whole file) (≈ 8,616 tok)
 
 ## 3. M0 stubs you own (13) — implement in place, keep the signatures
@@ -64,7 +64,7 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 - `apps/web/src/shell/index.ts:64` — `errorKey(code: ErrorCode): `error.${ErrorCode}``
 - `apps/web/src/shell/index.ts:69` — `errorText(err: MitoriErrorData): string`
 
-## 4. CR ledger rows that concern this WP (19)
+## 4. CR ledger rows that concern this WP (20)
 
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
@@ -87,6 +87,7 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 | CR jdg-8 | jdg | accepted | core `GateResult.autofixedLines?` | — |
 | CR jdg-ui | jdg | accepted（UX author が適用済み） | ui.ts `ShortcutScope`, `ROUTE_SCOPES`, keymap, `UI_THRESHOLDS` | R1 で `docReview` scope を追加（UXP-16） |
 | CR m0-3 | architect | accepted | `declare function` / `declare const` は所有 WP の sub-directory の `index.ts` に `E_UNSUPPORTED` スタブとして置き、契約ファイルには `// name → module` の印を残す。`priceUsage`（agent）・`canonicalJson`（doc）・`bandOf`（web = `tokenBand`）は core 実装の re-export、`resolveSafePath`（server）は `@mitori/platform` の実装（WP-01）の re-export。migration 配列のスタブは `[]`、値のスタブは触ると `E_UNSUPPORTED` を投げる proxy | 所有ディレクトリ（MILESTONES §1.2）の内側で実装を差し替えられるようにする。署名は変えない（変えるなら CR） |
+| CR m0-10 | WP-00a | accepted-modified | 新 `packages/client/src/contract.ts`: `ConnectionState`・`EntityKey`・`SseClient`・`ApiClient`（web 契約 §5 から移設、web は同名で re-export）+ `ClientAuth`（`session` / `bearer`）・`ClientOptions {base, auth, client:{kind,version}, headers?, fetch?}`・`SseClientOptions {random, clock, onState?}`。スタブ `createApiClient`（`http/`）・`createSseClient`（`sse/`）。`ApiClient.call` の args に `onRev?(rev)` を追加 | 「`x-mitori-rev` も返す」を型で表せる形にした（戻り値の形は不変）。jitter と `live.since` は core の port（client は entropy 免除でない）。実装 WP-09、利用 WP-10a・WP-11 |
 
 ## Golden / truth / fixtures
 
@@ -108,6 +109,13 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
   `HREFS`. Budget: initial JS ≤ 150 KB hard / 60 KB warn, CSS ≤ 25 KB, zero web fonts (`bun run size --filter web`,
   runner by WP-12). Chunk names fixed: `cm6`, `merge`, `diagram`, `shiki`, `mermaid`, `viewer`.
 - i18n catalogs per namespace: `apps/web/i18n/<ns>.{ja,en}.json` (yours: shell, map, reader, palette, settings, gen).
+
+## CR batch 1 (2026-10-03)
+
+- **CR m0-10**: `ApiClient`/`SseClient` live in `@mitori/client` (the web contract re-exports them). Build them with
+  `createApiClient({ base: "/api/v1", auth: { scheme: "session", token }, client: { kind: "web", version } })` and
+  `createSseClient({ …, random, clock, onState })` (web may use `crypto.getRandomValues` / `Date.now` for the ports).
+  Until WP-09 lands they throw `E_UNSUPPORTED`: use a structural fake in tests.
 
 ## Out of scope
 

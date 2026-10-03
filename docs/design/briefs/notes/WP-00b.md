@@ -10,7 +10,7 @@ read:
   - docs/design/specs/ux.md | 13.1
   - packages/testkit/src/contract.ts | 3. fixtures
   - packages/testkit/src/contract.ts | 7. perf
-crs: test-*, m0-6, m0-8, m0-9, m0-5
+crs: test-*, m0-6, m0-8, m0-9, m0-5, m0-11, m0-12, m0-15, m0-16, m0-17, m0-22, m0-23
 owns:
   - packages/testkit/src/fixtures
 ---
@@ -43,8 +43,12 @@ owns:
   `bun test fixtures/truth` runs (bunfig ignores only `fixtures/{repos,golden,agent-streams,injection}`).
 - Fixture code must be stdlib-only where gates/hidden tests run (Go no modules, Python stdlib + unittest, Rust no
   crates, TS bun built-ins); framework detector material goes where builds/tests never look (testing spec §2.1).
-- `devShells.ci` already has go, python3, rustc, cargo, rustfmt (flake.nix); locally use `scripts/nd` (default
-  shell has no go/rust/python — use the host toolchains or ask the architect to add them to `default`).
+- go, python3, rustc, cargo, rustfmt are in both `devShells.default` and `ci` (CR m0-16): run them via `scripts/nd`.
+
+## Status: done (M0, merged 2026-10-03)
+
+CR batch 1 answered `docs/design/cr-requests/WP-00b.md` (CR m0-11, m0-12, m0-15, m0-16, m0-17, m0-22, m0-23);
+the fixture/truth follow-ups are WP-12's (see its brief).
 
 ## Out of scope
 

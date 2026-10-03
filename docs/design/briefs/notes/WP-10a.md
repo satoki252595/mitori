@@ -33,7 +33,7 @@ read:
   - docs/design/prototypes/JUDGEMENT.md | 6.18
   - apps/web/src/contract.ts | *
   - docs/design/design-tokens.css | *
-crs: ux-R1, ux-R2, ux-R3, ux-R4, ux-R13, ux-R14, ux-R15, ux-R16, ux-R21, jdg-*, m0-3
+crs: ux-R1, ux-R2, ux-R3, ux-R4, ux-R13, ux-R14, ux-R15, ux-R16, ux-R21, jdg-*, m0-3, m0-10
 owns:
   - apps/web/src/shell
   - apps/web/src/map
@@ -63,6 +63,13 @@ owns:
   `HREFS`. Budget: initial JS ≤ 150 KB hard / 60 KB warn, CSS ≤ 25 KB, zero web fonts (`bun run size --filter web`,
   runner by WP-12). Chunk names fixed: `cm6`, `merge`, `diagram`, `shiki`, `mermaid`, `viewer`.
 - i18n catalogs per namespace: `apps/web/i18n/<ns>.{ja,en}.json` (yours: shell, map, reader, palette, settings, gen).
+
+## CR batch 1 (2026-10-03)
+
+- **CR m0-10**: `ApiClient`/`SseClient` live in `@mitori/client` (the web contract re-exports them). Build them with
+  `createApiClient({ base: "/api/v1", auth: { scheme: "session", token }, client: { kind: "web", version } })` and
+  `createSseClient({ …, random, clock, onState })` (web may use `crypto.getRandomValues` / `Date.now` for the ports).
+  Until WP-09 lands they throw `E_UNSUPPORTED`: use a structural fake in tests.
 
 ## Out of scope
 

@@ -32,7 +32,7 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 - `packages/loop/src/gates/index.ts:10` — `gateExcerpt(output: string, ctx: { worktree: string; estimateTokens(text: string): number }): string`
 - `packages/loop/src/jobs/index.ts:11` — `createLoop(deps: LoopDeps): { /** Review engine. */ review: ReviewEngine; /** Jobs. */ jobs: JobRunner; /** Bundles. */ bundles: BundleBuilder; /** Git safety. */ git: GitSafety; /** Gate runner. */ gates: GateRunner; }`
 
-## 4. CR ledger rows that concern this WP (8)
+## 4. CR ledger rows that concern this WP (9)
 
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
@@ -44,13 +44,14 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 | CR jdg-7 | jdg | accepted | core `Job.timings?`, `Job.diffStat.hunks` | — |
 | CR jdg-8 | jdg | accepted | core `GateResult.autofixedLines?` | — |
 | CR m0-5 | architect | accepted | testing spec CORE-U-007 の期待値: `.envrc`（SEC-12 の実行トリガー）と `docs/.env.md`（`**/.env.*`）は**拒否される**側に訂正。deny glob は picomatch `{ dot: true }` で照合 | 本文の表が R1 の `DEFAULT_DENY_GLOBS` より古い。契約が勝つ |
+| CR m0-16 | WP-00b | accepted | `flake.nix` `devShells.default` に go・python3・rustc・cargo・rustfmt（`ci` と同じ `fixtureToolchains`） | testing spec §1.4（ホストの toolchain に頼らない）。go-small・py-small・rust-small を nd で検証済み（go 1.26.8 / Python 3.14.7 / rustc 1.98.1） |
 
 ## Golden / truth / fixtures
 
 - Demo Fix on `go-small` ("make the retry count configurable", WP-00b): patch mode, input ≤ 3k / output ≤ 1.5k
   tokens, gofmt gate, accept → uncommitted working-tree change → Undo restores fully, **user repo refs/objects/
   worktree metadata unchanged** (GIT-S-06). Engines replay recordings (`fixtures/agent-streams/`) — no real calls.
-- Go/Rust/Python toolchains for gates: present in `devShells.ci`; locally use the host toolchains.
+- Go/Rust/Python toolchains for gates: in both `devShells.default` and `ci` (CR m0-16); run them via `scripts/nd`.
 
 ## Notes (M0 layout)
 

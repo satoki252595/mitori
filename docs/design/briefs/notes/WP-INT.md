@@ -6,7 +6,7 @@ read:
   - docs/design/specs/server.md | 10.
   - docs/design/specs/testing.md | 4.8
   - docs/design/ARCHITECTURE.md | 3.4
-crs: loop→server, gL-10, m0-1, m0-2, m0-3, m0-6
+crs: loop→server, gL-10, m0-1, m0-2, m0-3, m0-6, m0-14, m0-17, m0-19
 owns:
   - packages/server/src/compose.ts
   - packages/server/src/wiring
@@ -25,6 +25,14 @@ owns:
   skeleton binary.
 - gen ⟂ loop: their interactions (accept → S9 suggestions, Ask answer → doc, doc_edit "fix the code") exist only in
   `wiring/`.
+
+## CR batch 1 (2026-10-03)
+
+- **CR m0-14**: implement `migrationsFor(db)` in `packages/server/src/wiring/index.ts`: the server's own migrations
+  + every package's `*_MIGRATIONS` for `db`, in `MIGRATION_ORDER[db]` order then `version`. The CLI daemon calls it.
+- **CR m0-17**: `test/` (incl. your `test/int/`) has a `tsconfig.json` referencing every package; `tsc -b` checks it.
+- **CR m0-19**: `apps/cli/package.json` declares elkjs / web-tree-sitter / @shikijs/*; when you move the parse Worker
+  entry to `packages/server/src/workers/`, the server manifest must declare what it imports (architect edits manifests).
 
 ## Out of scope
 

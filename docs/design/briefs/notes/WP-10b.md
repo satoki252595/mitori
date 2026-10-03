@@ -19,7 +19,7 @@ read:
   - docs/design/prototypes/JUDGEMENT.md | 6.7
   - docs/design/prototypes/JUDGEMENT.md | 6.8
   - docs/design/prototypes/JUDGEMENT.md | 6.9
-crs: ux-R5, ux-R6, ux-R7, ux-R8, ux-R9, ux-R10, ux-R11, ux-R12, ux-R17, ux-R18, ux-R19, ux-R20, ux-R22, ux-R23, ux-R24, ux-R25, jdg-7, jdg-8
+crs: ux-R5, ux-R6, ux-R7, ux-R8, ux-R9, ux-R10, ux-R11, ux-R12, ux-R17, ux-R18, ux-R19, ux-R20, ux-R22, ux-R23, ux-R24, ux-R25, jdg-7, jdg-8, m0-10
 owns:
   - apps/web/src/composer
   - apps/web/src/threads
@@ -43,6 +43,11 @@ owns:
 - web imports only `@mitori/core` and `@mitori/client`; Markdown is never parsed client-side (server HTML,
   `MessageView.html`, CR ux-R23).
 - i18n namespaces you own: composer, threads, jobs, review, inbox, proposals, trust (`apps/web/i18n/<ns>.{ja,en}.json`).
+
+## CR batch 1 (2026-10-03)
+
+- **CR m0-10**: `ApiClient`/`SseClient` come from `@mitori/client` (re-exported by the web contract);
+  `ApiClient.call(..., { onRev })` gives the mutation's `x-mitori-rev` for `SseClient.noteRev`.
 
 ## Out of scope
 

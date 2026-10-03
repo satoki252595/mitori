@@ -23,9 +23,9 @@
 - `docs/design/specs/ux.md` L737–745 — 4.13 Export viewer（WP-13、自己完結 HTML） (≈ 333 tok)
 - `docs/design/specs/ux.md` L746–841 — 5. コアフロー（手順・遅延予算・楽観的 UI） (≈ 3,857 tok)
 - `docs/design/specs/ux.md` L842–1025 — 6. 部品仕様 (≈ 6,287 tok)
-- `apps/web/src/contract.ts` L816–1217 — 6. Component prop contracts (Svelte 5 `$props()`; callbacks are lower-case `onxxx`) (≈ 5,133 tok)
-- `apps/web/src/contract.ts` L1218–1291 — 7. Status vocabulary (shape + colour + label; WCAG 1.4.1) — JUDGEMENT §6.18 (≈ 1,105 tok)
-- `apps/web/src/contract.ts` L1292–1330 — 8. Job stage plans (JUDGEMENT §6.6; loop spec §8.6 phase order) (≈ 525 tok)
+- `apps/web/src/contract.ts` L764–1165 — 6. Component prop contracts (Svelte 5 `$props()`; callbacks are lower-case `onxxx`) (≈ 5,133 tok)
+- `apps/web/src/contract.ts` L1166–1239 — 7. Status vocabulary (shape + colour + label; WCAG 1.4.1) — JUDGEMENT §6.18 (≈ 1,105 tok)
+- `apps/web/src/contract.ts` L1240–1278 — 8. Job stage plans (JUDGEMENT §6.6; loop spec §8.6 phase order) (≈ 525 tok)
 - `docs/design/prototypes/JUDGEMENT.md` L318–332 — 6.5 Composer（各案から 1 つの部品にまとめる） (≈ 835 tok)
 - `docs/design/prototypes/JUDGEMENT.md` L333–360 — 6.6 ジョブカードと全体のジョブ表示 (≈ 764 tok)
 - `docs/design/prototypes/JUDGEMENT.md` L361–375 — 6.7 準備完了と Review (≈ 791 tok)
@@ -40,7 +40,7 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 - `apps/web/src/jobs/index.ts:16` — `planStages(route: RouteDecision, gates: readonly { id: string; label: string }[]): StageRow[]`
 - `apps/web/src/threads/index.ts:11` — `threadStatus(t: Pick<ThreadSummary, "state" | "anchorHealth" | "intent" | "stale">): UiStatus`
 
-## 4. CR ledger rows that concern this WP (18)
+## 4. CR ledger rows that concern this WP (19)
 
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
@@ -62,6 +62,7 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 | CR ux-R25 | ux | accepted-modified | api `GET /events?last=<seq>` | `last` は daemon-global `seq`（CONS-04） |
 | CR jdg-7 | jdg | accepted | core `Job.timings?`, `Job.diffStat.hunks` | — |
 | CR jdg-8 | jdg | accepted | core `GateResult.autofixedLines?` | — |
+| CR m0-10 | WP-00a | accepted-modified | 新 `packages/client/src/contract.ts`: `ConnectionState`・`EntityKey`・`SseClient`・`ApiClient`（web 契約 §5 から移設、web は同名で re-export）+ `ClientAuth`（`session` / `bearer`）・`ClientOptions {base, auth, client:{kind,version}, headers?, fetch?}`・`SseClientOptions {random, clock, onState?}`。スタブ `createApiClient`（`http/`）・`createSseClient`（`sse/`）。`ApiClient.call` の args に `onRev?(rev)` を追加 | 「`x-mitori-rev` も返す」を型で表せる形にした（戻り値の形は不変）。jitter と `live.since` は core の port（client は entropy 免除でない）。実装 WP-09、利用 WP-10a・WP-11 |
 
 ## Golden / truth / fixtures
 
@@ -77,6 +78,11 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 - web imports only `@mitori/core` and `@mitori/client`; Markdown is never parsed client-side (server HTML,
   `MessageView.html`, CR ux-R23).
 - i18n namespaces you own: composer, threads, jobs, review, inbox, proposals, trust (`apps/web/i18n/<ns>.{ja,en}.json`).
+
+## CR batch 1 (2026-10-03)
+
+- **CR m0-10**: `ApiClient`/`SseClient` come from `@mitori/client` (re-exported by the web contract);
+  `ApiClient.call(..., { onRev })` gives the mutation's `x-mitori-rev` for `SseClient.noteRev`.
 
 ## Out of scope
 

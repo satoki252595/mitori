@@ -28,22 +28,23 @@
 
 ## 2. Read exactly these sections (≈ 4,815 tokens)
 
-- `packages/server/src/contract.ts` L238–314 — 4. Domain wiring (§4) — the only place packages that cannot import each other meet (≈ 1,526 tok)
-- `packages/server/src/contract.ts` L546–625 — 10. Composition root (§10) (≈ 934 tok)
+- `packages/server/src/contract.ts` L240–316 — 4. Domain wiring (§4) — the only place packages that cannot import each other meet (≈ 1,526 tok)
+- `packages/server/src/contract.ts` L548–627 — 10. Composition root (§10) (≈ 934 tok)
 - `docs/design/specs/server.md` L75–116 — 4. 配線（DOMAIN_WIRING） (≈ 1,100 tok)
 - `docs/design/specs/server.md` L177–181 — 10. composition root（`createServer`） (≈ 237 tok)
 - `docs/design/specs/testing.md` L820–840 — 4.8 結合シナリオ（`test:int`） (≈ 668 tok)
 - `docs/design/ARCHITECTURE.md` L229–234 — 3.4 ポートとアダプタ（DI） (≈ 350 tok)
 
-## 3. M0 stubs you own (3) — implement in place, keep the signatures
+## 3. M0 stubs you own (4) — implement in place, keep the signatures
 
 Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `@mitori/core`). The doc comment above each stub is the contract text. Changing a signature is a contract change (CR batch).
 
 - `packages/server/src/compose.ts:8` — `createServer(deps: ServerDeps): Promise<ServerHandle>`
 - `packages/server/src/wiring/index.ts:18` — `assembleAnchoredItems(delta: IndexDelta, doc: Pick<DocStore, "index">, threads: readonly { id: ThreadId; code?: Cite | null }[]): AnchoredItem[]`
 - `packages/server/src/wiring/index.ts:27` — `distributeReanchor(items: readonly AnchoredItem[], report: ReanchorReport): { /** Claim updates for `DocStore.setClaimChecks` (moved cites re-rendered; overlapped ⇒ verdict `stale`). */ claims: { id: ClaimId; cites: Cite[]; checks: ClaimChecks; stale: boolean }[]; /** Thread updates for `ReviewEngine.applyReanchor`. */ threads: ThreadReanchorUpdate[]; /** Counts by health (metrics, `mitori doctor`). */ counts: Record<AnchorHealth, number>; }`
+- `packages/server/src/wiring/index.ts:47` — `migrationsFor(db: Migration["db"]): readonly Migration[]`
 
-## 4. CR ledger rows that concern this WP (6)
+## 4. CR ledger rows that concern this WP (9)
 
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
@@ -53,6 +54,9 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 | CR m0-2 | architect | accepted | doc 契約 A5 `GenIdSource`・`NewBlockRef`・`RawCite`（gen.ts Part B から移設）。`@mitori/gen` は同名で re-export | Part A の store API（`createDocStore`・`GeneratedBlock`・`ApplyResult`・`ClaimStamper`）が使う。doc は gen を import できない。形は不変 |
 | CR m0-3 | architect | accepted | `declare function` / `declare const` は所有 WP の sub-directory の `index.ts` に `E_UNSUPPORTED` スタブとして置き、契約ファイルには `// name → module` の印を残す。`priceUsage`（agent）・`canonicalJson`（doc）・`bandOf`（web = `tokenBand`）は core 実装の re-export、`resolveSafePath`（server）は `@mitori/platform` の実装（WP-01）の re-export。migration 配列のスタブは `[]`、値のスタブは触ると `E_UNSUPPORTED` を投げる proxy | 所有ディレクトリ（MILESTONES §1.2）の内側で実装を差し替えられるようにする。署名は変えない（変えるなら CR） |
 | CR m0-6 | test | accepted-modified | testkit の公開面（`contracts/testing.md` 付録 A）を `packages/testkit/src/contract.ts` に移設。`contracts/testing.md` §1 で platform/agent の `testing` が提供するとされた helper（`memDb`・`createFakeClock`・`createReplaySpawner` …）も当面は testkit にスタブを置く | 型が testkit 契約にあり、platform・agent は testkit を import できない。WP-01 / WP-05 が自分の `testing.ts` に実装したら testkit は re-export に置き換える（型の移設は次の CR バッチ） |
+| CR m0-14 | WP-11a | accepted-modified | server 契約: `migrationsFor(db: Migration["db"]): readonly Migration[]`（スタブ `wiring/`、WP-INT が実装） | 2 関数の提案を 1 関数に。cli は agent を import できないため composition root が集める。`apps/cli/src/daemon/serve.ts` の `CR-PENDING(WP-11a)` は WP-INT 実装後に S9（WP-11）が置き換える |
+| CR m0-17 | WP-00b, WP-11a | accepted | `fixtures/`・`bench/`・`test/`・`e2e/`・`eval/` に `tsconfig.json`（全 package を reference）、root `tsconfig.json` から参照 | `tsc -b` が fixtures・truth・budgets・skeleton・今後の int/e2e/eval を検査する |
+| CR m0-19 | WP-11a | accepted | `apps/cli/package.json` dependencies + `elkjs@0.12.0`・`web-tree-sitter@0.27.0`・`@shikijs/{core,engine-oniguruma,langs}@4.5.0`（`bun.lock` 更新、`--frozen-lockfile` 緑） | hoisted linker に頼らない。Worker entry の server への移設（indexer spec §3.3）は WP-INT のまま |
 
 ## Notes (M0 layout)
 
@@ -68,6 +72,14 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
   skeleton binary.
 - gen ⟂ loop: their interactions (accept → S9 suggestions, Ask answer → doc, doc_edit "fix the code") exist only in
   `wiring/`.
+
+## CR batch 1 (2026-10-03)
+
+- **CR m0-14**: implement `migrationsFor(db)` in `packages/server/src/wiring/index.ts`: the server's own migrations
+  + every package's `*_MIGRATIONS` for `db`, in `MIGRATION_ORDER[db]` order then `version`. The CLI daemon calls it.
+- **CR m0-17**: `test/` (incl. your `test/int/`) has a `tsconfig.json` referencing every package; `tsc -b` checks it.
+- **CR m0-19**: `apps/cli/package.json` declares elkjs / web-tree-sitter / @shikijs/*; when you move the parse Worker
+  entry to `packages/server/src/workers/`, the server manifest must declare what it imports (architect edits manifests).
 
 ## Out of scope
 

@@ -12,7 +12,7 @@ read:
   - packages/loop/src/contract.ts | C8
   - packages/core/src/domain.ts | 11
   - packages/core/src/domain.ts | 13
-crs: loop-2, loop-8, loop-9, jdg-7, jdg-8, ux-R18, ux-R19, m0-5
+crs: loop-2, loop-8, loop-9, jdg-7, jdg-8, ux-R18, ux-R19, m0-5, m0-16
 owns:
   - packages/loop/src/git
   - packages/loop/src/gates
@@ -23,7 +23,7 @@ owns:
 - Demo Fix on `go-small` ("make the retry count configurable", WP-00b): patch mode, input ≤ 3k / output ≤ 1.5k
   tokens, gofmt gate, accept → uncommitted working-tree change → Undo restores fully, **user repo refs/objects/
   worktree metadata unchanged** (GIT-S-06). Engines replay recordings (`fixtures/agent-streams/`) — no real calls.
-- Go/Rust/Python toolchains for gates: present in `devShells.ci`; locally use the host toolchains.
+- Go/Rust/Python toolchains for gates: in both `devShells.default` and `ci` (CR m0-16); run them via `scripts/nd`.
 
 ## Notes (M0 layout)
 

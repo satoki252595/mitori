@@ -9,7 +9,7 @@ read:
   - docs/design/specs/server.md | 1.
   - docs/design/specs/server.md | 2.
   - docs/design/specs/indexer.md | 3.2
-crs: m0-3, m0-7, m0-9, test-6
+crs: m0-3, m0-7, m0-9, test-6, m0-14, m0-18, m0-19, m0-20, m0-21
 owns:
   - apps/cli/src/main.ts
   - apps/cli/src/daemon
@@ -41,6 +41,11 @@ owns:
 - The parse Worker entry belongs in `packages/server/src/workers/parse.ts` per indexer spec §3.3 — that is
   server territory (WP-INT); coordinate through WP-INT, or keep the worker entry under `apps/cli/src/build/` for M0.5.
 - `test/skeleton` (acceptance) is a root `test/` zone: allowed to import anything; spawn the compiled binary there.
+
+## Status: done (M0.5, merged 2026-10-03)
+
+CR batch 1 answered `docs/design/cr-requests/WP-11a.md` (CR m0-14, m0-18 … m0-21); the `serve.ts` migration
+list and the per-target size gate are WP-11's follow-ups (see its brief).
 
 ## Out of scope
 
