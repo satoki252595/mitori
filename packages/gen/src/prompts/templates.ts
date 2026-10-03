@@ -165,7 +165,7 @@ export const LANG_TEXT = {
   ja: {
     name: "Japanese",
     style:
-      "Use written Japanese in the plain style (だ・である調), full-width punctuation 、。（）, half-width letters and digits, and one ASCII space between Japanese and Latin letters, digits or code spans (mitori removes it for display).",
+      "Use written Japanese in the plain style (だ・である調), full-width punctuation 、。（）, half-width letters and digits, and one ASCII space between Japanese and Latin letters, digits or code spans (mitori removes it for display), but no space after full-width punctuation such as 。、）.",
     yomiRule: '"yomi": the reading of the term in hiragana only (ー allowed), for example 認証 → にんしょう and Worker → わーかー. Required for every term.',
     termFields: "term, yomi (the reading in hiragana) and def; en optional",
   },
