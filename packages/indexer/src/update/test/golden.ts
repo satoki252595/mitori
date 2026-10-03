@@ -9,9 +9,16 @@ import { REPO_ROOT } from "../../parse/test/env.ts";
 export const GOLDEN_ROOT = join(REPO_ROOT, "fixtures/golden");
 const UPDATE = process.env.MITORI_UPDATE_GOLDEN === "1";
 
+/**
+ * Bidi controls and zero-width characters never sit raw in the repository (fixtures/truth/security-fixtures.test.ts):
+ * goldens store them as `\u{…}` (the injection fixture generates them at build time).
+ */
+const INVISIBLE = /[​-‏‪-‮⁦-⁩﻿]/g;
+const visible = (t: string): string => t.replace(INVISIBLE, (c) => `\\u{${(c.codePointAt(0) ?? 0).toString(16)}}`);
+
 /** Compare `actual` with `fixtures/golden/<rel>` (objects as canonical JSON). */
 export function expectGolden(rel: string, actual: string | object): void {
-  const text = typeof actual === "string" ? actual : canonicalJson(actual);
+  const text = visible(typeof actual === "string" ? actual : canonicalJson(actual));
   const file = join(GOLDEN_ROOT, rel);
   if (UPDATE) {
     mkdirSync(dirname(file), { recursive: true });
