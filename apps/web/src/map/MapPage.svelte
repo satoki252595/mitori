@@ -122,6 +122,38 @@ $effect(() => {
   tail = last ? `${t(`gen.stage.${last.stage}`)} · ${last.target.id}` : null;
 });
 
+// `?text=1` opens 「テキストで見る」 (permalink, ⌘K); closing it drops the parameter again (ux.md §4.2.6)
+$effect(() => {
+  if (route.name === "map" && route.textView && model) untrack(() => (s.ui.textViewOpen = true));
+});
+
+// 表示 ▾ is a `menu` layer: Escape closes it first (LAYER_ORDER)
+let hudMenu: HTMLDetailsElement | undefined = $state();
+// registered from the summary click itself (the toggle event is a later task: an Escape typed right after the
+// click could otherwise arrive first)
+function onHudMenu(open: boolean) {
+  if (open) {
+    if (!s.layers.isOpen("hud-menu"))
+      s.layers.open("menu", "hud-menu", () => {
+        if (hudMenu) hudMenu.open = false;
+      });
+  } else s.layers.drop("hud-menu");
+}
+
+function openTextView() {
+  if (hudMenu?.open) s.layers.close("hud-menu", { restoreFocus: false });
+  s.ui.textViewOpen = true;
+  if (route.name === "map" && !route.textView) s.router.replaceUrl({ ...route, textView: true });
+}
+
+function closeTextView() {
+  s.ui.textViewOpen = false;
+  if (route.name === "map" && route.textView) {
+    const { textView: _text, ...rest } = route;
+    s.router.replaceUrl(rest);
+  }
+}
+
 // the room in the URL (`?room=`) is selected on load
 $effect(() => {
   if (route.name === "map" && route.room && model?.byId.has(route.room)) untrack(() => (s.map.selected = route.room ?? null));
@@ -222,6 +254,7 @@ onMount(() => {
     for (const off of offs) off();
     s.layers.drop("room-sel");
     s.layers.drop("map-zoom");
+    s.layers.drop("hud-menu");
   };
 });
 
@@ -303,12 +336,12 @@ const stale = $derived(s.doc.outline?.counts.stale ?? 0);
       <div class="hud" data-chrome>
         <button type="button" class="chip" aria-pressed={s.map.overlays.comments} onclick={() => (s.map.overlays.comments = !s.map.overlays.comments)}>{t("map.hud.comments")}</button>
         <button type="button" class="chip" aria-pressed={s.map.overlays.working} onclick={() => (s.map.overlays.working = !s.map.overlays.working)}>{t("map.hud.working")}</button>
-        <details class="menu">
-          <summary class="chip">{t("map.hud.view")}</summary>
+        <details class="menu" bind:this={hudMenu} ontoggle={() => onHudMenu(!!hudMenu?.open)}>
+          <summary class="chip" onclick={() => onHudMenu(!hudMenu?.open)}>{t("map.hud.view")}</summary>
           <div class="pop menu-pop" role="menu">
             <label><input type="checkbox" bind:checked={s.map.overlays.freshness} /> {t("map.hud.freshness")}</label>
             <label><input type="checkbox" bind:checked={s.map.overlays.allDeps} /> {t("map.hud.allDeps")}</label>
-            <button type="button" role="menuitem" onclick={() => (s.ui.textViewOpen = true)}>{t("map.hud.textView")}</button>
+            <button type="button" role="menuitem" onclick={openTextView}>{t("map.hud.textView")}</button>
           </div>
         </details>
       </div>
@@ -429,7 +462,7 @@ const stale = $derived(s.doc.outline?.counts.stale ?? 0);
   </aside>
 </div>
 
-{#if s.ui.textViewOpen && model}<TextViewDialog {model} onclose={() => (s.ui.textViewOpen = false)} />{/if}
+{#if s.ui.textViewOpen && model}<TextViewDialog {model} onclose={closeTextView} />{/if}
 
 <style>
   .map-body {

@@ -15,15 +15,22 @@ export class RouterStore implements Router {
   route = $state.raw<RouteState>({ name: "launcher" });
   /** True when the current route came from back/forward (the view restores `restored`). */
   restored = $state.raw<HistoryEntryState | null>(null);
+  /**
+   * Navigation counter: bumped by `go()`, back/forward and the first route — NOT by `replaceUrl()` (j / k block
+   * hash, room selection, ctx mode), so a view's "arrived" logic (scroll, focus) runs once per navigation.
+   */
+  nav = $state(0);
   #waiters: (() => void)[] = [];
   #win: Window | null = null;
 
   attach(win: Window): () => void {
     this.#win = win;
     this.route = parseRoute(win.location.pathname + win.location.search + win.location.hash);
+    this.nav++;
     const onPop = (e: PopStateEvent) => {
       this.restored = (e.state as HistoryEntryState | null) ?? null;
       this.route = parseRoute(win.location.pathname + win.location.search + win.location.hash);
+      this.nav++;
     };
     win.addEventListener("popstate", onPop);
     return () => win.removeEventListener("popstate", onPop);
@@ -50,6 +57,7 @@ export class RouterStore implements Router {
     this.restored = null;
     this.focusMain = opts.focus !== "keep";
     this.route = to;
+    this.nav++;
     return new Promise((resolve) => this.#waiters.push(resolve));
   }
 

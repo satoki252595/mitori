@@ -14,8 +14,13 @@ let dlg: HTMLDialogElement | undefined = $state();
 
 $effect(() => {
   if (!dlg) return;
+  // register first: the layer remembers the focus to return to, and showModal() moves it into the dialog
+  // closing the <dialog> first lifts the page's inertness, so the layer can return focus to where it was
+  s.layers.open("dialog", "text-view", () => {
+    dlg?.close();
+    onclose();
+  });
   dlg.showModal();
-  s.layers.open("dialog", "text-view", onclose);
   return () => s.layers.drop("text-view");
 });
 

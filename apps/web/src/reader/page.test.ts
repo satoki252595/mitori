@@ -129,7 +129,12 @@ describe("code pane", () => {
 
   test("index.changed drops cached windows of the changed files only", async () => {
     const calls: string[] = [];
-    const api = { call: async (_k: string, a: { query: { path: string } }) => (calls.push(a.query.path), { path: a.query.path }) } as never;
+    const api = {
+      call: async (_k: string, a: { query: { path: string } }) => {
+        calls.push(a.query.path);
+        return { path: a.query.path };
+      },
+    } as never;
     const ws = "ws_cache0000000" as never;
     await loadCode(api, ws, "a.go", 1, 10);
     await loadCode(api, ws, "b.go", 1, 10);

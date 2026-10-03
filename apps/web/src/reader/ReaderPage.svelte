@@ -86,11 +86,12 @@ $effect(() => {
   });
 });
 
-// first paint of a page: mark, focus, scroll (hash / sub-section / restored), announce
+// first paint after a navigation: mark, focus, scroll (hash / sub-section / restored), announce. Keyed by the
+// router's navigation counter, so j / k (which only replace the URL's block hash) never re-run it.
 let paintedFor: string | null = null;
 $effect(() => {
   if (!loaded || !model) return;
-  const key = `${model.page}|${route.name === "doc" ? (route.block ?? route.section) : ""}`;
+  const key = `${model.page}|${s.router.nav}`;
   if (paintedFor === key) return;
   paintedFor = key;
   untrack(() => {
@@ -108,7 +109,8 @@ $effect(() => {
     } else if (r.name === "doc" && r.section !== model.page) {
       document.querySelector(`[data-sec="${CSS.escape(r.section)}"]`)?.scrollIntoView({ block: "start" });
     } else window.scrollTo(0, 0);
-    if (s.router.focusMain && !restored) (main?.querySelector("h1") as HTMLElement | null)?.focus({ preventScroll: true });
+    // the page heading gets focus (§2.3-5) unless the link targeted a block, which then keeps it
+    if (s.router.focusMain && !restored && !(r.name === "doc" && r.block)) (main?.querySelector("h1") as HTMLElement | null)?.focus({ preventScroll: true });
     const n = ix?.nodes.get(model.page);
     if (n) s.ui.announce(t("reader.announce.page", { num: ix?.numbers.get(model.page) ?? "", title: n.title }));
   });

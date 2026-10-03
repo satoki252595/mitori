@@ -174,3 +174,31 @@ test("@wp10a S1 Escape: clears the selection first, then zooms out one stage at 
   await settle();
   expect(await scale()).toBeCloseTo(fit, 3);
 });
+
+test("@wp10a AC-J16 テキストで見る: ?text=1 opens the dialog (tables with th scope); Escape closes it, drops the parameter and returns focus", async ({
+  page,
+}) => {
+  await configure({});
+  await page.goto(`/w/${WS}?text=1`);
+  await waitMark(page, "mitori:map:painted");
+  const dlg = page.locator("dialog.tv");
+  await expect(dlg).toBeVisible();
+  expect(await dlg.locator("th[scope]").count()).toBeGreaterThan(3);
+  await page.keyboard.press("Escape");
+  await expect(dlg).toHaveCount(0);
+  expect(new URL(page.url()).searchParams.get("text")).toBeNull();
+  // keyboard only: focus a room, open from the HUD menu, close, focus is back on the room
+  const room = page.locator(".room").first();
+  await room.focus();
+  await page.locator(".hud summary", { hasText: "表示" }).click();
+  // Escape closes the menu first (menu layer), then it opens again
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".hud details.menu")).not.toHaveAttribute("open");
+  await page.locator(".hud summary", { hasText: "表示" }).click();
+  await page.getByRole("menuitem", { name: "テキストで見る" }).click();
+  await expect(page.locator(".hud details.menu")).not.toHaveAttribute("open");
+  await expect(dlg).toBeVisible();
+  expect(new URL(page.url()).searchParams.get("text")).toBe("1");
+  await page.keyboard.press("Escape");
+  await expect(dlg).toHaveCount(0);
+});

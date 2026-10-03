@@ -124,6 +124,21 @@ for (const [w, h] of [
   });
 }
 
+test("@wp10a dialogs return focus (ux.md §3.6): ? → help → Escape puts focus back on the focused block; j still works", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}/doc/s3`);
+  await waitMark(page, "mitori:section:rendered");
+  await page.keyboard.press("j");
+  const block = await page.locator(".blk.focus").getAttribute("data-b");
+  await page.keyboard.press("?");
+  await expect(page.locator("dialog.help")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("dialog.help")).toHaveCount(0);
+  expect(await page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.b ?? null)).toBe(block);
+  await page.keyboard.press("j");
+  await expect(page.locator(".blk.focus")).not.toHaveAttribute("data-b", block ?? "");
+});
+
 test("@wp10a S2 `o` pins the focused cite in code mode; Escape returns to the previous mode and the URL drops ctx / pin (ux.md §4.4)", async ({ page }) => {
   await configure({});
   await page.goto(`/w/${WS}/doc/s3`);
