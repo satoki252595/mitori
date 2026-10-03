@@ -2,7 +2,7 @@
 // aux queries → extraction → skeleton fragments → fact candidates → `tree.delete()`. Pure: only `env` touches the
 // outside world, so the same code runs in Bun Workers, node:worker_threads or in-thread (tests).
 import type { ExtractorVersion, SourceLang } from "@mitori/core";
-import { Edit, Language, Parser, Query, type Tree } from "web-tree-sitter";
+import { Edit, type Language, Parser, Query, type Tree } from "web-tree-sitter";
 import {
   type FactCandidate,
   type GrammarId,
@@ -29,6 +29,7 @@ import { type ExtractedSymbol, type Extraction, extract } from "./extract.ts";
 import { docHeadings, genericCommentLines, genericSymbols } from "./generic.ts";
 import type { ParseItemExt, ParseOkResult, ParseResultExt } from "./protocol.ts";
 import { countLoc, decodeUtf8, lineStarts, splitLines } from "./text.ts";
+import { loadLanguage, precompiledOf, runtimeOptions } from "./wasm.ts";
 
 // One WASM runtime per thread: Parser.init replaces module state, so every handler of a thread shares it.
 let runtime: Promise<void> | null = null;
@@ -70,7 +71,8 @@ export interface WorkerHandlerImpl extends ParseWorkerHandler {
 const DOC_LIKE: ReadonlySet<string> = new Set(["md", "mdx", "markdown", "rst", "adoc", "asciidoc"]);
 
 export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorkerInit): Promise<WorkerHandlerImpl> {
-  runtime ??= Parser.init({ wasmBinary: init.runtime });
+  const compiled = precompiledOf(init);
+  runtime ??= Parser.init(runtimeOptions(init, compiled));
   await runtime;
   const parser = new Parser();
   const grammars = new Map<GrammarId, GrammarState>();
@@ -100,7 +102,7 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
     if (lp === undefined) {
       const bytes = grammarBytes.get(g);
       if (bytes === undefined) return null;
-      lp = Language.load(bytes);
+      lp = loadLanguage(bytes, compiled?.grammars?.[g]);
       languages.set(g, lp);
     }
     grammarBytes.delete(g);
