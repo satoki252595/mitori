@@ -1,9 +1,11 @@
 import {
+  type BinaryPin,
   type Cancel,
   type ClaudeModelId,
   type Clock,
   type EngineStatus,
   type ErrorCode,
+  type FsReader,
   type GlobalSettings,
   type Hasher,
   type Logger,
@@ -34,6 +36,7 @@ import { EMPTY_REL, type SandboxStore } from "./fsports.ts";
 import { buildClaudeSpawn } from "./index.ts";
 import { ClaudeProc, type ProcDeps } from "./process.ts";
 import { sameLaunch, WARM_MODES, warmProfileKey, warmProfileOf } from "./profile.ts";
+import { firstRunPin, isBareName, resolveOnSafePath } from "./resolve.ts";
 
 export interface ClaudeEngineDeps {
   spawner: Spawner;
@@ -51,6 +54,10 @@ export interface ClaudeEngineDeps {
   sandbox: SandboxStore;
   /** Latest window seen by the scheduler (billing on the status card). */
   window: () => SubscriptionWindow | null;
+  /** Reads the binary for the first-run pin (null ⇒ no TOFU resolution; only a settings pin works). */
+  fs: FsReader | null;
+  /** Persists a first-run pin (composition root → settings `pins.claude`) [CR m1-65]; failures are logged. */
+  pin?: (pin: BinaryPin) => Promise<void>;
 }
 
 /** The claude-cli engine plus bridge-internal views. */
@@ -103,6 +110,8 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
   const templates = new Map<Xxh3, { req: EngineRequest; at: number }>();
   let status: { s: EngineStatus; at: number } | null = null;
   let detecting: Promise<EngineStatus> | null = null;
+  /** Trust-on-first-use pin of this daemon (until the composition root persists it into settings) [CR m1-65]. */
+  let tofu: BinaryPin | null = null;
 
   const procDeps: ProcDeps = {
     spawner: deps.spawner,
@@ -115,8 +124,10 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
     newId: () => `cp_${uuidV4(deps.random).slice(0, 8)}`,
   };
 
+  const currentPin = (): BinaryPin | undefined => deps.settings().pins.claude ?? tofu ?? undefined;
+
   const binary = (): { path: string; realpath: string; version: string } | null => {
-    const pin = deps.settings().pins.claude;
+    const pin = currentPin();
     if (pin) return { path: pin.path, realpath: pin.realpath, version: pin.version };
     const b = cs().binary;
     return b.startsWith("/") ? { path: b, realpath: b, version: status?.s.version ?? "" } : null;
@@ -204,8 +215,9 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
   const prepare = async (req: EngineRequest, overrideUsd?: number): Promise<{ spec: SpawnSpec; key: Xxh3 | null }> => {
     const settings = cs();
     if (!settings.enabled) throw new MitoriError("E_AGENT_NOT_INSTALLED", "claude-cli is disabled in settings");
-    const bin = binary();
-    if (!bin) throw new MitoriError("E_AGENT_NOT_INSTALLED", "claude binary is not pinned (confirm it on the engine card)");
+    // a run before the first detect() finished still gets the first-run pin [CR m1-65]
+    const bin = binary() ?? (await detect().then(binary));
+    if (!bin) throw new MitoriError("E_AGENT_NOT_INSTALLED", "claude binary is not pinned and was not found on PATH");
     const systemPromptFile = await deps.sandbox.systemPromptFile(req.system);
     if (req.mode !== "agent") await deps.sandbox.ensureEmptyCwd();
     const eff = effectiveSettings(req);
@@ -292,22 +304,43 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
     return pending;
   };
 
+  /**
+   * First run with no pin: resolve the bare `binary` name on SAFE_PATH once, probe it, and pin it (TOFU) when
+   * `--version` answers [CR m1-65, SEC-10]. Later version changes surface as `E_ENGINE_BINARY_CHANGED` as usual.
+   */
+  const probeFirstRun = async (probe: (bin: string | null, pin: BinaryPin | undefined) => Promise<EngineStatus>): Promise<EngineStatus> => {
+    const found = deps.fs && isBareName(cs().binary) ? resolveOnSafePath(deps.fs, deps.safePath, cs().binary) : null;
+    if (!found || !deps.fs) return probe(null, undefined);
+    const s = await probe(found.path, undefined);
+    if (!s.installed || !s.version) return s;
+    const pin = await firstRunPin(deps.fs, deps.hasher, found, s.version, deps.clock.iso());
+    tofu = pin;
+    s.pin = pin;
+    deps.log.info("agent.claude.first_run_pin", { path: pin.path, realpath: pin.realpath, version: pin.version });
+    if (deps.pin) await deps.pin(pin).catch((err: unknown) => deps.log.warn("agent.claude.pin_persist_failed", { error: String(err) }));
+    return s;
+  };
+
   const detect = async (): Promise<EngineStatus> => {
     const now = deps.clock.now();
     if (status && status.s.problems.length === 0 && now - status.at < DETECT_TTL_MS) return status.s;
     detecting ??= (async () => {
       try {
+        const probe = (bin: string | null, pin: BinaryPin | undefined) =>
+          probeClaude({
+            spawner: deps.spawner,
+            timers: deps.timers,
+            binary: bin,
+            pin,
+            env: scrubEnv(childEnv(), cs().envPassthrough),
+            cwd: emptyCwd,
+            now: deps.clock.iso(),
+            window: deps.window(),
+          });
+        // the probes run in the sandbox cwd (I9); on a fresh home it does not exist yet and the spawn would fail
+        await deps.sandbox.ensureEmptyCwd().catch((err: unknown) => deps.log.warn("agent.claude.sandbox_unavailable", { error: String(err) }));
         const bin = binary();
-        const s = await probeClaude({
-          spawner: deps.spawner,
-          timers: deps.timers,
-          binary: bin?.path ?? null,
-          pin: deps.settings().pins.claude,
-          env: scrubEnv(childEnv(), cs().envPassthrough),
-          cwd: emptyCwd,
-          now: deps.clock.iso(),
-          window: deps.window(),
-        });
+        const s = bin ? await probe(bin.path, currentPin()) : await probeFirstRun(probe);
         if (!cs().enabled) s.problems.unshift({ code: "E_AGENT_NOT_INSTALLED", message: "claude-cli is disabled in settings" });
         // ANTHROPIC_BASE_URL reaches the CLI only via envPassthrough; the engine card says "via proxy" (spec §6.4)
         if (cs().envPassthrough.includes("ANTHROPIC_BASE_URL") && typeof deps.env.ANTHROPIC_BASE_URL === "string") s.capabilities.push("via-proxy");

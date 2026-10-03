@@ -694,6 +694,8 @@ export function createTestBridge(opts: {
   env?: Record<string, string | undefined>;
   clock?: FakeClock;
   fetch?: (url: string, init: { method: string; headers: Record<string, string>; body: string; signal: AbortSignal }) => Promise<Response>;
+  /** The composition root's pin persistence (first-run pins) [CR m1-65]. */
+  pin?: (engine: EngineId, pin: import("@mitori/core").BinaryPin) => Promise<void>;
 }): TestBridge {
   const clock = opts.clock ?? createFakeClock();
   const fs = memFs();
@@ -722,6 +724,7 @@ export function createTestBridge(opts: {
     fs: fs.fs,
   };
   if (opts.fetch) extra.fetch = opts.fetch;
+  if (opts.pin) extra.pin = opts.pin;
   const { scheduler, engines } = assembleBridge(extra);
   return { scheduler, engines, ledger, fs, clock, log, events, metrics, home };
 }

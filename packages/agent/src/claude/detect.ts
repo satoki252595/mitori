@@ -141,7 +141,7 @@ export async function probeClaude(i: ProbeInput): Promise<EngineStatus> {
     if (i.pin) s.pin = i.pin;
     return s;
   };
-  if (i.binary === null) return base([{ code: "E_AGENT_NOT_INSTALLED", message: "claude binary is not pinned (confirm it on the engine card)" }]);
+  if (i.binary === null) return base([{ code: "E_AGENT_NOT_INSTALLED", message: "claude binary is not pinned and was not found on PATH" }]);
   const common = { command: i.binary, env: i.env, cwd: i.cwd };
   const ver = await runProbe(i.spawner, i.timers, { ...common, argv: ["--version"] });
   if (ver.code !== 0) return base([{ code: "E_AGENT_NOT_INSTALLED", message: "claude --version failed" }]);

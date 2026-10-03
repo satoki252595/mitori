@@ -2,10 +2,26 @@
  * @mitori/agent — `bridge/` (owner: WP-05). Everything exported here is public (re-exported by `src/index.ts`):
  * export only contract names; keep helpers in sibling files.
  */
-import type { Clock, EffectiveSettings, EngineId, EventSink, Hasher, Logger, Metrics, Migration, Random, SseEventPayload, WriteQueue } from "@mitori/core";
+import type {
+  BinaryPin,
+  Clock,
+  EffectiveSettings,
+  EngineId,
+  EventSink,
+  FsReader,
+  Hasher,
+  Logger,
+  Metrics,
+  Migration,
+  Random,
+  SafeWriter,
+  SseEventPayload,
+  WriteQueue,
+} from "@mitori/core";
+import type { FetchLike } from "../adapters/anthropic-engine.ts";
 import type { AgentScheduler, Engine, Spawner, UsageLedger } from "../contract.ts";
 import { LEDGER_MIGRATIONS } from "../ledger/migrations.ts";
-import { assembleBridge, type BridgeExtraDeps } from "./assemble.ts";
+import { assembleBridge } from "./assemble.ts";
 
 /** Factory for the scheduler + engines. */
 export function createAgentBridge(deps: {
@@ -38,9 +54,22 @@ export function createAgentBridge(deps: {
   home: string;
   /** Parent environment (scrubbed per request). */
   env: Readonly<Record<string, string | undefined>>;
+  /**
+   * System prompt files `run/sp/*` (kind `home`, I3) and the empty sandbox `run/empty` (I9) [CR m1-57]. Optional
+   * until every caller passes it: without it claude-cli and generic runs fail with `E_PRECONDITION`.
+   */
+  safeWrite?: SafeWriter;
+  /** Byte-compare before reuse (SEC-20), the sandbox listing, first-run binary resolution [CR m1-57, m1-65]. */
+  fs?: FsReader;
+  /** HTTP for anthropic-api (defaults to the global `fetch`). */
+  fetch?: FetchLike;
+  /**
+   * Persist a first-run pin (TOFU) through the settings service [CR m1-65]. Absent ⇒ the bridge still resolves and
+   * pins `claude` on SAFE_PATH for this daemon's lifetime, so the engine card is usable on a fresh install.
+   */
+  pin?: (engine: EngineId, pin: BinaryPin) => Promise<void>;
 }): { scheduler: AgentScheduler; engines: Record<EngineId, Engine | null> } {
-  // CR-PENDING(WP-05): SafeWriter/FsReader (cr-requests/WP-05.md #2) and `fetch` arrive as optional extra deps.
-  return assembleBridge(deps as typeof deps & Partial<BridgeExtraDeps>);
+  return assembleBridge(deps);
 }
 
 /** Migrations of the usage ledger + calibration (`use_*` in `state.sqlite`). */
