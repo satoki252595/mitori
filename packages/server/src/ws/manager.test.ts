@@ -230,6 +230,51 @@ describe("SRV-I-022 WorkspaceManager", () => {
     ).toBe("E_WS_NOT_FOUND");
   });
 
+  test("forget during a load in flight leaves no runtime behind", async () => {
+    const s = await setup();
+    const rt = await s.m.open(s.project("racy"), { force: false });
+    const ws = rt.info.key;
+    await s.m.unload(ws);
+    let release = () => {};
+    s.domain.assembleGate = new Promise<void>((r) => {
+      release = r;
+    });
+    const pending = s.m.get(ws).catch(() => null);
+    await Bun.sleep(5);
+    const forgotten = s.m.forget(ws, false);
+    release();
+    await forgotten;
+    await pending;
+    expect(s.m.loaded()).toEqual([]);
+    expect(s.m.has(ws)).toBe(false);
+    expect(s.domain.closes).toBe(2); // the first open + the load that forget waited for
+  });
+
+  test("unload while doc.load() is pending: the waiting get() fails, parts close once, no scan", async () => {
+    const s = await setup();
+    const rt = await s.m.open(s.project("gated"), { force: false });
+    const ws = rt.info.key;
+    await Bun.sleep(0);
+    await s.m.unload(ws);
+    const scans = s.domain.scans;
+    let release = () => {};
+    s.domain.loadGate = new Promise<void>((r) => {
+      release = r;
+    });
+    const pending = s.m.get(ws).then(
+      () => "ok",
+      (e: unknown) => (e instanceof MitoriError ? e.code : String(e)),
+    );
+    await Bun.sleep(5);
+    await s.m.unload(ws);
+    release();
+    expect(await pending).toBe("E_WS_NOT_FOUND");
+    expect(s.m.loaded()).toEqual([]);
+    expect(s.domain.closes).toBe(2);
+    expect(s.domain.scans).toBe(scans);
+    expect(s.m.has(ws)).toBe(true); // still registered: the next get() loads it again
+  });
+
   test("registrations survive a manager restart (state DB)", async () => {
     const s = await setup();
     const rt = await s.m.open(s.project("persist"), { force: false });

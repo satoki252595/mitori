@@ -313,6 +313,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     await deps.safeWrite.write(home, `repos/${ws}/workspace.json`, `${JSON.stringify(info, null, 2)}\n`, "home");
     const db = deps.openDb(`${home}/repos/${ws}/index.sqlite`);
     let assembled: WorkspaceParts | null = null;
+    let published = false;
     try {
       deps.migrate(db);
       const writer = createWorkspaceWriter({ ws, db, hub, metrics: deps.metrics, dev: deps.dev });
@@ -340,15 +341,18 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       };
       const l: Loaded = { rt, parts, db, started: false, lastError: null, idleSince: null, active: false, reresolve };
       loaded.set(ws, l);
+      published = true;
       syncActive(l);
       announce(ws);
       await parts.doc.load();
+      if (loaded.get(ws) !== l) throw new MitoriError("E_WS_NOT_FOUND", "workspace was unloaded while it loaded", { params: { ws } });
       void scan(ws, l, false);
       schedulePoll();
       return l;
     } catch (e) {
-      const cur = loaded.get(ws);
-      if (cur?.db === db) loaded.delete(ws);
+      const mine = loaded.get(ws)?.db === db;
+      if (published && !mine) throw e; // unload() took it meanwhile and already closed parts and DB
+      if (mine) loaded.delete(ws);
       await assembled?.close?.().catch(() => undefined);
       try {
         db.close();
@@ -492,6 +496,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     },
     unload,
     async forget(ws, purge) {
+      await loading.get(ws)?.catch(() => undefined); // a load in flight would leave a runtime nobody can reach
       await unload(ws);
       const e = entries.get(ws);
       if (!e) return;

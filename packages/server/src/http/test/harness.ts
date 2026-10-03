@@ -50,11 +50,16 @@ export interface FakeDomain {
   closes: number;
   busy: boolean;
   scanGate: Promise<void> | null;
+  /** `assemble()` waits on it (a load in flight before the runtime exists). */
+  assembleGate?: Promise<void> | null;
+  /** `doc.load()` waits on it (a load in flight after the runtime exists). */
+  loadGate?: Promise<void> | null;
 }
 
 /** Domain parts that only answer what the manager calls (`doc.load`, `indexer.scan`). */
 export function fakeAssemble(state: FakeDomain): WorkspaceManagerDeps["assemble"] {
   return async () => {
+    if (state.assembleGate) await state.assembleGate;
     const parts: WorkspaceParts = {
       indexer: {
         scan: async () => {
@@ -70,6 +75,7 @@ export function fakeAssemble(state: FakeDomain): WorkspaceManagerDeps["assemble"
       doc: {
         load: async () => {
           state.loads += 1;
+          if (state.loadGate) await state.loadGate;
           return {};
         },
       } as unknown as WorkspaceParts["doc"],
