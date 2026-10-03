@@ -71,7 +71,8 @@ export async function run(io: Io): Promise<number> {
 
   const n = await roundOf(s, ws, round);
   const deadline = waitSec === undefined ? Number.POSITIVE_INFINITY : io.clock.now() + waitSec * 1000;
-  const notReadyUntil = io.clock.now() + REVIEW_WAIT.notReadyMaxMs;
+  /** Start of the current run of 503s (the 5-minute retry window is per run, not per review). */
+  let notReadySince: number | null = null;
   const lost = () => {
     io.out(shutdownText(n));
     io.err(`${REVIEW_STDOUT.stderrApproved.replace("{approved}", "false")}\n`);
@@ -97,10 +98,12 @@ export async function run(io: Io): Promise<number> {
       if (m.code !== "E_NOT_READY" && m.code !== "E_CANCELLED") throw m;
       // a 503 from the same live daemon (workspace loading) is retried; an unreachable or replaced daemon is a shutdown
       if ((await findDaemon(io, s.home))?.registry.pid !== s.daemon.registry.pid) return lost();
-      if (io.clock.now() > notReadyUntil) throw m;
+      notReadySince ??= io.clock.now();
+      if (io.clock.now() - notReadySince > REVIEW_WAIT.notReadyMaxMs) throw m;
       await sleep(REVIEW_WAIT.notReadyRetryMs);
       continue;
     }
+    notReadySince = null;
     if (res.status === "timeout") continue;
     if (res.status === "shutdown") {
       io.out(res.stdout ?? shutdownText(res.round?.n ?? n));

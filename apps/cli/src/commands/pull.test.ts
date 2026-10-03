@@ -3,7 +3,7 @@
  * limits, SEC-04), `touch` (zero output, AC-L74), `check`, `digest`, `open`.
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runCommand } from "./index.ts";
 import { ApiFail, type FakeDaemon, startFakeDaemon, summary, testIo, WS } from "./test/fake-daemon.ts";
@@ -100,6 +100,7 @@ describe("CLI-I-005 mitori reply (spec §10.3)", () => {
     mkdirSync(join(d.repo, ".mitori/tmp"), { recursive: true });
     writeFileSync(join(d.repo, ".mitori/tmp/r.md"), "from tmp\n");
     writeFileSync(join(d.repo, ".env"), "TOKEN=x\n");
+    writeFileSync(join(d.repo, "src/Server.PEM"), "-----BEGIN-----\n");
     mkdirSync(join(d.repo, ".github/workflows"), { recursive: true });
     writeFileSync(join(d.repo, ".github/workflows/ci.yml"), "on: push\n");
     writeFileSync(join(d.dir, "outside.md"), "outside\n");
@@ -107,7 +108,7 @@ describe("CLI-I-005 mitori reply (spec §10.3)", () => {
     expect(await runCommand("reply", io([TH, "--answer", "--body-file", "src/reply.md"]))).toBe(0);
     expect(await runCommand("reply", io([TH, "--answer", "--body-file", ".mitori/tmp/r.md"]))).toBe(0);
     expect(d.calls("POST /ws/:ws/threads/:th/reply").map((c) => (c.body as { body: string }).body)).toEqual(["長い返信\n", "from tmp\n"]);
-    for (const bad of [".env", ".github/workflows/ci.yml", "../outside.md", "src/link.md", ".mitori/config.json"]) {
+    for (const bad of [".env", "src/Server.PEM", ".github/workflows/ci.yml", "../outside.md", "src/link.md", ".mitori/config.json"]) {
       const t = io([TH, "--answer", "--body-file", bad]);
       expect({ bad, code: await runCommand("reply", t) }).toEqual({ bad, code: 1 });
       expect(t.stderr).toMatch(/error E_(PATH_OUTSIDE|NOT_FOUND): /);
@@ -148,6 +149,7 @@ describe("CLI-I-006 / AC-L74 mitori touch --stdin", () => {
     d.route("POST /ws/:ws/touch", () => {
       throw new ApiFail(500, "E_INTERNAL", "boom");
     });
+    chmodSync(join(d.home, "daemon.json"), 0o644); // a world-readable registry is warned about elsewhere, never here
     for (const t of [io(["--stdin"], { stdin: payload(join(d.repo, "a")) }), io(["--stdin"], { stdin: "not json" }), io(["--bogus"])]) {
       expect(await runCommand("touch", t)).toBe(0);
       expect([t.stdout, t.stderr]).toEqual(["", ""]);

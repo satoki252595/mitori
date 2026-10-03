@@ -4,10 +4,9 @@
  * (spec §11.4: outdated → `mitori install <target>` updates it; modified files are left alone). Exit 1 when
  * something needs attention. The three maintenance flags have no daemon route yet (cr-requests/WP-11.md #5).
  */
-import { existsSync, statSync } from "node:fs";
 import { type IntegrationStatusView, MitoriError } from "@mitori/core";
 import { parse } from "./args.ts";
-import { apiOf, findDaemon, readRegistry } from "./daemon-client.ts";
+import { apiOf, findDaemon, readRegistry, registryExposed } from "./daemon-client.ts";
 import { helpLang } from "./help.ts";
 import { type Io, usage } from "./io.ts";
 import { homeOf } from "./session.ts";
@@ -30,9 +29,7 @@ export async function run(io: Io): Promise<number> {
     io.out(`${ok === "info" ? "·" : ok ? "✓" : "!"} ${text}\n`);
   };
   line(true, `mitori ${io.version} · home ${home}`);
-  const regPath = `${home}/daemon.json`;
-  if (existsSync(regPath) && (statSync(regPath).mode & 0o077) !== 0)
-    line(false, ja ? `${regPath} が他のユーザーから読めます` : `${regPath} is readable by other users`);
+  if (registryExposed(home)) line(false, ja ? `${home}/daemon.json が他のユーザーから読めます` : `${home}/daemon.json is readable by other users`);
   const d = await findDaemon(io, home);
   if (!d) {
     line(

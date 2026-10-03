@@ -36,23 +36,29 @@ export function pidAlive(pid: number): boolean {
   }
 }
 
-/** The registry, or null when missing/unreadable. Warns when it is readable by others (it holds the bearer). */
-export function readRegistry(home: string, io?: Pick<Io, "err">): DaemonRegistry | null {
-  const path = `${home}/daemon.json`;
+/** The registry, or null when missing/unreadable. Pure and silent (`touch` must print nothing whatever it finds). */
+export function readRegistry(home: string): DaemonRegistry | null {
   let reg: DaemonRegistry;
   try {
-    reg = JSON.parse(readFileSync(path, "utf8")) as DaemonRegistry;
-    if ((statSync(path).mode & 0o077) !== 0)
-      io?.err(`mitori: warning: ${path} is readable by other users (it holds the daemon token); restart the daemon with \`mitori stop\`\n`);
+    reg = JSON.parse(readFileSync(`${home}/daemon.json`, "utf8")) as DaemonRegistry;
   } catch {
     return null;
   }
   return typeof reg?.port === "number" && typeof reg.token === "string" && typeof reg.pid === "number" ? reg : null;
 }
 
+/** True when the registry (it holds the bearer token) is readable by other users. */
+export function registryExposed(home: string): boolean {
+  try {
+    return (statSync(`${home}/daemon.json`).mode & 0o077) !== 0;
+  } catch {
+    return false;
+  }
+}
+
 /** The running daemon when its PID is alive and its health proves the token; else null (never sends the token). */
 export async function findDaemon(io: Io, home: string, timeoutMs = HEALTH_TIMEOUT_MS): Promise<Daemon | null> {
-  const registry = readRegistry(home, io);
+  const registry = readRegistry(home);
   if (!registry || !pidAlive(registry.pid)) return null;
   const origin = `http://127.0.0.1:${registry.port}`;
   const health = await probeDaemon({ origin, token: registry.token, challenge: io.random.bytes(16), fetch: io.fetch, timeoutMs });
@@ -125,6 +131,8 @@ async function idle(io: Io, d: Daemon): Promise<boolean> {
  */
 export async function ensureDaemon(io: Io, home: string): Promise<Daemon> {
   const found = await findDaemon(io, home);
+  if (found && registryExposed(home))
+    io.err(`mitori: warning: ${home}/daemon.json is readable by other users (it holds the daemon token); run \`mitori stop\` and start again\n`);
   if (found) {
     if (found.health.version === io.version) return found;
     const action = versionAction({ version: io.version, apiVersion: API_VERSION }, { ...found.health, idle: await idle(io, found) });

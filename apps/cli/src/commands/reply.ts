@@ -17,7 +17,8 @@ import { docDirOf, whenReady } from "./workspace.ts";
 /** Body limit (chars) of `AgentReplyReq.body`. */
 export const REPLY_MAX_CHARS = 8000;
 const FILES_MAX = 20;
-const DENY = DEFAULT_DENY_GLOBS.map((g) => new Bun.Glob(g));
+/** Deny globs matched case-insensitively (macOS and Windows file systems fold case: `.ENV` is `.env`). */
+const DENY = DEFAULT_DENY_GLOBS.map((g) => new Bun.Glob(g.toLowerCase()));
 
 const under = (p: string, root: string) => p === root || p.startsWith(root.endsWith("/") ? root : `${root}/`);
 
@@ -53,7 +54,7 @@ export function readAgentFile(info: Pick<WorkspaceInfo, "root" | "docDir">, cwd:
   if (!(tmp !== null && under(real, tmp))) {
     if (!under(real, root)) refuse("outside the repository");
     const rel = relative(root, real);
-    if (DENY.some((g) => g.match(rel))) refuse("the path is deny-listed (secrets, CI, agent config, the doc directory)");
+    if (DENY.some((g) => g.match(rel.toLowerCase()))) refuse("the path is deny-listed (secrets, CI, agent config, the doc directory)");
   }
   if (st.size > maxChars * 4) throw new MitoriError("E_PAYLOAD_TOO_LARGE", `${file} is larger than ${maxChars} characters`, { params: { maxChars } });
   const text = readFileSync(real, "utf8");
@@ -69,7 +70,7 @@ export function repoPaths(root: string, cwd: string, list: string): RepoPath[] {
     .map((p) => p.trim())
     .filter(Boolean)) {
     const rel = relative(root, resolve(cwd, raw));
-    if (rel === "" || rel.startsWith("..") || isAbsolute(rel))
+    if (rel === "" || rel === ".." || rel.startsWith("../") || isAbsolute(rel))
       throw new MitoriError("E_PATH_OUTSIDE", `not inside the repository: ${raw}`, { params: { path: raw } });
     if (!out.includes(rel as RepoPath)) out.push(rel as RepoPath);
   }
