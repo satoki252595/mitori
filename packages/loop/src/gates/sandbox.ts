@@ -10,6 +10,8 @@ export interface SandboxPaths {
   jobTmp: string;
   /** CARGO_TARGET_DIR (writable). */
   cargoTarget: string;
+  /** Further writable build caches owned by mitori (the per-workspace GOCACHE; never the user's own caches). */
+  caches?: readonly string[];
   /** The user's HOME. */
   userHome: string | null;
   /** `~/.mitori`. */
@@ -32,7 +34,7 @@ export function sensitiveDirs(p: Pick<SandboxPaths, "userHome" | "mitoriHome">):
 
 /** macOS Seatbelt profile. Later rules win, so the gate's own tree is re-allowed after the ~/.mitori denial. */
 export function seatbeltProfile(p: SandboxPaths): string {
-  const writable = [p.tree, p.jobTmp, p.cargoTarget];
+  const writable = [p.tree, p.jobTmp, p.cargoTarget, ...(p.caches ?? [])];
   const lines = [
     "(version 1)",
     "(allow default)",
@@ -55,7 +57,7 @@ export function sandboxed(kind: "sandbox-exec" | "bwrap" | "none", p: SandboxPat
   const args = ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp"];
   for (const d of sensitiveDirs(p)) if (p.exists(d)) args.push("--tmpfs", d);
   for (const e of p.claudeEntries) if (p.exists(e)) args.push("--tmpfs", e);
-  for (const d of [p.tree, p.jobTmp, p.cargoTarget]) if (p.exists(d)) args.push("--bind", d, d);
+  for (const d of [p.tree, p.jobTmp, p.cargoTarget, ...(p.caches ?? [])]) if (p.exists(d)) args.push("--bind", d, d);
   args.push("--unshare-net", "--unshare-pid", "--die-with-parent", "--new-session", "--chdir", cwd, "--", ...argv);
   return args;
 }

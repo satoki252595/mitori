@@ -1,13 +1,14 @@
 // `createLoop` (spec §8, WP-08b + WP-INT): the review engine, bundle builder, git safety, gate runner and job runner of
 // one workspace assembled from `LoopDeps`. Everything here is plumbing between the parts (each part is tested on its
 // own); the integration tests are `test/int/int06.test.ts`.
-import type { Anchor, AnchorInput, Checkpoint, FsReader, JobId, JobSummary, RepoPath, ThreadDetail, ThreadId } from "@mitori/core";
+import type { Anchor, AnchorInput, Checkpoint, FsReader, GateSpec, JobId, JobSummary, RepoPath, ThreadDetail, ThreadId } from "@mitori/core";
 import { MitoriError } from "@mitori/core";
 import { createFsReader, createGitReader } from "@mitori/platform";
 import { createBundleBuilder } from "../bundle/index.ts";
 import type { BundleBuilder, CapturedAnchor, GateRunner, GitSafety, JobRunner, LoopDeps, ReviewEngine } from "../contract.ts";
-import { configCandidates, detectFormatGates } from "../gates/detect.ts";
+import { detectGates, gateConfigCandidates } from "../gates/checks.ts";
 import { createGateRunner } from "../gates/runner.ts";
+import { gateTrust } from "../gates/trust.ts";
 import { checkpointOf } from "../git/journal.ts";
 import { createGitSafety, type GitSafetyHandle } from "../git/safety.ts";
 import { createReviewEngine } from "../review/engine.ts";
@@ -99,6 +100,17 @@ export function createLoop(deps: LoopDeps): Loop & LoopLifecycle {
     trust: (item, hash) => deps.trust(item, hash),
     metrics: deps.metrics,
     clock: deps.clock,
+    // REPAIR / revise CODE comes from the job head in the side repo, not the user's tree (WP-08c, spec §6.6.3)
+    readJobFile: async (job, path) => {
+      const head = await git.commits(job.id).then(
+        (c) => c.head,
+        () => null,
+      );
+      if (!head) return null;
+      const [entry] = await git.ws.lsTree(head, [path]);
+      if (!entry) return null;
+      return { text: await git.blobText(entry.oid), blob: entry.oid };
+    },
   });
 
   const captureDeps = { indexer: deps.indexer, doc: deps.doc, anchors: deps.anchors };
@@ -111,20 +123,21 @@ export function createLoop(deps: LoopDeps): Loop & LoopLifecycle {
     return real !== null && fs.stat(real)?.isFile === true;
   };
 
-  /** Format gates detected (and repo-declared + trusted) for a write scope, with their trust state. */
-  async function gatesFor(writeScope: readonly RepoPath[]): Promise<{ spec: ReturnType<typeof detectFormatGates>[number]; trusted: boolean }[]> {
+  /** Gates detected (format, typecheck, lint, test; repo-declared + trusted ones win) for a write scope, with their trust state. */
+  async function gatesFor(writeScope: readonly RepoPath[]): Promise<{ spec: GateSpec; trusted: boolean }[]> {
     const texts = new Map<RepoPath, string>();
-    for (const p of configCandidates(writeScope)) {
+    for (const p of gateConfigCandidates(writeScope)) {
       if (deps.indexer.file(p) === null) continue;
       const text = await deps.indexer.currentText(p).catch(() => null);
       if (text !== null) texts.set(p, text);
     }
-    const specs = detectFormatGates(
+    const specs = detectGates(
       { pathDirs, root: ws.root, hasher: deps.hasher },
       { files: deps.indexer.files(), facts: deps.indexer.facts(), changed: [...writeScope], readConfig: (p) => texts.get(p) ?? null, binaryExists },
       deps.settings().trustedGates,
     );
-    return specs.map((spec) => ({ spec, trusted: deps.trust("gates", spec.trustHash) === "trusted" }));
+    const { trusted } = gateTrust((h) => deps.trust("gates", h), deps.hasher.sha256, specs);
+    return specs.map((spec, i) => ({ spec, trusted: trusted[i] === true }));
   }
 
   const planPorts = {

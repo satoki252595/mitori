@@ -17,6 +17,8 @@ import {
 import { runToExit } from "@mitori/platform";
 import { GATE_ENV_ALLOWLIST, GATE_ENV_FIXED, GATE_TIMEOUTS, type GateRunner } from "../contract.ts";
 import { addedLines } from "../git/diff.ts";
+import { relatedTests } from "./checks.ts";
+import { dependencyFingerprint, dependencyLinks } from "./deps.ts";
 import { excerpt } from "./excerpt.ts";
 import { expandGate, filesFor } from "./expand.ts";
 import { type SandboxPaths, sandboxed } from "./sandbox.ts";
@@ -88,6 +90,29 @@ export function createGateRunner(deps: GateRunnerDeps): GateRunner {
     };
   };
 
+  /** Go package patterns of the changed `.go` files, relative to the gate cwd (`./dir`, `.` for the cwd itself). */
+  const pkgsOf =
+    (cwd: string) =>
+    (ps: readonly RepoPath[]): string[] =>
+      [
+        ...new Set(
+          ps.map((p) => {
+            const rel = cwd === "" ? p : p.slice(cwd.length + 1);
+            const i = rel.lastIndexOf("/");
+            return i < 0 ? "." : `./${rel.slice(0, i)}`;
+          }),
+        ),
+      ].sort();
+
+  /** mitori-owned caches a sandboxed gate may write (created first: the sandbox denies creating their parents). */
+  async function sandboxCaches(): Promise<{ env: Record<string, string>; dirs: string[] }> {
+    const goCache = `${deps.home}/cache/go/${deps.ws.key}`;
+    const cargo = `${deps.home}/cache/cargo/${deps.ws.key}`;
+    for (const d of [goCache, cargo]) await deps.safeWrite.write(deps.home, `${d.slice(deps.home.length + 1)}/.keep`, "", "home");
+    // never the user's own GOCACHE: a poisoned build-cache entry would outlive the job
+    return { env: { GOCACHE: goCache }, dirs: [goCache] };
+  }
+
   async function runOne(
     tree: string,
     gate: GateSpec,
@@ -100,38 +125,53 @@ export function createGateRunner(deps: GateRunnerDeps): GateRunner {
     const files = filesFor(gate, changed);
     if (files.length === 0) return { gate: gate.id, status: "skipped", ms: 0 };
     if (gate.executesRepoCode && opts.sandbox === "none" && !opts.consent) return { gate: gate.id, status: "pending_consent", ms: 0 };
-    const argv = expandGate(gate, changed, {
-      pkgsOf: (ps) => [...new Set(ps.map((p) => `./${p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "."}`))],
-      testsOf: () => [],
-    });
+    const tests = gate.argvTemplate.some((a) => typeof a !== "string" && a.var === "tests")
+      ? relatedTests(gate.cwd, files, (p) => deps.fs.stat(`${tree}/${p}`)?.isFile === true)
+      : null;
+    // a related-tests gate without related tests has nothing to run (never the whole suite)
+    if (tests !== null && tests.length === 0) return { gate: gate.id, status: "skipped", ms: 0 };
+    const argv = expandGate(gate, changed, { pkgsOf: pkgsOf(gate.cwd), testsOf: () => tests ?? [] });
     const bin = argv[0] as string;
     argv[0] = bin.includes("/") && !bin.startsWith("/") ? `${deps.ws.root}/${bin}` : bin;
     const cwd = gate.cwd === "" ? tree : `${tree}/${gate.cwd}`;
     const jobTmp = jobTmpOf(deps.home, deps.ws.key, tree);
     await deps.safeWrite.write(deps.home, `${jobTmp.slice(deps.home.length + 1)}/.keep`, "", "home");
-    const full = sandboxed(opts.sandbox, sandboxPaths(tree, jobTmp), cwd, argv);
+    const caches = opts.sandbox === "none" ? { env: {}, dirs: [] as string[] } : await sandboxCaches();
+    const full = sandboxed(opts.sandbox, { ...sandboxPaths(tree, jobTmp), caches: caches.dirs }, cwd, argv);
     const before = new Map<RepoPath, string | null>();
     if (gate.autofix) for (const p of files) before.set(p, await readText(deps.fs, `${tree}/${p}`));
+    // RT-31: without a sandbox a repo-code gate could rewrite the linked dependency trees — fingerprint them around it
+    const links = gate.executesRepoCode && opts.sandbox === "none" ? dependencyLinks(deps.fs, tree) : [];
+    const depsBefore = links.length > 0 ? dependencyFingerprint(deps.fs, tree, links) : null;
     const spec: SpawnSpec = {
       command: full[0] as string,
       argv: full.slice(1),
-      env: gateEnv(deps, jobTmp),
+      env: { ...gateEnv(deps, jobTmp), ...caches.env },
       cwd,
       stdin: "",
       keepStdinOpen: false,
       timeoutMs: Math.max(1, Math.min(gate.timeoutMs, remainingMs)),
       processGroup: true,
     };
-    let r: Awaited<ReturnType<typeof runToExit>>;
+    let r: Awaited<ReturnType<typeof runToExit>> | null = null;
+    let spawnError: MitoriError | null = null;
     try {
       r = await runToExit(deps.spawner, spec, { signal });
     } catch (e) {
-      const err = MitoriError.from(e);
+      spawnError = MitoriError.from(e);
+    }
+    if (depsBefore && dependencyFingerprint(deps.fs, tree, links).hash !== depsBefore.hash) {
+      // a tampered dependency tree overrides any gate outcome: the job must not stay acceptable
+      throw new MitoriError("E_SCOPE_VIOLATION", `gate ${gate.id} changed a linked dependency tree (${links.join(", ")})`, {
+        params: { reason: "dependency_changed", gate: gate.id, links: links.join(","), actions: "copy_prompt" },
+      });
+    }
+    if (r === null) {
       return {
         gate: gate.id,
         status: "error",
         ms: deps.clock.now() - started,
-        excerpt: excerpt(err.message, { worktree: tree, estimateTokens: deps.estimateTokens }, deps.secrets),
+        excerpt: excerpt(spawnError?.message ?? "spawn failed", { worktree: tree, estimateTokens: deps.estimateTokens }, deps.secrets),
       };
     }
     const ms = deps.clock.now() - started;
