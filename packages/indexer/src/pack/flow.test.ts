@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import type { ModuleId, RepoPath } from "@mitori/core";
+import { createSecretScanner, type ModuleId, type RepoPath } from "@mitori/core";
 import type { StageFile } from "../resolve/files.ts";
+import { ref, sf } from "../resolve/test/stage-files.ts";
 import { corpusDir, FIXTURES, loadRepo } from "../structure/test/corpus.ts";
-import { runPipeline } from "../structure/test/pipeline.ts";
-import { flowSeeds, moduleStats } from "./flow.ts";
+import { estimateCode, runPipeline } from "../structure/test/pipeline.ts";
+import { flowBodies, flowSeeds, moduleStats } from "./flow.ts";
 
 const FIX = ["ts-small", "go-small", "py-small", "rust-small", "mixed"];
 
@@ -33,6 +34,74 @@ describe("IDX-U flow seeds (gen I4, spec §7.8)", () => {
       expect(flowSeeds(runPipeline(p.input).structure, p.facts)).toEqual(seeds);
       expect(flowSeeds(st, p.facts, 1)).toEqual(seeds.slice(0, 1));
     });
+});
+
+describe("IDX-U flow bodies (gen I4, spec §7.8 / §7.3 slice rules)", () => {
+  for (const name of ["ts-small", "go-small", "py-small"])
+    test(`${name}: handler first, numbered lines equal the source, Σ tokens ≤ budget, deterministic`, async () => {
+      const repo = await loadRepo(join(FIXTURES, name));
+      const p = runPipeline(repo.input);
+      const files = new Map<RepoPath, StageFile>(p.input.files.map((f) => [f.path, f]));
+      const io = { text: (path: RepoPath) => repo.texts.get(path) ?? null, estimate: estimateCode };
+      const seeds = flowSeeds(p.structure, p.facts);
+      let some = 0;
+      for (const seed of seeds) {
+        for (const budget of [4_000, 150]) {
+          const slices = flowBodies(seed, files, budget, io);
+          expect(slices.reduce((a, s) => a + s.tokens, 0)).toBeLessThanOrEqual(budget);
+          expect(flowBodies(seed, files, budget, io)).toEqual(slices);
+          for (const s of slices) {
+            const src = (repo.texts.get(s.path) ?? "").split("\n");
+            for (const l of s.text.split("\n")) {
+              if (l === "⋮") continue;
+              const m = /^(\d+)\|(.*)$/s.exec(l);
+              expect(m).not.toBeNull();
+              expect(m?.[2]).toBe(src[Number(m?.[1]) - 1]);
+            }
+          }
+          if (budget === 4_000 && seed.handler) {
+            const h = files.get(seed.handler.slice(0, seed.handler.indexOf("#")))?.symbols.find((x) => x.key === seed.handler);
+            expect(slices[0]).toMatchObject({ path: h?.path, start: h?.start });
+          }
+          some += slices.length;
+        }
+      }
+      expect(some).toBeGreaterThan(0);
+    });
+});
+
+describe("IDX-U flow bodies: long bodies, merging, secrets", () => {
+  test("a 250-line handler keeps 80 lines + ⋮; adjacent callees merge; secrets are redacted in place", () => {
+    const text = [
+      "export function handler() {",
+      ...Array.from({ length: 248 }, (_, i) => `  step(${i}); // AKIA4F7Q2Z9XWJ3KLM8N`),
+      "}",
+      "export function a() { return 1; }",
+      "export function b() { return 2; }",
+    ].join("\n");
+    const sym = (name: string, start: number, end: number) => ({ name, start, end, kind: "function" as const });
+    const files = new Map<RepoPath, StageFile>([
+      ["src/h.ts", sf("src/h.ts", { symbols: [sym("handler", 1, 250)], refs: [ref("a"), ref("b")] })],
+      ["src/x.ts", sf("src/x.ts", { symbols: [sym("a", 251, 251), sym("b", 252, 252)] })],
+    ]);
+    const seed = {
+      k: 1,
+      kind: "route" as const,
+      label: "GET /",
+      path: "src/h.ts",
+      line: 1,
+      handler: "src/h.ts#handler" as const,
+      modules: [],
+      files: ["src/h.ts", "src/x.ts"],
+    };
+    const io = { text: () => text, estimate: estimateCode, secrets: createSecretScanner() };
+    const [h, x] = flowBodies(seed, files, 100_000, io);
+    expect(h?.text.split("\n")).toHaveLength(81);
+    expect(h?.text.endsWith("\n⋮")).toBe(true);
+    expect(h?.text).not.toContain("AKIA4F7Q2Z9XWJ3KLM8N");
+    expect((h?.redactions ?? 0) > 0).toBe(true);
+    expect(x).toMatchObject({ path: "src/x.ts", start: 251, end: 252 });
+  });
 });
 
 const crit = corpusDir("crit");

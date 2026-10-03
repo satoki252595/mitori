@@ -42,6 +42,24 @@ function moduleGraph(st: StructureResult): GraphData {
   return { level: "module", nodes, edges };
 }
 
+/**
+ * `Indexer.dependents(path)`: files with a dependency edge into `path` (directory prior never counts), by weight desc
+ * then path. `call` when a called name of the importer resolves into `path`.
+ */
+export function dependents(st: StructureResult, path: RepoPath): { path: RepoPath; kind: GraphEdgeKind; weight: number }[] {
+  const g = st.graph;
+  const j = g.index.get(path);
+  if (j === undefined) return [];
+  const out: { path: RepoPath; kind: GraphEdgeKind; weight: number }[] = [];
+  g.out.forEach((m, i) => {
+    const e = m.get(j);
+    if (!e) return;
+    const kind: GraphEdgeKind = g.calls.has(i * g.paths.length + j) ? "call" : e.import > 0 ? "import" : "ref";
+    out.push({ path: g.paths[i] as RepoPath, kind, weight: Math.round((e.import + e.ref) * 100) / 100 });
+  });
+  return out.sort((a, b) => b.weight - a.weight || byStr(a.path, b.path));
+}
+
 /** Member files of a module; a parent aggregates the leaves below it. */
 function memberPaths(m: ModuleDetail, st: StructureResult): RepoPath[] {
   if (m.paths.length > 0) return m.paths;

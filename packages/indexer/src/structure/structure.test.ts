@@ -4,7 +4,7 @@ import type { ModuleDetail, ModuleSeed } from "../contract.ts";
 import { linkFacts } from "../facts/stage.ts";
 import { resolveImports } from "../resolve/stage.ts";
 import { imp, input, ref, sf } from "../resolve/test/stage-files.ts";
-import { graphData } from "./graph-data.ts";
+import { dependents, graphData } from "./graph-data.ts";
 import { assignIdentities, type Community, type IdentityContext, type PrevModule } from "./identity.ts";
 import { moduleIdFor, slugify } from "./index.ts";
 import { buildUGraph, louvain, modularity, splitDisconnected } from "./louvain.ts";
@@ -404,6 +404,11 @@ describe("IDX-U structure stage on a small repo (TEST_TUNING)", () => {
     expect(file.nodes.map((n) => n.id)).toEqual(expect.arrayContaining(leaf?.paths ?? []));
     expect(file.edges.every((e) => e.kind !== "same_dir")).toBe(true);
     expect(file.edges.some((e) => e.from === "api/routes.ts" && e.to === "store/repo.ts")).toBe(true);
+    expect(dependents(p.structure, "core/model.ts").map((d) => d.path)).toEqual(
+      expect.arrayContaining(["api/routes.ts", "api/handlers.ts", "store/repo.ts", "core/util.ts", "ui/view.tsx"]),
+    );
+    expect(dependents(p.structure, "core/model.ts").find((d) => d.path === "store/repo.ts")).toMatchObject({ kind: "import", weight: 1 });
+    expect(dependents(p.structure, "test/repo.test.ts")).toEqual([]); // tests are not graph nodes
     const seeds = moduleSeedsOf(p.structure);
     expect(seeds.map((x) => x.id)).toEqual([...seeds.map((x) => x.id)].sort());
     for (const sd of seeds) expect(sd.reps).toEqual([...sd.reps].sort());

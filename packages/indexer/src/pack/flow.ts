@@ -3,8 +3,8 @@
  * CLI commands, then entries; handler file rank desc) with the BFS path over the effective module graph (hop ≤ 6,
  * neighbours by edge weight desc then slug) down to the deepest reachable bottom module.
  */
-import type { FactKind, ModuleId, RepoPath, RouteFact, SymbolKey } from "@mitori/core";
-import type { FlowSeed, ModuleStats } from "../contract.ts";
+import type { CodeSlice, FactKind, ModuleId, RepoPath, RouteFact, SecretScanner, SymbolKey } from "@mitori/core";
+import { type FlowSeed, HOT_BODY_RULES, type ModuleStats, SKELETON_RULES } from "../contract.ts";
 import type { FactsResult } from "../facts/stage.ts";
 import type { StageFile } from "../resolve/files.ts";
 import type { StructureResult } from "../structure/stage.ts";
@@ -113,6 +113,103 @@ function flowFiles(first: RepoPath, path: readonly ModuleId[], st: StructureResu
     files.push(pick);
   }
   return files;
+}
+
+const CALLABLE = new Set(["function", "method", "constructor"]);
+
+/** Text access for `flowBodies` (the facade's current texts; secret scan when `security.secretScan`). */
+export interface SliceIo {
+  text(path: RepoPath): string | null;
+  /** `estimateTokens(text, "code", tokenizer)`. */
+  estimate(text: string): number;
+  secrets?: SecretScanner;
+}
+
+type Sym = StageFile["symbols"][number];
+
+/** Bodies along a flow: the handler, then per hop the symbols of the next file called from the previous one. */
+function flowTargets(seed: FlowSeed, files: ReadonlyMap<RepoPath, StageFile>): Sym[] {
+  const out: Sym[] = [];
+  const seen = new Set<string>();
+  const push = (s: Sym | undefined) => {
+    if (s && !seen.has(s.key)) {
+      seen.add(s.key);
+      out.push(s);
+    }
+  };
+  const first = files.get(seed.files[0] ?? seed.path);
+  if (seed.handler) push(files.get(seed.handler.slice(0, seed.handler.indexOf("#")))?.symbols.find((s) => s.key === seed.handler));
+  else if (seed.path === first?.path)
+    // no handler: the callable around the defining line (`main`, the command table's function)
+    push(
+      first.symbols.filter((s) => CALLABLE.has(s.kind) && s.start <= seed.line && seed.line <= s.end).sort((a, b) => a.end - a.start - (b.end - b.start))[0],
+    );
+  for (let j = 1; j < seed.files.length; j++) {
+    const from = files.get(seed.files[j - 1] as RepoPath);
+    const to = files.get(seed.files[j] as RepoPath);
+    if (!from || !to) continue;
+    const called = new Set(from.refs.filter((r) => r.kind === "call" || r.kind === "new" || r.kind === "jsx" || r.kind === "qual").map((r) => r.name));
+    for (const s of [...to.symbols].sort((a, b) => a.start - b.start)) if (CALLABLE.has(s.kind) && called.has(s.name)) push(s);
+  }
+  return out;
+}
+
+/**
+ * `flowBodies(seed, budget)` (gen I4, spec §7.8): the flow's bodies packed in order with the hot-body slice rules
+ * (§7.3): numbered `start..end`, bodies over 200 lines keep their first 80 lines + `⋮`, a slice that does not fit is
+ * skipped and 3 skips in a row stop, adjacent / overlapping slices of a file are merged.
+ */
+export function flowBodies(seed: FlowSeed, files: ReadonlyMap<RepoPath, StageFile>, budgetTokens: number, io: SliceIo): CodeSlice[] {
+  const H = HOT_BODY_RULES;
+  const picked: { path: RepoPath; blob: string; start: number; end: number }[] = [];
+  let used = 0;
+  let skips = 0;
+  const lineCache = new Map<RepoPath, string[] | null>();
+  const linesOf = (p: RepoPath) => {
+    if (!lineCache.has(p)) lineCache.set(p, io.text(p)?.split("\n") ?? null);
+    return lineCache.get(p) ?? null;
+  };
+  const render = (lines: readonly string[], start: number, end: number) => {
+    const out: string[] = [];
+    const long = end - start + 1 > H.longBodyLines;
+    const last = long ? start + H.longBodyHead - 1 : end;
+    for (let n = start; n <= last; n++) out.push(`${n}|${lines[n - 1] ?? ""}`);
+    if (long) out.push(SKELETON_RULES.elision);
+    return out.join("\n");
+  };
+  for (const s of flowTargets(seed, files)) {
+    if (skips >= H.maxConsecutiveSkips) break;
+    const lines = linesOf(s.path);
+    if (!lines) continue;
+    const end = Math.min(s.end, lines.length);
+    const t = io.estimate(render(lines, s.start, end));
+    if (used + t > budgetTokens) {
+      skips++;
+      continue;
+    }
+    skips = 0;
+    used += t;
+    picked.push({ path: s.path, blob: s.blob, start: s.start, end });
+  }
+  // merge adjacent / overlapping ranges per file, keeping the order of first appearance
+  const merged: typeof picked = [];
+  for (const r of picked) {
+    const m = merged.find((x) => x.path === r.path && r.start <= x.end + 1 && x.start <= r.end + 1);
+    if (m) {
+      m.start = Math.min(m.start, r.start);
+      m.end = Math.max(m.end, r.end);
+    } else merged.push({ ...r });
+  }
+  return merged.map((r) => {
+    let text = render(linesOf(r.path) ?? [], r.start, r.end);
+    let redactions = 0;
+    if (io.secrets) {
+      const red = io.secrets.redact(text);
+      text = red.text;
+      redactions = red.redactions;
+    }
+    return { path: r.path, blob: r.blob, start: r.start, end: r.end, text, numbered: true, tokens: io.estimate(text), redactions };
+  });
 }
 
 /** Entry points (main scope) with their module flow, ranked (spec §7.8 I4). */
