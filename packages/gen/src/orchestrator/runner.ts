@@ -442,6 +442,8 @@ export class Runner {
     const run = live.run;
     run.state = state;
     run.finishedAt ??= new Date(this.deps.clock.now()).toISOString();
+    live.unsubscribe?.();
+    live.unsubscribe = null;
     const w = this.deps.scheduler.window()?.fiveHour;
     if (
       state === "done" &&
