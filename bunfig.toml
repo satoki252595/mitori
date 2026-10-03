@@ -7,4 +7,4 @@ saveTextLockfile = true
 
 [test]
 # fixture repos are data (they may contain *.test.ts of their own)
-pathIgnorePatterns = ["fixtures/**", "**/node_modules/**", "docs/**"]
+pathIgnorePatterns = ["fixtures/repos/**", "fixtures/golden/**", "fixtures/agent-streams/**", "fixtures/injection/**", "**/node_modules/**", "docs/**"]

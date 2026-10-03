@@ -1,0 +1,27 @@
+{
+  "v": "mitori.fixture-truth/1",
+  "fixture": "ts-small",
+  "files": [
+    { "path": "package.json", "class": "config", "lang": "generic" },
+    { "path": "src/config.ts", "class": "source", "lang": "typescript" },
+    { "path": "src/index.ts", "class": "source", "lang": "typescript" }
+  ],
+  "filesExhaustive": true,
+  "facts": [
+    { "kind": "env", "path": "src/config.ts", "line": 10, "key": "PORT", "attrs": { "hasDefault": true } },
+    { "kind": "env", "path": "src/config.ts", "line": 11, "key": "DATABASE_URL", "attrs": { "hasDefault": false } },
+    { "kind": "entry", "path": "src/index.ts", "key": "main:src/index.ts" },
+    { "kind": "script", "path": "package.json", "key": "dev", "attrs": { "purpose": "run" } },
+    { "kind": "script", "path": "package.json", "key": "test", "attrs": { "purpose": "test" } }
+  ],
+  "forbiddenFacts": [],
+  "symbols": [
+    { "key": "src/config.ts#Config", "kind": "interface", "start": 2, "end": 5, "exported": true },
+    { "key": "src/config.ts#loadConfig", "kind": "function", "start": 8, "end": 13, "exported": true },
+    { "key": "src/index.ts#main", "kind": "function", "start": 4, "end": 7, "exported": true }
+  ],
+  "imports": [{ "from": "src/index.ts", "to": "src/config.ts" }],
+  "calls": [{ "from": "src/index.ts#main", "to": "src/config.ts#loadConfig" }],
+  "modules": { "together": [["src/index.ts", "src/config.ts"]], "apart": [] },
+  "tolerances": { "callsRecall": 0.9, "callsPrecision": 0.8 }
+}
