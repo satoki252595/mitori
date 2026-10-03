@@ -1,123 +1,27 @@
 {
-  "at": "2026-10-03T13:37:53.529Z",
+  "at": "2026-10-03T16:19:35.129Z",
   "machine": "arm64",
-  "runs": 3,
+  "runs": 1,
   "summary": {
     "crit": {
-      "tIndexMs": 902,
-      "shellMs": 10,
-      "mapMs": 163,
-      "tocMs": 63,
-      "factsMs": 57,
-      "firstScreenMs": 1051
-    },
-    "m3e-canvas": {
-      "tIndexMs": 410,
-      "shellMs": 10,
-      "mapMs": 143,
-      "tocMs": 64,
-      "factsMs": 62,
-      "firstScreenMs": 557
-    },
-    "go-small": {
-      "tIndexMs": 168,
-      "shellMs": 11,
-      "mapMs": 122,
-      "tocMs": 63,
-      "factsMs": 60,
-      "firstScreenMs": 299
+      "tIndexMs": 9003,
+      "shellMs": 38,
+      "mapMs": 179,
+      "tocMs": 132,
+      "factsMs": -1,
+      "firstScreenMs": 9182
     }
   },
   "results": [
     {
       "repo": "crit",
-      "tIndexMs": 1496,
-      "shellMs": 16,
-      "mapMs": 200,
-      "tocMs": 93,
-      "factsMs": 57,
-      "firstScreenMs": 1696,
-      "stderr": "mitori: crit: 879 files, 15 modules (S0–S4 + static doc in 795 ms)\nmitori: open http://127.0.0.1:64752/auth#n=<nonce>&to=%2Fw%2Fws_fmheww473zvq"
-    },
-    {
-      "repo": "crit",
-      "tIndexMs": 902,
-      "shellMs": 10,
-      "mapMs": 149,
-      "tocMs": 57,
-      "factsMs": 54,
-      "firstScreenMs": 1051,
-      "stderr": "mitori: crit: 879 files, 15 modules (S0–S4 + static doc in 842 ms)\nmitori: open http://127.0.0.1:64868/auth#n=<nonce>&to=%2Fw%2Fws_ckgwb91zw8zc"
-    },
-    {
-      "repo": "crit",
-      "tIndexMs": 867,
-      "shellMs": 10,
-      "mapMs": 163,
-      "tocMs": 63,
-      "factsMs": 68,
-      "firstScreenMs": 1030,
-      "stderr": "mitori: crit: 879 files, 15 modules (S0–S4 + static doc in 804 ms)\nmitori: open http://127.0.0.1:64894/auth#n=<nonce>&to=%2Fw%2Fws_3ak00bkw92fg"
-    },
-    {
-      "repo": "m3e-canvas",
-      "tIndexMs": 410,
-      "shellMs": 10,
-      "mapMs": 147,
-      "tocMs": 65,
-      "factsMs": 62,
-      "firstScreenMs": 557,
-      "stderr": "mitori: m3e-canvas: 87 files, 4 modules (S0–S4 + static doc in 352 ms)\nmitori: open http://127.0.0.1:64921/auth#n=<nonce>&to=%2Fw%2Fws_hvakgbrxewqf"
-    },
-    {
-      "repo": "m3e-canvas",
-      "tIndexMs": 425,
-      "shellMs": 10,
-      "mapMs": 143,
-      "tocMs": 64,
-      "factsMs": 63,
-      "firstScreenMs": 568,
-      "stderr": "mitori: m3e-canvas: 87 files, 4 modules (S0–S4 + static doc in 363 ms)\nmitori: open http://127.0.0.1:64976/auth#n=<nonce>&to=%2Fw%2Fws_5gyatxfe84cd"
-    },
-    {
-      "repo": "m3e-canvas",
-      "tIndexMs": 398,
-      "shellMs": 9,
-      "mapMs": 117,
-      "tocMs": 41,
-      "factsMs": 37,
-      "firstScreenMs": 515,
-      "stderr": "mitori: m3e-canvas: 87 files, 4 modules (S0–S4 + static doc in 337 ms)\nmitori: open http://127.0.0.1:64998/auth#n=<nonce>&to=%2Fw%2Fws_mwfwv3h4qt3g"
-    },
-    {
-      "repo": "go-small",
-      "tIndexMs": 167,
-      "shellMs": 12,
-      "mapMs": 133,
-      "tocMs": 68,
-      "factsMs": 65,
-      "firstScreenMs": 300,
-      "stderr": "mitori: go-small: 20 files, 1 modules (S0–S4 + static doc in 104 ms)\nmitori: open http://127.0.0.1:65052/auth#n=<nonce>&to=%2Fw%2Fws_8qa5bf6xs1xp"
-    },
-    {
-      "repo": "go-small",
-      "tIndexMs": 177,
-      "shellMs": 10,
-      "mapMs": 122,
-      "tocMs": 63,
-      "factsMs": 60,
-      "firstScreenMs": 299,
-      "stderr": "mitori: go-small: 20 files, 1 modules (S0–S4 + static doc in 108 ms)\nmitori: open http://127.0.0.1:65101/auth#n=<nonce>&to=%2Fw%2Fws_8qa5bf6xs1xp"
-    },
-    {
-      "repo": "go-small",
-      "tIndexMs": 168,
-      "shellMs": 11,
-      "mapMs": 115,
-      "tocMs": 41,
-      "factsMs": 39,
-      "firstScreenMs": 283,
-      "stderr": "mitori: go-small: 20 files, 1 modules (S0–S4 + static doc in 101 ms)\nmitori: open http://127.0.0.1:65131/auth#n=<nonce>&to=%2Fw%2Fws_8qa5bf6xs1xp"
+      "tIndexMs": 9003,
+      "shellMs": 38,
+      "mapMs": 179,
+      "tocMs": 132,
+      "factsMs": -1,
+      "firstScreenMs": 9182,
+      "stderr": "mitori: crit: 879 files, 18 modules (S0–S4 + static doc in 8018 ms)\nmitori: open http://127.0.0.1:49327/auth#n=<nonce>&to=%2Fw%2Fws_xc4agf057c5e"
     }
   ]
 }
