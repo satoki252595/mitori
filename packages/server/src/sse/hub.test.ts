@@ -49,6 +49,14 @@ describe("SRV-I-016 SSE hub", () => {
     expect(typeof (t as SseEvent).at).toBe("string");
   });
 
+  test("seq stays an integer (a usable `?last=`) even when the clock has sub-millisecond precision", () => {
+    const clock = { now: () => 1_790_000_000_000.25, iso: () => "2026-09-21T00:00:00.000Z" };
+    const hub = createSseHub({ clock, timers: fakeTimers(fakeClock()), metrics: noopMetrics, random: seededRandom(1), version: "t" });
+    hub.publish(notice("x"), null, null);
+    expect(Number.isSafeInteger(hub.seq())).toBe(true);
+    expect(Number.isSafeInteger(hub.seqBase)).toBe(true);
+  });
+
   test("scope: workspace events only to that workspace, global events to everyone", () => {
     const { hub } = setup();
     const a = conn(WS_A);

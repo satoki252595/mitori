@@ -73,7 +73,7 @@ export function createSseHub(opts: HubOptions): SseHubImpl {
   const ringSize = opts.ringSize ?? DAEMON.ringBufferEvents;
   const heartbeatMs = opts.heartbeatMs ?? DAEMON.heartbeatMs;
   const boot = base32(opts.random.bytes(10));
-  const seqBase = clock.now() * 1000;
+  const seqBase = Math.floor(clock.now()) * 1000; // integer even for a sub-ms clock (`?last=` must parse as one)
   let seq = seqBase;
   // circular replay ring
   const ring: (SseEvent | undefined)[] = new Array(ringSize);
