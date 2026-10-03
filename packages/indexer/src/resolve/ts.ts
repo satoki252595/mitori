@@ -56,7 +56,9 @@ export function resolveTsImport(imp: ImportRecord, from: RepoPath, ctx: ProjectI
 function resolveBare(ctx: ProjectIndex, spec: string, from: RepoPath, fromTs: boolean): RepoPath[] | null {
   const ts = ctx.tsconfigFor(dirOf(from));
   if (ts) {
-    const keys = Object.keys(ts.paths).sort((a, b) => b.indexOf("*") - a.indexOf("*") || b.length - a.length);
+    // exact keys first, then the longest prefix before `*` (TypeScript's pattern precedence)
+    const prefixLen = (k: string) => (k.includes("*") ? k.indexOf("*") : Number.MAX_SAFE_INTEGER);
+    const keys = Object.keys(ts.paths).sort((a, b) => prefixLen(b) - prefixLen(a) || b.length - a.length || (a < b ? -1 : 1));
     for (const key of keys) {
       const star = key.indexOf("*");
       let rest: string | null = null;

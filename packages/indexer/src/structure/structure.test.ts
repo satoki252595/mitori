@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { type ModuleId, SLUG_RE } from "@mitori/core";
 import { imp, input, ref, sf } from "../resolve/test/stage-files.ts";
+import { graphData } from "./graph-data.ts";
 import { assignIdentities, type Community, type IdentityContext, type PrevModule } from "./identity.ts";
 import { moduleIdFor, slugify } from "./index.ts";
 import { buildUGraph, louvain, modularity, splitDisconnected } from "./louvain.ts";
 import { pagerank } from "./pagerank.ts";
 import { loadStructure, saveStructure } from "./persist.ts";
 import { bottomUpOrder, tarjan } from "./scc.ts";
+import { moduleSeedsOf } from "./stage.ts";
 import { memDb } from "./test/db.ts";
 import { NOW, runPipeline, xxh3 } from "./test/pipeline.ts";
 import { TEST_TUNING } from "./tuning.ts";
@@ -211,5 +213,25 @@ describe("IDX-U structure stage on a small repo (TEST_TUNING)", () => {
     expect(runPipeline(smallRepo(), { tuning: TEST_TUNING, prev, force: true }).structure.info.clustered).toBe(true);
     const many = smallRepo(Array.from({ length: 5 }, (_, i) => [`extra/f${i}.ts`, { loc: 30 }] as Parameters<typeof sf>));
     expect(runPipeline(many, { tuning: TEST_TUNING, prev }).structure.info.clustered).toBe(true);
+  });
+
+  test("graph export (§8): module level = leaves with effective edges; file level = members + 1 hop; no prior edges", () => {
+    const p = runPipeline(smallRepo(), { tuning: TEST_TUNING });
+    const mod = graphData(p.structure, "module");
+    expect(mod.nodes.map((n) => n.id).sort()).toEqual(
+      p.structure.modules
+        .filter((m) => m.paths.length > 0)
+        .map((m) => m.id)
+        .sort(),
+    );
+    for (const e of mod.edges) expect(mod.nodes.some((n) => n.id === e.from) && mod.nodes.some((n) => n.id === e.to)).toBe(true);
+    const leaf = p.structure.modules.find((m) => m.paths.includes("store/repo.ts"));
+    const file = graphData(p.structure, "file", leaf?.id);
+    expect(file.nodes.map((n) => n.id)).toEqual(expect.arrayContaining(leaf?.paths ?? []));
+    expect(file.edges.every((e) => e.kind !== "same_dir")).toBe(true);
+    expect(file.edges.some((e) => e.from === "api/routes.ts" && e.to === "store/repo.ts")).toBe(true);
+    const seeds = moduleSeedsOf(p.structure);
+    expect(seeds.map((x) => x.id)).toEqual([...seeds.map((x) => x.id)].sort());
+    for (const sd of seeds) expect(sd.reps).toEqual([...sd.reps].sort());
   });
 });

@@ -162,7 +162,7 @@ export function assignIdentities(comms: readonly Community[], prev: readonly Pre
     cTaken[k.c] = k.o;
     oTaken[k.o] = k.c;
   }
-  const ids: Identity[] = comms.map((c, ci) => {
+  const ids: (Identity | null)[] = comms.map((c, ci) => {
     const oi = cTaken[ci] as number;
     if (oi >= 0) {
       const o = prev[oi] as PrevModule;
@@ -182,7 +182,7 @@ export function assignIdentities(comms: readonly Community[], prev: readonly Pre
         ...(o.splitFrom ? { splitFrom: o.splitFrom } : {}),
       };
     }
-    return null as unknown as Identity;
+    return null;
   });
   // newborns, in community order (deterministic id/slug assignment)
   comms.forEach((c, ci) => {
@@ -207,5 +207,5 @@ export function assignIdentities(comms: readonly Community[], prev: readonly Pre
       }
     ids[ci] = { id, slug, name: ov?.name ?? c.name, anchor: c.anchor, bornAt: ctx.now, from: null, ...(splitFrom ? { splitFrom } : {}) };
   });
-  return { ids, unmatched: prev.filter((_, oi) => oTaken[oi] === -1) };
+  return { ids: ids.filter((x): x is Identity => x !== null), unmatched: prev.filter((_, oi) => oTaken[oi] === -1) };
 }
