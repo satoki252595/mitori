@@ -14,7 +14,7 @@ export interface SloEntry {
   status: SloStatus;
   /** Sample size, for rates. */
   n?: number;
-  /** The Wilson bound that decided a rate (lower for `min`, upper for `max`). */
+  /** The Wilson bound that decided a rate (lower for `min`, upper for `max`), in the budget's unit (pct: 0–100). */
   bound?: number;
   /** Not a product measurement (the harness' own check). */
   synthetic?: boolean;
