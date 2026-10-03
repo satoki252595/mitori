@@ -168,7 +168,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
           );
           for (const l of hit.lines) sink.accept(JSON.parse(l) as GenLine);
           await sink.finish();
-          await afterLines(d, row.plan, sink);
+          await afterLines(d, row.plan, sink, lineCtx(row, run, digest, row.plan.model, rendered.ctx.existing.size));
           row.task.state = "cached";
           row.task.blocks = sink.written;
           await d.write("gen.task", () => store.putTask(row));
@@ -398,7 +398,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
         const sink = new ApplySink({ doc: d.doc, write: d.write, verifier: svc.verifier, log: d.log }, lineCtx(row, run, digest, model, listed));
         for (const l of lines) sink.accept(l);
         await sink.finish();
-        await afterLines(d, row.plan, sink);
+        await afterLines(d, row.plan, sink, lineCtx(row, run, digest, model, listed));
         blocks += sink.written.length;
         claims += sink.claims;
         row.task.state = "done";

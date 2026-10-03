@@ -21,9 +21,10 @@ describe("end-to-end standard run over scripted engines", () => {
     const h = makeHarness();
     const { run } = await runToEnd(h);
     expect(run?.run.state).toBe("done");
-    expect(taskStates(run)).toEqual(Array(9).fill("done"));
-    expect(run?.run.progress).toMatchObject({ total: 9, done: 9, failed: 0 });
-    expect(run?.run.usage.calls).toBe(9);
+    expect(taskStates(run)).toEqual(Array(13).fill("done"));
+    expect(run?.run.progress).toMatchObject({ total: 13, done: 13, failed: 0 });
+    // gen.questions writes the (here empty) list without an engine call: ≤ 15 raw questions
+    expect(run?.run.usage.calls).toBe(12);
     expect(
       h.doc
         .section("s6/session")

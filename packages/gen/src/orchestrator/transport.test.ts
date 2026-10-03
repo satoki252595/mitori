@@ -64,7 +64,7 @@ describe("§8.2 transport errors, auth, parked-process close, κ samples", () =>
     await h.gen.start((await h.gen.estimate({ effort: "standard" })).id);
     h.scheduler.push({ window: w(0.25) });
     await h.gen.idle();
-    expect(h.ledger.samples).toEqual([{ utilizationBefore: 0.2, utilizationAfter: 0.25, apiUsd: 0.9, resetsAtUnchanged: true }]);
-    expect(h.log.lines.filter((l) => l.msg === "gen.task").length).toBe(9);
+    expect(h.ledger.samples).toEqual([{ utilizationBefore: 0.2, utilizationAfter: 0.25, apiUsd: 1.2, resetsAtUnchanged: true }]);
+    expect(h.log.lines.filter((l) => l.msg === "gen.task").length).toBe(13);
   });
 });

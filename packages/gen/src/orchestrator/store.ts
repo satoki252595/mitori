@@ -174,6 +174,11 @@ export class GenStore {
     ]);
   }
 
+  /** Drop stored estimates (superseded S9 suggestions). */
+  deleteEstimates(ids: readonly string[]): void {
+    for (const id of ids) this.db.run("DELETE FROM gen_estimates WHERE id = ?", [id]);
+  }
+
   getEstimate(id: string): { req: EstimateRequest; plan: GenPlan; estimate: GenEstimate; indexDigest: Xxh3; expiresAt: number } | null {
     const r = this.db.get<{ req: string; plan: string; estimate: string; index_digest: string; expires_at: number }>(
       "SELECT req, plan, estimate, index_digest, expires_at FROM gen_estimates WHERE id = ?",

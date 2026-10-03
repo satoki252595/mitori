@@ -1,13 +1,15 @@
 /**
- * DATA section builders (gen spec §5.2) for the M2 prompts. Pure functions of the index + doc state, so a task
+ * DATA section builders (gen spec §5.2) for the M2 prompts, the M4 section prompts (SCHEMA, CLAIMS, COMMENTS, TODOS,
+ * UNTESTED, LARGE, RAW), the deep dive (TOPIC) and the doc.* rewrites (BLOCKS, GLOSSARY, CHANGES). COMMITS and CHURN
+ * need `GitReader.log` (§17 C5) and are omitted until it exists. Pure functions of the index + doc state, so a task
  * renders the same bytes whenever its inputs are unchanged (cache hits; S5 DEPS use index facts only, PT-08).
  * Each section is budgeted per `DATA_BUDGETS`; dropped items leave one `> omitted: <n> <what>` line. The
  * blobs of every file whose `N|` lines are shown are recorded for stamping at the task snapshot (PT-05).
  */
-import type { Block, DocLang, GitOid, ModuleId, ModuleInfo, RepoPath, SectionId, Xxh3 } from "@mitori/core";
+import type { Block, BlockId, ClaimKind, DocLang, Fact, GitOid, ModuleId, ModuleInfo, RepoPath, SectionId, Xxh3 } from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
-import { DATA_BUDGETS, type DataLabel, type GenPlan, type PlannedTask, type TaskInputs } from "../contract.ts";
+import { DATA_BUDGETS, type DataLabel, type GenPlan, type GenQuestionLine, type PlannedTask, type TaskInputs } from "../contract.ts";
 import { plainText } from "../line/mdscan.ts";
 
 /** A glossary candidate collected from the run's module pages. */
@@ -36,6 +38,8 @@ export interface GatherEnv {
   candidates?: () => { modules: number; terms: TermCandidate[] };
   /** Repo glossary seeds. */
   glossarySeeds?: readonly { term: string; yomi?: string; en?: string; definition: string }[];
+  /** Open questions of the run's finished tasks, section set (RAW of gen.questions, §5.6.10). */
+  questions?: () => GenQuestionLine[];
 }
 
 /** Inputs of one task. */
@@ -46,12 +50,41 @@ export interface Gathered {
   blobs: Map<RepoPath, GitOid>;
   /** Index digest at gathering time. */
   digest: Xxh3;
+  /** Semantic hash of every block shown in BLOCKS / TOPIC at gathering time (doc.translate keys its record by it). */
+  hashes: Map<BlockId, Xxh3>;
 }
+
+/** Block ids of a block-targeted task (`target.kind === "block"`, ids joined by `,`). */
+export function targetBlocks(task: Pick<PlannedTask, "target">): BlockId[] {
+  return task.target.kind === "block" ? (task.target.id.split(",").filter((x) => x !== "") as BlockId[]) : [];
+}
+
+/** Claim kinds shown in CLAIMS per prompt (§5.2). */
+const CLAIM_KINDS: Partial<Record<PlannedTask["prompt"], readonly ClaimKind[]>> = {
+  "gen.quality": ["performance", "security", "invariant", "edge_case"],
+  "gen.decisions": ["architecture"],
+  "gen.risks": ["risk", "edge_case"],
+};
+
+const SECURITY_DEP_RE = /auth|jwt|jose|crypt|argon|oauth|session|csrf|helmet|cors|tls|ssl|passport|secret|sanitiz|xss/i;
+const SCHEMA_DOC_RE = /schema|model|database|\bdb\b|table|migration|entity|スキーマ|データ/i;
 
 /** Labels per `gen.labels` call (R1 PT-03: 40). */
 export const LABELS_PER_CALL = 40;
 
 const f2 = (x: number) => x.toFixed(2);
+
+/** Identifiers in backticks of a Markdown text (`Store.get` → `Store.get` and `get`). */
+function codeSpanNames(md: string): string[] {
+  const out: string[] = [];
+  for (const m of md.matchAll(/`([^`\n]+)`/g)) {
+    const name = (m[1] as string).trim().replace(/\(.*\)$/, "");
+    out.push(name);
+    const last = name.split(/[.:#]/).at(-1);
+    if (last && last !== name) out.push(last);
+  }
+  return out;
+}
 const sectionOf = (m: ModuleInfo): SectionId => `s6/${m.slug}`;
 
 /** Modules that get no page in this plan and therefore need a label, in rank order. */
@@ -93,11 +126,12 @@ class Budget {
 export async function gatherInputs(task: PlannedTask, env: GatherEnv): Promise<Gathered> {
   const g = new Gatherer(task, env);
   const inputs = await g.run();
-  return { inputs, blobs: g.blobs, digest: env.indexer.snapshot()?.indexDigest ?? "" };
+  return { inputs, blobs: g.blobs, digest: env.indexer.snapshot()?.indexDigest ?? "", hashes: g.hashes };
 }
 
 class Gatherer {
   readonly blobs = new Map<RepoPath, GitOid>();
+  readonly hashes = new Map<BlockId, Xxh3>();
   private readonly budgets: Partial<Record<DataLabel, number>>;
 
   constructor(
@@ -189,9 +223,238 @@ class Gatherer {
         for (const s of this.env.glossarySeeds ?? []) seeds.add([`> ${s.term} | ${s.yomi ?? ""} | ${s.en ?? ""} | ${s.definition}`]);
         return { GLOSSARY_SEEDS: seeds.done(), CANDIDATES: cand.done() };
       }
+      case "gen.datamodel":
+        return {
+          SCHEMA: await this.schema(),
+          DOCS: await this.docs("DOCS", null, undefined, (f) => SCHEMA_DOC_RE.test(`${f.path} ${f.title}`)),
+          EXISTING: this.existing(["s7"]),
+        };
+      case "gen.quality":
+        return {
+          CLAIMS: this.claimLines(CLAIM_KINDS["gen.quality"] ?? []),
+          BODIES: this.bodies(this.fanInBodies(5), "BODIES"),
+          FACTS: this.qualityFacts(),
+          EXISTING: this.existing(["s9"]),
+        };
+      case "gen.decisions":
+        return {
+          DOCS: await this.docs("DOCS", null, undefined, (f) => f.role !== "readme" && f.role !== "other"),
+          COMMENTS: this.comments(),
+          CLAIMS: this.claimLines(CLAIM_KINDS["gen.decisions"] ?? []),
+          EXISTING: this.existing(["s10"]),
+        };
+      case "gen.risks":
+        return {
+          TODOS: this.todos(),
+          UNTESTED: this.untested(),
+          LARGE: this.large(),
+          CLAIMS: this.claimLines(CLAIM_KINDS["gen.risks"] ?? []),
+          EXISTING: this.existing(["s11"]),
+        };
+      case "gen.questions":
+        return { RAW: this.raw() };
+      case "gen.deepdive":
+        return await this.deepdive();
+      case "doc.sync": {
+        const ids = targetBlocks(t);
+        return { BLOCKS: this.blockLines(ids, true), CHANGES: await this.changesOf(ids) };
+      }
+      case "doc.simplify":
+      case "doc.translate": {
+        const ids = targetBlocks(t);
+        return { BLOCKS: this.blockLines(ids, false), GLOSSARY: this.glossary(ids) };
+      }
       default:
         return {};
     }
+  }
+
+  /** SCHEMA (§5.2): one fact line per entity, then the defining lines (merged excerpts per file, numbered). */
+  private async schema(): Promise<string[]> {
+    const ix = this.env.indexer;
+    const b = this.budget("SCHEMA", "schema items");
+    const facts = ix.facts("schema").filter((f): f is Extract<Fact, { kind: "schema" }> => f.kind === "schema");
+    for (const f of facts) b.add([`> S ${f.entity} ${f.source} fields=${f.fields.slice(0, 20).join(",")} ${f.path}:${f.line}`]);
+    const ranges = new Map<RepoPath, [number, number][]>();
+    for (const f of facts) {
+      const lines = ix.file(f.path)?.lines ?? 0;
+      if (lines === 0) continue;
+      const list = ranges.get(f.path) ?? [];
+      list.push([Math.max(1, f.line - 2), Math.min(lines, f.line + 24)]);
+      ranges.set(f.path, list);
+    }
+    for (const [path, list] of [...ranges].sort((x, y) => (x[0] < y[0] ? -1 : 1))) {
+      const merged: [number, number][] = [];
+      for (const r of [...list].sort((x, y) => x[0] - y[0])) {
+        const last = merged.at(-1);
+        if (last && r[0] <= last[1] + 1) last[1] = Math.max(last[1], r[1]);
+        else merged.push([r[0], r[1]]);
+      }
+      for (const [start, end] of merged) {
+        const slice = await ix.read(path, { start, end }, { numbered: true });
+        if (b.add([`=== ${path} · lines ${slice.start}-${slice.end}`, ...slice.text.split("\n")])) this.see(path, slice.blob);
+      }
+    }
+    return b.done();
+  }
+
+  /** CLAIMS (§5.2): generated claims of the given kinds in document order, `> c<k> <kind> <cites> | <quote>`. */
+  private claimLines(kinds: readonly ClaimKind[]): string[] {
+    const b = this.budget("CLAIMS", "claims");
+    const doc = this.env.doc;
+    let k = 0;
+    const walk = (sid: SectionId) => {
+      const node = doc.section(sid);
+      if (!node) return;
+      for (const blk of node.blocks) {
+        if (blk.origin === "static") continue;
+        for (const c of doc.claims(blk.id)) {
+          if (!kinds.includes(c.kind) || c.cites.length === 0 || c.verdict === "stale" || c.verdict === "unsupported") continue;
+          b.add([`> c${++k} ${c.kind} ${c.cites.map((x) => `${x.path}:${x.start}-${x.end}`).join(", ")} | ${c.quote.slice(0, 160)}`]);
+        }
+      }
+      for (const child of node.node.children) walk(child);
+    };
+    for (const s of doc.sections()) if (!s.id.includes("/")) walk(s.id);
+    return b.done();
+  }
+
+  /** BODIES of gen.quality: hot bodies of the 5 leaf modules with the most incoming dependencies. */
+  private fanInBodies(n: number): ReturnType<Indexer["hotBodies"]> {
+    const ix = this.env.indexer;
+    const leaves = ix
+      .modules()
+      .filter((m) => m.children.length === 0)
+      .map((m) => ({ m, fanIn: ix.moduleStats(m.id)?.depsIn.length ?? 0 }))
+      .sort((a, c) => c.fanIn - a.fanIn || c.m.rank - a.m.rank || (a.m.id < c.m.id ? -1 : 1))
+      .slice(0, n);
+    const per = Math.floor((this.budgets.BODIES ?? 6000) / Math.max(1, leaves.length));
+    return leaves.flatMap(({ m }) => ix.hotBodies(m.id, per, "claude-v5"));
+  }
+
+  /** FACTS of gen.quality: environment variables, security-relevant dependencies and the route count. */
+  private qualityFacts(): string[] {
+    const b = this.budget("FACTS", "facts");
+    let routes = 0;
+    for (const f of this.env.indexer.facts()) {
+      if (f.kind === "env") b.add([`> V ${f.name}${f.hasDefault ? " default" : ""} ${f.path}:${f.line}`]);
+      else if (f.kind === "dependency" && !f.dev && SECURITY_DEP_RE.test(f.name)) b.add([`> P ${f.ecosystem} ${f.name} ${f.version}`]);
+      else if (f.kind === "route") routes++;
+    }
+    if (routes > 0) b.add([`> R ${routes} routes`]);
+    return b.done();
+  }
+
+  /** COMMENTS (§5.2): rationale comments ±2 lines, numbered. */
+  private comments(): string[] {
+    const b = this.budget("COMMENTS", "comments");
+    for (const s of this.env.indexer.rationaleComments(60)) {
+      if (b.add([`=== ${s.path} · lines ${s.start}-${s.end}`, ...s.text.split("\n")])) this.see(s.path, s.blob);
+    }
+    return b.done();
+  }
+
+  /** TODOS (§5.2). */
+  private todos(): string[] {
+    const b = this.budget("TODOS", "todo items");
+    for (const f of this.env.indexer.facts("todo")) if (f.kind === "todo") b.add([`> ${f.marker} ${f.path}:${f.line} ${f.text}`]);
+    return b.done();
+  }
+
+  /** UNTESTED (§5.2): leaf modules without attached tests, by rank. */
+  private untested(): string[] {
+    const ix = this.env.indexer;
+    const b = this.budget("UNTESTED", "untested modules");
+    const leaves = ix
+      .modules()
+      .filter((m) => m.children.length === 0 && (ix.moduleStats(m.id)?.tests ?? 0) === 0)
+      .sort((a, c) => c.rank - a.rank || (a.id < c.id ? -1 : 1));
+    for (const m of leaves) b.add([`> ${m.id} "${this.label(m)}" loc=${m.loc} rank=${f2(m.rank)}`]);
+    return b.done();
+  }
+
+  /** LARGE (§5.2): the largest source files. */
+  private large(): string[] {
+    const ix = this.env.indexer;
+    const b = this.budget("LARGE", "large files");
+    const files = ix
+      .files()
+      .filter((f) => f.class === "source" && !f.excluded)
+      .sort((a, c) => c.lines - a.lines || (a.path < c.path ? -1 : 1))
+      .slice(0, 10);
+    for (const f of files) b.add([`> ${f.path} lines=${f.lines} module=${f.module ?? ix.moduleOf(f.path) ?? "-"}`]);
+    return b.done();
+  }
+
+  /** RAW (§5.2): `> q<k> <section> | <text> | <cites>`. */
+  private raw(): string[] {
+    const b = this.budget("RAW", "questions");
+    for (const [i, q] of (this.env.questions?.() ?? []).entries())
+      b.add([`> q${i + 1} ${q.section ?? "s13"} | ${q.text} | ${(q.cites ?? []).map((c) => `${c.path}:${c.start}-${c.end}`).join(", ")}`]);
+    return b.done();
+  }
+
+  /** gen.deepdive (topic mode, §5.6.12): MODULE, TOPIC (the placeholder), BODIES of the named symbols, SKELETON. */
+  private async deepdive(): Promise<TaskInputs> {
+    const ix = this.env.indexer;
+    const doc = this.env.doc;
+    const id = targetBlocks(this.task)[0];
+    const blk = id ? doc.block(id) : null;
+    if (!id || !blk) throw new Error(`gen: deep-dive placeholder ${id ?? "-"} is not in the doc`);
+    const entry = doc.index().modules.find((e) => e.section === blk.section);
+    const m = entry ? ix.module(entry.id) : null;
+    if (!m) throw new Error(`gen: deep-dive placeholder ${id} is not on a module page`);
+    const md = doc.markerForm(id) ?? blk.md;
+    this.hashes.set(id, blk.hash);
+    const topic = [`> block ${id} kind=${blk.kind} aspect=${blk.aspect ?? "deepdive"}`, ...md.split("\n").map((l) => `> ${l}`)];
+    const wanted = new Set(codeSpanNames(md));
+    const named = this.leafPaths(m).flatMap((p) =>
+      ix
+        .symbols(p)
+        .filter((sy) => wanted.has(sy.name) || wanted.has(sy.qualname))
+        .map((sy) => ({ path: p, start: sy.start, end: sy.end })),
+    );
+    const slices: { path: RepoPath; blob: GitOid; start: number; end: number; text: string }[] = [];
+    for (const r of named) slices.push(await ix.read(r.path, { start: r.start, end: r.end }, { numbered: true }));
+    if (slices.length === 0) slices.push(...ix.hotBodies(m.id, this.budgets.BODIES ?? 16000, "claude-v5"));
+    const sk = ix.skeleton({ kind: "module", module: m.id, budget: this.budgets.SKELETON ?? 4000 }, "sig", "claude-v5");
+    for (const p of sk.files) this.see(p);
+    return { MODULE: this.moduleHeader(m), TOPIC: topic, BODIES: this.bodies(slices, "BODIES"), SKELETON: sk.text.split("\n") };
+  }
+
+  /**
+   * BLOCKS (§5.2): `> block <id> kind=<k> depth=<d> aspect=<a> claims=<n>` + the marker-form md, each line quoted;
+   * doc.sync adds `> claims: [[1]] <kind> <path>:<a>-<b>, …; [[2]] …` (the ranges may be repeated as cites).
+   */
+  private blockLines(ids: readonly BlockId[], withClaims: boolean): string[] {
+    const doc = this.env.doc;
+    const b = this.budget("BLOCKS", "blocks");
+    for (const id of ids) {
+      const blk = doc.block(id);
+      if (!blk) continue;
+      const claims = doc.claims(id);
+      const md = doc.markerForm(id) ?? blk.md;
+      const item = [`> block ${id} kind=${blk.kind} depth=${blk.depth} aspect=${blk.aspect ?? "-"} claims=${claims.length}`];
+      for (const l of md.split("\n")) item.push(`> ${l}`);
+      if (withClaims && claims.length > 0)
+        item.push(
+          `> claims: ${claims.map((c, i) => `[[${i + 1}]] ${c.kind}${c.cites.length > 0 ? ` ${c.cites.map((x) => `${x.path}:${x.start}-${x.end}`).join(", ")}` : ""}`).join("; ")}`,
+        );
+      if (b.add(item)) this.hashes.set(id, blk.hash);
+    }
+    return b.done();
+  }
+
+  /** GLOSSARY (§5.2): entries whose term appears in the blocks, `> <term> | <yomi> | <en> | <def ≤ 120>`. */
+  private glossary(ids: readonly BlockId[]): string[] {
+    const doc = this.env.doc;
+    const text = ids.map((id) => plainText(doc.markerForm(id) ?? "")).join("\n");
+    const b = this.budget("GLOSSARY", "glossary entries");
+    for (const g of doc.index().glossary) {
+      if (!text.includes(g.term)) continue;
+      b.add([`> ${g.term} | ${g.yomi ?? ""} | ${g.en ?? ""} | ${g.definition.replace(/\s+/g, " ").slice(0, 120)}`]);
+    }
+    return b.done();
   }
 
   private module(): ModuleInfo {
@@ -275,7 +538,12 @@ class Gatherer {
     return b.done();
   }
 
-  private async docs(label: DataLabel, m: ModuleInfo | null, override?: number): Promise<string[]> {
+  private async docs(
+    label: DataLabel,
+    m: ModuleInfo | null,
+    override?: number,
+    keep?: (f: Extract<Fact, { kind: "existing_doc" }>) => boolean,
+  ): Promise<string[]> {
     const ix = this.env.indexer;
     const b = this.budget(label, "document excerpts", override);
     const docs = ix.facts("existing_doc");
@@ -283,6 +551,7 @@ class Gatherer {
     const chosen = docs
       .filter((d) => {
         if (d.kind !== "existing_doc") return false;
+        if (keep && !keep(d)) return false;
         if (!dirs) return true;
         const dir = d.path.includes("/") ? d.path.slice(0, d.path.lastIndexOf("/")) : ".";
         return dirs.has(dir);
@@ -327,28 +596,35 @@ class Gatherer {
 
   /** CHANGES: stale claims with their old lines (not citable) and the new range ±3 (citable). */
   private async changes(sections: readonly SectionId[]): Promise<string[]> {
+    const ids: BlockId[] = [];
+    for (const sid of sections) for (const blk of this.env.doc.section(sid)?.blocks ?? []) if (blk.origin !== "static") ids.push(blk.id);
+    return this.changesOf(ids);
+  }
+
+  /** CHANGES of the given blocks; `[[n]]` is the claim's marker number in the block (claim order). */
+  private async changesOf(ids: readonly BlockId[]): Promise<string[]> {
     const ix = this.env.indexer;
     const b = this.budget("CHANGES", "changed claims");
-    for (const sid of sections) {
-      for (const blk of this.env.doc.section(sid)?.blocks ?? []) {
-        if (blk.origin === "static") continue;
-        const claims = this.env.doc.claims(blk.id).filter((c) => c.verdict === "stale");
-        for (const [i, c] of claims.entries()) {
-          const item = [`> claim ${blk.id} [[${i + 1}]] ${c.quote.slice(0, 160)}`];
-          for (const cite of c.cites) {
+    for (const id of ids) {
+      for (const [i, c] of this.env.doc.claims(id).entries()) {
+        if (c.verdict !== "stale") continue;
+        const item = [`> claim ${id} [[${i + 1}]] ${c.quote.slice(0, 160)}`];
+        for (const cite of c.cites) {
+          // a re-anchored (overlapped) cite already points at the new lines; an outdated one still has the old blob
+          if (cite.blob !== ix.currentBlob(cite.path)) {
             item.push(`> old ${cite.path}:${cite.start}-${cite.end}`);
             const old = (await ix.blobText(cite.blob))?.split("\n") ?? [];
             for (let n = cite.start; n <= Math.min(cite.end, old.length); n++) item.push(`> ${n} ${old[n - 1] ?? ""}`);
-            const cur = ix.file(cite.path);
-            if (!cur) continue;
-            const s = Math.max(1, cite.start - 3);
-            const e = Math.min(cur.lines, cite.end + 3);
-            const slice = await ix.read(cite.path, { start: s, end: e }, { numbered: true });
-            item.push(`=== ${cite.path} · lines ${slice.start}-${slice.end}`, ...slice.text.split("\n"));
-            this.see(cite.path, slice.blob);
           }
-          b.add(item);
+          const cur = ix.file(cite.path);
+          if (!cur) continue;
+          const s = Math.max(1, cite.start - 3);
+          const e = Math.min(cur.lines, cite.end + 3);
+          const slice = await ix.read(cite.path, { start: s, end: e }, { numbered: true });
+          item.push(`=== ${cite.path} · lines ${slice.start}-${slice.end}`, ...slice.text.split("\n"));
+          this.see(cite.path, slice.blob);
         }
+        b.add(item);
       }
     }
     return b.done();

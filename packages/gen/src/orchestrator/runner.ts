@@ -37,6 +37,7 @@ import { type GatherEnv, gatherInputs, type TermCandidate } from "../prompts/inp
 import type { GenVerifier } from "../verify/verifier.ts";
 import { replayable } from "./apply.ts";
 import { addUsage, type ExecEnv, executeTask, type RunCtx } from "./execute.ts";
+import { questionsOf } from "./questions.ts";
 import type { GenStore, TaskMetrics, TaskRow } from "./store.ts";
 
 /** Internal services shared by the runner and the session engine. */
@@ -729,6 +730,7 @@ export class Runner {
         return s;
       }),
       candidates: () => candidatesOf(this.svc.store, [...live.rows.values()]),
+      questions: () => questionsOf(this.svc.store, [...live.rows.values()]),
     };
   }
 }

@@ -27,7 +27,7 @@ const brief = (p: GenPlan) =>
   p.tasks.map((t) => `${t.prompt}${t.mode ? `:${t.mode}` : ""}${t.target.kind === "module" || t.target.kind === "parent" ? `:${t.target.id}` : ""}`);
 
 describe("GEN-U-001 effort tiers", () => {
-  test("standard: early overview, S5 for every leaf (≤ 40), S6 for parents with paged children, final, flows, glossary", () => {
+  test("standard: early overview, S5 for every leaf (≤ 40), S6 for parents with paged children, final, flows, glossary, M4 sections", () => {
     const { planner } = setup();
     const plan = planner.plan({ effort: "standard" });
     expect(brief(plan)).toEqual([
@@ -37,9 +37,13 @@ describe("GEN-U-001 effort tiers", () => {
       `gen.module:${M_HTTP}`,
       `gen.module:${M_CLI}`,
       `gen.parent:${M_CORE}`,
+      "gen.quality",
+      "gen.risks",
+      "gen.decisions",
       "gen.overview:final",
       "gen.flows",
       "gen.glossary",
+      "gen.questions",
     ]);
     expect(plan.eager).toEqual([M_HTTP, M_CLI, M_SESSION, M_AUTH]);
     expect(plan.lazy).toEqual([]);
@@ -47,7 +51,10 @@ describe("GEN-U-001 effort tiers", () => {
     expect(final?.model).toBe("claude-opus-5-5");
     expect(final?.effort).toBe("medium");
     expect(plan.tasks.find((t) => t.prompt === "gen.module")?.model).toBe("claude-sonnet-5-5");
-    expect(plan.tasks.map((t) => t.phase)).toEqual([1, 1, 1, 1, 1, 2, 3, 3, 3]);
+    expect(plan.tasks.map((t) => t.phase)).toEqual([1, 1, 1, 1, 1, 2, 3, 3, 3, 3, 3, 3, 3]);
+    // no schema facts in the sample repo ⇒ no datamodel task; the question list waits for every producer
+    expect(plan.tasks.some((t) => t.prompt === "gen.datamodel")).toBe(false);
+    expect(plan.tasks.find((t) => t.prompt === "gen.questions")?.deps.length).toBe(plan.tasks.length - 3);
     expect(plan.tasks.every((t) => t.lane === "background" && t.cacheKey === null && !t.cached)).toBe(true);
   });
 
@@ -262,7 +269,7 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
       ["session", 1],
     ]);
     const session = alt.find((a) => a.engine === "session");
-    expect(session?.batches).toBe(3);
+    expect(session?.batches).toBe(4);
     expect(session?.uncalibrated).toBe(true);
     expect((session?.sessionTokens ?? 0) > 15000 * 3).toBe(true);
     expect(session?.seconds).toBeGreaterThan(alt[0]?.seconds as number);

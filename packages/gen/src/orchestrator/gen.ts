@@ -1,9 +1,12 @@
 /**
- * Orchestrator assembly: planner + estimator + verifier + runner + session engine over `GenDeps`.
- * S9 / on-demand / translation entry points belong to WP-06b and report E_UNSUPPORTED until they land.
+ * Orchestrator assembly: planner + estimator + verifier + runner + session engine over `GenDeps`, plus WP-06b's
+ * incremental S9 (`incremental/`) and the on-demand operations (`ondemand/`, `translate/`).
  */
-import { unsupported } from "@mitori/core";
+import type { ProposalId } from "@mitori/core";
 import type { GenDeps, GenOrchestrator } from "../contract.ts";
+import { Incremental } from "../incremental/s9.ts";
+import { type AnswerPromotion, promoteAnswer } from "../ondemand/answer.ts";
+import { OnDemand } from "../ondemand/ondemand.ts";
 import { createEstimator } from "../planner/estimator.ts";
 import { createPlanner } from "../planner/planner.ts";
 import { createSessionEngine } from "../session/session.ts";
@@ -18,6 +21,10 @@ export type GenDepsExt = GenDeps;
 export interface GenInternal extends GenOrchestrator {
   /** The Verifier (public factory `createVerifier` since CR m1-1; the composition root builds its own). */
   verifier: GenVerifier;
+  /**
+   * Ask answer → doc insert proposal with stamped claims (§12; CR-PENDING(WP-06b) R3: not on `GenOrchestrator` yet).
+   */
+  promoteAnswer(input: AnswerPromotion): Promise<ProposalId>;
 }
 
 /** Factory. */
@@ -27,6 +34,7 @@ export function createGenInternal(deps: GenDepsExt): GenInternal {
   const estimator = createEstimator({ settings: deps.settings, ledger: deps.ledger, window: () => deps.scheduler.window(), clock: deps.clock, ids: deps.ids });
   const planner = createPlanner({ indexer: deps.indexer, doc: deps.doc, settings: deps.settings, hasher: deps.hasher, estimator });
   const lang = () => deps.doc.manifest()?.primaryLang ?? deps.settings().repo.docLang ?? deps.settings().global.defaultDocLang;
+  let s9: Incremental | null = null;
   const svc: Services = {
     deps,
     store,
@@ -34,13 +42,13 @@ export function createGenInternal(deps: GenDepsExt): GenInternal {
     plan: (req) => planner.plan(req),
     estimate: (plan, engine, c) => estimator.estimate(plan, engine, c),
     lang,
+    taskDone: (row) => s9?.taskDone(row),
   };
   const runner = new Runner(svc);
   const session = createSessionEngine(svc, runner, deps.fs ?? null);
-  const wp06b =
-    (what: string) =>
-    (...args: unknown[]) =>
-      Promise.reject(unsupportedError(`gen.${what} (WP-06b)`, args));
+  const ondemand = new OnDemand({ svc, runner, estimator });
+  const incremental = new Incremental(svc, ondemand);
+  s9 = incremental;
 
   return {
     verifier,
@@ -61,19 +69,12 @@ export function createGenInternal(deps: GenDepsExt): GenInternal {
     run: (id) => runner.run(id),
     active: () => runner.active(),
     recover: () => runner.recover(),
-    onIndexDelta: wp06b("onIndexDelta") as GenOrchestrator["onIndexDelta"],
-    expand: wp06b("expand") as GenOrchestrator["expand"],
-    simplify: wp06b("simplify") as GenOrchestrator["simplify"],
-    translate: wp06b("translate") as GenOrchestrator["translate"],
-    syncBlocks: wp06b("syncBlocks") as GenOrchestrator["syncBlocks"],
+    onIndexDelta: (input) => incremental.onIndexDelta(input),
+    expand: (block, opts) => ondemand.expand(block, opts),
+    simplify: (block, level, opts) => ondemand.simplify(block, level, opts),
+    translate: (target, lang, opts) => ondemand.translate(target, lang, opts),
+    syncBlocks: (blocks, cause, opts) => ondemand.syncBlocks(blocks, cause, opts),
+    promoteAnswer: (input) => promoteAnswer(svc, input),
     session,
   };
-}
-
-function unsupportedError(what: string, args: unknown[]): unknown {
-  try {
-    return unsupported(what, ...args);
-  } catch (e) {
-    return e;
-  }
 }

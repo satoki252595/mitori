@@ -272,7 +272,9 @@ export class GenLineValidator implements LineValidator {
     const parsed = parseClaims(o.claims, GEN_LIMITS.claimsPerBlock, GEN_LIMITS.citesPerClaim);
     if (parsed.unknownKeys > 0) c.warn("W02");
     for (const p of parsed.problems) c.err("V03", p.at, p.expected, p.actual);
-    if (mdOk) this.markers(mdNorm, parsed.claims, c);
+    // patch lines without "claims" (doc.translate / doc.simplify) keep the block's claims: markers [[1]]..[[n]] once each
+    if (mdOk && patch && o.claims === undefined && existing) this.inheritedMarkers(mdNorm, existing.claims, c);
+    else if (mdOk) this.markers(mdNorm, parsed.claims, c);
     for (const cl of parsed.claims) for (const [j, cite] of cl.cites.entries()) this.cite(cite, `/claims/${cl.n}/${j}`, c);
 
     let after: BlockId | NewBlockRef | undefined;
@@ -447,6 +449,19 @@ export class GenLineValidator implements LineValidator {
       if (!seen.has(n)) c.err("V14", `/claims/${n}`, `marker [[${n}]] in md for claim ${n}`, inCode.has(n) ? "marker only inside a code span" : "no marker");
     }
     for (const n of seen) if (!claimNs.has(n)) c.err("V14", "/md", `claim ${n} for marker [[${n}]]`, "no claim");
+  }
+
+  /** V14 for a patch line that inherits the block's `n` claims: the marker set must be exactly 1..n (§12 V14). */
+  private inheritedMarkers(md: string, n: number, c: LineCheck): void {
+    const seen = new Set<number>();
+    for (const m of scanMarkers(md)) {
+      if (seen.has(m.n)) c.err("V14", "/md", `marker [[${m.n}]] exactly once`, "repeated");
+      else if (m.n > n) c.err("V14", "/md", `markers [[1]]..[[${n}]] of the original block`, `[[${m.n}]]`);
+      seen.add(m.n);
+    }
+    const inCode = markersInCode(md);
+    for (let k = 1; k <= n; k++)
+      if (!seen.has(k)) c.err("V14", "/md", `marker [[${k}]] of the original block`, inCode.has(k) ? "marker only inside a code span" : "no marker");
   }
 
   /** V17 / V18 with the W04 repairs applied virtually (the Verifier performs and records them). */

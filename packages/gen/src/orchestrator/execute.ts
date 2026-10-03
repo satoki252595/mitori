@@ -25,7 +25,7 @@ import type {
   WriteQueue,
   Xxh3,
 } from "@mitori/core";
-import type { DocStore } from "@mitori/doc";
+import type { DocStore, NewBlockRef } from "@mitori/doc";
 import {
   type CoverageReport,
   GEN_ESTIMATE_PARAMS,
@@ -47,8 +47,11 @@ import { createAssembler } from "../line/assembler.ts";
 import { createLineValidator, planRetry } from "../line/index.ts";
 import { maxOutOf, outTarget, thinkingOf } from "../planner/params.ts";
 import { type GatherEnv, gatherInputs } from "../prompts/inputs.ts";
+import { translateTarget } from "../prompts/renderer.ts";
+import { TranslationSink } from "../translate/sink.ts";
 import type { GenVerifier } from "../verify/verifier.ts";
-import { ApplySink, replayable } from "./apply.ts";
+import { type ApplyContext, ApplySink, type LineSink, replayable } from "./apply.ts";
+import { writeQuestions } from "./questions.ts";
 import type { GenStore, TaskMetrics, TaskRow } from "./store.ts";
 
 /** Everything a task execution needs. */
@@ -196,7 +199,7 @@ async function consume(
   env: ExecEnv,
   callRun: GenCallRun,
   validate: (raw: string, line: number) => LineVerdict,
-  sink: ApplySink,
+  sink: LineSink,
   ctx: ValidationContext,
 ): Promise<Turn> {
   const assembler = createAssembler();
@@ -275,7 +278,7 @@ interface Turn {
 const BLOCK_LINE_RE = /^\s*\{\s*"t"\s*:\s*"block"/;
 
 /** §14 task metrics from the consumed turns (attempt 1 first) and the apply outcome. */
-function metricsOf(task: PlannedTask, engine: string, res: ExecResult, turns: readonly Turn[], sink: ApplySink, dropped: number): TaskMetrics {
+function metricsOf(task: PlannedTask, engine: string, res: ExecResult, turns: readonly Turn[], sink: LineSink, dropped: number): TaskMetrics {
   const rules: Record<string, number> = {};
   let lines = 0;
   let valid = 0;
@@ -340,22 +343,40 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
     lang: env.lang,
     listed: rendered.ctx.existing.size,
     autoAccept: s.global.review.autoAcceptDocUpdates,
+    prompt: task.prompt,
     ...(run.packSnapshot ? { packSnapshot: run.packSnapshot } : {}),
   };
   const deps = { doc: env.doc, write: env.write, verifier: env.verifier, log: env.log };
+  const sinkOf = (ctx: ApplyContext, idMap: Record<NewBlockRef, BlockId>, onWritten?: (ids: readonly BlockId[]) => void): LineSink => {
+    const lang = translateTarget(task);
+    if (lang !== null) return new TranslationSink(deps, { lang, promptVer: version, model: task.model as ModelId, hashes: gathered.hashes });
+    return new ApplySink(deps, ctx, idMap, onWritten);
+  };
 
   const cached = env.store.getOutput(rendered.cacheKey);
   if (cached && replayable(cached.lines, env.doc)) {
-    const sink = new ApplySink(deps, { ...applyCtx, replay: true }, cached.idMap);
+    const sink = sinkOf({ ...applyCtx, replay: true }, cached.idMap);
     for (const l of cached.lines) sink.accept(JSON.parse(l) as GenLine);
     await sink.finish();
-    await afterLines(env, task, sink);
+    const after = await afterLines(env, task, sink, applyCtx);
     await env.write("gen.output", () => env.store.touchOutput(rendered.cacheKey));
     env.metrics.inc("gen.cache.hits");
-    return { state: "cached", usage: null, calls: 0, attempts: 0, blocks: sink.written };
+    return { state: "cached", usage: null, calls: 0, attempts: 0, blocks: [...sink.written, ...after] };
   }
 
-  const sink = new ApplySink(deps, applyCtx, {}, (ids) => hooks.blocks?.(ids));
+  // up to `questionsLlmAbove` raw questions the list is written as is, without an engine call; the output is stored
+  // under the task's cache key so an unchanged RAW replays (§5.6.10)
+  if (task.prompt === "gen.questions") {
+    const raw = run.gather.questions?.() ?? [];
+    if (raw.length <= GEN_ESTIMATE_PARAMS.questionsLlmAbove) {
+      const written = await writeQuestions(env, raw, { ...applyCtx, mode: questionMode(applyCtx) });
+      const lines = [...raw.map((q) => JSON.stringify(q)), JSON.stringify({ t: "end", blocks: 0 })];
+      await env.write("gen.output", () => env.store.putOutput(rendered.cacheKey, version, task.model, { lines, idMap: {} }));
+      return { state: "done", usage: null, calls: 0, attempts: 0, blocks: written };
+    }
+  }
+
+  const sink = sinkOf(applyCtx, {}, (ids) => hooks.blocks?.(ids));
   let usage: Usage | null = null;
   let calls = 0;
   const turns: Turn[] = [];
@@ -468,7 +489,8 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   await callRun.close();
   hooks.call(null);
   await sink.finish();
-  await afterLines(env, task, sink);
+  const after = await afterLines(env, task, sink, applyCtx);
+  sink.written.push(...after);
   if (coverage.missingAspects.length > 0) {
     return measured(
       {
@@ -516,9 +538,23 @@ function terminalFailure(r: GenCallResult, run: RunCtx): MitoriErrorData | null 
   return null;
 }
 
-/** Task-level writes after all lines: the glossary (term lines of gen.glossary + repo seeds). Push and session paths. */
-export async function afterLines(env: Pick<ExecEnv, "settings" | "write" | "doc">, task: Pick<PlannedTask, "prompt">, sink: ApplySink): Promise<void> {
-  if (task.prompt !== "gen.glossary") return;
+/** Incremental runs propose their question list unless doc updates are auto-accepted. */
+function questionMode(ctx: Pick<ApplyContext, "trigger" | "autoAccept">): "write" | "propose" {
+  return ctx.trigger === "incremental" && !ctx.autoAccept ? "propose" : "write";
+}
+
+/**
+ * Task-level writes after all lines (push and session paths): the glossary (term lines of gen.glossary + repo seeds)
+ * and the open-question list of gen.questions. Returns the blocks written.
+ */
+export async function afterLines(
+  env: Pick<ExecEnv, "settings" | "write" | "doc">,
+  task: Pick<PlannedTask, "prompt">,
+  sink: LineSink,
+  ctx: Pick<ApplyContext, "run" | "lang" | "engine" | "model" | "promptVer" | "indexDigest" | "trigger" | "autoAccept">,
+): Promise<BlockId[]> {
+  if (task.prompt === "gen.questions") return writeQuestions(env, sink.questions, { ...ctx, mode: questionMode(ctx) });
+  if (task.prompt !== "gen.glossary") return [];
   const seeds = env.settings().repo.glossary ?? [];
   const entries = sink.terms.map((t) => {
     const e: { term: string; definition: string; yomi?: string; en?: string } = { term: t.term, definition: t.def };
@@ -535,4 +571,5 @@ export async function afterLines(env: Pick<ExecEnv, "settings" | "write" | "doc"
     entries.push(e);
   }
   await env.write("gen.glossary", () => env.doc.setGlossary(entries));
+  return [];
 }

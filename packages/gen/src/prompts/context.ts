@@ -114,6 +114,32 @@ export function parseExisting(lines: readonly string[]): Map<BlockId, ExistingRe
   return out;
 }
 
+const BLOCK_RE = /^> block (b_[0-9a-hjkmnp-tv-z]{8}) kind=(\S+)(?: depth=\S+)?(?: aspect=(\S+))?(?: claims=(\d+))?/;
+
+/**
+ * Blocks a patch prompt may answer for (doc.* `BLOCKS`, gen.deepdive `TOPIC`): header lines
+ * `> block <id> kind=<k> [depth=<d>] [aspect=<a>] [claims=<n>]`.
+ */
+export function parseBlocks(lines: readonly string[]): Map<BlockId, ExistingRef> {
+  const out = new Map<BlockId, ExistingRef>();
+  for (const l of lines) {
+    const m = BLOCK_RE.exec(l);
+    if (!m) continue;
+    const id = m[1] as BlockId;
+    const ref: ExistingRef = { id, kind: m[2] as BlockKind, origin: "ai", stale: false, claims: Number(m[4] ?? 0) };
+    if (m[3] && m[3] !== "-") ref.aspect = m[3] as BlockAspect;
+    out.set(id, ref);
+  }
+  return out;
+}
+
+/** Where a task's answerable blocks are listed: EXISTING (gen.* regeneration), BLOCKS (doc.*), TOPIC (deep dive). */
+function existingOf(prompt: GenPromptId, sections: ReadonlyMap<string, readonly string[]>): Map<BlockId, ExistingRef> {
+  if (prompt === "gen.deepdive") return parseBlocks(sections.get("TOPIC") ?? []);
+  if (GEN_PROMPTS[prompt].form === "patch") return parseBlocks(sections.get("BLOCKS") ?? []);
+  return parseExisting(sections.get("EXISTING") ?? []);
+}
+
 const MODULE_ID_RE = /md_[0-9a-hjkmnp-tv-z]{8}/g;
 
 /** Flow limits from the SEEDS section: min(3, seeds) … min(5, seeds). */
@@ -156,7 +182,7 @@ export function buildContext(
     primarySection: taskSections[0] as SectionId,
     sections: taskSections,
     aspectsOf: (s) => sectionAspects(s, s6),
-    existing: parseExisting(sections.get("EXISTING") ?? []),
+    existing: existingOf(task.prompt, sections),
     modules,
     citable: citable.build(index),
     flows: task.prompt === "gen.flows" ? flowLimits(seeds) : { min: 0, max: 0 },
