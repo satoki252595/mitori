@@ -1,0 +1,781 @@
+/* Design-doc typography (ux.md §10.2, JLREQ) + server-HTML block rendering (§4.3.4). */
+
+.prose {
+  font: var(--fw-regular) var(--fs-body) / var(--lh-prose) var(--font-prose);
+  letter-spacing: var(--ls-prose);
+  max-width: var(--measure-prose);
+  margin: 0 auto;
+  color: var(--text);
+  overflow-anchor: none;
+}
+
+.prose:lang(en),
+:root:lang(en) .prose:not(:lang(ja)) {
+  line-height: var(--lh-prose-en);
+  letter-spacing: 0;
+}
+
+.prose :is(p, li, dd, td, th, blockquote, figcaption) {
+  line-break: strict;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+  text-spacing-trim: trim-start;
+}
+
+.prose :is(h1, h2, h3, h4) {
+  word-break: auto-phrase;
+  text-wrap: balance;
+  color: var(--ink);
+}
+
+.prose :is(b, strong) {
+  font-weight: var(--fw-strong);
+  color: var(--ink);
+}
+
+.prose :lang(ja) em,
+.prose:lang(ja) em {
+  font-style: normal;
+  font-weight: var(--fw-strong);
+}
+
+.prose code {
+  font: var(--code-font-scale) / 1 var(--font-mono);
+  font-variant-ligatures: none;
+  background: var(--code-bg);
+  padding: 0.08em 0.36em;
+  border-radius: var(--r-chip);
+  overflow-wrap: anywhere;
+}
+
+.prose :is(table, .meter),
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.prose p {
+  margin: 0;
+}
+
+.prose :is(ul, ol) {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.prose li::marker {
+  color: var(--muted);
+}
+
+.prose a:not(.mcite) {
+  text-decoration: underline;
+  text-decoration-color: var(--rule-2);
+  text-underline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------- page / section heads */
+.doc {
+  padding: var(--pad-prose-top) var(--pad-prose-x) var(--pad-prose-bottom);
+  min-width: 0;
+}
+
+.sec {
+  margin: 0 -64px var(--sec-gap);
+  padding: 0 64px;
+}
+
+.sec.cv {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 900px;
+}
+
+.sec-head {
+  margin: 0 0 26px;
+}
+
+.sec-num {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+  font-family: var(--font-serif);
+  font-size: var(--fs-h3);
+  color: var(--faint);
+  margin: 0 0 2px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: oldstyle-nums;
+}
+
+.sec-num .lang-note {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-ui);
+  font-size: var(--fs-label);
+  letter-spacing: normal;
+  font-variant-numeric: normal;
+  color: var(--muted);
+}
+
+.sec-head h1 {
+  font-family: var(--font-serif);
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: var(--fw-strong);
+  margin: 0 0 10px;
+  letter-spacing: var(--ls-heading);
+}
+
+.sec-head h1:focus,
+.prose h2.sub:focus {
+  outline: none;
+}
+
+/* claim-check button (client chrome inside .mb, data-mx) */
+.mb button.vsum {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 0 0.4em;
+  vertical-align: 0.1em;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-btn);
+  background: var(--sheet);
+  font-family: var(--font-ui);
+  font-size: var(--fs-label);
+  color: var(--c-guess);
+  letter-spacing: 0;
+  opacity: 0;
+  transition: opacity var(--dur-hover-l);
+}
+
+.mb button.vsum::before {
+  content: var(--glyph-tilde);
+}
+
+.blk:hover .mb button.vsum,
+.blk.focus .mb button.vsum,
+.mb button.vsum:focus-visible {
+  opacity: 1;
+}
+
+.sec-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: var(--fs-label);
+  color: var(--muted);
+  margin: 0;
+  letter-spacing: 0;
+  line-height: 1.6;
+}
+
+.sec-meta .sep {
+  color: var(--rule-2);
+}
+
+.sec-meta .guess {
+  color: var(--c-guess);
+}
+
+.sec-meta .stale {
+  color: var(--c-warn);
+}
+
+.sec-meta .chip-weak {
+  color: var(--c-warn);
+  background: var(--c-warn-bg);
+  border-radius: var(--r-pill);
+  padding: 0 8px;
+}
+
+.prose h2.sub {
+  font-family: var(--font-serif);
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-strong);
+  margin: 46px 0 14px;
+  letter-spacing: var(--ls-heading);
+}
+
+.prose h2.sub .hn {
+  font-family: var(--font-serif);
+  color: var(--faint);
+  margin-right: 0.4em;
+  font-variant-numeric: oldstyle-nums;
+}
+
+.gen-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 30px;
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card);
+  background: var(--sheet);
+  font-size: var(--fs-ui);
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------- blocks: client wrapper `.blk` around server `.mb` */
+.blk {
+  position: relative;
+  margin: 0 -14px 14px;
+  padding: 3px 14px;
+  border-radius: var(--r-blk);
+  isolation: isolate;
+  transition: background-color var(--dur-hover-l);
+  scroll-margin-top: var(--scroll-pad-top);
+}
+
+.blk:hover {
+  background: color-mix(in srgb, var(--hover) 45%, transparent);
+}
+
+.blk:focus {
+  outline: none;
+}
+
+.blk::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.blk.focus::before {
+  background: var(--accent);
+}
+
+.blk.thread::before {
+  background: var(--rule-2);
+}
+
+.blk.working::before {
+  background: var(--c-run);
+  animation: breathe var(--dur-pulse) ease-in-out infinite;
+}
+
+.blk.changed {
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--c-ok) 70%, transparent);
+}
+
+/* accept flash: the block's own background (no pseudo layer behind the text, no negative z-index) */
+.blk.flash {
+  animation: flash var(--dur-flash) var(--ease-std) forwards;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes flash {
+  0% {
+    background-color: transparent;
+  }
+  12% {
+    background-color: var(--c-ok-bg);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* gutter ✓ (verified) and Markdown line numbers as pseudo-elements of `.mb` (0 DOM nodes) */
+.mb {
+  position: static;
+}
+
+.blk[data-v] > .mb::before {
+  content: var(--glyph-check);
+  position: absolute;
+  left: -30px;
+  top: 6px;
+  width: 16px;
+  font-size: var(--fs-ui);
+  line-height: 1.9;
+  color: var(--v-verified);
+  opacity: 0;
+  transition: opacity var(--dur-hover-l);
+}
+
+.blk[data-v="human"] > .mb::before {
+  content: var(--glyph-double-check);
+  color: var(--v-human);
+  left: -36px;
+}
+
+.blk:hover > .mb::before,
+html.show-cites .blk > .mb::before,
+html[data-level="expert"] .blk > .mb::before {
+  opacity: 1;
+}
+
+html[data-level="expert"] .blk > .mb[data-ln]::after {
+  content: "L" attr(data-ln);
+  position: absolute;
+  left: -46px;
+  top: 30px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  line-height: 1;
+  color: var(--muted);
+}
+
+/* claims and verdict badges (pseudo-elements; labels from --t-verdict-*) */
+.mc[data-verdict="inferred"] {
+  background: linear-gradient(transparent 62%, var(--c-guess-bg) 62%);
+}
+
+.mc[data-verdict]::after {
+  display: inline-flex;
+  align-items: center;
+  height: 19px;
+  padding: 0 6px;
+  margin: 0 0.2em;
+  border-radius: var(--r-chip);
+  font-family: var(--font-ui);
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-strong);
+  letter-spacing: 0.02em;
+  vertical-align: 0.12em;
+  line-height: 1;
+  font-style: normal;
+}
+
+.mc[data-verdict="inferred"]::after {
+  content: var(--glyph-tilde) "\a0" var(--t-verdict-inferred, "");
+  color: var(--v-inferred);
+  background: var(--v-inferred-bg);
+}
+
+.mc[data-verdict="stale"]::after {
+  content: var(--glyph-warn) "\a0" var(--t-verdict-stale, "");
+  color: var(--v-stale);
+  background: var(--v-stale-bg);
+}
+
+.mc[data-verdict="unsupported"]::after {
+  content: var(--glyph-x) "\a0" var(--t-verdict-unsupported, "");
+  color: var(--v-unsupported);
+  background: var(--v-unsupported-bg);
+}
+
+.mc[data-verdict="verified"]::after,
+.mc[data-verdict="human-verified"]::after,
+.mc[data-verdict="cited"]::after {
+  content: none;
+}
+
+html.show-cites .mc[data-verdict="verified"]::after {
+  content: var(--glyph-check);
+  color: var(--v-verified);
+  background: var(--v-verified-bg);
+}
+
+.mc[data-verdict="inferred"],
+.mc[data-verdict="unsupported"] {
+  cursor: pointer;
+}
+
+/* citation chips */
+.mcite {
+  display: inline-flex;
+  align-items: center;
+  height: var(--cite-h);
+  padding: 0 5px;
+  margin: 0 0.15em;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-chip);
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  line-height: 1;
+  color: var(--muted);
+  vertical-align: 0.12em;
+  background: var(--sheet);
+  letter-spacing: 0;
+  white-space: nowrap;
+  position: relative;
+  transition:
+    color var(--dur-hover),
+    border-color var(--dur-hover),
+    background-color var(--dur-hover);
+}
+
+.mcite::after {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--cite-hit-ext)) -2px;
+}
+
+.mcite:hover,
+.mcite.on {
+  color: var(--ink);
+  border-color: var(--rule-2);
+  background: var(--hover);
+}
+
+.mcite .cl {
+  display: none;
+}
+
+.cite-end {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  height: var(--cite-h);
+  padding: 0 6px;
+  margin-left: 0.3em;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-chip);
+  font-size: var(--fs-meta);
+  color: var(--muted);
+  vertical-align: 0.12em;
+  background: var(--sheet);
+  letter-spacing: 0;
+  position: relative;
+}
+
+.cite-end::after {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--cite-hit-ext)) -2px;
+}
+
+/* glossary terms */
+.mterm {
+  font-style: normal;
+  text-decoration: none;
+  cursor: help;
+  background-image: linear-gradient(to right, var(--muted) 45%, transparent 0);
+  background-size: 4px 1px;
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  padding-bottom: 1px;
+}
+
+.mterm:hover {
+  background-image: linear-gradient(to right, var(--ink) 45%, transparent 0);
+}
+
+/* kinds */
+.blk[data-kind="pitfall"] {
+  margin: 24px -14px;
+  padding: 14px 18px;
+  background: var(--pit-bg);
+  box-shadow: inset 2px 0 0 var(--pit-rule);
+}
+
+.blk[data-kind="pitfall"] .mb::before {
+  display: none;
+}
+
+.blk[data-kind="recap"] {
+  margin-top: 34px;
+  padding: 18px 20px;
+  background: var(--paper-2);
+  border-radius: var(--r-card);
+}
+
+.blk[data-kind="learn"] {
+  margin: 0 -14px 30px;
+  padding: 16px 14px 4px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+}
+
+.prose .lbl-k {
+  display: block;
+  margin: 0 0 6px;
+  font-size: var(--fs-meta);
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-weight: var(--fw-strong);
+}
+
+.blk[data-kind="pitfall"] .lbl-k {
+  color: var(--c-bad);
+}
+
+.blk[data-kind="question"],
+.blk[data-kind="faq"] {
+  border-bottom: 1px solid var(--rule-soft);
+  border-radius: 0;
+}
+
+.prose details.why {
+  margin: 8px 0;
+  padding: 0 0 0 18px;
+  border-left: 2px solid var(--rule-2);
+}
+
+.prose details.mdeep {
+  margin: 8px 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.prose details > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.90625rem;
+  color: var(--ink);
+  font-weight: var(--fw-strong);
+  padding: 2px 0;
+  min-height: 28px;
+}
+
+.prose details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.prose details > summary::after {
+  content: "+";
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-weight: var(--fw-regular);
+  color: var(--muted);
+}
+
+.prose details[open] > summary::after {
+  content: "\2212";
+}
+
+.prose details > :not(summary) {
+  font-size: var(--fs-body-s);
+}
+
+.prose table,
+.prose .ptable {
+  width: calc(100% + 40px);
+  margin: 6px -20px 0;
+  border-collapse: collapse;
+  font-size: var(--fs-ui);
+  line-height: 1.6;
+  letter-spacing: 0;
+}
+
+.prose th {
+  font-size: var(--fs-label);
+  color: var(--muted);
+  font-weight: var(--fw-regular);
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.prose td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: top;
+}
+
+.prose pre.mcode {
+  margin: 4px 0;
+  padding: 10px 12px;
+  border-radius: var(--r-card);
+  background: var(--code-bg);
+  color: var(--shiki-foreground);
+  font: 0.71875rem / var(--lh-code) var(--font-mono);
+  font-variant-ligatures: none;
+  overflow: auto;
+  letter-spacing: 0;
+}
+
+.prose pre.mcode code {
+  background: none;
+  padding: 0;
+  font: inherit;
+}
+
+.prose pre.mcode .ln {
+  display: inline-block;
+  width: 3ch;
+  margin-right: 1ch;
+  text-align: right;
+  color: var(--muted);
+  user-select: none;
+}
+
+.prose figure.mdiagram {
+  margin: 26px -40px 30px;
+  padding: 12px 40px;
+}
+
+.prose figure.mdiagram figcaption {
+  font-size: var(--fs-label);
+  color: var(--muted);
+  margin-top: 10px;
+}
+
+.prose figure.mdiagram[data-w] .dg-box {
+  width: 100%;
+}
+
+.static-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-meta);
+  color: var(--muted);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-pill);
+  padding: 1px 8px;
+  background: var(--sheet);
+}
+
+/* placeholder (not generated yet, ux.md §4.3.10) */
+.ph {
+  border: 1px dashed var(--rule-2);
+  border-radius: var(--r-card);
+  padding: 18px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  font-size: var(--fs-ui-l);
+  color: var(--muted);
+  line-height: 1.75;
+  margin: 0 0 14px;
+}
+
+/* streaming reservation (§4.3.9) */
+.mstream {
+  min-height: var(--reserve, 600px);
+}
+
+.mstream .partial {
+  white-space: pre-wrap;
+  color: var(--text);
+}
+
+.caret {
+  display: inline-block;
+  width: 6px;
+  height: 13px;
+  background: var(--c-run);
+  vertical-align: -2px;
+  margin-left: 1px;
+  animation: breathe 1s steps(2) infinite;
+}
+
+.stream-note {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: var(--fs-label);
+  color: var(--c-run);
+  margin: 0 0 14px;
+}
+
+/* pager */
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 28px;
+}
+
+.pager a {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 14px 18px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card);
+  min-width: 15em;
+  background: var(--sheet);
+  transition: border-color var(--dur-hover-l);
+}
+
+.pager a:hover {
+  border-color: var(--rule-2);
+}
+
+.pager .k {
+  font-size: var(--fs-label);
+  color: var(--muted);
+}
+
+.pager .t {
+  font-family: var(--font-serif);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-strong);
+  color: var(--ink);
+}
+
+/* "詳しく（n）" chip for L3 blocks hidden at the newcomer level */
+.more-chip {
+  display: none;
+  margin: 0 0 14px;
+  font-size: var(--fs-ui-s);
+  color: var(--muted);
+  border: 1px dashed var(--rule-2);
+  border-radius: var(--r-btn);
+  padding: 6px 10px;
+  min-height: 28px;
+}
+
+.more-chip:hover {
+  color: var(--ink);
+  border-color: var(--muted);
+}
+
+/* virtualization spacer */
+.bwin-sp {
+  contain: strict;
+}
+
+/* reading-path marker (outside .mb) */
+.read-mark {
+  display: block;
+  height: 1px;
+}
+
+@media (max-width: 1280px) {
+  .doc {
+    padding: 44px 40px 120px 52px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .doc {
+    padding: 36px 40px 120px;
+  }
+  .prose figure.mdiagram {
+    margin-left: 0;
+    margin-right: 0;
+    padding: 12px 0;
+  }
+  .prose table {
+    width: 100%;
+    margin: 6px 0 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .doc {
+    padding: 28px 16px 100px;
+  }
+}
