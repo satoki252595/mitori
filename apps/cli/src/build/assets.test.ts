@@ -33,7 +33,7 @@ describe("SKEL-U-06 packed pinned files", () => {
         source: "embedded",
         lock: [],
         web: {},
-        workers: { parse: "", compute: "" },
+        workers: { parse: "", compute: "", serverParse: "", serverCompute: "" },
         files: { packed: join(dir, "w.js.br"), plain: join(dir, "w.js") },
       };
       expect(await readPinned("packed", t)).toEqual(raw);

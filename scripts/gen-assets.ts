@@ -16,8 +16,16 @@ import { ROOT } from "./lib/repo.ts";
 export const OUT = "dist/.build";
 const PACK_CACHE = "node_modules/.cache/mitori-assets";
 export const LOCK = "apps/cli/src/build/assets.lock.json";
-/** Worker entrypoints compiled into the binary (name → repo path). WP-INT moves them to packages/server/src/workers/. */
-export const WORKERS = { parse: "apps/cli/src/build/workers/parse.ts", compute: "apps/cli/src/build/workers/compute.ts" } as const;
+/**
+ * Worker entrypoints compiled into the binary (name → repo path). `parse` / `compute` are the walking-skeleton probes
+ * `mitori _selftest` drives; `serverParse` / `serverCompute` are the daemon's real Workers (WP-INT, CR m0-19).
+ */
+export const WORKERS = {
+  parse: "apps/cli/src/build/workers/parse.ts",
+  compute: "apps/cli/src/build/workers/compute.ts",
+  serverParse: "packages/server/src/workers/parse.ts",
+  serverCompute: "packages/server/src/workers/compute.ts",
+} as const;
 /** Ids the runtime needs (apps/cli/src/build/assets.ts reads them by name). */
 export const REQUIRED_IDS = [
   "treesitter.runtime",
@@ -158,7 +166,14 @@ export async function buildWeb(outDir: string): Promise<"apps/web" | "apps/web/s
   const app = existsSync(join(ROOT, "apps/web/index.html")) && existsSync(join(ROOT, "apps/web/vite.config.ts"));
   const common = { logLevel: "warn" as const, base: "/", build: { outDir, emptyOutDir: true, assetsDir: "assets", reportCompressedSize: false } };
   if (app) {
-    await build({ ...common, root: join(ROOT, "apps/web"), configFile: join(ROOT, "apps/web/vite.config.ts") });
+    // the shell compares its build version with the daemon's `hello.version` (reload banner): both are the CLI's
+    const version = (JSON.parse(readFileSync(join(ROOT, "apps/cli/package.json"), "utf8")) as { version: string }).version;
+    await build({
+      ...common,
+      define: { __MITORI_VERSION__: JSON.stringify(version) },
+      root: join(ROOT, "apps/web"),
+      configFile: join(ROOT, "apps/web/vite.config.ts"),
+    });
     return "apps/web";
   }
   const { svelte } = await import("@sveltejs/vite-plugin-svelte");

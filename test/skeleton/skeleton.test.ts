@@ -14,7 +14,16 @@ const HOST_BIN = join(ROOT, `dist/mitori-${process.platform}-${process.arch}`);
 const BIN = process.env.MITORI_BIN ?? HOST_BIN;
 // go-small arrives with WP-00b; until then the M0 fixture stands in
 const FIXTURE = join(ROOT, existsSync(join(ROOT, "fixtures/repos/go-small")) ? "fixtures/repos/go-small" : "fixtures/repos/ts-small");
-const SOURCES = ["apps/cli/src", "apps/web/src", "apps/web/index.html", "apps/web/vite.config.ts", "scripts/gen-assets.ts", "scripts/build-bin.ts", "bun.lock"];
+const SOURCES = [
+  "apps/cli/src",
+  "packages",
+  "apps/web/src",
+  "apps/web/index.html",
+  "apps/web/vite.config.ts",
+  "scripts/gen-assets.ts",
+  "scripts/build-bin.ts",
+  "bun.lock",
+];
 
 function newestSource(): number {
   let newest = 0;
@@ -58,6 +67,11 @@ async function startDaemon(args: string[], env: Record<string, string> = {}) {
     stdout: "pipe",
     stderr: "pipe",
   });
+  // stderr is collected as it arrives (the open scan reports there once the zero-token doc is ready)
+  const err = { text: "" };
+  void (async () => {
+    for await (const c of proc.stderr) err.text += new TextDecoder().decode(c);
+  })();
   const reader = proc.stdout.getReader();
   let out = "";
   const deadline = setTimeout(() => proc.kill(), 5_000);
@@ -70,8 +84,8 @@ async function startDaemon(args: string[], env: Record<string, string> = {}) {
   clearTimeout(deadline);
   reader.releaseLock();
   const url = /http:\/\/127\.0\.0\.1:\d+\//.exec(out)?.[0];
-  if (!url) throw new Error(`no URL on stdout: ${out}${await new Response(proc.stderr).text()}`);
-  return { proc, url, out, t0 };
+  if (!url) throw new Error(`no URL on stdout: ${out}${err.text}`);
+  return { proc, url, out, t0, err };
 }
 
 describe("SKEL-AT-01 mitori <repo> --no-open from a dir without node_modules", () => {
@@ -148,10 +162,12 @@ describe("SKEL-AT-01 mitori <repo> --no-open from a dir without node_modules", (
     }
   });
 
-  test("SIGTERM stops the daemon cleanly; the S0 stub reported the workspace on stderr", async () => {
+  test("SIGTERM stops the daemon cleanly; the open scan reported the workspace on stderr", async () => {
+    const report = /: \d+ files, \d+ modules \(S0–S4/;
+    for (let i = 0; i < 200 && !report.test(d.err.text); i++) await Bun.sleep(20);
+    expect(d.err.text).toMatch(report);
     d.proc.kill("SIGTERM");
     expect(await d.proc.exited).toBe(0);
-    expect(await new Response(d.proc.stderr).text()).toMatch(/: \d+ files \(S0 stub/);
   });
 });
 

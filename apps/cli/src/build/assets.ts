@@ -10,7 +10,8 @@ import { fileURLToPath } from "node:url";
 import { brotliDecompressSync } from "node:zlib";
 import type { ServerDeps } from "@mitori/server";
 
-export type WorkerName = "parse" | "compute";
+/** `parse` / `compute`: skeleton probes (`_selftest`); `serverParse` / `serverCompute`: the daemon's Workers (WP-INT). */
+export type WorkerName = "parse" | "compute" | "serverParse" | "serverCompute";
 
 /** One served web file: the raw bytes plus precompressed variants (paths), and whether its name is content-hashed. */
 export interface WebAssetPaths {
@@ -77,7 +78,14 @@ function devTable(): AssetTable {
     }
   }
   const worker = (name: string) => new URL(`./workers/${name}.ts`, import.meta.url).href;
-  return { source: "dev", lock, files, web, workers: { parse: worker("parse"), compute: worker("compute") } };
+  const server = (name: string) => new URL(`../../../../packages/server/src/workers/${name}.ts`, import.meta.url).href;
+  return {
+    source: "dev",
+    lock,
+    files,
+    web,
+    workers: { parse: worker("parse"), compute: worker("compute"), serverParse: server("parse"), serverCompute: server("compute") },
+  };
 }
 
 /** Bytes of a pinned file (unpacked when embedded as `.br`). */

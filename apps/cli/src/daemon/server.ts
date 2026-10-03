@@ -1,0 +1,120 @@
+/**
+ * The real daemon (WP-INT): builds `ServerDeps` from `@mitori/platform` adapters, the embedded assets and the
+ * Worker pools, then hands them to the composition root (`@mitori/server` `createServer`). Replaces the
+ * walking-skeleton fetch handler of serve.ts for `mitori <path>` / `mitori _serve` (CR m0-14 hand-over to WP-11).
+ */
+import { homedir } from "node:os";
+import { createSecretScanner, type HealthRes, MitoriError, type WorkspaceInfo } from "@mitori/core";
+import {
+  createFsReader,
+  createFsWatcher,
+  createGitReader,
+  createHasher,
+  createLogger,
+  createMetrics,
+  createSafeWriter,
+  createSelfWriteLog,
+  createSpawner,
+  createWorkerPool,
+  cryptoRandom,
+  openLogFile,
+  openSqlDb,
+  resolveSafePath,
+  systemClock,
+} from "@mitori/platform";
+import { createServer, type ServerDeps, type ServerHandle } from "@mitori/server";
+import { type AssetTable, assetTable, GRAMMAR_LANGS, loadWebAssets, pinnedScriptUrl, readPinned } from "../build/assets.ts";
+import { createElkPool } from "./elk.ts";
+
+export interface ServerDaemonOptions {
+  /** `~/.mitori` (created 0700 by the caller). */
+  home: string;
+  /** Preferred port (0 = previous one, else OS-assigned). */
+  port: number;
+  version: string;
+  build: HealthRes["build"];
+  /** Replace parts of the deps (tests: a fake spawner, a log sink). */
+  overrides?: Partial<ServerDeps>;
+  /** Log to stderr instead of `~/.mitori/logs/`. */
+  logToStderr?: boolean;
+}
+
+export interface ServerDaemon {
+  handle: ServerHandle;
+  port: number;
+  url: string;
+  /** Bearer token (registry). */
+  token: string;
+  /** Resolves with the reason once the daemon stopped (signal, idle exit, `POST /daemon/shutdown`). */
+  stopped: Promise<string>;
+  stop(reason?: string): Promise<void>;
+}
+
+/** Worker factory that posts the init message first (`packages/server/src/workers/protocol.ts`). */
+const withInit = (spec: string, init: unknown) => () => {
+  const w = new Worker(spec);
+  w.postMessage({ type: "init", init });
+  return w;
+};
+
+async function parseInit(t: AssetTable) {
+  const grammars: Record<string, Uint8Array> = {};
+  for (const g of GRAMMAR_LANGS) grammars[g] = await readPinned(`grammar.${g}`, t);
+  return { runtime: await readPinned("treesitter.runtime", t), grammars };
+}
+
+export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerDaemon> {
+  const t = assetTable();
+  const clock = systemClock;
+  const selfWrites = createSelfWriteLog();
+  const safeWrite = createSafeWriter({ selfWrites, random: cryptoRandom });
+  const fs = createFsReader();
+  const safePath = resolveSafePath(process.env.PATH ?? "", { workspaceRoots: [], startCwd: process.cwd() });
+  const sink = o.logToStderr ? (line: string) => process.stderr.write(`${line}\n`) : openLogFile({ dir: `${o.home}/logs`, clock }).write;
+  const log = createLogger({ sink, clock, level: process.env.MITORI_LOG === "debug" ? "debug" : "info" });
+  const [init, onig, assets] = await Promise.all([parseInit(t), readPinned("shiki.onig", t), loadWebAssets(t)]);
+  const userHome = homedir();
+  const deps: ServerDeps = {
+    home: o.home,
+    build: o.build,
+    clock,
+    random: cryptoRandom,
+    hasher: createHasher(),
+    log,
+    metrics: createMetrics(),
+    openDb: (path) => openSqlDb(path),
+    spawner: createSpawner({ safePath }),
+    fs,
+    safeWrite,
+    watcher: createFsWatcher({ selfWrites }),
+    git: (info: WorkspaceInfo) =>
+      createGitReader({
+        workTree: info.root,
+        ...(info.kind === "shadow" ? { gitDir: `${o.home}/repos/${info.key}/shadow.git` } : {}),
+        env: { PATH: safePath, HOME: userHome },
+      }),
+    pools: {
+      parse: (size) => createWorkerPool({ create: withInit(t.workers.serverParse, init), size }),
+      elk: createElkPool(() => pinnedScriptUrl("elk.worker", t)) as ServerDeps["pools"]["elk"],
+      compute: createWorkerPool({ create: withInit(t.workers.serverCompute, { onig }), size: 1, keepWarm: 1 }),
+    },
+    secrets: createSecretScanner(),
+    assets,
+    // CR-PENDING(WP-INT): the viewer bundle for exports arrives with WP-13.
+    viewerAssets: { js: "", css: "", jsSha256: "" },
+    safePath,
+    env: process.env,
+    mitoriBin: process.execPath,
+    ...o.overrides,
+  };
+  let handle: ServerHandle;
+  try {
+    handle = await createServer({ ...deps, ...({ version: o.version, pid: process.pid, userHome, port: o.port } as object) } as ServerDeps);
+  } catch (err) {
+    await Promise.allSettled([deps.pools.compute.close(), deps.pools.elk.close()]);
+    throw err;
+  }
+  const ext = handle as ServerHandle & { url: string; token: string; stopped: Promise<string> };
+  if (!ext.url) throw new MitoriError("E_INTERNAL", "createServer returned no url");
+  return { handle, port: handle.port, url: ext.url, token: ext.token, stopped: ext.stopped, stop: (reason = "requested") => handle.stop(reason) };
+}
