@@ -70,6 +70,8 @@ export class DocState {
   readonly fileTick = new Map<string, number>();
   /** Per file: time of the first cite-only move not yet written (PT-11). */
   readonly citeMoved = new Map<string, number>();
+  /** Per section: tick of the last change of its block list or derived fields (sidecar fragment memo). */
+  readonly sectionTick = new Map<SectionId, number>();
   indexTick = 0;
   manifestTick = 0;
   private fileMemo = new Map<BlockId, { tick: number; live: boolean; md: string }>();
@@ -231,6 +233,7 @@ export class DocState {
     }
     section.readingSec = sec;
     section.state = generating > 0 ? "generating" : ph > 0 ? (ai > 0 ? "partial" : "pending") : ai > 0 ? "generated" : "static_only";
+    this.sectionTick.set(section.id, this.tick());
   }
 
   /** Remove a block from the model (claims too). Returns the removed record. */

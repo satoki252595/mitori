@@ -26,6 +26,8 @@ interface Pending {
   md: boolean;
   /** Applied after a successful write (claims' fileCites := live). */
   commit?: (() => void) | undefined;
+  /** The producer knows whether the bytes equal the last write (skips an 18 MB compare); absent = compare. */
+  same?: boolean;
 }
 
 export class Flusher {
@@ -38,6 +40,7 @@ export class Flusher {
   private readonly index = new IndexSerializer();
   private readonly frags = new Map<string, { tick: number; text: string }>();
   private noticed = new Set<string>();
+  private lastIndex: string | null = null;
   /** Extra docDir files (decisions/…) waiting to be written. */
   readonly extra = new Map<string, string>();
 
@@ -144,7 +147,12 @@ export class Flusher {
     for (const p of pending) delete p.commit;
     const removes = [...this.written.keys()].filter((rel) => rel.endsWith(".md") && rel.startsWith("doc/") && !live.has(rel));
     if (st.indexTick > (this.writtenTick.get("doc.index.json") ?? -1) || citesCommitted) {
-      pending.push({ rel: "doc.index.json", content: this.index.serialize(st, core.readingPaths()), tick: st.indexTick, md: false });
+      const ix = this.index.serialize(st, core.readingPaths());
+      // "unchanged" is trusted only when the previous serialization is what was written (same string object)
+      const prev = this.lastIndex;
+      this.lastIndex = ix.text;
+      const trusted = prev !== null && this.written.get("doc.index.json") === prev;
+      pending.push({ rel: "doc.index.json", content: ix.text, tick: st.indexTick, md: false, ...(trusted ? { same: !ix.changed } : {}) });
     }
     if (st.manifest && st.manifestTick > (this.writtenTick.get("mitori.json") ?? -1)) {
       pending.push({ rel: "mitori.json", content: canonicalJson(st.manifest), tick: st.manifestTick, md: false });
@@ -183,7 +191,7 @@ export class Flusher {
     const out: string[] = [];
     let bytes = 0;
     for (const p of pending) {
-      if (this.written.get(p.rel) === p.content) {
+      if (p.same ?? this.written.get(p.rel) === p.content) {
         this.markWritten(p);
         continue;
       }

@@ -17,6 +17,7 @@ import {
   type ProposalId,
   type SectionId,
   type SectionNode,
+  staticBlockId,
   type TopSectionId,
 } from "@mitori/core";
 import { unmarkerize } from "../codec/cite.ts";
@@ -229,11 +230,32 @@ export function removeSection(core: StoreCore, id: SectionId, res?: ApplyResult)
   st.touchOutline();
 }
 
+/**
+ * A block with the slot's deterministic id but no slot metadata (the sidecar was lost, the Markdown kept the ids):
+ * take it back as the static block — unlocked when its text is what the slot renders, else it stays a human edit.
+ */
+function adoptStatic(core: StoreCore, spec: StaticSpec): BlockId | undefined {
+  const docId = core.st.manifest?.docId;
+  if (!docId) return undefined;
+  const id = staticBlockId(core.deps.hasher, docId, spec.slot);
+  const rec = core.st.blocks.get(id);
+  if (!rec || rec.meta.slot || rec.meta.section !== spec.section) return undefined;
+  rec.meta.slot = spec.slot;
+  core.st.slots.set(spec.slot, id);
+  if (core.hash(spec.md) === rec.meta.hash) {
+    rec.meta.origin = "static";
+    delete rec.meta.lock;
+  }
+  core.st.touchMeta(rec);
+  return id;
+}
+
 /** Create or update one static block; locked blocks get a proposal instead (once per text). */
 function upsertStatic(core: StoreCore, spec: StaticSpec, res: ApplyResult): void {
   const st = core.st;
   if (!st.sections.has(spec.section)) return;
-  const id = st.slots.get(spec.slot);
+  let id = st.slots.get(spec.slot);
+  if (!id) id = adoptStatic(core, spec);
   const rec = id ? st.blocks.get(id) : undefined;
   if (!rec) {
     const nid = core.staticId(spec.slot);
@@ -349,6 +371,8 @@ export function applyStatic(core: StoreCore, input: StaticDocInput): ApplyResult
     ...buildStatic(input, lang, st.modules, pages, core.db.decisions(), est),
     ...derived(core),
   ];
+  // re-adopt id-matching blocks first, so a lost sidecar does not make static text look like content
+  for (const s of specs) if (!st.slots.has(s.slot)) adoptStatic(core, s);
   specs.push(...placeholders(core, est, input.facts.filter((f) => f.kind === "schema").length));
   const want = new Set(specs.map((s) => s.slot));
   for (const [slot, id] of [...st.slots]) if (isManagedSlot(slot) && !want.has(slot)) removeStatic(core, id, res);

@@ -45,12 +45,12 @@ class MapRenderer<V> {
     return s;
   }
 
-  private renderBucket(b: string): void {
+  /** Re-join one bucket; true when its text changed. */
+  private renderBucket(b: string): boolean {
     const ids = [...(this.members.get(b) ?? [])].sort(cmp);
     if (ids.length === 0) {
       this.members.delete(b);
-      this.texts.delete(b);
-      return;
+      return this.texts.delete(b);
     }
     const parts = ids.map((id) => {
       const { tick, obj } = this.view(this.map.get(id) as V);
@@ -61,11 +61,14 @@ class MapRenderer<V> {
       }
       return f.text;
     });
-    this.texts.set(b, parts.join(",\n"));
+    const text = parts.join(",\n");
+    if (this.texts.get(b) === text) return false;
+    this.texts.set(b, text);
+    return true;
   }
 
   /** Append the member's pieces to `out` (joined once by the caller: one copy of an 18 MB sidecar, not two). */
-  render(out: string[]): void {
+  render(out: string[]): boolean {
     const dirty = this.map.drain();
     let touched: Set<string>;
     if (dirty === null) {
@@ -87,11 +90,18 @@ class MapRenderer<V> {
         touched.add(b);
       }
     }
-    for (const b of touched) this.renderBucket(b);
-    if (touched.size > 0) this.order = [...this.texts.keys()].sort(cmp);
+    let changed = dirty === null;
+    const buckets = this.texts.size;
+    let added = false;
+    for (const b of touched) {
+      if (!this.texts.has(b)) added = true;
+      if (this.renderBucket(b)) changed = true;
+    }
+    // the bucket order only changes when a bucket appears or disappears
+    if (dirty === null || added || this.texts.size !== buckets) this.order = [...this.texts.keys()].sort(cmp);
     if (this.order.length === 0) {
       out.push(`  ${key(this.name)}: {}`);
-      return;
+      return changed;
     }
     out.push(`  ${key(this.name)}: {\n`);
     this.order.forEach((b, i) => {
@@ -99,6 +109,7 @@ class MapRenderer<V> {
       out.push(this.texts.get(b) as string);
     });
     out.push("\n  }");
+    return changed;
   }
 }
 
@@ -106,16 +117,20 @@ export class IndexSerializer {
   private blocks: MapRenderer<BlockRec> | null = null;
   private claims: MapRenderer<ClaimRec> | null = null;
   private sectionMemo = new Map<string, { sig: string; text: string }>();
+  private lastRest: string | null = null;
 
   private list(name: string, items: unknown[]): string {
     return `  ${key(name)}: ${items.length === 0 ? "[]" : frag(items, 1)}`;
   }
 
-  /** `"sections": [...]` with one memoized fragment per section (signature of everything it serializes). */
-  private sections(list: SectionNode[]): string {
+  /**
+   * `"sections": [...]` with one memoized fragment per section; the signature is the section's model tick (bumped on
+   * every block-list / derived-field change) plus the fields that are assigned directly.
+   */
+  private sections(st: DocState, list: SectionNode[]): string {
     if (list.length === 0) return `  "sections": []`;
     const parts = list.map((s) => {
-      const sig = `${s.title}\u0000${s.file}\u0000${s.state}\u0000${s.readingSec}\u0000${s.module ?? ""}\u0000${s.est ? `${s.est.inTokens}/${s.est.outTokens}` : ""}\u0000${s.children.join(",")}\u0000${s.blocks.length}\u0000${s.blocks.join(",")}`;
+      const sig = `${st.sectionTick.get(s.id) ?? -1}\u0000${s.title}\u0000${s.file}\u0000${s.state}\u0000${s.readingSec}\u0000${s.module ?? ""}\u0000${s.est ? `${s.est.inTokens}/${s.est.outTokens}` : ""}\u0000${s.children.join(",")}\u0000${s.blocks.length}`;
       let m = this.sectionMemo.get(s.id);
       if (!m || m.sig !== sig) {
         m = { sig, text: `    ${frag(s, 2)}` };
@@ -126,8 +141,8 @@ export class IndexSerializer {
     return `  "sections": [\n${parts.join(",\n")}\n  ]`;
   }
 
-  /** The whole sidecar text. */
-  serialize(st: DocState, readingPaths: ReadingPath[]): string {
+  /** The whole sidecar text; `changed` is false when it equals the previous result (no 18 MB compare needed). */
+  serialize(st: DocState, readingPaths: ReadingPath[]): { text: string; changed: boolean } {
     this.blocks ??= new MapRenderer<BlockRec>("blocks", 2, st.blocks as unknown as TrackedMap<string, BlockRec>, (r) => ({ tick: r.metaTick, obj: r.meta }));
     this.claims ??= new MapRenderer<ClaimRec>("claims", 3, st.claims as unknown as TrackedMap<string, ClaimRec>, (c) => ({
       tick: c.tick,
@@ -138,10 +153,10 @@ export class IndexSerializer {
       diagrams.length === 0 ? `  "diagrams": {}` : `  "diagrams": {\n${diagrams.map((d) => `    ${key(d)}: ${frag(st.diagrams.get(d), 2)}`).join(",\n")}\n  }`;
     const modules = [...st.modules.values()].sort((a, b) => cmp(a.id, b.id));
     const out: string[] = ["{\n"];
-    this.blocks.render(out);
+    const changedBlocks = this.blocks.render(out);
     out.push(",\n");
-    this.claims.render(out);
-    out.push(
+    const changedClaims = this.claims.render(out);
+    const rest = [
       ",\n",
       `${diagramsText},\n`,
       `${this.list("glossary", st.glossary)},\n`,
@@ -149,10 +164,13 @@ export class IndexSerializer {
       `${this.list("modules", modules)},\n`,
       `${this.list("readingPaths", readingPaths)},\n`,
       `  "schemaVersion": ${FORMAT.docIndex},\n`,
-      this.sections(st.orderedSections()),
+      this.sections(st, st.orderedSections()),
       "\n}\n",
-    );
-    return out.join("");
+    ].join("");
+    out.push(rest);
+    const changed = changedBlocks || changedClaims || rest !== this.lastRest;
+    this.lastRest = rest;
+    return { text: out.join(""), changed };
   }
 }
 

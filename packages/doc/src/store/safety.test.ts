@@ -157,6 +157,28 @@ describe("RT-25 … RT-29 doc writes stay inside the doc directory", () => {
     }
   });
 
+  test("a lost sidecar (new machine, no DB) is rebuilt: static blocks are re-adopted by their ids, Markdown unchanged", async () => {
+    const root = dir("mitori-lost-");
+    const h = harness({ root, fs: true, writer: spySafeWriter() });
+    await h.store.load();
+    h.store.applyStatic(staticInputFromTruth("rust-small"));
+    await h.store.flush({ force: true });
+    const before = treeDigest(join(root, ".mitori/doc"));
+    rmSync(join(root, ".mitori/doc.index.json"));
+    const writer = spySafeWriter();
+    const h2 = harness({ root, fs: true, writer });
+    await h2.store.load();
+    h2.store.applyStatic(staticInputFromTruth("rust-small"));
+    await h2.store.flush({ force: true });
+    expect(treeDigest(join(root, ".mitori/doc"))).toBe(before);
+    expect(writer.writes.filter((w) => w.abs.includes("/doc/")).length).toBe(0);
+    const odd = h2.store
+      .sections()
+      .flatMap((s) => h2.store.section(s.id)?.blocks ?? [])
+      .filter((b) => b.origin !== "static" || b.lock !== undefined);
+    expect(odd.map((b) => [b.section, b.slot ?? null, b.kind, b.origin])).toEqual([]);
+  });
+
   test("a doc file changed on disk after mitori wrote it is not overwritten before it is imported", async () => {
     const root = dir("mitori-own-");
     const writer = spySafeWriter();

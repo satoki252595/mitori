@@ -175,9 +175,11 @@ describe.skipIf(!RUN)("WP-04 perf budgets", () => {
     const total = h.store.sections().reduce((a, s) => a + s.blocks.length, 0);
     expect(total).toBeGreaterThanOrEqual(10_000);
     await h.store.flush({ force: true });
+    // the setup leaves ~1 GB of garbage; collect it so the samples measure the flush, not a concurrent GC
+    Bun.gc(true);
     const cpu: number[] = [];
     const wall: number[] = [];
-    for (let r = 0; r < 9; r++) {
+    for (let r = 0; r < 25; r++) {
       h.store.applyGenerated(
         [
           {
@@ -212,8 +214,8 @@ describe.skipIf(!RUN)("WP-04 perf budgets", () => {
       cpu.push((c.user + c.system) / 1000);
       expect(files.length).toBeGreaterThanOrEqual(2);
     }
-    results["doc.flush.10k.cpu"] = median(cpu.slice(2));
-    results["doc.flush.10k.wall"] = median(wall.slice(2));
+    results["doc.flush.10k.cpu"] = median(cpu.slice(5));
+    results["doc.flush.10k.wall"] = median(wall.slice(5));
     results["doc.flush.10k.indexBytes"] = h.mem?.files.get("doc.index.json")?.length ?? 0;
     expect(results["doc.flush.10k.cpu"]).toBeLessThanOrEqual(5);
     expect(results["doc.flush.10k.wall"]).toBeLessThanOrEqual(20);
