@@ -83,6 +83,9 @@ WP-08a acceptance test. The architect decides whether to keep the default or cha
   `snippetText` (the M0 stubs throw). Swap for the anchor imports when WP-07 lands; `apply.test.ts` pins the behaviour.
 - **`BundleBuilderDeps.doc` includes `markerForm`.** DOC text is the block's marker form with each claim's live cites
   (C.12); WP-08b passes the `DocStore`, which has it. Without a marker form the builder converts `block().md` itself.
+- **`doc_updates[].md` will carry the DOC cite tokens.** The model sees cites as `[path:a-b]` (C.12) and writes its new
+  block text in the same style, so the proposal path (WP-08b with the doc store's `AiMarkdownValidator`, SEC-11) must
+  turn `[path:a-b]` back into cite links / claims, or the patch prompt must say how to cite; today neither is specified.
 - **`E_DENY_GLOB` suggests `copy_prompt` (spec §3.3), but `copyPrompt` refuses the same anchor** (`E_DENY_GLOB`): a
   copy prompt can carry none of the denied file and its DENY line names it, so it would not help. The architect should
   drop `copy_prompt` from that error's actions (or say what the copy should contain); the router keeps the spec's list.
