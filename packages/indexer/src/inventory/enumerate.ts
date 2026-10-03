@@ -1,0 +1,219 @@
+// S0a (indexer spec §2.1–2.2): enumerate through GitReader, stat everything, apply the path rules, and decide per
+// path whether the previous state can be reused (stat cache), whether the index blob is authoritative (clean) or the
+// content must be hashed (dirty / untracked / racy). Reading content is the Worker's job.
+import type { FsReader, GitOid, GitReader, RepoPath } from "@mitori/core";
+import { INVENTORY_LIMITS } from "../contract.ts";
+import { dialectOf } from "../lang/detect.ts";
+import type { FileRec } from "../update/model.ts";
+import { type CompiledSettings, classifyPathWith, type LinguistAttrs } from "./classify.ts";
+
+/** Hard caps of an enumeration (UXP-23: 200k entries or 2 s). */
+export const ENUM_LIMITS = { maxEntries: 200_000, maxMs: 2_000 } as const;
+
+/** Git-side state remembered between scans (drives the warm path). */
+export interface GitState {
+  head: GitOid | null;
+  tree: GitOid | null;
+  branch: string | null;
+  indexMtime: bigint | null;
+  headMtime: bigint | null;
+  /** `(path, blob)` of tracked `.gitattributes` files ("" when none). */
+  attrsKey: string;
+  objectFormat: "sha1" | "sha256";
+  gitDir: string;
+}
+
+export interface EnumerateInput {
+  git: GitReader;
+  fs: FsReader;
+  root: string;
+  settings: CompiledSettings;
+  /** Changes when any classification input changes (globs). */
+  settingsKey: string;
+  prev: ReadonlyMap<RepoPath, FileRec> | null;
+  prevSettingsKey: string | null;
+  prevGit: GitState | null;
+  /** Scan generation. */
+  gen: number;
+  /** Scan start, epoch ms (racy window). */
+  startMs: number;
+  /** Monotonic ms (time cap). */
+  now: () => number;
+  /** Ignore the stat cache. */
+  force: boolean;
+}
+
+export interface EnumerateResult {
+  files: Map<RepoPath, FileRec>;
+  /** Paths whose blob is unknown (must be hashed by the Worker if read). */
+  unknownBlob: Set<RepoPath>;
+  git: GitState;
+  truncated: boolean;
+  /** git status / check-attr were (re)run. */
+  ranStatus: boolean;
+  ranAttrs: boolean;
+}
+
+const ATTRS = ["linguist-vendored", "linguist-generated", "linguist-documentation"] as const;
+const ASCII = /^[\x20-\x7e]*$/;
+
+const nfc = (p: string): string => (ASCII.test(p) ? p : p.normalize("NFC"));
+
+function attrValue(v: string | undefined): boolean | undefined {
+  if (v === undefined || v === "unspecified") return undefined;
+  if (v === "unset" || v === "false") return false;
+  return true;
+}
+
+function sameAttrs(a: LinguistAttrs, b: LinguistAttrs): boolean {
+  return a.vendored === b.vendored && a.generated === b.generated && a.documentation === b.documentation;
+}
+
+const join = (root: string, rel: string): string => (root.endsWith("/") ? `${root}${rel}` : `${root}/${rel}`);
+
+export async function enumerate(inp: EnumerateInput): Promise<EnumerateResult> {
+  const { git, fs, prev, prevGit } = inp;
+  const [ls, head, objectFormat, gitDir] = await Promise.all([
+    git.lsFiles(),
+    git.head(),
+    prevGit !== null ? Promise.resolve(prevGit.objectFormat) : git.objectFormat(),
+    prevGit !== null ? Promise.resolve(prevGit.gitDir) : git.gitDir(),
+  ]);
+  const indexMtime = fs.stat(join(gitDir, "index"))?.mtimeNs ?? null;
+  const headMtime = fs.stat(join(gitDir, "HEAD"))?.mtimeNs ?? null;
+
+  // Dedupe (unmerged paths come back once per stage) and cap.
+  const byRaw = new Map<string, { raw: string; blob: GitOid; mode: string; tracked: boolean; unmerged: boolean }>();
+  let attrsKey = "";
+  for (const e of ls) {
+    const hit = byRaw.get(e.path);
+    if (hit !== undefined) {
+      if (e.stage !== 0) hit.unmerged = true;
+      if (e.stage === 2) hit.blob = e.blob; // "ours"
+      continue;
+    }
+    byRaw.set(e.path, { raw: e.path, blob: e.tracked ? e.blob : "", mode: e.mode, tracked: e.tracked, unmerged: e.stage !== 0 });
+    if (e.tracked && (e.path === ".gitattributes" || e.path.endsWith("/.gitattributes"))) attrsKey += `${e.path}\0${e.blob}\n`;
+  }
+  let entries = [...byRaw.values()];
+  let truncated = false;
+  if (entries.length > ENUM_LIMITS.maxEntries) {
+    entries.sort((a, b) => (a.raw < b.raw ? -1 : a.raw > b.raw ? 1 : 0));
+    entries = entries.slice(0, ENUM_LIMITS.maxEntries);
+    truncated = true;
+  }
+
+  const anyTracked = entries.some((e) => e.tracked);
+  const ranStatus = anyTracked && (inp.force || prevGit === null || indexMtime === null || indexMtime !== prevGit.indexMtime);
+  const headChanged = prevGit === null || head !== prevGit.head || headMtime !== prevGit.headMtime;
+  const settingsChanged = inp.prevSettingsKey !== inp.settingsKey;
+  const ranAttrs = attrsKey !== "" && (prevGit === null || attrsKey !== prevGit.attrsKey || inp.force);
+  const attrPaths = attrsKey === "" ? [] : ranAttrs ? entries.map((e) => e.raw) : entries.filter((e) => !prev?.has(nfc(e.raw))).map((e) => e.raw);
+
+  const [dirtyList, tree, branch, attrs] = await Promise.all([
+    ranStatus ? git.statusDirty() : Promise.resolve(null),
+    headChanged ? git.headTree() : Promise.resolve(prevGit.tree),
+    headChanged ? git.branch() : Promise.resolve(prevGit.branch),
+    attrPaths.length > 0 ? git.checkAttr(attrPaths, ATTRS) : Promise.resolve({} as Record<RepoPath, Record<string, string>>),
+  ]);
+  const dirtySet = dirtyList === null ? null : new Set(dirtyList);
+
+  const files = new Map<RepoPath, FileRec>();
+  const unknownBlob = new Set<RepoPath>();
+  const racyFloorNs = BigInt(inp.startMs - INVENTORY_LIMITS.racyWindowMs) * 1_000_000n;
+  const deadline = inp.now() + ENUM_LIMITS.maxMs;
+
+  for (let i = 0; i < entries.length; i++) {
+    if ((i & 255) === 0 && inp.now() > deadline) {
+      truncated = true;
+      break;
+    }
+    const e = entries[i] as (typeof entries)[number];
+    const path = nfc(e.raw);
+    const st = fs.stat(join(inp.root, e.raw));
+    const special = e.mode === "160000" || e.raw.endsWith("/");
+    if (st === null && !special) continue; // deleted after ls-files
+    const mode = e.tracked ? e.mode : st?.isSymlink ? "120000" : special ? "160000" : "100644";
+    const size = st?.size ?? 0;
+    const mtimeNs = st?.mtimeNs ?? 0n;
+    const ino = st?.ino ?? 0n;
+    const p = prev?.get(path);
+    const statSame = p !== undefined && !inp.force && p.size === size && p.mtimeNs === mtimeNs && p.ino === ino && p.mode === mode && p.tracked === e.tracked;
+    const a = attrs[e.raw];
+    const lattrs: LinguistAttrs = a !== undefined ? pickAttrs(a) : (p?.attrs ?? {});
+    const reuseClass = statSame && !settingsChanged && sameAttrs(lattrs, (p as FileRec).attrs);
+
+    let rec: FileRec;
+    if (reuseClass) {
+      rec = { ...(p as FileRec), seen: inp.gen, raw: e.raw };
+    } else {
+      const c = classifyPathWith({ path, size, mode, attrs: lattrs }, inp.settings);
+      rec = {
+        path,
+        raw: e.raw,
+        blob: "",
+        indexBlob: "",
+        mode,
+        size,
+        mtimeNs,
+        ino,
+        racy: false,
+        tracked: e.tracked,
+        dirty: false,
+        lang: c.lang,
+        grammar: c.grammar,
+        dialect: dialectOf(path, c.lang),
+        class: c.class,
+        scope: c.scope,
+        rule: c.rule,
+        attrs: lattrs,
+        include: inp.settings.include.test(path),
+        lines: 0,
+        loc: 0,
+        chars: 0,
+        cjk: 0,
+        tokensEst: 0,
+        seen: inp.gen,
+      };
+      if (c.excluded !== undefined) rec.excluded = c.excluded;
+    }
+    rec.indexBlob = e.tracked ? e.blob : "";
+
+    // Blob: index blob when known clean; the previous blob when the stat cache holds; otherwise unknown.
+    const knownDirty = e.unmerged || (dirtySet !== null && e.tracked && dirtySet.has(e.raw));
+    if (e.tracked && !knownDirty && (dirtySet !== null || (statSame && !(p as FileRec).racy && !(p as FileRec).dirty))) {
+      rec.blob = e.blob;
+      rec.dirty = false;
+    } else if (statSame && !(p as FileRec).racy && (p as FileRec).blob !== "") {
+      rec.blob = (p as FileRec).blob;
+      rec.dirty = e.tracked ? rec.blob !== e.blob : true;
+    } else {
+      rec.blob = e.tracked && !knownDirty ? e.blob : "";
+      rec.dirty = !e.tracked || knownDirty;
+      unknownBlob.add(path);
+    }
+    if (!reuseClass || unknownBlob.has(path)) rec.racy = mtimeNs >= racyFloorNs;
+    else rec.racy = false;
+    files.set(path, rec);
+  }
+
+  return {
+    files,
+    unknownBlob,
+    git: { head, tree, branch, indexMtime, headMtime, attrsKey, objectFormat, gitDir },
+    truncated,
+    ranStatus,
+    ranAttrs,
+  };
+}
+
+function pickAttrs(a: Record<string, string>): LinguistAttrs {
+  const out: LinguistAttrs = {};
+  const v = attrValue(a["linguist-vendored"]);
+  const g = attrValue(a["linguist-generated"]);
+  const d = attrValue(a["linguist-documentation"]);
+  if (v !== undefined) out.vendored = v;
+  if (g !== undefined) out.generated = g;
+  if (d !== undefined) out.documentation = d;
+  return out;
+}
