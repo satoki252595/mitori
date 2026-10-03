@@ -12,7 +12,8 @@ export interface HistoryEntryState {
 }
 
 export class RouterStore implements Router {
-  route = $state.raw<RouteState>({ name: "launcher" });
+  /** Parsed from the address bar at once: the first render is already the right view (no Launcher flash). */
+  route = $state.raw<RouteState>(typeof location === "undefined" ? { name: "launcher" } : parseRoute(location.pathname + location.search + location.hash));
   /** True when the current route came from back/forward (the view restores `restored`). */
   restored = $state.raw<HistoryEntryState | null>(null);
   /**

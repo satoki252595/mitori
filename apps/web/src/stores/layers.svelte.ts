@@ -3,6 +3,7 @@
  * `LAYER_ORDER` (menu → popover → dialog → palette → … → zoom), newest first among equals, and focus returns to
  * where it was when the layer opened.
  */
+import { untrack } from "svelte";
 import { LAYER_ORDER, type LayerKind, type LayerStack } from "../contract.ts";
 
 interface Layer {
@@ -21,9 +22,11 @@ export class LayersStore implements LayerStack {
     this.push(kind, id);
   }
 
+  // Mutations read the stack untracked: a component effect that opens / drops a layer must not come to depend
+  // on the stack (it would re-run, re-open after showModal() moved the focus and return focus to the wrong place).
   push(kind: LayerKind, id: string): void {
     const active = typeof document === "undefined" ? null : document.activeElement;
-    this.layers = [...this.layers.filter((l) => l.id !== id), { kind, id, returnFocus: active }];
+    this.layers = [...untrack(() => this.layers).filter((l) => l.id !== id), { kind, id, returnFocus: active }];
   }
 
   has(kind: LayerKind): boolean {
@@ -56,9 +59,10 @@ export class LayersStore implements LayerStack {
   }
 
   close(id: string, opts: { restoreFocus?: boolean } = {}): void {
-    const l = this.layers.find((x) => x.id === id);
+    const cur = untrack(() => this.layers);
+    const l = cur.find((x) => x.id === id);
     if (!l) return;
-    this.layers = this.layers.filter((x) => x.id !== id);
+    this.layers = cur.filter((x) => x.id !== id);
     const fn = this.#closers.get(id);
     this.#closers.delete(id);
     fn?.();
@@ -68,6 +72,7 @@ export class LayersStore implements LayerStack {
   /** Forget a layer that closed itself without Escape (no callback, no focus move). */
   drop(id: string): void {
     this.#closers.delete(id);
-    this.layers = this.layers.filter((x) => x.id !== id);
+    const cur = untrack(() => this.layers);
+    if (cur.some((x) => x.id === id)) this.layers = cur.filter((x) => x.id !== id);
   }
 }

@@ -18,11 +18,15 @@ export default defineConfig({
   globalSetup: "./support/global-setup.ts",
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
-    ...devices["Desktop Chrome"],
     viewport: { width: 1440, height: 900 },
     trace: "off",
     locale: "ja-JP",
   },
+  projects: [
+    { name: "chromium", testIgnore: /\.webkit\.pw\.ts$/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    // the M3 gate "IME e2e chromium + webkit": Safari's event orders replayed in WebKit (ime.webkit.pw.ts)
+    { name: "webkit", testMatch: /\.webkit\.pw\.ts$/, use: { ...devices["Desktop Safari"], viewport: { width: 1440, height: 900 } } },
+  ],
   webServer: {
     command: `bun support/mock-server.ts ${PORT}`,
     // a mock endpoint, not `/`: the server starts before global setup has built apps/web/dist
