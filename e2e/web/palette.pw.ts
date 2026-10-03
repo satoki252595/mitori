@@ -115,3 +115,16 @@ test("@wp10a palette: ↓ / ↵ opens the selected item (section) and records it
   await openPalette(page);
   await expect(page.locator(".pal-it").first()).toContainText("§7");
 });
+
+test("@wp10a palette actions: >次に読む opens the first unread step of the reading path (ux.md §7.2)", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}/doc/s7`);
+  await waitMark(page, "mitori:section:rendered");
+  const input = await openPalette(page);
+  await input.fill(">次に読む");
+  await expect(page.locator(".pal-it").first()).toContainText("次に読む");
+  const t0 = await now(page);
+  await page.keyboard.press("Enter");
+  await waitMark(page, "mitori:section:rendered", t0);
+  await expect(page).toHaveURL(new RegExp(`/w/${WS}/doc/s0$`));
+});

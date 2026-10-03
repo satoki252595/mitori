@@ -2,7 +2,11 @@
  * Client operation items of ⌘K (kind `a`, ux.md §4.10): label from the catalog, aliases in both languages + the
  * id words so `>theme` / `>テーマ` both hit. `run` executes against the stores.
  */
+import type { SectionId } from "@mitori/core";
 import type { PaletteActionItem } from "../contract.ts";
+import { copyText } from "../shell/clipboard.ts";
+import { selectedPath } from "../shell/reading.ts";
+import { getItem, getJson, STORAGE_KEYS } from "../shell/storage.ts";
 import { type Stores, setReaderLevel } from "../stores/app.svelte.ts";
 
 export interface ActionDef {
@@ -14,9 +18,41 @@ export interface ActionDef {
 const ws = (s: Stores) => s.workspace.key;
 const has = (s: Stores) => s.workspace.key !== null;
 
+/** 「次に読む」 (ux.md §7.2): the first unread step of the tab's reading path. */
+export function nextToRead(s: Stores): SectionId | null {
+  const w = ws(s);
+  const path = selectedPath(s.doc.outline, w);
+  if (!w || !path) return null;
+  const read = getJson<Record<string, string>>("local", STORAGE_KEYS.read(w, path.id)) ?? {};
+  return path.steps.find((st) => !read[st.section])?.section ?? null;
+}
+
 export const ACTIONS: readonly ActionDef[] = [
   { id: "action.goMap", run: (s) => ws(s) && void s.router.go({ name: "map", ws: ws(s) as `ws_${string}` }), when: has },
-  { id: "action.goDoc", run: (s) => ws(s) && void s.router.go({ name: "doc", ws: ws(s) as `ws_${string}`, section: "s0" }), when: has },
+  {
+    id: "action.goDoc",
+    // like the 設計書 tab: the last page of the tab (§2.3-2)
+    run: (s) => {
+      const w = ws(s);
+      if (w) void s.router.go({ name: "doc", ws: w, section: (getItem("session", STORAGE_KEYS.lastPage(w)) as SectionId | null) ?? "s0" });
+    },
+    when: has,
+  },
+  {
+    id: "action.readNext",
+    run: (s) => {
+      const w = ws(s);
+      const sec = nextToRead(s);
+      if (w && sec) void s.router.go({ name: "doc", ws: w, section: sec });
+    },
+    when: (s) => nextToRead(s) !== null,
+  },
+  {
+    // the permalink (`y`) is portable; this one is this daemon's URL of the page (permalinkText contract)
+    id: "action.copyLocalUrl",
+    run: (s) => void copyText(location.href, s, "copy.permalink"),
+    when: (s) => s.router.route.name === "doc" || s.router.route.name === "code",
+  },
   { id: "action.goInbox", run: (s) => ws(s) && void s.router.go({ name: "inbox", ws: ws(s) as `ws_${string}`, view: "mine" }), when: has },
   { id: "action.goReview", run: (s) => ws(s) && void s.router.go({ name: "reviewNext", ws: ws(s) as `ws_${string}` }), when: has },
   { id: "action.goGen", run: (s) => ws(s) && void s.router.go({ name: "gen", ws: ws(s) as `ws_${string}` }), when: has },

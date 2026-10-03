@@ -1,4 +1,6 @@
 {
+  "palette.action.copyLocalUrl": "Copy the local URL",
+  "palette.action.copyLocalUrl.alias": "local link",
   "palette.action.generate": "Generate the design doc",
   "palette.action.generate.alias": "generate the design doc",
   "palette.action.goDoc": "Open the design doc",
@@ -27,6 +29,8 @@
   "palette.action.levelStandard.alias": "reader level standard",
   "palette.action.openWorkspace": "Open a workspace",
   "palette.action.openWorkspace.alias": "open a workspace",
+  "palette.action.readNext": "Read next",
+  "palette.action.readNext.alias": "next to read",
   "palette.action.singleKeys": "Toggle single-key shortcuts",
   "palette.action.singleKeys.alias": "toggle single-key shortcuts",
   "palette.action.textView": "View the floor plan as text",

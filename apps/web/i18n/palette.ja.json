@@ -1,4 +1,6 @@
 {
+  "palette.action.copyLocalUrl": "ローカルURLをコピー",
+  "palette.action.copyLocalUrl.alias": "ろーかるゆーあーるえる",
   "palette.action.generate": "設計書を生成する",
   "palette.action.generate.alias": "せいせいする",
   "palette.action.goDoc": "設計書を開く",
@@ -27,6 +29,8 @@
   "palette.action.levelStandard.alias": "ひょうじゅん",
   "palette.action.openWorkspace": "作業フォルダを開く",
   "palette.action.openWorkspace.alias": "さぎょうふぉるだ",
+  "palette.action.readNext": "次に読む",
+  "palette.action.readNext.alias": "つぎによむ",
   "palette.action.singleKeys": "1文字のショートカットを切り替える",
   "palette.action.singleKeys.alias": "しょーとかっと",
   "palette.action.textView": "見取り図をテキストで見る",
