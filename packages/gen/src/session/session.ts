@@ -293,10 +293,14 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
         if (!prev) throw new MitoriError("E_NOT_FOUND", `packet ${req.continueFrom} not found`);
         const { run, rows, plan, pack } = loadRun(prev.run);
         const open = rows.filter((r) => r.plan.phase <= prev.phase && !["done", "cached", "skipped", "failed"].includes(r.task.state));
-        if (open.length > 0)
-          throw new MitoriError("E_PRECONDITION", `phase ${prev.phase} is not complete (${open.length} task(s) left)`, { params: { left: open.length } });
+        // after an ingest, the tasks it could not take (input drift, missing output) are prepared again (§8.4.3-3);
+        // before any ingest the phase is simply not finished yet
+        if (open.length > 0 && prev.state !== "ingested")
+          throw new MitoriError("E_PRECONDITION", `phase ${prev.phase} is not complete (${open.length} task(s) left); ingest it first`, {
+            params: { left: open.length },
+          });
         d.prompts.system("gen.system", svc.lang(), workdir(), pack);
-        return prepPhase(run, rows, plan, prev.phase + 1, req);
+        return prepPhase(run, rows, plan, open.length > 0 ? Math.min(...open.map((r) => r.plan.phase)) : prev.phase + 1, req);
       }
       const { run, rows, plan } = await createRun(req);
       return prepPhase(run, rows, plan, 1, req);
@@ -307,6 +311,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
       if (!prep || d.clock.now() > prep.expiresAt)
         throw new MitoriError("E_GEN_PREP_EXPIRED", `packet ${req.prep} expired or unknown; run mitori gen --prep again`);
       if (req.fingerprint !== prep.fingerprint) throw new MitoriError("E_GEN_FINGERPRINT", "fingerprint does not match the packet (another packet or edited)");
+      if (prep.state !== "ingested") await d.write("gen.prep", () => store.putPrep({ ...prep, state: "ingested" }));
       const { run, rows, plan } = loadRun(prep.run);
       const byId = new Map(rows.map((r) => [r.task.id, r]));
       const env = gatherEnv({ plan }, rows);

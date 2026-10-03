@@ -191,6 +191,21 @@ describe("GEN-U-045 / AC-17 5h yield, GEN-U-046 billing change, window spend, no
     await h.gen.idle();
   });
 
+  test("a scheduler update keeps the run's requested concurrency; a 429 slow-down lowers it", async () => {
+    const g = gated(isEarly);
+    const h = makeHarness({ router: g.router });
+    const run = await h.gen.start((await h.gen.estimate({ effort: "standard", concurrency: 5 })).id);
+    expect(run.concurrency).toBe(4); // 5 − reserveInteractive
+    h.scheduler.push({ effective: 8 });
+    expect(h.gen.run(run.id)?.run.concurrency).toBe(4);
+    h.scheduler.push({ effective: 3 });
+    expect(h.gen.run(run.id)?.run.concurrency).toBe(2);
+    h.scheduler.push({ effective: 8 });
+    expect(h.gen.run(run.id)?.run.concurrency).toBe(4);
+    g.open();
+    await h.gen.idle();
+  });
+
   test("notBefore creates the run paused; it starts once the time has come", async () => {
     const h = makeHarness();
     const run = await h.gen.start((await h.gen.estimate({ effort: "standard" })).id, { notBefore: "2026-10-03T01:00:00.000Z" });

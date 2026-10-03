@@ -67,6 +67,8 @@ interface Live {
   idle: Deferred;
   /** 5h window reset time at run start (κ samples are taken only when it did not change, §9.4). */
   resetsAtStart?: string;
+  /** Background slots the run was started with (`C − reserveInteractive` of the request); 429 slow-down only lowers it. */
+  slotsCap: number;
 }
 
 /** Run-task id from the run and the plan task id (unique per run, stable for the run). */
@@ -192,7 +194,7 @@ export class Runner {
       for (const r of rows.values()) this.svc.store.putTask(r);
     });
     const idle = deferred();
-    this.live = { run, plan, pack, rows, running: new Map(), boost: 0, unsubscribe: null, pinnedBlobs: blobs, idle };
+    this.live = { run, plan, pack, rows, running: new Map(), boost: 0, unsubscribe: null, pinnedBlobs: blobs, idle, slotsCap: run.concurrency };
     const resetsAt = deps.scheduler.window()?.fiveHour?.resetsAt;
     if (resetsAt) this.live.resetsAtStart = resetsAt;
     this.live.unsubscribe = deps.scheduler.subscribe((st) => this.onScheduler(st));
@@ -267,6 +269,7 @@ export class Runner {
       unsubscribe: null,
       pinnedBlobs: [],
       idle,
+      slotsCap: Math.max(1, run.estimate.concurrency ?? run.concurrency),
     };
     this.live.unsubscribe = this.deps.scheduler.subscribe((st) => this.onScheduler(st));
     this.refreshProgress();
@@ -377,7 +380,7 @@ export class Runner {
       run.state = "paused";
       run.paused = { reason: "window_spend" };
     }
-    run.concurrency = Math.max(1, Math.min(this.slots(this.concurrencyOf({ effort: run.effort })), st.effective - st.reservedInteractive));
+    run.concurrency = Math.max(1, Math.min(live.slotsCap, st.effective - st.reservedInteractive));
     if (before.state !== run.state || before.reason !== run.paused?.reason || before.c !== run.concurrency) {
       void this.persistRun();
       this.emitRun();

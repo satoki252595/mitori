@@ -105,6 +105,8 @@ export class GenLineValidator implements LineValidator {
   private readonly accepted: { section: SectionId; aspect: BlockAspect | undefined }[] = [];
   private readonly flowsEnabled: boolean;
   private endSeen = false;
+  /** Block lines received (valid or not) — the end line's self-reported count is compared with it (W05). */
+  private blockLines = 0;
 
   constructor(private readonly ctx: ValidationContext) {
     this.flowsEnabled = ctx.lineTypes.includes("flow");
@@ -154,6 +156,7 @@ export class GenLineValidator implements LineValidator {
     }
     switch (type) {
       case "block":
+        this.blockLines++;
         return verdict(this.block(o, c));
       case "keep":
       case "delete":
@@ -598,6 +601,7 @@ export class GenLineValidator implements LineValidator {
     const n = o.blocks;
     if (!Number.isInteger(n) || (n as number) < 0) c.err("V03", "/blocks", "integer ≥ 0", n);
     if (!c.ok) return null;
+    if (n !== this.blockLines) c.warn("W05"); // informational only: coverage is checked independently
     this.endSeen = true;
     return { t: "end", blocks: n as number };
   }

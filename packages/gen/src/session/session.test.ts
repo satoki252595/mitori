@@ -125,6 +125,17 @@ describe("GEN-U-051 ingest checks: fingerprint, expiry, drift", () => {
     expect(partial.accepted.tasks).toBe(info.tasks - 1);
     expect(h.doc.section("s6/session")?.blocks.filter((b) => b.origin === "ai").length).toBe(2);
     expect(h.doc.section("s6/auth")?.blocks.filter((b) => b.origin === "ai").length).toBe(0);
+    expect(partial.next).toBeNull();
+    // only the drifted task is prepared again; once it is ingested the next phase follows
+    const again = await h.gen.session.prep({ effort: "standard", continueFrom: info.id });
+    expect(again.phase).toBe(1);
+    expect(tasksOf(h, again).map((t) => file(h, again, t.input)?.includes(`module ${M_AUTH}`))).toEqual([true]);
+    expect(file(h, again, (tasksOf(h, again)[0] as PrepTaskEntry).input)).toContain("signIn");
+    answer(h, again);
+    const fixed = await h.gen.session.ingest({ prep: again.id, fingerprint: again.fingerprint, partial: false });
+    expect(fixed.ok).toBe(true);
+    expect(fixed.next).toEqual({ prep: again.id, phase: 2 });
+    expect(h.doc.section("s6/auth")?.blocks.filter((b) => b.origin === "ai").length).toBe(2);
   });
 });
 

@@ -304,8 +304,12 @@ describe("GEN-U-020 framing noise", () => {
 
 describe("GEN-U-021 the end line is informational; coverage is checked independently", () => {
   test("missing end or wrong count does not fail coverage when the aspects and module line are present", () => {
-    const { v } = run([responsibility, iface, j({ t: "module", module: MOD, name: "セッション" }), j({ t: "end", blocks: 9 })]);
+    const { v, verdicts } = run([responsibility, iface, j({ t: "module", module: MOD, name: "セッション" }), j({ t: "end", blocks: 9 })]);
     expect(v.finish("end").ok).toBe(true);
+    expect(verdicts[3]?.warnings).toEqual(["W05"]); // recorded only
+    expect(verdicts[3]?.value).toEqual({ t: "end", blocks: 9 });
+    const right = run([responsibility, iface, j({ t: "end", blocks: 2 })]);
+    expect(right.verdicts[2]?.warnings).toEqual([]);
     const r2 = run([responsibility, iface, j({ t: "module", module: MOD, name: "セッション" })]);
     expect(r2.v.finish("end").ok).toBe(true);
   });

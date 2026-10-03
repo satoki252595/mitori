@@ -66,6 +66,8 @@ export interface PrepRow {
 }
 
 const json = (x: unknown) => JSON.stringify(x);
+/** gen_outputs GC threshold (§3.8, [仮]). */
+const OUTPUTS_MAX_BYTES = 200 * 1024 * 1024;
 const parse = <T>(s: string | null | undefined, fallback: T): T => (s ? (JSON.parse(s) as T) : fallback);
 
 /** Table access. */
@@ -259,12 +261,21 @@ export class GenStore {
     this.db.run("UPDATE gen_outputs SET used_at = ? WHERE cache_key = ?", [this.clock.now(), cacheKey]);
   }
 
-  putOutput(cacheKey: Xxh3, promptVer: string, model: string, out: StoredOutput): void {
+  /** Store a validated output, then GC the least recently used ones beyond `maxBytes` (§3.8: 200 MB [仮]). */
+  putOutput(cacheKey: Xxh3, promptVer: string, model: string, out: StoredOutput, maxBytes = OUTPUTS_MAX_BYTES): void {
     const lines = json(out.lines);
     this.db.run(
       "INSERT OR REPLACE INTO gen_outputs (cache_key, prompt_ver, model, lines, id_map, bytes, created_at, used_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       [cacheKey, promptVer, model, lines, json(out.idMap), lines.length, this.clock.now(), this.clock.now()],
     );
+    let total = this.db.get<{ n: number | null }>("SELECT SUM(bytes) AS n FROM gen_outputs")?.n ?? 0;
+    if (total <= maxBytes) return;
+    for (const r of this.db.all<{ cache_key: string; bytes: number }>("SELECT cache_key, bytes FROM gen_outputs ORDER BY used_at, cache_key")) {
+      if (total <= maxBytes) break;
+      if (r.cache_key === cacheKey) continue;
+      this.db.run("DELETE FROM gen_outputs WHERE cache_key = ?", [r.cache_key]);
+      total -= r.bytes;
+    }
   }
 
   /** Measurement rows (no content). */
