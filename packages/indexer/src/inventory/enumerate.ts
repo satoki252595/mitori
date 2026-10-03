@@ -1,7 +1,7 @@
 // S0a (indexer spec §2.1–2.2): enumerate through GitReader, stat everything, apply the path rules, and decide per
 // path whether the previous state can be reused (stat cache), whether the index blob is authoritative (clean) or the
 // content must be hashed (dirty / untracked / racy). Reading content is the Worker's job.
-import type { FsReader, GitOid, GitReader, RepoPath } from "@mitori/core";
+import type { FsReader, FsStat, GitOid, GitReader, RepoPath } from "@mitori/core";
 import { INVENTORY_LIMITS } from "../contract.ts";
 import { dialectOf } from "../lang/detect.ts";
 import type { FileRec } from "../update/model.ts";
@@ -75,14 +75,25 @@ function sameAttrs(a: LinguistAttrs, b: LinguistAttrs): boolean {
 
 const join = (root: string, rel: string): string => (root.endsWith("/") ? `${root}${rel}` : `${root}/${rel}`);
 
+/** stat of every previously known path (keyed by on-disk spelling). */
+function statAll(fs: FsReader, root: string, prev: ReadonlyMap<RepoPath, FileRec>): Map<string, FsStat | null> {
+  const out = new Map<string, FsStat | null>();
+  for (const r of prev.values()) out.set(r.raw, fs.stat(join(root, r.raw)));
+  return out;
+}
+
 export async function enumerate(inp: EnumerateInput): Promise<EnumerateResult> {
   const { git, fs, prev, prevGit } = inp;
-  const [ls, head, objectFormat, gitDir] = await Promise.all([
+  const listing = Promise.all([
     git.lsFiles(),
     git.head(),
     prevGit !== null ? Promise.resolve(prevGit.objectFormat) : git.objectFormat(),
     prevGit !== null ? Promise.resolve(prevGit.gitDir) : git.gitDir(),
   ]);
+  // Warm scans: stat the known paths while the git subprocesses list (they run on other cores); only paths new to the
+  // listing are stat'ed afterwards.
+  const preStat = prev !== null ? statAll(fs, inp.root, prev) : null;
+  const [ls, head, objectFormat, gitDir] = await listing;
   if (inp.onListed !== undefined) inp.onListed(ls.map((e) => e.path));
   const indexMtime = fs.stat(join(gitDir, "index"))?.mtimeNs ?? null;
   const headMtime = fs.stat(join(gitDir, "HEAD"))?.mtimeNs ?? null;
@@ -136,7 +147,8 @@ export async function enumerate(inp: EnumerateInput): Promise<EnumerateResult> {
     }
     const e = entries[i] as (typeof entries)[number];
     const path = nfc(e.raw);
-    const st = fs.stat(join(inp.root, e.raw));
+    const known = preStat?.get(e.raw);
+    const st = known !== undefined ? known : fs.stat(join(inp.root, e.raw));
     const special = e.mode === "160000" || e.raw.endsWith("/");
     if (st === null && !special) continue; // deleted after ls-files
     const mode = e.tracked ? e.mode : st?.isSymlink ? "120000" : special ? "160000" : "100644";
@@ -146,15 +158,18 @@ export async function enumerate(inp: EnumerateInput): Promise<EnumerateResult> {
     const p = prev?.get(path);
     const statSame = p !== undefined && !inp.force && p.size === size && p.mtimeNs === mtimeNs && p.ino === ino && p.mode === mode && p.tracked === e.tracked;
     const a = attrs[e.raw];
-    const lattrs: LinguistAttrs = a !== undefined ? pickAttrs(a) : (p?.attrs ?? {});
+    // A path check-attr was asked about and that came back without values has no attributes (any more).
+    const lattrs: LinguistAttrs = a !== undefined ? pickAttrs(a) : ranAttrs ? {} : (p?.attrs ?? {});
     const reuseClass = statSame && !settingsChanged && sameAttrs(lattrs, (p as FileRec).attrs);
     const knownDirty = e.unmerged || (dirtySet !== null && e.tracked && dirtySet.has(e.raw));
     const indexBlob = e.tracked ? e.blob : "";
 
-    // Unchanged entry (the warm rescan's common case): keep the very same record.
+    // Unchanged entry (the warm rescan's common case): keep the very same record. Excluded untracked files are never
+    // hashed, so their blob stays unknown ("").
     if (reuseClass) {
       const q = p as FileRec;
-      if (!q.racy && q.raw === e.raw && q.indexBlob === indexBlob && q.blob !== "" && !knownDirty && (dirtySet === null || !q.dirty)) {
+      const blobKnown = q.blob !== "" || q.excluded !== undefined;
+      if (!q.racy && q.raw === e.raw && q.indexBlob === indexBlob && blobKnown && !knownDirty && (dirtySet === null || !q.dirty)) {
         q.seen = inp.gen;
         files.set(path, q);
         continue;
