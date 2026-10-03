@@ -21,6 +21,55 @@ export const CLAIM_KINDS: ReadonlySet<string> = new Set<ClaimKind>([
   "fact",
 ]);
 
+/**
+ * Words models write where a claim kind belongs, mapped to the kind they mean (W09): the inferred marker the system
+ * prompt describes ("mitori marks it as inferred") and the aspect names of the task [real runs 2026-10-04: 2 m3e and
+ * 3 crit retries]. Anything else stays a V03 error.
+ */
+export const CLAIM_KIND_ALIASES: Readonly<Record<string, ClaimKind>> = {
+  inferred: "fact",
+  inference: "fact",
+  guess: "fact",
+  unverified: "fact",
+  interface: "behavior",
+  responsibility: "architecture",
+  structure: "architecture",
+  interactions: "architecture",
+  dependencies: "architecture",
+  dependency: "architecture",
+  decision: "architecture",
+  data: "fact",
+  config: "fact",
+  configuration: "fact",
+  flow: "behavior",
+  steps: "behavior",
+  step: "behavior",
+  tests: "behavior",
+  test: "behavior",
+  invariants: "invariant",
+  errors: "edge_case",
+  error: "edge_case",
+  edge_cases: "edge_case",
+  pitfall: "edge_case",
+  pitfalls: "edge_case",
+  fragile: "edge_case",
+  limits: "edge_case",
+  reliability: "edge_case",
+  concurrency: "behavior",
+  hotpaths: "performance",
+  caching: "performance",
+  risks: "risk",
+  debt: "risk",
+  hotspots: "risk",
+};
+
+/** The claim kind a written kind word means (`null` = not a kind); `aliased` = it was normalized (W09). */
+export function claimKindOf(word: string): { kind: ClaimKind; aliased: boolean } | null {
+  if (CLAIM_KINDS.has(word)) return { kind: word as ClaimKind, aliased: false };
+  const alias = CLAIM_KIND_ALIASES[word.toLowerCase().replace(/-/g, "_")];
+  return alias ? { kind: alias, aliased: true } : null;
+}
+
 /** A parse problem (always rule V03). */
 export interface ClaimProblem {
   /** JSON-pointer-ish location under the line (`/claims/2`). */
@@ -39,19 +88,23 @@ export interface ParsedClaims {
   problems: ClaimProblem[];
   /** Unknown keys dropped inside full-form claim / cite objects (W02). */
   unknownKeys: number;
+  /** Claims whose kind word was normalized (W09). */
+  aliased: number;
 }
 
 const CITE_RE = /^(.+):(\d+)(?:-(\d+))?$/;
 const BARE_RANGE_RE = /^(\d+)(?:-(\d+))?$/;
 
 /** Parse one compact claim value (`"behavior a/b.go:1-4,c.go:9"`). */
-export function parseCompactClaim(value: string): { kind: ClaimKind; cites: RawCite[] } | string {
+export function parseCompactClaim(value: string): { kind: ClaimKind; cites: RawCite[]; aliased?: true } | string {
   const text = value.trim();
   const sp = text.search(/\s/);
-  const kind = sp < 0 ? text : text.slice(0, sp);
-  if (!CLAIM_KINDS.has(kind)) return `claim kind one of ${[...CLAIM_KINDS].join(", ")}`;
+  const k = claimKindOf(sp < 0 ? text : text.slice(0, sp));
+  if (!k) return `claim kind one of ${[...CLAIM_KINDS].join(", ")}`;
+  const kind = k.kind;
+  const aliased = k.aliased ? { aliased: true as const } : {};
   const rest = sp < 0 ? "" : text.slice(sp).trim();
-  if (rest === "") return { kind: kind as ClaimKind, cites: [] };
+  if (rest === "") return { kind, cites: [], ...aliased };
   const cites: RawCite[] = [];
   let dir = "";
   for (const part of rest.split(/\s*,\s*|\s+/)) {
@@ -74,12 +127,12 @@ export function parseCompactClaim(value: string): { kind: ClaimKind; cites: RawC
     const end = m[3] === undefined ? start : Number(m[3]);
     cites.push({ path, start, end });
   }
-  return { kind: kind as ClaimKind, cites };
+  return { kind, cites, ...aliased };
 }
 
 /** Parse the `claims` field (compact map or full array) into drafts. */
 export function parseClaims(raw: unknown, maxClaims: number, maxCites: number): ParsedClaims {
-  const out: ParsedClaims = { claims: [], problems: [], unknownKeys: 0 };
+  const out: ParsedClaims = { claims: [], problems: [], unknownKeys: 0, aliased: 0 };
   if (raw === undefined) return out;
   const problem = (at: string, expected: string, actual: unknown) => out.problems.push({ at, expected, actual: short(actual) });
   if (Array.isArray(raw)) {
@@ -88,6 +141,7 @@ export function parseClaims(raw: unknown, maxClaims: number, maxCites: number): 
       if ("at" in r) out.problems.push(r);
       else {
         out.unknownKeys += r.unknown;
+        if (r.aliased) out.aliased++;
         out.claims.push(r.claim);
       }
     }
@@ -105,7 +159,10 @@ export function parseClaims(raw: unknown, maxClaims: number, maxCites: number): 
       const parsed = parseCompactClaim(value);
       if (typeof parsed === "string") problem(at, parsed, value);
       else if (parsed.cites.length > maxCites) problem(at, `at most ${maxCites} cites`, parsed.cites.length);
-      else out.claims.push({ n: Number(key), kind: parsed.kind, cites: parsed.cites });
+      else {
+        if (parsed.aliased) out.aliased++;
+        out.claims.push({ n: Number(key), kind: parsed.kind, cites: parsed.cites });
+      }
     }
   } else problem("/claims", "compact claims object or claims array", raw);
   if (out.claims.length > maxClaims) problem("/claims", `at most ${maxClaims} claims`, out.claims.length);
@@ -113,13 +170,14 @@ export function parseClaims(raw: unknown, maxClaims: number, maxCites: number): 
 }
 
 /** Parse one full-form claim object. */
-function parseFullClaim(c: unknown, at: string, maxCites: number): { claim: GenClaimDraft; unknown: number } | ClaimProblem {
+function parseFullClaim(c: unknown, at: string, maxCites: number): { claim: GenClaimDraft; unknown: number; aliased: boolean } | ClaimProblem {
   const problem = (where: string, expected: string, actual: unknown): ClaimProblem => ({ at: where, expected, actual: short(actual) });
   if (!isObject(c)) return problem(at, "claim object {n, kind, cites}", c);
   let unknown = Object.keys(c).filter((k) => !["n", "kind", "cites"].includes(k)).length;
   const n = c.n;
   if (!Number.isInteger(n) || (n as number) < 1 || (n as number) > 99) return problem(`${at}/n`, "integer 1..99", n);
-  if (typeof c.kind !== "string" || !CLAIM_KINDS.has(c.kind)) return problem(`${at}/kind`, "claim kind", c.kind);
+  const k = typeof c.kind === "string" ? claimKindOf(c.kind) : null;
+  if (!k) return problem(`${at}/kind`, "claim kind", c.kind);
   if (!Array.isArray(c.cites)) return problem(`${at}/cites`, "array of cites", c.cites);
   const cites: RawCite[] = [];
   for (const [j, x] of c.cites.entries()) {
@@ -129,7 +187,7 @@ function parseFullClaim(c: unknown, at: string, maxCites: number): { claim: GenC
     cites.push(cite.cite);
   }
   if (cites.length > maxCites) return problem(`${at}/cites`, `at most ${maxCites} cites`, cites.length);
-  return { claim: { n: n as number, kind: c.kind as ClaimKind, cites }, unknown };
+  return { claim: { n: n as number, kind: k.kind, cites }, unknown, aliased: k.aliased };
 }
 
 /**

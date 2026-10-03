@@ -48,6 +48,7 @@ import { createLineValidator, planRetry } from "../line/index.ts";
 import { maxOutOf, outTarget, thinkingOf } from "../planner/params.ts";
 import { type GatherEnv, gatherInputs } from "../prompts/inputs.ts";
 import { translateTarget } from "../prompts/renderer.ts";
+import { genFlowSeeds } from "../prompts/seeds.ts";
 import { TranslationSink } from "../translate/sink.ts";
 import type { GenVerifier } from "../verify/verifier.ts";
 import { type ApplyContext, ApplySink, type LineSink, replayable } from "./apply.ts";
@@ -324,7 +325,7 @@ function metricsOf(task: PlannedTask, engine: string, res: ExecResult, turns: re
 /** Execute one task. */
 export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signal: Cancel, hooks: ExecHooks): Promise<ExecResult> {
   const task = row.plan;
-  if (task.prompt === "gen.flows" && run.gather.indexer.flowSeeds(8).length === 0) return { state: "skipped", usage: null, calls: 0, attempts: 0, blocks: [] };
+  if (task.prompt === "gen.flows" && genFlowSeeds(run.gather.indexer).length === 0) return { state: "skipped", usage: null, calls: 0, attempts: 0, blocks: [] };
   const gathered = await gatherInputs(task, run.gather);
   env.verifier.remember(gathered.digest, gathered.blobs);
   const inputs: TaskInputs = gathered.inputs;

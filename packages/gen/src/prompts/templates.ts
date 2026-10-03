@@ -24,7 +24,7 @@ export const SYSTEM_TEMPLATES: Readonly<Record<SystemPromptId, string>> = {
     "- Say only what the data shows. Do not guess what an elided body does; describe what is visible (name, signature, comment, tests) or leave the point out.",
     "- If something important cannot be decided from the data, write a question line instead of a claim.",
     '- A claim is a sentence that states how the code is built or how it behaves. Put the marker [[n]] right after the claim sentence, before its final punctuation (n counts 1, 2, ... inside each block), and give claim n in "claims": its kind and the line ranges that prove the sentence. Use the smallest range that proves it, at most 40 lines, at most 4 ranges per claim (when a sentence names more symbols, cite the 4 that matter most or split the sentence). A range may also repeat exactly a cite given to you in the task.',
-    "- If a claim is your inference from the structure and no line states it, give the claim its kind alone, with no ranges; mitori marks it as inferred.",
+    '- If a claim is your inference from the structure and no line states it, give the claim its kind alone, with no ranges (for example "2":"architecture"; the kind is never the word inferred); mitori marks it as inferred.',
     "- Put every code identifier in backticks, for example `Login` or `session.Store`. The identifiers of a claim must occur in its cited lines.",
     "- Never invent paths, symbols or line numbers. Cite only N| lines and path:line locations. A file you saw only by name (in REPOSITORY CONTEXT, DEPS or a list) has no citable line: state such a point as an inferred claim or leave it out.",
     "- Never write module ids (md_...) or page slugs in md, names, summaries or questions; refer to a module by its directory or its main symbols.",
@@ -52,6 +52,8 @@ export const SYSTEM_TEMPLATES: Readonly<Record<SystemPromptId, string>> = {
     "STYLE",
     "Write md, names, summaries, titles, definitions and questions in {{lang_name}}. {{lang_style}}",
     "Keep identifiers, paths, commands and code exactly as in the data. Be concrete and brief; no filler, no marketing words, no repetition of the task.",
+    "Write like a senior engineer explaining the code to a colleague who has just joined: natural sentences with varied openings (not every block starting with the module as its subject), the technical terms the community uses, and the reason behind a rule when the data gives it.",
+    'Write about the repository only: never mention the task, the DATA sections, or what you were or were not shown (no "not visible in the data"); leave an unknown point out or ask it as a question line.',
     "",
     "REPOSITORY CONTEXT",
     "<<<DATA {{pack_nonce}} REPO_PACK>>>",
@@ -85,7 +87,7 @@ export const UNIT_TEMPLATES: Readonly<Partial<Record<GenPromptId, string>>> = {
     "  errors (prose or list, L3): how failures are detected, reported and recovered.",
     "  concurrency (prose, L3): threads, goroutines, async work, locks and shared state.",
     "  performance (prose, L3): hot paths, caching, complexity and limits.",
-    "  pitfalls (kind pitfall, L2): what surprises a newcomer who changes this code.",
+    "  pitfalls (kind pitfall, L2): what breaks or surprises someone who changes this code: hidden coupling, a required order, side effects, places that must change together; not the value of a constant.",
     "  deepdive (kind deepdive, L3, at most 2 blocks, no claims): one line each naming a detail that deserves a deeper explanation than the data allows here.",
     "  recap (kind recap, L1): one or two sentences.",
     "- State each fact once: a symbol or structure described under one aspect is not repeated under another.",
@@ -113,7 +115,7 @@ export const UNIT_TEMPLATES: Readonly<Partial<Record<GenPromptId, string>>> = {
     "TASK: Write the opening of the design document: section s0 (TL;DR), section s1 (what it is, for whom and why) and the caption of the floor plan in section s2. {{mode_sentence}}",
     "RULES:",
     "- s0, aspect tldr: exactly one prose block, depth L0: one to three sentences saying what the repository is, what it does and how it is built.",
-    "- s1 aspects, in this order: problem (prose, L0): the problem it solves; users (list, L1): who uses it and for what; scope (list, L1): what it does and what it explicitly does not do; constraints (list, L1): platforms, runtimes, external services and limits.",
+    "- s1 aspects, in this order: problem (prose, L0): the problem it solves; users (list, L1): who uses it and for what, ending with one item that tells a newcomer how to try it within five minutes (the install and run commands from the S lines in FACTS or from DOCS, and what to open or do first); scope (list, L1): what it does and what it explicitly does not do; constraints (list, L1): platforms, runtimes, external services and limits.",
     "- s2, aspect caption: one prose block, depth L1: how to read the floor plan in FLOORPLAN, naming its main parts and how requests or data move between them.",
     "- Back statements with N| lines from DOCS, locations in FACTS, or cites repeated from MODULES. When a document and the code disagree, follow the code and write a question line.",
     '- Up to 5 question lines with "section" s1 or s2.',
@@ -172,6 +174,7 @@ export const UNIT_TEMPLATES: Readonly<Partial<Record<GenPromptId, string>>> = {
     "  observability: logs, metrics, tracing and debug switches.",
     '- Every block has "kind": prose, list or pitfall.',
     "- Base every statement on CLAIMS (repeat their cites exactly) or on N| lines in BODIES and locations in FACTS. No generic advice.",
+    "- CLAIMS already stand on the module pages: do not copy a claim sentence. Describe what holds across the system (name the modules it spans), and use a claim only as the example of such a property.",
     "- Up to 3 question lines.",
     "OUTPUT: gen.block/1 lines; mitori files every block under s9.",
   ].join("\n"),
@@ -190,8 +193,8 @@ export const UNIT_TEMPLATES: Readonly<Partial<Record<GenPromptId, string>>> = {
     "- Allowed aspects, in this order, all depth L3; skip an aspect without evidence:",
     "  debt: the most significant TODO, FIXME and HACK items from TODOS, grouped by theme, each citing its location.",
     "  untested: important modules or behaviours without tests, from UNTESTED.",
-    "  hotspots: large files from LARGE, and why they are risky.",
-    "  fragile: edge cases and failure modes from CLAIMS.",
+    "  hotspots: files from LARGE that CLAIMS or TODOS show to be risky to change, and why; mitori already lists the sizes in a table, so do not restate them.",
+    "  fragile: edge cases and failure modes from CLAIMS that span modules or can lose data; do not copy a claim sentence from the module pages.",
     '- Every block has "kind": list, prose or pitfall.',
     "- Group related items; at most 8 items per block. Do not invent severity scores.",
     "OUTPUT: gen.block/1 lines; mitori files every block under s11.",
@@ -246,6 +249,19 @@ export const UNIT_TEMPLATES: Readonly<Partial<Record<GenPromptId, string>>> = {
     'OUTPUT: module lines, then the end line with "blocks":0.',
   ].join("\n"),
 };
+
+/**
+ * `gen.deepdive` in mode files (complete effort, §5.6.12 second template): per-file notes of one module, at most
+ * 20k tokens of FILES per task. Hashed into the gen.deepdive version together with the topic template.
+ */
+export const DEEPDIVE_FILES_TEMPLATE = [
+  "TASK: Write per-file notes for module {{module_id}} ({{module_label}}) in section {{section}}, one for each file in FILES.",
+  "RULES:",
+  "- For each file, in the listed order, write one block with aspect files. Its md starts with the path in backticks, then says what the file contains, its main functions and their non-obvious behaviour: conditions, limits, order of effects and failure handling visible in the lines.",
+  "- Every sentence about the code is a claim citing lines in FILES. Skip what the module page already says in general terms; these notes are for a reviewer reading the file.",
+  "- A file shown only as a skeleton gets a shorter note about its declarations.",
+  "OUTPUT: gen.block/1 lines; mitori files every block under {{section}}.",
+].join("\n");
 
 /** Addenda appended to unit prompts. */
 export const ADDENDUM_TEMPLATES: Readonly<Record<PromptAddendumId, string>> = {

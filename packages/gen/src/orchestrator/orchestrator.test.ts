@@ -124,7 +124,8 @@ describe("GEN-U-023 / AC-08 / AC-09 exactly one retry, by continuation", () => {
             md: "ログインさせる[[1]]。",
             claims: { "1": "behavior src/auth/login.ts:3-7" },
           }),
-          j({ t: "block", id: "new:2", aspect: "interface", md: "- 関数を公開する[[1]]。", claims: {} }),
+          // a repeated marker is not repairable (an orphan marker alone would become an inferred claim, W10)
+          j({ t: "block", id: "new:2", aspect: "interface", md: "- 関数を公開する[[1]]。\n- 型も公開する[[1]]。", claims: {} }),
           j({ t: "block", id: "new:3", aspect: "pitfalls", md: "注意[[1]]。", claims: { "1": "risk src/auth/login.ts:90-99" } }),
           j({ t: "module", module: M_AUTH, name: "認証" }),
           j({ t: "end", blocks: 3 }),

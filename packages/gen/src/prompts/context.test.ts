@@ -54,8 +54,9 @@ describe("GEN-U-061 V17 citable ranges (short unseen runs between shown lines)",
     expect(citable.allows("a.test.js", 12, 40)).toBe(false);
   });
 
-  test("TESTS lines get each case's line from the test facts (same names in order; unknown cases unchanged)", () => {
-    const fact = (path: string, name: string, line: number): Fact => ({ kind: "test", detector: "test.go@1", path, line, blob: "b", name });
+  const fact = (path: string, name: string, line: number): Fact => ({ kind: "test", detector: "test.go@1", path, line, blob: "b", name });
+
+  test("TESTS lines get each case's line from the test facts (same names in order; files without facts unchanged)", () => {
     const facts = [fact("x_test.go", "TestA", 10), fact("web/a.test.js", "dup", 3), fact("web/a.test.js", "dup", 9)];
     expect(testsWithLocations("T x_test.go: TestA\nT web/a.test.js: dup\nT web/a.test.js: dup\nT y_test.go: TestB\n\n", facts)).toEqual([
       "T x_test.go:10 TestA",
@@ -63,5 +64,28 @@ describe("GEN-U-061 V17 citable ranges (short unseen runs between shown lines)",
       "T web/a.test.js:9 dup",
       "T y_test.go: TestB",
     ]);
+  });
+
+  test("the per-file form of moduleContext().tests gets one located line per case (real run 2026-10-04: m3e had none)", () => {
+    const facts = [
+      fact("lib/ai.test.ts", "complete › posts to the messages endpoint", 12),
+      fact("lib/ai.test.ts", "complete › joins only the text blocks", 30),
+      ...Array.from({ length: 7 }, (_, i) => fact("lib/i18n.test.ts", `parity ${i}`, 100 - i)),
+    ];
+    const text = "T lib/ai.test.ts: complete › posts to the messages endpoint; complete › …\nT lib/i18n.test.ts: parity 0; parity 1";
+    expect(testsWithLocations(text, facts)).toEqual([
+      "T lib/ai.test.ts:12 complete › posts to the messages endpoint",
+      "T lib/ai.test.ts:30 complete › joins only the text blocks",
+      "T lib/i18n.test.ts:94 parity 6",
+      "T lib/i18n.test.ts:95 parity 5",
+      "T lib/i18n.test.ts:96 parity 4",
+      "T lib/i18n.test.ts:97 parity 3",
+      "T lib/i18n.test.ts:98 parity 2",
+      "T lib/i18n.test.ts:99 parity 1",
+      "T lib/i18n.test.ts: +1 more cases",
+    ]);
+    const set = new CitableBuilder().add(testsWithLocations(text, facts).map((l) => `> ${l}`)).build({ fileLines: () => 400, symbolRanges: () => [] });
+    expect(set.allows("lib/ai.test.ts", 30, 30)).toBe(true);
+    expect(set.allows("lib/i18n.test.ts", 100, 100)).toBe(false);
   });
 });

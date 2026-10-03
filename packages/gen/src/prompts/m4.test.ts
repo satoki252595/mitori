@@ -88,3 +88,32 @@ describe("GEN-M4-02 open questions (§13, §5.6.10)", () => {
     expect(h.aiBlocks("s13").map((b) => h.doc.markerForm(b.id))).toEqual(["統合した問い（16 件から）"]);
   });
 });
+
+describe("GEN-M4-03 complete effort: per-file notes (S8 gen.deepdive files, §3.2, §5.6.12)", () => {
+  test("every paged leaf gets per-file notes from a FILES chunk; a rerun replays them from the cache", async () => {
+    const h = makeS9Harness({ repo: m4Repo() });
+    await h.applyStatic();
+    const { run } = await h.generate("complete");
+    expect(run?.run.state).toBe("done");
+    const calls = h.engine.calls.filter((c) => c.call.spec.id === "gen.deepdive");
+    expect(calls.length).toBe(4);
+    const session = calls.find((c) => c.call.layout.unit.includes("=== src/session/store.ts"))?.call.layout.unit ?? "";
+    expect(session).toContain("TASK: Write per-file notes for module md_a0000001");
+    expect(dataSection(session, "FILES").slice(0, 2)).toEqual(["=== src/session/store.ts · lines 1-25", "1|// Session store keeps sessions in memory."]);
+    expect(dataSection(session, "EXISTING")).toEqual([]);
+    expect(run?.tasks.filter((t) => t.stage === "S8").map((t) => t.state)).toEqual(["done", "done", "done", "done"]);
+    const page = h.doc.index().modules.find((e) => e.id === "md_a0000001")?.section ?? "";
+    const notes = h.aiBlocks(page).filter((b) => b.aspect === "files");
+    expect(notes.map((b) => [b.kind, b.depth])).toEqual([["deepdive", "L3"]]);
+    expect(h.doc.markerForm(notes[0]?.id as never)).toBe("`src/session/store.ts` の中身を説明する[[1]]。");
+    // a second run replays every task from the cache and keeps the notes as they are
+    const again = await h.generate("complete");
+    expect(again.run?.tasks.filter((t) => t.stage === "S8").every((t) => t.state === "cached")).toBe(true);
+    expect(
+      h
+        .aiBlocks(page)
+        .filter((b) => b.aspect === "files")
+        .map((b) => b.id),
+    ).toEqual(notes.map((b) => b.id));
+  });
+});

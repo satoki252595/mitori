@@ -1,6 +1,7 @@
 /** Per-prompt model / effort / output-target / timing rules (gen spec §3.4, §5.3, §9.2–§9.5). Pure. */
 import { type ClaudeModelId, type EffectiveSettings, type EngineId, type GenStage, type ModelId, PRICING, type ReasoningEffort } from "@mitori/core";
 import { GEN_ESTIMATE_PARAMS, GEN_PROMPTS, type GenModelKey, type GenPromptId, type PlannedTask } from "../contract.ts";
+import { baseMode, isFilesMode } from "../prompts/files.ts";
 
 /** §3.4 stage weights (early overview 9 / S5 5 / S6 4 / S6o 3 / S7 2 / S8 1). */
 export function stageWeight(t: Pick<PlannedTask, "stage" | "prompt" | "mode">): number {
@@ -23,7 +24,9 @@ export function compareTasks(a: PlannedTask & { boost?: number }, b: PlannedTask
 /** Model key of a prompt in a mode (mode overrides the spec; `apiModelKey` on anthropic-api). */
 export function modelKeyOf(prompt: GenPromptId, mode: string | undefined, engine: EngineId): GenModelKey {
   const spec = GEN_PROMPTS[prompt];
-  const m = mode ? (spec as { modes?: Readonly<Record<string, { modelKey?: GenModelKey; apiModelKey?: GenModelKey }>> }).modes?.[mode] : undefined;
+  const m = mode
+    ? (spec as { modes?: Readonly<Record<string, { modelKey?: GenModelKey; apiModelKey?: GenModelKey }>> }).modes?.[baseMode(mode) ?? mode]
+    : undefined;
   if (engine === "anthropic-api" && m?.apiModelKey) return m.apiModelKey;
   return m?.modelKey ?? spec.modelKey;
 }
@@ -38,7 +41,9 @@ export function modelOf(
   const key = modelKeyOf(prompt, mode, engine);
   const model = s.global.models[key];
   const spec = GEN_PROMPTS[prompt];
-  const modeEffort = mode ? (spec as { modes?: Readonly<Record<string, { effort?: ReasoningEffort | null }>> }).modes?.[mode]?.effort : undefined;
+  const modeEffort = mode
+    ? (spec as { modes?: Readonly<Record<string, { effort?: ReasoningEffort | null }>> }).modes?.[baseMode(mode) ?? mode]?.effort
+    : undefined;
   let effort: ReasoningEffort | null = modeEffort !== undefined ? modeEffort : spec.effort;
   if (key === "genOverview") effort = s.global.reasoning.genOverview;
   else if (key === "genModule") effort = s.global.reasoning.gen;
@@ -49,7 +54,7 @@ export function modelOf(
 /** Max output tokens of a prompt mode (§5.3). */
 export function maxOutOf(prompt: GenPromptId, mode: string | undefined): number {
   const spec = GEN_PROMPTS[prompt];
-  const m = mode ? (spec as { modes?: Readonly<Record<string, { maxOut?: number }>> }).modes?.[mode] : undefined;
+  const m = mode ? (spec as { modes?: Readonly<Record<string, { maxOut?: number }>> }).modes?.[baseMode(mode) ?? mode] : undefined;
   return m?.maxOut ?? spec.maxOut;
 }
 
@@ -80,7 +85,7 @@ export function outTarget(prompt: GenPromptId, mode: string | undefined, tail: n
     case "gen.labels":
       return o.perLabel * count;
     case "gen.deepdive":
-      return mode === "files" ? Math.round(o.filesSlope * tail + o.perFile * count) : o.deepdiveTopic;
+      return isFilesMode(mode) ? Math.round(o.filesSlope * tail + o.perFile * count) : o.deepdiveTopic;
     case "gen.judge":
       return o.perJudgedClaim * count;
     case "doc.sync":

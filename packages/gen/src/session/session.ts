@@ -42,6 +42,7 @@ import { candidatesOf, type Runner, runTaskId, type Services } from "../orchestr
 import type { TaskRow } from "../orchestrator/store.ts";
 import { maxOutOf } from "../planner/params.ts";
 import { type GatherEnv, gatherInputs } from "../prompts/inputs.ts";
+import { genFlowSeeds } from "../prompts/seeds.ts";
 import { prepFingerprint } from "./index.ts";
 import { batchesOf, renderReadme } from "./packet.ts";
 
@@ -152,7 +153,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
       const todo = rows.filter((r) => r.plan.phase === ph && r.task.state === "pending");
       const entries: { row: TaskRow; rendered: RenderedTask; labels: Record<string, Xxh3> }[] = [];
       for (const row of todo) {
-        if (row.plan.prompt === "gen.flows" && d.indexer.flowSeeds(8).length === 0) {
+        if (row.plan.prompt === "gen.flows" && genFlowSeeds(d.indexer).length === 0) {
           row.task.state = "skipped";
           await d.write("gen.task", () => store.putTask(row));
           continue;

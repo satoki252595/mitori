@@ -3,6 +3,7 @@ import type { Hasher } from "@mitori/core";
 import { GEN_PROMPTS, GEN_SYSTEM_VERSIONS, type GenPromptId, type PromptAddendumId, type SystemPromptId } from "../contract.ts";
 import {
   ADDENDUM_TEMPLATES,
+  DEEPDIVE_FILES_TEMPLATE,
   LANG_TEXT,
   MAX_QUESTIONS,
   OVERVIEW_MODE_SENTENCES,
@@ -21,7 +22,7 @@ export function computePromptLock(hasher: Hasher): Record<string, string> {
   for (const id of Object.keys(SYSTEM_TEMPLATES) as SystemPromptId[]) out[GEN_SYSTEM_VERSIONS[id]] = hasher.sha256(`${SYSTEM_TEMPLATES[id]}\n${shared}`);
   for (const id of Object.keys(ADDENDUM_TEMPLATES) as PromptAddendumId[]) out[GEN_SYSTEM_VERSIONS[id]] = hasher.sha256(`${ADDENDUM_TEMPLATES[id]}\n${shared}`);
   for (const id of Object.keys(UNIT_TEMPLATES) as GenPromptId[]) {
-    const extra = id === "doc.simplify" || id === "gen.questions" ? `\n${m4}` : "";
+    const extra = id === "doc.simplify" || id === "gen.questions" ? `\n${m4}` : id === "gen.deepdive" ? `\n${DEEPDIVE_FILES_TEMPLATE}` : "";
     out[GEN_PROMPTS[id].version] = hasher.sha256(`${UNIT_TEMPLATES[id] ?? ""}\n${shared}${extra}`);
   }
   return Object.fromEntries(Object.entries(out).sort(([a], [b]) => (a < b ? -1 : 1)));

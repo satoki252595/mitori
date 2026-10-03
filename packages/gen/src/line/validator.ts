@@ -24,7 +24,14 @@ import { BLOCK_ASPECTS, kindsOf } from "./aspects.ts";
 import { isObject, parseCiteObject, parseClaims, short } from "./claims.ts";
 import { validateDiagram } from "./diagram.ts";
 import { headingProblem, inlineProblems, isGfmTable, mdLength } from "./mdrules.ts";
-import { codeRanges, markersInCode, normalizeMarkers, scanMarkers } from "./mdscan.ts";
+import { codeRanges, markersInCode, normalizeMarkers, placeMarkers, scanMarkers, tightenFullWidth } from "./mdscan.ts";
+
+/** A cite that cannot be accepted as written. */
+interface CiteProblem {
+  rule: "V17" | "V18";
+  expected: string;
+  actual: string;
+}
 
 const LINE_TYPES: ReadonlySet<string> = new Set<GenLineType>(["block", "keep", "delete", "module", "flow", "term", "question", "verdict", "end"]);
 const KNOWN_KEYS: Readonly<Record<GenLineType, readonly string[]>> = {
@@ -267,15 +274,25 @@ export class GenLineValidator implements LineValidator {
       const norm = normalizeMarkers(mdNorm);
       if (norm.moved) c.warn("W07");
       mdNorm = norm.md;
+      if (ctx.lang === "ja") {
+        const tight = tightenFullWidth(mdNorm);
+        if (tight.changed) c.warn("W12");
+        mdNorm = tight.md;
+      }
     }
 
     const parsed = parseClaims(o.claims, GEN_LIMITS.claimsPerBlock, GEN_LIMITS.citesPerClaim);
     if (parsed.unknownKeys > 0) c.warn("W02");
+    if (parsed.aliased > 0) c.warn("W09");
     for (const p of parsed.problems) c.err("V03", p.at, p.expected, p.actual);
+    let claims = parsed.claims;
     // patch lines without "claims" (doc.translate / doc.simplify) keep the block's claims: markers [[1]]..[[n]] once each
     if (mdOk && patch && o.claims === undefined && existing) this.inheritedMarkers(mdNorm, existing.claims, c);
-    else if (mdOk) this.markers(mdNorm, parsed.claims, c);
-    for (const cl of parsed.claims) for (const [j, cite] of cl.cites.entries()) this.cite(cite, `/claims/${cl.n}/${j}`, c);
+    else if (mdOk) {
+      if (parsed.problems.length === 0) ({ md: mdNorm, claims } = this.repairMarkers(mdNorm, claims, c));
+      this.markers(mdNorm, claims, c);
+    }
+    claims = claims.map((cl) => this.claimCites(cl, c));
 
     let after: BlockId | NewBlockRef | undefined;
     if (o.after !== undefined) {
@@ -293,7 +310,7 @@ export class GenLineValidator implements LineValidator {
     if (ref) this.newRefs.add(ref);
     else this.accounted.add(id as BlockId);
     this.accepted.push({ section, aspect });
-    const value: GenBlockLine = { t: "block", id: ref ?? (id as BlockId), section, md: mdNorm, claims: parsed.claims };
+    const value: GenBlockLine = { t: "block", id: ref ?? (id as BlockId), section, md: mdNorm, claims };
     if (aspect) value.aspect = aspect;
     if (kind) value.kind = kind;
     if (depth) value.depth = depth;
@@ -363,7 +380,11 @@ export class GenLineValidator implements LineValidator {
     if (!n.includes("/")) {
       for (const s of ctx.sections) if (s.includes("/") && s.slice(s.indexOf("/") + 1) === n) return s;
       if (this.flowsEnabled && this.flowKeys.includes(n)) return `s3/${n}`;
+      return null;
     }
+    // a task section with the aspect (or any sub-path) appended: `s10/decision`, `s6/app/interface` [real run 2026-10-04]
+    const prefix = [...ctx.sections].sort((a, b) => b.length - a.length).find((s) => n.startsWith(`${s}/`));
+    if (prefix && !(this.flowsEnabled && prefix === "s3")) return prefix;
     return null;
   }
 
@@ -464,13 +485,68 @@ export class GenLineValidator implements LineValidator {
       if (!seen.has(k)) c.err("V14", "/md", `marker [[${k}]] of the original block`, inCode.has(k) ? "marker only inside a code span" : "no marker");
   }
 
-  /** V17 / V18 with the W04 repairs applied virtually (the Verifier performs and records them). */
-  private cite(cite: RawCite, at: string, c: LineCheck): void {
-    const lines = this.ctx.citable.lines(cite.path);
-    if (lines === null) {
-      c.err("V17", at, "a path shown in the task", cite.path);
-      return;
+  /**
+   * W10 before V14: an orphan marker (a marker whose claim is missing) becomes an inferred claim — the sentence was
+   * meant as a claim and has no proof, which is exactly what "inferred" shows; a block that has claims but no
+   * marker at all gets one marker per sentence / list item when they are equally many ({@link placeMarkers}).
+   * Anything else is left to V14 (retried). Only for lines whose claims parsed cleanly.
+   */
+  private repairMarkers(md: string, claims: GenClaimDraft[], c: LineCheck): { md: string; claims: GenClaimDraft[] } {
+    const markers = scanMarkers(md);
+    const claimNs = new Set(claims.map((cl) => cl.n));
+    let out = claims;
+    let outMd = md;
+    let repaired = false;
+    if (markers.length === 0 && claims.length > 0) {
+      const placed = placeMarkers(
+        md,
+        claims.map((cl) => cl.n),
+      );
+      if (placed !== null) {
+        outMd = placed;
+        repaired = true;
+      }
+    } else if (new Set(markers.map((m) => m.n)).size === markers.length) {
+      // (a repeated marker is V14 whatever claims exist: no repair then)
+      const orphans = markers.map((m) => m.n).filter((n) => !claimNs.has(n));
+      if (orphans.length > 0 && orphans.length + claims.length <= GEN_LIMITS.claimsPerBlock) {
+        out = [...claims, ...orphans.map((n): GenClaimDraft => ({ n, kind: "fact", cites: [] }))].sort((a, b) => a.n - b.n);
+        repaired = true;
+      }
     }
+    if (repaired) c.warn("W10");
+    return { md: outMd, claims: out };
+  }
+
+  /** V17 / V18 of a claim's cites; an unshown cite (V17) is dropped (W11) while the claim keeps another valid cite. */
+  private claimCites(cl: GenClaimDraft, c: LineCheck): GenClaimDraft {
+    const keep: RawCite[] = [];
+    const unshown: { j: number; problem: CiteProblem }[] = [];
+    for (const [j, cite] of cl.cites.entries()) {
+      const p = this.citeProblem(cite, c);
+      if (p === null) keep.push(cite);
+      else if (p.rule === "V17") unshown.push({ j, problem: p });
+      else c.err(p.rule, `/claims/${cl.n}/${j}`, p.expected, p.actual);
+    }
+    if (unshown.length === 0) return cl;
+    if (keep.length > 0 && keep.length + unshown.length === cl.cites.length) {
+      c.warn("W11");
+      return { ...cl, cites: keep };
+    }
+    for (const u of unshown) c.err("V17", `/claims/${cl.n}/${u.j}`, u.problem.expected, u.problem.actual);
+    return cl;
+  }
+
+  /** V17 / V18 with an error for a question cite. */
+  private cite(cite: RawCite, at: string, c: LineCheck): void {
+    const p = this.citeProblem(cite, c);
+    if (p) c.err(p.rule, at, p.expected, p.actual);
+  }
+
+  /** V17 / V18 with the W04 repairs applied virtually (the Verifier performs and records them); null = citable. */
+  private citeProblem(cite: RawCite, c: LineCheck): CiteProblem | null {
+    const lines = this.ctx.citable.lines(cite.path);
+    if (lines === null) return { rule: "V17", expected: "a path shown in the task", actual: cite.path };
     let { start, end } = cite;
     const slack = GEN_LIMITS.citeClampSlack;
     let repaired = false;
@@ -486,13 +562,16 @@ export class GenLineValidator implements LineValidator {
       end = lines;
       repaired = true;
     }
-    if (!(start >= 1 && start <= end && end <= lines) || end - start >= GEN_LIMITS.citeMaxSpan) {
-      c.err("V18", at, `1 ≤ start ≤ end ≤ ${lines} and fewer than ${GEN_LIMITS.citeMaxSpan} lines`, `${cite.path}:${cite.start}-${cite.end}`);
-      return;
-    }
+    if (!(start >= 1 && start <= end && end <= lines) || end - start >= GEN_LIMITS.citeMaxSpan)
+      return {
+        rule: "V18",
+        expected: `1 ≤ start ≤ end ≤ ${lines} and fewer than ${GEN_LIMITS.citeMaxSpan} lines`,
+        actual: `${cite.path}:${cite.start}-${cite.end}`,
+      };
     if (repaired) c.warn("W04");
     if (!this.ctx.citable.allows(cite.path, start, end))
-      c.err("V17", at, "lines shown in the task (N| lines, FACTS locations or given cites)", `${cite.path}:${cite.start}-${cite.end}`);
+      return { rule: "V17", expected: "lines shown in the task (N| lines, FACTS locations or given cites)", actual: `${cite.path}:${cite.start}-${cite.end}` };
+    return null;
   }
 
   private keepDelete(t: "keep" | "delete", o: Record<string, unknown>, c: LineCheck): GenLine | null {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { BlockAspect, BlockId, ModuleId, SectionId } from "@mitori/core";
-import type { CitableSet, ExistingRef, GenBlockLine, GenLineType, LineVerdict, ValidationContext } from "../contract.ts";
+import type { CitableSet, ExistingRef, GenBlockLine, GenClaimDraft, GenLineType, LineVerdict, ValidationContext } from "../contract.ts";
 import { sectionAspects } from "./aspects.ts";
 import { parseCiteObject, parseCompactClaim } from "./claims.ts";
 import { createLineValidator } from "./index.ts";
@@ -49,6 +49,9 @@ function blockOf(v: LineVerdict | undefined): GenBlockLine {
   if (v?.value?.t !== "block") throw new Error(`not a block verdict: ${JSON.stringify(v)}`);
   return v.value;
 }
+
+/** Claims of an accepted block verdict (the validator always emits the normalized array form). */
+const claimsOf = (v: LineVerdict | undefined): GenClaimDraft[] => blockOf(v).claims as GenClaimDraft[];
 
 const rules = (v: LineVerdict) => v.errors.map((e) => e.expected.split(" ")[0]);
 const j = (o: unknown) => JSON.stringify(o);
@@ -159,15 +162,87 @@ describe("GEN-U-013 unknown type, missing fields, wrong types", () => {
 });
 
 describe("GEN-U-014 markers vs claims (V14) and compact claim grammar (V03)", () => {
-  test("missing claim, missing marker, repeated marker, marker only inside code", () => {
+  test("unrepairable mismatches: a claim without marker beside marked ones, more sentences than claims, a repeated marker, a marker only inside code", () => {
     const { verdicts } = run([
-      j({ t: "block", id: "new:1", aspect: "responsibility", md: "A[[1]]。B[[2]]。", claims: { "1": "fact" } }),
-      j({ t: "block", id: "new:2", aspect: "responsibility", md: "A。", claims: { "1": "fact" } }),
+      j({ t: "block", id: "new:1", aspect: "responsibility", md: "A[[1]]。B。", claims: { "1": "fact", "2": "fact" } }),
+      j({ t: "block", id: "new:2", aspect: "responsibility", md: "A。B。", claims: { "1": "fact" } }),
       j({ t: "block", id: "new:3", aspect: "responsibility", md: "A[[1]]。B[[1]]。", claims: { "1": "fact" } }),
-      j({ t: "block", id: "new:4", aspect: "responsibility", md: "`x[[1]]` だ。", claims: { "1": "fact" } }),
+      j({ t: "block", id: "new:4", aspect: "responsibility", md: "`x[[1]]` だ。次も。", claims: { "1": "fact" } }),
     ]);
     expect(verdicts.map(rules)).toEqual([["V14"], ["V14"], ["V14"], ["V14"]]);
     expect(verdicts[3]?.errors[0]?.actual).toContain("code span");
+  });
+
+  test("W10: an orphan marker becomes an inferred claim; claims without any marker are placed one per sentence / item", () => {
+    const { verdicts } = run([
+      j({ t: "block", id: "new:1", aspect: "responsibility", md: "A[[1]]。B[[2]]。", claims: { "1": "fact internal/session/store.go:1-2" } }),
+      j({ t: "block", id: "new:2", aspect: "responsibility", md: "セッションを発行する。失効もさせる。", claims: { "1": "fact", "2": "behavior" } }),
+      j({ t: "block", id: "new:3", aspect: "interface", md: "- `Open` は開く\n- `Close` は閉じる。", claims: { "1": "behavior", "2": "behavior" } }),
+      j({ t: "block", id: "new:4", aspect: "responsibility", md: "`x[[1]]` だ。", claims: { "1": "fact" } }),
+    ]);
+    expect(verdicts.map(rules)).toEqual([[], [], [], []]);
+    expect(verdicts.every((v) => v.warnings.includes("W10"))).toBe(true);
+    expect(blockOf(verdicts[0]).claims).toEqual([
+      { n: 1, kind: "fact", cites: [{ path: "internal/session/store.go", start: 1, end: 2 }] },
+      { n: 2, kind: "fact", cites: [] },
+    ]);
+    expect(blockOf(verdicts[1]).md).toBe("セッションを発行する[[1]]。失効もさせる[[2]]。");
+    expect(blockOf(verdicts[2]).md).toBe("- `Open` は開く[[1]]\n- `Close` は閉じる[[2]]。");
+    expect(blockOf(verdicts[3]).md).toBe("`x[[1]]` だ[[1]]。");
+  });
+
+  test("W09: 'inferred' and aspect names written as the claim kind are normalized (real run 2026-10-04: m3e / crit retries)", () => {
+    const { verdicts } = run([
+      j({
+        t: "block",
+        id: "new:1",
+        aspect: "responsibility",
+        md: "A[[1]]。B[[2]]。",
+        claims: { "1": "inferred", "2": "interface internal/session/store.go:3" },
+      }),
+    ]);
+    expect(rules(verdicts[0] as LineVerdict)).toEqual([]);
+    expect(verdicts[0]?.warnings).toContain("W09");
+    expect(claimsOf(verdicts[0]).map((c) => c.kind)).toEqual(["fact", "behavior"]);
+    expect(parseCompactClaim("inferred")).toEqual({ kind: "fact", cites: [], aliased: true });
+  });
+
+  test("W11: an unshown cite is dropped while the claim keeps a shown one; an only cite stays V17", () => {
+    const c = ctx({ citable: citable({ "internal/session/store.go": 400, "internal/session/ttl.go": 40 }, { "internal/session/store.go": [10, 20] }) });
+    const { verdicts } = run(
+      [
+        j({
+          t: "block",
+          id: "new:1",
+          aspect: "responsibility",
+          md: "A[[1]]。",
+          claims: { "1": "fact internal/session/store.go:12-14,internal/session/store.go:300" },
+        }),
+        j({ t: "block", id: "new:2", aspect: "responsibility", md: "A[[1]]。", claims: { "1": "fact internal/session/store.go:300" } }),
+        j({
+          t: "block",
+          id: "new:3",
+          aspect: "responsibility",
+          md: "A[[1]]。",
+          claims: { "1": "fact internal/session/store.go:12,internal/session/nope.go:3" },
+        }),
+      ],
+      c,
+    );
+    expect(verdicts.map(rules)).toEqual([[], ["V17"], []]);
+    expect(claimsOf(verdicts[0])[0]?.cites).toEqual([{ path: "internal/session/store.go", start: 12, end: 14 }]);
+    expect(verdicts[0]?.warnings).toContain("W11");
+    expect(claimsOf(verdicts[2])[0]?.cites).toEqual([{ path: "internal/session/store.go", start: 12, end: 12 }]);
+  });
+
+  test("W12: spaces after full-width punctuation are removed outside code (Japanese only)", () => {
+    const { verdicts } = run([
+      j({ t: "block", id: "new:1", aspect: "responsibility", md: "持つ[[1]]。 次に `a。 b` を使う（推測）。 終わり。", claims: { "1": "fact" } }),
+    ]);
+    expect(blockOf(verdicts[0]).md).toBe("持つ[[1]]。次に `a。 b` を使う（推測）。終わり。");
+    expect(verdicts[0]?.warnings).toContain("W12");
+    const en = run([j({ t: "block", id: "new:1", aspect: "responsibility", md: "It holds[[1]]。 then.", claims: { "1": "fact" } })], ctx({ lang: "en" }));
+    expect(blockOf(en.verdicts[0]).md).toBe("It holds[[1]]。 then.");
   });
 
   test("compact grammar violations are V03", () => {
@@ -321,6 +396,17 @@ describe("GEN-U-017 sections, foreign ids, duplicate new refs, unknown after", (
     expect(verdicts[0]?.warnings).toEqual(["W03"]);
     expect(blockOf(verdicts[0]).section).toBe("s6/internal-session");
     expect(rules(verdicts[1] as LineVerdict)).toEqual(["V06"]);
+  });
+
+  test("W03: a task section with the aspect appended is the section (real run 2026-10-04: gen.decisions wrote s10/decision)", () => {
+    const { verdicts } = run([
+      j({ t: "block", id: "new:1", section: "s6/internal-session/interface", aspect: "interface", md: "x", claims: {} }),
+      j({ t: "block", id: "new:2", section: "s6/internal/interface", aspect: "interface", md: "x", claims: {} }),
+    ]);
+    expect(verdicts[0]?.errors).toEqual([]);
+    expect(verdicts[0]?.warnings).toEqual(["W03"]);
+    expect(blockOf(verdicts[0]).section).toBe("s6/internal-session");
+    expect(rules(verdicts[1] as LineVerdict)).toEqual(["V05"]);
   });
 });
 

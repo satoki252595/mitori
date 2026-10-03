@@ -10,7 +10,14 @@ import type { Block, BlockId, ClaimKind, DocLang, Fact, GitOid, LineNo, ModuleId
 import type { DocStore } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
 import { DATA_BUDGETS, type DataLabel, type GenPlan, type GenQuestionLine, type PlannedTask, type TaskInputs } from "../contract.ts";
-import { plainText } from "../line/mdscan.ts";
+import { codeSpans, plainText } from "../line/mdscan.ts";
+import { fileChunks, filesChunkOf, filesInput, isFilesMode } from "./files.ts";
+import { genFlowSeeds } from "./seeds.ts";
+
+/** The file a per-file note is about: its first backticked span (the files-mode md starts with the path). */
+export function notePath(md: string): string | null {
+  return codeSpans(md)[0]?.trim() ?? null;
+}
 
 /** A glossary candidate collected from the run's module pages. */
 export interface TermCandidate {
@@ -68,6 +75,9 @@ const CLAIM_KINDS: Partial<Record<PlannedTask["prompt"], readonly ClaimKind[]>> 
 
 const SECURITY_DEP_RE = /auth|jwt|jose|crypt|argon|oauth|session|csrf|helmet|cors|tls|ssl|passport|secret|sanitiz|xss/i;
 const SCHEMA_DOC_RE = /schema|model|database|\bdb\b|table|migration|entity|スキーマ|データ/i;
+
+/** Script facts shown to the overview (s1 users: how a newcomer starts). */
+export const OVERVIEW_SCRIPTS = 8;
 
 /** Labels per `gen.labels` call (R1 PT-03: 40). */
 export const LABELS_PER_CALL = 40;
@@ -198,7 +208,7 @@ class Gatherer {
       case "gen.labels":
         return { MODULES: this.labels() };
       case "gen.flows": {
-        const seeds = ix.flowSeeds(8);
+        const seeds = genFlowSeeds(ix);
         const bodies = seeds.flatMap((s) => ix.flowBodies(s, Math.floor((this.budgets.BODIES ?? 12000) / Math.max(1, seeds.length)), "claude-v5"));
         return {
           SEEDS: seeds.map((s) => `> seed${s.k} ${s.kind} ${s.label} ${s.path}:${s.line} path: ${s.modules.join(" > ")}`),
@@ -251,7 +261,7 @@ class Gatherer {
       case "gen.questions":
         return { RAW: this.raw() };
       case "gen.deepdive":
-        return await this.deepdive();
+        return isFilesMode(t.mode) ? await this.fileNotes() : await this.deepdive();
       case "doc.sync": {
         const ids = targetBlocks(t);
         return { BLOCKS: this.blockLines(ids, true), CHANGES: await this.changesOf(ids) };
@@ -389,6 +399,24 @@ class Gatherer {
     for (const [i, q] of (this.env.questions?.() ?? []).entries())
       b.add([`> q${i + 1} ${q.section ?? "s13"} | ${q.text} | ${(q.cites ?? []).map((c) => `${c.path}:${c.start}-${c.end}`).join(", ")}`]);
     return b.done();
+  }
+
+  /**
+   * gen.deepdive files mode (complete effort, §5.6.12): MODULE, FILES of this task's chunk ({@link fileChunks}) and
+   * EXISTING = the per-file notes (aspect files) of earlier runs about these files.
+   */
+  private async fileNotes(): Promise<TaskInputs> {
+    const m = this.module();
+    const chunk = fileChunks(this.env.indexer, m)[filesChunkOf(this.task.mode) - 1];
+    const paths = chunk?.paths ?? [];
+    const files = await filesInput(this.env.indexer, paths);
+    for (const [p, b] of files.blobs) this.see(p, b);
+    const mine = new Set<string>(paths);
+    return {
+      MODULE: this.moduleHeader(m),
+      FILES: files.lines,
+      EXISTING: this.existing([sectionOf(m)], (blk) => blk.aspect === "files" && mine.has(notePath(this.env.doc.markerForm(blk.id) ?? blk.md) ?? "")),
+    };
   }
 
   /** gen.deepdive (topic mode, §5.6.12): MODULE, TOPIC (the placeholder), BODIES of the named symbols, SKELETON. */
@@ -571,11 +599,15 @@ class Gatherer {
   }
 
   /** EXISTING (§5.2): AI / human blocks of the target sections (static blocks are never listed). */
-  private existing(sections: readonly SectionId[]): string[] {
+  /**
+   * EXISTING (§5.2). `keep` filters the blocks; by default the per-file notes (aspect files) are left out: they belong
+   * to the files-mode deep dives of the complete effort, which list them themselves.
+   */
+  private existing(sections: readonly SectionId[], keep: (blk: Block) => boolean = (blk) => blk.aspect !== "files"): string[] {
     const b = this.budget("EXISTING", "existing blocks");
     for (const sid of sections) {
       for (const blk of this.env.doc.section(sid)?.blocks ?? []) {
-        if (blk.origin === "static" || blk.status === "placeholder") continue;
+        if (blk.origin === "static" || blk.status === "placeholder" || !keep(blk)) continue;
         const stale = blk.freshness === "stale" ? "yes" : "no";
         const lock = blk.lock ? "human" : "-";
         b.add([
@@ -595,7 +627,8 @@ class Gatherer {
   /** CHANGES: stale claims with their old lines (not citable) and the new range ±3 (citable). */
   private async changes(sections: readonly SectionId[]): Promise<string[]> {
     const ids: BlockId[] = [];
-    for (const sid of sections) for (const blk of this.env.doc.section(sid)?.blocks ?? []) if (blk.origin !== "static") ids.push(blk.id);
+    for (const sid of sections)
+      for (const blk of this.env.doc.section(sid)?.blocks ?? []) if (blk.origin !== "static" && blk.aspect !== "files") ids.push(blk.id);
     return this.changesOf(ids);
   }
 
@@ -695,14 +728,21 @@ class Gatherer {
     let routes = 0;
     let clis = 0;
     let env = 0;
+    const scripts: Extract<Fact, { kind: "script" }>[] = [];
     for (const f of ix.facts()) {
       if (f.kind === "entry") b.add([`> E ${f.entry} ${f.label} ${f.path}:${f.line}`]);
       else if (f.kind === "route" && routes++ < 30)
         b.add([`> R ${f.method} ${f.pattern} ${f.path}:${f.line}${f.handler ? ` h=${f.handler}` : ""} fw=${f.framework}`]);
       else if (f.kind === "cli" && clis++ < 20) b.add([`> C ${f.command} ${f.path}:${f.line}`]);
       else if (f.kind === "env") env++;
+      else if (f.kind === "script" && f.scope !== "example") scripts.push(f);
     }
     if (env > 0) b.add([`> V ${env} environment variables`]);
+    // S: how to set up, run and test it (the newcomer's first five minutes, s1 users) — run / test / build first
+    const order = ["run", "test", "build", "typecheck", "lint", "format", "other"];
+    scripts.sort((x, y) => order.indexOf(x.purpose) - order.indexOf(y.purpose) || (x.path < y.path ? -1 : x.path > y.path ? 1 : x.line - y.line));
+    for (const s of scripts.slice(0, OVERVIEW_SCRIPTS))
+      b.add([`> S ${s.purpose} ${s.name} ${s.path}:${s.line} \`${s.command.replace(/\s+/g, " ").slice(0, 120)}\``]);
     return b.done();
   }
 
@@ -757,28 +797,50 @@ class Gatherer {
   }
 }
 
+/** TESTS caps: cases per file, lines in total, characters of a case name. */
+export const TESTS_PER_FILE = 6;
+export const TESTS_MAX_LINES = 48;
+const TEST_NAME_CHARS = 110;
+
 /**
- * TESTS lines (`T <path>: <name>`, at most 60) with each case's location: `T <path>:<line> <name>`. A `path:line` in a
- * `> ` line is citable (V17), so the tests aspect can cite the case it describes instead of inventing a line
- * [dogfood 2026-10-04]. Same-named cases in one file take their lines in order.
+ * TESTS lines with each case's location, one case per line: `T <path>:<line> <name>`. A `path:line` in a `> ` line is
+ * citable (V17), so the tests aspect can cite the case it describes instead of inventing a line [dogfood 2026-10-04].
+ * `moduleContext().tests` gives one line per test FILE (`T <path>: <case>; <case>; …`, cut at the line limit), so the
+ * cases are taken from the test facts of each listed file, in source order, at most {@link TESTS_PER_FILE} per file
+ * (then `T <path>: +k more cases`); a file without test facts keeps its line [real run 2026-10-04: m3e-canvas had no
+ * citable test line at all, 2 of its 5 retries]. The older one-case-per-line form is accepted too.
  * CR-PENDING(dogfood): `moduleContext().tests` drops the fact line (cr-requests/dogfood.md #3).
  */
 export function testsWithLocations(text: string, facts: readonly Fact[]): string[] {
-  const at = new Map<string, LineNo[]>();
+  const byPath = new Map<string, { line: LineNo; name: string }[]>();
   for (const f of facts) {
     if (f.kind !== "test") continue;
-    const key = `${f.path}\0${f.name}`;
-    const list = at.get(key) ?? [];
-    list.push(f.line);
-    at.set(key, list);
+    const list = byPath.get(f.path) ?? [];
+    list.push({ line: f.line, name: f.name });
+    byPath.set(f.path, list);
   }
-  return text
-    .split("\n")
-    .filter((l) => l.trim() !== "")
-    .slice(0, 60)
-    .map((l) => {
-      const m = /^T (\S+): (.*)$/.exec(l);
-      const line = m ? at.get(`${m[1]}\0${m[2]}`)?.shift() : undefined;
-      return m && line !== undefined ? `T ${m[1]}:${line} ${m[2]}` : l;
-    });
+  const out: string[] = [];
+  const done = new Set<string>();
+  for (const raw of text.split("\n")) {
+    if (out.length >= TESTS_MAX_LINES) break;
+    const l = raw.trim().replace(/^>\s*/, "");
+    if (l === "") continue;
+    const m = /^T (\S+?): (.*)$/.exec(l);
+    const cases = m ? byPath.get(m[1] as string) : undefined;
+    if (!m || !cases || cases.length === 0) {
+      out.push(l);
+      continue;
+    }
+    const path = m[1] as string;
+    if (done.has(path)) continue;
+    done.add(path);
+    const sorted = [...cases].sort((a, b) => a.line - b.line);
+    for (const c of sorted.slice(0, TESTS_PER_FILE)) {
+      if (out.length >= TESTS_MAX_LINES) break;
+      const name = c.name.replace(/[\r\n\t]+/g, " ");
+      out.push(`T ${path}:${c.line} ${name.length > TEST_NAME_CHARS ? `${name.slice(0, TEST_NAME_CHARS - 1)}…` : name}`);
+    }
+    if (sorted.length > TESTS_PER_FILE && out.length < TESTS_MAX_LINES) out.push(`T ${path}: +${sorted.length - TESTS_PER_FILE} more cases`);
+  }
+  return out;
 }

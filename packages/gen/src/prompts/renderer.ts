@@ -25,8 +25,10 @@ import {
 } from "../contract.ts";
 import { buildContext } from "./context.ts";
 import { type DataSection, fenceSections, prepareLines } from "./fence.ts";
+import { isFilesMode } from "./files.ts";
 import {
   ADDENDUM_TEMPLATES,
+  DEEPDIVE_FILES_TEMPLATE,
   fill,
   LANG_TEXT,
   MAX_QUESTIONS,
@@ -167,7 +169,7 @@ export function createPromptRenderer(deps: RendererDeps): GenPromptRenderer {
     version: promptVersion,
     render(task: PlannedTask, inputs: TaskInputs, opts: { lang: DocLang; workdir: string; retry?: RetryPlan }): RenderedTask {
       const spec = GEN_PROMPTS[task.prompt];
-      const template = UNIT_TEMPLATES[task.prompt];
+      const template = task.prompt === "gen.deepdive" && isFilesMode(task.mode) ? DEEPDIVE_FILES_TEMPLATE : UNIT_TEMPLATES[task.prompt];
       if (template === undefined)
         throw new MitoriError("E_UNSUPPORTED", `prompt ${task.prompt} is not available in this milestone`, { params: { prompt: task.prompt } });
       const salt = deps.salt();

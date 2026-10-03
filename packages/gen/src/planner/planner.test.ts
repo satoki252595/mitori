@@ -70,6 +70,23 @@ describe("GEN-U-001 effort tiers", () => {
     expect(planner.plan({ effort: "complete" }).eager.length).toBe(4);
   });
 
+  test("complete ≠ standard: quality on the overview model at medium, S8 per-file notes per leaf (§3.2), a larger estimate", () => {
+    const { planner, estimator } = setup();
+    const std = planner.plan({ effort: "standard" });
+    const plan = planner.plan({ effort: "complete" });
+    const notes = plan.tasks.filter((t) => t.prompt === "gen.deepdive");
+    expect(notes.map((t) => `${t.mode}:${t.target.id}`).sort()).toEqual([M_AUTH, M_CLI, M_HTTP, M_SESSION].map((m) => `files:${m}`).sort());
+    for (const t of notes) {
+      expect(t.stage).toBe("S8");
+      expect(t.deps).toEqual([plan.tasks.find((p) => p.prompt === "gen.module" && p.target.id === t.target.id)?.id as `gt_${string}`]);
+      expect(t.estimate.out).toBeGreaterThan(0);
+    }
+    const quality = plan.tasks.find((t) => t.prompt === "gen.quality");
+    expect(quality).toMatchObject({ mode: "complete", model: "claude-opus-5-5", effort: "medium" });
+    expect(std.tasks.find((t) => t.prompt === "gen.quality")).toMatchObject({ model: "claude-sonnet-5-5", effort: "low" });
+    expect(estimator.estimate(plan, "claude-cli", 3).apiUsd).toBeGreaterThan(estimator.estimate(std, "claude-cli", 3).apiUsd);
+  });
+
   test("hard deps: S6 ← its children, final ← early + pages + labels, flows ← S5, glossary ← pages + final + flows", () => {
     const { planner } = setup();
     const plan = planner.plan({ effort: "standard" });

@@ -148,7 +148,8 @@ export function parseBlocks(lines: readonly string[]): Map<BlockId, ExistingRef>
 
 /** Where a task's answerable blocks are listed: EXISTING (gen.* regeneration), BLOCKS (doc.*), TOPIC (deep dive). */
 function existingOf(prompt: GenPromptId, sections: ReadonlyMap<string, readonly string[]>): Map<BlockId, ExistingRef> {
-  if (prompt === "gen.deepdive") return parseBlocks(sections.get("TOPIC") ?? []);
+  // topic mode replaces the placeholder in TOPIC; files mode (complete effort) regenerates its notes from EXISTING
+  if (prompt === "gen.deepdive") return sections.has("TOPIC") ? parseBlocks(sections.get("TOPIC") ?? []) : parseExisting(sections.get("EXISTING") ?? []);
   if (GEN_PROMPTS[prompt].form === "patch") return parseBlocks(sections.get("BLOCKS") ?? []);
   return parseExisting(sections.get("EXISTING") ?? []);
 }

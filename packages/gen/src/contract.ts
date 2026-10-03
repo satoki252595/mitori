@@ -321,6 +321,10 @@ export const GEN_RULES = {
   W06: "existing id not accounted; kept",
   W07: "marker moved before sentence terminator",
   W08: "cite relocated (precision search)",
+  W09: "claim kind normalized (inferred / aspect name)",
+  W10: "claim markers repaired (orphan marker → inferred claim, markers placed one per sentence or item)",
+  W11: "unshown cite dropped from a claim that has other cites",
+  W12: "space after full-width punctuation removed",
 } as const;
 
 /** Rule id. */
@@ -599,7 +603,7 @@ export interface GenPromptSpec {
 export const GEN_PROMPTS = {
   "gen.module": {
     id: "gen.module",
-    version: "gen.module@4",
+    version: "gen.module@5",
     system: "gen.system",
     stage: "S5",
     data: ["MODULE", "DEPS", "SKELETON", "BODIES", "TESTS", "FACTS", "DOCS", "EXISTING", "CHANGES"],
@@ -625,7 +629,7 @@ export const GEN_PROMPTS = {
   },
   "gen.overview": {
     id: "gen.overview",
-    version: "gen.overview@2",
+    version: "gen.overview@3",
     system: "gen.system",
     stage: "S6o",
     data: ["DOCS", "FACTS", "FLOORPLAN", "MODULES", "PARENTS", "EXISTING"],
@@ -668,7 +672,7 @@ export const GEN_PROMPTS = {
   },
   "gen.quality": {
     id: "gen.quality",
-    version: "gen.quality@1",
+    version: "gen.quality@2",
     system: "gen.system",
     stage: "S6o",
     data: ["CLAIMS", "BODIES", "FACTS", "EXISTING"],
@@ -695,7 +699,7 @@ export const GEN_PROMPTS = {
   },
   "gen.risks": {
     id: "gen.risks",
-    version: "gen.risks@1",
+    version: "gen.risks@2",
     system: "gen.system",
     stage: "S6o",
     data: ["TODOS", "UNTESTED", "LARGE", "CHURN", "CLAIMS", "EXISTING"],
@@ -747,11 +751,12 @@ export const GEN_PROMPTS = {
   },
   "gen.deepdive": {
     id: "gen.deepdive",
-    version: "gen.deepdive@1",
+    version: "gen.deepdive@2",
     system: "gen.system",
     stage: "S8",
-    data: ["MODULE", "TOPIC", "BODIES", "SKELETON", "FILES"],
-    lineTypes: ["block", "end"],
+    // EXISTING: files mode only (the per-file notes of earlier complete runs are kept / replaced / deleted)
+    data: ["MODULE", "TOPIC", "BODIES", "SKELETON", "FILES", "EXISTING"],
+    lineTypes: ["block", "keep", "delete", "end"],
     form: "compact",
     modelKey: "genModule",
     effort: "low",
@@ -818,7 +823,7 @@ export const GEN_PROMPTS = {
 
 /** System / addendum versions. */
 export const GEN_SYSTEM_VERSIONS = {
-  "gen.system": "gen.system@4",
+  "gen.system": "gen.system@5",
   "doc.system": "doc.system@2",
   "gen.regen": "gen.regen@2",
   "gen.retry": "gen.retry@2",
@@ -837,7 +842,7 @@ export const DATA_BUDGETS = {
   "gen.glossary": { GLOSSARY_SEEDS: 1000, CANDIDATES: 4000 },
   "gen.questions": { RAW: 2000 },
   "gen.labels": { MODULES: 9600 },
-  "gen.deepdive": { MODULE: 100, TOPIC: 100, BODIES: 16000, SKELETON: 4000, FILES: 20000 },
+  "gen.deepdive": { MODULE: 100, TOPIC: 100, BODIES: 16000, SKELETON: 4000, FILES: 20000, EXISTING: 1500 },
   "gen.judge": { CLAIMS_JUDGE: 8000 },
   "doc.sync": { BLOCKS: 2000, CHANGES: 3000 },
   "doc.simplify": { BLOCKS: 1000, GLOSSARY: 500 },
