@@ -1,0 +1,15 @@
+{
+  "name": "@mitori/platform",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The only package that touches Bun/Node APIs: sqlite, hash, spawn, workers, watcher, safe writes, git.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "dependencies": {
+    "@mitori/core": "workspace:*",
+    "xxhash-wasm": "1.1.0"
+  }
+}

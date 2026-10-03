@@ -1,0 +1,23 @@
+{
+  "name": "@mitori/testkit",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Test-only kit (fixtures, truth, golden, cassettes, server/daemon harness, perf, e2e helpers). Never imported by production code.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@mitori/agent": "workspace:*",
+    "@mitori/anchor": "workspace:*",
+    "@mitori/cli": "workspace:*",
+    "@mitori/client": "workspace:*",
+    "@mitori/core": "workspace:*",
+    "@mitori/doc": "workspace:*",
+    "@mitori/gen": "workspace:*",
+    "@mitori/indexer": "workspace:*",
+    "@mitori/loop": "workspace:*",
+    "@mitori/platform": "workspace:*",
+    "@mitori/server": "workspace:*"
+  }
+}

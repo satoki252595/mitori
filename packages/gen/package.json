@@ -1,0 +1,19 @@
+{
+  "name": "@mitori/gen",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generation S5-S9: planner, prompts, gen.block/1 validation, verifier, orchestrator, session engine.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "dependencies": {
+    "@mitori/agent": "workspace:*",
+    "@mitori/anchor": "workspace:*",
+    "@mitori/core": "workspace:*",
+    "@mitori/doc": "workspace:*",
+    "@mitori/indexer": "workspace:*",
+    "@mitori/platform": "workspace:*"
+  }
+}

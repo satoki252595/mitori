@@ -1,0 +1,14 @@
+{
+  "name": "@mitori/client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Typed fetch + SSE client shared by web, cli and mcp.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "dependencies": {
+    "@mitori/core": "workspace:*"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@mitori/bench",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Benchmarks, budgets and head-vs-base comparison (WP-12).",
+  "type": "module",
+  "dependencies": {
+    "@mitori/testkit": "workspace:*"
+  }
+}

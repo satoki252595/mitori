@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": { "outDir": "../node_modules/.cache/tsc/scripts" },
+  "include": ["*.ts", "lib/**/*.ts"],
+  "references": [{ "path": "../packages/core" }, { "path": "../packages/testkit" }]
+}

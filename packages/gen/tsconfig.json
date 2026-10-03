@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "../../node_modules/.cache/tsc/gen"
+  },
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/platform"
+    },
+    {
+      "path": "../../packages/indexer"
+    },
+    {
+      "path": "../../packages/doc"
+    },
+    {
+      "path": "../../packages/anchor"
+    },
+    {
+      "path": "../../packages/agent"
+    }
+  ]
+}

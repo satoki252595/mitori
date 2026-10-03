@@ -1,0 +1,10 @@
+# Supply chain (SEC-16): exact pins, frozen lockfile in CI, no dependency lifecycle scripts
+# (package.json `trustedDependencies: []`).
+[install]
+exact = true
+linker = "hoisted"
+saveTextLockfile = true
+
+[test]
+# fixture repos are data (they may contain *.test.ts of their own)
+pathIgnorePatterns = ["fixtures/**", "**/node_modules/**", "docs/**"]

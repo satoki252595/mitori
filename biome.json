@@ -1,0 +1,39 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "**",
+      "!docs",
+      "!fixtures/repos",
+      "!fixtures/golden",
+      "!fixtures/agent-streams",
+      "!fixtures/injection",
+      "!**/node_modules",
+      "!**/dist",
+      "!m0-compat"
+    ]
+  },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 160 },
+  "javascript": { "formatter": { "quoteStyle": "double", "trailingCommas": "all", "semicolons": "always" } },
+  "linter": { "enabled": true, "rules": { "preset": "recommended" } },
+  "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } },
+  "overrides": [
+    {
+      "includes": ["**/src/contract.ts", "packages/core/src/domain.ts", "packages/core/src/api.ts"],
+      "formatter": { "enabled": false },
+      "assist": { "enabled": false },
+      "linter": {
+        "rules": {
+          "style": { "useTemplate": "off" },
+          "suspicious": { "noTemplateCurlyInString": "off" },
+          "complexity": { "noUselessStringRaw": "off" }
+        }
+      }
+    },
+    {
+      "includes": ["**/*.svelte"],
+      "linter": { "rules": { "correctness": { "noUnusedVariables": "off", "noUnusedImports": "off" } } }
+    }
+  ]
+}

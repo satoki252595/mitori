@@ -1,0 +1,14 @@
+{
+  "name": "@mitori/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Types, pure data and pure helpers shared by every package (isomorphic, zero runtime deps).",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@types/picomatch": "4.0.3",
+    "picomatch": "4.0.7"
+  }
+}

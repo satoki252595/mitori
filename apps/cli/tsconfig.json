@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "../../node_modules/.cache/tsc/cli"
+  },
+  "include": ["src", "package.json"],
+  "references": [
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/platform"
+    },
+    {
+      "path": "../../packages/client"
+    },
+    {
+      "path": "../../packages/server"
+    }
+  ]
+}

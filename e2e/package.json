@@ -1,0 +1,13 @@
+{
+  "name": "@mitori/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Playwright end-to-end, IME, a11y and demo-script suites.",
+  "type": "module",
+  "dependencies": {
+    "@mitori/testkit": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@mitori/eval",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generation / citation / patch evaluation harness (WP-12).",
+  "type": "module",
+  "dependencies": {
+    "@mitori/testkit": "workspace:*"
+  }
+}

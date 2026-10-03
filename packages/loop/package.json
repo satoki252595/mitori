@@ -1,0 +1,24 @@
+{
+  "name": "@mitori/loop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Review loop: threads/rounds, bundle MBF/1, router, git safety, gates, jobs, Pull, install, MCP.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "dependencies": {
+    "@mitori/agent": "workspace:*",
+    "@mitori/anchor": "workspace:*",
+    "@mitori/core": "workspace:*",
+    "@mitori/doc": "workspace:*",
+    "@mitori/indexer": "workspace:*",
+    "@mitori/platform": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.0",
+    "picomatch": "4.0.7"
+  },
+  "devDependencies": {
+    "@types/picomatch": "4.0.3"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@mitori/server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Daemon: HTTP/SSE, auth, workspace manager, write queues, domain wiring, composition root.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "dependencies": {
+    "@mitori/agent": "workspace:*",
+    "@mitori/anchor": "workspace:*",
+    "@mitori/core": "workspace:*",
+    "@mitori/doc": "workspace:*",
+    "@mitori/gen": "workspace:*",
+    "@mitori/indexer": "workspace:*",
+    "@mitori/loop": "workspace:*",
+    "@mitori/platform": "workspace:*"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@mitori/cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The mitori CLI and single binary (bun build --compile).",
+  "type": "module",
+  "exports": {
+    ".": "./src/main.ts"
+  },
+  "bin": {
+    "mitori": "./src/main.ts"
+  },
+  "dependencies": {
+    "@mitori/client": "workspace:*",
+    "@mitori/core": "workspace:*",
+    "@mitori/platform": "workspace:*",
+    "@mitori/server": "workspace:*"
+  }
+}

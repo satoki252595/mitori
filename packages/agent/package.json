@@ -1,0 +1,15 @@
+{
+  "name": "@mitori/agent",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Agent bridge: engines, spawn invariants, stream normalization, scheduler, pricing, usage ledger.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "dependencies": {
+    "@mitori/core": "workspace:*",
+    "@mitori/platform": "workspace:*"
+  }
+}

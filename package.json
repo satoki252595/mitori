@@ -1,0 +1,42 @@
+{
+  "name": "mitori-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.2",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "bench",
+    "eval",
+    "e2e",
+    "fixtures"
+  ],
+  "scripts": {
+    "check": "bun scripts/check.ts",
+    "typecheck": "tsc -b",
+    "lint": "biome check .",
+    "fmt": "biome check --write .",
+    "check:web": "svelte-check --workspace apps/web --tsconfig ./tsconfig.json --threshold error --fail-on-warnings",
+    "test": "bun test",
+    "golden": "bun scripts/pending.ts golden WP-12",
+    "bench": "bun scripts/pending.ts bench WP-12",
+    "bench:compare": "bun scripts/pending.ts bench:compare WP-12",
+    "e2e": "bun scripts/pending.ts e2e WP-12",
+    "eval": "bun scripts/pending.ts eval WP-12",
+    "contract-test": "bun scripts/pending.ts contract-test WP-05",
+    "build:bin": "bun scripts/build-bin.ts",
+    "size": "bun scripts/pending.ts size WP-11a",
+    "contract:index": "bun scripts/contract-index.ts",
+    "briefs": "bun scripts/gen-briefs.ts",
+    "ci:pr": "bun run check && bun run test && bun run golden && bun run size"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.63.0",
+    "@types/bun": "1.4.2",
+    "svelte-check": "4.7.6",
+    "typescript": "6.0.3"
+  },
+  "trustedDependencies": []
+}
