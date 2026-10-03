@@ -38,6 +38,29 @@ const CROSS_FILE_DEPENDENTS = 3;
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
+/** At most this many contained symbols stand for an anchor that spans several. */
+const CONTAINED_MAX = 3;
+
+/**
+ * The symbols an anchored range stands for: the enclosing symbol, or — when the range spans several definitions —
+ * the largest (≤ 3) callable symbols it contains. `textOf` reads anchored lines already loaded for CODE.
+ */
+export function relAnchorsOf(
+  ix: Pick<Indexer, "symbols">,
+  path: RepoPath,
+  a: { start: LineNo; end: LineNo },
+  enclosing: SymbolEntry | null,
+  textOf: (start: LineNo, end: LineNo) => string,
+): RelAnchor[] {
+  if (enclosing) return [{ path, start: a.start, end: a.end, sym: enclosing, text: textOf(a.start, a.end) }];
+  return ix
+    .symbols(path)
+    .filter((t) => CALLABLE.has(t.kind) && t.start >= a.start && t.end <= a.end)
+    .sort((x, y) => y.end - y.start - (x.end - x.start) || x.start - y.start)
+    .slice(0, CONTAINED_MAX)
+    .map((t) => ({ path, start: t.start, end: t.end, sym: t, text: textOf(t.start, t.end) }));
+}
+
 /**
  * REL candidates from the index (spec §4.3). CR-PENDING(WP-08a): the indexer exposes no symbol-level call edges, so
  * this derives them: callees = defined or imported symbols named in the anchored text; callers = symbols (same

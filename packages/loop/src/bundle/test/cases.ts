@@ -157,7 +157,7 @@ export const CASES: BundleCase[] = [
             T("th_17ab3c9d", {
               intent: "change",
               round: 2,
-              anchor: { ...codeAnchor(FETCH, 41, 77), doc: { block: "b_meta0003", blockHash: "x", quote: { prefix: "", exact: "エラーにする", suffix: "" } } },
+              anchor: { ...codeAnchor(FETCH, 44, 77), doc: { block: "b_meta0003", blockHash: "x", quote: { prefix: "", exact: "エラーにする", suffix: "" } } },
               messages: [
                 human(1, "HTTP エラーのときにステータスを返したい", 1),
                 agent(2, "いまは文字列に埋め込んでいます。[[internal/meta/fetch.go:65-65]]", 1),
@@ -185,7 +185,7 @@ export const CASES: BundleCase[] = [
           threads: [
             T("th_8c4f20be", {
               intent: "change",
-              anchor: codeAnchor(SERVER, 83, 125),
+              anchor: codeAnchor(SERVER, 83, 115),
               messages: [human(1, "ISBN が空のときは 400 を返してほしい。テストも足して。")],
             }),
           ],

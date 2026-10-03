@@ -101,7 +101,8 @@ Where §4.1–§4.7 and revision R1 left room, the builder (and its goldens, `fi
    Over `bundleMaxTokens`, agent mode prints reference blocks (`CODE path:a-b base=… anchor=… (read with Read)`, no body lines).
 6. **REL** entries: `REL path:line sym=<qualname> calledby=<anchor symbol>` (the anchor's symbol uses it) or `calls=<anchor symbol>`
    (it uses the anchor's symbol), followed by one `|signature` line; `needs_more_context` hints are REL blocks with up to 30 plain
-   code lines, placed first and dropped last. REL/RULES exist only where a write scope exists.
+   code lines, placed first and dropped last. REL/RULES exist only where a write scope exists. An anchor that spans several
+   definitions stands for its (≤ 3) largest callable symbols.
 7. **OMITTED** counts: REL = entries, RULES = 1 (shrunk or gone), DOC_NEIGHBORS = lines, THREAD_OLD = messages, CODE_CONTEXT =
    lines; `RULES=untrusted` replaces the RULES count when the rule files were not trusted.
 8. **Budget:** when the mandatory parts exceed the asked budget the budget is raised to exactly what they need (≤

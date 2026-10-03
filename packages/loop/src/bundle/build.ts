@@ -10,7 +10,7 @@ import { Estimator } from "./estimate.ts";
 import { codeLines, field, safeLine, usdText } from "./lines.ts";
 import { drawNonce } from "./nonce.ts";
 import { Plan, type PlanInit, type RelPart } from "./plan.ts";
-import { findRelated, type RelAnchor } from "./rel.ts";
+import { findRelated, type RelAnchor, relAnchorsOf } from "./rel.ts";
 import { type RuleSource, type RulesSlice, sliceRules } from "./rules.ts";
 import { type Scrub, taskPart } from "./tasks.ts";
 
@@ -132,10 +132,8 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
   if (writes) {
     const relAnchors: RelAnchor[] = [];
     for (const { group, spec } of groups) {
-      spec.anchors.forEach((a, i) => {
-        const text = group.text.slice(a.start - group.first, a.end - group.first + 1).join("\n");
-        relAnchors.push({ path: spec.path, start: a.start, end: a.end, sym: spec.syms[i] ?? null, text });
-      });
+      const textOf = (from: LineNo, to: LineNo) => group.text.slice(from - group.first, to - group.first + 1).join("\n");
+      for (const [i, a] of spec.anchors.entries()) relAnchors.push(...relAnchorsOf(deps.indexer, spec.path, a, spec.syms[i] ?? null, textOf));
     }
     const shown = (p: RepoPath, l: LineNo) => codes.some((g) => g.path === p && l >= g.first && l <= g.last);
     const entries = await findRelated(deps.indexer, relAnchors, { denied, shown });

@@ -290,6 +290,18 @@ CODE internal/store/memory.go:1-76 base=1b42263 anchor=1-76
 74|	delete(m.books, id)
 75|	return nil
 76|}
+REL cmd/tsundoku/main.go:61 sym=importCSV calls=MemoryStore.Create
+|func importCSV(pile store.Store, args []string) error
+REL cmd/tsundoku/main.go:103 sym=export calls=MemoryStore.List
+|func export(pile store.Store, args []string, out io.Writer) error
+REL internal/server/server.go:16 sym=Server calledby=Server.createBook
+|type Server struct
+REL internal/server/server.go:24 sym=New calls=Server.createBook
+|func New(s store.Store, m *meta.Client) *Server
+REL internal/store/store.go:25 sym=Status.Valid calledby=Server.createBook
+|func (s Status) Valid() bool
+REL internal/store/store.go:34 sym=Book calledby=Server.createBook
+|type Book struct
 <<<END 7k2m9q4p>>>
 ASK th_a0000001
 > Client に User-Agent を付ける
