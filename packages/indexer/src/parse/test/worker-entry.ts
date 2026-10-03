@@ -31,8 +31,10 @@ self.onmessage = (e: MessageEvent) => {
 };
 
 // A parse batch leaves ~10× its source size of short-lived objects (query matches, slices); JSC lets that pile up
-// to hundreds of MB per Worker before collecting. A full collection after every few MB keeps peak RSS bounded.
-const GC_EVERY_BYTES = Number(process.env.MITORI_WORKER_GC_BYTES ?? 4_194_304);
+// to hundreds of MB per Worker before collecting. A full collection once 256 KiB of source were parsed since the last
+// one costs no measurable wall time and cuts peak RSS by a quarter (react 1,038 → 722 MB, gostd 1,320 → 980 MB at W = 6);
+// single-file update() batches stay below the threshold most of the time.
+const GC_EVERY_BYTES = Number(process.env.MITORI_WORKER_GC_BYTES ?? 262_144);
 let since = 0;
 function collect(req: ParseBatchRequest): void {
   for (const it of req.items) since += it.size;
