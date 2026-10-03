@@ -59,3 +59,13 @@ has a working workaround for each; the root cause sits in another package's cont
 - why: m3e's five modules have 15 of the 20 possible directed edges: the drawing says "everything uses everything".
 - workaround in place: none.
 - urgency: nice to have.
+
+## 7. Cite labels of same-named files are ambiguous
+- contract: `packages/doc` cite-link rendering (`.mitori/doc/*.md` writer and the Reader)
+- change: label a cite with the shortest path suffix that is unique among the document's cited files
+  (`docker/README.md:9`, not `README.md:9`).
+- why: crit §1 cites `README.md`, `integrations/README.md`, `integrations/docker/README.md` and
+  `test/roundtrip/README.md`, all labelled `README.md:<n>`; an expert cannot tell which one proves the sentence
+  without hovering.
+- workaround in place: none.
+- urgency: nice to have.
