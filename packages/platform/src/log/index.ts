@@ -3,4 +3,4 @@
  * export only contract names; keep helpers in sibling files.
  */
 export { LOG_ROTATION, type LogFileOptions, openLogFile, type RotatingLogFile } from "./file.ts";
-export { createLogger, isContentLike, LOG_CONTENT_MAX_CHARS, type LoggerOptions, type LogLevel, type LogSink } from "./logger.ts";
+export { createLogger, type LoggerOptions, type LogLevel, type LogSink } from "./logger.ts";
