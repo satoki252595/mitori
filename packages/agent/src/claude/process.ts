@@ -282,15 +282,17 @@ class Turn {
     if (!this.sawLine) this.sawLine = true;
     if (this.lineTimer !== null) this.deps.timers.clear(this.lineTimer);
     this.lineTimer = this.deps.timers.set(() => this.timeout("idle"), this.timeouts.idleMs);
+    const withResult = evs.some((e) => e.t === "result");
     for (const ev of evs) {
       if (ev.t === "usage" && ev.final) this.finalUsage = ev.usage;
       if (ev.t === "window") this.window = ev.window;
-      if (ev.t === "error" && ev.code === "E_AGENT_PROTOCOL" && !this.resultEv) this.stop("protocol", { code: ev.code, message: ev.message });
+      // garbage stdout is fatal; a protocol error that comes with its result (e.g. schema retries exhausted) is not
+      if (ev.t === "error" && ev.code === "E_AGENT_PROTOCOL" && !withResult) this.stop("protocol", { code: ev.code, message: ev.message });
       if (ev.t === "result") {
         this.resultEv = ev;
         continue; // pushed last, after the result composition
       }
-      if (ev.t === "error" && this.resultEv === null && evs.some((e) => e.t === "result")) this.resultErr = ev;
+      if (ev.t === "error" && this.resultEv === null && withResult) this.resultErr = ev;
       this.events.push(ev);
     }
     const v = this.proc.normalizer.violation();

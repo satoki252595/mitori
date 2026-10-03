@@ -17,6 +17,7 @@ import type {
   UsageRecord,
   Xxh3,
 } from "@mitori/core";
+import { MitoriError } from "@mitori/core";
 import {
   type AgentScheduler,
   type Engine,
@@ -348,22 +349,24 @@ export function createAgentScheduler(deps: SchedulerDeps): AgentScheduler {
   const start = (job: Job): void => {
     job.state = "running";
     running.add(job);
-    const engine = deps.engines()[job.engine];
     let inner: EngineRun;
     try {
       if (job.continuation) {
         deps.metrics.inc("agent.continuations");
         inner = job.continuation.session.continue(job.continuation.prompt, job.req.budget, job.signal);
       } else {
-        if (!engine) throw Object.assign(new Error(`engine ${job.engine} is not available`), { code: "E_AGENT_NOT_INSTALLED" });
+        const engine = deps.engines()[job.engine];
+        if (!engine) throw new MitoriError("E_AGENT_NOT_INSTALLED", `engine ${job.engine} is not available`);
         inner = engine.run(job.req as ScheduledRequest, job.signal);
       }
     } catch (err) {
+      // a gone parked process (E_AGENT_EXIT) or a missing engine: no call was made, no ledger row
       running.delete(job);
       job.state = "done";
-      const code = (err as { code?: unknown }).code === "E_AGENT_NOT_INSTALLED" ? "E_AGENT_NOT_INSTALLED" : "E_AGENT_EXIT";
-      job.outer.fail(code, err instanceof Error ? err.message : String(err), { retryable: code === "E_AGENT_EXIT" });
+      const e = err instanceof MitoriError ? err : new MitoriError("E_AGENT_EXIT", err instanceof Error ? err.message : String(err));
+      job.outer.fail(e.code, e.message, { retryable: e.retryable });
       trackEpisode();
+      notify();
       return;
     }
     void job.outer.attach(inner, (ev) => observe(job, ev)).then((r) => complete(job, r));
