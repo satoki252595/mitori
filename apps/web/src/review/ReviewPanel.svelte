@@ -227,6 +227,11 @@ const realTok = $derived(usage ? usage.in + usage.cacheRead + usage.cacheWrite +
 const quote = $derived(th?.anchor.doc?.quote?.exact ?? "");
 /** The human's request (the thread's first human message; its title while the messages are not loaded) — NOT `preview`, the latest message (the AI's reply). */
 const askText = $derived(((th ? loop.messages.get(th.id)?.find((m) => m.by === "human")?.body : undefined) ?? th?.title ?? "").trim());
+// the panel has its own 「内容を見て承認」: the toast of a gate waiting for trust would cover the footer (accept / reject)
+$effect(() => {
+  void job;
+  s.bottom.dismiss("trust.pending");
+});
 $effect(() => {
   const id = th?.id;
   if (id && !id.startsWith("tmp_") && !loop.messages.has(id)) void loop.loadThread(id);

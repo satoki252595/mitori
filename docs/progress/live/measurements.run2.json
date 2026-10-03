@@ -1,0 +1,161 @@
+{
+  "at": "2026-10-03T17:34:43.275Z",
+  "engine": "real",
+  "spentUsd": 0.02289,
+  "firstScreen": {
+    "shellPaintedMs": 12,
+    "mapPaintedMs": 86,
+    "tocPaintedMs": 66,
+    "navToIdleMs": 898
+  },
+  "sectionNavMs": 126,
+  "explainEstimateChip": "≈1.2k in · ≈600 out · $0.007 · 約4–8秒",
+  "explain": {
+    "optimisticCardMs": 44,
+    "firstTextMs": 102,
+    "threadAnsweredApiMs": 4763,
+    "cardAnsweredMs": 4763
+  },
+  "explainTimeline": {
+    "phase:queued": 20,
+    "phase:prepare": 21,
+    "phase:spawn": 21,
+    "phase:think": 22,
+    "firstText": 2019,
+    "usage": 4720,
+    "result": 4720,
+    "phase:done": 4723,
+    "lastText": 4701
+  },
+  "explainJob": {
+    "state": "done",
+    "usage": {
+      "in": 2,
+      "cacheWrite": 1956,
+      "cacheWrite1h": 0,
+      "cacheRead": 0,
+      "out": 389,
+      "apiUsd": 0.008784,
+      "pricingVer": "2026-09-25",
+      "thinking": 0,
+      "reportedUsd": 0.008784
+    },
+    "timings": {
+      "modelMs": 4694,
+      "wallMs": 4700
+    },
+    "route": {
+      "mode": "answer",
+      "reason": "intent_question",
+      "model": "claude-sonnet-5-5",
+      "effort": "low",
+      "tools": "none",
+      "contract": "answer/1",
+      "requiresConfirm": false,
+      "anchoredLines": 17,
+      "files": 0
+    },
+    "estimate": {
+      "in": 1249,
+      "out": 600,
+      "usd": 0.008498,
+      "seconds": {
+        "p50": 8,
+        "p90": 15
+      }
+    }
+  },
+  "explainAnswer": "**再試行は最大 1 回です。** 初回と合わせると、最大 2 回試行されます。その回数は定数 `maxRetries = 1` で決まっています [[internal/meta/fetch.go:19-19]]。\n\n根拠は `Client.Fetch` のループです [[internal/meta/fetch.go:46-61]]。\n\n- `for attempt := 0; attempt <= maxRetries; attempt++` なので、`attempt` は 0 と 1 の 2 回まわります (50行目)。\n- `attempt` が 0 のときが初回で、1 のときが再試行にあたります。\n- 成功すれば即 return します (52–54行目)。\n- `ctx.Err() != nil` の場合は、残りの試行を打ち切ってループを抜けます (56–58行目)。\n- 全て失敗すると、最後のエラーを包んで返します (60行目)。\n\nこの値は環境変数や設定ファイルからは読まれておらず、ソース内にハードコードされています。変更するには `maxRetries` を書き換えて再ビルドする必要があります。提示された範囲では、他にこの値を上書きする箇所は見当たりません。",
+  "fixEstimateChip": "≈2k in · ≈1.5k out · $0.017 · 約11–17秒",
+  "fixOptimisticCardMs": 26,
+  "fixStateMs": {
+    "running": 333,
+    "gating": 7674,
+    "ready": 7869
+  },
+  "fixTimeline": {
+    "phase:queued": 13,
+    "phase:prepare": 14,
+    "phase:snapshot": 14,
+    "phase:spawn": 14,
+    "phase:think": 14,
+    "usage": 7675,
+    "result": 7675,
+    "phase:apply": 7676,
+    "phase:scope": 7686,
+    "phase:gate": 7763,
+    "phase:ready": 7786
+  },
+  "fixJob": {
+    "usage": {
+      "in": 2,
+      "cacheWrite": 2550,
+      "cacheWrite1h": 0,
+      "cacheRead": 834,
+      "out": 756,
+      "apiUsd": 0.014106,
+      "pricingVer": "2026-09-25",
+      "thinking": 253,
+      "reportedUsd": 0.014106
+    },
+    "timings": {
+      "modelMs": 7657,
+      "wallMs": 7661
+    },
+    "route": {
+      "mode": "patch",
+      "reason": "small_change",
+      "model": "claude-sonnet-5-5",
+      "effort": "low",
+      "tools": "none",
+      "contract": "patch/1",
+      "requiresConfirm": false,
+      "anchoredLines": 17,
+      "files": 1
+    },
+    "writeScope": [
+      "internal/meta/fetch.go"
+    ],
+    "diffStat": {
+      "files": 1,
+      "additions": 10,
+      "deletions": 1,
+      "hunks": 1
+    },
+    "estimate": {
+      "in": 2077,
+      "out": 1500,
+      "usd": 0.019154,
+      "seconds": {
+        "p50": 10,
+        "p90": 18
+      }
+    }
+  },
+  "reviewOpenMs": 56,
+  "gates": {
+    "verdict": "passed",
+    "gates": [
+      {
+        "gate": "fmt:gofmt",
+        "status": "pass",
+        "ms": 4
+      }
+    ]
+  },
+  "acceptToastMs": 182,
+  "afterAccept": {
+    "status": "M internal/meta/fetch.go",
+    "diffStat": "internal/meta/fetch.go | 11 ++++++++++-\n 1 file changed, 10 insertions(+), 1 deletion(-)"
+  },
+  "changedFile": "\t\"time\"\n)\n\n// requestTimeout bounds one lookup attempt.\nconst requestTimeout = 10 * time.Second\n\n// maxRetries is how many times a failed lookup is repeated.\n// 生成失敗時は正確に 1 回だけ再試行する（初回 + 再試行 1 回 = 最大 2 回の呼び出し）。\n// maxRetries は Fetch の再試行回数(初回を除く)。SetMaxRetries で変更できる。\nvar maxRetries = 1\n\n// SetMaxRetries は再試行回数を設定する。負数は 0 として扱う。\nfunc SetMaxRetries(n int) {\n\tif n < 0 {\n\t\tn = 0\n\t}\n\tmaxRetries = n\n}\n\n// Metadata is what the catalogue knows about a book.",
+  "undoMs": 104,
+  "badResponses": [
+    "412 POST /jobs/estimate {\"error\":{\"code\":\"E_PRECONDITION\",\"message\":\"no code to change: the anchors give no write scope\",\"retryable\":false,\"params\":{\"actions\":\"narrow_scope\"},\"hint\":\"point at the code with @ in the Composer\"",
+    "412 POST /jobs/estimate {\"error\":{\"code\":\"E_PRECONDITION\",\"message\":\"no code to change: the anchors give no write scope\",\"retryable\":false,\"params\":{\"actions\":\"narrow_scope\"},\"hint\":\"point at the code with @ in the Composer\""
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 412 (Precondition Failed)",
+    "Failed to load resource: the server responded with a status of 412 (Precondition Failed)"
+  ]
+}

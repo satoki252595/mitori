@@ -277,7 +277,8 @@ export class Loop {
         ),
       ),
     );
-    if (r.status === "pending") {
+    // the Review panel carries its own 「内容を見て承認」: a toast there would sit on its accept / reject footer
+    if (r.status === "pending" && this.s.router.route.name !== "review") {
       const n = [...this.trust.values()].filter((x) => x.status === "pending").length;
       this.s.bottom.toast({
         id: "trust.pending",

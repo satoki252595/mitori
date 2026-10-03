@@ -91,15 +91,18 @@ onMount(() => {
 });
 
 // A margin card is placed at its block: low in the viewport its chips / estimate / 送信 row fall below the fold
-// (live finding, 1440×900), and the column only grows once the card has been measured. For the first 2 s every
-// size change of the card brings the whole card back into view ("nearest": nothing moves when it already fits).
+// (live finding, 1440×900), and it keeps growing (chips, the estimate, more lines). Whenever it GROWS, bring the
+// whole card back into view ("nearest": nothing moves when it already fits; a shrink never scrolls).
 $effect(() => {
   const el = root;
   if (!el || placement === "sheet" || typeof ResizeObserver === "undefined") return;
-  const until = performance.now() + 2000;
+  let last = el.offsetHeight;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const ro = new ResizeObserver(() => {
-    if (performance.now() > until) return;
+    const h = el.offsetHeight;
+    const grew = h > last;
+    last = h;
+    if (!grew) return;
     clearTimeout(timer);
     timer = setTimeout(() => el.scrollIntoView({ block: "nearest" }), 80);
   });

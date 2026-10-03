@@ -41,5 +41,5 @@ Verified: `scripts/nd bun run check` green; `scripts/nd bun test` 2,511 pass / 0
 - **Known soft spots**: a continuation (REPAIR / revise) on a resident process that already exited waits for the turn timeout
   instead of failing fast (observed with a test double whose process ends after one turn; the scope-violation path no longer
   gets there); `list` of threads is capped at 500 per call (re-anchoring reads one page).
-- **Not run**: the real engine (no `claude -p`), Linux, the web UI against the real routes (the contract is `ApiRoutes`; `e2e/loop`
-  from track/10b was not re-run).
+- **Not run**: Linux; `e2e/loop` from track/10b. (The real engine and the web UI against the real routes ran in `integrate/live`:
+  see `docs/progress/live.md`.)

@@ -482,6 +482,7 @@ try {
     panel.includes(FIX_ASK) && panel.split(FIX_ASK).length >= 3,
     `the Review header names the user's request (あなた「…」), not the AI's reply:\n${panel.slice(0, 400)}`,
   );
+  check(!(await page.locator("body").innerText()).includes("承認待ちです"), "no trust toast on top of the Review panel's footer");
   await shot(page, "13-review-panel");
 
   // (f) trust the gofmt gate: the approval from the Review panel runs the gates (session must be older than 60 s)
@@ -575,7 +576,7 @@ try {
   await page.screenshot({ path: join(OUT, "99-failure.png") }).catch(() => undefined);
 } finally {
   const result = { engine: ENGINE, spentUsd: Math.round(spent * 1e6) / 1e6, ...steps };
-  console.log(JSON.stringify(result, null, 1));
+  await Bun.write(Bun.stdout, `${JSON.stringify(result, null, 1)}\n`); // not console.log: process.exit below would cut a piped stdout
   if (ENGINE === "real") writeFileSync(join(OUT, "measurements.json"), `${JSON.stringify({ at: new Date().toISOString(), ...result }, null, 2)}\n`);
   await browser.close();
   await d.close();
