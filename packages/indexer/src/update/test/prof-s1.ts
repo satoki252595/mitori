@@ -7,12 +7,14 @@
 // `MITORI_WORKER_TRACE=1` log the pool and the Workers.
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { createGitReader } from "@mitori/platform";
 import type { ParseBatchRequest, ParseBatchResponse } from "../../contract.ts";
 import { bunWorkerPool } from "../../parse/test/bun-pool.ts";
 import { corpusDir } from "../../parse/test/corpus.ts";
 import { workerInit } from "../../parse/test/env.ts";
 import { createIndexer } from "../index.ts";
 import { inlinePool, testDeps } from "./deps.ts";
+import { footprint } from "./footprint.ts";
 import { cliGit, shadowGit } from "./git.ts";
 
 const args = process.argv.slice(2);
@@ -21,7 +23,17 @@ const repo = arg("--repo", "crit");
 const workers = Number(arg("--workers", "0"));
 const root = corpusDir(repo);
 if (root === null) throw new Error(`corpus ${repo} not available (bun run corpus:fetch)`);
-const git = repo === "gostd" ? shadowGit(root, join(homedir(), ".cache", "mitori-bench", "gostd-shadow.git")) : cliGit(root);
+const shadowDir = join(homedir(), ".cache", "mitori-bench", "gostd-shadow.git");
+const testGit = repo === "gostd" ? shadowGit(root, shadowDir) : cliGit(root);
+// `--reader platform`: the production GitReader (its status walks untracked files too; lsFiles is one process)
+const git =
+  arg("--reader", "test") === "platform"
+    ? (createGitReader({
+        workTree: root,
+        ...(repo === "gostd" ? { gitDir: shadowDir } : {}),
+        env: { PATH: process.env.PATH, HOME: process.env.HOME },
+      }) as unknown as typeof testGit)
+    : testGit;
 const base = workers === 0 ? inlinePool() : bunWorkerPool(workerInit());
 const ms = { read: 0, hash: 0, parse: 0, query: 0, extract: 0 };
 const profiles = new Map<string, { files: number; bytes: number }>();
@@ -77,6 +89,7 @@ console.log(
     W: t?.workers,
     batches,
     rssMB: r(peak / 1_048_576),
+    peakFootprintMB: r((footprint()?.peakFootprint ?? 0) / 1_048_576),
     ms: Object.fromEntries(Object.entries(ms).map(([k, v]) => [k, r(v)])),
   }),
 );
