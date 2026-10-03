@@ -17,10 +17,11 @@ export interface FakeClaude extends Spawner {
   readonly turns: SpawnSpec[];
 }
 
-export function fakeClaude(o: { dtMs?: number; chunkChars?: number } = {}): FakeClaude {
+/** `speed` > 0 replays the per-line `dtMs` delays (screenshots of a run in progress); 0 streams as fast as possible. */
+export function fakeClaude(o: { dtMs?: number; chunkChars?: number; speed?: number } = {}): FakeClaude {
   const real = createSpawner({ safePath: process.env.PATH ?? "/usr/bin:/bin" });
   const turns: SpawnSpec[] = [];
-  const fake = createFakeSpawner();
+  const fake = createFakeSpawner({ speed: o.speed ?? 0 });
   fake.script((s) => s.argv[0] === "--version", { stdout: ["2.1.288 (Claude Code)"] });
   fake.script((s) => s.argv[0] === "auth", { stdout: [JSON.stringify({ loggedIn: true, authMethod: "claude.ai", subscriptionType: "max" })] });
   fake.script((s) => s.argv.includes("--help"), { stdout: [`Usage: claude [options]\n  -p, ${REQUIRED_FLAGS.join("\n  ")}`] });

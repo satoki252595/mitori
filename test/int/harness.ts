@@ -3,7 +3,7 @@
  * `createServer`) in-process, with a temp `MITORI_HOME`, platform adapters, the server's Worker entries and the
  * embedded-asset table of the source checkout. Tests talk HTTP/SSE to it like the CLI and the browser do.
  */
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Spawner } from "@mitori/agent";
@@ -47,7 +47,8 @@ export async function startInt(opts: IntOptions = {}): Promise<Int> {
   const d = await startServerDaemon({
     home,
     port: 0,
-    version: "0.0.0-int",
+    // the CLI's version, as in the binary (the web shell shows a reload banner on a mismatch)
+    version: (JSON.parse(readFileSync(join(import.meta.dir, "../../apps/cli/package.json"), "utf8")) as { version: string }).version,
     build: "test",
     overrides: { ...(opts.spawner ? { spawner: opts.spawner } : {}), ...opts.overrides },
   });
