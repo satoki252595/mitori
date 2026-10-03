@@ -138,9 +138,11 @@ onMount(() => {
     };
   };
   void loadExtensions(s).then((e) => (ext = e));
+  s.router.focusedBlock = () => (focused && main?.querySelector(`.blk[data-b="${CSS.escape(focused)}"]`) ? focused : null);
   return () => {
     s.doc.mutate = (apply) => apply();
     s.doc.levelTransition = null;
+    s.router.focusedBlock = null;
   };
 });
 

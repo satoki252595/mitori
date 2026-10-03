@@ -21,6 +21,8 @@ export class RouterStore implements Router {
    * hash, room selection, ctx mode), so a view's "arrived" logic (scroll, focus) runs once per navigation.
    */
   nav = $state(0);
+  /** The view's focused block (set by the Reader) for the history entry it leaves. */
+  focusedBlock: (() => string | null) | null = null;
   #waiters: (() => void)[] = [];
   #win: Window | null = null;
 
@@ -50,7 +52,9 @@ export class RouterStore implements Router {
     const url = hrefRoute(to);
     if (win) {
       // remember where we were on the entry we leave
-      const cur: HistoryEntryState = { scrollY: win.scrollY, focusBlock: (win.document.activeElement as HTMLElement | null)?.dataset?.b ?? null };
+      // the Reader's j / k block, even when the click that navigates moved the DOM focus onto a link
+      const focusBlock = this.focusedBlock?.() ?? (win.document.activeElement as HTMLElement | null)?.dataset?.b ?? null;
+      const cur: HistoryEntryState = { scrollY: win.scrollY, focusBlock };
       win.history.replaceState(cur, "");
       if (opts.replace) win.history.replaceState(null, "", url);
       else win.history.pushState(null, "", url);
