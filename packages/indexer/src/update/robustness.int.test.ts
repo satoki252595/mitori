@@ -2,9 +2,9 @@
 // must survive a daemon restart (R03 include, spec §2.3).
 import { afterEach, describe, expect, test } from "bun:test";
 import type { Logger, SqlDb } from "@mitori/core";
-import type { Indexer } from "../contract.ts";
+import type { Indexer, IndexerDeps } from "../contract.ts";
 import { createIndexer } from "./index.ts";
-import { memoryDb, migrate, settings, testDeps } from "./test/deps.ts";
+import { inlinePool, memoryDb, migrate, settings, testDeps } from "./test/deps.ts";
 import { tempRepo } from "./test/repo.ts";
 
 const cleanup: (() => unknown)[] = [];
@@ -117,6 +117,76 @@ describe("IDX-D7 persistence failures", () => {
     expect(d2.changed.map((c) => c.path)).toEqual(["b.ts"]);
     expect(row("b.ts")).toBe(idx.currentBlob("b.ts") as string);
     expect(row("a.ts")).toBe(idx.currentBlob("a.ts") as string); // retried with the next write
+  });
+});
+
+describe("spec §1.1 scans and updates do not interleave", () => {
+  test("a scan() called while an update() is parsing starts after it; a `delete` event for an existing file is a change", async () => {
+    const repo = tempRepo({ "a.ts": "export const a = 1;\n" });
+    cleanup.push(() => repo.dispose());
+    let release!: () => void;
+    let entered = false;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    let gated = false;
+    const base = inlinePool();
+    const pool: IndexerDeps["parsePool"] = (n) => {
+      const p = base(n);
+      return {
+        ...p,
+        async run(req) {
+          if (gated) {
+            entered = true;
+            await gate;
+          }
+          return p.run(req);
+        },
+      };
+    };
+    const deps = testDeps(repo.root, { pool });
+    const idx = createIndexer(deps);
+    cleanup.push(() => idx.close());
+    await idx.scan();
+    gated = true;
+    repo.write("a.ts", "export const a = 2;\n");
+    const order: string[] = [];
+    const u = idx.update([{ kind: "change", path: "a.ts" }]).then((d) => {
+      order.push("update");
+      return d;
+    });
+    await until(() => entered);
+    const calls = deps.git.calls.length;
+    const s = idx.scan().then(() => order.push("scan"));
+    await Bun.sleep(30);
+    expect(deps.git.calls.length).toBe(calls); // the scan has not enumerated yet
+    gated = false;
+    release();
+    const d = await u;
+    await s;
+    expect(order).toEqual(["update", "scan"]);
+    expect(d.changed.map((c) => c.path)).toEqual(["a.ts"]);
+
+    repo.write("a.ts", "export const a = 3;\n"); // e.g. an atomic save: unlink + rename, reported as `delete`
+    const d2 = await idx.update([{ kind: "delete", path: "a.ts" }]);
+    expect(idx.file("a.ts")).not.toBeNull();
+    expect(d2.changed).toEqual([{ path: "a.ts", oldBlob: expect.any(String), newBlob: idx.currentBlob("a.ts") }]);
+  });
+});
+
+describe("spec §7.7 read() size limit", () => {
+  test("a numbered range over 2 MiB of UTF-8 is E_PAYLOAD_TOO_LARGE even when it is under 1 Mi UTF-16 units", async () => {
+    const line = "日".repeat(6_990); // 20,970 bytes
+    const text = `${Array.from({ length: 100 }, () => line).join("\n")}\n`; // 2,097,100 bytes: not oversize
+    const repo = tempRepo({ "cjk.ts": "export const x = 1;\n" });
+    cleanup.push(() => repo.dispose());
+    repo.write("big.md", text);
+    const idx = createIndexer(testDeps(repo.root));
+    cleanup.push(() => idx.close());
+    await idx.scan();
+    expect(idx.file("big.md")?.excluded).toBeUndefined();
+    await expect(idx.read("big.md", undefined, { numbered: true })).rejects.toMatchObject({ code: "E_PAYLOAD_TOO_LARGE" });
+    expect((await idx.read("big.md", { start: 1, end: 50 }, { numbered: true })).end).toBe(50);
   });
 });
 

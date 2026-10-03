@@ -139,48 +139,52 @@ export function createIndexerWith(deps: IndexerDeps, factory: LaterStagesFactory
   };
   stagesRef = factory(view);
 
-  let scanning: { promise: Promise<ScanSummaryView>; abort: AbortController } | null = null;
-  let updates: Promise<unknown> = Promise.resolve();
+  // Scans and updates both rewrite `core.files` across awaits, so they run one at a time in call order (spec §1.1:
+  // an update waits for the running scan; a scan waits for the running update). A queued or running scan is shared
+  // by later scan() calls; `force` aborts it and queues a fresh one. The warm scan of a `git` event runs inside its
+  // update.
+  let ops: Promise<unknown> = Promise.resolve();
+  let pendingScan: { promise: Promise<ScanSummaryView>; abort: AbortController } | null = null;
   const atCache = new Map<string, SymbolEntry[]>();
 
+  async function scanNow(opts: ScanOptions): Promise<ScanSummaryView> {
+    try {
+      return await runScan(core, opts);
+    } catch (err) {
+      const e = MitoriError.from(err);
+      deps.events.emit({ type: "scan.failed", error: e.toData() });
+      throw e;
+    }
+  }
+
   function scan(opts: ScanOptions = {}): Promise<ScanSummaryView> {
-    if (scanning !== null) {
-      if (opts.force !== true) return scanning.promise;
-      scanning.abort.abort();
+    if (pendingScan !== null) {
+      if (opts.force !== true) return pendingScan.promise;
+      pendingScan.abort.abort();
     }
     const abort = new AbortController();
     opts.signal?.addEventListener("abort", () => abort.abort(), { once: true });
-    const run = (async () => {
-      const prev = scanning;
-      if (prev !== null) await prev.promise.catch(() => undefined);
-      try {
-        return await runScan(core, { ...opts, signal: abort.signal });
-      } catch (err) {
-        const e = MitoriError.from(err);
-        deps.events.emit({ type: "scan.failed", error: e.toData() });
-        throw e;
-      }
-    })();
+    const run = ops.then(() => scanNow({ ...opts, signal: abort.signal }));
+    ops = run.catch(() => undefined);
     const entry = { promise: run, abort };
-    scanning = entry;
+    pendingScan = entry;
     void run
       .finally(() => {
-        if (scanning === entry) scanning = null;
+        if (pendingScan === entry) pendingScan = null;
       })
       .catch(() => undefined);
     return run;
   }
 
   function update(changes: FsChange[], signal?: AbortSignal): Promise<IndexDelta> {
-    const next = updates.then(async () => {
-      if (scanning !== null) await scanning.promise.catch(() => undefined);
-      if (core.snap === null) await scan({ reason: "open" });
+    const next = ops.then(async () => {
+      if (core.snap === null) await scanNow({ reason: "open" });
       const t0 = mono(core);
-      const d = await runUpdate(core, changes, () => scan({ reason: "git" }), signal);
+      const d = await runUpdate(core, changes, () => scanNow({ reason: "git" }), signal);
       core.log.debug("idx.update", { ms: Math.round(mono(core) - t0), paths: d.changed.length });
       return d;
     });
-    updates = next.catch(() => undefined);
+    ops = next.catch(() => undefined);
     return next;
   }
 
@@ -259,7 +263,7 @@ export function createIndexerWith(deps: IndexerDeps, factory: LaterStagesFactory
       const picked = lines.slice(start - 1, Math.max(start - 1, end));
       const numbered = opts?.numbered === true;
       const body = picked.map((l, i) => (numbered ? `${start + i}|${l}` : l)).join("\n");
-      if (body.length * 2 > READ_MAX_BYTES && encodeUtf8(body).length > READ_MAX_BYTES)
+      if (body.length * 3 > READ_MAX_BYTES && encodeUtf8(body).length > READ_MAX_BYTES)
         throw new MitoriError("E_PAYLOAD_TOO_LARGE", `range too large: ${path}`, { params: { path } });
       const red = redact(body);
       return {
@@ -368,7 +372,8 @@ export function createIndexerWith(deps: IndexerDeps, factory: LaterStagesFactory
       if (validCalibrationSample(sample)) deps.calibrationSink(sample);
     },
     async close() {
-      scanning?.abort.abort();
+      pendingScan?.abort.abort();
+      await ops;
       await core.persisting;
       await core.stages.close?.();
       await core.pool.close();

@@ -114,9 +114,11 @@ export async function runUpdate(core: Core, changes: readonly FsChange[], warmSc
     const old = core.files.get(path);
     const raw = old?.raw ?? path;
     const abs = absOf(core, { raw });
+    // The stat decides (spec §10.2-3), not the event kind: an editor's rename-save reports `delete` for a file that
+    // exists again by the time the batch is applied.
     const st = deps.fs.stat(abs);
-    if (st === null || ch.kind === "delete" || st.isDir) {
-      if (st === null || ch.kind === "delete") core.files.delete(path);
+    if (st === null || st.isDir) {
+      core.files.delete(path);
       continue;
     }
     const mode = st.isSymlink ? "120000" : (old?.mode ?? "100644");
