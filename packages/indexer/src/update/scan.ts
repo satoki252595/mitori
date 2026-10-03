@@ -274,7 +274,7 @@ export async function runScan(core: Core, opts: ScanOptions): Promise<ScanSummar
  * spawn and compile their queries while S0 stats and classifies. S1 resizes to the real `poolSize`.
  */
 function prewarm(core: Core, paths: readonly string[]): void {
-  const want = new Map<string, Pick<ParseItemExt, "lang" | "grammar" | "profile">>();
+  const want = new Map<string, { item: Pick<ParseItemExt, "lang" | "grammar" | "profile">; files: number }>();
   let candidates = 0;
   for (const p of paths) {
     const { lang } = langOfPath(p);
@@ -282,11 +282,19 @@ function prewarm(core: Core, paths: readonly string[]): void {
     if (g === null) continue;
     candidates++;
     // Full profiles only: lite / test / error queries compile on first use, spread over the scan.
-    if (!want.has(g)) want.set(g, { lang, grammar: g, profile: "full" });
+    const w = want.get(g);
+    if (w === undefined) want.set(g, { item: { lang, grammar: g, profile: "full" }, files: 1 });
+    else w.files++;
   }
   if (candidates === 0) return;
-  core.pool.prewarm(poolSize(candidates * 8_192, core.deps.hardware), [...want.values()]);
+  // Every Worker pays each compile (TS ≈ 22 ms) before its first real batch: a grammar with a handful of files is
+  // left to compile on the one or two Workers that get them.
+  const warm = [...want.values()].filter((w) => w.files >= PREWARM_MIN_SHARE * candidates).map((w) => w.item);
+  core.pool.prewarm(poolSize(candidates * 8_192, core.deps.hardware), warm);
 }
+
+/** Grammars with fewer parse candidates than this share of the listing are not compiled ahead of S1. */
+const PREWARM_MIN_SHARE = 0.05;
 
 /** Forget persisted S1 results no current path uses (they stay in SQLite as the blob cache). */
 function dropUnreferenced(core: Core): void {
