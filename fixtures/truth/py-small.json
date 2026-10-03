@@ -2,120 +2,656 @@
   "v": "mitori.fixture-truth/1",
   "fixture": "py-small",
   "files": [
-    { "path": "pyproject.toml", "class": "config", "lang": "generic" },
-    { "path": "uv.lock", "class": "lockfile", "excluded": "lockfile", "lang": "generic" },
-    { "path": "docs/architecture.md", "class": "docs", "lang": "generic" },
-    { "path": "tsundoku/__main__.py", "class": "source", "lang": "python" },
-    { "path": "tsundoku/api.py", "class": "source", "lang": "python" },
-    { "path": "tsundoku/repo.py", "class": "source", "lang": "python" },
-    { "path": "tsundoku/metadata.py", "class": "source", "lang": "python" },
-    { "path": "migrations/0001_init.sql", "class": "source", "lang": "generic" },
-    { "path": "tests/test_repo.py", "class": "test", "lang": "python" },
-    { "path": "tests/test_metadata.py", "class": "test", "lang": "python" }
+    {
+      "path": "pyproject.toml",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": "uv.lock",
+      "class": "lockfile",
+      "excluded": "lockfile",
+      "lang": "generic"
+    },
+    {
+      "path": "docs/architecture.md",
+      "class": "docs",
+      "lang": "generic"
+    },
+    {
+      "path": "tsundoku/__main__.py",
+      "class": "source",
+      "lang": "python"
+    },
+    {
+      "path": "tsundoku/api.py",
+      "class": "source",
+      "lang": "python"
+    },
+    {
+      "path": "tsundoku/repo.py",
+      "class": "source",
+      "lang": "python"
+    },
+    {
+      "path": "tsundoku/metadata.py",
+      "class": "source",
+      "lang": "python"
+    },
+    {
+      "path": "migrations/0001_init.sql",
+      "class": "source",
+      "lang": "generic"
+    },
+    {
+      "path": "tests/test_repo.py",
+      "class": "test",
+      "lang": "python"
+    },
+    {
+      "path": "tests/test_metadata.py",
+      "class": "test",
+      "lang": "python"
+    }
   ],
   "filesExhaustive": false,
   "facts": [
-    { "kind": "route", "path": "tsundoku/api.py", "key": "GET /healthz", "attrs": { "framework": "fastapi" } },
-    { "kind": "route", "path": "tsundoku/api.py", "key": "GET /books", "attrs": { "framework": "fastapi" } },
-    { "kind": "route", "path": "tsundoku/api.py", "key": "GET /books/{book_id}", "attrs": { "framework": "fastapi" } },
-    { "kind": "route", "path": "tsundoku/api.py", "key": "POST /books", "attrs": { "framework": "fastapi" } },
-    { "kind": "route", "path": "tsundoku/api.py", "key": "DELETE /books/{book_id}", "attrs": { "framework": "fastapi" } },
-    { "kind": "route", "path": "tsundoku/api.py", "key": "GET /api/books", "stretch": true },
-    { "kind": "route", "path": "tsundoku/api.py", "key": "GET /api/books/{book_id}", "stretch": true },
-    { "kind": "route", "path": "tsundoku/api.py", "key": "POST /api/books", "stretch": true },
-    { "kind": "route", "path": "tsundoku/api.py", "key": "DELETE /api/books/{book_id}", "stretch": true },
-    { "kind": "route", "path": "tsundoku/legacy_flask.py", "key": "GET /legacy/export", "attrs": { "framework": "flask" } },
-    { "kind": "route", "path": "tsundoku/legacy_flask.py", "key": "POST /legacy/import", "attrs": { "framework": "flask" } },
-    { "kind": "route", "path": "tsundoku/legacy_flask.py", "key": "PUT /legacy/import", "attrs": { "framework": "flask" } },
-    { "kind": "env", "path": "tsundoku/config.py", "line": 10, "key": "PORT", "attrs": { "hasDefault": true } },
-    { "kind": "env", "path": "tsundoku/config.py", "line": 15, "key": "DATABASE_URL", "attrs": { "hasDefault": false } },
-    { "kind": "env", "path": "tsundoku/config.py", "line": 20, "key": "LOG_LEVEL", "attrs": { "hasDefault": true } },
-    { "kind": "env", "path": "tsundoku/config.py", "line": 26, "key": "TSUNDOKU_API_TOKEN", "attrs": { "hasDefault": false } },
-    { "kind": "cli", "path": "tsundoku/cli.py", "key": "tsundoku import", "attrs": { "flags": ["--dry-run"], "framework": "argparse" } },
-    { "kind": "cli", "path": "tsundoku/cli.py", "key": "tsundoku export", "attrs": { "flags": ["--format"], "framework": "argparse" } },
-    { "kind": "cli", "path": "tsundoku/cli.py", "key": "tsundoku serve", "attrs": { "flags": ["-p", "--port"], "framework": "argparse" } },
-    { "kind": "cli", "path": "tsundoku/cli_click.py", "key": "tsundoku-stats stats", "attrs": { "flags": ["--since"], "framework": "click" } },
-    { "kind": "schema", "path": "tsundoku/models.py", "key": "sqlalchemy:books", "attrs": { "fields": ["id", "isbn", "title", "status", "added_at"] } },
-    { "kind": "schema", "path": "tsundoku/models.py", "key": "sqlalchemy:tags", "attrs": { "fields": ["id", "name"] } },
-    { "kind": "schema", "path": "migrations/0001_init.sql", "key": "sql:books", "attrs": { "fields": ["id", "isbn", "title", "status", "added_at"] } },
-    { "kind": "schema", "path": "migrations/0001_init.sql", "key": "sql:tags", "attrs": { "fields": ["id", "name"] } },
-    { "kind": "schema", "path": "migrations/0001_init.sql", "key": "sql:book_tags", "attrs": { "fields": ["book_id", "tag_id"] } },
-    { "kind": "entry", "path": "tsundoku/__main__.py", "key": "main:python -m tsundoku" },
-    { "kind": "entry", "path": "pyproject.toml", "key": "script:tsundoku" },
-    { "kind": "entry", "path": "pyproject.toml", "key": "script:tsundoku-stats" },
-    { "kind": "test", "path": "tests/test_repo.py", "line": 15, "key": "test_create_assigns_id" },
-    { "kind": "test", "path": "tests/test_repo.py", "line": 22, "key": "test_remove_is_idempotent" },
-    { "kind": "test", "path": "tests/test_metadata.py", "line": 33, "key": "test_fetch_metadata_retries_once" },
-    { "kind": "test", "path": "tests/test_metadata.py", "line": 44, "key": "test_fetch_metadata_no_retry_on_success" },
-    { "kind": "dependency", "path": "pyproject.toml", "line": 11, "key": "pypi:fastapi", "attrs": { "dev": false } },
-    { "kind": "dependency", "path": "pyproject.toml", "line": 12, "key": "pypi:click", "attrs": { "dev": false } },
-    { "kind": "dependency", "path": "pyproject.toml", "line": 13, "key": "pypi:sqlalchemy", "attrs": { "dev": false } },
-    { "kind": "dependency", "path": "pyproject.toml", "line": 14, "key": "pypi:flask", "attrs": { "dev": false } },
-    { "kind": "dependency", "path": "pyproject.toml", "line": 18, "key": "pypi:pytest", "attrs": { "dev": true } },
-    { "kind": "existing_doc", "path": "docs/architecture.md", "line": 1, "key": "architecture", "attrs": { "title": "tsundoku のアーキテクチャ" } },
-    { "kind": "todo", "path": "tsundoku/metadata.py", "line": 28, "key": "FIXME" }
+    {
+      "kind": "route",
+      "path": "tsundoku/api.py",
+      "key": "GET /healthz",
+      "attrs": {
+        "framework": "fastapi"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "tsundoku/api.py",
+      "key": "GET /books",
+      "attrs": {
+        "framework": "fastapi"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "tsundoku/api.py",
+      "key": "GET /books/{book_id}",
+      "attrs": {
+        "framework": "fastapi"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "tsundoku/api.py",
+      "key": "POST /books",
+      "attrs": {
+        "framework": "fastapi"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "tsundoku/api.py",
+      "key": "DELETE /books/{book_id}",
+      "attrs": {
+        "framework": "fastapi"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "tsundoku/api.py",
+      "key": "GET /api/books",
+      "stretch": true
+    },
+    {
+      "kind": "route",
+      "path": "tsundoku/api.py",
+      "key": "GET /api/books/{book_id}",
+      "stretch": true
+    },
+    {
+      "kind": "route",
+      "path": "tsundoku/api.py",
+      "key": "POST /api/books",
+      "stretch": true
+    },
+    {
+      "kind": "route",
+      "path": "tsundoku/api.py",
+      "key": "DELETE /api/books/{book_id}",
+      "stretch": true
+    },
+    {
+      "kind": "route",
+      "path": "tsundoku/legacy_flask.py",
+      "key": "GET /legacy/export",
+      "attrs": {
+        "framework": "flask"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "tsundoku/legacy_flask.py",
+      "key": "POST /legacy/import",
+      "attrs": {
+        "framework": "flask"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "tsundoku/legacy_flask.py",
+      "key": "PUT /legacy/import",
+      "attrs": {
+        "framework": "flask"
+      }
+    },
+    {
+      "kind": "env",
+      "path": "tsundoku/config.py",
+      "line": 10,
+      "key": "PORT",
+      "attrs": {
+        "hasDefault": true
+      }
+    },
+    {
+      "kind": "env",
+      "path": "tsundoku/config.py",
+      "line": 15,
+      "key": "DATABASE_URL",
+      "attrs": {
+        "hasDefault": false
+      }
+    },
+    {
+      "kind": "env",
+      "path": "tsundoku/config.py",
+      "line": 20,
+      "key": "LOG_LEVEL",
+      "attrs": {
+        "hasDefault": true
+      }
+    },
+    {
+      "kind": "env",
+      "path": "tsundoku/config.py",
+      "line": 26,
+      "key": "TSUNDOKU_API_TOKEN",
+      "attrs": {
+        "hasDefault": false
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "tsundoku/cli.py",
+      "key": "tsundoku import",
+      "attrs": {
+        "flags": ["--dry-run"],
+        "framework": "argparse"
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "tsundoku/cli.py",
+      "key": "tsundoku export",
+      "attrs": {
+        "flags": ["--format"],
+        "framework": "argparse"
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "tsundoku/cli.py",
+      "key": "tsundoku serve",
+      "attrs": {
+        "flags": ["-p", "--port"],
+        "framework": "argparse"
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "tsundoku/cli_click.py",
+      "key": "tsundoku-stats stats",
+      "attrs": {
+        "flags": ["--since"],
+        "framework": "click"
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "tsundoku/models.py",
+      "key": "sqlalchemy:books",
+      "attrs": {
+        "fields": ["id", "isbn", "title", "status", "added_at"]
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "tsundoku/models.py",
+      "key": "sqlalchemy:tags",
+      "attrs": {
+        "fields": ["id", "name"]
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "migrations/0001_init.sql",
+      "key": "sql:books",
+      "attrs": {
+        "fields": ["id", "isbn", "title", "status", "added_at"]
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "migrations/0001_init.sql",
+      "key": "sql:tags",
+      "attrs": {
+        "fields": ["id", "name"]
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "migrations/0001_init.sql",
+      "key": "sql:book_tags",
+      "attrs": {
+        "fields": ["book_id", "tag_id"]
+      }
+    },
+    {
+      "kind": "entry",
+      "path": "tsundoku/__main__.py",
+      "key": "main:python -m tsundoku"
+    },
+    {
+      "kind": "entry",
+      "path": "pyproject.toml",
+      "key": "script:tsundoku"
+    },
+    {
+      "kind": "entry",
+      "path": "pyproject.toml",
+      "key": "script:tsundoku-stats"
+    },
+    {
+      "kind": "test",
+      "path": "tests/test_repo.py",
+      "line": 15,
+      "key": "test_create_assigns_id"
+    },
+    {
+      "kind": "test",
+      "path": "tests/test_repo.py",
+      "line": 22,
+      "key": "test_remove_is_idempotent"
+    },
+    {
+      "kind": "test",
+      "path": "tests/test_metadata.py",
+      "line": 33,
+      "key": "test_fetch_metadata_retries_once"
+    },
+    {
+      "kind": "test",
+      "path": "tests/test_metadata.py",
+      "line": 44,
+      "key": "test_fetch_metadata_no_retry_on_success"
+    },
+    {
+      "kind": "dependency",
+      "path": "pyproject.toml",
+      "line": 7,
+      "key": "pypi:fastapi",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "pyproject.toml",
+      "line": 8,
+      "key": "pypi:click",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "pyproject.toml",
+      "line": 9,
+      "key": "pypi:sqlalchemy",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "pyproject.toml",
+      "line": 10,
+      "key": "pypi:flask",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "pyproject.toml",
+      "line": 14,
+      "key": "pypi:pytest",
+      "attrs": {
+        "dev": true
+      }
+    },
+    {
+      "kind": "existing_doc",
+      "path": "docs/architecture.md",
+      "line": 1,
+      "key": "architecture",
+      "attrs": {
+        "title": "tsundoku のアーキテクチャ"
+      }
+    },
+    {
+      "kind": "todo",
+      "path": "tsundoku/metadata.py",
+      "line": 28,
+      "key": "FIXME"
+    }
   ],
   "forbiddenFacts": [
-    { "kind": "route", "path": "tsundoku/api.py", "line": 3, "key": "GET /books" },
-    { "kind": "route", "path": "tsundoku/api.py", "line": 3, "key": "ANY /books" }
+    {
+      "kind": "route",
+      "path": "tsundoku/api.py",
+      "line": 3,
+      "key": "GET /books"
+    },
+    {
+      "kind": "route",
+      "path": "tsundoku/api.py",
+      "line": 3,
+      "key": "ANY /books"
+    }
   ],
   "symbols": [
-    { "key": "tsundoku/config.py#port", "kind": "function", "start": 8, "end": 10, "exported": true },
-    { "key": "tsundoku/config.py#database_url", "kind": "function", "start": 13, "end": 15, "exported": true },
-    { "key": "tsundoku/config.py#log_level", "kind": "function", "start": 18, "end": 21, "exported": true },
-    { "key": "tsundoku/config.py#api_token", "kind": "function", "start": 24, "end": 26, "exported": true },
-    { "key": "tsundoku/repo.py#parse_status", "kind": "function", "start": 24, "end": 27, "exported": true },
-    { "key": "tsundoku/repo.py#Repo", "kind": "class", "start": 30, "end": 74, "exported": true },
-    { "key": "tsundoku/repo.py#Repo.__init__", "kind": "method", "start": 33, "end": 37, "exported": true },
-    { "key": "tsundoku/repo.py#Repo.list", "kind": "method", "start": 39, "end": 42, "exported": true },
-    { "key": "tsundoku/repo.py#Repo.get", "kind": "method", "start": 44, "end": 47, "exported": true },
-    { "key": "tsundoku/repo.py#Repo.create", "kind": "method", "start": 49, "end": 61, "exported": true },
-    { "key": "tsundoku/repo.py#Repo.remove", "kind": "method", "start": 63, "end": 67, "exported": true },
-    { "key": "tsundoku/repo.py#Repo.count_by_status", "kind": "method", "start": 69, "end": 74, "exported": true },
-    { "key": "tsundoku/metadata.py#normalize_isbn", "kind": "function", "start": 23, "end": 25, "exported": true },
-    { "key": "tsundoku/metadata.py#is_plausible_isbn", "kind": "function", "start": 29, "end": 32, "exported": true },
-    { "key": "tsundoku/metadata.py#fetch_metadata", "kind": "function", "start": 35, "end": 53, "exported": true },
-    { "key": "tsundoku/csvutil.py#parse_rows", "kind": "function", "start": 9, "end": 19, "exported": true },
-    { "key": "tsundoku/csvutil.py#write_rows", "kind": "function", "start": 22, "end": 28, "exported": true },
-    { "key": "tsundoku/importer.py#import_csv", "kind": "function", "start": 22, "end": 38, "exported": true },
-    { "key": "tsundoku/importer.py#export_books", "kind": "function", "start": 41, "end": 45, "exported": true },
-    { "key": "tsundoku/cli.py#build_parser", "kind": "function", "start": 15, "end": 28, "exported": true },
-    { "key": "tsundoku/cli.py#main", "kind": "function", "start": 31, "end": 43, "exported": true },
-    { "key": "tsundoku/models.py#Base", "kind": "class", "start": 8, "end": 9, "exported": true },
-    { "key": "tsundoku/models.py#Book", "kind": "class", "start": 12, "end": 19, "exported": true },
-    { "key": "tsundoku/models.py#Tag", "kind": "class", "start": 22, "end": 26, "exported": true },
-    { "key": "tsundoku/api.py#NewBook", "kind": "class", "start": 22, "end": 25, "exported": true },
-    { "key": "tsundoku/api.py#require_token", "kind": "function", "start": 28, "end": 32, "exported": true }
+    {
+      "key": "tsundoku/config.py#port",
+      "kind": "function",
+      "start": 8,
+      "end": 10,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/config.py#database_url",
+      "kind": "function",
+      "start": 13,
+      "end": 15,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/config.py#log_level",
+      "kind": "function",
+      "start": 18,
+      "end": 21,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/config.py#api_token",
+      "kind": "function",
+      "start": 24,
+      "end": 26,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/repo.py#parse_status",
+      "kind": "function",
+      "start": 24,
+      "end": 27,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/repo.py#Repo",
+      "kind": "class",
+      "start": 30,
+      "end": 74,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/repo.py#Repo.__init__",
+      "kind": "method",
+      "start": 33,
+      "end": 37,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/repo.py#Repo.list",
+      "kind": "method",
+      "start": 39,
+      "end": 42,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/repo.py#Repo.get",
+      "kind": "method",
+      "start": 44,
+      "end": 47,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/repo.py#Repo.create",
+      "kind": "method",
+      "start": 49,
+      "end": 61,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/repo.py#Repo.remove",
+      "kind": "method",
+      "start": 63,
+      "end": 67,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/repo.py#Repo.count_by_status",
+      "kind": "method",
+      "start": 69,
+      "end": 74,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/metadata.py#normalize_isbn",
+      "kind": "function",
+      "start": 23,
+      "end": 25,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/metadata.py#is_plausible_isbn",
+      "kind": "function",
+      "start": 29,
+      "end": 32,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/metadata.py#fetch_metadata",
+      "kind": "function",
+      "start": 35,
+      "end": 53,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/csvutil.py#parse_rows",
+      "kind": "function",
+      "start": 9,
+      "end": 19,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/csvutil.py#write_rows",
+      "kind": "function",
+      "start": 22,
+      "end": 28,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/importer.py#import_csv",
+      "kind": "function",
+      "start": 22,
+      "end": 38,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/importer.py#export_books",
+      "kind": "function",
+      "start": 41,
+      "end": 45,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/cli.py#build_parser",
+      "kind": "function",
+      "start": 15,
+      "end": 28,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/cli.py#main",
+      "kind": "function",
+      "start": 31,
+      "end": 43,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/models.py#Base",
+      "kind": "class",
+      "start": 8,
+      "end": 9,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/models.py#Book",
+      "kind": "class",
+      "start": 12,
+      "end": 19,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/models.py#Tag",
+      "kind": "class",
+      "start": 22,
+      "end": 26,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/api.py#NewBook",
+      "kind": "class",
+      "start": 22,
+      "end": 25,
+      "exported": true
+    },
+    {
+      "key": "tsundoku/api.py#require_token",
+      "kind": "function",
+      "start": 28,
+      "end": 32,
+      "exported": true
+    }
   ],
   "imports": [
-    { "from": "tsundoku/api.py", "to": "tsundoku/repo.py" },
-    { "from": "tsundoku/api.py", "to": "tsundoku/metadata.py" },
-    { "from": "tsundoku/api.py", "to": "tsundoku/config.py" },
-    { "from": "tsundoku/importer.py", "to": "tsundoku/repo.py" },
-    { "from": "tsundoku/importer.py", "to": "tsundoku/csvutil.py" },
-    { "from": "tsundoku/cli.py", "to": "tsundoku/importer.py" },
-    { "from": "tsundoku/cli.py", "to": "tsundoku/config.py" },
-    { "from": "tsundoku/__main__.py", "to": "tsundoku/cli.py" },
-    { "from": "tsundoku/legacy_flask.py", "to": "tsundoku/repo.py" },
-    { "from": "tests/test_repo.py", "to": "tsundoku/repo.py" },
-    { "from": "tests/test_metadata.py", "to": "tsundoku/metadata.py" }
+    {
+      "from": "tsundoku/api.py",
+      "to": "tsundoku/repo.py"
+    },
+    {
+      "from": "tsundoku/api.py",
+      "to": "tsundoku/metadata.py"
+    },
+    {
+      "from": "tsundoku/api.py",
+      "to": "tsundoku/config.py"
+    },
+    {
+      "from": "tsundoku/importer.py",
+      "to": "tsundoku/repo.py"
+    },
+    {
+      "from": "tsundoku/importer.py",
+      "to": "tsundoku/csvutil.py"
+    },
+    {
+      "from": "tsundoku/cli.py",
+      "to": "tsundoku/importer.py"
+    },
+    {
+      "from": "tsundoku/cli.py",
+      "to": "tsundoku/config.py"
+    },
+    {
+      "from": "tsundoku/__main__.py",
+      "to": "tsundoku/cli.py"
+    },
+    {
+      "from": "tsundoku/legacy_flask.py",
+      "to": "tsundoku/repo.py"
+    },
+    {
+      "from": "tests/test_repo.py",
+      "to": "tsundoku/repo.py"
+    },
+    {
+      "from": "tests/test_metadata.py",
+      "to": "tsundoku/metadata.py"
+    }
   ],
   "calls": [
-    { "from": "tsundoku/cli.py#main", "to": "tsundoku/importer.py#import_csv" },
-    { "from": "tsundoku/cli.py#main", "to": "tsundoku/importer.py#export_books" },
-    { "from": "tsundoku/cli.py#main", "to": "tsundoku/config.py#port" },
-    { "from": "tsundoku/importer.py#import_csv", "to": "tsundoku/csvutil.py#parse_rows" },
-    { "from": "tsundoku/importer.py#import_csv", "to": "tsundoku/repo.py#Repo.create" },
-    { "from": "tsundoku/importer.py#import_csv", "to": "tsundoku/repo.py#parse_status" },
-    { "from": "tsundoku/api.py#create_book", "to": "tsundoku/metadata.py#fetch_metadata" },
-    { "from": "tsundoku/api.py#create_book", "to": "tsundoku/repo.py#Repo.create" },
-    { "from": "tsundoku/api.py#list_books", "to": "tsundoku/repo.py#Repo.list" },
-    { "from": "tsundoku/api.py#require_token", "to": "tsundoku/config.py#api_token" },
-    { "from": "tsundoku/legacy_flask.py#export_all", "to": "tsundoku/repo.py#Repo.list" }
+    {
+      "from": "tsundoku/cli.py#main",
+      "to": "tsundoku/importer.py#import_csv"
+    },
+    {
+      "from": "tsundoku/cli.py#main",
+      "to": "tsundoku/importer.py#export_books"
+    },
+    {
+      "from": "tsundoku/cli.py#main",
+      "to": "tsundoku/config.py#port"
+    },
+    {
+      "from": "tsundoku/importer.py#import_csv",
+      "to": "tsundoku/csvutil.py#parse_rows"
+    },
+    {
+      "from": "tsundoku/importer.py#import_csv",
+      "to": "tsundoku/repo.py#Repo.create"
+    },
+    {
+      "from": "tsundoku/importer.py#import_csv",
+      "to": "tsundoku/repo.py#parse_status"
+    },
+    {
+      "from": "tsundoku/api.py#create_book",
+      "to": "tsundoku/metadata.py#fetch_metadata"
+    },
+    {
+      "from": "tsundoku/api.py#create_book",
+      "to": "tsundoku/repo.py#Repo.create"
+    },
+    {
+      "from": "tsundoku/api.py#list_books",
+      "to": "tsundoku/repo.py#Repo.list"
+    },
+    {
+      "from": "tsundoku/api.py#require_token",
+      "to": "tsundoku/config.py#api_token"
+    },
+    {
+      "from": "tsundoku/legacy_flask.py#export_all",
+      "to": "tsundoku/repo.py#Repo.list"
+    }
   ],
   "modules": {
     "together": [["tsundoku/api.py", "tsundoku/legacy_flask.py"], ["tsundoku/repo.py", "tsundoku/models.py"]],
     "apart": [["tsundoku/cli_click.py", "tsundoku/models.py"]]
   },
-  "tolerances": { "callsRecall": 0.9, "callsPrecision": 0.8 }
+  "tolerances": {
+    "callsRecall": 0.9,
+    "callsPrecision": 0.8
+  }
 }
