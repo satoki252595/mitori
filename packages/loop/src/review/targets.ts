@@ -65,6 +65,9 @@ const STOP = new Set(
   ),
 );
 
+/** Conventional test files (any language) when the index has no class for them. */
+const TEST_PATH = /(^|\/)(tests?|__tests__|spec|e2e)\/|_test\.[a-z]+$|\.(test|spec)\.[a-z]+$|(^|\/)test_[^/]+\.py$/;
+
 const IDENT = /[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*/g;
 const CJK_RUN = /[\p{Script=Han}\p{Script=Katakana}ー]{3,}/gu;
 /** A code span / link target that names a repository path, optionally with `:a[-b]` or `#Qual.name`. */
@@ -122,14 +125,27 @@ export function selectedLines(md: string, blockText: string, selStart: number, s
 }
 
 /** Identifier and CJK terms of the selection, then of the request (deduplicated, stop words dropped). */
+/**
+ * A word that names code rather than being prose: `snake_case`, `camelCase`, `Dotted.name`, `ALL_CAPS`, `Capitalized`
+ * (Go's exported names), or anything the request puts in backticks. A plain lowercase word (`repo`, `agent`, `auth`)
+ * matches dozens of fields and locals of a real repository (measured on crit) — it is not looked up.
+ */
+export function nameLike(term: string, quoted: ReadonlySet<string> = new Set()): boolean {
+  return quoted.has(term) || /[_.]|[a-z0-9][A-Z]|^[A-Z]/.test(term);
+}
+
 export function termsOf(selection: string, text: string): string[] {
   const out: string[] = [];
+  const req = text.slice(0, TARGET_LIMITS.textChars);
+  const quoted = new Set([...req.matchAll(/`([^`\n]+)`/g)].map((m) => (m[1] as string).trim()));
   const add = (t: string) => {
     if (t.length < 3 || STOP.has(t.toLowerCase()) || /^\d/.test(t) || out.includes(t)) return;
     out.push(t);
   };
-  for (const src of [selection, text.slice(0, TARGET_LIMITS.textChars)]) {
-    for (const m of src.matchAll(IDENT)) add(m[0]);
+  // a selected code reference (`cmd/crit/main.go:21`) is resolved as a reference; its path segments are not names
+  const sel = /[/\\]|:\d/.test(selection) ? "" : selection;
+  for (const src of [sel, req]) {
+    for (const m of src.matchAll(IDENT)) if (nameLike(m[0], quoted)) add(m[0]);
     for (const m of src.matchAll(CJK_RUN)) {
       add(m[0]);
       if (m[0].length > 3) add(m[0].slice(0, 3));
@@ -248,10 +264,17 @@ export function resolveCodeTargets(deps: TargetDeps, input: TargetInput): CodeTa
 
   // by evidence (the row's own reference > an exact name > a text match); inside a tier, distinct files first
   const out: CodeTarget[] = [];
-  for (const tier of ["ref", "symbol", "search"] as const) {
-    const of = found.filter((t) => t.source === tier);
+  // tests come after the code they test (a Fix rarely means the test), unless the request is about tests
+  const aboutTests = /test|テスト/i.test(input.text ?? "");
+  const isTest = (t: CodeTarget) => deps.indexer.file(t.path)?.class === "test" || TEST_PATH.test(t.path);
+  const distinctFirst = (of: CodeTarget[]) => {
     const first = of.filter((t, i) => of.findIndex((x) => x.path === t.path) === i);
-    out.push(...first, ...of.filter((t) => !first.includes(t)));
+    return [...first, ...of.filter((t) => !first.includes(t))];
+  };
+  for (const tier of ["ref", "symbol", "search"] as const) {
+    const all = found.filter((t) => t.source === tier);
+    if (aboutTests) out.push(...distinctFirst(all));
+    else out.push(...distinctFirst(all.filter((t) => !isTest(t))), ...distinctFirst(all.filter(isTest)));
   }
   return { cited, candidates: out.slice(0, limit) };
 }

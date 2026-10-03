@@ -3,7 +3,7 @@
 // are offered as candidates, (c) nothing when nothing matches. Never a path the router could not write.
 import { describe, expect, test } from "bun:test";
 import type { Anchor, Claim, FileEntry, SearchHit, SymbolEntry } from "@mitori/core";
-import { mdPlain, refsOf, resolveCodeTargets, selectedLines, type TargetDeps, termsOf } from "./targets.ts";
+import { mdPlain, nameLike, refsOf, resolveCodeTargets, selectedLines, type TargetDeps, termsOf } from "./targets.ts";
 
 const file = (path: string, lines: number, extra: Partial<FileEntry> = {}): FileEntry => ({
   path,
@@ -175,16 +175,36 @@ describe("code targets (CR ux-F1)", () => {
     expect(mdPlain("- **`Load`** reads [env](a.go#L1)")).toBe("Load reads env");
   });
 
-  test("UX-FIX-07: terms are identifiers and CJK runs of the selection first, stop words dropped, capped", () => {
+  test("UX-FIX-07: terms are NAMES of the selection first, then of the request — plain English words are not names", () => {
     expect(termsOf("TSUNDOKU_API_TOKEN", "make the retry count configurable via Client.Fetch 再試行回数")).toEqual([
       "TSUNDOKU_API_TOKEN",
-      "retry",
-      "count",
-      "configurable",
-      "via",
       "Client.Fetch",
+      "再試行回数",
+      "再試行",
     ]);
     expect(termsOf("", "再試行回数を設定で変える")).toEqual(["再試行回数", "再試行"]);
+    // crit, measured: `repo` / `agent` / `auth` matched dozens of fields; `agent_cmd` is the name that matters
+    expect(termsOf("crit auth", "agent_cmd を repo 設定でも上書きできるように")).toEqual(["agent_cmd"]);
+    // backticks make a plain word a name; a selected code reference is not split into names
+    expect(termsOf("", "`story` の生成を速く")).toEqual(["story"]);
+    expect(termsOf("cmd/crit/main.go:21", "")).toEqual([]);
+    expect(nameLike("Fetch")).toBe(true);
+    expect(nameLike("fetchOnce")).toBe(true);
+    expect(nameLike("repo")).toBe(false);
+  });
+
+  test("UX-FIX-08: tests come after the code they test, unless the request talks about tests", () => {
+    const d = deps();
+    const all = [...SYMS, sym("internal/meta/fetch_test.go", "TestFetch", 1, 30)];
+    d.indexer.findSymbols = (q) => all.filter((x) => x.name.toLowerCase() === q.toLowerCase() || x.name === `Test${q}`);
+    d.indexer.search = (q) => (q === "Fetch" ? [{ kind: "symbol", id: "internal/meta/fetch_test.go#TestFetch", label: "TestFetch", score: 1, href: "" }] : []);
+    d.indexer.symbol = (k) => all.find((x) => x.key === k) ?? null;
+    FILES.push(file("internal/meta/fetch_test.go", 40, { class: "test" }));
+    const r = resolveCodeTargets(d, { anchor: docAnchor("b_empty"), selStart: 0, selEnd: 3, text: "Fetch を速く" });
+    expect(r.candidates.map((t) => t.path)).toEqual(["internal/meta/fetch.go", "internal/meta/fetch_test.go"]);
+    const t = resolveCodeTargets(d, { anchor: docAnchor("b_empty"), selStart: 0, selEnd: 3, text: "Fetch のテストを足す" });
+    expect(t.candidates.map((x) => x.source)).toEqual(["symbol", "search"]);
+    FILES.pop();
   });
 
   test("the limit caps the candidates (default 4, at most 8)", () => {
