@@ -129,12 +129,14 @@ interface Tap {
   stderr: string[];
   t0: number;
   firstLineMs: number | null;
+  /** Spawn → first line after `system/init` (the engine's first `phase` event; budget agent.firstPhase.cold). */
+  firstPhaseMs: number | null;
 }
 const taps: Tap[] = [];
 function tapSpawner(inner: Spawner): Spawner {
   return {
     spawn(spec: SpawnSpec): ChildHandle {
-      const tap: Tap = { spec, lines: [], stderr: [], t0: performance.now(), firstLineMs: null };
+      const tap: Tap = { spec, lines: [], stderr: [], t0: performance.now(), firstLineMs: null, firstPhaseMs: null };
       taps.push(tap);
       const c = inner.spawn(spec);
       return {
@@ -142,6 +144,7 @@ function tapSpawner(inner: Spawner): Spawner {
         stdout: (async function* () {
           for await (const l of c.stdout) {
             if (tap.firstLineMs === null) tap.firstLineMs = performance.now() - tap.t0;
+            if (tap.firstPhaseMs === null && !l.includes('"subtype":"init"')) tap.firstPhaseMs = performance.now() - tap.t0;
             tap.lines.push(l);
             yield l;
           }
@@ -477,7 +480,7 @@ if (["CC-03", "CC-05", "CC-06", "CC-07", "CC-08", "CC-10", "CC-13", "CC-14", "CC
       id: "CC-20",
       status: firstStart(tap) <= 1000 ? "pass" : "fail",
       detail: `lean overhead (tools none, ${MODEL}) first-call input ${firstStart(tap)} tokens incl. a ~60-token prompt (≤ 1.0k)`,
-      measure: { leanOverhead: firstStart(tap), firstLineMs: Math.round(tap.firstLineMs ?? -1) },
+      measure: { leanOverhead: firstStart(tap), firstLineMs: Math.round(tap.firstLineMs ?? -1), firstPhaseColdMs: Math.round(tap.firstPhaseMs ?? -1) },
     });
   const rl = evs(tap).find((e) => e.type === "rate_limit_event") as
     | { rate_limit_info?: { unifiedWindows?: { five_hour?: { utilization?: unknown; resetsAt?: unknown } } } }
