@@ -214,13 +214,27 @@ export function elkToLayout(ir: DiagramIR, res: ElkGraphNode, irHash: string): D
   return { diagram: ir.id, irHash, engine: ELK_ENGINE, width: half(res.width ?? 0), height: half(res.height ?? 0), nodes, edges, groups };
 }
 
+/** The IR with duplicate node / group / edge ids dropped (first wins): ELK rejects duplicate groups. */
+export function uniqueIR(ir: DiagramIR): DiagramIR {
+  const first = <T extends { id: string }>(xs: readonly T[]): T[] => {
+    const seen = new Set<string>();
+    return xs.filter((x) => !seen.has(x.id) && seen.add(x.id) !== undefined);
+  };
+  const nodes = first(ir.nodes);
+  const groups = first(ir.groups);
+  const edges = first(ir.edges);
+  return nodes.length === ir.nodes.length && groups.length === ir.groups.length && edges.length === ir.edges.length ? ir : { ...ir, nodes, groups, edges };
+}
+
 /** Worker side of the ELK pool: IR → ELK → DiagramLayout (`irHash` is stamped by the layouter). */
 export async function elkLayout(elk: { layout(g: ElkGraphNode): Promise<ElkGraphNode> }, req: { ir: DiagramIR }): Promise<DiagramLayout> {
-  return elkToLayout(req.ir, await elk.layout(irToElk(req.ir)), "");
+  const ir = uniqueIR(req.ir);
+  return elkToLayout(ir, await elk.layout(irToElk(ir)), "");
 }
 
 /** Deterministic sequence-diagram layout (participants in IR order, one row per message in `seq` order). */
-export function sequenceLayout(ir: DiagramIR, irHash: string): DiagramLayout {
+export function sequenceLayout(raw: DiagramIR, irHash: string): DiagramLayout {
+  const ir = uniqueIR(raw);
   const PAD = 16;
   const GAP = 48;
   const ROW = 40;

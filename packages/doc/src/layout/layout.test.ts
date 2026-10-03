@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import type { DiagramId, DiagramIR, DiagramLayout } from "@mitori/core";
+import ELK from "elkjs/lib/elk-api.js";
 import { DOC_MIGRATIONS } from "../store/index.ts";
 import { hasher, inlinePool, memDb, silentLog } from "../test/helpers.ts";
-import { irToElk, sequenceLayout } from "./elk.ts";
+import { elkLayout, irToElk, sequenceLayout } from "./elk.ts";
 import { createDiagramLayouter } from "./index.ts";
 
 const ir = (over: Partial<DiagramIR> = {}): DiagramIR => ({
@@ -107,5 +108,26 @@ describe("DOC-G-013 layouts", () => {
   test("floor plan layout is WP-18", async () => {
     const l = createDiagramLayouter({ elk: inlinePool(() => ({}) as DiagramLayout), db: memDb(DOC_MIGRATIONS), hasher, log: silentLog });
     await expect(l.layoutFloorplan(ir({ kind: "floorplan" }), null)).rejects.toMatchObject({ code: "E_UNSUPPORTED" });
+  });
+});
+
+describe("DOC-G-013 AI diagrams with duplicate ids", () => {
+  test("duplicate node / group / edge ids are dropped (first wins) before ELK, which rejects duplicate groups", async () => {
+    const elk = new ELK({ workerUrl: require.resolve("elkjs/lib/elk-worker.min.js"), workerFactory: (u) => new Worker(u as string) as never });
+    try {
+      const dup = ir({
+        nodes: [...ir().nodes, { id: "csv", label: "again", group: "store" }],
+        groups: [
+          { id: "store", label: "保存" },
+          { id: "store", label: "二重" },
+        ],
+        edges: [...ir().edges, { id: "e1", from: "end", to: "csv", kind: "calls" }],
+      });
+      const l = await elkLayout(elk as never, { ir: dup });
+      expect([l.nodes.map((n) => n.id), l.groups.map((g) => g.id), l.edges.map((e) => e.id)]).toEqual([["csv", "repo", "end"], ["store"], ["e1", "e2"]]);
+      expect(sequenceLayout({ ...dup, kind: "sequence" }, "h").nodes.map((n) => n.id)).toEqual(["csv", "repo", "end"]);
+    } finally {
+      elk.terminateWorker();
+    }
   });
 });
