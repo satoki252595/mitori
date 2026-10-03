@@ -141,6 +141,12 @@ export function addUsage(a: Usage | null, b: Usage): Usage {
   return out;
 }
 
+/** Prompt version, honouring the renderer's overrides when it has them (tests bump versions). */
+function promptVersion(prompts: PromptRenderer, id: PlannedTask["prompt"]): GenCall["spec"]["version"] {
+  const withVersion = prompts as PromptRenderer & { version?: (p: PlannedTask["prompt"]) => GenCall["spec"]["version"] };
+  return withVersion.version?.(id) ?? GEN_PROMPTS[id].version;
+}
+
 /** Build the engine call of an attempt. */
 export function buildCall(
   run: RunCtx,
@@ -155,8 +161,7 @@ export function buildCall(
   const o = task.estimate.out > 0 ? task.estimate.out : outTarget(task.prompt, task.mode, rendered.tokens.tail);
   const th = thinkingOf(task.model, task.effort, o, run.engine.id);
   const cli = run.engine.id === "claude-cli";
-  const version =
-    (prompts as { version?: (p: PlannedTask["prompt"]) => GenCall["spec"]["version"] }).version?.(task.prompt) ?? GEN_PROMPTS[task.prompt].version;
+  const version = promptVersion(prompts, task.prompt);
   const call: GenCall = {
     task: task.id,
     run: run.id,
@@ -208,9 +213,10 @@ async function consume(
   };
   for await (const delta of callRun.text) {
     for (const line of assembler.push(delta)) handle(line);
-    const p = assembler.partial();
     const now = env.clock.now();
-    if (p && now - lastPartial >= 100) {
+    if (now - lastPartial < 100) continue; // ≤ 10 Hz, and the partial decode only runs when it may be sent
+    const p = assembler.partial();
+    if (p) {
       lastPartial = now;
       const ev: SseEventPayload = { type: "doc.block.partial", section: sectionFor(p.section, p.aspect), text: p.md };
       if (p.kind) ev.kind = p.kind;
@@ -245,8 +251,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   const rendered = env.prompts.render(task, inputs, { lang: env.lang, workdir: env.sandboxCwd });
   hooks.cacheKey(rendered.cacheKey);
   const s = env.settings();
-  const version =
-    (env.prompts as { version?: (p: PlannedTask["prompt"]) => GenCall["spec"]["version"] }).version?.(task.prompt) ?? GEN_PROMPTS[task.prompt].version;
+  const version = promptVersion(env.prompts, task.prompt);
   const applyCtx = {
     run: run.id,
     trigger: run.trigger,

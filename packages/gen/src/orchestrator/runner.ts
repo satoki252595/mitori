@@ -144,8 +144,7 @@ export class Runner {
     if (this.live && (this.live.run.state === "running" || this.live.run.state === "paused"))
       throw new MitoriError("E_CONFLICT", "a generation run is already active", { params: { run: this.live.run.id } });
     const plan = row.plan;
-    const engine = engineFor(deps, plan.engine);
-    void engine;
+    engineFor(deps, plan.engine); // E_AGENT_NOT_INSTALLED / E_INVALID_INPUT before anything is created
     const id = deps.ids.next("genRun") as GenRunId;
     const { pack, pinned, blobs } = this.pin(deps.sandboxCwd);
     await deps.indexer.pinBlobs(blobs);
@@ -392,9 +391,9 @@ export class Runner {
     if (!live) return;
     const run = live.run;
     const dispatchable = (r: TaskRow) => run.state === "running" || (run.state === "paused" && run.paused?.reason === "yield_5h" && r.lane === "doc");
-    const budgetStop =
-      run.usage.apiUsd + [...live.running.values()].reduce((n, x) => n + x.estUsd, 0) >= this.s().global.limits.stopAtBudgetFraction * this.cap();
-    while (live.running.size < run.concurrency && !budgetStop && run.state !== "cancelled") {
+    const limit = this.s().global.limits.stopAtBudgetFraction * this.cap();
+    const overBudget = () => run.usage.apiUsd + [...live.running.values()].reduce((n, x) => n + x.estUsd, 0) >= limit;
+    while (live.running.size < run.concurrency && !overBudget() && run.state !== "cancelled") {
       const ready = [...live.rows.values()].filter(
         (r) => r.task.state === "pending" && dispatchable(r) && r.plan.deps.every((d) => TERMINAL.has(live.rows.get(d)?.task.state ?? "done")),
       );
@@ -404,7 +403,7 @@ export class Runner {
     }
     if (live.running.size > 0) return;
     const pending = [...live.rows.values()].filter((r) => !TERMINAL.has(r.task.state));
-    if (run.state === "running" && pending.length > 0 && budgetStop) {
+    if (run.state === "running" && pending.length > 0 && overBudget()) {
       run.state = "paused";
       run.paused = { reason: "budget" };
       void this.persistRun();
