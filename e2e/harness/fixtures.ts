@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { startTestDaemon, type TestDaemon } from "@mitori/testkit";
 import { test as base, expect } from "@playwright/test";
-import { type BudgetCheck, checkBudget } from "./metrics.ts";
+import { type BudgetCheck, checkBudget, envFactor } from "./metrics.ts";
 
 type DaemonOptions = Parameters<typeof startTestDaemon>[0];
 
@@ -41,14 +41,21 @@ export const test = base.extend<Fixtures>({
 
 export { expect };
 
-/** Assert a measurement against its budget: over the limit fails the test, over the target is recorded as a warning. */
+/**
+ * Assert a measurement against its budget: over the limit fails the test, over the target is recorded as a warning. Time budgets
+ * fail only in the `perf` project on the reference machine (`checkBudget`); elsewhere they are annotations.
+ */
 export function expectWithinBudget(id: string, value: number): BudgetCheck {
-  const check = checkBudget(id, value);
+  const info = test.info();
+  const check = checkBudget(id, value, { project: info.project.name, factor: envFactor() });
+  const unit = check.entry.unit;
   if (check.warned)
-    test.info().annotations.push({
+    info.annotations.push({
       type: "budget-warning",
-      description: `${id} = ${value} is over its target ${check.entry.target} (limit ${check.entry.limit} ${check.entry.unit})`,
+      description: check.reportOnly
+        ? `${id} = ${value} ${unit} is over its limit ${check.limit} — reported only: ${check.reportOnly}`
+        : `${id} = ${value} ${unit} is over its target ${check.target} (limit ${check.limit})`,
     });
-  expect(check.failed, `${id} = ${value} ${check.entry.unit} exceeds its limit ${check.entry.limit}`).toBe(false);
+  expect(check.failed, `${id} = ${value} ${unit} exceeds its limit ${check.limit}`).toBe(false);
   return check;
 }

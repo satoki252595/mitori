@@ -134,15 +134,65 @@ export interface BudgetCheck {
   id: string;
   value: number;
   entry: BudgetEntry;
-  /** Beyond the limit: the spec fails. */
+  /** Target and limit this value was compared with (multiplied by the machine factor off the reference machine). */
+  target: number;
+  limit: number;
+  /** Beyond the limit where the budget gates: the spec fails. */
   failed: boolean;
-  /** Beyond the target but within the limit: a warning annotation. */
+  /** Beyond the target, or beyond the limit where the budget only reports: a warning annotation. */
   warned: boolean;
+  /** Why a value beyond the limit did not fail (a time budget outside the perf project or off the reference machine). */
+  reportOnly?: string;
 }
 
-/** Compare a measured value with `bench/budgets.json` (direction aware). The caller asserts `failed` and annotates `warned`. */
-export function checkBudget(id: string, value: number): BudgetCheck {
+/** Where a measurement was taken: the Playwright project and the machine factor (`MITORI_MACHINE_FACTOR`, null = not measured). */
+export interface MeasureContext {
+  project?: string;
+  factor?: number | null;
+}
+
+/** |factor − 1| ≤ this ⇒ the reference machine (testing spec §6.8; the bench runner uses the same tolerance). */
+export const REFERENCE_TOLERANCE = 0.1;
+
+/** The machine factor `bun run e2e` measured for this run (`MITORI_MACHINE_FACTOR`), or null when it was not measured. */
+export function envFactor(env: Record<string, string | undefined> = process.env): number | null {
+  const f = Number(env.MITORI_MACHINE_FACTOR);
+  return env.MITORI_MACHINE_FACTOR && Number.isFinite(f) && f > 0 ? f : null;
+}
+
+/**
+ * Compare a measured value with `bench/budgets.json` (direction aware). The caller asserts `failed` and annotates `warned`.
+ * Structural budgets (DOM nodes, code lines, bytes, counts, CLS) gate everywhere. Time budgets (`scale: "machine"`) gate only
+ * in the `perf` project (§5.2: "時間の閾値は perf project でだけ判定") on the reference machine (§6.8); elsewhere they are
+ * scaled by the factor when it is known and reported.
+ */
+export function checkBudget(id: string, value: number, ctx: MeasureContext = {}): BudgetCheck {
   const entry = budget(id);
+  const timed = entry.scale === "machine";
+  const factor = ctx.factor ?? null;
+  const reference = factor !== null && Math.abs(factor - 1) <= REFERENCE_TOLERANCE;
+  const k = timed && factor !== null && !reference ? factor : 1;
+  const target = entry.target * k;
+  const limit = entry.limit * k;
   const beyond = (bound: number) => (entry.dir === "max" ? value > bound : value < bound);
-  return { id, value, entry, failed: beyond(entry.limit), warned: !beyond(entry.limit) && beyond(entry.target) };
+  const reportOnly = !timed
+    ? undefined
+    : ctx.project !== "perf"
+      ? `time budgets gate in the perf project only (this is ${ctx.project ?? "no project"})`
+      : !reference
+        ? factor === null
+          ? "the machine factor was not measured (run through `bun run e2e`)"
+          : `not the reference machine (factor ${factor.toFixed(2)})`
+        : undefined;
+  const over = beyond(limit);
+  return {
+    id,
+    value,
+    entry,
+    target,
+    limit,
+    failed: over && reportOnly === undefined,
+    warned: (over && reportOnly !== undefined) || (!over && beyond(target)),
+    ...(over && reportOnly !== undefined ? { reportOnly } : {}),
+  };
 }
