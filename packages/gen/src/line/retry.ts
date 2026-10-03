@@ -15,7 +15,13 @@ export function planRetryImpl(verdicts: readonly LineVerdict[], coverage: Covera
   const whole = rejected.length >= GEN_LIMITS.wholeRetryMinErrors && rejected.length > GEN_LIMITS.wholeRetryErrorShare * blockLines;
   const errors = rejected.flatMap((v) => v.errors).slice(0, GEN_LIMITS.retryErrorsShown);
   const missing: string[] = [];
-  for (const a of coverage.missingAspects) missing.push(`aspect ${a}`);
+  // a flow aspect names its flow and section, so the fix lands under that flow (not the last one written)
+  const gaps = coverage.flowGaps ?? [];
+  for (const a of coverage.missingAspects) {
+    const of = gaps.filter((g) => g.aspect === a);
+    if (of.length === 0) missing.push(`aspect ${a}`);
+    else for (const g of of) missing.push(`aspect ${a} of flow ${g.key} (a block with "section":"s3/${g.key}")`);
+  }
   if (coverage.moduleLineMissing) missing.push("module line");
   // `ok` is false with nothing else missing ⇒ fewer flow lines than the task's minimum.
   if (!coverage.ok && coverage.missingAspects.length === 0 && !coverage.moduleLineMissing && !coverage.truncated)

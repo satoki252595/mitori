@@ -204,6 +204,17 @@ export function placeMarkers(md: string, ns: readonly number[]): string | null {
   return out;
 }
 
+/** `md` without its `[[n]]` markers (outside code). */
+export function stripMarkers(md: string): string {
+  const markers = scanMarkers(md);
+  let out = md;
+  for (let i = markers.length - 1; i >= 0; i--) {
+    const m = markers[i] as Marker;
+    out = out.slice(0, m.start) + out.slice(m.end);
+  }
+  return out;
+}
+
 /**
  * W12 (Japanese): drop the spaces models put after full-width punctuation (`返す。 次に`, `（推測）。 AI`). The style
  * rule asks for one ASCII space only between Japanese and Latin text; after 。、）」 it shows as a gap. Code is kept.

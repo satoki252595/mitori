@@ -437,6 +437,8 @@ export interface LineVerdict {
 export interface CoverageReport {
   /** Required aspects missing. */
   missingAspects: BlockAspect[];
+  /** gen.flows: the flows that miss a required aspect, as `{key, aspect}` (the retry names the flow and its section). */
+  flowGaps?: { key: string; aspect: BlockAspect }[];
   /** EXISTING ids not accounted (auto-kept, W06). */
   unaccounted: BlockId[];
   /** Module line missing. */
@@ -646,7 +648,7 @@ export const GEN_PROMPTS = {
   },
   "gen.flows": {
     id: "gen.flows",
-    version: "gen.flows@2",
+    version: "gen.flows@3",
     system: "gen.system",
     stage: "S6o",
     data: ["SEEDS", "BODIES", "MODULES", "EXISTING_FLOWS", "EXISTING"],

@@ -4,6 +4,7 @@ import type { CitableSet, ExistingRef, GenBlockLine, GenClaimDraft, GenLineType,
 import { sectionAspects } from "./aspects.ts";
 import { parseCiteObject, parseCompactClaim } from "./claims.ts";
 import { createLineValidator } from "./index.ts";
+import { planRetryImpl } from "./retry.ts";
 
 const MOD = "md_7hq2m4xa" as ModuleId;
 const B1 = "b_k3f9a2cq" as BlockId;
@@ -573,6 +574,7 @@ describe("module, term, flow lines", () => {
       moduleLineRequired: false,
       modules: new Set([MOD]),
     });
+  const flowsCtx2 = () => ({ ...flowsCtx(), flows: { min: 3, max: 3 } });
 
   test("flow blocks take the current flow's section; V24 for blocks before the flow line, duplicates and too many flows", () => {
     const { verdicts, v } = run(
@@ -595,7 +597,46 @@ describe("module, term, flow lines", () => {
     const cov = v.finish("end");
     expect(cov.flows).toBe(2);
     expect(cov.missingAspects).toEqual(["steps"]);
+    expect(cov.flowGaps).toEqual([{ key: "logout", aspect: "steps" }]);
     expect(cov.ok).toBe(false);
+  });
+
+  test("a flow block without section goes to the first flow lacking its aspect; the retry names the flow (real run 2026-10-04: m3e §3 failed)", () => {
+    const flow = (key: string) => j({ t: "flow", key, title: key });
+    let n = 1;
+    const blk = (aspect: string) => j({ t: "block", id: `new:${n++}`, aspect, md: "1. x", claims: {} });
+    const lines = [blk("intro"), flow("a"), blk("summary"), blk("steps"), flow("b"), blk("summary"), flow("c"), blk("summary"), blk("steps")];
+    const v = createLineValidator(flowsCtx2());
+    for (const [i, l] of lines.entries()) expect(v.validate(l, i + 1).errors).toEqual([]);
+    const cov = v.finish("end");
+    expect(cov.flowGaps).toEqual([{ key: "b", aspect: "steps" }]);
+    expect(planRetryImpl([], cov, 1)?.missing).toEqual(['aspect steps of flow b (a block with "section":"s3/b")']);
+    // the retry's steps block without a section lands under b, not under the last flow c
+    const late = v.validate(blk("steps"), 99);
+    expect(blockOf(late).section).toBe("s3/b");
+    expect(v.finish("end").ok).toBe(true);
+  });
+
+  test("W10: a diagram caption loses its markers and claims (never rendered as cites under the drawing)", () => {
+    const diagram = { kind: "sequence", nodes: [{ id: "user", label: "利用者", shape: "actor" }], edges: [] };
+    const { verdicts } = run(
+      [
+        j({ t: "flow", key: "login", title: "ログイン" }),
+        j({
+          t: "block",
+          id: "new:1",
+          aspect: "sequence",
+          md: "`Editor` が状態を更新する[[1]]。",
+          claims: { "1": "behavior internal/session/store.go:3" },
+          diagram,
+        }),
+      ],
+      flowsCtx(),
+    );
+    expect(rules(verdicts[1] as LineVerdict)).toEqual([]);
+    expect(blockOf(verdicts[1]).md).toBe("`Editor` が状態を更新する。");
+    expect(claimsOf(verdicts[1])).toEqual([]);
+    expect(verdicts[1]?.warnings).toContain("W10");
   });
 
   test("V20 / V21 diagrams (flows limit 12 nodes, unknown edge node, seq gaps, unknown module ref)", () => {

@@ -24,7 +24,7 @@ import { BLOCK_ASPECTS, kindsOf } from "./aspects.ts";
 import { isObject, parseCiteObject, parseClaims, short } from "./claims.ts";
 import { validateDiagram } from "./diagram.ts";
 import { headingProblem, inlineProblems, isGfmTable, mdLength } from "./mdrules.ts";
-import { codeRanges, markersInCode, normalizeMarkers, placeMarkers, scanMarkers, tightenFullWidth } from "./mdscan.ts";
+import { codeRanges, markersInCode, normalizeMarkers, placeMarkers, scanMarkers, stripMarkers, tightenFullWidth } from "./mdscan.ts";
 
 /** A cite that cannot be accepted as written. */
 interface CiteProblem {
@@ -188,19 +188,23 @@ export class GenLineValidator implements LineValidator {
     const has = (section: SectionId | null, aspect: BlockAspect) =>
       this.accepted.some((a) => a.aspect === aspect && (section === null || a.section === section));
     const missing: BlockAspect[] = [];
+    const flowGaps: { key: string; aspect: BlockAspect }[] = [];
     if (this.flowsEnabled) {
       for (const a of ctx.requiredAspects) {
         if (!FLOW_ASPECTS.includes(a)) {
           if (!has(null, a)) missing.push(a);
           continue;
         }
-        if (this.flowKeys.some((k) => !has(`s3/${k}`, a))) missing.push(a);
+        const lacking = this.flowKeys.filter((k) => !has(`s3/${k}`, a));
+        if (lacking.length > 0) missing.push(a);
+        for (const key of lacking) flowGaps.push({ key, aspect: a });
       }
     } else for (const a of ctx.requiredAspects) if (!has(null, a)) missing.push(a);
     const moduleLineMissing = ctx.moduleLineRequired && this.moduleLines.size === 0;
     const truncated = (stop === "budget" || stop === "max_turns") && !this.endSeen;
     return {
       missingAspects: missing,
+      ...(flowGaps.length > 0 ? { flowGaps } : {}),
       unaccounted: [...ctx.existing.keys()].filter((id) => !this.accounted.has(id)),
       moduleLineMissing,
       flows: this.flowKeys.length,
@@ -286,6 +290,13 @@ export class GenLineValidator implements LineValidator {
     if (parsed.aliased > 0) c.warn("W09");
     for (const p of parsed.problems) c.err("V03", p.at, p.expected, p.actual);
     let claims = parsed.claims;
+    // a diagram caption is shown under its drawing, where markers are not rendered as cites, and the flow's steps carry
+    // the claims: both are dropped (W10) [real run 2026-10-04: a raw [[1]] under every m3e sequence diagram]
+    if (kind === "diagram" && mdOk && (claims.length > 0 || scanMarkers(mdNorm).length > 0)) {
+      mdNorm = stripMarkers(mdNorm);
+      claims = [];
+      c.warn("W10");
+    }
     // patch lines without "claims" (doc.translate / doc.simplify) keep the block's claims: markers [[1]]..[[n]] once each
     if (mdOk && patch && o.claims === undefined && existing) this.inheritedMarkers(mdNorm, existing.claims, c);
     else if (mdOk) {
@@ -359,11 +370,15 @@ export class GenLineValidator implements LineValidator {
       return norm;
     }
     if (aspect && this.flowsEnabled && FLOW_ASPECTS.includes(aspect)) {
-      const key = this.flowKeys.at(-1);
-      if (!key) {
+      const last = this.flowKeys.at(-1);
+      if (!last) {
         c.err("V24", "/aspect", "a flow line before the blocks of a flow", aspect);
         return null;
       }
+      // a flow has one block per aspect: when the current flow already has this one, the block belongs to the first
+      // flow that lacks it (a retry adds the missing steps of an earlier flow; real run 2026-10-04: m3e §3 failed)
+      const taken = (k: string) => this.accepted.some((x) => x.section === `s3/${k}` && x.aspect === aspect);
+      const key = taken(last) ? (this.flowKeys.find((k) => !taken(k)) ?? last) : last;
       return `s3/${key}`;
     }
     if (aspect) for (const s of ctx.sections) if (ctx.aspectsOf(s).includes(aspect)) return s;

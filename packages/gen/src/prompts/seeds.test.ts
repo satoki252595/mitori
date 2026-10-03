@@ -65,13 +65,17 @@ function index(own: FlowSeed[] = []): Pick<Indexer, "flowSeeds" | "modules" | "g
 }
 
 describe("GEN-U-070 flow seeds when the index has no entry point (real run 2026-10-04: m3e §3 was never generated)", () => {
-  test("seeds start at the root module's never-imported files, at their main exported callable, and walk the strongest edges", () => {
+  test("the most outgoing root file reaches each important module (rank order) at its main callable; then the strongest-edge walks", () => {
     const seeds = derivedSeeds(index(), 3);
     expect(seeds.map((s) => [s.label, s.files, s.modules])).toEqual([
-      ["Page (app/page.tsx)", ["app/page.tsx", "app/Editor.tsx", "lib/tokens.ts"], [M_APP, M_TOK]],
-      ["Editor (app/Editor.tsx)", ["app/Editor.tsx", "lib/tokens.ts"], [M_APP, M_TOK]],
+      // the prompt builder is reached although the heaviest edge goes to tokens (real run 2026-10-04: m3e)
+      ["Editor → lib/tokens.ts", ["app/Editor.tsx", "lib/tokens.ts"], [M_APP, M_TOK]],
+      ["Editor → lib/prompt.ts", ["app/Editor.tsx", "lib/prompt.ts"], [M_APP, M_PRM]],
+      ["Page → lib/tokens.ts", ["app/page.tsx", "app/Editor.tsx", "lib/tokens.ts"], [M_APP, M_TOK]],
     ]);
-    expect(seeds[1]).toMatchObject({ k: 2, kind: "entry", path: "app/Editor.tsx", line: 40, handler: "app/Editor.tsx#Editor" });
+    expect(seeds[0]).toMatchObject({ k: 1, kind: "entry", path: "app/Editor.tsx", line: 40, handler: "app/Editor.tsx#Editor" });
+    // test files never start or join a flow
+    expect(seeds.flatMap((s) => s.files)).not.toContain("app/Editor.test.tsx");
   });
 
   test("the index's own seeds win; derived seeds are deterministic and capped", () => {
