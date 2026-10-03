@@ -7,6 +7,9 @@ import {
   type Cite,
   type Claim,
   type ClaimId,
+  canonicalJson,
+  type DiagramId,
+  type DiagramIR,
   DOC_TEMPLATE,
   type DocManifest,
   type DocModuleEntry,
@@ -48,6 +51,11 @@ import {
 const MITORI_VERSION = "0.0.0";
 
 const emptyResult = (): ApplyResult => ({ written: [], deleted: [], proposals: [], unchanged: [], idMap: {} });
+
+/** A diagram IR as persisted: with its id, node weights rounded to 4 decimals (§10.8). */
+function irOf(d: Omit<DiagramIR, "id">, id: DiagramId): DiagramIR {
+  return { ...d, id, nodes: d.nodes.map((n) => (n.weight === undefined ? n : { ...n, weight: round4(n.weight) })) };
+}
 
 /** Mint docId + skeleton manifest if absent [CONS-11]. */
 export function ensureManifest(core: StoreCore): DocManifest {
@@ -278,7 +286,7 @@ function upsertStatic(core: StoreCore, spec: StaticSpec, res: ApplyResult): void
     });
     if (spec.diagram) {
       const dg = core.diagramId(spec.slot);
-      st.diagrams.set(dg, { ...spec.diagram, id: dg });
+      st.diagrams.set(dg, irOf(spec.diagram, dg));
       nrec.meta.diagram = dg;
     }
     st.insertBlock(nrec, spec.section, core.insertIndex(spec.section, spec.rank));
@@ -296,8 +304,9 @@ function upsertStatic(core: StoreCore, spec: StaticSpec, res: ApplyResult): void
     st.renumber(to);
   }
   if (spec.diagram && rec.meta.diagram) {
-    const ir = { ...spec.diagram, id: rec.meta.diagram };
-    if (JSON.stringify(st.diagrams.get(rec.meta.diagram)) !== JSON.stringify(ir)) {
+    const ir = irOf(spec.diagram, rec.meta.diagram);
+    const old = st.diagrams.get(rec.meta.diagram);
+    if (!old || canonicalJson(old) !== canonicalJson(ir)) {
       st.diagrams.set(rec.meta.diagram, ir);
       st.touchIndex();
     }
@@ -581,7 +590,7 @@ export function applyGenerated(core: StoreCore, blocks: GeneratedBlock[], opts: 
       rec.meta.gen = gb.gen;
       if (gb.diagram) {
         const dg = core.diagramId(`ai:${id}`);
-        st.diagrams.set(dg, { ...gb.diagram, id: dg });
+        st.diagrams.set(dg, irOf(gb.diagram, dg));
         rec.meta.diagram = dg;
       }
       const anchor = after ? st.blocks.get(after) : undefined;
@@ -626,7 +635,7 @@ export function applyGenerated(core: StoreCore, blocks: GeneratedBlock[], opts: 
     if (gb.aspect) rec.meta.aspect = gb.aspect;
     if (gb.diagram) {
       const dg = rec.meta.diagram ?? core.diagramId(`ai:${rec.meta.id}`);
-      st.diagrams.set(dg, { ...gb.diagram, id: dg });
+      st.diagrams.set(dg, irOf(gb.diagram, dg));
       rec.meta.diagram = dg;
     }
     core.setText(rec, marker);

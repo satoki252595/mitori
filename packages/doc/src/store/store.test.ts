@@ -277,6 +277,24 @@ describe("DOC-U-017 proposals, accept / reject / undo", () => {
     h.store.undoAccept([res.proposals[0] as never]);
     expect(h.store.block(id as BlockId)?.kind).toBe("list");
   });
+  test("§10.8 diagram IR weights are stored rounded to 4 decimals", () => {
+    const h = seeded();
+    const diagram = {
+      kind: "flow" as const,
+      nodes: [
+        { id: "a", label: "A", weight: 0.123456 },
+        { id: "b", label: "B" },
+      ],
+      edges: [{ id: "e1", from: "a", to: "b", kind: "calls" as const }],
+      groups: [],
+      direction: "RIGHT" as const,
+      origin: "ai" as const,
+    };
+    const [id] = h.store.applyGenerated([block({ section: "s3", aspect: "intro", kind: "diagram", depth: "L1", md: "流れ", diagram })], opts)
+      .written as BlockId[];
+    const dg = h.store.block(id as BlockId)?.diagram as string;
+    expect(h.store.index().diagrams[dg as never]?.nodes.map((n) => n.weight)).toEqual([0.1235, undefined]);
+  });
   test("insert proposals land after their anchor; undo removes them", () => {
     const h = seeded();
     const [id] = h.store.applyGenerated([block({ md: "既存。" })], opts).written as BlockId[];
