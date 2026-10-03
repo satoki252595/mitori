@@ -554,6 +554,13 @@ test.describe("@export chrome", () => {
     const { page } = await openExport(ctx, RICH, "#/s3");
     expect(await noSideScroll(page)).toBe(true);
     await expect(page.locator(".rail")).toBeHidden();
+    // the measure stays ≥ 34 full-width characters per line (AC-U-W01)
+    const perLine = await page.evaluate(() => {
+      const root = document.querySelector(".reader-root") as HTMLElement;
+      const p = document.querySelector(".blk p") as HTMLElement | null;
+      return root.getBoundingClientRect().width / Number.parseFloat(getComputedStyle(p ?? root).fontSize);
+    });
+    expect(perLine).toBeGreaterThanOrEqual(34);
     await page.locator(".menu-btn").click();
     await expect(page.locator(".rail")).toBeVisible();
     await page.locator('.toc a[data-toc="s9"]').click();

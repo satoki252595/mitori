@@ -274,7 +274,8 @@ export async function buildPayload(d: BuildDeps, req: ExportReq): Promise<Payloa
   };
 
   async function blockView(b: Block): Promise<BlockView> {
-    const claims = doc.claims(b.id).map((c) => ({ ...c, quote: Q(c.quote) }));
+    // who verified a claim is a person's name and e-mail (git user): the shared file keeps the verdict, not the person
+    const claims = doc.claims(b.id).map(({ verifiedBy: _who, ...c }) => ({ ...c, quote: Q(c.quote) }));
     const md = secrets.redact(b.md);
     redactions += md.redactions;
     const dg = b.kind === "diagram" ? await diagramFor(b) : null;
@@ -308,7 +309,7 @@ export async function buildPayload(d: BuildDeps, req: ExportReq): Promise<Payloa
     const mdLine = lineOf(b.id);
     const lock = b.lock ? ` data-lock="${esc(b.lock)}"` : "";
     const html = `<div class="mb" data-block="${b.id}" data-kind="${b.kind}" data-depth="${b.depth}" data-fresh="${b.freshness}"${lock} data-ln="${mdLine}">${inner}</div>`;
-    const { md: _md, gen: _gen, hash: _hash, ...meta } = b;
+    const { md: _md, gen: _gen, hash: _hash, verifiedBy: _by, ...meta } = b;
     return {
       ...meta,
       hash: "",
@@ -389,7 +390,8 @@ export async function buildPayload(d: BuildDeps, req: ExportReq): Promise<Payloa
       primaryLang: manifest.primaryLang,
       effort: manifest.effort,
       coverage: manifest.coverage,
-      usageTotals: manifest.usageTotals,
+      // what the generation cost is the owner's business, not the reader's
+      usageTotals: { in: 0, out: 0, cacheRead: 0, cacheWrite: 0, calls: 0, apiUsd: 0 },
       generatedAt: manifest.generatedAt,
       models: manifest.models,
     },

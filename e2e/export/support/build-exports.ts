@@ -40,7 +40,7 @@ export async function buildCase(name: string, out: string): Promise<BuiltExport 
     cleanup = () => repo.dispose();
   } else repoPath = prepareDogfood(name, work);
   if (!repoPath) return null;
-  const daemon = await startTestDaemon({ repoPath });
+  const daemon = await startTestDaemon({ repoPath, binary: process.env.MITORI_E2E_BINARY === "compiled" ? "compiled" : "source" });
   try {
     const api = await connect(daemon);
     await until(api, (c) => c.blocks > 0, "the static doc", 90_000);

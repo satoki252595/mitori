@@ -59,6 +59,7 @@ daemon 構成 + `mitori export` コマンド）、`e2e/export/payload-contract.t
   （残りの約 70 KB が 60 KB 予算に入らない）。
 - **秘密**: 描画前の md・claim の引用・節題・用語集・図ラベル・マップ・パレット・抜粋の全部に走査。抜粋は**ファイル全体**を伏せ字にしてから行を切り出す
   （文脈が要る秘密も見つかる）。deny-glob / 秘密ファイルは indexer が除外しているので、そもそも読まない。同じ行を何度引用しても件数は 1。
+- **渡さないもの**: claim の確認者（`git config` の名前・メール）と生成にかかった費用（`usageTotals` は 0 に）。判定（`human-verified` など）は残る。ブロックの生成メタ（モデル・prompt 版）も入れない。
 - **配線**: `POST /ws/:ws/export`（CLI 用、`ExportRes`）・`GET /ws/:ws/export/html`（ダウンロード）は workspace ごとの exporter（CR m1-7）。
   `gen-assets` が viewer を web dist に `assets/viewer-<hash>.js|css` + `viewer/viewer.json` で入れる（バイナリに同梱、`bun run size` が測る）。
   viewer が無い checkout では「viewer bundle is not built」で拒否 — 動かない白紙は書かない。
@@ -74,6 +75,8 @@ daemon 構成 + `mitori export` コマンド）、`e2e/export/payload-contract.t
 | ![](compare-05-palette.png) | ⌘K。**違い**: 操作グループは viewer の 12 個、スレッド・最近は無い。「本文」グループは export だけ |
 | ![](compare-06-dark.png) | ダーク。図も追従 |
 | ![](compare-07-map.png) | 見取り図。ELK 配置（daemon）の間取り図を `PlanController` で。**違い**: 生成カード・ヒーロー・0 tok 帯は無く、統計タイル + 「5分で分かる」列 |
+
+コンパイル済みバイナリ（`bun run build:bin`、70.6 MB）でも同じ結果（`MITORI_E2E_BINARY=compiled`: crit 1576 KB・263 抜粋・secrets 6 件、@export 25 本緑）。
 
 他: [crit 全 13 枚](crit-01-reader-standard-s0.png)（標準・初めて・詳しい・peek・地図・部屋・⌘K・ダーク・EN・狭い窓・ドロワー）、
 [rich](rich-02-reader-standard-flows.png)（深さ L0–L3・why・用語カード・全 verdict の合成文書）、[m3e-canvas](m3e-02-reader-standard-flows.png)。
