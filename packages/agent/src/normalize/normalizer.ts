@@ -32,6 +32,8 @@ export interface NormalizerImpl extends StreamNormalizer {
   meter(): MeterImpl;
   /** State of the current (or last finished) turn. */
   turn(): TurnInfo;
+  /** A new turn starts now (its prompt is being written): fresh meter and turn state even if it never prints a line. */
+  beginTurn(): void;
 }
 
 export interface NormalizerOpts {
@@ -57,14 +59,20 @@ const sameSet = (a: readonly string[], b: readonly string[]): boolean => {
   return s.size === new Set(b).size && b.every((x) => s.has(x));
 };
 
+/** A required field of a stream-json event is missing: the CLI changed its output (testing spec §8.4, AGT-U-027). */
+const shapeChanged = (what: string): Violation => ({ code: "E_AGENT_CAPABILITY", message: `${what} (claude stream-json changed; use Pull or Copy as prompt)` });
+
 /** Initial `system/init` check (I11). */
 export function checkInit(init: Init, expect: InitExpectation): Violation | null {
+  const raw = init as { apiKeySource?: unknown; tools?: unknown; mcp_servers?: unknown; model?: unknown };
+  if (typeof raw.apiKeySource !== "string" || !Array.isArray(raw.tools) || !Array.isArray(raw.mcp_servers) || typeof raw.model !== "string") {
+    return shapeChanged("system/init lacks apiKeySource, tools, mcp_servers or model");
+  }
   if (expect.subscription && init.apiKeySource !== "none") {
     return { code: "E_AGENT_AUTH_SOURCE", message: `apiKeySource is ${String(init.apiKeySource)}, expected none (subscription)` };
   }
-  if (!Array.isArray(init.tools) || !sameSet(init.tools, expect.tools))
-    return { code: "E_AGENT_CAPABILITY", message: "tools differ from the requested profile" };
-  if (!Array.isArray(init.mcp_servers) || init.mcp_servers.length > 0) return { code: "E_AGENT_CAPABILITY", message: "MCP servers were loaded" };
+  if (!sameSet(init.tools, expect.tools)) return { code: "E_AGENT_CAPABILITY", message: "tools differ from the requested profile" };
+  if (init.mcp_servers.length > 0) return { code: "E_AGENT_CAPABILITY", message: "MCP servers were loaded" };
   if (Array.isArray(init.skills) && init.skills.length > 0) return { code: "E_AGENT_CAPABILITY", message: "skills were loaded" };
   const m = String(init.model);
   if (!(m === expect.model || (m.startsWith(`${expect.model}-`) && DATED_RE.test(m.slice(expect.model.length + 1))))) {
@@ -188,7 +196,17 @@ export function createNormalizer(opts: NormalizerOpts): NormalizerImpl {
     }
   };
 
+  const flag = (v: Violation, out: JobEvent[]): void => {
+    if (violation) return;
+    violation = v;
+    out.push({ t: "error", code: v.code, message: v.message, retryable: false, at: now() });
+  };
+
   const onResult = (ev: ClaudeResultEvent, out: JobEvent[]): void => {
+    const u = (ev as { usage?: unknown }).usage as Record<string, unknown> | undefined;
+    // usage(final) comes only from the result: without its token counts the turn is metered and the CLI flagged
+    const hasUsage = typeof u === "object" && u !== null && typeof u.input_tokens === "number" && typeof u.output_tokens === "number";
+    if (!hasUsage) flag(shapeChanged("result lacks usage.input_tokens/output_tokens"), out);
     const usage = usageFromResult(ev, opts.expect.model, prevCost, prevModelUsage);
     if (typeof ev.total_cost_usd === "number") prevCost = ev.total_cost_usd;
     info.multiModel = ev.modelUsage !== undefined && Object.keys(ev.modelUsage).length > 1;
@@ -198,7 +216,7 @@ export function createNormalizer(opts: NormalizerOpts): NormalizerImpl {
     turnOpen = false;
     const stop = stopOfResult(ev, info.refusal !== null);
     const at = now();
-    out.push({ t: "usage", usage, final: true, at });
+    if (hasUsage) out.push({ t: "usage", usage, final: true, at });
     const denials: Denial[] = (ev.permission_denials ?? []).map((d) => {
       const raw = d.tool_input?.file_path ?? d.tool_input?.path;
       const target = rel(raw) ?? (typeof raw === "string" ? raw : undefined);
@@ -220,10 +238,7 @@ export function createNormalizer(opts: NormalizerOpts): NormalizerImpl {
     if (ev.type === "system" && ev.subtype === "init") {
       info.init = ev as Init;
       const v = checkInit(ev as Init, opts.expect);
-      if (v && !violation) {
-        violation = v;
-        out.push({ t: "error", code: v.code, message: v.message, retryable: false, at: now() });
-      }
+      if (v) flag(v, out);
       return;
     }
     if (ev.type !== "result" && !thinkEmitted) {
@@ -284,9 +299,15 @@ export function createNormalizer(opts: NormalizerOpts): NormalizerImpl {
         return [];
       }
       garbage = 0;
-      if (!turnOpen && (ev as { type: string }).type !== "result") startTurn();
+      const type = (ev as { type: string }).type;
+      if (!turnOpen && type !== "result") startTurn();
       const out: JobEvent[] = [];
-      handle(ev as ClaudeStreamEvent, out);
+      try {
+        handle(ev as ClaudeStreamEvent, out);
+      } catch {
+        // a known event type without its required fields must not kill the stdout pump
+        flag(shapeChanged(`malformed ${type} event`), out);
+      }
       return out;
     },
     end(exitCode: number): JobEvent[] {
@@ -302,5 +323,6 @@ export function createNormalizer(opts: NormalizerOpts): NormalizerImpl {
     violation: () => violation,
     meter: () => meter,
     turn: () => info,
+    beginTurn: startTurn,
   };
 }

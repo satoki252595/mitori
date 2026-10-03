@@ -733,10 +733,15 @@ function finish(): never {
     if (note) Object.assign(out, { note });
   }
   writeFileSync(file, `${JSON.stringify(out, null, 2)}\n`);
+  const written = [file];
   if (LIVE && failed.length === 0 && ONLY.size === 0) {
     const sha = Bun.spawnSync(["git", "rev-parse", "HEAD"], { cwd: ROOT }).stdout.toString().trim();
     writeFileSync(join(HERE, "last-pass.json"), `${JSON.stringify({ claude: cliVersion, codex: null, at: out.at, sha }, null, 2)}\n`);
+    written.push(join(HERE, "last-pass.json"));
   }
+  // committed artefacts: keep them in the repo's format so `bun run check` stays green after a run
+  const biome = join(ROOT, "node_modules/.bin/biome");
+  if (existsSync(biome)) Bun.spawnSync([biome, "format", "--write", ...written], { cwd: ROOT, stdout: "ignore", stderr: "ignore" });
   rmSync(scratch, { recursive: true, force: true });
   console.log(
     `contract-test: ${results.filter((r) => r.status === "pass").length} pass, ${failed.length} fail, ${results.filter((r) => r.status === "skip").length} skip — spent $${out.spentUsd.toFixed(4)} (cap $${MAX_USD})`,

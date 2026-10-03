@@ -29,7 +29,7 @@ import {
 } from "../contract.ts";
 import { createNormalizer, type NormalizerImpl } from "../normalize/normalizer.ts";
 import { Channel, deferred } from "../util/channel.ts";
-import { RESULT_META } from "../util/run.ts";
+import { RESULT_META, zeroUsage } from "../util/run.ts";
 import type { TimerHandle, Timers } from "../util/timers.ts";
 import { claudeUserMessage } from "./index.ts";
 
@@ -121,6 +121,8 @@ export class ClaudeProc {
     if (this.state !== "idle" && this.state !== "parked") throw new MitoriError("E_AGENT_EXIT", "engine process is not available for a new turn");
     this.state = "turn";
     this.parkedSince = null;
+    // a continuation that dies before its first line must not inherit the previous turn's meter (double ledgering)
+    this.normalizer.beginTurn();
     const turn = new Turn(this, this.deps, budget, timeouts, signal);
     this.turn = turn;
     try {
@@ -337,12 +339,16 @@ class Turn {
     const info = this.proc.normalizer.turn();
     if (info.init?.session_id) this.proc.setSessionId(info.init.session_id);
     const r = this.resultEv;
-    const meterUsage = this.proc.normalizer.meter().usage();
+    const meter = this.proc.normalizer.meter();
+    const meterUsage = meter.usage();
+    // No sign of an API request (no output at all, or SIGINT at a failed init check, which precedes the request;
+    // contract CC-09): nothing was spent, so the meter's input estimate must not be ledgered.
+    const idle = !meter.active() && (info.init === null || this.stopReason === "violation");
     // An interrupted turn's `result` reports zero usage (contract CC-16, `terminal_reason: aborted_streaming`):
     // when mitori stopped the turn, the meter is the better (never smaller) figure.
-    const interruptedLow = this.stopReason !== null && this.finalUsage !== null && meterUsage.apiUsd > this.finalUsage.apiUsd;
+    const interruptedLow = !idle && this.stopReason !== null && this.finalUsage !== null && meterUsage.apiUsd > this.finalUsage.apiUsd;
     const estimated = this.finalUsage === null || interruptedLow;
-    const usage = this.finalUsage !== null && !interruptedLow ? this.finalUsage : meterUsage;
+    const usage = this.finalUsage !== null && !interruptedLow ? this.finalUsage : idle ? zeroUsage() : meterUsage;
     let stop: StopReason = r?.stop ?? "error";
     let error: EngineResult["error"];
     const reason = this.stopReason;
@@ -388,7 +394,7 @@ class Turn {
       this.events.push({ t: "result", stop, denials: [], durationMs: res.durationMs, at });
     }
     this.events.close();
-    RESULT_META.set(res, { servedBy: info.servedBy, continuations: info.continuations });
+    RESULT_META.set(res, { servedBy: info.servedBy, continuations: info.continuations, firstCallIn: meter.firstCallIn() });
     this.done.resolve(res);
     if (!exited) this.proc.turnFinished(reason !== null);
   }

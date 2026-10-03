@@ -42,7 +42,7 @@ function modelUsageUsd(cur: ModelUsageMap, prev: ModelUsageMap | undefined): num
 
 /** `result` → core `Usage` (spec §6.5.2). `usage` is per turn; `total_cost_usd` and `modelUsage` are cumulative per process. */
 export function usageFromResult(ev: ClaudeResultEvent, model: ClaudeModelId, prevTotalCostUsd: number, prevModelUsage?: ModelUsageMap): Usage {
-  const u = ev.usage;
+  const u: Partial<ClaudeResultEvent["usage"]> = typeof ev.usage === "object" && ev.usage !== null ? ev.usage : {};
   const cacheWrite = n0(u.cache_creation_input_tokens);
   const cacheWrite1h = Math.min(cacheWrite, n0(u.cache_creation?.ephemeral_1h_input_tokens));
   const t = {

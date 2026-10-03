@@ -132,8 +132,10 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
       ? (req: ScheduledRequest, res: EngineResult): void => {
           const meta = RESULT_META.get(res);
           if (!meta || res.usageEstimated || res.stop !== "end" || !(req.model in PRICING)) return;
-          const total = res.usage.in + res.usage.cacheWrite + res.usage.cacheRead;
-          const over = Math.round(total - promptTokens(req.prompt, req.model as ClaudeModelId));
+          // the fixed overhead is in the FIRST call of a turn; an agent turn's result sums every tool round-trip
+          const first = meta.firstCallIn ?? (req.mode === "agent" ? null : res.usage.in + res.usage.cacheWrite + res.usage.cacheRead);
+          if (first === null) return;
+          const over = Math.round(first - promptTokens(req.prompt, req.model as ClaudeModelId));
           // CR-PENDING(WP-05) cr-requests #6: the profile key callers can compute (engine, mode, model, prompt version)
           ledger.recordOverhead?.(deps.hasher.xxh3(`${req.engine}\n${req.mode}\n${req.model}\n${req.promptVer}`), over);
         }

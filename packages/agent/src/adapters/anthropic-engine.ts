@@ -23,7 +23,7 @@ import {
 } from "../contract.ts";
 import { baseModelId } from "../normalize/result.ts";
 import { createMeter } from "../usage/meter.ts";
-import { RESULT_META, RelayRun } from "../util/run.ts";
+import { RESULT_META, RelayRun, zeroUsage } from "../util/run.ts";
 import type { TimerHandle, Timers } from "../util/timers.ts";
 import { buildAnthropicRequest } from "./index.ts";
 import { sseEvents } from "./sse.ts";
@@ -103,16 +103,19 @@ export function createAnthropicApiEngine(deps: AnthropicEngineDeps): Engine {
     void (async () => {
       const c = cfg();
       const k = key();
+      let body: ReturnType<typeof buildAnthropicRequest>;
       try {
         if (!c.enabled) throw new MitoriError("E_AGENT_NOT_INSTALLED", "anthropic-api is disabled in settings");
         if (k === null) throw new MitoriError("E_AGENT_AUTH", "anthropic-api key is not available");
         if (!(c.monthlyCapUsd > 0) || spent() >= c.monthlyCapUsd) throw new MitoriError("E_BUDGET_EXCEEDED", "anthropic-api monthly cap reached");
+        // agent mode / non-Claude model / bad cache layout: refused before any request
+        body = buildAnthropicRequest(req);
       } catch (err) {
         const e = MitoriError.from(err);
+        signal.removeEventListener("abort", onAbort);
         outer.fail(e.code, e.message);
         return;
       }
-      const body = buildAnthropicRequest(req);
       const model = body.model as ClaudeModelId;
       const { betas, ...wire } = body;
       const headers: Record<string, string> = { "content-type": "application/json", "x-api-key": k as string, "anthropic-version": API_VERSION };
@@ -137,9 +140,12 @@ export function createAnthropicApiEngine(deps: AnthropicEngineDeps): Engine {
       let firstAt: number | null = null;
       const usage = { in: 0, cw: 0, cw1h: 0, cr: 0, out: 0 };
       let sawStart = false;
+      /** The API answered with an error status: the request was rejected, so nothing was billed. */
+      let rejected = false;
       try {
         const res = await deps.fetch(API_URL, { method: "POST", headers, body: JSON.stringify(wire), signal: ctl.signal });
         if (!res.ok || !res.body) {
+          rejected = !res.ok;
           const h = httpError(res.status);
           err = { ...h, message: `anthropic-api HTTP ${res.status}` };
           if (h.code === "E_AGENT_RATE_LIMIT") events.push({ t: "error", code: h.code, message: err.message, retryable: true, at: deps.clock.now() });
@@ -198,21 +204,23 @@ export function createAnthropicApiEngine(deps: AnthropicEngineDeps): Engine {
         signal.removeEventListener("abort", onAbort);
       }
       const final = apiStop !== null && stopReason === null;
-      const u: Usage = final
-        ? {
-            in: usage.in,
-            cacheWrite: usage.cw,
-            cacheWrite1h: usage.cw1h,
-            cacheRead: usage.cr,
-            out: usage.out,
-            apiUsd: priceUsage(
-              model,
-              { in: usage.in, cacheWrite5m: usage.cw - usage.cw1h, cacheWrite1h: usage.cw1h, cacheRead: usage.cr, out: usage.out },
-              false,
-            ),
-            pricingVer: PRICING_VERSION,
-          }
-        : meter.usage();
+      const u: Usage = rejected
+        ? zeroUsage()
+        : final
+          ? {
+              in: usage.in,
+              cacheWrite: usage.cw,
+              cacheWrite1h: usage.cw1h,
+              cacheRead: usage.cr,
+              out: usage.out,
+              apiUsd: priceUsage(
+                model,
+                { in: usage.in, cacheWrite5m: usage.cw - usage.cw1h, cacheWrite1h: usage.cw1h, cacheRead: usage.cr, out: usage.out },
+                false,
+              ),
+              pricingVer: PRICING_VERSION,
+            }
+          : meter.usage();
       let stopR: EngineResult["stop"] =
         stopReason === "budget"
           ? "budget"
@@ -230,7 +238,7 @@ export function createAnthropicApiEngine(deps: AnthropicEngineDeps): Engine {
       const result: EngineResult = {
         stop: stopR,
         usage: u,
-        usageEstimated: !final,
+        usageEstimated: !final && !rejected,
         denials: [],
         auth: "api-key",
         durationMs: Math.max(0, deps.clock.now() - startedAt),

@@ -1,5 +1,5 @@
-import { type Cancel, type Clock, type EngineStatus, type GlobalSettings, type JobEvent, type Logger, MitoriError } from "@mitori/core";
-import { type Engine, type EngineRequest, type EngineResult, type EngineRun, SIGINT_GRACE_MS, type Spawner } from "../contract.ts";
+import { type Cancel, type Clock, createSecretScanner, type EngineStatus, type GlobalSettings, type JobEvent, type Logger, MitoriError } from "@mitori/core";
+import { type ChildHandle, type Engine, type EngineRequest, type EngineResult, type EngineRun, SIGINT_GRACE_MS, type Spawner } from "../contract.ts";
 import { RelayRun, zeroUsage } from "../util/run.ts";
 import type { Timers } from "../util/timers.ts";
 import { buildGenericSpawn, extractJsonFromText } from "./index.ts";
@@ -23,6 +23,7 @@ const STDOUT_MAX = 1024 * 1024;
 /** generic engine (global argv; prompt on stdin, reply on stdout, no usage data; spec §6.11). */
 export function createGenericEngine(deps: GenericEngineDeps): Engine {
   const cfg = () => deps.settings().engines.generic;
+  const secrets = createSecretScanner();
 
   const detect = async (): Promise<EngineStatus> => {
     const c = cfg();
@@ -60,7 +61,14 @@ export function createGenericEngine(deps: GenericEngineDeps): Engine {
         return;
       }
       const started = deps.clock.now();
-      const child = deps.spawner.spawn(spec);
+      let child: ChildHandle;
+      try {
+        child = deps.spawner.spawn(spec);
+      } catch (err) {
+        // ENOENT/EACCES of the configured argv[0]: the engine could not start (no call, no ledger row)
+        outer.fail("E_AGENT_EXIT", `generic engine failed to start: ${err instanceof Error ? err.message : String(err)}`, { retryable: true });
+        return;
+      }
       let stopped: "cancel" | "timeout" | null = null;
       let kill: unknown = null;
       const interrupt = (why: "cancel" | "timeout") => {
@@ -83,27 +91,38 @@ export function createGenericEngine(deps: GenericEngineDeps): Engine {
       signal.addEventListener("abort", onAbort, { once: true });
       outer.onStopEarly = () => interrupt("cancel");
       const turn = deps.timers.set(() => interrupt("timeout"), spec.timeoutMs);
-      child.write(spec.stdin);
-      child.closeStdin();
       let out = "";
       let truncated = false;
+      let ioError: string | null = null;
       const stderr: string[] = [];
       const errPump = (async () => {
-        for await (const l of child.stderr) {
-          stderr.push(l);
-          if (stderr.length > 50) stderr.shift();
+        try {
+          for await (const l of child.stderr) {
+            stderr.push(l);
+            if (stderr.length > 50) stderr.shift();
+          }
+        } catch {
+          // stderr closed abruptly
         }
       })();
-      for await (const line of child.stdout) {
-        if (out.length + line.length + 1 > STDOUT_MAX) {
-          truncated = true;
-          continue;
+      try {
+        child.write(spec.stdin);
+        child.closeStdin();
+        for await (const line of child.stdout) {
+          if (out.length + line.length + 1 > STDOUT_MAX) {
+            truncated = true;
+            continue;
+          }
+          out += `${line}\n`;
+          if (req.mode === "answer") outer.events.push({ t: "text", delta: `${line}\n`, at: deps.clock.now() });
         }
-        out += `${line}\n`;
-        if (req.mode === "answer") outer.events.push({ t: "text", delta: `${line}\n`, at: deps.clock.now() });
+      } catch (err) {
+        ioError = err instanceof Error ? err.message : String(err);
+        interrupt("cancel");
       }
-      const code = await child.exited;
-      await Promise.race([errPump, Promise.resolve()]);
+      const code = await child.exited.catch(() => -1);
+      // the stderr tail belongs to this exit, but a child whose stderr never closes must not hold the run
+      await Promise.race([errPump, new Promise<void>((r) => globalThis.setTimeout(r, 50))]);
       deps.timers.clear(turn);
       if (kill !== null) deps.timers.clear(kill);
       signal.removeEventListener("abort", onAbort);
@@ -117,13 +136,17 @@ export function createGenericEngine(deps: GenericEngineDeps): Engine {
         durationMs: Math.max(0, deps.clock.now() - started),
       };
       const text = out.replace(/\n$/, "");
-      if (stopped === "cancel") res.stop = "cancelled";
+      const tail = (): string[] => stderr.slice(-3).map((l) => secrets.redact(l).text);
+      if (ioError !== null) {
+        res.stop = "error";
+        res.error = { code: "E_AGENT_EXIT", message: `generic engine I/O failed: ${ioError}`, retryable: true, stderrTail: tail() };
+      } else if (stopped === "cancel") res.stop = "cancelled";
       else if (stopped === "timeout") {
         res.stop = "error";
         res.error = { code: "E_AGENT_TIMEOUT", message: "engine timeout (turn)", retryable: true };
       } else if (code !== 0) {
         res.stop = "error";
-        res.error = { code: "E_AGENT_EXIT", message: `generic engine exited with code ${code}`, retryable: true, stderrTail: stderr.slice(-3) };
+        res.error = { code: "E_AGENT_EXIT", message: `generic engine exited with code ${code}`, retryable: true, stderrTail: tail() };
       } else if (req.mode === "answer") res.text = text;
       else {
         const j = extractJsonFromText(text);

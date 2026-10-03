@@ -71,6 +71,8 @@ interface Job {
   retried: boolean;
   state: "queued" | "running" | "done";
   released: boolean;
+  /** The attempt's terminal `result` event, forwarded only when no retry follows (one `result` per run). */
+  heldResult: Extract<JobEvent, { t: "result" }> | null;
 }
 
 const LANES: readonly Lane[] = ["interactive", "doc", "background"];
@@ -289,10 +291,13 @@ export function createAgentScheduler(deps: SchedulerDeps): AgentScheduler {
     }
   };
 
-  const observe = (job: Job, ev: JobEvent): void => {
+  const observe = (job: Job, ev: JobEvent): boolean => {
     if ((ev.t === "usage" && !ev.final) || ev.t === "text" || ev.t === "result") release(job);
     if (ev.t === "window") onWindow(ev.window);
     if (ev.t === "error" && ev.code === "E_AGENT_RATE_LIMIT") onRateLimit();
+    if (ev.t !== "result") return true;
+    job.heldResult = ev;
+    return false;
   };
 
   const ledgerRow = (job: Job, r: EngineResult): void => {
@@ -339,9 +344,11 @@ export function createAgentScheduler(deps: SchedulerDeps): AgentScheduler {
       job.retried = true;
       job.state = "queued";
       job.released = false;
+      job.heldResult = null;
       queues.interactive.unshift(job);
     } else {
       job.state = "done";
+      if (job.heldResult) job.outer.events.push(job.heldResult);
       job.outer.resolve(r);
       trackEpisode();
     }
@@ -447,7 +454,7 @@ export function createAgentScheduler(deps: SchedulerDeps): AgentScheduler {
     return job.outer;
   };
 
-  const baseJob = (lane: Lane, signal: Cancel): Pick<Job, "seq" | "lane" | "signal" | "outer" | "retried" | "state" | "released"> => ({
+  const baseJob = (lane: Lane, signal: Cancel): Pick<Job, "seq" | "lane" | "signal" | "outer" | "retried" | "state" | "released" | "heldResult"> => ({
     seq: ++seq,
     lane,
     signal,
@@ -455,6 +462,7 @@ export function createAgentScheduler(deps: SchedulerDeps): AgentScheduler {
     retried: false,
     state: "queued",
     released: false,
+    heldResult: null,
   });
 
   return {

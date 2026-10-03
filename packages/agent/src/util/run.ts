@@ -5,8 +5,8 @@ import { Channel, deferred } from "./channel.ts";
 /** Results of runs that never reached an engine (pre-flight failures, cancelled while queued): no ledger row. */
 export const NOT_CALLED = new WeakSet<EngineResult>();
 
-/** Extra per-result facts for the ledger (servedBy, CLI continuations). */
-export const RESULT_META = new WeakMap<EngineResult, { servedBy: string | null; continuations: number }>();
+/** Extra per-result facts for the ledger (servedBy, CLI continuations, input of the turn's first API call). */
+export const RESULT_META = new WeakMap<EngineResult, { servedBy: string | null; continuations: number; firstCallIn?: number | null }>();
 
 export const zeroUsage = (): Usage => ({ in: 0, cacheWrite: 0, cacheWrite1h: 0, cacheRead: 0, out: 0, apiUsd: 0, pricingVer: PRICING_VERSION });
 
@@ -46,15 +46,17 @@ export class RelayRun implements EngineRun {
     return this.settled;
   }
 
-  /** Forward `inner`'s events (each passed to `observe` first); resolves with its result once its events drained. */
-  async attach(inner: EngineRun, observe: (ev: JobEvent) => void = () => {}): Promise<EngineResult> {
+  /**
+   * Forward `inner`'s events (each passed to `observe` first; `false` holds it back); resolves with its result once its
+   * events drained.
+   */
+  async attach(inner: EngineRun, observe: (ev: JobEvent) => boolean | undefined = () => true): Promise<EngineResult> {
     this.inner = inner;
     if (inner.session) this.session = inner.session;
     if (this.stopped) inner.stop(this.stopped);
     const pipe = (async () => {
       for await (const ev of inner.events) {
-        observe(ev);
-        this.events.push(ev);
+        if (observe(ev) !== false) this.events.push(ev);
       }
     })();
     const res = await inner.result;

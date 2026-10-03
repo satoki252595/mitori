@@ -277,4 +277,46 @@ describe("AGT-U-021 stream normalization (spec §6.5.1)", () => {
       expect(out.at(-1)?.t).toBe("result");
     }
   });
+
+  test("AGT-U-027 stream-json shape drift is a capability violation, never an exception (testing spec §8.4)", () => {
+    // a known type without its required fields used to throw out of push() and kill the stdout pump
+    for (const bad of [J({ type: "assistant" }), J({ type: "stream_event" }), J({ type: "stream_event", event: null })]) {
+      const n = createNormalizer({ mode: "answer", expect: EXPECT, now: () => 1000 as never });
+      n.push(init());
+      let out: JobEvent[] = [];
+      expect(() => {
+        out = n.push(bad);
+      }).not.toThrow();
+      expect(n.violation()?.code).toBe("E_AGENT_CAPABILITY");
+      expect(out.some((e) => e.t === "error" && e.code === "E_AGENT_CAPABILITY")).toBe(true);
+    }
+    // init without apiKeySource / tools: the shape changed (not a silent pass of the I11 check)
+    for (const drop of ["apiKeySource", "tools", "mcp_servers", "model"]) {
+      const o = JSON.parse(init()) as Record<string, unknown>;
+      delete o[drop];
+      const { n } = feed([J(o)]);
+      expect({ drop, code: n.violation()?.code }).toEqual({ drop, code: "E_AGENT_CAPABILITY" });
+    }
+    // a result without usage: no usage(final) is invented, the turn is flagged (the engine meters it)
+    const r = JSON.parse(result()) as Record<string, unknown>;
+    delete r.usage;
+    const { n, out } = feed([init(), start({ input_tokens: 10 }), J(r)]);
+    expect(n.violation()?.code).toBe("E_AGENT_CAPABILITY");
+    expect(out.filter((e) => e.t === "usage" && e.final)).toHaveLength(0);
+    expect(out.at(-1)?.t).toBe("result");
+    expect(usageFromClaudeResult(r as never, "claude-sonnet-5-5", 0).in).toBe(0);
+  });
+
+  test("AC-L36 beginTurn gives a continuation a fresh meter and turn state before its first line", () => {
+    const { n } = feed([init(), start({ input_tokens: 1000 }), delta("first turn"), mdelta("end_turn", 40), result()], "patch");
+    expect(n.meter().calls()).toBe(1);
+    expect(n.turn().firstDeltaAt).not.toBeNull();
+    n.beginTurn();
+    expect(n.meter().calls()).toBe(0);
+    expect(n.meter().active()).toBe(false);
+    expect(n.turn().init).toBeNull();
+    expect(n.turn().firstDeltaAt).toBeNull();
+    // the process dies before printing anything: end() reports the unfinished turn
+    expect(n.end(1).map((e) => e.t === "error" && e.code)).toEqual(["E_AGENT_EXIT"]);
+  });
 });

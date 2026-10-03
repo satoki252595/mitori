@@ -226,6 +226,9 @@ describe("anthropic-api engine over a fake fetch", () => {
     const r429 = await b429.scheduler.submit(req({ lane: "doc" }), new AbortController().signal).result;
     expect(r429.error?.code).toBe("E_AGENT_RATE_LIMIT");
     expect(b429.scheduler.status().backoffUntil).toBeDefined();
+    // a rejected request is not billed: no phantom estimate in the ledger (it would also eat the monthly cap)
+    expect(r429.usage.apiUsd).toBe(0);
+    expect(b429.ledger.rows.map((r) => r.usage.apiUsd)).toEqual([0]);
     const capped = mk(() => sse(stream("x")), { engines: { "anthropic-api": { enabled: true, monthlyCapUsd: 0 } } });
     expect((await capped.scheduler.submit(req(), new AbortController().signal).result).error?.code).toBe("E_BUDGET_EXCEEDED");
     const nokey = createTestBridge({ spawner: createFakeSpawner(), settings: apiSettings, env: {}, fetch: async () => sse(stream("x")) });
@@ -233,6 +236,50 @@ describe("anthropic-api engine over a fake fetch", () => {
     const st = await nokey.engines["anthropic-api"]?.detect();
     expect(st?.problems.map((p) => p.code)).toEqual(["E_AGENT_AUTH"]);
     expect(st?.billing).toBe("metered-api");
+  });
+});
+
+describe("engines never leave a run unresolved", () => {
+  test("anthropic-api: a request it cannot build (agent mode, non-Claude model) fails without a call", async () => {
+    let calls = 0;
+    const b = createTestBridge({
+      spawner: createFakeSpawner(),
+      settings: { engines: { "anthropic-api": { enabled: true, monthlyCapUsd: 10 } } },
+      env: { ANTHROPIC_API_KEY: "k" },
+      fetch: async () => {
+        calls++;
+        return new Response("{}", { status: 500 });
+      },
+    });
+    const agent = await b.scheduler.submit(req({ mode: "agent", tools: "read_edit", cwd: "/w" }), new AbortController().signal).result;
+    expect(agent.error?.code).toBe("E_UNSUPPORTED");
+    const codex = await b.scheduler.submit(req({ model: "codex:gpt-5" }), new AbortController().signal).result;
+    expect(codex.error?.code).toBe("E_INVALID_INPUT");
+    expect(calls).toBe(0);
+    expect(b.ledger.rows).toHaveLength(0);
+  });
+
+  test("generic: a spawn failure resolves as E_AGENT_EXIT; the stderr tail is secret-redacted", async () => {
+    const settings = { engines: testSettings({ engines: { generic: { enabled: true, argv: ["/usr/local/bin/agent"] } } }).engines };
+    const broken = createTestBridge({
+      spawner: {
+        spawn: () => {
+          throw new Error("ENOENT: /usr/local/bin/agent");
+        },
+      },
+      settings,
+    });
+    const r = await broken.scheduler.submit(req({ engine: "generic" }), new AbortController().signal).result;
+    expect(r.error?.code).toBe("E_AGENT_EXIT");
+    expect(broken.ledger.rows).toHaveLength(0);
+    const leaky = createTestBridge({
+      spawner: createFakeSpawner().script(() => true, { stderr: ["boom", "token ghp_0123456789abcdefghijABCDEFGHIJ012345 rejected"], exitCode: 3 }),
+      settings,
+    });
+    const e = await leaky.scheduler.submit(req({ engine: "generic" }), new AbortController().signal).result;
+    expect(e.error?.code).toBe("E_AGENT_EXIT");
+    expect(e.error?.stderrTail?.length).toBe(2);
+    expect(JSON.stringify(e.error?.stderrTail)).not.toContain("ghp_0123456789abcdefghij");
   });
 });
 

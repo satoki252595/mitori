@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { JobEvent, WorkspaceKey } from "@mitori/core";
 import { CLAUDE_MODE_DEFAULTS, type EngineRequest, type EngineRun, type ScheduledRequest, SIGINT_GRACE_MS, WARM_POOL } from "../contract.ts";
 import { cassetteScript } from "../fakes/cassette.ts";
-import { createFakeClock, createFakeSpawner, createTestBridge, type ScriptedChild, synth } from "../testing.ts";
+import { createFakeClock, createFakeSpawner, createTestBridge, type ScriptedChild, synth, testHasher } from "../testing.ts";
 
 const HOME = "/home/u/.mitori";
 const EMPTY = `${HOME}/run/empty`;
@@ -145,7 +145,8 @@ describe("claude-cli engine over a scripted CLI", () => {
   });
 
   test("AC-L32 init violation (apiKeySource ≠ none) ⇒ SIGINT and E_AGENT_AUTH_SOURCE; ledger outcome error", async () => {
-    const sp = createFakeSpawner().script(isClaude, cassetteScript(synth.failure("auth_source_api_key")));
+    // paced lines: the SIGINT lands before the CLI would print anything past init (as with the real CLI, CC-09)
+    const sp = createFakeSpawner({ speed: 1 }).script(isClaude, cassetteScript(synth.failure("auth_source_api_key")));
     const b = createTestBridge({ spawner: sp });
     const run = b.scheduler.submit(req("answer"), ctl());
     const r = await run.result;
@@ -155,6 +156,63 @@ describe("claude-cli engine over a scripted CLI", () => {
     expect(sp.children[0]?.signals[0]).toBe("SIGINT");
     expect(b.ledger.rows).toHaveLength(1);
     expect(b.ledger.rows[0]?.outcome).toBe("error");
+    // SIGINT at the init check precedes the API request (CC-09): the meter's input estimate is not ledgered as spend
+    expect(b.ledger.rows[0]?.usage.apiUsd).toBe(0);
+    expect(b.ledger.rows[0]?.usage.in).toBe(0);
+  });
+
+  test("AC-L36 a continuation whose process dies before its first line ledgers zero, not the previous turn again", async () => {
+    // one scripted turn: the parked child prints nothing for the continuation
+    const c = synth.text("{}", { structured: { summary: "fixed" }, usage: { input_tokens: 4000, output_tokens: 80 } });
+    const sp = createFakeSpawner().script(isClaude, cassetteScript(c));
+    const b = createTestBridge({ spawner: sp });
+    const run = b.scheduler.submit(req("patch"), ctl());
+    const r1 = await run.result;
+    expect(r1.usage.apiUsd).toBeGreaterThan(0);
+    const session = run.session as NonNullable<typeof run.session>;
+    const run2 = b.scheduler.continueSession(
+      session,
+      "Fix the failing GATE above.",
+      {
+        lane: "interactive",
+        ws: "ws_aaaaaaaaaaaa",
+        scope: { kind: "job", id: "j_1" },
+        estimate: { in: 500, out: 100 },
+        budget: { usd: 0.05, inTokens: 0, outTokens: 0, ms: 0 },
+        ref: "j_1",
+      },
+      ctl(),
+    );
+    await Bun.sleep(1);
+    sp.children[0]?.kill("SIGKILL"); // killed from outside (OOM) before the CLI printed anything for turn 2
+    const r2 = await run2.result;
+    expect(r2.stop).toBe("error");
+    expect(r2.error?.code).toBe("E_AGENT_EXIT");
+    expect(r2.usage.apiUsd).toBe(0);
+    expect(r2.ttftMs === undefined || r2.ttftMs >= 0).toBe(true);
+    expect(b.ledger.rows.map((x) => x.usage.apiUsd)).toEqual([r1.usage.apiUsd, 0]);
+  });
+
+  test("AGT-U-027 stream-json shape drift at runtime ⇒ E_AGENT_CAPABILITY (re-detect), the turn ends instead of hanging", async () => {
+    const base = synth.text("{}", { structured: { summary: "s" } });
+    const dropUsage = (l: string) => {
+      const o = JSON.parse(l) as Record<string, unknown>;
+      if (o.type === "result") delete o.usage;
+      return JSON.stringify(o);
+    };
+    for (const [what, mutate] of [
+      ["result without usage", dropUsage],
+      ["assistant without message", (l: string) => (l.includes('"type":"assistant"') ? '{"type":"assistant"}' : l)],
+      ["init without apiKeySource", (l: string) => l.replace('"apiKeySource":"none",', "")],
+    ] as const) {
+      const lines = base.lines.map((l) => (l.line ? { ...l, line: mutate(l.line) } : l));
+      const sp = createFakeSpawner().script(isClaude, cassetteScript({ ...base, lines }));
+      const b = createTestBridge({ spawner: sp });
+      const r = await b.scheduler.submit(req("patch"), ctl()).result;
+      expect({ what, stop: r.stop, code: r.error?.code }).toEqual({ what, stop: "error", code: "E_AGENT_CAPABILITY" });
+      expect(sp.children[0]?.signals).toContain("SIGINT");
+      expect(b.ledger.rows).toHaveLength(1);
+    }
   });
 
   test("AC-L32 tools/skills/mcp/model drift ⇒ E_AGENT_CAPABILITY", async () => {
@@ -299,6 +357,32 @@ describe("claude-cli engine over a scripted CLI", () => {
     const r = await b.scheduler.submit(req("agent", { keepAlive: false }), ctl()).result;
     expect(r.stop).toBe("end");
     expect(r.denials).toEqual([{ tool: "Edit", target: "README.md", reason: "permission denied" }]);
+  });
+
+  test("fixed overhead samples use the first API call of a turn (an agent turn's result sums every tool round-trip)", async () => {
+    const tools = ["Read", "Edit", "Glob", "Grep", "StructuredOutput"];
+    const c = synth.text("{}", { structured: { summary: "s" }, tools, usage: { input_tokens: 3000, output_tokens: 40 } });
+    const second = JSON.stringify({
+      type: "stream_event",
+      event: { type: "message_start", message: { model: "claude-sonnet-5-5", usage: { input_tokens: 3500, output_tokens: 1 } } },
+    });
+    const lines = c.lines.flatMap((l) => {
+      if (!l.line?.includes('"type":"result"')) return [l];
+      const r = JSON.parse(l.line) as { usage: { input_tokens: number } };
+      r.usage.input_tokens = 6500; // the CLI's per-turn sum of both calls
+      return [
+        { ...l, line: second },
+        { ...l, line: JSON.stringify(r) },
+      ];
+    });
+    const b = createTestBridge({ spawner: createFakeSpawner().script(isClaude, cassetteScript({ ...c, lines })) });
+    const r = await b.scheduler.submit(req("agent", { keepAlive: false, promptVer: "loop.agent@1" }), ctl()).result;
+    expect(r.stop).toBe("end");
+    expect(r.usage.in).toBe(6500);
+    const o = b.ledger.fixedOverhead(testHasher.xxh3("claude-cli\nagent\nclaude-sonnet-5-5\nloop.agent@1"));
+    expect(o?.n).toBe(1);
+    expect(o?.tokens).toBeGreaterThan(2950);
+    expect(o?.tokens).toBeLessThanOrEqual(3000);
   });
 
   test("AGT-U-027 detect: version/auth/help probes; missing binary pin, API-key auth and --bare default are problems", async () => {

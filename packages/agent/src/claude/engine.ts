@@ -124,19 +124,20 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
 
   const residentCount = (): number => parked.filter((p) => p.meta.countsAsResident).length + [...warm.values()].reduce((n, l) => n + l.length, 0);
 
+  /** warm + parked ≤ residentMax [PT-13]: speculative warm processes go first; a parked one holds a job's conversation. */
   const enforceResidents = (): void => {
     while (residentCount() > WARM_POOL.residentMax) {
-      const oldest = parked.find((p) => p.meta.countsAsResident);
-      if (oldest) {
-        void oldest.close();
-        unpark(oldest);
+      const list = [...warm.values()].find((l) => l.length > 0);
+      const e = list?.shift();
+      if (e) {
+        deps.timers.clear(e.idle);
+        void e.proc.close();
         continue;
       }
-      const [key, list] = [...warm.entries()].find(([, l]) => l.length > 0) ?? [];
-      const e = list?.shift();
-      if (!e || key === undefined) break;
-      deps.timers.clear(e.idle);
-      void e.proc.close();
+      const oldest = parked.find((p) => p.meta.countsAsResident);
+      if (!oldest) break;
+      void oldest.close();
+      unpark(oldest);
     }
   };
 

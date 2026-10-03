@@ -175,6 +175,10 @@ describe("AgentScheduler (spec §6.8, PT-04, PT-18, SEC-15, CONS-28)", () => {
   test("AGT-U-023 interactive retries one rate-limit failure automatically after the back-off", async () => {
     const { s, claude, clock, ledger } = setup();
     const run = submit3(s, "interactive");
+    const seen: JobEvent[] = [];
+    const pumped = (async () => {
+      for await (const e of run.events) seen.push(e);
+    })();
     await flush();
     claude.live[0]?.finish({ stop: "error", error: { code: "E_AGENT_RATE_LIMIT", message: "429", retryable: true } });
     await flush();
@@ -184,8 +188,12 @@ describe("AgentScheduler (spec §6.8, PT-04, PT-18, SEC-15, CONS-28)", () => {
     expect(claude.live).toHaveLength(2);
     claude.live[1]?.finish();
     const r = await run.result;
+    await pumped;
     expect(r.stop).toBe("end");
     expect(ledger.rows.map((x) => x.outcome)).toEqual(["error", "ok"]);
+    // the retried attempt's terminal event is not forwarded: consumers see exactly one `result`, the last event
+    expect(seen.filter((e) => e.t === "result").map((e) => (e as { stop: string }).stop)).toEqual(["end"]);
+    expect(seen.at(-1)?.t).toBe("result");
   });
 
   test("AGT-U-024 5h utilization 0.81 pauses background only; interactive continues; resetsAt resumes", async () => {

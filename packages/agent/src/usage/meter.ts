@@ -17,6 +17,10 @@ export interface MeterImpl extends UsageMeter {
   usage(): Usage;
   /** API calls seen (`message_start` count). */
   calls(): number;
+  /** Input tokens (all classes) of the first API call, null before its `message_start` (fixed-overhead samples). */
+  firstCallIn(): number | null;
+  /** True once the turn shows API activity (a `message_start` or streamed chars). */
+  active(): boolean;
 }
 
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 0);
@@ -87,5 +91,10 @@ export function createMeter(model: ClaudeModelId, estimateInTokens: number): Met
       return { in: t.in, cacheWrite: t.cw5m + t.cw1h, cacheWrite1h: t.cw1h, cacheRead: t.cr, out: t.out, apiUsd: usd(), pricingVer: PRICING_VERSION };
     },
     calls: () => msgs.length,
+    firstCallIn: () => {
+      const m = msgs[0];
+      return m ? m.in + m.cw5m + m.cw1h + m.cr : null;
+    },
+    active: () => msgs.length > 0 || chars > 0,
   };
 }

@@ -111,6 +111,29 @@ describe("warm profiles (spec §6.6.1, CONS-32, PT-02)", () => {
     expect(sp.children[1]?.stdinClosed).toBe(true);
   });
 
+  test("AGT-U-025 the resident cap (warm + parked ≤ 2) evicts a warm process before a parked job session", async () => {
+    const sp = createFakeSpawner().script(
+      (s) => s.argv.includes("-p"),
+      (s) => cassetteScript(s.argv.includes("--json-schema") ? synth.text("{}", { structured: { summary: "s" } }) : synth.text("warm")),
+    );
+    const b = createTestBridge({ spawner: sp, settings: { engines: { "claude-cli": { warmPool: 1 } } } });
+    const profile = warmProfileOf(req(), testHasher, false);
+    if (!profile) throw new Error("no profile");
+    await b.scheduler.submit(req(), new AbortController().signal).result;
+    await b.engines["claude-cli"]?.warm?.(profile);
+    expect(sp.calls).toHaveLength(2);
+    const patch = (n: number) =>
+      req({ ref: `j_${n}`, mode: "patch", promptVer: "loop.patch@1", contract: "patch/1", jsonSchema: { type: "object" }, keepAlive: true, prompt: `p${n}` });
+    const p1 = b.scheduler.submit(patch(1), new AbortController().signal);
+    await p1.result;
+    const p2 = b.scheduler.submit(patch(2), new AbortController().signal);
+    await p2.result;
+    await Bun.sleep(1);
+    // 1 warm + 2 parked > 2: the speculative warm process goes, both job conversations stay parked
+    expect(sp.children[1]?.stdinClosed).toBe(true);
+    expect([p1.session?.parked(), p2.session?.parked()]).toEqual([true, true]);
+  });
+
   test("AGT-U-025 warmPool 0 (default) never pre-spawns", async () => {
     const sp = createFakeSpawner().script(
       () => true,
