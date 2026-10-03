@@ -144,6 +144,8 @@ export type EstimateRequest = GenEstimateReq & {
 const json = (x: unknown) => JSON.stringify(x);
 /** gen_outputs GC threshold (§3.8, [仮]). */
 const OUTPUTS_MAX_BYTES = 200 * 1024 * 1024;
+/** Expired estimates stay this long, so confirming one still answers "expired" rather than "not found". */
+const ESTIMATE_GRACE_MS = 3600_000;
 const parse = <T>(s: string | null | undefined, fallback: T): T => (s ? (JSON.parse(s) as T) : fallback);
 
 /** Table access. */
@@ -162,7 +164,9 @@ export class GenStore {
     return this.db.get<{ v: string }>("SELECT v FROM gen_meta WHERE k = 'salt'")?.v ?? v;
   }
 
+  /** Store an estimate; long-expired ones go (a run keeps its own copy; S9 and the chips create one per suggestion). */
   putEstimate(est: GenEstimate, req: EstimateRequest, plan: GenPlan): void {
+    this.db.run("DELETE FROM gen_estimates WHERE expires_at < ?", [this.clock.now() - ESTIMATE_GRACE_MS]);
     this.db.run("INSERT OR REPLACE INTO gen_estimates (id, req, plan, estimate, index_digest, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)", [
       est.id,
       json(req),

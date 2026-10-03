@@ -33,12 +33,9 @@ export function parseBlocks(message: string): { id: string; md: string; claims: 
     }
     const cur = out.at(-1);
     if (!cur) continue;
-    if (l.startsWith("> claims: ")) {
-      for (const part of l.slice("> claims: ".length).split("; ")) {
-        const m = /^\[\[(\d+)\]\] (\S+)(?: (.+))?$/.exec(part);
-        if (m) cur.claims.set(Number(m[1]), `${m[2]}${m[3] ? ` ${m[3].replace(/, /g, ",")}` : ""}`);
-      }
-    } else if (l.startsWith("> ")) cur.md.push(l.slice(2));
+    const c = /^> claim \[\[(\d+)\]\] (\S+)(?: (.+))?$/.exec(l);
+    if (c) cur.claims.set(Number(c[1]), `${c[2]}${c[3] ? ` ${c[3].replace(/, /g, ",")}` : ""}`);
+    else if (l.startsWith("> ")) cur.md.push(l.slice(2));
   }
   return out.map((b) => ({ id: b.id, md: b.md.join("\n"), claims: b.claims }));
 }
@@ -100,6 +97,13 @@ export interface S9RouterOptions {
   questionsPerModule?: number;
   /** doc.sync rewrites the blocks it re-cites (otherwise it keeps the text and only moves the cites). */
   syncRewrite?: boolean;
+  /**
+   * Last line of the symbol whose signature is at `path:line` (null: none): interface claims then cite the whole
+   * symbol, as a model does when the signature was shown (CitableSet allows the symbol range), capped at 40 lines.
+   */
+  symbolEnd?: (path: string, line: number) => number | null;
+  /** Module pages cite up to 20 shown symbols (two list blocks) instead of 8. */
+  wide?: boolean;
 }
 
 /** Router factory. */
@@ -110,7 +114,11 @@ export function s9Router(opts: S9RouterOptions = {}): (call: GenCall, t: Turn) =
     switch (call.spec.id) {
       case "gen.module": {
         const mod = /TASK: Write the page for module (md_\w{8})/.exec(msg)?.[1] as string;
-        const shown = skeletonLines(msg);
+        const shown = skeletonLines(msg).map((c) => {
+          const m = /^(.+):(\d+)-\d+$/.exec(c);
+          const end = m && opts.symbolEnd ? opts.symbolEnd(m[1] as string, Number(m[2])) : null;
+          return m && end !== null && end > Number(m[2]) ? `${m[1]}:${m[2]}-${Math.min(end, Number(m[2]) + 39)}` : c;
+        });
         const first = shown[0];
         const cite = first ? `behavior ${first}` : "behavior";
         const ex = existingByAspect(msg);
@@ -128,7 +136,25 @@ export function s9Router(opts: S9RouterOptions = {}): (call: GenCall, t: Turn) =
           }),
           j({ t: "block", id: ex.get("interface") ?? "new:2", aspect: "interface", md: iface, claims: ifaceClaims }),
         ];
+        // `wide`: a second list (aspect flow) over the next shown symbols, as a real page cites more of the module
+        const more = opts.wide ? shown.slice(8, 20) : [];
+        if (more.length > 0)
+          lines.push(
+            j({
+              t: "block",
+              id: ex.get("flow") ?? "new:4",
+              aspect: "flow",
+              md: more.map((_, i) => `${i + 1}. 処理 ${i + 1} を行う[[${i + 1}]]。`).join("\n"),
+              claims: Object.fromEntries(more.map((x, i) => [String(i + 1), `behavior ${x}`])),
+            }),
+          );
         if (opts.deepdive) lines.push(j({ t: "block", id: ex.get("deepdive") ?? "new:3", aspect: "deepdive", md: "`Store.get` の期限切れ判定。", claims: {} }));
+        // a regenerated page accounts for every EXISTING block: what it does not write again is deleted
+        const written = new Set(lines.map((l) => (JSON.parse(l) as { id: string }).id));
+        for (const l of dataSection(msg, "EXISTING")) {
+          const id = /^> (b_\w{8}) /.exec(l)?.[1];
+          if (id && !written.has(id)) lines.push(j({ t: "delete", id }));
+        }
         for (let q = 0; q < (opts.questionsPerModule ?? 0); q++) lines.push(j({ t: "question", text: `${mod} の問い ${q + 1}`, cites: [] }));
         lines.push(j({ t: "module", module: mod, name: `名前${mod.slice(-2)}`, summary: "要約" }), end(lines.length));
         return { lines };
@@ -165,6 +191,23 @@ export function s9Router(opts: S9RouterOptions = {}): (call: GenCall, t: Turn) =
             end(2),
           ],
         };
+      }
+      case "gen.flows": {
+        // one flow per seed (≤ 3), its steps citing the seed's entry line (a `path:line` location is citable)
+        const seeds = dataSection(msg, "SEEDS")
+          .map((l) => /^> seed(\d+) \S+ .*? (\S+):(\d+) path:/.exec(l))
+          .filter((m): m is RegExpExecArray => m !== null)
+          .slice(0, 3);
+        if (seeds.length === 0) return validRouter(call, t);
+        const lines = [j({ t: "block", id: "new:1", aspect: "intro", md: "入口から処理が流れる。", claims: {} })];
+        let n = 1;
+        for (const m of seeds) {
+          lines.push(j({ t: "flow", key: `flow-${m[1]}`, title: `流れ ${m[1]}` }));
+          lines.push(j({ t: "block", id: `new:${++n}`, aspect: "summary", md: "入口の流れだ。", claims: {} }));
+          lines.push(j({ t: "block", id: `new:${++n}`, aspect: "steps", md: "1. 入口で受け付ける[[1]]", claims: { "1": `behavior ${m[2]}:${m[3]}-${m[3]}` } }));
+        }
+        lines.push(end(n));
+        return { lines };
       }
       case "gen.datamodel":
         return {

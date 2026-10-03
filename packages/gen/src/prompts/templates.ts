@@ -214,7 +214,7 @@ export const UNIT_TEMPLATES: Readonly<Partial<Record<GenPromptId, string>>> = {
     "- Change only sentences whose claims appear in CHANGES; copy every other sentence exactly.",
     "- For each changed claim: if the sentence is still true, keep it and cite the new lines; if it is no longer true and the new lines show what is true now, rewrite it and cite the new lines; otherwise remove the sentence and its marker.",
     '- Return each block in BLOCKS exactly once: either {"t":"block","id":"<id>","md":"...","claims":{...}} with the full md and the full claims map (keep the marker numbers of unchanged claims; give a new claim the next unused number), or {"t":"keep","id":"<id>"} when nothing needs to change.',
-    '- "claims" uses the same "<kind> <path>:<first>-<last>" strings as the claims lines in BLOCKS. Claims cite N| lines under "=== <path>" in CHANGES, or repeat their existing range when the claim did not change.',
+    '- "claims" uses the same "<kind> <path>:<first>-<last>" strings as the "> claim [[n]]" lines in BLOCKS. Claims cite N| lines under "=== <path>" in CHANGES, or repeat their existing range when the claim did not change.',
     "OUTPUT: block and keep lines, then the end line.",
   ].join("\n"),
   "doc.simplify": [

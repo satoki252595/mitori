@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { BlockId, ThreadId } from "@mitori/core";
 import { makeS9Harness, type S9Harness } from "../incremental/test/harness.ts";
-import { M_SESSION } from "../test/repo.ts";
 
 const STORE = "src/session/store.ts";
 
@@ -134,6 +133,5 @@ describe("GEN-OD-04 Ask answer → doc (§12, no LLM)", () => {
     expect(claims.map((c) => c.cites.map((x) => `${x.path}:${x.start}-${x.end}`))).toEqual([["src/session/store.ts:13-13"], ["src/session/store.ts:17-19"]]);
     expect(claims[1]?.verdict).toBe("verified");
     expect(claims[0]?.cites[0]?.blob).toBe(h.indexer.currentBlob(STORE) as string);
-    void M_SESSION;
   });
 });

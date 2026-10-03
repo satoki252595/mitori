@@ -41,10 +41,12 @@ describe("GEN-TR-01 translation is stored per block hash × language (D5)", () =
     const h = await generated();
     await h.gen.translate("s3", "en", { confirm: true });
     await h.gen.idle();
-    const s3 = ["s3", "s3/login", "s3/cli"].flatMap((s) => h.aiBlocks(s));
+    const flows = h.doc.sections().filter((s) => s.id === "s3" || s.id.startsWith("s3/"));
+    expect(flows.length).toBe(3);
+    const s3 = flows.flatMap((s) => h.aiBlocks(s.id));
     expect(s3.length).toBeGreaterThan(3);
     for (const b of s3) expect(h.doc.translation(b.id, "en")).not.toBeNull();
-    const target = h.aiBlocks("s3/login")[0] as Block;
+    const target = h.aiBlocks(flows[1]?.id as string)[0] as Block;
     await h.doc.editBlock(target.id, target.hash, "ログインを受け付ける。", "human");
     expect(h.doc.translation(target.id, "en")).toBeNull();
     const n = translateCalls(h).length;

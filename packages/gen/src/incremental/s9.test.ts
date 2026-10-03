@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { BlockId, IndexDelta, ModuleId, ModuleInfo, SectionId } from "@mitori/core";
+import type { BlockId, IndexDelta, ModuleId, ModuleInfo } from "@mitori/core";
 import type { ClaimReanchor, IncrementalOutcome } from "../contract.ts";
 import type { RepoFact } from "../test/repo.ts";
 import { M_CLI, M_CORE, M_SESSION } from "../test/repo.ts";
@@ -244,6 +244,5 @@ describe("GEN-S9-07 suggestion runs leave nothing pending in the static sections
     const out = await h.gen.onIndexDelta(quiet(h, { ifaceChanged: [M_SESSION] }));
     for (const s of out.suggestions)
       expect(["s0", "s3", "s5", "s7", "s9", "s10", "s11", "s12", "s13"].includes(s.section) || s.section.startsWith("s6/")).toBe(true);
-    void (0 as unknown as SectionId);
   });
 });

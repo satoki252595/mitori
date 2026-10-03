@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { makeS9Harness, type S9Harness } from "../incremental/test/harness.ts";
 import { dataSection } from "../incremental/test/router.ts";
-import { type FakeRepo, M_CLI, sampleRepo } from "../test/repo.ts";
+import { type FakeRepo, sampleRepo } from "../test/repo.ts";
 
 /** The sample repo plus the facts the M4 section prompts read. */
 function m4Repo(): FakeRepo {
@@ -63,7 +63,6 @@ describe("GEN-M4-01 the section prompts run in a standard generation with their 
     expect(dataSection(u, "UNTESTED").length).toBe(4);
     expect(dataSection(u, "UNTESTED")[0]).toMatch(/^> md_a0000001 "名前01" loc=\d+ rank=0\.90$/);
     expect(dataSection(u, "LARGE")[0]).toMatch(/^> src\/session\/store\.ts lines=25 module=md_a0000001$/);
-    void M_CLI;
   });
 });
 

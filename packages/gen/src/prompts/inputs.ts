@@ -424,7 +424,7 @@ class Gatherer {
 
   /**
    * BLOCKS (§5.2): `> block <id> kind=<k> depth=<d> aspect=<a> claims=<n>` + the marker-form md, each line quoted;
-   * doc.sync adds `> claims: [[1]] <kind> <path>:<a>-<b>, …; [[2]] …` (the ranges may be repeated as cites).
+   * doc.sync adds one `> claim [[n]] <kind> <path>:<a>-<b>, …` line per claim (the ranges may be repeated as cites).
    */
   private blockLines(ids: readonly BlockId[], withClaims: boolean): string[] {
     const doc = this.env.doc;
@@ -436,10 +436,11 @@ class Gatherer {
       const md = doc.markerForm(id) ?? blk.md;
       const item = [`> block ${id} kind=${blk.kind} depth=${blk.depth} aspect=${blk.aspect ?? "-"} claims=${claims.length}`];
       for (const l of md.split("\n")) item.push(`> ${l}`);
-      if (withClaims && claims.length > 0)
-        item.push(
-          `> claims: ${claims.map((c, i) => `[[${i + 1}]] ${c.kind}${c.cites.length > 0 ? ` ${c.cites.map((x) => `${x.path}:${x.start}-${x.end}`).join(", ")}` : ""}`).join("; ")}`,
-        );
+      // one line per claim: a joined line would be cut at 400 characters and lose the ranges it repeats
+      if (withClaims)
+        claims.forEach((c, i) => {
+          item.push(`> claim [[${i + 1}]] ${c.kind}${c.cites.length > 0 ? ` ${c.cites.map((x) => `${x.path}:${x.start}-${x.end}`).join(", ")}` : ""}`);
+        });
       if (b.add(item)) this.hashes.set(id, blk.hash);
     }
     return b.done();
