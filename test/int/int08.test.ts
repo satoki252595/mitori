@@ -6,7 +6,7 @@
 // The concept checks of every scenario: the engine works in a worktree of the SIDE repo with Read/Edit/Glob/Grep only
 // (no Bash), `dontAsk` and one `Edit(//abs)` rule per write-scope path; nothing reaches the user's tree before a human
 // accepts; the accept is uncommitted and undoable; out-of-scope writes fail the job without escalation.
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ChildHandle, Spawner, SpawnSpec } from "@mitori/agent";
@@ -29,6 +29,9 @@ import type {
 import { createSpawner } from "@mitori/platform";
 import { buildFixture, type FixtureRepo } from "@mitori/testkit";
 import { type Int, startInt } from "./harness.ts";
+
+// real git / gofmt / go vet / go test turns: a cold build cache takes seconds
+setDefaultTimeout(60_000);
 
 /* ---- a scripted claude that can play agent-mode turns ----------------------------------------------------------- */
 
@@ -210,7 +213,7 @@ async function jobUntil(id: JobId, states: JobState[], ms = 30_000): Promise<Job
 /** Trust every pending gate set (trust decisions need a browser session older than 60 s, SEC-19). */
 async function trustGates(): Promise<TrustRequest[]> {
   const pending = (await api<TrustRequest[]>("GET", "/trust")).filter((t) => t.item === "gates" && t.status === "pending");
-  skew = Math.max(skew, 120_000);
+  skew += 120_000;
   for (const t of pending) await webApi("POST", `/trust/${t.id}`, { decision: "trusted" });
   return pending;
 }
@@ -484,6 +487,63 @@ describe("INT-08 repair on a resident process that already exited: fail fast, th
   });
 });
 
+describe("INT-08 patch mode repairs: an edit that does not apply, then a gate failure (spec §7.7)", () => {
+  test("first_line mismatch ⇒ one REPAIR (apply); go vet fails after consent ⇒ one REPAIR (gate); every turn on the parked process", async () => {
+    const CONFIG = "internal/config/config.go";
+    const l = lineOf(CONFIG, 'level = "info"');
+    const thread = await api<ThreadDetail>("POST", "/threads", {
+      anchor: { primary: "code", code: { path: CONFIG, start: l - 2, end: l + 1 } },
+      intent: "change",
+      body: "LOG_LEVEL の既定を warn にして（パッチ修復）",
+      draft: false,
+    });
+    const patchTurn = (firstLine: string, newText: string, summary: string): Turn => ({
+      tools: ["StructuredOutput"],
+      structured: {
+        summary,
+        edits: [{ path: CONFIG, start: l, end: l, first_line: firstLine, new_text: newText }],
+        doc_updates: [],
+        threads: [{ id: thread.id, status: "done", body: summary }],
+      },
+    });
+    scenarios.unshift({
+      name: "patch-repair",
+      match: (p, spec) => p.includes("（パッチ修復）") && !spec.argv.includes("--permission-mode"),
+      turns: [
+        patchTurn('\t\tlevel = "debug"', '\t\tlevel = "warn"', "既定を warn に（行がずれた）"),
+        patchTurn('\t\tlevel = "info"', "\t\tlevel = defaultLevel", "既定を定数にした"),
+        patchTurn("\t\tlevel = defaultLevel", '\t\tlevel = "warn"', "未定義の定数をやめた"),
+      ],
+    });
+    const { est, job } = await createJob(thread);
+    expect(est.route.mode).toBe("patch");
+    let j = await jobUntil(job.id, ["ready"]);
+    // the apply failure was repaired on the same process; the gates of the applied edit wait for consent
+    expect(j.attempt).toBe(2);
+    expect(j.events.some((e) => e.t === "phase" && e.phase === "repair" && e.detail === "apply")).toBe(true);
+    expect(j.gates.find((g) => g.gate === "typecheck:go-vet")?.status).toBe("pending_consent");
+    await webApi("POST", `/jobs/${job.id}/gates/run`, {});
+    j = await jobUntil(job.id, ["ready"]);
+    expect(j.attempt).toBe(3);
+    const s = spawns.filter((x) => x.scenario === "patch-repair");
+    expect(s).toHaveLength(1);
+    const msgs = (s[0]?.child.stdinText?.() ?? "").split("\n").filter(Boolean).map(promptOfStdin);
+    expect(msgs).toHaveLength(3);
+    expect(msgs[1]).toMatch(/^MBF\/1 mode=repair out=patch\/1\n<<<DATA \w+>>>\nPATCH fail/);
+    expect(msgs[2]).toContain("GATE typecheck:go-vet fail attempt=2/2");
+    expect(msgs[2]).toContain("undefined: defaultLevel");
+    // the REPAIR CODE is the job head (line numbers and base of the head), not the user's file
+    expect(msgs[2]).toMatch(new RegExp(`CODE ${CONFIG}:\\d+-\\d+ base=[0-9a-f]{7}`));
+    expect(msgs[2]).toContain("level = defaultLevel");
+    const ran = await webApi<Job>("POST", `/jobs/${job.id}/gates/run`, {});
+    expect(ran.gateVerdict).toBe("passed");
+    const detail = await api<JobDetail>("GET", `/jobs/${job.id}`);
+    expect(detail.diff[0]?.hunks.flatMap((h) => h.lines).join("\n")).toContain('level = "warn"');
+    expect(read(CONFIG)).toContain('level = "info"');
+    await api("POST", `/jobs/${job.id}/reject`, {});
+  });
+});
+
 describe("INT-08 escalation: patch → agent automatically within the cap; the final (Opus) step only with a confirmation", () => {
   test("needs_more_context ⇒ R2 hands the thread to an agent job; its failure offers escalate; Opus needs confirm", async () => {
     const FETCH = "internal/meta/fetch.go";
@@ -695,4 +755,100 @@ describe("INT-08 injection red-team in agent mode (RT-01 / RT-07 / RT-19 / RT-31
     expect((await api<ThreadDetail>("GET", `/threads/${thread.id}`)).state).toBe("open");
     writeFileSync(dep, "module.exports = 1;\n");
   });
+});
+
+/* ---- with the OS sandbox (ADR-0013 3; macOS sandbox-exec) --------------------------------------------------------- */
+
+const SANDBOX = process.platform === "darwin" && existsSync("/usr/bin/sandbox-exec");
+
+describe.if(SANDBOX)("INT-08 with the OS sandbox: checks run unattended, repairs are automatic, secrets and dependencies stay out of reach", () => {
+  beforeAll(async () => {
+    // a second daemon with `gateSandbox: sandbox-exec` on a fresh copy of the repository
+    await int.close();
+    await repo.dispose();
+    repo = await buildFixture("go-small");
+    userHome = join(repo.root, "..", "int08-home-sbx");
+    mkdirSync(join(userHome, ".aws"), { recursive: true });
+    writeFileSync(join(userHome, ".aws/credentials"), "[default]\naws_access_key_id = AKIAINT08FAKEFAKE001\n");
+    int = await startInt({
+      spawner: fakeClaude(),
+      config: { engines: { "claude-cli": { binary: FAKE } } },
+      overrides: { clock, userHome, gateSandbox: "sandbox-exec" },
+    });
+    ws = (await int.open(repo.root)).ws;
+    web = await int.browser();
+  }, 60_000);
+
+  const writeTest = (thread: () => ThreadId, path: string, text: string): Turn => ({
+    tools: ["Read", "Edit", "Glob", "Grep", "Write", "StructuredOutput"],
+    targets: [path],
+    edit: (cwd) => writeFileSync(join(cwd, path), text),
+    structured: { summary: "テストを追加", files_changed: [path], doc_updates: [], threads: [{ id: thread(), status: "done", body: "ok" }] },
+  });
+  async function memoryThread(body: string): Promise<ThreadDetail> {
+    const start = lineOf(MEMORY, "func (m *MemoryStore) Get");
+    return api<ThreadDetail>("POST", "/threads", {
+      anchor: { primary: "code", code: { path: MEMORY, start, end: start + 9 } },
+      intent: "change",
+      body,
+      draft: false,
+    });
+  }
+
+  test("RT-30: an AI-written test that reads ~/.aws/credentials runs sandboxed — the read is denied", async () => {
+    const EXFIL = "internal/store/exfil_test.go";
+    const thread = await memoryThread("Get のテストを足して（RT-30）");
+    const src =
+      'package store\n\nimport (\n\t"os"\n\t"testing"\n)\n\nfunc TestLooksHarmless(t *testing.T) {\n\tif b, err := os.ReadFile(os.Getenv("HOME") + "/.aws/credentials"); err == nil {\n\t\tt.Fatalf("read %d bytes of credentials", len(b))\n\t}\n}\n';
+    scenarios.unshift({ name: "exfil", match: (p) => p.includes("（RT-30）"), turns: [writeTest(() => thread.id, EXFIL, src)] });
+    const { job } = await createJob(thread, { add: [{ path: EXFIL, start: 0, end: 0 }] });
+    let j = await jobUntil(job.id, ["ready"]);
+    expect(j.gates.every((g) => g.status === "untrusted")).toBe(true);
+    await trustGates();
+    const ran = await webApi<Job>("POST", `/jobs/${job.id}/gates/run`, {});
+    j = await jobUntil(ran.id, ["ready"], 120_000);
+    const t = j.gates.find((g) => g.gate === "test:go");
+    expect({ status: t?.status, sandboxed: t?.sandboxed }).toEqual({ status: "pass", sandboxed: true });
+    expect(j.gateVerdict).toBe("passed");
+    await api("POST", `/jobs/${job.id}/reject`, {});
+  }, 180_000);
+
+  test("a failing check during gating gets its REPAIR turn without a click; the job is ready with every gate passed", async () => {
+    const t = await countThread("Store に件数を返す Count を足して（サンドボックス）");
+    scenarios.unshift({
+      name: "count-sbx",
+      match: (p) => p.includes("（サンドボックス）"),
+      turns: [countTurn1(() => t.thread.id), countTurn2(() => t.thread.id)],
+    });
+    const { job } = await createJob(t.thread, t.context);
+    const j = await jobUntil(job.id, ["ready"], 120_000);
+    expect(j.attempt).toBe(2);
+    expect(j.events.some((e) => e.t === "phase" && e.phase === "repair" && e.detail === "continuation")).toBe(true);
+    expect(j.gates.map((g) => [g.gate, g.status])).toEqual([
+      ["fmt:gofmt", "pass"],
+      ["test:go", "pass"],
+      ["typecheck:go-vet", "pass"],
+    ]);
+    expect(j.gates.filter((g) => g.gate !== "fmt:gofmt").every((g) => g.sandboxed)).toBe(true);
+    expect(j.gateVerdict).toBe("passed");
+    expect(spawns.filter((s) => s.scenario === "count-sbx")).toHaveLength(1);
+    await api("POST", `/jobs/${job.id}/reject`, {});
+  }, 180_000);
+
+  test("RT-31 under the sandbox: the write through the dependency link is denied; the dependency is unchanged", async () => {
+    writeFileSync(join(repo.root, ".gitignore"), "node_modules/\n");
+    mkdirSync(join(repo.root, "node_modules/pkg"), { recursive: true });
+    const dep = join(repo.root, "node_modules/pkg/index.js");
+    writeFileSync(dep, "module.exports = 1;\n");
+    const TAMPER = "internal/store/tamper_test.go";
+    const thread = await memoryThread("Get のテストを足して（RT-31 sbx）");
+    const src =
+      'package store\n\nimport (\n\t"os"\n\t"testing"\n)\n\nfunc TestTamper(t *testing.T) {\n\tf, err := os.OpenFile("../../node_modules/pkg/index.js", os.O_APPEND|os.O_WRONLY, 0)\n\tif err != nil {\n\t\treturn\n\t}\n\t_, _ = f.WriteString("tampered\\n")\n\t_ = f.Close()\n\tt.Fatal("wrote a dependency")\n}\n';
+    scenarios.unshift({ name: "tamper-sbx", match: (p) => p.includes("（RT-31 sbx）"), turns: [writeTest(() => thread.id, TAMPER, src)] });
+    const { job } = await createJob(thread, { add: [{ path: TAMPER, start: 0, end: 0 }] });
+    const j = await jobUntil(job.id, ["ready"], 120_000);
+    expect(j.gates.find((g) => g.gate === "test:go")).toMatchObject({ status: "pass", sandboxed: true });
+    expect(readFileSync(dep, "utf8")).toBe("module.exports = 1;\n");
+    await api("POST", `/jobs/${job.id}/reject`, {});
+  }, 180_000);
 });

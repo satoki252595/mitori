@@ -133,6 +133,7 @@ export function plainRequest(core: RunnerCore, id: JobId, plan: JobPlan) {
 /** Apply the prompt variant (blocks / resume) and the remaining budget to a request. */
 export function withPrompt(req: ScheduledRequest, p: { prompt?: string; promptBlocks?: string[]; resume?: string }, usd: number): ScheduledRequest {
   const out: ScheduledRequest = { ...req, budget: { ...req.budget, usd: Math.max(0.0001, usd) } };
+  if (p.prompt !== undefined) out.prompt = p.prompt;
   if (p.promptBlocks !== undefined) {
     out.promptBlocks = p.promptBlocks;
     out.prompt = p.promptBlocks.join("\n");
