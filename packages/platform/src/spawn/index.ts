@@ -1,10 +1,8 @@
 /**
  * @mitori/platform — `spawn/` (owner: WP-01). Everything exported here is public (re-exported by `src/index.ts`):
  * export only contract names; keep helpers in sibling files.
- * M0 stubs below throw E_UNSUPPORTED — implement them in place and keep the signatures (contract changes go
- * through the CR batch, packages/core/CR-LEDGER.md).
  */
-import { unsupported } from "@mitori/core";
+import { computeSafePath } from "./safe-path.ts";
 
 /**
  * SAFE_PATH (§2.3) [SEC-10]: from the daemon's start env, drop empty/relative PATH entries, entries under any
@@ -12,5 +10,18 @@ import { unsupported } from "@mitori/core";
  * `chdir`s to `~/.mitori/run/empty`. Pure.
  */
 export function resolveSafePath(path: string, opts: { workspaceRoots: readonly string[]; startCwd: string }): string {
-  return unsupported("platform.resolveSafePath", path, opts);
+  return computeSafePath(path, opts);
 }
+
+export {
+  createSpawner,
+  KILL_POLICY,
+  type KillPolicy,
+  type RunOptions,
+  type RunResult,
+  runToExit,
+  type SpawnerOptions,
+  stopChild,
+} from "./spawner.ts";
+// `SpawnSpec` / `Spawner` / `ChildHandle` (./types.ts) are structural copies of the @mitori/agent contract types and
+// are deliberately not re-exported: consumers name the agent's types.

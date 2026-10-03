@@ -1,0 +1,72 @@
+{
+  "v": "mitori.o3/1",
+  "bun": "1.4.2",
+  "results": [
+    {
+      "tree": "small",
+      "cand": "A",
+      "platform": "darwin-arm64",
+      "setupMs": 2.5,
+      "p50Ms": 12.3,
+      "p95Ms": 13.3,
+      "samples": 200,
+      "missed": 0,
+      "capturePct": 100,
+      "newDirCapturePct": 100,
+      "idleCpuPct": 0.09,
+      "rssMB": 8.3
+    },
+    {
+      "tree": "small",
+      "cand": "B",
+      "platform": "darwin-arm64",
+      "setupMs": 49.6,
+      "p50Ms": 172.1,
+      "p95Ms": 273.6,
+      "samples": 40,
+      "missed": 0,
+      "capturePct": 100,
+      "newDirCapturePct": null,
+      "idleCpuPct": 17.66,
+      "idleCpuPctByInterval": {
+        "250ms": 17.66,
+        "1000ms": 4.34,
+        "5000ms": 0.89
+      },
+      "rssMB": 9.1
+    },
+    {
+      "tree": "large",
+      "cand": "A",
+      "platform": "darwin-arm64",
+      "setupMs": 0.1,
+      "p50Ms": 11.3,
+      "p95Ms": 12.6,
+      "samples": 200,
+      "missed": 0,
+      "capturePct": 100,
+      "newDirCapturePct": 100,
+      "idleCpuPct": 0.07,
+      "rssMB": 0.1
+    },
+    {
+      "tree": "large",
+      "cand": "B",
+      "platform": "darwin-arm64",
+      "setupMs": 121.9,
+      "p50Ms": 215,
+      "p95Ms": 352.1,
+      "samples": 40,
+      "missed": 0,
+      "capturePct": 100,
+      "newDirCapturePct": null,
+      "idleCpuPct": 27.99,
+      "idleCpuPctByInterval": {
+        "250ms": 27.99,
+        "1000ms": 9.18,
+        "5000ms": 2.19
+      },
+      "rssMB": 1.4
+    }
+  ]
+}
