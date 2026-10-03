@@ -103,7 +103,7 @@ function applyDirty(name: FixtureName, spec: FixtureSpec, root: string): void {
  */
 export function materializeTree(name: FixtureName, opts: { step?: number | "dirty"; into: string }): FixtureSpec {
   const spec = readSpec(name);
-  const last = spec.history.length - 1;
+  const last = Math.max(0, spec.history.length - 1);
   const upTo = opts.step === undefined || opts.step === "dirty" ? last : opts.step;
   if (!Number.isInteger(upTo) || upTo < 0 || upTo > last) throw new MitoriError("E_INVALID_INPUT", `fixture ${name} has no history step ${String(opts.step)}`);
   prepareTree(name, spec, opts.into);
@@ -153,6 +153,9 @@ export async function build(name: FixtureName, opts: { step?: number | "dirty"; 
   prepareTree(name, spec, root);
   if (spec.git) {
     git(root, ["init", "-q", "-b", spec.branch, `--object-format=${spec.objectFormat}`]);
+    // names are stored byte for byte on every OS (macOS would otherwise recompose NFD names, changing the tree id)
+    git(root, ["config", "core.precomposeunicode", "false"]);
+    git(root, ["config", "core.fileMode", "true"]);
     for (const [k, h] of spec.history.entries()) {
       if (k > 0) applyPatch(root, join(dir, h.patch ?? ""));
       git(root, ["add", "-A"], k);

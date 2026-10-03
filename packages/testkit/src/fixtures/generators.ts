@@ -71,15 +71,48 @@ function nulBlob(bytes: number, seed: number): Uint8Array {
   return out;
 }
 
+/** A doc file whose body is one very long prose block (`bytes` in total, UTF-8), headed and closed by block id comments. */
+function mdLongBlock(bytes: number, seed: number): string {
+  const rand = prng(seed);
+  const head = "# 長い段落 <!-- b_2z6q8r4k -->\n\n";
+  const tail = " <!-- b_7m3d9w5p -->\n";
+  const sentences = [
+    "積読は読む前から本棚で熟成する。",
+    "Books that are bought and not read are still an investment.",
+    "あとで読むつもりの本は、たいてい今日も読まれない。",
+    "A shelf is a promise to your future self.",
+  ];
+  const size = (s: string) => enc.encode(s).length;
+  let body = "";
+  for (;;) {
+    const next = sentences[Math.floor(rand() * sentences.length)] as string;
+    const candidate = body === "" ? next : `${body} ${next}`;
+    if (size(head) + size(candidate) + size(tail) > bytes - 16) break;
+    body = candidate;
+  }
+  const filler = bytes - size(head) - size(body) - size(tail);
+  return `${head}${body} ${"a".repeat(filler - 1)}${tail}`;
+}
+
 const REGISTRY: Record<string, (bytes: number, seed: number) => string | Uint8Array> = {
   "isbn-json": isbnJson,
   "ts-lines": tsLines,
   "minified-line": minifiedLine,
   "nul-blob": nulBlob,
+  "md-long-block": mdLongBlock,
 };
 
 /** Render one `generate` entry. */
 export function generate(g: GenerateSpec): Uint8Array {
+  if (g.generator === "text") {
+    if (g.text === undefined) throw new MitoriError("E_INVALID_INPUT", `generator text needs "text" (${g.path})`);
+    return enc.encode(g.text);
+  }
+  if (g.generator === "hex") {
+    if (g.hex === undefined || !/^([0-9a-f]{2})*$/.test(g.hex))
+      throw new MitoriError("E_INVALID_INPUT", `generator hex needs even-length lower-case "hex" (${g.path})`);
+    return Uint8Array.from(g.hex.match(/../g) ?? [], (b) => Number.parseInt(b, 16));
+  }
   const fn = REGISTRY[g.generator];
   if (!fn) throw new MitoriError("E_INVALID_INPUT", `unknown fixture generator "${g.generator}"`);
   if (!g.bytes || g.bytes < 64) throw new MitoriError("E_INVALID_INPUT", `generator ${g.generator} needs "bytes" >= 64`);

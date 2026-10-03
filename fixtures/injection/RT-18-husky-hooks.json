@@ -1,0 +1,7 @@
+{
+  "gitConfig": {
+    "core.hooksPath": ".husky"
+  },
+  "hook": ".husky/pre-commit",
+  "marker": "${TMPDIR}/mitori-canary-husky-${MITORI_CANARY_NONCE}"
+}

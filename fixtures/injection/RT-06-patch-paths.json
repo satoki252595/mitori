@@ -1,0 +1,9 @@
+{
+  "paths": [
+    "../../.ssh/authorized_keys",
+    "/etc/passwd",
+    ".git/hooks/pre-commit",
+    ".mitori/doc/00-tldr.md",
+    "src/../../outside.ts"
+  ]
+}

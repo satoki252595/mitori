@@ -1,0 +1,225 @@
+{
+  "v": "mitori.fixture-truth/1",
+  "fixture": "doc-roundtrip",
+  "files": [
+    {
+      "path": ".mitori/doc/rt-01-heading-ids.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-02-paragraph-inline.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-03-nested-list.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-04-table-pipes.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-05-fence.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-06-mermaid.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-07-alert.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-08-unicode.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-09-long-block.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-10-no-id.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-11-duplicate-id.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-12-id-in-fence.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-13-invalid-alphabet.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-14-raw-html.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-15-citations.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-16-crlf.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-17-external-edit.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-18-block-deleted.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-19-questions.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": ".mitori/doc/rt-20-why-facts.md",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": "README.md",
+      "class": "docs",
+      "lang": "generic"
+    },
+    {
+      "path": "edits/rt-17-external-edit.md",
+      "class": "docs",
+      "lang": "generic"
+    },
+    {
+      "path": "edits/rt-18-block-deleted.md",
+      "class": "docs",
+      "lang": "generic"
+    },
+    {
+      "path": "roundtrip.json",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": "src/a.ts",
+      "class": "source",
+      "lang": "typescript"
+    }
+  ],
+  "filesExhaustive": true,
+  "facts": [
+    {
+      "kind": "existing_doc",
+      "path": "README.md",
+      "line": 1,
+      "key": "readme",
+      "attrs": {
+        "title": "doc-roundtrip"
+      }
+    }
+  ],
+  "forbiddenFacts": [],
+  "symbols": [
+    {
+      "key": "src/a.ts#MAX_RETRIES",
+      "kind": "const",
+      "start": 2,
+      "end": 2,
+      "exported": true
+    },
+    {
+      "key": "src/a.ts#VERSION",
+      "kind": "const",
+      "start": 3,
+      "end": 3,
+      "exported": true
+    },
+    {
+      "key": "src/a.ts#PORT",
+      "kind": "const",
+      "start": 5,
+      "end": 5,
+      "exported": true
+    },
+    {
+      "key": "src/a.ts#rows",
+      "kind": "const",
+      "start": 7,
+      "end": 7,
+      "exported": false
+    },
+    {
+      "key": "src/a.ts#round",
+      "kind": "function",
+      "start": 10,
+      "end": 16,
+      "exported": true
+    },
+    {
+      "key": "src/a.ts#push",
+      "kind": "function",
+      "start": 18,
+      "end": 20,
+      "exported": true
+    },
+    {
+      "key": "src/a.ts#LIMIT",
+      "kind": "const",
+      "start": 22,
+      "end": 22,
+      "exported": true
+    }
+  ],
+  "imports": [],
+  "calls": [],
+  "modules": {
+    "together": [],
+    "apart": []
+  },
+  "tolerances": {
+    "callsRecall": 0.9,
+    "callsPrecision": 0.8
+  }
+}

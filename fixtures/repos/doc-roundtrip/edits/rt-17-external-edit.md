@@ -1,0 +1,7 @@
+# 17. 外部エディタでの編集 <!-- b_ema38dsg -->
+
+1 つ目の block。変更されない。 <!-- b_m1vkkb7h -->
+
+2 つ目の block。外部エディタで書き換えられた後の本文（externallyEdited に入る）。 <!-- b_qhk01ft3 -->
+
+3 つ目の block。変更されない。 <!-- b_dnt02y4w -->

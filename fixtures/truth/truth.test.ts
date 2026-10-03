@@ -31,7 +31,7 @@ const FILE_CLASSES = [
   "ignored",
 ];
 
-/** Every path in the tree (files and symlinks; `.git` excluded), repo-relative. */
+/** Every path in the tree (files and symlinks; `.git` excluded), repo-relative and NFC like `RepoPath`. */
 function walk(root: string, rel = ""): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(join(root, rel)).sort()) {
@@ -39,15 +39,27 @@ function walk(root: string, rel = ""): string[] {
     if (r === ".git") continue;
     const st = lstatSync(join(root, r));
     if (st.isDirectory() && !st.isSymbolicLink()) out.push(...walk(root, r));
-    else out.push(r);
+    else out.push(r.normalize("NFC"));
   }
   return out;
 }
 
-/** The text a truth entry points into. Symlinks and binary-looking files read as empty (never followed). */
+/** The on-disk path of an NFC `RepoPath` (the file system may store another normalization form). */
+function onDisk(root: string, path: string): string | null {
+  let at = "";
+  for (const seg of path.split("/")) {
+    const hit = readdirSync(join(root, at)).find((e) => e.normalize("NFC") === seg);
+    if (hit === undefined) return null;
+    at = at === "" ? hit : `${at}/${hit}`;
+  }
+  return at;
+}
+
+/** The text a truth entry points into. Symlinks read as empty (never followed). */
 const textOf = (root: string, path: string): string[] | null => {
-  const abs = join(root, path);
-  if (!existsSync(abs) && !lstatSync(abs, { throwIfNoEntry: false })) return null;
+  const real = onDisk(root, path);
+  if (real === null) return null;
+  const abs = join(root, real);
   if (lstatSync(abs).isSymbolicLink()) return [];
   return readFileSync(abs, "utf8").split("\n");
 };
@@ -117,7 +129,7 @@ for (const name of NAMES) {
         if (d.patch) expect(existsSync(join(dir0, d.patch))).toBe(true);
         for (const u of d.untracked ?? []) expect(existsSync(join(dir0, "dirty/untracked", u))).toBe(true);
       }
-      for (const g of spec.generate) expect(tree).toContain(g.path);
+      for (const g of spec.generate) expect(tree).toContain(g.path.normalize("NFC"));
     });
 
     test("every listed file exists once; exhaustive lists match the tree exactly", () => {

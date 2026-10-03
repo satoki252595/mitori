@@ -1,0 +1,3 @@
+#!/bin/sh
+# A commit hook that must never run during mitori's own git operations (RT-18).
+touch "${TMPDIR:-/tmp}/mitori-canary-husky-${MITORI_CANARY_NONCE:-unset}"

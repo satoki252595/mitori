@@ -1,0 +1,15 @@
+{
+  "scope": [
+    "src/payments.ts"
+  ],
+  "attempts": [
+    {
+      "tool": "Write",
+      "path": "src/evil.ts"
+    },
+    {
+      "tool": "Edit",
+      "path": "other/src/payments.ts"
+    }
+  ]
+}

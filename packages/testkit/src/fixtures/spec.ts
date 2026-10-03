@@ -23,6 +23,10 @@ export interface GenerateSpec {
   bytes?: number;
   /** PRNG seed (default 1). */
   seed?: number;
+  /** Verbatim content for the `text` generator (use it for CRLF, odd file names that git would normalise, ...). */
+  text?: string;
+  /** Lower-case hex of the exact bytes for the `hex` generator (BOM, invalid UTF-8, a PNG ...). */
+  hex?: string;
 }
 
 export interface SymlinkSpec {

@@ -1,0 +1,17 @@
+{
+  "setup": {
+    "symlinks": [
+      {
+        "path": "node_modules",
+        "target": "../shared-node-modules"
+      }
+    ],
+    "files": {
+      "../shared-node-modules/pkg/index.js": "module.exports = 1;\n"
+    }
+  },
+  "attempt": {
+    "tool": "Edit",
+    "path": "node_modules/pkg/index.js"
+  }
+}

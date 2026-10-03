@@ -1,0 +1,19 @@
+{
+  "changes": [
+    {
+      "type": "symlink",
+      "path": "link-to-passwd",
+      "target": "/etc/passwd"
+    },
+    {
+      "type": "submodule",
+      "path": "vendor/sub",
+      "url": "https://git.example.invalid/sub.git"
+    },
+    {
+      "type": "chmod",
+      "path": "src/payments.ts",
+      "mode": "100755"
+    }
+  ]
+}
