@@ -149,43 +149,49 @@ export async function build(name: FixtureName, opts: { step?: number | "dirty"; 
   if (existsSync(root)) throw new MitoriError("E_PRECONDITION", `fixture target already exists: ${root}`);
   const commits: GitOid[] = [];
   const dir = fixtureDir(name);
+  const cleanup = () => rmSync(opts.into ? root : base, { recursive: true, force: true });
 
-  prepareTree(name, spec, root);
-  if (spec.git) {
-    git(root, ["init", "-q", "-b", spec.branch, `--object-format=${spec.objectFormat}`]);
-    // names are stored byte for byte on every OS (macOS would otherwise recompose NFD names, changing the tree id)
-    git(root, ["config", "core.precomposeunicode", "false"]);
-    git(root, ["config", "core.fileMode", "true"]);
-    for (const [k, h] of spec.history.entries()) {
-      if (k > 0) applyPatch(root, join(dir, h.patch ?? ""));
-      git(root, ["add", "-A"], k);
-      git(root, ["commit", "-q", "--allow-empty-message", "-m", h.message], k);
-      commits.push(git(root, ["rev-parse", "HEAD"]).trim());
+  try {
+    prepareTree(name, spec, root);
+    if (spec.git) {
+      git(root, ["init", "-q", "-b", spec.branch, `--object-format=${spec.objectFormat}`]);
+      // names are stored byte for byte on every OS (macOS would otherwise recompose NFD names, changing the tree id)
+      git(root, ["config", "core.precomposeunicode", "false"]);
+      git(root, ["config", "core.fileMode", "true"]);
+      for (const [k, h] of spec.history.entries()) {
+        if (k > 0) applyPatch(root, join(dir, h.patch ?? ""));
+        git(root, ["add", "-A"], k);
+        git(root, ["commit", "-q", "--allow-empty-message", "-m", h.message], k);
+        commits.push(git(root, ["rev-parse", "HEAD"]).trim());
+      }
     }
-  }
-  for (const s of spec.symlinks) if (s.tracked === false) makeSymlink(root, s.path, s.target);
-  if (opts.step === "dirty") applyDirty(name, spec, root);
+    for (const s of spec.symlinks) if (s.tracked === false) makeSymlink(root, s.path, s.target);
+    if (opts.step === "dirty") applyDirty(name, spec, root);
 
-  const repo: FixtureRepo = {
-    name,
-    root,
-    git: spec.git,
-    commits,
-    async checkout(step) {
-      const sha = commits[step];
-      if (!spec.git || sha === undefined) throw new MitoriError("E_INVALID_INPUT", `fixture ${name} has no history step ${step}`);
-      git(root, ["checkout", "-q", "-f", "--detach", sha]);
-    },
-    async write(path, content) {
-      put(root, path, content);
-    },
-    async digest() {
-      return digestTree(root);
-    },
-    async dispose() {
-      rmSync(opts.into ? root : base, { recursive: true, force: true });
-    },
-  };
-  if (typeof opts.step === "number" && opts.step !== commits.length - 1) await repo.checkout(opts.step);
-  return repo;
+    const repo: FixtureRepo = {
+      name,
+      root,
+      git: spec.git,
+      commits,
+      async checkout(step) {
+        const sha = commits[step];
+        if (!spec.git || sha === undefined) throw new MitoriError("E_INVALID_INPUT", `fixture ${name} has no history step ${step}`);
+        git(root, ["checkout", "-q", "-f", "--detach", sha]);
+      },
+      async write(path, content) {
+        put(root, path, content);
+      },
+      async digest() {
+        return digestTree(root);
+      },
+      async dispose() {
+        cleanup();
+      },
+    };
+    if (typeof opts.step === "number" && opts.step !== commits.length - 1) await repo.checkout(opts.step);
+    return repo;
+  } catch (err) {
+    cleanup();
+    throw err;
+  }
 }

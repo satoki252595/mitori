@@ -1,0 +1,83 @@
+{
+  "v": "mitori.corpus-lock/1",
+  "repos": [
+    {
+      "name": "flask",
+      "url": "https://github.com/pallets/flask",
+      "commit": "d73fa1cdcbd8b1465c151db8924ba58b1dd14e35",
+      "tree": "d46b1a2a2cc4219b0ad5060ab618e9f5ae635680",
+      "depth": 1,
+      "ci": true,
+      "role": "eval (small), bench: 236 files / 18k LOC Python"
+    },
+    {
+      "name": "ripgrep",
+      "url": "https://github.com/BurntSushi/ripgrep",
+      "commit": "3fce3b5bb0236da2df6d99672afb8a719642eca7",
+      "tree": "856ed9162d23416ee7dc5f4389975b54ca062f60",
+      "depth": 1,
+      "role": "eval, bench: 237 files / 56k LOC Rust"
+    },
+    {
+      "name": "hono",
+      "url": "https://github.com/honojs/hono",
+      "commit": "f23b146afcec63606144cde50b5fbd360dd60238",
+      "tree": "509aa85c9c832626c775cd8942af99ed91d890f0",
+      "depth": 1,
+      "role": "TS at the 100k LOC scale (ui.firstUseful second basis), eval: 583 files / 91k LOC"
+    },
+    {
+      "name": "excalidraw",
+      "url": "https://github.com/excalidraw/excalidraw",
+      "commit": "ed10ac7dca7e40f3f4a31269b4bfba980d0db41e",
+      "tree": "66be96e073c2141d8973127015e81c6d99df23af",
+      "depth": 1,
+      "role": "eval (full), UI load: 1,308 files / 218k LOC"
+    },
+    {
+      "name": "fastapi",
+      "url": "https://github.com/fastapi/fastapi",
+      "commit": "5f9fc5c59a9bb54608aa35376715f3ba9708188e",
+      "tree": "e08ac039025acfa8cbbfd9fc119a206257c5df40",
+      "depth": 1,
+      "role": "eval, route detection (docs_src): 3,181 files / 119k LOC"
+    },
+    {
+      "name": "react",
+      "url": "https://github.com/facebook/react",
+      "commit": "7c6ac13e19fef500b7f669a16bbd01ecc95965ca",
+      "tree": "5f4c2729855f2a5618bc6ce797d6b5af202dfc7e",
+      "depth": 1,
+      "role": "7k-files class, large scale, eval (full): 7,252 files / 823k LOC"
+    },
+    {
+      "name": "crit",
+      "url": "https://github.com/tomasz-tomczyk/crit",
+      "commit": "406875dd31e0eacc9af33b7643d54100620e8775",
+      "tree": "5465db2d9f8a15d99622f9b4d61ac3b170114ca0",
+      "depth": 41,
+      "ci": true,
+      "role": "100k LOC class analysis basis (idx.*.100kloc), research baseline, Pass 1 measurement (O2), anchor history replay (AR1, depth 41): 1,219 files"
+    },
+    {
+      "name": "m3e-canvas",
+      "url": "https://github.com/lnkiai/m3e-canvas",
+      "commit": "de2d97a577b2b77f33428db11c658e3548335b5e",
+      "tree": "e31bdbe7f99d9d255a1a77d3bbc5afb67ab4530a",
+      "depth": 1,
+      "role": "Pass 1 measurement, layer-style clustering, low prior (31 days public): 108 files / 31k LOC"
+    },
+    {
+      "name": "gostd",
+      "url": "https://github.com/golang/go",
+      "commit": null,
+      "tag": "go1.27.1",
+      "tree": null,
+      "depth": 1,
+      "subdir": "src",
+      "exclude": ["testdata"],
+      "contentHash": null,
+      "role": "7k files / 100MB class (*.7kfiles); a plain directory with no .git, opened through the shadow path; resolved on the first online fetch"
+    }
+  ]
+}

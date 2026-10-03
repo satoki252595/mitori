@@ -7,10 +7,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSecretScanner, DEFAULT_DENY_GLOBS } from "@mitori/core";
 import { RED_TEAM_CASES } from "@mitori/loop";
+import type { FixtureName } from "@mitori/testkit";
 import picomatch from "picomatch";
 import { materializeTree } from "../../packages/testkit/src/fixtures/build.ts";
 import { fixtureDir, readSpec } from "../../packages/testkit/src/fixtures/spec.ts";
 
+// CR-PENDING(WP-00b): "secrets" is not in the FixtureName union of testkit/contract.ts yet (docs/design/cr-requests/WP-00b.md, E1)
+const SECRETS = "secrets" as FixtureName;
 const fixtures = join(import.meta.dir, "..");
 const scanner = createSecretScanner();
 const denied = picomatch([...DEFAULT_DENY_GLOBS], { dot: true });
@@ -28,7 +31,7 @@ describe("injection payloads (RT-01 .. RT-33)", () => {
   };
 
   test("one payload per RED_TEAM_CASES id, none missing, none extra", () => {
-    const wanted = RED_TEAM_CASES.map((c) => c.split(" ")[0]);
+    const wanted = RED_TEAM_CASES.map((c) => c.split(" ")[0] ?? "");
     expect(index.cases.map((c) => c.id)).toEqual(wanted);
     for (const c of index.cases) {
       expect([c.id, existsSync(join(fixtures, "injection", c.file))]).toEqual([c.id, true]);
@@ -103,7 +106,7 @@ describe("injection repo", () => {
 });
 
 describe("secrets repo (SEC-07)", () => {
-  const spec = readSpec("secrets");
+  const spec = readSpec(SECRETS);
   const untracked = spec.dirty.flatMap((d) => d.untracked ?? []);
 
   test("every untracked secret file is deny-globbed; the control file is not", () => {
@@ -114,14 +117,14 @@ describe("secrets repo (SEC-07)", () => {
 
   test("the secret files carry content the scanner finds (the AWS, key, URL and token shapes)", () => {
     const rules = new Set<string>();
-    for (const p of untracked) for (const h of scanner.scan(readFileSync(join(fixtureDir("secrets"), "dirty/untracked", p), "utf8"))) rules.add(h.rule);
+    for (const p of untracked) for (const h of scanner.scan(readFileSync(join(fixtureDir(SECRETS), "dirty/untracked", p), "utf8"))) rules.add(h.rule);
     for (const r of ["aws_access_key", "private_key", "url_credentials", "stripe_key"]) expect([r, rules.has(r)]).toEqual([r, true]);
   });
 
   test("the tracked tree contains no secret-shaped value at all", () => {
     const dir = mkdtempSync(join(tmpdir(), "mitori-sec-"));
     try {
-      materializeTree("secrets", { into: join(dir, "t") });
+      materializeTree(SECRETS, { into: join(dir, "t") });
       const walk = (d: string): string[] =>
         readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
       for (const f of walk(join(dir, "t"))) expect([f, scanner.scan(readFileSync(f, "utf8")).length]).toEqual([f, 0]);
