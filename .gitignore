@@ -22,3 +22,4 @@ playwright-report/
 bench/results/*.local.json
 # os
 .DS_Store
+.claude/worktrees/
