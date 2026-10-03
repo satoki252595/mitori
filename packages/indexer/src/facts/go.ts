@@ -13,9 +13,18 @@ const REGISTRY_FNS = /\b(handler|Handler|Run|RunE|Action|action|run|fn|Fn)\s*:/;
 
 export function goEntry(input: FactExtractInput, tree: Tree): FactCandidate[] {
   if (input.file.scope === "test" || !isMain(input) || !/\bfunc\s+main\s*\(/.test(input.text)) return [];
+  // `//go:build ignore` mains (`go run gen.go`) are flagged: next to the real package main they are labelled by path (link)
+  const head = input.text.slice(0, Math.max(0, input.text.search(/^package\s/m)));
+  const ignored = /^\/\/go:build\s+ignore\b/m.test(head);
   return capsFor(tree, GO.entry)
     .filter((c) => c["entry.main"])
-    .map((c) => candidate("entry.go@1", "entry", input, lineOf(c["entry.main"] as Node), { entry: "main", label: dirOf(input.file.path) || "." }));
+    .map((c) =>
+      candidate("entry.go@1", "entry", input, lineOf(c["entry.main"] as Node), {
+        entry: "main",
+        label: dirOf(input.file.path) || ".",
+        ...(ignored ? { ignored } : {}),
+      }),
+    );
 }
 
 export function goRoutes(input: FactExtractInput, tree: Tree): FactCandidate[] {

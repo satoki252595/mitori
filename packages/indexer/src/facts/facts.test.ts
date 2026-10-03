@@ -154,6 +154,19 @@ describe("IDX-AT-25 env.js@1 reads", () => {
   });
 });
 
+describe("IDX-AT-25 entry.go@1", () => {
+  test("a `//go:build ignore` generator main is labelled by its path, the package main by its directory", async () => {
+    const gs = await loadGrammars();
+    const src: Record<string, string> = {
+      "cmd/x/main.go": `package main\n\nfunc main() {}\n`,
+      "cmd/x/gen.go": `//go:build ignore\n\n// gen writes the table.\npackage main\n\nfunc main() {}\n`,
+    };
+    const files = Object.entries(src).map(([path, text]) => parseStageFile(path, text, classify(path, text.length, text), gs.go, `b:${path}`));
+    const p = runPipeline(input(files));
+    expect(mainFacts(p, "entry").map((e) => (e.kind === "entry" ? `${e.entry}:${e.label}` : ""))).toEqual(["main:cmd/x/gen.go", "main:cmd/x"]);
+  });
+});
+
 describe("IDX-AT-25 entry.testmain@1", () => {
   test("`func TestMain(m *testing.M)` is a test_main entry that keeps its test scope (not in the main entry table)", async () => {
     const gs = await loadGrammars();

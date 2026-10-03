@@ -74,6 +74,14 @@ export function linkByDetector(id: string, all: readonly FactCandidate[], ctx: F
       return clis(mine, ctx);
     case "entry.rust@1":
       return rustEntries(mine, ctx);
+    case "entry.go@1": {
+      // a build-ignored generator main next to the directory's real main is its own `go run <file>` entry
+      const real = new Set(mine.filter((c) => c.data.ignored !== true).map((c) => str(c.data.label)));
+      return entries(
+        mine.map((c) => (c.data.ignored === true && real.has(str(c.data.label)) ? { ...c, data: { ...c.data, label: c.path } } : c)),
+        ctx,
+      );
+    }
     case "entry.python@1":
       return entries(
         mine.map((c) =>
