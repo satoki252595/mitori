@@ -1,7 +1,7 @@
 import type { RepoPath } from "@mitori/core";
 import { BUNDLE_LIMITS } from "../contract.ts";
 import type { Estimator } from "./estimate.ts";
-import { quote } from "./lines.ts";
+import { field, quote } from "./lines.ts";
 
 /** One convention file that may be sliced into a bundle. */
 export interface RuleSource {
@@ -38,7 +38,7 @@ const LANG_WORDS: Record<string, string> = {
   py: "python|py",
   rs: "rust|cargo",
 };
-const TOPICS = /\b(?:test|tests|lint|format|style|error|errors)\b|テスト|規約|エラー/iu;
+const TOPICS = /\b(?:tests?|testing|lint(?:ing)?|format(?:ting)?|style|errors?)\b|テスト|規約|エラー/iu;
 const GENERAL = /\b(?:conventions?|style|guidelines?|rules?)\b|コーディング|規約|ルール/iu;
 
 /** Split a Markdown file into sections at `#`–`###` headings (outside fences); `<important if="…">` blocks become sections too. */
@@ -174,7 +174,7 @@ export function sliceRules(sources: readonly RuleSource[], writePaths: readonly 
   const first = sentences((ranked[0] as Section).body.replace(/\n+/gu, " "))[0] ?? "";
   const one = first.length > 120 ? `${first.slice(0, 119)}…` : first;
   return {
-    header: `RULES ${src} ${adopted.length}/${all.filter((s) => s.body !== "").length}`,
+    header: `RULES ${field(src)} ${adopted.length}/${all.filter((s) => s.body !== "").length}`,
     lines: adopted.flatMap((a) => quote(a.lines.join("\n"))),
     oneLine: one === "" ? [] : quote(one),
     shown: adopted.length,

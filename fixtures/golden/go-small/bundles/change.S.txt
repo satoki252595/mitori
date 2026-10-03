@@ -1,0 +1,83 @@
+MBF/1 mode=patch out=patch/1 lang=ja
+GATE fmt:gofmt typecheck:govet test:related
+<<<DATA 7k2m9q4p>>>
+RULES AGENTS.md#Go,Errors,Tests 3/4
+> - gofmt と go vet が gate。エラーは fmt.Errorf で wrap する。
+> - 定数は package の先頭にまとめる。
+> sentinel error は store.ErrNotFound のように公開し、errors.Is で判定する。
+> テストは table-driven にする。変更したパッケージのテストを必ず更新する。
+TASK th_17ab3c9d change R2
+DOC b_meta0003 s6/meta "メタデータ取得 > 取得" h=meta0003
+> HTTP 200 以外、または応答に該当エントリが無い場合はエラーにする。[internal/meta/fetch.go:64-76]
+> ~prev: ISBN を正規化し、カタログ API に 1 回だけ問い合わせる。
+SEL
+> エラーにする
+THREAD 2/2
+> R1 human: HTTP エラーのときにステータスを返したい
+> R1 agent:claude-cli/claude-sonnet-5-5: いまは文字列に埋め込んでいます。[[internal/meta/fetch.go:65-65]]
+CODE internal/meta/fetch.go:21-77 base=ba56aa9 anchor=41-77
+21|	Pages   int      `json:"pages"`
+22|}
+23|
+24|// Client fetches metadata from a catalogue that speaks the Open Library "books" API.
+25|type Client struct {
+26|	baseURL string
+27|	http    *http.Client
+28|}
+29|
+30|// NewClient returns a client for the catalogue at baseURL.
+31|func NewClient(baseURL string) *Client {
+32|	return &Client{baseURL: strings.TrimRight(baseURL, "/"), http: &http.Client{Timeout: requestTimeout}}
+33|}
+34|
+35|// NormalizeISBN strips hyphens and spaces and upper-cases a trailing X.
+36|func NormalizeISBN(raw string) string {
+37|	return strings.ToUpper(strings.NewReplacer("-", "", " ", "").Replace(raw))
+38|}
+39|
+40|// Fetch returns the metadata of isbn. Any failure (network error, HTTP error, unreadable body) is returned as is.
+41|func (c *Client) Fetch(ctx context.Context, isbn string) (Metadata, error) {
+42|	isbn = NormalizeISBN(isbn)
+43|
+44|	md, err := c.fetchOnce(ctx, isbn)
+45|	if err != nil {
+46|		return Metadata{}, fmt.Errorf("fetch metadata for %s: %w", isbn, err)
+47|	}
+48|	return md, nil
+49|}
+50|
+51|func (c *Client) fetchOnce(ctx context.Context, isbn string) (Metadata, error) {
+52|	q := url.Values{"bibkeys": {"ISBN:" + isbn}, "format": {"json"}, "jscmd": {"data"}}
+53|	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/books?"+q.Encode(), nil)
+54|	if err != nil {
+55|		return Metadata{}, err
+56|	}
+57|
+58|	resp, err := c.http.Do(req)
+59|	if err != nil {
+60|		return Metadata{}, err
+61|	}
+62|	defer resp.Body.Close()
+63|
+64|	if resp.StatusCode != http.StatusOK {
+65|		return Metadata{}, fmt.Errorf("catalogue answered HTTP %d", resp.StatusCode)
+66|	}
+67|
+68|	var body map[string]Metadata
+69|	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+70|		return Metadata{}, fmt.Errorf("decode catalogue response: %w", err)
+71|	}
+72|	md, ok := body["ISBN:"+isbn]
+73|	if !ok {
+74|		return Metadata{}, fmt.Errorf("catalogue has no entry for %s", isbn)
+75|	}
+76|	return md, nil
+77|}
+<<<END 7k2m9q4p>>>
+ASK
+> ステータスコードを持つエラー型にして、404 は ErrNotFound として返して。設計書の記述も合わせて。
+WRITE internal/meta/fetch.go
+ACCEPT
+- GATE checks pass: fmt:gofmt typecheck:govet test:related.
+BUDGET in=4000 out=1500 usd=0.10
+END

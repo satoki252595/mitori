@@ -4,7 +4,7 @@ import { BUNDLE_LIMITS } from "../contract.ts";
 import type { Block } from "./code.ts";
 import { bundleDocText, firstSentence, headingText } from "./doc-md.ts";
 import type { Estimator } from "./estimate.ts";
-import { quote, quoteLabelled, safeLine } from "./lines.ts";
+import { field, quote, quoteLabelled, safeLine } from "./lines.ts";
 import type { TaskPart } from "./plan.ts";
 
 /** Applies the secret scan to a text and counts redactions. */
@@ -40,7 +40,7 @@ export function taskPart(
   opts: { doc: Pick<DocStore, "block" | "section">; est: Estimator; scrub: Scrub; seen: Set<BlockId>; removed: ReadonlySet<string>; multi: boolean },
 ): TaskPart {
   const { est, scrub } = opts;
-  const head = `TASK ${thread.id} ${thread.intent} R${thread.round}`;
+  const head = `TASK ${field(thread.id)} ${thread.intent} R${thread.round}`;
   const { ask, earlier } = splitConversation(thread);
 
   let doc: Block | null = null;
@@ -62,7 +62,7 @@ export function taskPart(
       const h = above ? headingText(above.md).replaceAll('"', '\\"') : "";
       if (h !== "" && h !== title) title = title === "" ? h : `${title} > ${h}`;
     }
-    const docHead = `DOC ${b.id} ${b.section} "${safeLine(title).replaceAll("\n", " ")}" h=${b.hash.slice(0, 8)}`;
+    const docHead = `DOC ${b.id} ${field(b.section)} "${field(title)}" h=${b.hash.slice(0, 8)}`;
     const dup = opts.seen.has(b.id);
     opts.seen.add(b.id);
     const body = dup ? ["> (same as above)"] : quote(scrub(bundleDocText(b.md)));
@@ -100,11 +100,11 @@ export function taskPart(
   const shown = opts.removed.has("thread") ? [] : earlier.slice(-BUNDLE_LIMITS.threadMaxMessages);
   const msgs = shown.map((m): Block => {
     const text = scrub(m.by.startsWith("agent") ? clip(m.body, BUNDLE_LIMITS.threadAgentMaxChars) : m.body);
-    const lines = quoteLabelled(`R${m.round} ${m.by}: `, text);
+    const lines = quoteLabelled(`R${m.round} ${field(m.by)}: `, text);
     return { lines, tokens: est.quote(lines) };
   });
 
-  const askLines = [multiAsk(opts.multi, thread.id), ...quote(scrub(ask))];
+  const askLines = [multiAsk(opts.multi, thread.id), ...quote(scrub(ask), Number.POSITIVE_INFINITY)];
   return {
     id: thread.id,
     head: { lines: [head], tokens: est.tags([head]) },

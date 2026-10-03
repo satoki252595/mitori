@@ -7,7 +7,7 @@ import { readableFile } from "../router/scope.ts";
 import { type AnchorSpan, CodeGroup } from "./code.ts";
 import type { BundleBuilderDeps } from "./deps.ts";
 import { Estimator } from "./estimate.ts";
-import { codeLines, safeLine, usdText } from "./lines.ts";
+import { codeLines, field, safeLine, usdText } from "./lines.ts";
 import { drawNonce } from "./nonce.ts";
 import { Plan, type PlanInit, type RelPart } from "./plan.ts";
 import { findRelated, type RelAnchor } from "./rel.ts";
@@ -141,7 +141,7 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
     const entries = await findRelated(deps.indexer, relAnchors, { denied, shown });
     for (const e of entries) {
       if (removed.has(e.key)) continue;
-      const head = `REL ${e.path}:${e.line} sym=${e.sym} ${e.relation.kind}=${e.relation.name}`;
+      const head = `REL ${field(e.path)}:${e.line} sym=${field(e.sym)} ${e.relation.kind}=${field(e.relation.name)}`;
       const body = [`|${safeLine(e.signature)}`];
       rels.push({ entry: e, block: { lines: [head, ...body], tokens: est.tags([head]) + est.code(body) } });
     }
@@ -159,7 +159,7 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
         h.start,
         false,
       );
-      const head = `REL ${h.path}:${h.start}`;
+      const head = `REL ${field(h.path)}:${h.start}`;
       blobs[h.path] ??= slice.blob;
       hintParts.push({
         entry: {
@@ -213,11 +213,11 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
   const trusted = input.gates.filter((g) => g.trusted).map((g) => g.id);
   const gateRuns = input.mode === "patch" || input.mode === "agent";
   if (gateRuns && input.gates.length > 0)
-    top.push(trusted.length > 0 ? `GATE ${trusted.join(" ")}` : `GATE ${input.gates.map((g) => g.id).join(" ")} (untrusted)`);
+    top.push(trusted.length > 0 ? `GATE ${trusted.map(field).join(" ")}` : `GATE ${input.gates.map((g) => field(g.id)).join(" ")} (untrusted)`);
 
   const bullets: string[] = [];
   if (input.mode === "copy") bullets.push(ACCEPT_FIXED.write);
-  if (gateRuns && trusted.length > 0) bullets.push(ACCEPT_FIXED.gates.replace("{gates}", trusted.join(" ")));
+  if (gateRuns && trusted.length > 0) bullets.push(ACCEPT_FIXED.gates.replace("{gates}", trusted.map(field).join(" ")));
   if (input.mode === "copy") bullets.push(ACCEPT_FIXED.scope);
   if (input.threads.some((t) => t.intent === "doc_edit")) bullets.push(ACCEPT_FIXED.docEdit);
   const accept = bullets.length > 0 ? ["ACCEPT", ...bullets.map((b) => `- ${b}`)] : [];
@@ -232,7 +232,7 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
     rulesUntrusted,
     codes,
     rels,
-    write: [input.write.length > 0 ? `WRITE ${[...input.write].sort().join(" ")}` : "WRITE -"],
+    write: [input.write.length > 0 ? `WRITE ${[...input.write].sort().map(field).join(" ")}` : "WRITE -"],
     accept,
     doLines,
     budget: `BUDGET in=${Math.round(input.budget.in)} out=${Math.round(input.budget.out)} usd=${usdText(input.budget.usd)}`,

@@ -5,7 +5,7 @@ import { mergeRanges } from "../router/ranges.ts";
 import { type AnchorSpan, CodeGroup } from "./code.ts";
 import type { BundleBuilderDeps } from "./deps.ts";
 import { Estimator } from "./estimate.ts";
-import { quote, safeLine } from "./lines.ts";
+import { field, quote, safeLine } from "./lines.ts";
 import { drawNonce } from "./nonce.ts";
 
 /** Context lines around the ranges of a repair turn (the agent has already seen the rest). */
@@ -66,7 +66,7 @@ export async function repairMessage(deps: BundleBuilderDeps, input: RepairInput)
     let head: string;
     if (kind === "gate") {
       const bad = job.gates.find((g) => g.status === "fail" || g.status === "error" || g.status === "timeout");
-      head = `GATE ${bad?.gate ?? "unknown"} ${bad?.status ?? "fail"} attempt=${Math.min(Math.max(1, job.attempt), max)}/${max}`;
+      head = `GATE ${field(bad?.gate ?? "unknown")} ${bad?.status ?? "fail"} attempt=${Math.min(Math.max(1, job.attempt), max)}/${max}`;
     } else head = kind === "apply" ? "PATCH fail" : "OUTPUT invalid";
     failure.push(head, ...excerpt);
     failTokens = est.tags([head]) + est.code(excerpt);

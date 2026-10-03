@@ -1,7 +1,7 @@
 import type { GitOid, LineNo, RepoPath } from "@mitori/core";
 import { BUNDLE_LIMITS } from "../contract.ts";
 import type { Estimator } from "./estimate.ts";
-import { codeLines } from "./lines.ts";
+import { codeLines, field } from "./lines.ts";
 
 /** An anchored range inside a group, with the enclosing symbol's qualified name when known. */
 export interface AnchorSpan {
@@ -82,7 +82,7 @@ export class CodeGroup {
       for (const s of this.segments(refOnly ? 3 : level)) {
         const ranges = s.anchors.map((a) => (a.end === a.start ? `${a.start}` : `${a.start}-${a.end}`)).join(",");
         const sym = s.anchors.find((a) => a.sym)?.sym;
-        const head = `CODE ${this.path}:${s.start}-${s.end} base=${this.blob.slice(0, 7)}${sym ? ` sym=${sym}` : ""} anchor=${ranges}${refOnly ? " (read with Read)" : ""}`;
+        const head = `CODE ${field(this.path)}:${s.start}-${s.end} base=${this.blob.slice(0, 7)}${sym ? ` sym=${field(sym)}` : ""} anchor=${ranges}${refOnly ? " (read with Read)" : ""}`;
         const body = refOnly ? [] : codeLines(this.text.slice(s.start - this.first, s.end - this.first + 1), s.start, this.numbered);
         const headTokens = this.est.tags([head]);
         blocks.push({ lines: [head, ...body], tokens: headTokens + this.est.code(body) });

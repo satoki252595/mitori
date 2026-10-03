@@ -63,13 +63,15 @@ export class Plan {
   private msgFrom: number[];
   private readonly topTokens: number;
   private readonly tailTokens: number;
+  private readonly acceptTokens: number;
   private dropped: Dropped = { REL: 0, RULES: 0, DOC_NEIGHBORS: 0, THREAD_OLD: 0, CODE_CONTEXT: 0 };
 
   constructor(readonly init: PlanInit) {
     this.relShown = init.rels.length;
     this.msgFrom = init.tasks.map(() => 0);
     this.topTokens = init.est.tags(init.preface ? [init.preface, ...init.top] : init.top);
-    this.tailTokens = init.est.tags([...init.write, ...init.accept, ...init.doLines, init.budget, "END"]);
+    this.tailTokens = init.est.tags([...init.write, ...init.doLines, init.budget, "END"]);
+    this.acceptTokens = init.est.tags(init.accept);
   }
 
   /** Back to the full bundle (before any drop). */
@@ -194,6 +196,7 @@ export class Plan {
       tokens: this.topTokens + FENCE_LINE_TOKENS + this.tailTokens + (omitted ? est.tags([omitted]) : 0),
       item: { key: "write", kind: "instructions", label: "WRITE", removable: false },
     });
+    if (this.acceptTokens > 0) out.push({ tokens: this.acceptTokens, item: { key: "accept", kind: "instructions", label: "ACCEPT", removable: false } });
     const rules = this.rulesBlock();
     if (rules) out.push({ tokens: rules.tokens, item: { key: "rules", kind: "rules", label: "RULES", removable: true } });
     let asks = 0;
