@@ -14,7 +14,6 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, write
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import type { Spawner } from "@mitori/agent";
 import {
   API_PREFIX,
   type EngineStatus,
@@ -28,7 +27,6 @@ import {
   type WorkspaceStatus,
   type WorkspaceSummary,
 } from "@mitori/core";
-import { createSpawner, resolveSafePath } from "@mitori/platform";
 import { startServerDaemon } from "../../apps/cli/src/daemon/server.ts";
 import { openSse } from "../../packages/server/src/http/test/sse-reader.ts";
 import { recordingSpawner } from "./gen-real-record.ts";
