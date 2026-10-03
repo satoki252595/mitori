@@ -47,7 +47,7 @@ export function processRunner(opts: { runnerRoot: string; factor: number; runs?:
       const args = ["bun", script, "--root", side.root, "--list", "--json"];
       if (sel.suites.length) args.push("--suite", sel.suites.join(","));
       for (const id of sel.ids) args.push("--id", id);
-      const r = await exec(args, side.root, { ...side.env });
+      const r = await exec(args, side.root, { ...side.env, MITORI_BENCH_SIDE: side.name });
       if (r.code !== 0) {
         // exit 2 with "no case matches" is an empty tree, anything else is a load failure
         if (!/no case matches|no bench cases/.test(r.out + r.err))
@@ -59,7 +59,7 @@ export function processRunner(opts: { runnerRoot: string; factor: number; runs?:
     async run(side, id) {
       const args = ["bun", script, "--root", side.root, "--id", id, "--exact", "--json", "--no-wait", "--factor", String(opts.factor)];
       if (opts.runs !== undefined) args.push("--runs", String(opts.runs));
-      const r = await exec(args, side.root, { ...side.env });
+      const r = await exec(args, side.root, { ...side.env, MITORI_BENCH_SIDE: side.name });
       let file: BenchResultFile;
       try {
         file = JSON.parse(r.out) as BenchResultFile;

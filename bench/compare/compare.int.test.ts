@@ -34,6 +34,14 @@ describe("BENCH-AT-01 bench:compare fails a 25 % slower synthetic benchmark", ()
     expect(slow.out).toContain("synthetic.spin");
   }, 60_000);
 
+  test("the caller's own MITORI_BENCH_SLOWDOWN slows head only: the base side is told to ignore it", async () => {
+    const r = await run(["bun", "run", "bench:compare", "--base-root", ROOT, "--id", "synthetic.spin", "--pairs", "2", "--no-absolute"], ROOT, {
+      MITORI_BENCH_SLOWDOWN: "1.25",
+    });
+    expect(r.code).toBe(1);
+    expect(r.out).toContain("**REGRESSED**");
+  }, 60_000);
+
   test("the same run without a slowdown, and with a 5 % one, passes", async () => {
     for (const factor of ["1", "1.05"]) {
       const r = await run([

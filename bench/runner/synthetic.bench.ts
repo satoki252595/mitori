@@ -1,6 +1,8 @@
 // Synthetic cases: the harness's own acceptance material (MILESTONES WP-12: a benchmark made 25 % slower must fail the
 // compare gate). They are excluded from `--suite all`; select them with `--suite synthetic`.
-// Environment knobs (so one checkout can play both base and head — `compare --head-env`):
+// Environment knobs, so that one checkout can play both base and head: the compare gate runs its base side with
+// MITORI_BENCH_SIDE=base, which ignores them (`MITORI_BENCH_SLOWDOWN=1.25 bun run bench:compare --suite synthetic --base-root .`;
+// `--head-env KEY=VAL` sets them for the head side only, whatever the caller's environment):
 //   MITORI_BENCH_SLOWDOWN=1.25    synthetic.spin takes 25 % longer
 //   MITORI_BENCH_EXTRA_CALLS=1    synthetic.counter reports one more call
 //   MITORI_BENCH_VALUE=300        synthetic.value reports 300 (a structural count)
@@ -8,7 +10,9 @@ import { defineBench } from "./define.ts";
 
 /** 20 ms: a 25 % slowdown (5 ms) must clear the compare gate's 2 ms noise floor. */
 const BASE_MS = 20;
+/** The knobs describe the change under test: the compare gate tells the base side (`MITORI_BENCH_SIDE=base`) to ignore them. */
 const num = (name: string, fallback: number): number => {
+  if (process.env.MITORI_BENCH_SIDE === "base") return fallback;
   const v = Number(process.env[name]);
   return Number.isFinite(v) && process.env[name] !== undefined && process.env[name] !== "" ? v : fallback;
 };
