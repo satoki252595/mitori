@@ -64,7 +64,7 @@ interface Live {
   boost: number;
   unsubscribe: (() => void) | null;
   pinnedBlobs: GitOid[];
-  idle: { promise: Promise<void>; resolve: () => void };
+  idle: Deferred;
 }
 
 /** Run-task id from the run and the plan task id (unique per run, stable for the run). */
@@ -432,6 +432,7 @@ export class Runner {
 
   private launch(row: TaskRow): void {
     const live = this.live as Live;
+    if (live.idle.settled) live.idle = deferred();
     const abort = new AbortController();
     const slot: { abort: AbortController; call: { stop(r: "user"): void } | null; estUsd: number } = { abort, call: null, estUsd: row.plan.estimate.apiUsd };
     live.running.set(row.task.id, slot);
@@ -459,6 +460,10 @@ export class Runner {
       },
       call: (c) => {
         slot.call = c;
+      },
+      blocks: (ids) => {
+        row.task.blocks = [...new Set([...row.task.blocks, ...ids])];
+        void this.deps.write("gen.task.blocks", () => this.svc.store.putTask(row));
       },
     })
       .then((res) => this.complete(row, res))
@@ -594,13 +599,22 @@ export function candidatesOf(store: GenStore, rows: readonly TaskRow[]): { modul
   return { modules, terms: [...counts.values()].sort((a, b) => b.n - a.n || a.first - b.first).map((x) => x.c) };
 }
 
-/** A promise with its resolver (re-armed per run). */
-function deferred(): { promise: Promise<void>; resolve: () => void } {
-  let resolve: () => void = () => undefined;
-  const promise = new Promise<void>((r) => {
-    resolve = r;
+/** A promise with its resolver; re-armed when the run becomes busy again. */
+interface Deferred {
+  promise: Promise<void>;
+  resolve: () => void;
+  settled: boolean;
+}
+
+function deferred(): Deferred {
+  const d: Deferred = { promise: Promise.resolve(), resolve: () => undefined, settled: false };
+  d.promise = new Promise<void>((r) => {
+    d.resolve = () => {
+      d.settled = true;
+      r();
+    };
   });
-  return { promise, resolve };
+  return d;
 }
 
 function progressOf(tasks: readonly GenTask[]): GenRun["progress"] {

@@ -91,6 +91,7 @@ export class ApplySink {
     private readonly deps: ApplyDeps,
     private readonly ctx: ApplyContext,
     idMap: Record<NewBlockRef, BlockId> = {},
+    private readonly onWritten?: (ids: readonly BlockId[]) => void,
   ) {
     this.idMap = { ...idMap };
   }
@@ -135,6 +136,7 @@ export class ApplySink {
     Object.assign(this.idMap, res.idMap);
     this.written.push(...res.written);
     this.proposals.push(...res.proposals);
+    if (res.written.length > 0) this.onWritten?.(res.written);
     return res;
   }
 

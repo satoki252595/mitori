@@ -44,6 +44,8 @@ export interface HarnessOptions {
   router?: ScriptedEngineOptions["router"];
   /** Parkable processes. */
   parkable?: boolean;
+  /** Delta size of the scripted engine. */
+  chunk?: number;
   /** Renderer version overrides. */
   versions?: Parameters<typeof createPromptRenderer>[0]["versions"];
   /** Reuse state across "daemon restarts". */
@@ -83,7 +85,12 @@ export function makeHarness(opts: HarnessOptions = {}) {
   const store = new GenStore(db, clock);
   const secrets = testSecrets();
   const prompts = createPromptRenderer({ hasher, secrets, indexer, salt: () => store.salt(random), ...(opts.versions ? { versions: opts.versions } : {}) });
-  const engine = createScriptedEngine({ router: opts.router ?? validRouter, hasher, parkable: opts.parkable ?? true });
+  const engine = createScriptedEngine({
+    router: opts.router ?? validRouter,
+    hasher,
+    parkable: opts.parkable ?? true,
+    ...(opts.chunk ? { chunk: opts.chunk } : {}),
+  });
   const scheduler = fakeScheduler();
   const ledger = fakeLedger();
   const events = testEvents();

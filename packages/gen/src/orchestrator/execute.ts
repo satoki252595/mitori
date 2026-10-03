@@ -115,6 +115,8 @@ export interface ExecHooks {
   cacheKey(key: string): void;
   /** The live call (for cancel). */
   call(run: GenCallRun | null): void;
+  /** Blocks committed so far (persisted for crash recovery, §3.7). */
+  blocks?(ids: readonly BlockId[]): void;
 }
 
 const FATAL: ReadonlySet<ErrorCode> = new Set(["E_AGENT_AUTH_SOURCE", "E_AGENT_NOT_INSTALLED", "E_AGENT_AUTH"]);
@@ -258,7 +260,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
     return { state: "cached", usage: null, calls: 0, attempts: 0, blocks: sink.written };
   }
 
-  const sink = new ApplySink(deps, applyCtx);
+  const sink = new ApplySink(deps, applyCtx, {}, (ids) => hooks.blocks?.(ids));
   let usage: Usage | null = null;
   let calls = 0;
   const start = async (call: GenCall): Promise<GenCallRun> => {

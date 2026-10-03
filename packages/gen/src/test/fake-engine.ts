@@ -20,10 +20,14 @@ export interface ScriptReply {
   continuations?: number;
   /** Error details. */
   error?: { code: "E_AGENT_EXIT" | "E_AGENT_AUTH_SOURCE" | "E_AGENT_TIMEOUT"; message: string; retryable: boolean };
-  /** Stream the first chunk, then wait until stopped. */
+  /** Stream the first chunk (or the first `hangAfterLines` complete lines), then wait until stopped. */
   hang?: boolean;
+  /** With `hang`: complete lines streamed before hanging. */
+  hangAfterLines?: number;
   /** Override the reported API-equivalent cost. */
   apiUsd?: number;
+  /** Wait for this before streaming. */
+  gate?: Promise<void>;
 }
 
 /** Router input. */
@@ -137,11 +141,18 @@ export function createScriptedEngine(opts: ScriptedEngineOptions): ScriptedEngin
     const run: GenCallRun = {
       text: {
         async *[Symbol.asyncIterator]() {
+          if (reply.gate) await Promise.race([reply.gate, halted]);
+          let cutoff = text.length;
+          if (reply.hang && reply.hangAfterLines !== undefined) {
+            cutoff = 0;
+            for (let k = 0; k < reply.hangAfterLines; k++) cutoff = text.indexOf("\n", cutoff) + 1;
+          }
           for (let i = 0; i < text.length; i += chunk) {
             if (stopped) break;
             await Promise.resolve();
-            yield text.slice(i, i + chunk);
-            if (reply.hang) {
+            const end = Math.min(i + chunk, cutoff);
+            if (end > i) yield text.slice(i, end);
+            if (reply.hang && (reply.hangAfterLines === undefined || end >= cutoff)) {
               await halted;
               break;
             }
