@@ -1,4 +1,13 @@
-import type { EffectiveSettings, EngineId, ModelId, ReasoningEffort, Result, RouteDecision, ThreadIntent } from "@mitori/core";
+import {
+  type EffectiveSettings,
+  type EngineId,
+  INTENT_JOB_KIND,
+  type ModelId,
+  type ReasoningEffort,
+  type Result,
+  type RouteDecision,
+  type ThreadIntent,
+} from "@mitori/core";
 import { ROUTER_LIMITS, ROUTER_RULES, type RouteInput, type RouteOutcome, type RouterRule } from "../contract.ts";
 import { fail } from "./result.ts";
 
@@ -36,7 +45,10 @@ export function routeDecision(input: RouteInputExt, settings: EffectiveSettings)
 
   const group = groupOf(intents);
   if (group === "mixed") {
-    return fail("E_INVALID_INPUT", `mixed intents (${intents.join(", ")}): split the batch by job kind first`, { params: { intents: intents.join(",") } });
+    const kinds = [...new Set(intents.map((i) => INTENT_JOB_KIND[i]))].join(",");
+    return fail("E_INVALID_INPUT", `mixed intents (${intents.join(", ")}): split the batch by route group first`, {
+      params: { intents: intents.join(","), kinds },
+    });
   }
   if (group === "note" && input.single)
     return fail("E_INVALID_INPUT", "a note is sent only by Finish, never as a single dispatch", { params: { intents: "note" } });
