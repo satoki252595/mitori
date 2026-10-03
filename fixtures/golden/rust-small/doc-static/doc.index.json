@@ -1,0 +1,1336 @@
+{
+  "blocks": {
+    "b_07dfj5bf": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/12-glossary.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_07dfj5bf",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s12",
+      "slot": "s12:ph",
+      "status": "placeholder"
+    },
+    "b_0h895x4x": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/04-quickstart.md",
+      "freshness": "fresh",
+      "hash": "ac3158e7387baaec",
+      "id": "b_0h895x4x",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 8,
+      "section": "s4",
+      "slot": "s4:entries",
+      "status": "ready"
+    },
+    "b_0ym02db4": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/detect-only.md",
+      "freshness": "fresh",
+      "hash": "5d28cbc6124c07fb",
+      "id": "b_0ym02db4",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 3,
+      "section": "s6/detect-only",
+      "slot": "m:md_7vgqt6t9:h",
+      "status": "ready"
+    },
+    "b_1045tqb2": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/05-codebase-map.md",
+      "freshness": "fresh",
+      "hash": "a3816b2d349f594e",
+      "id": "b_1045tqb2",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s5",
+      "slot": "s5:h",
+      "status": "ready"
+    },
+    "b_15jrsf7z": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/05-codebase-map.md",
+      "freshness": "fresh",
+      "hash": "d46218a927d826cf",
+      "id": "b_15jrsf7z",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 6,
+      "section": "s5",
+      "slot": "s5:tree",
+      "status": "ready"
+    },
+    "b_2q2r6nrn": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/11-risks.md",
+      "freshness": "fresh",
+      "hash": "8411753a2a6a508c",
+      "id": "b_2q2r6nrn",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s11",
+      "slot": "s11:h",
+      "status": "ready"
+    },
+    "b_4px30qmk": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/08-interfaces.md",
+      "freshness": "fresh",
+      "hash": "ebeb7668ef149a6a",
+      "id": "b_4px30qmk",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s8",
+      "slot": "s8:h",
+      "status": "ready"
+    },
+    "b_59zqtq6w": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/04-quickstart.md",
+      "freshness": "fresh",
+      "hash": "701786ceb02c7f63",
+      "id": "b_59zqtq6w",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s4",
+      "slot": "s4:scripts",
+      "status": "ready"
+    },
+    "b_7jpkd0se": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/04-quickstart.md",
+      "freshness": "fresh",
+      "hash": "da1c087cf197f863",
+      "id": "b_7jpkd0se",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 14,
+      "section": "s4",
+      "slot": "s4:env",
+      "status": "ready"
+    },
+    "b_7pgg7ee3": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/10-decisions.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_7pgg7ee3",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s10",
+      "slot": "s10:ph",
+      "status": "placeholder"
+    },
+    "b_8jabk1vc": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/05-codebase-map.md",
+      "freshness": "fresh",
+      "hash": "3377e9a094858832",
+      "id": "b_8jabk1vc",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 2,
+      "section": "s5",
+      "slot": "s5:noise",
+      "status": "ready"
+    },
+    "b_8v275c7q": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/detect-only.md",
+      "freshness": "fresh",
+      "hash": "eead39b7ccf219d2",
+      "id": "b_8v275c7q",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 5,
+      "section": "s6/detect-only",
+      "slot": "m:md_7vgqt6t9:ph",
+      "status": "placeholder"
+    },
+    "b_bt3ztc8k": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/07-data-model.md",
+      "freshness": "fresh",
+      "hash": "02ae7480753670ec",
+      "id": "b_bt3ztc8k",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s7",
+      "slot": "s7:h",
+      "status": "ready"
+    },
+    "b_dvme2174": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/09-quality.md",
+      "freshness": "fresh",
+      "hash": "cd9d827501550d2c",
+      "id": "b_dvme2174",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s9",
+      "slot": "s9:h",
+      "status": "ready"
+    },
+    "b_f0700x6w": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/src.md",
+      "freshness": "fresh",
+      "hash": "39ea4c28570c6415",
+      "id": "b_f0700x6w",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s6/src",
+      "slot": "m:md_jbbyhfcf:h",
+      "status": "ready"
+    },
+    "b_fs161v6r": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "diagram": "dg_6kb41ap4",
+      "file": "doc/02-floor-plan.md",
+      "freshness": "fresh",
+      "hash": "b9515b1bfdc0e6ad",
+      "id": "b_fs161v6r",
+      "kind": "diagram",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 25,
+      "section": "s2",
+      "slot": "s2:floorplan",
+      "status": "ready"
+    },
+    "b_fy6j047k": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/08-interfaces.md",
+      "freshness": "fresh",
+      "hash": "701786ceb02c7f63",
+      "id": "b_fy6j047k",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s8",
+      "slot": "s8:routes",
+      "status": "ready"
+    },
+    "b_h3wvhqt8": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/99-appendix.md",
+      "freshness": "fresh",
+      "hash": "a8c805c813df4fe1",
+      "id": "b_h3wvhqt8",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "appendix",
+      "slot": "appendix:h",
+      "status": "ready"
+    },
+    "b_he87g2c2": {
+      "audience": [
+        "newcomer",
+        "pm",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/00-tldr.md",
+      "freshness": "fresh",
+      "hash": "d834187847761654",
+      "id": "b_he87g2c2",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 3,
+      "section": "s0",
+      "slot": "s0:coverage",
+      "status": "ready"
+    },
+    "b_hhewf7jr": {
+      "audience": [
+        "newcomer",
+        "pm",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/00-tldr.md",
+      "freshness": "fresh",
+      "hash": "90115e75dc73a90d",
+      "id": "b_hhewf7jr",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 7,
+      "section": "s0",
+      "slot": "s0:badges",
+      "status": "ready"
+    },
+    "b_hp9c85jj": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/01-what-why.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_hp9c85jj",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s1",
+      "slot": "s1:ph",
+      "status": "placeholder"
+    },
+    "b_hqgb1rkx": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/00-tldr.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_hqgb1rkx",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s0",
+      "slot": "s0:ph",
+      "status": "placeholder"
+    },
+    "b_hym5mfqc": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/01-what-why.md",
+      "freshness": "fresh",
+      "hash": "99db96e47c53bb2f",
+      "id": "b_hym5mfqc",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 2,
+      "section": "s1",
+      "slot": "s1:h",
+      "status": "ready"
+    },
+    "b_j0vf2v0a": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/13-open-questions.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_j0vf2v0a",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s13",
+      "slot": "s13:ph",
+      "status": "placeholder"
+    },
+    "b_jakp1rng": {
+      "audience": [
+        "reviewer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L3",
+      "file": "doc/99-appendix.md",
+      "freshness": "fresh",
+      "hash": "c19f8e80e1812eca",
+      "id": "b_jakp1rng",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 8,
+      "section": "appendix",
+      "slot": "ap:meta",
+      "status": "ready"
+    },
+    "b_jqstb9e7": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/03-key-flows.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_jqstb9e7",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s3",
+      "slot": "s3:ph",
+      "status": "placeholder"
+    },
+    "b_jthn1bjc": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/06-modules.md",
+      "freshness": "fresh",
+      "hash": "6aefe5aa5fb067aa",
+      "id": "b_jthn1bjc",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s6",
+      "slot": "s6:h",
+      "status": "ready"
+    },
+    "b_kah19xkk": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/03-key-flows.md",
+      "freshness": "fresh",
+      "hash": "a718a0aa88614dc7",
+      "id": "b_kah19xkk",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s3",
+      "slot": "s3:h",
+      "status": "ready"
+    },
+    "b_n17ff8er": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/08-interfaces.md",
+      "freshness": "fresh",
+      "hash": "da1c087cf197f863",
+      "id": "b_n17ff8er",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 14,
+      "section": "s8",
+      "slot": "s8:env",
+      "status": "ready"
+    },
+    "b_np5m1046": {
+      "audience": [
+        "reviewer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L3",
+      "file": "doc/11-risks.md",
+      "freshness": "fresh",
+      "hash": "44b858a9e91c5aae",
+      "id": "b_np5m1046",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 3,
+      "section": "s11",
+      "slot": "s11:todos",
+      "status": "ready"
+    },
+    "b_pb7fbtty": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/08-interfaces.md",
+      "freshness": "fresh",
+      "hash": "1ddd86ee50390f1b",
+      "id": "b_pb7fbtty",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 16,
+      "section": "s8",
+      "slot": "s8:cli",
+      "status": "ready"
+    },
+    "b_pbbqrbrn": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/src.md",
+      "freshness": "fresh",
+      "hash": "eead39b7ccf219d2",
+      "id": "b_pbbqrbrn",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 5,
+      "section": "s6/src",
+      "slot": "m:md_jbbyhfcf:ph",
+      "status": "placeholder"
+    },
+    "b_qx8y4ks7": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/06-modules.md",
+      "freshness": "fresh",
+      "hash": "a2417fa4e31ff772",
+      "id": "b_qx8y4ks7",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 11,
+      "section": "s6",
+      "slot": "s6:index",
+      "status": "ready"
+    },
+    "b_qzdwh15t": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/05-codebase-map.md",
+      "freshness": "fresh",
+      "hash": "23bb2735c1e805ff",
+      "id": "b_qzdwh15t",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 5,
+      "section": "s5",
+      "slot": "s5:start",
+      "status": "ready"
+    },
+    "b_rb5a4mqc": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/09-quality.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_rb5a4mqc",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s9",
+      "slot": "s9:ph",
+      "status": "placeholder"
+    },
+    "b_t4nkfvpz": {
+      "audience": [
+        "reviewer",
+        "dev",
+        "pm"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/10-decisions.md",
+      "freshness": "fresh",
+      "hash": "0a8c26df56e0426d",
+      "id": "b_t4nkfvpz",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 5,
+      "section": "s10",
+      "slot": "s10:decisions",
+      "status": "ready"
+    },
+    "b_thwfarq6": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/detect-only.md",
+      "freshness": "fresh",
+      "hash": "8d2163450c112309",
+      "id": "b_thwfarq6",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 2,
+      "section": "s6/detect-only",
+      "slot": "m:md_7vgqt6t9:facts",
+      "status": "ready"
+    },
+    "b_trxre5zg": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/src.md",
+      "freshness": "fresh",
+      "hash": "b2c342762c985d4c",
+      "id": "b_trxre5zg",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 2,
+      "section": "s6/src",
+      "slot": "m:md_jbbyhfcf:facts",
+      "status": "ready"
+    },
+    "b_v4et1jnx": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/11-risks.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_v4et1jnx",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s11",
+      "slot": "s11:ph",
+      "status": "placeholder"
+    },
+    "b_vazmb35v": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/10-decisions.md",
+      "freshness": "fresh",
+      "hash": "c7af25ff1907e399",
+      "id": "b_vazmb35v",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s10",
+      "slot": "s10:h",
+      "status": "ready"
+    },
+    "b_vt3apkqs": {
+      "audience": [
+        "reviewer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L3",
+      "file": "doc/99-appendix.md",
+      "freshness": "fresh",
+      "hash": "860cdf3aa19bfa52",
+      "id": "b_vt3apkqs",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "appendix",
+      "slot": "ap:sources",
+      "status": "ready"
+    },
+    "b_x21yn0z5": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/12-glossary.md",
+      "freshness": "fresh",
+      "hash": "c937e0a2bf8d9abe",
+      "id": "b_x21yn0z5",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s12",
+      "slot": "s12:h",
+      "status": "ready"
+    },
+    "b_xc3zf3by": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/13-open-questions.md",
+      "freshness": "fresh",
+      "hash": "5844be092f9c9693",
+      "id": "b_xc3zf3by",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s13",
+      "slot": "s13:h",
+      "status": "ready"
+    },
+    "b_xgcdn0ft": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/07-data-model.md",
+      "freshness": "fresh",
+      "hash": "ac942b1bf745322f",
+      "id": "b_xgcdn0ft",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 3,
+      "section": "s7",
+      "slot": "s7:schema",
+      "status": "ready"
+    },
+    "b_xn276g9g": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/04-quickstart.md",
+      "freshness": "fresh",
+      "hash": "f44f52fb9a3c21dd",
+      "id": "b_xn276g9g",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s4",
+      "slot": "s4:h",
+      "status": "ready"
+    },
+    "b_y5pce933": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/02-floor-plan.md",
+      "freshness": "fresh",
+      "hash": "f757320123417f4c",
+      "id": "b_y5pce933",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s2",
+      "slot": "s2:h",
+      "status": "ready"
+    },
+    "b_yd6g654y": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/00-tldr.md",
+      "freshness": "fresh",
+      "hash": "95339fcf9baa00a6",
+      "id": "b_yd6g654y",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s0",
+      "slot": "s0:h",
+      "status": "ready"
+    },
+    "b_yfn65hm8": {
+      "audience": [
+        "reviewer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L3",
+      "file": "doc/11-risks.md",
+      "freshness": "fresh",
+      "hash": "abb1d892ab6aabee",
+      "id": "b_yfn65hm8",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s11",
+      "slot": "s11:untested",
+      "status": "ready"
+    },
+    "b_yy6fghf6": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/02-floor-plan.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_yy6fghf6",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s2",
+      "slot": "s2:ph",
+      "status": "placeholder"
+    }
+  },
+  "claims": {},
+  "diagrams": {
+    "dg_6kb41ap4": {
+      "direction": "RIGHT",
+      "edges": [],
+      "groups": [],
+      "id": "dg_6kb41ap4",
+      "kind": "container",
+      "nodes": [
+        {
+          "id": "src",
+          "label": "src",
+          "ref": {
+            "module": "md_jbbyhfcf"
+          },
+          "sublabel": "src",
+          "weight": 0.8333
+        },
+        {
+          "id": "detect-only",
+          "label": "detect-only",
+          "ref": {
+            "module": "md_7vgqt6t9"
+          },
+          "sublabel": "detect-only",
+          "weight": 0.1667
+        }
+      ],
+      "origin": "static"
+    }
+  },
+  "glossary": [],
+  "kind": "mitori/doc-index",
+  "modules": [
+    {
+      "id": "md_7vgqt6t9",
+      "ifaceDigest": "a4f5f2335a8f888f",
+      "name": "detect-only",
+      "reps": [
+        "detect-only/clap_cli.rs"
+      ],
+      "section": "s6/detect-only",
+      "slug": "detect-only"
+    },
+    {
+      "id": "md_jbbyhfcf",
+      "ifaceDigest": "cbdceafc9b273bbe",
+      "name": "src",
+      "reps": [
+        "src/config.rs",
+        "src/lib.rs",
+        "src/main.rs",
+        "src/meta.rs",
+        "src/store.rs"
+      ],
+      "section": "s6/src",
+      "slug": "src"
+    }
+  ],
+  "readingPaths": [
+    {
+      "audience": "newcomer",
+      "id": "5min",
+      "readingSec": 56,
+      "steps": [
+        {
+          "section": "s0"
+        },
+        {
+          "section": "s1"
+        },
+        {
+          "section": "s2"
+        },
+        {
+          "section": "s3"
+        }
+      ],
+      "title": "5 分コース"
+    },
+    {
+      "audience": "newcomer",
+      "id": "30min",
+      "readingSec": 112,
+      "steps": [
+        {
+          "section": "s0"
+        },
+        {
+          "section": "s1"
+        },
+        {
+          "section": "s2"
+        },
+        {
+          "section": "s3"
+        },
+        {
+          "section": "s4"
+        },
+        {
+          "section": "s5"
+        },
+        {
+          "section": "s6/detect-only"
+        },
+        {
+          "section": "s6/src"
+        }
+      ],
+      "title": "30 分コース"
+    },
+    {
+      "audience": "reviewer",
+      "id": "reviewer",
+      "readingSec": 44,
+      "steps": [
+        {
+          "section": "s6"
+        },
+        {
+          "section": "s9"
+        },
+        {
+          "section": "s10"
+        },
+        {
+          "section": "s11"
+        },
+        {
+          "section": "s13"
+        }
+      ],
+      "title": "レビュアー向け"
+    },
+    {
+      "audience": "pm",
+      "id": "pm",
+      "readingSec": 43,
+      "steps": [
+        {
+          "section": "s0"
+        },
+        {
+          "section": "s1"
+        },
+        {
+          "section": "s3"
+        },
+        {
+          "section": "s11"
+        },
+        {
+          "section": "s13"
+        }
+      ],
+      "title": "PM 向け"
+    },
+    {
+      "audience": "sre",
+      "id": "sre",
+      "readingSec": 73,
+      "steps": [
+        {
+          "section": "s4"
+        },
+        {
+          "section": "s8"
+        },
+        {
+          "section": "s9"
+        },
+        {
+          "section": "s11"
+        }
+      ],
+      "title": "SRE 向け"
+    }
+  ],
+  "schemaVersion": 1,
+  "sections": [
+    {
+      "blocks": [
+        "b_yd6g654y",
+        "b_hqgb1rkx",
+        "b_hhewf7jr",
+        "b_he87g2c2"
+      ],
+      "children": [],
+      "file": "doc/00-tldr.md",
+      "id": "s0",
+      "readingSec": 15,
+      "state": "pending",
+      "title": "ひとことで"
+    },
+    {
+      "blocks": [
+        "b_hym5mfqc",
+        "b_hp9c85jj"
+      ],
+      "children": [],
+      "file": "doc/01-what-why.md",
+      "id": "s1",
+      "readingSec": 6,
+      "state": "pending",
+      "title": "これは何か・誰のためか・なぜあるか"
+    },
+    {
+      "blocks": [
+        "b_y5pce933",
+        "b_yy6fghf6",
+        "b_fs161v6r"
+      ],
+      "children": [],
+      "file": "doc/02-floor-plan.md",
+      "id": "s2",
+      "readingSec": 30,
+      "state": "pending",
+      "title": "見取り図"
+    },
+    {
+      "blocks": [
+        "b_kah19xkk",
+        "b_jqstb9e7"
+      ],
+      "children": [],
+      "file": "doc/03-key-flows.md",
+      "id": "s3",
+      "readingSec": 5,
+      "state": "pending",
+      "title": "主要な流れ"
+    },
+    {
+      "blocks": [
+        "b_xn276g9g",
+        "b_59zqtq6w",
+        "b_7jpkd0se",
+        "b_0h895x4x"
+      ],
+      "children": [],
+      "file": "doc/04-quickstart.md",
+      "id": "s4",
+      "readingSec": 24,
+      "state": "static_only",
+      "title": "動かしてみる"
+    },
+    {
+      "blocks": [
+        "b_1045tqb2",
+        "b_15jrsf7z",
+        "b_qzdwh15t",
+        "b_8jabk1vc"
+      ],
+      "children": [],
+      "file": "doc/05-codebase-map.md",
+      "id": "s5",
+      "readingSec": 14,
+      "state": "static_only",
+      "title": "コードの地図"
+    },
+    {
+      "blocks": [
+        "b_jthn1bjc",
+        "b_qx8y4ks7"
+      ],
+      "children": [
+        "s6/src",
+        "s6/detect-only"
+      ],
+      "file": "doc/06-modules.md",
+      "id": "s6",
+      "readingSec": 12,
+      "state": "static_only",
+      "title": "モジュール詳細"
+    },
+    {
+      "blocks": [
+        "b_f0700x6w",
+        "b_trxre5zg",
+        "b_pbbqrbrn"
+      ],
+      "children": [],
+      "file": "doc/modules/src.md",
+      "id": "s6/src",
+      "module": "md_jbbyhfcf",
+      "readingSec": 8,
+      "state": "pending",
+      "title": "src"
+    },
+    {
+      "blocks": [
+        "b_0ym02db4",
+        "b_thwfarq6",
+        "b_8v275c7q"
+      ],
+      "children": [],
+      "file": "doc/modules/detect-only.md",
+      "id": "s6/detect-only",
+      "module": "md_7vgqt6t9",
+      "readingSec": 10,
+      "state": "pending",
+      "title": "detect-only"
+    },
+    {
+      "blocks": [
+        "b_bt3ztc8k",
+        "b_xgcdn0ft"
+      ],
+      "children": [],
+      "file": "doc/07-data-model.md",
+      "id": "s7",
+      "readingSec": 4,
+      "state": "static_only",
+      "title": "データモデル"
+    },
+    {
+      "blocks": [
+        "b_4px30qmk",
+        "b_fy6j047k",
+        "b_pb7fbtty",
+        "b_n17ff8er"
+      ],
+      "children": [],
+      "file": "doc/08-interfaces.md",
+      "id": "s8",
+      "readingSec": 32,
+      "state": "static_only",
+      "title": "外部インターフェース"
+    },
+    {
+      "blocks": [
+        "b_dvme2174",
+        "b_rb5a4mqc"
+      ],
+      "children": [],
+      "file": "doc/09-quality.md",
+      "id": "s9",
+      "readingSec": 5,
+      "state": "pending",
+      "title": "非機能"
+    },
+    {
+      "blocks": [
+        "b_vazmb35v",
+        "b_7pgg7ee3",
+        "b_t4nkfvpz"
+      ],
+      "children": [],
+      "file": "doc/10-decisions.md",
+      "id": "s10",
+      "readingSec": 10,
+      "state": "pending",
+      "title": "設計判断"
+    },
+    {
+      "blocks": [
+        "b_2q2r6nrn",
+        "b_v4et1jnx",
+        "b_np5m1046",
+        "b_yfn65hm8"
+      ],
+      "children": [],
+      "file": "doc/11-risks.md",
+      "id": "s11",
+      "readingSec": 12,
+      "state": "pending",
+      "title": "リスクと負債"
+    },
+    {
+      "blocks": [
+        "b_x21yn0z5",
+        "b_07dfj5bf"
+      ],
+      "children": [],
+      "file": "doc/12-glossary.md",
+      "id": "s12",
+      "readingSec": 5,
+      "state": "pending",
+      "title": "用語集"
+    },
+    {
+      "blocks": [
+        "b_xc3zf3by",
+        "b_j0vf2v0a"
+      ],
+      "children": [],
+      "file": "doc/13-open-questions.md",
+      "id": "s13",
+      "readingSec": 5,
+      "state": "pending",
+      "title": "未解決の問い"
+    },
+    {
+      "blocks": [
+        "b_h3wvhqt8",
+        "b_vt3apkqs",
+        "b_jakp1rng"
+      ],
+      "children": [],
+      "file": "doc/99-appendix.md",
+      "id": "appendix",
+      "readingSec": 10,
+      "state": "static_only",
+      "title": "付録: 出典索引と生成メタ"
+    }
+  ]
+}
