@@ -304,6 +304,21 @@ describe("AC-45 phases: the next phase sees the previous phase's output", () => 
     expect(r1).toMatchObject({ ok: true, next: { prep: p1.id, phase: 2 } });
   });
 
+  test("a session run whose every task is reused from the cache completes without a packet", async () => {
+    const h = makeHarness();
+    let p: PrepInfo | null = await h.gen.session.prep({ effort: "standard" });
+    while (p) {
+      answer(h, p);
+      const r = await h.gen.session.ingest({ prep: p.id, fingerprint: p.fingerprint, partial: false });
+      p = r.next ? await h.gen.session.prep({ effort: "standard", continueFrom: p.id }) : null;
+    }
+    await expect(h.gen.session.prep({ effort: "standard" })).rejects.toMatchObject({ code: "E_PRECONDITION" });
+    const runs = h.db.all<{ id: string; state: string }>("SELECT id, state FROM gen_runs ORDER BY created_at, id");
+    expect(runs.length).toBe(2);
+    expect(runs.map((r) => r.state)).toEqual(["done", "done"]);
+    expect(h.gen.run(runs[1]?.id as `gr_${string}`)?.tasks.every((t) => t.state === "cached")).toBe(true);
+  });
+
   test("continuing before the phase is complete is refused", async () => {
     const h = makeHarness();
     const p1 = await h.gen.session.prep({ effort: "standard" });

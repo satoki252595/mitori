@@ -45,6 +45,13 @@ import { prepFingerprint } from "./index.ts";
 import { batchesOf, renderReadme } from "./packet.ts";
 
 const PREP_TTL_MS = 24 * 60 * 60 * 1000;
+const TERMINAL_STATES: readonly GenTask["state"][] = ["done", "cached", "skipped", "failed"];
+const progressOf = (rows: readonly TaskRow[]): GenRun["progress"] => ({
+  total: rows.length,
+  done: rows.filter((r) => ["done", "cached", "skipped"].includes(r.task.state)).length,
+  failed: rows.filter((r) => r.task.state === "failed").length,
+  blocks: rows.reduce((n, r) => n + r.task.blocks.length, 0),
+});
 const MAX_ERRORS = 20;
 const OUT_RE = /\/tmp\/prep\/(pr_[0-9a-hjkmnp-tv-z]{8})\/out\/(gt_[0-9a-hjkmnp-tv-z]{10})\.ndjson$/;
 
@@ -169,6 +176,14 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
       }
       if (entries.length === 0) continue;
       return writePacket(run, plan, ph, entries, req);
+    }
+    // every remaining task was reused from gen_outputs (or skipped): the run is complete without a packet
+    if (run.state !== "done" && rows.every((r) => TERMINAL_STATES.includes(r.task.state))) {
+      run.state = "done";
+      run.finishedAt = new Date(d.clock.now()).toISOString();
+      run.progress = progressOf(rows);
+      await d.write("gen.prep.run", () => store.updateRun(run));
+      d.events.emit({ type: "gen.run", run });
     }
     throw new MitoriError("E_PRECONDITION", "nothing left to prepare: every task of this run is finished", { params: { run: run.id } });
   }
@@ -412,12 +427,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
         run.state = "done";
         run.finishedAt = new Date(d.clock.now()).toISOString();
       }
-      run.progress = {
-        total: rows.length,
-        done: rows.filter((r) => ["done", "cached", "skipped"].includes(r.task.state)).length,
-        failed: rows.filter((r) => r.task.state === "failed").length,
-        blocks: rows.reduce((n, r) => n + r.task.blocks.length, 0),
-      };
+      run.progress = progressOf(rows);
       await d.write("gen.ingest.run", () => store.updateRun(run));
       d.events.emit({ type: "gen.run", run });
       const nextPhase = rows.filter((r) => r.plan.phase > prep.phase && r.task.state === "pending").map((r) => r.plan.phase);
