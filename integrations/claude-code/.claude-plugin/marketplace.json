@@ -1,0 +1,14 @@
+{
+  "name": "mitori-local",
+  "owner": {
+    "name": "mitori"
+  },
+  "plugins": [
+    {
+      "name": "mitori",
+      "source": "./plugins/mitori",
+      "description": "Address mitori design-doc review threads from this Claude Code session.",
+      "version": "0.1.0"
+    }
+  ]
+}

@@ -1,15 +1,19 @@
 /**
  * @mitori/loop — `install/` (owner: WP-11). Everything exported here is public (re-exported by `src/index.ts`):
  * export only contract names; keep helpers in sibling files.
- * M0 stubs below throw E_UNSUPPORTED — implement them in place and keep the signatures (contract changes go
- * through the CR batch, packages/core/CR-LEDGER.md).
  */
-import { type Hasher, type Logger, type SafeWriter, unsupported, type WriteQueue } from "@mitori/core";
+import type { Hasher, Logger, SafeWriter, WriteQueue } from "@mitori/core";
+import { createFsReader } from "@mitori/platform";
 import type { Installer } from "../contract.ts";
+import { makeInstaller } from "./installer.ts";
+import { skillVariant } from "./templates.ts";
 
 /**
  * Installer factory — GLOBAL, not per workspace (user-scope installs; `POST /integrations/:target/install`) [CONS-22].
  * Hook and MCP entries embed mitori's realpath (`{mitoriBin}`), rewritten by the freshness check [SEC-21].
+ * Project-scope installs (and `agents-md`) take `project: {root, docDir}` in the options object
+ * (CR-PENDING(WP-11), installer.ts `InstallOptions`). Installs are serialized in-process; `stateWrite` is not needed
+ * (the records are a home file written through SafeWriter, not state.sqlite rows).
  */
 export function createInstaller(deps: {
   safeWrite: SafeWriter;
@@ -20,7 +24,15 @@ export function createInstaller(deps: {
   stateWrite: WriteQueue;
   log: Logger;
 }): Installer {
-  return unsupported("loop.createInstaller", deps);
+  return makeInstaller({
+    safeWrite: deps.safeWrite,
+    hasher: deps.hasher,
+    home: deps.home,
+    userHome: deps.userHome,
+    mitoriBin: deps.mitoriBin,
+    log: deps.log.child("install"),
+    fs: createFsReader(),
+  });
 }
 
 /**
@@ -30,5 +42,5 @@ export function createInstaller(deps: {
  *   `mitori review --wait-sec 540` (no background execution), step 5 appends `--wait-sec 540`.
  */
 export function renderSkill(variant: "plugin" | "project" | "codex"): string {
-  return unsupported("loop.renderSkill", variant);
+  return skillVariant(variant);
 }

@@ -1,0 +1,14 @@
+{
+  "name": "mitori",
+  "version": "0.1.0",
+  "description": "Address mitori design-doc review threads from this Claude Code session.",
+  "author": {
+    "name": "mitori"
+  },
+  "license": "MIT",
+  "keywords": [
+    "mitori",
+    "design-doc",
+    "review"
+  ]
+}

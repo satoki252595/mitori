@@ -1,0 +1,42 @@
+{
+  "agents-md/block@1": {
+    "bytes": 280,
+    "sha256": "f94f7cc46cad7e9d4f31f4326470f310842a73c31a6eb9defd1034772cea9cf6"
+  },
+  "claude-code/.claude-plugin/marketplace.json@1": {
+    "bytes": 281,
+    "sha256": "b15bdbd158d2216c663963b768f6ef3cb721d75d97d596c20071f05031031ffc"
+  },
+  "claude-code/.claude-plugin/plugin.json@1": {
+    "bytes": 263,
+    "sha256": "eb7348eef931611c117a3433ef104b2d400a28bde37d0df522d77a088b3ad4bd"
+  },
+  "claude-code/.mcp.json@1": {
+    "bytes": 62,
+    "sha256": "ccfca6a6f86e5cebfc87da5a3c920748f804adcf4f39b0b6d63b9dc010a331b4"
+  },
+  "claude-code/agents/mitori-gen-writer.md@1": {
+    "bytes": 405,
+    "sha256": "c7be205a1f97360502c492b939fb4c969242072d4a52d8280d6e6183af563278"
+  },
+  "claude-code/hooks/hooks.json@1": {
+    "bytes": 422,
+    "sha256": "57092e69b7a452d630e7add9a2d06cc5c38c45a65634932a320b6335750257de"
+  },
+  "claude-code/project/skills/mitori-review/SKILL.md@1": {
+    "bytes": 1519,
+    "sha256": "47ab186e87843ead8203f651fece571da4c4eceebd08a11e7e5bf4047841dc79"
+  },
+  "claude-code/skills/gen/SKILL.md@1": {
+    "bytes": 841,
+    "sha256": "5ce03d480876d8832136810ddb491135df20b031ddbc3e51db09f5fbef8b096a"
+  },
+  "claude-code/skills/review/SKILL.md@1": {
+    "bytes": 1512,
+    "sha256": "48b66ab8b1828e3f271b48da853f953c2f27022ae86c972f2fa9ef20acec3656"
+  },
+  "codex/skills/mitori-review/SKILL.md@1": {
+    "bytes": 1305,
+    "sha256": "b2847c867626900c5aa353806481e091770353fc1906c8bfdcda7d4e0e7b724e"
+  }
+}
