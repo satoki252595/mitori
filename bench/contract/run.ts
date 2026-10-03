@@ -728,6 +728,9 @@ function finish(): never {
     const ids = new Set(results.filter((r) => r.status !== "skip" || !prev.results.some((q) => q.id === r.id)).map((r) => r.id));
     out.results = [...prev.results.filter((r) => !ids.has(r.id)), ...results.filter((r) => ids.has(r.id))].sort((a, b) => a.id.localeCompare(b.id));
     out.spentUsd = Math.round(((prev.spentUsd ?? 0) + out.spentUsd) * 1e6) / 1e6;
+    out.live = prev.live || out.live;
+    const note = (prev as { note?: string }).note;
+    if (note) Object.assign(out, { note });
   }
   writeFileSync(file, `${JSON.stringify(out, null, 2)}\n`);
   if (LIVE && failed.length === 0 && ONLY.size === 0) {
