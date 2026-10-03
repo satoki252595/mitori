@@ -35,6 +35,8 @@ describe("SafeWriter allowlists (SEC-01)", () => {
     ["integration", ".mitori/integrations/claude-code/plugins/mitori/agents/mitori-gen-writer.md"],
     ["repo_meta", "AGENTS.md"],
     ["accept", "src/a b/ファイル.ts"],
+    ["accept", ".gitattributes"],
+    ["accept", "docs/.github/x.md"],
     ["home", "repos/ws_x/side.git/HEAD"],
   ];
   const bad: [SafeWriteKind, string][] = [
@@ -47,6 +49,10 @@ describe("SafeWriter allowlists (SEC-01)", () => {
     ["repo_meta", "sub/AGENTS.md"],
     ["accept", ".git/config"],
     ["accept", "vendor/.GIT/hooks/pre-commit"],
+    ["accept", ".g‌it/config"], // HFS+ ignores U+200C: this IS .git there
+    ["accept", "sub/﻿.git/hooks/post-checkout"],
+    ["accept", ".git./config"], // NTFS drops trailing dots/spaces
+    ["accept", ".git /config"],
     ["accept", "/etc/passwd"],
     ["accept", "a\\b"],
     ["accept", "a\0b"],

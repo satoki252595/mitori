@@ -42,6 +42,19 @@ export const SAFE_WRITE_RULES: Readonly<Record<SafeWriteKind, RegExp>> = {
   home: /^.+$/u,
 };
 
+/** Code points HFS+ ignores in names (git's `is_hfs_dotgit`): `.g‌it` IS `.git` there. */
+const HFS_IGNORABLE = /[‌-‏‪-‮⁪-⁯﻿]/gu;
+
+/** A segment some filesystem resolves to `.git`: any case, HFS+ ignorables, trailing dots/spaces (NTFS). */
+function isDotGit(seg: string): boolean {
+  return (
+    seg
+      .replace(HFS_IGNORABLE, "")
+      .replace(/[. ]+$/u, "")
+      .toLowerCase() === ".git"
+  );
+}
+
 /** Validate `rel` for `kind` and return its segments. `E_PATH_OUTSIDE` on any violation (step 1 of ADR-0014). */
 export function checkRel(rel: string, kind: SafeWriteKind): string[] {
   const bad = (why: string): never => {
@@ -54,7 +67,7 @@ export function checkRel(rel: string, kind: SafeWriteKind): string[] {
   const segs = rel.split("/");
   for (const s of segs) {
     if (s === "" || s === "." || s === "..") bad("dot-or-empty-segment");
-    if (s.toLowerCase() === ".git") bad("git-dir");
+    if (isDotGit(s)) bad("git-dir");
   }
   if (!SAFE_WRITE_RULES[kind].test(rel)) bad("not-allowed-for-kind");
   return segs;
