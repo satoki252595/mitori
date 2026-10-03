@@ -8,33 +8,34 @@ import { dialectOf } from "../lang/detect.ts";
 import type { ParseItemExt, ParseResultExt } from "../parse/protocol.ts";
 import { absOf, applyParsed, type Core, cacheKeys, needsContent, settingsOf, tokensOf } from "./core.ts";
 import { contentKey, type FileRec, type Parsed } from "./model.ts";
-import { loadParsed, persist } from "./persist.ts";
+import { loadParsed, persist, yieldToLoop } from "./persist.ts";
 import { applyResult, itemFor, snapshotOf } from "./scan.ts";
 
-/** Fold a watcher batch: add→delete vanishes, delete→add is a change; `git` is reported separately. */
-export function foldChanges(changes: readonly FsChange[]): { files: Map<RepoPath, { kind: "add" | "change" | "delete"; source?: Uint8Array }>; git: boolean } {
-  const files = new Map<RepoPath, { kind: "add" | "change" | "delete"; source?: Uint8Array }>();
+/**
+ * Fold a watcher batch into the set of touched paths (the last `source` of a path wins; a later event without one
+ * drops it, the bytes it carried may be stale). Event kinds are only hints (CR m1-29): `update()` stats every path, so
+ * `add`→`delete` of a path that was indexed before is still a deletion. `git` is reported separately.
+ */
+export function foldChanges(changes: readonly FsChange[]): { files: Map<RepoPath, { source?: Uint8Array }>; git: boolean } {
+  const files = new Map<RepoPath, { source?: Uint8Array }>();
   let git = false;
   for (const c of changes) {
-    if (c.kind === "git") {
-      git = true;
-      continue;
-    }
-    const prev = files.get(c.path);
-    let kind: "add" | "change" | "delete" | null = c.kind;
-    if (prev !== undefined) {
-      if (prev.kind === "add" && c.kind === "delete") kind = null;
-      else if (prev.kind === "delete" && c.kind === "add") kind = "change";
-      else if (prev.kind === "add" && c.kind === "change") kind = "add";
-    }
-    if (kind === null) files.delete(c.path);
-    else {
-      const v: { kind: "add" | "change" | "delete"; source?: Uint8Array } = { kind };
-      if (c.source !== undefined) v.source = c.source;
-      files.set(c.path, v);
-    }
+    if (c.kind === "git") git = true;
+    else files.set(c.path, c.kind !== "delete" && c.source !== undefined ? { source: c.source } : {});
   }
   return { files, git };
+}
+
+/**
+ * Indexed paths below `dirs` — batch paths that are gone or directories without being indexed files (a directory
+ * renamed away or moved out of the tree is ONE event for the directory, CR m1-29). One pass over the index.
+ */
+function underDirectories(core: Core, dirs: readonly RepoPath[], skip: ReadonlySet<RepoPath>): RepoPath[] {
+  if (dirs.length === 0) return [];
+  const prefixes = dirs.map((d) => `${d}/`);
+  const out: RepoPath[] = [];
+  for (const p of core.files.keys()) if (!skip.has(p) && prefixes.some((x) => p.startsWith(x))) out.push(p);
+  return out;
 }
 
 /** Symbol-level diff of one file by qualname. */
@@ -110,15 +111,28 @@ export async function runUpdate(core: Core, changes: readonly FsChange[], warmSc
   const recs: FileRec[] = [];
   const pins: { blob: string; bytes: Uint8Array }[] = [];
 
-  for (const [path, ch] of folded.files) {
+  const touched = new Set<RepoPath>(folded.files.keys());
+  // A batch path that is not an indexed file and is gone (or a directory) may be a directory prefix: everything indexed
+  // below it is re-checked by stat after the batch's own paths (CR m1-29) — deleted when gone, re-read when changed.
+  const dirs: RepoPath[] = [];
+  const queue: [RepoPath, { source?: Uint8Array }][] = [...folded.files];
+  for (let qi = 0; ; qi++) {
+    if (qi === folded.files.size)
+      for (const p of underDirectories(core, dirs, touched)) {
+        touched.add(p);
+        queue.push([p, {}]);
+      }
+    if (qi >= queue.length) break;
+    const [path, ch] = queue[qi] as [RepoPath, { source?: Uint8Array }];
     const old = core.files.get(path);
     const raw = old?.raw ?? path;
     const abs = absOf(core, { raw });
     // The stat decides (spec §10.2-3), not the event kind: an editor's rename-save reports `delete` for a file that
-    // exists again by the time the batch is applied.
+    // exists again by the time the batch is applied, and an `add` of an indexed path is a change (old blob kept).
     const st = deps.fs.stat(abs);
     if (st === null || st.isDir) {
-      core.files.delete(path);
+      if (old === undefined) dirs.push(path);
+      else core.files.delete(path);
       continue;
     }
     const mode = st.isSymlink ? "120000" : (old?.mode ?? "100644");
@@ -171,7 +185,8 @@ export async function runUpdate(core: Core, changes: readonly FsChange[], warmSc
     deps.metrics.inc("idx.files.hashed");
     r.blob = blob;
     r.dirty = !r.tracked || blob !== r.indexBlob;
-    if (r.dirty) pins.push({ blob, bytes });
+    // Shadow workspaces keep texts only for anchored blobs (`pinBlobs`, CR m1-32); the others pin every dirty text.
+    if (r.dirty && deps.ws.kind !== "shadow") pins.push({ blob, bytes });
     if (old !== undefined && old.blob === blob && old.key !== undefined && old.class === r.class) {
       // Re-save of identical content: keep the S1 output, refresh the stat cache.
       core.files.set(path, { ...old, size: r.size, mtimeNs: r.mtimeNs, ino: r.ino, racy: r.racy, seen: core.gen });
@@ -204,10 +219,10 @@ export async function runUpdate(core: Core, changes: readonly FsChange[], warmSc
     core.pin.saveMany(pins).catch((err: unknown) => {
       core.log.warn("pin save failed", { error: err instanceof Error ? err.message : String(err) });
     });
-  return finish(core, before, folded.files.keys(), false);
+  return finish(core, before, touched, false);
 }
 
-async function finish(core: Core, before: ReadonlyMap<RepoPath, FileRec>, touched: Iterable<RepoPath>, fromScan: boolean): Promise<IndexDelta> {
+async function finish(core: Core, before: ReadonlyMap<RepoPath, FileRec>, touched: ReadonlySet<RepoPath>, fromScan: boolean): Promise<IndexDelta> {
   const base = deltaBetween(core, before, core.files, touched);
   for (const p of base.changed) core.symCache.delete(p.path);
   for (const rn of base.renames) core.renames.set(rn.from, rn.to);
@@ -218,14 +233,27 @@ async function finish(core: Core, before: ReadonlyMap<RepoPath, FileRec>, touche
     paths.length > 0 && !fromScan
       ? await core.stages.update(paths)
       : { ifaceChanged: [], membershipChanged: [], factsChanged: false, factKinds: [], structureRefreshed: false };
-  if (!fromScan && paths.length > 0) {
+  if (!fromScan && touched.size > 0) {
     // The write (one transaction) is queued behind any background persistence and not awaited: the in-memory index
     // already answers, and right after a cold scan that persistence can take hundreds of ms (save → badge ≤ 50 ms).
-    // A failed write is logged, never left in the chain: the rows stay unwritten (dbFiles unchanged) and the next
-    // persist retries them; later updates and scans keep working.
+    // It starts after a turn of the event loop, so the caller (reanchor → doc.freshness) runs first, and compares only
+    // the paths updates touched (stat-only refreshes included; queued updates coalesce into one write). A failed write
+    // is logged, never left in the chain: its paths stay in `unsaved` and the next write retries them.
+    for (const p of touched) core.unsaved.add(p);
     core.persisting = core.persisting
       .then(
-        () => persist(core, { single: true }).then(() => undefined),
+        () =>
+          yieldToLoop().then(async () => {
+            if (core.unsaved.size === 0) return;
+            const paths = [...core.unsaved];
+            core.unsaved.clear();
+            try {
+              await persist(core, { single: true, paths });
+            } catch (err) {
+              for (const p of paths) core.unsaved.add(p);
+              throw err;
+            }
+          }),
         () => undefined,
       )
       .catch((err: unknown) => {

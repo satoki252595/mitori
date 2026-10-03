@@ -20,7 +20,7 @@ import { poolSize } from "../parse/index.ts";
 import type { ParseItemExt, ParseOkResult, ParseResultExt } from "../parse/protocol.ts";
 import { absOf, applyParsed, type Core, cacheKeys, isIncluded, keyFor, mono, needsContent, profileOf, settingsOf, tokensOf } from "./core.ts";
 import { contentKey, type FileRec, type Parsed, storeSymbols } from "./model.ts";
-import { loadFiles, loadParsed, persist } from "./persist.ts";
+import { loadFiles, loadParsed, persist, yieldToLoop } from "./persist.ts";
 
 const STAGE_ORDER: readonly ScanStage[] = ["S0", "S1", "S2", "S3", "S4"];
 const stops = (until: ScanStage | undefined, s: ScanStage) => until !== undefined && STAGE_ORDER.indexOf(until) <= STAGE_ORDER.indexOf(s);
@@ -393,9 +393,13 @@ function summarize(
 function schedulePersist(core: Core, summary: ScanSummaryView, timings: ScanTimings): void {
   core.persisting = core.persisting
     .then(async () => {
+      // Background for real: whoever awaits scan() runs first — the write queue is a promise chain, so without this
+      // turn of the event loop the first transaction would run before the caller resumes.
+      await yieldToLoop();
       const t = mono(core);
       await persist(core, { snapshotRow: { packKey: packKeyOf(core), ms: summary.ms, timings: JSON.stringify(timings) } });
-      await pinDirtyTexts(core);
+      // Shadow workspaces keep texts only for anchored blobs (`pinBlobs`, CR m1-32): every file is untracked there.
+      if (core.deps.ws.kind !== "shadow") await pinDirtyTexts(core);
       await core.pin.maybeGc();
       timings.persist = mono(core) - t;
     })

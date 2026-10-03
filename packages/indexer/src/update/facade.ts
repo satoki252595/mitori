@@ -76,6 +76,7 @@ export function createIndexerWith(deps: IndexerDeps, factory: LaterStagesFactory
     symCache: new Map(),
     renames: new Map(),
     persisting: Promise.resolve(),
+    unsaved: new Set(),
     dbDigest: null,
     dbSettingsKey: null,
   };
