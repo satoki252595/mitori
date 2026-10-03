@@ -5,7 +5,7 @@ import { configure, WS } from "./support/helpers.ts";
 test("@wp10a /w/:ws/review deep link waits for the jobs, then opens the oldest ready one", async ({ page }) => {
   await configure({ readyJob: true });
   await page.goto(`/w/${WS}/review`);
-  await expect(page).toHaveURL(new RegExp(`/w/${WS}/review/j_000000000001$`));
+  await expect(page).toHaveURL(new RegExp(`/w/${WS}/review/j_0000000001$`));
 });
 
 test("@wp10a /w/:ws/review without a ready job goes to the Inbox (mine)", async ({ page }) => {
@@ -18,4 +18,10 @@ test("@wp10a /w/:ws/glossary is §12 in the MVP", async ({ page }) => {
   await configure({});
   await page.goto(`/w/${WS}/glossary`);
   await expect(page).toHaveURL(new RegExp(`/w/${WS}/doc/s12$`));
+});
+
+test("@wp10a /w/:ws/threads/:th (permalink) resolves to the anchored block once the outline is known", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}/threads/th_00000001`);
+  await expect(page).toHaveURL(new RegExp(`/w/${WS}/doc/s3/review-cycle\\?th=th_00000001#b_[0-9a-z]{8}$`));
 });

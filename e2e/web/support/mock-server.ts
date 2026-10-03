@@ -168,12 +168,17 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     return err("E_NOT_FOUND", 404);
   }
   if (m === "GET" && rest === "/threads") return json({ items: [], next: null });
+  if (m === "GET" && /^\/threads\/th_[0-9a-z]+$/.test(rest)) {
+    // a thread anchored on the first block of §3.1 (thread permalink redirect)
+    const block = doc.outline.blocks.find((x) => x[1] === "s3/review-cycle")?.[0];
+    return json({ id: rest.slice(9), ws: WS, state: "open", intent: "note", anchor: { doc: { block } }, messages: [], createdAt: "2026-10-03T00:00:00Z" });
+  }
   if (m === "GET" && rest === "/jobs") {
     // slow on purpose: a /review deep link must wait for the jobs before choosing where to go
     if (opts.readyJob) await Bun.sleep(150);
     return json({
       items: opts.readyJob
-        ? [{ id: "j_000000000001", ws: WS, kind: "fix", state: "ready", threads: [], createdAt: "2026-10-03T00:00:00Z", finishedAt: "2026-10-03T00:01:00Z" }]
+        ? [{ id: "j_0000000001", ws: WS, kind: "fix", state: "ready", threads: [], createdAt: "2026-10-03T00:00:00Z", finishedAt: "2026-10-03T00:01:00Z" }]
         : [],
       next: null,
     });

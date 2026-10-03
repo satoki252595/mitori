@@ -132,8 +132,8 @@ $effect(() => {
     } else if (r.name === "glossary") {
       void s.router.go({ name: "doc", ws: r.ws, section: "s12" }, { replace: true });
     } else if (r.name === "thread") {
-      void s.review.detail(r.th).then(
-        (th) => {
+      void Promise.all([s.review.detail(r.th), s.doc.whenOutline()]).then(
+        ([th]) => {
           const a = th.anchor;
           const block = a.doc?.block;
           const sec = block ? s.doc.index?.blockSection.get(block) : undefined;

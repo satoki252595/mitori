@@ -50,6 +50,7 @@ export class DocState implements DocViewStore {
   }
 
   reset(): void {
+    this.#outlineP = null;
     this.outline = null;
     this.index = null;
     this.page = null;
@@ -59,7 +60,20 @@ export class DocState implements DocViewStore {
     this.#proposals.clear();
   }
 
-  async loadOutline(): Promise<DocOutline | null> {
+  #outlineP: Promise<DocOutline | null> | null = null;
+
+  /** The outline in flight (or loaded): redirects that need it (thread permalinks) wait for it. */
+  whenOutline(): Promise<DocOutline | null> {
+    return this.outline ? Promise.resolve(this.outline) : (this.#outlineP ?? this.loadOutline());
+  }
+
+  loadOutline(): Promise<DocOutline | null> {
+    const p = this.#loadOutline();
+    this.#outlineP = p;
+    return p;
+  }
+
+  async #loadOutline(): Promise<DocOutline | null> {
     const ws = this.ws();
     if (!ws) return null;
     try {
