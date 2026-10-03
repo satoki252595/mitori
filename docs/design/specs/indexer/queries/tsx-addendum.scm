@@ -1,0 +1,5 @@
+; tsx = typescript.scm + this addendum (JSX component references)
+(jsx_opening_element name: (identifier) @ref.jsx)
+(jsx_self_closing_element name: (identifier) @ref.jsx)
+(jsx_opening_element name: (member_expression property: (property_identifier) @ref.jsx))
+(jsx_self_closing_element name: (member_expression property: (property_identifier) @ref.jsx))

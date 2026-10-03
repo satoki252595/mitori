@@ -28,6 +28,7 @@
     "indexer.ts",
     "gen.ts",
     "loop.ts",
-    "ui.ts"
+    "ui.ts",
+    "server.ts"
   ]
 }

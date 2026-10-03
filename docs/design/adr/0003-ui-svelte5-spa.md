@@ -21,3 +21,10 @@
 - React/Next: +45〜60KB gz、first paint 221 ms。
 - Solid 1.9: 純性能とサイズは上だが、transition・スコープ CSS などの作り込みコストで Svelte。
 - Monaco: 0.8〜1.1MB gz。Tiptap UniqueID: 5,000 block で 9.2 s。
+
+## 改訂 R1（2026-10-03、レビュー反映: UXP-20・SC-18・SC-21・SEC-06）
+
+- doc の直接編集は block 単位の CM6 Markdown ソース編集（初回編集時に lazy load、失敗時だけ textarea）。cite link は原子的な widget として描き、保存で claim が外れるなら確認する。
+- UI の試験: 純 TS のロジックは `bun test`、component の振る舞いは Playwright（`e2e/component/`）。happy-dom と bun-plugin-svelte（0.0.6）は使わない。
+- 初期 JS の hard gate は M3 まで 150KB（60KB は警告）、CSS 25KB、Web フォント 0、Review 前に CM6 を要求しない、の 4 つ。chunk ごとの値は M3 で確定。
+- 認証は header（`Mitori-Session`）と `localStorage`。SSE は fetch stream（EventSource は header を送れない）。

@@ -21,3 +21,9 @@
 ## Alternatives
 - 少数の大きなパッケージ（core / server / web）: 並列作業で衝突し、Bun 依存がドメインに漏れる。
 - gen と loop を 1 パッケージ: 生成とレビューの変更が互いに波及する。
+
+## 改訂 R1（2026-10-03、レビュー反映: CR test-4・CONS-26・CONS-02）
+
+- `@mitori/testkit`（test 専用）を `PACKAGE_DEPS` に追加。全 package に依存してよく、どの production package からも依存されない。各 package は test 専用の subpath `@mitori/<pkg>/testing`（`src/testing.ts`）を export してよい（`test/**`・`e2e/**`・`bench/**`・`eval/**`・testkit からのみ import 可）。
+- `@mitori/doc` の重い処理（ELK・Shiki）は factory に `WorkerPool` を注入して行う（`createBlockRenderer` / `createDiagramLayouter` / `createHtmlExporter`）。doc は Bun API もファイル読みも直接使わない。
+- composition root と配線は `contracts/server.ts`（`createServer`・`DOMAIN_WIRING`）が正本。

@@ -17,3 +17,13 @@
 ## Alternatives
 - Phoenix + Postgres + Fly（crit-web）: 常時コスト。
 - 平文ホスト + Access 認証: 漏洩時の影響が大きい。費用試算と承認の後に再検討。
+
+## 改訂 R1（2026-10-03、レビュー反映: SEC-13・SEC-11）
+
+上の「超過時は課金ではなくエラーで止まる設定を使う」は誤り（R2 に hard cap は無く、無料枠超過分は課金される。着手時に最新の料金を再確認）。v1 snapshot は次を**必須条件**として `mitori.snapshot/1` ADR に書く:
+
+1. upload は install ごとの Ed25519 鍵で署名したものだけ受け付ける（鍵の公開部は `mitori-meta` に登録）。
+2. 上限: 1 snapshot 5 MB、1 鍵 20 件 / 50 MB、TTL 30 日（Worker と R2 lifecycle rule の両方で強制）。
+3. 各 put の前に D1 の使用量カウンタを確認し、総量 8 GB 超で 507 を返す（課金前に止める）。Cloudflare の請求アラートを ¥500 に設定（ユーザー作業）。
+4. viewer JS の hash を CLI に埋め込み、`mitori share` が表示する。CSP 付きの export HTML（gen §10.10 R1）でも snapshot を開けるようにし、Worker を信頼しなくても読めるようにする。fragment の鍵がブラウザ履歴・同期に残ることを共有ダイアログに明記する。
+5. export HTML: 埋め込み JSON の `< > & U+2028 U+2029` を `\uXXXX`、meta CSP `default-src 'none'; script-src 'sha256-<viewer>'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'`（SEC-11）。

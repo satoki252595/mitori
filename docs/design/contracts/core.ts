@@ -17,6 +17,10 @@
  *   9 anchors · 10 review (threads, state machine) · 11 jobs + normalized agent events
  *   12 output contracts (patch/1 …) · 13 diffs/checkpoints · 14 generation runs
  *   15 usage/estimate · 16 settings/trust · 17 errors · 18 ports · 19 package graph
+ *
+ * Revision R1 (2026-10-03, review pass): every change request from the domain specs is resolved in
+ * `docs/design/contracts/CR-LEDGER.md` and every review finding in `docs/design/REVIEW-LOG.md`.
+ * Items applied here carry the ledger id in their doc comment (e.g. `[CR idx-1]`, `[CONS-11]`).
  */
 
 /* ============================================================================
@@ -141,8 +145,11 @@ export type ExtractorVersion = string;
  * ========================================================================== */
 
 /**
- * ID alphabet: Crockford base32, lowercase, without i/l/o/u. Random bodies use
- * `crypto.getRandomValues`; deterministic bodies use base32(xxh3(seed)).
+ * ID alphabet: Crockford base32, lowercase, without i/l/o/u. Random bodies come from the injected
+ * {@link Random} port via {@link newId} (production: `crypto.getRandomValues`; tests: seeded — byte-stable
+ * goldens and cassette replay) [CR test-1]. Deterministic bodies use base32(xxh3(seed)) via
+ * {@link staticBlockId} / {@link glossaryId}. Direct calls to `crypto.getRandomValues` outside
+ * `@mitori/platform` are a lint error.
  */
 export const ID_ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz" as const;
 
@@ -168,7 +175,14 @@ export const ID_SPEC = {
   glossary: { prefix: "gl_", len: 8 },
   workspace: { prefix: "ws_", len: 12 },
   doc: { prefix: "doc_", len: 12 },
+  /** S9 / post-accept regeneration suggestion [CONS-09]. */
+  suggestion: { prefix: "sg_", len: 8 },
+  /** Browser session (state.sqlite `srv_sessions`; the session *token* is a separate 256-bit secret) [SEC-06]. */
+  session: { prefix: "se_", len: 12 },
 } as const;
+
+/** Id kinds. */
+export type IdKind = keyof typeof ID_SPEC;
 
 /** Document block id, e.g. `b_k3f9a2cq`. Unique within a doc; checked on every write. */
 export type BlockId = `b_${string}`;
@@ -216,6 +230,85 @@ export type SymbolKey = `${string}#${string}`;
 export type HunkId = `${string}:${number}`;
 /** Gate id, e.g. `fmt:gofmt`, `typecheck:tsc`, `test:related`. */
 export type GateId = `${string}:${string}`;
+/** Regeneration suggestion id [CONS-09]. */
+export type SuggestionId = `sg_${string}`;
+/** Browser session id [SEC-06]. */
+export type SessionId = `se_${string}`;
+
+/** Id kind → id type (typed {@link newId}). */
+export interface IdTypes {
+  block: BlockId;
+  claim: ClaimId;
+  thread: ThreadId;
+  message: MessageId;
+  job: JobId;
+  genRun: GenRunId;
+  genTask: GenTaskId;
+  prep: PrepId;
+  proposal: ProposalId;
+  checkpoint: CheckpointId;
+  decision: DecisionId;
+  diagram: DiagramId;
+  module: ModuleId;
+  estimate: EstimateId;
+  usage: UsageRecordId;
+  request: RequestId;
+  trust: TrustItemId;
+  glossary: GlossaryId;
+  workspace: WorkspaceKey;
+  doc: DocId;
+  suggestion: SuggestionId;
+  session: SessionId;
+}
+
+/**
+ * New random id: `prefix + base32(r.bytes(ceil(len·5/8)))[:len]`. Pure given `r` [CR test-1].
+ * The only sanctioned id source in doc/gen/loop/server/agent (ids, DATA-fence nonces, auth nonces use `r`).
+ */
+export declare function newId<K extends IdKind>(kind: K, r: Random): IdTypes[K];
+
+/** Lowercase Crockford base32 of bytes (no padding), alphabet {@link ID_ALPHABET}. Pure. */
+export declare function base32(bytes: Uint8Array): string;
+
+/**
+ * Deterministic id of a static/deterministic block [CONS-11]:
+ * `"b_" + base32(xxh3(docId + "\u0000" + slot) as 8 big-endian bytes)[:8]`. The ONE formula used by
+ * ADR-0004, `BlockMeta.slot` and gen §10.5. `docId` is minted on the first `applyStatic` / `mitori init`
+ * (manifest skeleton), never at first generation, so static ids never change afterwards.
+ */
+export declare function staticBlockId(hasher: Hasher, docId: DocId, slot: string): BlockId;
+
+/** Deterministic glossary id: `"gl_" + base32(xxh3(docId + "\u0000" + NFKC(lower(term))))[:8]` [CONS-34]. */
+export declare function glossaryId(hasher: Hasher, docId: DocId, term: string): GlossaryId;
+
+/**
+ * Module slug grammar (doc file name `doc/modules/<slug>.md`) [SEC-01]. Slugs from ANY source —
+ * derived, repo settings, the committed `doc.index.json` seed — are validated; invalid ones are
+ * re-slugified and reported with notice `notice.slug.rewritten`.
+ */
+export const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/u;
+
+/**
+ * In-app href builder (History routes under `/w/:ws`; the SAME strings are produced by the doc renderer,
+ * the indexer palette, the HTML exporter and `ui.ts` `Router.href`) [CONS-23]. Path segments are
+ * URL-encoded per segment; section ids keep their `/`.
+ */
+export const HREFS = {
+  /** `/w/<ws>/code/<path>#L<a>-L<b>` (`#L<a>` when `b` is omitted or equal). */
+  code: (ws: WorkspaceKey, path: RepoPath, a?: LineNo, b?: LineNo): string =>
+    `/w/${ws}/code/${path.split("/").map(encodeURIComponent).join("/")}${a === undefined ? "" : b === undefined || b === a ? `#L${a}` : `#L${a}-L${b}`}`,
+  /** `/w/<ws>/doc/<section>#<block>`. */
+  doc: (ws: WorkspaceKey, section: SectionId, block?: BlockId): string =>
+    `/w/${ws}/doc/${section.split("/").map(encodeURIComponent).join("/")}${block === undefined ? "" : `#${block}`}`,
+  /** `/w/<ws>/threads/<th>`. */
+  thread: (ws: WorkspaceKey, th: ThreadId): string => `/w/${ws}/threads/${th}`,
+  /** `/w/<ws>/review/<job>`. */
+  review: (ws: WorkspaceKey, job: JobId): string => `/w/${ws}/review/${job}`,
+  /** `/w/<ws>?room=<module>` (floor plan / map). */
+  map: (ws: WorkspaceKey, module?: ModuleId): string => `/w/${ws}${module === undefined ? "" : `?room=${module}`}`,
+  /** Portable doc permalink resolved by the daemon (`/d/<docId>/b/<block>`) [UXP-13]. */
+  portable: (doc: DocId, block: BlockId): string => `/d/${doc}/b/${block}`,
+} as const;
 
 /* ============================================================================
  * 3. Languages
@@ -292,6 +385,9 @@ export const INCLUDED_CLASSES = [
  * - `generic`: global-config `cmd` reading the prompt on stdin, reply on stdout (no usage data).
  */
 export type EngineId = "claude-cli" | "session" | "anthropic-api" | "codex-cli" | "generic";
+
+/** Engines that can run generation (gen cannot run `codex-cli`/`generic`) [CONS-28]. */
+export type GenEngineId = Extract<EngineId, "claude-cli" | "anthropic-api" | "session">;
 
 /** Full Claude model ids only — aliases (`sonnet`, `opus`) are forbidden everywhere. */
 export type ClaudeModelId = "claude-opus-5-5" | "claude-sonnet-5-5" | "claude-haiku-4-5";
@@ -403,6 +499,63 @@ export const CHARS_PER_TOKEN = {
 /** Cost colour bands shown on estimate chips (UX 07 §3.4). */
 export type TokenBand = "lt10k" | "10k_50k" | "50k_200k" | "gt200k";
 
+/**
+ * Calibration keys (state.sqlite `use_calibration`) [CR idx-7, CONS-24]. ONE owner per correction:
+ *  - `kind:<tokenizer>:<kind>` — chars/token correction from exact single-kind counts only
+ *    (`count_tokens`, `mitori doctor --calibrate`); read by the indexer's `estimateTokens`.
+ *  - `call:<engine>:<promptId>:<model>` — per-call input/output correction owned by the ledger and applied
+ *    ONLY by the caller's estimator (gen / loop), never inside `estimateTokens` (no double correction).
+ *  - `window.5h` — κ, 5h-utilization points per API-equivalent USD.
+ */
+export type CalibrationKey = `kind:${TokenizerId}:${TextKind}` | `call:${EngineId}:${string}:${ModelId}` | "window.5h";
+
+/** Read-only view of the chars/token corrections (the indexer reads it; agent writes it). */
+export interface CalibrationSnapshot {
+  /** EMA multiplier on `CHARS_PER_TOKEN[tokenizer][kind]` (1.0 when unknown). */
+  kindFactor(tokenizer: TokenizerId, kind: TextKind): number;
+  /** Monotonic version (changes when any factor changes). */
+  readonly version: number;
+}
+
+/** EMA state of one calibration key. */
+export interface EmaState {
+  /** Current multiplier. */
+  value: number;
+  /** Samples folded in. */
+  n: number;
+  /** EMA of |ratio − value| / value (accuracy display, `confidencePct`). */
+  mad: number;
+}
+
+/** Calibration constants [仮: re-fit after 30 samples per key in M2]. */
+export const CALIBRATION = {
+  /** EMA weight of a new sample. */
+  alpha: 0.2,
+  /** Clamp of `kind:*` factors. */
+  kindClamp: [0.5, 2],
+  /** Clamp of `call:*` factors. */
+  callClamp: [0.25, 4],
+  /** Samples before a factor is applied (below: factor 1, `confidencePct` 25). */
+  minN: 3,
+  /** Samples before an estimate shows a single value instead of a range [UXP-30]. */
+  pointEstimateN: 5,
+} as const;
+
+/** Pure EMA update: `value' = clamp((1−α)·value + α·sample)`; first sample initializes [CR idx-7]. */
+export declare function emaUpdate(prev: EmaState | null, sample: number, clamp: readonly [number, number], alpha?: number): EmaState;
+
+/**
+ * Prior range of κ (5h-window percentage points per API-equivalent USD) per plan, used while
+ * `window.5h` has n < 3 [UXP-08]. `window_risk` is evaluated on `high`. [仮] — measured by gen M-8 / O2
+ * (crit + m3e standard runs with no other session active), replaced by the ledger median after 3 runs.
+ */
+export const WINDOW_PRIORS = {
+  pro: { low: 8, high: 35 },
+  max5: { low: 2, high: 8 },
+  max20: { low: 0.5, high: 2.5 },
+  unknown: { low: 2, high: 35 },
+} as const satisfies Record<string, { low: number; high: number }>;
+
 /* ============================================================================
  * 6. Workspace, repository, index
  * ========================================================================== */
@@ -450,7 +603,10 @@ export interface WorkspaceInfo {
 export interface RepoSnapshot {
   /** HEAD commit (null for unborn branches / shadow repos without commits). */
   commit: GitOid | null;
-  /** Tree id of the (possibly dirty) indexed state, computed via a temporary index. */
+  /**
+   * `HEAD^{tree}` when the working tree is clean; `null` during scans when dirty (the 0.29 s temporary
+   * index is not built by the indexer — GitSafety computes the dirty tree on demand) [CR idx-12].
+   */
   tree: GitOid | null;
   /** Current branch name, `null` when detached. */
   branch: string | null;
@@ -474,7 +630,11 @@ export type ExcludeReason =
   | "oversize"
   | "gitignored"
   | "user_exclude"
-  | "deny_glob";
+  | "deny_glob"
+  /** testdata / snapshots / golden fixtures [CR idx-2]. */
+  | "fixture"
+  /** submodule, symlink, nested repo, unreadable [CR idx-2]. */
+  | "special";
 
 /** One tracked file after S0 inventory. */
 export interface FileEntry {
@@ -548,6 +708,8 @@ export interface SymbolEntry {
   exported: boolean;
   /** Enclosing symbol key, if nested. */
   parent?: SymbolKey;
+  /** First paragraph of the doc comment (≤ 200 chars, markers stripped, secret-scanned) [CR idx-3]. */
+  doc?: string;
 }
 
 /** A structural module (leaf or parent) produced by S3 clustering. */
@@ -592,7 +754,9 @@ export type FactKind =
   | "script"
   | "dependency"
   | "existing_doc"
-  | "todo";
+  | "todo"
+  /** Configuration file (build/lint/test/deploy tooling) [CR idx-4]. */
+  | "config";
 
 /** Common fields of every fact. */
 export interface FactBase {
@@ -606,6 +770,8 @@ export interface FactBase {
   line: LineNo;
   /** Blob at detection time (staleness). */
   blob: GitOid;
+  /** `example` = found in example/demo/docs code (shown separately, never in the main tables) [CR idx-9]. Default `main`. */
+  scope?: "main" | "example";
 }
 
 /** An HTTP route. */
@@ -620,6 +786,18 @@ export interface RouteFact extends FactBase {
   handler?: SymbolKey;
   /** Framework, e.g. `net/http`, `hono`, `fastapi`, `next-app`. */
   framework: string;
+  /** Pattern built by concatenation/template (shown with a `動的` mark; not a stable key) [CR idx-9]. */
+  dynamic?: boolean;
+}
+
+/** A configuration file (S0 classification + config detectors) [CR idx-4]. */
+export interface ConfigFact extends FactBase {
+  /** Discriminator. */
+  kind: "config";
+  /** Tool id (`tsconfig`, `biome`, `pytest`, `cargo`, `wrangler`, … — indexer `ConfigTool`). */
+  tool: string;
+  /** Role. */
+  role: "build" | "deps" | "lint" | "format" | "test" | "typecheck" | "deploy" | "runtime" | "ci" | "editor" | "other";
 }
 
 /** A CLI command / subcommand / flag set. */
@@ -733,7 +911,8 @@ export type Fact =
   | ScriptFact
   | DependencyFact
   | ExistingDocFact
-  | TodoFact;
+  | TodoFact
+  | ConfigFact;
 
 /** Static scan stages (all zero-token). */
 export type ScanStage = "S0" | "S1" | "S2" | "S3" | "S4";
@@ -756,6 +935,8 @@ export interface Coverage {
   claimsTotal: number;
   /** Claims with verdict `verified` or `human-verified`. */
   claimsVerified: number;
+  /** Claims with verdict `cited` (cited, L1 vacuous — identifiers not compared) [UXP-06]. */
+  claimsCited?: number;
 }
 
 /* ============================================================================
@@ -801,10 +982,64 @@ export type Freshness = "fresh" | "stale" | "unknown";
 /** Human lock: regeneration produces a proposal instead of overwriting. */
 export type BlockLock = "human-edited" | "human-verified";
 
+/**
+ * Role of a block inside its section; fixes order and the static heading above it (gen spec §4.2).
+ * Moved from gen.ts into core because it is persisted in `doc.index.json` [CR gen-C2, CONS-01].
+ * The aspect also DETERMINES kind/depth/audience server-side (gen `ASPECT_DEFAULTS`), so the LLM never
+ * emits them in the compact line form [PT-03].
+ */
+export type BlockAspect =
+  | "tldr"
+  | "problem"
+  | "users"
+  | "scope"
+  | "constraints"
+  | "caption"
+  | "intro"
+  | "summary"
+  | "sequence"
+  | "steps"
+  | "edge_cases"
+  | "learn"
+  | "responsibility"
+  | "interface"
+  | "dependencies"
+  | "data"
+  | "flow"
+  | "config"
+  | "tests"
+  | "invariants"
+  | "errors"
+  | "concurrency"
+  | "performance"
+  | "pitfalls"
+  | "deepdive"
+  | "files"
+  | "recap"
+  | "structure"
+  | "interactions"
+  | "overview"
+  | "entities"
+  | "lifecycle"
+  | "migrations"
+  | "hotpaths"
+  | "caching"
+  | "limits"
+  | "security"
+  | "reliability"
+  | "observability"
+  | "decision"
+  | "debt"
+  | "untested"
+  | "hotspots"
+  | "fragile";
+
 /** Generation provenance stamped by the server (never by the LLM). */
 export interface BlockGenInfo {
-  /** Model that produced the text. */
+  /** Model that was REQUESTED (full id). */
   model: ModelId;
+  /** Model that actually answered when a refusal fallback kicked in (raw id as reported) [CR gen-C4]. */
+  servedBy?: string;
   /** Engine used. */
   engine: EngineId;
   /** Stage, e.g. `S5`. */
@@ -829,6 +1064,8 @@ export interface BlockMeta {
   ord: number;
   /** Kind. */
   kind: BlockKind;
+  /** Aspect (AI blocks and aspect-bound static blocks) [CR gen-C2]. */
+  aspect?: BlockAspect;
   /** Depth. */
   depth: Depth;
   /** Reading-path audiences. */
@@ -851,7 +1088,7 @@ export interface BlockMeta {
   claims: ClaimId[];
   /** Estimated reading time: ja 500 chars/min, en 230 wpm, code 5 s/line. */
   readingSec: number;
-  /** Deterministic slot key for static/deterministic blocks (`hash(moduleId + slot)` → id). */
+  /** Deterministic slot key for static/deterministic blocks; id = {@link staticBlockId}(docId, slot) [CONS-11]. */
   slot?: string;
   /** Diagram rendered by this block (`kind === "diagram"`). */
   diagram?: DiagramId;
@@ -876,13 +1113,25 @@ export type ClaimKind =
   | "security"
   | "fact";
 
-/** Claim verdict shown as a badge (verified / inferred / stale / human-verified, unsupported in red). */
-export type Verdict = "verified" | "inferred" | "unsupported" | "stale" | "human-verified";
+/**
+ * Claim verdict shown as a badge [UXP-06]:
+ * `verified` = cited AND every backticked identifier found in the cited range (L1 pass);
+ * `cited` = cited, range exists, but L1 had nothing to compare (vacuous) — "出典あり · 内容は未照合";
+ * `inferred` = no cite; `unsupported` = L3 U or L1 fail; `stale` = code changed since stamping;
+ * `human-verified` = a human confirmed after opening the cite peek (only humans and L3 S say 「確認済」).
+ */
+export type Verdict = "verified" | "cited" | "inferred" | "unsupported" | "stale" | "human-verified";
 
 /** Precision of a citation range. */
 export type CitePrecision = "exact" | "search";
 
-/** A citation: code range backing a claim. Server stamps blob/symbol/snippet; LLM only emits path+range. */
+/**
+ * A citation: code range backing a claim. Server stamps blob/symbol/snippet; LLM only emits path+range.
+ * Persistence [PT-11]: the LIVE position after re-anchoring lives in `index.sqlite` (`doc_cites`); the
+ * committed `doc.index.json` / Markdown link carry the position as of the last *cite flush*, which is
+ * deferred until the file has been quiet ≥ 10 s and no generation runs (or an explicit flush / accept /
+ * auto-commit), so code commits do not churn the committed doc.
+ */
 export interface Cite {
   /** File. */
   path: RepoPath;
@@ -900,12 +1149,19 @@ export interface Cite {
   precision: CitePrecision;
 }
 
+/** L1 outcome: `vacuous` = the claim span has no backticked identifier to compare [UXP-06, CR gen-C6]. */
+export type L1Result = "pass" | "fail" | "vacuous";
+
 /** Static/LLM verification checks of a claim (L0–L3). */
 export interface ClaimChecks {
-  /** L0: path exists and 1 ≤ start ≤ end ≤ lines. */
+  /** L0: path exists and 1 ≤ start ≤ end ≤ lines (after repairs). */
   l0: boolean;
-  /** L1: every backticked identifier in the claim appears within cited range ±2 lines. */
-  l1: boolean;
+  /** Raw L0 before W04/W08 repairs (quality metric) [CR gen-C6]. */
+  l0Raw?: boolean;
+  /** L1: every backticked identifier of the claim span appears within the cited range ±2 lines. */
+  l1: L1Result;
+  /** Repairs applied while stamping [CR gen-C6]. */
+  repaired?: ("clamp" | "swap" | "relocate")[];
   /** L2: snippet hash still matches current code. */
   l2: boolean;
   /** L3: sampled LLM judge — Supported / Partial / Unsupported. */
@@ -922,8 +1178,13 @@ export interface Claim {
   block: BlockId;
   /** Kind. */
   kind: ClaimKind;
-  /** Exact claim sentence as it appears in the block Markdown (for highlight and L1). */
+  /**
+   * Plain text of the claim span (derived from the `[[n]]` marker span, ADR-0011 R1 — the LLM never
+   * repeats the sentence), per ANCHOR_TEXT_RULES; used for highlight, L1 and doc anchors.
+   */
   quote: string;
+  /** Human who set `human-verified` (`git config user.name <user.email>`) and when [UXP-31]. */
+  verifiedBy?: { name: string; at: Iso8601 };
   /** Citations (≥ 1 for verified claims; 0 ⇒ verdict `inferred`). */
   cites: Cite[];
   /** Current verdict. */
@@ -982,9 +1243,9 @@ export const DOC_TEMPLATE = [
   { id: "s3", titleJa: "主要な流れ", titleEn: "Key flows", file: "doc/03-key-flows.md", depths: ["L1", "L2"], source: "ai", generatedAt: ["overview", "standard", "complete"] },
   { id: "s4", titleJa: "動かしてみる", titleEn: "Quickstart", file: "doc/04-quickstart.md", depths: ["L1"], source: "static", generatedAt: [] },
   { id: "s5", titleJa: "コードの地図", titleEn: "Codebase map", file: "doc/05-codebase-map.md", depths: ["L2"], source: "mixed", generatedAt: ["overview", "standard", "complete"] },
-  { id: "s6", titleJa: "モジュール詳細", titleEn: "Modules", file: "doc/06-modules.md", depths: ["L2", "L3"], source: "mixed", generatedAt: ["standard", "complete"] },
+  { id: "s6", titleJa: "モジュール詳細", titleEn: "Modules", file: "doc/06-modules.md", depths: ["L1", "L2", "L3"], source: "mixed", generatedAt: ["standard", "complete"] },
   { id: "s7", titleJa: "データモデル", titleEn: "Data model", file: "doc/07-data-model.md", depths: ["L2", "L3"], source: "mixed", generatedAt: ["standard", "complete"] },
-  { id: "s8", titleJa: "外部インターフェース", titleEn: "Interfaces", file: "doc/08-interfaces.md", depths: ["L2"], source: "static", generatedAt: ["overview", "standard", "complete"] },
+  { id: "s8", titleJa: "外部インターフェース", titleEn: "Interfaces", file: "doc/08-interfaces.md", depths: ["L2"], source: "static", generatedAt: [] },
   { id: "s9", titleJa: "非機能", titleEn: "Quality attributes", file: "doc/09-quality.md", depths: ["L3"], source: "ai", generatedAt: ["standard", "complete"] },
   { id: "s10", titleJa: "設計判断", titleEn: "Decisions", file: "doc/10-decisions.md", depths: ["L2", "L3"], source: "mixed", generatedAt: ["standard", "complete"] },
   { id: "s11", titleJa: "リスクと負債", titleEn: "Risks & debt", file: "doc/11-risks.md", depths: ["L3"], source: "mixed", generatedAt: ["standard", "complete"] },
@@ -1011,6 +1272,8 @@ export interface SectionNode {
   state: "static_only" | "pending" | "generating" | "generated" | "partial";
   /** Sum of block reading times. */
   readingSec: number;
+  /** Estimated tokens of the section's pending generation (TOC `≈k`, placeholder label, streaming height) [CR ux-R14]. */
+  est?: { inTokens: number; outTokens: number };
 }
 
 /** Glossary entry (§12). `yomi`/`romaji` power kana/romaji ⌘K lookup. */
@@ -1054,7 +1317,11 @@ export interface ReadingPath {
 
 /** `<docDir>/mitori.json` — the doc manifest. Deterministically serialized (sorted keys, 2-space). */
 export interface DocManifest {
-  /** Type tag for discovery (`git ls-files '*mitori.json'`). */
+  /**
+   * Type tag. Discovery is ONLY (1) the global workspace override, (2) `<root>/.mitori/mitori.json`;
+   * a manifest found elsewhere is accepted only when its `docId` is already registered for this
+   * workspace, and the repo root itself is never a docDir [SEC-02].
+   */
   kind: "mitori/doc-manifest";
   /** {@link FORMAT.docManifest}. */
   schemaVersion: 1;
@@ -1080,10 +1347,13 @@ export interface DocManifest {
     /** Extractor versions used, keyed by language. */
     extractors: Partial<Record<SourceLang, ExtractorVersion>>;
   };
-  /** Models that produced current content. */
+  /** Models that produced current content (empty in the skeleton manifest). */
   models: ModelId[];
-  /** Effort of the last full run. */
-  effort: Effort;
+  /**
+   * Effort of the last full run; `null` in the skeleton manifest written by the first `applyStatic` or
+   * `mitori init` (which also mints `docId`, so static block ids never change) [CONS-11].
+   */
+  effort: Effort | null;
   /** Coverage disclosure. */
   coverage: Coverage;
   /** Cumulative generation usage (API-equivalent). */
@@ -1110,15 +1380,32 @@ export interface DocIndex {
   glossary: GlossaryEntry[];
   /** Reading paths. */
   readingPaths: ReadingPath[];
-  /** Module ↔ section mapping. */
-  modules: {
-    /** Module id. */
-    id: ModuleId;
-    /** Section describing it. */
-    section: SectionId;
-    /** Interface digest the page was generated against (early cutoff). */
-    ifaceDigest: Xxh3;
-  }[];
+  /**
+   * Module ↔ section mapping AND the module-identity seed (ADR-0004 R1) [CR idx-1, CR gen-C2, CONS-01].
+   * On a fresh machine / lost DB the indexer matches new communities to these rows by `reps` overlap
+   * (≥ 0.5) and keeps `id`/`slug` (= `doc/modules/<slug>.md`). Sorted by `id`.
+   */
+  modules: DocModuleEntry[];
+}
+
+/** One row of {@link DocIndex.modules}. */
+export interface DocModuleEntry {
+  /** Module id. */
+  id: ModuleId;
+  /** Section describing it (`s6/<slug>`). */
+  section: SectionId;
+  /** Interface digest the page was generated against (early cutoff). */
+  ifaceDigest: Xxh3;
+  /** File slug; validated against {@link SLUG_RE} on read (never trusted as a path) [SEC-01]. */
+  slug: string;
+  /** Display name (LLM `module` line or provisional; ja ≤ 20 / en ≤ 40 chars). */
+  name: string;
+  /** One-line summary (ja ≤ 60 / en ≤ 120 chars). */
+  summary?: string;
+  /** Parent module. */
+  parent?: ModuleId;
+  /** Representative member paths: ≤ 32, chosen by PageRank, stored path-sorted. */
+  reps: RepoPath[];
 }
 
 /** Doc change proposal (D12: doc updates after code changes are always proposals). */
@@ -1139,15 +1426,19 @@ export interface DocProposal {
   md: string;
   /** Producer. */
   source: {
-    /** Producer kind. */
-    kind: "job" | "regen" | "sync" | "translate" | "simplify" | "answer_promote";
-    /** Producer id (job id / run id). */
+    /** Producer kind (`agent_reply` = Pull agent `mitori reply --doc-update`) [CR loop-4]. */
+    kind: "job" | "regen" | "sync" | "translate" | "simplify" | "answer_promote" | "agent_reply";
+    /** Producer id (job id / run id / thread id). */
     id: string;
   };
   /** One-line reason shown on the suggestion card. */
   reason: string;
   /** State. */
   state: "pending" | "accepted" | "rejected" | "superseded";
+  /** Set when a sentence-level 3-way rebase hit overlapping changes (accept needs a manual merge) [CR gen-C8]. */
+  conflict?: boolean;
+  /** External links found in AI-origin md (flagged on the card; images are never allowed) [SEC-11]. */
+  externalLinks?: number;
   /** Created at. */
   createdAt: Iso8601;
 }
@@ -1221,8 +1512,15 @@ export const READER_LEVEL_RULES = {
  * 8. Diagrams (IR → ELK in a Bun Worker → SVG)
  * ========================================================================== */
 
-/** Diagram flavour. `sequence` uses a deterministic non-ELK layout. */
-export type DiagramKind = "context" | "container" | "component" | "dependency" | "flow" | "sequence" | "er";
+/**
+ * Diagram flavour. `sequence` uses a deterministic non-ELK layout. `floorplan` = S1 room layout
+ * (squarified treemap of zones → rooms, doors; `specs/floorplan.md`, WP-18, stretch) — until it passes its
+ * quality gate the S1 map is the ELK `container` diagram (`MapView.fallback = "container"`) [CONS-10, SC-03].
+ */
+export type DiagramKind = "context" | "container" | "component" | "dependency" | "flow" | "sequence" | "er" | "floorplan";
+
+/** Floor-plan zones (deterministic classifier in `specs/floorplan.md` §2) [CONS-10]. */
+export type FloorZone = "entry" | "resident" | "core" | "infra" | "ui";
 
 /** Reference from a diagram node to the thing it depicts (click-to-jump). */
 export interface DiagramRef {
@@ -1348,6 +1646,27 @@ export interface DiagramLayout {
     w: number;
     /** Height. */
     h: number;
+    /** `zone` groups exist only in floorplan layouts [CONS-10]. */
+    kind?: "zone";
+    /** Zone of a `zone` group. */
+    zone?: FloorZone;
+    /** Outline polygon `[x, y]` (clockwise) when the zone is not a rectangle. */
+    polygon?: [number, number][];
+  }[];
+  /** Doors between rooms (floorplan only): `b: null` = door to the outside/an external actor [CONS-10]. */
+  doors?: {
+    /** Room (node id). */
+    a: string;
+    /** Other room, or null. */
+    b: string | null;
+    /** Orientation of the shared wall. */
+    orient: "v" | "h";
+    /** Door centre x. */
+    x: number;
+    /** Door centre y. */
+    y: number;
+    /** Door length. */
+    len: number;
   }[];
 }
 
@@ -1405,6 +1724,8 @@ export interface DiagramAnchor {
   node?: string;
   /** Edge id. */
   edge?: string;
+  /** Relative position inside the node rect (0..1 each); keeps pins stable across re-layout [JUDGEMENT §9]. */
+  pos?: { x: number; y: number };
 }
 
 /** Composite anchor; at least one member is present. `primary` says which one the user selected. */
@@ -1520,6 +1841,10 @@ export const THREAD_TRANSITIONS = [
   { from: "proposed", to: "applied", on: "accept", by: ["human"] },
   { from: "proposed", to: "rejected", on: "reject", by: ["human"] },
   { from: "proposed", to: "queued", on: "revise", by: ["human"] },
+  /** Accept write failed and was rolled back from the checkpoint [CR loop-1]. */
+  { from: "proposed", to: "failed", on: "fail", by: ["system"] },
+  /** Ready job discarded by GC (worktree + refs expired) [CR loop-1]. */
+  { from: "proposed", to: "open", on: "cancel", by: ["system"] },
   { from: "answered", to: "queued", on: "revise", by: ["human"] },
   { from: "answered", to: "open", on: "reply", by: ["human"] },
   { from: "needs_input", to: "queued", on: "reply", by: ["human"] },
@@ -1595,10 +1920,12 @@ export interface Thread {
   title: string;
   /** Jobs spawned for this thread, oldest first. */
   jobs: JobId[];
-  /** Engine session id for cheap follow-ups (`--resume`). */
+  /** Engine session id; usable for `--resume` ONLY when `engines.claude-cli.persistSessions` (I4) [CONS-15]. */
   sessionId?: string;
   /** Batch round key when dispatched via Finish (Shift+F). */
   batchRound?: number;
+  /** For `note` threads: send to the AI on Finish (default false — notes are for humans) [UXP-02]. */
+  sendToAi?: boolean;
   /** Created at. */
   createdAt: Iso8601;
   /** Updated at. */
@@ -1611,8 +1938,8 @@ export interface Round {
   n: number;
   /** Dispatch plane. */
   mode: "push" | "pull";
-  /** State. */
-  state: "collecting" | "dispatched" | "complete";
+  /** State. `withdrawn` = a human withdrew an abandoned pull round from the web; its `running` threads went back to `open` [CONS-22]. */
+  state: "collecting" | "dispatched" | "complete" | "withdrawn";
   /** Threads included. */
   threads: ThreadId[];
   /** True when finished with zero open threads (approval semantics of the Pull contract). */
@@ -1638,6 +1965,19 @@ export type JobKind =
   | "fix"
   | "pull_round"
   | "external_patch";
+
+/**
+ * Intent → job kind (one table; `JobReq.kind` is derived from it, never chosen freely) [CONS-34].
+ * `note` is dispatched ONLY when `Thread.sendToAi`; then router rule R0b picks `docpatch/1` (doc proposal
+ * only, empty write scope) for a doc-primary anchor and `answer/1` for a code-primary anchor [UXP-02].
+ */
+export const INTENT_JOB_KIND = {
+  question: "explain",
+  review: "review",
+  change: "fix",
+  doc_edit: "fix",
+  note: "explain",
+} as const satisfies Record<ThreadIntent, JobKind>;
 
 /** Job lifecycle. */
 export type JobState =
@@ -1686,7 +2026,9 @@ export type RouteReason =
   | "patch_apply_failed"
   | "gates_failed_twice"
   | "agent_failed"
-  | "user_override";
+  | "user_override"
+  /** R0b: a sent note (doc-primary ⇒ docpatch/1, code-primary ⇒ answer/1) [UXP-02]. */
+  | "intent_note";
 
 /** Output of the deterministic router. */
 export interface RouteDecision {
@@ -1804,10 +2146,17 @@ export type JobEvent =
       structured?: unknown;
       /** Final text (answer mode). */
       text?: string;
-      /** Engine session id (for `--resume`). */
+      /** Engine session id (for `--resume` when sessions persist). */
       sessionId?: string;
       /** Permission denials. */
       denials: Denial[];
+      /** Refusal details when `stop === "refusal"` (category null when the engine does not report one) [CR gen-C11]. */
+      refusal?: { category: string | null };
+      /**
+       * Extra API calls the CLI made inside this turn because output hit `CLAUDE_CODE_MAX_OUTPUT_TOKENS`
+       * (counted from repeated `message_start`); > 0 ⇒ `stop: "budget"`-like truncation, excluded from EMA [PT-09].
+       */
+      continuations?: number;
       /** Wall time of the engine run. */
       durationMs: number;
       /** Time to first token, when reported. */
@@ -1836,25 +2185,41 @@ export type JobEvent =
       at: UnixMs;
     };
 
+/**
+ * One argv element of a gate template [CONS-12]: a literal, or a variable expanded per job by the
+ * GateRunner — `files` (changed RepoPaths in appliesTo), `pkgs` (Go packages / crates / py packages of
+ * the changed files), `tests` (related test files). Every expanded value is a validated RepoPath; the
+ * runner inserts `--` before the first expansion when the detector marks `endOfOptions`.
+ */
+export type GateArg = string | { var: "files" | "pkgs" | "tests" };
+
 /** A quality gate detected from the repo (needs trust before it may run). */
 export interface GateSpec {
   /** Id, e.g. `fmt:gofmt`. */
   id: GateId;
   /** Category. */
   kind: "format" | "lint" | "typecheck" | "test" | "build" | "custom";
-  /** argv (no shell). */
-  argv: string[];
+  /** argv template (no shell); job-specific values are variables, so the trust hash is stable [CONS-12]. */
+  argvTemplate: GateArg[];
+  /** Insert `--` before the first variable expansion (tools that accept it). */
+  endOfOptions: boolean;
   /** Working directory (repo-relative). */
   cwd: RepoPath;
   /** Files the gate is relevant for. */
   appliesTo: Glob[];
   /** Whether the gate may rewrite files (formatters run with autofix, others read-only). */
   autofix: boolean;
+  /**
+   * Whether the gate can execute repository code (test runners, JS-config formatters, build scripts).
+   * `false` only for the pure-formatter allowlist (gofmt, rustfmt/`cargo fmt`, ruff format, black, biome
+   * with JSON config). Without an OS sandbox, `executesRepoCode` gates on AI diffs wait for consent [SEC-03].
+   */
+  executesRepoCode: boolean;
   /** Timeout. */
   timeoutMs: number;
-  /** Where the spec came from. */
-  source: "detected" | "repo_config" | "global_config";
-  /** sha256 over the canonical spec + the config files it depends on (trust key). */
+  /** Where the spec came from (`global_config` removed: no global gates in v1) [CONS-25]. */
+  source: "detected" | "repo_config";
+  /** sha256 over canonical(`argvTemplate`, cwd, appliesTo, autofix) + the config files it depends on (trust key). */
   trustHash: Sha256;
 }
 
@@ -1862,15 +2227,29 @@ export interface GateSpec {
 export interface GateResult {
   /** Gate. */
   gate: GateId;
-  /** Status. */
-  status: "pass" | "fail" | "error" | "timeout" | "skipped" | "untrusted";
+  /**
+   * Status. `pending_consent` = not run yet: no OS sandbox and the gate executes repo code on an AI diff;
+   * runs after the human looked at the diff and clicked 「自動検査を実行」 [SEC-03].
+   */
+  status: "pass" | "fail" | "error" | "timeout" | "skipped" | "untrusted" | "pending_consent";
   /** Duration. */
   ms: number;
   /** Failure excerpt for repair prompts (≤ 1k tokens, secrets redacted). */
   excerpt?: string;
   /** True when an autofix gate changed files. */
   autofixed?: boolean;
+  /** Lines rewritten by the formatter (summary 「空白だけの変更 n 行」) [JUDGEMENT §9]. */
+  autofixedLines?: number;
+  /** Ran inside the OS sandbox. */
+  sandboxed?: boolean;
 }
+
+/**
+ * Overall gate verdict of a job FOR THE TREE BEING APPLIED [UXP-05]. ✓ is shown only for `passed`.
+ * `unverified` = some gate skipped/untrusted/pending; `partial_unverified` = a partial accept builds a
+ * tree H′ ≠ head whose re-run has not finished or was not possible.
+ */
+export type GateVerdict = "passed" | "failed" | "unverified" | "partial_unverified";
 
 /** Failure summary of a job (one line in the UI + actions). */
 export interface JobFailure {
@@ -1920,6 +2299,12 @@ export interface Job {
   writeScope: RepoPath[];
   /** Gate results of the last attempt. */
   gates: GateResult[];
+  /** Verdict for the tree that would be applied (recomputed after partial accept) [UXP-05]. */
+  gateVerdict?: GateVerdict;
+  /** Tree the gates last ran on. */
+  gatesTree?: GitOid;
+  /** Touches {@link SENSITIVE_GLOBS} or ran in agent mode ⇒ no one-key accept; per-file decisions required [SEC-12]. */
+  sensitive?: boolean;
   /** Diff summary when ready. */
   diffStat?: {
     /** Files changed. */
@@ -1928,7 +2313,15 @@ export interface Job {
     additions: number;
     /** Deleted lines. */
     deletions: number;
+    /** Hunks [JUDGEMENT §9]. */
+    hunks: number;
   };
+  /** Per-hunk decisions; `partially_accepted` ⇔ some hunk is still `pending` [CONS-18]. */
+  hunkDecisions?: Record<HunkId, "accepted" | "rejected" | "pending">;
+  /** Model time vs wall time of all attempts (ReadyCard / Review actuals) [JUDGEMENT §9]. */
+  timings?: { modelMs: number; wallMs: number };
+  /** Observed 5h-utilization delta in percentage points (Review `5h +pp%`; null when not observed) [CR ux-R19]. */
+  windowDeltaPct?: number | null;
   /** Doc proposals produced by this job. */
   proposals: ProposalId[];
   /** Checkpoint created at accept. */
@@ -1961,6 +2354,28 @@ export interface PatchEdit {
   newText: string;
   /** Optional xxh3 of the original range; mismatch ⇒ reject + re-anchor. */
   expect?: Xxh3;
+  /** Verbatim first line of the replaced range (first_line search ±δ when ranges drifted) [CR loop-2]. */
+  firstLine?: string;
+  /** Blob the edit was written against (from the bundle CODE header) [CR loop-2]. */
+  base?: string;
+}
+
+/** Per-thread outcome reported by `patch/1` and `agent/1` (batch jobs serve several threads) [CR loop-2]. */
+export interface ThreadOutcome {
+  /** Thread. */
+  id: ThreadId;
+  /** Status. */
+  status: "done" | "answer" | "question" | "skip";
+  /** Body (verbatim into the thread). */
+  body: string;
+}
+
+/** Doc update proposed by an engine for one block (always becomes a {@link DocProposal}; AI-md validated) [CR loop-2, SEC-11]. */
+export interface DocUpdate {
+  /** Block. */
+  block: BlockId;
+  /** New Markdown (file form; links/images per AiMarkdownValidator). */
+  md: string;
 }
 
 /** `patch/1` output. */
@@ -1969,8 +2384,12 @@ export interface PatchOutput {
   summary: string;
   /** ≤ 40 edits. */
   edits: PatchEdit[];
-  /** New Markdown for the anchored doc block, or null if the doc needs no change. */
+  /** New Markdown for the anchored (primary) doc block, or null if the doc needs no change. */
   docUpdate: string | null;
+  /** All doc updates (batch jobs; includes the primary one) [CR loop-2]. */
+  docUpdates?: DocUpdate[];
+  /** Per-thread outcomes [CR loop-2]. */
+  threads?: ThreadOutcome[];
   /** Non-empty ⇒ router escalates to agent mode with these hints. */
   needsMoreContext?: string[];
 }
@@ -1979,10 +2398,14 @@ export interface PatchOutput {
 export interface AgentOutput {
   /** Summary. */
   summary: string;
-  /** Files the agent believes it changed (verified against `git diff --name-only`). */
+  /** Files the agent believes it changed (verified against `git diff-tree --name-only`). */
   filesChanged: RepoPath[];
   /** New Markdown for the anchored doc block, or null. */
   docUpdate: string | null;
+  /** All doc updates [CR loop-2]. */
+  docUpdates?: DocUpdate[];
+  /** Per-thread outcomes [CR loop-2]. */
+  threads?: ThreadOutcome[];
   /** Free-form notes for the reviewer. */
   notes?: string;
 }
@@ -2101,7 +2524,12 @@ export interface Checkpoint {
   undoneAt?: Iso8601;
 }
 
-/** Git ref namespace used by mitori (never `refs/heads/*`, never the user's index). */
+/**
+ * Git ref namespace used by mitori (never `refs/heads/*`, never the user's index). ADR-0012: these refs,
+ * all mitori objects and all job worktrees live in the SIDE repo `~/.mitori/repos/<ws>/side.git`
+ * (`objects/info/alternates` → the user's object DB); the user's repository gains no refs, objects or
+ * worktree metadata [SEC-07, SEC-08].
+ */
 export const GIT_REFS = {
   /** Job base snapshot. */
   jobBase: (job: JobId): string => `refs/mitori/j/${job}/base`,
@@ -2109,6 +2537,8 @@ export const GIT_REFS = {
   jobHead: (job: JobId): string => `refs/mitori/j/${job}/head`,
   /** Accept checkpoint. */
   checkpoint: (ck: CheckpointId): string => `refs/mitori/ck/${ck}`,
+  /** Snapshot of the working tree taken right before a forced undo (restorable) [SEC-18]. */
+  preForce: (ck: CheckpointId): string => `refs/mitori/ck/${ck}-pre-force`,
   /** Integration head for queued accepts. */
   integration: "refs/mitori/integration",
 } as const;
@@ -2123,8 +2553,12 @@ export type GenStage = "S5" | "S6" | "S6o" | "S7" | "S8" | "S9" | "translate" | 
 /** Generation run lifecycle. */
 export type GenRunState = "estimating" | "awaiting_confirm" | "running" | "paused" | "done" | "failed" | "cancelled";
 
-/** Why a run is paused. */
-export type PauseReason = "user" | "yield_5h" | "rate_limit" | "billing_changed";
+/**
+ * Why a run is paused. `budget` = run reached 80 % of `limits.genRunMaxUsd` [CR gen-C1];
+ * `window_spend` = this run alone raised 5h utilization by > `scheduler.runWindowSpendPause` [UXP-08];
+ * `not_before` = created with `notBefore` (start after the 5h reset) [CR gen-C10].
+ */
+export type PauseReason = "user" | "yield_5h" | "rate_limit" | "billing_changed" | "budget" | "window_spend" | "not_before";
 
 /** Target of a generation task. */
 export interface GenTarget {
@@ -2162,7 +2596,12 @@ export interface GenTask {
   state: GenTaskState;
   /** Attempts (NDJSON invalid lines get exactly one retry). */
   attempt: number;
-  /** Cache key: xxh3(input digest × prompt ver × model × extractor vers). */
+  /**
+   * Cache key (gen spec §3.8, the ONE formula) [CONS-30]:
+   * `xxh3(unit promptVer ‖ GEN_SYSTEM_VERSIONS[system] ‖ addendum versions (regen/retry) ‖ model ‖
+   * effort ‖ lang ‖ xxh3(userBytes))`. Extractor versions enter through the skeleton bytes in `userBytes`;
+   * S5 DEPS are a pure function of the index (no generated summaries), so keys are timing-independent [PT-08].
+   */
   cacheKey: Xxh3;
   /** Model. */
   model: ModelId;
@@ -2201,11 +2640,18 @@ export interface GenRun {
   paused?: {
     /** Reason. */
     reason: PauseReason;
-    /** Auto-resume time (5h window reset). */
+    /** Auto-resume time (5h window reset / `notBefore`). */
     until?: Iso8601;
   };
-  /** Concurrency in effect. */
+  /** Concurrency in effect (background lane: `concurrency − scheduler.reserveInteractive`) [PT-04]. */
   concurrency: number;
+  /**
+   * Repo-pack key and system-prompt file hash PINNED at run start; every task of the run reuses them so the
+   * cross-process cache prefix survives saves during the run [PT-05].
+   */
+  pinned?: { packKey: Xxh3; systemHash: Sha256; snapshot: Xxh3 };
+  /** 5h utilization observed at run start (window_spend pause) [UXP-08]. */
+  windowAtStart?: number | null;
   /** Estimate confirmed by the user. */
   estimate: GenEstimate;
   /** Progress counters. */
@@ -2312,26 +2758,34 @@ export interface UsageRecord {
   ws: WorkspaceKey | null;
   /** What incurred it. */
   scope: {
-    /** Scope kind. */
-    kind: "job" | "gen_task" | "probe" | "contract_test";
+    /** Scope kind (`eval` = the eval harness's own calls: quiz/judge/baseline) [CR test-3]. */
+    kind: "job" | "gen_task" | "probe" | "contract_test" | "eval";
     /** Id of the job/task. */
     id: string;
   };
   /** Engine. */
   engine: EngineId;
-  /** Model. */
+  /** Model requested (full id). */
   model: ModelId;
+  /** Model that actually answered (refusal fallback) [CR gen-C4]. */
+  servedBy?: string;
+  /** Prompt id (calibration key `call:<engine>:<promptId>:<model>`) [CONS-24]. */
+  promptId?: string;
   /** Auth used (verified per run). */
   auth: AuthKind;
   /** Usage. */
   usage: Usage;
   /** Estimate given beforehand (calibration input). */
   estimate?: {
-    /** Estimated input tokens (all classes). */
+    /** Estimated input tokens (all classes), after calibration. */
     in: number;
-    /** Estimated output tokens. */
+    /** Estimated output tokens, after calibration. */
     out: number;
+    /** The same estimate BEFORE the calibration factor was applied (EMA input) [CONS-24]. */
+    raw?: { in: number; out: number };
   };
+  /** CLI-internal continuation calls inside this turn (excluded from the EMA) [PT-09]. */
+  continuations?: number;
   /** Wall time. */
   durationMs: number;
   /** Time to first token. */
@@ -2342,8 +2796,11 @@ export interface UsageRecord {
   outcome: "ok" | "error" | "cancelled" | "budget";
 }
 
-/** Why an estimate requires an explicit confirmation. */
-export type ConfirmReason = "over_token_threshold" | "whole_repo_scope" | "generation_run" | "escalation" | "billing_overage" | "api_key_billing";
+/**
+ * Why an estimate requires an explicit confirmation. `window_risk` = projected 5h utilization (upper bound
+ * of κ while uncalibrated, {@link WINDOW_PRIORS}) would cross `scheduler.yieldAtFiveHour` [CR gen-C10, UXP-08].
+ */
+export type ConfirmReason = "over_token_threshold" | "whole_repo_scope" | "generation_run" | "escalation" | "billing_overage" | "api_key_billing" | "window_risk";
 
 /** Line item of an estimate (doubles as a removable context chip in the Composer). */
 export interface EstimateItem {
@@ -2359,6 +2816,10 @@ export interface EstimateItem {
   cached: boolean;
   /** User may remove it (ASK, anchor body, WRITE, ACCEPT, OUT are never removable). */
   removable: boolean;
+  /** File of a `code`/`related` item (Composer predicts patch/agent routing in the same frame) [CR ux-R8]. */
+  path?: RepoPath;
+  /** Anchored lines of a `code` item [CR ux-R8]. */
+  lines?: number;
 }
 
 /** Pre-run estimate (shown before every LLM action; generation always requires one click). */
@@ -2388,8 +2849,15 @@ export interface Estimate {
   };
   /** Concurrency assumed. */
   concurrency: number;
-  /** Expected 5h-window utilization increase in percentage points (null until calibrated). */
+  /** Expected 5h-window utilization increase in percentage points (null when no window is observed). */
   windowDeltaPct: number | null;
+  /** Range of the 5h delta while κ is uncalibrated (from {@link WINDOW_PRIORS} for the plan) [UXP-08]. */
+  windowDeltaRange?: { low: number; high: number };
+  /**
+   * Whether this run is billed: drives the wording 「サブスクの枠内（追加料金なし）」 vs 「約$xが課金されます」
+   * next to the API-equivalent $ [UXP-09]. From `EngineStatus.billing` / the last `SubscriptionWindow`.
+   */
+  billing: BillingMode;
   /** ± accuracy in percent from calibration (25 initially, target 12). */
   confidencePct: number;
   /** Number of calibration samples behind the coefficients. */
@@ -2437,6 +2905,15 @@ export interface GenEstimate extends Estimate {
     seconds: number;
     /** USD (API key + Batch can be cheaper). */
     apiUsd: number;
+    /**
+     * `session` only: tokens charged to the user's interactive session INCLUDING subagent base context and
+     * Read line-number overhead (`(P+I)(1+r_read)+ε_sub` per batch, gen §9.3 R1) [PT-10, UXP-11].
+     */
+    sessionTokens?: number;
+    /** Subagent batches the prep packet is split into (session only). */
+    batches?: number;
+    /** Coefficients not yet measured (label 「未較正」). */
+    uncalibrated?: boolean;
   }[];
   /** Data-handling disclosure for the selected engine/plan (shown once per engine). */
   dataPolicyKey: string;
@@ -2457,11 +2934,18 @@ export interface EngineSettings {
     enabled: boolean;
     /** Binary path or command name resolved on PATH (`claude`). */
     binary: string;
-    /** Pass `--setting-sources user` (user hooks like Headroom/claude-mem). Project settings are never inherited. */
+    /**
+     * Pass `--setting-sources user` (user hooks like Headroom/claude-mem). Project settings are never
+     * inherited. WARNING shown in settings: user hooks then receive bundles (repo content, possibly NDA
+     * code) and may store them; a workspace can opt out (`WorkspaceOverrides.inheritUserSettings: false`) [SEC-15].
+     */
     inheritUserSettings: boolean;
     /** Extra env var names passed through the allowlist (never credentials). */
     envPassthrough: string[];
-    /** Resident stream-json processes kept warm (0–2). */
+    /**
+     * Resident stream-json processes kept warm (0–2). Default 0 in v1 (warm pool is stretch, SC-13);
+     * when > 0 warm processes live only while a Composer is open (+30 s) [PT-13].
+     */
     warmPool: 0 | 1 | 2;
     /** Keep session persistence (default false ⇒ `--no-session-persistence`). */
     persistSessions: boolean;
@@ -2514,6 +2998,8 @@ export interface ModelDefaults {
   genModule: ModelId;
   /** Overview (S6o). */
   genOverview: ModelId;
+  /** Per-file notes via anthropic-api Batch only (default `claude-haiku-4-5`) [CR gen-C3]. */
+  genLeaf: ModelId;
   /** L3 judge and leaf notes. */
   judge: ModelId;
   /** Simplify / translate / doc sync. */
@@ -2556,12 +3042,20 @@ export interface SchedulerSettings {
   maxConcurrency: number;
   /** Pause background generation when 5h utilization exceeds this (default 0.8). */
   yieldAtFiveHour: number;
-  /** Launch one request first and fan out after its first streamed token (cache warm). */
+  /** Launch one request first and fan out after its `message_start` (prefill done ⇒ cache usable) [PT-18]. */
   warmFirstFanout: boolean;
   /** 429 backoff base (ms). */
   backoffBaseMs: number;
   /** 429 backoff max (ms). */
   backoffMaxMs: number;
+  /** Slots reserved for the `interactive` lane: background/doc may use at most `concurrency − reserveInteractive` (default 1) [PT-04]. */
+  reserveInteractive: number;
+  /** Interactive may exceed `concurrency` by this many while background runs (default 1; forced to 0 after a 429) [PT-04]. */
+  interactiveBurst: number;
+  /** Concurrency cap while the engine bills a consumer subscription (default 3; 8 only for anthropic-api) [SEC-15]. */
+  subscriptionMaxConcurrency: number;
+  /** Pause background when ONE run raised 5h utilization by more than this fraction (default 0.30 [仮]) [UXP-08]. */
+  runWindowSpendPause: number;
 }
 
 /** UI preferences. */
@@ -2582,6 +3076,13 @@ export interface UiSettings {
   notifyOnDone: boolean | null;
   /** Open the browser on `mitori`. */
   openBrowser: boolean;
+  /** ⇧O open-in-editor URL scheme [CR ux-R21]. */
+  editor: "vscode" | "cursor" | "none";
+  /**
+   * Default execution path of a new Composer (then: last path used in the workspace). Finish never
+   * switches pull→push because nobody is waiting [UXP-10].
+   */
+  defaultExecPath: "push" | "pull" | "copy";
 }
 
 /** Review behaviour. */
@@ -2604,12 +3105,28 @@ export interface SecuritySettings {
   secretScan: boolean;
   /** Allow binding a non-loopback host (`--unsafe-network`); default false. */
   allowNonLoopback: boolean;
+  /**
+   * Gate sandbox (ADR-0013) [SEC-03]: `auto` (default) = macOS `sandbox-exec` / Linux `bwrap` when available,
+   * else gates that execute repo code on AI diffs wait for consent; `require` = never run such gates
+   * unsandboxed; `off` = run unsandboxed after trust (explicit, shown in red).
+   */
+  gateSandbox: "auto" | "require" | "off";
+}
+
+/** One acknowledgement of the data-handling disclosure [UXP-04]. */
+export interface DataPolicyAck {
+  /** When acknowledged (the row had been visible ≥ 1 s first). */
+  at: Iso8601;
+  /** When the disclosure row was first shown. */
+  shownAt: Iso8601;
+  /** Plan label the disclosure described (`pro`, `max`, `api`, …). */
+  plan: string;
 }
 
 /** Privacy switches. */
 export interface PrivacySettings {
-  /** Per engine: when the data-handling disclosure was acknowledged. */
-  dataPolicyAck: Partial<Record<EngineId, Iso8601>>;
+  /** Per engine: data-handling disclosure acknowledgement (re-shown when the plan changes). */
+  dataPolicyAck: Partial<Record<EngineId, DataPolicyAck>>;
   /** Log prompt/response contents (default false; ids/counts only). */
   logContent: boolean;
   /** Keep raw engine stdout for debugging (default false). */
@@ -2622,8 +3139,13 @@ export interface GlobalSettings {
   schemaVersion: 1;
   /** UI. */
   ui: UiSettings;
-  /** Default engine for push tasks (explain/fix/review) and generation. */
+  /** Default engine for push tasks (explain/fix/review). */
   defaultEngine: EngineId;
+  /**
+   * Default engine for generation [CONS-28]. If it is unavailable, gen falls back to `claude-cli` when
+   * installed+authenticated, else offers `session` (never silently another engine).
+   */
+  defaultGenEngine: GenEngineId;
   /** Default generation effort. */
   defaultEffort: Effort;
   /** Default doc language for new docs. */
@@ -2632,8 +3154,13 @@ export interface GlobalSettings {
   engines: EngineSettings;
   /** Models. */
   models: ModelDefaults;
-  /** Reasoning effort per mode. */
-  reasoning: Record<ExecMode | "gen", ReasoningEffort>;
+  /** Reasoning effort per mode (`genOverview` default `medium`) [CR gen-C3]. */
+  reasoning: Record<ExecMode | "gen" | "genOverview", ReasoningEffort>;
+  /**
+   * Binaries resolved once and pinned (path, realpath, sha256, version); a change ⇒ `E_ENGINE_BINARY_CHANGED`
+   * until re-confirmed on the engine card [SEC-10]. Written only by the daemon after a human confirmation.
+   */
+  pins: Partial<Record<"claude" | "git" | "gh" | "codex", BinaryPin>>;
   /** Limits. */
   limits: Limits;
   /** Scheduler. */
@@ -2648,18 +3175,43 @@ export interface GlobalSettings {
   workspaces: Partial<Record<WorkspaceKey, WorkspaceOverrides>>;
 }
 
+/** A pinned executable [SEC-10]. */
+export interface BinaryPin {
+  /** Resolved path (from SAFE_PATH, never relative / workspace-local / node_modules/.bin). */
+  path: string;
+  /** realpath. */
+  realpath: string;
+  /** sha256 of the file. */
+  sha256: Sha256;
+  /** `--version` output (first line). */
+  version: string;
+  /** When pinned. */
+  pinnedAt: Iso8601;
+}
+
 /** Per-workspace overrides stored in the GLOBAL config. */
 export interface WorkspaceOverrides {
-  /** Doc directory override. */
+  /**
+   * Doc directory override: repo-relative, inside `realpath(root)`, no `..`, no symlink component, never
+   * `.` (the repo root) [SEC-01, SEC-02]; shadow workspaces: absolute under `~/.mitori/repos/<ws>/`.
+   */
   docDir?: string;
   /** Engine override. */
   defaultEngine?: EngineId;
+  /** Generation engine override. */
+  defaultGenEngine?: GenEngineId;
   /** Effort override. */
   defaultEffort?: Effort;
+  /** Extra includes [CONS-25]. */
+  include?: Glob[];
   /** Extra excludes. */
   exclude?: Glob[];
   /** Reader level. */
   readerLevel?: ReaderLevel;
+  /** Execution-path default for this workspace [UXP-10]. */
+  defaultExecPath?: "push" | "pull" | "copy";
+  /** Per-workspace opt-out of `--setting-sources user` (NDA repos) [SEC-15]. */
+  inheritUserSettings?: false;
 }
 
 /** Gate declaration in repo config (data only; executing it requires trust). */
@@ -2668,8 +3220,8 @@ export interface GateDeclaration {
   id: GateId;
   /** Kind. */
   kind: GateSpec["kind"];
-  /** argv. */
-  argv: string[];
+  /** argv template (variables `{var:"files"|"pkgs"|"tests"}`) [CONS-12]. */
+  argvTemplate: GateArg[];
   /** Applies to. */
   appliesTo: Glob[];
 }
@@ -2696,7 +3248,7 @@ export interface RepoSettings {
   modules?: Record<RepoPath, {
     /** Display name. */
     name?: string;
-    /** Slug. */
+    /** Slug (must match {@link SLUG_RE}; otherwise ignored with a notice) [SEC-01]. */
     slug?: string;
     /** Merge the prefix into the module containing this path. */
     mergeInto?: RepoPath;
@@ -2707,52 +3259,188 @@ export interface RepoSettings {
   rules?: RepoPath[];
 }
 
-/** Scope/trust metadata per top-level key (as data, enforced by the settings resolver). */
+/**
+ * Scope/trust metadata per settings key, as data enforced by the settings resolver [CONS-25, SEC-22].
+ * Keys are the TOP-LEVEL keys of the object that holds them in each scope (GlobalSettings,
+ * WorkspaceOverrides, RepoSettings); {@link SETTING_SCOPES_CHECK} proves at compile time that, for each
+ * scope, the set of rows naming it equals that object's keys. `trust: true` = content is executed or
+ * injected into agents ⇒ TrustRecord required. `exec: true` = command-executing / security-relevant ⇒
+ * listed in {@link EXEC_SETTING_KEYS} and never writable through `PATCH /settings` [SEC-06].
+ */
 export const SETTING_SCOPES = {
-  ui: { scopes: ["global"], trust: false },
-  defaultEngine: { scopes: ["global", "workspace"], trust: false },
-  defaultEffort: { scopes: ["global", "workspace"], trust: false },
-  defaultDocLang: { scopes: ["global"], trust: false },
-  engines: { scopes: ["global"], trust: false },
-  models: { scopes: ["global"], trust: false },
-  reasoning: { scopes: ["global"], trust: false },
-  limits: { scopes: ["global"], trust: false },
-  scheduler: { scopes: ["global"], trust: false },
-  review: { scopes: ["global"], trust: false },
-  security: { scopes: ["global"], trust: false },
-  privacy: { scopes: ["global"], trust: false },
-  docLang: { scopes: ["repo"], trust: false },
-  effortHint: { scopes: ["repo"], trust: false },
-  include: { scopes: ["repo", "workspace"], trust: false },
-  exclude: { scopes: ["repo", "workspace"], trust: false },
-  denyGlobs: { scopes: ["repo", "global"], trust: false },
-  readingPaths: { scopes: ["repo"], trust: false },
-  glossary: { scopes: ["repo"], trust: false },
-  modules: { scopes: ["repo"], trust: false },
-  gates: { scopes: ["repo", "global"], trust: true },
-  rules: { scopes: ["repo"], trust: false },
-} as const satisfies Record<string, { scopes: readonly SettingScope[]; trust: boolean }>;
+  ui: { scopes: ["global"], trust: false, exec: false },
+  defaultEngine: { scopes: ["global", "workspace"], trust: false, exec: false },
+  defaultGenEngine: { scopes: ["global", "workspace"], trust: false, exec: false },
+  defaultEffort: { scopes: ["global", "workspace"], trust: false, exec: false },
+  defaultDocLang: { scopes: ["global"], trust: false, exec: false },
+  engines: { scopes: ["global"], trust: false, exec: true },
+  models: { scopes: ["global"], trust: false, exec: false },
+  reasoning: { scopes: ["global"], trust: false, exec: false },
+  limits: { scopes: ["global"], trust: false, exec: true },
+  scheduler: { scopes: ["global"], trust: false, exec: false },
+  review: { scopes: ["global"], trust: false, exec: true },
+  security: { scopes: ["global"], trust: false, exec: true },
+  privacy: { scopes: ["global"], trust: false, exec: true },
+  pins: { scopes: ["global"], trust: false, exec: true },
+  docLang: { scopes: ["repo"], trust: false, exec: false },
+  effortHint: { scopes: ["repo"], trust: false, exec: false },
+  include: { scopes: ["repo", "workspace"], trust: false, exec: false },
+  exclude: { scopes: ["repo", "workspace"], trust: false, exec: false },
+  denyGlobs: { scopes: ["repo"], trust: false, exec: false },
+  readingPaths: { scopes: ["repo"], trust: false, exec: false },
+  glossary: { scopes: ["repo"], trust: false, exec: false },
+  modules: { scopes: ["repo"], trust: false, exec: false },
+  gates: { scopes: ["repo"], trust: true, exec: false },
+  rules: { scopes: ["repo"], trust: true, exec: false },
+  docDir: { scopes: ["workspace"], trust: false, exec: false },
+  readerLevel: { scopes: ["workspace"], trust: false, exec: false },
+  defaultExecPath: { scopes: ["workspace"], trust: false, exec: false },
+  inheritUserSettings: { scopes: ["workspace"], trust: false, exec: false },
+} as const satisfies Record<string, { scopes: readonly SettingScope[]; trust: boolean; exec: boolean }>;
 
-/** Default deny globs: never written by agents, never packed into bundles/prompts, never exported. */
-export const DEFAULT_DENY_GLOBS = [
-  ".git/**",
+/** Keys of {@link SETTING_SCOPES} whose `scopes` include `S`. */
+export type SettingKeysOf<S extends SettingScope> = {
+  [K in keyof typeof SETTING_SCOPES]: S extends (typeof SETTING_SCOPES)[K]["scopes"][number] ? K : never;
+}[keyof typeof SETTING_SCOPES];
+
+/** `true` iff `A` and `B` are the same key union (compile-time check helper). */
+export type SameKeys<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+/** Compile-time proof that SETTING_SCOPES and the three settings shapes agree (a mismatch fails `tsc`). */
+export const SETTING_SCOPES_CHECK: [
+  SameKeys<SettingKeysOf<"global">, Exclude<keyof GlobalSettings, "schemaVersion" | "workspaces">>,
+  SameKeys<SettingKeysOf<"workspace">, keyof WorkspaceOverrides>,
+  SameKeys<SettingKeysOf<"repo">, Exclude<keyof RepoSettings, "schemaVersion">>,
+] = [true, true, true];
+
+/**
+ * Settings paths that execute commands or lower a security/privacy/cost guard [SEC-06]. `PATCH /settings`
+ * rejects any patch touching them with `E_FORBIDDEN_KEY`; they change only via `mitori config set <path>
+ * <value>` (TTY confirmation, refused when CLAUDECODE / CODEX_* env is set) or a human editing
+ * `~/.mitori/config.json` (the daemon watches and reloads it). The UI shows the value + a copyable command.
+ * `limits.*` is listed because only INCREASES are dangerous; decreases are allowed from the web UI.
+ */
+export const EXEC_SETTING_KEYS = [
+  "engines",
+  "limits",
+  "pins",
+  "security",
+  "privacy.logContent",
+  "privacy.keepRawStreams",
+  "review.autoCommit",
+  "review.autoAcceptDocUpdates",
+] as const;
+
+/**
+ * Secret-bearing file names/paths (ONE list) [SEC-07]. Used by indexer R01/R04 (class `secret`, content never
+ * read), the snapshot (never added, not even untracked), bundles, export and share. Part of DEFAULT_DENY_GLOBS.
+ */
+export const SECRET_PATH_GLOBS = [
   ".env",
   ".env.*",
   "**/.env",
   "**/.env.*",
+  ".dev.vars",
   "**/*.pem",
   "**/*.key",
+  "**/*.p12",
+  "**/*.pfx",
+  "**/*.keystore",
+  "**/*.jks",
+  "**/*.kdbx",
+  "**/*.ppk",
+  "**/*.gpg",
   "**/id_rsa*",
   "**/id_ed25519*",
+  "**/id_ecdsa*",
+  "**/id_dsa*",
+  "**/.ssh/**",
+  "**/.aws/**",
+  "**/.kube/config",
+  "**/kubeconfig*",
+  "**/.docker/config.json",
   "**/.npmrc",
   "**/.netrc",
-  ".dev.vars",
+  "**/.pypirc",
+  "**/.git-credentials",
+  "**/.htpasswd",
+  "**/credentials.json",
+  "**/service-account*.json",
+  "**/*.tfvars",
+  "**/*.tfvars.json",
+  "**/*.tfstate",
+  "**/*.tfstate.*",
+] as const satisfies readonly Glob[];
+
+/**
+ * Env template files whose KEY NAMES (never values) the env-fact detector may read [CR idx-11].
+ * They stay denied for agents/bundles/export (they match `.env.*`).
+ */
+export const ENV_TEMPLATE_GLOBS = ["**/.env.example", "**/.env.sample", "**/.env.template"] as const satisfies readonly Glob[];
+
+/**
+ * Default deny globs: never written by agents, never packed into bundles/prompts, never exported [SEC-07,
+ * SEC-12, CR loop-8]. = SECRET_PATH_GLOBS ∪ git internals ∪ execution triggers (hooks, CI, devcontainer,
+ * package-manager configs that run code) ∪ agent-instruction directories ∪ the doc dir. The resolver adds
+ * `<docDir>/**` for a non-default docDir (EffectiveSettings.denyGlobs) [SEC-02].
+ */
+export const DEFAULT_DENY_GLOBS = [
+  ...SECRET_PATH_GLOBS,
+  ".git/**",
+  "**/.git/**",
+  ".gitmodules",
   ".github/workflows/**",
+  ".github/actions/**",
+  ".gitlab-ci.yml",
+  ".circleci/**",
+  "Jenkinsfile",
+  "azure-pipelines.yml",
+  ".buildkite/**",
+  ".devcontainer/**",
+  ".vscode/**",
+  ".idea/**",
+  "**/.envrc",
+  ".husky/**",
+  ".githooks/**",
+  "lefthook.yml",
+  ".lefthook.yml",
+  ".pre-commit-config.yaml",
+  ".yarnrc.yml",
+  ".pnpmfile.cjs",
+  "bunfig.toml",
+  "**/.cargo/config.toml",
+  "**/.cargo/config",
   ".claude/**",
   ".codex/**",
   ".agents/**",
   ".cursor/**",
   ".mitori/**",
+] as const satisfies readonly Glob[];
+
+/**
+ * Sensitive (not denied) files: an agent MAY edit them, but a job touching any of them — and every
+ * agent-mode job — gets no one-key accept: the ReadyCard has no 採用 button, ⌥⌘⏎ accept-all is disabled and
+ * each file needs an explicit hunk decision in Review [SEC-12].
+ */
+export const SENSITIVE_GLOBS = [
+  "**/package.json",
+  "**/Makefile",
+  "**/*.mk",
+  "**/justfile",
+  "**/Taskfile.yml",
+  "**/build.rs",
+  "**/setup.py",
+  "**/conftest.py",
+  "**/*.config.js",
+  "**/*.config.ts",
+  "**/*.config.mjs",
+  "**/*.config.cjs",
+  "**/CLAUDE.md",
+  "**/AGENTS.md",
+  "**/.cursorrules",
+  ".github/copilot-instructions.md",
+  "**/Dockerfile",
+  "**/flake.nix",
 ] as const satisfies readonly Glob[];
 
 /** A trust decision (global `state.sqlite`). Re-prompted when the content hash changes. */
@@ -2761,8 +3449,12 @@ export interface TrustRecord {
   id: TrustItemId;
   /** Workspace. */
   ws: WorkspaceKey;
-  /** What is trusted. */
-  item: "gates" | "repo_prompts" | "rules";
+  /**
+   * What is trusted: `gates` (argv templates + configs), `rules` (AGENTS.md/CLAUDE.md slices injected into
+   * bundles), `git_config` (command-bearing keys in the repo-local git config: filter/merge drivers,
+   * diff.external/textconv, core.sshCommand …; neutralized until trusted) [SEC-05, CONS-34].
+   */
+  item: "gates" | "rules" | "git_config";
   /** sha256 of the canonical item content. */
   hash: Sha256;
   /** Decision. */
@@ -2770,6 +3462,13 @@ export interface TrustRecord {
   /** When decided. */
   at: Iso8601;
 }
+
+/**
+ * Trust state machine (ADR-0009 R1; server spec §6): `unknown → pending` (content seen, `trust.request`
+ * emitted) → `trusted | denied` (web session ≥ 60 s old only, SEC-19) → `pending` again when the hash changes.
+ * `remote-readonly` workspaces start every `gates` item as `denied` (opt-in only) [SEC-14].
+ */
+export type TrustState = "unknown" | "pending" | "trusted" | "denied";
 
 /** Effective, resolved settings for one workspace (defaults ← global ← workspace ← repo-safe). */
 export interface EffectiveSettings {
@@ -2781,10 +3480,12 @@ export interface EffectiveSettings {
   overrides: WorkspaceOverrides;
   /** Keys present in the repo file but ignored (shown as a notice). */
   ignoredRepoKeys: string[];
-  /** Deny globs in effect (defaults ∪ global ∪ repo). */
+  /** Deny globs in effect (DEFAULT_DENY_GLOBS ∪ global security.denyGlobs ∪ repo denyGlobs ∪ `<docDir>/**`). */
   denyGlobs: Glob[];
-  /** Gates in effect after trust filtering. */
+  /** Gate TEMPLATES in effect after trust filtering (expanded per job by the GateRunner) [CONS-12]. */
   trustedGates: GateSpec[];
+  /** Sandbox available on this host for gates (resolved at daemon start) [SEC-03]. */
+  gateSandbox: "sandbox-exec" | "bwrap" | "none";
 }
 
 /* ============================================================================
@@ -2853,6 +3554,20 @@ export const ERROR_CODES = [
   "E_STATE_TRANSITION",
   "E_LOCK_TIMEOUT",
   "E_EXPORT_FAILED",
+  /** safeWrite: a path component is a symlink [SEC-01]. */
+  "E_PATH_SYMLINK",
+  /** safeWrite / path input resolves outside its root or fails the per-kind allowlist [SEC-01]. */
+  "E_PATH_OUTSIDE",
+  /** Refusing to overwrite a docDir file mitori did not write last (ownership ledger) [SEC-02]. */
+  "E_DOC_NOT_OWNED",
+  /** `PATCH /settings` touched an EXEC_SETTING_KEYS path [SEC-06]. */
+  "E_FORBIDDEN_KEY",
+  /** A pinned binary changed (path/realpath/sha256) — re-confirm on the engine card [SEC-10]. */
+  "E_ENGINE_BINARY_CHANGED",
+  /** `mitori` run in $HOME, `/`, Desktop/Documents/Downloads or a dir without project markers [UXP-23]. */
+  "E_WS_NOT_PROJECT",
+  /** Command needs an interactive TTY confirmation (refused under CLAUDECODE / CODEX_* or non-TTY) [SEC-04]. */
+  "E_TTY_REQUIRED",
 ] as const;
 
 /** Error code union. */
@@ -2928,6 +3643,13 @@ export const ERROR_META = {
   E_STATE_TRANSITION: { http: 409, retryable: false },
   E_LOCK_TIMEOUT: { http: 503, retryable: true },
   E_EXPORT_FAILED: { http: 500, retryable: false },
+  E_PATH_SYMLINK: { http: 403, retryable: false },
+  E_PATH_OUTSIDE: { http: 403, retryable: false },
+  E_DOC_NOT_OWNED: { http: 409, retryable: false },
+  E_FORBIDDEN_KEY: { http: 403, retryable: false },
+  E_ENGINE_BINARY_CHANGED: { http: 424, retryable: false },
+  E_WS_NOT_PROJECT: { http: 422, retryable: false },
+  E_TTY_REQUIRED: { http: 403, retryable: false },
 } as const satisfies Record<ErrorCode, ErrorMeta>;
 
 /** Serializable error (HTTP bodies, job failures, NDJSON). */
@@ -2955,6 +3677,38 @@ export interface MitoriErrorData {
 
 /** i18n catalog key of an error code: `error.<CODE>`. */
 export type ErrorI18nKey = `error.${ErrorCode}`;
+
+/**
+ * Every i18n key an SSE `notice` may carry (ja/en parity test iterates this list; emitting an unlisted key
+ * fails a unit test) [CR ux-R16]. Add keys here only.
+ */
+export const NOTICE_KEYS = [
+  "notice.settings.ignoredRepoKeys",
+  "notice.settings.reloaded",
+  "notice.slug.rewritten",
+  "notice.trust.pending",
+  "notice.engine.binaryChanged",
+  "notice.engine.billingChanged",
+  "notice.engine.capabilityLost",
+  "notice.gen.yielded",
+  "notice.gen.resumed",
+  "notice.gen.budgetPaused",
+  "notice.gen.windowSpend",
+  "notice.gen.suggestions",
+  "notice.doc.notOwned",
+  "notice.doc.externalEdit",
+  "notice.doc.claimsDropped",
+  "notice.git.configNeutralized",
+  "notice.gate.noSandbox",
+  "notice.gate.consentNeeded",
+  "notice.ws.shallowNoChurn",
+  "notice.ws.notProject",
+  "notice.daemon.versionRestart",
+  "notice.review.waiting",
+] as const;
+
+/** Notice key. */
+export type NoticeKey = (typeof NOTICE_KEYS)[number];
 
 /* ============================================================================
  * 18. Ports (implemented in `@mitori/platform`, injected by the server composition root)
@@ -3029,20 +3783,42 @@ export interface Migration {
   up: string;
 }
 
-/** Read-only git access shared by indexer/anchor/gen (implemented over `git` subprocesses). */
+/**
+ * Read-only git access shared by indexer/anchor/gen [CR idx-5, CR gen-C5, CONS-27]. Implemented over
+ * `git` subprocesses with the hardened env of ADR-0012 (empty env + allowlist, GIT_CONFIG_NOSYSTEM=1,
+ * stdin /dev/null, per-call timeout). Blob reads use ONE persistent `git cat-file --batch` per workspace with
+ * a 64 MB LRU; clean working-tree files whose stat matches the index are read from the filesystem [PT-17].
+ * Shadow workspaces (GIT_DIR=~/.mitori/repos/<ws>/shadow.git) return the same shapes (WP-01 parity test).
+ */
 export interface GitReader {
-  /** `git ls-files -s -z` (+ untracked via `--others --exclude-standard`). */
-  lsFiles(): Promise<{ path: RepoPath; blob: GitOid; mode: string; tracked: boolean }[]>;
+  /** `git ls-files -s -z` (+ untracked via `--others --exclude-standard`). `stage` 0 normally, 1–3 during conflicts. */
+  lsFiles(): Promise<{ path: RepoPath; blob: GitOid; mode: string; stage: 0 | 1 | 2 | 3; tracked: boolean }[]>;
+  /** `git ls-files -z --others --exclude-standard [--directory]`; with `directories` nested repos come back as `dir/`. */
+  lsOthers(opts: { directories: boolean }): Promise<RepoPath[]>;
   /** Porcelain v2 status (paths changed vs HEAD/index). */
   status(): Promise<{ path: RepoPath; xy: string }[]>;
-  /** Blob content. */
+  /** Paths that are dirty per porcelain v2 (modified, added, deleted, renamed, untracked-not-ignored). */
+  statusDirty(): Promise<RepoPath[]>;
+  /** `git check-attr -z --stdin <attrs>`: values per path (`unspecified` omitted). */
+  checkAttr(paths: readonly RepoPath[], attrs: readonly string[]): Promise<Record<RepoPath, Record<string, string>>>;
+  /** Blob content (persistent `cat-file --batch`). */
   catBlob(blob: GitOid): Promise<Uint8Array>;
   /** HEAD commit or null. */
   head(): Promise<GitOid | null>;
+  /** `HEAD^{tree}` or null. */
+  headTree(): Promise<GitOid | null>;
   /** Current branch or null. */
   branch(): Promise<string | null>;
+  /** Absolute git dir (`index` / `HEAD` mtimes drive the 10 ms warm rescan). */
+  gitDir(): Promise<string>;
   /** Changed paths between two commits/trees. */
   diffNames(from: GitOid, to: GitOid): Promise<RepoPath[]>;
+  /** `git log --no-merges -z --name-only` newest first (decisions COMMITS, risks CHURN, map churn overlay). Empty on shallow clones. */
+  log(opts: { limit: number; sinceDays?: number }): Promise<{ sha: GitOid; date: Iso8601; subject: string; paths: RepoPath[] }[]>;
+  /** `git rev-list --count from..to` (WorkspaceSummary.doc.commitsBehind); null when unknown/shallow. */
+  revCount(from: GitOid, to: GitOid): Promise<number | null>;
+  /** True for shallow clones (remote-readonly `--depth 1`): churn/log are empty and the UI says so. */
+  isShallow(): Promise<boolean>;
   /** Hash algorithm of the repository. */
   objectFormat(): Promise<"sha1" | "sha256">;
 }
@@ -3055,6 +3831,193 @@ export interface EventSink<E> {
 
 /** Cancellation token shape (standard `AbortSignal` is used at runtime). */
 export type Cancel = AbortSignal;
+
+/**
+ * Single-writer queue (ADR-0009) [CONS-03]. `fn` runs alone: SQLite IMMEDIATE transaction + in-memory
+ * mutations + `.mitori/` change reservations. It must not await LLM calls, git subprocesses, network or
+ * Workers (only the doc flush's final rename may await inside its own slot). One queue per workspace DB,
+ * plus ONE daemon-wide `stateWrite` queue for `~/.mitori/state.sqlite` (ledger, trust, calibration,
+ * workspaces, sessions). Mutators of DocStore / ReviewEngine / JobRunner state may only be called inside
+ * `write()`; dev builds assert it (`E_INTERNAL "mutation outside write queue"`).
+ */
+export type WriteQueue = <T>(label: string, fn: () => T) => Promise<T>;
+
+/** File stat [CR idx-8]. */
+export interface FsStat {
+  /** Bytes. */
+  size: number;
+  /** Modification time in nanoseconds since the epoch. */
+  mtimeNs: bigint;
+  /** Inode (0n when unavailable). */
+  ino: bigint;
+  /** Regular file. */
+  isFile: boolean;
+  /** Directory. */
+  isDir: boolean;
+  /** Symbolic link (lstat). */
+  isSymlink: boolean;
+}
+
+/** Read-only filesystem port (absolute paths) [CR idx-8]. Domain packages never import `node:fs`. */
+export interface FsReader {
+  /** lstat; null when missing. */
+  stat(abs: string): FsStat | null;
+  /** Whole file. */
+  read(abs: string): Promise<Uint8Array>;
+  /** First `n` bytes. */
+  readHead(abs: string, n: number): Promise<Uint8Array>;
+  /** realpath; null when missing. */
+  realpath(abs: string): string | null;
+  /** Directory entries (names only), null when not a directory. */
+  readdir(abs: string): string[] | null;
+}
+
+/**
+ * What a write is for; each kind has a root and an allowlist regex (platform `SAFE_WRITE_RULES`) [SEC-01].
+ * - `doc`: `<docDir>/` + DOC_TEMPLATE files, `doc/modules/<SLUG_RE>.md`, `decisions/dc_<id>.md`,
+ *   `mitori.json`, `doc.index.json`, `config.json`, `README.md`, `.gitignore`, `cache/**`.
+ * - `prep`: `<docDir>/tmp/prep/pr_<id>/**`.  - `integration`: the installer's fixed relative paths.
+ * - `repo_meta`: `.gitattributes`, `AGENTS.md`, `CLAUDE.md` (managed block only; a symlink is followed only
+ *   when its realpath stays inside the repo).  - `accept`: RepoPaths of the job's write scope.
+ * - `home`: `~/.mitori/**` (state, registry, run/sp, logs, repos/<ws>/**).
+ */
+export type SafeWriteKind = "doc" | "prep" | "integration" | "repo_meta" | "accept" | "home";
+
+/**
+ * The ONLY way mitori writes a file (lint bans direct writeFile/rename/mkdir outside `@mitori/platform`)
+ * [SEC-01]. Algorithm: (1) `rel` must match the kind's allowlist and contain no `..`/absolute/NUL/`\`;
+ * (2) `lstat` every component from `rootReal` (which is itself a realpath) — any symlink ⇒ `E_PATH_SYMLINK`;
+ * (3) parent realpath must be under `rootReal` ⇒ else `E_PATH_OUTSIDE`; (4) temp file in the same dir via
+ * `O_CREAT|O_EXCL|O_NOFOLLOW` 0600/0644, write, fsync; (5) `lstat` the target right before `rename` (refuse a
+ * symlink target); (6) rename, fsync dir. Directories are created component-by-component with the same checks.
+ */
+export interface SafeWriter {
+  /** Atomic write. */
+  write(rootReal: string, rel: string, bytes: Uint8Array | string, kind: SafeWriteKind): Promise<void>;
+  /** Remove a file (same path checks; never recursive outside `home` / `prep`). */
+  remove(rootReal: string, rel: string, kind: SafeWriteKind): Promise<void>;
+}
+
+/** Random source (production: `crypto.getRandomValues`; tests: seeded) [CR test-1]. */
+export interface Random {
+  /** `n` random bytes. */
+  bytes(n: number): Uint8Array;
+}
+
+/** Deterministic counters/timers (no-op by default) backing perf goldens, `/__test/metrics`, `mitori doctor` [CR test-2]. */
+export interface Metrics {
+  /** Increment a counter. */
+  inc(name: MetricName, n?: number): void;
+  /** Record a duration sample. */
+  observe(name: MetricName, ms: number): void;
+}
+
+/** Metric names (add here only; the perf counters in testing spec §6 refer to them) [CR test-2]. */
+export const METRIC_NAMES = [
+  "idx.parse.calls",
+  "idx.files.hashed",
+  "idx.sql.writes",
+  "idx.blob.pinned",
+  "doc.render.calls",
+  "doc.flush.ms",
+  "doc.flush.bytes",
+  "gen.engine.calls",
+  "gen.cite.l1.vacuous",
+  "gen.cache.hits",
+  "agent.spawns",
+  "agent.spawns.real",
+  "agent.continuations",
+  "loop.bundle.ms",
+  "loop.git.calls",
+  "srv.writequeue.ops",
+  "srv.writequeue.wait.ms",
+  "srv.sse.events",
+  "srv.sse.coalesced",
+] as const;
+
+/** Metric name. */
+export type MetricName = (typeof METRIC_NAMES)[number];
+
+/** One secret rule. `entropy` = minimum Shannon bits/char of capture group 1 (generic rules only). */
+export interface SecretRule {
+  /** Id (recorded in {@link SecretHit.rule}; NOT part of the redaction token). */
+  id: string;
+  /** RegExp source. */
+  source: string;
+  /** RegExp flags. */
+  flags: string;
+  /** Minimum entropy of the captured value. */
+  entropy?: number;
+}
+
+/**
+ * Secret rules (moved from loop.ts; loop spec §12.2) [CONS-05, CR idx-6]. Placeholders (`xxx…`, `changeme`,
+ * `<…>`, `${…}`, `process.env.…`, `os.environ…`, `example`, `dummy`, one repeated char) never match.
+ */
+export const SECRET_RULES = [
+  { id: "aws_access_key", source: "\\b(?:AKIA|ASIA)[0-9A-Z]{16}\\b", flags: "g" },
+  { id: "aws_secret", source: "aws.{0,20}?(?:secret|sk).{0,20}?['\"][0-9A-Za-z/+]{40}['\"]", flags: "gi" },
+  { id: "github_token", source: "\\bgh[pousr]_[A-Za-z0-9]{36,255}\\b", flags: "g" },
+  { id: "github_pat", source: "\\bgithub_pat_[A-Za-z0-9_]{22,255}\\b", flags: "g" },
+  { id: "gitlab_token", source: "\\bglpat-[A-Za-z0-9_-]{20,}\\b", flags: "g" },
+  { id: "slack_token", source: "\\bxox[abprs]-[A-Za-z0-9-]{10,}\\b", flags: "g" },
+  { id: "slack_webhook", source: "https://hooks\\.slack\\.com/services/[A-Za-z0-9_/]{20,}", flags: "g" },
+  { id: "anthropic_key", source: "\\bsk-ant-[A-Za-z0-9_-]{20,}\\b", flags: "g" },
+  { id: "openai_key", source: "\\bsk-(?:proj-)?[A-Za-z0-9_-]{32,}\\b", flags: "g" },
+  { id: "google_api_key", source: "\\bAIza[0-9A-Za-z_-]{35}\\b", flags: "g" },
+  { id: "stripe_key", source: "\\b(?:sk|rk)_(?:live|test)_[0-9A-Za-z]{24,}\\b", flags: "g" },
+  { id: "npm_token", source: "\\bnpm_[A-Za-z0-9]{36}\\b", flags: "g" },
+  { id: "private_key", source: "-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----[\\s\\S]*?(?:-----END (?:[A-Z]+ )?PRIVATE KEY-----|$)", flags: "g" },
+  { id: "jwt", source: "\\beyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\b", flags: "g" },
+  { id: "url_credentials", source: "\\b[a-z][a-z0-9+.-]*://[^/\\s:@]+:[^/\\s@]{6,}@", flags: "g" },
+  { id: "generic_assignment", source: "\\b(?:pass(?:word)?|passwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|client[_-]?secret)\\b\\s*[:=]\\s*['\"]?([^\\s'\"]{16,})", flags: "gi", entropy: 3.5 },
+] as const satisfies readonly SecretRule[];
+
+/**
+ * The ONE redaction token, everywhere (indexer packs, gen inputs, bundles, export, share, logs). Rule ids are
+ * recorded separately so cache keys and token counts stay stable across rule-set changes [CONS-05].
+ */
+export const REDACTION_TOKEN = "«redacted:secret»" as const;
+
+/** One hit. */
+export interface SecretHit {
+  /** Rule id. */
+  rule: (typeof SECRET_RULES)[number]["id"] | (string & {});
+  /** 1-based line. */
+  line: number;
+  /** Start offset in the text (UTF-16). */
+  start: number;
+  /** End offset. */
+  end: number;
+}
+
+/**
+ * Secret scanner shared by indexer, doc (renderer/exporter), gen, loop and server [CONS-05, CR idx-6].
+ * One combined pass; 1 MB ≤ 10 ms. `redact` replaces inside lines only (line count preserved).
+ */
+export interface SecretScanner {
+  /** Find hits. */
+  scan(text: string): SecretHit[];
+  /** Replace hits with {@link REDACTION_TOKEN}. */
+  redact(text: string): { text: string; redactions: number; rules: string[] };
+}
+
+/** Create the scanner (pure; rules combined into one pass; placeholder filter and entropy check applied). */
+export declare function createSecretScanner(extraRules?: readonly SecretRule[]): SecretScanner;
+
+/** Worker pool port (platform: Bun Workers / node:worker_threads); moved from indexer.ts [CONS-26]. */
+export interface WorkerPool<Req, Res> {
+  /** Run one request on the least-loaded worker (pull-based dispatch). */
+  run(req: Req, signal?: Cancel): Promise<Res>;
+  /** Current worker count. */
+  size(): number;
+  /** Grow or shrink to exactly `n` workers (n = 0 releases all WASM memory). */
+  resize(n: number): Promise<void>;
+  /** Terminate idle workers (keeps at most `keep`). */
+  shrink(keep?: number): Promise<void>;
+  /** Terminate all workers. */
+  close(): Promise<void>;
+}
 
 /* ============================================================================
  * 19. Package graph (machine-checked by `scripts/check-boundaries.ts`)
@@ -3074,12 +4037,16 @@ export type PackageName =
   | "@mitori/client"
   | "@mitori/cli"
   | "@mitori/web"
-  | "@mitori/share";
+  | "@mitori/share"
+  /** Test-only kit (fixtures, cassettes, truth, e2e/bench helpers). No production package may depend on it [CR test-4]. */
+  | "@mitori/testkit";
 
 /**
  * Allowed runtime dependencies (imports) per package. Type-only imports of `@mitori/core`
  * are always allowed. Anything else fails CI. gen ⟂ loop: they never import each other;
- * the server wires their interactions through events/commands.
+ * the server wires their interactions through events/commands (server spec §4).
+ * Test-only subpath `@mitori/<pkg>/testing` (`src/testing.ts`) may be imported only from `test/**`,
+ * `e2e/**`, `bench/**`, `eval/**` and `@mitori/testkit` — never from production `src/**` [CR test-4].
  */
 export const PACKAGE_DEPS = {
   "@mitori/core": [],
@@ -3095,4 +4062,5 @@ export const PACKAGE_DEPS = {
   "@mitori/cli": ["@mitori/core", "@mitori/platform", "@mitori/client", "@mitori/server"],
   "@mitori/web": ["@mitori/core", "@mitori/client"],
   "@mitori/share": ["@mitori/core"],
+  "@mitori/testkit": ["@mitori/core", "@mitori/platform", "@mitori/indexer", "@mitori/doc", "@mitori/anchor", "@mitori/agent", "@mitori/gen", "@mitori/loop", "@mitori/server", "@mitori/client", "@mitori/cli"],
 } as const satisfies Record<PackageName, readonly PackageName[]>;

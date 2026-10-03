@@ -1,0 +1,2060 @@
+{
+ "editorial": {
+  "doc-light": {
+   "dom": 1792,
+   "textEls": 177,
+   "minFontPx": 10.5,
+   "under11px": 6,
+   "under12px": 98,
+   "fsTop": [
+    [
+     "11",
+     87
+    ],
+    [
+     "13",
+     50
+    ],
+    [
+     "12",
+     22
+    ],
+    [
+     "14",
+     6
+    ],
+    [
+     "18",
+     5
+    ],
+    [
+     "15",
+     2
+    ]
+   ],
+   "contrastFail": 5,
+   "contrastChecked": 177,
+   "fails": [
+    {
+     "t": "0",
+     "fs": 11,
+     "ratio": 4.24,
+     "cls": "n"
+    },
+    {
+     "t": "·",
+     "fs": 12,
+     "ratio": 1.44,
+     "cls": "sep"
+    },
+    {
+     "t": "·",
+     "fs": 12,
+     "ratio": 1.44,
+     "cls": "sep"
+    },
+    {
+     "t": "·",
+     "fs": 12,
+     "ratio": 1.44,
+     "cls": "sep"
+    },
+    {
+     "t": "·",
+     "fs": 12,
+     "ratio": 1.44,
+     "cls": "sep"
+    }
+   ],
+   "interactiveVisible": 35,
+   "under24px": 3,
+   "smallList": [
+    {
+     "t": "README.md:8README.",
+     "w": 85,
+     "h": 20
+    },
+    {
+     "t": "daemon_cli.go:92da",
+     "w": 118,
+     "h": 20
+    },
+    {
+     "t": "README.md:14README",
+     "w": 91,
+     "h": 20
+    }
+   ],
+   "prose": {
+    "fontSize": 16,
+    "lineHeight": 1.9,
+    "widthPx": 592,
+    "cjkCharsPerLine": 37,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hiragino Kaku ",
+    "autospace": "normal",
+    "lineBreak": "auto"
+   },
+   "head": {
+    "tag": "H1",
+    "fs": 34,
+    "family": "ui-serif, \"Iowan Old Style\", \"Hiragino Mincho ProN",
+    "weight": "600"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 3,
+   "tabFocus": "20/20",
+   "errors": 0
+  },
+  "doc-dark": {
+   "dom": 1792,
+   "textEls": 177,
+   "minFontPx": 10.5,
+   "under11px": 6,
+   "under12px": 98,
+   "fsTop": [
+    [
+     "11",
+     87
+    ],
+    [
+     "13",
+     50
+    ],
+    [
+     "12",
+     22
+    ],
+    [
+     "14",
+     6
+    ],
+    [
+     "18",
+     5
+    ],
+    [
+     "15",
+     2
+    ]
+   ],
+   "contrastFail": 4,
+   "contrastChecked": 177,
+   "fails": [
+    {
+     "t": "·",
+     "fs": 12,
+     "ratio": 1.57,
+     "cls": "sep"
+    },
+    {
+     "t": "·",
+     "fs": 12,
+     "ratio": 1.57,
+     "cls": "sep"
+    },
+    {
+     "t": "·",
+     "fs": 12,
+     "ratio": 1.57,
+     "cls": "sep"
+    },
+    {
+     "t": "·",
+     "fs": 12,
+     "ratio": 1.57,
+     "cls": "sep"
+    }
+   ],
+   "interactiveVisible": 35,
+   "under24px": 3,
+   "smallList": [
+    {
+     "t": "README.md:8README.",
+     "w": 85,
+     "h": 20
+    },
+    {
+     "t": "daemon_cli.go:92da",
+     "w": 118,
+     "h": 20
+    },
+    {
+     "t": "README.md:14README",
+     "w": 91,
+     "h": 20
+    }
+   ],
+   "prose": {
+    "fontSize": 16,
+    "lineHeight": 1.9,
+    "widthPx": 592,
+    "cjkCharsPerLine": 37,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hiragino Kaku ",
+    "autospace": "normal",
+    "lineBreak": "auto"
+   },
+   "head": {
+    "tag": "H1",
+    "fs": 34,
+    "family": "ui-serif, \"Iowan Old Style\", \"Hiragino Mincho ProN",
+    "weight": "600"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 3,
+   "tabFocus": "20/20",
+   "errors": 0
+  },
+  "map": {
+   "dom": 1705,
+   "textEls": 193,
+   "minFontPx": 10.5,
+   "under11px": 7,
+   "under12px": 102,
+   "fsTop": [
+    [
+     "11",
+     93
+    ],
+    [
+     "13",
+     56
+    ],
+    [
+     "12",
+     25
+    ],
+    [
+     "14",
+     9
+    ],
+    [
+     "23",
+     4
+    ],
+    [
+     "18",
+     2
+    ]
+   ],
+   "contrastFail": 0,
+   "contrastChecked": 192,
+   "fails": [],
+   "interactiveVisible": 48,
+   "under24px": 0,
+   "smallList": [],
+   "prose": {
+    "fontSize": 11,
+    "lineHeight": 1.6,
+    "widthPx": 410,
+    "cjkCharsPerLine": 37,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hiragino Kaku ",
+    "autospace": "normal",
+    "lineBreak": "auto"
+   },
+   "head": {
+    "tag": "H1",
+    "fs": 46,
+    "family": "ui-serif, \"Iowan Old Style\", \"Hiragino Mincho ProN",
+    "weight": "600"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 3,
+   "tabFocus": "20/20",
+   "errors": 0
+  },
+  "review": {
+   "dom": 2653,
+   "textEls": 236,
+   "minFontPx": 10,
+   "under11px": 26,
+   "under12px": 143,
+   "fsTop": [
+    [
+     "11",
+     98
+    ],
+    [
+     "12",
+     49
+    ],
+    [
+     "13",
+     43
+    ],
+    [
+     "16",
+     14
+    ],
+    [
+     "10",
+     13
+    ],
+    [
+     "14",
+     12
+    ]
+   ],
+   "contrastFail": 3,
+   "contrastChecked": 232,
+   "fails": [
+    {
+     "t": "575",
+     "fs": 10,
+     "ratio": 4.29,
+     "cls": "o"
+    },
+    {
+     "t": "575",
+     "fs": 10,
+     "ratio": 4.32,
+     "cls": "nn"
+    },
+    {
+     "t": "576",
+     "fs": 10,
+     "ratio": 4.32,
+     "cls": "nn"
+    }
+   ],
+   "interactiveVisible": 37,
+   "under24px": 12,
+   "smallList": [
+    {
+     "t": "cli_dispatch.go:46",
+     "w": 131,
+     "h": 20
+    },
+    {
+     "t": "server.go:2671serv",
+     "w": 105,
+     "h": 20
+    },
+    {
+     "t": "session_write.go:1",
+     "w": 138,
+     "h": 20
+    },
+    {
+     "t": "atomic_write.go:19",
+     "w": 131,
+     "h": 20
+    },
+    {
+     "t": "cli_handlers_story",
+     "w": 178,
+     "h": 20
+    },
+    {
+     "t": "prep.go:46prep.go:",
+     "w": 78,
+     "h": 20
+    },
+    {
+     "t": "cli_handlers_story",
+     "w": 178,
+     "h": 20
+    },
+    {
+     "t": "cli_handlers_story",
+     "w": 178,
+     "h": 20
+    }
+   ],
+   "prose": {
+    "fontSize": 16,
+    "lineHeight": 1.9,
+    "widthPx": 556,
+    "cjkCharsPerLine": 35,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hiragino Kaku ",
+    "autospace": "normal",
+    "lineBreak": "auto"
+   },
+   "head": {
+    "tag": "H2",
+    "fs": 22.5,
+    "family": "ui-serif, \"Iowan Old Style\", \"Hiragino Mincho ProN",
+    "weight": "600"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 3,
+   "tabFocus": "20/20",
+   "errors": 0
+  },
+  "inbox": {
+   "dom": 1921,
+   "textEls": 192,
+   "minFontPx": 10.5,
+   "under11px": 5,
+   "under12px": 122,
+   "fsTop": [
+    [
+     "11",
+     106
+    ],
+    [
+     "13",
+     39
+    ],
+    [
+     "12",
+     26
+    ],
+    [
+     "14",
+     17
+    ],
+    [
+     "20",
+     2
+    ],
+    [
+     "18",
+     1
+    ]
+   ],
+   "contrastFail": 2,
+   "contrastChecked": 191,
+   "fails": [
+    {
+     "t": "8",
+     "fs": 11,
+     "ratio": 4.24,
+     "cls": "c"
+    },
+    {
+     "t": "2分前",
+     "fs": 11,
+     "ratio": 4.24,
+     "cls": ""
+    }
+   ],
+   "interactiveVisible": 33,
+   "under24px": 0,
+   "smallList": [],
+   "prose": {
+    "fontSize": 14,
+    "lineHeight": 1.6,
+    "widthPx": 627,
+    "cjkCharsPerLine": 45,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hiragino Kaku ",
+    "autospace": "normal",
+    "lineBreak": "auto"
+   },
+   "head": {
+    "tag": "H1",
+    "fs": 32,
+    "family": "ui-serif, \"Iowan Old Style\", \"Hiragino Mincho ProN",
+    "weight": "600"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 3,
+   "tabFocus": "18/19",
+   "errors": 0
+  }
+ },
+ "pro": {
+  "doc-light": {
+   "dom": 1702,
+   "textEls": 308,
+   "minFontPx": 10,
+   "under11px": 10,
+   "under12px": 85,
+   "fsTop": [
+    [
+     "12",
+     219
+    ],
+    [
+     "11",
+     45
+    ],
+    [
+     "13",
+     30
+    ],
+    [
+     "14",
+     5
+    ],
+    [
+     "15",
+     4
+    ],
+    [
+     "10",
+     3
+    ]
+   ],
+   "contrastFail": 75,
+   "contrastChecked": 308,
+   "fails": [
+    {
+     "t": "›",
+     "fs": 12.5,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "検索・コマンド",
+     "fs": 12.5,
+     "ratio": 2.79,
+     "cls": ""
+    },
+    {
+     "t": "設計書",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": ".mitori/",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "mono"
+    },
+    {
+     "t": "0",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "1分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "1",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "2分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "2",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "2分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "3",
+     "fs": 11,
+     "ratio": 2.29,
+     "cls": "n"
+    },
+    {
+     "t": "2",
+     "fs": 10,
+     "ratio": 3.64,
+     "cls": "tbub ai"
+    }
+   ],
+   "interactiveVisible": 65,
+   "under24px": 25,
+   "smallList": [
+    {
+     "t": "30分コース",
+     "w": 79,
+     "h": 19
+    },
+    {
+     "t": "往復",
+     "w": 28,
+     "h": 17
+    },
+    {
+     "t": "story",
+     "w": 33,
+     "h": 17
+    },
+    {
+     "t": "c",
+     "w": 24,
+     "h": 22
+    },
+    {
+     "t": "e",
+     "w": 24,
+     "h": 22
+    },
+    {
+     "t": "f",
+     "w": 24,
+     "h": 22
+    },
+    {
+     "t": "常駐プロセス",
+     "w": 90,
+     "h": 18
+    },
+    {
+     "t": "セッションキー",
+     "w": 105,
+     "h": 18
+    }
+   ],
+   "prose": {
+    "fontSize": 15,
+    "lineHeight": 1.85,
+    "widthPx": 573,
+    "cjkCharsPerLine": 38,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hiragino Kaku ",
+    "autospace": "no-autospace",
+    "lineBreak": "auto"
+   },
+   "head": {
+    "tag": "H1",
+    "fs": 24,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hira",
+    "weight": "650"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 1,
+   "tabFocus": "20/20",
+   "errors": 0
+  },
+  "doc-dark": {
+   "dom": 1702,
+   "textEls": 308,
+   "minFontPx": 10,
+   "under11px": 10,
+   "under12px": 85,
+   "fsTop": [
+    [
+     "12",
+     219
+    ],
+    [
+     "11",
+     45
+    ],
+    [
+     "13",
+     30
+    ],
+    [
+     "14",
+     5
+    ],
+    [
+     "15",
+     4
+    ],
+    [
+     "10",
+     3
+    ]
+   ],
+   "contrastFail": 63,
+   "contrastChecked": 308,
+   "fails": [
+    {
+     "t": "›",
+     "fs": 12.5,
+     "ratio": 3.21,
+     "cls": ""
+    },
+    {
+     "t": "検索・コマンド",
+     "fs": 12.5,
+     "ratio": 3.07,
+     "cls": ""
+    },
+    {
+     "t": "設計書",
+     "fs": 11,
+     "ratio": 3.21,
+     "cls": ""
+    },
+    {
+     "t": ".mitori/",
+     "fs": 11,
+     "ratio": 3.21,
+     "cls": "mono"
+    },
+    {
+     "t": "0",
+     "fs": 11,
+     "ratio": 3.21,
+     "cls": "n"
+    },
+    {
+     "t": "1分",
+     "fs": 11,
+     "ratio": 3.21,
+     "cls": ""
+    },
+    {
+     "t": "1",
+     "fs": 11,
+     "ratio": 3.21,
+     "cls": "n"
+    },
+    {
+     "t": "2分",
+     "fs": 11,
+     "ratio": 3.21,
+     "cls": ""
+    },
+    {
+     "t": "2",
+     "fs": 11,
+     "ratio": 3.21,
+     "cls": "n"
+    },
+    {
+     "t": "2分",
+     "fs": 11,
+     "ratio": 3.21,
+     "cls": ""
+    },
+    {
+     "t": "3",
+     "fs": 11,
+     "ratio": 2.65,
+     "cls": "n"
+    },
+    {
+     "t": "9分",
+     "fs": 11,
+     "ratio": 2.65,
+     "cls": ""
+    }
+   ],
+   "interactiveVisible": 65,
+   "under24px": 25,
+   "smallList": [
+    {
+     "t": "30分コース",
+     "w": 79,
+     "h": 19
+    },
+    {
+     "t": "往復",
+     "w": 28,
+     "h": 17
+    },
+    {
+     "t": "story",
+     "w": 33,
+     "h": 17
+    },
+    {
+     "t": "c",
+     "w": 24,
+     "h": 22
+    },
+    {
+     "t": "e",
+     "w": 24,
+     "h": 22
+    },
+    {
+     "t": "f",
+     "w": 24,
+     "h": 22
+    },
+    {
+     "t": "常駐プロセス",
+     "w": 90,
+     "h": 18
+    },
+    {
+     "t": "セッションキー",
+     "w": 105,
+     "h": 18
+    }
+   ],
+   "prose": {
+    "fontSize": 15,
+    "lineHeight": 1.85,
+    "widthPx": 573,
+    "cjkCharsPerLine": 38,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hiragino Kaku ",
+    "autospace": "no-autospace",
+    "lineBreak": "auto"
+   },
+   "head": {
+    "tag": "H1",
+    "fs": 24,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hira",
+    "weight": "650"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 1,
+   "tabFocus": "20/20",
+   "errors": 0
+  },
+  "map": {
+   "dom": 768,
+   "textEls": 218,
+   "minFontPx": 10,
+   "under11px": 16,
+   "under12px": 125,
+   "fsTop": [
+    [
+     "12",
+     118
+    ],
+    [
+     "11",
+     57
+    ],
+    [
+     "13",
+     33
+    ],
+    [
+     "14",
+     7
+    ],
+    [
+     "10",
+     2
+    ],
+    [
+     "19",
+     1
+    ]
+   ],
+   "contrastFail": 54,
+   "contrastChecked": 218,
+   "fails": [
+    {
+     "t": "›",
+     "fs": 12.5,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "検索・コマンド",
+     "fs": 12.5,
+     "ratio": 2.79,
+     "cls": ""
+    },
+    {
+     "t": "設計書",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": ".mitori/",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "mono"
+    },
+    {
+     "t": "0",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "1分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "1",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "2分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "2",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "2分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "3",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "9分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    }
+   ],
+   "interactiveVisible": 70,
+   "under24px": 7,
+   "smallList": [
+    {
+     "t": "30分コース",
+     "w": 79,
+     "h": 19
+    },
+    {
+     "t": "ペイン幅",
+     "w": 5,
+     "h": 830
+    },
+    {
+     "t": "",
+     "w": 16,
+     "h": 13
+    },
+    {
+     "t": "",
+     "w": 16,
+     "h": 13
+    },
+    {
+     "t": "",
+     "w": 16,
+     "h": 13
+    },
+    {
+     "t": "ジョブ 0 実行中 · 0 待機 ·",
+     "w": 197,
+     "h": 20
+    },
+    {
+     "t": "? ショートカット",
+     "w": 116,
+     "h": 20
+    }
+   ],
+   "prose": null,
+   "head": {
+    "tag": "H1",
+    "fs": 19,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hira",
+    "weight": "650"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 2,
+   "tabFocus": "20/20",
+   "errors": 0
+  },
+  "review": {
+   "dom": 1948,
+   "textEls": 302,
+   "minFontPx": 10,
+   "under11px": 17,
+   "under12px": 139,
+   "fsTop": [
+    [
+     "12",
+     188
+    ],
+    [
+     "11",
+     49
+    ],
+    [
+     "13",
+     39
+    ],
+    [
+     "15",
+     12
+    ],
+    [
+     "10",
+     7
+    ],
+    [
+     "14",
+     6
+    ]
+   ],
+   "contrastFail": 96,
+   "contrastChecked": 302,
+   "fails": [
+    {
+     "t": "1",
+     "fs": 10.5,
+     "ratio": 4.39,
+     "cls": "cnt ai"
+    },
+    {
+     "t": "›",
+     "fs": 12.5,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "検索・コマンド",
+     "fs": 12.5,
+     "ratio": 2.79,
+     "cls": ""
+    },
+    {
+     "t": "設計書",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": ".mitori/",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "mono"
+    },
+    {
+     "t": "0",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "1分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "1",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "2分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "2",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "2分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "3",
+     "fs": 11,
+     "ratio": 2.29,
+     "cls": "n"
+    }
+   ],
+   "interactiveVisible": 74,
+   "under24px": 33,
+   "smallList": [
+    {
+     "t": "30分コース",
+     "w": 79,
+     "h": 19
+    },
+    {
+     "t": "✓ 確認する",
+     "w": 59,
+     "h": 15
+    },
+    {
+     "t": "c",
+     "w": 24,
+     "h": 22
+    },
+    {
+     "t": "e",
+     "w": 24,
+     "h": 22
+    },
+    {
+     "t": "f",
+     "w": 24,
+     "h": 22
+    },
+    {
+     "t": "internal/diff/diff",
+     "w": 104,
+     "h": 20
+    },
+    {
+     "t": "c",
+     "w": 24,
+     "h": 22
+    },
+    {
+     "t": "e",
+     "w": 24,
+     "h": 22
+    }
+   ],
+   "prose": {
+    "fontSize": 15,
+    "lineHeight": 1.85,
+    "widthPx": 573,
+    "cjkCharsPerLine": 38,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hiragino Kaku ",
+    "autospace": "no-autospace",
+    "lineBreak": "auto"
+   },
+   "head": {
+    "tag": "H2",
+    "fs": 18.5,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hira",
+    "weight": "650"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 1,
+   "tabFocus": "20/20",
+   "errors": 0
+  },
+  "inbox": {
+   "dom": 485,
+   "textEls": 199,
+   "minFontPx": 10,
+   "under11px": 13,
+   "under12px": 140,
+   "fsTop": [
+    [
+     "12",
+     94
+    ],
+    [
+     "11",
+     63
+    ],
+    [
+     "13",
+     36
+    ],
+    [
+     "10",
+     4
+    ],
+    [
+     "15",
+     1
+    ],
+    [
+     "17",
+     1
+    ]
+   ],
+   "contrastFail": 70,
+   "contrastChecked": 199,
+   "fails": [
+    {
+     "t": "検索・コマンド",
+     "fs": 12.5,
+     "ratio": 2.79,
+     "cls": ""
+    },
+    {
+     "t": "設計書",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": ".mitori/",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "mono"
+    },
+    {
+     "t": "0",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "1分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "1",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "2分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "2",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "2分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    },
+    {
+     "t": "3",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": "n"
+    },
+    {
+     "t": "2",
+     "fs": 10,
+     "ratio": 4.07,
+     "cls": "tbub ai"
+    },
+    {
+     "t": "9分",
+     "fs": 11,
+     "ratio": 2.58,
+     "cls": ""
+    }
+   ],
+   "interactiveVisible": 56,
+   "under24px": 4,
+   "smallList": [
+    {
+     "t": "30分コース",
+     "w": 79,
+     "h": 19
+    },
+    {
+     "t": "ペイン幅",
+     "w": 5,
+     "h": 830
+    },
+    {
+     "t": "ジョブ 1 実行中 · 0 待機 ·",
+     "w": 197,
+     "h": 20
+    },
+    {
+     "t": "? ショートカット",
+     "w": 116,
+     "h": 20
+    }
+   ],
+   "prose": null,
+   "head": {
+    "tag": "H1",
+    "fs": 17,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hira",
+    "weight": "650"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 1,
+   "tabFocus": "20/20",
+   "errors": 0
+  }
+ },
+ "map": {
+  "doc-light": {
+   "dom": 1759,
+   "textEls": 195,
+   "minFontPx": 9.5,
+   "under11px": 46,
+   "under12px": 118,
+   "fsTop": [
+    [
+     "11",
+     63
+    ],
+    [
+     "12",
+     50
+    ],
+    [
+     "13",
+     34
+    ],
+    [
+     "10",
+     21
+    ],
+    [
+     "15",
+     14
+    ],
+    [
+     "14",
+     12
+    ]
+   ],
+   "contrastFail": 64,
+   "contrastChecked": 195,
+   "fails": [
+    {
+     "t": "/",
+     "fs": 12.5,
+     "ratio": 2.63,
+     "cls": "sep"
+    },
+    {
+     "t": "main · 406875d",
+     "fs": 11,
+     "ratio": 4.03,
+     "cls": "br"
+    },
+    {
+     "t": "›",
+     "fs": 12.5,
+     "ratio": 2.63,
+     "cls": "sep"
+    },
+    {
+     "t": "文書",
+     "fs": 13.5,
+     "ratio": 4.03,
+     "cls": "tl2"
+    },
+    {
+     "t": "Inbox",
+     "fs": 13.5,
+     "ratio": 4.03,
+     "cls": "tl2"
+    },
+    {
+     "t": "2",
+     "fs": 10.5,
+     "ratio": 4.49,
+     "cls": "badge"
+    },
+    {
+     "t": "レビュー",
+     "fs": 13.5,
+     "ratio": 4.03,
+     "cls": "tl2"
+    },
+    {
+     "t": "初めて",
+     "fs": 12,
+     "ratio": 4.4,
+     "cls": ""
+    },
+    {
+     "t": "詳しい",
+     "fs": 12,
+     "ratio": 4.4,
+     "cls": ""
+    },
+    {
+     "t": "検索",
+     "fs": 13.5,
+     "ratio": 4.4,
+     "cls": "lbl"
+    },
+    {
+     "t": "tomasz-tomczyk/crit · v0",
+     "fs": 11.5,
+     "ratio": 4.4,
+     "cls": "sub"
+    },
+    {
+     "t": "Go 71%",
+     "fs": 11,
+     "ratio": 4.4,
+     "cls": ""
+    }
+   ],
+   "interactiveVisible": 110,
+   "under24px": 17,
+   "smallList": [
+    {
+     "t": "next",
+     "w": 22,
+     "h": 28
+    },
+    {
+     "t": "4",
+     "w": 22,
+     "h": 30
+    },
+    {
+     "t": "5",
+     "w": 22,
+     "h": 30
+    },
+    {
+     "t": "6",
+     "w": 22,
+     "h": 30
+    },
+    {
+     "t": "7",
+     "w": 22,
+     "h": 30
+    },
+    {
+     "t": "次: §3.1 レビューの 1 往復",
+     "w": 158,
+     "h": 22
+    },
+    {
+     "t": "ラウンド",
+     "w": 60,
+     "h": 18
+    },
+    {
+     "t": "debounce",
+     "w": 68,
+     "h": 18
+    }
+   ],
+   "prose": {
+    "fontSize": 15,
+    "lineHeight": 1.85,
+    "widthPx": 535,
+    "cjkCharsPerLine": 36,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hiragino Kaku ",
+    "autospace": "normal",
+    "lineBreak": "strict"
+   },
+   "head": {
+    "tag": "H2",
+    "fs": 15,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hira",
+    "weight": "600"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 3,
+   "tabFocus": "20/20",
+   "errors": 0
+  },
+  "doc-dark": {
+   "dom": 1759,
+   "textEls": 195,
+   "minFontPx": 9.5,
+   "under11px": 46,
+   "under12px": 118,
+   "fsTop": [
+    [
+     "11",
+     63
+    ],
+    [
+     "12",
+     50
+    ],
+    [
+     "13",
+     34
+    ],
+    [
+     "10",
+     21
+    ],
+    [
+     "15",
+     14
+    ],
+    [
+     "14",
+     12
+    ]
+   ],
+   "contrastFail": 46,
+   "contrastChecked": 195,
+   "fails": [
+    {
+     "t": "/",
+     "fs": 12.5,
+     "ratio": 3.37,
+     "cls": "sep"
+    },
+    {
+     "t": "›",
+     "fs": 12.5,
+     "ratio": 3.37,
+     "cls": "sep"
+    },
+    {
+     "t": "2",
+     "fs": 10.5,
+     "ratio": 2.32,
+     "cls": "badge"
+    },
+    {
+     "t": "§0",
+     "fs": 11,
+     "ratio": 3.24,
+     "cls": "n"
+    },
+    {
+     "t": "1分",
+     "fs": 10.5,
+     "ratio": 3.24,
+     "cls": "tm"
+    },
+    {
+     "t": "§1",
+     "fs": 11,
+     "ratio": 3.24,
+     "cls": "n"
+    },
+    {
+     "t": "1分",
+     "fs": 10.5,
+     "ratio": 3.24,
+     "cls": "tm"
+    },
+    {
+     "t": "§2",
+     "fs": 11,
+     "ratio": 3.24,
+     "cls": "n"
+    },
+    {
+     "t": "1分",
+     "fs": 10.5,
+     "ratio": 3.24,
+     "cls": "tm"
+    },
+    {
+     "t": "§3",
+     "fs": 11,
+     "ratio": 3.24,
+     "cls": "n"
+    },
+    {
+     "t": "§3.1",
+     "fs": 11,
+     "ratio": 3.24,
+     "cls": "n"
+    },
+    {
+     "t": "2分",
+     "fs": 10.5,
+     "ratio": 3.24,
+     "cls": "tm"
+    }
+   ],
+   "interactiveVisible": 110,
+   "under24px": 17,
+   "smallList": [
+    {
+     "t": "next",
+     "w": 22,
+     "h": 28
+    },
+    {
+     "t": "4",
+     "w": 22,
+     "h": 30
+    },
+    {
+     "t": "5",
+     "w": 22,
+     "h": 30
+    },
+    {
+     "t": "6",
+     "w": 22,
+     "h": 30
+    },
+    {
+     "t": "7",
+     "w": 22,
+     "h": 30
+    },
+    {
+     "t": "次: §3.1 レビューの 1 往復",
+     "w": 158,
+     "h": 22
+    },
+    {
+     "t": "ラウンド",
+     "w": 60,
+     "h": 18
+    },
+    {
+     "t": "debounce",
+     "w": 68,
+     "h": 18
+    }
+   ],
+   "prose": {
+    "fontSize": 15,
+    "lineHeight": 1.85,
+    "widthPx": 535,
+    "cjkCharsPerLine": 36,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hiragino Kaku ",
+    "autospace": "normal",
+    "lineBreak": "strict"
+   },
+   "head": {
+    "tag": "H2",
+    "fs": 15,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hira",
+    "weight": "600"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 3,
+   "tabFocus": "20/20",
+   "errors": 0
+  },
+  "map": {
+   "dom": 1457,
+   "textEls": 178,
+   "minFontPx": 9.5,
+   "under11px": 34,
+   "under12px": 112,
+   "fsTop": [
+    [
+     "11",
+     54
+    ],
+    [
+     "12",
+     45
+    ],
+    [
+     "10",
+     31
+    ],
+    [
+     "13",
+     30
+    ],
+    [
+     "14",
+     10
+    ],
+    [
+     "18",
+     6
+    ]
+   ],
+   "contrastFail": 68,
+   "contrastChecked": 178,
+   "fails": [
+    {
+     "t": "/",
+     "fs": 12.5,
+     "ratio": 2.63,
+     "cls": "sep"
+    },
+    {
+     "t": "main · 406875d",
+     "fs": 11,
+     "ratio": 4.03,
+     "cls": "br"
+    },
+    {
+     "t": "›",
+     "fs": 12.5,
+     "ratio": 2.63,
+     "cls": "sep"
+    },
+    {
+     "t": "文書",
+     "fs": 13.5,
+     "ratio": 4.03,
+     "cls": "tl2"
+    },
+    {
+     "t": "Inbox",
+     "fs": 13.5,
+     "ratio": 4.03,
+     "cls": "tl2"
+    },
+    {
+     "t": "レビュー",
+     "fs": 13.5,
+     "ratio": 4.03,
+     "cls": "tl2"
+    },
+    {
+     "t": "初めて",
+     "fs": 12,
+     "ratio": 4.4,
+     "cls": ""
+    },
+    {
+     "t": "詳しい",
+     "fs": 12,
+     "ratio": 4.4,
+     "cls": ""
+    },
+    {
+     "t": "検索",
+     "fs": 13.5,
+     "ratio": 4.4,
+     "cls": "lbl"
+    },
+    {
+     "t": "tomasz-tomczyk/crit · v0",
+     "fs": 11.5,
+     "ratio": 4.4,
+     "cls": "sub"
+    },
+    {
+     "t": "Go 71%",
+     "fs": 11,
+     "ratio": 4.4,
+     "cls": ""
+    },
+    {
+     "t": "JS 17%",
+     "fs": 11,
+     "ratio": 4.4,
+     "cls": ""
+    }
+   ],
+   "interactiveVisible": 77,
+   "under24px": 1,
+   "smallList": [
+    {
+     "t": "詳細",
+     "w": 22,
+     "h": 13
+    }
+   ],
+   "prose": null,
+   "head": {
+    "tag": "H2",
+    "fs": 15,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hira",
+    "weight": "600"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 3,
+   "tabFocus": "20/20",
+   "errors": 0
+  },
+  "review": {
+   "dom": 2174,
+   "textEls": 276,
+   "minFontPx": 9.5,
+   "under11px": 51,
+   "under12px": 122,
+   "fsTop": [
+    [
+     "12",
+     162
+    ],
+    [
+     "11",
+     43
+    ],
+    [
+     "13",
+     25
+    ],
+    [
+     "10",
+     19
+    ],
+    [
+     "15",
+     16
+    ],
+    [
+     "14",
+     9
+    ]
+   ],
+   "contrastFail": 66,
+   "contrastChecked": 276,
+   "fails": [
+    {
+     "t": "/",
+     "fs": 12.5,
+     "ratio": 2.63,
+     "cls": "sep"
+    },
+    {
+     "t": "main · 406875d",
+     "fs": 11,
+     "ratio": 4.03,
+     "cls": "br"
+    },
+    {
+     "t": "›",
+     "fs": 12.5,
+     "ratio": 2.63,
+     "cls": "sep"
+    },
+    {
+     "t": "文書",
+     "fs": 13.5,
+     "ratio": 4.03,
+     "cls": "tl2"
+    },
+    {
+     "t": "Inbox",
+     "fs": 13.5,
+     "ratio": 4.03,
+     "cls": "tl2"
+    },
+    {
+     "t": "3",
+     "fs": 10.5,
+     "ratio": 4.49,
+     "cls": "badge"
+    },
+    {
+     "t": "レビュー",
+     "fs": 13.5,
+     "ratio": 4.03,
+     "cls": "tl2"
+    },
+    {
+     "t": "初めて",
+     "fs": 12,
+     "ratio": 4.4,
+     "cls": ""
+    },
+    {
+     "t": "詳しい",
+     "fs": 12,
+     "ratio": 4.4,
+     "cls": ""
+    },
+    {
+     "t": "検索",
+     "fs": 13.5,
+     "ratio": 4.4,
+     "cls": "lbl"
+    },
+    {
+     "t": "· 部屋（Z2）",
+     "fs": 12.5,
+     "ratio": 4.17,
+     "cls": ""
+    },
+    {
+     "t": "部屋をクリックで節を開く · ダブルクリックで中",
+     "fs": 11.5,
+     "ratio": 4.17,
+     "cls": ""
+    }
+   ],
+   "interactiveVisible": 108,
+   "under24px": 15,
+   "smallList": [
+    {
+     "t": "4",
+     "w": 22,
+     "h": 30
+    },
+    {
+     "t": "5",
+     "w": 22,
+     "h": 30
+    },
+    {
+     "t": "6",
+     "w": 22,
+     "h": 30
+    },
+    {
+     "t": "7",
+     "w": 22,
+     "h": 30
+    },
+    {
+     "t": "8",
+     "w": 22,
+     "h": 30
+    },
+    {
+     "t": "次: §3.1 レビューの 1 往復",
+     "w": 158,
+     "h": 22
+    },
+    {
+     "t": "prep",
+     "w": 31,
+     "h": 18
+    },
+    {
+     "t": "cli_handlers_story",
+     "w": 187,
+     "h": 21
+    }
+   ],
+   "prose": {
+    "fontSize": 15,
+    "lineHeight": 1.85,
+    "widthPx": 535,
+    "cjkCharsPerLine": 36,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hiragino Kaku ",
+    "autospace": "normal",
+    "lineBreak": "strict"
+   },
+   "head": {
+    "tag": "H2",
+    "fs": 15,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hira",
+    "weight": "600"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 3,
+   "tabFocus": "20/20",
+   "errors": 0
+  },
+  "inbox": {
+   "dom": 1483,
+   "textEls": 238,
+   "minFontPx": 10,
+   "under11px": 36,
+   "under12px": 150,
+   "fsTop": [
+    [
+     "11",
+     99
+    ],
+    [
+     "12",
+     70
+    ],
+    [
+     "13",
+     39
+    ],
+    [
+     "14",
+     24
+    ],
+    [
+     "10",
+     4
+    ],
+    [
+     "16",
+     1
+    ]
+   ],
+   "contrastFail": 88,
+   "contrastChecked": 238,
+   "fails": [
+    {
+     "t": "/",
+     "fs": 12.5,
+     "ratio": 2.63,
+     "cls": "sep"
+    },
+    {
+     "t": "main · 406875d",
+     "fs": 11,
+     "ratio": 4.03,
+     "cls": "br"
+    },
+    {
+     "t": "›",
+     "fs": 12.5,
+     "ratio": 2.63,
+     "cls": "sep"
+    },
+    {
+     "t": "見取り図",
+     "fs": 13.5,
+     "ratio": 4.03,
+     "cls": "tl2"
+    },
+    {
+     "t": "文書",
+     "fs": 13.5,
+     "ratio": 4.03,
+     "cls": "tl2"
+    },
+    {
+     "t": "3",
+     "fs": 10.5,
+     "ratio": 4.49,
+     "cls": "badge"
+    },
+    {
+     "t": "レビュー",
+     "fs": 13.5,
+     "ratio": 4.03,
+     "cls": "tl2"
+    },
+    {
+     "t": "初めて",
+     "fs": 12,
+     "ratio": 4.4,
+     "cls": ""
+    },
+    {
+     "t": "詳しい",
+     "fs": 12,
+     "ratio": 4.4,
+     "cls": ""
+    },
+    {
+     "t": "検索",
+     "fs": 13.5,
+     "ratio": 4.4,
+     "cls": "lbl"
+    },
+    {
+     "t": "tomasz-tomczyk/crit · v0",
+     "fs": 11.5,
+     "ratio": 4.4,
+     "cls": "sub"
+    },
+    {
+     "t": "Go 71%",
+     "fs": 11,
+     "ratio": 4.4,
+     "cls": ""
+    }
+   ],
+   "interactiveVisible": 46,
+   "under24px": 1,
+   "smallList": [
+    {
+     "t": "next",
+     "w": 22,
+     "h": 28
+    }
+   ],
+   "prose": {
+    "fontSize": 13,
+    "lineHeight": 1.7,
+    "widthPx": 448,
+    "cjkCharsPerLine": 34,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hiragino Kaku ",
+    "autospace": "no-autospace",
+    "lineBreak": "auto"
+   },
+   "head": {
+    "tag": "H2",
+    "fs": 18,
+    "family": "-apple-system, \"system-ui\", \"Hiragino Sans\", \"Hira",
+    "weight": "600"
+   },
+   "htmlLang": "ja",
+   "liveRegions": 3,
+   "tabFocus": "20/20",
+   "errors": 0
+  }
+ }
+}

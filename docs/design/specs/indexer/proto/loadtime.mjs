@@ -1,0 +1,7 @@
+import fs from 'node:fs'; import path from 'node:path'
+const SP = '/private/tmp/claude-501/-Users-satoki252595-work-20261002-aiAgentTool/99463a6e-6928-41bd-851e-ed1a1028dc52/scratchpad', NM = SP + '/bench-stack/node_modules', QD = SP + '/design-tmp/idx/queries'
+let t = performance.now(); const { Parser, Language, Query } = await import(NM + '/web-tree-sitter/web-tree-sitter.js'); await Parser.init(); const tInit = performance.now() - t
+const G = { typescript: ['tree-sitter-typescript/tree-sitter-typescript.wasm', ['typescript.scm']], tsx: ['tree-sitter-typescript/tree-sitter-tsx.wasm', ['typescript.scm', 'tsx-addendum.scm']], javascript: ['tree-sitter-javascript/tree-sitter-javascript.wasm', ['javascript.scm']], python: ['tree-sitter-python/tree-sitter-python.wasm', ['python.scm']], go: ['tree-sitter-go/tree-sitter-go.wasm', ['go.scm']], rust: ['tree-sitter-rust/tree-sitter-rust.wasm', ['rust.scm']] }
+const r = { parserInitMs: +tInit.toFixed(1) }
+for (const [k, [w, qs]] of Object.entries(G)) { const bytes = fs.readFileSync(path.join(NM, w)); let t0 = performance.now(); const L = await Language.load(bytes); const tl = performance.now() - t0; t0 = performance.now(); const q = new Query(L, qs.map(f => fs.readFileSync(path.join(QD, f), 'utf8')).join('\n')); const tq = performance.now() - t0; r[k] = { loadMs: +tl.toFixed(1), queryCompileMs: +tq.toFixed(1), patterns: q.patternCount?.() ?? null } }
+console.log(JSON.stringify(r))

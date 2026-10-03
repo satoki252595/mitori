@@ -1,0 +1,9 @@
+=== internal/diff/diff.go · go · 337 lines
+> type DiffEntry struct
+> type DiffHunk struct
+> type DiffLine struct
+> func ComputeLineDiff(oldContent, newContent string) []DiffEntry
+> func MapOldLineToNew(entries []DiffEntry) map[int]int
+> func DiffEntriesToHunks(entries []DiffEntry) []DiffHunk
+> func SplitLines(content string) []string
+> …+9 private

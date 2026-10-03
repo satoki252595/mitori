@@ -1,0 +1,118 @@
+--- a/cmd/crit/cli_handlers_story.go
++++ b/cmd/crit/cli_handlers_story.go
+@@ -572,7 +572,8 @@ func runStoryLLM(f storyFlags, critPath string, cj review.CritJSON) error {
+ 		return resumeStory(f)
+ 	}
+ 
+-	agentCmd := config.LoadConfig(mustCWD()).AgentCmd
++	cfg := config.LoadConfig(mustCWD())
++	agentCmd := cfg.AgentCmd
+ 	if strings.TrimSpace(agentCmd) == "" {
+ 		return clicmd.ExitError{Code: 1, Err: errors.New("no agent_cmd configured; set agent_cmd in ~/.crit.config.json, or use --story-file/--skip-llm/--guide")}
+ 	}
+@@ -605,7 +606,7 @@ func runStoryLLM(f storyFlags, critPath string, cj review.CritJSON) error {
+ 	}
+ 
+ 	fmt.Fprintln(os.Stderr, "asking agent_cmd to write the story...")
+-	st, err := generateStory(agentCmd, guide)
++	st, err := generateStory(agentCmd, guide, cfg.StoryRetries())
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -627,35 +628,30 @@ func runStoryLLM(f storyFlags, critPath string, cj review.CritJSON) error {
+ }
+ 
+ // generateStory execs agent_cmd with the story prompt, extracts+parses the JSON
+-// per §4.3, and retries EXACTLY ONCE on a parse failure with the parse error
+-// appended. On a second parse failure it saves the raw stdout to a temp file
+-// and returns an error naming that file (exit 1).
+-func generateStory(agentCmd, guide string) (*session.Story, error) {
+-	firstPrompt := story.BuildStoryPrompt(guide, storySchemaJSON, "")
+-
+-	out, err := execAgentCmd(agentCmd, firstPrompt)
+-	if err != nil {
+-		return nil, clicmd.ExitError{Code: 1, Err: fmt.Errorf("agent_cmd failed: %w", err)}
+-	}
+-	st, parseErr := parseStoryJSON(out)
+-	if parseErr == nil {
+-		return st, nil
+-	}
+-
+-	// One retry with the parse error fed back (§4.3).
+-	fmt.Fprintf(os.Stderr, "agent output was not valid story JSON (%v); retrying once...\n", parseErr)
+-	retryPrompt := story.BuildStoryPrompt(guide, storySchemaJSON, story.RetryFeedback(parseErr))
+-	retryOut, err := execAgentCmd(agentCmd, retryPrompt)
+-	if err != nil {
+-		return nil, clicmd.ExitError{Code: 1, Err: fmt.Errorf("agent_cmd failed on retry: %w", err)}
+-	}
+-	st, parseErr = parseStoryJSON(retryOut)
+-	if parseErr == nil {
+-		return st, nil
++// per §4.3, and retries up to maxRetries times on a parse failure, feeding the
++// parse error back each time. When every attempt fails it saves the last raw
++// stdout to a temp file and returns an error naming that file (exit 1).
++func generateStory(agentCmd, guide string, maxRetries int) (*session.Story, error) {
++	prompt := story.BuildStoryPrompt(guide, storySchemaJSON, "")
++	var out string
++	var parseErr error
++	for attempt := 0; attempt <= maxRetries; attempt++ {
++		var err error
++		if out, err = execAgentCmd(agentCmd, prompt); err != nil {
++			return nil, clicmd.ExitError{Code: 1, Err: fmt.Errorf("agent_cmd failed (attempt %d): %w", attempt+1, err)}
++		}
++		var st *session.Story
++		if st, parseErr = parseStoryJSON(out); parseErr == nil {
++			return st, nil
++		}
++		if attempt < maxRetries {
++			fmt.Fprintf(os.Stderr, "agent output was not valid story JSON (%v); retrying (%d/%d)...\n", parseErr, attempt+1, maxRetries)
++			prompt = story.BuildStoryPrompt(guide, storySchemaJSON, story.RetryFeedback(parseErr))
++		}
+ 	}
+ 
+-	rawPath := saveRawAgentOutput(retryOut)
+-	return nil, clicmd.ExitError{Code: 1, Err: fmt.Errorf("agent output was not valid story JSON after one retry (raw output saved to %s): %w", rawPath, parseErr)}
++	rawPath := saveRawAgentOutput(out)
++	return nil, clicmd.ExitError{Code: 1, Err: fmt.Errorf("agent output was not valid story JSON after %d retries (raw output saved to %s): %w", maxRetries, rawPath, parseErr)}
+ }
+ 
+ // parseStoryJSON extracts the JSON candidate from agent stdout and unmarshals
+--- a/internal/config/config.go
++++ b/internal/config/config.go
+@@ -43,10 +43,14 @@ type Config struct {
+ 	NoIntegrationCheck  bool   `json:"no_integration_check,omitempty"`
+ 	NoUpdateCheck       bool   `json:"no_update_check,omitempty"`
+ 	AgentCmd            string `json:"agent_cmd,omitempty"`
+-	AuthToken           string `json:"auth_token,omitempty"`
+-	AuthUserName        string `json:"auth_user_name,omitempty"`
+-	AuthUserEmail       string `json:"auth_user_email,omitempty"`
+-	AuthUserID          string `json:"auth_user_id,omitempty"`
++	// StoryMaxRetries bounds how many times `crit story` re-asks agent_cmd
++	// after unparseable output. Unset keeps today's single retry; values are
++	// clamped to [0, 3] by StoryRetries. Global-only (not merged from project).
++	StoryMaxRetries *int   `json:"story_max_retries,omitempty"`
++	AuthToken       string `json:"auth_token,omitempty"`
++	AuthUserName    string `json:"auth_user_name,omitempty"`
++	AuthUserEmail   string `json:"auth_user_email,omitempty"`
++	AuthUserID      string `json:"auth_user_id,omitempty"`
+ 	// PlanApproveMode selects the Claude Code permission mode after a plan-hook
+ 	// approval. Global-only so a repository cannot weaken a user's permission
+ 	// policy. Empty leaves Claude Code's current behavior unchanged.
+@@ -140,6 +144,17 @@ func (c Config) NotifyOnRoundReadyEnabled() bool {
+ 	return false
+ }
+ 
++// DefaultStoryMaxRetries is the retry budget when story_max_retries is unset.
++const DefaultStoryMaxRetries = 1
++
++// StoryRetries returns the effective retry budget for `crit story`, clamped to [0, 3].
++func (c Config) StoryRetries() int {
++	if c.StoryMaxRetries == nil {
++		return DefaultStoryMaxRetries
++	}
++	return min(max(*c.StoryMaxRetries, 0), 3)
++}
++
+ // String returns a human-readable JSON representation of the resolved config.
+ func (c Config) String() string {
+ 	redacted := c

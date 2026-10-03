@@ -1,0 +1,45 @@
+=== internal/diff/diff.go · go · 337 lines · imports: fmt strings ===
+1|package diff
+9|type DiffEntry struct {
+10|	Type    string `json:"type"`               // "unchanged", "added", or "removed"
+11|	OldLine int    `json:"old_line,omitempty"` // 1-based line number in old content (0 if added)
+12|	NewLine int    `json:"new_line,omitempty"` // 1-based line number in new content (0 if removed)
+13|	Text    string `json:"text"`
+17|type DiffHunk struct {
+18|	OldStart int
+19|	OldCount int
+20|	NewStart int
+21|	NewCount int
+22|	Header   string // the @@ line text
+23|	Lines    []DiffLine
+27|type DiffLine struct {
+28|	Type    string // "context", "add", "del"
+29|	Content string
+30|	OldNum  int // 0 if add
+31|	NewNum  int // 0 if del
+37|func ComputeLineDiff(oldContent, newContent string) []DiffEntry {
+⋮
+46|func hirschbergDiff(old, new []string, oldOff, newOff int) []DiffEntry {
+⋮
+86|func diffSingleOld(oldLine string, new []string, oldOff, newOff int) []DiffEntry {
+⋮
+118|func allAdded(lines []string, offset int) []DiffEntry {
+⋮
+127|func allRemoved(lines []string, offset int) []DiffEntry {
+⋮
+137|func lcsForwardRow(old, new []string) []int {
+⋮
+165|func lcsBackwardRow(old, new []string) []int {
+⋮
+192|func MapOldLineToNew(entries []DiffEntry) map[int]int {
+⋮
+236|func groupChangedIndices(changedIndices []int, contextLines int) [][2]int {
+⋮
+251|func entryToDiffLine(e DiffEntry) (DiffLine, int, int) {
+⋮
+264|func buildHunkFromGroup(entries []DiffEntry, gStart, gEnd, contextLines int) DiffHunk {
+⋮
+305|func DiffEntriesToHunks(entries []DiffEntry) []DiffHunk {
+⋮
+332|func SplitLines(content string) []string {
+⋮

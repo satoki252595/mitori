@@ -22,3 +22,11 @@
 - Agent SDK 依存: 221MB の platform binary、サブスク利用のグレーさ。
 - 既定 flag のまま spawn: token 18〜180 倍、project hook の実行（セキュリティ境界の欠如）。
 - MCP を主経路に: 常駐 ≈2k token。opt-in にとどめる（D10）。
+
+## 改訂 R1（2026-10-03、レビュー反映: SEC-15・PT-02・PT-04・PT-09・UXP-08・UXP-09）
+
+- 実 CLI の契約テストは maintainer 機での手動実行と、self-hosted runner の schedule / workflow_dispatch だけ（pull_request では起動しない。専用 OS ユーザー）。サブスクで無人の定期 CI を回すことは避け、API key 版は月 ¥1,000 未満の hard cap をユーザーが承認したときだけ。
+- サブスク engine の並列上限は 3（`subscriptionMaxConcurrency`）。8 は anthropic-api のときだけ。interactive 用に 1 slot を予約（`reserveInteractive`）。
+- 未較正の 5h 枠は plan ごとの事前範囲（`WINDOW_PRIORS`）の上限で `window_risk` を判定し、1 run で 30% 以上使ったら background を止めて確認する。見積りの主数値は API 換算 $ のまま、同じ行に「サブスクの枠内（追加料金なし）」か「約 $x が課金されます」を書く。
+- mitori が注入する env: `CLAUDE_CODE_PROMPT_CACHE_TTL=5m`（全 mode。1h は persistSessions だけ）、generate の `CLAUDE_CODE_MAX_OUTPUT_TOKENS`。どちらも `ENV_INJECT`（loop.ts）が唯一の定義で、契約テスト CC-24 で効果を監視する。
+- `inheritUserSettings` はユーザーの hook に repo の内容を渡す。設定画面に明記し、workspace ごとに無効化できる。

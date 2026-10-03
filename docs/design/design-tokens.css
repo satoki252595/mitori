@@ -1,0 +1,568 @@
+/*!
+ * mitori design tokens — v1 (2026-10-03)
+ *
+ * Status: AUTHORITATIVE for `apps/web` (copied verbatim to `apps/web/src/styles/tokens.css` in WP-10a).
+ * Owner: ui spec (docs/design/specs/ux.md §14). Derived from the winning prototype "Editorial Calm"
+ * (docs/design/prototypes/editorial/index.html :root) + JUDGEMENT.md §6.13 grafts (zone floors,
+ * --faint rule, min text sizes, weights 400/600) + ux.md additions (Shiki css-variables theme,
+ * pre-mixed colors so CI can compute contrast without alpha math, z-index, motion).
+ *
+ * Rules (CI-enforced, ux.md §13 / §14):
+ *  R1  Every color token is defined in exactly three blocks with identical key sets:
+ *      (a) `:root, :root[data-theme="light"]` (light),
+ *      (b) `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }` (dark, system),
+ *      (c) `:root[data-theme="dark"]` (dark, explicit). (b) and (c) carry byte-identical values.
+ *      `data-theme` is set on <html> by the head inline script ONLY when the user picked an explicit
+ *      theme; "system" leaves it unset so OS changes apply live (no JS listener needed).
+ *  R2  Colors are 6-digit hex (no 8-digit hex, no rgba) except --scrim, --shadow-*, --hl, --hdr-bg,
+ *      which are decorative / composited surfaces and are excluded from text-contrast checks.
+ *  R3  Text pairs allowed by ux.md §14.2 meet WCAG 2.2 AA 4.5:1 (computed values in the comments).
+ *      `--faint` is allowed ONLY on `--paper` and `--sheet` (4.66/4.90 light; 5.35/4.96 dark).
+ *      It fails on --paper-2 (4.38), --hover, --press, --code-bg, --mark, zones and diff rows.
+ *  R4  Font weights are 400 and 600 only. No web fonts: every stack starts with OS fonts.
+ *  R5  On-screen text ≥ 11px (SVG labels included); control labels ≥ 12px. 11px only for mono meta
+ *      and badge digits, and only on surfaces where the pair is ≥ 4.5:1.
+ *  R6  No gradients, no glass, except the header backdrop blur (--hdr-blur).
+ *  R7  `prefers-reduced-motion: reduce` collapses every duration to 0.001ms (block at the end).
+ */
+
+/* =========================================================================
+ * 1. Theme-independent tokens
+ * ========================================================================= */
+:root {
+  /* ---- 1.1 Font stacks (OS fonts first; 0 bytes of web fonts) --------------
+   * --font-ui     chrome (header, buttons, cards). Windows: Segoe UI (Latin) → Yu Gothic UI (CJK).
+   * --font-prose  design-doc body. Windows: Segoe UI → BIZ UDPGothic (wider, more legible than
+   *               Yu Gothic UI for running text; bundled with Windows 10 1809+) → Meiryo. [仮] ux.md §10.6
+   * --font-serif  Mincho: ONLY chapter headings, section numbers, figure titles, the estimate card
+   *               title, project name and logo (JUDGEMENT §6.13).
+   * --font-mono   code, numbers in meters, ids. Ligatures are always off (font-variant-ligatures:none).
+   * Emoji fonts are appended to ui/prose only (state glyphs are SVG, never emoji). */
+  --font-ui: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Segoe UI", "Yu Gothic UI", Meiryo, "Noto Sans JP", "Noto Sans CJK JP", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+  --font-prose: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Segoe UI", "BIZ UDPGothic", Meiryo, "Noto Sans JP", "Noto Sans CJK JP", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+  --font-serif: ui-serif, "Iowan Old Style", "Hiragino Mincho ProN", "YuMincho", "Yu Mincho", "BIZ UDPMincho", "Noto Serif JP", "Noto Serif CJK JP", serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Cascadia Mono", "BIZ UDGothic", "Noto Sans Mono CJK JP", monospace;
+
+  /* ---- 1.2 Type scale (rem; 1rem = 16px at the browser default) ------------
+   * Names are roles, not sizes. Minimums: R5. */
+  --fs-meta: 0.6875rem;      /* 11px  mono meta, badge digits, kbd, rail counters */
+  --fs-label: 0.75rem;       /* 12px  minimum control label, status bar, meta rows */
+  --fs-ui-s: 0.78125rem;     /* 12.5px chips, segmented controls, palette sub line */
+  --fs-ui: 0.8125rem;        /* 13px  default chrome text, TOC rows, card body */
+  --fs-ui-m: 0.84375rem;     /* 13.5px buttons, composer textarea, estimate main line */
+  --fs-ui-l: 0.875rem;       /* 14px  inbox titles, palette label, body of cards (large) */
+  --fs-h3: 0.9375rem;        /* 15px  h3 / small headings (sans 600) */
+  --fs-body-s: 0.96875rem;   /* 15.5px why / pitfall / deep-dive bodies */
+  --fs-body: 1rem;           /* 16px  prose */
+  --fs-input-l: 1.0625rem;   /* 17px  palette input */
+  --fs-lead: 1.125rem;       /* 18px  §0 lead, brand */
+  --fs-title-s: 1.1875rem;   /* 19px  review panel title (serif) */
+  --fs-title: 1.3125rem;     /* 21px  figure / estimate card / inbox title (serif) */
+  --fs-h2: 1.40625rem;       /* 22.5px section heading (serif 600) */
+  --fs-h1: 2.125rem;         /* 34px  chapter heading, S1 strip title (serif 600) */
+
+  --lh-prose: 1.9;           /* ja body (JLREQ: 0.5–1em leading; 37 chars/line ⇒ near 1em) */
+  --lh-prose-en: 1.6;        /* applied by html:lang(en) .prose */
+  --lh-lead: 1.85;
+  --lh-h1: 1.35;
+  --lh-h2: 1.45;
+  --lh-ui: 1.6;
+  --lh-tight: 1.3;
+  --lh-code: 1.62;
+
+  --ls-prose: 0.012em;       /* ja only; en resets to 0 */
+  --ls-heading: 0.02em;
+  --ls-caps: 0.1em;          /* small uppercase section labels in cards (EN) / spaced labels (JA) */
+
+  --fw-regular: 400;
+  --fw-strong: 600;          /* R4: never 500/650/700 (Hiragino W6/W8 jump) */
+
+  --measure-prose: 37em;     /* 592px at 16px ⇒ 36–38 Japanese chars per line (AC-J13) */
+  --code-font-scale: 0.84em; /* inline code relative size */
+
+  /* ---- 1.3 Spacing (4px grid) -------------------------------------------- */
+  --sp-0: 0;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 28px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-14: 56px;
+  --sp-16: 64px;
+  --gap-card: 12px;          /* vertical gap between margin cards / stacked bottom elements */
+  --pad-prose-x: 56px;       /* prose column side padding (≥ 40px, JUDGEMENT §6.1) */
+  --pad-prose-top: 52px;
+  --pad-prose-bottom: 120px;
+  --sec-gap: 76px;           /* gap between sections */
+
+  /* ---- 1.4 Radii --------------------------------------------------------- */
+  --r-mark: 2px;
+  --r-chip: 4px;             /* citation chip, badge, inline code */
+  --r-chip-l: 5px;           /* context chip, pill */
+  --r-btn: 6px;
+  --r-input: 7px;
+  --r-blk: 7px;              /* block hover surface */
+  --r-card: 10px;
+  --r-card-l: 12px;          /* estimate card, batch bar */
+  --r-dialog: 14px;          /* palette, dialogs */
+  --r-pill: 999px;           /* state tags only */
+
+  /* ---- 1.5 Layout (px; JUDGEMENT §6.1/§6.2) -------------------------------
+   * Breakpoints (media queries cannot read custom properties; literal values in CSS):
+   *   wide  ≥ 1281px · laptop 1024–1280px · tablet 600–1023px · phone < 600px */
+  --hdr: 52px;
+  --status: 24px;
+  --rail: 248px;             /* laptop: 228px (overridden in the laptop media block below) */
+  --rail-drawer: 300px;      /* tablet drawer */
+  --ctx-margin: 368px;       /* context column, margin mode (laptop 332px) */
+  --ctx-review: 640px;       /* context column, review mode */
+  --ctx-code-min: 420px;     /* code mode clamp min; below ⇒ rail collapses to drawer */
+  --ctx-code-max: 900px;
+  --ctx-code-step: 24px;     /* ←/→ on the separator */
+  --prose-min: 672px;        /* prose column min width in S2 grid */
+  --map-right: 400px;        /* S1 right column (laptop 360px) */
+  --map-strip: 96px;         /* S1 strip max height */
+  --blk-gutter: 28px;        /* left gutter for block actions / ✓ / md line */
+  --blk-btn: 28px;           /* block action button (WCAG 2.5.8 needs ≥ 24) */
+  --target-min: 24px;        /* every interactive hit area */
+  --cite-h: 20px;            /* citation chip visual height */
+  --cite-hit-ext: 3px;       /* ::after inset ⇒ 26px hit height */
+  --seltool-offset: 46px;    /* selection toolbar above selection (touch: below, 10px) */
+  --palette-w: 640px;
+  --palette-top: 13vh;
+  --palette-row: 44px;
+  --palette-list-max: 398px; /* 8 rows + half of the 9th */
+  --peek-w: 560px;
+  --termcard-w: 320px;
+  --est-pop-w: 270px;
+  --jobs-pop-w: 440px;
+  --inbox-side: 440px;
+  --inbox-row-min: 40px;
+  --toast-w: 420px;
+  --sheet-peek: 52px;        /* tablet bottom sheet: collapsed */
+  --sheet-half: 50vh;
+  --sheet-full: 88vh;
+  --minimap-w: 200px;        /* rail floor-plan thumbnail */
+  --minimap-h: 120px;
+  --review-minimap-w: 120px;
+  --review-minimap-h: 72px;
+  --scroll-pad-top: calc(var(--hdr) + 28px);
+
+  /* ---- 1.6 Motion (ux.md §6, Editorial §2.5) ------------------------------ */
+  --ease-std: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-press: 80ms;         /* :active scale(.98) */
+  --dur-hover: 120ms;        /* color / background on hover */
+  --dur-hover-l: 150ms;
+  --dur-pop: 140ms;          /* popover in */
+  --dur-pop-out: 100ms;
+  --dur-palette-in: 170ms;
+  --dur-card: 220ms;         /* card appearance (opacity only) */
+  --dur-move: 280ms;         /* margin card re-position (transform only) */
+  --dur-zoom: 300ms;         /* map camera */
+  --dur-lod: 200ms;          /* map LOD cross-fade (opacity only) */
+  --dur-panel: 320ms;        /* context column width transition */
+  --dur-pulse: 1600ms;       /* AI-working block bar / room ring */
+  --dur-flash: 1600ms;       /* accept flash, once */
+  --dur-toast-in: 180ms;
+  --dur-toast-life: 10000ms; /* = UI_THRESHOLDS.undoToastMs; the progress line runs linear for this */
+  --delay-hover-card: 300ms; /* peek / term card / room L0 card hover intent */
+  --delay-prefetch: 65ms;    /* hover-intent prefetch */
+  --grace-leave: 160ms;      /* pointer may travel from chip to card */
+
+  /* ---- 1.7 z-index (single ladder; nothing else may use raw z-index > 5) --- */
+  --z-local: 3;              /* active margin card above its siblings */
+  --z-sticky: 10;            /* sticky file / hunk headers inside panels */
+  --z-gutter: 20;
+  --z-header: 40;
+  --z-bottom: 50;            /* BottomStack: status bar, batch bar (non-toast) */
+  --z-seltool: 55;
+  --z-popover: 60;           /* peek, term card, estimate breakdown, job-chip popover */
+  --z-drawer: 70;            /* tablet rail drawer */
+  --z-sheet: 72;             /* tablet bottom sheet */
+  --z-overlay: 75;           /* ⇧R widened review overlay */
+  --z-scrim: 80;
+  --z-dialog: 81;            /* help, text view, confirm, trust */
+  --z-palette: 90;
+  --z-toast: 95;             /* toasts stay above dialogs (undo must remain reachable) */
+  --z-skip: 100;             /* skip link */
+
+  /* ---- 1.8 Misc ------------------------------------------------------------ */
+  --hdr-blur: saturate(1.2) blur(10px);
+  --focus-w: 2px;
+  --focus-offset: 2px;
+  --rule-w: 1px;
+  --wall-w: 2.5px;           /* floor-plan outer wall (vector-effect: non-scaling-stroke) */
+  --room-wall-w: 1.4px;
+
+  /* ---- 1.9 Glyphs for pseudo-element badges (0 DOM nodes; ux.md §4.3.4). U+FE0E forces text
+   *          presentation so ⚠ never renders as a colour emoji. ------------------------------- */
+  --glyph-check: "\2713";
+  --glyph-double-check: "\2713\2713";
+  --glyph-tilde: "\301C";
+  --glyph-warn: "\26A0\FE0E";
+  --glyph-x: "\2715";
+
+  /* ---- 1.10 Runtime-set custom properties (written by JS, intentionally NOT defined here) -----
+   *   --ctx-w          context column width (ContextColumn store; margin 368/332, review 640, code clamp)
+   *   --ctx-w-code     restored code-mode width from the `mitori_ui` cookie (head inline script)
+   *   --inv-s          1 / camera scale for constant-size floor-plan labels (map camera)
+   *   --t-verdict-*    localized badge labels for `.mc[data-verdict]::after` (i18n boot / language switch)
+   *   --reserve        streaming reservation height H_est of `.mstream` (ux.md §4.3.9)
+   */
+}
+
+@media (min-width: 1024px) and (max-width: 1280px) {
+  :root {
+    --rail: 228px;
+    --ctx-margin: 332px;
+    --map-right: 360px;
+  }
+}
+
+/* =========================================================================
+ * 2. Color — light (default)
+ *    Contrast notes: "a / b" = on --paper / on --sheet unless stated.
+ * ========================================================================= */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* surfaces */
+  --paper: #FAF9F6;          /* app background (never pure white) */
+  --paper-2: #F4F2ED;        /* sunken: recap, easy box, chips, status bar */
+  --sheet: #FFFFFF;          /* cards, popovers, inputs */
+  --hover: #F1EEE8;
+  --press: #E8E4DC;
+  --code-bg: #F1EEE7;
+  --hdr-bg: color-mix(in srgb, #FAF9F6 92%, transparent);
+  --scrim: rgba(28, 25, 20, 0.14);
+
+  /* text */
+  --ink: #1C1B19;            /* headings, primary buttons — 16.35 / 17.21 */
+  --text: #2E2C29;           /* body — 13.22 / 13.92 ; paper-2 12.44 ; code-bg 12.01 */
+  --muted: #615D57;          /* secondary — 6.21 / 6.54 ; paper-2 5.84 ; code-bg 5.64 ; zones ≥ 5.53 */
+  --faint: #75706A;          /* tertiary — 4.66 / 4.90 ; R3: paper & sheet ONLY */
+
+  /* rules (decorative, 1px only) */
+  --rule: #E6E2DA;
+  --rule-2: #D6D1C7;
+  --rule-soft: #EFECE6;
+
+  /* emphasis */
+  --accent: #A3401F;         /* 朱: current position, focus ring, palette match — 6.03 / 6.34 ; hover 5.48 */
+  --focus-ring: #A3401F;
+  --mark: #F6ECC4;           /* anchor / selection highlighter (text on it 11.74) */
+  --mark-line: #F9F3DA;      /* cited line in peek/code (= mark 62% over sheet; text 12.50) */
+  --hl: rgba(222, 178, 52, 0.24);  /* ::selection */
+
+  /* states (fg on its bg ≥ 4.96) */
+  --c-ok: #3B6A40;     --c-ok-bg: #E9F1E6;      /* verified / applied / gate pass — 5.48 */
+  --c-guess: #865F14;  --c-guess-bg: #F8EED3;   /* inferred — 4.96 */
+  --c-run: #2B5D85;    --c-run-bg: #E4EDF5;     /* running — 5.90 */
+  --c-prop: #59468F;   --c-prop-bg: #EDE9F6;    /* proposal / ready / human-verified — 6.52 */
+  --c-bad: #9A3227;    --c-bad-bg: #F9E9E5;     /* failed / unsupported / pitfall — 6.23 */
+  --c-warn: #8C5810;   --c-warn-bg: #F8ECD8;    /* outdated / stale / needs choice — 5.11 */
+  --sugg-bg: #F3F0F6;        /* suggestion block surface (prop-bg 55% over paper; prop 6.90, text 12.33) */
+  --pit-bg: #F9F0ED;         /* pitfall surface (bad-bg 55% over paper; text 12.41, bad 6.54) */
+  --pit-rule: #B76E65;
+
+  /* verdict aliases (ux.md §6.9) */
+  --v-verified: var(--c-ok);       --v-verified-bg: var(--c-ok-bg);
+  --v-cited: var(--muted);         --v-cited-bg: var(--paper);  /* R1 UXP-06: cited, L1 vacuous */
+  --v-inferred: var(--c-guess);    --v-inferred-bg: var(--c-guess-bg);
+  --v-stale: var(--c-warn);        --v-stale-bg: var(--c-warn-bg);
+  --v-human: var(--c-prop);        --v-human-bg: var(--c-prop-bg);
+  --v-unsupported: var(--c-bad);   --v-unsupported-bg: var(--c-bad-bg);
+
+  /* estimate colour bands (dot, non-text) */
+  --band-lt10k: #75706A;
+  --band-10k: #2E2C29;
+  --band-50k: #8C5810;
+  --band-200k: #9A3227;
+
+  /* diff (color is never the only signal: +/− glyph and line-number column too) */
+  --add-bg: #EBF3E6;   --add-hl: #D9EACE;   --add-fg: #2E6135;   --add-code: #2E3F2D;  /* add-fg 6.43 */
+  --del-bg: #FAEDE9;   --del-hl: #F6DED7;   --del-fg: #8E2F24;   --del-code: #502D27;  /* del-fg 7.11 */
+
+  /* toasts / selection toolbar / batch bar (inverted surface) */
+  --toast-bg: #1E1D1B;
+  --toast-fg: #F3F0E9;       /* 14.80 */
+  --toast-fg-2: #B3B1AB;     /* kbd / secondary on toast — 7.86 */
+
+  /* floor plan (S1) */
+  --plan-wall: #2A2825;
+  --plan-floor: #FFFFFF;
+  --plan-hover: #F3EFE5;
+  --plan-ink: #2E2C29;       /* 13.92 */
+  --zone-1: #E9EEF6;         /* 入口 entry — muted 5.61 */
+  --zone-2: #F3EEE3;         /* 常駐・中核 resident/core — 5.65 */
+  --zone-3: #F5E9EC;         /* 外部連携 external IO — 5.53 */
+  --zone-4: #E7F1EC;         /* UI — 5.66 */
+  --zone-5: #EEEDEA;         /* 基盤 foundation — 5.59 */
+  --noise-floor: #F4F2ED;    /* noise box: paper-2 + 45° hatch pattern (never colour alone) */
+  --pin-open: #A3401F;
+  --pin-ai: #59468F;
+  --pin-outdated: #8C5810;
+  --pin-resolved: #3B6A40;
+  --ai-frame: #59468F;       /* dashed frame on rooms with a running job */
+  --gen-ring: #2B5D85;       /* room being generated */
+  --dep-line: #A3401F;       /* dotted dependency line on room select */
+  --flow-tag-bg: #1C1B19;    /* numbered flow tag (rounded rect; pins are droplets) */
+  --flow-tag-fg: #FAF9F6;
+
+  /* syntax — Shiki `createCssVariablesTheme({ variablePrefix: "--shiki-" })` (ux.md §12.9).
+   * All ≥ 5.30 on code-bg, add-bg, del-bg, add-hl, del-hl and mark-line. */
+  --shiki-foreground: #2E2C29;
+  --shiki-background: #F1EEE7;
+  --shiki-token-keyword: #8A3B23;
+  --shiki-token-string: #47693A;
+  --shiki-token-string-expression: #47693A;
+  --shiki-token-comment: #66615A;   /* Editorial #8E8A82 was 3.2:1 — fixed */
+  --shiki-token-function: #2C5A80;
+  --shiki-token-constant: #7A4E9C;
+  --shiki-token-parameter: #7B5A16;
+  --shiki-token-punctuation: #615D57;
+  --shiki-token-link: #2B5D85;
+
+  /* shadows (only two; no others allowed) */
+  --shadow-soft: 0 1px 2px rgba(28, 24, 18, 0.035);
+  --shadow-pop: 0 1px 2px rgba(28, 24, 18, 0.04), 0 14px 36px -10px rgba(28, 24, 18, 0.13);
+}
+
+/* =========================================================================
+ * 3. Color — dark (system preference). Values MUST equal block 4 (R1).
+ * ========================================================================= */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --paper: #141311;
+    --paper-2: #191816;
+    --sheet: #1C1B18;
+    --hover: #23211E;
+    --press: #2B2925;
+    --code-bg: #24221E;
+    --hdr-bg: color-mix(in srgb, #141311 92%, transparent);
+    --scrim: rgba(0, 0, 0, 0.45);
+
+    --ink: #EEEAE2;            /* 15.48 / 14.35 */
+    --text: #D6D1C7;           /* 12.21 / 11.32 */
+    --muted: #ADA79B;          /* 7.76 / 7.20 */
+    --faint: #8F897F;          /* 5.35 / 4.96 ; R3: paper & sheet ONLY */
+
+    --rule: #2A2825;
+    --rule-2: #3A3732;
+    --rule-soft: #211F1C;
+
+    --accent: #E2805D;         /* 6.61 / 6.13 */
+    --focus-ring: #E2805D;
+    --mark: #3B321B;           /* text 8.33 */
+    --mark-line: #2F291A;      /* text 9.50 */
+    --hl: rgba(222, 178, 52, 0.22);
+
+    --c-ok: #9BC59D;     --c-ok-bg: #1C281D;
+    --c-guess: #E0C07A;  --c-guess-bg: #2C2416;
+    --c-run: #8DB7DC;    --c-run-bg: #17222C;
+    --c-prop: #B8A8E6;   --c-prop-bg: #231F37;
+    --c-bad: #EC998B;    --c-bad-bg: #311E1A;
+    --c-warn: #E2B36F;   --c-warn-bg: #2E2418;
+    --sugg-bg: #1C1A26;
+    --pit-bg: #241916;
+    --pit-rule: #AB7166;
+
+    --v-verified: var(--c-ok);       --v-verified-bg: var(--c-ok-bg);
+
+    --v-cited: var(--muted);         --v-cited-bg: var(--paper);  /* R1 UXP-06: cited, L1 vacuous */
+    --v-inferred: var(--c-guess);    --v-inferred-bg: var(--c-guess-bg);
+    --v-stale: var(--c-warn);        --v-stale-bg: var(--c-warn-bg);
+    --v-human: var(--c-prop);        --v-human-bg: var(--c-prop-bg);
+    --v-unsupported: var(--c-bad);   --v-unsupported-bg: var(--c-bad-bg);
+
+    --band-lt10k: #8F897F;
+    --band-10k: #D6D1C7;
+    --band-50k: #E2B36F;
+    --band-200k: #EC998B;
+
+    --add-bg: #1A281C;   --add-hl: #223A26;   --add-fg: #A6D3A4;   --add-code: #C5D2BB;
+    --del-bg: #2D1A17;   --del-hl: #43231D;   --del-fg: #EFA696;   --del-code: #DFC2B6;
+
+    --toast-bg: #EEEAE2;
+    --toast-fg: #1C1B19;
+    --toast-fg-2: #5B5955;
+
+    --plan-wall: #D7D1C5;
+    --plan-floor: #1C1B18;
+    --plan-hover: #25231F;
+    --plan-ink: #D6D1C7;
+    --zone-1: #1B2129;
+    --zone-2: #221F19;
+    --zone-3: #261D20;
+    --zone-4: #19231F;
+    --zone-5: #1F1E1C;
+    --noise-floor: #191816;
+    --pin-open: #E2805D;
+    --pin-ai: #B8A8E6;
+    --pin-outdated: #E2B36F;
+    --pin-resolved: #9BC59D;
+    --ai-frame: #B8A8E6;
+    --gen-ring: #8DB7DC;
+    --dep-line: #E2805D;
+    --flow-tag-bg: #EEEAE2;
+    --flow-tag-fg: #141311;
+
+    --shiki-foreground: #D6D1C7;
+    --shiki-background: #24221E;
+    --shiki-token-keyword: #E39A7C;
+    --shiki-token-string: #A6CC95;
+    --shiki-token-string-expression: #A6CC95;
+    --shiki-token-comment: #A39D92;
+    --shiki-token-function: #93BEE3;
+    --shiki-token-constant: #C6A6E6;
+    --shiki-token-parameter: #DDBF7E;
+    --shiki-token-punctuation: #ADA79B;
+    --shiki-token-link: #8DB7DC;
+
+    --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.25);
+    --shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.35), 0 18px 44px -10px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* =========================================================================
+ * 4. Color — dark (explicit). Byte-identical values to block 3 (R1).
+ * ========================================================================= */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper: #141311;
+  --paper-2: #191816;
+  --sheet: #1C1B18;
+  --hover: #23211E;
+  --press: #2B2925;
+  --code-bg: #24221E;
+  --hdr-bg: color-mix(in srgb, #141311 92%, transparent);
+  --scrim: rgba(0, 0, 0, 0.45);
+
+  --ink: #EEEAE2;
+  --text: #D6D1C7;
+  --muted: #ADA79B;
+  --faint: #8F897F;
+
+  --rule: #2A2825;
+  --rule-2: #3A3732;
+  --rule-soft: #211F1C;
+
+  --accent: #E2805D;
+  --focus-ring: #E2805D;
+  --mark: #3B321B;
+  --mark-line: #2F291A;
+  --hl: rgba(222, 178, 52, 0.22);
+
+  --c-ok: #9BC59D;     --c-ok-bg: #1C281D;
+  --c-guess: #E0C07A;  --c-guess-bg: #2C2416;
+  --c-run: #8DB7DC;    --c-run-bg: #17222C;
+  --c-prop: #B8A8E6;   --c-prop-bg: #231F37;
+  --c-bad: #EC998B;    --c-bad-bg: #311E1A;
+  --c-warn: #E2B36F;   --c-warn-bg: #2E2418;
+  --sugg-bg: #1C1A26;
+  --pit-bg: #241916;
+  --pit-rule: #AB7166;
+
+  --v-verified: var(--c-ok);       --v-verified-bg: var(--c-ok-bg);
+
+  --v-cited: var(--muted);         --v-cited-bg: var(--paper);  /* R1 UXP-06: cited, L1 vacuous */
+  --v-inferred: var(--c-guess);    --v-inferred-bg: var(--c-guess-bg);
+  --v-stale: var(--c-warn);        --v-stale-bg: var(--c-warn-bg);
+  --v-human: var(--c-prop);        --v-human-bg: var(--c-prop-bg);
+  --v-unsupported: var(--c-bad);   --v-unsupported-bg: var(--c-bad-bg);
+
+  --band-lt10k: #8F897F;
+  --band-10k: #D6D1C7;
+  --band-50k: #E2B36F;
+  --band-200k: #EC998B;
+
+  --add-bg: #1A281C;   --add-hl: #223A26;   --add-fg: #A6D3A4;   --add-code: #C5D2BB;
+  --del-bg: #2D1A17;   --del-hl: #43231D;   --del-fg: #EFA696;   --del-code: #DFC2B6;
+
+  --toast-bg: #EEEAE2;
+  --toast-fg: #1C1B19;
+  --toast-fg-2: #5B5955;
+
+  --plan-wall: #D7D1C5;
+  --plan-floor: #1C1B18;
+  --plan-hover: #25231F;
+  --plan-ink: #D6D1C7;
+  --zone-1: #1B2129;
+  --zone-2: #221F19;
+  --zone-3: #261D20;
+  --zone-4: #19231F;
+  --zone-5: #1F1E1C;
+  --noise-floor: #191816;
+  --pin-open: #E2805D;
+  --pin-ai: #B8A8E6;
+  --pin-outdated: #E2B36F;
+  --pin-resolved: #9BC59D;
+  --ai-frame: #B8A8E6;
+  --gen-ring: #8DB7DC;
+  --dep-line: #E2805D;
+  --flow-tag-bg: #EEEAE2;
+  --flow-tag-fg: #141311;
+
+  --shiki-foreground: #D6D1C7;
+  --shiki-background: #24221E;
+  --shiki-token-keyword: #E39A7C;
+  --shiki-token-string: #A6CC95;
+  --shiki-token-string-expression: #A6CC95;
+  --shiki-token-comment: #A39D92;
+  --shiki-token-function: #93BEE3;
+  --shiki-token-constant: #C6A6E6;
+  --shiki-token-parameter: #DDBF7E;
+  --shiki-token-punctuation: #ADA79B;
+  --shiki-token-link: #8DB7DC;
+
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.35), 0 18px 44px -10px rgba(0, 0, 0, 0.6);
+}
+
+/* =========================================================================
+ * 5. Accessibility media
+ * ========================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-press: 0.001ms;
+    --dur-hover: 0.001ms;
+    --dur-hover-l: 0.001ms;
+    --dur-pop: 0.001ms;
+    --dur-pop-out: 0.001ms;
+    --dur-palette-in: 0.001ms;
+    --dur-card: 0.001ms;
+    --dur-move: 0.001ms;
+    --dur-zoom: 0.001ms;
+    --dur-lod: 0.001ms;
+    --dur-panel: 0.001ms;
+    --dur-pulse: 0.001ms;      /* pulses become static bars/frames (components check the media query) */
+    --dur-flash: 0.001ms;      /* accept flash replaced by the static "changed" left bar */
+    --dur-toast-in: 0.001ms;
+    /* --dur-toast-life is NOT reduced: it is a real deadline, not decoration. */
+  }
+}
+
+@media (prefers-contrast: more) {
+  /* specificity (0,2,0) = the theme blocks; later in source ⇒ wins for light, system-dark and explicit dark. */
+  :root:is([data-theme], :not([data-theme])) {
+    --faint: var(--muted);     /* promote tertiary text */
+    --rule: var(--rule-2);
+  }
+}
+
+@media (forced-colors: active) {
+  :root:is([data-theme], :not([data-theme])) {
+    --focus-ring: Highlight;
+    --accent: LinkText;
+  }
+}
