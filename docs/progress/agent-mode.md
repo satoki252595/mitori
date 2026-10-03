@@ -22,14 +22,14 @@
 | `packages/loop/src/jobs/pipeline.ts` | patch mode の修復ループ（当たらない edit に 1 回、失敗した検査に ≤ 2 回、同意後の修復）、revise も 3 経路、`readJobFile` で REPAIR の CODE は **job head** から |
 | `packages/loop/src/jobs/{runner,assemble,store,plan}.ts` | 配線（`cr-requests/agent.md` #4）。plan: `agentPathsOk` を実際に判定、escalate モデルの agent job は確認必須、agent の書き込み範囲でゲートを再検出 |
 
-## INT-08（録画エンジン、`scripts/nd bun test test/int/int08.test.ts`、18 tests ≈ 21 s）
+## INT-08（録画エンジン、`scripts/nd bun test test/int/int08.test.ts`、19 tests ≈ 25 s）
 
 本物の daemon・claude-cli エンジン・normalizer・scheduler・台帳。claude だけ台本（agent の turn は Edit ツールのように
 ワークツリーを書き換える）。git・gofmt・go vet・go test は本物。
 
 - **agent Fix（3 ファイル、`@` 2 つ）**: R6 で agent。argv に `--restricted`・`dontAsk`・`Read,Edit,Glob,Grep`・`Edit(//wt/<path>)` × 書き込み範囲、Bash 無し、cwd = ワークツリー、system prompt に `Working directory: <wt>`、edit phase は tool 呼び出しから。trust は 1 セット（プレビュー 3 行）。同意 → go vet 失敗（`assignment mismatch`）→ **同じプロセスへの continuation** で REPAIR（`GATE typecheck:go-vet fail attempt=1/2` + 抜粋）→ gofmt がワークツリー内で整形 → 再同意 → 全 pass。agent job は「全部採用」不可（412）、hunk 指定で採用 → 3 ファイルが**未コミット**、ユーザー repo の refs・objects・index・config・worktree・stash は不変、`go vet ./...` 通過、Undo で元のバイト列
 - **終了済みプロセスの修復**: 最初の結果の直後にプロセスが死ぬ → 修復は待たずに cold（0.65 s。continuation の first-line timeout は 10 s）、cold の入力は元 bundle と REPAIR の 2 ブロック
-- **patch の修復**: `first_line` 不一致 → REPAIR（`PATCH fail`）→ 当たった edit が go vet で失敗 → 同意後 REPAIR、CODE は head の行番号と `base=`。3 ターンとも同じプロセス
+- **patch の修復**: `first_line` 不一致 → REPAIR（`PATCH fail`）→ 当たった edit が go vet で失敗 → 同意後 REPAIR、CODE は head の行番号と `base=`。3 ターンとも同じプロセス。edit の無い REPAIR 応答は patch/1 として不正 → 同じプロセスに 1 回だけ再要求 → `E_AGENT_PROTOCOL`
 - **並列**: 別ファイルの 2 ジョブは待ち合わせなし・両方採用。同じ行の 2 ジョブは 2 つ目が `waiting_lock`、両方 ready、先に採用した後の 2 つ目は `409 E_GIT_MERGE_CONFLICT` で ready のまま
 - **昇格**: patch が `needs_more_context` → 上限内なので agent job（`escalatedFrom`、thread は failed を経由しない）→ budget 停止 → `escalate` を提案、自動の 3 段目なし。Opus は確認なしの作成が 412、retry も 412、confirm 付きで実行
 - **external patch**: 適用 → ready（ユーザーのファイルは不変）／未知の `base` → `E_PATCH_RANGE`・thread は open に戻る／範囲外のパス → `E_SCOPE_VIOLATION`
