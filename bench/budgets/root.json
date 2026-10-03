@@ -1,0 +1,18 @@
+{
+  "v": "mitori.budgets/1",
+  "budgets": [
+    {
+      "id": "dev.check",
+      "metric": "bun run check の wall time（開発ループ）",
+      "target": 15000,
+      "limit": 30000,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["absolute"],
+      "owner": "root",
+      "measure": "bench/dev.bench.ts#check",
+      "scale": "machine",
+      "provisional": false
+    }
+  ]
+}

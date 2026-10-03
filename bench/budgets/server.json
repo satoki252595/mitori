@@ -1,0 +1,44 @@
+{
+  "v": "mitori.budgets/1",
+  "budgets": [
+    {
+      "id": "srv.rss.idleEmpty",
+      "metric": "idle RSS（workspace なし）",
+      "target": 30,
+      "limit": 50,
+      "unit": "MB",
+      "dir": "max",
+      "gates": ["absolute"],
+      "owner": "server",
+      "measure": "bench/server.bench.ts#idle-rss:empty",
+      "scale": "none",
+      "provisional": false
+    },
+    {
+      "id": "srv.rss.idleLoaded",
+      "metric": "idle RSS（100k LOC を 1 つ load、60 s idle、PT-14）",
+      "target": 150,
+      "limit": 250,
+      "unit": "MB",
+      "dir": "max",
+      "gates": ["absolute"],
+      "owner": "server",
+      "measure": "bench/server.bench.ts#idle-rss:loaded",
+      "scale": "none",
+      "provisional": true
+    },
+    {
+      "id": "srv.sse.p99",
+      "metric": "200 クライアントの SSE 配信 p99",
+      "target": 5,
+      "limit": 10,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["relative"],
+      "owner": "server",
+      "measure": "bench/server.bench.ts#sse-p99",
+      "scale": "machine",
+      "provisional": true
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "v": "mitori.budgets/1",
+  "budgets": [
+    {
+      "id": "agent.leanOverhead",
+      "metric": "lean 固定 overhead（tools なし。target は本体、limit は schema 込み）",
+      "target": 1000,
+      "limit": 1500,
+      "unit": "tokens",
+      "dir": "max",
+      "gates": ["contract"],
+      "owner": "agent",
+      "measure": "bench/contract/run.ts#overhead-lean",
+      "scale": "none",
+      "provisional": false
+    },
+    {
+      "id": "agent.leanOverhead.tools",
+      "metric": "lean 固定 overhead（Read・Edit を有効にした呼び出し）",
+      "target": 4500,
+      "limit": 4500,
+      "unit": "tokens",
+      "dir": "max",
+      "gates": ["contract"],
+      "owner": "agent",
+      "measure": "bench/contract/run.ts#overhead-tools",
+      "scale": "none",
+      "provisional": false
+    },
+    {
+      "id": "agent.inheritedContext",
+      "metric": "spawn が継承する利用者の skills・hooks・memory（件数）",
+      "target": 0,
+      "limit": 0,
+      "unit": "count",
+      "dir": "max",
+      "gates": ["contract"],
+      "owner": "agent",
+      "measure": "bench/contract/run.ts#inherited-context",
+      "scale": "none",
+      "provisional": false
+    },
+    {
+      "id": "agent.firstPhase",
+      "metric": "job 開始 → 最初の phase event（warm）",
+      "target": 300,
+      "limit": 1000,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["absolute"],
+      "owner": "agent",
+      "measure": "bench/agent.bench.ts#first-phase:warm",
+      "scale": "machine",
+      "provisional": false
+    },
+    {
+      "id": "agent.firstPhase.cold",
+      "metric": "job 開始 → 最初の phase event（cold）",
+      "target": 3000,
+      "limit": 6000,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["contract"],
+      "owner": "agent",
+      "measure": "bench/contract/run.ts#first-phase-cold",
+      "scale": "machine",
+      "provisional": false
+    },
+    {
+      "id": "agent.interactiveWait",
+      "metric": "interactive の開始待ち（background 3 本実行中。AGT-U-030、PT-04）",
+      "target": 50,
+      "limit": 50,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["absolute"],
+      "owner": "agent",
+      "measure": "bench/agent.bench.ts#interactive-wait",
+      "scale": "machine",
+      "provisional": false
+    },
+    {
+      "id": "agent.resident.procs",
+      "metric": "常駐 engine プロセス数（warm + parked）",
+      "target": 2,
+      "limit": 2,
+      "unit": "count",
+      "dir": "max",
+      "gates": ["structural"],
+      "owner": "agent",
+      "measure": "bench/agent.bench.ts#resident-procs",
+      "scale": "none",
+      "provisional": false
+    },
+    {
+      "id": "agent.resident.rss",
+      "metric": "常駐 engine 子プロセスの RSS 合計",
+      "target": 600,
+      "limit": 1000,
+      "unit": "MB",
+      "dir": "max",
+      "gates": ["absolute"],
+      "owner": "agent",
+      "measure": "bench/agent.bench.ts#resident-rss",
+      "scale": "none",
+      "provisional": false
+    }
+  ],
+  "counters": [
+    {
+      "id": "agent.spawns.real",
+      "max": 0,
+      "owner": "agent",
+      "measure": "packages/testkit/src/preload.ts#spawns-real"
+    }
+  ]
+}
