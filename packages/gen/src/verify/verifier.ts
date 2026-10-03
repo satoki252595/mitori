@@ -174,7 +174,7 @@ export function createVerifier(deps: VerifierDeps): GenVerifier {
             l2 = false;
             continue;
           }
-          windows.push({ lines: loaded.lines, start: c.start, end: c.end });
+          windows.push({ path: c.path, lines: loaded.lines, start: c.start, end: c.end });
           if (deps.anchors.codeAnchor(c.path, c.start, c.end, loaded.text, loaded.blob, c.symbol).snippet !== c.snippet) l2 = false;
         }
         const res = claim.cites.length === 0 || windows.length === 0 ? "vacuous" : l1(identifiers, windows);
