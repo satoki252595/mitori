@@ -22,7 +22,7 @@ import {
 } from "@mitori/core";
 import { CONTRACT_LIMITS, type ParsedPatch } from "../contract.ts";
 import { applyEditsToText, parseContract } from "../contracts/index.ts";
-import { gatePatchTree } from "../gates/job.ts";
+import { gatePatchTree, treeTexts } from "../gates/job.ts";
 import { scopeFailure } from "../git/scope.ts";
 import { failingGate, failureRanges, failureText, type HeadRange, hunkRanges } from "../repair/ranges.ts";
 import { plainRequest, remainingUsd, repairTurn } from "../repair/turn.ts";
@@ -258,6 +258,8 @@ type Texts = (
 /** One parsed patch turn and what its edits were written against. */
 interface PatchTurn {
   parsed: ParsedPatch;
+  /** The first turn of an attempt (no earlier edits of this attempt exist). */
+  fresh?: boolean;
   /** The parked process after the turn. */
   session: EngineSession | null;
   /** Current texts the edits apply to (S on the first attempt, the job head on a repair / revise). */
@@ -321,6 +323,8 @@ export async function runPatch(core: RunnerCore, id: JobId, plan: JobPlan, signa
   const s = await snap;
   // the base ref exists from here on (a REPAIR turn before the first head reads the job's files through it)
   await core.deps.git.ws.updateRef(GIT_REFS.jobBase(id), s.commit);
+  // and no head yet: a retry of this job must not see the head of its failed attempt (REPAIR CODE, the no-edit check)
+  await core.deps.git.ws.updateRef(GIT_REFS.jobHead(id), s.commit);
   await core.update(
     id,
     "job.base",
@@ -335,7 +339,14 @@ export async function runPatch(core: RunnerCore, id: JobId, plan: JobPlan, signa
     id,
     plan,
     s.commit,
-    { parsed, session, texts: snapshotTexts(core, s.commit), blobOf: (p) => plan.bundle.blobs[p], shown: (p) => bundleText(core, plan.bundle.blobs[p]) },
+    {
+      parsed,
+      session,
+      fresh: true,
+      texts: snapshotTexts(core, s.commit),
+      blobOf: (p) => plan.bundle.blobs[p],
+      shown: (p) => bundleText(core, plan.bundle.blobs[p]),
+    },
     signal,
   );
 }
@@ -395,8 +406,19 @@ async function patchAttempt(core: RunnerCore, id: JobId, plan: JobPlan, base: Gi
     });
   }
   if (parsed.edits.length === 0) {
-    await finishOutcomes(core, id, plan, parsed, null);
-    return null;
+    // a first turn that only answers: done
+    if (cur.fresh) {
+      await finishOutcomes(core, id, plan, parsed, null);
+      return null;
+    }
+    const { head } = await core.deps.git.commits(id).catch(() => ({ head: base }));
+    // a REPAIR of edits that never applied, with no edits: nothing to check
+    if (head === base) throw new MitoriError("E_PATCH_APPLY", "the repair turn returned no edits", { params: { actions: "escalate,retry,copy_prompt" } });
+    // a repair / revise turn without new edits: the head's edits stand and are checked again as they are
+    await core.update(id, "job.gating", (r) => core.setState(r, "gating"), { pipeline: true });
+    const files: Record<RepoPath, string> = {};
+    for (const [p, text] of Object.entries(await treeTexts(core, base, head))) if (text !== null) files[p] = text;
+    return gateAndFinish(core, id, plan, base, parsed, files, head, signal);
   }
   await core.update(id, "job.gating", (r) => core.setState(r, "gating"), { pipeline: true });
   core.phase(id, "apply");
@@ -433,10 +455,25 @@ async function patchAttempt(core: RunnerCore, id: JobId, plan: JobPlan, base: Gi
     return { kind: "apply", excerpt: text, ranges: ranges.length > 0 ? ranges : paths.map((p) => ({ path: p, start: 1, end: 40 })) };
   }
   core.phase(id, "scope");
-  let files: Record<RepoPath, string> = { ...t.unchanged, ...applied.files };
-  let head = await core.deps.git.buildTree(id, base, files);
+  const files: Record<RepoPath, string> = { ...t.unchanged, ...applied.files };
+  const head = await core.deps.git.buildTree(id, base, files);
   await checkScopeOrFail(core, id, plan);
+  return gateAndFinish(core, id, plan, base, parsed, files, head, signal);
+}
 
+/** Gates of an applied head; a failure becomes the next REPAIR's input, else the job is ready. */
+async function gateAndFinish(
+  core: RunnerCore,
+  id: JobId,
+  plan: JobPlan,
+  base: GitOid,
+  parsed: ParsedPatch,
+  applied: Record<RepoPath, string>,
+  first: GitOid,
+  signal: AbortSignal,
+): Promise<Retry | null> {
+  let files = applied;
+  let head = first;
   core.phase(id, "gate");
   const specs = plan.gates.map((x) => x.spec);
   const g = await gatePatchTree(core, id, specs, base, files, head, { consent: false }, signal);

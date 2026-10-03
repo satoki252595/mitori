@@ -543,6 +543,63 @@ describe("INT-08 patch mode repairs: an edit that does not apply, then a gate fa
     expect(read(CONFIG)).toContain('level = "info"');
     await api("POST", `/jobs/${job.id}/reject`, {});
   });
+
+  test("a REPAIR turn without edits is invalid patch/1: one re-request on the same process, then the job fails E_AGENT_PROTOCOL", async () => {
+    const CONFIG = "internal/config/config.go";
+    const l = lineOf(CONFIG, 'level = "info"');
+    const thread = await api<ThreadDetail>("POST", "/threads", {
+      anchor: { primary: "code", code: { path: CONFIG, start: l - 2, end: l + 1 } },
+      intent: "change",
+      body: "既定を定数にして（修復で何もしない）",
+      draft: false,
+    });
+    scenarios.unshift({
+      name: "patch-noop",
+      match: (p, spec) => p.includes("（修復で何もしない）") && !spec.argv.includes("--permission-mode"),
+      turns: [
+        {
+          tools: ["StructuredOutput"],
+          structured: {
+            summary: "定数に",
+            edits: [{ path: CONFIG, start: l, end: l, first_line: '\t\tlevel = "info"', new_text: "\t\tlevel = defaultLevel" }],
+            doc_updates: [],
+            threads: [{ id: thread.id, status: "done", body: "ok" }],
+          },
+        },
+        {
+          tools: ["StructuredOutput"],
+          structured: {
+            summary: "直せない",
+            edits: [],
+            doc_updates: [],
+            threads: [{ id: thread.id, status: "answer", body: "defaultLevel の定義場所が分かりません" }],
+          },
+        },
+        {
+          tools: ["StructuredOutput"],
+          structured: {
+            summary: "直せない",
+            edits: [],
+            doc_updates: [],
+            threads: [{ id: thread.id, status: "answer", body: "defaultLevel の定義場所が分かりません" }],
+          },
+        },
+      ],
+    });
+    const { job } = await createJob(thread);
+    await jobUntil(job.id, ["ready"]);
+    await webApi("POST", `/jobs/${job.id}/gates/run`, {});
+    const j = await jobUntil(job.id, ["failed"]);
+    expect(j.failure?.code).toBe("E_AGENT_PROTOCOL");
+    expect(j.attempt).toBe(2);
+    // three turns on one process: the edit, the REPAIR, the invalid-output re-request
+    const s = spawns.filter((x) => x.scenario === "patch-noop");
+    expect(s).toHaveLength(1);
+    const msgs = (s[0]?.child.stdinText?.() ?? "").split("\n").filter(Boolean).map(promptOfStdin);
+    expect(msgs).toHaveLength(3);
+    expect(msgs[2]).toMatch(/OUTPUT invalid/);
+    expect((await api<ThreadDetail>("GET", `/threads/${thread.id}`)).state).toBe("failed");
+  });
 });
 
 describe("INT-08 parallel jobs: different files run side by side; the same line waits for the lock and conflicts at accept", () => {
