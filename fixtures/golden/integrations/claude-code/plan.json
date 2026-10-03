@@ -1,0 +1,44 @@
+[
+  {
+    "mode": "create",
+    "path": ".mitori/integrations/claude-code/.claude-plugin/marketplace.json",
+    "sha256": "b15bdbd158d2216c663963b768f6ef3cb721d75d97d596c20071f05031031ffc",
+    "template": "claude-code/.claude-plugin/marketplace.json@1"
+  },
+  {
+    "mode": "create",
+    "path": ".mitori/integrations/claude-code/plugins/mitori/.claude-plugin/plugin.json",
+    "sha256": "eb7348eef931611c117a3433ef104b2d400a28bde37d0df522d77a088b3ad4bd",
+    "template": "claude-code/.claude-plugin/plugin.json@1"
+  },
+  {
+    "mode": "create",
+    "path": ".mitori/integrations/claude-code/plugins/mitori/skills/review/SKILL.md",
+    "sha256": "48b66ab8b1828e3f271b48da853f953c2f27022ae86c972f2fa9ef20acec3656",
+    "template": "claude-code/skills/review/SKILL.md@1"
+  },
+  {
+    "mode": "create",
+    "path": ".mitori/integrations/claude-code/plugins/mitori/skills/gen/SKILL.md",
+    "sha256": "5ce03d480876d8832136810ddb491135df20b031ddbc3e51db09f5fbef8b096a",
+    "template": "claude-code/skills/gen/SKILL.md@1"
+  },
+  {
+    "mode": "create",
+    "path": ".mitori/integrations/claude-code/plugins/mitori/agents/mitori-gen-writer.md",
+    "sha256": "c7be205a1f97360502c492b939fb4c969242072d4a52d8280d6e6183af563278",
+    "template": "claude-code/agents/mitori-gen-writer.md@1"
+  },
+  {
+    "mode": "create",
+    "path": ".mitori/integrations/claude-code/plugins/mitori/hooks/hooks.json",
+    "sha256": "57092e69b7a452d630e7add9a2d06cc5c38c45a65634932a320b6335750257de",
+    "template": "claude-code/hooks/hooks.json@1"
+  },
+  {
+    "mode": "create",
+    "path": ".mitori/integrations/claude-code/plugins/mitori/.mcp.json",
+    "sha256": "ccfca6a6f86e5cebfc87da5a3c920748f804adcf4f39b0b6d63b9dc010a331b4",
+    "template": "claude-code/.mcp.json@1"
+  }
+]

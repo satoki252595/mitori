@@ -1,0 +1,17 @@
+{
+  "description": "mitori: mark design-doc blocks stale when this session edits files (prints nothing).",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mitori touch --stdin --source claude-hook 2>/dev/null || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

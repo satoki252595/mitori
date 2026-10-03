@@ -1,8 +1,9 @@
 /**
- * The real daemon (WP-INT): builds `ServerDeps` from `@mitori/platform` adapters, the embedded assets and the
- * Worker pools, then hands them to the composition root (`@mitori/server` `createServer`). Replaces the
- * walking-skeleton fetch handler of serve.ts for `mitori <path>` / `mitori _serve` (CR m0-14 hand-over to WP-11).
+ * The real daemon (written by WP-INT, owned by WP-11 since CR m1-9): builds `ServerDeps` from `@mitori/platform`
+ * adapters, the embedded assets and the Worker pools, then hands them to the composition root (`@mitori/server`
+ * `createServer`, which runs the state migrations of every package — CR m0-14 is done there).
  */
+import { realpathSync } from "node:fs";
 import { availableParallelism, homedir } from "node:os";
 import { createSecretScanner, type HealthRes, MitoriError, type WorkspaceInfo } from "@mitori/core";
 import {
@@ -63,6 +64,25 @@ async function parseInit(t: AssetTable) {
   return { runtime: await readPinned("treesitter.runtime", t), grammars };
 }
 
+/** Realpath of `p`, or `p` itself. */
+function real(p: string): string {
+  try {
+    return realpathSync(p);
+  } catch {
+    return p;
+  }
+}
+
+/**
+ * mitori's own executable for the hook / `.mcp.json` templates (`{mitoriBin}`, SEC-21): the compiled binary's realpath;
+ * from a source checkout (`bun apps/cli/src/main.ts`) the `mitori` on PATH, else the bare name.
+ */
+export function mitoriBinary(path: string): string {
+  if (Bun.isStandaloneExecutable) return real(process.execPath);
+  const onPath = Bun.which("mitori", { PATH: path });
+  return onPath ? real(onPath) : "mitori";
+}
+
 export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerDaemon> {
   const t = assetTable();
   const clock = systemClock;
@@ -74,6 +94,8 @@ export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerD
   const log = createLogger({ sink, clock, level: process.env.MITORI_LOG === "debug" ? "debug" : "info" });
   const [init, onig, assets] = await Promise.all([parseInit(t), readPinned("shiki.onig", t), loadWebAssets(t)]);
   const userHome = homedir();
+  // remote-readonly clones (`mitori <github-url>`) need `gh` on SAFE_PATH; without it GitHub targets are refused
+  const gh = Bun.which("gh", { PATH: safePath });
   const deps: ServerDeps = {
     home: o.home,
     version: o.version,
@@ -83,6 +105,7 @@ export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerD
     // CR m1-119 / m1-116: platform `detectGateSandbox()` and `hardwareInfo()` (WP-01) replace these two defaults.
     gateSandbox: "none",
     hardware: { cores: availableParallelism(), perfCores: null },
+    ...(gh ? { gh: real(gh) } : {}),
     build: o.build,
     clock,
     random: cryptoRandom,
@@ -111,7 +134,7 @@ export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerD
     viewerAssets: { js: "", css: "", jsSha256: "" },
     safePath,
     env: process.env,
-    mitoriBin: process.execPath,
+    mitoriBin: mitoriBinary(process.env.PATH ?? ""),
     ...o.overrides,
   };
   let handle: ServerHandle;

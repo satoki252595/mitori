@@ -1,0 +1,30 @@
+{
+  "v": "mitori.pull-cases/1",
+  "touch": [
+    { "name": "Claude Edit", "stdin": "{\"session_id\":\"s\",\"cwd\":\"/repo\",\"hook_event_name\":\"PostToolUse\",\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"/repo/src/a.ts\",\"old_string\":\"x\",\"new_string\":\"y\"},\"tool_response\":{\"filePath\":\"/repo/src/a.ts\"}}", "paths": ["/repo/src/a.ts"] },
+    { "name": "Claude Write", "stdin": "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"/repo/new file.md\",\"content\":\"hi\"}}", "paths": ["/repo/new file.md"] },
+    { "name": "Claude NotebookEdit", "stdin": "{\"tool_name\":\"NotebookEdit\",\"tool_input\":{\"notebook_path\":\"/repo/n.ipynb\",\"new_source\":\"1\"}}", "paths": ["/repo/n.ipynb"] },
+    { "name": "MultiEdit with dot segments", "stdin": "{\"tool_name\":\"MultiEdit\",\"tool_input\":{\"file_path\":\"/repo/./src//b/../c.go\",\"edits\":[]}}", "paths": ["/repo/src/c.go"] },
+    { "name": "relative path against cwd (Codex shape)", "stdin": "{\"cwd\":\"/repo/sub\",\"tool_input\":{\"path\":\"../x.py\"}}", "paths": ["/repo/x.py"] },
+    { "name": "relative path without cwd", "stdin": "{\"tool_input\":{\"file_path\":\"x.py\"}}", "paths": [] },
+    { "name": "duplicate keys de-duplicated", "stdin": "{\"tool_input\":{\"file_path\":\"/r/a\",\"path\":\"/r/a\"}}", "paths": ["/r/a"] },
+    { "name": "root only", "stdin": "{\"tool_input\":{\"file_path\":\"/\"}}", "paths": [] },
+    { "name": "NUL in path", "stdin": "{\"tool_input\":{\"file_path\":\"/r/a\\u0000b\"}}", "paths": [] },
+    { "name": "not JSON", "stdin": "Edit /repo/a.ts", "paths": [] },
+    { "name": "JSON array", "stdin": "[\"/repo/a.ts\"]", "paths": [] },
+    { "name": "tool_input not an object", "stdin": "{\"tool_input\":\"/repo/a.ts\"}", "paths": [] },
+    { "name": "non-string path", "stdin": "{\"tool_input\":{\"file_path\":42}}", "paths": [] },
+    { "name": "empty", "stdin": "", "paths": [] }
+  ],
+  "label": [
+    { "name": "flag wins", "flag": "Cursor Agent", "env": { "MITORI_AGENT": "x", "CLAUDECODE": "1" }, "label": "cursor-agent" },
+    { "name": "MITORI_AGENT", "env": { "MITORI_AGENT": "my_bot", "CLAUDECODE": "1" }, "label": "my-bot" },
+    { "name": "unusable flag falls through", "flag": "!!!", "env": { "CLAUDECODE": "1" }, "label": "claude-code" },
+    { "name": "Claude Code", "env": { "CLAUDECODE": "1" }, "label": "claude-code" },
+    { "name": "Codex sandbox", "env": { "CODEX_SANDBOX": "seatbelt" }, "label": "codex" },
+    { "name": "CODEX_HOME alone is a human", "env": { "CODEX_HOME": "/Users/me/.codex" }, "label": "pull" },
+    { "name": "empty CODEX_ value", "env": { "CODEX_SANDBOX": "" }, "label": "pull" },
+    { "name": "nothing", "env": {}, "label": "pull" },
+    { "name": "long label capped at 32", "flag": "a-very-long-agent-label-that-goes-on-and-on", "env": {}, "label": "a-very-long-agent-label-that-goe" }
+  ]
+}

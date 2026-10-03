@@ -1,24 +1,55 @@
 /**
- * `mitori [<path>] [--no-open]` and `mitori _serve`: the daemon runs in the foreground of this process (composition
- * root `createServer`, daemon/server.ts) and prints its URL on stdout (RQ-CLI-1). With a path, the workspace is opened
- * in-process right after the URL is out: S0–S4 + the zero-token doc, then one stderr line with the counts and a login
- * URL for the browser. Detaching (`_serve` spawned headless) and opening the browser are WP-11's.
+ * `mitori [<path>|<github-url>] [--no-open] [--force]`, `mitori _serve [--detached]` and the client subcommands.
+ *
+ * - Subcommands (`review`, `bundle`, … — `commands/`) run as clients of the daemon. CR-PENDING(WP-11)
+ *   cr-requests/WP-11.md #4: `main.ts` (WP-11a) sends every non-flag argv here, so the command table is consulted
+ *   first; `main.ts` should dispatch to `commands/` itself (and print the full usage).
+ * - `mitori <path>` with no daemon running: this process IS the daemon (composition root `createServer`,
+ *   daemon/server.ts), prints its URL on stdout (RQ-CLI-1), opens the workspace in-process (S0–S4 + the zero-token
+ *   doc), then opens the browser through a one-time login URL unless `--no-open`, `ui.openBrowser = false` or a tab is
+ *   already connected [UXP-01]. With a daemon running (lock held → `E_CONFLICT`): verify it (health proof, SEC-06),
+ *   apply the version rule, open the workspace there, print its URL and exit.
+ * - `mitori _serve --detached`: the headless daemon the client commands start; it never writes to stdio (the parent
+ *   exits and closes the pipes) and exits 0 quietly when another daemon won the race for the lock (CR m1-5).
+ *
+ * The module graph of the daemon (`./server.ts` → `@mitori/server`) is imported only on the daemon paths, so client
+ * commands start in milliseconds.
  */
-import { readFileSync, realpathSync, statSync } from "node:fs";
+import { realpathSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import { parseArgs } from "node:util";
-import { API_PREFIX, type DaemonRegistry, MitoriError, type NonceRes, type WorkspaceKey, type WorkspaceSummary } from "@mitori/core";
+import { MitoriError, type WorkspaceKey } from "@mitori/core";
 import { resolveHome } from "@mitori/platform";
 import { BUILD_FLAVOUR } from "../build/flavour.ts";
-import { type ServerDaemon, startServerDaemon } from "./server.ts";
+import { apiOf, ensureDaemon, findDaemon } from "../commands/daemon-client.ts";
+import { isCommand, runCommand } from "../commands/index.ts";
+import { exitOf } from "../commands/io.ts";
+import { afterOpen } from "../commands/open.ts";
+import { drainStreams, realIo } from "../commands/process-io.ts";
+import { homeOf } from "../commands/session.ts";
+import type { ServerDaemon } from "./server.ts";
 
 const fail = (msg: string): number => {
   process.stderr.write(`mitori: ${msg}\n`);
   return 2;
 };
 
+/** `https://github.com/<owner>/<repo>` (owner/repo per api `OpenWorkspaceReq`, SEC-14), from `github.com/o/r` too. */
+export function githubTarget(raw: string): string | null {
+  const m = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))\/([A-Za-z0-9._-]{1,100}?)(?:\.git)?\/?$/.exec(raw);
+  if (!m || m[2] === "." || m[2] === "..") return null;
+  return `https://github.com/${m[1]}/${m[2]}`;
+}
+
+/** Login URL, browser and install notice for a workspace this process just opened in its own daemon. */
+async function announce(home: string, ws: WorkspaceKey, version: string, open: boolean): Promise<void> {
+  const io = realIo([], version);
+  const daemon = await findDaemon(io, home);
+  if (daemon) await afterOpen(io, { home, daemon, api: apiOf(io, daemon) }, ws, open);
+}
+
 /** Open `target` in-process and report on stderr once the zero-token doc is there. */
-async function openWorkspace(d: ServerDaemon, target: string, force: boolean, version: string): Promise<void> {
+async function openWorkspace(d: ServerDaemon, home: string, target: string, force: boolean, version: string, open: boolean): Promise<void> {
   const t0 = performance.now();
   let stopped = false;
   void d.stopped.then(() => {
@@ -29,57 +60,47 @@ async function openWorkspace(d: ServerDaemon, target: string, force: boolean, ve
   if (stopped) return;
   const ms = performance.now() - t0;
   if (rt.state === "error") {
-    process.stderr.write(`mitori: ${basename(target)}: scan failed (see ~/.mitori/logs)\n`);
+    process.stderr.write(`mitori: ${rt.info.name}: scan failed (see ~/.mitori/logs)\n`);
     return;
   }
   const files = rt.indexer.files().length;
   const modules = rt.indexer.modules().length;
-  process.stderr.write(`mitori: ${basename(target)}: ${files} files, ${modules} modules (S0–S4 + static doc in ${Math.round(ms)} ms)\n`);
-  const nonce = await loginUrl(d, rt.info.key, version).catch(() => null);
-  if (nonce) process.stderr.write(`mitori: open ${nonce}\n`);
+  process.stderr.write(`mitori: ${rt.info.name}: ${files} files, ${modules} modules (S0–S4 + static doc in ${Math.round(ms)} ms)\n`);
+  await announce(home, rt.info.key, version, open).catch(() => undefined);
 }
 
-/** One-time login URL into the workspace (`POST /auth/nonce`, single use, 60 s). */
-async function loginUrl(d: Pick<ServerDaemon, "url" | "token">, ws: WorkspaceKey, version: string): Promise<string> {
-  const res = await fetch(`${d.url.replace(/\/$/, "")}${API_PREFIX}/auth/nonce`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${d.token}`, "content-type": "application/json", "x-mitori-client": `cli/${version}` },
-    body: JSON.stringify({ to: `/w/${ws}` }),
-  });
-  if (!res.ok) throw new Error(`nonce: ${res.status}`);
-  return ((await res.json()) as NonceRes).url;
-}
-
-/**
- * The home already has a live daemon (its lock + health): print its URL (stdout, RQ-CLI-1) and, with a path, open the
- * workspace there. The version handshake and health proof (§1.2, SEC-06) are WP-11's `mitori` client.
- */
-async function useRunning(home: string, target: string | null, force: boolean, version: string): Promise<number> {
-  let reg: DaemonRegistry;
+/** The home already has a live daemon: verify it, apply the version rule, open the workspace there. */
+async function useRunning(target: string | null, force: boolean, version: string, open: boolean): Promise<number> {
+  const io = realIo([], version);
+  let d: Awaited<ReturnType<typeof ensureDaemon>>;
   try {
-    reg = JSON.parse(readFileSync(`${home}/daemon.json`, "utf8")) as DaemonRegistry;
-  } catch {
-    process.stderr.write("mitori: a daemon holds the lock but its registry is not readable yet; try again\n");
+    d = await ensureDaemon(io, homeOf(io));
+  } catch (err) {
+    const { text } = exitOf(err);
+    process.stderr.write(text);
     return 1;
   }
-  const d = { url: `http://127.0.0.1:${reg.port}/`, token: reg.token };
-  process.stdout.write(`${d.url}\n`);
+  process.stdout.write(`${d.origin}/\n`);
   if (target === null) return 0;
-  const res = await fetch(`http://127.0.0.1:${reg.port}${API_PREFIX}/workspaces`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${reg.token}`, "content-type": "application/json", "x-mitori-client": `cli/${version}` },
-    body: JSON.stringify({ target, force }),
-  });
-  if (!res.ok) {
-    process.stderr.write(`mitori: ${basename(target)}: ${res.status} ${await res.text()}\n`);
+  const api = apiOf(io, d);
+  try {
+    const ws = await api.call("POST /workspaces", { params: {}, body: { target, ...(force ? { force: true } : {}) } });
+    await afterOpen(io, { home: homeOf(io), daemon: d, api }, ws.info.key, open);
+  } catch (err) {
+    process.stderr.write(exitOf(err).text);
     return 1;
   }
-  const ws = ((await res.json()) as WorkspaceSummary).info.key;
-  process.stderr.write(`mitori: open ${await loginUrl(d, ws, version)}\n`);
   return 0;
 }
 
 export async function runDaemon(mode: "open" | "serve", argv: readonly string[], version: string): Promise<number> {
+  const [first] = argv;
+  if (mode === "open" && first !== undefined && isCommand(first)) {
+    const code = await runCommand(first, realIo(argv.slice(1), version));
+    await drainStreams();
+    // a started daemon is a child in its own session: exit without waiting for it
+    process.exit(code);
+  }
   let parsed: ReturnType<typeof parse>;
   try {
     parsed = parse(argv);
@@ -87,29 +108,37 @@ export async function runDaemon(mode: "open" | "serve", argv: readonly string[],
     return fail(`${err instanceof Error ? err.message : String(err)} (see mitori --help)`);
   }
   const { values, positionals } = parsed;
+  const detached = mode === "serve" && values.detached === true;
   const port = Number(values.port ?? process.env.MITORI_PORT ?? 0);
   if (!Number.isInteger(port) || port < 0 || port > 65535) return fail(`invalid port ${values.port ?? process.env.MITORI_PORT}`);
+  if (mode === "open" && values.detached) return fail("--detached is for _serve");
 
   let target: string | null = null;
   if (mode === "open") {
     const raw = positionals[0] ?? process.cwd();
-    if (/^(https?:\/\/|github\.com\/)/.test(raw)) return fail("opening a GitHub URL arrives with WP-11");
-    try {
-      target = realpathSync(raw);
-      if (!statSync(target).isDirectory()) throw new Error("not a directory");
-    } catch {
-      return fail(`${raw}: no such directory`);
-    }
+    if (positionals.length > 1) return fail(`unexpected argument ${positionals[1]}`);
+    const gh = /github\.com\//.test(raw) ? githubTarget(raw) : null;
+    if (/github\.com\//.test(raw) && !gh) return fail(`${raw}: not a GitHub repository URL (https://github.com/<owner>/<repo>)`);
+    if (gh) target = gh;
+    else
+      try {
+        target = realpathSync(raw);
+        if (!statSync(target).isDirectory()) throw new Error("not a directory");
+      } catch {
+        return fail(`${raw}: no such directory`);
+      }
   } else if (positionals.length > 0) return fail("_serve takes no path");
+  const open = mode === "open" && values["no-open"] !== true;
 
+  const { startServerDaemon } = await import("./server.ts");
   const home = resolveHome();
   let d: ServerDaemon;
   try {
-    d = await startServerDaemon({ home, port, version, build: BUILD_FLAVOUR, logToStderr: process.env.MITORI_LOG_STDERR === "1" });
+    d = await startServerDaemon({ home, port, version, build: BUILD_FLAVOUR, logToStderr: !detached && process.env.MITORI_LOG_STDERR === "1" });
   } catch (err) {
     const e = MitoriError.from(err);
-    if (e.code === "E_CONFLICT") return useRunning(home, target, values.force === true, version);
-    process.stderr.write(`mitori: the daemon did not start: ${e.message}\n`);
+    if (e.code === "E_CONFLICT") return detached ? 0 : useRunning(target, values.force === true, version, open);
+    if (!detached) process.stderr.write(`mitori: the daemon did not start: ${e.message}\n`);
     return 1;
   }
   const signalled = new Promise<void>((resolve) => {
@@ -117,12 +146,13 @@ export async function runDaemon(mode: "open" | "serve", argv: readonly string[],
     process.once("SIGTERM", resolve);
   });
   // stdout carries the URL only (testing spec RQ-CLI-1: scripts, CI and eval read it)
-  process.stdout.write(`${d.url}\n`);
-  if (target !== null)
-    void openWorkspace(d, target, values.force === true, version).catch((err: unknown) => {
-      process.stderr.write(`mitori: ${basename(target ?? "")}: ${err instanceof Error ? err.message : String(err)}\n`);
+  if (!detached) process.stdout.write(`${d.url}\n`);
+  if (target !== null) {
+    const t = target;
+    void openWorkspace(d, home, t, values.force === true, version, open).catch((err: unknown) => {
+      process.stderr.write(`mitori: ${basename(t)}: ${err instanceof Error ? err.message : String(err)}\n`);
     });
-  if (mode === "open" && !values["no-open"]) process.stderr.write("mitori: opening the browser arrives with WP-11 — use the login URL above\n");
+  }
 
   await Promise.race([d.stopped, signalled]);
   await d.stop("signal");
@@ -135,6 +165,6 @@ function parse(argv: readonly string[]) {
     args: [...argv],
     allowPositionals: true,
     strict: true,
-    options: { "no-open": { type: "boolean" }, force: { type: "boolean" }, port: { type: "string" } },
+    options: { "no-open": { type: "boolean" }, force: { type: "boolean" }, port: { type: "string" }, detached: { type: "boolean" } },
   });
 }
