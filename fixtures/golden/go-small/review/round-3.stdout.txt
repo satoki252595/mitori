@@ -1,0 +1,17 @@
+mitori.review/1 round=3 threads=4 approved=false
+Address each thread in this working tree. Context: `mitori bundle <id>` (edit only its WRITE paths). Reply: `mitori reply <id> --done|--answer|--question "<text>"`. Never resolve threads. Then run NEXT.
+
+## th_k3f9a2cq change R3 carried=R2 internal/meta/fetch.go:40-52 bundle≈1.1k
+> リトライを 2 回に増やして、間隔は 500ms にしてください。
+>
+> あと、ログに試行回数を出して。
+> 
+>   インデントも原文のまま	(tab)
+## th_m7p2x9ka question R3 outdated §s3/retry "生成失敗時は正確に 1 回だけ再試行する" bundle≈0.6k
+> この文はまだ正しい？ "quoted" & <html>
+## th_q4w8e2rt review R3 diagram:dg_a1b2c3d4/meta.Fetch（外部 API 呼び出し） bundle≈1.0k
+> 外部 API の失敗時の挙動をレビューして。
+## th_z9y8x7wv note R3 internal/store/memory.go:12-12 bundle≈0.5k (memo: do not edit code)
+> メモ: ここは後でロックを見直す
+
+NEXT: mitori review --round 4
