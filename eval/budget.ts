@@ -88,26 +88,54 @@ export function checkEstimates(estimates: readonly SuiteEstimate[], capUsd: numb
 interface ReportLike {
   tier?: string;
   finishedAt?: string;
-  budget?: { spentUsd?: number };
+  budget?: { spentUsd?: number; billing?: string };
 }
 
-/** API-equivalent dollars spent by the committed reports of the last 7 days (smoke runs spend nothing real). */
-export function weeklySpentUsd(reportsDir: string, now: Date): number {
+/** Σ `budget.spentUsd` of the reports under `reportsDir` that `keep` accepts (smoke runs spend nothing real; broken files are skipped). */
+function spentUsd(reportsDir: string, keep: (r: ReportLike, finishedAt: number) => boolean): number {
   if (!existsSync(reportsDir)) return 0;
   let total = 0;
-  const since = now.getTime() - 7 * 24 * 3600 * 1000;
   for (const d of readdirSync(reportsDir, { withFileTypes: true })) {
     const file = join(reportsDir, d.name, "summary.json");
     if (!d.isDirectory() || !existsSync(file)) continue;
     try {
       const r = JSON.parse(readFileSync(file, "utf8")) as ReportLike;
-      if (r.tier === "smoke" || !r.finishedAt || Date.parse(r.finishedAt) < since) continue;
+      if (r.tier === "smoke" || !r.finishedAt || !keep(r, Date.parse(r.finishedAt))) continue;
       total += r.budget?.spentUsd ?? 0;
     } catch {
       /* a half-written report is not a spending record */
     }
   }
   return total;
+}
+
+/** API-equivalent dollars spent by the committed reports of the last 7 days. */
+export function weeklySpentUsd(reportsDir: string, now: Date): number {
+  const since = now.getTime() - 7 * 24 * 3600 * 1000;
+  return spentUsd(reportsDir, (_r, at) => at >= since);
+}
+
+/** Real (metered, non-subscription) dollars of the reports finished in the calendar month (UTC) of `now`. */
+export function monthlyMeteredSpentUsd(reportsDir: string, now: Date): number {
+  const month = now.toISOString().slice(0, 7);
+  return spentUsd(
+    reportsDir,
+    (r, at) => r.budget?.billing !== undefined && r.budget.billing !== "subscription-window" && new Date(at).toISOString().slice(0, 7) === month,
+  );
+}
+
+/**
+ * The cap of a metered run: the approved amount, never more than what is left of the monthly metered ceiling once earlier
+ * metered runs of the month are counted (one approval of $6 must not turn into $6 per run). Nothing left refuses with exit 3.
+ */
+export function meteredCap(requestedCapUsd: number, approvedUsd: number, spentThisMonth: number, monthlyCap = METERED_MONTHLY_CAP_USD): number {
+  const left = monthlyCap - spentThisMonth;
+  if (left <= 0)
+    throw new EvalRefusal(
+      `the $${monthlyCap} monthly ceiling for metered eval spending is used up ($${spentThisMonth.toFixed(2)} this month): more needs the user's approval first`,
+      3,
+    );
+  return Math.min(requestedCapUsd, approvedUsd, left);
 }
 
 /** The cap of a run, never above what is left of the weekly allowance. Refuses when nothing is left. */

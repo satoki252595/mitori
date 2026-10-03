@@ -12,7 +12,7 @@ import { parseArgs } from "node:util";
 import type { Engine } from "@mitori/agent";
 import { type BillingMode, PRICING_VERSION } from "@mitori/core";
 import { seededRandom, TEST_FORMATS } from "@mitori/testkit";
-import { assertBilling, BudgetGuard, EvalRefusal, weeklySpentUsd, withinWeekly } from "./budget.ts";
+import { assertBilling, BudgetGuard, EvalRefusal, meteredCap, monthlyMeteredSpentUsd, weeklySpentUsd, withinWeekly } from "./budget.ts";
 import { EXIT, SMOKE_CAP_USD, TIERS, type Tier } from "./config.ts";
 import { createEvalLedger } from "./ledger.ts";
 import { type EvalReport, gitInfo, type ReportTier, reportDirName, type SuiteResult, writeReport } from "./report.ts";
@@ -60,10 +60,12 @@ export async function runEval(opts: EvalOptions): Promise<EvalOutcome> {
 
   // billing first: a metered engine starts nothing
   const status = await engine.detect();
-  assertBilling(status.billing, opts.approveMeteredUsd);
+  const billing = assertBilling(status.billing, opts.approveMeteredUsd);
 
   const requested = opts.maxUsd ?? (smoke ? SMOKE_CAP_USD : TIERS[tier as Tier].capUsd);
-  const capUsd = smoke ? requested : withinWeekly(requested, weeklySpentUsd(reportsDir, now()));
+  const weekly = smoke ? requested : withinWeekly(requested, weeklySpentUsd(reportsDir, now()));
+  // metered money is real: the approval and the month's ceiling bound the run, not the tier's API-equivalent cap
+  const capUsd = billing.metered ? meteredCap(weekly, billing.capUsd ?? 0, monthlyMeteredSpentUsd(reportsDir, now())) : weekly;
 
   const guard = new BudgetGuard(capUsd);
   const ledger = createEvalLedger(seededRandom(EVAL_SEED));

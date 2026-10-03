@@ -3,12 +3,31 @@ import { sloEntry, specOf } from "./slo.ts";
 
 describe("EVAL-U-20 SLO rows", () => {
   test("a rate is judged by its Wilson bound, not its point estimate (quality.patch.hiddenPass: ≥ 70 % target, 60 % limit)", () => {
-    // limit 60 % − 10 pp = 50 %; target 70 % − 10 pp = 60 %
     expect(sloEntry("quality.patch.hiddenPass", { successes: 27, n: 30 })).toMatchObject({ status: "green", n: 30, value: 90 });
-    const mid = sloEntry("quality.patch.hiddenPass", { successes: 22, n: 30 });
-    expect(mid.status).toBe("yellow"); // clears the limit's gate, not the target's
-    expect(mid.value).toBeCloseTo(73.33, 1);
+    // the acceptance example: 75 % of 30 against the 70 % threshold passes (bound 60.3 % ≥ the 60 % limit)
+    const accept = sloEntry("quality.patch.hiddenPass", { successes: 22.5, n: 30 });
+    expect(accept.status).toBe("green");
+    expect(accept.bound).toBeCloseTo(60.31, 1);
+    expect(sloEntry("quality.patch.hiddenPass", { successes: 23, n: 30 }).status).toBe("green");
     expect(sloEntry("quality.patch.hiddenPass", { successes: 15, n: 30 }).status).toBe("red");
+  });
+
+  test("regression: the 10 pp margin is not taken off the limit a second time (MILESTONES M3: Wilson 下限 ≥ 60 %)", () => {
+    // 22 of 30 = 73 % has a bound of 58.5 %: it fails judgeRate(…, 0.7) and so must be red, not yellow
+    const mid = sloEntry("quality.patch.gateFirst", { successes: 22, n: 30 });
+    expect(mid.value).toBeCloseTo(73.33, 1);
+    expect(mid.bound).toBeCloseTo(58.5, 0);
+    expect(mid.status).toBe("red");
+    expect(sloEntry("quality.patch.gateFirst", { successes: 21, n: 30 }).status).toBe("red");
+    // two runs of 22 / 30 pooled (44 / 60) clear it
+    expect(sloEntry("quality.patch.gateFirst", { successes: 44, n: 60 }).status).toBe("green");
+  });
+
+  test("a large population is judged close to its point estimate (citation L0: 99 % target, 97 % limit, minN 100)", () => {
+    expect(sloEntry("gen.cite.l0", { successes: 4950, n: 5000 }).status).toBe("green"); // 99.0 %
+    expect(sloEntry("gen.cite.l0", { successes: 4900, n: 5000 }).status).toBe("yellow"); // 98.0 %
+    expect(sloEntry("gen.cite.l0", { successes: 4800, n: 5000 }).status).toBe("red"); // 96.0 %
+    expect(sloEntry("gen.cite.l0", { successes: 90, n: 99 }).status).toBe("insufficient");
   });
 
   test("fewer observations than the budget's minN are `insufficient`, even at 100 %", () => {

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { seededRandom } from "@mitori/testkit";
-import { assertBilling, BudgetGuard, checkEstimates, EvalRefusal, weeklySpentUsd, withinWeekly } from "./budget.ts";
+import { assertBilling, BudgetGuard, checkEstimates, EvalRefusal, meteredCap, monthlyMeteredSpentUsd, weeklySpentUsd, withinWeekly } from "./budget.ts";
 import { callEngine } from "./call.ts";
 import { createFakeEvalEngine, makeRequest } from "./engine.ts";
 import { createEvalLedger } from "./ledger.ts";
@@ -181,6 +181,37 @@ describe("EVAL-U-13 billing preflight and the weekly allowance", () => {
       expect(weeklySpentUsd(join(dir, "missing"), new Date())).toBe(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("monthlyMeteredSpentUsd counts only metered reports of the current UTC month", () => {
+    const dir = mkdtempSync(join(tmpdir(), "mitori-eval-month-"));
+    try {
+      const put = (name: string, body: unknown) => {
+        mkdirSync(join(dir, name));
+        writeFileSync(join(dir, name, "summary.json"), JSON.stringify(body));
+      };
+      put("a", { tier: "quick", finishedAt: "2026-10-01T00:00:00Z", budget: { spentUsd: 1.25, billing: "metered-api" } });
+      put("b", { tier: "quick", finishedAt: "2026-10-02T00:00:00Z", budget: { spentUsd: 0.5, billing: "overage" } });
+      put("window", { tier: "full", finishedAt: "2026-10-02T00:00:00Z", budget: { spentUsd: 15, billing: "subscription-window" } });
+      put("september", { tier: "quick", finishedAt: "2026-09-30T23:59:59Z", budget: { spentUsd: 4, billing: "metered-api" } });
+      put("smoke", { tier: "smoke", finishedAt: "2026-10-02T00:00:00Z", budget: { spentUsd: 0.01, billing: "metered-api" } });
+      expect(monthlyMeteredSpentUsd(dir, new Date("2026-10-03T00:00:00Z"))).toBeCloseTo(1.75, 10);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("meteredCap: the approval, the tier cap and the month's remainder, whichever is smallest; nothing left is exit 3", () => {
+    expect(meteredCap(12, 2, 0)).toBe(2);
+    expect(meteredCap(1.5, 2, 0)).toBe(1.5);
+    expect(meteredCap(12, 6, 5)).toBeCloseTo(1, 10);
+    try {
+      meteredCap(12, 2, 6);
+      throw new Error("accepted");
+    } catch (err) {
+      expect(err).toBeInstanceOf(EvalRefusal);
+      expect((err as EvalRefusal).exit).toBe(3);
     }
   });
 

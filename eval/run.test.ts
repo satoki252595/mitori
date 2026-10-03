@@ -1,6 +1,6 @@
 // WP-12 acceptance: "with the fake engine, `nd bun run eval --suite smoke` runs to the end and writes JSON + Markdown".
 import { afterAll, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { TEST_FORMATS } from "@mitori/testkit";
@@ -106,6 +106,29 @@ describe("EVAL-U-30 runEval", () => {
     expect(ok.report.budget.billing).toBe("overage");
     const err = await runEval({ suite: "smoke", engine: createFakeEvalEngine({ billing: "overage" }), approveMeteredUsd: 9, out: tmp() }).catch((e) => e);
     expect(err).toBeInstanceOf(EvalRefusal);
+  });
+
+  test("a metered run is capped by the approval and by what is left of the month's metered ceiling, not by the tier cap", async () => {
+    const reportsDir = tmp();
+    const metered = () => createFakeEvalEngine({ billing: "metered-api" });
+    // regression: the approved amount was checked but then ignored, so `--approve-metered-usd 2` ran a standard tier with a $12 cap
+    const first = await runEval({ tier: "standard", engine: metered(), approveMeteredUsd: 2, reportsDir, now: () => new Date("2026-10-03T12:00:00Z") });
+    expect(first.report.budget.capUsd).toBe(2);
+    const put = (name: string, finishedAt: string, spentUsd: number, billing: string) => {
+      mkdirSync(join(reportsDir, name), { recursive: true });
+      writeFileSync(join(reportsDir, name, "summary.json"), JSON.stringify({ tier: "standard", finishedAt, budget: { spentUsd, billing } }));
+    };
+    put("earlier-metered", "2026-10-01T00:00:00Z", 5, "metered-api");
+    put("subscription", "2026-10-02T00:00:00Z", 9, "subscription-window"); // window usage is not money
+    put("last-month", "2026-09-20T23:00:00Z", 6, "overage");
+    const second = await runEval({ tier: "standard", engine: metered(), approveMeteredUsd: 2, reportsDir, now: () => new Date("2026-10-03T12:00:00Z") });
+    expect(second.report.budget.capUsd).toBeCloseTo(1, 10);
+    put("more-metered", "2026-10-02T00:00:00Z", 1, "overage");
+    const err = await runEval({ tier: "standard", engine: metered(), approveMeteredUsd: 2, reportsDir, now: () => new Date("2026-10-03T12:00:00Z") }).catch(
+      (e) => e,
+    );
+    expect(err).toBeInstanceOf(EvalRefusal);
+    expect((err as EvalRefusal).exit).toBe(3);
   });
 
   test("a tier run reports the unimplemented suites as pending, writes the report and exits 2", async () => {
