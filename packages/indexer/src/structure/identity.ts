@@ -36,8 +36,10 @@ export interface Community {
   members: readonly RepoPath[];
   anchor: RepoPath;
   dominantDir: string;
-  /** Provisional display name (used only when born). */
+  /** Provisional display name (recomputed every pass, `naming.ts`). */
   name: string;
+  /** Slug base for a newborn (default: `slugify(dominantDir, anchor)`). */
+  slugBase?: string;
   leaf: boolean;
 }
 
@@ -181,8 +183,8 @@ export function assignIdentities(comms: readonly Community[], prev: readonly Pre
       return {
         id: o.id,
         slug,
-        // the inherited name yields to a repo-settings name (spec §6.6); id and slug never change
-        name: overrideFor(c.dominantDir, ctx)?.name ?? o.name,
+        // names are provisional and follow the current members (a repo-settings name wins); id and slug never change
+        name: overrideFor(c.dominantDir, ctx)?.name ?? c.name,
         anchor: o.seed ? c.anchor : o.anchor,
         bornAt: o.seed ? ctx.now : o.bornAt,
         from: o.id,
@@ -198,7 +200,7 @@ export function assignIdentities(comms: readonly Community[], prev: readonly Pre
     for (let k = 1; ctx.takenIds.has(id); k++) id = moduleIdFor(c.anchor, k, ctx.xxh3);
     ctx.takenIds.add(id);
     const ov = overrideFor(c.dominantDir, ctx);
-    let base = slugify(c.dominantDir, c.anchor);
+    let base = c.slugBase || slugify(c.dominantDir, c.anchor);
     if (ov?.slug !== undefined) {
       if (SLUG_RE.test(ov.slug) && !ctx.takenSlugs.has(ov.slug)) base = ov.slug;
       else ctx.notices.push(`notice.slug.rewritten settings ${JSON.stringify(ov.slug)}`);

@@ -1,9 +1,12 @@
 /**
- * Leaf clustering (spec §6.2–6.3 改訂 R1): directory-prior graph → warm start (previous leaves / seeds / DirPartition)
- * → γ search over deterministic Louvain + BFS split → size post-processing (split > 9k LOC, merge < 2k LOC).
+ * Leaf clustering (spec §6.2–6.3 改訂 R1): directory-prior graph → atoms (directory units, `atoms.ts`) → warm start
+ * (previous leaves / seeds / DirPartition) → γ search over deterministic Louvain on the atom graph + BFS split → size
+ * post-processing (split > 9k LOC or > 24k sig tokens, merge < 2k LOC into a neighbour of the same scope and directory).
  */
 import type { RepoPath } from "@mitori/core";
-import { dirOf } from "../resolve/files.ts";
+import { STRUCTURE_PARAMS } from "../contract.ts";
+import { dirOf, type StageFile } from "../resolve/files.ts";
+import { type Atoms, buildAtoms, groupsOf, induced } from "./atoms.ts";
 import { edgeWeight, type FileGraph } from "./graph.ts";
 import { buildUGraph, louvain, modularity, splitDisconnected, type UGraph } from "./louvain.ts";
 import { TIE } from "./quantize.ts";
@@ -11,6 +14,8 @@ import type { Tuning } from "./tuning.ts";
 
 export interface ClusterInput {
   fg: FileGraph;
+  /** Stage files by path (languages, Go package clauses, scopes). */
+  files: ReadonlyMap<RepoPath, StageFile>;
   /** Visit rank per node (xxh3("ord|" + path) ascending). */
   order: Int32Array;
   /** Warm-start label per node (previous leaf / seed / directory group); ints, any values. */
@@ -19,12 +24,12 @@ export interface ClusterInput {
   warm: Uint8Array;
   /** Estimated sig-skeleton tokens per node (split rule). */
   sigTokens: Float64Array;
-  /** γ used last time (tried first). */
+  /** γ used last time (kept when it still satisfies the size rule). */
   gammaHint?: number;
   tuning: Tuning;
   /**
    * No previous leaves and no seeds: the DirPartition start is a heuristic only, so a singleton start is tried too
-   * and the partition with the higher modularity (clustering graph) wins. Warm starts are kept (id stability).
+   * and the partition with the higher modularity wins. Warm starts are kept (id stability).
    */
   fresh: boolean;
 }
@@ -41,14 +46,42 @@ export interface ClusterResult {
   dep: UGraph;
 }
 
-/** Undirected graphs over the file graph: with and without the directory prior. */
-export function undirected(fg: FileGraph): { ug: UGraph; dep: UGraph } {
+/** γ values tried by the search (log-spaced; the previous γ is tried first). */
+const GAMMA_GRID = [0.25, 0.35, 0.5, 0.7, 1, 1.4, 2, 2.8, 4, 5.6, 8, 11, 16];
+
+/** Multipliers of the extra visit orders a first clustering tries (0 = the base order). */
+const FRESH_ORDERS = [0, 48271, 69621, 16807];
+
+/** A fixed permutation of a visit order: ranks of `order[v] · k mod (2³¹ − 1)` (k = 0 keeps the order). */
+function permutedOrder(order: Int32Array, k: number): Int32Array {
+  if (k === 0) return order;
+  const M = 2147483647;
+  const key = Array.from(order, (o) => Number((BigInt(o + 1) * BigInt(k)) % BigInt(M)));
+  const idx = Array.from(order, (_, i) => i).sort((a, b) => (key[a] as number) - (key[b] as number));
+  const out = new Int32Array(order.length);
+  idx.forEach((v, r) => {
+    out[v] = r;
+  });
+  return out;
+}
+
+/**
+ * Undirected graphs over the file graph: with and without the directory prior. Edges between files of different
+ * scopes (an example or a script using the library) are left out when `scopeOf` is given: those scopes cluster apart
+ * (IDX-D12), so their usage edges are neither a reason to merge nor counted against the partition's modularity.
+ */
+export function undirected(fg: FileGraph, scopeOf?: (node: number) => string): { ug: UGraph; dep: UGraph } {
   const n = fg.paths.length;
   const dep: [number, number, number][] = [];
   fg.out.forEach((m, i) => {
-    for (const [j, e] of m) dep.push([i, j, edgeWeight(e)]);
+    for (const [j, e] of m) if (scopeOf === undefined || scopeOf(i) === scopeOf(j)) dep.push([i, j, edgeWeight(e)]);
   });
   return { dep: buildUGraph(n, dep, fg.size), ug: buildUGraph(n, [...dep, ...fg.prior], fg.size) };
+}
+
+/** Scope of a graph node (`main` when unknown). */
+export function nodeScope(fg: FileGraph, files: ReadonlyMap<RepoPath, StageFile>): (node: number) => string {
+  return (v) => files.get(fg.paths[v] as string)?.scope ?? "main";
 }
 
 /** DirPartition (spec §6.2): directory subtrees up to 6k LOC; small direct-file groups join their smallest sibling group. */
@@ -71,7 +104,6 @@ export function dirPartition(paths: readonly RepoPath[], size: Float64Array, P: 
       c = parent;
     }
   });
-  const subtreeLoc = new Map<string, number>();
   const subtree = (d: string): number[] => [...(filesIn.get(d) ?? []), ...[...(children.get(d) ?? [])].flatMap(subtree)];
   const locOf = (xs: readonly number[]) => xs.reduce((a, i) => a + (size[i] as number), 0);
   const labels = new Int32Array(paths.length).fill(-1);
@@ -86,9 +118,7 @@ export function dirPartition(paths: readonly RepoPath[], size: Float64Array, P: 
   const visit = (d: string): number[] => {
     const all = subtree(d);
     const kids = [...(children.get(d) ?? [])].sort();
-    const loc = subtreeLoc.get(d) ?? locOf(all);
-    subtreeLoc.set(d, loc);
-    if (loc <= P.leafLocMax || kids.length === 0) return all.length > 0 ? [group(all)] : [];
+    if (locOf(all) <= P.leafLocMax || kids.length === 0) return all.length > 0 ? [group(all)] : [];
     const made: number[] = [];
     for (const c of kids) made.push(...visit(c));
     const direct = filesIn.get(d) ?? [];
@@ -105,44 +135,114 @@ export function dirPartition(paths: readonly RepoPath[], size: Float64Array, P: 
   return labels;
 }
 
-/** Induced subgraph on `nodes` (indices into g) with local ids in the given order. */
-function induced(g: UGraph, nodes: readonly number[]): UGraph {
-  const local = new Map(nodes.map((v, i) => [v, i]));
-  const edges: [number, number, number][] = [];
-  nodes.forEach((v, i) => {
+/** Collapse the atoms of `g` into nodes (internal weight becomes a self loop, so modularity is preserved). */
+function contract(g: UGraph, atoms: Atoms): UGraph {
+  const A = atoms.members.length;
+  const size = new Float64Array(A);
+  const self = new Float64Array(A);
+  const edges = new Map<number, number>();
+  for (let v = 0; v < g.n; v++) {
+    const a = atoms.of[v] as number;
+    size[a] = (size[a] as number) + (g.size[v] as number);
+    self[a] = (self[a] as number) + (g.self[v] as number);
     for (let e = g.start[v] as number; e < (g.start[v + 1] as number); e++) {
-      const j = local.get(g.nbr[e] as number);
-      if (j !== undefined && j > i) edges.push([i, j, g.w[e] as number]);
+      const u = g.nbr[e] as number;
+      if (u < v) continue;
+      const b = atoms.of[u] as number;
+      const w = g.w[e] as number;
+      if (a === b) self[a] = (self[a] as number) + w;
+      else {
+        const k = a < b ? a * A + b : b * A + a;
+        edges.set(k, (edges.get(k) ?? 0) + w);
+      }
     }
-  });
-  return buildUGraph(
-    nodes.length,
-    edges,
-    Float64Array.from(nodes, (v) => g.size[v] as number),
-  );
+  }
+  const list: [number, number, number][] = [...edges].sort((x, y) => x[0] - y[0]).map(([k, w]) => [Math.floor(k / A), k % A, w]);
+  return buildUGraph(A, list, size, self);
 }
 
 const sum = (xs: readonly number[], arr: Float64Array) => xs.reduce((a, i) => a + (arr[i] as number), 0);
 
-function groupsOf(labels: Int32Array, order: Int32Array): number[][] {
-  const by = new Map<number, number[]>();
-  for (let v = 0; v < labels.length; v++) {
-    const l = labels[v] as number;
-    const g = by.get(l);
-    if (g) g.push(v);
-    else by.set(l, [v]);
-  }
-  const out = [...by.values()].map((g) => g.sort((a, b) => a - b));
-  const first = (g: number[]) => Math.min(...g.map((v) => order[v] as number));
-  return out.sort((a, b) => first(a) - first(b));
+const commonPrefixLen = (x: readonly string[], y: readonly string[]): number => {
+  let i = 0;
+  while (i < x.length && i < y.length && x[i] === y[i]) i++;
+  return i;
+};
+
+/** LOC histograms of a set of atoms (merged by addition while leaves merge). */
+interface SetStats {
+  /** Directory (and every ancestor, "" = root) → LOC. */
+  dirs: Map<string, number>;
+  scopes: Map<string, number>;
+  /** Language family → LOC ("" = files without a parser). */
+  families: Map<string, number>;
+  /** Smallest member path (sort key). */
+  key: string;
+  loc: number;
 }
 
-/** Split a leaf above the hard caps by re-running Louvain on its subgraph with γ' = 2γ … (≤ 4 tries, spec §6.3-1). */
-function splitLarge(ug: UGraph, leaf: number[], order: Int32Array, sig: Float64Array, gamma: number, P: Tuning): number[][] {
-  const tooBig = (xs: readonly number[]) => sum(xs, ug.size) > P.leafLocHard || sum(xs, sig) > P.leafSkeletonTokensMax;
+/** The atom-level view the size post-processing works on. */
+interface AtomView {
+  ag: UGraph;
+  order: Int32Array;
+  sig: Float64Array;
+  /** Per-atom histograms. */
+  stats: readonly SetStats[];
+}
+
+function addInto(into: Map<string, number>, from: ReadonlyMap<string, number>): void {
+  for (const [k, w] of from) into.set(k, (into.get(k) ?? 0) + w);
+}
+
+function statsOf(v: AtomView, atoms: readonly number[]): SetStats {
+  const out: SetStats = { dirs: new Map(), scopes: new Map(), families: new Map(), key: "", loc: 0 };
+  for (const a of atoms) mergeStats(out, v.stats[a] as SetStats);
+  return out;
+}
+
+function mergeStats(into: SetStats, from: SetStats): void {
+  addInto(into.dirs, from.dirs);
+  addInto(into.scopes, from.scopes);
+  addInto(into.families, from.families);
+  if (into.key === "" || (from.key !== "" && from.key < into.key)) into.key = from.key;
+  into.loc += from.loc;
+}
+
+/** Deepest directory holding ≥ 60 % of the LOC (spec §6.3-4), as segments ([] = root). */
+function dominantSegs(st: SetStats): string[] {
+  let best = "";
+  let bestDepth = 0;
+  for (const [d, w] of st.dirs) {
+    if (w < STRUCTURE_PARAMS.dominantDirShare * st.loc) continue;
+    const depth = d === "" ? 0 : d.split("/").length;
+    if (depth > bestDepth || (depth === bestDepth && d < best)) {
+      best = d;
+      bestDepth = depth;
+    }
+  }
+  return best === "" ? [] : best.split("/");
+}
+
+/** Majority key by LOC (ties: smallest key); `""` entries lose to any other. */
+function majority(m: ReadonlyMap<string, number>, skipEmpty: boolean): string {
+  let best: string | null = null;
+  let bw = -1;
+  for (const [k, w] of m) {
+    if (skipEmpty && k === "" && m.size > 1) continue;
+    if (w > bw || (w === bw && best !== null && k < best)) {
+      best = k;
+      bw = w;
+    }
+  }
+  return best ?? "";
+}
+
+/** Split a leaf above the hard caps by re-running Louvain on its atom subgraph with γ' = 2γ … (≤ 4 tries, spec §6.3-1). */
+function splitLarge(v: AtomView, leaf: number[], gamma: number, P: Tuning): number[][] {
+  const tooBig = (xs: readonly number[]) => sum(xs, v.ag.size) > P.leafLocHard || sum(xs, v.sig) > P.leafSkeletonTokensMax;
   if (!tooBig(leaf) || leaf.length < 2) return [leaf];
-  const sub = induced(ug, leaf);
-  const subOrder = Int32Array.from(leaf, (v) => order[v] as number);
+  const sub = induced(v.ag, leaf);
+  const subOrder = Int32Array.from(leaf, (a) => v.order[a] as number);
   let parts: number[][] = [leaf];
   for (let k = 1, g = gamma * 2; k <= 4; k++, g *= 2) {
     const labels = splitDisconnected(sub, louvain(sub, { gamma: g, maxSize: P.leafLocHard, order: subOrder }), subOrder);
@@ -152,89 +252,86 @@ function splitLarge(ug: UGraph, leaf: number[], order: Int32Array, sig: Float64A
   return parts;
 }
 
-const commonPrefixLen = (a: string, b: string): number => {
-  const x = a.split("/");
-  const y = b.split("/");
-  let i = 0;
-  while (i < x.length && i < y.length && x[i] === y[i]) i++;
-  return i;
-};
-
-/** Merge leaves below the soft minimum into their best neighbour (spec §6.3-2). */
-function mergeSmall(
-  ug: UGraph,
-  leaves: number[][],
-  paths: readonly RepoPath[],
-  domDir: (xs: readonly number[]) => string,
-  P: Tuning,
-  sig: Float64Array,
-  exempt: (leaf: readonly number[]) => boolean = () => false,
-): number[][] {
-  const leafOf = new Int32Array(ug.n).fill(-1);
+/**
+ * Merge leaves below the minimum (spec §6.3-2) into the best neighbour: same scope first (examples and tooling stay
+ * apart from the main code while they are not tiny), then a leaf sharing the small leaf's parent directory, then the
+ * connection weight / sqrt(LOC) of the partner. Isolated leaves go to the leaf with the longest common directory.
+ * A merge never exceeds the size caps; partners that keep the result ≤ 4k, then ≤ 6k, then ≤ 9k LOC are preferred.
+ */
+function mergeSmall(v: AtomView, leaves: number[][], P: Tuning, minLoc: number, exempt: (leaf: readonly number[]) => boolean): number[][] {
+  const { ag } = v;
+  const leafOf = new Int32Array(ag.n).fill(-1);
   leaves.forEach((l, i) => {
-    for (const v of l) leafOf[v] = i;
+    for (const a of l) leafOf[a] = i;
   });
   const conn: Map<number, number>[] = leaves.map(() => new Map());
-  for (let v = 0; v < ug.n; v++)
-    for (let e = ug.start[v] as number; e < (ug.start[v + 1] as number); e++) {
-      const a = leafOf[v] as number;
-      const b = leafOf[ug.nbr[e] as number] as number;
-      if (a < 0 || b < 0 || a === b) continue;
-      conn[a]?.set(b, (conn[a]?.get(b) ?? 0) + (ug.w[e] as number) / 2);
+  for (let a = 0; a < ag.n; a++)
+    for (let e = ag.start[a] as number; e < (ag.start[a + 1] as number); e++) {
+      const x = leafOf[a] as number;
+      const y = leafOf[ag.nbr[e] as number] as number;
+      if (x < 0 || y < 0 || x === y) continue;
+      conn[x]?.set(y, (conn[x]?.get(y) ?? 0) + (ag.w[e] as number) / 2);
     }
   const members = leaves.map((l) => [...l]);
-  const loc = leaves.map((l) => sum(l, ug.size));
-  const tok = leaves.map((l) => sum(l, sig));
-  // a merge may not push the leaf's sig skeleton over the cap the split step enforces
+  const st = leaves.map((l) => statsOf(v, l));
+  const loc = st.map((x) => x.loc);
+  const tok = leaves.map((l) => sum(l, v.sig));
+  const key = st.map((x) => x.key);
+  const dirs = st.map(dominantSegs);
+  const scopes = st.map((x) => majority(x.scopes, false));
+  const families = st.map((x) => majority(x.families, true));
   const fits = (a: number, b: number, cap: number) =>
     (loc[a] as number) + (loc[b] as number) <= cap && (tok[a] as number) + (tok[b] as number) <= P.leafSkeletonTokensMax;
-  const key = leaves.map((l) => paths[l[0] as number] as string);
-  const dirs = members.map((m) => domDir(m));
   const alive = new Set(leaves.map((_, i) => i));
+  const caps = [P.leafLocTarget, P.leafLocMax, P.leafLocHard];
+  /** Preference tuple of partner b for small leaf a (compared lexicographically, higher first). */
+  const pref = (a: number, b: number): number[] => {
+    const da = dirs[a] as string[];
+    const cp = commonPrefixLen(da, dirs[b] as string[]);
+    const w = conn[a]?.get(b) ?? 0;
+    // an unconnected island of another language (a Go service next to a TS app) is the last choice
+    const sameFamily = families[a] === families[b] || families[a] === "" || families[b] === "" ? 1 : 0;
+    return [
+      scopes[a] === scopes[b] ? 1 : 0,
+      w > 0 || sameFamily ? 1 : 0,
+      cp >= da.length - 1 ? 1 : 0,
+      w > 0 ? w / Math.sqrt(loc[b] as number) : 0,
+      cp,
+      -(loc[b] as number),
+    ];
+  };
+  const better = (x: number[], y: number[]) => {
+    for (let i = 0; i < x.length; i++) {
+      const d = (x[i] as number) - (y[i] as number);
+      if (Math.abs(d) > 1e-12) return d > 0;
+    }
+    return false;
+  };
   for (;;) {
     const small = [...alive]
-      .filter((i) => (loc[i] as number) < P.leafLocMin)
+      .filter((i) => (loc[i] as number) < minLoc)
       .sort((a, b) => (loc[a] as number) - (loc[b] as number) || ((key[a] as string) < (key[b] as string) ? -1 : 1));
     let merged = false;
     for (const a of small) {
-      if (!alive.has(a) || alive.size < 2 || exempt(members[a] as number[])) continue;
+      // (a leaf that absorbed others earlier in this round may have grown past the minimum)
+      if (!alive.has(a) || alive.size < 2 || (loc[a] as number) >= minLoc || exempt(members[a] as number[])) continue;
       let best = -1;
-      let bestScore = -1;
-      const better = (b: number, score: number) => {
-        if (best < 0 || score > bestScore + 1e-12) return true;
-        if (Math.abs(score - bestScore) > 1e-12) return false;
-        const sameA = dirOf(dirs[a] as string) === dirOf(dirs[b] as string);
-        const sameBest = dirOf(dirs[a] as string) === dirOf(dirs[best] as string);
-        if (sameA !== sameBest) return sameA;
-        if (loc[b] !== loc[best]) return (loc[b] as number) < (loc[best] as number);
-        return (key[b] as string) < (key[best] as string);
-      };
-      // prefer partners that keep the merged leaf within the soft maximum (2k–6k target), then the hard cap
-      for (const cap of [P.leafLocTarget, P.leafLocMax, P.leafLocHard]) {
-        for (const [b, w] of conn[a] ?? []) {
-          if (!alive.has(b) || !fits(a, b, cap)) continue;
-          const s = w / Math.sqrt(loc[b] as number);
-          if (better(b, s)) {
+      let bestPref: number[] = [];
+      for (const cap of caps) {
+        for (const b of alive) {
+          if (b === a || !fits(a, b, cap)) continue;
+          const p = pref(a, b);
+          if (best < 0 || better(p, bestPref) || (!better(bestPref, p) && (key[b] as string) < (key[best] as string))) {
             best = b;
-            bestScore = s;
+            bestPref = p;
           }
         }
         if (best >= 0) break;
       }
-      if (best < 0)
-        for (const cap of [P.leafLocTarget, P.leafLocMax, P.leafLocHard]) {
-          for (const b of alive) {
-            if (b === a || !fits(a, b, cap)) continue;
-            const s = commonPrefixLen(dirs[a] as string, dirs[b] as string);
-            if (better(b, s)) {
-              best = b;
-              bestScore = s;
-            }
-          }
-          if (best >= 0) break;
-        }
-      if (best < 0) continue;
-      // merge a into best
+      // above the soft maximum only for a tiny leaf
+      if (best >= 0 && (loc[a] as number) + (loc[best] as number) > P.leafLocMax && (loc[a] as number) >= minLoc / 2) continue;
+      // a leaf of another scope (examples, tooling) that is not tiny keeps its own chapter
+      if (best < 0 || (bestPref[0] === 0 && (loc[a] as number) >= minLoc / 4)) continue;
       members[best] = [...(members[best] as number[]), ...(members[a] as number[])];
       loc[best] = (loc[best] as number) + (loc[a] as number);
       tok[best] = (tok[best] as number) + (tok[a] as number);
@@ -247,7 +344,10 @@ function mergeSmall(
       }
       conn[best]?.delete(a);
       alive.delete(a);
-      dirs[best] = domDir(members[best] as number[]);
+      mergeStats(st[best] as SetStats, st[a] as SetStats);
+      dirs[best] = dominantSegs(st[best] as SetStats);
+      scopes[best] = majority((st[best] as SetStats).scopes, false);
+      families[best] = majority((st[best] as SetStats).families, true);
       merged = true;
     }
     if (!merged) break;
@@ -255,73 +355,64 @@ function mergeSmall(
   return [...alive].map((i) => (members[i] as number[]).sort((x, y) => x - y)).sort((x, y) => (x[0] as number) - (y[0] as number));
 }
 
-/** Leaf partition for one γ (Louvain → BFS split → size post-processing). */
 interface RunResult {
+  /** Leaves as atom lists. */
   leaves: number[][];
-  oversize: boolean[];
-  /** LOC-weighted median community size before merging (monotone in γ; steers the search). */
-  raw: number;
+  /** Modularity of the leaf partition on the dependency graph (γ = 1). */
+  q: number;
 }
 
-function labelsOf(leaves: readonly number[][], n: number): Int32Array {
-  const out = new Int32Array(n);
-  leaves.forEach((l, i) => {
-    for (const v of l) out[v] = i;
-  });
-  return out;
+interface Stats {
+  median: number;
+  inRange: number;
 }
 
-function runFrom(c: ClusterInput, ug: UGraph, gamma: number, domDir: (xs: readonly number[]) => string, init: Int32Array | null): RunResult {
-  const P = c.tuning;
-  const labels = splitDisconnected(
-    ug,
-    louvain(ug, { gamma, maxSize: P.leafLocHard, order: c.order, init, hysteresis: P.hysteresis, maxLevels: P.maxLevels }),
-    c.order,
-  );
-  let leaves = groupsOf(labels, c.order).flatMap((l) => splitLarge(ug, l, c.order, c.sigTokens, gamma, P));
-  const raw = weightedMedian(leaves.map((l) => sum(l, ug.size)));
-  leaves = mergeSmall(ug, leaves, c.fg.paths, domDir, P, c.sigTokens, unchangedWarmLeaf(c));
-  return { leaves, oversize: leaves.map((l) => l.length === 1 && (ug.size[l[0] as number] as number) > P.leafLocHard), raw };
-}
-
-/**
- * A leaf that is exactly a previous leaf (every member warm-started in the same community, none missing) was already
- * below the minimum and survived: merging it now would only churn its id (spec §6.6 requirement 2).
- */
-function unchangedWarmLeaf(c: ClusterInput): (leaf: readonly number[]) => boolean {
-  const warmCount = new Map<number, number>();
-  for (let v = 0; v < c.init.length; v++) if (c.warm[v]) warmCount.set(c.init[v] as number, (warmCount.get(c.init[v] as number) ?? 0) + 1);
-  return (leaf) => {
-    const label = c.init[leaf[0] as number] as number;
-    return leaf.every((v) => c.warm[v] === 1 && c.init[v] === label) && warmCount.get(label) === leaf.length;
-  };
-}
-
-/** Size of the community holding the median LOC unit (tiny communities barely move it). */
-function weightedMedian(sizes: readonly number[]): number {
-  const sorted = [...sizes].sort((a, b) => a - b);
-  const total = sorted.reduce((a, b) => a + b, 0);
-  let acc = 0;
-  for (const x of sorted) {
-    acc += x;
-    if (acc >= total / 2) return x;
-  }
-  return 0;
-}
-
-function stats(leaves: readonly number[][], size: Float64Array, P: Tuning): { median: number; inRange: number } {
+function stats(leaves: readonly number[][], size: Float64Array, P: Tuning, minLoc: number): Stats {
   const locs = leaves.map((l) => sum(l, size)).sort((a, b) => a - b);
   if (locs.length === 0) return { median: 0, inRange: 1 };
   const mid = locs.length >> 1;
   const median = locs.length % 2 === 1 ? (locs[mid] as number) : ((locs[mid - 1] as number) + (locs[mid] as number)) / 2;
-  const inRange = locs.filter((x) => x >= P.leafLocMin / 2 && x <= P.leafLocHard).length / locs.length;
+  const inRange = locs.filter((x) => x >= minLoc / 2 && x <= P.leafLocHard).length / locs.length;
   return { median, inRange };
 }
 
-/** Cluster the file graph into leaves, searching γ (spec §6.2 "γ の決め方"). */
-export function clusterLeaves(c: ClusterInput, domDir: (xs: readonly number[]) => string): ClusterResult {
+/** Atom labels from node labels: the label holding most of the atom's LOC (ties: smallest label). */
+function atomLabels(atoms: Atoms, labels: Int32Array, size: Float64Array): Int32Array {
+  return Int32Array.from(atoms.members, (m) => {
+    const by = new Map<number, number>();
+    for (const v of m) by.set(labels[v] as number, (by.get(labels[v] as number) ?? 0) + (size[v] as number));
+    return [...by].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 0;
+  });
+}
+
+const FAMILY: Record<string, string> = { typescript: "js", tsx: "js", javascript: "js", jsx: "js" };
+
+/** LOC histograms of a set of graph nodes. */
+function nodeStats(c: ClusterInput, nodes: readonly number[]): SetStats {
+  const out: SetStats = { dirs: new Map(), scopes: new Map(), families: new Map(), key: "", loc: 0 };
+  for (const v of nodes) {
+    const p = c.fg.paths[v] as string;
+    const f = c.files.get(p);
+    const w = Math.max(1, f?.loc ?? 0);
+    for (let d = dirOf(p); ; d = dirOf(d)) {
+      out.dirs.set(d, (out.dirs.get(d) ?? 0) + w);
+      if (d === "") break;
+    }
+    const scope = f?.scope ?? "main";
+    out.scopes.set(scope, (out.scopes.get(scope) ?? 0) + w);
+    const lang = f?.lang ?? "generic";
+    const fam = lang === "generic" ? "" : (FAMILY[lang] ?? lang);
+    out.families.set(fam, (out.families.get(fam) ?? 0) + w);
+    if (out.key === "" || p < out.key) out.key = p;
+    out.loc += w;
+  }
+  return out;
+}
+
+/** Cluster the file graph into leaves, searching γ (spec §6.2 "γ の決め方"; selection: modularity among size-valid γ). */
+export function clusterLeaves(c: ClusterInput): ClusterResult {
   const P = c.tuning;
-  const { ug, dep } = undirected(c.fg);
+  const { ug, dep } = undirected(c.fg, nodeScope(c.fg, c.files));
   const n = c.fg.paths.length;
   const total = sum(
     Array.from({ length: n }, (_, i) => i),
@@ -329,48 +420,102 @@ export function clusterLeaves(c: ClusterInput, domDir: (xs: readonly number[]) =
   );
   if (n === 0) return { leaves: [], oversize: [], gamma: 1, ug, dep };
   if (total < P.leafLocMin) return { leaves: [Array.from({ length: n }, (_, i) => i)], oversize: [false], gamma: c.gammaHint ?? 1, ug, dep };
-  type Stats = ReturnType<typeof stats>;
+  // a small repo still gets a few chapters (IDX-AT-32: flask / m3e have ≥ 3 leaves)
+  const minLoc = Math.min(P.leafLocMin, Math.max(P.leafLocMin / 4, total / 6));
+  const atoms = buildAtoms({ fg: c.fg, files: c.files, ug, order: c.order, sig: c.sigTokens, tuning: P });
+  const A = atoms.members.length;
+  const ag = contract(ug, atoms);
+  const ad = contract(dep, atoms);
+  const aOrder = Int32Array.from(atoms.members, (m) => Math.min(...m.map((v) => c.order[v] as number)));
+  const aSig = Float64Array.from(atoms.members, (m) => sum(m, c.sigTokens));
+  const aInit = atomLabels(atoms, c.init, c.fg.size);
+  const aWarm = Uint8Array.from(atoms.members, (m) => (m.every((v) => c.warm[v] === 1 && c.init[v] === c.init[m[0] as number]) ? 1 : 0));
+  const view: AtomView = { ag, order: aOrder, sig: aSig, stats: atoms.members.map((m) => nodeStats(c, m)) };
+  // a leaf that is exactly a previous small leaf survived as such: merging it now would only churn its id (§6.6-2)
+  const warmCount = new Map<number, number>();
+  for (let a = 0; a < A; a++) if (aWarm[a]) warmCount.set(aInit[a] as number, (warmCount.get(aInit[a] as number) ?? 0) + 1);
+  const exempt = (leaf: readonly number[]) => {
+    const label = aInit[leaf[0] as number] as number;
+    return leaf.every((a) => aWarm[a] === 1 && aInit[a] === label) && warmCount.get(label) === leaf.length;
+  };
+  /** Size post-processing + the γ = 1 polish of a partition (atom labels). */
+  const settle = (labels: Int32Array, gamma: number, visit: Int32Array): RunResult => {
+    let leaves = groupsOf(labels, aOrder).flatMap((l) => splitLarge(view, l, gamma, P));
+    leaves = mergeSmall(view, leaves, P, minLoc, exempt);
+    // polish: single-atom moves at γ = 1 (the reported modularity) within the soft cap, then the size rules again
+    const cur = new Int32Array(A);
+    leaves.forEach((l, i) => {
+      for (const a of l) cur[a] = i;
+    });
+    const polished = splitDisconnected(
+      ag,
+      louvain(ag, { gamma: 1, maxSize: P.leafLocMax, order: visit, init: cur, hysteresis: P.hysteresis, maxLevels: 1 }),
+      aOrder,
+    );
+    leaves = groupsOf(polished, aOrder).flatMap((l) => splitLarge(view, l, gamma, P));
+    leaves = mergeSmall(view, leaves, P, minLoc, exempt);
+    const out = new Int32Array(A);
+    leaves.forEach((l, i) => {
+      for (const a of l) out[a] = i;
+    });
+    return { leaves, q: modularity(ad, out) };
+  };
+  const run = (gamma: number, init: Int32Array | null, visit: Int32Array): RunResult =>
+    settle(
+      splitDisconnected(ag, louvain(ag, { gamma, maxSize: P.leafLocMax, order: visit, init, hysteresis: P.hysteresis, maxLevels: P.maxLevels }), aOrder),
+      gamma,
+      visit,
+    );
   type Best = { gamma: number; r: RunResult; s: Stats };
-  const ok = (s: Stats) => s.median >= P.leafLocMin && s.median <= P.leafLocMax && s.inRange >= 0.8;
+  const ok = (s: Stats) => s.median >= minLoc && s.median <= P.leafLocMax && s.inRange >= 0.8;
   const dist = (s: Stats) => Math.abs(Math.log(Math.max(1, s.median) / P.leafLocTarget));
-  const state: { best: Best | null } = { best: null };
-  const consider = (gamma: number): { stats: Stats; best: Best; raw: number } => {
-    const r = runFrom(c, ug, gamma, domDir, c.init);
-    const st = stats(r.leaves, c.fg.size, P);
-    const cur = state.best;
-    if (!cur || (ok(st) && !ok(cur.s)) || (ok(st) === ok(cur.s) && dist(st) < dist(cur.s) - 1e-12)) state.best = { gamma, r, s: st };
-    return { stats: st, best: state.best as Best, raw: r.raw };
+  const better = (x: Best, y: Best | null) => {
+    if (y === null) return true;
+    if (ok(x.s) !== ok(y.s)) return ok(x.s);
+    if (!ok(x.s)) return dist(x.s) < dist(y.s) - 1e-12;
+    if (Math.abs(x.r.q - y.r.q) > TIE) return x.r.q > y.r.q;
+    return dist(x.s) < dist(y.s) - 1e-12;
   };
-  /**
-   * First clustering only (no previous leaves, no seeds): the DirPartition start is a heuristic, so the singleton start
-   * is tried at the chosen γ as well and wins when its partition has the higher modularity without breaking the size
-   * constraints. Warm starts are never replaced (id stability).
-   */
-  const polish = (b: Best): ClusterResult => {
-    if (!c.fresh) return finish(b, ug, dep);
-    const alt = runFrom(c, ug, b.gamma, domDir, null);
-    const st = stats(alt.leaves, c.fg.size, P);
-    const better = modularity(ug, labelsOf(alt.leaves, ug.n)) > modularity(ug, labelsOf(b.r.leaves, ug.n)) + TIE && (ok(st) || !ok(b.s));
-    return finish(better ? { gamma: b.gamma, r: alt, s: st } : b, ug, dep);
+  const consider = (gamma: number, init: Int32Array | null, visit: Int32Array = aOrder): Best => {
+    const r = run(gamma, init, visit);
+    return { gamma, r, s: stats(r.leaves, ag.size, P, minLoc) };
   };
-  if (c.gammaHint !== undefined) {
-    const { stats: st, best } = consider(c.gammaHint);
-    if (ok(st)) return polish(best);
+  let best: Best | null = null;
+  if (!c.fresh) {
+    // a warm start keeps the previous leaves and only settles them (sizes, γ = 1 polish with hysteresis): a forced or
+    // > 10 % refresh of an unchanged region is then a fixed point, and ids follow the members (spec §6.6-2)
+    const gamma = c.gammaHint ?? 1;
+    const r = settle(aInit, gamma, aOrder);
+    const b = { gamma, r, s: stats(r.leaves, ag.size, P, minLoc) };
+    if (ok(b.s)) return finish(b, atoms, c.fg, ug, dep, P);
+    best = b;
   }
-  let lo = Math.log(P.gammaMin);
-  let hi = Math.log(P.gammaMax);
-  let last: Best | null = null;
-  for (let step = 0; step < P.gammaSteps; step++) {
-    const mid = (lo + hi) / 2;
-    // the final median is not monotone in γ (merging re-grows small leaves): steer on the pre-merge weighted median
-    const { best, raw } = consider(Math.round(Math.exp(mid) * 1e6) / 1e6);
-    last = best;
-    if (raw > P.leafLocTarget) lo = mid;
-    else hi = mid;
+  // a first clustering starts from the atoms alone (they already carry the directory structure); a warm one from
+  // the previous leaves
+  // (several fixed visit orders per γ: Louvain is greedy, and a first clustering has no previous leaves to keep)
+  const start = c.fresh ? null : aInit;
+  for (const g of GAMMA_GRID) {
+    const b = consider(g, start);
+    if (better(b, best)) best = b;
   }
-  return polish(last as Best);
+  // a first clustering also tries a few other fixed visit orders at the chosen γ (Louvain is greedy)
+  if (c.fresh)
+    for (const k of FRESH_ORDERS.slice(1)) {
+      const b = consider((best as Best).gamma, start, permutedOrder(aOrder, k));
+      if (better(b, best)) best = b;
+    }
+  return finish(best as Best, atoms, c.fg, ug, dep, P);
 }
 
-function finish(b: { gamma: number; r: RunResult }, ug: UGraph, dep: UGraph): ClusterResult {
-  return { leaves: b.r.leaves, oversize: b.r.oversize, gamma: b.gamma, ug, dep };
+function finish(b: { gamma: number; r: RunResult }, atoms: Atoms, fg: FileGraph, ug: UGraph, dep: UGraph, P: Tuning): ClusterResult {
+  const leaves = b.r.leaves
+    .map((l) => l.flatMap((a) => atoms.members[a] as number[]).sort((x, y) => x - y))
+    .sort((x, y) => (x[0] as number) - (y[0] as number));
+  return {
+    leaves,
+    oversize: leaves.map((l) => l.length === 1 && (fg.size[l[0] as number] as number) > P.leafLocHard),
+    gamma: b.gamma,
+    ug,
+    dep,
+  };
 }

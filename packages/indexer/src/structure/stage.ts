@@ -8,13 +8,15 @@ import { type ModuleDetail, type ModuleSeed, PAGERANK_PERSONALIZATION, STRUCTURE
 import type { FactsResult } from "../facts/stage.ts";
 import { dirOf, type StageFile } from "../resolve/files.ts";
 import type { ResolveResult } from "../resolve/stage.ts";
-import { clusterLeaves, dirPartition, undirected } from "./cluster.ts";
+import { clusterLeaves, dirPartition, nodeScope, undirected } from "./cluster.ts";
 import { moduleDigests } from "./digests.ts";
 import { buildFileGraph, edgeWeight, type FileGraph } from "./graph.ts";
-import { groupLevel } from "./hierarchy.ts";
+import { directoryTree, groupLevel, type TreeParent } from "./hierarchy.ts";
 import { assignIdentities, type Community, type Identity, type IdentityContext, type PrevModule } from "./identity.ts";
 import { carryOver } from "./incremental.ts";
+import { slugify } from "./index.ts";
 import { modularity } from "./louvain.ts";
+import { moduleNames } from "./naming.ts";
 import { pagerank } from "./pagerank.ts";
 import { q } from "./quantize.ts";
 import { bottomUpOrder } from "./scc.ts";
@@ -110,7 +112,11 @@ export function crossCutting(paths: readonly RepoPath[], loc: (p: RepoPath) => n
     total += w;
     const segs = p.split("/");
     if (segs.length >= 2) d1.set(segs[0] as string, (d1.get(segs[0] as string) ?? 0) + w);
-    if (segs.length >= 3) d2.set(`${segs[0]}/${segs[1]}`, (d2.get(`${segs[0]}/${segs[1]}`) ?? 0) + w);
+    // a file directly in a depth-1 directory counts for that directory (`web/app.js` is in `web`, not in no depth-2 dir)
+    if (segs.length >= 2) {
+      const k = segs.length >= 3 ? `${segs[0]}/${segs[1]}` : (segs[0] as string);
+      d2.set(k, (d2.get(k) ?? 0) + w);
+    }
   }
   const top = [...d1].sort((a, b) => b[1] - a[1] || byPath(a[0], b[0])).map(([d]) => d);
   const cross = d1.size >= 2 && [...d2.values()].every((w) => w < STRUCTURE_PARAMS.dominantDirShare * total);
@@ -196,11 +202,6 @@ export function buildStructure(input: StructureInput): StructureResult {
     warm[i] = key.startsWith("p:") ? 1 : 0;
   });
   const sig = Float64Array.from(fg.paths, (p) => sigTokens(files.get(p) as StageFile));
-  const domDirOfNodes = (xs: readonly number[]) =>
-    dominantDir(
-      xs.map((i) => fg.paths[i] as string),
-      locOf,
-    );
   const blobOf = (p: RepoPath) => files.get(p)?.blob ?? "";
   const carried = carryOver({
     fg,
@@ -213,24 +214,22 @@ export function buildStructure(input: StructureInput): StructureResult {
   });
   const raw = carried
     ? {
-        ...undirected(fg),
+        ...undirected(fg, nodeScope(fg, files)),
         leaves: carried,
         oversize: carried.map((l) => l.length === 1 && (fg.size[l[0] as number] as number) > tuning.leafLocHard),
         gamma: input.prev.gamma ?? 1,
       }
-    : clusterLeaves(
-        {
-          fg,
-          order,
-          init,
-          warm,
-          sigTokens: sig,
-          tuning,
-          fresh: warmKey.size === 0,
-          ...(input.prev.gamma !== undefined ? { gammaHint: input.prev.gamma } : {}),
-        },
-        domDirOfNodes,
-      );
+    : clusterLeaves({
+        fg,
+        files,
+        order,
+        init,
+        warm,
+        sigTokens: sig,
+        tuning,
+        fresh: warmKey.size === 0,
+        ...(input.prev.gamma !== undefined ? { gammaHint: input.prev.gamma } : {}),
+      });
   const mergedLeaves = applyMergeInto(raw.leaves, fg, input.overrides, notices);
   const clustered = {
     ...raw,
@@ -241,7 +240,8 @@ export function buildStructure(input: StructureInput): StructureResult {
 
   // leaf communities
   const leafPaths = clustered.leaves.map((l) => l.map((i) => fg.paths[i] as RepoPath).sort(byPath));
-  const leafComms: Community[] = leafPaths.map((paths) => communityOf(paths, true, files, fg, rankOf, locOf));
+  const subtreeLoc = subtreeLocOf(fg);
+  const leafComms: Community[] = communitiesOf(leafPaths, true, rankOf, locOf, subtreeLoc);
 
   // identities (shared id / slug spaces across levels)
   const prevAll = seeded ? seedPrev : input.prev.modules;
@@ -300,7 +300,7 @@ export function buildStructure(input: StructureInput): StructureResult {
   });
 
   // parents (≤ 2 extra levels)
-  const parents = buildParents(input, leafPaths, leafEdgesIdx, fg, files, rankOf, locOf, ctx, prevAll, order, clustered.leaves, tuning);
+  const parents = buildParents(input, leafComms, leafEdgesIdx, rankOf, locOf, subtreeLoc, ctx, prevAll, order, clustered.leaves, tuning);
 
   // tests → leaves
   const moduleOf = new Map<RepoPath, ModuleId>();
@@ -521,61 +521,40 @@ function repsOf(paths: readonly RepoPath[], rankOf: (p: RepoPath) => number): Re
     .sort(byPath);
 }
 
-/** A community's anchor (PageRank max, path asc), dominant dir and provisional name. */
-function communityOf(
-  paths: readonly RepoPath[],
+/** LOC of every directory's subtree over the graph files (`.` = the root). */
+function subtreeLocOf(fg: FileGraph): (dir: string) => number {
+  const acc = new Map<string, number>();
+  fg.paths.forEach((p, i) => {
+    for (let d = dirOf(p); ; d = dirOf(d)) {
+      acc.set(d, (acc.get(d) ?? 0) + (fg.size[i] as number));
+      if (d === "") break;
+    }
+  });
+  return (dir) => acc.get(dir === "." ? "" : dir) ?? 0;
+}
+
+/** Communities of one level: anchor (PageRank max, path asc), dominant dir, provisional name and slug base. */
+function communitiesOf(
+  sets: readonly (readonly RepoPath[])[],
   leaf: boolean,
-  files: ReadonlyMap<RepoPath, StageFile>,
-  fg: FileGraph,
   rankOf: (p: RepoPath) => number,
   locOf: (p: RepoPath) => number,
-): Community {
-  const anchor = [...paths].sort((a, b) => rankOf(b) - rankOf(a) || byPath(a, b))[0] ?? "";
-  const dom = dominantDir(paths, locOf);
-  const cc = crossCutting(paths, locOf);
-  const dirName = cc.cross ? cc.top.slice(0, 2).join(" + ") : dom === "." ? anchor : dom;
-  const sym = representativeSymbol(paths, files, fg);
-  return { members: paths, anchor, dominantDir: dom, name: sym ? `${dirName} · ${sym}` : dirName, leaf };
-}
-
-/** Inbound edge lists and referenced-name sets per graph node (computed once per graph). */
-const aux = new WeakMap<FileGraph, { inbound: number[][]; refNames: (Set<string> | undefined)[] }>();
-
-function graphAux(fg: FileGraph): { inbound: number[][]; refNames: (Set<string> | undefined)[] } {
-  let a = aux.get(fg);
-  if (a) return a;
-  const inbound: number[][] = fg.paths.map(() => []);
-  fg.out.forEach((m, i) => {
-    for (const j of m.keys()) inbound[j]?.push(i);
-  });
-  a = { inbound, refNames: [] };
-  aux.set(fg, a);
-  return a;
-}
-
-/** Exported top-level symbol with the largest fan-in (files with an edge into its file that reference its name). */
-function representativeSymbol(paths: readonly RepoPath[], files: ReadonlyMap<RepoPath, StageFile>, fg: FileGraph): string | undefined {
-  const { inbound, refNames } = graphAux(fg);
-  const namesOf = (i: number): Set<string> => {
-    let s = refNames[i];
-    if (!s) {
-      s = new Set((files.get(fg.paths[i] as string)?.refs ?? []).map((r) => r.name));
-      refNames[i] = s;
-    }
-    return s;
-  };
-  let best: { name: string; fanIn: number } | undefined;
-  for (const p of paths) {
-    const j = fg.index.get(p);
-    const callers = j === undefined ? [] : (inbound[j] ?? []);
-    for (const s of files.get(p)?.symbols ?? []) {
-      if (!s.exported || s.parent !== undefined || s.kind === "field") continue;
-      let fan = 0;
-      for (const c of callers) if (namesOf(c).has(s.name)) fan++;
-      if (!best || fan > best.fanIn || (fan === best.fanIn && s.name < best.name)) best = { name: s.name, fanIn: fan };
-    }
-  }
-  return best && best.fanIn > 0 ? best.name : undefined;
+  subtreeLoc: (dir: string) => number,
+): Community[] {
+  const base = sets.map((paths) => ({
+    paths,
+    anchor: [...paths].sort((a, b) => rankOf(b) - rankOf(a) || byPath(a, b))[0] ?? "",
+    dominantDir: dominantDir(paths, locOf),
+  }));
+  const names = moduleNames(base, locOf, subtreeLoc);
+  return base.map((b, i) => ({
+    members: b.paths,
+    anchor: b.anchor,
+    dominantDir: b.dominantDir,
+    name: names[i]?.name ?? b.dominantDir,
+    ...(names[i]?.slugBase ? { slugBase: names[i]?.slugBase } : {}),
+    leaf,
+  }));
 }
 
 /** Test files join their subject's leaf, else the import majority, else a module of the same directory (spec §5.4). */
@@ -647,17 +626,17 @@ interface Parents {
   parentOfParent: Map<ModuleId, ModuleId>;
 }
 
-type Unit = { leaves: number[]; leaf?: number; parent?: ModuleId };
-
-/** Parent levels over the leaves (spec §6.3-6); identities matched like leaves (LOC-weighted members). */
+/**
+ * Parent levels over the leaves (spec §6.3-6): the directory tree first (`hierarchy.ts directoryTree`), the leaf
+ * graph when the tree does not separate the leaves. Identities are matched once for all levels (LOC-weighted members).
+ */
 function buildParents(
   input: StructureInput,
-  leafPaths: readonly RepoPath[][],
+  leafComms: readonly Community[],
   leafEdges: readonly [number, number, number][],
-  fg: FileGraph,
-  files: ReadonlyMap<RepoPath, StageFile>,
   rankOf: (p: RepoPath) => number,
   locOf: (p: RepoPath) => number,
+  subtreeLoc: (dir: string) => number,
   ctx: IdentityContext,
   prevAll: readonly PrevModule[],
   order: Int32Array,
@@ -665,63 +644,71 @@ function buildParents(
   P: Tuning,
 ): Parents {
   const out: Parents = { ids: [], nodes: [], parentOfLeaf: new Map(), parentOfParent: new Map() };
-  let units: Unit[] = leafPaths.map((_, i) => ({ leaves: [i], leaf: i }));
-  let unitEdges: (readonly [number, number, number])[] = leafEdges.map(([a, b, w]) => [a, b, w] as const);
+  let tree: TreeParent[] = directoryTree(
+    leafComms.map((c) => c.dominantDir),
+    P,
+  );
+  if (tree.length === 0 && leafComms.length > P.fanoutTarget) tree = graphParents(leafComms, leafEdges, locOf, order, leaves, P);
+  if (tree.length === 0) return out;
+  const leafMembers = (t: TreeParent): number[] => [...t.leaves, ...t.parents.flatMap((p) => leafMembers(tree[p] as TreeParent))];
+  const members = tree.map((t) =>
+    leafMembers(t)
+      .flatMap((li) => (leafComms[li] as Community).members)
+      .sort(byPath),
+  );
+  // a directory parent is named after its directory; a graph parent like a module of its own
+  const named = communitiesOf(members, false, rankOf, locOf, subtreeLoc);
+  const comms = tree.map((t, i): Community => {
+    const c = named[i] as Community;
+    return t.dir === "" ? c : { ...c, name: t.dir, slugBase: slugify(t.dir, c.anchor) };
+  });
   const prevParents = prevAll.filter((m) => !m.leaf && !expired(m, input.now));
-  const firstOrder = (li: number) => Math.min(...(leaves[li] as number[]).map((v) => order[v] as number));
-  for (let level = 1; level < P.maxDepth && units.length > P.fanoutTarget; level++) {
-    const unitPaths = units.map((u) => u.leaves.flatMap((li) => leafPaths[li] as RepoPath[]));
-    const d1Ids = new Map<string, number>();
-    const init = Int32Array.from(unitPaths, (ps) => {
-      const d = dominantDir(ps, locOf).split("/")[0] as string;
-      if (!d1Ids.has(d)) d1Ids.set(d, d1Ids.size);
-      return d1Ids.get(d) as number;
+  const assigned = assignIdentities(comms, prevParents, ctx);
+  out.ids.push(...assigned.ids);
+  tree.forEach((t, i) => {
+    const id = (assigned.ids[i] as Identity).id;
+    for (const li of t.leaves) out.parentOfLeaf.set(li, id);
+    for (const pi of t.parents) out.parentOfParent.set((assigned.ids[pi] as Identity).id, id);
+    out.nodes.push({
+      id: assigned.ids[i] as Identity,
+      comm: comms[i] as Community,
+      paths: members[i] as RepoPath[],
+      rankRaw: (members[i] as RepoPath[]).reduce((acc, p) => acc + rankOf(p), 0),
+      level: t.level,
     });
-    const und = new Map<number, number>();
-    const N = units.length;
-    for (const [a, b, w] of unitEdges) if (a !== b) und.set(a < b ? a * N + b : b * N + a, (und.get(a < b ? a * N + b : b * N + a) ?? 0) + w);
-    const groups = groupLevel(
-      {
-        edges: [...und].sort((x, y) => x[0] - y[0]).map(([k, w]) => [Math.floor(k / N), k % N, w] as const),
-        size: Float64Array.from(unitPaths, (ps) => ps.reduce((acc, p) => acc + Math.max(1, locOf(p)), 0)),
-        init,
-        order: Int32Array.from(units, (u) => Math.min(...u.leaves.map(firstOrder))),
-      },
-      P,
-    );
-    if (groups.length === 0) break;
-    const members = groups.map((g) => g.flatMap((u) => unitPaths[u] as RepoPath[]).sort(byPath));
-    const comms = members.map((ps) => communityOf(ps, false, files, fg, rankOf, locOf));
-    const assigned = assignIdentities(comms, prevParents, ctx);
-    out.ids.push(...assigned.ids);
-    const remap = new Map<number, number>();
-    const next: Unit[] = [];
-    groups.forEach((g, gi) => {
-      const id = (assigned.ids[gi] as Identity).id;
-      for (const u of g) {
-        const unit = units[u] as Unit;
-        if (unit.leaf !== undefined) out.parentOfLeaf.set(unit.leaf, id);
-        if (unit.parent !== undefined) out.parentOfParent.set(unit.parent, id);
-        remap.set(u, next.length);
-      }
-      out.nodes.push({
-        id: assigned.ids[gi] as Identity,
-        comm: comms[gi] as Community,
-        paths: members[gi] as RepoPath[],
-        rankRaw: (members[gi] as RepoPath[]).reduce((acc, p) => acc + rankOf(p), 0),
-        level,
-      });
-      next.push({ leaves: g.flatMap((u) => (units[u] as Unit).leaves), parent: id });
-    });
-    units.forEach((u, i) => {
-      if (remap.has(i)) return;
-      remap.set(i, next.length);
-      next.push(u);
-    });
-    unitEdges = unitEdges.map(([a, b, w]) => [remap.get(a) as number, remap.get(b) as number, w] as const).filter(([a, b]) => a !== b);
-    units = next;
-  }
+  });
   return out;
+}
+
+/** One level of graph parents (Louvain over the leaf graph, warm start = depth-1 directory), as tree parents. */
+function graphParents(
+  leafComms: readonly Community[],
+  leafEdges: readonly [number, number, number][],
+  locOf: (p: RepoPath) => number,
+  order: Int32Array,
+  leaves: readonly number[][],
+  P: Tuning,
+): TreeParent[] {
+  const N = leafComms.length;
+  const d1Ids = new Map<string, number>();
+  const init = Int32Array.from(leafComms, (c) => {
+    const d = c.dominantDir.split("/")[0] as string;
+    if (!d1Ids.has(d)) d1Ids.set(d, d1Ids.size);
+    return d1Ids.get(d) as number;
+  });
+  const und = new Map<number, number>();
+  for (const [a, b, w] of leafEdges) if (a !== b) und.set(a < b ? a * N + b : b * N + a, (und.get(a < b ? a * N + b : b * N + a) ?? 0) + w);
+  const firstOrder = (li: number) => Math.min(...(leaves[li] as number[]).map((v) => order[v] as number));
+  const groups = groupLevel(
+    {
+      edges: [...und].sort((x, y) => x[0] - y[0]).map(([k, w]) => [Math.floor(k / N), k % N, w] as const),
+      size: Float64Array.from(leafComms, (c) => c.members.reduce((acc, p) => acc + Math.max(1, locOf(p)), 0)),
+      init,
+      order: Int32Array.from(leafComms, (_, li) => firstOrder(li)),
+    },
+    P,
+  );
+  return groups.map((g) => ({ dir: "", leaves: g, parents: [], level: 1 }));
 }
 
 /** ModuleDetail rows of the parents (children, ranks per level, digests). */
