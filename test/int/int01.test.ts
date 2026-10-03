@@ -2,7 +2,9 @@
 // facts) over the same routes the web app uses; shell ≤ 0.3 s, first useful screen ≤ 3 s target / 5 s limit;
 // the static doc round-trips (load → save diff 0). go-small always; crit when the corpus clone exists.
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { DocOutline, Fact, MapView, UsageSummary } from "@mitori/core";
 import { buildFixture, type FixtureRepo } from "@mitori/testkit";
 import { corpusDir } from "../../packages/indexer/src/parse/test/corpus.ts";
@@ -15,6 +17,7 @@ const CRIT = corpusDir("crit") ?? "/nonexistent";
 let int: Int;
 let repo: FixtureRepo;
 const spawner = fakeClaude();
+const cleanup: string[] = [];
 beforeAll(async () => {
   repo = await buildFixture("go-small");
   int = await startInt({ spawner });
@@ -22,6 +25,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await int?.close();
   await repo?.dispose();
+  for (const d of cleanup) rmSync(d, { recursive: true, force: true });
 });
 
 async function firstScreen(root: string) {
@@ -79,7 +83,11 @@ describe("INT-01 real repo → zero-token map + TOC + facts", () => {
   test.skipIf(!existsSync(CRIT))(
     "crit (100k LOC class): first useful screen ≤ 5 s (target 3 s)",
     async () => {
-      const r = await firstScreen(CRIT);
+      // a local clone: the corpus checkout stays untouched (the open writes `.mitori/`)
+      const root = mkdtempSync(join(tmpdir(), "mitori-int01-"));
+      expect(Bun.spawnSync(["git", "clone", "-q", "--local", CRIT, `${root}/crit`]).exitCode).toBe(0);
+      const r = await firstScreen(`${root}/crit`).finally(() => undefined);
+      cleanup.push(root);
       console.log(
         `[INT-01] crit shell=${r.shellMs.toFixed(0)}ms open=${r.openMs.toFixed(0)}ms firstScreen=${r.screenMs.toFixed(0)}ms modules=${r.map.modules.length} facts=${r.facts.length}`,
       );
