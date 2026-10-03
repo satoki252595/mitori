@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# nd — run a command inside the (cached) nix devShell environment.
+# The env is generated once per flake.nix+flake.lock hash and shared by all
+# worktrees, so parallel agents do not re-evaluate the flake (and do not copy
+# the repo into /nix/store) on every invocation.
+set -euo pipefail
+# nix's generated env needs bash >= 4 (macOS ships 3.2): re-exec under a modern bash.
+if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+  for b in "$HOME/.nix-profile/bin/bash" /run/current-system/sw/bin/bash /opt/homebrew/bin/bash /usr/local/bin/bash; do
+    [ -x "$b" ] && exec "$b" "$0" "$@"
+  done
+  echo "nd: bash >= 4 required" >&2; exit 1
+fi
+ROOT="$(git -C "$(dirname "${BASH_SOURCE[0]}")/.." rev-parse --show-toplevel)"
+want="$(cat "$ROOT/flake.nix" "$ROOT/flake.lock" 2>/dev/null | shasum -a 256 | cut -c1-16)"
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/mitori-nd/$want"
+ENVF="$CACHE/env.sh"
+if [ ! -s "$ENVF" ]; then
+  mkdir -p "$CACHE"
+  tmp="$(cd "$(mktemp -d)" && pwd -P)"
+  # evaluate from a minimal copy (flake.nix + flake.lock only) to keep the store small
+  cp "$ROOT/flake.nix" "$tmp/"; [ -f "$ROOT/flake.lock" ] && cp "$ROOT/flake.lock" "$tmp/"
+  nix print-dev-env "path:$tmp" > "$ENVF.tmp" && mv "$ENVF.tmp" "$ENVF"
+  rm -rf "$tmp"
+fi
+cd "${ND_CWD:-$PWD}"
+# shellcheck disable=SC1090
+source "$ENVF"
+export PATH="$ROOT/node_modules/.bin:$PATH"
+exec "$@"

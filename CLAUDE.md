@@ -8,3 +8,7 @@
 - 秘密情報(.env / .dev.vars)はコミットしない。
 - Cloudflare リソースは `mitori-` を接頭辞にする。
 - 月1000円以上のコスト増になる操作は必ず事前承認。
+
+## コマンド実行
+- devShell のコマンドは **`scripts/nd <cmd>`** で実行する(`nix develop --command` は使わない。nd は flake の env を `~/.cache/mitori-nd/<hash>/` にキャッシュし、worktree 間で共有する。起動 ≈40ms)。
+- 設計の正本: `docs/design/`(contracts > REVIEW-LOG > ARCHITECTURE/ADR > specs)。作業分割は `docs/design/MILESTONES.md`。
