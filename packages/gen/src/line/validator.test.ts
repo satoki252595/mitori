@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { BlockAspect, BlockId, ModuleId, SectionId } from "@mitori/core";
 import type { CitableSet, ExistingRef, GenBlockLine, GenLineType, LineVerdict, ValidationContext } from "../contract.ts";
 import { sectionAspects } from "./aspects.ts";
-import { parseCompactClaim } from "./claims.ts";
+import { parseCiteObject, parseCompactClaim } from "./claims.ts";
 import { createLineValidator } from "./index.ts";
 
 const MOD = "md_7hq2m4xa" as ModuleId;
@@ -227,6 +227,20 @@ describe("GEN-U-040 compact claims grammar (PT-03)", () => {
       ],
     });
     expect(typeof parseCompactClaim("behavior 10-20")).toBe("string"); // no previous file
+  });
+
+  test("whitespace alone separates cites; a question cite may be the compact string (dogfood crit retries)", () => {
+    expect(parseCompactClaim("architecture internal/hooks/resolve.go:143-143 internal/hooks/run.go:49")).toEqual({
+      kind: "architecture",
+      cites: [
+        { path: "internal/hooks/resolve.go", start: 143, end: 143 },
+        { path: "internal/hooks/run.go", start: 49, end: 49 },
+      ],
+    });
+    expect(parseCiteObject("web/live-mode.sse.js:95")).toEqual({ cite: { path: "web/live-mode.sse.js", start: 95, end: 95 }, unknown: 0 });
+    expect(parseCiteObject(" cmd/crit/cli_dispatch.go:24-30 ")).toEqual({ cite: { path: "cmd/crit/cli_dispatch.go", start: 24, end: 30 }, unknown: 0 });
+    expect(typeof parseCiteObject("cmd/crit/cli_dispatch.go")).toBe("string");
+    expect(typeof parseCiteObject("a b.go:3")).toBe("string");
   });
 });
 

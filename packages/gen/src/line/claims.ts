@@ -3,7 +3,7 @@
  * {@link GenClaimDraft}[]. Grammar of one compact value: `<ClaimKind>[ <cite>(,<cite>)*]` with
  * `<cite> = <path>:<a>[-<b>]`; after a comma, a cite path without `/` reuses the previous cite's directory and a bare
  * range `<a>[-<b>]` reuses the previous cite's file (`a/b.go:10-20,40-52`; models write it unprompted, and it is the
- * shortest form) [dogfood 2026-10-04].
+ * shortest form). Cites may also be separated by whitespace alone (paths never contain spaces) [dogfood 2026-10-04].
  */
 import type { ClaimKind } from "@mitori/core";
 import type { RawCite } from "@mitori/doc";
@@ -54,7 +54,7 @@ export function parseCompactClaim(value: string): { kind: ClaimKind; cites: RawC
   if (rest === "") return { kind: kind as ClaimKind, cites: [] };
   const cites: RawCite[] = [];
   let dir = "";
-  for (const part of rest.split(",")) {
+  for (const part of rest.split(/\s*,\s*|\s+/)) {
     const seg = part.trim();
     const prev = cites[cites.length - 1];
     const bare = prev ? BARE_RANGE_RE.exec(seg) : null;
@@ -132,8 +132,18 @@ function parseFullClaim(c: unknown, at: string, maxCites: number): { claim: GenC
   return { claim: { n: n as number, kind: c.kind as ClaimKind, cites }, unknown };
 }
 
-/** Parse one `{path, start, end}` cite object (question lines and full-form claims). */
+/**
+ * Parse one cite of a question line or a full-form claim: a `{path, start, end}` object, or the compact
+ * `"<path>:<a>[-<b>]"` string models carry over from claims (dogfood 2026-10-04: 3 crit retries).
+ */
 export function parseCiteObject(x: unknown): { cite: RawCite; unknown: number } | string {
+  if (typeof x === "string") {
+    const m = CITE_RE.exec(x.trim());
+    const path = m?.[1]?.trim() ?? "";
+    if (!m || path === "" || /\s/.test(path)) return 'cite object {path, start, end} or "<path>:<a>-<b>"';
+    const start = Number(m[2]);
+    return { cite: { path, start, end: m[3] === undefined ? start : Number(m[3]) }, unknown: 0 };
+  }
   if (!isObject(x)) return "cite object {path, start, end}";
   const { path, start, end } = x;
   if (typeof path !== "string" || path.length < 1 || path.length > 512) return "cite path string (1..512)";
