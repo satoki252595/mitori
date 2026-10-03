@@ -65,7 +65,7 @@ describe("check-boundaries (WP-00a acceptance)", () => {
     expect(check("apps/web/src/shell/x.ts", 'import { createLoop } from "@mitori/loop";')).toEqual(["deps@1"]);
     expect(check("apps/web/src/x.svelte", '<script lang="ts">\n  import { x } from "@mitori/server";\n</script>\n<p>{x}</p>')).toEqual(["deps@2"]);
     expect(check("packages/anchor/src/x.ts", "const h = process.env.HOME;")).toEqual(["runtime-api@1"]);
-    expect(check("apps/web/src/x.ts", "const t = Date.now();")).toEqual([]);
+    expect(check("apps/web/src/x.ts", "const t = Date.now(); const k = crypto.randomUUID();")).toEqual([]);
   });
 
   test("classify: tests, testing.ts, testkit and zones are test code; data and declarations are ignored", () => {

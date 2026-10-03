@@ -143,6 +143,9 @@ export function checkSource(info: FileInfo, text: string): Violation[] {
   const deps: readonly string[] = own && own in PACKAGE_DEPS ? PACKAGE_DEPS[own as PackageName] : [];
   const runtimeOk = info.test || (own !== null && RUNTIME_OK.has(own));
   const ioOk = info.test || (own !== null && IO_OK.has(own));
+  // The browser app has no injected Clock/Random ports (UI timers, idempotency keys); it is exempt from the
+  // determinism rules but still may not write files or spawn (it cannot anyway).
+  const entropyOk = ioOk || own === "@mitori/web";
   const fsBindings = new Set<string>();
   const procBindings = new Set<string>();
 
@@ -244,10 +247,10 @@ export function checkSource(info: FileInfo, text: string): Violation[] {
         else if (BUN_IO.has(prop) && !ioOk) at(node, "direct-io", `Bun.${prop}: write/spawn only via @mitori/platform`);
       }
       if (obj === "process" && prop && !runtimeOk) at(node, "runtime-api", `process.${prop}: domain code is isomorphic (inject what you need)`);
-      if (!ioOk && obj === "crypto" && (prop === "getRandomValues" || prop === "randomUUID"))
+      if (!entropyOk && obj === "crypto" && (prop === "getRandomValues" || prop === "randomUUID"))
         at(node, "nondeterminism", `crypto.${prop}: use the Random port (core newId)`);
-      if (!ioOk && obj === "Math" && prop === "random") at(node, "nondeterminism", "Math.random: use the Random port");
-      if (!ioOk && obj === "Date" && prop === "now" && own !== "@mitori/web") at(node, "nondeterminism", "Date.now: use the Clock port");
+      if (!entropyOk && obj === "Math" && prop === "random") at(node, "nondeterminism", "Math.random: use the Random port");
+      if (!entropyOk && obj === "Date" && prop === "now") at(node, "nondeterminism", "Date.now: use the Clock port");
       if (root && !ioOk && (fsBindings.has(root.text) || procBindings.has(root.text))) {
         const banned = fsBindings.has(root.text) ? FS_WRITES : PROC_CALLS;
         const hit = parts?.slice(1).find((p) => banned.has(p));
