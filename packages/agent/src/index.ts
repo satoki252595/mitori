@@ -8,6 +8,9 @@ export * from "./bridge/index.ts";
 export * from "./claude/index.ts";
 export * from "./contract.ts";
 export * from "./ledger/index.ts";
+// CR-PENDING(WP-INT): provisional re-export of the WP-05 request #1 (cr-requests/WP-05.md, a factory for the usage
+// ledger) for the composition root; ratify (ledger/index.ts) or revert.
+export { createUsageLedger } from "./ledger/ledger.ts";
 export * from "./normalize/index.ts";
 export * from "./scheduler/index.ts";
 export * from "./usage/index.ts";

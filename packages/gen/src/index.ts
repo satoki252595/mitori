@@ -10,6 +10,9 @@ export * from "./ondemand/index.ts";
 export * from "./orchestrator/index.ts";
 export * from "./planner/index.ts";
 export * from "./prompts/index.ts";
+// CR-PENDING(WP-INT): provisional re-export of the WP-06 request R3 (cr-requests/WP-06.md) so the composition root can
+// build `GenDeps.prompts`; the architect ratifies it (move into prompts/index.ts) or reverts it.
+export { createPromptRenderer } from "./prompts/renderer.ts";
 export * from "./session/index.ts";
 export * from "./translate/index.ts";
 export * from "./verify/index.ts";
