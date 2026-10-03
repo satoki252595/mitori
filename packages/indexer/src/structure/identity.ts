@@ -142,12 +142,14 @@ export function assignIdentities(comms: readonly Community[], prev: readonly Pre
       if (score > 0) cands.push({ c: ci, o: oi, score });
     }
   });
+  // alive modules (Jaccard) are matched before tombstones (representative hits): the two scores are not comparable,
+  // and letting a tombstone's hit 1.0 beat an alive J 0.97 makes two ids swap back and forth across refreshes
   cands.sort((a, b) => {
     const pa = prev[a.o] as PrevModule;
     const pb = prev[b.o] as PrevModule;
     return (
-      b.score - a.score ||
       Number(pb.alive) - Number(pa.alive) ||
+      b.score - a.score ||
       (pa.id < pb.id ? -1 : pa.id > pb.id ? 1 : 0) ||
       ((comms[a.c] as Community).anchor < (comms[b.c] as Community).anchor ? -1 : 1)
     );

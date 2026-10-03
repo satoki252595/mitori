@@ -161,7 +161,14 @@ const commonPrefixLen = (a: string, b: string): number => {
 };
 
 /** Merge leaves below the soft minimum into their best neighbour (spec §6.3-2). */
-function mergeSmall(ug: UGraph, leaves: number[][], paths: readonly RepoPath[], domDir: (xs: readonly number[]) => string, P: Tuning): number[][] {
+function mergeSmall(
+  ug: UGraph,
+  leaves: number[][],
+  paths: readonly RepoPath[],
+  domDir: (xs: readonly number[]) => string,
+  P: Tuning,
+  exempt: (leaf: readonly number[]) => boolean = () => false,
+): number[][] {
   const leafOf = new Int32Array(ug.n).fill(-1);
   leaves.forEach((l, i) => {
     for (const v of l) leafOf[v] = i;
@@ -185,7 +192,7 @@ function mergeSmall(ug: UGraph, leaves: number[][], paths: readonly RepoPath[], 
       .sort((a, b) => (loc[a] as number) - (loc[b] as number) || ((key[a] as string) < (key[b] as string) ? -1 : 1));
     let merged = false;
     for (const a of small) {
-      if (!alive.has(a) || alive.size < 2) continue;
+      if (!alive.has(a) || alive.size < 2 || exempt(members[a] as number[])) continue;
       let best = -1;
       let bestScore = -1;
       const better = (b: number, score: number) => {
@@ -276,8 +283,21 @@ function runFrom(c: ClusterInput, ug: UGraph, gamma: number, domDir: (xs: readon
   );
   let leaves = groupsOf(labels, c.order).flatMap((l) => splitLarge(ug, l, c.order, c.sigTokens, gamma, P));
   const raw = weightedMedian(leaves.map((l) => sum(l, ug.size)));
-  leaves = mergeSmall(ug, leaves, c.fg.paths, domDir, P);
+  leaves = mergeSmall(ug, leaves, c.fg.paths, domDir, P, unchangedWarmLeaf(c));
   return { leaves, oversize: leaves.map((l) => l.length === 1 && (ug.size[l[0] as number] as number) > P.leafLocHard), raw };
+}
+
+/**
+ * A leaf that is exactly a previous leaf (every member warm-started in the same community, none missing) was already
+ * below the minimum and survived: merging it now would only churn its id (spec §6.6 requirement 2).
+ */
+function unchangedWarmLeaf(c: ClusterInput): (leaf: readonly number[]) => boolean {
+  const warmCount = new Map<number, number>();
+  for (let v = 0; v < c.init.length; v++) if (c.warm[v]) warmCount.set(c.init[v] as number, (warmCount.get(c.init[v] as number) ?? 0) + 1);
+  return (leaf) => {
+    const label = c.init[leaf[0] as number] as number;
+    return leaf.every((v) => c.warm[v] === 1 && c.init[v] === label) && warmCount.get(label) === leaf.length;
+  };
 }
 
 /** Size of the community holding the median LOC unit (tiny communities barely move it). */

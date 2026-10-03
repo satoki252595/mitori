@@ -1,6 +1,5 @@
-import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
-import { type ModuleId, SLUG_RE, type SqlDb } from "@mitori/core";
+import { type ModuleId, SLUG_RE } from "@mitori/core";
 import { imp, input, ref, sf } from "../resolve/test/stage-files.ts";
 import { assignIdentities, type Community, type IdentityContext, type PrevModule } from "./identity.ts";
 import { moduleIdFor, slugify } from "./index.ts";
@@ -8,6 +7,7 @@ import { buildUGraph, louvain, modularity, splitDisconnected } from "./louvain.t
 import { pagerank } from "./pagerank.ts";
 import { loadStructure, saveStructure } from "./persist.ts";
 import { bottomUpOrder, tarjan } from "./scc.ts";
+import { memDb } from "./test/db.ts";
 import { NOW, runPipeline, xxh3 } from "./test/pipeline.ts";
 import { TEST_TUNING } from "./tuning.ts";
 
@@ -196,34 +196,20 @@ describe("IDX-U structure stage on a small repo (TEST_TUNING)", () => {
     const second = runPipeline(smallRepo(), { tuning: TEST_TUNING, prev });
     expect(second.structure.modules.map((m) => [m.id, m.slug, m.paths])).toEqual(first.structure.modules.map((m) => [m.id, m.slug, m.paths]));
     expect(second.structure.tombstones).toEqual([]);
+    expect(second.structure.info.clustered).toBe(false); // nothing changed: the refresh carries the leaves over (§6.8)
+  });
+
+  test("refresh (§6.8): a new file joins its strongest neighbour's module; > 10 % changes or force re-cluster", () => {
+    const db = memDb();
+    const first = runPipeline(smallRepo(), { tuning: TEST_TUNING });
+    saveStructure(db, first.structure, NOW);
+    const prev = loadStructure(db);
+    const grown = runPipeline(smallRepo([["store/cache.ts", { loc: 40, imports: [imp("./db.ts"), imp("./sql.ts")] }]]), { tuning: TEST_TUNING, prev });
+    expect(grown.structure.info.clustered).toBe(false);
+    expect(grown.structure.moduleOf.get("store/cache.ts")).toBe(grown.structure.moduleOf.get("store/db.ts"));
+    expect(grown.structure.modules.map((m) => m.id).sort()).toEqual(first.structure.modules.map((m) => m.id).sort());
+    expect(runPipeline(smallRepo(), { tuning: TEST_TUNING, prev, force: true }).structure.info.clustered).toBe(true);
+    const many = smallRepo(Array.from({ length: 5 }, (_, i) => [`extra/f${i}.ts`, { loc: 30 }] as Parameters<typeof sf>));
+    expect(runPipeline(many, { tuning: TEST_TUNING, prev }).structure.info.clustered).toBe(true);
   });
 });
-
-/** In-memory SQLite with the spec §9 tables this WP reads and writes (WP-02 owns the real migrations). */
-export function memDb(): SqlDb {
-  const d = new Database(":memory:");
-  d.exec(`CREATE TABLE idx_meta (k TEXT PRIMARY KEY, v TEXT NOT NULL) WITHOUT ROWID;
-CREATE TABLE idx_modules (
-  id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
-  parent TEXT, depth INTEGER NOT NULL, alive INTEGER NOT NULL,
-  loc INTEGER NOT NULL, rank REAL NOT NULL, topo INTEGER NOT NULL, cross_cutting INTEGER NOT NULL,
-  dominant_dir TEXT NOT NULL, anchor TEXT NOT NULL,
-  members_digest TEXT NOT NULL, iface_digest TEXT NOT NULL, body_digest TEXT NOT NULL,
-  facts_digest TEXT NOT NULL, tests_digest TEXT NOT NULL,
-  split_from TEXT, oversize_file INTEGER NOT NULL DEFAULT 0,
-  born_at TEXT NOT NULL, dead_at TEXT, updated_at TEXT NOT NULL
-) WITHOUT ROWID;
-CREATE TABLE idx_module_members (path TEXT PRIMARY KEY, module TEXT NOT NULL, role TEXT NOT NULL) WITHOUT ROWID;
-CREATE VIRTUAL TABLE idx_search USING fts5(kind UNINDEXED, id UNINDEXED, label, sub, body, tokenize='trigram');`);
-  return {
-    exec: (sql) => d.exec(sql),
-    run: (sql, params) => {
-      const r = d.query(sql).run(...((params ?? []) as never[]));
-      return { changes: r.changes, lastInsertRowid: Number(r.lastInsertRowid) };
-    },
-    all: <T>(sql: string, params?: unknown) => d.query(sql).all(...((params ?? []) as never[])) as T[],
-    get: <T>(sql: string, params?: unknown) => (d.query(sql).get(...((params ?? []) as never[])) as T | null) ?? null,
-    tx: <T>(fn: () => T) => d.transaction(fn)(),
-    close: () => d.close(),
-  };
-}

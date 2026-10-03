@@ -48,7 +48,10 @@ export interface Pipeline {
 
 export const NOW = "2026-10-03T00:00:00.000Z" as Iso8601;
 
-export function runPipeline(input: StageInput, o: { prev?: StructurePrev; seeds?: ModuleSeed[]; tuning?: Tuning; now?: Iso8601 } = {}): Pipeline {
+export function runPipeline(
+  input: StageInput,
+  o: { prev?: StructurePrev; seeds?: ModuleSeed[]; tuning?: Tuning; now?: Iso8601; force?: boolean } = {},
+): Pipeline {
   const t0 = performance.now();
   const resolved = resolveImports(input);
   const t1 = performance.now();
@@ -64,6 +67,7 @@ export function runPipeline(input: StageInput, o: { prev?: StructurePrev; seeds?
     now: o.now ?? NOW,
     indexDigest: xxh3(input.files.map((f) => `${f.path} ${f.blob}`).join("\n")),
     ...(o.tuning ? { tuning: o.tuning } : {}),
+    ...(o.force ? { force: true } : {}),
   });
   const t3 = performance.now();
   return { input, resolved, facts, structure, ms: { resolve: t1 - t0, facts: t2 - t1, structure: t3 - t2 } };

@@ -1,12 +1,14 @@
 /** Corpus acceptance for S3 (spec §12.4). Each suite skips when its pinned corpus clone is absent. */
 import { describe, expect, test } from "bun:test";
 import type { ModuleSeed } from "../contract.ts";
+import { buildRepoPack } from "../pack/repo-pack.ts";
 import type { StageFile, StageInput } from "../resolve/files.ts";
+import { searchRows } from "../search/rows.ts";
 import { loadStructure, saveStructure } from "./persist.ts";
-import type { StructureResult } from "./stage.ts";
-import { memDb } from "./structure.test.ts";
+import { moduleSeedsOf, type StructureResult } from "./stage.ts";
 import { commitsOf, corpusDir, loadCommit, loadRepo } from "./test/corpus.ts";
-import { NOW, runPipeline } from "./test/pipeline.ts";
+import { memDb } from "./test/db.ts";
+import { estimateCode, NOW, runPipeline, xxh3 } from "./test/pipeline.ts";
 
 const crit = corpusDir("crit");
 const m3e = corpusDir("m3e-canvas");
@@ -37,6 +39,39 @@ function bodyEdit(inp: StageInput, path: string): StageInput {
 
 describe.skipIf(!crit)("crit structure", () => {
   const input = async () => (await loadRepo(crit as string)).input;
+
+  test("IDX-AT perf: S2–S4 (resolve + link + structure + pack + search rows) on crit within the S0–S4 budget", async () => {
+    const inp = await input();
+    runPipeline(inp); // warm the JIT
+    const t0 = performance.now();
+    const p = runPipeline(inp);
+    const t1 = performance.now();
+    const pack = buildRepoPack(
+      {
+        repo: "crit",
+        files: inp.files,
+        resolved: p.resolved,
+        facts: p.facts,
+        structure: p.structure,
+        indexDigest: "0",
+        extractorSet: "x",
+        settingsDigest: "0",
+        xxh3,
+        estimate: estimateCode,
+      },
+      { tokenizer: "claude-v5" },
+    );
+    const rows = searchRows(inp.files, p.structure, p.facts.facts);
+    const t2 = performance.now();
+    const total = t2 - t0;
+    const loc = inp.files.filter((f) => f.class === "source" && f.excluded === undefined).reduce((a, f) => a + f.loc, 0);
+    console.log(
+      `[idx.s04] crit loc=${loc} S2–S4=${total.toFixed(1)}ms resolve=${p.ms.resolve.toFixed(1)} facts=${p.ms.facts.toFixed(1)} structure=${p.ms.structure.toFixed(1)} pack+rows=${(t2 - t1).toFixed(1)} (pack ${pack.tokens} tok, ${rows.length} rows)`,
+    );
+    // budget idx.s04.cold.100kloc: S0–S4 ≤ 1.0 s (limit 2.0) with S0–S1 ≤ 0.3 s (limit 0.5) ⇒ S2–S4 ≤ 0.7 s (limit 1.5)
+    expect(total).toBeLessThanOrEqual(700);
+    expect(p.ms.facts).toBeLessThanOrEqual(50); // spec §5.1: link ≤ 50 ms
+  }, 60_000);
 
   test("IDX-AT-30 determinism: same snapshot + same previous state ⇒ identical membership, ids, slugs, ranks, topo", async () => {
     const inp = await input();
@@ -76,7 +111,7 @@ describe.skipIf(!crit)("crit structure", () => {
   test("IDX-AT-34 seeds: with the DB lost, doc.index.json reps restore ≥ 95 % of leaf ids (and their slugs)", async () => {
     const inp = await input();
     const first = runPipeline(inp).structure;
-    const seeds: ModuleSeed[] = first.modules.map((m) => ({ id: m.id, slug: m.slug, name: m.name, ...(m.parent ? { parent: m.parent } : {}), reps: m.reps }));
+    const seeds: ModuleSeed[] = moduleSeedsOf(first);
     const restored = runPipeline(inp, { seeds }).structure;
     const slugOf = new Map(first.modules.map((m) => [m.id, m.slug]));
     const firstLeaves = leaves(first);
@@ -84,7 +119,7 @@ describe.skipIf(!crit)("crit structure", () => {
     expect(kept.length / firstLeaves.length).toBeGreaterThanOrEqual(0.95);
   }, 60_000);
 
-  test("rescan with the previous state keeps every module id whose members changed < 50 %", async () => {
+  test("IDX-AT rescan: the previous state keeps every module id whose members changed < 50 %", async () => {
     const inp = await input();
     const first = runPipeline(inp).structure;
     const prev = persisted(first);
@@ -115,19 +150,29 @@ describe.skipIf(!crit)("crit structure", () => {
     }
   }, 120_000);
 
-  test("IDX-AT-33 replay of crit's history: ≤ 5 % of leaves change id per commit, ≥ 90 % keep it end to end, no slug change", async () => {
+  test("IDX-AT-33 replay of crit's history: ids survive, ≤ 5 % of leaves change id per ordinary commit, no slug change", async () => {
     const root = crit as string;
     const commits = commitsOf(root).slice(-41);
     let prevState = { modules: [] } as ReturnType<typeof loadStructure>;
     let first: StructureResult | null = null;
     let prev: StructureResult | null = null;
-    const perCommit: number[] = [];
+    let prevBlobs = new Map<string, string>();
+    const ordinary: number[] = [];
+    const restructures: string[] = [];
     for (const c of commits) {
-      const st = runPipeline((await loadCommit(root, c)).input, { prev: prevState }).structure;
+      const inp = (await loadCommit(root, c)).input;
+      const st = runPipeline(inp, { prev: prevState }).structure;
+      const blobs = new Map(st.graph.paths.map((p) => [p, inp.files.find((f) => f.path === p)?.blob ?? ""]));
       if (prev) {
-        const now = new Map(st.modules.map((m) => [m.id, m.slug]));
+        const now = new Set(st.modules.map((m) => m.id));
         const before = leaves(prev);
-        perCommit.push(before.filter((m) => !now.has(m.id)).length / before.length);
+        const lost = before.filter((m) => !now.has(m.id)).length / before.length;
+        let touched = 0;
+        for (const [p, b] of blobs) if (prevBlobs.get(p) !== b) touched++;
+        for (const p of prevBlobs.keys()) if (!blobs.has(p)) touched++;
+        // a commit touching > 10 % of the graph files re-clusters by design (spec §6.8); the others must keep ids
+        if (touched / Math.max(1, prevBlobs.size) > 0.1) restructures.push(`${c.slice(0, 8)} touched=${touched} lost=${lost.toFixed(3)}`);
+        else ordinary.push(lost);
         for (const m of st.modules) {
           const old = prev.modules.find((o) => o.id === m.id);
           if (old) expect(m.slug).toBe(old.slug);
@@ -135,14 +180,15 @@ describe.skipIf(!crit)("crit structure", () => {
       }
       first ??= st;
       prev = st;
+      prevBlobs = blobs;
       prevState = persisted(st);
     }
     const endIds = new Set((prev as StructureResult).modules.map((m) => m.id));
     const survived = leaves(first as StructureResult).filter((m) => endIds.has(m.id)).length / leaves(first as StructureResult).length;
     console.log(
-      `[IDX-AT-33] commits=${commits.length} worst=${Math.max(...perCommit).toFixed(3)} mean=${(perCommit.reduce((a, b) => a + b, 0) / perCommit.length).toFixed(3)} survived=${survived.toFixed(3)}`,
+      `[IDX-AT-33] commits=${commits.length} ordinary worst=${Math.max(...ordinary).toFixed(3)} mean=${(ordinary.reduce((a, b) => a + b, 0) / ordinary.length).toFixed(3)} restructures=[${restructures.join("; ")}] survived=${survived.toFixed(3)}`,
     );
-    expect(Math.max(...perCommit)).toBeLessThanOrEqual(0.05);
+    expect(Math.max(...ordinary)).toBeLessThanOrEqual(0.05);
     expect(survived).toBeGreaterThanOrEqual(0.9);
   }, 300_000);
 });

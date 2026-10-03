@@ -113,16 +113,34 @@ export function testSubject(name: string, subjects: readonly RepoPath[], files: 
     for (let k = parts.length; k >= 1; k--) cands.add(parts.slice(0, k).join("."));
   }
   let best: { key: SymbolKey; len: number } | undefined;
-  for (const p of subjects)
-    for (const s of files.get(p)?.symbols ?? []) {
-      if (s.kind === "test" || (s.start <= testLine && testLine <= s.end) || /(^|\.)tests?\./.test(s.qualname)) continue; // never the test itself
-      for (const c of cands) {
-        const lc = c.toLowerCase();
-        if (lc === "") continue;
-        if (s.qualname.toLowerCase() === lc || s.name.toLowerCase() === lc) {
-          if (!best || c.length > best.len || (c.length === best.len && s.key < best.key)) best = { key: s.key, len: c.length };
-        }
+  for (const p of subjects) {
+    const f = files.get(p);
+    if (!f) continue;
+    const table = nameTable(f);
+    for (const c of cands) {
+      if (c === "") continue;
+      for (const s of table.get(c.toLowerCase()) ?? []) {
+        if (s.kind === "test" || (s.start <= testLine && testLine <= s.end) || /(^|\.)tests?\./.test(s.qualname)) continue; // never the test itself
+        if (!best || c.length > best.len || (c.length === best.len && s.key < best.key)) best = { key: s.key, len: c.length };
       }
     }
+  }
   return best?.key;
+}
+
+const tables = new WeakMap<StageFile, Map<string, StageFile["symbols"][number][]>>();
+
+/** Lower-cased name / qualname → symbols of a file (memoized per StageFile). */
+function nameTable(f: StageFile): Map<string, StageFile["symbols"][number][]> {
+  let t = tables.get(f);
+  if (t) return t;
+  t = new Map();
+  for (const s of f.symbols)
+    for (const k of new Set([s.name.toLowerCase(), s.qualname.toLowerCase()])) {
+      const list = t.get(k);
+      if (list) list.push(s);
+      else t.set(k, [s]);
+    }
+  tables.set(f, t);
+  return t;
 }

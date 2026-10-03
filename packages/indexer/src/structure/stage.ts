@@ -392,6 +392,13 @@ export function buildStructure(input: StructureInput): StructureResult {
   return { modules: details, tombstones, moduleOf, fileRank, graph: fg, leafEdges, info, notices, base };
 }
 
+/** `Indexer.moduleSeeds()` (CR idx-1): one seed per alive module, reps path-sorted, sorted by id. */
+export function moduleSeedsOf(r: StructureResult): ModuleSeed[] {
+  return r.modules
+    .map((m) => ({ id: m.id, slug: m.slug, name: m.name, ...(m.parent !== undefined ? { parent: m.parent } : {}), reps: [...m.reps].sort(byPath) }))
+    .sort((a, b) => byPath(a.id, b.id));
+}
+
 function expired(m: PrevModule, now: Iso8601): boolean {
   if (m.alive || m.deadAt === undefined) return false;
   return Date.parse(now) - Date.parse(m.deadAt) > STRUCTURE_PARAMS.tombstoneDays * 86_400_000;
