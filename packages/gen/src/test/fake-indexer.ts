@@ -111,6 +111,8 @@ export function createFakeIndexer(repo: FakeRepo, hasher: Hasher): FakeIndexer {
     };
     const owner = repo.modules.find((m) => m.paths.includes(path));
     if (owner) entry.module = owner.id;
+    const excluded = repo.excluded?.[path];
+    if (excluded) entry.excluded = excluded;
     return entry;
   };
   const numbered = (path: RepoPath, keep: (line: number) => boolean): string => {

@@ -294,8 +294,9 @@ class Gatherer {
       });
     for (const d of chosen) {
       const isReadme = d.kind === "existing_doc" && d.role === "readme";
-      const lines = ix.file(d.path)?.lines ?? 0;
-      if (lines === 0) continue;
+      const entry = ix.file(d.path);
+      if (!entry || entry.excluded || entry.lines === 0) continue; // deny globs / secrets never reach a prompt
+      const lines = entry.lines;
       const slice = await ix.read(d.path, { start: 1, end: Math.min(lines, isReadme ? 40 : 20) }, { numbered: true });
       if (b.add([`=== ${d.path} · lines ${slice.start}-${slice.end}`, ...slice.text.split("\n")])) this.see(d.path, slice.blob);
     }

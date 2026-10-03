@@ -1,5 +1,5 @@
 /** A tiny TypeScript repository used by gen tests (4 leaf modules + 1 parent, one route, one entry). */
-import type { Fact, ModuleId, RepoPath, SymbolKind } from "@mitori/core";
+import type { ExcludeReason, Fact, ModuleId, RepoPath, SymbolKind } from "@mitori/core";
 
 /** A symbol of the sample repo. */
 export interface RepoSymbol {
@@ -52,6 +52,8 @@ export interface FakeRepo {
   modules: RepoModule[];
   /** Facts (blob filled by the fake). */
   facts: RepoFact[];
+  /** Files the inventory excluded (deny globs, secrets …). */
+  excluded?: Record<RepoPath, ExcludeReason>;
 }
 
 export const M_SESSION = "md_a0000001" as ModuleId;

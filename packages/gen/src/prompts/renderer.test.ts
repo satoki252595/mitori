@@ -156,6 +156,18 @@ describe("GEN-U-041 S5 DEPS do not depend on dispatch order (PT-08)", () => {
   });
 });
 
+describe("GEN-G-050 deny globs", () => {
+  test("an excluded document never reaches a prompt", async () => {
+    const repo = sampleRepo();
+    repo.excluded = { "README.md": "deny_glob" };
+    const { renderer, env } = setup(repo);
+    const task = plannedTask("gen.overview", { kind: "overview", id: "early" }, ["s0", "s1", "s2"], { mode: "early" });
+    const r = renderer.render(task, (await gatherInputs(task, env)).inputs, { lang: "ja", workdir: SANDBOX });
+    expect(r.userBytes).not.toContain("Tsundoku keeps a reading list");
+    expect(r.ctx.citable.lines("README.md")).toBeNull();
+  });
+});
+
 describe("AC-41 / AC-44 injection and secrets", () => {
   test("every DATA line starts with an allowed prefix; repo text cannot close the fence; secrets are redacted and counted", async () => {
     const repo = sampleRepo();
