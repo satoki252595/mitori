@@ -46,7 +46,9 @@ export async function repairMessage(deps: BundleBuilderDeps, input: RepairInput)
       const last = Math.min(all.length, Math.max(...rs.map((r) => r.end)) + REPAIR_MARGIN);
       const anchors: AnchorSpan[] = rs.filter((r) => r.start <= all.length).map((r) => ({ start: r.start, end: Math.min(all.length, r.end) }));
       if (anchors.length === 0) continue;
-      const group = new CodeGroup(path, file.blob, all.slice(first - 1, last).map(scrub), first, anchors, true, est);
+      // Scanned as one text: a secret can span lines (a PEM block), and redaction keeps the line count.
+      const shown = scrub(all.slice(first - 1, last).join("\n")).split("\n");
+      const group = new CodeGroup(path, file.blob, shown, first, anchors, true, est);
       group.level = 2; // ±5 around each range
       for (const b of group.blocks(2).blocks) {
         code.push(...b.lines);
@@ -83,7 +85,10 @@ export async function repairMessage(deps: BundleBuilderDeps, input: RepairInput)
   else if (kind === "apply") ask = [`> Your previous edits could not be applied (see PATCH above). Return corrected edits${against}.`];
   else ask = ["> Your previous output was invalid (see OUTPUT above). Return it again, fixed, in the same contract."];
 
-  const nonce = drawNonce(deps.random);
+  // The nonce must not occur anywhere else in the message (spec §4.1): drawn again until it does not.
+  const body = [...failure, ...code, ...ask].join("\n");
+  let nonce = drawNonce(deps.random);
+  for (let tries = 0; tries < 8 && body.includes(nonce); tries++) nonce = drawNonce(deps.random);
   const lines = [`MBF/1 mode=repair out=${out}`, `<<<DATA ${nonce}>>>`, ...failure, ...code, `<<<END ${nonce}>>>`, "ASK", ...ask, "END"];
   const tokens = est.tags(["MBF/1 mode=repair out=patch/1", "ASK", "END"]) + failTokens + codeTokens.reduce((a, b) => a + b, 0) + est.quote(ask) + 16;
   return { text: `${lines.join("\n")}\n`, tokens: Math.ceil(tokens), blobs };

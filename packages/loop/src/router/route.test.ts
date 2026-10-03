@@ -267,9 +267,10 @@ describe("AC-L20 route — notes (R0, R0b)", () => {
     const code = ok(base({ intents: ["note"], single: false, primary: "code" })).decision;
     expect(code).toMatchObject({ mode: "answer", contract: "answer/1", reason: "intent_note", tools: "none" });
   });
-  test("R0b without `primary`: code-less ⇒ docpatch/1, code-anchored ⇒ answer/1", () => {
-    expect(ok(base({ intents: ["note"], single: false, codeAnchored: false })).decision.contract).toBe("docpatch/1");
-    expect(ok(base({ intents: ["note"], single: false, codeAnchored: true })).decision.contract).toBe("answer/1");
+  test("R0b without `primary`: no anchored code ⇒ docpatch/1, anchored code ⇒ answer/1 (a note has no write scope, so codeAnchored is false)", () => {
+    expect(ok(base({ intents: ["note"], single: false, codeAnchored: false, anchoredLines: 0 })).decision.contract).toBe("docpatch/1");
+    expect(ok(base({ intents: ["note"], single: false, codeAnchored: false, anchoredLines: 12 })).decision.contract).toBe("answer/1");
+    expect(ok(base({ intents: ["note"], single: false, codeAnchored: true, anchoredLines: 12 })).decision.contract).toBe("answer/1");
   });
   test("a note needs no code scope and is never escalated", () => {
     expect(ok(base({ intents: ["note"], single: false, codeAnchored: false, history: ["agent_failed"] })).decision.mode).toBe("answer");

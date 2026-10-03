@@ -11,7 +11,8 @@ WP-08a acceptance test. The architect decides whether to keep the default or cha
 - why: R0b routes a sent note by its primary member (doc ⇒ `docpatch/1` proposal only, code ⇒ `answer/1`). The router has
   only `codeAnchored`, and a doc-primary note with cited claims is code-anchored too.
 - workaround in place: `route()` takes `RouteInput & { primary?: … }` (`router/route.ts`, `RouteInputExt`); without it
-  `!codeAnchored ⇒ docpatch/1`, otherwise `answer/1`. The decision for a docpatch note is `mode: "answer"`,
+  a note with no anchored code (`anchoredLines = 0`) ⇒ `docpatch/1`, otherwise `answer/1` (a note never has a write
+  scope of its own, so `codeAnchored` is false for it — see C.11). The decision for a docpatch note is `mode: "answer"`,
   `contract: "docpatch/1"`, model key `rewrite`, tools `none` (`ExecMode` has no docpatch value).
 - urgency: nice to have (the fallback is right except for a note on a doc block that has cited claims).
 
@@ -80,6 +81,11 @@ WP-08a acceptance test. The architect decides whether to keep the default or cha
   The bridge (WP-05) names the file by its hash.
 - **anchor helpers.** `contracts/text.ts` keeps byte-equal copies of `@mitori/anchor`'s `splitLines` / `normLine` /
   `snippetText` (the M0 stubs throw). Swap for the anchor imports when WP-07 lands; `apply.test.ts` pins the behaviour.
+- **`BundleBuilderDeps.doc` includes `markerForm`.** DOC text is the block's marker form with each claim's live cites
+  (C.12); WP-08b passes the `DocStore`, which has it. Without a marker form the builder converts `block().md` itself.
+- **`E_DENY_GLOB` suggests `copy_prompt` (spec §3.3), but `copyPrompt` refuses the same anchor** (`E_DENY_GLOB`): a
+  copy prompt can carry none of the denied file and its DENY line names it, so it would not help. The architect should
+  drop `copy_prompt` from that error's actions (or say what the copy should contain); the router keeps the spec's list.
 - **`bench/loop.bench.ts#bundle:M`** (budgets.json `loop.bundle`) does not exist yet — the bench runner is WP-12's. The same
   measurement runs as `packages/loop/test/perf/bundle.perf.test.ts` (p95 ≈ 0.3 ms over in-memory index fakes; ≤ 100 ms asserted).
 
@@ -109,9 +115,22 @@ Where §4.1–§4.7 and revision R1 left room, the builder (and its goldens, `fi
    `bundleMaxTokens`), so every optional part is dropped — a deliberate refinement of §4.4 step 1, which would keep optional
    parts up to the maximum. Above the maximum: `overBudget` (patch/agent/pull/copy) or `E_PAYLOAD_TOO_LARGE` (answer/findings).
    Pull bundles start from the tier (question/note XS 800, small change S 1,500) and are capped by the caller's budget (4,000).
-9. **Text safety:** every data line is capped at 500 characters except the human's ASK (verbatim); bidi/zero-width characters
-   and C0 controls are visible escapes everywhere; values in tag lines (paths, symbols, globs, labels, titles) have all control
-   characters and line breaks escaped, so no value can start a line. Secret scanning also covers the human's ASK and every code
-   line (the indexer already scans what it reads).
+9. **Text safety:** every data line is capped at 500 characters except the human's ASK (verbatim); bidi/zero-width characters,
+   C0 controls and the Unicode line breaks NEL / U+2028 / U+2029 (line ends to Python `splitlines` and JS `/^/m`) are visible
+   escapes everywhere; values in tag lines (paths, symbols, globs, labels, titles) have all control characters and line breaks
+   escaped, so no value can start a line. Secret scanning also covers the human's ASK, every code line and REL signatures
+   (the indexer already scans what it reads); a repair turn scans its CODE as one text (a PEM block spans lines).
 10. **ASK** is the latest human message; `THREAD` shows the newest four earlier non-system messages oldest-first (agent text cut
-    at 400 characters), `shown/total` counting messages before the ASK.
+    at 400 characters), `shown/total` counting messages before the ASK. A thread without a human message (a findings draft
+    submitted as is) gets `ASK` + `>`, so the block keeps its one quote line.
+11. **Notes never write** (R1, UXP-02): `deriveWriteScope` gives a note context ranges but no path (chips add none), and a
+    notes-only bundle prints `WRITE -` with no RULES/REL whatever `write` the caller passes — the pull AC "コード書込 0".
+12. **DOC cites** are the claims' cites, not the file-form links: the block's marker form (`DocStore.markerForm`) with marker n
+    replaced by claim n's cites as `[path:a-b]` (single line `[path:a]`), the language's inferred label (`（推測）` /
+    ` (inferred)`) for a claim without cites. File-form hrefs are relative to the doc file (`../../internal/x.go#L4-L9`) and
+    their numbers date from the last cite flush (PT-11); the claims give repo paths at the lines the CODE blocks show.
+13. **Output contracts:** a patch/1 insert (end omitted or `< start`) must have `first_line: ""` (§5.1) — a non-empty one is a
+    replacement that lost its `end`, which would otherwise duplicate code; `applyEditsToText` still checks replacements only
+    (§5.2-3). A repair nonce that occurs in the message is drawn again, as for bundles.
+14. **Batch hygiene:** a bundle needs ≥ 1 thread (`E_INVALID_INPUT`); WRITE lists each path once; a hint with `end < start`
+    shows its start line, a hint at line 0 is ignored.

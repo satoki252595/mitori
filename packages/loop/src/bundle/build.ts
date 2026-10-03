@@ -51,6 +51,7 @@ function ruleCandidates(configured: readonly RepoPath[] | undefined, write: read
 
 /** Build one bundle (spec §4). See {@link import("./index.ts").createBundleBuilder}. */
 export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budgetTokens: number): Promise<Bundle> {
+  if (input.threads.length === 0) throw new MitoriError("E_INVALID_INPUT", "a bundle serves at least one thread");
   const started = deps.clock?.now();
   const s = deps.settings();
   const { limits } = s.global;
@@ -59,7 +60,9 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
   const removed = new Set(input.removed);
   const denied = pathMatcher(input.deny);
   const numbered = input.mode === "agent" || input.mode === "pull" ? (input.numbered ?? false) : true;
-  const writes = input.write.length > 0;
+  // A note never writes (loop R1, UXP-02): a notes-only bundle offers no path, whatever scope the caller derived.
+  const write = input.threads.every((t) => t.intent === "note") ? [] : [...new Set(input.write)].sort();
+  const writes = write.length > 0;
 
   let redactions = 0;
   const scrub: Scrub = s.global.security.secretScan
@@ -146,8 +149,8 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
     const hintParts: RelPart[] = [];
     for (const h of input.hints ?? []) {
       const f = deps.indexer.file(h.path);
-      if (denied(h.path) || !readableFile(f) || !f || h.start > f.lines || removed.has(`related:${h.path}:${h.start}`)) continue;
-      const end = Math.min(f.lines, h.end, h.start + HINT_MAX_LINES - 1);
+      if (denied(h.path) || !readableFile(f) || !f || h.start < 1 || h.start > f.lines || removed.has(`related:${h.path}:${h.start}`)) continue;
+      const end = Math.min(f.lines, Math.max(h.start, h.end), h.start + HINT_MAX_LINES - 1);
       const slice = await deps.indexer.read(h.path, { start: h.start, end }, { numbered: false });
       redactions += slice.redactions;
       const body = codeLines(
@@ -181,7 +184,7 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
   if (writes && !removed.has("rules")) {
     const found: RuleSource[] = [];
     const texts = await Promise.all(
-      ruleCandidates(s.repo.rules, input.write)
+      ruleCandidates(s.repo.rules, write)
         .filter((p) => !denied(p))
         .map(async (p) => ({ path: p, text: await deps.indexer.currentText(p) })),
     );
@@ -194,7 +197,7 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
       if (deps.trust("rules", deps.hasher.sha256(canonical)) === "trusted") {
         rules = sliceRules(
           found.map((f) => ({ path: f.path, text: scrub(f.text) })),
-          input.write,
+          write,
           est,
         );
       } else rulesUntrusted = true;
@@ -230,7 +233,7 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
     rulesUntrusted,
     codes,
     rels,
-    write: [input.write.length > 0 ? `WRITE ${[...new Set(input.write)].sort().map(field).join(" ")}` : "WRITE -"],
+    write: [writes ? `WRITE ${write.map(field).join(" ")}` : "WRITE -"],
     accept,
     doLines,
     budget: `BUDGET in=${Math.round(input.budget.in)} out=${Math.round(input.budget.out)} usd=${usdText(input.budget.usd)}`,

@@ -48,8 +48,9 @@ describe("AC-L20 deriveWriteScope — intents (spec §3.3)", () => {
     const v = val(derive([thread({ anchor: codeAnchor("src/a.ts", 10, 29) })], A));
     expect(v).toEqual({ writeScope: ["src/a.ts"], newFiles: [], anchoredLines: 20, ranges: [{ path: "src/a.ts", start: 10, end: 29 }] });
   });
-  test("note follows the change rule (the router decides what a sent note may do)", () => {
-    expect(val(derive([thread({ intent: "note" })], A)).writeScope).toEqual(["src/a.ts"]);
+  test("a note never writes (R1, UXP-02): its code is context only, chips add no path", () => {
+    const v = val(derive([thread({ intent: "note" })], A, "patch", [{ path: "new.ts", start: 0, end: 0 }]));
+    expect(v).toEqual({ writeScope: [], newFiles: [], anchoredLines: 10, ranges: [{ path: "src/a.ts", start: 1, end: 10 }] });
   });
   test("question and review write nothing but still report the anchored code", () => {
     for (const intent of ["question", "review"] as const) {

@@ -13,8 +13,8 @@ import { fail } from "./result.ts";
 
 /**
  * `RouteInput` plus the one fact R0b needs and the contract does not carry: which member of the anchor the note was
- * written on. CR-PENDING(WP-08a): without it a doc-primary note with cited claims looks code-anchored, so the router
- * falls back to `codeAnchored` (doc-primary and code-less ⇒ docpatch/1, otherwise answer/1).
+ * written on. CR-PENDING(WP-08a): without it a doc-primary note with cited claims looks like a code note, so the router
+ * falls back to the anchored code (none ⇒ docpatch/1, some ⇒ answer/1; a note has no write scope of its own).
  */
 export type RouteInputExt = RouteInput & { primary?: "doc" | "code" | "diagram" };
 
@@ -104,7 +104,7 @@ export function routeDecision(input: RouteInputExt, settings: EffectiveSettings)
 
   if (decision === null && group === "note") {
     // R0b: a sent note never writes. Doc-primary ⇒ a doc proposal (docpatch/1), code-primary ⇒ an answer.
-    const docPrimary = input.primary !== undefined ? input.primary === "doc" : !input.codeAnchored;
+    const docPrimary = input.primary !== undefined ? input.primary === "doc" : input.anchoredLines === 0 && !input.codeAnchored;
     decision = docPrimary
       ? decide("answer", {
           reason: "intent_note",

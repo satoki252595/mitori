@@ -297,6 +297,12 @@ describe("AC-L23 MBF/1 grammar", () => {
       expect(r.text).toContain(`BUDGET in=4000 out=1500 usd=${text}\n`);
     }
   });
+
+  test("a bundle without a thread is refused (it would have no TASK and no ASK)", async () => {
+    const { builder } = setup();
+    const err = await builder.build(bundleInput({ threads: [] }), 4000).catch((e: unknown) => e);
+    expect((err as { code?: string }).code).toBe("E_INVALID_INPUT");
+  });
 });
 
 describe("AC-L23 determinism and fences", () => {

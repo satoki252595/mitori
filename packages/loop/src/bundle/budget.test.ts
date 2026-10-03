@@ -344,6 +344,19 @@ describe("chips (ContextAdjust.remove) and items", () => {
     expect(b.blobs["internal/store/store.go"]).toMatch(/^[0-9a-f]{40}$/u);
   });
 
+  test("a hint with end before start still shows its start line (a REL block always has a code line); line 0 is ignored", async () => {
+    const { builder, t } = rich();
+    const hints = [
+      { path: "internal/store/store.go", start: 43, end: 0 },
+      { path: "internal/store/memory.go", start: 0, end: 0 },
+    ];
+    const b = await builder.build(bundleInput({ threads: [t], write: [FETCH], hints }), 12000);
+    const data = checkGrammar(b.text).data;
+    const i = data.indexOf("REL internal/store/store.go:43");
+    expect(data[i + 1]?.startsWith("|")).toBe(true);
+    expect(data.some((l) => l.startsWith("REL internal/store/memory.go:0"))).toBe(false);
+  });
+
   test("metrics: loop.bundle.ms is observed once per build", async () => {
     const { w, t } = rich();
     const seen: number[] = [];

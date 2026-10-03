@@ -90,7 +90,6 @@ export function deriveScope(threads: ThreadDetail[], ctx: ScopeCtx): Result<Scop
     raw.push(...ranges);
     switch (t.intent) {
       case "change":
-      case "note":
         scopeWanted = true;
         for (const r of ranges) scopePaths.add(r.path);
         break;
@@ -102,6 +101,8 @@ export function deriveScope(threads: ThreadDetail[], ctx: ScopeCtx): Result<Scop
         else if (t.anchor.doc) for (const p of moduleFallback(t.anchor.doc.block, ctx, readable)) scopePaths.add(p);
         break;
       }
+      // A sent note never writes (loop R1, UXP-02: router R0b), so it contributes context but no path.
+      case "note":
       case "question":
       case "review":
         break;

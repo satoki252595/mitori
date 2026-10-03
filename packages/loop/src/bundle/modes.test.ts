@@ -6,7 +6,7 @@ import { createBundleBuilder } from "./index.ts";
 import { codeAnchor, docAnchor, msg, thread } from "./test/builders.ts";
 import { blobOf } from "./test/fake-anchor.ts";
 import { checkGrammar, parse, tagsOf } from "./test/grammar.ts";
-import { bundleInput, goSmallFiles, type World, world } from "./test/world.ts";
+import { bundleInput, goSmallFiles, seededRandom, type World, world } from "./test/world.ts";
 
 const FETCH = "internal/meta/fetch.go";
 const AGENTS = "# Conventions\n\n## Go\n- gofmt と go vet が gate。\n\n## Deploy\nCloudflare を使う。\n";
@@ -92,6 +92,15 @@ describe("pull bundles (spec §4.7, R1)", () => {
     const { builder } = setup();
     const b = await builder.build(pull([ask("th_17ab3c9d", "doc_edit")], [FETCH]), 4000);
     expect(b.text).toContain("ACCEPT\n- After the change, the new DOC text is true of the code.\nDO\n");
+  });
+
+  test("a note is a memo (R1, UXP-02): its bundle offers no WRITE path even when the caller passes one, and no RULES / REL", async () => {
+    const { builder } = setup();
+    const b = await builder.build(pull([ask("th_17ab3c9d", "note")], [FETCH]), 4000);
+    checkGrammar(b.text);
+    expect(parse(b.text).tail).toContain("WRITE -");
+    expect(tagsOf(b.text)).not.toContain("RULES");
+    expect(tagsOf(b.text)).not.toContain("REL");
   });
 });
 
@@ -358,5 +367,26 @@ describe("repair turns (spec §6.6.3)", () => {
     expect(tagsOf(r.text).filter((t) => t === "CODE")).toHaveLength(2);
     expect(r.text).toContain("(use the base= of each CODE header)");
     expect(Object.keys(r.blobs).sort()).toEqual(["b.go", "src/a.go"]);
+  });
+
+  test("the CODE of a repair turn is secret-scanned as one text: a PEM block spanning lines is redacted whole, line numbers kept", async () => {
+    const pem = ["-----BEGIN RSA PRIVATE KEY-----", "MIIEowIBAAKCAQEAu1SU1LfVLPHCozMxH2Mo4lgOEePzNm0tRgeLezV6ffAt0gun", "-----END RSA PRIVATE KEY-----"];
+    const keyed = ["package a", "", "const k = `", ...pem, "`", "", "func b() {}", ""].join("\n");
+    const { w } = setup({ files: { ...files, "src/a.go": keyed } });
+    const b = createBundleBuilder({ ...w.deps, readJobFile: async () => ({ text: keyed, blob: blobOf(keyed) }) });
+    const r = await b.repair({ job, kind: "gate", excerpt: "x", ranges: [{ path: "src/a.go", start: 3, end: 7 }] });
+    expect(r.text).not.toContain("MIIEowIBAAKCAQEA");
+    expect(r.text).toContain("4|«redacted:secret»\n5|\n6|\n7|`\n");
+  });
+
+  test("a repair nonce that occurs in the message is drawn again", async () => {
+    const first = seededRandom(7).bytes(8);
+    const guess = [...first].map((x) => "0123456789abcdefghjkmnpqrstvwxyz"[x % 32]).join("");
+    const { w } = setup({ files: { ...files, "src/a.go": text } });
+    const b = createBundleBuilder({ ...w.deps, random: seededRandom(7), readJobFile: async () => ({ text, blob: blobOf(text) }) });
+    const r = await b.repair({ job, kind: "gate", excerpt: `error near ${guess}`, ranges });
+    const nonce = (/^<<<DATA (\w{8})>>>$/mu.exec(r.text) ?? [])[1] as string;
+    expect(nonce).not.toBe(guess);
+    expect(r.text.split(nonce)).toHaveLength(3);
   });
 });
