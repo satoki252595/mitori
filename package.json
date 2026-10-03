@@ -17,7 +17,7 @@
     "typecheck": "tsc -b",
     "lint": "biome check .",
     "fmt": "biome check --write .",
-    "check:web": "svelte-check --workspace apps/web --tsconfig ./tsconfig.json --threshold error --fail-on-warnings",
+    "check:web": "svelte-check --workspace apps/web --tsconfig ./tsconfig.json --fail-on-warnings",
     "test": "bun test",
     "golden": "bun scripts/golden.ts",
     "bench": "bun scripts/run-owned.ts bench/runner/run.ts:WP-12",
