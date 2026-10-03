@@ -1,0 +1,23 @@
+{
+  "docEdit.choice.code": "コードをこの設計に合わせる",
+  "docEdit.choice.doc": "設計書を直す（コードが正しい）",
+  "proposals.accept": "この提案を採用",
+  "proposals.acceptShort": "採用",
+  "proposals.conflict": "他の変更と重なっています。採用するには手で合わせてください",
+  "proposals.delete": "このブロックを削除する提案です",
+  "proposals.kind.body": "本文",
+  "proposals.kind.insert": "追加",
+  "proposals.links": "外部へのリンクが{n}件あります",
+  "proposals.producer": "提案 · mitori AI（{model}）· R{n} · {kind}",
+  "proposals.reject": "この提案を却下",
+  "proposals.source.agent_reply": "提案 · あなたのagent · {kind}",
+  "proposals.source.answer_promote": "提案 · 回答から · {kind}",
+  "proposals.source.job": "提案 · mitori AI · {kind}",
+  "proposals.source.regen": "提案 · 再生成 · {kind}",
+  "proposals.source.simplify": "提案 · やさしく · {kind}",
+  "proposals.source.sync": "提案 · 設計書の同期 · {kind}",
+  "proposals.source.translate": "提案 · 翻訳 · {kind}",
+  "proposals.toast.docEdited": "設計書を直しました（human-editedとして固定）",
+  "proposals.willAccept": "採用予定",
+  "proposals.willReject": "却下予定"
+}

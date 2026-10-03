@@ -1,0 +1,23 @@
+{
+  "docEdit.choice.code": "Make the code follow this design",
+  "docEdit.choice.doc": "Fix the doc (the code is right)",
+  "proposals.accept": "Accept this proposal",
+  "proposals.acceptShort": "Accept",
+  "proposals.conflict": "Overlaps another change. Merge it by hand to accept",
+  "proposals.delete": "Proposes to delete this block",
+  "proposals.kind.body": "text",
+  "proposals.kind.insert": "insert",
+  "proposals.links": "{n} external links",
+  "proposals.producer": "Proposal · mitori AI ({model}) · R{n} · {kind}",
+  "proposals.reject": "Reject this proposal",
+  "proposals.source.agent_reply": "Proposal · your agent · {kind}",
+  "proposals.source.answer_promote": "Proposal · from an answer · {kind}",
+  "proposals.source.job": "Proposal · mitori AI · {kind}",
+  "proposals.source.regen": "Proposal · regeneration · {kind}",
+  "proposals.source.simplify": "Proposal · simpler · {kind}",
+  "proposals.source.sync": "Proposal · doc sync · {kind}",
+  "proposals.source.translate": "Proposal · translation · {kind}",
+  "proposals.toast.docEdited": "The doc was changed (locked as human-edited)",
+  "proposals.willAccept": "will accept",
+  "proposals.willReject": "will reject"
+}

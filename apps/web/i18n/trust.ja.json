@@ -1,0 +1,16 @@
+{
+  "trust.action.review": "内容を見て承認",
+  "trust.again": "内容が変わると、もう一度確認します。",
+  "trust.approve": "承認する",
+  "trust.deny": "拒否",
+  "trust.hash": "内容hash {hash}",
+  "trust.kind.gates": "自動検査（このリポジトリが宣言したコマンド）",
+  "trust.kind.git_config": "リポジトリのgit設定（コマンドを含むキー）",
+  "trust.kind.rules": "リポジトリの指示（AGENTS.md・CLAUDE.md）",
+  "trust.preview": "実行・注入される内容の全文",
+  "trust.title": "このリポジトリの内容を承認しますか",
+  "trust.toast.pending": "このリポジトリの自動検査{n}件が承認待ちです（承認するまでは検査せずに提案します）",
+  "trust.why.gates": "あなたの権限で実行されます。sandboxが無い環境ではネットワークとホームにアクセスできます。AIが書いたコードがここで実行されます。",
+  "trust.why.git_config": "承認するまで、これらのキーはmitoriのgit操作で無効にしています。承認するとあなたの権限で実行されます。",
+  "trust.why.rules": "承認すると、この内容がAIへの依頼にそのまま入ります。repoの作者が書いた指示です。"
+}
