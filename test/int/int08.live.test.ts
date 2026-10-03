@@ -170,8 +170,18 @@ describe.if(LIVE && MAX_USD > 0)("INT-08 live: agent mode and parallel jobs with
     const t0 = Date.now();
     await webApi("POST", `/jobs/${j.id}/gates/run`, {});
     j = await jobUntil(j.id, ["ready", "failed"]);
-    report.agent = { first, trustedSets: trusted, afterGates: { ...facts(est, j, createdAt), gatesWallMs: Date.now() - t0 } };
+    const afterGates = { ...facts(est, j, createdAt), gatesWallMs: Date.now() - t0 };
+    report.agent = { first, trustedSets: trusted, afterGates };
     expect(j.state).toBe("ready");
+    // Request changes: a continuation of the parked agent process in the same worktree (spec §6.6.3, T14)
+    const before = j.usage?.apiUsd ?? 0;
+    const r0 = Date.now();
+    await webApi("POST", `/jobs/${j.id}/revise`, { message: "/healthz の応答のキー名は books ではなく book_count にして" });
+    j = await jobUntil(j.id, ["ready", "failed"]);
+    const revised = { ...facts(est, j, createdAt), reviseMs: Date.now() - r0, reviseUsd: Math.round(((j.usage?.apiUsd ?? 0) - before) * 1e6) / 1e6 };
+    report.agent = { first, trustedSets: trusted, afterGates, revised };
+    expect(j.state).toBe("ready");
+    expect(read(SERVER)).toBe(original.server);
     const hunks = Object.keys(j.hunkDecisions ?? {});
     const all = await raw("POST", `/jobs/${j.id}/accept`, { accept: "all" });
     expect(all.status).toBe(412); // agent jobs: no one-key accept

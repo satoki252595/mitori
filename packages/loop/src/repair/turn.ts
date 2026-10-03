@@ -37,6 +37,8 @@ export interface RepairTurnInput {
   cwd: string;
   /** Request shape of a fresh spawn for this plan (agent mode overrides budget / cwd). */
   request(prompt: { prompt?: string; promptBlocks?: string[]; resume?: string }): ScheduledRequest;
+  /** Meter limits of a continuation turn (agent mode: its own input limit and turn time); default patch-sized. */
+  limits?: { inTokens: number; ms: number };
   signal: AbortSignal;
 }
 
@@ -80,7 +82,7 @@ async function turn(core: RunnerCore, id: JobId, run: EngineRun): Promise<Engine
 export async function repairTurn(input: RepairTurnInput): Promise<RepairTurnResult> {
   const { core, id, plan, signal } = input;
   const usd = remainingUsd(core, id, plan);
-  const budget = { usd, inTokens: Math.max(plan.budget.in * 2, 4000), outTokens: plan.budget.out, ms: 180_000 };
+  const budget = { usd, inTokens: input.limits?.inTokens ?? Math.max(plan.budget.in * 2, 4000), outTokens: plan.budget.out, ms: input.limits?.ms ?? 180_000 };
   // 1. continuation
   if (input.session?.parked()) {
     core.phase(id, "repair", "continuation");

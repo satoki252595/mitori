@@ -1,0 +1,238 @@
+{
+  "at": "2026-10-03T23:00:47.100Z",
+  "capUsd": 1.4,
+  "engine": {
+    "version": "2.1.288 (Claude Code)",
+    "auth": "subscription",
+    "billing": "subscription-window"
+  },
+  "agent": {
+    "first": {
+      "id": "j_tg24p998sk",
+      "state": "ready",
+      "route": {
+        "mode": "agent",
+        "reason": "large_change",
+        "model": "claude-sonnet-5-5"
+      },
+      "estimate": {
+        "in": 5482,
+        "out": 2500,
+        "usd": 0.035964,
+        "seconds": {
+          "p50": 30,
+          "p90": 60
+        },
+        "bundleTokens": 5482
+      },
+      "usage": {
+        "in": 8,
+        "cacheWrite": 7709,
+        "cacheWrite1h": 0,
+        "cacheRead": 25957,
+        "out": 2377,
+        "apiUsd": 0.04825,
+        "pricingVer": "2026-09-25",
+        "thinking": 77,
+        "reportedUsd": 0.04825
+      },
+      "timings": {
+        "modelMs": 21320,
+        "wallMs": 21328
+      },
+      "wallToReadyMs": 21582,
+      "sinceCreateMs": 21648,
+      "attempt": 1,
+      "repairs": [],
+      "tools": [
+        "Read internal/server/server.go",
+        "Grep",
+        "Grep",
+        "Read internal/store/memory_test.go",
+        "Edit internal/store/store.go",
+        "Edit internal/store/memory.go",
+        "Edit internal/server/server.go",
+        "Edit internal/store/memory_test.go"
+      ],
+      "gates": [
+        {
+          "gate": "fmt:gofmt",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "test:go",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "typecheck:go-vet",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        }
+      ],
+      "gateVerdict": "unverified",
+      "diff": [
+        {
+          "path": "internal/server/server.go",
+          "additions": 7,
+          "deletions": 2,
+          "hunks": 1
+        },
+        {
+          "path": "internal/store/memory.go",
+          "additions": 8,
+          "deletions": 0,
+          "hunks": 1
+        },
+        {
+          "path": "internal/store/memory_test.go",
+          "additions": 22,
+          "deletions": 0,
+          "hunks": 1
+        },
+        {
+          "path": "internal/store/store.go",
+          "additions": 2,
+          "deletions": 0,
+          "hunks": 1
+        }
+      ],
+      "writeScope": [
+        "internal/server/server.go",
+        "internal/store/memory.go",
+        "internal/store/memory_test.go",
+        "internal/store/store.go"
+      ]
+    },
+    "trustedSets": 1,
+    "afterGates": {
+      "id": "j_tg24p998sk",
+      "state": "ready",
+      "route": {
+        "mode": "agent",
+        "reason": "large_change",
+        "model": "claude-sonnet-5-5"
+      },
+      "estimate": {
+        "in": 5482,
+        "out": 2500,
+        "usd": 0.035964,
+        "seconds": {
+          "p50": 30,
+          "p90": 60
+        },
+        "bundleTokens": 5482
+      },
+      "usage": {
+        "in": 8,
+        "cacheWrite": 7709,
+        "cacheWrite1h": 0,
+        "cacheRead": 25957,
+        "out": 2377,
+        "apiUsd": 0.04825,
+        "pricingVer": "2026-09-25",
+        "thinking": 77,
+        "reportedUsd": 0.04825
+      },
+      "timings": {
+        "modelMs": 21320,
+        "wallMs": 21328
+      },
+      "wallToReadyMs": 21582,
+      "sinceCreateMs": 65963,
+      "attempt": 1,
+      "repairs": [],
+      "tools": [
+        "Read internal/server/server.go",
+        "Grep",
+        "Grep",
+        "Read internal/store/memory_test.go",
+        "Edit internal/store/store.go",
+        "Edit internal/store/memory.go",
+        "Edit internal/server/server.go",
+        "Edit internal/store/memory_test.go"
+      ],
+      "gates": [
+        {
+          "gate": "fmt:gofmt",
+          "status": "pass",
+          "ms": 20,
+          "sandboxed": true
+        },
+        {
+          "gate": "test:go",
+          "status": "pass",
+          "ms": 1301,
+          "sandboxed": true
+        },
+        {
+          "gate": "typecheck:go-vet",
+          "status": "pass",
+          "ms": 3947,
+          "sandboxed": true
+        }
+      ],
+      "gateVerdict": "passed",
+      "diff": [
+        {
+          "path": "internal/server/server.go",
+          "additions": 7,
+          "deletions": 2,
+          "hunks": 1
+        },
+        {
+          "path": "internal/store/memory.go",
+          "additions": 8,
+          "deletions": 0,
+          "hunks": 1
+        },
+        {
+          "path": "internal/store/memory_test.go",
+          "additions": 22,
+          "deletions": 0,
+          "hunks": 1
+        },
+        {
+          "path": "internal/store/store.go",
+          "additions": 2,
+          "deletions": 0,
+          "hunks": 1
+        }
+      ],
+      "writeScope": [
+        "internal/server/server.go",
+        "internal/store/memory.go",
+        "internal/store/memory_test.go",
+        "internal/store/store.go"
+      ],
+      "gatesWallMs": 5369
+    },
+    "accept": {
+      "ms": 154,
+      "files": [
+        "internal/server/server.go",
+        "internal/store/memory.go",
+        "internal/store/memory_test.go",
+        "internal/store/store.go"
+      ],
+      "status": "M internal/server/server.go\n M internal/store/memory.go\n M internal/store/memory_test.go\n M internal/store/store.go",
+      "vet": {
+        "code": 0,
+        "out": ""
+      },
+      "test": {
+        "code": 0,
+        "out": "?   \texample.com/tsundoku/cmd/tsundoku\t[no test files]\n?   \texample.com/tsundoku/internal/config\t[no test files]\nok  \texample.com/tsundoku/internal/meta\t0.247s\n?   \texample.com/tsundoku/internal/server\t[no test files]\nok  \texample.com/tsundoku/internal/store\t0.217s"
+      }
+    },
+    "undo": {
+      "diverged": [],
+      "restored": true
+    }
+  },
+  "spentUsd": 0.04825
+}

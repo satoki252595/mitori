@@ -23,7 +23,20 @@ import { remainingUsd, repairTurn, withPrompt } from "../repair/turn.ts";
 /** Least USD left in a job's budget for another agent repair turn. */
 const AGENT_REPAIR_MIN_USD = 0.005;
 
-/** The agent-mode engine request of a plan in worktree `cwd` (the input-token meter limit is `limits.agentMaxInputTokens`). */
+/**
+ * Calls of one agent turn re-send the whole conversation (cache reads at 0.1× the input price), and the mitori meter
+ * counts every input token of every call against `budget.inTokens`. `limits.agentMaxInputTokens` (spec §8.3: "入力
+ * 14k, 上限 30k") is the size of the agent's context, so the meter's cumulative limit is that context times the calls a
+ * small Fix needs — measured live: Read ×3 + Grep ×2 + 3 edits + the result ≈ 9 calls over a 10–14k context
+ * (docs/progress/agent-mode.md). The USD budget (≥ $0.30, stopped at 80 %) stays the cost guard; this one only stops
+ * a runaway exploration. CR-PENDING(agent): a meter that weighs cache reads (docs/design/cr-requests/agent.md #2).
+ */
+export const AGENT_CALLS_PER_TURN = 10;
+
+/** The input-token meter limit of an agent turn (see {@link AGENT_CALLS_PER_TURN}). */
+export const agentInputLimit = (core: RunnerCore): number => core.deps.settings().global.limits.agentMaxInputTokens * AGENT_CALLS_PER_TURN;
+
+/** The agent-mode engine request of a plan in worktree `cwd`. */
 export function agentRequest(core: RunnerCore, id: JobId, plan: JobPlan, cwd: string) {
   return (p: { prompt?: string; promptBlocks?: string[]; resume?: string } = {}): ScheduledRequest => {
     const s = core.deps.settings();
@@ -34,7 +47,7 @@ export function agentRequest(core: RunnerCore, id: JobId, plan: JobPlan, cwd: st
       persistSessions: s.global.engines["claude-cli"].persistSessions,
       ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
     });
-    req.budget = { ...req.budget, inTokens: s.global.limits.agentMaxInputTokens };
+    req.budget = { ...req.budget, inTokens: agentInputLimit(core) };
     return withPrompt(req, p, remainingUsd(core, id, plan));
   };
 }
@@ -67,12 +80,7 @@ async function parseAgentTurn(
         ws: core.deps.ws.key,
         scope: { kind: "job", id },
         estimate: { in: 0, out: plan.estimate.outTokens },
-        budget: {
-          usd: Math.max(0.0001, remainingUsd(core, id, plan)),
-          inTokens: core.deps.settings().global.limits.agentMaxInputTokens,
-          outTokens: plan.budget.out,
-          ms: 600_000,
-        },
+        budget: { usd: Math.max(0.0001, remainingUsd(core, id, plan)), inTokens: agentInputLimit(core), outTokens: plan.budget.out, ms: 600_000 },
         ref: id,
       },
       signal,
@@ -289,6 +297,7 @@ async function agentRepairTurn(
     message: msg.text,
     cwd: wt,
     request: agentRequest(core, id, plan, wt),
+    limits: { inTokens: agentInputLimit(core), ms: 600_000 },
     signal,
   });
   if (turn.result.stop !== "end") throw engineError(turn.result);

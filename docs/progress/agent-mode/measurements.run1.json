@@ -1,0 +1,378 @@
+{
+  "at": "2026-10-03T22:58:19.507Z",
+  "capUsd": 1.5,
+  "engine": {
+    "version": "2.1.288 (Claude Code)",
+    "auth": "subscription",
+    "billing": "subscription-window"
+  },
+  "agent": {
+    "first": {
+      "id": "j_31jy29wvah",
+      "state": "failed",
+      "route": {
+        "mode": "agent",
+        "reason": "large_change",
+        "model": "claude-sonnet-5-5"
+      },
+      "estimate": {
+        "in": 5482,
+        "out": 2500,
+        "usd": 0.035964,
+        "seconds": {
+          "p50": 30,
+          "p90": 60
+        },
+        "bundleTokens": 5482
+      },
+      "usage": {
+        "in": 8,
+        "cacheWrite": 9716,
+        "cacheWrite1h": 0,
+        "cacheRead": 22837,
+        "out": 869,
+        "apiUsd": 0.037563,
+        "pricingVer": "2026-09-25"
+      },
+      "timings": {
+        "modelMs": 9171,
+        "wallMs": 9179
+      },
+      "wallToReadyMs": -1791068301242,
+      "sinceCreateMs": 9297,
+      "attempt": 1,
+      "repairs": [],
+      "tools": [
+        "Read internal/server/server.go",
+        "Grep",
+        "Grep internal/store/memory_test.go",
+        "Read internal/store/memory.go",
+        "Read internal/store/memory_test.go"
+      ],
+      "gates": [],
+      "diff": [],
+      "writeScope": [
+        "internal/server/server.go",
+        "internal/store/memory.go",
+        "internal/store/memory_test.go",
+        "internal/store/store.go"
+      ],
+      "failure": {
+        "code": "E_BUDGET_EXCEEDED",
+        "message": "budget reached (mitori meter)",
+        "actions": [
+          "escalate",
+          "retry",
+          "copy_prompt"
+        ]
+      }
+    }
+  },
+  "parallel": {
+    "a": {
+      "id": "j_ypm9xz6kzf",
+      "state": "ready",
+      "route": {
+        "mode": "patch",
+        "reason": "small_change",
+        "model": "claude-sonnet-5-5"
+      },
+      "estimate": {
+        "in": 1756,
+        "out": 1500,
+        "usd": 0.018512,
+        "seconds": {
+          "p50": 10,
+          "p90": 18
+        },
+        "bundleTokens": 1756
+      },
+      "usage": {
+        "in": 2,
+        "cacheWrite": 2936,
+        "cacheWrite1h": 0,
+        "cacheRead": 0,
+        "out": 271,
+        "apiUsd": 0.010054,
+        "pricingVer": "2026-09-25",
+        "thinking": 0,
+        "reportedUsd": 0.010054
+      },
+      "timings": {
+        "modelMs": 4294,
+        "wallMs": 4295
+      },
+      "wallToReadyMs": 4427,
+      "sinceCreateMs": 5041,
+      "attempt": 1,
+      "repairs": [],
+      "tools": [],
+      "gates": [
+        {
+          "gate": "fmt:gofmt",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "test:go",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "typecheck:go-vet",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        }
+      ],
+      "gateVerdict": "unverified",
+      "diff": [
+        {
+          "path": "internal/config/config.go",
+          "additions": 1,
+          "deletions": 1,
+          "hunks": 1
+        }
+      ],
+      "writeScope": [
+        "internal/config/config.go"
+      ]
+    },
+    "b": {
+      "id": "j_6mkn7cg628",
+      "state": "ready",
+      "route": {
+        "mode": "patch",
+        "reason": "small_change",
+        "model": "claude-sonnet-5-5"
+      },
+      "estimate": {
+        "in": 1956,
+        "out": 1500,
+        "usd": 0.018912,
+        "seconds": {
+          "p50": 10,
+          "p90": 18
+        },
+        "bundleTokens": 1956
+      },
+      "usage": {
+        "in": 2,
+        "cacheWrite": 3116,
+        "cacheWrite1h": 0,
+        "cacheRead": 0,
+        "out": 350,
+        "apiUsd": 0.011294,
+        "pricingVer": "2026-09-25",
+        "thinking": 0,
+        "reportedUsd": 0.011294
+      },
+      "timings": {
+        "modelMs": 4759,
+        "wallMs": 4761
+      },
+      "wallToReadyMs": 4901,
+      "sinceCreateMs": 5043,
+      "attempt": 1,
+      "repairs": [],
+      "tools": [],
+      "gates": [
+        {
+          "gate": "fmt:gofmt",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "test:go",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "typecheck:go-vet",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        }
+      ],
+      "gateVerdict": "unverified",
+      "diff": [
+        {
+          "path": "internal/meta/fetch.go",
+          "additions": 2,
+          "deletions": 2,
+          "hunks": 1
+        }
+      ],
+      "writeScope": [
+        "internal/meta/fetch.go"
+      ]
+    },
+    "overlapMs": 4427,
+    "accepted": [
+      "applied",
+      "applied",
+      "M internal/config/config.go\n M internal/meta/fetch.go"
+    ]
+  },
+  "sameLine": {
+    "c": {
+      "id": "j_4zs5n5vchr",
+      "state": "ready",
+      "route": {
+        "mode": "patch",
+        "reason": "small_change",
+        "model": "claude-sonnet-5-5"
+      },
+      "estimate": {
+        "in": 1757,
+        "out": 1500,
+        "usd": 0.018514,
+        "seconds": {
+          "p50": 10,
+          "p90": 18
+        },
+        "bundleTokens": 1757
+      },
+      "usage": {
+        "in": 2,
+        "cacheWrite": 1041,
+        "cacheWrite1h": 0,
+        "cacheRead": 1893,
+        "out": 268,
+        "apiUsd": 0.005665,
+        "pricingVer": "2026-09-25",
+        "thinking": 0,
+        "reportedUsd": 0.005665
+      },
+      "timings": {
+        "modelMs": 4245,
+        "wallMs": 4247
+      },
+      "wallToReadyMs": 4389,
+      "sinceCreateMs": 8512,
+      "attempt": 1,
+      "repairs": [],
+      "tools": [],
+      "gates": [
+        {
+          "gate": "fmt:gofmt",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "test:go",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "typecheck:go-vet",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        }
+      ],
+      "gateVerdict": "unverified",
+      "diff": [
+        {
+          "path": "internal/config/config.go",
+          "additions": 1,
+          "deletions": 1,
+          "hunks": 1
+        }
+      ],
+      "writeScope": [
+        "internal/config/config.go"
+      ]
+    },
+    "d": {
+      "id": "j_38pht1nncx",
+      "state": "ready",
+      "route": {
+        "mode": "patch",
+        "reason": "small_change",
+        "model": "claude-sonnet-5-5"
+      },
+      "estimate": {
+        "in": 1757,
+        "out": 1500,
+        "usd": 0.018514,
+        "seconds": {
+          "p50": 10,
+          "p90": 18
+        },
+        "bundleTokens": 1757
+      },
+      "usage": {
+        "in": 2,
+        "cacheWrite": 1043,
+        "cacheWrite1h": 0,
+        "cacheRead": 1893,
+        "out": 272,
+        "apiUsd": 0.00571,
+        "pricingVer": "2026-09-25",
+        "thinking": 0,
+        "reportedUsd": 0.00571
+      },
+      "timings": {
+        "modelMs": 3749,
+        "wallMs": 3751
+      },
+      "wallToReadyMs": 8268,
+      "sinceCreateMs": 8488,
+      "attempt": 1,
+      "repairs": [],
+      "tools": [],
+      "gates": [
+        {
+          "gate": "fmt:gofmt",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "test:go",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "typecheck:go-vet",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        }
+      ],
+      "gateVerdict": "unverified",
+      "diff": [
+        {
+          "path": "internal/config/config.go",
+          "additions": 1,
+          "deletions": 1,
+          "hunks": 1
+        }
+      ],
+      "writeScope": [
+        "internal/config/config.go"
+      ]
+    },
+    "dStates": [
+      "waiting_lock",
+      "running",
+      "gating",
+      "ready"
+    ],
+    "secondAccept": {
+      "status": 409,
+      "body": "{\"error\":{\"code\":\"E_GIT_MERGE_CONFLICT\",\"message\":\"the change conflicts with the working tree: internal/config/config.go\",\"retryable\":false,\"params\":{\"files\":\"internal/config/config.go\"},\"requestId\":\"rq_5tw4685xjc\"}}",
+      "stateAfter": "ready"
+    },
+    "fileAfter": "\t\tlevel = \"error\""
+  },
+  "spentUsd": 0.070286
+}
