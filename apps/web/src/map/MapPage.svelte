@@ -261,11 +261,11 @@ async function start(opts: { notBefore?: string }) {
   }
 }
 
-function ack(shownAt: string) {
+function ack(shownAt: string): Promise<unknown> {
   const engine = s.gen.engine;
   const plan = engineStatus?.plan ?? "unknown";
   const at = new Date().toISOString();
-  void s.prefs.patchNow({ privacy: { dataPolicyAck: { [engine]: { at, shownAt, plan } } } }).then(() => s.session.loadSettings());
+  return s.prefs.patchNow({ privacy: { dataPolicyAck: { [engine]: { at, shownAt, plan } } } }).then(() => s.session.loadSettings());
 }
 
 function setEffort(e: Effort) {

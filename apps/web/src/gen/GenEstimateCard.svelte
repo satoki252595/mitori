@@ -44,7 +44,7 @@ let {
   oneffort: (e: Effort) => void;
   onengine: (e: EngineId) => void;
   onstart: (opts: { notBefore?: string }) => void;
-  onack: (shownAt: string) => void;
+  onack: (shownAt: string) => Promise<unknown>;
   oncopy: (text: string) => void;
   onexpand: () => void;
 } = $props();
@@ -80,15 +80,22 @@ function seenEnough(): boolean {
   return clock.visibleMs(performance.now()) >= 1000;
 }
 
-function start(opts: { notBefore?: string } = {}) {
-  if (busy || !est) return;
+let acking = false;
+async function start(opts: { notBefore?: string } = {}) {
+  if (busy || acking || !est) return;
   if (!policyAcked) {
     if (!seenEnough()) {
       nudge = true;
       setTimeout(() => (nudge = false), 1200);
       return;
     }
-    onack(clock.shownAt ?? new Date().toISOString());
+    // recorded before the run is requested: the daemon may refuse a run on an engine without an ack
+    acking = true;
+    try {
+      await onack(clock.shownAt ?? new Date().toISOString());
+    } finally {
+      acking = false;
+    }
   }
   onstart(opts);
 }

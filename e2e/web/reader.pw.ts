@@ -155,16 +155,15 @@ test("@wp10a cite peek (ux.md §4.3.6): keyboard focus on a chip opens it touchi
   await chip.focus();
   const peek = page.locator(".pop.peek");
   await expect(peek).toBeVisible();
-  await page.waitForTimeout(100);
   const gap = async () => {
     const c = await chip.boundingBox();
     const p = await peek.boundingBox();
     return c && p ? Math.min(Math.abs(p.y - (c.y + c.height)), Math.abs(c.y - (p.y + p.height))) : 999;
   };
-  expect(await gap()).toBeLessThanOrEqual(8);
+  // the pop-in animation and the focus scroll settle within a few frames
+  await expect.poll(gap, { timeout: 2000 }).toBeLessThanOrEqual(8);
   await page.mouse.wheel(0, 120);
-  await page.waitForTimeout(150);
-  expect(await gap()).toBeLessThanOrEqual(8);
+  await expect.poll(gap, { timeout: 2000 }).toBeLessThanOrEqual(8);
 });
 
 test("@wp10a dialogs return focus (ux.md §3.6): ? → help → Escape puts focus back on the focused block; j still works", async ({ page }) => {
