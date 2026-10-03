@@ -28,6 +28,7 @@
   "map.readme.note": "The README heading as written (generation replaces it with a summary)",
   "map.rescan": "Rescan",
   "map.right": "Generation and static facts",
+  "map.room.flows": "Flows through this room",
   "map.room.fresh": "Up to date",
   "map.room.generate": "Generate first · {k} tok",
   "map.room.read": "Read §{section}",

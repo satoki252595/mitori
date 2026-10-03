@@ -5,7 +5,7 @@
  */
 import type { MapCamera, ZoomStage } from "../contract.ts";
 import { cameraTransform, centreOn, fitCamera, K_MAX, lerpCamera, lodClass, pan, STAGE_K, stageOf, stepStageK, type Viewport, zoomAt } from "./camera.ts";
-import { type PlanModel, type PlanText, renderPins, renderPlanSvg } from "./render.ts";
+import { type FlowStep, type PlanModel, type PlanText, renderFlow, renderPins, renderPlanSvg } from "./render.ts";
 
 export interface PlanCallbacks {
   onselect(node: string | null): void;
@@ -25,6 +25,8 @@ export class PlanController {
   #svg: SVGSVGElement | null = null;
   #g: SVGGElement | null = null;
   #pins: SVGGElement | null = null;
+  #flows: SVGGElement | null = null;
+  #flow: readonly FlowStep[] | null = null;
   #rooms = new Map<string, SVGElement>();
   #vp: Viewport = { w: 800, h: 600 };
   #sFit = 1;
@@ -55,10 +57,12 @@ export class PlanController {
     this.#svg = this.host.querySelector("svg.plan");
     this.#g = this.host.querySelector("g.cam");
     this.#pins = this.host.querySelector("g.pins");
+    this.#flows = this.host.querySelector("g.flows");
     this.#rooms.clear();
     for (const el of this.host.querySelectorAll<SVGElement>(".room")) this.#rooms.set(el.dataset.node ?? "", el);
     this.resize();
     if (this.#selected) this.select(this.#selected, false);
+    if (this.#flow) this.setFlow(this.#flow);
   }
 
   /** Viewport changed (ResizeObserver): refit unless the user moved the camera. */
@@ -189,6 +193,13 @@ export class PlanController {
       el.classList.toggle("gen", generating.has(id));
       el.classList.toggle("done", done.has(id) && !generating.has(id));
     }
+  }
+
+  /** §3 flow overlay (null = none): arrows + numbered tags; pins and AI frames fade to 30 %. */
+  setFlow(steps: readonly FlowStep[] | null): void {
+    this.#flow = steps && steps.length > 0 ? steps : null;
+    if (this.#flows) this.#flows.innerHTML = this.#flow ? renderFlow(this.model, this.#flow) : "";
+    this.#svg?.classList.toggle("flowing", this.#flow !== null);
   }
 
   setPins(counts: Readonly<Record<string, number>>): void {

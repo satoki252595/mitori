@@ -157,7 +157,8 @@ export function renderPlanSvg(m: PlanModel, text: PlanText, descId: string): str
   const out: string[] = [];
   out.push(
     `<svg class="plan" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(text.title)}" aria-describedby="${esc(descId)}" width="100%" height="100%">`,
-    '<defs><pattern id="pl-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" class="hatch-line"/></pattern></defs>',
+    '<defs><pattern id="pl-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" class="hatch-line"/></pattern>',
+    '<marker id="pl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path class="fl-head" d="M0 1L10 5L0 9z"/></marker></defs>',
     '<g class="cam">',
     `<rect class="bldg" x="0" y="0" width="${n2(m.width)}" height="${n2(m.height)}" rx="2"/>`,
   );
@@ -194,8 +195,67 @@ export function renderPlanSvg(m: PlanModel, text: PlanText, descId: string): str
       `<svg class="zl" x="${n2(z.x)}" y="${n2(z.y)}" width="${n2(z.w)}" height="${n2(z.h)}"><g class="lbl"><text class="zn" x="8" y="12">${esc(z.label)}</text></g></svg>`,
     );
   }
-  out.push("</g>", '<g class="pins"></g>', "</g></svg>");
+  out.push("</g>", '<g class="flows" aria-hidden="true"></g>', '<g class="pins"></g>', "</g></svg>");
   return out.join("");
+}
+
+/** One step of a §3 flow over the map (`SectionView.mapFlow`, map node ids). */
+export interface FlowStep {
+  from: string;
+  to: string;
+  step: number;
+}
+
+/** Bulge of a there-and-back pair (control-point offset): the two curves' midpoints end up 70 units apart. */
+export const FLOW_BULGE = 70;
+
+/** Where a ray from the room's centre along (ux, uy) leaves the room, plus a small gap. */
+function exitPoint(r: RoomModel, ux: number, uy: number, gap = 4): { x: number; y: number } {
+  const hw = r.w / 2;
+  const hh = r.h / 2;
+  const t = Math.min(ux === 0 ? Number.POSITIVE_INFINITY : hw / Math.abs(ux), uy === 0 ? Number.POSITIVE_INFINITY : hh / Math.abs(uy));
+  return { x: r.x + hw + ux * (t + gap), y: r.y + hh + uy * (t + gap) };
+}
+
+/** Geometry of the flow arrows (pure; unit-tested): path + the tag position of each step. */
+export function flowGeometry(m: PlanModel, steps: readonly FlowStep[]): { step: number; d: string; tag: { x: number; y: number } }[] {
+  const pairs = new Set(steps.map((s) => `${s.from}\u0000${s.to}`));
+  const out: { step: number; d: string; tag: { x: number; y: number } }[] = [];
+  for (const st of steps) {
+    const a = m.byId.get(st.from);
+    const b = m.byId.get(st.to);
+    if (!a || !b || a === b) continue;
+    const dx = b.x + b.w / 2 - (a.x + a.w / 2);
+    const dy = b.y + b.h / 2 - (a.y + a.h / 2);
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+    const p0 = exitPoint(a, ux, uy);
+    const p2 = exitPoint(b, -ux, -uy);
+    if (pairs.has(`${st.to}\u0000${st.from}`)) {
+      // the perpendicular flips with the direction, so the way back bulges to the other side
+      const cx = (p0.x + p2.x) / 2 - uy * FLOW_BULGE;
+      const cy = (p0.y + p2.y) / 2 + ux * FLOW_BULGE;
+      out.push({
+        step: st.step,
+        d: `M${n2(p0.x)} ${n2(p0.y)}Q${n2(cx)} ${n2(cy)} ${n2(p2.x)} ${n2(p2.y)}`,
+        tag: { x: (p0.x + 2 * cx + p2.x) / 4, y: (p0.y + 2 * cy + p2.y) / 4 },
+      });
+    } else out.push({ step: st.step, d: `M${n2(p0.x)} ${n2(p0.y)}L${n2(p2.x)} ${n2(p2.y)}`, tag: { x: (p0.x + p2.x) / 2, y: (p0.y + p2.y) / 2 } });
+  }
+  return out;
+}
+
+/** Flow layer (ux.md §4.2.3 流れ): arrows + numbered rounded-rect tags (pins are droplets, so the two never mix). */
+export function renderFlow(m: PlanModel, steps: readonly FlowStep[]): string {
+  const g = flowGeometry(m, steps);
+  return [
+    ...g.map((x) => `<path class="fl-arrow" d="${x.d}" marker-end="url(#pl-arrow)"/>`),
+    ...g.map(
+      (x) =>
+        `<svg class="fl-tag" x="${n2(x.tag.x)}" y="${n2(x.tag.y)}" width="1" height="1" overflow="visible"><g class="lbl"><rect x="-10" y="-10" width="20" height="20" rx="5"/><text x="0" y="4">${x.step}</text></g></svg>`,
+    ),
+  ].join("");
 }
 
 /** Pin layer (re-rendered only when thread counts change, ≤ 100 pins): droplet + count at the room's top right. */

@@ -9,7 +9,7 @@ import "./plan.css";
 import type { MapStore, ZoomStage } from "../contract.ts";
 import { markAfterPaint } from "../shell/perf.ts";
 import { PlanController } from "./plan-dom.ts";
-import { buildPlanModel, type PlanText } from "./render.ts";
+import { buildPlanModel, type FlowStep, type PlanText } from "./render.ts";
 
 let {
   view,
@@ -19,6 +19,7 @@ let {
   generating,
   done,
   pins,
+  flow = null,
   onselect,
   onopen,
   onstage,
@@ -33,6 +34,7 @@ let {
   generating: ReadonlySet<string>;
   done: ReadonlySet<string>;
   pins: Readonly<Record<string, number>>;
+  flow?: readonly FlowStep[] | null;
   onselect: (node: string | null) => void;
   onopen: (node: string) => void;
   onstage: (z: ZoomStage) => void;
@@ -89,6 +91,9 @@ $effect(() => {
 });
 $effect(() => {
   controller?.setPins(pins);
+});
+$effect(() => {
+  controller?.setFlow(flow);
 });
 </script>
 

@@ -202,3 +202,34 @@ test("@wp10a AC-J16 テキストで見る: ?text=1 opens the dialog (tables with
   await page.keyboard.press("Escape");
   await expect(dlg).toHaveCount(0);
 });
+
+test("@wp10a S1 flows: ⇧1 overlays §3.1 (numbered tags, pins fade), again clears; ?flow= restores; the room card lists the flows through a room", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}`);
+  await waitMark(page, "mitori:map:painted");
+  const tags = page.locator("svg.plan .fl-tag text");
+  const before = await page.evaluate(() => document.querySelectorAll("svg.plan *").length);
+  await page.keyboard.press("Shift+Digit1");
+  await expect(tags).toHaveText(["1", "2", "3", "4", "5"]);
+  await expect(page.locator("svg.plan")).toHaveClass(/flowing/);
+  expect(new URL(page.url()).searchParams.get("flow")).toBe("s3/review-cycle");
+  // the there-and-back pair (daemon ⇄ session) is drawn as two curves
+  expect(await page.locator("svg.plan .fl-arrow[d*='Q']").count()).toBe(2);
+  await page.keyboard.press("Shift+Digit2");
+  await expect(tags).toHaveText(["1", "2"]);
+  await page.keyboard.press("Shift+Digit2");
+  await expect(tags).toHaveCount(0);
+  expect(new URL(page.url()).searchParams.get("flow")).toBeNull();
+  expect(await page.evaluate(() => document.querySelectorAll("svg.plan *").length)).toBe(before);
+  // permalink
+  await page.goto(`/w/${WS}?flow=s3/story`);
+  await waitMark(page, "mitori:map:painted");
+  await expect(tags).toHaveText(["1", "2"]);
+  // room card: flows through セッションとコメント = §3.1 ③④ and §3.2 ②
+  await page.locator('.room[data-node="md_session0"]').click();
+  const flows = page.locator(".room-card .flow");
+  await expect(flows).toHaveText(["§3.1 ③④", "§3.2 ②"]);
+  await expect(flows.nth(1)).toHaveAttribute("aria-pressed", "true");
+  await flows.nth(0).click();
+  await expect(tags).toHaveText(["1", "2", "3", "4", "5"]);
+});

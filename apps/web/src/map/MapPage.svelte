@@ -154,6 +154,47 @@ function closeTextView() {
   }
 }
 
+// ---------------------------------------------------------------- §3 flows (Shift+1〜5, `?flow=`, room card)
+/** §3.1〜§3.5 in TOC order: the sections whose `mapFlow` the overlay draws. */
+const flowSections = $derived((s.doc.index?.nodes.get("s3")?.children ?? []) as SectionId[]);
+const flowSteps = $derived(s.map.flow ? (s.doc.section(s.map.flow)?.mapFlow ?? null) : null);
+
+async function showFlow(sec: SectionId | null) {
+  if (sec) await s.doc.load(sec).catch(() => null);
+  s.map.flow = sec;
+  if (route.name === "map") {
+    const { flow: _flow, ...rest } = route;
+    s.router.replaceUrl(sec ? { ...rest, flow: sec } : rest);
+  }
+}
+
+/** The same flow again clears it (ux.md §4.2.3). */
+function toggleFlow(sec: SectionId) {
+  void showFlow(s.map.flow === sec ? null : sec);
+}
+
+$effect(() => {
+  const f = route.name === "map" ? route.flow : undefined;
+  if (f && f !== s.map.flow) untrack(() => void showFlow(f));
+});
+
+// the room card lists the flows through the selected room: §3.n sections are few, load them on selection
+$effect(() => {
+  if (!selected) return;
+  const ids = flowSections;
+  untrack(() => {
+    for (const id of ids) s.doc.prefetch(id);
+  });
+});
+const roomFlows = $derived.by(() => {
+  const r = selected;
+  if (!r) return [];
+  return flowSections.flatMap((sec) => {
+    const steps = (s.doc.section(sec)?.mapFlow ?? []).filter((x) => x.from === r.id || x.to === r.id).map((x) => x.step);
+    return steps.length ? [{ section: sec, num: s.doc.index?.numbers.get(sec) ?? "", steps, on: s.map.flow === sec }] : [];
+  });
+});
+
 // the room in the URL (`?room=`) is selected on load
 $effect(() => {
   if (route.name === "map" && route.room && model?.byId.has(route.room)) untrack(() => (s.map.selected = route.room ?? null));
@@ -239,6 +280,11 @@ onMount(() => {
     k.on("map.zoomIn", () => controller?.stepZoom(1)),
     k.on("map.zoomOut", () => controller?.stepZoom(-1)),
     k.on("map.fit", () => controller?.fit()),
+    k.on("map.flow", (e) => {
+      const n = Number(/^(?:Digit|Numpad)(\d)$/.exec(e.code)?.[1] ?? 0);
+      const sec = flowSections[n - 1];
+      if (sec) toggleFlow(sec);
+    }),
     k.on("map.pan", (e) => {
       if (!controller) return;
       const dir = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1;
@@ -315,6 +361,7 @@ const stale = $derived(s.doc.outline?.counts.stale ?? 0);
           generating={genRooms}
           done={doneRooms}
           {pins}
+          flow={flowSteps}
           onselect={select}
           onopen={open}
           onstage={onStage}
@@ -379,6 +426,8 @@ const stale = $derived(s.doc.outline?.counts.stale ?? 0);
         section={sec}
         sectionLabel={sec ? (s.doc.index?.numbers.get(sec) ?? "") : ""}
         genTokens={genEstimateFor(selected)}
+        flows={roomFlows}
+        onflow={toggleFlow}
         onread={() => open(selected.id)}
         ongenerate={() => prioritize(selected)}
       />

@@ -95,7 +95,8 @@ export class DocState implements DocViewStore {
     const p = this.api
       .call("GET /ws/:ws/doc/sections/:section", { params: { ws, section: id }, query: { lang: this.lang } })
       .then((v) => {
-        this.#put(id, v);
+        // a workspace switch while loading must not leak the old workspace's section into the new cache
+        if (this.ws() === ws) this.#put(id, v);
         return v;
       })
       .finally(() => this.#inflight.delete(id));

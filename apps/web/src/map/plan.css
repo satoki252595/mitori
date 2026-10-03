@@ -238,6 +238,40 @@ svg.plan.no-pins .pins {
   display: none;
 }
 
+/* §3 flows (Shift+1〜5): numbered rounded-rect tags over arrows; pins and AI frames fade to 30 % */
+svg.plan .fl-arrow {
+  fill: none;
+  stroke: var(--flow-tag-bg);
+  stroke-width: 1.8;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+svg.plan .fl-head {
+  fill: var(--flow-tag-bg);
+}
+
+svg.plan .fl-tag {
+  pointer-events: none;
+}
+
+svg.plan .fl-tag rect {
+  fill: var(--flow-tag-bg);
+}
+
+svg.plan .fl-tag text {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--fw-strong);
+  fill: var(--flow-tag-fg);
+  text-anchor: middle;
+}
+
+svg.plan.flowing .pins,
+svg.plan.flowing .room.ai .ring {
+  opacity: 0.3;
+}
+
 @media (prefers-reduced-motion: reduce) {
   svg.plan .room.gen .ring,
   svg.plan .room.ai .ring {

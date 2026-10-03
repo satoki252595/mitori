@@ -4,7 +4,7 @@ import type { EngineStatus, MapView } from "@mitori/core";
 import { ROOM_LOD, UI_THRESHOLDS } from "../contract.ts";
 import { cameraForK, centreOn, fitCamera, K_MAX, K_MIN, lerpCamera, lodClass, STAGE_K, stageOf, stepStageK, zoomAt } from "./camera.ts";
 import { engineProblem } from "./engine.ts";
-import { buildPlanModel, renderPins, renderPlanSvg } from "./render.ts";
+import { buildPlanModel, FLOW_BULGE, flowGeometry, type PlanModel, renderFlow, renderPins, renderPlanSvg, type RoomModel } from "./render.ts";
 
 describe("camera", () => {
   const vp = { w: 1000, h: 600 };
@@ -167,4 +167,34 @@ describe("UXP-15 / AC-U-EN engine problems", () => {
     expect(engineProblem({ ...base, ...(patch as Partial<EngineStatus>) } as EngineStatus)).toBe(want);
   });
   test("no status yet ⇒ no card", () => expect(engineProblem(null)).toBeNull());
+});
+
+describe("§3 flow overlay geometry (ux.md §4.2.3)", () => {
+  const room = (id: string, x: number, y: number): RoomModel =>
+    ({ id, x, y, w: 100, h: 60, label: id, path: "", loc: 0, files: 0, zone: null, zoneLabel: "", section: null, module: null, external: false, threads: 0, working: 0, fresh: "unknown", topSymbols: [] }) as RoomModel;
+  const rooms = [room("a", 0, 0), room("b", 400, 0), room("c", 400, 300)];
+  const m = { width: 600, height: 400, rooms, zones: [], edges: [], byId: new Map(rooms.map((r) => [r.id, r])), links: new Map() } as PlanModel;
+
+  test("one-way steps are straight between the room walls; tags at the midpoint", () => {
+    const [g] = flowGeometry(m, [{ from: "a", to: "b", step: 1 }]);
+    expect(g?.d).toBe("M104 30L396 30");
+    expect(g?.tag).toEqual({ x: 250, y: 30 });
+  });
+
+  test("a there-and-back pair bulges to opposite sides, ≥ 70 units apart at the middle", () => {
+    const g = flowGeometry(m, [
+      { from: "a", to: "b", step: 1 },
+      { from: "b", to: "a", step: 2 },
+    ]);
+    expect(g.map((x) => x.d.includes("Q"))).toEqual([true, true]);
+    const [t1, t2] = g.map((x) => x.tag);
+    expect(Math.abs((t1?.y ?? 0) - (t2?.y ?? 0))).toBeGreaterThanOrEqual(FLOW_BULGE - 1e-6);
+  });
+
+  test("unknown nodes and self loops are skipped; numbers are the step numbers", () => {
+    expect(flowGeometry(m, [{ from: "a", to: "zz", step: 1 }, { from: "c", to: "c", step: 2 }])).toEqual([]);
+    const svg = renderFlow(m, [{ from: "a", to: "c", step: 3 }]);
+    expect(svg).toContain('marker-end="url(#pl-arrow)"');
+    expect(svg).toContain(">3</text>");
+  });
 });

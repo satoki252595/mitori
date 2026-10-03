@@ -374,6 +374,21 @@ export function docFixture(o: FixtureOptions): DocFixture {
       mkSection("s3", t.titleJa, t.file, 6, ["s3/review-cycle", "s3/story"]);
       mkSection("s3/review-cycle", "レビューの1往復", t.file, 8);
       mkSection("s3/story", "storyの生成", t.file, 5);
+      const flow = (sid: SectionId, steps: [string, string][]) => {
+        const v = views.get(sid);
+        if (v) views.set(sid, { ...v, mapFlow: steps.map(([from, to], i) => ({ from, to, step: i + 1 })) });
+      };
+      flow("s3/review-cycle", [
+        ["md_agent000", "md_cli00000"],
+        ["md_cli00000", "md_daemon00"],
+        ["md_daemon00", "md_session0"],
+        ["md_session0", "md_daemon00"],
+        ["md_daemon00", "md_webui000"],
+      ]);
+      flow("s3/story", [
+        ["md_cli00000", "md_story000"],
+        ["md_story000", "md_session0"],
+      ]);
     } else if (t.id === "s6") {
       mkSection("s6", t.titleJa, t.file, 3, modChildren);
       for (const r of ROOMS.filter((x) => x.loc > 0))

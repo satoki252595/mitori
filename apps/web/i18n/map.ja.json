@@ -28,6 +28,7 @@
   "map.readme.note": "README.mdの見出し（原文のまま。生成すると日本語の要約に置き換わります）",
   "map.rescan": "再スキャン",
   "map.right": "生成と静的な事実",
+  "map.room.flows": "この部屋を通る流れ",
   "map.room.fresh": "最新",
   "map.room.generate": "先に生成（{k} tok）",
   "map.room.read": "§{section}を読む",
