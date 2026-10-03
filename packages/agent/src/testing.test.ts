@@ -133,8 +133,7 @@ describe("@mitori/agent/testing — cassette layer (testing spec §3)", () => {
       );
       const tee = createTeeSpawner(real, store, { keyContext: ctx, readFile: () => r.system, maxUsd: 0.01 });
       const child = tee.spawn(spec);
-      child.write(spec.stdin);
-      child.closeStdin();
+      if (spec.keepStdinOpen) child.closeStdin();
       for await (const _ of child.stdout) {
         // drain
       }

@@ -3,7 +3,7 @@ import type { BinaryPin, FsReader, FsStat, WorkspaceKey } from "@mitori/core";
 import type { ScheduledRequest } from "../contract.ts";
 import { cassetteScript } from "../fakes/cassette.ts";
 import { createFakeSpawner, createTestBridge, synth, testHasher } from "../testing.ts";
-import { isBareName, resolveOnSafePath } from "./resolve.ts";
+import { isBareName, resolveOnSafePath, untrustedOnFirstUse } from "./resolve.ts";
 
 const HELP =
   "Usage: claude\n  -p, --print  x\n  --output-format --input-format --verbose --include-partial-messages --model --effort --tools --allowedTools --permission-mode --setting-sources --strict-mcp-config --disable-slash-commands --restricted --no-session-persistence --resume --json-schema --max-budget-usd --system-prompt[-file] --permission-prompts --session-id\n";
@@ -152,5 +152,28 @@ describe("AGT-U-032 first-run pinning on the engine (TOFU, CR m1-65)", () => {
     const s = await abs.engines["claude-cli"]?.detect();
     expect(s?.path).toBe("/opt/claude/bin/claude");
     expect(s?.pin).toBeUndefined();
+  });
+
+  test("a first claude in a temporary directory is neither probed nor pinned, and later PATH entries are not tried", async () => {
+    // SAFE_PATH of the test bridge is /usr/bin:/bin; TMPDIR=/usr/bin makes the first entry a temporary directory
+    const sp = probes();
+    const b = createTestBridge({ spawner: sp, settings: unpinned, env: { HOME: "/home/u", PATH: "/usr/bin:/bin", USER: "u", TMPDIR: "/usr/bin/" } });
+    b.fs.files.set("/usr/bin/claude", new Uint8Array([1]));
+    b.fs.files.set("/bin/claude", new Uint8Array([7]));
+    const s = await b.engines["claude-cli"]?.detect();
+    expect(s?.installed).toBe(false);
+    expect(s?.problems.map((p) => p.code)).toEqual(["E_AGENT_NOT_INSTALLED"]);
+    expect(s?.problems[0]?.message).toMatch(/temporary directory/);
+    expect(s?.pin).toBeUndefined();
+    expect(sp.calls).toHaveLength(0);
+  });
+
+  test("untrustedOnFirstUse: temp prefixes (path or target) and TMPDIR; a native install is trusted", () => {
+    const guard = "/private/var/folders/ab/xyz/T/mitori-spawn-guard-1/claude";
+    expect(untrustedOnFirstUse({ path: guard, realpath: guard }, undefined)).toBe(true);
+    expect(untrustedOnFirstUse({ path: "/home/u/.local/bin/claude", realpath: "/tmp/x/claude" }, undefined)).toBe(true);
+    expect(untrustedOnFirstUse({ path: "/scratch/t/claude", realpath: "/scratch/t/claude" }, "/scratch/t/")).toBe(true);
+    expect(untrustedOnFirstUse({ path: "/home/u/.local/bin/claude", realpath: "/home/u/.local/share/claude/versions/2.1.288" }, "/scratch/t")).toBe(false);
+    expect(untrustedOnFirstUse({ path: "/opt/homebrew/bin/claude", realpath: "/opt/homebrew/lib/claude/cli.js" }, "relative")).toBe(false);
   });
 });

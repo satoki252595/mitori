@@ -84,6 +84,8 @@ export class ClaudeProc {
     if (this.sessionView) this.sessionView.sessionId = id;
   }
   private turn: Turn | null = null;
+  /** The spawner wrote `spec.stdin` at spawn and no turn has started yet (warm processes are spawned without it). */
+  private spawnDelivered: boolean;
   private readonly stderr: string[] = [];
   private readonly exitedP: Promise<number>;
   private stderrDone: Promise<void> = Promise.resolve();
@@ -107,6 +109,7 @@ export class ClaudeProc {
     };
     if (meta.worktree !== undefined) nopts.worktree = meta.worktree;
     this.normalizer = createNormalizer(nopts);
+    this.spawnDelivered = spec.stdin.length > 0;
     deps.metrics.inc("agent.spawns");
     this.child = deps.spawner.spawn(spec);
     this.exitedP = this.child.exited.then(
@@ -129,8 +132,12 @@ export class ClaudeProc {
     this.normalizer.beginTurn();
     const turn = new Turn(this, this.deps, budget, timeouts, signal);
     this.turn = turn;
+    // the spawner already wrote `spec.stdin` (SpawnSpec contract): the first turn of a cold process must not be sent
+    // twice, or claude answers it twice (two turns, double the tokens) [dogfood 2026-10-04]
+    const delivered = this.spawnDelivered && stdinText === this.spec.stdin;
+    this.spawnDelivered = false;
     try {
-      this.child.write(stdinText);
+      if (!delivered) this.child.write(stdinText);
       if (closeAfterWrite) this.child.closeStdin();
     } catch (err) {
       this.deps.log.warn("agent.claude.stdin_failed", { proc: this.id, err: err instanceof Error ? err.message : String(err) });

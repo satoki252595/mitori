@@ -36,7 +36,7 @@ import { EMPTY_REL, type SandboxStore } from "./fsports.ts";
 import { buildClaudeSpawn } from "./index.ts";
 import { ClaudeProc, type ProcDeps } from "./process.ts";
 import { sameLaunch, WARM_MODES, warmProfileKey, warmProfileOf } from "./profile.ts";
-import { firstRunPin, isBareName, resolveOnSafePath } from "./resolve.ts";
+import { firstRunPin, isBareName, resolveOnSafePath, untrustedOnFirstUse } from "./resolve.ts";
 
 export interface ClaudeEngineDeps {
   spawner: Spawner;
@@ -254,7 +254,8 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
     if (n === 0 || list.length >= Math.min(n, WARM_POOL.perProfile) || residentCount() >= WARM_POOL.residentMax) return;
     // warm processes run with the mode-floor backstop; the job budget is enforced by the meter [CONS-32]
     const { spec } = await prepare({ ...req, keepAlive: true }, CLAUDE_MODE_DEFAULTS[req.mode].maxBudgetUsd);
-    const proc = track(new ClaudeProc(procDeps, { ...spec, keepStdinOpen: true }, metaFor(req)));
+    // a warm process waits for its job: no prompt at spawn (the spawner would write `spec.stdin` right away)
+    const proc = track(new ClaudeProc(procDeps, { ...spec, stdin: "", keepStdinOpen: true }, metaFor(req)));
     const entry: WarmEntry = {
       proc,
       idle: deps.timers.set(() => {
@@ -307,10 +308,17 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
   /**
    * First run with no pin: resolve the bare `binary` name on SAFE_PATH once, probe it, and pin it (TOFU) when
    * `--version` answers [CR m1-65, SEC-10]. Later version changes surface as `E_ENGINE_BINARY_CHANGED` as usual.
+   * The FIRST `claude` on SAFE_PATH is the one meant (shell semantics): when it lies in a temporary directory it is
+   * neither probed nor pinned, and the search does not fall through to a later entry.
    */
   const probeFirstRun = async (probe: (bin: string | null, pin: BinaryPin | undefined) => Promise<EngineStatus>): Promise<EngineStatus> => {
     const found = deps.fs && isBareName(cs().binary) ? resolveOnSafePath(deps.fs, deps.safePath, cs().binary) : null;
     if (!found || !deps.fs) return probe(null, undefined);
+    if (untrustedOnFirstUse(found, deps.env.TMPDIR)) {
+      const s = await probe(null, undefined);
+      s.problems = [{ code: "E_AGENT_NOT_INSTALLED", message: `${found.path} is in a temporary directory: confirm the claude binary on the engine card` }];
+      return s;
+    }
     const s = await probe(found.path, undefined);
     if (!s.installed || !s.version) return s;
     const pin = await firstRunPin(deps.fs, deps.hasher, found, s.version, deps.clock.iso());

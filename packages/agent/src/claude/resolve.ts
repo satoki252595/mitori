@@ -27,6 +27,20 @@ export function resolveOnSafePath(fs: FsReader, safePath: string, name: string):
   return null;
 }
 
+/** Temporary directories (macOS per-user `/var/folders`, `/tmp`, `/var/tmp`, `/dev/shm`); `TMPDIR` is added. */
+const TEMP_PREFIXES = ["/tmp/", "/private/tmp/", "/var/tmp/", "/private/var/tmp/", "/var/folders/", "/private/var/folders/", "/dev/shm/"];
+
+/**
+ * True when a resolved binary may NOT be trusted on first use: it (or its target) lies in a temporary directory.
+ * No install puts `claude` there, other processes can write there, and a shim found there is not what the user meant
+ * by "claude" (the test spawn guard puts one first on PATH). Such a binary waits for the human confirmation on the
+ * engine card (`POST /engines/:engine/repin`) [SEC-10, CR m1-65].
+ */
+export function untrustedOnFirstUse(found: { path: string; realpath: string }, tmpdir: string | undefined): boolean {
+  const prefixes = tmpdir?.startsWith("/") ? [...TEMP_PREFIXES, `${tmpdir.replace(/\/+$/, "")}/`] : TEMP_PREFIXES;
+  return [found.path, found.realpath].some((p) => prefixes.some((x) => p.startsWith(x)));
+}
+
 /**
  * Trust-on-first-use pin of a resolved binary [CR m1-65]: sha256 of the file the path resolves to, the first line of
  * `--version`, `by: "first-run"`. Reading the whole binary (≈ 230 MB for claude 2.1.x, ≈ 0.1 s) happens once per

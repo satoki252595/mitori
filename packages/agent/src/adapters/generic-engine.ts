@@ -106,8 +106,7 @@ export function createGenericEngine(deps: GenericEngineDeps): Engine {
         }
       })();
       try {
-        child.write(spec.stdin);
-        child.closeStdin();
+        // the spawner wrote `spec.stdin` and closed stdin (keepStdinOpen false): writing again would fail
         for await (const line of child.stdout) {
           if (out.length + line.length + 1 > STDOUT_MAX) {
             truncated = true;
