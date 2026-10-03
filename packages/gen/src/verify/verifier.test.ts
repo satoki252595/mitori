@@ -6,6 +6,7 @@ import { createFakeIndexer } from "../test/fake-indexer.ts";
 import { testClock, testHasher, testMetrics } from "../test/ports.ts";
 import { sampleRepo } from "../test/repo.ts";
 import { computeVerdict, extractIdentifiers } from "./index.ts";
+import { l1, namesCitedFile } from "./l1.ts";
 import { createVerifier } from "./verifier.ts";
 
 const hasher = testHasher();
@@ -18,6 +19,24 @@ function setup() {
   const v = createVerifier({ indexer, anchors: fakeAnchors(hasher), hasher, clock: testClock(), metrics });
   return { indexer, v, metrics };
 }
+
+describe("GEN-U-062 L1: a backticked path naming a cited file is satisfied by the cite", () => {
+  const lines = ['it("accepts every language the UI offers", () => {', "  expect(isLang(x)).toBe(true);", "});"];
+  test("path, /-suffix and containing directory pass; another file, a command or a bare word does not", () => {
+    const paths = ["lib/i18n.test.ts", "internal/session/store.go"];
+    for (const ok of ["lib/i18n.test.ts", "./lib/i18n.test.ts", "i18n.test.ts", "session/store.go", "internal/session", "lib/"])
+      expect(namesCitedFile(ok, paths)).toBe(true);
+    for (const no of ["lib/i18n.ts", "internal/diff", "crit install", "isLang", "store", "lib/i18n.test.tsx"]) expect(namesCitedFile(no, paths)).toBe(false);
+  });
+
+  test('m3e-canvas: "`lib/i18n.test.ts` は `isLang` が…" citing lib/i18n.test.ts:1 passes; without the path it does not change', () => {
+    const w = { path: "lib/i18n.test.ts", lines, start: 1, end: 1 };
+    expect(l1(["lib/i18n.test.ts", "isLang"], [w])).toBe("pass");
+    expect(l1(["lib/i18n.test.ts", "isLang"], [{ ...w, path: "lib/other.ts" }])).toBe("fail");
+    expect(l1(["lib/i18n.test.ts", "isLang"], [{ lines, start: 1, end: 1 }])).toBe("fail");
+    expect(l1(["missingName"], [w])).toBe("fail");
+  });
+});
 
 describe("AC-13 computeVerdict truth table (§7.2 + R1 cited)", () => {
   test("rows in priority order", () => {

@@ -63,9 +63,10 @@ export function scriptedChild(spec: SpawnSpec, script: ScriptedChild, opts: { sp
   const stderr = new Channel<string>();
   const exited = deferred<number>();
   const signals: string[] = [];
-  let stdin = "";
-  let stdinLines = 0;
-  let closed = false;
+  // like the platform spawner: `spec.stdin` is written at spawn and stdin is closed unless `keepStdinOpen`
+  let stdin = spec.stdin;
+  let stdinLines = stdin.split("\n").length - 1;
+  let closed = !spec.keepStdinOpen;
   let done = false;
   let interrupted = false;
   let wake: (() => void) | null = null;

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { BlockAspect, BlockId, ModuleId, SectionId } from "@mitori/core";
 import type { CitableSet, ExistingRef, GenBlockLine, GenLineType, LineVerdict, ValidationContext } from "../contract.ts";
 import { sectionAspects } from "./aspects.ts";
-import { parseCompactClaim } from "./claims.ts";
+import { parseCiteObject, parseCompactClaim } from "./claims.ts";
 import { createLineValidator } from "./index.ts";
 
 const MOD = "md_7hq2m4xa" as ModuleId;
@@ -207,6 +207,40 @@ describe("GEN-U-040 compact claims grammar (PT-03)", () => {
     expect(typeof parseCompactClaim("unknown a.go:1")).toBe("string");
     expect(typeof parseCompactClaim("behavior a.go")).toBe("string");
     expect(typeof parseCompactClaim("behavior a.go:x-y")).toBe("string");
+  });
+
+  test("a bare range after a comma reuses the previous file (dogfood: 9 of 27 crit rejections were this form)", () => {
+    expect(parseCompactClaim("fact internal/session/session.go:416-431,487-513, 540")).toEqual({
+      kind: "fact",
+      cites: [
+        { path: "internal/session/session.go", start: 416, end: 431 },
+        { path: "internal/session/session.go", start: 487, end: 513 },
+        { path: "internal/session/session.go", start: 540, end: 540 },
+      ],
+    });
+    expect(parseCompactClaim("behavior a/x.go:1-2,7-9,y.go:3")).toEqual({
+      kind: "behavior",
+      cites: [
+        { path: "a/x.go", start: 1, end: 2 },
+        { path: "a/x.go", start: 7, end: 9 },
+        { path: "a/y.go", start: 3, end: 3 },
+      ],
+    });
+    expect(typeof parseCompactClaim("behavior 10-20")).toBe("string"); // no previous file
+  });
+
+  test("whitespace alone separates cites; a question cite may be the compact string (dogfood crit retries)", () => {
+    expect(parseCompactClaim("architecture internal/hooks/resolve.go:143-143 internal/hooks/run.go:49")).toEqual({
+      kind: "architecture",
+      cites: [
+        { path: "internal/hooks/resolve.go", start: 143, end: 143 },
+        { path: "internal/hooks/run.go", start: 49, end: 49 },
+      ],
+    });
+    expect(parseCiteObject("web/live-mode.sse.js:95")).toEqual({ cite: { path: "web/live-mode.sse.js", start: 95, end: 95 }, unknown: 0 });
+    expect(parseCiteObject(" cmd/crit/cli_dispatch.go:24-30 ")).toEqual({ cite: { path: "cmd/crit/cli_dispatch.go", start: 24, end: 30 }, unknown: 0 });
+    expect(typeof parseCiteObject("cmd/crit/cli_dispatch.go")).toBe("string");
+    expect(typeof parseCiteObject("a b.go:3")).toBe("string");
   });
 });
 

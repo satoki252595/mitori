@@ -1,4 +1,5 @@
 import {
+  type BinaryPin,
   CHARS_PER_TOKEN,
   type ClaudeModelId,
   type Clock,
@@ -24,10 +25,12 @@ import { createAgentScheduler } from "../scheduler/scheduler.ts";
 import { RESULT_META } from "../util/run.ts";
 import { timersFor } from "../util/timers.ts";
 
-/** Deps the contract does not have yet (CR-PENDING(WP-05), cr-requests/WP-05.md #2). */
+/** Deps applied by CR m1-57 / m1-65 (optional until the composition root passes all of them). */
 export interface BridgeExtraDeps extends BridgeFs {
   /** HTTP for anthropic-api (defaults to the global `fetch`). */
   fetch: FetchLike;
+  /** Persist a first-run binary pin into settings `pins` [CR m1-65]. Absent ⇒ the pin lives for this daemon only. */
+  pin: (engine: EngineId, pin: BinaryPin) => Promise<void>;
 }
 
 export interface BridgeDeps {
@@ -77,6 +80,8 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     safePath: deps.safePath,
     sandbox,
     window: () => scheduler?.window() ?? null,
+    fs: ports?.fs ?? null,
+    ...(deps.pin ? { pin: (p: BinaryPin) => deps.pin?.("claude-cli", p) ?? Promise.resolve() } : {}),
   });
   const anthropic = createAnthropicApiEngine({
     settings: deps.settings,

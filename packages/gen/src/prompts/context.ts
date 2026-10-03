@@ -21,6 +21,13 @@ export interface ContextIndex {
   symbolRanges(path: RepoPath): readonly { start: LineNo; end: LineNo }[];
 }
 
+/**
+ * Longest run of unseen lines a cited range may cross between shown lines (V17). Measured on crit (dogfood
+ * 2026-10-04): 29 of the 32 rejected ranges whose path was shown crossed runs of ≤ 6 lines — the doc comment and blank
+ * lines between two shown signatures — and were grounded; the remaining ones spanned elided bodies.
+ */
+export const CITE_GAP_LINES = 6;
+
 const LOCATION_RE = /(?<![\w./@+-])([\w@+.-]+(?:\/[\w@+.-]+)*\.[A-Za-z0-9]+|[\w@+.-]+(?:\/[\w@+.-]+)+):(\d+)(?:-(\d+))?/g;
 const HEADER_PATH_RE = /^=== (.+?)(?: · .*| \(.*\))?$/;
 
@@ -89,8 +96,14 @@ export class CitableBuilder {
         let e = end;
         while (s <= e && s - start < 2 && !covered(s)) s++;
         while (e >= s && end - e < 2 && !covered(e)) e--;
-        if (s > e) return false;
-        for (let x = s; x <= e; x++) if (!covered(x)) return false;
+        if (s > e || !covered(s) || !covered(e)) return false;
+        // short unseen runs between shown lines (blank lines, doc comments between two shown symbols, an elided
+        // statement) do not make a range ungrounded; a long elided body does
+        let run = 0;
+        for (let x = s; x <= e; x++) {
+          if (covered(x)) run = 0;
+          else if (++run > CITE_GAP_LINES) return false;
+        }
         return true;
       },
     };

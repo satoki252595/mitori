@@ -599,7 +599,7 @@ export interface GenPromptSpec {
 export const GEN_PROMPTS = {
   "gen.module": {
     id: "gen.module",
-    version: "gen.module@1",
+    version: "gen.module@4",
     system: "gen.system",
     stage: "S5",
     data: ["MODULE", "DEPS", "SKELETON", "BODIES", "TESTS", "FACTS", "DOCS", "EXISTING", "CHANGES"],
@@ -612,7 +612,7 @@ export const GEN_PROMPTS = {
   },
   "gen.parent": {
     id: "gen.parent",
-    version: "gen.parent@1",
+    version: "gen.parent@3",
     system: "gen.system",
     stage: "S6",
     data: ["MODULE", "CHILDREN", "EDGES", "SKELETON", "DOCS", "EXISTING"],
@@ -625,7 +625,7 @@ export const GEN_PROMPTS = {
   },
   "gen.overview": {
     id: "gen.overview",
-    version: "gen.overview@1",
+    version: "gen.overview@2",
     system: "gen.system",
     stage: "S6o",
     data: ["DOCS", "FACTS", "FLOORPLAN", "MODULES", "PARENTS", "EXISTING"],
@@ -642,7 +642,7 @@ export const GEN_PROMPTS = {
   },
   "gen.flows": {
     id: "gen.flows",
-    version: "gen.flows@1",
+    version: "gen.flows@2",
     system: "gen.system",
     stage: "S6o",
     data: ["SEEDS", "BODIES", "MODULES", "EXISTING_FLOWS", "EXISTING"],
@@ -708,7 +708,7 @@ export const GEN_PROMPTS = {
   },
   "gen.glossary": {
     id: "gen.glossary",
-    version: "gen.glossary@1",
+    version: "gen.glossary@2",
     system: "gen.system",
     stage: "S6o",
     data: ["GLOSSARY_SEEDS", "CANDIDATES"],
@@ -734,7 +734,7 @@ export const GEN_PROMPTS = {
   },
   "gen.labels": {
     id: "gen.labels",
-    version: "gen.labels@1",
+    version: "gen.labels@2",
     system: "gen.system",
     stage: "S6",
     data: ["MODULES"],
@@ -818,10 +818,10 @@ export const GEN_PROMPTS = {
 
 /** System / addendum versions. */
 export const GEN_SYSTEM_VERSIONS = {
-  "gen.system": "gen.system@1",
-  "doc.system": "doc.system@1",
-  "gen.regen": "gen.regen@1",
-  "gen.retry": "gen.retry@1",
+  "gen.system": "gen.system@4",
+  "doc.system": "doc.system@2",
+  "gen.regen": "gen.regen@2",
+  "gen.retry": "gen.retry@2",
 } as const satisfies Record<SystemPromptId | PromptAddendumId, PromptVersion>;
 
 /** Token budgets per DATA section and prompt (§5.2). Over budget ⇒ drop lowest-rank items + `> omitted:` line. */
@@ -1027,8 +1027,12 @@ export const GEN_ESTIMATE_PARAMS = {
   sessionBatchMaxInTokens: 100000,
   /** claude-cli output cap injected as CLAUDE_CODE_MAX_OUTPUT_TOKENS = max(min, ceil(factor·(O_t+Θ_t))) [PT-09]. */
   cliMaxOutput: { factor: 1.5, min: 2000 },
-  /** Retry rate / relative cost [仮]. */
-  retryRate: 0.1,
+  /**
+   * Share of tasks that take the one line-retry, and the retry reply relative to the first one. Measured on real
+   * standard runs (dogfood M-2, 2026-10-04: crit 0.63, m3e-canvas 0.71 at prompt @2-@3; reply 0.25-0.31). The
+   * estimator adds the expected continuation (cache re-read of the conversation + this share of output).
+   */
+  retryRate: 0.6,
   retryCost: 0.3,
   /** Batch prefix cache hit rate [仮: docs 30–98%]. */
   batchPrefixHit: 0.6,

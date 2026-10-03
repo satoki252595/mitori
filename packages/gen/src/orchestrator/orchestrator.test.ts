@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { MitoriError, type SseEventPayload } from "@mitori/core";
-import type { GenCall } from "../contract.ts";
+import { GEN_PROMPTS, type GenCall } from "../contract.ts";
 import { createFakeDocStore } from "../test/fake-doc.ts";
 import { type ScriptReply, type Turn, validRouter } from "../test/fake-engine.ts";
 import { makeHarness } from "../test/harness.ts";
@@ -37,7 +37,13 @@ describe("end-to-end standard run over scripted engines", () => {
     expect(claim?.cites[0]).toMatchObject({ path: "src/session/store.ts", blob: h.indexer.currentBlob("src/session/store.ts") as string, precision: "exact" });
     expect(claim?.verdict).toBe("cited");
     const gen = h.doc.section("s6/session")?.blocks.find((b) => b.origin === "ai")?.gen;
-    expect(gen).toMatchObject({ model: "claude-sonnet-5-5", engine: "claude-cli", stage: "S5", promptVer: "gen.module@1", run: run?.run.id });
+    expect(gen).toMatchObject({
+      model: "claude-sonnet-5-5",
+      engine: "claude-cli",
+      stage: "S5",
+      promptVer: GEN_PROMPTS["gen.module"].version,
+      run: run?.run.id,
+    });
     // the early overview's blocks were updated in place by the final overview (EXISTING → same ids)
     const s0 = h.doc.section("s0")?.blocks.filter((b) => b.origin === "ai") ?? [];
     expect(s0.length).toBe(1);
@@ -90,7 +96,7 @@ describe("GEN-U-042 / AC-28 the same inputs a second time are all cached", () =>
     await runToEnd(h);
     const calls = h.engine.calls.length;
     const bumped = makeHarness({
-      versions: { systems: { "gen.system": "gen.system@2" } },
+      versions: { systems: { "gen.system": "gen.system@99" } },
       shared: { db: h.db, doc: h.doc, indexer: h.indexer, safe: h.safe, ids: h.ids, clock: h.clock },
     });
     const est = await bumped.gen.estimate({ effort: "standard" });

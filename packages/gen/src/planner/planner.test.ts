@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { canonicalJson, type ModuleId } from "@mitori/core";
-import type { GenPlan, PlannedTask } from "../contract.ts";
+import { GEN_ESTIMATE_PARAMS, type GenPlan, type PlannedTask } from "../contract.ts";
 import { fakeLedger } from "../test/fake-agent.ts";
 import { createFakeDocStore } from "../test/fake-doc.ts";
 import { createFakeIndexer } from "../test/fake-indexer.ts";
 import { testClock, testHasher, testIds } from "../test/ports.ts";
 import { type FakeRepo, M_AUTH, M_CLI, M_CORE, M_HTTP, M_SESSION, sampleRepo } from "../test/repo.ts";
 import { testSettings } from "../test/settings.ts";
-import { createEstimator } from "./estimator.ts";
+import { createEstimator, withRetry } from "./estimator.ts";
 import { createPlanner } from "./planner.ts";
 
 const hasher = testHasher();
@@ -195,7 +195,7 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
     const P = 11550 + 450; // system + pack + ε_cli
     const O = Math.round(Math.min(3500, 900 + 0.06 * 14100)); // 1746
     const th = Math.round(150 + 0.05 * O);
-    const usd = (w: 0 | 1) => ((w * P * 2.5 + (1 - w) * P * 0.2 + 14100 * 2.5 + (O + th) * 10) * 1.03) / 1e6;
+    const usd = (w: 0 | 1) => (w * P * 2.5 + (1 - w) * P * 0.2 + 14100 * 2.5 + (O + th) * 10) / 1e6;
     const cold = estimator.task({ ...t, estimate: { ...t.estimate } }, "claude-cli", false);
     expect(cold).toMatchObject({ prefix: 11550, tail: 14100, out: O, thinking: th, cacheWrite: P + 14100, cacheRead: 0, uncached: 0 });
     expect(cold.apiUsd).toBeCloseTo(usd(1), 6);
@@ -205,6 +205,14 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
     expect(warm.apiUsd).toBeCloseTo(usd(0), 6);
     // session: same $ formula (reference value), no start-up σ in the task duration
     expect(estimator.task({ ...t, estimate: { ...t.estimate } }, "session", true).seconds).toBeCloseTo(4.0 + (O + th) / 125, 1);
+    // the expected line-retry (dogfood M-2): r × (conversation re-read + reply written + retryCost × reply)
+    const r = GEN_ESTIMATE_PARAMS.retryRate;
+    const k = GEN_ESTIMATE_PARAMS.retryCost;
+    const e = withRetry(t, warm, "claude-cli");
+    const read = 14100 + P;
+    expect(e).toMatchObject({ cacheRead: Math.round(P + r * read), cacheWrite: Math.round(14100 + r * (O + th)), out: Math.round(O + r * k * O) });
+    expect(e.apiUsd).toBeCloseTo(usd(0) + (r * (read * 0.2 + (O + th) * 2.5 + k * (O + th) * 10)) / 1e6, 6);
+    expect(withRetry(t, warm, "session")).toBe(warm);
   });
 
   test("the first task of each fan-out group writes the prefix; the rest read it", () => {
@@ -222,7 +230,7 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
     const { planner, estimator } = setup();
     const plan = planner.plan({ effort: "standard" });
     const sim = estimator.simulate(plan, "claude-cli", 3);
-    const d = new Map<string, number>(plan.tasks.map((t) => [t.id, t.estimate.seconds]));
+    const d = new Map<string, number>(plan.tasks.map((t) => [t.id, withRetry(t, t.estimate, "claude-cli").seconds]));
     const chain = (id: string): number => (d.get(id) ?? 0) + Math.max(0, ...(plan.tasks.find((t) => t.id === id)?.deps ?? []).map(chain));
     const longest = Math.max(...plan.tasks.map((t) => chain(t.id)));
     expect(sim.criticalPathSec).toBeCloseTo(longest, 0);

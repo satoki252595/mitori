@@ -467,3 +467,22 @@ describe("claude-cli engine over a scripted CLI", () => {
     expect(b.ledger.rows).toHaveLength(0);
   });
 });
+
+describe("AGT-U-033 the first prompt reaches claude exactly once (the spawner writes SpawnSpec.stdin)", () => {
+  // dogfood 2026-10-04: the engine wrote the first prompt again after the platform spawner had written it, so every
+  // parkable (patch/agent/generate) process answered it twice — two full turns, twice the subscription usage.
+  for (const mode of ["answer", "patch", "generate"] as const) {
+    test(`${mode}: one user message on stdin for the first turn`, async () => {
+      const c = mode === "patch" ? synth.text("{}", { structured: { summary: "s" } }) : synth.text("ok");
+      const sp = createFakeSpawner().script(isClaude, cassetteScript(c));
+      const b = createTestBridge({ spawner: sp });
+      const run = b.scheduler.submit(req(mode, mode === "patch" ? {} : { keepAlive: mode === "generate", promptVer: `gen.module@1` }), ctl());
+      const r = await run.result;
+      expect(r.stop).toBe("end");
+      await run.session?.close();
+      expect(sp.children[0]?.stdinText().split("\n").filter(Boolean)).toEqual([claudeUserMessageLine("Explain the retry loop.")]);
+    });
+  }
+});
+
+const claudeUserMessageLine = (text: string) => JSON.stringify({ type: "user", message: { role: "user", content: text } });

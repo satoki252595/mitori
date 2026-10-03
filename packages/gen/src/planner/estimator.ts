@@ -45,6 +45,32 @@ const P = GEN_ESTIMATE_PARAMS;
 const round6 = (x: number) => Math.round(x * 1e6) / 1e6;
 const price = (m: ModelId) => PRICING[(m in PRICING ? m : "claude-sonnet-5-5") as ClaudeModelId];
 
+/**
+ * The expected value of the one line-retry a task may take (§6.4): with probability `retryRate` a continuation
+ * turn re-reads the whole conversation from the cache (prompt + first reply), writes the first reply and the retry
+ * message to it, and answers with `retryCost` × the first reply. Push engines only (a session ingest has no
+ * continuation). Kept out of {@link task}: the per-call raw figures stay what the ledger's EMA compares against.
+ * Measured (dogfood M-2, 2026-10-04): 63-71 % of tasks retried, retry input 0.70-0.88 × the first calls',
+ * retry output 0.25-0.31 × theirs; without this term the token estimate was off by +84 % / +93 %.
+ */
+export function withRetry(t: PlannedTask, e: TaskEstimate, engine: EngineId): TaskEstimate {
+  if (t.cached || engine === "session" || e.tail === 0) return e;
+  const r = P.retryRate;
+  const pr = price(t.model);
+  const reply = e.out + e.thinking;
+  const read = e.uncached + e.cacheWrite + e.cacheRead;
+  const usd = (read * pr.cacheReadPerMTok + reply * pr.cacheWrite5mPerMTok + P.retryCost * reply * pr.outPerMTok) / 1e6;
+  return {
+    ...e,
+    cacheRead: Math.round(e.cacheRead + r * read),
+    cacheWrite: Math.round(e.cacheWrite + r * reply),
+    out: Math.round(e.out + r * P.retryCost * e.out),
+    thinking: Math.round(e.thinking + r * P.retryCost * e.thinking),
+    apiUsd: round6(e.apiUsd + r * usd),
+    seconds: Math.round((e.seconds + r * (ttftOf(t.model, t.effort, engine) + (P.retryCost * reply) / speedOf(t.model))) * 10) / 10,
+  };
+}
+
 /** Lead of a fan-out group (first in plan order); followers read the cached prefix. */
 function warmFlags(tasks: readonly PlannedTask[]): boolean[] {
   const seen = new Set<string>();
@@ -84,10 +110,7 @@ export function createEstimator(
     const tau = (P.tailCacheWriteShare as Readonly<Record<string, number>>)[engine] ?? 0;
     const w = warmPrefix ? 0 : 1;
     const pw = pr.cacheWrite5mPerMTok;
-    const usd =
-      ((w * p * pw + (1 - w) * p * pr.cacheReadPerMTok + tau * tail * pw + (1 - tau) * tail * pr.inPerMTok + (o + th) * pr.outPerMTok) *
-        (1 + P.retryRate * P.retryCost)) /
-      1e6;
+    const usd = (w * p * pw + (1 - w) * p * pr.cacheReadPerMTok + tau * tail * pw + (1 - tau) * tail * pr.inPerMTok + (o + th) * pr.outPerMTok) / 1e6;
     const sigma = engine === "session" ? 0 : startupOf(engine);
     return {
       prefix,
@@ -119,10 +142,10 @@ export function createEstimator(
     };
   }
 
-  /** Durations per task in plan order for `engine`. */
+  /** Expected per-task figures in plan order for `engine` (calibrated, with the expected retry). */
   function durations(plan: GenPlan, engine: EngineId): { t: PlannedTask; e: TaskEstimate }[] {
     const warm = warmFlags(plan.tasks);
-    return plan.tasks.map((t, i) => ({ t, e: calibrated(t, task(t, engine, warm[i] ?? false), engine) }));
+    return plan.tasks.map((t, i) => ({ t, e: withRetry(t, calibrated(t, task(t, engine, warm[i] ?? false), engine), engine) }));
   }
 
   function simulateWith(items: readonly { t: PlannedTask; e: TaskEstimate }[], engine: EngineId, slots: number): ScheduleSimulation {

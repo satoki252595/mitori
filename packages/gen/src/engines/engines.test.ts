@@ -44,7 +44,7 @@ describe("toScheduledRequest (§8.2 / §8.3)", () => {
       tools: "none",
       writeScope: [],
       system: "SYSTEM\n\nREPOSITORY CONTEXT\n<<<DATA n REPO_PACK>>>\n> x\n<<<END n>>>",
-      promptVer: "gen.module@1",
+      promptVer: GEN_PROMPTS["gen.module"].version,
       prompt: "UNIT",
       contract: "gen.block/1",
       keepAlive: true,
@@ -160,6 +160,40 @@ describe("scheduler-backed GenEngine", () => {
     await run.close();
     expect(parked).toBe(false);
     // once the process is gone, continueWith is absent (contract) ⇒ the executor takes the cold path
+    expect(run.continueWith).toBeUndefined();
+  });
+
+  test("GEN-U-060 the session attached AFTER submit (queued job, async spawn) is closed and continued — not lost", async () => {
+    // dogfood 2026-10-04: the real scheduler's run gets `session` only when the engine spawned the process; a session
+    // read at wrap time was undefined, so every generate process stayed parked until its TTL and every retry was cold
+    let parked = true;
+    let closed = 0;
+    const session: EngineSession = {
+      id: "s1",
+      parked: () => parked,
+      continue: () => unsupported("x"),
+      close: async () => {
+        closed++;
+        parked = false;
+      },
+    };
+    const late = fakeRun(["a"], {});
+    const scheduler = {
+      submit: () => {
+        void Promise.resolve().then(() => {
+          late.session = session;
+        });
+        return late;
+      },
+      continueSession: () => fakeRun(["b"], {}),
+    } as unknown as AgentScheduler;
+    const run = createSchedulerEngine("claude-cli", scheduler, ctx).run(call(), new AbortController().signal);
+    expect(run.continueWith).toBeUndefined();
+    for await (const _ of run.text) void _;
+    await run.result;
+    expect(run.continueWith).toBeDefined();
+    await run.close();
+    expect(closed).toBe(1);
     expect(run.continueWith).toBeUndefined();
   });
 });

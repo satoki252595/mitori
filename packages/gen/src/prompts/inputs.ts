@@ -4,7 +4,7 @@
  * Each section is budgeted per `DATA_BUDGETS`; dropped items leave one `> omitted: <n> <what>` line. The
  * blobs of every file whose `N|` lines are shown are recorded for stamping at the task snapshot (PT-05).
  */
-import type { Block, DocLang, GitOid, ModuleId, ModuleInfo, RepoPath, SectionId, Xxh3 } from "@mitori/core";
+import type { Block, DocLang, Fact, GitOid, LineNo, ModuleId, ModuleInfo, RepoPath, SectionId, Xxh3 } from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
 import { DATA_BUDGETS, type DataLabel, type GenPlan, type PlannedTask, type TaskInputs } from "../contract.ts";
@@ -129,10 +129,7 @@ class Gatherer {
           DEPS: this.deps(m),
           SKELETON: ctx.skeleton.text.split("\n"),
           BODIES: this.bodies(ctx.hot, "BODIES"),
-          TESTS: ctx.tests
-            .split("\n")
-            .filter((l) => l.trim() !== "")
-            .slice(0, 60),
+          TESTS: testsWithLocations(ctx.tests, ix.facts()),
           FACTS: ctx.facts.split("\n").filter((l) => l.trim() !== ""),
           DOCS: await this.docs("DOCS", m),
           EXISTING: this.existing([sectionOf(m)]),
@@ -481,4 +478,30 @@ class Gatherer {
     }
     return out;
   }
+}
+
+/**
+ * TESTS lines (`T <path>: <name>`, at most 60) with each case's location: `T <path>:<line> <name>`. A `path:line` in a
+ * `> ` line is citable (V17), so the tests aspect can cite the case it describes instead of inventing a line
+ * [dogfood 2026-10-04]. Same-named cases in one file take their lines in order.
+ * CR-PENDING(dogfood): `moduleContext().tests` drops the fact line (cr-requests/dogfood.md #3).
+ */
+export function testsWithLocations(text: string, facts: readonly Fact[]): string[] {
+  const at = new Map<string, LineNo[]>();
+  for (const f of facts) {
+    if (f.kind !== "test") continue;
+    const key = `${f.path}\0${f.name}`;
+    const list = at.get(key) ?? [];
+    list.push(f.line);
+    at.set(key, list);
+  }
+  return text
+    .split("\n")
+    .filter((l) => l.trim() !== "")
+    .slice(0, 60)
+    .map((l) => {
+      const m = /^T (\S+): (.*)$/.exec(l);
+      const line = m ? at.get(`${m[1]}\0${m[2]}`)?.shift() : undefined;
+      return m && line !== undefined ? `T ${m[1]}:${line} ${m[2]}` : l;
+    });
 }
