@@ -91,13 +91,23 @@ onMount(() => {
 });
 
 // A margin card is placed at its block: low in the viewport its chips / estimate / 送信 row fall below the fold
-// (live finding, 1440×900). Bring the whole card in view once its size settles after the first estimate.
-let revealed = false;
+// (live finding, 1440×900), and the column only grows once the card has been measured. For the first 2 s every
+// size change of the card brings the whole card back into view ("nearest": nothing moves when it already fits).
 $effect(() => {
-  void c.estimate;
-  if (!root || revealed || !c.estimate || placement === "sheet") return;
-  revealed = true;
-  requestAnimationFrame(() => root?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+  const el = root;
+  if (!el || placement === "sheet" || typeof ResizeObserver === "undefined") return;
+  const until = performance.now() + 2000;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const ro = new ResizeObserver(() => {
+    if (performance.now() > until) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => el.scrollIntoView({ block: "nearest" }), 80);
+  });
+  ro.observe(el);
+  return () => {
+    ro.disconnect();
+    clearTimeout(timer);
+  };
 });
 
 // ------------------------------------------------------------------------------- data disclosure (UXP-04)

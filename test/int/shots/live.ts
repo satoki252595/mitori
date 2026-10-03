@@ -177,7 +177,21 @@ async function mention(page: Page, query: string): Promise<void> {
 }
 
 /** The Composer's one-line estimate (`≈1.2k in · ≈600 out · $0.007 · 約4–8秒`). */
-const composerEstimate = async (page: Page): Promise<string> => (await page.locator("body").innerText()).match(/≈[\d.,]+k? in[^\n]*/)?.[0] ?? "";
+const composerEstimate = async (page: Page): Promise<string> =>
+  ((await page.locator("body").innerText()).match(/≈[\d.,]+k? in[\s\S]{0,80}?秒/)?.[0] ?? "").replace(/\s+/g, " ");
+
+/** Phases and the first / last streamed text of a job, in ms after `sentAt` (epoch ms of the keypress). */
+async function timeline(d: Daemon, job: string, sentAt: number): Promise<Record<string, number>> {
+  const events = await d.api<{ t: string; phase?: string; at: number }[]>("GET", `/jobs/${job}/events`);
+  const out: Record<string, number> = {};
+  for (const e of events) {
+    const k = e.t === "phase" ? `phase:${e.phase}` : e.t === "text" ? "firstText" : e.t;
+    if (out[k] === undefined && (e.t === "phase" || e.t === "text" || e.t === "result" || e.t === "usage")) out[k] = e.at - skew - sentAt;
+  }
+  const texts = events.filter((e) => e.t === "text");
+  if (texts.length > 0) out.lastText = (texts.at(-1) as { at: number }).at - skew - sentAt;
+  return out;
+}
 
 async function optimisticCardMs(page: Page): Promise<number | null> {
   return page.evaluate(() => {
@@ -279,6 +293,9 @@ try {
   const tLogin = performance.now();
   await page.goto(d.url);
   await page.waitForFunction(() => performance.getEntriesByName("mitori:shell:painted").length > 0);
+  await page
+    .waitForFunction(() => ["mitori:map:painted", "mitori:toc:painted"].every((n) => performance.getEntriesByName(n).length > 0), undefined, { timeout: 5000 })
+    .catch(() => undefined);
   const painted = await page.evaluate(() => {
     const e = (n: string) => Math.round(performance.getEntriesByName(n)[0]?.startTime ?? -1);
     return { shellPaintedMs: e("mitori:shell:painted"), mapPaintedMs: e("mitori:map:painted"), tocPaintedMs: e("mitori:toc:painted") };
@@ -325,6 +342,7 @@ try {
     `the doc chip names its section, got ${JSON.stringify(chipTexts)}`,
   );
   await shot(page, "06-composer-explain");
+  const explainSentAt = Date.now();
   await page.keyboard.press("Meta+Enter");
   const tSend = performance.now();
   let tFirst = 0;
@@ -354,6 +372,7 @@ try {
   const explainThread = await d.api<J>("GET", `/threads/${th1?.id}`);
   const explainJob = await d.api<J>("GET", `/jobs/${th1?.jobs[0]}`);
   const answer = explainThread.messages.find((m: J) => String(m.by).startsWith("agent:"));
+  steps.explainTimeline = await timeline(d, explainJob.id, explainSentAt);
   steps.explainJob = {
     state: explainJob.state,
     usage: explainJob.usage,
@@ -392,6 +411,7 @@ try {
   await page.waitForTimeout(1500);
   steps.fixEstimateChip = await composerEstimate(page);
   await shot(page, "09-composer-fix");
+  const fixSentAt = Date.now();
   await page.keyboard.press("Meta+Enter");
   const tFix = performance.now();
   await page.waitForTimeout(150);
@@ -430,6 +450,7 @@ try {
   await page.waitForTimeout(1200);
   await shot(page, "12-fix-ready");
   const fixJob = await d.api<J>("GET", `/jobs/${fixId}`);
+  steps.fixTimeline = await timeline(d, fixId, fixSentAt);
   steps.fixJob = {
     usage: fixJob.usage,
     timings: fixJob.timings,
@@ -447,11 +468,13 @@ try {
   await checkCap(d, "after fix");
 
   // (e) Review panel
+  const tReview = performance.now();
   await page
     .getByRole("button", { name: /^レビュー/ })
     .first()
     .click();
-  await page.locator(".rv").first().waitFor();
+  await page.locator(".rv .scroll").first().waitFor();
+  steps.reviewOpenMs = ms(tReview);
   await page.waitForTimeout(1000);
   check(page.url().includes("/review/"), "the Review route");
   const panel = await page.locator(".rv").first().innerText();

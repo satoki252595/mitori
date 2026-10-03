@@ -22,7 +22,13 @@ test("INT-07: Explain → Fix → Review → gates → accept → Undo through t
       console.log("INT-07 UI: Google Chrome is not installed — skipped");
       return;
     }
-    expect(code, `${stderr.split("\n").filter((l) => !l.includes("] shot ")).join("\n")}\n${stdout.slice(-1500)}`).toBe(0);
+    expect(
+      code,
+      `${stderr
+        .split("\n")
+        .filter((l) => !l.includes("] shot "))
+        .join("\n")}\n${stdout.slice(-1500)}`,
+    ).toBe(0);
     const result = JSON.parse(stdout) as { spentUsd: number; failure?: string };
     expect(result.failure).toBeUndefined();
   } finally {

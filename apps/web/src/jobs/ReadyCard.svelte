@@ -199,6 +199,7 @@ function onKey(e: KeyboardEvent) {
   }
   .rc-f {
     display: flex;
+    flex-wrap: wrap; /* the warning label of the accept button is long: the hint goes to the next line instead of being squeezed to one letter per row */
     align-items: center;
     gap: 8px;
     margin-top: 14px;
@@ -215,6 +216,7 @@ function onKey(e: KeyboardEvent) {
   .rc-f .hint {
     font-size: var(--fs-meta);
     color: var(--muted);
+    white-space: nowrap;
   }
   .acc {
     display: inline-grid;
