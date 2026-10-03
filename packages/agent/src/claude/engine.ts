@@ -33,7 +33,7 @@ import { scrubEnv } from "./env.ts";
 import { EMPTY_REL, type SandboxStore } from "./fsports.ts";
 import { buildClaudeSpawn } from "./index.ts";
 import { ClaudeProc, type ProcDeps } from "./process.ts";
-import { WARM_MODES, warmProfileKey, warmProfileOf } from "./profile.ts";
+import { sameLaunch, WARM_MODES, warmProfileKey, warmProfileOf } from "./profile.ts";
 
 export interface ClaudeEngineDeps {
   spawner: Spawner;
@@ -221,13 +221,18 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
     return { spec, key: profile ? warmProfileKey(profile, bin, deps.hasher) : null };
   };
 
-  const takeWarm = (key: Xxh3, req: EngineRequest): ClaudeProc | null => {
+  const takeWarm = (key: Xxh3, req: EngineRequest, spec: SpawnSpec): ClaudeProc | null => {
     if (cs().warmPool === 0 || !WARM_MODES.has(req.mode) || req.budget.usd > CLAUDE_MODE_DEFAULTS[req.mode].maxBudgetUsd) return null;
     const list = warm.get(key);
     const e = list?.shift();
     if (!e) return null;
     deps.timers.clear(e.idle);
     if (e.proc.state !== "idle") return null;
+    if (!sameLaunch(e.proc.spec, spec)) {
+      // launched before a settings change (setting sources, passthrough env): it must not serve this job
+      void e.proc.close();
+      return null;
+    }
     return e.proc;
   };
 
@@ -262,7 +267,7 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
         }
         const defaults = CLAUDE_MODE_DEFAULTS[req.mode];
         const timeouts = { firstLineMs: defaults.firstLineMs, idleMs: defaults.idleMs, turnMs: spec.timeoutMs };
-        const warmed = key ? takeWarm(key, req) : null;
+        const warmed = key ? takeWarm(key, req, spec) : null;
         // the warm process was spawned for this profile; only stdin and the turn are new
         if (warmed && !spec.keepStdinOpen) warmed.spec.keepStdinOpen = false;
         const proc = warmed ?? track(new ClaudeProc(procDeps, spec, metaFor(req)));

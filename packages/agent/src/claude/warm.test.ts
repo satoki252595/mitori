@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { WorkspaceKey } from "@mitori/core";
 import type { ScheduledRequest } from "../contract.ts";
 import { cassetteScript } from "../fakes/cassette.ts";
-import { createFakeSpawner, createTestBridge, synth, TEST_CLAUDE_PIN, testHasher } from "../testing.ts";
+import { createFakeSpawner, createTestBridge, synth, TEST_CLAUDE_PIN, testHasher, testSettings } from "../testing.ts";
 import { warmProfileKey, warmProfileOf } from "./profile.ts";
 
 const EMPTY = "/home/u/.mitori/run/empty";
@@ -109,6 +109,28 @@ describe("warm profiles (spec §6.6.1, CONS-32, PT-02)", () => {
     await b.scheduler.submit(req({ system: `Other.\nWorking directory: ${EMPTY}` }), new AbortController().signal).result;
     expect(b.scheduler.window()?.billing).toBe("overage");
     expect(sp.children[1]?.stdinClosed).toBe(true);
+  });
+
+  test("AGT-U-025 a warm process launched before a settings change (setting sources, passthrough env) never serves a job", async () => {
+    const sp = createFakeSpawner().script(
+      (s) => s.argv.includes("-p"),
+      () => cassetteScript(synth.text("x")),
+    );
+    const settings = testSettings({ engines: { "claude-cli": { warmPool: 1 } } });
+    const b = createTestBridge({ spawner: sp, settings: (s) => Object.assign(s, settings) });
+    const profile = warmProfileOf(req(), testHasher, false);
+    if (!profile) throw new Error("no profile");
+    await b.scheduler.submit(req(), new AbortController().signal).result;
+    await b.engines["claude-cli"]?.warm?.(profile);
+    expect(sp.calls).toHaveLength(2);
+    // the user turns on user-settings inheritance (user hooks would now see bundles): same WarmProfile, other argv
+    settings.engines["claude-cli"].inheritUserSettings = true;
+    await b.scheduler.submit(req({ prompt: "after the change" }), new AbortController().signal).result;
+    expect(sp.calls).toHaveLength(3); // spawned cold with the new argv
+    expect(sp.children[1]?.stdinText()).toBe(""); // the stale warm process got no prompt …
+    expect(sp.children[1]?.stdinClosed).toBe(true); // … and was closed
+    const cold = sp.calls[2]?.argv ?? [];
+    expect(cold[cold.indexOf("--setting-sources") + 1]).toBe("user");
   });
 
   test("AGT-U-025 the resident cap (warm + parked ≤ 2) evicts a warm process before a parked job session", async () => {
