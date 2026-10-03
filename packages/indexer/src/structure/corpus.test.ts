@@ -1,14 +1,17 @@
 /** Corpus acceptance for S3 (spec §12.4). Each suite skips when its pinned corpus clone is absent. */
 import { describe, expect, test } from "bun:test";
 import type { ModuleSeed } from "../contract.ts";
+import { linkFacts } from "../facts/stage.ts";
 import { buildRepoPack } from "../pack/repo-pack.ts";
 import type { StageFile, StageInput } from "../resolve/files.ts";
+import { resolveImports } from "../resolve/stage.ts";
 import { searchRows } from "../search/rows.ts";
 import { loadStructure, saveStructure } from "./persist.ts";
 import { moduleSeedsOf, type StructureResult } from "./stage.ts";
 import { commitsOf, corpusDir, loadCommit, loadRepo } from "./test/corpus.ts";
 import { memDb } from "./test/db.ts";
 import { estimateCode, NOW, runPipeline, xxh3 } from "./test/pipeline.ts";
+import { updateStructure } from "./update.ts";
 
 const crit = corpusDir("crit");
 const m3e = corpusDir("m3e-canvas");
@@ -134,6 +137,26 @@ describe.skipIf(!crit)("crit structure", () => {
       const lost = m.paths.filter((p) => !after.has(p)).length;
       if (lost / m.paths.length < 0.5) expect(ids.has(m.id)).toBe(true);
     }
+  }, 60_000);
+
+  test("IDX-AT perf: the update() structure path (§6.8) on crit stays within the 1-file update budget", async () => {
+    const inp = await input();
+    const p = runPipeline(inp);
+    const graphFiles = p.structure.graph.paths;
+    const times: number[] = [];
+    for (let k = 0; k < 12; k++) {
+      const path = graphFiles[(k * 7919) % graphFiles.length] as string;
+      const edited = bodyEdit(inp, path);
+      const res = resolveImports(edited);
+      const facts = linkFacts(edited, res);
+      const t0 = performance.now();
+      const r = updateStructure(p.structure, { files: edited.files, resolved: res, facts, xxh3, indexDigest: "u", now: NOW, changed: [path] });
+      times.push(performance.now() - t0);
+      expect(r?.modules.map((m) => [m.id, m.paths])).toEqual(p.structure.modules.map((m) => [m.id, m.paths]));
+    }
+    const med = median(times);
+    console.log(`[idx.update.1file] crit S3 update path median=${med.toFixed(2)}ms`);
+    expect(med).toBeLessThanOrEqual(10); // idx.update.1file 15 ms (limit 30) covers parse + S2 + S3
   }, 60_000);
 
   test("IDX-AT-35 small changes: random body edits keep membership and ids (20 edits on crit)", async () => {

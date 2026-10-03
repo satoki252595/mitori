@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { isId, type ModuleId, SLUG_RE } from "@mitori/core";
 import type { ModuleDetail, ModuleSeed } from "../contract.ts";
+import { linkFacts } from "../facts/stage.ts";
+import { resolveImports } from "../resolve/stage.ts";
 import { imp, input, ref, sf } from "../resolve/test/stage-files.ts";
 import { graphData } from "./graph-data.ts";
 import { assignIdentities, type Community, type IdentityContext, type PrevModule } from "./identity.ts";
@@ -13,6 +15,7 @@ import { moduleSeedsOf } from "./stage.ts";
 import { memDb } from "./test/db.ts";
 import { NOW, runPipeline, xxh3 } from "./test/pipeline.ts";
 import { TEST_TUNING } from "./tuning.ts";
+import { updateStructure } from "./update.ts";
 
 describe("IDX-U module ids and slugs (spec §6.6)", () => {
   test("moduleIdFor is md_ + 8 base32 chars of xxh3(md|anchor|n), deterministic and n-sensitive", () => {
@@ -281,6 +284,82 @@ describe("IDX-U structure stage on a small repo (TEST_TUNING)", () => {
     expect(leaves.length).toBeGreaterThanOrEqual(2);
     for (const m of leaves) if (m.paths.length > 1) expect(m.loc).toBeLessThanOrEqual(TEST_TUNING.leafLocHard);
     expect(st.moduleOf.get("api/routes.ts")).toBe("md_aaaaaaaa" as ModuleId); // its leaf still continues the seed
+  });
+
+  test("update() path (§6.8): new files join their neighbours' module, only touched modules are re-digested", () => {
+    const first = runPipeline(smallRepo(), { tuning: TEST_TUNING });
+    const upd = (extra: Parameters<typeof sf>[], changed: string[], edit?: (f: ReturnType<typeof sf>) => ReturnType<typeof sf>) => {
+      const inp = smallRepo(extra);
+      const files = edit ? inp.files.map(edit) : inp.files;
+      const res = resolveImports({ files, texts: inp.texts });
+      const facts = linkFacts({ files, texts: inp.texts }, res);
+      return updateStructure(first.structure, { files, resolved: res, facts, xxh3, indexDigest: "1", now: NOW, changed, tuning: TEST_TUNING });
+    };
+    // a new file importing store/db.ts and store/sql.ts
+    const grown = upd([["store/cache.ts", { loc: 40, imports: [imp("./db.ts"), imp("./sql.ts")] }]], ["store/cache.ts"]);
+    if (!grown) throw new Error("update not absorbed");
+    const home = first.structure.moduleOf.get("store/db.ts") as ModuleId;
+    expect(grown.moduleOf.get("store/cache.ts")).toBe(home);
+    expect(grown.modules.map((m) => [m.id, m.slug, m.topoOrder])).toEqual(first.structure.modules.map((m) => [m.id, m.slug, m.topoOrder]));
+    const before = new Map(first.structure.modules.map((m) => [m.id, m]));
+    for (const m of grown.modules) {
+      const old = before.get(m.id) as ModuleDetail;
+      if (m.id === home || m.children.includes(home)) expect(m.membersDigest).not.toBe(old.membersDigest);
+      else if (m.paths.length > 0) expect(m).toBe(old); // untouched modules are the very same objects
+    }
+    // the same assignment the structure refresh (carry-over) makes
+    const db = memDb();
+    saveStructure(db, first.structure, NOW);
+    const refreshed = runPipeline(smallRepo([["store/cache.ts", { loc: 40, imports: [imp("./db.ts"), imp("./sql.ts")] }]]), {
+      tuning: TEST_TUNING,
+      prev: loadStructure(db),
+    }).structure;
+    for (const m of refreshed.modules) if (m.paths.length > 0) expect(grown.modules.find((x) => x.id === m.id)?.paths).toEqual(m.paths);
+    // a body-only edit re-digests its module's body digest only
+    const edited = upd([], ["core/model.ts"], (f) =>
+      f.path === "core/model.ts" ? { ...f, symbols: f.symbols.map((s) => ({ ...s, bodyHash: "changed" })) } : f,
+    );
+    const mod = first.structure.moduleOf.get("core/model.ts") as ModuleId;
+    const a = first.structure.modules.find((m) => m.id === mod) as ModuleDetail;
+    const b = edited?.modules.find((m) => m.id === mod) as ModuleDetail;
+    expect(b.bodyDigest).not.toBe(a.bodyDigest);
+    expect([b.membersDigest, b.ifaceDigest, b.paths]).toEqual([a.membersDigest, a.ifaceDigest, a.paths]);
+    // a leaf that loses every file needs the refresh
+    const leaf = first.structure.modules.find((m) => m.paths.length > 0) as ModuleDetail;
+    const gone = new Set(leaf.paths);
+    const inp = smallRepo();
+    const files = inp.files.filter((f) => !gone.has(f.path));
+    const res = resolveImports({ files, texts: inp.texts });
+    expect(
+      updateStructure(first.structure, {
+        files,
+        resolved: res,
+        facts: linkFacts({ files, texts: inp.texts }, res),
+        xxh3,
+        indexDigest: "2",
+        now: NOW,
+        changed: [...gone],
+      }),
+    ).toBeNull();
+  });
+
+  test("update() path is cheap: a 1-file change on a 300-file repo", () => {
+    const big = input(
+      Array.from({ length: 300 }, (_, i) =>
+        sf(`p${Math.floor(i / 20)}/f${i}.ts`, {
+          loc: 60,
+          imports: [imp(`./f${Math.floor(i / 20) * 20}.ts`), ...(i % 20 === 0 && i > 0 ? [imp(`../p${i / 20 - 1}/f${i - 20}.ts`)] : [])],
+        }),
+      ),
+    );
+    const first = runPipeline(big).structure;
+    const files = big.files.map((f) => (f.path === "p3/f65.ts" ? { ...f, blob: "x", loc: 61 } : f));
+    const res = resolveImports({ files, texts: big.texts });
+    const facts = linkFacts({ files, texts: big.texts }, res);
+    const t0 = performance.now();
+    const r = updateStructure(first, { files, resolved: res, facts, xxh3, indexDigest: "1", now: NOW, changed: ["p3/f65.ts"] });
+    expect(performance.now() - t0).toBeLessThan(20);
+    expect(r?.modules.map((m) => m.id)).toEqual(first.modules.map((m) => m.id));
   });
 
   test("repo-settings mergeInto pins a prefix into the module holding the target path (spec §6.6)", () => {

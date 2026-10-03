@@ -54,6 +54,37 @@ export function carryOver(c: CarryInput): number[][] | null {
       if (i !== undefined) leafOf[i] = li;
     }
   });
+  assignNewcomers(fg, leafOf);
+  const groups = new Map<number, number[]>();
+  for (let v = 0; v < fg.paths.length; v++) {
+    const l = leafOf[v] as number;
+    if (l < 0) return null;
+    const g = groups.get(l);
+    if (g) g.push(v);
+    else groups.set(l, [v]);
+  }
+  // a leaf that left its size range forces a re-clustering
+  const t = c.tuning;
+  for (const [l, g] of groups) {
+    const loc = g.reduce((s, v) => s + (fg.size[v] as number), 0);
+    // seeds carry no sizes: a stale doc.index.json whose few surviving reps soak up the whole repo must cluster
+    if (c.seeded) {
+      if (g.length > 1 && loc > t.leafLocHard) return null;
+      continue;
+    }
+    const before = leaves[l]?.loc ?? loc;
+    if (g.length > 1 && loc > t.leafLocHard && before <= t.leafLocHard) return null;
+    if (loc < t.leafLocMin && before >= t.leafLocMin) return null;
+  }
+  return [...groups.values()].sort((a, b) => (a[0] as number) - (b[0] as number));
+}
+
+/**
+ * Files without a leaf (`leafOf[v] = -1`) join the leaf of their strongest resolved neighbours, else a leaf of the
+ * same directory, else the leaf with the longest common directory prefix (spec §6.8). Left at -1 only when no file has
+ * a leaf at all.
+ */
+export function assignNewcomers(fg: FileGraph, leafOf: Int32Array): void {
   // undirected dependency weights for the newcomers' vote
   const nbrs = new Map<number, Map<number, number>>();
   const add = (a: number, b: number, w: number) => {
@@ -97,26 +128,4 @@ export function carryOver(c: CarryInput): number[][] | null {
     }
     if (pick !== undefined) leafOf[v] = pick;
   }
-  const groups = new Map<number, number[]>();
-  for (let v = 0; v < fg.paths.length; v++) {
-    const l = leafOf[v] as number;
-    if (l < 0) return null;
-    const g = groups.get(l);
-    if (g) g.push(v);
-    else groups.set(l, [v]);
-  }
-  // a leaf that left its size range forces a re-clustering
-  const t = c.tuning;
-  for (const [l, g] of groups) {
-    const loc = g.reduce((s, v) => s + (fg.size[v] as number), 0);
-    // seeds carry no sizes: a stale doc.index.json whose few surviving reps soak up the whole repo must cluster
-    if (c.seeded) {
-      if (g.length > 1 && loc > t.leafLocHard) return null;
-      continue;
-    }
-    const before = leaves[l]?.loc ?? loc;
-    if (g.length > 1 && loc > t.leafLocHard && before <= t.leafLocHard) return null;
-    if (loc < t.leafLocMin && before >= t.leafLocMin) return null;
-  }
-  return [...groups.values()].sort((a, b) => (a[0] as number) - (b[0] as number));
 }

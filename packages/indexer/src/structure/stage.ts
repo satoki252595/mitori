@@ -101,7 +101,7 @@ export function dominantDir(paths: readonly RepoPath[], loc: (p: RepoPath) => nu
 }
 
 /** Cross-cutting: LOC spans ≥ 2 depth-1 directories and no depth-2 directory holds 60 % (spec §6.3-5). */
-function crossCutting(paths: readonly RepoPath[], loc: (p: RepoPath) => number): { cross: boolean; top: string[] } {
+export function crossCutting(paths: readonly RepoPath[], loc: (p: RepoPath) => number): { cross: boolean; top: string[] } {
   const d1 = new Map<string, number>();
   const d2 = new Map<string, number>();
   let total = 0;
@@ -579,10 +579,10 @@ function representativeSymbol(paths: readonly RepoPath[], files: ReadonlyMap<Rep
 }
 
 /** Test files join their subject's leaf, else the import majority, else a module of the same directory (spec §5.4). */
-function attachTests(
-  input: StructureInput,
+export function attachTests(
+  input: Pick<StructureInput, "facts" | "resolved">,
   moduleOf: Map<RepoPath, ModuleId>,
-  ids: readonly Identity[],
+  ids: readonly { id: ModuleId }[],
   leafPaths: readonly RepoPath[][],
   locOf: (p: RepoPath) => number,
 ): Map<ModuleId, RepoPath[]> {
@@ -598,7 +598,7 @@ function attachTests(
     for (const p of ps) {
       const d = dirOf(p);
       const cur = dirModule.get(d);
-      const id = (ids[li] as Identity).id;
+      const id = (ids[li] as { id: ModuleId }).id;
       if (!cur || locOf(p) > cur.loc) dirModule.set(d, { id, loc: locOf(p) });
     }
   });
