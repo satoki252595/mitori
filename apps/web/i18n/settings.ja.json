@@ -1,4 +1,6 @@
 {
+  "settings.editor": "エディタ（⇧Oで開く）",
+  "settings.editorNone": "使わない",
   "settings.engines": "エンジン",
   "settings.general": "一般",
   "settings.installed": "インストール済み（{version}）",

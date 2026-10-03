@@ -85,6 +85,12 @@ export class PrefsState {
     this.#patch({ ui: { readerLevel: l } });
   }
 
+  /** `⇧O` target (UiSettings.editor, §16 R21). */
+  setEditor(e: "vscode" | "cursor" | "none"): void {
+    this.editor = e;
+    this.#patch({ ui: { editor: e } });
+  }
+
   setSingleKeys(on: boolean): void {
     this.singleKeys = on;
     this.#patch({ ui: { singleKeyShortcuts: on } });

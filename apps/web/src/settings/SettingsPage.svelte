@@ -40,6 +40,14 @@ const LEVELS: ReaderLevel[] = ["newcomer", "standard", "expert"];
       </select></label
     >
     <label class="row"
+      ><span>{t("settings.editor")}</span>
+      <select value={s.prefs.editor} onchange={(e) => s.prefs.setEditor(e.currentTarget.value === "vscode" ? "vscode" : e.currentTarget.value === "cursor" ? "cursor" : "none")}>
+        <option value="none">{t("settings.editorNone")}</option>
+        <option value="vscode">VS Code</option>
+        <option value="cursor">Cursor</option>
+      </select></label
+    >
+    <label class="row"
       ><span>{t("settings.level")}</span>
       <select value={s.doc.level} onchange={(e) => setReaderLevel(s, e.currentTarget.value as ReaderLevel)}>
         {#each LEVELS as l (l)}<option value={l}>{t(`level.${l}`)}</option>{/each}

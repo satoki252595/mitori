@@ -1,4 +1,6 @@
 {
+  "settings.editor": "Editor (opened with ⇧O)",
+  "settings.editorNone": "None",
   "settings.engines": "Engines",
   "settings.general": "General",
   "settings.installed": "installed {version}",
