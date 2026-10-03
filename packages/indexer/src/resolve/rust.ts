@@ -56,8 +56,11 @@ export interface RustPathResolution {
   stdlib?: true;
 }
 
-/** Resolve one path (segments) used in `from` (spec §4.5-3). */
-export function resolveRustPath(segs: readonly string[], from: RepoPath, ctx: ProjectIndex): RustPathResolution {
+/**
+ * Resolve one path (segments) used in `from` (spec §4.5-3). `inline` = number of inline `mod x { … }` blocks around
+ * the use: `self::` and the first `super::`s then stay inside the same file.
+ */
+export function resolveRustPath(segs: readonly string[], from: RepoPath, ctx: ProjectIndex, inline = 0): RustPathResolution {
   const first = segs[0];
   if (first === undefined) return {};
   if (STD.has(first)) return { stdlib: true };
@@ -67,14 +70,15 @@ export function resolveRustPath(segs: readonly string[], from: RepoPath, ctx: Pr
   let base: string | null = null;
   let rest = segs.slice(1);
   if (first === "crate") base = "crate";
-  else if (first === "self") base = current ?? null;
-  else if (first === "super") {
-    base = current === undefined ? null : parentMod(current);
-    let i = 1;
-    while (segs[i] === "super" && base !== null) {
-      base = parentMod(base);
-      i++;
-    }
+  else if (first === "self") {
+    if (inline > 0) return {};
+    base = current ?? null;
+  } else if (first === "super") {
+    let i = 0;
+    while (segs[i] === "super") i++;
+    if (i <= inline) return {};
+    base = current ?? null;
+    for (let k = 0; k < i - inline && base !== null; k++) base = parentMod(base);
     rest = segs.slice(i);
   } else if (unit && current !== undefined && unit.modFile.has(`${current}::${first}`)) {
     base = current;
@@ -118,8 +122,10 @@ export function resolveRustImport(imp: ImportRecord, from: RepoPath, ctx: Projec
   const to = new Set<RepoPath>();
   let external: string | undefined;
   let stdlib = false;
+  // inline `mod x { … }` blocks (module symbols spanning lines) around the `use`
+  const inline = (ctx.files.get(from)?.symbols ?? []).filter((s) => s.kind === "module" && s.start < imp.line && imp.line <= s.end).length;
   for (const leaf of expandUseTree(imp.spec)) {
-    const r = resolveRustPath(leaf, from, ctx);
+    const r = resolveRustPath(leaf, from, ctx, inline);
     if (r.file !== undefined) to.add(r.file);
     else if (r.external !== undefined) external ??= r.external;
     else if (r.stdlib) stdlib = true;

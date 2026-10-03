@@ -38,6 +38,14 @@ const ancestors = (start: string): string[] => {
 
 const depth = (p: string): number => (p === "" ? 0 : p.split("/").length);
 
+/**
+ * Go build constraint carried by the parse output: `headings` = `[{level: 0, text: <package>}, {level: -1, text:
+ * <//go:build expression>}]` (agreed with WP-02). `ignore` files are not part of their package (`go build` skips them).
+ */
+export function goBuildIgnored(f: StageFile): boolean {
+  return f.headings?.some((h) => h.level === -1 && /^(ignore|ignored)$/.test(h.text.trim())) === true;
+}
+
 export class ProjectIndex implements ImportContext {
   private readonly tsCache = new Map<string, TsConfig | null>();
   private readonly pkgCache = new Map<string, PackageJson | null>();
@@ -287,7 +295,7 @@ export class ProjectIndex implements ImportContext {
   goFiles(dir: string): RepoPath[] {
     return this.files.dirFiles(dir).filter((p) => {
       const f = this.files.get(p);
-      return p.endsWith(".go") && !p.endsWith("_test.go") && f !== undefined && f.excluded === undefined && f.class === "source";
+      return p.endsWith(".go") && !p.endsWith("_test.go") && f !== undefined && f.excluded === undefined && f.class === "source" && !goBuildIgnored(f);
     });
   }
 

@@ -34,7 +34,9 @@ describe.skipIf(!crit)("crit (Go + JS)", () => {
 
   test("IDX-AT-22 crit: every internal/* Go import resolves to package files", async () => {
     const p = await load();
-    const all = [...p.resolved.imports.values()].flat().filter((r) => r.from.endsWith(".go") && /\/internal\//.test(r.spec) && r.spec.startsWith("github.com/tomasz-tomczyk/crit"));
+    const all = [...p.resolved.imports.values()]
+      .flat()
+      .filter((r) => r.from.endsWith(".go") && /\/internal\//.test(r.spec) && r.spec.startsWith("github.com/tomasz-tomczyk/crit"));
     expect(all.length).toBeGreaterThan(100);
     expect(all.filter((r) => r.to.length === 0).map((r) => `${r.from} ${r.spec}`)).toEqual([]);
   }, 60_000);

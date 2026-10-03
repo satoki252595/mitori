@@ -1,0 +1,229 @@
+import { Database } from "bun:sqlite";
+import { describe, expect, test } from "bun:test";
+import { type ModuleId, SLUG_RE, type SqlDb } from "@mitori/core";
+import { imp, input, ref, sf } from "../resolve/test/stage-files.ts";
+import { assignIdentities, type Community, type IdentityContext, type PrevModule } from "./identity.ts";
+import { moduleIdFor, slugify } from "./index.ts";
+import { buildUGraph, louvain, modularity, splitDisconnected } from "./louvain.ts";
+import { pagerank } from "./pagerank.ts";
+import { loadStructure, saveStructure } from "./persist.ts";
+import { bottomUpOrder, tarjan } from "./scc.ts";
+import { NOW, runPipeline, xxh3 } from "./test/pipeline.ts";
+import { TEST_TUNING } from "./tuning.ts";
+
+describe("IDX-U module ids and slugs (spec §6.6)", () => {
+  test("moduleIdFor is md_ + 8 base32 chars of xxh3(md|anchor|n), deterministic and n-sensitive", () => {
+    const a = moduleIdFor("internal/session/session.go", 0, xxh3);
+    expect(a).toMatch(/^md_[0-9abcdefghjkmnpqrstvwxyz]{8}$/);
+    expect(moduleIdFor("internal/session/session.go", 0, xxh3)).toBe(a);
+    expect(moduleIdFor("internal/session/session.go", 1, xxh3)).not.toBe(a);
+  });
+  test("slugify drops noise segments, keeps the last 3, normalizes, falls back to the anchor stem at the root", () => {
+    expect(slugify("internal/session", "internal/session/a.go")).toBe("internal-session");
+    expect(slugify("packages/core/src/lib", "x.ts")).toBe("core");
+    expect(slugify("src", "src/index.ts")).toBe("src");
+    expect(slugify("a/b/c/d/e", "x")).toBe("c-d-e");
+    expect(slugify(".", "cli_dispatch.go")).toBe("cli-dispatch");
+    expect(slugify("ＡＰＩ/Ｖ２", "x")).toBe("api-v2");
+    expect(slugify("日本語", "メモ.md")).toBe("module");
+    expect(slugify("a".repeat(80), "x").length).toBeLessThanOrEqual(48);
+    for (const s of ["internal-session", "core", "c-d-e", "api-v2"]) expect(SLUG_RE.test(s)).toBe(true);
+  });
+});
+
+describe("IDX-U deterministic Louvain (spec §6.2 R1)", () => {
+  // two 4-cliques joined by one weak bridge
+  const edges: [number, number, number][] = [];
+  for (const g of [0, 4]) for (let a = 0; a < 4; a++) for (let b = a + 1; b < 4; b++) edges.push([g + a, g + b, 1]);
+  edges.push([3, 4, 0.1]);
+  const g = buildUGraph(8, edges, new Float64Array(8).fill(100));
+  const order = Int32Array.from([5, 1, 7, 0, 3, 6, 2, 4]);
+  test("finds the two cliques, with the same labels on every run", () => {
+    const a = louvain(g, { gamma: 1, maxSize: 1e9, order });
+    const b = louvain(g, { gamma: 1, maxSize: 1e9, order });
+    expect([...a]).toEqual([...b]);
+    expect(new Set(a.slice(0, 4)).size).toBe(1);
+    expect(new Set(a.slice(4)).size).toBe(1);
+    expect(a[0]).not.toBe(a[4]);
+    expect(modularity(g, a)).toBeGreaterThan(0.4);
+  });
+  test("the size cap is never exceeded by a move; warm start + hysteresis keeps a good partition", () => {
+    const capped = louvain(g, { gamma: 0.01, maxSize: 250, order });
+    const sizes = new Map<number, number>();
+    for (const l of capped) sizes.set(l, (sizes.get(l) ?? 0) + 100);
+    expect(Math.max(...sizes.values())).toBeLessThanOrEqual(250);
+    const warm = louvain(g, { gamma: 1, maxSize: 1e9, order, init: Int32Array.from([0, 0, 0, 0, 1, 1, 1, 1]), hysteresis: 1e-4 });
+    expect([...warm]).toEqual([0, 0, 0, 0, 1, 1, 1, 1].map((x) => (x === 0 ? (warm[0] as number) : (warm[4] as number))));
+  });
+  test("disconnected communities are split by BFS", () => {
+    const h = buildUGraph(
+      4,
+      [
+        [0, 1, 1],
+        [2, 3, 1],
+      ],
+      new Float64Array(4).fill(1),
+    );
+    const labels = splitDisconnected(h, Int32Array.from([0, 0, 0, 0]), Int32Array.from([0, 1, 2, 3]));
+    expect([...labels]).toEqual([0, 0, 1, 1]);
+  });
+});
+
+describe("IDX-U PageRank / Tarjan (spec §6.4–6.5)", () => {
+  test("PageRank: sinks of a chain rank highest; personalization lifts a node; Σ = 1", () => {
+    const r = pagerank(3, [[[1, 1]], [[2, 1]], []], new Float64Array([1, 1, 1]));
+    expect((r[2] as number) > (r[1] as number) && (r[1] as number) > (r[0] as number)).toBe(true);
+    expect([...r].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
+    const p = pagerank(3, [[], [], []], new Float64Array([5, 1, 1]));
+    expect((p[0] as number) > (p[1] as number)).toBe(true);
+  });
+  test("IDX-AT-37 cycles are reported and the order puts dependencies first (except inside an SCC)", () => {
+    // 0 → 1 → 2 → 1 (cycle {1,2}), 3 → 0, 4 isolated
+    const adj = [[1], [2], [1], [0], []];
+    const sccs = tarjan(5, adj)
+      .filter((c) => c.length > 1)
+      .map((c) => c.sort());
+    expect(sccs).toEqual([[1, 2]]);
+    const { order } = bottomUpOrder(5, adj, (a, b) => a - b);
+    const pos = new Map(order.map((v, i) => [v, i]));
+    for (let u = 0; u < 5; u++)
+      for (const v of adj[u] ?? []) {
+        const inScc = sccs.some((c) => c.includes(u) && c.includes(v));
+        if (!inScc) expect(pos.get(v) as number).toBeLessThan(pos.get(u) as number);
+      }
+    expect(order).toHaveLength(5);
+    // deep chains do not overflow (iterative)
+    const n = 50_000;
+    const chain = Array.from({ length: n }, (_, i) => (i + 1 < n ? [i + 1] : []));
+    expect(tarjan(n, chain)).toHaveLength(n);
+  });
+});
+
+describe("IDX-U identity matching (spec §6.6)", () => {
+  const ctx = (): IdentityContext => ({ loc: () => 100, exists: () => true, xxh3, now: NOW, takenIds: new Set(), takenSlugs: new Set(), notices: [] });
+  const comm = (members: string[], dominantDir = "a"): Community => ({ members, anchor: members[0] as string, dominantDir, name: dominantDir, leaf: true });
+  const prev = (id: string, slug: string, members: string[], over: Partial<PrevModule> = {}): PrevModule => ({
+    id: id as ModuleId,
+    slug,
+    name: slug,
+    leaf: true,
+    alive: true,
+    members,
+    reps: members,
+    anchor: members[0] as string,
+    bornAt: "2026-01-01T00:00:00.000Z",
+    ...over,
+  });
+  test("J ≥ 0.5 keeps id / slug / name; a split keeps lineage; unmatched old modules are returned", () => {
+    const c = ctx();
+    const old = [prev("md_aaaaaaaa", "core", ["a/1", "a/2", "a/3", "a/4"]), prev("md_bbbbbbbb", "gone", ["z/1"])];
+    for (const o of old) {
+      c.takenIds.add(o.id);
+      c.takenSlugs.add(o.slug);
+    }
+    const r = assignIdentities([comm(["a/1", "a/2", "a/3"]), comm(["a/4", "a/5"], "a")], old, c);
+    expect(r.ids[0]).toMatchObject({ id: "md_aaaaaaaa", slug: "core", from: "md_aaaaaaaa" });
+    expect(r.ids[1]?.from).toBeNull();
+    expect(r.ids[1]?.slug).toBe("a");
+    expect(r.unmatched.map((m) => m.id)).toEqual(["md_bbbbbbbb"]);
+    const split = assignIdentities([comm(["a/1", "a/2"]), comm(["a/3", "a/4"])], [prev("md_cccccccc", "c", ["a/1", "a/2", "a/3", "a/4"])], ctx());
+    expect(split.ids.map((x) => x.from)).toEqual(["md_cccccccc", null]);
+    expect(split.ids[1]?.splitFrom).toBe("md_cccccccc");
+  });
+  test("tombstones resurrect by representative hits; seeds match by reps and invalid seed slugs are rewritten", () => {
+    const t = assignIdentities([comm(["a/1", "a/2"])], [prev("md_dddddddd", "back", [], { alive: false, reps: ["a/1", "a/2"], deadAt: NOW })], ctx());
+    expect(t.ids[0]?.id).toBe("md_dddddddd");
+    const c = ctx();
+    const s = assignIdentities([comm(["a/1", "a/2", "a/3"])], [prev("md_eeeeeeee", "../evil", [], { seed: true, reps: ["a/1", "a/2"] })], c);
+    expect(s.ids[0]?.id).toBe("md_eeeeeeee");
+    expect(SLUG_RE.test(s.ids[0]?.slug ?? "")).toBe(true);
+    expect(c.notices.some((n) => n.startsWith("notice.slug.rewritten"))).toBe(true);
+  });
+  test("newborn slugs never collide (with alive or tombstoned modules)", () => {
+    const c = ctx();
+    c.takenSlugs.add("a");
+    const r = assignIdentities([comm(["a/1"]), comm(["a/2"])], [], c);
+    expect(r.ids.map((x) => x.slug)).toEqual(["a-2", "a-3"]);
+    expect(new Set(r.ids.map((x) => x.id)).size).toBe(2);
+  });
+});
+
+/** A small repo: three directories of related files with a clear dependency structure. */
+function smallRepo(extra: Parameters<typeof sf>[] = []) {
+  const files = [
+    sf("api/routes.ts", { loc: 120, imports: [imp("../store/repo.ts"), imp("../core/model.ts")] }),
+    sf("api/handlers.ts", { loc: 110, imports: [imp("./routes.ts"), imp("../core/model.ts")] }),
+    sf("store/repo.ts", { loc: 130, imports: [imp("../core/model.ts"), imp("./db.ts")] }),
+    sf("store/db.ts", { loc: 90, imports: [imp("./sql.ts")] }),
+    sf("store/sql.ts", { loc: 80 }),
+    sf("core/model.ts", { loc: 100, symbols: [{ name: "Model", kind: "class" }] }),
+    sf("core/util.ts", { loc: 60, imports: [imp("./model.ts")] }),
+    sf("ui/view.tsx", { loc: 140, imports: [imp("../api/routes.ts")], refs: [ref("Model", 2, "type")] }),
+    sf("ui/form.tsx", { loc: 150, imports: [imp("./view.tsx")] }),
+    sf("test/repo.test.ts", { imports: [imp("../store/repo.ts")], tests: [{ name: "repo works", line: 1 }] }),
+    ...extra.map((a) => sf(...a)),
+  ];
+  return input(files);
+}
+
+describe("IDX-U structure stage on a small repo (TEST_TUNING)", () => {
+  test("leaves are size-bounded, tests attach to their subject, ids/slugs are valid and topo is bottom-up", () => {
+    const p = runPipeline(smallRepo(), { tuning: TEST_TUNING });
+    const leaves = p.structure.modules.filter((m) => m.paths.length > 0);
+    expect(leaves.length).toBeGreaterThanOrEqual(2);
+    for (const m of p.structure.modules) {
+      expect(m.id).toMatch(/^md_/);
+      expect(SLUG_RE.test(m.slug)).toBe(true);
+    }
+    expect(p.structure.moduleOf.get("test/repo.test.ts")).toBe(p.structure.moduleOf.get("store/repo.ts"));
+    const topo = new Map(p.structure.modules.map((m) => [m.id, m.topoOrder]));
+    const inCycle = (a: ModuleId, b: ModuleId) => p.structure.info.cycles.some((c) => c.includes(a) && c.includes(b));
+    for (const e of p.structure.leafEdges) if (!inCycle(e.from, e.to)) expect(topo.get(e.to) as number).toBeLessThan(topo.get(e.from) as number);
+  });
+
+  test("persist → load round trip feeds the next scan: same ids, tombstones kept, γ reused", () => {
+    const db = memDb();
+    const first = runPipeline(smallRepo(), { tuning: TEST_TUNING });
+    saveStructure(db, first.structure, NOW);
+    const prev = loadStructure(db);
+    expect(
+      prev.modules
+        .filter((m) => m.alive)
+        .map((m) => m.id)
+        .sort(),
+    ).toEqual(first.structure.modules.map((m) => m.id).sort());
+    expect(prev.gamma).toBe(first.structure.info.gamma);
+    const second = runPipeline(smallRepo(), { tuning: TEST_TUNING, prev });
+    expect(second.structure.modules.map((m) => [m.id, m.slug, m.paths])).toEqual(first.structure.modules.map((m) => [m.id, m.slug, m.paths]));
+    expect(second.structure.tombstones).toEqual([]);
+  });
+});
+
+/** In-memory SQLite with the spec §9 tables this WP reads and writes (WP-02 owns the real migrations). */
+export function memDb(): SqlDb {
+  const d = new Database(":memory:");
+  d.exec(`CREATE TABLE idx_meta (k TEXT PRIMARY KEY, v TEXT NOT NULL) WITHOUT ROWID;
+CREATE TABLE idx_modules (
+  id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
+  parent TEXT, depth INTEGER NOT NULL, alive INTEGER NOT NULL,
+  loc INTEGER NOT NULL, rank REAL NOT NULL, topo INTEGER NOT NULL, cross_cutting INTEGER NOT NULL,
+  dominant_dir TEXT NOT NULL, anchor TEXT NOT NULL,
+  members_digest TEXT NOT NULL, iface_digest TEXT NOT NULL, body_digest TEXT NOT NULL,
+  facts_digest TEXT NOT NULL, tests_digest TEXT NOT NULL,
+  split_from TEXT, oversize_file INTEGER NOT NULL DEFAULT 0,
+  born_at TEXT NOT NULL, dead_at TEXT, updated_at TEXT NOT NULL
+) WITHOUT ROWID;
+CREATE TABLE idx_module_members (path TEXT PRIMARY KEY, module TEXT NOT NULL, role TEXT NOT NULL) WITHOUT ROWID;
+CREATE VIRTUAL TABLE idx_search USING fts5(kind UNINDEXED, id UNINDEXED, label, sub, body, tokenize='trigram');`);
+  return {
+    exec: (sql) => d.exec(sql),
+    run: (sql, params) => {
+      const r = d.query(sql).run(...((params ?? []) as never[]));
+      return { changes: r.changes, lastInsertRowid: Number(r.lastInsertRowid) };
+    },
+    all: <T>(sql: string, params?: unknown) => d.query(sql).all(...((params ?? []) as never[])) as T[],
+    get: <T>(sql: string, params?: unknown) => (d.query(sql).get(...((params ?? []) as never[])) as T | null) ?? null,
+    tx: <T>(fn: () => T) => d.transaction(fn)(),
+    close: () => d.close(),
+  };
+}

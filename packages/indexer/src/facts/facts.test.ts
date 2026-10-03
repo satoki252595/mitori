@@ -6,9 +6,37 @@ import { input, sf } from "../resolve/test/stage-files.ts";
 import { classify, loadGrammars, loadRepo, parseStageFile } from "../structure/test/corpus.ts";
 import { mainFacts, miniIndexer, runPipeline } from "../structure/test/pipeline.ts";
 import { linkFacts } from "./stage.ts";
-import { compose, dockerfile, docTitle, envTemplate, flakeNix, goMod, justfile, makefile, npmManifest, pyproject, requirementsTxt, sqlSchema, todos } from "./text.ts";
+import {
+  compose,
+  dockerfile,
+  docTitle,
+  envTemplate,
+  flakeNix,
+  goMod,
+  justfile,
+  makefile,
+  npmManifest,
+  pyproject,
+  requirementsTxt,
+  sqlSchema,
+  todos,
+} from "./text.ts";
 
-const TIER2_FRAMEWORKS = new Set(["chi", "gin", "echo", "fastify", "next-app", "next-pages", "django", "axum", "actix", "urfave", "yargs", "typer", "argparse"]);
+const TIER2_FRAMEWORKS = new Set([
+  "chi",
+  "gin",
+  "echo",
+  "fastify",
+  "next-app",
+  "next-pages",
+  "django",
+  "axum",
+  "actix",
+  "urfave",
+  "yargs",
+  "typer",
+  "argparse",
+]);
 const TIER2_SCHEMA = /^(prisma|drizzle|sqlalchemy|gorm|django):/;
 
 /**
@@ -104,7 +132,9 @@ describe("IDX-AT-26 values are never captured", () => {
 });
 
 describe("IDX-U text detectors (spec §5.5–5.6)", () => {
-  const file = (path: string, cls: "config" | "docs" | "source" = "config") => ({ file: { path, lang: "generic" as const, class: cls, scope: "main" as const } });
+  const file = (path: string, cls: "config" | "docs" | "source" = "config") => ({
+    file: { path, lang: "generic" as const, class: cls, scope: "main" as const },
+  });
   test("package.json: entries, scripts with purposes and lines, dependencies", () => {
     const text = `{\n  "name": "@acme/tool",\n  "main": "dist/index.js",\n  "bin": "cli.js",\n  "scripts": {\n    "start": "node .",\n    "check-types": "tsc",\n    "fmt": "biome format"\n  },\n  "devDependencies": { "vitest": "1.0.0" }\n}`;
     const c = npmManifest({ ...file("pkg/package.json"), text });
@@ -126,12 +156,15 @@ describe("IDX-U text detectors (spec §5.5–5.6)", () => {
       ["build", "go build ./...", "build", 2],
       ["lint", "go vet", "lint", 7],
     ]);
-    const just = justfile({ ...file("justfile"), text: "set shell := [\"bash\"]\ndev:\n  bun run dev\n@test arg:\n  bun test\n" });
+    const just = justfile({ ...file("justfile"), text: 'set shell := ["bash"]\ndev:\n  bun run dev\n@test arg:\n  bun test\n' });
     expect(just.map((x) => [x.data.name, x.data.purpose])).toEqual([
       ["dev", "run"],
       ["test", "test"],
     ]);
-    const nix = flakeNix({ ...file("flake.nix"), text: "{ outputs = _: { devShells.x86_64-linux.default = 1; apps.x86_64-linux.bench = 2; packages.${system}.mitori = 3; }; }" });
+    const nix = flakeNix({
+      ...file("flake.nix"),
+      text: `{ outputs = _: { devShells.x86_64-linux.default = 1; apps.x86_64-linux.bench = 2; packages.\${system}.mitori = 3; }; }`,
+    });
     expect(nix.map((x) => [x.data.name, x.data.command])).toEqual([
       ["devShell:default", "nix develop"],
       ["bench", "nix run .#bench"],
@@ -139,7 +172,12 @@ describe("IDX-U text detectors (spec §5.5–5.6)", () => {
     ]);
   });
   test("go.mod / pyproject / requirements dependencies", () => {
-    expect(goMod({ ...file("go.mod"), text: "module x\nrequire (\n  a.b/c v1.0.0\n  d.e/f v2.0.0 // indirect\n)\nrequire g.h/i v0.1.0\n" }).map((x) => [x.data.name, x.line])).toEqual([
+    expect(
+      goMod({ ...file("go.mod"), text: "module x\nrequire (\n  a.b/c v1.0.0\n  d.e/f v2.0.0 // indirect\n)\nrequire g.h/i v0.1.0\n" }).map((x) => [
+        x.data.name,
+        x.line,
+      ]),
+    ).toEqual([
       ["a.b/c", 3],
       ["g.h/i", 6],
     ]);
@@ -168,7 +206,12 @@ describe("IDX-U text detectors (spec §5.5–5.6)", () => {
       ["env", "D"],
       ["entry", "/app/server"],
     ]);
-    expect(compose({ ...file("compose.yml"), text: "services:\n  a:\n    environment:\n      - X=1\n      - Y\n  b:\n    environment:\n      Z: 2\n    image: q\n" }).map((x) => x.data.name)).toEqual(["X", "Y", "Z"]);
+    expect(
+      compose({
+        ...file("compose.yml"),
+        text: "services:\n  a:\n    environment:\n      - X=1\n      - Y\n  b:\n    environment:\n      Z: 2\n    image: q\n",
+      }).map((x) => x.data.name),
+    ).toEqual(["X", "Y", "Z"]);
     expect(envTemplate({ ...file(".env.example"), text: "export A=1\n# B=2\nC=\n" }).map((x) => x.data.name)).toEqual(["A", "C"]);
   });
   test("SQL schema: CREATE TABLE columns (constraints skipped) + ALTER TABLE ADD COLUMN", () => {
@@ -193,7 +236,15 @@ describe("IDX-U facts link", () => {
   test("route / cli / env candidates of test files never reach the main tables; test names do", () => {
     const f = sf("test/a.test.ts", {
       facts: [
-        { detector: "route.hono@1", kind: "route", path: "test/a.test.ts", line: 1, data: { method: "GET", pattern: "/x", framework: "hono" }, evidence: ["import:hono"], scope: "test" },
+        {
+          detector: "route.hono@1",
+          kind: "route",
+          path: "test/a.test.ts",
+          line: 1,
+          data: { method: "GET", pattern: "/x", framework: "hono" },
+          evidence: ["import:hono"],
+          scope: "test",
+        },
         { detector: "test.js@1", kind: "test", path: "test/a.test.ts", line: 2, data: { name: "works" }, evidence: [], scope: "test" },
       ],
     });
@@ -222,7 +273,9 @@ describe("IDX-U facts link", () => {
     const inp = input([
       sf("examples/a.py", {
         scope: "example",
-        facts: [{ detector: "env.python@1", kind: "env", path: "examples/a.py", line: 1, data: { name: "X", hasDefault: false }, evidence: [], scope: "example" }],
+        facts: [
+          { detector: "env.python@1", kind: "env", path: "examples/a.py", line: 1, data: { name: "X", hasDefault: false }, evidence: [], scope: "example" },
+        ],
       }),
     ]);
     const p = runPipeline(inp);
