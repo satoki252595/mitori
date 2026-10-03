@@ -21,6 +21,9 @@ import type {
   WorkspaceOverrides,
 } from "@mitori/core";
 
+/** Keys that would reach prototypes through plain assignment (settings files are untrusted input). */
+export const UNSAFE_KEYS: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
+
 export type Spec =
   | { t: "bool" }
   | { t: "num"; min?: number; max?: number; int?: boolean }
@@ -251,7 +254,7 @@ export function validate(value: unknown, spec: Spec, opts: { partial: boolean } 
       if (value === null || typeof value !== "object" || Array.isArray(value)) return fail;
       const out: string[] = [];
       for (const [k, v] of Object.entries(value)) {
-        if (spec.key && !spec.key.test(k)) out.push(at(k));
+        if (UNSAFE_KEYS.has(k) || (spec.key && !spec.key.test(k))) out.push(at(k));
         else out.push(...validate(v, spec.of, opts, at(k)));
       }
       return out;

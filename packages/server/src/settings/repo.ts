@@ -22,8 +22,8 @@ export function parseRepoSettings(raw: unknown): { repo: RepoSettings; ignored: 
       if (value !== 1) ignored.push(key);
       continue;
     }
-    const row = (SETTING_SCOPES as Record<string, { scopes: readonly string[] } | undefined>)[key];
-    const spec = (REPO_SPEC as Record<string, (typeof REPO_SPEC)[keyof typeof REPO_SPEC] | undefined>)[key];
+    const row = Object.hasOwn(SETTING_SCOPES, key) ? (SETTING_SCOPES as Record<string, { scopes: readonly string[] }>)[key] : undefined;
+    const spec = Object.hasOwn(REPO_SPEC, key) ? (REPO_SPEC as Record<string, (typeof REPO_SPEC)[keyof typeof REPO_SPEC]>)[key] : undefined;
     if (!row?.scopes.includes("repo") || !spec || validate(value, spec).length > 0) {
       ignored.push(key);
       continue;

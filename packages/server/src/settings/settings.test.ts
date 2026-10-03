@@ -139,6 +139,19 @@ describe("resolveSettings", () => {
       schemaVersion: 1,
     });
   });
+
+  test("prototype keys in untrusted files are rejected, never assigned", () => {
+    const repoRaw = JSON.parse('{"__proto__":{"gates":[1]},"constructor":1,"modules":{"__proto__":{"name":"x"}},"docLang":"en"}');
+    const r = resolveSettings({ global: DEFAULT_GLOBAL_SETTINGS, overrides: {}, repoRaw, info, trust: () => "trusted", sandbox: "none" });
+    expect(r.ignoredRepoKeys.sort()).toEqual(["__proto__", "constructor", "modules"]);
+    expect(r.repo).toEqual({ schemaVersion: 1, docLang: "en" });
+    expect(Object.getPrototypeOf(r.repo)).toBe(Object.prototype);
+    expect(code(tryParse('{"__proto__":{"ui":{"lang":"en"}}}'))).toBe("E_CFG_INVALID");
+    expect(code(tryParse('{"ui":{"keymap":{"__proto__":"x"}}}'))).toBe("E_CFG_INVALID");
+    expect(checkSettingsPatch(JSON.parse('{"__proto__":{"engines":{"generic":{"enabled":true}}}}'), DEFAULT_GLOBAL_SETTINGS)).toEqual({ ok: true });
+    expect(deepMerge({ a: 1 }, JSON.parse('{"__proto__":{"polluted":true}}'))).toEqual({ a: 1 });
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
 });
 
 describe("SRV-I-027 settings service", () => {
