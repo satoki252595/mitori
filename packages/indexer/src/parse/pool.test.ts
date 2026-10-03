@@ -99,6 +99,27 @@ describe("spec §1.3 cancellation between batches", () => {
     await pool.close();
   });
 
+  test("a failing batch rejects run() only after the other lanes stopped; nothing is dispatched afterwards", async () => {
+    const f = fakePool(5);
+    let calls = 0;
+    const factory = (n: number) => {
+      const p = f.factory(n);
+      return {
+        ...p,
+        run: (req: ParseBatchRequest) => (++calls === 3 ? Promise.reject(new Error("worker died")) : p.run(req)),
+      };
+    };
+    const pool = new ParsePool(factory, () => performance.now(), 30);
+    await expect(pool.run(items(200), 2)).rejects.toThrow("worker died");
+    const after = calls;
+    await Bun.sleep(40);
+    expect(calls).toBe(after);
+    expect(calls).toBeLessThan(10);
+    await Bun.sleep(40);
+    expect(f.size()).toBe(0); // idle clock re-armed once every lane settled
+    await pool.close();
+  });
+
   test("results come back in input order", async () => {
     const f = fakePool();
     const pool = new ParsePool(f.factory, () => performance.now());

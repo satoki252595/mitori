@@ -84,9 +84,10 @@ export class ParsePool {
       const results = new Array<ParseResultExt>(items.length);
       const batches = lptBatches(items, pool.size());
       let next = 0;
+      let failure: { err: unknown } | null = null;
       let done = 0;
       const lane = async (): Promise<void> => {
-        while (next < batches.length) {
+        while (failure === null && next < batches.length) {
           if (signal?.aborted) throw new MitoriError("E_CANCELLED", "scan cancelled");
           const b = batches[next++] as ParseItemExt[];
           const res = await pool.run({ id: this.nextId++, items: b }, signal);
@@ -102,7 +103,17 @@ export class ParsePool {
           onBatch?.(done, items.length);
         }
       };
-      await Promise.all(Array.from({ length: Math.min(batches.length, 2 * Math.max(1, pool.size())) }, lane));
+      // Every lane is settled before returning (no batch runs after run() resolved or rejected); the first failure stops
+      // the others at their next batch boundary.
+      await Promise.all(
+        Array.from({ length: Math.min(batches.length, 2 * Math.max(1, pool.size())) }, () =>
+          lane().catch((err: unknown) => {
+            failure ??= { err };
+          }),
+        ),
+      );
+      const failed = failure as { err: unknown } | null;
+      if (failed !== null) throw failed.err;
       return { results, ms, workers: pool.size(), startMs };
     } finally {
       // Outside a scan (update / symbolsAt) nothing else re-arms the idle clock: without this the warm Worker would
