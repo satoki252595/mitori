@@ -34,12 +34,23 @@ const INTENTS: { i: ThreadIntent; key: string }[] = [
   { i: "review", key: "3" },
   { i: "note", key: "4" },
 ];
+let root: HTMLElement | undefined = $state();
 let ta: HTMLTextAreaElement | undefined = $state();
 let mdArea: HTMLTextAreaElement | undefined = $state();
 const layerId = $derived(`composer:${c.tempKey}`);
 const num = $derived(s.doc.index?.numbers.get(c.target.section) ?? "");
 const est = $derived(c.estimate);
 const p = $derived(c.predicted);
+/** A doc chip names its block by id (`doc:b_…`); the reader wants 「§4 動かしてみる」. */
+function chipLabel(it: { key: string; kind: string; label: string }): string {
+  if (it.kind !== "doc" || !it.key.startsWith("doc:b_")) return it.label;
+  const sec = s.doc.index?.blockSection.get(it.key.slice(4) as never);
+  const n = sec ? s.doc.index?.numbers.get(sec) : undefined;
+  const title = sec ? (s.doc.section(sec)?.section.title ?? "") : "";
+  return n ? `§${n}${title ? ` ${title}` : ""}` : it.label;
+}
+/** The `@` mention a server estimate item (`code:<path>:<a>-<b>`) was made from — it carries the mention's ×, so the chip is not shown twice. */
+const mentionOf = (key: string): number => c.mentions.findIndex((m) => key === `code:${m.path}:${m.start}-${m.end}`);
 const limits = $derived(s.session.settings?.settings.limits ?? DEFAULT_LIMITS);
 const engineId = $derived(est?.estimate.engine ?? s.session.settings?.settings.defaultEngine ?? "claude-cli");
 const billing = $derived(est?.estimate.billing ?? s.session.engine(engineId)?.billing ?? "unknown");
@@ -77,6 +88,16 @@ onMount(() => {
     for (const off of offs) off();
     s.layers.drop(layerId);
   };
+});
+
+// A margin card is placed at its block: low in the viewport its chips / estimate / 送信 row fall below the fold
+// (live finding, 1440×900). Bring the whole card in view once its size settles after the first estimate.
+let revealed = false;
+$effect(() => {
+  void c.estimate;
+  if (!root || revealed || !c.estimate || placement === "sheet") return;
+  revealed = true;
+  requestAnimationFrame(() => root?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
 });
 
 // ------------------------------------------------------------------------------- data disclosure (UXP-04)
@@ -202,7 +223,7 @@ const sendLabel = $derived(
 );
 </script>
 
-<section class="composer" data-place={placement} aria-label={t("composer.label")} data-chrome>
+<section class="composer" bind:this={root} data-place={placement} aria-label={t("composer.label")} data-chrome>
   <header class="cm-h">
     <span class="dr"><span class="o" aria-hidden="true">○</span>{t("composer.draft")}</span>
     <span class="sep" aria-hidden="true">·</span><span class="mono">§{num}</span>
@@ -304,8 +325,10 @@ const sendLabel = $derived(
           >
         {:else}
           <span class="chip" class:removed={ch.state === "removed"}>
-            <span class="lb" data-user-content>{ch.item.label}</span><span class="tk mono">{fmtTokens(ch.item.tokens)}</span>
-            {#if ch.item.removable}
+            <span class="lb" data-user-content>{chipLabel(ch.item)}</span><span class="tk mono">{fmtTokens(ch.item.tokens)}</span>
+            {#if mentionOf(ch.item.key) >= 0}
+              <button type="button" class="x" aria-label={t("composer.chips.remove", { label: ch.item.label })} onclick={() => c.removeMention(mentionOf(ch.item.key))}>×</button>
+            {:else if ch.item.removable}
               {#if ch.state === "removed"}
                 <button type="button" class="x" aria-label={t("composer.chips.restore", { label: ch.item.label })} onclick={() => c.toggleChip(ch.item.key, "included")}>+</button>
               {:else}
@@ -316,7 +339,9 @@ const sendLabel = $derived(
         {/if}
       {/each}
       {#each c.mentions as m, i (m.label)}
+        {#if !c.orderedChips.some((x) => x.item.key === `code:${m.path}:${m.start}-${m.end}`)}
         <span class="chip"><span class="lb mono" data-user-content>{m.label}</span><button type="button" class="x" aria-label={t("composer.chips.remove", { label: m.label })} onclick={() => c.removeMention(i)}>×</button></span>
+        {/if}
       {/each}
       <button type="button" class="chip add" onclick={() => {
         if (!ta) return;

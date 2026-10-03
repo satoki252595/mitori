@@ -225,6 +225,12 @@ const estTok = $derived(
 );
 const realTok = $derived(usage ? usage.in + usage.cacheRead + usage.cacheWrite + usage.out : 0);
 const quote = $derived(th?.anchor.doc?.quote?.exact ?? "");
+/** The human's request (the thread's first human message; its title while the messages are not loaded) — NOT `preview`, the latest message (the AI's reply). */
+const askText = $derived(((th ? loop.messages.get(th.id)?.find((m) => m.by === "human")?.body : undefined) ?? th?.title ?? "").trim());
+$effect(() => {
+  const id = th?.id;
+  if (id && !id.startsWith("tmp_") && !loop.messages.has(id)) void loop.loadThread(id);
+});
 const sec = $derived.by(() => {
   const b = th?.anchor.doc?.block;
   const id = b ? s.doc.index?.blockSection.get(b) : undefined;
@@ -245,7 +251,7 @@ const sec = $derived.by(() => {
         <button type="button" class="close" onclick={close}>× {t("review.close")}<kbd>Esc</kbd></button>
       </p>
       <h2>{t(`composer.intent.${th?.intent ?? "change"}`)}{t("review.titleSep")}<span data-user-content>{th?.title ?? ""}</span></h2>
-      <p class="ask">§{sec}<q data-user-content>{quote.slice(0, 40)}</q> <span class="mono">{th?.anchor.doc?.block ?? ""}</span> · {t("review.you")}<q data-user-content>{(th?.preview ?? "").slice(0, 60)}</q></p>
+      <p class="ask">§{sec}<q data-user-content>{quote.slice(0, 40)}</q> <span class="mono">{th?.anchor.doc?.block ?? ""}</span> · {t("review.you")}<q data-user-content>{askText.slice(0, 60)}</q></p>
     </header>
 
     {#if resolvedElsewhere}<p class="elsewhere">{t("review.elsewhere")}</p>{/if}

@@ -113,10 +113,23 @@ const base = $derived(content ? content.path.slice(content.path.lastIndexOf("/")
     font: 0.75rem / var(--lh-code) var(--font-mono);
     color: var(--shiki-foreground);
     font-variant-ligatures: none;
+    /* the server HTML is `<span data-line>…</span>\n` per line: with `pre` on the block each \n is one more (empty) row */
+    white-space: normal;
   }
   .cbody :global([data-line]) {
     display: block;
+    min-height: 1lh;
     padding-right: 16px;
+    white-space: pre;
+  }
+  .cbody :global([data-line])::before {
+    content: attr(data-line);
+    display: inline-block;
+    width: 4.5ch;
+    margin-right: 14px;
+    text-align: right;
+    color: var(--muted);
+    user-select: none;
   }
   .cbody :global([data-line].hi) {
     background: var(--mark-line);

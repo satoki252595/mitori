@@ -1026,6 +1026,14 @@ export class Loop {
       const cur = this.trust.get(id);
       if (cur) this.#onTrust({ ...cur, status: decision });
       this.s.bottom.dismiss("trust.pending");
+      // The server does not re-run gates on a trust decision (loop-wiring request 5: that would run repo code without a
+      // click). Approving from the Review panel IS the click — the diff and the command are on screen — so run the
+      // job's `untrusted` gates now; otherwise the panel keeps saying 「検査なし」 after the approval (live finding).
+      const route = this.s.router.route;
+      if (decision === "trusted" && route.name === "review") {
+        const j = this.s.review.jobs.get(route.job);
+        if (j?.gates.some((g) => g.status === "untrusted")) void this.runGates(route.job);
+      }
       return true;
     } catch (err) {
       this.#error(err);
