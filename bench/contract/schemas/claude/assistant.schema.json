@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mitori:contract/claude/assistant",
+  "type": "object",
+  "required": ["type", "message"],
+  "properties": {
+    "type": { "const": "assistant" },
+    "message": {
+      "type": "object",
+      "required": ["id", "content"],
+      "properties": {
+        "id": { "type": "string" },
+        "content": { "type": "array", "items": { "type": "object", "required": ["type"], "properties": { "type": { "type": "string" } } } }
+      }
+    }
+  }
+}

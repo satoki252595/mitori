@@ -273,7 +273,9 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
         if (r.error && RECHECK_CODES.has(r.error.code)) status = null;
         pending.resolve(r);
       } catch (err) {
-        const e = MitoriError.from(err);
+        // a spawn failure (ENOENT, EACCES …) is not an internal error: the engine could not start
+        const e =
+          err instanceof MitoriError ? err : new MitoriError("E_AGENT_EXIT", `engine failed to start: ${err instanceof Error ? err.message : String(err)}`);
         if (RECHECK_CODES.has(e.code)) status = null;
         pending.fail(e.code, e.message, { retryable: e.retryable });
       }

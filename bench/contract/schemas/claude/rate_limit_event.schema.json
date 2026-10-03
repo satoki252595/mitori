@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mitori:contract/claude/rate_limit_event",
+  "type": "object",
+  "required": ["type", "rate_limit_info"],
+  "properties": {
+    "type": { "const": "rate_limit_event" },
+    "rate_limit_info": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string" },
+        "isUsingOverage": { "type": "boolean" },
+        "unifiedWindows": {
+          "type": "object",
+          "properties": {
+            "five_hour": {
+              "type": "object",
+              "required": ["utilization", "resetsAt"],
+              "properties": { "utilization": { "type": "number" }, "resetsAt": { "type": "integer" } }
+            },
+            "seven_day": {
+              "type": "object",
+              "required": ["utilization", "resetsAt"],
+              "properties": { "utilization": { "type": "number" }, "resetsAt": { "type": "integer" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

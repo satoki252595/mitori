@@ -1,0 +1,39 @@
+[
+  {
+    "t": "phase",
+    "phase": "think"
+  },
+  {
+    "t": "usage",
+    "final": false,
+    "in": 540,
+    "cw": 0,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 3,
+    "usd": 0.000555,
+    "reported": null
+  },
+  {
+    "t": "text",
+    "text": "1"
+  },
+  {
+    "t": "usage",
+    "final": true,
+    "in": 0,
+    "cw": 0,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 0,
+    "usd": 0,
+    "reported": 0
+  },
+  {
+    "t": "result",
+    "stop": "cancelled",
+    "denials": [],
+    "durationMs": 6109,
+    "sessionId": "e2a490fe-ebe4-4635-8918-0e1d5519ff06"
+  }
+]

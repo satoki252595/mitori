@@ -1,0 +1,83 @@
+[
+  {
+    "t": "phase",
+    "phase": "think"
+  },
+  {
+    "t": "usage",
+    "final": false,
+    "in": 1265,
+    "cw": 0,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 1,
+    "usd": 0.00127,
+    "reported": null
+  },
+  {
+    "t": "window",
+    "five": 0.35,
+    "billing": "subscription-window"
+  },
+  {
+    "t": "usage",
+    "final": true,
+    "in": 1265,
+    "cw": 0,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 110,
+    "usd": 0.001815,
+    "reported": 0.001815
+  },
+  {
+    "t": "result",
+    "stop": "end",
+    "denials": [],
+    "durationMs": 1486,
+    "structured": {
+      "word": "apple"
+    },
+    "text": "{\"word\":\"apple\"}",
+    "sessionId": "e81cf8a5-5b2a-4c0e-b80a-be9d42e0363a",
+    "ttftMs": 1237
+  },
+  {
+    "t": "phase",
+    "phase": "think"
+  },
+  {
+    "t": "usage",
+    "final": false,
+    "in": 1481,
+    "cw": 0,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 4,
+    "usd": 0.001501,
+    "reported": null
+  },
+  {
+    "t": "usage",
+    "final": true,
+    "in": 1481,
+    "cw": 0,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 95,
+    "usd": 0.001956,
+    "reported": 0.001956
+  },
+  {
+    "t": "result",
+    "stop": "end",
+    "denials": [],
+    "durationMs": 1184,
+    "structured": {
+      "word": "pear"
+    },
+    "text": "{\"word\":\"pear\"}",
+    "sessionId": "e81cf8a5-5b2a-4c0e-b80a-be9d42e0363a",
+    "ttftMs": 1006
+  }
+]

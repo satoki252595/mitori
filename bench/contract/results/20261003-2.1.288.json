@@ -1,0 +1,215 @@
+{
+  "v": "mitori.contract-result/1",
+  "at": "2026-10-03T08:56:34.277Z",
+  "cli": "2.1.288 (Claude Code)",
+  "model": "claude-haiku-4-5",
+  "live": true,
+  "spentUsd": 0.047,
+  "invariants": [
+    {
+      "id": "I1",
+      "ct": "CT-03"
+    },
+    {
+      "id": "I2",
+      "ct": null
+    },
+    {
+      "id": "I3",
+      "ct": "CT-02"
+    },
+    {
+      "id": "I4",
+      "ct": null
+    },
+    {
+      "id": "I5",
+      "ct": "CT-04"
+    },
+    {
+      "id": "I6",
+      "ct": "CT-13"
+    },
+    {
+      "id": "I7",
+      "ct": "CT-01"
+    },
+    {
+      "id": "I8",
+      "ct": "CT-05"
+    },
+    {
+      "id": "I9",
+      "ct": null
+    },
+    {
+      "id": "I10",
+      "ct": "CT-06"
+    },
+    {
+      "id": "I11",
+      "ct": "CT-03"
+    },
+    {
+      "id": "I12",
+      "ct": "CT-11"
+    },
+    {
+      "id": "I13",
+      "ct": null
+    },
+    {
+      "id": "I14",
+      "ct": "CT-03"
+    }
+  ],
+  "ctMap": {
+    "CT-01": ["CC-02", "CC-22"],
+    "CT-02": ["CC-06"],
+    "CT-03": ["CC-03", "CC-04", "CC-12"],
+    "CT-04": ["CC-08", "CC-09"],
+    "CT-05": ["CC-12"],
+    "CT-06": ["CC-17", "CC-21"],
+    "CT-07": ["CC-14", "CC-20"],
+    "CT-08": ["CC-20"],
+    "CT-09": ["CC-16"],
+    "CT-11": ["CC-15"],
+    "CT-13": ["CC-10"],
+    "CT-14": ["CC-23"]
+  },
+  "results": [
+    {
+      "id": "CC-01",
+      "status": "pass",
+      "detail": "version 2.1.288 (Claude Code), authMethod claude.ai"
+    },
+    {
+      "id": "CC-02",
+      "status": "pass",
+      "detail": "all required flags present"
+    },
+    {
+      "id": "CC-03",
+      "status": "pass",
+      "detail": "canaries inert: passphrase absent, hook not run, mcp not started, skills [], mcp_servers []",
+      "usd": 0.0015,
+      "measure": {
+        "inheritedContext": 0
+      }
+    },
+    {
+      "id": "CC-04",
+      "status": "pass",
+      "detail": "control: with --setting-sources project the hook ran (canary is live)",
+      "usd": 0.0023
+    },
+    {
+      "id": "CC-05",
+      "status": "pass",
+      "detail": "stdin token echoed, absent from argv"
+    },
+    {
+      "id": "CC-06",
+      "status": "pass",
+      "detail": "--system-prompt-file honoured (KIWI-5063 answered)"
+    },
+    {
+      "id": "CC-07",
+      "status": "pass",
+      "detail": "no new session file under ~/.claude/projects"
+    },
+    {
+      "id": "CC-08",
+      "status": "pass",
+      "detail": "fake ANTHROPIC_API_KEY in parent env → apiKeySource=none"
+    },
+    {
+      "id": "CC-09",
+      "status": "pass",
+      "detail": "unscrubbed apiKeySource=ANTHROPIC_API_KEY, normalizer → E_AGENT_AUTH_SOURCE"
+    },
+    {
+      "id": "CC-10",
+      "status": "pass",
+      "detail": "init.model=claude-haiku-4-5"
+    },
+    {
+      "id": "CC-11",
+      "status": "pass",
+      "detail": "agent init.tools=[\"Edit\",\"Glob\",\"Grep\",\"Read\",\"StructuredOutput\"] stop=end"
+    },
+    {
+      "id": "CC-12",
+      "status": "pass",
+      "detail": "a.txt edited, b.txt unchanged, denial b.txt true, worktree hook inert",
+      "usd": 0.0161,
+      "measure": {
+        "toolsOverhead": 3731
+      }
+    },
+    {
+      "id": "CC-13",
+      "status": "pass",
+      "detail": "stdin closed after the prompt (no 3 s wait warning)"
+    },
+    {
+      "id": "CC-14",
+      "status": "pass",
+      "detail": "event shapes ok"
+    },
+    {
+      "id": "CC-15",
+      "status": "pass",
+      "detail": "subtype=error_max_budget_usd total_cost_usd=0.003248 at --max-budget-usd 0.0001 (backstop overshoot ≈32×)",
+      "usd": 0.0032
+    },
+    {
+      "id": "CC-16",
+      "status": "pass",
+      "detail": "SIGINT → cancelled in 17 ms; result present but its usage is ALL ZERO (terminal_reason aborted_streaming) — the engine now ledgers the meter estimate (≈540 in + ≈750 thinking out)",
+      "measure": {
+        "sigintMs": 17
+      }
+    },
+    {
+      "id": "CC-17",
+      "status": "pass",
+      "detail": "--json-schema structured_output={\"word\":\"apple\"}",
+      "usd": 0.0038
+    },
+    {
+      "id": "CC-20",
+      "status": "pass",
+      "detail": "lean overhead (tools none, claude-haiku-4-5) first-call input 585 tokens incl. a ~60-token prompt (≤ 1.0k); tools overhead (Read/Edit) 3731 (≤ 4.5k)",
+      "measure": {
+        "leanOverhead": 585,
+        "toolsOverhead": 3731
+      }
+    },
+    {
+      "id": "CC-21",
+      "status": "pass",
+      "detail": "2nd turn on the parked process ok in 1188 ms; ledger rows 2; reportedUsd turn2 0.001956 (delta of cumulative 0.003771)",
+      "measure": {
+        "continuationMs": 1188
+      }
+    },
+    {
+      "id": "CC-22",
+      "status": "pass",
+      "detail": "--bare is not the -p default"
+    },
+    {
+      "id": "CC-23",
+      "status": "pass",
+      "detail": "five_hour.utilization=0.35"
+    },
+    {
+      "id": "CC-24",
+      "status": "pass",
+      "detail": "ephemeral_5m=8905 ephemeral_1h=0",
+      "usd": 0.0115
+    }
+  ],
+  "note": "2026-10-03 WP-05: 6 partial --live runs (haiku) + 2 probes; total subscription spend ≈ $0.047 API-equivalent. CC-18 (writes the user's session store) and CC-19 (sonnet) not run; CT-08 measured on haiku, not sonnet."
+}

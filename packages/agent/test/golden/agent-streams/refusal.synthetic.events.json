@@ -1,0 +1,46 @@
+[
+  {
+    "t": "phase",
+    "phase": "think"
+  },
+  {
+    "t": "usage",
+    "final": false,
+    "in": 900,
+    "cw": 0,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 1,
+    "usd": 0.000905,
+    "reported": null
+  },
+  {
+    "t": "usage",
+    "final": true,
+    "in": 900,
+    "cw": 0,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 1,
+    "usd": 0.000905,
+    "reported": 0.000905
+  },
+  {
+    "t": "error",
+    "code": "E_AGENT_REFUSAL",
+    "message": "the model refused the request",
+    "retryable": false
+  },
+  {
+    "t": "result",
+    "stop": "refusal",
+    "denials": [],
+    "durationMs": 1200,
+    "text": "",
+    "sessionId": "00000000-0000-4000-8000-000000000000",
+    "ttftMs": 600,
+    "refusal": {
+      "category": "cyber"
+    }
+  }
+]

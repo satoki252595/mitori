@@ -21,10 +21,19 @@ export interface MeterImpl extends UsageMeter {
 
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 0);
 
+interface Msg extends MeterBreakdown {
+  /** Streamed text/JSON chars of this message (→ tokens when the CLI never reports the output). */
+  chars: number;
+  /** `system/thinking_tokens.estimated_tokens` (cumulative per message). */
+  thinking: number;
+}
+
 export function createMeter(model: ClaudeModelId, estimateInTokens: number): MeterImpl {
-  const msgs: MeterBreakdown[] = [];
+  const msgs: Msg[] = [];
   let chars = 0;
   const cpt = CHARS_PER_TOKEN[PRICING[model].tokenizer].code;
+  // reported output wins; an interrupted message is estimated from what streamed (thinking included)
+  const outOf = (m: Msg): number => Math.max(m.out, Math.ceil(m.chars / cpt) + m.thinking);
   const breakdown = (): MeterBreakdown => {
     // Fallback when partial usage is unavailable: estimated input + streamed chars (spec §6.5.3).
     if (msgs.length === 0) return { in: Math.max(0, estimateInTokens), cw5m: 0, cw1h: 0, cr: 0, out: Math.ceil(chars / cpt) };
@@ -34,7 +43,7 @@ export function createMeter(model: ClaudeModelId, estimateInTokens: number): Met
       t.cw5m += m.cw5m;
       t.cw1h += m.cw1h;
       t.cr += m.cr;
-      t.out += m.out;
+      t.out += outOf(m);
     }
     return t;
   };
@@ -44,6 +53,11 @@ export function createMeter(model: ClaudeModelId, estimateInTokens: number): Met
   };
   return {
     push(ev: ClaudeStreamEvent): void {
+      const last = msgs[msgs.length - 1];
+      if (ev.type === "system" && ev.subtype === "thinking_tokens") {
+        if (last) last.thinking = Math.max(last.thinking, num((ev as { estimated_tokens?: unknown }).estimated_tokens));
+        return;
+      }
       if (ev.type !== "stream_event") return;
       const e = ev.event;
       if (e.type === "message_start") {
@@ -51,15 +65,16 @@ export function createMeter(model: ClaudeModelId, estimateInTokens: number): Met
         const cw = num(u.cache_creation_input_tokens);
         const split = (u.cache_creation ?? {}) as Record<string, unknown>;
         const cw1h = Math.min(cw, num(split.ephemeral_1h_input_tokens));
-        msgs.push({ in: num(u.input_tokens), cw5m: cw - cw1h, cw1h, cr: num(u.cache_read_input_tokens), out: num(u.output_tokens) });
+        msgs.push({ in: num(u.input_tokens), cw5m: cw - cw1h, cw1h, cr: num(u.cache_read_input_tokens), out: num(u.output_tokens), chars: 0, thinking: 0 });
       } else if (e.type === "message_delta") {
-        const last = msgs[msgs.length - 1];
         // `message_delta.usage.output_tokens` is the running total of that message, not an increment.
         if (last) last.out = Math.max(last.out, num(e.usage?.output_tokens));
       }
     },
     pushChars(n: number): void {
-      chars += Math.max(0, n);
+      const last = msgs[msgs.length - 1];
+      if (last) last.chars += Math.max(0, n);
+      else chars += Math.max(0, n);
     },
     usd,
     tokens(): { in: number; out: number } {

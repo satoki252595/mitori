@@ -71,6 +71,8 @@ export function usageFromResult(ev: ClaudeResultEvent, model: ClaudeModelId, pre
 /** Stop reason of a `result` (spec §6.5.1); `refusalSeen` = a `message_delta` of this turn had `stop_reason: "refusal"`. */
 export function stopOfResult(ev: ClaudeResultEvent, refusalSeen: boolean): StopReason {
   if (refusalSeen || ev.stop_reason === "refusal") return "refusal";
+  // SIGINT folds the turn: `terminal_reason: "aborted_streaming"` (contract CC-16; its usage is all zero)
+  if (ev.terminal_reason === "aborted_streaming") return "cancelled";
   switch (ev.subtype) {
     case "success":
       if (typeof ev.result === "string" && OUTPUT_MAX_RE.test(ev.result)) return "budget";
@@ -93,6 +95,7 @@ export function errorOfResult(
   const text = typeof ev.result === "string" ? ev.result.slice(0, 300) : "";
   switch (stop) {
     case "end":
+    case "cancelled":
       return null;
     case "refusal":
       return { code: "E_AGENT_REFUSAL", message: "the model refused the request", retryable: false, params: { category: refusalCategory ?? "unknown" } };

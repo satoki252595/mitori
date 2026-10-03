@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mitori:contract/claude/stream_event",
+  "description": "claude stream-json stream_event (--include-partial-messages). Unknown event types are yellow, not red.",
+  "type": "object",
+  "required": ["type", "event"],
+  "properties": {
+    "type": { "const": "stream_event" },
+    "event": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["message_start", "content_block_start", "content_block_delta", "content_block_stop", "message_delta", "message_stop"] },
+        "message": {
+          "type": "object",
+          "properties": {
+            "usage": {
+              "type": "object",
+              "required": ["input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"],
+              "properties": {
+                "input_tokens": { "type": "integer" },
+                "cache_creation_input_tokens": { "type": "integer" },
+                "cache_read_input_tokens": { "type": "integer" }
+              }
+            }
+          }
+        },
+        "delta": {
+          "type": "object",
+          "properties": {
+            "type": { "enum": ["text_delta", "thinking_delta", "input_json_delta", "signature_delta"] },
+            "text": { "type": "string" }
+          }
+        },
+        "usage": { "type": "object", "properties": { "output_tokens": { "type": "integer" } } }
+      }
+    }
+  }
+}

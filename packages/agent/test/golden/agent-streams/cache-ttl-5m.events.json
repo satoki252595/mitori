@@ -1,0 +1,46 @@
+[
+  {
+    "t": "phase",
+    "phase": "think"
+  },
+  {
+    "t": "usage",
+    "final": false,
+    "in": 10,
+    "cw": 8905,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 3,
+    "usd": 0.011156,
+    "reported": null
+  },
+  {
+    "t": "text",
+    "text": "ok"
+  },
+  {
+    "t": "window",
+    "five": 0.37,
+    "billing": "subscription-window"
+  },
+  {
+    "t": "usage",
+    "final": true,
+    "in": 10,
+    "cw": 8905,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 67,
+    "usd": 0.011476,
+    "reported": 0.011476
+  },
+  {
+    "t": "result",
+    "stop": "end",
+    "denials": [],
+    "durationMs": 1176,
+    "text": "ok",
+    "sessionId": "bfbf10e1-8a77-4b8e-93ec-0e7fee73cd6b",
+    "ttftMs": 1142
+  }
+]

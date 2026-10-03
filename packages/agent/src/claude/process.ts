@@ -86,6 +86,7 @@ export class ClaudeProc {
   private turn: Turn | null = null;
   private readonly stderr: string[] = [];
   private readonly exitedP: Promise<number>;
+  private stderrDone: Promise<void> = Promise.resolve();
   private killTimer: TimerHandle | null = null;
   /** Called when the process parks (engine registry: TTL, residentMax) and when it exits. */
   onPark: (p: ClaudeProc) => void = () => {};
@@ -111,7 +112,7 @@ export class ClaudeProc {
       (c) => c,
       () => -1,
     );
-    void this.pumpStderr();
+    this.stderrDone = this.pumpStderr();
     void this.pumpStdout();
   }
 
@@ -212,6 +213,8 @@ export class ClaudeProc {
       this.deps.log.warn("agent.claude.stdout_failed", { proc: this.id, err: err instanceof Error ? err.message : String(err) });
     }
     const code = await this.exitedP;
+    // the stderr tail belongs to this exit; a child whose stderr never closes must not hold the turn
+    await Promise.race([this.stderrDone, new Promise<void>((r) => globalThis.setTimeout(r, 50))]);
     if (this.killTimer !== null) this.deps.timers.clear(this.killTimer);
     this.killTimer = null;
     const turn = this.turn;
@@ -332,8 +335,12 @@ class Turn {
     const info = this.proc.normalizer.turn();
     if (info.init?.session_id) this.proc.setSessionId(info.init.session_id);
     const r = this.resultEv;
-    const estimated = this.finalUsage === null;
-    const usage = this.finalUsage ?? this.proc.normalizer.meter().usage();
+    const meterUsage = this.proc.normalizer.meter().usage();
+    // An interrupted turn's `result` reports zero usage (contract CC-16, `terminal_reason: aborted_streaming`):
+    // when mitori stopped the turn, the meter is the better (never smaller) figure.
+    const interruptedLow = this.stopReason !== null && this.finalUsage !== null && meterUsage.apiUsd > this.finalUsage.apiUsd;
+    const estimated = this.finalUsage === null || interruptedLow;
+    const usage = this.finalUsage !== null && !interruptedLow ? this.finalUsage : meterUsage;
     let stop: StopReason = r?.stop ?? "error";
     let error: EngineResult["error"];
     const reason = this.stopReason;

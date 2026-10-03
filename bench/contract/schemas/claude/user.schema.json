@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mitori:contract/claude/user",
+  "type": "object",
+  "required": ["type", "message"],
+  "properties": {
+    "type": { "const": "user" },
+    "message": {
+      "type": "object",
+      "required": ["content"],
+      "properties": {
+        "content": {
+          "type": ["array", "string"],
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "type": "string" }, "tool_use_id": { "type": "string" }, "is_error": { "type": "boolean" } }
+          }
+        }
+      }
+    }
+  }
+}

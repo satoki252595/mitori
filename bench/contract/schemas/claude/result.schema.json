@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mitori:contract/claude/result",
+  "type": "object",
+  "required": ["type", "subtype", "is_error", "session_id", "total_cost_usd", "usage", "num_turns", "duration_ms", "permission_denials"],
+  "properties": {
+    "type": { "const": "result" },
+    "subtype": { "enum": ["success", "error_during_execution", "error_max_turns", "error_max_budget_usd", "error_max_structured_output_retries"] },
+    "is_error": { "type": "boolean" },
+    "session_id": { "type": "string" },
+    "total_cost_usd": { "type": "number" },
+    "num_turns": { "type": "integer" },
+    "duration_ms": { "type": "integer" },
+    "ttft_ms": { "type": "integer" },
+    "permission_denials": {
+      "type": "array",
+      "items": { "type": "object", "required": ["tool_name"], "properties": { "tool_name": { "type": "string" }, "tool_input": { "type": "object" } } }
+    },
+    "usage": {
+      "type": "object",
+      "required": ["input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens"],
+      "properties": {
+        "input_tokens": { "type": "integer" },
+        "cache_creation_input_tokens": { "type": "integer" },
+        "cache_read_input_tokens": { "type": "integer" },
+        "output_tokens": { "type": "integer" },
+        "cache_creation": {
+          "type": "object",
+          "properties": { "ephemeral_1h_input_tokens": { "type": "integer" }, "ephemeral_5m_input_tokens": { "type": "integer" } }
+        }
+      }
+    },
+    "modelUsage": { "type": "object" }
+  }
+}

@@ -232,6 +232,7 @@ export function createNormalizer(opts: NormalizerOpts): NormalizerImpl {
     }
     switch (ev.type) {
       case "system":
+        if (ev.subtype === "thinking_tokens") meter.push(ev);
         if (ev.subtype === "api_retry") {
           const raw = JSON.stringify(ev);
           const rate = (ev as { error_status?: unknown }).error_status === 429 || /rate.?limit|\b429\b/i.test(raw);

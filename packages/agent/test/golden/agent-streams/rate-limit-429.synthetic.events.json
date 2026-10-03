@@ -1,0 +1,43 @@
+[
+  {
+    "t": "phase",
+    "phase": "think"
+  },
+  {
+    "t": "error",
+    "code": "E_AGENT_RATE_LIMIT",
+    "message": "engine API retry",
+    "retryable": true
+  },
+  {
+    "t": "error",
+    "code": "E_AGENT_RATE_LIMIT",
+    "message": "engine API retry",
+    "retryable": true
+  },
+  {
+    "t": "usage",
+    "final": true,
+    "in": 0,
+    "cw": 0,
+    "cw1h": 0,
+    "cr": 0,
+    "out": 0,
+    "usd": 0,
+    "reported": 0
+  },
+  {
+    "t": "error",
+    "code": "E_AGENT_RATE_LIMIT",
+    "message": "rate limited",
+    "retryable": true
+  },
+  {
+    "t": "result",
+    "stop": "error",
+    "denials": [],
+    "durationMs": 50,
+    "text": "API Error: 429 rate_limit_error",
+    "sessionId": "00000000-0000-4000-8000-000000000000"
+  }
+]
