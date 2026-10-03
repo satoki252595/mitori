@@ -48,11 +48,10 @@ function sectionsOf(msg: string): Map<string, string[]> {
 /** The task of a recorded prompt (prompt id, mode, target, sections) from its TASK line. */
 function taskOf(msg: string): Pick<PlannedTask, "prompt" | "mode" | "target" | "sections"> | null {
   const t = /^TASK: (.*)$/m.exec(msg)?.[1] ?? "";
-  let m: RegExpExecArray | null;
-  if ((m = /^Write the page for module (md_\w{8}) .* in section (s6\/\S+)\.$/.exec(t)))
-    return { prompt: "gen.module", target: { kind: "module", id: m[1] as string }, sections: [m[2] as SectionId] };
-  if ((m = /^Write the page for parent module (md_\w{8}) .* in section (s6\/\S+)\./.exec(t)))
-    return { prompt: "gen.parent", target: { kind: "parent", id: m[1] as string }, sections: [m[2] as SectionId] };
+  const page = /^Write the page for module (md_\w{8}) .* in section (s6\/\S+)\.$/.exec(t);
+  if (page) return { prompt: "gen.module", target: { kind: "module", id: page[1] as string }, sections: [page[2] as SectionId] };
+  const parent = /^Write the page for parent module (md_\w{8}) .* in section (s6\/\S+)\./.exec(t);
+  if (parent) return { prompt: "gen.parent", target: { kind: "parent", id: parent[1] as string }, sections: [parent[2] as SectionId] };
   if (t.startsWith("Write the opening of the design document"))
     return {
       prompt: "gen.overview",
