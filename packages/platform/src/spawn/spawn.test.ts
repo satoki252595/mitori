@@ -176,13 +176,17 @@ describe("PLAT-I-005 Spawner", () => {
   test("runToExit returns after the exit even when a grandchild keeps the pipes open", async () => {
     expect(PIPE_DRAIN_MS).toBe(500);
     const t0 = performance.now();
-    const r = await runToExit(spawner, spec("/bin/sh", ["-c", "sleep 30 & echo $!; echo done"]), { drainMs: 100 });
+    const r = await runToExit(spawner, spec("/bin/sh", ["-c", "(sleep 0.08; echo late; exec sleep 30) & echo $!; echo done"]), { drainMs: 50 });
     expect(performance.now() - t0).toBeLessThan(1000);
     expect(r.code).toBe(0);
-    expect(r.stdout[1]).toBe("done");
+    expect(r.stdout.slice(0, 2)).toEqual([expect.stringMatching(/^\d+$/), "done"]);
+    // the grandchild writes ~80 ms after the start (normally after the result): nothing is appended afterwards
+    const n = r.stdout.length;
+    await Bun.sleep(Math.max(0, 140 - (performance.now() - t0)));
+    expect(r.stdout.length).toBe(n);
     process.kill(Number(r.stdout[0]), "SIGKILL");
     // a timeout whose leader dies while a detached grandchild holds stdout does not hang either
-    const slow = await runToExit(spawner, spec("/bin/sh", ["-c", "sleep 30 & echo $!; exec sleep 30"], { timeoutMs: 50 }), { drainMs: 100 });
+    const slow = await runToExit(spawner, spec("/bin/sh", ["-c", "sleep 30 & echo $!; exec sleep 30"], { timeoutMs: 50 }), { drainMs: 50 });
     expect(slow.timedOut).toBe(true);
     process.kill(Number(slow.stdout[0]), "SIGKILL");
   });

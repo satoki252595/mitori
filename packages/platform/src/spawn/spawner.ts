@@ -187,12 +187,15 @@ export async function runToExit(spawner: Spawner, spec: SpawnSpec, opts: RunOpti
   else opts.signal?.addEventListener("abort", onAbort, { once: true });
   const stdout: string[] = [];
   const stderr: string[] = [];
+  // after the result is returned the loops keep draining (a lingering writer never blocks or piles up) but keep nothing
+  let collecting = true;
   const readers = Promise.all([
     (async () => {
-      for await (const l of child.stdout) stdout.push(l);
+      for await (const l of child.stdout) if (collecting) stdout.push(l);
     })(),
     (async () => {
       for await (const l of child.stderr) {
+        if (!collecting) continue;
         stderr.push(l);
         if (stderr.length > tail) stderr.shift();
       }
@@ -211,6 +214,7 @@ export async function runToExit(spawner: Spawner, spec: SpawnSpec, opts: RunOpti
     }),
   ]);
   timers.clearTimeout(drainId);
+  collecting = false;
   if (stopping) await stopping;
-  return { code, stdout: stdout.slice(), stderr: stderr.slice(), timedOut, cancelled };
+  return { code, stdout, stderr, timedOut, cancelled };
 }
