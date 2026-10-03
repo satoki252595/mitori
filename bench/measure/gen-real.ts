@@ -189,6 +189,14 @@ const deadline = tRun + Number(a["timeout-min"]) * 60_000;
 let lastSpend = 0;
 let lastPoll = 0;
 let state: GenRun | null = null;
+let childMax = 0;
+/** Direct child processes of this daemon (engine processes; workers are threads). */
+const children = () =>
+  Bun.spawnSync(["pgrep", "-P", String(process.pid)])
+    .stdout.toString()
+    .trim()
+    .split("\n")
+    .filter(Boolean).length;
 while (!finished) {
   for (; seen < sse.events.length; seen++) {
     const e = sse.events[seen] as SseEvent;
@@ -204,6 +212,7 @@ while (!finished) {
   if (state && terminal(state.state)) break;
   if (performance.now() - lastPoll > 3000) {
     lastPoll = performance.now();
+    childMax = Math.max(childMax, children());
     const u = await call<UsageSummary>("GET", "/usage/summary?range=all");
     lastSpend = u.totals.apiUsd - before.totals.apiUsd;
     const w = u.window;
@@ -220,6 +229,10 @@ while (!finished) {
   await Bun.sleep(100);
 }
 const runMs = performance.now() - tRun;
+const childrenAtEnd = children();
+await Bun.sleep(5000);
+const childrenAfter5s = children();
+log(`engine child processes: max ${childMax} during the run, ${childrenAtEnd} at the end, ${childrenAfter5s} 5 s later`);
 const detail = await call<GenRunDetail>("GET", `/ws/${ws}/gen/runs/${run.id}`);
 log(
   `run ${detail.run.state} in ${(runMs / 1000).toFixed(1)} s: ${detail.run.progress.done}/${detail.run.progress.total} tasks, ${detail.run.progress.failed} failed, ${detail.run.progress.blocks} blocks`,
@@ -236,6 +249,7 @@ Object.assign(report, {
   runMs,
   firstPartialMs,
   firstBlockMs,
+  childProcesses: { max: childMax, atEnd: childrenAtEnd, after5s: childrenAfter5s },
   cancelReason,
   spentUsd: after.totals.apiUsd - before.totals.apiUsd,
   window: { before: windowBefore, after: after.window ?? lastWindow ?? handle.scheduler.window() ?? null, observed: windows },

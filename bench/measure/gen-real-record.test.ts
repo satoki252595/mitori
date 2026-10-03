@@ -28,7 +28,7 @@ test("BENCH-GENREAL-01 recordingSpawner saves an engine process after its result
   for await (const _ of probe.stdout) {
     // drain
   }
-  const c = sp.spawn({ ...base, command: "/bin/claude", argv: ["-p", "--output-format", "stream-json"], stdin: '{"type":"user"}\n' });
+  const c = sp.spawn({ ...base, keepStdinOpen: true, command: "/bin/claude", argv: ["-p", "--output-format", "stream-json"], stdin: '{"type":"user"}\n' });
   c.write("retry\n");
   c.closeStdin();
   const lines: string[] = [];
