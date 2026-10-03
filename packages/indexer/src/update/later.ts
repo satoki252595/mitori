@@ -35,6 +35,9 @@ import { updateStructure } from "../structure/update.ts";
 import { estimateText } from "../tokens/estimate.ts";
 import type { IndexView, LaterScanResult, LaterStages } from "./stages.ts";
 
+/** Updates rewrite the FTS table only after this much quiet (the structure refresh of spec §6.8 waits the same). */
+const FTS_QUIET_MS = 2000;
+
 /** Flow seed files whose texts are kept for the synchronous `flowBodies` (contract method is sync). */
 const FLOW_TEXT_FILES = 64;
 
@@ -78,6 +81,7 @@ export function laterStages(view: IndexView): LaterStages {
   let st: State | null = null;
   let ftsReady = false;
   let ftsWrite: Promise<void> = Promise.resolve();
+  let ftsTimer: ReturnType<typeof setTimeout> | null = null;
   const flowTexts = new Map<RepoPath, string>();
   let lastTexts: ReadonlyMap<RepoPath, string> | null = null;
 
@@ -138,15 +142,33 @@ export function laterStages(view: IndexView): LaterStages {
     };
   }
 
-  function persist(s: State): void {
+  /**
+   * Structure rows now; the FTS table right after a scan, or once updates have been quiet for 2 s — its 5k-row slots
+   * would otherwise queue in front of the save → stale-badge chain. Until then search answers from the in-memory rows.
+   */
+  function persist(s: State, fts: "now" | "quiet"): void {
     const now = deps.clock.iso();
     void deps
       .write("idx.structure", () => saveStructure(deps.db, s.structure, now))
       .catch((err: unknown) => {
         deps.log.warn("idx.structure persist failed", { error: err instanceof Error ? err.message : String(err) });
       });
-    const rows = s.rows;
+    if (ftsTimer !== null) clearTimeout(ftsTimer);
+    ftsTimer = null;
     ftsReady = false;
+    if (fts === "quiet") {
+      ftsTimer = setTimeout(() => {
+        ftsTimer = null;
+        if (st === s) writeFts(s);
+      }, FTS_QUIET_MS);
+      (ftsTimer as { unref?: () => void }).unref?.();
+      return;
+    }
+    writeFts(s);
+  }
+
+  function writeFts(s: State): void {
+    const rows = s.rows;
     ftsWrite = ftsWrite
       .then(() => writeSearchIndex(deps.db, rows, (fn) => deps.write("idx.fts", fn)))
       .then(() => {
@@ -317,7 +339,7 @@ export function laterStages(view: IndexView): LaterStages {
       const next = commit(files, resolved, facts, structure);
       st = next;
       lastTexts = texts;
-      persist(next);
+      persist(next, "now");
       void warmFlowTexts(next).catch(() => undefined);
       stageMs.S4 = mono() - t;
       return { stageMs, modules: structure.modules.length, facts: factCounts(facts) };
@@ -351,7 +373,7 @@ export function laterStages(view: IndexView): LaterStages {
       const next = commit(files, resolved, facts, structure);
       st = next;
       lastTexts = texts;
-      persist(next);
+      persist(next, "quiet");
       void warmFlowTexts(next).catch(() => undefined);
       const before = new Map(prev?.structure.modules.map((m) => [m.id, m]) ?? []);
       const ifaceChanged: ModuleId[] = [];
@@ -459,6 +481,8 @@ export function laterStages(view: IndexView): LaterStages {
     paletteItems: () => (st ? paletteItems(deps.ws.key, st.files, st.structure) : []),
     findSymbols: (query: string, limit: number, kinds?: SymbolKind[]) => (st ? st.symbols.find(query, limit, kinds) : []),
     async close() {
+      if (ftsTimer !== null) clearTimeout(ftsTimer);
+      ftsTimer = null;
       await ftsWrite;
     },
   };
