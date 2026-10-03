@@ -321,7 +321,7 @@ function upsertStatic(core: StoreCore, spec: StaticSpec, res: ApplyResult): void
             source: { kind: "regen", id: "static" },
             reason: "static",
           },
-          {},
+          { kind: spec.kind },
           false,
         ),
       );

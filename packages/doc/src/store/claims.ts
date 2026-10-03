@@ -1,6 +1,6 @@
 // Claim bookkeeping for the store: verdicts, marker canonicalization, link-group ↔ claim matching (§10.3).
 import type { BlockLock, Cite, Claim, ClaimChecks, Iso8601, Verdict } from "@mitori/core";
-import { markerPositions } from "../codec/cite.ts";
+import { markerPositions, normalizeMarkers } from "../codec/cite.ts";
 import type { CiteLinkGroup } from "../contract.ts";
 
 /**
@@ -29,10 +29,12 @@ export function rawCite(c: { path: string; start: number; end: number }): Cite {
 }
 
 /**
- * Renumber markers by occurrence (`[[k]]` ↔ k-th claim) — the store's canonical marker form. Returns the new md and,
- * per occurrence, the original marker number.
+ * The store's canonical marker form: W07-normalized (a marker after a sentence terminator moves before it, exactly
+ * as `fromMarkerForm` writes it, so the text read back from the file is the same) and renumbered by occurrence
+ * (`[[k]]` ↔ k-th claim). Returns the new md and, per occurrence, the original marker number.
  */
-export function canonicalMarkers(md: string): { md: string; order: number[] } {
+export function canonicalMarkers(text: string): { md: string; order: number[] } {
+  const md = normalizeMarkers(text);
   const marks = markerPositions(md);
   if (marks.length === 0) return { md, order: [] };
   let out = "";

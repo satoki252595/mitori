@@ -178,6 +178,8 @@ export function acceptProposal(core: StoreCore, id: ProposalId, edited: string |
     p = next;
   }
   snapshot(core, rec);
+  // a proposal may change the kind too (a static facts list that became a diagram, a list regenerated as a table)
+  if (extra.kind && extra.kind !== rec.meta.kind) rec.meta.kind = extra.kind;
   applyFileMd(core, rec, md, known, toStamp);
   const rev = core.history(rec, "human", "accept_proposal");
   supersedeOthers(core, rec.meta.id, p.id);
@@ -219,6 +221,7 @@ export function undoAccept(core: StoreCore, ids: readonly ProposalId[], restamp:
         diverged.push(bid);
         continue;
       }
+      rec.meta.kind = prev.kind as BlockKind;
       applyFileMd(core, rec, prev.md, undefined, toStamp);
       core.history(rec, "human", "undo");
       reverted.push(bid);

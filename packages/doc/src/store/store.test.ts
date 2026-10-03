@@ -263,6 +263,20 @@ describe("DOC-U-017 proposals, accept / reject / undo", () => {
     });
     expect(ext.externalLinks).toBe(1);
   });
+  test("a proposal that changes the kind (list → table) applies it on accept; undo restores the kind", async () => {
+    const h = seeded();
+    const [id] = h.store.applyGenerated([block({ aspect: "users", kind: "list", depth: "L1", md: "- 本を買う人" })], opts).written as BlockId[];
+    const b = h.store.block(id as BlockId);
+    await h.store.editBlock(id as BlockId, b?.hash as string, "- 本を買いすぎる人", "human");
+    const table = "| 利用者 | 目的 |\n|---|---|\n| 本を買いすぎる人 | 積読を減らす |";
+    const res = h.store.applyGenerated([block({ id: id as BlockId, aspect: "users", kind: "table", depth: "L1", md: table })], opts);
+    const accepted = h.store.acceptProposal(res.proposals[0] as never);
+    expect([accepted.kind, accepted.md]).toEqual(["table", table]);
+    await h.store.flush({ force: true });
+    expect(h.mem?.files.get("doc/01-what-why.md")).toContain(`${table}\n<!-- ${id} -->`);
+    h.store.undoAccept([res.proposals[0] as never]);
+    expect(h.store.block(id as BlockId)?.kind).toBe("list");
+  });
   test("insert proposals land after their anchor; undo removes them", () => {
     const h = seeded();
     const [id] = h.store.applyGenerated([block({ md: "既存。" })], opts).written as BlockId[];

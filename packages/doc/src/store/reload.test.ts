@@ -99,6 +99,18 @@ describe("AC-29 reopening a store-written doc writes nothing", () => {
     });
   }
 
+  test("a generated marker after the sentence terminator (not W07-normalized) does not reload as an external edit", async () => {
+    const root = dir("mitori-w07-");
+    const h = harness({ root, fs: true, writer: spySafeWriter() });
+    await h.store.load();
+    h.store.applyStatic(staticInputFromTruth("ts-small"));
+    const [id] = h.store.applyGenerated([block({ md: "起動する。[[1]]設定を読む。", claims: [claim("src/a.ts", 1, 4)] })], opts).written as BlockId[];
+    expect(h.store.markerForm(id as BlockId)).toBe("起動する[[1]]。設定を読む。");
+    await h.store.flush({ force: true });
+    const h2 = harness({ root, fs: true, writer: spySafeWriter(), db: h.db });
+    expect((await h2.store.load()).externallyEdited).toEqual([]);
+  });
+
   test("the appendix source index and section reading times follow generated blocks without an applyStatic", async () => {
     const { h } = await written("ts-small");
     const sources = h.store.section("appendix")?.blocks.find((b) => b.slot === "ap:sources");
