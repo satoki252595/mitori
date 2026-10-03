@@ -1,6 +1,6 @@
 /**
- * `mitori export --html [--out <file>] [--no-excerpts] [--level newcomer|standard|expert] [--lang ja|en] [--decisions]`
- * (P3): the daemon renders the self-contained HTML (`POST /ws/:ws/export`, secrets redacted) and the CLI writes it —
+ * `mitori export --html [-o|--out <file>] [--no-code|--no-excerpts] [--level newcomer|standard|expert] [--lang ja|en] [--decisions]`
+ * (P3, WP-13): the daemon renders the self-contained HTML (`POST /ws/:ws/export`, secrets redacted) and the CLI writes it —
  * the daemon never writes outside its SafeWriter roots [CONS-07, SEC-01]. The CLI writes through SafeWriter too
  * (atomic, no symlink target).
  */
@@ -20,7 +20,8 @@ export async function run(io: Io): Promise<number> {
     io.argv,
     {
       html: { type: "boolean" },
-      out: { type: "string" },
+      out: { type: "string", short: "o" },
+      "no-code": { type: "boolean" },
       "no-excerpts": { type: "boolean" },
       level: { type: "string" },
       lang: { type: "string" },
@@ -28,7 +29,7 @@ export async function run(io: Io): Promise<number> {
     },
     "export",
   );
-  if (values.html !== true || positionals.length > 0) throw usage("usage: mitori export --html [--out <file>]", "mitori export --help");
+  if (values.html !== true || positionals.length > 0) throw usage("usage: mitori export --html [-o <file>] [--no-code]", "mitori export --help");
   const level: ReaderLevel = oneOf(values.level, ["newcomer", "standard", "expert"] as const, "level", "export") ?? "standard";
   const s = await connectWorkspace(io);
   const lang: DocLang = oneOf(values.lang, ["ja", "en"] as const, "lang", "export") ?? s.ws.doc.lang ?? "ja";
@@ -42,7 +43,13 @@ export async function run(io: Io): Promise<number> {
   const res = await whenReady(io, () =>
     s.api.call("POST /ws/:ws/export", {
       params: { ws: s.ws.info.key },
-      body: { format: "html", level, lang, includeDecisions: values.decisions === true, excerpts: values["no-excerpts"] !== true },
+      body: {
+        format: "html",
+        level,
+        lang,
+        includeDecisions: values.decisions === true,
+        excerpts: values["no-excerpts"] !== true && values["no-code"] !== true,
+      },
     }),
   );
   // `accept` = any relative path under the root: here the one file the user named, in a directory they chose

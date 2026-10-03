@@ -124,11 +124,13 @@ mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in
 `,
   },
   export: {
-    ja: `mitori export --html [--out <file>] [--no-excerpts] [--level newcomer|standard|expert] [--lang ja|en] [--decisions]
-  オフラインで読める 1 ファイルの HTML を書きます（秘密らしき文字列は伏せ字）。
+    ja: `mitori export --html [-o|--out <file>] [--no-code] [--level newcomer|standard|expert] [--lang ja|en] [--decisions]
+  ネットワーク不要・読み取り専用の 1 ファイルの HTML を書きます（目次・読者レベル・出典の抜粋・図・⌘K 検索つき。秘密らしき文字列は伏せ字にして件数を表示）。
+  --no-code はコードの抜粋を入れません（出典は path:行 だけ）。--decisions は決定事項の一覧を含めます。
 `,
-    en: `mitori export --html [--out <file>] [--no-excerpts] [--level newcomer|standard|expert] [--lang ja|en] [--decisions]
-  Write a self-contained offline HTML of the design doc (secret-like strings redacted).
+    en: `mitori export --html [-o|--out <file>] [--no-code] [--level newcomer|standard|expert] [--lang ja|en] [--decisions]
+  Write a self-contained, read-only HTML file that opens offline (contents, reader levels, cite excerpts, diagrams, ⌘K search; secret-like strings redacted and counted).
+  --no-code leaves out the code excerpts (cites show path:line only). --decisions includes the decisions list.
 `,
   },
   init: {

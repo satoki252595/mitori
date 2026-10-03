@@ -38,10 +38,12 @@ import {
   createBlockRenderer,
   createDiagramLayouter,
   createDocStore,
+  createHtmlExporter,
   type DiagramLayouter,
   type DocStore,
   type GenIdSource,
   type HighlightReq,
+  type HtmlExporter,
 } from "@mitori/doc";
 import { type ClaimReanchor, createGen, createPromptRenderer, createVerifier, type GenDeps, type GenOrchestrator } from "@mitori/gen";
 import { createIndexer, type FsChange, type HardwareInfo, type Indexer, type ModuleSeed } from "@mitori/indexer";
@@ -49,6 +51,7 @@ import { createLoop, type LoopDeps, type LoopDomainEvent } from "@mitori/loop";
 import { DOC_WATCH_IGNORE, type ServerDeps, type TrustService, type WorkspaceRuntime } from "../contract.ts";
 import type { Timers } from "../http/timers.ts";
 import type { WorkspaceBase, WorkspaceParts } from "../ws/manager.ts";
+import { exportSource } from "./export.ts";
 import { assembleAnchoredItems, distributeReanchor } from "./index.ts";
 import { type LoopDepsExt, type LoopExtras, loopExtras } from "./loop.ts";
 import { NEUTRAL_CALIBRATION } from "./ports.ts";
@@ -89,6 +92,8 @@ export interface WorkspaceDomain {
   extras: LoopExtras;
   renderer: BlockRenderer;
   layouter: DiagramLayouter;
+  /** `mitori export --html` (WP-13): this workspace's renderer / layouter caches, the code side from the indexer. */
+  exporter: HtmlExporter;
   view: ViewCtx;
   /** Scan state from the indexer's events. */
   scan(): ScanStatus;
@@ -696,6 +701,15 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     extras,
     renderer,
     layouter,
+    exporter: createHtmlExporter({
+      doc,
+      renderer,
+      layouter,
+      secrets,
+      viewerAssets: deps.viewerAssets,
+      clock: deps.clock,
+      source: exportSource(rawIndexer),
+    }),
     view,
     scan: () => scan,
     outlineRev: () => outlineRev,

@@ -25,6 +25,7 @@ import {
 } from "@mitori/platform";
 import { createServer, type ServerDeps, type ServerHandle } from "@mitori/server";
 import { type AssetTable, assetTable, GRAMMAR_LANGS, loadWebAssets, pinnedScriptUrl, readPinned } from "../build/assets.ts";
+import { viewerBundle } from "../commands/export-assets.ts";
 import { createElkPool } from "./elk.ts";
 
 export interface ServerDaemonOptions {
@@ -130,8 +131,7 @@ export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerD
     },
     secrets: createSecretScanner(),
     assets,
-    // CR-PENDING(WP-INT): the viewer bundle for exports arrives with WP-13.
-    viewerAssets: { js: "", css: "", jsSha256: "" },
+    viewerAssets: viewerBundle(assets),
     safePath,
     env: process.env,
     mitoriBin: mitoriBinary(process.env.PATH ?? ""),
