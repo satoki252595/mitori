@@ -20,7 +20,18 @@ let h: Harness;
 let ws: WorkspaceKey;
 let session: Awaited<ReturnType<Harness["browser"]>>;
 
+/** Paths the file-reading adapters were asked for (SRV-I-013 "open spy"). */
+const opened: string[] = [];
+
 const handlers: RouteHandlers = {
+  "GET /ws/:ws/files/content": (ctx) => {
+    opened.push(ctx.query.get("path") ?? "");
+    return { path: ctx.query.get("path") } as never;
+  },
+  "GET /ws/:ws/cite": (ctx) => {
+    opened.push(ctx.query.get("path") ?? "");
+    return { path: ctx.query.get("path") } as never;
+  },
   // a workspace mutation through the write queue (SRV-I-017 over HTTP)
   "POST /ws/:ws/threads": async (ctx) => {
     const rt = await ctx.runtime();
@@ -276,6 +287,39 @@ describe("SRV-AT-02 / SRV-I-021 route table", () => {
   });
 });
 
+describe("SRV-I-013 path traversal at the HTTP boundary", () => {
+  test("traversal / absolute / backslash / NUL / overlong UTF-8 ⇒ 400 E_INVALID_INPUT and no adapter call; NFD is normalized", async () => {
+    const bad = [
+      "../../etc/passwd",
+      "%2e%2e%2fetc%2fpasswd",
+      "..%2fetc",
+      "..%5Cetc",
+      "%2Fetc%2Fpasswd",
+      "C:%5CWindows",
+      "%5C%5Cserver%5Cshare",
+      "a%00b",
+      "%c0%ae%c0%ae%2fetc",
+      "src/./x.ts",
+      "src//x.ts",
+      "",
+    ];
+    opened.length = 0;
+    for (const p of bad)
+      for (const route of ["files/content", "cite"]) {
+        const res = await session.req("GET", `/ws/${ws}/${route}?path=${p}&start=1&end=2&blob=0`);
+        expect([route, p, res.status]).toEqual([route, p, 400]);
+        expect(await errCode(res)).toBe("E_INVALID_INPUT");
+      }
+    const twice = await session.req("GET", `/ws/${ws}/files/content?path=a.ts&path=../x`);
+    expect(twice.status).toBe(400);
+    expect(opened).toEqual([]);
+    const nfd = "cafe\u0301.ts".normalize("NFD");
+    const ok = await session.req("GET", `/ws/${ws}/files/content?path=${encodeURIComponent(nfd)}`);
+    expect(ok.status).toBe(200);
+    expect(opened).toEqual([nfd.normalize("NFC")]);
+  });
+});
+
 describe("SRV-I-017 concurrent mutations over HTTP", () => {
   test("100 concurrent writes ⇒ unique, gap-free x-mitori-rev", async () => {
     const before = (await (await h.cli("GET", `/ws/${ws}`)).json()) as { rev: number };
@@ -299,6 +343,9 @@ describe("SRV-I-019 idempotency", () => {
     expect(await fresh.json()).not.toEqual(ja);
     const concurrent = await Promise.all(Array.from({ length: 5 }, () => h.cli("POST", `/ws/${ws}/threads`, {}, { "idempotency-key": "ws-k" })));
     expect(new Set(concurrent.map((r) => r.headers.get("x-mitori-rev"))).size).toBe(1);
+    // global route (state.sqlite store): concurrent duplicates share the first answer
+    const dupes = await Promise.all(Array.from({ length: 5 }, () => h.cli("POST", "/auth/nonce", { to: "/c" }, { "idempotency-key": "g-k" })));
+    expect(new Set(await Promise.all(dupes.map((r) => r.text()))).size).toBe(1);
   });
 });
 

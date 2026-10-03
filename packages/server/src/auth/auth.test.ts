@@ -17,8 +17,9 @@ function sessions(opts: { path?: string; key?: Uint8Array; seed?: number } = {})
   const stateWrite = createStateQueue({ db, metrics, dev: true });
   const nonces = createNonceStore({ random, clock });
   const key = opts.key ?? new Uint8Array(32).fill(7);
-  const svc = createSessionService({ db, stateWrite, key, random, clock, nonces, log: silentLogger });
-  return { clock, db, nonces, svc, key };
+  const revoked: string[] = [];
+  const svc = createSessionService({ db, stateWrite, key, random, clock, nonces, log: silentLogger, onRevoked: (s) => void revoked.push(s) });
+  return { clock, db, nonces, svc, key, revoked };
 }
 
 const code = (e: unknown) => (e instanceof MitoriError ? e.code : String(e));
@@ -54,7 +55,7 @@ describe("SRV-I-009 nonce", () => {
 
 describe("SRV-I-010 sessions", () => {
   test("token is 256-bit base64url; srv_sessions stores only the HMAC; verify slides; revoke works", async () => {
-    const { nonces, svc, db, key, clock } = sessions();
+    const { nonces, svc, db, key, clock, revoked } = sessions();
     const nonce = new URL(nonces.issue("/", 1).url).hash.slice(3).split("&")[0] as string;
     const res = await svc.exchange(nonce);
     expect(res.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
@@ -77,6 +78,9 @@ describe("SRV-I-010 sessions", () => {
     const again = await svc.exchange(new URL(nonces.issue("/", 1).url).hash.slice(3).split("&")[0] as string);
     await svc.revoke(again.session);
     expect(svc.verify(again.token)).toBeNull();
+    await svc.revoke("all");
+    // expiry, revoke and revoke-all all reach onRevoked (the daemon ends those sessions' SSE streams)
+    expect(revoked).toEqual([res.session, again.session, "all"]);
   });
 
   test("UXP-07: a session survives a daemon restart (same session.key + state.sqlite)", async () => {

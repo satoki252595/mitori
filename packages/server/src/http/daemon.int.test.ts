@@ -3,7 +3,7 @@ import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import type { DaemonRegistry, HealthRes } from "@mitori/core";
 import { healthProof } from "../auth/bearer.ts";
 import { decideVersionAction } from "./index.ts";
-import { acquireDaemonLock } from "./lock.ts";
+import { acquireDaemonLock, type LockFilePort } from "./lock.ts";
 import { fakeClock, fakeTimers, fsLockPort, removeDir, tempDir } from "./test/fakes.ts";
 import { startHarness, TEST_VERSION } from "./test/harness.ts";
 import { openSse } from "./test/sse-reader.ts";
@@ -131,6 +131,8 @@ describe("SRV-I-023 daemon lock", () => {
       });
       await Bun.sleep(0);
       timers.advance(250);
+      await Bun.sleep(0);
+      timers.advance(250); // the post-takeover check
       const r = await p;
       expect(r.acquired).toBe(true);
       expect(probes.length).toBe(2);
@@ -163,7 +165,58 @@ describe("SRV-I-023 daemon lock", () => {
       const p = acquireDaemonLock({ path, lock: fsLockPort, pid: 7, startedAt: clock.iso(), clock, timers, pidAlive: () => true, healthy: async () => false });
       await Bun.sleep(0);
       timers.advance(250);
+      await Bun.sleep(0);
+      timers.advance(250);
       expect((await p).acquired).toBe(true);
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("takeover race: a rival's late remove of our fresh lock ⇒ we keep contending and yield to it (never two holders)", async () => {
+    const home = tempDir("mitori-lock-");
+    try {
+      const path = `${home}/daemon.lock`;
+      writeFileSync(path, JSON.stringify({ pid: 999_999_999, startedAt: "2020-01-01T00:00:00.000Z", port: 1 }));
+      const clock = fakeClock();
+      const timers = fakeTimers(clock);
+      const rival = { pid: 77, startedAt: clock.iso(), port: 0 };
+      let raced = false;
+      // The rival read the stale lock before we removed it, so its remove lands on OUR new lock, then it creates its own.
+      const lock: LockFilePort = {
+        tryCreate(p, c) {
+          const ok = fsLockPort.tryCreate(p, c);
+          if (ok && !raced) {
+            raced = true;
+            fsLockPort.remove(p);
+            fsLockPort.tryCreate(p, JSON.stringify(rival));
+          }
+          return ok;
+        },
+        read: fsLockPort.read,
+        remove: fsLockPort.remove,
+      };
+      const p = acquireDaemonLock({
+        path,
+        lock,
+        pid: 42,
+        startedAt: clock.iso(),
+        clock,
+        timers,
+        pidAlive: (pid) => pid === rival.pid,
+        healthy: async (port) => port === 5555,
+      });
+      for (let i = 0; i < 3; i++) {
+        await Bun.sleep(0);
+        timers.advance(250);
+      }
+      expect(raced).toBe(true);
+      const bound = { ...rival, port: 5555 };
+      writeFileSync(path, JSON.stringify(bound)); // the rival bound its port
+      await Bun.sleep(0);
+      timers.advance(250);
+      expect(await p).toEqual({ acquired: false, holder: bound });
+      expect(JSON.parse(readFileSync(path, "utf8")).pid).toBe(77);
     } finally {
       removeDir(home);
     }

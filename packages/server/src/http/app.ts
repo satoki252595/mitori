@@ -29,6 +29,7 @@ import type { RouteCtx, RouteHandler, RouteHandlers } from "../routes/types.ts";
 import { resolveDocId } from "../ws/index.ts";
 import { requestWriteScope } from "../ws/queue.ts";
 import { checkIdempotencyKey, createIdempotencyStore, type IdempotencyStore, type StoredResponse } from "./idempotency.ts";
+import { checkRepoPathQuery, REPO_PATH_QUERY_ROUTES } from "./repo-path.ts";
 import { type Assets, securityHeaders, serveStatic } from "./static.ts";
 
 /** Default body limit (1 MiB) [CONS-19]. */
@@ -228,6 +229,7 @@ export function createHttpApp(opts: HttpAppOptions): HttpApp {
       if (!WS_RE.test(wsParam) || !s.workspaces.has(wsParam as WorkspaceKey)) throw fail("E_WS_NOT_FOUND", "unknown workspace");
       ws = wsParam as WorkspaceKey;
     }
+    if (REPO_PATH_QUERY_ROUTES.has(key)) checkRepoPathQuery(url);
 
     const idemKey = MUTATING.has(req.method) ? req.headers.get(HTTP_HEADERS.idempotencyKey) : null;
     let idem: { store: IdempotencyStore; key: string; route: string; hash: string } | null = null;
@@ -297,25 +299,30 @@ export function createHttpApp(opts: HttpAppOptions): HttpApp {
       }
     };
     if (!idem) return run();
-    const scopeKey = `${ws ?? "-"}\u0000${idem.key}`;
-    const pending = run();
-    inflight.set(scopeKey, pending);
-    try {
-      const res = await pending;
-      if (res.status >= 200 && res.status < 300 && meta.kind !== "sse") {
+    const { store, key: idemKeyValue, route, hash } = idem;
+    const scopeKey = `${ws ?? "-"}\u0000${idemKeyValue}`;
+    // The in-flight entry covers the handler AND the store write, and is removed before it settles: a duplicate
+    // that waited on it then finds the stored response (or, after a failure, runs itself) on its first look.
+    const slot: { op: Promise<Response> | null } = { op: null };
+    const op = (async (): Promise<Response> => {
+      try {
+        const res = await run();
+        if (res.status < 200 || res.status >= 300 || meta.kind === "sse") return res;
         const bytes = new Uint8Array(await res.arrayBuffer());
         const headers: Record<string, string> = {};
         res.headers.forEach((v, k) => {
           headers[k] = v;
         });
         const stored: StoredResponse = { status: res.status, headers, body: bytes };
-        await idem.store.save(idem.key, idem.route, idem.hash, stored);
+        await store.save(idemKeyValue, route, hash, stored);
         return new Response(bytes as Uint8Array<ArrayBuffer>, { status: res.status, headers });
+      } finally {
+        if (inflight.get(scopeKey) === slot.op) inflight.delete(scopeKey);
       }
-      return res;
-    } finally {
-      inflight.delete(scopeKey);
-    }
+    })();
+    slot.op = op;
+    inflight.set(scopeKey, op);
+    return op;
   };
 
   return {

@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
 import type { DaemonStatus, InboxItem, Page, SettingsView, TrustRecord, TrustRequest, WorkspaceKey, WorkspaceStatus, WorkspaceSummary } from "@mitori/core";
-import { type Harness, startHarness } from "../http/test/harness.ts";
+import { MitoriError } from "@mitori/core";
+import { removeDir, tempDir } from "../http/test/fakes.ts";
+import { fakeAssemble, type Harness, startHarness } from "../http/test/harness.ts";
+import { openSse } from "../http/test/sse-reader.ts";
 
 let h: Harness;
 let ws: WorkspaceKey;
@@ -95,10 +99,18 @@ describe("server-owned routes", () => {
     expect((await tab.req("GET", `/ws/${ws}/inbox?limit=0`)).status).toBe(400);
   });
 
-  test("POST /auth/logout revokes the session; DELETE /workspaces/:ws unloads or forgets", async () => {
+  test("POST /auth/logout revokes the session and ends its SSE streams; DELETE /workspaces/:ws unloads or forgets", async () => {
     const t = await h.browser();
+    const keep = await h.browser();
+    const mine = await openSse(h.origin, `Mitori-Session ${t.token}`);
+    const theirs = await openSse(h.origin, `Mitori-Session ${keep.token}`);
+    await mine.until((es) => es.some((e) => e.type === "hello"));
+    await theirs.until((es) => es.some((e) => e.type === "hello"));
     expect((await t.req("POST", "/auth/logout")).status).toBe(200);
+    await mine.closed; // the revoked session's stream ends; the other session's stream stays
+    expect(h.daemon.services.hub.connections({ client: "web" })).toBe(1);
     expect((await t.req("GET", "/settings")).status).toBe(401);
+    theirs.close();
     const other = await h.openProject("other");
     expect((await h.cli("DELETE", `/workspaces/${other}`)).status).toBe(200);
     expect(h.daemon.services.workspaces.loaded()).not.toContain(other);
@@ -114,5 +126,41 @@ describe("server-owned routes", () => {
     expect(((await gh.json()) as { error: { code: string } }).error.code).toBe("E_GIT_CLONE_FAILED");
     const bad = await h.cli("POST", "/workspaces", { target: "https://github.com/a/b/c" });
     expect(bad.status).toBe(400);
+  });
+});
+
+describe("SRV-I-022 load failure", () => {
+  test("GET /ws/:ws after a failed load ⇒ 200 with state error + lastError; the next load recovers", async () => {
+    let fail = true;
+    const dom = { scans: 0, loads: 0, closes: 0, busy: false, scanGate: null };
+    const ok = fakeAssemble(dom);
+    const h2 = await startHarness({
+      workspace: {
+        assemble: async (base) => {
+          if (fail) throw new MitoriError("E_INTERNAL", "migration exploded");
+          return ok(base);
+        },
+      },
+    });
+    const dir = tempDir("mitori-proj-");
+    try {
+      mkdirSync(`${dir}/src`);
+      writeFileSync(`${dir}/package.json`, "{}");
+      expect((await h2.cli("POST", "/workspaces", { target: dir })).status).toBe(500);
+      const [w] = await json<WorkspaceSummary[]>(h2.cli("GET", "/workspaces"));
+      const key = (w as WorkspaceSummary).info.key;
+      const st = await h2.cli("GET", `/ws/${key}`);
+      expect(st.status).toBe(200);
+      const body = (await st.json()) as WorkspaceStatus;
+      expect(body.state).toBe("error");
+      expect(body.scan.state).toBe("failed");
+      expect(body.lastError?.code).toBe("E_INTERNAL");
+      fail = false;
+      const again = await json<WorkspaceStatus>(h2.cli("GET", `/ws/${key}`));
+      expect(["scanning", "ready"]).toContain(again.state);
+    } finally {
+      removeDir(dir);
+      await h2.close();
+    }
   });
 });

@@ -2,7 +2,17 @@
  * Handlers of the server-owned routes (`ROUTE_OWNERS[k] === "server"`): health, daemon, auth, events, settings,
  * workspaces, workspace status/settings/trust/git/init and the inbox. Each is a thin adapter over a service.
  */
-import { type Cursor, type HealthRes, type InboxFilter, type InitReq, MitoriError, type Ok, type WorkspaceKey, type WorkspaceStatus } from "@mitori/core";
+import {
+  type Cursor,
+  type HealthRes,
+  type InboxFilter,
+  type InitReq,
+  MitoriError,
+  type Ok,
+  type WorkspaceKey,
+  type WorkspaceStatus,
+  type WorkspaceSummary,
+} from "@mitori/core";
 import { CHALLENGE_RE } from "../auth/bearer.ts";
 import type { WorkspaceRuntime } from "../contract.ts";
 import { buildInbox } from "../inbox/index.ts";
@@ -65,6 +75,25 @@ export async function workspaceStatus(s: ServerServices, rt: WorkspaceRuntime): 
   return out;
 }
 
+/**
+ * `GET /ws/:ws` of a workspace whose LOAD failed (DB open, migrations, assembly): the `error` state with its
+ * `lastError` from the registration, so the UI can show it and offer the rescan (server spec §3.2).
+ */
+function failedLoadStatus(s: ServerServices, summary: WorkspaceSummary): WorkspaceStatus {
+  return {
+    ...summary,
+    state: "error",
+    snapshot: null,
+    scan: { state: "failed", done: 0, total: 0 },
+    gen: null,
+    trustPending: s.trust.pending(summary.info.key),
+    notices: [],
+    rev: 0,
+    connectedTabs: s.hub.connections({ ws: summary.info.key, client: "web" }),
+    genEngine: null,
+  };
+}
+
 export function serverHandlers(s: ServerServices): RouteHandlers {
   return {
     "GET /health": ({ query }) => {
@@ -113,7 +142,15 @@ export function serverHandlers(s: ServerServices): RouteHandlers {
       if (last !== null && (!Number.isSafeInteger(last) || last < 0)) throw invalid("last", "last must be a non-negative integer");
       ctx.holdOpen();
       if (ws !== null) void s.workspaces.get(ws as WorkspaceKey).catch(() => undefined);
-      return sseResponse({ hub: s.hub, ws: ws as WorkspaceKey | null, client: ctx.auth.client, last, boot: null, signal: ctx.signal });
+      return sseResponse({
+        hub: s.hub,
+        ws: ws as WorkspaceKey | null,
+        client: ctx.auth.client,
+        ...(ctx.auth.session ? { session: ctx.auth.session } : {}),
+        last,
+        boot: null,
+        signal: ctx.signal,
+      });
     },
     "GET /settings": () => s.settings.view(),
     "PATCH /settings": ({ body }) => s.settings.patch(body),
@@ -136,7 +173,17 @@ export function serverHandlers(s: ServerServices): RouteHandlers {
       else await s.workspaces.unload(params.ws);
       return ok;
     },
-    "GET /ws/:ws": async (ctx) => workspaceStatus(s, await ctx.runtime()),
+    "GET /ws/:ws": async (ctx) => {
+      let rt: WorkspaceRuntime;
+      try {
+        rt = await ctx.runtime();
+      } catch (e) {
+        const summary = s.workspaces.summary(ctx.params.ws);
+        if (summary?.state !== "error" || s.control.shuttingDown()) throw e;
+        return failedLoadStatus(s, summary);
+      }
+      return workspaceStatus(s, rt);
+    },
     "POST /ws/:ws/init": async (ctx) => {
       const init = s.domain.init;
       if (!init) throw new MitoriError("E_UNSUPPORTED", "init is not wired yet");

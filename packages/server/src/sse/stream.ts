@@ -3,7 +3,7 @@
  * then the hub's `hello` (+ replay or `resync`), live events and `: hb`. A connection whose unsent bytes exceed
  * 1 MiB is closed (the client reconnects with `?last=<seq>`); cancel/abort detaches it so nothing is left behind.
  */
-import type { ClientKind, WorkspaceKey } from "@mitori/core";
+import type { ClientKind, SessionId, WorkspaceKey } from "@mitori/core";
 import type { EndableConnection, SseHubImpl } from "./hub.ts";
 import { encodeComment, encodeEvent, OPEN_BYTES } from "./wire.ts";
 
@@ -14,6 +14,8 @@ export interface SseStreamOptions {
   hub: SseHubImpl;
   ws: WorkspaceKey | null;
   client: ClientKind;
+  /** Browser session of the caller (its streams end when the session is revoked). */
+  session?: SessionId;
   /** `?last=<seq>`. */
   last: number | null;
   /** Remembered boot (null when the transport does not carry it). */
@@ -53,6 +55,7 @@ export function sseResponse(opts: SseStreamOptions): Response {
     comment: (text) => write(encodeComment(text)),
     end: () => close(),
   };
+  if (opts.session !== undefined) conn.session = opts.session;
   const stream = new ReadableStream<Uint8Array>(
     {
       start(controller) {

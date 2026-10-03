@@ -75,6 +75,8 @@ export function createSessionService(opts: {
   clock: Clock;
   nonces: NonceStore;
   log: Logger;
+  /** A session (or every session) was revoked or expired: end what it still holds open (SSE streams). */
+  onRevoked?: (session: SessionId | "all") => void;
 }): SessionServiceImpl {
   const { db, stateWrite, clock } = opts;
   const idleMs = DAEMON.sessionIdleDays * DAY_MS;
@@ -94,6 +96,7 @@ export function createSessionService(opts: {
 
   const drop = (c: Cached) => {
     byMac.delete(c.mac);
+    opts.onRevoked?.(c.id);
     stateWrite("session.expire", () => db.run("DELETE FROM srv_sessions WHERE id = ?", [c.id])).catch((e) =>
       opts.log.warn("session expire failed", { err: String(e) }),
     );
@@ -137,10 +140,11 @@ export function createSessionService(opts: {
       if (session === "all") {
         byMac.clear();
         await stateWrite("session.revoke-all", () => db.run("DELETE FROM srv_sessions"));
-        return;
+      } else {
+        for (const [mac, c] of byMac) if (c.id === session) byMac.delete(mac);
+        await stateWrite("session.revoke", () => db.run("DELETE FROM srv_sessions WHERE id = ?", [session]));
       }
-      for (const [mac, c] of byMac) if (c.id === session) byMac.delete(mac);
-      await stateWrite("session.revoke", () => db.run("DELETE FROM srv_sessions WHERE id = ?", [session]));
+      opts.onRevoked?.(session);
     },
     createdAt(session) {
       for (const c of byMac.values()) if (c.id === session) return c.createdAt;

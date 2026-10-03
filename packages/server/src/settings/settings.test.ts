@@ -198,10 +198,44 @@ describe("SRV-I-027 settings service", () => {
     }
   });
 
+  test("SEC-01: PATCH /settings cannot smuggle a workspace docDir past the override rules", async () => {
+    const { home, s } = await svc();
+    try {
+      for (const docDir of ["/etc", "../../x", ".", "a/./b"]) {
+        const v = s.view().version;
+        expect(await s.patch({ version: v, patch: { workspaces: { [WS]: { docDir } } } }).then(() => "ok", code)).toBe("E_INVALID_INPUT");
+      }
+      expect(s.current().workspaces[WS]).toBeUndefined();
+      const ok = await s.patch({ version: s.view().version, patch: { workspaces: { [WS]: { docDir: "docs/m", readerLevel: "expert" } } } });
+      expect(ok.settings.workspaces[WS]).toEqual({ docDir: "docs/m", readerLevel: "expert" });
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("shadow / remote-readonly docDir: absolute under <home>/repos/<ws>/ only", async () => {
+    const home = tempDir();
+    const s = await createSettingsService({
+      home,
+      fs: fsReader,
+      safeWrite: fsSafeWriter(),
+      publish: () => undefined,
+      log: silentLogger,
+      kindOf: () => "shadow",
+    });
+    try {
+      for (const docDir of ["docs", `${home}/repos/${WS}`, `${home}/repos/${WS}/`, `${home}/repos/${WS}/../x`, `${home}/repos/ws_000000000000/doc`, "/etc"])
+        expect([docDir, await s.patchWorkspace(WS, { overrides: { docDir } }).then(() => "ok", code)]).toEqual([docDir, "E_INVALID_INPUT"]);
+      expect(await s.patchWorkspace(WS, { overrides: { docDir: `${home}/repos/${WS}/doc2` } })).toEqual({ docDir: `${home}/repos/${WS}/doc2` });
+    } finally {
+      removeDir(home);
+    }
+  });
+
   test("workspace overrides: docDir rules", async () => {
     const { home, s } = await svc();
     try {
-      for (const docDir of [".", "", "../x", "/abs", "a/../b", "a\\b"])
+      for (const docDir of [".", "", "../x", "/abs", "a/../b", "a\\b", "a//b", "a/"])
         expect(await s.patchWorkspace(WS, { overrides: { docDir } }).then(() => "ok", code)).not.toBe("ok");
       expect(await s.patchWorkspace(WS, { overrides: { exec: 1 } }).then(() => "ok", code)).toBe("E_CFG_INVALID");
       expect(await s.patchWorkspace(WS, { overrides: { docDir: "docs/mitori", readerLevel: "expert" } })).toEqual({

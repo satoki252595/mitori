@@ -59,8 +59,18 @@ export async function acquireDaemonLock(opts: {
   const deadline = opts.clock.now() + (opts.maxWaitMs ?? 15_000);
   let strikes = 0;
   let seen: string | null = null;
+  let tookOver = false;
   for (;;) {
-    if (opts.lock.tryCreate(opts.path, content)) return { acquired: true, lock: mine };
+    if (opts.lock.tryCreate(opts.path, content)) {
+      if (!tookOver) return { acquired: true, lock: mine };
+      // Taking over races other contenders: one that read the stale content before our remove may still delete the
+      // lock we just created (its read-compare-remove is not atomic). Hold still one probe and keep the lock only if
+      // it is still ours; otherwise contend for whoever holds it now.
+      await sleep(opts.timers, interval);
+      if (opts.lock.read(opts.path) === content) return { acquired: true, lock: mine };
+      tookOver = false;
+      continue;
+    }
     const text = opts.lock.read(opts.path);
     if (text === null) continue; // vanished between create and read: retry at once
     if (text !== seen) {
@@ -74,6 +84,7 @@ export async function acquireDaemonLock(opts: {
     if (!young) strikes += 1;
     if (strikes >= DAEMON.lockStaleProbes) {
       if (opts.lock.read(opts.path) === text) opts.lock.remove(opts.path);
+      tookOver = true;
       strikes = 0;
       seen = null;
       continue;

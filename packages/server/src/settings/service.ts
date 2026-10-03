@@ -15,6 +15,7 @@ import {
   type SseEventPayload,
   toErrorData,
   type WorkspaceKey,
+  type WorkspaceKind,
   type WorkspaceOverrides,
 } from "@mitori/core";
 import { checkSettingsPatch, DEFAULT_GLOBAL_SETTINGS } from "./index.ts";
@@ -66,17 +67,43 @@ export function serializeGlobalSettings(settings: GlobalSettings): string {
   return `${JSON.stringify({ schemaVersion: 1, ...sparse }, null, 2)}\n`;
 }
 
-/** Overrides rules beyond the schema: docDir is repo-relative inside the tree (never `.`, no `..`) [SEC-01, SEC-02]. */
-export function checkOverrides(o: unknown): WorkspaceOverrides {
+/** Which docDir form a workspace accepts: git ⇒ repo-relative; shadow / remote-readonly ⇒ absolute under `<home>/repos/<ws>/`. */
+export interface DocDirRule {
+  ws: WorkspaceKey;
+  /** null = not registered (the strict repo-relative form applies). */
+  kind: WorkspaceKind | null;
+  /** `~/.mitori`. */
+  home: string;
+}
+
+// biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are rejected
+const CONTROL = /[\u0000-\u001f\u007f]/;
+
+/** A relative directory path: no empty / `.` / `..` segment, no backslash, no control characters. */
+const relativeDirOk = (d: string) =>
+  d !== "" && !d.startsWith("/") && !d.includes("\\") && !CONTROL.test(d) && d.split("/").every((s) => s !== "" && s !== "." && s !== "..");
+
+/**
+ * Overrides rules beyond the schema (`WorkspaceOverrides.docDir`) [SEC-01, SEC-02]: a git workspace's docDir is
+ * repo-relative inside the tree (never `.`, no `..`); a shadow / remote-readonly one is absolute under
+ * `<home>/repos/<ws>/`. Applies to every web write of overrides (`PATCH /ws/:ws/settings` and `PATCH /settings`).
+ */
+export function checkOverrides(o: unknown, rule: DocDirRule): WorkspaceOverrides {
   const bad = validate(o, OVERRIDES_SPEC);
   if (bad.length > 0) throw invalid(bad);
   const ov = o as WorkspaceOverrides;
   if (ov.docDir !== undefined) {
     const d = ov.docDir;
-    const segs = d.split("/");
-    // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are rejected
-    if (d === "" || d.startsWith("/") || d.includes("\\") || /[\u0000-\u001f]/.test(d) || segs.some((s) => s === "" || s === "." || s === ".."))
-      throw new MitoriError("E_INVALID_INPUT", "docDir must be a repo-relative directory (not the repo root, no `..`)", { params: { field: "docDir" } });
+    const base = `${rule.home.replace(/\/+$/, "")}/repos/${rule.ws}/`;
+    const ok = rule.kind === "shadow" || rule.kind === "remote-readonly" ? d.startsWith(base) && relativeDirOk(d.slice(base.length)) : relativeDirOk(d);
+    if (!ok)
+      throw new MitoriError(
+        "E_INVALID_INPUT",
+        rule.kind === "shadow" || rule.kind === "remote-readonly"
+          ? `docDir must be a directory under ${base}`
+          : "docDir must be a repo-relative directory (not the repo root, no `..`)",
+        { params: { field: "docDir" } },
+      );
   }
   return ov;
 }
@@ -87,8 +114,11 @@ export async function createSettingsService(opts: {
   safeWrite: SafeWriter;
   publish: (payload: SseEventPayload, ws: WorkspaceKey | null) => void;
   log: Logger;
+  /** Kind of a registered workspace (docDir rule); default: unknown ⇒ repo-relative only. */
+  kindOf?: (ws: WorkspaceKey) => WorkspaceKind | null;
 }): Promise<SettingsService> {
   const path = `${opts.home}/${CONFIG_FILE}`;
+  const docDirRule = (ws: WorkspaceKey): DocDirRule => ({ ws, kind: opts.kindOf?.(ws) ?? null, home: opts.home });
   let settings: GlobalSettings = DEFAULT_GLOBAL_SETTINGS;
   let lastText: string | null = null;
   let error: MitoriErrorData | null = null;
@@ -167,7 +197,11 @@ export async function createSettingsService(opts: {
           });
         const partial = validate(body.patch, GLOBAL_SPEC, { partial: true });
         if (partial.length > 0) throw invalid(partial);
-        await commit(deepMerge(settings, body.patch), "global", null);
+        const next = deepMerge(settings, body.patch);
+        // workspace overrides written through the global patch obey the same docDir rule as PATCH /ws/:ws/settings
+        if (isPlainObject(body.patch.workspaces))
+          for (const ws of Object.keys(body.patch.workspaces) as WorkspaceKey[]) checkOverrides(next.workspaces[ws] ?? {}, docDirRule(ws));
+        await commit(next, "global", null);
         return view();
       }),
     patchExec: (body) =>
@@ -187,7 +221,7 @@ export async function createSettingsService(opts: {
       exclusive(async () => {
         if (!isPlainObject(body) || !("overrides" in body))
           throw new MitoriError("E_INVALID_INPUT", "expected {overrides}", { params: { field: "overrides" } });
-        const overrides = checkOverrides(body.overrides);
+        const overrides = checkOverrides(body.overrides, docDirRule(ws));
         await commit({ ...settings, workspaces: { ...settings.workspaces, [ws]: overrides } }, "workspace", ws);
         return overrides;
       }),

@@ -187,16 +187,18 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
       clock: o.clock,
       nonces,
       log: o.log.child("session"),
+      onRevoked: (session) => hub.closeSession(session),
     });
     const bearer = createBearer(o.random);
+    let workspacesRef: ReturnType<typeof createWorkspaceManager> | null = null;
     const settings = await createSettingsService({
       home: o.home,
       fs: o.fs,
       safeWrite: o.safeWrite,
       publish: (p, ws) => hub.publish(p, ws, null),
       log: o.log.child("settings"),
+      kindOf: (ws) => workspacesRef?.info(ws)?.kind ?? null,
     });
-    let workspacesRef: ReturnType<typeof createWorkspaceManager> | null = null;
     const waiters = createWaiterRegistry({ clock: o.clock, timers, publish: (p, ws) => hub.publish(p, ws, workspacesRef?.peek(ws)?.rev() ?? null) });
     const trust = createTrustService({
       db: stateDb,

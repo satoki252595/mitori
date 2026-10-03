@@ -14,6 +14,7 @@ import {
   type Clock,
   type Metrics,
   type Random,
+  type SessionId,
   SSE_EVENT_META,
   type SseEvent,
   type SseEventMeta,
@@ -47,6 +48,8 @@ export interface SseHubImpl extends SseHub {
   onConnectionsChanged(fn: () => void): () => void;
   /** End every stream gracefully (queued bytes are still delivered) — shutdown. */
   closeAll(): void;
+  /** End the streams of a revoked browser session (`"all"`: every session-authenticated stream). */
+  closeSession(session: SessionId | "all"): void;
   /** Deliver pending coalesced events now. */
   flush(): void;
   /** First seq of this boot (exclusive lower bound of resumable `last`). */
@@ -56,6 +59,8 @@ export interface SseHubImpl extends SseHub {
 /** A connection the hub can end itself (HTTP streams); plain test connections need not implement it. */
 export interface EndableConnection extends SseConnection {
   end(): void;
+  /** Browser session that opened the stream (closed when the session is revoked). */
+  session?: SessionId;
 }
 
 const META = SSE_EVENT_META as Record<string, SseEventMeta | undefined>;
@@ -132,6 +137,15 @@ export function createSseHub(opts: HubOptions): SseHubImpl {
     heartbeat = timers.setTimeout(beat, heartbeatMs, { unref: true });
   };
 
+  function closeWhere(pred: (c: SseConnection) => boolean) {
+    for (const c of [...conns]) {
+      if (!pred(c)) continue;
+      (c as Partial<EndableConnection>).end?.();
+      c.closed = true;
+      detach(c);
+    }
+  }
+
   function detach(conn: SseConnection) {
     if (!conns.delete(conn)) return;
     if (conns.size === 0) {
@@ -187,12 +201,11 @@ export function createSseHub(opts: HubOptions): SseHubImpl {
       return () => listeners.delete(fn);
     },
     flush: () => coalescer.flush(),
-    closeAll() {
-      for (const c of [...conns]) {
-        (c as Partial<EndableConnection>).end?.();
-        c.closed = true;
-        detach(c);
-      }
-    },
+    closeAll: () => closeWhere(() => true),
+    closeSession: (session) =>
+      closeWhere((c) => {
+        const s = (c as Partial<EndableConnection>).session;
+        return s !== undefined && (session === "all" || s === session);
+      }),
   };
 }
