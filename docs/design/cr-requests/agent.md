@@ -42,6 +42,11 @@ and 6 are the ones that change what a user sees.
   `detectGates` (format + checks), gate-set trust for the bundle's GATE line.
 - `jobs/store.ts`: `JobExtra.req` — the request's context chips / mode / model / budget survive for re-plans (a revise of a job
   created with `@` chips used to re-plan WITHOUT them: a narrower write scope, or another mode).
+- verification pass (same branch): `git/side.ts` `inWorktree` now pins `GIT_DIR` / `GIT_WORK_TREE` to the worktree's
+  side.git admin dir (new `worktreeAdmin(wt)` checks admin `gitdir` ⇄ `<wt>/.git` and throws `E_SCOPE_VIOLATION`
+  `worktree_tampered`); `jobs/runner.ts` `runGates` also discards a ready job on `worktree_tampered`. Reason: git
+  discovered the repository through `<wt>/.git`, a file code under test (or the agent) can rewrite — mitori's own git
+  would then follow it outside the sandbox. WP-08b please review.
 - urgency: review only.
 
 ## 5. One trust dialog for a SET of gates
@@ -60,6 +65,23 @@ and 6 are the ones that change what a user sees.
 - why: the R2 agent job starts without the files the patch turn asked for; the agent can still Read them (one call each).
 - workaround in place: none (the agent reads them itself).
 - urgency: low.
+
+## 8. The gate sandbox blocks loopback too (decision needed, ADR-0013)
+- contract: ADR-0013 decision 3 ("network 拒否"), `gates/sandbox.ts`
+- observation: live run 4 — go-small's `internal/meta` tests use `httptest.NewServer` (listen on 127.0.0.1); under
+  `sandbox-exec` the listen is denied, the test panics at the base and at the head. The base comparison now reports it
+  as `error` (pre-existing, no REPAIR) and the verdict stays unverified — honest, but such packages are never verified.
+- options: (a) keep (current); (b) allow bind/listen and connect on loopback only (`(local ip "localhost:*")` /
+  `(remote ip "localhost:*")`; bwrap would need a private netns with lo up) — local services and a loopback proxy
+  become reachable from AI-written code; (c) (b) plus a deny list of known local proxy ports.
+- urgency: medium (common in Go / Node / Python test suites).
+
+## 9. First-turn input limit ignores the system prompt
+- contract: `jobs/engine.ts` (WP-08b) `inTokens: Math.max(plan.budget.in * 2, 4000)`
+- observation: a live patch turn read 3.3k (system prompt + a 1.7k bundle) against the 4k floor; trusted repo rules in
+  the system prompt would push a small Fix over it before it answers. Repair / revise turns were fixed in this track
+  (`repair/turn.ts repairInTokens`); the first turn needs `+ system prompt tokens` (or the same rule).
+- urgency: medium.
 
 ## 7. Not done in this pass
 - `docpatch/1` (a sent doc note) still answers `E_UNSUPPORTED` from `create`.

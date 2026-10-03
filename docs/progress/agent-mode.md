@@ -22,7 +22,7 @@
 | `packages/loop/src/jobs/pipeline.ts` | patch mode の修復ループ（当たらない edit に 1 回、失敗した検査に ≤ 2 回、同意後の修復）、revise も 3 経路、`readJobFile` で REPAIR の CODE は **job head** から |
 | `packages/loop/src/jobs/{runner,assemble,store,plan}.ts` | 配線（`cr-requests/agent.md` #4）。plan: `agentPathsOk` を実際に判定、escalate モデルの agent job は確認必須、agent の書き込み範囲でゲートを再検出 |
 
-## INT-08（録画エンジン、`scripts/nd bun test test/int/int08.test.ts`、19 tests ≈ 25 s）
+## INT-08（録画エンジン、`scripts/nd bun test test/int/int08.test.ts`、22 tests ≈ 30 s）
 
 本物の daemon・claude-cli エンジン・normalizer・scheduler・台帳。claude だけ台本（agent の turn は Edit ツールのように
 ワークツリーを書き換える）。git・gofmt・go vet・go test は本物。
@@ -60,13 +60,34 @@ claude 2.1.288、Max サブスク（`auth: subscription`、`billing: subscriptio
 （累積 32.5k）で `E_BUDGET_EXCEEDED`、最初の edit の前に止まり $0.038 が無駄になった。上限を「context × 1 ターンの呼び出し数（10）」
 にし、費用の歯止めは USD 予算（≥ $0.30、80 % で停止）に任せた（`cr-requests/agent.md` #2 でメーター側の重み付けを要望）。
 
+## 検証パス（敵対的レビュー、2026-10-04）
+
+実装を読み直し、範囲の外へ書かせる経路を探した。見つけたものは直して回帰テストを足した（`scripts/nd bun test test/int/int08.test.ts` は 22 tests）。
+
+| 見つけたこと | 直し方 | 試験 |
+|---|---|---|
+| ワークツリーで動く mitori の git は `<wt>/.git` から repo を探していた。検査（repo のコード）や agent がこのファイルを書き換えると、mitori 自身の git がそこを辿る（sandbox の外で、ユーザーの権限で） | `inWorktree` は GIT_DIR / GIT_WORK_TREE を side.git の admin dir に固定（admin の `gitdir` と `<wt>/.git` の双方向を照合）。違えば `E_SCOPE_VIOLATION`。sandbox の中では `<wt>/.git` を書き込み禁止（Seatbelt / bwrap） | INT-08「.git pointer」: ジョブ失敗・昇格なし・ユーザー repo 不変。`gates.test.ts` の profile 検査 |
+| Edit / Write はシンボリックリンクを辿る。書き込み範囲のパスがリンク（コミット済みのリンク dir、依存リンク、検査が残したリンク）を通ると、ワークツリーの外に書ける | agent の各ターンの前に、範囲の全パスの各段を lstat。リンクなら engine を起動せず `E_SCOPE_VIOLATION`。検査後に元へ戻せないワークツリーもジョブ失敗（同意後なら ready を破棄） | INT-08「symlinked directory」: spawn 0 回、リンク先は空 |
+| AI の diff が `go.mod`・`package.json`・lockfile・`conftest.py` などを変えても、検査は人が以前信頼した設定のまま走った | 変えられた trust 入力ごとに、その検査の trust hash を木ごとに作り直す（`gates/trust.ts treeSpecs`）。ダイアログ 1 行目に変わったファイル名 | `trust.test.ts`、INT-08「go.mod re-trust」 |
+| （実エンジン run 4）REPAIR の continuation は会話全体を読み直す（4.6k）が、patch の入力上限 4k で止められた | 修復・修正・再要求ターンの上限 = 計画の余裕 + ジョブがこれまでに読んだ／書いた量 + メッセージ。USD が歯止め | `turn.test.ts`「live run 4」 |
+| （実エンジン run 4）sandbox の go test が base と head で同じように panic しても、goroutine 番号や秒数の違いで「変更による失敗」と判定され、修復ターンを 1 回使った | 失敗行の比較で数値とアドレスを無視 | `trust.test.ts`「base comparison」 |
+| external patch の `..`・絶対パス・`.git/config`・`.mitori/`・`.env` | もともと拒否されていた（範囲は thread から決まる）。回帰テストだけ追加 | INT-08 external patch |
+
+**実エンジン run 4**（$0.018、`measurements.run4.json`）: patch mode、sandbox。モデルは `%d` を自分で `%s` に直したので go vet は通過、
+go test は sandbox がループバックの listen を拒否して（`httptest`）失敗 → **実エンジンへの REPAIR continuation が実際に走った**
+（cache read 3.3k + 新規 1.3k）が、上記の入力上限で止まった。両方とも修正済み。修正後の再実行（hidden test を使う live test 3）は、
+`claude` CLI がログアウト状態になったため実行できなかった（`E_AGENT_AUTH`、課金なし）。再実行:
+`MITORI_LIVE=1 MITORI_MAX_USD=0.2 scripts/nd bun test test/int/int08.live.test.ts -t "3\."`。
+
 ## 動かないもの・未確認（正直に）
 
 - **CLI が sandbox を検出しない**（`apps/cli` は `gateSandbox: "none"` 固定、`cr-requests/agent.md` #1）。そのため実際のアプリでは
   go vet / go test / tsc / bun test などはすべて「自動検査を実行」のクリック待ち（ADR-0013 どおりの安全側）で、修復もクリック後。
   上の実測と INT-08 の sandbox 部分は daemon に `sandbox-exec` を渡して測った。配線は platform + CLI の 2 か所（この track の外）。
-- 実エンジンで**ゲート失敗からの修復ターンは観測していない**（モデルが 3 回とも一度で正しく書いた）。修復の各経路は録画エンジンで、
-  continuation そのものは実エンジンの revise で確認。
+- **sandbox はループバックも遮断する**（ADR-0013 の「network 拒否」どおり）。`httptest` などローカルにサーバーを立てるテストは
+  base でも head でも失敗し、`error`（変更前から失敗）として扱われて検査は ⚠ のまま（#8、判断が要る）。
+- 実エンジンで**修復ターンが成功まで走ったところはまだ見ていない**（run 4 で continuation は走ったが入力上限で停止 → 修正済み、
+  再実行は CLI のログアウトで未実施）。修復の各経路は録画エンジンで確認済み。
 - Linux（bwrap）は未確認。sandbox の無い環境では RT-31 は検出（ジョブ破棄）できても防げない（依存は書き換わる）。in-place 書き込みで
   size と mtime を戻されると検出もできない（`FsStat` に ctime が無い、#3）。
 - `needs_more_context` のヒントは agent の bundle に入らない（agent が自分で Read する、#6）。
