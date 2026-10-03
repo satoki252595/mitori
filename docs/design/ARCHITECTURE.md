@@ -634,18 +634,21 @@ sequenceDiagram
 
 ## 付録 A. 契約ファイルの対応
 
-| 契約 | 実体 | 所有 |
-|---|---|---|
-| `contracts/core.ts` | `packages/core/src/domain/*` | architect |
-| `contracts/api.ts` | `packages/core/src/api.ts` | architect |
-| `contracts/indexer.ts` | `packages/indexer/src/index.ts`（公開面） | indexer spec |
-| `contracts/gen.ts` | `packages/doc` + `packages/gen` の公開面 | gen spec |
-| `contracts/loop.ts` | `packages/anchor` + `packages/agent` + `packages/loop` の公開面 | loop spec |
-| `contracts/ui.ts` | `apps/web` の型・定数 | ui spec |
-| `contracts/server.ts` | `packages/server` + platform の server 専用 port | architect / `specs/server.md` |
-| `contracts/CR-LEDGER.md` | CR の採否台帳 | architect |
+M0（WP-00a、2026-10-03）で移設済み。以後は右列（package 側）が正本で、`docs/design/contracts/` は凍結スナップショット（変更は週 1 の CR バッチ、台帳は `packages/core/CR-LEDGER.md`）。
 
-契約の型検査: `nix develop --command bunx tsc@6.0.3 -p docs/design/contracts/tsconfig.json --noEmit`（7 ファイル、strict + `exactOptionalPropertyTypes` + `noUncheckedIndexedAccess` + `noUnused*`）で 0 エラー（R1 で確認）。WP-00a でこれらを `packages/core` 等へ移し、以後は実装側の型が正本になる（`docs/design/contracts/` は凍結スナップショットとして残す。凍結後の変更は週 1 の CR バッチ）。
+| 契約（凍結スナップショット） | 実体（正本） | 所有 |
+|---|---|---|
+| `contracts/core.ts` | `packages/core/src/domain.ts`（+ 純関数 `errors.ts`・`ids.ts`・`paths.ts`・`canonical-json.ts`・`transitions.ts`・`pricing.ts`・`calibration.ts`・`secrets.ts`） | architect |
+| `contracts/api.ts` | `packages/core/src/api.ts` | architect |
+| `contracts/indexer.ts` | `packages/indexer/src/contract.ts`（`CodeSlice`・`IndexDelta`・`SymbolChange` は core §20 へ、CR m0-1） | indexer spec |
+| `contracts/gen.ts` | Part A → `packages/doc/src/contract.ts`、Part B → `packages/gen/src/contract.ts`（`GenIdSource`・`NewBlockRef`・`RawCite` は doc へ、CR m0-2） | gen spec |
+| `contracts/loop.ts` | §A → `packages/anchor/src/contract.ts`、§B → `packages/agent/src/contract.ts`、§C → `packages/loop/src/contract.ts` | loop spec |
+| `contracts/ui.ts` | `apps/web/src/contract.ts` | ui spec |
+| `contracts/server.ts` | `packages/server/src/contract.ts`（`resolveSafePath` の実装は platform） | architect / `specs/server.md` |
+| `contracts/testing.md` 付録 A | `packages/testkit/src/contract.ts`（CR m0-6） | test |
+| `contracts/CR-LEDGER.md` | `packages/core/CR-LEDGER.md` | architect |
+
+`declare function` / `declare const` は所有 WP の sub-directory の `index.ts` に `E_UNSUPPORTED` スタブとして置いた（CR m0-3）。export 名の索引は `docs/design/briefs/INDEX.md`（`bun run contract:index`、`check` が鮮度を検査）。型検査は `scripts/nd bun run check`（`tsc -b` の project references、strict + `exactOptionalPropertyTypes` + `noUncheckedIndexedAccess` + `noUnused*`）。M0 で 1 回だけ「スナップショットの全 export 1,024 件 == package の export」の代入互換検査を実行し、全件一致を確認して削除した（SC-01）。
 
 ## 付録 B. ADR 一覧
 
