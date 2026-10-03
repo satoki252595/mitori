@@ -51,3 +51,16 @@ CREATE TABLE job_checkpoints (
   commit_oid TEXT, created_at TEXT NOT NULL, undone_at TEXT);
 CREATE TABLE job_locks (path TEXT PRIMARY KEY, job TEXT NOT NULL, acquired_at TEXT NOT NULL);
 `;
+
+/**
+ * `LOOP_MIGRATIONS` version 2 (WP-08b, job runner + git safety): the job fields core `Job` has and v1 lacks
+ * (`gateVerdict`, `gatesTree`, `sensitive`, `hunkDecisions`, `timings`, `windowDeltaPct`, the ready diff) travel in
+ * one JSON column; the accept journal gets its state (`writing` → `done` | `rolled_back`, spec §7.8-7) and the
+ * checkpoint extras (accepted doc proposals for undo, the pre-force snapshot ref).
+ */
+export const LOOP_SCHEMA_V2 = `
+ALTER TABLE job_jobs ADD COLUMN extra TEXT;
+ALTER TABLE job_checkpoints ADD COLUMN state TEXT NOT NULL DEFAULT 'done';
+ALTER TABLE job_checkpoints ADD COLUMN extra TEXT;
+CREATE INDEX job_checkpoints_job ON job_checkpoints(job);
+`;

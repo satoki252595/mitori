@@ -6,7 +6,7 @@
 import type { Anchor, BlockId, Decision, DiagramId, Message, Migration, RepoPath, SectionId, Thread, ThreadDetail } from "@mitori/core";
 import { type BatchJobPlan, type DisplayState, REVIEW_STDOUT } from "../contract.ts";
 import { planPartitions } from "./plan.ts";
-import { LOOP_SCHEMA_V1 } from "./schema.ts";
+import { LOOP_SCHEMA_V1, LOOP_SCHEMA_V2 } from "./schema.ts";
 import { bodyLines, bundleLabel, firstLine, labelText, lf, quoteLines } from "./text.ts";
 
 /** `anchorHealth === "outdated"` (and not resolved/draft) ⇒ "outdated", else the stored state. */
@@ -116,4 +116,7 @@ export function anchorLabel(
  * Migrations owned by `@mitori/loop` (`rev_*`, `job_*`; DDL in spec §2.8). Version 1 = the whole §2.8 schema
  * (WP-07 writes it; later versions are appended here by the S6 stream).
  */
-export const LOOP_MIGRATIONS: readonly Migration[] = [{ pkg: "@mitori/loop", db: "workspace", version: 1, up: LOOP_SCHEMA_V1 }];
+export const LOOP_MIGRATIONS: readonly Migration[] = [
+  { pkg: "@mitori/loop", db: "workspace", version: 1, up: LOOP_SCHEMA_V1 },
+  { pkg: "@mitori/loop", db: "workspace", version: 2, up: LOOP_SCHEMA_V2 },
+];
