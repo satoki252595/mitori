@@ -197,6 +197,16 @@ export function buildRepoPack(input: RepoPackInput, opts: RepoPackOpts): RepoPac
   return { text, tokens: est(text), indexDigest: input.indexDigest, key: packKey(input, opts), parts, redactions };
 }
 
+/**
+ * A module's facts in the repo-pack item format, without section headings (`moduleContext().facts`, spec §7.2):
+ * entries, routes, CLI commands, env vars, schema entities and scripts, each in its section's order.
+ */
+export function moduleFactLines(facts: readonly Fact[], all: FactsResult, rank: (p: RepoPath) => number): string[] {
+  return [entrySection(facts), routeSection(facts, rank, all), cliSection(facts), envSection(facts), schemaSection(facts), scriptSection(facts)].flatMap((s) =>
+    s.items.flat(),
+  );
+}
+
 /* ------------------------------------------------------------------ sections */
 
 function moduleSection(st: StructureResult): Section {

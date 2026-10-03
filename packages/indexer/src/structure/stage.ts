@@ -202,11 +202,6 @@ export function buildStructure(input: StructureInput): StructureResult {
     warm[i] = key.startsWith("p:") ? 1 : 0;
   });
   const sig = Float64Array.from(fg.paths, (p) => sigTokens(files.get(p) as StageFile));
-  const domDirOfNodes = (xs: readonly number[]) =>
-    dominantDir(
-      xs.map((i) => fg.paths[i] as string),
-      locOf,
-    );
   const blobOf = (p: RepoPath) => files.get(p)?.blob ?? "";
   const carried = carryOver({
     fg,
@@ -224,20 +219,17 @@ export function buildStructure(input: StructureInput): StructureResult {
         oversize: carried.map((l) => l.length === 1 && (fg.size[l[0] as number] as number) > tuning.leafLocHard),
         gamma: input.prev.gamma ?? 1,
       }
-    : clusterLeaves(
-        {
-          fg,
-          files,
-          order,
-          init,
-          warm,
-          sigTokens: sig,
-          tuning,
-          fresh: warmKey.size === 0,
-          ...(input.prev.gamma !== undefined ? { gammaHint: input.prev.gamma } : {}),
-        },
-        domDirOfNodes,
-      );
+    : clusterLeaves({
+        fg,
+        files,
+        order,
+        init,
+        warm,
+        sigTokens: sig,
+        tuning,
+        fresh: warmKey.size === 0,
+        ...(input.prev.gamma !== undefined ? { gammaHint: input.prev.gamma } : {}),
+      });
   const mergedLeaves = applyMergeInto(raw.leaves, fg, input.overrides, notices);
   const clustered = {
     ...raw,

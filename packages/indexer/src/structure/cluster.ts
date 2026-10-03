@@ -4,6 +4,7 @@
  * post-processing (split > 9k LOC or > 24k sig tokens, merge < 2k LOC into a neighbour of the same scope and directory).
  */
 import type { RepoPath } from "@mitori/core";
+import { STRUCTURE_PARAMS } from "../contract.ts";
 import { dirOf, type StageFile } from "../resolve/files.ts";
 import { type Atoms, buildAtoms, groupsOf, induced } from "./atoms.ts";
 import { edgeWeight, type FileGraph } from "./graph.ts";
@@ -162,26 +163,78 @@ function contract(g: UGraph, atoms: Atoms): UGraph {
 
 const sum = (xs: readonly number[], arr: Float64Array) => xs.reduce((a, i) => a + (arr[i] as number), 0);
 
-const segsOf = (d: string): string[] => (d === "." || d === "" ? [] : d.split("/"));
 const commonPrefixLen = (x: readonly string[], y: readonly string[]): number => {
   let i = 0;
   while (i < x.length && i < y.length && x[i] === y[i]) i++;
   return i;
 };
 
+/** LOC histograms of a set of atoms (merged by addition while leaves merge). */
+interface SetStats {
+  /** Directory (and every ancestor, "" = root) → LOC. */
+  dirs: Map<string, number>;
+  scopes: Map<string, number>;
+  /** Language family → LOC ("" = files without a parser). */
+  families: Map<string, number>;
+  /** Smallest member path (sort key). */
+  key: string;
+  loc: number;
+}
+
 /** The atom-level view the size post-processing works on. */
 interface AtomView {
   ag: UGraph;
   order: Int32Array;
   sig: Float64Array;
-  /** Dominant directory of a set of atoms. */
-  dirOf(atoms: readonly number[]): string;
-  /** Majority scope (by LOC) of a set of atoms. */
-  scopeOf(atoms: readonly number[]): string;
-  /** Majority language family (by LOC, files without a parser ignored) of a set of atoms. */
-  familyOf(atoms: readonly number[]): string;
-  /** First path (sort key) of a set of atoms. */
-  keyOf(atoms: readonly number[]): string;
+  /** Per-atom histograms. */
+  stats: readonly SetStats[];
+}
+
+function addInto(into: Map<string, number>, from: ReadonlyMap<string, number>): void {
+  for (const [k, w] of from) into.set(k, (into.get(k) ?? 0) + w);
+}
+
+function statsOf(v: AtomView, atoms: readonly number[]): SetStats {
+  const out: SetStats = { dirs: new Map(), scopes: new Map(), families: new Map(), key: "", loc: 0 };
+  for (const a of atoms) mergeStats(out, v.stats[a] as SetStats);
+  return out;
+}
+
+function mergeStats(into: SetStats, from: SetStats): void {
+  addInto(into.dirs, from.dirs);
+  addInto(into.scopes, from.scopes);
+  addInto(into.families, from.families);
+  if (into.key === "" || (from.key !== "" && from.key < into.key)) into.key = from.key;
+  into.loc += from.loc;
+}
+
+/** Deepest directory holding ≥ 60 % of the LOC (spec §6.3-4), as segments ([] = root). */
+function dominantSegs(st: SetStats): string[] {
+  let best = "";
+  let bestDepth = 0;
+  for (const [d, w] of st.dirs) {
+    if (w < STRUCTURE_PARAMS.dominantDirShare * st.loc) continue;
+    const depth = d === "" ? 0 : d.split("/").length;
+    if (depth > bestDepth || (depth === bestDepth && d < best)) {
+      best = d;
+      bestDepth = depth;
+    }
+  }
+  return best === "" ? [] : best.split("/");
+}
+
+/** Majority key by LOC (ties: smallest key); `""` entries lose to any other. */
+function majority(m: ReadonlyMap<string, number>, skipEmpty: boolean): string {
+  let best: string | null = null;
+  let bw = -1;
+  for (const [k, w] of m) {
+    if (skipEmpty && k === "" && m.size > 1) continue;
+    if (w > bw || (w === bw && best !== null && k < best)) {
+      best = k;
+      bw = w;
+    }
+  }
+  return best ?? "";
 }
 
 /** Split a leaf above the hard caps by re-running Louvain on its atom subgraph with γ' = 2γ … (≤ 4 tries, spec §6.3-1). */
@@ -220,12 +273,13 @@ function mergeSmall(v: AtomView, leaves: number[][], P: Tuning, minLoc: number, 
       conn[x]?.set(y, (conn[x]?.get(y) ?? 0) + (ag.w[e] as number) / 2);
     }
   const members = leaves.map((l) => [...l]);
-  const loc = leaves.map((l) => sum(l, ag.size));
+  const st = leaves.map((l) => statsOf(v, l));
+  const loc = st.map((x) => x.loc);
   const tok = leaves.map((l) => sum(l, v.sig));
-  const key = leaves.map((l) => v.keyOf(l));
-  const dirs = leaves.map((l) => segsOf(v.dirOf(l)));
-  const scopes = leaves.map((l) => v.scopeOf(l));
-  const families = leaves.map((l) => v.familyOf(l));
+  const key = st.map((x) => x.key);
+  const dirs = st.map(dominantSegs);
+  const scopes = st.map((x) => majority(x.scopes, false));
+  const families = st.map((x) => majority(x.families, true));
   const fits = (a: number, b: number, cap: number) =>
     (loc[a] as number) + (loc[b] as number) <= cap && (tok[a] as number) + (tok[b] as number) <= P.leafSkeletonTokensMax;
   const alive = new Set(leaves.map((_, i) => i));
@@ -290,9 +344,10 @@ function mergeSmall(v: AtomView, leaves: number[][], P: Tuning, minLoc: number, 
       }
       conn[best]?.delete(a);
       alive.delete(a);
-      dirs[best] = segsOf(v.dirOf(members[best] as number[]));
-      scopes[best] = v.scopeOf(members[best] as number[]);
-      families[best] = v.familyOf(members[best] as number[]);
+      mergeStats(st[best] as SetStats, st[a] as SetStats);
+      dirs[best] = dominantSegs(st[best] as SetStats);
+      scopes[best] = majority((st[best] as SetStats).scopes, false);
+      families[best] = majority((st[best] as SetStats).families, true);
       merged = true;
     }
     if (!merged) break;
@@ -332,30 +387,30 @@ function atomLabels(atoms: Atoms, labels: Int32Array, size: Float64Array): Int32
 
 const FAMILY: Record<string, string> = { typescript: "js", tsx: "js", javascript: "js", jsx: "js" };
 
-/** Majority language family (by LOC) of graph nodes; files without a parser only when nothing else is there. */
-function familyOfNodes(c: ClusterInput, nodes: readonly number[]): string {
-  const by = new Map<string, number>();
+/** LOC histograms of a set of graph nodes. */
+function nodeStats(c: ClusterInput, nodes: readonly number[]): SetStats {
+  const out: SetStats = { dirs: new Map(), scopes: new Map(), families: new Map(), key: "", loc: 0 };
   for (const v of nodes) {
-    const lang = c.files.get(c.fg.paths[v] as string)?.lang ?? "generic";
-    const f = lang === "generic" ? "" : (FAMILY[lang] ?? lang);
-    by.set(f, (by.get(f) ?? 0) + (c.fg.size[v] as number));
+    const p = c.fg.paths[v] as string;
+    const f = c.files.get(p);
+    const w = Math.max(1, f?.loc ?? 0);
+    for (let d = dirOf(p); ; d = dirOf(d)) {
+      out.dirs.set(d, (out.dirs.get(d) ?? 0) + w);
+      if (d === "") break;
+    }
+    const scope = f?.scope ?? "main";
+    out.scopes.set(scope, (out.scopes.get(scope) ?? 0) + w);
+    const lang = f?.lang ?? "generic";
+    const fam = lang === "generic" ? "" : (FAMILY[lang] ?? lang);
+    out.families.set(fam, (out.families.get(fam) ?? 0) + w);
+    if (out.key === "" || p < out.key) out.key = p;
+    out.loc += w;
   }
-  if (by.size > 1) by.delete("");
-  return [...by].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]?.[0] ?? "";
-}
-
-/** Majority scope (by LOC) of graph nodes. */
-function scopeOfNodes(c: ClusterInput, nodes: readonly number[]): string {
-  const by = new Map<string, number>();
-  for (const v of nodes) {
-    const s = c.files.get(c.fg.paths[v] as string)?.scope ?? "main";
-    by.set(s, (by.get(s) ?? 0) + (c.fg.size[v] as number));
-  }
-  return [...by].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]?.[0] ?? "main";
+  return out;
 }
 
 /** Cluster the file graph into leaves, searching γ (spec §6.2 "γ の決め方"; selection: modularity among size-valid γ). */
-export function clusterLeaves(c: ClusterInput, domDir: (xs: readonly number[]) => string): ClusterResult {
+export function clusterLeaves(c: ClusterInput): ClusterResult {
   const P = c.tuning;
   const { ug, dep } = undirected(c.fg, nodeScope(c.fg, c.files));
   const n = c.fg.paths.length;
@@ -375,23 +430,7 @@ export function clusterLeaves(c: ClusterInput, domDir: (xs: readonly number[]) =
   const aSig = Float64Array.from(atoms.members, (m) => sum(m, c.sigTokens));
   const aInit = atomLabels(atoms, c.init, c.fg.size);
   const aWarm = Uint8Array.from(atoms.members, (m) => (m.every((v) => c.warm[v] === 1 && c.init[v] === c.init[m[0] as number]) ? 1 : 0));
-  const nodesOf = (xs: readonly number[]) => xs.flatMap((a) => atoms.members[a] as number[]);
-  const view: AtomView = {
-    ag,
-    order: aOrder,
-    sig: aSig,
-    dirOf: (xs) => domDir(nodesOf(xs)),
-    scopeOf: (xs) => scopeOfNodes(c, nodesOf(xs)),
-    familyOf: (xs) => familyOfNodes(c, nodesOf(xs)),
-    keyOf: (xs) => {
-      let k = "";
-      for (const v of nodesOf(xs)) {
-        const p = c.fg.paths[v] as string;
-        if (k === "" || p < k) k = p;
-      }
-      return k;
-    },
-  };
+  const view: AtomView = { ag, order: aOrder, sig: aSig, stats: atoms.members.map((m) => nodeStats(c, m)) };
   // a leaf that is exactly a previous small leaf survived as such: merging it now would only churn its id (§6.6-2)
   const warmCount = new Map<number, number>();
   for (let a = 0; a < A; a++) if (aWarm[a]) warmCount.set(aInit[a] as number, (warmCount.get(aInit[a] as number) ?? 0) + 1);
@@ -445,10 +484,14 @@ export function clusterLeaves(c: ClusterInput, domDir: (xs: readonly number[]) =
   // the previous leaves
   // (several fixed visit orders per γ: Louvain is greedy, and a first clustering has no previous leaves to keep)
   const start = c.fresh ? null : aInit;
-  const visits = c.fresh ? FRESH_ORDERS.map((k) => permutedOrder(aOrder, k)) : [aOrder];
-  for (const g of GAMMA_GRID)
-    for (const visit of visits) {
-      const b = consider(g, start, visit);
+  for (const g of GAMMA_GRID) {
+    const b = consider(g, start);
+    if (better(b, best)) best = b;
+  }
+  // a first clustering also tries a few other fixed visit orders at the chosen γ (Louvain is greedy)
+  if (c.fresh)
+    for (const k of FRESH_ORDERS.slice(1)) {
+      const b = consider((best as Best).gamma, start, permutedOrder(aOrder, k));
       if (better(b, best)) best = b;
     }
   return finish(best as Best, atoms, c.fg, ug, dep, P);
