@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, readdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { MitoriError } from "@mitori/core";
 import { gitBlobOid } from "../hash/digest.ts";
@@ -172,6 +172,48 @@ describe("PLAT-I-008 GitReader (normal repo)", () => {
     const head = (await r.head()) as string;
     expect(await r.revCount(head, head)).toBeNull();
     expect((await r.lsFiles()).map((f) => f.path)).toEqual(["a.txt"]);
+  });
+
+  test("shallow detection in a linked worktree of a shallow clone (the `shallow` file is in the common dir)", async () => {
+    const src = makeRepo({ "a.txt": "1" });
+    put(src, { "a.txt": "2" });
+    git(src, ["commit", "-q", "-am", "two"]);
+    const dst = join(tempDir(), "clone");
+    git(tempDir(), ["clone", "-q", "--depth", "1", `file://${src}`, dst]);
+    const wt = join(tempDir(), "wt");
+    git(dst, ["worktree", "add", "-q", "-b", "feature", wt]);
+    const r = reader(wt);
+    expect(await r.gitDir()).toBe(join(dst, ".git", "worktrees", "wt"));
+    expect(await r.isShallow()).toBe(true);
+    expect(await r.log({ limit: 10 })).toEqual([]);
+    expect(await r.isShallow()).toBe(git(wt, ["rev-parse", "--is-shallow-repository"]).trim() === "true");
+  });
+
+  test("SEC-05: a partial clone never lazy-fetches on read (no network, repo-local sshCommand not run)", async () => {
+    const src = makeRepo({ "a.txt": "v1\n" });
+    const v1 = git(src, ["rev-parse", "HEAD:a.txt"]).trim();
+    put(src, { "a.txt": "v2\n" });
+    git(src, ["commit", "-q", "-am", "two"]);
+    git(src, ["config", "uploadpack.allowfilter", "true"]);
+    const dst = join(tempDir(), "partial");
+    git(tempDir(), ["-c", "protocol.file.allow=always", "clone", "-q", "--filter=blob:none", `file://${src}`, dst]);
+    const marker = join(tempDir(), "pwned");
+    git(dst, ["config", "remote.origin.url", "ssh://git@example.invalid/x.git"]);
+    git(dst, ["config", "core.sshCommand", `sh -c 'touch ${marker}; exit 1'`]);
+    const r = reader(dst);
+    expect(await codeOf(r.catBlob(v1))).toBe("E_NOT_FOUND"); // v1 is only on the promisor remote
+    expect(existsSync(marker)).toBe(false);
+    expect(new TextDecoder().decode(await r.catBlob((await r.lsFiles())[0]?.blob as string))).toBe("v2\n"); // the batch survived
+    expect((await r.log({ limit: 5 })).map((e) => e.subject)).toEqual(["two", "initial"]);
+    expect(existsSync(marker)).toBe(false);
+  });
+
+  test("a vanished work tree is E_NOT_FOUND (no raw errno escapes)", async () => {
+    const root = makeRepo({ "a.txt": "a" });
+    const r = reader(root);
+    renameSync(root, join(tempDir(), "gone"));
+    expect(await codeOf(r.lsFiles())).toBe("E_NOT_FOUND");
+    expect(await codeOf(r.catBlob("0".repeat(40)))).toBe("E_NOT_FOUND");
   });
 
   test("SEC-05: a repo-local clean filter never runs during status (plain git would run it)", async () => {

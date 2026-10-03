@@ -2,8 +2,10 @@
 // inotify on Linux — O3 decision, docs/design/specs/platform-watch.md), batched leading 5 ms + max-wait 30 ms.
 // Raw events are only hints: each batched path is lstat'ed, so duplicates and touch-free events vanish, missing
 // files become `delete`, and mitori's own atomic writes (SelfWriteLog, matched by content hash) are dropped.
-import { type FSWatcher, lstatSync, readdirSync, readFileSync, watch } from "node:fs";
-import { join, relative } from "node:path";
+// A directory renamed away or moved out of the tree arrives as ONE `delete <dir>` (the OS names only the directory
+// and the watcher never listed the files it held); the files under a directory that appears are enumerated as adds.
+import { existsSync, type FSWatcher, lstatSync, readdirSync, readFileSync, watch } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import { type Clock, type Glob, MitoriError, type RepoPath } from "@mitori/core";
 import { systemClock } from "../clock/index.ts";
 import { realTimers, type TimerId, type Timers } from "../clock/timers.ts";
@@ -47,6 +49,27 @@ const NEW_DIR_LIMIT = 20_000;
 interface Pending {
   /** Raw event types seen in this batch (`rename` = create/delete/move, `change` = modify). */
   types: Set<string>;
+}
+
+/** The common dir of a linked worktree's git dir (its `commondir` file), else null. */
+function commonDirOf(gitDir: string): string | null {
+  try {
+    const rel = readFileSync(join(gitDir, "commondir"), "utf8").trim();
+    return rel === "" ? null : resolve(gitDir, rel);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Kind of an existing file in a batch. Already reported this session ⇒ `change`. First sight ⇒ `add` when the OS said
+ * create/move (`rename`) or the file was born after the watch started (FSEvents may deliver a new file's "modified"
+ * in an earlier batch than its "created"), else `change` (inotify's modify of a pre-existing file). FSEvents reports
+ * `rename` for most events, so a rename is delete(old) + add(new) in one batch (indexer rename detection).
+ */
+export function changeKind(seen: boolean, types: ReadonlySet<string>, birthtimeMs: number, startedMs: number): "add" | "change" {
+  if (seen) return "change";
+  return types.has("rename") || (birthtimeMs > 0 && birthtimeMs >= startedMs) ? "add" : "change";
 }
 
 /** The production {@link FsWatcher}. */
@@ -169,9 +192,7 @@ export function createFsWatcher(opts: FsWatcherOptions = {}): FsWatcher {
             }
             if (source && opts.selfWrites.isEcho(abs, source)) continue;
           }
-          // first sight of an existing path: `add` unless the OS said "modified" (inotify); FSEvents reports `rename`
-          // for everything, so a rename is always delete(old) + add(new) in one batch (indexer rename detection)
-          const kind = seen ? "change" : p.types.has("rename") ? "add" : "change";
+          const kind = changeKind(seen, p.types, st.birthtimeMs, startedMs);
           out.push(source && source.byteLength <= maxSource ? { kind, path: rel, source } : { kind, path: rel });
         }
         if (git) out.push({ kind: "git" });
@@ -184,10 +205,10 @@ export function createFsWatcher(opts: FsWatcherOptions = {}): FsWatcher {
       };
 
       const handles: FSWatcher[] = [];
-      const open = (dir: string, listener: (type: string, name: string | Buffer | null) => void) => {
+      const open = (dir: string, listener: (type: string, name: string | Buffer | null) => void, recursive = true) => {
         let w: FSWatcher;
         try {
-          w = watch(dir, { recursive: true }, listener);
+          w = watch(dir, { recursive }, listener);
         } catch (err) {
           for (const h of handles) h.close();
           throw new MitoriError("E_IDX_WATCH", `cannot watch ${dir}`, { cause: err, params: { code: (err as { code?: string }).code ?? "?" } });
@@ -201,6 +222,21 @@ export function createFsWatcher(opts: FsWatcherOptions = {}): FsWatcher {
         open(gitDir, (_t, name) => {
           if (!stopped && name !== null) onGitEvent(nfc(String(name)));
         });
+      // a linked worktree keeps its branch refs in the main repository's common dir (`<gitDir>/commondir`):
+      // `reset --soft` / `update-ref` there move HEAD without touching the worktree's index
+      const common = gitDir ? commonDirOf(gitDir) : null;
+      if (common && common !== root && !common.startsWith(`${root}/`) && existsSync(join(common, "refs"))) {
+        open(join(common, "refs"), (_t, name) => {
+          if (!stopped && name !== null) onGitEvent(`refs/${nfc(String(name))}`);
+        });
+        open(
+          common,
+          (_t, name) => {
+            if (!stopped && name !== null && String(name) === "packed-refs") onGitEvent("packed-refs");
+          },
+          false,
+        );
+      }
 
       return () => {
         stopped = true;

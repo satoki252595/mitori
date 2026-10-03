@@ -153,7 +153,12 @@ export interface RunOptions {
   timers?: Timers;
   /** Keep at most this many stderr lines (default 50). */
   stderrTail?: number;
+  /** How long the pipes are still read after the child exited (default {@link PIPE_DRAIN_MS}). */
+  drainMs?: number;
 }
+
+/** {@link runToExit} keeps reading the pipes this long after the exit (a lingering grandchild may hold them). */
+export const PIPE_DRAIN_MS = 500;
 
 /** Spawn, collect every line, enforce `spec.timeoutMs` (> 0) and `signal` with the kill policy. For gates and tools. */
 export async function runToExit(spawner: Spawner, spec: SpawnSpec, opts: RunOptions = {}): Promise<RunResult> {
@@ -182,7 +187,7 @@ export async function runToExit(spawner: Spawner, spec: SpawnSpec, opts: RunOpti
   else opts.signal?.addEventListener("abort", onAbort, { once: true });
   const stdout: string[] = [];
   const stderr: string[] = [];
-  await Promise.all([
+  const readers = Promise.all([
     (async () => {
       for await (const l of child.stdout) stdout.push(l);
     })(),
@@ -196,6 +201,16 @@ export async function runToExit(spawner: Spawner, spec: SpawnSpec, opts: RunOpti
   const code = await child.exited;
   if (timer !== null) timers.clearTimeout(timer);
   opts.signal?.removeEventListener("abort", onAbort);
+  // A grandchild that outlives the leader (a daemon the gate started) may hold the pipes open forever: read what is
+  // left for at most `drainMs` after the exit, then return without it.
+  let drainId: unknown;
+  await Promise.race([
+    readers,
+    new Promise<void>((resolve) => {
+      drainId = timers.setTimeout(resolve, opts.drainMs ?? PIPE_DRAIN_MS);
+    }),
+  ]);
+  timers.clearTimeout(drainId);
   if (stopping) await stopping;
-  return { code, stdout, stderr, timedOut, cancelled };
+  return { code, stdout: stdout.slice(), stderr: stderr.slice(), timedOut, cancelled };
 }

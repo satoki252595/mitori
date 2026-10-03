@@ -15,12 +15,28 @@ const BASE_ENV = {
   TZ: "UTC",
 };
 
+const FIXED_ARGS = [
+  "-c",
+  "init.defaultBranch=main",
+  "-c",
+  "commit.gpgsign=false",
+  "-c",
+  "core.hooksPath=/dev/null",
+  "-c",
+  "maintenance.auto=false",
+  "-c",
+  "gc.auto=0",
+];
+
 let step = 0;
 
-/** Run git synchronously in `cwd`; throws with stderr on failure. Each call gets the next fixed timestamp. */
+/**
+ * Run git synchronously in `cwd`; throws with stderr on failure. Each call gets the next fixed timestamp. Auto
+ * maintenance is off: a detached `git maintenance run --auto` would keep writing into `.git` after the call.
+ */
 export function git(cwd: string, args: readonly string[], env: Record<string, string> = {}): string {
   const date = `@${1767225600 + step++ * 60} +0000`;
-  const r = Bun.spawnSync(["git", "-c", "init.defaultBranch=main", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", ...args], {
+  const r = Bun.spawnSync(["git", ...FIXED_ARGS, ...args], {
     cwd,
     env: { ...BASE_ENV, HOME: cwd, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date, ...env },
   });

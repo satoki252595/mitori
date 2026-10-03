@@ -43,7 +43,8 @@ macOS p50 **17.2–17.5 ms** / p95 18.7 ms（受け入れ試験 p50 ≤ 25 ms）
 ## 5. 実装上の帰結（`createFsWatcher`）
 
 - batch: leading 5 ms、burst 中は先頭イベントから最大 30 ms（`WATCH_BATCH`）。同じ path は batch 内で 1 件。
-- `.git/` は `index`・`HEAD`・`packed-refs`・`refs/**` の変化だけを `{kind:"git"}` 1 件に畳む。git dir が木の外（linked worktree・shadow repo）なら別に watch する。入れ子の `.git` 以下は捨てる。OS がファイル名を落とした通知（overflow）は `{kind:"git"}`（warm scan）にする。
+- `.git/` は `index`・`HEAD`・`packed-refs`・`refs/**` の変化だけを `{kind:"git"}` 1 件に畳む。git dir が木の外（linked worktree・shadow repo）なら別に watch する。linked worktree は branch の ref が本体 repo の common dir（`<gitDir>/commondir`）にあるので、その `refs/` と `packed-refs` も watch する（`reset --soft`・`update-ref` は worktree の index を書かない）。入れ子の `.git` 以下は捨てる。OS がファイル名を落とした通知（overflow）は `{kind:"git"}`（warm scan）にする。
+- 初見の path の種別: OS が create/move（`rename`）と言ったか、birthtime が watch 開始以降なら `add`、それ以外は `change`（FSEvents は新規ファイルの modified を created より前の batch で届けることがある）。dir の rename・木の外への移動は OS が dir 1 件しか通知しないので `delete <dir>` 1 件になる（中のファイルは watcher が列挙していない。indexer 側の解釈は CR、`cr-requests/WP-01.md`）。
 - mitori 自身の書込（`SafeWriter` → `SelfWriteLog`）は内容 hash が一致する間は報告しない（PLAT-I-007）。temp 名 `.mitori-tmp-<16hex>` は常に無視。
 - setup 後に作られた（または移動してきた）dir に event が来たら、その中を最大 20,000 entry 列挙して add を補う（OS の watch が付く前に書かれたファイルの取りこぼし対策。今回の計測では不要だったが保険として残す）。
 

@@ -1,7 +1,7 @@
 // GitReader over hardened git subprocesses (core §18) for the three flavours: normal working tree, shadow
 // (GIT_DIR=~/.mitori/repos/<ws>/shadow.git + GIT_WORK_TREE=<dir>) and side / bare (GIT_DIR only, no work tree).
 import { existsSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { type GitOid, type GitReader, type Iso8601, MitoriError, type RepoPath } from "@mitori/core";
 import { gitBlobOid } from "../hash/digest.ts";
 import { CatFileBatch } from "./catfile.ts";
@@ -122,7 +122,19 @@ export function createGitReader(opts: GitReaderOptions): PlatformGitReader {
     );
     return format;
   };
-  const isShallow = async () => existsSync(join(await gitDir(), "shallow"));
+  // `shallow` lives in the COMMON dir: a linked worktree's git dir (`.git/worktrees/<name>`) never has it
+  let common: Promise<string> | null = null;
+  const commonDir = () => {
+    common ??= text(["rev-parse", "--git-common-dir"]).then(
+      (r) => resolve(cwd, r.out),
+      (err: unknown) => {
+        common = null;
+        throw err;
+      },
+    );
+    return common;
+  };
+  const isShallow = async () => existsSync(join(await commonDir(), "shallow"));
   const verify = async (rev: string) => {
     const r = await text(["rev-parse", "-q", "--verify", "--end-of-options", rev], [0, 1, 128]);
     return r.code === 0 && OID_RE.test(r.out) ? r.out : null;

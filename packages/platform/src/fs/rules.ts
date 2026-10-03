@@ -5,7 +5,11 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const ID = (kind: "decision" | "prep") => `${ID_SPEC[kind].prefix}[${ID_ALPHABET}]{${ID_SPEC[kind].len}}`;
 const SLUG = SLUG_RE.source.replace(/^\^/, "").replace(/\$$/, "");
 
-/** Relative paths the installer writes (loop spec §11), relative to the scope root (`~` or the repo). */
+/**
+ * Relative paths the installer writes (loop spec §11 + R1: `skills/gen`, `agents/mitori-gen-writer.md`), relative to
+ * the scope root (`~` or the repo): the plugin files of loop `INTEGRATION_TEMPLATES` and the review skill of the
+ * project (Claude Code) and codex scopes.
+ */
 export const INTEGRATION_PATHS = [
   ".claude/skills/mitori-review/SKILL.md",
   ".agents/skills/mitori-review/SKILL.md",
@@ -13,6 +17,7 @@ export const INTEGRATION_PATHS = [
   ".mitori/integrations/claude-code/plugins/mitori/.claude-plugin/plugin.json",
   ".mitori/integrations/claude-code/plugins/mitori/skills/review/SKILL.md",
   ".mitori/integrations/claude-code/plugins/mitori/skills/gen/SKILL.md",
+  ".mitori/integrations/claude-code/plugins/mitori/agents/mitori-gen-writer.md",
   ".mitori/integrations/claude-code/plugins/mitori/hooks/hooks.json",
   ".mitori/integrations/claude-code/plugins/mitori/.mcp.json",
 ] as const;

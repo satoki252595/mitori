@@ -104,8 +104,9 @@ export function createSafeWriter(opts: SafeWriterOptions = {}): SafeWriter {
     const before = lstatOrNull(target);
     if (before?.isSymbolicLink()) return followMeta(root, target, bytes, kind, hop);
     if (before?.isDirectory()) throw new MitoriError("E_INVALID_INPUT", `target is a directory: ${rel}`);
-    // unchanged content ⇒ no write at all (mtime stays; no watcher echo)
-    if (before?.isFile() && before.size === bytes.byteLength && Buffer.from(readFileSync(target)).equals(bytes)) return;
+    // unchanged content ⇒ no write at all (mtime stays; no watcher echo) — unless a `home` file is not 0600 yet
+    const modeOk = !home || (before !== null && (before.mode & 0o777) === 0o600);
+    if (before?.isFile() && modeOk && before.size === bytes.byteLength && Buffer.from(readFileSync(target)).equals(bytes)) return;
     const mode = home ? 0o600 : before ? before.mode & 0o777 : 0o644;
     const tmp = join(dir, tempName());
     const fh = await open(tmp, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, mode);

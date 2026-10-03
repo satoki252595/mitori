@@ -6,7 +6,7 @@ import { git, makeRepo } from "../test/repo.ts";
 import { cleanupTempDirs, tempDir } from "../test/tmp.ts";
 import { createFakeClock } from "../testing.ts";
 import { createFsWatcher } from "./index.ts";
-import type { FsChange } from "./watcher.ts";
+import { changeKind, type FsChange } from "./watcher.ts";
 
 const stops: (() => void)[] = [];
 afterEach(() => {
@@ -120,6 +120,21 @@ describe("PLAT-I-007 FsWatcher", () => {
     expect(await w.until(() => has(w.flat(), "git"))).toBe(true);
   });
 
+  test("a linked worktree: ref moves in the main repository's common dir are {kind:'git'} too", async () => {
+    const main = makeRepo({ "a.txt": "1" });
+    const wt = join(tempDir(), "wt");
+    git(main, ["worktree", "add", "-q", "-b", "feature", wt]);
+    git(wt, ["commit", "-q", "--allow-empty", "-m", "second"]);
+    const w = collect(wt, { gitDir: join(main, ".git", "worktrees", "wt") });
+    await settle();
+    w.batches.length = 0;
+    git(wt, ["update-ref", "refs/heads/feature", "HEAD~1"]); // like `reset --soft`: the worktree's index is untouched
+    expect(await w.until(() => has(w.flat(), "git"))).toBe(true);
+    w.batches.length = 0;
+    git(main, ["pack-refs", "--all"]);
+    expect(await w.until(() => has(w.flat(), "git"))).toBe(true);
+  });
+
   test("files inside a newly created directory are reported", async () => {
     const root = tempDir();
     const w = collect(root);
@@ -127,6 +142,32 @@ describe("PLAT-I-007 FsWatcher", () => {
     mkdirSync(join(root, "pkg", "deep"), { recursive: true });
     for (let i = 0; i < 5; i++) writeFileSync(join(root, "pkg", "deep", `f${i}.ts`), "x");
     expect(await w.until(() => [0, 1, 2, 3, 4].every((i) => has(w.flat(), "add", `pkg/deep/f${i}.ts`)))).toBe(true);
+  });
+
+  test("first sight of a file: `add` on create/move or when born after the watch started, else `change`", () => {
+    // FSEvents can deliver a new file's ItemModified ("change") in an earlier batch than its ItemCreated ("rename"):
+    // the raw type alone reported such a file as `change` (seen as a flaky "files in a new directory" case).
+    const t0 = 1_000_000;
+    expect(changeKind(false, new Set(["change"]), t0 + 3, t0)).toBe("add");
+    expect(changeKind(false, new Set(["change"]), t0 - 1, t0)).toBe("change"); // inotify modify of an old file
+    expect(changeKind(false, new Set(["change"]), 0, t0)).toBe("change"); // no birthtime on this fs
+    expect(changeKind(false, new Set(["rename"]), t0 - 1, t0)).toBe("add"); // moved in / FSEvents
+    expect(changeKind(true, new Set(["rename"]), t0 + 3, t0)).toBe("change"); // already reported
+  });
+
+  test("a directory rename: delete(old dir) + add(every file under the new name) in one batch", async () => {
+    const root = tempDir();
+    mkdirSync(join(root, "a", "deep"), { recursive: true });
+    for (let i = 0; i < 3; i++) writeFileSync(join(root, "a", "deep", `f${i}.ts`), `x${i}`);
+    await settle();
+    const w = collect(root);
+    await settle();
+    w.batches.length = 0;
+    renameSync(join(root, "a"), join(root, "b"));
+    const want = () => has(w.flat(), "delete", "a") && [0, 1, 2].every((i) => has(w.flat(), "add", `b/deep/f${i}.ts`));
+    expect(await w.until(want)).toBe(true);
+    const b = w.batches.find((x) => has(x.changes, "delete", "a"));
+    expect(b && [0, 1, 2].every((i) => has(b.changes, "add", `b/deep/f${i}.ts`))).toBe(true);
   });
 
   test("stop() ends delivery", async () => {

@@ -102,7 +102,13 @@ export class CatFileBatch {
 
   private ensure() {
     if (this.proc) return this.proc;
-    const proc = Bun.spawn(this.argv, { cwd: this.cwd, env: this.env, stdin: "pipe", stdout: "pipe", stderr: "ignore" });
+    let proc: ReturnType<typeof Bun.spawn<"pipe", "pipe", "ignore">>;
+    try {
+      proc = Bun.spawn(this.argv, { cwd: this.cwd, env: this.env, stdin: "pipe", stdout: "pipe", stderr: "ignore" });
+    } catch (cause) {
+      const code = (cause as { code?: string }).code ?? "?";
+      throw new MitoriError(code === "ENOENT" ? "E_NOT_FOUND" : "E_GIT_FAILED", `cannot start git cat-file --batch (${code})`, { cause, params: { code } });
+    }
     this.proc = proc;
     this.buf = new Bytes();
     this.header = null;

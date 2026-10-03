@@ -5,6 +5,7 @@ import { MitoriError } from "@mitori/core";
 import { cleanupTempDirs, tempDir } from "../test/tmp.ts";
 import { createFakeClock } from "../testing.ts";
 import { createSpawner, KILL_POLICY, resolveSafePath, runToExit, stopChild } from "./index.ts";
+import { PIPE_DRAIN_MS } from "./spawner.ts";
 import type { ChildHandle, SpawnSpec } from "./types.ts";
 
 afterAll(cleanupTempDirs);
@@ -170,6 +171,20 @@ describe("PLAT-I-005 Spawner", () => {
     const p = runToExit(spawner, spec("sleep", ["30"]), { signal: ac.signal });
     ac.abort();
     expect((await p).cancelled).toBe(true);
+  });
+
+  test("runToExit returns after the exit even when a grandchild keeps the pipes open", async () => {
+    expect(PIPE_DRAIN_MS).toBe(500);
+    const t0 = performance.now();
+    const r = await runToExit(spawner, spec("/bin/sh", ["-c", "sleep 30 & echo $!; echo done"]), { drainMs: 100 });
+    expect(performance.now() - t0).toBeLessThan(1000);
+    expect(r.code).toBe(0);
+    expect(r.stdout[1]).toBe("done");
+    process.kill(Number(r.stdout[0]), "SIGKILL");
+    // a timeout whose leader dies while a detached grandchild holds stdout does not hang either
+    const slow = await runToExit(spawner, spec("/bin/sh", ["-c", "sleep 30 & echo $!; exec sleep 30"], { timeoutMs: 50 }), { drainMs: 100 });
+    expect(slow.timedOut).toBe(true);
+    process.kill(Number(slow.stdout[0]), "SIGKILL");
   });
 });
 

@@ -32,6 +32,7 @@ describe("SafeWriter allowlists (SEC-01)", () => {
     ["prep", "tmp/prep/pr_0123abcd"],
     ["integration", ".claude/skills/mitori-review/SKILL.md"],
     ["integration", ".mitori/integrations/claude-code/plugins/mitori/hooks/hooks.json"],
+    ["integration", ".mitori/integrations/claude-code/plugins/mitori/agents/mitori-gen-writer.md"],
     ["repo_meta", "AGENTS.md"],
     ["accept", "src/a b/ファイル.ts"],
     ["home", "repos/ws_x/side.git/HEAD"],
@@ -265,6 +266,10 @@ describe("PLAT-U-009 resolveHome", () => {
     const home = resolveHome({ env: { MITORI_HOME: join(tempDir(), "h") } });
     await createSafeWriter().write(home, "daemon.json", "{}", "home");
     expect(statSync(join(home, "daemon.json")).mode & 0o777).toBe(0o600);
+    // an identical rewrite of a world-readable home file (older version / user copy) still tightens it to 0600
+    writeFileSync(join(home, "registry.json"), "{}", { mode: 0o644 });
+    await createSafeWriter().write(home, "registry.json", "{}", "home");
+    expect(statSync(join(home, "registry.json")).mode & 0o777).toBe(0o600);
   });
 });
 
