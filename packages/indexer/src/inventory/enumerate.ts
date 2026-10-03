@@ -54,6 +54,8 @@ export interface EnumerateResult {
   /** git status / check-attr were (re)run. */
   ranStatus: boolean;
   ranAttrs: boolean;
+  /** Every previous record was kept as is and none disappeared (nothing to persist). */
+  unchanged: boolean;
 }
 
 const ATTRS = ["linguist-vendored", "linguist-generated", "linguist-documentation"] as const;
@@ -125,6 +127,7 @@ export async function enumerate(inp: EnumerateInput): Promise<EnumerateResult> {
   const unknownBlob = new Set<RepoPath>();
   const racyFloorNs = BigInt(inp.startMs - INVENTORY_LIMITS.racyWindowMs) * 1_000_000n;
   const deadline = inp.now() + ENUM_LIMITS.maxMs;
+  let unchanged = prev !== null && !settingsChanged;
 
   for (let i = 0; i < entries.length; i++) {
     if ((i & 255) === 0 && inp.now() > deadline) {
@@ -145,6 +148,19 @@ export async function enumerate(inp: EnumerateInput): Promise<EnumerateResult> {
     const a = attrs[e.raw];
     const lattrs: LinguistAttrs = a !== undefined ? pickAttrs(a) : (p?.attrs ?? {});
     const reuseClass = statSame && !settingsChanged && sameAttrs(lattrs, (p as FileRec).attrs);
+    const knownDirty = e.unmerged || (dirtySet !== null && e.tracked && dirtySet.has(e.raw));
+    const indexBlob = e.tracked ? e.blob : "";
+
+    // Unchanged entry (the warm rescan's common case): keep the very same record.
+    if (reuseClass) {
+      const q = p as FileRec;
+      if (!q.racy && q.raw === e.raw && q.indexBlob === indexBlob && q.blob !== "" && !knownDirty && (dirtySet === null || !q.dirty)) {
+        q.seen = inp.gen;
+        files.set(path, q);
+        continue;
+      }
+    }
+    unchanged = false;
 
     let rec: FileRec;
     if (reuseClass) {
@@ -180,10 +196,9 @@ export async function enumerate(inp: EnumerateInput): Promise<EnumerateResult> {
       };
       if (c.excluded !== undefined) rec.excluded = c.excluded;
     }
-    rec.indexBlob = e.tracked ? e.blob : "";
+    rec.indexBlob = indexBlob;
 
     // Blob: index blob when known clean; the previous blob when the stat cache holds; otherwise unknown.
-    const knownDirty = e.unmerged || (dirtySet !== null && e.tracked && dirtySet.has(e.raw));
     if (e.tracked && !knownDirty && (dirtySet !== null || (statSame && !(p as FileRec).racy && !(p as FileRec).dirty))) {
       rec.blob = e.blob;
       rec.dirty = false;
@@ -207,6 +222,7 @@ export async function enumerate(inp: EnumerateInput): Promise<EnumerateResult> {
     truncated,
     ranStatus,
     ranAttrs,
+    unchanged: unchanged && prev !== null && files.size === prev.size,
   };
 }
 

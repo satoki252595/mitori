@@ -258,7 +258,15 @@ export async function runScan(core: Core, opts: ScanOptions): Promise<ScanSummar
   const summary = summarize(core, timings, later, en.truncated);
   deps.events.emit({ type: "scan.done", summary });
   void core.pool.settle();
-  schedulePersist(core, summary, timings);
+  // A no-change rescan has nothing to write (warm counter idx.warm.sqlWrites = 0 without the per-row comparison).
+  if (en.unchanged && items.length === 0 && core.snap.indexDigest === core.dbDigest) {
+    core.persisting = core.persisting
+      .then(() => core.pin.maybeGc())
+      .then(() => {
+        timings.persist = 0;
+      })
+      .catch(() => undefined);
+  } else schedulePersist(core, summary, timings);
   return summary;
 }
 
