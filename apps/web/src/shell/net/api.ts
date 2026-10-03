@@ -6,7 +6,7 @@
  */
 
 import type { ApiClient, ClientOptions } from "@mitori/client";
-import { HTTP_HEADERS, isMitoriErrorData, MitoriError, ROUTE_META, type RouteKey } from "@mitori/core";
+import { HTTP_HEADERS, isMitoriErrorData, MitoriError, type RouteKey } from "@mitori/core";
 
 export function routeUrl(
   base: string,
@@ -50,7 +50,6 @@ export function createLocalApiClient(opts: ClientOptions): ApiClient {
       }
       const rev = res.headers.get(HTTP_HEADERS.rev);
       if (rev !== null && args.onRev) args.onRev(Number(rev));
-      const kind = ROUTE_META[key].kind;
       if (!res.ok) {
         let data: unknown = null;
         try {
@@ -60,7 +59,8 @@ export function createLocalApiClient(opts: ClientOptions): ApiClient {
         }
         throw isMitoriErrorData(data) ? MitoriError.from(data) : new MitoriError("E_INTERNAL", `HTTP ${res.status}`);
       }
-      return (kind === "text" ? await res.text() : await res.json()) as never;
+      // JSON unless the daemon says otherwise (text routes); keeps the whole ROUTE_META table out of the entry chunk
+      return ((res.headers.get("content-type") ?? "application/json").includes("json") ? await res.json() : await res.text()) as never;
     },
   };
 }
