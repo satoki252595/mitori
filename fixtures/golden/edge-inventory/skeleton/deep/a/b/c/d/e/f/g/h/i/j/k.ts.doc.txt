@@ -1,0 +1,3 @@
+=== deep/a/b/c/d/e/f/g/h/i/j/k.ts · typescript · 2 lines ===
+1|/** Eleven directories deep. */
+2|export const depth = 11;

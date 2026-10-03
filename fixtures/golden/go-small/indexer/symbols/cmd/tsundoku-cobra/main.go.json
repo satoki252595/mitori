@@ -1,0 +1,16 @@
+[
+  {
+    "blob": "bf43b69e45caa08d993d2e72fdb75d5ff56ffa6d",
+    "bodyHash": "e9f12345ff0279a8",
+    "end": 63,
+    "exported": false,
+    "key": "cmd/tsundoku-cobra/main.go#main",
+    "kind": "function",
+    "name": "main",
+    "path": "cmd/tsundoku-cobra/main.go",
+    "qualname": "main",
+    "sigHash": "3b9cc60f9dc9ed21",
+    "signature": "func main()",
+    "start": 19
+  }
+]

@@ -1,0 +1,7 @@
+=== src/services/metadata.ts · typescript · 40 lines
+> export const MAX_RETRIES
+> export interface BookMetadata
+> export type Fetcher = (url: string) => Promise<Response>
+> export function normalizeIsbn(raw: string): string
+> export async function fetchMetadata(rawIsbn: string, fetcher: Fetcher = fetch): Promise<BookMetadata>
+> …+2 private

@@ -1,0 +1,24 @@
+=== src/meta.rs · rust · 121 lines · imports: crate::store::Book super::* std::cell::Cell ===
+6|pub const MAX_RETRIES: u32 = 1;
+10|pub struct Metadata {
+11|    pub title: String,
+12|    pub pages: Option<u32>,
+16|pub trait Transport {
+17|    fn get(&self, isbn: &str) -> Result<String, String>;
+21|fn string_field(body: &str, key: &str) -> Option<String> {
+⋮
+28|fn number_field(body: &str, key: &str) -> Option<u32> {
+⋮
+42|pub fn fetch<T: Transport>(transport: &T, isbn: &str) -> Result<Metadata, String> {
+⋮
+62|pub fn enrich<T: Transport>(transport: &T, book: &Book) -> Result<Book, String> {
+⋮
+74|mod tests {
+79|    struct Scripted {
+80|        failures: u32,
+81|        calls: Cell<u32>,
+84|    impl Transport for Scripted {
+85|        fn get(&self, _isbn: &str) -> Result<String, String> {
+⋮
+96|    fn retries_exactly_once() {
+⋮

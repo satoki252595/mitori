@@ -1,0 +1,33 @@
+=== tsundoku/repo.py · python · 74 lines · imports: sqlite3 collections.abc dataclasses datetime pathlib ===
+1|"""Book repository on sqlite3 (standard library only: the tests import this module without installing anything)."""
+11|STATUSES = ("unread", "reading", "done", "abandoned")
+12|SCHEMA = Path(__file__).resolve().parent.parent / "migrations" / "0001_init.sql"
+15|@dataclass(frozen=True)
+16|class Book:
+17|    id: int
+18|    isbn: str
+19|    title: str
+20|    status: str
+21|    added_at: str
+24|def parse_status(value: str | None) -> str:
+25|    """Normalize a user-supplied status; anything unknown means the book has not been started."""
+⋮
+30|class Repo:
+31|    """The pile of books. Pass a file path for persistence; the default keeps everything in memory."""
+33|    def __init__(self, path: str = ":memory:", now: Callable[[], datetime] | None = None) -> None:
+⋮
+39|    def list(self) -> list[Book]:
+40|        """All books, oldest first."""
+⋮
+44|    def get(self, book_id: int) -> Book | None:
+45|        """One book, or None when the id is unknown."""
+⋮
+49|    def create(self, isbn: str, title: str, status: str = "unread") -> Book:
+50|        """Add a book and return it with its new id. The same ISBN is stored once."""
+⋮
+63|    def remove(self, book_id: int) -> bool:
+64|        """Remove a book; returns whether something was removed (removing twice is fine)."""
+⋮
+69|    def count_by_status(self) -> dict[str, int]:
+70|        """Number of books per status, every status present."""
+⋮

@@ -1,0 +1,6 @@
+=== internal/server/server.go · go · 170 lines
+> type Server struct
+> func New(s store.Store, m *meta.Client) *Server
+>   func (s *Server) WithToken(token string) *Server
+>   func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request)
+> …+11 private

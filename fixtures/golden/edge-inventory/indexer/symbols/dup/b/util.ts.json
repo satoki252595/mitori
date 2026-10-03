@@ -1,0 +1,16 @@
+[
+  {
+    "blob": "5f27e6931da50e5d56a7cb378176eeb809c81e8e",
+    "bodyHash": "ff99f61e9695d8d0",
+    "end": 3,
+    "exported": true,
+    "key": "dup/b/util.ts#util",
+    "kind": "function",
+    "name": "util",
+    "path": "dup/b/util.ts",
+    "qualname": "util",
+    "sigHash": "13722f0e32593c0e",
+    "signature": "export function util(): string",
+    "start": 1
+  }
+]

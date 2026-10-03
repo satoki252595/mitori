@@ -1,0 +1,16 @@
+[
+  {
+    "blob": "0644909f9335dda8605d518f21f7c46d86a37f56",
+    "bodyHash": "de9b52d1bfce9ce0",
+    "end": 7,
+    "exported": false,
+    "key": "bin/tsundoku.js#program",
+    "kind": "const",
+    "name": "program",
+    "path": "bin/tsundoku.js",
+    "qualname": "program",
+    "sigHash": "e0f0dd6522d4afc0",
+    "signature": "const program",
+    "start": 7
+  }
+]

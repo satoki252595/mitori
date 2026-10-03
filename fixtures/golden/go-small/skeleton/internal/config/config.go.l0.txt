@@ -1,0 +1,3 @@
+=== internal/config/config.go · go · 38 lines
+> type Config struct
+> func Load() Config

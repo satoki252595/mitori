@@ -1,0 +1,4 @@
+=== src/trojan.ts · typescript · 7 lines ===
+2|export const access = "user";
+5|export function isAdmin(): boolean {
+⋮

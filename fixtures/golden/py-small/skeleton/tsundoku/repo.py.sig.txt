@@ -1,0 +1,25 @@
+=== tsundoku/repo.py · python · 74 lines · imports: sqlite3 collections.abc dataclasses datetime pathlib ===
+11|STATUSES = ("unread", "reading", "done", "abandoned")
+12|SCHEMA = Path(__file__).resolve().parent.parent / "migrations" / "0001_init.sql"
+15|@dataclass(frozen=True)
+16|class Book:
+17|    id: int
+18|    isbn: str
+19|    title: str
+20|    status: str
+21|    added_at: str
+24|def parse_status(value: str | None) -> str:
+⋮
+30|class Repo:
+33|    def __init__(self, path: str = ":memory:", now: Callable[[], datetime] | None = None) -> None:
+⋮
+39|    def list(self) -> list[Book]:
+⋮
+44|    def get(self, book_id: int) -> Book | None:
+⋮
+49|    def create(self, isbn: str, title: str, status: str = "unread") -> Book:
+⋮
+63|    def remove(self, book_id: int) -> bool:
+⋮
+69|    def count_by_status(self) -> dict[str, int]:
+⋮

@@ -1,0 +1,31 @@
+=== internal/store/store.go · go · 52 lines · imports: context errors time ===
+1|// Package store holds the books on the pile.
+2|package store
+10|// ErrNotFound is returned when a book id is unknown.
+11|var ErrNotFound = errors.New("book not found")
+13|// Status is the reading state of a book.
+14|type Status string
+18|	StatusUnread    Status = "unread"
+19|	StatusReading   Status = "reading"
+20|	StatusDone      Status = "done"
+21|	StatusAbandoned Status = "abandoned"
+24|// Valid reports whether s is one of the known states.
+25|func (s Status) Valid() bool {
+⋮
+33|// Book is one entry of the pile.
+34|type Book struct {
+35|	ID      int64     `json:"id"`
+36|	ISBN    string    `json:"isbn"`
+37|	Title   string    `json:"title"`
+38|	Status  Status    `json:"status"`
+39|	AddedAt time.Time `json:"added_at"`
+42|// Store is the persistence port used by the HTTP server.
+43|type Store interface {
+44|	// List returns up to limit books starting at offset, oldest first. A limit <= 0 means no limit.
+45|	List(ctx context.Context, offset, limit int) ([]Book, error)
+46|	// Get returns one book or ErrNotFound.
+47|	Get(ctx context.Context, id int64) (Book, error)
+48|	// Create stores b and returns it with its id and AddedAt filled in.
+49|	Create(ctx context.Context, b Book) (Book, error)
+50|	// Delete removes a book or returns ErrNotFound.
+51|	Delete(ctx context.Context, id int64) error

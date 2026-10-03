@@ -1,0 +1,10 @@
+=== tsundoku/config.py · python · 26 lines · imports: os ===
+5|LOG_LEVELS = ("debug", "info", "warning", "error")
+8|def port() -> int:
+⋮
+13|def database_url() -> str:
+⋮
+18|def log_level() -> str:
+⋮
+24|def api_token() -> str | None:
+⋮

@@ -1,0 +1,56 @@
+=== src/store.rs · rust · 126 lines · imports: std::collections::BTreeMap std::fmt ===
+1|//! The pile of books: the `Store` trait and an in-memory implementation.
+6|/// Reading state of a book.
+8|pub enum Status {
+9|    Unread,
+10|    Reading,
+11|    Done,
+12|    Abandoned,
+15|impl Status {
+16|    /// Parse a user-supplied status (case-insensitive).
+17|    pub fn parse(s: &str) -> Option<Status> {
+⋮
+27|    pub fn as_str(self) -> &'static str {
+⋮
+37|/// A book on the pile.
+39|pub struct Book {
+40|    pub id: u64,
+41|    pub isbn: String,
+42|    pub title: String,
+43|    pub status: Status,
+46|/// Why a store refused an operation.
+48|pub enum StoreError {
+49|    MissingIsbn,
+52|impl fmt::Display for StoreError {
+53|    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+⋮
+60|impl std::error::Error for StoreError {}
+62|/// Return early with `StoreError::MissingIsbn` when the ISBN is blank.
+63|macro_rules! ensure_isbn {
+⋮
+71|/// Persistence port used by the command line.
+72|pub trait Store {
+73|    /// All books, oldest first.
+74|    fn list(&self) -> Vec<Book>;
+75|    /// One book, or `None` when the id is unknown.
+76|    fn get(&self, id: u64) -> Option<Book>;
+77|    /// Add a book and return it with its new id.
+78|    fn create(&mut self, isbn: &str, title: &str, status: Status) -> Result<Book, StoreError>;
+79|    /// Remove a book; returns whether something was removed (deleting twice is fine).
+80|    fn delete(&mut self, id: u64) -> bool;
+84|/// A `Store` that keeps everything in process memory.
+86|pub struct MemoryStore {
+87|    books: BTreeMap<u64, Book>,
+88|    next_id: u64,
+91|impl MemoryStore {
+92|    pub fn new() -> Self {
+⋮
+100|impl Store for MemoryStore {
+101|    fn list(&self) -> Vec<Book> {
+⋮
+105|    fn get(&self, id: u64) -> Option<Book> {
+⋮
+109|    fn create(&mut self, isbn: &str, title: &str, status: Status) -> Result<Book, StoreError> {
+⋮
+123|    fn delete(&mut self, id: u64) -> bool {
+⋮

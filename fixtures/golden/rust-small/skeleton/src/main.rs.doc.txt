@@ -1,0 +1,13 @@
+=== src/main.rs · rust · 116 lines · imports: std::env std::fs std::io::{Read,Write} std::net::TcpListener std::process::ExitCode tsundoku::config::Config tsundoku::meta tsundoku::store::{MemoryStore,Status,Store} ===
+1|//! Command line: `tsundoku serve [--port N] | import [--dry-run] FILE | export [--format json]`.
+13|fn main() -> ExitCode {
+⋮
+31|/// Value of `--name VALUE`, if given.
+32|fn flag_value<'a>(args: &'a [String], name: &str) -> Option<&'a str> {
+⋮
+37|fn serve(args: &[String]) -> Result<(), String> {
+⋮
+64|fn import(store: &mut MemoryStore, args: &[String]) -> Result<(), String> {
+⋮
+95|fn export(store: &MemoryStore, args: &[String]) -> Result<(), String> {
+⋮

@@ -1,0 +1,259 @@
+[
+  {
+    "blob": "42b72182824db035f02fc0dbafd0dc551f2157d1",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".claude/settings.json",
+    "size": 249,
+    "tokensEst": 125
+  },
+  {
+    "blob": "f77230279fccb95c27429e18efec81a81afea098",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".cursor/rules/x.mdc",
+    "size": 172,
+    "tokensEst": 75
+  },
+  {
+    "blob": "e4916bfabd88e70ad6b5100414a0e223a1b6e23c",
+    "class": "secret",
+    "excluded": "secret",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".env",
+    "size": 88,
+    "tokensEst": 39
+  },
+  {
+    "blob": "bed1b0567790a2a78fbfa4617e4169a19d9bfd80",
+    "class": "config",
+    "lang": "generic",
+    "lines": 1,
+    "loc": 1,
+    "path": ".gitattributes",
+    "size": 49,
+    "tokensEst": 22
+  },
+  {
+    "blob": "5991d5af9998a848219ea4d890fda06fd31db874",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".husky/pre-commit",
+    "size": 164,
+    "tokensEst": 72
+  },
+  {
+    "blob": "92b345b924e63d6108bebcb672b082d8f047d6ee",
+    "class": "config",
+    "lang": "generic",
+    "lines": 8,
+    "loc": 8,
+    "path": ".mcp.json",
+    "size": 183,
+    "tokensEst": 92
+  },
+  {
+    "blob": "72bbd3d2d8058cd82d871793f7f06516c8a047a3",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 11,
+    "loc": 7,
+    "path": "AGENTS.md",
+    "size": 296,
+    "tokensEst": 104
+  },
+  {
+    "blob": "37d62ccbd299c8252762c35ca441e7696b4820c6",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 6,
+    "loc": 4,
+    "path": "CLAUDE.md",
+    "size": 211,
+    "tokensEst": 74
+  },
+  {
+    "blob": "8ea0d61a0bc5ac397fa7c0c705f46ff187d723d4",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 22,
+    "loc": 13,
+    "path": "README.md",
+    "size": 787,
+    "tokensEst": 467
+  },
+  {
+    "blob": "1a0b32a8c42249234f287a7d06324437d01fa8c9",
+    "class": "binary",
+    "excluded": "binary",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": "assets/dataset.bin",
+    "size": 134,
+    "tokensEst": 59
+  },
+  {
+    "blob": "fd4cccd300056803c795bc7c8209b55301c2dbb3",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 6,
+    "loc": 5,
+    "path": "config/aws.ts",
+    "size": 265,
+    "tokensEst": 116
+  },
+  {
+    "blob": "9a756760fe077a7c1bb04d173532b01de0b6eed9",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 12,
+    "loc": 7,
+    "path": "docs/design-note.md",
+    "size": 555,
+    "tokensEst": 299
+  },
+  {
+    "blob": "5355b5ff27b31946d4f5dc88b4635523838bfe0c",
+    "class": "secret",
+    "excluded": "secret",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": "keys/dev.pem",
+    "size": 192,
+    "tokensEst": 84
+  },
+  {
+    "blob": "0fc5a47ff30b12865a3215e744e926604d342c53",
+    "class": "config",
+    "lang": "generic",
+    "lines": 12,
+    "loc": 12,
+    "path": "package.json",
+    "size": 320,
+    "tokensEst": 160
+  },
+  {
+    "blob": "c8f88b19de2a33958cc037c377f1dc673fff2dd9",
+    "class": "minified",
+    "excluded": "minified",
+    "lang": "javascript",
+    "lines": 0,
+    "loc": 0,
+    "path": "public/bundle.min.js",
+    "size": 500000,
+    "tokensEst": 295858
+  },
+  {
+    "blob": "dd8b861433d93e970728d48e62e5a9a51eb055b3",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 11,
+    "loc": 9,
+    "path": "src/accounts.ts",
+    "size": 333,
+    "tokensEst": 145
+  },
+  {
+    "blob": "54502eeefe806bfe4fa498388810519d074e5d4a",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 28,
+    "loc": 27,
+    "path": "src/csv.ts",
+    "size": 690,
+    "tokensEst": 300
+  },
+  {
+    "blob": "3a57235b27fc3063aeae3bc6733aa27f6ee144ed",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 6,
+    "loc": 5,
+    "path": "src/errors.ts",
+    "size": 315,
+    "tokensEst": 137
+  },
+  {
+    "blob": "e97d5837e9af3bd5a5f0f8079ac5996fedc1d93d",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 13,
+    "loc": 11,
+    "path": "src/evil-fence.ts",
+    "size": 462,
+    "tokensEst": 201
+  },
+  {
+    "blob": "4905942ce765104714926a0535469adf4341796d",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 31,
+    "loc": 18,
+    "path": "src/payments.ts",
+    "size": 1657,
+    "tokensEst": 704
+  },
+  {
+    "blob": "2cd9bb70949cfe6195c17063873a1447a864e96c",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 7,
+    "loc": 4,
+    "path": "src/trojan.ts",
+    "size": 448,
+    "tokensEst": 155
+  },
+  {
+    "blob": "21ef69b9bf260ea78336123473e647f96817540d",
+    "class": "test",
+    "lang": "typescript",
+    "lines": 15,
+    "loc": 13,
+    "path": "test/accounts.test.ts",
+    "size": 767,
+    "tokensEst": 332
+  },
+  {
+    "blob": "f64f3fe5a4559a3acd9426b610129aa9aa46d72f",
+    "class": "test",
+    "lang": "typescript",
+    "lines": 8,
+    "loc": 7,
+    "path": "test/csv.test.ts",
+    "size": 362,
+    "tokensEst": 158
+  },
+  {
+    "blob": "a75dd01b7a88083ec60200724f6bd20ec3d8700b",
+    "class": "test",
+    "lang": "typescript",
+    "lines": 17,
+    "loc": 15,
+    "path": "test/payments.test.ts",
+    "size": 648,
+    "tokensEst": 282
+  },
+  {
+    "blob": "3bf9a29da657a4bd8dfa5416d400eea5f7508b76",
+    "class": "config",
+    "lang": "generic",
+    "lines": 12,
+    "loc": 12,
+    "path": "tsconfig.json",
+    "size": 255,
+    "tokensEst": 128
+  }
+]

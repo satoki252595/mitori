@@ -1,0 +1,17 @@
+[
+  {
+    "blob": "3a57235b27fc3063aeae3bc6733aa27f6ee144ed",
+    "bodyHash": "c9c62dd46618689c",
+    "doc": "One-line description of a failure, shown to the person who made the payment.",
+    "end": 6,
+    "exported": true,
+    "key": "src/errors.ts#describeError",
+    "kind": "function",
+    "name": "describeError",
+    "path": "src/errors.ts",
+    "qualname": "describeError",
+    "sigHash": "1ae509f8993db07c",
+    "signature": "export function describeError(err: unknown): string",
+    "start": 2
+  }
+]

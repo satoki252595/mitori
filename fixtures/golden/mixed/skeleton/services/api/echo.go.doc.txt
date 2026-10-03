@@ -1,0 +1,5 @@
+=== services/api/echo.go · go · 21 lines · imports: net/http github.com/labstack/echo/v4 ===
+1|package main
+9|// statsServer exposes the per-status counts on its own port so that dashboards can scrape it.
+10|func statsServer(pile *shelf) *echo.Echo {
+⋮

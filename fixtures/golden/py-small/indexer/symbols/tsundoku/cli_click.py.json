@@ -1,0 +1,32 @@
+[
+  {
+    "blob": "98f50a712b878d3b4131e0ddc6577326c1dbeabd",
+    "bodyHash": "5310371d5ffc2ac3",
+    "doc": "Statistics about an exported pile.",
+    "end": 14,
+    "exported": true,
+    "key": "tsundoku/cli_click.py#cli",
+    "kind": "function",
+    "name": "cli",
+    "path": "tsundoku/cli_click.py",
+    "qualname": "cli",
+    "sigHash": "803328381774daf5",
+    "signature": "@click.group() def cli() -> None",
+    "start": 12
+  },
+  {
+    "blob": "98f50a712b878d3b4131e0ddc6577326c1dbeabd",
+    "bodyHash": "7f19acaaa26a43d3",
+    "doc": "Count the books of an export (tsundoku export > pile.json) per status.",
+    "end": 27,
+    "exported": true,
+    "key": "tsundoku/cli_click.py#stats",
+    "kind": "function",
+    "name": "stats",
+    "path": "tsundoku/cli_click.py",
+    "qualname": "stats",
+    "sigHash": "1d0d7b946659b895",
+    "signature": "@cli.command() @click.argument(\"export_file\", type=click.Path(exists=True, dir_okay=False)) @click.option(\"--since\", type=click.DateTime(formats=[\"%Y-%m-%d\"]), default=None, help=\"only count books ad…",
+    "start": 17
+  }
+]

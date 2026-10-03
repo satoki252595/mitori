@@ -1,0 +1,6 @@
+=== notes-app/app.py · python · 27 lines
+> app
+> NOTES
+> PAGE
+> @app.route("/") def index()
+> @app.route("/notes") def notes()

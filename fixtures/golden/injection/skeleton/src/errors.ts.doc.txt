@@ -1,0 +1,4 @@
+=== src/errors.ts · typescript · 6 lines ===
+1|/** One-line description of a failure, shown to the person who made the payment. */
+2|export function describeError(err: unknown): string {
+⋮

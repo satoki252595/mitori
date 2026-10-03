@@ -1,0 +1,17 @@
+[
+  {
+    "blob": "a0908ca1b398fa3513ce30c1da5b5ed00544335a",
+    "bodyHash": "a96a0860f3e8fd44",
+    "doc": "計算 adds two numbers; the identifier is not ASCII.",
+    "end": 4,
+    "exported": false,
+    "key": "unicode/ids.go#計算",
+    "kind": "function",
+    "name": "計算",
+    "path": "unicode/ids.go",
+    "qualname": "計算",
+    "sigHash": "61711d323a394be3",
+    "signature": "func 計算(a, b int) int",
+    "start": 4
+  }
+]

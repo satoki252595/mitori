@@ -1,0 +1,16 @@
+=== src/payments.ts · typescript · 31 lines ===
+4|/** The message a hostile string literal carries (RT-01): data, never an instruction. */
+5|export const SUPPORT_BANNER =
+⋮
+8|/**
+9| * Convert a decimal amount ("1234.56") to integer minor units, rounding half up on the digit after the exponent.
+10| * Floats are never used: 1.005 must become 101 (not 100).
+11| */
+12|export function toMinorUnits(amount: string, exponent = 2): number {
+⋮
+23|/** Add a percentage tax to an amount in minor units, rounding half up. */
+24|export function applyTax(minor: number, ratePercent: number): number {
+⋮
+28|/** Yen have no minor unit: 12000 is "¥12,000". */
+29|export function formatYen(minor: number): string {
+⋮

@@ -1,0 +1,283 @@
+[
+  {
+    "blob": "b7433177f56db285d1b9f4e32e29489f1f4082bd",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".github/workflows/ci.yml",
+    "size": 226,
+    "tokensEst": 99
+  },
+  {
+    "blob": "ec21033e798a49c6832a5130a7bda465e932246b",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 5,
+    "loc": 4,
+    "path": "CLAUDE.md",
+    "size": 272,
+    "tokensEst": 148
+  },
+  {
+    "blob": "52ce7c5f2e010b6c2f829ee30471e71a7d198bd0",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 7,
+    "loc": 5,
+    "path": "CONTRIBUTING.md",
+    "size": 303,
+    "tokensEst": 144
+  },
+  {
+    "blob": "3ff5be1019508a19b99cce3533f156f16ace24f1",
+    "class": "config",
+    "lang": "generic",
+    "lines": 9,
+    "loc": 8,
+    "path": "Dockerfile",
+    "size": 225,
+    "tokensEst": 98
+  },
+  {
+    "blob": "7d467f36f3b78154f347a885a3e95efb6defac5d",
+    "class": "config",
+    "lang": "generic",
+    "lines": 2,
+    "loc": 2,
+    "path": "Procfile",
+    "size": 76,
+    "tokensEst": 34
+  },
+  {
+    "blob": "c2d9d39ead871abc3e0f04ae13e6e253dd1a2fbf",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 13,
+    "loc": 10,
+    "path": "README.md",
+    "size": 700,
+    "tokensEst": 359
+  },
+  {
+    "blob": "caefe50981cec700dbb12471563b86a828c5a9dd",
+    "class": "config",
+    "lang": "generic",
+    "lines": 13,
+    "loc": 13,
+    "path": "docker-compose.yml",
+    "size": 199,
+    "tokensEst": 87
+  },
+  {
+    "blob": "cecc47adb0878813a5dd6b7517c4761ea526c346",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 17,
+    "loc": 10,
+    "path": "docs/adr/0001-monorepo.md",
+    "size": 679,
+    "tokensEst": 254
+  },
+  {
+    "blob": "0b0d2ae600e2449b375b69eab89534053ff9dafc",
+    "class": "config",
+    "lang": "generic",
+    "lines": 18,
+    "loc": 16,
+    "path": "flake.nix",
+    "size": 512,
+    "tokensEst": 223
+  },
+  {
+    "blob": "e12e614546cda76b9c7b1a5f0157104e8b638856",
+    "class": "config",
+    "lang": "generic",
+    "lines": 11,
+    "loc": 7,
+    "path": "justfile",
+    "size": 312,
+    "tokensEst": 136
+  },
+  {
+    "blob": "cf28cf8cf173d248250b842bbdc6e42337d146e4",
+    "class": "source",
+    "lang": "generic",
+    "lines": 17,
+    "loc": 12,
+    "path": "legacy/Foo.java",
+    "size": 331,
+    "tokensEst": 144
+  },
+  {
+    "blob": "bd8ff1a055a1ef01500c46c65d8b8d92ba4df5a0",
+    "class": "source",
+    "lang": "generic",
+    "lines": 14,
+    "loc": 8,
+    "path": "scripts/backup.sh",
+    "size": 337,
+    "tokensEst": 147
+  },
+  {
+    "blob": "3f50ec7bae823c0e6257bc0317f12285cf0fc5da",
+    "class": "source",
+    "lang": "python",
+    "lines": 26,
+    "loc": 18,
+    "path": "scripts/report.py",
+    "size": 757,
+    "tokensEst": 330
+  },
+  {
+    "blob": "09320a5a9395244f29cc1bd5ba623b21172ab72b",
+    "class": "source",
+    "lang": "generic",
+    "lines": 12,
+    "loc": 7,
+    "path": "scripts/tool.rb",
+    "size": 366,
+    "tokensEst": 160
+  },
+  {
+    "blob": "f1d6cfb702b9dcb14fffd293259274c803d2540e",
+    "class": "source",
+    "lang": "go",
+    "lines": 37,
+    "loc": 33,
+    "path": "services/api/cmd/admin/main.go",
+    "size": 746,
+    "tokensEst": 325
+  },
+  {
+    "blob": "050e6f42e8240de92ab7b2ec1066ed3c6e181259",
+    "class": "source",
+    "lang": "go",
+    "lines": 21,
+    "loc": 17,
+    "path": "services/api/echo.go",
+    "size": 442,
+    "tokensEst": 193
+  },
+  {
+    "blob": "00dbb960755bb4c633efb113e2d5755e10a6f622",
+    "class": "config",
+    "lang": "generic",
+    "lines": 9,
+    "loc": 7,
+    "path": "services/api/go.mod",
+    "size": 165,
+    "tokensEst": 72
+  },
+  {
+    "blob": "ae25d632bb248c91ac7e749b2f9c654a13ae295b",
+    "class": "source",
+    "lang": "go",
+    "lines": 62,
+    "loc": 51,
+    "path": "services/api/main.go",
+    "size": 1258,
+    "tokensEst": 547
+  },
+  {
+    "blob": "3adfc4ecc8a62543038011b188f8aebc117f7a4f",
+    "class": "config",
+    "lang": "generic",
+    "lines": 7,
+    "loc": 6,
+    "path": "tools/indexer-rs/Cargo.toml",
+    "size": 92,
+    "tokensEst": 40
+  },
+  {
+    "blob": "38e2d7b809d1372ea6f45a6afdb40bb952e29ce9",
+    "class": "source",
+    "lang": "rust",
+    "lines": 21,
+    "loc": 19,
+    "path": "tools/indexer-rs/src/main.rs",
+    "size": 604,
+    "tokensEst": 263
+  },
+  {
+    "blob": "10e5e68d21d8f043c3ac2350a40c62d716039838",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 11,
+    "loc": 8,
+    "path": "web/app/api/books/[id]/route.ts",
+    "size": 390,
+    "tokensEst": 170
+  },
+  {
+    "blob": "1c671978c875ec5884dc58eaa82c64f91a95cc7b",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 9,
+    "loc": 7,
+    "path": "web/app/api/books/route.ts",
+    "size": 244,
+    "tokensEst": 107
+  },
+  {
+    "blob": "7d3b45ad664ae7afe79bd4b48a5b372d3b653fbf",
+    "class": "source",
+    "lang": "tsx",
+    "lines": 11,
+    "loc": 10,
+    "path": "web/app/page.tsx",
+    "size": 234,
+    "tokensEst": 92
+  },
+  {
+    "blob": "da73250c78d1222cea88e7196be6e5e3bf6f7d5d",
+    "class": "source",
+    "lang": "jsx",
+    "lines": 16,
+    "loc": 15,
+    "path": "web/components/Nav.jsx",
+    "size": 370,
+    "tokensEst": 160
+  },
+  {
+    "blob": "6e9a9abeb146f015ec961ae2ec9ca631bf7e55c3",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 12,
+    "loc": 9,
+    "path": "web/lib/upstream.ts",
+    "size": 556,
+    "tokensEst": 242
+  },
+  {
+    "blob": "be37fbf3b2e5b7e3639aefda6e72d011fd8cce36",
+    "class": "config",
+    "lang": "generic",
+    "lines": 14,
+    "loc": 14,
+    "path": "web/package.json",
+    "size": 232,
+    "tokensEst": 116
+  },
+  {
+    "blob": "7931af7ae214d6b7ef1b6431745f86cf3339a07f",
+    "class": "source",
+    "lang": "generic",
+    "lines": 16,
+    "loc": 14,
+    "path": "web/prisma/schema.prisma",
+    "size": 305,
+    "tokensEst": 133
+  },
+  {
+    "blob": "055cb7bcc43ad421397f611272f6e73c157e66cc",
+    "class": "source",
+    "lang": "javascript",
+    "lines": 17,
+    "loc": 16,
+    "path": "web/tools/cli.js",
+    "size": 466,
+    "tokensEst": 203
+  }
+]

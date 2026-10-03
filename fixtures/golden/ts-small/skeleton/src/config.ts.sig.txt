@@ -1,0 +1,12 @@
+=== src/config.ts · typescript · 28 lines ===
+2|export const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
+4|export type LogLevel = (typeof LOG_LEVELS)[number];
+7|export interface Config {
+8|  port: number;
+9|  databaseUrl: string | undefined;
+10|  logLevel: LogLevel;
+11|  apiToken: string | undefined;
+15|export function isLogLevel(value: string): value is LogLevel {
+⋮
+20|export function loadConfig(): Config {
+⋮

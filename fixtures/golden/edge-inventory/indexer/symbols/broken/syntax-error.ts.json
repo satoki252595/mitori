@@ -1,0 +1,44 @@
+[
+  {
+    "blob": "8d95239128a624b03c80f22196857ec79f8ca963",
+    "bodyHash": "93935a4310cf99e1",
+    "end": 3,
+    "exported": true,
+    "key": "broken/syntax-error.ts#ok",
+    "kind": "function",
+    "name": "ok",
+    "path": "broken/syntax-error.ts",
+    "qualname": "ok",
+    "sigHash": "43a82a8f60f6af42",
+    "signature": "export function ok(): number",
+    "start": 1
+  },
+  {
+    "blob": "8d95239128a624b03c80f22196857ec79f8ca963",
+    "bodyHash": "680df1b3739ff492",
+    "end": 7,
+    "exported": true,
+    "key": "broken/syntax-error.ts#broken",
+    "kind": "function",
+    "name": "broken",
+    "path": "broken/syntax-error.ts",
+    "qualname": "broken",
+    "sigHash": "33611167e5f9a3cc",
+    "signature": "export function broken(: number",
+    "start": 5
+  },
+  {
+    "blob": "8d95239128a624b03c80f22196857ec79f8ca963",
+    "bodyHash": "89312892a9f97871",
+    "end": 11,
+    "exported": true,
+    "key": "broken/syntax-error.ts#stillFine",
+    "kind": "function",
+    "name": "stillFine",
+    "path": "broken/syntax-error.ts",
+    "qualname": "stillFine",
+    "sigHash": "ec9afff5ace6285c",
+    "signature": "export function stillFine(): string",
+    "start": 9
+  }
+]

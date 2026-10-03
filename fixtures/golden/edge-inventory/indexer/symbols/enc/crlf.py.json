@@ -1,0 +1,30 @@
+[
+  {
+    "blob": "46eb4db18a7a62c5c252181368cb81e4ed711665",
+    "bodyHash": "d0f501531b02dd6a",
+    "end": 2,
+    "exported": true,
+    "key": "enc/crlf.py#crlf",
+    "kind": "function",
+    "name": "crlf",
+    "path": "enc/crlf.py",
+    "qualname": "crlf",
+    "sigHash": "064ba7e673207333",
+    "signature": "def crlf()",
+    "start": 1
+  },
+  {
+    "blob": "46eb4db18a7a62c5c252181368cb81e4ed711665",
+    "bodyHash": "70011286c4cb47bb",
+    "end": 6,
+    "exported": true,
+    "key": "enc/crlf.py#second",
+    "kind": "function",
+    "name": "second",
+    "path": "enc/crlf.py",
+    "qualname": "second",
+    "sigHash": "4ed2e6c6eb86f142",
+    "signature": "def second()",
+    "start": 5
+  }
+]

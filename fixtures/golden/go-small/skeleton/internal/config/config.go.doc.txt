@@ -1,0 +1,12 @@
+=== internal/config/config.go · go · 38 lines · imports: cmp os strconv ===
+1|// Package config reads the service configuration from the environment.
+2|package config
+10|// Config is the runtime configuration of the tsundoku service.
+11|type Config struct {
+12|	Port        int
+13|	DatabaseURL string
+14|	LogLevel    string
+15|	APIToken    string
+18|// Load reads the configuration from the environment. Command-line flags override it (see cmd/tsundoku).
+19|func Load() Config {
+⋮

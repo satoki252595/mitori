@@ -1,0 +1,22 @@
+=== detect-only/clap_cli.rs · rust · 42 lines · imports: std::path::PathBuf clap::{Parser,Subcommand} ===
+9|struct Cli {
+10|    #[command(subcommand)]
+11|    command: Command,
+15|enum Command {
+16|    /// Start the HTTP service.
+17|    Serve {
+18|        /// Port to listen on.
+19|        #[arg(long)]
+20|        port: Option<u16>,
+22|    /// Import books from a CSV file (isbn,title,status).
+23|    Import {
+24|        file: PathBuf,
+25|        /// Validate the file without storing anything.
+26|        #[arg(long)]
+27|        dry_run: bool,
+29|    /// Print the pile.
+30|    Export {
+31|        #[arg(long, default_value = "json")]
+32|        format: String,
+36|fn main() {
+⋮

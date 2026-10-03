@@ -1,0 +1,5 @@
+=== src/index.ts · typescript · 20 lines · imports: ./config.ts ./http/routes.ts ===
+5|function portFlag(argv: readonly string[]): number | undefined {
+⋮
+12|export function main(argv: readonly string[] = Bun.argv.slice(2)): void {
+⋮

@@ -1,11 +1,10 @@
 /**
  * @mitori/indexer — `inventory/` (owner: WP-02). Everything exported here is public (re-exported by `src/index.ts`):
  * export only contract names; keep helpers in sibling files.
- * M0 stubs below throw E_UNSUPPORTED — implement them in place and keep the signatures (contract changes go
- * through the CR batch, packages/core/CR-LEDGER.md).
  */
-import { type EffectiveSettings, type FileClass, type GitOid, type RepoPath, type SourceLang, unsupported, type Xxh3 } from "@mitori/core";
-import type { FileScope, GrammarId, IndexerExcludeReason, InventoryRuleId } from "../contract.ts";
+import type { EffectiveSettings, FileClass, GitOid, RepoPath, SourceLang, Xxh3 } from "@mitori/core";
+import { type FileScope, type GrammarId, INDEXER_FORMAT, type IndexerExcludeReason, type InventoryRuleId } from "../contract.ts";
+import { classifyPathWith, compileSettings } from "./classify.ts";
 
 /** Path-phase classification (R00–R10, R14–R20 path parts). Content rules are applied later by the Worker. */
 export function classifyByPath(input: {
@@ -23,10 +22,13 @@ export function classifyByPath(input: {
   scope: FileScope;
   needsContent: boolean;
 } {
-  return unsupported("indexer.classifyByPath", input);
+  return classifyPathWith(input, compileSettings(input.settings));
 }
 
 /** indexDigest over included `(path, blob)` (spec §2.2). */
 export function computeIndexDigest(entries: readonly { path: RepoPath; blob: GitOid }[], xxh3: (s: string) => Xxh3): Xxh3 {
-  return unsupported("indexer.computeIndexDigest", entries, xxh3);
+  const sorted = [...entries].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  let s = `${INDEXER_FORMAT.digest}\n`;
+  for (const e of sorted) s += `${e.path}\0${e.blob}\n`;
+  return xxh3(s);
 }

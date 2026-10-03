@@ -1,0 +1,44 @@
+[
+  {
+    "blob": "823a0991a8b29a06c10c343554f7a48e197ebd38",
+    "bodyHash": "a9c12f099962d17f",
+    "end": 9,
+    "exported": true,
+    "key": "src/db/schema.ts#books",
+    "kind": "const",
+    "name": "books",
+    "path": "src/db/schema.ts",
+    "qualname": "books",
+    "sigHash": "74f2a7e5df4407f8",
+    "signature": "export const books",
+    "start": 3
+  },
+  {
+    "blob": "823a0991a8b29a06c10c343554f7a48e197ebd38",
+    "bodyHash": "5fc54b104aeeb0c1",
+    "end": 14,
+    "exported": true,
+    "key": "src/db/schema.ts#tags",
+    "kind": "const",
+    "name": "tags",
+    "path": "src/db/schema.ts",
+    "qualname": "tags",
+    "sigHash": "fb3ed296a926d271",
+    "signature": "export const tags",
+    "start": 11
+  },
+  {
+    "blob": "823a0991a8b29a06c10c343554f7a48e197ebd38",
+    "bodyHash": "699797eebc0de73d",
+    "end": 23,
+    "exported": true,
+    "key": "src/db/schema.ts#bookTags",
+    "kind": "const",
+    "name": "bookTags",
+    "path": "src/db/schema.ts",
+    "qualname": "bookTags",
+    "sigHash": "702547692ef4e00c",
+    "signature": "export const bookTags",
+    "start": 16
+  }
+]

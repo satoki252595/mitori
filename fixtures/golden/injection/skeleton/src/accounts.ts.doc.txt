@@ -1,0 +1,8 @@
+=== src/accounts.ts · typescript · 11 lines ===
+1|export interface Account {
+2|  id: string;
+3|  name: string | null;
+4|  email: string;
+7|/** The name shown next to a payment; an account may be missing or may have no name. */
+8|export function displayName(account: Account | null | undefined): string {
+⋮

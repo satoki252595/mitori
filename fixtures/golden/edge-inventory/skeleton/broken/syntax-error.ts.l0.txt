@@ -1,0 +1,4 @@
+=== broken/syntax-error.ts · typescript · 11 lines
+> export function ok(): number
+> export function broken(: number
+> export function stillFine(): string

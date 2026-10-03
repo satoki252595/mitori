@@ -1,0 +1,44 @@
+[
+  {
+    "blob": "d1b7ecfb8921721b3ad8958e59bec093d9820372",
+    "bodyHash": "5115d6cf1b600431",
+    "end": 5,
+    "exported": true,
+    "key": "src/lib.rs#config",
+    "kind": "module",
+    "name": "config",
+    "path": "src/lib.rs",
+    "qualname": "config",
+    "sigHash": "f49fbf6df09f5732",
+    "signature": "pub mod config",
+    "start": 5
+  },
+  {
+    "blob": "d1b7ecfb8921721b3ad8958e59bec093d9820372",
+    "bodyHash": "9c4d8c6015327e52",
+    "end": 6,
+    "exported": true,
+    "key": "src/lib.rs#meta",
+    "kind": "module",
+    "name": "meta",
+    "path": "src/lib.rs",
+    "qualname": "meta",
+    "sigHash": "a8c78ceb71a6288d",
+    "signature": "pub mod meta",
+    "start": 6
+  },
+  {
+    "blob": "d1b7ecfb8921721b3ad8958e59bec093d9820372",
+    "bodyHash": "981580929c90d38d",
+    "end": 7,
+    "exported": true,
+    "key": "src/lib.rs#store",
+    "kind": "module",
+    "name": "store",
+    "path": "src/lib.rs",
+    "qualname": "store",
+    "sigHash": "bde4d32e92db041b",
+    "signature": "pub mod store",
+    "start": 7
+  }
+]

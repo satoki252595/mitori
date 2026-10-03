@@ -1,0 +1,9 @@
+=== tsundoku/legacy_flask.py · python · 24 lines · imports: dataclasses flask tsundoku.repo ===
+11|bp = Blueprint("legacy", __name__)
+12|repo = Repo()
+15|@bp.get("/legacy/export")
+16|def export_all():
+⋮
+20|@bp.route("/legacy/import", methods=["POST", "PUT"])
+21|def import_one():
+⋮

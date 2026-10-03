@@ -1,0 +1,5 @@
+=== tsundoku/importer.py · python · 45 lines
+> SHELF
+> @dataclass class ImportResult
+> def import_csv(text: str, dry_run: bool = False, repo: Repo | None = None) -> ImportResult
+> def export_books(fmt: str = "json", repo: Repo | None = None) -> str

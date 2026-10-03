@@ -1,0 +1,9 @@
+=== src/db/repo.ts · typescript · 55 lines
+> export function parseStatus(value: string | undefined): BookStatus
+> export class BookRepo
+>   constructor(now: () => Date = () => new Date())
+>   list(): Book[]
+>   get(id: number): Book | undefined
+>   create(input: NewBook): Book
+>   remove(id: number): boolean
+>   countByStatus(): Record<BookStatus, number>

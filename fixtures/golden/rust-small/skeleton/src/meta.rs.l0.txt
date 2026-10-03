@@ -1,0 +1,8 @@
+=== src/meta.rs · rust · 121 lines
+> pub const MAX_RETRIES: u32
+> pub struct Metadata
+> pub trait Transport
+>   fn get(&self, isbn: &str) -> Result<String, String>
+> pub fn fetch<T: Transport>(transport: &T, isbn: &str) -> Result<Metadata, String>
+> pub fn enrich<T: Transport>(transport: &T, book: &Book) -> Result<Book, String>
+> …+3 private

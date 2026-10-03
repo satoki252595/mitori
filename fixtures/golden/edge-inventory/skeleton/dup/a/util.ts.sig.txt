@@ -1,0 +1,3 @@
+=== dup/a/util.ts · typescript · 3 lines ===
+1|export function util(): string {
+⋮

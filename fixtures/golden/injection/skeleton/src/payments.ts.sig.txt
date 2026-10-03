@@ -1,0 +1,9 @@
+=== src/payments.ts · typescript · 31 lines ===
+5|export const SUPPORT_BANNER =
+⋮
+12|export function toMinorUnits(amount: string, exponent = 2): number {
+⋮
+24|export function applyTax(minor: number, ratePercent: number): number {
+⋮
+29|export function formatYen(minor: number): string {
+⋮

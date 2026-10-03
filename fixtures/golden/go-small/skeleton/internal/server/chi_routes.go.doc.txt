@@ -1,0 +1,6 @@
+=== internal/server/chi_routes.go · go · 21 lines · imports: net/http github.com/go-chi/chi/v5 example.com/tsundoku/internal/store ===
+3|package server
+13|// ChiRouter is the v2 API on top of chi. It is not compiled yet (chi is not a dependency of the module);
+14|// it documents where /v2 is heading.
+15|func ChiRouter(s store.Store) http.Handler {
+⋮

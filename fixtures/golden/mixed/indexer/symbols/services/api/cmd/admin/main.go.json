@@ -1,0 +1,16 @@
+[
+  {
+    "blob": "f1d6cfb702b9dcb14fffd293259274c803d2540e",
+    "bodyHash": "27ca5f99ea9f0728",
+    "end": 37,
+    "exported": false,
+    "key": "services/api/cmd/admin/main.go#main",
+    "kind": "function",
+    "name": "main",
+    "path": "services/api/cmd/admin/main.go",
+    "qualname": "main",
+    "sigHash": "3b9cc60f9dc9ed21",
+    "signature": "func main()",
+    "start": 12
+  }
+]

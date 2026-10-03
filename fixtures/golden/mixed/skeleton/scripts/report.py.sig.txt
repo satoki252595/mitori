@@ -1,0 +1,6 @@
+=== scripts/report.py · python · 26 lines · imports: json os datetime pathlib typer ===
+10|app = typer.Typer(name="report", help="Reports about the pile")
+12|REPORT_DIR = os.environ.get("REPORT_DIR", "reports")
+15|@app.command()
+16|def weekly(since: str = typer.Option(..., "--since", help="first day to include (YYYY-MM-DD)")) -> None:
+⋮

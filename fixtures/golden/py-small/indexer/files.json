@@ -1,0 +1,203 @@
+[
+  {
+    "blob": "2a62e8d6007651d3435ba3ce6650ca503ce80bea",
+    "class": "config",
+    "lang": "generic",
+    "lines": 5,
+    "loc": 3,
+    "path": ".gitignore",
+    "size": 57,
+    "tokensEst": 25
+  },
+  {
+    "blob": "ab9a38b06376da81f4436f0d0cb088bdf9af24f5",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 23,
+    "loc": 18,
+    "path": "docs/architecture.md",
+    "size": 1408,
+    "tokensEst": 701
+  },
+  {
+    "blob": "7265f6b1a6a1671fda98eb9d733c08aa9dcf0170",
+    "class": "source",
+    "lang": "generic",
+    "lines": 19,
+    "loc": 16,
+    "path": "migrations/0001_init.sql",
+    "size": 672,
+    "tokensEst": 293
+  },
+  {
+    "blob": "ec600ec3b689a59069c7e594a2e7f02c261d965d",
+    "class": "config",
+    "lang": "generic",
+    "lines": 24,
+    "loc": 20,
+    "path": "pyproject.toml",
+    "size": 498,
+    "tokensEst": 217
+  },
+  {
+    "blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+    "class": "test",
+    "lang": "python",
+    "lines": 0,
+    "loc": 0,
+    "path": "tests/__init__.py",
+    "size": 0,
+    "tokensEst": 0
+  },
+  {
+    "blob": "0c47a8b64c39d58ec5ead940a92028814099dc86",
+    "class": "test",
+    "lang": "python",
+    "lines": 51,
+    "loc": 36,
+    "path": "tests/test_metadata.py",
+    "size": 1486,
+    "tokensEst": 642
+  },
+  {
+    "blob": "5518d788c19be97a6af82c306b9b9cbf6f170b56",
+    "class": "test",
+    "lang": "python",
+    "lines": 30,
+    "loc": 21,
+    "path": "tests/test_repo.py",
+    "size": 986,
+    "tokensEst": 420
+  },
+  {
+    "blob": "f5df9c6c82d3bb392683d7efc1f4239ba17c7540",
+    "class": "source",
+    "lang": "python",
+    "lines": 3,
+    "loc": 2,
+    "path": "tsundoku/__init__.py",
+    "size": 97,
+    "tokensEst": 43
+  },
+  {
+    "blob": "eb1821be3cab1cc6259e0effb995c87e3e6a27a6",
+    "class": "source",
+    "lang": "python",
+    "lines": 8,
+    "loc": 5,
+    "path": "tsundoku/__main__.py",
+    "size": 142,
+    "tokensEst": 62
+  },
+  {
+    "blob": "338bb925f30dcdde42cd2dc8f01efe3f3a9dbd78",
+    "class": "source",
+    "lang": "python",
+    "lines": 65,
+    "loc": 43,
+    "path": "tsundoku/api.py",
+    "size": 1802,
+    "tokensEst": 784
+  },
+  {
+    "blob": "8c2a7edc2fd0171b68fce06c24cf4cf435e5942e",
+    "class": "source",
+    "lang": "python",
+    "lines": 43,
+    "loc": 33,
+    "path": "tsundoku/cli.py",
+    "size": 1771,
+    "tokensEst": 770
+  },
+  {
+    "blob": "98f50a712b878d3b4131e0ddc6577326c1dbeabd",
+    "class": "source",
+    "lang": "python",
+    "lines": 27,
+    "loc": 20,
+    "path": "tsundoku/cli_click.py",
+    "size": 954,
+    "tokensEst": 415
+  },
+  {
+    "blob": "b4061a87e2353b5bd65b611c9e9634c952080461",
+    "class": "source",
+    "lang": "python",
+    "lines": 26,
+    "loc": 16,
+    "path": "tsundoku/config.py",
+    "size": 804,
+    "tokensEst": 350
+  },
+  {
+    "blob": "eb022a4661d5abdbf8103d4bd17acbf40f9ec2a7",
+    "class": "source",
+    "lang": "python",
+    "lines": 28,
+    "loc": 21,
+    "path": "tsundoku/csvutil.py",
+    "size": 1029,
+    "tokensEst": 448
+  },
+  {
+    "blob": "3960a3c0f174cb61daea809ad0b7fb29e1c497ee",
+    "class": "source",
+    "lang": "python",
+    "lines": 45,
+    "loc": 34,
+    "path": "tsundoku/importer.py",
+    "size": 1581,
+    "tokensEst": 688
+  },
+  {
+    "blob": "7d6ffe3ce0bf94eaabad30ec45fec0faa387edb4",
+    "class": "source",
+    "lang": "python",
+    "lines": 24,
+    "loc": 15,
+    "path": "tsundoku/legacy_flask.py",
+    "size": 645,
+    "tokensEst": 281
+  },
+  {
+    "blob": "5a770005ca9191fb64aaee524f88d8dfcb719234",
+    "class": "source",
+    "lang": "python",
+    "lines": 53,
+    "loc": 39,
+    "path": "tsundoku/metadata.py",
+    "size": 1905,
+    "tokensEst": 829
+  },
+  {
+    "blob": "4203b8dee9b83dcc188290927abc8f755a266b0a",
+    "class": "source",
+    "lang": "python",
+    "lines": 26,
+    "loc": 16,
+    "path": "tsundoku/models.py",
+    "size": 654,
+    "tokensEst": 285
+  },
+  {
+    "blob": "8c1550b3b4f239b13b5940d26df91999e42d9905",
+    "class": "source",
+    "lang": "python",
+    "lines": 74,
+    "loc": 59,
+    "path": "tsundoku/repo.py",
+    "size": 2907,
+    "tokensEst": 1264
+  },
+  {
+    "blob": "1cfa43ad6392c94006abb696d39a8fab402edb42",
+    "class": "lockfile",
+    "excluded": "lockfile",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": "uv.lock",
+    "size": 729,
+    "tokensEst": 575
+  }
+]

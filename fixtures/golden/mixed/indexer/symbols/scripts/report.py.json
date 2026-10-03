@@ -1,0 +1,45 @@
+[
+  {
+    "blob": "3f50ec7bae823c0e6257bc0317f12285cf0fc5da",
+    "bodyHash": "7c94e4f21f8c385a",
+    "end": 10,
+    "exported": true,
+    "key": "scripts/report.py#app",
+    "kind": "const",
+    "name": "app",
+    "path": "scripts/report.py",
+    "qualname": "app",
+    "sigHash": "d09a09000b36f46e",
+    "signature": "app",
+    "start": 10
+  },
+  {
+    "blob": "3f50ec7bae823c0e6257bc0317f12285cf0fc5da",
+    "bodyHash": "8bfe662b258fa8fa",
+    "end": 12,
+    "exported": true,
+    "key": "scripts/report.py#REPORT_DIR",
+    "kind": "const",
+    "name": "REPORT_DIR",
+    "path": "scripts/report.py",
+    "qualname": "REPORT_DIR",
+    "sigHash": "3889e67d508e86d6",
+    "signature": "REPORT_DIR",
+    "start": 12
+  },
+  {
+    "blob": "3f50ec7bae823c0e6257bc0317f12285cf0fc5da",
+    "bodyHash": "c0b0e6c5cfd2cf6f",
+    "doc": "Write reports/weekly-<today>.json with the books added since SINCE.",
+    "end": 22,
+    "exported": true,
+    "key": "scripts/report.py#weekly",
+    "kind": "function",
+    "name": "weekly",
+    "path": "scripts/report.py",
+    "qualname": "weekly",
+    "sigHash": "7ef83d03f0313e09",
+    "signature": "@app.command() def weekly(since: str = typer.Option(..., \"--since\", help=\"first day to include (YYYY-MM-DD)\")) -> None",
+    "start": 15
+  }
+]

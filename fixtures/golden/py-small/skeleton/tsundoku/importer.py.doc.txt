@@ -1,0 +1,14 @@
+=== tsundoku/importer.py · python · 45 lines · imports: json dataclasses tsundoku.csvutil tsundoku.repo ===
+1|"""CSV import and JSON export on top of the repo."""
+12|SHELF = Repo()
+15|@dataclass
+16|class ImportResult:
+17|    imported: int = 0
+18|    skipped: int = 0
+19|    errors: list[str] = field(default_factory=list)
+22|def import_csv(text: str, dry_run: bool = False, repo: Repo | None = None) -> ImportResult:
+23|    """Import books from CSV text with the columns isbn,title,status. With dry_run nothing is stored."""
+⋮
+41|def export_books(fmt: str = "json", repo: Repo | None = None) -> str:
+42|    """Serialize the pile. Only json is supported so far."""
+⋮

@@ -1,0 +1,17 @@
+[
+  {
+    "blob": "ce2e25487f13f175ea7728aacc58fe2d1ebc1063",
+    "bodyHash": "93935a4310cf99e1",
+    "doc": "Target of the in-repo symlink `link-inside`.",
+    "end": 4,
+    "exported": true,
+    "key": "src/a.ts#a",
+    "kind": "function",
+    "name": "a",
+    "path": "src/a.ts",
+    "qualname": "a",
+    "sigHash": "aac7dd4312b48ce5",
+    "signature": "export function a(): number",
+    "start": 2
+  }
+]

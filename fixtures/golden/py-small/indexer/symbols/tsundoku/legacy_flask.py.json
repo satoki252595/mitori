@@ -1,0 +1,58 @@
+[
+  {
+    "blob": "7d6ffe3ce0bf94eaabad30ec45fec0faa387edb4",
+    "bodyHash": "e780d8e7491cbb39",
+    "end": 11,
+    "exported": true,
+    "key": "tsundoku/legacy_flask.py#bp",
+    "kind": "const",
+    "name": "bp",
+    "path": "tsundoku/legacy_flask.py",
+    "qualname": "bp",
+    "sigHash": "8e8fbf3ef2665a84",
+    "signature": "bp",
+    "start": 11
+  },
+  {
+    "blob": "7d6ffe3ce0bf94eaabad30ec45fec0faa387edb4",
+    "bodyHash": "35eb3e49aa5bb294",
+    "end": 12,
+    "exported": true,
+    "key": "tsundoku/legacy_flask.py#repo",
+    "kind": "const",
+    "name": "repo",
+    "path": "tsundoku/legacy_flask.py",
+    "qualname": "repo",
+    "sigHash": "977bd6114a78d432",
+    "signature": "repo",
+    "start": 12
+  },
+  {
+    "blob": "7d6ffe3ce0bf94eaabad30ec45fec0faa387edb4",
+    "bodyHash": "f67152977559752b",
+    "end": 17,
+    "exported": true,
+    "key": "tsundoku/legacy_flask.py#export_all",
+    "kind": "function",
+    "name": "export_all",
+    "path": "tsundoku/legacy_flask.py",
+    "qualname": "export_all",
+    "sigHash": "26f9410611910d32",
+    "signature": "@bp.get(\"/legacy/export\") def export_all()",
+    "start": 15
+  },
+  {
+    "blob": "7d6ffe3ce0bf94eaabad30ec45fec0faa387edb4",
+    "bodyHash": "52fce1dc58bdd718",
+    "end": 24,
+    "exported": true,
+    "key": "tsundoku/legacy_flask.py#import_one",
+    "kind": "function",
+    "name": "import_one",
+    "path": "tsundoku/legacy_flask.py",
+    "qualname": "import_one",
+    "sigHash": "b3dc7e3bf4f5c978",
+    "signature": "@bp.route(\"/legacy/import\", methods=[\"POST\", \"PUT\"]) def import_one()",
+    "start": 20
+  }
+]

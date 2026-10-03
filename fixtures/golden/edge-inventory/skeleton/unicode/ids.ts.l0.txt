@@ -1,0 +1,3 @@
+=== unicode/ids.ts · typescript · 6 lines
+> export const 認証
+> export function 検証(value: string): boolean

@@ -1,0 +1,6 @@
+=== tsundoku/config.py · python · 26 lines
+> LOG_LEVELS
+> def port() -> int
+> def database_url() -> str
+> def log_level() -> str
+> def api_token() -> str | None

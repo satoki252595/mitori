@@ -1,0 +1,4 @@
+=== scripts/report.py · python · 26 lines
+> app
+> REPORT_DIR
+> @app.command() def weekly(since: str = typer.Option(..., "--since", help="first day to include (YYYY-MM-DD)")) -> None

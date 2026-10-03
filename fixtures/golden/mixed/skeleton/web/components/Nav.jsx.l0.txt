@@ -1,0 +1,3 @@
+=== web/components/Nav.jsx · jsx · 16 lines
+> export default function Nav({ active })
+> …+1 private

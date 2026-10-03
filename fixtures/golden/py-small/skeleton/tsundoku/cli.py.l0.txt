@@ -1,0 +1,3 @@
+=== tsundoku/cli.py · python · 43 lines
+> def build_parser() -> argparse.ArgumentParser
+> def main(argv: Sequence[str] | None = None) -> int

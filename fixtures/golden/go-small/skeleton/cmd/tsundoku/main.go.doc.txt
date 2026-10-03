@@ -1,0 +1,15 @@
+=== cmd/tsundoku/main.go · go · 119 lines · imports: context encoding/csv encoding/json flag fmt io log net/http os strings example.com/tsundoku/internal/config example.com/tsundoku/internal/server +1 ===
+1|// Command tsundoku manages the pile of books you bought and have not read yet.
+2|//
+3|//	tsundoku serve  [-port N]
+4|//	tsundoku import [-dry-run] FILE.csv
+5|//	tsundoku export [-format json]
+6|package main
+25|func main() {
+⋮
+50|func serve(cfg config.Config, pile store.Store, args []string) error {
+⋮
+61|func importCSV(pile store.Store, args []string) error {
+⋮
+103|func export(pile store.Store, args []string, out io.Writer) error {
+⋮

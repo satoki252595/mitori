@@ -1,0 +1,162 @@
+[
+  {
+    "blob": "cbbceb38b10cf165066459051b74a414db4ee170",
+    "class": "config",
+    "lang": "generic",
+    "lines": 13,
+    "loc": 9,
+    "path": "Makefile",
+    "size": 149,
+    "tokensEst": 65
+  },
+  {
+    "blob": "af9ae8ed0753750ec661bd0c7f8218d0558d3265",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 38,
+    "loc": 29,
+    "path": "README.md",
+    "size": 1334,
+    "tokensEst": 698
+  },
+  {
+    "blob": "bf43b69e45caa08d993d2e72fdb75d5ff56ffa6d",
+    "class": "source",
+    "lang": "go",
+    "lines": 63,
+    "loc": 51,
+    "path": "cmd/tsundoku-cobra/main.go",
+    "size": 1680,
+    "tokensEst": 731
+  },
+  {
+    "blob": "356d56f3bf61690f23f2ef3ebac195bcdcca20ba",
+    "class": "source",
+    "lang": "go",
+    "lines": 119,
+    "loc": 106,
+    "path": "cmd/tsundoku/main.go",
+    "size": 2885,
+    "tokensEst": 1255
+  },
+  {
+    "blob": "2c10e89f43e8840a2b68aa0c0e6d45b52668e5e1",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 20,
+    "loc": 13,
+    "path": "docs/adr/0001-use-net-http.md",
+    "size": 856,
+    "tokensEst": 381
+  },
+  {
+    "blob": "5cf12f83b4dc20a220cfef30a0dca3be9c10e8b5",
+    "class": "config",
+    "lang": "generic",
+    "lines": 3,
+    "loc": 2,
+    "path": "go.mod",
+    "size": 37,
+    "tokensEst": 17
+  },
+  {
+    "blob": "8dee6f967169a7e72b9a99a3808e7b63a5b10780",
+    "class": "source",
+    "lang": "go",
+    "lines": 38,
+    "loc": 29,
+    "path": "internal/config/config.go",
+    "size": 786,
+    "tokensEst": 342
+  },
+  {
+    "blob": "51d29a1d4b2b93df5fda8edd7dcfb36375763376",
+    "class": "source",
+    "lang": "go",
+    "lines": 89,
+    "loc": 66,
+    "path": "internal/meta/fetch.go",
+    "size": 2622,
+    "tokensEst": 1123
+  },
+  {
+    "blob": "1d6825c50905e0fa88b921c69c5e735af8914d62",
+    "class": "test",
+    "lang": "go",
+    "lines": 64,
+    "loc": 56,
+    "path": "internal/meta/fetch_test.go",
+    "size": 1759,
+    "tokensEst": 760
+  },
+  {
+    "blob": "45abe5257052bd9a61e29f71b5d89ddebc3ce64d",
+    "class": "source",
+    "lang": "go",
+    "lines": 21,
+    "loc": 13,
+    "path": "internal/server/chi_routes.go",
+    "size": 443,
+    "tokensEst": 193
+  },
+  {
+    "blob": "76f6aca1a027dcd5b1901f5f04d7c20a2a7cd1d2",
+    "class": "source",
+    "lang": "go",
+    "lines": 170,
+    "loc": 146,
+    "path": "internal/server/server.go",
+    "size": 4812,
+    "tokensEst": 2093
+  },
+  {
+    "blob": "cc3a7f050e4ba1a298eb3d86f75691efc3645e22",
+    "class": "source",
+    "lang": "go",
+    "lines": 84,
+    "loc": 66,
+    "path": "internal/store/memory.go",
+    "size": 1655,
+    "tokensEst": 720
+  },
+  {
+    "blob": "9b21489c8b44f0db1bdea6b37360a7b837608f32",
+    "class": "test",
+    "lang": "go",
+    "lines": 43,
+    "loc": 36,
+    "path": "internal/store/memory_test.go",
+    "size": 1084,
+    "tokensEst": 466
+  },
+  {
+    "blob": "9b06ba0a74bcbe27f2707832f69dd0e806e73226",
+    "class": "source",
+    "lang": "go",
+    "lines": 52,
+    "loc": 34,
+    "path": "internal/store/store.go",
+    "size": 1435,
+    "tokensEst": 624
+  },
+  {
+    "blob": "bb52dcc172d428de92cf172504eff0890ee450b6",
+    "class": "source",
+    "lang": "generic",
+    "lines": 4,
+    "loc": 3,
+    "path": "migrations/0001_init.down.sql",
+    "size": 134,
+    "tokensEst": 59
+  },
+  {
+    "blob": "ec9edeb0bdb16cbc3b9fdc5578449587dce218bf",
+    "class": "source",
+    "lang": "generic",
+    "lines": 19,
+    "loc": 16,
+    "path": "migrations/0001_init.up.sql",
+    "size": 630,
+    "tokensEst": 274
+  }
+]

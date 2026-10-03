@@ -1,0 +1,7 @@
+=== broken/syntax-error.ts · typescript · 11 lines ===
+1|export function ok(): number {
+⋮
+5|export function broken(: number {
+⋮
+9|export function stillFine(): string {
+⋮

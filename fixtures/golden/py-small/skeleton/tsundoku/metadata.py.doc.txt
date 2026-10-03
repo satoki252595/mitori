@@ -1,0 +1,18 @@
+=== tsundoku/metadata.py · python · 53 lines · imports: json urllib.request collections.abc dataclasses ===
+1|"""Book metadata lookup by ISBN (standard library only)."""
+11|MAX_RETRIES = 1
+13|ENDPOINT = "https://openlibrary.org/api/books"
+16|@dataclass(frozen=True)
+17|class Metadata:
+18|    title: str
+19|    authors: list[str] = field(default_factory=list)
+20|    pages: int | None = None
+23|def normalize_isbn(raw: str) -> str:
+24|    """Strip hyphens and spaces and upper-case a trailing X."""
+⋮
+29|def is_plausible_isbn(isbn: str) -> bool:
+30|    """Cheap sanity check: 10 or 13 characters, digits only (the last one of an ISBN-10 may be X)."""
+⋮
+35|def fetch_metadata(raw_isbn: str, opener: Callable[..., object] = urllib.request.urlopen) -> Metadata:
+36|    """Look a book up. Network and HTTP errors are retried; the error of the last attempt is raised."""
+⋮

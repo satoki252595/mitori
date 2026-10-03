@@ -1,0 +1,2 @@
+=== src/a.ts · typescript · 4 lines
+> export function a(): number

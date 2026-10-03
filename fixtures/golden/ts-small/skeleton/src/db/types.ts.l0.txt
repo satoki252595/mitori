@@ -1,0 +1,7 @@
+=== src/db/types.ts · typescript · 33 lines
+> export type BookStatus = "unread" | "reading" | "done" | "abandoned"
+> export const BOOK_STATUSES: readonly BookStatus[]
+> export interface Book
+> export interface NewBook
+> export interface Tag
+> export interface BookTag

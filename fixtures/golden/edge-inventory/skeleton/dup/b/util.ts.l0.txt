@@ -1,0 +1,2 @@
+=== dup/b/util.ts · typescript · 3 lines
+> export function util(): string

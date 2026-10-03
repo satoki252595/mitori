@@ -1,0 +1,24 @@
+=== src/store.rs · rust · 126 lines
+> pub enum Status
+> impl Status
+>   pub fn parse(s: &str) -> Option<Status>
+>   pub fn as_str(self) -> &'static str
+> pub struct Book
+> pub enum StoreError
+> impl fmt::Display for StoreError
+>   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+> impl std::error::Error for StoreError
+> pub trait Store
+>   fn list(&self) -> Vec<Book>
+>   fn get(&self, id: u64) -> Option<Book>
+>   fn create(&mut self, isbn: &str, title: &str, status: Status) -> Result<Book, StoreError>
+>   fn delete(&mut self, id: u64) -> bool
+> pub struct MemoryStore
+> impl MemoryStore
+>   pub fn new() -> Self
+> impl Store for MemoryStore
+>   fn list(&self) -> Vec<Book>
+>   fn get(&self, id: u64) -> Option<Book>
+>   fn create(&mut self, isbn: &str, title: &str, status: Status) -> Result<Book, StoreError>
+>   fn delete(&mut self, id: u64) -> bool
+> …+1 private

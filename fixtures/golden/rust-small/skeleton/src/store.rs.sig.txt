@@ -1,0 +1,44 @@
+=== src/store.rs · rust · 126 lines · imports: std::collections::BTreeMap std::fmt ===
+8|pub enum Status {
+9|    Unread,
+10|    Reading,
+11|    Done,
+12|    Abandoned,
+15|impl Status {
+17|    pub fn parse(s: &str) -> Option<Status> {
+⋮
+27|    pub fn as_str(self) -> &'static str {
+⋮
+39|pub struct Book {
+40|    pub id: u64,
+41|    pub isbn: String,
+42|    pub title: String,
+43|    pub status: Status,
+48|pub enum StoreError {
+49|    MissingIsbn,
+52|impl fmt::Display for StoreError {
+53|    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+⋮
+60|impl std::error::Error for StoreError {}
+63|macro_rules! ensure_isbn {
+⋮
+72|pub trait Store {
+74|    fn list(&self) -> Vec<Book>;
+76|    fn get(&self, id: u64) -> Option<Book>;
+78|    fn create(&mut self, isbn: &str, title: &str, status: Status) -> Result<Book, StoreError>;
+80|    fn delete(&mut self, id: u64) -> bool;
+86|pub struct MemoryStore {
+87|    books: BTreeMap<u64, Book>,
+88|    next_id: u64,
+91|impl MemoryStore {
+92|    pub fn new() -> Self {
+⋮
+100|impl Store for MemoryStore {
+101|    fn list(&self) -> Vec<Book> {
+⋮
+105|    fn get(&self, id: u64) -> Option<Book> {
+⋮
+109|    fn create(&mut self, isbn: &str, title: &str, status: Status) -> Result<Book, StoreError> {
+⋮
+123|    fn delete(&mut self, id: u64) -> bool {
+⋮

@@ -1,0 +1,3 @@
+=== src/ui/BookList.tsx · tsx · 24 lines
+> export function BookList(props: { books: Book[] })
+> …+1 private

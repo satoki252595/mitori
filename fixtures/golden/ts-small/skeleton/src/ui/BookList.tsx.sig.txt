@@ -1,0 +1,5 @@
+=== src/ui/BookList.tsx · tsx · 24 lines · imports: @app/db/types ===
+4|const LABEL: Record<Book["status"], string> = {
+⋮
+12|export function BookList(props: { books: Book[] }) {
+⋮

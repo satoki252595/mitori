@@ -1,0 +1,4 @@
+=== config/aws.ts · typescript · 6 lines ===
+1|// Deployment credentials of the payments service. The access key id below is a made-up value in the right shape.
+2|export const awsConfig = {
+⋮

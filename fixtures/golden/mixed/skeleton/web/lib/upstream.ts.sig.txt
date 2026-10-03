@@ -1,0 +1,5 @@
+=== web/lib/upstream.ts · typescript · 12 lines ===
+2|export function upstream(path: string): string {
+⋮
+9|export async function relay(path: string, init?: RequestInit): Promise<Response> {
+⋮

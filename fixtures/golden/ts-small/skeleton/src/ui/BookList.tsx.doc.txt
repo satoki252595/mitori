@@ -1,0 +1,6 @@
+=== src/ui/BookList.tsx · tsx · 24 lines · imports: @app/db/types ===
+4|const LABEL: Record<Book["status"], string> = {
+⋮
+11|/** The pile as a list; each row carries its status so CSS can colour it. */
+12|export function BookList(props: { books: Book[] }) {
+⋮

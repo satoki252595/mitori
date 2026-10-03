@@ -1,0 +1,29 @@
+=== internal/meta/fetch.go · go · 89 lines · imports: context encoding/json fmt net/http net/url strings time ===
+1|// Package meta looks up book metadata (title, authors, page count) by ISBN.
+2|package meta
+14|// requestTimeout bounds one lookup attempt.
+15|const requestTimeout = 10 * time.Second
+17|// maxRetries is how many times a failed lookup is repeated.
+18|// 生成失敗時は正確に 1 回だけ再試行する（初回 + 再試行 1 回 = 最大 2 回の呼び出し）。
+19|const maxRetries = 1
+21|// Metadata is what the catalogue knows about a book.
+22|type Metadata struct {
+23|	Title   string   `json:"title"`
+24|	Authors []string `json:"authors"`
+25|	Pages   int      `json:"pages"`
+28|// Client fetches metadata from a catalogue that speaks the Open Library "books" API.
+29|type Client struct {
+30|	baseURL string
+31|	http    *http.Client
+34|// NewClient returns a client for the catalogue at baseURL.
+35|func NewClient(baseURL string) *Client {
+⋮
+39|// NormalizeISBN strips hyphens and spaces and upper-cases a trailing X.
+40|func NormalizeISBN(raw string) string {
+⋮
+44|// Fetch returns the metadata of isbn. A failed attempt (network error, HTTP error, unreadable body) is
+45|// retried maxRetries times; the error of the last attempt is returned when all of them fail.
+46|func (c *Client) Fetch(ctx context.Context, isbn string) (Metadata, error) {
+⋮
+63|func (c *Client) fetchOnce(ctx context.Context, isbn string) (Metadata, error) {
+⋮

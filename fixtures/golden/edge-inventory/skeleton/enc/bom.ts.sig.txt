@@ -1,0 +1,3 @@
+=== enc/bom.ts · typescript · 2 lines ===
+1|export const bom = 1;
+2|export const second = 2;

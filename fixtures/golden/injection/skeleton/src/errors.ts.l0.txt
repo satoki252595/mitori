@@ -1,0 +1,2 @@
+=== src/errors.ts · typescript · 6 lines
+> export function describeError(err: unknown): string

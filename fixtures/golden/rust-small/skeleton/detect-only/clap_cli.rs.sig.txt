@@ -1,0 +1,17 @@
+=== detect-only/clap_cli.rs · rust · 42 lines · imports: std::path::PathBuf clap::{Parser,Subcommand} ===
+9|struct Cli {
+10|    #[command(subcommand)]
+11|    command: Command,
+15|enum Command {
+17|    Serve {
+19|        #[arg(long)]
+20|        port: Option<u16>,
+23|    Import {
+24|        file: PathBuf,
+26|        #[arg(long)]
+27|        dry_run: bool,
+30|    Export {
+31|        #[arg(long, default_value = "json")]
+32|        format: String,
+36|fn main() {
+⋮

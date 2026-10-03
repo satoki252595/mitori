@@ -1,0 +1,5 @@
+=== src/services/importer.ts · typescript · 37 lines
+> export interface ImportResult
+> export function importCsv(text: string, opts: { dryRun?: boolean } = {}, repo: BookRepo = shelf): ImportResult
+> export function exportBooks(format: string, repo: BookRepo = shelf): string
+> …+1 private

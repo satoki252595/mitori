@@ -1,0 +1,31 @@
+[
+  {
+    "blob": "454eb8ac87f8c37d974c6a6cd7956425898e9104",
+    "bodyHash": "c2d3b8c279ad4b66",
+    "doc": "認証 のトークン。識別子が ASCII ではない。",
+    "end": 2,
+    "exported": true,
+    "key": "unicode/ids.ts#認証",
+    "kind": "const",
+    "name": "認証",
+    "path": "unicode/ids.ts",
+    "qualname": "認証",
+    "sigHash": "ae3fc9cf6d22f539",
+    "signature": "export const 認証",
+    "start": 2
+  },
+  {
+    "blob": "454eb8ac87f8c37d974c6a6cd7956425898e9104",
+    "bodyHash": "2a575d855ad000d8",
+    "end": 6,
+    "exported": true,
+    "key": "unicode/ids.ts#検証",
+    "kind": "function",
+    "name": "検証",
+    "path": "unicode/ids.ts",
+    "qualname": "検証",
+    "sigHash": "0844eea342393110",
+    "signature": "export function 検証(value: string): boolean",
+    "start": 4
+  }
+]

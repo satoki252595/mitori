@@ -1,0 +1,5 @@
+=== unicode/ids.ts · typescript · 6 lines ===
+1|/** 認証 のトークン。識別子が ASCII ではない。 */
+2|export const 認証 = "token";
+4|export function 検証(value: string): boolean {
+⋮

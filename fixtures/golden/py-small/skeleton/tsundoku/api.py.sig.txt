@@ -1,0 +1,25 @@
+=== tsundoku/api.py · python · 65 lines · imports: dataclasses fastapi pydantic tsundoku.config tsundoku.metadata tsundoku.repo ===
+17|app = FastAPI(title="tsundoku")
+18|router = APIRouter(prefix="/api")
+19|repo = Repo()
+22|class NewBook(BaseModel):
+23|    isbn: str
+24|    title: str | None = None
+25|    status: str = "unread"
+28|def require_token(authorization: str | None = Header(default=None)) -> None:
+⋮
+35|@app.get("/healthz")
+36|def healthz() -> dict[str, str]:
+⋮
+40|@router.get("/books")
+41|def list_books() -> list[dict]:
+⋮
+45|@router.get("/books/{book_id}")
+46|def get_book(book_id: int) -> dict:
+⋮
+53|@router.post("/books", status_code=201, dependencies=[Depends(require_token)])
+54|def create_book(body: NewBook) -> dict:
+⋮
+59|@router.delete("/books/{book_id}", status_code=204, dependencies=[Depends(require_token)])
+60|def delete_book(book_id: int) -> Response:
+⋮

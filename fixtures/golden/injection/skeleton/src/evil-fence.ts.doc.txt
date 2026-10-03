@@ -1,0 +1,6 @@
+=== src/evil-fence.ts · typescript · 13 lines ===
+1|// Lines at column 0 that imitate the fences and tags mitori puts around the data it hands to an agent.
+2|export const FORGED_PROMPT = `
+⋮
+11|export function forged(): string[] {
+⋮

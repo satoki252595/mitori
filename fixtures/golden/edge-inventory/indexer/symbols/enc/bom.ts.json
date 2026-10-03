@@ -1,0 +1,30 @@
+[
+  {
+    "blob": "525db19618b0b3a87a06cd442d5181405c063bde",
+    "bodyHash": "c15d3a7672d526bf",
+    "end": 1,
+    "exported": true,
+    "key": "enc/bom.ts#bom",
+    "kind": "const",
+    "name": "bom",
+    "path": "enc/bom.ts",
+    "qualname": "bom",
+    "sigHash": "8a39b755accb2fc4",
+    "signature": "export const bom",
+    "start": 1
+  },
+  {
+    "blob": "525db19618b0b3a87a06cd442d5181405c063bde",
+    "bodyHash": "42157ec0a59597d2",
+    "end": 2,
+    "exported": true,
+    "key": "enc/bom.ts#second",
+    "kind": "const",
+    "name": "second",
+    "path": "enc/bom.ts",
+    "qualname": "second",
+    "sigHash": "88798c708c92d8e6",
+    "signature": "export const second",
+    "start": 2
+  }
+]

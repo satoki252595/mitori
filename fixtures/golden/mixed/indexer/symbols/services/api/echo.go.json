@@ -1,0 +1,17 @@
+[
+  {
+    "blob": "050e6f42e8240de92ab7b2ec1066ed3c6e181259",
+    "bodyHash": "89855802a3496ae4",
+    "doc": "statsServer exposes the per-status counts on its own port so that dashboards can scrape it.",
+    "end": 21,
+    "exported": false,
+    "key": "services/api/echo.go#statsServer",
+    "kind": "function",
+    "name": "statsServer",
+    "path": "services/api/echo.go",
+    "qualname": "statsServer",
+    "sigHash": "e18813cc5cbb5cf7",
+    "signature": "func statsServer(pile *shelf) *echo.Echo",
+    "start": 10
+  }
+]

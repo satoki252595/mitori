@@ -1,0 +1,17 @@
+[
+  {
+    "blob": "fd4cccd300056803c795bc7c8209b55301c2dbb3",
+    "bodyHash": "acd6b3d3fa7af6ad",
+    "doc": "Deployment credentials of the payments service. The access key id below is a made-up value in the right shape.",
+    "end": 6,
+    "exported": true,
+    "key": "config/aws.ts#awsConfig",
+    "kind": "const",
+    "name": "awsConfig",
+    "path": "config/aws.ts",
+    "qualname": "awsConfig",
+    "sigHash": "f435a10357c1c45b",
+    "signature": "export const awsConfig",
+    "start": 2
+  }
+]

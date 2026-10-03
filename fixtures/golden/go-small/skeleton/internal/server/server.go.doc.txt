@@ -1,0 +1,39 @@
+=== internal/server/server.go · go · 170 lines · imports: encoding/json errors net/http strconv strings example.com/tsundoku/internal/meta example.com/tsundoku/internal/store ===
+1|// Package server exposes the pile over HTTP (net/http with Go 1.22 pattern routing).
+2|package server
+17|	defaultLimit = 50
+18|	maxLimit     = 200
+21|// Server serves the HTTP API.
+22|type Server struct {
+23|	store store.Store
+24|	meta  *meta.Client
+25|	token string
+26|	mux   *http.ServeMux
+29|// New wires the routes. meta may be nil, in which case POST /api/books requires a title.
+30|func New(s store.Store, m *meta.Client) *Server {
+⋮
+41|// WithToken makes every non-GET request require "Authorization: Bearer <token>". An empty token disables the check.
+42|func (s *Server) WithToken(token string) *Server {
+⋮
+47|// ServeHTTP implements http.Handler.
+48|func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+⋮
+58|func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
+⋮
+62|func (s *Server) listBooks(w http.ResponseWriter, r *http.Request) {
+⋮
+73|// pageParams reads ?offset= and ?limit=; bad or out-of-range values fall back to the defaults.
+74|func pageParams(r *http.Request) (offset, limit int) {
+⋮
+85|func (s *Server) getBook(w http.ResponseWriter, r *http.Request) {
+⋮
+102|func (s *Server) createBook(w http.ResponseWriter, r *http.Request) {
+⋮
+136|func (s *Server) deleteBook(w http.ResponseWriter, r *http.Request) {
+⋮
+153|func pathID(w http.ResponseWriter, r *http.Request) (int64, bool) {
+⋮
+162|func writeJSON(w http.ResponseWriter, status int, v any) {
+⋮
+168|func writeError(w http.ResponseWriter, status int, msg string) {
+⋮

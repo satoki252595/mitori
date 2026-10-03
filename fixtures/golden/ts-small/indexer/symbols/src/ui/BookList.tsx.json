@@ -1,0 +1,46 @@
+[
+  {
+    "blob": "efa32c7b21cd542f2957bc10cbe9165d18c650a4",
+    "bodyHash": "1560f4db09fc5b7a",
+    "end": 9,
+    "exported": false,
+    "key": "src/ui/BookList.tsx#LABEL",
+    "kind": "const",
+    "name": "LABEL",
+    "path": "src/ui/BookList.tsx",
+    "qualname": "LABEL",
+    "sigHash": "9c944136054397af",
+    "signature": "const LABEL: Record<Book[\"status\"], string>",
+    "start": 4
+  },
+  {
+    "blob": "efa32c7b21cd542f2957bc10cbe9165d18c650a4",
+    "bodyHash": "39837abbc16f947c",
+    "doc": "The pile as a list; each row carries its status so CSS can colour it.",
+    "end": 24,
+    "exported": true,
+    "key": "src/ui/BookList.tsx#BookList",
+    "kind": "function",
+    "name": "BookList",
+    "path": "src/ui/BookList.tsx",
+    "qualname": "BookList",
+    "sigHash": "6cbc782a33623a2c",
+    "signature": "export function BookList(props: { books: Book[] })",
+    "start": 12
+  },
+  {
+    "blob": "efa32c7b21cd542f2957bc10cbe9165d18c650a4",
+    "bodyHash": "2bab3d2b1aeadcd0",
+    "end": 12,
+    "exported": false,
+    "key": "src/ui/BookList.tsx#BookList.books",
+    "kind": "field",
+    "name": "books",
+    "parent": "src/ui/BookList.tsx#BookList",
+    "path": "src/ui/BookList.tsx",
+    "qualname": "BookList.books",
+    "sigHash": "f62d77bedff610f7",
+    "signature": "books: Book[]",
+    "start": 12
+  }
+]

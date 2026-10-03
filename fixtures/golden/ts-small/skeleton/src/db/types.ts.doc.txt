@@ -1,0 +1,25 @@
+=== src/db/types.ts · typescript · 33 lines ===
+1|/** Reading state of a book on the pile. */
+2|export type BookStatus = "unread" | "reading" | "done" | "abandoned";
+4|export const BOOK_STATUSES: readonly BookStatus[] = ["unread", "reading", "done", "abandoned"];
+6|/** A book on the tsundoku pile. */
+7|export interface Book {
+8|  id: number;
+9|  isbn: string;
+10|  title: string;
+11|  status: BookStatus;
+12|  /** ISO 8601 timestamp of the moment the book was added. */
+13|  addedAt: string;
+16|/** Input of `BookRepo.create`. */
+17|export interface NewBook {
+18|  isbn: string;
+19|  title: string;
+20|  status?: BookStatus;
+23|/** A free-form label ("novel", "reference", ...). */
+24|export interface Tag {
+25|  id: number;
+26|  name: string;
+29|/** Link row between a book and a tag. */
+30|export interface BookTag {
+31|  bookId: number;
+32|  tagId: number;

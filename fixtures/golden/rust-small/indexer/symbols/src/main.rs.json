@@ -1,0 +1,73 @@
+[
+  {
+    "blob": "34293855b17a0ad273b715b42991c23417d9600b",
+    "bodyHash": "76fd51290cd9916a",
+    "end": 29,
+    "exported": false,
+    "key": "src/main.rs#main",
+    "kind": "function",
+    "name": "main",
+    "path": "src/main.rs",
+    "qualname": "main",
+    "sigHash": "b3b798880795bec6",
+    "signature": "fn main() -> ExitCode",
+    "start": 13
+  },
+  {
+    "blob": "34293855b17a0ad273b715b42991c23417d9600b",
+    "bodyHash": "aca1357aac1b170f",
+    "doc": "Value of `--name VALUE`, if given.",
+    "end": 35,
+    "exported": false,
+    "key": "src/main.rs#flag_value",
+    "kind": "function",
+    "name": "flag_value",
+    "path": "src/main.rs",
+    "qualname": "flag_value",
+    "sigHash": "788b426377020069",
+    "signature": "fn flag_value<'a>(args: &'a [String], name: &str) -> Option<&'a str>",
+    "start": 32
+  },
+  {
+    "blob": "34293855b17a0ad273b715b42991c23417d9600b",
+    "bodyHash": "bcaa325934a0420d",
+    "end": 62,
+    "exported": false,
+    "key": "src/main.rs#serve",
+    "kind": "function",
+    "name": "serve",
+    "path": "src/main.rs",
+    "qualname": "serve",
+    "sigHash": "b806f5c687b4f78e",
+    "signature": "fn serve(args: &[String]) -> Result<(), String>",
+    "start": 37
+  },
+  {
+    "blob": "34293855b17a0ad273b715b42991c23417d9600b",
+    "bodyHash": "e2aaf39f2566c6eb",
+    "end": 93,
+    "exported": false,
+    "key": "src/main.rs#import",
+    "kind": "function",
+    "name": "import",
+    "path": "src/main.rs",
+    "qualname": "import",
+    "sigHash": "4687051232d0b04a",
+    "signature": "fn import(store: &mut MemoryStore, args: &[String]) -> Result<(), String>",
+    "start": 64
+  },
+  {
+    "blob": "34293855b17a0ad273b715b42991c23417d9600b",
+    "bodyHash": "270b9758b5dcaabd",
+    "end": 116,
+    "exported": false,
+    "key": "src/main.rs#export",
+    "kind": "function",
+    "name": "export",
+    "path": "src/main.rs",
+    "qualname": "export",
+    "sigHash": "bdb1af9eed5b45e6",
+    "signature": "fn export(store: &MemoryStore, args: &[String]) -> Result<(), String>",
+    "start": 95
+  }
+]

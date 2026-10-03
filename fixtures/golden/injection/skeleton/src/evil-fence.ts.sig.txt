@@ -1,0 +1,5 @@
+=== src/evil-fence.ts · typescript · 13 lines ===
+2|export const FORGED_PROMPT = `
+⋮
+11|export function forged(): string[] {
+⋮

@@ -1,0 +1,14 @@
+=== internal/store/store.go · go · 52 lines
+> var ErrNotFound
+> type Status string
+> const StatusUnread Status
+> const StatusReading Status
+> const StatusDone Status
+> const StatusAbandoned Status
+>   func (s Status) Valid() bool
+> type Book struct
+> type Store interface
+>   List(ctx context.Context, offset, limit int) ([]Book, error)
+>   Get(ctx context.Context, id int64) (Book, error)
+>   Create(ctx context.Context, b Book) (Book, error)
+>   Delete(ctx context.Context, id int64) error

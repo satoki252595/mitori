@@ -1,0 +1,5 @@
+=== src/http/legacy-express.js · javascript · 16 lines · imports: node:fs express ===
+5|const SAMPLE = new URL("../../data/isbn-sample.json", import.meta.url);
+7|/** Express router with the single legacy route. */
+8|export function legacyRouter() {
+⋮

@@ -1,0 +1,30 @@
+[
+  {
+    "blob": "1c671978c875ec5884dc58eaa82c64f91a95cc7b",
+    "bodyHash": "d2995c4cc0cf6ebd",
+    "end": 5,
+    "exported": true,
+    "key": "web/app/api/books/route.ts#GET",
+    "kind": "function",
+    "name": "GET",
+    "path": "web/app/api/books/route.ts",
+    "qualname": "GET",
+    "sigHash": "2a36d113a16c8325",
+    "signature": "export async function GET()",
+    "start": 3
+  },
+  {
+    "blob": "1c671978c875ec5884dc58eaa82c64f91a95cc7b",
+    "bodyHash": "488b69cf227b67b2",
+    "end": 9,
+    "exported": true,
+    "key": "web/app/api/books/route.ts#POST",
+    "kind": "function",
+    "name": "POST",
+    "path": "web/app/api/books/route.ts",
+    "qualname": "POST",
+    "sigHash": "a229ee3574c7927a",
+    "signature": "export async function POST(request: Request)",
+    "start": 7
+  }
+]

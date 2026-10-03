@@ -1,0 +1,17 @@
+[
+  {
+    "blob": "a6865a7804c541446cb0bea5c21013a67c0246cc",
+    "bodyHash": "fc904ae30a2a03ac",
+    "doc": "Badge of the old dashboard; replaced by BookList.tsx but still imported by the 2023 landing page.",
+    "end": 10,
+    "exported": true,
+    "key": "src/ui/legacy.jsx#LegacyBadge",
+    "kind": "function",
+    "name": "LegacyBadge",
+    "path": "src/ui/legacy.jsx",
+    "qualname": "LegacyBadge",
+    "sigHash": "5a90db06bd057edf",
+    "signature": "export function LegacyBadge({ count })",
+    "start": 4
+  }
+]

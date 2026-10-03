@@ -1,0 +1,267 @@
+[
+  {
+    "blob": "539f3d4349ac3329bd6dca3f04bead3a3fd6e267",
+    "class": "secret",
+    "excluded": "secret",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".env.example",
+    "size": 279,
+    "tokensEst": 122
+  },
+  {
+    "blob": "6967e5f6a9e0f87fe57c09ded51ee90c5789f521",
+    "class": "config",
+    "lang": "generic",
+    "lines": 4,
+    "loc": 3,
+    "path": ".gitignore",
+    "size": 35,
+    "tokensEst": 16
+  },
+  {
+    "blob": "ad890f5a866a1c8eeabafecf7fe1484b757c3c28",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 16,
+    "loc": 11,
+    "path": "AGENTS.md",
+    "size": 604,
+    "tokensEst": 210
+  },
+  {
+    "blob": "0a083211798bf03ea6ddaf10caff941d04103907",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 33,
+    "loc": 24,
+    "path": "README.md",
+    "size": 1166,
+    "tokensEst": 583
+  },
+  {
+    "blob": "0644909f9335dda8605d518f21f7c46d86a37f56",
+    "class": "source",
+    "lang": "javascript",
+    "lines": 37,
+    "loc": 32,
+    "path": "bin/tsundoku.js",
+    "size": 1335,
+    "tokensEst": 581
+  },
+  {
+    "blob": "b414f96b22542146e49c6875c08e5dd73e7afa61",
+    "class": "lockfile",
+    "excluded": "lockfile",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": "bun.lock",
+    "size": 857,
+    "tokensEst": 675
+  },
+  {
+    "blob": "c229d36818e58b231f4a7f6812de9a0fc8cc026e",
+    "class": "data_large",
+    "excluded": "data_large",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": "data/isbn-sample.json",
+    "size": 61440,
+    "tokensEst": 30720
+  },
+  {
+    "blob": "bc5697b0e13ffd8c9e0ca6b59cb89df0447bb369",
+    "class": "source",
+    "lang": "generic",
+    "lines": 21,
+    "loc": 17,
+    "path": "db/migrations/0001_init.sql",
+    "size": 660,
+    "tokensEst": 287
+  },
+  {
+    "blob": "7dc4135776f82289de68722679418bd52bc742e1",
+    "class": "generated",
+    "excluded": "generated",
+    "lang": "javascript",
+    "lines": 0,
+    "loc": 0,
+    "path": "dist/app.min.js",
+    "size": 3001,
+    "tokensEst": 1305
+  },
+  {
+    "blob": "a181cc541176c2d89f4d0f7c8719a151490ce7e7",
+    "class": "config",
+    "lang": "generic",
+    "lines": 29,
+    "loc": 29,
+    "path": "package.json",
+    "size": 722,
+    "tokensEst": 361
+  },
+  {
+    "blob": "3bf4163e7e2e4dee03f29588392013733d2a0fe8",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 28,
+    "loc": 20,
+    "path": "src/config.ts",
+    "size": 963,
+    "tokensEst": 419
+  },
+  {
+    "blob": "051f9bdaf3509236e84c122b10eb59061f17d0a4",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 55,
+    "loc": 40,
+    "path": "src/db/repo.ts",
+    "size": 1820,
+    "tokensEst": 792
+  },
+  {
+    "blob": "823a0991a8b29a06c10c343554f7a48e197ebd38",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 23,
+    "loc": 20,
+    "path": "src/db/schema.ts",
+    "size": 696,
+    "tokensEst": 303
+  },
+  {
+    "blob": "33374e43936036d2fa2c472467b5389ccf6f3bb2",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 33,
+    "loc": 22,
+    "path": "src/db/types.ts",
+    "size": 762,
+    "tokensEst": 332
+  },
+  {
+    "blob": "b22f243efb2c02e04faa63b2185352abd6bd3ae2",
+    "class": "generated",
+    "excluded": "generated",
+    "lang": "typescript",
+    "lines": 0,
+    "loc": 0,
+    "path": "src/generated/api-types.gen.ts",
+    "size": 751,
+    "tokensEst": 327
+  },
+  {
+    "blob": "6c9d1fbc64a84bf66f51277ae25600c96a0c3243",
+    "class": "source",
+    "lang": "javascript",
+    "lines": 16,
+    "loc": 10,
+    "path": "src/http/legacy-express.js",
+    "size": 502,
+    "tokensEst": 219
+  },
+  {
+    "blob": "4fb47966ec1996d52fc31c5e9743380b8b2eace2",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 52,
+    "loc": 38,
+    "path": "src/http/routes.ts",
+    "size": 1696,
+    "tokensEst": 738
+  },
+  {
+    "blob": "26185cf5460816c5cf5706ba7c33df8756267e8b",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 20,
+    "loc": 15,
+    "path": "src/index.ts",
+    "size": 734,
+    "tokensEst": 320
+  },
+  {
+    "blob": "b7035a12a358c0d01486520cc3d2888079978f54",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 52,
+    "loc": 44,
+    "path": "src/lib/csv.ts",
+    "size": 1477,
+    "tokensEst": 643
+  },
+  {
+    "blob": "986f2654f789ffa002be638761599cf8e2ebaddb",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 37,
+    "loc": 30,
+    "path": "src/services/importer.ts",
+    "size": 1366,
+    "tokensEst": 594
+  },
+  {
+    "blob": "3472bf7b61dc52f27b54ec3b8d668d702b532fd7",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 40,
+    "loc": 30,
+    "path": "src/services/metadata.ts",
+    "size": 1653,
+    "tokensEst": 719
+  },
+  {
+    "blob": "efa32c7b21cd542f2957bc10cbe9165d18c650a4",
+    "class": "source",
+    "lang": "tsx",
+    "lines": 24,
+    "loc": 20,
+    "path": "src/ui/BookList.tsx",
+    "size": 711,
+    "tokensEst": 300
+  },
+  {
+    "blob": "a6865a7804c541446cb0bea5c21013a67c0246cc",
+    "class": "source",
+    "lang": "jsx",
+    "lines": 10,
+    "loc": 7,
+    "path": "src/ui/legacy.jsx",
+    "size": 269,
+    "tokensEst": 117
+  },
+  {
+    "blob": "bc5ca3979ed93962765a1442086e1ecc7dd4e0bb",
+    "class": "test",
+    "lang": "typescript",
+    "lines": 25,
+    "loc": 22,
+    "path": "test/metadata.test.ts",
+    "size": 840,
+    "tokensEst": 366
+  },
+  {
+    "blob": "20db1f0c37fb235584d8b11033f3726bd6b99379",
+    "class": "test",
+    "lang": "typescript",
+    "lines": 24,
+    "loc": 19,
+    "path": "test/repo.test.ts",
+    "size": 1023,
+    "tokensEst": 436
+  },
+  {
+    "blob": "5a092a1089cffb65ff89e22ca45b3a46134cb13e",
+    "class": "config",
+    "lang": "generic",
+    "lines": 18,
+    "loc": 18,
+    "path": "tsconfig.json",
+    "size": 382,
+    "tokensEst": 191
+  }
+]

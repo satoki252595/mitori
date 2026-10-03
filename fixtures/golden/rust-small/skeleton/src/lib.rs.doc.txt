@@ -1,0 +1,7 @@
+=== src/lib.rs · rust · 7 lines · imports: config meta store ===
+1|//! tsundoku: keep track of the books you bought and have not read yet.
+2|//!
+3|//! The crate has no dependencies; `main.rs` is a thin command line on top of these modules.
+5|pub mod config;
+6|pub mod meta;
+7|pub mod store;

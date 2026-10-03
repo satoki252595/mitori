@@ -1,0 +1,3 @@
+=== src/index.ts · typescript · 20 lines
+> export function main(argv: readonly string[] = Bun.argv.slice(2)): void
+> …+1 private

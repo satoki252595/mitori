@@ -1,0 +1,272 @@
+[
+  {
+    "blob": "4677cc7ecc742530318f1d7e201af363f6fc627e",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-01-heading-ids.md",
+    "size": 278,
+    "tokensEst": 121
+  },
+  {
+    "blob": "ef4f1b56c620f63f458e80bdaa291499da37a372",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-02-paragraph-inline.md",
+    "size": 243,
+    "tokensEst": 106
+  },
+  {
+    "blob": "53e0d2a86a3760e10970fde44545b6c68de68a14",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-03-nested-list.md",
+    "size": 170,
+    "tokensEst": 74
+  },
+  {
+    "blob": "dac6f261b96acbca6cf400e15284f97196e1129a",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-04-table-pipes.md",
+    "size": 222,
+    "tokensEst": 97
+  },
+  {
+    "blob": "7bf2fe4482f383ba35683a59d2c4136f9237291d",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-05-fence.md",
+    "size": 155,
+    "tokensEst": 68
+  },
+  {
+    "blob": "14a01cfd508b80b2f8a3921221c7ea1f0093dd83",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-06-mermaid.md",
+    "size": 214,
+    "tokensEst": 94
+  },
+  {
+    "blob": "276df64e1879ae891be2b53d9179605acc4bee3a",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-07-alert.md",
+    "size": 213,
+    "tokensEst": 93
+  },
+  {
+    "blob": "82f49e2414f770a5a44433bdc4936254b4357d3f",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-08-unicode.md",
+    "size": 220,
+    "tokensEst": 96
+  },
+  {
+    "blob": "13926cc075baebd9771d85b1c37c9702123374ea",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-09-long-block.md",
+    "size": 102400,
+    "tokensEst": 44522
+  },
+  {
+    "blob": "a011252c0cdf66e76cc8707beb39bac5a5d16c1d",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-10-no-id.md",
+    "size": 172,
+    "tokensEst": 75
+  },
+  {
+    "blob": "7af85cfd16bb74bfa6a0b7bc7435ae6c23316a84",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-11-duplicate-id.md",
+    "size": 228,
+    "tokensEst": 100
+  },
+  {
+    "blob": "efce40e658d7c463f03d76608bd8626a8fd4abf5",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-12-id-in-fence.md",
+    "size": 134,
+    "tokensEst": 59
+  },
+  {
+    "blob": "804f896c07a81430f618883174b0c7ac18b74dcf",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-13-invalid-alphabet.md",
+    "size": 187,
+    "tokensEst": 82
+  },
+  {
+    "blob": "0714e7381fba08012e768e41e534a3a34331fe59",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-14-raw-html.md",
+    "size": 175,
+    "tokensEst": 77
+  },
+  {
+    "blob": "22d64f7582b5d8d2c8e9b3b56f8152af83c14b6d",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-15-citations.md",
+    "size": 406,
+    "tokensEst": 177
+  },
+  {
+    "blob": "a9ed6b6c1dad27e919a41a12dfe2168da749cb23",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-16-crlf.md",
+    "size": 204,
+    "tokensEst": 89
+  },
+  {
+    "blob": "ac4225be7bcf1c731d85322df07247a3bc2b061a",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-17-external-edit.md",
+    "size": 282,
+    "tokensEst": 123
+  },
+  {
+    "blob": "8856f78ec10d817548fc87488e59358b731dd73a",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-18-block-deleted.md",
+    "size": 260,
+    "tokensEst": 114
+  },
+  {
+    "blob": "24440da317a425a71d163f8d3395ba66fea7fc61",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-19-questions.md",
+    "size": 215,
+    "tokensEst": 94
+  },
+  {
+    "blob": "ab0ade42a54a11cf22220e044345b43403280b10",
+    "class": "ignored",
+    "excluded": "deny_glob",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": ".mitori/doc/rt-20-why-facts.md",
+    "size": 305,
+    "tokensEst": 133
+  },
+  {
+    "blob": "4bcfba1a92560cb8308cdf85190b83bfb4b11c55",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 5,
+    "loc": 4,
+    "path": "README.md",
+    "size": 384,
+    "tokensEst": 186
+  },
+  {
+    "blob": "a2f40b7d528ff207fb822e0be76ef48e9e2a68f2",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 7,
+    "loc": 4,
+    "path": "edits/rt-17-external-edit.md",
+    "size": 314,
+    "tokensEst": 156
+  },
+  {
+    "blob": "5cae1c29eb72298c0542a704001ff8b9b188dd36",
+    "class": "docs",
+    "lang": "generic",
+    "lines": 5,
+    "loc": 3,
+    "path": "edits/rt-18-block-deleted.md",
+    "size": 144,
+    "tokensEst": 88
+  },
+  {
+    "blob": "eee57c5b1abaf473e0d322880363eb3273a30b72",
+    "class": "config",
+    "lang": "generic",
+    "lines": 107,
+    "loc": 107,
+    "path": "roundtrip.json",
+    "size": 2368,
+    "tokensEst": 1184
+  },
+  {
+    "blob": "33c183a286c75a769d3be69d0ec3a2101ed44143",
+    "class": "source",
+    "lang": "typescript",
+    "lines": 22,
+    "loc": 14,
+    "path": "src/a.ts",
+    "size": 553,
+    "tokensEst": 241
+  }
+]
