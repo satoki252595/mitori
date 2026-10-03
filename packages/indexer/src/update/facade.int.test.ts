@@ -134,6 +134,26 @@ describe("CONS-13 pin store: old blob text survives uncommitted saves", () => {
     expect(await idx.blobText(untracked)).toBe("export const u = 'untracked';\n");
   });
 
+  test("pinBlobs() captures a dirty text the background pinning has not reached yet", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    const { repo, idx, deps } = setup({ "g.ts": "export const g = 0;\n" });
+    const write = deps.write;
+    deps.write = (label, fn) => (label === "idx.persist" ? gate.then(() => write(label, fn)) : write(label, fn));
+    repo.write("g.ts", "export const g = 'dirty';\n");
+    await idx.scan(); // persistence (and with it the background pinning) is held back
+    const dirty = idx.currentBlob("g.ts") as string;
+    const pinned = idx.pinBlobs([dirty]);
+    await Bun.sleep(20); // the anchor's pin arrives; then the user saves again before the queue drains
+    repo.write("g.ts", "export const g = 'later';\n");
+    release();
+    await pinned;
+    await settled(idx);
+    expect(await idx.blobText(dirty)).toBe("export const g = 'dirty';\n");
+  });
+
   test("pin / unpin refcounts; unreferenced rows past 7 days are collected, current blobs never", async () => {
     const db = memoryDb();
     migrate(db);

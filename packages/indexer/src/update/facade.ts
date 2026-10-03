@@ -278,7 +278,27 @@ export function createIndexerWith(deps: IndexerDeps, factory: LaterStagesFactory
       };
     },
     blobText,
-    pinBlobs: (blobs) => core.pin.pin(blobs),
+    async pinBlobs(blobs) {
+      const pinned = core.pin.pin(blobs);
+      // A pinned blob that is the current text of a dirty / untracked file but not stored yet (the background pinning
+      // after a scan may not have reached it): capture it now, before the next save overwrites it (CONS-13).
+      const missing = new Set(blobs.filter((b) => !core.pin.has(b)));
+      const rows: { blob: GitOid; bytes: Uint8Array }[] = [];
+      for (const r of core.files.values()) {
+        if (missing.size === 0) break;
+        if (!missing.has(r.blob) || r.blob === r.indexBlob) continue;
+        try {
+          const bytes = await deps.fs.read(absOf(core, r));
+          if (deps.hasher.gitBlob(bytes, core.git?.objectFormat ?? "sha1") !== r.blob) continue;
+          rows.push({ blob: r.blob, bytes });
+          missing.delete(r.blob);
+        } catch {
+          // unreadable now: nothing to capture
+        }
+      }
+      if (rows.length > 0) await core.pin.saveMany(rows);
+      await pinned;
+    },
     unpinBlobs: (blobs) => core.pin.unpin(blobs),
     async currentText(path) {
       const r = core.files.get(path);
