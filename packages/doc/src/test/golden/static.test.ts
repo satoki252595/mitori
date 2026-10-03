@@ -29,7 +29,8 @@ describe("DOC-U-015 / golden doc-static (7 fixtures)", () => {
       const files = [...(h.mem?.files ?? [])].sort((a, b) => (a[0] < b[0] ? -1 : 1));
       const mismatched: string[] = [];
       // `.gitignore` is stored as `dot-gitignore`: its `*` would ignore the golden directory itself
-      for (const [rel, text] of files) if (!expectGoldenFile(`${name}/doc-static/${rel.replace(/^\.gitignore$/, "dot-gitignore")}`, text).ok) mismatched.push(rel);
+      for (const [rel, text] of files)
+        if (!expectGoldenFile(`${name}/doc-static/${rel.replace(/^\.gitignore$/, "dot-gitignore")}`, text).ok) mismatched.push(rel);
       expect(mismatched).toEqual([]);
       for (const s of h.store.sections()) {
         const content = (h.store.section(s.id)?.blocks ?? []).filter((b) => b.kind !== "heading");
@@ -40,7 +41,12 @@ describe("DOC-U-015 / golden doc-static (7 fixtures)", () => {
         const ctx = { lang: "ja" as const, docFile: rel, docDirAbs: "/repo/.mitori", rootAbs: "/repo" };
         const parsed = parseDocFile(text, rel, ctx);
         expect(parsed.blocks.every((b) => b.id !== null)).toBe(true);
-        expect(serializeDocFile(parsed.blocks.map((b) => ({ id: b.id as BlockId, kind: b.kindHint, md: b.md }) as never), ctx)).toBe(text);
+        expect(
+          serializeDocFile(
+            parsed.blocks.map((b) => ({ id: b.id as BlockId, kind: b.kindHint, md: b.md }) as never),
+            ctx,
+          ),
+        ).toBe(text);
       }
     });
   }
@@ -63,7 +69,10 @@ describe("ts-small rendered HTML and map layout goldens", () => {
     for (const s of h.store.sections()) {
       for (const b of h.store.section(s.id)?.blocks ?? []) {
         const claims = h.store.claims(b.id);
-        const html = renderer.splice(await renderer.render(b, claims, { lang: "ja", glossaryTerms: new Map() }), claims, { ws: "ws_000000000000" as WorkspaceKey, level: "standard" });
+        const html = renderer.splice(await renderer.render(b, claims, { lang: "ja", glossaryTerms: new Map() }), claims, {
+          ws: "ws_000000000000" as WorkspaceKey,
+          level: "standard",
+        });
         if (!expectGoldenFile(`ts-small/html/${b.id}.html`, html).ok) bad.push(b.id);
       }
     }
@@ -74,7 +83,12 @@ describe("ts-small rendered HTML and map layout goldens", () => {
     const h = await staticDoc("ts-small");
     const [id, ir] = Object.entries(h.store.index().diagrams)[0] as [string, DiagramIR];
     const api = elk as unknown as { layout(g: ElkGraphNode): Promise<ElkGraphNode> };
-    const layouter = createDiagramLayouter({ elk: inlinePool((req: { ir: DiagramIR }) => elkLayout(api, req)) as never, db: memDb(DOC_MIGRATIONS), hasher, log: silentLog });
+    const layouter = createDiagramLayouter({
+      elk: inlinePool((req: { ir: DiagramIR }) => elkLayout(api, req)) as never,
+      db: memDb(DOC_MIGRATIONS),
+      hasher,
+      log: silentLog,
+    });
     const layout = await layouter.layout(ir);
     for (const n of layout.nodes) for (const v of [n.x, n.y, n.w, n.h]) expect(Number.isInteger(v * 2)).toBe(true);
     expect(expectGoldenFile(`ts-small/layout/${id}.json`, canonicalJson(layout)).ok).toBe(true);
