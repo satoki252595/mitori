@@ -54,7 +54,7 @@ run the 1-minute load average must be ≤ cores × 0.5 (two 30 s waits, then the
 
 Specs go in `e2e/<area>/*.spec.ts`, tags `@pr` / `@nightly` / `@live`. `import { test, expect, expectWithinBudget } from "../harness/fixtures.ts"`;
 `mitori` is a per-test daemon (`test.use({ daemonOptions: { fixture: "go-small" } })`), `await mitori.login(page, "/")` installs the
-INP / CLS collectors before the first script. `ui.*` (testkit) reads the page; `harness/metrics.ts` has `inpSummary`, `trackRequests`,
+INP / CLS collectors before the first script. Accessible names come from `t(key)` (`harness/i18n.ts`, the web catalog), never Japanese literals. `ui.*` (testkit) reads the page; `harness/metrics.ts` has `inpSummary`, `trackRequests`,
 `initialJs`, `markLatencies`; `harness/trace.ts#withPerfTrace` keeps a Chrome trace (long tasks, forced reflows) on failure or `MITORI_PERF_TRACE=1`. Playwright cannot run under `bun test` (it collects `*.spec.ts`), see docs/design/cr-requests/WP-12.md.
 
 ## Fix-it list
