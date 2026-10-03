@@ -14,13 +14,14 @@ Everything runs through `scripts/nd` (cached nix devShell). Budgets live in `ben
 |---|---|---|
 | Did my change slow a bench case? | `scripts/nd bun run bench:compare [--suite idx] [--id idx.s01]` | median ≥ 20 % worse than the merge base **and** above the noise floor, after a 2P re-measure; a counter above base; a head budget over its limit |
 | What are the numbers on this machine? | `scripts/nd bun run bench [--suite idx] [--absolute] [--out auto]` | `--absolute`: a budget limit is exceeded (time budgets only gate on the reference machine, factor within 10 %) |
-| Is the web bundle within budget? | `scripts/nd bun run size` (binary gate first, then served bytes) | initial JS > 150 KB gz, CSS > 25 KB gz, any web font; `--strict` makes every chunk limit hard (from M3) |
+| Is the web bundle within budget? | `scripts/nd bun run size` (binary size first, then served bytes, then `mitori --version` startup) | initial JS > 150 KB gz, CSS > 25 KB gz, any web font; `--strict` makes every chunk limit hard (from M3); startup > 50 ms on the reference machine |
 | DOM / code lines / INP / requests of a screen | `scripts/nd bun run e2e --grep @<wp>` (Playwright, chromium; `--project webkit`, `perf`) | a spec asserts `expectWithinBudget(id, value)` |
 | Does the eval harness work? | `scripts/nd bun run eval --suite smoke` | a harness check fails (fake engine, 0 tokens) |
 
 `bench:compare` flags: `--base <ref>` (default merge-base with main), `--base-root <dir>` (an existing tree), `--pairs n`,
 `--head-env KEY=VAL` (play base and head from one checkout: `MITORI_BENCH_SLOWDOWN=1.25` on `synthetic.spin` must fail),
-`--budget-change` (a counter may rise only when `counters[id].max` was raised in the same change), `--md <file>` (PR comment).
+`--budget-change` (a counter may rise only when `counters[id].max` was raised in the same change), `--asset` (served-bytes table with
+Δ vs base; head's hard asset limits gate), `--no-wait` (skip the quiet-machine wait), `--md <file>` (PR comment).
 Cases with cv > 25 % are "noisy": a warning, never a failure. A case missing in base is "new".
 
 ## Writing a bench case
@@ -54,7 +55,7 @@ run the 1-minute load average must be ≤ cores × 0.5 (two waits, then the resu
 Specs go in `e2e/<area>/*.spec.ts`, tags `@pr` / `@nightly` / `@live`. `import { test, expect, expectWithinBudget } from "../harness/fixtures.ts"`;
 `mitori` is a per-test daemon (`test.use({ daemonOptions: { fixture: "go-small" } })`), `await mitori.login(page, "/")` installs the
 INP / CLS collectors before the first script. `ui.*` (testkit) reads the page; `harness/metrics.ts` has `inpSummary`, `trackRequests`,
-`initialJs`, `markLatencies`. Playwright cannot run under `bun test` (it collects `*.spec.ts`), see docs/design/cr-requests/WP-12.md.
+`initialJs`, `markLatencies`; `harness/trace.ts#withPerfTrace` keeps a Chrome trace (long tasks, forced reflows) on failure or `MITORI_PERF_TRACE=1`. Playwright cannot run under `bun test` (it collects `*.spec.ts`), see docs/design/cr-requests/WP-12.md.
 
 ## Fix-it list
 
