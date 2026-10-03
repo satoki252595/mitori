@@ -5,7 +5,7 @@
   composing; Enter runs only after commit (the registry's isComposing guard, IME_RULES.paletteRunsAfterCommit).
 -->
 <script lang="ts">
-import { onMount } from "svelte";
+import { flushSync, onMount } from "svelte";
 import { copyText } from "../shell/clipboard.ts";
 import { t } from "../shell/index.ts";
 import { useStores } from "../stores/app.svelte.ts";
@@ -68,7 +68,11 @@ $effect(() => {
 });
 
 onMount(() => {
-  s.layers.open("palette", "palette", () => p.hide());
+  // the page behind is inert while open: lift it (flush) before the layer returns the focus there
+  s.layers.open("palette", "palette", () => {
+    p.hide();
+    flushSync();
+  });
   input?.focus();
   const k = s.keys;
   const offs = [

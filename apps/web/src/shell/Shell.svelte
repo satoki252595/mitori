@@ -409,7 +409,8 @@ const InboxView = $derived(ext?.views?.inbox ?? null);
 </script>
 
 <a class="skip" href="#main">{t("a11y.skip")}</a>
-<div class="app" data-view={kind} data-mode={mode} inert={conn.kind === "stopped" || undefined}>
+<!-- the page behind the ⌘K palette (aria-modal) is inert: Tab stays in the palette -->
+<div class="app" data-view={kind} data-mode={mode} inert={conn.kind === "stopped" || (s.palette.open && !!Palette) || undefined}>
   <Header />
   <Banner />
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (delegated link interception) -->
