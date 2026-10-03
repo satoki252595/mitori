@@ -6,7 +6,7 @@ import { TEST_FORMATS } from "@mitori/testkit";
 import type { BenchResultFile } from "../runner/result.ts";
 import { toSamples } from "../runner/stats.ts";
 import type { CaseRunner, ChildRun, ListedCase, Side } from "./child.ts";
-import { type CompareOptions, compare } from "./compare.ts";
+import { type AssetSnapshot, type CompareOptions, compare } from "./compare.ts";
 import { renderMarkdown } from "./report.ts";
 
 const dirs: string[] = [];
@@ -246,5 +246,48 @@ describe("BENCH-U-04 absolute and structural gates on head", () => {
     });
     expect(r.gate).toBeNull();
     expect(r.fail).toBe(false);
+  });
+});
+
+describe("BENCH-U-05 served bytes in the report (testing spec §6.5-6)", () => {
+  const snap = (js: number, ok = true): AssetSnapshot => ({
+    metrics: [
+      { id: "asset.js.initial.gz", value: js, unit: "KB" },
+      { id: "asset.css.gz", value: 5, unit: "KB" },
+    ],
+    verdicts: [
+      { id: "asset.js.initial.gz", level: js > 150 ? "red" : js > 60 ? "yellow" : "green", hard: js > 150, target: 60, limit: 150 },
+      { id: "asset.css.gz", level: "green", hard: false, target: 15, limit: 25 },
+    ],
+    ok,
+  });
+  const run = (head: AssetSnapshot | null, base: AssetSnapshot | null) =>
+    compare(opts(fakeRunner({ values: () => flat(20) }, [CASE]), { assets: async (s) => (s.name === "head" ? head : base) }));
+
+  test("rows carry head, base and the limits; the table shows the Δ", async () => {
+    const r = await run(snap(70), snap(60));
+    expect(r.assets[0]).toMatchObject({ id: "asset.js.initial.gz", base: 60, head: 70, level: "yellow", hard: false });
+    expect(r.fail).toBe(false);
+    const md = renderMarkdown(r);
+    expect(md).toContain("| asset | base | head | Δ |");
+    expect(md).toMatch(/asset\.js\.initial\.gz \| 60\.00 KB \| 70\.00 KB \| \+10\.00 \|/);
+    expect(md).toContain("over target (warning)");
+  });
+
+  test("a hard limit exceeded in head fails the run", async () => {
+    const r = await run(snap(160, false), snap(60));
+    expect(r.fail).toBe(true);
+    expect(renderMarkdown(r)).toContain("**FAIL**");
+  });
+
+  test("an unmeasurable base only loses the Δ column; an unmeasurable head is a warning", async () => {
+    const noBase = await run(snap(70), null);
+    expect(noBase.assets[0]?.base).toBeNull();
+    expect(noBase.warnings.join("\n")).toContain("base could not be measured");
+    expect(noBase.fail).toBe(false);
+    const noHead = await run(null, snap(60));
+    expect(noHead.assets).toEqual([]);
+    expect(noHead.warnings.join("\n")).toContain("head could not be measured");
+    expect(noHead.fail).toBe(false);
   });
 });

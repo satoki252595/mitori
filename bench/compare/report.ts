@@ -55,6 +55,24 @@ export function renderMarkdown(r: CompareReport): string {
       "",
     );
   }
+  if (r.assets.length > 0) {
+    const delta = (a: { base: number | null; head: number }) => (a.base === null ? "—" : `${a.head - a.base >= 0 ? "+" : ""}${fmt(a.head - a.base)}`);
+    out.push(
+      markdownTable(
+        ["asset", "base", "head", "Δ", "target", "limit", "status"],
+        r.assets.map((a) => [
+          a.id,
+          a.base === null ? "—" : `${fmt(a.base)} ${a.unit}`,
+          `${fmt(a.head)} ${a.unit}`,
+          delta(a),
+          fmt(a.target),
+          fmt(a.limit),
+          a.level === "green" ? "ok" : a.hard ? "**FAIL**" : a.level === "red" ? "over limit (warning until M3)" : "over target (warning)",
+        ]),
+      ),
+      "",
+    );
+  }
   if (r.gate && (r.gate.verdicts.length > 0 || r.gate.errors.length > 0)) {
     out.push(
       markdownTable(

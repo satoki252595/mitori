@@ -28,6 +28,7 @@ describe("BENCH-AT-01 bench:compare fails a 25 % slower synthetic benchmark", ()
       "--pairs",
       "2",
       "--no-absolute",
+      "--no-wait",
     ]);
     expect(slow.code).toBe(1);
     expect(slow.out).toContain("**REGRESSED**");
@@ -35,7 +36,7 @@ describe("BENCH-AT-01 bench:compare fails a 25 % slower synthetic benchmark", ()
   }, 60_000);
 
   test("the caller's own MITORI_BENCH_SLOWDOWN slows head only: the base side is told to ignore it", async () => {
-    const r = await run(["bun", "run", "bench:compare", "--base-root", ROOT, "--id", "synthetic.spin", "--pairs", "2", "--no-absolute"], ROOT, {
+    const r = await run(["bun", "run", "bench:compare", "--base-root", ROOT, "--id", "synthetic.spin", "--pairs", "2", "--no-absolute", "--no-wait"], ROOT, {
       MITORI_BENCH_SLOWDOWN: "1.25",
     });
     expect(r.code).toBe(1);
@@ -56,6 +57,7 @@ describe("BENCH-AT-01 bench:compare fails a 25 % slower synthetic benchmark", ()
         "--pairs",
         "2",
         "--no-absolute",
+        "--no-wait",
       ]);
       expect(r.code).toBe(0);
       expect(r.out).toContain("pass");
@@ -75,13 +77,33 @@ describe("BENCH-AT-01 bench:compare fails a 25 % slower synthetic benchmark", ()
       "--pairs",
       "1",
       "--no-absolute",
+      "--no-wait",
     ]);
     expect(r.code).toBe(1);
     expect(r.out).toContain("synthetic.parseCalls");
   }, 60_000);
 
+  test("--asset adds the served-bytes table with a Δ column against base (the same tree here: Δ 0)", async () => {
+    const r = await run([
+      "bun",
+      "bench/compare/compare.ts",
+      "--base-root",
+      ROOT,
+      "--id",
+      "synthetic.value",
+      "--pairs",
+      "1",
+      "--no-absolute",
+      "--no-wait",
+      "--asset",
+    ]);
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("| asset | base | head | Δ |");
+    expect(r.out).toMatch(/asset\.js\.initial\.gz \| [\d.]+ KB \| [\d.]+ KB \| \+0\.000/);
+  }, 90_000);
+
   test("usage errors exit 2", async () => {
-    const r = await run(["bun", "bench/compare/compare.ts", "--base-root", ROOT, "--pairs", "0", "--no-absolute"]);
+    const r = await run(["bun", "bench/compare/compare.ts", "--base-root", ROOT, "--pairs", "0", "--no-absolute", "--no-wait"]);
     expect(r.code).toBe(2);
   });
 });
@@ -120,6 +142,7 @@ describe("BENCH-AT-02 real base worktree: head slower than its parent commit", (
         "--pairs",
         "2",
         "--no-absolute",
+        "--no-wait",
         ...extra,
       ],
       repo,

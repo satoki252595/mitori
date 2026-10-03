@@ -75,6 +75,21 @@ describe("EVAL-U-30 runEval", () => {
     expect(reportDirName(o.report)).toMatch(/^20261003-[0-9a-f]{12}-smoke$/);
   });
 
+  test("the 5-hour window is recorded before and after the run", async () => {
+    const util = [0.12, 0.2, 0.31]; // run start, the smoke suite's own preflight, run end
+    const engine = createFakeEvalEngine({
+      window: (n) => ({
+        fiveHour: { utilization: util[n] ?? 0.99 },
+        billing: "subscription-window",
+        observedAt: "2026-10-03T00:00:00.000Z",
+        source: "claude-cli",
+      }),
+    });
+    const o = await runEval({ suite: "smoke", engine, out: tmp() });
+    expect(o.report.budget.windowBefore).toBe(0.12);
+    expect(o.report.budget.windowAfter).toBe(0.31);
+  });
+
   test("a metered engine starts nothing: exit 3 before a single call", async () => {
     const engine = createFakeEvalEngine({ billing: "metered-api" });
     const err = await runEval({ suite: "smoke", engine, out: tmp() }).catch((e) => e);

@@ -4,7 +4,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { groupModules, inventory, leanArgs, makePlan, moduleOf, modulePrompt, repoPack, runLive, tokensOf } from "./pass1-proto.ts";
+import { groupModules, inventory, leanArgs, loadDigest, makePlan, moduleOf, modulePrompt, repoPack, runLive, tokensOf } from "./pass1-proto.ts";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const SCRIPT = join(ROOT, "bench/measure/pass1-proto.ts");
@@ -83,8 +83,13 @@ describe("PASS1-U-01 inventory and modules", () => {
     const dir = tmp();
     const digest = join(dir, "digest.json");
     writeFileSync(digest, JSON.stringify({ files: [{ path: "a/x.ts", chars: 2300, tokens: 1000, skeleton: ["export const x = 1"], module: "a" }] }));
-    const doc = JSON.parse(readFileSync(digest, "utf8"));
-    expect(doc.files).toHaveLength(1);
+    const files = loadDigest(digest);
+    expect(files).toHaveLength(1);
+    const plan = makePlan(dir, files, { model: "claude-sonnet-5-5", effort: "low", modules: 5 });
+    expect(plan.naiveFullTokens).toBe(1000);
+    expect(plan.modules.map((m) => m.name)).toEqual(["a"]);
+    writeFileSync(digest, JSON.stringify({ nope: [] }));
+    expect(() => loadDigest(digest)).toThrow('expected { "files"');
   });
 });
 

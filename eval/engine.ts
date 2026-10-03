@@ -12,6 +12,7 @@ import {
   PRICING_VERSION,
   priceUsage,
   type StopReason,
+  type SubscriptionWindow,
   type Usage,
 } from "@mitori/core";
 
@@ -45,6 +46,8 @@ export interface FakeOptions {
   /** Reply when no rule matches (default: echo the prompt). */
   fallback?: (req: EngineRequest, n: number) => FakeReply;
   now?: () => number;
+  /** The subscription window a `detect()` reports; `n` counts the detections so far (before/after a run). */
+  window?: (n: number) => SubscriptionWindow | undefined;
 }
 
 const CHARS = CHARS_PER_TOKEN["claude-v5"].code;
@@ -63,6 +66,7 @@ export function createFakeEvalEngine(opts: FakeOptions = {}): FakeEvalEngine {
   const now = opts.now ?? (() => Date.now());
   const rules: { rule: FakeRule; used: number }[] = [];
   const requests: EngineRequest[] = [];
+  let detections = 0;
   const fallback: (req: EngineRequest, n: number) => FakeReply = opts.fallback ?? ((req) => ({ text: req.prompt }));
 
   const engine: FakeEvalEngine = {
@@ -73,6 +77,7 @@ export function createFakeEvalEngine(opts: FakeOptions = {}): FakeEvalEngine {
       return engine;
     },
     async detect(): Promise<EngineStatus> {
+      const window = opts.window?.(detections++);
       return {
         engine: "claude-cli",
         installed: true,
@@ -80,6 +85,7 @@ export function createFakeEvalEngine(opts: FakeOptions = {}): FakeEvalEngine {
         auth: opts.auth ?? "subscription",
         capabilities: [],
         billing: opts.billing ?? "subscription-window",
+        ...(window ? { window } : {}),
         problems: [],
         checkedAt: new Date(now()).toISOString(),
       };

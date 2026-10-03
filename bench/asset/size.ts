@@ -1,12 +1,13 @@
 // `bun run size`, second half (MILESTONES WP-12): the served-bytes budgets of the web shell — what a client downloads under
 // `Accept-Encoding: br` / `gzip`, not the size of dist files (testing spec §6.5). Limit exceeded = exit 1.
 //
-//   bun bench/asset/size.ts [--url <base> | --dist <dir> | --bin <path> | --compiled] [--strict] [--json <file>] [--files]
+//   bun bench/asset/size.ts [--url <base> | --dist <dir> | --bin <path> | --compiled] [--tree <checkout>] [--strict] [--json <file>] [--files]
 //     (default)  start the daemon from source (`apps/cli/src/main.ts _serve`) on the last web build (dist/.build/web.json,
 //                built by `bun scripts/gen-assets.ts` when missing) and measure it
 //     --url      measure an already running server; only the assets its HTML requests are known
 //     --dist     serve a built web directory with .br/.gz siblings in-process (tests, export viewer)
 //     --bin      start this compiled binary instead of the source daemon; --compiled = dist/mitori-<os>-<arch>
+//     (default mode also times `mitori --version` of dist/mitori-<host> against bin.startup; --no-startup skips it)
 //     --strict   every asset limit is a hard gate (from M3); until then only the SC-21 hard set fails the run
 //
 // R1 [SC-21] (apps/web contract BUNDLE_BUDGETS): until M3 only the initial JS cap, the CSS cap and "no web font" are hard;
@@ -16,10 +17,12 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { type Budgets, readBudgets } from "../runner/budgets.ts";
+import { measureFactor } from "../runner/machine.ts";
 import { textTable } from "../runner/table.ts";
 import { fmt, judgeBudget, type Verdict } from "../runner/verdict.ts";
 import { listDist, serveDist } from "./dist-server.ts";
 import { type AssetMeasurement, type Metric, measureAssets } from "./measure.ts";
+import { judgeStartup, measureStartup } from "./startup.ts";
 
 const ROOT = resolve(import.meta.dir, "../..");
 
@@ -88,10 +91,10 @@ export function renderSize(m: AssetMeasurement, r: SizeReport, files = false): s
   return out.join("\n");
 }
 
-async function startSourceDaemon(bin: string | null): Promise<{ url: string; stop(): Promise<void> }> {
+async function startSourceDaemon(bin: string | null, tree: string): Promise<{ url: string; stop(): Promise<void> }> {
   const home = mkdtempSync(join(tmpdir(), "mitori-size-home-"));
-  const argv = bin ? [bin, "_serve", "--port", "0"] : ["bun", join(ROOT, "apps/cli/src/main.ts"), "_serve", "--port", "0"];
-  const proc = Bun.spawn(argv, { cwd: ROOT, env: { ...process.env, MITORI_HOME: home }, stdout: "pipe", stderr: "pipe" });
+  const argv = bin ? [bin, "_serve", "--port", "0"] : ["bun", join(tree, "apps/cli/src/main.ts"), "_serve", "--port", "0"];
+  const proc = Bun.spawn(argv, { cwd: tree, env: { ...process.env, MITORI_HOME: home }, stdout: "pipe", stderr: "pipe" });
   const stop = async () => {
     proc.kill("SIGTERM");
     await proc.exited;
@@ -130,11 +133,12 @@ async function main(argv: readonly string[]): Promise<number> {
       strict: { type: "boolean" },
       json: { type: "string" },
       files: { type: "boolean" },
-      root: { type: "string" },
+      tree: { type: "string" },
+      "no-startup": { type: "boolean" },
     },
   });
-  const root = values.root ? resolve(values.root) : ROOT;
-  const budgets = readBudgets(root);
+  const tree = values.tree ? resolve(values.tree) : ROOT; // the checkout whose build is measured (compare measures base this way)
+  const budgets = readBudgets(tree);
   let server: { url: string; stop(): Promise<void> } | null = null;
   let url: string;
   let listing: string[] = [];
@@ -148,16 +152,16 @@ async function main(argv: readonly string[]): Promise<number> {
       url = server.url;
       listing = listDist(dir);
     } else {
-      const manifest = join(ROOT, "dist/.build/web.json");
+      const manifest = join(tree, "dist/.build/web.json");
       if (!existsSync(manifest)) {
         console.error("size: no web build yet — running scripts/gen-assets.ts");
-        const gen = Bun.spawnSync(["bun", join(ROOT, "scripts/gen-assets.ts")], { cwd: ROOT, stdout: "inherit", stderr: "inherit" });
+        const gen = Bun.spawnSync(["bun", join(tree, "scripts/gen-assets.ts")], { cwd: tree, stdout: "inherit", stderr: "inherit" });
         if (gen.exitCode !== 0) throw new Error("scripts/gen-assets.ts failed");
       }
       listing = Object.keys(JSON.parse(readFileSync(manifest, "utf8")) as Record<string, unknown>);
-      const bin = values.bin ? resolve(values.bin) : values.compiled ? join(ROOT, `dist/mitori-${process.platform}-${process.arch}`) : null;
+      const bin = values.bin ? resolve(values.bin) : values.compiled ? join(tree, `dist/mitori-${process.platform}-${process.arch}`) : null;
       if (bin && !existsSync(bin)) throw new Error(`${bin} does not exist — run \`bun run build:bin\``);
-      server = await startSourceDaemon(bin);
+      server = await startSourceDaemon(bin, tree);
       url = server.url;
     }
     const measured = await measureAssets(url, listing);
@@ -171,7 +175,20 @@ async function main(argv: readonly string[]): Promise<number> {
       );
     }
     console.log(report.ok ? "size: web assets ok" : "size: a served-bytes limit is exceeded");
-    return report.ok ? 0 : 1;
+
+    // bin.startup (a time budget): only when this run is about the repo's own build, not an arbitrary --url / --dist
+    let startupOk = true;
+    const host = join(tree, `dist/mitori-${process.platform}-${process.arch}`);
+    const bin = values.bin ? resolve(values.bin) : host;
+    const startupBudget = budgets.budgets.get("bin.startup");
+    if (!values.url && !values.dist && !values["no-startup"] && startupBudget && existsSync(bin)) {
+      const v = judgeStartup(measureStartup(bin), startupBudget, () => measureFactor(tree).factor);
+      console.log(
+        `bin.startup ${bin.slice(tree.length + 1) || bin}: median ${fmt(v.median)} ms (target ${v.target}, limit ${v.limit})${v.level === "green" ? " ok" : v.hard ? " FAIL" : v.level === "red" ? ` over the limit, not gating on this machine (factor ${fmt(v.factor ?? 1)})` : " over target (warning)"}`,
+      );
+      startupOk = !v.hard;
+    }
+    return report.ok && startupOk ? 0 : 1;
   } finally {
     await server?.stop();
   }

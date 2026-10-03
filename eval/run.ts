@@ -75,6 +75,7 @@ export async function runEval(opts: EvalOptions): Promise<EvalOutcome> {
     slo.push(...out.slo);
   }
 
+  const after = await engine.detect(); // the 5-hour window after the run, next to the one before (§7.1)
   const results = Object.values(suites);
   const anyPending = results.some((s) => s.status === "pending");
   const report: EvalReport = {
@@ -91,7 +92,7 @@ export async function runEval(opts: EvalOptions): Promise<EvalOutcome> {
       capUsd,
       spentUsd: guard.spentUsd,
       windowBefore: status.window?.fiveHour?.utilization ?? null,
-      windowAfter: null,
+      windowAfter: after.window?.fiveHour?.utilization ?? null,
       billing: status.billing as BillingMode,
     },
     suites,
