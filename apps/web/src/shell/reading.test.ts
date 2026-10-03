@@ -1,7 +1,7 @@
 /** ux.md §4.2.1 / §4.3.8 / §7.2: the tab's reading path (sessionStorage `mitori:path:<ws>`), none before generation. */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { DocOutline, WorkspaceKey } from "@mitori/core";
-import { choosePath, selectedPath } from "./reading.ts";
+import { choosePath, plannedPath, selectedPath } from "./reading.ts";
 
 const WS = "ws_cr1t00000000" as WorkspaceKey;
 const paths = [
@@ -36,5 +36,19 @@ describe("selectedPath", () => {
   test("no path before generation (the rail shows 「生成すると30分コースが使えます」)", () => {
     expect(selectedPath(outline(null), WS)).toBeNull();
     expect(selectedPath(null, WS)).toBeNull();
+  });
+});
+
+describe("CR m1-103 the 30-minute path before generation: 0 / n · 残り約30分", () => {
+  test("planned from the outline's default path; null once generated or without the path", () => {
+    const o = (generatedAt: string | null, readingSec = 0) =>
+      ({
+        manifest: { generatedAt },
+        readingPaths: [{ id: "30min", title: "", steps: [{ section: "s0" }, { section: "s1" }], readingSec }],
+      }) as unknown as DocOutline;
+    expect(plannedPath(o(null))).toEqual({ steps: 2, minutes: 30, first: "s0" });
+    expect(plannedPath(o(null, 45 * 60))?.minutes).toBe(45);
+    expect(plannedPath(o("2026-10-03T00:00:00Z"))).toBeNull();
+    expect(plannedPath({ manifest: { generatedAt: null }, readingPaths: [] } as unknown as DocOutline)).toBeNull();
   });
 });

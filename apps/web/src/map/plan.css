@@ -1,4 +1,4 @@
-/* S1 map SVG (ux.md §4.2.3): constant-size labels via --inv-s, LOD by data-lod, zoom stage by data-z. */
+/* S1 map SVG (ux.md §4.2.3): constant-size labels via --inv-s, fitted per room by the controller, zoom stage by data-z. */
 
 .stage-host {
   position: absolute;
@@ -56,15 +56,12 @@ svg.plan .zlabels {
   pointer-events: none;
 }
 
+/* zone names sit in the zone's own header strip (layout: 30 units above the first row of rooms) */
 svg.plan .zn {
   font-size: 11px;
   font-weight: var(--fw-strong);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   fill: var(--muted);
-  paint-order: stroke;
-  stroke: var(--paper);
-  stroke-width: 3px;
-  stroke-linejoin: round;
 }
 
 svg.plan .room {
@@ -170,34 +167,38 @@ svg.plan .rn {
 }
 
 svg.plan .rp,
-svg.plan .rs {
+svg.plan .rs,
+svg.plan .zs,
+svg.plan .chip text {
   font-family: var(--font-mono);
   font-size: 11px;
   fill: var(--muted);
 }
 
-/* LOD (ROOM_LOD): xxs no text · xs name · sm name + size · md everything */
-svg.plan .room[data-lod="xxs"] .lbl,
-svg.plan .room[data-lod="xs"] .rp,
-svg.plan .room[data-lod="xs"] .rs,
-svg.plan .room[data-lod="sm"] .rp {
-  display: none;
+/* right-wall labels sit in a zero-size corner svg: anchored at their end */
+svg.plan .rs,
+svg.plan .zs {
+  text-anchor: end;
 }
 
-svg.plan .room[data-lod="sm"] .rs {
-  transform: translateY(-16px);
+svg.plan .chip rect {
+  fill: var(--paper-2);
+  stroke: var(--rule);
+  stroke-width: 1;
 }
 
+svg.plan .chip .cs {
+  fill: var(--faint);
+}
+
+/* label fitting (plan-dom #fitRoom) shows / shortens / hides parts; data-lod only marks Z3-size rooms */
 /* zoom stages: Z0 context (zones only), Z1 zones + room names, Z2 rooms */
 svg.plan[data-z="Z0"] .room .lbl,
 svg.plan[data-z="Z1"] .room .rp,
-svg.plan[data-z="Z1"] .room .rs {
+svg.plan[data-z="Z1"] .room .rs,
+svg.plan[data-z="Z1"] .room .chips {
   opacity: 0;
   transition: opacity var(--dur-lod);
-}
-
-svg.plan[data-z="Z0"] .zn {
-  font-size: 15px;
 }
 
 svg.plan .edge {

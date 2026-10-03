@@ -1,13 +1,22 @@
 /**
  * S1 map renderer (ux.md §4.2.3 performance rules): `MapView` → ONE SVG string, inserted once with innerHTML.
  * The camera then only rewrites the root `<g class="cam">` transform and `--inv-s`; LOD, selection, overlays and
- * generation rings are class / attribute flips on existing nodes. Labels live in a `.lbl` group scaled by
- * `--inv-s` so they keep a constant on-screen size (13 / 11 px), and every room is a nested `<svg>` whose viewport
- * clips its labels (AC-J06). MVP draws the ELK container diagram (`MapView.fallback = "container"`); the floor
- * plan (WP-18) reuses the same model.
+ * generation rings are class / attribute flips on existing nodes. Labels live in `.lbl` groups scaled by
+ * `--inv-s` so they keep a constant on-screen size (13 / 11 px); every room is a nested `<svg>` (its viewport is
+ * the room). Labels never clip: when the camera settles the controller fits each label to the room's on-screen
+ * size ({@link roomLabels}: whole, shortened with 「…」, or hidden), and right-aligned parts (size, zone LOC) sit in
+ * a zero-size corner `<svg>` at the right wall. The MVP draws the container map (doc layout `mitori-rooms@1`:
+ * zones as bands, rooms sized for their labels); the floor plan (WP-18) reuses the same model.
  */
 import type { DiagramNode, MapView, ModuleId, ModuleInfo, SectionId } from "@mitori/core";
 import { fmtLocShort } from "../shell/fmt.ts";
+
+export interface RoomChip {
+  /** File name (basename). */
+  name: string;
+  /** Size text (`3.5k`). */
+  size: string;
+}
 
 export interface RoomModel {
   id: string;
@@ -28,6 +37,8 @@ export interface RoomModel {
   working: number;
   fresh: "fresh" | "stale" | "unknown";
   topSymbols: string[];
+  /** Largest files of the room (furniture), largest first, ≤ 3. */
+  chips: RoomChip[];
 }
 
 export interface ZoneModel {
@@ -38,6 +49,8 @@ export interface ZoneModel {
   w: number;
   h: number;
   tone: number;
+  /** LOC of the zone's rooms. */
+  loc: number;
 }
 
 export interface EdgeModel {
@@ -70,30 +83,36 @@ function commonDir(paths: readonly string[]): string {
   return first.slice(0, i).join("/");
 }
 
+type Mod = ModuleInfo & { topFiles?: { path: string; loc: number; symbols: string[] }[] };
+
 /** Leaf modules under (and including) a module. */
-function leafPaths(mod: ModuleInfo, byId: Map<string, ModuleInfo>): string[] {
-  if (mod.children.length === 0) return mod.paths;
+function leaves(mod: Mod, byId: Map<string, Mod>): Mod[] {
+  if (mod.children.length === 0) return [mod];
   return mod.children.flatMap((c) => {
     const m = byId.get(c);
-    return m ? leafPaths(m, byId) : [];
+    return m ? leaves(m, byId) : [];
   });
 }
+
+const baseName = (p: string) => p.slice(p.lastIndexOf("/") + 1);
 
 export function buildPlanModel(view: MapView): PlanModel {
   const nodes = new Map<string, DiagramNode>(view.diagram.nodes.map((n) => [n.id, n]));
   const groups = new Map(view.diagram.groups.map((g) => [g.id, g]));
-  const mods = new Map<string, ModuleInfo & { topFiles?: { path: string; loc: number; symbols: string[] }[] }>(view.modules.map((m) => [m.id, m]));
+  const mods = new Map<string, Mod>(view.modules.map((m) => [m.id, m]));
   const zoneIdx = new Map<string, number>();
   const zones: ZoneModel[] = view.layout.groups.map((g, i) => {
     zoneIdx.set(g.id, i);
-    return { id: g.id, label: groups.get(g.id)?.label ?? g.id, x: g.x, y: g.y, w: g.w, h: g.h, tone: (i % 5) + 1 };
+    return { id: g.id, label: groups.get(g.id)?.label ?? g.id, x: g.x, y: g.y, w: g.w, h: g.h, tone: (i % 5) + 1, loc: 0 };
   });
   const rooms: RoomModel[] = [];
   for (const box of view.layout.nodes) {
     const n = nodes.get(box.id);
     if (!n) continue;
     const mod = n.ref?.module ? mods.get(n.ref.module) : undefined;
-    const paths = mod ? leafPaths(mod, mods) : [];
+    const ls = mod ? leaves(mod, mods) : [];
+    const paths = ls.flatMap((m) => m.paths);
+    const top = ls.flatMap((m) => m.topFiles ?? []).sort((a, b) => b.loc - a.loc || (a.path < b.path ? -1 : 1));
     const zone = n.group ?? null;
     rooms.push({
       id: n.id,
@@ -113,9 +132,11 @@ export function buildPlanModel(view: MapView): PlanModel {
       threads: view.overlays.comments[n.id] ?? 0,
       working: view.overlays.working[n.id] ?? 0,
       fresh: view.overlays.freshness[n.id] ?? "unknown",
-      topSymbols: (mod?.topFiles ?? []).flatMap((f) => f.symbols).slice(0, 3),
+      topSymbols: top.flatMap((f) => f.symbols).slice(0, 3),
+      chips: top.slice(0, 3).map((f) => ({ name: baseName(f.path), size: fmtLocShort(f.loc) })),
     });
   }
+  for (const z of zones) z.loc = rooms.reduce((a, r) => a + (r.zone === z.id ? r.loc : 0), 0);
   // roving order: zone order, then reading order inside the zone (rows of ~ equal y)
   rooms.sort((a, b) => {
     const za = a.zone === null ? 1e9 : (zoneIdx.get(a.zone) ?? 1e9);
@@ -143,6 +164,87 @@ export function buildPlanModel(view: MapView): PlanModel {
   return { width: view.layout.width, height: view.layout.height, rooms, zones, edges, byId: new Map(rooms.map((r) => [r.id, r])), links };
 }
 
+// ---------------------------------------------------------------- label fitting (pure; metrics mirror doc layout/rooms.ts)
+
+const WIDE = /[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6]/u;
+
+/** On-screen px per character: room names 13 px semibold, zone names 11 px semibold + tracking, the rest mono 11 px. */
+export const LABEL_FONT = {
+  name: { narrow: 7.6, wide: 13 },
+  mono: { narrow: 6.7, wide: 11 },
+  zone: { narrow: 7.6, wide: 12 },
+} as const;
+type Font = { readonly narrow: number; readonly wide: number };
+
+export function textPx(s: string, font: Font): number {
+  let w = 0;
+  for (const c of s) w += WIDE.test(c) ? font.wide : font.narrow;
+  return w;
+}
+
+/** `s` when it fits in `max` px, else its longest prefix + 「…」 that does (≥ 2 characters), else null. */
+export function fitText(s: string, max: number, font: Font): string | null {
+  if (textPx(s, font) <= max) return s;
+  const chars = [...s];
+  let w = textPx("…", font);
+  let n = 0;
+  for (const c of chars) {
+    const cw = WIDE.test(c) ? font.wide : font.narrow;
+    if (w + cw > max) break;
+    w += cw;
+    n++;
+  }
+  return n >= 2 ? `${chars.slice(0, n).join("").trimEnd()}…` : null;
+}
+
+/** Room text geometry in on-screen px (`.lbl` coordinates). */
+export const ROOM_TEXT = { padX: 12, nameY: 21, pathY: 39, chipY: 48, chipH: 17, chipGap: 6, chipPad: 6 } as const;
+
+export interface RoomLabels {
+  /** Name as shown (fitted); null = hidden. */
+  name: string | null;
+  /** Size label at the right wall. */
+  size: boolean;
+  /** Path line as shown (fitted); null = hidden. */
+  path: string | null;
+  /** File chips that fit. */
+  chips: number;
+}
+
+/** Second line of a room: `{path} · {n} files` (no path at the repository root). */
+export function pathLine(r: Pick<RoomModel, "path" | "files">, filesWord: (n: number) => string): string {
+  return [r.path, r.files > 0 ? filesWord(r.files) : ""].filter(Boolean).join(" · ");
+}
+
+const chipText = (c: RoomChip) => `${c.name} ${c.size}`;
+
+/** What a room shows at an on-screen size `sw × sh` px: every part fits whole, is shortened, or is hidden. */
+export function roomLabels(
+  r: Pick<RoomModel, "label" | "path" | "loc" | "files" | "chips">,
+  sw: number,
+  sh: number,
+  filesWord: (n: number) => string,
+): RoomLabels {
+  const inner = sw - ROOM_TEXT.padX * 2;
+  if (inner < 18 || sh < 26) return { name: null, size: false, path: null, chips: 0 };
+  const sizeW = r.loc > 0 ? textPx(fmtLocShort(r.loc), LABEL_FONT.mono) + 10 : 0;
+  const size = sizeW > 0 && textPx(r.label, LABEL_FONT.name) + sizeW <= inner;
+  const name = fitText(r.label, size ? inner - sizeW : inner, LABEL_FONT.name);
+  const line = pathLine(r, filesWord);
+  const path = sh >= 46 && line ? fitText(line, inner, LABEL_FONT.mono) : null;
+  let chips = 0;
+  if (sh >= ROOM_TEXT.chipY + ROOM_TEXT.chipH + 6) {
+    let x = 0;
+    for (const c of r.chips) {
+      const w = textPx(chipText(c), LABEL_FONT.mono) + ROOM_TEXT.chipPad * 2;
+      if (x + w > inner) break;
+      x += w + ROOM_TEXT.chipGap;
+      chips++;
+    }
+  }
+  return { name, size, path, chips };
+}
+
 export interface PlanText {
   /** Accessible name of a room (`{区画} {部屋} · {files} files · スレッド {n}`). */
   roomLabel: (r: RoomModel) => string;
@@ -150,6 +252,20 @@ export interface PlanText {
   title: string;
   /** Link of a room (`/w/<ws>?room=<id>`). */
   roomHref: (r: RoomModel) => string;
+  /** `{n} files` of a room's path line. */
+  files: (n: number) => string;
+}
+
+function chipsSvg(r: RoomModel): string {
+  let x: number = ROOM_TEXT.padX;
+  return r.chips
+    .map((c, i) => {
+      const w = textPx(chipText(c), LABEL_FONT.mono) + ROOM_TEXT.chipPad * 2;
+      const out = `<g class="chip" data-i="${i}"><rect x="${n2(x)}" y="${ROOM_TEXT.chipY}" width="${n2(w)}" height="${ROOM_TEXT.chipH}" rx="3"/><text x="${n2(x + ROOM_TEXT.chipPad)}" y="${ROOM_TEXT.chipY + 12.5}">${esc(c.name)} <tspan class="cs">${esc(c.size)}</tspan></text></g>`;
+      x += w + ROOM_TEXT.chipGap;
+      return out;
+    })
+    .join("");
 }
 
 /** One SVG string for the whole map. `descId` = id of the summary paragraph (`aria-describedby`). */
@@ -175,24 +291,33 @@ export function renderPlanSvg(m: PlanModel, text: PlanText, descId: string): str
   out.push("</g>", '<g class="rooms">');
   m.rooms.forEach((r, i) => {
     const cls = `room${r.external ? " ext" : ""}${r.working > 0 ? " ai" : ""}`;
+    const line = pathLine(r, text.files);
     // an SVG <a>: focusable, and Enter on it arrives as a click (no keydown listener needed, AC-U75)
     out.push(
       `<a class="${cls}" href="${esc(text.roomHref(r))}" data-node="${esc(r.id)}" data-fresh="${r.fresh}" tabindex="${i === 0 ? 0 : -1}" aria-label="${esc(text.roomLabel(r))}">`,
       `<svg x="${n2(r.x)}" y="${n2(r.y)}" width="${n2(r.w)}" height="${n2(r.h)}">`,
       '<rect class="fl" width="100%" height="100%"/><rect class="ring" width="100%" height="100%"/>',
-      `<g class="lbl"><text class="rn" x="10" y="20">${esc(r.label)}</text>`,
-      r.path ? `<text class="rp" x="10" y="37">${esc(r.path)}</text>` : "",
-      r.loc > 0 ? `<text class="rs" x="10" y="53">${fmtLocShort(r.loc)}</text>` : "",
+      `<g class="lbl"><text class="rn" x="${ROOM_TEXT.padX}" y="${ROOM_TEXT.nameY}">${esc(r.label)}</text>`,
+      line ? `<text class="rp" x="${ROOM_TEXT.padX}" y="${ROOM_TEXT.pathY}">${esc(line)}</text>` : "",
+      r.chips.length ? `<g class="chips">${chipsSvg(r)}</g>` : "",
       "</g>",
-      '<svg class="corner" x="100%" y="0" width="1" height="1" overflow="visible"><g class="lbl"><path class="chk" d="M-22 14l4 4 8-9"/></g></svg>',
+      // right wall: the size label at the top, the generation ✓ at the bottom
+      r.loc > 0
+        ? `<svg class="corner" x="100%" y="0" width="1" height="1" overflow="visible"><g class="lbl"><text class="rs" x="-${ROOM_TEXT.padX}" y="${ROOM_TEXT.nameY}">${fmtLocShort(r.loc)}</text></g></svg>`
+        : "",
+      '<svg class="corner" x="100%" y="100%" width="1" height="1" overflow="visible"><g class="lbl"><path class="chk" d="M-24 -13l4 4 8-9"/></g></svg>',
       "</svg></a>",
     );
   });
-  // zone names above the rooms: a narrow zone band at a small zoom never hides them under a room's wall
+  // zone names above the rooms: a room's wall never hides them at a small zoom; clipped by the zone's viewport
   out.push("</g>", '<g class="zlabels" aria-hidden="true">');
   for (const z of m.zones) {
     out.push(
-      `<svg class="zl" x="${n2(z.x)}" y="${n2(z.y)}" width="${n2(z.w)}" height="${n2(z.h)}"><g class="lbl"><text class="zn" x="8" y="12">${esc(z.label)}</text></g></svg>`,
+      `<svg class="zl" data-zone="${esc(z.id)}" x="${n2(z.x)}" y="${n2(z.y)}" width="${n2(z.w)}" height="${n2(z.h)}"><g class="lbl"><text class="zn" x="10" y="19">${esc(z.label)}</text></g>`,
+      z.loc > 0
+        ? `<svg class="corner" x="100%" y="0" width="1" height="1" overflow="visible"><g class="lbl"><text class="zs" x="-10" y="19">${fmtLocShort(z.loc)}</text></g></svg>`
+        : "",
+      "</svg>",
     );
   }
   out.push("</g>", '<g class="flows" aria-hidden="true"></g>', '<g class="pins"></g>', "</g></svg>");
@@ -258,14 +383,17 @@ export function renderFlow(m: PlanModel, steps: readonly FlowStep[]): string {
   ].join("");
 }
 
-/** Pin layer (re-rendered only when thread counts change, ≤ 100 pins): droplet + count at the room's top right. */
+/**
+ * Pin layer (re-rendered only when thread counts change, ≤ 100 pins): a droplet + count standing on the room's
+ * top wall near the right corner (above the size label, never over the name).
+ */
 export function renderPins(m: PlanModel, counts: Readonly<Record<string, number>>): string {
   const out: string[] = [];
   for (const r of m.rooms) {
     const n = counts[r.id] ?? 0;
     if (n <= 0) continue;
     out.push(
-      `<svg class="pin" data-node="${esc(r.id)}" x="${n2(r.x + r.w)}" y="${n2(r.y)}" width="1" height="1" overflow="visible"><g class="lbl"><path d="M-22 4a9 9 0 1 1 18 0c0 6-9 13-9 13s-9-7-9-13z"/><text x="-13" y="8">${n}</text></g></svg>`,
+      `<svg class="pin" data-node="${esc(r.id)}" x="${n2(r.x + r.w)}" y="${n2(r.y)}" width="1" height="1" overflow="visible"><g class="lbl"><path d="M-62 -9a9 9 0 1 1 18 0c0 6-9 13-9 13s-9-7-9-13z"/><text x="-53" y="-5">${n}</text></g></svg>`,
     );
   }
   return out.join("");

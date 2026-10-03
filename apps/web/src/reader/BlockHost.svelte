@@ -31,6 +31,7 @@ let {
   docLang = "ja",
   tail = null,
   mutate = (apply: () => void) => apply(),
+  codeHref = () => null,
 }: {
   page: PageModel;
   level: ReaderLevel;
@@ -52,6 +53,8 @@ let {
   tail?: string | null;
   /** Scroll-compensated DOM update (the Reader's anchor capture / restore). */
   mutate?: (apply: () => void) => void;
+  /** Code-view link of a static fact cite (`a.fcite` in facts tables). */
+  codeHref?: (path: string, start: number, end: number) => string | null;
 } = $props();
 
 let root: HTMLDivElement | undefined = $state();
@@ -202,7 +205,13 @@ function measure(node: HTMLElement, index: number) {
 }
 
 // ---------------------------------------------------------------- decoration (once per block mount / html change)
-const text = { citeEnd: (n: number) => t("reader.citeEnd", { n }), verifyLabel: t("reader.checkClaim") };
+const text = {
+  citeEnd: (n: number) => t("reader.citeEnd", { n }),
+  verifyLabel: t("reader.checkClaim"),
+  codeHref: (p: string, a: number, b: number) => codeHref(p, a, b),
+};
+/** Claim cite chips and static fact cites share the peek / click handling. */
+const CITE = "a.mcite, a.fcite";
 function deco(node: HTMLElement, b: BlockView) {
   decorateBlock(
     node,
@@ -231,7 +240,7 @@ onMount(() => {
   if (!el) return;
   const over = (e: PointerEvent) => {
     const tg = e.target as Element;
-    const cite = tg.closest?.("a.mcite") as HTMLElement | null;
+    const cite = tg.closest?.(CITE) as HTMLElement | null;
     if (cite) {
       if (hoverTimer) clearTimeout(hoverTimer);
       hoverTimer = setTimeout(
@@ -253,7 +262,7 @@ onMount(() => {
   const out = (e: PointerEvent) => {
     const to = e.relatedTarget as Element | null;
     const from = e.target as Element;
-    if (from.closest?.("a.mcite, abbr.mterm") && !to?.closest?.("a.mcite, abbr.mterm")) {
+    if (from.closest?.(`${CITE}, abbr.mterm`) && !to?.closest?.(`${CITE}, abbr.mterm`)) {
       if (hoverTimer) clearTimeout(hoverTimer);
       hoverTimer = null;
       oncite({ cite: "", blob: "", anchorEl: from as HTMLElement, via: "leave" });
@@ -265,19 +274,19 @@ onMount(() => {
   };
   const focusin = (e: FocusEvent) => {
     const tg = e.target as Element;
-    const cite = tg.closest?.("a.mcite") as HTMLElement | null;
+    const cite = tg.closest?.(CITE) as HTMLElement | null;
     if (cite?.matches(":focus-visible")) oncite({ cite: cite.dataset.cite ?? "", blob: cite.dataset.blob ?? "", anchorEl: cite, via: "focus" });
     const term = tg.closest?.("abbr.mterm") as HTMLElement | null;
     if (term) onterm({ term: (term.dataset.term ?? "") as GlossaryId, anchorEl: term });
   };
   const focusout = (e: FocusEvent) => {
     const tg = e.target as Element;
-    if (tg.closest?.("a.mcite") && !(e.relatedTarget as Element | null)?.closest?.(".peek"))
+    if (tg.closest?.(CITE) && !(e.relatedTarget as Element | null)?.closest?.(".peek"))
       oncite({ cite: "", blob: "", anchorEl: tg as HTMLElement, via: "leave" });
   };
   const click = (e: MouseEvent) => {
     const tg = e.target as Element;
-    const cite = tg.closest?.("a.mcite") as HTMLElement | null;
+    const cite = tg.closest?.(CITE) as HTMLElement | null;
     if (cite && !(e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0)) {
       e.preventDefault();
       oncite({ cite: cite.dataset.cite ?? "", blob: cite.dataset.blob ?? "", anchorEl: cite, via: "click" });

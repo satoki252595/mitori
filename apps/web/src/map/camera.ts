@@ -14,8 +14,14 @@ export interface Viewport {
   h: number;
 }
 
-export function fitCamera(contentW: number, contentH: number, vp: Viewport, pad = 24): MapCamera {
-  const s = Math.max(1e-3, Math.min((vp.w - pad * 2) / Math.max(1, contentW), (vp.h - pad * 2) / Math.max(1, contentH)));
+/**
+ * Largest fit scale: a small repository is centred at a comfortable size instead of filling a big stage with
+ * huge empty rooms (labels keep their on-screen size whatever the scale).
+ */
+export const FIT_MAX_S = 1.3;
+
+export function fitCamera(contentW: number, contentH: number, vp: Viewport, pad = 24, maxS = Number.POSITIVE_INFINITY): MapCamera {
+  const s = Math.max(1e-3, Math.min(maxS, (vp.w - pad * 2) / Math.max(1, contentW), (vp.h - pad * 2) / Math.max(1, contentH)));
   return { s, x: (vp.w - contentW * s) / 2, y: (vp.h - contentH * s) / 2 };
 }
 

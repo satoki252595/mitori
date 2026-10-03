@@ -22,6 +22,7 @@ let {
   spy,
   margin,
   review,
+  about = null,
   onwidth,
 }: {
   placement: "column" | "overlay" | "sheet" | "none";
@@ -30,8 +31,27 @@ let {
   spy: { path: RepoPath; start: LineNo; end: LineNo } | null;
   margin: Component<{ page: string }> | null;
   review: Component<{ job: JobId }> | null;
+  /** 「この節について」 of the empty margin (no loop UI yet / no threads): stats and the files the page cites. */
+  about?: {
+    minutes: number;
+    blocks: number;
+    verified: number;
+    inferred: number;
+    stale: number;
+    staticOnly: boolean;
+    files: readonly { path: RepoPath; n: number; start: LineNo; end: LineNo }[];
+  } | null;
   onwidth: (px: number) => void;
 } = $props();
+
+const FILES_SHOWN = 8;
+/** A cited file opens in code mode, pinned to its first cited range (same as `o` on a chip). */
+function pin(f: { path: RepoPath; start: LineNo; end: LineNo }) {
+  const p = { path: f.path, start: f.start, end: f.end };
+  s.ctx.set("code", { pin: p });
+  const r = s.router.route;
+  if (r.name === "doc") s.router.replaceUrl({ ...r, ctx: "code", pin: p });
+}
 
 const s = useStores();
 const mode = $derived(s.ctx.mode);
@@ -109,7 +129,36 @@ function up() {
     {@const Margin = margin}
     <Margin {page} />
   {:else}
-    <div class="margin-empty" data-chrome><p><Rich text={t("ctx.marginEmpty")} /></p></div>
+    <div class="margin-empty" data-chrome>
+      {#if about}
+        <section class="about" aria-labelledby="about-t">
+          <h2 id="about-t" class="rail-label">{t("ctx.about.title")}</h2>
+          <dl class="stats">
+            <div><dt>{t("ctx.about.read")}</dt><dd>{t("reader.meta.minutes", { n: about.minutes })}</dd></div>
+            <div><dt>{t("ctx.about.blocks")}</dt><dd class="mono">{about.blocks}</dd></div>
+            <div><dt>{t("ctx.about.cites")}</dt><dd class="mono">{about.files.reduce((n, f) => n + f.n, 0)}</dd></div>
+            <div>
+              <dt>{t("ctx.about.trust")}</dt>
+              <dd>{#if about.staticOnly}{t("ctx.about.static")}{:else}{t("ctx.about.claims", { v: about.verified, i: about.inferred })}{#if about.stale > 0}<span class="warn"> &middot; {t("reader.meta.stale", { n: about.stale })}</span>{/if}{/if}</dd>
+            </div>
+          </dl>
+          {#if about.files.length}
+            <h3 class="rail-label">{t("ctx.about.files")}</h3>
+            <ul class="files">
+              {#each about.files.slice(0, FILES_SHOWN) as f (f.path)}
+                <li>
+                  <button type="button" onclick={() => pin(f)} title={t("ctx.about.pin")}>
+                    <span class="p mono" data-user-content>{f.path}</span><span class="n mono">{f.n}</span>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+            {#if about.files.length > FILES_SHOWN}<p class="more">{t("ctx.about.more", { n: about.files.length - FILES_SHOWN })}</p>{/if}
+          {/if}
+        </section>
+      {/if}
+      <p class="hint"><Rich text={t("ctx.marginEmpty")} /></p>
+    </div>
   {/if}
 </aside>
 
@@ -181,8 +230,7 @@ function up() {
     flex: 1;
     accent-color: var(--accent);
   }
-  .empty,
-  .margin-empty p {
+  .empty {
     padding: 24px 22px;
     color: var(--muted);
     font-size: var(--fs-ui);
@@ -190,7 +238,96 @@ function up() {
   }
   .margin-empty {
     position: sticky;
-    top: calc(var(--hdr) + 40vh);
+    top: var(--hdr);
+    padding: 28px 22px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-height: calc(100vh - var(--hdr) - var(--status));
+    overflow: auto;
+    scrollbar-width: thin;
+  }
+  .hint {
+    margin: 0;
+    color: var(--muted);
+    font-size: var(--fs-label);
+    line-height: 1.7;
+  }
+  .about {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .about h3 {
+    margin-top: 10px;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-card);
+    background: var(--sheet);
+  }
+  .stats div {
+    padding: 8px 12px;
+    min-width: 0;
+  }
+  .stats div:nth-child(even) {
+    border-left: 1px solid var(--rule-soft);
+  }
+  .stats div:nth-child(n + 3) {
+    border-top: 1px solid var(--rule-soft);
+  }
+  .stats dt {
+    font-size: var(--fs-meta);
+    color: var(--muted);
+  }
+  .stats dd {
+    margin: 2px 0 0;
+    font-size: var(--fs-ui);
+    color: var(--ink);
+  }
+  .warn {
+    color: var(--c-warn);
+  }
+  .files {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .files button {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-height: 30px;
+    padding: 4px 8px;
+    margin: 0 -8px;
+    border-radius: var(--r-btn);
+    text-align: left;
+    font-size: var(--fs-label);
+    color: var(--text);
+  }
+  .files button:hover,
+  .files button:focus-visible {
+    background: var(--hover);
+  }
+  .files .p {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .files .n {
+    flex: none;
+    color: var(--muted);
+  }
+  .more {
+    margin: 0;
+    font-size: var(--fs-meta);
+    color: var(--muted);
   }
   .review-ph {
     padding: 24px;

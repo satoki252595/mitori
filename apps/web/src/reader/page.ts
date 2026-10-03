@@ -13,6 +13,26 @@ export interface PagePart {
   top: boolean;
   blocks: BlockView[];
   loaded: boolean;
+  /**
+   * The doc's own heading block of this section (`# 4. 動かしてみる`): the page header shows the title once, so
+   * the block is not rendered again (CR m1-103); kept here for anchors / permalinks.
+   */
+  titleBlock?: BlockId;
+}
+
+const ENTITIES: Record<string, string> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" };
+const plain = (html: string) =>
+  html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&(?:amp|lt|gt|quot|#39);/g, (e) => ENTITIES[e] ?? e)
+    .replace(/\s+/g, " ")
+    .trim();
+
+/** The section's title heading: the first block, a heading whose text ends with the section title. */
+export function isTitleBlock(b: Pick<BlockView, "kind" | "html">, node: Pick<SectionNode, "title">): boolean {
+  if (b.kind !== "heading") return false;
+  const title = node.title.replace(/\s+/g, " ").trim();
+  return title.length > 0 && plain(b.html).endsWith(title);
 }
 
 export interface PageModel {
@@ -55,8 +75,11 @@ export function buildPage(ix: OutlineIndex, page: SectionId, have: (id: SectionI
       loaded = true;
     }
     blocks = [...blocks].sort((a, b) => a.ord - b.ord);
+    const first = blocks[0];
+    const titleBlock = first && isTitleBlock(first, node) ? first.id : undefined;
+    if (titleBlock) blocks = blocks.slice(1);
     for (const b of blocks) order.push(b.id);
-    parts.push({ node, num: ix.numbers.get(id) ?? "", top: id === page, blocks, loaded });
+    parts.push({ node, num: ix.numbers.get(id) ?? "", top: id === page, blocks, loaded, ...(titleBlock ? { titleBlock } : {}) });
   }
   return { page, parts, order, total: order.length };
 }

@@ -34,6 +34,52 @@ export function stageProgress(tasks: readonly GenTaskView[]): StageProgress[] {
   });
 }
 
+export type StageStatus = "done" | "running" | "waiting" | "failed";
+
+export interface StageRow extends StageProgress {
+  status: StageStatus;
+  /** Confirmed tokens of the stage's finished tasks (all input classes + output). */
+  used: number;
+  /** Planned tokens of the stage (estimate). */
+  planned: number;
+}
+
+const taskTokens = (t: Pick<GenTaskView, "usage">) => (t.usage ? t.usage.in + t.usage.cacheRead + t.usage.cacheWrite + t.usage.out : 0);
+
+/**
+ * Stage list of the progress card (prototype `01c-generating`): one row per planned stage in the estimate's order,
+ * `✓` when every task finished, `◐` while one runs, `○` before, `✕` when a task failed and nothing runs.
+ */
+export function stageRowsLive(run: Pick<GenRun, "estimate">, tasks: readonly GenTaskView[]): StageRow[] {
+  const prog = new Map(stageProgress(tasks).map((p) => [p.stage, p]));
+  const used = new Map<GenStage, number>();
+  for (const t of tasks) used.set(t.stage, (used.get(t.stage) ?? 0) + taskTokens(t));
+  const planned = new Map(run.estimate.stages.map((s) => [s.stage, s]));
+  const order = [...run.estimate.stages.map((s) => s.stage), ...[...prog.keys()].filter((s) => !planned.has(s))];
+  return order.map((stage) => {
+    const p = prog.get(stage) ?? { stage, done: 0, total: planned.get(stage)?.tasks ?? 0, running: 0, failed: 0 };
+    const total = Math.max(p.total, planned.get(stage)?.tasks ?? 0);
+    const status: StageStatus =
+      p.running > 0
+        ? "running"
+        : total > 0 && p.done >= total
+          ? "done"
+          : p.failed > 0 && p.done + p.failed >= total
+            ? "failed"
+            : p.done > 0
+              ? "running"
+              : "waiting";
+    const pl = planned.get(stage);
+    return { ...p, total, status, used: used.get(stage) ?? 0, planned: pl ? pl.inTokens + pl.outTokens : 0 };
+  });
+}
+
+/** Finished share of the run's tasks (0–1; tasks, never time). */
+export function runShare(run: Pick<GenRun, "progress">): number {
+  const { total, done, failed } = run.progress;
+  return total > 0 ? Math.min(1, (done + failed) / total) : 0;
+}
+
 export interface Counters {
   inTokens: number;
   outTokens: number;

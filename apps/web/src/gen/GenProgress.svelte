@@ -1,14 +1,15 @@
 <!--
-  Generation progress (ux.md §4.2.5, contract `GenProgressProps`): replaces the estimate card in the same box.
-  Counters use confirmed usage only and never decrease; stage rows show done / total (the thin meter draws that
-  ratio — no time-based %, no role="progressbar", AC-U23); pause / resume / cancel any time.
+  Generation progress (ux.md §4.2.5, contract `GenProgressProps`, prototype `01c-generating`): replaces the
+  estimate card in the same box. The run's main line (effort · estimate) with pause / cancel, the stage list
+  (✓ done / ◐ running / ○ waiting, `n / total`, ×parallel, confirmed tokens per stage), one task-share bar and the
+  live counters (confirmed usage only, never decreasing — AC-U23; no time-based %, no role="progressbar").
 -->
 <script lang="ts">
 import type { GenRun, GenTaskView } from "@mitori/core";
 import { fmtClock, fmtDurationImpl, fmtHm, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
 import { t } from "../shell/index.ts";
-import { totalTokens } from "./estimate.ts";
-import { type Counters, elapsedMs, runCounters, stageProgress } from "./progress.ts";
+import { figures, totalTokens } from "./estimate.ts";
+import { type Counters, elapsedMs, runCounters, runShare, stageRowsLive } from "./progress.ts";
 
 let {
   run,
@@ -29,118 +30,190 @@ $effect(() => {
   const h = setInterval(() => (now = Date.now()), 1000);
   return () => clearInterval(h);
 });
-const stages = $derived(stageProgress(tasks));
+const rows = $derived(stageRowsLive(run, tasks));
 const est = $derived(run.estimate);
+const main = $derived(figures(est, true));
+const share = $derived(runShare(run));
 const paused = $derived(run.state === "paused" ? (run.paused ?? { reason: "user" as const }) : null);
+const GLYPH = { done: "✓", running: "◐", waiting: "○", failed: "✕" } as const;
 </script>
 
 <section class="prog card" aria-labelledby="prog-t" data-chrome>
   <h2 id="prog-t">{t("gen.progress.title")}</h2>
-  <dl class="cnt">
-    <div><dt>{t("gen.progress.in")}</dt><dd class="mono">{fmtTokensImpl(counters.inTokens)} <span>/ {fmtTokensImpl(est.inTokens + est.cacheReadTokens + est.cacheWriteTokens, { approx: true })}</span></dd></div>
-    <div><dt>{t("gen.progress.out")}</dt><dd class="mono">{fmtTokensImpl(counters.outTokens)}</dd></div>
-    <div><dt>{t("gen.progress.usd")}</dt><dd class="mono">{fmtUsdImpl(counters.usd, "gen")} <span>/ &asymp;{fmtUsdImpl(est.apiUsd, "gen")}</span></dd></div>
-    <div><dt>{t("gen.progress.elapsed")}</dt><dd class="mono">{fmtClock(elapsedMs(run, now))} <span>/ {fmtDurationImpl(est.seconds.p50 * 1000, "gen")}</span></dd></div>
-  </dl>
+  <div class="head">
+    <p class="lead">{t("gen.card.mainLine", { effort: t(`gen.effort.${run.effort}`), tokens: main.tokens, usd: main.usd, time: main.time })}</p>
+    <div class="ctl">
+      {#if run.state === "paused"}
+        <button type="button" class="btn btn-sec btn-s" onclick={() => oncontrol("resume")}>{t("gen.progress.resume")}</button>
+      {:else}
+        <button type="button" class="btn btn-sec btn-s" onclick={() => oncontrol("pause")}>{t("gen.progress.pause")}</button>
+      {/if}
+      <button type="button" class="btn btn-gh btn-s" onclick={() => oncontrol("cancel")}>{t("gen.progress.cancel")}</button>
+    </div>
+  </div>
+
   <ul class="stages">
-    {#each stages as st (st.stage)}
-      <li class:on={st.running > 0}>
-        <span class="lbl">{t(`gen.stage.${st.stage}`)}{#if st.running > 1}<span class="mono"> &times;{st.running}</span>{/if}</span>
-        <span class="mono n">{st.done} / {st.total}</span>
-        <span class="meter" aria-hidden="true"><i style:transform="scaleX({st.total ? st.done / st.total : 0})"></i></span>
+    {#each rows as r (r.stage)}
+      <li data-s={r.status}>
+        <span class="g" aria-hidden="true">{GLYPH[r.status]}</span>
+        <span class="lbl"
+          >{t(`gen.progress.row.${r.stage}`)}
+          {#if r.total > 1}<span class="n mono">{r.done} / {r.total}</span>{/if}
+          {#if r.running > 1}<span class="par">{t("gen.progress.parallel", { n: r.running })}</span>{/if}
+          <span class="sr-only">{t(`gen.progress.state.${r.status}`)}</span></span
+        >
+        <span class="tok mono">{r.used > 0 ? fmtTokensImpl(r.used) : r.planned > 0 ? `≈${fmtTokensImpl(r.planned)}` : ""}</span>
       </li>
     {/each}
   </ul>
+
+  <div class="bar" aria-hidden="true"><i style:transform="scaleX({share})"></i></div>
+  <p class="foot mono">
+    <span>{fmtTokensImpl(counters.inTokens + counters.outTokens)} / {fmtTokensImpl(totalTokens(est), { main: true })} tok</span>
+    <span>{fmtClock(elapsedMs(run, now))} / {fmtDurationImpl(est.seconds.p50 * 1000, "gen")}</span>
+  </p>
+  <dl class="cnt mono">
+    <div><dt>{t("gen.progress.in")}</dt><dd>{fmtTokensImpl(counters.inTokens)}</dd></div>
+    <div><dt>{t("gen.progress.out")}</dt><dd>{fmtTokensImpl(counters.outTokens)}</dd></div>
+    <div><dt>{t("gen.progress.usd")}</dt><dd>{fmtUsdImpl(counters.usd, "gen")} <span>/ &asymp;{fmtUsdImpl(est.apiUsd, "gen")}</span></dd></div>
+    <div><dt>{t("gen.progress.blocks")}</dt><dd>{run.progress.blocks}</dd></div>
+  </dl>
   {#if paused}
     <p class="paused" role="status">{t(`gen.progress.paused.${paused.reason}`, { at: paused.until ? fmtHm(paused.until) : "–" })}</p>
   {/if}
-  <p class="tail mono">{tail ?? " "}</p>
-  <div class="ctl">
-    {#if run.state === "paused"}
-      <button type="button" class="btn btn-sec btn-s" onclick={() => oncontrol("resume")}>{t("gen.progress.resume")}</button>
-    {:else}
-      <button type="button" class="btn btn-sec btn-s" onclick={() => oncontrol("pause")}>{t("gen.progress.pause")}</button>
-    {/if}
-    <button type="button" class="btn btn-gh btn-s" onclick={() => oncontrol("cancel")}>{t("gen.progress.cancel")}</button>
-    <span class="tot mono">{t("gen.progress.estimate", { tok: fmtTokensImpl(totalTokens(est), { approx: true }) })}</span>
-  </div>
+  <p class="tail mono">{tail ?? " "}</p>
 </section>
 
 <style>
   .prog {
-    padding: 18px 20px 12px;
+    padding: 22px 24px 14px;
     box-shadow: var(--shadow-soft);
     min-height: 352px;
   }
   h2 {
     font-family: var(--font-serif);
-    font-size: var(--fs-lead);
+    font-size: 21px;
     font-weight: var(--fw-strong);
     color: var(--ink);
     margin: 0 0 12px;
   }
-  .cnt {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0;
-    border: 1px solid var(--rule);
-    border-radius: 8px;
-    margin: 0;
-    overflow: hidden;
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule-soft);
   }
-  .cnt div {
-    padding: 8px 10px;
-  }
-  .cnt div:nth-child(even) {
-    border-left: 1px solid var(--rule);
-  }
-  .cnt div:nth-child(n + 3) {
-    border-top: 1px solid var(--rule);
-  }
-  dt {
-    font-size: var(--fs-meta);
-    color: var(--muted);
-  }
-  dd {
+  .lead {
     margin: 0;
     font-size: var(--fs-ui);
+    font-weight: var(--fw-strong);
     color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    min-width: 0;
   }
-  dd span {
-    color: var(--muted);
-    font-size: var(--fs-label);
+  .ctl {
+    display: flex;
+    gap: 4px;
+    flex: none;
   }
   .stages {
     list-style: none;
-    margin: 12px 0 0;
+    margin: 10px 0 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
   }
   .stages li {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 2px 8px;
-    font-size: var(--fs-label);
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 8px;
+    min-height: 30px;
+    padding: 4px 0;
+    font-size: var(--fs-ui);
     color: var(--muted);
   }
-  .stages li.on {
+  .stages li[data-s="running"] {
     color: var(--ink);
+    font-weight: var(--fw-strong);
   }
-  .meter {
-    grid-column: 1 / -1;
+  .stages li[data-s="done"] .g {
+    color: var(--c-ok);
+  }
+  .stages li[data-s="running"] .g {
+    color: var(--gen-ring);
+  }
+  .stages li[data-s="failed"] .g {
+    color: var(--c-bad);
+  }
+  .g {
+    text-align: center;
+    font-size: var(--fs-ui-m);
+  }
+  .lbl {
+    min-width: 0;
+  }
+  .n {
+    margin-left: 6px;
+    font-size: var(--fs-label);
+  }
+  .par {
+    margin-left: 4px;
+    font-size: var(--fs-label);
+    font-weight: var(--fw-regular);
+    color: var(--muted);
+  }
+  .tok {
+    font-size: var(--fs-label);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .bar {
     height: 3px;
+    margin: 10px 0 0;
     border-radius: 2px;
     background: var(--rule);
     overflow: hidden;
   }
-  .meter i {
+  .bar i {
     display: block;
     height: 100%;
     background: var(--ink);
     transform-origin: 0 50%;
     transition: transform 0.4s var(--ease-out);
+  }
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    margin: 8px 0 0;
+    font-size: var(--fs-label);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .cnt {
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    justify-content: space-between;
+    gap: 8px;
+    margin: 12px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule-soft);
+  }
+  dt {
+    font-family: var(--font-ui);
+    font-size: var(--fs-meta);
+    color: var(--muted);
+  }
+  dd {
+    margin: 0;
+    font-size: var(--fs-label);
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  dd span {
+    color: var(--muted);
   }
   .paused {
     margin: 8px 0 0;
@@ -148,22 +221,11 @@ const paused = $derived(run.state === "paused" ? (run.paused ?? { reason: "user"
     color: var(--c-warn);
   }
   .tail {
-    margin: 8px 0 0;
+    margin: 6px 0 0;
     font-size: var(--fs-meta);
     color: var(--muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-  .ctl {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 10px;
-  }
-  .tot {
-    margin-left: auto;
-    font-size: var(--fs-meta);
-    color: var(--muted);
   }
 </style>

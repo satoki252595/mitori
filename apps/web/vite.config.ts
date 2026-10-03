@@ -14,6 +14,10 @@ const FACADES: [RegExp, string][] = [
   [/\/src\/reader\/views\.ts$/, "reader"],
   [/\/src\/palette\/Palette\.svelte$/, "palette"],
   [/\/src\/gen\/GenPage\.svelte$/, "gen"],
+  [/\/src\/map\/side\.ts$/, "gen"],
+  [/\/src\/reader\/pop\.ts$/, "reader"],
+  [/\/src\/shell\/Launcher\.svelte$/, "launcher"],
+  [/\/src\/shell\/HelpOverlay\.svelte$/, "help"],
   [/\/src\/settings\/SettingsPage\.svelte$/, "settings"],
   [/\/src\/shell\/i18n-ja\.ts$/, "i18n-ja"],
   [/\/src\/shell\/i18n-en\.ts$/, "i18n-en"],
@@ -40,11 +44,13 @@ function headPlugin(): Plugin {
         const chunks: HeadChunks = { ja: "", en: "", map: "", reader: "" };
         for (const out of Object.values(ctx.bundle ?? {})) {
           if (out.type !== "chunk") continue;
+          // route chunks by their facade (a lazy sub-facade may share a chunk name, e.g. map/side.ts → gen)
+          const facade = (out.facadeModuleId ?? "").replaceAll("\\", "/");
           const name = chunkName(out.facadeModuleId, out.name);
           if (name === "i18n-ja") chunks.ja = `/${out.fileName}`;
           else if (name === "i18n-en") chunks.en = `/${out.fileName}`;
-          else if (name === "map") chunks.map = `/${out.fileName}`;
-          else if (name === "reader") chunks.reader = `/${out.fileName}`;
+          else if (/\/src\/map\/views\.ts$/.test(facade)) chunks.map = `/${out.fileName}`;
+          else if (/\/src\/reader\/views\.ts$/.test(facade)) chunks.reader = `/${out.fileName}`;
         }
         const src = `(${bootHead.toString()})(document,${parseUiCookieFields.toString()},${JSON.stringify(chunks)});`;
         const code = minifySync("head.js", src, { compress: true, mangle: true })
@@ -85,7 +91,7 @@ export default defineConfig(({ mode }) => ({
               test: (id: string) =>
                 /[\\/](node_modules[\\/](svelte|esm-env|clsx)|packages[\\/](core|client)[\\/]src|apps[\\/]web[\\/]src[\\/](shell|stores|contract\.ts))[\\/.]/.test(
                   id,
-                ) && !/[\\/]shell[\\/](i18n-(ja|en)|main)\.ts$/.test(id),
+                ) && !/[\\/]shell[\\/](?:(?:i18n-(?:ja|en)|main)\.ts|(?:Launcher|HelpOverlay)\.svelte)$/.test(id),
               priority: 10,
             },
           ],

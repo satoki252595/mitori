@@ -1,16 +1,30 @@
 <!--
-  Generation estimate card (ux.md §4.2.4 + R1; contract `GenEstimateCardProps`): the card IS the confirmation —
-  one click (or Enter on the focused button) starts. R1: API-equivalent $ stays the main figure with the billing
-  state on the same line (UXP-09), ranges while uncalibrated (UXP-30), the 5h line with the plan prior
-  (UXP-08), a non-collapsible data-disclosure row until acknowledged — only a click after the row was visible
-  ≥ 1 s counts as the acknowledgement (UXP-04, AC-U-DP).
+  Generation estimate card (ux.md §4.2.4 + R1; contract `GenEstimateCardProps`; prototype `01-first-run-map`): the
+  card IS the confirmation — one click (or Enter on the focused button) starts. Three effort tiles, the main line
+  with the 生成 button, what the run reads and writes, the engine line (first-run pin, 5h window), the two other
+  paths (your own session, API key) and 「内訳と経路 ▾」. R1: API-equivalent $ stays the main figure with the
+  billing state under it (UXP-09), ranges while uncalibrated (UXP-30), the 5h line with the plan prior (UXP-08),
+  a non-collapsible data-disclosure row until acknowledged — only a click after the row was visible ≥ 1 s counts
+  as the acknowledgement (UXP-04, AC-U-DP). `detecting`: engines are being probed (no button yet).
 -->
 <script lang="ts">
 import type { Effort, EngineId, EngineStatus, GenEstimate, ScanSummaryView, SubscriptionWindow } from "@mitori/core";
 import { fmtHm, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
 import { hasKey } from "../shell/i18n.ts";
 import { t } from "../shell/index.ts";
-import { billingLine, EFFORTS, estimateValidity, figures, narrowerEffort, stageRows, startMode, windowLine } from "./estimate.ts";
+import {
+  billingLine,
+  detailLine,
+  EFFORTS,
+  estimateValidity,
+  figures,
+  moduleChapters,
+  narrowerEffort,
+  stageRows,
+  startMode,
+  tileFigures,
+  windowLine,
+} from "./estimate.ts";
 import { VisibleClock } from "./visibility.ts";
 
 let {
@@ -21,15 +35,15 @@ let {
   policyAcked,
   breakdownOpen,
   engineStatus,
+  detecting = false,
   scan,
   busy,
-  collapsed,
   oneffort,
   onengine,
   onstart,
   onack,
   oncopy,
-  onexpand,
+  onsettings,
 }: {
   estimates: Partial<Record<Effort, GenEstimate>>;
   effort: Effort;
@@ -38,15 +52,17 @@ let {
   policyAcked: boolean;
   breakdownOpen: boolean;
   engineStatus: EngineStatus | null;
+  /** Engines not probed yet: tiles and the button wait. */
+  detecting?: boolean;
   scan: ScanSummaryView | null;
   busy: boolean;
-  collapsed: boolean;
   oneffort: (e: Effort) => void;
   onengine: (e: EngineId) => void;
   onstart: (opts: { notBefore?: string }) => void;
   onack: (shownAt: string) => Promise<unknown>;
   oncopy: (text: string) => void;
-  onexpand: () => void;
+  /** 「変更」 of a first-run pin (settings page). */
+  onsettings?: () => void;
 } = $props();
 
 let overageOk = $state(false);
@@ -59,6 +75,9 @@ const policyKey = $derived.by(() => {
   const k = engineStatus?.dataPolicyKey ? `policy.${engineStatus.dataPolicyKey.replace(/[^a-zA-Z0-9]/g, "_")}` : "";
   return k && hasKey(k) ? k : "policy.default";
 });
+const pin = $derived(engineStatus?.pin ?? null);
+const api = $derived(est?.alternatives.find((a) => a.engine === "anthropic-api") ?? null);
+const sessionCmd = $derived(`mitori gen --prep --effort ${effort}`);
 
 // disclosure visibility (≥ 1 s in view before a click may acknowledge it)
 let disclosure: HTMLElement | undefined = $state();
@@ -105,148 +124,150 @@ const validity = $derived(est ? estimateValidity(est, Date.now()) : null);
 const resetAt = $derived(win?.fiveHour?.resetsAt ?? null);
 /** 「範囲を絞る」 on the card = the next smaller effort (its estimate is already fetched; switching costs 0 requests). */
 const narrower = $derived(narrowerEffort(effort));
+const scopeText = $derived(est ? t(`gen.card.scope.${effort}`, { n: moduleChapters(est) }) : "");
 </script>
 
-{#if collapsed}
-  <button type="button" class="est one card" onclick={onexpand}>
-    <span class="t">{t("gen.card.title")}</span>
-    {#if est && main}<span class="mono">{t(`gen.effort.${effort}`)} {main.tokens} &middot; {main.usd}</span>{/if}
-  </button>
-{:else}
-  <section class="est card" aria-labelledby="est-title" data-chrome>
-    <h2 id="est-title">{t("gen.card.title")}</h2>
+<section class="est card" aria-labelledby="est-title" aria-busy={detecting || undefined} data-chrome>
+  <h2 id="est-title">{t("gen.card.title")}</h2>
 
-    <div class="eff" role="radiogroup" aria-label={t("gen.card.effortLabel")}>
-      {#each EFFORTS as e (e)}
-        {@const x = estimates[e]}
-        {@const f = x ? figures(x, false) : null}
-        <label class:sel={e === effort}>
-          <input type="radio" name="mitori-effort" value={e} checked={e === effort} onchange={() => oneffort(e)} />
-          <span class="tt">{t(`gen.effort.${e}`)}{#if e === "standard"}<span class="rec">{t("gen.card.recommended")}</span>{/if}</span>
-          {#if f}
-            <span class="v mono" title="{f.tokens} tok">{f.tokens} tok</span>
-            <span class="v2" title="{f.usd} · {f.time}">{f.usd} &middot; {f.time}</span>
-          {:else}
-            <span class="v skel">&nbsp;</span><span class="v2 skel">&nbsp;</span>
-          {/if}
-        </label>
-      {/each}
-    </div>
-
-    {#if !policyAcked}
-      <p class="disc" class:nudge bind:this={disclosure} data-testid="disclosure">
-        {t(policyKey, {
-          files: scan ? scan.included.toLocaleString() : "–",
-          excluded: scan ? (scan.files - scan.included).toLocaleString() : "–",
-        })}
-      </p>
-    {/if}
-
-    <div class="main">
-      {#if est && main && mode}
-        <p class="sum">
-          <span class="lead">{t("gen.card.mainLine", { effort: t(`gen.effort.${effort}`), tokens: main.tokens, usd: main.usd, time: main.time })}{#if main.range}<span class="unc">{t("gen.card.uncalibrated")}</span>{/if}</span>
-          {#if bill}<span class="bill" data-tone={bill.tone}>{bill.text}</span>{/if}
-        </p>
-        {#if mode.kind === "session"}
-          <button type="button" class="btn btn-pri go" onclick={() => oncopy(mode.copy)}>{t("gen.card.copySession")}</button>
-        {:else if mode.kind === "windowRisk"}
-          <!-- window_risk (§16 R11): the main button splits into 4 choices; nothing starts without one of them -->
-          <div class="four" data-testid="window-risk">
-            <button type="button" class="btn btn-pri" aria-disabled={busy} onclick={() => start()}>{t("gen.card.startNow")}</button>
-            {#if resetAt}<button type="button" class="btn btn-sec" onclick={() => start({ notBefore: resetAt })}>{t("gen.card.afterReset", { time: fmtHm(resetAt) })}</button>{/if}
-            <button type="button" class="btn btn-sec" onclick={() => onengine("session")}>{t("gen.card.viaSession")}</button>
-            {#if narrower}<button type="button" class="btn btn-gh" onclick={() => narrower && oneffort(narrower)}>{t("gen.card.narrow")}</button>{/if}
-          </div>
+  <div class="eff" role="radiogroup" aria-label={t("gen.card.effortLabel")}>
+    {#each EFFORTS as e (e)}
+      {@const x = estimates[e]}
+      {@const f = x ? tileFigures(x) : null}
+      <label class:sel={e === effort}>
+        <input type="radio" name="mitori-effort" value={e} checked={e === effort} onchange={() => oneffort(e)} />
+        <span class="tt">{t(`gen.effort.${e}`)}{#if e === "standard"}<span class="rec">{t("gen.card.recommended")}</span>{/if}</span>
+        {#if f}
+          <span class="v mono">{f.tokens}{#if !f.range}<span class="u">tok</span>{/if}</span>
+          <span class="v2">{f.usd}</span>
+          <span class="v2">{f.time}</span>
         {:else}
-          <button type="button" class="btn btn-pri go" class:warn={mode.kind === "overage"} aria-disabled={busy || (mode.kind === "overage" && !overageOk)} onclick={() => (mode.kind === "overage" && !overageOk ? undefined : start())}
-            >{busy ? t("gen.card.starting") : t("gen.card.start")}</button
-          >
+          <span class="v skel">&nbsp;</span><span class="v2 skel">&nbsp;</span><span class="v2 skel">&nbsp;</span>
         {/if}
-      {:else}
-        <p class="sum"><span class="skel lead-skel">&nbsp;</span></p>
-        <button type="button" class="btn btn-pri go" aria-disabled="true">{t("gen.card.start")}</button>
-      {/if}
-    </div>
+      </label>
+    {/each}
+  </div>
 
-    {#if mode?.kind === "overage"}
-      <label class="ovg"><input type="checkbox" bind:checked={overageOk} /> {t("gen.card.overageAck")}</label>
-    {/if}
-    {#if est?.confirmReasons.includes("api_key_billing")}
-      <p class="sub warn">{t("gen.card.apiKeyBilling", { usd: fmtUsdImpl(est.apiUsd, "gen") })}</p>
-    {/if}
-    {#if mode?.kind === "session"}
-      <ol class="steps">
-        <li>{t("gen.session.step1")}</li>
-        <li>{t("gen.session.step2")}</li>
-        <li>{t("gen.session.step3")}</li>
-      </ol>
-      <button type="button" class="btn btn-gh" onclick={() => oncopy(mode.raw)}><code>{mode.raw}</code></button>
-    {/if}
-
-    <p class="sub">
-      {t("gen.card.supplement", {
-        engine: engine,
-        auth: t(`gen.card.auth.${engineStatus?.auth ?? "unknown"}`),
-        c: est?.concurrency ?? "–",
-        window: windowText,
+  {#if !policyAcked && !detecting}
+    <p class="disc" class:nudge bind:this={disclosure} data-testid="disclosure">
+      {t(policyKey, {
+        files: scan ? scan.included.toLocaleString() : "–",
+        excluded: scan ? (scan.files - scan.included).toLocaleString() : "–",
       })}
     </p>
+  {/if}
 
-    {#if est}
-      <details class="brk" open={breakdownOpen}>
-        <summary>{t("gen.card.breakdown")}</summary>
-        <table>
-          <thead><tr><th scope="col">{t("gen.card.colStage")}</th><th scope="col">{t("gen.card.colIo")}</th><th scope="col">$</th><th scope="col">{t("gen.card.colTime")}</th></tr></thead>
-          <tbody>
-            {#each stageRows(est) as r (r.stage)}
-              <tr><td>{t(`gen.stage.${r.stage}`)}{#if r.critical}*{/if} &middot; {r.tasks}</td><td class="mono">{r.io}</td><td class="mono">{r.usd}</td><td class="mono">{r.time}</td></tr>
-            {/each}
-          </tbody>
-        </table>
-        <p class="note">{t("gen.card.critical")}</p>
-        <fieldset class="eng">
-          <legend>{t("gen.card.engineLabel")}</legend>
-          {#each est.alternatives as alt (alt.engine)}
-            <label
-              ><input type="radio" name="mitori-engine" value={alt.engine} checked={alt.engine === engine} onchange={() => onengine(alt.engine)} />
-              <span class="mono">{alt.engine}</span>
-              <span>{t("gen.card.alt", { c: alt.concurrency, usd: fmtUsdImpl(alt.apiUsd, "gen") })}{#if alt.sessionTokens}{t("gen.card.altSession", { k: fmtTokensImpl(alt.sessionTokens) })}{/if}{#if alt.uncalibrated}{t("gen.card.uncalibrated")}{/if}</span>
-            </label>
-          {/each}
-        </fieldset>
-        {#if validity}<p class="note mono">{t("gen.card.validity", { id: est.id.slice(3, 11), min: validity.minutes })}</p>{/if}
-      </details>
+  <div class="main">
+    {#if est && main && mode && !detecting}
+      <p class="sum">
+        <span class="lead">{t("gen.card.mainLine", { effort: t(`gen.effort.${effort}`), tokens: main.tokens, usd: main.usd, time: main.time })}{#if main.range}<span class="unc">{t("gen.card.uncalibrated")}</span>{/if}</span>
+        {#if bill}<span class="bill" data-tone={bill.tone}>{bill.text}</span>{/if}
+      </p>
+      {#if mode.kind === "session"}
+        <button type="button" class="btn btn-pri go" onclick={() => oncopy(mode.copy)}>{t("gen.card.copySession")}</button>
+      {:else if mode.kind === "windowRisk"}
+        <!-- window_risk (§16 R11): the main button splits into 4 choices; nothing starts without one of them -->
+        <div class="four" data-testid="window-risk">
+          <button type="button" class="btn btn-pri" aria-disabled={busy} onclick={() => start()}>{t("gen.card.startNow")}</button>
+          {#if resetAt}<button type="button" class="btn btn-sec" onclick={() => start({ notBefore: resetAt })}>{t("gen.card.afterReset", { time: fmtHm(resetAt) })}</button>{/if}
+          <button type="button" class="btn btn-sec" onclick={() => onengine("session")}>{t("gen.card.viaSession")}</button>
+          {#if narrower}<button type="button" class="btn btn-gh" onclick={() => narrower && oneffort(narrower)}>{t("gen.card.narrow")}</button>{/if}
+        </div>
+      {:else}
+        <button type="button" class="btn btn-pri go" class:warn={mode.kind === "overage"} aria-disabled={busy || (mode.kind === "overage" && !overageOk)} onclick={() => (mode.kind === "overage" && !overageOk ? undefined : start())}
+          >{busy ? t("gen.card.starting") : t("gen.card.start")}</button
+        >
+      {/if}
+    {:else}
+      <p class="sum">
+        {#if detecting}<span class="detect"><span class="spin" aria-hidden="true"></span>{t("gen.card.detecting", { engine })}</span>{:else}<span class="skel lead-skel">&nbsp;</span>{/if}
+      </p>
+      <button type="button" class="btn btn-pri go" aria-disabled="true">{t("gen.card.start")}</button>
     {/if}
-  </section>
-{/if}
+  </div>
+
+  {#if est && !detecting}
+    <p class="detail">{scopeText}<span class="sep" aria-hidden="true">&middot;</span>{detailLine(est, t)}</p>
+  {/if}
+
+  {#if mode?.kind === "overage"}
+    <label class="ovg"><input type="checkbox" bind:checked={overageOk} /> {t("gen.card.overageAck")}</label>
+  {/if}
+  {#if est?.confirmReasons.includes("api_key_billing")}
+    <p class="sub warn">{t("gen.card.apiKeyBilling", { usd: fmtUsdImpl(est.apiUsd, "gen") })}</p>
+  {/if}
+  {#if mode?.kind === "session"}
+    <ol class="steps">
+      <li>{t("gen.session.step1")}</li>
+      <li>{t("gen.session.step2")}</li>
+      <li>{t("gen.session.step3")}</li>
+    </ol>
+  {/if}
+
+  <p class="sub">
+    {t("gen.card.supplement", {
+      engine: engine,
+      auth: t(`gen.card.auth.${engineStatus?.auth ?? "unknown"}`),
+      c: est?.concurrency ?? "–",
+      window: windowText || t("gen.window.uncalibrated"),
+    })}
+    {#if pin?.by === "first-run"}
+      <span class="pin">{t("gen.card.firstRunPin", { version: pin.version.replace(/\s*\(.*\)$/, "") })}{#if onsettings}<button type="button" class="link-btn" onclick={onsettings}>{t("gen.card.change")}</button>{/if}</span>
+    {/if}
+  </p>
+
+  <ul class="paths">
+    <li>
+      <span class="pk" aria-hidden="true">&gt;_</span>
+      <span>{t("gen.card.ownSession")}</span>
+      <button type="button" class="cmd mono" title={t("gen.card.copySession")} onclick={() => oncopy(sessionCmd)}>{sessionCmd}</button>
+    </li>
+    <li>
+      <span class="pk" aria-hidden="true">$</span>
+      <span>{t("gen.card.apiKey")}</span>
+      <span class="mono muted">{api ? t("gen.card.apiBatch", { usd: fmtUsdImpl(api.apiUsd, "genMain") }) : t("gen.card.apiOff")}</span>
+    </li>
+  </ul>
+
+  {#if est}
+    <details class="brk" open={breakdownOpen}>
+      <summary>{t("gen.card.breakdown")}</summary>
+      <table>
+        <thead><tr><th scope="col">{t("gen.card.colStage")}</th><th scope="col" class="num">{t("gen.card.colIo")}</th><th scope="col" class="num">$</th><th scope="col" class="num">{t("gen.card.colTime")}</th></tr></thead>
+        <tbody>
+          {#each stageRows(est) as r (r.stage)}
+            <tr><td>{t(`gen.stage.${r.stage}`)}{#if r.critical}*{/if} &middot; {r.tasks}</td><td class="mono num">{r.io}</td><td class="mono num">{r.usd}</td><td class="mono num">{r.time}</td></tr>
+          {/each}
+        </tbody>
+      </table>
+      <p class="note">{t("gen.card.critical")}</p>
+      <fieldset class="eng">
+        <legend>{t("gen.card.engineLabel")}</legend>
+        {#each est.alternatives as alt (alt.engine)}
+          <label
+            ><input type="radio" name="mitori-engine" value={alt.engine} checked={alt.engine === engine} onchange={() => onengine(alt.engine)} />
+            <span class="mono">{alt.engine}</span>
+            <span>{t("gen.card.alt", { c: alt.concurrency, usd: fmtUsdImpl(alt.apiUsd, "gen") })}{#if alt.sessionTokens}{t("gen.card.altSession", { k: fmtTokensImpl(alt.sessionTokens) })}{/if}{#if alt.uncalibrated}{t("gen.card.uncalibrated")}{/if}</span>
+          </label>
+        {/each}
+      </fieldset>
+      {#if validity}<p class="note mono">{t("gen.card.validity", { id: est.id.slice(3, 11), min: validity.minutes })}</p>{/if}
+    </details>
+  {/if}
+</section>
 
 <style>
   .est {
-    padding: 18px 20px 12px;
+    padding: 22px 24px 14px;
     box-shadow: var(--shadow-soft);
     min-height: 352px;
   }
-  .est.one {
-    display: flex;
-    width: 100%;
-    justify-content: space-between;
-    align-items: center;
-    min-height: 48px;
-    padding: 10px 16px;
-    text-align: left;
-  }
-  .one .t {
-    font-family: var(--font-serif);
-    font-weight: var(--fw-strong);
-    color: var(--ink);
-  }
   h2 {
     font-family: var(--font-serif);
-    font-size: var(--fs-lead);
+    font-size: 21px;
     font-weight: var(--fw-strong);
     color: var(--ink);
-    margin: 0 0 12px;
+    margin: 0 0 14px;
   }
   .eff {
     display: grid;
@@ -260,9 +281,9 @@ const narrower = $derived(narrowerEffort(effort));
     display: flex;
     flex-direction: column;
     gap: 1px;
-    padding: 9px 10px 8px;
+    padding: 10px 12px 9px;
     cursor: pointer;
-    min-height: 70px;
+    min-height: 92px;
     min-width: 0;
     transition: background-color var(--dur-hover-l);
   }
@@ -304,9 +325,14 @@ const narrower = $derived(narrowerEffort(effort));
     text-overflow: ellipsis;
   }
   .eff .v {
-    font-size: var(--fs-label);
-    color: var(--text);
+    font-size: var(--fs-ui);
+    color: var(--ink);
     line-height: 1.5;
+  }
+  .eff .u {
+    margin-left: 0.3em;
+    color: var(--muted);
+    font-size: var(--fs-label);
   }
   .eff .v2 {
     font-size: var(--fs-label);
@@ -339,10 +365,10 @@ const narrower = $derived(narrowerEffort(effort));
   .main {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     justify-content: space-between;
-    padding: 12px 0 4px;
-    min-height: 76px;
+    padding: 14px 0 6px;
+    min-height: 78px;
   }
   .sum {
     margin: 0;
@@ -378,9 +404,31 @@ const narrower = $derived(narrowerEffort(effort));
     width: 14em;
     height: 1.2em;
   }
+  .detect {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: var(--fs-ui);
+  }
+  .spin {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--rule-2);
+    border-top-color: var(--ink);
+    animation: est-spin 0.9s linear infinite;
+  }
+  @keyframes est-spin {
+    to {
+      transform: rotate(1turn);
+    }
+  }
   .go {
-    min-width: 104px;
+    min-width: 116px;
+    height: 44px;
     flex: none;
+    font-size: var(--fs-ui-m);
   }
   .four {
     display: flex;
@@ -388,18 +436,82 @@ const narrower = $derived(narrowerEffort(effort));
     gap: 6px;
     justify-content: flex-end;
   }
+  .detail {
+    margin: 0 0 4px;
+    font-size: var(--fs-label);
+    line-height: 1.65;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .sep {
+    margin: 0 4px;
+    color: var(--rule-2);
+  }
   .sub {
     font-size: var(--fs-label);
     color: var(--muted);
     line-height: 1.6;
-    margin: 6px 0 4px;
-    padding-top: 8px;
+    margin: 8px 0 4px;
+    padding-top: 10px;
     border-top: 1px solid var(--rule-soft);
   }
   .sub.warn {
     color: var(--c-warn);
     border: 0;
     padding: 0;
+  }
+  .pin {
+    display: block;
+    color: var(--muted);
+  }
+  .pin .link-btn {
+    margin-left: 6px;
+  }
+  .link-btn {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: var(--rule-2);
+    text-underline-offset: 3px;
+  }
+  .paths {
+    list-style: none;
+    margin: 6px 0 2px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--fs-label);
+    color: var(--text);
+  }
+  .paths li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .paths .pk {
+    width: 18px;
+    font-family: var(--font-mono);
+    color: var(--muted);
+    text-align: center;
+  }
+  .paths .cmd {
+    color: var(--muted);
+    border-radius: var(--r-btn);
+    padding: 2px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .paths .cmd:hover {
+    background: var(--hover);
+    color: var(--ink);
+  }
+  .muted {
+    color: var(--muted);
   }
   .ovg {
     display: flex;
@@ -417,11 +529,13 @@ const narrower = $derived(narrowerEffort(effort));
   .brk {
     font-size: var(--fs-label);
     color: var(--text);
+    border-top: 1px solid var(--rule-soft);
+    margin-top: 6px;
   }
   .brk summary {
     cursor: pointer;
     color: var(--muted);
-    min-height: 28px;
+    min-height: 32px;
     display: flex;
     align-items: center;
   }
@@ -436,10 +550,16 @@ const narrower = $derived(narrowerEffort(effort));
     color: var(--muted);
     border-bottom: 1px solid var(--rule);
     padding: 4px 4px 4px 0;
+    white-space: nowrap;
   }
   .brk td {
     padding: 4px 4px 4px 0;
     border-bottom: 1px solid var(--rule-soft);
+  }
+  .brk .num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
   }
   .note {
     color: var(--muted);
@@ -463,5 +583,10 @@ const narrower = $derived(narrowerEffort(effort));
     gap: 8px;
     align-items: center;
     min-height: 24px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .spin {
+      animation: none;
+    }
   }
 </style>

@@ -16,7 +16,7 @@ import {
 } from "@mitori/core";
 import { SvelteMap } from "svelte/reactivity";
 import type { GenStore } from "../contract.ts";
-import { EFFORTS } from "../gen/estimate.ts";
+import { EFFORTS } from "../gen/efforts.ts";
 
 export class GenState implements GenStore {
   effort = $state<Effort>("standard");
@@ -54,6 +54,7 @@ export class GenState implements GenStore {
     this.estimates.clear();
     this.sectionEstimates.clear();
     this.#tasks.clear();
+    this.#hydrated = null;
     this.run = null;
     this.error = null;
   }
@@ -165,9 +166,29 @@ export class GenState implements GenStore {
   applyRun(r: GenRun): void {
     if (this.run && this.run.id !== r.id && r.startedAt && this.run.startedAt && r.startedAt < this.run.startedAt) return;
     this.run = r;
+    if (r.state !== "done" && r.state !== "failed" && r.state !== "cancelled") void this.#hydrate(r.id);
   }
 
   applyTask(t: GenTaskView): void {
     this.#tasks.set(t.id, t);
+  }
+
+  #hydrated: string | null = null;
+  /**
+   * A run seen for the first time (page opened mid-run, reconnect): its tasks so far come from
+   * `GET /gen/runs/:run` — SSE `gen.task` only carries the changes after that. Once per run; an SSE update that
+   * arrived meanwhile wins over the snapshot.
+   */
+  async #hydrate(run: GenRun["id"]): Promise<void> {
+    const ws = this.ws();
+    if (!ws || this.#hydrated === run) return;
+    this.#hydrated = run;
+    try {
+      const d = await this.api.call("GET /ws/:ws/gen/runs/:run", { params: { ws, run } });
+      if (this.ws() !== ws || this.run?.id !== run) return;
+      for (const t of d.tasks) if (!this.#tasks.has(t.id)) this.#tasks.set(t.id, t);
+    } catch {
+      this.#hydrated = null;
+    }
   }
 }

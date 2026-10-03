@@ -6,7 +6,7 @@ import { describe, expect, test } from "bun:test";
 import type { EntityKey, SseClient } from "@mitori/client";
 import type { SseEvent } from "@mitori/core";
 import type { Stores } from "./app.svelte.ts";
-import { acceptUpsert, wireSse } from "./sse.ts";
+import { acceptProgress, acceptUpsert, wireSse } from "./sse.ts";
 
 function fakeSse() {
   const handlers = new Map<string, (e: SseEvent) => void>();
@@ -35,6 +35,16 @@ describe("WEB-U-026 SSE upsert de-dupe", () => {
     expect(acceptUpsert(sse, "thread:th_1" as EntityKey, { rev: 4 })).toBe(false);
     expect(acceptUpsert(sse, "thread:th_1" as EntityKey, { rev: 6 })).toBe(true);
     expect(acceptUpsert(sse, "thread:th_1" as EntityKey, { rev: null })).toBe(true);
+  });
+
+  test("progress entities (run, task) accept every state of the same rev, never an older rev", () => {
+    const { sse } = fakeSse();
+    const k = "task:gt_1" as EntityKey;
+    expect(acceptProgress(sse, k, { rev: 5 })).toBe(true);
+    expect(acceptProgress(sse, k, { rev: 5 })).toBe(true);
+    expect(acceptProgress(sse, k, { rev: 4 })).toBe(false);
+    expect(acceptProgress(sse, k, { rev: 6 })).toBe(true);
+    expect(acceptProgress(sse, k, { rev: 5 })).toBe(false);
   });
 
   test("an older thread / job replay after a newer one does not overwrite it", () => {

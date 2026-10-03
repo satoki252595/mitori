@@ -6,6 +6,7 @@ import { canonicalJson, type DiagramIR, type DiagramLayout, type Hasher, type Lo
 import type { DiagramLayouter } from "../contract.ts";
 import { ELK_ENGINE, SEQUENCE_ENGINE, sequenceLayout } from "./elk.ts";
 import { toMermaidText } from "./mermaid.ts";
+import { ROOMS_ENGINE, roomsLayout } from "./rooms.ts";
 
 const MEM_MAX = 256;
 
@@ -26,7 +27,8 @@ export function createDiagramLayouter(deps: {
   return {
     async layout(ir, signal) {
       signal?.throwIfAborted();
-      const engine = ir.kind === "sequence" ? SEQUENCE_ENGINE : ELK_ENGINE;
+      // the container map (S1) is a packed building of rooms sized for their labels; other kinds go to ELK
+      const engine = ir.kind === "sequence" ? SEQUENCE_ENGINE : ir.kind === "container" ? ROOMS_ENGINE : ELK_ENGINE;
       // the id is not part of the layout input: identical diagrams share one cached layout
       const irHash = deps.hasher.xxh3(canonicalJson({ ...ir, id: null }));
       const key = `${engine}|${irHash}`;
@@ -40,7 +42,11 @@ export function createDiagramLayouter(deps: {
       }
       const t0 = performance.now();
       const out =
-        ir.kind === "sequence" ? sequenceLayout(ir, irHash) : { ...(await deps.elk.run({ ir, kind: "layered", prev: null }, signal)), irHash, diagram: ir.id };
+        ir.kind === "sequence"
+          ? sequenceLayout(ir, irHash)
+          : ir.kind === "container"
+            ? roomsLayout(ir, irHash)
+            : { ...(await deps.elk.run({ ir, kind: "layered", prev: null }, signal)), irHash, diagram: ir.id };
       log.debug("layout", { diagram: ir.id, nodes: ir.nodes.length, ms: Math.round(performance.now() - t0) });
       deps.db.run("INSERT OR REPLACE INTO doc_layouts (ir_hash, engine, diagram, json) VALUES (?, ?, ?, ?)", [irHash, engine, ir.id, JSON.stringify(out)]);
       remember(key, out);

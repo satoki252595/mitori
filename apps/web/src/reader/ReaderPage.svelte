@@ -14,10 +14,8 @@ import { DEFAULT_PATH, selectedPath } from "../shell/reading.ts";
 import { getItem, getJson, STORAGE_KEYS, setItem, setJson } from "../shell/storage.ts";
 import { currentLayout, setReaderLevel, useStores } from "../stores/app.svelte.ts";
 import BlockHost from "./BlockHost.svelte";
-import CitePeek from "./CitePeek.svelte";
-import ClaimPopover from "./ClaimPopover.svelte";
 import ContextColumn from "./ContextColumn.svelte";
-import { editorUrl, parseCite } from "./code.ts";
+import { editorUrl, factPeek, parseCite } from "./code.ts";
 import { applyLevel } from "./decorate.ts";
 import Gutter from "./Gutter.svelte";
 import { blockVisibleImpl, permalinkTextImpl, stepLevel } from "./levels.ts";
@@ -25,9 +23,14 @@ import Minimap from "./Minimap.svelte";
 import { readingMinutes, subtreeStats } from "./outline.ts";
 import { buildPage, type PagePart, sectionsToFetch, stepBlock } from "./page.ts";
 import { type Anchor, captureAnchor, restoreAnchor } from "./scroll-anchor.ts";
-import TermCard from "./TermCard.svelte";
 
 const s = useStores();
+// peek / term card / claim popover: a lazy chunk, fetched when idle after the first section paint (or on demand)
+let pop = $state.raw<typeof import("./pop.ts") | null>(null);
+let popLoading: Promise<unknown> | null = null;
+function loadPop(): void {
+  popLoading ??= import("./pop.ts").then((m) => (pop = m));
+}
 const route = $derived(s.router.route);
 const ws = $derived("ws" in route ? route.ws : null);
 const ix = $derived(s.doc.index);
@@ -99,6 +102,7 @@ $effect(() => {
     requestAnimationFrame(() => {
       mark("mitori:section:rendered", { id: model.page });
       s.router.painted();
+      if (!pop) (globalThis.requestIdleCallback ?? ((f: () => void) => setTimeout(f, 200)))(() => loadPop());
     });
     const restored = s.router.restored;
     if (restored) {
@@ -268,7 +272,12 @@ function fetchPeek(cite: string, blob: string): Promise<CitePeekData> | null {
   const key = `${cite}@${blob}`;
   let p = peekCache.get(key);
   if (!p) {
-    p = s.api.call("GET /ws/:ws/cite", { params: { ws }, query: { path: c.path, start: c.start, end: c.end, blob, ctx: 3 } });
+    // a static fact cite has no claim (no blob): the current file range, highlighted, stands in for the peek
+    p = blob
+      ? s.api.call("GET /ws/:ws/cite", { params: { ws }, query: { path: c.path, start: c.start, end: c.end, blob, ctx: 3 } })
+      : s.api
+          .call("GET /ws/:ws/files/content", { params: { ws }, query: { path: c.path, start: Math.max(1, c.start - 3), end: c.end + 3, html: "1" } })
+          .then((f) => factPeek(f, c));
     p.catch(() => peekCache.delete(key));
     peekCache.set(key, p);
     if (peekCache.size > 100) peekCache.delete(peekCache.keys().next().value as string);
@@ -290,6 +299,7 @@ function closePeek() {
 
 function onCite(e: { cite: string; blob: string; anchorEl: HTMLElement; via: "hover" | "focus" | "click" | "leave" }) {
   if (e.via === "leave") return closePeekSoon();
+  loadPop();
   if (peekTimer) clearTimeout(peekTimer);
   const p = fetchPeek(e.cite, e.blob);
   if (!p) return;
@@ -343,7 +353,7 @@ function pinPeek() {
     else leaveCode();
     return;
   }
-  const cite = peek?.anchorEl.dataset.cite ?? (document.activeElement as HTMLElement | null)?.closest?.("a.mcite")?.getAttribute("data-cite");
+  const cite = peek?.anchorEl.dataset.cite ?? (document.activeElement as HTMLElement | null)?.closest?.("a.mcite, a.fcite")?.getAttribute("data-cite");
   const c = cite ? parseCite(cite) : null;
   if (!c) return;
   closePeek();
@@ -499,6 +509,41 @@ const uiLang = $derived(s.prefs.lang);
 const docLang = $derived(s.doc.lang);
 const notGenerated = $derived(!s.doc.outline?.manifest.generatedAt);
 const reviewPanel = $derived(ext?.reviewPanel ?? null);
+
+// ---------------------------------------------------------------- 「この節について」 (empty margin): stats + cited files
+let citedFiles = $state.raw<{ path: RepoPath; n: number; start: LineNo; end: LineNo }[]>([]);
+$effect(() => {
+  if (!loaded || !main || !model) return;
+  void model.page;
+  const root = main;
+  // after the blocks (and their decoration) are in the DOM
+  const raf = requestAnimationFrame(() => {
+    const by = new Map<string, { path: RepoPath; n: number; start: LineNo; end: LineNo }>();
+    for (const a of root.querySelectorAll<HTMLElement>("a.mcite[data-cite], a.fcite[data-cite]")) {
+      const c = parseCite(a.dataset.cite ?? "");
+      if (!c) continue;
+      const cur = by.get(c.path);
+      if (cur) cur.n++;
+      else by.set(c.path, { path: c.path, n: 1, start: c.start, end: c.end });
+    }
+    citedFiles = [...by.values()].sort((a, b) => b.n - a.n || (a.path < b.path ? -1 : 1));
+  });
+  return () => cancelAnimationFrame(raf);
+});
+const about = $derived.by(() => {
+  if (!model || !ix) return null;
+  const st = subtreeStats(ix, model.page);
+  const blocks = model.parts.reduce((n, p) => n + p.blocks.length, 0);
+  return {
+    minutes: readingMinutes(model.parts[0]?.node.readingSec ?? 0),
+    blocks,
+    verified: st.verified,
+    inferred: st.inferred,
+    stale: st.stale,
+    staticOnly: model.parts.every((p) => p.node.state === "static_only"),
+    files: citedFiles,
+  };
+});
 const marginView = $derived(ext?.margin ?? null);
 </script>
 
@@ -579,6 +624,7 @@ const marginView = $derived(ext?.margin ?? null);
           docLang={s.doc.lang}
           tail={streamTail}
           mutate={(apply) => s.doc.mutate(apply)}
+          codeHref={(p, a, b) => (ws ? HREFS.code(ws, p as RepoPath, a as LineNo, b as LineNo) : null)}
         />
         {#if next && ws}
           <nav class="pager" aria-label={t("reader.pager")} data-chrome>
@@ -604,6 +650,7 @@ const marginView = $derived(ext?.margin ?? null);
     width={layout.ctx}
     page={model?.page ?? "s0"}
     {spy}
+    about={about}
     margin={marginView}
     review={reviewPanel}
     onwidth={(px) => {
@@ -613,7 +660,8 @@ const marginView = $derived(ext?.margin ?? null);
   />
 </div>
 
-{#if peek}
+{#if peek && pop}
+  {@const CitePeek = pop.CitePeek}
   <CitePeek
     data={peek.data}
     checks={peekChecks}
@@ -628,7 +676,8 @@ const marginView = $derived(ext?.margin ?? null);
     }}
   />
 {/if}
-{#if term && termEntry && ws}
+{#if term && termEntry && ws && pop}
+  {@const TermCard = pop.TermCard}
   <TermCard
     entry={termEntry}
     anchorEl={term.anchorEl}
@@ -640,7 +689,8 @@ const marginView = $derived(ext?.margin ?? null);
     }}
   />
 {/if}
-{#if claim}
+{#if claim && pop}
+  {@const ClaimPopover = pop.ClaimPopover}
   <ClaimPopover
     verdict={(claim.anchorEl.closest(".mc") as HTMLElement | null)?.dataset.verdict ?? "inferred"}
     anchorEl={claim.anchorEl}

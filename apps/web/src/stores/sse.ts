@@ -28,9 +28,21 @@ export function acceptUpsert(sse: Pick<SseClient, "isStale" | "noteRev">, key: E
   return true;
 }
 
+/**
+ * Progress entities (a generation run and its tasks) change many times within ONE workspace `rev` (pending →
+ * running → done): only an event of an OLDER rev is a replay; the same rev is a newer state of the same stream.
+ */
+export function acceptProgress(sse: Pick<SseClient, "isStale" | "noteRev">, key: EntityKey, e: Pick<SseEvent, "rev">): boolean {
+  if (e.rev === null) return true;
+  if (sse.isStale(key, e.rev + 1)) return false;
+  sse.noteRev(key, e.rev);
+  return true;
+}
+
 export function wireSse(s: Stores, hooks: SseHooks): () => void {
   const sse = s.sse;
   const stale = (key: EntityKey, e: SseEvent) => !acceptUpsert(sse, key, e);
+  const replayed = (key: EntityKey, e: SseEvent) => !acceptProgress(sse, key, e);
   const offs = [
     sse.on("resync", () => hooks.resync()),
     sse.on("server.shutdown", () => {}),
@@ -86,13 +98,13 @@ export function wireSse(s: Stores, hooks: SseHooks): () => void {
     }),
     sse.on("doc.proposal.removed", (e) => s.doc.removeProposal(e.id)),
     sse.on("gen.run", (e) => {
-      if (stale(`run:${e.run.id}`, e)) return;
+      if (replayed(`run:${e.run.id}`, e)) return;
       const wasActive = s.gen.run?.state === "running";
       s.gen.applyRun(e.run);
       if (wasActive && e.run.state === "done") hooks.genDone(e);
     }),
     sse.on("gen.task", (e) => {
-      if (stale(`task:${e.task.id}`, e)) return;
+      if (replayed(`task:${e.task.id}`, e)) return;
       s.gen.applyTask(e.task);
     }),
     sse.on("palette.changed", () => s.palette.invalidate()),

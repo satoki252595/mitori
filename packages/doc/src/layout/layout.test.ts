@@ -5,6 +5,7 @@ import { DOC_MIGRATIONS } from "../store/index.ts";
 import { hasher, inlinePool, memDb, silentLog } from "../test/helpers.ts";
 import { elkLayout, irToElk, sequenceLayout } from "./elk.ts";
 import { createDiagramLayouter } from "./index.ts";
+import { ROOM_BOX, ROOMS_ENGINE, roomsLayout, roomWidth } from "./rooms.ts";
 
 const ir = (over: Partial<DiagramIR> = {}): DiagramIR => ({
   id: "dg_00000001" as DiagramId,
@@ -129,5 +130,92 @@ describe("DOC-G-013 AI diagrams with duplicate ids", () => {
     } finally {
       elk.terminateWorker();
     }
+  });
+});
+
+describe("DOC-G-013 container map: rooms sized for their labels, zones as bands (M1 §5-1)", () => {
+  const map = (zones: number, perZone: number, loose = 0): DiagramIR => {
+    const groups = Array.from({ length: zones }, (_, z) => ({ id: `z${z}`, label: `zone ${z}` }));
+    const nodes = [
+      ...groups.flatMap((g, z) =>
+        Array.from({ length: perZone }, (_, i) => ({
+          id: `n${z}_${i}`,
+          label: i % 3 === 0 ? `internal/session · CritJSON${i}` : `web${i}`,
+          sublabel: "internal",
+          group: g.id,
+          weight: (perZone - i) / perZone,
+        })),
+      ),
+      ...Array.from({ length: loose }, (_, i) => ({ id: `l${i}`, label: `loose${i}` })),
+    ];
+    return {
+      id: "dg_map00000" as DiagramId,
+      kind: "container",
+      nodes,
+      edges: [{ id: "e0", from: nodes[0]?.id ?? "", to: nodes[1]?.id ?? "", kind: "imports" }],
+      groups,
+      direction: "RIGHT",
+      origin: "static",
+    };
+  };
+  const overlaps = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+  test("deterministic, every node placed once, no overlaps, each room wide enough for its label", () => {
+    for (const ir of [map(2, 9), map(3, 13, 2), map(0, 0, 5), map(1, 1)]) {
+      const a = roomsLayout(ir, "h");
+      expect(roomsLayout(ir, "h")).toEqual(a);
+      expect(a.engine).toBe(ROOMS_ENGINE);
+      expect(a.nodes.map((n) => n.id).sort()).toEqual(ir.nodes.map((n) => n.id).sort());
+      for (const [i, n] of a.nodes.entries()) {
+        for (const v of [n.x, n.y, n.w, n.h]) expect(v * 2).toBe(Math.round(v * 2));
+        const src = ir.nodes.find((x) => x.id === n.id);
+        expect(n.w + 0.5).toBeGreaterThanOrEqual(roomWidth(src?.label ?? "", src?.sublabel));
+        expect(n.h).toBe(ROOM_BOX.h);
+        for (const m of a.nodes.slice(i + 1)) expect(overlaps(n, m)).toBe(false);
+        const g = a.groups.find((x) => x.id === src?.group);
+        if (g) expect(n.x >= g.x && n.y >= g.y && n.x + n.w <= g.x + g.w + 0.5 && n.y + n.h <= g.y + g.h + 0.5).toBe(true);
+      }
+    }
+  });
+
+  test("the plan is close to 16:10 – 1.75 (readable at the fit zoom of a laptop or tablet stage)", () => {
+    for (const ir of [map(2, 9), map(4, 10), map(1, 40)]) {
+      const l = roomsLayout(ir, "h");
+      expect(l.width / l.height).toBeGreaterThan(1.2);
+      expect(l.width / l.height).toBeLessThan(2.4);
+    }
+  });
+
+  test("zones are full-width bands; rows are balanced (no lone room on a last row) and justified", () => {
+    const l = roomsLayout(map(2, 9), "h");
+    const [g0, g1] = l.groups;
+    expect(g0?.w).toBe(g1?.w);
+    const rows = new Map<number, number>();
+    for (const n of l.nodes.filter((x) => x.id.startsWith("n0_"))) rows.set(n.y, (rows.get(n.y) ?? 0) + 1);
+    const counts = [...rows.values()];
+    expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(2);
+    for (const y of rows.keys()) {
+      const row = l.nodes.filter((x) => x.id.startsWith("n0_") && x.y === y);
+      const right = Math.max(...row.map((n) => n.x + n.w));
+      expect(Math.abs(right - ((g0?.x ?? 0) + (g0?.w ?? 0) - 10))).toBeLessThan(1);
+    }
+  });
+
+  test("the layouter lays container maps out in-thread (no ELK call) and caches them", async () => {
+    let calls = 0;
+    const l = createDiagramLayouter({
+      elk: inlinePool(() => {
+        calls++;
+        return {} as DiagramLayout;
+      }),
+      db: memDb(DOC_MIGRATIONS),
+      hasher,
+      log: silentLog,
+    });
+    const a = await l.layout(map(2, 4));
+    expect(a.engine).toBe(ROOMS_ENGINE);
+    expect(a.edges).toHaveLength(1);
+    expect(calls).toBe(0);
   });
 });

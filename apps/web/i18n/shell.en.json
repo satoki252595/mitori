@@ -115,6 +115,8 @@
   "header.theme.dark": "Theme: switch to dark",
   "header.theme.light": "Theme: switch to light",
   "header.theme.system": "Theme: follow the system",
+  "header.usage.today": "Today {usd} · {tok} tok",
+  "header.usage.window": "5h {p}%",
   "header.wsMenu": "Switch workspace",
   "help.close": "Close",
   "help.filter": "Filter by action or key",

@@ -66,7 +66,7 @@
   color: var(--muted);
 }
 
-.prose a:not(.mcite) {
+.prose a:not(.mcite, .fcite) {
   text-decoration: underline;
   text-decoration-color: var(--rule-2);
   text-underline-offset: 3px;
@@ -202,6 +202,11 @@
   letter-spacing: var(--ls-heading);
 }
 
+/* a same-file sub-section already sits one --sec-gap below the previous part */
+.prose .sec > h2.sub {
+  margin-top: 0;
+}
+
 .prose h2.sub .hn {
   font-family: var(--font-serif);
   color: var(--faint);
@@ -209,7 +214,7 @@
   font-variant-numeric: oldstyle-nums;
 }
 
-.gen-note {
+.prose .gen-note {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -625,6 +630,63 @@ html.show-cites .mc[data-verdict="cited"]::after {
   padding: 9px 10px;
   border-bottom: 1px solid var(--rule-soft);
   vertical-align: top;
+}
+
+/* tables (reader/decorate.ts): short columns and short headers never wrap, numbers align right */
+.prose th[data-nw],
+.prose :is(td, th)[data-col="short"],
+.prose :is(td, th)[data-col="num"],
+.prose td[data-cite] {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.prose :is(td, th)[data-col="num"] {
+  text-align: right;
+}
+
+/* table text breaks between words, after a path separator (<wbr>), or as a last resort inside an overlong token
+   — never one character per line (break-word does not lower the column's min-content) */
+.prose :is(td, th),
+.prose td code {
+  overflow-wrap: break-word;
+}
+
+/* a static fact cite (`path:line` cell of a facts table): a chip with a peek; the directory only at 詳しい */
+.fcite {
+  display: inline-flex;
+  text-decoration: none;
+  vertical-align: 0.06em;
+}
+
+.prose .fcite code {
+  display: inline-flex;
+  align-items: center;
+  height: var(--cite-h);
+  padding: 0 6px;
+  border: 1px solid var(--rule);
+  background: var(--sheet);
+  color: var(--muted);
+  font-size: var(--fs-meta);
+  line-height: 1;
+  white-space: nowrap;
+  word-break: normal;
+  transition:
+    color var(--dur-hover),
+    border-color var(--dur-hover),
+    background-color var(--dur-hover);
+}
+
+.fcite:hover code,
+.fcite.on code,
+.fcite:focus-visible code {
+  color: var(--ink);
+  border-color: var(--rule-2);
+  background: var(--hover);
+}
+
+:root:not([data-level="expert"]) .fcite .cd {
+  display: none;
 }
 
 .prose pre.mcode {
