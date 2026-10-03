@@ -147,6 +147,7 @@ export class Runner {
       throw new MitoriError("E_CONFLICT", "a generation run is already active", { params: { run: this.live.run.id } });
     const plan = row.plan;
     engineFor(deps, plan.engine); // E_AGENT_NOT_INSTALLED / E_INVALID_INPUT before anything is created
+    if (plan.engine === "anthropic-api") this.checkMonthlyCap(row.estimate.apiUsd);
     const id = deps.ids.next("genRun") as GenRunId;
     const { pack, pinned, blobs } = this.pin(deps.sandboxCwd);
     await deps.indexer.pinBlobs(blobs);
@@ -204,6 +205,20 @@ export class Runner {
     return { ...run };
   }
 
+  /**
+   * anthropic-api is metered: this month's spend + the run's estimate must stay within `monthlyCapUsd` (§8.3).
+   * The ledger has no calendar-month range; the last 30 days are a conservative stand-in (the agent's ledger
+   * still enforces the cap per call).
+   */
+  private checkMonthlyCap(runUsd: number): void {
+    const cap = this.s().global.engines["anthropic-api"].monthlyCapUsd;
+    const spent = this.deps.ledger.summary("30d").byEngine["anthropic-api"]?.apiUsd ?? 0;
+    if (!(cap > 0) || spent + runUsd > cap)
+      throw new MitoriError("E_BUDGET_EXCEEDED", "the run would exceed engines.anthropic-api.monthlyCapUsd", {
+        params: { usd: runUsd, spent: Math.round(spent * 100) / 100, cap },
+      });
+  }
+
   private slots(c: number): number {
     return Math.max(1, c - this.s().global.scheduler.reserveInteractive);
   }
@@ -218,7 +233,7 @@ export class Runner {
     if (!live || live.run.id !== id) {
       const stored = this.svc.store.getRun(id);
       if (!stored) throw new MitoriError("E_NOT_FOUND", `run ${id} not found`);
-      if (action === "resume" && stored.run.state === "paused") return this.resume(id);
+      if (action === "resume" && stored.run.state === "paused" && stored.run.engine !== "session") return this.resume(id);
       throw new MitoriError("E_PRECONDITION", `run ${id} is not active`);
     }
     const run = live.run;
@@ -323,6 +338,7 @@ export class Runner {
     const store = this.svc.store;
     const out: GenRunId[] = [];
     for (const { run } of store.runs(["running", "paused"])) {
+      if (run.engine === "session") continue; // nothing in flight: the user's agent resumes through prep / ingest
       const rows = store.tasks(run.id);
       const toDelete: BlockId[] = [];
       for (const r of rows) {
@@ -473,6 +489,7 @@ export class Runner {
     }
     const ctx: RunCtx = { id: live.run.id, trigger: live.run.trigger, engine, gather: this.gatherEnv(live), cancelled: () => live.run.state === "cancelled" };
     if (live.run.pinned) ctx.packSnapshot = live.run.pinned.snapshot;
+    if (live.run.estimate?.seconds) ctx.runSeconds = live.run.estimate.seconds.p50;
     executeTask(env, ctx, row, abort.signal, {
       state: (st) => {
         row.task.state = st;

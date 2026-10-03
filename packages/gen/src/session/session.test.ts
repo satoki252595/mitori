@@ -291,6 +291,19 @@ describe("AC-45 phases: the next phase sees the previous phase's output", () => 
     await expect(h.gen.session.prep({ effort: "standard", continueFrom: p1.id })).rejects.toMatchObject({ code: "E_PRECONDITION" });
   });
 
+  test("a daemon restart does not turn a session run into a push run; its packet can still be ingested", async () => {
+    const h = makeHarness();
+    const p1 = await h.gen.session.prep({ effort: "standard" });
+    answer(h, p1);
+    const h2 = makeHarness({ shared: { db: h.db, doc: h.doc, indexer: h.indexer, safe: h.safe, ids: h.ids, clock: h.clock } });
+    expect(await h2.gen.recover()).toEqual([]);
+    const runId = h.db.get<{ run: string }>("SELECT run FROM gen_prep WHERE id = ?", [p1.id])?.run as `gr_${string}`;
+    await expect(h2.gen.control(runId, "resume")).rejects.toMatchObject({ code: "E_PRECONDITION" });
+    expect(h2.engine.calls.length).toBe(0);
+    const r1 = await h2.gen.session.ingest({ prep: p1.id, fingerprint: p1.fingerprint, partial: false });
+    expect(r1).toMatchObject({ ok: true, next: { prep: p1.id, phase: 2 } });
+  });
+
   test("continuing before the phase is complete is refused", async () => {
     const h = makeHarness();
     const p1 = await h.gen.session.prep({ effort: "standard" });

@@ -60,12 +60,16 @@ export interface FakeLedger extends UsageLedger {
   setFactor(f: { factor: number; n: number; accuracyPct: number }): void;
   /** Set κ. */
   setKappa(k: { kappa: number | null; n: number }): void;
+  /** Set the anthropic-api spend of the last 30 days (`summary("30d")`). */
+  setApiSpend(usd: number): void;
 }
 
 /** Factory. */
 export function fakeLedger(): FakeLedger {
   let factor = { factor: 1, n: 0, accuracyPct: 25 };
   let kappa: { kappa: number | null; n: number } = { kappa: null, n: 0 };
+  let apiSpend = 0;
+  const totals = (apiUsd: number) => ({ calls: 0, in: 0, cacheWrite: 0, cacheRead: 0, out: 0, apiUsd });
   const rows: Omit<UsageRecord, "id">[] = [];
   const samples: Parameters<UsageLedger["recordWindowSample"]>[0][] = [];
   return {
@@ -77,11 +81,21 @@ export function fakeLedger(): FakeLedger {
     setKappa(k) {
       kappa = k;
     },
+    setApiSpend(usd) {
+      apiSpend = usd;
+    },
     record(r) {
       rows.push(r);
       return { ...r, id: `us_${String(rows.length).padStart(12, "0")}` };
     },
-    summary: (range) => unsupported("fakeLedger.summary", range),
+    summary: (range) => ({
+      range,
+      totals: totals(apiSpend),
+      byDay: [],
+      byEngine: { "anthropic-api": totals(apiSpend) },
+      byModel: {},
+      estimateAccuracyPct: 25,
+    }),
     factor: () => factor,
     fixedOverhead: () => null,
     windowFactor: () => kappa,

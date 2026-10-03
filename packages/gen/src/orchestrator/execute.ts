@@ -93,6 +93,8 @@ export interface RunCtx {
   cancelled(): boolean;
   /** The run's pinned repo-pack snapshot (PT-05). */
   packSnapshot?: Xxh3;
+  /** Estimated run duration p50 (s): anthropic-api writes BP1/BP2 with the 1h TTL above `ttl1hAboveSec` (§8.3). */
+  runSeconds?: number;
 }
 
 /** Outcome of one task. */
@@ -179,7 +181,7 @@ export function buildCall(
     budgetUsd: Math.max(0.05, 3 * task.estimate.apiUsd),
     timeoutMs: Math.max(120_000, 4 * task.estimate.seconds * 1000),
     attempt,
-    ttl: cli ? p.cliCacheTtl.default : task.estimate.seconds * 4 > p.ttl1hAboveSec ? "1h" : "5m",
+    ttl: cli ? p.cliCacheTtl.default : (run.runSeconds ?? task.estimate.seconds) > p.ttl1hAboveSec ? "1h" : "5m",
   };
   if (task.mode !== undefined) call.mode = task.mode;
   return call;

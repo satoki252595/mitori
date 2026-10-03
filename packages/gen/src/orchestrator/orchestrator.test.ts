@@ -254,6 +254,25 @@ describe("start preconditions (GEN-U-005, AC-43)", () => {
     await expect(tight.gen.start(est3.id)).rejects.toMatchObject({ code: "E_BUDGET_EXCEEDED" });
   });
 
+  test("anthropic-api: this month's spend + the estimate over monthlyCapUsd ⇒ E_BUDGET_EXCEEDED (§8.3)", async () => {
+    const s = testSettings();
+    s.global.engines["anthropic-api"] = { ...s.global.engines["anthropic-api"], enabled: true, monthlyCapUsd: 5 };
+    const h = makeHarness({ settings: s });
+    (h.deps.engines as Record<string, unknown>)["anthropic-api"] = h.engine;
+    const est = await h.gen.estimate({ effort: "standard", engine: "anthropic-api" });
+    h.ledger.setApiSpend(5 - est.apiUsd / 2);
+    await expect(h.gen.start(est.id)).rejects.toMatchObject({ code: "E_BUDGET_EXCEEDED", params: { cap: 5 } });
+    h.ledger.setApiSpend(1);
+    const run = await h.gen.start(est.id);
+    await h.gen.idle();
+    expect(h.gen.run(run.id)?.run).toMatchObject({ engine: "anthropic-api", state: "done" });
+    // the cap is required when the engine is enabled
+    s.global.engines["anthropic-api"].monthlyCapUsd = 0;
+    await expect(h.gen.start((await h.gen.estimate({ effort: "standard", engine: "anthropic-api" })).id)).rejects.toMatchObject({
+      code: "E_BUDGET_EXCEEDED",
+    });
+  });
+
   test("dispatch stops at 80 % of the cap and the run pauses with reason budget", async () => {
     const s = testSettings();
     let cap = 1;
