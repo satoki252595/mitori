@@ -121,6 +121,8 @@ const column = $derived(v.width >= 1024);
   }
   .warn {
     color: var(--c-warn);
+    /* wraps as one unit (「古い可能性1」 never splits as 「古 / い可能性1」 in the narrow tile) */
+    display: inline-block;
   }
   .files {
     list-style: none;
