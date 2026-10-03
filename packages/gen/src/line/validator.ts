@@ -20,7 +20,7 @@ import {
   type NewBlockRef,
   type ValidationContext,
 } from "../contract.ts";
-import { ASPECT_AUDIENCE, BLOCK_ASPECTS, kindsOf } from "./aspects.ts";
+import { BLOCK_ASPECTS, kindsOf } from "./aspects.ts";
 import { isObject, parseCiteObject, parseClaims, short } from "./claims.ts";
 import { validateDiagram } from "./diagram.ts";
 import { headingProblem, inlineProblems, isGfmTable, mdLength } from "./mdrules.ts";
@@ -407,7 +407,7 @@ export class GenLineValidator implements LineValidator {
   private audience(raw: unknown, aspect: BlockAspect, c: LineCheck): Audience[] | undefined {
     if (raw === undefined) {
       if (this.ctx.form === "full") c.err("V03", "/audience", "audience is required in the full form", "missing");
-      return [...ASPECT_AUDIENCE[aspect]];
+      return [...ASPECT_DEFAULTS[aspect].audience];
     }
     if (
       !Array.isArray(raw) ||

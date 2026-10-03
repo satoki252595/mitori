@@ -31,6 +31,7 @@ import {
   GEN_ESTIMATE_PARAMS,
   GEN_PROMPTS,
   type GenCall,
+  type GenCallResult,
   type GenCallRun,
   type GenEngine,
   type GenLine,
@@ -42,7 +43,6 @@ import {
   type TaskInputs,
   type ValidationContext,
 } from "../contract.ts";
-import type { GenCallResultExt } from "../engines/scheduler-engine.ts";
 import { createAssembler } from "../line/assembler.ts";
 import { createLineValidator, planRetry } from "../line/index.ts";
 import { maxOutOf, outTarget, thinkingOf } from "../planner/params.ts";
@@ -109,6 +109,8 @@ export interface ExecResult {
   attempts: number;
   /** Blocks written. */
   blocks: BlockId[];
+  /** Blocks created by this execution (subset of `blocks`). */
+  created?: BlockId[];
   /** Error (failed, or done with dropped lines). */
   error?: MitoriErrorData;
   /** The run cannot continue (auth / engine missing). */
@@ -237,7 +239,7 @@ async function consume(
       env.events.emit(ev);
     }
   }
-  const result = (await callRun.result) as GenCallResultExt;
+  const result = await callRun.result;
   const rest = assembler.end();
   if (rest !== null && result.stop !== "refusal") {
     let complete = result.stop === "end";
@@ -261,7 +263,7 @@ interface Turn {
   /** Raw rejected lines. */
   rejected: string[];
   /** Terminal result. */
-  result: GenCallResultExt;
+  result: GenCallResult;
   /** Block lines received. */
   blockLines: number;
   /** Block lines with a V14 marker error. */
@@ -357,7 +359,11 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   let usage: Usage | null = null;
   let calls = 0;
   const turns: Turn[] = [];
-  const measured = (r: ExecResult, dropped: number): ExecResult => ({ ...r, metrics: metricsOf(task, run.engine.id, r, turns, sink, dropped) });
+  const measured = (r: ExecResult, dropped: number): ExecResult => ({
+    ...r,
+    created: [...sink.created],
+    metrics: metricsOf(task, run.engine.id, r, turns, sink, dropped),
+  });
   const start = async (call: GenCall): Promise<GenCallRun> => {
     calls++;
     env.metrics.inc("gen.engine.calls");
@@ -365,6 +371,17 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
     hooks.call(r);
     return r;
   };
+
+  // a pause (or cancel) that arrived while the input was gathered: settle without calling the engine (CR m1-11)
+  if (signal.aborted || run.cancelled())
+    return {
+      state: "failed",
+      usage: null,
+      calls: 0,
+      attempts: 0,
+      blocks: [],
+      error: { code: "E_CANCELLED", message: "stopped before the call", retryable: true },
+    };
 
   // attempt 1 (with one transport re-dispatch)
   const call = buildCall(run, task, rendered, 1, row.lane, null, env.prompts);
@@ -374,7 +391,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   turns.push({ ...out, attempt: 1 });
   usage = addUsage(usage, out.result.usage);
   // §8.2: a transport failure without output is re-dispatched once; auth / installation errors fail the run at once
-  if (out.result.stop === "error" && out.verdicts.length === 0 && !run.cancelled() && !FATAL.has(out.result.error?.code ?? "E_AGENT_EXIT")) {
+  if (out.result.stop === "error" && out.verdicts.length === 0 && !run.cancelled() && !signal.aborted && !FATAL.has(out.result.error?.code ?? "E_AGENT_EXIT")) {
     await callRun.close();
     callRun = await start(call);
     validator = createLineValidator(rendered.ctx);
@@ -398,7 +415,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   let rejected = out.rejected.length;
   let attempts = 1;
   const plan: RetryPlan | null = (out.result.continuations ?? 0) > 0 ? null : planRetry(out.verdicts, coverage, 1);
-  if (plan && !run.cancelled()) {
+  if (plan && !run.cancelled() && !signal.aborted) {
     attempts = 2;
     hooks.state("retrying");
     const accepted1 = out.verdicts.filter((v) => v.value).length;
@@ -483,7 +500,7 @@ function replayAccepted(v: ReturnType<typeof createLineValidator>, out: { verdic
   for (const x of out.verdicts) if (x.value && x.value.t !== "end") v.validate(JSON.stringify(x.value), --n);
 }
 
-function terminalFailure(r: GenCallResultExt, run: RunCtx): MitoriErrorData | null {
+function terminalFailure(r: GenCallResult, run: RunCtx): MitoriErrorData | null {
   if (run.cancelled() || r.stop === "cancelled") return { code: "E_CANCELLED", message: "run cancelled", retryable: false };
   if (r.stop === "refusal")
     return {

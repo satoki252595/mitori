@@ -2,21 +2,12 @@
  * `GenEngine` over the shared `AgentScheduler` (claude-cli / anthropic-api, gen spec §8.1). Text deltas come
  * unthrottled from `EngineRun.events` (gL-1); the terminal `result` event carries refusal / continuations;
  * `continueWith` sends the single retry to the parked process (continuation, §6.4), absent once it is gone.
- * CR-PENDING(WP-06): the contract has no public factory for this adapter (cr-requests/WP-06.md R3); the
- * orchestrator falls back to it when `GenDeps.engines` lacks an engine.
+ * The orchestrator falls back to it when `GenDeps.engines` lacks an engine (CR m1-1: internal, not a public factory).
  */
 import type { AgentScheduler, EngineResult, EngineRun, EngineSession } from "@mitori/agent";
-import { type Cancel, type ErrorCode, type JobEvent, MitoriError, type WorkspaceKey } from "@mitori/core";
+import { type Cancel, type JobEvent, MitoriError, type WorkspaceKey } from "@mitori/core";
 import type { GenCall, GenCallResult, GenCallRun, GenEngine, GenEngineCaps } from "../contract.ts";
 import { toScheduledRequest } from "./index.ts";
-
-/** Result fields the contract's `GenCallResult` lacks (CR-PENDING(WP-06) R4: `continuations`, `error`). */
-export interface GenCallResultExt extends GenCallResult {
-  /** CLI-internal continuations inside the turn (PT-09): the reply was cut, no mitori retry is added. */
-  continuations?: number;
-  /** Engine error when `stop` is `error` / `budget`. */
-  error?: { code: ErrorCode; message: string; retryable: boolean };
-}
 
 const CAPS: Readonly<Record<"claude-cli" | "anthropic-api", GenEngineCaps>> = {
   "claude-cli": { streaming: true, batch: false, countTokens: false, structuredOutputs: true, serverFallback: false, explicitCache: false },
@@ -63,10 +54,10 @@ function wrap(run: EngineRun, onContinue: ((retry: string, signal: Cancel, sessi
       }
     },
   };
-  const result = (async (): Promise<GenCallResultExt> => {
+  const result = (async (): Promise<GenCallResult> => {
     await start();
     const r: EngineResult = await run.result;
-    const out: GenCallResultExt = {
+    const out: GenCallResult = {
       stop: r.stop,
       text: r.text ?? collected,
       usage: r.usage,

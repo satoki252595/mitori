@@ -75,6 +75,8 @@ export class ApplySink {
   readonly idMap: Record<NewBlockRef, BlockId>;
   /** Blocks written or updated. */
   readonly written: BlockId[] = [];
+  /** Blocks this sink created (`new:n` lines), for removing a paused attempt's partial output. */
+  readonly created: BlockId[] = [];
   /** Proposals created. */
   readonly proposals: string[] = [];
   /** Accepted lines in order (normalized NDJSON, stored in gen_outputs). */
@@ -138,6 +140,7 @@ export class ApplySink {
     };
     const res = await this.deps.write("gen.apply", () => this.deps.doc.applyGenerated(blocks, opts));
     Object.assign(this.idMap, res.idMap);
+    this.created.push(...Object.values(res.idMap));
     this.written.push(...res.written);
     this.proposals.push(...res.proposals);
     if (res.written.length > 0) this.onWritten?.(res.written);

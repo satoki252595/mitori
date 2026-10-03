@@ -45,8 +45,7 @@ export function createGenInternal(deps: GenDepsExt): GenInternal {
   return {
     verifier,
     idle: () => runner.idle(),
-    // CR m1-12: run list (S5 stream: WP-06b implements it over `store.runs()`, newest first).
-    runs: (page) => unsupported("gen.runs (WP-06b, CR m1-12)", page),
+    runs: (page) => runner.runs(page),
     async estimate(req) {
       const plan = planner.plan(req);
       const workdir = plan.engine === "session" ? deps.ws.root : deps.sandboxCwd;

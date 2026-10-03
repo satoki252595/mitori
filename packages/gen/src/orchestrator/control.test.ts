@@ -43,21 +43,45 @@ describe("GEN-U-040 / AC-03 prioritize(section)", () => {
 });
 
 describe("GEN-U-041 pause / resume / cancel", () => {
-  test("pause stops dispatch after the running call; resume continues to done", async () => {
+  test("pause settles the in-flight task as pending (CR m1-11); resume runs it again to done", async () => {
     const g = gated(isEarly);
     const h = makeHarness({ router: g.router, settings: serial() });
     const run = await h.gen.start((await h.gen.estimate({ effort: "standard" })).id);
     const paused = await h.gen.control(run.id, "pause");
     expect(paused.state).toBe("paused");
     expect(paused.paused).toEqual({ reason: "user" });
-    g.open();
     await h.gen.idle();
-    expect(h.engine.calls.length).toBe(1);
-    expect(h.gen.run(run.id)?.tasks.filter((t) => t.state === "done").length).toBe(1);
+    g.open();
+    expect(h.gen.run(run.id)?.tasks.every((t) => t.state === "pending")).toBe(true);
     await h.gen.control(run.id, "resume");
     await h.gen.idle();
     expect(h.gen.run(run.id)?.run.state).toBe("done");
     await expect(h.gen.control(run.id, "pause")).rejects.toMatchObject({ code: "E_PRECONDITION" });
+  });
+
+  test("CR m1-11: after pause + idle() gen writes nothing more, even when the stopped call ends later", async () => {
+    let hung = 0;
+    const router = (call: GenCall, t: Turn): ScriptReply =>
+      isEarly(call) && hung++ === 0 ? { ...validRouter(call, t), hang: true, hangAfterLines: 1 } : validRouter(call, t);
+    const h = makeHarness({ router, settings: serial(), chunk: 100_000 });
+    const run = await h.gen.start((await h.gen.estimate({ effort: "standard" })).id);
+    for (let i = 0; i < 20 && h.engine.calls.length === 0; i++) await tick();
+    await tick();
+    await h.gen.control(run.id, "pause");
+    await h.gen.idle();
+    const writes = h.write.labels.length;
+    const early = h.gen.run(run.id)?.tasks.find((t) => t.target.id === "early");
+    expect(early?.state).toBe("pending");
+    expect(early?.blocks).toEqual([]);
+    // the block the stopped attempt had committed is gone again (no duplicate after resume)
+    expect(h.doc.section("s0")?.blocks.filter((b) => b.origin === "ai")).toEqual([]);
+    h.scheduler.push({ effective: 2 });
+    await tick();
+    expect(h.write.labels.length).toBe(writes);
+    await h.gen.control(run.id, "resume");
+    await h.gen.idle();
+    expect(h.gen.run(run.id)?.run.state).toBe("done");
+    expect(h.doc.section("s0")?.blocks.filter((b) => b.origin === "ai" && b.aspect === "tldr").length).toBe(1);
   });
 
   test("cancel SIGINTs the running call, keeps committed blocks, the usage of the stopped call is counted", async () => {

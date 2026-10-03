@@ -3,7 +3,7 @@ import type { AgentScheduler, EngineResult, EngineRun, EngineSession, ScheduledR
 import { type JobEvent, type Usage, unsupported } from "@mitori/core";
 import { GEN_PROMPTS, type GenCall } from "../contract.ts";
 import { toScheduledRequest } from "./index.ts";
-import { createSchedulerEngine, type GenCallResultExt } from "./scheduler-engine.ts";
+import { createSchedulerEngine } from "./scheduler-engine.ts";
 
 const call = (over: Partial<GenCall> = {}): GenCall => ({
   task: "gt_0000000001",
@@ -124,7 +124,7 @@ describe("scheduler-backed GenEngine", () => {
     const run = engine.run(call(), new AbortController().signal);
     const deltas: string[] = [];
     for await (const d of run.text) deltas.push(d);
-    const r = (await run.result) as GenCallResultExt;
+    const r = await run.result;
     expect(deltas).toEqual(['{"t":"end",', '"blocks":0}']);
     expect(r).toMatchObject({ stop: "refusal", refusal: { category: "cyber" }, continuations: 1, usage, auth: "subscription" });
     expect(submitted[0]?.mode).toBe("generate");

@@ -133,6 +133,14 @@ export interface PrepRow {
   expiresAt: number;
 }
 
+/** What was estimated (`gen_estimates.req`): the API request plus the trigger and lane of S9 / on-demand plans. */
+export type EstimateRequest = GenEstimateReq & {
+  /** Run trigger (default `user`). */
+  trigger?: GenRun["trigger"];
+  /** Scheduler lane of every task (default `background`; S9 and on-demand runs use `doc`, §3.5). */
+  lane?: Lane;
+};
+
 const json = (x: unknown) => JSON.stringify(x);
 /** gen_outputs GC threshold (§3.8, [仮]). */
 const OUTPUTS_MAX_BYTES = 200 * 1024 * 1024;
@@ -154,7 +162,7 @@ export class GenStore {
     return this.db.get<{ v: string }>("SELECT v FROM gen_meta WHERE k = 'salt'")?.v ?? v;
   }
 
-  putEstimate(est: GenEstimate, req: GenEstimateReq, plan: GenPlan): void {
+  putEstimate(est: GenEstimate, req: EstimateRequest, plan: GenPlan): void {
     this.db.run("INSERT OR REPLACE INTO gen_estimates (id, req, plan, estimate, index_digest, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)", [
       est.id,
       json(req),
@@ -166,14 +174,14 @@ export class GenStore {
     ]);
   }
 
-  getEstimate(id: string): { req: GenEstimateReq; plan: GenPlan; estimate: GenEstimate; indexDigest: Xxh3; expiresAt: number } | null {
+  getEstimate(id: string): { req: EstimateRequest; plan: GenPlan; estimate: GenEstimate; indexDigest: Xxh3; expiresAt: number } | null {
     const r = this.db.get<{ req: string; plan: string; estimate: string; index_digest: string; expires_at: number }>(
       "SELECT req, plan, estimate, index_digest, expires_at FROM gen_estimates WHERE id = ?",
       [id],
     );
     return r
       ? {
-          req: parse(r.req, { effort: "standard" }),
+          req: parse<EstimateRequest>(r.req, { effort: "standard" }),
           plan: parse(r.plan, {} as GenPlan),
           estimate: parse(r.estimate, {} as GenEstimate),
           indexDigest: r.index_digest,
@@ -229,6 +237,43 @@ export class GenStore {
   runs(states?: readonly GenRun["state"][]): StoredRun[] {
     const rows = this.db.all<Record<string, unknown>>("SELECT * FROM gen_runs ORDER BY created_at, id");
     return rows.filter((r) => !states || states.includes(r.state as GenRun["state"])).map((r) => this.runOf(r));
+  }
+
+  /**
+   * One page of runs, newest first (`created_at` desc, then id desc); `after` = the last run id of the previous page
+   * [CR m1-12]. Plans and packs are not loaded; progress comes from one aggregate over `gen_tasks`.
+   */
+  runPage(limit: number, after?: GenRunId): { runs: GenRun[]; more: boolean } {
+    const cur = after ? this.db.get<{ created_at: number }>("SELECT created_at FROM gen_runs WHERE id = ?", [after]) : null;
+    const cols = "id, effort, trigger, engine, scope, state, paused, concurrency, usage, started_at, finished_at, pinned, window_at_start, estimate";
+    const rows = cur
+      ? this.db.all<Record<string, unknown>>(
+          `SELECT ${cols} FROM gen_runs WHERE created_at < ? OR (created_at = ? AND id < ?) ORDER BY created_at DESC, id DESC LIMIT ?`,
+          [cur.created_at, cur.created_at, after as string, limit + 1],
+        )
+      : this.db.all<Record<string, unknown>>(`SELECT ${cols} FROM gen_runs ORDER BY created_at DESC, id DESC LIMIT ?`, [limit + 1]);
+    const runs = rows.slice(0, limit).map((r) => {
+      const run = this.runOf({ ...r, plan: null, pack: null, pack_blobs: null }).run;
+      run.progress = this.progress(run.id);
+      return run;
+    });
+    return { runs, more: rows.length > limit };
+  }
+
+  /** Progress counters of a run from its task rows. */
+  progress(run: GenRunId): GenRun["progress"] {
+    const rows = this.db.all<{ state: string; n: number; blocks: number }>(
+      "SELECT state, COUNT(*) AS n, SUM(json_array_length(blocks)) AS blocks FROM gen_tasks WHERE run = ? GROUP BY state",
+      [run],
+    );
+    const p = { total: 0, done: 0, failed: 0, blocks: 0 };
+    for (const r of rows) {
+      p.total += r.n;
+      if (r.state === "done" || r.state === "cached" || r.state === "skipped") p.done += r.n;
+      if (r.state === "failed") p.failed += r.n;
+      p.blocks += r.blocks ?? 0;
+    }
+    return p;
   }
 
   getRun(id: GenRunId): StoredRun | null {
