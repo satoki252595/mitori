@@ -340,9 +340,9 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
       const req: JobReq = replanReq(rec, engine);
       const p = await freshPlan(req);
       supported(p);
-      // a retry never runs a confirm-only route (the final escalation, an over-threshold estimate) on its own:
-      // that goes through `create` with `confirm` (spec §3.5: Opus is a proposal)
-      if (p.estimate.requiresConfirm)
+      // a retry never runs the final escalation on its own: that goes through `create` with `confirm` (spec §3.5: Opus
+      // is a proposal). Other confirm reasons keep the retry behaviour they had.
+      if (p.estimate.confirmReasons.includes("escalation"))
         throw new MitoriError("E_PRECONDITION", "this retry needs a confirmed estimate: escalate with a confirmation", {
           params: { estimateId: p.id, reasons: p.estimate.confirmReasons.join(","), actions: "escalate" },
         });

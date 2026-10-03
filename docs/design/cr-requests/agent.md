@@ -36,7 +36,8 @@ and 6 are the ones that change what a user sees.
 ## 4. Owner-file edits outside the WP-08c directories (please review with WP-08b)
 - `jobs/runner.ts`: dispatch of agent mode, agent revise, the R2 hand-over hook in `launch`, repair after a consented gate run,
   RT-31 discard of a tampered ready job, `externalPatch`, `create` from a `failed` thread for the human's escalation (fires `retry`,
-  sets `escalatedFrom`), `retry` refuses a confirm-only route, re-plans use the persisted request.
+  sets `escalatedFrom`), `retry` refuses the final escalation (confirm reason `escalation`; other reasons unchanged), re-plans use
+  the persisted request.
 - `jobs/assemble.ts`: `readJobFile` for REPAIR / revise CODE (it was not wired: a revise turn of a patch job had no CODE at all),
   `detectGates` (format + checks), gate-set trust for the bundle's GATE line.
 - `jobs/store.ts`: `JobExtra.req` — the request's context chips / mode / model / budget survive for re-plans (a revise of a job
