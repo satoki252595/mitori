@@ -48,7 +48,7 @@ import { createLineValidator, planRetry } from "../line/index.ts";
 import { maxOutOf, outTarget, thinkingOf } from "../planner/params.ts";
 import { type GatherEnv, gatherInputs } from "../prompts/inputs.ts";
 import type { GenVerifier } from "../verify/verifier.ts";
-import { ApplySink } from "./apply.ts";
+import { ApplySink, replayable } from "./apply.ts";
 import type { GenStore, TaskMetrics, TaskRow } from "./store.ts";
 
 /** Everything a task execution needs. */
@@ -343,7 +343,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   const deps = { doc: env.doc, write: env.write, verifier: env.verifier, log: env.log };
 
   const cached = env.store.getOutput(rendered.cacheKey);
-  if (cached) {
+  if (cached && replayable(cached.lines, env.doc)) {
     const sink = new ApplySink(deps, { ...applyCtx, replay: true }, cached.idMap);
     for (const l of cached.lines) sink.accept(JSON.parse(l) as GenLine);
     await sink.finish();

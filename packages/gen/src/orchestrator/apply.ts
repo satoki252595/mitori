@@ -242,6 +242,26 @@ export class ApplySink {
   }
 }
 
+/**
+ * A cached output can be replayed only onto a doc that still has every EXISTING block it refers to (update /
+ * keep / delete / after by id). The cache key leaves the target's current content out (R6), so an output made
+ * while regenerating would otherwise replay as nothing onto a doc that lost those blocks (e.g. a fresh doc
+ * over an old workspace DB). Such an output is treated as a miss.
+ */
+export function replayable(lines: readonly string[], doc: Pick<DocStore, "block">): boolean {
+  for (const l of lines) {
+    const line = JSON.parse(l) as GenLine;
+    const ids: string[] = [];
+    if (line.t === "keep" || line.t === "delete") ids.push(line.id);
+    else if (line.t === "block") {
+      if (!line.id.startsWith("new:")) ids.push(line.id);
+      if (line.after !== undefined && !line.after.startsWith("new:")) ids.push(line.after);
+    }
+    if (ids.some((id) => !doc.block(id as BlockId))) return false;
+  }
+  return true;
+}
+
 /** §6.7-6 claim identity: the first unused old claim with the same normalized quote, else the same cite set. */
 function matchClaim(
   old: readonly Claim[],

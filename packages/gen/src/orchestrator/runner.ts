@@ -33,6 +33,7 @@ import { compareTasks, groupOf } from "../planner/params.ts";
 import { CitableBuilder } from "../prompts/context.ts";
 import { type GatherEnv, gatherInputs, type TermCandidate } from "../prompts/inputs.ts";
 import type { GenVerifier } from "../verify/verifier.ts";
+import { replayable } from "./apply.ts";
 import { addUsage, type ExecEnv, executeTask, type RunCtx } from "./execute.ts";
 import type { GenStore, TaskMetrics, TaskRow } from "./store.ts";
 
@@ -727,7 +728,8 @@ export async function precomputeKeys(
     }
     const g = await gatherInputs(t, env);
     const r = d.prompts.render(t, g.inputs, { lang: svc.lang(), workdir });
-    const cached = svc.store.getOutput(r.cacheKey) !== null;
+    const out = svc.store.getOutput(r.cacheKey);
+    const cached = out !== null && replayable(out.lines, d.doc);
     tasks.push({ ...t, cacheKey: r.cacheKey, cached, estimate: { ...t.estimate, tail: r.tokens.tail } });
   }
   const seen = new Set<string>();

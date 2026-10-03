@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { MitoriError, type SseEventPayload } from "@mitori/core";
 import type { GenCall } from "../contract.ts";
+import { createFakeDocStore } from "../test/fake-doc.ts";
 import { type ScriptReply, type Turn, validRouter } from "../test/fake-engine.ts";
 import { makeHarness } from "../test/harness.ts";
-import { M_AUTH, M_SESSION } from "../test/repo.ts";
+import { M_AUTH, M_SESSION, sampleRepo } from "../test/repo.ts";
 import { testSettings } from "../test/settings.ts";
 
 async function runToEnd(h: ReturnType<typeof makeHarness>, effort: "overview" | "standard" = "standard") {
@@ -67,6 +68,21 @@ describe("GEN-U-042 / AC-28 the same inputs a second time are all cached", () =>
     expect(second.run?.run.usage.calls).toBe(0);
     expect(second.est.stages.every((s) => s.apiUsd === 0 || s.stage === "S6" || s.stage === "S6o")).toBe(true);
     expect(h.metrics.counts.get("gen.cache.hits")).toBe(second.run?.tasks.length);
+  });
+
+  test("an output that updates EXISTING blocks is not replayed onto a doc without them (fresh doc, old workspace DB)", async () => {
+    const h = makeHarness();
+    await runToEnd(h);
+    const doc = createFakeDocStore({ hasher: h.hasher, ids: h.ids, repo: sampleRepo() });
+    const h2 = makeHarness({ shared: { db: h.db, doc, indexer: h.indexer, safe: h.safe, ids: h.ids, clock: h.clock } });
+    const { est, run } = await runToEnd(h2);
+    // the final overview updated the early overview's blocks by id: those ids do not exist in the new doc
+    expect(run?.tasks.find((t) => t.target.id === "final")?.state).toBe("done");
+    expect(est.stages.find((s) => s.stage === "S6o")?.apiUsd).toBeGreaterThan(0);
+    // module pages were written from new:<n> refs and still replay
+    expect(run?.tasks.filter((t) => t.stage === "S5").every((t) => t.state === "cached")).toBe(true);
+    const s0 = doc.section("s0")?.blocks.filter((b) => b.origin === "ai") ?? [];
+    expect(s0.map((b) => b.md)).toEqual(["読書リストを管理する[[1]]。最終版だ。"]);
   });
 
   test("bumping the system prompt version invalidates the cache", async () => {

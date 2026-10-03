@@ -36,7 +36,7 @@ import {
   type SessionEngine,
 } from "../contract.ts";
 import { createLineValidator } from "../line/index.ts";
-import { ApplySink } from "../orchestrator/apply.ts";
+import { ApplySink, replayable } from "../orchestrator/apply.ts";
 import { candidatesOf, type Runner, runTaskId, type Services } from "../orchestrator/runner.ts";
 import type { TaskRow } from "../orchestrator/store.ts";
 import { maxOutOf } from "../planner/params.ts";
@@ -159,7 +159,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
         const { rendered, labels, digest } = await render(row.plan, env);
         row.task.cacheKey = rendered.cacheKey;
         const hit = store.getOutput(rendered.cacheKey);
-        if (hit) {
+        if (hit && replayable(hit.lines, d.doc)) {
           const sink = new ApplySink(
             { doc: d.doc, write: d.write, verifier: svc.verifier, log: d.log },
             { ...lineCtx(row, run, digest, row.plan.model, rendered.ctx.existing.size), replay: true },
