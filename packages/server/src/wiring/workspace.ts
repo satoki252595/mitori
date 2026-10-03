@@ -490,6 +490,9 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
       closed = true;
       stopWatch?.();
       stopDocWatch?.();
+      // a running generation pauses (resumable after the next start, gen §3.7) before the DB goes away
+      const run = gen.active();
+      if (run?.state === "running") await gen.control(run.id, "pause").catch((err: unknown) => log.warn("gen pause on close failed", { error: String(err) }));
       await chain.catch(() => undefined);
       await rawDoc.flush({ force: true }).catch((err: unknown) => log.warn("doc flush on close failed", { error: String(err) }));
       await rawIndexer.close().catch(() => undefined);
