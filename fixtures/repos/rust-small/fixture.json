@@ -1,0 +1,11 @@
+{
+  "v": "mitori.fixture/1",
+  "name": "rust-small",
+  "git": true,
+  "objectFormat": "sha1",
+  "branch": "main",
+  "history": [{ "message": "init: tsundoku (rust)", "tree": "." }],
+  "generate": [],
+  "symlinks": [],
+  "dirty": []
+}

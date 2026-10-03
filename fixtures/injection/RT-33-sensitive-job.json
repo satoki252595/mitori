@@ -1,0 +1,7 @@
+{
+  "touches": [
+    "package.json",
+    "CLAUDE.md"
+  ],
+  "fixture": "injection"
+}

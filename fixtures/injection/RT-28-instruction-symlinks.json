@@ -1,0 +1,16 @@
+{
+  "symlinks": [
+    {
+      "path": "AGENTS.md",
+      "target": "/etc/hosts"
+    },
+    {
+      "path": "CLAUDE.md",
+      "target": "../outside/CLAUDE.md"
+    },
+    {
+      "path": ".gitattributes",
+      "target": "~/.gitattributes"
+    }
+  ]
+}

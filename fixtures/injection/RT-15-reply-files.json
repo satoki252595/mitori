@@ -1,0 +1,7 @@
+{
+  "command": "mitori reply --files /etc/passwd,../x",
+  "files": [
+    "/etc/passwd",
+    "../x"
+  ]
+}

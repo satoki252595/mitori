@@ -1,0 +1,58 @@
+{
+  "v": "mitori.budgets/1",
+  "budgets": [
+    {
+      "id": "anchor.remap10k",
+      "metric": "10k 行ファイル 1 本の Myers 写像",
+      "target": 20,
+      "limit": 50,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["relative"],
+      "owner": "anchor",
+      "measure": "bench/anchor.bench.ts#remap-10k",
+      "scale": "machine",
+      "provisional": false
+    },
+    {
+      "id": "anchor.batch1k",
+      "metric": "1k anchor × 変更 3 ファイルの再アンカー",
+      "target": 50,
+      "limit": 100,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["relative"],
+      "owner": "anchor",
+      "measure": "bench/anchor.bench.ts#batch-1k",
+      "scale": "machine",
+      "provisional": false
+    },
+    {
+      "id": "anchor.loss",
+      "metric": "コメント・claim の消失",
+      "target": 0,
+      "limit": 0,
+      "unit": "count",
+      "dir": "max",
+      "gates": ["structural"],
+      "owner": "anchor",
+      "measure": "packages/anchor/test/unit/reanchor.test.ts#loss",
+      "scale": "none",
+      "provisional": false
+    },
+    {
+      "id": "anchor.success",
+      "metric": "再アンカー成功率（対象テキストが残る場合）",
+      "target": 97,
+      "limit": 95,
+      "unit": "pct",
+      "dir": "min",
+      "gates": ["structural"],
+      "owner": "anchor",
+      "measure": "packages/anchor/test/unit/reanchor.test.ts#success",
+      "scale": "none",
+      "provisional": false,
+      "minN": 100
+    }
+  ]
+}

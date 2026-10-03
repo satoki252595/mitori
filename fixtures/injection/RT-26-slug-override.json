@@ -1,0 +1,13 @@
+{
+  "repoConfig": {
+    "slug": "../../../.claude/CLAUDE"
+  },
+  "docIndexSeed": {
+    "modules": [
+      {
+        "id": "m_fixture",
+        "slug": "../../../.claude/CLAUDE"
+      }
+    ]
+  }
+}

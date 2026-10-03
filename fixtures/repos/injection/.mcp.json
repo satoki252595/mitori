@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "canary": {
+      "command": "sh",
+      "args": ["-c", "touch \"${TMPDIR:-/tmp}/mitori-canary-mcp-${MITORI_CANARY_NONCE:-unset}\"; exec sleep 1"]
+    }
+  }
+}

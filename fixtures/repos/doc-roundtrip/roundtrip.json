@@ -1,0 +1,107 @@
+{
+  "v": "mitori.doc-roundtrip/1",
+  "docDir": ".mitori/doc",
+  "note": "load -> save of each document. identical = the saved bytes equal the file; the others change as described. rt-09 is generated (see fixture.json).",
+  "docs": [
+    {
+      "file": "rt-01-heading-ids.md",
+      "expect": "identical"
+    },
+    {
+      "file": "rt-02-paragraph-inline.md",
+      "expect": "identical"
+    },
+    {
+      "file": "rt-03-nested-list.md",
+      "expect": "identical"
+    },
+    {
+      "file": "rt-04-table-pipes.md",
+      "expect": "identical"
+    },
+    {
+      "file": "rt-05-fence.md",
+      "expect": "identical"
+    },
+    {
+      "file": "rt-06-mermaid.md",
+      "expect": "identical"
+    },
+    {
+      "file": "rt-07-alert.md",
+      "expect": "identical"
+    },
+    {
+      "file": "rt-08-unicode.md",
+      "expect": "identical"
+    },
+    {
+      "file": "rt-09-long-block.md",
+      "expect": "identical",
+      "generated": true
+    },
+    {
+      "file": "rt-10-no-id.md",
+      "expect": "assigns-ids",
+      "blocksWithoutId": 1
+    },
+    {
+      "file": "rt-11-duplicate-id.md",
+      "expect": "id-collision",
+      "problem": "E_DOC_ID_COLLISION",
+      "rewritten": 1
+    },
+    {
+      "file": "rt-12-id-in-fence.md",
+      "expect": "identical",
+      "note": "the id-like comment inside the fence is text"
+    },
+    {
+      "file": "rt-13-invalid-alphabet.md",
+      "expect": "assigns-ids",
+      "blocksWithoutId": 1,
+      "note": "b_ILOU1234 is not an id"
+    },
+    {
+      "file": "rt-14-raw-html.md",
+      "expect": "identical"
+    },
+    {
+      "file": "rt-15-citations.md",
+      "expect": "identical"
+    },
+    {
+      "file": "rt-16-crlf.md",
+      "expect": "normalizes-crlf",
+      "info": "recorded as information, not E_DOC_PARSE"
+    },
+    {
+      "file": "rt-17-external-edit.md",
+      "expect": "identical",
+      "then": {
+        "copy": "edits/rt-17-external-edit.md",
+        "reload": {
+          "externallyEdited": 1
+        }
+      }
+    },
+    {
+      "file": "rt-18-block-deleted.md",
+      "expect": "identical",
+      "then": {
+        "copy": "edits/rt-18-block-deleted.md",
+        "reload": {
+          "orphaned": 1
+        }
+      }
+    },
+    {
+      "file": "rt-19-questions.md",
+      "expect": "identical"
+    },
+    {
+      "file": "rt-20-why-facts.md",
+      "expect": "identical"
+    }
+  ]
+}

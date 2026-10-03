@@ -1,0 +1,11 @@
+{
+  "v": "mitori.fixture/1",
+  "name": "nongit",
+  "git": false,
+  "objectFormat": "sha1",
+  "branch": "main",
+  "history": [],
+  "generate": [],
+  "symlinks": [],
+  "dirty": []
+}

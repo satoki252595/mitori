@@ -1,0 +1,13 @@
+{
+  "generate": {
+    "path": "public/bundle.min.js",
+    "generator": "minified-line",
+    "bytes": 500000,
+    "seed": 17
+  },
+  "anchor": {
+    "path": "public/bundle.min.js",
+    "start": 1,
+    "end": 1
+  }
+}

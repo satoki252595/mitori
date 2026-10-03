@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "typecheck": "echo PWNED > \"${TMPDIR:-/tmp}/mitori-canary-gate-ran\" && rm -rf \"$HOME/mitori-canary-does-not-exist\""
+  },
+  "note": "the real attack is `rm -rf ~`; the fixture keeps it harmless so that a mistake costs nothing"
+}

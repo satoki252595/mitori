@@ -2,26 +2,740 @@
   "v": "mitori.fixture-truth/1",
   "fixture": "ts-small",
   "files": [
-    { "path": "package.json", "class": "config", "lang": "generic" },
-    { "path": "src/config.ts", "class": "source", "lang": "typescript" },
-    { "path": "src/index.ts", "class": "source", "lang": "typescript" }
+    {
+      "path": "package.json",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": "tsconfig.json",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": "README.md",
+      "class": "docs",
+      "lang": "generic"
+    },
+    {
+      "path": "AGENTS.md",
+      "class": "docs",
+      "lang": "generic"
+    },
+    {
+      "path": "src/index.ts",
+      "class": "source",
+      "lang": "typescript"
+    },
+    {
+      "path": "src/ui/BookList.tsx",
+      "class": "source",
+      "lang": "tsx"
+    },
+    {
+      "path": "src/ui/legacy.jsx",
+      "class": "source",
+      "lang": "jsx"
+    },
+    {
+      "path": "src/http/legacy-express.js",
+      "class": "source",
+      "lang": "javascript"
+    },
+    {
+      "path": "bin/tsundoku.js",
+      "class": "source",
+      "lang": "javascript"
+    },
+    {
+      "path": "db/migrations/0001_init.sql",
+      "class": "source",
+      "lang": "generic"
+    },
+    {
+      "path": "test/repo.test.ts",
+      "class": "test",
+      "lang": "typescript"
+    },
+    {
+      "path": "test/metadata.test.ts",
+      "class": "test",
+      "lang": "typescript"
+    },
+    {
+      "path": "dist/app.min.js",
+      "class": "generated",
+      "excluded": "generated",
+      "lang": "javascript"
+    },
+    {
+      "path": "src/generated/api-types.gen.ts",
+      "class": "generated",
+      "excluded": "generated",
+      "lang": "typescript"
+    },
+    {
+      "path": "bun.lock",
+      "class": "lockfile",
+      "excluded": "lockfile",
+      "lang": "generic"
+    },
+    {
+      "path": "data/isbn-sample.json",
+      "class": "data_large",
+      "excluded": "data_large",
+      "lang": "generic"
+    }
   ],
-  "filesExhaustive": true,
+  "filesExhaustive": false,
   "facts": [
-    { "kind": "env", "path": "src/config.ts", "line": 10, "key": "PORT", "attrs": { "hasDefault": true } },
-    { "kind": "env", "path": "src/config.ts", "line": 11, "key": "DATABASE_URL", "attrs": { "hasDefault": false } },
-    { "kind": "entry", "path": "src/index.ts", "key": "main:src/index.ts" },
-    { "kind": "script", "path": "package.json", "key": "dev", "attrs": { "purpose": "run" } },
-    { "kind": "script", "path": "package.json", "key": "test", "attrs": { "purpose": "test" } }
+    {
+      "kind": "route",
+      "path": "src/http/routes.ts",
+      "line": 24,
+      "key": "GET /api/books",
+      "attrs": {
+        "framework": "hono"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "src/http/routes.ts",
+      "line": 26,
+      "key": "GET /api/books/:id",
+      "attrs": {
+        "framework": "hono"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "src/http/routes.ts",
+      "line": 32,
+      "key": "POST /api/books",
+      "attrs": {
+        "framework": "hono"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "src/http/routes.ts",
+      "line": 39,
+      "key": "DELETE /api/books/:id",
+      "attrs": {
+        "framework": "hono"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "src/http/routes.ts",
+      "line": 22,
+      "key": "GET /healthz",
+      "attrs": {
+        "framework": "hono"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "src/http/routes.ts",
+      "line": 48,
+      "key": "POST /reindex",
+      "attrs": {
+        "framework": "hono"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "src/http/routes.ts",
+      "line": 48,
+      "key": "POST /admin/reindex",
+      "attrs": {
+        "framework": "hono"
+      },
+      "stretch": true
+    },
+    {
+      "kind": "route",
+      "path": "src/http/legacy-express.js",
+      "line": 11,
+      "key": "GET /legacy/export",
+      "attrs": {
+        "framework": "express"
+      }
+    },
+    {
+      "kind": "env",
+      "path": "src/config.ts",
+      "line": 23,
+      "key": "PORT",
+      "attrs": {
+        "hasDefault": true
+      }
+    },
+    {
+      "kind": "env",
+      "path": "src/config.ts",
+      "line": 24,
+      "key": "DATABASE_URL",
+      "attrs": {
+        "hasDefault": false
+      }
+    },
+    {
+      "kind": "env",
+      "path": "src/config.ts",
+      "line": 21,
+      "key": "LOG_LEVEL",
+      "attrs": {
+        "hasDefault": true
+      }
+    },
+    {
+      "kind": "env",
+      "path": "src/config.ts",
+      "line": 26,
+      "key": "TSUNDOKU_API_TOKEN",
+      "attrs": {
+        "hasDefault": false
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "bin/tsundoku.js",
+      "key": "tsundoku import",
+      "attrs": {
+        "flags": ["--dry-run"],
+        "framework": "commander"
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "bin/tsundoku.js",
+      "key": "tsundoku export",
+      "attrs": {
+        "flags": ["--format"],
+        "framework": "commander"
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "bin/tsundoku.js",
+      "key": "tsundoku serve",
+      "attrs": {
+        "flags": ["-p", "--port"],
+        "framework": "commander"
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "src/db/schema.ts",
+      "key": "drizzle:books",
+      "attrs": {
+        "fields": ["id", "isbn", "title", "status", "added_at"]
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "src/db/schema.ts",
+      "key": "drizzle:tags",
+      "attrs": {
+        "fields": ["id", "name"]
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "src/db/schema.ts",
+      "key": "drizzle:book_tags",
+      "attrs": {
+        "fields": ["book_id", "tag_id"]
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "db/migrations/0001_init.sql",
+      "key": "sql:books",
+      "attrs": {
+        "fields": ["id", "isbn", "title", "status", "added_at"]
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "db/migrations/0001_init.sql",
+      "key": "sql:tags",
+      "attrs": {
+        "fields": ["id", "name"]
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "db/migrations/0001_init.sql",
+      "key": "sql:book_tags",
+      "attrs": {
+        "fields": ["book_id", "tag_id"]
+      }
+    },
+    {
+      "kind": "entry",
+      "path": "src/index.ts",
+      "key": "main:src/index.ts"
+    },
+    {
+      "kind": "entry",
+      "path": "bin/tsundoku.js",
+      "key": "bin:tsundoku"
+    },
+    {
+      "kind": "script",
+      "path": "package.json",
+      "line": 12,
+      "key": "dev",
+      "attrs": {
+        "purpose": "run"
+      }
+    },
+    {
+      "kind": "script",
+      "path": "package.json",
+      "line": 13,
+      "key": "build",
+      "attrs": {
+        "purpose": "build"
+      }
+    },
+    {
+      "kind": "script",
+      "path": "package.json",
+      "line": 14,
+      "key": "test",
+      "attrs": {
+        "purpose": "test"
+      }
+    },
+    {
+      "kind": "script",
+      "path": "package.json",
+      "line": 15,
+      "key": "typecheck",
+      "attrs": {
+        "purpose": "typecheck"
+      }
+    },
+    {
+      "kind": "script",
+      "path": "package.json",
+      "line": 16,
+      "key": "lint",
+      "attrs": {
+        "purpose": "lint"
+      }
+    },
+    {
+      "kind": "script",
+      "path": "package.json",
+      "line": 17,
+      "key": "format",
+      "attrs": {
+        "purpose": "format"
+      }
+    },
+    {
+      "kind": "test",
+      "path": "test/repo.test.ts",
+      "line": 9,
+      "key": "BookRepo.create assigns an id"
+    },
+    {
+      "kind": "test",
+      "path": "test/repo.test.ts",
+      "line": 18,
+      "key": "BookRepo.remove is idempotent"
+    },
+    {
+      "kind": "test",
+      "path": "test/metadata.test.ts",
+      "line": 7,
+      "key": "fetchMetadata retries exactly once"
+    },
+    {
+      "kind": "dependency",
+      "path": "package.json",
+      "line": 20,
+      "key": "npm:commander",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "package.json",
+      "line": 21,
+      "key": "npm:drizzle-orm",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "package.json",
+      "line": 22,
+      "key": "npm:express",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "package.json",
+      "line": 23,
+      "key": "npm:hono",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "package.json",
+      "line": 26,
+      "key": "npm:@types/bun",
+      "attrs": {
+        "dev": true
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "package.json",
+      "line": 27,
+      "key": "npm:typescript",
+      "attrs": {
+        "dev": true
+      }
+    },
+    {
+      "kind": "existing_doc",
+      "path": "README.md",
+      "line": 1,
+      "key": "readme",
+      "attrs": {
+        "title": "tsundoku-web"
+      }
+    },
+    {
+      "kind": "existing_doc",
+      "path": "AGENTS.md",
+      "line": 1,
+      "key": "agents",
+      "attrs": {
+        "title": "AGENTS.md"
+      }
+    },
+    {
+      "kind": "todo",
+      "path": "src/http/routes.ts",
+      "line": 45,
+      "key": "TODO"
+    }
   ],
-  "forbiddenFacts": [],
+  "forbiddenFacts": [
+    {
+      "kind": "route",
+      "path": "src/http/routes.ts",
+      "line": 45,
+      "key": "GET /api/v0/books"
+    },
+    {
+      "kind": "route",
+      "path": "test/repo.test.ts",
+      "line": 5,
+      "key": "GET /api/books"
+    },
+    {
+      "kind": "env",
+      "path": ".env.example",
+      "line": 6,
+      "key": "TSUNDOKU_DEBUG_SQL"
+    }
+  ],
   "symbols": [
-    { "key": "src/config.ts#Config", "kind": "interface", "start": 2, "end": 5, "exported": true },
-    { "key": "src/config.ts#loadConfig", "kind": "function", "start": 8, "end": 13, "exported": true },
-    { "key": "src/index.ts#main", "kind": "function", "start": 4, "end": 7, "exported": true }
+    {
+      "key": "src/config.ts#LOG_LEVELS",
+      "kind": "const",
+      "start": 2,
+      "end": 2,
+      "exported": true
+    },
+    {
+      "key": "src/config.ts#LogLevel",
+      "kind": "type",
+      "start": 4,
+      "end": 4,
+      "exported": true
+    },
+    {
+      "key": "src/config.ts#Config",
+      "kind": "interface",
+      "start": 7,
+      "end": 12,
+      "exported": true
+    },
+    {
+      "key": "src/config.ts#isLogLevel",
+      "kind": "function",
+      "start": 15,
+      "end": 17,
+      "exported": true
+    },
+    {
+      "key": "src/config.ts#loadConfig",
+      "kind": "function",
+      "start": 20,
+      "end": 28,
+      "exported": true
+    },
+    {
+      "key": "src/index.ts#portFlag",
+      "kind": "function",
+      "start": 5,
+      "end": 9,
+      "exported": false
+    },
+    {
+      "key": "src/index.ts#main",
+      "kind": "function",
+      "start": 12,
+      "end": 18,
+      "exported": true
+    },
+    {
+      "key": "src/db/types.ts#BookStatus",
+      "kind": "type",
+      "start": 2,
+      "end": 2,
+      "exported": true
+    },
+    {
+      "key": "src/db/types.ts#Book",
+      "kind": "interface",
+      "start": 7,
+      "end": 14,
+      "exported": true
+    },
+    {
+      "key": "src/db/types.ts#NewBook",
+      "kind": "interface",
+      "start": 17,
+      "end": 21,
+      "exported": true
+    },
+    {
+      "key": "src/db/repo.ts#parseStatus",
+      "kind": "function",
+      "start": 4,
+      "end": 7,
+      "exported": true
+    },
+    {
+      "key": "src/db/repo.ts#BookRepo",
+      "kind": "class",
+      "start": 10,
+      "end": 55,
+      "exported": true
+    },
+    {
+      "key": "src/db/repo.ts#BookRepo.list",
+      "kind": "method",
+      "start": 20,
+      "end": 22,
+      "exported": true
+    },
+    {
+      "key": "src/db/repo.ts#BookRepo.get",
+      "kind": "method",
+      "start": 25,
+      "end": 27,
+      "exported": true
+    },
+    {
+      "key": "src/db/repo.ts#BookRepo.create",
+      "kind": "method",
+      "start": 30,
+      "end": 42,
+      "exported": true
+    },
+    {
+      "key": "src/db/repo.ts#BookRepo.remove",
+      "kind": "method",
+      "start": 45,
+      "end": 47,
+      "exported": true
+    },
+    {
+      "key": "src/db/repo.ts#BookRepo.countByStatus",
+      "kind": "method",
+      "start": 50,
+      "end": 54,
+      "exported": true
+    },
+    {
+      "key": "src/db/schema.ts#books",
+      "kind": "const",
+      "start": 3,
+      "end": 9,
+      "exported": true
+    },
+    {
+      "key": "src/lib/csv.ts#parseCsv",
+      "kind": "function",
+      "start": 5,
+      "end": 44,
+      "exported": true
+    },
+    {
+      "key": "src/lib/csv.ts#parseCsvRecords",
+      "kind": "function",
+      "start": 47,
+      "end": 52,
+      "exported": true
+    },
+    {
+      "key": "src/services/metadata.ts#MAX_RETRIES",
+      "kind": "const",
+      "start": 2,
+      "end": 2,
+      "exported": true
+    },
+    {
+      "key": "src/services/metadata.ts#fetchMetadata",
+      "kind": "function",
+      "start": 27,
+      "end": 40,
+      "exported": true
+    },
+    {
+      "key": "src/services/importer.ts#importCsv",
+      "kind": "function",
+      "start": 14,
+      "end": 31,
+      "exported": true
+    },
+    {
+      "key": "src/services/importer.ts#exportBooks",
+      "kind": "function",
+      "start": 34,
+      "end": 37,
+      "exported": true
+    },
+    {
+      "key": "src/http/routes.ts#createApp",
+      "kind": "function",
+      "start": 19,
+      "end": 52,
+      "exported": true
+    },
+    {
+      "key": "src/ui/BookList.tsx#BookList",
+      "kind": "function",
+      "start": 12,
+      "end": 24,
+      "exported": true
+    }
   ],
-  "imports": [{ "from": "src/index.ts", "to": "src/config.ts" }],
-  "calls": [{ "from": "src/index.ts#main", "to": "src/config.ts#loadConfig" }],
-  "modules": { "together": [["src/index.ts", "src/config.ts"]], "apart": [] },
-  "tolerances": { "callsRecall": 0.9, "callsPrecision": 0.8 }
+  "imports": [
+    {
+      "from": "src/index.ts",
+      "to": "src/config.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "src/http/routes.ts"
+    },
+    {
+      "from": "src/http/routes.ts",
+      "to": "src/db/repo.ts"
+    },
+    {
+      "from": "src/http/routes.ts",
+      "to": "src/services/metadata.ts"
+    },
+    {
+      "from": "src/http/routes.ts",
+      "to": "src/db/types.ts"
+    },
+    {
+      "from": "src/db/repo.ts",
+      "to": "src/db/types.ts"
+    },
+    {
+      "from": "src/services/importer.ts",
+      "to": "src/lib/csv.ts"
+    },
+    {
+      "from": "src/services/importer.ts",
+      "to": "src/db/repo.ts"
+    },
+    {
+      "from": "bin/tsundoku.js",
+      "to": "src/services/importer.ts"
+    },
+    {
+      "from": "src/ui/BookList.tsx",
+      "to": "src/db/types.ts"
+    },
+    {
+      "from": "test/repo.test.ts",
+      "to": "src/db/repo.ts"
+    },
+    {
+      "from": "test/metadata.test.ts",
+      "to": "src/services/metadata.ts"
+    }
+  ],
+  "calls": [
+    {
+      "from": "src/index.ts#main",
+      "to": "src/config.ts#loadConfig"
+    },
+    {
+      "from": "src/index.ts#main",
+      "to": "src/http/routes.ts#createApp"
+    },
+    {
+      "from": "src/http/routes.ts#createApp",
+      "to": "src/db/repo.ts#BookRepo.list"
+    },
+    {
+      "from": "src/http/routes.ts#createApp",
+      "to": "src/db/repo.ts#BookRepo.get"
+    },
+    {
+      "from": "src/http/routes.ts#createApp",
+      "to": "src/db/repo.ts#BookRepo.create"
+    },
+    {
+      "from": "src/http/routes.ts#createApp",
+      "to": "src/db/repo.ts#BookRepo.remove"
+    },
+    {
+      "from": "src/http/routes.ts#createApp",
+      "to": "src/services/metadata.ts#fetchMetadata"
+    },
+    {
+      "from": "src/services/importer.ts#importCsv",
+      "to": "src/lib/csv.ts#parseCsvRecords"
+    },
+    {
+      "from": "src/services/importer.ts#importCsv",
+      "to": "src/db/repo.ts#BookRepo.create"
+    },
+    {
+      "from": "src/services/importer.ts#importCsv",
+      "to": "src/db/repo.ts#parseStatus"
+    }
+  ],
+  "modules": {
+    "together": [["src/db/repo.ts", "src/db/types.ts", "src/db/schema.ts"], ["src/http/routes.ts", "src/http/legacy-express.js"]],
+    "apart": [["src/ui/BookList.tsx", "src/db/schema.ts"]]
+  },
+  "tolerances": {
+    "callsRecall": 0.9,
+    "callsPrecision": 0.8
+  }
 }

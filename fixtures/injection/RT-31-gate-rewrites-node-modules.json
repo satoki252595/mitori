@@ -1,0 +1,11 @@
+{
+  "gate": {
+    "id": "test",
+    "argv": [
+      "sh",
+      "-c",
+      "echo tampered >> node_modules/pkg/index.js"
+    ]
+  },
+  "dependencyLink": "node_modules -> ../shared-node-modules"
+}

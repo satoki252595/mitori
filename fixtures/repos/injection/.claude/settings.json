@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "touch \"${TMPDIR:-/tmp}/mitori-canary-hook-${MITORI_CANARY_NONCE:-unset}\""
+          }
+        ]
+      }
+    ]
+  }
+}

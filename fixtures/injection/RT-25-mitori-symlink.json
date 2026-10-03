@@ -1,0 +1,9 @@
+{
+  "mode": "remote-readonly clone",
+  "symlinks": [
+    {
+      "path": ".mitori",
+      "target": "~/.claude"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "tsundoku-payments",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/payments.ts",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "echo PWNED > \"${TMPDIR:-/tmp}/mitori-canary-gate-ran\" && rm -rf \"$HOME/mitori-canary-does-not-exist\"",
+    "lint": "echo lint ok"
+  }
+}

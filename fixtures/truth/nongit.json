@@ -1,0 +1,24 @@
+{
+  "v": "mitori.fixture-truth/1",
+  "fixture": "nongit",
+  "files": [
+    { "path": "notes-app/app.py", "class": "source", "lang": "python" },
+    { "path": "notes-app/static/app.js", "class": "source", "lang": "javascript" },
+    { "path": "notes-app/メモ.md", "class": "docs", "lang": "generic" },
+    { "path": "notes-app/node_modules/leftpad/index.js", "class": "ignored", "excluded": "gitignored", "lang": "javascript" },
+    { "path": "notes-app/.venv/lib/python3.12/site-packages/x.py", "class": "ignored", "excluded": "gitignored", "lang": "python" },
+    { "path": "notes-app/build/out.js", "class": "ignored", "excluded": "gitignored", "lang": "javascript" }
+  ],
+  "filesExhaustive": true,
+  "facts": [
+    { "kind": "route", "path": "notes-app/app.py", "key": "GET /", "attrs": { "framework": "flask" } },
+    { "kind": "route", "path": "notes-app/app.py", "key": "GET /notes", "attrs": { "framework": "flask" } },
+    { "kind": "existing_doc", "path": "notes-app/メモ.md", "key": "other", "stretch": true }
+  ],
+  "forbiddenFacts": [],
+  "symbols": [],
+  "imports": [],
+  "calls": [],
+  "modules": { "together": [], "apart": [] },
+  "tolerances": { "callsRecall": 0.9, "callsPrecision": 0.8 }
+}

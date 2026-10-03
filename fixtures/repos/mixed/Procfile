@@ -1,0 +1,2 @@
+web: /app/server
+worker: python scripts/report.py weekly --since 2026-01-01

@@ -1,0 +1,78 @@
+{
+  "v": "mitori.fixture-truth/1",
+  "fixture": "rust-small",
+  "files": [
+    { "path": "Cargo.toml", "class": "config", "lang": "generic" },
+    { "path": "Cargo.lock", "class": "lockfile", "excluded": "lockfile", "lang": "generic" },
+    { "path": "rustfmt.toml", "class": "config", "lang": "generic" },
+    { "path": "src/main.rs", "class": "source", "lang": "rust" },
+    { "path": "src/lib.rs", "class": "source", "lang": "rust" },
+    { "path": "src/config.rs", "class": "source", "lang": "rust" },
+    { "path": "src/store.rs", "class": "source", "lang": "rust" },
+    { "path": "src/meta.rs", "class": "source", "lang": "rust" },
+    { "path": "tests/integration.rs", "class": "test", "lang": "rust" },
+    { "path": "detect-only/clap_cli.rs", "class": "source", "lang": "rust" }
+  ],
+  "filesExhaustive": false,
+  "facts": [
+    { "kind": "env", "path": "src/config.rs", "line": 23, "key": "PORT", "attrs": { "hasDefault": true } },
+    { "kind": "env", "path": "src/config.rs", "line": 27, "key": "DATABASE_URL", "attrs": { "hasDefault": false } },
+    { "kind": "env", "path": "src/config.rs", "line": 28, "key": "LOG_LEVEL", "attrs": { "hasDefault": true } },
+    { "kind": "env", "path": "src/config.rs", "line": 29, "key": "TSUNDOKU_API_TOKEN", "attrs": { "hasDefault": false } },
+    { "kind": "cli", "path": "detect-only/clap_cli.rs", "key": "tsundoku serve", "attrs": { "flags": ["--port"], "framework": "clap" } },
+    { "kind": "cli", "path": "detect-only/clap_cli.rs", "key": "tsundoku import", "attrs": { "flags": ["--dry-run"], "framework": "clap" } },
+    { "kind": "cli", "path": "detect-only/clap_cli.rs", "key": "tsundoku export", "attrs": { "flags": ["--format"], "framework": "clap" } },
+    { "kind": "entry", "path": "src/main.rs", "key": "main:src/main.rs" },
+    { "kind": "entry", "path": "src/main.rs", "key": "bin:tsundoku" },
+    { "kind": "test", "path": "tests/integration.rs", "key": "create_assigns_id" },
+    { "kind": "test", "path": "tests/integration.rs", "key": "delete_is_idempotent" },
+    { "kind": "test", "path": "src/meta.rs", "key": "retries_exactly_once" },
+    { "kind": "todo", "path": "src/store.rs", "line": 83, "key": "XXX" }
+  ],
+  "forbiddenFacts": [
+    { "kind": "route", "path": "src/config.rs", "line": 7, "key": "GET /api/books" },
+    { "kind": "route", "path": "src/config.rs", "line": 7, "key": "ANY /api/books" }
+  ],
+  "symbols": [
+    { "key": "src/config.rs#API_PATH", "kind": "const", "start": 7, "end": 7, "exported": true },
+    { "key": "src/config.rs#Config", "kind": "struct", "start": 11, "end": 16, "exported": true },
+    { "key": "src/config.rs#Config.from_env", "kind": "method", "start": 22, "end": 36, "exported": true },
+    { "key": "src/config.rs#Config.requires_token", "kind": "method", "start": 39, "end": 41, "exported": true },
+    { "key": "src/meta.rs#MAX_RETRIES", "kind": "const", "start": 6, "end": 6, "exported": true },
+    { "key": "src/meta.rs#Metadata", "kind": "struct", "start": 10, "end": 13, "exported": true },
+    { "key": "src/meta.rs#Transport", "kind": "trait", "start": 16, "end": 18, "exported": true },
+    { "key": "src/meta.rs#string_field", "kind": "function", "start": 21, "end": 26, "exported": false },
+    { "key": "src/meta.rs#fetch", "kind": "function", "start": 42, "end": 59, "exported": true },
+    { "key": "src/meta.rs#enrich", "kind": "function", "start": 62, "end": 71, "exported": true },
+    { "key": "src/store.rs#Status", "kind": "enum", "start": 8, "end": 13, "exported": true },
+    { "key": "src/store.rs#Book", "kind": "struct", "start": 39, "end": 44, "exported": true },
+    { "key": "src/store.rs#StoreError", "kind": "enum", "start": 48, "end": 50, "exported": true },
+    { "key": "src/store.rs#ensure_isbn", "kind": "macro", "start": 63, "end": 69, "exported": false },
+    { "key": "src/store.rs#Store", "kind": "trait", "start": 72, "end": 81, "exported": true },
+    { "key": "src/store.rs#MemoryStore", "kind": "struct", "start": 86, "end": 89, "exported": true },
+    { "key": "src/store.rs#MemoryStore.new", "kind": "method", "start": 92, "end": 97, "exported": true },
+    { "key": "src/store.rs#impl Store for MemoryStore", "kind": "impl", "start": 100, "end": 126, "exported": true },
+    { "key": "src/main.rs#main", "kind": "function", "start": 13, "end": 29, "exported": false },
+    { "key": "src/main.rs#serve", "kind": "function", "start": 37, "end": 62, "exported": false },
+    { "key": "src/main.rs#import", "kind": "function", "start": 64, "end": 93, "exported": false },
+    { "key": "src/main.rs#export", "kind": "function", "start": 95, "end": 116, "exported": false }
+  ],
+  "imports": [
+    { "from": "src/main.rs", "to": "src/config.rs" },
+    { "from": "src/main.rs", "to": "src/store.rs" },
+    { "from": "src/main.rs", "to": "src/meta.rs" },
+    { "from": "src/lib.rs", "to": "src/config.rs" },
+    { "from": "src/lib.rs", "to": "src/store.rs" },
+    { "from": "src/lib.rs", "to": "src/meta.rs" },
+    { "from": "src/meta.rs", "to": "src/store.rs" },
+    { "from": "tests/integration.rs", "to": "src/store.rs" }
+  ],
+  "calls": [
+    { "from": "src/main.rs#serve", "to": "src/config.rs#Config.from_env" },
+    { "from": "src/main.rs#import", "to": "src/store.rs#Store" },
+    { "from": "src/main.rs#export", "to": "src/store.rs#Store" },
+    { "from": "src/meta.rs#enrich", "to": "src/store.rs#Book" }
+  ],
+  "modules": { "together": [], "apart": [] },
+  "tolerances": { "callsRecall": 0.9, "callsPrecision": 0.8 }
+}

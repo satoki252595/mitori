@@ -1,0 +1,31 @@
+{
+  "v": "mitori.budgets/1",
+  "budgets": [
+    {
+      "id": "bin.size",
+      "metric": "単一バイナリのサイズ（fine-grained Shiki 前提）",
+      "target": 85,
+      "limit": 95,
+      "unit": "MB",
+      "dir": "max",
+      "gates": ["absolute"],
+      "owner": "cli",
+      "measure": "bench/asset/size.ts#bin-size",
+      "scale": "none",
+      "provisional": false
+    },
+    {
+      "id": "bin.startup",
+      "metric": "mitori --version の起動（hyperfine 20 回の median）",
+      "target": 20,
+      "limit": 50,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["absolute"],
+      "owner": "cli",
+      "measure": "bench/asset/size.ts#bin-startup",
+      "scale": "machine",
+      "provisional": false
+    }
+  ]
+}

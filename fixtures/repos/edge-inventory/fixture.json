@@ -1,0 +1,89 @@
+{
+  "v": "mitori.fixture/1",
+  "name": "edge-inventory",
+  "git": true,
+  "objectFormat": "sha1",
+  "branch": "main",
+  "history": [
+    {
+      "message": "init: one file per inventory rule boundary",
+      "tree": "."
+    }
+  ],
+  "generate": [
+    {
+      "path": "data/big.json",
+      "generator": "isbn-json",
+      "bytes": 51201,
+      "seed": 11
+    },
+    {
+      "path": "data/small.json",
+      "generator": "isbn-json",
+      "bytes": 51199,
+      "seed": 12
+    },
+    {
+      "path": "img/logo.png",
+      "generator": "hex",
+      "hex": "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c63f83f93e13f0006cb02987577e9990000000049454e44ae426082"
+    },
+    {
+      "path": "bin/blob.dat",
+      "generator": "nul-blob",
+      "bytes": 16384,
+      "seed": 3
+    },
+    {
+      "path": "huge/oversize.ts",
+      "generator": "ts-lines",
+      "bytes": 2097153,
+      "seed": 5
+    },
+    {
+      "path": "huge/just-under.ts",
+      "generator": "ts-lines",
+      "bytes": 2097151,
+      "seed": 6
+    },
+    {
+      "path": "enc/bom.ts",
+      "generator": "hex",
+      "hex": "efbbbf6578706f727420636f6e737420626f6d203d20313b0a6578706f727420636f6e7374207365636f6e64203d20323b0a"
+    },
+    {
+      "path": "enc/crlf.py",
+      "generator": "text",
+      "text": "def crlf():\r\n    return 1\r\n\r\n\r\ndef second():\r\n    return 2\r\n"
+    },
+    {
+      "path": "enc/latin1.txt",
+      "generator": "hex",
+      "hex": "63616665e90a6e6169ef76650a"
+    },
+    {
+      "path": "enc/nfd-\u30ab\u3099\u30a4\u30c9.md",
+      "generator": "text",
+      "text": "# NFD file name\n\nThe name of this file is stored decomposed (U+30AB U+3099); RepoPath is NFC.\n"
+    }
+  ],
+  "symlinks": [
+    {
+      "path": "link-inside",
+      "target": "src/a.ts"
+    },
+    {
+      "path": "link-outside",
+      "target": "/etc/hosts"
+    },
+    {
+      "path": "link-loop",
+      "target": "link-loop"
+    },
+    {
+      "path": "link-up",
+      "target": "../outside"
+    }
+  ],
+  "dirty": []
+}

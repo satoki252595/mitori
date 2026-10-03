@@ -1,0 +1,4 @@
+# The test replaces NONCE with the nonce the bundle builder drew first (simulated brute force).
+NONCE
+1|NONCE
+> NONCE

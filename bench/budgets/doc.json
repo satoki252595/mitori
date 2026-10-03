@@ -1,0 +1,91 @@
+{
+  "v": "mitori.budgets/1",
+  "budgets": [
+    {
+      "id": "doc.render.2000.cached",
+      "metric": "2,000 block の描画（キャッシュ済み）",
+      "target": 100,
+      "limit": 150,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["relative"],
+      "owner": "doc",
+      "measure": "bench/doc.bench.ts#render-2000:cached",
+      "scale": "machine",
+      "provisional": true
+    },
+    {
+      "id": "doc.render.2000.cold",
+      "metric": "2,000 block の描画（未キャッシュ）",
+      "target": 1000,
+      "limit": 1500,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["relative"],
+      "owner": "doc",
+      "measure": "bench/doc.bench.ts#render-2000:cold",
+      "scale": "machine",
+      "provisional": true
+    },
+    {
+      "id": "doc.elk.300",
+      "metric": "ELK layered（300 ノード）",
+      "target": 100,
+      "limit": 150,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["relative"],
+      "owner": "doc",
+      "measure": "bench/doc.bench.ts#elk:300",
+      "scale": "machine",
+      "provisional": true
+    },
+    {
+      "id": "doc.elk.1000",
+      "metric": "ELK layered（1,000 ノード）",
+      "target": 400,
+      "limit": 600,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["relative"],
+      "owner": "doc",
+      "measure": "bench/doc.bench.ts#elk:1000",
+      "scale": "machine",
+      "provisional": true
+    },
+    {
+      "id": "doc.shiki.100",
+      "metric": "サーバ側 Shiki 100 行",
+      "target": 5,
+      "limit": 10,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["relative"],
+      "owner": "doc",
+      "measure": "bench/doc.bench.ts#shiki:100",
+      "scale": "machine",
+      "provisional": true
+    },
+    {
+      "id": "doc.flush.10k",
+      "metric": "1 block 更新 → doc flush（10k block。target は CPU、limit は壁時計。DOC-B-001）",
+      "target": 5,
+      "limit": 20,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["relative"],
+      "owner": "doc",
+      "measure": "bench/doc.bench.ts#flush:10k",
+      "scale": "machine",
+      "provisional": false
+    }
+  ],
+  "counters": [
+    {
+      "id": "doc.reopen.renderCalls",
+      "max": 0,
+      "owner": "doc",
+      "measure": "bench/doc.bench.ts#reopen"
+    }
+  ]
+}

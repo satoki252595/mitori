@@ -1,0 +1,20 @@
+diff --git a/internal/meta/fetch.go b/internal/meta/fetch.go
+index 51d29a1..f1432f4 100644
+--- a/internal/meta/fetch.go
++++ b/internal/meta/fetch.go
+@@ -5,6 +5,7 @@ import (
+ 	"context"
+ 	"encoding/json"
+ 	"fmt"
++	"log"
+ 	"net/http"
+ 	"net/url"
+ 	"strings"
+@@ -53,6 +54,7 @@ func (c *Client) Fetch(ctx context.Context, isbn string) (Metadata, error) {
+ 			return md, nil
+ 		}
+ 		lastErr = err
++		log.Printf("meta: attempt %d for %s failed: %v", attempt+1, isbn, err) // debugging, remove before committing
+ 		if ctx.Err() != nil {
+ 			break
+ 		}

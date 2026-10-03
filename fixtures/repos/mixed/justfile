@@ -1,0 +1,11 @@
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# run the web app and the Go API side by side
+dev:
+    (cd services/api && go run .) & (cd web && npm run dev)
+
+# run every test suite
+test:
+    (cd services/api && go test ./...)
+    python -m unittest discover -s scripts
+    (cd tools/indexer-rs && cargo test)

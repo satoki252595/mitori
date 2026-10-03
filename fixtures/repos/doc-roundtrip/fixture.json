@@ -1,0 +1,23 @@
+{
+  "v": "mitori.fixture/1",
+  "name": "doc-roundtrip",
+  "git": true,
+  "objectFormat": "sha1",
+  "branch": "main",
+  "history": [
+    {
+      "message": "init: doc round-trip documents",
+      "tree": "."
+    }
+  ],
+  "generate": [
+    {
+      "path": ".mitori/doc/rt-09-long-block.md",
+      "generator": "md-long-block",
+      "bytes": 102400,
+      "seed": 9
+    }
+  ],
+  "symlinks": [],
+  "dirty": []
+}

@@ -1,0 +1,10 @@
+{
+  "answer": "The rounding happens in src/payments.ts lines 9998-10000.",
+  "cites": [
+    {
+      "path": "src/payments.ts",
+      "start": 9998,
+      "end": 10000
+    }
+  ]
+}

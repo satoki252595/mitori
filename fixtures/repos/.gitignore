@@ -1,0 +1,9 @@
+# Fixture repos are data: the repo-wide ignore rules (secrets, build output, vendored dirs) must not hide fixture content.
+# (Each fixture's own .gitignore, if any, is part of that fixture.)
+!.env
+!.env.*
+!.dev.vars
+!dist/
+!node_modules/
+!coverage/
+!result

@@ -1,0 +1,684 @@
+{
+  "v": "mitori.fixture-truth/1",
+  "fixture": "go-small",
+  "files": [
+    {
+      "path": "go.mod",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": "Makefile",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": "README.md",
+      "class": "docs",
+      "lang": "generic"
+    },
+    {
+      "path": "docs/adr/0001-use-net-http.md",
+      "class": "docs",
+      "lang": "generic"
+    },
+    {
+      "path": "cmd/tsundoku/main.go",
+      "class": "source",
+      "lang": "go"
+    },
+    {
+      "path": "cmd/tsundoku-cobra/main.go",
+      "class": "source",
+      "lang": "go"
+    },
+    {
+      "path": "internal/config/config.go",
+      "class": "source",
+      "lang": "go"
+    },
+    {
+      "path": "internal/server/server.go",
+      "class": "source",
+      "lang": "go"
+    },
+    {
+      "path": "internal/server/chi_routes.go",
+      "class": "source",
+      "lang": "go"
+    },
+    {
+      "path": "internal/store/store.go",
+      "class": "source",
+      "lang": "go"
+    },
+    {
+      "path": "internal/store/memory.go",
+      "class": "source",
+      "lang": "go"
+    },
+    {
+      "path": "internal/store/memory_test.go",
+      "class": "test",
+      "lang": "go"
+    },
+    {
+      "path": "internal/meta/fetch.go",
+      "class": "source",
+      "lang": "go"
+    },
+    {
+      "path": "internal/meta/fetch_test.go",
+      "class": "test",
+      "lang": "go"
+    },
+    {
+      "path": "migrations/0001_init.up.sql",
+      "class": "source",
+      "lang": "generic"
+    },
+    {
+      "path": "migrations/0001_init.down.sql",
+      "class": "source",
+      "lang": "generic"
+    }
+  ],
+  "filesExhaustive": false,
+  "facts": [
+    {
+      "kind": "route",
+      "path": "internal/server/server.go",
+      "line": 33,
+      "key": "ANY /healthz",
+      "attrs": {
+        "framework": "net/http"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "internal/server/server.go",
+      "line": 34,
+      "key": "GET /api/books",
+      "attrs": {
+        "framework": "net/http"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "internal/server/server.go",
+      "line": 35,
+      "key": "GET /api/books/{id}",
+      "attrs": {
+        "framework": "net/http"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "internal/server/server.go",
+      "line": 36,
+      "key": "POST /api/books",
+      "attrs": {
+        "framework": "net/http"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "internal/server/server.go",
+      "line": 37,
+      "key": "DELETE /api/books/{id}",
+      "attrs": {
+        "framework": "net/http"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "internal/server/chi_routes.go",
+      "line": 18,
+      "key": "GET /v2/books",
+      "attrs": {
+        "framework": "chi"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "internal/server/chi_routes.go",
+      "line": 19,
+      "key": "POST /v2/books",
+      "attrs": {
+        "framework": "chi"
+      }
+    },
+    {
+      "kind": "env",
+      "path": "internal/config/config.go",
+      "line": 20,
+      "key": "PORT",
+      "attrs": {
+        "hasDefault": true
+      }
+    },
+    {
+      "kind": "env",
+      "path": "internal/config/config.go",
+      "line": 25,
+      "key": "DATABASE_URL",
+      "attrs": {
+        "hasDefault": false
+      }
+    },
+    {
+      "kind": "env",
+      "path": "internal/config/config.go",
+      "line": 27,
+      "key": "LOG_LEVEL",
+      "attrs": {
+        "hasDefault": false
+      }
+    },
+    {
+      "kind": "env",
+      "path": "internal/config/config.go",
+      "line": 36,
+      "key": "TSUNDOKU_API_TOKEN",
+      "attrs": {
+        "hasDefault": false
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "cmd/tsundoku-cobra/main.go",
+      "key": "tsundoku serve",
+      "attrs": {
+        "flags": ["--port"],
+        "framework": "cobra"
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "cmd/tsundoku-cobra/main.go",
+      "key": "tsundoku import",
+      "attrs": {
+        "flags": ["--dry-run"],
+        "framework": "cobra"
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "cmd/tsundoku-cobra/main.go",
+      "key": "tsundoku export",
+      "attrs": {
+        "flags": ["--format"],
+        "framework": "cobra"
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "cmd/tsundoku/main.go",
+      "key": "tsundoku serve",
+      "stretch": true
+    },
+    {
+      "kind": "cli",
+      "path": "cmd/tsundoku/main.go",
+      "key": "tsundoku import",
+      "stretch": true
+    },
+    {
+      "kind": "cli",
+      "path": "cmd/tsundoku/main.go",
+      "key": "tsundoku export",
+      "stretch": true
+    },
+    {
+      "kind": "schema",
+      "path": "migrations/0001_init.up.sql",
+      "key": "sql:books",
+      "attrs": {
+        "fields": ["id", "isbn", "title", "status", "added_at"]
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "migrations/0001_init.up.sql",
+      "key": "sql:tags",
+      "attrs": {
+        "fields": ["id", "name"]
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "migrations/0001_init.up.sql",
+      "key": "sql:book_tags",
+      "attrs": {
+        "fields": ["book_id", "tag_id"]
+      }
+    },
+    {
+      "kind": "entry",
+      "path": "cmd/tsundoku/main.go",
+      "key": "main:cmd/tsundoku"
+    },
+    {
+      "kind": "entry",
+      "path": "cmd/tsundoku-cobra/main.go",
+      "key": "main:cmd/tsundoku-cobra"
+    },
+    {
+      "kind": "script",
+      "path": "Makefile",
+      "line": 3,
+      "key": "build",
+      "attrs": {
+        "purpose": "build"
+      }
+    },
+    {
+      "kind": "script",
+      "path": "Makefile",
+      "line": 6,
+      "key": "test",
+      "attrs": {
+        "purpose": "test"
+      }
+    },
+    {
+      "kind": "script",
+      "path": "Makefile",
+      "line": 9,
+      "key": "lint",
+      "attrs": {
+        "purpose": "lint"
+      }
+    },
+    {
+      "kind": "script",
+      "path": "Makefile",
+      "line": 12,
+      "key": "fmt",
+      "attrs": {
+        "purpose": "format"
+      }
+    },
+    {
+      "kind": "test",
+      "path": "internal/meta/fetch_test.go",
+      "line": 13,
+      "key": "TestFetchMetadata_RetriesOnce"
+    },
+    {
+      "kind": "test",
+      "path": "internal/meta/fetch_test.go",
+      "line": 50,
+      "key": "TestFetchMetadata_NoRetryOnSuccess"
+    },
+    {
+      "kind": "test",
+      "path": "internal/store/memory_test.go",
+      "line": 12,
+      "key": "TestMemoryStore_CreateAssignsID"
+    },
+    {
+      "kind": "test",
+      "path": "internal/store/memory_test.go",
+      "line": 36,
+      "key": "TestMemoryStore_DeleteMissing"
+    },
+    {
+      "kind": "existing_doc",
+      "path": "README.md",
+      "line": 1,
+      "key": "readme",
+      "attrs": {
+        "title": "tsundoku (Go)"
+      }
+    },
+    {
+      "kind": "existing_doc",
+      "path": "docs/adr/0001-use-net-http.md",
+      "line": 1,
+      "key": "adr",
+      "attrs": {
+        "title": "ADR 0001: HTTP には net/http を使う"
+      }
+    },
+    {
+      "kind": "todo",
+      "path": "internal/server/server.go",
+      "line": 69,
+      "key": "TODO"
+    }
+  ],
+  "forbiddenFacts": [],
+  "symbols": [
+    {
+      "key": "internal/config/config.go#Config",
+      "kind": "struct",
+      "start": 11,
+      "end": 16,
+      "exported": true
+    },
+    {
+      "key": "internal/config/config.go#Load",
+      "kind": "function",
+      "start": 19,
+      "end": 38,
+      "exported": true
+    },
+    {
+      "key": "internal/meta/fetch.go#requestTimeout",
+      "kind": "const",
+      "start": 15,
+      "end": 15,
+      "exported": false
+    },
+    {
+      "key": "internal/meta/fetch.go#maxRetries",
+      "kind": "const",
+      "start": 19,
+      "end": 19,
+      "exported": false
+    },
+    {
+      "key": "internal/meta/fetch.go#Metadata",
+      "kind": "struct",
+      "start": 22,
+      "end": 26,
+      "exported": true
+    },
+    {
+      "key": "internal/meta/fetch.go#Client",
+      "kind": "struct",
+      "start": 29,
+      "end": 32,
+      "exported": true
+    },
+    {
+      "key": "internal/meta/fetch.go#NewClient",
+      "kind": "function",
+      "start": 35,
+      "end": 37,
+      "exported": true
+    },
+    {
+      "key": "internal/meta/fetch.go#NormalizeISBN",
+      "kind": "function",
+      "start": 40,
+      "end": 42,
+      "exported": true
+    },
+    {
+      "key": "internal/meta/fetch.go#Client.Fetch",
+      "kind": "method",
+      "start": 46,
+      "end": 61,
+      "exported": true
+    },
+    {
+      "key": "internal/meta/fetch.go#Client.fetchOnce",
+      "kind": "method",
+      "start": 63,
+      "end": 89,
+      "exported": false
+    },
+    {
+      "key": "internal/server/server.go#Server",
+      "kind": "struct",
+      "start": 22,
+      "end": 27,
+      "exported": true
+    },
+    {
+      "key": "internal/server/server.go#New",
+      "kind": "function",
+      "start": 30,
+      "end": 39,
+      "exported": true
+    },
+    {
+      "key": "internal/server/server.go#Server.WithToken",
+      "kind": "method",
+      "start": 42,
+      "end": 45,
+      "exported": true
+    },
+    {
+      "key": "internal/server/server.go#Server.ServeHTTP",
+      "kind": "method",
+      "start": 48,
+      "end": 56,
+      "exported": true
+    },
+    {
+      "key": "internal/server/server.go#Server.listBooks",
+      "kind": "method",
+      "start": 62,
+      "end": 71,
+      "exported": false
+    },
+    {
+      "key": "internal/server/server.go#pageParams",
+      "kind": "function",
+      "start": 74,
+      "end": 83,
+      "exported": false
+    },
+    {
+      "key": "internal/server/server.go#Server.getBook",
+      "kind": "method",
+      "start": 85,
+      "end": 100,
+      "exported": false
+    },
+    {
+      "key": "internal/server/server.go#Server.createBook",
+      "kind": "method",
+      "start": 102,
+      "end": 134,
+      "exported": false
+    },
+    {
+      "key": "internal/server/server.go#Server.deleteBook",
+      "kind": "method",
+      "start": 136,
+      "end": 151,
+      "exported": false
+    },
+    {
+      "key": "internal/server/server.go#pathID",
+      "kind": "function",
+      "start": 153,
+      "end": 160,
+      "exported": false
+    },
+    {
+      "key": "internal/store/store.go#ErrNotFound",
+      "kind": "var",
+      "start": 11,
+      "end": 11,
+      "exported": true
+    },
+    {
+      "key": "internal/store/store.go#Status",
+      "kind": "type",
+      "start": 14,
+      "end": 14,
+      "exported": true
+    },
+    {
+      "key": "internal/store/store.go#Status.Valid",
+      "kind": "method",
+      "start": 25,
+      "end": 31,
+      "exported": true
+    },
+    {
+      "key": "internal/store/store.go#Book",
+      "kind": "struct",
+      "start": 34,
+      "end": 40,
+      "exported": true
+    },
+    {
+      "key": "internal/store/store.go#Store",
+      "kind": "interface",
+      "start": 43,
+      "end": 52,
+      "exported": true
+    },
+    {
+      "key": "internal/store/memory.go#MemoryStore",
+      "kind": "struct",
+      "start": 11,
+      "end": 16,
+      "exported": true
+    },
+    {
+      "key": "internal/store/memory.go#NewMemoryStore",
+      "kind": "function",
+      "start": 19,
+      "end": 24,
+      "exported": true
+    },
+    {
+      "key": "internal/store/memory.go#MemoryStore.List",
+      "kind": "method",
+      "start": 27,
+      "end": 45,
+      "exported": true
+    },
+    {
+      "key": "internal/store/memory.go#MemoryStore.Get",
+      "kind": "method",
+      "start": 48,
+      "end": 57,
+      "exported": true
+    },
+    {
+      "key": "internal/store/memory.go#MemoryStore.Create",
+      "kind": "method",
+      "start": 60,
+      "end": 72,
+      "exported": true
+    },
+    {
+      "key": "internal/store/memory.go#MemoryStore.Delete",
+      "kind": "method",
+      "start": 75,
+      "end": 84,
+      "exported": true
+    },
+    {
+      "key": "cmd/tsundoku/main.go#main",
+      "kind": "function",
+      "start": 25,
+      "end": 48,
+      "exported": false
+    },
+    {
+      "key": "cmd/tsundoku/main.go#serve",
+      "kind": "function",
+      "start": 50,
+      "end": 59,
+      "exported": false
+    },
+    {
+      "key": "cmd/tsundoku/main.go#importCSV",
+      "kind": "function",
+      "start": 61,
+      "end": 101,
+      "exported": false
+    }
+  ],
+  "imports": [
+    {
+      "from": "cmd/tsundoku/main.go",
+      "to": "internal/config/config.go"
+    },
+    {
+      "from": "cmd/tsundoku/main.go",
+      "to": "internal/server/server.go"
+    },
+    {
+      "from": "cmd/tsundoku/main.go",
+      "to": "internal/store/store.go"
+    },
+    {
+      "from": "cmd/tsundoku/main.go",
+      "to": "internal/store/memory.go"
+    },
+    {
+      "from": "cmd/tsundoku-cobra/main.go",
+      "to": "internal/config/config.go"
+    },
+    {
+      "from": "cmd/tsundoku-cobra/main.go",
+      "to": "internal/server/server.go"
+    },
+    {
+      "from": "cmd/tsundoku-cobra/main.go",
+      "to": "internal/store/store.go"
+    },
+    {
+      "from": "cmd/tsundoku-cobra/main.go",
+      "to": "internal/store/memory.go"
+    },
+    {
+      "from": "internal/server/server.go",
+      "to": "internal/store/store.go"
+    },
+    {
+      "from": "internal/server/server.go",
+      "to": "internal/store/memory.go"
+    },
+    {
+      "from": "internal/server/server.go",
+      "to": "internal/meta/fetch.go"
+    },
+    {
+      "from": "internal/server/chi_routes.go",
+      "to": "internal/store/store.go"
+    },
+    {
+      "from": "internal/server/chi_routes.go",
+      "to": "internal/store/memory.go"
+    }
+  ],
+  "calls": [
+    {
+      "from": "cmd/tsundoku/main.go#main",
+      "to": "internal/config/config.go#Load"
+    },
+    {
+      "from": "cmd/tsundoku/main.go#main",
+      "to": "internal/store/memory.go#NewMemoryStore"
+    },
+    {
+      "from": "cmd/tsundoku/main.go#serve",
+      "to": "internal/server/server.go#New"
+    },
+    {
+      "from": "internal/server/server.go#Server.createBook",
+      "to": "internal/meta/fetch.go#Client.Fetch"
+    },
+    {
+      "from": "internal/server/server.go#Server.listBooks",
+      "to": "internal/store/store.go#Store"
+    },
+    {
+      "from": "internal/server/server.go#Server.getBook",
+      "to": "internal/store/store.go#Store"
+    },
+    {
+      "from": "internal/server/server.go#Server.deleteBook",
+      "to": "internal/store/store.go#Store"
+    }
+  ],
+  "modules": {
+    "together": [["internal/store/store.go", "internal/store/memory.go"], ["internal/server/server.go", "internal/server/chi_routes.go"]],
+    "apart": [["internal/config/config.go", "internal/meta/fetch.go"], ["internal/store/memory.go", "internal/meta/fetch.go"]]
+  },
+  "tolerances": {
+    "callsRecall": 0.9,
+    "callsPrecision": 0.8
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "files": {
+    "mitori.json": {
+      "docDir": "docs"
+    },
+    "docs/README.md": "# Existing docs\n\nHand-written; must not be overwritten.\n"
+  }
+}

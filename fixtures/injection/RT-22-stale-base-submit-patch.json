@@ -1,0 +1,14 @@
+{
+  "tool": "submit_patch",
+  "arguments": {
+    "base": "0000000000000000000000000000000000000000",
+    "path": "src/payments.ts",
+    "hunks": [
+      {
+        "start": 12,
+        "end": 12,
+        "text": "x"
+      }
+    ]
+  }
+}

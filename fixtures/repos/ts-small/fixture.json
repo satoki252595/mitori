@@ -4,8 +4,8 @@
   "git": true,
   "objectFormat": "sha1",
   "branch": "main",
-  "history": [{ "message": "init: tsundoku service (M0 skeleton)", "tree": "." }],
-  "generate": [],
+  "history": [{ "message": "init: tsundoku-web", "tree": "." }],
+  "generate": [{ "path": "data/isbn-sample.json", "generator": "isbn-json", "bytes": 61440, "seed": 7 }],
   "symlinks": [],
   "dirty": []
 }
