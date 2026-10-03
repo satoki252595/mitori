@@ -3,6 +3,7 @@ import type { BlockId, IndexDelta, ModuleId, ModuleInfo } from "@mitori/core";
 import type { ClaimReanchor, IncrementalOutcome } from "../contract.ts";
 import type { RepoFact } from "../test/repo.ts";
 import { M_CLI, M_CORE, M_SESSION } from "../test/repo.ts";
+import { loadState, saveState } from "./state.ts";
 import { makeS9Harness, type S9Harness } from "./test/harness.ts";
 
 const STORE = "src/session/store.ts";
@@ -174,6 +175,23 @@ describe("GEN-S9-04 R1 / R4: interface digests", () => {
     expect(h.store.getEstimate(second.suggestions[0]?.estimate.id as string)).not.toBeNull();
     // running it records the new baseline: the suggestion is gone
     await h.runEstimate(second.suggestions[0]?.estimate.id as string);
+    expect(brief(await h.gen.onIndexDelta(quiet(h)))).toEqual([]);
+  });
+
+  test("a baseline a task records while S9 is estimating survives S9's own state write", async () => {
+    let hook: (() => void) | null = null;
+    const h = await generated({ onWrite: (label) => (label === "gen.s9" ? hook?.() : undefined) });
+    h.setIface(M_SESSION, "iface-v2");
+    // a task finishing between S9's seeding and its final write (the page was regenerated meanwhile)
+    hook = () => {
+      hook = null;
+      void h.write("test.taskDone", () => {
+        const st = loadState(h.db);
+        st.iface[M_SESSION] = "iface-v2";
+        saveState(h.db, st);
+      });
+    };
+    expect(brief(await h.gen.onIndexDelta(quiet(h, { ifaceChanged: [M_SESSION] })))).toEqual(["R1 regen s6/session gen.module"]);
     expect(brief(await h.gen.onIndexDelta(quiet(h)))).toEqual([]);
   });
 });

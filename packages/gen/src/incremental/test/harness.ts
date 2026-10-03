@@ -55,6 +55,8 @@ export interface S9HarnessOptions {
   settings?: EffectiveSettings;
   /** Router options (or a custom router). */
   router?: S9RouterOptions | ScriptedEngineOptions["router"];
+  /** Called when a write slot is requested, before it is queued (interleaving tests). */
+  onWrite?: (label: string) => void;
 }
 
 /** The harness. */
@@ -93,7 +95,14 @@ export function makeS9Harness(opts: S9HarnessOptions = {}) {
   const clock = testClock();
   const db = memDb([...GEN_MIGRATIONS, ...DOC_MIGRATIONS]);
   const indexer = createFakeIndexer(repo, hasher);
-  const write = testWriteQueue();
+  const queue = testWriteQueue();
+  const write = Object.assign(
+    <T>(label: string, fn: () => T): Promise<T> => {
+      opts.onWrite?.(label);
+      return queue(label, fn);
+    },
+    { labels: queue.labels, depth: queue.depth },
+  );
   const events = testEvents();
   const metrics = testMetrics();
   const log = testLogger();

@@ -145,13 +145,13 @@ export class OnDemand {
     return this.result(await this.prepare(scopedPlan(env, this.engine(), translateTasks(env, this.engine(), blocks, lang)), "ondemand"), opts.confirm);
   }
 
-  /** Blocks among `ids` that doc.sync can fix: text blocks with at least one stale claim, excluding `exclude`. */
-  staleBlocks(ids: readonly BlockId[], exclude: ReadonlySet<BlockId> = new Set()): Block[] {
+  /** Blocks among `ids` that doc.sync can fix: text blocks with at least one stale claim. */
+  staleBlocks(ids: readonly BlockId[]): Block[] {
     const doc = this.d.svc.deps.doc;
     const out: Block[] = [];
     for (const id of new Set(ids)) {
       const b = doc.block(id);
-      if (!b || exclude.has(id) || !textBlock(b)) continue;
+      if (!b || !textBlock(b)) continue;
       if (doc.claims(id).some((c) => c.verdict === "stale")) out.push(b);
     }
     return out;

@@ -33,8 +33,12 @@ export class Incremental {
     const deps = this.deps;
     const t0 = deps.clock.now();
     const marked = await this.mark(input);
-    const state = loadState(deps.db);
-    this.seed(state);
+    // seeding is one read-modify-write slot: a task finishing meanwhile (taskDone, same slot discipline) is never lost
+    const state = await deps.write("gen.s9.seed", () => {
+      const st = loadState(deps.db);
+      if (this.seed(st)) saveState(deps.db, st);
+      return st;
+    });
     const units = this.units(new Set(input.excludeBlocks ?? []));
     const unlabeled = this.unlabeled();
     const specs = evaluate({ units, base: state, now: fingerprints(deps.indexer, deps.hasher), unlabeled });
@@ -44,11 +48,12 @@ export class Incremental {
       if (s) suggestions.push(s);
     }
     const keep = new Set(suggestions.map((s) => s.estimate.id));
-    const drop = state.estimates.filter((id) => !keep.has(id));
-    state.estimates = [...keep];
     await deps.write("gen.s9", () => {
-      saveState(deps.db, state);
-      this.svc.store.deleteEstimates(drop);
+      // re-read: baselines may have moved while the estimates were made; only the estimate list is S9's to replace
+      const st = loadState(deps.db);
+      this.svc.store.deleteEstimates(st.estimates.filter((id) => !keep.has(id)));
+      st.estimates = [...keep];
+      saveState(deps.db, st);
     });
     return { ...marked, staticRefreshed: [], suggestions, ms: deps.clock.now() - t0 };
   }
@@ -114,9 +119,11 @@ export class Incremental {
   /**
    * First sight of a generated module page without a baseline: the doc index still holds the digest of the last
    * static apply — the page's generation input — because the composition root re-applies statics after S9.
+   * Returns true when the state changed.
    */
-  private seed(state: S9State): void {
+  private seed(state: S9State): boolean {
     const ix = this.deps.indexer;
+    const before = JSON.stringify(state);
     for (const e of this.deps.doc.index().modules) if (state.iface[e.id] === undefined && this.content(e.section).length > 0) state.iface[e.id] = e.ifaceDigest;
     for (const id of Object.keys(state.iface) as ModuleId[]) if (!ix.module(id)) delete state.iface[id];
     const fp = fingerprints(ix, this.deps.hasher);
@@ -124,6 +131,7 @@ export class Incremental {
     if (state.flows === undefined && has("s3", ...this.deps.doc.sections().flatMap((s) => (s.id.startsWith("s3/") ? [s.id] : [])))) state.flows = fp.flows;
     if (state.schema === undefined && has("s7")) state.schema = fp.schema;
     if (state.structure === undefined && has("s0", "s1", "s2")) state.structure = fp.structure;
+    return JSON.stringify(state) !== before;
   }
 
   /** Units with generated content and their claim counts (excluded blocks and blocks awaiting a proposal don't count). */
