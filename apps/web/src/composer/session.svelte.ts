@@ -332,11 +332,16 @@ export class ComposerSession {
     if (this.#estTimer) clearTimeout(this.#estTimer);
     this.#estTimer = null;
     const ws = this.ws;
-    const th = this.draft;
-    if (!ws || !th || !this.runsJob) return null;
+    if (!ws || !this.draft || !this.runsJob) return null;
     const seq = ++this.#estSeq;
     this.estimating = true;
     try {
+      // the server estimates what it has stored: the body's autosave (500 ms) is slower than this debounce (300 ms),
+      // so write the text first — otherwise the estimate (and the plan a send reuses) is made for an empty ASK
+      if (this.body !== this.#savedBody) await this.flushSave();
+      const th = this.draft;
+      if (!th) return null;
+      const sent = this.#savedBody; // what the server has — and so what it estimates
       const before = this.predicted.tokensIn;
       const context = contextAdjust(this.chips, this.candidateKeys, this.mentions);
       const est = await this.#s.api.call("POST /ws/:ws/jobs/estimate", {
@@ -351,6 +356,8 @@ export class ComposerSession {
       });
       if (seq !== this.#estSeq) return est;
       this.applyEstimate(est);
+      // typed on while it was in flight: a send must not trust this one
+      if (this.body !== sent) this.stale = true;
       if (Math.abs(this.predicted.tokensIn - before) > 0 && this.chips.length > 0) {
         this.flash = true;
         setTimeout(() => (this.flash = false), 350);

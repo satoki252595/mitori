@@ -67,11 +67,23 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
     return p;
   }
 
-  /** The plan a create confirms: the remembered one while the index is unchanged, else a re-plan within ±20 %. */
+  /** What the bundle is made of besides the index: a thread's intent, anchor and human text, and the context adjustments. */
+  const threadSig = (t: ThreadDetail): string => JSON.stringify([t.intent, t.anchor, t.messages.map((m) => [m.by, m.body])]);
+  const contextSig = (r: JobReq): string => JSON.stringify([r.context ?? null, r.mode ?? null, r.model ?? null, r.engine ?? null]);
+  /** The remembered plan still describes what a create would send (live finding: a draft saved after its estimate). */
+  function inputsUnchanged(known: JobPlan, req: CreateJobReq): boolean {
+    if (contextSig(known.req) !== contextSig(req)) return false;
+    return known.threads.every((t) => {
+      const now = deps.review.get(t.id);
+      return now !== null && threadSig(now) === threadSig(t);
+    });
+  }
+
+  /** The plan a create confirms: the remembered one while the index and the inputs are unchanged, else a re-plan within ±20 %. */
   async function planFor(req: CreateJobReq): Promise<JobPlan> {
     const known = core.plans.get(req.estimateId);
     const digest = deps.indexer.snapshot()?.indexDigest ?? null;
-    const fresh = known && known.digest === digest && Date.parse(known.estimate.expiresAt) > deps.clock.now();
+    const fresh = known && known.digest === digest && Date.parse(known.estimate.expiresAt) > deps.clock.now() && inputsUnchanged(known, req);
     if (known && fresh) return known;
     const p = await freshPlan(req);
     if (known) {
