@@ -118,7 +118,8 @@ export function ttftOf(model: ModelId, effort: ReasoningEffort | null, engine: E
 
 /** Output tokens/s. */
 export function speedOf(model: ModelId): number {
-  return isClaude(model) ? PRICING[model].outTokPerSec : 100;
+  if (!isClaude(model)) return 100;
+  return GEN_ESTIMATE_PARAMS.outTokPerSec[model] ?? PRICING[model].outTokPerSec;
 }
 
 /** Engine start-up σ (s). */

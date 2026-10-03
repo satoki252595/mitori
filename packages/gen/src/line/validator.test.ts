@@ -237,6 +237,21 @@ describe("GEN-U-014 markers vs claims (V14) and compact claim grammar (V03)", ()
     expect(claimsOf(verdicts[2])[0]?.cites).toEqual([{ path: "internal/session/store.go", start: 12, end: 12 }]);
   });
 
+  test("W04: a range running past the shown lines keeps its shown part when that is at least half of it", () => {
+    const c = ctx({ citable: citable({ "internal/session/store.go": 400 }, { "internal/session/store.go": [10, 20] }) });
+    const { verdicts } = run(
+      [
+        j({ t: "block", id: "new:1", aspect: "responsibility", md: "A[[1]]。", claims: { "1": "fact internal/session/store.go:12-30" } }),
+        j({ t: "block", id: "new:2", aspect: "responsibility", md: "A[[1]]。", claims: { "1": "fact internal/session/store.go:12-60" } }),
+      ],
+      c,
+    );
+    // shown 10..20 (±2 slack ⇒ up to 22): 12-30 keeps 12-22 (11 of 19 lines); 12-60 keeps too little ⇒ V17 (retried)
+    expect(verdicts.map(rules)).toEqual([[], ["V17"]]);
+    expect(claimsOf(verdicts[0])[0]?.cites).toEqual([{ path: "internal/session/store.go", start: 12, end: 22 }]);
+    expect(verdicts[0]?.warnings).toContain("W04");
+  });
+
   test("W12: spaces after full-width punctuation are removed outside code (Japanese only)", () => {
     const { verdicts } = run([
       j({ t: "block", id: "new:1", aspect: "responsibility", md: "持つ[[1]]。 次に `a。 b` を使う（推測）。 終わり。", claims: { "1": "fact" } }),
@@ -709,6 +724,27 @@ describe("module, term, flow lines", () => {
 });
 
 describe("question and verdict lines", () => {
+  test("gen.questions keeps the section of its source, any section (real run 2026-10-04: crit's list was rejected whole)", () => {
+    const c = ctx({
+      prompt: "gen.questions",
+      lineTypes: ["question", "end"],
+      sections: ["s13"],
+      primarySection: "s13",
+      requiredAspects: [],
+      moduleLineRequired: false,
+    });
+    const { verdicts } = run(
+      [
+        j({ t: "question", section: "s1", text: "?", from: ["q1"] }),
+        j({ t: "question", section: "S6/Internal_Session", text: "?" }),
+        j({ t: "question", section: "nowhere", text: "?" }),
+      ],
+      c,
+    );
+    expect(verdicts.map(rules)).toEqual([[], [], ["V05"]]);
+    expect(verdicts.map((v) => (v.value?.t === "question" ? v.value.section : null))).toEqual(["s1", "s6/internal-session", null]);
+  });
+
   test("question cites are checked like claim cites; bad section is V05", () => {
     const { verdicts } = run([
       j({ t: "question", text: "?", cites: [{ path: "nope.go", start: 1, end: 2 }] }),

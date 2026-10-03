@@ -91,10 +91,16 @@ export function createVerifier(deps: VerifierDeps): GenVerifier {
     return (await enclosing(path, l, start, end))?.key;
   }
 
-  /** L1 scope of a window: the qualified name of its enclosing symbol (`Server.handleLogin`), none at top level. */
+  /**
+   * L1 scope of a window: the qualified name of its enclosing symbol (`Server.handleLogin`) and the file's directory
+   * name, which is the package qualifier in Go (`clicmd.Exit` citing internal/clicmd/clicmd.go) and the module name in
+   * most layouts [real run 2026-10-04: 6 of 32 crit L1 failures were package-qualified Go names].
+   */
   async function scopeOf(path: RepoPath, l: Loaded, start: LineNo, end: LineNo): Promise<string[]> {
     const s = await enclosing(path, l, start, end);
-    return s ? [s.qualname] : [];
+    const dirs = path.split("/").slice(0, -1);
+    const dir = dirs[dirs.length - 1];
+    return [...(s ? [s.qualname] : []), ...(dir ? [dir] : [])];
   }
 
   async function stamp(raw: readonly RawCite[], span: ClaimSpan, snapshot: Xxh3 | null, pack: Xxh3 | null): Promise<StampResult> {

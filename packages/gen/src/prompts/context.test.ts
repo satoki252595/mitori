@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Fact } from "@mitori/core";
-import { CITE_GAP_LINES, CitableBuilder } from "./context.ts";
+import { CITE_GAP_LINES, CitableBuilder, requiredAspectsOf } from "./context.ts";
 import { testsWithLocations } from "./inputs.ts";
 
 // daemon.go as the crit prompt showed it (dogfood 2026-10-04): three signatures, bodies elided; the symbols end before
@@ -55,6 +55,14 @@ describe("GEN-U-061 V17 citable ranges (short unseen runs between shown lines)",
   });
 
   const fact = (path: string, name: string, line: number): Fact => ({ kind: "test", detector: "test.go@1", path, line, blob: "b", name });
+
+  test("a module without exported symbols does not require the interface aspect (real run 2026-10-04: crit web/style.css)", () => {
+    const with0 = new Map([["MODULE", ["> id: md_aaaaaaaa", "> exported: 0"]]]);
+    const with3 = new Map([["MODULE", ["> id: md_aaaaaaaa", "> exported: 3"]]]);
+    expect(requiredAspectsOf("gen.module", ["responsibility", "interface"], with0)).toEqual(["responsibility"]);
+    expect(requiredAspectsOf("gen.module", ["responsibility", "interface"], with3)).toEqual(["responsibility", "interface"]);
+    expect(requiredAspectsOf("gen.parent", ["responsibility", "structure"], with0)).toEqual(["responsibility", "structure"]);
+  });
 
   test("TESTS lines get each case's line from the test facts (same names in order; files without facts unchanged)", () => {
     const facts = [fact("x_test.go", "TestA", 10), fact("web/a.test.js", "dup", 3), fact("web/a.test.js", "dup", 9)];

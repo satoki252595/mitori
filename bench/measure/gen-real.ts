@@ -67,7 +67,9 @@ writeFileSync(
   JSON.stringify({
     ...prev,
     scheduler: { ...((prev.scheduler as object) ?? {}), concurrency, reserveInteractive: 0 },
-    limits: { ...((prev.limits as object) ?? {}), genRunMaxUsd: live ? maxUsd : 10 },
+    // the product stops dispatching at stopAtBudgetFraction (0.8) of genRunMaxUsd and pauses the run: give it head room
+    // so that this harness's own --max-usd guard (cancel when spent > cap) is the one that applies [crit run 2026-10-04]
+    limits: { ...((prev.limits as object) ?? {}), genRunMaxUsd: live ? Math.round((maxUsd / 0.8) * 100) / 100 + 0.01 : 10 },
   }),
 );
 
@@ -213,6 +215,13 @@ while (!finished) {
     if (e.type === "gen.task" && terminal(e.task.state)) log(`task ${e.task.state}: ${e.task.stage} ${e.task.target.kind}:${e.task.target.id}`);
   }
   if (state && terminal(state.state)) break;
+  if (state?.state === "paused" && !cancelReason) {
+    cancelReason = `run paused (${JSON.stringify(state.paused ?? null)})`;
+    log(`cancelling: ${cancelReason}`);
+    await call("POST", `/ws/${ws}/gen/runs/${run.id}/control`, { action: "cancel" }).catch(() => undefined);
+    await sse.until((ev) => ev.some((x) => x.type === "gen.run" && x.run.id === run.id && terminal(x.run.state)), 30_000).catch(() => undefined);
+    break;
+  }
   if (performance.now() - lastPoll > 3000) {
     lastPoll = performance.now();
     childMax = Math.max(childMax, children());

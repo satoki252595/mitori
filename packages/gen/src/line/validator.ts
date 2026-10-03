@@ -540,13 +540,20 @@ export class GenLineValidator implements LineValidator {
   private claimCites(cl: GenClaimDraft, c: LineCheck): GenClaimDraft {
     const keep: RawCite[] = [];
     const unshown: { j: number; problem: CiteProblem }[] = [];
+    let clamped = false;
     for (const [j, cite] of cl.cites.entries()) {
       const p = this.citeProblem(cite, c);
       if (p === null) keep.push(cite);
-      else if (p.rule === "V17") unshown.push({ j, problem: p });
-      else c.err(p.rule, `/claims/${cl.n}/${j}`, p.expected, p.actual);
+      else if (p.rule === "V17") {
+        const part = this.shownPart(cite);
+        if (part) {
+          keep.push(part);
+          clamped = true;
+        } else unshown.push({ j, problem: p });
+      } else c.err(p.rule, `/claims/${cl.n}/${j}`, p.expected, p.actual);
     }
-    if (unshown.length === 0) return cl;
+    if (clamped) c.warn("W04");
+    if (unshown.length === 0) return clamped ? { ...cl, cites: keep } : cl;
     if (keep.length > 0 && keep.length + unshown.length === cl.cites.length) {
       c.warn("W11");
       return { ...cl, cites: keep };
@@ -590,6 +597,32 @@ export class GenLineValidator implements LineValidator {
     if (!this.ctx.citable.allows(cite.path, start, end))
       return { rule: "V17", expected: "lines shown in the task (N| lines, FACTS locations or given cites)", actual: `${cite.path}:${cite.start}-${cite.end}` };
     return null;
+  }
+
+  /**
+   * W04 (clamp to the shown part): a range that runs past the lines shown in the task keeps its shown part when that
+   * part is at least half of it — the model saw those lines, and L1 still checks that they carry the claim's
+   * identifiers. Null when no such part exists (V17 stays). [real run 2026-10-04: 5 of 8 crit retries were one range
+   * a few lines longer than the shown body]
+   */
+  private shownPart(cite: RawCite): RawCite | null {
+    const lines = this.ctx.citable.lines(cite.path);
+    if (lines === null || cite.start < 1 || cite.end > lines || cite.start > cite.end) return null;
+    const { path, start, end } = cite;
+    const allows = (s: number, e: number) => this.ctx.citable.allows(path, s, e);
+    let best: [number, number] | null = null;
+    for (let e = end - 1; e >= start; e--)
+      if (allows(start, e)) {
+        best = [start, e];
+        break;
+      }
+    for (let s = start + 1; s <= end; s++)
+      if (allows(s, end)) {
+        if (!best || end - s > best[1] - best[0]) best = [s, end];
+        break;
+      }
+    if (!best || (best[1] - best[0] + 1) * 2 < end - start + 1) return null;
+    return { path, start: best[0], end: best[1] };
   }
 
   private keepDelete(t: "keep" | "delete", o: Record<string, unknown>, c: LineCheck): GenLine | null {
@@ -671,7 +704,13 @@ export class GenLineValidator implements LineValidator {
     if (typeof text !== "string" || text.length < 1 || text.length > GEN_LIMITS.questionChars)
       c.err("V03", "/text", `text string 1..${GEN_LIMITS.questionChars}`, text);
     let section: SectionId | undefined;
-    if (o.section !== undefined) {
+    const merged = typeof o.section === "string" ? o.section.trim().toLowerCase().replace(/_/g, "-") : "";
+    if (this.ctx.prompt === "gen.questions" && SECTION_RE.test(merged)) {
+      // the consolidated list keeps "the section of the most specific source" (§5.6.10): any section, not only s13
+      // [real run 2026-10-04: crit's consolidation was rejected whole (V05) and resent from the start]
+      section = merged as SectionId;
+      if (merged !== o.section) c.warn("W03");
+    } else if (o.section !== undefined) {
       if (typeof o.section !== "string") c.err("V03", "/section", "section string", o.section);
       else {
         const norm = this.normalizeSection(o.section);

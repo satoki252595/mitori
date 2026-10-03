@@ -1053,16 +1053,23 @@ export const GEN_ESTIMATE_PARAMS = {
   },
   /** Haiku on the API runs without thinking. */
   apiHaikuThinking: false,
-  /** Time to first token (s) per model × effort [Sonnet low 06 §10; Haiku low 実測 4.85 s; Opus 仮]. */
+  /**
+   * Fixed seconds of a call besides its output (prefill, first event) per model × effort. Real claude-cli runs of
+   * 2026-10-04 (32 crit + 27 m3e calls, warm prompt cache): duration ≈ 0.7 s + (out + thinking) / 135 for Sonnet low,
+   * Opus medium ≈ (out + thinking) / 140 — the earlier 4 s / 8 s [06 §10, 仮] doubled every estimated run time.
+   * Haiku low keeps its measured 4.85 s.
+   */
   ttftSec: {
-    "claude-sonnet-5-5": { low: 4.0, medium: 6.0 },
-    "claude-opus-5-5": { medium: 8.0, high: 12.0 },
+    "claude-sonnet-5-5": { low: 1.0, medium: 2.0 },
+    "claude-opus-5-5": { medium: 2.0, high: 4.0 },
     "claude-haiku-4-5": { low: 4.9 },
   },
+  /** Output tokens/s measured on claude-cli (2026-10-04), preferred over the price table's `outTokPerSec`. */
+  outTokPerSec: { "claude-sonnet-5-5": 135, "claude-opus-5-5": 140 } as Partial<Record<ClaudeModelId, number>>,
   /** Haiku ttft on the API (no thinking) [仮]. */
   apiHaikuTtftSec: 1.5,
-  /** Startup per engine (s). */
-  startupSec: { "claude-cli": 2.5, "anthropic-api": 0.4, session: 6 },
+  /** Startup per engine (s). claude-cli: the warm pool hides most of the spawn (measured calls include it). */
+  startupSec: { "claude-cli": 1.0, "anthropic-api": 0.4, session: 6 },
   /** p90 = p50 × this [仮]. */
   p90OverP50: 1.35,
   /** Use the 1h TTL on the API when the run is expected to exceed this (s). */
@@ -1083,7 +1090,12 @@ export const GEN_ESTIMATE_PARAMS = {
   onDemandDialogAboveTokens: 100000,
   /** Default run cap when `limits.genRunMaxUsd` is unset [仮]. */
   defaultRunMaxUsd: 10,
-  /** Output target coefficients (§5.3). module: clamp(900 + 0.06·tail, 900, 3500). */
+  /**
+   * Output target coefficients (§5.3). module: clamp(900 + 0.06·tail, 900, 3500). quality / decisions / flows / perTerm
+   * calibrated on the real standard runs of 2026-10-04 (m3e-canvas ×2, crit; visible output per task incl. retries:
+   * quality 704–1477, decisions 1219–1853, flows 1877, glossary 22–40 per term) — the [仮] values overestimated the
+   * output by 30–43 % (docs/progress/gen-quality.md).
+   */
   outTargets: {
     moduleBase: 900,
     moduleSlope: 0.06,
@@ -1091,12 +1103,12 @@ export const GEN_ESTIMATE_PARAMS = {
     parent: 1500,
     overviewEarly: 900,
     overviewFinal: 2500,
-    flows: 3000,
+    flows: 2400,
     datamodel: 1500,
-    quality: 2000,
-    decisions: 2000,
+    quality: 1200,
+    decisions: 1600,
     risks: 1500,
-    perTerm: 45,
+    perTerm: 28,
     questions: 800,
     perLabel: 45,
     deepdiveTopic: 1500,

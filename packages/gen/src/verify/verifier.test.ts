@@ -127,6 +127,13 @@ describe("GEN-U-031 L1: identifiers within the cited range ±2", () => {
     expect(indexer.enclosingSymbol("src/session/store.ts", 18, 18)?.qualname).toBe("Store.put");
   });
 
+  test("the cited file's directory is the package qualifier (real run 2026-10-04: `clicmd.Exit` citing internal/clicmd/clicmd.go)", async () => {
+    const { v } = setup();
+    // lines 7-8 say `export class Store {` but never the word "session": the directory src/session supplies it
+    expect((await v.stamp([{ path: "src/session/store.ts", start: 7, end: 8 }], span(["session.Store"]))).checks.l1).toBe("pass");
+    expect((await v.stamp([{ path: "src/session/store.ts", start: 7, end: 8 }], span(["auth.Store"]))).checks.l1).toBe("fail");
+  });
+
   test("W08 relocates a single cite by the smallest shift and marks precision search", async () => {
     const { v } = setup();
     // ErrExpired is defined on line 22; the LLM cited 19..19 (3 lines off, outside ±2)

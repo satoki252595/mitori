@@ -77,7 +77,7 @@ export const UNIT_TEMPLATES: Readonly<Partial<Record<GenPromptId, string>>> = {
     "- Allowed aspects, in this order. Always write the required ones; skip any other aspect when the data gives no evidence for it; never pad.",
     "  learn (kind learn, L1): 3 list items saying what the reader learns on this page.",
     "  responsibility (prose, L2, required): what the module is for, and what it deliberately does not do.",
-    "  interface (list or table, L2, required): the exported surface; one item per important symbol: `name` and what callers use it for.",
+    "  interface (list or table, L2, required unless MODULE says exported: 0): the exported surface; one item per important symbol: `name` and what callers use it for.",
     "  dependencies (prose or list, L2): what it uses and what uses it, based on DEPS; name each module by its directory and main exports.",
     "  data (list or table, L2): the main data structures and what their fields mean.",
     "  flow (list, L2): how a typical call moves through the module, as numbered steps.",

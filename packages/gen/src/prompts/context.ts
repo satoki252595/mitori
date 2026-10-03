@@ -201,7 +201,17 @@ export function buildContext(
     modules,
     citable: citable.build(index),
     flows: task.prompt === "gen.flows" ? flowLimits(seeds) : { min: 0, max: 0 },
-    requiredAspects: spec.requiredAspects,
+    requiredAspects: requiredAspectsOf(task.prompt, spec.requiredAspects, sections),
     moduleLineRequired: task.prompt === "gen.module" || task.prompt === "gen.parent",
   };
+}
+
+/**
+ * Required aspects of a task: the prompt's, except `interface` for a module page whose MODULE says `exported: 0` (a
+ * stylesheet, a script directory): there is no exported surface to describe, and requiring one only buys a retry and a
+ * filler block [real run 2026-10-04: crit web/style.css].
+ */
+export function requiredAspectsOf(prompt: GenPromptId, required: readonly BlockAspect[], sections: ReadonlyMap<string, readonly string[]>): BlockAspect[] {
+  if (prompt === "gen.module" && (sections.get("MODULE") ?? []).includes("> exported: 0")) return required.filter((a) => a !== "interface");
+  return [...required];
 }
