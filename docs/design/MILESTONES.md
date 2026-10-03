@@ -76,9 +76,9 @@ flowchart LR
 | S5 生成 | WP-06 → WP-06b | `packages/gen/src/**`（WP-06b は `src/{incremental,ondemand,translate}/`） | opus |
 | S6 ループ | WP-07 → WP-08b → WP-08c、WP-08a（別の 1 体） | `packages/anchor`、`packages/loop/src/review/`（WP-07）、`packages/loop/src/{bundle,router,prompts,contracts}/`（WP-08a）、`packages/loop/src/{git,gates,jobs}/`（WP-08b）、`packages/loop/src/{agent,repair,external,pr}/`（WP-08c） | opus（08a は sonnet） |
 | S7 サーバ | WP-09 | `packages/server/src/{http,auth,sse,ws,settings,trust,inbox,routes}/`、`packages/client` | opus |
-| S8 UI | WP-10a → WP-10b | `apps/web/src/{shell,map,reader,palette,settings,gen,stores}/` + `apps/web/i18n/{shell,map,reader,palette,settings,gen}.{ja,en}.json`（WP-10a）、`apps/web/src/{composer,threads,jobs,review,inbox,proposals,trust}/` + 対応 i18n（WP-10b） | sonnet |
-| S9 CLI | WP-11a（M0 直後、≤ 1 週）→ WP-11 | `apps/cli/src/{main.ts,daemon/,build/}`、`scripts/{gen-assets,release}.ts`（WP-11a）、`apps/cli/src/commands/`、`integrations/`、`packages/loop/src/{install,mcp,pull}/`（WP-11） | sonnet |
-| S10 品質 | WP-00b → WP-12 | `fixtures/**`（`fixtures/<pkg>/` は各 WP が追加のみ可）、`bench/{runner,compare,asset}/`、`bench/budgets/`（各 WP は自分の `<pkg>.json` だけ編集）、`eval/`、`e2e/harness/` | sonnet |
+| S8 UI | WP-10a → WP-10b | `apps/web/src/{shell,map,reader,palette,settings,gen,stores}/` + `apps/web/i18n/{shell,map,reader,palette,settings,gen}.{ja,en}.json` + `apps/web/{index.html,vite.config.ts}`（WP-10a）、`apps/web/src/{composer,threads,jobs,review,inbox,proposals,trust}/` + 対応 i18n（WP-10b） | sonnet |
+| S9 CLI | WP-11a（M0 直後、≤ 1 週）→ WP-11 | `apps/cli/src/{main.ts,daemon/,build/}`、`scripts/{gen-assets,release,build-bin}.ts`（WP-11a）、`apps/cli/src/commands/`、`integrations/`、`packages/loop/src/{install,mcp,pull}/`（WP-11） | sonnet |
+| S10 品質 | WP-00b → WP-12 | `packages/testkit/src/**`（contract.ts を除く）、`fixtures/**`（`fixtures/<pkg>/` は各 WP が追加のみ可）、`bench/{runner,compare,asset}/`、`bench/budgets/`（各 WP は自分の `<pkg>.json` だけ編集）、`eval/`、`e2e/harness/` | sonnet |
 | S11 結合 | WP-INT | `packages/server/src/{compose.ts,wiring/}`、`test/int/`、`packages/*/src/index.ts`（re-export の追加だけ） | opus |
 
 e2e のシナリオは機能の WP が `e2e/<area>/` に置く（harness は WP-12）。
@@ -125,7 +125,7 @@ e2e のシナリオは機能の WP が `e2e/<area>/` に置く（harness は WP-
 
 ### WP-11a walking skeleton ★（S、sonnet、S9）
 
-- **所有**: `apps/cli/src/{main.ts,daemon/,build/}`、`scripts/gen-assets.ts`、`scripts/release.ts`
+- **所有**: `apps/cli/src/{main.ts,daemon/,build/}`、`scripts/gen-assets.ts`、`scripts/release.ts`、`scripts/build-bin.ts`（M0 の hello 版から引き継ぐ）
 - **依存**: 契約のみ（server・web はスタブ）
 - **読む範囲**: ARCHITECTURE §2.1〜2.4・§3.5、ADR-0001 R1、`specs/server.md` §1〜2、SC-04 / SC-25 の検証結果
 - **成果物**: darwin-arm64 + linux-x64 のバイナリに、br/gz 事前圧縮の Svelte dist（WP-10a のスタブ shell）、grammar wasm 6 本、parse Worker、**専用 ELK Worker**（`elk-api.js` + `with {type:"file"}` で埋め込んだ `elk-worker.min.js`）、fine-grained Shiki（MVP 言語 + json/yaml/toml/md/sh/sql）、migration runner を同梱。`mitori <path> --no-open` で daemon 起動 → S0 スタブ → `GET /doc` → shell 描画まで。`assets.lock.json`（wasm・grammar の sha256）。
