@@ -1,0 +1,32 @@
+[
+  {
+    "blob": "6e9a9abeb146f015ec961ae2ec9ca631bf7e55c3",
+    "bodyHash": "a9544f3baa48e3c3",
+    "doc": "URL of the Go API the web app proxies to.",
+    "end": 6,
+    "exported": true,
+    "key": "web/lib/upstream.ts#upstream",
+    "kind": "function",
+    "name": "upstream",
+    "path": "web/lib/upstream.ts",
+    "qualname": "upstream",
+    "sigHash": "7e5481b4b1a88620",
+    "signature": "export function upstream(path: string): string",
+    "start": 2
+  },
+  {
+    "blob": "6e9a9abeb146f015ec961ae2ec9ca631bf7e55c3",
+    "bodyHash": "215fe2959b7afe9e",
+    "doc": "Forward a request to the Go API and relay status and body unchanged.",
+    "end": 12,
+    "exported": true,
+    "key": "web/lib/upstream.ts#relay",
+    "kind": "function",
+    "name": "relay",
+    "path": "web/lib/upstream.ts",
+    "qualname": "relay",
+    "sigHash": "6f9f2b50c9823814",
+    "signature": "export async function relay(path: string, init?: RequestInit): Promise<Response>",
+    "start": 9
+  }
+]

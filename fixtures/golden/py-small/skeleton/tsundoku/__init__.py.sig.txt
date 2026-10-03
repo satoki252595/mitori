@@ -1,0 +1,2 @@
+=== tsundoku/__init__.py · python · 3 lines ===
+3|__version__ = "0.4.2"

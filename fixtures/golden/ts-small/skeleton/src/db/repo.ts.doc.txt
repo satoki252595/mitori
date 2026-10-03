@@ -1,0 +1,26 @@
+=== src/db/repo.ts · typescript · 55 lines · imports: ./types.ts ===
+3|/** Parse a user-supplied status; anything unknown (or missing) means the book has not been started. */
+4|export function parseStatus(value: string | undefined): BookStatus {
+⋮
+9|/** In-memory book store. The SQLite-backed repo (drizzle, see schema.ts) exposes the same four operations. */
+10|export class BookRepo {
+11|  #books = new Map<number, Book>();
+12|  #nextId = 1;
+13|  readonly #now: () => Date;
+15|  constructor(now: () => Date = () => new Date()) {
+⋮
+19|  /** All books, oldest first. */
+20|  list(): Book[] {
+⋮
+24|  /** One book, or undefined when the id is unknown. */
+25|  get(id: number): Book | undefined {
+⋮
+29|  /** Add a book and return it with its new id. The same ISBN is only stored once. */
+30|  create(input: NewBook): Book {
+⋮
+44|  /** Remove a book; returns whether something was removed (removing twice is fine). */
+45|  remove(id: number): boolean {
+⋮
+49|  /** Number of books per status, every status present. */
+50|  countByStatus(): Record<BookStatus, number> {
+⋮

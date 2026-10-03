@@ -1,0 +1,3 @@
+=== src/lib/csv.ts · typescript · 52 lines
+> export function parseCsv(text: string): string[][]
+> export function parseCsvRecords(text: string): Record<string, string>[]

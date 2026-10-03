@@ -1,0 +1,9 @@
+=== src/http/routes.ts · typescript · 52 lines · imports: hono ../db/repo.ts ../db/types.ts ../services/metadata.ts ===
+6|interface CreateBody {
+7|  isbn?: string;
+8|  title?: string;
+9|  status?: BookStatus;
+13|function idParam(raw: string | undefined): number | null {
+⋮
+19|export function createApp(repo: BookRepo = new BookRepo()): Hono {
+⋮

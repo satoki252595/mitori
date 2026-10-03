@@ -1,0 +1,7 @@
+=== src/accounts.ts · typescript · 11 lines ===
+1|export interface Account {
+2|  id: string;
+3|  name: string | null;
+4|  email: string;
+8|export function displayName(account: Account | null | undefined): string {
+⋮

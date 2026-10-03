@@ -1,0 +1,17 @@
+[
+  {
+    "blob": "45abe5257052bd9a61e29f71b5d89ddebc3ce64d",
+    "bodyHash": "f7442ddd4e84c2cf",
+    "doc": "ChiRouter is the v2 API on top of chi. It is not compiled yet (chi is not a dependency of the module); it documents where /v2 is heading.",
+    "end": 21,
+    "exported": true,
+    "key": "internal/server/chi_routes.go#ChiRouter",
+    "kind": "function",
+    "name": "ChiRouter",
+    "path": "internal/server/chi_routes.go",
+    "qualname": "ChiRouter",
+    "sigHash": "3f3a87d84f083c29",
+    "signature": "func ChiRouter(s store.Store) http.Handler",
+    "start": 15
+  }
+]

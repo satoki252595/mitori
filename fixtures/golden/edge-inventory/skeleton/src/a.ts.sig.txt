@@ -1,0 +1,3 @@
+=== src/a.ts · typescript · 4 lines ===
+2|export function a(): number {
+⋮

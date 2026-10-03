@@ -1,0 +1,9 @@
+=== tsundoku/cli_click.py · python · 27 lines · imports: json collections datetime click ===
+12|@click.group()
+13|def cli() -> None:
+⋮
+17|@cli.command()
+18|@click.argument("export_file", type=click.Path(exists=True, dir_okay=False))
+19|@click.option("--since", type=click.DateTime(formats=["%Y-%m-%d"]), default=None, help="only count books added on or after this day")
+20|def stats(export_file: str, since: datetime | None) -> None:
+⋮

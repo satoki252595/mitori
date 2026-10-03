@@ -1,0 +1,14 @@
+=== tsundoku/models.py · python · 26 lines · imports: sqlalchemy.orm ===
+1|"""SQLAlchemy models (the SQL-backed repo is not wired in yet; repo.py uses sqlite3 directly)."""
+8|class Base(DeclarativeBase):
+12|class Book(Base):
+13|    __tablename__ = "books"
+15|    id: Mapped[int] = mapped_column(primary_key=True)
+16|    isbn: Mapped[str] = mapped_column(unique=True)
+17|    title: Mapped[str]
+18|    status: Mapped[str] = mapped_column(default="unread")
+19|    added_at: Mapped[str]
+22|class Tag(Base):
+23|    __tablename__ = "tags"
+25|    id: Mapped[int] = mapped_column(primary_key=True)
+26|    name: Mapped[str] = mapped_column(unique=True)

@@ -1,0 +1,19 @@
+=== src/db/repo.ts · typescript · 55 lines · imports: ./types.ts ===
+4|export function parseStatus(value: string | undefined): BookStatus {
+⋮
+10|export class BookRepo {
+11|  #books = new Map<number, Book>();
+12|  #nextId = 1;
+13|  readonly #now: () => Date;
+15|  constructor(now: () => Date = () => new Date()) {
+⋮
+20|  list(): Book[] {
+⋮
+25|  get(id: number): Book | undefined {
+⋮
+30|  create(input: NewBook): Book {
+⋮
+45|  remove(id: number): boolean {
+⋮
+50|  countByStatus(): Record<BookStatus, number> {
+⋮

@@ -1,0 +1,3 @@
+=== scripts/tool.rb · generic · 12 lines
+> module Isbn
+> def self.check_digit(prefix)

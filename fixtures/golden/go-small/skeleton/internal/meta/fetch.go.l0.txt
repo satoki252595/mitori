@@ -1,0 +1,7 @@
+=== internal/meta/fetch.go · go · 89 lines
+> type Metadata struct
+> type Client struct
+> func NewClient(baseURL string) *Client
+> func NormalizeISBN(raw string) string
+>   func (c *Client) Fetch(ctx context.Context, isbn string) (Metadata, error)
+> …+3 private

@@ -1,0 +1,19 @@
+=== internal/meta/fetch.go · go · 89 lines · imports: context encoding/json fmt net/http net/url strings time ===
+2|package meta
+15|const requestTimeout = 10 * time.Second
+19|const maxRetries = 1
+22|type Metadata struct {
+23|	Title   string   `json:"title"`
+24|	Authors []string `json:"authors"`
+25|	Pages   int      `json:"pages"`
+29|type Client struct {
+30|	baseURL string
+31|	http    *http.Client
+35|func NewClient(baseURL string) *Client {
+⋮
+40|func NormalizeISBN(raw string) string {
+⋮
+46|func (c *Client) Fetch(ctx context.Context, isbn string) (Metadata, error) {
+⋮
+63|func (c *Client) fetchOnce(ctx context.Context, isbn string) (Metadata, error) {
+⋮

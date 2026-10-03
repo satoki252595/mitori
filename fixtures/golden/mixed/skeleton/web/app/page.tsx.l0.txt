@@ -1,0 +1,2 @@
+=== web/app/page.tsx · tsx · 11 lines
+> export default function Home()

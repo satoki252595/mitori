@@ -1,0 +1,5 @@
+=== web/components/Nav.jsx · jsx · 16 lines ===
+1|const LINKS = [
+⋮
+6|export default function Nav({ active }) {
+⋮

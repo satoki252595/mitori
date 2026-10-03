@@ -1,0 +1,2 @@
+=== config/aws.ts · typescript · 6 lines
+> export const awsConfig

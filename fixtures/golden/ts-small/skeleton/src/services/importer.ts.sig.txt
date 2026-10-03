@@ -1,0 +1,10 @@
+=== src/services/importer.ts · typescript · 37 lines · imports: @app/db/repo @app/lib/csv ===
+4|export interface ImportResult {
+5|  imported: number;
+6|  skipped: number;
+7|  errors: string[];
+11|const shelf = new BookRepo();
+14|export function importCsv(text: string, opts: { dryRun?: boolean } = {}, repo: BookRepo = shelf): ImportResult {
+⋮
+34|export function exportBooks(format: string, repo: BookRepo = shelf): string {
+⋮

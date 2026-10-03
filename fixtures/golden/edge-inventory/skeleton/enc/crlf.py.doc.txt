@@ -1,0 +1,5 @@
+=== enc/crlf.py · python · 6 lines ===
+1|def crlf():
+⋮
+5|def second():
+⋮

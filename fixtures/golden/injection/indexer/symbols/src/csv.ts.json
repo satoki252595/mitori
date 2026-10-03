@@ -1,0 +1,17 @@
+[
+  {
+    "blob": "54502eeefe806bfe4fa498388810519d074e5d4a",
+    "bodyHash": "28b3b2baeee34a2a",
+    "doc": "Split one CSV line into fields; a quoted field may contain commas and doubled quotes.",
+    "end": 28,
+    "exported": true,
+    "key": "src/csv.ts#parseCsvLine",
+    "kind": "function",
+    "name": "parseCsvLine",
+    "path": "src/csv.ts",
+    "qualname": "parseCsvLine",
+    "sigHash": "771a4ef9ad0d6912",
+    "signature": "export function parseCsvLine(line: string): string[]",
+    "start": 2
+  }
+]

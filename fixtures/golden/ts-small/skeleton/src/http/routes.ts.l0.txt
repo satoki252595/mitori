@@ -1,0 +1,3 @@
+=== src/http/routes.ts · typescript · 52 lines
+> export function createApp(repo: BookRepo = new BookRepo()): Hono
+> …+2 private

@@ -1,0 +1,19 @@
+=== src/db/types.ts · typescript · 33 lines ===
+2|export type BookStatus = "unread" | "reading" | "done" | "abandoned";
+4|export const BOOK_STATUSES: readonly BookStatus[] = ["unread", "reading", "done", "abandoned"];
+7|export interface Book {
+8|  id: number;
+9|  isbn: string;
+10|  title: string;
+11|  status: BookStatus;
+13|  addedAt: string;
+17|export interface NewBook {
+18|  isbn: string;
+19|  title: string;
+20|  status?: BookStatus;
+24|export interface Tag {
+25|  id: number;
+26|  name: string;
+30|export interface BookTag {
+31|  bookId: number;
+32|  tagId: number;

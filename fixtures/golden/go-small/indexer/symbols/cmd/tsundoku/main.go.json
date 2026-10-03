@@ -1,0 +1,58 @@
+[
+  {
+    "blob": "356d56f3bf61690f23f2ef3ebac195bcdcca20ba",
+    "bodyHash": "cd41edaea5329c4f",
+    "end": 48,
+    "exported": false,
+    "key": "cmd/tsundoku/main.go#main",
+    "kind": "function",
+    "name": "main",
+    "path": "cmd/tsundoku/main.go",
+    "qualname": "main",
+    "sigHash": "3b9cc60f9dc9ed21",
+    "signature": "func main()",
+    "start": 25
+  },
+  {
+    "blob": "356d56f3bf61690f23f2ef3ebac195bcdcca20ba",
+    "bodyHash": "10d54047c35a2dfc",
+    "end": 59,
+    "exported": false,
+    "key": "cmd/tsundoku/main.go#serve",
+    "kind": "function",
+    "name": "serve",
+    "path": "cmd/tsundoku/main.go",
+    "qualname": "serve",
+    "sigHash": "f61a64a028d76659",
+    "signature": "func serve(cfg config.Config, pile store.Store, args []string) error",
+    "start": 50
+  },
+  {
+    "blob": "356d56f3bf61690f23f2ef3ebac195bcdcca20ba",
+    "bodyHash": "78f8269232de3672",
+    "end": 101,
+    "exported": false,
+    "key": "cmd/tsundoku/main.go#importCSV",
+    "kind": "function",
+    "name": "importCSV",
+    "path": "cmd/tsundoku/main.go",
+    "qualname": "importCSV",
+    "sigHash": "e92a673b3b256371",
+    "signature": "func importCSV(pile store.Store, args []string) error",
+    "start": 61
+  },
+  {
+    "blob": "356d56f3bf61690f23f2ef3ebac195bcdcca20ba",
+    "bodyHash": "71e0a24475eb38e1",
+    "end": 119,
+    "exported": false,
+    "key": "cmd/tsundoku/main.go#export",
+    "kind": "function",
+    "name": "export",
+    "path": "cmd/tsundoku/main.go",
+    "qualname": "export",
+    "sigHash": "c9963ded0fe055d4",
+    "signature": "func export(pile store.Store, args []string, out io.Writer) error",
+    "start": 103
+  }
+]

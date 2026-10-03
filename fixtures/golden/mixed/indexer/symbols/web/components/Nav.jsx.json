@@ -1,0 +1,30 @@
+[
+  {
+    "blob": "da73250c78d1222cea88e7196be6e5e3bf6f7d5d",
+    "bodyHash": "3639c5073cb86274",
+    "end": 4,
+    "exported": false,
+    "key": "web/components/Nav.jsx#LINKS",
+    "kind": "const",
+    "name": "LINKS",
+    "path": "web/components/Nav.jsx",
+    "qualname": "LINKS",
+    "sigHash": "8a21b4016ccb808e",
+    "signature": "const LINKS",
+    "start": 1
+  },
+  {
+    "blob": "da73250c78d1222cea88e7196be6e5e3bf6f7d5d",
+    "bodyHash": "479b637f21be8e6d",
+    "end": 16,
+    "exported": true,
+    "key": "web/components/Nav.jsx#Nav",
+    "kind": "function",
+    "name": "Nav",
+    "path": "web/components/Nav.jsx",
+    "qualname": "Nav",
+    "sigHash": "c94bb3bc108851a1",
+    "signature": "export default function Nav({ active })",
+    "start": 6
+  }
+]

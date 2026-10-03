@@ -1,0 +1,113 @@
+[
+  {
+    "blob": "ea8c4bf7f35f6f77f75d92ad8ce8349f6e81ddba",
+    "class": "config",
+    "lang": "generic",
+    "lines": 1,
+    "loc": 1,
+    "path": ".gitignore",
+    "size": 8,
+    "tokensEst": 4
+  },
+  {
+    "blob": "5ca7f20ee10aa3db27be3bb043e70dd19f330089",
+    "class": "lockfile",
+    "excluded": "lockfile",
+    "lang": "generic",
+    "lines": 0,
+    "loc": 0,
+    "path": "Cargo.lock",
+    "size": 152,
+    "tokensEst": 120
+  },
+  {
+    "blob": "6c8133e9ce8a9b94333dea97491719f10e23825a",
+    "class": "config",
+    "lang": "generic",
+    "lines": 16,
+    "loc": 13,
+    "path": "Cargo.toml",
+    "size": 262,
+    "tokensEst": 114
+  },
+  {
+    "blob": "0d1199da6bb5c453771e98f0332b9475cdec1a82",
+    "class": "source",
+    "lang": "rust",
+    "lines": 42,
+    "loc": 31,
+    "path": "detect-only/clap_cli.rs",
+    "size": 1197,
+    "tokensEst": 521
+  },
+  {
+    "blob": "f42c8b39bbbd3c77aabff564698ed6dcfc19b02f",
+    "class": "config",
+    "lang": "generic",
+    "lines": 2,
+    "loc": 2,
+    "path": "rustfmt.toml",
+    "size": 33,
+    "tokensEst": 15
+  },
+  {
+    "blob": "cd133389d07069ef98cbc95da6e633ea20eba126",
+    "class": "source",
+    "lang": "rust",
+    "lines": 42,
+    "loc": 30,
+    "path": "src/config.rs",
+    "size": 1323,
+    "tokensEst": 576
+  },
+  {
+    "blob": "d1b7ecfb8921721b3ad8958e59bec093d9820372",
+    "class": "source",
+    "lang": "rust",
+    "lines": 7,
+    "loc": 3,
+    "path": "src/lib.rs",
+    "size": 215,
+    "tokensEst": 94
+  },
+  {
+    "blob": "34293855b17a0ad273b715b42991c23417d9600b",
+    "class": "source",
+    "lang": "rust",
+    "lines": 116,
+    "loc": 107,
+    "path": "src/main.rs",
+    "size": 3853,
+    "tokensEst": 1676
+  },
+  {
+    "blob": "a8e55a2037cc61435a3e6a8c39c7afc7b165f838",
+    "class": "source",
+    "lang": "rust",
+    "lines": 121,
+    "loc": 99,
+    "path": "src/meta.rs",
+    "size": 3708,
+    "tokensEst": 1610
+  },
+  {
+    "blob": "b559c8364e986784e41b73bd9741b0ac517e0972",
+    "class": "source",
+    "lang": "rust",
+    "lines": 126,
+    "loc": 97,
+    "path": "src/store.rs",
+    "size": 3243,
+    "tokensEst": 1410
+  },
+  {
+    "blob": "ee7055b7c23db4b7e2e0db0176c64b7f7aeda2f6",
+    "class": "test",
+    "lang": "rust",
+    "lines": 29,
+    "loc": 27,
+    "path": "tests/integration.rs",
+    "size": 906,
+    "tokensEst": 385
+  }
+]

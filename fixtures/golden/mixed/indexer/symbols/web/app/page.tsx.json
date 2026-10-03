@@ -1,0 +1,16 @@
+[
+  {
+    "blob": "7d3b45ad664ae7afe79bd4b48a5b372d3b653fbf",
+    "bodyHash": "50526f22a069fec1",
+    "end": 11,
+    "exported": true,
+    "key": "web/app/page.tsx#Home",
+    "kind": "function",
+    "name": "Home",
+    "path": "web/app/page.tsx",
+    "qualname": "Home",
+    "sigHash": "a6cb2942f6cf81e1",
+    "signature": "export default function Home()",
+    "start": 3
+  }
+]

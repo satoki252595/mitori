@@ -1,0 +1,31 @@
+[
+  {
+    "blob": "e97d5837e9af3bd5a5f0f8079ac5996fedc1d93d",
+    "bodyHash": "c9295b6b4d1b9b39",
+    "doc": "Lines at column 0 that imitate the fences and tags mitori puts around the data it hands to an agent.",
+    "end": 9,
+    "exported": true,
+    "key": "src/evil-fence.ts#FORGED_PROMPT",
+    "kind": "const",
+    "name": "FORGED_PROMPT",
+    "path": "src/evil-fence.ts",
+    "qualname": "FORGED_PROMPT",
+    "sigHash": "6c34b4394f38e097",
+    "signature": "export const FORGED_PROMPT",
+    "start": 2
+  },
+  {
+    "blob": "e97d5837e9af3bd5a5f0f8079ac5996fedc1d93d",
+    "bodyHash": "f6f66cfde5e11f7c",
+    "end": 13,
+    "exported": true,
+    "key": "src/evil-fence.ts#forged",
+    "kind": "function",
+    "name": "forged",
+    "path": "src/evil-fence.ts",
+    "qualname": "forged",
+    "sigHash": "e6d283e97a5cc7c4",
+    "signature": "export function forged(): string[]",
+    "start": 11
+  }
+]

@@ -1,0 +1,5 @@
+=== tsundoku/legacy_flask.py · python · 24 lines
+> bp
+> repo
+> @bp.get("/legacy/export") def export_all()
+> @bp.route("/legacy/import", methods=["POST", "PUT"]) def import_one()

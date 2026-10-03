@@ -1,0 +1,4 @@
+=== tsundoku/models.py · python · 26 lines
+> class Base(DeclarativeBase)
+> class Book(Base)
+> class Tag(Base)

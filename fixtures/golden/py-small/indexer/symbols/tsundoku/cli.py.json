@@ -1,0 +1,30 @@
+[
+  {
+    "blob": "8c2a7edc2fd0171b68fce06c24cf4cf435e5942e",
+    "bodyHash": "7b912a6c84ac3250",
+    "end": 28,
+    "exported": true,
+    "key": "tsundoku/cli.py#build_parser",
+    "kind": "function",
+    "name": "build_parser",
+    "path": "tsundoku/cli.py",
+    "qualname": "build_parser",
+    "sigHash": "e8a2738ebb74b815",
+    "signature": "def build_parser() -> argparse.ArgumentParser",
+    "start": 15
+  },
+  {
+    "blob": "8c2a7edc2fd0171b68fce06c24cf4cf435e5942e",
+    "bodyHash": "aef0051c9ea701b5",
+    "end": 43,
+    "exported": true,
+    "key": "tsundoku/cli.py#main",
+    "kind": "function",
+    "name": "main",
+    "path": "tsundoku/cli.py",
+    "qualname": "main",
+    "sigHash": "a7c2ea79427134d8",
+    "signature": "def main(argv: Sequence[str] | None = None) -> int",
+    "start": 31
+  }
+]

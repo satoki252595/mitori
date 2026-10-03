@@ -1,0 +1,7 @@
+=== src/index.ts · typescript · 20 lines · imports: ./config.ts ./http/routes.ts ===
+4|/** Pick `--port <n>` out of the command line, if present and numeric. */
+5|function portFlag(argv: readonly string[]): number | undefined {
+⋮
+11|/** Entry point: start the HTTP service. */
+12|export function main(argv: readonly string[] = Bun.argv.slice(2)): void {
+⋮

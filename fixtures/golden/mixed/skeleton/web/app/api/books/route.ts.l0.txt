@@ -1,0 +1,3 @@
+=== web/app/api/books/route.ts · typescript · 9 lines
+> export async function GET()
+> export async function POST(request: Request)

@@ -1,0 +1,21 @@
+=== internal/store/store.go · go · 52 lines · imports: context errors time ===
+2|package store
+11|var ErrNotFound = errors.New("book not found")
+14|type Status string
+18|	StatusUnread    Status = "unread"
+19|	StatusReading   Status = "reading"
+20|	StatusDone      Status = "done"
+21|	StatusAbandoned Status = "abandoned"
+25|func (s Status) Valid() bool {
+⋮
+34|type Book struct {
+35|	ID      int64     `json:"id"`
+36|	ISBN    string    `json:"isbn"`
+37|	Title   string    `json:"title"`
+38|	Status  Status    `json:"status"`
+39|	AddedAt time.Time `json:"added_at"`
+43|type Store interface {
+45|	List(ctx context.Context, offset, limit int) ([]Book, error)
+47|	Get(ctx context.Context, id int64) (Book, error)
+49|	Create(ctx context.Context, b Book) (Book, error)
+51|	Delete(ctx context.Context, id int64) error

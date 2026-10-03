@@ -1,0 +1,9 @@
+=== internal/config/config.go · go · 38 lines · imports: cmp os strconv ===
+2|package config
+11|type Config struct {
+12|	Port        int
+13|	DatabaseURL string
+14|	LogLevel    string
+15|	APIToken    string
+19|func Load() Config {
+⋮

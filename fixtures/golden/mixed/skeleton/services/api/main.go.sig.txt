@@ -1,0 +1,16 @@
+=== services/api/main.go · go · 62 lines · imports: log net/http os sync github.com/gin-gonic/gin ===
+2|package main
+14|type book struct {
+15|	ID     int    `json:"id"`
+16|	ISBN   string `json:"isbn"`
+17|	Title  string `json:"title"`
+18|	Status string `json:"status"`
+21|type shelf struct {
+22|	mu    sync.Mutex
+23|	books []book
+26|func (s *shelf) all() []book {
+⋮
+32|func (s *shelf) add(b book) book {
+⋮
+40|func main() {
+⋮

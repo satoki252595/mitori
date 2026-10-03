@@ -1,0 +1,19 @@
+=== src/config.rs · rust · 42 lines · imports: std::env std::error::Error ===
+1|//! Runtime configuration, read from the environment.
+6|/// Where the (separately deployed) HTTP front end mounts the books API; used to print help texts.
+7|pub const API_PATH: &str = "/api/books";
+9|/// Settings of the service.
+11|pub struct Config {
+12|    pub port: u16,
+13|    pub database_url: String,
+14|    pub log_level: String,
+15|    pub api_token: Option<String>,
+18|impl Config {
+19|    /// Read the configuration from the environment.
+20|    ///
+21|    /// `DATABASE_URL` is required; a `PORT` that is not a number silently falls back to 8080.
+22|    pub fn from_env() -> Result<Config, Box<dyn Error>> {
+⋮
+38|    /// True when writes must carry `Authorization: Bearer <token>`.
+39|    pub fn requires_token(&self) -> bool {
+⋮

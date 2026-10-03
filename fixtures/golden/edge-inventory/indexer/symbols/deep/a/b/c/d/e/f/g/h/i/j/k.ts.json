@@ -1,0 +1,17 @@
+[
+  {
+    "blob": "2f563c681e9e7afc38c8edf61f50f65faa1aca2e",
+    "bodyHash": "79414bdcab6f79a3",
+    "doc": "Eleven directories deep.",
+    "end": 2,
+    "exported": true,
+    "key": "deep/a/b/c/d/e/f/g/h/i/j/k.ts#depth",
+    "kind": "const",
+    "name": "depth",
+    "path": "deep/a/b/c/d/e/f/g/h/i/j/k.ts",
+    "qualname": "depth",
+    "sigHash": "cfc0a3ff1631e5e8",
+    "signature": "export const depth",
+    "start": 2
+  }
+]

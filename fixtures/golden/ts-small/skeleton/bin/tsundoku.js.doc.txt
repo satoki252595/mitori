@@ -1,0 +1,2 @@
+=== bin/tsundoku.js · javascript · 37 lines · imports: node:child_process node:fs commander ../src/services/importer.ts ===
+7|const program = new Command().name("tsundoku").description("Manage the pile of books you have not read yet");

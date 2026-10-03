@@ -1,0 +1,13 @@
+=== src/services/importer.ts · typescript · 37 lines · imports: @app/db/repo @app/lib/csv ===
+4|export interface ImportResult {
+5|  imported: number;
+6|  skipped: number;
+7|  errors: string[];
+10|/** The pile the command-line tool works on (the HTTP service owns its own repo). */
+11|const shelf = new BookRepo();
+13|/** Import books from CSV text with the columns `isbn,title,status`. With `dryRun` nothing is stored. */
+14|export function importCsv(text: string, opts: { dryRun?: boolean } = {}, repo: BookRepo = shelf): ImportResult {
+⋮
+33|/** Serialize the pile. Only `json` is supported so far. */
+34|export function exportBooks(format: string, repo: BookRepo = shelf): string {
+⋮

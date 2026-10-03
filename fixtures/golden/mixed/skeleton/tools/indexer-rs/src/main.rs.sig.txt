@@ -1,0 +1,3 @@
+=== tools/indexer-rs/src/main.rs · rust · 21 lines · imports: clap::{Arg,ArgAction,Command} ===
+3|fn main() {
+⋮

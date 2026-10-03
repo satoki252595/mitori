@@ -1,0 +1,16 @@
+=== src/config.ts · typescript · 28 lines ===
+1|/** Log levels the service understands, quietest last. */
+2|export const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
+4|export type LogLevel = (typeof LOG_LEVELS)[number];
+6|/** Runtime configuration of the tsundoku service. */
+7|export interface Config {
+8|  port: number;
+9|  databaseUrl: string | undefined;
+10|  logLevel: LogLevel;
+11|  apiToken: string | undefined;
+14|/** True when `value` is one of {@link LOG_LEVELS}. */
+15|export function isLogLevel(value: string): value is LogLevel {
+⋮
+19|/** Read the configuration from the environment; command-line flags are applied by the caller (see src/index.ts). */
+20|export function loadConfig(): Config {
+⋮

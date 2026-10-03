@@ -1,0 +1,6 @@
+=== src/config.rs · rust · 42 lines
+> pub const API_PATH: &str
+> pub struct Config
+> impl Config
+>   pub fn from_env() -> Result<Config, Box<dyn Error>>
+>   pub fn requires_token(&self) -> bool

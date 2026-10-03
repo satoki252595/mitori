@@ -1,0 +1,7 @@
+=== internal/store/memory.go · go · 84 lines
+> type MemoryStore struct
+> func NewMemoryStore(now func() time.Time) *MemoryStore
+>   func (m *MemoryStore) List(_ context.Context, offset, limit int) ([]Book, error)
+>   func (m *MemoryStore) Get(_ context.Context, id int64) (Book, error)
+>   func (m *MemoryStore) Create(_ context.Context, b Book) (Book, error)
+>   func (m *MemoryStore) Delete(_ context.Context, id int64) error

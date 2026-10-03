@@ -1,0 +1,5 @@
+=== services/api/cmd/admin/main.go · go · 37 lines · imports: fmt log os github.com/urfave/cli/v2 ===
+1|// Command admin runs maintenance tasks against the books database.
+2|package main
+12|func main() {
+⋮

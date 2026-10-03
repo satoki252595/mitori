@@ -1,0 +1,12 @@
+=== src/a.ts · typescript · 22 lines ===
+1|// Cite target of the citation documents (lines 1-3, 5, 10-20, 22 are referenced).
+2|export const MAX_RETRIES = 1;
+3|export const VERSION = '0.4.2';
+5|export const PORT = 8787;
+7|const rows: number[] = [];
+9|/** Round a price half up to a whole number of minor units. */
+10|export function round(price: number): number {
+⋮
+18|export function push(n: number): void {
+⋮
+22|export const LIMIT = 3;

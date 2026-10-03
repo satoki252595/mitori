@@ -1,0 +1,6 @@
+=== tsundoku/cli.py · python · 43 lines · imports: argparse subprocess sys collections.abc pathlib tsundoku.config tsundoku.importer ===
+1|"""Command line (argparse): tsundoku import | export | serve."""
+15|def build_parser() -> argparse.ArgumentParser:
+⋮
+31|def main(argv: Sequence[str] | None = None) -> int:
+⋮

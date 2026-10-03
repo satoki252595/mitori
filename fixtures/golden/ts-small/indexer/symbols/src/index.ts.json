@@ -1,0 +1,32 @@
+[
+  {
+    "blob": "26185cf5460816c5cf5706ba7c33df8756267e8b",
+    "bodyHash": "fb693cb9b84cc92d",
+    "doc": "Pick `--port <n>` out of the command line, if present and numeric.",
+    "end": 9,
+    "exported": false,
+    "key": "src/index.ts#portFlag",
+    "kind": "function",
+    "name": "portFlag",
+    "path": "src/index.ts",
+    "qualname": "portFlag",
+    "sigHash": "251e8900db7ca740",
+    "signature": "function portFlag(argv: readonly string[]): number | undefined",
+    "start": 5
+  },
+  {
+    "blob": "26185cf5460816c5cf5706ba7c33df8756267e8b",
+    "bodyHash": "733384d347a1b16c",
+    "doc": "Entry point: start the HTTP service.",
+    "end": 18,
+    "exported": true,
+    "key": "src/index.ts#main",
+    "kind": "function",
+    "name": "main",
+    "path": "src/index.ts",
+    "qualname": "main",
+    "sigHash": "39f87bf114cab5c9",
+    "signature": "export function main(argv: readonly string[] = Bun.argv.slice(2)): void",
+    "start": 12
+  }
+]

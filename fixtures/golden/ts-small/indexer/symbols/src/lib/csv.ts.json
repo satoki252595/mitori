@@ -1,0 +1,62 @@
+[
+  {
+    "blob": "b7035a12a358c0d01486520cc3d2888079978f54",
+    "bodyHash": "c0dc33a4b68126fb",
+    "doc": "Parse CSV text into rows of fields (RFC 4180 subset): quoted fields may contain commas, line breaks and doubled quotes; both LF and CRLF end a row; blank lines are skipped.",
+    "end": 44,
+    "exported": true,
+    "key": "src/lib/csv.ts#parseCsv",
+    "kind": "function",
+    "name": "parseCsv",
+    "path": "src/lib/csv.ts",
+    "qualname": "parseCsv",
+    "sigHash": "154aaae9bc914357",
+    "signature": "export function parseCsv(text: string): string[][]",
+    "start": 5
+  },
+  {
+    "blob": "b7035a12a358c0d01486520cc3d2888079978f54",
+    "bodyHash": "bb09b1e6a87ae386",
+    "end": 14,
+    "exported": false,
+    "key": "src/lib/csv.ts#parseCsv.endField",
+    "kind": "function",
+    "name": "endField",
+    "parent": "src/lib/csv.ts#parseCsv",
+    "path": "src/lib/csv.ts",
+    "qualname": "parseCsv.endField",
+    "sigHash": "e3867f7c110cd74e",
+    "signature": "const endField = () =>",
+    "start": 11
+  },
+  {
+    "blob": "b7035a12a358c0d01486520cc3d2888079978f54",
+    "bodyHash": "305404f3f7e37696",
+    "end": 19,
+    "exported": false,
+    "key": "src/lib/csv.ts#parseCsv.endRow",
+    "kind": "function",
+    "name": "endRow",
+    "parent": "src/lib/csv.ts#parseCsv",
+    "path": "src/lib/csv.ts",
+    "qualname": "parseCsv.endRow",
+    "sigHash": "5f74c2a81d9311cc",
+    "signature": "const endRow = () =>",
+    "start": 15
+  },
+  {
+    "blob": "b7035a12a358c0d01486520cc3d2888079978f54",
+    "bodyHash": "acace671aac51770",
+    "doc": "Split the header row off and return one object per record, keyed by the (trimmed, lower-cased) header names.",
+    "end": 52,
+    "exported": true,
+    "key": "src/lib/csv.ts#parseCsvRecords",
+    "kind": "function",
+    "name": "parseCsvRecords",
+    "path": "src/lib/csv.ts",
+    "qualname": "parseCsvRecords",
+    "sigHash": "3436235474f12825",
+    "signature": "export function parseCsvRecords(text: string): Record<string, string>[]",
+    "start": 47
+  }
+]

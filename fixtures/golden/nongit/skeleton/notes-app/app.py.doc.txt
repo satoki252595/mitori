@@ -1,0 +1,13 @@
+=== notes-app/app.py · python · 27 lines · imports: flask ===
+1|"""A tiny notes app (Flask). This directory is not a git repository."""
+5|app = Flask(__name__)
+7|NOTES = [
+⋮
+12|PAGE = """
+⋮
+20|@app.route("/")
+21|def index():
+⋮
+25|@app.route("/notes")
+26|def notes():
+⋮

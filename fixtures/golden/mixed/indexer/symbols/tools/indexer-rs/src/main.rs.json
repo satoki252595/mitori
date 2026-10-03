@@ -1,0 +1,16 @@
+[
+  {
+    "blob": "38e2d7b809d1372ea6f45a6afdb40bb952e29ce9",
+    "bodyHash": "beb8c7df39b28f98",
+    "end": 21,
+    "exported": false,
+    "key": "tools/indexer-rs/src/main.rs#main",
+    "kind": "function",
+    "name": "main",
+    "path": "tools/indexer-rs/src/main.rs",
+    "qualname": "main",
+    "sigHash": "a34b68fdaada4fd3",
+    "signature": "fn main()",
+    "start": 3
+  }
+]

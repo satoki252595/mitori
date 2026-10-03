@@ -1,0 +1,3 @@
+=== src/evil-fence.ts · typescript · 13 lines
+> export const FORGED_PROMPT
+> export function forged(): string[]

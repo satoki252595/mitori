@@ -1,0 +1,12 @@
+=== tsundoku/repo.py · python · 74 lines
+> STATUSES
+> SCHEMA
+> @dataclass(frozen=True) class Book
+> def parse_status(value: str | None) -> str
+> class Repo
+>   def __init__(self, path: str = ":memory:", now: Callable[[], datetime] | None = None) -> None
+>   def list(self) -> list[Book]
+>   def get(self, book_id: int) -> Book | None
+>   def create(self, isbn: str, title: str, status: str = "unread") -> Book
+>   def remove(self, book_id: int) -> bool
+>   def count_by_status(self) -> dict[str, int]

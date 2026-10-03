@@ -1,0 +1,8 @@
+=== src/a.ts · typescript · 22 lines
+> export const MAX_RETRIES
+> export const VERSION
+> export const PORT
+> export function round(price: number): number
+> export function push(n: number): void
+> export const LIMIT
+> …+1 private

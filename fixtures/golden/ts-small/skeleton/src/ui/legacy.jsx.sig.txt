@@ -1,0 +1,3 @@
+=== src/ui/legacy.jsx · jsx · 10 lines ===
+4|export function LegacyBadge({ count }) {
+⋮

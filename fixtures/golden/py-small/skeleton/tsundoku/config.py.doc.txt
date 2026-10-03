@@ -1,0 +1,15 @@
+=== tsundoku/config.py · python · 26 lines · imports: os ===
+1|"""Runtime configuration, read from the environment on every call (so tests can patch os.environ)."""
+5|LOG_LEVELS = ("debug", "info", "warning", "error")
+8|def port() -> int:
+9|    """TCP port of the HTTP service."""
+⋮
+13|def database_url() -> str:
+14|    """SQLite path of the SQL-backed repo; there is no sensible default, so a missing variable is an error."""
+⋮
+18|def log_level() -> str:
+19|    """One of LOG_LEVELS; unknown values fall back to info."""
+⋮
+24|def api_token() -> str | None:
+25|    """Bearer token required for writes, or None when authentication is disabled."""
+⋮

@@ -1,0 +1,14 @@
+=== src/services/metadata.ts · typescript · 40 lines ===
+2|export const MAX_RETRIES = 1;
+4|const ENDPOINT = "https://openlibrary.org/api/books";
+6|export interface BookMetadata {
+7|  title: string;
+8|  authors: string[];
+9|  pages?: number;
+13|export type Fetcher = (url: string) => Promise<Response>;
+16|export function normalizeIsbn(raw: string): string {
+⋮
+20|function parseResponse(isbn: string, body: unknown): BookMetadata {
+⋮
+27|export async function fetchMetadata(rawIsbn: string, fetcher: Fetcher = fetch): Promise<BookMetadata> {
+⋮

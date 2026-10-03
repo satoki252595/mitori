@@ -1,0 +1,7 @@
+=== src/db/schema.ts · typescript · 23 lines · imports: drizzle-orm/sqlite-core ===
+3|export const books = sqliteTable("books", {
+⋮
+11|export const tags = sqliteTable("tags", {
+⋮
+16|export const bookTags = sqliteTable("book_tags", {
+⋮

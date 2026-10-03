@@ -1,0 +1,16 @@
+[
+  {
+    "blob": "f5df9c6c82d3bb392683d7efc1f4239ba17c7540",
+    "bodyHash": "d2657f0d10f9103c",
+    "end": 3,
+    "exported": false,
+    "key": "tsundoku/__init__.py#__version__",
+    "kind": "const",
+    "name": "__version__",
+    "path": "tsundoku/__init__.py",
+    "qualname": "__version__",
+    "sigHash": "96c12a8c404bf88e",
+    "signature": "__version__",
+    "start": 3
+  }
+]

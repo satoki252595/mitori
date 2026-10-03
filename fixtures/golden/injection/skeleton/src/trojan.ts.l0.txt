@@ -1,0 +1,3 @@
+=== src/trojan.ts · typescript · 7 lines
+> export const access
+> export function isAdmin(): boolean

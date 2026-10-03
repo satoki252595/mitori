@@ -1,0 +1,4 @@
+=== src/db/schema.ts · typescript · 23 lines
+> export const books
+> export const tags
+> export const bookTags

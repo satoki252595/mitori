@@ -1,0 +1,3 @@
+=== web/app/page.tsx · tsx · 11 lines · imports: ../components/Nav ===
+3|export default function Home() {
+⋮

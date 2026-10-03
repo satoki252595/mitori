@@ -1,0 +1,30 @@
+[
+  {
+    "blob": "09320a5a9395244f29cc1bd5ba623b21172ab72b",
+    "bodyHash": "7470909d53046a21",
+    "end": 12,
+    "exported": true,
+    "key": "scripts/tool.rb#Isbn",
+    "kind": "module",
+    "name": "Isbn",
+    "path": "scripts/tool.rb",
+    "qualname": "Isbn",
+    "sigHash": "7f7212e8867ccfe9",
+    "signature": "module Isbn",
+    "start": 5
+  },
+  {
+    "blob": "09320a5a9395244f29cc1bd5ba623b21172ab72b",
+    "bodyHash": "d2c8968cd9786760",
+    "end": 12,
+    "exported": true,
+    "key": "scripts/tool.rb#self",
+    "kind": "function",
+    "name": "self",
+    "path": "scripts/tool.rb",
+    "qualname": "self",
+    "sigHash": "dc15f703bc3e24a0",
+    "signature": "def self.check_digit(prefix)",
+    "start": 6
+  }
+]

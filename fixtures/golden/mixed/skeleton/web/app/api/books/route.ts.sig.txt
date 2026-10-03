@@ -1,0 +1,5 @@
+=== web/app/api/books/route.ts · typescript · 9 lines · imports: ../../../lib/upstream ===
+3|export async function GET() {
+⋮
+7|export async function POST(request: Request) {
+⋮

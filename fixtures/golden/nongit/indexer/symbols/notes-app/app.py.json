@@ -1,0 +1,72 @@
+[
+  {
+    "blob": "6edd7afec0d3a315cebd20a0a0a242152e315cd9",
+    "bodyHash": "9735e66c96253dc3",
+    "end": 5,
+    "exported": true,
+    "key": "notes-app/app.py#app",
+    "kind": "const",
+    "name": "app",
+    "path": "notes-app/app.py",
+    "qualname": "app",
+    "sigHash": "d09a09000b36f46e",
+    "signature": "app",
+    "start": 5
+  },
+  {
+    "blob": "6edd7afec0d3a315cebd20a0a0a242152e315cd9",
+    "bodyHash": "f441490a25ab2e80",
+    "end": 10,
+    "exported": true,
+    "key": "notes-app/app.py#NOTES",
+    "kind": "const",
+    "name": "NOTES",
+    "path": "notes-app/app.py",
+    "qualname": "NOTES",
+    "sigHash": "e9358f324b28ddcf",
+    "signature": "NOTES",
+    "start": 7
+  },
+  {
+    "blob": "6edd7afec0d3a315cebd20a0a0a242152e315cd9",
+    "bodyHash": "9fa9edd5888daa2e",
+    "end": 17,
+    "exported": true,
+    "key": "notes-app/app.py#PAGE",
+    "kind": "const",
+    "name": "PAGE",
+    "path": "notes-app/app.py",
+    "qualname": "PAGE",
+    "sigHash": "55b822f910c03a30",
+    "signature": "PAGE",
+    "start": 12
+  },
+  {
+    "blob": "6edd7afec0d3a315cebd20a0a0a242152e315cd9",
+    "bodyHash": "ea36e246c7dccec3",
+    "end": 22,
+    "exported": true,
+    "key": "notes-app/app.py#index",
+    "kind": "function",
+    "name": "index",
+    "path": "notes-app/app.py",
+    "qualname": "index",
+    "sigHash": "10ec11268bf36cd2",
+    "signature": "@app.route(\"/\") def index()",
+    "start": 20
+  },
+  {
+    "blob": "6edd7afec0d3a315cebd20a0a0a242152e315cd9",
+    "bodyHash": "2ac94be03f1cbb79",
+    "end": 27,
+    "exported": true,
+    "key": "notes-app/app.py#notes",
+    "kind": "function",
+    "name": "notes",
+    "path": "notes-app/app.py",
+    "qualname": "notes",
+    "sigHash": "960c7a03b5c882a2",
+    "signature": "@app.route(\"/notes\") def notes()",
+    "start": 25
+  }
+]

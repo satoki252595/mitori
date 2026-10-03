@@ -1,0 +1,4 @@
+=== unicode/ids.ts · typescript · 6 lines ===
+2|export const 認証 = "token";
+4|export function 検証(value: string): boolean {
+⋮

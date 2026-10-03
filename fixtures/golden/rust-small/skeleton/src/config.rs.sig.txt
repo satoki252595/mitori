@@ -1,0 +1,12 @@
+=== src/config.rs · rust · 42 lines · imports: std::env std::error::Error ===
+7|pub const API_PATH: &str = "/api/books";
+11|pub struct Config {
+12|    pub port: u16,
+13|    pub database_url: String,
+14|    pub log_level: String,
+15|    pub api_token: Option<String>,
+18|impl Config {
+22|    pub fn from_env() -> Result<Config, Box<dyn Error>> {
+⋮
+39|    pub fn requires_token(&self) -> bool {
+⋮

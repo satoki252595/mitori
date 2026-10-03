@@ -1,0 +1,2 @@
+=== internal/server/chi_routes.go · go · 21 lines
+> func ChiRouter(s store.Store) http.Handler

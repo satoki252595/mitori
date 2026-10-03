@@ -1,0 +1,10 @@
+=== src/lib/csv.ts · typescript · 52 lines ===
+1|/**
+2| * Parse CSV text into rows of fields (RFC 4180 subset): quoted fields may contain commas, line breaks and doubled
+3| * quotes; both LF and CRLF end a row; blank lines are skipped.
+4| */
+5|export function parseCsv(text: string): string[][] {
+⋮
+46|/** Split the header row off and return one object per record, keyed by the (trimmed, lower-cased) header names. */
+47|export function parseCsvRecords(text: string): Record<string, string>[] {
+⋮
