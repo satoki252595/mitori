@@ -258,15 +258,15 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
         }
         const defaults = CLAUDE_MODE_DEFAULTS[req.mode];
         const timeouts = { firstLineMs: defaults.firstLineMs, idleMs: defaults.idleMs, turnMs: spec.timeoutMs };
-        let proc = key ? takeWarm(key, req) : null;
-        if (proc) {
-          // the warm process was spawned for this profile; only stdin and the turn are new
-          if (!spec.keepStdinOpen) proc.spec.keepStdinOpen = false;
-        } else proc = track(new ClaudeProc(procDeps, spec, metaFor(req)));
+        const warmed = key ? takeWarm(key, req) : null;
+        // the warm process was spawned for this profile; only stdin and the turn are new
+        if (warmed && !spec.keepStdinOpen) warmed.spec.keepStdinOpen = false;
+        const proc = warmed ?? track(new ClaudeProc(procDeps, spec, metaFor(req)));
         if (key) {
           const prev = templates.get(key);
           templates.set(key, { req, at: deps.clock.now() });
-          if (prev && deps.clock.now() - prev.at < REFILL_WINDOW_MS) void spawnWarm(key, req).catch(() => {});
+          // refill after consuming a warm process of a profile used within the last 10 minutes (spec §6.6.1 b)
+          if (warmed && prev && deps.clock.now() - prev.at < REFILL_WINDOW_MS) void spawnWarm(key, req).catch(() => {});
         }
         const inner = proc.beginTurn(spec.stdin, req.budget, timeouts, signal, !spec.keepStdinOpen);
         const r = await pending.attach(inner);

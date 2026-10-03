@@ -75,7 +75,8 @@ export interface SynthOptions {
  */
 export function normalizeForKeyWith(text: string, ctx: KeyContext, tmp: string | null): string {
   let s = text.replace(/\r\n/g, "\n");
-  s = s.replace(/<<<DATA [0-9a-hjkmnp-tv-z]{8} /g, "<<<DATA ######## ").replace(/<<<END [0-9a-hjkmnp-tv-z]{8}>>>/g, "<<<END ########>>>");
+  // gen's labelled fence is `<<<DATA nonce label>>>` (spec regex); loop's UNTRUSTED_FENCE is `<<<DATA nonce>>>` — both
+  s = s.replace(/<<<DATA [0-9a-hjkmnp-tv-z]{8}(?=[ >])/g, "<<<DATA ########").replace(/<<<END [0-9a-hjkmnp-tv-z]{8}>>>/g, "<<<END ########>>>");
   const paths: [string, string][] = [
     [ctx.cwd, "$CWD"],
     [ctx.home, "$MITORI_HOME"],

@@ -93,7 +93,7 @@ describe("claude-cli engine over a scripted CLI", () => {
     expect(b.fs.files.has(`${EMPTY}/CLAUDE.md`)).toBe(false);
   });
 
-  test("AGT-U-031 patch parks: continuation reuses the process (no new spawn), reportedUsd is the cumulative delta, 1 row per turn", async () => {
+  test("AC-L31 AC-L36 patch parks: continuation reuses the process (no new spawn), reportedUsd is the cumulative delta, 1 row per turn", async () => {
     const c = synth.turns(["{}", "{}"], { structured: { summary: "fixed" }, usage: { input_tokens: 1000, output_tokens: 50 } });
     const sp = createFakeSpawner().script(isClaude, cassetteScript(c));
     const b = createTestBridge({ spawner: sp });
@@ -144,7 +144,7 @@ describe("claude-cli engine over a scripted CLI", () => {
     expect(runs.map((r) => r.session?.parked())).toEqual([false, false, false]);
   });
 
-  test("AGT-U-032 init violation (apiKeySource ≠ none) ⇒ SIGINT and E_AGENT_AUTH_SOURCE; ledger outcome error", async () => {
+  test("AC-L32 init violation (apiKeySource ≠ none) ⇒ SIGINT and E_AGENT_AUTH_SOURCE; ledger outcome error", async () => {
     const sp = createFakeSpawner().script(isClaude, cassetteScript(synth.failure("auth_source_api_key")));
     const b = createTestBridge({ spawner: sp });
     const run = b.scheduler.submit(req("answer"), ctl());
@@ -157,7 +157,7 @@ describe("claude-cli engine over a scripted CLI", () => {
     expect(b.ledger.rows[0]?.outcome).toBe("error");
   });
 
-  test("AGT-U-032 tools/skills/mcp/model drift ⇒ E_AGENT_CAPABILITY", async () => {
+  test("AC-L32 tools/skills/mcp/model drift ⇒ E_AGENT_CAPABILITY", async () => {
     for (const mutate of [
       (l: string) => l.replace('"tools":[]', '"tools":["Bash"]'),
       (l: string) => l.replace('"mcp_servers":[]', '"mcp_servers":[{"name":"x","status":"connected"}]'),
@@ -181,7 +181,7 @@ describe("claude-cli engine over a scripted CLI", () => {
     expect((await b.scheduler.submit(req("answer"), ctl()).result).stop).toBe("end");
   });
 
-  test("AGT-U-038 the meter SIGINTs at 80% of the job budget ⇒ budget / E_BUDGET_EXCEEDED, usage from the meter", async () => {
+  test("AC-L38 the meter SIGINTs at 80% of the job budget ⇒ budget / E_BUDGET_EXCEEDED, usage from the meter", async () => {
     const big = synth.text("x".repeat(4000), { usage: { input_tokens: 40_000, output_tokens: 2000 } });
     // drop the result: the CLI is interrupted before it would have finished
     const lines = big.lines.filter((l) => !l.line?.includes('"type":"result"'));

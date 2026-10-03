@@ -81,7 +81,7 @@ describe("AGT-U-021 stream normalization (spec §6.5.1)", () => {
     });
   });
 
-  test("AGT-U-031 reportedUsd is the delta of the per-process cumulative total_cost_usd", () => {
+  test("AC-L31 reportedUsd is the delta of the per-process cumulative total_cost_usd", () => {
     const { out } = feed([init(), result({ total_cost_usd: 0.002033 }), init(), result({ total_cost_usd: 0.005069 })]);
     const finals = out.filter((e): e is Extract<JobEvent, { t: "usage" }> => e.t === "usage" && e.final).map((e) => e.usage.reportedUsd);
     expect(finals).toEqual([0.002033, 0.003036]);
@@ -147,7 +147,7 @@ describe("AGT-U-021 stream normalization (spec §6.5.1)", () => {
     expect(rl.find((e) => e.t === "error")).toMatchObject({ code: "E_AGENT_RATE_LIMIT", retryable: true });
   });
 
-  test("AGT-U-032 I11 init checks: auth source, tools, MCP, skills, model (dated ids accepted)", () => {
+  test("AC-L32 I11 init checks: auth source, tools, MCP, skills, model (dated ids accepted)", () => {
     const v = (o: Record<string, unknown>, expect = EXPECT) => feed([init(o)], "answer", expect).n.violation()?.code ?? null;
     expect(v({})).toBeNull();
     expect(v({ apiKeySource: "ANTHROPIC_API_KEY" })).toBe("E_AGENT_AUTH_SOURCE");
