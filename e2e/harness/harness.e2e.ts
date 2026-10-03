@@ -4,6 +4,7 @@
 import { ime, servedBytes, ui } from "@mitori/testkit";
 import { expect, expectWithinBudget, test } from "./fixtures.ts";
 import { initialJs, inpSummary, markLatencies, trackRequests } from "./metrics.ts";
+import { withPerfTrace } from "./trace.ts";
 
 test.describe("@harness e2e harness on the skeleton daemon", () => {
   test.use({ daemonOptions: { fixture: "ts-small" } });
@@ -65,6 +66,27 @@ test.describe("@harness e2e harness on the skeleton daemon", () => {
     const latencies = await markLatencies(page, "mitori:test:done");
     expect(latencies).toHaveLength(3);
     for (const ms of latencies) expect(ms).toBeGreaterThanOrEqual(100);
+  });
+
+  test("a perf trace keeps the long task and the forced reflow of a scenario, summarised", async ({ page, mitori, browser, browserName }, testInfo) => {
+    test.skip(browserName !== "chromium", "Chrome tracing is Chromium-only");
+    await mitori.login(page, "/");
+    process.env.MITORI_PERF_TRACE = "1";
+    try {
+      await withPerfTrace(browser, page, testInfo, async () => {
+        await page.evaluate(`(() => {
+          const end = performance.now() + 150; while (performance.now() < end);
+          document.body.style.width = "1px"; document.body.offsetWidth; document.body.style.width = "2px"; document.body.offsetWidth;
+        })()`);
+      });
+    } finally {
+      delete process.env.MITORI_PERF_TRACE;
+    }
+    const summary = testInfo.attachments.find((a) => a.name === "perf-trace-summary");
+    expect(testInfo.attachments.some((a) => a.name === "perf-trace")).toBe(true);
+    const parsed = JSON.parse(summary?.body?.toString() ?? "{}") as { longTasks: { durMs: number }[]; forcedReflows: { durMs: number }[] };
+    expect(parsed.longTasks[0]?.durMs).toBeGreaterThanOrEqual(100);
+    expect(parsed.forcedReflows.length).toBeGreaterThanOrEqual(1);
   });
 
   test("IME composition reaches the page in Chromium order", async ({ page, mitori, browserName }) => {
