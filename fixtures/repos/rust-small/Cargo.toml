@@ -1,0 +1,16 @@
+[package]
+name = "tsundoku"
+version = "0.4.2"
+edition = "2021"
+description = "Keep track of the books you bought and have not read yet."
+publish = false
+
+[lib]
+name = "tsundoku"
+path = "src/lib.rs"
+
+[[bin]]
+name = "tsundoku"
+path = "src/main.rs"
+
+[dependencies]

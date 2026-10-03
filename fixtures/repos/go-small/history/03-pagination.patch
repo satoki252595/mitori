@@ -25,7 +25,7 @@ index e5478d4..356d56f 100644
  		return err
  	}
 diff --git a/internal/server/server.go b/internal/server/server.go
-index d437529..455990a 100644
+index ea7d426..76f6aca 100644
 --- a/internal/server/server.go
 +++ b/internal/server/server.go
 @@ -12,6 +12,12 @@ import (
@@ -41,7 +41,7 @@ index d437529..455990a 100644
  // Server serves the HTTP API.
  type Server struct {
  	store store.Store
-@@ -53,15 +59,28 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
+@@ -54,15 +60,28 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
  }
  
  func (s *Server) listBooks(w http.ResponseWriter, r *http.Request) {

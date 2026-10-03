@@ -1,0 +1,13 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+  web:
+    image: node:22
+    working_dir: /app/web
+    command: npm run build
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api

@@ -1,0 +1,11 @@
+{
+  "v": "mitori.fixture/1",
+  "name": "mixed",
+  "git": true,
+  "objectFormat": "sha1",
+  "branch": "main",
+  "history": [{ "message": "init: tsundoku monorepo", "tree": "." }],
+  "generate": [],
+  "symlinks": [],
+  "dirty": []
+}

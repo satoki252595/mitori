@@ -1,8 +1,8 @@
 {
   "commits": [
-    "bb7c2da1c33cf8b1e92b5c42354259aac2b64005",
-    "a5e342abcfa363fed1a175286c6f09942d8433b6",
-    "907eb732f5b021fb181c60aa7e68b08a353b84ea"
+    "533cde994fee470fde1d0ba91ec625477dbda599",
+    "4a06c13892fa09475cc32b706c46d3ffb94d7073",
+    "ae29abf3eb784d40c621d6d23b2b23f475b82bee"
   ],
   "fixture": "go-small",
   "v": "mitori.fixture-commits/1"

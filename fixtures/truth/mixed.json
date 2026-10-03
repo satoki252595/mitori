@@ -1,0 +1,618 @@
+{
+  "v": "mitori.fixture-truth/1",
+  "fixture": "mixed",
+  "files": [
+    {
+      "path": "web/app/page.tsx",
+      "class": "source",
+      "lang": "tsx"
+    },
+    {
+      "path": "web/app/api/books/route.ts",
+      "class": "source",
+      "lang": "typescript"
+    },
+    {
+      "path": "web/app/api/books/[id]/route.ts",
+      "class": "source",
+      "lang": "typescript"
+    },
+    {
+      "path": "web/components/Nav.jsx",
+      "class": "source",
+      "lang": "jsx"
+    },
+    {
+      "path": "web/lib/upstream.ts",
+      "class": "source",
+      "lang": "typescript"
+    },
+    {
+      "path": "web/prisma/schema.prisma",
+      "class": "source",
+      "lang": "generic"
+    },
+    {
+      "path": "web/tools/cli.js",
+      "class": "source",
+      "lang": "javascript"
+    },
+    {
+      "path": "web/package.json",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": "services/api/main.go",
+      "class": "source",
+      "lang": "go"
+    },
+    {
+      "path": "services/api/echo.go",
+      "class": "source",
+      "lang": "go"
+    },
+    {
+      "path": "services/api/cmd/admin/main.go",
+      "class": "source",
+      "lang": "go"
+    },
+    {
+      "path": "services/api/go.mod",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": "scripts/report.py",
+      "class": "source",
+      "lang": "python"
+    },
+    {
+      "path": "scripts/backup.sh",
+      "class": "source",
+      "lang": "generic"
+    },
+    {
+      "path": "scripts/tool.rb",
+      "class": "source",
+      "lang": "generic"
+    },
+    {
+      "path": "tools/indexer-rs/src/main.rs",
+      "class": "source",
+      "lang": "rust"
+    },
+    {
+      "path": "tools/indexer-rs/Cargo.toml",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": "legacy/Foo.java",
+      "class": "source",
+      "lang": "generic"
+    },
+    {
+      "path": "flake.nix",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": "justfile",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": "Dockerfile",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": "Procfile",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": "docker-compose.yml",
+      "class": "config",
+      "lang": "generic"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "class": "ignored",
+      "excluded": "deny_glob",
+      "lang": "generic"
+    },
+    {
+      "path": "README.md",
+      "class": "docs",
+      "lang": "generic"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "class": "docs",
+      "lang": "generic"
+    },
+    {
+      "path": "CLAUDE.md",
+      "class": "docs",
+      "lang": "generic"
+    },
+    {
+      "path": "docs/adr/0001-monorepo.md",
+      "class": "docs",
+      "lang": "generic"
+    }
+  ],
+  "filesExhaustive": true,
+  "facts": [
+    {
+      "kind": "route",
+      "path": "web/app/page.tsx",
+      "key": "GET /",
+      "attrs": {
+        "framework": "next-app"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "web/app/api/books/route.ts",
+      "key": "GET /api/books",
+      "attrs": {
+        "framework": "next-app"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "web/app/api/books/route.ts",
+      "key": "POST /api/books",
+      "attrs": {
+        "framework": "next-app"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "web/app/api/books/[id]/route.ts",
+      "key": "GET /api/books/[id]",
+      "attrs": {
+        "framework": "next-app"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "web/app/api/books/[id]/route.ts",
+      "key": "DELETE /api/books/[id]",
+      "attrs": {
+        "framework": "next-app"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "services/api/main.go",
+      "line": 48,
+      "key": "GET /api/v1/books",
+      "attrs": {
+        "framework": "gin"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "services/api/main.go",
+      "line": 51,
+      "key": "POST /api/v1/books",
+      "attrs": {
+        "framework": "gin"
+      }
+    },
+    {
+      "kind": "route",
+      "path": "services/api/echo.go",
+      "line": 13,
+      "key": "GET /api/v1/stats",
+      "attrs": {
+        "framework": "echo"
+      }
+    },
+    {
+      "kind": "env",
+      "path": "web/lib/upstream.ts",
+      "line": 3,
+      "key": "API_BASE_URL",
+      "attrs": {
+        "hasDefault": false
+      }
+    },
+    {
+      "kind": "env",
+      "path": "services/api/main.go",
+      "line": 41,
+      "key": "GIN_MODE",
+      "attrs": {
+        "hasDefault": false
+      }
+    },
+    {
+      "kind": "env",
+      "path": "scripts/report.py",
+      "line": 12,
+      "key": "REPORT_DIR",
+      "attrs": {
+        "hasDefault": true
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "web/tools/cli.js",
+      "key": "web-cli sync",
+      "attrs": {
+        "flags": ["--dry-run"],
+        "framework": "yargs"
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "services/api/cmd/admin/main.go",
+      "key": "admin migrate",
+      "attrs": {
+        "flags": ["--dry-run"],
+        "framework": "urfave"
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "scripts/report.py",
+      "key": "report weekly",
+      "attrs": {
+        "flags": ["--since"],
+        "framework": "typer"
+      }
+    },
+    {
+      "kind": "cli",
+      "path": "tools/indexer-rs/src/main.rs",
+      "key": "indexer build",
+      "attrs": {
+        "flags": ["--full"],
+        "framework": "clap"
+      }
+    },
+    {
+      "kind": "schema",
+      "path": "web/prisma/schema.prisma",
+      "key": "prisma:Book",
+      "attrs": {
+        "fields": ["id", "isbn", "title", "status", "addedAt"]
+      }
+    },
+    {
+      "kind": "entry",
+      "path": "Dockerfile",
+      "key": "dockerfile:/app/server"
+    },
+    {
+      "kind": "entry",
+      "path": "Procfile",
+      "key": "procfile:web"
+    },
+    {
+      "kind": "entry",
+      "path": "Procfile",
+      "key": "procfile:worker"
+    },
+    {
+      "kind": "entry",
+      "path": "services/api/main.go",
+      "key": "main:services/api",
+      "stretch": true
+    },
+    {
+      "kind": "entry",
+      "path": "services/api/cmd/admin/main.go",
+      "key": "main:services/api/cmd/admin",
+      "stretch": true
+    },
+    {
+      "kind": "entry",
+      "path": "tools/indexer-rs/src/main.rs",
+      "key": "main:tools/indexer-rs/src/main.rs",
+      "stretch": true
+    },
+    {
+      "kind": "entry",
+      "path": "scripts/report.py",
+      "key": "main:scripts/report.py",
+      "stretch": true
+    },
+    {
+      "kind": "script",
+      "path": "justfile",
+      "line": 4,
+      "key": "dev",
+      "attrs": {
+        "purpose": "run"
+      }
+    },
+    {
+      "kind": "script",
+      "path": "justfile",
+      "line": 8,
+      "key": "test",
+      "attrs": {
+        "purpose": "test"
+      }
+    },
+    {
+      "kind": "script",
+      "path": "web/package.json",
+      "line": 6,
+      "key": "dev",
+      "attrs": {
+        "purpose": "run"
+      }
+    },
+    {
+      "kind": "script",
+      "path": "web/package.json",
+      "line": 7,
+      "key": "build",
+      "attrs": {
+        "purpose": "build"
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "web/package.json",
+      "line": 10,
+      "key": "npm:next",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "web/package.json",
+      "line": 11,
+      "key": "npm:react",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "web/package.json",
+      "line": 12,
+      "key": "npm:yargs",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "services/api/go.mod",
+      "line": 6,
+      "key": "go:github.com/gin-gonic/gin",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "services/api/go.mod",
+      "line": 7,
+      "key": "go:github.com/labstack/echo/v4",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "services/api/go.mod",
+      "line": 8,
+      "key": "go:github.com/urfave/cli/v2",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "dependency",
+      "path": "tools/indexer-rs/Cargo.toml",
+      "line": 7,
+      "key": "cargo:clap",
+      "attrs": {
+        "dev": false
+      }
+    },
+    {
+      "kind": "existing_doc",
+      "path": "README.md",
+      "line": 1,
+      "key": "readme",
+      "attrs": {
+        "title": "tsundoku monorepo"
+      }
+    },
+    {
+      "kind": "existing_doc",
+      "path": "CONTRIBUTING.md",
+      "line": 1,
+      "key": "contributing",
+      "attrs": {
+        "title": "Contributing"
+      }
+    },
+    {
+      "kind": "existing_doc",
+      "path": "CLAUDE.md",
+      "line": 1,
+      "key": "claude",
+      "attrs": {
+        "title": "CLAUDE.md"
+      }
+    },
+    {
+      "kind": "existing_doc",
+      "path": "docs/adr/0001-monorepo.md",
+      "line": 1,
+      "key": "adr",
+      "attrs": {
+        "title": "ADR 0001: 1 つのリポジトリで 4 つの言語を扱う"
+      }
+    }
+  ],
+  "forbiddenFacts": [],
+  "symbols": [
+    {
+      "key": "web/lib/upstream.ts#upstream",
+      "kind": "function",
+      "start": 2,
+      "end": 6,
+      "exported": true
+    },
+    {
+      "key": "web/lib/upstream.ts#relay",
+      "kind": "function",
+      "start": 9,
+      "end": 12,
+      "exported": true
+    },
+    {
+      "key": "web/components/Nav.jsx#LINKS",
+      "kind": "const",
+      "start": 1,
+      "end": 4,
+      "exported": false
+    },
+    {
+      "key": "web/components/Nav.jsx#Nav",
+      "kind": "function",
+      "start": 6,
+      "end": 16,
+      "exported": true
+    },
+    {
+      "key": "web/app/page.tsx#Home",
+      "kind": "function",
+      "start": 3,
+      "end": 11,
+      "exported": true
+    },
+    {
+      "key": "web/app/api/books/route.ts#GET",
+      "kind": "function",
+      "start": 3,
+      "end": 5,
+      "exported": true
+    },
+    {
+      "key": "web/app/api/books/route.ts#POST",
+      "kind": "function",
+      "start": 7,
+      "end": 9,
+      "exported": true
+    },
+    {
+      "key": "services/api/main.go#book",
+      "kind": "struct",
+      "start": 14,
+      "end": 19,
+      "exported": false
+    },
+    {
+      "key": "services/api/main.go#shelf",
+      "kind": "struct",
+      "start": 21,
+      "end": 24,
+      "exported": false
+    },
+    {
+      "key": "services/api/main.go#shelf.all",
+      "kind": "method",
+      "start": 26,
+      "end": 30,
+      "exported": false
+    },
+    {
+      "key": "services/api/main.go#shelf.add",
+      "kind": "method",
+      "start": 32,
+      "end": 38,
+      "exported": false
+    },
+    {
+      "key": "services/api/main.go#main",
+      "kind": "function",
+      "start": 40,
+      "end": 62,
+      "exported": false
+    },
+    {
+      "key": "services/api/echo.go#statsServer",
+      "kind": "function",
+      "start": 10,
+      "end": 21,
+      "exported": false
+    },
+    {
+      "key": "services/api/cmd/admin/main.go#main",
+      "kind": "function",
+      "start": 12,
+      "end": 37,
+      "exported": false
+    },
+    {
+      "key": "tools/indexer-rs/src/main.rs#main",
+      "kind": "function",
+      "start": 3,
+      "end": 21,
+      "exported": false
+    }
+  ],
+  "imports": [
+    {
+      "from": "web/app/page.tsx",
+      "to": "web/components/Nav.jsx"
+    },
+    {
+      "from": "web/app/api/books/route.ts",
+      "to": "web/lib/upstream.ts"
+    },
+    {
+      "from": "web/app/api/books/[id]/route.ts",
+      "to": "web/lib/upstream.ts"
+    }
+  ],
+  "calls": [
+    {
+      "from": "web/app/api/books/route.ts#GET",
+      "to": "web/lib/upstream.ts#relay"
+    },
+    {
+      "from": "web/app/api/books/route.ts#POST",
+      "to": "web/lib/upstream.ts#relay"
+    },
+    {
+      "from": "web/app/api/books/[id]/route.ts#GET",
+      "to": "web/lib/upstream.ts#relay"
+    },
+    {
+      "from": "web/app/api/books/[id]/route.ts#DELETE",
+      "to": "web/lib/upstream.ts#relay"
+    },
+    {
+      "from": "web/app/page.tsx#Home",
+      "to": "web/components/Nav.jsx#Nav"
+    },
+    {
+      "from": "services/api/main.go#main",
+      "to": "services/api/echo.go#statsServer"
+    }
+  ],
+  "modules": {
+    "together": [["web/app/api/books/route.ts", "web/app/api/books/[id]/route.ts"]],
+    "apart": [["web/app/api/books/route.ts", "services/api/main.go"], ["scripts/report.py", "tools/indexer-rs/src/main.rs"]]
+  },
+  "tolerances": {
+    "callsRecall": 0.9,
+    "callsPrecision": 0.8
+  }
+}

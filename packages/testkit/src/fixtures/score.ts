@@ -73,11 +73,14 @@ function scoreFacts(indexer: Indexer, truth: FixtureTruth): TruthScore[] {
       .facts(kind)
       .filter((f) => !(f.kind === "route" && f.dynamic === true))
       .map((f) => ({ ...factKey(f), path: f.path, line: f.line, kind: f.kind }));
-    /** Remove the first actual fact matching `t` (stretch facts only need path + key: they are reported, never graded). */
+    /**
+     * Remove the first actual fact matching `t`. Stretch facts only need path + key (reported, never graded); an
+     * entry's path is not compared: the manifest that declares it and the file it runs are both acceptable.
+     */
     const take = (t: TruthFact): boolean => {
       const at = pool.findIndex(
         (a) =>
-          a.path === t.path &&
+          (t.kind === "entry" || a.path === t.path) &&
           a.key === t.key &&
           (t.stretch || ((t.line === undefined || a.line === t.line) && Object.entries(t.attrs ?? {}).every(([k, v]) => same(a.attrs[k], v)))),
       );

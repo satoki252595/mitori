@@ -22,12 +22,13 @@ type Server struct {
 
 // New wires the routes. meta may be nil, in which case POST /api/books requires a title.
 func New(s store.Store, m *meta.Client) *Server {
-	srv := &Server{store: s, meta: m, mux: http.NewServeMux()}
-	srv.mux.HandleFunc("/healthz", srv.health)
-	srv.mux.HandleFunc("GET /api/books", srv.listBooks)
-	srv.mux.HandleFunc("GET /api/books/{id}", srv.getBook)
-	srv.mux.HandleFunc("POST /api/books", srv.createBook)
-	srv.mux.HandleFunc("DELETE /api/books/{id}", srv.deleteBook)
+	mux := http.NewServeMux()
+	srv := &Server{store: s, meta: m, mux: mux}
+	mux.HandleFunc("/healthz", srv.health)
+	mux.HandleFunc("GET /api/books", srv.listBooks)
+	mux.HandleFunc("GET /api/books/{id}", srv.getBook)
+	mux.HandleFunc("POST /api/books", srv.createBook)
+	mux.HandleFunc("DELETE /api/books/{id}", srv.deleteBook)
 	return srv
 }
 
