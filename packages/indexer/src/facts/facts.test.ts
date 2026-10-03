@@ -224,11 +224,28 @@ describe("IDX-U text detectors (spec §5.5–5.6)", () => {
   test("doc titles (ATX / setext / file name) and TODO markers", () => {
     expect(docTitle("README.md", "```\n# not\n```\nTitle\n=====\n")).toBe("Title");
     expect(docTitle("a/NOTES.md", "no heading")).toBe("NOTES.md");
+    expect(docTitle("x.md", "## Closing  ##  \n")).toBe("Closing");
+    expect(docTitle("x.md", "# C#\n")).toBe("C#"); // a closing sequence needs a space before it
+    expect(docTitle("x.md", "# ##\n#\n# Real\n")).toBe("Real");
     const t = todos({ file: { path: "x.sh", lang: "generic", class: "source", scope: "main" }, text: "# TODO(me): fix it\necho TODO\n// FIXME: later */\n" });
     expect(t.map((x) => [x.data.marker, x.data.text, x.line])).toEqual([
       ["TODO", "fix it", 1],
       ["FIXME", "later", 3],
     ]);
+  });
+});
+
+describe("IDX-U text detectors on pathological input (S1 runs them on every file of an untrusted repo)", () => {
+  const file = (path: string, cls: "config" | "source" = "config") => ({ file: { path, lang: "generic" as const, class: cls, scope: "main" as const } });
+  test("200k-character lines are scanned in linear time (a heading of 4k spaces used to take 11 s)", () => {
+    const n = 200_000;
+    const sp = " ".repeat(n);
+    const t0 = performance.now();
+    expect(docTitle("README.md", `# a${sp}b\n`)).toBe(`a${sp}b`);
+    dockerfile({ ...file("Dockerfile"), text: `ENV ${"A".repeat(n)}\nENV A${sp}b\n` });
+    compose({ ...file("compose.yml"), text: `services:\n  a:\n    environment:\n      a${sp}b\n` });
+    sqlSchema({ ...file("x.sql", "source"), text: `${"/* ".repeat(n / 10)}\n${"CREATE TABLE t (".repeat(n / 20)}` });
+    expect(performance.now() - t0).toBeLessThan(500);
   });
 });
 

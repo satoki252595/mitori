@@ -322,7 +322,8 @@ export function dockerfile(input: In): FactCandidate[] {
           ? [rest.split("=")[0] as string]
           : /^[A-Za-z_]\w*\s+[^=]*$/.test(rest)
             ? [rest.split(/\s+/)[0] as string]
-            : [...rest.matchAll(/([A-Za-z_]\w*)=/g)].map((x) => x[1] as string);
+            : // `\b` keeps the scan linear (without it every offset of a long word re-scans the word)
+              [...rest.matchAll(/\b([A-Za-z_]\w*)=/g)].map((x) => x[1] as string);
       for (const n of names) if (ENV_NAME_RE.test(n)) out.push(candidate("env.files@1", "env", input, i + 1, { name: n, hasDefault: false }));
       return;
     }
@@ -447,9 +448,27 @@ function topLevelItems(body: string): string[] {
   return out;
 }
 
+/** Longest CREATE TABLE body scanned for columns. */
+const SQL_BODY_MAX = 65_536;
+
+/** `/* … *\/` → spaces (newlines kept). Linear; an unclosed comment blanks the rest. */
+function blankBlockComments(text: string): string {
+  let out = "";
+  let at = 0;
+  for (;;) {
+    const open = text.indexOf("/*", at);
+    if (open < 0) return out + text.slice(at);
+    const close = text.indexOf("*/", open + 2);
+    const end = close < 0 ? text.length : close + 2;
+    out += text.slice(at, open) + text.slice(open, end).replace(/[^\n]/g, " ");
+    at = end;
+    if (close < 0) return out;
+  }
+}
+
 export function sqlSchema(input: In): FactCandidate[] {
   // strip comments, keep offsets (line numbers) by blanking
-  const text = input.text.replace(/--[^\n]*/g, (m) => " ".repeat(m.length)).replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "));
+  const text = blankBlockComments(input.text.replace(/--[^\n]*/g, (m) => " ".repeat(m.length)));
   const tables = new Map<string, { line: number; fields: string[] }>();
   const createRe =
     /\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:(?:GLOBAL|LOCAL)\s+)?(?:TEMP(?:ORARY)?\s+|UNLOGGED\s+|VIRTUAL\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([`"[\]\w.]+)\s*\(/gi;
@@ -457,7 +476,9 @@ export function sqlSchema(input: In): FactCandidate[] {
     const start = (m.index ?? 0) + m[0].length;
     let depth = 1;
     let i = start;
-    while (i < text.length && depth > 0) {
+    // bounded: many unclosed `CREATE TABLE x (` would otherwise each scan to the end of the file
+    const stop = Math.min(text.length, start + SQL_BODY_MAX);
+    while (i < stop && depth > 0) {
       if (text[i] === "(") depth++;
       else if (text[i] === ")") depth--;
       i++;
@@ -496,6 +517,20 @@ export function docRole(path: string): "readme" | "agents" | "claude" | "adr" | 
   return "other";
 }
 
+/**
+ * Text of an ATX heading line (`## x ##` → `x`), null when the line is not one. Linear on purpose: a lazy
+ * `(.*?)\s*#*\s*$` backtracks cubically on a long run of spaces (a 4k-space README line took 11 s).
+ */
+function atxText(line: string): string | null {
+  const m = /^[ \t]{0,3}#{1,6}[ \t]+(.*)$/.exec(line);
+  if (!m) return null;
+  let t = (m[1] as string).trimEnd();
+  if (/^#+$/.test(t)) return "";
+  const close = /[ \t]#+$/.exec(t); // optional closing sequence (CommonMark: preceded by a space)
+  if (close) t = t.slice(0, close.index).trimEnd();
+  return t;
+}
+
 /** First ATX / setext heading (`# x` / `x\n===`), RST over/underlines, else the file name. */
 export function docTitle(path: string, text: string): string {
   const lines = text.split("\n");
@@ -504,8 +539,8 @@ export function docTitle(path: string, text: string): string {
     const l = lines[i] as string;
     if (/^\s*(```|~~~)/.test(l)) fence = !fence;
     if (fence) continue;
-    const atx = /^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$/.exec(l);
-    if (atx && (atx[1] as string) !== "") return atx[1] as string;
+    const atx = atxText(l);
+    if (atx !== null && atx !== "") return atx;
     const next = lines[i + 1] ?? "";
     if (l.trim() !== "" && /^\s{0,3}(=+|-+|~+|\^+|\*+)\s*$/.test(next) && !/^\s*[-*+]\s/.test(l) && !/^\s*(=+|-+)\s*$/.test(l)) return l.trim();
   }

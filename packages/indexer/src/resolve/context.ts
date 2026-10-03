@@ -138,7 +138,7 @@ export class ProjectIndex implements ImportContext {
     if (isObj(co.paths)) {
       // targets are relative to baseUrl when set, else to the tsconfig that declares them (TS ≥ 4.1)
       const from = baseUrl ?? dir;
-      paths = {};
+      paths = Object.create(null) as Record<string, string[]>; // keys come from repo files (`__proto__`)
       for (const [k, v] of Object.entries(co.paths))
         if (Array.isArray(v)) paths[k] = v.filter((x): x is string => typeof x === "string").map((x) => joinPath(from, x) ?? x);
     }
@@ -176,7 +176,7 @@ export class ProjectIndex implements ImportContext {
   private loadPackageJson(dir: string): PackageJson | null {
     const j = this.json(joinPath(dir, "package.json") as string);
     if (!j) return null;
-    const deps: Record<string, { version: string; dev: boolean }> = {};
+    const deps = Object.create(null) as Record<string, { version: string; dev: boolean }>;
     for (const [field, dev] of [
       ["dependencies", false],
       ["peerDependencies", false],
@@ -236,7 +236,7 @@ export class ProjectIndex implements ImportContext {
         const dir = dirOf(path);
         const module = /^\s*module\s+("?)([^\s"]+)\1/m.exec(text)?.[2];
         if (!module) continue;
-        const replaces: Record<string, RepoPath> = {};
+        const replaces = Object.create(null) as Record<string, RepoPath>;
         for (const m of text.matchAll(/^\s*(?:replace\s+)?([^\s()]+)(?:\s+v[^\s]+)?\s+=>\s+(\.{1,2}\/[^\s]*)/gm)) {
           const target = joinPath(dir, m[2] as string);
           if (target !== null) replaces[m[1] as string] = target;

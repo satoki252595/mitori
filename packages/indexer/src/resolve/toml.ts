@@ -14,6 +14,12 @@ export interface TomlDoc {
   lines: Map<string, number>;
 }
 
+/**
+ * Tables have no prototype: keys come from untrusted repo files, and `[__proto__]` / `__proto__.x = …` on a plain
+ * object would walk into `Object.prototype` and pollute every object of the process.
+ */
+const newTable = (): TomlTable => Object.create(null) as TomlTable;
+
 class Cursor {
   i = 0;
   line = 1;
@@ -100,9 +106,13 @@ function readString(c: Cursor): string | null {
   }
 }
 
-function readValue(c: Cursor, lines: Map<string, number>, path: string): TomlValue | null {
+/** Nesting depth of arrays / inline tables accepted (deeper input is unreadable, not a stack overflow). */
+const MAX_DEPTH = 64;
+
+function readValue(c: Cursor, lines: Map<string, number>, path: string, depth = 0): TomlValue | null {
   c.ws();
   const ch = c.peek();
+  if ((ch === "[" || ch === "{") && depth >= MAX_DEPTH) return null;
   if (ch === '"' || ch === "'") return readString(c);
   if (ch === "[") {
     c.next();
@@ -115,7 +125,7 @@ function readValue(c: Cursor, lines: Map<string, number>, path: string): TomlVal
       }
       if (c.eof()) return null;
       const at = c.line;
-      const v = readValue(c, lines, `${path}[${arr.length}]`);
+      const v = readValue(c, lines, `${path}[${arr.length}]`, depth + 1);
       if (v === null) return null;
       lines.set(`${path}[${arr.length}]`, at);
       arr.push(v);
@@ -125,7 +135,7 @@ function readValue(c: Cursor, lines: Map<string, number>, path: string): TomlVal
   }
   if (ch === "{") {
     c.next();
-    const t: TomlTable = {};
+    const t = newTable();
     for (;;) {
       c.ws();
       if (c.peek() === "}") {
@@ -136,7 +146,7 @@ function readValue(c: Cursor, lines: Map<string, number>, path: string): TomlVal
       if (!key) return null;
       c.ws();
       if (c.next() !== "=") return null;
-      const v = readValue(c, lines, `${path}.${key.join(".")}`);
+      const v = readValue(c, lines, `${path}.${key.join(".")}`, depth + 1);
       if (v === null) return null;
       setPath(t, key, v);
       c.ws();
@@ -156,7 +166,7 @@ function setPath(t: TomlTable, key: readonly string[], v: TomlValue): void {
   let cur = t;
   for (const k of key.slice(0, -1)) {
     const next = cur[k];
-    if (next === undefined || typeof next !== "object" || Array.isArray(next)) cur[k] = {};
+    if (next === undefined || typeof next !== "object" || Array.isArray(next)) cur[k] = newTable();
     cur = cur[k] as TomlTable;
   }
   cur[key[key.length - 1] as string] = v;
@@ -169,7 +179,7 @@ function tableAt(root: TomlTable, key: readonly string[], arrayItem: boolean): T
     let next = cur[k];
     if (last && arrayItem) {
       if (!Array.isArray(next)) cur[k] = next = [];
-      const item: TomlTable = {};
+      const item = newTable();
       (next as TomlValue[]).push(item);
       cur = item;
       return;
@@ -181,7 +191,7 @@ function tableAt(root: TomlTable, key: readonly string[], arrayItem: boolean): T
         return;
       }
     }
-    if (next === undefined || typeof next !== "object" || Array.isArray(next)) cur[k] = next = {};
+    if (next === undefined || typeof next !== "object" || Array.isArray(next)) cur[k] = next = newTable();
     cur = next as TomlTable;
   });
   return cur;
@@ -189,7 +199,7 @@ function tableAt(root: TomlTable, key: readonly string[], arrayItem: boolean): T
 
 /** Parse TOML text (best effort). */
 export function parseToml(text: string): TomlDoc {
-  const root: TomlTable = {};
+  const root = newTable();
   const lines = new Map<string, number>();
   const c = new Cursor(text);
   let table = root;
