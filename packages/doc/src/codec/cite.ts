@@ -133,11 +133,33 @@ export function markerize(md: string, lang: DocLang, ctx?: CodecContext): { md: 
   return links.length === 0 ? { md, links } : { md: out + md.slice(at), links };
 }
 
+/**
+ * Cite-link groups written literally into marker-form md (`（推測）` as text, a cite link the LLM wrote itself): the
+ * file would read them back as claims, so they become markers numbered from `from` (existing markers untouched).
+ */
+export function literalGroups(markerMd: string, lang: DocLang, ctx: CodecContext, from: number): { md: string; links: CiteLinkGroup[] } {
+  if (!markerMd.includes(lang === "ja" ? "（" : " (")) return { md: markerMd, links: [] };
+  // hide the existing markers so markerize numbers only the literal groups
+  const hidden = markerMd.replace(MARKER_RE, (_all, n: string) => `\uE010${n}\uE011`);
+  const { md, links } = markerize(hidden, lang, ctx);
+  if (links.length === 0 || from + links.length - 1 > 99) return { md: markerMd, links: [] };
+  const renumbered = md.replace(MARKER_RE, (_all, k: string) => `[[${from + Number(k) - 1}]]`).replace(/\uE010(\d+)\uE011/g, "[[$1]]");
+  return { md: renumbered, links: links.map((l) => ({ ...l, k: from + l.k - 1 })) };
+}
+
 /** W07 normalization (outside code). */
 export function normalizeMarkers(md: string): string {
   if (!md.includes("[[")) return md;
   const code = codeRanges(md);
-  return md.replace(W07_RE, (all, term: string, markers: string, off: number) => (overlaps(code, off, off + all.length) ? all : `${markers}${term}`));
+  // a pass can leave a marker behind the previous terminator (`e.g.[[1]]！[[2]]` → `e.g[[1]].[[2]]！`): repeat to the
+  // fixed point (moves swap equal-length runs, so the code ranges stay valid)
+  let out = md;
+  for (let i = 0; i < 16; i++) {
+    const next = out.replace(W07_RE, (all, term: string, markers: string, off: number) => (overlaps(code, off, off + all.length) ? all : `${markers}${term}`));
+    if (next === out) break;
+    out = next;
+  }
+  return out;
 }
 
 /** `[[n]]` → rendered cite group of claim n (after W07). Unknown n renders as inferred. */

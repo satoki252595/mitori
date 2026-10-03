@@ -24,10 +24,10 @@ import {
   type TopSectionId,
 } from "@mitori/core";
 import { closeOpenFence } from "../codec/blocks.ts";
-import { unmarkerize } from "../codec/cite.ts";
+import { literalGroups, markerPositions, unmarkerize } from "../codec/cite.ts";
 import { type ApplyOptions, type ApplyResult, ASPECT_HEADINGS, type GeneratedBlock, type NewBlockRef, type StaticDocInput } from "../contract.ts";
 import { toMermaidText } from "../layout/mermaid.ts";
-import { canonicalMarkers, verdictOf } from "./claims.ts";
+import { canonicalMarkers, pendingChecks, rawCite, verdictOf } from "./claims.ts";
 import type { BlockRec, StoreCore } from "./core.ts";
 import { L } from "./i18n.ts";
 import { safeSlug, topOf, uniqueSlug } from "./paths.ts";
@@ -493,10 +493,21 @@ function fileFormOf(core: StoreCore, section: SectionId, marker: string, claims:
   );
 }
 
-/** Generated claims in marker order (marker without a claim → an inferred claim). */
-function orderedClaims(gb: GeneratedBlock, at: string): { marker: string; claims: GeneratedBlock["claims"] } {
-  const { md, order } = canonicalMarkers(gb.md);
+/**
+ * Generated claims in marker order (marker without a claim → an inferred claim). Cite-group text written literally
+ * into the md becomes a claim too (raw cites, stamped after the apply), exactly as the file would read it back.
+ */
+function orderedClaims(core: StoreCore, gb: GeneratedBlock, at: string): { marker: string; claims: GeneratedBlock["claims"] } {
+  const code = gb.kind === "code" || gb.kind === "diagram";
+  const top = Math.max(0, ...gb.claims.map((c) => c.n), ...markerPositions(gb.md).map((m) => m.n));
+  const lit = code ? { md: gb.md, links: [] } : literalGroups(gb.md, core.lang(), core.ctxOf(core.st.fileOf(gb.section)), top + 1);
+  const { md, order } = canonicalMarkers(lit.md);
   const byN = new Map(gb.claims.map((c) => [c.n, c]));
+  for (const l of lit.links) {
+    const cites = l.cites.map(rawCite);
+    const checks = pendingChecks(at);
+    byN.set(l.k, { n: l.k, kind: "fact", quote: "", cites, checks, verdict: verdictOf(checks, cites, undefined) });
+  }
   return {
     marker: md,
     claims: order.map(
@@ -558,7 +569,7 @@ export function applyGenerated(core: StoreCore, blocks: GeneratedBlock[], opts: 
       core.log.warn("applyGenerated: unknown section", { section: gb.section });
       continue;
     }
-    const { marker: m0, claims } = orderedClaims(gb, core.now());
+    const { marker: m0, claims } = orderedClaims(core, gb, core.now());
     const marker = generatedMarker(gb, m0);
     const mdFile = fileFormOf(core, gb.section, marker, claims);
     const extra = {

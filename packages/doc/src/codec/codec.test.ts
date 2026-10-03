@@ -3,6 +3,7 @@ import type { Block, BlockId, BlockKind, Cite } from "@mitori/core";
 import { BLOCK_ID_PLACEMENT, type CodecContext } from "../contract.ts";
 import { hasher } from "../test/helpers.ts";
 import { closeOpenFence } from "./blocks.ts";
+import { literalGroups, normalizeMarkers } from "./cite.ts";
 import { deriveClaimSpans, fromMarkerForm, merge3, parseDocFile, semanticHash, serializeDocFile, toMarkerForm, yomiToRomaji } from "./index.ts";
 import { parseDoc, reinterpret } from "./parse.ts";
 
@@ -145,6 +146,22 @@ describe("§10.3 cite links ⇄ markers", () => {
     expect(semanticHash("返す（推測）。", "ja", hasher)).toBe(a);
     expect(semanticHash("返す。", "ja", hasher)).not.toBe(a);
     expect(semanticHash("返す（[a.ts:1-3](../a.ts#L1-L3)）（[a.ts:1-3](../a.ts#L1-L3)）。", "ja", hasher)).not.toBe(a);
+  });
+});
+
+describe("W07 and literal cite groups", () => {
+  test("W07 reaches its fixed point in one call (`e.g.[[1]]！[[2]]`)", () => {
+    const once = normalizeMarkers("e.g.[[1]]！[[2]]次。");
+    expect(once).toBe("e.g[[1]][[2]].！次。");
+    expect(normalizeMarkers(once)).toBe(once);
+  });
+  test("literal cite-group text in marker form becomes markers numbered after the existing ones", () => {
+    const r = literalGroups("推測で書く（推測）。根拠あり[[1]]。リンク（[a.ts:3](../../src/a.ts#L3)）。", "ja", { ...ctx, docFile: "doc/01-what-why.md" }, 2);
+    expect(r.md).toBe("推測で書く[[2]]。根拠あり[[1]]。リンク[[3]]。");
+    expect(r.links.map((l) => [l.k, l.inferred, l.cites])).toEqual([
+      [2, true, []],
+      [3, false, [{ path: "src/a.ts", start: 3, end: 3 }]],
+    ] as never);
   });
 });
 

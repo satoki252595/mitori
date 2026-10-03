@@ -321,7 +321,15 @@ class Store implements DocStore {
   }
 
   applyGenerated(blocks: Parameters<DocStore["applyGenerated"]>[0], opts: Parameters<DocStore["applyGenerated"]>[1]) {
-    return applyGenerated(this.core, blocks, opts);
+    const res = applyGenerated(this.core, blocks, opts);
+    // cite links the generated md carried literally have raw cites (no blob yet): stamp them like imported links
+    const raw = res.written.flatMap((id) =>
+      this.claims(id)
+        .filter((c) => c.cites.some((ct) => ct.blob === ""))
+        .map((c) => c.id),
+    );
+    if (raw.length > 0) this.restamp(raw);
+    return res;
   }
 
   setModuleLabels(labels: Parameters<DocStore["setModuleLabels"]>[0]): void {
