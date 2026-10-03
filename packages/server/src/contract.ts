@@ -235,6 +235,8 @@ export const MIGRATION_ORDER = {
   state: ["@mitori/server", "@mitori/agent"],
 } as const satisfies Record<Migration["db"], readonly PackageName[]>;
 
+// `migrationsFor` → ./wiring/index.ts — every package's migrations for one DB in MIGRATION_ORDER (CR m0-14)
+
 /* ============================================================================
  * 4. Domain wiring (§4) — the only place packages that cannot import each other meet
  * ========================================================================== */

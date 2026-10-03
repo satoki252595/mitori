@@ -5,7 +5,7 @@
  * through the CR batch, packages/core/CR-LEDGER.md).
  */
 import type { AnchoredItem, ReanchorReport } from "@mitori/anchor";
-import { type AnchorHealth, type Cite, type ClaimChecks, type ClaimId, type IndexDelta, type ThreadId, unsupported } from "@mitori/core";
+import { type AnchorHealth, type Cite, type ClaimChecks, type ClaimId, type IndexDelta, type Migration, type ThreadId, unsupported } from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
 import type { ThreadReanchorUpdate } from "@mitori/loop";
 
@@ -36,4 +36,14 @@ export function distributeReanchor(
   counts: Record<AnchorHealth, number>;
 } {
   return unsupported("server.distributeReanchor", items, report);
+}
+
+/**
+ * Every package's migrations for one database, concatenated in `MIGRATION_ORDER[db]` order (package order, then
+ * `version`) [CR m0-14]. The daemon applies `migrationsFor("state")` at start (server spec §1.1 (d)) and the
+ * WorkspaceManager `migrationsFor("workspace")` on load (§3.2); `@mitori/cli` cannot collect them itself
+ * (PACKAGE_DEPS). Pure.
+ */
+export function migrationsFor(db: Migration["db"]): readonly Migration[] {
+  return unsupported("server.migrationsFor", db);
 }

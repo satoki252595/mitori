@@ -102,7 +102,7 @@ docs/reviews/R<milestone>-<round>/         # adversarial round の記録（§9�
 | `test:live` | `MITORI_LIVE=1 MITORI_LIVE_MAX_USD=0.10 bun test test/live/` | §3.7 |
 | `golden:update` | `MITORI_UPDATE_GOLDEN=1 bun test test/golden/ <filter>` | §2.6 |
 | `fixtures:build` | `bun fixtures/build.ts [--only <name>] [--verify]` | §2.2 |
-| `corpus:fetch` | `bun bench/corpus.ts fetch [--only <name>]` | §2.7 |
+| `corpus:fetch` | `bun scripts/fetch-corpus.ts [--only <a,b>] [--verify]`（CR m0-15） | §2.7 |
 | `cassettes:record` | `MITORI_LIVE=1 MITORI_CASSETTE=record bun test <suite> --max-usd <n>` | §3.5 |
 | `bench` | `bun bench/run.ts --suite <idx\|doc\|loop\|srv\|cli\|ui\|asset\|all> [--repo <name>] [--absolute]` | §6 |
 | `bench:compare` | `bun bench/compare.ts --base <ref> [--suite …]` | head vs base（§6.7） |
@@ -114,7 +114,7 @@ docs/reviews/R<milestone>-<round>/         # adversarial round の記録（§9�
 ### 1.4 nix devShell での実行
 
 - すべて `cd /Users/satoki252595/work/20261002_aiAgentTool && nix develop --command bun run <script>` で動く。direnv（`.envrc` = `use flake`）下では `bun run <script>` だけでよい。
-- **flake への追加が必要**（WP-00 の所有。現在の `flake.nix` は bun / nodejs_22 / git / gh / jq / ripgrep / hyperfine のみ）:
+- **flake への追加**（WP-00 の所有。go / python3 / rustc / cargo / rustfmt は `default`・`ci` の両方に入れた — CR m0-16。Playwright と CJK フォントは WP-12 が `ci` に足す）:
 
 | 追加するもの | 理由 | 備考 |
 |---|---|---|
@@ -231,7 +231,7 @@ unit 層の禁止事項（Biome 自前ルール + `scripts/check-boundaries.ts -
 | dependency | npm: hono・commander・drizzle-orm・express（dev false）、typescript・@types/bun（dev true） |
 | existing_doc | `README.md`（readme）、`AGENTS.md`（agents） |
 | todo（1） | `src/http/routes.ts` の `// TODO(old): app.get("/api/v0/books") …`（TODO） |
-| forbidden | 上の TODO コメント内の `app.get("/api/v0/books")` を route にしない。`test/*.test.ts` 内の `fetch("/api/books")` を route にしない。`.env.example` から env fact を作らない（deny glob） |
+| forbidden | 上の TODO コメント内の `app.get("/api/v0/books")` を route にしない。`test/*.test.ts` 内の `fetch("/api/books")` を route にしない。`.env.example` の**値**を読まない（キー名だけ: `TSUNDOKU_DEBUG_SQL` はそこにしか無い env fact。core `ENV_TEMPLATE_GLOBS`、CR idx-11・CR m0-12） |
 | imports（全 12 本） | index→config、index→http/routes、http/routes→db/repo、http/routes→services/metadata、http/routes→db/types（`import type`）、db/repo→db/types、services/importer→lib/csv（`@app/lib/csv` の paths 解決）、services/importer→db/repo、bin/tsundoku.js→services/importer（JS から TS への相対 import）、ui/BookList.tsx→db/types、test/repo.test.ts→db/repo、test/metadata.test.ts→services/metadata |
 | calls | `src/http/routes.ts#createApp` → `src/db/repo.ts#BookRepo.{list,get,create,remove}`・`src/services/metadata.ts#fetchMetadata`、`src/services/importer.ts#importCsv` → `src/lib/csv.ts#parseCsv`・`src/db/repo.ts#BookRepo.create`（recall ≥ 0.9・precision ≥ 0.8） |
 | module 制約 | together: {db/repo.ts, db/types.ts, db/schema.ts}、{http/routes.ts, http/legacy-express.js}。apart: (ui/BookList.tsx, db/schema.ts) |
@@ -328,7 +328,7 @@ unit 層の禁止事項（Biome 自前ルール + `scripts/check-boundaries.ts -
 | `data/big.json`（51,201 B）/ `data/small.json`（51,199 B） | data_large ・ config | 50KB（51,200 B）境界 [仮: indexer spec の閾値に合わせる] |
 | `img/logo.png`、`bin/blob.dat`（先頭 8KB に NUL） | binary | |
 | `huge/oversize.ts`（2 MiB + 1 B、generator）/ `huge/just-under.ts`（2 MiB − 1 B） | oversize ・ source | 2 MiB 境界。just-under の parse が 1 s 以内 |
-| `.env`、`.env.local`、`.env.example`、`secrets/server.pem`、`id_rsa`、`.npmrc` | secret / secret | 中身を一切読まない（IDX-U-004 が read 呼び出し 0 を検査） |
+| `.env`、`.env.local`、`.env.example`、`secrets/server.pem`、`id_rsa`、`.npmrc` | secret / secret | 中身を一切読まない（IDX-U-004 が read 呼び出し 0 を検査）。例外は `.env.example`（`ENV_TEMPLATE_GLOBS`）を env 検出器がキー名だけ読むこと（CR m0-12） |
 | `link-inside -> src/a.ts` / `link-outside -> /etc/hosts` / `link-loop -> link-loop` / `link-up -> ../outside` | source（解決先として）/ 除外（repo 外） | repo 外へ解決する symlink を読まない・ループで止まらない |
 | `enc/bom.ts`（UTF-8 BOM）、`enc/crlf.py`（CRLF）、`enc/latin1.txt`（不正 UTF-8）、`enc/nfd-ファイル.md`（NFD 名）、`enc/日本語パス/設定.ts`、`enc/space in name.go`、`enc/#hash?.ts` | source（latin1 は generic・行数のみ） | 行番号が BOM・CRLF でずれない、RepoPath は NFC、URL・glob 特殊文字の扱い |
 | `deep/a/b/c/d/e/f/g/h/i/j/k.ts` | source | 深い path |
@@ -584,7 +584,7 @@ PLAT の全ケースは Bun と Node 22 の両方で走らせる（WP-01）。�
 | IDX-U-001 | `edge-inventory` の全ファイル分類 | truth と完全一致（§2.3.8） |
 | IDX-U-002 | 境界: 平均行長 299/301、2 MiB ± 1 B、data JSON 51,199/51,201 B | 境界の片側だけ除外 |
 | IDX-U-003 | `.gitattributes` の `linguist-generated` / `linguist-vendored` | 反映 |
-| IDX-U-004 | secret class のファイルは中身を読まない | `catBlob`・read の呼び出し 0（spy） |
+| IDX-U-004 | secret class のファイルは中身を読まない（`ENV_TEMPLATE_GLOBS` は env 検出のキー名読み取りだけ可、値は保存しない。CR m0-12） | `catBlob`・read の呼び出し 0（spy。template は env 検出の 1 回だけ） |
 | IDX-I-005 | symlink: repo 外・ループ・`../` を読まない。repo 内への symlink は解決先 1 回だけ | |
 | IDX-U-006 | BOM・CRLF で行番号がずれない、NFD path は NFC の RepoPath | |
 | IDX-I-007 | untracked（`--others --exclude-standard`）と dirty ファイルの blob が `git hash-object` と一致 | |
@@ -1031,7 +1031,7 @@ PLAT の全ケースは Bun と Node 22 の両方で走らせる（WP-01）。�
 | | `asset.chunk.cm6merge` / `.shiki` / `.diagram` / `.mermaid` | 遅延 chunk | 135 / 155・80 / 92・5 / 5.75・660 / 759 KB | structural |
 | | `asset.viewer.js` | export viewer の JS | 60 / 69 KB [仮] | structural |
 | | `asset.precompressed` | br・gzip 事前圧縮 + immutable の割合 | 100 / 100 % | structural |
-| バイナリ・server | `bin.size` / `bin.startup` / `srv.idleRss` | バイナリサイズ / `mitori --version` の起動（hyperfine 20 回の median）/ idle RSS | 85 / 95 MB・20 / 50 ms・30 / 50 MB | abs |
+| バイナリ・server | `bin.size` / `bin.startup` / `srv.idleRss` | バイナリサイズ / `mitori --version` の起動（hyperfine 20 回の median）/ idle RSS | 85 / 95 MB（target は darwin-arm64。linux-x64 は 88 / 95 MB: Bun の runtime だけで 81 MB、CR m0-20）・20 / 50 ms・30 / 50 MB | abs |
 | | `srv.sse.p99` | 200 クライアントの SSE p99 | 5 / 10 ms [仮] | rel |
 | 開発 | `dev.check` | `bun run check` の wall time | 15 / 30 s | abs |
 

@@ -1094,6 +1094,12 @@ export interface Indexer {
   symbols(path: RepoPath): SymbolEntry[];
   /** Symbols of a file with detail. */
   symbolDetails(path: RepoPath): SymbolDetail[];
+  /**
+   * Symbols of `path` as of an older `blob` (re-anchoring S2 expected position; loop→idx-2, CR m0-13): parses
+   * `blobText(blob)` with the language of `path` on the warm Worker, cached per blob (LRU). `[]` for a language
+   * without symbols; null only when the blob text is unavailable (pin missing, shallow clone).
+   */
+  symbolsAt(path: RepoPath, blob: GitOid): Promise<SymbolEntry[] | null>;
   /** Smallest symbol enclosing a range (citation stamping); ties → deepest. */
   enclosingSymbol(path: RepoPath, start: LineNo, end: LineNo): SymbolEntry | null;
   /** Lookup by key. */

@@ -153,6 +153,7 @@ export type FixtureName =
   | "mixed"
   | "nongit"
   | "injection"
+  | "secrets" // SEC-07 / RT-32 [CR m0-11]
   | "edge-inventory"
   | "doc-roundtrip"
   | "gen:palette-50k"

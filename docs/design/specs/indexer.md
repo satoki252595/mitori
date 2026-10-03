@@ -688,8 +688,8 @@ import で解決できない結び付き（Go の同一 package、Python の動�
 |---|---|---|---|---|
 | `entry.go@1` | Go | `@entry.main`（`func main`）かつ `package main` | — | `entry: "main"`, label = ディレクトリ（`cmd/crit`） |
 | `entry.node@1` | package.json | `bin`（文字列 / object）、`main`/`module`/`exports["."]`、`scripts.start` | — | `bin` / `main` / `script` |
-| `entry.python@1` | Python / pyproject | `if __name__ == "__main__":`、`__main__.py`、`[project.scripts]`・`[tool.poetry.scripts]` | — | `main` / `bin` |
-| `entry.rust@1` | Rust / Cargo | `fn main` が crate の bin root にある、`[[bin]]` | bin root であること | `main` |
+| `entry.python@1` | Python / pyproject | `if __name__ == "__main__":`、`__main__.py`、`[project.scripts]`・`[tool.poetry.scripts]` | — | `main`（`__main__`）/ `script`（`[project.scripts]`・`[tool.poetry.scripts]`、label = script 名。CR m0-12） |
+| `entry.rust@1` | Rust / Cargo | `fn main` が crate の bin root にある、`[[bin]]` | bin root であること | `main`（label = bin root の path）+ `bin`（`[[bin]]` の name、無ければ package 名。CR m0-12） |
 | `entry.deploy@1` | Dockerfile / Procfile / wrangler / serverless | `CMD`/`ENTRYPOINT`、Procfile 行、wrangler `main =`、serverless.yml `handler:` | — | `dockerfile` / `procfile` / `worker` / `lambda` |
 | `entry.testmain@1` | Go | `func TestMain(m *testing.M)` | — | `test_main` |
 | `route.express@1` | TS/JS | `facts/js-routes-env.scm` の `@route`（`<recv>.<method>("<path>")`、method ∈ get post put patch delete options head all use） | recv が同ファイルで `express()` / `express.Router()` / `Router()`（from `express`）に束縛、または recv ∈ {app, router, api} かつ manifest に `express` | method（`use` は mount）、pattern |

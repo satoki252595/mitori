@@ -32,7 +32,6 @@
 
 import type {
   Anchor,
-  ApiRoutes,
   AuthKind,
   BillingMode,
   BlockId,
@@ -73,11 +72,8 @@ import type {
   RepoPath,
   ReviewEstimate,
   ReviewStatus,
-  RouteKey,
   SectionId,
   SectionView,
-  SseEvent,
-  SseEventType,
   SubscriptionWindow,
   ThreadDetail,
   ThreadId,
@@ -92,6 +88,7 @@ import type {
   WorkspaceStatus,
   WorkspaceSummary,
 } from "@mitori/core";
+import type { ApiClient, ConnectionState, SseClient } from "@mitori/client";
 
 /* ============================================================================
  * 1. Routing (History API; every URL is a permalink; back/forward always work)
@@ -454,57 +451,8 @@ export const UI_COOKIE = { name: "mitori_ui", maxBytes: 256, maxAgeSec: 31536000
  * 5. Client state (Svelte 5 runes stores in `*.svelte.ts`; one SSE connection per tab)
  * ========================================================================== */
 
-/** Connection state of the tab ↔ daemon link. */
-export type ConnectionState =
-  | { kind: "connecting" }
-  | { kind: "live"; since: number }
-  | { kind: "retrying"; attempt: number; nextInMs: number }
-  | { kind: "auth_expired" }          // 401 (session revoked / >30 days idle / new port) ⇒ show `mitori open` command; sessions survive daemon restarts [UXP-07]
-  | { kind: "version_mismatch"; daemon: string; web: string }
-  | { kind: "stopped"; reason: string }; // `server.shutdown`
-
-/** Entity key used for SSE de-duplication (`<type>:<id>`). */
-export type EntityKey = `${"thread" | "job" | "block" | "proposal" | "checkpoint" | "run" | "task" | "round" | "ws"}:${string}`;
-
-/**
- * SSE client (R1) [CONS-04, SEC-06]: ONE `fetch()` stream per tab at `GET /api/v1/events?ws=<ws>&last=<seq>`
- * with `authorization: Mitori-Session <token>` (EventSource cannot send headers). Resume key = the
- * daemon-global `seq` of the last event; a `hello.boot` different from the remembered one ⇒ resync.
- * De-duplication: workspace entities by (ws, `rev`) — `entityRev[key]` = highest envelope `rev` or
- * `x-mitori-rev` that produced the value, upserts with `rev ≤ entityRev[key]` dropped; global entities
- * (`ws:<key>` summaries, engines, scheduler) by `seq`. `resync` ⇒ refetch every mounted resource.
- * Unknown `type` ⇒ ignored (forward compatible).
- */
-export interface SseClient {
-  /**
-   * Connect (optionally scoped to a workspace). On any drop the client reconnects with 0.5 s × 2ⁿ backoff
-   * (cap 10 s, ±20 % jitter) and `?last=<seq>`; the server replays or sends `resync`.
-   */
-  connect(ws: WorkspaceKey | null): void;
-  /** Subscribe to one event type. Returns an unsubscribe function. */
-  on<T extends SseEventType>(type: T, fn: (e: Extract<SseEvent, { type: T }>) => void): () => void;
-  /** Record a mutation response revision for an entity. */
-  noteRev(key: EntityKey, rev: number): void;
-  /** True when an event for `key` at `rev` is stale and must be dropped. */
-  isStale(key: EntityKey, rev: number): boolean;
-  /** Last envelope revision seen per workspace. */
-  rev(ws: WorkspaceKey): number;
-  /** Last daemon-global sequence seen (resume key). */
-  seq(): number;
-  /** Connection state (reactive). */
-  readonly state: ConnectionState;
-  /** Close. */
-  close(): void;
-}
-
-/** Typed API client (lives in `@mitori/client`; shared with CLI and MCP shim). */
-export interface ApiClient {
-  /** Call a route. Throws `MitoriError` (with `MitoriErrorData`) on non-2xx. Returns `x-mitori-rev` too. */
-  call<K extends RouteKey>(
-    key: K,
-    args: { params: ApiRoutes[K]["params"]; query?: ApiRoutes[K]["query"]; body?: ApiRoutes[K]["body"]; idempotencyKey?: string; signal?: AbortSignal },
-  ): Promise<ApiRoutes[K]["res"]>;
-}
+/** Moved to `@mitori/client` [CR m0-10]; re-exported for compatibility (only `ApiClient.call` args gained `onRev?`). */
+export type { ApiClient, ConnectionState, EntityKey, SseClient } from "@mitori/client";
 
 /** Session-wide store (daemon, engines, scheduler, usage ticker). */
 export interface SessionStore {
