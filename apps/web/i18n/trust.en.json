@@ -1,0 +1,16 @@
+{
+  "trust.action.review": "Review and approve",
+  "trust.again": "If the content changes, you will be asked again.",
+  "trust.approve": "Approve",
+  "trust.deny": "Deny",
+  "trust.hash": "content hash {hash}",
+  "trust.kind.gates": "Automatic checks (commands this repository declares)",
+  "trust.kind.git_config": "Repository git config (keys that run commands)",
+  "trust.kind.rules": "Repository instructions (AGENTS.md, CLAUDE.md)",
+  "trust.preview": "Full text that will run or be injected",
+  "trust.title": "Approve this repository content?",
+  "trust.toast.pending": "{n} automatic checks of this repository are waiting for approval (until approved, changes are proposed unchecked)",
+  "trust.why.gates": "These run with your permissions. Without a sandbox they can reach the network and your home directory. Code written by the AI runs here.",
+  "trust.why.git_config": "Until approved, mitori disables these keys in its git commands. Once approved they run with your permissions.",
+  "trust.why.rules": "Once approved, this text goes into requests to the AI as is. It was written by the repository's authors."
+}
