@@ -150,6 +150,13 @@ export class DocState implements DocViewStore {
     return out;
   }
 
+  /** Pending INSERT proposals (no block of their own: shown after `after`, the block they follow). */
+  pendingInserts(): readonly DocProposalView[] {
+    const out: DocProposalView[] = [];
+    for (const p of this.#proposals.values()) if (p.op === "insert" && p.state === "pending") out.push(p);
+    return out;
+  }
+
   upsertProposal(p: DocProposalView): void {
     this.#proposals.set(p.id, p);
   }

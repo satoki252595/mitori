@@ -501,6 +501,7 @@ export const ROUTE_OWNERS = {
   "POST /ws/:ws/review/rounds/:n/complete": "loop",
   "POST /ws/:ws/review/rounds/:n/withdraw": "loop",
   "POST /ws/:ws/jobs/estimate": "loop",
+  "POST /ws/:ws/jobs/targets": "loop",
   "POST /ws/:ws/jobs": "loop",
   "GET /ws/:ws/jobs": "loop",
   "GET /ws/:ws/jobs/:job": "loop",

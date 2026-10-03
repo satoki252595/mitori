@@ -58,7 +58,16 @@ const seconds = $derived(usualBand(p.mode, est?.history));
 const docPrimary = $derived(c.target.anchor.primary === "doc");
 const docTarget = $derived(c.intent === "change" && c.fixTarget === "doc");
 const emptyAsk = $derived(!c.body.trim() && c.intent === "question" && density.emptyBodySends);
-const canSend = $derived(docTarget ? c.docChanged : c.body.trim().length > 0 || emptyAsk);
+/**
+ * A Fix run here (⚡) needs code to write (CR ux-F1): a cite of the anchor, a picked candidate or an `@` mention. Sent to
+ * your own session (⤴) or copied (⧉), the agent finds the code itself, so those paths never wait for a target.
+ */
+const blockedOnTarget = $derived(c.path === "push" && (c.needsTarget || c.targetsPending));
+const canSend = $derived(docTarget ? c.docChanged : (c.body.trim().length > 0 || emptyAsk) && !blockedOnTarget);
+/** Candidates offered (only while the anchor has no cite: cites ARE the target). ⌥1–4 picks one. */
+const offered = $derived((c.targets?.cited.length ?? 0) > 0 ? [] : c.openCandidates.slice(0, 4));
+/** Estimate items the 「対象コード」 row already shows (cites and picked / mentioned ranges). */
+const targetKeys = $derived(new Set([...(c.targets?.cited ?? []), ...c.mentions].map((x) => `code:${x.path}:${x.start}-${x.end}`)));
 const pendingGates = $derived([...loop.trust.values()].filter((r) => r.item === "gates" && r.status === "pending").length);
 const policyAcked = $derived(!!s.session.settings?.settings.privacy.dataPolicyAck[engineId]);
 const needsPolicy = $derived(c.runsJob && c.path === "push" && !policyAcked && s.session.settings !== null);
@@ -197,8 +206,29 @@ function pickMention(h: SymbolEntry) {
   });
 }
 
+/** `@` at the caret (a space first when needed) and the symbol picker open — the 「@ 追加」 chip and the hint's button. */
+function startMention() {
+  if (!ta) return;
+  const v = `${c.body}${c.body && !/\s$/.test(c.body) ? " " : ""}@`;
+  c.input(v);
+  ta.value = v;
+  ta.focus();
+  ta.setSelectionRange(v.length, v.length);
+  mention = { at: v.length - 1, query: "" };
+  void lookup("");
+}
+
 function onKey(e: KeyboardEvent) {
   if (isComposing(e)) return;
+  if (!mention && e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+    const n = /^(?:Digit|Numpad)([1-4])$/.exec(e.code)?.[1];
+    const tg = n ? offered[Number(n) - 1] : undefined;
+    if (tg) {
+      e.preventDefault();
+      c.pickTarget(tg);
+    }
+    return;
+  }
   if (!mention || hits.length === 0) return;
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {
     e.preventDefault();
@@ -323,6 +353,63 @@ const sendLabel = $derived(
     </div>
   {/if}
 
+  {#if c.wantsTargets}
+    <div class="targets" class:need={c.needsTarget} role="group" aria-label={t("composer.targets.label")}>
+      <div class="tg-row">
+        <span class="tg-k">{t("composer.targets.label")}</span>
+        {#if c.targetsPending}<span class="tg-wait">{t("composer.targets.loading")}</span>{/if}
+        {#each c.targets?.cited ?? [] as tg (tg.label)}
+          <span class="chip tg cited" title={`${tg.path}:${tg.start}-${tg.end}\n${t("composer.targets.citedHelp")}`}
+            ><span class="lb mono" data-user-content>{tg.label}</span>{#if tg.symbol}<span class="sym mono" data-user-content>{tg.symbol}</span>{/if}<span class="tk mono">{fmtTokens(tg.tokens)}</span></span
+          >
+        {/each}
+        {#each c.mentions as m, i (m.label)}
+          <span class="chip tg" title={m.path}
+            ><span class="lb mono" data-user-content>{m.label}</span>{#if m.symbol}<span class="sym mono" data-user-content>{m.symbol}</span>{/if}<button
+              type="button"
+              class="x"
+              aria-label={t("composer.chips.remove", { label: m.label })}
+              onclick={() => c.removeMention(i)}>×</button
+            ></span
+          >
+        {/each}
+        {#if c.hasTarget}
+          {#each offered as tg (`${tg.path}:${tg.start}`)}
+            <button type="button" class="chip cand" title={tg.path} onclick={() => c.pickTarget(tg)}>+ <span data-user-content>{tg.label}</span></button>
+          {/each}
+          <button type="button" class="chip add" onclick={startMention}>@ {t("composer.chips.add")}</button>
+          <span class="tg-files" title={c.writeFiles.join("\n")}>{t("composer.targets.files", { n: c.writeFiles.length })}</span>
+        {/if}
+      </div>
+      {#if c.needsTarget}
+        {#if offered.length > 0}
+          <p class="tg-ask">{t("composer.targets.pick")}</p>
+          <ul class="tg-cands">
+            {#each offered as tg, i (`${tg.path}:${tg.start}`)}
+              <li>
+                <button type="button" class="cand-row" title={`${tg.path}:${tg.start}-${tg.end}`} aria-label={t("composer.targets.pickAria", { label: tg.label })} onclick={() => c.pickTarget(tg)}>
+                  <span class="plus" aria-hidden="true">+</span>
+                  <span class="lb mono" data-user-content>{tg.label}</span>
+                  {#if tg.symbol}<span class="sym mono" data-user-content>{tg.symbol}</span>{/if}
+                  <span class="why">{t(`composer.targets.source.${tg.source}`)}</span>
+                  <kbd>{s.keys.label(`Alt+${i + 1}`)}</kbd>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <div class="tg-none" role="status">
+            <p>{t("composer.targets.none")}</p>
+            <p class="tg-alt">
+              <button type="button" class="btn btn-sec btn-s" onclick={startMention}>{t("composer.targets.point")}</button>
+              <span>{t("composer.targets.alt", { ask: s.keys.label("Mod+1") })}</span>
+            </p>
+          </div>
+        {/if}
+      {/if}
+    </div>
+  {/if}
+
   {#if density.chips === "collapsed" && c.runsJob}
     <button type="button" class="more" aria-expanded={c.details} onclick={() => (c.details = !c.details)}>{c.details ? t("composer.details.close") : t("composer.details.open")}</button>
   {/if}
@@ -330,7 +417,9 @@ const sendLabel = $derived(
   {#if c.runsJob && showMore}
     <div class="chips" aria-label={t("composer.chips.label")}>
       {#each c.orderedChips as ch (ch.item.key)}
-        {#if ch.item.kind === "fixed" || ch.item.kind === "rules"}
+        {#if c.wantsTargets && targetKeys.has(ch.item.key)}
+          <!-- shown in the 「対象コード」 row -->
+        {:else if ch.item.kind === "fixed" || ch.item.kind === "rules"}
           <span class="chip fixed mono" title={t("composer.chips.fixedHelp")}>{t("composer.chips.fixed", { label: ch.item.label, k: fmtTokens(ch.item.tokens) })}</span>
         {:else if ch.state === "candidate"}
           <button type="button" class="chip cand" onclick={() => c.toggleChip(ch.item.key, "included")}
@@ -351,21 +440,14 @@ const sendLabel = $derived(
           </span>
         {/if}
       {/each}
-      {#each c.mentions as m, i (m.label)}
-        {#if !c.orderedChips.some((x) => x.item.key === `code:${m.path}:${m.start}-${m.end}`)}
-        <span class="chip"><span class="lb mono" data-user-content>{m.label}</span><button type="button" class="x" aria-label={t("composer.chips.remove", { label: m.label })} onclick={() => c.removeMention(i)}>×</button></span>
-        {/if}
-      {/each}
-      <button type="button" class="chip add" onclick={() => {
-        if (!ta) return;
-        const v = `${c.body}${c.body && !/\s$/.test(c.body) ? " " : ""}@`;
-        c.input(v);
-        ta.value = v;
-        ta.focus();
-        ta.setSelectionRange(v.length, v.length);
-        mention = { at: v.length - 1, query: "" };
-        void lookup("");
-      }}>@ {t("composer.chips.add")}</button>
+      {#if !c.wantsTargets}
+        {#each c.mentions as m, i (m.label)}
+          {#if !c.orderedChips.some((x) => x.item.key === `code:${m.path}:${m.start}-${m.end}`)}
+          <span class="chip"><span class="lb mono" data-user-content>{m.label}</span><button type="button" class="x" aria-label={t("composer.chips.remove", { label: m.label })} onclick={() => c.removeMention(i)}>×</button></span>
+          {/if}
+        {/each}
+        <button type="button" class="chip add" onclick={startMention}>@ {t("composer.chips.add")}</button>
+      {/if}
     </div>
   {/if}
 
@@ -399,8 +481,10 @@ const sendLabel = $derived(
         flash={c.flash}
         pending={c.stale}
       />
+    {:else if c.needsTarget}
+      <span class="zero">{t("composer.est.needsTarget")}</span>
     {:else}
-      <span class="zero">{c.draft || c.estimating ? t("composer.est.loading") : t("composer.est.prior", { lo: seconds.lo, hi: seconds.hi })}</span>
+      <span class="zero">{c.draft || c.estimating || c.targetsPending ? t("composer.est.loading") : t("composer.est.prior", { lo: seconds.lo, hi: seconds.hi })}</span>
     {/if}
     {#if c.runsJob && est && (density.router === "visible" || c.details)}
       <RouterChip mode={p.mode} lines={p.lines} files={p.files} model={c.override?.model ?? est.route.model} reason={p.reason} maxLines={limits.patchMaxLines} maxFiles={limits.patchMaxFiles} override={c.override} onoverride={(o) => c.setOverride(o as { mode?: ExecMode })} />
@@ -683,6 +767,118 @@ const sendLabel = $derived(
     padding-right: 9px;
     color: var(--muted);
     background: var(--sheet);
+  }
+  .targets {
+    margin-top: 10px;
+  }
+  .tg-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .tg-k {
+    margin-right: 2px;
+    font-size: var(--fs-label);
+    font-weight: var(--fw-strong);
+    color: var(--ink);
+  }
+  .targets.need .tg-k {
+    color: var(--c-warn);
+  }
+  .tg-wait,
+  .tg-files {
+    font-size: var(--fs-meta);
+    color: var(--muted);
+  }
+  .tg-files {
+    margin-left: 2px;
+  }
+  .chip.tg .sym {
+    color: var(--muted);
+    font-size: var(--fs-meta);
+  }
+  .chip.tg.cited {
+    padding-right: 9px;
+    border-color: var(--rule-2);
+    background: var(--sheet);
+  }
+  .tg-ask {
+    margin: 8px 0 4px;
+    font-size: var(--fs-label);
+    color: var(--text);
+  }
+  .tg-cands {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .cand-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 32px;
+    padding: 0 8px 0 10px;
+    border: 1px dashed var(--rule-2);
+    border-radius: var(--r-input);
+    background: var(--sheet);
+    font-size: var(--fs-label);
+    color: var(--text);
+    text-align: left;
+  }
+  .cand-row:hover,
+  .cand-row:focus-visible {
+    border-style: solid;
+    border-color: var(--ink);
+    background: var(--hover);
+  }
+  .cand-row .plus {
+    color: var(--muted);
+  }
+  .cand-row .lb {
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .cand-row .sym {
+    color: var(--muted);
+    font-size: var(--fs-meta);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .cand-row .why {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: var(--fs-meta);
+    white-space: nowrap;
+  }
+  .cand-row kbd {
+    font-size: var(--fs-meta);
+  }
+  .tg-none {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: var(--r-input);
+    background: var(--c-warn-bg);
+    font-size: var(--fs-label);
+    color: var(--text);
+  }
+  .tg-none p {
+    margin: 0;
+    line-height: 1.6;
+  }
+  .tg-none .tg-alt {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    color: var(--muted);
   }
   .disc {
     margin: 10px 0 0;

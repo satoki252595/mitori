@@ -9,6 +9,7 @@ import type { AgentReplyReq, FinishReq, ProposeResolutionReq, TouchReq } from "@
 import {
   type AcceptReq,
   type AnchorInput,
+  type CodeTargetsReq,
   type CreateThreadReq,
   type DocProposalView,
   type EngineId,
@@ -25,7 +26,9 @@ import {
   type ThreadState,
   type TransitionReq,
 } from "@mitori/core";
+import { resolveCodeTargets } from "@mitori/loop";
 import type { RouteCtx, RouteHandlers } from "../routes/types.ts";
+import { proposalHandlers, proposalView as viewOfProposal } from "./proposals.ts";
 import type { WorkspaceDomain } from "./workspace.ts";
 
 export interface LoopRouteEnv {
@@ -94,10 +97,7 @@ export function loopHandlers(env: LoopRouteEnv): RouteHandlers {
 
   const proposalView = (x: WorkspaceDomain, id: ProposalId): DocProposalView | undefined => {
     const p = x.doc.proposals().find((q) => q.id === id);
-    if (!p) return undefined;
-    const html = x.renderer.renderMessage(p.md);
-    // CR-PENDING(WP-08b): no word-diff renderer port yet — the proposal HTML stands in for the diff (as in JobDetail)
-    return { ...p, html, diffHtml: html };
+    return p ? viewOfProposal({ doc: x.doc, renderMessage: (md) => x.renderer.renderMessage(md) }, p) : undefined;
   };
 
   const threadSummary = (x: WorkspaceDomain, id: ThreadId) => {
@@ -119,6 +119,9 @@ export function loopHandlers(env: LoopRouteEnv): RouteHandlers {
   };
 
   return {
+    /* ---- doc proposals: accept / reject (wiring/proposals.ts) ---------------------------------------------- */
+    ...proposalHandlers({ domain: env.domain }),
+
     /* ---- threads ---------------------------------------------------------------------------------------- */
     "GET /ws/:ws/threads": async (ctx) => {
       const x = await d(ctx);
@@ -191,7 +194,7 @@ export function loopHandlers(env: LoopRouteEnv): RouteHandlers {
       const captured = await x.extras.capture(anchor, prev);
       return rt.write("thread.reanchor", () => x.loop.review.reanchor(ctx.params.th, captured.anchor, version));
     },
-    /** Read side of the doc proposals (live finding: the web store asks for the pending ones on every enter; a 501 there is an error toast). Accept / reject stay with WP-08c. */
+    /** Doc proposals with their suggestion-mode diff (the web store asks for the pending ones on every enter). Accept / reject: `wiring/proposals.ts`. */
     "GET /ws/:ws/doc/proposals": async (ctx) => {
       const x = await d(ctx);
       const state = ctx.query.get("state");
@@ -273,6 +276,31 @@ export function loopHandlers(env: LoopRouteEnv): RouteHandlers {
 
     /* ---- jobs ------------------------------------------------------------------------------------------- */
     "POST /ws/:ws/jobs/estimate": async (ctx) => (await d(ctx)).loop.jobs.estimate(body(ctx)),
+    /**
+     * Code targets of a Fix BEFORE its estimate (CR ux-F1): the anchored claim's cites (automatic — the router writes
+     * them), then candidates the user confirms (the block's own code references, exact symbol names, full-text hits).
+     * A doc sentence with no cite therefore never ends in a silent `412 no code to change`.
+     */
+    "POST /ws/:ws/jobs/targets": async (ctx) => {
+      const x = await d(ctx);
+      const rt = await ctx.runtime();
+      const req = body<CodeTargetsReq>(ctx);
+      const a = req.anchor;
+      if (a === null || typeof a !== "object" || (!a.doc && !a.code)) throw invalid("anchor", "a doc or code anchor is required");
+      if (req.text !== undefined && typeof req.text !== "string") throw invalid("text", "text must be a string");
+      if (req.limit !== undefined && (!Number.isInteger(req.limit) || req.limit < 1 || req.limit > 8))
+        throw invalid("limit", "limit must be an integer in 1..8");
+      const captured = await x.extras.capture(a, null);
+      return resolveCodeTargets(
+        { doc: x.doc, indexer: x.indexer, deny: rt.settings().denyGlobs },
+        {
+          anchor: captured.anchor,
+          ...(a.doc ? { selStart: a.doc.selStart, selEnd: a.doc.selEnd } : {}),
+          ...(req.text !== undefined ? { text: req.text } : {}),
+          ...(req.limit !== undefined ? { limit: req.limit } : {}),
+        },
+      );
+    },
     "POST /ws/:ws/jobs": async (ctx) => {
       const x = await d(ctx);
       return x.loop.jobs.create(body(ctx));
@@ -290,7 +318,13 @@ export function loopHandlers(env: LoopRouteEnv): RouteHandlers {
         ...(cursor ? { cursor } : {}),
       }) as never;
     },
-    "GET /ws/:ws/jobs/:job": async (ctx) => jobOf(await d(ctx), ctx.params.job),
+    "GET /ws/:ws/jobs/:job": async (ctx) => {
+      const x = await d(ctx);
+      const job = jobOf(x, ctx.params.job);
+      // CR-PENDING(WP-08b): the runner has no word-diff port (its views carry the proposal HTML as the diff); the
+      // suggestion-mode diff is made here, against the block as it is now
+      return { ...job, proposalViews: job.proposalViews.map((p) => proposalView(x, p.id) ?? p) };
+    },
     "GET /ws/:ws/jobs/:job/events": async (ctx) => {
       const x = await d(ctx);
       jobOf(x, ctx.params.job);

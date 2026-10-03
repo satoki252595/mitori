@@ -98,6 +98,22 @@ let { proposal, producer, ondecide, decided = null }: ProposalBlockProps & { dec
     letter-spacing: var(--ls-prose);
     color: var(--text);
   }
+  /* suggestion mode (prototype 03d/03e): struck old words, underlined new ones */
+  .pp :global(del.d) {
+    color: var(--del-fg);
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
+    background: var(--del-bg);
+    border-radius: 3px;
+  }
+  .pp :global(ins.a) {
+    color: var(--add-fg);
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 3px;
+    background: var(--add-bg);
+    border-radius: 3px;
+  }
   .del,
   .warn {
     margin: 6px 0 0;

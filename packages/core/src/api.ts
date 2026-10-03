@@ -1110,6 +1110,52 @@ export interface JobEstimate {
   history?: { p25: number; p75: number; n: number };
 }
 
+/**
+ * `POST /ws/:ws/jobs/targets` — the code a Fix on a doc anchor would change, asked BEFORE the estimate so that a
+ * comment on a design-doc sentence works without the user knowing file names [CR ux-F1]. Deterministic, token-free.
+ */
+export interface CodeTargetsReq {
+  /** The Composer's anchor (a doc member is required). */
+  anchor: AnchorInput;
+  /** The request typed so far (symbol / full-text terms are taken from it and from the selection). */
+  text?: string;
+  /** Candidates wanted (default 4, at most 8). */
+  limit?: number;
+}
+
+/** One code range offered as the target of a Fix [CR ux-F1]. */
+export interface CodeTarget {
+  /** File. */
+  path: RepoPath;
+  /** First line. */
+  start: LineNo;
+  /** Last line. */
+  end: LineNo;
+  /** Display label (`config.go:19-38`). */
+  label: string;
+  /** Enclosing symbol (qualname) when the range is one. */
+  symbol?: string;
+  /**
+   * Where it comes from: `cite` = a cite of the anchored claim / block (the router's write scope, loop spec §3.2 —
+   * automatic); `ref` = a code reference written in the selected row / item of the block; `symbol` = a symbol named in
+   * the selection or the request; `search` = a full-text hit. Only `cite` joins the write scope by itself; the others
+   * join when the user picks them (sent as `ContextAdjust.add`).
+   */
+  source: "cite" | "ref" | "symbol" | "search";
+  /** Token estimate of the range. */
+  tokens: number;
+  /** The term that matched (`ref` / `symbol` / `search`). */
+  match?: string;
+}
+
+/** `POST /ws/:ws/jobs/targets` response [CR ux-F1]. */
+export interface CodeTargets {
+  /** Automatic targets (cites), merged per file. */
+  cited: CodeTarget[];
+  /** Ranked suggestions the user confirms (never in the scope by themselves). */
+  candidates: CodeTarget[];
+}
+
 /** Create job = estimate id + confirmation when required. */
 export interface CreateJobReq extends JobReq {
   /** Estimate being confirmed (must match the current index digest). */
@@ -1723,6 +1769,7 @@ export interface ApiRoutes {
 
   // --- jobs ----------------------------------------------------------------------
   "POST /ws/:ws/jobs/estimate": Route<WsParam, Empty, JobReq, JobEstimate>;
+  "POST /ws/:ws/jobs/targets": Route<WsParam, Empty, CodeTargetsReq, CodeTargets>;
   "POST /ws/:ws/jobs": Route<WsParam, Empty, CreateJobReq, JobSummary>;
   "GET /ws/:ws/jobs": Route<WsParam, PageQuery & { state?: JobState; thread?: ThreadId }, undefined, Page<JobSummary>>;
   "GET /ws/:ws/jobs/:job": Route<WsParam & { job: JobId }, Empty, undefined, JobDetail>;
@@ -1863,6 +1910,7 @@ export const ROUTE_META = {
   "POST /ws/:ws/review/rounds/:n/complete": { auth: "required", kind: "json", clients: ["cli"], mutates: true },
   "POST /ws/:ws/review/rounds/:n/withdraw": { auth: "required", kind: "json", clients: ["web"], mutates: true },
   "POST /ws/:ws/jobs/estimate": { auth: "required", kind: "json", mutates: false },
+  "POST /ws/:ws/jobs/targets": { auth: "required", kind: "json", mutates: false },
   "POST /ws/:ws/jobs": { auth: "required", kind: "json", mutates: true },
   "GET /ws/:ws/jobs": { auth: "required", kind: "json", mutates: false },
   "GET /ws/:ws/jobs/:job": { auth: "required", kind: "json", mutates: false },

@@ -8,6 +8,8 @@
 import {
   type AnchorInput,
   type BlockId,
+  type CodeTarget,
+  type CodeTargets,
   DEFAULT_LIMITS,
   type EstimateItem,
   INTENT_JOB_KIND,
@@ -45,6 +47,19 @@ export interface ComposerTarget {
 
 export type SaveState = "idle" | "saving" | "saved" | "offline";
 
+/** A code range in the request: an `@` mention or a picked target candidate (sent as `ContextAdjust.add`). */
+export interface MentionRange {
+  path: string;
+  start: number;
+  end: number;
+  label: string;
+  /** Enclosing symbol of a picked candidate. */
+  symbol?: string;
+}
+
+/** Fix targets are re-asked this long after the request text changes (terms of the text find symbols). */
+const TARGETS_DEBOUNCE_MS = 400;
+
 const DEFAULT_MODEL: ModelId = "claude-sonnet-5-5";
 
 export class ComposerSession {
@@ -62,7 +77,14 @@ export class ComposerSession {
   estimate = $state.raw<JobEstimate | undefined>(undefined);
   chips = $state.raw<ComposerChip[]>([]);
   readonly candidateKeys = new Set<string>();
-  mentions = $state.raw<{ path: string; start: number; end: number; label: string }[]>([]);
+  mentions = $state.raw<MentionRange[]>([]);
+  /**
+   * Code targets of a Fix on a doc anchor (CR ux-F1, `POST /jobs/targets`): `cited` = the anchored claim's cites (the
+   * router writes them), `candidates` = suggestions the user picks. `null` until known, or when nothing changes code.
+   */
+  targets = $state.raw<CodeTargets | null>(null);
+  /** The targets request is in flight. */
+  targetsLoading = $state(false);
   path = $state<ExecPath>("push");
   override = $state.raw<ComposerState["override"]>(undefined);
   stale = $state(false);
@@ -83,6 +105,8 @@ export class ComposerSession {
   #estTimer: ReturnType<typeof setTimeout> | null = null;
   #creating: Promise<ThreadId | null> | null = null;
   #estSeq = 0;
+  #targetsSeq = 0;
+  #targetsTimer: ReturnType<typeof setTimeout> | null = null;
   #savedBody = "";
 
   constructor(s: Stores, target: ComposerTarget, intent: ThreadIntent, path: ExecPath) {
@@ -96,6 +120,7 @@ export class ComposerSession {
       this.body = kept.body;
       this.save = "offline";
     }
+    if (this.wantsTargets) void this.refreshTargets();
   }
 
   get ws() {
@@ -146,6 +171,79 @@ export class ComposerSession {
     return this.intent !== "note" && !(this.intent === "change" && this.fixTarget === "doc");
   }
 
+  // ------------------------------------------------------------------------------------------- code targets (CR ux-F1)
+  /** This Composer would change code from a doc anchor: the AI must know WHICH code (a cite, a pick or an `@`). */
+  get wantsTargets(): boolean {
+    return this.intent === "change" && this.fixTarget === "code" && this.target.anchor.primary === "doc";
+  }
+
+  /** The Fix has a write target: a cite of the anchor, or a range the user picked / mentioned. */
+  get hasTarget(): boolean {
+    return (this.targets?.cited.length ?? 0) > 0 || this.mentions.length > 0;
+  }
+
+  /** Whether the anchor has cites is not known yet (the first targets answer is on its way). */
+  get targetsPending(): boolean {
+    return this.wantsTargets && this.targets === null && this.mentions.length === 0;
+  }
+
+  /** A Fix with nothing to write: the Composer offers the candidates, or says how to point at code — never a silent 412. */
+  get needsTarget(): boolean {
+    return this.wantsTargets && this.targets !== null && !this.hasTarget;
+  }
+
+  /** Candidates not picked yet (a pick moves the range into `mentions`). */
+  get openCandidates(): CodeTarget[] {
+    const picked = (t: CodeTarget) => this.mentions.some((m) => m.path === t.path && m.start === t.start && m.end === t.end);
+    return (this.targets?.candidates ?? []).filter((t) => !picked(t));
+  }
+
+  /** Files the AI may write (cites + picked / mentioned ranges), shown before sending. */
+  get writeFiles(): string[] {
+    const out: string[] = [];
+    for (const p of [...(this.targets?.cited ?? []).map((t) => t.path), ...this.mentions.map((m) => m.path)]) if (!out.includes(p)) out.push(p);
+    return out;
+  }
+
+  /** `POST /jobs/targets` for the anchor and the request typed so far (deterministic, 0 tok). */
+  async refreshTargets(): Promise<CodeTargets | null> {
+    if (this.#targetsTimer) clearTimeout(this.#targetsTimer);
+    this.#targetsTimer = null;
+    const ws = this.ws;
+    if (!ws || !this.wantsTargets) return null;
+    const seq = ++this.#targetsSeq;
+    this.targetsLoading = true;
+    try {
+      const res = await this.#s.api.call("POST /ws/:ws/jobs/targets", {
+        params: { ws },
+        body: { anchor: this.target.anchor, ...(this.body.trim() ? { text: this.body } : {}) },
+      });
+      if (seq !== this.#targetsSeq) return res;
+      const before = this.hasTarget;
+      this.targets = res;
+      // the cites became known: the estimate can run now (a draft that exists was waiting for them)
+      if (this.hasTarget && !before) this.#scheduleEstimate(0);
+      return res;
+    } catch {
+      // a stale view (quote mismatch) or a daemon restart: no candidates, the hint still says how to point at code
+      if (seq === this.#targetsSeq) this.targets ??= { cited: [], candidates: [] };
+      return null;
+    } finally {
+      if (seq === this.#targetsSeq) this.targetsLoading = false;
+    }
+  }
+
+  /** One click / ⌥n on a candidate: it becomes a range of the request (and so of the write scope). */
+  pickTarget(t: CodeTarget): void {
+    this.addMention({ path: t.path, start: t.start, end: t.end, ...(t.symbol ? { symbol: t.symbol } : {}) });
+  }
+
+  #scheduleTargets(): void {
+    if (!this.wantsTargets || (this.targets?.cited.length ?? 0) > 0) return;
+    if (this.#targetsTimer) clearTimeout(this.#targetsTimer);
+    this.#targetsTimer = setTimeout(() => void this.refreshTargets(), TARGETS_DEBOUNCE_MS);
+  }
+
   #offlineKey(): string | null {
     return this.ws ? STORAGE_KEYS.draft(this.ws, this.target.key) : null;
   }
@@ -157,6 +255,7 @@ export class ComposerSession {
     if (i !== "change") this.fixTarget = "code";
     this.stale = true;
     if (this.draft) this.#scheduleSave(0);
+    if (this.wantsTargets && this.targets === null) void this.refreshTargets();
     this.#scheduleEstimate();
   }
 
@@ -166,6 +265,7 @@ export class ComposerSession {
     this.#ensureDraft();
     this.#scheduleSave(UI_THRESHOLDS.draftDebounceMs);
     this.#scheduleEstimate();
+    this.#scheduleTargets();
   }
 
   toggleChip(key: string, next: ComposerChip["state"]): void {
@@ -178,7 +278,7 @@ export class ComposerSession {
     this.#scheduleEstimate();
   }
 
-  addMention(r: { path: string; start: number; end: number }): void {
+  addMention(r: { path: string; start: number; end: number; symbol?: string }): void {
     const label = `${r.path.split("/").pop() ?? r.path}:${r.start}-${r.end}`;
     this.mentions = [...this.mentions.filter((m) => !(m.path === r.path && m.start === r.start && m.end === r.end)), { ...r, label }];
     this.stale = true;
@@ -188,6 +288,7 @@ export class ComposerSession {
 
   removeMention(i: number): void {
     this.mentions = this.mentions.filter((_, j) => j !== i);
+    this.stale = true;
     this.#scheduleEstimate();
   }
 
@@ -204,6 +305,7 @@ export class ComposerSession {
   /** The 2-way choice (`change` on a doc anchor): the doc target edits the block's Markdown (0 tok). */
   async setTarget(t: "code" | "doc"): Promise<void> {
     this.fixTarget = t;
+    if (t === "code" && this.targets === null) void this.refreshTargets();
     if (t !== "doc" || this.docMd !== undefined) return;
     const ws = this.ws;
     if (!ws) return;
@@ -323,6 +425,16 @@ export class ComposerSession {
   // ------------------------------------------------------------------------------------------- estimate
   #scheduleEstimate(ms: number = UI_THRESHOLDS.estimateDebounceMs): void {
     if (!this.runsJob) return;
+    if (this.wantsTargets && !this.hasTarget) {
+      // nothing to write yet: no estimate request (it could only answer 412); the Composer shows the candidates / hint
+      if (this.#estTimer) clearTimeout(this.#estTimer);
+      this.#estTimer = null;
+      this.#estSeq++;
+      this.estimating = false;
+      this.estimate = undefined;
+      this.chips = [];
+      return;
+    }
     if (this.#estTimer) clearTimeout(this.#estTimer);
     this.#estTimer = setTimeout(() => void this.refreshEstimate(), ms);
   }
@@ -333,6 +445,7 @@ export class ComposerSession {
     this.#estTimer = null;
     const ws = this.ws;
     if (!ws || !this.draft || !this.runsJob) return null;
+    if (this.wantsTargets && !this.hasTarget) return null;
     const seq = ++this.#estSeq;
     this.estimating = true;
     try {
@@ -393,6 +506,7 @@ export class ComposerSession {
 
   dispose(): void {
     if (this.#estTimer) clearTimeout(this.#estTimer);
+    if (this.#targetsTimer) clearTimeout(this.#targetsTimer);
     if (this.#saveTimer) clearTimeout(this.#saveTimer);
   }
 }

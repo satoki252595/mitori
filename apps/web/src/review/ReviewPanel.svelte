@@ -334,6 +334,7 @@ const sec = $derived.by(() => {
                     <button type="button" class="dbtn ok" class:on={dec === "accept"} aria-label={t("proposals.accept")} onclick={() => onDecide(p.id, "accept")}>✓</button>
                     <button type="button" class="dbtn no" class:on={dec === "reject"} aria-label={t("proposals.reject")} onclick={() => onDecide(p.id, "reject")}>✕</button>
                   </span>
+                  {#if p.diffHtml}<div class="pdiff"><ServerHtml html={p.diffHtml} cls="pd" /></div>{/if}
                 </li>
               {/each}
             </ul>
@@ -544,6 +545,7 @@ const sec = $derived.by(() => {
   }
   .props li {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     padding: 6px 8px;
@@ -552,6 +554,36 @@ const sec = $derived.by(() => {
   }
   .props li.focus {
     background: var(--c-prop-bg);
+  }
+  /* the change itself, in suggestion mode (the same diff the prose shows): what accept writes into the doc */
+  .props .pdiff {
+    flex-basis: 100%;
+    max-height: 9.5em;
+    overflow: auto;
+    padding: 6px 10px;
+    border-radius: var(--r-input);
+    background: var(--sugg-bg);
+    box-shadow: inset 2px 0 0 var(--c-prop);
+    font-family: var(--font-prose);
+    font-size: var(--fs-ui-s);
+    line-height: 1.7;
+    color: var(--text);
+  }
+  .props .pdiff :global(p) {
+    margin: 0;
+  }
+  .props .pdiff :global(del.d) {
+    color: var(--del-fg);
+    text-decoration: line-through;
+    background: var(--del-bg);
+    border-radius: 3px;
+  }
+  .props .pdiff :global(ins.a) {
+    color: var(--add-fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    background: var(--add-bg);
+    border-radius: 3px;
   }
   .props .pt {
     overflow: hidden;

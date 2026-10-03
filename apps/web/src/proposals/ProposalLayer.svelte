@@ -3,7 +3,8 @@
   `[data-mx]` host is added inside the block's server body `.mb` (HTML_CONTRACT: client chrome inside `.mb` carries
   `data-mx`, which ANCHOR_TEXT_RULES skip) and the original text is hidden by CSS while the suggestion shows.
   A block re-render drops the host; a MutationObserver puts it back. Job proposals feed the Review decisions (one
-  accept call for the whole job); the others are accepted / rejected directly.
+  accept call for the whole job); the others are accepted / rejected directly. An INSERT (a promoted answer, an
+  agent's new paragraph) shows right after the block it follows, without hiding anything.
   CR-PENDING(WP-10b): a `UiExtension.block` slot rendered by BlockHost would replace this injection
   (docs/design/cr-requests/WP-10b.md "block decoration slot").
 -->
@@ -62,15 +63,18 @@ async function decide(p: DocProposalView, d: "accept" | "reject") {
   }
 }
 
-/** Pending proposals of the blocks on screen. */
+/** Pending proposals of the blocks on screen: updates / deletes on their block, inserts after the block they follow. */
 const wanted = $derived.by(() => {
   void tick;
   const out = new Map<ProposalId, { p: DocProposalView; block: BlockId }>();
   if (typeof document === "undefined") return out;
+  const onScreen = new Set<BlockId>();
   for (const el of document.querySelectorAll<HTMLElement>(".reader-root .blk[data-b]")) {
     const id = el.dataset.b as BlockId;
+    onScreen.add(id);
     for (const p of s.doc.proposals(id)) if (p.op !== "insert") out.set(p.id, { p, block: id });
   }
+  for (const p of s.doc.pendingInserts()) if (p.after && onScreen.has(p.after)) out.set(p.id, { p, block: p.after });
   return out;
 });
 
@@ -100,8 +104,11 @@ $effect(() => {
     const host = document.createElement("div");
     host.dataset.mx = "prop";
     host.className = "mx-prop";
-    mb.prepend(host);
-    mb.classList.add("has-prop");
+    if (p.op === "insert") mb.append(host);
+    else {
+      mb.prepend(host);
+      mb.classList.add("has-prop");
+    }
     const props = $state({ proposal: p, producer: producer(p), decided, ondecide: (d: "accept" | "reject") => void decide(p, d) });
     const inst = mount(ProposalBlock, { target: host, props });
     live.set(id, { host, inst, props });

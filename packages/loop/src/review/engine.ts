@@ -897,7 +897,11 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
           addMessage_(t.id, "human", "comment", body);
           snapshot(t.id, cap, ["captured", "last_ok"], false);
           if (deps.partition.writeScopeOf(detailOf(t)).length === 0)
-            throw new MitoriError("E_PRECONDITION", "no code to change: mention the target code with @", { params: { block } });
+            throw new MitoriError("E_PRECONDITION", "no code to change: this block cites no code", {
+              params: { block, reason: "no_target" },
+              // CR ux-F1: the Composer's Fix finds the code (cites, the row's references, names) — that path needs no @
+              hint: "use Fix in the Composer: it offers the code to change (or point at it with @)",
+            });
           emit(() => deps.events.emit({ type: "thread.upsert", thread: summaryOf(t) }));
           return t;
         }),

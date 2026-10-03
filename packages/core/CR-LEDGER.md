@@ -287,3 +287,8 @@
 | CR m1-120 | architect | accepted | ストリームの継続（上の規則）: S5 は WP-06b が `gen/src/{orchestrator,prompts,line}/` の CR m1-11・m1-12・m1-13・m1-14・m1-50 と停止後書き込みのバグ、S6 は WP-08b / WP-08c が `loop/src/{review,router,bundle,contracts}/` の CR m1-68・m1-69・m1-72・m1-82・m1-86 を直してよい | 先行 WP は終了済み。並行トラックの待ちを作らない |
 | CR m1-121 | WP-09（M1 §4） | accepted | api `SettingsView.lastError?: MitoriErrorData`（人が編集した `config.json` を適用できなかった理由、直前の正しい設定が有効のまま）(applied)。`GET /settings` で返すのは WP-09 / S7（settings service の `lastError()` は実装済み）、表示は WP-10a | 設定ファイルの誤りが黙って無視されていた |
 
+## 6. 仕上げパス — ux トラック（2026-10-04、`docs/progress/ux.md`）
+
+| id | requester | 決定 | 適用先 | 理由・備考 |
+|---|---|---|---|---|
+| CR ux-F1 | ux（仕上げ） | accepted | api `CodeTargetsReq`・`CodeTarget`・`CodeTargets`、route `POST /ws/:ws/jobs/targets`（`mutates: false`、owner loop）(applied)。実装は loop `review/targets.ts`（`resolveCodeTargets`、純関数）+ server `wiring/loop-routes.ts` | 設計書の文へのコメントから、ファイル名を知らなくても Fix が書ける（コンセプトの中心）。出典（claim の cite）は自動の対象コード、出典の無い文は表の行の参照・シンボル名・全文検索の候補をユーザーが 1 クリックで選ぶ（黙って推測して書かない）。`ReviewEngine` のメソッドにはしていない（cr-requests/ux.md #1） |
