@@ -54,7 +54,7 @@ import { type LoopDepsExt, type LoopExtras, loopExtras } from "./loop.ts";
 import { NEUTRAL_CALIBRATION } from "./ports.ts";
 import { detectLicense, staticDocInput } from "./static-input.ts";
 import { claimReanchor, suggestionViews } from "./suggestions.ts";
-import { blockView, MdLines, paletteDigest, paletteIndex, type ViewCtx } from "./views.ts";
+import { blockView, citeLinks, MdLines, paletteDigest, paletteIndex, type ViewCtx } from "./views.ts";
 
 /** Daemon-level services every workspace shares. */
 export interface Shared {
@@ -359,7 +359,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     hasher: deps.hasher,
     events: loopEvents,
     domain: { emit: (e) => onLoopEvent(e) },
-    renderMessage: (md) => renderer.renderMessage(md),
+    renderMessage: (md) => renderer.renderMessage(citeLinks(info.key, md)),
     // CR-PENDING(loop-wiring) #1: ports LoopDeps has no member for
     fs: deps.fs,
     env: { PATH: deps.safePath, HOME: deps.userHome },

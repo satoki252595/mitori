@@ -66,6 +66,8 @@ const THREAD_STATES: readonly string[] = [
   "resolved",
 ];
 
+const PROPOSAL_STATES: readonly string[] = ["pending", "accepted", "rejected", "superseded"];
+
 /** `?state=open,queued` ⇒ states; absent or `all` ⇒ no filter. */
 function statesOf(q: URLSearchParams): ThreadState[] | undefined {
   const raw = q.get("state");
@@ -188,6 +190,15 @@ export function loopHandlers(env: LoopRouteEnv): RouteHandlers {
       const prev = x.loop.review.get(ctx.params.th)?.anchor ?? null;
       const captured = await x.extras.capture(anchor, prev);
       return rt.write("thread.reanchor", () => x.loop.review.reanchor(ctx.params.th, captured.anchor, version));
+    },
+    /** Read side of the doc proposals (live finding: the web store asks for the pending ones on every enter; a 501 there is an error toast). Accept / reject stay with WP-08c. */
+    "GET /ws/:ws/doc/proposals": async (ctx) => {
+      const x = await d(ctx);
+      const state = ctx.query.get("state");
+      const block = ctx.query.get("block");
+      if (state !== null && !PROPOSAL_STATES.includes(state)) throw invalid("state", "state must be pending|accepted|rejected|superseded");
+      const list = x.doc.proposals({ ...(state ? { state: state as never } : {}), ...(block ? { block: block as never } : {}) });
+      return list.flatMap((p) => proposalView(x, p.id) ?? []);
     },
     "POST /ws/:ws/threads/:th/promote": async (ctx) => {
       const x = await d(ctx);

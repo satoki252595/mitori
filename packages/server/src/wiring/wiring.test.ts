@@ -4,6 +4,7 @@ import type { Cite, Claim, ClaimId, DocIndex, IndexDelta, ThreadId } from "@mito
 import { MIGRATION_ORDER } from "../contract.ts";
 import { assembleAnchoredItems, distributeReanchor, migrationsFor } from "./index.ts";
 import { claimReanchor, suggestionViews } from "./suggestions.ts";
+import { citeLinks } from "./views.ts";
 
 const cite = (path: string, start: number, end: number): Cite => ({ path, start, end, blob: `b-${path}`, snippet: "0000000000000000", precision: "exact" });
 const claim = (id: string, cites: Cite[]): Claim =>
@@ -136,5 +137,18 @@ describe("SRV-AT-08 DOMAIN_WIRING pure steps", () => {
         "t" as never,
       ),
     ).toEqual([{ id: "sg_1", section: "s6/a", reason: "iface_changed", kind: "regen", blocks: [], files: ["a.go"], estimate: est, createdAt: "t" }] as never);
+  });
+});
+
+describe("LIVE-06 [[path:a-b]] cites in thread messages", () => {
+  const ws = "ws_cccccccccccc" as never;
+  test("a cite becomes a link to the code view; a single line has no range; bad paths and ranges stay as written", () => {
+    expect(citeLinks(ws, "Fetch は再試行する [[internal/meta/fetch.go:46-61]]。")).toBe(
+      "Fetch は再試行する [fetch.go:46-61](/w/ws_cccccccccccc/code/internal/meta/fetch.go#L46-L61)。",
+    );
+    expect(citeLinks(ws, "[[a.go:7]] と [[a.go:7-7]]")).toBe("[a.go:7](/w/ws_cccccccccccc/code/a.go#L7) と [a.go:7](/w/ws_cccccccccccc/code/a.go#L7)");
+    expect(citeLinks(ws, "[[../etc/passwd:1-2]] [[a.go:9-3]] [[a.go:0-2]] [[no range]] [[x]]")).toBe(
+      "[[../etc/passwd:1-2]] [[a.go:9-3]] [[a.go:0-2]] [[no range]] [[x]]",
+    );
   });
 });

@@ -24,6 +24,7 @@ import {
   type OutlineBlock,
   type PaletteIndex,
   type PaletteItem,
+  parseRepoPath,
   type RepoPath,
   type SectionId,
   type SectionNode,
@@ -42,6 +43,23 @@ const ESC: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"
 const attr = (s: string) => s.replace(/[&<>"']/g, (c) => ESC[c] as string);
 
 /** Worst verdict of a block's claims (outline tuples, badges). */
+/**
+ * `[[path:a-b]]` — how `answer/1`, `findings/1` and the Pull replies cite code in Markdown — as a link to the code
+ * view (`label` = `file:a-b`). The message renderer knows no workspace, so the links are made here, at the seam
+ * (live finding: the raw `[[internal/meta/fetch.go:46-61]]` showed in the thread card and the Inbox). Anything that
+ * is not a cite of a valid repo path stays as written.
+ */
+export function citeLinks(ws: WorkspaceKey, md: string): string {
+  return md.replace(/\[\[([^\]\s:]+):(\d+)(?:-(\d+))?\]\]/g, (whole, path: string, a: string, b: string | undefined) => {
+    const p = parseRepoPath(path);
+    const start = Number(a);
+    const end = b === undefined ? start : Number(b);
+    if (!p.ok || start < 1 || end < start) return whole;
+    const label = `${path.slice(path.lastIndexOf("/") + 1)}:${start}${end === start ? "" : `-${end}`}`;
+    return `[${label}](${HREFS.code(ws, p.value, start as LineNo, end as LineNo)})`;
+  });
+}
+
 export function worstVerdict(claims: readonly Claim[]): Verdict | null {
   let best = -1;
   for (const c of claims) {
