@@ -14,6 +14,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { CLAUDE_ARGV, ENV_ALLOWLIST, ENV_DENYLIST } from "@mitori/agent";
 import { CHARS_PER_TOKEN, type ClaudeModelId, PRICING, priceUsage } from "@mitori/core";
 import { median, percentile } from "../runner/stats.ts";
 
@@ -257,61 +258,43 @@ export interface LiveReport {
   ttftMs: { p50: number; p95: number } | null;
 }
 
-/** The lean flags of the product's `generate` profile (agent spec I1–I14), minus what a measurement does not need. */
+/**
+ * The argv of the product's `generate` mode, straight from the agent contract (`CLAUDE_ARGV.common` + `.generate`, agent spec
+ * I1–I14), so the measured profile cannot drift from the shipped one. `--setting-sources ""` (no user settings inherited).
+ */
 export function leanArgs(o: { model: string; effort: string; systemFile: string; maxBudgetUsd: number }): string[] {
-  return [
-    "-p",
-    "--input-format",
-    "stream-json",
-    "--output-format",
-    "stream-json",
-    "--verbose",
-    "--include-partial-messages",
-    "--tools",
-    "",
-    "--setting-sources",
-    "",
-    "--strict-mcp-config",
-    "--disable-slash-commands",
-    "--no-session-persistence",
-    "--model",
-    o.model,
-    "--effort",
-    o.effort,
-    "--max-budget-usd",
-    o.maxBudgetUsd.toFixed(2),
-    "--system-prompt-file",
-    o.systemFile,
-  ];
+  const values: Record<string, string> = {
+    "{model}": o.model,
+    "{effort}": o.effort,
+    "{systemPromptFile}": o.systemFile,
+    "{maxBudgetUsd}": o.maxBudgetUsd.toFixed(2),
+    "{settingSources}": "",
+  };
+  return [...CLAUDE_ARGV.common, ...CLAUDE_ARGV.generate].map((a) => {
+    if (!/^\{\w+\}$/.test(a)) return a;
+    const v = values[a];
+    if (v === undefined) throw new Error(`pass1-proto: no value for ${a} in CLAUDE_ARGV`);
+    return v;
+  });
 }
 
-const ALLOWED_ENV = [
-  "PATH",
-  "HOME",
-  "USER",
-  "LANG",
-  "LC_ALL",
-  "TERM",
-  "TMPDIR",
-  "TZ",
-  "XDG_CONFIG_HOME",
-  "XDG_DATA_HOME",
-  "XDG_CACHE_HOME",
-  "CLAUDE_CONFIG_DIR",
-  "HTTPS_PROXY",
-  "HTTP_PROXY",
-  "NO_PROXY",
-  "NODE_EXTRA_CA_CERTS",
-  "SSL_CERT_FILE",
-];
+/** The child's environment (I5): the contract's allowlist ∩ this process, minus the denylist and every MITORI_* variable. */
+export function leanEnv(env: Record<string, string | undefined> = process.env): Record<string, string> {
+  const deny = new Set<string>(ENV_DENYLIST);
+  const out: Record<string, string> = {};
+  for (const k of ENV_ALLOWLIST) {
+    const v = env[k];
+    if (v !== undefined && !deny.has(k) && !k.startsWith("MITORI_")) out[k] = v;
+  }
+  return out;
+}
 
 async function callOnce(
   claude: string,
   mod: ProtoModule,
   o: { repo: string; model: ClaudeModelId; effort: string; systemFile: string; cap: number; cwd: string },
 ): Promise<CallReport> {
-  const env: Record<string, string> = { CLAUDE_CODE_PROMPT_CACHE_TTL: "5m" };
-  for (const k of ALLOWED_ENV) if (process.env[k] !== undefined) env[k] = process.env[k] as string;
+  const env: Record<string, string> = { ...leanEnv(), CLAUDE_CODE_PROMPT_CACHE_TTL: "5m" };
   const t0 = performance.now();
   const proc = Bun.spawn([claude, ...leanArgs({ model: o.model, effort: o.effort, systemFile: o.systemFile, maxBudgetUsd: o.cap })], {
     cwd: o.cwd,
@@ -391,9 +374,10 @@ export async function runLive(
   const modules = groupModules(files).slice(0, plan.modules.length);
   const dir = mkdtempSync(join(tmpdir(), "mitori-pass1-"));
   const systemFile = join(dir, "system.txt");
-  writeFileSync(systemFile, `${SYSTEM_PROMPT}\n\nRepository declarations (pack):\n${repoPack(files)}\n`, { mode: 0o600 });
   const cwd = join(dir, "empty");
   mkdirSync(cwd);
+  // I3: the system prompt states the (empty) working directory, like the product's
+  writeFileSync(systemFile, `${SYSTEM_PROMPT}\nWorking directory: ${cwd}\n\nRepository declarations (pack):\n${repoPack(files)}\n`, { mode: 0o600 });
   const calls: CallReport[] = [];
   let spent = 0;
   let inFlightCap = 0;

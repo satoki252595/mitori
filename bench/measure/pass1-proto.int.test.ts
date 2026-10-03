@@ -4,7 +4,8 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { groupModules, inventory, leanArgs, loadDigest, makePlan, moduleOf, modulePrompt, repoPack, runLive, tokensOf } from "./pass1-proto.ts";
+import { CLAUDE_ARGV, CLAUDE_FORBIDDEN_FLAGS, ENV_ALLOWLIST } from "@mitori/agent";
+import { groupModules, inventory, leanArgs, leanEnv, loadDigest, makePlan, moduleOf, modulePrompt, repoPack, runLive, tokensOf } from "./pass1-proto.ts";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const SCRIPT = join(ROOT, "bench/measure/pass1-proto.ts");
@@ -141,6 +142,20 @@ describe("PASS1-U-03 lean arguments (agent spec I1–I14)", () => {
   test("never a forbidden flag", () => {
     for (const bad of ["--bare", "--dangerously-skip-permissions", "--add-dir", "--mcp-config", "--settings", "--continue", "--resume"])
       expect(args).not.toContain(bad);
+    for (const bad of CLAUDE_FORBIDDEN_FLAGS) expect(args).not.toContain(bad);
+  });
+
+  test("regression: the argv is the product's generate template (it lacked `--permission-prompts none`)", () => {
+    expect(args).toHaveLength(CLAUDE_ARGV.common.length + CLAUDE_ARGV.generate.length);
+    const i = args.indexOf("--permission-prompts");
+    expect(args[i + 1]).toBe("none");
+    expect(args.some((a) => /^\{\w+\}$/.test(a))).toBe(false); // every placeholder substituted
+  });
+
+  test("the child env is the contract's allowlist minus the denylist and MITORI_*", () => {
+    const env = leanEnv({ PATH: "/bin", LOGNAME: "me", SSL_CERT_DIR: "/c", ANTHROPIC_API_KEY: "sk-ant-api03-FAKE", MITORI_HOME: "/h", FOO: "x" });
+    expect(env).toEqual({ PATH: "/bin", LOGNAME: "me", SSL_CERT_DIR: "/c" });
+    for (const k of Object.keys(env)) expect(ENV_ALLOWLIST as readonly string[]).toContain(k);
   });
 });
 
