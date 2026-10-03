@@ -53,19 +53,21 @@ test("@wp10a AC-U-DP acknowledged engine: no disclosure row, one click starts", 
   expect(await posts(/\/settings$/, "PATCH")).toEqual([]);
 });
 
-for (const [billing, text, tone] of [
-  ["subscription-window", "サブスクの枠内（追加料金なし）", "ok"],
-  ["metered-api", "約$1.3が課金されます", "warn"],
-  ["overage", "約$1.3が課金されます（従量）", "warn"],
-  ["unknown", "課金の扱いは未確認", "muted"],
+for (const [billing, text, tone, status] of [
+  ["subscription-window", "サブスクの枠内（追加料金なし）", "ok", "今日21.4k tok · API換算$0.14（請求なし）"],
+  ["metered-api", "約$1.3が課金されます", "warn", "今日21.4k tok · 請求$0.14"],
+  ["overage", "約$1.3が課金されます（従量）", "warn", "今日21.4k tok · 請求$0.14"],
+  ["unknown", "課金の扱いは未確認", "muted", "今日21.4k tok · API換算$0.14"],
 ] as const) {
-  test(`@wp10a AC-U-B01 main line = API-equivalent $ + billing state on the same line (${billing})`, async ({ page }) => {
+  test(`@wp10a AC-U-B01 main line = API-equivalent $ + billing state on the same line; status bar wording (${billing})`, async ({ page }) => {
     await openMap(page, { billing });
     const sum = page.locator(".est .sum");
     await expect(sum.locator(".lead")).toContainText("API換算$1.3");
     const bill = sum.locator(".bill");
     await expect(bill).toHaveText(text);
     await expect(bill).toHaveAttribute("data-tone", tone);
+    // status bar (UXP-09): 「請求なし」 only for the subscription window, 「請求」 when metered, no claim when unknown
+    await expect(page.locator(".status .w-today")).toHaveText(status);
     if (billing === "overage") {
       // billing_overage: the start button needs the explicit acknowledgement checkbox first
       const go = page.locator(".est .go");
@@ -85,6 +87,33 @@ test("@wp10a AC-G-W01 uncalibrated + Pro: default tile 概要, 5h line as a rang
   await expect(sup).toContainText(/5h枠23% → 推定\+\d+〜\d+%（未較正・Proプランの目安）/u);
   await expect(page.locator(".est .sum .lead")).toContainText("〜");
   await expect(page.locator(".est .sum .unc")).toHaveText("（未較正）");
+});
+
+test("@wp10a AC-G-W01 κ = null · plan = pro · utilization 0.6: the standard estimate carries window_risk and the main button splits into 4 choices", async ({
+  page,
+}) => {
+  await openMap(page, { calibrated: false, plan: "pro", utilization: 0.6 });
+  // uncalibrated + pro starts on 概要, which stays under the 80 % line: one button
+  await expect(page.locator(".est .eff label.sel")).toContainText("概要");
+  await expect(page.getByTestId("window-risk")).toHaveCount(0);
+  await page.locator(".est .eff label", { hasText: "標準" }).click();
+  const four = page.getByTestId("window-risk");
+  await expect(four.getByRole("button")).toHaveText(["今すぐ生成", /^リセット後（\d\d:\d\d）に開始$/u, "sessionで実行", "範囲を絞る"]);
+  await expect(page.locator(".est .go")).toHaveCount(0);
+  // 「範囲を絞る」 = the next smaller effort, from the estimates already fetched (no request)
+  const before = (await posts(/\/gen\/estimate$/)).length;
+  await four.getByRole("button", { name: "範囲を絞る" }).click();
+  await expect(page.locator(".est .eff label.sel")).toContainText("概要");
+  expect((await posts(/\/gen\/estimate$/)).length).toBe(before);
+  // after the reset: one click starts the run with notBefore = resetsAt
+  await page.locator(".est .eff label", { hasText: "標準" }).click();
+  await page
+    .getByTestId("window-risk")
+    .getByRole("button", { name: /リセット後/u })
+    .click();
+  await expect.poll(async () => (await posts(/\/gen\/runs$/)).length).toBe(1);
+  const run = (await posts(/\/gen\/runs$/))[0]?.body as { notBefore?: string; confirm?: boolean };
+  expect(run).toMatchObject({ confirm: true, notBefore: "2026-10-03T05:00:00Z" });
 });
 
 test("@wp10a AC-G-W01 calibrated + Max: default tile 標準 and a point 5h estimate", async ({ page }) => {

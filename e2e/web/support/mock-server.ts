@@ -102,7 +102,7 @@ function api(req: Request, url: URL, body: unknown): Response | Promise<Response
       byEngine: {},
       byModel: {},
       window: {
-        fiveHour: { utilization: 0.23, resetsAt: "2026-10-03T05:00:00Z" },
+        fiveHour: { utilization: opts.utilization, resetsAt: "2026-10-03T05:00:00Z" },
         sevenDay: { utilization: 0.08 },
         billing: opts.billing,
         observedAt: "2026-10-03T00:00:00Z",

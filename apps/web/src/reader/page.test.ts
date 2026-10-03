@@ -6,7 +6,7 @@
 import { describe, expect, test } from "bun:test";
 import type { BlockView, DocOutline, SectionNode, SectionView } from "@mitori/core";
 import { UI_THRESHOLDS } from "../contract.ts";
-import { codeWindow, parseCite } from "./code.ts";
+import { codeWindow, editorUrl, invalidateCode, loadCode, parseCite } from "./code.ts";
 import { indexOutline, pageSections, readingMinutes, subtreeStats, tocState } from "./outline.ts";
 import { buildPage, l3Runs, sectionsToFetch, stepBlock } from "./page.ts";
 import { estimateBlockPx, visibleWindows, windowOf } from "./virtual.ts";
@@ -120,6 +120,26 @@ describe("code pane", () => {
     expect(parseCite("a:b.go:9")).toEqual({ path: "a:b.go", start: 9, end: 9 });
     expect(parseCite("nope")).toBeNull();
     expect(parseCite("x.go:L9")).toBeNull();
+  });
+
+  test("⇧O editor deep link: segments percent-encoded, separators and a drive letter kept", () => {
+    expect(editorUrl("vscode", "/Users/me/my repo/", "internal/a#b?.go", 40)).toBe("vscode://file/Users/me/my%20repo/internal/a%23b%3F.go:40");
+    expect(editorUrl("cursor", "C:\\work\\crit", "cmd/main.go", 7)).toBe("cursor://file/C:/work/crit/cmd/main.go:7");
+  });
+
+  test("index.changed drops cached windows of the changed files only", async () => {
+    const calls: string[] = [];
+    const api = { call: async (_k: string, a: { query: { path: string } }) => (calls.push(a.query.path), { path: a.query.path }) } as never;
+    const ws = "ws_cache0000000" as never;
+    await loadCode(api, ws, "a.go", 1, 10);
+    await loadCode(api, ws, "b.go", 1, 10);
+    await loadCode(api, ws, "a.go", 1, 10);
+    expect(calls).toEqual(["a.go", "b.go"]);
+    expect(invalidateCode(ws, ["a.go"])).toBe(true);
+    expect(invalidateCode(ws, ["zzz.go"])).toBe(false);
+    await loadCode(api, ws, "a.go", 1, 10);
+    await loadCode(api, ws, "b.go", 1, 10);
+    expect(calls).toEqual(["a.go", "b.go", "a.go"]);
   });
 
   test("±ctx lines around the cite, never more than maxMountedCodeLines", () => {

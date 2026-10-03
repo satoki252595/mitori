@@ -4,11 +4,11 @@
   CSS badge labels, ResizeObserver width) live here as effects — stores stay DOM-free (ux.md §12.2-5).
 -->
 <script lang="ts">
-import type { WorkspaceKey } from "@mitori/core";
+import { HREFS, type RepoPath, type WorkspaceKey } from "@mitori/core";
 import { type Component, onMount, untrack } from "svelte";
 import { type AppMode, ROUTE_SCOPES, type ShortcutScope, type ShortcutWhen } from "../contract.ts";
 import { elapsedMs } from "../gen/progress.ts";
-import { provideStores, type Stores } from "../stores/app.svelte.ts";
+import { applySettings, provideStores, type Stores } from "../stores/app.svelte.ts";
 import { wireSse } from "../stores/sse.ts";
 import Banner from "./Banner.svelte";
 import { copyText } from "./clipboard.ts";
@@ -16,7 +16,6 @@ import { loadExtensions, type UiExtension } from "./ext.ts";
 import { fmtDeltaImpl, fmtDurationImpl, fmtTokensImpl, fmtUsdImpl } from "./fmt.ts";
 import Header from "./Header.svelte";
 import HelpOverlay from "./HelpOverlay.svelte";
-import { setSettingsLang } from "./i18n.ts";
 import { switchLang } from "./i18n-cell.svelte.ts";
 import { t } from "./index.ts";
 import Launcher from "./Launcher.svelte";
@@ -183,8 +182,9 @@ $effect(() => {
   document.title = name ? `${page} — mitori · ${name}` : `${page} — mitori`;
 });
 $effect(() => {
-  // remember the last opened page for the 設計書 tab (ux.md §2.3-2)
+  // remember the last opened page for the 設計書 tab (ux.md §2.3-2) and the last file for `g c`
   if (route.name === "doc" && s.doc.index) setItem("session", STORAGE_KEYS.lastPage(route.ws), s.doc.index.pageOf.get(route.section) ?? route.section);
+  if (route.name === "code") setItem("session", STORAGE_KEYS.lastFile(route.ws), route.path);
 });
 
 // ---------------------------------------------------------------- keyboard context
@@ -220,6 +220,13 @@ function when(w: ShortcutWhen): boolean {
   }
 }
 
+/** A key with no target (`c` / `e` / `f` / `p` without a focused block or selection): one hint per session (UXP-35). */
+function unmet(_id: string, w: ShortcutWhen) {
+  if (w !== "targetOrSelection" || getItem("session", STORAGE_KEYS.hint("noTarget"))) return;
+  setItem("session", STORAGE_KEYS.hint("noTarget"), "1");
+  s.bottom.toast({ id: "hint.noTarget", kind: "info", key: "hint.noTarget" });
+}
+
 function imeHint() {
   if (s.ui.imeHintShown || getItem("session", STORAGE_KEYS.imeHint)) return;
   s.ui.imeHintShown = true;
@@ -238,6 +245,13 @@ function navTo(target: "map" | "doc" | "inbox" | "code" | "review" | "settings")
     const last = getItem("session", STORAGE_KEYS.lastPage(ws));
     return void s.router.go({ name: "doc", ws, section: (last as "s0" | null) ?? "s0" });
   }
+  if (target === "code") {
+    // the last file opened in this tab; none yet ⇒ the palette in path mode (`:`)
+    const path = getItem("session", STORAGE_KEYS.lastFile(ws));
+    const r = path ? s.router.parse(HREFS.code(ws, path as RepoPath)) : null;
+    if (r?.name === "code") return void s.router.go(r);
+    s.palette.show(":");
+  }
 }
 
 // ---------------------------------------------------------------- mount: router, keys, SSE, width, link interception
@@ -254,6 +268,7 @@ onMount(() => {
       imeHint,
       holdAlt: (on) => (s.ui.showCites = on),
       allow: (id) => s.layers.top()?.kind !== "dialog" || id === "layer.close",
+      unmet,
     }),
   );
   const k = s.keys;
@@ -349,13 +364,7 @@ onMount(() => {
   offs.push(() => ro.disconnect());
   s.bottom.set("statusbar", "statusbar", 24);
   // settings: server wins over the cookie (ux.md §3.2-6)
-  void s.session.loadSettings({ reuse: true }).then((v) => {
-    if (!v) return;
-    s.prefs.reconcile(v);
-    s.doc.level = s.prefs.level;
-    s.keys.setOverrides(v.settings.ui.keymap);
-    setSettingsLang(v.settings.ui.lang);
-  });
+  void s.session.loadSettings({ reuse: true }).then((v) => applySettings(s, v));
   void s.session.loadDaemon();
   void s.session.loadUsage();
   void loadExtensions(s).then((e) => (ext = e));

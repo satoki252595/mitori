@@ -2,8 +2,9 @@
  * SSE type → store table (ux.md §12.3). Workspace entities are de-duplicated by envelope `rev` against
  * `x-mitori-rev` of our own mutations (`SseClient.isStale` / `noteRev`); unknown types are ignored.
  */
+import type { EntityKey, SseClient } from "@mitori/client";
 import type { SseEvent } from "@mitori/core";
-import type { Stores } from "./app.svelte.ts";
+import { applySettings, type Stores } from "./app.svelte.ts";
 
 type Of<T extends SseEvent["type"]> = Extract<SseEvent, { type: T }>;
 
@@ -15,9 +16,21 @@ export interface SseHooks {
   genDone(e: Of<"gen.run">): void;
 }
 
+/**
+ * WEB-U-026: an upsert is applied only when its envelope `rev` is newer than the one that produced the current
+ * value (`rev ≤ entityRev[key]` ⇒ dropped); an applied upsert records its `rev`, so an older replay (resume
+ * after a reconnect, out-of-order delivery) can never overwrite a newer value. Events without `rev` pass.
+ */
+export function acceptUpsert(sse: Pick<SseClient, "isStale" | "noteRev">, key: EntityKey, e: Pick<SseEvent, "rev">): boolean {
+  if (e.rev === null) return true;
+  if (sse.isStale(key, e.rev)) return false;
+  sse.noteRev(key, e.rev);
+  return true;
+}
+
 export function wireSse(s: Stores, hooks: SseHooks): () => void {
   const sse = s.sse;
-  const stale = (key: Parameters<typeof sse.isStale>[0], e: SseEvent) => e.rev !== null && sse.isStale(key, e.rev);
+  const stale = (key: EntityKey, e: SseEvent) => !acceptUpsert(sse, key, e);
   const offs = [
     sse.on("resync", () => hooks.resync()),
     sse.on("server.shutdown", () => {}),
@@ -37,7 +50,7 @@ export function wireSse(s: Stores, hooks: SseHooks): () => void {
       s.workspace.applySummary(e.summary);
     }),
     sse.on("settings.updated", () => {
-      void s.session.loadSettings().then((v) => s.prefs.reconcile(v));
+      void s.session.loadSettings().then((v) => applySettings(s, v));
     }),
     sse.on("scan.progress", (e) => {
       s.workspace.scan = { stage: e.stage, done: e.done, total: e.total };
@@ -51,13 +64,15 @@ export function wireSse(s: Stores, hooks: SseHooks): () => void {
       s.workspace.scan = null;
       s.workspace.error = e.error;
     }),
+    sse.on("index.changed", (e) => {
+      s.workspace.changed = { paths: e.paths, seq: e.seq };
+    }),
     sse.on("map.updated", () => s.map.invalidate()),
     sse.on("doc.outline", (e) => {
       if (!s.doc.outline || e.outlineRev > s.doc.outline.outlineRev) void s.doc.loadOutline();
     }),
     sse.on("doc.block.upsert", (e) => {
       if (stale(`block:${e.block.id}`, e)) return;
-      if (e.rev !== null) sse.noteRev(`block:${e.block.id}`, e.rev);
       hooks.firstBlock(e);
       s.doc.upsertBlock(e.block);
     }),

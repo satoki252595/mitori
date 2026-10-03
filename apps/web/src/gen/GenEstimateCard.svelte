@@ -7,10 +7,11 @@
 -->
 <script lang="ts">
 import type { Effort, EngineId, EngineStatus, GenEstimate, ScanSummaryView, SubscriptionWindow } from "@mitori/core";
-import { fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
+import { fmtHm, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
 import { hasKey } from "../shell/i18n.ts";
 import { t } from "../shell/index.ts";
-import { billingLine, EFFORTS, estimateValidity, figures, stageRows, startMode, windowLine } from "./estimate.ts";
+import { billingLine, EFFORTS, estimateValidity, figures, narrowerEffort, stageRows, startMode, windowLine } from "./estimate.ts";
+import { VisibleClock } from "./visibility.ts";
 
 let {
   estimates,
@@ -61,23 +62,13 @@ const policyKey = $derived.by(() => {
 
 // disclosure visibility (≥ 1 s in view before a click may acknowledge it)
 let disclosure: HTMLElement | undefined = $state();
-let shownAt: string | null = null;
-let visibleSince = 0;
-let visibleMs = $state(0);
+const clock = new VisibleClock();
 let nudge = $state(false);
 $effect(() => {
   if (!disclosure || policyAcked) return;
   const io = new IntersectionObserver(
     (entries) => {
-      for (const en of entries) {
-        if (en.isIntersecting && en.intersectionRatio >= 0.9) {
-          if (!shownAt) shownAt = new Date().toISOString();
-          visibleSince = performance.now();
-        } else if (visibleSince) {
-          visibleMs += performance.now() - visibleSince;
-          visibleSince = 0;
-        }
-      }
+      for (const en of entries) clock.entry(en.isIntersecting && en.intersectionRatio >= 0.9, performance.now(), () => new Date().toISOString());
     },
     { threshold: [0, 0.9, 1] },
   );
@@ -86,8 +77,7 @@ $effect(() => {
 });
 
 function seenEnough(): boolean {
-  const now = visibleSince ? visibleMs + (performance.now() - visibleSince) : visibleMs;
-  return now >= 1000;
+  return clock.visibleMs(performance.now()) >= 1000;
 }
 
 function start(opts: { notBefore?: string } = {}) {
@@ -98,7 +88,7 @@ function start(opts: { notBefore?: string } = {}) {
       setTimeout(() => (nudge = false), 1200);
       return;
     }
-    onack(shownAt ?? new Date().toISOString());
+    onack(clock.shownAt ?? new Date().toISOString());
   }
   onstart(opts);
 }
@@ -106,6 +96,8 @@ function start(opts: { notBefore?: string } = {}) {
 const windowText = $derived(est ? windowLine(est, util, engineStatus?.plan ?? null, t) : "");
 const validity = $derived(est ? estimateValidity(est, Date.now()) : null);
 const resetAt = $derived(win?.fiveHour?.resetsAt ?? null);
+/** 「範囲を絞る」 on the card = the next smaller effort (its estimate is already fetched; switching costs 0 requests). */
+const narrower = $derived(narrowerEffort(effort));
 </script>
 
 {#if collapsed}
@@ -152,10 +144,12 @@ const resetAt = $derived(win?.fiveHour?.resetsAt ?? null);
         {#if mode.kind === "session"}
           <button type="button" class="btn btn-pri go" onclick={() => oncopy(mode.copy)}>{t("gen.card.copySession")}</button>
         {:else if mode.kind === "windowRisk"}
-          <div class="four">
+          <!-- window_risk (§16 R11): the main button splits into 4 choices; nothing starts without one of them -->
+          <div class="four" data-testid="window-risk">
             <button type="button" class="btn btn-pri" aria-disabled={busy} onclick={() => start()}>{t("gen.card.startNow")}</button>
-            {#if resetAt}<button type="button" class="btn btn-sec" onclick={() => start({ notBefore: resetAt })}>{t("gen.card.afterReset")}</button>{/if}
+            {#if resetAt}<button type="button" class="btn btn-sec" onclick={() => start({ notBefore: resetAt })}>{t("gen.card.afterReset", { time: fmtHm(resetAt) })}</button>{/if}
             <button type="button" class="btn btn-sec" onclick={() => onengine("session")}>{t("gen.card.viaSession")}</button>
+            {#if narrower}<button type="button" class="btn btn-gh" onclick={() => narrower && oneffort(narrower)}>{t("gen.card.narrow")}</button>{/if}
           </div>
         {:else}
           <button type="button" class="btn btn-pri go" class:warn={mode.kind === "overage"} aria-disabled={busy || (mode.kind === "overage" && !overageOk)} onclick={() => (mode.kind === "overage" && !overageOk ? undefined : start())}

@@ -75,6 +75,8 @@ export const STORAGE_KEYS = {
   read: (ws: string, pathId: string) => `mitori:read:${ws}:${pathId}`,
   recent: (ws: string) => `mitori:recent:${ws}`,
   lastPage: (ws: string) => `mitori:lastPage:${ws}`,
+  /** Last S3 file of the tab (`g c`, ux.md §8.4). */
+  lastFile: (ws: string) => `mitori:lastFile:${ws}`,
   path: (ws: string) => `mitori:path:${ws}`,
   imeHint: "mitori:hint:imeOn",
   hint: (id: string) => `mitori:hint:${id}`,

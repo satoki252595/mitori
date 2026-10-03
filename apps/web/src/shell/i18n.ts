@@ -13,6 +13,8 @@ export interface CatalogCell {
 }
 
 let cell: CatalogCell = { lang: "ja", cat: {} };
+/** Every catalog loaded so far (formatters may ask for a specific language). */
+const loaded = new Map<UiLang, Readonly<MessageCatalog>>();
 let onMissing: ((key: string) => void) | null = null;
 let settingsLang: UiLang | null = null;
 let debugErrors = false;
@@ -25,6 +27,7 @@ export function installCell(c: CatalogCell): void {
 }
 
 export function setCatalog(lang: UiLang, cat: Readonly<MessageCatalog>): void {
+  loaded.set(lang, cat);
   cell.cat = cat;
   cell.lang = lang;
 }
@@ -68,10 +71,19 @@ export function interpolate(s: string, params?: Record<string, string | number>)
 }
 
 export function tImpl(key: string, params?: Record<string, string | number>): string {
-  const cat = cell.cat;
+  return lookup(cell.lang, cell.cat, key, params);
+}
+
+/** `t` in a given language when its catalog has been loaded (else the active catalog). */
+export function tIn(lang: UiLang | undefined, key: string, params?: Record<string, string | number>): string {
+  const cat = lang === undefined || lang === cell.lang ? undefined : loaded.get(lang);
+  return cat && lang ? lookup(lang, cat, key, params) : tImpl(key, params);
+}
+
+function lookup(lang: UiLang, cat: Readonly<MessageCatalog>, key: string, params?: Record<string, string | number>): string {
   let s = cat[key];
   if (s === undefined && params && typeof params.n === "number") {
-    s = cat[`${key}.${plural(cell.lang, params.n)}`] ?? cat[`${key}.other`];
+    s = cat[`${key}.${plural(lang, params.n)}`] ?? cat[`${key}.other`];
   }
   if (s === undefined) {
     onMissing?.(key);

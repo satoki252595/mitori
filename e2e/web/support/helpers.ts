@@ -13,6 +13,7 @@ export interface MockOptions {
   plan?: "pro" | "max5" | "unknown";
   policyAcked?: boolean;
   paletteItems?: number;
+  utilization?: number;
 }
 
 export async function configure(o: MockOptions = {}): Promise<void> {

@@ -5,8 +5,9 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { GenEstimate, GenTaskView } from "@mitori/core";
 import { useCatalog } from "../shell/__tests__/catalog.ts";
-import { billingLine, defaultEffort, estimateValidity, figures, isRange, startMode, totalTokens, windowLine } from "./estimate.ts";
+import { billingLine, defaultEffort, estimateValidity, figures, isRange, narrowerEffort, startMode, totalTokens, windowLine } from "./estimate.ts";
 import { elapsedMs, isActive, reservePx, roomTargets, runCounters, stageProgress } from "./progress.ts";
+import { VisibleClock } from "./visibility.ts";
 
 const t = (key: string, params?: Record<string, string | number>) => (params ? `${key}${JSON.stringify(params)}` : key);
 
@@ -107,6 +108,10 @@ describe("start modes (§4.2.4-7/8, UXP-11)", () => {
     expect(startMode(est(), "claude-cli", false)).toEqual({ kind: "start" });
   });
 
+  test("「範囲を絞る」 steps to the next smaller effort", () => {
+    expect([narrowerEffort("complete"), narrowerEffort("standard"), narrowerEffort("overview")]).toEqual(["standard", "overview", null]);
+  });
+
   test("validity minutes and expiry", () => {
     const at = Date.parse("2026-10-03T00:00:00Z");
     expect(estimateValidity(est(), at)).toEqual({ minutes: 10, expired: false });
@@ -150,5 +155,26 @@ describe("progress (§4.2.5, AC-U23)", () => {
     expect(reservePx(1, "ja")).toBe(120);
     expect(reservePx(1000, "ja")).toBe(Math.round(((1000 * 1.25) / 37) * 30.4));
     expect(reservePx(100_000, "en")).toBe(2400);
+  });
+});
+
+describe("AC-U-DP disclosure visible-time clock", () => {
+  const iso = () => "2026-10-03T00:00:00Z";
+  test("threshold crossings while visible keep the running interval (ratio 1 → 0.95 at 600 ms)", () => {
+    const c = new VisibleClock();
+    c.entry(true, 1000, iso);
+    c.entry(true, 1600, iso);
+    expect(c.visibleMs(2050)).toBe(1050);
+    expect(c.shownAt).toBe(iso());
+  });
+
+  test("time out of view does not count; intervals add up", () => {
+    const c = new VisibleClock();
+    c.entry(true, 0, iso);
+    c.entry(false, 400, iso);
+    c.entry(false, 900, iso);
+    expect(c.visibleMs(5000)).toBe(400);
+    c.entry(true, 6000, iso);
+    expect(c.visibleMs(6700)).toBe(1100);
   });
 });

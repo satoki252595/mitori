@@ -267,6 +267,7 @@
   "statusbar.scanning": "解析中（{done}/{total}）",
   "statusbar.today": "今日{tok} tok · API換算{usd}（請求なし）",
   "statusbar.todayBilled": "今日{tok} tok · 請求{usd}",
+  "statusbar.todayUnknown": "今日{tok} tok · API換算{usd}",
   "statusbar.todayNone": "今日 –",
   "statusbar.window": "5h {p}% · 7d {q}%",
   "statusbar.windowOverage": "5h {p}% · 従量",

@@ -19,6 +19,8 @@ const billing = $derived(win?.billing ?? engine?.billing ?? "unknown");
 const overage = $derived(billing === "overage" || !!win?.overage?.active);
 const today = $derived(s.session.today);
 const billed = $derived(billing === "metered-api" || overage);
+// UXP-09: 「請求なし」 only when the window says so — an unknown billing state makes no claim either way
+const todayKey = $derived(billed ? "statusbar.todayBilled" : billing === "subscription-window" ? "statusbar.today" : "statusbar.todayUnknown");
 const pending = $derived(s.keys.pendingPrefix);
 const ws = $derived(s.workspace.key);
 // segments appear together once the first data arrived (or after 1.2 s): later updates only change numbers
@@ -50,7 +52,7 @@ const ready = $derived(timedOut || (s.session.daemon !== null && s.session.today
   <span class="sb-sep w-today-sep" aria-hidden="true"></span>
   <span class="w-today"
     >{today
-      ? t(billed ? "statusbar.todayBilled" : "statusbar.today", { tok: fmtTokensImpl(today.in + today.cacheRead + today.cacheWrite + today.out), usd: fmtUsdImpl(today.apiUsd, "day") })
+      ? t(todayKey, { tok: fmtTokensImpl(today.in + today.cacheRead + today.cacheWrite + today.out), usd: fmtUsdImpl(today.apiUsd, "day") })
       : t("statusbar.todayNone")}</span
   >
   {#if win?.fiveHour}

@@ -10,13 +10,14 @@ import { loadExtensions, type UiExtension } from "../shell/ext.ts";
 import { errorText, t } from "../shell/index.ts";
 import { mark } from "../shell/perf.ts";
 import Rail from "../shell/Rail.svelte";
-import { getJson, STORAGE_KEYS, setJson } from "../shell/storage.ts";
+import { DEFAULT_PATH, selectedPath } from "../shell/reading.ts";
+import { getItem, getJson, STORAGE_KEYS, setItem, setJson } from "../shell/storage.ts";
 import { currentLayout, setReaderLevel, useStores } from "../stores/app.svelte.ts";
 import BlockHost from "./BlockHost.svelte";
 import CitePeek from "./CitePeek.svelte";
 import ClaimPopover from "./ClaimPopover.svelte";
 import ContextColumn from "./ContextColumn.svelte";
-import { parseCite } from "./code.ts";
+import { editorUrl, parseCite } from "./code.ts";
 import { applyLevel } from "./decorate.ts";
 import Gutter from "./Gutter.svelte";
 import { blockVisibleImpl, permalinkTextImpl, stepLevel } from "./levels.ts";
@@ -239,8 +240,9 @@ function claimCursor(dir: 1 | -1) {
 // Composer hand-off (WP-10b listens): anchor = focused block / claim cursor / selection
 function compose(intent: "note" | "question" | "change", block: BlockId | null = focused, claim: string | null = null) {
   if (!block) {
-    if (!hinted) {
-      hinted = true;
+    // one hint per session, shared with the keyboard path (Shell `unmet`, UXP-35)
+    if (!getItem("session", STORAGE_KEYS.hint("noTarget"))) {
+      setItem("session", STORAGE_KEYS.hint("noTarget"), "1");
       s.bottom.toast({ id: "hint.noTarget", kind: "info", key: "hint.noTarget" });
     }
     return;
@@ -248,7 +250,6 @@ function compose(intent: "note" | "question" | "change", block: BlockId | null =
   window.dispatchEvent(new CustomEvent("mitori:compose", { detail: { block, claim, intent } }));
   if (!ext?.margin) s.bottom.toast({ id: "hint.loopPending", kind: "info", key: "hint.loopPending" });
 }
-let hinted = false;
 
 // ---------------------------------------------------------------- cite peek / term card / claim popover
 let peek = $state.raw<{ data: CitePeekData; anchorEl: HTMLElement; claimEl: HTMLElement | null; pinned: boolean } | null>(null);
@@ -335,7 +336,7 @@ function openEditor() {
     if (ws) void s.router.go({ name: "wsSettings", ws });
     return;
   }
-  location.href = `${editor}://file/${root}/${d.path}:${d.start}`;
+  location.href = editorUrl(editor, root, d.path, d.start);
 }
 
 let term = $state.raw<{ id: string; anchorEl: HTMLElement } | null>(null);
@@ -418,7 +419,8 @@ $effect(() => {
 // ---------------------------------------------------------------- reading-path progress (marker passes the bottom 20 %)
 $effect(() => {
   if (!loaded || !main || !ws || !model) return;
-  const pathId = "30min";
+  // progress belongs to the path chosen in the rail card (sessionStorage `mitori:path:<ws>`)
+  const pathId = selectedPath(s.doc.outline, ws)?.id ?? DEFAULT_PATH;
   const io = new IntersectionObserver(
     (entries) => {
       for (const e of entries) {

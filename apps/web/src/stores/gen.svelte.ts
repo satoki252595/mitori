@@ -52,6 +52,7 @@ export class GenState implements GenStore {
 
   reset(): void {
     this.estimates.clear();
+    this.sectionEstimates.clear();
     this.#tasks.clear();
     this.run = null;
     this.error = null;

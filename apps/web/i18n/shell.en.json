@@ -267,6 +267,7 @@
   "statusbar.scanning": "scanning {done} / {total}",
   "statusbar.today": "today {tok} tok · API-equiv. {usd} (not billed)",
   "statusbar.todayBilled": "today {tok} tok · billed {usd}",
+  "statusbar.todayUnknown": "today {tok} tok · API-equiv. {usd}",
   "statusbar.todayNone": "today –",
   "statusbar.window": "5h {p}% · 7d {q}%",
   "statusbar.windowOverage": "5h {p}% · overage",

@@ -36,6 +36,11 @@ export class PrefsState {
     if (f.ef) this.effort = EFFORT_OF_CODE[f.ef];
   }
 
+  /** A local change is waiting for its debounced `PATCH /settings`. */
+  get pending(): boolean {
+    return this.#timer !== null;
+  }
+
   /** Apply the server settings (server wins) and rewrite the cookie. */
   reconcile(view: SettingsView | null): void {
     if (!view) return;

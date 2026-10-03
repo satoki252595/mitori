@@ -4,23 +4,39 @@
 -->
 <script lang="ts">
 import { type FileContent, HREFS, MitoriError } from "@mitori/core";
+import { untrack } from "svelte";
 import { errorText, t } from "../shell/index.ts";
 import { markAfterPaint } from "../shell/perf.ts";
 import Rail from "../shell/Rail.svelte";
 import { currentLayout, useStores } from "../stores/app.svelte.ts";
 import CodePane from "./CodePane.svelte";
-import { codeWindow, loadCode } from "./code.ts";
+import { codeWindow, invalidateCode, loadCode } from "./code.ts";
 
 const s = useStores();
 const route = $derived(s.router.route);
 const layout = $derived(currentLayout(s));
 let content = $state.raw<FileContent | null>(null);
 let error = $state<string | null>(null);
+/** The open file changed on disk (SSE `index.changed`): offer a reload instead of swapping lines under the reader. */
+let changed = $state(false);
+let reload = $state(0);
 const range = $derived(route.name === "code" ? (route.range ?? { start: 1, end: 1 }) : { start: 1, end: 1 });
 
 $effect(() => {
+  const c = s.workspace.changed;
+  if (!c || route.name !== "code") return;
+  const r = route;
+  untrack(() => {
+    invalidateCode(r.ws, c.paths);
+    if (c.paths.includes(r.path)) changed = true;
+  });
+});
+
+$effect(() => {
   if (route.name !== "code") return;
+  void reload;
   const { ws, path } = route;
+  changed = false;
   const w = codeWindow(range.start, range.end, 180);
   error = null;
   loadCode(s.api, ws, path, w.start, w.end).then(
@@ -42,6 +58,9 @@ $effect(() => {
   <Rail mode={layout.railMode} />
   <main id="main" class="code-main" tabindex="-1">
     <h1 class="sr-only">{route.name === "code" ? route.path : ""}</h1>
+    {#if changed}
+      <p class="changed" role="status" data-chrome>{t("code.changed")} <button type="button" class="btn btn-sec btn-s" onclick={() => reload++}>{t("code.reload")}</button></p>
+    {/if}
     <CodePane {content} {range} badge={content && s.workspace.status?.snapshot?.dirty ? "uncommitted" : "exact"} {error} />
   </main>
   <aside class="backlinks" aria-label={t("code.backlinks")} data-chrome>
@@ -62,6 +81,21 @@ $effect(() => {
     top: var(--hdr);
     height: calc(100vh - var(--hdr) - var(--status));
     min-width: 0;
+  }
+  .changed {
+    position: absolute;
+    top: 8px;
+    right: 16px;
+    z-index: 2;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 0;
+    padding: 6px 10px;
+    border-radius: var(--r-btn);
+    background: var(--c-warn-bg);
+    color: var(--c-warn);
+    font-size: var(--fs-label);
   }
   .backlinks {
     padding: 20px 16px;

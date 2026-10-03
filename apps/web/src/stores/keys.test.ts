@@ -47,27 +47,30 @@ function keyEvent(
   return e;
 }
 
-function setup(opts: { scopes?: ShortcutScope[]; singleKeys?: boolean } = {}) {
+function setup(opts: { scopes?: ShortcutScope[]; singleKeys?: boolean; when?: (w: string) => boolean } = {}) {
   const win = new EventTarget();
   const keys = new KeysStore();
   const fired: string[] = [];
   let hints = 0;
+  const unmet: string[] = [];
   const scopes = opts.scopes ?? (["read", "global"] as ShortcutScope[]);
   keys.attach(win as unknown as Window, {
     scopes: () => scopes,
-    when: () => true,
+    when: (w) => opts.when?.(w) ?? true,
     singleKeys: () => opts.singleKeys ?? true,
     imeHint: () => hints++,
     holdAlt: () => {},
+    unmet: (id, w) => unmet.push(`${id}:${w}`),
   });
-  for (const id of ["read.next", "read.prev", "nav.map", "level.up", "level.down", "palette.open", "help.open"]) keys.on(id, () => fired.push(id));
+  for (const id of ["read.next", "read.prev", "nav.map", "level.up", "level.down", "palette.open", "help.open", "act.explain"])
+    keys.on(id, () => fired.push(id));
   const press = (key: string, code: string, extra: Parameters<typeof keyEvent>[1] extends infer T ? Partial<T> : never = {}) => {
     const e = keyEvent("keydown", { key, code, ...extra });
     win.dispatchEvent(e);
     win.dispatchEvent(keyEvent("keyup", { key, code, ...extra }));
     return e;
   };
-  return { keys, fired, press, hints: () => hints };
+  return { keys, fired, press, hints: () => hints, unmet };
 }
 
 describe("WEB-U-008..011 IME guard on the registry", () => {
@@ -141,6 +144,24 @@ describe("WEB-U-020 registry behaviour", () => {
     const { press } = setup();
     expect(press("j", "KeyJ").defaultPrevented).toBe(true);
     expect(press("q", "KeyQ").defaultPrevented).toBe(false);
+  });
+
+  test("UXP-35 a bound key whose `when` fails reports it (one-time hint) and leaves the event alone", () => {
+    const { fired, press, unmet } = setup({ when: (w) => w !== "targetOrSelection" });
+    const e = press("e", "KeyE");
+    expect(fired).toEqual([]);
+    expect(unmet).toEqual(["act.explain:targetOrSelection"]);
+    expect(e.defaultPrevented).toBe(false);
+  });
+
+  test("remap validates against simultaneously active scopes: a read key may not take a global binding", () => {
+    const { keys } = setup();
+    const r = keys.remap("threads.hideResolved", ["b"]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect([r.reason, r.conflict?.ids]).toEqual(["conflict", ["pane.nav", "threads.hideResolved"]]);
+    expect(keys.remap("threads.hideResolved", ["Shift+H"])).toEqual({ ok: true });
+    expect(keys.remap("threads.hideResolved", ["?"]).ok).toBe(false);
+    expect(keys.conflicts()).toEqual([]);
   });
 
   test("scope decides: read keys are inert when only global is active", () => {

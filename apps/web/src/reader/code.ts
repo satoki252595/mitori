@@ -28,6 +28,33 @@ export function loadCode(api: ApiClient, ws: WorkspaceKey, path: RepoPath, start
   return p;
 }
 
+/** Drop cached windows of changed files (SSE `index.changed`); returns true when one of `paths` was cached. */
+export function invalidateCode(ws: WorkspaceKey, paths: readonly RepoPath[]): boolean {
+  const changed = new Set(paths);
+  let hit = false;
+  for (const key of [...cache.keys()]) {
+    const [w, p] = key.split("|");
+    if (w === ws && p !== undefined && changed.has(p)) {
+      cache.delete(key);
+      hit = true;
+    }
+  }
+  return hit;
+}
+
+/**
+ * Editor deep link (ux.md §4.3.6 `⇧O`, §16 R21): `vscode://file/{abs}:{line}` / `cursor://file/{abs}:{line}`. Path
+ * segments are percent-encoded (spaces, `#`, `?` in file names would otherwise cut the URL); separators stay.
+ */
+export function editorUrl(editor: "vscode" | "cursor", root: string, path: RepoPath, line: LineNo): string {
+  const abs = `${root.replace(/[\\/]+$/, "")}/${path}`.replaceAll("\\", "/");
+  const enc = abs
+    .split("/")
+    .map((seg) => (/^[A-Za-z]:$/.test(seg) ? seg : encodeURIComponent(seg)))
+    .join("/");
+  return `${editor}://file${enc.startsWith("/") ? "" : "/"}${enc}:${line}`;
+}
+
 /** `path:start-end` (a `data-cite` value) → parts. */
 export function parseCite(cite: string): { path: RepoPath; start: LineNo; end: LineNo } | null {
   const i = cite.lastIndexOf(":");

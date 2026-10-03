@@ -3,9 +3,10 @@
  * layout width (ResizeObserver on the grid container) and a few cross-store actions the shell triggers.
  */
 import type { ApiClient, SseClient } from "@mitori/client";
-import type { ReaderLevel, WorkspaceKey } from "@mitori/core";
+import type { ReaderLevel, SettingsView, WorkspaceKey } from "@mitori/core";
 import { flushSync, getContext, setContext } from "svelte";
 import type { AppStores, RouteState } from "../contract.ts";
+import { setSettingsLang } from "../shell/i18n.ts";
 import { mark } from "../shell/perf.ts";
 import { viewKind } from "../shell/router.ts";
 import { computeLayout, type Layout, type ViewForLayout } from "../shell/width.ts";
@@ -119,6 +120,27 @@ export function layoutView(r: RouteState): ViewForLayout {
 
 export function currentLayout(s: Stores): Layout {
   return computeLayout(s.ui.width, layoutView(s.router.route), s.ctx.mode, s.ctx.codeWidth, s.prefs.railCollapsed);
+}
+
+/**
+ * Apply `GET /settings` (boot, and every `settings.updated` — another tab or browser changed them): server wins
+ * (ux.md §3.2-6) for theme, language, reader level, single-key switch, editor and the keymap overrides. A local
+ * change that is still waiting for its debounced PATCH is newer than the server's copy, so it is kept.
+ */
+export function applySettings(s: Stores, v: SettingsView | null): void {
+  if (!v || s.prefs.pending) return;
+  s.prefs.reconcile(v);
+  s.keys.setOverrides(v.settings.ui.keymap);
+  setSettingsLang(v.settings.ui.lang);
+  const level = s.prefs.level;
+  if (s.doc.level === level) return;
+  const restore = s.doc.levelTransition?.() ?? null;
+  s.doc.setLevel(level);
+  if (typeof document !== "undefined") document.documentElement.dataset.level = level;
+  if (restore) {
+    flushSync();
+    restore();
+  }
 }
 
 /**

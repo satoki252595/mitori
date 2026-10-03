@@ -124,6 +124,11 @@ export function startMode(e: Pick<GenEstimate, "confirmReasons" | "effort">, eng
   return { kind: "start" };
 }
 
+/** The next smaller effort (「範囲を絞る」 of the window_risk choices); null at `overview`. */
+export function narrowerEffort(e: Effort): Effort | null {
+  return e === "complete" ? "standard" : e === "standard" ? "overview" : null;
+}
+
 /** Rows of the stage table (`stage · model | in / out | $ | 時間`). */
 export function stageRows(e: GenEstimate): { stage: string; tasks: number; io: string; usd: string; time: string; critical: boolean }[] {
   return e.stages.map((s) => ({

@@ -5,7 +5,7 @@
  */
 import type { UiLang } from "@mitori/core";
 import { NUMBER_FORMAT, type UsdContext } from "../contract.ts";
-import { tImpl } from "./i18n.ts";
+import { tIn } from "./i18n.ts";
 
 const MINUS = NUMBER_FORMAT.deltaMinus;
 
@@ -24,11 +24,11 @@ function trimFixed(v: number, decimals: number): string {
     .replace(/\.$/, "");
 }
 
-export function fmtTokensImpl(n: number, opts: { approx?: boolean; main?: boolean } = {}): string {
+export function fmtTokensImpl(n: number, opts: { approx?: boolean; main?: boolean; lang?: UiLang } = {}): string {
   const { kThreshold, kDecimals, mDecimals } = NUMBER_FORMAT.tokens;
   const a = Math.abs(n);
   const body = a >= M_FROM ? `${trimFixed(n / 1_000_000, mDecimals)}M` : a >= kThreshold ? `${trimFixed(n / 1000, kDecimals)}k` : String(Math.round(n));
-  if (opts.main) return tImpl("fmt.about", { v: body });
+  if (opts.main) return tIn(opts.lang, "fmt.about", { v: body });
   return opts.approx ? `≈${body}` : body;
 }
 
@@ -46,14 +46,14 @@ export function fmtClock(ms: number): string {
 
 /**
  * < 60 s: one decimal (`fmt.secs`). `job` ≥ 60 s: minutes + seconds (`fmt.minSec`). `gen` ≥ 60 s (estimates):
- * whole minutes (`fmt.aboutMin`). Words follow the active UI language.
+ * whole minutes (`fmt.aboutMin`). Words come from the `lang` catalog when it is loaded, else the active one.
  */
-export function fmtDurationImpl(ms: number, ctx: "job" | "gen"): string {
+export function fmtDurationImpl(ms: number, ctx: "job" | "gen", lang?: UiLang): string {
   const sec = ms / 1000;
-  if (sec < NUMBER_FORMAT.seconds.minuteThreshold) return tImpl("fmt.secs", { n: sec.toFixed(NUMBER_FORMAT.seconds.decimals) });
-  if (ctx === "gen") return tImpl("fmt.aboutMin", { n: Math.max(1, Math.round(sec / 60)) });
+  if (sec < NUMBER_FORMAT.seconds.minuteThreshold) return tIn(lang, "fmt.secs", { n: sec.toFixed(NUMBER_FORMAT.seconds.decimals) });
+  if (ctx === "gen") return tIn(lang, "fmt.aboutMin", { n: Math.max(1, Math.round(sec / 60)) });
   const whole = Math.round(sec);
-  return tImpl("fmt.minSec", { m: Math.floor(whole / 60), s: whole % 60 });
+  return tIn(lang, "fmt.minSec", { m: Math.floor(whole / 60), s: whole % 60 });
 }
 
 /** Signed integer percent of `actual` vs `estimate` (U+2212 for minus): `−2%`, `+5%`, `±0%`. */

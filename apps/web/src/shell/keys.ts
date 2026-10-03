@@ -144,20 +144,40 @@ export function activeScopeSets(): ShortcutScope[][] {
 }
 
 /**
- * Conflicts: two actions with the same canonical binding in the same scope (cross-scope overlaps are resolved by
- * precedence — top layer → route scope → global — and are intended, ux.md §8.4).
+ * Designed precedence between two scopes that are active together (ux.md §8.3–8.4): the top layer (composer /
+ * palette) shadows global (`Escape`, `⌘K`), and in S2 review mode `review` shadows `read` (`[`, `]`, UXP-16).
+ */
+function shadows(a: ShortcutScope, b: ShortcutScope): boolean {
+  const layer = (x: ShortcutScope) => x === "composer" || x === "palette";
+  if ((layer(a) && b === "global") || (layer(b) && a === "global")) return true;
+  return (a === "review" && b === "read") || (a === "read" && b === "review");
+}
+
+/**
+ * Conflicts (ux.md §8.4–8.5): two actions whose bindings collide inside one simultaneously active scope set —
+ * the same canonical binding, or a single chord that is the first chord of the other's sequence (`g` vs `g h`) —
+ * except the designed precedences of {@link shadows}. Overlaps between sets that are never active together
+ * (`-` in map vs read, `j` in read vs inbox) are intended.
  */
 export function findConflicts(defs: readonly Pick<ShortcutDef, "id" | "scope" | "keys">[], mac: boolean): KeyConflict[] {
-  const seen = new Map<string, { id: string; scope: ShortcutScope }>();
+  const bound = defs.flatMap((d) => d.keys.map((k) => ({ d, n: normalizeBinding(k, mac) })).filter((x): x is { d: typeof d; n: string } => x.n !== null));
+  const collide = (a: string, b: string) => a === b || b.startsWith(`${a} `) || a.startsWith(`${b} `);
   const out: KeyConflict[] = [];
-  for (const d of defs) {
-    for (const k of d.keys) {
-      const n = normalizeBinding(k, mac);
-      if (n === null) continue;
-      const slot = `${d.scope}|${n}`;
-      const prev = seen.get(slot);
-      if (prev && prev.id !== d.id) out.push({ binding: n, ids: [prev.id, d.id], scope: d.scope });
-      else seen.set(slot, { id: d.id, scope: d.scope });
+  const seen = new Set<string>();
+  for (const set of activeScopeSets()) {
+    const inSet = bound.filter((x) => set.includes(x.d.scope));
+    for (let i = 0; i < inSet.length; i++) {
+      for (let j = i + 1; j < inSet.length; j++) {
+        const a = inSet[i] as (typeof inSet)[number];
+        const b = inSet[j] as (typeof inSet)[number];
+        if (a.d.id === b.d.id || !collide(a.n, b.n)) continue;
+        if (a.d.scope !== b.d.scope && shadows(a.d.scope, b.d.scope)) continue;
+        const key = `${a.d.id}|${b.d.id}|${a.n}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const scope = a.d.scope === "global" ? b.d.scope : a.d.scope;
+        out.push({ binding: a.n.length <= b.n.length ? a.n : b.n, ids: [a.d.id, b.d.id], scope });
+      }
     }
   }
   return out;

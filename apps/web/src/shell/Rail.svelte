@@ -10,7 +10,8 @@ import { useStores } from "../stores/app.svelte.ts";
 import { fmtInt, fmtTokensImpl, fmtUsdImpl } from "./fmt.ts";
 import { t } from "./index.ts";
 import { markAfterPaint } from "./perf.ts";
-import { getItem, getJson, STORAGE_KEYS, setItem } from "./storage.ts";
+import { choosePath, selectedPath } from "./reading.ts";
+import { getJson, STORAGE_KEYS } from "./storage.ts";
 
 let { mode, top }: { mode: "inline" | "drawer"; top?: Snippet } = $props();
 const s = useStores();
@@ -46,8 +47,8 @@ $effect(() => {
 });
 
 // reading path (ux.md §4.3.8 / §7.2)
-const pathId = $derived(ws ? (getItem("session", STORAGE_KEYS.path(ws)) ?? "30min") : "30min");
-const path = $derived(outline?.readingPaths.find((p) => p.id === pathId) ?? outline?.readingPaths[0] ?? null);
+// readTick also bumps when the path is chosen (sessionStorage itself is not reactive)
+const path = $derived(s.ui.readTick >= 0 ? selectedPath(outline, ws) : null);
 const readMap = $derived(s.ui.readTick >= 0 && ws && path ? (getJson<Record<string, string>>("local", STORAGE_KEYS.read(ws, path.id)) ?? {}) : {});
 const readCount = $derived(path ? path.steps.filter((st) => readMap[st.section]).length : 0);
 const nextStep = $derived(path?.steps.find((st) => !readMap[st.section]) ?? null);
@@ -96,8 +97,10 @@ async function onToc(e: MouseEvent, id: SectionId, state: string) {
   }
 }
 
-function choosePath(id: string) {
-  if (ws) setItem("session", STORAGE_KEYS.path(ws), id);
+function pickPath(id: string) {
+  if (!ws) return;
+  choosePath(ws, id);
+  s.ui.readTick++;
 }
 
 const covered = $derived(manifest?.coverage ?? null);
@@ -132,7 +135,7 @@ const covered = $derived(manifest?.coverage ?? null);
         <span class="path-next muted">{t("rail.next")} &mdash;</span>
       {/if}
       {#if path && (outline?.readingPaths.length ?? 0) > 1}
-        <select class="path-pick" aria-label={t("rail.pathPick")} value={path.id} onchange={(e) => choosePath(e.currentTarget.value)}>
+        <select class="path-pick" aria-label={t("rail.pathPick")} value={path.id} onchange={(e) => pickPath(e.currentTarget.value)}>
           {#each outline?.readingPaths ?? [] as p (p.id)}<option value={p.id}>{p.title}</option>{/each}
         </select>
       {/if}

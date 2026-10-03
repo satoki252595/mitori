@@ -34,6 +34,8 @@ export interface KeyContext {
   holdAlt(on: boolean): void;
   /** Extra filter (a modal dialog only lets `layer.close` through). */
   allow?(id: string): boolean;
+  /** A bound key whose `when` predicate failed (the event passes through untouched), e.g. `e` with no target (UXP-35). */
+  unmet?(id: string, when: ShortcutWhen): void;
 }
 
 /** Global actions still honoured while typing in the Composer / palette input. */
@@ -205,7 +207,10 @@ export class KeysStore implements KeyRegistry {
     if (!def) return;
     if (def.singleKey && !ctx.singleKeys()) return;
     if (ctx.allow && !ctx.allow(def.id)) return;
-    if (def.when && def.when !== "always" && !ctx.when(def.when)) return;
+    if (def.when && def.when !== "always" && !ctx.when(def.when)) {
+      ctx.unmet?.(def.id, def.when);
+      return;
+    }
     if (e.repeat && !REPEATABLE.has(def.id)) {
       e.preventDefault();
       return;

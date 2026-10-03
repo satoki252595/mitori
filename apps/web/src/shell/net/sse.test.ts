@@ -84,6 +84,53 @@ describe("createLocalSseClient", () => {
     c.close();
   });
 
+  test("connect() to another workspace replaces the stream: no second reconnect from the aborted one, no stale frames", async () => {
+    const enc = new TextEncoder();
+    const urls: string[] = [];
+    const ctrls: ReadableStreamDefaultController<Uint8Array>[] = [];
+    const states: string[] = [];
+    const c = createLocalSseClient({
+      base: "/api/v1",
+      auth: { scheme: "session", token: () => "tok" },
+      client: { kind: "web", version: "dev" },
+      random: { bytes: (n) => new Uint8Array(n).fill(128) },
+      clock: { now: () => 1 as never, iso: () => "2026-10-03T00:00:00Z" as never },
+      onState: (st) => states.push(st.kind),
+      fetch: (async (url: string, init?: RequestInit) => {
+        urls.push(url);
+        // a live stream that stays open until its request is aborted (like the daemon's)
+        const body = new ReadableStream<Uint8Array>({
+          start(ctl) {
+            ctrls.push(ctl);
+            ctl.enqueue(enc.encode(frame(urls.length, { type: "hello", boot: "b1", version: "dev", resumedFrom: null })));
+            init?.signal?.addEventListener("abort", () => ctl.error(new DOMException("aborted", "AbortError")));
+          },
+        });
+        return new Response(body);
+      }) as unknown as typeof fetch,
+    });
+    const seen: string[] = [];
+    c.on("index.changed", (e) => seen.push(e.ws ?? ""));
+    c.connect("ws_aaaa00000000" as never);
+    await Bun.sleep(20);
+    c.connect("ws_bbbb00000000" as never);
+    await Bun.sleep(20);
+    // a frame arriving late on the superseded stream is ignored
+    try {
+      ctrls[0]?.enqueue(enc.encode(frame(9, { type: "index.changed", ws: "ws_aaaa00000000", rev: 1 })));
+    } catch {
+      /* already errored */
+    }
+    ctrls[1]?.enqueue(enc.encode(frame(10, { type: "index.changed", ws: "ws_bbbb00000000", rev: 1 })));
+    await Bun.sleep(30);
+    // the aborted stream must not schedule a reconnect (it would surface as `retrying` and open a 2nd live stream)
+    expect(states).not.toContain("retrying");
+    expect(urls.length).toBe(2);
+    expect(urls[1]).toContain("ws=ws_bbbb00000000");
+    expect(seen).toEqual(["ws_bbbb00000000"]);
+    c.close();
+  });
+
   test("entity rev de-dupe", () => {
     const { c } = client([]);
     c.noteRev("thread:th_1" as never, 4);

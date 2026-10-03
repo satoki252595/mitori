@@ -2,7 +2,7 @@
  * Current workspace (contract `WorkspaceStore`): `GET /ws/:ws`, scan progress from SSE, and the error state.
  */
 import type { ApiClient } from "@mitori/client";
-import { MitoriError, type MitoriErrorData, type ScanStage, type WorkspaceKey, type WorkspaceStatus, type WorkspaceSummary } from "@mitori/core";
+import { MitoriError, type MitoriErrorData, type RepoPath, type ScanStage, type WorkspaceKey, type WorkspaceStatus, type WorkspaceSummary } from "@mitori/core";
 import type { WorkspaceStore } from "../contract.ts";
 
 export class WorkspaceState implements WorkspaceStore {
@@ -11,6 +11,8 @@ export class WorkspaceState implements WorkspaceStore {
   scan = $state.raw<{ stage: ScanStage; done: number; total: number } | null>(null);
   error = $state.raw<MitoriErrorData | null>(null);
   loading = $state(false);
+  /** Last `index.changed` (S3 offers 「再読み込み」 when the open file is in it). */
+  changed = $state.raw<{ paths: readonly RepoPath[]; seq: number } | null>(null);
   private readonly api: ApiClient;
   #inflight: Promise<void> | null = null;
 
@@ -24,6 +26,7 @@ export class WorkspaceState implements WorkspaceStore {
     this.status = null;
     this.scan = null;
     this.error = null;
+    this.changed = null;
     return this.refresh();
   }
 

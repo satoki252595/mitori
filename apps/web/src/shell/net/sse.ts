@@ -62,6 +62,8 @@ export function createLocalSseClient(opts: SseClientOptions): SseClient {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let attempt = 0;
   let closed = true;
+  /** Bumped by connect/close: a stream (or a scheduled reopen) of an older generation never reconnects. */
+  let gen = 0;
   let state: ConnectionState = { kind: "connecting" };
   const doFetch = opts.fetch ?? ((input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init));
 
@@ -80,13 +82,13 @@ export function createLocalSseClient(opts: SseClientOptions): SseClient {
   };
   const jitter = () => (opts.random.bytes(1)[0] ?? 128) / 255;
 
-  const schedule = (cap = false) => {
-    if (closed) return;
+  const schedule = (g: number, cap = false) => {
+    if (closed || g !== gen) return;
     const delay = cap ? 10_000 : backoffMs(attempt, jitter());
     attempt++;
     if (state.kind !== "auth_expired" && state.kind !== "stopped" && state.kind !== "version_mismatch")
       setState({ kind: "retrying", attempt, nextInMs: delay });
-    timer = setTimeout(open, delay);
+    timer = setTimeout(() => void open(g), delay);
   };
 
   const onFrame = (id: string | null, data: string) => {
@@ -117,10 +119,11 @@ export function createLocalSseClient(opts: SseClientOptions): SseClient {
     emit(e);
   };
 
-  async function open(): Promise<void> {
+  async function open(g: number): Promise<void> {
     timer = null;
-    if (closed) return;
-    ctrl = new AbortController();
+    if (closed || g !== gen) return;
+    const mine = new AbortController();
+    ctrl = mine;
     const q = [ws ? `ws=${encodeURIComponent(ws)}` : "", lastSeq > 0 ? `last=${lastSeq}` : ""].filter(Boolean).join("&");
     const headers: Record<string, string> = {
       accept: "text/event-stream",
@@ -131,38 +134,45 @@ export function createLocalSseClient(opts: SseClientOptions): SseClient {
     if (token) headers[HTTP_HEADERS.authorization] = `${opts.auth.scheme === "session" ? "Mitori-Session" : "Bearer"} ${token}`;
     const base = opts.base.endsWith(API_PREFIX) ? opts.base : `${opts.base}${API_PREFIX}`;
     try {
-      const res = await doFetch(`${base}/events${q ? `?${q}` : ""}`, { headers, signal: ctrl.signal });
+      const res = await doFetch(`${base}/events${q ? `?${q}` : ""}`, { headers, signal: mine.signal });
+      if (g !== gen) return;
       if (res.status === 401) {
         setState({ kind: "auth_expired" });
-        return schedule(true);
+        return schedule(g, true);
       }
-      if (!res.ok || !res.body) return schedule();
-      const parser = new SseParser(onFrame);
+      if (!res.ok || !res.body) return schedule(g);
+      const parser = new SseParser((id, data) => {
+        // frames still buffered in a superseded stream are dropped
+        if (g === gen) onFrame(id, data);
+      });
       const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
       for (;;) {
         const { value, done } = await reader.read();
-        if (done) break;
+        if (done || g !== gen) break;
         parser.push(value);
       }
     } catch {
-      if (closed) return;
+      /* aborted or network error: decided below */
     }
+    if (closed || g !== gen) return;
     if (state.kind === "stopped") {
       // keep polling slowly: a restarted daemon brings the tab back (AC-U09)
-      return schedule(true);
+      return schedule(g, true);
     }
-    schedule();
+    schedule(g);
   }
 
   return {
     connect(next) {
       ws = next;
       closed = false;
+      const g = ++gen;
       ctrl?.abort();
       if (timer) clearTimeout(timer);
+      timer = null;
       attempt = 0;
       setState({ kind: "connecting" });
-      void open();
+      void open(g);
     },
     on<T extends SseEventType>(type: T, fn: (e: Extract<SseEvent, { type: T }>) => void) {
       let set = handlers.get(type);
@@ -190,8 +200,10 @@ export function createLocalSseClient(opts: SseClientOptions): SseClient {
     },
     close() {
       closed = true;
+      gen++;
       ctrl?.abort();
       if (timer) clearTimeout(timer);
+      timer = null;
     },
   };
 }

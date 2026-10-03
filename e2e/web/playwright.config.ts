@@ -25,7 +25,8 @@ export default defineConfig({
   },
   webServer: {
     command: `bun support/mock-server.ts ${PORT}`,
-    url: `http://127.0.0.1:${PORT}/`,
+    // a mock endpoint, not `/`: the server starts before global setup has built apps/web/dist
+    url: `http://127.0.0.1:${PORT}/__mock/log`,
     reuseExistingServer: false,
     stdout: "ignore",
     stderr: "pipe",

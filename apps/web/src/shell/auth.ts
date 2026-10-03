@@ -12,8 +12,15 @@ export function parseAuthFragment(hash: string): { nonce: string; to: string } |
   const nonce = p.get("n");
   if (!nonce || !/^[A-Za-z0-9_-]{8,128}$/.test(nonce)) return null;
   const to = p.get("to") ?? "/";
-  // only same-origin app paths (no protocol-relative or absolute URLs)
-  return { nonce, to: to.startsWith("/") && !to.startsWith("//") ? to : "/" };
+  return { nonce, to: isAppPath(to) ? to : "/" };
+}
+
+/**
+ * Only same-origin app paths: a leading `/` not followed by `/` or `\` (browsers read `/\host` as `//host`), and no
+ * backslash, whitespace or control character anywhere (a cross-origin `replaceState` would throw and stop the boot).
+ */
+export function isAppPath(to: string): boolean {
+  return /^\/(?![/\\])[^\\\s\p{Cc}]*$/u.test(to);
 }
 
 /** Returns true when an exchange happened (the URL was rewritten). Failures leave the tab unauthenticated. */

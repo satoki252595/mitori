@@ -30,16 +30,26 @@ describe("WEB-U fmt (ux.md §9.3, JUDGEMENT §6.17) — table driven", () => {
     expect(fmtUsd(n, ctx)).toBe(out);
   });
 
-  test("fmtDuration (words from the active catalog)", () => {
-    expect(fmtDuration(5100, "job")).toBe("5.1秒");
-    expect(fmtDuration(372_000, "job")).toBe("6分12秒");
-    expect(fmtDuration(360_000, "gen")).toBe("約6分");
+  test("fmtDuration (words from the catalog of `lang`)", () => {
+    expect(fmtDuration(5100, "job", "ja")).toBe("5.1秒");
+    expect(fmtDuration(372_000, "job", "ja")).toBe("6分12秒");
+    expect(fmtDuration(360_000, "gen", "ja")).toBe("約6分");
     useCatalog("en");
-    expect(fmtDuration(5100, "job")).toBe("5.1s");
-    expect(fmtDuration(372_000, "job")).toBe("6m 12s");
-    expect(fmtDuration(1_020_000, "gen")).toBe("~17 min");
+    expect(fmtDuration(5100, "job", "en")).toBe("5.1s");
+    expect(fmtDuration(372_000, "job", "en")).toBe("6m 12s");
+    expect(fmtDuration(1_020_000, "gen", "en")).toBe("~17 min");
     expect(fmtTokens(400_000, { main: true })).toBe("~0.4M");
     expect(fmtClock(156_000)).toBe("2:36");
+  });
+
+  test("contract signatures keep `lang` (fmtTokens opts.lang, fmtDuration 3rd arg): a loaded catalog other than the active one is used", () => {
+    useCatalog("ja");
+    useCatalog("en");
+    // active = en, ja loaded earlier
+    expect(fmtTokens(400_000, { main: true, lang: "ja" })).toBe("約0.4M");
+    expect(fmtTokens(400_000, { main: true, lang: "en" })).toBe("~0.4M");
+    expect(fmtDuration(360_000, "gen", "ja")).toBe("約6分");
+    expect(fmtDuration(360_000, "gen", "en")).toBe("~6 min");
   });
 
   test("fmtDelta uses U+2212", () => {

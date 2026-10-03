@@ -31,7 +31,7 @@ export function parseUiCookie(raw: string | null): UiCookie {
 }
 
 /** Tokens. */
-export function fmtTokens(n: number, opts?: { approx?: boolean; main?: boolean }): string {
+export function fmtTokens(n: number, opts?: { approx?: boolean; main?: boolean; lang?: UiLang }): string {
   return fmtTokensImpl(n, opts);
 }
 
@@ -41,8 +41,8 @@ export function fmtUsd(n: number, ctx: UsdContext): string {
 }
 
 /** Duration. */
-export function fmtDuration(ms: number, ctx: "job" | "gen"): string {
-  return fmtDurationImpl(ms, ctx);
+export function fmtDuration(ms: number, ctx: "job" | "gen", lang: UiLang): string {
+  return fmtDurationImpl(ms, ctx, lang);
 }
 
 /** Signed percent delta vs estimate. */

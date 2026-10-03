@@ -52,6 +52,8 @@ export interface FixtureOptions {
   plan: "pro" | "max5" | "unknown";
   policyAcked: boolean;
   paletteItems: number;
+  /** 5h-window utilization (0–1) reported by `GET /usage/summary`. */
+  utilization: number;
 }
 
 export const DEFAULTS: FixtureOptions = {
@@ -63,6 +65,7 @@ export const DEFAULTS: FixtureOptions = {
   plan: "max5",
   policyAcked: true,
   paletteItems: 400,
+  utilization: 0.23,
 };
 
 const ZONES = [
@@ -511,7 +514,11 @@ export function estimate(o: FixtureOptions, effort: "overview" | "standard" | "c
     band: e.tok > 200_000 ? "gt200k" : "50k_200k",
     items: [],
     requiresConfirm: false,
-    confirmReasons: o.billing === "overage" ? ["billing_overage"] : [],
+    confirmReasons: [
+      ...(o.billing === "overage" ? (["billing_overage"] as const) : []),
+      // generation.md §9.4 (+ UXP-08): utilization + delta (uncalibrated ⇒ the prior's upper bound) > yieldAtFiveHour 0.8
+      ...(o.utilization * 100 + (o.calibrated ? Math.round(e.usd * 8) : Math.round(e.usd * 30)) > 80 ? (["window_risk"] as const) : []),
+    ],
     expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
     effort,
     stages: [

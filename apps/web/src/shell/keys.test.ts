@@ -61,6 +61,25 @@ describe("AC-J55 default keymap: no conflicts within any simultaneously active s
     expect(findConflicts(DEFAULT_DEFS, false)).toEqual([]);
   });
 
+  test("a route-scope binding that shadows a global one is a conflict (remap `h` → `b` would hide pane.nav in S2)", () => {
+    const next = DEFAULT_DEFS.map((d) => (d.id === "threads.hideResolved" ? { ...d, keys: ["b"] } : d));
+    expect(findConflicts(next, true)).toEqual([{ binding: "b", ids: ["pane.nav", "threads.hideResolved"], scope: "read" }]);
+  });
+
+  test("a single chord that prefixes a global sequence is a conflict (`g` vs `g h`)", () => {
+    const next = DEFAULT_DEFS.map((d) => (d.id === "copy.permalink" ? { ...d, keys: ["g"] } : d));
+    const c = findConflicts(next, true);
+    expect(c.length).toBeGreaterThan(0);
+    expect(c.every((x) => x.ids.includes("copy.permalink") && x.binding === "g")).toBe(true);
+  });
+
+  test("designed precedences are not conflicts: palette/composer over global, review over read (docReview)", () => {
+    // review.prevJob `[` vs thread.prev `[` are both active in docReview; palette.actions ⌘K vs palette.open ⌘K
+    expect(findConflicts(DEFAULT_DEFS, true).some((x) => x.ids.includes("review.prevJob") || x.ids.includes("palette.actions"))).toBe(false);
+    // same key in sets that are never active together (map vs read `-`) stays allowed
+    expect(findConflicts(DEFAULT_DEFS, false)).toEqual([]);
+  });
+
   test("snapshot of the effective scope table", () => {
     const table: Record<string, string[]> = {};
     for (const [view, scopes] of Object.entries(ROUTE_SCOPES)) {
