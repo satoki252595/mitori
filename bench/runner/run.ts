@@ -13,7 +13,7 @@ import { type Budgets, readBudgets } from "./budgets.ts";
 import { discover, select } from "./discover.ts";
 import { executeCase } from "./execute.ts";
 import { type GateReport, gateResult } from "./gate.ts";
-import { gitSha, machineInfo, measureFactor, readReference, recordReference, waitForQuiet } from "./machine.ts";
+import { gitSha, keepAwake, machineInfo, measureFactor, readReference, recordReference, waitForQuiet } from "./machine.ts";
 import { resolveRepo } from "./repos.ts";
 import { type BenchResultFile, writeResult } from "./result.ts";
 import { textTable } from "./table.ts";
@@ -85,7 +85,7 @@ export async function runBench(opts: RunOptions = {}): Promise<RunReport> {
 
 export function renderText(file: BenchResultFile, gate: GateReport | null, budgets: Budgets): string {
   const m = file.machine;
-  const head = `bench ${file.sha.slice(0, 8) || "(no sha)"} · ${m.cpu} · ${m.cores} cores · bun ${m.bun} · factor ${fmt(file.factor)} (${file.factorSource})${m.noisy ? ` · NOISY load ${fmt(m.loadavg)}` : ""}`;
+  const head = `bench ${file.sha.slice(0, 8) || "(no sha)"} · ${m.cpu} · ${m.cores} cores · bun ${m.bun} · factor ${fmt(file.factor)} (${file.factorSource})${m.noisy ? ` · NOISY load ${fmt(m.loadavg)}` : ""}${m.power === "battery" ? " · ON BATTERY" : ""}`;
   const verdicts = new Map(gate?.verdicts.map((v) => [v.id, v]));
   const rows = file.results.map((r) => {
     if (r.error) return [r.id, r.unit, "—", "—", "—", "", `ERROR ${r.error}`];
@@ -170,6 +170,7 @@ async function main(argv: readonly string[]): Promise<number> {
     return explicit ? 2 : 0;
   }
 
+  if (!values.json) keepAwake(); // the child runs of bench:compare (--json) are covered by the parent's
   const report = await runBench({
     root,
     suites: suites ?? [],

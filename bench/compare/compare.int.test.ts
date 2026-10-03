@@ -106,6 +106,14 @@ describe("BENCH-AT-01 bench:compare fails a 25 % slower synthetic benchmark", ()
     const r = await run(["bun", "bench/compare/compare.ts", "--base-root", ROOT, "--pairs", "0", "--no-absolute", "--no-wait"]);
     expect(r.code).toBe(2);
   });
+
+  test("regression: a mistyped --id exits 2 instead of passing with nothing measured", async () => {
+    const r = await run(["bun", "bench/compare/compare.ts", "--base-root", ROOT, "--id", "synthetic.spn", "--pairs", "1", "--no-absolute", "--no-wait"], ROOT, {
+      MITORI_BENCH_SLOWDOWN: "1.25",
+    });
+    expect(r.code).toBe(2);
+    expect(r.err).toContain("no case matches --id synthetic.spn");
+  });
 });
 
 describe("BENCH-AT-02 real base worktree: head slower than its parent commit", () => {

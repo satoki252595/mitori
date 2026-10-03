@@ -16,7 +16,7 @@ import { parseArgs } from "node:util";
 import { TEST_FORMATS } from "@mitori/testkit";
 import { type Budgets, readBudgets } from "../runner/budgets.ts";
 import { type GateReport, gateResult } from "../runner/gate.ts";
-import { gitSha, machineInfo, measureFactor, waitForQuiet } from "../runner/machine.ts";
+import { gitSha, keepAwake, machineInfo, measureFactor, waitForQuiet } from "../runner/machine.ts";
 import type { BenchResultEntry, BenchResultFile } from "../runner/result.ts";
 import { writeResult } from "../runner/result.ts";
 import { toSamples } from "../runner/stats.ts";
@@ -79,6 +79,8 @@ export interface CompareReport {
   warnings: string[];
   fail: boolean;
   headResult: BenchResultFile;
+  /** Cases the selection matched in each tree (an explicit `--id` that matches nothing is a usage error, not a pass). */
+  listed: { head: number; base: number };
 }
 
 export interface CompareOptions {
@@ -246,7 +248,18 @@ export async function compare(opts: CompareOptions): Promise<CompareReport> {
     if (v.level === "red" && !v.gating) warn(`${v.id}: over its limit, but time budgets only gate on the reference machine (factor ${fmt(headResult.factor)})`);
 
   const fail = rows.some((r) => r.status === "regressed" || r.status === "error") || counters.some((c) => c.fail) || (gate ? !gate.ok : false) || !assetsOk;
-  return { head: { sha: opts.head.sha }, base: opts.base ? { sha: opts.base.sha } : null, rows, counters, assets, gate, warnings, fail, headResult };
+  return {
+    head: { sha: opts.head.sha },
+    base: opts.base ? { sha: opts.base.sha } : null,
+    rows,
+    counters,
+    assets,
+    gate,
+    warnings,
+    fail,
+    headResult,
+    listed: { head: headCases.length, base: baseCases.length },
+  };
 }
 
 const parseEnv = (pairs: readonly string[] | undefined): Record<string, string> => {
@@ -314,6 +327,7 @@ async function main(argv: readonly string[]): Promise<number> {
       baseRoot = baseTree.root;
       baseSha = baseTree.sha;
     }
+    keepAwake();
     const quiet = values["no-wait"] ? { loadavg: 0, noisy: false } : await waitForQuiet();
     if (quiet.noisy) console.error(`bench:compare: the machine is busy (load ${fmt(quiet.loadavg)}); numbers may be noisy`);
     const f = values["no-absolute"] ? { factor: 1, source: "assumed" as const } : measureFactor(headRoot);
@@ -332,6 +346,11 @@ async function main(argv: readonly string[]): Promise<number> {
       ...(values.asset ? { assets: (side: Side) => sizeOfTree(headRoot, side) } : {}),
       log: (l) => process.stderr.write(`${l}\n`),
     });
+    if ((values.id?.length ?? 0) > 0 && report.listed.head + report.listed.base === 0) {
+      // a mistyped id must not pass the gate vacuously
+      console.error(`bench:compare: no case matches --id ${(values.id ?? []).join(", ")} in head or base`);
+      return 2;
+    }
     const md = renderMarkdown(report);
     console.log(md);
     if (values.md) writeFileSync(resolve(values.md), `${md}\n`);

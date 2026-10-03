@@ -24,7 +24,7 @@ function tree(budgets: object = {}): string {
 }
 
 const side = (name: "base" | "head", root: string): Side => ({ name, root, env: {}, sha: name === "base" ? "b".repeat(40) : "h".repeat(40) });
-const MACHINE = { cpu: "test", cores: 1, ramGb: 1, os: "test", bun: "1", node: "1", chrome: null, loadavg: 0, noisy: false };
+const MACHINE = { cpu: "test", cores: 1, ramGb: 1, os: "test", bun: "1", node: "1", chrome: null, loadavg: 0, noisy: false, power: null };
 
 interface Script {
   cases?: Partial<Record<"base" | "head", ListedCase[]>>;
@@ -155,6 +155,13 @@ describe("BENCH-U-02 compare orchestration (testing spec §6.7)", () => {
   test("cases only in base are called out", async () => {
     const r = await compare(opts(fakeRunner({ cases: { base: [CASE, { ...CASE, id: "t.gone" }], head: [CASE] }, values: () => flat(20) }, [CASE])));
     expect(r.warnings.join("\n")).toContain("t.gone");
+    expect(r.listed).toEqual({ head: 1, base: 2 });
+  });
+
+  test("the report counts what the selection matched in each tree (main exits 2 for an --id that matched nothing)", async () => {
+    const r = await compare(opts(fakeRunner({ cases: { base: [], head: [] }, values: () => flat(20) }, []), { ids: ["t.typo"] }));
+    expect(r.listed).toEqual({ head: 0, base: 0 });
+    expect(r.rows).toHaveLength(0);
   });
 });
 

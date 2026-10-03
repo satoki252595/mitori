@@ -8,7 +8,7 @@ import { type AnyBench, defineBench, isBenchDef } from "./define.ts";
 import { discover, matchesId, select } from "./discover.ts";
 import { executeCase } from "./execute.ts";
 import { gateResult } from "./gate.ts";
-import { waitForQuiet } from "./machine.ts";
+import { keepAwake, parsePower, QUIET_WAIT_MS, waitForQuiet } from "./machine.ts";
 import type { BenchResultEntry, BenchResultFile } from "./result.ts";
 import { runBench } from "./run.ts";
 import { toSamples } from "./stats.ts";
@@ -208,7 +208,7 @@ const entry = (id: string, unit: BenchResultEntry["unit"], values: number[], ext
 const file = (results: BenchResultEntry[], counters: BenchResultFile["counters"] = [], factor = 1): BenchResultFile => ({
   v: TEST_FORMATS.benchResult,
   sha: "",
-  machine: { cpu: "t", cores: 1, ramGb: 1, os: "t", bun: "1", node: "1", chrome: null, loadavg: 0, noisy: false },
+  machine: { cpu: "t", cores: 1, ramGb: 1, os: "t", bun: "1", node: "1", chrome: null, loadavg: 0, noisy: false, power: null },
   factor,
   factorSource: "measured",
   startedAt: "",
@@ -277,6 +277,20 @@ describe("BENCH-U-14 waiting for a quiet machine", () => {
     const r = await waitForQuiet({ loadavg: () => 12, cores: 8, sleep: async (ms) => void waits.push(ms) });
     expect(waits).toHaveLength(2);
     expect(r).toMatchObject({ noisy: true, waited: 2, loadavg: 12 });
+  });
+
+  test("regression: the default wait is long enough for the 1-minute load average to move (30 s, not 2 s)", async () => {
+    const waits: number[] = [];
+    await waitForQuiet({ loadavg: () => 12, cores: 8, sleep: async (ms) => void waits.push(ms) });
+    expect(waits).toEqual([QUIET_WAIT_MS, QUIET_WAIT_MS]);
+    expect(QUIET_WAIT_MS).toBe(30_000);
+  });
+
+  test("the macOS power source is read off pmset; keepAwake is a no-op off macOS", () => {
+    expect(parsePower("Now drawing from 'AC Power'\n -InternalBattery-0 (id=1)\t100%; charged")).toBe("ac");
+    expect(parsePower("Now drawing from 'Battery Power'\n")).toBe("battery");
+    expect(parsePower("")).toBeNull();
+    expect(() => keepAwake("linux")).not.toThrow();
   });
 
   test("proceeds at once when load ≤ cores × 0.5, and stops waiting when it drops", async () => {

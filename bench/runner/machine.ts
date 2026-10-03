@@ -1,6 +1,6 @@
 // The measuring machine: description for result files, the load check before a run (§6.2), the calibration factor and the
 // recorded reference (§6.8).
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { join } from "node:path";
@@ -18,6 +18,8 @@ export interface MachineInfo {
   loadavg: number;
   /** The load stayed above cores × 0.5 after the retries — treat the numbers with suspicion. */
   noisy: boolean;
+  /** macOS power source (§6.2: measure on AC power); null where it cannot be read. */
+  power: "ac" | "battery" | null;
 }
 
 export function machineInfo(root: string, load: { loadavg: number; noisy: boolean }): MachineInfo {
@@ -30,7 +32,36 @@ export function machineInfo(root: string, load: { loadavg: number; noisy: boolea
     node: nodeVersion(),
     chrome: chromeVersion(root),
     ...load,
+    power: powerSource(),
   };
+}
+
+/** `pmset -g batt`'s first line: "Now drawing from 'AC Power'" / "'Battery Power'". */
+export function parsePower(pmset: string): "ac" | "battery" | null {
+  if (/'AC Power'/.test(pmset)) return "ac";
+  if (/'Battery Power'/.test(pmset)) return "battery";
+  return null;
+}
+
+function powerSource(): MachineInfo["power"] {
+  if (process.platform !== "darwin") return null;
+  const r = spawnSync("pmset", ["-g", "batt"], { encoding: "utf8" });
+  return r.status === 0 ? parsePower(r.stdout) : null;
+}
+
+/**
+ * macOS: `caffeinate -i -w <this pid>` for the rest of the run (§6.2: idle sleep must not interrupt a measurement). It exits
+ * with this process; a missing caffeinate is ignored. No-op elsewhere.
+ */
+export function keepAwake(platform: NodeJS.Platform = process.platform): void {
+  if (platform !== "darwin") return;
+  try {
+    const child = spawn("caffeinate", ["-i", "-w", String(process.pid)], { stdio: "ignore", detached: true });
+    child.on("error", () => {});
+    child.unref();
+  } catch {
+    /* no caffeinate: measure anyway */
+  }
 }
 
 /** The `node` on PATH (the devShell's; Playwright runs under it). `process.versions.node` is Bun's compat value. */
@@ -56,6 +87,9 @@ export function gitSha(root: string): string {
   return r.status === 0 ? r.stdout.trim() : "";
 }
 
+/** Default wait between two load checks. */
+export const QUIET_WAIT_MS = 30_000;
+
 export interface QuietOptions {
   /** Test seam. */
   loadavg?: () => number;
@@ -63,6 +97,7 @@ export interface QuietOptions {
   sleep?: (ms: number) => Promise<void>;
   /** Retries after the first check (default 2). */
   retries?: number;
+  /** Wait before each retry (default 30 s: the 1-minute load average needs that long to move at all). */
   waitMs?: number;
   /** Fraction of the cores the load may use (default 0.5). */
   ratio?: number;
@@ -80,7 +115,7 @@ export async function waitForQuiet(opts: QuietOptions = {}): Promise<{ loadavg: 
   let waited = 0;
   let now = load();
   while (now > limit && waited < retries) {
-    await sleep(opts.waitMs ?? 2000);
+    await sleep(opts.waitMs ?? QUIET_WAIT_MS);
     waited++;
     now = load();
   }
@@ -126,7 +161,7 @@ export function recordReference(root: string, n = 5): Reference {
     const c = runCalibration(root);
     if (!best || c.totalMs < best.totalMs) best = c;
   }
-  const { loadavg: _l, noisy: _n, ...machine } = machineInfo(root, { loadavg: 0, noisy: false });
+  const { loadavg: _l, noisy: _n, power: _p, ...machine } = machineInfo(root, { loadavg: 0, noisy: false });
   const ref: Reference = { v: 1, machine, recordedAt: new Date().toISOString(), calib: best as NonNullable<typeof best> };
   writeFileSync(referencePath(root), `${JSON.stringify(ref, null, 2)}\n`);
   return ref;
