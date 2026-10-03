@@ -70,7 +70,8 @@ export function inferCallout(raw: string, lang: DocLang): { kind: BlockKind; md:
 
 /** Last line belongs to a code block (a trailing comment there would break the closing fence or become code). */
 function endsInCode(text: string): boolean {
-  if (!text.includes("```") && !text.includes("~~~") && !/(^|\n)( {4}|\t)/.test(text)) return false;
+  // fast path: no fence and no run of 4 spaces / tab anywhere (indented code can start after `> ` or `- ` markers)
+  if (!text.includes("```") && !text.includes("~~~") && !/ {4}|\t/.test(text)) return false;
   const n = text.split("\n").length;
   return codeLines(text, n)[n - 1] === true;
 }
@@ -78,10 +79,12 @@ function endsInCode(text: string): boolean {
 /** Wrapped block + its ID comment (§10.2-2). */
 export function blockFragment(kind: BlockKind, md: string, id: BlockId, lang: DocLang): string {
   const body = wrapKind(kind, md, lang);
-  const own = BLOCK_ID_PLACEMENT[kind] === "own_line" || endsInCode(body);
-  if (own) return body === "" ? `<!-- ${id} -->` : `${body}\n<!-- ${id} -->`;
+  const ownLine = body === "" ? `<!-- ${id} -->` : `${body}\n<!-- ${id} -->`;
+  if (BLOCK_ID_PLACEMENT[kind] === "own_line" || endsInCode(body)) return ownLine;
   const nl = body.lastIndexOf("\n");
   const head = nl < 0 ? "" : body.slice(0, nl + 1);
   const last = body.slice(nl + 1).replace(/[ \t]+$/, "");
-  return `${head}${last}${last === "" ? "" : " "}<!-- ${id} -->`;
+  const trailing = `${head}${last}${last === "" ? "" : " "}<!-- ${id} -->`;
+  // the appended comment can change how its line parses (`-     ---` is a rule, `-     --- <!-- … -->` indented code)
+  return endsInCode(trailing) ? ownLine : trailing;
 }

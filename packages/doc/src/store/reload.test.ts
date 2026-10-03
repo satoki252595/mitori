@@ -197,6 +197,21 @@ describe("DOC-U-006 reload: external edits merge block by block with unflushed c
     expect(h.store.block(badges?.id as BlockId)?.lock).toBeUndefined();
   });
 
+  test("text imported without an id is not imported twice by a second reload before the flush", async () => {
+    const { root } = await written("ts-small");
+    const abs = join(root, ".mitori/doc/01-what-why.md");
+    writeFileSync(abs, `${readFileSync(abs, "utf8")}\n人が足した段落。\n`);
+    const h = harness({ root, fs: true, writer: spySafeWriter(), committed: false });
+    const first = await h.store.load();
+    expect(first.assignedIds.length).toBe(1);
+    writeFileSync(abs, readFileSync(abs, "utf8").replace("課題を解く", "課題を人が解く"));
+    const again = await h.store.load();
+    expect(again.assignedIds).toEqual([]);
+    expect(again.externallyEdited.length).toBe(1);
+    await h.store.flush({ force: true });
+    expect(readFileSync(abs, "utf8").split("人が足した段落。").length).toBe(2);
+  });
+
   test("an edit made while mitori was not running reaches the sidecar on the next flush", async () => {
     const root = dir("mitori-cold-");
     const h = harness({ root, fs: true, writer: spySafeWriter() });

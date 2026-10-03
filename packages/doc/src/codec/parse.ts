@@ -63,7 +63,8 @@ const startOf = (tbs: TopBlock[], i: number): number => (i === 0 ? 0 : (tbs[i]?.
  * Split a commented segment into its owned block (kind inferred from the shape and the placement) and the
  * leading top-level blocks that fit no wrapper (§10.4-4: they become new human blocks). `known` is the sidecar kind
  * of the id (§10.4-3 infers from the shape only for unknown ids): a `trailing` kind whose text ends in code carries
- * its comment on its own line too, and must not be read as a code block with a human paragraph before it.
+ * its comment on its own line too and must not be read as a code block with a human paragraph before it, and a
+ * prose block that happens to be a single list stays prose. Every block mitori writes therefore reads back as itself.
  */
 function classify(lines: string[], own: boolean, lang: DocLang, known?: BlockKind): { kind: BlockKind; md: string; lead: TopBlock[]; from: number } {
   const tbs = topBlocks(lines.join("\n"));
@@ -76,7 +77,13 @@ function classify(lines: string[], own: boolean, lang: DocLang, known?: BlockKin
   });
   const last = tbs[n - 1];
   if (!last) return { kind: "prose", md: lines.join("\n"), lead: [], from: 0 };
-  if (own && (known === undefined || BLOCK_ID_PLACEMENT[known] === "own_line")) {
+  // a known own-line block owns its whole segment: mitori writes captions, leads and any md of these kinds above the
+  // comment line, so splitting by shape would cut its own output into a new human block on every load
+  if (own && known !== undefined && BLOCK_ID_PLACEMENT[known] === "own_line") return owned(0, known);
+  // likewise a known prose / list block (a heading or a setext `---` typed into its text must not split it off), and a
+  // heading block whose text goes on after the heading line; a human paragraph before a heading still becomes a lead
+  if (known === "prose" || known === "list" || (known === "heading" && last.type !== "heading_open")) return owned(0, known);
+  if (own && known === undefined) {
     if (last.type === "fence" && fenceLang(last.info) === "mermaid") return owned(tbs[n - 2]?.type === "paragraph_open" ? n - 2 : n - 1, "diagram");
     if (last.type === "fence" || last.type === "code_block") return owned(n - 1, "code");
     if (last.type === "table_open") return owned(n - 1, "table");

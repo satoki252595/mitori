@@ -150,11 +150,22 @@ function readJson<T extends { kind: string; schemaVersion: number }>(
   }
 }
 
-/** Parsed blocks by id of a file's last-written text (the base of the block-level 3-way on reload). */
-function baseBlocks(text: string, rel: string, ctx: CodecContext, kindOf: (id: BlockId) => BlockKind | undefined): Map<BlockId, ParsedBlock> {
-  const out = new Map<BlockId, ParsedBlock>();
-  for (const b of parseDoc(text, rel, ctx, kindOf).blocks) if (b.id) out.set(b.id, b);
-  return out;
+/** A file's last-written (or last-read) text, parsed: the base of the block-level 3-way on reload. */
+interface Base {
+  /** Blocks with an id comment. */
+  byId: Map<BlockId, ParsedBlock>;
+  /** Id-less text (counted by kind + md): already imported (it got an id that is not written yet). */
+  loose: Map<string, number>;
+}
+
+const looseKey = (b: ParsedBlock): string => `${b.kindHint}\u0000${b.md}`;
+
+function baseBlocks(text: string, rel: string, ctx: CodecContext, kindOf: (id: BlockId) => BlockKind | undefined): Base {
+  const base: Base = { byId: new Map(), loose: new Map() };
+  for (const b of parseDoc(text, rel, ctx, kindOf).blocks)
+    if (b.id) base.byId.set(b.id, b);
+    else base.loose.set(looseKey(b), (base.loose.get(looseKey(b)) ?? 0) + 1);
+  return base;
 }
 
 const sameParsed = (a: ParsedBlock | undefined, b: ParsedBlock): boolean => a !== undefined && a.md === b.md && a.kindHint === b.kindHint;
@@ -205,12 +216,20 @@ async function reconcile(
     if (text.includes("\r")) core.log.info("normalized CRLF", { file: rel });
     const baseText = initial ? undefined : base?.(rel);
     const was = baseText === undefined ? null : baseBlocks(baseText, rel, ctx, kindOf);
-    if (was) for (const s of sections) for (const id of s.blocks) if (!was.has(id)) pending.add(id);
+    if (was) for (const s of sections) for (const id of s.blocks) if (!was.byId.has(id)) pending.add(id);
     const sectionIds = new Set(sections.map((s) => s.id));
     let section: SectionId = (sections[0] as SectionNode).id;
     for (const pb of parsed.blocks) {
       // untouched since mitori wrote it, and deleted in the model since (not flushed yet): stays deleted
-      if (was && pb.id && !st.blocks.has(pb.id) && sameParsed(was.get(pb.id), pb)) continue;
+      if (was && pb.id && !st.blocks.has(pb.id) && sameParsed(was.byId.get(pb.id), pb)) continue;
+      // id-less text that was already there last time was imported then (its block keeps its new id)
+      if (was && !pb.id) {
+        const n = was.loose.get(looseKey(pb)) ?? 0;
+        if (n > 0) {
+          was.loose.set(looseKey(pb), n - 1);
+          continue;
+        }
+      }
       let id = pb.id;
       // a duplicate across files, or a tombstoned id coming back (merge of another branch), gets a fresh id
       if (id && (seen.has(id) || (core.tombs.has(id) && !st.blocks.has(id)))) id = null;
@@ -231,7 +250,7 @@ async function reconcile(
       rec.meta.section = section;
       rec.meta.file = rel;
       // untouched outside mitori: the model's text (possibly newer than the file) stands
-      if (!isNew && was && sameParsed(was.get(id), pb)) continue;
+      if (!isNew && was && sameParsed(was.byId.get(id), pb)) continue;
       importText(core, rec, pb, ctx, report, isNew, initial);
     }
   }
