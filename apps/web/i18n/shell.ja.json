@@ -307,5 +307,6 @@
   "toc.state.pending": "待機",
   "toc.state.stale": "古い可能性",
   "toc.state.static": "静的（0 tok）",
-  "toc.static": "静的"
+  "toc.static": "静的",
+  "toc.threads": "スレッド{n}件"
 }

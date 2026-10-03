@@ -4,7 +4,7 @@
  * the reader root ≤ 10, one shared gutter (AC-U32), boot CLS ≤ 0.001 (AC-U03).
  */
 import { expect, test } from "@playwright/test";
-import { cls, configure, installCls, mockLog, now, p95, WS, waitMark } from "./support/helpers.ts";
+import { cls, configure, emit, installCls, mockLog, now, p95, WS, waitMark } from "./support/helpers.ts";
 
 test("@wp10a 1,000-block Reader: DOM ≤ 5k nodes, j/k reaches far blocks, one gutter", async ({ page }) => {
   await configure({ bigBlocks: 1000 });
@@ -123,6 +123,19 @@ for (const [w, h] of [
     expect(v).toBeLessThanOrEqual(0.001);
   });
 }
+
+test("@wp10a TOC thread badges (ux.md §4.3.2-3): an open thread on a §3.1 block counts on §3.1 and its chapter §3; resolved ones do not", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}/doc/s3/review-cycle`);
+  await waitMark(page, "mitori:section:rendered");
+  const block = await page.locator('[data-sec="s3/review-cycle"] .blk').first().getAttribute("data-b");
+  const thread = (id: string, state: string) => ({ id, state, intent: "note", anchor: { doc: { block } }, title: "", messages: 1, updatedAt: "2026-10-03T00:00:00Z" });
+  await emit({ type: "thread.upsert", rev: 900, thread: thread("th_000000000001", "open") });
+  await emit({ type: "thread.upsert", rev: 901, thread: thread("th_000000000002", "resolved") });
+  await expect(page.locator('.toc a[data-toc="s3/review-cycle"] .tb')).toHaveText("●1");
+  await expect(page.locator('.toc a[data-toc="s3"] .tb')).toHaveText("●1");
+  await expect(page.locator('.toc a[data-toc="s4"] .tb')).toHaveCount(0);
+});
 
 test("@wp10a dialogs return focus (ux.md §3.6): ? → help → Escape puts focus back on the focused block; j still works", async ({ page }) => {
   await configure({});

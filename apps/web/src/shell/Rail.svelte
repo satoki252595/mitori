@@ -57,8 +57,12 @@ const leftMin = $derived(
 );
 const ring = $derived(path?.steps.length ? readCount / path.steps.length : 0);
 
+const threadCounts = $derived(ix ? s.review.threadsBySection(ix.blockSection) : new Map<string, number>());
+
 const rows = $derived.by(() => {
   if (!ix) return [];
+  // a chapter row counts its sub-sections too (they may be folded, §6)
+  const subtree = (id: SectionId): number => (threadCounts.get(id) ?? 0) + (ix.nodes.get(id)?.children ?? []).reduce((n, c) => n + subtree(c), 0);
   const out: {
     id: SectionId;
     num: string;
@@ -81,7 +85,16 @@ const rows = $derived.by(() => {
         : st === "static"
           ? t("toc.static")
           : `${readingMinutes(n.readingSec)}${t("fmt.minShort")}`;
-    out.push({ id, num: ix.numbers.get(id) ?? "", title: n.title, depth, state: st, meta, threads: 0, page: ix.pageOf.get(id) ?? id });
+    out.push({
+      id,
+      num: ix.numbers.get(id) ?? "",
+      title: n.title,
+      depth,
+      state: st,
+      meta,
+      threads: depth === 0 ? subtree(id) : (threadCounts.get(id) ?? 0),
+      page: ix.pageOf.get(id) ?? id,
+    });
     if (depth === 0 && (id !== "s6" || openMods)) for (const c of n.children) visit(c, 1);
   };
   for (const r of ix.roots) visit(r, 0);
@@ -164,6 +177,7 @@ const covered = $derived(manifest?.coverage ?? null);
               <span class="n mono">{r.num}</span>
               <span class="ttl" data-user-content>{r.title}</span>
               <span class="st" class:gen={r.state === "generating"}>
+                {#if r.threads > 0}<span class="tb" aria-label={t("toc.threads", { n: r.threads })}>&#x25CF;{r.threads}</span>{/if}
                 {#if r.state === "stale"}<span class="warn" aria-label={t("toc.state.stale")}>&#x26A0;&#xFE0E;</span>{/if}
                 {r.meta}
                 <span class="sr-only">{t(`toc.state.${r.state}`)}</span>
@@ -336,6 +350,10 @@ const covered = $derived(manifest?.coverage ?? null);
     color: var(--muted);
     white-space: nowrap;
     font-family: var(--font-mono);
+  }
+  .toc .tb {
+    margin-right: 6px;
+    color: var(--muted);
   }
   .toc .st.gen {
     color: var(--c-run);

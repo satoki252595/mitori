@@ -112,6 +112,18 @@ export class ReviewState implements ReviewStore {
   }
 
   /** Open thread counts per diagram node (map pins). */
+  /** Unresolved threads per section of their anchor block (TOC badges, ux.md §4.3.2-3). */
+  threadsBySection(blockSection: ReadonlyMap<BlockId, string>): Map<string, number> {
+    const out = new Map<string, number>();
+    for (const t of this.threads.values()) {
+      const b = t.anchor.doc?.block;
+      const sec = b ? blockSection.get(b) : undefined;
+      if (!sec || t.state === "resolved" || t.state === "draft") continue;
+      out.set(sec, (out.get(sec) ?? 0) + 1);
+    }
+    return out;
+  }
+
   pinsByNode(): Record<string, number> {
     const out: Record<string, number> = {};
     for (const t of this.threads.values()) {

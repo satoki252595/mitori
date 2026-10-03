@@ -4,7 +4,7 @@ import type { EngineStatus, MapView } from "@mitori/core";
 import { ROOM_LOD, UI_THRESHOLDS } from "../contract.ts";
 import { cameraForK, centreOn, fitCamera, K_MAX, K_MIN, lerpCamera, lodClass, STAGE_K, stageOf, stepStageK, zoomAt } from "./camera.ts";
 import { engineProblem } from "./engine.ts";
-import { buildPlanModel, FLOW_BULGE, flowGeometry, type PlanModel, renderFlow, renderPins, renderPlanSvg, type RoomModel } from "./render.ts";
+import { buildPlanModel, FLOW_BULGE, flowGeometry, type PlanModel, type RoomModel, renderFlow, renderPins, renderPlanSvg } from "./render.ts";
 
 describe("camera", () => {
   const vp = { w: 1000, h: 600 };
@@ -171,7 +171,26 @@ describe("UXP-15 / AC-U-EN engine problems", () => {
 
 describe("§3 flow overlay geometry (ux.md §4.2.3)", () => {
   const room = (id: string, x: number, y: number): RoomModel =>
-    ({ id, x, y, w: 100, h: 60, label: id, path: "", loc: 0, files: 0, zone: null, zoneLabel: "", section: null, module: null, external: false, threads: 0, working: 0, fresh: "unknown", topSymbols: [] }) as RoomModel;
+    ({
+      id,
+      x,
+      y,
+      w: 100,
+      h: 60,
+      label: id,
+      path: "",
+      loc: 0,
+      files: 0,
+      zone: null,
+      zoneLabel: "",
+      section: null,
+      module: null,
+      external: false,
+      threads: 0,
+      working: 0,
+      fresh: "unknown",
+      topSymbols: [],
+    }) as RoomModel;
   const rooms = [room("a", 0, 0), room("b", 400, 0), room("c", 400, 300)];
   const m = { width: 600, height: 400, rooms, zones: [], edges: [], byId: new Map(rooms.map((r) => [r.id, r])), links: new Map() } as PlanModel;
 
@@ -192,7 +211,12 @@ describe("§3 flow overlay geometry (ux.md §4.2.3)", () => {
   });
 
   test("unknown nodes and self loops are skipped; numbers are the step numbers", () => {
-    expect(flowGeometry(m, [{ from: "a", to: "zz", step: 1 }, { from: "c", to: "c", step: 2 }])).toEqual([]);
+    expect(
+      flowGeometry(m, [
+        { from: "a", to: "zz", step: 1 },
+        { from: "c", to: "c", step: 2 },
+      ]),
+    ).toEqual([]);
     const svg = renderFlow(m, [{ from: "a", to: "c", step: 3 }]);
     expect(svg).toContain('marker-end="url(#pl-arrow)"');
     expect(svg).toContain(">3</text>");

@@ -203,7 +203,9 @@ test("@wp10a AC-J16 テキストで見る: ?text=1 opens the dialog (tables with
   await expect(dlg).toHaveCount(0);
 });
 
-test("@wp10a S1 flows: ⇧1 overlays §3.1 (numbered tags, pins fade), again clears; ?flow= restores; the room card lists the flows through a room", async ({ page }) => {
+test("@wp10a S1 flows: ⇧1 overlays §3.1 (numbered tags, pins fade), again clears; ?flow= restores; the room card lists the flows through a room", async ({
+  page,
+}) => {
   await configure({});
   await page.goto(`/w/${WS}`);
   await waitMark(page, "mitori:map:painted");
