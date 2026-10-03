@@ -12,6 +12,8 @@ export interface PlanCallbacks {
   onopen(node: string): void;
   onstage(stage: ZoomStage): void;
   onhover(node: string | null, rect: DOMRect | null): void;
+  /** The camera settled at zoom factor k = s / s_fit (Escape zooms out while k > 1). */
+  onzoom?(k: number): void;
 }
 
 const reduceMotion = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -101,6 +103,13 @@ export class PlanController {
       this.#stage = st;
       this.#cb.onstage(st);
     }
+    this.#cb.onzoom?.(this.k);
+  }
+
+  /** One stage out (Escape on the map, ux.md §4.2.2); arriving at the default stage means "fit". */
+  zoomOutOne(): void {
+    if (stepStageK(this.k, -1, this.allowZ3) <= STAGE_K.Z2 + 1e-6) this.fit();
+    else this.stepZoom(-1);
   }
 
   /** Animate to a camera (300 ms ease-out, log-interpolated scale; instant under reduced motion). */

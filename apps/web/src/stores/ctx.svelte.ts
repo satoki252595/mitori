@@ -28,7 +28,9 @@ export class CtxState implements ContextColumnStore {
   }
 
   set(mode: CtxMode, opts: { pin?: CodePin; job?: JobId } = {}): void {
+    // pinning inside code mode (expert default) comes back to the unpinned, scrollspy-following code mode
     if (mode !== this.mode) this.prev = this.mode;
+    else if (mode === "code" && opts.pin && !this.pin) this.prev = "code";
     this.mode = mode;
     this.pin = mode === "code" ? (opts.pin ?? null) : null;
     this.job = mode === "review" ? (opts.job ?? this.job) : null;
@@ -38,9 +40,14 @@ export class CtxState implements ContextColumnStore {
   back(): void {
     const to = this.prev ?? "margin";
     this.prev = null;
-    this.mode = to === this.mode ? "margin" : to;
+    this.mode = to;
     this.pin = null;
     this.wide = false;
+  }
+
+  /** Escape has somewhere to go back to (the `ctxMode` layer is registered only then). */
+  get canGoBack(): boolean {
+    return this.mode === "code" && (this.prev !== null || this.pin !== null);
   }
 
   /** Default for a level when opening S2 (`code` for expert, else margin); never while reviewing or pinned. */

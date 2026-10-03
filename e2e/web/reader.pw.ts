@@ -123,3 +123,20 @@ for (const [w, h] of [
     expect(v).toBeLessThanOrEqual(0.001);
   });
 }
+
+test("@wp10a S2 `o` pins the focused cite in code mode; Escape returns to the previous mode and the URL drops ctx / pin (ux.md §4.4)", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}/doc/s3`);
+  await waitMark(page, "mitori:section:rendered");
+  const ctx = page.locator("aside.ctx");
+  await expect(ctx).toHaveAttribute("data-mode", "margin");
+  await page.locator(".blk a.mcite").first().focus();
+  await page.keyboard.press("o");
+  await expect(ctx).toHaveAttribute("data-mode", "code");
+  expect(new URL(page.url()).searchParams.get("ctx")).toBe("code");
+  expect(new URL(page.url()).searchParams.get("pin")).toMatch(/:\d+-\d+$/);
+  await page.keyboard.press("Escape");
+  await expect(ctx).toHaveAttribute("data-mode", "margin");
+  expect(new URL(page.url()).searchParams.get("ctx")).toBeNull();
+  expect(new URL(page.url()).searchParams.get("pin")).toBeNull();
+});

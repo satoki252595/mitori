@@ -137,3 +137,38 @@ test("@wp10a S1 keyboard: arrows move between rooms (roving tabindex), Escape cl
   await page.waitForTimeout(400);
   expect(await page.evaluate(() => document.querySelectorAll("svg.plan *").length)).toBe(before);
 });
+
+test("@wp10a S1 Escape: clears the selection first, then zooms out one stage at a time back to the default stage (ux.md §4.2.2, LAYER_ORDER)", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}`);
+  await waitMark(page, "mitori:map:painted");
+  const scale = () =>
+    page.evaluate(() => Number(/scale\(([\d.]+)\)/.exec(document.querySelector("svg.plan g.cam")?.getAttribute("transform") ?? "")?.[1] ?? 0));
+  const settle = () => page.waitForTimeout(450);
+  const fit = await scale();
+  await page.locator(".room").first().focus();
+  await page.keyboard.press("=");
+  await settle();
+  await page.keyboard.press("=");
+  await settle();
+  const zoomed = await scale();
+  expect(zoomed).toBeGreaterThan(fit * 1.5);
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".room-card")).toBeVisible();
+  // 1st Escape: the selection only
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".room-card")).toHaveCount(0);
+  expect(await scale()).toBeCloseTo(zoomed, 3);
+  // then one stage out per Escape until the default (fit) stage; one more does nothing
+  await page.keyboard.press("Escape");
+  await settle();
+  expect(await scale()).toBeLessThan(zoomed);
+  for (let i = 0; i < 3 && (await scale()) > fit * 1.02; i++) {
+    await page.keyboard.press("Escape");
+    await settle();
+  }
+  expect(await scale()).toBeCloseTo(fit, 3);
+  await page.keyboard.press("Escape");
+  await settle();
+  expect(await scale()).toBeCloseTo(fit, 3);
+});

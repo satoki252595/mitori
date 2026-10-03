@@ -151,6 +151,13 @@ function open(id: string) {
   void s.router.go({ name: "doc", ws, section: sec });
 }
 
+/** Zoomed in beyond the default stage: Escape (after the selection) steps one stage out (LAYER_ORDER `zoom`). */
+function onZoom(k: number) {
+  if (k > 1.02) {
+    if (!s.layers.isOpen("map-zoom")) s.layers.open("zoom", "map-zoom", () => controller?.zoomOutOne());
+  } else s.layers.drop("map-zoom");
+}
+
 function onStage(z: ZoomStage) {
   s.map.stage = z;
   if (z === "Z0" || z === "Z1") return;
@@ -214,6 +221,7 @@ onMount(() => {
   return () => {
     for (const off of offs) off();
     s.layers.drop("room-sel");
+    s.layers.drop("map-zoom");
   };
 });
 
@@ -277,6 +285,7 @@ const stale = $derived(s.doc.outline?.counts.stale ?? 0);
           onselect={select}
           onopen={open}
           onstage={onStage}
+          onzoom={onZoom}
           onhover={(id, rect) => (hover = id && rect && model ? { room: model.byId.get(id) as RoomModel, rect } : null)}
           bind:controller
         />

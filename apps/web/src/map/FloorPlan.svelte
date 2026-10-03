@@ -23,6 +23,7 @@ let {
   onopen,
   onstage,
   onhover,
+  onzoom,
   controller = $bindable(null),
 }: {
   view: MapView;
@@ -36,6 +37,7 @@ let {
   onopen: (node: string) => void;
   onstage: (z: ZoomStage) => void;
   onhover: (node: string | null, rect: DOMRect | null) => void;
+  onzoom?: (k: number) => void;
   controller?: PlanController | null;
 } = $props();
 
@@ -49,7 +51,7 @@ onMount(() => {
     buildPlanModel(view),
     text,
     descId,
-    { onselect, onopen, onstage, onhover },
+    { onselect, onopen, onstage, onhover, onzoom: (k) => onzoom?.(k) },
     view.diagram.kind === "floorplan" && !view.fallback,
   );
   controller = c;

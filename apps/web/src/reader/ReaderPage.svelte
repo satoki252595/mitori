@@ -315,9 +315,28 @@ const peekPrecision = $derived.by(() => {
   return "exact" as const;
 });
 
+/** `o` again / Escape in code mode: back to the previous mode, and the permalink no longer carries ctx / pin. */
+function leaveCode() {
+  s.ctx.back();
+  if (route.name === "doc" && (route.ctx || route.pin)) {
+    const { ctx: _ctx, pin: _pin, ...rest } = route;
+    s.router.replaceUrl(rest);
+  }
+}
+
+$effect(() => {
+  const back = s.ctx.canGoBack;
+  untrack(() => {
+    if (back) {
+      if (!s.layers.isOpen("ctx-code")) s.layers.open("ctxMode", "ctx-code", leaveCode);
+    } else s.layers.drop("ctx-code");
+  });
+});
+
 function pinPeek() {
   if (s.ctx.mode === "code" && s.ctx.pin) {
-    s.ctx.back();
+    if (s.layers.isOpen("ctx-code")) s.layers.close("ctx-code", { restoreFocus: false });
+    else leaveCode();
     return;
   }
   const cite = peek?.anchorEl.dataset.cite ?? (document.activeElement as HTMLElement | null)?.closest?.("a.mcite")?.getAttribute("data-cite");
