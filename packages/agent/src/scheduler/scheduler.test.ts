@@ -245,6 +245,30 @@ describe("AgentScheduler (spec §6.8, PT-04, PT-18, SEC-15, CONS-28)", () => {
     unsub();
   });
 
+  test("AGT-U-024 a job finishing late with an older window observation does not undo a newer yield", async () => {
+    const { s, claude, clock } = setup({ reserve: 0 });
+    const win = (u: number): SubscriptionWindow => ({
+      fiveHour: { utilization: u },
+      billing: "subscription-window",
+      observedAt: clock.iso(),
+      source: "claude-cli",
+    });
+    submit3(s, "background");
+    submit3(s, "background");
+    await flush();
+    const older = win(0.5);
+    claude.live[0]?.events.push({ t: "window", window: older, at: clock.now() });
+    await flush();
+    clock.advance(1000);
+    claude.live[1]?.events.push({ t: "window", window: win(0.85), at: clock.now() });
+    await flush();
+    expect(s.status().yielding).toBe(true);
+    claude.live[0]?.finish({ window: older }); // its result carries the window it saw earlier
+    await flush();
+    expect(s.window()?.fiveHour?.utilization).toBe(0.85);
+    expect(s.status().lanePaused.background).toBe("yield_5h");
+  });
+
   test("UXP-08 window_spend: one background run raising 5h by > 30 points pauses background until the lane drains; overage pauses too", async () => {
     const { s, claude, clock } = setup();
     const win = (u: number, overage = false): JobEvent => ({

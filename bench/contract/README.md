@@ -9,6 +9,7 @@ scripts/nd bun run contract-test                         # $0 cases only (versio
 scripts/nd bun bench/contract/run.ts --live              # + paid cases (claude-haiku-4-5), cap --max-usd 0.05
 scripts/nd bun bench/contract/run.ts --live --only CC-12 # one group; partial runs accumulate in results/<day>-<cli>.json
 scripts/nd bun bench/contract/run.ts --live --record     # also rewrite fixtures/agent-streams/*.jsonl (scrubbed)
+scripts/nd bun bench/contract/run.ts --suite watch       # CT-15 page hash watch ($0); --suite all = claude + watch
 ```
 
 - Cost guard: each paid group has an upper-bound estimate (`CASE_USD` in `run.ts`) and starts only if it fits the cap.
@@ -41,7 +42,7 @@ scripts/nd bun bench/contract/run.ts --live --record     # also rewrite fixtures
 | CT-12 | refusal shape (O5) | — | not implemented (no safe known trigger); `refusal.synthetic.jsonl` |
 | CT-13 | `--effort low` on haiku | CC-10 (model) | effort acceptance is implicit in every haiku case |
 | CT-14 | `rate_limit_event.five_hour` | CC-23 | implemented |
-| CT-15 | billing/legal page hash watch | — | `--suite watch` not implemented yet |
+| CT-15 | billing/legal page hash watch | `--suite watch` (§8.5) | implemented: the `<article>`/`<main>` text of 4 pages, sha256 in `watch.json`; a change is yellow with a line diff (snapshots in `~/.cache/mitori-contract/watch/`, not committed); a person files the issue |
 | — | CC-05 stdin only, CC-07 no session file, CC-13 stdin closed, CC-24 cache TTL 5m | | implemented |
 | — | CC-18 `--resume` (writes the user's session store), CC-19 cache health (sonnet) | | not implemented |
 

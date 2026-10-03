@@ -1,5 +1,5 @@
 // Contract tests against the real claude CLI (testing spec §8, loop spec §6.13) — maintainer machine / self-hosted only.
-// Usage: bun bench/contract/run.ts [--live] [--max-usd 0.05] [--model claude-haiku-4-5] [--only CC-03,CC-12] [--record]
+// Usage: bun bench/contract/run.ts [--suite claude|watch|all] [--live] [--max-usd 0.05] [--model claude-haiku-4-5] [--only CC-03,CC-12] [--record]
 //   without --live (or MITORI_LIVE=1) only the $0 cases run (version/auth, --help flags, --bare text, the CC-09 control).
 //   --record writes scrubbed recordings to fixtures/agent-streams/ (add-only fixture dir of WP-05).
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -32,6 +32,7 @@ import {
 } from "@mitori/agent/testing";
 import type { ClaudeModelId, Iso8601, JobEvent, UnixMs, WorkspaceKey } from "@mitori/core";
 import { bunSpawner, nodeFsPorts, scrubLine, validate } from "./lib.ts";
+import { runWatch } from "./watch.ts";
 
 const ROOT = join(import.meta.dir, "../..");
 const HERE = import.meta.dir;
@@ -63,6 +64,28 @@ const report = (r: CaseResult) => {
   console.log(`${r.status === "pass" ? "✓" : r.status === "fail" ? "✗" : r.status === "warn" ? "!" : "-"} ${r.id.padEnd(6)} ${r.detail}${usd}`);
 };
 const wanted = (id: string) => ONLY.size === 0 || ONLY.has(id);
+const SUITE = opt("--suite", "claude");
+if (!["claude", "watch", "all"].includes(SUITE)) {
+  console.log(`contract-test: unknown --suite ${SUITE} (claude | watch | all; codex comes with WP-16)`);
+  process.exit(2);
+}
+
+/* ------------------------------------------------------ watch (CT-15, $0) */
+
+if (SUITE === "watch" || SUITE === "all") {
+  const watched = await runWatch({ dir: HERE });
+  for (const w of watched) {
+    report({ id: w.id, status: w.status, detail: w.detail });
+    if (w.diff && w.diff.length > 0) {
+      console.log(w.diff.map((l) => `    ${l}`).join("\n"));
+      const url = w.id.replace(/^CT-15 /, "");
+      console.log(`    → a person decides (stop Push / Pull / README); file it: gh issue create --title "contract-watch: ${url} changed"`);
+    }
+  }
+  const biome = join(ROOT, "node_modules/.bin/biome");
+  if (existsSync(biome)) Bun.spawnSync([biome, "format", "--write", join(HERE, "watch.json")], { cwd: ROOT, stdout: "ignore", stderr: "ignore" });
+  if (SUITE === "watch") process.exit(watched.some((w) => w.status === "fail") ? 1 : 0);
+}
 
 /* ------------------------------------------------------------------ setup */
 

@@ -223,6 +223,8 @@ export function createAgentScheduler(deps: SchedulerDeps): AgentScheduler {
   };
 
   const onWindow = (w: SubscriptionWindow): void => {
+    // runs finish out of order: an older observation (another job's) must not roll the window, yield or billing back
+    if (latest !== null && Date.parse(w.observedAt) < Date.parse(latest.observedAt)) return;
     if (w.billing !== latest?.billing) deps.onBilling?.(w.billing);
     latest = w;
     const u = w.fiveHour?.utilization;
