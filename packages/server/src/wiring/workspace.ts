@@ -287,6 +287,16 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
       }
     }
   };
+  // an AI edit of the doc (job doc_updates, a regenerated human-edited block, a static refresh of a human-edited facts
+  // block, `mitori reply --doc-update`, a promoted answer) shows in the prose as soon as it exists, not on the next load
+  const publishProposals = (ids: readonly ProposalId[]) =>
+    queueMicrotask(() => {
+      for (const id of ids) {
+        const p = rawDoc.proposals().find((q) => q.id === id);
+        if (p?.state === "pending")
+          base.events.emit({ type: "doc.proposal.upsert", proposal: proposalView({ doc: rawDoc, renderMessage: (md) => renderer.renderMessage(md) }, p) });
+      }
+    });
   const doc = observeDoc(
     rawDoc,
     (written) => {
@@ -296,16 +306,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
         queueMicrotask(() => void publishUpserts());
       }
     },
-    // an AI edit of the doc (job doc_updates, a regenerated human-edited block, `mitori reply --doc-update`, a promoted
-    // answer) shows in the prose as soon as it exists, not only after the next page load
-    (ids) =>
-      queueMicrotask(() => {
-        for (const id of ids) {
-          const p = rawDoc.proposals().find((q) => q.id === id);
-          if (p?.state === "pending")
-            base.events.emit({ type: "doc.proposal.upsert", proposal: proposalView({ doc: rawDoc, renderMessage: (md) => renderer.renderMessage(md) }, p) });
-        }
-      }),
+    publishProposals,
   );
 
   /* ---- gen ------------------------------------------------------------------------------------------------ */
@@ -415,6 +416,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     if (publish) {
       for (const id of res.written) pendingUpserts.add(id);
       if (res.written.length > 0) void publishUpserts();
+      if (res.proposals.length > 0) publishProposals(res.proposals);
       base.events.emit({ type: "map.updated" });
     }
   };

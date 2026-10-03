@@ -9,8 +9,8 @@
   (docs/design/cr-requests/WP-10b.md "block decoration slot").
 -->
 <script lang="ts">
-import type { BlockId, DocProposalView, JobSummary, ProposalId } from "@mitori/core";
-import { MitoriError } from "@mitori/core";
+import type { BlockId, DocProposalView, JobSummary, LineNo, ProposalId, RepoPath } from "@mitori/core";
+import { HREFS, MitoriError } from "@mitori/core";
 import { mount, onMount, unmount } from "svelte";
 import { errorText, t } from "../shell/index.ts";
 import { useStores } from "../stores/app.svelte.ts";
@@ -24,7 +24,13 @@ let tick = $state(0);
 interface Live {
   host: HTMLElement;
   inst: Record<string, unknown>;
-  props: { proposal: DocProposalView; producer: string; decided: "accept" | "reject" | null; ondecide: (d: "accept" | "reject") => void };
+  props: {
+    proposal: DocProposalView;
+    producer: string;
+    decided: "accept" | "reject" | null;
+    ondecide: (d: "accept" | "reject") => void;
+    codeHref: ((path: string, start: number, end: number) => string | null) | null;
+  };
 }
 const live = new Map<ProposalId, Live>();
 
@@ -121,7 +127,11 @@ $effect(() => {
       mb.prepend(host);
       mb.classList.add("has-prop");
     }
-    const props = $state({ proposal: p, producer: producer(p), decided, ondecide: (d: "accept" | "reject") => void decide(p, d) });
+    const ws = s.workspace.key;
+    // a facts table's `path:line` cells are cite chips in the block; the proposal of it shows them the same way
+    const codeHref =
+      ws && mb.dataset.kind === "facts" ? (path: string, a: number, b: number) => HREFS.code(ws, path as RepoPath, a as LineNo, b as LineNo) : null;
+    const props = $state({ proposal: p, producer: producer(p), decided, ondecide: (d: "accept" | "reject") => void decide(p, d), codeHref });
     const inst = mount(ProposalBlock, { target: host, props });
     live.set(id, { host, inst, props });
   }

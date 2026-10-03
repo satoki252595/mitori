@@ -307,7 +307,7 @@ const sec = $derived.by(() => {
 
       {#if detail}
         <section class="code">
-          <h3>{t("review.code")}<span class="src mono">{t("review.codeMeta", { files: detail.diff.length, a: summary.diffStat?.additions ?? 0, d: summary.diffStat?.deletions ?? 0 })} · n / ⇧N</span>
+          <h3>{t("review.code")}<span class="src mono">{t("review.codeMeta", { n: detail.diff.length, a: summary.diffStat?.additions ?? 0, d: summary.diffStat?.deletions ?? 0 })} · n / ⇧N</span>
             {#if wide}
               <span class="seg" role="radiogroup" aria-label={t("review.view")}>
                 <button type="button" role="radio" aria-checked={view === "unified"} onclick={() => (view = "unified")}>Unified</button>

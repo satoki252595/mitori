@@ -104,21 +104,44 @@ export function htmlText(html: string): string {
 }
 
 /**
+ * Diff tokens of an HTML fragment: `parts` = the fragment split into text (even) and tags (odd), `tok` / `seg` = the
+ * tokens and the text part each comes from. Prose is split into CJK characters and words; an inline code span or a link
+ * (a cite `fetch.go:46-61`, a name `Client.Fetch`) is ONE token — 「fetch.go:4546-6061」 is not a readable change; a code
+ * block (`<pre>`) is split into lines.
+ */
+export function htmlTokens(html: string): { parts: string[]; tok: string[]; seg: number[] } {
+  const parts = html.split(/(<[^>]*>)/);
+  const tok: string[] = [];
+  const seg: number[] = [];
+  let pre = 0;
+  let atomic = 0;
+  parts.forEach((part, i) => {
+    if (i % 2 === 1) {
+      const m = /^<(\/?)(pre|code|a)\b/i.exec(part);
+      if (!m) return;
+      const d = m[1] === "/" ? -1 : 1;
+      if ((m[2] as string).toLowerCase() === "pre") pre = Math.max(0, pre + d);
+      else atomic = Math.max(0, atomic + d);
+      return;
+    }
+    const text = decode(part);
+    if (text === "") return;
+    const ts = pre > 0 ? (text.match(/[^\n]*\n|[^\n]+$/g) ?? []) : atomic > 0 ? [text] : tokens(text);
+    for (const t of ts) {
+      tok.push(t);
+      seg.push(i);
+    }
+  });
+  return { parts, tok, seg };
+}
+
+/**
  * Suggestion-mode HTML: the NEW html with inserted words in `<ins class="a">` and the removed words of the old text in
  * `<del class="d">` where they stood. Only text nodes change; the markup of the proposed text is kept as rendered.
  */
 export function suggestionHtml(oldHtml: string, newHtml: string): string {
-  const parts = newHtml.split(/(<[^>]*>)/);
-  const bTok: string[] = [];
-  const bSeg: number[] = [];
-  parts.forEach((part, i) => {
-    if (i % 2 === 1) return;
-    for (const t of tokens(decode(part))) {
-      bTok.push(t);
-      bSeg.push(i);
-    }
-  });
-  const ops = diffTokens(tokens(htmlText(oldHtml)), bTok, bSeg);
+  const { parts, tok: bTok, seg: bSeg } = htmlTokens(newHtml);
+  const ops = diffTokens(htmlTokens(oldHtml).tok, bTok, bSeg);
   if (!ops.some((o) => o.k !== "eq")) return newHtml;
   // inside <pre> / <code>, a <del> would still be inside the code element: fine (it renders as struck code)
   const bySeg = new Map<number, Op[]>();

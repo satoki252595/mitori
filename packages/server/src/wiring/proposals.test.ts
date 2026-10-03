@@ -2,7 +2,7 @@
 // proposed text's own markup kept, one <del>+<ins> per changed phrase, deletions where they stood.
 import { describe, expect, test } from "bun:test";
 import type { DocProposal } from "@mitori/core";
-import { diffTokens, htmlText, proposalView, suggestionHtml, tokens } from "./proposals.ts";
+import { diffTokens, htmlText, htmlTokens, proposalView, suggestionHtml, tokens } from "./proposals.ts";
 
 describe("doc proposal diff", () => {
   test("UX-PROP-01: tokens are CJK characters, words, whitespace runs and single marks", () => {
@@ -58,5 +58,22 @@ describe("doc proposal diff", () => {
     expect(ins.diffHtml).toBe('<p><ins class="a">追記。</ins></p>');
     const del = proposalView(ctx, { ...base, id: "pp_3", block: "b_1", op: "delete", md: "" } as DocProposal);
     expect(del.diffHtml).toBe('<del class="d">古い文。</del>');
+  });
+
+  test("UX-PROP-06: a cite link or a code span changes as a whole (never 「fetch.go:4546-6061」); a code block changes per line", () => {
+    const old = '<p>再試行する（<a href="../../internal/meta/fetch.go#L45-L60">fetch.go:45-60</a>）。</p>';
+    const neu = '<p>再試行する（<a href="../../internal/meta/fetch.go#L46-L61">fetch.go:46-61</a>）。</p>';
+    expect(suggestionHtml(old, neu)).toBe(
+      '<p>再試行する（<a href="../../internal/meta/fetch.go#L46-L61"><del class="d">fetch.go:45-60</del><ins class="a">fetch.go:46-61</ins></a>）。</p>',
+    );
+    expect(suggestionHtml("<p><code>go test ./...</code></p>", "<p><code>go test -race ./...</code></p>")).toBe(
+      '<p><code><del class="d">go test ./...</del><ins class="a">go test -race ./...</ins></code></p>',
+    );
+    expect(htmlTokens("<pre><code>a := 1\nb := 2\n</code></pre>").tok).toEqual(["a := 1\n", "b := 2\n"]);
+    expect(suggestionHtml("<pre><code>a := 1\nb := 2\n</code></pre>", "<pre><code>a := 1\nb := 3\n</code></pre>")).toBe(
+      '<pre><code>a := 1\n<del class="d">b := 2\n</del><ins class="a">b := 3\n</ins></code></pre>',
+    );
+    // <abbr> is not a link
+    expect(htmlTokens("<p><abbr>API</abbr> と</p>").tok).toEqual(["API", " ", "と"]);
   });
 });
