@@ -40,9 +40,13 @@ interface GrammarState {
   language: Language;
   tags: Query;
   lite: Query | null;
+  /** Test-file bytes seen (decides when the lite query is worth compiling). */
+  liteBytes: number;
   tests: Query | null;
   errors: Query | null;
 }
+
+const LITE_COMPILE_AFTER_BYTES = 262_144;
 
 interface LruTree {
   tree: Tree;
@@ -97,9 +101,18 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
       languages.set(g, lp);
     }
     const language = await lp;
-    const st: GrammarState = { language, tags: new Query(language, combined(g)), lite: null, tests: null, errors: null };
+    const st: GrammarState = { language, tags: new Query(language, combined(g)), lite: null, liteBytes: 0, tests: null, errors: null };
     grammars.set(g, st);
     return st;
+  }
+
+  /**
+   * The `lite` query costs a full compile per Worker; a Worker that has seen little test code of a grammar runs the
+   * full query and the extractor drops the type / qualified refs instead (same result).
+   */
+  function liteFor(g: GrammarId, st: GrammarState, bytes: number): Query {
+    st.liteBytes += bytes;
+    return st.lite !== null || st.liteBytes >= LITE_COMPILE_AFTER_BYTES ? liteQuery(g, st) : st.tags;
   }
 
   function liteQuery(g: GrammarId, st: GrammarState): Query {
@@ -234,7 +247,7 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
               text: tx,
               lineStarts: lineStarts(tx),
               tree,
-              tags: it.profile === "lite" ? liteQuery(g, st) : st.tags,
+              tags: it.profile === "lite" ? liteFor(g, st, tx.length) : st.tags,
               testQuery: isTest && testSrc !== undefined ? () => (st.tests ??= new Query(st.language, testSrc)) : null,
               errorQuery: () => (st.errors ??= new Query(st.language, ERROR_QUERY)),
               lite: it.profile === "lite",

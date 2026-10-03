@@ -62,7 +62,7 @@ export interface ExtractInput {
   testQuery: (() => Query) | null;
   /** ERROR / MISSING query (compiled on first use: most files have no errors). */
   errorQuery: () => Query;
-  /** `lite` = test files (type/qualified refs disabled by the caller's query object). */
+  /** `lite` = test files: type / qualified refs are dropped (the caller's query may already disable them). */
   lite: boolean;
   /** `.d.ts`-style declaration file. */
   decl: boolean;
@@ -256,8 +256,9 @@ export function extract(inp: ExtractInput): Extraction {
       else if (n === "name") nameCap = c;
       else if (n === "ref.qual.pkg") qualPkg = c.node;
       else if (n === "ref.qual.name") qualName = c.node;
-      else if (n.startsWith("ref.")) refRaw.push({ kind: n.slice(4) as RefRecord["kind"], node: c.node });
-      else if (n === "import.source") importSrc.push({ node: c.node, kind: "static", spec: "" });
+      else if (n.startsWith("ref.")) {
+        if (!inp.lite || n !== "ref.type") refRaw.push({ kind: n.slice(4) as RefRecord["kind"], node: c.node });
+      } else if (n === "import.source") importSrc.push({ node: c.node, kind: "static", spec: "" });
       else if (n === "import.dynamic") importSrc.push({ node: c.node, kind: "dynamic", spec: "" });
       else if (n === "import.mod") importSrc.push({ node: c.node, kind: "mod", spec: "" });
       else if (n === "import.name") importNames.push(c.node);
@@ -276,7 +277,7 @@ export function extract(inp: ExtractInput): Extraction {
       } else if (n === "_all") allSeen = true;
     }
     if (allSeen && allList === null) allList = [];
-    if (qualPkg !== null && qualName !== null) refRaw.push({ kind: "qual", node: qualName, qual: qualPkg });
+    if (qualPkg !== null && qualName !== null && !inp.lite) refRaw.push({ kind: "qual", node: qualName, qual: qualPkg });
     if (defCap !== null && nameCap !== null) {
       const cap = defCap.name.slice(4);
       if (cap === "package") {
