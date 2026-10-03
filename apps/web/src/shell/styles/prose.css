@@ -383,10 +383,23 @@ html[data-level="expert"] .blk > .mb[data-ln]::after {
   content: none;
 }
 
+/* quiet verdicts show while ⌥ is held / `.` toggled: ✓ verified, ✓✓ human-verified, ◦ cited (R1 UXP-06) */
 html.show-cites .mc[data-verdict="verified"]::after {
   content: var(--glyph-check);
   color: var(--v-verified);
   background: var(--v-verified-bg);
+}
+
+html.show-cites .mc[data-verdict="human-verified"]::after {
+  content: var(--glyph-double-check);
+  color: var(--v-human);
+  background: var(--v-human-bg);
+}
+
+html.show-cites .mc[data-verdict="cited"]::after {
+  content: "\25E6";
+  color: var(--v-cited);
+  background: var(--v-cited-bg);
 }
 
 .mc[data-verdict="inferred"],
