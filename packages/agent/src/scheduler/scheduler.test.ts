@@ -172,6 +172,24 @@ describe("AgentScheduler (spec §6.8, PT-04, PT-18, SEC-15, CONS-28)", () => {
     expect(s.status().backoffUntil).toBeUndefined();
   });
 
+  test("AGT-U-023 the 429 penalty of a subscription engine is clamped to its own cap (3), not the configured 8", async () => {
+    const { s, claude, clock } = setup({ concurrency: 8, reserve: 0 });
+    for (let i = 0; i < 20; i++) submit3(s, "doc");
+    await flush();
+    expect(claude.active()).toBe(3);
+    for (let k = 0; k < 5; k++) {
+      const l = claude.live.find((x) => !x.events.isClosed);
+      l?.finish({ stop: "error", error: { code: "E_AGENT_RATE_LIMIT", message: "429", retryable: true } });
+      await flush();
+      clock.advance(61_000); // past any back-off
+      await flush();
+    }
+    expect(claude.active()).toBe(1); // 3 − 2: the penalty stops at cap − 1
+    clock.advance(300_000);
+    await flush();
+    expect(claude.active()).toBe(2); // one 5-minute window already restores a slot
+  });
+
   test("AGT-U-023 interactive retries one rate-limit failure automatically after the back-off", async () => {
     const { s, claude, clock, ledger } = setup();
     const run = submit3(s, "interactive");

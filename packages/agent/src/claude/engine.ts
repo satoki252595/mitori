@@ -162,6 +162,7 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
       );
       enforceResidents();
     };
+    p.onUnpark = unpark;
     p.onExit = (q) => {
       live.delete(q);
       unpark(q);

@@ -75,6 +75,24 @@ describe("UsageLedger (use_* in state.sqlite)", () => {
     expect(ledger.summary("today").window?.fiveHour?.utilization).toBe(0.4);
   });
 
+  test("totals(range, engine?) = summary(range).totals as one SQL aggregate, pending rows counted once", async () => {
+    const { ledger, runWrites } = setup();
+    ledger.record(rec({ at: "2025-12-20T10:00:00.000Z" as never, engine: "anthropic-api", usage: { ...rec().usage, apiUsd: 0.25 } }));
+    ledger.record(rec());
+    runWrites();
+    await ledger.flush();
+    ledger.record(rec({ engine: "anthropic-api", usage: { ...rec().usage, cacheRead: 50, apiUsd: 0.125 } })); // still queued
+    for (const range of ["today", "7d", "30d", "all"] as const) {
+      expect({ range, t: ledger.totals(range) }).toEqual({ range, t: ledger.summary(range).totals });
+      const api = ledger.summary(range).byEngine["anthropic-api"] ?? { calls: 0, in: 0, cacheWrite: 0, cacheRead: 0, out: 0, apiUsd: 0 };
+      expect({ range, t: ledger.totals(range, "anthropic-api") }).toEqual({ range, t: api });
+    }
+    runWrites();
+    await ledger.flush();
+    expect(ledger.totals("30d", "anthropic-api").apiUsd).toBe(0.375);
+    expect(ledger.totals("today").calls).toBe(2);
+  });
+
   test("AGT-U-029 per-call EMA of actual / RAW estimate; applied only after minN; excluded: errors, continuations", async () => {
     const write: WriteQueue = async (_l, fn) => fn();
     const { ledger } = setup(write);

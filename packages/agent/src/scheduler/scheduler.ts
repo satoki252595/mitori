@@ -30,6 +30,7 @@ import {
   type UsageLedger,
   type WarmProfile,
 } from "../contract.ts";
+import type { UsageLedgerImpl } from "../ledger/ledger.ts";
 import { baseModelId } from "../normalize/result.ts";
 import { NOT_CALLED, RESULT_META, RelayRun } from "../util/run.ts";
 import type { TimerHandle, Timers } from "../util/timers.ts";
@@ -245,13 +246,14 @@ export function createAgentScheduler(deps: SchedulerDeps): AgentScheduler {
     pump();
   };
 
-  const onRateLimit = (): void => {
+  const onRateLimit = (engine: EngineId): void => {
     const now = deps.clock.now();
     lastRateLimitAt = now;
     if (now < backoffUntil) return; // one step per back-off episode
     const s = sched();
     consecutive++;
-    penalty = Math.min(penalty + 1, cap() - 1);
+    // clamp by the limited engine's own cap: a subscription engine (3) must not pile up a penalty sized for 8
+    penalty = Math.max(penalty, Math.min(penalty + 1, cap(engine) - 1));
     const base = Math.min(s.backoffMaxMs, s.backoffBaseMs * 2 ** (consecutive - 1));
     const b = deps.random.bytes(2);
     const jitter = 0.8 + 0.4 * (((b[0] ?? 0) * 256 + (b[1] ?? 0)) / 65535);
@@ -294,11 +296,15 @@ export function createAgentScheduler(deps: SchedulerDeps): AgentScheduler {
   const observe = (job: Job, ev: JobEvent): boolean => {
     if ((ev.t === "usage" && !ev.final) || ev.t === "text" || ev.t === "result") release(job);
     if (ev.t === "window") onWindow(ev.window);
-    if (ev.t === "error" && ev.code === "E_AGENT_RATE_LIMIT") onRateLimit();
+    if (ev.t === "error" && ev.code === "E_AGENT_RATE_LIMIT") onRateLimit(job.engine);
     if (ev.t !== "result") return true;
     job.heldResult = ev;
     return false;
   };
+
+  const fastLedger = deps.ledger as UsageLedger & Partial<Pick<UsageLedgerImpl, "totals">>;
+  /** Today's totals after every call: one SQL aggregate instead of a full per-row summary (hot path). */
+  const todayTotals = () => (fastLedger.totals ? fastLedger.totals("today") : deps.ledger.summary("today").totals);
 
   const ledgerRow = (job: Job, r: EngineResult): void => {
     if (NOT_CALLED.has(r)) return;
@@ -325,7 +331,7 @@ export function createAgentScheduler(deps: SchedulerDeps): AgentScheduler {
     try {
       deps.ledger.record(rec);
       if (job.continuation === null && "mode" in job.req) deps.recordOverhead?.(job.req, r);
-      deps.events.emit({ type: "usage.updated", today: deps.ledger.summary("today").totals, ...(latest ? { window: latest } : {}) });
+      deps.events.emit({ type: "usage.updated", today: todayTotals(), ...(latest ? { window: latest } : {}) });
     } catch (err) {
       log.error("agent.scheduler.ledger_failed", { err: err instanceof Error ? err.message : String(err) });
     }
@@ -336,7 +342,7 @@ export function createAgentScheduler(deps: SchedulerDeps): AgentScheduler {
     if (!job.released) dropLeader(job);
     if (r.window && r.window !== latest) onWindow(r.window);
     const rate = r.error?.code === "E_AGENT_RATE_LIMIT";
-    if (rate) onRateLimit();
+    if (rate) onRateLimit(job.engine);
     ledgerRow(job, r);
     if (job.outer.session && job.continuation === null) sessionMeta.set(job.outer.session, { engine: job.engine, model: job.model, promptId: job.promptId });
     if (rate && job.lane === "interactive" && job.continuation === null && !job.retried && !job.signal.aborted && !draining) {

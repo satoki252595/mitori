@@ -34,6 +34,8 @@ export interface LedgerDeps {
 export interface UsageLedgerImpl extends UsageLedger {
   /** One fixed-overhead sample (tokens) of a profile. */
   recordOverhead(profileKey: Xxh3, tokens: number): void;
+  /** `summary(range).totals` (optionally of one engine) as one indexed SQL aggregate: the per-call hot path. */
+  totals(range: UsageRange, engine?: EngineId): UsageTotals;
   /** Resolves when every queued write reached the database. */
   flush(): Promise<void>;
 }
@@ -164,6 +166,12 @@ export function createUsageLedger(deps: LedgerDeps): UsageLedgerImpl {
     api_usd: r.usage.apiUsd,
   });
 
+  /** Start of a summary range (daemon-local days). */
+  const rangeFrom = (range: UsageRange): number => {
+    const days = range === "today" ? 1 : range === "7d" ? 7 : range === "30d" ? 30 : 0;
+    return days === 0 ? 0 : localMidnight(deps.clock.now()) - (days - 1) * DAY_MS;
+  };
+
   return {
     record(input: Omit<UsageRecord, "id">): UsageRecord {
       const rec: UsageRecord = { id: newId("usage", deps.random), ...input };
@@ -206,9 +214,7 @@ export function createUsageLedger(deps: LedgerDeps): UsageLedgerImpl {
     },
 
     summary(range: UsageRange, ws?: WorkspaceKey): UsageSummary {
-      const now = deps.clock.now();
-      const days = range === "today" ? 1 : range === "7d" ? 7 : range === "30d" ? 30 : 0;
-      const from = days === 0 ? 0 : localMidnight(now) - (days - 1) * DAY_MS;
+      const from = rangeFrom(range);
       const where = ws === undefined ? "at_ms >= $from" : "at_ms >= $from AND ws = $ws";
       const params = ws === undefined ? { $from: from } : { $from: from, $ws: ws };
       const rows = deps.db.all<Row & { id: string }>(
@@ -277,6 +283,25 @@ export function createUsageLedger(deps: LedgerDeps): UsageLedgerImpl {
       const prev = calibration().get("window.5h");
       const samples = [...(prev?.samples ?? []), kappa].slice(-KAPPA.keep);
       saveCal("window.5h", { ema: { value: median(samples), n: (prev?.ema.n ?? 0) + 1, mad: 0 }, samples });
+    },
+
+    totals(range: UsageRange, engine?: EngineId): UsageTotals {
+      const from = rangeFrom(range);
+      const where = engine === undefined ? "at_ms >= $from" : "at_ms >= $from AND engine = $e";
+      const params = engine === undefined ? { $from: from } : { $from: from, $e: engine };
+      const r = deps.db.get<{ calls: number; i: number; cw: number; cr: number; o: number; usd: number }>(
+        `SELECT COUNT(*) AS calls, COALESCE(SUM(in_tok), 0) AS i, COALESCE(SUM(cache_write), 0) AS cw, COALESCE(SUM(cache_read), 0) AS cr, COALESCE(SUM(out_tok), 0) AS o, COALESCE(SUM(api_usd), 0) AS usd FROM use_ledger WHERE ${where}`,
+        params,
+      );
+      const t: UsageTotals = { calls: r?.calls ?? 0, in: r?.i ?? 0, cacheWrite: r?.cw ?? 0, cacheRead: r?.cr ?? 0, out: r?.o ?? 0, apiUsd: r?.usd ?? 0 };
+      // rows still queued behind stateWrite (a row already written is deduplicated by id)
+      for (const p of pending) {
+        if (Date.parse(p.at) < from || (engine !== undefined && p.engine !== engine)) continue;
+        if (deps.db.get("SELECT 1 AS x FROM use_ledger WHERE id = $id", { $id: p.id })) continue;
+        totalsAdd(t, rowOf(p));
+      }
+      t.apiUsd = Math.round(t.apiUsd * 1e6) / 1e6;
+      return t;
     },
 
     recordOverhead(profileKey: Xxh3, tokens: number): void {

@@ -144,6 +144,42 @@ describe("claude-cli engine over a scripted CLI", () => {
     expect(runs.map((r) => r.session?.parked())).toEqual([false, false, false]);
   });
 
+  test("AC-L36 a continuation leaves parking: the first park's TTL cannot cut it, the next park restarts the TTL", async () => {
+    const clock = createFakeClock();
+    const c = synth.turns(["{}", "{}", "{}"], { structured: { summary: "s" } });
+    const sp = createFakeSpawner().script(isClaude, cassetteScript(c));
+    const b = createTestBridge({ spawner: sp, clock });
+    const run = b.scheduler.submit(req("patch"), ctl());
+    await run.result;
+    const session = run.session as NonNullable<typeof run.session>;
+    const cont = () =>
+      b.scheduler.continueSession(
+        session,
+        "revise",
+        {
+          lane: "interactive",
+          ws: "ws_aaaaaaaaaaaa",
+          scope: { kind: "job", id: "j_1" },
+          estimate: { in: 1, out: 1 },
+          budget: { usd: 0.05, inTokens: 0, outTokens: 0, ms: 0 },
+          ref: "j_1",
+        },
+        ctl(),
+      );
+    clock.advance(WARM_POOL.parkTtlMs - 10_000);
+    expect((await cont().result).stop).toBe("end");
+    expect(b.engines["claude-cli"] && (b.engines["claude-cli"] as unknown as { residents(): { procs: number } }).residents().procs).toBe(1);
+    clock.advance(20_000); // past the FIRST park's TTL, well inside the second one
+    await Bun.sleep(1);
+    expect(session.parked()).toBe(true);
+    expect(sp.children[0]?.stdinClosed).toBe(false);
+    expect((await cont().result).stop).toBe("end");
+    clock.advance(WARM_POOL.parkTtlMs + 1);
+    await Bun.sleep(1);
+    expect(session.parked()).toBe(false);
+    expect(sp.calls).toHaveLength(1);
+  });
+
   test("AC-L32 init violation (apiKeySource ≠ none) ⇒ SIGINT and E_AGENT_AUTH_SOURCE; ledger outcome error", async () => {
     // paced lines: the SIGINT lands before the CLI would print anything past init (as with the real CLI, CC-09)
     const sp = createFakeSpawner({ speed: 1 }).script(isClaude, cassetteScript(synth.failure("auth_source_api_key")));

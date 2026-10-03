@@ -21,6 +21,7 @@ import {
   type EngineRun,
   type UsageLedger,
 } from "../contract.ts";
+import type { UsageLedgerImpl } from "../ledger/ledger.ts";
 import { baseModelId } from "../normalize/result.ts";
 import { createMeter } from "../usage/meter.ts";
 import { RESULT_META, RelayRun, zeroUsage } from "../util/run.ts";
@@ -61,8 +62,9 @@ export function createAnthropicApiEngine(deps: AnthropicEngineDeps): Engine {
     const v = deps.env[c.envVar];
     return typeof v === "string" && v.length > 0 ? v : null;
   };
-  /** Month-to-date approximation: the trailing 30 days of this engine in the ledger. */
-  const spent = (): number => deps.ledger.summary("30d").byEngine["anthropic-api"]?.apiUsd ?? 0;
+  /** Month-to-date approximation: the trailing 30 days of this engine in the ledger (one SQL aggregate when available). */
+  const ledger = deps.ledger as UsageLedger & Partial<Pick<UsageLedgerImpl, "totals">>;
+  const spent = (): number => (ledger.totals ? ledger.totals("30d", "anthropic-api").apiUsd : (ledger.summary("30d").byEngine["anthropic-api"]?.apiUsd ?? 0));
 
   const detect = async (): Promise<EngineStatus> => {
     const c = cfg();

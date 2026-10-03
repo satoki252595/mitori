@@ -88,8 +88,9 @@ export class ClaudeProc {
   private readonly exitedP: Promise<number>;
   private stderrDone: Promise<void> = Promise.resolve();
   private killTimer: TimerHandle | null = null;
-  /** Called when the process parks (engine registry: TTL, residentMax) and when it exits. */
+  /** Called when the process parks (engine registry: TTL, residentMax), leaves parking for a new turn, and exits. */
   onPark: (p: ClaudeProc) => void = () => {};
+  onUnpark: (p: ClaudeProc) => void = () => {};
   onExit: (p: ClaudeProc) => void = () => {};
 
   constructor(
@@ -119,8 +120,11 @@ export class ClaudeProc {
   /** Start a turn by writing `stdinText` (the first prompt or a continuation message). */
   beginTurn(stdinText: string, budget: EngineRequest["budget"], timeouts: TurnTimeouts, signal: Cancel, closeAfterWrite: boolean): EngineRun {
     if (this.state !== "idle" && this.state !== "parked") throw new MitoriError("E_AGENT_EXIT", "engine process is not available for a new turn");
+    const wasParked = this.state === "parked";
     this.state = "turn";
     this.parkedSince = null;
+    // the park TTL and the resident count stop here; the next result parks the process afresh
+    if (wasParked) this.onUnpark(this);
     // a continuation that dies before its first line must not inherit the previous turn's meter (double ledgering)
     this.normalizer.beginTurn();
     const turn = new Turn(this, this.deps, budget, timeouts, signal);
