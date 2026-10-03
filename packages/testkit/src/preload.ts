@@ -4,11 +4,13 @@
  * docs/design/cr-requests/WP-12.md. Until then run it explicitly: `bun test --preload ./packages/testkit/src/preload.ts`.
  *
  *   1. `__MITORI_TEST__` and `MITORI_TEST=1`          5. network guard (loopback only, `MITORI_TEST_NET=1` lifts it)
- *   2. TZ=UTC, LANG/LC_ALL=C.UTF-8                    6. spawn guard: `claude` / `codex` on PATH exit 97
- *   3. MITORI_HOME sentinel                           7. MITORI_TEST_SEED (default 20261003)
- *   4. git isolation (identity, clock, no global cfg) 8. unhandled rejections and console.error fail the file
+ *   2. TZ=UTC, LANG/LC_ALL=C.UTF-8                    6. spawn guard: `claude` / `codex` on PATH exit 97, and every hit
+ *   3. MITORI_HOME sentinel                              fails the run (`agent.spawns.real` = 0, AC-5)
+ *   4. git isolation (identity, clock, no global cfg) 7. MITORI_TEST_SEED (default 20261003)
+ *                                                     8. unhandled rejections and console.error fail the run
  */
 import { afterAll } from "bun:test";
+import { createRecordingGuard, type RecordingGuard } from "./home/guard.ts";
 import { DEFAULT_SEED, GIT_TEST_ENV, guardedPath } from "./home/home.ts";
 
 declare global {
@@ -25,7 +27,11 @@ env.LC_ALL = "C.UTF-8";
 env.MITORI_HOME = "/nonexistent/mitori-home-not-set";
 Object.assign(env, GIT_TEST_ENV);
 env.MITORI_TEST_SEED ??= DEFAULT_SEED;
-env.PATH = guardedPath(env.PATH);
+// a recording copy of the guard per run: children of children still find it on PATH, whatever env allowlist they get
+const live = env.MITORI_LIVE === "1";
+const spawnGuard: RecordingGuard | null = live ? null : createRecordingGuard();
+if (spawnGuard) env.MITORI_SPAWN_GUARD_DIR = spawnGuard.dir;
+env.PATH = guardedPath(env.PATH, live, spawnGuard?.dir);
 
 /* ------------------------------------------------------------------ network guard */
 
@@ -73,8 +79,12 @@ console.error = (...args: unknown[]) => {
   realError(...args);
 };
 
+// a preload's afterAll runs once, after the last test file
 afterAll(() => {
+  const hits = spawnGuard?.hits() ?? [];
+  spawnGuard?.dispose();
+  if (hits.length > 0) problems.push(`agent.spawns.real = ${hits.length} (the spawn guard refused: ${hits.slice(0, 3).join(" | ")})`);
   if (problems.length === 0) return;
   const list = problems.splice(0).map((p) => `  - ${p.split("\n")[0]}`);
-  throw new Error(`${list.length} unhandled rejection(s) / console.error call(s) during this file:\n${list.join("\n")}`);
+  throw new Error(`${list.length} problem(s) during this test run (unhandled rejections, console.error, real LLM CLI spawns):\n${list.join("\n")}`);
 });

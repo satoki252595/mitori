@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, statSync } from "node:fs";
 import { delimiter } from "node:path";
+import { activeGuardDir } from "./guard.ts";
 import { BIN_GUARD_DIR, guardedPath } from "./home.ts";
 import { collectingSink, createTestHome, seededRandom } from "./index.ts";
 
@@ -20,7 +21,7 @@ describe("TK-HOME-01 createTestHome", () => {
         TZ: "UTC",
         LANG: "C.UTF-8",
       });
-      expect(home.env.PATH?.split(delimiter)[0]).toBe(BIN_GUARD_DIR);
+      expect(home.env.PATH?.split(delimiter)[0]).toBe(activeGuardDir());
     } finally {
       await home.cleanup();
     }
@@ -39,8 +40,12 @@ describe("TK-HOME-01 createTestHome", () => {
 
   test("live suites get the real PATH (no guard)", () => {
     expect(guardedPath("/usr/bin:/bin", true)).toBe("/usr/bin:/bin");
-    expect(guardedPath("/usr/bin:/bin", false)).toBe(`${BIN_GUARD_DIR}:/usr/bin:/bin`);
-    expect(guardedPath(`${BIN_GUARD_DIR}:/usr/bin`, false)).toBe(`${BIN_GUARD_DIR}:/usr/bin`); // idempotent
+    expect(guardedPath("/usr/bin:/bin", false, BIN_GUARD_DIR)).toBe(`${BIN_GUARD_DIR}:/usr/bin:/bin`);
+    expect(guardedPath(`${BIN_GUARD_DIR}:/usr/bin`, false, BIN_GUARD_DIR)).toBe(`${BIN_GUARD_DIR}:/usr/bin`); // idempotent
+    // the preload's recording copy replaces the static shims instead of queueing behind them
+    expect(guardedPath(`${BIN_GUARD_DIR}:/usr/bin`, false, "/tmp/g")).toBe("/tmp/g:/usr/bin");
+    expect(activeGuardDir({ MITORI_SPAWN_GUARD_DIR: "/tmp/g" })).toBe("/tmp/g");
+    expect(activeGuardDir({})).toBe(BIN_GUARD_DIR);
   });
 });
 

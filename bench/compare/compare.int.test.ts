@@ -43,8 +43,8 @@ describe("BENCH-AT-01 bench:compare fails a 25 % slower synthetic benchmark", ()
     expect(r.out).toContain("**REGRESSED**");
   }, 60_000);
 
-  test("the same run without a slowdown, and with a 5 % one, passes", async () => {
-    for (const factor of ["1", "1.05"]) {
+  test("the same run without a slowdown, and with a 10 % one (testing spec §10 AC-3), passes", async () => {
+    for (const factor of ["1", "1.1"]) {
       const r = await run([
         "bun",
         "bench/compare/compare.ts",

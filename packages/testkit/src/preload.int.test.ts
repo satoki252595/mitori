@@ -70,9 +70,30 @@ describe("TK-PRELOAD-01 isolation", () => {
         }
       });
     `;
-    expect((await bunTest(probe)).code).toBe(0);
+    const guarded = await bunTest(probe);
+    expect(guarded.out).toContain("1 pass"); // the guard answered as specified …
+    // … and, AC-5 / counter agent.spawns.real = 0: a test run that reached a real LLM CLI fails, whatever its tests asserted
+    expect(guarded.out).toContain("agent.spawns.real = 2");
+    expect(guarded.code).not.toBe(0);
     const live = await bunTest(probe, { MITORI_LIVE: "1" });
     expect(live.code).not.toBe(0); // the guard directory is no longer on PATH (a real claude, or none at all, answers instead)
+    expect(live.out).not.toContain("agent.spawns.real");
+  });
+
+  test("regression: a spawn through the product's env allowlist (PATH only), even from a grandchild, still counts", async () => {
+    // before: nothing recorded the guard's exit 97, so code that swallowed the failure passed with a real spawn attempted
+    const r = await bunTest(`
+      import { expect, test } from "bun:test";
+      import { spawnSync } from "node:child_process";
+      test("allowlisted env", () => {
+        const r = spawnSync("sh", ["-c", "claude -p hello"], { encoding: "utf8", env: { PATH: process.env.PATH } });
+        expect(r.status).toBe(97);
+      });
+    `);
+    expect(r.out).toContain("1 pass");
+    expect(r.out).toContain("agent.spawns.real = 1");
+    expect(r.out).toContain("claude -p hello");
+    expect(r.code).not.toBe(0);
   });
 
   test("network guard: only loopback; fetch and WebSocket to other hosts are refused", async () => {

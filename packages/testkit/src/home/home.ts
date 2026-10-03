@@ -2,11 +2,10 @@
 import { chmodSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { TestHome } from "../contract.ts";
+import { activeGuardDir, BIN_GUARD_DIR } from "./guard.ts";
 
-/** Directory with `claude` / `codex` shims that exit 97 (§1.5-6). */
-export const BIN_GUARD_DIR = fileURLToPath(new URL("../bin-guard", import.meta.url));
+export { BIN_GUARD_DIR };
 
 /** The fixed identity and clock git sees in tests (§1.5-4). */
 export const GIT_TEST_ENV: Readonly<Record<string, string>> = {
@@ -23,10 +22,10 @@ export const GIT_TEST_ENV: Readonly<Record<string, string>> = {
 
 export const DEFAULT_SEED = "20261003";
 
-/** `PATH` with the guard directory first, unless live suites are running (`MITORI_LIVE=1`). */
-export function guardedPath(path: string | undefined = process.env.PATH, live = process.env.MITORI_LIVE === "1"): string {
-  const rest = (path ?? "").split(delimiter).filter((p) => p !== BIN_GUARD_DIR && p !== "");
-  return (live ? rest : [BIN_GUARD_DIR, ...rest]).join(delimiter);
+/** `PATH` with the guard directory in effect first, unless live suites are running (`MITORI_LIVE=1`). */
+export function guardedPath(path: string | undefined = process.env.PATH, live = process.env.MITORI_LIVE === "1", guard = activeGuardDir()): string {
+  const rest = (path ?? "").split(delimiter).filter((p) => p !== BIN_GUARD_DIR && p !== guard && p !== "");
+  return (live ? rest : [guard, ...rest]).join(delimiter);
 }
 
 /** Environment for child processes started by tests: merge it over `process.env`. */
