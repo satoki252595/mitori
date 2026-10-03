@@ -17,27 +17,23 @@ export interface SseHooks {
 }
 
 /**
- * WEB-U-026: an upsert is applied only when its envelope `rev` is newer than the one that produced the current
- * value (`rev ≤ entityRev[key]` ⇒ dropped); an applied upsert records its `rev`, so an older replay (resume
- * after a reconnect, out-of-order delivery) can never overwrite a newer value. Events without `rev` pass.
+ * WEB-U-026: is an upsert a replay? `SseClient` has already recorded this event's `rev` for the entity before it
+ * dispatched it (`rev < recorded`, or the same rev when the recorded value came from our own `x-mitori-rev` response,
+ * is dropped THERE), so this is the store-side re-check — and it must stay a pure query: calling `noteRev` here marks
+ * the rev as a *response*, which made the client drop every later event of the same rev (live finding: the loop
+ * publishes a thread's `running` and `answered` inside one rev, the card never left "running"). Events without
+ * `rev` pass.
  */
-export function acceptUpsert(sse: Pick<SseClient, "isStale" | "noteRev">, key: EntityKey, e: Pick<SseEvent, "rev">): boolean {
-  if (e.rev === null) return true;
-  if (sse.isStale(key, e.rev)) return false;
-  sse.noteRev(key, e.rev);
-  return true;
+export function acceptUpsert(sse: Pick<SseClient, "isStale">, key: EntityKey, e: Pick<SseEvent, "rev">): boolean {
+  return e.rev === null || !sse.isStale(key, e.rev);
 }
 
 /**
  * Progress entities (a generation run and its tasks) change many times within ONE workspace `rev` (pending →
- * running → done): only an event of an OLDER rev is a replay; the same rev is a newer state of the same stream.
+ * running → done): only an event of an OLDER rev is a replay; the same rev is a newer state of the same stream —
+ * which is what the client's record already means for an event it recorded itself ({@link acceptUpsert}).
  */
-export function acceptProgress(sse: Pick<SseClient, "isStale" | "noteRev">, key: EntityKey, e: Pick<SseEvent, "rev">): boolean {
-  if (e.rev === null) return true;
-  if (sse.isStale(key, e.rev + 1)) return false;
-  sse.noteRev(key, e.rev);
-  return true;
-}
+export const acceptProgress = acceptUpsert;
 
 export function wireSse(s: Stores, hooks: SseHooks): () => void {
   const sse = s.sse;
