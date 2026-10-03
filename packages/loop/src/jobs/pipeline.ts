@@ -208,6 +208,11 @@ async function parsePatchTurn(
     const raw = { ...(result.structured !== undefined ? { structured: result.structured } : {}), ...(result.text !== undefined ? { text: result.text } : {}) };
     const parsed = parseContract("patch/1", raw, ctx);
     if (parsed.ok) return { parsed: parsed.value, session: live };
+    // a write outside WRITE is an injection signal: the job fails as it is, never a REPAIR turn (spec §7.4, RT-01)
+    if (parsed.error.code === "E_SCOPE_VIOLATION")
+      throw new MitoriError("E_SCOPE_VIOLATION", `the engine named a file outside the write scope: ${checkText(parsed.error.errors)}`, {
+        params: { actions: "narrow_scope" },
+      });
     if (attempt >= CONTRACT_LIMITS.invalidOutputRetries || !live)
       throw new MitoriError("E_AGENT_PROTOCOL", `invalid patch/1 output: ${checkText(parsed.error.errors)}`);
     const msg = await core.deps.bundles.repair({

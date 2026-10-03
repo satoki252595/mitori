@@ -26,7 +26,6 @@ import {
 } from "@mitori/core";
 import { DOC_TEXT } from "../contract.ts";
 import type { RouteCtx, RouteHandlers } from "../routes/types.ts";
-import type { WaiterRegistry } from "../routes/waiters.ts";
 import { loopHandlers } from "./loop-routes.ts";
 import { blockView, citePeek, docOutline, fileContent, fileTree, mapView, readingOrder, sectionView } from "./views.ts";
 import type { WorkspaceDomain } from "./workspace.ts";
@@ -38,8 +37,6 @@ export interface RouteEnv {
   rescan(ws: WorkspaceKey, force: boolean): Promise<void>;
   engines(): Record<EngineId, Engine | null>;
   ledger(): UsageLedger;
-  /** `mitori review` waiter registry. */
-  waiters(): WaiterRegistry;
   highlighter: Parameters<typeof fileContent>[2];
 }
 
@@ -317,6 +314,6 @@ export function domainHandlers(env: RouteEnv): RouteHandlers {
     },
 
     /* ---- loop (threads, review rounds, jobs, checkpoints, touch: wiring/loop-routes.ts) ------------------- */
-    ...loopHandlers({ domain: env.domain, waiters: env.waiters }),
+    ...loopHandlers({ domain: env.domain }),
   };
 }

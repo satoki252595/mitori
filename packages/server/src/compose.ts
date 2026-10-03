@@ -151,10 +151,6 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
       rescan: (ws, force) => (services ? services.workspaces.rescan(ws, force) : Promise.resolve()),
       engines: () => bridge?.engines ?? ({} as Record<EngineId, Engine | null>),
       ledger: () => shared.agent().ledger,
-      waiters: () => {
-        if (!services) throw new MitoriError("E_NOT_READY", "the daemon is still starting", { retryable: true });
-        return services.waiters;
-      },
       highlighter,
     }),
     domain: {

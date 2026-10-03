@@ -5,7 +5,7 @@
  * Other commands (git for shadow repositories) go to the platform spawner.
  */
 import type { Spawner, SpawnSpec } from "@mitori/agent";
-import { createFakeSpawner, promptOfStdin, REQUIRED_FLAGS, synth } from "@mitori/agent/testing";
+import { type Cassette, createFakeSpawner, promptOfStdin, REQUIRED_FLAGS, synth } from "@mitori/agent/testing";
 import { createSpawner } from "@mitori/platform";
 import { routeGen } from "./router.ts";
 
@@ -17,8 +17,13 @@ export interface FakeClaude extends Spawner {
   readonly turns: SpawnSpec[];
 }
 
-/** `speed` > 0 replays the per-line `dtMs` delays (screenshots of a run in progress); 0 streams as fast as possible. */
-export function fakeClaude(o: { dtMs?: number; chunkChars?: number; speed?: number } = {}): FakeClaude {
+/**
+ * `speed` > 0 replays the per-line `dtMs` delays (screenshots of a run in progress); 0 streams as fast as possible.
+ * `respond` answers a rendered prompt with a cassette instead of the gen scenario (loop jobs, INT-06); `null` ⇒ the gen router.
+ */
+export function fakeClaude(
+  o: { dtMs?: number; chunkChars?: number; speed?: number; respond?: (prompt: string, spec: SpawnSpec) => Cassette | null } = {},
+): FakeClaude {
   const real = createSpawner({ safePath: process.env.PATH ?? "/usr/bin:/bin" });
   const turns: SpawnSpec[] = [];
   const fake = createFakeSpawner({ speed: o.speed ?? 0 });
@@ -30,7 +35,8 @@ export function fakeClaude(o: { dtMs?: number; chunkChars?: number; speed?: numb
     (spec) => {
       turns.push(spec);
       const model = spec.argv[spec.argv.indexOf("--model") + 1] ?? "claude-sonnet-5-5";
-      const c = synth.genLines(routeGen(promptOfStdin(spec.stdin)), { model, dtMs: o.dtMs ?? 5, chunkChars: o.chunkChars ?? 40 });
+      const prompt = promptOfStdin(spec.stdin);
+      const c = o.respond?.(prompt, spec) ?? synth.genLines(routeGen(prompt), { model, dtMs: o.dtMs ?? 5, chunkChars: o.chunkChars ?? 40 });
       return { lines: c.lines.map((l) => (l.line === undefined ? l : { ...l, line: l.line.split("$CWD").join(spec.cwd) })) };
     },
   );

@@ -26,14 +26,11 @@ import {
   type TransitionReq,
 } from "@mitori/core";
 import type { RouteCtx, RouteHandlers } from "../routes/types.ts";
-import type { WaiterRegistry } from "../routes/waiters.ts";
 import type { WorkspaceDomain } from "./workspace.ts";
 
 export interface LoopRouteEnv {
   /** Domain parts of the workspace behind `ctx` (loads it). */
   domain(ctx: RouteCtx): Promise<WorkspaceDomain>;
-  /** `mitori review` waiter registry (UXP-01). */
-  waiters(): WaiterRegistry;
 }
 
 const ok: Ok = { ok: true };
@@ -88,7 +85,7 @@ function touchedPath(root: string, raw: string): RepoPath | null {
   return p.ok ? p.value : null;
 }
 
-const agentOf = (ctx: RouteCtx): string => ctx.req.headers.get("x-mitori-agent")?.trim() || "agent";
+const agentOf = (ctx: RouteCtx): string => ctx.auth.agent?.trim() || "agent";
 
 export function loopHandlers(env: LoopRouteEnv): RouteHandlers {
   const d = env.domain;
@@ -241,20 +238,12 @@ export function loopHandlers(env: LoopRouteEnv): RouteHandlers {
       return x.loop.review.finish(req);
     },
     "GET /ws/:ws/review/wait": async (ctx) => {
+      // The HTTP layer registers the waiter (UXP-01) and aborts `ctx.signal` at the `timeoutMs` deadline; the engine
+      // times out by itself (status `timeout`), so it only watches the client's connection (an abort there = nobody reads).
       const x = await d(ctx);
       const q = ctx.query;
       const round = q.get("round") ? intQ(q, "round", 1, 1, 1_000_000) : null;
-      const timeoutMs = intQ(q, "timeoutMs", 25_000, 1000, 60_000);
-      const waiter = ctx.req.headers.get("x-mitori-waiter");
-      const ws = ctx.ws;
-      const end =
-        waiter && ws ? env.waiters().begin(ws, waiter, ctx.req.headers.get("x-mitori-agent"), round ?? x.loop.review.status().round?.n ?? 0) : () => undefined;
-      ctx.holdOpen();
-      try {
-        return await x.loop.review.wait(round, timeoutMs, ctx.signal);
-      } finally {
-        end();
-      }
+      return x.loop.review.wait(round, intQ(q, "timeoutMs", 25_000, 1000, 60_000), ctx.req.signal);
     },
     "POST /ws/:ws/review/rounds/:n/complete": async (ctx) => {
       const x = await d(ctx);

@@ -79,3 +79,67 @@ export function routeGen(message: string): string[] {
   }
   return [end(0)];
 }
+
+/* ---- loop jobs (INT-06) --------------------------------------------------------------------------------------- */
+
+/** Edits the "make the retry count configurable" scenario applies to go-small `internal/meta/fetch.go` (HEAD). */
+export const RETRY_FILE = "internal/meta/fetch.go";
+/** The retry loop of `Fetch` (the thread's anchor). */
+export const RETRY_ANCHOR = { start: 49, end: 59 } as const;
+
+/**
+ * The scripted engine reply for a rendered loop bundle (`MBF/1 mode=<m> …`), or null for a prompt it does not know
+ * (the gen router answers). `answer` ⇒ Markdown with a cite; `patch` ⇒ a valid `patch/1` whose `new_text` is
+ * deliberately badly formatted (the gofmt gate must put it right).
+ */
+export function routeLoop(prompt: string): { kind: "answer"; text: string } | { kind: "patch"; patch: unknown } | null {
+  const head = /^MBF\/1 mode=(\w+) out=(\S+)/m.exec(prompt);
+  if (!head) return null;
+  const thread = /^TASK (th_\w+) /m.exec(prompt)?.[1] ?? "th_unknown";
+  if (head[1] === "answer") {
+    return {
+      kind: "answer",
+      text: `\`Fetch\` は失敗した取得を \`maxRetries\` 回だけ繰り返し、最後のエラーを返す [[${RETRY_FILE}:${RETRY_ANCHOR.start}-${RETRY_ANCHOR.end}]]。回数は定数 \`maxRetries\` (= 1) で固定されている。`,
+    };
+  }
+  if (head[1] === "patch" && prompt.includes("READMEも書き換えて")) {
+    // an injection-shaped reply: the edit names a file the thread's WRITE does not list
+    return {
+      kind: "patch",
+      patch: {
+        summary: "README も直した",
+        edits: [{ path: "README.md", start: 1, end: 1, first_line: "# tsundoku", new_text: "# tsundoku (edited)" }],
+        doc_updates: [],
+        threads: [{ id: thread, status: "done", body: "README を直しました。" }],
+      },
+    };
+  }
+  if (head[1] === "patch") {
+    return {
+      kind: "patch",
+      patch: {
+        summary: "再試行回数を MaxRetries 変数にして設定可能にした",
+        edits: [
+          {
+            path: RETRY_FILE,
+            start: 17,
+            end: 19,
+            first_line: "// maxRetries is how many times a failed lookup is repeated.",
+            // `var MaxRetries  =  1` is not gofmt-clean on purpose
+            new_text: "// MaxRetries is how many times a failed lookup is repeated; callers may change it (default 1).\nvar MaxRetries  =  1",
+          },
+          {
+            path: RETRY_FILE,
+            start: 50,
+            end: 50,
+            first_line: "\tfor attempt := 0; attempt <= maxRetries; attempt++ {",
+            new_text: "\tfor attempt := 0; attempt <= MaxRetries; attempt++ {",
+          },
+        ],
+        doc_updates: [],
+        threads: [{ id: thread, status: "done", body: "MaxRetries を変数にしました。" }],
+      },
+    };
+  }
+  return null;
+}

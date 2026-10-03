@@ -9,6 +9,7 @@ import type { AgentScheduler, UsageLedger } from "@mitori/agent";
 import type { AnchorContext, AnchorEngine } from "@mitori/anchor";
 import {
   type BlockId,
+  type CheckpointId,
   type DiagramIR,
   type DiagramLayout,
   type EngineStatus,
@@ -492,7 +493,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
         if (dist.threads.length > 0)
           loop.review.applyReanchor(
             dist.threads.map((u) => ({ ...u, anchor: { ...(loop.review.get(u.thread)?.anchor ?? u.anchor), code: u.anchor.code } as typeof u.anchor })),
-            [],
+            [...ownThreads],
           );
         const stale = new Set<BlockId>();
         for (const c of dist.claims) {
@@ -534,13 +535,26 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
       if (MitoriError.from(err).code !== "E_UNSUPPORTED") log.warn("gen.syncBlocks failed", { error: String(err) });
     }
   }
+  /** Threads whose own change this chain re-indexes: they never turn stale by it (`applyReanchor(…, ownThreads)`). */
+  let ownThreads: ReadonlySet<ThreadId> = new Set();
+  const threadsOfCheckpoint = (ck: CheckpointId): ThreadId[] => {
+    const job = extras.checkpoints().find((c) => c.id === ck)?.job;
+    return job === undefined ? [] : (loop.jobs.get(job)?.threads ?? []);
+  };
   async function handleLoopEvent(e: LoopDomainEvent): Promise<void> {
     if (closed) return;
     switch (e.type) {
       case "job.accepted":
       case "round.completed":
       case "checkpoint.undone": {
-        if (e.files.length > 0) await onBatch(e.files.map((path) => ({ kind: "change" as const, path })));
+        if (e.files.length > 0) {
+          ownThreads = new Set(e.type === "job.accepted" ? e.ownThreads : e.type === "round.completed" ? e.doneThreads : threadsOfCheckpoint(e.checkpoint));
+          try {
+            await onBatch(e.files.map((path) => ({ kind: "change" as const, path })));
+          } finally {
+            ownThreads = new Set();
+          }
+        }
         if (e.type === "job.accepted") await syncDoc(e.docTargets, { kind: "job", id: e.job });
         else if (e.type === "round.completed") await syncDoc(e.doneThreads.flatMap(docBlockOf), { kind: "round", id: String(e.round) });
         return;
@@ -632,6 +646,8 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
           });
       }
       void gen.recover().catch((err: unknown) => log.warn("gen.recover failed", { error: String(err) }));
+      // jobs of a previous daemon: re-queue / fail / keep (loop spec §7.11), interrupted accepts first
+      void loop.jobs.recover().catch((err: unknown) => log.warn("loop.jobs.recover failed", { error: String(err) }));
     },
     async close() {
       closed = true;
