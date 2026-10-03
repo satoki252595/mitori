@@ -150,14 +150,14 @@ describe.skipIf(!crit)("crit structure", () => {
     }
   }, 120_000);
 
-  test("IDX-AT-33 replay of crit's history: ids survive, ≤ 5 % of leaves change id per ordinary commit, no slug change", async () => {
+  test("IDX-AT-33 replay of crit's history: ≤ 5 % of leaves change id per commit, ≥ 90 % keep it end to end, no slug change", async () => {
     const root = crit as string;
     const commits = commitsOf(root).slice(-41);
     let prevState = { modules: [] } as ReturnType<typeof loadStructure>;
     let first: StructureResult | null = null;
     let prev: StructureResult | null = null;
     let prevBlobs = new Map<string, string>();
-    const ordinary: number[] = [];
+    const perCommit: number[] = [];
     const restructures: string[] = [];
     for (const c of commits) {
       const inp = (await loadCommit(root, c)).input;
@@ -170,9 +170,9 @@ describe.skipIf(!crit)("crit structure", () => {
         let touched = 0;
         for (const [p, b] of blobs) if (prevBlobs.get(p) !== b) touched++;
         for (const p of prevBlobs.keys()) if (!blobs.has(p)) touched++;
-        // a commit touching > 10 % of the graph files re-clusters by design (spec §6.8); the others must keep ids
+        // a commit touching > 10 % of the graph files re-clusters (spec §6.8): logged separately
         if (touched / Math.max(1, prevBlobs.size) > 0.1) restructures.push(`${c.slice(0, 8)} touched=${touched} lost=${lost.toFixed(3)}`);
-        else ordinary.push(lost);
+        perCommit.push(lost);
         for (const m of st.modules) {
           const old = prev.modules.find((o) => o.id === m.id);
           if (old) expect(m.slug).toBe(old.slug);
@@ -186,11 +186,43 @@ describe.skipIf(!crit)("crit structure", () => {
     const endIds = new Set((prev as StructureResult).modules.map((m) => m.id));
     const survived = leaves(first as StructureResult).filter((m) => endIds.has(m.id)).length / leaves(first as StructureResult).length;
     console.log(
-      `[IDX-AT-33] commits=${commits.length} ordinary worst=${Math.max(...ordinary).toFixed(3)} mean=${(ordinary.reduce((a, b) => a + b, 0) / ordinary.length).toFixed(3)} restructures=[${restructures.join("; ")}] survived=${survived.toFixed(3)}`,
+      `[IDX-AT-33] commits=${commits.length} worst=${Math.max(...perCommit).toFixed(3)} mean=${(perCommit.reduce((a, b) => a + b, 0) / perCommit.length).toFixed(3)} restructures=[${restructures.join("; ")}] survived=${survived.toFixed(3)}`,
     );
-    expect(Math.max(...ordinary)).toBeLessThanOrEqual(0.05);
+    expect(Math.max(...perCommit)).toBeLessThanOrEqual(0.05);
     expect(survived).toBeGreaterThanOrEqual(0.9);
   }, 300_000);
+});
+
+const SIZED = ["hono", "ripgrep", "fastapi", "excalidraw", "react"].map((n) => [n, corpusDir(n)] as const).filter(([, d]) => d !== null);
+
+describe.skipIf(SIZED.length === 0)("IDX-AT-32 leaf sizes across the corpus", () => {
+  for (const [name, dir] of SIZED)
+    test(`${name}: median 2k–6k LOC, ≥ 80 % of leaves within 1k–9k, estimated sig skeleton ≤ 32k tokens`, async () => {
+      const p = runPipeline((await loadRepo(dir as string)).input);
+      const ls = leaves(p.structure);
+      const locs = ls.map((m) => m.loc);
+      console.log(
+        `[IDX-AT-32] ${name} leaves=${ls.length} median=${median(locs)} Q=${p.structure.info.modularity.toFixed(3)} dirQ=${p.structure.info.dirModularity.toFixed(3)} structure=${p.ms.structure.toFixed(0)}ms`,
+      );
+      expect(median(locs)).toBeGreaterThanOrEqual(2_000);
+      expect(median(locs)).toBeLessThanOrEqual(6_000);
+      expect(locs.filter((x) => x >= 1_000 && x <= 9_000).length / locs.length).toBeGreaterThanOrEqual(0.8);
+      const files = new Map(p.input.files.map((f) => [f.path, f]));
+      for (const m of ls) {
+        const sigChars = m.paths.reduce((a, path) => a + (files.get(path)?.symbols ?? []).reduce((b, s) => b + s.signature.length + 6, path.length + 8), 0);
+        if (!m.oversizeFile) expect(sigChars / 2.3).toBeLessThanOrEqual(32_000);
+      }
+    }, 120_000);
+  const flask = corpusDir("flask");
+  test.skipIf(!flask)(
+    "flask (small repo): median 2k–6k",
+    async () => {
+      const locs = leaves(runPipeline((await loadRepo(flask as string)).input).structure).map((m) => m.loc);
+      expect(median(locs)).toBeGreaterThanOrEqual(2_000);
+      expect(median(locs)).toBeLessThanOrEqual(6_000);
+    },
+    60_000,
+  );
 });
 
 describe.skipIf(!m3e)("m3e structure (layered TS app)", () => {

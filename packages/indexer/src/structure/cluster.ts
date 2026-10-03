@@ -167,6 +167,7 @@ function mergeSmall(
   paths: readonly RepoPath[],
   domDir: (xs: readonly number[]) => string,
   P: Tuning,
+  sig: Float64Array,
   exempt: (leaf: readonly number[]) => boolean = () => false,
 ): number[][] {
   const leafOf = new Int32Array(ug.n).fill(-1);
@@ -183,6 +184,10 @@ function mergeSmall(
     }
   const members = leaves.map((l) => [...l]);
   const loc = leaves.map((l) => sum(l, ug.size));
+  const tok = leaves.map((l) => sum(l, sig));
+  // a merge may not push the leaf's sig skeleton over the cap the split step enforces
+  const fits = (a: number, b: number, cap: number) =>
+    (loc[a] as number) + (loc[b] as number) <= cap && (tok[a] as number) + (tok[b] as number) <= P.leafSkeletonTokensMax;
   const key = leaves.map((l) => paths[l[0] as number] as string);
   const dirs = members.map((m) => domDir(m));
   const alive = new Set(leaves.map((_, i) => i));
@@ -207,7 +212,7 @@ function mergeSmall(
       // prefer partners that keep the merged leaf within the soft maximum (2k–6k target), then the hard cap
       for (const cap of [P.leafLocTarget, P.leafLocMax, P.leafLocHard]) {
         for (const [b, w] of conn[a] ?? []) {
-          if (!alive.has(b) || (loc[a] as number) + (loc[b] as number) > cap) continue;
+          if (!alive.has(b) || !fits(a, b, cap)) continue;
           const s = w / Math.sqrt(loc[b] as number);
           if (better(b, s)) {
             best = b;
@@ -219,10 +224,8 @@ function mergeSmall(
       if (best < 0)
         for (const cap of [P.leafLocTarget, P.leafLocMax, P.leafLocHard]) {
           for (const b of alive) {
-            if (b === a || (loc[a] as number) + (loc[b] as number) > cap) continue;
+            if (b === a || !fits(a, b, cap)) continue;
             const s = commonPrefixLen(dirs[a] as string, dirs[b] as string);
-            // unrelated islands (no edge, no shared directory) stay apart; root-level files may join anything
-            if (s === 0 && dirs[a] !== ".") continue;
             if (better(b, s)) {
               best = b;
               bestScore = s;
@@ -234,6 +237,7 @@ function mergeSmall(
       // merge a into best
       members[best] = [...(members[best] as number[]), ...(members[a] as number[])];
       loc[best] = (loc[best] as number) + (loc[a] as number);
+      tok[best] = (tok[best] as number) + (tok[a] as number);
       if ((key[a] as string) < (key[best] as string)) key[best] = key[a] as string;
       for (const [c, w] of conn[a] ?? []) {
         if (c === best) continue;
@@ -259,13 +263,6 @@ interface RunResult {
   raw: number;
 }
 
-function runOnce(c: ClusterInput, ug: UGraph, gamma: number, domDir: (xs: readonly number[]) => string): RunResult {
-  const a = runFrom(c, ug, gamma, domDir, c.init);
-  if (!c.fresh) return a;
-  const b = runFrom(c, ug, gamma, domDir, null);
-  return modularity(ug, labelsOf(b.leaves, ug.n)) > modularity(ug, labelsOf(a.leaves, ug.n)) + TIE ? b : a;
-}
-
 function labelsOf(leaves: readonly number[][], n: number): Int32Array {
   const out = new Int32Array(n);
   leaves.forEach((l, i) => {
@@ -283,7 +280,7 @@ function runFrom(c: ClusterInput, ug: UGraph, gamma: number, domDir: (xs: readon
   );
   let leaves = groupsOf(labels, c.order).flatMap((l) => splitLarge(ug, l, c.order, c.sigTokens, gamma, P));
   const raw = weightedMedian(leaves.map((l) => sum(l, ug.size)));
-  leaves = mergeSmall(ug, leaves, c.fg.paths, domDir, P, unchangedWarmLeaf(c));
+  leaves = mergeSmall(ug, leaves, c.fg.paths, domDir, P, c.sigTokens, unchangedWarmLeaf(c));
   return { leaves, oversize: leaves.map((l) => l.length === 1 && (ug.size[l[0] as number] as number) > P.leafLocHard), raw };
 }
 
@@ -333,20 +330,32 @@ export function clusterLeaves(c: ClusterInput, domDir: (xs: readonly number[]) =
   if (n === 0) return { leaves: [], oversize: [], gamma: 1, ug, dep };
   if (total < P.leafLocMin) return { leaves: [Array.from({ length: n }, (_, i) => i)], oversize: [false], gamma: c.gammaHint ?? 1, ug, dep };
   type Stats = ReturnType<typeof stats>;
-  type Best = { gamma: number; r: ReturnType<typeof runOnce>; s: Stats };
+  type Best = { gamma: number; r: RunResult; s: Stats };
   const ok = (s: Stats) => s.median >= P.leafLocMin && s.median <= P.leafLocMax && s.inRange >= 0.8;
   const dist = (s: Stats) => Math.abs(Math.log(Math.max(1, s.median) / P.leafLocTarget));
   const state: { best: Best | null } = { best: null };
   const consider = (gamma: number): { stats: Stats; best: Best; raw: number } => {
-    const r = runOnce(c, ug, gamma, domDir);
+    const r = runFrom(c, ug, gamma, domDir, c.init);
     const st = stats(r.leaves, c.fg.size, P);
     const cur = state.best;
     if (!cur || (ok(st) && !ok(cur.s)) || (ok(st) === ok(cur.s) && dist(st) < dist(cur.s) - 1e-12)) state.best = { gamma, r, s: st };
     return { stats: st, best: state.best as Best, raw: r.raw };
   };
+  /**
+   * First clustering only (no previous leaves, no seeds): the DirPartition start is a heuristic, so the singleton start
+   * is tried at the chosen γ as well and wins when its partition has the higher modularity without breaking the size
+   * constraints. Warm starts are never replaced (id stability).
+   */
+  const polish = (b: Best): ClusterResult => {
+    if (!c.fresh) return finish(b, ug, dep);
+    const alt = runFrom(c, ug, b.gamma, domDir, null);
+    const st = stats(alt.leaves, c.fg.size, P);
+    const better = modularity(ug, labelsOf(alt.leaves, ug.n)) > modularity(ug, labelsOf(b.r.leaves, ug.n)) + TIE && (ok(st) || !ok(b.s));
+    return finish(better ? { gamma: b.gamma, r: alt, s: st } : b, ug, dep);
+  };
   if (c.gammaHint !== undefined) {
     const { stats: st, best } = consider(c.gammaHint);
-    if (ok(st)) return finish(best, ug, dep);
+    if (ok(st)) return polish(best);
   }
   let lo = Math.log(P.gammaMin);
   let hi = Math.log(P.gammaMax);
@@ -359,7 +368,7 @@ export function clusterLeaves(c: ClusterInput, domDir: (xs: readonly number[]) =
     if (raw > P.leafLocTarget) lo = mid;
     else hi = mid;
   }
-  return finish(last as Best, ug, dep);
+  return polish(last as Best);
 }
 
 function finish(b: { gamma: number; r: RunResult }, ug: UGraph, dep: UGraph): ClusterResult {

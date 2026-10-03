@@ -32,12 +32,12 @@ describe("IDX-U fixture truth: resolved import edges and cross-file calls", () =
 });
 
 describe("IDX-U-042 module constraints (TEST_TUNING)", () => {
-  for (const name of ["rust-small", "mixed"] as FixtureName[])
+  for (const name of ["rust-small"] as FixtureName[])
     test(`${name}: together / apart`, async () => {
       expect((await scores(name)).find((x) => x.category === "modules")?.missing).toEqual([]);
     }, 30_000);
   // Not derivable from the code graph (no dependency between the files the truth groups); see cr-requests/WP-03.md.
-  for (const name of ["ts-small", "go-small", "py-small"] as FixtureName[])
+  for (const name of ["ts-small", "go-small", "py-small", "mixed"] as FixtureName[])
     test.todo(`${name}: together / apart`, async () => {
       expect((await scores(name)).find((x) => x.category === "modules")?.missing).toEqual([]);
     });

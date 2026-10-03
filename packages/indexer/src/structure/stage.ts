@@ -480,24 +480,40 @@ function communityOf(
   return { members: paths, anchor, dominantDir: dom, name: sym ? `${dirName} · ${sym}` : dirName, leaf };
 }
 
+/** Inbound edge lists and referenced-name sets per graph node (computed once per graph). */
+const aux = new WeakMap<FileGraph, { inbound: number[][]; refNames: (Set<string> | undefined)[] }>();
+
+function graphAux(fg: FileGraph): { inbound: number[][]; refNames: (Set<string> | undefined)[] } {
+  let a = aux.get(fg);
+  if (a) return a;
+  const inbound: number[][] = fg.paths.map(() => []);
+  fg.out.forEach((m, i) => {
+    for (const j of m.keys()) inbound[j]?.push(i);
+  });
+  a = { inbound, refNames: [] };
+  aux.set(fg, a);
+  return a;
+}
+
 /** Exported top-level symbol with the largest fan-in (files with an edge into its file that reference its name). */
 function representativeSymbol(paths: readonly RepoPath[], files: ReadonlyMap<RepoPath, StageFile>, fg: FileGraph): string | undefined {
-  const inbound = new Map<number, number[]>();
-  fg.out.forEach((m, i) => {
-    for (const j of m.keys()) {
-      const list = inbound.get(j);
-      if (list) list.push(i);
-      else inbound.set(j, [i]);
+  const { inbound, refNames } = graphAux(fg);
+  const namesOf = (i: number): Set<string> => {
+    let s = refNames[i];
+    if (!s) {
+      s = new Set((files.get(fg.paths[i] as string)?.refs ?? []).map((r) => r.name));
+      refNames[i] = s;
     }
-  });
+    return s;
+  };
   let best: { name: string; fanIn: number } | undefined;
   for (const p of paths) {
     const j = fg.index.get(p);
-    const callers = j === undefined ? [] : (inbound.get(j) ?? []);
+    const callers = j === undefined ? [] : (inbound[j] ?? []);
     for (const s of files.get(p)?.symbols ?? []) {
       if (!s.exported || s.parent !== undefined || s.kind === "field") continue;
       let fan = 0;
-      for (const c of callers) if (files.get(fg.paths[c] as string)?.refs.some((r) => r.name === s.name)) fan++;
+      for (const c of callers) if (namesOf(c).has(s.name)) fan++;
       if (!best || fan > best.fanIn || (fan === best.fanIn && s.name < best.name)) best = { name: s.name, fanIn: fan };
     }
   }
@@ -664,10 +680,11 @@ function parentDetails(
   for (const n of parents.nodes) maxByLevel.set(n.level, Math.max(maxByLevel.get(n.level) ?? 0, n.rankRaw));
   return parents.nodes.map((n) => {
     const id = n.id.id;
-    const childLeaves = leafDetails.filter((d) => parents.parentOfLeaf.get(leafDetails.indexOf(d)) === id).map((d) => d.id);
+    const childLeaves = leafDetails.filter((_, li) => parents.parentOfLeaf.get(li) === id).map((d) => d.id);
     const childParents = [...parents.parentOfParent].filter(([, p]) => p === id).map(([c]) => c);
+    const memberSet = new Set(n.paths);
     const tests = leafDetails
-      .filter((d) => n.paths.includes(d.paths[0] as string))
+      .filter((d) => memberSet.has(d.paths[0] as string))
       .flatMap((d) => d.tests)
       .sort(byPath);
     const dg = moduleDigests(
