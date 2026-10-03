@@ -119,15 +119,14 @@ class Batch {
   }
 
   async load(items: readonly AnchoredItem[]): Promise<void> {
+    // Texts are needed only off the identity path: current files whose blob moved on, their old blobs, added files.
     const want = new Set<RepoPath>();
     const blobs = new Set<GitOid>();
-    let anyGone = false;
     for (const it of items) {
       const a = codeOf(it);
       const t = this.targetOf(a.path);
       const cur = this.blobOf(t);
-      if (cur === null) anyGone = true;
-      else if (cur !== a.blob) {
+      if (cur !== null && cur !== a.blob) {
         want.add(t);
         blobs.add(a.blob);
       }
@@ -137,7 +136,7 @@ class Batch {
       for (const c of this.delta.changed) if (c.oldBlob === null && c.newBlob !== null) added.add(c.path);
       this.added = [...added].sort();
     }
-    if (anyGone || this.added.length > 0) for (const p of this.added) want.add(p);
+    for (const p of this.added) want.add(p);
     await Promise.all([
       ...[...want].map(async (p) => {
         const blob = this.blobOf(p);
