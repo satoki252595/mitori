@@ -53,6 +53,9 @@ describe("LOOP §1.2.1 doc capture", () => {
 
   test("empty selection ⇒ whole block; > 2000 chars ⇒ truncated, no suffix", () => {
     expect(eng.docAnchor("b_aaaaaaaa", text, "h1", 5, 5)).toEqual({ block: "b_aaaaaaaa", blockHash: "h1" });
+    // Non-integer offsets never produce a NaN offset / empty quote: whole block.
+    expect(eng.docAnchor("b_aaaaaaaa", text, "h1", Number.NaN, 4)).toEqual({ block: "b_aaaaaaaa", blockHash: "h1" });
+    expect(eng.docAnchor("b_aaaaaaaa", text, "h1", 1.5, 4)).toEqual({ block: "b_aaaaaaaa", blockHash: "h1" });
     const big = "あ".repeat(2500);
     const a = eng.docAnchor("b_aaaaaaaa", big, "h", 0, 2500);
     expect(a.quote?.exact.length).toBe(2000);

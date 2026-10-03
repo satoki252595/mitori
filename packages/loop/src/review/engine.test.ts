@@ -483,6 +483,10 @@ describe("edge cases", () => {
     expect(engine.applyReanchor([u], []).stale).toEqual([]);
     expect(engine.get(a.id)?.stale).toBe(false);
     expect(engine.applyReanchor([{ ...u, health: "outdated", method: "none" }], []).stale).toEqual([a.id]);
+    // resolve clears stale too (§1.7), so a reopened thread does not come back flagged.
+    const r = engine.transition(a.id, { on: "resolve", version: engine.get(a.id)?.version as number, resolution: "obsolete" }, "human");
+    expect([r.state, r.stale]).toEqual(["resolved", false]);
+    expect(engine.transition(a.id, { on: "reopen", version: r.version }, "human").stale).toBe(false);
   });
 
   test("lists attach each thread's own jobs (one lookup for the page)", async () => {

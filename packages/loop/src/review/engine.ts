@@ -225,7 +225,8 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
   function fire(t: Thread, on: ThreadTrigger, by: TransitionActor, resolution?: Resolution): Thread {
     const to = assertTransition({ machine: "thread", from: t.state, on, by }) as ThreadState;
     const next: Thread = { ...t, state: to };
-    if (on === "dispatch") next.stale = false;
+    // §1.7: dispatch and resolve both clear `stale` (the job sees the latest code / the human closed it).
+    if (on === "dispatch" || on === "resolve") next.stale = false;
     if (on === "resolve") next.resolution = resolution ?? DEFAULT_RESOLUTION[t.state] ?? "answered";
     if (on === "reopen") delete next.resolution;
     return next;

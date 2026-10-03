@@ -106,9 +106,10 @@ export function captureDoc(
   selEnd: number,
   claims?: readonly { id: ClaimId; start: number; end: number }[],
 ): DocAnchor {
+  const anchor: DocAnchor = { block, blockHash };
+  if (!Number.isInteger(selStart) || !Number.isInteger(selEnd)) return anchor;
   const s = Math.max(0, Math.min(selStart, blockText.length));
   const e = Math.max(s, Math.min(selEnd, blockText.length));
-  const anchor: DocAnchor = { block, blockHash };
   if (e === s) return anchor;
   const max = ANCHOR_LIMITS.docQuoteMaxChars;
   const truncated = e - s > max;
