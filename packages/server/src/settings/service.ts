@@ -84,27 +84,30 @@ const relativeDirOk = (d: string) =>
   d !== "" && !d.startsWith("/") && !d.includes("\\") && !CONTROL.test(d) && d.split("/").every((s) => s !== "" && s !== "." && s !== "..");
 
 /**
- * Overrides rules beyond the schema (`WorkspaceOverrides.docDir`) [SEC-01, SEC-02]: a git workspace's docDir is
- * repo-relative inside the tree (never `.`, no `..`); a shadow / remote-readonly one is absolute under
- * `<home>/repos/<ws>/`. Applies to every web write of overrides (`PATCH /ws/:ws/settings` and `PATCH /settings`).
+ * `E_INVALID_INPUT` unless `d` is a docDir the workspace may use (see {@link DocDirRule}) [SEC-01, SEC-02].
+ * `inTree`: a repo-relative dir is acceptable for every kind (`mitori init` may put the doc inside a shadow folder).
+ */
+export function checkDocDir(d: string, rule: DocDirRule, opts: { inTree?: boolean } = {}): void {
+  const base = `${rule.home.replace(/\/+$/, "")}/repos/${rule.ws}/`;
+  const outside = rule.kind === "shadow" || rule.kind === "remote-readonly";
+  const underBase = d.startsWith(base) && relativeDirOk(d.slice(base.length));
+  if (outside ? underBase || (opts.inTree === true && relativeDirOk(d)) : relativeDirOk(d)) return;
+  throw new MitoriError(
+    "E_INVALID_INPUT",
+    outside ? `docDir must be a directory under ${base}` : "docDir must be a repo-relative directory (not the repo root, no `..`)",
+    { params: { field: "docDir" } },
+  );
+}
+
+/**
+ * Overrides rules beyond the schema (`WorkspaceOverrides.docDir`, {@link checkDocDir}). Applies to every web write
+ * of overrides (`PATCH /ws/:ws/settings` and `PATCH /settings`).
  */
 export function checkOverrides(o: unknown, rule: DocDirRule): WorkspaceOverrides {
   const bad = validate(o, OVERRIDES_SPEC);
   if (bad.length > 0) throw invalid(bad);
   const ov = o as WorkspaceOverrides;
-  if (ov.docDir !== undefined) {
-    const d = ov.docDir;
-    const base = `${rule.home.replace(/\/+$/, "")}/repos/${rule.ws}/`;
-    const ok = rule.kind === "shadow" || rule.kind === "remote-readonly" ? d.startsWith(base) && relativeDirOk(d.slice(base.length)) : relativeDirOk(d);
-    if (!ok)
-      throw new MitoriError(
-        "E_INVALID_INPUT",
-        rule.kind === "shadow" || rule.kind === "remote-readonly"
-          ? `docDir must be a directory under ${base}`
-          : "docDir must be a repo-relative directory (not the repo root, no `..`)",
-        { params: { field: "docDir" } },
-      );
-  }
+  if (ov.docDir !== undefined) checkDocDir(ov.docDir, rule);
   return ov;
 }
 

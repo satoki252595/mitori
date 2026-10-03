@@ -17,6 +17,7 @@ import { CHALLENGE_RE } from "../auth/bearer.ts";
 import type { WorkspaceRuntime } from "../contract.ts";
 import { buildInbox } from "../inbox/index.ts";
 import { isPlainObject } from "../settings/merge.ts";
+import { checkDocDir } from "../settings/service.ts";
 import { sseResponse } from "../sse/stream.ts";
 import type { ServerServices } from "./services.ts";
 import type { RouteHandlers } from "./types.ts";
@@ -192,6 +193,7 @@ export function serverHandlers(s: ServerServices): RouteHandlers {
         throw invalid("lang", "expected {lang, commit, agentsBlock, docDir?}");
       if (b.docDir !== undefined && typeof b.docDir !== "string") throw invalid("docDir", "docDir must be a string");
       const rt = await ctx.runtime();
+      if (typeof b.docDir === "string") checkDocDir(b.docDir, { ws: rt.info.key, kind: rt.info.kind, home: s.info.home }, { inTree: true });
       await init(rt, b as unknown as InitReq);
       return workspaceStatus(s, rt);
     },

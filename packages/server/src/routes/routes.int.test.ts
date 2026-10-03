@@ -12,6 +12,7 @@ let ws: WorkspaceKey;
 const skew = { ms: 0 };
 const clock = { now: () => Date.now() + skew.ms, iso: () => new Date(Date.now() + skew.ms).toISOString() };
 let tab: Awaited<ReturnType<Harness["browser"]>>;
+const inits: string[] = [];
 
 const json = async <T>(res: Response | Promise<Response>): Promise<T> => (await (await res).json()) as T;
 
@@ -20,6 +21,7 @@ beforeAll(async () => {
   h = await startHarness({
     clock,
     domain: {
+      init: async (_rt, req) => void inits.push(req.docDir ?? "(default)"),
       inbox: () => ({
         loop: Array.from({ length: 5 }, (_, i) => ({
           kind: "thread" as const,
@@ -116,6 +118,17 @@ describe("server-owned routes", () => {
     expect(h.daemon.services.workspaces.loaded()).not.toContain(other);
     expect((await h.cli("DELETE", `/workspaces/${other}?forget=1`)).status).toBe(200);
     expect(h.daemon.services.workspaces.has(other)).toBe(false);
+  });
+
+  test("POST /ws/:ws/init: docDir must stay inside the repo (never the root, no `..`) before the domain sees it", async () => {
+    for (const docDir of ["../x", "/etc", ".", "a/../b", ""]) {
+      const res = await tab.req("POST", `/ws/${ws}/init`, { lang: "ja", commit: false, agentsBlock: false, docDir });
+      expect([docDir, res.status]).toEqual([docDir, 400]);
+    }
+    expect(inits).toEqual([]);
+    const ok = await tab.req("POST", `/ws/${ws}/init`, { lang: "ja", commit: false, agentsBlock: false, docDir: "docs/mitori" });
+    expect(ok.status).toBe(200);
+    expect(inits).toEqual(["docs/mitori"]);
   });
 
   test("POST /workspaces: not-a-project ⇒ 422 E_WS_NOT_PROJECT; GitHub URL without gh ⇒ E_GIT_CLONE_FAILED", async () => {

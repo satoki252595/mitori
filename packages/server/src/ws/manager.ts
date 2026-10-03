@@ -128,6 +128,8 @@ interface Loaded {
   started: boolean;
   lastError: MitoriErrorData | null;
   idleSince: number | null;
+  /** Last value handed to `indexer.setActive` (warm parse Worker while a stream of this workspace is open). */
+  active: boolean;
   reresolve(): Promise<void>;
 }
 
@@ -175,6 +177,21 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       return { counts: ZERO_COUNTS, doc: NO_DOC };
     }
   };
+
+  /** `Indexer.setActive`: the server keeps the warm Worker while an SSE client of the workspace is connected. */
+  const syncActive = (l: Loaded) => {
+    const active = hub.connections({ ws: l.rt.info.key }) > 0;
+    if (active === l.active) return;
+    l.active = active;
+    try {
+      l.parts.indexer.setActive(active);
+    } catch (e) {
+      log.warn("indexer.setActive failed", { ws: l.rt.info.key, err: String(e) });
+    }
+  };
+  const offConnections = hub.onConnectionsChanged(() => {
+    for (const l of loaded.values()) syncActive(l);
+  });
 
   const announce = (ws: WorkspaceKey) => {
     const summary = summaryOf(ws);
@@ -321,8 +338,9 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
         effective = await resolve(info);
         parts.settingsChanged?.(prev, effective);
       };
-      const l: Loaded = { rt, parts, db, started: false, lastError: null, idleSince: null, reresolve };
+      const l: Loaded = { rt, parts, db, started: false, lastError: null, idleSince: null, active: false, reresolve };
       loaded.set(ws, l);
+      syncActive(l);
       announce(ws);
       await parts.doc.load();
       void scan(ws, l, false);
@@ -497,6 +515,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
     },
     async close() {
       closed = true;
+      offConnections();
       timers.clearTimeout(poller);
       poller = null;
       await Promise.allSettled([...loading.values()]);

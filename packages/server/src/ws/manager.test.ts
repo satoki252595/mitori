@@ -152,6 +152,25 @@ describe("SRV-I-022 WorkspaceManager", () => {
     expect(s.assembles()).toBe(2);
   });
 
+  test("indexer.setActive follows the workspace's SSE clients (warm Worker only while a tab is connected)", async () => {
+    const s = await setup();
+    s.domain.active = [];
+    const ws = workspaceKey(testHasher, s.project("warm"));
+    const early = { ws, client: "web" as const, closed: false, send() {}, comment() {} };
+    s.hub.attach(early, null, null); // a stream opened before the lazy load
+    const rt = await s.m.open(`${s.user}/warm`, { force: false });
+    expect(rt.info.key).toBe(ws);
+    expect(s.domain.active).toEqual([true]);
+    const second = { ...early };
+    s.hub.attach(second, null, null);
+    s.hub.detach(early);
+    expect(s.domain.active).toEqual([true]);
+    s.hub.detach(second);
+    expect(s.domain.active).toEqual([true, false]);
+    s.hub.attach({ ws: null, client: "web", closed: false, send() {}, comment() {} }, null, null); // Launcher stream
+    expect(s.domain.active).toEqual([true, false]);
+  });
+
   test("scan failure ⇒ error state with lastError; rescan recovers", async () => {
     const s = await setup({ failScan: true });
     const rt = await s.m.open(s.project("broken"), { force: false });

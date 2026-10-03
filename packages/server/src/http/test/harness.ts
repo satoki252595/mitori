@@ -43,6 +43,8 @@ export const SCAN_SUMMARY: ScanSummaryView = {
 };
 
 export interface FakeDomain {
+  /** `indexer.setActive` calls, in order. */
+  active?: boolean[];
   scans: number;
   loads: number;
   closes: number;
@@ -61,7 +63,9 @@ export function fakeAssemble(state: FakeDomain): WorkspaceManagerDeps["assemble"
           return SCAN_SUMMARY;
         },
         snapshot: () => null,
-        setActive() {},
+        setActive(a: boolean) {
+          state.active?.push(a);
+        },
       } as unknown as WorkspaceParts["indexer"],
       doc: {
         load: async () => {

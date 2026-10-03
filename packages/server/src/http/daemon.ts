@@ -240,7 +240,7 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
       resolveStopped = r;
     });
     const services: ServerServices = {
-      info: { version: o.version, pid: o.pid, startedAt, build: o.build, port: () => port },
+      info: { version: o.version, pid: o.pid, startedAt, build: o.build, home: o.home, port: () => port },
       control: {
         shutdown: (reason) => void daemon.stop(reason),
         shuttingDown: () => shuttingDown,

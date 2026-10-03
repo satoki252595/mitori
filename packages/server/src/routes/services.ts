@@ -34,6 +34,8 @@ export interface DaemonInfo {
   pid: number;
   startedAt: Iso8601;
   build: "release" | "test";
+  /** `~/.mitori` (shadow docDirs live under `<home>/repos/<ws>/`). */
+  home: string;
   /** Bound port (Host gate, nonce URLs). */
   port(): number;
 }
