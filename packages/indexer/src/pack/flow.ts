@@ -1,7 +1,10 @@
 /**
  * gen requests I3 / I4 (spec §7.8): cheap per-module statistics and flow seeds — entry points (main-scope routes, then
- * CLI commands, then entries; handler file rank desc) with the BFS path over the effective module graph (hop ≤ 6,
- * neighbours by edge weight desc then slug) down to the deepest reachable bottom module.
+ * CLI commands, then entries; handler file rank desc) with the path they take over the effective module graph: from
+ * the handler's file, each hop follows that file's strongest dependency (calls first) into a module the current one
+ * has an effective edge to (hop ≤ 6); where no file edge continues, the BFS over the module graph (neighbours by edge
+ * weight desc then slug) runs down to the deepest reachable bottom module. Two handlers of one module therefore get
+ * different seeds when their code goes different ways.
  */
 import type { CodeSlice, FactKind, ModuleId, RepoPath, RouteFact, SecretScanner, SymbolKey } from "@mitori/core";
 import { type FlowSeed, HOT_BODY_RULES, type ModuleStats, SKELETON_RULES } from "../contract.ts";
@@ -63,7 +66,7 @@ function isUnder(leaf: ModuleId, ancestor: ModuleId, st: StructureResult): boole
 }
 
 /** BFS path from `start` to the deepest reachable module without outgoing edges (else the farthest reached). */
-function flowPath(start: ModuleId, st: StructureResult): ModuleId[] {
+function flowPath(start: ModuleId, st: StructureResult, avoid: ReadonlySet<ModuleId>, hops: number): ModuleId[] {
   const slug = new Map(st.modules.map((m) => [m.id, m.slug]));
   const out = new Map<ModuleId, { to: ModuleId; w: number }[]>();
   for (const e of st.leafEdges) out.set(e.from, [...(out.get(e.from) ?? []), { to: e.to, w: e.weight }]);
@@ -76,13 +79,13 @@ function flowPath(start: ModuleId, st: StructureResult): ModuleId[] {
   while (queue.length > 0) {
     const v = queue.shift() as ModuleId;
     const d = dist.get(v) as number;
-    const next = out.get(v) ?? [];
+    const next = (out.get(v) ?? []).filter((x) => !avoid.has(x.to));
     const score = d * 2 + (next.length === 0 ? 1 : 0);
     if (score > bestScore) {
       best = v;
       bestScore = score;
     }
-    if (d >= MAX_HOPS) continue;
+    if (d >= hops) continue;
     for (const { to } of next) {
       if (parent.has(to)) continue;
       parent.set(to, v);
@@ -113,6 +116,52 @@ function flowFiles(first: RepoPath, path: readonly ModuleId[], st: StructureResu
     files.push(pick);
   }
   return files;
+}
+
+/**
+ * The path a handler takes: from its file, each hop follows the current file's strongest dependency (calls first,
+ * then weight, file rank, path) into a not yet visited module the current module has an effective edge to; where no
+ * file edge continues, the module-graph BFS finishes the path.
+ */
+function flowWalk(first: RepoPath, start: ModuleId, st: StructureResult): { modules: ModuleId[]; files: RepoPath[] } {
+  const g = st.graph;
+  const effective = new Set(st.leafEdges.map((e) => `${e.from}>${e.to}`));
+  const rank = (p: RepoPath) => st.fileRank.get(p) ?? 0;
+  const modules: ModuleId[] = [start];
+  const files: RepoPath[] = [first];
+  const visited = new Set<ModuleId>(modules);
+  for (let hop = 0; hop < MAX_HOPS; hop++) {
+    const cur = g.index.get(files[files.length - 1] as RepoPath);
+    const at = modules[modules.length - 1] as ModuleId;
+    if (cur === undefined) break;
+    let pick: { file: RepoPath; module: ModuleId; call: number; w: number } | null = null;
+    for (const [j, e] of g.out[cur] ?? new Map()) {
+      const file = g.paths[j] as RepoPath;
+      const module = st.moduleOf.get(file);
+      if (module === undefined || visited.has(module) || !effective.has(`${at}>${module}`)) continue;
+      const cand = { file, module, call: g.calls.has(cur * g.paths.length + j) ? 1 : 0, w: e.import + e.ref };
+      if (
+        pick === null ||
+        cand.call > pick.call ||
+        (cand.call === pick.call &&
+          (cand.w > pick.w + 1e-12 ||
+            (Math.abs(cand.w - pick.w) <= 1e-12 && (rank(file) > rank(pick.file) || (rank(file) === rank(pick.file) && file < pick.file)))))
+      )
+        pick = cand;
+    }
+    if (pick === null) {
+      // no file edge goes on: the module graph does (the deepest reachable bottom module, files by the same rule)
+      const rest = flowPath(at, st, visited, MAX_HOPS - hop).slice(1);
+      const more = flowFiles(files[files.length - 1] as RepoPath, [at, ...rest], st).slice(1);
+      modules.push(...rest);
+      files.push(...more);
+      break;
+    }
+    modules.push(pick.module);
+    files.push(pick.file);
+    visited.add(pick.module);
+  }
+  return { modules, files };
 }
 
 const CALLABLE = new Set(["function", "method", "constructor"]);
@@ -249,11 +298,11 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8): F
     if (out.length >= limit) break;
     const start = st.moduleOf.get(c.file) ?? st.moduleOf.get(c.path);
     if (start === undefined) continue;
-    const modules = flowPath(start, st);
+    const first = st.graph.index.has(c.file) ? c.file : (st.modules.find((m) => m.id === start)?.paths[0] ?? c.file);
+    const { modules, files } = flowWalk(first, start, st);
     const key = `${c.kind}\u0000${modules.join(",")}`;
     if (seen.has(key)) continue; // one seed per distinct flow keeps the list informative
     seen.add(key);
-    const first = st.graph.index.has(c.file) ? c.file : (st.modules.find((m) => m.id === start)?.paths[0] ?? c.file);
     out.push({
       k: out.length + 1,
       kind: c.kind,
@@ -262,7 +311,7 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8): F
       line: c.line,
       ...(c.handler ? { handler: c.handler } : {}),
       modules,
-      files: flowFiles(first, modules, st),
+      files,
     });
   }
   return out;
