@@ -173,10 +173,21 @@ function metaSpec(core: StoreCore): StaticSpec[] {
 /**
  * Manifest `models` / `generator.prompts` = what produced the current AI blocks (their `gen` stamps). The rest of the
  * run stamp (effort, usage, snapshot, generatedAt) is the generation run's — CR-PENDING(WP-04): no DocStore method yet.
+ * With `written`, the whole doc is scanned only when one of those blocks brings a stamp the manifest lacks (a 10k-block
+ * scan per apply costs the flush budget in GC); applyStatic rescans and drops stamps no block carries any more.
  */
-function stampGenerator(core: StoreCore): void {
+function stampGenerator(core: StoreCore, written?: readonly BlockId[]): void {
   const m = core.st.manifest;
   if (!m) return;
+  const promptId = (v: string) => v.slice(0, v.lastIndexOf("@"));
+  if (
+    written &&
+    !written.some((id) => {
+      const g = core.st.blocks.get(id)?.meta.gen;
+      return g !== undefined && (!m.models.includes(g.model) || m.generator.prompts[promptId(g.promptVer)] !== g.promptVer);
+    })
+  )
+    return;
   const models = new Set<string>();
   const prompts: Record<string, PromptVersion> = {};
   const ver = (v: string) => Number(v.slice(v.lastIndexOf("@") + 1));
@@ -184,7 +195,7 @@ function stampGenerator(core: StoreCore): void {
     const g = rec.meta.gen;
     if (!g || rec.meta.origin !== "ai") continue;
     models.add(g.model);
-    const id = g.promptVer.slice(0, g.promptVer.lastIndexOf("@"));
+    const id = promptId(g.promptVer);
     const cur = prompts[id];
     if (!cur || ver(g.promptVer) > ver(cur)) prompts[id] = g.promptVer;
   }
@@ -219,6 +230,13 @@ function sourcesSpec(core: StoreCore): StaticSpec {
     audience: ["reviewer", "dev"],
     rank: RANK.post,
   };
+}
+
+/** Sorted distinct paths a block's claims cite (source-index change detection). */
+function citedPaths(core: StoreCore, rec: BlockRec): string {
+  const paths = new Set<string>();
+  for (const id of rec.meta.claims) for (const c of core.st.claims.get(id)?.claim.cites ?? []) paths.add(c.path);
+  return [...paths].sort().join("\n");
 }
 
 /** Create/update module entries and their `s6/<slug>` sections; removed modules lose their sections. */
@@ -418,6 +436,7 @@ export function applyStatic(core: StoreCore, input: StaticDocInput): ApplyResult
   m.coverage = { ...input.coverage };
   st.manifestTick = st.tick();
   core.lastStatic = input;
+  stampGenerator(core);
   syncModules(core, input, res);
   // CR-PENDING(WP-04): estimates are not part of StaticDocInput yet (gen planner numbers, ux-R14 `SectionNode.est`)
   const est = (input as StaticDocInput & { estimates?: Estimates }).estimates ?? {};
@@ -446,14 +465,17 @@ export function applyStatic(core: StoreCore, input: StaticDocInput): ApplyResult
 }
 
 /** Re-run the store-derived static blocks only (decisions, glossary, sources, meta, placeholders). */
-export function refreshDerived(core: StoreCore, sections?: Iterable<SectionId>): void {
+export function refreshDerived(core: StoreCore, sections?: Iterable<SectionId>, opts: { sources?: boolean } = {}): void {
   if (!core.st.manifest) return;
   const res = emptyResult();
   const schema = core.lastStatic ? core.lastStatic.facts.filter((f) => f.kind === "schema").length : 0;
   // with `sections`, only those sections' placeholders (and the source index, which follows every claim change) are
   // revisited; applyStatic refreshes the rest
   const only = sections ? new Set(sections) : undefined;
-  const specs = [...(only ? [sourcesSpec(core), ...metaSpec(core)] : derived(core)), ...placeholders(core, {}, schema, only)];
+  const specs = [
+    ...(only ? [...(opts.sources === false ? [] : [sourcesSpec(core)]), ...metaSpec(core)] : derived(core)),
+    ...placeholders(core, {}, schema, only),
+  ];
   for (const spec of specs) upsertStatic(core, spec, res);
   const want = new Set(specs.map((s) => s.slot));
   const slots = only ? [...only].map((s) => placeholderSlot(core, s)) : [...core.st.slots.keys()].filter((s) => /:ph$/.test(s));
@@ -604,6 +626,8 @@ export function applyGenerated(core: StoreCore, blocks: GeneratedBlock[], opts: 
   ensureManifest(core);
   core.lastGenAt = core.deps.clock.now();
   const touched = new Set<SectionId>();
+  // the appendix source index is rebuilt only when cited paths change (a full rebuild per apply costs GC)
+  let sourcesChanged = false;
   const by: MessageAuthor = "agent:gen";
   for (const gb of blocks) {
     if (!st.sections.has(gb.section)) {
@@ -652,6 +676,7 @@ export function applyGenerated(core: StoreCore, blocks: GeneratedBlock[], opts: 
           : core.insertIndex(gb.section, core.rankOf(rec.meta) ?? RANK.ph - 1);
       st.insertBlock(rec, gb.section, index);
       replaceClaims(core, rec, claims);
+      if (claims.some((c) => c.cites.length > 0)) sourcesChanged = true;
       core.refreshQuotes(rec);
       st.touchText(rec);
       core.history(rec, by, "generate");
@@ -691,7 +716,9 @@ export function applyGenerated(core: StoreCore, blocks: GeneratedBlock[], opts: 
       rec.meta.diagram = dg;
     }
     core.setText(rec, marker);
+    const before = citedPaths(core, rec);
     replaceClaims(core, rec, claims);
+    if (before !== citedPaths(core, rec)) sourcesChanged = true;
     core.refreshQuotes(rec);
     core.history(rec, by, "regen");
     res.written.push(rec.meta.id);
@@ -709,11 +736,12 @@ export function applyGenerated(core: StoreCore, blocks: GeneratedBlock[], opts: 
       return;
     }
     touched.add(rec.meta.section);
+    if (citedPaths(core, rec) !== "") sourcesChanged = true;
     res.deleted.push(...core.tombstone([id]));
   });
   for (const s of touched) syncAspectHeadings(core, s, res);
-  stampGenerator(core);
-  refreshDerived(core, touched);
+  stampGenerator(core, res.written);
+  refreshDerived(core, touched, { sources: sourcesChanged });
   for (const s of touched) {
     const node = st.sections.get(s);
     if (node) st.refreshSection(node);
