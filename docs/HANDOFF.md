@@ -18,7 +18,15 @@
 
 main の状態: `check` 緑・テスト 2,440 pass / 0 fail。crit のコールドオープンは約 0.8 s（ロードアベレージが高いと 8 s 近く出るが退行ではない）。
 
-**進行中**: `createLoop` の組み立て + サーバー配線 + INT-06（デモ台本: 説明 → 修正 → 採用 → Undo、シナリオエンジンで LLM 費用 0）を 1 エージェントで実施。ブランチ `integrate/loop`（main には未マージ）。完了報告は `docs/progress/loop-wiring.md`。
+**完了（main に取り込み済み）**:
+- `createLoop` の組み立て + サーバー配線 + INT-06/07（`docs/progress/loop-wiring.md`）。
+- **実機デモ**（本物の UI・daemon・`claude`）で 説明 → 修正 → gofmt ゲート → 採用 → Undo を通した（`docs/progress/live.md`、スクショ `docs/progress/live/`）。Explain 4.7 s / $0.009、Fix 7.9 s / $0.014、UI の楽観カード 26〜44 ms。実機で見つけた結合バグ（SSE の同一 rev 取りこぼし、空の ASK 送信、他）は修正済み。再実行: `scripts/nd bun test/int/shots/live.ts --engine fake|real`。
+
+**次にやること（優先順）**:
+1. Fix が `@` 指定なしだと何も書かずに 412 になる件の UX（ヒント表示 or 自動でコード候補を選ぶ）。
+2. 本物のエンジンでの標準生成の再実行（dogfood のプロンプト修正後の品質確認。API 換算 $1〜3）。
+3. WP-08c（agent mode・test gate・修復ターン）、WP-13（HTML export）、`mitori install` 配線、doc proposal の accept/reject ルート。
+4. 初見者理解テスト（`docs/design/specs/testing.md`）。
 
 以下の §2.2「退避ブランチ」表は停止時点の記録であり、現在は全て main にある。
 
