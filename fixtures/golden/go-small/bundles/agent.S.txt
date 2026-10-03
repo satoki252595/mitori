@@ -1,0 +1,67 @@
+MBF/1 mode=agent out=agent/1 lang=ja
+GATE fmt:gofmt typecheck:govet
+<<<DATA 7k2m9q4p>>>
+RULES AGENTS.md#Go,Errors,Tests 3/4
+> - gofmt と go vet が gate。エラーは fmt.Errorf で wrap する。
+> - 定数は package の先頭にまとめる。
+> sentinel error は store.ErrNotFound のように公開し、errors.Is で判定する。
+> テストは table-driven にする。変更したパッケージのテストを必ず更新する。
+TASK th_8c4f20be change R1
+CODE internal/server/server.go:83-115 base=ea7d426 sym=Server.createBook anchor=83-115
+|func (s *Server) createBook(w http.ResponseWriter, r *http.Request) {
+|	var in struct {
+|		ISBN   string       `json:"isbn"`
+|		Title  string       `json:"title"`
+|		Status store.Status `json:"status"`
+|	}
+|	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ISBN == "" {
+|		writeError(w, http.StatusBadRequest, "body must be JSON with an isbn")
+|		return
+|	}
+|	if in.Status != "" && !in.Status.Valid() {
+|		writeError(w, http.StatusBadRequest, "unknown status "+string(in.Status))
+|		return
+|	}
+|	if in.Title == "" && s.meta != nil {
+|		md, err := s.meta.Fetch(r.Context(), in.ISBN)
+|		if err != nil {
+|			writeError(w, http.StatusBadGateway, err.Error())
+|			return
+|		}
+|		in.Title = md.Title
+|	}
+|	if in.Title == "" {
+|		writeError(w, http.StatusBadRequest, "title is required")
+|		return
+|	}
+|	book, err := s.store.Create(r.Context(), store.Book{ISBN: in.ISBN, Title: in.Title, Status: in.Status})
+|	if err != nil {
+|		writeError(w, http.StatusInternalServerError, err.Error())
+|		return
+|	}
+|	writeJSON(w, http.StatusCreated, book)
+|}
+REL internal/server/server.go:149 sym=writeError calledby=Server.createBook
+|func writeError(w http.ResponseWriter, status int, msg string)
+REL internal/server/server.go:16 sym=Server calledby=Server.createBook
+|type Server struct
+REL internal/server/server.go:143 sym=writeJSON calledby=Server.createBook
+|func writeJSON(w http.ResponseWriter, status int, v any)
+REL internal/meta/fetch.go:41 sym=Client.Fetch calledby=Server.createBook
+|func (c *Client) Fetch(ctx context.Context, isbn string) (Metadata, error)
+REL internal/server/server.go:24 sym=New calls=Server.createBook
+|func New(s store.Store, m *meta.Client) *Server
+REL internal/store/memory.go:52 sym=MemoryStore.Create calledby=Server.createBook
+|func (m *MemoryStore) Create(_ context.Context, b Book) (Book, error)
+REL internal/store/store.go:25 sym=Status.Valid calledby=Server.createBook
+|func (s Status) Valid() bool
+REL internal/store/store.go:34 sym=Book calledby=Server.createBook
+|type Book struct
+<<<END 7k2m9q4p>>>
+ASK
+> ISBN が空のときは 400 を返してほしい。テストも足して。
+WRITE internal/server/server.go internal/server/server_test.go
+ACCEPT
+- GATE checks pass: fmt:gofmt typecheck:govet.
+BUDGET in=12000 out=3000 usd=0.40
+END

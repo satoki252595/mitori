@@ -1,0 +1,316 @@
+MBF/1 mode=patch out=patch/1 lang=ja
+GATE fmt:gofmt typecheck:govet test:related
+<<<DATA 7k2m9q4p>>>
+RULES AGENTS.md#Go,Errors,Tests 3/4
+> - gofmt と go vet が gate。エラーは fmt.Errorf で wrap する。
+> - 定数は package の先頭にまとめる。
+> sentinel error は store.ErrNotFound のように公開し、errors.Is で判定する。
+> テストは table-driven にする。変更したパッケージのテストを必ず更新する。
+TASK th_a0000001 change R2
+THREAD 2/2
+> R1 human: 前に出した方針を覚えているか確認したい
+> R1 agent:claude-cli/claude-sonnet-5-5: はい、定数にまとめる方針でした。
+TASK th_a0000002 change R2
+THREAD 2/2
+> R1 human: 前に出した方針を覚えているか確認したい
+> R1 agent:claude-cli/claude-sonnet-5-5: はい、定数にまとめる方針でした。
+TASK th_a0000003 change R2
+THREAD 2/2
+> R1 human: 前に出した方針を覚えているか確認したい
+> R1 agent:claude-cli/claude-sonnet-5-5: はい、定数にまとめる方針でした。
+CODE internal/meta/fetch.go:1-77 base=ba56aa9 anchor=1-77
+1|// Package meta looks up book metadata (title, authors, page count) by ISBN.
+2|package meta
+3|
+4|import (
+5|	"context"
+6|	"encoding/json"
+7|	"fmt"
+8|	"net/http"
+9|	"net/url"
+10|	"strings"
+11|	"time"
+12|)
+13|
+14|// requestTimeout bounds one lookup attempt.
+15|const requestTimeout = 10 * time.Second
+16|
+17|// Metadata is what the catalogue knows about a book.
+18|type Metadata struct {
+19|	Title   string   `json:"title"`
+20|	Authors []string `json:"authors"`
+21|	Pages   int      `json:"pages"`
+22|}
+23|
+24|// Client fetches metadata from a catalogue that speaks the Open Library "books" API.
+25|type Client struct {
+26|	baseURL string
+27|	http    *http.Client
+28|}
+29|
+30|// NewClient returns a client for the catalogue at baseURL.
+31|func NewClient(baseURL string) *Client {
+32|	return &Client{baseURL: strings.TrimRight(baseURL, "/"), http: &http.Client{Timeout: requestTimeout}}
+33|}
+34|
+35|// NormalizeISBN strips hyphens and spaces and upper-cases a trailing X.
+36|func NormalizeISBN(raw string) string {
+37|	return strings.ToUpper(strings.NewReplacer("-", "", " ", "").Replace(raw))
+38|}
+39|
+40|// Fetch returns the metadata of isbn. Any failure (network error, HTTP error, unreadable body) is returned as is.
+41|func (c *Client) Fetch(ctx context.Context, isbn string) (Metadata, error) {
+42|	isbn = NormalizeISBN(isbn)
+43|
+44|	md, err := c.fetchOnce(ctx, isbn)
+45|	if err != nil {
+46|		return Metadata{}, fmt.Errorf("fetch metadata for %s: %w", isbn, err)
+47|	}
+48|	return md, nil
+49|}
+50|
+51|func (c *Client) fetchOnce(ctx context.Context, isbn string) (Metadata, error) {
+52|	q := url.Values{"bibkeys": {"ISBN:" + isbn}, "format": {"json"}, "jscmd": {"data"}}
+53|	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/books?"+q.Encode(), nil)
+54|	if err != nil {
+55|		return Metadata{}, err
+56|	}
+57|
+58|	resp, err := c.http.Do(req)
+59|	if err != nil {
+60|		return Metadata{}, err
+61|	}
+62|	defer resp.Body.Close()
+63|
+64|	if resp.StatusCode != http.StatusOK {
+65|		return Metadata{}, fmt.Errorf("catalogue answered HTTP %d", resp.StatusCode)
+66|	}
+67|
+68|	var body map[string]Metadata
+69|	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+70|		return Metadata{}, fmt.Errorf("decode catalogue response: %w", err)
+71|	}
+72|	md, ok := body["ISBN:"+isbn]
+73|	if !ok {
+74|		return Metadata{}, fmt.Errorf("catalogue has no entry for %s", isbn)
+75|	}
+76|	return md, nil
+77|}
+CODE internal/server/server.go:36-151 base=ea7d426 anchor=56-150
+36|func (s *Server) WithToken(token string) *Server {
+37|	s.token = token
+38|	return s
+39|}
+40|
+41|// ServeHTTP implements http.Handler.
+42|func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+43|	if s.token != "" && r.Method != http.MethodGet && r.URL.Path != "/healthz" {
+44|		if got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "); got != s.token {
+45|			writeError(w, http.StatusUnauthorized, "missing or wrong API token")
+46|			return
+47|		}
+48|	}
+49|	s.mux.ServeHTTP(w, r)
+50|}
+51|
+52|func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
+53|	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+54|}
+55|
+56|func (s *Server) listBooks(w http.ResponseWriter, r *http.Request) {
+57|	// TODO: paginate list results
+58|	books, err := s.store.List(r.Context())
+59|	if err != nil {
+60|		writeError(w, http.StatusInternalServerError, err.Error())
+61|		return
+62|	}
+63|	writeJSON(w, http.StatusOK, books)
+64|}
+65|
+66|func (s *Server) getBook(w http.ResponseWriter, r *http.Request) {
+67|	id, ok := pathID(w, r)
+68|	if !ok {
+69|		return
+70|	}
+71|	book, err := s.store.Get(r.Context(), id)
+72|	if errors.Is(err, store.ErrNotFound) {
+73|		writeError(w, http.StatusNotFound, "book not found")
+74|		return
+75|	}
+76|	if err != nil {
+77|		writeError(w, http.StatusInternalServerError, err.Error())
+78|		return
+79|	}
+80|	writeJSON(w, http.StatusOK, book)
+81|}
+82|
+83|func (s *Server) createBook(w http.ResponseWriter, r *http.Request) {
+84|	var in struct {
+85|		ISBN   string       `json:"isbn"`
+86|		Title  string       `json:"title"`
+87|		Status store.Status `json:"status"`
+88|	}
+89|	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ISBN == "" {
+90|		writeError(w, http.StatusBadRequest, "body must be JSON with an isbn")
+91|		return
+92|	}
+93|	if in.Status != "" && !in.Status.Valid() {
+94|		writeError(w, http.StatusBadRequest, "unknown status "+string(in.Status))
+95|		return
+96|	}
+97|	if in.Title == "" && s.meta != nil {
+98|		md, err := s.meta.Fetch(r.Context(), in.ISBN)
+99|		if err != nil {
+100|			writeError(w, http.StatusBadGateway, err.Error())
+101|			return
+102|		}
+103|		in.Title = md.Title
+104|	}
+105|	if in.Title == "" {
+106|		writeError(w, http.StatusBadRequest, "title is required")
+107|		return
+108|	}
+109|	book, err := s.store.Create(r.Context(), store.Book{ISBN: in.ISBN, Title: in.Title, Status: in.Status})
+110|	if err != nil {
+111|		writeError(w, http.StatusInternalServerError, err.Error())
+112|		return
+113|	}
+114|	writeJSON(w, http.StatusCreated, book)
+115|}
+116|
+117|func (s *Server) deleteBook(w http.ResponseWriter, r *http.Request) {
+118|	id, ok := pathID(w, r)
+119|	if !ok {
+120|		return
+121|	}
+122|	err := s.store.Delete(r.Context(), id)
+123|	if errors.Is(err, store.ErrNotFound) {
+124|		writeError(w, http.StatusNotFound, "book not found")
+125|		return
+126|	}
+127|	if err != nil {
+128|		writeError(w, http.StatusInternalServerError, err.Error())
+129|		return
+130|	}
+131|	w.WriteHeader(http.StatusNoContent)
+132|}
+133|
+134|func pathID(w http.ResponseWriter, r *http.Request) (int64, bool) {
+135|	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+136|	if err != nil || id <= 0 {
+137|		writeError(w, http.StatusBadRequest, "id must be a positive integer")
+138|		return 0, false
+139|	}
+140|	return id, true
+141|}
+142|
+143|func writeJSON(w http.ResponseWriter, status int, v any) {
+144|	w.Header().Set("Content-Type", "application/json")
+145|	w.WriteHeader(status)
+146|	_ = json.NewEncoder(w).Encode(v)
+147|}
+148|
+149|func writeError(w http.ResponseWriter, status int, msg string) {
+150|	writeJSON(w, status, map[string]string{"error": msg})
+151|}
+CODE internal/store/memory.go:1-76 base=1b42263 anchor=1-76
+1|package store
+2|
+3|import (
+4|	"context"
+5|	"sort"
+6|	"sync"
+7|	"time"
+8|)
+9|
+10|// MemoryStore is a Store that keeps everything in process memory.
+11|type MemoryStore struct {
+12|	mu     sync.RWMutex
+13|	books  map[int64]Book
+14|	nextID int64
+15|	now    func() time.Time
+16|}
+17|
+18|// NewMemoryStore returns an empty store. now stamps AddedAt (time.Now when nil).
+19|func NewMemoryStore(now func() time.Time) *MemoryStore {
+20|	if now == nil {
+21|		now = time.Now
+22|	}
+23|	return &MemoryStore{books: make(map[int64]Book), nextID: 1, now: now}
+24|}
+25|
+26|// List implements Store.
+27|func (m *MemoryStore) List(_ context.Context) ([]Book, error) {
+28|	m.mu.RLock()
+29|	defer m.mu.RUnlock()
+30|
+31|	all := make([]Book, 0, len(m.books))
+32|	for _, b := range m.books {
+33|		all = append(all, b)
+34|	}
+35|	sort.Slice(all, func(i, j int) bool { return all[i].ID < all[j].ID })
+36|	return all, nil
+37|}
+38|
+39|// Get implements Store.
+40|func (m *MemoryStore) Get(_ context.Context, id int64) (Book, error) {
+41|	m.mu.RLock()
+42|	defer m.mu.RUnlock()
+43|
+44|	b, ok := m.books[id]
+45|	if !ok {
+46|		return Book{}, ErrNotFound
+47|	}
+48|	return b, nil
+49|}
+50|
+51|// Create implements Store.
+52|func (m *MemoryStore) Create(_ context.Context, b Book) (Book, error) {
+53|	m.mu.Lock()
+54|	defer m.mu.Unlock()
+55|
+56|	b.ID = m.nextID
+57|	m.nextID++
+58|	b.AddedAt = m.now()
+59|	if b.Status == "" {
+60|		b.Status = StatusUnread
+61|	}
+62|	m.books[b.ID] = b
+63|	return b, nil
+64|}
+65|
+66|// Delete implements Store.
+67|func (m *MemoryStore) Delete(_ context.Context, id int64) error {
+68|	m.mu.Lock()
+69|	defer m.mu.Unlock()
+70|
+71|	if _, ok := m.books[id]; !ok {
+72|		return ErrNotFound
+73|	}
+74|	delete(m.books, id)
+75|	return nil
+76|}
+REL cmd/tsundoku/main.go:61 sym=importCSV calls=MemoryStore.Create
+|func importCSV(pile store.Store, args []string) error
+REL cmd/tsundoku/main.go:103 sym=export calls=MemoryStore.List
+|func export(pile store.Store, args []string, out io.Writer) error
+REL internal/server/server.go:16 sym=Server calledby=Server.createBook
+|type Server struct
+REL internal/server/server.go:24 sym=New calls=Server.createBook
+|func New(s store.Store, m *meta.Client) *Server
+REL internal/store/store.go:25 sym=Status.Valid calledby=Server.createBook
+|func (s Status) Valid() bool
+REL internal/store/store.go:34 sym=Book calledby=Server.createBook
+|type Book struct
+<<<END 7k2m9q4p>>>
+ASK th_a0000001
+> Client に User-Agent を付ける
+ASK th_a0000002
+> 登録 API のエラーを JSON で返す
+ASK th_a0000003
+> Create の重複判定を ISBN でも行う
+WRITE internal/meta/fetch.go internal/server/server.go internal/store/memory.go
+ACCEPT
+- GATE checks pass: fmt:gofmt typecheck:govet test:related.
+BUDGET in=6000 out=3000 usd=0.20
+END

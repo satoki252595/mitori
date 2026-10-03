@@ -1,0 +1,37 @@
+MBF/1 mode=findings out=findings/1 lang=ja
+<<<DATA 7k2m9q4p>>>
+TASK th_5e7d1a40 review R1
+CODE internal/meta/fetch.go:51-77 base=ba56aa9 sym=Client.fetchOnce anchor=51-77
+51|func (c *Client) fetchOnce(ctx context.Context, isbn string) (Metadata, error) {
+52|	q := url.Values{"bibkeys": {"ISBN:" + isbn}, "format": {"json"}, "jscmd": {"data"}}
+53|	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/books?"+q.Encode(), nil)
+54|	if err != nil {
+55|		return Metadata{}, err
+56|	}
+57|
+58|	resp, err := c.http.Do(req)
+59|	if err != nil {
+60|		return Metadata{}, err
+61|	}
+62|	defer resp.Body.Close()
+63|
+64|	if resp.StatusCode != http.StatusOK {
+65|		return Metadata{}, fmt.Errorf("catalogue answered HTTP %d", resp.StatusCode)
+66|	}
+67|
+68|	var body map[string]Metadata
+69|	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+70|		return Metadata{}, fmt.Errorf("decode catalogue response: %w", err)
+71|	}
+72|	md, ok := body["ISBN:"+isbn]
+73|	if !ok {
+74|		return Metadata{}, fmt.Errorf("catalogue has no entry for %s", isbn)
+75|	}
+76|	return md, nil
+77|}
+<<<END 7k2m9q4p>>>
+ASK
+> エラー処理に抜けがないか見てほしい。
+WRITE -
+BUDGET in=2500 out=1000 usd=0.03
+END

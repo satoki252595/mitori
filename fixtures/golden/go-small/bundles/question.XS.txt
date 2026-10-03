@@ -1,0 +1,42 @@
+MBF/1 mode=answer out=answer/1 lang=ja
+<<<DATA 7k2m9q4p>>>
+TASK th_91c0de7m question R1
+DOC b_meta0003 s6/meta "メタデータ取得 > 取得" h=meta0003
+> HTTP 200 以外、または応答に該当エントリが無い場合はエラーにする。[internal/meta/fetch.go:64-76]
+> ~prev: ISBN を正規化し、カタログ API に 1 回だけ問い合わせる。
+SEL
+> 応答に該当エントリが無い場合はエラーにする
+CODE internal/meta/fetch.go:51-77 base=ba56aa9 sym=Client.fetchOnce anchor=64-76
+51|func (c *Client) fetchOnce(ctx context.Context, isbn string) (Metadata, error) {
+52|	q := url.Values{"bibkeys": {"ISBN:" + isbn}, "format": {"json"}, "jscmd": {"data"}}
+53|	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/books?"+q.Encode(), nil)
+54|	if err != nil {
+55|		return Metadata{}, err
+56|	}
+57|
+58|	resp, err := c.http.Do(req)
+59|	if err != nil {
+60|		return Metadata{}, err
+61|	}
+62|	defer resp.Body.Close()
+63|
+64|	if resp.StatusCode != http.StatusOK {
+65|		return Metadata{}, fmt.Errorf("catalogue answered HTTP %d", resp.StatusCode)
+66|	}
+67|
+68|	var body map[string]Metadata
+69|	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+70|		return Metadata{}, fmt.Errorf("decode catalogue response: %w", err)
+71|	}
+72|	md, ok := body["ISBN:"+isbn]
+73|	if !ok {
+74|		return Metadata{}, fmt.Errorf("catalogue has no entry for %s", isbn)
+75|	}
+76|	return md, nil
+77|}
+<<<END 7k2m9q4p>>>
+ASK
+> なぜ再試行しないのか?上限 3 回の再試行を入れても問題ないか知りたい。
+WRITE -
+BUDGET in=2000 out=600 usd=0.02
+END

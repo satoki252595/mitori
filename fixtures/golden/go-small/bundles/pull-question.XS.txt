@@ -1,0 +1,23 @@
+MBF/1 mode=pull out=reply lang=ja
+<<<DATA 7k2m9q4p>>>
+TASK th_91c0de7m question R1
+CODE internal/meta/fetch.go:41-49 base=ba56aa9 sym=Client.Fetch anchor=41-49
+|func (c *Client) Fetch(ctx context.Context, isbn string) (Metadata, error) {
+|	isbn = NormalizeISBN(isbn)
+|
+|	md, err := c.fetchOnce(ctx, isbn)
+|	if err != nil {
+|		return Metadata{}, fmt.Errorf("fetch metadata for %s: %w", isbn, err)
+|	}
+|	return md, nil
+|}
+<<<END 7k2m9q4p>>>
+ASK
+> Fetch はなぜ 1 回しか問い合わせないのか?
+WRITE -
+DO
+- Edit only WRITE paths in this working tree, then run: mitori reply th_91c0de7m --done "<what changed>"
+- If it is a question or you will not change code: mitori reply th_91c0de7m --answer "<answer citing path:line>"
+- If you need the human: mitori reply th_91c0de7m --question "<what you need>"
+BUDGET in=800 out=400 usd=0.01
+END
