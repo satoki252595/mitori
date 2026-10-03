@@ -499,8 +499,8 @@ function terminalFailure(r: GenCallResultExt, run: RunCtx): MitoriErrorData | nu
   return null;
 }
 
-/** Task-level writes after all lines: the glossary (term lines of gen.glossary + repo seeds). */
-async function afterLines(env: ExecEnv, task: PlannedTask, sink: ApplySink): Promise<void> {
+/** Task-level writes after all lines: the glossary (term lines of gen.glossary + repo seeds). Push and session paths. */
+export async function afterLines(env: Pick<ExecEnv, "settings" | "write" | "doc">, task: Pick<PlannedTask, "prompt">, sink: ApplySink): Promise<void> {
   if (task.prompt !== "gen.glossary") return;
   const seeds = env.settings().repo.glossary ?? [];
   const entries = sink.terms.map((t) => {

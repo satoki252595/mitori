@@ -5,6 +5,7 @@ import { ApplySink } from "../orchestrator/apply.ts";
 import { validRouter } from "../test/fake-engine.ts";
 import { makeHarness, SANDBOX, TEST_WS } from "../test/harness.ts";
 import { M_AUTH, M_CORE, M_SESSION } from "../test/repo.ts";
+import { testSettings } from "../test/settings.ts";
 import { prepFingerprint } from "./index.ts";
 
 type H = ReturnType<typeof makeHarness>;
@@ -305,14 +306,21 @@ describe("AC-45 phases: the next phase sees the previous phase's output", () => 
   });
 
   test("a session run whose every task is reused from the cache completes without a packet", async () => {
-    const h = makeHarness();
+    const settings = testSettings();
+    settings.repo.glossary = [{ term: "積読", yomi: "つんどく", definition: "買ったまま読んでいない本。" }];
+    const h = makeHarness({ settings });
     let p: PrepInfo | null = await h.gen.session.prep({ effort: "standard" });
     while (p) {
       answer(h, p);
       const r = await h.gen.session.ingest({ prep: p.id, fingerprint: p.fingerprint, partial: false });
       p = r.next ? await h.gen.session.prep({ effort: "standard", continueFrom: p.id }) : null;
     }
+    // the agent's glossary omitted the repo seed: ingest merges it like the push path does
+    expect(h.doc.index().glossary.map((g) => g.term)).toEqual(["セッション", "積読"]);
+    h.doc.setGlossary([]);
     await expect(h.gen.session.prep({ effort: "standard" })).rejects.toMatchObject({ code: "E_PRECONDITION" });
+    // the replayed glossary task wrote the glossary again
+    expect(h.doc.index().glossary.map((g) => g.term)).toEqual(["セッション", "積読"]);
     const runs = h.db.all<{ id: string; state: string }>("SELECT id, state FROM gen_runs ORDER BY created_at, id");
     expect(runs.length).toBe(2);
     expect(runs.map((r) => r.state)).toEqual(["done", "done"]);

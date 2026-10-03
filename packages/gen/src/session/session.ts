@@ -37,6 +37,7 @@ import {
 } from "../contract.ts";
 import { createLineValidator } from "../line/index.ts";
 import { ApplySink, replayable } from "../orchestrator/apply.ts";
+import { afterLines } from "../orchestrator/execute.ts";
 import { candidatesOf, type Runner, runTaskId, type Services } from "../orchestrator/runner.ts";
 import type { TaskRow } from "../orchestrator/store.ts";
 import { maxOutOf } from "../planner/params.ts";
@@ -167,6 +168,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
           );
           for (const l of hit.lines) sink.accept(JSON.parse(l) as GenLine);
           await sink.finish();
+          await afterLines(d, row.plan, sink);
           row.task.state = "cached";
           row.task.blocks = sink.written;
           await d.write("gen.task", () => store.putTask(row));
@@ -394,10 +396,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
         const sink = new ApplySink({ doc: d.doc, write: d.write, verifier: svc.verifier, log: d.log }, lineCtx(row, run, digest, model, listed));
         for (const l of lines) sink.accept(l);
         await sink.finish();
-        if (row.plan.prompt === "gen.glossary") {
-          const entries = sink.terms.map((t) => ({ term: t.term, definition: t.def, ...(t.yomi ? { yomi: t.yomi } : {}), ...(t.en ? { en: t.en } : {}) }));
-          await d.write("gen.glossary", () => d.doc.setGlossary(entries));
-        }
+        await afterLines(d, row.plan, sink);
         blocks += sink.written.length;
         claims += sink.claims;
         row.task.state = "done";
