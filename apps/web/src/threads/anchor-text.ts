@@ -78,12 +78,28 @@ export function quoteOf(text: string, start: number, end: number): { quote: Text
   };
 }
 
-/** The Composer's display quote: 18 chars around `<mark>` (never the TextQuote internals). */
-export function displayQuote(text: string, start: number, end: number, around = 18): { before: string; mark: string; after: string } {
+/**
+ * The Composer's display quote: 18 chars around `<mark>` (never the TextQuote internals), the context clipped to
+ * `bounds` — the selection's own paragraph / list item. A table cell is `cell`: the quote is exactly the selected text
+ * (its neighbours are other cells — another row's `config.go:20` is not context of `TSUNDOKU_API_TOKEN`).
+ */
+export function displayQuote(
+  text: string,
+  start: number,
+  end: number,
+  around = 18,
+  bounds?: { start: number; end: number; cell?: boolean },
+): { before: string; mark: string; after: string } {
+  const mark = text.slice(start, end);
+  if (bounds?.cell) return { before: "", mark, after: "" };
+  const lo = Math.max(0, Math.min(bounds?.start ?? 0, start));
+  const hi = Math.min(text.length, Math.max(bounds?.end ?? text.length, end));
+  const b0 = Math.max(lo, start - around);
+  const a1 = Math.min(hi, end + around);
   return {
-    before: (start > around ? "…" : "") + text.slice(Math.max(0, start - around), start),
-    mark: text.slice(start, end),
-    after: text.slice(end, end + around) + (end + around < text.length ? "…" : ""),
+    before: (b0 > lo ? "…" : "") + text.slice(b0, start).replace(/^\s+/, ""),
+    mark,
+    after: text.slice(end, a1).replace(/\s+$/, "") + (a1 < hi ? "…" : ""),
   };
 }
 

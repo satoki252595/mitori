@@ -1,0 +1,10 @@
+{
+  "at": "2026-10-03T23:00:07.233Z",
+  "targetsShownMs": 86,
+  "quote": "TSUNDOKU_API_TOKEN",
+  "fixPickedChips": "対象コード\nconfig.go:19-38\nLoad\n×\n@ 追加\n書き込み1ファイル",
+  "header": "見取り図\nMITORI\ngo-small\nae29abf\n見取り図\n設計書\nInbox\n4\nレビュー\n◆1\n検索・コマンド\n⌘K\n初めて\n標準\n詳しい\n\n今日<$0.01 · 1.2k tok\n\nEN",
+  "citedTargets": "対象コード\nfetch.go:46-61\nClient.Fetch\n202\n@ 追加\n書き込み1ファイル",
+  "badResponses": [],
+  "consoleErrors": []
+}

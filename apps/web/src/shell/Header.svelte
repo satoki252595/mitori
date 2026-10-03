@@ -22,7 +22,8 @@ const inboxN = $derived(s.inbox.mineCount);
 const tag = $derived(status?.profile?.head?.tag ?? null);
 const today = $derived(s.session.today);
 const fiveH = $derived((s.session.window ?? s.session.engine(status?.genEngine ?? null)?.window ?? null)?.fiveHour ?? null);
-// the rail is a drawer (narrow container, review, code mode): the menu button opens it
+// the rail is a drawer (narrow container, review, code mode): the menu button opens it — except while reviewing on a
+// wide screen, where the Review is the task (prototype 03e: no menu button; the drawer stays on `pane.nav`)
 const drawer = $derived("ws" in route && currentLayout(s).railMode === "drawer");
 let wsMenu = $state(false);
 
@@ -76,7 +77,7 @@ const crumbs = $derived.by(() => {
 
 <header class="hdr" data-chrome>
   <div class="hdr-l">
-    <button type="button" class="icon-btn menu-btn" class:show={drawer} aria-label={t("header.menu")} aria-expanded={drawer ? s.ui.railOpen : undefined} onclick={() => (s.ui.railOpen = !s.ui.railOpen)}><Icon name="menu" /></button>
+    <button type="button" class="icon-btn menu-btn" class:show={drawer} class:in-review={current === "review"} aria-label={t("header.menu")} aria-expanded={drawer ? s.ui.railOpen : undefined} onclick={() => (s.ui.railOpen = !s.ui.railOpen)}><Icon name="menu" /></button>
     <a class="brand" href="/" aria-label={t("header.home")}>
       <span class="brand-ja" data-brand>{t("brand.name")}</span><span class="brand-en">{t("brand.latin")}</span>
     </a>
@@ -123,7 +124,8 @@ const crumbs = $derived.by(() => {
         >
       {/each}
     </div>
-    <JobChip running={chip.running} locked={chip.locked} ready={chip.ready} />
+    <!-- ready jobs are the レビュー tab's count; the chip says what is still working (no ◆ twice in one header) -->
+    <JobChip running={chip.running} locked={chip.locked} ready={0} />
     <!-- reserved box: the usage arriving never moves the tabs -->
     <p class="usage mono">
       {#if today}<span class="u1">{t("header.usage.today", { usd: fmtUsdImpl(today.apiUsd, "day"), tok: fmtTokensImpl(today.in + today.cacheRead + today.cacheWrite + today.out) })}</span>{/if}
@@ -149,6 +151,11 @@ const crumbs = $derived.by(() => {
 <style>
   .menu-btn.show {
     display: grid;
+  }
+  @media (min-width: 1024px) {
+    .menu-btn.show.in-review {
+      display: none;
+    }
   }
   .hdr-m {
     display: flex;

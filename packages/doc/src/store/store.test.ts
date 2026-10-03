@@ -155,6 +155,29 @@ describe("applyGenerated", () => {
   });
 });
 
+describe("DOC-U-007b a human edit of a placeholder (ux finishing pass)", () => {
+  test("it becomes prose of its own: the static refresh never proposes the placeholder text back, nor deletes it", async () => {
+    const h = harness();
+    const input = staticInputFromTruth("go-small");
+    h.store.applyStatic(input);
+    const ph = h.store.section("s1" as SectionId)?.blocks.find((b) => b.kind === "placeholder");
+    expect(ph).toBeDefined();
+    await h.store.editBlock(ph?.id as BlockId, ph?.hash as string, "人が書いた、この repo の目的。", "human");
+    const edited = h.store.block(ph?.id as BlockId);
+    expect(edited?.kind).toBe("prose");
+    expect(edited?.lock).toBe("human-edited");
+    // the next static applies (any facts change) leave it alone — no "revert to placeholder" proposal, no new placeholder
+    for (let i = 0; i < 2; i++) {
+      const res = h.store.applyStatic(input);
+      expect(res.proposals).toEqual([]);
+      expect(res.deleted).not.toContain(ph?.id as BlockId);
+    }
+    expect(h.store.proposals({ state: "pending" })).toEqual([]);
+    expect(h.store.section("s1" as SectionId)?.blocks.filter((b) => b.kind === "placeholder")).toEqual([]);
+    expect(h.store.block(ph?.id as BlockId)?.md).toBe("人が書いた、この repo の目的。");
+  });
+});
+
 describe("DOC-U-007 editBlock", () => {
   test("base mismatch, lock, cite links re-stamped, dropped claims reported", async () => {
     const h = seeded();

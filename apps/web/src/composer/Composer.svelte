@@ -390,9 +390,9 @@ const sendLabel = $derived(
                 <button type="button" class="cand-row" title={`${tg.path}:${tg.start}-${tg.end}`} aria-label={t("composer.targets.pickAria", { label: tg.label })} onclick={() => c.pickTarget(tg)}>
                   <span class="plus" aria-hidden="true">+</span>
                   <span class="lb mono" data-user-content>{tg.label}</span>
-                  {#if tg.symbol}<span class="sym mono" data-user-content>{tg.symbol}</span>{/if}
-                  <span class="why">{t(`composer.targets.source.${tg.source}`)}</span>
+                  <span class="sym mono" data-user-content>{tg.symbol ?? ""}</span>
                   <kbd>{s.keys.label(`Alt+${i + 1}`)}</kbd>
+                  <span class="why">{t(`composer.targets.source.${tg.source}`)} · <span class="mono" data-user-content>{tg.path}</span></span>
                 </button>
               </li>
             {/each}
@@ -817,12 +817,13 @@ const sendLabel = $derived(
     gap: 4px;
   }
   .cand-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 10px max-content minmax(0, 1fr) max-content;
     align-items: center;
-    gap: 8px;
+    gap: 1px 8px;
     width: 100%;
     min-height: 32px;
-    padding: 0 8px 0 10px;
+    padding: 5px 8px 5px 10px;
     border: 1px dashed var(--rule-2);
     border-radius: var(--r-input);
     background: var(--sheet);
@@ -851,10 +852,13 @@ const sendLabel = $derived(
     white-space: nowrap;
     min-width: 0;
   }
+  /* second line: why it is offered and the full path (two `main.go` are not the same file) */
   .cand-row .why {
-    margin-left: auto;
+    grid-column: 2 / -1;
     color: var(--muted);
     font-size: var(--fs-meta);
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
   .cand-row kbd {

@@ -25,15 +25,18 @@ edit, tiny and additive.
   and `@` mentions do (they are `context.add`). Narrowing = selecting the sentence (the claim's own cites only).
 - urgency: before the router is touched again (WP-08c).
 
-## #3 A human-edited static placeholder gets a "revert to placeholder" proposal on every static refresh
-- contract: doc `applyStatic` (locked static blocks ⇒ proposals), server `wiring/static-input.ts`
+## #3 A human-edited placeholder kept being a placeholder (FIXED here, cross-owner — please review)
+- where: doc `editBlock` (`packages/doc/src/store/store.ts`), static `placeholders()` / `hasContent()` (`apply.ts`)
 - observed: a human writes into an ungenerated section's placeholder (「設計書を直す」 / the edit route) → the block is
-  `human-edited`; the next `applyStatic` (any facts change, e.g. after an accepted Fix) proposes
-  「この節はまだ生成されていません…」 for it (source `regen`/`static`). Seen in `test/int/ux.test.ts` (UX-INT-02).
-- change: a static slot whose generated text did NOT change since the last apply proposes nothing for a locked block
-  (compare with the last static text, not the human's), and a `placeholder` slot never proposes over human text.
-- workaround: none (the proposal can be rejected; it is harmless but noisy in the Inbox and the prose).
-- urgency: before generation-free docs are edited by hand at scale.
+  `human-edited` but still `kind: "placeholder"` in the placeholder slot, so `hasContent` saw no content and every
+  static refresh (any facts change, e.g. after an accepted Fix) proposed 「この節はまだ生成されていません…」 back over
+  the human's text (source `regen`/`static`) — a junk proposal in the prose next to the AI's real one
+  (`docs/progress/ux/ux-10-proposal-standalone.png` before the fix).
+- fix: `editBlock` turns a placeholder into `prose` and detaches it from the placeholder slot (6 lines). Regression
+  test `DOC-U-007b` in `packages/doc/src/store/store.test.ts` (fails without the fix).
+- left open: a locked static facts block still gets a proposal whenever its generated text differs from the human's
+  text, even when the generated text itself did not change since the last apply (compare with the last static text
+  instead). Not seen in the flows of this track.
 
 ## #4 Cross-owner edits this track made (small, additive — please keep or move)
 - `packages/server/src/wiring/workspace.ts` (WP-INT): `observeDoc` also reports created proposals; the workspace
@@ -42,6 +45,10 @@ edit, tiny and additive.
 - `apps/web/src/stores/doc.svelte.ts` (WP-10a): `pendingInserts()` — INSERT proposals have no block of their own, the
   proposal layer shows them after the block they follow (promoted answers were invisible).
 - `packages/server/src/contract.ts`: `ROUTE_OWNERS["POST /ws/:ws/jobs/targets"] = "loop"` (with CR ux-F1).
+- `apps/web/src/shell/Header.svelte` (WP-10a), the Review header declutter: the job chip no longer repeats the ready
+  count the レビュー tab already shows (◆ once), and the drawer menu button is hidden while reviewing on a ≥ 1024 px
+  screen (prototype 03e; the drawer stays on `pane.nav`).
+- `packages/doc/src/store/store.ts` (#3 above).
 
 ## #5 `Installer` has no per-file state of a target × scope
 - contract: `packages/loop/src/contract.ts` C11 `Installer`
