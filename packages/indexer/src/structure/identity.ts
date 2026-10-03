@@ -130,15 +130,19 @@ export function assignIdentities(comms: readonly Community[], prev: readonly Pre
   const sets = comms.map((c) => new Set(c.members));
   type Cand = { c: number; o: number; score: number };
   const cands: Cand[] = [];
-  const memberIndex = new Map<RepoPath, number>();
+  // parents are nested (a root holds every descendant), so a path belongs to several communities
+  const memberIndex = new Map<RepoPath, number[]>();
   comms.forEach((c, i) => {
-    for (const p of c.members) memberIndex.set(p, i);
+    for (const p of c.members) {
+      const list = memberIndex.get(p);
+      if (list) list.push(i);
+      else memberIndex.set(p, [i]);
+    }
   });
   prev.forEach((o, oi) => {
     const touching = new Set<number>();
     for (const p of o.members.length > 0 ? o.members : o.reps) {
-      const c = memberIndex.get(p);
-      if (c !== undefined) touching.add(c);
+      for (const c of memberIndex.get(p) ?? []) touching.add(c);
     }
     for (const ci of touching) {
       const set = sets[ci] as Set<RepoPath>;

@@ -17,8 +17,8 @@ import {
 } from "@mitori/core";
 import type { JobRunner } from "../contract.ts";
 import { ACTIVE, type JobRunnerDeps, RunnerCore, Stop } from "./core.ts";
-import { type JobPlan, jobEstimate, type PlanDeps, planJob } from "./plan.ts";
 import { runAnswer, runPatch, runRevision } from "./pipeline.ts";
+import { type JobPlan, jobEstimate, type PlanDeps, planJob } from "./plan.ts";
 import { accept, commit, reject, runGates, undo } from "./review-ops.ts";
 import type { JobRecord } from "./store.ts";
 
@@ -107,7 +107,9 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
     if (p.mode === "agent")
       throw new MitoriError("E_UNSUPPORTED", "agent mode arrives with WP-08c", { params: { what: "loop.jobs.agent", actions: "copy_prompt,narrow_scope" } });
     if (p.route.decision.contract === "docpatch/1")
-      throw new MitoriError("E_UNSUPPORTED", "a sent doc note (docpatch/1) arrives with WP-08c", { params: { what: "loop.jobs.docpatch", actions: "copy_prompt" } });
+      throw new MitoriError("E_UNSUPPORTED", "a sent doc note (docpatch/1) arrives with WP-08c", {
+        params: { what: "loop.jobs.docpatch", actions: "copy_prompt" },
+      });
   }
 
   function newRecord(p: JobPlan, attempt = 1): JobRecord {
@@ -127,7 +129,13 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
       promptVer: (p.mode === "patch" ? "loop.patch@1" : p.mode === "findings" ? "loop.findings@1" : "loop.answer@1") as Job["promptVer"],
       createdAt: deps.clock.iso(),
     };
-    return { job: j, baseCommit: null, bundleTokens: p.estimate.inTokens, bundleBlobs: p.bundle.blobs, extra: { newFiles: p.scope.newFiles, ...(p.route.note ? { note: p.route.note } : {}) } };
+    return {
+      job: j,
+      baseCommit: null,
+      bundleTokens: p.estimate.inTokens,
+      bundleBlobs: p.bundle.blobs,
+      extra: { newFiles: p.scope.newFiles, ...(p.route.note ? { note: p.route.note } : {}) },
+    };
   }
 
   const runner: JobRunnerHandle = {
@@ -139,14 +147,19 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
       const p = await planFor(req);
       supported(p);
       if (p.estimate.requiresConfirm && req.confirm !== true)
-        throw new MitoriError("E_PRECONDITION", "this job needs a confirmed estimate", { params: { estimateId: p.id, reasons: p.estimate.confirmReasons.join(",") } });
+        throw new MitoriError("E_PRECONDITION", "this job needs a confirmed estimate", {
+          params: { estimateId: p.id, reasons: p.estimate.confirmReasons.join(",") },
+        });
       const rec = newRecord(p);
       const job = await deps.write("job.create", () =>
         deps.db.tx(() => {
           for (const t of p.threads) {
             const cur = deps.review.get(t.id);
             const ok = cur && (cur.state === "open" || (cur.state === "queued" && cur.batchRound !== undefined));
-            if (!ok) throw new MitoriError("E_PRECONDITION", `thread ${t.id} cannot be dispatched (${cur?.state ?? "missing"})`, { params: { id: t.id, state: cur?.state ?? "missing" } });
+            if (!ok)
+              throw new MitoriError("E_PRECONDITION", `thread ${t.id} cannot be dispatched (${cur?.state ?? "missing"})`, {
+                params: { id: t.id, state: cur?.state ?? "missing" },
+              });
           }
           core.store.insert(rec);
           // CR m1-73: Finish already dispatched its threads (queued + batchRound)
@@ -164,7 +177,8 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
     async cancel(id) {
       const rec = core.get(id);
       if (rec.job.state === "ready") throw new MitoriError("E_PRECONDITION", "a ready job is rejected, not cancelled", { params: { job: id } });
-      if (!ACTIVE.includes(rec.job.state)) throw new MitoriError("E_STATE_TRANSITION", `job ${id} is ${rec.job.state}`, { params: { machine: "job", from: rec.job.state, to: "cancelled" } });
+      if (!ACTIVE.includes(rec.job.state))
+        throw new MitoriError("E_STATE_TRANSITION", `job ${id} is ${rec.job.state}`, { params: { machine: "job", from: rec.job.state, to: "cancelled" } });
       const saved = await core.update(id, "job.cancel", (r) => {
         core.setState(r, "cancelled");
         for (const t of r.job.threads) core.threads.fire(t, "cancel", "human");
@@ -180,7 +194,10 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
 
     async revise(id, message) {
       const rec = core.get(id);
-      if (rec.job.state !== "ready") throw new MitoriError("E_STATE_TRANSITION", `job ${id} is ${rec.job.state}, not ready`, { params: { machine: "job", from: rec.job.state, to: "queued" } });
+      if (rec.job.state !== "ready")
+        throw new MitoriError("E_STATE_TRANSITION", `job ${id} is ${rec.job.state}, not ready`, {
+          params: { machine: "job", from: rec.job.state, to: "queued" },
+        });
       if (message.trim() === "") throw new MitoriError("E_INVALID_INPUT", "a revision needs a message");
       const session = core.parking.take(id);
       const req: JobReq = { kind: rec.job.kind, threads: rec.job.threads, engine: rec.job.engine };
@@ -198,7 +215,10 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
 
     async retry(id, engine?: EngineId) {
       const rec = core.get(id);
-      if (rec.job.state !== "failed") throw new MitoriError("E_STATE_TRANSITION", `job ${id} is ${rec.job.state}, not failed`, { params: { machine: "job", from: rec.job.state, to: "queued" } });
+      if (rec.job.state !== "failed")
+        throw new MitoriError("E_STATE_TRANSITION", `job ${id} is ${rec.job.state}, not failed`, {
+          params: { machine: "job", from: rec.job.state, to: "queued" },
+        });
       const req: JobReq = { kind: rec.job.kind, threads: rec.job.threads, engine: engine ?? rec.job.engine };
       const p = await freshPlan(req);
       supported(p);
@@ -289,7 +309,13 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
         const file = `${deps.home}/repos/${deps.ws.key}/jobs/${rec.job.id}/events.ndjson`;
         if (deps.fs.stat(file)?.isFile) {
           const text = new TextDecoder().decode(await deps.fs.read(file));
-          core.setEvents(rec.job.id, text.split("\n").filter(Boolean).map((l) => JSON.parse(l) as never));
+          core.setEvents(
+            rec.job.id,
+            text
+              .split("\n")
+              .filter(Boolean)
+              .map((l) => JSON.parse(l) as never),
+          );
         }
       }
       await deps.git.gc([...out.requeued, ...out.kept]).catch((e: unknown) => deps.log.warn("git gc failed", { error: MitoriError.from(e).message }));

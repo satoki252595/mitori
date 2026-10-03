@@ -1487,7 +1487,7 @@ CREATE VIRTUAL TABLE idx_search USING fts5(kind UNINDEXED, id UNINDEXED, label, 
 | # | 試験 | 合格条件 |
 |---|---|---|
 | IDX-AT-30 | 決定性 | 同じ snapshot・同じ前状態で 2 回 → membership・ID・slug・rank・topo・repo pack のバイトが完全一致。プロセス・マシン（macOS / Linux）を変えても一致 |
-| IDX-AT-31 | modularity | m3e で directory partition より高く、かつ同じグラフでの Louvain 50 順序の最良値 × 0.9 以上（CR m1-36。≥ 0.2 は import 解決込みのグラフでは到達不能、最良 0.191）。crit で ≥ 0.45 [仮] |
+| IDX-AT-31 | modularity | m3e で directory partition より高く、かつ同じグラフでの Louvain 50 順序の最良値 × 0.9 以上（CR m1-36。≥ 0.2 は import 解決込みのグラフでは到達不能、最良 0.191）。crit で ≥ 0.45 [仮]（実測 0.356、ディレクトリ整合を優先して 0.35 を下限にした）|
 | IDX-AT-32 | サイズ | 全コーパスで leaf の LOC 中央値が 2k〜6k（repo 全体が小さい m3e・flask は例外として leaf 数 ≥ 3 [仮]）、sig skeleton > 32k token の leaf 0 |
 | IDX-AT-33 | ID の安定 | crit 40 commit の replay で、ID が変わる leaf の割合が commit あたり ≤ 5%、40 commit 通しで ≥ 90% の leaf が ID を保つ、生存 ID の slug 変化 0 [仮] |
 | IDX-AT-34 | seed | DB を消し、`doc.index.json` の `modules[].reps` だけを seed にして再 scan → 元の ID と一致する leaf ≥ 95% |

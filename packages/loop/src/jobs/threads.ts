@@ -3,7 +3,9 @@
 // stored with the job id and published as `thread.message`. All methods are synchronous and run inside the
 // caller's workspace write slot.
 import {
+  type Clock,
   canTransition,
+  type EventSink,
   type JobId,
   type Message,
   type MessageAuthor,
@@ -11,12 +13,10 @@ import {
   type Random,
   type Resolution,
   type SqlDb,
+  type SseEventPayload,
   type ThreadId,
   type ThreadTrigger,
   type TransitionActor,
-  type Clock,
-  type EventSink,
-  type SseEventPayload,
 } from "@mitori/core";
 import type { ReviewEngine } from "../contract.ts";
 import { ReviewStore } from "../review/store.ts";
@@ -64,7 +64,16 @@ export class JobThreads {
   say(id: ThreadId, job: JobId, by: MessageAuthor, kind: Message["kind"], body: string, cites?: Message["cites"]): void {
     const t = this.store.thread(id)?.thread;
     if (!t) return;
-    const m: Message = { id: newId("message", this.deps.random), thread: id, by, kind, body: body.replace(/\r\n?/g, "\n"), round: t.round, job, createdAt: this.deps.clock.iso() };
+    const m: Message = {
+      id: newId("message", this.deps.random),
+      thread: id,
+      by,
+      kind,
+      body: body.replace(/\r\n?/g, "\n"),
+      round: t.round,
+      job,
+      createdAt: this.deps.clock.iso(),
+    };
     if (cites && cites.length > 0) m.cites = cites;
     this.store.insertMessage(m);
     this.deps.events.emit({ type: "thread.message", message: { ...m, html: this.deps.renderMessage(m.body) } });

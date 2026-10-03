@@ -41,13 +41,16 @@ function docMember(deps: CaptureDeps, input: NonNullable<AnchorInput["doc"]>): {
   const doc = deps.anchors.docAnchor(block.id, text, block.hash, start, end, spans);
   const claim = doc.claim ? claims.find((c) => c.id === doc.claim) : undefined;
   const cite = claim?.cites[0] ?? claims.flatMap((c) => c.cites)[0];
-  const code: CodeAnchor | null = cite ? { path: cite.path, start: cite.start, end: cite.end, blob: cite.blob, snippet: cite.snippet, ...(cite.symbol ? { symbol: cite.symbol } : {}) } : null;
+  const code: CodeAnchor | null = cite
+    ? { path: cite.path, start: cite.start, end: cite.end, blob: cite.blob, snippet: cite.snippet, ...(cite.symbol ? { symbol: cite.symbol } : {}) }
+    : null;
   return { doc, code };
 }
 
 /** The synchronous capture port of the review engine (doc / diagram inputs; code needs {@link captureAnchor}). */
 export function captureSync(deps: CaptureDeps, input: AnchorInput): CapturedAnchor {
-  if (input.code) throw new MitoriError("E_PRECONDITION", "a code anchor is captured outside the write slot (createLoop().capture)", { params: { primary: input.primary } });
+  if (input.code)
+    throw new MitoriError("E_PRECONDITION", "a code anchor is captured outside the write slot (createLoop().capture)", { params: { primary: input.primary } });
   const anchor: Anchor = { primary: input.primary };
   if (input.doc) {
     const d = docMember(deps, input.doc);

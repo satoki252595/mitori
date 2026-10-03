@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { RepoPath } from "@mitori/core";
+import type { StageFile } from "../resolve/files.ts";
 import { resolveImports } from "../resolve/stage.ts";
 import { imp, input, sf } from "../resolve/test/stage-files.ts";
-import type { StageFile } from "../resolve/files.ts";
 import { buildAtoms } from "./atoms.ts";
 import { nodeScope, undirected } from "./cluster.ts";
 import { buildFileGraph, type FileGraph } from "./graph.ts";
@@ -84,7 +84,8 @@ describe("IDX-U S3 atoms (directory units)", () => {
     const files = Array.from({ length: 12 }, (_, i) => go(`big/f${String(i).padStart(2, "0")}.go`, "big", 900));
     const atoms = atomsOf(files, DEFAULT_TUNING, (fg) => {
       for (let i = 0; i < 12; i++)
-        for (let j = 0; j < 12; j++) if (i !== j && Math.floor(i / 6) === Math.floor(j / 6)) edge(fg, `big/f${String(i).padStart(2, "0")}.go`, `big/f${String(j).padStart(2, "0")}.go`);
+        for (let j = 0; j < 12; j++)
+          if (i !== j && Math.floor(i / 6) === Math.floor(j / 6)) edge(fg, `big/f${String(i).padStart(2, "0")}.go`, `big/f${String(j).padStart(2, "0")}.go`);
     });
     expect(atoms.length).toBe(2);
     for (const a of atoms) {

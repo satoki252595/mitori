@@ -3,7 +3,17 @@
 // A gate that can execute repository code runs inside the OS sandbox, or — without one — only after the human
 // consented (`pending_consent` until `POST /jobs/:job/gates/run`).
 import type { Spawner, SpawnSpec } from "@mitori/agent";
-import { type Cancel, type Clock, type FsReader, type GateResult, type GateSpec, MitoriError, type RepoPath, type SafeWriter, type SecretScanner } from "@mitori/core";
+import {
+  type Cancel,
+  type Clock,
+  type FsReader,
+  type GateResult,
+  type GateSpec,
+  MitoriError,
+  type RepoPath,
+  type SafeWriter,
+  type SecretScanner,
+} from "@mitori/core";
 import { runToExit } from "@mitori/platform";
 import { GATE_ENV_ALLOWLIST, GATE_ENV_FIXED, GATE_TIMEOUTS, type GateRunner } from "../contract.ts";
 import { addedLines } from "../git/diff.ts";
@@ -52,7 +62,8 @@ export function gateEnv(deps: Pick<GateRunnerDeps, "env" | "home" | "ws" | "fs">
     const v = deps.env[k];
     if (typeof v === "string" && v !== "") env[k] = v;
   }
-  for (const [k, v] of Object.entries(GATE_ENV_FIXED)) env[k] = v.replaceAll("{home}", deps.home).replaceAll("{jobTmp}", jobTmp).replaceAll("{ws}", deps.ws.key);
+  for (const [k, v] of Object.entries(GATE_ENV_FIXED))
+    env[k] = v.replaceAll("{home}", deps.home).replaceAll("{jobTmp}", jobTmp).replaceAll("{ws}", deps.ws.key);
   const venv = `${deps.ws.root}/.venv`;
   if (deps.fs.stat(venv)?.isDir) env.VIRTUAL_ENV = venv;
   return env;
@@ -89,7 +100,10 @@ export function createGateRunner(deps: GateRunnerDeps): GateRunner {
     const files = filesFor(gate, changed);
     if (files.length === 0) return { gate: gate.id, status: "skipped", ms: 0 };
     if (gate.executesRepoCode && opts.sandbox === "none" && !opts.consent) return { gate: gate.id, status: "pending_consent", ms: 0 };
-    const argv = expandGate(gate, changed, { pkgsOf: (ps) => [...new Set(ps.map((p) => `./${p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "."}`))], testsOf: () => [] });
+    const argv = expandGate(gate, changed, {
+      pkgsOf: (ps) => [...new Set(ps.map((p) => `./${p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "."}`))],
+      testsOf: () => [],
+    });
     const bin = argv[0] as string;
     argv[0] = bin.includes("/") && !bin.startsWith("/") ? `${deps.ws.root}/${bin}` : bin;
     const cwd = gate.cwd === "" ? tree : `${tree}/${gate.cwd}`;
@@ -113,7 +127,12 @@ export function createGateRunner(deps: GateRunnerDeps): GateRunner {
       r = await runToExit(deps.spawner, spec, { signal });
     } catch (e) {
       const err = MitoriError.from(e);
-      return { gate: gate.id, status: "error", ms: deps.clock.now() - started, excerpt: excerpt(err.message, { worktree: tree, estimateTokens: deps.estimateTokens }, deps.secrets) };
+      return {
+        gate: gate.id,
+        status: "error",
+        ms: deps.clock.now() - started,
+        excerpt: excerpt(err.message, { worktree: tree, estimateTokens: deps.estimateTokens }, deps.secrets),
+      };
     }
     const ms = deps.clock.now() - started;
     const result: GateResult = { gate: gate.id, status: r.code === 0 ? "pass" : "fail", ms };

@@ -35,13 +35,17 @@ export function commitRequest(core: RunnerCore, rec: JobRecord, message?: string
     trailers["Mitori-Thread"] = j.threads.join(", ");
     trailers["Mitori-Agent"] = `${j.engine}/${j.route.model}`;
     const u = j.usage;
-    if (u) trailers["Mitori-Cost"] = `$${u.apiUsd.toFixed(3)} (${((u.in + u.cacheRead + u.cacheWrite) / 1000).toFixed(1)}k in / ${(u.out / 1000).toFixed(1)}k out)`;
+    if (u)
+      trailers["Mitori-Cost"] = `$${u.apiUsd.toFixed(3)} (${((u.in + u.cacheRead + u.cacheWrite) / 1000).toFixed(1)}k in / ${(u.out / 1000).toFixed(1)}k out)`;
   }
   return { message: `${body}\n`, trailers };
 }
 
 /** Hunk decisions after `sel` (validated) and the hunks H′ contains. */
-function decide(rec: JobRecord, sel: AcceptReq): { decisions: Record<HunkId, "accepted" | "rejected" | "pending">; include: HunkId[]; full: boolean; newly: HunkId[] } {
+function decide(
+  rec: JobRecord,
+  sel: AcceptReq,
+): { decisions: Record<HunkId, "accepted" | "rejected" | "pending">; include: HunkId[]; full: boolean; newly: HunkId[] } {
   const decisions = { ...(rec.job.hunkDecisions ?? {}) } as Record<HunkId, "accepted" | "rejected" | "pending">;
   const ids = Object.keys(decisions) as HunkId[];
   const pending = ids.filter((h) => decisions[h] === "pending");
@@ -66,7 +70,8 @@ export async function accept(core: RunnerCore, id: JobId, sel: AcceptReq): Promi
   const j = rec.job;
   if (j.state !== "ready" && j.state !== "partially_accepted")
     throw new MitoriError("E_STATE_TRANSITION", `job ${id} is ${j.state}, not ready`, { params: { machine: "job", from: j.state, to: "accepting" } });
-  if (j.sensitive && sel.accept === "all") throw new MitoriError("E_PRECONDITION", "this job touches sensitive files: decide each hunk", { params: { reason: "sensitive" } });
+  if (j.sensitive && sel.accept === "all")
+    throw new MitoriError("E_PRECONDITION", "this job touches sensitive files: decide each hunk", { params: { reason: "sensitive" } });
   const d = decide(rec, sel);
   if (d.newly.length === 0 && (sel.reject ?? []).length === 0) throw new MitoriError("E_PRECONDITION", "nothing to accept", { params: { job: id } });
   const selection: AcceptReq = { accept: d.full ? "all" : d.include };
@@ -113,7 +118,10 @@ export async function accept(core: RunnerCore, id: JobId, sel: AcceptReq): Promi
 
   // merge pre-check first: a conflict leaves the job ready (spec §7.8-4)
   const pre = await deps.git.precheck(id, selection);
-  if (!pre.clean) throw new MitoriError("E_GIT_MERGE_CONFLICT", `the change conflicts with the working tree: ${pre.conflicts.join(", ")}`, { params: { files: pre.conflicts.join(",") } });
+  if (!pre.clean)
+    throw new MitoriError("E_GIT_MERGE_CONFLICT", `the change conflicts with the working tree: ${pre.conflicts.join(", ")}`, {
+      params: { files: pre.conflicts.join(",") },
+    });
   const out = await deps.git.acceptFull(id, selection, { autoCommit: null, writeScope: j.writeScope });
   const ck = out.checkpoint.id;
   const proposals = [...new Set([...(sel.proposals ?? []), ...(s.autoAcceptDocUpdates ? j.proposals : [])])].filter((p) => j.proposals.includes(p));
@@ -238,7 +246,8 @@ export async function commit(core: RunnerCore, id: JobId, message?: string): Pro
 /** `JobRunner.runGates` (SEC-03): run `pending_consent` (and newly trusted) gates on the job head. */
 export async function runGates(core: RunnerCore, id: JobId, only?: readonly string[]): Promise<Job> {
   const rec = core.get(id);
-  if (rec.job.state !== "ready") throw new MitoriError("E_STATE_TRANSITION", `job ${id} is ${rec.job.state}, not ready`, { params: { machine: "job", from: rec.job.state, to: "ready" } });
+  if (rec.job.state !== "ready")
+    throw new MitoriError("E_STATE_TRANSITION", `job ${id} is ${rec.job.state}, not ready`, { params: { machine: "job", from: rec.job.state, to: "ready" } });
   const specs = (rec.extra.gateSpecs ?? []).filter((g) => {
     const prev = rec.job.gates.find((r) => r.gate === g.id);
     return (only ? only.includes(g.id) : true) && (!prev || prev.status === "pending_consent" || prev.status === "untrusted");

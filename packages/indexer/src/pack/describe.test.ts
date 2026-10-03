@@ -13,7 +13,9 @@ describe("IDX-U provisional module descriptions", () => {
     expect(leadingDoc(frag("a/notify.go", { 1: "// Package notify sends desktop notifications.", 2: "// More.", 4: "package notify" }), "a/notify.go")).toBe(
       "Package notify sends desktop notifications. More.",
     );
-    expect(leadingDoc(frag("x/lib.rs", { 1: "/*!", 2: "The ignore crate provides a fast walker.", 3: "*/" }), "x/lib.rs")).toBe("The ignore crate provides a fast walker.");
+    expect(leadingDoc(frag("x/lib.rs", { 1: "/*!", 2: "The ignore crate provides a fast walker.", 3: "*/" }), "x/lib.rs")).toBe(
+      "The ignore crate provides a fast walker.",
+    );
     expect(leadingDoc(frag("x/lib.rs", { 1: "/// A field doc", 2: "pub struct A;" }), "x/lib.rs")).toBeNull();
     expect(leadingDoc(frag("p/__init__.py", { 1: '"""Flask utilities.', 2: "", 3: 'Second paragraph."""' }), "p/__init__.py")).toBe("Flask utilities.");
     expect(leadingDoc(frag("s/index.ts", { 1: "/**", 2: " * @module", 3: " * JSX for Hono.", 4: " */" }), "s/index.ts")).toBe("JSX for Hono.");

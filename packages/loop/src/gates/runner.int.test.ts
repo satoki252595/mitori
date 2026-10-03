@@ -69,7 +69,15 @@ describe("LOOP-I-041 gate runner", () => {
   test("gofmt autofixes a temp copy; the formatted text comes back; unparsable code fails with an excerpt", async () => {
     const deps = { runner: runner(), safeWrite, fs, home: realpathSync(home.dir), ws: "ws_gatetest0001" };
     const ugly = "package meta\n\nconst  maxRetries   =  3\nfunc f( ) {return}\n";
-    const r = await runOnCopies(deps, job, [gofmt], { "internal/meta/fetch.go": ugly }, { "go.mod": "module x\n" }, { consent: false, sandbox: "none" }, new AbortController().signal);
+    const r = await runOnCopies(
+      deps,
+      job,
+      [gofmt],
+      { "internal/meta/fetch.go": ugly },
+      { "go.mod": "module x\n" },
+      { consent: false, sandbox: "none" },
+      new AbortController().signal,
+    );
     expect(r.results).toMatchObject([{ gate: "fmt:gofmt", status: "pass", autofixed: true }]);
     expect(r.files["internal/meta/fetch.go"]).toBe("package meta\n\nconst maxRetries = 3\n\nfunc f() { return }\n");
     const bad = await runOnCopies(deps, job, [gofmt], { "a.go": "package x\nfunc {\n" }, {}, { consent: false, sandbox: "none" }, new AbortController().signal);
@@ -94,27 +102,49 @@ describe("LOOP-I-041 gate runner", () => {
     expect(dumped).not.toContain("ANTHROPIC_API_KEY");
     expect(dumped).not.toContain("NODE_OPTIONS");
     expect(Object.keys(gateEnv({ env: { PATH: "/b", FOO: "x" }, home: "/m", ws: { key: "ws", root: "/r" }, fs }, "/m/t")).sort()).toEqual(
-      ["CARGO_NET_OFFLINE", "CARGO_TARGET_DIR", "CI", "FORCE_COLOR", "GOFLAGS", "GOPROXY", "NO_COLOR", "PATH", "PIP_NO_INDEX", "PYTHONDONTWRITEBYTECODE", "TMPDIR", "npm_config_offline"].sort(),
+      [
+        "CARGO_NET_OFFLINE",
+        "CARGO_TARGET_DIR",
+        "CI",
+        "FORCE_COLOR",
+        "GOFLAGS",
+        "GOPROXY",
+        "NO_COLOR",
+        "PATH",
+        "PIP_NO_INDEX",
+        "PYTHONDONTWRITEBYTECODE",
+        "TMPDIR",
+        "npm_config_offline",
+      ].sort(),
     );
     const slow = await r.run(tree, [script("slow", "sleep 30", 300)], ["a.txt"], { consent: true, sandbox: "none" }, new AbortController().signal);
     expect(slow[0]?.status).toBe("timeout");
     // a failing gate stops the later ones
-    const two = await r.run(tree, [script("a-fail", "exit 3"), script("b-later", "exit 0")], ["a.txt"], { consent: true, sandbox: "none" }, new AbortController().signal);
+    const two = await r.run(
+      tree,
+      [script("a-fail", "exit 3"), script("b-later", "exit 0")],
+      ["a.txt"],
+      { consent: true, sandbox: "none" },
+      new AbortController().signal,
+    );
     expect(two.map((g) => g.status)).toEqual(["fail", "skipped"]);
   });
 
-  test.if(process.platform === "darwin" && existsSync("/usr/bin/sandbox-exec"))("RT-30: inside sandbox-exec a gate can write its tree but not read ~/.ssh, write HOME or reach the network", async () => {
-    const r = runner();
-    const tree = join(realpathSync(home.dir), "repos/ws_gatetest0001/tmp", job, "tree");
-    mkdirSync(tree, { recursive: true });
-    writeFileSync(join(tree, "a.txt"), "x\n");
-    const opts = { consent: false, sandbox: "sandbox-exec" as const };
-    const sig = new AbortController().signal;
-    expect((await r.run(tree, [script("tree-write", "echo ok > a.txt")], ["a.txt"], opts, sig))[0]).toMatchObject({ status: "pass", sandboxed: true });
-    expect((await r.run(tree, [script("ssh-read", `cat ${userHome}/.ssh/id_test`)], ["a.txt"], opts, sig))[0]?.status).toBe("fail");
-    expect((await r.run(tree, [script("home-write", `echo x > ${userHome}/pwned`)], ["a.txt"], opts, sig))[0]?.status).toBe("fail");
-    expect(existsSync(join(userHome, "pwned"))).toBe(false);
-    const net = await r.run(tree, [script("net", "/usr/bin/nc -z -w 2 1.1.1.1 443")], ["a.txt"], opts, sig);
-    expect(net[0]?.status).toBe("fail");
-  });
+  test.if(process.platform === "darwin" && existsSync("/usr/bin/sandbox-exec"))(
+    "RT-30: inside sandbox-exec a gate can write its tree but not read ~/.ssh, write HOME or reach the network",
+    async () => {
+      const r = runner();
+      const tree = join(realpathSync(home.dir), "repos/ws_gatetest0001/tmp", job, "tree");
+      mkdirSync(tree, { recursive: true });
+      writeFileSync(join(tree, "a.txt"), "x\n");
+      const opts = { consent: false, sandbox: "sandbox-exec" as const };
+      const sig = new AbortController().signal;
+      expect((await r.run(tree, [script("tree-write", "echo ok > a.txt")], ["a.txt"], opts, sig))[0]).toMatchObject({ status: "pass", sandboxed: true });
+      expect((await r.run(tree, [script("ssh-read", `cat ${userHome}/.ssh/id_test`)], ["a.txt"], opts, sig))[0]?.status).toBe("fail");
+      expect((await r.run(tree, [script("home-write", `echo x > ${userHome}/pwned`)], ["a.txt"], opts, sig))[0]?.status).toBe("fail");
+      expect(existsSync(join(userHome, "pwned"))).toBe(false);
+      const net = await r.run(tree, [script("net", "/usr/bin/nc -z -w 2 1.1.1.1 443")], ["a.txt"], opts, sig);
+      expect(net[0]?.status).toBe("fail");
+    },
+  );
 });

@@ -112,7 +112,11 @@ for (const name of REPOS) {
         levels.set(lv, [...(levels.get(lv) ?? []), m.name]);
         const members = m.paths.length > 0 ? m.paths : st.modules.filter((x) => x.paths.length > 0 && isBelow(x.id, m.id, byId)).flatMap((x) => x.paths);
         const head = nameHead(m.name);
-        if (head !== "(root)") expect([m.name, members.some((x) => x === head || x.startsWith(`${head}/`) || head.split("/").every((seg) => x.split("/").includes(seg)))]).toEqual([m.name, true]);
+        if (head !== "(root)")
+          expect([m.name, members.some((x) => x === head || x.startsWith(`${head}/`) || head.split("/").every((seg) => x.split("/").includes(seg)))]).toEqual([
+            m.name,
+            true,
+          ]);
         if (m.paths.length === 0) expect(m.children.length).toBeGreaterThanOrEqual(2);
       }
       for (const [lv, names] of levels) expect([lv, new Set(names).size]).toEqual([lv, names.length]);
@@ -160,11 +164,15 @@ const EXPECTED: Record<string, { leaves: string[]; parents?: string[] }> = {
 };
 for (const [name, want] of Object.entries(EXPECTED)) {
   const dir = corpusDir(name);
-  test.skipIf(dir === null)(`${name}: the directory units are modules of their own`, async () => {
-    const st = runPipeline(await loadReal(dir as string)).structure;
-    const leafNames = leavesOf(st).map((m) => m.name);
-    for (const l of want.leaves) expect(leafNames).toContain(l);
-    const parentNames = st.modules.filter((m) => m.paths.length === 0).map((m) => m.name);
-    for (const x of want.parents ?? []) expect(parentNames).toContain(x);
-  }, 120_000);
+  test.skipIf(dir === null)(
+    `${name}: the directory units are modules of their own`,
+    async () => {
+      const st = runPipeline(await loadReal(dir as string)).structure;
+      const leafNames = leavesOf(st).map((m) => m.name);
+      for (const l of want.leaves) expect(leafNames).toContain(l);
+      const parentNames = st.modules.filter((m) => m.paths.length === 0).map((m) => m.name);
+      for (const x of want.parents ?? []) expect(parentNames).toContain(x);
+    },
+    120_000,
+  );
 }

@@ -105,7 +105,11 @@ export function gateTrustHash(hasher: Pick<Hasher, "sha256">, spec: Omit<GateSpe
   return hasher.sha256(`mitori.gates/1\n${canon}\n${cfg.join("")}`);
 }
 
-function spec(env: DetectEnv, f: Omit<GateSpec, "trustHash" | "kind" | "autofix" | "timeoutMs" | "source">, configs: { path: RepoPath; text: string }[]): GateSpec {
+function spec(
+  env: DetectEnv,
+  f: Omit<GateSpec, "trustHash" | "kind" | "autofix" | "timeoutMs" | "source">,
+  configs: { path: RepoPath; text: string }[],
+): GateSpec {
   const base: Omit<GateSpec, "trustHash"> = { ...f, kind: "format", autofix: true, timeoutMs: GATE_TIMEOUTS.format, source: "detected" };
   return { ...base, trustHash: gateTrustHash(env.hasher, base, configs) };
 }
@@ -124,7 +128,14 @@ function goDetector(env: DetectEnv): GateDetector {
         out.push(
           spec(
             env,
-            { id: idAt("gofmt", cwd), argvTemplate: [gofmt, "-w", FILES], endOfOptions: true, cwd, appliesTo: ["**/*.go", ...nested(input, ["go.mod"], cwd)], executesRepoCode: false },
+            {
+              id: idAt("gofmt", cwd),
+              argvTemplate: [gofmt, "-w", FILES],
+              endOfOptions: true,
+              cwd,
+              appliesTo: ["**/*.go", ...nested(input, ["go.mod"], cwd)],
+              executesRepoCode: false,
+            },
             [{ path: join(cwd, "go.mod"), text: mod }],
           ),
         );
@@ -219,7 +230,14 @@ function pyDetector(env: DetectEnv): GateDetector {
           out.push(
             spec(
               env,
-              { id: idAt("ruff", cwd), argvTemplate: [ruff, "format", FILES], endOfOptions: true, cwd, appliesTo: ["**/*.py", "**/*.pyi", ...nested(input, PY_MANIFESTS, cwd)], executesRepoCode: false },
+              {
+                id: idAt("ruff", cwd),
+                argvTemplate: [ruff, "format", FILES],
+                endOfOptions: true,
+                cwd,
+                appliesTo: ["**/*.py", "**/*.pyi", ...nested(input, PY_MANIFESTS, cwd)],
+                executesRepoCode: false,
+              },
               configs,
             ),
           );
@@ -230,7 +248,14 @@ function pyDetector(env: DetectEnv): GateDetector {
           out.push(
             spec(
               env,
-              { id: idAt("black", cwd), argvTemplate: [black, "-q", FILES], endOfOptions: true, cwd, appliesTo: ["**/*.py", "**/*.pyi", ...nested(input, PY_MANIFESTS, cwd)], executesRepoCode: false },
+              {
+                id: idAt("black", cwd),
+                argvTemplate: [black, "-q", FILES],
+                endOfOptions: true,
+                cwd,
+                appliesTo: ["**/*.py", "**/*.pyi", ...nested(input, PY_MANIFESTS, cwd)],
+                executesRepoCode: false,
+              },
               [{ path: join(cwd, "pyproject.toml"), text: pyproject }],
             ),
           );
@@ -254,7 +279,14 @@ function rustDetector(env: DetectEnv): GateDetector {
         out.push(
           spec(
             env,
-            { id: idAt("cargo-fmt", cwd), argvTemplate: [cargo, "fmt", "--", FILES], endOfOptions: false, cwd, appliesTo: ["**/*.rs", ...nested(input, ["Cargo.toml"], cwd)], executesRepoCode: false },
+            {
+              id: idAt("cargo-fmt", cwd),
+              argvTemplate: [cargo, "fmt", "--", FILES],
+              endOfOptions: false,
+              cwd,
+              appliesTo: ["**/*.rs", ...nested(input, ["Cargo.toml"], cwd)],
+              executesRepoCode: false,
+            },
             [{ path: join(cwd, "Cargo.toml"), text: manifest }, ...(fmtCfg ? [fmtCfg] : [])],
           ),
         );

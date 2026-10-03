@@ -4,7 +4,8 @@
 import { createSecretScanner, type SecretScanner } from "@mitori/core";
 import { GATE_EXCERPT_LIMITS, GATE_EXCERPT_PATTERNS } from "../contract.ts";
 
-// CSI (colours, cursor), OSC (titles, hyperlinks) and lone ESC sequences
+// CSI (colours, cursor), OSC (titles, hyperlinks) and lone ESC sequences (control characters are the point)
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching ESC/BEL is the purpose of this pattern
 const ANSI_RE = /\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-Z\\-_]/g;
 
 let shared: SecretScanner | null = null;

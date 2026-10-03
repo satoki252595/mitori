@@ -113,7 +113,14 @@ export class RunnerCore {
 
   constructor(readonly deps: JobRunnerDeps) {
     this.store = new JobStore(deps.db, deps.ws.key);
-    this.threads = new JobThreads({ review: deps.review, db: deps.db, random: deps.random, clock: deps.clock, events: deps.events, renderMessage: deps.renderMessage });
+    this.threads = new JobThreads({
+      review: deps.review,
+      db: deps.db,
+      random: deps.random,
+      clock: deps.clock,
+      events: deps.events,
+      renderMessage: deps.renderMessage,
+    });
   }
 
   remember(plan: JobPlan): void {
@@ -151,7 +158,12 @@ export class RunnerCore {
     const list = this.log.get(job);
     if (!list || list.length === 0) return;
     try {
-      await this.deps.safeWrite.write(this.deps.home, `repos/${this.deps.ws.key}/jobs/${job}/events.ndjson`, `${list.map((e) => JSON.stringify(e)).join("\n")}\n`, "home");
+      await this.deps.safeWrite.write(
+        this.deps.home,
+        `repos/${this.deps.ws.key}/jobs/${job}/events.ndjson`,
+        `${list.map((e) => JSON.stringify(e)).join("\n")}\n`,
+        "home",
+      );
     } catch (e) {
       this.deps.log.warn("job events not persisted", { job, error: MitoriError.from(e).message });
     }
@@ -200,7 +212,11 @@ export class RunnerCore {
       rec = await this.update(id, "job.fail", (r) => {
         if (!ACTIVE.includes(r.job.state)) throw new Stop("not active");
         this.setState(r, "failed");
-        const failure: JobFailure = { code: e.code, message: e.message.slice(0, 300), actions: actionsFor(e.code, e.params as Record<string, unknown> | undefined) };
+        const failure: JobFailure = {
+          code: e.code,
+          message: e.message.slice(0, 300),
+          actions: actionsFor(e.code, e.params as Record<string, unknown> | undefined),
+        };
         r.job.failure = failure;
         for (const t of r.job.threads) {
           if (this.threads.fire(t, "fail", "system")) this.threads.say(t, id, "system", "system", `ジョブが失敗しました（${e.code}）: ${failure.message}`);
@@ -241,7 +257,8 @@ export class RunnerCore {
         this.phase(id, "queued", `待機: ${h.path} を ${h.job} が編集中`);
       }
       const left = deadline - this.deps.clock.now();
-      if (left <= 0) throw new MitoriError("E_LOCK_TIMEOUT", `waited ${Math.round(GIT_LIMITS.lockWaitMs / 60_000)} min for ${res.holders.map((x) => x.path).join(", ")}`);
+      if (left <= 0)
+        throw new MitoriError("E_LOCK_TIMEOUT", `waited ${Math.round(GIT_LIMITS.lockWaitMs / 60_000)} min for ${res.holders.map((x) => x.path).join(", ")}`);
       if (signal.aborted) throw new Stop("cancelled");
       await new Promise<void>((resolve) => {
         const done = () => {

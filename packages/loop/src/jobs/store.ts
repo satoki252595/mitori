@@ -122,7 +122,13 @@ function toRecord(ws: WorkspaceKey, r: Row): JobRecord {
   if (r.started_at) job.startedAt = r.started_at;
   if (r.finished_at) job.finishedAt = r.finished_at;
   for (const k of PUBLIC_EXTRA) if (extra[k] !== undefined) (job as unknown as Record<string, unknown>)[k] = extra[k];
-  return { job, baseCommit: r.base_commit, bundleTokens: r.bundle_tokens ?? 0, bundleBlobs: r.bundle_blobs ? (JSON.parse(r.bundle_blobs) as Record<RepoPath, GitOid>) : {}, extra };
+  return {
+    job,
+    baseCommit: r.base_commit,
+    bundleTokens: r.bundle_tokens ?? 0,
+    bundleBlobs: r.bundle_blobs ? (JSON.parse(r.bundle_blobs) as Record<RepoPath, GitOid>) : {},
+    extra,
+  };
 }
 
 /** SQL of the job runner. */
@@ -153,7 +159,6 @@ export class JobStore {
   }
 
   insert(rec: JobRecord): void {
-    const j = rec.job;
     this.db.run(
       `INSERT INTO job_jobs (id, kind, threads, engine, route, state, attempt, escalated_from, estimate, usage, session_id, worktree, base_ref,
         head_ref, base_commit, write_scope, gates, diffstat, proposals, checkpoint, failure, prompt_ver, bundle_tokens, bundle_blobs, created_at,
@@ -219,7 +224,14 @@ export class JobStore {
   /** Gate results of one attempt (`job_gates`). */
   putGates(job: JobId, attempt: number, results: readonly GateResult[]): void {
     for (const g of results)
-      this.db.run("INSERT OR REPLACE INTO job_gates (job, attempt, gate, status, ms, excerpt) VALUES (?, ?, ?, ?, ?, ?)", [job, attempt, g.gate, g.status, g.ms, g.excerpt ?? null]);
+      this.db.run("INSERT OR REPLACE INTO job_gates (job, attempt, gate, status, ms, excerpt) VALUES (?, ?, ?, ?, ?, ?)", [
+        job,
+        attempt,
+        g.gate,
+        g.status,
+        g.ms,
+        g.excerpt ?? null,
+      ]);
   }
 
   /* ---- file locks (spec §7.10) ---------------------------------------------------------------------------- */

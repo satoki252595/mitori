@@ -2,15 +2,16 @@
 import { describe, expect, test } from "bun:test";
 import type { FileEntry, GateSpec } from "@mitori/core";
 import { createHasher } from "@mitori/platform";
-import { detectFormatGates, type DetectInput, gateTrustHash, supportFiles } from "./detect.ts";
+import { type DetectInput, detectFormatGates, gateTrustHash, supportFiles } from "./detect.ts";
 import { excerpt } from "./excerpt.ts";
 import { expandGate } from "./expand.ts";
 import { gateExcerpt } from "./index.ts";
-import { seatbeltProfile, sandboxed } from "./sandbox.ts";
+import { sandboxed, seatbeltProfile } from "./sandbox.ts";
 
 const hasher = createHasher();
 const env = { pathDirs: ["/tool/bin", ""], root: "/repo", hasher };
-const entry = (path: string): FileEntry => ({ path, blob: "0".repeat(40), size: 1, lang: "generic", class: "source", lines: 1, loc: 1, tokensEst: 1 }) as FileEntry;
+const entry = (path: string): FileEntry =>
+  ({ path, blob: "0".repeat(40), size: 1, lang: "generic", class: "source", lines: 1, loc: 1, tokensEst: 1 }) as FileEntry;
 
 function input(files: Record<string, string>, changed: string[], bins: string[]): DetectInput {
   return {
@@ -24,7 +25,11 @@ function input(files: Record<string, string>, changed: string[], bins: string[])
 
 describe("LOOP-U-040 format gate detection", () => {
   test("Go: gofmt on SAFE_PATH per go.mod directory, executesRepoCode false, -- before the files", () => {
-    const i = input({ "go.mod": "module x\n", "a.go": "", "tools/go.mod": "module t\n", "tools/b.go": "" }, ["a.go", "tools/b.go", "README.md"], ["/tool/bin/gofmt"]);
+    const i = input(
+      { "go.mod": "module x\n", "a.go": "", "tools/go.mod": "module t\n", "tools/b.go": "" },
+      ["a.go", "tools/b.go", "README.md"],
+      ["/tool/bin/gofmt"],
+    );
     const gates = detectFormatGates(env, i);
     expect(gates.map((g) => [g.id, g.cwd, g.executesRepoCode])).toEqual([
       ["fmt:gofmt", "", false],
@@ -121,7 +126,7 @@ describe("ADR-0013 sandbox wrapping", () => {
   test("macOS: network denied, writes only to the tree / job tmp / cargo target, sensitive reads denied, tree re-allowed", () => {
     const p = seatbeltProfile(paths);
     expect(p).toContain("(deny network*)");
-    expect(p).toContain('(deny file-write*)');
+    expect(p).toContain("(deny file-write*)");
     expect(p).toContain('(subpath "/Users/u/.ssh")');
     expect(p).toContain('(subpath "/m")');
     expect(p.indexOf('(allow file-read* (subpath "/m/repos/ws/tmp/j/tree")')).toBeGreaterThan(p.indexOf('(subpath "/m")'));

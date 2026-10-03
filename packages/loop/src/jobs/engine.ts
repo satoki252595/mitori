@@ -12,7 +12,11 @@ export function promptIdOf(plan: Pick<JobPlan, "mode">): LoopPromptId {
   return plan.mode === "patch" ? "loop.patch" : plan.mode === "agent" ? "loop.agent" : plan.mode === "findings" ? "loop.findings" : "loop.answer";
 }
 
-const SCHEMAS: Partial<Record<LoopPromptId, object>> = { "loop.patch": PATCH_V1_ENGINE_SCHEMA, "loop.findings": FINDINGS_V1_ENGINE_SCHEMA, "loop.agent": AGENT_V1_ENGINE_SCHEMA };
+const SCHEMAS: Partial<Record<LoopPromptId, object>> = {
+  "loop.patch": PATCH_V1_ENGINE_SCHEMA,
+  "loop.findings": FINDINGS_V1_ENGINE_SCHEMA,
+  "loop.agent": AGENT_V1_ENGINE_SCHEMA,
+};
 /** Wall-time budget of one turn per mode [仮]. */
 const TURN_MS: Record<LoopPromptId, number> = { "loop.answer": 120_000, "loop.findings": 180_000, "loop.patch": 180_000, "loop.agent": 600_000 };
 

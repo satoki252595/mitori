@@ -24,8 +24,8 @@ import { CONTRACT_LIMITS, type ParsedPatch } from "../contract.ts";
 import { applyEditsToText, parseContract } from "../contracts/index.ts";
 import { runOnCopies } from "../gates/copies.ts";
 import { supportFiles } from "../gates/detect.ts";
-import { isSensitiveJob } from "../router/index.ts";
 import { scopeFailure } from "../git/scope.ts";
+import { isSensitiveJob } from "../router/index.ts";
 import { type RunnerCore, Stop } from "./core.ts";
 import { addUsage, consume, engineRequest } from "./engine.ts";
 import { docContext, type JobPlan } from "./plan.ts";
@@ -43,12 +43,17 @@ export function engineError(r: EngineResult): MitoriError {
 export function verdictOf(results: readonly GateResult[], hasGates: boolean): GateVerdict {
   if (results.some((g) => g.status === "fail" || g.status === "timeout")) return "failed";
   if (!hasGates || results.length === 0) return "unverified";
-  return results.every((g) => g.status === "pass" || (g.status === "skipped" && g.ms === 0)) && results.some((g) => g.status === "pass") ? "passed" : "unverified";
+  return results.every((g) => g.status === "pass" || (g.status === "skipped" && g.ms === 0)) && results.some((g) => g.status === "pass")
+    ? "passed"
+    : "unverified";
 }
 
 /** `[path:a-b]` DOC cite tokens → cite links (CR m1-86 f; the doc store re-stamps them, CR m1-55). */
 export function citeLinks(md: string): string {
-  return md.replace(/\[([^[\]\s]+):(\d+)(?:-(\d+))?\](?!\()/gu, (_m, p: string, a: string, b?: string) => `[${p}:${a}${b ? `-${b}` : ""}](${p}#L${a}${b ? `-L${b}` : ""})`);
+  return md.replace(
+    /\[([^[\]\s]+):(\d+)(?:-(\d+))?\](?!\()/gu,
+    (_m, p: string, a: string, b?: string) => `[${p}:${a}${b ? `-${b}` : ""}](${p}#L${a}${b ? `-L${b}` : ""})`,
+  );
 }
 
 const checkText = (errors: readonly CheckError[]) =>
@@ -122,7 +127,12 @@ export async function runAnswer(core: RunnerCore, id: JobId, plan: JobPlan, sign
     const body =
       findings.length === 0
         ? "指摘はありません。"
-        : findings.map((f) => `- **[${f.severity}] ${f.title}**${f.cites[0] ? ` [[${f.cites[0].path}:${f.cites[0].start}-${f.cites[0].end}]]` : ""}\n  ${f.body.replace(/\n/g, "\n  ")}`).join("\n");
+        : findings
+            .map(
+              (f) =>
+                `- **[${f.severity}] ${f.title}**${f.cites[0] ? ` [[${f.cites[0].path}:${f.cites[0].start}-${f.cites[0].end}]]` : ""}\n  ${f.body.replace(/\n/g, "\n  ")}`,
+            )
+            .join("\n");
     // draft threads (≤ 10): anchored on the first cite, else on the review thread's anchor (spec §5.4)
     const drafts = await Promise.all(
       findings.slice(0, CONTRACT_LIMITS.findingsMax).map(async (f) => {
@@ -185,15 +195,27 @@ async function parsePatchTurn(
   signal: AbortSignal,
 ): Promise<{ parsed: ParsedPatch; session: EngineSession | null }> {
   const doc = docContext(core.deps.doc, plan.threads);
-  const ctx = { taskThreads: plan.threads.map((t) => t.id), docBlocks: doc.blocks, blockKinds: doc.kinds, write: plan.scope.writeScope, primaryBlock: doc.primary };
+  const ctx = {
+    taskThreads: plan.threads.map((t) => t.id),
+    docBlocks: doc.blocks,
+    blockKinds: doc.kinds,
+    write: plan.scope.writeScope,
+    primaryBlock: doc.primary,
+  };
   let result = first;
   let live = session;
   for (let attempt = 0; ; attempt++) {
     const raw = { ...(result.structured !== undefined ? { structured: result.structured } : {}), ...(result.text !== undefined ? { text: result.text } : {}) };
     const parsed = parseContract("patch/1", raw, ctx);
     if (parsed.ok) return { parsed: parsed.value, session: live };
-    if (attempt >= CONTRACT_LIMITS.invalidOutputRetries || !live) throw new MitoriError("E_AGENT_PROTOCOL", `invalid patch/1 output: ${checkText(parsed.error.errors)}`);
-    const msg = await core.deps.bundles.repair({ job: core.get(id).job, kind: "invalid_output", excerpt: checkText(parsed.error.errors), ranges: plan.scope.ranges });
+    if (attempt >= CONTRACT_LIMITS.invalidOutputRetries || !live)
+      throw new MitoriError("E_AGENT_PROTOCOL", `invalid patch/1 output: ${checkText(parsed.error.errors)}`);
+    const msg = await core.deps.bundles.repair({
+      job: core.get(id).job,
+      kind: "invalid_output",
+      excerpt: checkText(parsed.error.errors),
+      ranges: plan.scope.ranges,
+    });
     const began = core.deps.clock.now();
     const run = core.deps.scheduler.continueSession(live, msg.text, continueReq(core, id, plan), signal);
     result = await consume(run, (e) => core.emit(id, e), { text: false });
@@ -229,9 +251,14 @@ export async function runPatch(core: RunnerCore, id: JobId, plan: JobPlan, signa
   await record(core, id, result, began);
   if (result.stop !== "end") throw engineError(result);
   const s = await snap;
-  await core.update(id, "job.base", (r) => {
-    r.baseCommit = s.commit;
-  }, { pipeline: true });
+  await core.update(
+    id,
+    "job.base",
+    (r) => {
+      r.baseCommit = s.commit;
+    },
+    { pipeline: true },
+  );
   const { parsed, session } = await parsePatchTurn(core, id, plan, result, run.session ?? null, signal);
   if (session) core.parking.park(id, session);
   const texts = async (paths: readonly RepoPath[]) => {
@@ -257,7 +284,9 @@ async function bundleText(core: RunnerCore, blob: GitOid | undefined): Promise<s
   return core.deps.git.blobText(blob).catch(() => null);
 }
 
-type Texts = (paths: readonly RepoPath[]) => Promise<{ current: Record<RepoPath, string>; currentBlob: Record<RepoPath, GitOid>; unchanged: Record<RepoPath, string> }>;
+type Texts = (
+  paths: readonly RepoPath[],
+) => Promise<{ current: Record<RepoPath, string>; currentBlob: Record<RepoPath, GitOid>; unchanged: Record<RepoPath, string> }>;
 
 /**
  * apply → head → scope → gates → ready (or done when the turn had no edits). `texts` gives the text the edits apply
@@ -294,13 +323,27 @@ async function applyAndFinish(
     if (blob && text !== null) bundleTexts[p] = { blob, text };
   }
   const applied = applyEditsToText(
-    { current: t.current, bundleText: bundleTexts, currentBlob: t.currentBlob, edits: parsed.edits, writeScope: plan.scope.writeScope, deny: core.deps.settings().denyGlobs },
+    {
+      current: t.current,
+      bundleText: bundleTexts,
+      currentBlob: t.currentBlob,
+      edits: parsed.edits,
+      writeScope: plan.scope.writeScope,
+      deny: core.deps.settings().denyGlobs,
+    },
     core.deps.anchors,
     core.deps.hasher,
   );
   if (!applied.ok) {
     const first = applied.problems[0];
-    throw new MitoriError(first?.code ?? "E_PATCH_APPLY", applied.problems.map((p) => p.message).join("; ").slice(0, 500), { params: { problems: applied.problems.length } });
+    throw new MitoriError(
+      first?.code ?? "E_PATCH_APPLY",
+      applied.problems
+        .map((p) => p.message)
+        .join("; ")
+        .slice(0, 500),
+      { params: { problems: applied.problems.length } },
+    );
   }
   core.phase(id, "scope");
   let files: Record<RepoPath, string> = { ...t.unchanged, ...applied.files };
@@ -308,7 +351,15 @@ async function applyAndFinish(
   await checkScopeOrFail(core, id, plan);
 
   core.phase(id, "gate");
-  const g = await gateHead(core, id, plan.gates.map((x) => x.spec), files, head, { consent: false }, signal);
+  const g = await gateHead(
+    core,
+    id,
+    plan.gates.map((x) => x.spec),
+    files,
+    head,
+    { consent: false },
+    signal,
+  );
   if (Object.keys(g.formatted).length > 0) {
     files = { ...files, ...g.formatted };
     head = await core.deps.git.buildTree(id, base, files);
@@ -322,7 +373,12 @@ async function checkScopeOrFail(core: RunnerCore, id: JobId, plan: JobPlan): Pro
   const report = await core.deps.git.checkScope(id, plan.scope.writeScope, core.deps.settings().denyGlobs);
   const code = scopeFailure(report);
   if (code === null) return;
-  const what = [...report.outside.map((p) => `outside: ${p}`), ...report.denied.map((p) => `denied: ${p}`), ...report.modes.map((m) => `${m.change}: ${m.path}`), ...report.secrets.map((s) => `secret: ${s}`)];
+  const what = [
+    ...report.outside.map((p) => `outside: ${p}`),
+    ...report.denied.map((p) => `denied: ${p}`),
+    ...report.modes.map((m) => `${m.change}: ${m.path}`),
+    ...report.secrets.map((s) => `secret: ${s}`),
+  ];
   throw new MitoriError(code, `scope check failed — ${what.slice(0, 5).join(", ")}`, { params: { files: [...report.outside, ...report.denied].join(",") } });
 }
 
@@ -437,7 +493,8 @@ async function finishOutcomes(
           if (core.threads.fire(t, "answer", "system")) core.threads.say(t, id, engine, "answer", o.body);
         } else if (o.status === "question") {
           if (core.threads.fire(t, "ask_human", "system")) core.threads.say(t, id, engine, "question", o.body);
-        } else if (core.threads.fire(t, "cancel", "system")) core.threads.say(t, id, "system", "system", `このジョブでは対応しませんでした${o.body ? `: ${o.body}` : ""}`);
+        } else if (core.threads.fire(t, "cancel", "system"))
+          core.threads.say(t, id, "system", "system", `このジョブでは対応しませんでした${o.body ? `: ${o.body}` : ""}`);
       }
     },
     { pipeline: true },
@@ -461,7 +518,15 @@ function propose(core: RunnerCore, id: JobId, plan: JobPlan, parsed: ParsedPatch
     const block = core.deps.doc.block(blockId);
     if (!block) continue;
     try {
-      const p = core.deps.doc.propose({ block: blockId, section: block.section, op: "update", baseHash: block.hash, md, source: { kind: "job", id }, reason: `${id} の変更に合わせた更新` });
+      const p = core.deps.doc.propose({
+        block: blockId,
+        section: block.section,
+        op: "update",
+        baseHash: block.hash,
+        md,
+        source: { kind: "job", id },
+        reason: `${id} の変更に合わせた更新`,
+      });
       out.push(p.id);
     } catch (e) {
       // an invalid AI Markdown (SEC-11) stays out of the doc; the code change is still reviewable
@@ -480,7 +545,8 @@ export async function runRevision(core: RunnerCore, id: JobId, plan: JobPlan, se
   const { base, head } = await core.deps.git.commits(id);
   const changed = await core.deps.git.ws.rawDiff(base, head);
   const ranges = [...plan.scope.ranges];
-  for (const d of rec.extra.diff ?? []) for (const h of d.hunks) ranges.push({ path: d.path, start: Math.max(1, h.newStart), end: Math.max(h.newStart, h.newStart + h.newLines - 1) });
+  for (const d of rec.extra.diff ?? [])
+    for (const h of d.hunks) ranges.push({ path: d.path, start: Math.max(1, h.newStart), end: Math.max(h.newStart, h.newStart + h.newLines - 1) });
   const msg = await core.deps.bundles.repair({ job: rec.job, kind: "revise", excerpt: "", humanMessage: message, ranges });
   core.phase(id, "spawn");
   const began = core.deps.clock.now();

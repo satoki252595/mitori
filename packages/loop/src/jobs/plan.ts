@@ -3,17 +3,19 @@
 import {
   type BlockId,
   type BlockKind,
+  type ClaudeModelId,
+  type Clock,
+  type ConfirmReason,
   type EffectiveSettings,
   type EngineId,
   type EngineStatus,
   type Estimate,
   type EstimateId,
+  type GateSpec,
   INTENT_JOB_KIND,
   type JobEstimate,
   type JobKind,
   type JobReq,
-  type ClaudeModelId,
-  type ConfirmReason,
   MitoriError,
   type ModelId,
   newId,
@@ -25,8 +27,6 @@ import {
   type RouteReason,
   type ThreadDetail,
   tokenBand,
-  type Clock,
-  type GateSpec,
 } from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
@@ -212,7 +212,10 @@ export async function planJob(deps: PlanDeps, req: JobReq): Promise<JobPlan> {
   const mode = modeOf(outcome);
   if (mode === "agent") scope = unwrap(deriveWriteScope(threads, scopeCtx(deps, "agent", req, unwritable)));
   const budget = prelim(mode, outcome.decision.model);
-  const bundle = mode === "patch" && probe ? probe : await bundleFor(mode, mode === "patch" || mode === "agent" ? scope : { ...scope, writeScope: [] }, budget, outcome.decision.contract);
+  const bundle =
+    mode === "patch" && probe
+      ? probe
+      : await bundleFor(mode, mode === "patch" || mode === "agent" ? scope : { ...scope, writeScope: [] }, budget, outcome.decision.contract);
 
   // 3. estimate
   const inTokens = sum(bundle);
@@ -269,7 +272,11 @@ function price(model: ModelId, inTok: number, outTok: number): number {
 
 /** The public estimate of a plan. */
 export function jobEstimate(plan: JobPlan): JobEstimate {
-  return { route: plan.route.decision, estimate: plan.estimate, bundle: { tokens: sum(plan.bundle), omitted: plan.bundle.omitted.map((o) => `${o.kind}=${o.count}`) } };
+  return {
+    route: plan.route.decision,
+    estimate: plan.estimate,
+    bundle: { tokens: sum(plan.bundle), omitted: plan.bundle.omitted.map((o) => `${o.kind}=${o.count}`) },
+  };
 }
 
 /** Doc blocks the bundle talked about (patch/1 `doc_updates` may target only these) and their kinds. */
