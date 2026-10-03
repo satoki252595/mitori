@@ -212,8 +212,43 @@ export function checkSource(info: FileInfo, text: string): Violation[] {
     while (ts.isPropertyAccessExpression(e) || ts.isElementAccessExpression(e)) e = e.expression;
     return ts.isIdentifier(e) ? e : null;
   };
+  /** `await import("m")` / `require("m")` (parenthesized or not) → "m". */
+  const loadedModule = (e: ts.Expression | undefined): string | null => {
+    while (e && (ts.isAwaitExpression(e) || ts.isParenthesizedExpression(e))) e = e.expression;
+    if (!e || !ts.isCallExpression(e)) return null;
+    const arg = e.arguments[0];
+    const loader = e.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(e.expression) && e.expression.text === "require");
+    return loader && arg && ts.isStringLiteralLike(arg) ? arg.text : null;
+  };
+
+  /** `const fs = require("fs")`, `const { spawn } = await import("node:child_process")`, `const { write } = Bun`. */
+  const bindDeclaration = (decl: ts.VariableDeclaration) => {
+    const spec = loadedModule(decl.initializer);
+    const set = spec === null ? null : FS_MODULES.has(spec) ? fsBindings : PROC_MODULES.has(spec) ? procBindings : null;
+    const parts = decl.initializer ? chainParts(decl.initializer) : null;
+    const isBun = parts?.join(".").replace(/^(globalThis|window|self)\./, "") === "Bun";
+    if (ts.isIdentifier(decl.name)) {
+      set?.add(decl.name.text);
+      return;
+    }
+    if (!ts.isObjectBindingPattern(decl.name) || (!set && !isBun)) return;
+    for (const el of decl.name.elements) {
+      const key = el.propertyName ?? el.name;
+      if (!ts.isIdentifier(key) && !ts.isStringLiteral(key)) continue;
+      const name = key.text;
+      if (isBun) {
+        if (!runtimeOk) at(el, "runtime-api", `Bun.${name} is only allowed in platform/server/cli`);
+        else if (BUN_IO.has(name) && !ioOk) at(el, "direct-io", `Bun.${name}: write/spawn only via @mitori/platform`);
+      } else if (set) {
+        if ((set === fsBindings ? FS_WRITES : PROC_CALLS).has(name) && !ioOk)
+          at(el, "direct-io", `direct ${name} from "${spec}": write/spawn only via @mitori/platform (SafeWriter / Spawner)`);
+        if (name === "promises" && ts.isIdentifier(el.name)) set.add(el.name.text);
+      }
+    }
+  };
 
   const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node)) bindDeclaration(node);
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       const c = node.importClause;
       const typeOnly =

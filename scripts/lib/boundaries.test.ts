@@ -47,6 +47,18 @@ describe("check-boundaries (WP-00a acceptance)", () => {
     expect(check("packages/loop/src/x.ts", "deps.spawner.spawn(spec); deps.safeWrite.write(root, rel, b, 'doc');")).toEqual([]);
   });
 
+  test("lazy imports, require and destructuring do not bypass the direct-io / runtime rules", () => {
+    expect(check("apps/cli/src/x.ts", 'const { spawn } = await import("node:child_process");')).toEqual(["direct-io@1"]);
+    expect(check("apps/cli/src/x.ts", 'const { writeFile: w } = await import("node:fs/promises");')).toEqual(["direct-io@1"]);
+    expect(check("packages/server/src/x.ts", 'const fs = require("node:fs");\nfs.writeFileSync("a", "b");')).toEqual(["direct-io@2"]);
+    expect(check("packages/server/src/x.ts", 'const { promises: p } = await import("node:fs");\np.rename("a", "b");')).toEqual(["direct-io@2"]);
+    expect(check("packages/server/src/x.ts", "const { write, file } = Bun;")).toEqual(["direct-io@1"]);
+    expect(check("packages/indexer/src/x.ts", "const { file } = Bun;")).toEqual(["runtime-api@1"]);
+    // reads stay allowed where node is
+    expect(check("packages/server/src/x.ts", 'const { readFile } = await import("node:fs/promises");')).toEqual([]);
+    expect(check("packages/platform/src/fs/x.ts", 'const { writeFile } = await import("node:fs/promises");')).toEqual([]);
+  });
+
   test("deep imports and relative escapes fail; the testing subpath is test-only", () => {
     expect(check("packages/gen/src/x.ts", 'import { a } from "@mitori/indexer/src/update/index.ts";')).toEqual(["deep-import@1"]);
     expect(check("packages/gen/src/x.ts", 'import { a } from "../../indexer/src/index.ts";')).toEqual(["deep-import@1"]);
