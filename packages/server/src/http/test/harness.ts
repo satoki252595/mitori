@@ -117,6 +117,7 @@ export interface HarnessOptions {
   port?: number;
   idleExitMs?: number;
   idlePollMs?: number;
+  configPollMs?: number;
   workspace?: Partial<DaemonOptions["workspace"]>;
   hooks?: DaemonOptions["hooks"];
   pid?: number;
@@ -186,6 +187,7 @@ export async function startHarness(opts: HarnessOptions = {}): Promise<Harness> 
     ...(opts.hooks ? { hooks: opts.hooks } : {}),
     ...(opts.idleExitMs !== undefined ? { idleExitMs: opts.idleExitMs } : {}),
     ...(opts.idlePollMs !== undefined ? { idlePollMs: opts.idlePollMs } : {}),
+    ...(opts.configPollMs !== undefined ? { configPollMs: opts.configPollMs } : {}),
   });
   if (started.kind !== "started") throw new Error(`daemon already running (pid ${started.holder.pid})`);
   const daemon = started.daemon;

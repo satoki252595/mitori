@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import type { DaemonRegistry, HealthRes } from "@mitori/core";
+import type { DaemonRegistry, HealthRes, SettingsView } from "@mitori/core";
 import { healthProof } from "../auth/bearer.ts";
 import { decideVersionAction } from "./index.ts";
 import { acquireDaemonLock, type LockFilePort } from "./lock.ts";
@@ -219,6 +219,30 @@ describe("SRV-I-023 daemon lock", () => {
       expect(JSON.parse(readFileSync(path, "utf8")).pid).toBe(77);
     } finally {
       removeDir(home);
+    }
+  });
+});
+
+describe("server spec §6.7 config.json edited by hand", () => {
+  test("a human edit is reloaded (notice.settings.reloaded + settings.updated, workspaces re-resolved); the daemon's own write is not", async () => {
+    const h = await startHarness({ configPollMs: 20 });
+    try {
+      const ws = await h.openProject();
+      const tab = await h.browser();
+      const sse = await openSse(h.origin, `Mitori-Session ${tab.token}`, `?ws=${ws}`);
+      await sse.until((es) => es.some((e) => e.type === "hello"));
+      writeFileSync(`${h.home}/config.json`, JSON.stringify({ ui: { lang: "en" }, workspaces: { [ws]: { readerLevel: "expert" } } }));
+      await sse.until((es) => es.some((e) => e.type === "notice" && e.key === "notice.settings.reloaded"));
+      expect(((await (await tab.req("GET", "/settings")).json()) as SettingsView).settings.ui.lang).toBe("en");
+      const eff = (await (await tab.req("GET", `/ws/${ws}/settings`)).json()) as { overrides: { readerLevel?: string } };
+      expect(eff.overrides.readerLevel).toBe("expert");
+      const v = ((await (await tab.req("GET", "/settings")).json()) as SettingsView).version;
+      expect((await tab.req("PATCH", "/settings", { version: v, patch: { ui: { theme: "dark" } } })).status).toBe(200);
+      await Bun.sleep(100);
+      expect(sse.events.filter((e) => e.type === "notice" && e.key === "notice.settings.reloaded").length).toBe(1);
+      sse.close();
+    } finally {
+      await h.close();
     }
   });
 });

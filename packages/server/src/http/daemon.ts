@@ -27,6 +27,7 @@ import type { DomainProviders, ServerServices } from "../routes/services.ts";
 import type { RouteHandlers } from "../routes/types.ts";
 import { createWaiterRegistry } from "../routes/waiters.ts";
 import { createSettingsService } from "../settings/service.ts";
+import { watchConfigFile } from "../settings/watch.ts";
 import { createSseHub } from "../sse/hub.ts";
 import { createTrustService } from "../trust/service.ts";
 import { createWorkspaceManager, type WorkspaceManagerDeps } from "../ws/manager.ts";
@@ -109,6 +110,8 @@ export interface DaemonOptions {
   /** Default `DAEMON.idleExitMs`. */
   idleExitMs?: number;
   idlePollMs?: number;
+  /** `~/.mitori/config.json` poll interval for human edits (default 2 s, `settings/watch.ts`). */
+  configPollMs?: number;
 }
 
 export interface Daemon {
@@ -288,6 +291,13 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
     const registry: DaemonRegistry = { pid: o.pid, port, token: bearer.token, version: o.version, apiVersion: 1, startedAt };
     await o.safeWrite.write(o.home, REGISTRY_FILE, `${JSON.stringify(registry)}\n`, "home");
 
+    const unwatchConfig = watchConfigFile({
+      settings,
+      fs: o.fs,
+      timers,
+      log: o.log.child("settings"),
+      ...(o.configPollMs !== undefined ? { pollMs: o.configPollMs } : {}),
+    });
     const idle = createIdleMonitor({
       clock: o.clock,
       timers,
@@ -309,6 +319,7 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
         stopRun ??= (async () => {
           shuttingDown = true;
           idle.stop();
+          unwatchConfig();
           hub.flush();
           hub.publish({ type: "server.shutdown", reason }, null, null);
           hub.flush();
