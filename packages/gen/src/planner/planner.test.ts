@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { canonicalJson, type ModuleId } from "@mitori/core";
-import type { GenPlan } from "../contract.ts";
+import type { GenPlan, PlannedTask } from "../contract.ts";
 import { fakeLedger } from "../test/fake-agent.ts";
 import { createFakeDocStore } from "../test/fake-doc.ts";
 import { createFakeIndexer } from "../test/fake-indexer.ts";
@@ -170,6 +170,41 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
     expect(est.expiresAt).toBe("2026-10-03T00:10:00.000Z");
     expect(est.requiresConfirm).toBe(true);
     expect(est.effort).toBe("standard");
+  });
+
+  test("GEN-G-002 per-task $ / tokens / seconds follow §9.2–§9.5 (claude-cli τ = 1, 5m writes, Sonnet low)", () => {
+    const { estimator } = setup();
+    const t: PlannedTask = {
+      id: "gt_0000000001",
+      stage: "S5",
+      prompt: "gen.module",
+      target: { kind: "module", id: M_SESSION },
+      sections: ["s6/session"],
+      deps: [],
+      softDeps: [],
+      model: "claude-sonnet-5-5",
+      effort: "low",
+      lane: "background",
+      topoOrder: 0,
+      rank: 0.9,
+      cacheKey: null,
+      cached: false,
+      estimate: { prefix: 11550, tail: 14100, out: 0, thinking: 0, cacheWrite: 0, cacheRead: 0, uncached: 0, apiUsd: 0, seconds: 0 },
+      phase: 1,
+    };
+    const P = 11550 + 450; // system + pack + ε_cli
+    const O = Math.round(Math.min(3500, 900 + 0.06 * 14100)); // 1746
+    const th = Math.round(150 + 0.05 * O);
+    const usd = (w: 0 | 1) => ((w * P * 2.5 + (1 - w) * P * 0.2 + 14100 * 2.5 + (O + th) * 10) * 1.03) / 1e6;
+    const cold = estimator.task({ ...t, estimate: { ...t.estimate } }, "claude-cli", false);
+    expect(cold).toMatchObject({ prefix: 11550, tail: 14100, out: O, thinking: th, cacheWrite: P + 14100, cacheRead: 0, uncached: 0 });
+    expect(cold.apiUsd).toBeCloseTo(usd(1), 6);
+    expect(cold.seconds).toBeCloseTo(2.5 + 4.0 + (O + th) / 125, 1);
+    const warm = estimator.task({ ...t, estimate: { ...t.estimate } }, "claude-cli", true);
+    expect(warm).toMatchObject({ cacheWrite: 14100, cacheRead: P });
+    expect(warm.apiUsd).toBeCloseTo(usd(0), 6);
+    // session: same $ formula (reference value), no start-up σ in the task duration
+    expect(estimator.task({ ...t, estimate: { ...t.estimate } }, "session", true).seconds).toBeCloseTo(4.0 + (O + th) / 125, 1);
   });
 
   test("the first task of each fan-out group writes the prefix; the rest read it", () => {
