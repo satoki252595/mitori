@@ -118,6 +118,13 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
   function liteQuery(g: GrammarId, st: GrammarState): Query {
     if (st.lite === null) {
       const q = new Query(st.language, combined(g));
+      // A pattern whose captures are all disabled would still be matched (e.g. `(type_identifier) @ref.type` on every
+      // type name): disable it outright.
+      const off = new Set<string>(LITE_DISABLED_CAPTURES);
+      for (let p = 0; p < q.patternCount(); p++) {
+        const used = (q.captureQuantifiers[p] ?? []).flatMap((quant, id) => (quant === 0 ? [] : [q.captureNames[id] as string]));
+        if (used.length > 0 && used.every((n) => off.has(n) || n.startsWith("_"))) q.disablePattern(p);
+      }
       for (const c of LITE_DISABLED_CAPTURES) if (q.captureNames.includes(c)) q.disableCapture(c);
       st.lite = q;
     }

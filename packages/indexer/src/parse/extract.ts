@@ -300,6 +300,8 @@ export function extract(inp: ExtractInput): Extraction {
 
   // ---- complexity + comments (from the combined query) ------------------------------------------------
   comments.sort((a, b) => a.startIndex - b.startIndex);
+  // Plain offsets: `endIndex` is a WASM call, and every symbol's body hash consults the comments it contains.
+  const spans: CommentSpans = { starts: comments.map((c) => c.startIndex), ends: comments.map((c) => c.endIndex) };
   attributeComplexity(folded, cx);
 
   // ---- kinds, qualnames, exported, docs ------------------------------------------------------------
@@ -345,7 +347,7 @@ export function extract(inp: ExtractInput): Extraction {
   folded.forEach((d, i) => {
     d.ord = i;
   });
-  let symbols: ExtractedSymbol[] = folded.map((d) => toSymbol(d, inp, text, line, comments));
+  let symbols: ExtractedSymbol[] = folded.map((d) => toSymbol(d, inp, text, line, spans));
   if (errorLines.length > 0) symbols = mergeRecovered(symbols, recoverDefs(splitLines(text), errorLines, new Set(symbols.map((s) => s.start)), inp.xxh3));
 
   // ---- imports -----------------------------------------------------------------------------------------
@@ -357,9 +359,10 @@ export function extract(inp: ExtractInput): Extraction {
   // ---- comments: LOC, rationale ---------------------------------------------------------------------------
   const commentLines = new Set<number>();
   const rationale: { start: LineNo; end: LineNo }[] = [];
-  for (const c of comments) {
-    const s = c.startIndex;
-    const e = c.endIndex;
+  for (let ci = 0; ci < comments.length; ci++) {
+    const c = comments[ci] as Node;
+    const s = spans.starts[ci] as number;
+    const e = spans.ends[ci] as number;
     const sl = c.startPosition.row + 1;
     const el = lastLine(c);
     const ls = lineStarts[sl - 1] as number;
@@ -873,19 +876,34 @@ function collectTests(defs: readonly Def[], ctx: LangCtx, out: { name: string; l
 // symbols
 // =====================================================================================================
 
-function stripRanges(text: string, from: number, to: number, comments: readonly Node[]): string {
+/** Sorted, non-overlapping comment offsets of a file. */
+interface CommentSpans {
+  starts: readonly number[];
+  ends: readonly number[];
+}
+
+/** `text[from, to)` without the comments inside it (binary search to the first comment ending after `from`). */
+function stripRanges(text: string, from: number, to: number, spans: CommentSpans): string {
+  const { starts, ends } = spans;
+  let lo = 0;
+  let hi = ends.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if ((ends[mid] as number) <= from) lo = mid + 1;
+    else hi = mid;
+  }
   let out = "";
   let at = from;
-  for (const c of comments) {
-    if (c.endIndex <= from || c.startIndex >= to) continue;
-    if (c.startIndex > at) out += text.slice(at, c.startIndex);
-    at = Math.max(at, c.endIndex);
+  for (let i = lo; i < starts.length && (starts[i] as number) < to; i++) {
+    const s = starts[i] as number;
+    if (s > at) out += text.slice(at, s);
+    at = Math.max(at, ends[i] as number);
   }
   if (at < to) out += text.slice(at, to);
   return out;
 }
 
-function toSymbol(d: Def, inp: ExtractInput, text: string, line: (o: number) => number, comments: readonly Node[]): ExtractedSymbol {
+function toSymbol(d: Def, inp: ExtractInput, text: string, line: (o: number) => number, comments: CommentSpans): ExtractedSymbol {
   let sigRaw = text.slice(d.sigStart, Math.max(d.sigStart, d.sigEnd));
   if (d.body === null && d.sigEnd !== d.defNode.endIndex) sigRaw = sigRaw.replace(/\s*:?=\s*$/, "");
   let signature = squash(`${d.sigPrefix}${sigRaw}`).replace(/\s*[{:;]\s*$/, "");

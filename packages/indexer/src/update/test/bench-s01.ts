@@ -43,6 +43,8 @@ const perfCores = (() => {
   const n = Number(new TextDecoder().decode(r.stdout).trim());
   return Number.isFinite(n) && n > 0 ? n : null;
 })();
+/** `MITORI_BENCH_PERF_CORES=<n>` overrides the perfCores fed to poolSize (Worker sweeps for O-IDX-1). */
+const perfCoresUsed = process.env.MITORI_BENCH_PERF_CORES ? Number(process.env.MITORI_BENCH_PERF_CORES) : perfCores;
 
 function workspace(name: string): { root: string; git: ReturnType<typeof cliGit>; kind: "git" | "shadow" } {
   const root = corpusDir(name);
@@ -56,7 +58,7 @@ function workspace(name: string): { root: string; git: ReturnType<typeof cliGit>
 function newIndexer(name: string): { idx: Indexer; deps: ReturnType<typeof testDeps> } {
   const ws = workspace(name);
   const deps = testDeps(ws.root, { git: ws.git, pool: bunWorkerPool(workerInit()), kind: ws.kind });
-  deps.hardware = { cores: availableParallelism(), perfCores };
+  deps.hardware = { cores: availableParallelism(), perfCores: perfCoresUsed };
   return { idx: createIndexer(deps), deps };
 }
 
@@ -120,7 +122,7 @@ async function updateBench(): Promise<number[]> {
   try {
     cpSync(src, dir, { recursive: true, verbatimSymlinks: true });
     const deps = testDeps(dir, { git: cliGit(dir), pool: bunWorkerPool(workerInit()) });
-    deps.hardware = { cores: availableParallelism(), perfCores };
+    deps.hardware = { cores: availableParallelism(), perfCores: perfCoresUsed };
     const idx = createIndexer(deps);
     await idx.scan({ until: "S1", reason: "bench" });
     await settle(idx);
@@ -178,7 +180,7 @@ async function parent(): Promise<void> {
   };
   const cpu = cpus()[0]?.model ?? "?";
   console.log(
-    `machine: ${cpu} cores=${availableParallelism()} perfCores=${perfCores ?? "?"} bun=${Bun.version} load=${(await import("node:os")).loadavg()[0]?.toFixed(2)}`,
+    `machine: ${cpu} cores=${availableParallelism()} perfCores=${perfCores ?? "?"}${perfCoresUsed !== perfCores ? ` (bench uses ${perfCoresUsed})` : ""} bun=${Bun.version} load=${(await import("node:os")).loadavg()[0]?.toFixed(2)}`,
   );
   const lines: string[] = [];
   for (const repo of repos) {
