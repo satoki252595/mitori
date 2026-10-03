@@ -45,10 +45,17 @@ export interface SseHubImpl extends SseHub {
   connections(filter?: { ws?: WorkspaceKey | null; client?: ClientKind }): number;
   /** Called after every attach/detach. Returns unsubscribe. */
   onConnectionsChanged(fn: () => void): () => void;
+  /** End every stream gracefully (queued bytes are still delivered) — shutdown. */
+  closeAll(): void;
   /** Deliver pending coalesced events now. */
   flush(): void;
   /** First seq of this boot (exclusive lower bound of resumable `last`). */
   readonly seqBase: number;
+}
+
+/** A connection the hub can end itself (HTTP streams); plain test connections need not implement it. */
+export interface EndableConnection extends SseConnection {
+  end(): void;
 }
 
 const META = SSE_EVENT_META as Record<string, SseEventMeta | undefined>;
@@ -178,5 +185,12 @@ export function createSseHub(opts: HubOptions): SseHubImpl {
       return () => listeners.delete(fn);
     },
     flush: () => coalescer.flush(),
+    closeAll() {
+      for (const c of [...conns]) {
+        (c as Partial<EndableConnection>).end?.();
+        c.closed = true;
+        detach(c);
+      }
+    },
   };
 }

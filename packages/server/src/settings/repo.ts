@@ -3,15 +3,13 @@
  * `repo` and whose value validates; everything else is reported in `ignoredRepoKeys` [CONS-25]. The trust items it
  * declares (`gates`, `rules`) are content-hashed here so the resolver and the trust service agree on the hash.
  */
-import { createHash } from "node:crypto";
 import { canonicalJson, type GateDeclaration, type GateSpec, type RepoSettings, SETTING_SCOPES, type Sha256, SLUG_RE, type TrustRecord } from "@mitori/core";
+import { sha256 } from "../auth/crypto.ts";
 import { isPlainObject } from "./merge.ts";
 import { REPO_SPEC, validate } from "./schema.ts";
 
 /** Default timeout of a repo-declared gate. */
 export const REPO_GATE_TIMEOUT_MS = 120_000;
-
-const sha256 = (s: string): Sha256 => createHash("sha256").update(s).digest("hex");
 
 export function parseRepoSettings(raw: unknown): { repo: RepoSettings; ignored: string[] } {
   const repo: RepoSettings = { schemaVersion: 1 };

@@ -206,9 +206,16 @@ export function removeDir(dir: string): void {
   if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
 }
 
-/** Apply `up` scripts in order (the platform migration runner is WP-01's). */
+/** Apply not-yet-applied `up` scripts in order, recorded in `srv_migrations` (stand-in for WP-01's runner). */
 export function migrate(db: SqlDb, migrations: readonly Migration[]): SqlDb {
-  for (const m of migrations) db.exec(m.up);
+  db.exec("CREATE TABLE IF NOT EXISTS srv_migrations (pkg TEXT NOT NULL, version INTEGER NOT NULL, applied_at TEXT NOT NULL, PRIMARY KEY (pkg, version))");
+  for (const m of migrations) {
+    if (db.get("SELECT 1 AS x FROM srv_migrations WHERE pkg = ? AND version = ?", [m.pkg, m.version])) continue;
+    db.tx(() => {
+      db.exec(m.up);
+      db.run("INSERT INTO srv_migrations (pkg, version, applied_at) VALUES (?, ?, ?)", [m.pkg, m.version, new Date().toISOString()]);
+    });
+  }
   return db;
 }
 

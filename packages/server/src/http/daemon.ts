@@ -56,7 +56,16 @@ export const bunServe: Serve = (port, app) => {
     idleTimeout: 30,
     fetch: (req, srv) => app.fetch(req, srv as unknown as ServerLike),
   });
-  return { port: server.port ?? port, stop: () => server.stop(true) };
+  return {
+    port: server.port ?? port,
+    // graceful first (ended SSE streams still flush), then force whatever is left after 1 s
+    stop: async () => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([server.stop(false), new Promise<void>((r) => (timer = setTimeout(r, 1000)))]);
+      clearTimeout(timer);
+      await server.stop(true);
+    },
+  };
 };
 
 export interface DaemonOptions {
@@ -298,6 +307,7 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
           hub.flush();
           hub.publish({ type: "server.shutdown", reason }, null, null);
           hub.flush();
+          hub.closeAll();
           const step = async (name: string, fn: (() => unknown) | undefined) => {
             try {
               await fn?.();

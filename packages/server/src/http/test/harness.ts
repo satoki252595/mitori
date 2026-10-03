@@ -161,21 +161,14 @@ export async function startHarness(opts: HarnessOptions = {}): Promise<Harness> 
     fs: fsReader,
     safeWrite: fsSafeWriter(),
     lock: fsLockPort,
-    openState: () => {
-      const path = `${home}/state.sqlite`;
-      const db = sqliteDb(path);
-      if (db.get("SELECT name FROM sqlite_master WHERE name = 'srv_sessions'") === null) migrate(db, SERVER_STATE_MIGRATIONS);
-      return db;
-    },
+    openState: () => migrate(sqliteDb(`${home}/state.sqlite`), SERVER_STATE_MIGRATIONS),
     ...(opts.port !== undefined ? { port: opts.port } : {}),
     assets: testAssets(),
     ...(opts.handlers ? { handlers: opts.handlers } : {}),
     ...(opts.domain ? { domain: opts.domain } : {}),
     workspace: {
       openDb: (path) => sqliteDb(path),
-      migrate: (db) => {
-        if (db.get("SELECT name FROM sqlite_master WHERE name = 'srv_meta'") === null) migrate(db, SERVER_WORKSPACE_MIGRATIONS);
-      },
+      migrate: (db) => void migrate(db, SERVER_WORKSPACE_MIGRATIONS),
       sandbox: "none",
       assemble: fakeAssemble(domain),
       ...opts.workspace,

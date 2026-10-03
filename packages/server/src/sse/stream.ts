@@ -4,8 +4,7 @@
  * 1 MiB is closed (the client reconnects with `?last=<seq>`); cancel/abort detaches it so nothing is left behind.
  */
 import type { ClientKind, WorkspaceKey } from "@mitori/core";
-import type { SseConnection } from "../contract.ts";
-import type { SseHubImpl } from "./hub.ts";
+import type { EndableConnection, SseHubImpl } from "./hub.ts";
 import { encodeComment, encodeEvent, OPEN_BYTES } from "./wire.ts";
 
 /** Backpressure limit per connection. */
@@ -46,12 +45,13 @@ export function sseResponse(opts: SseStreamOptions): Response {
     ctrl.enqueue(bytes);
     if ((ctrl.desiredSize ?? 0) < 0) close();
   };
-  const conn: SseConnection = {
+  const conn: EndableConnection = {
     ws: opts.ws,
     client: opts.client,
     closed: false,
     send: (e) => write(encodeEvent(e)),
     comment: (text) => write(encodeComment(text)),
+    end: () => close(),
   };
   const stream = new ReadableStream<Uint8Array>(
     {

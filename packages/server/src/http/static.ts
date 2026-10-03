@@ -4,8 +4,8 @@
  * for extensionless paths, and the CSP with the hashes of the shell's inline scripts (`'sha256-{headInline}'`).
  * Lookups go through the asset map only — no request path ever reaches the filesystem.
  */
-import { createHash } from "node:crypto";
 import { SECURITY_HEADERS } from "@mitori/core";
+import { sha256 } from "../auth/crypto.ts";
 import type { ServerDeps } from "../contract.ts";
 
 export type Assets = ServerDeps["assets"];
@@ -48,7 +48,7 @@ export function securityHeaders(indexHtml: string): Record<string, string> {
   const hashes = [...indexHtml.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)]
     .map((m) => m[1] ?? "")
     .filter((body) => body.trim() !== "")
-    .map((body) => `'sha256-${createHash("sha256").update(body).digest("base64")}'`);
+    .map((body) => `'sha256-${sha256(body, "base64")}'`);
   const csp = SECURITY_HEADERS["content-security-policy"].replace(" 'sha256-{headInline}'", hashes.length ? ` ${hashes.join(" ")}` : "");
   return { ...SECURITY_HEADERS, "content-security-policy": csp };
 }
