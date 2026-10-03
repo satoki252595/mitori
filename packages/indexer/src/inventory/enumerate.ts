@@ -41,6 +41,8 @@ export interface EnumerateInput {
   now: () => number;
   /** Ignore the stat cache. */
   force: boolean;
+  /** Called with the raw listing before the stat pass (cold scans start the Worker pool from it). */
+  onListed?: (paths: readonly string[]) => void;
 }
 
 export interface EnumerateResult {
@@ -79,6 +81,7 @@ export async function enumerate(inp: EnumerateInput): Promise<EnumerateResult> {
     prevGit !== null ? Promise.resolve(prevGit.objectFormat) : git.objectFormat(),
     prevGit !== null ? Promise.resolve(prevGit.gitDir) : git.gitDir(),
   ]);
+  if (inp.onListed !== undefined) inp.onListed(ls.map((e) => e.path));
   const indexMtime = fs.stat(join(gitDir, "index"))?.mtimeNs ?? null;
   const headMtime = fs.stat(join(gitDir, "HEAD"))?.mtimeNs ?? null;
 
@@ -135,7 +138,7 @@ export async function enumerate(inp: EnumerateInput): Promise<EnumerateResult> {
     if (st === null && !special) continue; // deleted after ls-files
     const mode = e.tracked ? e.mode : st?.isSymlink ? "120000" : special ? "160000" : "100644";
     const size = st?.size ?? 0;
-    const mtimeNs = st?.mtimeNs ?? 0n;
+    const mtimeNs = ((st?.mtimeNs ?? 0n) / 1_000n) * 1_000n; // µs precision: what idx_files can store exactly
     const ino = st?.ino ?? 0n;
     const p = prev?.get(path);
     const statSame = p !== undefined && !inp.force && p.size === size && p.mtimeNs === mtimeNs && p.ino === ino && p.mode === mode && p.tracked === e.tracked;

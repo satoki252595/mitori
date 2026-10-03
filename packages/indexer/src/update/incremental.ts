@@ -120,7 +120,8 @@ export async function runUpdate(core: Core, changes: readonly FsChange[], warmSc
       continue;
     }
     const mode = st.isSymlink ? "120000" : (old?.mode ?? "100644");
-    if (old !== undefined && !old.racy && old.size === st.size && old.mtimeNs === st.mtimeNs && old.ino === st.ino && ch.source === undefined) continue; // touch only
+    const mtimeNs = (st.mtimeNs / 1_000n) * 1_000n;
+    if (old !== undefined && !old.racy && old.size === st.size && old.mtimeNs === mtimeNs && old.ino === st.ino && ch.source === undefined) continue; // touch only
     const c = classifyPathWith({ path, size: st.size, mode, attrs: old?.attrs ?? {} }, set.compiled);
     const r: FileRec = {
       path,
@@ -129,9 +130,9 @@ export async function runUpdate(core: Core, changes: readonly FsChange[], warmSc
       indexBlob: old?.indexBlob ?? "",
       mode,
       size: st.size,
-      mtimeNs: st.mtimeNs,
+      mtimeNs,
       ino: st.ino,
-      racy: st.mtimeNs >= BigInt(nowMs - 3_000) * 1_000_000n,
+      racy: mtimeNs >= BigInt(nowMs - 3_000) * 1_000_000n,
       // CR-PENDING(WP-02): GitReader has no check-ignore; a new path is treated as untracked-not-ignored until the
       // next warm scan (docs/design/cr-requests/WP-02.md §3).
       tracked: old?.tracked ?? false,

@@ -2,6 +2,7 @@
 import { SECRET_PATH_GLOBS } from "@mitori/core";
 import picomatch from "picomatch";
 import { INVENTORY_SETS } from "../contract.ts";
+import { compileGlobs } from "./glob.ts";
 
 const re = (r: { source: string; flags: string }): RegExp => new RegExp(r.source, r.flags);
 
@@ -27,7 +28,7 @@ export const CODE_EXTS: ReadonlySet<string> = new Set(INVENTORY_SETS.codeExts);
 /** Scope `tooling` directories (spec §2.3 scope). */
 export const TOOLING_SEGMENTS: ReadonlySet<string> = new Set(["scripts", "tools", ".github"]);
 
-/** A compiled glob list: one alternation of picomatch regexes (`dot: true`, so `**` crosses dot directories). */
+/** A compiled glob list (`dot: true` semantics, so `**` crosses dot directories). */
 export interface GlobMatcher {
   /** Source globs (for `explain`). */
   readonly globs: readonly string[];
@@ -44,12 +45,13 @@ export function globMatcher(globs: readonly string[]): GlobMatcher {
   const key = globs.join("\0");
   const hit = cache.get(key);
   if (hit) return hit;
-  const parts = globs.map((g) => picomatch.makeRe(g, { dot: true }));
-  const all = parts.length === 0 ? null : new RegExp(parts.map((p) => p.source).join("|"));
+  const fast = compileGlobs(globs);
+  let parts: RegExp[] | null = null;
   const m: GlobMatcher = {
     globs,
-    test: (path) => all?.test(path) === true,
+    test: (path) => fast.test(path),
     which: (path) => {
+      parts ??= globs.map((g) => picomatch.makeRe(g, { dot: true }));
       const i = parts.findIndex((p) => p.test(path));
       return i < 0 ? null : (globs[i] ?? null);
     },

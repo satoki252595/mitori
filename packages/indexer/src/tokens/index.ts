@@ -4,6 +4,7 @@
  */
 import { CHARS_PER_TOKEN, type TextKind, type TokenizerId } from "@mitori/core";
 import { CJK_RANGES } from "../contract.ts";
+import { ceilTokens } from "./ceil.ts";
 
 /** Count CJK UTF-16 code units per {@link CJK_RANGES}. */
 export function countCjk(text: string): number {
@@ -25,5 +26,5 @@ export function countCjk(text: string): number {
 export function estimateTokensRaw(text: string, kind: TextKind, tokenizer: TokenizerId): number {
   const cjk = countCjk(text);
   const cpt = CHARS_PER_TOKEN[tokenizer];
-  return Math.ceil((text.length - cjk) / cpt[kind] + cjk / cpt.markdown_ja);
+  return ceilTokens((text.length - cjk) / cpt[kind] + cjk / cpt.markdown_ja);
 }

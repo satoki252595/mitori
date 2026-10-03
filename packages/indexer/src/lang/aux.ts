@@ -27,6 +27,7 @@ export const CX_QUERIES: Readonly<Record<GrammarId, string>> = {
 };
 
 const JS_TESTS = `(call_expression function: [(identifier) (member_expression)] @t.fn arguments: (arguments . [(string) (template_string)] @t.name))
+(call_expression function: (call_expression function: (member_expression) @t.fn) arguments: (arguments . [(string) (template_string)] @t.name))
 `;
 
 /** Test-case calls (run on test files only): JS/TS `describe`/`it`/`test`…, Go `t.Run("sub")`. */

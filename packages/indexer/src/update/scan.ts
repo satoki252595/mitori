@@ -10,9 +10,11 @@ import {
   type ScanSummaryView,
   type SourceLang,
 } from "@mitori/core";
-import { INDEXER_FORMAT, type ScanOptions, type ScanTimings } from "../contract.ts";
+import { INDEXER_FORMAT, LANG_GRAMMAR, type ScanOptions, type ScanTimings } from "../contract.ts";
 import { enumerate } from "../inventory/enumerate.ts";
 import { computeIndexDigest } from "../inventory/index.ts";
+import { langOfPath } from "../lang/detect.ts";
+import { isTestFile } from "../lang/testfile.ts";
 import { extractorSetVersion } from "../lang/versions.ts";
 import { detectorsFor } from "../parse/detectors.ts";
 import { poolSize } from "../parse/index.ts";
@@ -168,7 +170,9 @@ export async function runScan(core: Core, opts: ScanOptions): Promise<ScanSummar
   core.gen++;
   emit("S0", 0, core.files.size);
 
+  const cold = core.files.size === 0;
   const en = await enumerate({
+    ...(cold ? { onListed: (paths: readonly string[]) => prewarm(core, paths) } : {}),
     git: deps.git,
     fs: deps.fs,
     root: deps.ws.root,
@@ -256,6 +260,26 @@ export async function runScan(core: Core, opts: ScanOptions): Promise<ScanSummar
   void core.pool.settle();
   schedulePersist(core, summary, timings);
   return summary;
+}
+
+/**
+ * Cold scans: guess the pool size and the grammars from the listing (about 8 KiB per parse candidate) so Workers
+ * spawn and compile their queries while S0 stats and classifies. S1 resizes to the real `poolSize`.
+ */
+function prewarm(core: Core, paths: readonly string[]): void {
+  const want = new Map<string, Pick<ParseItemExt, "lang" | "grammar" | "profile">>();
+  let candidates = 0;
+  for (const p of paths) {
+    const { lang } = langOfPath(p);
+    const g = LANG_GRAMMAR[lang];
+    if (g === null) continue;
+    candidates++;
+    const lite = isTestFile(p, lang) || /(^|\/)(tests?|__tests__|spec)\//.test(p);
+    const key = `${g}${lite ? "/lite" : ""}`;
+    if (!want.has(key)) want.set(key, { lang, grammar: g, profile: lite ? "lite" : "full" });
+  }
+  if (candidates === 0) return;
+  core.pool.prewarm(poolSize(candidates * 8_192, core.deps.hardware), [...want.values()]);
 }
 
 /** Snapshot of the current state. */

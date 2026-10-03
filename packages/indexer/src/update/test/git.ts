@@ -3,6 +3,7 @@
 import type { GitOid, GitReader, RepoPath } from "@mitori/core";
 
 const dec = new TextDecoder();
+const STAGED = /^(\d{6}) ([0-9a-f]{40,64}) ([0-3])\t/;
 
 export interface TestGit extends GitReader {
   /** Subprocesses started (warm-path assertions). */
@@ -32,7 +33,8 @@ export function cliGit(cwd: string, env: Record<string, string> = {}): TestGit {
       p.stdin.write(opts.stdin);
       await p.stdin.end();
     }
-    const [out, code] = await Promise.all([new Response(p.stdout).bytes(), p.exited]);
+    const [buf, code] = await Promise.all([Bun.readableStreamToArrayBuffer(p.stdout), p.exited]);
+    const out = new Uint8Array(buf);
     if (code !== 0 && opts.allowFail !== true) throw new Error(`git ${args.join(" ")} failed (${code}): ${await new Response(p.stderr).text()}`);
     return { code, out };
   }
@@ -40,24 +42,25 @@ export function cliGit(cwd: string, env: Record<string, string> = {}): TestGit {
     const r = await git(args, { allowFail: true });
     return r.code === 0 ? dec.decode(r.out).trim() : null;
   };
-  const z = (b: Uint8Array): string[] =>
-    dec
-      .decode(b)
-      .split("\0")
-      .filter((s) => s !== "");
+  const z = (b: Uint8Array): string[] => {
+    if (b.length === 0) return [];
+    const parts = dec.decode(b).split("\0");
+    if (parts[parts.length - 1] === "") parts.pop();
+    return parts;
+  };
   const unsupported = (n: string) => () => Promise.reject(new Error(`test git: ${n} not implemented`));
 
   return {
     calls,
     async lsFiles() {
-      const [tracked, others] = await Promise.all([git(["ls-files", "-s", "-z", "--cached"]), git(["ls-files", "-z", "--others", "--exclude-standard"])]);
+      // One process: with --stage, untracked entries come back as bare paths (no `<mode> <oid> <stage>\t` prefix).
+      const r = await git(["ls-files", "-s", "-z", "--cached", "--others", "--exclude-standard"]);
       const out: { path: RepoPath; blob: GitOid; mode: string; stage: 0 | 1 | 2 | 3; tracked: boolean }[] = [];
-      for (const rec of z(tracked.out)) {
-        const tab = rec.indexOf("\t");
-        const [mode, blob, stage] = rec.slice(0, tab).split(" ") as [string, string, string];
-        out.push({ path: rec.slice(tab + 1), blob, mode, stage: Number(stage) as 0 | 1 | 2 | 3, tracked: true });
+      for (const rec of z(r.out)) {
+        const m = STAGED.exec(rec);
+        if (m === null) out.push({ path: rec, blob: "", mode: "", stage: 0, tracked: false });
+        else out.push({ path: rec.slice(m[0].length), blob: m[2] as string, mode: m[1] as string, stage: Number(m[3]) as 0 | 1 | 2 | 3, tracked: true });
       }
-      for (const p of z(others.out)) out.push({ path: p, blob: "", mode: "", stage: 0, tracked: false });
       return out;
     },
     async lsOthers({ directories }) {

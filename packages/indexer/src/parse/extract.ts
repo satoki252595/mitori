@@ -56,8 +56,8 @@ export interface ExtractInput {
   text: string;
   lineStarts: readonly number[];
   tree: Tree;
+  /** Tags query + the decision-node / comment patterns of `CX_QUERIES` compiled together (one traversal). */
   tags: Query;
-  aux: Query;
   testQuery: Query | null;
   errorQuery: Query;
   /** `lite` = test files (type/qualified refs disabled by the caller's query object). */
@@ -81,8 +81,12 @@ interface Def {
   startLine: number;
   endLine: number;
   body: Node | null;
+  /** Offset where the signature starts (the implementation's own start for folded TS overloads). */
+  sigStart: number;
   /** Offset where the signature stops (body start / initializer start / range end). */
   sigEnd: number;
+  /** Declared inside an `export` statement (TS/JS; also later declarators of `export const a = 1, b = 2`). */
+  exportStmt: boolean;
   /** Prefix for multi-spec Go declarations (`type ` / `const ` / `var `). */
   sigPrefix: string;
   parent: Def | null;
@@ -232,6 +236,9 @@ export function extract(inp: ExtractInput): Extraction {
   const refRaw: { kind: RefRecord["kind"]; node: Node; qual?: Node }[] = [];
   let allList: string[] | null = null;
   let packageNode: Node | null = null;
+  const comments: Node[] = [];
+  const cx: number[] = [];
+  const kids: ChildMemo = new Map();
 
   for (const m of inp.tags.matches(root)) {
     let defCap: QueryCapture | null = null;
@@ -241,7 +248,9 @@ export function extract(inp: ExtractInput): Extraction {
     let allSeen = false;
     for (const c of m.captures) {
       const n = c.name;
-      if (n.startsWith("def.")) defCap = c;
+      if (n === "cx") cx.push(c.node.startIndex);
+      else if (n === "comment") comments.push(c.node);
+      else if (n.startsWith("def.")) defCap = c;
       else if (n === "name") nameCap = c;
       else if (n === "ref.qual.pkg") qualPkg = c.node;
       else if (n === "ref.qual.name") qualName = c.node;
@@ -276,7 +285,7 @@ export function extract(inp: ExtractInput): Extraction {
       if (seenDef.has(key)) continue;
       seenDef.add(key);
       nameStarts.add(nameCap.node.startIndex);
-      defs.push(newDef(inp, cap, defCap.node, nameCap.node, slice));
+      defs.push(newDef(inp, cap, defCap.node, nameCap.node, slice, kids));
     }
   }
 
@@ -286,13 +295,8 @@ export function extract(inp: ExtractInput): Extraction {
   assignParents(folded);
   if (grammar === "go") goReceivers(folded, slice);
 
-  // ---- aux query: complexity + comments ----------------------------------------------------------
-  const comments: Node[] = [];
-  const cx: number[] = [];
-  for (const c of inp.aux.captures(root)) {
-    if (c.name === "cx") cx.push(c.node.startIndex);
-    else if (c.name === "comment") comments.push(c.node);
-  }
+  // ---- complexity + comments (from the combined query) ------------------------------------------------
+  comments.sort((a, b) => a.startIndex - b.startIndex);
   attributeComplexity(folded, cx);
 
   // ---- kinds, qualnames, exported, docs ------------------------------------------------------------
@@ -345,7 +349,7 @@ export function extract(inp: ExtractInput): Extraction {
   const imports = collectImports(inp, importSrc, importNames, exportSrc, slice, line);
 
   // ---- refs -----------------------------------------------------------------------------------------------
-  const refs = degraded ? [] : foldRefs(refRaw, nameStarts, slice, importAliases(inp, imports));
+  const refs = degraded ? [] : foldRefs(refRaw, nameStarts, text, importAliases(inp, imports));
 
   // ---- comments: LOC, rationale ---------------------------------------------------------------------------
   const commentLines = new Set<number>();
@@ -395,7 +399,20 @@ export function extract(inp: ExtractInput): Extraction {
 // definitions
 // =====================================================================================================
 
-function newDef(inp: ExtractInput, cap: string, node: Node, nameNode: Node, slice: (n: Node) => string): Def {
+/** Per-file memo of child counts (long `const (...)` blocks would otherwise rescan their children per spec). */
+type ChildMemo = Map<string, number>;
+
+function memo(m: ChildMemo, parent: Node, tag: string, compute: () => number): number {
+  const k = `${parent.startIndex}:${parent.endIndex}:${tag}`;
+  let v = m.get(k);
+  if (v === undefined) {
+    v = compute();
+    m.set(k, v);
+  }
+  return v;
+}
+
+function newDef(inp: ExtractInput, cap: string, node: Node, nameNode: Node, slice: (n: Node) => string, kids: ChildMemo): Def {
   const g = inp.grammar;
   let defNode = node;
   let rangeNode = node;
@@ -404,10 +421,14 @@ function newDef(inp: ExtractInput, cap: string, node: Node, nameNode: Node, slic
     const parent = node.parent;
     if (parent !== null) {
       const list = parent.type.endsWith("_list") ? parent.parent : parent;
-      const sameKind = parent.namedChildren.filter(
-        (c) => c.type === node.type || (node.type === "type_alias" && c.type === "type_spec") || (node.type === "type_spec" && c.type === "type_alias"),
+      const family = node.type === "type_alias" || node.type === "type_spec" ? "type" : node.type;
+      const sameKind = memo(
+        kids,
+        parent,
+        family,
+        () => parent.namedChildren.filter((c) => c.type === node.type || (family === "type" && (c.type === "type_spec" || c.type === "type_alias"))).length,
       );
-      if (parent.type.endsWith("_declaration") && sameKind.length === 1) {
+      if (parent.type.endsWith("_declaration") && sameKind === 1) {
         defNode = parent;
         rangeNode = parent;
       } else {
@@ -416,20 +437,25 @@ function newDef(inp: ExtractInput, cap: string, node: Node, nameNode: Node, slic
       }
     }
   }
+  let exportStmt = false;
   if (g === "typescript" || g === "tsx" || g === "javascript") {
     if (node.type === "variable_declarator") {
       const decl = node.parent;
+      if (decl?.parent?.type === "export_statement") exportStmt = true;
       if (
         decl !== null &&
         (decl.type === "lexical_declaration" || decl.type === "variable_declaration") &&
-        decl.namedChildren.find((c) => c.type === "variable_declarator")?.startIndex === node.startIndex
+        memo(kids, decl, "first", () => decl.namedChildren.find((c) => c.type === "variable_declarator")?.startIndex ?? -1) === node.startIndex
       )
         rangeNode = decl;
     } else if (node.type === "assignment_expression" && node.parent?.type === "expression_statement") {
       rangeNode = node.parent;
     }
     const p = rangeNode.parent;
-    if (p !== null && p.type === "export_statement") rangeNode = p;
+    if (p !== null && p.type === "export_statement") {
+      rangeNode = p;
+      exportStmt = true;
+    }
   }
   let decorators: string[] | undefined;
   if (g === "python" && node.parent?.type === "decorated_definition") {
@@ -467,7 +493,9 @@ function newDef(inp: ExtractInput, cap: string, node: Node, nameNode: Node, slic
     startLine: rangeNode.startPosition.row + 1,
     endLine: lastLine(defNode),
     body,
+    sigStart: rangeNode.startIndex,
     sigEnd,
+    exportStmt,
     sigPrefix,
     parent: null,
     qualname: "",
@@ -501,6 +529,7 @@ function foldOverloads(defs: Def[]): Def[] {
       impl.start = d.start;
       impl.startLine = d.startLine;
       impl.rangeNode = d.rangeNode;
+      impl.exportStmt ||= d.exportStmt;
       out.push(impl);
       i = j;
     } else out.push(d);
@@ -620,7 +649,7 @@ function isExported(d: Def, ctx: LangCtx): boolean {
   // TS / JS
   if (p === null) {
     if (ctx.inp.decl) return true;
-    if (d.rangeNode.type === "export_statement") return true;
+    if (d.exportStmt) return true;
     if (ctx.exportNames.has(d.name)) return true;
     if (ctx.cjsExports !== null && (ctx.cjsExports.has(d.name) || isCjsAssignment(d, ctx.slice))) return true;
     return false;
@@ -631,7 +660,7 @@ function isExported(d: Def, ctx: LangCtx): boolean {
     for (const c of d.defNode.children) if (c.type === "accessibility_modifier" && /private|protected/.test(ctx.slice(c))) return false;
     return true;
   }
-  if (p.kind === "namespace") return p.exported && d.rangeNode.type === "export_statement";
+  if (p.kind === "namespace") return p.exported && d.exportStmt;
   return false;
 }
 
@@ -854,9 +883,9 @@ function stripRanges(text: string, from: number, to: number, comments: readonly 
 }
 
 function toSymbol(d: Def, inp: ExtractInput, text: string, line: (o: number) => number, comments: readonly Node[]): ExtractedSymbol {
-  let sigRaw = text.slice(d.start, Math.max(d.start, d.sigEnd));
+  let sigRaw = text.slice(d.sigStart, Math.max(d.sigStart, d.sigEnd));
   if (d.body === null && d.sigEnd !== d.defNode.endIndex) sigRaw = sigRaw.replace(/\s*:?=\s*$/, "");
-  let signature = squash(`${d.sigPrefix}${sigRaw}`).replace(/\s*[{:]\s*$/, "");
+  let signature = squash(`${d.sigPrefix}${sigRaw}`).replace(/\s*[{:;]\s*$/, "");
   signature = clip(signature, 200);
   const sigHash = inp.xxh3(`${d.kind}\0${d.qualname}\0${signature.replace(/\s+/g, "")}`);
   const bFrom = d.body?.startIndex ?? d.start;
@@ -1027,23 +1056,44 @@ function importAliases(inp: ExtractInput, imports: readonly ImportRecord[]): Set
 // refs
 // =====================================================================================================
 
+const UNI_IDENT = /[\p{L}\p{N}\p{M}]/u;
+const REF_KIND_CODE: Readonly<Record<RefRecord["kind"], number>> = { call: 0, new: 1, type: 2, jsx: 3, qual: 4 };
+
+/** End of the identifier token starting at `i` (ref captures are identifier tokens; avoids a WASM `endIndex` call). */
+function identEnd(text: string, i: number): number {
+  const n = text.length;
+  while (i < n) {
+    const c = text.charCodeAt(i);
+    if ((c >= 97 && c <= 122) || (c >= 65 && c <= 90) || (c >= 48 && c <= 57) || c === 95 || c === 36) i++;
+    else if (c >= 0x80 && UNI_IDENT.test(text[i] as string)) i++;
+    else break;
+  }
+  return i;
+}
+
 function foldRefs(
   raw: readonly { kind: RefRecord["kind"]; node: Node; qual?: Node }[],
   nameStarts: ReadonlySet<number>,
-  slice: (n: Node) => string,
+  text: string,
   aliases: ReadonlySet<string>,
 ): RefRecord[] {
   const folded = new Map<string, RefRecord>();
+  const seen = new Set<number>();
   for (const r of raw) {
-    if (r.kind !== "qual" && nameStarts.has(r.node.startIndex)) continue;
-    const name = slice(r.node);
-    if (name === "") continue;
+    // Two patterns may capture the same node (`implements I` is also a bare `type_identifier`): count it once.
+    const at = r.node.startIndex * 8 + REF_KIND_CODE[r.kind];
+    if (seen.has(at)) continue;
+    seen.add(at);
     let qual: string | undefined;
     if (r.qual !== undefined) {
-      qual = slice(r.qual);
+      const qs = r.qual.startIndex;
+      qual = text.slice(qs, identEnd(text, qs));
       if (!aliases.has(qual)) continue;
-    }
-    const key = `${r.kind}\0${qual ?? ""}\0${name}`;
+    } else if (nameStarts.has(r.node.startIndex)) continue;
+    const s = r.node.startIndex;
+    const name = text.slice(s, identEnd(text, s));
+    if (name === "") continue;
+    const key = qual === undefined ? `${r.kind}\0${name}` : `${r.kind}\0${qual}\0${name}`;
     const hit = folded.get(key);
     if (hit !== undefined) {
       hit.count++;

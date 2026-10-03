@@ -1,6 +1,7 @@
 // `idx@1` (indexer spec §9) — the whole indexer schema, including the S2–S4 tables WP-03 fills (facts, modules, FTS5),
 // plus the R1 pin store `idx_blob_text` (CONS-13). Deviations from the §9 text, all additive:
 //  - idx_files.raw: the on-disk spelling when it differs from the NFC `path` (NFD names on Linux).
+//  - idx_files.mtime_us instead of mtime_ns: ns does not survive a JS number round trip; the stat cache compares µs.
 //  - idx_blobs.chars: UTF-16 length of the text (token estimates without re-reading).
 //  - idx_blobs.extractor holds the cache key `<ExtractorVersion>[/lite]` (`text@…` for text-profile files).
 //  - idx_blobs.lang / grammar / note / data: the language actually used (shebang), the extraction note and the
@@ -16,7 +17,7 @@ CREATE TABLE IF NOT EXISTS idx_files (
   blob        TEXT NOT NULL,
   mode        INTEGER NOT NULL,
   size        INTEGER NOT NULL,
-  mtime_ns    INTEGER NOT NULL,
+  mtime_us    INTEGER NOT NULL,           -- µs (fits a JS number exactly; the stat cache compares at µs)
   ino         INTEGER,
   racy        INTEGER NOT NULL DEFAULT 0,
   tracked     INTEGER NOT NULL,

@@ -38,7 +38,6 @@ interface GrammarState {
   language: Language;
   tags: Query;
   lite: Query | null;
-  aux: Query;
   tests: Query | null;
   errors: Query;
 }
@@ -75,6 +74,7 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
   const xxh3s = (s: string) => env.xxh3(s);
 
   const queryText = (g: GrammarId): string => init.queries[g] ?? TAGS_QUERIES[g];
+  const combined = (g: GrammarId): string => `${queryText(g)}\n${CX_QUERIES[g]}`;
   const versionOf = (lang: SourceLang): ExtractorVersion => {
     let v = versions.get(lang);
     if (v === undefined) {
@@ -98,9 +98,8 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
     const testSrc = TEST_QUERIES[g];
     const st: GrammarState = {
       language,
-      tags: new Query(language, queryText(g)),
+      tags: new Query(language, combined(g)),
       lite: null,
-      aux: new Query(language, CX_QUERIES[g]),
       tests: testSrc === undefined ? null : new Query(language, testSrc),
       errors: new Query(language, ERROR_QUERY),
     };
@@ -110,7 +109,7 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
 
   function liteQuery(g: GrammarId, st: GrammarState): Query {
     if (st.lite === null) {
-      const q = new Query(st.language, queryText(g));
+      const q = new Query(st.language, combined(g));
       for (const c of LITE_DISABLED_CAPTURES) if (q.captureNames.includes(c)) q.disableCapture(c);
       st.lite = q;
     }
@@ -146,8 +145,9 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
     return tree;
   }
 
-  function keepOrDrop(path: string, g: GrammarId, tree: Tree, text: string): void {
-    if (text.length <= PARSE_POOL.lruTreeMinBytes) {
+  /** Big trees of main-thread-supplied content (update / symbolsAt) stay for the next `tree.edit`; scans keep none. */
+  function keepOrDrop(path: string, g: GrammarId, tree: Tree, text: string, keep: boolean): void {
+    if (!keep || text.length <= PARSE_POOL.lruTreeMinBytes) {
       dropTree(tree);
       return;
     }
@@ -239,7 +239,6 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
               lineStarts: lineStarts(tx),
               tree,
               tags: it.profile === "lite" ? liteQuery(g, st) : st.tags,
-              aux: st.aux,
               testQuery: isTest ? st.tests : null,
               errorQuery: st.errors,
               lite: it.profile === "lite",
@@ -255,7 +254,7 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
             ex = null;
             note = "parse_error";
           } finally {
-            keepOrDrop(it.path, g, tree, tx);
+            keepOrDrop(it.path, g, tree, tx, it.source !== undefined);
           }
         }
       } else g = null;
@@ -332,7 +331,6 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
       for (const st of grammars.values()) {
         st.tags.delete();
         st.lite?.delete();
-        st.aux.delete();
         st.tests?.delete();
         st.errors.delete();
       }

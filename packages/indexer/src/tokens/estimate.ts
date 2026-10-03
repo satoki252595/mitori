@@ -3,6 +3,7 @@
 import { type CalibrationSnapshot, CHARS_PER_TOKEN, type FileClass, type TextKind, type TokenizerId } from "@mitori/core";
 import type { CalibrationSample } from "../contract.ts";
 import { extOf } from "../lang/detect.ts";
+import { ceilTokens } from "./ceil.ts";
 import { countCjk } from "./index.ts";
 
 /** Calibrated estimate from character counts (`chars` = UTF-16 code units, `cjk` ⊆ chars). */
@@ -10,7 +11,7 @@ export function estimateFromCounts(chars: number, cjk: number, kind: TextKind, t
   const cpt = CHARS_PER_TOKEN[tokenizer];
   const fk = calib?.kindFactor(tokenizer, kind) ?? 1;
   const fja = calib?.kindFactor(tokenizer, "markdown_ja") ?? 1;
-  return Math.ceil(Math.max(0, chars - cjk) / (cpt[kind] / fk) + cjk / (cpt.markdown_ja / fja));
+  return ceilTokens(Math.max(0, chars - cjk) / (cpt[kind] / fk) + cjk / (cpt.markdown_ja / fja));
 }
 
 /** Calibrated estimate of a text. */

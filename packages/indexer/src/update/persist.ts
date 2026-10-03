@@ -48,7 +48,7 @@ interface FileRow {
   blob: string;
   mode: number;
   size: number;
-  mtime_ns: number | bigint;
+  mtime_us: number | bigint;
   ino: number | bigint | null;
   racy: number;
   tracked: number;
@@ -80,7 +80,7 @@ export function loadFiles(core: Core): Map<RepoPath, FileRec> {
       indexBlob: "",
       mode: row.mode.toString(8).padStart(6, "0"),
       size: row.size,
-      mtimeNs: BigInt(row.mtime_ns),
+      mtimeNs: BigInt(row.mtime_us) * 1_000n,
       ino: BigInt(row.ino ?? 0),
       racy: row.racy === 1,
       tracked: row.tracked === 1,
@@ -304,7 +304,7 @@ function writeParsed(core: Core, p: Parsed, nowS: number): void {
 function writeFile(core: Core, r: FileRec): void {
   const ext = r.excluded === "special" || r.excluded === "fixture" ? r.excluded : null;
   core.deps.db.run(
-    `INSERT OR REPLACE INTO idx_files (path, raw, blob, mode, size, mtime_ns, ino, racy, tracked, dirty, lang, grammar, dialect, class, excluded, excluded_ext, scope, rule, extractor, module, note, seen)
+    `INSERT OR REPLACE INTO idx_files (path, raw, blob, mode, size, mtime_us, ino, racy, tracked, dirty, lang, grammar, dialect, class, excluded, excluded_ext, scope, rule, extractor, module, note, seen)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
     [
       r.path,
@@ -312,8 +312,8 @@ function writeFile(core: Core, r: FileRec): void {
       r.blob,
       Number.parseInt(r.mode, 8),
       r.size,
-      r.mtimeNs,
-      r.ino,
+      Number(r.mtimeNs / 1_000n),
+      Number(r.ino),
       r.racy ? 1 : 0,
       r.tracked ? 1 : 0,
       r.dirty ? 1 : 0,

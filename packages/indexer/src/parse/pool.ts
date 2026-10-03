@@ -41,6 +41,29 @@ export class ParsePool {
     return this.pool;
   }
 
+  /**
+   * Cold-scan head start: spawn `n` Workers while S0 still stats and classifies, and have each compile the grammars
+   * the listing needs (one zero-byte item per grammar / profile). Results are discarded; S1 then finds warm Workers.
+   */
+  prewarm(n: number, warm: readonly Pick<ParseItemExt, "lang" | "grammar" | "profile">[]): void {
+    if (this.pool !== null || warm.length === 0) return;
+    const pool = this.factory(Math.max(1, n));
+    this.pool = pool;
+    const items: ParseItemExt[] = warm.map((w, i) => ({
+      ...w,
+      path: `\0warm/${i}`,
+      abs: "",
+      size: 0,
+      knownBlob: "",
+      source: new Uint8Array(0),
+      detectors: [],
+      provisionalClass: w.profile === "lite" ? "test" : "source",
+      scope: "main",
+      skipContentRules: true,
+    }));
+    for (let i = 0; i < pool.size(); i++) void pool.run({ id: this.nextId++, items }).catch(() => undefined);
+  }
+
   /** Parse items on `workers` Workers; results come back in input order. */
   async run(items: readonly ParseItemExt[], workers: number, signal?: AbortSignal, onBatch?: (done: number, total: number) => void): Promise<PoolRun> {
     const ms = { read: 0, hash: 0, parse: 0, query: 0, extract: 0 };
