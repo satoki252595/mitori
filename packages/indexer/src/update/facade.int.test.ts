@@ -134,6 +134,24 @@ describe("CONS-13 pin store: old blob text survives uncommitted saves", () => {
     expect(await idx.blobText(untracked)).toBe("export const u = 'untracked';\n");
   });
 
+  test("symbolsAt(): [] for docs and excluded paths (deny never read); a deleted file's old blob still parses", async () => {
+    const { repo, idx, deps } = setup({ "README.md": "# T\n\ndef not_a_symbol\n", ".env": "KEY=1\n", "src/gone.ts": "export function gone(): void {}\n" });
+    await idx.scan();
+    const readme = idx.currentBlob("README.md") as string;
+    repo.write("README.md", "# T2\n");
+    await idx.update([{ kind: "change", path: "README.md" }]);
+    expect(await idx.symbolsAt("README.md", readme)).toEqual([]);
+    const envBlob = repo.run("rev-parse", "HEAD:.env").trim();
+    const reads = deps.reads.length;
+    const spawned = deps.git.calls.length;
+    expect(await idx.symbolsAt(".env", envBlob)).toEqual([]);
+    expect([deps.reads.length, deps.git.calls.length]).toEqual([reads, spawned]);
+    const gone = idx.currentBlob("src/gone.ts") as string;
+    repo.run("rm", "-q", "src/gone.ts");
+    await idx.update([{ kind: "delete", path: "src/gone.ts" }]);
+    expect((await idx.symbolsAt("src/gone.ts", gone))?.map((s) => s.qualname)).toEqual(["gone"]);
+  });
+
   test("pinBlobs() captures a dirty text the background pinning has not reached yet", async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => {

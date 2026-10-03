@@ -97,7 +97,7 @@ export function isIncluded(r: FileRec): boolean {
 
 const CODE_CONFIG = /\.config\.[cm]?[jt]sx?$/;
 
-export function profileOf(r: FileRec): ParseProfile {
+export function profileOf(r: Pick<FileRec, "class" | "grammar" | "path">): ParseProfile {
   if (r.class === "test") return "lite";
   if (r.class === "docs") return "text";
   if (r.class === "config") return r.grammar !== null && CODE_CONFIG.test(r.path) ? "full" : "text";

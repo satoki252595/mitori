@@ -28,6 +28,7 @@ import {
   type SkeletonTier,
   type SymbolDetail,
 } from "../contract.ts";
+import { classifyPathWith } from "../inventory/classify.ts";
 import { globMatcher } from "../inventory/sets.ts";
 import { langOfPath } from "../lang/detect.ts";
 import { ParsePool } from "../parse/pool.ts";
@@ -36,7 +37,7 @@ import { decodeUtf8, encodeUtf8, splitLines } from "../parse/text.ts";
 import { createPinStore } from "../pin/store.ts";
 import { skeletonHeader } from "../skeleton/render.ts";
 import { estimateText, validCalibrationSample } from "../tokens/estimate.ts";
-import { absOf, boundSymbols, type Core, initialVersions, mono, parsedOf, settingsOf } from "./core.ts";
+import { absOf, boundSymbols, type Core, initialVersions, mono, parsedOf, profileOf, settingsOf } from "./core.ts";
 import { explainRecord } from "./explain.ts";
 import { runUpdate } from "./incremental.ts";
 import { bindSymbols, type FileRec, storeSymbols, toFileDetail, toFileEntry } from "./model.ts";
@@ -311,9 +312,17 @@ export function createIndexerWith(deps: IndexerDeps, factory: LaterStagesFactory
     async symbolsAt(path, blob) {
       const r = core.files.get(path);
       if (r !== undefined && r.blob === blob && parsedOf(core, r) !== null) return boundSymbols(core, path).entries;
+      // Same classification as symbols(): excluded paths (deny / secret included: never read, IDX-AT-04) and text-profile
+      // files (docs, data-like config) have no symbols.
+      const cls = r ?? { ...classifyPathWith({ path, size: 0, mode: "100644", attrs: {} }, settingsOf(deps.settings()).compiled), path };
+      if (cls.excluded !== undefined || profileOf(cls) === "text") return [];
       const cacheKey = `${path}\0${blob}`;
       const hit = atCache.get(cacheKey);
-      if (hit !== undefined) return hit;
+      if (hit !== undefined) {
+        atCache.delete(cacheKey);
+        atCache.set(cacheKey, hit);
+        return hit;
+      }
       const text = await blobText(blob);
       if (text === null) return null;
       const lang = r?.lang ?? langOfPath(path).lang;
@@ -325,7 +334,7 @@ export function createIndexerWith(deps: IndexerDeps, factory: LaterStagesFactory
             abs: r === undefined ? path : absOf(core, r),
             size: source.length,
             lang,
-            grammar: r?.grammar ?? LANG_GRAMMAR[lang],
+            grammar: LANG_GRAMMAR[lang], // the Worker re-applies the Flow switch to the old text
             profile: "full",
             knownBlob: blob,
             source,
