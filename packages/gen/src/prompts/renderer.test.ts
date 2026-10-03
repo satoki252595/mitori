@@ -39,7 +39,7 @@ function setup(repo = sampleRepo(), versions?: Parameters<typeof createPromptRen
 
 const moduleTask = (id: ModuleId, slug: string) => plannedTask("gen.module", { kind: "module", id }, [`s6/${slug}` as SectionId]);
 
-describe("gen.system@1 rendering and pinning (§5.4, PT-05)", () => {
+describe("gen.system rendering and pinning (§5.4, PT-05)", () => {
   test("system + '\\n' + pack is the remembered system file; the workdir is stated; the pack is fenced", () => {
     const { renderer } = setup();
     const pinned = renderer.pinned("gen.system", "ja", SANDBOX);
@@ -117,9 +117,9 @@ describe("cache key (§3.8 R1, CONS-30)", () => {
     const inputs = (await gatherInputs(task, base.env)).inputs;
     const key = base.renderer.render(task, inputs, { lang: "ja", workdir: SANDBOX }).cacheKey;
     for (const versions of [
-      { systems: { "gen.system": "gen.system@2" } },
-      { systems: { "gen.retry": "gen.retry@2" } },
-      { prompts: { "gen.module": "gen.module@2" } },
+      { systems: { "gen.system": "gen.system@99" } },
+      { systems: { "gen.retry": "gen.retry@99" } },
+      { prompts: { "gen.module": "gen.module@99" } },
     ] as const) {
       const r = setup(sampleRepo(), versions);
       expect(r.renderer.render(task, inputs, { lang: "ja", workdir: SANDBOX }).cacheKey).not.toBe(key);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { GenTaskId, PrepInfo } from "@mitori/core";
+import type { GenTaskId, PrepInfo, PromptVersion } from "@mitori/core";
 import { GEN_PROMPTS, PREP_README_LINES, type PrepTaskEntry } from "../contract.ts";
 import { ApplySink } from "../orchestrator/apply.ts";
 import { validRouter } from "../test/fake-engine.ts";
@@ -7,6 +7,9 @@ import { makeHarness, SANDBOX, TEST_WS } from "../test/harness.ts";
 import { M_AUTH, M_CORE, M_SESSION } from "../test/repo.ts";
 import { testSettings } from "../test/settings.ts";
 import { prepFingerprint } from "./index.ts";
+
+/** The current version string of a prompt (tests survive version bumps). */
+const v = (id: keyof typeof GEN_PROMPTS): PromptVersion => GEN_PROMPTS[id].version;
 
 type H = ReturnType<typeof makeHarness>;
 const file = (h: H, info: PrepInfo, rel: string) => h.safe.files.get(`${info.dir}/${rel}`);
@@ -41,7 +44,7 @@ describe("GEN-G-050 / AC-22 the prep packet", () => {
     expect(packet).toMatchObject({ format: "mitori.prep/1", id: info.id, phase: 1, ws: TEST_WS.key, lang: "ja", effort: "standard", tasks: info.tasks });
     expect(file(h, info, "system.md")).toContain("Working directory: /repo.");
     const tasks = tasksOf(h, info);
-    expect(tasks.map((t) => t.prompt)).toEqual(["gen.overview@1", "gen.module@1", "gen.module@1", "gen.module@1", "gen.module@1"]);
+    expect(tasks.map((t) => t.prompt)).toEqual([v("gen.overview"), v("gen.module"), v("gen.module"), v("gen.module"), v("gen.module")]);
     expect(tasks.every((t) => t.phase === 1 && t.input === `inputs/${t.id}.md` && t.out === `out/${t.id}.ndjson` && t.maxOutTokens > 0)).toBe(true);
     expect(JSON.parse(file(h, info, "batches.json") ?? "[]")).toEqual([{ batch: 1, tasks: tasks.map((t) => t.id) }]);
     expect([...h.safe.kinds.values()].every((k) => k === "prep")).toBe(true);
@@ -161,7 +164,7 @@ describe("GEN-U-052 / GEN-U-053 / GEN-U-054 same validator, partial ingest, serv
     expect(partial.coveragePct).toBe(60);
     expect(partial.next).toBeNull();
     const blk = h.doc.section("s6/session")?.blocks.find((b) => b.origin === "ai");
-    expect(blk?.gen).toMatchObject({ engine: "session", model: "claude-opus-5-5", promptVer: "gen.module@1", indexDigest: h.indexer.snapshot()?.indexDigest });
+    expect(blk?.gen).toMatchObject({ engine: "session", model: "claude-opus-5-5", promptVer: v("gen.module"), indexDigest: h.indexer.snapshot()?.indexDigest });
   });
 
   test("models that are not Claude / codex are stamped generic:session; LLM-written provenance keys are ignored", async () => {
@@ -185,7 +188,7 @@ describe("AC-12 mass-delete guard on the session path", () => {
         engine: "claude-cli",
         model: "claude-sonnet-5-5",
         stage: "S5",
-        promptVer: "gen.module@1",
+        promptVer: v("gen.module"),
         indexDigest: h.indexer.snapshot()?.indexDigest ?? "",
         lang: "ja",
         listed: 0,
@@ -272,7 +275,7 @@ describe("AC-45 phases: the next phase sees the previous phase's output", () => 
     const p2 = await h.gen.session.prep({ effort: "standard", continueFrom: p1.id });
     expect(p2.phase).toBe(2);
     const t2 = tasksOf(h, p2);
-    expect(t2.map((t) => t.prompt)).toEqual(["gen.parent@1"]);
+    expect(t2.map((t) => t.prompt)).toEqual([v("gen.parent")]);
     const input = file(h, p2, (t2[0] as PrepTaskEntry).input) ?? "";
     expect(input).toContain(`TASK: Write the page for parent module ${M_CORE}`);
     expect(input).toContain(`> ${M_SESSION} "名前01" — 要約`);
@@ -280,8 +283,8 @@ describe("AC-45 phases: the next phase sees the previous phase's output", () => 
     const r2 = await h.gen.session.ingest({ prep: p2.id, fingerprint: p2.fingerprint, partial: false });
     expect(r2.next).toEqual({ prep: p2.id, phase: 3 });
     const p3 = await h.gen.session.prep({ effort: "standard", continueFrom: p2.id });
-    expect(tasksOf(h, p3).map((t) => t.prompt)).toEqual(["gen.overview@1", "gen.flows@1", "gen.glossary@1"]);
-    expect(tasksOf(h, p3).find((t) => t.prompt === "gen.glossary@1")?.after.length).toBe(2);
+    expect(tasksOf(h, p3).map((t) => t.prompt)).toEqual([v("gen.overview"), v("gen.flows"), v("gen.glossary")]);
+    expect(tasksOf(h, p3).find((t) => t.prompt === v("gen.glossary"))?.after.length).toBe(2);
     answer(h, p3);
     const r3 = await h.gen.session.ingest({ prep: p3.id, fingerprint: p3.fingerprint, partial: false });
     expect(r3.ok).toBe(true);

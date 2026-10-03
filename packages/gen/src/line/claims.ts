@@ -1,7 +1,9 @@
 /**
  * Claims of a block line: the compact map (R1 default, PT-03) and the full object form, both parsed into
  * {@link GenClaimDraft}[]. Grammar of one compact value: `<ClaimKind>[ <cite>(,<cite>)*]` with
- * `<cite> = <path>:<a>[-<b>]`; a cite path without `/` after a comma reuses the previous cite's directory.
+ * `<cite> = <path>:<a>[-<b>]`; after a comma, a cite path without `/` reuses the previous cite's directory and a bare
+ * range `<a>[-<b>]` reuses the previous cite's file (`a/b.go:10-20,40-52`; models write it unprompted, and it is the
+ * shortest form) [dogfood 2026-10-04].
  */
 import type { ClaimKind } from "@mitori/core";
 import type { RawCite } from "@mitori/doc";
@@ -40,6 +42,7 @@ export interface ParsedClaims {
 }
 
 const CITE_RE = /^(.+):(\d+)(?:-(\d+))?$/;
+const BARE_RANGE_RE = /^(\d+)(?:-(\d+))?$/;
 
 /** Parse one compact claim value (`"behavior a/b.go:1-4,c.go:9"`). */
 export function parseCompactClaim(value: string): { kind: ClaimKind; cites: RawCite[] } | string {
@@ -53,6 +56,13 @@ export function parseCompactClaim(value: string): { kind: ClaimKind; cites: RawC
   let dir = "";
   for (const part of rest.split(",")) {
     const seg = part.trim();
+    const prev = cites[cites.length - 1];
+    const bare = prev ? BARE_RANGE_RE.exec(seg) : null;
+    if (prev && bare) {
+      const start = Number(bare[1]);
+      cites.push({ path: prev.path, start, end: bare[2] === undefined ? start : Number(bare[2]) });
+      continue;
+    }
     const m = CITE_RE.exec(seg);
     if (!m) return `cite "<path>:<a>-<b>", got "${seg.slice(0, 60)}"`;
     let path = (m[1] as string).trim();

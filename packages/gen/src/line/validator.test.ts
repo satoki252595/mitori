@@ -208,6 +208,26 @@ describe("GEN-U-040 compact claims grammar (PT-03)", () => {
     expect(typeof parseCompactClaim("behavior a.go")).toBe("string");
     expect(typeof parseCompactClaim("behavior a.go:x-y")).toBe("string");
   });
+
+  test("a bare range after a comma reuses the previous file (dogfood: 9 of 27 crit rejections were this form)", () => {
+    expect(parseCompactClaim("fact internal/session/session.go:416-431,487-513, 540")).toEqual({
+      kind: "fact",
+      cites: [
+        { path: "internal/session/session.go", start: 416, end: 431 },
+        { path: "internal/session/session.go", start: 487, end: 513 },
+        { path: "internal/session/session.go", start: 540, end: 540 },
+      ],
+    });
+    expect(parseCompactClaim("behavior a/x.go:1-2,7-9,y.go:3")).toEqual({
+      kind: "behavior",
+      cites: [
+        { path: "a/x.go", start: 1, end: 2 },
+        { path: "a/x.go", start: 7, end: 9 },
+        { path: "a/y.go", start: 3, end: 3 },
+      ],
+    });
+    expect(typeof parseCompactClaim("behavior 10-20")).toBe("string"); // no previous file
+  });
 });
 
 describe("GEN-U-015 cite ranges: ≤ 2 lines past the end is clamped (W04), more is V18", () => {
