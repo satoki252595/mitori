@@ -205,6 +205,7 @@ async function finish(core: Core, before: ReadonlyMap<RepoPath, FileRec>, touche
   const base = deltaBetween(core, before, core.files, touched);
   for (const p of base.changed) core.symCache.delete(p.path);
   for (const rn of base.renames) core.renames.set(rn.from, rn.to);
+  while (core.renames.size > 1_000) core.renames.delete(core.renames.keys().next().value as RepoPath);
   if (!fromScan) core.snap = snapshotOf(core);
   const paths = base.changed.map((c) => c.path);
   const later =

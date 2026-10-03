@@ -6,7 +6,9 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import type { Indexer } from "../contract.ts";
 import { corpusDir } from "../parse/test/corpus.ts";
+import { env, workerInit } from "../parse/test/env.ts";
 import { parseResult } from "../parse/test/parse-text.ts";
+import { createWorkerHandler } from "../parse/worker.ts";
 import { createIndexer } from "./index.ts";
 import { testDeps } from "./test/deps.ts";
 import { type FixtureRepoLike, testkit } from "./test/fixtures.ts";
@@ -136,4 +138,47 @@ describe("IDX-AT-05 shadow workspace", () => {
       await repo.dispose();
     }
   });
+});
+
+describe("IDX-AT-14 Worker memory over repeated cold parses", () => {
+  test.skipIf(corpusDir("crit") === null)(
+    "10 passes over crit's Go in one Worker: RSS does not keep growing; every tree deleted",
+    async () => {
+      const root = corpusDir("crit") as string;
+      const files: string[] = [];
+      const walk = (d: string) => {
+        for (const e of readdirSync(d, { withFileTypes: true })) {
+          const p = join(d, e.name);
+          if (e.isDirectory()) {
+            if (e.name !== "testdata") walk(p);
+          } else if (e.name.endsWith(".go")) files.push(p);
+        }
+      };
+      for (const top of ["cmd", "internal"]) walk(join(root, top));
+      const h = await createWorkerHandler(env, workerInit());
+      const items = files.map((abs) => ({
+        path: relative(root, abs),
+        abs,
+        size: statSync(abs).size,
+        lang: "go" as const,
+        grammar: "go" as const,
+        profile: "full" as const,
+        knownBlob: null,
+        detectors: [],
+        provisionalClass: "source" as const,
+        scope: "main" as const,
+      }));
+      const rss: number[] = [];
+      for (let pass = 0; pass < 10; pass++) {
+        for (let i = 0; i < items.length; i += 64) await h.handle({ id: pass * 1_000 + i, items: items.slice(i, i + 64) });
+        Bun.gc(true);
+        rss.push(process.memoryUsage().rss);
+      }
+      console.log(`RSS per pass (MB): ${rss.map((x) => Math.round(x / 1_048_576)).join(" ")}`);
+      expect(rss[9] as number).toBeLessThanOrEqual((rss[1] as number) * 1.1); // pass 1: after JIT / grammar warm-up
+      expect(h.stats().deletes).toBe(h.stats().parses);
+      h.dispose();
+    },
+    120_000,
+  );
 });

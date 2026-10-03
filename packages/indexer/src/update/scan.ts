@@ -167,6 +167,7 @@ export async function runScan(core: Core, opts: ScanOptions): Promise<ScanSummar
     if (core.files.size === 0) core.files = loadFiles(core);
   }
   core.gen++;
+  dropUnreferenced(core);
   emit("S0", 0, core.files.size);
 
   const cold = core.files.size === 0;
@@ -278,6 +279,13 @@ function prewarm(core: Core, paths: readonly string[]): void {
   }
   if (candidates === 0) return;
   core.pool.prewarm(poolSize(candidates * 8_192, core.deps.hardware), [...want.values()]);
+}
+
+/** Forget persisted S1 results no current path uses (they stay in SQLite as the blob cache). */
+function dropUnreferenced(core: Core): void {
+  const live = new Set<string>();
+  for (const r of core.files.values()) if (r.key !== undefined && r.blob !== "") live.add(contentKey(r.blob, r.key));
+  for (const [k, p] of core.parsed) if (!p.dirtyDb && !live.has(k)) core.parsed.delete(k);
 }
 
 /** Snapshot of the current state. */
