@@ -111,14 +111,41 @@ describe("IDX-D7 persistence failures", () => {
     repo.write("a.ts", "export const a = 2;\n");
     const d1 = await idx.update([{ kind: "change", path: "a.ts" }]);
     expect(d1.changed.map((c) => c.path)).toEqual(["a.ts"]);
+    await until(() => log.warns.length > 0); // the write is queued, not awaited by update()
     expect(log.warns).toContain("persist failed");
     expect(row("a.ts")).not.toBe(idx.currentBlob("a.ts") as string);
 
     repo.write("b.ts", "export const b = 2;\n");
     const d2 = await idx.update([{ kind: "change", path: "b.ts" }]);
     expect(d2.changed.map((c) => c.path)).toEqual(["b.ts"]);
+    await until(() => row("b.ts") === idx.currentBlob("b.ts"));
     expect(row("b.ts")).toBe(idx.currentBlob("b.ts") as string);
     expect(row("a.ts")).toBe(idx.currentBlob("a.ts") as string); // retried with the next write
+  });
+});
+
+describe("spec §10.4 update() latency", () => {
+  test("update() does not wait for the background persistence of the scan before it", async () => {
+    const repo = tempRepo({ "a.ts": "export const a = 1;\n" });
+    cleanup.push(() => repo.dispose());
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    const deps = testDeps(repo.root);
+    const write = deps.write;
+    deps.write = (label, fn) => (label === "idx.persist" ? gate.then(() => write(label, fn)) : write(label, fn));
+    const idx = createIndexer(deps);
+    cleanup.push(() => idx.close());
+    await idx.scan();
+    repo.write("a.ts", "export const a = 2;\n");
+    const t0 = performance.now();
+    const d = await Promise.race([idx.update([{ kind: "change", path: "a.ts" }]), Bun.sleep(2_000).then(() => null)]);
+    expect(d?.changed.map((c) => c.path)).toEqual(["a.ts"]);
+    expect(performance.now() - t0).toBeLessThan(1_000);
+    expect(idx.lastTimings()?.persist).toBeNull(); // the scan's write is still held back
+    release();
+    await until(() => persisted(idx));
   });
 });
 

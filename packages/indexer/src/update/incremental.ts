@@ -215,16 +215,18 @@ async function finish(core: Core, before: ReadonlyMap<RepoPath, FileRec>, touche
       ? await core.stages.update(paths)
       : { ifaceChanged: [], membershipChanged: [], factsChanged: false, factKinds: [], structureRefreshed: false };
   if (!fromScan && paths.length > 0) {
+    // The write (one transaction) is queued behind any background persistence and not awaited: the in-memory index
+    // already answers, and right after a cold scan that persistence can take hundreds of ms (save → badge ≤ 50 ms).
     // A failed write is logged, never left in the chain: the rows stay unwritten (dbFiles unchanged) and the next
     // persist retries them; later updates and scans keep working.
-    core.persisting = core.persisting.then(
-      () => persist(core, { single: true }).then(() => undefined),
-      () => undefined,
-    );
-    core.persisting = core.persisting.catch((err: unknown) => {
-      core.log.warn("persist failed", { error: err instanceof Error ? err.message : String(err) });
-    });
-    await core.persisting;
+    core.persisting = core.persisting
+      .then(
+        () => persist(core, { single: true }).then(() => undefined),
+        () => undefined,
+      )
+      .catch((err: unknown) => {
+        core.log.warn("persist failed", { error: err instanceof Error ? err.message : String(err) });
+      });
   }
   const delta: IndexDelta = { snapshot: core.snap as NonNullable<Core["snap"]>, ...base, ...later };
   if (paths.length > 0) core.deps.events.emit({ type: "index.changed", paths, ifaceChanged: later.ifaceChanged });
