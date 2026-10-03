@@ -216,6 +216,36 @@ describe("IDX-U structure stage on a small repo (TEST_TUNING)", () => {
     expect(runPipeline(many, { tuning: TEST_TUNING, prev }).structure.info.clustered).toBe(true);
   });
 
+  test("graph export (§8): file level stays ≤ 300 nodes for a huge module, and a parent focus shows its leaves' files", () => {
+    const many = input(
+      Array.from({ length: 400 }, (_, i) => sf(`flat/f${String(i).padStart(3, "0")}.ts`, { loc: 2, imports: i > 0 ? [imp("./f000.ts")] : [] })),
+    );
+    const st = runPipeline(many).structure;
+    expect(st.modules).toHaveLength(1); // < 2,000 LOC: one module
+    const g = graphData(st, "file", st.modules[0]?.id);
+    expect(g.nodes.length).toBe(300);
+    expect(g.nodes.some((n) => n.id === "flat/f000.ts")).toBe(true); // the hub ranks first
+    // 30 directories (4 tightly linked files each), neighbouring directories linked by one import: > 10 leaves ⇒ parents
+    const dirs = Array.from({ length: 30 }, (_, d) => `d${String(d).padStart(2, "0")}`);
+    const wide = input(
+      dirs.flatMap((d, k) =>
+        Array.from({ length: 4 }, (_, i) =>
+          sf(`${d}/m${i}.ts`, {
+            loc: 40,
+            imports: [imp(`./m${(i + 1) % 4}.ts`), imp(`./m${(i + 2) % 4}.ts`), ...(i === 0 && k + 1 < dirs.length ? [imp(`../${dirs[k + 1]}/m0.ts`)] : [])],
+          }),
+        ),
+      ),
+    );
+    const ws = runPipeline(wide, { tuning: TEST_TUNING }).structure;
+    expect(ws.info.leaves).toBeGreaterThan(10);
+    const parent = ws.modules.find((m) => m.paths.length === 0);
+    expect(parent).toBeDefined();
+    const pg = graphData(ws, "file", parent?.id);
+    const under = ws.modules.filter((m) => m.parent === parent?.id).flatMap((m) => m.paths);
+    expect(pg.nodes.map((n) => n.id)).toEqual(expect.arrayContaining(under));
+  });
+
   test("IDX-AT-34 seeds come from an untrusted doc.index.json: bad / duplicate ids are dropped, duplicate slugs rewritten", () => {
     const first = runPipeline(smallRepo(), { tuning: TEST_TUNING }).structure;
     const good = moduleSeedsOf(first);

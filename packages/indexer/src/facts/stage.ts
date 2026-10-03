@@ -2,7 +2,7 @@
  * S2 link stage (spec §5.1): every file's candidates → facts (all scopes; main tables filter on `scopes`),
  * test mappings, configuration entries. Entry point for the facade: `linkFacts(input, resolved)` (≤ 50 ms target).
  */
-import type { ConfigFact, Fact, GitOid, RepoPath, SymbolKey } from "@mitori/core";
+import type { ConfigFact, Fact, GitOid, RepoPath, SecretScanner, SymbolKey } from "@mitori/core";
 import type { ConfigEntry, FactCandidate, FileScope, TestMapping } from "../contract.ts";
 import { dirOf, type StageFile, type StageInput } from "../resolve/files.ts";
 import type { ResolveResult } from "../resolve/stage.ts";
@@ -34,7 +34,15 @@ export function collectCandidates(files: readonly StageFile[]): FactCandidate[] 
   return out;
 }
 
-export function linkFacts(input: StageInput, resolved: ResolveResult): FactsResult {
+export interface LinkOptions {
+  /**
+   * `deps.secrets` when `security.secretScan` (spec §5.1: values are never taken in — script arguments, dependency
+   * URLs, TODO text, doc titles … are redacted in place with `«redacted:secret»`).
+   */
+  secrets?: SecretScanner;
+}
+
+export function linkFacts(input: StageInput, resolved: ResolveResult, opts: LinkOptions = {}): FactsResult {
   const files = resolved.index.files;
   const all = collectCandidates(input.files);
   const deps = manifestDeps(all);
@@ -75,6 +83,8 @@ export function linkFacts(input: StageInput, resolved: ResolveResult): FactsResu
     linked.push(cf);
   }
 
+  if (opts.secrets) for (const f of linked) redactFact(f, opts.secrets);
+
   const keyed = linked.map((f) => ({ f, k: factSortKey(f) }));
   keyed.sort((a, b) => (a.k < b.k ? -1 : a.k > b.k ? 1 : 0));
   const facts: Fact[] = [];
@@ -85,6 +95,41 @@ export function linkFacts(input: StageInput, resolved: ResolveResult): FactsResu
     facts.push(f);
   }
   return { facts, scopes: facts.map((f) => files.get(f.path)?.scope ?? "main"), tests, configs };
+}
+
+/** Fields that hold detector vocabulary or locations, never text from the file. */
+const NOT_SCANNED = new Set([
+  "kind",
+  "detector",
+  "path",
+  "blob",
+  "scope",
+  "line",
+  "framework",
+  "purpose",
+  "ecosystem",
+  "entry",
+  "role",
+  "marker",
+  "tool",
+  "source",
+  "method",
+  "hasDefault",
+  "dev",
+  "dynamic",
+  "handler",
+  "subject",
+]);
+
+/** Redact secrets inside the string fields of a fact (in place; field shapes unchanged). */
+function redactFact(f: Fact, secrets: SecretScanner): void {
+  const r = f as unknown as Record<string, unknown>;
+  for (const k of Object.keys(r)) {
+    if (NOT_SCANNED.has(k)) continue;
+    const v = r[k];
+    if (typeof v === "string") r[k] = secrets.redact(v).text;
+    else if (Array.isArray(v)) r[k] = v.map((x) => (typeof x === "string" ? secrets.redact(x).text : x));
+  }
 }
 
 /** Canonical order: kind, path, line (zero-padded), then the payload. */

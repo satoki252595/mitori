@@ -152,7 +152,9 @@ export function jsEnv(input: FactExtractInput, tree: Tree): FactCandidate[] {
   };
   for (const { re, node } of ENV_SCAN)
     for (const m of input.text.matchAll(re)) {
-      const at = (m.index ?? 0) + (m[0] as string).indexOf(m[1] as string) + (node[0] === "property_identifier" ? 0 : 1);
+      // the name ends the property form and is the only quoted part of the others: search from the right (a
+      // short name such as `e` also occurs inside `process`)
+      const at = (m.index ?? 0) + (m[0] as string).lastIndexOf(m[1] as string) + (node[0] === "property_identifier" ? 0 : 1);
       let n = codeNodeAt(tree, at, node);
       if (!n) continue;
       if (n.type === "string_fragment") n = n.parent ?? n;

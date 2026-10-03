@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import type { ModuleId, RepoPath } from "@mitori/core";
 import type { StageFile } from "../resolve/files.ts";
-import { FIXTURES, loadRepo } from "../structure/test/corpus.ts";
+import { corpusDir, FIXTURES, loadRepo } from "../structure/test/corpus.ts";
 import { runPipeline } from "../structure/test/pipeline.ts";
 import { flowSeeds, moduleStats } from "./flow.ts";
 
@@ -33,6 +33,26 @@ describe("IDX-U flow seeds (gen I4, spec §7.8)", () => {
       expect(flowSeeds(runPipeline(p.input).structure, p.facts)).toEqual(seeds);
       expect(flowSeeds(st, p.facts, 1)).toEqual(seeds.slice(0, 1));
     });
+});
+
+const crit = corpusDir("crit");
+
+describe.skipIf(!crit)("IDX-AT-48 flow seeds on crit", () => {
+  test("≥ 5 seeds, each a contiguous path over effective module edges, one member file per module", async () => {
+    const p = runPipeline((await loadRepo(crit as string)).input);
+    const st = p.structure;
+    const seeds = flowSeeds(st, p.facts);
+    expect(seeds.length).toBeGreaterThanOrEqual(5);
+    const edges = new Set(st.leafEdges.map((e) => `${e.from}>${e.to}`));
+    for (const s of seeds) {
+      for (let j = 1; j < s.modules.length; j++) expect(edges.has(`${s.modules[j - 1]}>${s.modules[j]}`)).toBe(true);
+      s.files.forEach((f, j) => {
+        expect(st.moduleOf.get(f)).toBe(s.modules[j] as ModuleId);
+      });
+    }
+    expect(seeds[0]?.kind).toBe("route"); // routes first (spec §7.8)
+    expect(seeds.some((s) => s.kind === "cli")).toBe(true);
+  }, 60_000);
 });
 
 describe("IDX-U module stats (gen I3)", () => {

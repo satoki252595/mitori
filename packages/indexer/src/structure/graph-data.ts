@@ -42,6 +42,21 @@ function moduleGraph(st: StructureResult): GraphData {
   return { level: "module", nodes, edges };
 }
 
+/** Member files of a module; a parent aggregates the leaves below it. */
+function memberPaths(m: ModuleDetail, st: StructureResult): RepoPath[] {
+  if (m.paths.length > 0) return m.paths;
+  const byId = new Map(st.modules.map((x) => [x.id, x]));
+  const out: RepoPath[] = [];
+  const stack = [...m.children];
+  for (let guard = 0; stack.length > 0 && guard < 100_000; guard++) {
+    const c = byId.get(stack.pop() as ModuleId);
+    if (!c) continue;
+    if (c.paths.length > 0) out.push(...c.paths);
+    else stack.push(...c.children);
+  }
+  return out;
+}
+
 function fileGraph(st: StructureResult, focus?: string): GraphData {
   const g = st.graph;
   const maxRank = Math.max(0, ...st.fileRank.values());
@@ -51,10 +66,11 @@ function fileGraph(st: StructureResult, focus?: string): GraphData {
     for (const [i] of ranked.slice(0, SEARCH_LIMITS.graphFileNodes)) core.add(i);
   } else {
     const m = st.modules.find((x) => x.id === focus);
-    for (const p of m ? m.paths : [focus]) {
-      const i = g.index.get(p);
-      if (i !== undefined) core.add(i);
-    }
+    // a parent aggregates its leaves; a huge module keeps its top-ranked members (≤ 300 nodes, ELK budget)
+    const paths = m ? memberPaths(m, st) : [focus];
+    const members = paths.map((p) => g.index.get(p)).filter((i): i is number => i !== undefined);
+    const rankOf = (i: number) => st.fileRank.get(g.paths[i] as string) ?? 0;
+    for (const i of members.sort((a, b) => rankOf(b) - rankOf(a) || a - b).slice(0, SEARCH_LIMITS.graphFileNodes)) core.add(i);
   }
   const picked = new Set(core);
   if (focus !== undefined) {

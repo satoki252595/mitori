@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import type { FactKind } from "@mitori/core";
+import { createSecretScanner, type FactKind, REDACTION_TOKEN } from "@mitori/core";
 import { buildFixture, type FixtureName, type FixtureRepo, type FixtureTruth, loadTruth, scoreIndex, type TruthFact } from "@mitori/testkit";
 import { resolveImports } from "../resolve/stage.ts";
 import { input, sf } from "../resolve/test/stage-files.ts";
@@ -128,6 +128,74 @@ describe("IDX-AT-26 values are never captured", () => {
     const envNames = facts.flatMap((f) => (f.kind === "env" ? [f.name] : [])).sort();
     expect(envNames).toEqual(["API_TOKEN", "BUILD_TOKEN", "DB_PASS", "GO_X", "HOST", "LEVEL", "PORT", "SESSION_SECRET", "TOKEN", "X"]);
     expect(facts.find((f) => f.kind === "schema")).toMatchObject({ entity: "t", fields: ["id", "secret"] });
+  });
+});
+
+describe("IDX-AT-25 env.js@1 reads", () => {
+  test("short / lower-case names are located on the right node (`e` also occurs in `process`)", async () => {
+    const gs = await loadGrammars();
+    const text = `export const a = process.env.e;\nexport const b = import.meta.env.t ?? "x";\nexport const c = Bun.env.n;\nconst d = process.env["s"];\nDeno.env.get("g");\n// process.env.COMMENTED\n`;
+    const c = classify("src/env.ts", text.length, text);
+    const f = parseStageFile("src/env.ts", text, c, gs.typescript, "b0");
+    const env = f.facts.filter((x) => x.kind === "env").map((x) => [x.data.name, x.line, x.data.hasDefault]);
+    expect(env).toEqual([
+      ["e", 1, false],
+      ["t", 2, true],
+      ["n", 3, false],
+      ["s", 4, false],
+      ["g", 5, false],
+    ]);
+  });
+});
+
+describe("IDX-AT-25 entry.testmain@1", () => {
+  test("`func TestMain(m *testing.M)` is a test_main entry that keeps its test scope (not in the main entry table)", async () => {
+    const gs = await loadGrammars();
+    const src: Record<string, string> = {
+      "internal/db/db_test.go": `package db\n\nimport (\n\t"os"\n\t"testing"\n)\n\nfunc TestMain(m *testing.M) {\n\tos.Exit(m.Run())\n}\n\nfunc TestOpen(t *testing.T) {}\n`,
+      "internal/db/other_test.go": `package db\n\n// func TestMain(m *testing.M) in a comment\nfunc TestMainly(t *testing.T) {}\n`,
+    };
+    const files = Object.entries(src).map(([path, text]) => parseStageFile(path, text, classify(path, text.length, text), gs.go, `b:${path}`));
+    const inp = input(files);
+    const p = runPipeline(inp);
+    const entries = p.facts.facts.filter((f) => f.kind === "entry");
+    expect(entries).toEqual([
+      expect.objectContaining({ detector: "entry.testmain@1", entry: "test_main", label: "internal/db", path: "internal/db/db_test.go", line: 8 }),
+    ]);
+    expect(mainFacts(p, "entry")).toEqual([]);
+    expect(p.facts.facts.filter((f) => f.kind === "test").map((f) => (f.kind === "test" ? f.name : ""))).toEqual(["TestMain", "TestOpen", "TestMainly"]);
+  });
+});
+
+describe("IDX-AT-26 / IDX-AT-45 secrets in fact text are redacted at link time (spec §5.1)", () => {
+  test("script arguments, dependency URLs, TODO text and doc titles", async () => {
+    const gs = await loadGrammars();
+    const token = "ghp_0123456789abcdefghijABCDEFGHIJ012345";
+    const aws = "AKIA4F7Q2Z9XWJ3KLM8N";
+    const sources: Record<string, string> = {
+      "package.json": JSON.stringify({
+        name: "x",
+        scripts: { deploy: `curl -H "Authorization: token ${token}" https://api.example.org` },
+        dependencies: { priv: `git+https://bot:${token}@github.com/acme/priv.git` },
+      }),
+      "src/a.ts": `// TODO: rotate ${aws} before release\nexport const a = 1;\n`,
+      "README.md": `# Setup with ${token}\n`,
+    };
+    const files = Object.entries(sources).map(([path, text]) => {
+      const c = classify(path, text.length, text);
+      return parseStageFile(path, text, c, c.grammar ? gs[c.grammar] : null, `b:${path}`);
+    });
+    const inp = input(files, { "package.json": sources["package.json"] as string });
+    const plain = JSON.stringify(linkFacts(inp, resolveImports(inp)).facts);
+    expect(plain).toContain(token);
+    expect(plain).toContain(aws);
+    const facts = linkFacts(inp, resolveImports(inp), { secrets: createSecretScanner() }).facts;
+    const json = JSON.stringify(facts);
+    expect(json).not.toContain(token);
+    expect(json).not.toContain(aws);
+    expect(facts.find((f) => f.kind === "script")).toMatchObject({ name: "deploy" });
+    expect(facts.find((f) => f.kind === "todo" && f.text.includes(REDACTION_TOKEN))).toBeDefined();
+    expect(facts.find((f) => f.kind === "dependency")).toMatchObject({ name: "priv", ecosystem: "npm" });
   });
 });
 

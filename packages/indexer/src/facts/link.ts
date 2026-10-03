@@ -24,7 +24,8 @@ const MAIN_ONLY = new Set(["route", "cli", "env"]);
 const TODO_CAP = 2_000;
 
 function base(c: FactCandidate, ctx: FactLinkContext): Omit<FactBase, "kind"> | null {
-  if (c.scope === "test" && c.kind !== "test") return null;
+  // test files contribute test names only — and `TestMain` (entry.testmain@1 can only match a test file)
+  if (c.scope === "test" && c.kind !== "test" && c.detector !== "entry.testmain@1") return null;
   const example = c.scope === "example" || (c.scope === "tooling" && MAIN_ONLY.has(c.kind));
   return {
     detector: c.detector,

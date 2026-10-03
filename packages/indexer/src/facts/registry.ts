@@ -8,7 +8,7 @@ import { ENV_TEMPLATE_GLOBS } from "@mitori/core";
 import picomatch from "picomatch";
 import type { FactCandidate, FactDetector, FactExtractInput, GrammarId } from "../contract.ts";
 import { baseOf } from "../resolve/files.ts";
-import { goCobra, goEntry, goEnv, goRegistry, goRoutes, goTests } from "./go.ts";
+import { goCobra, goEntry, goEnv, goRegistry, goRoutes, goTestMain, goTests } from "./go.ts";
 import { jsCommander, jsEnv, jsRegistry, jsRoutes, jsTests } from "./js.ts";
 import { linkByDetector } from "./link.ts";
 import { pyClick, pyEntry, pyEnv, pyRoutes, pyTests } from "./py.ts";
@@ -116,6 +116,7 @@ const JS: GrammarId[] = ["typescript", "tsx", "javascript"];
 
 export const FACT_DETECTORS: readonly FactDetector[] = [
   detector("entry.go@1", ["entry"], GO, lang("go"), goEntry),
+  detector("entry.testmain@1", ["entry"], GO, lang("go"), goTestMain),
   detector("entry.node@1", ["entry"], ["text"], (f) => textApplies("entry.node@1", f), undefined, fromText("entry.node@1")),
   detector(
     "entry.python@1",

@@ -213,6 +213,19 @@ function enclosing<T extends { start: number; end: number }>(ranges: readonly T[
   return undefined;
 }
 
+/**
+ * `func TestMain(m *testing.M)` (entry.testmain@1). It only exists in `_test.go` files, so it is the one entry that a
+ * test file emits; the fact keeps its file's `test` scope (never in the main entry table).
+ */
+export function goTestMain(input: FactExtractInput, tree: Tree): FactCandidate[] {
+  if (!input.file.path.endsWith("_test.go")) return [];
+  const m = /^func\s+(TestMain)\s*\(\s*\w+\s+\*\s*testing\.M\s*\)/m.exec(input.text);
+  if (!m) return [];
+  const id = tree.rootNode.descendantForIndex((m.index ?? 0) + (m[0] as string).indexOf("TestMain"));
+  if (id?.type !== "identifier" || id.parent?.type !== "function_declaration") return [];
+  return [candidate("entry.testmain@1", "entry", input, lineOf(id), { entry: "test_main", label: dirOf(input.file.path) || "." })];
+}
+
 export function goTests(input: FactExtractInput, tree: Tree): FactCandidate[] {
   if (!input.file.path.endsWith("_test.go")) return [];
   const out: FactCandidate[] = [];
