@@ -420,8 +420,6 @@ export class Runner {
     const run = live.run;
     run.state = state;
     run.finishedAt ??= new Date(this.deps.clock.now()).toISOString();
-    live.unsubscribe?.();
-    live.unsubscribe = null;
     const w = this.deps.scheduler.window()?.fiveHour;
     if (
       state === "done" &&
@@ -436,11 +434,20 @@ export class Runner {
         resetsAtUnchanged: live.resetsAtStart !== undefined && live.resetsAtStart === w.resetsAt,
       });
     }
-    if (live.pinnedBlobs.length > 0) await this.deps.indexer.unpinBlobs(live.pinnedBlobs);
+    await this.release(live);
     this.refreshProgress();
     await this.persistRun();
     this.emitRun();
     live.idle.resolve();
+  }
+
+  /** A terminal run stops mirroring the scheduler and unpins the blobs it pinned at start. */
+  private async release(live: Live): Promise<void> {
+    live.unsubscribe?.();
+    live.unsubscribe = null;
+    const blobs = live.pinnedBlobs;
+    live.pinnedBlobs = [];
+    if (blobs.length > 0) await this.deps.indexer.unpinBlobs(blobs);
   }
 
   private launch(row: TaskRow): void {
@@ -462,6 +469,7 @@ export class Runner {
       return;
     }
     const ctx: RunCtx = { id: live.run.id, trigger: live.run.trigger, engine, gather: this.gatherEnv(live), cancelled: () => live.run.state === "cancelled" };
+    if (live.run.pinned) ctx.packSnapshot = live.run.pinned.snapshot;
     executeTask(env, ctx, row, abort.signal, {
       state: (st) => {
         row.task.state = st;
@@ -527,6 +535,7 @@ export class Runner {
       live.run.state = "failed";
       live.run.finishedAt = new Date(this.deps.clock.now()).toISOString();
       for (const r of live.running.values()) r.call?.stop("user");
+      await this.release(live);
       await this.persistRun();
       this.emitRun();
       live.idle.resolve();

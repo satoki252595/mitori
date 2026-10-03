@@ -23,6 +23,7 @@ import type {
   SseEventPayload,
   Usage,
   WriteQueue,
+  Xxh3,
 } from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
 import {
@@ -90,6 +91,8 @@ export interface RunCtx {
   gather: GatherEnv;
   /** Is the run cancelled (checked between attempts). */
   cancelled(): boolean;
+  /** The run's pinned repo-pack snapshot (PT-05). */
+  packSnapshot?: Xxh3;
 }
 
 /** Outcome of one task. */
@@ -263,6 +266,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
     lang: env.lang,
     listed: rendered.ctx.existing.size,
     autoAccept: s.global.review.autoAcceptDocUpdates,
+    ...(run.packSnapshot ? { packSnapshot: run.packSnapshot } : {}),
   };
   const deps = { doc: env.doc, write: env.write, verifier: env.verifier, log: env.log };
 
@@ -294,7 +298,8 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   let validator = createLineValidator(rendered.ctx);
   let out = await consume(env, callRun, (r, n) => validator.validate(r, n), sink, rendered.ctx);
   usage = addUsage(usage, out.result.usage);
-  if (out.result.stop === "error" && out.verdicts.length === 0 && !run.cancelled()) {
+  // §8.2: a transport failure without output is re-dispatched once; auth / installation errors fail the run at once
+  if (out.result.stop === "error" && out.verdicts.length === 0 && !run.cancelled() && !FATAL.has(out.result.error?.code ?? "E_AGENT_EXIT")) {
     await callRun.close();
     callRun = await start(call);
     validator = createLineValidator(rendered.ctx);
@@ -318,17 +323,23 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
     attempts = 2;
     hooks.state("retrying");
     const accepted1 = out.verdicts.filter((v) => v.value).length;
-    let run2: GenCallRun;
+    let run2: GenCallRun | null = null;
     let validator2 = createLineValidator(rendered.ctx);
     if (plan.kind === "diff" && callRun.continueWith) {
       // continuation: the model has its own reply; seed the validator with the accepted lines of attempt 1
       const retry = env.prompts.render(task, inputs, { lang: env.lang, workdir: env.sandboxCwd, retry: plan }).layout.retry ?? "";
-      replayAccepted(validator2, out);
-      run2 = callRun.continueWith(retry, signal);
-      calls++;
-      env.metrics.inc("gen.engine.calls");
-      hooks.call(run2);
-    } else {
+      try {
+        run2 = callRun.continueWith(retry, signal);
+        replayAccepted(validator2, out);
+        calls++;
+        env.metrics.inc("gen.engine.calls");
+        hooks.call(run2);
+      } catch {
+        // the parked process went away between the result and the retry (E_AGENT_EXIT) ⇒ cold path below
+        run2 = null;
+      }
+    }
+    if (run2 === null) {
       await callRun.close();
       if (plan.kind === "diff") {
         const cold: RetryPlan = { ...plan, previous: out.rejected.map((r) => r.slice(0, 2000)) };

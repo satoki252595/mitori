@@ -152,6 +152,18 @@ describe("GEN-U-023 / AC-08 / AC-09 exactly one retry, by continuation", () => {
     expect(authCalls[1]?.call.layout.retry).toContain('"section":"s7"');
   });
 
+  test("the parked process exiting between the result and the retry falls back to a cold retry (not a task failure)", async () => {
+    const h = makeHarness({ router: (c, t) => ({ ...badThenFix(c, t), ...(t.attempt === 1 ? { exits: true } : {}) }) });
+    const { run } = await runToEnd(h);
+    const authCalls = h.engine.calls.filter((c) => c.call.layout.unit.includes(`module ${M_AUTH}`));
+    expect(authCalls.map((c) => [c.call.attempt, c.turn.continuation])).toEqual([
+      [1, false],
+      [2, false],
+    ]);
+    expect(authCalls[1]?.call.layout.retry).toContain("PREVIOUS>>>");
+    expect(run?.tasks.find((t) => t.target.id === M_AUTH)).toMatchObject({ state: "done", attempt: 2 });
+  });
+
   test("a required aspect still missing after the retry fails the task (E_GEN_COVERAGE_LOW); the run goes on", async () => {
     const router = (call: GenCall, t: Turn): ScriptReply => {
       if (call.spec.id !== "gen.module" || !call.layout.unit.includes(`module ${M_SESSION}`)) return validRouter(call, t);

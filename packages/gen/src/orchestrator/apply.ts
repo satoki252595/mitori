@@ -45,6 +45,8 @@ export interface ApplyContext {
   promptVer: PromptVersion;
   /** Snapshot the input was built from (stamping + provenance). */
   indexDigest: Xxh3;
+  /** The run's pinned repo-pack snapshot (cites of locations shown only in the pack, PT-05). */
+  packSnapshot?: Xxh3;
   /** Doc language. */
   lang: DocLang;
   /** Number of EXISTING blocks listed. */
@@ -192,7 +194,7 @@ export class ApplySink {
     const claims: GeneratedClaim[] = [];
     for (const c of Array.isArray(line.claims) ? line.claims : []) {
       const span = spans.get(c.n) ?? { n: c.n, start: 0, end: 0, quote: "", identifiers: [] };
-      const st = await this.deps.verifier.stamp(c.cites, span, this.ctx.indexDigest);
+      const st = await this.deps.verifier.stamp(c.cites, span, this.ctx.indexDigest, this.ctx.packSnapshot);
       const verdictInput = { checks: st.checks, cites: st.cites.length, anyStale: false, ...(current?.lock ? { lock: current.lock } : {}) };
       const gc: GeneratedClaim = { n: c.n, kind: c.kind, quote: span.quote, cites: st.cites, checks: st.checks, verdict: computeVerdict(verdictInput) };
       const reuse = matchClaim(old, used, span.quote, st.cites);

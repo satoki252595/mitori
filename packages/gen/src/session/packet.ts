@@ -26,16 +26,25 @@ export function renderReadme(v: {
   return `${PREP_README_LINES.map((l) => l.replace(/\{\{([a-z_]+)\}\}/g, (_, k: string) => vars[k] ?? `{{${k}}}`)).join("\n")}\n`;
 }
 
-/** Group same-phase tasks into subagent batches (≤ `batchSize` tasks and ≤ 100k input tokens each). */
-export function batchesOf(tasks: readonly PrepTaskEntry[], batchSize: number = GEN_ESTIMATE_PARAMS.sessionBatchTasks): { batch: number; tasks: GenTaskId[] }[] {
+/**
+ * Group same-phase tasks into subagent batches (≤ `batchSize` tasks and ≤ 100k input tokens each). system.md is
+ * read once per batch, so a batch's input is `prefixTokens` (system + pack) once plus each task's own message.
+ */
+export function batchesOf(
+  tasks: readonly PrepTaskEntry[],
+  batchSize: number = GEN_ESTIMATE_PARAMS.sessionBatchTasks,
+  prefixTokens = 0,
+): { batch: number; tasks: GenTaskId[] }[] {
+  const size = Math.max(1, Math.floor(batchSize));
   const out: { batch: number; tasks: GenTaskId[]; in: number }[] = [];
   for (const t of tasks) {
+    const own = Math.max(0, t.estimate.in - prefixTokens);
     const last = out.at(-1);
-    if (!last || last.tasks.length >= batchSize || last.in + t.estimate.in > GEN_ESTIMATE_PARAMS.sessionBatchMaxInTokens)
-      out.push({ batch: out.length + 1, tasks: [], in: 0 });
+    if (!last || last.tasks.length >= size || last.in + own > GEN_ESTIMATE_PARAMS.sessionBatchMaxInTokens)
+      out.push({ batch: out.length + 1, tasks: [], in: prefixTokens });
     const b = out.at(-1) as (typeof out)[number];
     b.tasks.push(t.id);
-    b.in += t.estimate.in;
+    b.in += own;
   }
   return out.map(({ batch, tasks: ids }) => ({ batch, tasks: ids }));
 }

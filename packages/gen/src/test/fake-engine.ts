@@ -28,6 +28,8 @@ export interface ScriptReply {
   apiUsd?: number;
   /** Wait for this before streaming. */
   gate?: Promise<void>;
+  /** The process exits after this turn (no longer parked, although `continueWith` is still present). */
+  exits?: boolean;
 }
 
 /** Router input. */
@@ -157,6 +159,7 @@ export function createScriptedEngine(opts: ScriptedEngineOptions): ScriptedEngin
               break;
             }
           }
+          if (reply.exits) parked = false;
           finish(stopped ? "cancelled" : (reply.stop ?? "end"));
         },
       },

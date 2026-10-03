@@ -37,6 +37,12 @@ describe("§8.2 transport errors, auth, parked-process close, κ samples", () =>
     const run2 = await h2.gen.start((await h2.gen.estimate({ effort: "standard" })).id);
     await h2.gen.idle();
     expect(h2.gen.run(run2.id)?.run.state).toBe("failed");
+    // a fatal auth error is not re-dispatched (only transport failures are)
+    expect(h2.engine.calls.filter((c) => c.call.spec.id === "gen.overview").length).toBe(1);
+    // the failed run released what it held at start: pinned pack blobs and the scheduler subscription
+    expect(h2.indexer.pinned.size).toBe(0);
+    h2.scheduler.push({ effective: 1 });
+    expect(h2.gen.run(run2.id)?.run.concurrency).toBe(run2.concurrency);
   });
 
   test("a parked process is closed right after validation when no retry is needed (AC-09)", async () => {

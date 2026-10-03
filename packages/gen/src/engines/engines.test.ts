@@ -159,6 +159,7 @@ describe("scheduler-backed GenEngine", () => {
     expect(continued).toEqual(["background:RETRY"]);
     await run.close();
     expect(parked).toBe(false);
-    expect(() => run.continueWith?.("again", new AbortController().signal)).toThrow();
+    // once the process is gone, continueWith is absent (contract) ⇒ the executor takes the cold path
+    expect(run.continueWith).toBeUndefined();
   });
 });

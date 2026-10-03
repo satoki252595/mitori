@@ -28,8 +28,11 @@ export interface VerifierDeps {
 
 /** The gen Verifier plus the snapshot registry the orchestrator feeds (blobs the task input was built from). */
 export interface GenVerifier extends Verifier, ClaimStamper {
-  /** Stamp at a task snapshot (Verifier) or, without one, at the current snapshot (ClaimStamper). */
-  stamp(raw: readonly RawCite[], span: ClaimSpan, snapshot?: Xxh3): Promise<StampResult>;
+  /**
+   * Stamp at a task snapshot (Verifier) or, without one, at the current snapshot (ClaimStamper). `pack` = the run's
+   * pinned repo-pack snapshot: a path the task input did not show is stamped at the blob the pack was built from (PT-05).
+   */
+  stamp(raw: readonly RawCite[], span: ClaimSpan, snapshot?: Xxh3, pack?: Xxh3): Promise<StampResult>;
   /** Record the blobs of `paths` as seen by the input built at `snapshot` (stamping uses them, PT-05). */
   remember(snapshot: Xxh3, blobs: ReadonlyMap<RepoPath, GitOid>): void;
   /** Drop a snapshot's blob map. */
@@ -55,11 +58,12 @@ export function createVerifier(deps: VerifierDeps): GenVerifier {
   const snapshots = new Map<Xxh3, Map<RepoPath, GitOid>>();
   const texts = new Map<GitOid, string>();
 
-  async function load(path: RepoPath, snapshot: Xxh3 | null): Promise<Loaded | null> {
+  async function load(path: RepoPath, snapshot: Xxh3 | null, pack: Xxh3 | null = null): Promise<Loaded | null> {
     const entry = deps.indexer.file(path);
     if (!entry || entry.excluded) return null;
     const current = deps.indexer.currentBlob(path) ?? entry.blob;
-    const blob = (snapshot !== null ? snapshots.get(snapshot)?.get(path) : undefined) ?? current;
+    const at = (s: Xxh3 | null) => (s !== null ? snapshots.get(s)?.get(path) : undefined);
+    const blob = at(snapshot) ?? at(pack) ?? current;
     let text = texts.get(blob) ?? (await deps.indexer.blobText(blob));
     let used = blob;
     if (text === null && blob !== current) {
@@ -82,14 +86,14 @@ export function createVerifier(deps: VerifierDeps): GenVerifier {
     return best?.key;
   }
 
-  async function stamp(raw: readonly RawCite[], span: ClaimSpan, snapshot: Xxh3 | null): Promise<StampResult> {
+  async function stamp(raw: readonly RawCite[], span: ClaimSpan, snapshot: Xxh3 | null, pack: Xxh3 | null): Promise<StampResult> {
     let l0Raw = true;
     let l0 = true;
     const repaired = new Set<"clamp" | "swap" | "relocate">();
     const windows: (Window & { path: RepoPath; loaded: Loaded })[] = [];
     const slack = GEN_LIMITS.citeClampSlack;
     for (const c of raw) {
-      const loaded = await load(c.path, snapshot);
+      const loaded = await load(c.path, snapshot, pack);
       if (!loaded) {
         l0Raw = false;
         l0 = false;
@@ -153,8 +157,8 @@ export function createVerifier(deps: VerifierDeps): GenVerifier {
     forget(snapshot) {
       snapshots.delete(snapshot);
     },
-    stamp(raw: readonly RawCite[], span: ClaimSpan, snapshot?: Xxh3): Promise<StampResult> {
-      return stamp(raw, span, snapshot ?? null);
+    stamp(raw: readonly RawCite[], span: ClaimSpan, snapshot?: Xxh3, pack?: Xxh3): Promise<StampResult> {
+      return stamp(raw, span, snapshot ?? null, pack ?? null);
     },
     async check(claims) {
       const out: ClaimChecks[] = [];

@@ -152,18 +152,28 @@ export function memSafeWriter(): SafeWriter & { files: Map<string, string>; kind
   };
 }
 
-/** FsReader over a map of absolute paths (plus optional symlinks). */
-export function memFs(files: Map<string, string>, symlinks: ReadonlySet<string> = new Set()): FsReader {
+/**
+ * FsReader over a map of absolute paths (plus optional symlinks). `dirLinks` maps a symlinked directory to its
+ * target: files below it are reached (stat follows the directory link, like lstat of the last component) and
+ * `realpath` resolves through it.
+ */
+export function memFs(files: Map<string, string>, symlinks: ReadonlySet<string> = new Set(), dirLinks: ReadonlyMap<string, string> = new Map()): FsReader {
+  const resolve = (abs: string): string => {
+    for (const [link, target] of dirLinks) if (abs.startsWith(`${link}/`)) return `${target}${abs.slice(link.length)}`;
+    return abs;
+  };
   const stat = (abs: string): FsStat | null => {
-    if (symlinks.has(abs)) return { size: 0, mtimeNs: 0n, ino: 0n, isFile: false, isDir: false, isSymlink: true };
-    const t = files.get(abs);
-    return t === undefined ? null : { size: t.length, mtimeNs: 0n, ino: 0n, isFile: true, isDir: false, isSymlink: false };
+    if (symlinks.has(abs) || dirLinks.has(abs)) return { size: 0, mtimeNs: 0n, ino: 0n, isFile: false, isDir: false, isSymlink: true };
+    const t = files.get(resolve(abs));
+    if (t !== undefined) return { size: t.length, mtimeNs: 0n, ino: 0n, isFile: true, isDir: false, isSymlink: false };
+    const dir = resolve(abs);
+    return [...files.keys()].some((k) => k.startsWith(`${dir}/`)) ? { size: 0, mtimeNs: 0n, ino: 0n, isFile: false, isDir: true, isSymlink: false } : null;
   };
   return {
     stat,
-    read: async (abs) => new TextEncoder().encode(files.get(abs) ?? ""),
-    readHead: async (abs, n) => new TextEncoder().encode((files.get(abs) ?? "").slice(0, n)),
-    realpath: (abs) => (files.has(abs) ? abs : null),
+    read: async (abs) => new TextEncoder().encode(files.get(resolve(abs)) ?? ""),
+    readHead: async (abs, n) => new TextEncoder().encode((files.get(resolve(abs)) ?? "").slice(0, n)),
+    realpath: (abs) => (stat(abs) ? resolve(abs) : null),
     readdir: () => null,
   };
 }

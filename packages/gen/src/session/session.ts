@@ -72,7 +72,8 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
     return { rendered, labels, digest: g.digest };
   }
 
-  function lineCtx(row: TaskRow, run: GenRun, digest: Xxh3, model: ModelId) {
+  /** Apply context of a session task; `listed` = EXISTING blocks shown (mass-delete guard, §6.7-4). */
+  function lineCtx(row: TaskRow, run: GenRun, digest: Xxh3, model: ModelId, listed: number) {
     const spec = GEN_PROMPTS[row.plan.prompt];
     return {
       run: run.id,
@@ -83,8 +84,9 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
       promptVer: spec.version,
       indexDigest: digest,
       lang: svc.lang(),
-      listed: 0,
+      listed,
       autoAccept: d.settings().global.review.autoAcceptDocUpdates,
+      ...(run.pinned ? { packSnapshot: run.pinned.snapshot } : {}),
     };
   }
 
@@ -153,7 +155,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
         if (hit) {
           const sink = new ApplySink(
             { doc: d.doc, write: d.write, verifier: svc.verifier, log: d.log },
-            { ...lineCtx(row, run, digest, row.plan.model), replay: true },
+            { ...lineCtx(row, run, digest, row.plan.model, rendered.ctx.existing.size), replay: true },
             hit.idMap,
           );
           for (const l of hit.lines) sink.accept(JSON.parse(l) as GenLine);
@@ -229,7 +231,12 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
     await d.safeWrite.write(root, rel("fingerprint"), fingerprint, "prep");
     await d.safeWrite.write(root, rel("system.md"), system, "prep");
     await d.safeWrite.write(root, rel("tasks.json"), `${JSON.stringify(tasksJson, null, 2)}\n`, "prep");
-    await d.safeWrite.write(root, rel("batches.json"), `${JSON.stringify(batchesOf(tasksJson, req.batchSize), null, 2)}\n`, "prep");
+    await d.safeWrite.write(
+      root,
+      rel("batches.json"),
+      `${JSON.stringify(batchesOf(tasksJson, req.batchSize, entries[0]?.rendered.tokens.prefix ?? 0), null, 2)}\n`,
+      "prep",
+    );
     for (const { row, rendered } of entries) await d.safeWrite.write(root, rel(`inputs/${row.task.id}.md`), rendered.userBytes, "prep");
     await d.write("gen.prep", () => {
       store.putPrep({
@@ -263,6 +270,13 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
     if (!st) return { missing: true };
     if (st.isSymlink || !st.isFile)
       return { error: { at: `out/${task}.ndjson`, expected: "a regular file", actual: st.isSymlink ? "symlink" : "not a file", code: "E_PATH_SYMLINK" } };
+    // a symlinked out/ (or packet) directory: the file must resolve to exactly <packet>/out/<task>.ndjson
+    const real = fs.realpath(path);
+    const dirReal = fs.realpath(dirOf(prep));
+    if (real === null || dirReal === null || real !== `${dirReal}/out/${task}.ndjson`)
+      return {
+        error: { at: `out/${task}.ndjson`, expected: "a file inside the packet's out/ directory", actual: real ?? "unresolvable", code: "E_PATH_SYMLINK" },
+      };
     return { text: new TextDecoder().decode(await fs.read(path)) };
   }
 
@@ -299,7 +313,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
       const model = sessionModel(req.model);
       const errors: CheckError[] = [];
       const missing: string[] = [];
-      const ready: { row: TaskRow; lines: GenLine[]; digest: Xxh3 }[] = [];
+      const ready: { row: TaskRow; lines: GenLine[]; digest: Xxh3; listed: number }[] = [];
       for (const t of prep.tasks) {
         const row = byId.get(t.id);
         if (row?.task.state !== "pending") continue;
@@ -339,7 +353,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
             code: "E_GEN_COVERAGE_LOW",
           });
         }
-        if (!bad) ready.push({ row, lines: accepted, digest });
+        if (!bad) ready.push({ row, lines: accepted, digest, listed: rendered.ctx.existing.size });
       }
       const total = prep.tasks.length;
       if (!req.partial && (errors.length > 0 || missing.length > 0)) {
@@ -356,8 +370,8 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
       }
       let blocks = 0;
       let claims = 0;
-      for (const { row, lines, digest } of ready) {
-        const sink = new ApplySink({ doc: d.doc, write: d.write, verifier: svc.verifier, log: d.log }, lineCtx(row, run, digest, model));
+      for (const { row, lines, digest, listed } of ready) {
+        const sink = new ApplySink({ doc: d.doc, write: d.write, verifier: svc.verifier, log: d.log }, lineCtx(row, run, digest, model, listed));
         for (const l of lines) sink.accept(l);
         await sink.finish();
         if (row.plan.prompt === "gen.glossary") {

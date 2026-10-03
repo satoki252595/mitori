@@ -6,7 +6,7 @@
  * orchestrator falls back to it when `GenDeps.engines` lacks an engine.
  */
 import type { AgentScheduler, EngineResult, EngineRun, EngineSession } from "@mitori/agent";
-import type { Cancel, ErrorCode, JobEvent, WorkspaceKey } from "@mitori/core";
+import { type Cancel, type ErrorCode, type JobEvent, MitoriError, type WorkspaceKey } from "@mitori/core";
 import type { GenCall, GenCallResult, GenCallRun, GenEngine, GenEngineCaps } from "../contract.ts";
 import { toScheduledRequest } from "./index.ts";
 
@@ -91,10 +91,12 @@ function wrap(run: EngineRun, onContinue: ((retry: string, signal: Cancel, sessi
     },
   };
   if (session && onContinue) {
-    genRun.continueWith = (retry, signal) => {
-      if (!session.parked()) throw new Error("parked process is gone");
+    const continueWith = (retry: string, signal: Cancel): GenCallRun => {
+      if (!session.parked()) throw new MitoriError("E_AGENT_EXIT", "the parked process is gone");
       return wrap(onContinue(retry, signal, session), onContinue);
     };
+    // present only while the process is parked (contract: absent once it is gone ⇒ cold retry)
+    Object.defineProperty(genRun, "continueWith", { get: () => (session.parked() ? continueWith : undefined), enumerable: true });
   }
   return genRun;
 }

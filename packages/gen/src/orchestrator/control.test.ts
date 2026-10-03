@@ -114,6 +114,33 @@ describe("GEN-I-020 PT-05 pinned system prompt + repo pack", () => {
     }
     expect(h.gen.run(run.id)?.run.pinned?.systemHash).toBe(h.hasher.sha256(h.engine.calls[0]?.system ?? ""));
   });
+
+  test("a cite of a location shown only in the pinned pack is stamped at the pack's blob, not the edited file", async () => {
+    const g = gated(isEarly);
+    const j = JSON.stringify;
+    const router = (call: GenCall, t: Turn): ScriptReply => {
+      if (call.spec.id !== "gen.module" || !call.layout.unit.includes(`module ${M_SESSION}`) || t.attempt !== 1) return g.router(call, t);
+      // src/cli/main.ts:1 is an entry fact of the repo pack; the session page's DATA does not show that file
+      expect(call.layout.unit).not.toContain("=== src/cli/main.ts");
+      return {
+        lines: [
+          j({ t: "block", id: "new:1", aspect: "responsibility", md: "入口から使われる[[1]]。", claims: { "1": "fact src/cli/main.ts:1" } }),
+          j({ t: "block", id: "new:2", aspect: "interface", md: "- 公開する[[1]]。", claims: { "1": "fact src/cli/main.ts:1" } }),
+          j({ t: "module", module: M_SESSION, name: "セッション" }),
+          j({ t: "end", blocks: 2 }),
+        ],
+      };
+    };
+    const h = makeHarness({ router, settings: serial() });
+    const pinnedBlob = h.indexer.currentBlob("src/cli/main.ts");
+    await h.gen.start((await h.gen.estimate({ effort: "standard" })).id);
+    h.indexer.setFile("src/cli/main.ts", "// edited during the run\nconsole.log(1);\n");
+    g.open();
+    await h.gen.idle();
+    const blk = h.doc.section("s6/session")?.blocks.find((b) => b.aspect === "responsibility");
+    expect(h.doc.claims(blk?.id ?? "b_x")[0]?.cites[0]?.blob).toBe(pinnedBlob as string);
+    expect(h.indexer.currentBlob("src/cli/main.ts")).not.toBe(pinnedBlob);
+  });
 });
 
 describe("GEN-U-045 / AC-17 5h yield, GEN-U-046 billing change, window spend, notBefore", () => {

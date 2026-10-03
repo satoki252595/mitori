@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { GenTaskId, PrepInfo } from "@mitori/core";
 import { GEN_PROMPTS, PREP_README_LINES, type PrepTaskEntry } from "../contract.ts";
+import { ApplySink } from "../orchestrator/apply.ts";
 import { validRouter } from "../test/fake-engine.ts";
 import { makeHarness, SANDBOX, TEST_WS } from "../test/harness.ts";
 import { M_AUTH, M_CORE, M_SESSION } from "../test/repo.ts";
@@ -161,6 +162,49 @@ describe("GEN-U-052 / GEN-U-053 / GEN-U-054 same validator, partial ingest, serv
   });
 });
 
+describe("AC-12 mass-delete guard on the session path", () => {
+  test("deleting all 4 listed blocks of a regenerated page deletes 2 and proposes the other 2", async () => {
+    const h = makeHarness();
+    const seed = new ApplySink(
+      { doc: h.doc, write: h.write, verifier: h.gen.verifier, log: h.log },
+      {
+        run: "gr_00000001",
+        trigger: "user",
+        engine: "claude-cli",
+        model: "claude-sonnet-5-5",
+        stage: "S5",
+        promptVer: "gen.module@1",
+        indexDigest: h.indexer.snapshot()?.indexDigest ?? "",
+        lang: "ja",
+        listed: 0,
+        autoAccept: false,
+      },
+    );
+    for (let i = 1; i <= 4; i++)
+      seed.accept({
+        t: "block",
+        id: `new:${i}`,
+        section: "s6/session",
+        aspect: "learn",
+        kind: "learn",
+        depth: "L1",
+        audience: ["dev"],
+        md: `- 項目${i}`,
+        claims: [],
+      });
+    await seed.finish();
+    const old = seed.written;
+    const info = await h.gen.session.prep({ effort: "standard", scope: ["s6/session"] });
+    const t = tasksOf(h, info)[0] as PrepTaskEntry;
+    expect(file(h, info, t.input)).toContain(`> ${old[0]} aspect=learn`);
+    answer(h, info, (_t, lines) => [...old.map((id) => JSON.stringify({ t: "delete", id })), ...lines]);
+    const rep = await h.gen.session.ingest({ prep: info.id, fingerprint: info.fingerprint, partial: false });
+    expect(rep.ok).toBe(true);
+    expect(old.filter((id) => h.doc.tombstones.has(id)).length).toBe(2);
+    expect(h.doc.proposals({ state: "pending" }).map((p) => p.op)).toEqual(["delete", "delete"]);
+  });
+});
+
 describe("GEN-I-055 / mitori check", () => {
   test("a symlinked out file is refused; check validates one file; .. paths are rejected", async () => {
     const h = makeHarness();
@@ -183,6 +227,25 @@ describe("GEN-I-055 / mitori check", () => {
     const rep = await relinked.session.ingest({ prep: info2.id, fingerprint: info2.fingerprint, partial: false });
     expect(rep.ok).toBe(false);
     expect(rep.errors.some((e) => e.code === "E_PATH_SYMLINK")).toBe(true);
+  });
+
+  test("an out/ directory that is a symlink to another place is refused", async () => {
+    const h = makeHarness();
+    const info = await h.gen.session.prep({ effort: "standard" });
+    answer(h, info);
+    // move the answers elsewhere and make out/ a link to them
+    const elsewhere = "/home/u/elsewhere";
+    for (const t of tasksOf(h, info)) {
+      const text = file(h, info, t.out) as string;
+      h.safe.files.delete(`${info.dir}/${t.out}`);
+      h.safe.files.set(`${elsewhere}/${t.id}.ndjson`, text);
+    }
+    (h.deps as { fs?: unknown }).fs = (await import("../test/ports.ts")).memFs(h.safe.files, new Set(), new Map([[`${info.dir}/out`, elsewhere]]));
+    const relinked = (await import("../orchestrator/gen.ts")).createGenInternal(h.deps);
+    const rep = await relinked.session.ingest({ prep: info.id, fingerprint: info.fingerprint, partial: true });
+    expect(rep.accepted.tasks).toBe(0);
+    expect(rep.errors.length).toBe(info.tasks);
+    expect(rep.errors.every((e) => e.code === "E_PATH_SYMLINK" && e.actual.startsWith(elsewhere))).toBe(true);
   });
 });
 
