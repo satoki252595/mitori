@@ -3,6 +3,7 @@ import type { AnchoredItem, ReanchorReport } from "@mitori/anchor";
 import type { Cite, Claim, ClaimId, DocIndex, IndexDelta, ThreadId } from "@mitori/core";
 import { MIGRATION_ORDER } from "../contract.ts";
 import { assembleAnchoredItems, distributeReanchor, migrationsFor } from "./index.ts";
+import { claimReanchor, suggestionViews } from "./suggestions.ts";
 
 const cite = (path: string, start: number, end: number): Cite => ({ path, start, end, blob: `b-${path}`, snippet: "0000000000000000", precision: "exact" });
 const claim = (id: string, cites: Cite[]): Claim =>
@@ -104,5 +105,36 @@ describe("SRV-AT-08 DOMAIN_WIRING pure steps", () => {
     expect(new Set(migrationsFor("workspace").map((m) => m.pkg))).toEqual(
       new Set(["@mitori/server", "@mitori/indexer", "@mitori/doc", "@mitori/gen", "@mitori/loop"]),
     );
+  });
+
+  test("publishSuggestions inputs: ClaimReanchor buckets (outdated > overlapped > moved) and SuggestionView", () => {
+    const items: AnchoredItem[] = [
+      { kind: "cite", owner: "cl_m" as ClaimId, index: 0, cite: cite("a.go", 1, 2) },
+      { kind: "cite", owner: "cl_o" as ClaimId, index: 0, cite: cite("a.go", 5, 6) },
+      { kind: "cite", owner: "cl_x" as ClaimId, index: 0, cite: cite("a.go", 9, 9) },
+    ];
+    const r = (health: string, anchor: object, overlapped = false) => ({
+      result: { health, method: "diff", anchor, previous: anchor, confidence: 1 },
+      overlapped,
+      step: "S3",
+    });
+    const report = {
+      results: [r("moved", cite("a.go", 3, 4)), r("moved", cite("a.go", 7, 8), true), r("outdated", cite("a.go", 9, 9))],
+      counts: {},
+      mapped: [],
+      ms: 0,
+    } as unknown as ReanchorReport;
+    const cr = claimReanchor(items, report);
+    expect(cr.moved.map((m) => [m.claim, m.cites[0]?.start])).toEqual([["cl_m", 3]]);
+    expect(cr.overlapped).toEqual(["cl_o" as ClaimId]);
+    expect(cr.outdated).toEqual(["cl_x" as ClaimId]);
+    const est = { id: "es_x" } as never;
+    expect(
+      suggestionViews(
+        [{ id: "sg_1", section: "s6/a", reason: "iface_changed", rule: "R1", kind: "regen", prompt: "gen.module", blocks: [], estimate: est }] as never,
+        ["a.go"],
+        "t" as never,
+      ),
+    ).toEqual([{ id: "sg_1", section: "s6/a", reason: "iface_changed", kind: "regen", blocks: [], files: ["a.go"], estimate: est, createdAt: "t" }] as never);
   });
 });

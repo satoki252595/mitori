@@ -296,7 +296,7 @@ export function domainHandlers(env: RouteEnv): RouteHandlers {
       x.gen.prioritize(section as SectionId);
       return ok;
     },
-    "GET /ws/:ws/gen/suggestions": () => [],
+    "GET /ws/:ws/gen/suggestions": async (ctx) => (await d(ctx)).suggestions(),
     "POST /ws/:ws/gen/prep": async (ctx) => {
       const x = await d(ctx);
       await x.staticReady();

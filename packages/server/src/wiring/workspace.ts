@@ -19,6 +19,7 @@ import {
   type SafeWriter,
   type ScanStatus,
   type SseEventPayload,
+  type SuggestionView,
   type WorkerPool,
   type WorkspaceInfo,
   type WorkspaceSummary,
@@ -36,7 +37,7 @@ import {
   type GenIdSource,
   type HighlightReq,
 } from "@mitori/doc";
-import { createGen, createPromptRenderer, type GenDeps, type GenOrchestrator } from "@mitori/gen";
+import { type ClaimReanchor, createGen, createPromptRenderer, type GenDeps, type GenOrchestrator } from "@mitori/gen";
 import { createIndexer, type FsChange, type HardwareInfo, type Indexer, type ModuleSeed } from "@mitori/indexer";
 import { DOC_WATCH_IGNORE, type ServerDeps, type WorkspaceRuntime } from "../contract.ts";
 import type { Timers } from "../http/timers.ts";
@@ -45,6 +46,7 @@ import { assembleAnchoredItems, distributeReanchor } from "./index.ts";
 import { pendingLoop } from "./loop.ts";
 import { NEUTRAL_CALIBRATION } from "./ports.ts";
 import { detectLicense, staticDocInput } from "./static-input.ts";
+import { claimReanchor, suggestionViews } from "./suggestions.ts";
 import { blockView, MdLines, paletteDigest, paletteIndex, type ViewCtx } from "./views.ts";
 
 /** Daemon-level services every workspace shares. */
@@ -83,6 +85,8 @@ export interface WorkspaceDomain {
   applyDelta(delta: IndexDelta): Promise<void>;
   /** Watcher batches (exposed for tests). */
   onBatch(batch: FsChange[]): Promise<void>;
+  /** Current S9 suggestions (`GET /ws/:ws/gen/suggestions`). */
+  suggestions(): SuggestionView[];
   /** Hook: every finished delta chain (tests, INT-02 timing). */
   onDeltaDone(cb: (delta: IndexDelta) => void): () => void;
 }
@@ -354,6 +358,27 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
 
   /* ---- index.delta chain (DOMAIN_WIRING["index.delta"]) ----------------------------------------------------- */
   const deltaHooks = new Set<(d: IndexDelta) => void>();
+  let suggestions: SuggestionView[] = [];
+  let s9Unsupported = false;
+  /** gen.onIndexDelta (outside the queue, W3) → `server.publishSuggestions` (own slot). E_UNSUPPORTED until WP-06b. */
+  async function suggest(delta: IndexDelta, claims: ClaimReanchor): Promise<void> {
+    if (s9Unsupported) return;
+    try {
+      const out = await gen.onIndexDelta({ delta, claims });
+      const views = suggestionViews(
+        out.suggestions,
+        delta.changed.map((c) => c.path),
+        deps.clock.iso(),
+      );
+      await base.write("wiring.suggestions", () => {
+        suggestions = views;
+        base.events.emit({ type: "gen.suggestions", suggestions: views });
+      });
+    } catch (err) {
+      if (MitoriError.from(err).code === "E_UNSUPPORTED") s9Unsupported = true;
+      else log.warn("gen.onIndexDelta failed", { error: err instanceof Error ? err.message : String(err) });
+    }
+  }
   async function applyDelta(delta: IndexDelta): Promise<void> {
     if (delta.changed.length === 0 && delta.renames.length === 0 && !delta.structureRefreshed) return;
     const renames = new Map(delta.renames.map((r) => [r.from, r.to]));
@@ -363,6 +388,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
       .items.filter((t) => t.state !== "resolved" && t.state !== "draft" && t.anchor.code)
       .map((t) => ({ id: t.id, code: t.anchor.code ? { ...t.anchor.code, precision: "exact" as const } : null }));
     const items = assembleAnchoredItems(delta, rawDoc, threads);
+    let reanchored: ClaimReanchor = { moved: [], overlapped: [], outdated: [] };
     if (items.length > 0) {
       const ctx: AnchorContext = {
         blobText: (b) => rawIndexer.blobText(b),
@@ -407,12 +433,13 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
         }
         if (stale.size > 0) rawDoc.setFreshness([...stale], "stale");
       });
+      reanchored = claimReanchor(items, report);
       const unpin = [...oldBlobs].filter((b) => !newBlobs.has(b));
       const pin = [...newBlobs].filter((b) => !oldBlobs.has(b));
       if (pin.length > 0) await rawIndexer.pinBlobs(pin).catch(() => undefined);
       if (unpin.length > 0) await rawIndexer.unpinBlobs(unpin).catch(() => undefined);
     }
-    // gen.onIndexDelta (S9 suggestions) is WP-06b's: E_UNSUPPORTED until it lands, so no `gen.suggestions` yet.
+    await suggest(delta, reanchored);
     if (delta.factsChanged || delta.membershipChanged.length > 0 || delta.ifaceChanged.length > 0) await applyStatic(true);
     checkPalette();
     for (const h of deltaHooks) h(delta);
@@ -540,6 +567,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     },
     applyDelta,
     onBatch,
+    suggestions: () => suggestions,
     onDeltaDone(cb) {
       deltaHooks.add(cb);
       return () => deltaHooks.delete(cb);
