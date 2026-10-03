@@ -6,15 +6,18 @@ import { BUNDLE_LIMITS, VISIBLE_ESCAPE_RANGES } from "../contract.ts";
 
 // Built from the contract's ranges (not written as literal escapes: formatters rewrite those into raw bidi characters).
 const hex = (n: number): string => `\\u{${n.toString(16)}}`;
-const SUSPECT_CLASS = `[\\u{0}-\\u{8}\\u{b}-\\u{1f}\\u{7f}${VISIBLE_ESCAPE_RANGES.map(([a, b]) => (a === b ? hex(a) : `${hex(a)}-${hex(b)}`)).join("")}]`;
+const RANGES = VISIBLE_ESCAPE_RANGES.map(([a, b]) => (a === b ? hex(a) : `${hex(a)}-${hex(b)}`)).join("");
+// NEL, LINE SEPARATOR and PARAGRAPH SEPARATOR are line breaks to many readers (Python `splitlines`, JS `/^/m`): a data
+// line holding one could otherwise hand such a reader a line that starts with a tag.
+const BREAKS = "\\u{85}\\u{2028}\\u{2029}";
+const SUSPECT_CLASS = `[\\u{0}-\\u{8}\\u{b}-\\u{1f}\\u{7f}${BREAKS}${RANGES}]`;
 const SUSPECT = new RegExp(SUSPECT_CLASS, "u");
 const SUSPECT_G = new RegExp(SUSPECT_CLASS, "gu");
 
-const RANGES = VISIBLE_ESCAPE_RANGES.map(([a, b]) => (a === b ? hex(a) : `${hex(a)}-${hex(b)}`)).join("");
 // Fields of tag lines (paths, symbol names, globs, ids) may not contain any line break or control character at all.
-const FIELD_G = new RegExp(`[\\u{0}-\\u{1f}\\u{7f}\\u{2028}\\u{2029}${RANGES}]`, "gu");
+const FIELD_G = new RegExp(`[\\u{0}-\\u{1f}\\u{7f}${BREAKS}${RANGES}]`, "gu");
 
-/** Escape one character: bidi / zero-width ⇒ `\u{XXXX}`, other C0 controls (and DEL) ⇒ `\x{XX}`. */
+/** Escape one character: bidi / zero-width / Unicode line breaks ⇒ `\u{XXXX}`, C0 controls (and DEL) ⇒ `\x{XX}`. */
 function escapeChar(ch: string): string {
   const code = ch.codePointAt(0) as number;
   return code <= 0x7f ? `\\x{${code.toString(16).toUpperCase().padStart(2, "0")}}` : `\\u{${code.toString(16).toUpperCase()}}`;

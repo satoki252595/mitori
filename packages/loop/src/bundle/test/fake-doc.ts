@@ -1,7 +1,9 @@
 import type { Block, BlockId, BlockKind, Cite, Claim, ClaimId, SectionId, SectionNode } from "@mitori/core";
 import type { BundleBuilderDeps } from "../deps.ts";
+import { toMarkers } from "../doc-md.ts";
 
-// A tiny in-memory doc for WP-08a tests: sections with ordered blocks and the claims (cites) of those blocks.
+// A tiny in-memory doc for WP-08a tests: sections with ordered blocks (md in file form, as `DocStore.block` gives it),
+// their marker forms and the claims (cites) of those blocks.
 
 export interface FakeBlock {
   id: BlockId;
@@ -59,6 +61,10 @@ export function fakeDoc(sections: FakeSection[]): BundleBuilderDeps["doc"] & { a
   return {
     all,
     block: (id) => all.get(id) ?? null,
+    markerForm: (id) => {
+      const b = all.get(id);
+      return b ? toMarkers(b.md) : null;
+    },
     section: (id) => nodes.get(id) ?? null,
     claims: (block) => claims.get(block) ?? [],
   };

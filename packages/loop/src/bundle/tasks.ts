@@ -1,8 +1,8 @@
-import type { BlockId, ThreadDetail } from "@mitori/core";
+import type { BlockId, Block as DocBlock, ThreadDetail } from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
 import { BUNDLE_LIMITS } from "../contract.ts";
 import type { Block } from "./code.ts";
-import { bundleDocText, firstSentence, headingText } from "./doc-md.ts";
+import { firstSentence, headingText, renderMarkers, toMarkers } from "./doc-md.ts";
 import type { Estimator } from "./estimate.ts";
 import { field, quote, quoteLabelled, safeLine } from "./lines.ts";
 import type { TaskPart } from "./plan.ts";
@@ -26,6 +26,14 @@ export function splitConversation(thread: ThreadDetail): { ask: string; earlier:
   return { ask: (msgs[at] as (typeof msgs)[number]).body, earlier: msgs.slice(0, at).filter((m) => m.by !== "system") };
 }
 
+/** A block's text with its claims' citations as `[path:a-b]` (marker n ↔ the n-th claim of the block, by position). */
+function docText(doc: Pick<DocStore, "markerForm" | "claims">, b: DocBlock): string {
+  const claims = doc.claims(b.id);
+  const byId = new Map(claims.map((c) => [c.id, c]));
+  const ordered = b.claims.length > 0 ? b.claims.map((id) => byId.get(id)) : claims;
+  return renderMarkers(doc.markerForm(b.id) ?? toMarkers(b.md), (n) => ordered[n - 1]?.cites ?? null, b.lang);
+}
+
 /** Cut a text to `max` characters with an ellipsis that says how much was left out. */
 function clip(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max)}…[+${text.length - max}]`;
@@ -37,7 +45,14 @@ function clip(text: string, max: number): string {
  */
 export function taskPart(
   thread: ThreadDetail,
-  opts: { doc: Pick<DocStore, "block" | "section">; est: Estimator; scrub: Scrub; seen: Set<BlockId>; removed: ReadonlySet<string>; multi: boolean },
+  opts: {
+    doc: Pick<DocStore, "block" | "section" | "markerForm" | "claims">;
+    est: Estimator;
+    scrub: Scrub;
+    seen: Set<BlockId>;
+    removed: ReadonlySet<string>;
+    multi: boolean;
+  },
 ): TaskPart {
   const { est, scrub } = opts;
   const head = `TASK ${field(thread.id)} ${thread.intent} R${thread.round}`;
@@ -65,7 +80,7 @@ export function taskPart(
     const docHead = `DOC ${b.id} ${field(b.section)} "${field(title)}" h=${b.hash.slice(0, 8)}`;
     const dup = opts.seen.has(b.id);
     opts.seen.add(b.id);
-    const body = dup ? ["> (same as above)"] : quote(scrub(bundleDocText(b.md)));
+    const body = dup ? ["> (same as above)"] : quote(scrub(docText(opts.doc, b)));
     doc = { lines: [docHead, ...body], tokens: est.tags([docHead]) + est.quote(body) };
     if (!dup && !opts.removed.has("doc:neighbors") && idx >= 0) {
       const near = (dir: -1 | 1) => {
@@ -80,7 +95,7 @@ export function taskPart(
         [1, "~next"],
       ] as const) {
         const x = near(dir);
-        const sentence = x ? scrub(firstSentence(x.md)) : "";
+        const sentence = x ? scrub(firstSentence(docText(opts.doc, x))) : "";
         if (sentence !== "") {
           const lines = [`> ${label}: ${safeLine(sentence)}`];
           neighbors.push({ lines, tokens: est.quote(lines) });
@@ -104,7 +119,9 @@ export function taskPart(
     return { lines, tokens: est.quote(lines) };
   });
 
-  const askLines = [multiAsk(opts.multi, thread.id), ...quote(scrub(ask), Number.POSITIVE_INFINITY)];
+  // A thread may carry no human message (a findings draft submitted as is): the ASK block still has its one quote line.
+  const asked = quote(scrub(ask), Number.POSITIVE_INFINITY);
+  const askLines = [multiAsk(opts.multi, thread.id), ...(asked.length > 0 ? asked : [">"])];
   return {
     id: thread.id,
     head: { lines: [head], tokens: est.tags([head]) },

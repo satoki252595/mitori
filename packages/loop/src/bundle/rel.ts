@@ -1,9 +1,10 @@
 import type { FileEntry, LineNo, RepoPath, SymbolEntry, SymbolKind } from "@mitori/core";
 import type { Indexer } from "@mitori/indexer";
 import { BUNDLE_LIMITS } from "../contract.ts";
+import { readableFile } from "../router/scope.ts";
 
 /** What REL needs from the index. */
-export type RelIndexer = Pick<Indexer, "symbols" | "imports" | "dependents" | "file" | "read">;
+export type RelIndexer = Pick<Indexer, "symbols" | "imports" | "dependents" | "file" | "currentText">;
 
 /** One related symbol (a REL block). */
 export interface RelEntry {
@@ -79,9 +80,10 @@ export async function findRelated(
     if (lineCache.has(path)) return lineCache.get(path) ?? null;
     const f: FileEntry | null = ix.file(path);
     let lines: string[] | null = null;
-    if (f && f.lines <= MAX_FILE_LINES && reads < MAX_READS && !opts.denied(path)) {
+    if (readableFile(f) && (f as FileEntry).lines <= MAX_FILE_LINES && reads < MAX_READS && !opts.denied(path)) {
       reads++;
-      lines = (await ix.read(path, undefined, { numbered: false })).text.split("\n");
+      // Only counted, never put into the bundle: the raw text is enough (no secret scan of whole files per build).
+      lines = (await ix.currentText(path))?.split("\n") ?? null;
     }
     lineCache.set(path, lines);
     return lines;

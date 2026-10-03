@@ -36,9 +36,11 @@ export function checkGrammar(text: string): Parsed {
     }
     if (!BUNDLE_TAG_LINE_RE.test(l)) throw new Error(`neither data nor tag line inside the fence: ${JSON.stringify(l)}`);
   }
-  for (const l of p.tail) {
+  for (const [i, l] of p.tail.entries()) {
     if (l.startsWith("> ") || l === ">" || l.startsWith("- ")) continue;
     if (!BUNDLE_TAG_LINE_RE.test(l)) throw new Error(`bad line after the fence: ${JSON.stringify(l)}`);
+    const next = p.tail[i + 1] ?? "";
+    if (/^ASK(?: |$)/u.test(l) && !(next.startsWith("> ") || next === ">")) throw new Error(`ASK without a quote line: ${JSON.stringify(next)}`);
   }
   // single-thread order of tags
   const tags = [...p.top, ...p.data, ...p.tail].map((l) => /^(MBF\/1|[A-Z]{2,8})(?: |$)/u.exec(l)?.[1]).filter((t): t is string => t !== undefined);

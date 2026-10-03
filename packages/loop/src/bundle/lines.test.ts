@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { bundleDocText, firstSentence, headingText } from "./doc-md.ts";
+import { firstSentence, headingText, renderMarkers, toMarkers } from "./doc-md.ts";
 import { codeLines, field, japaneseRatio, quote, quoteLabelled, safeLine, splitText, usdText } from "./lines.ts";
 
 const cp = (n: number) => String.fromCodePoint(n);
@@ -61,21 +61,33 @@ describe("usdText / japaneseRatio", () => {
 });
 
 describe("doc text in bundles", () => {
-  test("ja cite groups become [path:a-b]; ids and the space before them are removed", () => {
-    expect(bundleDocText("再試行する。（[a.go:1-2](a.go#L1-L2)、[b/c.go:7](b/c.go#L7)） <!-- b_abcdefgh -->")).toBe("再試行する。[a.go:1-2][b/c.go:7]");
+  const cites: Record<number, { path: string; start: number; end: number }[]> = {
+    1: [
+      { path: "a.go", start: 1, end: 2 },
+      { path: "b/c.go", start: 7, end: 7 },
+    ],
+    2: [],
+  };
+  const at = (n: number) => cites[n] ?? null;
+  test("toMarkers: ids and the space before them are removed, every cite group (ja / en, cited or inferred) becomes [[k]] in order", () => {
+    expect(toMarkers("再試行する（[a.go:1-2](a.go#L1-L2)、[c.go:7](../b/c.go#L7)）（推測）。 <!-- b_abcdefgh -->")).toBe("再試行する[[1]][[2]]。");
+    expect(toMarkers("Retries once ([x.ts:3](x.ts#L3), [e.ts:1-2](d%20e.ts#L1-L2)) and more (inferred).")).toBe("Retries once[[1]] and more[[2]].");
   });
-  test("en cite groups too; a single line is not written as a range; encoded paths are decoded; (inferred) stays", () => {
-    expect(bundleDocText("Retries once. ([x.ts:3](x.ts#L3), [d%20e.ts:1-2](d%20e.ts#L1-L2)) and more (inferred)")).toBe(
-      "Retries once.[x.ts:3][d e.ts:1-2] and more (inferred)",
+  test("renderMarkers: [[n]] ⇒ claim n's cites as [path:a-b] (a single line is not a range), the inferred label for no cite, nothing for no claim", () => {
+    expect(renderMarkers("再試行する[[1]]。推測[[2]]。無い[[3]]。", at, "ja")).toBe("再試行する[a.go:1-2][b/c.go:7]。推測（推測）。無い。");
+    expect(renderMarkers("Retries once[[2]].", at, "en")).toBe("Retries once (inferred).");
+  });
+  test("renderMarkers leaves markers inside code spans and fences alone; ordinary links and text too", () => {
+    const md = "Use `[[1]]` here[[1]].\n```\n[[1]]\n```\nSee [the docs](https://example.com/a) for ``a`[[2]]`` code.";
+    expect(renderMarkers(md, at, "en")).toBe(
+      "Use `[[1]]` here[a.go:1-2][b/c.go:7].\n```\n[[1]]\n```\nSee [the docs](https://example.com/a) for ``a`[[2]]`` code.",
     );
-  });
-  test("ordinary links and text are left alone", () => {
-    expect(bundleDocText("See [the docs](https://example.com/a) for `code`.")).toBe("See [the docs](https://example.com/a) for `code`.");
   });
   test("first sentence: CJK terminators anywhere, ASCII ones only before a space; markup removed; ≤ 80 characters", () => {
     expect(firstSentence("**重要**: 先に検証する。次に保存する。")).toBe("重要: 先に検証する。");
     expect(firstSentence("Uses v1.2 of `the` API. Then stops.")).toBe("Uses v1.2 of the API.");
     expect(firstSentence("- 箇条書きの項目[a.go:1-2]。続き")).toBe("箇条書きの項目[a.go:1-2]。");
+    expect(firstSentence("詳細は [仕様](docs/spec.md) を参照。次")).toBe("詳細は 仕様 を参照。");
     expect(firstSentence("あ".repeat(120))).toBe(`${"あ".repeat(79)}…`);
   });
   test("heading text drops the marks", () => {

@@ -108,6 +108,14 @@ describe("AC-L25 parseContract patch/1 — refusals", () => {
     fails(patch({ edits: [{ ...edit, base: "abc12" }] }), "/edits/0/base");
     expect(parsePatch(patch({ edits: [{ ...edit, base: "a".repeat(64) }] })).ok).toBe(true);
   });
+  test('an insert (end omitted or before start) must have first_line "": a non-empty one is a replacement that lost its end', () => {
+    const { end: _end, ...insert } = edit;
+    fails(patch({ edits: [insert] }), "/edits/0/first_line");
+    fails(patch({ edits: [{ ...edit, end: 2 }] }), "/edits/0/first_line");
+    expect(parsePatch(patch({ edits: [{ ...insert, first_line: "" }] })).ok).toBe(true);
+    expect(parsePatch(patch({ edits: [{ ...edit, end: 2, first_line: "  " }] })).ok).toBe(true);
+    expect(parsePatch(patch({ edits: [{ ...edit, end: 3 }] })).ok).toBe(true); // end = start replaces one line
+  });
   test("new_text: ≤ 2,000 lines, ≤ 200,000 bytes", () => {
     fails(patch({ edits: [{ ...edit, new_text: Array.from({ length: 2001 }, () => "x").join("\n") }] }), "/edits/0/new_text");
     fails(patch({ edits: [{ ...edit, new_text: "あ".repeat(70_000) }] }), "/edits/0/new_text");

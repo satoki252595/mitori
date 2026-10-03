@@ -222,6 +222,8 @@ describe("AC-L20 route — overrides", () => {
     expect(haiku.decision.model).toBe("claude-haiku-4-5");
     expect(haiku.note).toContain("haiku");
     expect(ok(base({ override: { model: "claude-haiku-4-5" } })).note).toBeUndefined();
+    // any haiku id (a dated or newer one) warns the same way
+    expect(ok(base({ intents: ["question"], override: { model: "claude-haiku-4-5-20251001" as ModelId } })).note).toContain("haiku");
   });
 });
 

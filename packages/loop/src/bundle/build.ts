@@ -1,5 +1,5 @@
 import { type BlockId, type Cite, type LineNo, MitoriError, type RepoPath, type SymbolEntry, type ThreadDetail } from "@mitori/core";
-import { ACCEPT_FIXED, type Bundle, type BundleInput, type BundleMode, PULL_DO_LINES } from "../contract.ts";
+import { ACCEPT_FIXED, BUNDLE_LIMITS, type Bundle, type BundleInput, type BundleMode, PULL_DO_LINES } from "../contract.ts";
 import { denyLine } from "../prompts/fixed-lines.ts";
 import { pathMatcher } from "../router/deny.ts";
 import { anchorRanges, type CiteSource, type CodeRange, mergeRanges } from "../router/ranges.ts";
@@ -24,7 +24,7 @@ export const COPY_PREFACE = "You are helping with a code review thread from mito
 const FIXED_OVERHEAD: Partial<Record<BundleMode, number>> = { answer: 800, findings: 1400, patch: 1400, agent: 4500 };
 /** Pull tiers (spec R1 §4): question/note XS, small change S. */
 const PULL_TIER = { XS: 800, S: 1500 } as const;
-const CONTEXT_MARGIN = 20;
+const CONTEXT_MARGIN = BUNDLE_LIMITS.codeContextSteps[0];
 const HINT_MAX_LINES = 30;
 const RULE_FILES = ["AGENTS.md", "CLAUDE.md"] as const;
 
@@ -95,7 +95,7 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
     const sym = deps.indexer.enclosingSymbol(r.path, r.start, r.end);
     let c0 = Math.max(1, r.start - CONTEXT_MARGIN);
     let c1 = Math.min(file.lines, r.end + CONTEXT_MARGIN);
-    if (sym && sym.end - sym.start + 1 <= 120) {
+    if (sym && sym.end - sym.start + 1 <= BUNDLE_LIMITS.symbolWholeMaxLines) {
       c0 = Math.max(1, Math.min(sym.start, r.start));
       c1 = Math.min(file.lines, Math.max(sym.end, r.end));
     }
@@ -140,7 +140,7 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
     for (const e of entries) {
       if (removed.has(e.key)) continue;
       const head = `REL ${field(e.path)}:${e.line} sym=${field(e.sym)} ${e.relation.kind}=${field(e.relation.name)}`;
-      const body = [`|${safeLine(e.signature)}`];
+      const body = [`|${safeLine(scrub(e.signature))}`];
       rels.push({ entry: e, block: { lines: [head, ...body], tokens: est.tags([head]) + est.code(body) } });
     }
     const hintParts: RelPart[] = [];
@@ -230,7 +230,7 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
     rulesUntrusted,
     codes,
     rels,
-    write: [input.write.length > 0 ? `WRITE ${[...input.write].sort().map(field).join(" ")}` : "WRITE -"],
+    write: [input.write.length > 0 ? `WRITE ${[...new Set(input.write)].sort().map(field).join(" ")}` : "WRITE -"],
     accept,
     doLines,
     budget: `BUDGET in=${Math.round(input.budget.in)} out=${Math.round(input.budget.out)} usd=${usdText(input.budget.usd)}`,

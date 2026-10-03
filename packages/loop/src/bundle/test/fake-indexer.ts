@@ -83,10 +83,11 @@ export interface FakeIndexerOptions {
   excluded?: Record<RepoPath, NonNullable<FileEntry["excluded"]>>;
 }
 
-export type FakeIndexer = BundleBuilderDeps["indexer"] & { reads: { path: string; start: number; end: number }[] };
+export type FakeIndexer = BundleBuilderDeps["indexer"] & { reads: { path: string; start: number; end: number }[]; texts: string[] };
 
 export function fakeIndexer(files: Record<string, string>, opts: FakeIndexerOptions = {}): FakeIndexer {
   const reads: FakeIndexer["reads"] = [];
+  const texts: string[] = [];
   const entries = new Map<string, FileEntry>();
   for (const [path, text] of Object.entries(files)) {
     const lines = splitLines(text);
@@ -142,9 +143,13 @@ export function fakeIndexer(files: Record<string, string>, opts: FakeIndexerOpti
   };
   return {
     reads,
+    texts,
     estimateTokens,
     file: (path) => entries.get(path) ?? null,
-    currentText: async (path) => files[path] ?? null,
+    currentText: async (path) => {
+      texts.push(path);
+      return files[path] ?? null;
+    },
     symbols,
     imports,
     dependents: (path) => {

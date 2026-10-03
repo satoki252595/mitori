@@ -259,6 +259,23 @@ describe("REL (spec §4.3)", () => {
     const b = await builder.build(bundleInput({ threads: [t], write: [FETCH], deny: ["internal/server/**"] }), 12000);
     expect(b.text).not.toContain("server.go");
     expect(w.deps.indexer.reads.every((r) => !r.path.startsWith("internal/server/"))).toBe(true);
+    expect(w.deps.indexer.texts.filter((p) => p.startsWith("internal/server/"))).toEqual([]);
+  });
+
+  test("callers are counted from the raw text (never embedded); the one line REL embeds, the signature, is secret-scanned", async () => {
+    const key = "AKIAIOSFODNN7EXAMPLQ";
+    const f = {
+      ...files,
+      [FETCH]: files[FETCH]?.replace("func NormalizeISBN(raw string) string {", `func NormalizeISBN(raw string /* ${key} */) string {`) as string,
+    };
+    const { w, builder } = setup({ files: f });
+    const t = ask("th_17ab3c9d", "change", { anchor: codeAnchor(FETCH, 41, 49) });
+    const b = await builder.build(bundleInput({ threads: [t], write: [FETCH] }), 12000);
+    expect(b.text).toContain("REL internal/meta/fetch.go:36 sym=NormalizeISBN calledby=Client.Fetch");
+    expect(b.text).not.toContain(key);
+    expect(b.redactions).toBeGreaterThan(0);
+    expect(w.deps.indexer.reads.filter((r) => r.path !== FETCH)).toEqual([]); // dependents: raw text only
+    expect(w.deps.indexer.texts).toContain("internal/server/server.go");
   });
 });
 

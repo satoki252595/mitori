@@ -12,7 +12,7 @@ import {
 } from "@mitori/core";
 import { CONTRACT_LIMITS, type ParsedAgent, type ParsedPatch } from "../contract.ts";
 import { Checks, isObject, type Json, type ParseFailure, payload } from "./check.ts";
-import { newTextLines } from "./text.ts";
+import { newTextLines, normLine } from "./text.ts";
 
 /** What the bundle told the engine: which threads and doc blocks it may talk about, and where it may write. */
 interface TaskCtx {
@@ -139,6 +139,9 @@ function parseEdits(v: unknown, ctx: { write: RepoPath[] }, checks: Checks): Pat
     if (typeof item.first_line !== "string") checks.add(`${at}/first_line`, 'a string (the original text of line start, "" for an insert)', item.first_line);
     else if (item.first_line.length > CONTRACT_LIMITS.firstLineMaxChars || /[\r\n]/u.test(item.first_line))
       checks.add(`${at}/first_line`, `one line of at most ${CONTRACT_LIMITS.firstLineMaxChars} characters`, item.first_line);
+    else if (isInsert(item) && normLine(item.first_line) !== "")
+      // An insert names no original line; a first_line here usually means a replacement whose `end` was forgotten.
+      checks.add(`${at}/first_line`, '"" for an insert (give end to replace lines start..end)', item.first_line);
     if (typeof item.new_text !== "string") checks.add(`${at}/new_text`, "a string", item.new_text);
     else {
       const lines = newTextLines(item.new_text).length;
@@ -170,6 +173,11 @@ function parseEdits(v: unknown, ctx: { write: RepoPath[] }, checks: Checks): Pat
     );
   }
   return out;
+}
+
+/** `end` omitted or before `start` (only meaningful once both are integers). */
+function isInsert(item: Json): boolean {
+  return item.end === undefined || (Number.isInteger(item.end) && Number.isInteger(item.start) && (item.end as number) < (item.start as number));
 }
 
 function parseDocUpdates(v: unknown, ctx: Pick<TaskCtx, "docBlocks" | "blockKinds">, checks: Checks): DocUpdate[] {

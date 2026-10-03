@@ -10,8 +10,8 @@ import type { BundleMode } from "../contract.ts";
 export interface BundleBuilderDeps {
   /** Code and symbols (`read` is secret-scanned by the indexer; the builder scans doc/thread text itself). */
   indexer: Pick<Indexer, "read" | "file" | "enclosingSymbol" | "symbols" | "imports" | "dependents" | "currentText" | "estimateTokens" | "module">;
-  /** Doc blocks, sections and claims (cites of doc-primary anchors). */
-  doc: Pick<DocStore, "block" | "section" | "claims">;
+  /** Doc blocks, sections, marker forms and claims (cites of doc-primary anchors, `[path:a-b]` in DOC text). */
+  doc: Pick<DocStore, "block" | "section" | "markerForm" | "claims">;
   /** Effective settings (deny globs, limits, doc language, secret-scan switch, rule sources). */
   settings: () => EffectiveSettings;
   /** Core secret scanner. */

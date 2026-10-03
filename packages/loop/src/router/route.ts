@@ -149,7 +149,7 @@ export function routeDecision(input: RouteInputExt, settings: EffectiveSettings)
 
   if (override?.model !== undefined) {
     decision = { ...decision, model: override.model as ModelId };
-    if (decision.mode === "answer" && override.model === "claude-haiku-4-5") notes.push("answer に haiku を指定: grounded Q&A で幻覚が出やすい（実測）");
+    if (decision.mode === "answer" && /haiku/iu.test(override.model)) notes.push("answer に haiku を指定: grounded Q&A で幻覚が出やすい（実測）");
   }
 
   let engine: EngineId = input.engine.id;
