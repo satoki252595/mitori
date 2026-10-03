@@ -1,47 +1,51 @@
 /**
  * web-tree-sitter helpers for the fact extractors (they run inside the parse Worker while the tree is alive, spec
- * §5.1). The query of a grammar family runs once per tree and is shared by every detector of that file.
+ * §5.1). Each fact query runs at most once per tree; its matches are kept as capture records shared by all detectors.
  */
 import type { LineNo } from "@mitori/core";
 import { type Language, type Node, Query, type QueryMatch, type Tree } from "web-tree-sitter";
+import type { FactQuery } from "./queries.ts";
 
 export type { Node, Tree };
 
+/** One match as capture name → first node. */
+export type Caps = Record<string, Node>;
+
 const compiled = new WeakMap<Language, Map<string, Query>>();
-const perTree = new WeakMap<Tree, Map<string, QueryMatch[]>>();
+const perTree = new WeakMap<Tree, Map<string, Caps[]>>();
 
 /** Runtime guard for the opaque `FactExtractInput.tree`. */
 export function asTree(tree: unknown): Tree | null {
   return typeof tree === "object" && tree !== null && "rootNode" in tree && "language" in tree ? (tree as Tree) : null;
 }
 
-/** Matches of query `id` (source `src`) over `tree`, memoized per tree. */
-export function matchesOf(tree: Tree, id: string, src: string): QueryMatch[] {
+/** Matches of `query` over `tree` as capture records, memoized per tree (queries compiled once per language). */
+export function capsFor(tree: Tree, query: FactQuery): Caps[] {
   let byId = perTree.get(tree);
   if (!byId) {
     byId = new Map();
     perTree.set(tree, byId);
   }
-  const hit = byId.get(id);
+  const hit = byId.get(query.id);
   if (hit) return hit;
   let qs = compiled.get(tree.language);
   if (!qs) {
     qs = new Map();
     compiled.set(tree.language, qs);
   }
-  let q = qs.get(id);
+  let q = qs.get(query.id);
   if (!q) {
-    q = new Query(tree.language, src);
-    qs.set(id, q);
+    q = new Query(tree.language, query.src);
+    qs.set(query.id, q);
   }
-  const ms = q.matches(tree.rootNode);
-  byId.set(id, ms);
-  return ms;
+  const caps = q.matches(tree.rootNode).map(capsOf);
+  byId.set(query.id, caps);
+  return caps;
 }
 
 /** First node per capture name of a match. */
-export function capsOf(m: QueryMatch): Record<string, Node> {
-  const out: Record<string, Node> = {};
+function capsOf(m: QueryMatch): Caps {
+  const out: Caps = {};
   for (const c of m.captures) if (!(c.name in out)) out[c.name] = c.node;
   return out;
 }

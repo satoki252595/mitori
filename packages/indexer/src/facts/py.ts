@@ -2,10 +2,8 @@
 import type { FactCandidate, FactEvidence, FactExtractInput } from "../contract.ts";
 import { baseOf } from "../resolve/files.ts";
 import { candidate, ENV_NAME_RE } from "./candidate.ts";
-import { PY_FACTS } from "./queries.ts";
-import { capsOf, lineOf, matchesOf, type Node, stringValue, type Tree } from "./tsq.ts";
-
-const pyMatches = (tree: Tree) => matchesOf(tree, "py", PY_FACTS).map(capsOf);
+import { PY } from "./queries.ts";
+import { capsFor, lineOf, type Node, stringValue, type Tree } from "./tsq.ts";
 
 const ROUTE_METHODS = new Set([
   "get",
@@ -61,9 +59,13 @@ export function pyRoutes(input: FactExtractInput, tree: Tree, fw: "fastapi" | "f
 }
 
 function pyRouteCandidates(input: FactExtractInput, tree: Tree): FactCandidate[] {
-  if (input.file.scope === "test") return [];
+  if (
+    input.file.scope === "test" ||
+    !/\.(get|post|put|patch|delete|options|head|trace|route|api_route|websocket|add_url_rule|add_api_route)\s*\(/.test(input.text)
+  )
+    return [];
   const binds = new Map<string, string>();
-  const all = pyMatches(tree);
+  const all = capsFor(tree, PY.route);
   for (const c of all) if (c["bind.name"] && c["bind.fn"] && !binds.has(c["bind.name"].text)) binds.set(c["bind.name"].text, c["bind.fn"].text);
   const ev: FactEvidence[] = [];
   if (importsAny(input, "fastapi")) ev.push("import:fastapi");
@@ -95,9 +97,9 @@ function pyRouteCandidates(input: FactExtractInput, tree: Tree): FactCandidate[]
 }
 
 export function pyEnv(input: FactExtractInput, tree: Tree): FactCandidate[] {
-  if (input.file.scope === "test") return [];
+  if (input.file.scope === "test" || !/\bos\.(environ|getenv)\b/.test(input.text)) return [];
   const out: FactCandidate[] = [];
-  for (const c of pyMatches(tree)) {
+  for (const c of capsFor(tree, PY.env)) {
     const n = c["env.name"];
     if (!n) continue;
     const name = stringValue(n); // null for f-strings (spec §5.2 env.python@1)
@@ -160,8 +162,8 @@ export function pyEntry(input: FactExtractInput, tree: Tree): FactCandidate[] {
   if (input.file.scope === "test") return [];
   const out: FactCandidate[] = [];
   if (baseOf(input.file.path) === "__main__.py") out.push(candidate("entry.python@1", "entry", input, 1, { entry: "main", label: "__main__" }));
-  else
-    for (const c of pyMatches(tree)) {
+  else if (input.text.includes("__main__"))
+    for (const c of capsFor(tree, PY.entry)) {
       const n = c["entry.ifmain"];
       if (n && /__main__/.test(n.childForFieldName("condition")?.text ?? ""))
         out.push(candidate("entry.python@1", "entry", input, lineOf(n), { entry: "main", label: input.file.path }));
@@ -172,7 +174,7 @@ export function pyEntry(input: FactExtractInput, tree: Tree): FactCandidate[] {
 export function pyTests(input: FactExtractInput, tree: Tree): FactCandidate[] {
   if (input.file.class !== "test" && input.file.scope !== "test") return [];
   const out: FactCandidate[] = [];
-  for (const c of pyMatches(tree)) {
+  for (const c of capsFor(tree, PY.tests)) {
     const n = c["test.name"];
     if (!n) continue;
     const cls = n.parent?.parent?.type === "block" ? n.parent.parent.parent : null;

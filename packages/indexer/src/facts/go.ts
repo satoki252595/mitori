@@ -2,23 +2,25 @@
 import type { FactCandidate, FactEvidence, FactExtractInput } from "../contract.ts";
 import { dirOf } from "../resolve/files.ts";
 import { candidate } from "./candidate.ts";
-import { GO_FACTS } from "./queries.ts";
-import { capsOf, lineOf, matchesOf, type Node, patternOf, stringValue, type Tree, unquote } from "./tsq.ts";
+import { GO } from "./queries.ts";
+import { capsFor, lineOf, type Node, patternOf, stringValue, type Tree, unquote } from "./tsq.ts";
 
-const goMatches = (tree: Tree) => matchesOf(tree, "go", GO_FACTS).map(capsOf);
 const imports = (input: FactExtractInput, spec: string) => input.imports.some((i) => i.spec === spec);
-const isMain = (tree: Tree) => goMatches(tree).some((c) => c.pkg?.text === "main");
+/** `package main` (the clause is the first statement; comment lines never start with `package`). */
+const isMain = (input: FactExtractInput) => /^package\s+main\b/m.test(input.text);
+const REGISTRY_KEYS = /\b(name|Name|Use|command|Command|cmd)\s*:/;
+const REGISTRY_FNS = /\b(handler|Handler|Run|RunE|Action|action|run|fn|Fn)\s*:/;
 
 export function goEntry(input: FactExtractInput, tree: Tree): FactCandidate[] {
-  if (input.file.scope === "test" || !isMain(tree)) return [];
-  return goMatches(tree)
+  if (input.file.scope === "test" || !isMain(input) || !/\bfunc\s+main\s*\(/.test(input.text)) return [];
+  return capsFor(tree, GO.entry)
     .filter((c) => c["entry.main"])
     .map((c) => candidate("entry.go@1", "entry", input, lineOf(c["entry.main"] as Node), { entry: "main", label: dirOf(input.file.path) || "." }));
 }
 
 export function goRoutes(input: FactExtractInput, tree: Tree): FactCandidate[] {
-  if (input.file.scope === "test") return [];
-  const all = goMatches(tree);
+  if (input.file.scope === "test" || !/\.(HandleFunc|Handle)\s*\(/.test(input.text)) return [];
+  const all = capsFor(tree, GO.route);
   const consts = new Map<string, string>();
   const binds = new Map<string, string>();
   for (const c of all) {
@@ -74,9 +76,9 @@ export function goRoutes(input: FactExtractInput, tree: Tree): FactCandidate[] {
 }
 
 export function goEnv(input: FactExtractInput, tree: Tree): FactCandidate[] {
-  if (input.file.scope === "test") return [];
+  if (input.file.scope === "test" || !/\bos\.(Getenv|LookupEnv|Setenv|Unsetenv)\b/.test(input.text)) return [];
   const out: FactCandidate[] = [];
-  for (const c of goMatches(tree)) {
+  for (const c of capsFor(tree, GO.env)) {
     const nameNode = c["env.name"];
     const call = c["env.call"];
     if (!nameNode || !call) continue;
@@ -95,17 +97,17 @@ export function goEnv(input: FactExtractInput, tree: Tree): FactCandidate[] {
 }
 
 /** Package-main command name (`cmd/crit/x.go` → `crit`). */
-function progOf(input: FactExtractInput, tree: Tree): string {
-  if (!isMain(tree)) return "";
+function progOf(input: FactExtractInput): string {
+  if (!isMain(input)) return "";
   const dir = dirOf(input.file.path);
   return dir === "" ? "" : (dir.split("/").pop() as string);
 }
 
 export function goRegistry(input: FactExtractInput, tree: Tree): FactCandidate[] {
-  if (input.file.scope === "test") return [];
-  const prog = progOf(input, tree);
+  if (input.file.scope === "test" || !REGISTRY_KEYS.test(input.text) || !REGISTRY_FNS.test(input.text)) return [];
+  const prog = progOf(input);
   const out: FactCandidate[] = [];
-  for (const c of goMatches(tree)) {
+  for (const c of capsFor(tree, GO.registry)) {
     const reg = c["cli.reg"];
     const entry = c["cli.table"];
     if (!reg || !entry) continue;
@@ -197,20 +199,42 @@ export function goCobra(input: FactExtractInput, tree: Tree): FactCandidate[] {
   return out;
 }
 
+/** Innermost range containing [start, end) — `ranges` sorted by start, non-overlapping (top-level functions). */
+function enclosing<T extends { start: number; end: number }>(ranges: readonly T[], start: number, end: number): T | undefined {
+  let lo = 0;
+  let hi = ranges.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const r = ranges[mid] as T;
+    if (r.start > start) hi = mid - 1;
+    else if (r.end < end) lo = mid + 1;
+    else return r;
+  }
+  return undefined;
+}
+
 export function goTests(input: FactExtractInput, tree: Tree): FactCandidate[] {
   if (!input.file.path.endsWith("_test.go")) return [];
   const out: FactCandidate[] = [];
-  for (const c of goMatches(tree)) {
-    const n = c["test.name"];
-    if (!n) continue;
-    out.push(candidate("test.go@1", "test", input, lineOf(n), { name: n.text }));
-    const fn = n.parent;
-    for (const call of fn?.descendantsOfType("call_expression") ?? []) {
-      const f = call?.childForFieldName("function");
-      if (!call || f?.type !== "selector_expression" || f.childForFieldName("field")?.text !== "Run") continue;
-      const sub = stringValue(call.childForFieldName("arguments")?.namedChildren[0]);
-      if (sub !== null) out.push(candidate("test.go@1", "test", input, lineOf(call), { name: `${n.text}/${sub.replace(/\s/g, "_")}` }));
-    }
+  const fns: { name: string; start: number; end: number }[] = [];
+  // top-level `func TestX(` lines found in the text, confirmed on the tree (comments / strings are skipped)
+  for (const m of input.text.matchAll(/^func\s+((?:Test|Benchmark|Fuzz|Example)[A-Z_0-9]\w*)\s*[[(]/gm)) {
+    const name = m[1] as string;
+    const at = (m.index ?? 0) + (m[0] as string).indexOf(name);
+    const id = tree.rootNode.descendantForIndex(at);
+    const fn = id?.parent;
+    if (id?.type !== "identifier" || fn?.type !== "function_declaration") continue;
+    out.push(candidate("test.go@1", "test", input, lineOf(id), { name }));
+    fns.push({ name, start: fn.startIndex, end: fn.endIndex });
   }
+  // `t.Run("sub", …)` subtests, attributed to the enclosing test function
+  if (fns.length > 0)
+    for (const m of input.text.matchAll(/\.Run\(\s*"((?:[^"\\\n]|\\.)*)"/g)) {
+      const field = tree.rootNode.descendantForIndex((m.index ?? 0) + 1);
+      const call = field?.parent?.parent;
+      if (field?.type !== "field_identifier" || call?.type !== "call_expression") continue;
+      const fn = enclosing(fns, call.startIndex, call.endIndex);
+      if (fn) out.push(candidate("test.go@1", "test", input, lineOf(call), { name: `${fn.name}/${(m[1] as string).replace(/\s/g, "_")}` }));
+    }
   return out;
 }

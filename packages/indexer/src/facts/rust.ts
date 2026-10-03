@@ -1,10 +1,9 @@
 /** Rust fact extractors (Worker side): env.rust, cli.clap, entry.rust (fn main; bin-root check at link), test.rust. */
 import type { FactCandidate, FactExtractInput } from "../contract.ts";
 import { candidate, ENV_NAME_RE } from "./candidate.ts";
-import { RUST_FACTS } from "./queries.ts";
-import { capsOf, lineOf, matchesOf, type Node, stringValue, type Tree } from "./tsq.ts";
+import { RUST } from "./queries.ts";
+import { capsFor, lineOf, type Node, stringValue, type Tree } from "./tsq.ts";
 
-const rsMatches = (tree: Tree) => matchesOf(tree, "rust", RUST_FACTS).map(capsOf);
 const DEFAULT_METHODS = /^(unwrap_or|unwrap_or_else|unwrap_or_default|or|or_else|map_or|map_or_else)$/;
 
 /** `env::var("X").ok().unwrap_or(…)`: a defaulting method somewhere up the method chain. */
@@ -23,9 +22,9 @@ function chainHasDefault(call: Node): boolean {
 }
 
 export function rustEnv(input: FactExtractInput, tree: Tree): FactCandidate[] {
-  if (input.file.scope === "test") return [];
+  if (input.file.scope === "test" || !/\benv(::|!|\s*=)|option_env!/.test(input.text)) return [];
   const out: FactCandidate[] = [];
-  for (const c of rsMatches(tree)) {
+  for (const c of capsFor(tree, RUST.env)) {
     const n = c["env.name"];
     if (!n) continue;
     const name = stringValue(n);
@@ -34,10 +33,11 @@ export function rustEnv(input: FactExtractInput, tree: Tree): FactCandidate[] {
     out.push(candidate("env.rust@1", "env", input, lineOf(n), { name, hasDefault: call ? chainHasDefault(call) : false }));
   }
   // clap `#[arg(env = "X")]`
-  for (const attr of tree.rootNode.descendantsOfType("attribute_item")) {
-    const m = attr ? /^#\[arg\([^\]]*\benv\s*=\s*"([A-Za-z_][A-Za-z0-9_]*)"/.exec(attr.text) : null;
-    if (attr && m) out.push(candidate("env.rust@1", "env", input, lineOf(attr), { name: m[1] as string, hasDefault: /default_value/.test(attr.text) }));
-  }
+  if (/#\[arg\([^\]]*\benv\s*=/.test(input.text))
+    for (const attr of tree.rootNode.descendantsOfType("attribute_item")) {
+      const m = attr ? /^#\[arg\([^\]]*\benv\s*=\s*"([A-Za-z_][A-Za-z0-9_]*)"/.exec(attr.text) : null;
+      if (attr && m) out.push(candidate("env.rust@1", "env", input, lineOf(attr), { name: m[1] as string, hasDefault: /default_value/.test(attr.text) }));
+    }
   return out;
 }
 
@@ -137,13 +137,14 @@ export function rustClap(input: FactExtractInput, tree: Tree): FactCandidate[] {
 }
 
 export function rustEntry(input: FactExtractInput, tree: Tree): FactCandidate[] {
-  if (input.file.scope === "test") return [];
-  return rsMatches(tree)
-    .filter((c) => c["entry.main"] && c["entry.main"].parent?.parent?.type === "source_file")
+  if (input.file.scope === "test" || !/\bfn\s+main\s*\(/.test(input.text)) return [];
+  return capsFor(tree, RUST.entry)
+    .filter((c) => c["entry.main"])
     .map((c) => candidate("entry.rust@1", "entry", input, lineOf(c["entry.main"] as Node), { entry: "main", label: input.file.path }));
 }
 
 export function rustTests(input: FactExtractInput, tree: Tree): FactCandidate[] {
+  if (!/#\[(\w+::)?(test|rstest)\b/.test(input.text)) return [];
   const out: FactCandidate[] = [];
   for (const fn of tree.rootNode.descendantsOfType("function_item")) {
     if (!fn) continue;

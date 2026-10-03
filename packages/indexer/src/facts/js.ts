@@ -1,10 +1,13 @@
 /** TS / JS fact extractors (Worker side): route.express, route.hono, env.js, cli.commander, cli.registry, test.js. */
 import type { FactCandidate, FactEvidence, FactExtractInput } from "../contract.ts";
 import { candidate, ENV_NAME_RE } from "./candidate.ts";
-import { JS_FACTS } from "./queries.ts";
-import { capsOf, lineOf, matchesOf, type Node, patternOf, stringValue, type Tree } from "./tsq.ts";
+import { JS } from "./queries.ts";
+import { type Caps, capsFor, lineOf, type Node, patternOf, stringValue, type Tree } from "./tsq.ts";
 
-const jsMatches = (tree: Tree) => matchesOf(tree, "js", JS_FACTS).map(capsOf);
+/** `.get("/x"` / `` .post(`/x `` / `.on("GET", "/x"` — the route query only runs on files that have one. */
+const ROUTE_HINT = /\.(?:get|post|put|patch|delete|options|head|all)\s*\(\s*["'`][/*]|\.on\s*\(\s*["'`][A-Za-z]+["'`]\s*,\s*["'`][/*]/;
+const REGISTRY_KEYS = /\b(name|command|cmd)\s*:\s*["'`]/;
+const REGISTRY_FNS = /\b(handler|run|action|fn)\s*:\s*[A-Za-z_$]/;
 
 const HTTP_METHODS = new Set(["get", "post", "put", "patch", "delete", "options", "head", "all"]);
 
@@ -15,9 +18,9 @@ function importEvidence(input: FactExtractInput, pkgs: readonly string[]): FactE
   return out;
 }
 
-function bindings(tree: Tree): Map<string, string> {
+function bindings(all: readonly Caps[]): Map<string, string> {
   const out = new Map<string, string>();
-  for (const c of jsMatches(tree)) {
+  for (const c of all) {
     const n = c["bind.name"];
     const fn = c["bind.fn"];
     if (n && fn && !out.has(n.text)) out.set(n.text, fn.text.replace(/\s+/g, ""));
@@ -57,11 +60,13 @@ export function jsRoutes(input: FactExtractInput, tree: Tree, fw: "hono" | "expr
 }
 
 function jsRouteCandidates(input: FactExtractInput, tree: Tree): FactCandidate[] {
-  if (input.file.scope === "test") return [];
-  const binds = bindings(tree);
+  if (input.file.scope === "test" || !ROUTE_HINT.test(input.text)) return [];
+  const all = capsFor(tree, JS.route);
+  if (all.length === 0) return [];
+  const binds = bindings(capsFor(tree, JS.binds));
   const ev = importEvidence(input, ["express", "hono", "@hono/zod-openapi", "fastify", "koa-router", "@koa/router"]);
   const out: FactCandidate[] = [];
-  for (const c of jsMatches(tree)) {
+  for (const c of all) {
     const call = c.route;
     const methodNode = c["route.method"];
     if (!call || !methodNode) continue;
@@ -124,23 +129,44 @@ function hasDefaultAt(node: Node): boolean {
   return false;
 }
 
+/** Code node at a text offset, or null inside a comment / string (the text scan below finds candidates only). */
+function codeNodeAt(tree: Tree, index: number, types: readonly string[]): Node | null {
+  const n = tree.rootNode.descendantForIndex(index);
+  return n && types.includes(n.type) ? n : null;
+}
+
+const ENV_SCAN = [
+  // process.env.X / Bun.env.X / import.meta.env.X (offset of the property name)
+  { re: /\b(?:process|Bun|import\.meta)\.env\.([A-Za-z_$][\w$]*)/g, node: ["property_identifier"] },
+  // process.env["X"] (offset of the string)
+  { re: /\bprocess\.env\[\s*((["'`])[^"'`]*\2)\s*\]/g, node: ["string_fragment", "string"] },
+  // Deno.env.get("X")
+  { re: /\bDeno\.env\.get\(\s*((["'`])[^"'`]*\2)/g, node: ["string_fragment", "string"] },
+] as const;
+
 export function jsEnv(input: FactExtractInput, tree: Tree): FactCandidate[] {
-  if (input.file.scope === "test") return [];
+  if (input.file.scope === "test" || !/\b(process|Bun|Deno)\.env\b|\bimport\.meta\.env\b/.test(input.text)) return [];
   const out: FactCandidate[] = [];
   const push = (name: string, line: number, hasDefault: boolean) => {
     if (ENV_NAME_RE.test(name)) out.push(candidate("env.js@1", "env", input, line, { name, hasDefault }));
   };
-  for (const c of jsMatches(tree)) {
-    const n = c["env.name"];
-    if (n) {
+  for (const { re, node } of ENV_SCAN)
+    for (const m of input.text.matchAll(re)) {
+      const at = (m.index ?? 0) + (m[0] as string).indexOf(m[1] as string) + (node[0] === "property_identifier" ? 0 : 1);
+      let n = codeNodeAt(tree, at, node);
+      if (!n) continue;
+      if (n.type === "string_fragment") n = n.parent ?? n;
       const name = n.type === "string" ? stringValue(n) : n.text;
       if (name === null) continue;
       const expr = n.parent?.type === "arguments" ? (n.parent.parent ?? n) : (n.parent ?? n);
       push(name, lineOf(n), hasDefaultAt(expr));
-      continue;
     }
-    const pat = c["env.destructure"];
-    if (!pat) continue;
+  // const { A, B = "x" } = process.env
+  for (const m of input.text.matchAll(/=\s*process\.env\b(?!\s*[.[])/g)) {
+    const proc = codeNodeAt(tree, (m.index ?? 0) + (m[0] as string).indexOf("process"), ["identifier"]);
+    const decl = proc?.parent?.parent;
+    const pat = decl?.type === "variable_declarator" ? decl.childForFieldName("name") : null;
+    if (pat?.type !== "object_pattern") continue;
     for (const prop of pat.namedChildren) {
       if (!prop) continue;
       if (prop.type === "shorthand_property_identifier_pattern") push(prop.text, lineOf(prop), false);
@@ -174,7 +200,7 @@ export function jsCommander(input: FactExtractInput, tree: Tree): FactCandidate[
   if (input.file.scope === "test") return [];
   const ev = importEvidence(input, ["commander"]);
   if (ev.length === 0) return [];
-  const all = jsMatches(tree);
+  const all = capsFor(tree, JS.commander);
   // program name: `new Command("x")` or `.name("x")` in the binding of the chain root
   const progs = new Map<string, string>();
   for (const decl of tree.rootNode.descendantsOfType("variable_declarator")) {
@@ -217,57 +243,62 @@ export function jsCommander(input: FactExtractInput, tree: Tree): FactCandidate[
   return out;
 }
 
+/**
+ * `{name: "x", handler: fn}` table entries. A linear walk over object literals (a two-pair query pattern is quadratic
+ * in the pairs of every object and dominated S1 on react).
+ */
 export function jsRegistry(input: FactExtractInput, tree: Tree): FactCandidate[] {
-  if (input.file.scope === "test") return [];
+  if (input.file.scope === "test" || !REGISTRY_KEYS.test(input.text) || !REGISTRY_FNS.test(input.text)) return [];
   const out: FactCandidate[] = [];
-  for (const c of jsMatches(tree)) {
-    const reg = c["cli.reg"];
-    const entry = c["cli.table"];
-    if (!reg || !entry) continue;
-    const name = stringValue(reg);
-    if (!name) continue;
+  for (const obj of tree.rootNode.descendantsOfType("object")) {
+    if (!obj) continue;
+    let reg: Node | null = null;
+    let handler = false;
+    for (const pair of obj.namedChildren) {
+      if (pair?.type !== "pair") continue;
+      const key = pair.childForFieldName("key");
+      const value = pair.childForFieldName("value");
+      if (key?.type !== "property_identifier" || !value) continue;
+      if (/^(name|command|cmd)$/.test(key.text) && value.type === "string") reg ??= value;
+      else if (/^(handler|run|action|fn)$/.test(key.text) && value.type === "identifier") handler = true;
+    }
+    const name = reg && handler ? stringValue(reg) : null;
+    if (!reg || !name) continue;
     out.push(
-      candidate("cli.registry@1", "cli", input, lineOf(reg), { command: name, flags: [], framework: "registry", table: `${entry.parent?.startIndex ?? 0}` }),
+      candidate("cli.registry@1", "cli", input, lineOf(reg), { command: name, flags: [], framework: "registry", table: `${obj.parent?.startIndex ?? 0}` }),
     );
   }
   return out;
 }
 
-const TEST_FNS = new Set(["describe", "it", "test", "bench", "suite", "context"]);
 const TEST_MODS = new Set(["only", "skip", "each", "concurrent", "todo", "failing", "serial"]);
-
-function testLabel(c: Record<string, Node>): boolean {
-  const fn = c["test.fn"]?.text;
-  if (fn !== undefined) return TEST_FNS.has(fn);
-  const obj = c["test.obj"]?.text;
-  const prop = c["test.prop"]?.text ?? "";
-  return (obj !== undefined && TEST_FNS.has(obj) && TEST_MODS.has(prop)) || (obj === "Deno" && prop === "test");
-}
 
 export function jsTests(input: FactExtractInput, tree: Tree): FactCandidate[] {
   if (input.file.class !== "test" && input.file.scope !== "test") return [];
+  // `describe(`/`it(`/`test(`… with a literal name, found in the text and confirmed on the tree (cheaper than a query
+  // that matches every call with a string argument)
+  const calls: { start: number; end: number; describe: boolean; name: string; line: number }[] = [];
+  const re = /\b(describe|it|test|bench|suite|context|Deno)(?:\.(only|skip|each|concurrent|todo|failing|serial|test))?\s*\(\s*(["'`])/g;
+  for (const m of input.text.matchAll(re)) {
+    const fn = m[1] as string;
+    const mod = m[2];
+    if ((fn === "Deno") !== (mod === "test") || (mod !== undefined && fn !== "Deno" && !TEST_MODS.has(mod))) continue;
+    const quote = (m.index ?? 0) + (m[0] as string).length - 1;
+    const tok = tree.rootNode.descendantForIndex(quote);
+    const str = tok?.type === "string" || tok?.type === "template_string" ? tok : tok?.parent;
+    const call = str?.parent?.parent;
+    if (!str || (str.type !== "string" && str.type !== "template_string") || str.parent?.type !== "arguments" || call?.type !== "call_expression") continue;
+    if (str.parent.namedChildren[0]?.id !== str.id) continue;
+    const name = patternOf(str)?.pattern;
+    if (name === undefined) continue;
+    calls.push({ start: call.startIndex, end: call.endIndex, describe: /^(describe|suite|context)$/.test(fn), name, line: lineOf(call) });
+  }
+  const describes = calls.filter((c) => c.describe);
   const out: FactCandidate[] = [];
-  const describeName = (call: Node): string | null => {
-    const f = call.childForFieldName("function");
-    const head = f?.type === "member_expression" ? f.childForFieldName("object")?.text : f?.text;
-    if (head !== "describe" && head !== "suite" && head !== "context") return null;
-    const a = call.childForFieldName("arguments")?.namedChildren[0];
-    return a ? (patternOf(a)?.pattern ?? null) : null;
-  };
-  for (const c of jsMatches(tree)) {
-    const call = c["test.call"];
-    const nameNode = c["test.name"];
-    if (!call || !nameNode || !testLabel(c)) continue;
-    if (describeName(call) !== null) continue;
-    const own = patternOf(nameNode)?.pattern;
-    if (own === undefined) continue;
-    const parts = [own];
-    for (let p = call.parent; p; p = p.parent)
-      if (p.type === "call_expression") {
-        const d = describeName(p);
-        if (d !== null) parts.unshift(d);
-      }
-    out.push(candidate("test.js@1", "test", input, lineOf(call), { name: parts.join(" › ") }));
+  for (const c of calls) {
+    if (c.describe) continue;
+    const parents = describes.filter((d) => d.start < c.start && c.end <= d.end).sort((a, b) => a.start - b.start);
+    out.push(candidate("test.js@1", "test", input, c.line, { name: [...parents.map((d) => d.name), c.name].join(" › ") }));
   }
   return out;
 }

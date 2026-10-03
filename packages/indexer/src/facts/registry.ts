@@ -161,8 +161,8 @@ export const FACT_DETECTORS: readonly FactDetector[] = [
     ["todo"],
     ["typescript", "tsx", "javascript", "python", "go", "rust", "text"],
     (f) => f.class === "source" || f.class === "test" || f.class === "docs" || f.class === "config",
-    (input, t) => todos(input, commentLines(t)),
-    (input) => (asTree(input.tree) ? [] : todos(input)),
+    (input, t) => (TODO_WORD.test(input.text) ? todos(input, (i) => /comment/.test(t.rootNode.descendantForIndex(i)?.type ?? "")) : []),
+    (input) => (asTree(input.tree) || !TODO_WORD.test(input.text) ? [] : todos(input)),
   ),
   detector("test.go@1", ["test"], GO, lang("go"), goTests),
   detector("test.js@1", ["test"], JS, js, jsTests),
@@ -170,15 +170,7 @@ export const FACT_DETECTORS: readonly FactDetector[] = [
   detector("test.rust@1", ["test"], ["rust"], lang("rust"), rustTests),
 ];
 
-/** Lines covered by comment nodes. */
-function commentLines(tree: Tree): Set<number> {
-  const out = new Set<number>();
-  for (const n of tree.rootNode.descendantsOfType(["comment", "line_comment", "block_comment"])) {
-    if (!n) continue;
-    for (let l = n.startPosition.row + 1; l <= n.endPosition.row + 1; l++) out.add(l);
-  }
-  return out;
-}
+const TODO_WORD = /\b(TODO|FIXME|HACK|XXX)\b/;
 
 const BY_ID = new Map(FACT_DETECTORS.map((d) => [d.id, d]));
 

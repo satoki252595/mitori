@@ -536,18 +536,31 @@ const COMMENT_START = /^\s*(\/\/|#|\/\*|\*|--|<!--|;|%|')/;
  * TODO markers: in comment ranges when known (tree languages pass `commentLines`), else in comment-looking lines.
  * Docs are scanned whole (a TODO in a README is a TODO).
  */
-export function todos(input: In, commentLines?: ReadonlySet<number>): FactCandidate[] {
+export function todos(input: In, inComment?: (index: number) => boolean): FactCandidate[] {
   const out: FactCandidate[] = [];
   const docs = input.file.class === "docs";
-  input.text.split("\n").forEach((l, i) => {
-    if (commentLines ? !commentLines.has(i + 1) : !docs && !COMMENT_START.test(l) && !/\s(\/\/|#)\s/.test(l)) return;
+  const text = input.text;
+  let line = 1;
+  let scanned = 0;
+  let lastLine = 0;
+  // jump from marker to marker instead of splitting every file into lines
+  for (const hit of text.matchAll(/\b(TODO|FIXME|HACK|XXX)\b/g)) {
+    const at = hit.index ?? 0;
+    for (let i = scanned; i < at; i++) if (text.charCodeAt(i) === 10) line++;
+    scanned = at;
+    if (line === lastLine) continue;
+    const start = text.lastIndexOf("\n", at - 1) + 1;
+    const endNl = text.indexOf("\n", at);
+    const l = text.slice(start, endNl < 0 ? text.length : endNl);
+    if (inComment ? !inComment(at) : !docs && !COMMENT_START.test(l) && !/\s(\/\/|#)\s/.test(l)) continue;
     const m = TODO_RE.exec(l);
-    if (!m) return;
-    const text = (m[2] as string)
+    if (!m) continue;
+    lastLine = line;
+    const body = (m[2] as string)
       .replace(/\*\/\s*$|-->\s*$/, "")
       .trim()
       .slice(0, 120);
-    out.push(candidate("todo.comment@1", "todo", input, i + 1, { marker: m[1] as string, text }));
-  });
+    out.push(candidate("todo.comment@1", "todo", input, line, { marker: m[1] as string, text: body }));
+  }
   return out;
 }
