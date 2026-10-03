@@ -83,6 +83,8 @@ export class ApplySink {
   readonly terms: GenTermLine[] = [];
   /** Claims written. */
   claims = 0;
+  /** Verifier outcomes of the stamped claims (task metrics, §14): raw L0 pass, L1 tri-state, W04/W08 repairs. */
+  readonly checks = { l0Raw: 0, l1Pass: 0, l1Fail: 0, l1Vacuous: 0, repaired: 0 };
   /** Lines that failed to apply (doc store errors). */
   failures = 0;
   private readonly deletes: BlockId[] = [];
@@ -172,6 +174,14 @@ export class ApplySink {
     }
   }
 
+  private count(c: GeneratedClaim["checks"]): void {
+    if (c.l0Raw ?? c.l0) this.checks.l0Raw++;
+    if (c.l1 === "pass") this.checks.l1Pass++;
+    else if (c.l1 === "fail") this.checks.l1Fail++;
+    else this.checks.l1Vacuous++;
+    if (c.repaired && c.repaired.length > 0) this.checks.repaired++;
+  }
+
   /** Stamp a block line into a GeneratedBlock (null ⇒ skip: replay onto a locked / vanished block). */
   private async generated(line: GenBlockLine): Promise<GeneratedBlock | null> {
     const doc = this.deps.doc;
@@ -195,6 +205,7 @@ export class ApplySink {
     for (const c of Array.isArray(line.claims) ? line.claims : []) {
       const span = spans.get(c.n) ?? { n: c.n, start: 0, end: 0, quote: "", identifiers: [] };
       const st = await this.deps.verifier.stamp(c.cites, span, this.ctx.indexDigest, this.ctx.packSnapshot);
+      this.count(st.checks);
       const verdictInput = { checks: st.checks, cites: st.cites.length, anyStale: false, ...(current?.lock ? { lock: current.lock } : {}) };
       const gc: GeneratedClaim = { n: c.n, kind: c.kind, quote: span.quote, cites: st.cites, checks: st.checks, verdict: computeVerdict(verdictInput) };
       const reuse = matchClaim(old, used, span.quote, st.cites);

@@ -41,6 +41,60 @@ export interface TaskRow {
   boost: number;
   /** Lane. */
   lane: Lane;
+  /** Per-task measurements (`gen_tasks.metrics`, gen spec §14; no content). */
+  metrics?: TaskMetrics;
+}
+
+/** `gen_tasks.metrics` (§14): what the S8 screen and the M2 measurements aggregate. */
+export interface TaskMetrics {
+  /** Prompt. */
+  prompt: string;
+  /** Model requested. */
+  model: string;
+  /** Engine. */
+  engine: string;
+  /** Attempts made. */
+  attempt: number;
+  /** Estimated input / output tokens. */
+  inEst: number;
+  /** Estimated output tokens. */
+  outEst: number;
+  /** Usage (all attempts). */
+  in: number;
+  /** Cache writes. */
+  cacheWrite: number;
+  /** Cache reads. */
+  cacheRead: number;
+  /** Output (incl. thinking). */
+  out: number;
+  /** Thinking. */
+  thinking: number;
+  /** Non-empty reply lines (all attempts). */
+  lines: number;
+  /** Lines valid on arrival (attempt 1 only: `gen.line.valid1`). */
+  valid1: number;
+  /** Lines accepted in total. */
+  valid: number;
+  /** Lines still rejected after the retry (dropped). */
+  dropped: number;
+  /** Rule counts (errors and warnings, all attempts). */
+  rules: Record<string, number>;
+  /** Claims whose raw cites passed L0 / stamped claims. */
+  l0raw: number;
+  /** L1 outcomes. */
+  l1: { pass: number; fail: number; vacuous: number };
+  /** Claims repaired by W04 / W08. */
+  repaired: number;
+  /** Block lines without V14 / block lines. */
+  markerOk: number;
+  /** Block lines. */
+  blockLines: number;
+  /** Wall time of the calls (ms). */
+  durationMs: number;
+  /** Time to first token of the first call (ms). */
+  ttftMs?: number;
+  /** Stop reason of the last call. */
+  stop: string;
 }
 
 /** A gen_prep row. */
@@ -220,7 +274,7 @@ export class GenStore {
         t.usage ? json(t.usage) : null,
         json(t.blocks),
         t.error ? json(t.error) : null,
-        null,
+        row.metrics ? json(row.metrics) : null,
         this.clock.now(),
         row.plan.mode ?? null,
         row.plan.phase,
@@ -248,7 +302,9 @@ export class GenStore {
       };
       if (r.usage) task.usage = parse<Usage>(r.usage as string, {} as Usage);
       if (r.error) task.error = parse<MitoriErrorData>(r.error as string, {} as MitoriErrorData);
-      return { task, plan, boost: r.boost as number, lane: r.lane as Lane };
+      const row: TaskRow = { task, plan, boost: r.boost as number, lane: r.lane as Lane };
+      if (r.metrics) row.metrics = parse<TaskMetrics>(r.metrics as string, {} as TaskMetrics);
+      return row;
     });
   }
 

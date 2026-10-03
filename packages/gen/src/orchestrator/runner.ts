@@ -34,7 +34,7 @@ import { CitableBuilder } from "../prompts/context.ts";
 import { type GatherEnv, gatherInputs, type TermCandidate } from "../prompts/inputs.ts";
 import type { GenVerifier } from "../verify/verifier.ts";
 import { addUsage, type ExecEnv, executeTask, type RunCtx } from "./execute.ts";
-import type { GenStore, TaskRow } from "./store.ts";
+import type { GenStore, TaskMetrics, TaskRow } from "./store.ts";
 
 /** Internal services shared by the runner and the session engine. */
 export interface Services {
@@ -513,10 +513,20 @@ export class Runner {
 
   private async complete(
     row: TaskRow,
-    res: { state: GenTask["state"]; usage: Usage | null; calls: number; blocks: BlockId[]; error?: MitoriErrorData; fatal?: boolean; attempts: number },
+    res: {
+      state: GenTask["state"];
+      usage: Usage | null;
+      calls: number;
+      blocks: BlockId[];
+      error?: MitoriErrorData;
+      fatal?: boolean;
+      attempts: number;
+      metrics?: TaskMetrics;
+    },
   ): Promise<void> {
     const live = this.live as Live;
     live.running.delete(row.task.id);
+    // §14: one log line per task (no content) with the same values as gen_tasks.metrics
     this.deps.log.info("gen.task", {
       task: row.task.id,
       prompt: row.plan.prompt,
@@ -529,7 +539,20 @@ export class Runner {
       out: res.usage?.out ?? 0,
       apiUsd: res.usage?.apiUsd ?? 0,
       error: res.error?.code,
+      ...(res.metrics
+        ? {
+            lines: res.metrics.lines,
+            valid: res.metrics.valid,
+            dropped: res.metrics.dropped,
+            repaired: res.metrics.repaired,
+            markerOk: res.metrics.markerOk,
+            l0raw: res.metrics.l0raw,
+            durationMs: res.metrics.durationMs,
+            stop: res.metrics.stop,
+          }
+        : {}),
     });
+    if (res.metrics) row.metrics = res.metrics;
     row.task.state = res.state;
     row.task.blocks = [...new Set([...row.task.blocks, ...res.blocks])];
     if (res.attempts > 0) row.task.attempt = res.attempts;

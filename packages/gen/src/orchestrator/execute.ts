@@ -49,7 +49,7 @@ import { maxOutOf, outTarget, thinkingOf } from "../planner/params.ts";
 import { type GatherEnv, gatherInputs } from "../prompts/inputs.ts";
 import type { GenVerifier } from "../verify/verifier.ts";
 import { ApplySink } from "./apply.ts";
-import type { GenStore, TaskRow } from "./store.ts";
+import type { GenStore, TaskMetrics, TaskRow } from "./store.ts";
 
 /** Everything a task execution needs. */
 export interface ExecEnv {
@@ -113,6 +113,8 @@ export interface ExecResult {
   error?: MitoriErrorData;
   /** The run cannot continue (auth / engine missing). */
   fatal?: boolean;
+  /** §14 measurements (engine-backed attempts only). */
+  metrics?: TaskMetrics;
 }
 
 /** Hooks into the dispatcher. */
@@ -194,7 +196,7 @@ async function consume(
   validate: (raw: string, line: number) => LineVerdict,
   sink: ApplySink,
   ctx: ValidationContext,
-): Promise<{ verdicts: LineVerdict[]; rejected: string[]; result: GenCallResultExt }> {
+): Promise<Turn> {
   const assembler = createAssembler();
   const verdicts: LineVerdict[] = [];
   let flowSection: SectionId | null = null;
@@ -206,11 +208,17 @@ async function consume(
   };
   const rejected: string[] = [];
   let n = 0;
+  let blockLines = 0;
+  let markerBad = 0;
   let lastPartial = Number.NEGATIVE_INFINITY;
   const handle = (raw: string) => {
     n++;
     const v = validate(raw, n);
     verdicts.push(v);
+    if (BLOCK_LINE_RE.test(raw)) {
+      blockLines++;
+      if (v.errors.some((e) => e.expected.startsWith("V14"))) markerBad++;
+    }
     if (v.value) {
       if (v.value.t === "flow") flowSection = `s3/${v.value.key}`;
       sink.accept(v.value);
@@ -243,7 +251,69 @@ async function consume(
     }
     if (complete) handle(rest);
   }
-  return { verdicts, rejected, result };
+  return { verdicts, rejected, result, blockLines, markerBad };
+}
+
+/** One consumed engine turn. */
+interface Turn {
+  /** Verdicts in line order. */
+  verdicts: LineVerdict[];
+  /** Raw rejected lines. */
+  rejected: string[];
+  /** Terminal result. */
+  result: GenCallResultExt;
+  /** Block lines received. */
+  blockLines: number;
+  /** Block lines with a V14 marker error. */
+  markerBad: number;
+  /** Attempt the turn belongs to (a transport re-dispatch stays attempt 1). */
+  attempt?: 1 | 2;
+}
+
+const BLOCK_LINE_RE = /^\s*\{\s*"t"\s*:\s*"block"/;
+
+/** §14 task metrics from the consumed turns (attempt 1 first) and the apply outcome. */
+function metricsOf(task: PlannedTask, engine: string, res: ExecResult, turns: readonly Turn[], sink: ApplySink, dropped: number): TaskMetrics {
+  const rules: Record<string, number> = {};
+  let lines = 0;
+  let valid = 0;
+  for (const t of turns)
+    for (const v of t.verdicts) {
+      if (v.value || v.errors.length > 0) lines++;
+      if (v.value) valid++;
+      for (const r of [...new Set(v.errors.map((e) => e.expected.split(" ")[0] as string)), ...v.warnings]) rules[r] = (rules[r] ?? 0) + 1;
+    }
+  const first = turns[0];
+  const attempt1 = turns.filter((t) => t.attempt === 1).at(-1);
+  const u = res.usage;
+  const blockLines = turns.reduce((n, t) => n + t.blockLines, 0);
+  const m: TaskMetrics = {
+    prompt: task.prompt,
+    model: task.model,
+    engine,
+    attempt: res.attempts,
+    inEst: task.estimate.prefix + task.estimate.tail,
+    outEst: task.estimate.out + task.estimate.thinking,
+    in: u?.in ?? 0,
+    cacheWrite: u?.cacheWrite ?? 0,
+    cacheRead: u?.cacheRead ?? 0,
+    out: u?.out ?? 0,
+    thinking: u?.thinking ?? 0,
+    lines,
+    valid1: attempt1?.verdicts.filter((v) => v.value).length ?? 0,
+    valid,
+    dropped,
+    rules,
+    l0raw: sink.checks.l0Raw,
+    l1: { pass: sink.checks.l1Pass, fail: sink.checks.l1Fail, vacuous: sink.checks.l1Vacuous },
+    repaired: sink.checks.repaired,
+    markerOk: blockLines - turns.reduce((n, t) => n + t.markerBad, 0),
+    blockLines,
+    durationMs: turns.reduce((n, t) => n + t.result.durationMs, 0),
+    stop: turns.at(-1)?.result.stop ?? "end",
+  };
+  if (first?.result.ttftMs !== undefined) m.ttftMs = first.result.ttftMs;
+  return m;
 }
 
 /** Execute one task. */
@@ -286,6 +356,8 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   const sink = new ApplySink(deps, applyCtx, {}, (ids) => hooks.blocks?.(ids));
   let usage: Usage | null = null;
   let calls = 0;
+  const turns: Turn[] = [];
+  const measured = (r: ExecResult, dropped: number): ExecResult => ({ ...r, metrics: metricsOf(task, run.engine.id, r, turns, sink, dropped) });
   const start = async (call: GenCall): Promise<GenCallRun> => {
     calls++;
     env.metrics.inc("gen.engine.calls");
@@ -299,6 +371,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   let callRun = await start(call);
   let validator = createLineValidator(rendered.ctx);
   let out = await consume(env, callRun, (r, n) => validator.validate(r, n), sink, rendered.ctx);
+  turns.push({ ...out, attempt: 1 });
   usage = addUsage(usage, out.result.usage);
   // §8.2: a transport failure without output is re-dispatched once; auth / installation errors fail the run at once
   if (out.result.stop === "error" && out.verdicts.length === 0 && !run.cancelled() && !FATAL.has(out.result.error?.code ?? "E_AGENT_EXIT")) {
@@ -306,6 +379,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
     callRun = await start(call);
     validator = createLineValidator(rendered.ctx);
     out = await consume(env, callRun, (r, n) => validator.validate(r, n), sink, rendered.ctx);
+    turns.push({ ...out, attempt: 1 });
     usage = addUsage(usage, out.result.usage);
   }
   hooks.state("validating");
@@ -315,7 +389,10 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
     await callRun.close();
     await sink.finish();
     hooks.call(null);
-    return { state: "failed", usage, calls, attempts: 1, blocks: sink.written, error: failure, ...(FATAL.has(failure.code) ? { fatal: true } : {}) };
+    return measured(
+      { state: "failed", usage, calls, attempts: 1, blocks: sink.written, error: failure, ...(FATAL.has(failure.code) ? { fatal: true } : {}) },
+      out.rejected.length,
+    );
   }
   let coverage: CoverageReport = validator.finish(out.result.stop);
   let rejected = out.rejected.length;
@@ -355,6 +432,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
     }
     hooks.state("running");
     const out2 = await consume(env, run2, (r, n) => validator2.validate(r, n), sink, rendered.ctx);
+    turns.push({ ...out2, attempt: 2 });
     usage = addUsage(usage, out2.result.usage);
     hooks.state("validating");
     await env.write("gen.lines", () => env.store.putLines(task.id, 2, out2.verdicts));
@@ -364,7 +442,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
       await callRun.close();
       await sink.finish();
       hooks.call(null);
-      return { state: "failed", usage, calls, attempts, blocks: sink.written, error: failure2 };
+      return measured({ state: "failed", usage, calls, attempts, blocks: sink.written, error: failure2 }, out2.rejected.length);
     }
     coverage = validator2.finish(out2.result.stop);
     rejected = out2.rejected.length;
@@ -375,25 +453,28 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   await sink.finish();
   await afterLines(env, task, sink);
   if (coverage.missingAspects.length > 0) {
-    return {
-      state: "failed",
-      usage,
-      calls,
-      attempts,
-      blocks: sink.written,
-      error: {
-        code: "E_GEN_COVERAGE_LOW",
-        message: `required aspects missing: ${coverage.missingAspects.join(", ")}`,
-        retryable: false,
-        params: { missing: coverage.missingAspects.join(",") },
+    return measured(
+      {
+        state: "failed",
+        usage,
+        calls,
+        attempts,
+        blocks: sink.written,
+        error: {
+          code: "E_GEN_COVERAGE_LOW",
+          message: `required aspects missing: ${coverage.missingAspects.join(", ")}`,
+          retryable: false,
+          params: { missing: coverage.missingAspects.join(",") },
+        },
       },
-    };
+      rejected,
+    );
   }
   await env.write("gen.output", () => env.store.putOutput(rendered.cacheKey, version, task.model, { lines: sink.lines, idMap: sink.idMap }));
   const result: ExecResult = { state: "done", usage, calls, attempts, blocks: sink.written };
   if (rejected > 0)
     result.error = { code: "E_GEN_OUTPUT_INVALID", message: `${rejected} line(s) could not be generated`, retryable: false, params: { dropped: rejected } };
-  return result;
+  return measured(result, rejected);
 }
 
 /** Replay the accepted lines of attempt 1 into a fresh validator (attempt 2 must not repeat them). */

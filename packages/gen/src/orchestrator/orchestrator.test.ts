@@ -132,6 +132,13 @@ describe("GEN-U-023 / AC-08 / AC-09 exactly one retry, by continuation", () => {
     expect(task?.state).toBe("done");
     expect(task?.attempt).toBe(2);
     expect(task?.error).toMatchObject({ code: "E_GEN_OUTPUT_INVALID", retryable: false, params: { dropped: 1 } });
+    // §14 gen_tasks.metrics (no content): attempt-1 validity, rule counts, marker rate, verifier outcomes
+    const m = JSON.parse(h.db.get<{ metrics: string }>("SELECT metrics FROM gen_tasks WHERE id = ?", [task?.id ?? ""])?.metrics ?? "null");
+    // attempt 1: 3 rejected block lines (V05, V14, V18) + module + end; attempt 2: 2 fixed blocks, V18 again, end
+    expect(m).toMatchObject({ prompt: "gen.module", attempt: 2, lines: 9, valid1: 2, valid: 5, dropped: 1, blockLines: 6, markerOk: 5, stop: "end" });
+    expect(m.rules).toEqual({ V05: 1, V14: 1, V18: 2 });
+    expect(m.l0raw).toBe(2);
+    expect(m.l1).toEqual({ pass: 1, fail: 0, vacuous: 1 });
     expect(
       h.doc
         .section("s6/auth")
