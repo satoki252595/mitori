@@ -308,5 +308,6 @@
   "toc.state.stale": "may be stale",
   "toc.state.static": "static (0 tok)",
   "toc.static": "static",
-  "toc.threads": "{n} threads"
+  "toc.threads.one": "{n} thread",
+  "toc.threads.other": "{n} threads"
 }
