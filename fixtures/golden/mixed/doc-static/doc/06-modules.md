@@ -8,7 +8,7 @@
 | [src](modules/tools-indexer-rs-src.md) | `tools/indexer-rs/src` | 40 | 0.09 |
 | [app](modules/web-app.md) | `web/app` | 40 | 0.09 |
 | [books](modules/web-app-api-books.md) | `web/app/api/books` | 40 | 0.09 |
-| [[id]](modules/web-app-api-books-id.md) | `web/app/api/books/[id]` | 40 | 0.09 |
+| [\[id\]](modules/web-app-api-books-id.md) | `web/app/api/books/[id]` | 40 | 0.09 |
 | [components](modules/web-components.md) | `web/components` | 40 | 0.09 |
 | [lib](modules/web-lib.md) | `web/lib` | 40 | 0.09 |
 | [tools](modules/web-tools.md) | `web/tools` | 40 | 0.09 |

@@ -1420,7 +1420,7 @@
     {
       "audience": "newcomer",
       "id": "30min",
-      "readingSec": 173,
+      "readingSec": 172,
       "steps": [
         {
           "section": "s0"
@@ -1441,10 +1441,10 @@
           "section": "s5"
         },
         {
-          "section": "s6/cmd-tsundoku"
+          "section": "s6/internal-server"
         },
         {
-          "section": "s6/cmd-tsundoku-cobra"
+          "section": "s6/internal-store"
         }
       ],
       "title": "30 分コース"

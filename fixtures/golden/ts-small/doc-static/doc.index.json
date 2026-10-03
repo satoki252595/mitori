@@ -1264,10 +1264,10 @@
           "section": "s5"
         },
         {
-          "section": "s6/bin"
+          "section": "s6/src-ui"
         },
         {
-          "section": "s6/src"
+          "section": "s6/bin"
         }
       ],
       "title": "30 分コース"

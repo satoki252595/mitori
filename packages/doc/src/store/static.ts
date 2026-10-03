@@ -74,6 +74,19 @@ export function code(s: string): string {
   return longest > 0 || s.startsWith(" ") ? `${fence} ${s} ${fence}` : `${fence}${s}${fence}`;
 }
 
+/**
+ * Free text taken from the repo or an LLM label (TODO text, entry labels, module names, titles) inside generated
+ * Markdown: one line and no raw HTML (`<` as an entity), so it can neither break the block structure nor add markup.
+ */
+export const inline = (s: string): string =>
+  s
+    .replace(/\s*[\r\n]+\s*/g, " ")
+    .replace(/</g, "&lt;")
+    .trim();
+
+/** {@link inline} text used as link text (`[`/`]` escaped). */
+const linkText = (s: string): string => inline(s).replace(/[[\]]/g, (c) => `\\${c}`);
+
 /** Table cell: no newlines, pipes escaped (§10.2). */
 export const cell = (s: string): string => s.replace(/\r?\n/g, " ").replace(/\|/g, "\\|").trim() || "—";
 
@@ -107,8 +120,9 @@ export function pathPrefix(paths: readonly string[]): string {
 }
 
 export function moduleTitle(name: string, prefix: string, lang: DocLang): string {
-  if (!prefix) return `# ${name}`;
-  return lang === "ja" ? `# ${name}（${prefix}）` : `# ${name} (${prefix})`;
+  const n = inline(name);
+  if (!prefix) return `# ${n}`;
+  return lang === "ja" ? `# ${n}（${prefix}）` : `# ${n} (${prefix})`;
 }
 
 export function placeholderSpec(section: SectionId, slot: string, md: string, rank: number): StaticSpec {
@@ -134,7 +148,7 @@ const facts = (section: SectionId, slot: string, md: string, rank: number, depth
   rank,
 });
 
-const moduleName = (c: Ctx, m: ModuleInfo): string => c.modules.get(m.id)?.name ?? m.name;
+const moduleName = (c: Ctx, m: ModuleInfo): string => inline(c.modules.get(m.id)?.name ?? m.name);
 
 function s0(c: Ctx): StaticSpec[] {
   const { input, l } = c;
@@ -221,7 +235,7 @@ function s4(c: Ctx): StaticSpec[] {
       ? `- ${c.l.none}`
       : table(
           c.l.entries,
-          entries.map((e) => [e.label, e.entry, loc(e), c.l.notRun]),
+          entries.map((e) => [inline(e.label), e.entry, loc(e), c.l.notRun]),
         );
   return [
     facts("s4", "s4:scripts", scriptsMd, RANK.post),
@@ -239,14 +253,14 @@ function s5(c: Ctx): StaticSpec[] {
   const rows = leaves
     .map((m) => ({ m, dir: pathPrefix(m.paths) || c.l.dirRoot }))
     .sort((a, b) => (a.dir < b.dir ? -1 : a.dir > b.dir ? 1 : a.m.slug < b.m.slug ? -1 : 1))
-    .map(({ m, dir }) => [code(dir), moduleName(c, m), c.modules.get(m.id)?.summary ?? "—", String(m.loc)]);
+    .map(({ m, dir }) => [code(dir), moduleName(c, m), inline(c.modules.get(m.id)?.summary ?? "—"), String(m.loc)]);
   const tree = rows.length === 0 ? `- ${c.l.none}` : table(c.l.tree, rows);
   const entries = ofKind(c.input.facts, "entry")
     .map((e) => ({ e, rank: moduleOfPath(c, e.path)?.rank ?? 0 }))
     .sort((a, b) => b.rank - a.rank || (a.e.path < b.e.path ? -1 : 1));
   const start =
     entries.length > 0
-      ? entries.slice(0, 10).map(({ e }) => `- ${code(e.path)}（${e.label}）`)
+      ? entries.slice(0, 10).map(({ e }) => `- ${code(e.path)}（${inline(e.label)}）`)
       : [...leaves]
           .sort((a, b) => b.rank - a.rank || (a.slug < b.slug ? -1 : 1))
           .slice(0, 5)
@@ -265,7 +279,7 @@ function s5(c: Ctx): StaticSpec[] {
 function s6(c: Ctx, pages: ModulePageSpec[]): StaticSpec[] {
   const rows = pages.map((p) => {
     const m = c.infos.get(p.module) as ModuleInfo;
-    return [`[${p.name}](modules/${p.slug}.md)`, code(pathPrefix(m.paths) || p.slug), String(m.loc), m.rank.toFixed(2)];
+    return [`[${linkText(p.name)}](modules/${p.slug}.md)`, code(pathPrefix(m.paths) || p.slug), String(m.loc), m.rank.toFixed(2)];
   });
   return [facts("s6", "s6:index", rows.length === 0 ? `- ${c.l.none}` : table(c.l.index, rows), RANK.post, "L1")];
 }
@@ -380,7 +394,7 @@ export function decisionsTable(decisions: Decision[], l: Labels): string {
   if (decisions.length === 0) return `- ${l.noDecisions}`;
   const rows = [...decisions]
     .sort((a, b) => (a.decidedAt < b.decidedAt ? -1 : a.decidedAt > b.decidedAt ? 1 : a.id < b.id ? -1 : 1))
-    .map((d) => [`[${d.title}](../${d.file})`, d.decidedAt.slice(0, 10), d.status, d.blocks.length === 0 ? "—" : d.blocks.map(code).join(" ")]);
+    .map((d) => [`[${linkText(d.title)}](../${d.file})`, d.decidedAt.slice(0, 10), d.status, d.blocks.length === 0 ? "—" : d.blocks.map(code).join(" ")]);
   return table(l.decisions, rows);
 }
 
@@ -396,7 +410,7 @@ function s10(c: Ctx, decisions: Decision[]): StaticSpec[] {
         "s10:adrs",
         table(
           c.l.adrs,
-          adrs.map((d) => [d.title, code(d.path)]),
+          adrs.map((d) => [inline(d.title), code(d.path)]),
         ),
         RANK.post2,
         "L2",
@@ -433,7 +447,7 @@ function s11(c: Ctx): StaticSpec[] {
         ? `- ${c.l.none}`
         : table(
             c.l.todos,
-            todos.map(({ t }) => [t.marker, t.text, loc(t)]),
+            todos.map(({ t }) => [t.marker, inline(t.text), loc(t)]),
           ),
       RANK.post,
       "L3",
@@ -446,7 +460,7 @@ function s11(c: Ctx): StaticSpec[] {
 export function glossaryTable(entries: GlossaryEntry[], l: Labels): string {
   return table(
     l.glossary,
-    entries.map((g) => [g.term, g.yomi ?? "—", g.en ?? "—", g.definition]),
+    entries.map((g) => [inline(g.term), inline(g.yomi ?? "—"), inline(g.en ?? "—"), inline(g.definition)]),
   );
 }
 

@@ -110,8 +110,23 @@ export class DocState {
     return fileOfSection(section, this.slugOf);
   }
 
-  /** Sections in TOC pre-order. */
+  /** Sections whose blocks changed text or metadata since their derived fields were last computed. */
+  private staleSections = new Set<SectionId>();
+
+  /** Recompute `readingSec` / `state` of the sections touched since the last call (O(changes)). */
+  settle(): void {
+    if (this.staleSections.size === 0) return;
+    const ids = [...this.staleSections];
+    this.staleSections.clear();
+    for (const id of ids) {
+      const s = this.sections.get(id);
+      if (s) this.refreshSection(s);
+    }
+  }
+
+  /** Sections in TOC pre-order (derived fields settled). */
   orderedSections(): SectionNode[] {
+    this.settle();
     const out: SectionNode[] = [];
     const visit = (id: SectionId) => {
       const s = this.sections.get(id);
@@ -173,6 +188,7 @@ export class DocState {
     this.fileTick.set(rec.meta.file, rec.tick);
     this.indexTick = rec.tick;
     this.blocks.touch(rec.meta.id);
+    this.staleSections.add(rec.meta.section);
   }
 
   /** Mark metadata-only change (index dirty). */
@@ -180,6 +196,7 @@ export class DocState {
     rec.metaTick = this.tick();
     this.indexTick = rec.metaTick;
     this.blocks.touch(rec.meta.id);
+    this.staleSections.add(rec.meta.section);
   }
 
   touchClaim(c: ClaimRec): void {

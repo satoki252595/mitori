@@ -20,6 +20,7 @@ import {
   staticBlockId,
   type TopSectionId,
 } from "@mitori/core";
+import { closeOpenFence } from "../codec/blocks.ts";
 import { unmarkerize } from "../codec/cite.ts";
 import { type ApplyOptions, type ApplyResult, ASPECT_HEADINGS, type GeneratedBlock, type NewBlockRef, type StaticDocInput } from "../contract.ts";
 import { toMermaidText } from "../layout/mermaid.ts";
@@ -145,17 +146,7 @@ function derived(core: StoreCore): StaticSpec[] {
       audience: ["newcomer", "dev"],
       rank: RANK.post,
     });
-  const sources = new Map<string, Set<BlockId>>();
-  for (const c of st.claims.values()) for (const ct of c.claim.cites) sources.set(ct.path, (sources.get(ct.path) ?? new Set()).add(c.claim.block));
-  out.push({
-    slot: "ap:sources",
-    section: "appendix",
-    kind: "facts",
-    md: sourcesTable(new Map([...sources].map(([p, s]) => [p, s.size])), l),
-    depth: "L3",
-    audience: ["reviewer", "dev"],
-    rank: RANK.post,
-  });
+  out.push(sourcesSpec(core));
   if (st.manifest)
     out.push({
       slot: "ap:meta",
@@ -167,6 +158,21 @@ function derived(core: StoreCore): StaticSpec[] {
       rank: RANK.post2,
     });
   return out;
+}
+
+/** Appendix source index `ap:sources` (cited file → number of citing blocks); changes whenever claims do. */
+function sourcesSpec(core: StoreCore): StaticSpec {
+  const sources = new Map<string, Set<BlockId>>();
+  for (const c of core.st.claims.values()) for (const ct of c.claim.cites) sources.set(ct.path, (sources.get(ct.path) ?? new Set()).add(c.claim.block));
+  return {
+    slot: "ap:sources",
+    section: "appendix",
+    kind: "facts",
+    md: sourcesTable(new Map([...sources].map(([p, s]) => [p, s.size])), L[core.lang()]),
+    depth: "L3",
+    audience: ["reviewer", "dev"],
+    rank: RANK.post,
+  };
 }
 
 /** Create/update module entries and their `s6/<slug>` sections; removed modules lose their sections. */
@@ -304,15 +310,20 @@ function upsertStatic(core: StoreCore, spec: StaticSpec, res: ApplyResult): void
     const dup = core.db.proposals({ state: "pending", block: rec.meta.id }).some((p) => p.md === spec.md);
     if (!dup)
       res.proposals.push(
-        propose(core, {
-          block: rec.meta.id,
-          section: rec.meta.section,
-          op: "update",
-          baseHash: rec.meta.hash,
-          md: spec.md,
-          source: { kind: "regen", id: "static" },
-          reason: "static",
-        }),
+        propose(
+          core,
+          {
+            block: rec.meta.id,
+            section: rec.meta.section,
+            op: "update",
+            baseHash: rec.meta.hash,
+            md: spec.md,
+            source: { kind: "regen", id: "static" },
+            reason: "static",
+          },
+          {},
+          false,
+        ),
       );
     return;
   }
@@ -332,15 +343,20 @@ function removeStatic(core: StoreCore, id: BlockId, res: ApplyResult): void {
   if (rec.meta.lock) {
     if (!core.db.proposals({ state: "pending", block: id }).some((p) => p.op === "delete"))
       res.proposals.push(
-        propose(core, {
-          block: id,
-          section: rec.meta.section,
-          op: "delete",
-          baseHash: rec.meta.hash,
-          md: "",
-          source: { kind: "regen", id: "static" },
-          reason: "static",
-        }),
+        propose(
+          core,
+          {
+            block: id,
+            section: rec.meta.section,
+            op: "delete",
+            baseHash: rec.meta.hash,
+            md: "",
+            source: { kind: "regen", id: "static" },
+            reason: "static",
+          },
+          {},
+          false,
+        ),
       );
     return;
   }
@@ -387,9 +403,10 @@ export function refreshDerived(core: StoreCore, sections?: Iterable<SectionId>):
   if (!core.st.manifest) return;
   const res = emptyResult();
   const schema = core.lastStatic ? core.lastStatic.facts.filter((f) => f.kind === "schema").length : 0;
-  // with `sections`, only those sections' placeholders are revisited (O(change); applyStatic refreshes the rest)
+  // with `sections`, only those sections' placeholders (and the source index, which follows every claim change) are
+  // revisited; applyStatic refreshes the rest
   const only = sections ? new Set(sections) : undefined;
-  const specs = [...(only ? [] : derived(core)), ...placeholders(core, {}, schema, only)];
+  const specs = [...(only ? [sourcesSpec(core)] : derived(core)), ...placeholders(core, {}, schema, only)];
   for (const spec of specs) upsertStatic(core, spec, res);
   const want = new Set(specs.map((s) => s.slot));
   const slots = only ? [...only].map((s) => placeholderSlot(core, s)) : [...core.st.slots.keys()].filter((s) => /:ph$/.test(s));
@@ -438,12 +455,21 @@ export function syncAspectHeadings(core: StoreCore, section: SectionId, res: App
   }
 }
 
-/** Create a proposal row (AI-md validated, external links counted) [SEC-11]. */
-export function propose(core: StoreCore, p: Omit<DocProposal, "id" | "state" | "createdAt">, extra: import("./db.ts").ProposalExtra = {}): ProposalId {
+/**
+ * Create a proposal row (external links counted) [SEC-11]. AI-origin md must pass the AI-Markdown rules; the store's
+ * own static text (`aiOrigin = false`) is not AI output and may quote repo text (a TODO with `<div>`), so a locked
+ * static block always gets its proposal.
+ */
+export function propose(
+  core: StoreCore,
+  p: Omit<DocProposal, "id" | "state" | "createdAt">,
+  extra: import("./db.ts").ProposalExtra = {},
+  aiOrigin = true,
+): ProposalId {
   const v = core.deps.aiMarkdown.validate(p.md, { lang: core.lang(), allowRepoLinks: true });
   const id = core.deps.ids.next("proposal") as ProposalId;
   const row: DocProposal = { ...p, id, state: "pending", createdAt: core.now(), ...(v.externalLinks > 0 ? { externalLinks: v.externalLinks } : {}) };
-  if (!v.ok)
+  if (aiOrigin && !v.ok)
     throw new MitoriError("E_INVALID_INPUT", "proposal Markdown failed the AI-Markdown rules (V13)", { params: { first: v.errors[0]?.expected ?? "" } });
   core.db.putProposal(row, extra);
   return id;
@@ -471,9 +497,9 @@ function orderedClaims(gb: GeneratedBlock, at: string): { marker: string; claims
   };
 }
 
-/** Marker md for a generated block (diagram blocks get their Mermaid fence from the IR). */
+/** Marker md for a generated block (diagram blocks get their Mermaid fence from the IR; an open fence is closed). */
 function generatedMarker(gb: GeneratedBlock, marker: string): string {
-  if (gb.kind !== "diagram" || !gb.diagram) return marker;
+  if (gb.kind !== "diagram" || !gb.diagram) return closeOpenFence(marker);
   const fence = `\`\`\`mermaid\n${toMermaidText({ ...gb.diagram, id: "dg_00000000" })}\`\`\``;
   return marker.trim() ? `${marker.trim()}\n\n${fence}` : fence;
 }

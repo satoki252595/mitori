@@ -988,7 +988,7 @@
       "depth": "L1",
       "file": "doc/06-modules.md",
       "freshness": "fresh",
-      "hash": "2eea00e844499ef2",
+      "hash": "364fe83a6721afa4",
       "id": "b_qx8y4ks7",
       "kind": "facts",
       "lang": "ja",
@@ -1727,10 +1727,10 @@
           "section": "s5"
         },
         {
-          "section": "s6/scripts"
+          "section": "s6/services-api"
         },
         {
-          "section": "s6/services-api"
+          "section": "s6/scripts"
         }
       ],
       "title": "30 分コース"

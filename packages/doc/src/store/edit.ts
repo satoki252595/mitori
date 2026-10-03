@@ -14,9 +14,11 @@ import {
   type SectionNode,
   type Verdict,
 } from "@mitori/core";
+import { closeOpenFence } from "../codec/blocks.ts";
 import { markerize } from "../codec/cite.ts";
 import { merge3 } from "../codec/index.ts";
 import { nfcProse, normalizeNewlines, parseDoc } from "../codec/parse.ts";
+import { stripIdComments } from "../render/body.ts";
 import { canonicalMarkers, matchGroups, pendingChecks, rawCite, sameRanges, verdictOf } from "./claims.ts";
 import type { BlockRec, StoreCore } from "./core.ts";
 import type { ProposalExtra } from "./db.ts";
@@ -29,11 +31,17 @@ export interface KnownClaim {
   verdict: string;
 }
 
-/** Normalize editor / proposal input: LF, NFC outside code, no outer blank lines. */
+/**
+ * Normalize editor / proposal input: LF, NFC outside code, no outer blank lines, no block-ID comments (they delimit
+ * blocks, so a pasted one would split the block on the next load), and a fence left open at the end is closed (it
+ * would swallow the following blocks of the file).
+ */
 export function cleanMd(md: string, kind: BlockKind): string {
-  const t = normalizeNewlines(md)
-    .text.replace(/^\s*\n/, "")
-    .replace(/\s+$/, "");
+  const t = closeOpenFence(
+    stripIdComments(normalizeNewlines(md).text)
+      .replace(/^\s*\n/, "")
+      .replace(/\s+$/, ""),
+  );
   return kind === "code" || kind === "diagram" ? t : nfcProse(t);
 }
 

@@ -1031,10 +1031,10 @@
           "section": "s5"
         },
         {
-          "section": "s6/detect-only"
+          "section": "s6/src"
         },
         {
-          "section": "s6/src"
+          "section": "s6/detect-only"
         }
       ],
       "title": "30 分コース"

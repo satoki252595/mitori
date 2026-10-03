@@ -3,6 +3,7 @@
 // Markdown are tombstoned; duplicate / tombstoned ids get fresh ids; id-less text becomes human blocks.
 import {
   type BlockId,
+  type BlockKind,
   type CheckError,
   type Claim,
   type DocIndex,
@@ -130,8 +131,29 @@ function readJson<T extends { kind: string; schemaVersion: number }>(
   }
 }
 
-/** Reconcile Markdown files with the model (`only` = the files that changed on disk; null = all). */
-async function reconcile(core: StoreCore, io: LoadIo, report: LoadResult, initial: boolean, only: Set<string> | null): Promise<void> {
+/** Parsed blocks by id of a file's last-written text (the base of the block-level 3-way on reload). */
+function baseBlocks(text: string, rel: string, ctx: CodecContext, kindOf: (id: BlockId) => BlockKind | undefined): Map<BlockId, ParsedBlock> {
+  const out = new Map<BlockId, ParsedBlock>();
+  for (const b of parseDoc(text, rel, ctx, kindOf).blocks) if (b.id) out.set(b.id, b);
+  return out;
+}
+
+const sameParsed = (a: ParsedBlock | undefined, b: ParsedBlock): boolean => a !== undefined && a.md === b.md && a.kindHint === b.kindHint;
+
+/**
+ * Reconcile Markdown files with the model (`only` = the files that changed on disk; null = all). `base(rel)` is the
+ * text mitori last wrote (or read) for the file: on a reload a block whose disk text still equals the base was not
+ * touched outside mitori, so a change the model made since (a generated or static update, a new or deleted block not
+ * flushed yet) is kept instead of being taken for an external edit — a block-level 3-way merge.
+ */
+async function reconcile(
+  core: StoreCore,
+  io: LoadIo,
+  report: LoadResult,
+  initial: boolean,
+  only: Set<string> | null,
+  base?: (rel: string) => string | undefined,
+): Promise<void> {
   const st = core.st;
   const files = new Map(st.files().map((f) => [f.rel, f.sections]));
   // module pages on disk that the index does not know are read too (their text must not be lost)
@@ -144,9 +166,12 @@ async function reconcile(core: StoreCore, io: LoadIo, report: LoadResult, initia
     files.set(`doc/modules/${name}`, [st.sections.get(id) as SectionNode]);
   }
   if (only) for (const rel of [...files.keys()]) if (!only.has(rel)) files.delete(rel);
+  const kindOf = (id: BlockId): BlockKind | undefined => st.blocks.get(id)?.meta.kind;
   const seen = new Set<BlockId>();
   const missing = new Set<string>();
   const order = new Map<SectionId, BlockId[]>();
+  /** Model blocks absent from the file's base: never written yet, so their absence on disk is no deletion. */
+  const pending = new Set<BlockId>();
   for (const sections of files.values()) for (const s of sections) order.set(s.id, []);
   for (const [rel, sections] of files) {
     const text = await io.read(rel);
@@ -156,12 +181,17 @@ async function reconcile(core: StoreCore, io: LoadIo, report: LoadResult, initia
     }
     report.seen.set(rel, text);
     const ctx = core.ctxOf(rel);
-    const parsed = parseDoc(text, rel, ctx);
+    const parsed = parseDoc(text, rel, ctx, kindOf);
     for (const p of parsed.problems) problem(report.problems, p.at, p.expected, p.actual, p.code);
     if (text.includes("\r")) core.log.info("normalized CRLF", { file: rel });
+    const baseText = initial ? undefined : base?.(rel);
+    const was = baseText === undefined ? null : baseBlocks(baseText, rel, ctx, kindOf);
+    if (was) for (const s of sections) for (const id of s.blocks) if (!was.has(id)) pending.add(id);
     const sectionIds = new Set(sections.map((s) => s.id));
     let section: SectionId = (sections[0] as SectionNode).id;
     for (const pb of parsed.blocks) {
+      // untouched since mitori wrote it, and deleted in the model since (not flushed yet): stays deleted
+      if (was && pb.id && !st.blocks.has(pb.id) && sameParsed(was.get(pb.id), pb)) continue;
       let id = pb.id;
       // a duplicate across files, or a tombstoned id coming back (merge of another branch), gets a fresh id
       if (id && (seen.has(id) || (core.tombs.has(id) && !st.blocks.has(id)))) id = null;
@@ -181,12 +211,14 @@ async function reconcile(core: StoreCore, io: LoadIo, report: LoadResult, initia
       (order.get(section) as BlockId[]).push(id);
       rec.meta.section = section;
       rec.meta.file = rel;
+      // untouched outside mitori: the model's text (possibly newer than the file) stands
+      if (!isNew && was && sameParsed(was.get(id), pb)) continue;
       importText(core, rec, pb, ctx, report, isNew, initial);
     }
   }
   for (const [sid, ids] of order) {
     const s = st.sections.get(sid);
-    if (s) s.blocks = ids;
+    if (s) s.blocks = withPending(s.blocks, ids, pending, seen);
   }
   // blocks the Markdown no longer has: tombstoned (§10.4-6). Static blocks of a missing file are just dropped;
   // the next applyStatic recreates them with the same ids.
@@ -201,6 +233,29 @@ async function reconcile(core: StoreCore, io: LoadIo, report: LoadResult, initia
     const s = st.sections.get(sid);
     if (s) st.renumber(s);
   }
+}
+
+/**
+ * The new block order of a section: the order on disk, plus the model's not-yet-written blocks, each placed after
+ * the nearest block that preceded it in the model. Placed blocks are added to `seen` (not orphaned).
+ */
+function withPending(old: readonly BlockId[], disk: BlockId[], pending: ReadonlySet<BlockId>, seen: Set<BlockId>): BlockId[] {
+  if (pending.size === 0) return disk;
+  const out = [...disk];
+  old.forEach((id, i) => {
+    if (!pending.has(id) || seen.has(id)) return;
+    let at = 0;
+    for (let j = i - 1; j >= 0; j--) {
+      const k = out.indexOf(old[j] as BlockId);
+      if (k >= 0) {
+        at = k + 1;
+        break;
+      }
+    }
+    out.splice(at, 0, id);
+    seen.add(id);
+  });
+  return out;
 }
 
 /** Import one parsed block's text into its record (claims matched to the link groups, external edits locked). */
@@ -250,7 +305,11 @@ function importText(core: StoreCore, rec: BlockRec, pb: ParsedBlock, ctx: CodecC
 }
 
 /** Load (or re-load) the doc directory. */
-export async function loadDoc(core: StoreCore, io: LoadIo, opts: { initial: boolean; indexChanged: boolean; only: Set<string> | null }): Promise<LoadResult> {
+export async function loadDoc(
+  core: StoreCore,
+  io: LoadIo,
+  opts: { initial: boolean; indexChanged: boolean; only: Set<string> | null; base?: (rel: string) => string | undefined },
+): Promise<LoadResult> {
   const report: LoadResult = { manifest: null, externallyEdited: [], assignedIds: [], orphaned: [], problems: [], seen: new Map(), toStamp: [] };
   const manifestText = await io.read("mitori.json");
   if (manifestText !== null) report.seen.set("mitori.json", manifestText);
@@ -275,7 +334,8 @@ export async function loadDoc(core: StoreCore, io: LoadIo, opts: { initial: bool
     }
   }
   // the sidecar keeps only block metadata; the text comes from Markdown
-  await reconcile(core, io, report, opts.initial, reindex ? null : opts.only);
+  // after a sidecar reload the model is the sidecar's, so there is nothing of ours to keep (no 3-way base)
+  await reconcile(core, io, report, opts.initial, reindex ? null : opts.only, reindex ? undefined : opts.base);
   const now = core.deps.clock.now();
   for (const rec of core.st.blocks.values()) {
     for (const cid of rec.meta.claims) {

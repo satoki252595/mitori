@@ -1032,10 +1032,10 @@
           "section": "s5"
         },
         {
-          "section": "s6/config"
+          "section": "s6/src"
         },
         {
-          "section": "s6/src"
+          "section": "s6/config"
         }
       ],
       "title": "30 分コース"

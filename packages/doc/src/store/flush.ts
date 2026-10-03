@@ -248,13 +248,21 @@ export class Flusher {
     if (!st) return "ok";
     if (st.isSymlink || !st.isFile) return "foreign";
     const led = this.core.db.ledger(rel);
-    if (led && led.size === st.size && led.mtimeNs === String(st.mtimeNs)) return "ok";
+    const { hasher } = this.core.deps;
+    if (led && led.size === st.size && led.mtimeNs === String(st.mtimeNs)) {
+      // untouched since our last write: identical bytes need no rewrite (README / .gitignore are not re-read by load)
+      if (content !== null && led.digest !== "" && content.length <= LEDGER_DIGEST_MAX && led.digest === hasher.xxh3(content)) return "same";
+      return "ok";
+    }
     const text = new TextDecoder().decode(await fs.read(abs));
     if (content !== null && text === content) {
-      this.core.db.setLedger(rel, this.core.deps.hasher.xxh3(text), st.size, st.mtimeNs);
+      this.core.db.setLedger(rel, text.length <= LEDGER_DIGEST_MAX ? hasher.xxh3(text) : "", st.size, st.mtimeNs);
       return "same";
     }
-    if (led && led.digest === this.core.deps.hasher.xxh3(text)) return "ok";
+    if (led && led.digest !== "" && led.digest === hasher.xxh3(text)) return "ok";
+    // the bytes are exactly what this store last wrote or imported (a touch / checkout changed only the stat;
+    // large files keep no digest, so this is how they are recognized)
+    if (this.written.get(rel) === text) return "ok";
     return "foreign";
   }
 

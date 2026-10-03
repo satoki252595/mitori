@@ -32,6 +32,7 @@ import { Flusher } from "./flush.ts";
 import { type LoadIo, loadDoc } from "./load.ts";
 import { resolveDocDir } from "./paths.ts";
 import { indexObject } from "./serialize.ts";
+import { inline } from "./static.ts";
 
 const dec = new TextDecoder();
 const FLOW_KEY = /^[a-z0-9][a-z0-9-]{0,46}$/;
@@ -39,13 +40,12 @@ const FLOW_KEY = /^[a-z0-9][a-z0-9-]{0,46}$/;
 /** Default reading paths (gen §4.3, zero tokens). */
 function readingPaths(core: StoreCore): ReadingPath[] {
   const st = core.st;
+  st.settle();
   const lang = core.lang();
   const sec = (ids: SectionId[]) => ids.filter((id) => st.sections.has(id));
   const time = (ids: SectionId[]) => ids.reduce((a, id) => a + (st.sections.get(id)?.readingSec ?? 0), 0);
-  const topModules = [...st.modules.values()]
-    .map((m) => m.section)
-    .filter((s) => st.sections.has(s))
-    .slice(0, 2);
+  // §6 lists the top-level module pages by rank (descending), and that order is persisted with the section tree
+  const topModules = (st.sections.get("s6")?.children ?? []).filter((s) => st.sections.has(s)).slice(0, 2);
   const defs: [string, string, string, ReadingPath["audience"], SectionId[]][] = [
     ["5min", "5 分コース", "5-minute tour", "newcomer", sec(["s0", "s1", "s2", "s3"])],
     ["30min", "30 分コース", "30-minute tour", "newcomer", sec(["s0", "s1", "s2", "s3", "s4", "s5", ...topModules])],
@@ -117,13 +117,15 @@ class Store implements DocStore {
     }
     const root = core.docDir.rootReal;
     if (this.loaded) await this.flusher.flush(false).catch(() => []);
+    // nothing is read through a symlink inside docDir either (`doc/` → elsewhere would import foreign files)
     const io: LoadIo = {
       async read(rel) {
-        const st = fs.stat(`${root}/${rel}`);
-        if (!st?.isFile || st.isSymlink) return null;
-        return dec.decode(await fs.read(`${root}/${rel}`));
+        const abs = `${root}/${rel}`;
+        const st = fs.stat(abs);
+        if (!st?.isFile || st.isSymlink || (rel.includes("/") && fs.realpath(abs) !== abs)) return null;
+        return dec.decode(await fs.read(abs));
       },
-      list: (rel) => fs.readdir(`${root}/${rel}`) ?? [],
+      list: (rel) => (fs.realpath(`${root}/${rel}`) === `${root}/${rel}` ? (fs.readdir(`${root}/${rel}`) ?? []) : []),
     };
     const changed = (rel: string, text: string | null) => text !== null && text !== this.flusher.written.get(rel);
     let only: Set<string> | null = null;
@@ -134,9 +136,14 @@ class Store implements DocStore {
         only = new Set();
         for (const { rel } of this.st.files()) if (changed(rel, await io.read(rel))) only.add(rel);
         for (const name of io.list("doc/modules")) if (!this.flusher.written.has(`doc/modules/${name}`)) only.add(`doc/modules/${name}`);
+        if (only.size === 0) {
+          // nothing but our own writes (the watcher echo of a flush): no reconcile, no outline event
+          await this.loadDecisions(io);
+          return { manifest: this.st.manifest, externallyEdited: [], assignedIds: [], orphaned: [], problems: [] };
+        }
       }
     }
-    const report = await loadDoc(core, io, { initial: !this.loaded, indexChanged, only });
+    const report = await loadDoc(core, io, { initial: !this.loaded, indexChanged, only, base: (rel) => this.flusher.written.get(rel) });
     this.loaded = true;
     await this.loadDecisions(io);
     // what is on disk is what we hold now; files whose canonical text differs stay dirty
@@ -158,7 +165,9 @@ class Store implements DocStore {
   /** The tick to record for a just-read file: current when our serialization equals the bytes, else "dirty". */
   private cleanTick(rel: string, text: string): number {
     const st = this.st;
-    if (rel === "doc.index.json") return st.indexTick;
+    // the reconcile may have changed metadata (imports, orphans, assigned ids) even when no Markdown file is
+    // rewritten: leave the sidecar dirty, the next flush writes it only if its bytes differ
+    if (rel === "doc.index.json") return -1;
     if (rel === "mitori.json") return st.manifestTick;
     const f = st.files().find((x) => x.rel === rel);
     if (!f) return -1;
@@ -250,6 +259,7 @@ class Store implements DocStore {
   }
 
   section(id: SectionId): { node: SectionNode; blocks: Block[] } | null {
+    this.st.settle();
     const node = this.st.sections.get(id);
     if (!node) return null;
     return { node, blocks: node.blocks.map((b) => this.st.toBlock(this.st.blocks.get(b) as BlockRec)) };
@@ -351,7 +361,7 @@ class Store implements DocStore {
     const node = st.sections.get(id);
     if (!node) return;
     const slot = `s3:${id.slice(3)}:h`;
-    const md = `## 3.${k} ${node.title}`;
+    const md = `## 3.${k} ${inline(node.title)}`;
     const bid = st.slots.get(slot);
     const rec = bid ? st.blocks.get(bid) : undefined;
     if (!rec) {
@@ -359,15 +369,20 @@ class Store implements DocStore {
       st.insertBlock(this.core.makeBlock({ id: nid, section: id, kind: "heading", marker: md, origin: "static", depth: "L1", audience: [], slot }), id, 0);
     } else if (rec.meta.hash !== this.core.hash(md)) {
       if (rec.meta.lock)
-        propose(this.core, {
-          block: rec.meta.id,
-          section: id,
-          op: "update",
-          baseHash: rec.meta.hash,
-          md,
-          source: { kind: "regen", id: "static" },
-          reason: "static",
-        });
+        propose(
+          this.core,
+          {
+            block: rec.meta.id,
+            section: id,
+            op: "update",
+            baseHash: rec.meta.hash,
+            md,
+            source: { kind: "regen", id: "static" },
+            reason: "static",
+          },
+          {},
+          false,
+        );
       else this.core.setText(rec, md);
     }
   }
