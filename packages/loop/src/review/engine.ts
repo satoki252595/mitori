@@ -12,7 +12,7 @@
  * (dispatch, human) and sets `batchRound` BEFORE calling `JobRunner.create`, so `create` must accept threads that
  * are already `queued` for that round (and fire T2 itself only for `open` threads).
  */
-import type { AnchorSnapshot } from "@mitori/anchor";
+import { ANCHOR_LIMITS, type AnchorSnapshot } from "@mitori/anchor";
 import {
   type Anchor,
   type AnchorInput,
@@ -66,7 +66,7 @@ import type { DocStore } from "@mitori/doc";
 import { type JobRunner, type LoopDomainEvent, REVIEW_STDOUT, type ReviewEngine } from "../contract.ts";
 import { anchorLabel, displayState, planBatch, renderDecisionMarkdown, renderDocEditAsk, renderReviewStdout } from "./index.ts";
 import { ReviewStore, type RoundRecord } from "./store.ts";
-import { firstLine, lf, plainHtml, titleOf } from "./text.ts";
+import { capUtf8, firstLine, lf, plainHtml, titleOf } from "./text.ts";
 
 /** Server-side anchor stamping result (`AnchorInput` → `Anchor` + capture-time auxiliary data). */
 export interface CapturedAnchor {
@@ -278,7 +278,7 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
       for (const kind of kinds) {
         const s: AnchorSnapshot = { member, kind, anchor, at, ...aux };
         if (member === "code") s.spanLines = (anchor as CodeAnchor).end - (anchor as CodeAnchor).start;
-        if (s.text !== undefined && s.text.length > 4096) s.text = s.text.slice(0, 4096);
+        if (s.text !== undefined) s.text = capUtf8(s.text, ANCHOR_LIMITS.snapshotTextMaxBytes);
         store.putSnapshot(id, s, replace);
       }
     }
@@ -577,8 +577,10 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
         for (const u of updates) {
           const t = store.thread(u.thread)?.thread;
           if (!t || t.state === "draft") continue;
-          const becomesStale =
-            t.state !== "resolved" && !own.has(t.id) && (u.overlapped || u.blockRewritten || u.health === "fuzzy" || u.health === "outdated");
+          // §1.7 (c): the health *became* fuzzy/outdated — an anchor that already was (and was dispatched or
+          // dismissed since) does not turn stale again on every unrelated delta of its file.
+          const degraded = (u.health === "fuzzy" || u.health === "outdated") && u.health !== t.anchorHealth;
+          const becomesStale = t.state !== "resolved" && !own.has(t.id) && (u.overlapped || u.blockRewritten || degraded);
           const next: Thread = { ...t, anchor: u.anchor, anchorHealth: u.health, stale: t.stale || becomesStale };
           if (u.health === "moved") out.moved.push(t.id);
           if (u.health === "outdated") out.outdated.push(t.id);
@@ -613,27 +615,22 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
     },
 
     async finish(req) {
-      const targets = targetsOf(req.threads, true);
-      if (targets.length === 0) {
-        const round = await deps.write("review.finish", () =>
-          mutate(() => {
-            const rec = ensureCollecting();
-            rec.round = { ...rec.round, mode: req.mode, state: "complete", approved: true, finishedAt: now() };
-            if (req.mode === "pull") rec.stdout = renderRound(rec.round.n, [], true);
-            putRound(rec);
-            return rec.round;
-          }),
-        );
-        if (req.mode === "pull") wake();
-        return { round, jobs: [] };
-      }
       if (req.mode === "pull") {
+        // One slot: complete a still-dispatched pull round first (its unanswered threads go back to open and are
+        // pending again, spec §2.5), then take the targets — so "approved" really means zero open threads.
         const round = await deps.write("review.finish", () =>
           mutate(() => {
             for (const prev of store.rounds("WHERE mode = 'pull' AND state = 'dispatched'", [])) complete(prev, false);
+            const targets = targetsOf(req.threads, true);
             const rec = ensureCollecting();
             const n = rec.round.n;
-            const sorted = sortForPull(targets.map((t) => load(t.id)));
+            if (targets.length === 0) {
+              rec.round = { ...rec.round, mode: "pull", state: "complete", approved: true, finishedAt: now() };
+              rec.stdout = renderRound(n, [], true);
+              putRound(rec);
+              return rec.round;
+            }
+            const sorted = sortForPull(targets);
             const prevRounds = sorted.map((t) => ({ t, prev: t.batchRound }));
             const dispatched = sorted.map((t) => save({ ...fire(t, "dispatch", "human"), batchRound: n, round: n }));
             rec.round = { ...rec.round, mode: "pull", state: "dispatched", threads: dispatched.map((t) => t.id), approved: false };
@@ -648,6 +645,18 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
           }),
         );
         wake();
+        return { round, jobs: [] };
+      }
+      const targets = targetsOf(req.threads, true);
+      if (targets.length === 0) {
+        const round = await deps.write("review.finish", () =>
+          mutate(() => {
+            const rec = ensureCollecting();
+            rec.round = { ...rec.round, mode: "push", state: "complete", approved: true, finishedAt: now() };
+            putRound(rec);
+            return rec.round;
+          }),
+        );
         return { round, jobs: [] };
       }
       // push: estimate (or reuse the confirmed one), confirm, dispatch, then one job per partition.
@@ -753,6 +762,7 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
         if (body.length > REPLY_MAX_CHARS)
           throw new MitoriError("E_PAYLOAD_TOO_LARGE", `reply over ${REPLY_MAX_CHARS} chars`, { params: { chars: body.length } });
         if (deps.secrets.scan(body).length > 0) throw new MitoriError("E_SECRET_DETECTED", "the reply contains a secret");
+        if (req.docUpdate && deps.secrets.scan(req.docUpdate).length > 0) throw new MitoriError("E_SECRET_DETECTED", "the doc update contains a secret");
         const files: RepoPath[] = [];
         for (const f of req.files ?? []) {
           const p = parseRepoPath(f);
@@ -764,6 +774,12 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
         const trigger = AGENT_TRIGGER[req.kind];
         const rec = t.batchRound !== undefined ? store.round(t.batchRound) : null;
         const inPullRound = rec !== null && rec.round.mode === "pull" && rec.round.state === "dispatched" && rec.round.threads.includes(id);
+        // A running thread belongs to the agent only through a dispatched pull round; otherwise a push job owns it
+        // (spec §10.3: replies are T6'/T8'/T9 for threads "running (round で配られた)").
+        if (t.state === "running" && !inPullRound)
+          throw new MitoriError("E_STATE_TRANSITION", `thread ${id} is running a job, not a pull round`, {
+            params: { machine: "thread", from: t.state, on: trigger, by: "agent" },
+          });
         // Implicit dispatch (T2' → T3'): an open thread found outside a round, or a pull thread replied to before delivery.
         if (t.state === "open") t = fire(fire(t, "dispatch", "system"), "start", "agent");
         else if (t.state === "queued" && inPullRound) t = fire(t, "start", "agent");

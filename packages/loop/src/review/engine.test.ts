@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { MitoriError, type ThreadId } from "@mitori/core";
+import { createReviewEngine } from "./engine.ts";
 import { harness } from "./test/fakes.ts";
+import { capUtf8 } from "./text.ts";
 
 const code = (path = "internal/meta/fetch.go", start = 40, end = 52) => ({ primary: "code" as const, code: { path, start, end } });
 const docSel = (block = "b_flow0002" as const, selStart = 0, selEnd = 10) => ({ primary: "doc" as const, doc: { block, selStart, selEnd } });
@@ -18,6 +20,20 @@ describe("LOOP §2.1 threads and messages", () => {
     const snaps = engine.snapshots(th.id);
     expect(snaps.map((s) => `${s.member}/${s.kind}`)).toEqual(["code/captured", "code/last_ok"]);
     expect(snaps[0]).toMatchObject({ spanLines: 12, symStart: 1, text: "range text" });
+  });
+
+  test("snapshot text is capped at 4 KiB of UTF-8 (not 4,096 UTF-16 units), never splitting a character", () => {
+    const { deps } = harness();
+    const engine = createReviewEngine({
+      ...deps,
+      captureAnchor: (input) => ({ ...deps.captureAnchor(input, null), aux: { code: { text: `a${"あ".repeat(3000)}🚀` } } }),
+    });
+    const th = engine.create({ anchor: code(), intent: "change", body: "x", draft: false }, "human");
+    const text = engine.snapshots(th.id).find((s) => s.kind === "captured")?.text as string;
+    expect(new TextEncoder().encode(text).length).toBeLessThanOrEqual(4096);
+    expect(text).toBe(`a${"あ".repeat(1365)}`);
+    expect(capUtf8("ab🚀", 5)).toBe("ab");
+    expect(capUtf8("ab🚀", 6)).toBe("ab🚀");
   });
 
   test("title: first non-empty line, whitespace-collapsed, ≤ 60 UTF-16 units", () => {
@@ -312,7 +328,7 @@ describe("LOOP §2.5 Finish (pull) / wait / reply / complete", () => {
 
 describe("LOOP §2.6 promotion and doc_edit", () => {
   test("promote to decision: resolves (promoted), deterministic Markdown, secrets redacted, via DocStore.writeDecision", async () => {
-    const { engine, doc, db } = harness();
+    const { engine, doc } = harness();
     const a = engine.create(
       {
         anchor: { ...code(), doc: { block: "b_flow0002", selStart: 0, selEnd: 0 } },
@@ -322,7 +338,8 @@ describe("LOOP §2.6 promotion and doc_edit", () => {
       },
       "human",
     );
-    db.run("UPDATE rev_threads SET state = 'running' WHERE id = ?", [a.id]);
+    await engine.finish({ mode: "pull" });
+    await engine.wait(null, 10, new AbortController().signal);
     engine.reply(a.id, { kind: "answer", body: "上流の制限のためです" }, "claude-code");
     const r = await engine.promote(a.id, "decision", "リトライは 1 回");
     expect(engine.get(a.id)).toMatchObject({ state: "resolved", resolution: "promoted" });
@@ -336,9 +353,8 @@ describe("LOOP §2.6 promotion and doc_edit", () => {
   });
 
   test("promote to doc: answered thread ⇒ insert proposal after the block (faq), resolved(promoted)", async () => {
-    const { engine, doc, db } = harness();
+    const { engine, doc } = harness();
     const a = engine.create({ anchor: docSel(), intent: "question", body: "どこで？", draft: false }, "human");
-    db.run("UPDATE rev_threads SET state = 'running' WHERE id = ?", [a.id]);
     engine.reply(a.id, { kind: "answer", body: "ここです [[internal/meta/fetch.go:40-52]]" }, "claude-code");
     const r = await engine.promote(a.id, "doc");
     expect(r.proposal).toBeDefined();
@@ -417,6 +433,65 @@ describe("edge cases", () => {
     expect(() => engine.completeRound(99)).toThrow(MitoriError);
   });
 
+  test("Finish(pull) with nothing new while R1 is unanswered: R1 completes first, its thread is re-sent (not approved)", async () => {
+    const { engine } = harness();
+    const a = engine.create({ anchor: code(), intent: "change", body: "直して", draft: false }, "human");
+    await engine.finish({ mode: "pull" });
+    await engine.wait(1, 10, new AbortController().signal);
+    expect(engine.get(a.id)?.state).toBe("running");
+    const fin = await engine.finish({ mode: "pull" });
+    expect(fin.round).toMatchObject({ n: 2, state: "dispatched", approved: false, threads: [a.id] });
+    const res = await engine.wait(2, 10, new AbortController().signal);
+    expect([res.status, res.approved]).toEqual(["ready", false]);
+    expect(res.stdout).toContain(`## ${a.id} change R2 carried=R1 internal/meta/fetch.go:40-52\n`);
+    expect(engine.get(a.id)?.messages.map((m) => m.body)).toEqual(["直して", "R1 で返信なし"]);
+  });
+
+  test("agents cannot reply to a thread a push job is running; a secret in docUpdate is refused like one in the body", async () => {
+    const { engine, doc } = harness();
+    const a = engine.create({ anchor: code(), intent: "change", body: "a", draft: false }, "human");
+    await engine.finish({ mode: "push" });
+    const t = engine.get(a.id) as NonNullable<ReturnType<typeof engine.get>>;
+    engine.transition(a.id, { on: "start", version: t.version }, "system");
+    try {
+      engine.reply(a.id, { kind: "done", body: "done" }, "claude-code");
+      throw new Error("not refused");
+    } catch (e) {
+      expect(MitoriError.is(e, "E_STATE_TRANSITION")).toBe(true);
+    }
+    expect(engine.get(a.id)?.state).toBe("running");
+    const d = engine.create({ anchor: docSel(), intent: "change", body: "d", draft: false }, "human");
+    const leak = "新しい本文 token ghp_abcdefghijklmnopqrstuvwxyz0123456789AB";
+    expect(() => engine.reply(d.id, { kind: "done", body: "直しました", docUpdate: leak }, "codex")).toThrow(MitoriError);
+    expect(doc.proposals.length).toBe(0);
+    expect(engine.get(d.id)?.state).toBe("open");
+  });
+
+  test("applyReanchor: an anchor that stays fuzzy without overlap does not turn stale again after a dismiss", () => {
+    const { engine } = harness();
+    const a = engine.create({ anchor: code(), intent: "change", body: "a", draft: false }, "human");
+    const u = { thread: a.id, anchor: a.anchor, health: "fuzzy" as const, method: "diff" as const, overlapped: false, blockRewritten: false };
+    expect(engine.applyReanchor([u], []).stale).toEqual([a.id]);
+    const v = engine.get(a.id)?.version as number;
+    engine.patch(a.id, { version: v, dismissStale: true });
+    expect(engine.applyReanchor([u], []).stale).toEqual([]);
+    expect(engine.get(a.id)?.stale).toBe(false);
+    expect(engine.applyReanchor([{ ...u, health: "outdated", method: "none" }], []).stale).toEqual([a.id]);
+  });
+
+  test("lists attach each thread's own jobs (one lookup for the page)", async () => {
+    const { engine } = harness();
+    const a = engine.create({ anchor: code("p/a.go", 1, 2), intent: "question", body: "a", draft: false }, "human");
+    const b = engine.create({ anchor: code("q/b.go", 1, 2), intent: "question", body: "b", draft: false }, "human");
+    const c = engine.create({ anchor: code("r/c.go", 1, 2), intent: "question", body: "c", draft: false }, "human");
+    const res = await engine.finish({ mode: "push", threads: [a.id, b.id] });
+    const byId = new Map(engine.list({}).items.map((t) => [t.id, t.jobs]));
+    expect(byId.get(a.id)).toEqual(res.jobs.filter((j) => j.threads.includes(a.id)).map((j) => j.id));
+    expect(byId.get(b.id)).toEqual(res.jobs.filter((j) => j.threads.includes(b.id)).map((j) => j.id));
+    expect(byId.get(c.id)).toEqual([]);
+    expect(new Set([...(byId.get(a.id) ?? []), ...(byId.get(b.id) ?? [])]).size).toBe(2);
+  });
+
   test("a reply before delivery starts the queued pull thread (T3' agent) then answers", async () => {
     const { engine } = harness();
     const a = engine.create({ anchor: code(), intent: "question", body: "q", draft: false }, "human");
@@ -438,5 +513,29 @@ describe("budgets", () => {
     const p95 = ms[Math.floor(ms.length * 0.95)] as number;
     console.log(`loop.threadCreate p95: ${p95.toFixed(3)} ms (target 30, limit 100)`);
     expect(p95).toBeLessThanOrEqual(100);
+  });
+
+  test("GET /review and the inbox stay flat in the job count (500 threads × 1,000 jobs)", () => {
+    const { engine, db } = harness();
+    const ids = Array.from(
+      { length: 500 },
+      (_, i) => engine.create({ anchor: code(`m${i % 20}/f.go`, 1, 3), intent: "change", body: `t ${i}`, draft: false }, "human").id,
+    );
+    for (let j = 0; j < 1000; j++)
+      db.run(
+        "INSERT INTO job_jobs (id, kind, threads, engine, route, state, estimate, write_scope, prompt_ver, created_at) VALUES (?, 'fix', ?, 'claude-cli', '{}', 'done', '{}', '[]', 'p@1', ?)",
+        [`j_${String(j).padStart(10, "0")}`, JSON.stringify([ids[j % 500], ids[(j * 7) % 500]]), "2026-10-03T00:00:00.000Z"],
+      );
+    const time = (fn: () => unknown) => {
+      fn();
+      const t0 = performance.now();
+      fn();
+      return performance.now() - t0;
+    };
+    const status = time(() => engine.status());
+    const inbox = time(() => engine.inbox(null));
+    console.log(`review status: ${status.toFixed(2)} ms, inbox(all): ${inbox.toFixed(2)} ms (500 threads, 1,000 jobs)`);
+    expect(status).toBeLessThanOrEqual(20);
+    expect(inbox).toBeLessThanOrEqual(20);
   });
 });

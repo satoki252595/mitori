@@ -27,6 +27,20 @@ export function titleOf(body: string): string {
   return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, 59) : cut;
 }
 
+/** Longest prefix of `s` whose UTF-8 encoding fits in `maxBytes` (never splits a code point). */
+export function capUtf8(s: string, maxBytes: number): string {
+  if (s.length * 3 <= maxBytes) return s;
+  let bytes = 0;
+  let i = 0;
+  for (const ch of s) {
+    const cp = ch.codePointAt(0) as number;
+    bytes += cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+    if (bytes > maxBytes) return s.slice(0, i);
+    i += ch.length;
+  }
+  return s;
+}
+
 /** Doc_edit ask lines: `> ` prefix, `>` for an empty line. */
 export function quoteLines(md: string): string[] {
   return lf(md)

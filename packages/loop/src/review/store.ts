@@ -19,6 +19,9 @@ import type {
   ThreadState,
 } from "@mitori/core";
 
+/** Bound parameters per job lookup (well under SQLite's variable limit). */
+const JOB_LOOKUP_CHUNK = 500;
+
 interface ThreadRow {
   id: string;
   intent: string;
@@ -163,7 +166,23 @@ export class ReviewStore {
   }
 
   threads(where: string, params: (string | number)[]): Thread[] {
-    return this.db.all<ThreadRow>(`SELECT * FROM rev_threads ${where}`, params).map((r) => toThread(r, this.jobsOf(r.id as ThreadId)));
+    const rows = this.db.all<ThreadRow>(`SELECT * FROM rev_threads ${where}`, params);
+    if (rows.length <= 1) return rows.map((r) => toThread(r, this.jobsOf(r.id as ThreadId)));
+    // One pass over the jobs for the whole page (not one json_each scan per thread).
+    const jobs = new Map<string, JobId[]>();
+    for (let i = 0; i < rows.length; i += JOB_LOOKUP_CHUNK) {
+      const ids = rows.slice(i, i + JOB_LOOKUP_CHUNK).map((r) => r.id);
+      const found = this.db.all<{ thread: string; id: string }>(
+        `SELECT t.value AS thread, j.id AS id FROM job_jobs j, json_each(j.threads) t WHERE t.value IN (${ids.map(() => "?").join(", ")}) ORDER BY j.created_at, j.id`,
+        ids,
+      );
+      for (const f of found) {
+        const list = jobs.get(f.thread);
+        if (list) list.push(f.id as JobId);
+        else jobs.set(f.thread, [f.id as JobId]);
+      }
+    }
+    return rows.map((r) => toThread(r, jobs.get(r.id) ?? []));
   }
 
   insertThread(t: Thread, targetDocMd: string | null): void {
