@@ -456,14 +456,14 @@ export function createTeeSpawner(
       };
       const out = new Channel<string>();
       const err = new Channel<string>();
-      void (async () => {
+      const outPump = (async () => {
         for await (const l of child.stdout) {
           lines.push(sigint ? { dt: dt(), line: l, phase: "after_sigint" } : { dt: dt(), line: l });
           out.push(l);
         }
         out.close();
       })();
-      void (async () => {
+      const errPump = (async () => {
         for await (const l of child.stderr) {
           lines.push({ dt: dt(), stderr: l });
           err.push(l);
@@ -471,6 +471,7 @@ export function createTeeSpawner(
         err.close();
       })();
       const exited = child.exited.then(async (code) => {
+        await Promise.all([outPump, errPump]); // every line is in before the cassette is written
         const key = cassetteKeyFromSpawn(spec, opts.readFile, opts.keyContext);
         const result = [...lines].reverse().find((l) => l.line?.includes('"type":"result"'));
         const r = result?.line

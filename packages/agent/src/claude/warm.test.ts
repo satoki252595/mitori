@@ -92,6 +92,25 @@ describe("warm profiles (spec §6.6.1, CONS-32, PT-02)", () => {
     expect(sp.children.every((c) => c.stdinClosed || c.signals.length > 0)).toBe(true);
   });
 
+  test("AGT-U-025 billing switching to overage closes the warm pool (spec §6.8)", async () => {
+    let overage = false;
+    const sp = createFakeSpawner().script(
+      (s) => s.argv.includes("-p"),
+      () => cassetteScript(synth.text("x", { window: { fiveHour: 0.3, overage } })),
+    );
+    const b = createTestBridge({ spawner: sp, settings: { engines: { "claude-cli": { warmPool: 1 } } } });
+    const profile = warmProfileOf(req(), testHasher, false);
+    if (!profile) throw new Error("no profile");
+    await b.scheduler.submit(req(), new AbortController().signal).result;
+    await b.engines["claude-cli"]?.warm?.(profile);
+    expect(sp.calls).toHaveLength(2);
+    expect(sp.children[1]?.stdinClosed).toBe(false);
+    overage = true;
+    await b.scheduler.submit(req({ system: `Other.\nWorking directory: ${EMPTY}` }), new AbortController().signal).result;
+    expect(b.scheduler.window()?.billing).toBe("overage");
+    expect(sp.children[1]?.stdinClosed).toBe(true);
+  });
+
   test("AGT-U-025 warmPool 0 (default) never pre-spawns", async () => {
     const sp = createFakeSpawner().script(
       () => true,

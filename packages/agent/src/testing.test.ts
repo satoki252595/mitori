@@ -6,6 +6,7 @@ import type { WorkspaceKey } from "@mitori/core";
 import { createAgentBridge } from "./bridge/index.ts";
 import { buildClaudeSpawn } from "./claude/index.ts";
 import type { EngineRequest, ScheduledRequest } from "./contract.ts";
+import { cassetteScript } from "./fakes/cassette.ts";
 import {
   CassetteMissError,
   cassetteKey,
@@ -14,8 +15,10 @@ import {
   countingMetrics,
   createFakeClock,
   createFakeEngine,
+  createFakeSpawner,
   createImmediateScheduler,
   createReplaySpawner,
+  createTeeSpawner,
   createTestLogger,
   immediateWrite,
   memLedger,
@@ -112,6 +115,37 @@ describe("@mitori/agent/testing — cassette layer (testing spec §3)", () => {
         ),
       ).toThrow(/scenario:nope/);
       expect(() => openCassettes({ dirs: [dir], mode: "replay" }).save(c, "")).toThrow();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("TeeSpawner records a real run under its exact key (placeholders for paths) and stops at maxUsd", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "mitori-tee-"));
+    try {
+      const store = openCassettes({ dirs: [dir], mode: "record" });
+      const r = req();
+      const spf = `${HOME}/run/sp/${testHasher.sha256(r.system).slice(0, 32)}.txt`;
+      const spec = buildClaudeSpawn(r, testSettings().engines["claude-cli"], { claudeBinary: "/bin/claude", systemPromptFile: spf, emptyCwd: EMPTY }, {});
+      const real = createFakeSpawner().script(
+        () => true,
+        cassetteScript(synth.text("{}", { structured: { a: "1" }, usage: { input_tokens: 10, output_tokens: 1 } })),
+      );
+      const tee = createTeeSpawner(real, store, { keyContext: ctx, readFile: () => r.system, maxUsd: 0.01 });
+      const child = tee.spawn(spec);
+      child.write(spec.stdin);
+      child.closeStdin();
+      for await (const _ of child.stdout) {
+        // drain
+      }
+      await child.exited;
+      const key = cassetteKey(r, "claude-cli", ctx);
+      const saved = openCassettes({ dirs: [dir], mode: "replay" }).find(key);
+      expect(saved?.header.match).toBe("exact");
+      expect(saved?.lines.some((l) => l.line?.includes('"type":"result"'))).toBe(true);
+      expect(store.spentUsd()).toBeGreaterThan(0);
+      const broke = createTeeSpawner(real, store, { keyContext: ctx, readFile: () => r.system, maxUsd: 0 });
+      expect(() => broke.spawn(spec)).toThrow(/budget/);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

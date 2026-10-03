@@ -150,6 +150,9 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     metrics: deps.metrics,
     events: deps.events,
     residents: () => claude.residents(),
+    onBilling: (billing) => {
+      if (billing === "overage") claude.closeWarm();
+    },
   };
   if (recordOverhead) sdeps.recordOverhead = recordOverhead;
   scheduler = createAgentScheduler(sdeps);

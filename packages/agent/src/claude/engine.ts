@@ -57,6 +57,8 @@ export interface ClaudeEngineDeps {
 export interface ClaudeCliEngine extends Engine {
   /** Warm + parked processes (resident) and their RSS (unknown here ⇒ 0) [PT-13]. */
   residents(): { procs: number; rssMb: number };
+  /** Close the warm pool only (billing switched to overage; spec §6.8). Parked sessions stay. */
+  closeWarm(): void;
   /** Force the next detect() to re-probe (after auth/capability failures). */
   invalidate(): void;
   /** Last detect() result. */
@@ -325,6 +327,15 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
       for (const list of warm.values()) for (const e of list) deps.timers.clear(e.idle);
       warm.clear();
       await Promise.all([...live].map((p) => p.close()));
+    },
+    closeWarm(): void {
+      for (const list of warm.values()) {
+        for (const e of list) {
+          deps.timers.clear(e.idle);
+          void e.proc.close();
+        }
+      }
+      warm.clear();
     },
     residents: () => ({ procs: residentCount(), rssMb: 0 }),
     invalidate: () => {

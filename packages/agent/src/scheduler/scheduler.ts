@@ -46,6 +46,8 @@ export interface SchedulerDeps {
   events: EventSink<SseEventPayload>;
   /** Warm + parked processes (status bar) [PT-13]. */
   residents: () => { procs: number; rssMb: number };
+  /** Billing mode changed (overage ⇒ the bridge closes the warm pool). */
+  onBilling?: (billing: SubscriptionWindow["billing"]) => void;
   /** One fixed-overhead sample (ledger-internal; absent for foreign ledgers). */
   recordOverhead?: (req: ScheduledRequest, res: EngineResult) => void;
 }
@@ -218,6 +220,7 @@ export function createAgentScheduler(deps: SchedulerDeps): AgentScheduler {
   };
 
   const onWindow = (w: SubscriptionWindow): void => {
+    if (w.billing !== latest?.billing) deps.onBilling?.(w.billing);
     latest = w;
     const u = w.fiveHour?.utilization;
     const at = w.fiveHour?.resetsAt ? Date.parse(w.fiveHour.resetsAt) : 0;
