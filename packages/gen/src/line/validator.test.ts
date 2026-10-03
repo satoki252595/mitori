@@ -374,20 +374,21 @@ describe("AC-10 fuzz: 100 lines with LLM-written stamp keys", () => {
       Array.isArray(x) ? x.some(has) : typeof x === "object" && x !== null ? Object.entries(x).some(([k, v]) => STAMPS.includes(k) || has(v)) : false;
     for (let i = 1; i <= 100; i++) {
       const start = 1 + rnd(300);
-      const cite = sprinkle({ path: "internal/session/store.go", start, end: start + rnd(20) });
+      const end = start + rnd(20);
+      const cite = sprinkle({ path: "internal/session/store.go", start, end });
       const full = rnd(2) === 0;
       const line = sprinkle({
         t: "block",
         id: `new:${i}`,
         aspect: "responsibility",
         md: `値を返す${i}[[1]]。`,
-        claims: full ? [sprinkle({ n: 1, kind: "behavior", cites: [cite] })] : { "1": `behavior internal/session/store.go:${start}-${cite.end}` },
+        claims: full ? [sprinkle({ n: 1, kind: "behavior", cites: [cite] })] : { "1": `behavior internal/session/store.go:${start}-${end}` },
       });
       const v = createLineValidator(ctx()).validate(JSON.stringify(line), 1);
       expect(v.errors).toEqual([]);
       expect(v.warnings).toContain("W02");
       expect(has(v.value)).toBe(false);
-      expect(blockOf(v).claims).toEqual([{ n: 1, kind: "behavior", cites: [{ path: "internal/session/store.go", start, end: cite.end }] }]);
+      expect(blockOf(v).claims).toEqual([{ n: 1, kind: "behavior", cites: [{ path: "internal/session/store.go", start, end }] }]);
     }
   });
 });
