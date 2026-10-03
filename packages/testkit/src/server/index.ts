@@ -1,12 +1,13 @@
 /**
  * @mitori/testkit — `server/` (owner: WP-00b / WP-12 (S10)). Everything exported here is public (re-exported by `src/index.ts`):
- * export only contract names; keep helpers in sibling files.
- * M0 stubs below throw E_UNSUPPORTED — implement them in place and keep the signatures (contract changes go
- * through the CR batch, packages/core/CR-LEDGER.md).
+ * export only contract names; keep helpers in sibling files (daemon.ts, test-flag.ts).
+ * `startTestServer` is still an M0 stub (E_UNSUPPORTED) until the composition root (WP-INT) exists: implement it in place
+ * and keep the signature (contract changes go through the CR batch, packages/core/CR-LEDGER.md).
  */
 import type { Engine, Spawner } from "@mitori/agent";
 import { type Clock, type EngineId, unsupported } from "@mitori/core";
 import type { FixtureName, RandomSource, TestDaemon, TestServer } from "../contract.ts";
+import { startDaemon } from "./daemon.ts";
 
 export function startTestServer(opts?: {
   spawner?: Spawner;
@@ -29,5 +30,5 @@ export function startTestDaemon(opts: {
   binary?: "source" | "compiled";
   env?: Readonly<Record<string, string>>;
 }): Promise<TestDaemon> {
-  return unsupported("testkit.startTestDaemon", opts);
+  return startDaemon(opts);
 }

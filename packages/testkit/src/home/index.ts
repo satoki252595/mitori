@@ -1,20 +1,22 @@
 /**
  * @mitori/testkit — `home/` (owner: WP-00b / WP-12 (S10)). Everything exported here is public (re-exported by `src/index.ts`):
- * export only contract names; keep helpers in sibling files.
- * M0 stubs below throw E_UNSUPPORTED — implement them in place and keep the signatures (contract changes go
- * through the CR batch, packages/core/CR-LEDGER.md).
+ * export only contract names; keep helpers in sibling files (home.ts, random.ts, sink.ts).
  */
-import { unsupported } from "@mitori/core";
 import type { CollectingSink, RandomSource, TestHome } from "../contract.ts";
+import { createHome } from "./home.ts";
+import { seeded } from "./random.ts";
+import { collecting } from "./sink.ts";
 
+/** Isolated `MITORI_HOME` (0700) + the env to spawn mitori / git with (see `testEnv`). Removed by `cleanup()`. */
 export function createTestHome(opts?: { keep?: boolean }): Promise<TestHome> {
-  return unsupported("testkit.createTestHome", opts);
+  return createHome(opts);
 }
 
+/** Same seed ⇒ same bytes. Satisfies core's `Random` port. */
 export function seededRandom(seed: string | number): RandomSource {
-  return unsupported("testkit.seededRandom", seed);
+  return seeded(seed);
 }
 
 export function collectingSink<E>(): CollectingSink<E> {
-  return unsupported("testkit.collectingSink");
+  return collecting<E>();
 }
