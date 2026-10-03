@@ -12,13 +12,15 @@ const STEPS: [name: string, argv: string[]][] = [
   ["svelte-check", ["svelte-check", "--workspace", "apps/web", "--tsconfig", "./tsconfig.json", "--fail-on-warnings", "--output", "human"]],
 ];
 
+// Piped logs carry no ANSI codes: NO_COLOR, and drop FORCE_COLOR (picocolors treats even "0" as "force on").
+const { FORCE_COLOR: _forced, ...env } = process.env;
 const verbose = process.argv.includes("--verbose");
 const only = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const t0 = performance.now();
 const results = await Promise.all(
   STEPS.filter(([name]) => only.length === 0 || only.some((o) => name.includes(o))).map(async ([name, argv]) => {
     const start = performance.now();
-    const proc = Bun.spawn(argv, { cwd: ROOT, stdout: "pipe", stderr: "pipe", env: { ...process.env, FORCE_COLOR: "0" } });
+    const proc = Bun.spawn(argv, { cwd: ROOT, stdout: "pipe", stderr: "pipe", env: { ...env, NO_COLOR: "1" } });
     const [out, err, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
     return { name, code, ms: performance.now() - start, log: `${out}${err}`.trim() };
   }),
