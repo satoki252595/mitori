@@ -40,6 +40,8 @@
   "palette.action.toggleCites": "Show all sources (toggle)",
   "palette.action.toggleCites.alias": "show all sources (toggle)",
   "palette.actions": "item actions",
+  "palette.announce.one": "{n} result",
+  "palette.announce.other": "{n} results",
   "palette.crumbDoc": "Doc text",
   "palette.empty": "Nothing found — search the full text (/)",
   "palette.foot": "{n} results · {ms} ms · local index · 0 tok",

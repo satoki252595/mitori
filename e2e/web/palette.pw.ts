@@ -79,6 +79,8 @@ test("@wp10a AC-J46b trailing incomplete romaji matches; labels are not romaji-c
   // a Latin label is matched as typed: "route" finds route / routeTable, not kana-converted labels
   await input.fill("route");
   await expect(page.locator(".pal-it").first()).toContainText("route");
+  // the result count reaches the polite live region once typing pauses (ux.md §11.2)
+  await expect(page.locator("#live-polite")).toHaveText(/^\d+件の結果/u);
 });
 
 test("@wp10a palette: Escape returns focus to where it was and the next single-key shortcut works", async ({ page }) => {

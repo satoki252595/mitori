@@ -40,6 +40,8 @@
   "palette.action.toggleCites": "出典をすべて表示（切替）",
   "palette.action.toggleCites.alias": "しゅってん",
   "palette.actions": "この項目の操作",
+  "palette.announce.one": "{n}件の結果",
+  "palette.announce.other": "{n}件の結果",
   "palette.crumbDoc": "本文",
   "palette.empty": "見つかりません — 本文を全文検索（/）",
   "palette.foot": "{n}件 · {ms}ms · ローカル索引 · 0 tok",

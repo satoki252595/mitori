@@ -273,7 +273,8 @@ onMount(() => {
   );
   const k = s.keys;
   offs.push(
-    k.on("palette.open", () => (s.palette.open ? s.palette.hide() : s.palette.show())),
+    // a second ⌘K outside the palette input closes it through the layer stack (focus returns)
+    k.on("palette.open", () => (s.palette.open ? s.layers.close("palette") : s.palette.show())),
     k.on("search.inDoc", () => s.palette.show("", "doc")),
     k.on("help.shortcuts", () => (s.ui.helpOpen = true)),
     k.on("nav.map", () => navTo("map")),
@@ -380,6 +381,30 @@ $effect(() => {
 });
 
 const conn = $derived(s.session.connection);
+
+// live regions (ux.md §11.2): the connection coming back (the loss itself is the retrying banner, role=alert)
+let wasDown = false;
+$effect(() => {
+  const k = conn.kind;
+  untrack(() => {
+    if (k === "retrying" || k === "stopped" || k === "auth_expired") wasDown = true;
+    else if (k === "live" && wasDown) {
+      wasDown = false;
+      s.ui.announce(t("a11y.reconnected"));
+    }
+  });
+});
+
+// billed per use from here on (window.overage / billing === "overage"): one notice per session (§3.4, addendum A1)
+$effect(() => {
+  const w = s.session.window;
+  if (!(w?.billing === "overage" || w?.overage?.active)) return;
+  untrack(() => {
+    if (getItem("session", STORAGE_KEYS.hint("overage"))) return;
+    setItem("session", STORAGE_KEYS.hint("overage"), "1");
+    s.bottom.toast({ id: "overage", kind: "warn", key: "toast.overage" });
+  });
+});
 const InboxView = $derived(ext?.views?.inbox ?? null);
 </script>
 

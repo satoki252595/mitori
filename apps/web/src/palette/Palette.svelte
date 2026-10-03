@@ -53,6 +53,15 @@ $effect(() => {
   active = 0;
 });
 
+// result count for screen readers once typing pauses 300 ms (ux.md §11.2); never per keystroke
+$effect(() => {
+  const q = p.query.trim();
+  const n = p.total;
+  if (!q || p.status !== "ready") return;
+  const h = setTimeout(() => s.ui.announce(t("palette.announce", { n })), 300);
+  return () => clearTimeout(h);
+});
+
 // action labels follow the UI language (t reads the reactive catalog): re-sent to the worker on a switch
 $effect(() => {
   p.setActions(actionItems(t, s));

@@ -138,7 +138,9 @@ test("@wp10a S1 keyboard: arrows move between rooms (roving tabindex), Escape cl
   expect(await page.evaluate(() => document.querySelectorAll("svg.plan *").length)).toBe(before);
 });
 
-test("@wp10a S1 Escape: clears the selection first, then zooms out one stage at a time back to the default stage (ux.md §4.2.2, LAYER_ORDER)", async ({ page }) => {
+test("@wp10a S1 Escape: clears the selection first, then zooms out one stage at a time back to the default stage (ux.md §4.2.2, LAYER_ORDER)", async ({
+  page,
+}) => {
   await configure({});
   await page.goto(`/w/${WS}`);
   await waitMark(page, "mitori:map:painted");

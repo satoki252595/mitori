@@ -36,6 +36,8 @@ const which = $derived.by(() => {
       <span>{t("banner.retrying", { s: Math.max(1, Math.round(conn.nextInMs / 1000)) })}</span>
     {:else if which === "overage"}
       <span>{t("banner.overage")}</span>
+      {#if s.workspace.key}<button type="button" class="btn btn-sec" onclick={() => s.workspace.key && void s.router.go({ name: "gen", ws: s.workspace.key })}>{t("banner.details")}</button>{/if}
+      <button type="button" class="btn btn-sec" onclick={() => void s.router.go({ name: "settings", tab: "engines" })}>{t("banner.apiKeyMode")}</button>
     {:else if which === "yield" && run}
       <span>{t("banner.yield", { at: run.paused?.until ? fmtHm(run.paused.until) : "–" })}</span>
       <button type="button" class="btn btn-sec" onclick={() => s.gen.control("resume")}>{t("banner.resume")}</button>
