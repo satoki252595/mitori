@@ -1,0 +1,315 @@
+import { afterAll, describe, expect, test } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { TEST_FORMATS } from "@mitori/testkit";
+import type { Budgets } from "./budgets.ts";
+import { type AnyBench, defineBench, isBenchDef } from "./define.ts";
+import { discover, matchesId, select } from "./discover.ts";
+import { executeCase } from "./execute.ts";
+import { gateResult } from "./gate.ts";
+import { waitForQuiet } from "./machine.ts";
+import type { BenchResultEntry, BenchResultFile } from "./result.ts";
+import { runBench } from "./run.ts";
+import { toSamples } from "./stats.ts";
+import { convert, judgeBudget } from "./verdict.ts";
+
+const dirs: string[] = [];
+const tmp = (): string => {
+  const d = mkdtempSync(join(tmpdir(), "mitori-bench-test-"));
+  dirs.push(d);
+  return d;
+};
+afterAll(() => {
+  for (const d of dirs) rmSync(d, { recursive: true, force: true });
+});
+
+const noRepo = { resolveRepo: async () => ({ path: "/nonexistent", dispose: async () => {} }) };
+const asAny = (d: unknown) => d as AnyBench;
+
+describe("BENCH-U-10 defineBench", () => {
+  test("accepts dotted ids and brands the definition", () => {
+    const d = defineBench({ id: "idx.s01.cold.100kloc", suite: "idx", mode: "process", run: () => {} });
+    expect(isBenchDef(d)).toBe(true);
+    expect(isBenchDef({ id: "x" })).toBe(false);
+    expect(Object.isFrozen(d)).toBe(true);
+  });
+
+  test("rejects ids that are not budget-shaped and unknown suites", () => {
+    expect(() => defineBench({ id: "nodots", suite: "idx", mode: "inproc", run: () => {} })).toThrow("dotted");
+    expect(() => defineBench({ id: "Idx.upper", suite: "idx", mode: "inproc", run: () => {} })).toThrow("dotted");
+    expect(() => defineBench({ id: "a.b", suite: "nope" as never, mode: "inproc", run: () => {} })).toThrow("unknown suite");
+  });
+});
+
+describe("BENCH-U-11 discovery and selection", () => {
+  test("finds every exported case of every *.bench.ts, skips node_modules, rejects duplicate ids", async () => {
+    const root = tmp();
+    mkdirSync(join(root, "bench/node_modules/x"), { recursive: true });
+    const def = join(import.meta.dir, "define.ts");
+    const file = (ids: string[]) =>
+      `import { defineBench } from ${JSON.stringify(def)};\n${ids.map((id, i) => `export const c${i} = defineBench({ id: ${JSON.stringify(id)}, suite: "idx", mode: "inproc", run: () => {} });`).join("\n")}\nexport const notACase = 1;\n`;
+    writeFileSync(join(root, "bench/a.bench.ts"), file(["idx.a", "idx.b"]));
+    writeFileSync(join(root, "bench/node_modules/x/ignored.bench.ts"), file(["idx.ignored"]));
+    expect((await discover(root)).map((f) => f.def.id)).toEqual(["idx.a", "idx.b"]);
+    // a second tree (Bun caches directory listings, so a file added later would not be importable)
+    const dup = tmp();
+    mkdirSync(join(dup, "bench"));
+    writeFileSync(join(dup, "bench/a.bench.ts"), file(["idx.a"]));
+    writeFileSync(join(dup, "bench/b.bench.ts"), file(["idx.a"]));
+    await expect(discover(dup)).rejects.toThrow("duplicate bench id");
+  });
+
+  test("a tree without bench/ has no cases", async () => {
+    expect(await discover(tmp())).toEqual([]);
+  });
+
+  test("id patterns: exact, prefix on a dot boundary, glob; --exact turns the prefix off", () => {
+    expect(matchesId("idx.s01.cold.100kloc", "idx.s01")).toBe(true);
+    expect(matchesId("idx.s010", "idx.s01")).toBe(false);
+    expect(matchesId("idx.s01.cold", "idx.s01", true)).toBe(false);
+    expect(matchesId("idx.s01", "idx.s01", true)).toBe(true);
+    expect(matchesId("idx.warm.rescan", "idx.*.rescan")).toBe(true);
+    expect(matchesId("idx.warm.rescan.7k", "idx.*.rescan")).toBe(false);
+  });
+
+  test("`all` excludes synthetic; naming it or an id includes it; unknown suites throw", () => {
+    const mk = (id: string, suite: "idx" | "synthetic") => ({ file: "f", def: asAny(defineBench({ id, suite, mode: "inproc", run: () => {} })) });
+    const all = [mk("idx.a", "idx"), mk("synthetic.a", "synthetic")];
+    expect(select(all, {}).map((f) => f.def.id)).toEqual(["idx.a"]);
+    expect(select(all, { suites: ["all"] }).map((f) => f.def.id)).toEqual(["idx.a"]);
+    expect(select(all, { suites: ["synthetic"] }).map((f) => f.def.id)).toEqual(["synthetic.a"]);
+    expect(select(all, { ids: ["synthetic.a"] }).map((f) => f.def.id)).toEqual(["synthetic.a"]);
+    expect(() => select(all, { suites: ["nope"] })).toThrow("unknown suite");
+  });
+});
+
+describe("BENCH-U-12 executeCase", () => {
+  test("inproc: warm-up runs are discarded, explicit runs are exact, wall time is the sample", async () => {
+    let calls = 0;
+    const out = await executeCase(asAny(defineBench({ id: "t.a", suite: "idx", mode: "inproc", runs: 4, warmup: 2, run: () => void calls++ })), noRepo);
+    expect(calls).toBe(6);
+    expect(out.entry.values).toHaveLength(4);
+    expect(out.entry).toMatchObject({ id: "t.a", unit: "ms", suite: "idx", mode: "inproc", budgetStat: "median" });
+  });
+
+  test("a returned number is the sample (RSS, bytes, a child's own timing)", async () => {
+    let n = 0;
+    const out = await executeCase(
+      asAny(defineBench({ id: "t.v", suite: "idx", mode: "inproc", unit: "MB", runs: 3, warmup: 0, run: () => 100 + n++ })),
+      noRepo,
+    );
+    expect(out.entry.values).toEqual([100, 101, 102]);
+    expect(out.entry.unit).toBe("MB");
+  });
+
+  test("CLI overrides win over the case's own counts", async () => {
+    const out = await executeCase(asAny(defineBench({ id: "t.o", suite: "idx", mode: "inproc", runs: 9, warmup: 5, run: () => {} })), {
+      ...noRepo,
+      runs: 2,
+      warmup: 0,
+    });
+    expect(out.entry.values).toHaveLength(2);
+  });
+
+  test("process mode: a fresh empty home per run, removed afterwards; defaults to 1 warm-up + 5 runs", async () => {
+    const homes: string[] = [];
+    const out = await executeCase(
+      asAny(
+        defineBench({
+          id: "t.p",
+          suite: "idx",
+          mode: "process",
+          run: (_s, ctx) => {
+            homes.push(ctx.home);
+            expect(existsSync(ctx.home)).toBe(true);
+          },
+        }),
+      ),
+      noRepo,
+    );
+    expect(out.entry.values).toHaveLength(5);
+    expect(homes).toHaveLength(6);
+    expect(new Set(homes).size).toBe(6);
+    for (const h of homes) expect(existsSync(h)).toBe(false);
+  });
+
+  test("setup state reaches run, teardown and counters; teardown runs after a failing run", async () => {
+    const log: string[] = [];
+    const out = await executeCase(
+      asAny(
+        defineBench<{ n: number }>({
+          id: "t.s",
+          suite: "idx",
+          mode: "inproc",
+          runs: 2,
+          warmup: 0,
+          setup: () => ({ n: 7 }),
+          run: (s) => void log.push(`run${s.n}`),
+          teardown: (s) => void log.push(`teardown${s.n}`),
+          counters: (s) => ({ "t.calls": s.n }),
+        }),
+      ),
+      noRepo,
+    );
+    expect(log).toEqual(["run7", "run7", "teardown7"]);
+    expect(out.counters).toEqual([{ id: "t.calls", value: 7 }]);
+
+    const torn: string[] = [];
+    const failed = await executeCase(
+      asAny(
+        defineBench({
+          id: "t.f",
+          suite: "idx",
+          mode: "inproc",
+          runs: 2,
+          warmup: 0,
+          run: () => {
+            throw new Error("kaboom");
+          },
+          teardown: () => void torn.push("td"),
+        }),
+      ),
+      noRepo,
+    );
+    expect(failed.entry.error).toBe("kaboom");
+    expect(failed.entry.values).toEqual([]);
+    expect(torn).toEqual(["td"]);
+  });
+
+  test("a case's repo is resolved, handed to run and disposed", async () => {
+    const events: string[] = [];
+    await executeCase(
+      asAny(defineBench({ id: "t.r", suite: "idx", mode: "inproc", repo: "flask", runs: 1, warmup: 0, run: (_s, ctx) => void events.push(`run:${ctx.repo}`) })),
+      {
+        resolveRepo: async (name) => ({ path: `/corpus/${name}`, dispose: async () => void events.push("dispose") }),
+      },
+    );
+    expect(events).toEqual(["run:/corpus/flask", "dispose"]);
+  });
+
+  test("a repo that cannot be resolved becomes a case error, not a crash", async () => {
+    const out = await executeCase(asAny(defineBench({ id: "t.m", suite: "idx", mode: "inproc", repo: "flask", run: () => {} })), {
+      resolveRepo: async () => {
+        throw new Error('corpus "flask" is not fetched');
+      },
+    });
+    expect(out.entry.error).toContain("not fetched");
+  });
+});
+
+const entry = (id: string, unit: BenchResultEntry["unit"], values: number[], extra: Partial<BenchResultEntry> = {}): BenchResultEntry => ({
+  ...toSamples(id, unit, values),
+  suite: "idx",
+  mode: "inproc",
+  budgetStat: "median",
+  ...extra,
+});
+const file = (results: BenchResultEntry[], counters: BenchResultFile["counters"] = [], factor = 1): BenchResultFile => ({
+  v: TEST_FORMATS.benchResult,
+  sha: "",
+  machine: { cpu: "t", cores: 1, ramGb: 1, os: "t", bun: "1", node: "1", chrome: null, loadavg: 0, noisy: false },
+  factor,
+  factorSource: "measured",
+  startedAt: "",
+  results,
+  counters,
+});
+const budgets = (bs: object[], cs: object[] = []): Budgets => ({
+  budgets: new Map((bs as { id: string }[]).map((b) => [b.id, b as never])),
+  counters: new Map((cs as { id: string }[]).map((c) => [c.id, c as never])),
+});
+const B = { metric: "m", target: 10, limit: 20, unit: "ms", dir: "max", gates: ["absolute"], owner: "x", measure: "a#b", scale: "machine", provisional: false };
+
+describe("BENCH-U-13 budget verdicts", () => {
+  test("green ≤ target, yellow ≤ limit, red beyond; dir min mirrors it", () => {
+    const j = (value: number, extra = {}) => judgeBudget({ ...B, id: "x.y", ...extra } as never, value, { factor: 1 }).level;
+    expect([j(10), j(10.1), j(20), j(20.1)]).toEqual(["green", "yellow", "yellow", "red"]);
+    const min = { dir: "min", target: 99, limit: 95 };
+    expect([j(100, min), j(99, min), j(97, min), j(94, min)]).toEqual(["green", "green", "yellow", "red"]);
+  });
+
+  test("machine-scaled budgets gate only on the reference machine and scale elsewhere", () => {
+    const ref = judgeBudget({ ...B, id: "x.y" } as never, 25, { factor: 1.05 });
+    expect(ref).toMatchObject({ level: "red", gating: true, scaled: false });
+    const slow = judgeBudget({ ...B, id: "x.y" } as never, 25, { factor: 2 });
+    expect(slow).toMatchObject({ level: "yellow", gating: false, scaled: true, target: 20, limit: 40 });
+    const bytes = judgeBudget({ ...B, id: "x.y", scale: "none", unit: "KB" } as never, 25, { factor: 2 });
+    expect(bytes).toMatchObject({ level: "red", gating: true, scaled: false });
+  });
+
+  test("unit conversion within time and size families only", () => {
+    expect(convert(1500, "ms", "s")).toBe(1.5);
+    expect(convert(2, "s", "ms")).toBe(2000);
+    expect(convert(150_000, "B", "KB")).toBe(150);
+    expect(convert(3, "MB", "KB")).toBe(3000);
+    expect(() => convert(1, "ms", "KB")).toThrow("cannot compare");
+  });
+
+  test("gateResult: limits, counters and case errors fail; absent budgets and relative-only budgets are ignored", () => {
+    const bs = budgets(
+      [
+        { ...B, id: "a.slow" },
+        { ...B, id: "a.fast" },
+        { ...B, id: "a.rel", gates: ["relative"] },
+      ],
+      [{ id: "c.calls", max: 0, owner: "x", measure: "a#b" }],
+    );
+    const ok = gateResult(file([entry("a.fast", "ms", [5]), entry("a.rel", "ms", [999]), entry("a.nobudget", "ms", [999])], [{ id: "c.calls", value: 0 }]), bs);
+    expect(ok.ok).toBe(true);
+    expect(ok.verdicts.map((v) => v.id)).toEqual(["a.fast"]);
+    expect(gateResult(file([entry("a.slow", "ms", [25])]), bs).ok).toBe(false);
+    expect(gateResult(file([entry("a.fast", "ms", [5])], [{ id: "c.calls", value: 1 }]), bs).ok).toBe(false);
+    expect(gateResult(file([entry("a.fast", "ms", [], { error: "boom" })]), bs).errors).toEqual([{ id: "a.fast", error: "boom" }]);
+  });
+
+  test("budgetStat p95 feeds the p95 into the budget", () => {
+    const bs = budgets([{ ...B, id: "a.p" }]);
+    const values = [1, 1, 1, 1, 1, 1, 1, 1, 1, 30];
+    expect(gateResult(file([entry("a.p", "ms", values)]), bs).ok).toBe(true);
+    expect(gateResult(file([entry("a.p", "ms", values, { budgetStat: "p95" })]), bs).ok).toBe(false);
+  });
+});
+
+describe("BENCH-U-14 waiting for a quiet machine", () => {
+  test("waits up to twice, then runs flagged noisy", async () => {
+    const waits: number[] = [];
+    const r = await waitForQuiet({ loadavg: () => 12, cores: 8, sleep: async (ms) => void waits.push(ms) });
+    expect(waits).toHaveLength(2);
+    expect(r).toMatchObject({ noisy: true, waited: 2, loadavg: 12 });
+  });
+
+  test("proceeds at once when load ≤ cores × 0.5, and stops waiting when it drops", async () => {
+    expect((await waitForQuiet({ loadavg: () => 4, cores: 8, sleep: async () => {} })).noisy).toBe(false);
+    const loads = [10, 3];
+    const r = await waitForQuiet({ loadavg: () => loads.shift() ?? 0, cores: 8, sleep: async () => {} });
+    expect(r).toMatchObject({ noisy: false, waited: 1 });
+  });
+});
+
+describe("BENCH-U-15 runBench on the synthetic suite", () => {
+  test("measures the cases, records counters and the machine", async () => {
+    const r = await runBench({ suites: ["synthetic"], ids: ["synthetic.counter", "synthetic.value"], wait: false });
+    expect(r.ok).toBe(true);
+    expect(r.file.v).toBe(TEST_FORMATS.benchResult);
+    expect(r.file.results.map((x) => x.id).sort()).toEqual(["synthetic.counter", "synthetic.value"]);
+    expect(r.file.counters).toEqual([{ id: "synthetic.parseCalls", value: 0 }]);
+    expect(r.file.machine.cores).toBeGreaterThan(0);
+    expect(r.text).toContain("synthetic.value");
+  });
+
+  test("synthetic.spin takes MITORI_BENCH_SLOWDOWN into account", async () => {
+    const base = await runBench({ ids: ["synthetic.spin"], wait: false, runs: 3, warmup: 0 });
+    const prev = process.env.MITORI_BENCH_SLOWDOWN;
+    process.env.MITORI_BENCH_SLOWDOWN = "1.5";
+    try {
+      const slow = await runBench({ ids: ["synthetic.spin"], wait: false, runs: 3, warmup: 0 });
+      const [a, b] = [base.file.results[0]?.median ?? 0, slow.file.results[0]?.median ?? 0];
+      expect(b / a).toBeGreaterThan(1.4);
+      expect(b / a).toBeLessThan(1.6);
+    } finally {
+      if (prev === undefined) delete process.env.MITORI_BENCH_SLOWDOWN;
+      else process.env.MITORI_BENCH_SLOWDOWN = prev;
+    }
+  });
+});
