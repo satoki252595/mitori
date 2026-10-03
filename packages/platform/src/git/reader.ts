@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { type GitOid, type GitReader, type Iso8601, MitoriError, type RepoPath } from "@mitori/core";
 import { gitBlobOid } from "../hash/digest.ts";
 import { CatFileBatch } from "./catfile.ts";
+import { headFromFiles, parseTaggedListing, TAGGED_LISTING_ARGS } from "./local.ts";
 import { ByteLru } from "./lru.ts";
 import { filterNeutralizers, hasIncludes, localConfigKeys, type Neutralizers } from "./neutralize.ts";
 import { createGitRunner, GIT_READ_ENV, nfc, splitZ } from "./run.ts";
@@ -45,17 +46,6 @@ const ATTR_RE = /^[A-Za-z0-9_.][A-Za-z0-9_.-]*$/;
 
 function needOid(oid: string, what: string, re = OID_RE): void {
   if (!re.test(oid)) throw new MitoriError("E_INVALID_INPUT", `${what}: not an object id: ${JSON.stringify(oid.slice(0, 80))}`);
-}
-
-/** Parse `ls-files -s -z` (`<mode> <oid> <stage>\t<path>`). */
-function parseStaged(fields: string[]): { path: RepoPath; blob: GitOid; mode: string; stage: 0 | 1 | 2 | 3; tracked: boolean }[] {
-  const out: { path: RepoPath; blob: GitOid; mode: string; stage: 0 | 1 | 2 | 3; tracked: boolean }[] = [];
-  for (const f of fields) {
-    const tab = f.indexOf("\t");
-    const [mode, blob, stage] = f.slice(0, tab).split(" ");
-    out.push({ path: nfc(f.slice(tab + 1)), blob: blob as string, mode: mode as string, stage: Number(stage) as 0 | 1 | 2 | 3, tracked: true });
-  }
-  return out;
 }
 
 /** Parse porcelain v2 `-z` entries (renames disabled): ordinary `1`, unmerged `u`, untracked `?`. */
@@ -182,13 +172,12 @@ export function createGitReader(opts: GitReaderOptions): PlatformGitReader {
 
   return {
     async lsFiles() {
-      const [staged, others] = await Promise.all([run(["ls-files", "-s", "-z", "--cached"]), run(["ls-files", "-z", "--others", "--exclude-standard"])]);
-      const tracked = parseStaged(splitZ(staged.stdout));
+      // one process for the index and the untracked walk (a warm rescan's critical path), told apart by `-t` tags
+      const all = parseTaggedListing(splitZ((await run(TAGGED_LISTING_ARGS)).stdout));
       const next = new Map<GitOid, RepoPath>();
-      for (const e of tracked) if (e.stage === 0 && e.mode !== "160000" && e.mode !== "120000") next.set(e.blob, e.path);
+      for (const e of all) if (e.tracked && e.stage === 0 && e.mode !== "160000" && e.mode !== "120000") next.set(e.blob, e.path);
       pathOf = next;
-      const untracked = splitZ(others.stdout).map((p) => ({ path: nfc(p), blob: "", mode: "", stage: 0 as const, tracked: false }));
-      return [...tracked, ...untracked];
+      return all;
     },
     async lsOthers({ directories }) {
       const r = await run(["ls-files", "-z", "--others", "--exclude-standard", ...(directories ? ["--directory"] : [])]);
@@ -230,7 +219,12 @@ export function createGitReader(opts: GitReaderOptions): PlatformGitReader {
       cache.set(blob, bytes);
       return bytes.slice();
     },
-    head: () => verify("HEAD^{commit}"),
+    // the ref files answer without a process (warm rescans ask on every scan); anything unusual asks git
+    async head() {
+      const dirs = await Promise.all([gitDir(), commonDir()]).catch(() => null);
+      const fast = dirs === null ? undefined : headFromFiles(dirs[0], dirs[1]);
+      return fast !== undefined ? fast : verify("HEAD^{commit}");
+    },
     headTree: () => verify("HEAD^{tree}"),
     async branch() {
       const r = await text(["symbolic-ref", "-q", "--short", "HEAD"], [0, 1, 128]);

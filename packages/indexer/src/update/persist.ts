@@ -1,6 +1,7 @@
 // SQLite persistence of the S0/S1 state (indexer spec §9, IDX-D7): written through the write queue after `scan.done`
-// in ≤ 2,000-file transactions; only rows that changed since the last write are touched (a warm no-change scan writes
-// nothing). Reads are direct (`SqlDb` is synchronous).
+// in short transactions (≤ 250 parsed blobs or 1,000 file rows each) with a turn of the event loop between them, so
+// `update()`, HTTP and SSE interleave with a cold scan's persistence; only rows that changed since the last write are
+// touched (a warm no-change scan writes nothing). Reads are direct (`SqlDb` is synchronous).
 import type { ExtractorVersion, RepoPath, SourceLang } from "@mitori/core";
 import type { FactCandidate, FileScope, GrammarId, ImportRecord, InventoryRuleId, RefRecord, SkeletonTier } from "../contract.ts";
 import type { SkeletonBodies } from "../skeleton/render.ts";
@@ -8,8 +9,14 @@ import { estimateTokensRaw } from "../tokens/index.ts";
 import { type Core, settingsOf } from "./core.ts";
 import { contentKey, type FileRec, type Parsed, type StoredSymbol } from "./model.ts";
 
-const CHUNK = 2_000;
+/** Parsed blobs per background transaction (≈ 5–15 ms of SQLite work on crit-sized files). */
+const PARSED_CHUNK = 250;
+/** idx_files rows per background transaction. */
+const FILES_CHUNK = 1_000;
 const TIERS: readonly SkeletonTier[] = ["l0", "sig", "doc"];
+
+/** One turn of the event loop (a macrotask): queued I/O callbacks and timers run before the next background slice. */
+export const yieldToLoop = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -338,17 +345,30 @@ function writeFile(core: Core, r: FileRec): void {
   );
 }
 
-/** Persist everything that changed since the last write (background after `scan.done`; `single` = one transaction). */
-export async function persist(core: Core, opts: { snapshotRow?: { packKey: string; ms: number; timings: string }; single?: boolean } = {}): Promise<number> {
+/**
+ * Persist everything that changed since the last write. Background mode (after `scan.done`) writes short transactions
+ * and yields to the event loop between them; `single` (after `update()`) writes one transaction, and `paths` limits the
+ * idx_files comparison to the paths the update touched (the other rows cannot have changed).
+ */
+export async function persist(
+  core: Core,
+  opts: { snapshotRow?: { packKey: string; ms: number; timings: string }; single?: boolean; paths?: Iterable<RepoPath> } = {},
+): Promise<number> {
   const { db, write, metrics } = core.deps;
   const nowS = Math.floor(core.deps.clock.now() / 1000);
   const changedFiles: FileRec[] = [];
-  for (const r of core.files.values()) {
-    const sig = rowSig(r);
-    if (core.dbFiles.get(r.path) !== sig) changedFiles.push(r);
-  }
   const removed: RepoPath[] = [];
-  for (const p of core.dbFiles.keys()) if (!core.files.has(p)) removed.push(p);
+  if (opts.paths !== undefined) {
+    for (const p of new Set(opts.paths)) {
+      const r = core.files.get(p);
+      if (r === undefined) {
+        if (core.dbFiles.has(p)) removed.push(p);
+      } else if (core.dbFiles.get(p) !== rowSig(r)) changedFiles.push(r);
+    }
+  } else {
+    for (const r of core.files.values()) if (core.dbFiles.get(r.path) !== rowSig(r)) changedFiles.push(r);
+    for (const p of core.dbFiles.keys()) if (!core.files.has(p)) removed.push(p);
+  }
   // A parse that hit the time budget is environmental (machine load), not a property of the blob: it is kept for this
   // process but never becomes a persistent cache entry, so the next daemon start parses the file again.
   const dirtyParsed = [...core.parsed.values()].filter((p) => p.dirtyDb && p.note !== "parse_timeout");
@@ -361,8 +381,8 @@ export async function persist(core: Core, opts: { snapshotRow?: { packKey: strin
   // Each step writes rows inside the transaction and returns the in-memory bookkeeping to apply once it commits (a
   // rolled-back write leaves everything dirty, so the next persist retries it and no skeleton text is dropped).
   const steps: (() => () => void)[] = [];
-  for (let i = 0; i < dirtyParsed.length; i += CHUNK) {
-    const part = dirtyParsed.slice(i, i + CHUNK);
+  for (let i = 0; i < dirtyParsed.length; i += PARSED_CHUNK) {
+    const part = dirtyParsed.slice(i, i + PARSED_CHUNK);
     steps.push(() => {
       for (const p of part) writeParsed(core, p, nowS);
       return () => {
@@ -370,8 +390,8 @@ export async function persist(core: Core, opts: { snapshotRow?: { packKey: strin
       };
     });
   }
-  for (let i = 0; i < changedFiles.length; i += CHUNK) {
-    const part = changedFiles.slice(i, i + CHUNK);
+  for (let i = 0; i < changedFiles.length; i += FILES_CHUNK) {
+    const part = changedFiles.slice(i, i + FILES_CHUNK);
     steps.push(() => {
       const sigs = part.map((r) => {
         writeFile(core, r);
@@ -423,7 +443,9 @@ export async function persist(core: Core, opts: { snapshotRow?: { packKey: strin
     });
   }
   const groups = opts.single === true ? [steps] : steps.map((s) => [s]);
-  for (const g of groups) {
+  for (let gi = 0; gi < groups.length; gi++) {
+    const g = groups[gi] as (() => () => void)[];
+    if (gi > 0) await yieldToLoop();
     await write("idx.persist", () => {
       const done = db.tx(() => g.map((s) => s()));
       for (const d of done) d();

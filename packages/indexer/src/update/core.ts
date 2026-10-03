@@ -41,6 +41,8 @@ export interface Core {
   renames: Map<RepoPath, RepoPath>;
   /** Background persistence chain. */
   persisting: Promise<void>;
+  /** Paths `update()` changed whose idx_files rows are not written yet (coalesced into the next update write). */
+  unsaved: Set<RepoPath>;
   /** Last persisted snapshot digest. */
   dbDigest: string | null;
   /** Settings key last persisted. */
