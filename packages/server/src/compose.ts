@@ -15,18 +15,18 @@ import {
   type Iso8601,
   MitoriError,
   type SqlDb,
-  unsupportedValue,
   type WorkerPool,
   type WorkspaceKey,
 } from "@mitori/core";
 import { elkLayout, type HighlightReq } from "@mitori/doc";
 import { INVENTORY_SETS } from "@mitori/indexer";
-import type { Installer } from "@mitori/loop";
+import { createInstaller, type Installer } from "@mitori/loop";
 import { runMigrations } from "@mitori/platform";
 import { MIGRATION_ORDER, type ServerDeps, type ServerHandle } from "./contract.ts";
 import { startDaemon } from "./http/daemon.ts";
 import { realTimers, type Timers } from "./http/timers.ts";
 import { migrationsFor } from "./wiring/index.ts";
+import { integrationHandlers } from "./wiring/integrations.ts";
 import { docRootWriter, ensureShadowRepo, holdDaemonLock } from "./wiring/ports.ts";
 import { domainHandlers } from "./wiring/routes.ts";
 import { assembleWorkspace, type Shared, type WorkspaceDomain } from "./wiring/workspace.ts";
@@ -114,6 +114,20 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
     runMigrations(db, { db: kind, order: MIGRATION_ORDER[kind], migrations: migrationsFor(kind), now: () => deps.clock.iso() });
 
   let services: import("./routes/services.ts").ServerServices | null = null;
+  // `mitori install` (loop spec §11, CONS-22): ONE global installer; project installs name their workspace
+  const installer: Installer = createInstaller({
+    safeWrite: deps.safeWrite,
+    hasher: deps.hasher,
+    home,
+    userHome: deps.userHome,
+    mitoriBin: deps.mitoriBin,
+    // the installer serializes in-process and keeps its records in a home file: it never takes the state slot
+    stateWrite: (label, fn) => {
+      if (!services) return Promise.reject(new MitoriError("E_NOT_READY", "the daemon is still starting", { retryable: true }));
+      return services.state.stateWrite(label, fn);
+    },
+    log: deps.log,
+  });
   const started = await startDaemon({
     home,
     userHome: deps.userHome,
@@ -141,18 +155,24 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
     },
     ...(deps.port !== undefined ? { port: deps.port } : {}),
     assets: deps.assets,
-    handlers: domainHandlers({
-      async domain(ctx) {
-        const rt = await ctx.runtime();
-        const d = domains.get(rt.info.key);
-        if (!d) throw new MitoriError("E_WS_NOT_FOUND", "workspace is not loaded", { params: { ws: rt.info.key } });
-        return d;
-      },
-      rescan: (ws, force) => (services ? services.workspaces.rescan(ws, force) : Promise.resolve()),
-      engines: () => bridge?.engines ?? ({} as Record<EngineId, Engine | null>),
-      ledger: () => shared.agent().ledger,
-      highlighter,
-    }),
+    handlers: {
+      ...domainHandlers({
+        async domain(ctx) {
+          const rt = await ctx.runtime();
+          const d = domains.get(rt.info.key);
+          if (!d) throw new MitoriError("E_WS_NOT_FOUND", "workspace is not loaded", { params: { ws: rt.info.key } });
+          return d;
+        },
+        rescan: (ws, force) => (services ? services.workspaces.rescan(ws, force) : Promise.resolve()),
+        engines: () => bridge?.engines ?? ({} as Record<EngineId, Engine | null>),
+        ledger: () => shared.agent().ledger,
+        highlighter,
+      }),
+      ...integrationHandlers({
+        installer,
+        workspace: async (ws) => services?.workspaces.list().find((w) => w.info.key === ws)?.info ?? null,
+      }),
+    },
     domain: {
       status(rt) {
         const d = domains.get(rt.info.key);
@@ -186,6 +206,11 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
           if (!cur.split("\n").includes(line))
             await deps.safeWrite.write(rt.info.root, ".gitattributes", `${cur}${cur === "" || cur.endsWith("\n") ? "" : "\n"}${line}\n`, "repo_meta");
           await domains.get(rt.info.key)?.doc.flush({ force: true });
+        }
+        // the AGENTS.md managed block (≤ 80 tokens, between markers only; spec §11.3) — the installer's, like `mitori install agents-md`
+        if (req.agentsBlock && rt.info.kind === "git") {
+          const project = { root: rt.info.root, docDir: (req.docDir ?? rt.info.docDir).replace(/\/+$/, "") };
+          await installer.install("agents-md", "project", { mcp: false, force: false, project } as { mcp: boolean; force: boolean });
         }
       },
     },
@@ -258,8 +283,6 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
   refreshEngines();
   log.info("composition root ready", { port: daemon.port });
 
-  // CR-PENDING(WP-INT): `createInstaller` (WP-11) is still the M0 stub.
-  const installer = unsupportedValue<Installer>("server.installer (WP-11)");
   let stopping: Promise<void> | null = null;
   const handle: ServerHandle & { domain(ws: WorkspaceKey): WorkspaceDomain | null; url: string; token: string; stopped: Promise<string> } = {
     port: daemon.port,

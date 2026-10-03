@@ -3,6 +3,9 @@
   "owner": {
     "name": "mitori"
   },
+  "metadata": {
+    "description": "mitori, installed on this machine: design-doc review threads in Claude Code."
+  },
   "plugins": [
     {
       "name": "mitori",

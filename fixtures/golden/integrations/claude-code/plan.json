@@ -2,7 +2,7 @@
   {
     "mode": "create",
     "path": ".mitori/integrations/claude-code/.claude-plugin/marketplace.json",
-    "sha256": "b15bdbd158d2216c663963b768f6ef3cb721d75d97d596c20071f05031031ffc",
+    "sha256": "71f0d059326dced7aa9b7b8ce1fccb1d3cced937a7a49aa6780a077a8ccc26b1",
     "template": "claude-code/.claude-plugin/marketplace.json@1"
   },
   {
@@ -14,7 +14,7 @@
   {
     "mode": "create",
     "path": ".mitori/integrations/claude-code/plugins/mitori/skills/review/SKILL.md",
-    "sha256": "48b66ab8b1828e3f271b48da853f953c2f27022ae86c972f2fa9ef20acec3656",
+    "sha256": "75e28162817e253ee7179d20447fb18b48d83ae7696f7f121a6a440cc59538c2",
     "template": "claude-code/skills/review/SKILL.md@1"
   },
   {

@@ -42,3 +42,14 @@ edit, tiny and additive.
 - `apps/web/src/stores/doc.svelte.ts` (WP-10a): `pendingInserts()` — INSERT proposals have no block of their own, the
   proposal layer shows them after the block they follow (promoted answers were invisible).
 - `packages/server/src/contract.ts`: `ROUTE_OWNERS["POST /ws/:ws/jobs/targets"] = "loop"` (with CR ux-F1).
+
+## #5 `Installer` has no per-file state of a target × scope
+- contract: `packages/loop/src/contract.ts` C11 `Installer`
+- change: `states(target, scope, opts: { mcp: boolean; project?: { root: string; docDir: string } }): Promise<{ abs: string; rel: string; template: string; state: IntegrationState; recorded: boolean }[]>`
+- why: `GET /integrations` lists every file a target × scope consists of (installed or not, hand-written or not);
+  `status()` only covers the files mitori recorded, without their scope root, so a project install of one repo could
+  not be told from another's.
+- workaround in place: `makeInstaller` returns `states` as an extra member; `packages/server/src/wiring/integrations.ts`
+  reads it structurally. `project` still travels in the options object (cr-requests/WP-11.md #2).
+- also: compose (`packages/server/src/compose.ts`, WP-INT) now creates the installer and merges the integration
+  handlers; `POST /ws/:ws/init {agentsBlock: true}` installs the AGENTS.md block (spec §11.3).
