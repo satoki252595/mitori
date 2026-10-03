@@ -2,8 +2,11 @@
  * Prompt texts (gen spec §5.4–§5.6, R1 compact line form). English, byte-stable per version: ANY byte change
  * needs a version bump in `GEN_PROMPTS` / `GEN_SYSTEM_VERSIONS` and a new `prompts.lock.json` entry (AC-40).
  * `{{name}}` placeholders are filled by the renderer; an unknown placeholder is a programming error.
- * M2 ships the 7 unit prompts (overview early/final, module, parent, labels, flows, glossary); the rest are M4
- * (WP-06b) and render as E_UNSUPPORTED until their texts land.
+ * M2 ships the 7 unit prompts (overview early/final, module, parent, labels, flows, glossary); M4 (WP-06b) adds the
+ * section prompts (datamodel, quality, decisions, risks, questions), the deep dive (topic mode) and the doc.* rewrite
+ * prompts (sync, simplify, translate). `gen.judge` (P3) and the deep dive's `files` mode are not shipped yet and
+ * render as E_UNSUPPORTED. The M4 texts follow §5.6 with the R1 compact-form OUTPUT line (mitori files every block
+ * under the task's section; `kind` only where the aspect allows several).
  */
 import type { GenPromptId, PromptAddendumId, SystemPromptId } from "../contract.ts";
 
@@ -144,6 +147,97 @@ export const UNIT_TEMPLATES: Readonly<Partial<Record<GenPromptId, string>>> = {
     "- Prefer the domain concepts a newcomer meets in the UI, the documents and the commands; include a code identifier only when it names such a concept, and never a file name.",
     'OUTPUT: term lines, then the end line with "blocks":0.',
   ].join("\n"),
+  "gen.datamodel": [
+    "TASK: Explain the data model for section s7, based on SCHEMA.",
+    "RULES:",
+    "- Allowed aspects, in this order; skip an aspect without evidence:",
+    "  overview (prose, L2): the main entities and how they relate.",
+    "  entities (table, L2): columns entity, meaning and key fields; one row per important entity.",
+    "  lifecycle (list, L2): how records are created, changed and removed.",
+    "  invariants (list, L3): constraints and consistency rules; claim kind invariant.",
+    "  migrations (prose, L3): how the schema changes over time.",
+    "- mitori draws the ER diagram from SCHEMA; do not write one.",
+    "- Up to 3 question lines.",
+    "OUTPUT: gen.block/1 lines; mitori files every block under s7.",
+  ].join("\n"),
+  "gen.quality": [
+    "TASK: Describe the quality attributes of the system for section s9.",
+    "RULES:",
+    "- Allowed aspects, in this order, all depth L3; skip an aspect without evidence:",
+    "  hotpaths: where time is spent and why.",
+    "  caching: what is cached, under which keys, and how it is invalidated.",
+    "  limits: sizes, timeouts, quotas and concurrency limits, with their values.",
+    "  security: trust boundaries, authentication, input validation and handling of secrets.",
+    "  reliability: what happens on failure, retries and recovery.",
+    "  observability: logs, metrics, tracing and debug switches.",
+    '- Every block has "kind": prose, list or pitfall.',
+    "- Base every statement on CLAIMS (repeat their cites exactly) or on N| lines in BODIES and locations in FACTS. No generic advice.",
+    "- Up to 3 question lines.",
+    "OUTPUT: gen.block/1 lines; mitori files every block under s9.",
+  ].join("\n"),
+  "gen.decisions": [
+    "TASK: Recover the main design decisions of the repository for section s10.",
+    "RULES:",
+    "- Write up to 8 blocks with aspect decision (kind why), most important for a newcomer first.",
+    '- Each md starts with the decision in bold ("**...**"), then the alternatives that were rejected if the data names them, the reason, and what the decision means for people who change the code.',
+    "- Cite the lines that state the reason, from DOCS, COMMENTS or cites repeated from CLAIMS. When no line states the reason, give the reason sentence a claim with its kind alone and no ranges.",
+    "- Up to 3 question lines for important decisions whose reason is unknown.",
+    "OUTPUT: gen.block/1 lines; mitori files every block under s10.",
+  ].join("\n"),
+  "gen.risks": [
+    "TASK: Summarize risks and technical debt for section s11.",
+    "RULES:",
+    "- Allowed aspects, in this order, all depth L3; skip an aspect without evidence:",
+    "  debt: the most significant TODO, FIXME and HACK items from TODOS, grouped by theme, each citing its location.",
+    "  untested: important modules or behaviours without tests, from UNTESTED.",
+    "  hotspots: large files from LARGE, and why they are risky.",
+    "  fragile: edge cases and failure modes from CLAIMS.",
+    '- Every block has "kind": list, prose or pitfall.',
+    "- Group related items; at most 8 items per block. Do not invent severity scores.",
+    "OUTPUT: gen.block/1 lines; mitori files every block under s11.",
+  ].join("\n"),
+  "gen.questions": [
+    "TASK: Consolidate the open questions in RAW into the list for section s13.",
+    "RULES:",
+    "- Write question lines only, at most {{max_questions}}, most important first: questions an expert reviewer should answer to make the document trustworthy.",
+    '- Merge questions that ask the same thing and add "from":["q3","q7"] with the RAW ids you merged. Keep the section of the most specific source.',
+    "- Drop questions answered by another RAW line and questions about wording only.",
+    "- Keep cites from RAW that still apply.",
+    'OUTPUT: question lines, then the end line with "blocks":0.',
+  ].join("\n"),
+  "gen.deepdive": [
+    "TASK: Write the deep dive for the topic in TOPIC, for module {{module_id}} in section {{section}}. It replaces block {{placeholder_id}}.",
+    "RULES:",
+    '- Write 1 to 4 blocks with aspect deepdive. The first block line uses "id":"{{placeholder_id}}"; further blocks use new:<n> ids, each with "after" set to the block before it.',
+    "- Explain the mechanism step by step with the exact conditions, values and edge cases visible in BODIES. Every sentence about the code is a claim.",
+    "OUTPUT: gen.block/1 lines; mitori files every block under {{section}}.",
+  ].join("\n"),
+  "doc.sync": [
+    "TASK: The code cited by some claims in BLOCKS has changed; CHANGES shows the old and the new lines. Update the blocks so that every sentence is true for the new code.",
+    "RULES:",
+    "- Change only sentences whose claims appear in CHANGES; copy every other sentence exactly.",
+    "- For each changed claim: if the sentence is still true, keep it and cite the new lines; if it is no longer true and the new lines show what is true now, rewrite it and cite the new lines; otherwise remove the sentence and its marker.",
+    '- Return each block in BLOCKS exactly once: either {"t":"block","id":"<id>","md":"...","claims":{...}} with the full md and the full claims map (keep the marker numbers of unchanged claims; give a new claim the next unused number), or {"t":"keep","id":"<id>"} when nothing needs to change.',
+    '- "claims" uses the same "<kind> <path>:<first>-<last>" strings as the "> claim [[n]]" lines in BLOCKS. Claims cite N| lines under "=== <path>" in CHANGES, or repeat their existing range when the claim did not change.',
+    "OUTPUT: block and keep lines, then the end line.",
+  ].join("\n"),
+  "doc.simplify": [
+    "TASK: Rewrite block {{block_id}} in BLOCKS for a reader who is new to this repository and to the technology it uses.",
+    "RULES:",
+    "- Keep the same facts in the same order; add no facts. Keep every marker [[n]] exactly once, on the sentence with the same meaning.",
+    "- Use short sentences of at most {{sentence_max}}. At the first use of a technical term, add a plain explanation in parentheses, taking it from GLOSSARY when the term is there. Use an analogy only if it is exact.",
+    "- Keep the block's form: a list stays a list and a table stays a table.",
+    'OUTPUT: one line {"t":"block","id":"{{block_id}}","md":"..."}, then the end line.',
+  ].join("\n"),
+  "doc.translate": [
+    "TASK: Translate the blocks in BLOCKS from {{src_name}} to {{dst_name}}.",
+    "RULES:",
+    "- Translate the meaning faithfully; add and drop nothing. Keep every marker [[n]] exactly once, on the sentence with the same meaning.",
+    "- Keep identifiers in backticks, paths, commands, numbers, URLs and the list and table structure.",
+    "- Translate GLOSSARY terms as GLOSSARY gives them.",
+    "- {{dst_style}}",
+    'OUTPUT: one line per block, in the given order: {"t":"block","id":"<id>","md":"..."}; then the end line.',
+  ].join("\n"),
   "gen.labels": [
     "TASK: Name the modules listed in MODULES for the floor plan and the codebase map.",
     "RULES:",
@@ -183,6 +277,12 @@ export const OVERVIEW_MODE_SENTENCES = {
   early: "MODULES is not available yet; work from the repository context, DOCS and FACTS. A later pass will refine your text, so keep it short.",
   final: "Use MODULES and PARENTS, which summarize the generated module pages.",
 } as const;
+
+/** `sentence_max` of doc.simplify (§5.6.15). */
+export const SIMPLIFY_SENTENCE_MAX = { ja: "60 characters", en: "20 words" } as const;
+
+/** `max_questions` of gen.questions (§5.6.10). */
+export const MAX_QUESTIONS = 15;
 
 /** `previous_clause` of gen.retry (claude-cli cold path only). */
 export const RETRY_PREVIOUS_CLAUSE = "; PREVIOUS shows those lines as you wrote them";

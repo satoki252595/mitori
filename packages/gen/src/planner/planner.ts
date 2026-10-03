@@ -3,7 +3,9 @@
  * (session packets), model / effort per prompt mode and raw estimates. Task ids are content-derived
  * (`gt_` + base32(xxh3(prompt|mode|target))) so the plan's canonical JSON is byte-stable (AC-01).
  * standard = top `min(40, leaves)` leaves by (entry/route/cli desc, rank desc, id asc); complete = all leaves;
- * overview = none. M4 sections (datamodel, quality, decisions, risks, questions) stay static + placeholder.
+ * overview = none. standard / complete also plan the M4 section prompts (WP-06b): datamodel (only with schema facts),
+ * quality, decisions and risks after the module pages, and the open-question list (s13) after everything that
+ * emits question lines.
  */
 import {
   base32,
@@ -231,6 +233,37 @@ export function createPlanner(deps: PlannerDeps): GenPlanner {
         tail: Math.min(4000, 200 * eager.size) + Math.min(1000, 40 * (s.repo.glossary?.length ?? 0)) + unit("gen.glossary"),
         out: GEN_ESTIMATE_PARAMS.outTargets.perTerm * maxTerms,
       });
+
+      // M4 section prompts (standard / complete): their inputs are the index plus the claims of the module pages
+      if (req.effort !== "overview") {
+        const modulePages = pages.filter((d) => d.prompt === "gen.module");
+        const sectionTask = (prompt: GenPromptId, section: SectionId, deps: readonly Draft[], tail: number): Draft =>
+          add({
+            stage: "S6o",
+            prompt,
+            target: { kind: "section", id: section },
+            sections: [section],
+            deps: deps.map(draftId),
+            softDeps: [],
+            topoOrder: 0,
+            rank: 0,
+            phase: lastPhase,
+            tail: tail + unit(prompt),
+          });
+        const facts = ix.facts();
+        const count = (k: string) => facts.filter((f) => f.kind === k).length;
+        const claimsTail = Math.min(3000, 60 * eager.size);
+        const m4: Draft[] = [];
+        const schema = count("schema");
+        if (schema > 0) m4.push(sectionTask("gen.datamodel", "s7", [], Math.min(DATA_BUDGETS["gen.datamodel"].SCHEMA, 40 + 350 * schema)));
+        m4.push(sectionTask("gen.quality", "s9", modulePages, claimsTail + Math.min(DATA_BUDGETS["gen.quality"].BODIES, 1200 * Math.min(5, eager.size)) + 300));
+        const decisionDocs = facts.filter((f) => f.kind === "existing_doc" && f.role !== "readme" && f.role !== "other").length;
+        m4.push(sectionTask("gen.decisions", "s10", modulePages, claimsTail + Math.min(DATA_BUDGETS["gen.decisions"].DOCS, 600 * decisionDocs) + 1500));
+        m4.push(sectionTask("gen.risks", "s11", modulePages, claimsTail + Math.min(DATA_BUDGETS["gen.risks"].TODOS, 25 * count("todo")) + 500));
+        const producers = [...pages, final, ...(flows ? [flows] : []), ...m4];
+        const q = sectionTask("gen.questions", "s13", producers, Math.min(DATA_BUDGETS["gen.questions"].RAW, 40 * (3 * eager.size + 5)));
+        q.out = GEN_ESTIMATE_PARAMS.outTargets.questions;
+      }
 
       // scope: the scoped sections' tasks + their hard deps whose sections have no content yet
       let selected = drafts;

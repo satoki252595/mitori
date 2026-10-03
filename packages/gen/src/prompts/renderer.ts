@@ -25,10 +25,28 @@ import {
 } from "../contract.ts";
 import { buildContext } from "./context.ts";
 import { type DataSection, fenceSections, prepareLines } from "./fence.ts";
-import { ADDENDUM_TEMPLATES, fill, LANG_TEXT, OVERVIEW_MODE_SENTENCES, RETRY_PREVIOUS_CLAUSE, SYSTEM_TEMPLATES, UNIT_TEMPLATES } from "./templates.ts";
+import {
+  ADDENDUM_TEMPLATES,
+  fill,
+  LANG_TEXT,
+  MAX_QUESTIONS,
+  OVERVIEW_MODE_SENTENCES,
+  RETRY_PREVIOUS_CLAUSE,
+  SIMPLIFY_SENTENCE_MAX,
+  SYSTEM_TEMPLATES,
+  UNIT_TEMPLATES,
+} from "./templates.ts";
 
-/** Labels that describe the target's own current content (excluded from the cache-key subject). */
+/**
+ * Labels that describe the target's own current content (excluded from the cache-key subject of the gen.* prompts).
+ * The doc.* rewrite prompts keep them: for doc.sync, CHANGES is the subject.
+ */
 const REGEN_LABELS: ReadonlySet<DataLabel> = new Set(["EXISTING", "CHANGES", "EXISTING_FLOWS"]);
+
+/** Target language of a doc.translate task (its `mode`), else null. */
+export function translateTarget(task: Pick<PlannedTask, "prompt" | "mode">): DocLang | null {
+  return task.prompt === "doc.translate" && (task.mode === "ja" || task.mode === "en") ? task.mode : null;
+}
 
 /** Ports of the renderer. */
 export interface RendererDeps {
@@ -84,7 +102,7 @@ export function createPromptRenderer(deps: RendererDeps): GenPromptRenderer {
     const modulesSeen = Number(/^> candidates from (\d+) module pages/.exec((sections.get("CANDIDATES") ?? [])[0] ?? "")?.[1] ?? 0);
     const outTarget = task.prompt === "gen.module" ? Math.min(o.moduleMax, Math.max(o.moduleBase, o.moduleBase + o.moduleSlope * dataTokens)) : o.parent;
     return {
-      module_id: task.target.id,
+      module_id: task.target.kind === "block" ? ((sections.get("MODULE") ?? []).find((l) => l.startsWith("> id: "))?.slice(6) ?? "") : task.target.id,
       module_label: label,
       section: task.sections[0] ?? "",
       name_max: GEN_LIMITS.nameChars[lang],
@@ -95,6 +113,13 @@ export function createPromptRenderer(deps: RendererDeps): GenPromptRenderer {
       flow_max: Math.min(5, seeds),
       title_max: GEN_LIMITS.flowTitleChars[lang],
       max_terms: Math.min(60, 4 * modulesSeen + 10),
+      max_questions: MAX_QUESTIONS,
+      placeholder_id: task.target.kind === "block" ? task.target.id : "",
+      block_id: task.target.kind === "block" ? (task.target.id.split(",")[0] ?? "") : "",
+      sentence_max: SIMPLIFY_SENTENCE_MAX[lang],
+      src_name: lt.name,
+      dst_name: LANG_TEXT[translateTarget(task) ?? lang].name,
+      dst_style: LANG_TEXT[translateTarget(task) ?? lang].style,
       lang_name: lt.name,
       def_max: GEN_LIMITS.termDefChars[lang],
       yomi_rule: lt.yomiRule,
@@ -161,7 +186,7 @@ export function createPromptRenderer(deps: RendererDeps): GenPromptRenderer {
         sections.set(label, p.lines);
       }
       const all: DataSection[] = [...sections].map(([label, lines]) => ({ label, lines }));
-      const subject = all.filter((s) => !REGEN_LABELS.has(s.label as DataLabel));
+      const subject = spec.system === "gen.system" ? all.filter((s) => !REGEN_LABELS.has(s.label as DataLabel)) : all;
       const subjectData = fenceSections(subject, deps.hasher, salt);
       const dataTokens = tokens(subjectData.text);
       const instructions = fill(template, unitVars(task, sections, dataTokens, opts.lang));
@@ -188,7 +213,7 @@ export function createPromptRenderer(deps: RendererDeps): GenPromptRenderer {
       const ctx = buildContext(
         task,
         sections,
-        opts.lang,
+        translateTarget(task) ?? opts.lang,
         {
           fileLines: (p) => {
             const f = deps.indexer.file(p);

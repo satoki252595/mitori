@@ -8,6 +8,7 @@
 import {
   type BlockId,
   base32,
+  type Cursor,
   type EffectiveSettings,
   type EngineId,
   type GenEstimate,
@@ -20,6 +21,7 @@ import {
   type GitOid,
   MitoriError,
   type MitoriErrorData,
+  type Page,
   type RepoPath,
   type SchedulerStatus,
   type SectionId,
@@ -35,6 +37,7 @@ import { type GatherEnv, gatherInputs, type TermCandidate } from "../prompts/inp
 import type { GenVerifier } from "../verify/verifier.ts";
 import { replayable } from "./apply.ts";
 import { addUsage, type ExecEnv, executeTask, type RunCtx } from "./execute.ts";
+import { questionsOf } from "./questions.ts";
 import type { GenStore, TaskMetrics, TaskRow } from "./store.ts";
 
 /** Internal services shared by the runner and the session engine. */
@@ -51,6 +54,11 @@ export interface Services {
   estimate(plan: GenPlan, engine: EngineId, concurrency: number): GenEstimate;
   /** Doc language. */
   lang(): "ja" | "en";
+  /**
+   * A task finished `done` / `cached`: called INSIDE the write slot that persists the task row, so S9 records what
+   * the section was (re)generated against in the same transaction (WP-06b `incremental/`).
+   */
+  taskDone?(row: TaskRow, run: GenRun): void;
 }
 
 const TERMINAL = new Set<GenTask["state"]>(["done", "cached", "skipped", "failed"]);
@@ -154,11 +162,14 @@ export class Runner {
     await deps.indexer.pinBlobs([...blobs.values()]);
     const now = deps.clock.now();
     const notBefore = opts.notBefore ? Date.parse(opts.notBefore) : null;
+    // S9 suggestions and on-demand operations run in the `doc` lane with their own trigger (§3.5, §11.3, §12)
+    const trigger = row.req.trigger ?? "user";
+    const lane = row.req.lane ?? "background";
     const run: GenRun = {
       id,
       ws: deps.ws.key,
       effort: plan.effort,
-      trigger: "user",
+      trigger,
       engine: plan.engine,
       scope: plan.scope,
       state: notBefore !== null && notBefore > now ? "paused" : "running",
@@ -175,7 +186,7 @@ export class Runner {
     const rows = new Map<GenTaskId, TaskRow>();
     plan.tasks.forEach((t, i) => {
       const tid = map.get(t.id) as GenTaskId;
-      const p: PlannedTask = { ...t, id: tid, deps: t.deps.map((d) => map.get(d)).filter((d): d is GenTaskId => d !== undefined) };
+      const p: PlannedTask = { ...t, id: tid, lane, deps: t.deps.map((d) => map.get(d)).filter((d): d is GenTaskId => d !== undefined) };
       const task: GenTask = {
         id: tid,
         run: id,
@@ -189,7 +200,7 @@ export class Runner {
         estimate: { in: t.estimate.prefix + t.estimate.tail, out: t.estimate.out + t.estimate.thinking },
         blocks: [],
       };
-      rows.set(tid, { task, plan: p, boost: 0, lane: "background" });
+      rows.set(tid, { task, plan: p, boost: 0, lane });
     });
     await deps.write("gen.run.start", () => {
       this.svc.store.putRun(run, plan, pack, notBefore, blobs);
@@ -242,6 +253,12 @@ export class Runner {
       if (run.state !== "running") throw new MitoriError("E_PRECONDITION", `run is ${run.state}`);
       run.state = "paused";
       run.paused = { reason: "user" };
+      // in-flight calls are stopped and settle as `pending` before idle() resolves, so after pause + idle gen writes
+      // nothing more (CR m1-11); their partial new blocks are removed so a resume leaves no duplicates (§3.7)
+      for (const r of live.running.values()) {
+        r.call?.stop("user");
+        r.abort.abort();
+      }
     } else if (action === "resume") {
       if (run.state !== "paused") throw new MitoriError("E_PRECONDITION", `run is ${run.state}`);
       if (run.paused?.reason === "billing_changed")
@@ -332,6 +349,18 @@ export class Runner {
     return { run: stored.run, tasks };
   }
 
+  /** Runs newest first; the cursor is the last run id of the previous page [CR m1-12]. */
+  runs(page: { limit: number; cursor?: Cursor }): Page<GenRun> {
+    const limit = Math.max(1, Math.min(200, Math.floor(page.limit) || 50));
+    const { runs, more } = this.svc.store.runPage(limit, page.cursor as GenRunId | undefined);
+    const items = runs.map((r) => {
+      const run = this.live?.run.id === r.id ? { ...this.live.run } : r;
+      run.ws = this.deps.ws.key;
+      return run;
+    });
+    return { items, next: more && items.length > 0 ? ((items.at(-1) as GenRun).id as unknown as Cursor) : null };
+  }
+
   active(): GenRun | null {
     const r = this.live?.run;
     return r && (r.state === "running" || r.state === "paused") ? { ...r } : null;
@@ -374,6 +403,8 @@ export class Runner {
     const live = this.live;
     if (!live) return;
     const run = live.run;
+    // a user pause is left alone until resume: nothing to mirror, and nothing may be written after pause + idle
+    if (run.state === "paused" && run.paused?.reason === "user") return;
     const before = { state: run.state, reason: run.paused?.reason, c: run.concurrency };
     const bg = st.lanePaused.background;
     if (run.state === "running" && bg === "yield_5h") {
@@ -460,9 +491,32 @@ export class Runner {
     }
     await this.release(live);
     this.refreshProgress();
-    await this.persistRun();
+    await this.persistFinal();
     this.emitRun();
     live.idle.resolve();
+  }
+
+  /**
+   * The run's final write slot: the run row plus `doc.stampRun` (CR m1-50): usage always accumulates; effort and
+   * snapshot change (and `generatedAt` is set) only for a user-triggered whole-doc run that ended `done`.
+   */
+  private async persistFinal(): Promise<void> {
+    const live = this.live;
+    if (!live) return;
+    const run = { ...live.run };
+    const deps = this.deps;
+    await deps.write("gen.run", () => {
+      this.svc.store.updateRun(run);
+      const full = run.trigger === "user" && run.scope.length === 0 && run.state === "done";
+      const m = deps.doc.manifest();
+      const current = { commit: deps.indexer.snapshot()?.commit ?? null, indexDigest: run.pinned?.snapshot ?? live.plan.indexDigest };
+      deps.doc.stampRun({
+        effort: full ? run.effort : (m?.effort ?? run.effort),
+        snapshot: full || !m ? current : m.snapshot,
+        usage: run.usage,
+        full,
+      });
+    });
   }
 
   /** A terminal run stops mirroring the scheduler and unpins the blobs it pinned at start. */
@@ -523,6 +577,7 @@ export class Runner {
       usage: Usage | null;
       calls: number;
       blocks: BlockId[];
+      created?: BlockId[];
       error?: MitoriErrorData;
       fatal?: boolean;
       attempts: number;
@@ -575,16 +630,37 @@ export class Runner {
     }
     if (res.error) row.task.error = res.error;
     else delete row.task.error;
-    if (res.state === "failed" && res.error?.code === "E_CANCELLED") row.task.state = "pending";
+    // a call stopped by pause settles as pending; the unlocked blocks it created are removed (resume re-runs it, §3.7)
+    let partial: BlockId[] = [];
+    if (res.state === "failed" && res.error?.code === "E_CANCELLED") {
+      row.task.state = "pending";
+      delete row.task.error;
+      if (live.run.state === "paused") {
+        partial = (res.created ?? []).filter((b) => this.deps.doc.block(b) !== null && !this.deps.doc.block(b)?.lock);
+        row.task.blocks = row.task.blocks.filter((b) => !partial.includes(b));
+      }
+    }
     this.refreshProgress();
-    await this.deps.write("gen.task", () => this.svc.store.putTask(row));
+    const finished = res.state === "done" || res.state === "cached";
+    await this.deps.write("gen.task", () => {
+      if (partial.length > 0)
+        this.deps.doc.applyGenerated([], {
+          mode: "write",
+          deletes: partial,
+          source: { kind: "regen", id: live.run.id },
+          reason: "partial output of a paused task",
+          listed: 0,
+        });
+      this.svc.store.putTask(row);
+      if (finished) this.svc.taskDone?.(row, live.run);
+    });
     this.emitTask(row);
     if (res.fatal && live.run.state !== "cancelled") {
       live.run.state = "failed";
       live.run.finishedAt = new Date(this.deps.clock.now()).toISOString();
       for (const r of live.running.values()) r.call?.stop("user");
       await this.release(live);
-      await this.persistRun();
+      await this.persistFinal();
       this.emitRun();
       live.idle.resolve();
       return;
@@ -654,6 +730,7 @@ export class Runner {
         return s;
       }),
       candidates: () => candidatesOf(this.svc.store, [...live.rows.values()]),
+      questions: () => questionsOf(this.svc.store, [...live.rows.values()]),
     };
   }
 }

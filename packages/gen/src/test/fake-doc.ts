@@ -27,7 +27,7 @@ import type { FakeRepo } from "./repo.ts";
 /** One recorded mutation. */
 export interface DocOp {
   /** Operation. */
-  op: "apply" | "labels" | "flow" | "glossary" | "tombstone";
+  op: "apply" | "labels" | "flow" | "glossary" | "tombstone" | "stamp";
   /** Sequence number. */
   seq: number;
   /** Payload. */
@@ -57,6 +57,7 @@ export function createFakeDocStore(deps: { hasher: Hasher; ids: GenIdSource; rep
   const proposals: DocProposal[] = [];
   const tombstones = new Set<BlockId>();
   let glossary: GlossaryEntry[] = [];
+  let manifest: DocManifest | null = null;
   const ops: DocOp[] = [];
   let seq = 0;
   const modules: DocModuleEntry[] = (deps.repo?.modules ?? []).map((m) => ({
@@ -144,7 +145,7 @@ export function createFakeDocStore(deps: { hasher: Hasher; ids: GenIdSource; rep
       if (b) b.freshness = "stale";
     },
     load: async () => ({ manifest: null, externallyEdited: [], assignedIds: [], orphaned: [], problems: [] }),
-    manifest: () => null,
+    manifest: () => manifest,
     index: (): DocIndex => ({
       kind: "mitori/doc-index",
       schemaVersion: 1,
@@ -310,7 +311,41 @@ export function createFakeDocStore(deps: { hasher: Hasher; ids: GenIdSource; rep
     flush: async () => [],
     ensureManifest: (): DocManifest => unsupported("fakeDoc.ensureManifest"),
     mdLine: () => null,
-    stampRun: (): DocManifest => unsupported("fakeDoc.stampRun"),
+    stampRun(run) {
+      ops.push({ op: "stamp", seq: seq++, detail: run });
+      const u = manifest?.usageTotals ?? { calls: 0, in: 0, cacheWrite: 0, cacheRead: 0, out: 0, apiUsd: 0 };
+      manifest = {
+        kind: "mitori/doc-manifest",
+        schemaVersion: 1,
+        docId: (manifest?.docId ?? "dc_testtest") as DocManifest["docId"],
+        title: "repo",
+        primaryLang: lang,
+        snapshot: { ...run.snapshot },
+        generator: { mitoriVersion: "0.0.0", prompts: {}, extractors: {} },
+        models: [],
+        effort: run.effort,
+        coverage: manifest?.coverage ?? {
+          filesTotal: 0,
+          filesIncluded: 0,
+          filesExcluded: {},
+          locIncluded: 0,
+          modulesTotal: 0,
+          modulesGenerated: 0,
+          claimsTotal: 0,
+          claimsVerified: 0,
+        },
+        usageTotals: {
+          calls: u.calls + run.usage.calls,
+          in: u.in + run.usage.in,
+          cacheWrite: u.cacheWrite + run.usage.cacheWrite,
+          cacheRead: u.cacheRead + run.usage.cacheRead,
+          out: u.out + run.usage.out,
+          apiUsd: u.apiUsd + run.usage.apiUsd,
+        },
+        generatedAt: run.full ? "2026-10-03T00:00:00.000Z" : (manifest?.generatedAt ?? null),
+      };
+      return manifest;
+    },
   };
   return store;
 }

@@ -4,6 +4,7 @@
   "overview gen.labels@2:1 - #1": "e7610f31a65d4cbfc9d79dbf12b144be46d78ae01fbf6952ea8b21c3171c7381",
   "overview gen.overview@2:early - #1": "cf002399e838eaf156666ff72bfdc0564b335d8b5a3bbe63f72d296c4f6be933",
   "overview gen.overview@2:final - #1": "f60957442da6c35c02fa25cabc39a198cdeeedf531b65172cd826fb125d340bc",
+  "standard gen.decisions@1 - #1": "92b704d455f4bfd99e378b2f98f27f668b4639b65a0be0ac4ae732356d474d79",
   "standard gen.flows@2 - #1": "e3634de86e8223a289a0ac3d676d421010179c3c86ac1832b5983b14c5deb2a9",
   "standard gen.glossary@2 - #1": "e0b016dce08756f1b779021aca1b9e4eb13aa72c0ff21a74f0e8bccca2bdfc98",
   "standard gen.module@4 md_a0000001 #1": "ffe853eeb65280afa05883d7942513a927d861e397e32b2c9c93d0a0d432f9d2",
@@ -12,5 +13,8 @@
   "standard gen.module@4 md_a0000004 #1": "7266d1e1b5e635a79abdab4b9428e1bc9dff7c134f99ff44983e0cbf7cc7551f",
   "standard gen.overview@2:early - #1": "cf002399e838eaf156666ff72bfdc0564b335d8b5a3bbe63f72d296c4f6be933",
   "standard gen.overview@2:final - #1": "f3dee078193fc9f4f952925715d6891f9a61d3e01e639f7b69e585c238bbaa20",
-  "standard gen.parent@3 md_p0000001 #1": "ae2818c1dfc9c28f6142a9b80b43d65fcacedf6f71bedf375fe35802961690d4"
+  "standard gen.parent@3 md_p0000001 #1": "ae2818c1dfc9c28f6142a9b80b43d65fcacedf6f71bedf375fe35802961690d4",
+  "standard gen.quality@1 - #1": "4a93bab7d8dd925f0e08f398fd07fe26864df9938475c708e753d9778756cf1e",
+  "standard gen.risks@1 - #1": "8bac62324fde1323445aab53962904a6ec116df4cf6d80e6d4a1e8ba0b3bcafa"
 }
+
