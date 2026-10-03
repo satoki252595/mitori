@@ -1,8 +1,10 @@
-// WP-04 performance acceptance (bench/budgets/doc.json): render 2,000 blocks cached ≤ 100 ms / cold ≤ 1 s,
-// ELK layered 300 nodes ≤ 100 ms / 1,000 ≤ 400 ms (real ELK Worker), 1-block flush on a 10k-block doc ≤ 5 ms CPU
+// WP-04 performance acceptance (bench/budgets/doc.json): render 2,000 blocks cached ≤ 100 ms / cold ≤ 1 s, Shiki
+// 100 lines ≤ 5 ms, ELK layered 300 nodes ≤ 100 ms / 1,000 ≤ 400 ms (real ELK Worker), 1-block flush on a 10k-block doc ≤ 5 ms CPU
 // (DOC-B-001). Timing assertions are machine-dependent, so the file runs only with MITORI_PERF=1:
 //   MITORI_PERF=1 scripts/nd bun test packages/doc/src/test/perf
 import { afterAll, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { type Block, type BlockId, type Claim, type ClaimId, createSecretScanner, type DiagramIR, type DiagramLayout, type WorkspaceKey } from "@mitori/core";
 import ELK from "elkjs/lib/elk-api.js";
 import type { GeneratedBlock, HighlightReq } from "../../contract.ts";
@@ -11,6 +13,7 @@ import { createDiagramLayouter } from "../../layout/index.ts";
 import { createBlockRenderer } from "../../render/index.ts";
 import { createHighlight } from "../../render/shiki.ts";
 import { DOC_MIGRATIONS } from "../../store/index.ts";
+import { REPO_ROOT } from "../fixture.ts";
 import { syntheticGraph } from "../graphs.ts";
 import { harness, staticInputFromTruth } from "../harness.ts";
 import { hasher, inlinePool, memDb, silentLog } from "../helpers.ts";
@@ -107,6 +110,23 @@ describe.skipIf(!RUN)("WP-04 perf budgets", () => {
     results["doc.render.2000.cached"] = median(cached);
     expect(results["doc.render.2000.cold"]).toBeLessThanOrEqual(1000);
     expect(results["doc.render.2000.cached"]).toBeLessThanOrEqual(100);
+  });
+
+  test("doc.shiki.100: 100 lines of real TypeScript / Python ≤ 5 ms (uncached blob)", async () => {
+    const hl = await createHighlight(import("shiki/wasm"));
+    const ts = readFileSync(join(import.meta.dir, "../../store/store.ts"), "utf8").split("\n");
+    const py = ["repo.py", "api.py"].flatMap((f) => readFileSync(join(REPO_ROOT, "fixtures/repos/py-small/tsundoku", f), "utf8").split("\n"));
+    hl({ text: ts.slice(0, 100).join("\n"), lang: "typescript", blob: "warm-ts" });
+    hl({ text: py.slice(0, 100).join("\n"), lang: "python", blob: "warm-py" });
+    const times: number[] = [];
+    for (let i = 0; i < 15; i++) {
+      const t = performance.now();
+      hl({ text: ts.slice(i * 20, i * 20 + 100).join("\n"), lang: "typescript", blob: `ts${i}` });
+      hl({ text: py.slice(i % 3, (i % 3) + 100).join("\n"), lang: "python", blob: `py${i}` });
+      times.push((performance.now() - t) / 2);
+    }
+    results["doc.shiki.100"] = median(times);
+    expect(results["doc.shiki.100"]).toBeLessThanOrEqual(5);
   });
 
   test("doc.elk.300 ≤ 100 ms, doc.elk.1000 ≤ 400 ms (dedicated ELK Worker)", async () => {
