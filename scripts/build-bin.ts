@@ -1,26 +1,59 @@
-// `bun run build:bin` — compile the CLI to a single binary: dist/mitori-<os>-<arch>.
-// Usage: bun scripts/build-bin.ts [--target <darwin-arm64|linux-x64|all>]   (default: the host)
-// WP-11a extends this (embedded web dist, grammars, workers, assets.lock.json verification).
+// `bun run build:bin` — the single binary dist/mitori-<os>-<arch> (owner: WP-11a; notes in apps/cli/BUILD-NOTES.md).
+// Usage: bun scripts/build-bin.ts [--target <darwin-arm64|linux-x64|all>] [--lock <assets.lock.json>]   (default: the host)
+// gen-assets first (asset-lock verification — a mismatch fails here —, web dist, precompression, the embed table),
+// then `bun build --compile` of the generated entry plus every Worker entrypoint.
 import { spawnSync } from "node:child_process";
+import { genAssets } from "./gen-assets.ts";
 import { ROOT } from "./lib/repo.ts";
 
-const TARGETS = ["darwin-arm64", "linux-x64"] as const;
-type Target = (typeof TARGETS)[number];
-const host = `${process.platform}-${process.arch}`;
-const arg = process.argv[process.argv.indexOf("--target") + 1];
-const wanted: Target[] =
-  process.argv.includes("--target") && arg ? (arg === "all" ? [...TARGETS] : [arg as Target]) : TARGETS.includes(host as Target) ? [host as Target] : [];
-if (wanted.length === 0 || wanted.some((t) => !TARGETS.includes(t))) {
-  console.error(`build:bin: unsupported target ${arg ?? host}; this session builds ${TARGETS.join(", ")} only (MILESTONES §11)`);
-  process.exit(2);
+export const TARGETS = ["darwin-arm64", "linux-x64"] as const;
+export type Target = (typeof TARGETS)[number];
+
+/** `bun build` argv for one target. */
+export function compileArgs(entry: string, workers: readonly string[], target: Target, outfile: string): string[] {
+  return [
+    "build",
+    entry,
+    ...workers,
+    "--compile",
+    "--minify",
+    `--target=bun-${target}`,
+    `--outfile=${outfile}`,
+    // workers are embedded at /$bunfs/root/<repo path>.js (gen-assets' table relies on it)
+    `--root=${ROOT}`,
+    "--define",
+    "globalThis.__MITORI_TEST__=false",
+    // a compiled Bun binary otherwise loads .env and bunfig.toml (incl. `preload` scripts!) from the cwd — and
+    // mitori runs inside untrusted repositories (BUILD-NOTES §4)
+    "--no-compile-autoload-dotenv",
+    "--no-compile-autoload-bunfig",
+  ];
 }
-for (const t of wanted) {
-  const out = `dist/mitori-${t}`;
-  const r = spawnSync(
-    "bun",
-    ["build", "apps/cli/src/main.ts", "--compile", "--minify", `--target=bun-${t}`, `--outfile=${out}`, "--define", "globalThis.__MITORI_TEST__=false"],
-    { cwd: ROOT, stdio: "inherit" },
-  );
-  if (r.status !== 0) process.exit(r.status ?? 1);
-  console.log(`build:bin: ${out}`);
+
+if (import.meta.main) {
+  const argv = process.argv.slice(2);
+  const flag = (name: string) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
+  const host = `${process.platform}-${process.arch}`;
+  const arg = flag("--target");
+  const wanted: string[] = arg ? (arg === "all" ? [...TARGETS] : [arg]) : [host];
+  const bad = wanted.filter((t) => !(TARGETS as readonly string[]).includes(t));
+  if (bad.length > 0) {
+    console.error(`build:bin: unsupported target ${bad.join(", ")}; this session builds ${TARGETS.join(", ")} only (MILESTONES §11)`);
+    process.exit(2);
+  }
+  const lock = flag("--lock");
+  let gen: Awaited<ReturnType<typeof genAssets>>;
+  try {
+    gen = await genAssets(lock ? { lock } : {});
+  } catch (err) {
+    console.error(`build:bin: ${err instanceof Error ? err.message : err}`);
+    process.exit(1);
+  }
+  if (!gen) process.exit(1);
+  for (const t of wanted as Target[]) {
+    const out = `dist/mitori-${t}`;
+    const r = spawnSync("bun", compileArgs(gen.entry, gen.workers, t, out), { cwd: ROOT, stdio: "inherit" });
+    if (r.status !== 0) process.exit(r.status ?? 1);
+    console.log(`build:bin: ${out}`);
+  }
 }

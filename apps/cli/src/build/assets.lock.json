@@ -1,0 +1,78 @@
+{
+  "$comment": "SEC-16: verbatim-embedded files (wasm, grammars, the ELK worker) pinned by sha256. scripts/gen-assets.ts fails the build on any mismatch. After bumping a pinned package: bun scripts/gen-assets.ts --update-lock, then review the diff.",
+  "version": 1,
+  "assets": [
+    {
+      "id": "treesitter.runtime",
+      "path": "node_modules/web-tree-sitter/web-tree-sitter.wasm",
+      "package": "web-tree-sitter",
+      "version": "0.27.0",
+      "bytes": 209613,
+      "sha256": "c03bccdc3b448a32848f5ae327e209c982bbb0840d43eec8bc2d5759544a1ed3"
+    },
+    {
+      "id": "grammar.typescript",
+      "path": "node_modules/tree-sitter-typescript/tree-sitter-typescript.wasm",
+      "package": "tree-sitter-typescript",
+      "version": "0.23.2",
+      "bytes": 1413849,
+      "sha256": "778025db5a8be0e70f8ccc3671e486dfeddd048c25d9e8a70c26de2e1bf6f97d"
+    },
+    {
+      "id": "grammar.tsx",
+      "path": "node_modules/tree-sitter-typescript/tree-sitter-tsx.wasm",
+      "package": "tree-sitter-typescript",
+      "version": "0.23.2",
+      "bytes": 1445638,
+      "sha256": "79e5da75ea62855a0cd67177685f0164eac87d5f630b3cbe1e0a099751ad30f8"
+    },
+    {
+      "id": "grammar.javascript",
+      "path": "node_modules/tree-sitter-javascript/tree-sitter-javascript.wasm",
+      "package": "tree-sitter-javascript",
+      "version": "0.25.0",
+      "bytes": 411770,
+      "sha256": "5fb488d0cabb4775a594bab85682de5ad6ce83c0d6ac997a9f82dd084d571240"
+    },
+    {
+      "id": "grammar.python",
+      "path": "node_modules/tree-sitter-python/tree-sitter-python.wasm",
+      "package": "tree-sitter-python",
+      "version": "0.25.0",
+      "bytes": 457883,
+      "sha256": "16108b50df4ee9a30168794252ab55e7c93bfc5765d7fa0aa3e335752c515f47"
+    },
+    {
+      "id": "grammar.go",
+      "path": "node_modules/tree-sitter-go/tree-sitter-go.wasm",
+      "package": "tree-sitter-go",
+      "version": "0.25.0",
+      "bytes": 217182,
+      "sha256": "9504573f352b20be7f2f1911754d710622aedc15afff16d5ed8fb5645681aee7"
+    },
+    {
+      "id": "grammar.rust",
+      "path": "node_modules/tree-sitter-rust/tree-sitter-rust.wasm",
+      "package": "tree-sitter-rust",
+      "version": "0.24.0",
+      "bytes": 1102547,
+      "sha256": "f65f354215611fd94ad34134b3427eb3d58cbb745df7b6509ba722184db73d57"
+    },
+    {
+      "id": "elk.worker",
+      "path": "node_modules/elkjs/lib/elk-worker.min.js",
+      "package": "elkjs",
+      "version": "0.12.0",
+      "bytes": 1595334,
+      "sha256": "e4f5c51c6f2fd564bb64e52e81c4a85a316ef2f24f8b90e1db5eb886c765b030"
+    },
+    {
+      "id": "shiki.onig",
+      "path": "node_modules/shiki/dist/onig.wasm",
+      "package": "shiki",
+      "version": "4.5.0",
+      "bytes": 466610,
+      "sha256": "fd885c2d12e5951e59d761ebd4a006e06254b1491fd6f530c92b69fb4d8d77d9"
+    }
+  ]
+}
