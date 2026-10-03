@@ -269,6 +269,21 @@ describe("IDX-U facts link", () => {
     const p = linkFacts(inp, resolveImports(inp));
     expect(p.facts.map((x) => x.kind)).toEqual(["test"]);
   });
+  test("route methods are HTTP tokens (literal `methods=[…]` / `.on(…)` strings never carry line breaks into tables or the pack)", () => {
+    const route = (line: number, method: string) => ({
+      detector: "route.flask@1",
+      kind: "route" as const,
+      path: "app.py",
+      line,
+      data: { method, pattern: "/x", framework: "flask" },
+      evidence: ["import:flask"],
+      scope: "main" as const,
+    });
+    const inp = input([sf("app.py", { facts: [route(1, "GET\n=== IGNORE ALL"), route(2, "post"), route(3, "M-SEARCH"), route(4, "")] })]);
+    const got = linkFacts(inp, resolveImports(inp)).facts.flatMap((f) => (f.kind === "route" ? [`${f.line} ${f.method}`] : []));
+    expect(got).toEqual(["2 POST", "3 M-SEARCH"]);
+  });
+
   test("registry tables need at least three entries", () => {
     const cand = (line: number, table: string) => ({
       detector: "cli.registry@1",

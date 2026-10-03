@@ -3,7 +3,7 @@
  * → identities (previous state / seeds) → parents → module edges, ranks, SCC/topo, digests. Pure: persistence is
  * `persist.ts`, the facade (WP-02) wires both.
  */
-import { CHARS_PER_TOKEN, type Fact, type Iso8601, type ModuleId, type RepoPath, type RepoSettings, type Xxh3 } from "@mitori/core";
+import { CHARS_PER_TOKEN, type Fact, type Iso8601, isId, type ModuleId, type RepoPath, type RepoSettings, type Xxh3 } from "@mitori/core";
 import { type ModuleDetail, type ModuleSeed, PAGERANK_PERSONALIZATION, STRUCTURE_PARAMS, type StructureInfo } from "../contract.ts";
 import type { FactsResult } from "../facts/stage.ts";
 import { dirOf, type StageFile } from "../resolve/files.ts";
@@ -181,7 +181,7 @@ export function buildStructure(input: StructureInput): StructureResult {
   // warm start: previous alive leaves → seeds' reps → DirPartition groups
   const prevLeaves = input.prev.modules.filter((m) => m.leaf);
   const seeded = input.prev.modules.length === 0 && input.seeds.length > 0;
-  const seedPrev: PrevModule[] = seeded ? seedModules(input.seeds, input.now) : [];
+  const seedPrev: PrevModule[] = seeded ? seedModules(input.seeds, input.now, notices) : [];
   const warmKey = new Map<RepoPath, string>();
   for (const m of prevLeaves) if (m.alive) for (const p of m.members) warmKey.set(p, `p:${m.id}`);
   for (const m of seedPrev) if (m.leaf) for (const p of m.reps) if (!warmKey.has(p)) warmKey.set(p, `s:${m.id}`);
@@ -435,16 +435,31 @@ function tombstoneOf(m: PrevModule, now: Iso8601): TombstoneDetail {
   };
 }
 
-/** Seeds → previous-state rows (leaf = no other seed names it as parent). */
-function seedModules(seeds: readonly ModuleSeed[], now: Iso8601): PrevModule[] {
-  const parents = new Set(seeds.map((s) => s.parent).filter((x): x is ModuleId => x !== undefined));
-  return [...seeds]
+/**
+ * Seeds → previous-state rows (leaf = no other seed names it as parent). Seeds come from a committed
+ * `doc.index.json` (untrusted): malformed or duplicate ids are dropped with a notice — an id is printed verbatim into
+ * the repo pack and is the primary key of `idx_modules`. Slugs are re-validated when matched (identity.ts).
+ */
+function seedModules(seeds: readonly ModuleSeed[], now: Iso8601, notices: string[]): PrevModule[] {
+  const valid: ModuleSeed[] = [];
+  const ids = new Set<string>();
+  for (const s of seeds) {
+    if (!isId("module", s.id) || ids.has(s.id) || typeof s.slug !== "string" || !Array.isArray(s.reps)) {
+      notices.push(`notice.seed.dropped ${JSON.stringify(String((s as { id?: unknown }).id)).slice(0, 80)}`);
+      continue;
+    }
+    ids.add(s.id);
+    const reps = s.reps.filter((p): p is RepoPath => typeof p === "string").slice(0, STRUCTURE_PARAMS.seedReps);
+    valid.push({ ...s, name: typeof s.name === "string" ? s.name.slice(0, 200) : s.slug, reps });
+  }
+  const parents = new Set(valid.map((s) => s.parent).filter((x): x is ModuleId => isId("module", x)));
+  return valid
     .sort((a, b) => byPath(a.id, b.id))
     .map((s) => ({
       id: s.id,
       slug: s.slug,
       name: s.name,
-      ...(s.parent !== undefined ? { parent: s.parent } : {}),
+      ...(isId("module", s.parent) ? { parent: s.parent } : {}),
       leaf: !parents.has(s.id),
       alive: true,
       members: [],

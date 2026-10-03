@@ -133,17 +133,22 @@ function simple(cands: readonly FactCandidate[], ctx: FactLinkContext): Fact[] {
   return dedupe(out);
 }
 
+/** HTTP method token (`methods=[…]` / `.on("…")` literals are arbitrary strings; they reach tables and the pack). */
+const METHOD_RE = /^[A-Z][A-Z0-9_-]{0,23}$/;
+
 function routes(cands: readonly FactCandidate[], ctx: FactLinkContext): Fact[] {
   const out: RouteFact[] = [];
   for (const c of cands) {
     const b = base(c, ctx);
     if (!b) continue;
+    const method = str(c.data.method, "ANY").toUpperCase();
+    if (!METHOD_RE.test(method)) continue;
     const handlerName = str(c.data.handler);
     const handler = handlerName === "" ? null : ctx.symbolAt(c.path, handlerName);
     out.push({
       ...b,
       kind: "route",
-      method: str(c.data.method, "ANY"),
+      method,
       pattern: str(c.data.pattern),
       framework: str(c.data.framework),
       ...(handler ? { handler } : {}),

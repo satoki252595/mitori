@@ -66,6 +66,8 @@ export interface IdentityContext {
   overrides?: Readonly<Record<RepoPath, { name?: string; slug?: string }>>;
   /** Notices (`notice.slug.rewritten`, settings conflicts). */
   notices: string[];
+  /** Slugs given to continued modules so far in this pass (created on first use). */
+  claimedSlugs?: Set<string>;
 }
 
 /** LOC-weighted Jaccard of two path sets. */
@@ -154,6 +156,8 @@ export function assignIdentities(comms: readonly Community[], prev: readonly Pre
       ((comms[a.c] as Community).anchor < (comms[b.c] as Community).anchor ? -1 : 1)
     );
   });
+  ctx.claimedSlugs ??= new Set();
+  const claimed = ctx.claimedSlugs;
   const cTaken = new Int32Array(comms.length).fill(-1);
   const oTaken = new Int32Array(prev.length).fill(-1);
   for (const k of cands) {
@@ -167,15 +171,18 @@ export function assignIdentities(comms: readonly Community[], prev: readonly Pre
     if (oi >= 0) {
       const o = prev[oi] as PrevModule;
       let slug = o.slug;
-      if (!SLUG_RE.test(slug)) {
-        ctx.notices.push(`notice.slug.rewritten ${o.id} ${JSON.stringify(slug)}`);
-        ctx.takenSlugs.delete(slug);
-        slug = uniqueSlug(slugText(slug) || slugify(c.dominantDir, c.anchor), ctx);
+      // seeds are untrusted: a malformed slug, or one another seed already holds (slugs are unique file names)
+      if (!SLUG_RE.test(slug) || claimed.has(slug)) {
+        ctx.notices.push(`notice.slug.rewritten ${o.id} ${JSON.stringify(slug).slice(0, 80)}`);
+        if (!claimed.has(slug)) ctx.takenSlugs.delete(slug);
+        slug = uniqueSlug((SLUG_RE.test(slug) ? "" : slugText(slug)) || slugify(c.dominantDir, c.anchor), ctx);
       } else ctx.takenSlugs.add(slug);
+      claimed.add(slug);
       return {
         id: o.id,
         slug,
-        name: o.name,
+        // the inherited name yields to a repo-settings name (spec §6.6); id and slug never change
+        name: overrideFor(c.dominantDir, ctx)?.name ?? o.name,
         anchor: o.seed ? c.anchor : o.anchor,
         bornAt: o.seed ? ctx.now : o.bornAt,
         from: o.id,

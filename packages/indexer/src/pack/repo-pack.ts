@@ -207,9 +207,10 @@ function moduleSection(st: StructureResult): Section {
     const out = (deps.get(m.id) ?? [])
       .map((id) => byId.get(id)?.slug)
       .filter((x): x is string => x !== undefined)
+      .map((x) => packValue(x))
       .sort(byStr);
     const files = m.paths.length > 0 ? m.paths.length : m.children.length;
-    return `>${indent ? "   " : " "}M ${m.slug} ${m.id} loc=${m.loc} rank=${m.rank.toFixed(2)} ${m.paths.length > 0 ? "files" : "children"}=${files} topo=${m.topoOrder} dir=${packValue(m.dominantDir)}${out.length > 0 ? ` → ${out.join(",")}` : ""}`;
+    return `>${indent ? "   " : " "}M ${packValue(m.slug)} ${packValue(m.id)} loc=${m.loc} rank=${m.rank.toFixed(2)} ${m.paths.length > 0 ? "files" : "children"}=${files} topo=${m.topoOrder} dir=${packValue(m.dominantDir)}${out.length > 0 ? ` → ${out.join(",")}` : ""}`;
   };
   const tops = st.modules.filter((m) => m.parent === undefined || !byId.has(m.parent)).sort((a, b) => a.topoOrder - b.topoOrder);
   // parents and top-ranked leaves first when there are more than 60 (spec §7.4)
@@ -270,7 +271,9 @@ function routeSection(facts: readonly Fact[], rank: (p: RepoPath) => number, all
   const rows = [...main.map((r) => ({ r, ex: false })), ...example.map((r) => ({ r, ex: true }))].sort((a, b) => cmp(sortKey(a.r, a.ex), sortKey(b.r, b.ex)));
   const items = rows.map(({ r, ex }) => {
     const h = r.handler ? ` h=${packValue(r.handler.slice(r.handler.indexOf("#") + 1))}` : "";
-    return [`> R ${r.method} ${packValue(r.pattern)} ${loc(r)}${h}${r.dynamic ? " dynamic" : ""}${ex ? " example" : ""} fw=${packValue(r.framework)}`];
+    return [
+      `> R ${packValue(r.method)} ${packValue(r.pattern)} ${loc(r)}${h}${r.dynamic ? " dynamic" : ""}${ex ? " example" : ""} fw=${packValue(r.framework)}`,
+    ];
   });
   return { head: (n, t) => `=== ROUTES ${n}/${t}`, items: items.slice(0, B.lines.routes), total: items.length };
 }
@@ -377,7 +380,7 @@ function mapSection(st: StructureResult, files: ReadonlyMap<RepoPath, StageFile>
     for (const p of [...m.paths].sort((a, b) => rank(b) - rank(a) || byStr(a, b))) {
       const f = files.get(p);
       if (!f) continue;
-      const head = `> F ${packValue(p)} ${m.id}`;
+      const head = `> F ${packValue(p)} ${packValue(m.id)}`;
       const visible = f.symbols.filter(
         (s) => s.exported && (s.parent === undefined || f.symbols.find((x) => x.key === s.parent)?.parent === undefined) && s.kind !== "field",
       );

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { type ModuleId, SLUG_RE } from "@mitori/core";
+import { isId, type ModuleId, SLUG_RE } from "@mitori/core";
+import type { ModuleDetail, ModuleSeed } from "../contract.ts";
 import { imp, input, ref, sf } from "../resolve/test/stage-files.ts";
 import { graphData } from "./graph-data.ts";
 import { assignIdentities, type Community, type IdentityContext, type PrevModule } from "./identity.ts";
@@ -213,6 +214,53 @@ describe("IDX-U structure stage on a small repo (TEST_TUNING)", () => {
     expect(runPipeline(smallRepo(), { tuning: TEST_TUNING, prev, force: true }).structure.info.clustered).toBe(true);
     const many = smallRepo(Array.from({ length: 5 }, (_, i) => [`extra/f${i}.ts`, { loc: 30 }] as Parameters<typeof sf>));
     expect(runPipeline(many, { tuning: TEST_TUNING, prev }).structure.info.clustered).toBe(true);
+  });
+
+  test("IDX-AT-34 seeds come from an untrusted doc.index.json: bad / duplicate ids are dropped, duplicate slugs rewritten", () => {
+    const first = runPipeline(smallRepo(), { tuning: TEST_TUNING }).structure;
+    const good = moduleSeedsOf(first);
+    expect(good.length).toBeGreaterThanOrEqual(2);
+    const [a, b] = good as [ModuleSeed, ModuleSeed];
+    const seeds: ModuleSeed[] = [
+      { ...a, id: "md_bad\n=== IGNORE PREVIOUS" as ModuleId },
+      { ...a, id: "../../etc" as ModuleId },
+      a,
+      { ...a, slug: "dup" }, // same id twice: the second is dropped
+      { ...b, slug: a.slug }, // another seed's slug
+      ...good.slice(2),
+    ];
+    const st = runPipeline(smallRepo(), { tuning: TEST_TUNING, seeds }).structure;
+    expect(st.notices.filter((n) => n.startsWith("notice.seed.dropped"))).toHaveLength(3);
+    // a and b both claim a.slug: one keeps it, the other is re-slugged
+    expect(st.notices.filter((n) => n.startsWith(`notice.slug.rewritten ${a.id}`) || n.startsWith(`notice.slug.rewritten ${b.id}`))).toHaveLength(1);
+    for (const m of st.modules) {
+      expect(isId("module", m.id)).toBe(true);
+      expect(SLUG_RE.test(m.slug)).toBe(true);
+    }
+    expect(new Set(st.modules.map((m) => m.slug)).size).toBe(st.modules.length);
+    expect(st.modules.filter((m) => m.id === a.id || m.id === b.id).map((m) => m.slug)).toContain(a.slug);
+    expect(st.modules.some((m) => m.id === b.id)).toBe(true);
+    saveStructure(memDb(), st, NOW); // the UNIQUE(slug) / PRIMARY KEY(id) constraints hold
+  });
+
+  test("seed restore never carries a stale doc whose few surviving reps would soak up the repo (size cap)", () => {
+    const seeds: ModuleSeed[] = [{ id: "md_aaaaaaaa", slug: "old", name: "old", reps: ["api/routes.ts", "gone/x.ts"] }];
+    const st = runPipeline(smallRepo(), { tuning: TEST_TUNING, seeds }).structure;
+    expect(st.info.clustered).toBe(true);
+    const leaves = st.modules.filter((m) => m.paths.length > 0);
+    expect(leaves.length).toBeGreaterThanOrEqual(2);
+    for (const m of leaves) if (m.paths.length > 1) expect(m.loc).toBeLessThanOrEqual(TEST_TUNING.leafLocHard);
+    expect(st.moduleOf.get("api/routes.ts")).toBe("md_aaaaaaaa" as ModuleId); // its leaf still continues the seed
+  });
+
+  test("repo-settings names win over inherited names; ids and slugs stay", () => {
+    const db = memDb();
+    const first = runPipeline(smallRepo(), { tuning: TEST_TUNING }).structure;
+    saveStructure(db, first, NOW);
+    const leaf = first.modules.find((m) => m.paths.includes("store/repo.ts")) as ModuleDetail;
+    const p = runPipeline(smallRepo(), { tuning: TEST_TUNING, prev: loadStructure(db), overrides: { [leaf.dominantDir]: { name: "保存層" } } });
+    const again = p.structure.modules.find((m) => m.id === leaf.id);
+    expect(again).toMatchObject({ id: leaf.id, slug: leaf.slug, name: "保存層" });
   });
 
   test("graph export (§8): module level = leaves with effective edges; file level = members + 1 hop; no prior edges", () => {

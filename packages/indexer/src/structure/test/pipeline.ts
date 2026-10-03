@@ -10,6 +10,7 @@ import {
   type Iso8601,
   type ModuleId,
   type RepoPath,
+  type RepoSettings,
   type SymbolEntry,
   type Xxh3,
 } from "@mitori/core";
@@ -50,7 +51,7 @@ export const NOW = "2026-10-03T00:00:00.000Z" as Iso8601;
 
 export function runPipeline(
   input: StageInput,
-  o: { prev?: StructurePrev; seeds?: ModuleSeed[]; tuning?: Tuning; now?: Iso8601; force?: boolean } = {},
+  o: { prev?: StructurePrev; seeds?: ModuleSeed[]; tuning?: Tuning; now?: Iso8601; force?: boolean; overrides?: RepoSettings["modules"] } = {},
 ): Pipeline {
   const t0 = performance.now();
   const resolved = resolveImports(input);
@@ -68,6 +69,7 @@ export function runPipeline(
     indexDigest: xxh3(input.files.map((f) => `${f.path} ${f.blob}`).join("\n")),
     ...(o.tuning ? { tuning: o.tuning } : {}),
     ...(o.force ? { force: true } : {}),
+    ...(o.overrides ? { overrides: o.overrides } : {}),
   });
   const t3 = performance.now();
   return { input, resolved, facts, structure, ms: { resolve: t1 - t0, facts: t2 - t1, structure: t3 - t2 } };

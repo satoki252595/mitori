@@ -109,6 +109,11 @@ export function carryOver(c: CarryInput): number[][] | null {
   const t = c.tuning;
   for (const [l, g] of groups) {
     const loc = g.reduce((s, v) => s + (fg.size[v] as number), 0);
+    // seeds carry no sizes: a stale doc.index.json whose few surviving reps soak up the whole repo must cluster
+    if (c.seeded) {
+      if (g.length > 1 && loc > t.leafLocHard) return null;
+      continue;
+    }
     const before = leaves[l]?.loc ?? loc;
     if (g.length > 1 && loc > t.leafLocHard && before <= t.leafLocHard) return null;
     if (loc < t.leafLocMin && before >= t.leafLocMin) return null;
