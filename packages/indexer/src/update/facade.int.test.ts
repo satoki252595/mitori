@@ -247,6 +247,18 @@ describe("read paths", () => {
     const sk = idx.skeleton({ kind: "file", path: "src/k.ts" }, "sig", "claude-v5");
     expect(sk.text).not.toContain("AKIA");
     await expect(idx.read("bun.lock")).rejects.toBeInstanceOf(MitoriError);
+  });
+
+  test("IDX-AT-45 a secret in a parameter default never reaches symbols() / symbolDetails() / findSymbols()", async () => {
+    const src = `export function connect(key = "AKIAIOSFODNN7EXAMPL3", n = 2): void {}\n`;
+    const { idx } = setup({ "src/c.ts": src });
+    await idx.scan();
+    const [s] = idx.symbols("src/c.ts");
+    expect(s?.signature).toBe('export function connect(key = "«redacted:secret»", n = 2): void');
+    expect(idx.symbolDetails("src/c.ts")[0]?.signature).toBe(s?.signature as string);
+    expect(idx.findSymbols("connect", 5)[0]?.signature).not.toContain("AKIA");
+    const raw = await idx.symbolsAt("src/c.ts", "0".repeat(40)); // no such blob: null, not a leak
+    expect(raw).toBeNull();
     await expect(idx.read("nope.ts")).rejects.toMatchObject({ code: "E_NOT_FOUND" });
   });
 

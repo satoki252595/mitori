@@ -109,7 +109,9 @@ export function toFileDetail(r: FileRec, module?: string): FileDetail {
   return d;
 }
 
-/** Symbols of a path bound to its blob (`redact` = secret scanner for the doc paragraph, or identity). */
+const LITERALISH = /["'`=]/;
+
+/** Symbols of a path bound to its blob (`redact` = secret scanner for signature literals and the doc, or identity). */
 export function bindSymbols(
   path: RepoPath,
   blob: GitOid,
@@ -131,7 +133,8 @@ export function bindSymbols(
       qualname: s.qualname,
       start: s.start,
       end: s.end,
-      signature: s.signature,
+      // Literals in a signature (parameter defaults) can carry secrets; only those are worth a scan.
+      signature: LITERALISH.test(s.signature) ? redact(s.signature) : s.signature,
       sigHash: s.sigHash,
       bodyHash: s.bodyHash,
       exported: s.exported,
