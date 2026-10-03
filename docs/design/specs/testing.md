@@ -25,6 +25,7 @@
 | §9.3〜9.4 敵対ループの出口 | 全 budget の **limit** が緑、未解決 S0/S1 が 0、**dry round 1 回**、延期 S2 ≤ 5（owner と期日つき）。target は傾向のみ（target 未達は S2 にしない）。webkit は M3 と release のみ。1 milestone あたり最大 2 round（≤ $16）（SC-11） |
 | §10 AC-13 | 「全 ID がテストとして存在」の対象は本文 + 本節の追加 ID。廃止した ID（AGT-U-001〜012）は AGT-U-I01〜I14 に置換 |
 | §11.1 CR | CR-1〜6 は全件適用（`contracts/CR-LEDGER.md`）。CR-5 は indexer CR-13 と統合して `ScanSummaryView.stageMs` |
+| §1.2 置き場所（M0） | `@mitori/testkit` は `packages/testkit`（`preload.ts` も同 package）、truth は `fixtures/truth/<name>.json`、unit test は実装の隣の `*.test.ts` も可（CR m0-8・m0-9、台帳は `packages/core/CR-LEDGER.md`） |
 
 ---
 
@@ -560,7 +561,7 @@ SpawnSpec 側の取り出し: `--model` / `--effort` の値、`--tools ""` → `
 | CORE-U-004 | `priceUsage`: 3 モデル × in / 5m write / 1h write / read / out × batch。Opus read 0.05×、Sonnet read 0.1×、Batch 0.5×、小数 6 桁 | `PRICING` どおり |
 | CORE-U-005 | `tokenBand` の境界 9,999 / 10,000 / 49,999 / 50,000 / 199,999 / 200,000 | 帯が変わる |
 | CORE-U-006 | `PACKAGE_DEPS` が DAG、gen ⟂ loop、web は core と client のみ | 一致 |
-| CORE-U-007 | `DEFAULT_DENY_GLOBS` の照合: `.env.local`・`a/.env`・`x/y.pem`・`.github/workflows/ci.yml`・`.mitori/doc/a.md` は一致、`.envrc`・`env.ts`・`docs/.env.md` は不一致 | 一致 |
+| CORE-U-007 | `DEFAULT_DENY_GLOBS` の照合（picomatch `{ dot: true }`）: `.env.local`・`a/.env`・`x/y.pem`・`.github/workflows/ci.yml`・`.mitori/doc/a.md`・`.envrc`（SEC-12）・`docs/.env.md`（`**/.env.*`）は一致、`env.ts`・`docs/env.md` は不一致（M0: CR m0-5 で R1 の契約に合わせて訂正） | 一致 |
 | CORE-U-008 | RepoPath 検証: `..`・先頭 `./`・末尾 `/`・絶対・`\`・NUL を拒否、NFD を NFC に正規化 | 拒否 / 正規化 |
 | CORE-U-009 | budgets 一致: `Limits` の既定値・`UI_THRESHOLDS`・bundle 定数が `bench/budgets.json` と同値 | 一致（ARCHITECTURE §10.1） |
 | PLAT-U-001 | `SqlDb.tx` の入れ子（savepoint）、例外で rollback、IMMEDIATE の busy → `E_LOCK_TIMEOUT` | |

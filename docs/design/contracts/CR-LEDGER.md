@@ -1,5 +1,7 @@
 # contracts/CR-LEDGER.md — 契約変更要求（CR）の台帳
 
+> **凍結スナップショット（R1）。M0（WP-00a）以後の正本は [`packages/core/CR-LEDGER.md`](../../../packages/core/CR-LEDGER.md)**。新しい CR はそちらに足す。
+
 - 版: R1（2026-10-03、レビュー反映パス） / 所有: lead architect
 - 目的: ドメイン spec が出した core / api / 他契約への変更要求を **1 行 1 件**で精算する（CONS-01 / SC-01）。WP-00a はこの台帳が「全行 decided」であることを確認してから契約を凍結する。
 - 規則

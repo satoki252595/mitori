@@ -114,7 +114,7 @@ flowchart LR
 
 | pool | 中身 | 本数 | 備考 |
 |---|---|---|---|
-| `parse` | web-tree-sitter 0.27 WASM + 言語 wasm（TS/JS/TSX/JSX/Python/Go/Rust） | `clamp(ceil(parseMB / 0.75), 1, min(8, cores − 2, perfCores))`（indexer §3.1 の実測式、CR-10） | 1 本あたり 60〜80MB。応答前に必ず `tree.delete()`。巨大・minified・generated は S0 で除外 |
+| `parse` | web-tree-sitter 0.27 WASM + 言語 wasm（TS/JS/TSX/JSX/Python/Go/Rust） | `clamp(ceil(parseMB / 0.75), 1, min(8, cores − 2, perfCores))`（indexer §3.1 の実測式、CR idx-10） | 1 本あたり 60〜80MB。応答前に必ず `tree.delete()`。巨大・minified・generated は S0 で除外 |
 | `elk` | ELK layered（`elk-api.js` + `bun build --compile` に `with {type:"file"}` で埋め込んだ `elk-worker.min.js`） | 1 本（必要時に起動） | ELK 300 ノード 88 ms、compile 後 95 ms。既定 entry と `elk.bundled.js` は compile 後に `new _Worker(url)` で失敗（SC-04 で実証） |
 | `compute` | Shiki（fine-grained import、Oniguruma、固定言語表）、10k 行級の Myers diff | 1 本。UI 接続中は Shiki 初期化済みで warm に保つ（PT-16） | blob 単位で全文 tokenize（100 行ごとに grammar state）し窓を切り出す |
 
@@ -322,7 +322,7 @@ sequenceDiagram
 
 ### 4.4 コード変更（人 / agent / git pull）
 
-1. watcher → **leading 5 ms + max-wait 30 ms** のバッチ（CR-10）→ `indexer.update(changes)`（stat → xxHash3 → 再 parse ≤ 15 ms/ファイル。dirty file の内容は pin store に保存、CONS-13）→ `IndexDelta`。
+1. watcher → **leading 5 ms + max-wait 30 ms** のバッチ（CR idx-10）→ `indexer.update(changes)`（stat → xxHash3 → 再 parse ≤ 15 ms/ファイル。dirty file の内容は pin store に保存、CONS-13）→ `IndexDelta`。
 2. server が `assembleAnchoredItems` → `anchor.reanchor`（claims の cites と thread の code anchor を 1 回でまとめて処理）→ `distributeReanchor` を呼び、doc（freshness・claim checks）と loop（anchorHealth・stale）へ**同じ write slot で**反映（`server.ts DOMAIN_WIRING`、W1/W2）。
 3. `gen.onIndexDelta` が early cutoff 規則（interface digest 変化 / stale claim > 20% / facts 変化 / 新 symbol）で **再生成の提案**（見積り付き）を作り、server が SSE `gen.suggestions` で配る（CONS-09）。LLM は自動では走らない（D12）。
 4. SSE `doc.freshness` で鮮度バッジ（保存から ≤ 50 ms）。

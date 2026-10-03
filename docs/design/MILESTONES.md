@@ -70,7 +70,7 @@ flowchart LR
 |---|---|---|---|
 | S0 architect | WP-00a → CR バッチ → 敵対ループの triage | `/`（root 設定）、`packages/core`、`docs/design/**`、`scripts/check-*.ts`、`.github/workflows/` | opus |
 | S1 基盤 | WP-01（M0 直後から単独のストリーム、SC-06） | `packages/platform` | sonnet |
-| S2 解析 | WP-02 ∥ WP-03（2 体） | `packages/indexer/src/{inventory,parse,lang,skeleton,tokens,update,pin}/`（WP-02）、`packages/indexer/src/{facts,structure,pack,search}/`（WP-03） | opus |
+| S2 解析 | WP-02 ∥ WP-03（2 体） | `packages/indexer/src/{inventory,parse,lang,skeleton,tokens,update,pin}/`（WP-02）、`packages/indexer/src/{facts,resolve,structure,pack,search}/`（WP-03） | opus |
 | S3 文書 | WP-04 → WP-13 →（☆ WP-18） | `packages/doc/src/**`（WP-13 は `src/export/`、WP-18 は `src/layout/floorplan.ts`） | opus（WP-13 は sonnet） |
 | S4 エージェント | WP-05 | `packages/agent`、`bench/contract/` | opus |
 | S5 生成 | WP-06 → WP-06b | `packages/gen/src/**`（WP-06b は `src/{incremental,ondemand,translate}/`） | opus |
@@ -107,7 +107,7 @@ e2e のシナリオは機能の WP が `e2e/<area>/` に置く（harness は WP-
 - **受け入れ試験**
   - `nd bun install --frozen-lockfile && nd bun run check` が緑（7 契約の移設後も tsc 0 エラー）。
   - わざと `@mitori/gen` から `@mitori/loop` を import する PR、`packages/indexer` で `Bun.file`、`packages/doc` で `writeFile` を使う PR が CI で落ちる（`nd bun run check` が非 0）。
-  - spec に未登録の `CR-99` を書くと `nd bun scripts/check-cr-ledger.ts` が失敗。
+  - spec に未登録の `CR-99` を書くと `nd bun scripts/check-cr-ledger.ts` が失敗。<!-- cr-ledger:ignore -->
   - `nd bun run build:bin && ./dist/mitori-darwin-arm64 --version` が node_modules の無い一時 dir で ≤ 20 ms（`hyperfine` 10 回の median）。
   - `nd bunx --bun svelte-check --version` が成功し、`apps/web/src/__probe.svelte` の型検査が通る。
 
@@ -149,7 +149,7 @@ e2e のシナリオは機能の WP が `e2e/<area>/` に置く（harness は WP-
 
 ### WP-03 indexer B: S2 facts・S3 構造・S4 pack・検索 ★（L、opus、S2-b、WP-02 と並行）
 
-- **所有**: `packages/indexer/src/{facts,structure,pack,search}/`
+- **所有**: `packages/indexer/src/{facts,resolve,structure,pack,search}/`
 - **依存**: 契約のみ（ParseResponse は fixture）
 - **読む範囲**: indexer spec 改訂 R1・§4〜§6・§8・§11、core §6
 - **成果物**: facts 検出器 **tier 1 のみ**（SC-26）、import 解決（tsconfig paths・go.mod・python packages・cargo）、graph（import 1.0 / ref √n·IDF / same-dir 0.2）、**Louvain（決定的順序）+ BFS 分割 + §6.3 split/merge + §6.6 照合（reps seed）**（SC-15）、PageRank、Tarjan SCC、module 階層と安定 `ModuleId`、repo pack（≈10k token、揮発値なし、PT-05）、FTS5 trigram 検索、palette 項目（`HREFS`、digest）。
