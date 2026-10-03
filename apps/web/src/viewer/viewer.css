@@ -1,0 +1,209 @@
+/* Export viewer (WP-13): what the read-only file adds to the app's tokens / base / prose / levels stylesheets. */
+
+/* there is no status bar in the file: the sticky panes use the full height */
+:root {
+  --status: 0px;
+}
+
+.viewer {
+  min-height: 100vh;
+}
+
+/* ---------------------------------------------------------------- the 「読み取り専用の書き出し」 band (in flow, under the header) */
+.vband {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+  min-height: 32px;
+  padding: 5px 22px;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--fs-label);
+  color: var(--muted);
+}
+.vband b {
+  color: var(--ink);
+  font-weight: var(--fw-strong);
+}
+.vband .sep {
+  color: var(--rule-2);
+}
+
+/* the rail drawer sits above its own scrim (the app's drawer is a layer of its own; here the scrim is just a dismiss area) */
+.drawer-scrim {
+  z-index: calc(var(--z-drawer) - 1);
+}
+
+/* ---------------------------------------------------------------- things that need a daemon are not shown */
+.viewer .ph button,
+.viewer .ph .btn,
+.viewer .gutter {
+  display: none;
+}
+.viewer .pop.peek .keys {
+  display: none;
+}
+/* the excerpt's lines are blocks and the markup separates them with newlines: no blank line between them */
+.pop.peek pre.peek-code {
+  white-space: normal;
+}
+.pop.peek pre.peek-code [data-line] {
+  white-space: pre;
+  min-height: 1lh;
+}
+
+/* ---------------------------------------------------------------- syntax colours: the exporter's one-letter classes (SHIKI_CLASSES) */
+.shiki .sk {
+  color: var(--shiki-token-keyword);
+}
+.shiki .sf {
+  color: var(--shiki-token-function);
+}
+.shiki .ss {
+  color: var(--shiki-token-string-expression);
+}
+.shiki .st {
+  color: var(--shiki-token-string);
+}
+.shiki .sc {
+  color: var(--shiki-token-comment);
+}
+.shiki .sn {
+  color: var(--shiki-token-constant);
+}
+.shiki .sp {
+  color: var(--shiki-token-punctuation);
+}
+.shiki .sa {
+  color: var(--shiki-token-parameter);
+}
+.shiki .sl {
+  color: var(--shiki-token-link);
+}
+
+/* ---------------------------------------------------------------- diagrams (pre-laid-out SVG, tokens only) */
+.prose figure.mdiagram {
+  overflow-x: auto;
+  position: relative;
+}
+.prose .dg-box {
+  margin: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+/* fits the column, but never smaller than 68 % of its drawn size (labels stay readable): wider diagrams scroll */
+.dg {
+  display: block;
+  width: 100%;
+  min-width: calc(var(--w) * 0.68px);
+  height: auto;
+  margin: 0 auto;
+  font-family: var(--font-ui);
+}
+.dg[data-dense] .dg-edge path {
+  stroke-opacity: 0.3;
+  stroke-width: 1;
+}
+.dg[data-dense] .dg-el {
+  display: none;
+}
+.dg-grp rect {
+  fill: var(--paper-2);
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+.dg-gl {
+  font-size: 11px;
+  fill: var(--muted);
+  letter-spacing: 0.02em;
+}
+.dg-node rect {
+  fill: var(--sheet);
+  stroke: var(--rule-2);
+  stroke-width: 1.2;
+}
+.dg-node[data-shape="external"] rect {
+  stroke-dasharray: 5 3;
+}
+.dg-node[data-shape="note"] rect {
+  fill: var(--paper-2);
+}
+.dg-store,
+.dg-fold {
+  fill: none;
+  stroke: var(--rule-2);
+  stroke-width: 1.2;
+}
+.dg-nl {
+  font-size: 13px;
+  font-weight: var(--fw-strong);
+  fill: var(--ink);
+}
+.dg-ns {
+  font-size: 11px;
+  fill: var(--muted);
+  font-family: var(--font-mono);
+}
+.dg-edge path {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.4;
+}
+.dg-edge[data-kind="event"] path {
+  stroke-dasharray: 5 4;
+}
+.dg-el {
+  font-size: 11px;
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.dg-arrow {
+  fill: var(--muted);
+}
+.dg-life {
+  fill: none;
+  stroke: var(--rule-2);
+  stroke-dasharray: 4 4;
+}
+/* the node + edge text alternative stays for assistive technology, the picture is what sighted readers see */
+figure.mdiagram > .dg-box + .mdiagram-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- failure to read the payload */
+.viewer-error {
+  max-width: 36em;
+  margin: 12vh auto;
+  padding: 0 24px;
+  font-size: var(--fs-body);
+  line-height: 1.8;
+  color: var(--text);
+}
+.viewer-error h1 {
+  font-family: var(--font-serif);
+  color: var(--ink);
+}
+
+@media print {
+  .hdr,
+  .rail,
+  .ctx,
+  .vband,
+  .pager {
+    display: none !important;
+  }
+  .body {
+    display: block;
+  }
+}
