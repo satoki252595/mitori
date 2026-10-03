@@ -305,6 +305,7 @@ describe("TK-BROWSER-04 servedBytes", () => {
         return new Response(gz, {
           headers: { "content-type": "text/javascript", "cache-control": "public, max-age=60, immutable", "content-encoding": "gzip" },
         });
+      if (url.pathname === "/assets/moved-abc123.js") return new Response("see /login", { status: 302, headers: { location: "/login" } });
       return new Response("nope", { status: 404 });
     },
   });
@@ -327,5 +328,9 @@ describe("TK-BROWSER-04 servedBytes", () => {
 
   test("a missing path throws instead of reporting 0 bytes", async () => {
     await expect(servedBytes(base, ["/nope.js"], "br")).rejects.toThrow("404");
+  });
+
+  test("regression: a redirect is not an asset — its 10-byte body must not be measured as the file", async () => {
+    await expect(servedBytes(base, ["/assets/moved-abc123.js"], "gzip")).rejects.toThrow("302");
   });
 });

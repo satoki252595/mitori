@@ -1,6 +1,7 @@
 // Page-side collectors (testing spec §6.4, §6.6): Event Timing for INP, layout-shift for CLS, long tasks. Installed with
-// `addInitScript` when the page is opened through the daemon harness, or lazily by the first `ui.*` call — the observers
-// are `buffered`, so entries from before a lazy install are still delivered.
+// `addInitScript` when the page is opened through the daemon harness, or lazily by the first `ui.*` call. A lazy install only
+// sees what the browser buffered: layout shifts, and event-timing entries of 104 ms or more (faster interactions are lost, so
+// INP scenarios go through `daemon.login`, which installs the collectors before the first script).
 
 /** Source of the collector. Idempotent per document (`window.__mitoriPerf`). */
 export const OBSERVERS_SOURCE = `(() => {

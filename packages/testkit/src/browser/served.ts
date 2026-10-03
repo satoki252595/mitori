@@ -37,7 +37,8 @@ export async function servedBytes(baseUrl: string, paths: readonly string[], enc
   for (const path of paths) {
     const url = new URL(path, baseUrl);
     const res = await get(url, encoding);
-    if (res.status >= 400) throw new MitoriError("E_NOT_FOUND", `${url.pathname} answered ${res.status}`, { params: { path } });
+    // only a 2xx body is the asset: a redirect (to a login page, a moved file) would be measured as a few bytes of nothing
+    if (res.status < 200 || res.status >= 300) throw new MitoriError("E_NOT_FOUND", `${url.pathname} answered ${res.status}`, { params: { path } });
     const enc = res.headers["content-encoding"];
     const cache = res.headers["cache-control"];
     out.push({
