@@ -283,6 +283,23 @@ describe("IDX-U structure stage on a small repo (TEST_TUNING)", () => {
     expect(st.moduleOf.get("api/routes.ts")).toBe("md_aaaaaaaa" as ModuleId); // its leaf still continues the seed
   });
 
+  test("repo-settings mergeInto pins a prefix into the module holding the target path (spec §6.6)", () => {
+    const plain = runPipeline(smallRepo(), { tuning: TEST_TUNING }).structure.moduleOf;
+    expect(plain.get("ui/view.tsx")).not.toBe(plain.get("store/db.ts") as ModuleId);
+    const p = runPipeline(smallRepo(), { tuning: TEST_TUNING, overrides: { "ui/": { mergeInto: "store/db.ts" }, nope: { mergeInto: "missing.ts" } } });
+    const m = p.structure.moduleOf;
+    expect(m.get("ui/view.tsx")).toBe(m.get("store/db.ts") as ModuleId);
+    expect(m.get("ui/form.tsx")).toBe(m.get("store/db.ts") as ModuleId);
+    expect(p.structure.notices.some((n) => n.startsWith("notice.module.mergeInto.missing"))).toBe(true);
+    // it survives the next refresh (carried leaves) and a forced re-cluster
+    const db = memDb();
+    saveStructure(db, p.structure, NOW);
+    for (const force of [false, true]) {
+      const again = runPipeline(smallRepo(), { tuning: TEST_TUNING, prev: loadStructure(db), force, overrides: { "ui/": { mergeInto: "store/db.ts" } } });
+      expect(again.structure.moduleOf.get("ui/view.tsx")).toBe(again.structure.moduleOf.get("store/db.ts") as ModuleId);
+    }
+  });
+
   test("repo-settings names win over inherited names; ids and slugs stay", () => {
     const db = memDb();
     const first = runPipeline(smallRepo(), { tuning: TEST_TUNING }).structure;

@@ -211,7 +211,7 @@ export function buildStructure(input: StructureInput): StructureResult {
     tuning,
     seeded,
   });
-  const clustered = carried
+  const raw = carried
     ? {
         ...undirected(fg),
         leaves: carried,
@@ -231,6 +231,12 @@ export function buildStructure(input: StructureInput): StructureResult {
         },
         domDirOfNodes,
       );
+  const mergedLeaves = applyMergeInto(raw.leaves, fg, input.overrides, notices);
+  const clustered = {
+    ...raw,
+    leaves: mergedLeaves,
+    oversize: mergedLeaves.map((l) => l.length === 1 && (fg.size[l[0] as number] as number) > tuning.leafLocHard),
+  };
   const base = carried && input.prev.base ? new Map(input.prev.base) : new Map(fg.paths.map((p) => [p, blobOf(p)]));
 
   // leaf communities
@@ -390,6 +396,43 @@ export function buildStructure(input: StructureInput): StructureResult {
   };
   details.sort((a, b) => a.topoOrder - b.topoOrder);
   return { modules: details, tombstones, moduleOf, fileRank, graph: fg, leafEdges, info, notices, base };
+}
+
+/**
+ * Repo settings `modules[<prefix>].mergeInto` (spec §6.6): every graph file under the prefix joins the leaf holding
+ * the `mergeInto` path. Applied to the clustering result (the next warm start then keeps the group together) instead
+ * of contracting the files before Louvain; the user's grouping wins over the size rule. Longer prefixes apply last.
+ */
+export function applyMergeInto(leaves: readonly number[][], fg: FileGraph, overrides: RepoSettings["modules"] | undefined, notices: string[]): number[][] {
+  const rules = Object.entries(overrides ?? {})
+    .filter(([, v]) => typeof v?.mergeInto === "string")
+    .map(([prefix, v]) => ({ prefix: prefix.replace(/\/+$/, "").replace(/^\.$/, ""), into: v.mergeInto as RepoPath }))
+    .sort((a, b) => a.prefix.length - b.prefix.length || byPath(a.prefix, b.prefix));
+  if (rules.length === 0) return leaves.map((l) => [...l]);
+  const leafOf = new Int32Array(fg.paths.length).fill(-1);
+  leaves.forEach((l, li) => {
+    for (const v of l) leafOf[v] = li;
+  });
+  for (const r of rules) {
+    const target = fg.index.get(r.into);
+    if (target === undefined) {
+      notices.push(`notice.module.mergeInto.missing ${JSON.stringify(r.into).slice(0, 120)}`);
+      continue;
+    }
+    const to = leafOf[target] as number;
+    fg.paths.forEach((p, i) => {
+      if (r.prefix === "" || p === r.prefix || p.startsWith(`${r.prefix}/`)) leafOf[i] = to;
+    });
+  }
+  const groups = new Map<number, number[]>();
+  for (let v = 0; v < fg.paths.length; v++) {
+    const l = leafOf[v] as number;
+    if (l < 0) continue;
+    const g = groups.get(l);
+    if (g) g.push(v);
+    else groups.set(l, [v]);
+  }
+  return [...groups.values()].sort((a, b) => (a[0] as number) - (b[0] as number));
 }
 
 /** `Indexer.moduleSeeds()` (CR idx-1): one seed per alive module, reps path-sorted, sorted by id. */

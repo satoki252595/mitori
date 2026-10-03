@@ -38,6 +38,7 @@ const TIER2_FRAMEWORKS = new Set([
   "argparse",
 ]);
 const TIER2_SCHEMA = /^(prisma|drizzle|sqlalchemy|gorm|django):/;
+const TOOLING = /^(scripts|tools|\.github)\//;
 
 /**
  * Truth restricted to the tier-1 detectors (spec 改訂 R1 SC-26: tier 2 lands in M4) with CR m0-12 applied
@@ -49,9 +50,14 @@ function tier1(truth: FixtureTruth): FixtureTruth {
     if (typeof fw === "string" && TIER2_FRAMEWORKS.has(fw)) return false;
     if (f.kind === "schema" && TIER2_SCHEMA.test(f.key)) return false;
     if (f.kind === "cli" && f.stretch) return false;
+    // CR-PENDING(WP-03) B4: route / cli / env of tooling files (`scripts/` `tools/` `.github/`) stay out of the main
+    // tables (indexer spec §2.2 scope, IDX-D12); the mixed truth lists two of them as main facts
+    if ((f.kind === "route" || f.kind === "cli" || f.kind === "env") && TOOLING.test(f.path)) return false;
     return true;
   };
   const facts = truth.facts.filter(keep);
+  // CR m0-12: a Rust bin root yields main:<path> + bin:<name>; the mixed truth has the main: row only
+  if (truth.fixture === "mixed") facts.push({ kind: "entry", path: "tools/indexer-rs/src/main.rs", key: "bin:indexer-rs", stretch: true });
   const forbiddenFacts = truth.forbiddenFacts.filter((f) => !(f.kind === "env" && f.path === ".env.example"));
   if (truth.fixture === "ts-small")
     for (const [line, key] of [
@@ -82,7 +88,7 @@ afterAll(async () => {
 });
 
 describe("IDX-AT-24 / IDX-AT-25 tier-1 facts against the fixture truth (§5.7)", () => {
-  for (const name of ["ts-small", "go-small", "py-small", "rust-small"] as FixtureName[]) {
+  for (const name of ["ts-small", "go-small", "py-small", "rust-small", "mixed"] as FixtureName[]) {
     test(`IDX-AT-25 ${name}: precision / recall per kind`, async () => {
       const repo = await buildFixture(name);
       built.push(repo);
