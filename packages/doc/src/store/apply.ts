@@ -31,6 +31,7 @@ import { type ApplyOptions, type ApplyResult, ASPECT_HEADINGS, type GeneratedBlo
 import { toMermaidText } from "../layout/mermaid.ts";
 import { canonicalMarkers, pendingChecks, rawCite, verdictOf } from "./claims.ts";
 import type { BlockRec, StoreCore } from "./core.ts";
+import { snapshot } from "./edit.ts";
 import { L } from "./i18n.ts";
 import { safeSlug, topOf, uniqueSlug } from "./paths.ts";
 import { round4 } from "./serialize.ts";
@@ -517,6 +518,9 @@ export function propose(
   const row: DocProposal = { ...p, id, state: "pending", createdAt: core.now(), ...(v.externalLinks > 0 ? { externalLinks: v.externalLinks } : {}) };
   if (aiOrigin && !v.ok)
     throw new MitoriError("E_INVALID_INPUT", "proposal Markdown failed the AI-Markdown rules (V13)", { params: { first: v.errors[0]?.expected ?? "" } });
+  // the base text must be in history for the sentence-level 3-way at accept time (static text has none of its own)
+  const rec = p.block ? core.st.blocks.get(p.block) : undefined;
+  if (rec && p.baseHash === rec.meta.hash) snapshot(core, rec);
   core.db.putProposal(row, extra);
   return id;
 }

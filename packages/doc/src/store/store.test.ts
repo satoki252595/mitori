@@ -303,6 +303,24 @@ describe("DOC-U-017 proposals, accept / reject / undo", () => {
     const dg = h.store.block(id as BlockId)?.diagram as string;
     expect(h.store.index().diagrams[dg as never]?.nodes.map((n) => n.weight)).toEqual([0.1235, undefined]);
   });
+  test("a proposal on a static block keeps its base: a later static update still merges sentence-wise on accept", () => {
+    const h = seeded();
+    const b = h.store.section("s0")?.blocks.find((x) => x.slot === "s0:badges");
+    const proposed = (b?.md ?? "").replace("- 規模:", "- 規模（人が補足）:");
+    const p = h.store.propose({
+      block: b?.id as BlockId,
+      section: "s0",
+      op: "update",
+      baseHash: b?.hash as string,
+      md: proposed,
+      source: { kind: "sync", id: "j_1" },
+      reason: "x",
+    });
+    h.store.applyStatic({ ...staticInputFromTruth("ts-small"), license: "MIT" });
+    const accepted = h.store.acceptProposal(p.id);
+    expect(accepted.md).toContain("- 規模（人が補足）:");
+    expect(accepted.md).toContain("- ライセンス: MIT");
+  });
   test("insert proposals land after their anchor; undo removes them", () => {
     const h = seeded();
     const [id] = h.store.applyGenerated([block({ md: "既存。" })], opts).written as BlockId[];
