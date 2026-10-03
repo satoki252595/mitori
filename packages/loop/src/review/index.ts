@@ -58,7 +58,7 @@ export function renderReviewStdout(input: {
   approved: boolean;
 }): string {
   const n = String(input.round);
-  if (input.approved || input.threads.length === 0) {
+  if (input.approved) {
     return `${[REVIEW_STDOUT.header.replace("{n}", n).replace("{k}", "0").replace("{approved}", "true"), REVIEW_STDOUT.approved, REVIEW_STDOUT.nextNone].join("\n")}\n`;
   }
   const out = [

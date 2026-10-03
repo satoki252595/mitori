@@ -411,7 +411,7 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
     return {
       status: "ready",
       round: rec.round,
-      stdout: rec.stdout ?? renderRound(n, [], true),
+      stdout: rec.stdout ?? renderRound(n, [], approved),
       approved,
       next: approved ? "none" : `mitori review --round ${n + 1}`,
     };

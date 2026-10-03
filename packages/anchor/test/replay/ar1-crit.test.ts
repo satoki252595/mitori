@@ -47,6 +47,8 @@ class Tally {
   success = 0;
   exact = 0;
   gone = 0;
+  goneKept = 0;
+  gonePlausible = 0;
   wrongOk = 0;
   fails: string[] = [];
   rate(): number {
@@ -68,6 +70,12 @@ function judgeCode(t: Tally, orig: string[], r: ReanchorItemResult, after: Map<s
   if ((health === "ok" || health === "moved") && h.xxh3(lines.join("\n")) !== (r.result.previous as CodeAnchor).snippet) t.wrongOk++;
   if (!remains) {
     t.gone++;
+    // Edited ranges: informational — kept (fuzzy) and still holding ≥ 50 % of the original lines.
+    if (health !== "outdated") {
+      t.goneKept++;
+      const c = lcs(n, lines);
+      if (c / n.length >= 0.5 && c / Math.max(1, lines.length) >= 0.5) t.gonePlausible++;
+    }
     return;
   }
   t.remain++;
@@ -189,12 +197,15 @@ async function replayCode(r: () => number, p: Pair, t: Tally): Promise<void> {
   const before: Record<string, string> = {};
   for (const [k, v] of p.before) before[k] = textOf(v);
   const ws = memWorkspace(h, before);
-  const items: AnchoredItem[] = ranges.map((g, i) => ({
-    kind: "thread",
-    owner: `th_${String(i).padStart(8, "0")}`,
-    anchor: eng.codeAnchor(g.path, g.start, g.end, before[g.path] as string, ws.blob(g.path) as string),
-    snapshot: { spanLines: g.end - g.start },
-  }));
+  // Odd items are claim cites (no TextQuote ⇒ no S4), even items thread comments: "claim + comment".
+  const items: AnchoredItem[] = ranges.map((g, i) => {
+    const anchor = eng.codeAnchor(g.path, g.start, g.end, before[g.path] as string, ws.blob(g.path) as string);
+    if (i % 2 === 1) {
+      const cite = { path: anchor.path, start: anchor.start, end: anchor.end, blob: anchor.blob, snippet: anchor.snippet, precision: "exact" as const };
+      return { kind: "cite", owner: `cl_${String(i).padStart(8, "0")}`, index: 0, cite };
+    }
+    return { kind: "thread", owner: `th_${String(i).padStart(8, "0")}`, anchor, snapshot: { spanLines: g.end - g.start } };
+  });
   const after: Record<string, string> = {};
   for (const [k, v] of p.after) after[k] = textOf(v);
   const renames = p.changes.filter((c) => c.status === "R").map((c) => ({ from: c.path, to: c.to }));
@@ -268,7 +279,7 @@ async function replayTwice(r: () => number, p: Pair, t: Tally, dropPin: boolean)
 
 const report = (name: string, t: Tally) =>
   console.log(
-    `AR1 ${name}: inputs=${t.inputs} outputs=${t.outputs} remain=${t.remain} success=${t.success} (${(t.rate() * 100).toFixed(2)} %) exact=${t.exact} gone=${t.gone} wrongOk=${t.wrongOk}${t.fails.length ? `\n  ${t.fails.join("\n  ")}` : ""}`,
+    `AR1 ${name}: inputs=${t.inputs} outputs=${t.outputs} remain=${t.remain} success=${t.success} (${(t.rate() * 100).toFixed(2)} %) exact=${t.exact} gone=${t.gone} (kept ${t.goneKept}, plausible ${t.gonePlausible}) wrongOk=${t.wrongOk}${t.fails.length ? `\n  ${t.fails.join("\n  ")}` : ""}`,
   );
 
 describe.skipIf(!RUN)("AR1 crit history replay (40 commits)", () => {
