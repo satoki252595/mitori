@@ -1,0 +1,2893 @@
+{
+ "v": "mitori.gen-real/1",
+ "repo": "/private/tmp/claude-501/-Users-satoki252595-work-20261002-aiAgentTool/99463a6e-6928-41bd-851e-ed1a1028dc52/scratchpad/dogfood/r2/crit",
+ "ws": "ws_4g8yd2f74r0c",
+ "effort": "standard",
+ "claude": {
+  "version": "2.1.288 (Claude Code)",
+  "plan": "max",
+  "billing": "subscription-window",
+  "pin": "first-run"
+ },
+ "otherClaudeProcesses": 1,
+ "openMs": 833.503708,
+ "estimate": {
+  "id": "es_h1qpk8583b",
+  "engine": "claude-cli",
+  "model": "claude-sonnet-5-5",
+  "inTokens": 0,
+  "cacheReadTokens": 203150,
+  "cacheWriteTokens": 227485,
+  "outTokens": 47464,
+  "apiUsd": 1.216029,
+  "seconds": {
+   "p50": 248,
+   "p90": 335
+  },
+  "concurrency": 3,
+  "windowDeltaPct": null,
+  "billing": "unknown",
+  "confidencePct": 25,
+  "calibrationN": 0,
+  "band": "gt200k",
+  "items": [
+   {
+    "key": "repo_pack",
+    "kind": "repo_pack",
+    "label": "repo pack",
+    "tokens": 9950,
+    "cached": true,
+    "removable": false
+   },
+   {
+    "key": "fixed",
+    "kind": "fixed",
+    "label": "gen.system",
+    "tokens": 1550,
+    "cached": true,
+    "removable": false
+   },
+   {
+    "key": "module",
+    "kind": "module",
+    "label": "module inputs",
+    "tokens": 167789,
+    "cached": false,
+    "removable": false
+   },
+   {
+    "key": "output",
+    "kind": "output",
+    "label": "output",
+    "tokens": 47464,
+    "cached": false,
+    "removable": false
+   }
+  ],
+  "requiresConfirm": true,
+  "confirmReasons": [
+   "generation_run",
+   "over_token_threshold"
+  ],
+  "expiresAt": "2026-10-03T15:45:42.823Z",
+  "effort": "standard",
+  "stages": [
+   {
+    "stage": "S6o",
+    "tasks": 4,
+    "inTokens": 72408,
+    "outTokens": 11430,
+    "apiUsd": 0.34709,
+    "seconds": 68.4
+   },
+   {
+    "stage": "S5",
+    "tasks": 13,
+    "inTokens": 323139,
+    "outTokens": 32584,
+    "apiUsd": 0.799672,
+    "seconds": 129.1
+   },
+   {
+    "stage": "S6",
+    "tasks": 2,
+    "inTokens": 35088,
+    "outTokens": 3450,
+    "apiUsd": 0.069267,
+    "seconds": 26.8
+   }
+  ],
+  "criticalPathSeconds": 156.2,
+  "alternatives": [
+   {
+    "engine": "claude-cli",
+    "concurrency": 3,
+    "seconds": 248,
+    "apiUsd": 1.216029
+   },
+   {
+    "engine": "session",
+    "concurrency": 1,
+    "seconds": 599,
+    "apiUsd": 1.210979,
+    "sessionTokens": 437971.5,
+    "batches": 5,
+    "uncalibrated": true
+   }
+  ],
+  "dataPolicyKey": "gen.claude-cli",
+  "windowDeltaRange": {
+   "low": 2.4,
+   "high": 42.6
+  }
+ },
+ "run": {
+  "id": "gr_jp3k3wpf",
+  "ws": "ws_4g8yd2f74r0c",
+  "effort": "standard",
+  "trigger": "user",
+  "engine": "claude-cli",
+  "scope": [],
+  "state": "done",
+  "concurrency": 3,
+  "pinned": {
+   "packKey": "a5277b777a911307",
+   "systemHash": "f4fe9d2d22e7d3e174fc627ba7c8c3ddb8d6aa631a97afa9f5e4b46db5d5779c",
+   "snapshot": "22cb05cfde740453"
+  },
+  "windowAtStart": null,
+  "estimate": {
+   "id": "es_h1qpk8583b",
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "inTokens": 0,
+   "cacheReadTokens": 203150,
+   "cacheWriteTokens": 227485,
+   "outTokens": 47464,
+   "apiUsd": 1.216029,
+   "seconds": {
+    "p50": 248,
+    "p90": 335
+   },
+   "concurrency": 3,
+   "windowDeltaPct": null,
+   "billing": "unknown",
+   "confidencePct": 25,
+   "calibrationN": 0,
+   "band": "gt200k",
+   "items": [
+    {
+     "key": "repo_pack",
+     "kind": "repo_pack",
+     "label": "repo pack",
+     "tokens": 9950,
+     "cached": true,
+     "removable": false
+    },
+    {
+     "key": "fixed",
+     "kind": "fixed",
+     "label": "gen.system",
+     "tokens": 1550,
+     "cached": true,
+     "removable": false
+    },
+    {
+     "key": "module",
+     "kind": "module",
+     "label": "module inputs",
+     "tokens": 167789,
+     "cached": false,
+     "removable": false
+    },
+    {
+     "key": "output",
+     "kind": "output",
+     "label": "output",
+     "tokens": 47464,
+     "cached": false,
+     "removable": false
+    }
+   ],
+   "requiresConfirm": true,
+   "confirmReasons": [
+    "generation_run",
+    "over_token_threshold"
+   ],
+   "expiresAt": "2026-10-03T15:45:42.823Z",
+   "effort": "standard",
+   "stages": [
+    {
+     "stage": "S6o",
+     "tasks": 4,
+     "inTokens": 72408,
+     "outTokens": 11430,
+     "apiUsd": 0.34709,
+     "seconds": 68.4
+    },
+    {
+     "stage": "S5",
+     "tasks": 13,
+     "inTokens": 323139,
+     "outTokens": 32584,
+     "apiUsd": 0.799672,
+     "seconds": 129.1
+    },
+    {
+     "stage": "S6",
+     "tasks": 2,
+     "inTokens": 35088,
+     "outTokens": 3450,
+     "apiUsd": 0.069267,
+     "seconds": 26.8
+    }
+   ],
+   "criticalPathSeconds": 156.2,
+   "alternatives": [
+    {
+     "engine": "claude-cli",
+     "concurrency": 3,
+     "seconds": 248,
+     "apiUsd": 1.216029
+    },
+    {
+     "engine": "session",
+     "concurrency": 1,
+     "seconds": 599,
+     "apiUsd": 1.210979,
+     "sessionTokens": 437971.5,
+     "batches": 5,
+     "uncalibrated": true
+    }
+   ],
+   "dataPolicyKey": "gen.claude-cli",
+   "windowDeltaRange": {
+    "low": 2.4,
+    "high": 42.6
+   }
+  },
+  "progress": {
+   "total": 19,
+   "done": 19,
+   "failed": 0,
+   "blocks": 194
+  },
+  "usage": {
+   "calls": 31,
+   "in": 62,
+   "cacheWrite": 288263,
+   "cacheRead": 540098,
+   "out": 36811,
+   "apiUsd": 1.319
+  },
+  "startedAt": "2026-10-03T15:35:42.833Z",
+  "finishedAt": "2026-10-03T15:38:07.765Z"
+ },
+ "runMs": 145292.41658299998,
+ "firstPartialMs": 2316.694583,
+ "firstBlockMs": 2695.616708,
+ "childProcesses": {
+  "max": 3,
+  "atEnd": 0,
+  "after5s": 0
+ },
+ "cancelReason": null,
+ "spentUsd": 1.319,
+ "window": {
+  "before": null,
+  "after": {
+   "billing": "subscription-window",
+   "observedAt": "2026-10-03T15:38:07.245Z",
+   "source": "claude-cli",
+   "fiveHour": {
+    "utilization": 0.42,
+    "resetsAt": "2026-10-03T16:20:00.000Z"
+   },
+   "sevenDay": {
+    "utilization": 0.73,
+    "resetsAt": "2026-10-09T08:00:00.000Z"
+   },
+   "overage": {
+    "status": "unknown",
+    "active": false
+   }
+  },
+  "observed": [
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:35:54.887Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.4,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:35:57.065Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.4,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:35:58.414Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.4,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:01.594Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:08.664Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:11.158Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:15.112Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:23.040Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:25.897Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:32.439Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:37.856Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:38.870Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:44.415Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:49.360Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:51.913Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:37:00.209Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:37:12.465Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.42,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:37:17.514Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.42,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:37:53.982Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.42,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:37:57.629Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.42,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.73,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   },
+   {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:38:07.245Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.42,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.73,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  ]
+ },
+ "aggregate": {
+  "states": {
+   "done": 19
+  },
+  "total": {
+   "tasks": 19,
+   "engineTasks": 19,
+   "calls": 31,
+   "retried": 12,
+   "failed": 0,
+   "in": 62,
+   "cacheWrite": 288263,
+   "cacheRead": 540098,
+   "out": 36811,
+   "thinking": 3005,
+   "apiUsd": 1.319,
+   "callMs": 308713,
+   "estIn": 422085,
+   "estOut": 47464,
+   "lines": 230,
+   "valid1": 184,
+   "valid": 217,
+   "dropped": 0,
+   "claims": 262,
+   "l0raw": 262,
+   "l1": {
+    "pass": 195,
+    "fail": 35,
+    "vacuous": 32
+   },
+   "repaired": 10,
+   "markerOk": 120,
+   "blockLines": 125,
+   "rules": {
+    "V17": 5,
+    "W05": 7,
+    "V14": 5,
+    "V03": 5,
+    "W07": 1
+   },
+   "inAll": 828423,
+   "cacheReadShare": 65.2,
+   "estErrInPct": 96.3,
+   "estErrOutPct": -22.4,
+   "estErrTotalPct": 84.3,
+   "l0Pct": 100,
+   "l1Pct": 84.8,
+   "l1VacuousPct": 12.2,
+   "markerPct": 96,
+   "valid1Pct": 80,
+   "retryPct": 63.2,
+   "droppedPct": 0,
+   "thinkingShareOfOut": 8.2,
+   "ttftP50Ms": 8092,
+   "ttftP95Ms": 14433
+  },
+  "byStage": {
+   "S5": {
+    "tasks": 13,
+    "engineTasks": 13,
+    "calls": 21,
+    "retried": 8,
+    "failed": 0,
+    "in": 42,
+    "cacheWrite": 213326,
+    "cacheRead": 378591,
+    "out": 22875,
+    "thinking": 935,
+    "apiUsd": 0.837867,
+    "callMs": 188109,
+    "estIn": 317289,
+    "estOut": 32584,
+    "lines": 153,
+    "valid1": 124,
+    "valid": 144,
+    "dropped": 0,
+    "claims": 182,
+    "l0raw": 182,
+    "l1": {
+     "pass": 153,
+     "fail": 24,
+     "vacuous": 5
+    },
+    "repaired": 7,
+    "markerOk": 83,
+    "blockLines": 87,
+    "rules": {
+     "V14": 4,
+     "W05": 3,
+     "V17": 4,
+     "V03": 2
+    },
+    "inAll": 591959,
+    "cacheReadShare": 64,
+    "estErrInPct": 86.6,
+    "estErrOutPct": -29.8,
+    "estErrTotalPct": 75.7,
+    "l0Pct": 100,
+    "l1Pct": 86.4,
+    "l1VacuousPct": 2.7,
+    "markerPct": 95.4,
+    "valid1Pct": 81,
+    "retryPct": 61.5,
+    "droppedPct": 0,
+    "thinkingShareOfOut": 4.1,
+    "ttftP50Ms": 8092,
+    "ttftP95Ms": 12019
+   },
+   "S6o": {
+    "tasks": 4,
+    "engineTasks": 4,
+    "calls": 7,
+    "retried": 3,
+    "failed": 0,
+    "in": 14,
+    "cacheWrite": 56183,
+    "cacheRead": 112114,
+    "out": 11113,
+    "thinking": 2070,
+    "apiUsd": 0.396127,
+    "callMs": 97177,
+    "estIn": 70608,
+    "estOut": 11430,
+    "lines": 58,
+    "valid1": 44,
+    "valid": 55,
+    "dropped": 0,
+    "claims": 61,
+    "l0raw": 61,
+    "l1": {
+     "pass": 36,
+     "fail": 4,
+     "vacuous": 21
+    },
+    "repaired": 3,
+    "markerOk": 25,
+    "blockLines": 25,
+    "rules": {
+     "V17": 1,
+     "W05": 3,
+     "V03": 2
+    },
+    "inAll": 168311,
+    "cacheReadShare": 66.6,
+    "estErrInPct": 138.4,
+    "estErrOutPct": -2.8,
+    "estErrTotalPct": 118.7,
+    "l0Pct": 100,
+    "l1Pct": 90,
+    "l1VacuousPct": 34.4,
+    "markerPct": 100,
+    "valid1Pct": 75.9,
+    "retryPct": 75,
+    "droppedPct": 0,
+    "thinkingShareOfOut": 18.6,
+    "ttftP50Ms": 7908,
+    "ttftP95Ms": 21200
+   },
+   "S6": {
+    "tasks": 2,
+    "engineTasks": 2,
+    "calls": 3,
+    "retried": 1,
+    "failed": 0,
+    "in": 6,
+    "cacheWrite": 18754,
+    "cacheRead": 49393,
+    "out": 2823,
+    "thinking": 0,
+    "apiUsd": 0.085006,
+    "callMs": 23427,
+    "estIn": 34188,
+    "estOut": 3450,
+    "lines": 19,
+    "valid1": 16,
+    "valid": 18,
+    "dropped": 0,
+    "claims": 19,
+    "l0raw": 19,
+    "l1": {
+     "pass": 6,
+     "fail": 7,
+     "vacuous": 6
+    },
+    "repaired": 0,
+    "markerOk": 12,
+    "blockLines": 13,
+    "rules": {
+     "W07": 1,
+     "V03": 1,
+     "V14": 1,
+     "W05": 1
+    },
+    "inAll": 68153,
+    "cacheReadShare": 72.5,
+    "estErrInPct": 99.3,
+    "estErrOutPct": -18.2,
+    "estErrTotalPct": 88.6,
+    "l0Pct": 100,
+    "l1Pct": 46.2,
+    "l1VacuousPct": 31.6,
+    "markerPct": 92.3,
+    "valid1Pct": 84.2,
+    "retryPct": 50,
+    "droppedPct": 0,
+    "thinkingShareOfOut": 0,
+    "ttftP50Ms": 8858,
+    "ttftP95Ms": 9659
+   }
+  },
+  "byPrompt": {
+   "gen.module": {
+    "tasks": 13,
+    "engineTasks": 13,
+    "calls": 21,
+    "retried": 8,
+    "failed": 0,
+    "in": 42,
+    "cacheWrite": 213326,
+    "cacheRead": 378591,
+    "out": 22875,
+    "thinking": 935,
+    "apiUsd": 0.837867,
+    "callMs": 188109,
+    "estIn": 317289,
+    "estOut": 32584,
+    "lines": 153,
+    "valid1": 124,
+    "valid": 144,
+    "dropped": 0,
+    "claims": 182,
+    "l0raw": 182,
+    "l1": {
+     "pass": 153,
+     "fail": 24,
+     "vacuous": 5
+    },
+    "repaired": 7,
+    "markerOk": 83,
+    "blockLines": 87,
+    "rules": {
+     "V14": 4,
+     "W05": 3,
+     "V17": 4,
+     "V03": 2
+    },
+    "inAll": 591959,
+    "cacheReadShare": 64,
+    "estErrInPct": 86.6,
+    "estErrOutPct": -29.8,
+    "estErrTotalPct": 75.7,
+    "l0Pct": 100,
+    "l1Pct": 86.4,
+    "l1VacuousPct": 2.7,
+    "markerPct": 95.4,
+    "valid1Pct": 81,
+    "retryPct": 61.5,
+    "droppedPct": 0,
+    "thinkingShareOfOut": 4.1,
+    "ttftP50Ms": 8092,
+    "ttftP95Ms": 12019
+   },
+   "gen.overview:early": {
+    "tasks": 1,
+    "engineTasks": 1,
+    "calls": 2,
+    "retried": 1,
+    "failed": 0,
+    "in": 4,
+    "cacheWrite": 9038,
+    "cacheRead": 33844,
+    "out": 1832,
+    "thinking": 246,
+    "apiUsd": 0.047692,
+    "callMs": 16785,
+    "estIn": 17791,
+    "estOut": 1095,
+    "lines": 10,
+    "valid1": 7,
+    "valid": 9,
+    "dropped": 0,
+    "claims": 12,
+    "l0raw": 12,
+    "l1": {
+     "pass": 3,
+     "fail": 3,
+     "vacuous": 6
+    },
+    "repaired": 0,
+    "markerOk": 7,
+    "blockLines": 7,
+    "rules": {
+     "V17": 1,
+     "W05": 1
+    },
+    "inAll": 42886,
+    "cacheReadShare": 78.9,
+    "estErrInPct": 141.1,
+    "estErrOutPct": 67.3,
+    "estErrTotalPct": 136.8,
+    "l0Pct": 100,
+    "l1Pct": 50,
+    "l1VacuousPct": 50,
+    "markerPct": 100,
+    "valid1Pct": 70,
+    "retryPct": 100,
+    "droppedPct": 0,
+    "thinkingShareOfOut": 13.4,
+    "ttftP50Ms": 10595,
+    "ttftP95Ms": 10595
+   },
+   "gen.parent": {
+    "tasks": 2,
+    "engineTasks": 2,
+    "calls": 3,
+    "retried": 1,
+    "failed": 0,
+    "in": 6,
+    "cacheWrite": 18754,
+    "cacheRead": 49393,
+    "out": 2823,
+    "thinking": 0,
+    "apiUsd": 0.085006,
+    "callMs": 23427,
+    "estIn": 34188,
+    "estOut": 3450,
+    "lines": 19,
+    "valid1": 16,
+    "valid": 18,
+    "dropped": 0,
+    "claims": 19,
+    "l0raw": 19,
+    "l1": {
+     "pass": 6,
+     "fail": 7,
+     "vacuous": 6
+    },
+    "repaired": 0,
+    "markerOk": 12,
+    "blockLines": 13,
+    "rules": {
+     "W07": 1,
+     "V03": 1,
+     "V14": 1,
+     "W05": 1
+    },
+    "inAll": 68153,
+    "cacheReadShare": 72.5,
+    "estErrInPct": 99.3,
+    "estErrOutPct": -18.2,
+    "estErrTotalPct": 88.6,
+    "l0Pct": 100,
+    "l1Pct": 46.2,
+    "l1VacuousPct": 31.6,
+    "markerPct": 92.3,
+    "valid1Pct": 84.2,
+    "retryPct": 50,
+    "droppedPct": 0,
+    "thinkingShareOfOut": 0,
+    "ttftP50Ms": 8858,
+    "ttftP95Ms": 9659
+   },
+   "gen.flows": {
+    "tasks": 1,
+    "engineTasks": 1,
+    "calls": 2,
+    "retried": 1,
+    "failed": 0,
+    "in": 4,
+    "cacheWrite": 13438,
+    "cacheRead": 37182,
+    "out": 3890,
+    "thinking": 300,
+    "apiUsd": 0.07994000000000001,
+    "callMs": 26610,
+    "estIn": 16307,
+    "estOut": 3300,
+    "lines": 17,
+    "valid1": 11,
+    "valid": 17,
+    "dropped": 0,
+    "claims": 25,
+    "l0raw": 25,
+    "l1": {
+     "pass": 21,
+     "fail": 1,
+     "vacuous": 3
+    },
+    "repaired": 3,
+    "markerOk": 12,
+    "blockLines": 12,
+    "rules": {
+     "W05": 1
+    },
+    "inAll": 50624,
+    "cacheReadShare": 73.4,
+    "estErrInPct": 210.4,
+    "estErrOutPct": 17.9,
+    "estErrTotalPct": 178,
+    "l0Pct": 100,
+    "l1Pct": 95.5,
+    "l1VacuousPct": 12,
+    "markerPct": 100,
+    "valid1Pct": 64.7,
+    "retryPct": 100,
+    "droppedPct": 0,
+    "thinkingShareOfOut": 7.7,
+    "ttftP50Ms": 14433,
+    "ttftP95Ms": 14433
+   },
+   "gen.overview:final": {
+    "tasks": 1,
+    "engineTasks": 1,
+    "calls": 2,
+    "retried": 1,
+    "failed": 0,
+    "in": 4,
+    "cacheWrite": 32064,
+    "cacheRead": 27895,
+    "out": 4192,
+    "thinking": 1524,
+    "apiUsd": 0.249755,
+    "callMs": 44629,
+    "estIn": 22002,
+    "estOut": 4050,
+    "lines": 12,
+    "valid1": 7,
+    "valid": 10,
+    "dropped": 0,
+    "claims": 24,
+    "l0raw": 24,
+    "l1": {
+     "pass": 12,
+     "fail": 0,
+     "vacuous": 12
+    },
+    "repaired": 0,
+    "markerOk": 6,
+    "blockLines": 6,
+    "rules": {
+     "V03": 2,
+     "W05": 1
+    },
+    "inAll": 59963,
+    "cacheReadShare": 46.5,
+    "estErrInPct": 172.5,
+    "estErrOutPct": 3.5,
+    "estErrTotalPct": 146.3,
+    "l0Pct": 100,
+    "l1Pct": 100,
+    "l1VacuousPct": 50,
+    "markerPct": 100,
+    "valid1Pct": 58.3,
+    "retryPct": 100,
+    "droppedPct": 0,
+    "thinkingShareOfOut": 36.4,
+    "ttftP50Ms": 21200,
+    "ttftP95Ms": 21200
+   },
+   "gen.glossary": {
+    "tasks": 1,
+    "engineTasks": 1,
+    "calls": 1,
+    "retried": 0,
+    "failed": 0,
+    "in": 2,
+    "cacheWrite": 1643,
+    "cacheRead": 13193,
+    "out": 1199,
+    "thinking": 0,
+    "apiUsd": 0.01874,
+    "callMs": 9153,
+    "estIn": 14508,
+    "estOut": 2985,
+    "lines": 19,
+    "valid1": 19,
+    "valid": 19,
+    "dropped": 0,
+    "claims": 0,
+    "l0raw": 0,
+    "l1": {
+     "pass": 0,
+     "fail": 0,
+     "vacuous": 0
+    },
+    "repaired": 0,
+    "markerOk": 0,
+    "blockLines": 0,
+    "rules": {},
+    "inAll": 14838,
+    "cacheReadShare": 88.9,
+    "estErrInPct": 2.3,
+    "estErrOutPct": -59.8,
+    "estErrTotalPct": -8.3,
+    "l0Pct": null,
+    "l1Pct": null,
+    "l1VacuousPct": null,
+    "markerPct": null,
+    "valid1Pct": 100,
+    "retryPct": 0,
+    "droppedPct": 0,
+    "thinkingShareOfOut": 0,
+    "ttftP50Ms": 7908,
+    "ttftP95Ms": 7908
+   }
+  }
+ },
+ "tasks": [
+  {
+   "id": "gt_pbtjr1emja",
+   "stage": "S5",
+   "prompt": "gen.module",
+   "mode": null,
+   "target_kind": "module",
+   "target_id": "md_hd12merg",
+   "state": "done",
+   "attempt": 1,
+   "est_in": 26287,
+   "est_out": 2464,
+   "usage": "{\"in\":2,\"cacheWrite\":30742,\"cacheWrite1h\":0,\"cacheRead\":0,\"out\":1781,\"apiUsd\":0.094669,\"pricingVer\":\"2026-09-25\",\"thinking\":0,\"reportedUsd\":0.094669}",
+   "metrics": "{\"prompt\":\"gen.module\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":1,\"inEst\":26287,\"outEst\":2464,\"in\":2,\"cacheWrite\":30742,\"cacheRead\":0,\"out\":1781,\"thinking\":0,\"lines\":11,\"valid1\":11,\"valid\":11,\"dropped\":0,\"rules\":{},\"l0raw\":17,\"l1\":{\"pass\":14,\"fail\":3,\"vacuous\":0},\"repaired\":0,\"markerOk\":6,\"blockLines\":6,\"durationMs\":12045,\"stop\":\"end\",\"ttftMs\":10797}",
+   "error": null
+  },
+  {
+   "id": "gt_hx3ptrr5g1",
+   "stage": "S5",
+   "prompt": "gen.module",
+   "mode": null,
+   "target_kind": "module",
+   "target_id": "md_ecsfkz72",
+   "state": "done",
+   "attempt": 1,
+   "est_in": 25913,
+   "est_out": 2909,
+   "usage": "{\"in\":2,\"cacheWrite\":15579,\"cacheWrite1h\":0,\"cacheRead\":13193,\"out\":1620,\"apiUsd\":0.05779,\"pricingVer\":\"2026-09-25\",\"thinking\":0,\"reportedUsd\":0.05779}",
+   "metrics": "{\"prompt\":\"gen.module\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":1,\"inEst\":25913,\"outEst\":2909,\"in\":2,\"cacheWrite\":15579,\"cacheRead\":13193,\"out\":1620,\"thinking\":0,\"lines\":13,\"valid1\":13,\"valid\":13,\"dropped\":0,\"rules\":{},\"l0raw\":16,\"l1\":{\"pass\":14,\"fail\":2,\"vacuous\":0},\"repaired\":0,\"markerOk\":8,\"blockLines\":8,\"durationMs\":13610,\"stop\":\"end\",\"ttftMs\":11943}",
+   "error": null
+  },
+  {
+   "id": "gt_5b72cgrnnx",
+   "stage": "S6o",
+   "prompt": "gen.overview",
+   "mode": "early",
+   "target_kind": "overview",
+   "target_id": "early",
+   "state": "done",
+   "attempt": 2,
+   "est_in": 17791,
+   "est_out": 1095,
+   "usage": "{\"in\":4,\"cacheWrite\":9038,\"cacheWrite1h\":0,\"cacheRead\":33844,\"out\":1832,\"apiUsd\":0.047692,\"pricingVer\":\"2026-09-25\",\"thinking\":246,\"reportedUsd\":0.047692}",
+   "metrics": "{\"prompt\":\"gen.overview\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":2,\"inEst\":17791,\"outEst\":1095,\"in\":4,\"cacheWrite\":9038,\"cacheRead\":33844,\"out\":1832,\"thinking\":246,\"lines\":10,\"valid1\":7,\"valid\":9,\"dropped\":0,\"rules\":{\"V17\":1,\"W05\":1},\"l0raw\":12,\"l1\":{\"pass\":3,\"fail\":3,\"vacuous\":6},\"repaired\":0,\"markerOk\":7,\"blockLines\":7,\"durationMs\":16785,\"stop\":\"end\",\"ttftMs\":10595}",
+   "error": null
+  },
+  {
+   "id": "gt_shrg0zt5h7",
+   "stage": "S5",
+   "prompt": "gen.module",
+   "mode": null,
+   "target_kind": "module",
+   "target_id": "md_y2y67yyw",
+   "state": "done",
+   "attempt": 2,
+   "est_in": 26594,
+   "est_out": 2669,
+   "usage": "{\"in\":4,\"cacheWrite\":18309,\"cacheWrite1h\":0,\"cacheRead\":42633,\"out\":2010,\"apiUsd\":0.074407,\"pricingVer\":\"2026-09-25\",\"thinking\":0,\"reportedUsd\":0.074407}",
+   "metrics": "{\"prompt\":\"gen.module\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":2,\"inEst\":26594,\"outEst\":2669,\"in\":4,\"cacheWrite\":18309,\"cacheRead\":42633,\"out\":2010,\"thinking\":0,\"lines\":13,\"valid1\":10,\"valid\":12,\"dropped\":0,\"rules\":{\"V14\":1,\"W05\":1},\"l0raw\":17,\"l1\":{\"pass\":13,\"fail\":4,\"vacuous\":0},\"repaired\":0,\"markerOk\":7,\"blockLines\":8,\"durationMs\":14203,\"stop\":\"end\",\"ttftMs\":10979}",
+   "error": null
+  },
+  {
+   "id": "gt_983ck6q88b",
+   "stage": "S5",
+   "prompt": "gen.module",
+   "mode": null,
+   "target_kind": "module",
+   "target_id": "md_20br4kx5",
+   "state": "done",
+   "attempt": 2,
+   "est_in": 28574,
+   "est_out": 2936,
+   "usage": "{\"in\":4,\"cacheWrite\":20920,\"cacheWrite1h\":0,\"cacheRead\":45140,\"out\":2802,\"apiUsd\":0.089356,\"pricingVer\":\"2026-09-25\",\"thinking\":320,\"reportedUsd\":0.08935599999999999}",
+   "metrics": "{\"prompt\":\"gen.module\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":2,\"inEst\":28574,\"outEst\":2936,\"in\":4,\"cacheWrite\":20920,\"cacheRead\":45140,\"out\":2802,\"thinking\":320,\"lines\":17,\"valid1\":10,\"valid\":14,\"dropped\":0,\"rules\":{\"V17\":2,\"V14\":1},\"l0raw\":17,\"l1\":{\"pass\":16,\"fail\":1,\"vacuous\":0},\"repaired\":2,\"markerOk\":10,\"blockLines\":11,\"durationMs\":19590,\"stop\":\"end\",\"ttftMs\":12019}",
+   "error": null
+  },
+  {
+   "id": "gt_w1kwjfks7p",
+   "stage": "S5",
+   "prompt": "gen.module",
+   "mode": null,
+   "target_kind": "module",
+   "target_id": "md_8zxhv5eg",
+   "state": "done",
+   "attempt": 2,
+   "est_in": 25735,
+   "est_out": 2268,
+   "usage": "{\"in\":4,\"cacheWrite\":18093,\"cacheWrite1h\":0,\"cacheRead\":42447,\"out\":2342,\"apiUsd\":0.07715,\"pricingVer\":\"2026-09-25\",\"thinking\":310,\"reportedUsd\":0.07715}",
+   "metrics": "{\"prompt\":\"gen.module\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":2,\"inEst\":25735,\"outEst\":2268,\"in\":4,\"cacheWrite\":18093,\"cacheRead\":42447,\"out\":2342,\"thinking\":310,\"lines\":14,\"valid1\":11,\"valid\":13,\"dropped\":0,\"rules\":{\"V17\":1},\"l0raw\":16,\"l1\":{\"pass\":13,\"fail\":2,\"vacuous\":1},\"repaired\":1,\"markerOk\":8,\"blockLines\":8,\"durationMs\":18045,\"stop\":\"end\",\"ttftMs\":11952}",
+   "error": null
+  },
+  {
+   "id": "gt_111b2kbhgz",
+   "stage": "S5",
+   "prompt": "gen.module",
+   "mode": null,
+   "target_kind": "module",
+   "target_id": "md_mr6t12q3",
+   "state": "done",
+   "attempt": 1,
+   "est_in": 25142,
+   "est_out": 2547,
+   "usage": "{\"in\":2,\"cacheWrite\":15389,\"cacheWrite1h\":0,\"cacheRead\":13193,\"out\":1296,\"apiUsd\":0.054075,\"pricingVer\":\"2026-09-25\",\"thinking\":0,\"reportedUsd\":0.054075}",
+   "metrics": "{\"prompt\":\"gen.module\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":1,\"inEst\":25142,\"outEst\":2547,\"in\":2,\"cacheWrite\":15389,\"cacheRead\":13193,\"out\":1296,\"thinking\":0,\"lines\":8,\"valid1\":8,\"valid\":8,\"dropped\":0,\"rules\":{},\"l0raw\":12,\"l1\":{\"pass\":12,\"fail\":0,\"vacuous\":0},\"repaired\":0,\"markerOk\":5,\"blockLines\":5,\"durationMs\":9357,\"stop\":\"end\",\"ttftMs\":8092}",
+   "error": null
+  },
+  {
+   "id": "gt_42w5seyze4",
+   "stage": "S5",
+   "prompt": "gen.module",
+   "mode": null,
+   "target_kind": "module",
+   "target_id": "md_hr3g7tsp",
+   "state": "done",
+   "attempt": 2,
+   "est_in": 23593,
+   "est_out": 1940,
+   "usage": "{\"in\":4,\"cacheWrite\":15313,\"cacheWrite1h\":0,\"cacheRead\":39926,\"out\":1675,\"apiUsd\":0.063026,\"pricingVer\":\"2026-09-25\",\"thinking\":0,\"reportedUsd\":0.063026}",
+   "metrics": "{\"prompt\":\"gen.module\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":2,\"inEst\":23593,\"outEst\":1940,\"in\":4,\"cacheWrite\":15313,\"cacheRead\":39926,\"out\":1675,\"thinking\":0,\"lines\":11,\"valid1\":8,\"valid\":10,\"dropped\":0,\"rules\":{\"V03\":1,\"V14\":1},\"l0raw\":12,\"l1\":{\"pass\":9,\"fail\":1,\"vacuous\":2},\"repaired\":1,\"markerOk\":5,\"blockLines\":6,\"durationMs\":13213,\"stop\":\"end\",\"ttftMs\":9368}",
+   "error": null
+  },
+  {
+   "id": "gt_42k9pj874q",
+   "stage": "S5",
+   "prompt": "gen.module",
+   "mode": null,
+   "target_kind": "module",
+   "target_id": "md_adekddkx",
+   "state": "done",
+   "attempt": 1,
+   "est_in": 30473,
+   "est_out": 2762,
+   "usage": "{\"in\":2,\"cacheWrite\":20791,\"cacheWrite1h\":0,\"cacheRead\":13193,\"out\":1651,\"apiUsd\":0.07113,\"pricingVer\":\"2026-09-25\",\"thinking\":0,\"reportedUsd\":0.07113}",
+   "metrics": "{\"prompt\":\"gen.module\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":1,\"inEst\":30473,\"outEst\":2762,\"in\":2,\"cacheWrite\":20791,\"cacheRead\":13193,\"out\":1651,\"thinking\":0,\"lines\":10,\"valid1\":10,\"valid\":10,\"dropped\":0,\"rules\":{},\"l0raw\":14,\"l1\":{\"pass\":10,\"fail\":4,\"vacuous\":0},\"repaired\":1,\"markerOk\":5,\"blockLines\":5,\"durationMs\":12190,\"stop\":\"end\",\"ttftMs\":10973}",
+   "error": null
+  },
+  {
+   "id": "gt_z05vrnxsrg",
+   "stage": "S5",
+   "prompt": "gen.module",
+   "mode": null,
+   "target_kind": "module",
+   "target_id": "md_542cnad9",
+   "state": "done",
+   "attempt": 2,
+   "est_in": 19309,
+   "est_out": 3825,
+   "usage": "{\"in\":4,\"cacheWrite\":9682,\"cacheWrite1h\":0,\"cacheRead\":34735,\"out\":1352,\"apiUsd\":0.04468,\"pricingVer\":\"2026-09-25\",\"thinking\":0,\"reportedUsd\":0.04468}",
+   "metrics": "{\"prompt\":\"gen.module\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":2,\"inEst\":19309,\"outEst\":3825,\"in\":4,\"cacheWrite\":9682,\"cacheRead\":34735,\"out\":1352,\"thinking\":0,\"lines\":9,\"valid1\":7,\"valid\":9,\"dropped\":0,\"rules\":{\"W05\":1},\"l0raw\":12,\"l1\":{\"pass\":12,\"fail\":0,\"vacuous\":0},\"repaired\":0,\"markerOk\":4,\"blockLines\":4,\"durationMs\":11165,\"stop\":\"end\",\"ttftMs\":7534}",
+   "error": null
+  },
+  {
+   "id": "gt_5kpqawr1ap",
+   "stage": "S5",
+   "prompt": "gen.module",
+   "mode": null,
+   "target_kind": "module",
+   "target_id": "md_em5fyh7k",
+   "state": "done",
+   "attempt": 2,
+   "est_in": 27791,
+   "est_out": 2946,
+   "usage": "{\"in\":4,\"cacheWrite\":19565,\"cacheWrite1h\":0,\"cacheRead\":43643,\"out\":2590,\"apiUsd\":0.083549,\"pricingVer\":\"2026-09-25\",\"thinking\":305,\"reportedUsd\":0.083549}",
+   "metrics": "{\"prompt\":\"gen.module\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":2,\"inEst\":27791,\"outEst\":2946,\"in\":4,\"cacheWrite\":19565,\"cacheRead\":43643,\"out\":2590,\"thinking\":305,\"lines\":15,\"valid1\":12,\"valid\":14,\"dropped\":0,\"rules\":{\"V17\":1},\"l0raw\":23,\"l1\":{\"pass\":20,\"fail\":3,\"vacuous\":0},\"repaired\":2,\"markerOk\":10,\"blockLines\":10,\"durationMs\":20805,\"stop\":\"end\",\"ttftMs\":14055}",
+   "error": null
+  },
+  {
+   "id": "gt_c81bxhn7rd",
+   "stage": "S5",
+   "prompt": "gen.module",
+   "mode": null,
+   "target_kind": "module",
+   "target_id": "md_45844dgv",
+   "state": "done",
+   "attempt": 2,
+   "est_in": 21027,
+   "est_out": 2165,
+   "usage": "{\"in\":4,\"cacheWrite\":12249,\"cacheWrite1h\":0,\"cacheRead\":37062,\"out\":1809,\"apiUsd\":0.056133,\"pricingVer\":\"2026-09-25\",\"thinking\":0,\"reportedUsd\":0.056132999999999995}",
+   "metrics": "{\"prompt\":\"gen.module\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":2,\"inEst\":21027,\"outEst\":2165,\"in\":4,\"cacheWrite\":12249,\"cacheRead\":37062,\"out\":1809,\"thinking\":0,\"lines\":13,\"valid1\":7,\"valid\":11,\"dropped\":0,\"rules\":{\"V14\":1,\"V03\":1,\"W05\":1},\"l0raw\":14,\"l1\":{\"pass\":10,\"fail\":4,\"vacuous\":0},\"repaired\":0,\"markerOk\":5,\"blockLines\":6,\"durationMs\":16613,\"stop\":\"end\",\"ttftMs\":9711}",
+   "error": null
+  },
+  {
+   "id": "gt_fd6wdxz8tt",
+   "stage": "S5",
+   "prompt": "gen.module",
+   "mode": null,
+   "target_kind": "module",
+   "target_id": "md_rzknchaw",
+   "state": "done",
+   "attempt": 1,
+   "est_in": 12814,
+   "est_out": 1177,
+   "usage": "{\"in\":2,\"cacheWrite\":1675,\"cacheWrite1h\":0,\"cacheRead\":13193,\"out\":795,\"apiUsd\":0.01478,\"pricingVer\":\"2026-09-25\",\"thinking\":0,\"reportedUsd\":0.01478}",
+   "metrics": "{\"prompt\":\"gen.module\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":1,\"inEst\":12814,\"outEst\":1177,\"in\":2,\"cacheWrite\":1675,\"cacheRead\":13193,\"out\":795,\"thinking\":0,\"lines\":9,\"valid1\":9,\"valid\":9,\"dropped\":0,\"rules\":{},\"l0raw\":3,\"l1\":{\"pass\":1,\"fail\":0,\"vacuous\":2},\"repaired\":0,\"markerOk\":5,\"blockLines\":5,\"durationMs\":7258,\"stop\":\"end\",\"ttftMs\":5995}",
+   "error": null
+  },
+  {
+   "id": "gt_ncj1dxme4b",
+   "stage": "S5",
+   "prompt": "gen.module",
+   "mode": null,
+   "target_kind": "module",
+   "target_id": "md_81hf7jm0",
+   "state": "done",
+   "attempt": 2,
+   "est_in": 24037,
+   "est_out": 1976,
+   "usage": "{\"in\":4,\"cacheWrite\":15019,\"cacheWrite1h\":0,\"cacheRead\":40233,\"out\":1152,\"apiUsd\":0.057122,\"pricingVer\":\"2026-09-25\",\"thinking\":0,\"reportedUsd\":0.057122}",
+   "metrics": "{\"prompt\":\"gen.module\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":2,\"inEst\":24037,\"outEst\":1976,\"in\":4,\"cacheWrite\":15019,\"cacheRead\":40233,\"out\":1152,\"thinking\":0,\"lines\":10,\"valid1\":8,\"valid\":10,\"dropped\":0,\"rules\":{},\"l0raw\":9,\"l1\":{\"pass\":9,\"fail\":0,\"vacuous\":0},\"repaired\":0,\"markerOk\":5,\"blockLines\":5,\"durationMs\":20015,\"stop\":\"end\",\"ttftMs\":7412}",
+   "error": null
+  },
+  {
+   "id": "gt_x8snwzzs9f",
+   "stage": "S6",
+   "prompt": "gen.parent",
+   "mode": null,
+   "target_kind": "parent",
+   "target_id": "md_b6twrg7f",
+   "state": "done",
+   "attempt": 2,
+   "est_in": 17469,
+   "est_out": 1725,
+   "usage": "{\"in\":4,\"cacheWrite\":11620,\"cacheWrite1h\":0,\"cacheRead\":36200,\"out\":1544,\"apiUsd\":0.051738,\"pricingVer\":\"2026-09-25\",\"thinking\":0,\"reportedUsd\":0.051738}",
+   "metrics": "{\"prompt\":\"gen.parent\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":2,\"inEst\":17469,\"outEst\":1725,\"in\":4,\"cacheWrite\":11620,\"cacheRead\":36200,\"out\":1544,\"thinking\":0,\"lines\":10,\"valid1\":7,\"valid\":9,\"dropped\":0,\"rules\":{\"W07\":1,\"V03\":1,\"V14\":1,\"W05\":1},\"l0raw\":10,\"l1\":{\"pass\":4,\"fail\":3,\"vacuous\":3},\"repaired\":0,\"markerOk\":6,\"blockLines\":7,\"durationMs\":12056,\"stop\":\"end\",\"ttftMs\":8858}",
+   "error": null
+  },
+  {
+   "id": "gt_kvmd95d17t",
+   "stage": "S6",
+   "prompt": "gen.parent",
+   "mode": null,
+   "target_kind": "parent",
+   "target_id": "md_gvw2kgjt",
+   "state": "done",
+   "attempt": 1,
+   "est_in": 16719,
+   "est_out": 1725,
+   "usage": "{\"in\":2,\"cacheWrite\":7134,\"cacheWrite1h\":0,\"cacheRead\":13193,\"out\":1279,\"apiUsd\":0.033268,\"pricingVer\":\"2026-09-25\",\"thinking\":0,\"reportedUsd\":0.033268}",
+   "metrics": "{\"prompt\":\"gen.parent\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":1,\"inEst\":16719,\"outEst\":1725,\"in\":2,\"cacheWrite\":7134,\"cacheRead\":13193,\"out\":1279,\"thinking\":0,\"lines\":9,\"valid1\":9,\"valid\":9,\"dropped\":0,\"rules\":{},\"l0raw\":9,\"l1\":{\"pass\":2,\"fail\":4,\"vacuous\":3},\"repaired\":0,\"markerOk\":6,\"blockLines\":6,\"durationMs\":11371,\"stop\":\"end\",\"ttftMs\":9659}",
+   "error": null
+  },
+  {
+   "id": "gt_desx54brqp",
+   "stage": "S6o",
+   "prompt": "gen.flows",
+   "mode": null,
+   "target_kind": "section",
+   "target_id": "s3",
+   "state": "done",
+   "attempt": 2,
+   "est_in": 16307,
+   "est_out": 3300,
+   "usage": "{\"in\":4,\"cacheWrite\":13438,\"cacheWrite1h\":0,\"cacheRead\":37182,\"out\":3890,\"apiUsd\":0.07994,\"pricingVer\":\"2026-09-25\",\"thinking\":300,\"reportedUsd\":0.07994000000000001}",
+   "metrics": "{\"prompt\":\"gen.flows\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":2,\"inEst\":16307,\"outEst\":3300,\"in\":4,\"cacheWrite\":13438,\"cacheRead\":37182,\"out\":3890,\"thinking\":300,\"lines\":17,\"valid1\":11,\"valid\":17,\"dropped\":0,\"rules\":{\"W05\":1},\"l0raw\":25,\"l1\":{\"pass\":21,\"fail\":1,\"vacuous\":3},\"repaired\":3,\"markerOk\":12,\"blockLines\":12,\"durationMs\":26610,\"stop\":\"end\",\"ttftMs\":14433}",
+   "error": null
+  },
+  {
+   "id": "gt_375j3ga6d3",
+   "stage": "S6o",
+   "prompt": "gen.overview",
+   "mode": "final",
+   "target_kind": "overview",
+   "target_id": "final",
+   "state": "done",
+   "attempt": 2,
+   "est_in": 22002,
+   "est_out": 4050,
+   "usage": "{\"in\":4,\"cacheWrite\":32064,\"cacheWrite1h\":0,\"cacheRead\":27895,\"out\":4192,\"apiUsd\":0.249755,\"pricingVer\":\"2026-09-25\",\"thinking\":1524,\"reportedUsd\":0.249755}",
+   "metrics": "{\"prompt\":\"gen.overview\",\"model\":\"claude-opus-5-5\",\"engine\":\"claude-cli\",\"attempt\":2,\"inEst\":22002,\"outEst\":4050,\"in\":4,\"cacheWrite\":32064,\"cacheRead\":27895,\"out\":4192,\"thinking\":1524,\"lines\":12,\"valid1\":7,\"valid\":10,\"dropped\":0,\"rules\":{\"V03\":2,\"W05\":1},\"l0raw\":24,\"l1\":{\"pass\":12,\"fail\":0,\"vacuous\":12},\"repaired\":0,\"markerOk\":6,\"blockLines\":6,\"durationMs\":44629,\"stop\":\"end\",\"ttftMs\":21200}",
+   "error": null
+  },
+  {
+   "id": "gt_f7bd6rdxm0",
+   "stage": "S6o",
+   "prompt": "gen.glossary",
+   "mode": null,
+   "target_kind": "section",
+   "target_id": "s12",
+   "state": "done",
+   "attempt": 1,
+   "est_in": 14508,
+   "est_out": 2985,
+   "usage": "{\"in\":2,\"cacheWrite\":1643,\"cacheWrite1h\":0,\"cacheRead\":13193,\"out\":1199,\"apiUsd\":0.01874,\"pricingVer\":\"2026-09-25\",\"thinking\":0,\"reportedUsd\":0.01874}",
+   "metrics": "{\"prompt\":\"gen.glossary\",\"model\":\"claude-sonnet-5-5\",\"engine\":\"claude-cli\",\"attempt\":1,\"inEst\":14508,\"outEst\":2985,\"in\":2,\"cacheWrite\":1643,\"cacheRead\":13193,\"out\":1199,\"thinking\":0,\"lines\":19,\"valid1\":19,\"valid\":19,\"dropped\":0,\"rules\":{},\"l0raw\":0,\"l1\":{\"pass\":0,\"fail\":0,\"vacuous\":0},\"repaired\":0,\"markerOk\":0,\"blockLines\":0,\"durationMs\":9153,\"stop\":\"end\",\"ttftMs\":7908}",
+   "error": null
+  }
+ ],
+ "records": [
+  {
+   "id": "us_6xk1ka103e74",
+   "at": "2026-10-03T15:35:54.894Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_pbtjr1emja"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 30742,
+    "cacheWrite1h": 0,
+    "cacheRead": 0,
+    "out": 1781,
+    "apiUsd": 0.094669,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.094669
+   },
+   "estimate": {
+    "in": 27497,
+    "out": 2464,
+    "raw": {
+     "in": 27497,
+     "out": 2464
+    }
+   },
+   "durationMs": 12045,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 10797,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:35:54.887Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.4,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_ryvxdxxjt25b",
+   "at": "2026-10-03T15:35:57.069Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_5b72cgrnnx"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 7458,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 1340,
+    "apiUsd": 0.034688,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.034688
+   },
+   "estimate": {
+    "in": 19001,
+    "out": 1095,
+    "raw": {
+     "in": 19001,
+     "out": 1095
+    }
+   },
+   "durationMs": 12259,
+   "outcome": "ok",
+   "promptId": "gen.overview",
+   "ttftMs": 10595,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:35:57.065Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.4,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_fmr1wrnwm0wx",
+   "at": "2026-10-03T15:35:58.420Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_hx3ptrr5g1"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 15579,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 1620,
+    "apiUsd": 0.05779,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.05779
+   },
+   "estimate": {
+    "in": 27123,
+    "out": 2909,
+    "raw": {
+     "in": 27123,
+     "out": 2909
+    }
+   },
+   "durationMs": 13610,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 11943,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:35:58.414Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.4,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_8ywdbe181edd",
+   "at": "2026-10-03T15:36:01.596Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_5b72cgrnnx"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 1580,
+    "cacheWrite1h": 0,
+    "cacheRead": 20651,
+    "out": 492,
+    "apiUsd": 0.013004,
+    "pricingVer": "2026-09-25",
+    "thinking": 246,
+    "reportedUsd": 0.013004
+   },
+   "estimate": {
+    "in": 19001,
+    "out": 1095,
+    "raw": {
+     "in": 19001,
+     "out": 1095
+    }
+   },
+   "durationMs": 4526,
+   "outcome": "ok",
+   "promptId": "gen.overview",
+   "ttftMs": 2949,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:01.594Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_fqkakh27xh4q",
+   "at": "2026-10-03T15:36:08.669Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_983ck6q88b"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 18754,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 1816,
+    "apiUsd": 0.067688,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.067688
+   },
+   "estimate": {
+    "in": 29784,
+    "out": 2936,
+    "raw": {
+     "in": 29784,
+     "out": 2936
+    }
+   },
+   "durationMs": 13232,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 12019,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:08.664Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_7ch2ykhd295x",
+   "at": "2026-10-03T15:36:11.162Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_shrg0zt5h7"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 16247,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 1757,
+    "apiUsd": 0.06083,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.06083
+   },
+   "estimate": {
+    "in": 27804,
+    "out": 2669,
+    "raw": {
+     "in": 27804,
+     "out": 2669
+    }
+   },
+   "durationMs": 12210,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 10979,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:11.158Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_7k3pbnkcaq6t",
+   "at": "2026-10-03T15:36:13.157Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_shrg0zt5h7"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 2062,
+    "cacheWrite1h": 0,
+    "cacheRead": 29440,
+    "out": 253,
+    "apiUsd": 0.013577,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.013577
+   },
+   "estimate": {
+    "in": 27804,
+    "out": 2669,
+    "raw": {
+     "in": 27804,
+     "out": 2669
+    }
+   },
+   "durationMs": 1993,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 1971
+  },
+  {
+   "id": "us_rf8f93ycr2x2",
+   "at": "2026-10-03T15:36:15.030Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_983ck6q88b"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 2166,
+    "cacheWrite1h": 0,
+    "cacheRead": 31947,
+    "out": 986,
+    "apiUsd": 0.021668,
+    "pricingVer": "2026-09-25",
+    "thinking": 320,
+    "reportedUsd": 0.021668
+   },
+   "estimate": {
+    "in": 29784,
+    "out": 2936,
+    "raw": {
+     "in": 29784,
+     "out": 2936
+    }
+   },
+   "durationMs": 6358,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 3215
+  },
+  {
+   "id": "us_yqvatd34kwc2",
+   "at": "2026-10-03T15:36:15.117Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_w1kwjfks7p"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 16061,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 1780,
+    "apiUsd": 0.060595,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.060595
+   },
+   "estimate": {
+    "in": 26945,
+    "out": 2268,
+    "raw": {
+     "in": 26945,
+     "out": 2268
+    }
+   },
+   "durationMs": 13202,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 11952,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:15.112Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_y9qvrrhm45ks",
+   "at": "2026-10-03T15:36:19.962Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_w1kwjfks7p"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 2032,
+    "cacheWrite1h": 0,
+    "cacheRead": 29254,
+    "out": 562,
+    "apiUsd": 0.016555,
+    "pricingVer": "2026-09-25",
+    "thinking": 310,
+    "reportedUsd": 0.016555
+   },
+   "estimate": {
+    "in": 26945,
+    "out": 2268,
+    "raw": {
+     "in": 26945,
+     "out": 2268
+    }
+   },
+   "durationMs": 4843,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 3368
+  },
+  {
+   "id": "us_3qdge3qzhytn",
+   "at": "2026-10-03T15:36:23.044Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_111b2kbhgz"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 15389,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 1296,
+    "apiUsd": 0.054075,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.054075
+   },
+   "estimate": {
+    "in": 26352,
+    "out": 2547,
+    "raw": {
+     "in": 23958,
+     "out": 2547
+    }
+   },
+   "durationMs": 9357,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 8092,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:23.040Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_6sdq6gja6syj",
+   "at": "2026-10-03T15:36:25.905Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_42w5seyze4"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 13540,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 1412,
+    "apiUsd": 0.050613,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.050613
+   },
+   "estimate": {
+    "in": 24803,
+    "out": 1940,
+    "raw": {
+     "in": 22459,
+     "out": 1940
+    }
+   },
+   "durationMs": 10560,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 9368,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:25.897Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_x9y5z9155b5k",
+   "at": "2026-10-03T15:36:28.561Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_42w5seyze4"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 1773,
+    "cacheWrite1h": 0,
+    "cacheRead": 26733,
+    "out": 263,
+    "apiUsd": 0.012413,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.012413
+   },
+   "estimate": {
+    "in": 24803,
+    "out": 1940,
+    "raw": {
+     "in": 24803,
+     "out": 1940
+    }
+   },
+   "durationMs": 2653,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 2639
+  },
+  {
+   "id": "us_c8k7je4pwckj",
+   "at": "2026-10-03T15:36:32.478Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_42k9pj874q"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 20791,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 1651,
+    "apiUsd": 0.07113,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.07113
+   },
+   "estimate": {
+    "in": 31683,
+    "out": 2762,
+    "raw": {
+     "in": 28396,
+     "out": 2762
+    }
+   },
+   "durationMs": 12190,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 10973,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:32.439Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_m0tkpv4bq7xq",
+   "at": "2026-10-03T15:36:37.861Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_z05vrnxsrg"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 8349,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 1126,
+    "apiUsd": 0.034775,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.034775
+   },
+   "estimate": {
+    "in": 20519,
+    "out": 3825,
+    "raw": {
+     "in": 17931,
+     "out": 3825
+    }
+   },
+   "durationMs": 8758,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 7534,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:37.856Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_ntfcm86v0syq",
+   "at": "2026-10-03T15:36:38.877Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_5kpqawr1ap"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 17257,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 2053,
+    "apiUsd": 0.066315,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.066315
+   },
+   "estimate": {
+    "in": 29001,
+    "out": 2946,
+    "raw": {
+     "in": 25637,
+     "out": 2946
+    }
+   },
+   "durationMs": 15310,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 14055,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:38.870Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_rwwgvam4ss3c",
+   "at": "2026-10-03T15:36:40.270Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_z05vrnxsrg"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 1333,
+    "cacheWrite1h": 0,
+    "cacheRead": 21542,
+    "out": 226,
+    "apiUsd": 0.009905,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.009905
+   },
+   "estimate": {
+    "in": 20519,
+    "out": 3825,
+    "raw": {
+     "in": 20519,
+     "out": 3825
+    }
+   },
+   "durationMs": 2407,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 2391
+  },
+  {
+   "id": "us_1ktbp3ctb687",
+   "at": "2026-10-03T15:36:44.374Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_5kpqawr1ap"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 2308,
+    "cacheWrite1h": 0,
+    "cacheRead": 30450,
+    "out": 537,
+    "apiUsd": 0.017234,
+    "pricingVer": "2026-09-25",
+    "thinking": 305,
+    "reportedUsd": 0.017234
+   },
+   "estimate": {
+    "in": 29001,
+    "out": 2946,
+    "raw": {
+     "in": 29001,
+     "out": 2946
+    }
+   },
+   "durationMs": 5495,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 4430
+  },
+  {
+   "id": "us_taxsnw9c3ne9",
+   "at": "2026-10-03T15:36:44.420Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_c81bxhn7rd"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 10676,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 1185,
+    "apiUsd": 0.041183,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.041183
+   },
+   "estimate": {
+    "in": 22237,
+    "out": 2165,
+    "raw": {
+     "in": 19256,
+     "out": 2165
+    }
+   },
+   "durationMs": 11413,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 9711,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:44.415Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_gqx1z1mzjj26",
+   "at": "2026-10-03T15:36:49.364Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_ncj1dxme4b"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 13847,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 971,
+    "apiUsd": 0.04697,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.04697
+   },
+   "estimate": {
+    "in": 25247,
+    "out": 1976,
+    "raw": {
+     "in": 21800,
+     "out": 1976
+    }
+   },
+   "durationMs": 8573,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 7412,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:49.360Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_qgd4f54febrh",
+   "at": "2026-10-03T15:36:49.622Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_c81bxhn7rd"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 1573,
+    "cacheWrite1h": 0,
+    "cacheRead": 23869,
+    "out": 624,
+    "apiUsd": 0.01495,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.01495
+   },
+   "estimate": {
+    "in": 22237,
+    "out": 2165,
+    "raw": {
+     "in": 22237,
+     "out": 2165
+    }
+   },
+   "durationMs": 5200,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 5185
+  },
+  {
+   "id": "us_t8zb3q63rwmn",
+   "at": "2026-10-03T15:36:51.923Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_fd6wdxz8tt"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 1675,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 795,
+    "apiUsd": 0.01478,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.01478
+   },
+   "estimate": {
+    "in": 14024,
+    "out": 1177,
+    "raw": {
+     "in": 11988,
+     "out": 1177
+    }
+   },
+   "durationMs": 7258,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 5995,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:36:51.913Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_w5zv1c90egtd",
+   "at": "2026-10-03T15:37:00.213Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_x8snwzzs9f"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 9814,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 1341,
+    "apiUsd": 0.040588,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.040588
+   },
+   "estimate": {
+    "in": 21180,
+    "out": 1725,
+    "raw": {
+     "in": 21180,
+     "out": 1725
+    }
+   },
+   "durationMs": 10068,
+   "outcome": "ok",
+   "promptId": "gen.parent",
+   "ttftMs": 8858,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:37:00.209Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.41,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_gvjrvqmqg7dd",
+   "at": "2026-10-03T15:37:00.808Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_ncj1dxme4b"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 1172,
+    "cacheWrite1h": 0,
+    "cacheRead": 27040,
+    "out": 181,
+    "apiUsd": 0.010152,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.010152
+   },
+   "estimate": {
+    "in": 25247,
+    "out": 1976,
+    "raw": {
+     "in": 25247,
+     "out": 1976
+    }
+   },
+   "durationMs": 11442,
+   "outcome": "ok",
+   "promptId": "gen.module",
+   "ttftMs": 11426
+  },
+  {
+   "id": "us_ednvqvd4cv8n",
+   "at": "2026-10-03T15:37:02.202Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_x8snwzzs9f"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 1806,
+    "cacheWrite1h": 0,
+    "cacheRead": 23007,
+    "out": 203,
+    "apiUsd": 0.01115,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.01115
+   },
+   "estimate": {
+    "in": 21180,
+    "out": 1725,
+    "raw": {
+     "in": 21180,
+     "out": 1725
+    }
+   },
+   "durationMs": 1988,
+   "outcome": "ok",
+   "promptId": "gen.parent",
+   "ttftMs": 1974
+  },
+  {
+   "id": "us_zknrmsf6xk8n",
+   "at": "2026-10-03T15:37:12.470Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_kvmd95d17t"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 7134,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 1279,
+    "apiUsd": 0.033268,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.033268
+   },
+   "estimate": {
+    "in": 18938,
+    "out": 1725,
+    "raw": {
+     "in": 18938,
+     "out": 1725
+    }
+   },
+   "durationMs": 11371,
+   "outcome": "ok",
+   "promptId": "gen.parent",
+   "ttftMs": 9659,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:37:12.465Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.42,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_nvdzkv1ksdpd",
+   "at": "2026-10-03T15:37:17.519Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_desx54brqp"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 10796,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 2428,
+    "apiUsd": 0.053913,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.053913
+   },
+   "estimate": {
+    "in": 22095,
+    "out": 3300,
+    "raw": {
+     "in": 22095,
+     "out": 3300
+    }
+   },
+   "durationMs": 16422,
+   "outcome": "ok",
+   "promptId": "gen.flows",
+   "ttftMs": 14433,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:37:17.514Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.42,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_mxghsy81rny0",
+   "at": "2026-10-03T15:37:27.709Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_desx54brqp"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 2642,
+    "cacheWrite1h": 0,
+    "cacheRead": 23989,
+    "out": 1462,
+    "apiUsd": 0.026027,
+    "pricingVer": "2026-09-25",
+    "thinking": 300,
+    "reportedUsd": 0.026027
+   },
+   "estimate": {
+    "in": 22095,
+    "out": 3300,
+    "raw": {
+     "in": 22095,
+     "out": 3300
+    }
+   },
+   "durationMs": 10188,
+   "outcome": "ok",
+   "promptId": "gen.flows",
+   "ttftMs": 3635
+  },
+  {
+   "id": "us_at9r4zn8nn3q",
+   "at": "2026-10-03T15:37:53.986Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_375j3ga6d3"
+   },
+   "engine": "claude-cli",
+   "model": "claude-opus-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 27895,
+    "cacheWrite1h": 0,
+    "cacheRead": 0,
+    "out": 3882,
+    "apiUsd": 0.217123,
+    "pricingVer": "2026-09-25",
+    "thinking": 1524,
+    "reportedUsd": 0.217123
+   },
+   "estimate": {
+    "in": 25681,
+    "out": 4050,
+    "raw": {
+     "in": 25681,
+     "out": 4050
+    }
+   },
+   "durationMs": 40985,
+   "outcome": "ok",
+   "promptId": "gen.overview",
+   "ttftMs": 21200,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:37:53.982Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.42,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.72,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_7f4wq7b6qv4w",
+   "at": "2026-10-03T15:37:57.632Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_375j3ga6d3"
+   },
+   "engine": "claude-cli",
+   "model": "claude-opus-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 4169,
+    "cacheWrite1h": 0,
+    "cacheRead": 27895,
+    "out": 310,
+    "apiUsd": 0.032632,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.032632
+   },
+   "estimate": {
+    "in": 25681,
+    "out": 4050,
+    "raw": {
+     "in": 25681,
+     "out": 4050
+    }
+   },
+   "durationMs": 3644,
+   "outcome": "ok",
+   "promptId": "gen.overview",
+   "ttftMs": 3633,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:37:57.629Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.42,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.73,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  },
+  {
+   "id": "us_qjx5hdtex9wz",
+   "at": "2026-10-03T15:38:07.249Z",
+   "ws": "ws_4g8yd2f74r0c",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_f7bd6rdxm0"
+   },
+   "engine": "claude-cli",
+   "model": "claude-sonnet-5-5",
+   "auth": "subscription",
+   "usage": {
+    "in": 2,
+    "cacheWrite": 1643,
+    "cacheWrite1h": 0,
+    "cacheRead": 13193,
+    "out": 1199,
+    "apiUsd": 0.01874,
+    "pricingVer": "2026-09-25",
+    "thinking": 0,
+    "reportedUsd": 0.01874
+   },
+   "estimate": {
+    "in": 13834,
+    "out": 2985,
+    "raw": {
+     "in": 13834,
+     "out": 2985
+    }
+   },
+   "durationMs": 9153,
+   "outcome": "ok",
+   "promptId": "gen.glossary",
+   "ttftMs": 7908,
+   "window": {
+    "billing": "subscription-window",
+    "observedAt": "2026-10-03T15:38:07.245Z",
+    "source": "claude-cli",
+    "fiveHour": {
+     "utilization": 0.42,
+     "resetsAt": "2026-10-03T16:20:00.000Z"
+    },
+    "sevenDay": {
+     "utilization": 0.73,
+     "resetsAt": "2026-10-09T08:00:00.000Z"
+    },
+    "overage": {
+     "status": "unknown",
+     "active": false
+    }
+   }
+  }
+ ]
+}

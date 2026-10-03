@@ -1,0 +1,54 @@
+{
+  "coverage": {
+    "claimsTotal": 0,
+    "claimsVerified": 0,
+    "filesExcluded": {
+      "binary": 299,
+      "deny_glob": 16,
+      "fixture": 13,
+      "generated": 1,
+      "lockfile": 5,
+      "minified": 3,
+      "oversize": 1,
+      "special": 2
+    },
+    "filesIncluded": 879,
+    "filesTotal": 1219,
+    "locIncluded": 64911,
+    "modulesGenerated": 0,
+    "modulesTotal": 15
+  },
+  "docId": "doc_g79ncdhdcrp9",
+  "effort": null,
+  "generatedAt": null,
+  "generator": {
+    "extractors": {},
+    "mitoriVersion": "0.0.0",
+    "prompts": {
+      "gen.flows": "gen.flows@2",
+      "gen.module": "gen.module@3",
+      "gen.overview": "gen.overview@2",
+      "gen.parent": "gen.parent@2"
+    }
+  },
+  "kind": "mitori/doc-manifest",
+  "models": [
+    "claude-opus-5-5",
+    "claude-sonnet-5-5"
+  ],
+  "primaryLang": "ja",
+  "schemaVersion": 1,
+  "snapshot": {
+    "commit": null,
+    "indexDigest": ""
+  },
+  "title": "crit",
+  "usageTotals": {
+    "apiUsd": 0,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "calls": 0,
+    "in": 0,
+    "out": 0
+  }
+}
