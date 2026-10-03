@@ -34,6 +34,11 @@ export interface ScopeCtx {
    * own ctx shape still type-checks. Without it the fallback yields nothing.
    */
   sectionOfBlock?(block: BlockId): SectionId | null;
+  /**
+   * False for paths git treats specially — a `filter` / `working-tree-encoding` attribute or an LFS pointer (SEC-18,
+   * CR m1-82); they stay readable context but never join the scope. Absent ⇒ only the index exclusions apply.
+   */
+  writable?(path: RepoPath): boolean;
 }
 
 export interface ScopeResult {
@@ -76,7 +81,7 @@ export function deriveScope(threads: ThreadDetail[], ctx: ScopeCtx): Result<Scop
   };
   const writable = (path: RepoPath): boolean => {
     const entry = ctx.fileEntry(path);
-    return entry !== null && !(entry.excluded !== undefined && UNWRITABLE.has(entry.excluded));
+    return entry !== null && !(entry.excluded !== undefined && UNWRITABLE.has(entry.excluded)) && (ctx.writable?.(path) ?? true);
   };
 
   // §3.2: code ranges of every thread, plus context ranges from chips.

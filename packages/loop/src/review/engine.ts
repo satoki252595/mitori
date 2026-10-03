@@ -59,23 +59,17 @@ import {
   type ThreadSummary,
   type ThreadTrigger,
   type TransitionActor,
-  unsupported,
   type WorkspaceInfo,
   type WriteQueue,
 } from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
-import { type JobRunner, type LoopDomainEvent, REVIEW_STDOUT, type ReviewEngine } from "../contract.ts";
+import { type CapturedAnchor, type JobRunner, type LoopDomainEvent, REVIEW_STDOUT, type ReviewEngine } from "../contract.ts";
 import { anchorLabel, displayState, planBatch, renderDecisionMarkdown, renderDocEditAsk, renderReviewStdout } from "./index.ts";
 import { ReviewStore, type RoundRecord } from "./store.ts";
 import { capUtf8, firstLine, lf, plainHtml, titleOf } from "./text.ts";
 
-/** Server-side anchor stamping result (`AnchorInput` → `Anchor` + capture-time auxiliary data). */
-export interface CapturedAnchor {
-  /** Full anchor (blob/snippet/symbol, blockHash/claim stamped by `AnchorEngine.codeAnchor/docAnchor`). */
-  anchor: Anchor;
-  /** Capture-time data per member for `rev_anchor_snapshots` (range text ≤ 4 KiB, symStart, diagram label/ref). */
-  aux?: Partial<Record<AnchorSnapshot["member"], Pick<AnchorSnapshot, "text" | "symStart" | "label" | "ref">>>;
-}
+/** Server-side anchor stamping result — the loop contract's type since CR m1-68 (kept as an export for the tests). */
+export type { CapturedAnchor };
 
 /** Ports of the review engine (a subset of `LoopDeps` plus the cross-WP seams). */
 export interface ReviewEngineDeps {
@@ -457,12 +451,12 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
 
   /* ---- the engine ------------------------------------------------------------------------------------------ */
   const engine: ReviewEngineHandle = {
-    create(req, by) {
+    create(req, by, captured) {
       return mutate(() => {
         const body = lf(req.body);
         if (!req.draft && body.trim() === "") throw new MitoriError("E_INVALID_INPUT", "a submitted thread needs a body");
         if (!req.draft && by !== "human") assertTransition({ machine: "thread", from: "draft", on: "submit", by: by === "system" ? "system" : "agent" });
-        const cap = deps.captureAnchor(req.anchor, null);
+        const cap = captured ?? deps.captureAnchor(req.anchor, null);
         const at = now();
         const t: Thread = {
           id: newId("thread", deps.random),
@@ -487,7 +481,7 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
       });
     },
 
-    patch(id, req) {
+    patch(id, req, captured) {
       return mutate(() => {
         let t = load(id);
         checkVersion(t, req.version);
@@ -508,7 +502,7 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
           t = { ...t, title: titleOf(body) };
         }
         if (req.anchor !== undefined) {
-          const cap = deps.captureAnchor(req.anchor, t.anchor);
+          const cap = captured ?? deps.captureAnchor(req.anchor, t.anchor);
           t = { ...t, anchor: cap.anchor, anchorHealth: "ok" };
           snapshot(id, cap, ["captured", "last_ok"], true);
         }
@@ -1007,7 +1001,22 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
     },
 
     // CR m1-72: touched files join the dispatched pull round's `round.completed.files` (S6: WP-08b implements it).
-    recordTouched: (paths) => unsupported("review.recordTouched (WP-08b, CR m1-72)", paths),
+    recordTouched(paths) {
+      mutate(() => {
+        // the newest dispatched pull round collects them; outside a round a touch only marks blocks stale (server)
+        const rec = store.rounds("WHERE mode = 'pull' AND state = 'dispatched' ORDER BY n DESC LIMIT 1", [])[0];
+        if (!rec || paths.length === 0) return;
+        const files: RepoPath[] = [];
+        for (const f of paths) {
+          const p = parseRepoPath(f);
+          if (p.ok) files.push(p.value);
+        }
+        const merged = [...new Set([...rec.files, ...files])].sort();
+        if (merged.length === rec.files.length) return;
+        rec.files = merged;
+        store.upsertRound(rec);
+      });
+    },
   };
 
   function inboxTags(t: Thread): InboxFilter[] | null {
