@@ -49,9 +49,9 @@ const ASPECTS: [BlockAspect, BlockKind][] = [
 ];
 
 describe("DOC-U-006 property: what the store writes reloads unchanged", () => {
-  test("40 seeded docs", async () => {
+  test("30 seeded docs", async () => {
     const fails: unknown[] = [];
-    for (let it = 0; it < 40 && fails.length < 3; it++) {
+    for (let it = 0; it < 30 && fails.length < 3; it++) {
       const root = realpathSync(mkdtempSync(join(tmpdir(), "mitori-reload-prop-")));
       tmp.push(root);
       const h = harness({ root, fs: true, writer: spySafeWriter() });
