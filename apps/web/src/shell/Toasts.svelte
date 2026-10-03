@@ -11,6 +11,17 @@ const s = useStores();
 const bottom = $derived(s.bottom.bottomOf("toasts"));
 let el: HTMLDivElement | undefined = $state();
 
+// the lifetime stops while the pointer OR the focus is inside, and runs again only when both have left (WCAG 2.2.1)
+const holders = new Map<string, Set<"pointer" | "focus">>();
+function hold(id: string, by: "pointer" | "focus", on: boolean) {
+  const set = holders.get(id) ?? new Set();
+  holders.set(id, set);
+  if (on) {
+    if (set.size === 0) s.bottom.pause(id);
+    set.add(by);
+  } else if (set.delete(by) && set.size === 0) s.bottom.resume(id);
+}
+
 $effect(() => {
   if (!el) return;
   const ro = new ResizeObserver(() => s.bottom.set("toasts", "toast", el?.offsetHeight ?? 0));
@@ -27,10 +38,10 @@ $effect(() => {
     <div
       class="toast"
       role={tt.live === "assertive" ? "alert" : "status"}
-      onpointerenter={() => s.bottom.pause(tt.id)}
-      onpointerleave={() => s.bottom.resume(tt.id)}
-      onfocusin={() => s.bottom.pause(tt.id)}
-      onfocusout={() => s.bottom.resume(tt.id)}
+      onpointerenter={() => hold(tt.id, "pointer", true)}
+      onpointerleave={() => hold(tt.id, "pointer", false)}
+      onfocusin={() => hold(tt.id, "focus", true)}
+      onfocusout={(e) => !(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null) && hold(tt.id, "focus", false)}
     >
       <span class="msg"><Rich text={t(tt.key, tt.params)} /></span>
       {#if tt.action}
