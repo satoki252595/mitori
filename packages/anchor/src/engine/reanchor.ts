@@ -120,17 +120,18 @@ class Batch {
   }
 
   async load(items: readonly AnchoredItem[]): Promise<void> {
-    // Texts are needed only off the identity path: current files whose blob moved on, their old blobs, added files.
+    // Texts are needed only off the identity path: current files whose blob moved on, the anchors' old blobs (also
+    // for deleted files: the S0 cross-file search needs the old lines when there is no quote, e.g. claim cites),
+    // and the added files.
     const want = new Set<RepoPath>();
     const blobs = new Set<GitOid>();
     for (const it of items) {
       const a = codeOf(it);
       const t = this.targetOf(a.path);
       const cur = this.blobOf(t);
-      if (cur !== null && cur !== a.blob) {
-        want.add(t);
-        blobs.add(a.blob);
-      }
+      if (cur === a.blob) continue;
+      if (cur !== null) want.add(t);
+      blobs.add(a.blob);
     }
     if (this.delta.changed.length <= ANCHOR_LIMITS.crossFileMoveMaxChangedFiles) {
       const added = new Set<RepoPath>(safe(() => this.ctx.addedPaths(), []));

@@ -325,6 +325,30 @@ describe("cascade edges", () => {
     expect(rep.results[0]?.result.health).toBe("outdated");
   });
 
+  test("S0: a file deleted while its function moved to a new file — claim cites (no quote) follow it too", async () => {
+    const r = rng(31);
+    const blocks = Array.from({ length: 4 }, (_, k) => fnBlock(r, `h${k}_moved`));
+    const lines = ["// old", ...blocks.flat()];
+    const start = 2 + (blocks[0] as string[]).length;
+    const end = start + (blocks[1] as string[]).length - 2;
+    const ws = memWorkspace(h, { "old.ts": textOf(lines) });
+    const a = eng.codeAnchor("old.ts", start, end, textOf(lines), ws.blob("old.ts") as string);
+    const cite = { path: a.path, start: a.start, end: a.end, blob: a.blob, snippet: a.snippet, precision: "exact" as const };
+    const delta = ws.commit({ "new.ts": textOf(["// new", "", ...(blocks[1] as string[])]) });
+    const rep = await eng.reanchor(
+      [
+        { kind: "cite", owner: "cl_00000000", index: 0, cite },
+        { kind: "thread", owner: "th_00000000", anchor: a },
+      ],
+      delta,
+      ws.ctx,
+    );
+    for (const res of rep.results) {
+      expect([res.result.health, res.result.method, res.step, res.result.confidence]).toEqual(["moved", "symbol", "S2", 0.9]);
+      expect(res.result.anchor).toMatchObject({ path: "new.ts", start: 3, end: 3 + (end - start) });
+    }
+  });
+
   test("one port failing (even synchronously) loses only its own path; slow reads of the others still land", async () => {
     const la = codeFile(rng(1), 5);
     const lb = codeFile(rng(2), 5);
