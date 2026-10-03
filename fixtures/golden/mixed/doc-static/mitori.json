@@ -1,0 +1,39 @@
+{
+  "coverage": {
+    "claimsTotal": 0,
+    "claimsVerified": 0,
+    "filesExcluded": {
+      "deny_glob": 1
+    },
+    "filesIncluded": 27,
+    "filesTotal": 28,
+    "locIncluded": 440,
+    "modulesGenerated": 0,
+    "modulesTotal": 10
+  },
+  "docId": "doc_k683t00pabmp",
+  "effort": null,
+  "generatedAt": null,
+  "generator": {
+    "extractors": {},
+    "mitoriVersion": "0.0.0",
+    "prompts": {}
+  },
+  "kind": "mitori/doc-manifest",
+  "models": [],
+  "primaryLang": "ja",
+  "schemaVersion": 1,
+  "snapshot": {
+    "commit": null,
+    "indexDigest": ""
+  },
+  "title": "fixture",
+  "usageTotals": {
+    "apiUsd": 0,
+    "cacheRead": 0,
+    "cacheWrite": 0,
+    "calls": 0,
+    "in": 0,
+    "out": 0
+  }
+}

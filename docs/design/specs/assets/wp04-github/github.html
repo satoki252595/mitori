@@ -1,0 +1,253 @@
+<h1>0. ひとことで </h1>
+<div class="markdown-alert markdown-alert-note"><p class="markdown-alert-title"><svg data-component="Octicon" class="octicon octicon-info mr-2" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>Note</p><p><strong>未生成</strong><br>
+この節はまだ生成されていません。mitori の「生成する」で作られます。</p>
+</div>
+<ul>
+<li>言語: javascript 80 行 · jsx 40 行 · tsx 40 行 · typescript 40 行</li>
+<li>規模: 16 ファイル · 200 行</li>
+<li>最終 commit: <code class="notranslate">fd73d67799ef</code>（main）</li>
+<li>ライセンス: 不明</li>
+</ul>
+
+<ul>
+<li>読んだファイル 12 · 除外 4</li>
+<li>除外の内訳: data_large 1 · generated 2 · lockfile 1</li>
+</ul>
+
+<h1>1. これは何か・誰のためか・なぜあるか </h1>
+<h2>解決する課題 </h2>
+<p>買ったまま読んでいない本（積読）を、忘れずに消化できるようにする（<a href="../../src/index.ts#L1-L12">index.ts:1-12</a>）。<code class="notranslate">BookRepo.create</code> が id を振る（<a href="../../src/db/repo.ts#L10-L20">repo.ts:10-20</a>、<a href="../../src/db/types.ts#L3">types.ts:3</a>）。 </p>
+<h2>利用者 </h2>
+<ul>
+<li>本を買いすぎる人</li>
+<li>読書会の幹事
+<ul>
+<li>入れ子の項目も崩れない </li>
+</ul>
+</li>
+</ul>
+<h2>制約 </h2>
+<ul>
+<li>再試行は 1 回だけ（推測）。 </li>
+</ul>
+<h1>2. 見取り図 </h1>
+<div class="markdown-alert markdown-alert-note"><p class="markdown-alert-title"><svg data-component="Octicon" class="octicon octicon-info mr-2" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>Note</p><p><strong>未生成</strong><br>
+この節はまだ生成されていません。mitori の「生成する」で作られます。</p>
+</div>
+<div class="highlight highlight-source-mermaid"><pre class="notranslate"><span class="pl-k">flowchart</span> <span class="pl-c1">LR</span>
+  <span class="pl-ent">src</span>-<span class="pl-ent">ui</span><span class="pl-s"><span class="pl-pds"><span class="pl-sg">[</span></span><span class="pl-s"><span class="pl-pds">"</span>ui<span class="pl-pds">"</span></span><span class="pl-pds"><span class="pl-sg">]</span></span></span>
+  <span class="pl-ent">bin</span><span class="pl-s"><span class="pl-pds"><span class="pl-sg">[</span></span><span class="pl-s"><span class="pl-pds">"</span>bin<span class="pl-pds">"</span></span><span class="pl-pds"><span class="pl-sg">]</span></span></span>
+  <span class="pl-ent">src</span><span class="pl-s"><span class="pl-pds"><span class="pl-sg">[</span></span><span class="pl-s"><span class="pl-pds">"</span>src<span class="pl-pds">"</span></span><span class="pl-pds"><span class="pl-sg">]</span></span></span>
+  <span class="pl-ent">src</span>-<span class="pl-ent">http</span><span class="pl-s"><span class="pl-pds"><span class="pl-sg">[</span></span><span class="pl-s"><span class="pl-pds">"</span>http<span class="pl-pds">"</span></span><span class="pl-pds"><span class="pl-sg">]</span></span></span></pre></div>
+
+<h1>3. 主要な流れ </h1>
+<p>読み込みから一覧表示までの流れ。表・コード・図・注意書きの見え方の確認用。 </p>
+<h2>3.1 CSV の取り込み </h2>
+<p>CSV を読み、<code class="notranslate">BookRepo</code> に保存する。 </p>
+<p>取り込みの順序</p>
+<div class="highlight highlight-source-mermaid"><pre class="notranslate"><span class="pl-k">sequenceDiagram</span>
+  <span class="pl-k">participant</span> <span class="pl-ent">cli</span> <span class="pl-k">as</span> <span class="pl-ent">CLI</span>
+  <span class="pl-k">participant</span> <span class="pl-ent">repo</span> <span class="pl-k">as</span> <span class="pl-ent">BookRepo</span>
+  <span class="pl-ent">cli</span><span class="pl-k">-&gt;&gt;</span><span class="pl-ent">repo</span><span class="pl-k">:</span> <span class="pl-s">create(book)</span></pre></div>
+
+<h3>手順 </h3>
+<ol>
+<li>CSV を読む</li>
+<li>行を検証する</li>
+<li>保存する </li>
+</ol>
+<h3>例外と境界 </h3>
+<ul>
+<li>空の CSV は何もしない</li>
+<li>重複した ISBN は <code class="notranslate">|</code> を含んでもエスケープされる </li>
+</ul>
+<h1>4. 動かしてみる </h1>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>用途</th>
+<th>名前</th>
+<th>コマンド</th>
+<th>定義</th>
+<th>状態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>run</td>
+<td><code class="notranslate">dev</code></td>
+<td><code class="notranslate">dev</code></td>
+<td><code class="notranslate">package.json:12</code></td>
+<td>未実行</td>
+</tr>
+<tr>
+<td>test</td>
+<td><code class="notranslate">test</code></td>
+<td><code class="notranslate">test</code></td>
+<td><code class="notranslate">package.json:14</code></td>
+<td>未実行</td>
+</tr>
+<tr>
+<td>build</td>
+<td><code class="notranslate">build</code></td>
+<td><code class="notranslate">build</code></td>
+<td><code class="notranslate">package.json:13</code></td>
+<td>未実行</td>
+</tr>
+<tr>
+<td>lint</td>
+<td><code class="notranslate">lint</code></td>
+<td><code class="notranslate">lint</code></td>
+<td><code class="notranslate">package.json:16</code></td>
+<td>未実行</td>
+</tr>
+<tr>
+<td>format</td>
+<td><code class="notranslate">format</code></td>
+<td><code class="notranslate">format</code></td>
+<td><code class="notranslate">package.json:17</code></td>
+<td>未実行</td>
+</tr>
+<tr>
+<td>typecheck</td>
+<td><code class="notranslate">typecheck</code></td>
+<td><code class="notranslate">typecheck</code></td>
+<td><code class="notranslate">package.json:15</code></td>
+<td>未実行</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>名前</th>
+<th>既定値</th>
+<th>読む場所</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code class="notranslate">DATABASE_URL</code></td>
+<td>なし</td>
+<td><code class="notranslate">src/config.ts:24</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">LOG_LEVEL</code></td>
+<td>あり</td>
+<td><code class="notranslate">src/config.ts:21</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">PORT</code></td>
+<td>あり</td>
+<td><code class="notranslate">src/config.ts:23</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">TSUNDOKU_API_TOKEN</code></td>
+<td>なし</td>
+<td><code class="notranslate">src/config.ts:26</code></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>入口</th>
+<th>種類</th>
+<th>場所</th>
+<th>状態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tsundoku</td>
+<td>bin</td>
+<td><code class="notranslate">bin/tsundoku.js:1</code></td>
+<td>未実行</td>
+</tr>
+<tr>
+<td>src/index.ts</td>
+<td>main</td>
+<td><code class="notranslate">src/index.ts:1</code></td>
+<td>未実行</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+
+<h1>7. データモデル </h1>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>エンティティ</th>
+<th>フィールド</th>
+<th>定義</th>
+<th>形式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code class="notranslate">book_tags</code></td>
+<td>book_id, tag_id</td>
+<td><code class="notranslate">src/db/schema.ts:1</code></td>
+<td>drizzle</td>
+</tr>
+<tr>
+<td><code class="notranslate">book_tags</code></td>
+<td>book_id, tag_id</td>
+<td><code class="notranslate">db/migrations/0001_init.sql:1</code></td>
+<td>sql</td>
+</tr>
+<tr>
+<td><code class="notranslate">books</code></td>
+<td>id, isbn, title, status, added_at</td>
+<td><code class="notranslate">src/db/schema.ts:1</code></td>
+<td>drizzle</td>
+</tr>
+<tr>
+<td><code class="notranslate">books</code></td>
+<td>id, isbn, title, status, added_at</td>
+<td><code class="notranslate">db/migrations/0001_init.sql:1</code></td>
+<td>sql</td>
+</tr>
+<tr>
+<td><code class="notranslate">tags</code></td>
+<td>id, name</td>
+<td><code class="notranslate">src/db/schema.ts:1</code></td>
+<td>drizzle</td>
+</tr>
+<tr>
+<td><code class="notranslate">tags</code></td>
+<td>id, name</td>
+<td><code class="notranslate">db/migrations/0001_init.sql:1</code></td>
+<td>sql</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+
+<div class="highlight highlight-source-mermaid"><pre class="notranslate"><span class="pl-k">flowchart</span> <span class="pl-c1">LR</span>
+  <span class="pl-ent">e_book_tags</span><span class="pl-s"><span class="pl-pds"><span class="pl-sg">[</span></span><span class="pl-s"><span class="pl-pds">"</span>book_tags<span class="pl-pds">"</span></span><span class="pl-pds"><span class="pl-sg">]</span></span></span>
+  <span class="pl-ent">e_books</span><span class="pl-s"><span class="pl-pds"><span class="pl-sg">[</span></span><span class="pl-s"><span class="pl-pds">"</span>books<span class="pl-pds">"</span></span><span class="pl-pds"><span class="pl-sg">]</span></span></span>
+  <span class="pl-ent">e_tags</span><span class="pl-s"><span class="pl-pds"><span class="pl-sg">[</span></span><span class="pl-s"><span class="pl-pds">"</span>tags<span class="pl-pds">"</span></span><span class="pl-pds"><span class="pl-sg">]</span></span></span>
+  <span class="pl-ent">e_book_tags</span> <span class="pl-k">--&gt;</span><span class="pl-k">|</span><span class="pl-s">book_id</span><span class="pl-k">|</span> <span class="pl-ent">e_books</span>
+  <span class="pl-ent">e_book_tags</span> <span class="pl-k">--&gt;</span><span class="pl-k">|</span><span class="pl-s">tag_id</span><span class="pl-k">|</span> <span class="pl-ent">e_tags</span></pre></div>
+
+<div class="markdown-alert markdown-alert-note"><p class="markdown-alert-title"><svg data-component="Octicon" class="octicon octicon-info mr-2" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>Note</p><p><strong>未生成</strong><br>
+この節はまだ生成されていません。mitori の「生成する」で作られます。</p>
+</div>
+<h1>10. 設計判断 </h1>
+<div class="markdown-alert markdown-alert-important"><p class="markdown-alert-title"><svg data-component="Octicon" class="octicon octicon-report mr-2" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v9.5A1.75 1.75 0 0 1 14.25 13H8.06l-2.573 2.573A1.458 1.458 0 0 1 3 14.543V13H1.75A1.75 1.75 0 0 1 0 11.25Zm1.75-.25a.25.25 0 0 0-.25.25v9.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25Zm7 2.25v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg>Important</p><p><strong>なぜ 1 回だけ再試行するのか</strong><br>
+長く待たせないため。失敗が続くなら利用者に知らせる方がよい。</p>
+</div>
+<ul>
+<li>まだ決定はありません。スレッドの結論を「決定として残す」と、ここに並びます。</li>
+</ul>
+
+<h1>ui（src/ui） </h1>
+<ul>
+<li>ファイル 2 · 80 行 · 重要度 0.40</li>
+</ul>
+
+<div class="markdown-alert markdown-alert-note"><p class="markdown-alert-title"><svg data-component="Octicon" class="octicon octicon-info mr-2" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>Note</p><p><strong>未生成</strong><br>
+このモジュールのページはまだ生成されていません。mitori の「生成する」で作られます。</p>
+</div>

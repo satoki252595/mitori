@@ -1,0 +1,1809 @@
+{
+  "blocks": {
+    "b_07dfj5bf": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/12-glossary.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_07dfj5bf",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s12",
+      "slot": "s12:ph",
+      "status": "placeholder"
+    },
+    "b_0h895x4x": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/04-quickstart.md",
+      "freshness": "fresh",
+      "hash": "2987417ee32c8cae",
+      "id": "b_0h895x4x",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 12,
+      "section": "s4",
+      "slot": "s4:entries",
+      "status": "ready"
+    },
+    "b_1045tqb2": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/05-codebase-map.md",
+      "freshness": "fresh",
+      "hash": "a3816b2d349f594e",
+      "id": "b_1045tqb2",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s5",
+      "slot": "s5:h",
+      "status": "ready"
+    },
+    "b_15jrsf7z": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/05-codebase-map.md",
+      "freshness": "fresh",
+      "hash": "dc487a6a396f78b8",
+      "id": "b_15jrsf7z",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 19,
+      "section": "s5",
+      "slot": "s5:tree",
+      "status": "ready"
+    },
+    "b_1n513zvc": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/internal-server.md",
+      "freshness": "fresh",
+      "hash": "9f8babd83b5226ac",
+      "id": "b_1n513zvc",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 3,
+      "section": "s6/internal-server",
+      "slot": "m:md_qkqykx7t:h",
+      "status": "ready"
+    },
+    "b_2q2r6nrn": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/11-risks.md",
+      "freshness": "fresh",
+      "hash": "8411753a2a6a508c",
+      "id": "b_2q2r6nrn",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s11",
+      "slot": "s11:h",
+      "status": "ready"
+    },
+    "b_2ymq14c0": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/cmd-tsundoku.md",
+      "freshness": "fresh",
+      "hash": "eead39b7ccf219d2",
+      "id": "b_2ymq14c0",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 5,
+      "section": "s6/cmd-tsundoku",
+      "slot": "m:md_3jpx92tq:ph",
+      "status": "placeholder"
+    },
+    "b_4px30qmk": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/08-interfaces.md",
+      "freshness": "fresh",
+      "hash": "ebeb7668ef149a6a",
+      "id": "b_4px30qmk",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s8",
+      "slot": "s8:h",
+      "status": "ready"
+    },
+    "b_55xb9c30": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/internal-server.md",
+      "freshness": "fresh",
+      "hash": "db10615ddf17b800",
+      "id": "b_55xb9c30",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 2,
+      "section": "s6/internal-server",
+      "slot": "m:md_qkqykx7t:facts",
+      "status": "ready"
+    },
+    "b_59zqtq6w": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/04-quickstart.md",
+      "freshness": "fresh",
+      "hash": "b897a50527a18226",
+      "id": "b_59zqtq6w",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 14,
+      "section": "s4",
+      "slot": "s4:scripts",
+      "status": "ready"
+    },
+    "b_5v7d4g50": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/cmd-tsundoku.md",
+      "freshness": "fresh",
+      "hash": "618a5e6e00a1fdc5",
+      "id": "b_5v7d4g50",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 3,
+      "section": "s6/cmd-tsundoku",
+      "slot": "m:md_3jpx92tq:h",
+      "status": "ready"
+    },
+    "b_7jpkd0se": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/04-quickstart.md",
+      "freshness": "fresh",
+      "hash": "6957ebf273cb6fb2",
+      "id": "b_7jpkd0se",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 20,
+      "section": "s4",
+      "slot": "s4:env",
+      "status": "ready"
+    },
+    "b_7pgg7ee3": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/10-decisions.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_7pgg7ee3",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s10",
+      "slot": "s10:ph",
+      "status": "placeholder"
+    },
+    "b_8jabk1vc": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/05-codebase-map.md",
+      "freshness": "fresh",
+      "hash": "701786ceb02c7f63",
+      "id": "b_8jabk1vc",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s5",
+      "slot": "s5:noise",
+      "status": "ready"
+    },
+    "b_928k686p": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/internal-config.md",
+      "freshness": "fresh",
+      "hash": "07d04fdcc8e9e402",
+      "id": "b_928k686p",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 3,
+      "section": "s6/internal-config",
+      "slot": "m:md_w5rsgwv9:h",
+      "status": "ready"
+    },
+    "b_a7wr1pqr": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/cmd-tsundoku.md",
+      "freshness": "fresh",
+      "hash": "b41d187ca9ba86e6",
+      "id": "b_a7wr1pqr",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 2,
+      "section": "s6/cmd-tsundoku",
+      "slot": "m:md_3jpx92tq:facts",
+      "status": "ready"
+    },
+    "b_bt3ztc8k": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/07-data-model.md",
+      "freshness": "fresh",
+      "hash": "02ae7480753670ec",
+      "id": "b_bt3ztc8k",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s7",
+      "slot": "s7:h",
+      "status": "ready"
+    },
+    "b_d16v28wn": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/cmd-tsundoku-cobra.md",
+      "freshness": "fresh",
+      "hash": "b41d187ca9ba86e6",
+      "id": "b_d16v28wn",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 2,
+      "section": "s6/cmd-tsundoku-cobra",
+      "slot": "m:md_0589x3tt:facts",
+      "status": "ready"
+    },
+    "b_defny1sq": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/cmd-tsundoku-cobra.md",
+      "freshness": "fresh",
+      "hash": "eead39b7ccf219d2",
+      "id": "b_defny1sq",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 5,
+      "section": "s6/cmd-tsundoku-cobra",
+      "slot": "m:md_0589x3tt:ph",
+      "status": "placeholder"
+    },
+    "b_dvme2174": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/09-quality.md",
+      "freshness": "fresh",
+      "hash": "cd9d827501550d2c",
+      "id": "b_dvme2174",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s9",
+      "slot": "s9:h",
+      "status": "ready"
+    },
+    "b_ej3kfsxy": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/internal-store.md",
+      "freshness": "fresh",
+      "hash": "10dfc30b4156804c",
+      "id": "b_ej3kfsxy",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 3,
+      "section": "s6/internal-store",
+      "slot": "m:md_b334f63e:h",
+      "status": "ready"
+    },
+    "b_fs161v6r": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "diagram": "dg_6kb41ap4",
+      "file": "doc/02-floor-plan.md",
+      "freshness": "fresh",
+      "hash": "4f868c56b513f4ed",
+      "id": "b_fs161v6r",
+      "kind": "diagram",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 45,
+      "section": "s2",
+      "slot": "s2:floorplan",
+      "status": "ready"
+    },
+    "b_fy6j047k": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/08-interfaces.md",
+      "freshness": "fresh",
+      "hash": "4ff9ea52c5cf6204",
+      "id": "b_fy6j047k",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 39,
+      "section": "s8",
+      "slot": "s8:routes",
+      "status": "ready"
+    },
+    "b_h3wvhqt8": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/99-appendix.md",
+      "freshness": "fresh",
+      "hash": "a8c805c813df4fe1",
+      "id": "b_h3wvhqt8",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "appendix",
+      "slot": "appendix:h",
+      "status": "ready"
+    },
+    "b_h61w2ynv": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/internal-store.md",
+      "freshness": "fresh",
+      "hash": "db10615ddf17b800",
+      "id": "b_h61w2ynv",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 2,
+      "section": "s6/internal-store",
+      "slot": "m:md_b334f63e:facts",
+      "status": "ready"
+    },
+    "b_he87g2c2": {
+      "audience": [
+        "newcomer",
+        "pm",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/00-tldr.md",
+      "freshness": "fresh",
+      "hash": "ec4427ef417678ad",
+      "id": "b_he87g2c2",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 2,
+      "section": "s0",
+      "slot": "s0:coverage",
+      "status": "ready"
+    },
+    "b_hhewf7jr": {
+      "audience": [
+        "newcomer",
+        "pm",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/00-tldr.md",
+      "freshness": "fresh",
+      "hash": "cb34838b2336e54d",
+      "id": "b_hhewf7jr",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 7,
+      "section": "s0",
+      "slot": "s0:badges",
+      "status": "ready"
+    },
+    "b_hp9c85jj": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/01-what-why.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_hp9c85jj",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s1",
+      "slot": "s1:ph",
+      "status": "placeholder"
+    },
+    "b_hqgb1rkx": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/00-tldr.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_hqgb1rkx",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s0",
+      "slot": "s0:ph",
+      "status": "placeholder"
+    },
+    "b_hym5mfqc": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/01-what-why.md",
+      "freshness": "fresh",
+      "hash": "99db96e47c53bb2f",
+      "id": "b_hym5mfqc",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 2,
+      "section": "s1",
+      "slot": "s1:h",
+      "status": "ready"
+    },
+    "b_j0vf2v0a": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/13-open-questions.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_j0vf2v0a",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s13",
+      "slot": "s13:ph",
+      "status": "placeholder"
+    },
+    "b_jakp1rng": {
+      "audience": [
+        "reviewer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L3",
+      "file": "doc/99-appendix.md",
+      "freshness": "fresh",
+      "hash": "74587edcb9b3478d",
+      "id": "b_jakp1rng",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 8,
+      "section": "appendix",
+      "slot": "ap:meta",
+      "status": "ready"
+    },
+    "b_jj91d89v": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/internal-store.md",
+      "freshness": "fresh",
+      "hash": "eead39b7ccf219d2",
+      "id": "b_jj91d89v",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 5,
+      "section": "s6/internal-store",
+      "slot": "m:md_b334f63e:ph",
+      "status": "placeholder"
+    },
+    "b_jny0ggwy": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/cmd-tsundoku-cobra.md",
+      "freshness": "fresh",
+      "hash": "5cbdab5a2180563d",
+      "id": "b_jny0ggwy",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s6/cmd-tsundoku-cobra",
+      "slot": "m:md_0589x3tt:h",
+      "status": "ready"
+    },
+    "b_jqstb9e7": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/03-key-flows.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_jqstb9e7",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s3",
+      "slot": "s3:ph",
+      "status": "placeholder"
+    },
+    "b_jthn1bjc": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/06-modules.md",
+      "freshness": "fresh",
+      "hash": "6aefe5aa5fb067aa",
+      "id": "b_jthn1bjc",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s6",
+      "slot": "s6:h",
+      "status": "ready"
+    },
+    "b_kah19xkk": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/03-key-flows.md",
+      "freshness": "fresh",
+      "hash": "a718a0aa88614dc7",
+      "id": "b_kah19xkk",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s3",
+      "slot": "s3:h",
+      "status": "ready"
+    },
+    "b_mk2hvhr0": {
+      "audience": [
+        "reviewer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/10-decisions.md",
+      "freshness": "fresh",
+      "hash": "af675eb4debe7931",
+      "id": "b_mk2hvhr0",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 7,
+      "section": "s10",
+      "slot": "s10:adrs",
+      "status": "ready"
+    },
+    "b_n17ff8er": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/08-interfaces.md",
+      "freshness": "fresh",
+      "hash": "6957ebf273cb6fb2",
+      "id": "b_n17ff8er",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 20,
+      "section": "s8",
+      "slot": "s8:env",
+      "status": "ready"
+    },
+    "b_np5m1046": {
+      "audience": [
+        "reviewer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L3",
+      "file": "doc/11-risks.md",
+      "freshness": "fresh",
+      "hash": "a273f08337efe380",
+      "id": "b_np5m1046",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 5,
+      "section": "s11",
+      "slot": "s11:todos",
+      "status": "ready"
+    },
+    "b_ntqtac9z": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/internal-config.md",
+      "freshness": "fresh",
+      "hash": "b41d187ca9ba86e6",
+      "id": "b_ntqtac9z",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 2,
+      "section": "s6/internal-config",
+      "slot": "m:md_w5rsgwv9:facts",
+      "status": "ready"
+    },
+    "b_pb7fbtty": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/08-interfaces.md",
+      "freshness": "fresh",
+      "hash": "363817a4d46c63e3",
+      "id": "b_pb7fbtty",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 31,
+      "section": "s8",
+      "slot": "s8:cli",
+      "status": "ready"
+    },
+    "b_qx8y4ks7": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/06-modules.md",
+      "freshness": "fresh",
+      "hash": "4498790a558d94a4",
+      "id": "b_qx8y4ks7",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 42,
+      "section": "s6",
+      "slot": "s6:index",
+      "status": "ready"
+    },
+    "b_qzdwh15t": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/05-codebase-map.md",
+      "freshness": "fresh",
+      "hash": "05aef54a6bf4cd44",
+      "id": "b_qzdwh15t",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 9,
+      "section": "s5",
+      "slot": "s5:start",
+      "status": "ready"
+    },
+    "b_rax7qepg": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/internal-meta.md",
+      "freshness": "fresh",
+      "hash": "b41d187ca9ba86e6",
+      "id": "b_rax7qepg",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 2,
+      "section": "s6/internal-meta",
+      "slot": "m:md_v815ga4j:facts",
+      "status": "ready"
+    },
+    "b_rb5a4mqc": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/09-quality.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_rb5a4mqc",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s9",
+      "slot": "s9:ph",
+      "status": "placeholder"
+    },
+    "b_t4nkfvpz": {
+      "audience": [
+        "reviewer",
+        "dev",
+        "pm"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/10-decisions.md",
+      "freshness": "fresh",
+      "hash": "0a8c26df56e0426d",
+      "id": "b_t4nkfvpz",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 5,
+      "section": "s10",
+      "slot": "s10:decisions",
+      "status": "ready"
+    },
+    "b_tkxm27sh": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/internal-server.md",
+      "freshness": "fresh",
+      "hash": "eead39b7ccf219d2",
+      "id": "b_tkxm27sh",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 5,
+      "section": "s6/internal-server",
+      "slot": "m:md_qkqykx7t:ph",
+      "status": "placeholder"
+    },
+    "b_v4et1jnx": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/11-risks.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_v4et1jnx",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s11",
+      "slot": "s11:ph",
+      "status": "placeholder"
+    },
+    "b_v5c9hfe9": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/internal-meta.md",
+      "freshness": "fresh",
+      "hash": "eead39b7ccf219d2",
+      "id": "b_v5c9hfe9",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 5,
+      "section": "s6/internal-meta",
+      "slot": "m:md_v815ga4j:ph",
+      "status": "placeholder"
+    },
+    "b_vazmb35v": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/10-decisions.md",
+      "freshness": "fresh",
+      "hash": "c7af25ff1907e399",
+      "id": "b_vazmb35v",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s10",
+      "slot": "s10:h",
+      "status": "ready"
+    },
+    "b_vt3apkqs": {
+      "audience": [
+        "reviewer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L3",
+      "file": "doc/99-appendix.md",
+      "freshness": "fresh",
+      "hash": "860cdf3aa19bfa52",
+      "id": "b_vt3apkqs",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "appendix",
+      "slot": "ap:sources",
+      "status": "ready"
+    },
+    "b_vxg0wssp": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "diagram": "dg_4axx0t4z",
+      "file": "doc/07-data-model.md",
+      "freshness": "fresh",
+      "hash": "66a03bcb4d42a07d",
+      "id": "b_vxg0wssp",
+      "kind": "diagram",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 40,
+      "section": "s7",
+      "slot": "s7:er",
+      "status": "ready"
+    },
+    "b_x21yn0z5": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/12-glossary.md",
+      "freshness": "fresh",
+      "hash": "c937e0a2bf8d9abe",
+      "id": "b_x21yn0z5",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s12",
+      "slot": "s12:h",
+      "status": "ready"
+    },
+    "b_xc3zf3by": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/13-open-questions.md",
+      "freshness": "fresh",
+      "hash": "5844be092f9c9693",
+      "id": "b_xc3zf3by",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s13",
+      "slot": "s13:h",
+      "status": "ready"
+    },
+    "b_xgcdn0ft": {
+      "audience": [
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/07-data-model.md",
+      "freshness": "fresh",
+      "hash": "ac642e95b44f7a40",
+      "id": "b_xgcdn0ft",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 21,
+      "section": "s7",
+      "slot": "s7:schema",
+      "status": "ready"
+    },
+    "b_xn276g9g": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/04-quickstart.md",
+      "freshness": "fresh",
+      "hash": "f44f52fb9a3c21dd",
+      "id": "b_xn276g9g",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s4",
+      "slot": "s4:h",
+      "status": "ready"
+    },
+    "b_xqdq3vsq": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/internal-config.md",
+      "freshness": "fresh",
+      "hash": "eead39b7ccf219d2",
+      "id": "b_xqdq3vsq",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 2,
+      "origin": "static",
+      "readingSec": 5,
+      "section": "s6/internal-config",
+      "slot": "m:md_w5rsgwv9:ph",
+      "status": "placeholder"
+    },
+    "b_y38tb6tr": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/07-data-model.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_y38tb6tr",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s7",
+      "slot": "s7:ph",
+      "status": "placeholder"
+    },
+    "b_y5pce933": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/02-floor-plan.md",
+      "freshness": "fresh",
+      "hash": "f757320123417f4c",
+      "id": "b_y5pce933",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s2",
+      "slot": "s2:h",
+      "status": "ready"
+    },
+    "b_yd6g654y": {
+      "audience": [],
+      "claims": [],
+      "depth": "L0",
+      "file": "doc/00-tldr.md",
+      "freshness": "fresh",
+      "hash": "95339fcf9baa00a6",
+      "id": "b_yd6g654y",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 1,
+      "section": "s0",
+      "slot": "s0:h",
+      "status": "ready"
+    },
+    "b_yfn65hm8": {
+      "audience": [
+        "reviewer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L3",
+      "file": "doc/11-risks.md",
+      "freshness": "fresh",
+      "hash": "b953be133e33b98a",
+      "id": "b_yfn65hm8",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 13,
+      "section": "s11",
+      "slot": "s11:untested",
+      "status": "ready"
+    },
+    "b_yy6fghf6": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/02-floor-plan.md",
+      "freshness": "fresh",
+      "hash": "b98b93c530053c25",
+      "id": "b_yy6fghf6",
+      "kind": "placeholder",
+      "lang": "ja",
+      "ord": 1,
+      "origin": "static",
+      "readingSec": 4,
+      "section": "s2",
+      "slot": "s2:ph",
+      "status": "placeholder"
+    },
+    "b_znxv7s1y": {
+      "audience": [
+        "newcomer",
+        "dev"
+      ],
+      "claims": [],
+      "depth": "L1",
+      "file": "doc/modules/internal-meta.md",
+      "freshness": "fresh",
+      "hash": "4e39c5a410d455bf",
+      "id": "b_znxv7s1y",
+      "kind": "heading",
+      "lang": "ja",
+      "ord": 0,
+      "origin": "static",
+      "readingSec": 2,
+      "section": "s6/internal-meta",
+      "slot": "m:md_v815ga4j:h",
+      "status": "ready"
+    }
+  },
+  "claims": {},
+  "diagrams": {
+    "dg_4axx0t4z": {
+      "direction": "RIGHT",
+      "edges": [
+        {
+          "from": "e_book_tags",
+          "id": "r1",
+          "kind": "depends",
+          "label": "book_id",
+          "to": "e_books"
+        },
+        {
+          "from": "e_book_tags",
+          "id": "r2",
+          "kind": "depends",
+          "label": "tag_id",
+          "to": "e_tags"
+        }
+      ],
+      "groups": [],
+      "id": "dg_4axx0t4z",
+      "kind": "er",
+      "nodes": [
+        {
+          "id": "e_book_tags",
+          "label": "book_tags",
+          "shape": "store"
+        },
+        {
+          "id": "e_books",
+          "label": "books",
+          "shape": "store"
+        },
+        {
+          "id": "e_tags",
+          "label": "tags",
+          "shape": "store"
+        }
+      ],
+      "origin": "static"
+    },
+    "dg_6kb41ap4": {
+      "direction": "RIGHT",
+      "edges": [],
+      "groups": [],
+      "id": "dg_6kb41ap4",
+      "kind": "container",
+      "nodes": [
+        {
+          "id": "internal-server",
+          "label": "server",
+          "ref": {
+            "module": "md_qkqykx7t"
+          },
+          "sublabel": "internal/server",
+          "weight": 0.25
+        },
+        {
+          "id": "internal-store",
+          "label": "store",
+          "ref": {
+            "module": "md_b334f63e"
+          },
+          "sublabel": "internal/store",
+          "weight": 0.25
+        },
+        {
+          "id": "cmd-tsundoku",
+          "label": "tsundoku",
+          "ref": {
+            "module": "md_3jpx92tq"
+          },
+          "sublabel": "cmd/tsundoku",
+          "weight": 0.125
+        },
+        {
+          "id": "cmd-tsundoku-cobra",
+          "label": "tsundoku-cobra",
+          "ref": {
+            "module": "md_0589x3tt"
+          },
+          "sublabel": "cmd/tsundoku-cobra",
+          "weight": 0.125
+        },
+        {
+          "id": "internal-config",
+          "label": "config",
+          "ref": {
+            "module": "md_w5rsgwv9"
+          },
+          "sublabel": "internal/config",
+          "weight": 0.125
+        },
+        {
+          "id": "internal-meta",
+          "label": "meta",
+          "ref": {
+            "module": "md_v815ga4j"
+          },
+          "sublabel": "internal/meta",
+          "weight": 0.125
+        }
+      ],
+      "origin": "static"
+    }
+  },
+  "glossary": [],
+  "kind": "mitori/doc-index",
+  "modules": [
+    {
+      "id": "md_0589x3tt",
+      "ifaceDigest": "bbc18531f8395f2e",
+      "name": "tsundoku-cobra",
+      "reps": [
+        "cmd/tsundoku-cobra/main.go"
+      ],
+      "section": "s6/cmd-tsundoku-cobra",
+      "slug": "cmd-tsundoku-cobra"
+    },
+    {
+      "id": "md_3jpx92tq",
+      "ifaceDigest": "734cb230531a237f",
+      "name": "tsundoku",
+      "reps": [
+        "cmd/tsundoku/main.go"
+      ],
+      "section": "s6/cmd-tsundoku",
+      "slug": "cmd-tsundoku"
+    },
+    {
+      "id": "md_b334f63e",
+      "ifaceDigest": "327d6e2a4ba78891",
+      "name": "store",
+      "reps": [
+        "internal/store/memory.go",
+        "internal/store/store.go"
+      ],
+      "section": "s6/internal-store",
+      "slug": "internal-store"
+    },
+    {
+      "id": "md_qkqykx7t",
+      "ifaceDigest": "13bfd3860b78496b",
+      "name": "server",
+      "reps": [
+        "internal/server/chi_routes.go",
+        "internal/server/server.go"
+      ],
+      "section": "s6/internal-server",
+      "slug": "internal-server"
+    },
+    {
+      "id": "md_v815ga4j",
+      "ifaceDigest": "5612406cd8248439",
+      "name": "meta",
+      "reps": [
+        "internal/meta/fetch.go"
+      ],
+      "section": "s6/internal-meta",
+      "slug": "internal-meta"
+    },
+    {
+      "id": "md_w5rsgwv9",
+      "ifaceDigest": "19a2c9cda0b59520",
+      "name": "config",
+      "reps": [
+        "internal/config/config.go"
+      ],
+      "section": "s6/internal-config",
+      "slug": "internal-config"
+    }
+  ],
+  "readingPaths": [
+    {
+      "audience": "newcomer",
+      "id": "5min",
+      "readingSec": 75,
+      "steps": [
+        {
+          "section": "s0"
+        },
+        {
+          "section": "s1"
+        },
+        {
+          "section": "s2"
+        },
+        {
+          "section": "s3"
+        }
+      ],
+      "title": "5 分コース"
+    },
+    {
+      "audience": "newcomer",
+      "id": "30min",
+      "readingSec": 172,
+      "steps": [
+        {
+          "section": "s0"
+        },
+        {
+          "section": "s1"
+        },
+        {
+          "section": "s2"
+        },
+        {
+          "section": "s3"
+        },
+        {
+          "section": "s4"
+        },
+        {
+          "section": "s5"
+        },
+        {
+          "section": "s6/internal-server"
+        },
+        {
+          "section": "s6/internal-store"
+        }
+      ],
+      "title": "30 分コース"
+    },
+    {
+      "audience": "reviewer",
+      "id": "reviewer",
+      "readingSec": 93,
+      "steps": [
+        {
+          "section": "s6"
+        },
+        {
+          "section": "s9"
+        },
+        {
+          "section": "s10"
+        },
+        {
+          "section": "s11"
+        },
+        {
+          "section": "s13"
+        }
+      ],
+      "title": "レビュアー向け"
+    },
+    {
+      "audience": "pm",
+      "id": "pm",
+      "readingSec": 53,
+      "steps": [
+        {
+          "section": "s0"
+        },
+        {
+          "section": "s1"
+        },
+        {
+          "section": "s3"
+        },
+        {
+          "section": "s11"
+        },
+        {
+          "section": "s13"
+        }
+      ],
+      "title": "PM 向け"
+    },
+    {
+      "audience": "sre",
+      "id": "sre",
+      "readingSec": 166,
+      "steps": [
+        {
+          "section": "s4"
+        },
+        {
+          "section": "s8"
+        },
+        {
+          "section": "s9"
+        },
+        {
+          "section": "s11"
+        }
+      ],
+      "title": "SRE 向け"
+    }
+  ],
+  "schemaVersion": 1,
+  "sections": [
+    {
+      "blocks": [
+        "b_yd6g654y",
+        "b_hqgb1rkx",
+        "b_hhewf7jr",
+        "b_he87g2c2"
+      ],
+      "children": [],
+      "file": "doc/00-tldr.md",
+      "id": "s0",
+      "readingSec": 14,
+      "state": "pending",
+      "title": "ひとことで"
+    },
+    {
+      "blocks": [
+        "b_hym5mfqc",
+        "b_hp9c85jj"
+      ],
+      "children": [],
+      "file": "doc/01-what-why.md",
+      "id": "s1",
+      "readingSec": 6,
+      "state": "pending",
+      "title": "これは何か・誰のためか・なぜあるか"
+    },
+    {
+      "blocks": [
+        "b_y5pce933",
+        "b_yy6fghf6",
+        "b_fs161v6r"
+      ],
+      "children": [],
+      "file": "doc/02-floor-plan.md",
+      "id": "s2",
+      "readingSec": 50,
+      "state": "pending",
+      "title": "見取り図"
+    },
+    {
+      "blocks": [
+        "b_kah19xkk",
+        "b_jqstb9e7"
+      ],
+      "children": [],
+      "file": "doc/03-key-flows.md",
+      "id": "s3",
+      "readingSec": 5,
+      "state": "pending",
+      "title": "主要な流れ"
+    },
+    {
+      "blocks": [
+        "b_xn276g9g",
+        "b_59zqtq6w",
+        "b_7jpkd0se",
+        "b_0h895x4x"
+      ],
+      "children": [],
+      "file": "doc/04-quickstart.md",
+      "id": "s4",
+      "readingSec": 47,
+      "state": "static_only",
+      "title": "動かしてみる"
+    },
+    {
+      "blocks": [
+        "b_1045tqb2",
+        "b_15jrsf7z",
+        "b_qzdwh15t",
+        "b_8jabk1vc"
+      ],
+      "children": [],
+      "file": "doc/05-codebase-map.md",
+      "id": "s5",
+      "readingSec": 30,
+      "state": "static_only",
+      "title": "コードの地図"
+    },
+    {
+      "blocks": [
+        "b_jthn1bjc",
+        "b_qx8y4ks7"
+      ],
+      "children": [
+        "s6/internal-server",
+        "s6/internal-store",
+        "s6/cmd-tsundoku",
+        "s6/cmd-tsundoku-cobra",
+        "s6/internal-config",
+        "s6/internal-meta"
+      ],
+      "file": "doc/06-modules.md",
+      "id": "s6",
+      "readingSec": 43,
+      "state": "static_only",
+      "title": "モジュール詳細"
+    },
+    {
+      "blocks": [
+        "b_1n513zvc",
+        "b_55xb9c30",
+        "b_tkxm27sh"
+      ],
+      "children": [],
+      "file": "doc/modules/internal-server.md",
+      "id": "s6/internal-server",
+      "module": "md_qkqykx7t",
+      "readingSec": 10,
+      "state": "pending",
+      "title": "server"
+    },
+    {
+      "blocks": [
+        "b_ej3kfsxy",
+        "b_h61w2ynv",
+        "b_jj91d89v"
+      ],
+      "children": [],
+      "file": "doc/modules/internal-store.md",
+      "id": "s6/internal-store",
+      "module": "md_b334f63e",
+      "readingSec": 10,
+      "state": "pending",
+      "title": "store"
+    },
+    {
+      "blocks": [
+        "b_5v7d4g50",
+        "b_a7wr1pqr",
+        "b_2ymq14c0"
+      ],
+      "children": [],
+      "file": "doc/modules/cmd-tsundoku.md",
+      "id": "s6/cmd-tsundoku",
+      "module": "md_3jpx92tq",
+      "readingSec": 10,
+      "state": "pending",
+      "title": "tsundoku"
+    },
+    {
+      "blocks": [
+        "b_jny0ggwy",
+        "b_d16v28wn",
+        "b_defny1sq"
+      ],
+      "children": [],
+      "file": "doc/modules/cmd-tsundoku-cobra.md",
+      "id": "s6/cmd-tsundoku-cobra",
+      "module": "md_0589x3tt",
+      "readingSec": 11,
+      "state": "pending",
+      "title": "tsundoku-cobra"
+    },
+    {
+      "blocks": [
+        "b_928k686p",
+        "b_ntqtac9z",
+        "b_xqdq3vsq"
+      ],
+      "children": [],
+      "file": "doc/modules/internal-config.md",
+      "id": "s6/internal-config",
+      "module": "md_w5rsgwv9",
+      "readingSec": 10,
+      "state": "pending",
+      "title": "config"
+    },
+    {
+      "blocks": [
+        "b_znxv7s1y",
+        "b_rax7qepg",
+        "b_v5c9hfe9"
+      ],
+      "children": [],
+      "file": "doc/modules/internal-meta.md",
+      "id": "s6/internal-meta",
+      "module": "md_v815ga4j",
+      "readingSec": 9,
+      "state": "pending",
+      "title": "meta"
+    },
+    {
+      "blocks": [
+        "b_bt3ztc8k",
+        "b_xgcdn0ft",
+        "b_vxg0wssp",
+        "b_y38tb6tr"
+      ],
+      "children": [],
+      "file": "doc/07-data-model.md",
+      "id": "s7",
+      "readingSec": 66,
+      "state": "pending",
+      "title": "データモデル"
+    },
+    {
+      "blocks": [
+        "b_4px30qmk",
+        "b_fy6j047k",
+        "b_pb7fbtty",
+        "b_n17ff8er"
+      ],
+      "children": [],
+      "file": "doc/08-interfaces.md",
+      "id": "s8",
+      "readingSec": 91,
+      "state": "static_only",
+      "title": "外部インターフェース"
+    },
+    {
+      "blocks": [
+        "b_dvme2174",
+        "b_rb5a4mqc"
+      ],
+      "children": [],
+      "file": "doc/09-quality.md",
+      "id": "s9",
+      "readingSec": 5,
+      "state": "pending",
+      "title": "非機能"
+    },
+    {
+      "blocks": [
+        "b_vazmb35v",
+        "b_7pgg7ee3",
+        "b_t4nkfvpz",
+        "b_mk2hvhr0"
+      ],
+      "children": [],
+      "file": "doc/10-decisions.md",
+      "id": "s10",
+      "readingSec": 17,
+      "state": "pending",
+      "title": "設計判断"
+    },
+    {
+      "blocks": [
+        "b_2q2r6nrn",
+        "b_v4et1jnx",
+        "b_np5m1046",
+        "b_yfn65hm8"
+      ],
+      "children": [],
+      "file": "doc/11-risks.md",
+      "id": "s11",
+      "readingSec": 23,
+      "state": "pending",
+      "title": "リスクと負債"
+    },
+    {
+      "blocks": [
+        "b_x21yn0z5",
+        "b_07dfj5bf"
+      ],
+      "children": [],
+      "file": "doc/12-glossary.md",
+      "id": "s12",
+      "readingSec": 5,
+      "state": "pending",
+      "title": "用語集"
+    },
+    {
+      "blocks": [
+        "b_xc3zf3by",
+        "b_j0vf2v0a"
+      ],
+      "children": [],
+      "file": "doc/13-open-questions.md",
+      "id": "s13",
+      "readingSec": 5,
+      "state": "pending",
+      "title": "未解決の問い"
+    },
+    {
+      "blocks": [
+        "b_h3wvhqt8",
+        "b_vt3apkqs",
+        "b_jakp1rng"
+      ],
+      "children": [],
+      "file": "doc/99-appendix.md",
+      "id": "appendix",
+      "readingSec": 10,
+      "state": "static_only",
+      "title": "付録: 出典索引と生成メタ"
+    }
+  ]
+}
