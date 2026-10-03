@@ -14,9 +14,11 @@ import type {
   GenTask,
   GenTaskId,
   GenTaskState,
+  GitOid,
   MitoriErrorData,
   PrepId,
   Random,
+  RepoPath,
   SqlDb,
   Usage,
   Xxh3,
@@ -97,6 +99,18 @@ export interface TaskMetrics {
   stop: string;
 }
 
+/** A gen_runs row. */
+export interface StoredRun {
+  /** Run. */
+  run: GenRun;
+  /** Plan. */
+  plan: GenPlan;
+  /** Pinned repo pack text. */
+  pack: string | null;
+  /** Blobs of the paths the pinned pack shows (stamping + pins, PT-05). */
+  packBlobs: Map<RepoPath, GitOid>;
+}
+
 /** A gen_prep row. */
 export interface PrepRow {
   /** Id. */
@@ -168,11 +182,11 @@ export class GenStore {
       : null;
   }
 
-  putRun(run: GenRun, plan: GenPlan, pack: string | null, notBefore: number | null): void {
+  putRun(run: GenRun, plan: GenPlan, pack: string | null, notBefore: number | null, packBlobs: ReadonlyMap<RepoPath, GitOid> = new Map()): void {
     this.db.run(
       `INSERT OR REPLACE INTO gen_runs (id, effort, trigger, engine, scope, state, paused, concurrency, estimate_id, index_digest, usage,
-        not_before, created_at, started_at, finished_at, pinned, pack, window_at_start, estimate, plan)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        not_before, created_at, started_at, finished_at, pinned, pack, pack_blobs, window_at_start, estimate, plan)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         run.id,
         run.effort,
@@ -191,6 +205,7 @@ export class GenStore {
         run.finishedAt ? Date.parse(run.finishedAt) : null,
         run.pinned ? json(run.pinned) : null,
         pack,
+        json([...packBlobs]),
         run.windowAtStart ?? null,
         json(run.estimate),
         json(plan),
@@ -211,17 +226,17 @@ export class GenStore {
   }
 
   /** Runs (optionally by state). */
-  runs(states?: readonly GenRun["state"][]): { run: GenRun; plan: GenPlan; pack: string | null }[] {
+  runs(states?: readonly GenRun["state"][]): StoredRun[] {
     const rows = this.db.all<Record<string, unknown>>("SELECT * FROM gen_runs ORDER BY created_at, id");
     return rows.filter((r) => !states || states.includes(r.state as GenRun["state"])).map((r) => this.runOf(r));
   }
 
-  getRun(id: GenRunId): { run: GenRun; plan: GenPlan; pack: string | null } | null {
+  getRun(id: GenRunId): StoredRun | null {
     const r = this.db.get<Record<string, unknown>>("SELECT * FROM gen_runs WHERE id = ?", [id]);
     return r ? this.runOf(r) : null;
   }
 
-  private runOf(r: Record<string, unknown>): { run: GenRun; plan: GenPlan; pack: string | null } {
+  private runOf(r: Record<string, unknown>): StoredRun {
     const estimate = parse<GenEstimate>(r.estimate as string, {} as GenEstimate);
     const plan = parse<GenPlan>(r.plan as string, {} as GenPlan);
     const run: GenRun = {
@@ -242,7 +257,7 @@ export class GenStore {
     if (r.window_at_start !== null && r.window_at_start !== undefined) run.windowAtStart = r.window_at_start as number;
     if (r.started_at) run.startedAt = new Date(r.started_at as number).toISOString();
     if (r.finished_at) run.finishedAt = new Date(r.finished_at as number).toISOString();
-    return { run, plan, pack: (r.pack as string | null) ?? null };
+    return { run, plan, pack: (r.pack as string | null) ?? null, packBlobs: new Map(parse<[RepoPath, GitOid][]>(r.pack_blobs as string | null, [])) };
   }
 
   putTask(row: TaskRow): void {

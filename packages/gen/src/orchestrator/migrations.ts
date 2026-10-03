@@ -1,6 +1,7 @@
 /**
  * `gen_*` schema v1 (gen spec §13) plus the columns the orchestrator needs to rebuild a run after a restart:
- * the run's plan / estimate / pinned pack, and per task its prompt mode, phase and planned-task JSON.
+ * the run's plan / estimate / pinned pack (+ the blobs the pack was built from, PT-05), and per task its prompt
+ * mode, phase and planned-task JSON.
  */
 import type { Migration } from "@mitori/core";
 
@@ -14,7 +15,7 @@ CREATE TABLE gen_runs (
   scope TEXT NOT NULL, state TEXT NOT NULL, paused TEXT, concurrency INTEGER NOT NULL,
   estimate_id TEXT NOT NULL, index_digest TEXT NOT NULL, usage TEXT NOT NULL,
   not_before INTEGER, created_at INTEGER NOT NULL, started_at INTEGER, finished_at INTEGER,
-  pinned TEXT, pack TEXT, window_at_start REAL, estimate TEXT NOT NULL, plan TEXT NOT NULL);
+  pinned TEXT, pack TEXT, pack_blobs TEXT, window_at_start REAL, estimate TEXT NOT NULL, plan TEXT NOT NULL);
 CREATE TABLE gen_tasks (
   id TEXT PRIMARY KEY, run TEXT NOT NULL REFERENCES gen_runs(id), stage TEXT NOT NULL,
   prompt TEXT NOT NULL, target_kind TEXT NOT NULL, target_id TEXT NOT NULL, sections TEXT NOT NULL,

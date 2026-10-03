@@ -240,9 +240,11 @@ describe("AC-42 daemon restart", () => {
     expect(r?.run.paused).toEqual({ reason: "user" });
     expect(r?.tasks.find((t) => t.target.id === M_SESSION)?.state).toBe("pending");
     expect(h.doc.tombstones.has(partial[0]?.id as `b_${string}`)).toBe(true);
+    expect(h.indexer.pinned.size).toBeGreaterThan(0); // the pack's blobs stay pinned across the restart
     await h2.gen.control(run.id, "resume");
     await h2.gen.idle();
     expect(h2.gen.run(run.id)?.run.state).toBe("done");
+    expect(h.indexer.pinned.size).toBe(0); // …and the resumed run releases them when it finishes
     expect(
       h.doc
         .section("s6/session")

@@ -115,7 +115,7 @@ export class Runner {
   }
 
   /** Pin the run's system prompt + repo pack (PT-05) and remember the pack's blobs for stamping. */
-  pin(workdir: string): { pack: string; pinned: NonNullable<GenRun["pinned"]>; blobs: GitOid[] } {
+  pin(workdir: string): { pack: string; pinned: NonNullable<GenRun["pinned"]>; blobs: Map<RepoPath, GitOid> } {
     const deps = this.deps;
     const pack = deps.indexer.repoPack({ tokenizer: "claude-v5", maxTokens: GEN_ESTIMATE_PARAMS.repoPackMaxTokens });
     const lang = this.svc.lang();
@@ -131,7 +131,7 @@ export class Runner {
     return {
       pack: pack.text,
       pinned: { packKey: pack.key, systemHash: deps.hasher.sha256(sys.pack === null ? sys.system : `${sys.system}\n${sys.pack}`), snapshot },
-      blobs: [...blobs.values()],
+      blobs,
     };
   }
 
@@ -151,7 +151,7 @@ export class Runner {
     if (plan.engine === "anthropic-api") this.checkMonthlyCap(row.estimate.apiUsd);
     const id = deps.ids.next("genRun") as GenRunId;
     const { pack, pinned, blobs } = this.pin(deps.sandboxCwd);
-    await deps.indexer.pinBlobs(blobs);
+    await deps.indexer.pinBlobs([...blobs.values()]);
     const now = deps.clock.now();
     const notBefore = opts.notBefore ? Date.parse(opts.notBefore) : null;
     const run: GenRun = {
@@ -192,11 +192,11 @@ export class Runner {
       rows.set(tid, { task, plan: p, boost: 0, lane: "background" });
     });
     await deps.write("gen.run.start", () => {
-      this.svc.store.putRun(run, plan, pack, notBefore);
+      this.svc.store.putRun(run, plan, pack, notBefore, blobs);
       for (const r of rows.values()) this.svc.store.putTask(r);
     });
     const idle = deferred();
-    this.live = { run, plan, pack, rows, running: new Map(), boost: 0, unsubscribe: null, pinnedBlobs: blobs, idle, slotsCap: run.concurrency };
+    this.live = { run, plan, pack, rows, running: new Map(), boost: 0, unsubscribe: null, pinnedBlobs: [...blobs.values()], idle, slotsCap: run.concurrency };
     const resetsAt = deps.scheduler.window()?.fiveHour?.resetsAt;
     if (resetsAt) this.live.resetsAtStart = resetsAt;
     this.live.unsubscribe = deps.scheduler.subscribe((st) => this.onScheduler(st));
@@ -274,6 +274,8 @@ export class Runner {
     run.state = "running";
     delete run.paused;
     if (stored.pack !== null) this.deps.prompts.system("gen.system", this.svc.lang(), this.deps.sandboxCwd, stored.pack);
+    // the pins taken at start survive the restart (indexer refcounts); re-arm stamping at the pack snapshot (PT-05)
+    if (run.pinned) this.svc.verifier.remember(run.pinned.snapshot, stored.packBlobs);
     const idle = deferred();
     this.live = {
       run,
@@ -283,7 +285,7 @@ export class Runner {
       running: new Map(),
       boost: Math.max(0, ...[...rows.values()].map((r) => r.boost)),
       unsubscribe: null,
-      pinnedBlobs: [],
+      pinnedBlobs: [...stored.packBlobs.values()],
       idle,
       slotsCap: Math.max(1, run.estimate.concurrency ?? run.concurrency),
     };

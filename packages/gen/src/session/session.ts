@@ -102,7 +102,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
     const plan = svc.plan({ ...req, engine: "session" });
     const estimate = svc.estimate(plan, "session", 1);
     const id = d.ids.next("genRun") as GenRunId;
-    const { pack, pinned } = runner.pin(workdir());
+    const { pack, pinned, blobs } = runner.pin(workdir());
     const run: GenRun = {
       id,
       ws: d.ws.key,
@@ -138,7 +138,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
       return { task, plan: p, boost: 0, lane: "background" };
     });
     await d.write("gen.prep.run", () => {
-      store.putRun(run, plan, pack, null);
+      store.putRun(run, plan, pack, null, blobs);
       for (const r of rows) store.putTask(r);
     });
     d.events.emit({ type: "gen.run", run });
@@ -277,6 +277,8 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
     const stored = store.getRun(id);
     if (!stored) throw new MitoriError("E_NOT_FOUND", `run ${id} not found`);
     stored.run.ws = d.ws.key;
+    // after a daemon restart the Verifier no longer knows the pack's blobs (PT-05 stamping)
+    if (stored.run.pinned) svc.verifier.remember(stored.run.pinned.snapshot, stored.packBlobs);
     return { run: stored.run, rows: store.tasks(id), plan: stored.plan, pack: stored.pack };
   }
 
