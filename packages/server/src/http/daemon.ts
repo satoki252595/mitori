@@ -33,7 +33,7 @@ import { createWorkspaceManager, type WorkspaceManagerDeps } from "../ws/manager
 import { createStateQueue } from "../ws/queue.ts";
 import { createHttpApp, type HttpApp, type ServerLike } from "./app.ts";
 import { createIdleMonitor } from "./idle.ts";
-import { acquireDaemonLock, LOCK_FILE, type LockFilePort } from "./lock.ts";
+import { acquireDaemonLock, LOCK_FILE, type LockFilePort, parseLock } from "./lock.ts";
 import type { Assets } from "./static.ts";
 import { realTimers, type Timers } from "./timers.ts";
 
@@ -171,6 +171,7 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
   if (!lock.acquired) return { kind: "running", holder: lock.holder };
 
   let db: SqlDb | null = null;
+  let bound: ServerBinding | null = null;
   try {
     db = o.openState();
     const stateDb = db;
@@ -272,6 +273,7 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
     } catch {
       binding = serve(0, app);
     }
+    bound = binding;
     port = binding.port;
     await state.stateWrite("ports.remember", () =>
       stateDb.run(
@@ -321,8 +323,7 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
           await step("workspaces", () => workspaces.close());
           waiters.close();
           await step("listener", () => binding.stop());
-          const current = o.lock.read(lockPath);
-          const holder = current === null ? null : (JSON.parse(current) as Partial<DaemonLock>);
+          const holder = parseLock(o.lock.read(lockPath));
           if (holder?.pid === o.pid && holder.startedAt === startedAt) {
             await step("registry", () => o.safeWrite.remove(o.home, REGISTRY_FILE, "home"));
             o.lock.remove(lockPath);
@@ -336,6 +337,7 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
     o.log.info("daemon started", { port, pid: o.pid, version: o.version });
     return { kind: "started", daemon };
   } catch (e) {
+    await bound?.stop().catch(() => undefined);
     try {
       db?.close();
     } catch {
