@@ -27,8 +27,8 @@ import { buildContext } from "./context.ts";
 import { type DataSection, fenceSections, prepareLines } from "./fence.ts";
 import { ADDENDUM_TEMPLATES, fill, LANG_TEXT, OVERVIEW_MODE_SENTENCES, RETRY_PREVIOUS_CLAUSE, SYSTEM_TEMPLATES, UNIT_TEMPLATES } from "./templates.ts";
 
-/** Labels that only exist for regeneration (excluded from the cache-key subject). */
-const REGEN_LABELS: ReadonlySet<DataLabel> = new Set(["EXISTING", "CHANGES"]);
+/** Labels that describe the target's own current content (excluded from the cache-key subject). */
+const REGEN_LABELS: ReadonlySet<DataLabel> = new Set(["EXISTING", "CHANGES", "EXISTING_FLOWS"]);
 
 /** Ports of the renderer. */
 export interface RendererDeps {
