@@ -20,7 +20,8 @@
 | 開発ループの関門(並列 ≈1 s) | `scripts/nd bun run check`(tsc -b・biome・境界・CR 台帳・budgets・契約索引・svelte-check。skill `mitori-check`) |
 | 単体テスト / golden | `scripts/nd bun test [path]` / `scripts/nd bun run golden [--filter <pkg>]` |
 | 整形 | `scripts/nd bun run fmt` |
-| バイナリ | `scripts/nd bun run build:bin` → `dist/mitori-<os>-<arch>` |
+| fixtures / corpus / budgets | `scripts/nd bun run fixtures:build [--verify]` / `corpus:fetch [--only a,b] [--verify]` / `budgets:merge` |
+| バイナリ | `scripts/nd bun run build:bin` → `dist/mitori-<os>-<arch>`(skill `mitori-release-build`) |
 | 契約索引・WP brief の再生成 | `scripts/nd bun run contract:index` / `scripts/nd bun run briefs` |
 | PR CI と同じ | `scripts/nd bun run ci:pr` |
 

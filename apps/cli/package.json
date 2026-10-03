@@ -14,6 +14,11 @@
     "@mitori/client": "workspace:*",
     "@mitori/core": "workspace:*",
     "@mitori/platform": "workspace:*",
-    "@mitori/server": "workspace:*"
+    "@mitori/server": "workspace:*",
+    "@shikijs/core": "4.5.0",
+    "@shikijs/engine-oniguruma": "4.5.0",
+    "@shikijs/langs": "4.5.0",
+    "elkjs": "0.12.0",
+    "web-tree-sitter": "0.27.0"
   }
 }

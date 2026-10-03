@@ -1,0 +1,49 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "../node_modules/.cache/tsc/eval"
+  },
+  "include": ["**/*.ts", "package.json"],
+  "exclude": ["node_modules"],
+  "references": [
+    {
+      "path": "../packages/core"
+    },
+    {
+      "path": "../packages/platform"
+    },
+    {
+      "path": "../packages/indexer"
+    },
+    {
+      "path": "../packages/doc"
+    },
+    {
+      "path": "../packages/anchor"
+    },
+    {
+      "path": "../packages/agent"
+    },
+    {
+      "path": "../packages/gen"
+    },
+    {
+      "path": "../packages/loop"
+    },
+    {
+      "path": "../packages/server"
+    },
+    {
+      "path": "../packages/client"
+    },
+    {
+      "path": "../packages/testkit"
+    },
+    {
+      "path": "../apps/cli"
+    },
+    {
+      "path": "../apps/web"
+    }
+  ]
+}

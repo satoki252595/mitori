@@ -35,7 +35,7 @@ jobs:
       - name: Install (frozen lockfile; dependency lifecycle scripts never run, trustedDependencies = [])
         run: nix develop .#ci --command bun install --frozen-lockfile
 
-      - name: ci:pr (check + unit + golden + size)
+      - name: ci:pr (check incl. budgets-merge --check + unit + fixtures --verify + golden + size)
         run: nix develop .#ci --command bun run ci:pr
 
       - name: Binary smoke (linux-x64)

@@ -20,6 +20,9 @@
     "check:web": "svelte-check --workspace apps/web --tsconfig ./tsconfig.json --fail-on-warnings",
     "test": "bun test",
     "golden": "bun scripts/golden.ts",
+    "fixtures:build": "bun fixtures/build.ts",
+    "corpus:fetch": "bun scripts/fetch-corpus.ts",
+    "budgets:merge": "bun scripts/budgets-merge.ts",
     "bench": "bun scripts/run-owned.ts bench/runner/run.ts:WP-12",
     "bench:compare": "bun scripts/run-owned.ts bench/compare/compare.ts:WP-12",
     "e2e": "bun scripts/run-owned.ts e2e/harness/run.ts:WP-12",
@@ -29,7 +32,7 @@
     "size": "bun scripts/run-owned.ts apps/cli/src/build/size.ts:WP-11a bench/asset/size.ts:WP-12",
     "contract:index": "bun scripts/contract-index.ts",
     "briefs": "bun scripts/gen-briefs.ts",
-    "ci:pr": "bun run check && bun run test && bun run golden && bun run size"
+    "ci:pr": "bun run check && bun run test && bun run fixtures:build --verify && bun run golden && bun run size"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

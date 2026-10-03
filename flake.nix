@@ -14,9 +14,9 @@
         fixtureToolchains = with pkgs; [ go python3 rustc cargo rustfmt ];
       in
       {
-        # local development (scripts/nd uses this one)
+        # local development (scripts/nd uses this one); same fixture toolchains as CI (testing spec §1.4, CR m0-16)
         devShells.default = pkgs.mkShell {
-          packages = with pkgs; [
+          packages = (with pkgs; [
             bun
             nodejs_22
             git
@@ -24,7 +24,7 @@
             jq
             ripgrep
             hyperfine
-          ];
+          ]) ++ fixtureToolchains;
           shellHook = ''
             export MITORI_DEV=1
             export PATH="$PWD/node_modules/.bin:$PATH"
