@@ -12,7 +12,7 @@
 
 ---
 
-## 2. Read exactly these sections (≈ 19,857 tokens)
+## 2. Read exactly these sections (≈ 19,902 tokens)
 
 - `docs/design/specs/testing.md` L10–31 — 改訂 R1（2026-10-03、レビュー反映） — 本節が本文より優先する (≈ 1,609 tok)
 - `docs/design/specs/testing.md` L174–436 — 2. Fixture repo、ground truth、golden (≈ 10,368 tok)
@@ -22,8 +22,8 @@
 - `docs/design/specs/loop.md` L73–99 — 0.3 この spec が守る予算（`bench/budgets.json` に登録） (≈ 639 tok)
 - `docs/design/specs/generation.md` L996–1007 — 7.4 品質の閾値（`bench/budgets.json`） (≈ 268 tok)
 - `docs/design/specs/ux.md` L1568–1593 — 13.1 予算表（`bench/budgets.json` に登録。`UI_THRESHOLDS`・`BUNDLE_BUDGETS` と同値であることを CORE-U-009 が検査） (≈ 802 tok)
-- `packages/testkit/src/contract.ts` L145–243 — 3. fixtures (≈ 1,357 tok)
-- `packages/testkit/src/contract.ts` L565–614 — 7. perf (≈ 502 tok)
+- `packages/testkit/src/contract.ts` L148–246 — 3. fixtures (≈ 1,357 tok)
+- `packages/testkit/src/contract.ts` L568–619 — 7. perf (≈ 547 tok)
 
 ## 3. M0 stubs you own (1) — implement in place, keep the signatures
 
@@ -99,6 +99,6 @@ Bench runners, eval, e2e harness (WP-12); package-specific goldens (each owner W
 - **Contract gaps**: never edit `packages/core` or another owner's code. Write the request to `docs/design/cr-requests/<WP-id>.md` (what / why / proposed shape) and use a clearly marked local workaround (`// CR-PENDING(<WP-id>): …`). The architect batches requests weekly into `packages/core/CR-LEDGER.md` (48 h SLA).
 - **Depend on contracts, not on other WPs**. The shared fakes (`@mitori/platform/testing`, `@mitori/agent/testing`, `@mitori/testkit`) are themselves M0 stubs until WP-01 / WP-05 / WP-00b+WP-12 land: write the minimal fake you need in your own test files (a `Hasher` over `Bun.hash`, a `Random` over fixed bytes, `bun:sqlite` `:memory:` for `SqlDb`, an in-thread `WorkerPool`) and switch when the shared ones exist.
 - **Boundaries** (`scripts/check-boundaries.ts`, part of `check`): imports follow `PACKAGE_DEPS` (type-only too; only `@mitori/core` types are free); no deep imports (`@mitori/x/src/…`) and no `../` out of your package; `Bun.*` / `bun:*` / `node:*` / `process.*` only in platform, server, cli; direct `writeFile`/`rename`/`mkdir`/spawn/`Bun.write`/`Bun.spawn`, `crypto.getRandomValues`, `Math.random`, `Date.now` only in platform (the browser app is exempt from the last three) — use the SafeWriter / Spawner / Random / Clock ports; `@mitori/testkit` and `@mitori/<pkg>/testing` only from tests (`*.test.ts`, `test/`, `src/testing.ts`, bench, eval, e2e).
-- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms.
+- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms. Every `bun test` runs with the testkit preload (testing spec §1.5, CR m1-104): use `createTestHome()` instead of `~/.mitori`, no network beyond loopback, no `claude` / `codex` spawns, no unhandled rejections or `console.error`.
 - **Public surface** changes show up in `docs/design/briefs/INDEX.md` (`bun run contract:index`; `check` fails when it is stale). An INDEX diff in your PR = a contract change → CR.
 - **Done** = the acceptance tests in §1 pass with the exact commands, `check` is green, commits are conventional and end with the Co-Authored-By line; never push, never rewrite history, no paid LLM calls unless the WP says so.

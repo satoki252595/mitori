@@ -16,7 +16,7 @@ export interface LedgerRow {
 }
 
 const DECIDED = /^(accepted-modified|accepted|deferred|rejected)(\b|（|\(|$)/;
-const QUALIFIED = /\bCR (idx|gen|loop|ux|jdg|test|arch|m0)-([A-Za-z0-9]+)\b/g;
+const QUALIFIED = /\bCR (idx|gen|loop|ux|jdg|test|arch|m0|m1)-([A-Za-z0-9]+)\b/g;
 const BARE = /\bCR-(\d+)\b/g;
 const SECTION14_3 = /§14\.3-(\d+)\b/g;
 

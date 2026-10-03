@@ -10,7 +10,7 @@
 - **成果物**: **side repo**（ADR-0012）、`GitSafety`（snapshot（secret path / 内容 hit / filter・LFS 除外）・`buildTree`・遅延 worktree・refs・`applyEdits`（原子的 line-range）・`checkScope`（`diff-tree`）・`precheck`（merge-tree）・`accept`（hunk 決定、H′ 再検査、未 commit 適用 + checkpoint、autoCommit + doc 同 commit）・`undo`（preForce）・`exportPatch`・`gc`（side.git 内 prune）・`recoverAccept`・shadow repo 版）、git env/diff/config 規則と `git_config` trust、**format gate のみ**（gofmt、biome/prettier、ruff/black、cargo fmt。template + 展開、sandbox / consent）、`JobRunner`（answer/patch、`runGates`、`commit`、cancel、parking による revise）、`job_*` migration、Copy as prompt。
 - **受け入れ試験**: `nd bun test packages/loop/src/{git,gates,jobs}`（GIT-S-01〜07、RT-06〜24・30〜33 の該当分）。デモ Fix（go-small「再試行回数を設定可能に」）: patch mode、入力 ≤ 3k・出力 ≤ 1.5k、gofmt gate 通過、accept → working tree に未 commit で反映 → Undo で完全復元、**ユーザー repo の refs・objects・worktree メタが不変**（GIT-S-06）。global `diff.external` を設定しても hunk と secret scan が正しい。scope 試験: README.md の編集は拒否され job は失敗・worktree 破棄。merge 事前検査 ≤ 50 ms、snapshot + head tree ≤ 0.5 s（2k files）。部分 accept で H′ の gate が再実行される（AC-U-G02）。
 
-## 2. Read exactly these sections (≈ 26,716 tokens)
+## 2. Read exactly these sections (≈ 26,958 tokens)
 
 - `docs/design/specs/loop.md` L11–40 — 改訂 R1（2026-10-03、レビュー反映） — 本節が本文より優先する (≈ 2,098 tok)
 - `docs/design/specs/loop.md` L1311–1503 — 7. Git 安全（`@mitori/loop` git / gates。ADR-0006） (≈ 7,197 tok)
@@ -19,20 +19,20 @@
 - `docs/design/adr/0006-git-safety-model.md` L1–38 — (whole file) (≈ 1,671 tok)
 - `docs/design/adr/0012-git-side-repo.md` L1–26 — (whole file) (≈ 1,125 tok)
 - `docs/design/adr/0013-gate-sandbox-and-consent.md` L1–24 — (whole file) (≈ 989 tok)
-- `packages/loop/src/contract.ts` L802–980 — C6. Git safety (spec §7) (≈ 3,249 tok)
-- `packages/loop/src/contract.ts` L981–1040 — C7. Gates (spec §7.6) (≈ 1,149 tok)
-- `packages/loop/src/contract.ts` L1041–1187 — C8. Job runner + domain events (spec §8, §9) (≈ 2,115 tok)
-- `packages/core/src/domain.ts` L1949–2336 — 11. Jobs and normalized agent events (≈ 4,502 tok)
-- `packages/core/src/domain.ts` L2463–2541 — 13. Diffs & checkpoints (≈ 924 tok)
+- `packages/loop/src/contract.ts` L850–1032 — C6. Git safety (spec §7) (≈ 3,366 tok)
+- `packages/loop/src/contract.ts` L1033–1092 — C7. Gates (spec §7.6) (≈ 1,149 tok)
+- `packages/loop/src/contract.ts` L1093–1245 — C8. Job runner + domain events (spec §8, §9) (≈ 2,240 tok)
+- `packages/core/src/domain.ts` L2008–2395 — 11. Jobs and normalized agent events (≈ 4,502 tok)
+- `packages/core/src/domain.ts` L2522–2600 — 13. Diffs & checkpoints (≈ 924 tok)
 
 ## 3. M0 stubs you own (2) — implement in place, keep the signatures
 
 Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `@mitori/core`). The doc comment above each stub is the contract text. Changing a signature is a contract change (CR batch).
 
 - `packages/loop/src/gates/index.ts:10` — `gateExcerpt(output: string, ctx: { worktree: string; estimateTokens(text: string): number }): string`
-- `packages/loop/src/jobs/index.ts:11` — `createLoop(deps: LoopDeps): { /** Review engine. */ review: ReviewEngine; /** Jobs. */ jobs: JobRunner; /** Bundles. */ bundles: BundleBuilder; /** Git safety. */ git: GitSafety; /** Gate runner. */ gates: GateRunner; }`
+- `packages/loop/src/jobs/index.ts:13` — `createLoop(deps: LoopDeps): { /** Review engine. */ review: ReviewEngine; /** Jobs. */ jobs: JobRunner; /** Bundles. */ bundles: BundleBuilder; /** Git safety. */ git: GitSafety; /** Gate runner. */ gates: GateRunner; /** * Capture an anchor OUTSIDE the write slot (async file / block reads, `AnchorEngine` stamping); the server then * calls `review.create(req, by, captured)` / `review.patch(id, req, captured)` inside the slot [CR m1-68]. */ capture(input: AnchorInput, previous: Anchor | null): Promise<CapturedAnchor>; }`
 
-## 4. CR ledger rows that concern this WP (9)
+## 4. CR ledger rows that concern this WP (31)
 
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
@@ -45,6 +45,28 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 | CR jdg-8 | jdg | accepted | core `GateResult.autofixedLines?` | — |
 | CR m0-5 | architect | accepted | testing spec CORE-U-007 の期待値: `.envrc`（SEC-12 の実行トリガー）と `docs/.env.md`（`**/.env.*`）は**拒否される**側に訂正。deny glob は picomatch `{ dot: true }` で照合 | 本文の表が R1 の `DEFAULT_DENY_GLOBS` より古い。契約が勝つ |
 | CR m0-16 | WP-00b | accepted | `flake.nix` `devShells.default` に go・python3・rustc・cargo・rustfmt（`ci` と同じ `fixtureToolchains`） | testing spec §1.4（ホストの toolchain に頼らない）。go-small・py-small・rust-small を nd で検証済み（go 1.26.8 / Python 3.14.7 / rustc 1.98.1） |
+| CR m1-6 | WP-INT B | accepted-modified | `assembleAnchoredItems` / `distributeReanchor` の出力は意図して部分的: claim は `checks: Pick<ClaimChecks, "l0"\|"l2">` と完全な cites 配列、thread は新しい code member。own slot で最新の保存状態と merge（l1 維持、`checkedAt` = now、thread anchor = 保存済み anchor + 新 code）(applied: server 契約コメント + `wiring/index.ts` の型) | slot 内で読む保存状態の方が新しい（外で読んだ値を渡すより正しい）。「変わった cite を 1 つでも持つ claim は全 cite を出す」を契約に明記 |
+| CR m1-25 | WP-02 §3, WP-01 #3 | accepted-modified | core `GitReader.checkIgnore?(paths)`（次バッチで必須化）、`lsFiles` の untracked は `blob: ""`/`mode: ""`、`statusDirty` の内訳、SEC-05 の読み取り規則（`GIT_CONFIG_COUNT` env、`GIT_NO_LAZY_FETCH=1`）(applied: core)。実装は WP-01、`update()` での使用は WP-02 | `lsIgnored` は **rejected**: nongit truth の `node_modules/`・`.venv/`・`build/` 行は「列挙しない」が正しい（IDX-AT-05）ので WP-12 が truth から外す |
+| CR m1-45 | WP-04, WP-INT C | accepted | platform `SAFE_WRITE_RULES`: kind `doc` / `prep` は親が realpath なら欠けた `rootReal` を作る (WP-01 applies)。core `SafeWriter` コメント (applied)。その後 WP-INT が `docRootWriter` を外す | 新しい repo には `.mitori/` が無い |
+| CR m1-55 | WP-04 findings | accepted | 提案の cite: 作成時に stamp、accept 時に現 snapshot で再 stamp（L0 fail は提案カードに出す）。pending 中の re-anchor はしない (WP-04) | anchor / loop に新しい配線を足さない |
+| CR m1-68 | WP-07 #1 | accepted-modified | loop `CapturedAnchor`（contract へ移設）、`ReviewEngine.create(req, by, captured?)`・`patch(id, req, captured?)`、`createLoop(...).capture(input, previous): Promise<CapturedAnchor>` (applied: 契約 + `jobs/index.ts` スタブ署名)。server handler は slot の外で `capture` → slot 内で `create` / `patch`。`captured` 無しは engine 自身の同期 port（テスト・本文を持つ呼び出し）。実装 WP-08b | server spec §8（handler が AnchorInput → Anchor）どおり。async な読みを slot に入れない |
+| CR m1-69 | WP-07 #2 | accepted | loop `renderReviewStdout` の entry + `bundleTokens?` (WP-08b applies, `review/index.ts`) | UXP-33 ` bundle≈{k}` |
+| CR m1-70 | WP-07 #3 | accepted | doc `BlockRenderer.renderMessage(md): string`（同期・cache・secret redaction）(applied、実装も)、loop `LoopDeps.renderMessage` (applied) | ux-R23 の `MessageView.html`。markdown-it 設定を 2 つ持たない |
+| CR m1-71 | WP-07 #4, WP-08a A6 | accepted | loop `CHANGE_INTENTS = ["change","doc_edit"]`、`ROUTER_RULES` の intents から `note` を削除、`BatchJobPlan.kind` コメント (applied) | note は書かない（R1 §2.1、UXP-02）。`route()` は R0 / R0b で先に処理済み |
+| CR m1-72 | WP-07 #5, #12 | accepted | loop `ReviewEngine` + `status()`, `waiters()`, `shutdown()`, `snapshots(id)`, `summary(id)`, `recordTouched(paths)` (applied。前 5 つは実装済み、`recordTouched` はスタブ: `review/engine.ts`、実装 WP-08b) | `GET /review`、idle 判定、停止時の waiter 解放、re-anchor 入力、touch のファイル |
+| CR m1-73 | WP-07 #6 | accepted | loop `JobRunner.create` コメント: Finish が dispatch 済み（`queued` + `batchRound`）の thread には T2 を撃たない (applied) | 二重 dispatch を防ぐ |
+| CR m1-74 | WP-07 #7 | accepted | loop spec §2.8 DDL は `rev_threads.send_to_ai`・`rev_rounds.files`・`rev_rounds.done` を含む（この行で読む） | `LOOP_MIGRATIONS` v1 のとおり |
+| CR m1-77 | WP-07 #11, WP-08a B | accepted | `bench/budgets/anchor.json`・`loop.json` の `measure` は bench file ができるまで既存テスト（`packages/anchor/test/perf/ar7.test.ts`、`packages/loop/src/review/stdout.golden.test.ts`、`packages/loop/test/perf/bundle.perf.test.ts`）を指す（S6 が自分の json を編集） | — |
+| CR m1-79 | WP-07 #13 | accepted | AR2 / AR6 は `packages/anchor/test/regression/`（unit の 500 ms 規則の対象外）へ移し、`anchor.json` の pointer も更新 (WP-07 / S6) | 件数は loop spec §1.9 で固定 |
+| CR m1-81 | WP-08a A1 | accepted | loop `RouteInput.primary?: "doc"\|"code"\|"diagram"` (applied) | R0b |
+| CR m1-82 | WP-08a A2 | accepted | `deriveWriteScope` ctx + `sectionOfBlock?`, `refsOfDiagram?`, `writable?` (WP-08b applies, `router/index.ts`; ctx を作るのも WP-08b) | `writable` は filter / working-tree-encoding / LFS pointer（SEC-18） |
+| CR m1-83 | WP-08a A3 | accepted | loop `BundleInput.numbered?` (applied) | `mitori bundle --lines`（WP-11）、MCP |
+| CR m1-84 | WP-08a A4 | accepted | `BundleBuilderDeps.readJobFile(job, path)` は内部 deps のまま。WP-08b の `createLoop` が `GitSafety`（worktree / `buildTree`）から供給 | 契約変更なし |
+| CR m1-86 | WP-08a B | accepted | (a) `planBatch` は route group で分割（question と sent note は別 partition）— WP-08b が `review/` を直す（CR m1-120）。(b) router の `error.params.actions` はカンマ区切り、JobRunner が `JobFailure.actions` へ。(c) rules の trust hash = `sha256(Σ path ␀ text ␀)`（path 順、同一内容は 1 回）を trust card も使う。(d) `loopSystemPrompt` が system prompt file の中身。(e) `contracts/text.ts` の写しを `@mitori/anchor` の import に置換（WP-08b）。(f) `doc_updates[].md` の `[path:a-b]` は WP-08b が `RawCite` に戻して `doc.propose` へ。(g) `E_DENY_GLOB` の actions から `copy_prompt` を外す | 結合の取り決め |
+| CR m1-87 | WP-08a C | accepted | MBF/1 as built（C.1〜C.14）を凍結。loop spec §4 はこの行と `fixtures/golden/go-small/bundles/` で読む | — |
+| CR m1-88 | WP-01 SEC-05 addendum | accepted | loop `GIT_ENV.GIT_NO_LAZY_FETCH = "1"`、`GIT_COMMAND_CONFIG_PATTERNS` の無効化は `-c` ではなく `GIT_CONFIG_COUNT/KEY/VALUE` env (applied: 契約)。実装 WP-08b | partial clone の遅延 fetch と `a=b` driver の回避 |
+| CR m1-115 | WP-01 SEC-05 | accepted | GitReader の読み取り hardening（filter driver 無効化、`GIT_NO_LAZY_FETCH`、`protocol.allow=never`、include / worktree の cache key）を記録。core コメントは CR m1-25、loop 側は CR m1-88 | — |
+| CR m1-120 | architect | accepted | ストリームの継続（上の規則）: S5 は WP-06b が `gen/src/{orchestrator,prompts,line}/` の CR m1-11・m1-12・m1-13・m1-14・m1-50 と停止後書き込みのバグ、S6 は WP-08b / WP-08c が `loop/src/{review,router,bundle,contracts}/` の CR m1-68・m1-69・m1-72・m1-82・m1-86 を直してよい | 先行 WP は終了済み。並行トラックの待ちを作らない |
 
 ## Golden / truth / fixtures
 
@@ -65,6 +87,35 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
   working tree only via `SafeWriter` kind `accept`.
 - Deny globs: core `DEFAULT_DENY_GLOBS` with picomatch `{ dot: true }` (CR m0-5).
 
+## CR batch 2 (2026-10-03, ledger §5) — what changed for you
+
+- **S6 stream continuation (CR m1-120)**: you may edit `packages/loop/src/{review,router,bundle,contracts}/` for these
+  items only: `ReviewEngine.recordTouched(paths)` (stub in `review/engine.ts`, CR m1-72), `create/patch(…, captured?)`
+  using the passed `CapturedAnchor` (CR m1-68), `renderReviewStdout` entries `bundleTokens?` (CR m1-69),
+  `planBatch` partitions by route group (question vs sent note, CR m1-86 (a)), `deriveWriteScope` ctx
+  `sectionOfBlock? / refsOfDiagram? / writable?` (CR m1-82), swap `contracts/text.ts` copies for `@mitori/anchor`
+  imports (CR m1-86 (e)).
+- **`createLoop` return type gained `capture(input: AnchorInput, previous: Anchor | null): Promise<CapturedAnchor>`**
+  (`jobs/index.ts` stub signature): async capture OUTSIDE the slot (indexer/doc reads + `AnchorEngine`), then the
+  server calls `review.create(req, by, captured)` inside it. `CapturedAnchor` moved to the loop contract.
+- `LoopDeps.renderMessage(md)` = the workspace `BlockRenderer.renderMessage` (implemented, CR m1-70) — wire it into
+  the review engine's `renderMarkdown`.
+- `ReviewEngine` now also has `status / waiters / shutdown / snapshots / summary` (implemented by WP-07) and
+  `JobRunner.create` must NOT fire T2 for threads Finish already dispatched (`queued` + `batchRound`, CR m1-73).
+- `CHANGE_INTENTS = ["change","doc_edit"]`, `note` gone from `ROUTER_RULES` (CR m1-71); `RouteInput.primary?`
+  (CR m1-81), `BundleInput.numbered?` (CR m1-83); `readJobFile(job, path)` stays an internal bundle dep you supply from
+  `GitSafety` (CR m1-84). Router error actions are comma-separated `error.params.actions` → `JobFailure.actions`.
+  `doc_updates[].md` `[path:a-b]` tokens → `RawCite` before `doc.propose` (CR m1-86 (f)). Drop `copy_prompt` from the
+  `E_DENY_GLOB` actions (CR m1-86 (g)). Rules trust hash = `sha256(Σ path ␀ text ␀)` sorted by path, identical contents
+  once (CR m1-86 (c)).
+- **Git hardening (CR m1-88)**: `GIT_ENV` has `GIT_NO_LAZY_FETCH: "1"`; neutralize `GIT_COMMAND_CONFIG_PATTERNS` keys
+  through `GIT_CONFIG_COUNT` / `GIT_CONFIG_KEY_<n>` / `GIT_CONFIG_VALUE_<n>` env, never `-c <key>=` (a driver named
+  `a=b` evades `-c`; WP-01 verified it, see `packages/platform/src/git/reader.ts`).
+- The thread half of re-anchoring: `distributeReanchor` hands you only the new CODE member; the server's own-slot step
+  merges it into the stored anchor before `applyReanchor` (CR m1-6).
+- SafeWriter kind `accept` is unchanged; the doc store re-stamps a proposal's cites on accept (CR m1-55, WP-04).
+- Budget pointers in `bench/budgets/loop.json` may point at the existing perf / golden tests (CR m1-77).
+
 ## Out of scope
 
 Agent mode, repair loop, promotion, external patches, GitHub PR (WP-08c); bundle/router (WP-08a).
@@ -75,6 +126,6 @@ Agent mode, repair loop, promotion, external patches, GitHub PR (WP-08c); bundle
 - **Contract gaps**: never edit `packages/core` or another owner's code. Write the request to `docs/design/cr-requests/<WP-id>.md` (what / why / proposed shape) and use a clearly marked local workaround (`// CR-PENDING(<WP-id>): …`). The architect batches requests weekly into `packages/core/CR-LEDGER.md` (48 h SLA).
 - **Depend on contracts, not on other WPs**. The shared fakes (`@mitori/platform/testing`, `@mitori/agent/testing`, `@mitori/testkit`) are themselves M0 stubs until WP-01 / WP-05 / WP-00b+WP-12 land: write the minimal fake you need in your own test files (a `Hasher` over `Bun.hash`, a `Random` over fixed bytes, `bun:sqlite` `:memory:` for `SqlDb`, an in-thread `WorkerPool`) and switch when the shared ones exist.
 - **Boundaries** (`scripts/check-boundaries.ts`, part of `check`): imports follow `PACKAGE_DEPS` (type-only too; only `@mitori/core` types are free); no deep imports (`@mitori/x/src/…`) and no `../` out of your package; `Bun.*` / `bun:*` / `node:*` / `process.*` only in platform, server, cli; direct `writeFile`/`rename`/`mkdir`/spawn/`Bun.write`/`Bun.spawn`, `crypto.getRandomValues`, `Math.random`, `Date.now` only in platform (the browser app is exempt from the last three) — use the SafeWriter / Spawner / Random / Clock ports; `@mitori/testkit` and `@mitori/<pkg>/testing` only from tests (`*.test.ts`, `test/`, `src/testing.ts`, bench, eval, e2e).
-- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms.
+- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms. Every `bun test` runs with the testkit preload (testing spec §1.5, CR m1-104): use `createTestHome()` instead of `~/.mitori`, no network beyond loopback, no `claude` / `codex` spawns, no unhandled rejections or `console.error`.
 - **Public surface** changes show up in `docs/design/briefs/INDEX.md` (`bun run contract:index`; `check` fails when it is stale). An INDEX diff in your PR = a contract change → CR.
 - **Done** = the acceptance tests in §1 pass with the exact commands, `check` is green, commits are conventional and end with the Co-Authored-By line; never push, never rewrite history, no paid LLM calls unless the WP says so.

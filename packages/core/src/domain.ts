@@ -614,6 +614,56 @@ export interface RepoSnapshot {
   takenAt: Iso8601;
 }
 
+/**
+ * One LOC tile of the S1 hero (JUDGEMENT §6.3.1, prototype `01-first-run-map`: 「45.7k 行 Go 本体 · 186 files」,
+ * 「34.6k 行 web/ UI · 63 JS」, 「83.0k 行 Go テスト · 259 files」) [CR m1-26]. The UI words the label from the kind:
+ * `code` = non-test included files of one language, `dir` = one top-level directory whose dominant language is
+ * not the primary one, `tests` = test files of one language.
+ */
+export interface AreaStat {
+  /** What the tile counts. */
+  kind: "code" | "dir" | "tests";
+  /** Language (`dir`: its dominant language). */
+  lang: SourceLang;
+  /** Top-level directory with a trailing `/` (`web/`); only for `dir`. */
+  dir?: string;
+  /** LOC. */
+  loc: number;
+  /** Files. */
+  files: number;
+}
+
+/**
+ * Static repository profile for the S1 hero and the header (0 tokens; computed by the indexer after S2 and on warm
+ * scans, `Indexer.profile()`) [CR m1-26]. Every text is verbatim from the repository (secret-scanned), never an
+ * LLM summary.
+ */
+export interface RepoProfile {
+  /**
+   * Remote origin as configured (`remote.origin.url`, else the first remote), credentials and `.git` stripped:
+   * `{ host: "github.com", path: "tomasz-tomczyk/crit" }` (display `host/path`, link `https://host/path` for
+   * known forges). Null without a remote. Never contacts the remote.
+   */
+  remote: { host: string; path: string } | null;
+  /** HEAD commit, its committer date and the nearest tag reachable from HEAD (`v0.21.1`); null on an unborn branch. */
+  head: { commit: GitOid; date: Iso8601; tag: string | null } | null;
+  /** License detected from `LICENSE*` / `COPYING*` / package manifests: SPDX id (`MIT`) and the file. */
+  license: { spdx: string; path: RepoPath } | null;
+  /**
+   * Declared toolchain of the primary language, version text as written: go.mod `go 1.26` (or `toolchain`),
+   * pyproject `requires-python`, Cargo.toml `rust-version` / rust-toolchain(.toml), package.json `engines.node`
+   * (or the `typescript` devDependency for TS repos). Display `Go 1.26`.
+   */
+  toolchain: { name: "go" | "python" | "rust" | "node" | "typescript" | "deno" | "bun"; version: string; path: RepoPath; line: LineNo } | null;
+  /**
+   * First prose paragraph of the root README (headings, badges, HTML, link-only and image lines skipped), ≤ 280
+   * chars, verbatim (shown as 「原文のまま」 until generation replaces it). Null without a README.
+   */
+  readme: { path: RepoPath; line: LineNo; text: string } | null;
+  /** LOC tiles, largest first, ≤ 4 (see {@link AreaStat}). */
+  areas: AreaStat[];
+}
+
 /** Why a file was excluded from generation input. */
 export type ExcludeReason =
   | "vendored"
@@ -694,7 +744,10 @@ export interface SymbolEntry {
   start: LineNo;
   /** Last line (inclusive). */
   end: LineNo;
-  /** One-line signature as written (truncated to 200 chars). */
+  /**
+   * One-line signature as written (truncated to 200 chars). Secret-scanned when it carries a literal (`"` `'`
+   * `` ` `` `=`: parameter defaults); `sigHash` is computed from the raw text in the Worker [CR m1-35].
+   */
   signature: string;
   /** xxh3 of the normalized signature (interface digest input). */
   sigHash: Xxh3;
@@ -1113,8 +1166,10 @@ export type ClaimKind =
  * Claim verdict shown as a badge [UXP-06]:
  * `verified` = cited AND every backticked identifier found in the cited range (L1 pass);
  * `cited` = cited, range exists, but L1 had nothing to compare (vacuous) — "出典あり · 内容は未照合";
- * `inferred` = no cite; `unsupported` = L3 U or L1 fail; `stale` = code changed since stamping;
- * `human-verified` = a human confirmed after opening the cite peek (only humans and L3 S say 「確認済」).
+ * `inferred` = no cite, or an L1 fail without L3 S (gen spec §7.2 row 5), or L3 P; `unsupported` = L0 fail
+ * (a cite does not resolve) or L3 U; `stale` = code changed since stamping; `human-verified` = a human confirmed
+ * after opening the cite peek (only humans and L3 S say 「確認済」). The ONE truth table is {@link computeVerdict}
+ * (core, `verdict.ts`): gen and the doc store both call it [CR m1-17].
  */
 export type Verdict = "verified" | "cited" | "inferred" | "unsupported" | "stale" | "human-verified";
 
@@ -1264,7 +1319,11 @@ export interface SectionNode {
   children: SectionId[];
   /** Module described by this section (`s6/<slug>`). */
   module?: ModuleId;
-  /** Generation state of the section. */
+  /**
+   * Generation state of the section. The Reader reserves the streaming region for `pending | generating | partial`
+   * ONLY while a run is active (or a `doc.block.partial` is open); outside a run such a section shows its
+   * placeholders only [CR m1-99].
+   */
   state: "static_only" | "pending" | "generating" | "generated" | "partial";
   /** Sum of block reading times. */
   readingSec: number;
@@ -2597,6 +2656,9 @@ export interface GenTask {
    * `xxh3(unit promptVer ‖ GEN_SYSTEM_VERSIONS[system] ‖ addendum versions (regen/retry) ‖ model ‖
    * effort ‖ lang ‖ xxh3(userBytes))`. Extractor versions enter through the skeleton bytes in `userBytes`;
    * S5 DEPS are a pure function of the index (no generated summaries), so keys are timing-independent [PT-08].
+   * `userBytes` are the SUBJECT bytes: the user message rendered WITHOUT the target's own current content
+   * (EXISTING, CHANGES, EXISTING_FLOWS and the gen.regen addendum), and both addendum versions are always part
+   * of the key — so a second run over unchanged inputs hits the cache (AC-28) [CR m1-16].
    */
   cacheKey: Xxh3;
   /** Model. */
@@ -3030,6 +3092,25 @@ export interface Limits {
   agentMaxInputTokens: number;
 }
 
+/**
+ * Default {@link Limits} (CR m0-22 → CR m1-90; values chosen by WP-09's settings resolver). The USD caps are
+ * API-equivalent and [仮] until the M2 measurement window: `jobMaxUsd` 2, `genRunMaxUsd` 10 (gen spec §4),
+ * `dailyMaxUsd` 30. CORE-U-009 compares `DEFAULT_GLOBAL_SETTINGS.limits` (server) against this constant.
+ */
+export const DEFAULT_LIMITS = {
+  confirmAboveTokens: 100_000,
+  jobMaxUsd: 2,
+  genRunMaxUsd: 10,
+  dailyMaxUsd: 30,
+  stopAtBudgetFraction: 0.8,
+  repairMaxAttempts: 2,
+  patchMaxLines: 120,
+  patchMaxFiles: 2,
+  bundleDefaultTokens: 4000,
+  bundleMaxTokens: 12_000,
+  agentMaxInputTokens: 30_000,
+} as const satisfies Limits;
+
 /** Agent scheduler (global-only). */
 export interface SchedulerSettings {
   /** Concurrent engine processes across all workspaces (default 3). */
@@ -3183,6 +3264,12 @@ export interface BinaryPin {
   version: string;
   /** When pinned. */
   pinnedAt: Iso8601;
+  /**
+   * Who pinned it: `first-run` = resolved on SAFE_PATH at the first daemon start with no pin (trust on first use,
+   * shown on the engine card as 「初回に固定」 with a re-pin action); absent / `user` = confirmed by the human
+   * (`POST /engines/:engine/repin`) [CR m1-65].
+   */
+  by?: "first-run" | "user";
 }
 
 /** Per-workspace overrides stored in the GLOBAL config. */
@@ -3735,6 +3822,29 @@ export interface Clock {
   iso(): Iso8601;
 }
 
+/**
+ * Timer port (production: unref'd global timers from `@mitori/platform` `realTimers`; tests: testkit `FakeClock`,
+ * which has this shape). Domain packages never call `setTimeout` themselves when a test must drive time (doc flush
+ * cadence, DOC-U-018) [CR m1-40].
+ */
+export interface Timers {
+  /** Schedule `fn` after `ms`; the handle is opaque. */
+  setTimeout(fn: () => void, ms: number): unknown;
+  /** Cancel; unknown / already-fired handles are ignored. */
+  clearTimeout(handle: unknown): void;
+}
+
+/**
+ * Hardware facts for pool sizing (indexer spec §3.1; moved from the indexer contract so `@mitori/platform`
+ * `hardwareInfo()` can return it) [CR m1-116]. `@mitori/indexer` re-exports it.
+ */
+export interface HardwareInfo {
+  /** `os.availableParallelism()`. */
+  cores: number;
+  /** Performance cores (macOS `hw.perflevel0.logicalcpu`), `null` when unknown. */
+  perfCores: number | null;
+}
+
 /** Hashing primitives (Bun: `Bun.hash.xxHash3`, Node fallback: wasm xxhash). */
 export interface Hasher {
   /** xxh3-64 hex of a string (UTF-8) or bytes. */
@@ -3787,13 +3897,23 @@ export interface Migration {
  * Shadow workspaces (GIT_DIR=~/.mitori/repos/<ws>/shadow.git) return the same shapes (WP-01 parity test).
  */
 export interface GitReader {
-  /** `git ls-files -s -z` (+ untracked via `--others --exclude-standard`). `stage` 0 normally, 1–3 during conflicts. */
+  /**
+   * `git ls-files -s -z` (+ untracked via `--others --exclude-standard`). `stage` 0 normally, 1–3 during conflicts.
+   * Untracked entries (`tracked: false`) carry `blob: ""` and `mode: ""` (the indexer hashes them, indexer spec
+   * §2.1) [CR m1-25].
+   */
   lsFiles(): Promise<{ path: RepoPath; blob: GitOid; mode: string; stage: 0 | 1 | 2 | 3; tracked: boolean }[]>;
   /** `git ls-files -z --others --exclude-standard [--directory]`; with `directories` nested repos come back as `dir/`. */
   lsOthers(opts: { directories: boolean }): Promise<RepoPath[]>;
   /** Porcelain v2 status (paths changed vs HEAD/index). */
   status(): Promise<{ path: RepoPath; xy: string }[]>;
-  /** Paths that are dirty per porcelain v2 (modified, added, deleted, renamed, untracked-not-ignored). */
+  /**
+   * Every non-ignored path porcelain v2 reports (`--untracked-files=all --no-renames`): worktree changes,
+   * staged-only changes (`M.`, `A.`, `D.`), unmerged and untracked paths [CR m1-25]. `status()` / `statusDirty()`
+   * neutralize repo-local filter drivers (`filter.<x>.*` overridden through `GIT_CONFIG_COUNT` env, never `-c`,
+   * whose `=` split a driver named `a=b` evades) [SEC-05]; every read runs with `GIT_NO_LAZY_FETCH=1` and
+   * `protocol.allow=never` (a missing object in a partial clone is `E_NOT_FOUND`, never a fetch).
+   */
   statusDirty(): Promise<RepoPath[]>;
   /** `git check-attr -z --stdin <attrs>`: values per path (`unspecified` omitted). */
   checkAttr(paths: readonly RepoPath[], attrs: readonly string[]): Promise<Record<RepoPath, Record<string, string>>>;
@@ -3817,6 +3937,23 @@ export interface GitReader {
   isShallow(): Promise<boolean>;
   /** Hash algorithm of the repository. */
   objectFormat(): Promise<"sha1" | "sha256">;
+  /**
+   * `git check-ignore -z --stdin`: the subset of `paths` that is ignored (indexer spec §10.1: new untracked paths
+   * of a watcher batch) [CR m1-25]. Optional until WP-01 implements it (M1 polish); required from the next batch.
+   */
+  checkIgnore?(paths: readonly RepoPath[]): Promise<RepoPath[]>;
+  /**
+   * `remote.origin.url` (else the first remote) as configured, with `user:pass@` credentials removed; null without
+   * a remote. A config read only — never contacts the remote (`RepoProfile.remote`) [CR m1-26]. Optional until WP-01
+   * implements it (M1 polish); required from the next batch.
+   */
+  remoteUrl?(): Promise<string | null>;
+  /**
+   * HEAD's committer date (`git log -1 --format=%cI HEAD`, merges included) and the nearest tag reachable from HEAD
+   * (`git describe --tags --abbrev=0`, null when none); null on an unborn branch (`RepoProfile.head`) [CR m1-26].
+   * Optional until WP-01 implements it (M1 polish); required from the next batch.
+   */
+  headMeta?(): Promise<{ date: Iso8601; tag: string | null } | null>;
 }
 
 /** Event sink used by domain packages; the server stamps `ws`/`rev`/`at` and fans out to SSE. */
@@ -3886,6 +4023,9 @@ export type SafeWriteKind = "doc" | "prep" | "integration" | "repo_meta" | "acce
  * (3) parent realpath must be under `rootReal` ⇒ else `E_PATH_OUTSIDE`; (4) temp file in the same dir via
  * `O_CREAT|O_EXCL|O_NOFOLLOW` 0600/0644, write, fsync; (5) `lstat` the target right before `rename` (refuse a
  * symlink target); (6) rename, fsync dir. Directories are created component-by-component with the same checks.
+ * Kind `doc` / `prep`: a missing `rootReal` (first run: no `.mitori/` yet) is created when its existing parent
+ * chain is a realpath inside the workspace root or `~/.mitori` [CR m1-45]. Kind `prep` writes `fingerprint` 0600
+ * (gen spec §8.4.2) [CR m1-21]. Both are platform `SAFE_WRITE_RULES` (WP-01).
  */
 export interface SafeWriter {
   /** Atomic write. */

@@ -35,13 +35,13 @@ import type { DocDir } from "./paths.ts";
 import { type BlockRec, type ClaimRec, DocState, readingSecOf } from "./state.ts";
 import { aspectRank, RANK } from "./static.ts";
 
-/** Timer port (CR-PENDING(WP-04): not in the createDocStore deps; FakeClock.setTimeout in tests). */
+/** Timer port (= core `Timers`, CR m1-40; FakeClock.setTimeout in tests). */
 export interface Timers {
   setTimeout(fn: () => void, ms: number): unknown;
   clearTimeout(id: unknown): void;
 }
 
-/** createDocStore deps (contract) + the CR-PENDING(WP-04) optional ports `fs` and `timers`. */
+/** createDocStore deps (contract, incl. the optional `fs` / `timers` of CR m1-40). */
 export interface StoreDeps {
   ws: WorkspaceInfo;
   db: import("@mitori/core").SqlDb;
@@ -56,9 +56,9 @@ export interface StoreDeps {
   clock: Clock;
   metrics: Metrics;
   events: EventSink<SseEventPayload>;
-  /** CR-PENDING(WP-04): read-only filesystem for `load()` and the ownership ledger. */
+  /** Read-only filesystem for `load()` and the ownership ledger (CR m1-40). */
   fs?: FsReader;
-  /** CR-PENDING(WP-04): timer port for the flush cadence (`null` disables auto-flush). */
+  /** Timer port for the flush cadence (`null` disables auto-flush; CR m1-40). */
   timers?: Timers | null;
 }
 

@@ -10,7 +10,7 @@ read:
   - packages/loop/src/contract.ts | C5
   - packages/core/src/domain.ts | 12
   - packages/core/src/domain.ts | 16
-crs: loop-2, loop-6, loop-8, ux-R8, ux-R9, m0-5
+crs: loop-2, loop-6, loop-8, ux-R8, ux-R9, m0-5, m1-71, m1-81, m1-82, m1-83, m1-84, m1-85, m1-86, m1-87
 owns:
   - packages/loop/src/bundle
   - packages/loop/src/router
@@ -33,6 +33,12 @@ owns:
 - Output contracts parse into core `ThreadOutcome` / `DocUpdate` / `PatchEdit` (CR loop-2); never trust engine
   output (validate everything server-side).
 - **MBF/1 freezes when you finish** (SC-09) — bump `FORMAT.bundle` for any later byte change.
+
+## CR batch 2 (2026-10-03, ledger §5) — follow-ups owned here
+
+- Contract now has `RouteInput.primary?` (CR m1-81) and `BundleInput.numbered?` (CR m1-83); `note` left
+  `CHANGE_INTENTS` / `ROUTER_RULES` (CR m1-71). The `ScopeCtx` additions and the remaining couplings go to the S6
+  stream (WP-08b, CR m1-82, m1-86). MBF/1 is frozen as built (CR m1-87).
 
 ## Out of scope
 

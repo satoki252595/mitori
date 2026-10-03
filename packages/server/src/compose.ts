@@ -27,26 +27,13 @@ import { MIGRATION_ORDER, type ServerDeps, type ServerHandle } from "./contract.
 import { startDaemon } from "./http/daemon.ts";
 import { realTimers, type Timers } from "./http/timers.ts";
 import { migrationsFor } from "./wiring/index.ts";
-import { docRootWriter, ensureShadowRepo, hardwareInfo, holdDaemonLock } from "./wiring/ports.ts";
+import { docRootWriter, ensureShadowRepo, holdDaemonLock } from "./wiring/ports.ts";
 import { domainHandlers } from "./wiring/routes.ts";
 import { assembleWorkspace, type Shared, type WorkspaceDomain } from "./wiring/workspace.ts";
 
-/**
- * What the CLI passes beyond the contract. CR-PENDING(WP-INT): cr-requests/WP-09.md asks for `version`, `pid` and a
- * lock port in `ServerDeps`; until then they ride along structurally (defaults below).
- */
+/** Test-only override beyond the contract: the server's timer port (fake time in the SSE / idle tests). */
 interface ServerDepsExt {
-  version?: string;
-  pid?: number;
-  /** The user's `$HOME` (not-a-project guard). Default `env.HOME`. */
-  userHome?: string;
-  /** Preferred port when `srv_ports` has none. */
-  port?: number;
   timers?: Timers;
-  /** Gate sandbox resolved by the caller (default: none). */
-  gateSandbox?: "sandbox-exec" | "bwrap" | "none";
-  /** GitHub clones (`gh` resolved on SAFE_PATH). */
-  gh?: string;
 }
 
 type ElkPool = WorkerPool<{ ir: DiagramIR; kind: "layered" | "floorplan"; prev: DiagramLayout | null }, DiagramLayout>;
@@ -67,7 +54,7 @@ function elkAdapter(raw: ServerDeps["pools"]["elk"]): ElkPool {
 /** The composition root (`packages/server/src/compose.ts`). The ONLY place where implementations meet. */
 export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
   const ext = deps as ServerDeps & ServerDepsExt;
-  const pid = ext.pid ?? process.pid;
+  const pid = deps.pid;
   const timers = ext.timers ?? realTimers;
   const startedAt: Iso8601 = deps.clock.iso();
   const home = deps.fs.realpath(deps.home) ?? deps.home;
@@ -113,7 +100,7 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
       home,
       repo: (p) => roots().find((r) => p === r || p.startsWith(`${r}/`)) ?? null,
     }),
-    hardware: hardwareInfo(),
+    hardware: deps.hardware,
     sandboxCwd: `${home}/run/empty`,
   };
 
@@ -123,8 +110,8 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
   let services: import("./routes/services.ts").ServerServices | null = null;
   const started = await startDaemon({
     home,
-    userHome: ext.userHome ?? deps.env.HOME ?? home,
-    version: ext.version ?? "0.0.0",
+    userHome: deps.userHome,
+    version: deps.version,
     build: deps.build,
     pid,
     clock: deps.clock,
@@ -146,7 +133,7 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
       }
       return db;
     },
-    ...(ext.port !== undefined ? { port: ext.port } : {}),
+    ...(deps.port !== undefined ? { port: deps.port } : {}),
     assets: deps.assets,
     handlers: domainHandlers({
       async domain(ctx) {
@@ -194,7 +181,7 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
     workspace: {
       openDb: (path) => deps.openDb(path),
       migrate: (db) => void migrate(db, "workspace"),
-      sandbox: ext.gateSandbox ?? "none",
+      sandbox: deps.gateSandbox,
       async assemble(base) {
         await agentGate;
         if (base.info.kind === "shadow")
@@ -212,7 +199,7 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
           },
         };
       },
-      ...(ext.gh ? { clone: { spawner: deps.spawner, gh: ext.gh, env: { PATH: deps.safePath, HOME: deps.env.HOME ?? home } } } : {}),
+      ...(deps.gh ? { clone: { spawner: deps.spawner, gh: deps.gh, env: { PATH: deps.safePath, HOME: deps.env.HOME ?? home } } } : {}),
     },
     scheduler: () =>
       bridge?.scheduler.status() ?? {
@@ -262,11 +249,6 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
 
   // CR-PENDING(WP-INT): `createInstaller` (WP-11) is still the M0 stub.
   const installer = unsupportedValue<Installer>("server.installer (WP-11)");
-  const render = {
-    renderer: unsupportedValue<ServerHandle["render"]["renderer"]>("server.render.renderer (per workspace: WorkspaceDomain.renderer)"),
-    layouter: unsupportedValue<ServerHandle["render"]["layouter"]>("server.render.layouter (per workspace: WorkspaceDomain.layouter)"),
-    exporter: (): ServerHandle["render"]["exporter"] extends (ws: WorkspaceKey) => infer R ? R : never => unsupportedValue("server.render.exporter (WP-13)"),
-  };
   let stopping: Promise<void> | null = null;
   const handle: ServerHandle & { domain(ws: WorkspaceKey): WorkspaceDomain | null; url: string; token: string; stopped: Promise<string> } = {
     port: daemon.port,
@@ -280,7 +262,6 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
     anchors,
     installer,
     hub: svc.hub,
-    render,
     domain: (ws) => domains.get(ws) ?? null,
     stopped: daemon.stopped,
     stop(reason) {

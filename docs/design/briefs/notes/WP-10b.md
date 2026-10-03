@@ -19,7 +19,7 @@ read:
   - docs/design/prototypes/JUDGEMENT.md | 6.7
   - docs/design/prototypes/JUDGEMENT.md | 6.8
   - docs/design/prototypes/JUDGEMENT.md | 6.9
-crs: ux-R5, ux-R6, ux-R7, ux-R8, ux-R9, ux-R10, ux-R11, ux-R12, ux-R17, ux-R18, ux-R19, ux-R20, ux-R22, ux-R23, ux-R24, ux-R25, jdg-7, jdg-8, m0-10
+crs: ux-R5, ux-R6, ux-R7, ux-R8, ux-R9, ux-R10, ux-R11, ux-R12, ux-R17, ux-R18, ux-R19, ux-R20, ux-R22, ux-R23, ux-R24, ux-R25, jdg-7, jdg-8, m0-10, m1-17, m1-65, m1-70, m1-72, m1-86, m1-92, m1-94, m1-95, m1-96, m1-97, m1-99, m1-101, m1-103
 owns:
   - apps/web/src/composer
   - apps/web/src/threads
@@ -48,6 +48,24 @@ owns:
 
 - **CR m0-10**: `ApiClient`/`SseClient` come from `@mitori/client` (re-exported by the web contract);
   `ApiClient.call(..., { onRev })` gives the mutation's `x-mitori-rev` for `SseClient.noteRev`.
+
+## CR batch 2 (2026-10-03, ledger §5) — what changed for you
+
+- **`UiExtension` is contract (CR m1-95)** (`apps/web/src/contract.ts` §5): each of your directories may export
+  `default: UiExtension` from `<dir>/ui.ts` — `views?.{inbox,decisions}`, `reviewPanel?` (S5, `{job}`), `margin?`
+  (`{page}`), `install?(stores: AppStores)`. The shell (`apps/web/src/shell/ext.ts`) discovers them with a lazy glob;
+  you never edit shell files.
+- `@mitori/client` is implemented (WP-09); WP-10a removes its `shell/net/` fallbacks (CR m1-94). A 409 from
+  `ApiClient.call` is an `ApiCallError` with the fresh `estimate` (CR m1-92, CONS-33) — show it in the confirm flow.
+- **i18n**: you own `status.*` and `stage.*` (job and thread vocabulary) in your namespaces (CR m1-101); the last key
+  segment may contain `-` (`verdict.human-verified`, CR m1-97). Token numbers: M notation from 0.1M
+  (`NUMBER_FORMAT.tokens.mThreshold = 100_000`, CR m1-96) — use the shell's `fmtTokens`.
+- `MessageView.html` is server-rendered by `BlockRenderer.renderMessage` (CR m1-70); never parse Markdown client-side.
+  `GET /review` = `ReviewEngine.status()` (CR m1-72).
+- Verdict badges follow the ONE table `computeVerdict` (core, CR m1-17): L1 fail without L3 S ⇒ `inferred`.
+- Trust dialog shows the rules hash `sha256(Σ path ␀ text ␀)` the bundle builder asks for (CR m1-86 (c)).
+- KeyConflict precedences (composer/palette over global, review over read in docReview) are designed, not conflicts
+  (CR m1-99).
 
 ## Out of scope
 

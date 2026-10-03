@@ -40,6 +40,7 @@ import type {
   FsReader,
   GitReader,
   Glob,
+  HardwareInfo,
   Hasher,
   InboxItem,
   IndexDelta,
@@ -71,10 +72,7 @@ import type {
   WriteQueue,
 } from "@mitori/core";
 import type {
-  BlockRenderer,
-  DiagramLayouter,
   DocStore,
-  HtmlExporter,
 } from "@mitori/doc";
 import type {
   GenOrchestrator,
@@ -227,6 +225,12 @@ export interface WorkspaceManager {
   unload(ws: WorkspaceKey): Promise<void>;
   /** Forget (unregister; keeps `~/.mitori/repos/<ws>` unless `purge`). */
   forget(ws: WorkspaceKey, purge: boolean): Promise<void>;
+  /**
+   * Update a registration (`POST /ws/:ws/init {commit:true}` flips `docCommitted`; the doc's `.gitignore` depends on
+   * it): persisted in `srv_workspaces`, `workspace.updated` published. A `docDir` change unloads a loaded workspace
+   * (the next `get` reassembles at the new path) [CR m1-118].
+   */
+  update(ws: WorkspaceKey, patch: Partial<Pick<WorkspaceInfo, "docDir" | "docCommitted">>): Promise<WorkspaceInfo>;
 }
 
 /** Migration application order per DB (forward-only; recorded in `srv_migrations`) (§3.4). */
@@ -310,9 +314,14 @@ export const DOMAIN_WIRING = {
   ],
 } as const satisfies Record<ServerDomainEvent["type"], readonly WiringStep[]>;
 
-// `assembleAnchoredItems` → ./wiring/index.ts
+// `assembleAnchoredItems` → ./wiring/index.ts — `(delta, doc: Pick<DocStore, "index">, threads: { id; code?: Cite | null }[])`:
+// every claim with ≥ 1 cite on a changed / renamed path contributes ALL its cites (in claim-id then cite-index order),
+// then every non-resolved thread whose code member's path changed (thread-id order) [CR m1-6].
 
-// `distributeReanchor` → ./wiring/index.ts
+// `distributeReanchor` → ./wiring/index.ts — `(items, report)` → partial outputs by design [CR m1-6]: per claim
+// `{ id, cites (complete array), checks: Pick<ClaimChecks, "l0" | "l2">, stale }`, per thread the new CODE member;
+// the `own`-slot step merges them with the FRESH stored state (claim l1 kept, `checkedAt` = now; thread anchor =
+// stored anchor with the new `code`) before `doc.setClaimChecks` / `review.applyReanchor`.
 
 /* ============================================================================
  * 5. SSE hub (§5) [CONS-04, PT-01]
@@ -402,7 +411,7 @@ export interface InboxSources {
   trust: InboxItem[];
   /** Active / failed gen runs. */
   genRuns: InboxItem[];
-  /** Suggestions. */
+  /** Suggestions (their inbox `href`s are relative to `/w/<ws>/`, e.g. `gen?sg=<id>`; the route absolutizes them) [CR m1-91]. */
   suggestions: SuggestionView[];
 }
 
@@ -553,6 +562,24 @@ export const HTTP_PIPELINE = [
 export interface ServerDeps {
   /** `~/.mitori` (or `MITORI_HOME`). */
   home: string;
+  /** mitori semver (`HealthRes.version`, registry, `hello.version`, `DocManifest.generator.mitoriVersion`) [CR m1-4]. */
+  version: string;
+  /** Daemon PID (lock content, registry, health) [CR m1-4]. */
+  pid: number;
+  /** The user's `$HOME` (not-a-project guard, UXP-23) [CR m1-4]. */
+  userHome: string;
+  /** Preferred port when `srv_ports` has none (tests: `0`) [CR m1-4]. */
+  port?: number;
+  /**
+   * Gate sandbox detected by the caller (ADR-0013; platform `detectGateSandbox()`, WP-01) — `none` ⇒ gates that need
+   * one become `pending_consent` [CR m1-4, CR m1-119].
+   */
+  gateSandbox: EffectiveSettings["gateSandbox"];
+  /** Hardware facts for pool sizing (platform `hardwareInfo()`) [CR m1-4, CR m1-116]. */
+  hardware: HardwareInfo;
+  /** `gh` resolved on SAFE_PATH (remote-readonly clones); absent ⇒ GitHub URLs are refused [CR m1-4]. */
+  gh?: string;
+
   /** Build flavour (HealthRes.build). */
   build: "release" | "test";
   /** Clock. */
@@ -575,8 +602,8 @@ export interface ServerDeps {
   safeWrite: SafeWriter;
   /** Watcher. */
   watcher: FsWatcher;
-  /** Git reader factory (normal / shadow / side). */
-  git(info: WorkspaceInfo): GitReader;
+  /** Git reader factory (normal / shadow / side); `close()` stops its persistent `cat-file --batch` on unload (PT-17) [CR m1-4]. */
+  git(info: WorkspaceInfo): GitReader & { close(): Promise<void> };
   /** Worker pools: parse (indexer), ELK, compute (Shiki/diff). */
   pools: {
     parse(size: number): WorkerPool<ParseBatchRequest, ParseBatchResponse>;
@@ -617,13 +644,17 @@ export interface ServerHandle {
   installer: Installer;
   /** SSE hub. */
   hub: SseHub;
-  /** Doc rendering services shared by workspaces. */
-  render: { renderer: BlockRenderer; layouter: DiagramLayouter; exporter(ws: WorkspaceKey): HtmlExporter };
+  // CR m1-7: no daemon-wide `render` — the renderer / layouter caches (`doc_html`, `doc_layouts`) live in the
+  // workspace DB, so the composition root builds them (and the HtmlExporter) per workspace.
   /** Graceful stop (drain scheduler, `server.shutdown`, waiters approved=false). */
   stop(reason: string, signal?: Cancel): Promise<void>;
 }
 
-// `createServer` → ./compose.ts
+// `createServer` → ./compose.ts — when `~/.mitori/daemon.lock` is held by a live, healthy daemon it rejects with
+// `MitoriError("E_CONFLICT", …, { params: { pid, port } })`; the CLI then uses that daemon (prints its URL, opens the
+// workspace there). The lock is taken with `@mitori/platform` `acquireLock` (stale holder reclaimed after
+// `DAEMON.lockStaleProbes` failed health probes); `startDaemon` receives the held lock — no lock port in
+// `ServerDeps` [CR m1-5].
 
 /* ============================================================================
  * 11. `GET /ws/:ws/doc/text` format (§11) [CONS-17]

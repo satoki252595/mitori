@@ -3,7 +3,7 @@
  * Worker pools, then hands them to the composition root (`@mitori/server` `createServer`). Replaces the
  * walking-skeleton fetch handler of serve.ts for `mitori <path>` / `mitori _serve` (CR m0-14 hand-over to WP-11).
  */
-import { homedir } from "node:os";
+import { availableParallelism, homedir } from "node:os";
 import { createSecretScanner, type HealthRes, MitoriError, type WorkspaceInfo } from "@mitori/core";
 import {
   createFsReader,
@@ -76,6 +76,13 @@ export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerD
   const userHome = homedir();
   const deps: ServerDeps = {
     home: o.home,
+    version: o.version,
+    pid: process.pid,
+    userHome,
+    port: o.port,
+    // CR m1-119 / m1-116: platform `detectGateSandbox()` and `hardwareInfo()` (WP-01) replace these two defaults.
+    gateSandbox: "none",
+    hardware: { cores: availableParallelism(), perfCores: null },
     build: o.build,
     clock,
     random: cryptoRandom,
@@ -109,7 +116,7 @@ export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerD
   };
   let handle: ServerHandle;
   try {
-    handle = await createServer({ ...deps, ...({ version: o.version, pid: process.pid, userHome, port: o.port } as object) } as ServerDeps);
+    handle = await createServer(deps);
   } catch (err) {
     await Promise.allSettled([deps.pools.compute.close(), deps.pools.elk.close()]);
     throw err;

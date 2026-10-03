@@ -478,3 +478,20 @@ describe("AiMarkdownValidator (V13)", () => {
     expect(r("`<!-- b_aaaaaaaa -->` と `<b>`").ok).toBe(true);
   });
 });
+
+describe("CR m1-50 stampRun", () => {
+  const usage = { calls: 3, in: 1000, cacheWrite: 200, cacheRead: 300, out: 400, apiUsd: 0.125 };
+  test("a full run sets effort, snapshot and generatedAt and accumulates usage", () => {
+    const h = seeded();
+    const first = h.store.stampRun({ effort: "standard", snapshot: { commit: "a".repeat(40), indexDigest: "1".repeat(16) }, usage, full: true });
+    expect(first.effort).toBe("standard");
+    expect(first.snapshot).toEqual({ commit: "a".repeat(40), indexDigest: "1".repeat(16) });
+    expect(first.generatedAt).not.toBeNull();
+    expect(first.usageTotals).toEqual(usage);
+    const second = h.store.stampRun({ effort: "overview", snapshot: { commit: "b".repeat(40), indexDigest: "2".repeat(16) }, usage, full: false });
+    expect(second.generatedAt).toBe(first.generatedAt);
+    expect(second.effort).toBe("overview");
+    expect(second.usageTotals).toEqual({ calls: 6, in: 2000, cacheWrite: 400, cacheRead: 600, out: 800, apiUsd: 0.25 });
+    expect(h.store.manifest()).toEqual(second);
+  });
+});

@@ -505,6 +505,19 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       await state.stateWrite("workspace.forget", () => state.db.run("DELETE FROM srv_workspaces WHERE key = ?", [ws]));
       if (purge) await deps.safeWrite.remove(home, `repos/${ws}`, "home");
     },
+    async update(ws, patch) {
+      // CR m1-118: the runtime holds the same `info` object, so a `docCommitted` flip is seen by the doc store at once;
+      // a `docDir` change unloads the workspace (the next `get` reassembles at the new path).
+      const e = entries.get(ws);
+      if (!e) throw new MitoriError("E_WS_NOT_FOUND", "workspace is not registered", { params: { ws } });
+      const moved = patch.docDir !== undefined && patch.docDir !== e.info.docDir;
+      if (moved) await unload(ws);
+      if (patch.docDir !== undefined) e.info.docDir = patch.docDir;
+      if (patch.docCommitted !== undefined) e.info.docCommitted = patch.docCommitted;
+      await persistEntry(ws, e, false);
+      announce(ws);
+      return e.info;
+    },
     has: (ws) => entries.has(ws),
     info: (ws) => entries.get(ws)?.info ?? null,
     peek: (ws) => loaded.get(ws)?.rt ?? null,

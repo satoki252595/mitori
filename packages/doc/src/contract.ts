@@ -51,6 +51,7 @@ import type {
   DocLang,
   DocManifest,
   DocProposal,
+  Effort,
   ExportReq,
   ExportRes,
   Fact,
@@ -70,6 +71,7 @@ import type {
   SectionId,
   SectionNode,
   SourceLang,
+  UsageTotals,
   Verdict,
   WorkspaceKey,
   Xxh3,
@@ -183,53 +185,56 @@ export const SECTION_ASPECTS = {
   s11: ["debt", "untested", "hotspots", "fragile"],
 } as const satisfies Record<SectionAspectKey, readonly BlockAspect[]>;
 
-/** Allowed kinds and default depth per aspect. Validator accepts depth within default ± 1 (V08). */
+/**
+ * Allowed kinds, default depth and audience per aspect (gen spec §5.6 per-prompt "Audience" rules; compact lines
+ * derive kind / depth / audience from here, PT-03) [CR m1-14]. Validator accepts depth within default ± 1 (V08).
+ */
 export const ASPECT_DEFAULTS = {
-  tldr: { kinds: ["prose"], depth: "L0" },
-  problem: { kinds: ["prose"], depth: "L0" },
-  users: { kinds: ["list"], depth: "L1" },
-  scope: { kinds: ["list"], depth: "L1" },
-  constraints: { kinds: ["list"], depth: "L1" },
-  caption: { kinds: ["prose"], depth: "L1" },
-  intro: { kinds: ["prose"], depth: "L1" },
-  summary: { kinds: ["prose"], depth: "L1" },
-  sequence: { kinds: ["diagram"], depth: "L2" },
-  steps: { kinds: ["list"], depth: "L2" },
-  edge_cases: { kinds: ["list"], depth: "L3" },
-  learn: { kinds: ["learn"], depth: "L1" },
-  responsibility: { kinds: ["prose"], depth: "L2" },
-  interface: { kinds: ["list", "table"], depth: "L2" },
-  dependencies: { kinds: ["prose", "list"], depth: "L2" },
-  data: { kinds: ["list", "table"], depth: "L2" },
-  flow: { kinds: ["list"], depth: "L2" },
-  config: { kinds: ["list"], depth: "L2" },
-  tests: { kinds: ["prose", "list"], depth: "L2" },
-  invariants: { kinds: ["list"], depth: "L3" },
-  errors: { kinds: ["prose", "list"], depth: "L3" },
-  concurrency: { kinds: ["prose"], depth: "L3" },
-  performance: { kinds: ["prose"], depth: "L3" },
-  pitfalls: { kinds: ["pitfall"], depth: "L2" },
-  deepdive: { kinds: ["deepdive"], depth: "L3" },
-  files: { kinds: ["deepdive"], depth: "L3" },
-  recap: { kinds: ["recap"], depth: "L1" },
-  structure: { kinds: ["list"], depth: "L2" },
-  interactions: { kinds: ["prose", "list"], depth: "L2" },
-  overview: { kinds: ["prose"], depth: "L2" },
-  entities: { kinds: ["table"], depth: "L2" },
-  lifecycle: { kinds: ["list"], depth: "L2" },
-  migrations: { kinds: ["prose"], depth: "L3" },
-  hotpaths: { kinds: ["prose", "list", "pitfall"], depth: "L3" },
-  caching: { kinds: ["prose", "list", "pitfall"], depth: "L3" },
-  limits: { kinds: ["prose", "list", "pitfall"], depth: "L3" },
-  security: { kinds: ["prose", "list", "pitfall"], depth: "L3" },
-  reliability: { kinds: ["prose", "list", "pitfall"], depth: "L3" },
-  observability: { kinds: ["prose", "list", "pitfall"], depth: "L3" },
-  decision: { kinds: ["why"], depth: "L2" },
-  debt: { kinds: ["list", "prose", "pitfall"], depth: "L3" },
-  untested: { kinds: ["list", "prose", "pitfall"], depth: "L3" },
-  hotspots: { kinds: ["list", "prose", "pitfall"], depth: "L3" },
-  fragile: { kinds: ["list", "prose", "pitfall"], depth: "L3" },
-} as const satisfies Record<BlockAspect, { kinds: readonly BlockKind[]; depth: Depth }>;
+  tldr: { kinds: ["prose"], depth: "L0", audience: ["newcomer", "pm", "dev"] },
+  problem: { kinds: ["prose"], depth: "L0", audience: ["newcomer", "pm", "dev"] },
+  users: { kinds: ["list"], depth: "L1", audience: ["newcomer", "pm", "dev"] },
+  scope: { kinds: ["list"], depth: "L1", audience: ["newcomer", "pm", "dev"] },
+  constraints: { kinds: ["list"], depth: "L1", audience: ["newcomer", "pm", "dev"] },
+  caption: { kinds: ["prose"], depth: "L1", audience: ["newcomer", "pm", "dev"] },
+  intro: { kinds: ["prose"], depth: "L1", audience: ["newcomer", "dev"] },
+  summary: { kinds: ["prose"], depth: "L1", audience: ["newcomer", "pm", "dev"] },
+  sequence: { kinds: ["diagram"], depth: "L2", audience: ["dev"] },
+  steps: { kinds: ["list"], depth: "L2", audience: ["dev", "reviewer"] },
+  edge_cases: { kinds: ["list"], depth: "L3", audience: ["reviewer", "dev"] },
+  learn: { kinds: ["learn"], depth: "L1", audience: ["newcomer", "dev"] },
+  responsibility: { kinds: ["prose"], depth: "L2", audience: ["newcomer", "dev"] },
+  interface: { kinds: ["list", "table"], depth: "L2", audience: ["dev"] },
+  dependencies: { kinds: ["prose", "list"], depth: "L2", audience: ["dev"] },
+  data: { kinds: ["list", "table"], depth: "L2", audience: ["dev"] },
+  flow: { kinds: ["list"], depth: "L2", audience: ["dev"] },
+  config: { kinds: ["list"], depth: "L2", audience: ["dev"] },
+  tests: { kinds: ["prose", "list"], depth: "L2", audience: ["dev"] },
+  invariants: { kinds: ["list"], depth: "L3", audience: ["reviewer", "dev"] },
+  errors: { kinds: ["prose", "list"], depth: "L3", audience: ["reviewer", "dev"] },
+  concurrency: { kinds: ["prose"], depth: "L3", audience: ["reviewer", "dev"] },
+  performance: { kinds: ["prose"], depth: "L3", audience: ["reviewer", "dev"] },
+  pitfalls: { kinds: ["pitfall"], depth: "L2", audience: ["dev"] },
+  deepdive: { kinds: ["deepdive"], depth: "L3", audience: ["reviewer", "dev"] },
+  files: { kinds: ["deepdive"], depth: "L3", audience: ["reviewer", "dev"] },
+  recap: { kinds: ["recap"], depth: "L1", audience: ["newcomer", "dev"] },
+  structure: { kinds: ["list"], depth: "L2", audience: ["dev"] },
+  interactions: { kinds: ["prose", "list"], depth: "L2", audience: ["dev"] },
+  overview: { kinds: ["prose"], depth: "L2", audience: ["dev", "reviewer", "pm"] },
+  entities: { kinds: ["table"], depth: "L2", audience: ["dev", "reviewer"] },
+  lifecycle: { kinds: ["list"], depth: "L2", audience: ["dev", "reviewer"] },
+  migrations: { kinds: ["prose"], depth: "L3", audience: ["dev", "reviewer"] },
+  hotpaths: { kinds: ["prose", "list", "pitfall"], depth: "L3", audience: ["reviewer", "sre", "dev"] },
+  caching: { kinds: ["prose", "list", "pitfall"], depth: "L3", audience: ["reviewer", "sre", "dev"] },
+  limits: { kinds: ["prose", "list", "pitfall"], depth: "L3", audience: ["reviewer", "sre", "dev"] },
+  security: { kinds: ["prose", "list", "pitfall"], depth: "L3", audience: ["reviewer", "sre", "dev"] },
+  reliability: { kinds: ["prose", "list", "pitfall"], depth: "L3", audience: ["reviewer", "sre", "dev"] },
+  observability: { kinds: ["prose", "list", "pitfall"], depth: "L3", audience: ["reviewer", "sre", "dev"] },
+  decision: { kinds: ["why"], depth: "L2", audience: ["reviewer", "dev", "pm"] },
+  debt: { kinds: ["list", "prose", "pitfall"], depth: "L3", audience: ["reviewer", "dev", "pm"] },
+  untested: { kinds: ["list", "prose", "pitfall"], depth: "L3", audience: ["reviewer", "dev", "pm"] },
+  hotspots: { kinds: ["list", "prose", "pitfall"], depth: "L3", audience: ["reviewer", "dev", "pm"] },
+  fragile: { kinds: ["list", "prose", "pitfall"], depth: "L3", audience: ["reviewer", "dev", "pm"] },
+} as const satisfies Record<BlockAspect, { kinds: readonly BlockKind[]; depth: Depth; audience: readonly Audience[] }>;
 
 /** Static heading text per aspect (`null` = no heading block). LLM never writes headings (V12). */
 export const ASPECT_HEADINGS = {
@@ -286,6 +291,7 @@ export const ASPECT_HEADINGS = {
 export const STATIC_SLOTS = [
   "<section>:h",
   "<section>:h:<aspect>",
+  "<section>:ph",
   "s0:badges",
   "s0:coverage",
   "s2:floorplan",
@@ -507,6 +513,13 @@ export interface StaticDocInput {
   languages: { lang: SourceLang; loc: number }[];
   /** Eager/lazy split (placeholders for lazy modules). */
   lazyModules: ModuleId[];
+  /**
+   * Gen planner numbers per section (placeholder label 「生成する ≈N tok」 = `inTokens + outTokens`, `SectionNode.est`,
+   * ux-R14); absent ⇒ the label has no number [CR m1-42].
+   */
+  estimates?: Partial<Record<SectionId, { inTokens: number; outTokens: number }>>;
+  /** Largest included files for `s11:large` (大きいファイル表, gen §4.1), largest first, ≤ 20 [CR m1-42]. */
+  largeFiles?: { path: RepoPath; loc: number; bytes: number }[];
 }
 
 /** Cached translation of a block (D5). Not a proposal. */
@@ -569,6 +582,8 @@ export interface DocStore {
    * Human edit (3-way: `baseHash` must equal the current hash else `E_DOC_BASE_MISMATCH`). Locks as human-edited.
    * R1 [CONS-06]: `md` in FILE form is parsed (§10.3), new/changed cite links are stamped through `deps.stamper`
    * and L0–L2 run before the edit commits; `checks` are returned. AI-origin md never passes through here.
+   * The re-stamped block's freshness is recomputed from its new stamps (a stale block the human re-cites becomes
+   * `fresh`) [CR m1-52].
    */
   editBlock(id: BlockId, baseHash: Xxh3, md: string, by: MessageAuthor): Promise<{ block: Block; checks: CheckError[]; dropped: ClaimId[] }>;
   /** Toggle human-verified (claims → verdict `human-verified`, preserved across regeneration). */
@@ -613,6 +628,17 @@ export interface DocStore {
   flush(opts?: { force?: boolean }): Promise<string[]>;
   /** Mint docId + skeleton manifest if absent (first applyStatic / `mitori init`) [CONS-11]. Idempotent. */
   ensureManifest(): DocManifest;
+  /**
+   * 1-based line of the block's first line in its Markdown file as of the last flush (`BlockView.mdLine`,
+   * `data-ln`, permalinks); null before the block was flushed [CR m1-46].
+   */
+  mdLine(id: BlockId): number | null;
+  /**
+   * Stamp the manifest at the end of a generation run (gen §10.8 / AC-29) [CR m1-50]: adds `usage` to
+   * `usageTotals`, sets `effort` and `snapshot`, and `generatedAt` only when `full` (trigger `user`, whole doc, run
+   * `done`). Called by gen's orchestrator inside the run's final write slot.
+   */
+  stampRun(run: { effort: Effort; snapshot: DocManifest["snapshot"]; usage: UsageTotals; full: boolean }): DocManifest;
 }
 
 /**
@@ -651,8 +677,22 @@ export interface AiMarkdownValidator {
  * ANCHOR_TEXT_RULES / `blockText` apply the same strip so TextQuote offsets match.
  */
 export interface BlockRenderer {
-  /** Render a block body with claim placeholders (cached). */
-  render(block: Block, claims: Claim[], opts: { lang: DocLang; glossaryTerms: Map<string, string> }): Promise<string>;
+  /**
+   * Render a block body with claim placeholders (cached). `opts.diagram` (the IR from `DocStore.index().diagrams`
+   * and the layout dims from `DiagramLayouter.layout`) lets a diagram block carry `figure.mdiagram[data-w][data-h]`
+   * and the full text alternative (nodes AND edges); the dims are spliced at serve time like cite chips, so the
+   * cached body never depends on the layout [CR m1-51].
+   */
+  render(
+    block: Block,
+    claims: Claim[],
+    opts: { lang: DocLang; glossaryTerms: Map<string, string>; diagram?: { ir: DiagramIR; layout?: Pick<DiagramLayout, "width" | "height"> } },
+  ): Promise<string>;
+  /**
+   * Thread message Markdown → HTML for `MessageView.html` (CR ux-R23): markdown-it `html:false`, the AI-md link
+   * rules (repo-relative and cite links only), no images; sync and cached by text hash [CR m1-70].
+   */
+  renderMessage(md: string): string;
   /** Fill claim placeholders (chips, hrefs via core HREFS, data-verdict) from current claims. Pure, ≤ 0.05 ms/claim. */
   splice(bodyHtml: string, claims: readonly Claim[], ctx: { ws: WorkspaceKey; level: ReaderLevel }): string;
   /** Highlight a code range for cite peeks (±ctx lines). */
@@ -686,7 +726,11 @@ export interface HtmlExporter {
   export(req: ExportReq): Promise<ExportRes>;
 }
 
-/** Highlight request for the compute Worker (Shiki). */
+/**
+ * Highlight request for the compute Worker (Shiki). `lang` widens to the config / docs fences
+ * (`"json" | "yaml" | "toml" | "markdown" | "shellscript" | "sql"`) when WP-04 adds those grammars (contract line +
+ * grammars in one change) [CR m1-48].
+ */
 export interface HighlightReq {
   /** Source text (whole blob; tokenized once per blob with grammar-state checkpoints every 100 lines) [PT-16]. */
   text: string;
@@ -700,17 +744,24 @@ export interface HighlightReq {
 
 // `createBlockRenderer` → ./render/index.ts
 
+// `createHighlight` → ./render/index.ts — `(wasm, cacheBlobs?) => Promise<(req: HighlightReq) => string>`, the compute Worker's half [CR m1-3]
+
 // `createDiagramLayouter` → ./layout/index.ts
+
+// `elkLayout` → ./layout/index.ts — `(elk: { layout(elkGraph) }, { ir }) => Promise<DiagramLayout>`, the ELK pool adapter's half [CR m1-3]
 
 // `createHtmlExporter` → ./export/index.ts
 
 /* ---- A5. Moved from Part B (@mitori/gen) at the M0 freeze [CR m0-2]: Part A's store API uses them;
  *      @mitori/gen re-exports these names --------------------------------------------------- */
 
-/** Id generator = core `newId(kind, random)` (random in production, seeded in tests for determinism). */
+/**
+ * Id generator = core `newId(kind, random)` (random in production, seeded in tests for determinism). `doc` mints
+ * `DocManifest.docId` (CONS-11), `diagram` the id of an AI diagram block [CR m1-41].
+ */
 export interface GenIdSource {
   /** Next id of a kind (format per `ID_SPEC`). */
-  next(kind: "block" | "claim" | "genRun" | "genTask" | "prep" | "proposal" | "estimate" | "decision" | "suggestion"): string;
+  next(kind: "block" | "claim" | "genRun" | "genTask" | "prep" | "proposal" | "estimate" | "decision" | "suggestion" | "doc" | "diagram"): string;
 }
 
 /** LLM placeholder id of a block created in the same reply. */

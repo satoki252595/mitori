@@ -6,6 +6,9 @@ import { HTTP_HEADERS, MitoriError, ROUTE_META, type RouteMeta } from "@mitori/c
 import type { ApiClient, ClientOptions } from "../contract.ts";
 import { baseHeaders, errorFromResponse, networkError, queryString, routePath } from "./request.ts";
 
+/** CLI / MCP / hook health probe with the HMAC proof check, BEFORE any bearer is sent [SEC-06, CR m1-89]. */
+export { probeDaemon } from "./probe.ts";
+
 /** Typed API client over `fetch` (CR m0-10). */
 export function createApiClient(opts: ClientOptions): ApiClient {
   const base = opts.base.replace(/\/+$/, "");

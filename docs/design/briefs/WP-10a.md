@@ -10,7 +10,7 @@
 - **成果物**: Vite 8 + Svelte 5（runes、store は `.svelte.ts` の class）、head inline script（CSP hash、`mitori_ui`）、Router（`APP_ROUTES`、href は core `HREFS`）、auth（fragment nonce → exchange → localStorage）、SSE client（fetch stream・seq）、Launcher、**S1 = ELK container 図**（FloorPlan 部品の container mode、room 選択・room card・Z0〜Z2、0 tok カード、engine 状態カード）、Reader（BlockHost = innerHTML + 委譲、`READER_LEVEL_RULES`、cite peek、verdict バッジ（`cited` 含む）、Deep Dive、⌥ 長押し + `.` toggle、claim cursor）、目次・ミニマップ、⌘K（Worker、3 つの query 形、top-hit、prefix mode）、keyboard registry（`DEFAULT_KEYMAP`、IME guard R1、`ROUTE_SCOPES`）、ja/en カタログ（namespace）+ parity、和文組版 CSS・ダーク、status bar（AuthKind + billing）、生成の見積りカード（開示行、範囲、billing、window）と進捗（`doc.block.upsert` / `partial` の高さ予約）、幅の計算（ResizeObserver）。キー再割当て editor は ☆。
 - **受け入れ試験**: `nd bun run size --filter web`（初期 JS ≤ 150KB hard・60KB 警告、CSS ≤ 25KB、Web フォント 0）。`nd bun run e2e --grep @wp10a`: 1,000 block の Reader で DOM ≤ 5k、読者レベル切替 ≤ 50 ms、節遷移 p95 ≤ 100 ms、⌘K ≤ 16 ms（5 万件）、CLS 0、AC-U-W01（7 viewport）、AC-J46b、AC-U-DP、AC-U-B01、AC-G-W01、AC-U-EN、AC-J01・J02・J06・J07。IME e2e（変換中の Enter/Esc で何も起きない、keyCode 229 で発火なし + hint）。`nd bun run check`（lint `mitori/ime-guard` ほか 12 規則、i18n parity、ux.md 表の ja 文字列 lint）。
 
-## 2. Read exactly these sections (≈ 79,811 tokens)
+## 2. Read exactly these sections (≈ 80,617 tokens)
 
 - `docs/design/specs/ux.md` L11–40 — 改訂 R1（2026-10-03、レビュー反映） — 本節が本文より優先する (≈ 2,480 tok)
 - `docs/design/specs/ux.md` L71–85 — 1. 原則（拘束力のある 10 か条） (≈ 582 tok)
@@ -43,28 +43,10 @@
 - `docs/design/prototypes/JUDGEMENT.md` L477–492 — 6.16 初期 JS の配分 [仮] (≈ 398 tok)
 - `docs/design/prototypes/JUDGEMENT.md` L493–502 — 6.17 数値の書式（G17。Pro §9 をそのまま正本にする） (≈ 191 tok)
 - `docs/design/prototypes/JUDGEMENT.md` L503–523 — 6.18 状態のラベル（3 案で揺れていた語を統一する） (≈ 366 tok)
-- `apps/web/src/contract.ts` L1–1679 — (whole file) (≈ 24,567 tok)
+- `apps/web/src/contract.ts` L1–1726 — (whole file) (≈ 25,373 tok)
 - `docs/design/design-tokens.css` L1–569 — (whole file) (≈ 8,616 tok)
 
-## 3. M0 stubs you own (13) — implement in place, keep the signatures
-
-Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `@mitori/core`). The doc comment above each stub is the contract text. Changing a signature is a contract change (CR batch).
-
-- `apps/web/src/reader/index.ts:11` — `layoutMarginCards(cards: readonly MarginCardInput[]): MarginCardPlacement[]`
-- `apps/web/src/reader/index.ts:20` — `permalinkText(opts: { section: SectionId; title: string; cite?: string; url: string }): string`
-- `apps/web/src/reader/index.ts:25` — `blockVisible(block: Pick<BlockView, "depth" | "kind">, level: ReaderLevel): "expanded" | "collapsed" | "hidden"`
-- `apps/web/src/shell/index.ts:21` — `isComposing(e: KeyboardEvent): boolean`
-- `apps/web/src/shell/index.ts:26` — `parseUiCookie(raw: string | null): UiCookie`
-- `apps/web/src/shell/index.ts:31` — `fmtTokens(n: number, opts?: { approx?: boolean; main?: boolean; lang?: UiLang }): string`
-- `apps/web/src/shell/index.ts:36` — `fmtUsd(n: number, ctx: UsdContext): string`
-- `apps/web/src/shell/index.ts:41` — `fmtDuration(ms: number, ctx: "job" | "gen", lang: UiLang): string`
-- `apps/web/src/shell/index.ts:46` — `fmtDelta(actual: number, estimate: number): string`
-- `apps/web/src/shell/index.ts:54` — `t(key: string, params?: Record<string, string | number>): string`
-- `apps/web/src/shell/index.ts:59` — `detectUiLang(): UiLang`
-- `apps/web/src/shell/index.ts:64` — `errorKey(code: ErrorCode): `error.${ErrorCode}``
-- `apps/web/src/shell/index.ts:69` — `errorText(err: MitoriErrorData): string`
-
-## 4. CR ledger rows that concern this WP (20)
+## 3. CR ledger rows that concern this WP (33)
 
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
@@ -88,6 +70,19 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 | CR jdg-ui | jdg | accepted（UX author が適用済み） | ui.ts `ShortcutScope`, `ROUTE_SCOPES`, keymap, `UI_THRESHOLDS` | R1 で `docReview` scope を追加（UXP-16） |
 | CR m0-3 | architect | accepted | `declare function` / `declare const` は所有 WP の sub-directory の `index.ts` に `E_UNSUPPORTED` スタブとして置き、契約ファイルには `// name → module` の印を残す。`priceUsage`（agent）・`canonicalJson`（doc）・`bandOf`（web = `tokenBand`）は core 実装の re-export、`resolveSafePath`（server）は `@mitori/platform` の実装（WP-01）の re-export。migration 配列のスタブは `[]`、値のスタブは触ると `E_UNSUPPORTED` を投げる proxy | 所有ディレクトリ（MILESTONES §1.2）の内側で実装を差し替えられるようにする。署名は変えない（変えるなら CR） |
 | CR m0-10 | WP-00a | accepted-modified | 新 `packages/client/src/contract.ts`: `ConnectionState`・`EntityKey`・`SseClient`・`ApiClient`（web 契約 §5 から移設、web は同名で re-export）+ `ClientAuth`（`session` / `bearer`）・`ClientOptions {base, auth, client:{kind,version}, headers?, fetch?}`・`SseClientOptions {random, clock, onState?}`。スタブ `createApiClient`（`http/`）・`createSseClient`（`sse/`）。`ApiClient.call` の args に `onRev?(rev)` を追加 | 「`x-mitori-rev` も返す」を型で表せる形にした（戻り値の形は不変）。jitter と `live.since` は core の port（client は entropy 免除でない）。実装 WP-09、利用 WP-10a・WP-11 |
+| CR m1-26 | WP-INT C, WP-10a（S1 strip） | accepted-modified | core `RepoProfile {remote, head{commit,date,tag}, license, toolchain, readme, areas}`・`AreaStat`、api `WorkspaceStatus.profile?`、indexer `Indexer.profile(): RepoProfile \| null`、core `GitReader.remoteUrl?()`・`headMeta?()` (applied)。facade は `null` を返す暫定（`update/facade.ts`）。実装: indexer polish（WP-02 facade + WP-03 `facts/`）、GitReader の 2 メソッドは WP-01、`GET /ws/:ws` への配線は WP-INT（`DomainProviders.status`）、hero / header の表示は WP-10a | プロトタイプ `01-first-run-map` の hero（`github.com/… · Go 1.26 · MIT · 406875d (2026-10-02)`、README 1 行目、規模タイル 4 枚、header の `v0.21.1`）を 0 tok で出す。WP-10a 案の `ScanSummaryView.license` / `snapshot.commitAt` を 1 つの型に統合。表示語（「本体」「テスト」）は UI の i18n |
+| CR m1-65 | WP-INT C | accepted-modified | **初回 pin は TOFU**: daemon 起動時に `pins.claude` が無ければ bridge が SAFE_PATH 上の `claude` を解決して pin し（core `BinaryPin.by: "first-run"` (applied)）、`pin()` dep 経由で composition root が settings に保存。engine card は 「初回に固定 · v… · path ［変更］」、以後の差異は従来どおり `E_ENGINE_BINARY_CHANGED`。実装: WP-05（解決）、WP-INT（保存の配線）、WP-10a（card）。settings schema は `by` を受ける (applied) | 「見つかりません」 を 1 クリックも要さずに解消。SAFE_PATH は workspace 配下を除くので repo からは差し込めない（SEC-10） |
+| CR m1-94 | WP-10a | accepted | `@mitori/client`（WP-09 実装済み）を WP-10a が採用し `shell/net/` の fallback を削除。SSE の gap 判定は hello の前の seq と比べる（client 契約コメント (applied)） | — |
+| CR m1-95 | WP-10a | accepted | web `UiExtension`（`views?`, `reviewPanel?`, `margin?`, `install?(stores: AppStores)`）、各 `*/ui.ts` の `default` (applied) | WP-10a ⇄ WP-10b が互いのファイルを触らない |
+| CR m1-96 | WP-10a | accepted | web `NUMBER_FORMAT.tokens.mThreshold = 100_000` (applied)、`shell/fmt.ts` の ÷10 を削除 | 仕様の例（`≈0.12M`） |
+| CR m1-97 | WP-10a | accepted | web `I18N_RULES.keyPattern` の最後の segment に `-` を許す (applied) | `verdict.human-verified` |
+| CR m1-98 | WP-10a | accepted | web `PaletteWorkerReply` results + `counts`, `top` (applied、`palette/worker.ts` 修正)、`PALETTE_SCORING` コメント（via term が当たった symbol は top hit を term に譲る、AC-J46）(applied) | — |
+| CR m1-99 | WP-10a | accepted | core `SectionNode.state`（streaming 予約は run 中だけ）、web `KeyConflict`（設計上の優先 2 組）(applied: コメント)。ux spec の訂正（この行で読む）: 翻訳注記は章頭の `§n` 行に置く（§4.3）、toast 表は `§{id} {title} が届きました · 最初の文まで {s} 秒`（§3.5） | — |
+| CR m1-100 | WP-10a | accepted | web `CHUNK_NAMES` + `launcher`, `help`、`BUNDLE_BUDGETS.chunksKb` launcher 4・help 3 (applied) | M3 の size gate 前に entry から出す |
+| CR m1-101 | WP-10a | accepted | i18n: 各 WP が自分のディレクトリの namespace を所有、`status.*`・`stage.*` は WP-10b の namespace (applied: `I18N_RULES` コメント) | — |
+| CR m1-102 | WP-INT C | accepted | `mitori:facts:painted` を WP-10a が出す（`UI_PERF_MARKS` は既に含む） | 契約変更なし |
+| CR m1-103 | M1 §5 | accepted | 見た目の決定: (1) 「間取り図にできない構成…」 バナーは floor plan flag が on でゲートに落ちたときだけ（WP-18 off の間は `MapView.fallback` を出さない、WP-INT views）。(2) Reader は doc 自身の章見出し block をページ見出しとして 1 回だけ出す（WP-10a）。(3) hero / header は `WorkspaceStatus.profile`（CR m1-26、WP-10a）。(4) 生成前の 30 分コースは 「0 / 7 · 残り約 30 分」、TOC は見積りがあれば節ごとの ≈k（WP-10a） | プロトタイプとの差を埋める順番 |
+| CR m1-121 | WP-09（M1 §4） | accepted | api `SettingsView.lastError?: MitoriErrorData`（人が編集した `config.json` を適用できなかった理由、直前の正しい設定が有効のまま）(applied)。`GET /settings` で返すのは WP-09 / S7（settings service の `lastError()` は実装済み）、表示は WP-10a | 設定ファイルの誤りが黙って無視されていた |
 
 ## Golden / truth / fixtures
 
@@ -117,6 +112,21 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
   `createSseClient({ …, random, clock, onState })` (web may use `crypto.getRandomValues` / `Date.now` for the ports).
   Until WP-09 lands they throw `E_UNSUPPORTED`: use a structural fake in tests.
 
+## CR batch 2 (2026-10-03, ledger §5) — follow-ups owned here
+
+- **Hero / header from `WorkspaceStatus.profile`** (CR m1-26): remote `host/path`, toolchain `Go 1.26`, license SPDX,
+  `head.commit` 7 + `(date)`, `head.tag` next to the commit in the header, README excerpt (「原文のまま」) and ≤ 4 LOC
+  tiles (`AreaStat` kind → 「{Lang} 本体」 / `{dir}` / 「{Lang} テスト」). Absent ⇒ today's strip.
+- Engine card: first-run pin (`pin.by === "first-run"`) shows 「初回に固定 · v… ［変更］」 instead of 「見つかりません」
+  (CR m1-65). Adopt `@mitori/client` and delete `shell/net/` fallbacks (CR m1-94). Emit `mitori:facts:painted`
+  (CR m1-102).
+- Contract applied: `UiExtension` (CR m1-95; `shell/ext.ts` may import it from the contract), `mThreshold = 100_000`
+  (`fmt.ts` fixed, CR m1-96), `keyPattern` with `-` (CR m1-97; drop the lint workaround), worker `counts` / `top`
+  (CR m1-98), chunks `launcher` / `help` (CR m1-100).
+- Visual decisions (CR m1-103): fallback banner only when the floor plan is on and failed; one section title in the
+  Reader; 30分コース 「0 / 7 · 残り約30分」 before generation; TOC ≈k per section when an estimate exists.
+- Settings page: show `SettingsView.lastError` (CR m1-121) when `config.json` was not applied.
+
 ## Out of scope
 
 Review loop UI (WP-10b), floor-plan mode (WP-18, JUDGEMENT §6.3.3–6.3.4), the key-remap editor (☆), export
@@ -128,6 +138,6 @@ viewer build (WP-13).
 - **Contract gaps**: never edit `packages/core` or another owner's code. Write the request to `docs/design/cr-requests/<WP-id>.md` (what / why / proposed shape) and use a clearly marked local workaround (`// CR-PENDING(<WP-id>): …`). The architect batches requests weekly into `packages/core/CR-LEDGER.md` (48 h SLA).
 - **Depend on contracts, not on other WPs**. The shared fakes (`@mitori/platform/testing`, `@mitori/agent/testing`, `@mitori/testkit`) are themselves M0 stubs until WP-01 / WP-05 / WP-00b+WP-12 land: write the minimal fake you need in your own test files (a `Hasher` over `Bun.hash`, a `Random` over fixed bytes, `bun:sqlite` `:memory:` for `SqlDb`, an in-thread `WorkerPool`) and switch when the shared ones exist.
 - **Boundaries** (`scripts/check-boundaries.ts`, part of `check`): imports follow `PACKAGE_DEPS` (type-only too; only `@mitori/core` types are free); no deep imports (`@mitori/x/src/…`) and no `../` out of your package; `Bun.*` / `bun:*` / `node:*` / `process.*` only in platform, server, cli; direct `writeFile`/`rename`/`mkdir`/spawn/`Bun.write`/`Bun.spawn`, `crypto.getRandomValues`, `Math.random`, `Date.now` only in platform (the browser app is exempt from the last three) — use the SafeWriter / Spawner / Random / Clock ports; `@mitori/testkit` and `@mitori/<pkg>/testing` only from tests (`*.test.ts`, `test/`, `src/testing.ts`, bench, eval, e2e).
-- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms.
+- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms. Every `bun test` runs with the testkit preload (testing spec §1.5, CR m1-104): use `createTestHome()` instead of `~/.mitori`, no network beyond loopback, no `claude` / `codex` spawns, no unhandled rejections or `console.error`.
 - **Public surface** changes show up in `docs/design/briefs/INDEX.md` (`bun run contract:index`; `check` fails when it is stale). An INDEX diff in your PR = a contract change → CR.
 - **Done** = the acceptance tests in §1 pass with the exact commands, `check` is green, commits are conventional and end with the Co-Authored-By line; never push, never rewrite history, no paid LLM calls unless the WP says so.

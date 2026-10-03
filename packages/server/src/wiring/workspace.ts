@@ -1,5 +1,5 @@
 /**
- * Per-workspace assembly (server spec §10: indexer → doc (stamper = gen's Verifier, late-bound) → gen → loop) and
+ * Per-workspace assembly (server spec §10: indexer → doc (stamper = its own Verifier, CR m1-1) → gen → loop) and
  * the DOMAIN_WIRING chains that run inside one workspace: open scan → `applyStatic`, watcher → `indexer.update` →
  * `index.delta` (reanchor claims + threads in ONE pass, one slot; W1/W2), docDir edits → `doc.load()`, palette
  * digest → `palette.changed`, and `doc.block.upsert` for blocks gen / humans wrote (the store has no renderer).
@@ -27,7 +27,6 @@ import {
 import {
   type ApplyResult,
   type BlockRenderer,
-  type ClaimStamper,
   createAiMarkdownValidator,
   createBlockRenderer,
   createDiagramLayouter,
@@ -37,7 +36,7 @@ import {
   type GenIdSource,
   type HighlightReq,
 } from "@mitori/doc";
-import { type ClaimReanchor, createGen, createPromptRenderer, type GenDeps, type GenOrchestrator } from "@mitori/gen";
+import { type ClaimReanchor, createGen, createPromptRenderer, createVerifier, type GenDeps, type GenOrchestrator } from "@mitori/gen";
 import { createIndexer, type FsChange, type HardwareInfo, type Indexer, type ModuleSeed } from "@mitori/indexer";
 import { DOC_WATCH_IGNORE, type ServerDeps, type WorkspaceRuntime } from "../contract.ts";
 import type { Timers } from "../http/timers.ts";
@@ -194,11 +193,8 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     metrics: deps.metrics,
   });
 
-  /* ---- doc (stamper late-bound to gen's Verifier) ----------------------------------------------------------- */
-  let stamper: ClaimStamper | null = null;
-  const lateStamper: ClaimStamper = {
-    stamp: (raw, span) => (stamper ? stamper.stamp(raw, span) : Promise.reject(new MitoriError("E_NOT_READY", "claim stamper not ready", { retryable: true }))),
-  };
+  /* ---- doc (stamper = a Verifier of its own: human edits stamp at the CURRENT snapshot, CR m1-1) ---------------- */
+  const stamper = createVerifier({ indexer: rawIndexer, anchors: sh.anchors, hasher: deps.hasher, clock: deps.clock, metrics: deps.metrics });
   const aiMarkdown = createAiMarkdownValidator();
   const rawDoc = createDocStore({
     ws: info,
@@ -207,22 +203,19 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     safeWrite: sh.safeWrite,
     hasher: deps.hasher,
     ids,
-    stamper: lateStamper,
+    stamper,
     secrets,
     aiMarkdown,
     log: log.child("doc"),
     clock: deps.clock,
     metrics: deps.metrics,
     events: docEvents,
-    // CR-PENDING(WP-INT): cr-requests/WP-04.md — `fs` and `timers` are not in the contract deps yet.
-    // flush timers are unref'd: they never keep a stopping daemon alive (close() flushes with force)
-    ...({
-      fs: deps.fs,
-      timers: {
-        setTimeout: (fn: () => void, ms: number) => sh.timers.setTimeout(fn, ms, { unref: true }),
-        clearTimeout: (h: unknown) => sh.timers.clearTimeout(h as never),
-      },
-    } as object),
+    fs: deps.fs,
+    // flush timers are unref'd: they never keep a stopping daemon alive (close() flushes with force) [CR m1-40]
+    timers: {
+      setTimeout: (fn: () => void, ms: number) => sh.timers.setTimeout(fn, ms, { unref: true }),
+      clearTimeout: (h: unknown) => sh.timers.clearTimeout(h as never),
+    },
   });
   const renderer = createBlockRenderer({ highlighter: sh.highlighter, secrets, hasher: deps.hasher, db: base.db, log: log.child("render") });
   const layouter = createDiagramLayouter({ elk: sh.elk, db: base.db, hasher: deps.hasher, log: log.child("layout") });
@@ -294,11 +287,9 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     log: log.child("gen"),
     clock: deps.clock,
     events: base.events,
+    fs: deps.fs,
   };
-  // CR-PENDING(WP-INT): cr-requests/WP-06.md R5 — `fs` (session ingest / check) is not in GenDeps yet.
-  const gen = createGen({ ...genDeps, ...({ fs: deps.fs } as object) } as GenDeps);
-  // CR-PENDING(WP-INT): cr-requests/WP-06.md R3 — the Verifier is not public; createGen's result carries it.
-  stamper = (gen as GenOrchestrator & { verifier?: ClaimStamper }).verifier ?? null;
+  const gen = createGen(genDeps);
   const loop = pendingLoop();
 
   /* ---- static doc ------------------------------------------------------------------------------------------- */

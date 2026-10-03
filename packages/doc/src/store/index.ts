@@ -5,6 +5,7 @@
 import type {
   Clock,
   EventSink,
+  FsReader,
   Hasher,
   Logger,
   Metrics,
@@ -13,6 +14,7 @@ import type {
   SecretScanner,
   SqlDb,
   SseEventPayload,
+  Timers,
   WorkspaceInfo,
   WriteQueue,
 } from "@mitori/core";
@@ -27,10 +29,7 @@ export function createAiMarkdownValidator(): AiMarkdownValidator {
   return aiMarkdownValidator();
 }
 
-/**
- * Factory. CR-PENDING(WP-04): the deps object may also carry `fs` (FsReader: load() + the ownership ledger) and
- * `timers` (flush cadence; FakeClock in tests) until the contract lists them (docs/design/cr-requests/WP-04.md).
- */
+/** Factory. `fs` and `timers` are in the contract since CR m1-40 (optional only for disk-less tests). */
 export function createDocStore(deps: {
   /** Workspace. */
   ws: WorkspaceInfo;
@@ -58,6 +57,10 @@ export function createDocStore(deps: {
   metrics: Metrics;
   /** Events (`doc.*`). */
   events: EventSink<SseEventPayload>;
+  /** Read-only filesystem: `load()` (§10.4), the ownership ledger (SEC-02), docDir validation (RT-25). Production passes it; absent ⇒ `load()` reads nothing [CR m1-40]. */
+  fs?: FsReader;
+  /** Flush cadence timers (500 ms / 2 s / 10 s quiet, PT-11); `null` disables auto-flush; absent ⇒ unref'd global timers [CR m1-40]. */
+  timers?: Timers | null;
 }): DocStore {
   return makeDocStore(deps as StoreDeps);
 }

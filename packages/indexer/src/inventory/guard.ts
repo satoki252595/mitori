@@ -1,6 +1,6 @@
 // Not-a-project guard (UXP-23, indexer spec R1 §2.1; server spec `open(target, {force})`): refuse $HOME, `/`, `/Users`,
 // Desktop / Documents / Downloads, anything under ~/Library, and directories without a project marker at depth 1.
-// The WorkspaceManager calls it before the first scan (CR-PENDING(WP-02): export proposed in cr-requests/WP-02.md §5).
+// The WorkspaceManager calls it before the first scan (public since CR m1-30, `inventory/index.ts`).
 import { type FsReader, MitoriError } from "@mitori/core";
 
 /** Depth-1 entries that make a directory a project. */

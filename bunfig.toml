@@ -6,5 +6,8 @@ linker = "hoisted"
 saveTextLockfile = true
 
 [test]
+# testing spec §1.5 (CR m0-9 → CR m1-104): TZ / LANG / MITORI_HOME sentinel, git identity, loopback-only network,
+# claude/codex PATH guard (MITORI_LIVE=1 lifts it), unhandled rejection / console.error fail the file.
+preload = ["./packages/testkit/src/preload.ts"]
 # fixture repos are data (they may contain *.test.ts of their own)
-pathIgnorePatterns = ["fixtures/repos/**", "fixtures/golden/**", "fixtures/agent-streams/**", "fixtures/injection/**", "**/node_modules/**", "docs/**", "dist/**"]
+pathIgnorePatterns = ["fixtures/repos/**", "fixtures/golden/**", "fixtures/agent-streams/**", "fixtures/injection/**", "**/node_modules/**", "docs/**", "dist/**", "e2e/**/*.spec.ts"]

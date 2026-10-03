@@ -1,13 +1,12 @@
 /**
  * Port adapters of the composition root that have no home in the contract yet (each marked CR-PENDING):
- * the daemon lock over `@mitori/platform`'s lock, a SafeWriter that can create the doc root, the hardware facts
- * for pool sizing, and the neutral token calibration.
+ * the daemon lock over `@mitori/platform`'s lock, a SafeWriter that can create the doc root, and the neutral token
+ * calibration.
  */
 import { readFileSync } from "node:fs";
-import { availableParallelism } from "node:os";
 import { dirname, relative } from "node:path";
 import { type FsReader, type Iso8601, MitoriError, type SafeWriteKind, type SafeWriter } from "@mitori/core";
-import type { HardwareInfo, IndexerCalibration } from "@mitori/indexer";
+import type { IndexerCalibration } from "@mitori/indexer";
 import { acquireLock, runToExit } from "@mitori/platform";
 import { DAEMON, type DaemonLock } from "../contract.ts";
 import type { LockFilePort } from "../http/lock.ts";
@@ -87,11 +86,6 @@ export function docRootWriter(inner: SafeWriter, fs: FsReader, roots: { home: st
     },
     remove: (root, rel, kind) => inner.remove(root, rel, kind),
   };
-}
-
-/** Pool sizing facts. perfCores stays null (the indexer caps at 8) — no sysctl spawn at daemon start. */
-export function hardwareInfo(): HardwareInfo {
-  return { cores: availableParallelism(), perfCores: null };
 }
 
 /**

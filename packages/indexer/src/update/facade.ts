@@ -225,6 +225,8 @@ export function createIndexerWith(deps: IndexerDeps, factory: LaterStagesFactory
       core.stages.setActive?.(active);
     },
     snapshot: () => core.snap,
+    // CR m1-26: the repo profile is computed by the indexer polish (WP-02 facade + WP-03 facts/); null until then.
+    profile: () => null,
     lastTimings: () => core.timings,
     files(q?: FileQuery): FileEntry[] {
       const glob = q?.glob === undefined ? null : globMatcher([q.glob]);

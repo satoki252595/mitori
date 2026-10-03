@@ -10,15 +10,15 @@
 - **成果物**: `onIndexDelta`（claim の stale 化、early cutoff R1〜R8、suggestion + 見積り + id）、`syncBlocks`（doc.sync、常に提案）、節単位の scoped run、`expand`（placeholder）、翻訳（block / section、block hash × lang で cache、D5）、Ask 回答の「文書に追記」（server の配線で loop → gen）、M4 で残り 5 prompt（datamodel・quality・decisions・risks・questions）。やさしく（simplify）は ☆。
 - **受け入れ試験**: `nd bun test packages/gen/src/incremental`。crit の直近 40 commit 再生で、3 ファイル以下・IF 変更なしの commit の更新費用 ≤ Pass 1 の 5%（limit 10%）、commit 平均 ≤ 15%。保存 → stale バッジ ≤ 50 ms（e2e）。LLM は自動では走らない（suggestion のみ、D12）。翻訳 2 回目は 0 token。
 
-## 2. Read exactly these sections (≈ 6,950 tokens)
+## 2. Read exactly these sections (≈ 7,247 tokens)
 
 - `docs/design/specs/generation.md` L11–44 — 改訂 R1（2026-10-03、レビュー反映） — 本節が本文より優先する (≈ 2,620 tok)
 - `docs/design/specs/generation.md` L1407–1451 — 11. 増分 S9 (≈ 1,267 tok)
 - `docs/design/specs/generation.md` L1452–1467 — 12. on-demand (≈ 665 tok)
-- `packages/gen/src/contract.ts` L1383–1443 — B7. Incremental S9 (§11) (≈ 756 tok)
-- `packages/gen/src/contract.ts` L1444–1552 — B8. Orchestrator (≈ 1,642 tok)
+- `packages/gen/src/contract.ts` L1401–1461 — B7. Incremental S9 (§11) (≈ 756 tok)
+- `packages/gen/src/contract.ts` L1462–1584 — B8. Orchestrator (≈ 1,939 tok)
 
-## 3. CR ledger rows that concern this WP (4)
+## 3. CR ledger rows that concern this WP (19)
 
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
@@ -26,6 +26,21 @@
 | CR ux-R11 | ux | accepted | api `POST /ws/:ws/doc/sections/:section/translate`, `ConfirmReason window_risk`, `GenRunReq.notBefore` | — |
 | CR ux-R12 | ux | accepted | api `GET /gen/suggestions`, `POST /gen/suggestions/:sg/run`, SSE `gen.suggestions`, core `SuggestionId` | CONS-09 |
 | gL-10 | gen → loop | accepted | `syncBlocks`（gen.ts 実装済み、server 配線は DOMAIN_WIRING） |
+| CR m1-1 | WP-INT A, WP-06 R3 | accepted-modified | gen `createPromptRenderer(deps: {hasher, secrets, indexer, salt}): PromptRenderer`（`prompts/index.ts`）、`createVerifier(deps: {indexer, anchors, hasher, clock, metrics?}): Verifier & ClaimStamper`（`verify/index.ts`）、`PromptRenderer` に「`render()` は同じ (system id, lang, workdir) で最後に `system()` した system prompt を使う（PT-05）」、`GenDeps.engines` に「無い engine は scheduler 上の gen 内 adapter」 (applied)。`gen/src/index.ts` の暫定 re-export は削除 | 暫定 re-export を正式化。`createSchedulerGenEngine` は内部のまま（`createGen` の fallback が契約の振る舞い）。`genSalt(db, random)` は **rejected**: salt は composition root が持つ安定な workspace 秘密（`srv_meta` の `gen.salt`）で足りる。composition root は doc store 用に自分の Verifier を作る（`wiring/workspace.ts` を切替済み、late-bound stamper を削除） |
+| CR m1-10 | WP-06 R5, WP-INT C | accepted | gen `GenDeps.fs: FsReader`（必須）(applied)。`wiring/workspace.ts` は明示的に渡す | session ingest / `mitori check` が out/ を読む（GEN-I-055 の lstat） |
+| CR m1-11 | WP-INT C | accepted | gen `GenOrchestrator.idle(): Promise<void>`（「`control(pause)` + `idle()` の後は何も書かない」）(applied、実装は既存) | 停止後に task 行を書くバグは S5 の修正（WP-06b、CR m1-120）。composition root は close 前に `idle()` を待つ（今の 3 s 上限待ちを正式化） |
+| CR m1-12 | WP-INT C | accepted | gen `GenOrchestrator.runs(page: {limit, cursor?}): Page<GenRun>`（新しい順）(applied、スタブ: `orchestrator/gen.ts`)。実装は WP-06b（`store.runs()` の上）、`GET /ws/:ws/gen/runs` の配線は WP-INT | 今は active run だけを返している |
+| CR m1-13 | WP-06 R4 | accepted | gen `GenCallResult.continuations?`, `error?: {code, message, retryable}` (applied) | PT-09 / §8.2。`GenCallResultExt` は WP-06b が外す |
+| CR m1-14 | WP-06 R1 | accepted | doc `ASPECT_DEFAULTS[*].audience`（gen の `ASPECT_AUDIENCE` と同値）(applied) | 表を 1 つに。gen は WP-06b が `ASPECT_DEFAULTS` を読むよう切替 |
+| CR m1-15 | WP-06 R2 | accepted | gen `GEN_PROMPTS[gen.*].form = "compact"`（12 件）(applied)、`prompts/context.ts` `lineForm` を表どおりに | 挙動は不変（既に compact で検証していた） |
+| CR m1-16 | WP-06 R6, R13 | accepted | core `GenTask.cacheKey`（userBytes = 対象自身の現内容を除いた SUBJECT、addendum 版は常に key）、api `PrepInfo.expiresAt`（24 h、drift は task 単位で refuse） (applied: doc コメント) | AC-28 / §8.4.3-3 と実装に合わせる |
+| CR m1-17 | WP-06 R7, WP-04 notes | accepted-modified | core `Verdict` コメントを §7.2 に訂正し、**真理値表を core `computeVerdict`（`verdict.ts`）へ移設**、gen `verify/` は re-export (applied)。doc store の verdict 計算は core `computeVerdict` を呼ぶ（WP-04 applies） | gen（L1 fail ⇒ inferred）と doc store（L1 fail ⇒ unsupported）が別の表で食い違っていた。仕様 §7.2 を正とし実装を 1 つに |
+| CR m1-18 | WP-06 R8 | deferred（M4、questions prompt と同時、WP-06b） | `DocStore.setQuestions` か `StaticDocInput.questions` | M4 の prompt が来るまで question 行は `gen_outputs` のみ |
+| CR m1-19 | WP-06 R9 | deferred（M2） | §6.6 marker / span の共有 golden（`fixtures/golden/claim-spans/`、WP-12）→ 同一と証明できたら core へ | 今は gen の写しで正しく動く |
+| CR m1-22 | WP-06 R12 | accepted | api `UsageRange += "month"`（daemon の時間帯の暦月）(applied)。ledger の範囲計算は WP-05 applies（今は `month` が all と同じ扱い） | anthropic-api の `monthlyCapUsd`（§8.3） |
+| CR m1-50 | WP-04 | accepted | doc `DocStore.stampRun({effort, snapshot, usage, full}): DocManifest` (applied、実装も: `store/store.ts`、usage 累積・full のときだけ `generatedAt`)。呼び出しは gen orchestrator の run 終了 slot（WP-06b、CR m1-120） | 生成後も 「未生成」 と出ていた（AC-29） |
+| CR m1-62 | WP-05 #7 | deferred（M2、gen の window_spend バナーと同時） | `AgentScheduler.resume(lane)` | 今は lane が空になれば pause が解ける |
+| CR m1-120 | architect | accepted | ストリームの継続（上の規則）: S5 は WP-06b が `gen/src/{orchestrator,prompts,line}/` の CR m1-11・m1-12・m1-13・m1-14・m1-50 と停止後書き込みのバグ、S6 は WP-08b / WP-08c が `loop/src/{review,router,bundle,contracts}/` の CR m1-68・m1-69・m1-72・m1-82・m1-86 を直してよい | 先行 WP は終了済み。並行トラックの待ちを作らない |
 
 ## Golden / truth / fixtures
 
@@ -44,6 +59,26 @@
 - The 5 M4 prompts (datamodel, quality, decisions, risks, questions) live in `prompts/` (WP-06's dir) — send them
   to WP-06 / coordinate; simplify ("やさしく") is ☆.
 
+## CR batch 2 (2026-10-03, ledger §5) — what changed for you
+
+- **S5 stream continuation (CR m1-120)**: besides `incremental/ ondemand/ translate/` you may edit
+  `packages/gen/src/{orchestrator,prompts,line}/` for exactly these items: implement `GenOrchestrator.runs(page)`
+  (CR m1-12; stub in `orchestrator/gen.ts`, newest first over `store.runs()`, cursor = last run id); fix the
+  **post-pause write bug** (after `control(run,"pause")` + `idle()` no `gen_tasks` row may be written — settle
+  in-flight calls as paused, CR m1-11); call `doc.stampRun({effort, snapshot, usage, full})` in the run's final write
+  slot (CR m1-50; implemented in the doc store — `full` only for a user-triggered whole-doc run that ended `done`); drop `GenCallResultExt` (fields are in the contract, CR m1-13) and `ASPECT_AUDIENCE` (read
+  `ASPECT_DEFAULTS[aspect].audience`, CR m1-14).
+- `GenDeps.fs: FsReader` is required now (CR m1-10); `GenOrchestrator.idle()` is contract (CR m1-11);
+  `GEN_PROMPTS[gen.*].form = "compact"` (CR m1-15). `computeVerdict` lives in `@mitori/core` (gen re-exports it;
+  CR m1-17 — L1 fail without L3 S ⇒ `inferred`).
+- Cache key = SUBJECT bytes (target's own current content excluded; both addendum versions always in the key;
+  CR m1-16) — S9 suggestions and the "second run = 0 tokens" translation cache rely on it.
+- `createPromptRenderer` / `createVerifier` are public factories (CR m1-1); the composition root builds its own
+  Verifier for the doc store.
+- `UsageRange` gained `"month"` (CR m1-22; the ledger maps it once WP-05 lands it — until then it equals `all`).
+- Deferred: `setQuestions` (CR m1-18, with your M4 questions prompt), shared §6.6 golden (CR m1-19), scheduler
+  `resume(lane)` (CR m1-62).
+
 ## Out of scope
 
 The base orchestrator and the 7 M2 prompts (WP-06), UI for suggestions (WP-10a/10b).
@@ -54,6 +89,6 @@ The base orchestrator and the 7 M2 prompts (WP-06), UI for suggestions (WP-10a/1
 - **Contract gaps**: never edit `packages/core` or another owner's code. Write the request to `docs/design/cr-requests/<WP-id>.md` (what / why / proposed shape) and use a clearly marked local workaround (`// CR-PENDING(<WP-id>): …`). The architect batches requests weekly into `packages/core/CR-LEDGER.md` (48 h SLA).
 - **Depend on contracts, not on other WPs**. The shared fakes (`@mitori/platform/testing`, `@mitori/agent/testing`, `@mitori/testkit`) are themselves M0 stubs until WP-01 / WP-05 / WP-00b+WP-12 land: write the minimal fake you need in your own test files (a `Hasher` over `Bun.hash`, a `Random` over fixed bytes, `bun:sqlite` `:memory:` for `SqlDb`, an in-thread `WorkerPool`) and switch when the shared ones exist.
 - **Boundaries** (`scripts/check-boundaries.ts`, part of `check`): imports follow `PACKAGE_DEPS` (type-only too; only `@mitori/core` types are free); no deep imports (`@mitori/x/src/…`) and no `../` out of your package; `Bun.*` / `bun:*` / `node:*` / `process.*` only in platform, server, cli; direct `writeFile`/`rename`/`mkdir`/spawn/`Bun.write`/`Bun.spawn`, `crypto.getRandomValues`, `Math.random`, `Date.now` only in platform (the browser app is exempt from the last three) — use the SafeWriter / Spawner / Random / Clock ports; `@mitori/testkit` and `@mitori/<pkg>/testing` only from tests (`*.test.ts`, `test/`, `src/testing.ts`, bench, eval, e2e).
-- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms.
+- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms. Every `bun test` runs with the testkit preload (testing spec §1.5, CR m1-104): use `createTestHome()` instead of `~/.mitori`, no network beyond loopback, no `claude` / `codex` spawns, no unhandled rejections or `console.error`.
 - **Public surface** changes show up in `docs/design/briefs/INDEX.md` (`bun run contract:index`; `check` fails when it is stale). An INDEX diff in your PR = a contract change → CR.
 - **Done** = the acceptance tests in §1 pass with the exact commands, `check` is green, commits are conventional and end with the Co-Authored-By line; never push, never rewrite history, no paid LLM calls unless the WP says so.

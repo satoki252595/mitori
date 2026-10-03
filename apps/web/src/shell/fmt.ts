@@ -9,12 +9,8 @@ import { tIn } from "./i18n.ts";
 
 const MINUS = NUMBER_FORMAT.deltaMinus;
 
-/**
- * M-notation starts at 0.1 M: every example in the spec (`≈0.12M`, `0.38M`, `0.4M`) is below the contract's
- * `mThreshold` (1 M), so the contract value is read as "M scale" and applied from a tenth of it.
- * CR-PENDING(WP-10a): docs/design/cr-requests/WP-10a.md asks to restate `mThreshold`.
- */
-const M_FROM = NUMBER_FORMAT.tokens.mThreshold / 10;
+/** M-notation starts at the contract's `mThreshold` (0.1 M since CR m1-96: `≈0.12M`, `0.38M`, `0.4M`). */
+const M_FROM = NUMBER_FORMAT.tokens.mThreshold;
 
 /** Fixed decimals with trailing zeros (and a dangling dot) removed: 0.40 → 0.4, 52.0 → 52. */
 function trimFixed(v: number, decimals: number): string {

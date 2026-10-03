@@ -1,5 +1,7 @@
 # WP-08a — requests found while implementing bundle · router · output contracts
 
+> **Answered in CR batch 2 (2026-10-03)** — decisions in `packages/core/CR-LEDGER.md` §5 (CR m1-1 … CR m1-121). Append new requests below this line.
+
 Everything below has a working default in the tree (`// CR-PENDING(WP-08a)` marks the places); none blocks a
 WP-08a acceptance test. The architect decides whether to keep the default or change the contract.
 

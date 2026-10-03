@@ -6,6 +6,13 @@ import type { EffectiveSettings, FileClass, GitOid, RepoPath, SourceLang, Xxh3 }
 import { type FileScope, type GrammarId, INDEXER_FORMAT, type IndexerExcludeReason, type InventoryRuleId } from "../contract.ts";
 import { classifyPathWith, compileSettings } from "./classify.ts";
 
+/**
+ * Not-a-project guard (UXP-23) for `WorkspaceManager.open` [CR m1-30]: `notProjectReason(root, home, fs)` = why `root`
+ * is not a project (filesystem root, `$HOME` itself, …) or null; `assertProject(root, home, fs, force)` throws
+ * `E_WS_NOT_PROJECT` unless `force`.
+ */
+export { assertProject, notProjectReason } from "./guard.ts";
+
 /** Path-phase classification (R00–R10, R14–R20 path parts). Content rules are applied later by the Worker. */
 export function classifyByPath(input: {
   path: RepoPath;

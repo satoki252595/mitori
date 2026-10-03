@@ -17,7 +17,8 @@ scope.onmessage = (e) => {
   } else if (m.t === "query") {
     const t0 = performance.now();
     const r = runQuery(ix, m.q, m.scope, m.groupMax);
-    const reply: PaletteWorkerReply = { t: "results", id: m.id, ms: Math.round((performance.now() - t0) * 10) / 10, total: r.total, groups: r.groups };
-    scope.postMessage({ ...reply, counts: r.counts, top: r.top });
+    const ms = Math.round((performance.now() - t0) * 10) / 10;
+    const reply: PaletteWorkerReply = { t: "results", id: m.id, ms, total: r.total, groups: r.groups, counts: r.counts, top: r.top };
+    scope.postMessage(reply);
   }
 };

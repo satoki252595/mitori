@@ -2,7 +2,7 @@
  * Orchestrator assembly: planner + estimator + verifier + runner + session engine over `GenDeps`.
  * S9 / on-demand / translation entry points belong to WP-06b and report E_UNSUPPORTED until they land.
  */
-import { type FsReader, unsupported } from "@mitori/core";
+import { unsupported } from "@mitori/core";
 import type { GenDeps, GenOrchestrator } from "../contract.ts";
 import { createEstimator } from "../planner/estimator.ts";
 import { createPlanner } from "../planner/planner.ts";
@@ -11,17 +11,12 @@ import { createVerifier, type GenVerifier } from "../verify/verifier.ts";
 import { precomputeKeys, Runner, type Services } from "./runner.ts";
 import { GenStore } from "./store.ts";
 
-/**
- * GenDeps plus what the contract does not carry yet.
- * CR-PENDING(WP-06): `fs` (read the session packet's out/ files, R5) — without it ingest / check fail with E_UNSUPPORTED.
- */
-export type GenDepsExt = GenDeps & { fs?: FsReader };
+/** GenDeps (`fs` is in the contract since CR m1-10; the alias stays for the internal call sites). */
+export type GenDepsExt = GenDeps;
 
 /** The orchestrator plus internals used by tests and the session engine. */
 export interface GenInternal extends GenOrchestrator {
-  /** Resolves when the active run is idle (nothing running, nothing dispatchable). */
-  idle(): Promise<void>;
-  /** The Verifier (the server injects it into the doc store as its ClaimStamper; CR-PENDING R3). */
+  /** The Verifier (public factory `createVerifier` since CR m1-1; the composition root builds its own). */
   verifier: GenVerifier;
 }
 
@@ -50,6 +45,8 @@ export function createGenInternal(deps: GenDepsExt): GenInternal {
   return {
     verifier,
     idle: () => runner.idle(),
+    // CR m1-12: run list (S5 stream: WP-06b implements it over `store.runs()`, newest first).
+    runs: (page) => unsupported("gen.runs (WP-06b, CR m1-12)", page),
     async estimate(req) {
       const plan = planner.plan(req);
       const workdir = plan.engine === "session" ? deps.ws.root : deps.sandboxCwd;

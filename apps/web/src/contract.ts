@@ -89,6 +89,7 @@ import type {
   WorkspaceSummary,
 } from "@mitori/core";
 import type { ApiClient, ConnectionState, SseClient } from "@mitori/client";
+import type { Component } from "svelte";
 
 /* ============================================================================
  * 1. Routing (History API; every URL is a permalink; back/forward always work)
@@ -331,7 +332,12 @@ export const ROUTE_SCOPES = {
   other: ["global"],
 } as const satisfies Record<string, readonly ShortcutScope[]>;
 
-/** A detected conflict (same chord, overlapping active scope sets). */
+/**
+ * A detected conflict (same chord, overlapping active scope sets). Two scope pairs are designed precedences, not
+ * conflicts: the top layer (`composer` / `palette`) over `global` (`Escape`, `⌘K`), and `review` over `read` inside
+ * `ROUTE_SCOPES.docReview` (`[`, `]`, UXP-16). Every other pair inside one active set conflicts, including a single
+ * chord that is the first chord of a sequence (`g` vs `g h`) [CR m1-99].
+ */
 export interface KeyConflict {
   /** Binding. */
   binding: KeyBinding;
@@ -759,6 +765,22 @@ export interface AppStores {
   sse: SseClient;
   /** API. */
   api: ApiClient;
+}
+
+/**
+ * Shell ⇄ review-loop UI extension point (WP-10a mounts, WP-10b fills) [CR m1-95]. Each of `composer/ threads/ jobs/
+ * review/ inbox/ proposals/ trust/` MAY export `default: UiExtension` from its `ui.ts`; the shell discovers them with
+ * a lazy `import.meta.glob`, merges them (later directories win per field) and builds whether or not they exist.
+ */
+export interface UiExtension {
+  /** Route views owned by the loop UI. */
+  views?: { inbox?: Component<Record<string, never>>; decisions?: Component<Record<string, never>> };
+  /** Context column, review mode (S5, 640 px / overlay). */
+  reviewPanel?: Component<{ job: JobId }>;
+  /** Context column, margin mode content (thread cards, Composer, job cards). */
+  margin?: Component<{ page: string }>;
+  /** One-time install (key handlers, SSE hooks). */
+  install?: (stores: AppStores) => void;
 }
 
 /* ============================================================================
@@ -1285,8 +1307,11 @@ export type UsdContext = "job" | "day" | "gen" | "genMain";
 
 /** Format rules as data (unit tests are table-driven from this). */
 export const NUMBER_FORMAT = {
-  /** < 1,000 as is; ≥ 1k ⇒ 1 decimal `k`; ≥ 1M ⇒ 2 decimals `M`. Estimates prefix `≈`; main estimate line `約`. */
-  tokens: { kThreshold: 1000, mThreshold: 1_000_000, kDecimals: 1, mDecimals: 2 },
+  /**
+   * < 1,000 as is; ≥ 1k ⇒ 1 decimal `k`; ≥ 0.1M ⇒ 2 decimals `M` (`≈0.12M`, `0.38M`, `0.4M`, trailing zeros trimmed)
+   * [CR m1-96]. Estimates prefix `≈`; main estimate line `約`.
+   */
+  tokens: { kThreshold: 1000, mThreshold: 100_000, kDecimals: 1, mDecimals: 2 },
   /** USD decimals by context. */
   usd: { job: 3, day: 2, gen: 2, genMain: 1 },
   /** Seconds: < 60 s ⇒ 1 decimal 秒/s; generation ⇒ `約{n}分` or `m:ss`. */
@@ -1413,6 +1438,8 @@ export const ROOM_LOD = [
 export const CHUNK_NAMES = [
   "entry", "map", "reader", "loop", "review", "inbox", "palette", "palette-worker", "gen", "settings",
   "diagram", "cm6", "merge", "shiki", "mermaid", "viewer", "i18n-ja", "i18n-en",
+  /** S0 Launcher and the `?` help overlay, moved out of `entry` before the M3 size gate [CR m1-100]. */
+  "launcher", "help",
 ] as const;
 
 /** Chunk name. */
@@ -1432,7 +1459,7 @@ export const BUNDLE_BUDGETS = {
   chunksKb: {
     entry: 30, map: 9, reader: 12, loop: 12, review: 8, inbox: 6, palette: 4, "palette-worker": 6,
     gen: 6, settings: 8, diagram: 5, cm6: 125, merge: 10, shiki: 80, mermaid: 660, viewer: 60,
-    "i18n-ja": 9, "i18n-en": 8,
+    "i18n-ja": 9, "i18n-en": 8, launcher: 4, help: 3,
   },
 } as const satisfies { chunksKb: Record<ChunkName, number> } & Record<string, unknown>;
 
@@ -1483,13 +1510,19 @@ export type MessageCatalog = Record<string, string>;
 
 /** Catalog rules (asserted by `scripts/i18n-parity.ts` and WEB-U-025). */
 export const I18N_RULES = {
-  /** Key grammar: dot-separated lower camel segments, 2–5 levels (`composer.intent.question`). */
-  keyPattern: /^[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9_]+){1,4}$/u,
+  /**
+   * Key grammar: dot-separated lower camel segments, 2–5 levels (`composer.intent.question`); the LAST segment may
+   * carry `-` for keys built from data values (`verdict.human-verified`, `…auth.api-key`) [CR m1-97].
+   */
+  keyPattern: /^[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9_]+){0,3}\.[a-zA-Z0-9_-]+$/u,
   /** Placeholders. */
   placeholder: /\{([a-zA-Z][a-zA-Z0-9]*)\}/gu,
   /** Plural pairs (en uses Intl.PluralRules; ja always `.other`; both catalogs carry both keys). */
   pluralSuffixes: [".one", ".other"],
-  /** Required key families (generated from data at test time). */
+  /**
+   * Required key families (generated from data at test time). Each WP owns `apps/web/i18n/<namespace>.{ja,en}.json`
+   * for its directories; `status.*` / `stage.*` (job and thread vocabulary) live in WP-10b's namespaces [CR m1-101].
+   */
   required: ["error.<ErrorCode>", "status.<UiStatus>", "stage.<StageKey>", "shortcut.<ShortcutId>", "verdict.<Verdict>", "notice.<key>"],
   /** Product names / identifiers allowed to be identical across catalogs. */
   sameValueAllowlist: ["brand.name", "brand.latin"],
@@ -1528,7 +1561,17 @@ export type PaletteWorkerMsg =
 /** Worker reply (only the latest query id is rendered). */
 export type PaletteWorkerReply =
   | { t: "loaded"; rev: number; n: number; ms: number }
-  | { t: "results"; id: number; ms: number; total: number; groups: PaletteGroupResult[] };
+  | {
+      t: "results";
+      id: number;
+      ms: number;
+      total: number;
+      groups: PaletteGroupResult[];
+      /** Matches per group before `groupMax` (「さらに {n} 件」) [CR m1-98]. */
+      counts: Partial<Record<PaletteGroupResult["group"], number>>;
+      /** Top-hit row (needs `via` data that never leaves the worker) [CR m1-98]. */
+      top: { group: PaletteGroupResult["group"]; id: string } | null;
+    };
 
 /** One result group. */
 export interface PaletteGroupResult {
@@ -1568,7 +1611,11 @@ export const ROMAJI_RULES = [
   ["ja", "zya"], ["ju", "zyu"], ["jo", "zyo"], ["nn", "n"], ["ou", "o"], ["oo", "o"], ["uu", "u"], ["-", ""],
 ] as const satisfies readonly (readonly [string, string])[];
 
-/** Scoring (first rule that matches wins; then group order, then score desc, then label asc). */
+/**
+ * Scoring (first rule that matches wins; then group order, then score desc, then label asc). Top hit (UXP-29, score
+ * ≥ 120): a symbol whose `via` term also matched yields the top-hit row to that term (AC-J46: `carry` ⇒ 「持ち越し」)
+ * [CR m1-98].
+ */
 export const PALETTE_SCORING = {
   /** Label substring: base − position; +40 when at start; − 0.05 × label length. */
   substringBase: 100,

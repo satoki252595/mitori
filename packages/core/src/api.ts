@@ -103,6 +103,7 @@ import type {
   ReaderLevel,
   ReadingPath,
   RepoPath,
+  RepoProfile,
   RepoSnapshot,
   Resolution,
   Round,
@@ -452,6 +453,11 @@ export interface WorkspaceStatus extends WorkspaceSummary {
   connectedTabs: number;
   /** Generation engine actually usable now (defaultGenEngine or its fallback) [CONS-28]. */
   genEngine: GenEngineId | null;
+  /**
+   * Static repository profile for the S1 hero / header (remote, toolchain, license, HEAD date + tag, README
+   * excerpt, LOC tiles) = `Indexer.profile()`; absent until the first scan finished [CR m1-26].
+   */
+  profile?: RepoProfile;
 }
 
 /** Git state shown in the header. */
@@ -1297,7 +1303,10 @@ export interface PrepInfo {
   tasks: number;
   /** Path of README.md (instructions by reference). */
   readme: string;
-  /** Expiry (index digest change also expires it). */
+  /**
+   * Expiry: 24 h after prep. A task whose inputs changed since prep is refused at ingest (drift) and prepared again
+   * by `prep --continue` (gen spec §8.4.3-3, AC-23); an unrelated index change does not expire the packet [CR m1-16].
+   */
   expiresAt: Iso8601;
   /** Estimate (C=1). */
   estimate: GenEstimate;
@@ -1432,6 +1441,11 @@ export interface SettingsView {
   path: string;
   /** Monotonic version for optimistic concurrency. */
   version: number;
+  /**
+   * Why the last human edit of `config.json` was not applied (`E_CFG_INVALID` …); the last good settings stay in
+   * effect. Absent when the file is valid [CR m1-121].
+   */
+  lastError?: MitoriErrorData;
 }
 
 /** Deep partial helper for settings patches. */
@@ -1464,8 +1478,11 @@ export interface PatchWorkspaceSettingsReq {
   overrides: WorkspaceOverrides;
 }
 
-/** Usage aggregation range. */
-export type UsageRange = "today" | "7d" | "30d" | "all";
+/**
+ * Usage aggregation range. `month` = the calendar month to date in the daemon's time zone (anthropic-api
+ * `monthlyCapUsd`, gen spec §8.3) [CR m1-22].
+ */
+export type UsageRange = "today" | "7d" | "30d" | "month" | "all";
 
 /** `GET /usage/summary`. */
 export interface UsageSummary {

@@ -24,6 +24,9 @@ import type {
   ApiRoutes,
   ClientKind,
   Clock,
+  GenEstimate,
+  JobEstimate,
+  MitoriError,
   Random,
   RouteKey,
   SseEvent,
@@ -144,4 +147,18 @@ export interface SseClientOptions extends ClientOptions {
 }
 
 // `createApiClient` → ./http/index.ts
-// `createSseClient` → ./sse/index.ts
+// `createSseClient` → ./sse/index.ts — the `hello` gap check compares against the seq seen BEFORE the hello frame
+// (counting the hello's own `id:` made every first connection a gap ⇒ spurious `resync`) [CR m1-94].
+
+/**
+ * What `ApiClient.call` throws for a non-2xx answer: a `MitoriError` with the fresh estimate a `409 E_CONFLICT` carries
+ * (CONS-33: the estimate changed since the confirmation) [CR m1-92].
+ */
+export interface ApiCallError extends MitoriError {
+  /** Fresh estimate (409 on `POST /jobs`, `/gen/runs`, `/review/finish`). */
+  estimate?: JobEstimate | GenEstimate;
+}
+
+// `probeDaemon` → ./http/index.ts — `(opts: { origin; token; challenge: Uint8Array /* 16 bytes */; fetch?; timeoutMs? })
+// => Promise<HealthRes | null>`: verified health (proof = HMAC-SHA256(token, challenge)) WITHOUT sending the token;
+// the CLI, MCP shim and hooks call it before any bearer request [SEC-06, SRV-AT-09, CR m1-89].

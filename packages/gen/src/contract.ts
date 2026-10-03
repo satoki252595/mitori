@@ -51,14 +51,17 @@ import type {
   ClaimKind,
   ClaudeModelId,
   Clock,
+  Cursor,
   Depth,
   DiagramIR,
   DocLang,
   EffectiveSettings,
   Effort,
   EngineId,
+  ErrorCode,
   EstimateId,
   EventSink,
+  FsReader,
   GenEngineId,
   GenEstimate,
   GenEstimateReq,
@@ -80,6 +83,7 @@ import type {
   ModelDefaults,
   ModelId,
   ModuleId,
+  Page,
   PrepId,
   PrepInfo,
   PrepReq,
@@ -589,7 +593,9 @@ export interface GenPromptSpec {
   modes?: Readonly<Record<string, GenPromptMode>>;
 }
 
-/** Prompt table (§5.3). Version bump on ANY template byte change (prompts.lock.json, AC-40). */
+/** Prompt table (§5.3). Version bump on ANY template byte change (prompts.lock.json, AC-40). * `form`: every `gen.*` prompt uses the compact line form (kind / depth / audience derived from
+ * `ASPECT_DEFAULTS`, PT-03, ADR-0011 R1-3); the M-1 comparison may flip one prompt at a time [CR m1-15].
+ */
 export const GEN_PROMPTS = {
   "gen.module": {
     id: "gen.module",
@@ -598,7 +604,7 @@ export const GEN_PROMPTS = {
     stage: "S5",
     data: ["MODULE", "DEPS", "SKELETON", "BODIES", "TESTS", "FACTS", "DOCS", "EXISTING", "CHANGES"],
     lineTypes: ["block", "keep", "delete", "module", "term", "question", "end"],
-    form: "full",
+    form: "compact",
     modelKey: "genModule",
     effort: "low",
     maxOut: 6000,
@@ -611,7 +617,7 @@ export const GEN_PROMPTS = {
     stage: "S6",
     data: ["MODULE", "CHILDREN", "EDGES", "SKELETON", "DOCS", "EXISTING"],
     lineTypes: ["block", "keep", "delete", "module", "question", "end"],
-    form: "full",
+    form: "compact",
     modelKey: "genModule",
     effort: "low",
     maxOut: 4000,
@@ -624,7 +630,7 @@ export const GEN_PROMPTS = {
     stage: "S6o",
     data: ["DOCS", "FACTS", "FLOORPLAN", "MODULES", "PARENTS", "EXISTING"],
     lineTypes: ["block", "keep", "delete", "question", "end"],
-    form: "full",
+    form: "compact",
     modelKey: "genModule",
     effort: "low",
     maxOut: 1500,
@@ -641,7 +647,7 @@ export const GEN_PROMPTS = {
     stage: "S6o",
     data: ["SEEDS", "BODIES", "MODULES", "EXISTING_FLOWS", "EXISTING"],
     lineTypes: ["block", "keep", "delete", "flow", "question", "end"],
-    form: "full",
+    form: "compact",
     modelKey: "genModule",
     effort: "low",
     maxOut: 6000,
@@ -654,7 +660,7 @@ export const GEN_PROMPTS = {
     stage: "S6o",
     data: ["SCHEMA", "DOCS", "EXISTING"],
     lineTypes: ["block", "keep", "delete", "question", "end"],
-    form: "full",
+    form: "compact",
     modelKey: "genModule",
     effort: "low",
     maxOut: 3000,
@@ -667,7 +673,7 @@ export const GEN_PROMPTS = {
     stage: "S6o",
     data: ["CLAIMS", "BODIES", "FACTS", "EXISTING"],
     lineTypes: ["block", "keep", "delete", "question", "end"],
-    form: "full",
+    form: "compact",
     modelKey: "genModule",
     effort: "low",
     maxOut: 4000,
@@ -681,7 +687,7 @@ export const GEN_PROMPTS = {
     stage: "S6o",
     data: ["DOCS", "COMMENTS", "CLAIMS", "COMMITS", "EXISTING"],
     lineTypes: ["block", "keep", "delete", "question", "end"],
-    form: "full",
+    form: "compact",
     modelKey: "genModule",
     effort: "low",
     maxOut: 4000,
@@ -694,7 +700,7 @@ export const GEN_PROMPTS = {
     stage: "S6o",
     data: ["TODOS", "UNTESTED", "LARGE", "CHURN", "CLAIMS", "EXISTING"],
     lineTypes: ["block", "keep", "delete", "question", "end"],
-    form: "full",
+    form: "compact",
     modelKey: "genModule",
     effort: "low",
     maxOut: 3000,
@@ -707,7 +713,7 @@ export const GEN_PROMPTS = {
     stage: "S6o",
     data: ["GLOSSARY_SEEDS", "CANDIDATES"],
     lineTypes: ["term", "end"],
-    form: "full",
+    form: "compact",
     modelKey: "genModule",
     effort: "low",
     maxOut: 5000,
@@ -720,7 +726,7 @@ export const GEN_PROMPTS = {
     stage: "S6o",
     data: ["RAW"],
     lineTypes: ["question", "end"],
-    form: "full",
+    form: "compact",
     modelKey: "genModule",
     effort: "low",
     maxOut: 2000,
@@ -733,7 +739,7 @@ export const GEN_PROMPTS = {
     stage: "S6",
     data: ["MODULES"],
     lineTypes: ["module", "end"],
-    form: "full",
+    form: "compact",
     modelKey: "genModule",
     effort: "low",
     maxOut: 4000,
@@ -746,7 +752,7 @@ export const GEN_PROMPTS = {
     stage: "S8",
     data: ["MODULE", "TOPIC", "BODIES", "SKELETON", "FILES"],
     lineTypes: ["block", "end"],
-    form: "full",
+    form: "compact",
     modelKey: "genModule",
     effort: "low",
     maxOut: 4000,
@@ -893,7 +899,10 @@ export interface RenderedTask {
   ctx: ValidationContext;
 }
 
-/** Renders prompts deterministically. */
+/**
+ * Renders prompts deterministically. `render()` uses the system prompt last rendered by `system()` for the same
+ * (system id, lang, workdir) — that is how a run pins its system prompt + repo pack (PT-05) [CR m1-1].
+ */
 export interface PromptRenderer {
   /** Render a system prompt. `workdir` = sandbox (`~/.mitori/run/empty`) or repo root (session). */
   system(id: SystemPromptId, lang: DocLang, workdir: string, repoPack: string | null): { system: string; pack: string | null };
@@ -1142,7 +1151,9 @@ export interface Verifier {
   sampleForJudge(claims: readonly Claim[]): ClaimId[];
 }
 
-// `computeVerdict` → ./verify/index.ts
+// `computeVerdict` → ./verify/index.ts (re-export of the @mitori/core implementation, CR m1-17)
+
+// `createVerifier` → ./verify/index.ts — `(deps: { indexer, anchors, hasher, clock, metrics? }) => Verifier & ClaimStamper`; the composition root's stamper for the doc store [CR m1-1]
 
 // `extractIdentifiers` → ./verify/index.ts
 
@@ -1223,6 +1234,13 @@ export interface GenCallResult {
   ttftMs?: number;
   /** Auth actually used. */
   auth: AuthKind;
+  /** CLI-internal continuations (PT-09): no mitori retry, excluded from the EMA [CR m1-13]. */
+  continuations?: number;
+  /**
+   * Transport error (§8.2): `E_AGENT_EXIT` / `E_AGENT_TIMEOUT` are re-dispatched once (`retryable`),
+   * `E_AGENT_AUTH_SOURCE` fails the run [CR m1-13].
+   */
+  error?: { code: ErrorCode; message: string; retryable: boolean };
 }
 
 /** A running call: text deltas (unthrottled) + result. */
@@ -1492,6 +1510,13 @@ export interface GenOrchestrator {
   syncBlocks(blocks: BlockId[], cause: { kind: "job" | "round" | "incremental"; id: string }, opts: { confirm: boolean }): Promise<OnDemandResult & { proposals: ProposalId[] }>;
   /** Session engine. */
   session: SessionEngine;
+  /**
+   * Resolves when no engine call is in flight and nothing is dispatchable. After `control(run, "pause")` +
+   * `idle()`, gen writes nothing more (the composition root awaits it before a workspace DB closes) [CR m1-11].
+   */
+  idle(): Promise<void>;
+  /** Runs of this workspace, newest first (`GET /ws/:ws/gen/runs`; cursor = the last run id of the page) [CR m1-12]. */
+  runs(page: { limit: number; cursor?: Cursor }): Page<GenRun>;
 }
 
 /** Everything gen needs. */
@@ -1516,7 +1541,10 @@ export interface GenDeps {
   anchors: AnchorEngine;
   /** Shared agent scheduler (concurrency, yield, back-off, ledger). */
   scheduler: AgentScheduler;
-  /** Engine adapters available (claude-cli / anthropic-api). */
+  /**
+   * Engine adapters available (claude-cli / anthropic-api). An absent engine uses gen's own adapter over
+   * `scheduler` (the composition root passes `{}`) [CR m1-1].
+   */
   engines: Partial<Record<Exclude<GenEngineId, "session">, GenEngine>>;
   /** Batch port (anthropic-api with `useBatch`). */
   batch?: GenBatchPort;
@@ -1544,7 +1572,11 @@ export interface GenDeps {
   clock: Clock;
   /** Events (`gen.*`, `doc.*`). */
   events: EventSink<SseEventPayload>;
+  /** Read-only filesystem: session ingest / `mitori check` read `<docDir>/tmp/prep/<id>/out/*.ndjson` (lstat refuses symlinks, GEN-I-055) [CR m1-10]. */
+  fs: FsReader;
 }
+
+// `createPromptRenderer` → ./prompts/index.ts — `(deps: { hasher, secrets, indexer, salt }) => PromptRenderer` [CR m1-1]
 
 // `createGen` → ./orchestrator/index.ts
 

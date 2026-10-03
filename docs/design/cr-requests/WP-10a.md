@@ -1,5 +1,7 @@
 # WP-10a — change requests (web A: shell, S1, S2, ⌘K, i18n; 2026-10-03)
 
+> **Answered in CR batch 2 (2026-10-03)** — decisions in `packages/core/CR-LEDGER.md` §5 (CR m1-1 … CR m1-121). Append new requests below this line.
+
 Each request below has a `// CR-PENDING(WP-10a)` workaround in the code (or says why none is needed).
 
 ## `@mitori/client`: real `createApiClient` / `createSseClient`

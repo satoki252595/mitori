@@ -1,5 +1,7 @@
 # WP-INT — change requests collected at the M1 integration (2026-10-03)
 
+> **Answered in CR batch 2 (2026-10-03)** — decisions in `packages/core/CR-LEDGER.md` §5 (CR m1-1 … CR m1-121). Append new requests below this line.
+
 Found while wiring every WP's main into the composition root (`packages/server/src/{compose.ts,wiring/}`) and running
 INT-00..05 plus the binary on crit / m3e-canvas / go-small. Each has a working local workaround marked
 `// CR-PENDING(WP-INT)` (or the owner's own marker). Requests other WPs already filed are referenced, not repeated.

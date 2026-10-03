@@ -186,6 +186,9 @@ export interface EngineSession {
  * the job budget is enforced by the meter (I12) [CONS-32]. ENV_INJECT values ARE part of the key [PT-02].
  */
 export interface WarmProfile {
+  // CR m1-63: a warm process is reused only when its launch is ALSO identical (argv with the `--max-budget-usd` /
+  // `--session-id` values masked, env after scrub + ENV_INJECT, cwd, binary — the engine's `sameLaunch` check is
+  // normative); a profile match alone (e.g. after `inheritUserSettings` or `envPassthrough` changed) is not enough.
   /** Engine. */
   engine: "claude-cli";
   /** Mode. */
@@ -280,7 +283,11 @@ export interface UsageLedger {
    * per-call calibration; applied by the caller's estimator, never inside `estimateTokens` [CONS-24].
    */
   factor(key: { engine: EngineId; promptId: string; model: ModelId }): { factor: number; n: number; accuracyPct: number };
-  /** Fixed per-call overhead observed for a profile (system prompt + tool/schema definitions), tokens. */
+  /**
+   * Fixed per-call overhead observed for a profile (system prompt + tool/schema definitions), tokens. The key callers
+   * can compute: `profileKey = xxh3("<engine>\n<mode>\n<model>\n<promptVer>")`; the bridge records one sample per
+   * clean first turn (first-call input − estimated user-message tokens) [CR m1-61].
+   */
   fixedOverhead(profileKey: Xxh3): { tokens: number; n: number } | null;
   /** 5h-window coefficient κ (utilization delta per API-equivalent USD; median of the last 10 accepted samples; null until n ≥ 3). */
   windowFactor(): { kappa: number | null; n: number };
@@ -463,6 +470,11 @@ export interface BridgePaths {
   systemPromptFile: string;
   /** `~/.mitori/run/empty`. */
   emptyCwd: string;
+  /**
+   * The uuidv4 mitori issues for `--session-id` when `engines.claude-cli.persistSessions` and `req.persistSession`
+   * (absent ⇒ `--no-session-persistence`, or `--resume <req.resume>`) (I4) [CR m1-58].
+   */
+  sessionId?: string;
 }
 
 /**
@@ -625,8 +637,8 @@ export interface AnthropicApiRequest {
   max_tokens: number;
   /** System blocks (1h cache breakpoint on the system prompt). */
   system: { type: "text"; text: string; cache_control?: { type: "ephemeral"; ttl?: "5m" | "1h" } }[];
-  /** One user message with the bundle. */
-  messages: { role: "user"; content: { type: "text"; text: string }[] }[];
+  /** One user message with the bundle; BP3 (shared DATA, 5m) sits on its first block (gen spec §8.3) [CR m1-60]. */
+  messages: { role: "user"; content: { type: "text"; text: string; cache_control?: { type: "ephemeral"; ttl?: "5m" | "1h" } }[] }[];
   /** Effort (omitted for claude-haiku-4-5) and structured output format (patch/findings). */
   output_config?: { effort?: ReasoningEffort; format?: { type: "json_schema"; schema: object } };
   /** Server-side refusal fallback (5.5 models; betas `server-side-fallback-2026-07-01`). */
@@ -725,6 +737,10 @@ export const CONTRACT_TESTS = [
 
 /* ---- B7. Factory ------------------------------------------------------------- */
 
-// `createAgentBridge` → ./bridge/index.ts
+// `createAgentBridge` → ./bridge/index.ts — deps gain `safeWrite: SafeWriter`, `fs: FsReader`, `fetch?` (I3 system
+// prompt files, I9 empty sandbox) and `pin(engine, pin: BinaryPin): Promise<void>` (first-run pinning, persisted by
+// the composition root through the settings service) [CR m1-57, CR m1-65]; WP-05 applies the signature.
+
+// `createUsageLedger` → ./ledger/index.ts — `(deps: { db, stateWrite, random, clock, log }) => UsageLedger` [CR m1-2]
 
 // `AGENT_MIGRATIONS` → ./bridge/index.ts

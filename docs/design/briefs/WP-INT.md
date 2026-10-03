@@ -26,25 +26,16 @@
 
 ---
 
-## 2. Read exactly these sections (≈ 4,815 tokens)
+## 2. Read exactly these sections (≈ 5,565 tokens)
 
-- `packages/server/src/contract.ts` L240–316 — 4. Domain wiring (§4) — the only place packages that cannot import each other meet (≈ 1,526 tok)
-- `packages/server/src/contract.ts` L548–627 — 10. Composition root (§10) (≈ 934 tok)
+- `packages/server/src/contract.ts` L244–325 — 4. Domain wiring (§4) — the only place packages that cannot import each other meet (≈ 1,766 tok)
+- `packages/server/src/contract.ts` L557–658 — 10. Composition root (§10) (≈ 1,444 tok)
 - `docs/design/specs/server.md` L75–116 — 4. 配線（DOMAIN_WIRING） (≈ 1,100 tok)
 - `docs/design/specs/server.md` L177–181 — 10. composition root（`createServer`） (≈ 237 tok)
 - `docs/design/specs/testing.md` L820–840 — 4.8 結合シナリオ（`test:int`） (≈ 668 tok)
 - `docs/design/ARCHITECTURE.md` L229–234 — 3.4 ポートとアダプタ（DI） (≈ 350 tok)
 
-## 3. M0 stubs you own (4) — implement in place, keep the signatures
-
-Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `@mitori/core`). The doc comment above each stub is the contract text. Changing a signature is a contract change (CR batch).
-
-- `packages/server/src/compose.ts:8` — `createServer(deps: ServerDeps): Promise<ServerHandle>`
-- `packages/server/src/wiring/index.ts:18` — `assembleAnchoredItems(delta: IndexDelta, doc: Pick<DocStore, "index">, threads: readonly { id: ThreadId; code?: Cite | null }[]): AnchoredItem[]`
-- `packages/server/src/wiring/index.ts:27` — `distributeReanchor(items: readonly AnchoredItem[], report: ReanchorReport): { /** Claim updates for `DocStore.setClaimChecks` (moved cites re-rendered; overlapped ⇒ verdict `stale`). */ claims: { id: ClaimId; cites: Cite[]; checks: ClaimChecks; stale: boolean }[]; /** Thread updates for `ReviewEngine.applyReanchor`. */ threads: ThreadReanchorUpdate[]; /** Counts by health (metrics, `mitori doctor`). */ counts: Record<AnchorHealth, number>; }`
-- `packages/server/src/wiring/index.ts:47` — `migrationsFor(db: Migration["db"]): readonly Migration[]`
-
-## 4. CR ledger rows that concern this WP (9)
+## 3. CR ledger rows that concern this WP (24)
 
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
@@ -57,6 +48,21 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 | CR m0-14 | WP-11a | accepted-modified | server 契約: `migrationsFor(db: Migration["db"]): readonly Migration[]`（スタブ `wiring/`、WP-INT が実装） | 2 関数の提案を 1 関数に。cli は agent を import できないため composition root が集める。`apps/cli/src/daemon/serve.ts` の `CR-PENDING(WP-11a)` は WP-INT 実装後に S9（WP-11）が置き換える |
 | CR m0-17 | WP-00b, WP-11a | accepted | `fixtures/`・`bench/`・`test/`・`e2e/`・`eval/` に `tsconfig.json`（全 package を reference）、root `tsconfig.json` から参照 | `tsc -b` が fixtures・truth・budgets・skeleton・今後の int/e2e/eval を検査する |
 | CR m0-19 | WP-11a | accepted | `apps/cli/package.json` dependencies + `elkjs@0.12.0`・`web-tree-sitter@0.27.0`・`@shikijs/{core,engine-oniguruma,langs}@4.5.0`（`bun.lock` 更新、`--frozen-lockfile` 緑） | hoisted linker に頼らない。Worker entry の server への移設（indexer spec §3.3）は WP-INT のまま |
+| CR m1-1 | WP-INT A, WP-06 R3 | accepted-modified | gen `createPromptRenderer(deps: {hasher, secrets, indexer, salt}): PromptRenderer`（`prompts/index.ts`）、`createVerifier(deps: {indexer, anchors, hasher, clock, metrics?}): Verifier & ClaimStamper`（`verify/index.ts`）、`PromptRenderer` に「`render()` は同じ (system id, lang, workdir) で最後に `system()` した system prompt を使う（PT-05）」、`GenDeps.engines` に「無い engine は scheduler 上の gen 内 adapter」 (applied)。`gen/src/index.ts` の暫定 re-export は削除 | 暫定 re-export を正式化。`createSchedulerGenEngine` は内部のまま（`createGen` の fallback が契約の振る舞い）。`genSalt(db, random)` は **rejected**: salt は composition root が持つ安定な workspace 秘密（`srv_meta` の `gen.salt`）で足りる。composition root は doc store 用に自分の Verifier を作る（`wiring/workspace.ts` を切替済み、late-bound stamper を削除） |
+| CR m1-4 | WP-INT B, WP-09, WP-01 #4 | accepted-modified | server `ServerDeps` + `version`, `pid`, `userHome`, `port?`, `gateSandbox: EffectiveSettings["gateSandbox"]`, `hardware: HardwareInfo`, `gh?`; `git(info)` の戻りを `GitReader & { close(): Promise<void> }` (applied)。CLI（`apps/cli/src/daemon/server.ts`）と compose の呼び出し側を修正 | 構造的な ServerDepsExt を廃止。`timers` は test 専用の上書きとして compose 内に残す（server の `Timers` は `unref` 付きで core の port と形が違う）。core `GitReader` は変えない（fake が多い）— close は ServerDeps の工場の戻り型で表す |
+| CR m1-6 | WP-INT B | accepted-modified | `assembleAnchoredItems` / `distributeReanchor` の出力は意図して部分的: claim は `checks: Pick<ClaimChecks, "l0"\|"l2">` と完全な cites 配列、thread は新しい code member。own slot で最新の保存状態と merge（l1 維持、`checkedAt` = now、thread anchor = 保存済み anchor + 新 code）(applied: server 契約コメント + `wiring/index.ts` の型) | slot 内で読む保存状態の方が新しい（外で読んだ値を渡すより正しい）。「変わった cite を 1 つでも持つ claim は全 cite を出す」を契約に明記 |
+| CR m1-7 | WP-INT B | accepted | server `ServerHandle.render` を削除 (applied) | renderer / layouter の cache（`doc_html`・`doc_layouts`）は workspace DB にあるので workspace ごとに作る。HtmlExporter も workspace ごと（WP-13 → WP-INT が配線） |
+| CR m1-8 | WP-INT B | deferred（sha256 repo 対応時、M3） | `ServerDeps.pools.parse(size, objectFormat)` | 今は Worker 既定 sha1。assemble は同期なので、対応時に `objectFormat` を workspace open で先に解決して渡す |
+| CR m1-9 | WP-INT（M1 §4） | accepted | 所有: `apps/cli/src/daemon/`（`server.ts`・`run.ts`・`serve.ts`）は WP-11（S9）へ返す。WP-INT は `packages/server/src/{compose.ts,wiring/}` と `test/int/` | 結合中の暫定編集を元の所有者へ |
+| CR m1-11 | WP-INT C | accepted | gen `GenOrchestrator.idle(): Promise<void>`（「`control(pause)` + `idle()` の後は何も書かない」）(applied、実装は既存) | 停止後に task 行を書くバグは S5 の修正（WP-06b、CR m1-120）。composition root は close 前に `idle()` を待つ（今の 3 s 上限待ちを正式化） |
+| CR m1-12 | WP-INT C | accepted | gen `GenOrchestrator.runs(page: {limit, cursor?}): Page<GenRun>`（新しい順）(applied、スタブ: `orchestrator/gen.ts`)。実装は WP-06b（`store.runs()` の上）、`GET /ws/:ws/gen/runs` の配線は WP-INT | 今は active run だけを返している |
+| CR m1-26 | WP-INT C, WP-10a（S1 strip） | accepted-modified | core `RepoProfile {remote, head{commit,date,tag}, license, toolchain, readme, areas}`・`AreaStat`、api `WorkspaceStatus.profile?`、indexer `Indexer.profile(): RepoProfile \| null`、core `GitReader.remoteUrl?()`・`headMeta?()` (applied)。facade は `null` を返す暫定（`update/facade.ts`）。実装: indexer polish（WP-02 facade + WP-03 `facts/`）、GitReader の 2 メソッドは WP-01、`GET /ws/:ws` への配線は WP-INT（`DomainProviders.status`）、hero / header の表示は WP-10a | プロトタイプ `01-first-run-map` の hero（`github.com/… · Go 1.26 · MIT · 406875d (2026-10-02)`、README 1 行目、規模タイル 4 枚、header の `v0.21.1`）を 0 tok で出す。WP-10a 案の `ScanSummaryView.license` / `snapshot.commitAt` を 1 つの型に統合。表示語（「本体」「テスト」）は UI の i18n |
+| CR m1-42 | WP-04 | accepted | doc `StaticDocInput.estimates?`（節ごとの in/out）、`largeFiles?`（`s11:large`）(applied)。渡すのは WP-INT（`wiring/static-input.ts`）、store の読み取りは WP-04 | ux-R14 の `SectionNode.est` と 「生成する ≈N tok」 |
+| CR m1-45 | WP-04, WP-INT C | accepted | platform `SAFE_WRITE_RULES`: kind `doc` / `prep` は親が realpath なら欠けた `rootReal` を作る (WP-01 applies)。core `SafeWriter` コメント (applied)。その後 WP-INT が `docRootWriter` を外す | 新しい repo には `.mitori/` が無い |
+| CR m1-46 | WP-04, WP-INT C | accepted | doc `DocStore.mdLine(id): number \| null` (applied、スタブ: `store/store.ts`)。実装 WP-04、server の導出（`wiring/views.ts`）からの切替は WP-INT | ux-R2 / ux-R15 の `data-ln` |
+| CR m1-65 | WP-INT C | accepted-modified | **初回 pin は TOFU**: daemon 起動時に `pins.claude` が無ければ bridge が SAFE_PATH 上の `claude` を解決して pin し（core `BinaryPin.by: "first-run"` (applied)）、`pin()` dep 経由で composition root が settings に保存。engine card は 「初回に固定 · v… · path ［変更］」、以後の差異は従来どおり `E_ENGINE_BINARY_CHANGED`。実装: WP-05（解決）、WP-INT（保存の配線）、WP-10a（card）。settings schema は `by` を受ける (applied) | 「見つかりません」 を 1 クリックも要さずに解消。SAFE_PATH は workspace 配下を除くので repo からは差し込めない（SEC-10） |
+| CR m1-103 | M1 §5 | accepted | 見た目の決定: (1) 「間取り図にできない構成…」 バナーは floor plan flag が on でゲートに落ちたときだけ（WP-18 off の間は `MapView.fallback` を出さない、WP-INT views）。(2) Reader は doc 自身の章見出し block をページ見出しとして 1 回だけ出す（WP-10a）。(3) hero / header は `WorkspaceStatus.profile`（CR m1-26、WP-10a）。(4) 生成前の 30 分コースは 「0 / 7 · 残り約 30 分」、TOC は見積りがあれば節ごとの ≈k（WP-10a） | プロトタイプとの差を埋める順番 |
+| CR m1-118 | WP-INT B | accepted | server `WorkspaceManager.update(ws, patch: Partial<Pick<WorkspaceInfo,"docDir"\|"docCommitted">>)` (applied、実装も: `ws/manager.ts`)。compose の `init` は WP-INT が `update` に置き換え | `POST /ws/:ws/init {commit:true}` |
 
 ## Notes (M0 layout)
 
@@ -81,6 +87,17 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 - **CR m0-19**: `apps/cli/package.json` declares elkjs / web-tree-sitter / @shikijs/*; when you move the parse Worker
   entry to `packages/server/src/workers/`, the server manifest must declare what it imports (architect edits manifests).
 
+## CR batch 2 (2026-10-03, ledger §5) — follow-ups owned here
+
+- Done in the batch: the doc store's stamper is `createVerifier(...)` (CR m1-1), `fs` / `timers` / `GenDeps.fs` are
+  passed directly, `ServerDeps` carries the daemon identity (CR m1-4), `render` left `ServerHandle` (CR m1-7).
+- Wire: `GenOrchestrator.runs`
+  for `GET /ws/:ws/gen/runs` (CR m1-12), `idle()` before close (CR m1-11), `WorkspaceManager.update` in `init`
+  (CR m1-118), `profile` into `DomainProviders.status` (CR m1-26), `StaticDocInput.estimates` / `largeFiles`
+  (CR m1-42), `DocStore.mdLine` once WP-04 lands it (CR m1-46), the bridge `pin()` dep (CR m1-65), the map fallback
+  banner rule (CR m1-103). Remove `docRootWriter` after WP-01's SafeWriter change (CR m1-45).
+- `apps/cli/src/daemon/` goes back to WP-11 (CR m1-9). `pools.parse(size, objectFormat)` is deferred (CR m1-8).
+
 ## Out of scope
 
 Changing contracts yourself (send CRs to the architect); domain logic.
@@ -91,6 +108,6 @@ Changing contracts yourself (send CRs to the architect); domain logic.
 - **Contract gaps**: never edit `packages/core` or another owner's code. Write the request to `docs/design/cr-requests/<WP-id>.md` (what / why / proposed shape) and use a clearly marked local workaround (`// CR-PENDING(<WP-id>): …`). The architect batches requests weekly into `packages/core/CR-LEDGER.md` (48 h SLA).
 - **Depend on contracts, not on other WPs**. The shared fakes (`@mitori/platform/testing`, `@mitori/agent/testing`, `@mitori/testkit`) are themselves M0 stubs until WP-01 / WP-05 / WP-00b+WP-12 land: write the minimal fake you need in your own test files (a `Hasher` over `Bun.hash`, a `Random` over fixed bytes, `bun:sqlite` `:memory:` for `SqlDb`, an in-thread `WorkerPool`) and switch when the shared ones exist.
 - **Boundaries** (`scripts/check-boundaries.ts`, part of `check`): imports follow `PACKAGE_DEPS` (type-only too; only `@mitori/core` types are free); no deep imports (`@mitori/x/src/…`) and no `../` out of your package; `Bun.*` / `bun:*` / `node:*` / `process.*` only in platform, server, cli; direct `writeFile`/`rename`/`mkdir`/spawn/`Bun.write`/`Bun.spawn`, `crypto.getRandomValues`, `Math.random`, `Date.now` only in platform (the browser app is exempt from the last three) — use the SafeWriter / Spawner / Random / Clock ports; `@mitori/testkit` and `@mitori/<pkg>/testing` only from tests (`*.test.ts`, `test/`, `src/testing.ts`, bench, eval, e2e).
-- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms.
+- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms. Every `bun test` runs with the testkit preload (testing spec §1.5, CR m1-104): use `createTestHome()` instead of `~/.mitori`, no network beyond loopback, no `claude` / `codex` spawns, no unhandled rejections or `console.error`.
 - **Public surface** changes show up in `docs/design/briefs/INDEX.md` (`bun run contract:index`; `check` fails when it is stale). An INDEX diff in your PR = a contract change → CR.
 - **Done** = the acceptance tests in §1 pass with the exact commands, `check` is green, commits are conventional and end with the Co-Authored-By line; never push, never rewrite history, no paid LLM calls unless the WP says so.

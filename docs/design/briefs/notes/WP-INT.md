@@ -6,7 +6,7 @@ read:
   - docs/design/specs/server.md | 10.
   - docs/design/specs/testing.md | 4.8
   - docs/design/ARCHITECTURE.md | 3.4
-crs: loop→server, gL-10, m0-1, m0-2, m0-3, m0-6, m0-14, m0-17, m0-19
+crs: loop→server, gL-10, m0-1, m0-2, m0-3, m0-6, m0-14, m0-17, m0-19, m1-1, m1-4, m1-6, m1-7, m1-8, m1-9, m1-11, m1-12, m1-26, m1-42, m1-45, m1-46, m1-65, m1-103, m1-118
 owns:
   - packages/server/src/compose.ts
   - packages/server/src/wiring
@@ -33,6 +33,17 @@ owns:
 - **CR m0-17**: `test/` (incl. your `test/int/`) has a `tsconfig.json` referencing every package; `tsc -b` checks it.
 - **CR m0-19**: `apps/cli/package.json` declares elkjs / web-tree-sitter / @shikijs/*; when you move the parse Worker
   entry to `packages/server/src/workers/`, the server manifest must declare what it imports (architect edits manifests).
+
+## CR batch 2 (2026-10-03, ledger §5) — follow-ups owned here
+
+- Done in the batch: the doc store's stamper is `createVerifier(...)` (CR m1-1), `fs` / `timers` / `GenDeps.fs` are
+  passed directly, `ServerDeps` carries the daemon identity (CR m1-4), `render` left `ServerHandle` (CR m1-7).
+- Wire: `GenOrchestrator.runs`
+  for `GET /ws/:ws/gen/runs` (CR m1-12), `idle()` before close (CR m1-11), `WorkspaceManager.update` in `init`
+  (CR m1-118), `profile` into `DomainProviders.status` (CR m1-26), `StaticDocInput.estimates` / `largeFiles`
+  (CR m1-42), `DocStore.mdLine` once WP-04 lands it (CR m1-46), the bridge `pin()` dep (CR m1-65), the map fallback
+  banner rule (CR m1-103). Remove `docRootWriter` after WP-01's SafeWriter change (CR m1-45).
+- `apps/cli/src/daemon/` goes back to WP-11 (CR m1-9). `pools.parse(size, objectFormat)` is deferred (CR m1-8).
 
 ## Out of scope
 

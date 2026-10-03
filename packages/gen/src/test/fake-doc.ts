@@ -309,6 +309,8 @@ export function createFakeDocStore(deps: { hasher: Hasher; ids: GenIdSource; rep
     },
     flush: async () => [],
     ensureManifest: (): DocManifest => unsupported("fakeDoc.ensureManifest"),
+    mdLine: () => null,
+    stampRun: (): DocManifest => unsupported("fakeDoc.stampRun"),
   };
   return store;
 }

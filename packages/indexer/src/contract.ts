@@ -44,6 +44,7 @@ import type {
   GitOid,
   GitReader,
   GraphEdgeKind,
+  HardwareInfo,
   Hasher,
   IndexDelta,
   Iso8601,
@@ -54,6 +55,7 @@ import type {
   ModuleInfo,
   PaletteIndex,
   RepoPath,
+  RepoProfile,
   RepoSnapshot,
   ScanStage,
   ScanSummaryView,
@@ -543,13 +545,8 @@ export interface CalibrationSample {
 }
 
 
-/** Hardware facts used for pool sizing (spec §3.1). */
-export interface HardwareInfo {
-  /** `os.availableParallelism()`. */
-  cores: number;
-  /** Performance cores (macOS `hw.perflevel0.logicalcpu`), `null` when unknown. */
-  perfCores: number | null;
-}
+/** Hardware facts used for pool sizing (spec §3.1) — moved to `@mitori/core` [CR m1-116]; re-exported. */
+export type { HardwareInfo } from "@mitori/core";
 
 /** Module identity seed recovered from a committed doc (`doc.index.json` modules; CR-1). */
 export interface ModuleSeed {
@@ -585,7 +582,7 @@ export interface IndexerDeps {
   clock: Clock;
   /** Parse worker pool factory (the server wires `packages/server/src/workers/parse.ts` → `createParseWorker`). */
   parsePool: (size: number) => WorkerPool<ParseBatchRequest, ParseBatchResponse>;
-  /** Hardware facts for pool sizing. */
+  /** Hardware facts for pool sizing (`ServerDeps.hardware` = platform `hardwareInfo()`). */
   hardware: HardwareInfo;
   /** Settings accessor (include/exclude/deny globs, module overrides, secretScan). */
   settings: () => EffectiveSettings;
@@ -655,7 +652,16 @@ export interface ScanTimings {
   degraded: number;
 }
 
-/** A filesystem change reported by the watcher (leading 5 ms + max-wait 30 ms batching, spec §10.1). */
+/**
+ * A filesystem change reported by the watcher (leading 5 ms + max-wait 30 ms batching, spec §10.1). The kind is a
+ * hint; `update()` decides by stat and index membership [CR m1-29]:
+ * - an `add` of a path already in the index is a `change` (an editor's tmp-write + rename save arrives as
+ *   `[delete tmp, add path]`): the delta carries the old blob, so the first update already marks claims stale;
+ * - a `delete` of a path that exists again is a `change`; a `delete` of a path that is not an indexed file but a
+ *   directory prefix of indexed files means "everything under `<path>/` is gone" (`mv a b` and moving a directory
+ *   out of the tree arrive as ONE event for the directory; rename detection still pairs those files with the
+ *   batch's `add`s by blob).
+ */
 export type FsChange =
   | {
       /** File-level change. */
@@ -1061,6 +1067,12 @@ export interface Indexer {
   setActive(active: boolean): void;
   /** Current snapshot (null before the first scan). */
   snapshot(): RepoSnapshot | null;
+  /**
+   * Static repository profile for the S1 hero and header (`WorkspaceStatus.profile`; 0 tokens): remote, HEAD date +
+   * tag (`GitReader.remoteUrl` / `headMeta`), license, toolchain, README excerpt and ≤ 4 LOC tiles, computed after S2
+   * and refreshed by warm scans / when one of its source files changes. Null before the first scan [CR m1-26].
+   */
+  profile(): RepoProfile | null;
   /** Timings of the last scan. */
   lastTimings(): ScanTimings | null;
   /** Files. */
@@ -1100,6 +1112,11 @@ export interface Indexer {
    * without symbols; null only when the blob text is unavailable (pin missing, shallow clone).
    */
   symbolsAt(path: RepoPath, blob: GitOid): Promise<SymbolEntry[] | null>;
+  // CR m1-35: `symbolsAt` answers `[]` without reading when `path` is excluded or text-profile (same classification as
+  // `symbols(path)`; a deleted path is classified by name). `blobText`'s last resort (the current file with that blob)
+  // skips excluded files; blob `""` ⇒ null, and `pinBlobs` / `unpinBlobs` ignore `""`. `scan()` and `update()` run in
+  // call order (an update waits for a running scan and vice versa; a queued or running scan is shared, `force`
+  // aborts it).
   /** Smallest symbol enclosing a range (citation stamping); ties → deepest. */
   enclosingSymbol(path: RepoPath, start: LineNo, end: LineNo): SymbolEntry | null;
   /** Lookup by key. */
@@ -1130,7 +1147,14 @@ export interface Indexer {
   configs(): ConfigEntry[];
   /** Test file → subject mapping. */
   tests(): TestMapping[];
-  /** Skeleton of a target. */
+  /**
+   * Skeleton of a target. Model-bound outputs — `skeleton`, `moduleContext`, `hotBodies`, `flowBodies`,
+   * `rationaleComments`, `repoPack` — render bidi controls, zero-width characters and BOM (U+202A–202E, U+2066–2069,
+   * U+200B–200F, U+FEFF) as visible `\u{…}` escapes, line count unchanged (RT-16, Trojan Source); `read()`,
+   * `currentText()` and `blobText()` stay raw (the UI and loop bundles escape themselves) [CR m1-34]. Module / repo
+   * targets (§7.2 degradation) are WP-02's (`skeleton/`); `moduleContext`, `hotBodies` and `rationaleComments` are
+   * WP-03's (`pack/`) [CR m1-27].
+   */
   skeleton(target: SkeletonTarget, tier: SkeletonTier, tokenizer: TokenizerId): Skeleton;
   /** "Hot bodies" for a module within a token budget (≤ 25 % of module input; spec §7.3). */
   hotBodies(module: ModuleId, budgetTokens: number, tokenizer: TokenizerId): CodeSlice[];
@@ -1367,6 +1391,8 @@ export interface ParseItem {
   provisionalClass: FileClass;
   /** Scope from the path rules. */
   scope: FileScope;
+  /** R03 include: skip the content rules R11–R13 [CR m1-23]. */
+  skipContentRules?: boolean;
 }
 
 /** Batch request. */
@@ -1424,6 +1450,23 @@ export type ParseItemResult =
       errors: number;
       /** Extraction note. */
       note?: "parse_timeout" | "parse_error" | "degraded";
+      /** UTF-16 length of the decoded text (`FileEntry.tokensEst` without re-reading the file) [CR m1-23]. */
+      chars: number;
+      /** Language actually used (shebang refines `generic`) [CR m1-23]. */
+      lang: SourceLang;
+      /** Grammar actually used (Flow ⇒ `tsx`; null for generic / text) [CR m1-23]. */
+      grammar: GrammarId | null;
+      /**
+       * Skeleton fragment bodies without the path-bound header line, rendered while the text was at hand (content
+       * addressed by blob × extractor × tier, spec §7.5; `Indexer.skeleton()` is synchronous) [CR m1-23].
+       */
+      skeleton?: { l0: string; sig: string; doc: string };
+    }
+  | {
+      /** Vanished or EACCES between stat and read (R00 `special`; no R11–R13 rule applies) [CR m1-23]. */
+      status: "unreadable";
+      /** Path. */
+      path: RepoPath;
     };
 
 /** Batch response. */
@@ -1463,3 +1506,9 @@ export interface ParseWorkerHandler {
 // `countCjk` → ./tokens/index.ts
 
 // `estimateTokensRaw` → ./tokens/index.ts
+
+// `TAGS_QUERIES` → ./lang/index.ts — `Readonly<Record<GrammarId, string>>`, byte-identical to the spec `.scm` [CR m1-30]
+
+// `assertProject` → ./inventory/index.ts — `(root, home, fs: Pick<FsReader, "readdir">, force?) => void`, throws `E_WS_NOT_PROJECT` [CR m1-30]
+
+// `notProjectReason` → ./inventory/index.ts — `(root, home, fs) => string | null` (UXP-23) [CR m1-30]

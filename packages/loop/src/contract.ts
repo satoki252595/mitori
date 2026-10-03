@@ -38,6 +38,7 @@ import type {
 } from "@mitori/agent";
 import type {
   AnchorEngine,
+  AnchorSnapshot,
 } from "@mitori/anchor";
 import type {
   AcceptReq,
@@ -104,6 +105,7 @@ import type {
   RepoPath,
   Resolution,
   ReviewEstimate,
+  ReviewStatus,
   ReviewWaitRes,
   Round,
   RouteDecision,
@@ -120,6 +122,7 @@ import type {
   ThreadIntent,
   ThreadOutcome,
   ThreadState,
+  ThreadSummary,
   ThreadTrigger,
   ToolProfile,
   TouchReq,
@@ -228,7 +231,11 @@ export interface ThreadQuery {
 export interface BatchJobPlan {
   /** Threads served. */
   threads: ThreadId[];
-  /** Kind (`explain` for question, `review` for review, `fix` for change/doc_edit/note). */
+  /**
+   * Kind: `explain` for question and a sent note (`sendToAi`; router R0b: docpatch/1 or answer/1, empty write scope),
+   * `review` for review, `fix` for change / doc_edit (core `INTENT_JOB_KIND`) [CR m1-71]. Partitions follow the
+   * router group, not only the kind: a question and a sent note are two partitions (R3 vs R0b) [CR m1-86].
+   */
   kind: JobKind;
   /** Union of write scopes (empty for explain/review). */
   writeScope: RepoPath[];
@@ -254,12 +261,28 @@ export interface ThreadReanchorUpdate {
   blockRewritten: boolean;
 }
 
+/**
+ * An anchor captured OUTSIDE the write slot (file text / block text are async reads) and applied inside it by
+ * `ReviewEngine.create` / `patch` [CR m1-68]: `createLoop(...).capture(input, previous)` stamps it with the
+ * `AnchorEngine` (code: blob/snippet/symbol; doc: blockHash/claim spans; diagram: node label/ref).
+ */
+export interface CapturedAnchor {
+  /** Full anchor. */
+  anchor: Anchor;
+  /** Capture-time data per member for `rev_anchor_snapshots` (range text ≤ 4 KiB, symStart, diagram label/ref). */
+  aux?: Partial<Record<AnchorSnapshot["member"], Pick<AnchorSnapshot, "text" | "symStart" | "label" | "ref">>>;
+}
+
 /** Threads, rounds, carry-forward. All mutations validate core `THREAD_TRANSITIONS`. */
 export interface ReviewEngine {
-  /** Create (draft or submitted). Captures/validates the anchor server-side (spec §1.2). */
-  create(req: CreateThreadReq, by: MessageAuthor): ThreadDetail;
-  /** Patch (drafts: body/anchor/intent; others: intent only). */
-  patch(id: ThreadId, req: PatchThreadReq): ThreadDetail;
+  /**
+   * Create (draft or submitted) with the anchor the server captured outside the slot (`createLoop().capture`,
+   * spec §1.2) [CR m1-68]. Synchronous: runs inside the workspace write slot. `captured` absent ⇒ the engine's own
+   * synchronous capture port (in-process callers whose texts are already loaded, tests).
+   */
+  create(req: CreateThreadReq, by: MessageAuthor, captured?: CapturedAnchor): ThreadDetail;
+  /** Patch (drafts: body/anchor/intent; others: intent only). `captured`: as for `create`, when `req.anchor` is present [CR m1-68]. */
+  patch(id: ThreadId, req: PatchThreadReq, captured?: CapturedAnchor): ThreadDetail;
   /** Delete (drafts only). */
   remove(id: ThreadId): void;
   /** Append a human message (verbatim; LF-normalized). */
@@ -296,6 +319,21 @@ export interface ReviewEngine {
   list(q: ThreadQuery): { items: Thread[]; next: string | null };
   /** Detail. */
   get(id: ThreadId): ThreadDetail | null;
+  /** `GET /review`: what Finish would send, held notes, waiter count [CR m1-72]. */
+  status(): ReviewStatus;
+  /** In-flight `wait` calls (daemon idle logic; the server de-duplicates by `x-mitori-waiter`) [CR m1-72]. */
+  waiters(): number;
+  /** Daemon stop: every waiter gets `shutdown` + `approved:false`; later waits too [CR m1-72]. */
+  shutdown(): void;
+  /** Capture-time / last-ok anchor snapshots (outdated cards; the server's re-anchoring input) [CR m1-72]. */
+  snapshots(id: ThreadId): AnchorSnapshot[];
+  /** SSE / list shape of one thread [CR m1-72]. */
+  summary(id: ThreadId): ThreadSummary | null;
+  /**
+   * Files touched through `POST /touch` during the dispatched pull round: joined to its `round.completed.files`
+   * with the reply files (spec §2.5) [CR m1-72].
+   */
+  recordTouched(paths: RepoPath[]): void;
 }
 
 // `renderDecisionMarkdown` → ./review/index.ts
@@ -466,6 +504,11 @@ export interface BundleInput {
   nonce?: string;
   /** Hints resolved from `needs_more_context` (read-only REL/CODE additions; spec §3.5). */
   hints?: { path: RepoPath; start: LineNo; end: LineNo }[];
+  /**
+   * `N|` line numbers instead of `|` (`mitori bundle --lines`, `?lines=1`, MCP `mitori_get_bundle`). Default per mode:
+   * answer / findings / patch / copy numbered, agent / pull not (spec §4.7) [CR m1-83].
+   */
+  numbered?: boolean;
 }
 
 /** A built bundle. */
@@ -500,8 +543,8 @@ export interface BundleBuilder {
 
 /* ---- C4. Router (spec §3) ------------------------------------------------------ */
 
-/** Change-like intents. */
-export const CHANGE_INTENTS = ["change", "doc_edit", "note"] as const satisfies readonly ThreadIntent[];
+/** Change-like intents. A note never writes (R1 §2.1, UXP-02): `route()` handles it first (R0 / R0b) [CR m1-71]. */
+export const CHANGE_INTENTS = ["change", "doc_edit"] as const satisfies readonly ThreadIntent[];
 
 /** One router rule (as data; evaluated top to bottom; first match wins). */
 export interface RouterRule {
@@ -531,12 +574,12 @@ export interface RouterRule {
 
 /** Deterministic routing table (spec §3.4). No LLM in the router. R0/R7/R8 are error rules handled in `route()`. */
 export const ROUTER_RULES = [
-  { id: "R1-escalate-final", intents: ["change", "doc_edit", "note"], after: ["agent_failed"], mode: "agent", contract: "agent/1", model: "escalate", effort: "high", tools: "read_edit", reason: "agent_failed", confirm: true },
-  { id: "R2-escalate-agent", intents: ["change", "doc_edit", "note"], after: ["patch_apply_failed", "gates_failed_twice", "needs_more_context"], mode: "agent", contract: "agent/1", model: "agent", effort: "reasoning.agent", tools: "read_edit", reason: "gates_failed_twice", confirm: false },
+  { id: "R1-escalate-final", intents: ["change", "doc_edit"], after: ["agent_failed"], mode: "agent", contract: "agent/1", model: "escalate", effort: "high", tools: "read_edit", reason: "agent_failed", confirm: true },
+  { id: "R2-escalate-agent", intents: ["change", "doc_edit"], after: ["patch_apply_failed", "gates_failed_twice", "needs_more_context"], mode: "agent", contract: "agent/1", model: "agent", effort: "reasoning.agent", tools: "read_edit", reason: "gates_failed_twice", confirm: false },
   { id: "R3-question", intents: ["question"], mode: "answer", contract: "answer/1", model: "answer", effort: "reasoning.answer", tools: "none", reason: "intent_question", confirm: false },
   { id: "R4-review", intents: ["review"], mode: "answer", contract: "findings/1", model: "answer", effort: "reasoning.answer", tools: "none", reason: "intent_review", confirm: false },
-  { id: "R5-small-change", intents: ["change", "doc_edit", "note"], small: true, mode: "patch", contract: "patch/1", model: "patch", effort: "reasoning.patch", tools: "none", reason: "small_change", confirm: false },
-  { id: "R6-large-change", intents: ["change", "doc_edit", "note"], mode: "agent", contract: "agent/1", model: "agent", effort: "reasoning.agent", tools: "read_edit", reason: "large_change", confirm: false },
+  { id: "R5-small-change", intents: ["change", "doc_edit"], small: true, mode: "patch", contract: "patch/1", model: "patch", effort: "reasoning.patch", tools: "none", reason: "small_change", confirm: false },
+  { id: "R6-large-change", intents: ["change", "doc_edit"], mode: "agent", contract: "agent/1", model: "agent", effort: "reasoning.agent", tools: "read_edit", reason: "large_change", confirm: false },
 ] as const satisfies readonly RouterRule[];
 
 /** Router thresholds not in `Limits` (spec §3). */
@@ -577,6 +620,11 @@ export interface RouteInput {
   engine: { id: EngineId; tools: boolean; jsonSchema: boolean; claudeCliAvailable: boolean };
   /** User override. */
   override?: { mode?: ExecMode; model?: ModelId };
+  /**
+   * Anchor member the thread was written on (a batch: the common one). R0b routes a sent note by it: doc ⇒ docpatch/1
+   * proposal only, code ⇒ answer/1 [CR m1-81].
+   */
+  primary?: "doc" | "code" | "diagram";
 }
 
 /** Router output: a decision plus the engine actually used (agent mode may switch to claude-cli). */
@@ -810,6 +858,8 @@ export const GIT_BASE_ARGS = ["-c", "core.hooksPath={nohooks}", "-c", "core.fsmo
  * timeout (default 30 s; clone 300 s).
  */
 export const GIT_ENV = {
+  /** A missing object in a partial clone is an error, never a lazy fetch from the promisor remote (git ≥ 2.44) [CR m1-88]. */
+  GIT_NO_LAZY_FETCH: "1",
   GIT_TERMINAL_PROMPT: "0",
   GIT_OPTIONAL_LOCKS: "0",
   GIT_CONFIG_NOSYSTEM: "1",
@@ -831,8 +881,10 @@ export const GIT_DIFF_ARGS = ["diff-tree", "-p", "-z", "--no-renames", "--no-col
 
 /**
  * Command-bearing keys scanned in `git config --local --worktree --includes --list` on workspace load [SEC-05].
- * Present ⇒ TrustRecord item `git_config`; until trusted every mitori git call neutralizes them with
- * `-c <key>=` overrides (filter.<x>.clean/smudge/process, merge.<x>.driver, diff.<x>.command/textconv, …).
+ * Present ⇒ TrustRecord item `git_config`; until trusted every mitori git call neutralizes them
+ * (filter.<x>.clean/smudge/process, merge.<x>.driver, diff.<x>.command/textconv, …) through
+ * `GIT_CONFIG_COUNT` / `GIT_CONFIG_KEY_<n>` / `GIT_CONFIG_VALUE_<n>` env (git ≥ 2.31), NOT `-c <key>=`: `-c` splits
+ * at the first `=`, so a driver named `a=b` evades it (verified by WP-01) [CR m1-88].
  */
 export const GIT_COMMAND_CONFIG_PATTERNS = [
   /^filter\..+\.(?:clean|smudge|process)$/u,
@@ -1096,7 +1148,11 @@ export const JOB_BUDGET = { estimateFactor: 3 } as const;
 export interface JobRunner {
   /** Build bundle + route + estimate (no tokens; prewarms a matching warm process). */
   estimate(req: JobReq): Promise<JobEstimate>;
-  /** Create and enqueue (returns `queued` within 100 ms). */
+  /**
+   * Create and enqueue (returns `queued` within 100 ms). Threads already `queued` with `batchRound = n` were
+   * dispatched by Finish (the review engine fired T2 and set `batchRound`); `create` fires T2 only for `open`
+   * threads [CR m1-73].
+   */
   create(req: CreateJobReq): Promise<Job>;
   /** Cancel (SIGINT → 8 s → SIGKILL; worktree discarded). */
   cancel(id: JobId): Promise<Job>;
@@ -1177,6 +1233,8 @@ export interface LoopDeps {
   events: EventSink<SseEventPayload>;
   /** Domain events for the server (post-accept doc sync, re-index, re-anchor). */
   domain: EventSink<LoopDomainEvent>;
+  /** Thread message Markdown → HTML (`MessageView.html`) = the workspace's `BlockRenderer.renderMessage` [CR m1-70]. */
+  renderMessage: (md: string) => string;
 }
 
 // `createLoop` → ./jobs/index.ts

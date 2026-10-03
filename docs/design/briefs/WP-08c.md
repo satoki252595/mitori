@@ -21,13 +21,22 @@
 - `docs/design/specs/loop.md` L2020–2029 — 13.7 セキュリティ (≈ 140 tok)
 - `docs/design/adr/0013-gate-sandbox-and-consent.md` L1–24 — (whole file) (≈ 989 tok)
 
-## 3. CR ledger rows that concern this WP (3)
+## 3. CR ledger rows that concern this WP (12)
 
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
 | CR loop-7 | loop | accepted-modified | api `POST /ws/:ws/jobs/:job/pr`（**web のみ**、stretch） | SEC-04: agent が bearer で push できないよう CLI から外す |
 | CR loop-9 | loop | rejected（変更不要） | — | `JobFailure.params` で足りる（loop 自身の結論どおり） |
 | CR m0-5 | architect | accepted | testing spec CORE-U-007 の期待値: `.envrc`（SEC-12 の実行トリガー）と `docs/.env.md`（`**/.env.*`）は**拒否される**側に訂正。deny glob は picomatch `{ dot: true }` で照合 | 本文の表が R1 の `DEFAULT_DENY_GLOBS` より古い。契約が勝つ |
+| CR m1-4 | WP-INT B, WP-09, WP-01 #4 | accepted-modified | server `ServerDeps` + `version`, `pid`, `userHome`, `port?`, `gateSandbox: EffectiveSettings["gateSandbox"]`, `hardware: HardwareInfo`, `gh?`; `git(info)` の戻りを `GitReader & { close(): Promise<void> }` (applied)。CLI（`apps/cli/src/daemon/server.ts`）と compose の呼び出し側を修正 | 構造的な ServerDepsExt を廃止。`timers` は test 専用の上書きとして compose 内に残す（server の `Timers` は `unref` 付きで core の port と形が違う）。core `GitReader` は変えない（fake が多い）— close は ServerDeps の工場の戻り型で表す |
+| CR m1-57 | WP-05 #2 | accepted | agent `createAgentBridge` deps + `safeWrite: SafeWriter`, `fs: FsReader`, `fetch?`、+ `pin(engine, pin: BinaryPin): Promise<void>`（CR m1-65）(WP-05 applies, `bridge/index.ts`; 契約のポインタコメントは applied) | I3 / I9。WP-INT は構造的に渡し済み |
+| CR m1-58 | WP-05 #3 | accepted | agent `BridgePaths.sessionId?` (applied) | I4 |
+| CR m1-63 | WP-05 #8 | accepted-modified | agent `WarmProfile` コメント: warm 再利用には launch の一致も要る（`sameLaunch` が規範）(applied) | warm pool は stretch（既定 0）。型に `launchHash` は足さない |
+| CR m1-66 | WP-05 B | accepted | spec の訂正（この行で読む）: SIGINT 後の `result` は usage 0 ⇒ meter から ledger（`usageEstimated`、loop §6.5.2/§6.7）、normalizer は `aborted_streaming` → `cancelled`、thinking token も meter に数える。CC-03 は `path:"builtin"` plugin を除外。testing §3.3 の fence regex は gen / loop 両形。`--json-schema` は余分な API call を作らない | 契約テスト（claude 2.1.288）の実測 |
+| CR m1-86 | WP-08a B | accepted | (a) `planBatch` は route group で分割（question と sent note は別 partition）— WP-08b が `review/` を直す（CR m1-120）。(b) router の `error.params.actions` はカンマ区切り、JobRunner が `JobFailure.actions` へ。(c) rules の trust hash = `sha256(Σ path ␀ text ␀)`（path 順、同一内容は 1 回）を trust card も使う。(d) `loopSystemPrompt` が system prompt file の中身。(e) `contracts/text.ts` の写しを `@mitori/anchor` の import に置換（WP-08b）。(f) `doc_updates[].md` の `[path:a-b]` は WP-08b が `RawCite` に戻して `doc.propose` へ。(g) `E_DENY_GLOB` の actions から `copy_prompt` を外す | 結合の取り決め |
+| CR m1-88 | WP-01 SEC-05 addendum | accepted | loop `GIT_ENV.GIT_NO_LAZY_FETCH = "1"`、`GIT_COMMAND_CONFIG_PATTERNS` の無効化は `-c` ではなく `GIT_CONFIG_COUNT/KEY/VALUE` env (applied: 契約)。実装 WP-08b | partial clone の遅延 fetch と `a=b` driver の回避 |
+| CR m1-119 | WP-INT B | accepted | platform `detectGateSandbox(): "sandbox-exec" \| "bwrap" \| "none"`（macOS は sandbox-exec、Linux は bwrap の有無）(WP-01 applies)、CLI が `ServerDeps.gateSandbox` に渡す（それまで `"none"`）(WP-11) | WP-08c の test gate（RT-30）が要る |
+| CR m1-120 | architect | accepted | ストリームの継続（上の規則）: S5 は WP-06b が `gen/src/{orchestrator,prompts,line}/` の CR m1-11・m1-12・m1-13・m1-14・m1-50 と停止後書き込みのバグ、S6 は WP-08b / WP-08c が `loop/src/{review,router,bundle,contracts}/` の CR m1-68・m1-69・m1-72・m1-82・m1-86 を直してよい | 先行 WP は終了済み。並行トラックの待ちを作らない |
 
 ## Golden / truth / fixtures
 
@@ -45,6 +54,21 @@
   on the job worktree and `dontAsk`; never spawn directly.
 - Opus escalation is a proposal requiring confirmation, never automatic.
 
+## CR batch 2 (2026-10-03, ledger §5) — what changed for you
+
+- **Gate sandbox source (CR m1-119, m1-4)**: `ServerDeps.gateSandbox` is contract; `LoopDeps.sandbox` comes from it.
+  The detector `detectGateSandbox()` is WP-01's (`@mitori/platform`); until it lands the CLI passes `"none"`, so your
+  sandbox-requiring gates must go `pending_consent` in that state (RT-30) — test both values with your own deps.
+- Agent mode / resume through the bridge: `BridgePaths.sessionId?` (CR m1-58); the bridge deps gain `safeWrite`/`fs`
+  (I3 system prompt files, I9 empty sandbox — CR m1-57, WP-05 applies the signature). Warm reuse needs an identical
+  launch (CR m1-63).
+- An interrupted turn (SIGINT) is ledgered from the meter (`usageEstimated: true`), the CLI's `result` usage is 0
+  (CR m1-66) — repair accounting must not trust it.
+- **S6 stream continuation (CR m1-120)**: like WP-08b you may touch `packages/loop/src/{review,router,bundle,contracts}/`
+  only for the items the ledger names (e.g. router escalation rules), coordinating with WP-08b's open branch.
+- Git env hardening (CR m1-88) applies to worktree / agent runs too (`GIT_NO_LAZY_FETCH`, `GIT_CONFIG_*` env
+  neutralizers).
+
 ## Out of scope
 
 GitHub PR creation (☆, route answers 501), codex agent mode (after MVP).
@@ -55,6 +79,6 @@ GitHub PR creation (☆, route answers 501), codex agent mode (after MVP).
 - **Contract gaps**: never edit `packages/core` or another owner's code. Write the request to `docs/design/cr-requests/<WP-id>.md` (what / why / proposed shape) and use a clearly marked local workaround (`// CR-PENDING(<WP-id>): …`). The architect batches requests weekly into `packages/core/CR-LEDGER.md` (48 h SLA).
 - **Depend on contracts, not on other WPs**. The shared fakes (`@mitori/platform/testing`, `@mitori/agent/testing`, `@mitori/testkit`) are themselves M0 stubs until WP-01 / WP-05 / WP-00b+WP-12 land: write the minimal fake you need in your own test files (a `Hasher` over `Bun.hash`, a `Random` over fixed bytes, `bun:sqlite` `:memory:` for `SqlDb`, an in-thread `WorkerPool`) and switch when the shared ones exist.
 - **Boundaries** (`scripts/check-boundaries.ts`, part of `check`): imports follow `PACKAGE_DEPS` (type-only too; only `@mitori/core` types are free); no deep imports (`@mitori/x/src/…`) and no `../` out of your package; `Bun.*` / `bun:*` / `node:*` / `process.*` only in platform, server, cli; direct `writeFile`/`rename`/`mkdir`/spawn/`Bun.write`/`Bun.spawn`, `crypto.getRandomValues`, `Math.random`, `Date.now` only in platform (the browser app is exempt from the last three) — use the SafeWriter / Spawner / Random / Clock ports; `@mitori/testkit` and `@mitori/<pkg>/testing` only from tests (`*.test.ts`, `test/`, `src/testing.ts`, bench, eval, e2e).
-- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms.
+- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms. Every `bun test` runs with the testkit preload (testing spec §1.5, CR m1-104): use `createTestHome()` instead of `~/.mitori`, no network beyond loopback, no `claude` / `codex` spawns, no unhandled rejections or `console.error`.
 - **Public surface** changes show up in `docs/design/briefs/INDEX.md` (`bun run contract:index`; `check` fails when it is stale). An INDEX diff in your PR = a contract change → CR.
 - **Done** = the acceptance tests in §1 pass with the exact commands, `check` is green, commits are conventional and end with the Co-Authored-By line; never push, never rewrite history, no paid LLM calls unless the WP says so.

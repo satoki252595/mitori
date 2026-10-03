@@ -5,7 +5,7 @@
 import { type Block, type Hasher, HTML_CONTRACT, type Logger, type SecretScanner, type SqlDb, type WorkerPool } from "@mitori/core";
 import type { BlockRenderer, HighlightReq } from "../contract.ts";
 import { finishBody, planBody } from "./body.ts";
-import { escapeHtml } from "./mdit.ts";
+import { escapeHtml, renderSync } from "./mdit.ts";
 import { FENCE_LANG } from "./shiki.ts";
 import { spliceBody } from "./splice.ts";
 
@@ -54,8 +54,20 @@ export function createBlockRenderer(deps: {
     return finishBody(plan);
   }
 
+  const messages = new Map<string, string>();
   return {
     version: RENDERER_VERSION,
+    renderMessage(md) {
+      // CR m1-70: thread messages (ux-R23 `MessageView.html`) — the doc's markdown-it (html:false, images as links,
+      // external links rel=noopener), secret-redacted, cached by text hash.
+      const key = deps.hasher.xxh3(md);
+      const hit = messages.get(key);
+      if (hit !== undefined) return hit;
+      const html = renderSync(deps.secrets.redact(md).text);
+      messages.set(key, html);
+      if (messages.size > MEM_MAX) messages.delete(messages.keys().next().value as string);
+      return html;
+    },
     async render(block, _claims, opts) {
       const gd = glossaryDigest(block.md, opts.glossaryTerms);
       const hash = `${block.hash}:${block.kind}:${block.diagram ?? ""}`;
@@ -94,3 +106,9 @@ export function createBlockRenderer(deps: {
     },
   };
 }
+
+/**
+ * Worker-side half of highlighting [CR m1-3]: the compute Worker entry builds `(req: HighlightReq) => html` once
+ * (Shiki core + the pinned Oniguruma wasm) and serves the renderer's `WorkerPool<HighlightReq, string>`.
+ */
+export { createHighlight } from "./shiki.ts";

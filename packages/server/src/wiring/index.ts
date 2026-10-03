@@ -56,13 +56,17 @@ export function assembleAnchoredItems(
   return out;
 }
 
-/** Distribute a report back (same order as the items) [§4.3]. Pure. */
+/**
+ * Distribute a report back (same order as the items) [§4.3]. Pure. The outputs are partial by design [CR m1-6]: the
+ * `own`-slot step merges them with the fresh stored state (claim l1 kept, `checkedAt` = now; thread anchor = the
+ * stored anchor with the new code member).
+ */
 export function distributeReanchor(
   items: readonly AnchoredItem[],
   report: ReanchorReport,
 ): {
   /** Claim updates for `DocStore.setClaimChecks` (moved cites re-rendered; overlapped ⇒ verdict `stale`). */
-  claims: { id: ClaimId; cites: Cite[]; checks: ClaimChecks; stale: boolean }[];
+  claims: { id: ClaimId; cites: Cite[]; checks: Pick<ClaimChecks, "l0" | "l2">; stale: boolean }[];
   /** Thread updates for `ReviewEngine.applyReanchor`. */
   threads: ThreadReanchorUpdate[];
   /** Counts by health (metrics, `mitori doctor`). */
@@ -83,7 +87,7 @@ export function distributeReanchor(
       c.lost ||= lost;
       byClaim.set(item.owner, c);
     } else {
-      // CR-PENDING(WP-INT): only the code member is known here; the wiring merges it into the stored anchor.
+      // CR m1-6: only the code member is known here; the slot step merges it into the stored anchor.
       threads.push({
         thread: item.owner,
         anchor: { primary: "code", code: (lost ? item.anchor : r.result.anchor) as CodeAnchor },
@@ -99,8 +103,7 @@ export function distributeReanchor(
     .map(([id, c]) => ({
       id,
       cites: c.cites.filter((x): x is Cite => x !== undefined),
-      // CR-PENDING(WP-INT): l1 / checkedAt are not derivable from the report; the wiring keeps the stored values.
-      checks: { l0: !c.lost, l1: "vacuous", l2: !c.stale, checkedAt: "" } as ClaimChecks,
+      checks: { l0: !c.lost, l2: !c.stale },
       stale: c.stale,
     }));
   return { claims, threads, counts };

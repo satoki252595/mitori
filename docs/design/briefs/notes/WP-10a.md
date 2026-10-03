@@ -33,7 +33,7 @@ read:
   - docs/design/prototypes/JUDGEMENT.md | 6.18
   - apps/web/src/contract.ts | *
   - docs/design/design-tokens.css | *
-crs: ux-R1, ux-R2, ux-R3, ux-R4, ux-R13, ux-R14, ux-R15, ux-R16, ux-R21, jdg-*, m0-3, m0-10
+crs: ux-R1, ux-R2, ux-R3, ux-R4, ux-R13, ux-R14, ux-R15, ux-R16, ux-R21, jdg-*, m0-3, m0-10, m1-26, m1-65, m1-94, m1-95, m1-96, m1-97, m1-98, m1-99, m1-100, m1-101, m1-102, m1-103, m1-121
 owns:
   - apps/web/src/shell
   - apps/web/src/map
@@ -70,6 +70,21 @@ owns:
   `createApiClient({ base: "/api/v1", auth: { scheme: "session", token }, client: { kind: "web", version } })` and
   `createSseClient({ …, random, clock, onState })` (web may use `crypto.getRandomValues` / `Date.now` for the ports).
   Until WP-09 lands they throw `E_UNSUPPORTED`: use a structural fake in tests.
+
+## CR batch 2 (2026-10-03, ledger §5) — follow-ups owned here
+
+- **Hero / header from `WorkspaceStatus.profile`** (CR m1-26): remote `host/path`, toolchain `Go 1.26`, license SPDX,
+  `head.commit` 7 + `(date)`, `head.tag` next to the commit in the header, README excerpt (「原文のまま」) and ≤ 4 LOC
+  tiles (`AreaStat` kind → 「{Lang} 本体」 / `{dir}` / 「{Lang} テスト」). Absent ⇒ today's strip.
+- Engine card: first-run pin (`pin.by === "first-run"`) shows 「初回に固定 · v… ［変更］」 instead of 「見つかりません」
+  (CR m1-65). Adopt `@mitori/client` and delete `shell/net/` fallbacks (CR m1-94). Emit `mitori:facts:painted`
+  (CR m1-102).
+- Contract applied: `UiExtension` (CR m1-95; `shell/ext.ts` may import it from the contract), `mThreshold = 100_000`
+  (`fmt.ts` fixed, CR m1-96), `keyPattern` with `-` (CR m1-97; drop the lint workaround), worker `counts` / `top`
+  (CR m1-98), chunks `launcher` / `help` (CR m1-100).
+- Visual decisions (CR m1-103): fallback banner only when the floor plan is on and failed; one section title in the
+  Reader; 30分コース 「0 / 7 · 残り約30分」 before generation; TOC ≈k per section when an estimate exists.
+- Settings page: show `SettingsView.lastError` (CR m1-121) when `config.json` was not applied.
 
 ## Out of scope
 

@@ -17,6 +17,7 @@ import {
   type ReadingPath,
   type SectionId,
   type SectionNode,
+  unsupported,
 } from "@mitori/core";
 import { markerize } from "../codec/cite.ts";
 import { toRomaji } from "../codec/romaji.ts";
@@ -306,6 +307,38 @@ class Store implements DocStore {
   }
 
   /* ---------------------------------------------------------------- writes */
+
+  /** CR m1-46: the serializer's line of the block (WP-04 implements; the server derives `mdLine` until then). */
+  mdLine(id: BlockId): number | null {
+    return unsupported("doc.mdLine (WP-04, CR m1-46)", id);
+  }
+
+  /**
+   * CR m1-50: manifest stamp at the end of a generation run (gen §10.8, AC-29): usage accumulates, effort and snapshot
+   * follow the run, `generatedAt` moves only for a full run. Gen's orchestrator calls it in the run's final slot.
+   */
+  stampRun(run: Parameters<DocStore["stampRun"]>[0]): DocManifest {
+    const m = ensureManifest(this.core);
+    const u = m.usageTotals;
+    const next: DocManifest = {
+      ...m,
+      effort: run.effort,
+      snapshot: { ...run.snapshot },
+      usageTotals: {
+        calls: u.calls + run.usage.calls,
+        in: u.in + run.usage.in,
+        cacheWrite: u.cacheWrite + run.usage.cacheWrite,
+        cacheRead: u.cacheRead + run.usage.cacheRead,
+        out: u.out + run.usage.out,
+        apiUsd: Math.round((u.apiUsd + run.usage.apiUsd) * 1e6) / 1e6,
+      },
+      generatedAt: run.full ? this.core.deps.clock.iso() : m.generatedAt,
+    };
+    this.st.manifest = next;
+    this.st.manifestTick = this.st.tick();
+    this.core.schedule();
+    return next;
+  }
 
   ensureManifest(): DocManifest {
     const had = this.st.manifest !== null;

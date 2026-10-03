@@ -153,7 +153,7 @@ e2e のシナリオは機能の WP が `e2e/<area>/` に置く（harness は WP-
 - **依存**: 契約のみ（ParseResponse は fixture）
 - **読む範囲**: indexer spec 改訂 R1・§4〜§6・§8・§11、core §6
 - **成果物**: facts 検出器 **tier 1 のみ**（SC-26）、import 解決（tsconfig paths・go.mod・python packages・cargo）、graph（import 1.0 / ref √n·IDF / same-dir 0.2）、**Louvain（決定的順序）+ BFS 分割 + §6.3 split/merge + §6.6 照合（reps seed）**（SC-15）、PageRank、Tarjan SCC、module 階層と安定 `ModuleId`、repo pack（≈10k token、揮発値なし、PT-05）、FTS5 trigram 検索、palette 項目（`HREFS`、digest）。
-- **受け入れ試験**: `nd bun test packages/indexer --test-name-pattern "IDX-AT"`。crit で routes ≥ 62、**env 17**、entry 検出。m3e で modularity ≥ 0.2 かつ directory 分割（−0.221）より高い。同じ index digest で repo pack がバイト一致（2 回生成）。再スキャンで ModuleId 保持（member 変化 < 50%）、DB を消して `doc.index.json` の seed から ID と slug が復元（IDX-AT-34）。同一 OS で membership が決定的（IDX-AT-30 を緩和）。S0〜S4 合計 ≤ 1.0 s（100k LOC、limit 2.0）。検索 1 query ≤ 1 ms。
+- **受け入れ試験**: `nd bun test packages/indexer --test-name-pattern "IDX-AT"`。crit で routes ≥ 62、**env 17**、entry 検出。m3e で modularity が directory 分割より高く、かつ同じグラフでの Louvain 50 順序の最良値の 0.9 倍以上（CR m1-36。絶対値 0.2 は仕様のグラフでは到達不能: 最良 0.191）。同じ index digest で repo pack がバイト一致（2 回生成）。再スキャンで ModuleId 保持（member 変化 < 50%）、DB を消して `doc.index.json` の seed から ID と slug が復元（IDX-AT-34）。同一 OS で membership が決定的（IDX-AT-30 を緩和）。S0〜S4 合計 ≤ 1.0 s（100k LOC、limit 2.0）。検索 1 query ≤ 1 ms。
 
 ### WP-04 doc ★（L、opus、S3）
 

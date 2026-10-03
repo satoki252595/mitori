@@ -587,6 +587,32 @@
       "provisional": false
     },
     {
+      "id": "asset.chunk.launcher",
+      "metric": "遅延 chunk launcher（S0）（gz。BUNDLE_BUDGETS.chunksKb、limit は +15%。CR m1-100）",
+      "target": 4,
+      "limit": 4.6,
+      "unit": "KB",
+      "dir": "max",
+      "gates": ["structural"],
+      "owner": "web",
+      "measure": "bench/asset/size.ts#chunk:launcher",
+      "scale": "none",
+      "provisional": false
+    },
+    {
+      "id": "asset.chunk.help",
+      "metric": "遅延 chunk help（? オーバーレイ）（gz。BUNDLE_BUDGETS.chunksKb、limit は +15%。CR m1-100）",
+      "target": 3,
+      "limit": 3.45,
+      "unit": "KB",
+      "dir": "max",
+      "gates": ["structural"],
+      "owner": "web",
+      "measure": "bench/asset/size.ts#chunk:help",
+      "scale": "none",
+      "provisional": false
+    },
+    {
       "id": "asset.chunk.cm6merge",
       "metric": "遅延 chunk CM6 + merge の合計（gz）",
       "target": 135,

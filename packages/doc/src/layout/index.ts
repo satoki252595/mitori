@@ -54,3 +54,9 @@ export function createDiagramLayouter(deps: {
     toMermaid: toMermaidText,
   };
 }
+
+/**
+ * IR → ELK → {@link DiagramLayout} over an ELK port (`{ layout(elkGraph) }`, the daemon's ELK Worker) [CR m1-3]: the
+ * composition root adapts the raw ELK pool to the layouter's `WorkerPool<{ir…}, DiagramLayout>` with it.
+ */
+export { elkLayout } from "./elk.ts";

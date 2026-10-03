@@ -59,6 +59,7 @@ import {
   type ThreadSummary,
   type ThreadTrigger,
   type TransitionActor,
+  unsupported,
   type WorkspaceInfo,
   type WriteQueue,
 } from "@mitori/core";
@@ -1004,6 +1005,9 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
       const r = store.thread(id);
       return r ? summaryOf(r.thread) : null;
     },
+
+    // CR m1-72: touched files join the dispatched pull round's `round.completed.files` (S6: WP-08b implements it).
+    recordTouched: (paths) => unsupported("review.recordTouched (WP-08b, CR m1-72)", paths),
   };
 
   function inboxTags(t: Thread): InboxFilter[] | null {

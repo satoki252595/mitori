@@ -10,29 +10,20 @@
 - **成果物**: `BundleBuilder`（MBF/1 文法、`BUNDLE_ORDER`、落とす順、`OMITTED:`、chips、copy-as-prompt、DENY/ACCEPT は system prompt file 側、pull の tier 予算）、`route()`（`ROUTER_RULES` + R0b + `INTENT_JOB_KIND` + sensitive 判定 + filter/LFS 除外）、`deriveWriteScope`、loop の prompt 群（answer/findings/patch/agent）、`parseContract`（core の `ThreadOutcome`・`DocUpdate`）、`applyEditsToText`。**完了時に MBF/1 を凍結**。
 - **受け入れ試験**: `nd bun run golden --filter loop.bundle`（tier の token 数: XS 0.4〜0.7k、S ≈1.1k、M 3.5〜5k、L 9〜12k）、構築 p95 ≤ 100 ms（`nd bun run bench --filter loop.bundle`）、router の決定表 property テスト（note は送らない限り job にならない、混在 intent は partition）、`agentPathsOk` の allowlist 23 例。
 
-## 2. Read exactly these sections (≈ 28,951 tokens)
+## 2. Read exactly these sections (≈ 29,471 tokens)
 
 - `docs/design/specs/loop.md` L11–40 — 改訂 R1（2026-10-03、レビュー反映） — 本節が本文より優先する (≈ 2,098 tok)
 - `docs/design/specs/loop.md` L561–634 — 3. Router（決定的。LLM を使わない） (≈ 2,554 tok)
 - `docs/design/specs/loop.md` L635–853 — 4. MBF/1 bundle（`mitori.bundle/1`） (≈ 5,377 tok)
 - `docs/design/specs/loop.md` L854–974 — 5. 出力契約（engine → mitori。server 側で必ず検証し、信用しない） (≈ 3,360 tok)
 - `docs/design/specs/loop.md` L1960–1972 — 13.3 router・bundle・出力契約（WP-08） (≈ 400 tok)
-- `packages/loop/src/contract.ts` L345–500 — C3. Bundle builder MBF/1 (spec §4) (≈ 2,178 tok)
-- `packages/loop/src/contract.ts` L501–606 — C4. Router (spec §3) (≈ 1,895 tok)
-- `packages/loop/src/contract.ts` L607–801 — C5. Output contracts (spec §5) (≈ 2,201 tok)
-- `packages/core/src/domain.ts` L2337–2462 — 12. Output contracts (engine → mitori). Validated server-side; never trusted. (≈ 1,445 tok)
-- `packages/core/src/domain.ts` L2918–3486 — 16. Settings, scopes, trust (≈ 7,443 tok)
+- `packages/loop/src/contract.ts` L383–543 — C3. Bundle builder MBF/1 (spec §4) (≈ 2,263 tok)
+- `packages/loop/src/contract.ts` L544–654 — C4. Router (spec §3) (≈ 1,988 tok)
+- `packages/loop/src/contract.ts` L655–849 — C5. Output contracts (spec §5) (≈ 2,201 tok)
+- `packages/core/src/domain.ts` L2396–2521 — 12. Output contracts (engine → mitori). Validated server-side; never trusted. (≈ 1,445 tok)
+- `packages/core/src/domain.ts` L2980–3573 — 16. Settings, scopes, trust (≈ 7,785 tok)
 
-## 3. M0 stubs you own (4) — implement in place, keep the signatures
-
-Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `@mitori/core`). The doc comment above each stub is the contract text. Changing a signature is a contract change (CR batch).
-
-- `packages/loop/src/contracts/index.ts:45` — `parseContract(…) — 4 overloads, see the file`
-- `packages/loop/src/contracts/index.ts:50` — `applyEditsToText(input: ApplyEditsInput, anchors: Pick<AnchorEngine, "lineMap">, hasher: Hasher): ApplyEditsResult`
-- `packages/loop/src/router/index.ts:25` — `route(input: RouteInput, settings: EffectiveSettings): Result<RouteOutcome>`
-- `packages/loop/src/router/index.ts:30` — `deriveWriteScope(threads: ThreadDetail[], ctx: { mode: ExecMode; extra: { path: RepoPath; start: LineNo; end: LineNo }[]; deny: Glob[]; citesOfBlock(block: BlockId): Cite[]; citesOfClaim(claim: ClaimId): Cite[]; moduleFilesOfSection(section: SectionId): RepoPath[]; fileExists(path: RepoPath): boolean; fileEntry(path: RepoPath): FileEntry | null; }): Result<{ writeScope: RepoPath[]; newFiles: RepoPath[]; anchoredLines: number; ranges: { path: RepoPath; start: LineNo; end: LineNo }[] }>`
-
-## 4. CR ledger rows that concern this WP (6)
+## 3. CR ledger rows that concern this WP (14)
 
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
@@ -42,6 +33,14 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
 | CR ux-R8 | ux | accepted | core `EstimateItem.path?/lines?` | — |
 | CR ux-R9 | ux | accepted | api `JobEstimate.candidates?/history?` | — |
 | CR m0-5 | architect | accepted | testing spec CORE-U-007 の期待値: `.envrc`（SEC-12 の実行トリガー）と `docs/.env.md`（`**/.env.*`）は**拒否される**側に訂正。deny glob は picomatch `{ dot: true }` で照合 | 本文の表が R1 の `DEFAULT_DENY_GLOBS` より古い。契約が勝つ |
+| CR m1-71 | WP-07 #4, WP-08a A6 | accepted | loop `CHANGE_INTENTS = ["change","doc_edit"]`、`ROUTER_RULES` の intents から `note` を削除、`BatchJobPlan.kind` コメント (applied) | note は書かない（R1 §2.1、UXP-02）。`route()` は R0 / R0b で先に処理済み |
+| CR m1-81 | WP-08a A1 | accepted | loop `RouteInput.primary?: "doc"\|"code"\|"diagram"` (applied) | R0b |
+| CR m1-82 | WP-08a A2 | accepted | `deriveWriteScope` ctx + `sectionOfBlock?`, `refsOfDiagram?`, `writable?` (WP-08b applies, `router/index.ts`; ctx を作るのも WP-08b) | `writable` は filter / working-tree-encoding / LFS pointer（SEC-18） |
+| CR m1-83 | WP-08a A3 | accepted | loop `BundleInput.numbered?` (applied) | `mitori bundle --lines`（WP-11）、MCP |
+| CR m1-84 | WP-08a A4 | accepted | `BundleBuilderDeps.readJobFile(job, path)` は内部 deps のまま。WP-08b の `createLoop` が `GitSafety`（worktree / `buildTree`）から供給 | 契約変更なし |
+| CR m1-85 | WP-08a A5 | deferred（M3+） | indexer の symbol 単位 call edge（`refsOf`） | REL は最初に落とす部分。heuristic で可 |
+| CR m1-86 | WP-08a B | accepted | (a) `planBatch` は route group で分割（question と sent note は別 partition）— WP-08b が `review/` を直す（CR m1-120）。(b) router の `error.params.actions` はカンマ区切り、JobRunner が `JobFailure.actions` へ。(c) rules の trust hash = `sha256(Σ path ␀ text ␀)`（path 順、同一内容は 1 回）を trust card も使う。(d) `loopSystemPrompt` が system prompt file の中身。(e) `contracts/text.ts` の写しを `@mitori/anchor` の import に置換（WP-08b）。(f) `doc_updates[].md` の `[path:a-b]` は WP-08b が `RawCite` に戻して `doc.propose` へ。(g) `E_DENY_GLOB` の actions から `copy_prompt` を外す | 結合の取り決め |
+| CR m1-87 | WP-08a C | accepted | MBF/1 as built（C.1〜C.14）を凍結。loop spec §4 はこの行と `fixtures/golden/go-small/bundles/` で読む | — |
 
 ## Golden / truth / fixtures
 
@@ -60,6 +59,12 @@ Each throws `E_UNSUPPORTED` today (`unsupported()` / `unsupportedValue()` from `
   output (validate everything server-side).
 - **MBF/1 freezes when you finish** (SC-09) — bump `FORMAT.bundle` for any later byte change.
 
+## CR batch 2 (2026-10-03, ledger §5) — follow-ups owned here
+
+- Contract now has `RouteInput.primary?` (CR m1-81) and `BundleInput.numbered?` (CR m1-83); `note` left
+  `CHANGE_INTENTS` / `ROUTER_RULES` (CR m1-71). The `ScopeCtx` additions and the remaining couplings go to the S6
+  stream (WP-08b, CR m1-82, m1-86). MBF/1 is frozen as built (CR m1-87).
+
 ## Out of scope
 
 Git application of edits (WP-08b), agent mode prompts beyond the shared prompt group (WP-08c), the CLI `bundle`
@@ -71,6 +76,6 @@ command (WP-11).
 - **Contract gaps**: never edit `packages/core` or another owner's code. Write the request to `docs/design/cr-requests/<WP-id>.md` (what / why / proposed shape) and use a clearly marked local workaround (`// CR-PENDING(<WP-id>): …`). The architect batches requests weekly into `packages/core/CR-LEDGER.md` (48 h SLA).
 - **Depend on contracts, not on other WPs**. The shared fakes (`@mitori/platform/testing`, `@mitori/agent/testing`, `@mitori/testkit`) are themselves M0 stubs until WP-01 / WP-05 / WP-00b+WP-12 land: write the minimal fake you need in your own test files (a `Hasher` over `Bun.hash`, a `Random` over fixed bytes, `bun:sqlite` `:memory:` for `SqlDb`, an in-thread `WorkerPool`) and switch when the shared ones exist.
 - **Boundaries** (`scripts/check-boundaries.ts`, part of `check`): imports follow `PACKAGE_DEPS` (type-only too; only `@mitori/core` types are free); no deep imports (`@mitori/x/src/…`) and no `../` out of your package; `Bun.*` / `bun:*` / `node:*` / `process.*` only in platform, server, cli; direct `writeFile`/`rename`/`mkdir`/spawn/`Bun.write`/`Bun.spawn`, `crypto.getRandomValues`, `Math.random`, `Date.now` only in platform (the browser app is exempt from the last three) — use the SafeWriter / Spawner / Random / Clock ports; `@mitori/testkit` and `@mitori/<pkg>/testing` only from tests (`*.test.ts`, `test/`, `src/testing.ts`, bench, eval, e2e).
-- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms.
+- **Commands** (always via `scripts/nd`): `scripts/nd bun run check` (tsc -b, biome, boundaries, CR ledger, budgets lint, contract index, svelte-check — parallel, ≈ 1 s at M0), `scripts/nd bun test <path>`, `scripts/nd bun run fmt`. Tests sit next to the code (`foo.test.ts`) or under `packages/<pkg>/test/{unit,golden,int}/`; put the spec ID first in the name (`describe("IDX-AT-12 …")`). Unit test files stay ≤ 500 ms. Every `bun test` runs with the testkit preload (testing spec §1.5, CR m1-104): use `createTestHome()` instead of `~/.mitori`, no network beyond loopback, no `claude` / `codex` spawns, no unhandled rejections or `console.error`.
 - **Public surface** changes show up in `docs/design/briefs/INDEX.md` (`bun run contract:index`; `check` fails when it is stale). An INDEX diff in your PR = a contract change → CR.
 - **Done** = the acceptance tests in §1 pass with the exact commands, `check` is green, commits are conventional and end with the Co-Authored-By line; never push, never rewrite history, no paid LLM calls unless the WP says so.

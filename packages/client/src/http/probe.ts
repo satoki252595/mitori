@@ -2,7 +2,7 @@
  * CLI / MCP side of the health challenge [SEC-06, SRV-AT-09]: before a bearer token is sent anywhere, call
  * `GET /health?challenge=<32 hex>` WITHOUT credentials and require `proof = HMAC-SHA256(token, challenge)`. A
  * squatter on the port (or a reused PID) cannot produce it, so it never sees the token.
- * CR-PENDING(WP-09): not exported from the package index yet (see docs/design/cr-requests/WP-09.md).
+ * Public since CR m1-89 (`http/index.ts`).
  */
 import { API_PREFIX, type HealthRes, MitoriError } from "@mitori/core";
 

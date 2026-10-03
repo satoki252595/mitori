@@ -61,7 +61,10 @@ export const TEST_FORMATS = {
 export interface TestHome {
   /** Absolute dir used as `MITORI_HOME`. */
   dir: string;
-  /** Env to pass to spawned mitori processes (MITORI_HOME, GIT_CONFIG_*, TZ, LANG, PATH guard). */
+  /**
+   * Env OVERRIDES for spawned mitori processes (MITORI_HOME, MITORI_TEST, MITORI_TEST_SEED, git identity / clock,
+   * TZ, LANG / LC_ALL, guarded PATH) — merge it over `process.env` [CR m1-109].
+   */
   env: Record<string, string>;
   /** Remove (no-op when `MITORI_TEST_KEEP=1`). */
   cleanup(): Promise<void>;
@@ -609,6 +612,8 @@ export interface BudgetEntry {
   scale: "machine" | "none";
   /** Provisional value (to be confirmed by measurement). */
   provisional: boolean;
+  /** Minimum sample count for rate budgets (Wilson gate; below it the verdict is `insufficient`) [CR m1-108]. */
+  minN?: number;
 }
 // `budget` → ./perf/index.ts
 

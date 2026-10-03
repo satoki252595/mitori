@@ -183,6 +183,7 @@ export function createFakeIndexer(repo: FakeRepo, hasher: Hasher): FakeIndexer {
     update: no("update"),
     setActive: () => undefined,
     snapshot: (): RepoSnapshot => ({ commit: null, tree: null, branch: "main", dirty: false, indexDigest: digest, takenAt: "2026-10-03T00:00:00.000Z" }),
+    profile: () => null,
     lastTimings: () => null,
     files: () => [...texts.keys()].sort().map((p) => file(p) as FileEntry),
     file,

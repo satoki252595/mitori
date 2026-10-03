@@ -8,14 +8,9 @@ import type { BlockAspect, BlockId, BlockKind, DocLang, LineNo, ModuleId, RepoPa
 import { type CitableSet, type ExistingRef, GEN_PROMPTS, type GenPromptId, type LineForm, type PlannedTask, type ValidationContext } from "../contract.ts";
 import { sectionAspects } from "../line/aspects.ts";
 
-/**
- * Line form per prompt. CR-PENDING(WP-06): `GEN_PROMPTS[*].form` still says "full" for the gen.* prompts while
- * R1 (PT-03, ADR-0011 R1-3) makes the compact form the default; gen.* block prompts validate as compact (which
- * also accepts full-form lines) until the contract table is updated (cr-requests/WP-06.md R2).
- */
+/** Line form per prompt: the contract table (gen.* = compact since CR m1-15; the compact validator also accepts full-form lines). */
 export function lineForm(prompt: GenPromptId): LineForm {
-  const form = GEN_PROMPTS[prompt].form;
-  return form === "full" && prompt.startsWith("gen.") ? "compact" : form;
+  return GEN_PROMPTS[prompt].form;
 }
 
 /** File facts the context needs from the index. */
