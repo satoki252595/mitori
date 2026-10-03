@@ -355,6 +355,7 @@ describe("INT-08 agent mode: a cross-file Fix in a worktree, gates, a REPAIR tur
     expect(rules.slice(3)).toEqual(job.writeScope.map((p) => `Edit(//${cwd.slice(1)}/${p})`));
     expect(job.writeScope).toEqual(["internal/server/server.go", "internal/store/memory.go", "internal/store/memory_test.go", "internal/store/store.go"]);
     const sp = readFileSync(argAfter(argv, "--system-prompt-file") as string, "utf8");
+    if (process.env.INT08_DUMP) console.log(`SYSTEM\n${sp}\nUSER\n${promptOfStdin(s.spec.stdin)}`);
     expect(sp).toContain(`Working directory: ${cwd}`);
     expect(sp).toContain("mitori-fixer");
     // edit phases came from the Edit tool calls (UI stages from real events only)
@@ -541,6 +542,103 @@ describe("INT-08 patch mode repairs: an edit that does not apply, then a gate fa
     expect(detail.diff[0]?.hunks.flatMap((h) => h.lines).join("\n")).toContain('level = "warn"');
     expect(read(CONFIG)).toContain('level = "info"');
     await api("POST", `/jobs/${job.id}/reject`, {});
+  });
+});
+
+describe("INT-08 parallel jobs: different files run side by side; the same line waits for the lock and conflicts at accept", () => {
+  const CONFIG = "internal/config/config.go";
+  const FETCH = "internal/meta/fetch.go";
+  const patchTo = (path: string, line: number, from: string, to: string, th: () => ThreadId): Turn => ({
+    tools: ["StructuredOutput"],
+    structured: {
+      summary: to.trim(),
+      edits: [{ path, start: line, end: line, first_line: from, new_text: to }],
+      doc_updates: [],
+      threads: [{ id: th(), status: "done", body: "ok" }],
+    },
+  });
+
+  test("two files at once: both ready, both accepted; then undo", async () => {
+    const lv = lineOf(CONFIG, 'level = "info"');
+    const mr = lineOf(FETCH, "const maxRetries = 1");
+    const before = { config: read(CONFIG), fetch: read(FETCH) };
+    const a = await api<ThreadDetail>("POST", "/threads", {
+      anchor: { primary: "code", code: { path: CONFIG, start: lv - 2, end: lv + 1 } },
+      intent: "change",
+      body: "既定を warn に（並列A）",
+      draft: false,
+    });
+    const b = await api<ThreadDetail>("POST", "/threads", {
+      anchor: { primary: "code", code: { path: FETCH, start: mr, end: mr } },
+      intent: "change",
+      body: "再試行を 2 回に（並列B）",
+      draft: false,
+    });
+    scenarios.unshift({
+      name: "par-a",
+      match: (p) => p.includes("（並列A）"),
+      turns: [patchTo(CONFIG, lv, '\t\tlevel = "info"', '\t\tlevel = "warn"', () => a.id)],
+    });
+    scenarios.unshift({
+      name: "par-b",
+      match: (p) => p.includes("（並列B）"),
+      turns: [patchTo(FETCH, mr, "const maxRetries = 1", "const maxRetries = 2", () => b.id)],
+    });
+    const [ja, jb] = await Promise.all([createJob(a), createJob(b)]);
+    const [ra, rb] = await Promise.all([jobUntil(ja.job.id, ["ready"]), jobUntil(jb.job.id, ["ready"])]);
+    // neither waited for the other: different files, different locks
+    expect(ra.events.some((e) => e.t === "phase" && e.detail?.startsWith("待機"))).toBe(false);
+    expect(rb.events.some((e) => e.t === "phase" && e.detail?.startsWith("待機"))).toBe(false);
+    const accA = await webApi<AcceptRes>("POST", `/jobs/${ra.id}/accept`, { accept: "all" });
+    const accB = await webApi<AcceptRes>("POST", `/jobs/${rb.id}/accept`, { accept: "all" });
+    expect([accA.kind, accB.kind]).toEqual(["applied", "applied"]);
+    expect(read(CONFIG)).toContain('level = "warn"');
+    expect(read(FETCH)).toContain("const maxRetries = 2");
+    for (const r of [accB, accA]) if (r.kind === "applied") await api("POST", `/checkpoints/${r.checkpoint.id}/undo`, { force: false });
+    expect(read(CONFIG)).toBe(before.config);
+    expect(read(FETCH)).toBe(before.fetch);
+  });
+
+  test("the same line: the second job waits for the first's lock; its accept after the first conflicts and leaves it ready", async () => {
+    const lv = lineOf(CONFIG, 'level = "info"');
+    const before = read(CONFIG);
+    const c = await api<ThreadDetail>("POST", "/threads", {
+      anchor: { primary: "code", code: { path: CONFIG, start: lv - 2, end: lv + 1 } },
+      intent: "change",
+      body: "既定を error に（同じ行C）",
+      draft: false,
+    });
+    const d = await api<ThreadDetail>("POST", "/threads", {
+      anchor: { primary: "code", code: { path: CONFIG, start: lv - 2, end: lv + 1 } },
+      intent: "change",
+      body: "既定を debug に（同じ行D）",
+      draft: false,
+    });
+    scenarios.unshift({
+      name: "same-c",
+      match: (p) => p.includes("（同じ行C）"),
+      turns: [patchTo(CONFIG, lv, '\t\tlevel = "info"', '\t\tlevel = "error"', () => c.id)],
+    });
+    scenarios.unshift({
+      name: "same-d",
+      match: (p) => p.includes("（同じ行D）"),
+      turns: [patchTo(CONFIG, lv, '\t\tlevel = "info"', '\t\tlevel = "debug"', () => d.id)],
+    });
+    const jc = await createJob(c);
+    const jd = await createJob(d);
+    const [rc, rd] = await Promise.all([jobUntil(jc.job.id, ["ready"]), jobUntil(jd.job.id, ["ready"])]);
+    const waits = [rc, rd].filter((j) => j.events.some((e) => e.t === "phase" && e.phase === "queued" && e.detail?.includes(CONFIG)));
+    expect(waits.length).toBe(1);
+    const [first, second] = waits[0]?.id === rd.id ? [rc, rd] : [rd, rc];
+    const acc = await webApi<AcceptRes>("POST", `/jobs/${first.id}/accept`, { accept: "all" });
+    expect(acc.kind).toBe("applied");
+    const conflict = await raw("POST", `/jobs/${second.id}/accept`, { accept: "all" });
+    expect(conflict.status).toBe(409);
+    expect(await conflict.text()).toContain("E_GIT_MERGE_CONFLICT");
+    expect((await api<JobDetail>("GET", `/jobs/${second.id}`)).state).toBe("ready");
+    await api("POST", `/jobs/${second.id}/reject`, {});
+    if (acc.kind === "applied") await api("POST", `/checkpoints/${acc.checkpoint.id}/undo`, { force: false });
+    expect(read(CONFIG)).toBe(before);
   });
 });
 
