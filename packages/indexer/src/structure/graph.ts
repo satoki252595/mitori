@@ -127,19 +127,24 @@ function goImportEdges(
   }
 }
 
-/** Name-reference edges with IDF damping (spec §4.6), all languages but Go. */
+/** Names only bind within a language family (a Python file cannot call a TS function by name). */
+const familyOf = (lang: string): string => (lang === "typescript" || lang === "tsx" || lang === "javascript" || lang === "jsx" ? "js" : lang);
+
+/** Name-reference edges with IDF damping (spec §4.6), all languages but Go; names are matched per language family. */
 function addNameRefs(nodes: readonly StageFile[], out: Map<number, DirectedEdge>[], resolved: ResolveResult): void {
   const F = nodes.length;
   if (F < 2) return;
   const defs = new Map<string, { all: Set<number>; exported: Set<number> }>();
   nodes.forEach((f, i) => {
     if (f.lang === "go") return;
+    const fam = familyOf(f.lang);
     for (const s of f.symbols) {
       if (s.kind === "field" || s.name.length <= 2) continue;
-      let d = defs.get(s.name);
+      const key = `${fam}\u0000${s.name}`;
+      let d = defs.get(key);
       if (!d) {
         d = { all: new Set(), exported: new Set() };
-        defs.set(s.name, d);
+        defs.set(key, d);
       }
       d.all.add(i);
       if (s.exported) d.exported.add(i);
@@ -150,25 +155,27 @@ function addNameRefs(nodes: readonly StageFile[], out: Map<number, DirectedEdge>
     if (f.lang === "go") return;
     const externalNames = new Set<string>();
     for (const imp of resolved.imports.get(f.path) ?? []) if (imp.external !== undefined || imp.stdlib) for (const n of imp.names) externalNames.add(n);
+    const fam = familyOf(f.lang);
     for (const r of f.refs) {
-      if (!REF_KINDS.has(r.kind) || externalNames.has(r.name) || !defs.has(r.name)) continue;
-      let m = refsBy.get(r.name);
+      const key = `${fam}\u0000${r.name}`;
+      if (!REF_KINDS.has(r.kind) || externalNames.has(r.name) || !defs.has(key)) continue;
+      let m = refsBy.get(key);
       if (!m) {
         m = new Map();
-        refsBy.set(r.name, m);
+        refsBy.set(key, m);
       }
       m.set(i, (m.get(i) ?? 0) + r.count);
     }
   });
   const acc = new Map<number, Map<number, number>>();
   const lnF = Math.log(F);
-  for (const name of [...refsBy.keys()].sort()) {
-    if (GENERIC_NAMES.has(name)) continue;
-    const d = defs.get(name);
+  for (const key of [...refsBy.keys()].sort()) {
+    if (GENERIC_NAMES.has(key.slice(key.indexOf("\u0000") + 1))) continue;
+    const d = defs.get(key);
     if (!d) continue;
     const D = d.exported.size > 0 ? d.exported : d.all;
     if (D.size > STRUCTURE_PARAMS.maxDefsPerName) continue;
-    const R = refsBy.get(name) as Map<number, number>;
+    const R = refsBy.get(key) as Map<number, number>;
     const idf = q(Math.min(1, Math.max(0, Math.log(F / R.size) / lnF)));
     if (idf === 0) continue;
     const damp = D.size >= STRUCTURE_PARAMS.dampDefsPerName ? 0.1 : 1;

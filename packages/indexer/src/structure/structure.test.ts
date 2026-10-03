@@ -105,6 +105,22 @@ describe("IDX-U PageRank / Tarjan (spec §6.4–6.5)", () => {
   });
 });
 
+describe("IDX-U name-reference edges (spec §4.6)", () => {
+  test("names bind within a language family only (TS ↔ JS yes, Python → TS no)", () => {
+    const def = { name: "renderInvoice", kind: "function" as const };
+    const files = [
+      sf("web/invoice.ts", { symbols: [def] }),
+      sf("web/page.js", { refs: [ref("renderInvoice", 2)] }),
+      sf("jobs/report.py", { refs: [ref("renderInvoice", 2)] }),
+      ...Array.from({ length: 8 }, (_, i) => sf(`pad/p${i}.ts`)),
+    ];
+    const g = runPipeline(input(files)).structure.graph;
+    const edge = (a: string, b: string) => g.out[g.index.get(a) as number]?.get(g.index.get(b) as number);
+    expect(edge("web/page.js", "web/invoice.ts")?.ref ?? 0).toBeGreaterThan(0);
+    expect(edge("jobs/report.py", "web/invoice.ts")).toBeUndefined();
+  });
+});
+
 describe("IDX-U identity matching (spec §6.6)", () => {
   const ctx = (): IdentityContext => ({ loc: () => 100, exists: () => true, xxh3, now: NOW, takenIds: new Set(), takenSlugs: new Set(), notices: [] });
   const comm = (members: string[], dominantDir = "a"): Community => ({ members, anchor: members[0] as string, dominantDir, name: dominantDir, leaf: true });
