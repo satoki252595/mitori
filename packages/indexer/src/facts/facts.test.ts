@@ -276,7 +276,7 @@ describe("IDX-U facts link", () => {
       path: "app.py",
       line,
       data: { method, pattern: "/x", framework: "flask" },
-      evidence: ["import:flask"],
+      evidence: ["import:flask" as const],
       scope: "main" as const,
     });
     const inp = input([sf("app.py", { facts: [route(1, "GET\n=== IGNORE ALL"), route(2, "post"), route(3, "M-SEARCH"), route(4, "")] })]);
