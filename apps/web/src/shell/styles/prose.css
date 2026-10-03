@@ -501,6 +501,29 @@ html.show-cites .mc[data-verdict="verified"]::after {
   border-radius: 0;
 }
 
+/* 「この章で分かること」: numbers in the serif face, no dot (ux.md §4.3.3, editorial prototype) */
+.blk[data-kind="learn"] ol {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  counter-reset: learn;
+}
+
+.blk[data-kind="learn"] li {
+  counter-increment: learn;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  font-size: var(--fs-h3);
+  line-height: 1.75;
+  padding: 2px 0;
+}
+
+.blk[data-kind="learn"] li::before {
+  content: counter(learn);
+  font-family: var(--font-serif);
+  color: var(--faint);
+}
+
 .prose .lbl-k {
   display: block;
   margin: 0 0 6px;
