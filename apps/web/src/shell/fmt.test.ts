@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { useCatalog } from "./__tests__/catalog.ts";
-import { fmtClock, fmtInt, fmtLocShort, fmtRelative } from "./fmt.ts";
+import { ellipsizeMiddle, fmtClock, fmtInt, fmtLocShort, fmtRelative } from "./fmt.ts";
 import { fmtDelta, fmtDuration, fmtTokens, fmtUsd } from "./index.ts";
 
 describe("WEB-U fmt (ux.md §9.3, JUDGEMENT §6.17) — table driven", () => {
@@ -57,6 +57,15 @@ describe("WEB-U fmt (ux.md §9.3, JUDGEMENT §6.17) — table driven", () => {
     expect(fmtDelta(105, 100)).toBe("+5%");
     expect(fmtDelta(100, 100)).toBe("±0%");
     expect(fmtDelta(1, 0)).toBe("±0%");
+  });
+
+  test("paths shortened in the middle (S0 card root)", () => {
+    expect(ellipsizeMiddle("/Users/me/repo", 40)).toBe("/Users/me/repo");
+    const s = ellipsizeMiddle("/Users/satoki252595/work/20261002_aiAgentTool/.claude/worktrees/x/crit", 32);
+    expect([...s].length).toBe(32);
+    expect(s.startsWith("/Users/sato")).toBe(true);
+    expect(s.endsWith("worktrees/x/crit")).toBe(true);
+    expect(s).toContain("…");
   });
 
   test("LOC and integers", () => {

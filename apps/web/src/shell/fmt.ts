@@ -69,6 +69,15 @@ export function fmtLocShort(n: number): string {
   return n >= 1000 ? `${trimFixed(n / 1000, 1)}k` : String(n);
 }
 
+/** A long path shortened in the middle (`~/work/…/repo`), keeping the start and the most specific end. */
+export function ellipsizeMiddle(s: string, max: number): string {
+  const chars = [...s];
+  if (chars.length <= max) return s;
+  const keep = max - 1;
+  const head = Math.ceil(keep * 0.4);
+  return `${chars.slice(0, head).join("")}…${chars.slice(chars.length - (keep - head)).join("")}`;
+}
+
 /** Integers in tables: `45,672`. */
 export function fmtInt(n: number, lang: UiLang): string {
   return new Intl.NumberFormat(lang === "ja" ? "ja-JP" : "en-US").format(Math.round(n));

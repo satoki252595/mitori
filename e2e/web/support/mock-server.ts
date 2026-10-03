@@ -121,9 +121,23 @@ function api(req: Request, url: URL, body: unknown): Response | Promise<Response
     return json({ ...settings({ ...opts, policyAcked: acked }), version: settingsVersion });
   }
   if (m === "GET" && p === "/engines") return json(engines(opts));
-  if (m === "GET" && p === "/workspaces") return json([workspaceStatus(opts)]);
+  if (m === "GET" && p === "/workspaces") {
+    const crit = workspaceStatus(opts);
+    const other = {
+      ...crit,
+      info: {
+        ...crit.info,
+        key: "ws_h0n000000000",
+        name: "hono",
+        root: "/Users/me/src/github.com/honojs/hono/packages/hono-base/a/very/long/nested/checkout/path",
+        lastOpenedAt: "2026-10-01T00:00:00Z",
+      },
+    };
+    return json([other, crit]);
+  }
   if (m === "POST" && p === "/workspaces") {
     const t = (body as { target?: string })?.target ?? "";
+    if (t.includes("github.com/nope")) return err("E_GIT_CLONE_FAILED", 424);
     return t.includes("crit") ? json(workspaceStatus(opts)) : err("E_WS_NOT_FOUND", 404);
   }
   const wm = /^\/ws\/(ws_[0-9a-z]+)(\/.*)?$/.exec(p);

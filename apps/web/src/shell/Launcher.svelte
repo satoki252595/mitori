@@ -1,12 +1,13 @@
 <!--
   S0 Launcher (ux.md §4.1): open a path or GitHub URL, recent workspaces (last opened first). Errors go under the
-  input with role="alert". Cards use roving focus via native links (↑↓ handled by the browser's Tab order).
+  input with role="alert". Cards are links with a roving tabindex: one Tab stop, ↑↓ / Home / End move, Enter opens.
 -->
 <script lang="ts">
 import { HREFS, MitoriError, type WorkspaceSummary } from "@mitori/core";
 import { useStores } from "../stores/app.svelte.ts";
-import { fmtRelative } from "./fmt.ts";
-import { errorText, t } from "./index.ts";
+import { copyText } from "./clipboard.ts";
+import { ellipsizeMiddle, fmtRelative } from "./fmt.ts";
+import { errorText, isComposing, t } from "./index.ts";
 import { markAfterPaint } from "./perf.ts";
 import Rich from "./Rich.svelte";
 
@@ -14,6 +15,8 @@ const s = useStores();
 let target = $state("");
 let busy = $state(false);
 let error = $state<string | null>(null);
+let cloneFailed = $state(false);
+let current = $state(0);
 const list = $derived(s.session.workspaces);
 
 $effect(() => {
@@ -25,7 +28,9 @@ $effect(() => {
 
 async function open(e: SubmitEvent) {
   e.preventDefault();
+  if (busy) return;
   const v = target.trim();
+  cloneFailed = false;
   if (!v) {
     error = t("error.E_INVALID_INPUT");
     return;
@@ -37,10 +42,24 @@ async function open(e: SubmitEvent) {
     s.session.upsertWorkspace(ws);
     await s.router.go({ name: "map", ws: ws.info.key });
   } catch (err) {
-    error = errorText(MitoriError.from(err).toData());
+    const me = MitoriError.from(err);
+    error = errorText(me.toData());
+    cloneFailed = me.code === "E_GIT_CLONE_FAILED";
   } finally {
     busy = false;
   }
+}
+
+/** ↑↓ / Home / End between the cards (roving tabindex; Enter is the link's own activation). */
+function onCardsKey(e: KeyboardEvent) {
+  if (isComposing(e)) return;
+  const n = list.length;
+  if (n === 0) return;
+  const next = e.key === "ArrowDown" ? current + 1 : e.key === "ArrowUp" ? current - 1 : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : null;
+  if (next === null || e.altKey || e.metaKey || e.ctrlKey) return;
+  e.preventDefault();
+  current = Math.max(0, Math.min(n - 1, next));
+  (e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>("a.wcard")[current]?.focus();
 }
 
 function genLabel(w: WorkspaceSummary): string {
@@ -59,20 +78,26 @@ function genLabel(w: WorkspaceSummary): string {
     <input id="ws-target" type="text" autocomplete="off" spellcheck="false" placeholder={t("launcher.placeholder")} bind:value={target} aria-describedby={error ? "ws-err" : undefined} />
     <button type="submit" class="btn btn-pri" aria-disabled={busy}>{t("launcher.open")}</button>
   </form>
-  {#if error}<p id="ws-err" class="err" role="alert"><Rich text={error} /></p>{/if}
+  {#if error}
+    <p id="ws-err" class="err" role="alert">
+      <Rich text={error} />
+      {#if cloneFailed}<button type="button" class="btn btn-sec btn-s" onclick={() => copyText("gh auth login", s, "copy.command")}>{t("banner.copyCommand")}</button>{/if}
+    </p>
+  {/if}
 
   <h2 class="rail-label">{t("launcher.recent")}</h2>
   {#if s.session.workspacesLoaded && list.length === 0}
     <p class="empty"><Rich text={t("launcher.empty")} /></p>
   {/if}
-  <ul class="cards">
-    {#each list as w (w.info.key)}
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions (arrow keys between the card links) -->
+  <ul class="cards" onkeydown={onCardsKey}>
+    {#each list as w, i (w.info.key)}
       <li>
-        <a class="wcard" href={HREFS.map(w.info.key)}>
+        <a class="wcard" href={HREFS.map(w.info.key)} tabindex={i === Math.min(current, list.length - 1) ? 0 : -1} onfocus={() => (current = i)}>
           <span class="l">
             <span class="name" data-user-content>{w.info.name}</span>
             {#if w.info.kind !== "git"}<span class="kind-badge">{t(w.info.kind === "shadow" ? "header.shadow" : "header.readonly")}</span>{/if}
-            <span class="root mono" data-user-content>{w.info.root}</span>
+            <span class="root mono" data-user-content title={w.info.root}>{ellipsizeMiddle(w.info.root, 72)}</span>
           </span>
           <span class="r">
             <span>{genLabel(w)}</span>
@@ -119,6 +144,10 @@ function genLabel(w: WorkspaceSummary): string {
     height: 44px;
   }
   .err {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
     color: var(--c-bad);
     margin: 8px 0 0;
   }
