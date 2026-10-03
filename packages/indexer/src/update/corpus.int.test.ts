@@ -1,14 +1,13 @@
 // Corpus checks (skipped when the pinned clones are absent; `bun run corpus:fetch`):
-// IDX-AT-02 (exclusions), IDX-AT-03 (filtered / naive token ratio), IDX-AT-13 (Flow files via tsx), IDX-AT-05 (shadow).
+// IDX-AT-02 (exclusions), IDX-AT-03 (filtered / naive token ratio), IDX-AT-13 (Flow files via tsx), IDX-AT-05 (shadow),
+// IDX-AT-14 (Worker memory over repeated parses, measured in a child process).
 import { afterAll, describe, expect, test } from "bun:test";
 import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import type { Indexer } from "../contract.ts";
 import { corpusDir } from "../parse/test/corpus.ts";
-import { env, workerInit } from "../parse/test/env.ts";
 import { parseResult } from "../parse/test/parse-text.ts";
-import { createWorkerHandler } from "../parse/worker.ts";
 import { createIndexer } from "./index.ts";
 import { testDeps } from "./test/deps.ts";
 import { type FixtureRepoLike, testkit } from "./test/fixtures.ts";
@@ -142,44 +141,18 @@ describe("IDX-AT-05 shadow workspace", () => {
 
 describe("IDX-AT-14 Worker memory over repeated cold parses", () => {
   test.skipIf(corpusDir("crit") === null)(
-    "10 passes over crit's Go in one Worker: RSS does not keep growing; every tree deleted",
+    "10 passes over crit's Go in one Worker (own process): RSS stops growing; every tree deleted",
     async () => {
-      const root = corpusDir("crit") as string;
-      const files: string[] = [];
-      const walk = (d: string) => {
-        for (const e of readdirSync(d, { withFileTypes: true })) {
-          const p = join(d, e.name);
-          if (e.isDirectory()) {
-            if (e.name !== "testdata") walk(p);
-          } else if (e.name.endsWith(".go")) files.push(p);
-        }
-      };
-      for (const top of ["cmd", "internal"]) walk(join(root, top));
-      const h = await createWorkerHandler(env, workerInit());
-      const items = files.map((abs) => ({
-        path: relative(root, abs),
-        abs,
-        size: statSync(abs).size,
-        lang: "go" as const,
-        grammar: "go" as const,
-        profile: "full" as const,
-        knownBlob: null,
-        detectors: [],
-        provisionalClass: "source" as const,
-        scope: "main" as const,
-      }));
-      const rss: number[] = [];
-      for (let pass = 0; pass < 10; pass++) {
-        for (let i = 0; i < items.length; i += 64) await h.handle({ id: pass * 1_000 + i, items: items.slice(i, i + 64) });
-        Bun.gc(true);
-        rss.push(process.memoryUsage().rss);
-      }
+      const script = join(import.meta.dir, "test/rss-passes.ts");
+      const p = Bun.spawnSync(["bun", script, corpusDir("crit") as string, "10"], { stderr: "inherit" });
+      expect(p.exitCode).toBe(0);
+      const { rss, parses, deletes } = JSON.parse(p.stdout.toString()) as { rss: number[]; parses: number; deletes: number };
       console.log(`RSS per pass (MB): ${rss.map((x) => Math.round(x / 1_048_576)).join(" ")}`);
-      // Spec: 10th ≤ 1st × 1.1. The 1st pass also carries one-time growth (JIT code, WASM memory sized to the largest
-      // file, heap sizing) that made a 1st-pass baseline flaky in the shared test process; growth is judged from pass 2.
+      // Spec: 10th ≤ 1st × 1.1. In JSC the heap settles one pass later (≈ +100 MB once, pass 1 → 2, then ≈ 0.4 % per
+      // pass), so growth is judged from pass 2, and the last five passes must be flat.
       expect(rss[9] as number).toBeLessThanOrEqual((rss[1] as number) * 1.1);
-      expect(h.stats().deletes).toBe(h.stats().parses);
-      h.dispose();
+      expect(rss[9] as number).toBeLessThanOrEqual((rss[4] as number) * 1.05);
+      expect(deletes).toBe(parses);
     },
     120_000,
   );

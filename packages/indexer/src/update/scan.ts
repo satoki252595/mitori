@@ -300,7 +300,7 @@ const PREWARM_MIN_SHARE = 0.05;
 function dropUnreferenced(core: Core): void {
   const live = new Set<string>();
   for (const r of core.files.values()) if (r.key !== undefined && r.blob !== "") live.add(contentKey(r.blob, r.key));
-  for (const [k, p] of core.parsed) if (!p.dirtyDb && !live.has(k)) core.parsed.delete(k);
+  for (const [k, p] of core.parsed) if ((!p.dirtyDb || p.note === "parse_timeout") && !live.has(k)) core.parsed.delete(k);
 }
 
 /** Snapshot of the current state. */

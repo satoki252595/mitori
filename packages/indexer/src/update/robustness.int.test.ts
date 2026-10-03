@@ -3,6 +3,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { Logger, SqlDb } from "@mitori/core";
 import type { Indexer, IndexerDeps } from "../contract.ts";
+import { env, workerInit } from "../parse/test/env.ts";
+import { createWorkerHandler } from "../parse/worker.ts";
 import { createIndexer } from "./index.ts";
 import { inlinePool, memoryDb, migrate, settings, testDeps } from "./test/deps.ts";
 import { tempRepo } from "./test/repo.ts";
@@ -117,6 +119,37 @@ describe("IDX-D7 persistence failures", () => {
     expect(d2.changed.map((c) => c.path)).toEqual(["b.ts"]);
     expect(row("b.ts")).toBe(idx.currentBlob("b.ts") as string);
     expect(row("a.ts")).toBe(idx.currentBlob("a.ts") as string); // retried with the next write
+  });
+});
+
+describe("IDX-AT-15 a parse timeout is not a property of the blob", () => {
+  test("a timed-out file is reused within the process but parsed again after a restart", async () => {
+    // Big enough for tree-sitter to consult the progress callback (it does so every few thousand operations).
+    const big = Array.from({ length: 400 }, (_, i) => `export function f${i}(x: number): number {\n  return x + ${i};\n}\n`).join("");
+    const repo = tempRepo({ "a.ts": big });
+    cleanup.push(() => repo.dispose());
+    const db = memoryDb();
+    migrate(db);
+    // A clock that races makes every parse exceed its 250 ms budget (a loaded machine, in effect).
+    let fake = 0;
+    const racing = { ...env, now: () => (fake += 100) };
+    const deps = testDeps(repo.root, { db, pool: inlinePool(createWorkerHandler(racing, workerInit())) });
+    const idx = createIndexer(deps);
+    await idx.scan();
+    expect(idx.fileDetail("a.ts")?.note).toBe("parse_timeout");
+    await until(() => persisted(idx));
+    const calls = deps.counters.get("idx.parse.calls") ?? 0;
+    await idx.scan();
+    expect(deps.counters.get("idx.parse.calls") ?? 0).toBe(calls); // same process: no retry on every scan
+    await idx.close();
+
+    const deps2 = testDeps(repo.root, { db });
+    const idx2 = createIndexer(deps2);
+    cleanup.push(() => idx2.close());
+    await idx2.scan();
+    expect(deps2.counters.get("idx.parse.calls") ?? 0).toBe(1);
+    expect(idx2.fileDetail("a.ts")?.note).toBeUndefined();
+    expect(idx2.symbols("a.ts").length).toBe(400);
   });
 });
 

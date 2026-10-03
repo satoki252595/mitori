@@ -349,7 +349,9 @@ export async function persist(core: Core, opts: { snapshotRow?: { packKey: strin
   }
   const removed: RepoPath[] = [];
   for (const p of core.dbFiles.keys()) if (!core.files.has(p)) removed.push(p);
-  const dirtyParsed = [...core.parsed.values()].filter((p) => p.dirtyDb);
+  // A parse that hit the time budget is environmental (machine load), not a property of the blob: it is kept for this
+  // process but never becomes a persistent cache entry, so the next daemon start parses the file again.
+  const dirtyParsed = [...core.parsed.values()].filter((p) => p.dirtyDb && p.note !== "parse_timeout");
   const settingsChanged = core.settingsKey !== null && core.dbSettingsKey !== core.settingsKey;
   const snap = core.snap;
   const snapRow = opts.snapshotRow;
