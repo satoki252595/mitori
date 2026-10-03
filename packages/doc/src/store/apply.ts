@@ -170,13 +170,23 @@ function derived(core: StoreCore): StaticSpec[] {
 
 /** Appendix source index `ap:sources` (cited file → number of citing blocks); changes whenever claims do. */
 function sourcesSpec(core: StoreCore): StaticSpec {
-  const sources = new Map<string, Set<BlockId>>();
-  for (const c of core.st.claims.values()) for (const ct of c.claim.cites) sources.set(ct.path, (sources.get(ct.path) ?? new Set()).add(c.claim.block));
+  // per path: number of distinct citing blocks (`last` dedupes the claims of one block without a Set per path)
+  const sources = new Map<string, { n: number; last: BlockId | null }>();
+  for (const rec of core.st.blocks.values())
+    for (const cid of rec.meta.claims)
+      for (const ct of core.st.claims.get(cid)?.claim.cites ?? []) {
+        const e = sources.get(ct.path);
+        if (!e) sources.set(ct.path, { n: 1, last: rec.meta.id });
+        else if (e.last !== rec.meta.id) {
+          e.n++;
+          e.last = rec.meta.id;
+        }
+      }
   return {
     slot: "ap:sources",
     section: "appendix",
     kind: "facts",
-    md: sourcesTable(new Map([...sources].map(([p, s]) => [p, s.size])), L[core.lang()]),
+    md: sourcesTable(new Map([...sources].map(([p, e]) => [p, e.n])), L[core.lang()]),
     depth: "L3",
     audience: ["reviewer", "dev"],
     rank: RANK.post,
