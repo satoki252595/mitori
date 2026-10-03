@@ -15,7 +15,7 @@ Everything runs through `scripts/nd` (cached nix devShell). Budgets live in `ben
 | Did my change slow a bench case? | `scripts/nd bun run bench:compare [--suite idx] [--id idx.s01]` | median ≥ 20 % worse than the merge base **and** above the noise floor, after a 2P re-measure; a counter above base; a head budget over its limit |
 | What are the numbers on this machine? | `scripts/nd bun run bench [--suite idx] [--absolute] [--out auto]` | `--absolute`: a budget limit is exceeded (time budgets only gate on the reference machine, factor within 10 %) |
 | Is the web bundle within budget? | `scripts/nd bun run size` (binary size first, then served bytes, then `mitori --version` startup) | initial JS > 150 KB gz, CSS > 25 KB gz, any web font; `--strict` makes every chunk limit hard (from M3); startup > 50 ms on the reference machine |
-| DOM / code lines / INP / requests of a screen | `scripts/nd bun run e2e --grep @<wp>` (Playwright, chromium; `--project webkit`, `perf`) | a spec asserts `expectWithinBudget(id, value)` |
+| DOM / code lines / INP / requests of a screen | `scripts/nd bun run e2e --grep @<wp>` (Playwright, chromium; `--project webkit`, `perf`) | a spec asserts `expectWithinBudget(id, value)`: structural budgets (DOM, code lines, bytes, CLS) everywhere; time budgets only in `--project perf` on the reference machine (factor within 10 %, measured by `bun run e2e`) |
 | Does the eval harness work? | `scripts/nd bun run eval --suite smoke` | a harness check fails (fake engine, 0 tokens) |
 
 `bench:compare` flags: `--base <ref>` (default merge-base with main), `--base-root <dir>` (an existing tree), `--pairs n`,
@@ -48,7 +48,7 @@ export const coldScan = defineBench({
 
 `bench/runner/reference.json` is the calibration of the maintainer's machine (`bun bench/runner/run.ts --record-reference`
 on an idle machine; commit it with the machine description). `factor` = this run / reference, clamped to [0.5, 5]. Before a
-run the 1-minute load average must be ≤ cores × 0.5 (two waits, then the result is flagged `noisy`; `--no-wait` skips it).
+run the 1-minute load average must be ≤ cores × 0.5 (two 30 s waits, then the result is flagged `noisy`; `--no-wait` skips it). On macOS the run holds `caffeinate -i` and records the power source (`ON BATTERY` in the header).
 
 ## e2e harness
 
