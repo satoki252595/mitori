@@ -4,11 +4,12 @@
  * `/d/<docId>/b/<block>`); without an id, the workspace of the cwd. The plain URL goes to stdout; the browser opens
  * through a one-time login URL unless `--no-open` / `ui.openBrowser = false` / a tab is already connected.
  */
-import { type BlockId, type DocId, HREFS, MitoriError } from "@mitori/core";
+import { type BlockId, type DocId, HREFS, MitoriError, type WorkspaceKey } from "@mitori/core";
 import { parse } from "./args.ts";
 import { openInBrowser } from "./browser.ts";
+import { helpLang } from "./help.ts";
 import { type Io, usage } from "./io.ts";
-import { connect, connectWorkspace } from "./session.ts";
+import { connect, connectWorkspace, type Session } from "./session.ts";
 
 const DOC_RE = /^doc_[0-9a-z]{12}$/;
 const BLOCK_RE = /^b_[0-9a-z]{8}$/;
@@ -19,6 +20,33 @@ export function parsePermalink(raw: string): { doc: DocId; block: BlockId | null
   if (!m || !DOC_RE.test(m[1] ?? "") || (m[2] !== undefined && !BLOCK_RE.test(m[2])))
     throw usage(`not a doc id: ${raw}`, "doc ids look like doc_0123456789ab[#b_k3f9a2cq]");
   return { doc: m[1] as DocId, block: (m[2] as BlockId | undefined) ?? null };
+}
+
+/**
+ * After `mitori <path>` opened a workspace: a one-time login URL on stderr, the browser (same rules as above), and the
+ * install freshness notice of spec §11.4 (outdated / missing integration files; modified ones are the user's).
+ */
+export async function afterOpen(io: Io, s: Session, ws: WorkspaceKey, open: boolean): Promise<void> {
+  const to = HREFS.map(ws);
+  const nonce = await s.api.call("POST /auth/nonce", { params: {}, body: { to } });
+  io.err(`mitori: open ${nonce.url}\n`);
+  if (open) await openInBrowser(io, s, ws, to);
+  const ja = helpLang(io.env) === "ja";
+  try {
+    for (const v of await s.api.call("GET /integrations", { params: {}, query: { ws } }))
+      for (const state of ["outdated", "missing"] as const) {
+        const n = v.files.filter((f) => f.state === state).length;
+        if (n === 0) continue;
+        const cmd = `mitori install ${v.target}${v.scope === "project" ? " --scope project" : ""}`;
+        io.err(
+          ja
+            ? `mitori: ${v.target} の連携ファイルが ${n} 件${state === "outdated" ? "古くなっています" : "見つかりません"}（${cmd} で更新できます）\n`
+            : `mitori: ${n} ${v.target} integration file(s) ${state === "outdated" ? "are outdated" : "are missing"} (\`${cmd}\` updates them)\n`,
+        );
+      }
+  } catch {
+    // a daemon without the installer routes: nothing to report
+  }
 }
 
 export async function run(io: Io): Promise<number> {

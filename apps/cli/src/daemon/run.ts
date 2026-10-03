@@ -18,13 +18,13 @@
 import { realpathSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import { parseArgs } from "node:util";
-import { API_PREFIX, MitoriError, type NonceRes, type SettingsView, type WorkspaceKey, type WorkspaceStatus } from "@mitori/core";
+import { MitoriError, type WorkspaceKey } from "@mitori/core";
 import { resolveHome } from "@mitori/platform";
 import { BUILD_FLAVOUR } from "../build/flavour.ts";
-import { openInBrowser } from "../commands/browser.ts";
-import { apiOf, ensureDaemon } from "../commands/daemon-client.ts";
+import { apiOf, ensureDaemon, findDaemon } from "../commands/daemon-client.ts";
 import { isCommand, runCommand } from "../commands/index.ts";
 import { exitOf } from "../commands/io.ts";
+import { afterOpen } from "../commands/open.ts";
 import { drainStreams, realIo } from "../commands/process-io.ts";
 import { homeOf } from "../commands/session.ts";
 import type { ServerDaemon } from "./server.ts";
@@ -41,27 +41,15 @@ export function githubTarget(raw: string): string | null {
   return `https://github.com/${m[1]}/${m[2]}`;
 }
 
-async function self<T>(d: Pick<ServerDaemon, "url" | "token">, version: string, method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${d.url.replace(/\/$/, "")}${API_PREFIX}${path}`, {
-    method,
-    headers: { authorization: `Bearer ${d.token}`, "x-mitori-client": `cli/${version}`, ...(body !== undefined ? { "content-type": "application/json" } : {}) },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-  if (!res.ok) throw new Error(`${method} ${path}: ${res.status}`);
-  return (await res.json()) as T;
-}
-
-/** Login URL into `/w/<ws>`; opens the browser too when wanted and no tab of the workspace is connected. */
-async function announce(d: ServerDaemon, ws: WorkspaceKey, version: string, open: boolean): Promise<void> {
-  const nonce = await self<NonceRes>(d, version, "POST", "/auth/nonce", { to: `/w/${ws}` });
-  process.stderr.write(`mitori: open ${nonce.url}\n`);
-  if (!open) return;
-  const [settings, status] = await Promise.all([self<SettingsView>(d, version, "GET", "/settings"), self<WorkspaceStatus>(d, version, "GET", `/ws/${ws}`)]);
-  if (settings.settings.ui.openBrowser && status.connectedTabs === 0) await realIo([], version).openUrl(nonce.url);
+/** Login URL, browser and install notice for a workspace this process just opened in its own daemon. */
+async function announce(home: string, ws: WorkspaceKey, version: string, open: boolean): Promise<void> {
+  const io = realIo([], version);
+  const daemon = await findDaemon(io, home);
+  if (daemon) await afterOpen(io, { home, daemon, api: apiOf(io, daemon) }, ws, open);
 }
 
 /** Open `target` in-process and report on stderr once the zero-token doc is there. */
-async function openWorkspace(d: ServerDaemon, target: string, force: boolean, version: string, open: boolean): Promise<void> {
+async function openWorkspace(d: ServerDaemon, home: string, target: string, force: boolean, version: string, open: boolean): Promise<void> {
   const t0 = performance.now();
   let stopped = false;
   void d.stopped.then(() => {
@@ -78,7 +66,7 @@ async function openWorkspace(d: ServerDaemon, target: string, force: boolean, ve
   const files = rt.indexer.files().length;
   const modules = rt.indexer.modules().length;
   process.stderr.write(`mitori: ${rt.info.name}: ${files} files, ${modules} modules (S0–S4 + static doc in ${Math.round(ms)} ms)\n`);
-  await announce(d, rt.info.key, version, open).catch(() => undefined);
+  await announce(home, rt.info.key, version, open).catch(() => undefined);
 }
 
 /** The home already has a live daemon: verify it, apply the version rule, open the workspace there. */
@@ -97,9 +85,7 @@ async function useRunning(target: string | null, force: boolean, version: string
   const api = apiOf(io, d);
   try {
     const ws = await api.call("POST /workspaces", { params: {}, body: { target, ...(force ? { force: true } : {}) } });
-    const nonce = await api.call("POST /auth/nonce", { params: {}, body: { to: `/w/${ws.info.key}` } });
-    process.stderr.write(`mitori: open ${nonce.url}\n`);
-    if (open) await openInBrowser(io, { home: homeOf(io), daemon: d, api }, ws.info.key, `/w/${ws.info.key}`);
+    await afterOpen(io, { home: homeOf(io), daemon: d, api }, ws.info.key, open);
   } catch (err) {
     process.stderr.write(exitOf(err).text);
     return 1;
@@ -163,7 +149,7 @@ export async function runDaemon(mode: "open" | "serve", argv: readonly string[],
   if (!detached) process.stdout.write(`${d.url}\n`);
   if (target !== null) {
     const t = target;
-    void openWorkspace(d, t, values.force === true, version, open).catch((err: unknown) => {
+    void openWorkspace(d, home, t, values.force === true, version, open).catch((err: unknown) => {
       process.stderr.write(`mitori: ${basename(t)}: ${err instanceof Error ? err.message : String(err)}\n`);
     });
   }

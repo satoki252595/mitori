@@ -10,12 +10,13 @@ import { homeOf } from "./session.ts";
 export async function run(io: Io): Promise<number> {
   const { positionals } = parse(io.argv, {}, "stop");
   if (positionals.length > 0) throw usage(`unexpected argument ${positionals[0]}`, "mitori stop --help");
-  const d = await findDaemon(io, homeOf(io));
+  const home = homeOf(io);
+  const d = await findDaemon(io, home);
   if (!d) {
     io.err("mitori: no daemon is running\n");
     return 0;
   }
-  if (!(await stopDaemon(io, d, "cli"))) {
+  if (!(await stopDaemon(io, d, "cli", home))) {
     io.err(`mitori: the daemon (pid ${d.registry.pid}) did not stop in time\n`);
     return 1;
   }

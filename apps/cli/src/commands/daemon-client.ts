@@ -95,14 +95,18 @@ async function waitFor<T>(io: Io, ms: number, probe: () => Promise<T | null> | T
   }
 }
 
-/** Stop `d` and wait until its process is gone. */
-export async function stopDaemon(io: Io, d: Daemon, reason: string): Promise<boolean> {
+/**
+ * Stop `d` and wait until it is gone: its process exited, or it removed its registry — the last step of its shutdown
+ * (a daemon whose parent has not reaped it yet still answers `kill(pid, 0)`).
+ */
+export async function stopDaemon(io: Io, d: Daemon, reason: string, home: string): Promise<boolean> {
   try {
     await apiOf(io, d).call("POST /daemon/shutdown", { params: {}, body: { reason } });
   } catch {
     // already going away
   }
-  return (await waitFor(io, DAEMON_WAIT.stopMs, () => (pidAlive(d.registry.pid) ? null : true))) === true;
+  const gone = () => !pidAlive(d.registry.pid) || readRegistry(home)?.pid !== d.registry.pid;
+  return (await waitFor(io, DAEMON_WAIT.stopMs, () => (gone() ? true : null))) === true;
 }
 
 async function idle(io: Io, d: Daemon): Promise<boolean> {
@@ -132,7 +136,7 @@ export async function ensureDaemon(io: Io, home: string): Promise<Daemon> {
       throw new MitoriError("E_VERSION_MISMATCH", `the running daemon speaks API v${found.health.apiVersion} and is busy`, {
         params: { daemon: found.health.version, cli: io.version },
       });
-    if (!(await stopDaemon(io, found, "version"))) throw new MitoriError("E_CONFLICT", `the v${found.health.version} daemon did not stop`);
+    if (!(await stopDaemon(io, found, "version", home))) throw new MitoriError("E_CONFLICT", `the v${found.health.version} daemon did not stop`);
   }
   io.spawnDaemon(home);
   const d = await waitFor(io, DAEMON_WAIT.startMs, () => findDaemon(io, home, 500));

@@ -240,7 +240,18 @@ describe("usage / stop / doctor", () => {
     expect(await runCommand("usage", io(["--range", "year"]))).toBe(2);
   });
 
-  test("stop with no daemon running says so and exits 0 (the live path is in daemon-client.int.test.ts)", async () => {
+  test("stop: POST /daemon/shutdown, then wait until the daemon removed its registry", async () => {
+    d.route("POST /daemon/shutdown", () => {
+      setTimeout(() => d.registry(null), 20);
+      return { ok: true };
+    });
+    const t = io([]);
+    expect(await runCommand("stop", t)).toBe(0);
+    expect(d.calls("POST /daemon/shutdown")[0]?.body).toEqual({ reason: "cli" });
+    expect(t.stderr).toBe(`mitori: stopped (pid ${process.pid})\n`);
+  });
+
+  test("stop with no daemon running says so and exits 0", async () => {
     d.registry(null);
     const none = io([]);
     expect(await runCommand("stop", none)).toBe(0);
