@@ -11,7 +11,7 @@ import { type GateResult, type GateSpec, type GitOid, type JobId, MitoriError, n
 import type { RunnerCore } from "../jobs/core.ts";
 import { runOnCopies } from "./copies.ts";
 import { supportFiles } from "./detect.ts";
-import { gatePreview, gateTrust } from "./trust.ts";
+import { changedTrustInputs, gatePreview, gateTrust, type TreeChange, treeSpecs } from "./trust.ts";
 
 const dec = new TextDecoder();
 /** Symlinks the worktree has on purpose (dependency links, spec §7.3): never removed by a sync. */
@@ -24,10 +24,18 @@ export type TreeTexts = Readonly<Record<RepoPath, string | null>>;
  * Split `specs` by trust (gates/trust.ts: the untrusted rest is asked for once, as one set). `all` is the job's whole
  * gate list: the set a human trusted is judged on it, also when only some of its gates run now (a consent run).
  */
-export function trustSplit(core: RunnerCore, specs: readonly GateSpec[], all: readonly GateSpec[] = specs): { runnable: GateSpec[]; results: GateResult[] } {
+export function trustSplit(
+  core: RunnerCore,
+  detected: readonly GateSpec[],
+  all: readonly GateSpec[] = detected,
+  changes: readonly TreeChange[] = [],
+): { runnable: GateSpec[]; results: GateResult[] } {
   const results: GateResult[] = [];
   const runnable: GateSpec[] = [];
-  const universe = [...all, ...specs.filter((s) => !all.some((a) => a.id === s.id))];
+  // the tree's own changes to a gate's trust inputs re-ask for trust (gates/trust.ts treeSpecs)
+  const specs = treeSpecs(core.deps.hasher.sha256, detected, changes);
+  const universe = treeSpecs(core.deps.hasher.sha256, [...all, ...detected.filter((s) => !all.some((a) => a.id === s.id))], changes);
+  const touched = changedTrustInputs(changes);
   const { trusted, rest, setHash, set } = gateTrust((h) => core.deps.trust("gates", h), core.deps.hasher.sha256, universe);
   const ok = new Map(universe.map((s, i) => [s.id, trusted[i] === true]));
   for (const spec of specs) {
@@ -42,7 +50,10 @@ export function trustSplit(core: RunnerCore, specs: readonly GateSpec[], all: re
         id: newId("trust", core.deps.random) as TrustRequest["id"],
         item: "gates",
         hash: setHash,
-        preview: rest.map(gatePreview).join("\n"),
+        preview: [
+          ...(touched.length > 0 ? [`この変更が検査の設定を書き換えています: ${touched.slice(0, 10).join(", ")}${touched.length > 10 ? " …" : ""}`] : []),
+          ...rest.map(gatePreview),
+        ].join("\n"),
         status: set === "denied" ? "denied" : "pending",
       },
     });
@@ -170,7 +181,16 @@ export async function checksInWorktree(
   if (specs.length === 0) return [];
   const opts = { consent, sandbox: core.deps.sandbox };
   await syncWorktree(core, wt, base, want);
-  let results: GateResult[];
+  let results: GateResult[] = [];
+  // a worktree that cannot be put back to the tree under test (a gate replaced its `.git`, or a directory by a
+  // symlink the writer refuses to follow) must not be used again: the job fails as a scope violation. An error of the
+  // gates themselves (e.g. RT-31's dependency_changed) is the one reported.
+  let broken: MitoriError | null = null;
+  const restore = () =>
+    syncWorktree(core, wt, base, want).catch((e: unknown) => {
+      broken = MitoriError.from(e);
+      core.deps.log.warn("worktree sync after gates failed", { worktree: wt, error: broken.message });
+    });
   try {
     results = await core.deps.gates.run(wt, [...specs], [...changed], opts, signal);
     const failed = results.find((r) => r.status === "fail");
@@ -188,11 +208,18 @@ export async function checksInWorktree(
         } else failed.excerpt = added.join("\n");
       }
     }
-  } finally {
-    await syncWorktree(core, wt, base, want).catch((e: unknown) =>
-      core.deps.log.warn("worktree sync after gates failed", { worktree: wt, error: MitoriError.from(e).message }),
-    );
+  } catch (e) {
+    await restore();
+    throw e;
   }
+  await restore();
+  const err = broken as MitoriError | null;
+  if (err !== null && !signal.aborted)
+    throw err.code === "E_SCOPE_VIOLATION"
+      ? err
+      : new MitoriError("E_SCOPE_VIOLATION", `the gates left the job worktree in a state that cannot be restored: ${err.message}`, {
+          params: { reason: "worktree_tampered" },
+        });
   return results;
 }
 
@@ -219,7 +246,8 @@ export async function gatePatchTree(
   signal: AbortSignal,
 ): Promise<{ results: GateResult[]; formatted: Record<RepoPath, string> }> {
   const chosen = specs.filter((s) => !opts.only || opts.only.includes(s.id));
-  const { runnable, results } = trustSplit(core, chosen, core.store.get(id)?.extra.gateSpecs ?? specs);
+  const changes = (await core.deps.git.ws.rawDiff(base, head)).map((c) => ({ path: c.path, newOid: c.newOid }));
+  const { runnable, results } = trustSplit(core, chosen, core.store.get(id)?.extra.gateSpecs ?? specs, changes);
   const format = runnable.filter((s) => s.kind === "format");
   const checks = runnable.filter((s) => s.kind !== "format");
   const f = await formatOnCopies(core, id, format, files, head, opts.consent, signal);

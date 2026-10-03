@@ -7,7 +7,7 @@
 // (no Bash), `dontAsk` and one `Edit(//abs)` rule per write-scope path; nothing reaches the user's tree before a human
 // accepts; the accept is uncommitted and undoable; out-of-scope writes fail the job without escalation.
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ChildHandle, Spawner, SpawnSpec } from "@mitori/agent";
 import { createFakeSpawner, promptOfStdin, REQUIRED_FLAGS, type ScriptLine, synth } from "@mitori/agent/testing";
@@ -863,7 +863,118 @@ describe("INT-08 injection red-team in agent mode (RT-01 / RT-07 / RT-19 / RT-31
     expect(read("README.md")).toBe(readme);
     expect(existsSync(join(repo.root, ".vscode"))).toBe(false);
     expect(userRepoState()).toEqual(before as never);
-    expect(existsSync(failed.worktree ?? join(int.home, "wt", ws, job.id))).toBe(false);
+    const wt = failed.worktree ?? join(int.home, "wt", ws, job.id);
+    for (let i = 0; i < 250 && existsSync(wt); i++) await Bun.sleep(20);
+    expect(existsSync(wt)).toBe(false);
+  });
+
+  test("WP-08c: a turn that rewrites the worktree's .git pointer fails the job; mitori's git never follows it; user repo untouched", async () => {
+    const before = userRepoState();
+    const t = await countThread("Count を足して（gitdir）");
+    scenarios.unshift({
+      name: "gitdir",
+      match: (p) => p.includes("（gitdir）"),
+      turns: [
+        {
+          targets: [STORE],
+          edit: (cwd) => {
+            edit(cwd, STORE, COUNT_IFACE_OLD, COUNT_IFACE_NEW);
+            // a harmless stand-in for any rewrite of the pointer: it names the user's own repository
+            writeFileSync(join(cwd, ".git"), `gitdir: ${join(repo.root, ".git")}\n`);
+          },
+          structured: { summary: "done", files_changed: [STORE], doc_updates: [], threads: [{ id: t.thread.id, status: "done", body: "ok" }] },
+        },
+      ],
+    });
+    const { job } = await createJob(t.thread, t.context);
+    const failed = await jobUntil(job.id, ["failed"]);
+    expect(failed.failure?.code).toBe("E_SCOPE_VIOLATION");
+    expect(failed.failure?.message).toContain(".git");
+    expect(failed.failure?.actions).not.toContain("escalate");
+    expect((await api<{ items: Job[] }>("GET", `/jobs?thread=${t.thread.id}`)).items).toHaveLength(1);
+    // the user's index, objects and refs were never touched through the rewritten pointer
+    expect(userRepoState()).toEqual(before as never);
+    // the failed job's worktree is removed right after the failure is recorded
+    const wt = join(int.home, "wt", ws, job.id);
+    for (let i = 0; i < 250 && existsSync(wt); i++) await Bun.sleep(20);
+    expect(existsSync(wt)).toBe(false);
+  });
+
+  test("WP-08c: a write-scope path through a committed symlinked directory fails before the engine runs; nothing lands outside", async () => {
+    const outside = join(repo.root, "..", "int08-outside");
+    mkdirSync(outside, { recursive: true });
+    symlinkSync(outside, join(repo.root, "linked"));
+    git("add", "linked");
+    git("commit", "-q", "-m", "a symlinked directory");
+    const before = userRepoState();
+    const start = lineOf(MEMORY, "func (m *MemoryStore) Get");
+    const thread = await api<ThreadDetail>("POST", "/threads", {
+      anchor: { primary: "code", code: { path: MEMORY, start, end: start + 9 } },
+      intent: "change",
+      body: "新しいファイルに書いて（symlink）",
+      draft: false,
+    });
+    scenarios.unshift({
+      name: "symlink",
+      match: (p) => p.includes("（symlink）"),
+      turns: [
+        {
+          tools: ["Read", "Edit", "Glob", "Grep", "Write", "StructuredOutput"],
+          targets: ["linked/new.go"],
+          edit: (cwd) => writeFileSync(join(cwd, "linked/new.go"), "package linked\n"),
+          structured: { summary: "done", files_changed: ["linked/new.go"], doc_updates: [], threads: [{ id: thread.id, status: "done", body: "ok" }] },
+        },
+      ],
+    });
+    const { job } = await createJob(thread, { add: [{ path: "linked/new.go", start: 0, end: 0 }] }, { mode: "agent" });
+    const failed = await jobUntil(job.id, ["failed"]);
+    expect(failed.failure?.code).toBe("E_SCOPE_VIOLATION");
+    expect(failed.failure?.message).toContain("symlink");
+    expect(failed.failure?.actions).not.toContain("escalate");
+    // the engine was never spawned, so nothing was written through the link
+    expect(spawns.some((s) => s.scenario === "symlink")).toBe(false);
+    expect(readdirSync(outside)).toEqual([]);
+    expect(userRepoState()).toEqual(before as never);
+  });
+
+  test("RT-31 re-trust: a diff that changes go.mod makes the trusted gate set ask again before anything runs on it", async () => {
+    const before = await api<TrustRequest[]>("GET", "/trust");
+    const start = lineOf(MEMORY, "func (m *MemoryStore) Get");
+    const thread = await api<ThreadDetail>("POST", "/threads", {
+      anchor: { primary: "code", code: { path: MEMORY, start, end: start + 9 } },
+      intent: "change",
+      body: "Get の説明を足して、go.mod にもメモを（retrust）",
+      draft: false,
+    });
+    scenarios.unshift({
+      name: "retrust",
+      match: (p) => p.includes("（retrust）"),
+      turns: [
+        {
+          targets: ["go.mod", MEMORY],
+          edit: (cwd) => {
+            writeFileSync(join(cwd, "go.mod"), `${readFileSync(join(cwd, "go.mod"), "utf8")}\n// reviewed\n`);
+            edit(cwd, MEMORY, "func (m *MemoryStore) Get", "// Get returns one book.\nfunc (m *MemoryStore) Get");
+          },
+          structured: { summary: "done", files_changed: ["go.mod", MEMORY], doc_updates: [], threads: [{ id: thread.id, status: "done", body: "ok" }] },
+        },
+      ],
+    });
+    const { est, job } = await createJob(thread, { add: [{ path: "go.mod", start: 0, end: 0 }] }, { mode: "agent" });
+    expect(est.route.mode).toBe("agent");
+    const ready = await jobUntil(job.id, ["ready"]);
+    // the repository's gate set was trusted earlier in this file; this tree changed one of its inputs
+    expect(ready.gates.map((g) => [g.gate, g.status])).toEqual([
+      ["fmt:gofmt", "untrusted"],
+      ["test:go", "untrusted"],
+      ["typecheck:go-vet", "untrusted"],
+    ]);
+    const asked = (await api<TrustRequest[]>("GET", "/trust")).filter(
+      (t) => t.item === "gates" && t.status === "pending" && !before.some((b) => b.id === t.id),
+    );
+    expect(asked).toHaveLength(1);
+    expect(asked[0]?.preview.split("\n")[0]).toBe("この変更が検査の設定を書き換えています: go.mod");
+    await api("POST", `/jobs/${job.id}/reject`, {});
   });
 
   test("RT-31: without a sandbox a consented test that rewrites a linked dependency discards the job", async () => {

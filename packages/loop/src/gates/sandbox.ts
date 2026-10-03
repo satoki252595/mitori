@@ -1,5 +1,6 @@
 // OS sandbox for gates (ADR-0013 3): no network; writes only to the worktree (or temp-copy tree), the job TMPDIR
-// and CARGO_TARGET_DIR; reads of ~/.ssh ~/.aws ~/.config/gh ~/.mitori ~/.claude* and the keychains denied (the
+// and CARGO_TARGET_DIR — never to the tree's own `.git` pointer (mitori's later version-control calls in the
+// worktree must not be redirected by the code under test, WP-08c); reads of ~/.ssh ~/.aws ~/.config/gh ~/.mitori ~/.claude* and the keychains denied (the
 // gate's own tree inside ~/.mitori is re-allowed). macOS: `sandbox-exec -p <SBPL>`, Linux: `bwrap`.
 
 /** Paths the profile is built from (all absolute realpaths). */
@@ -42,6 +43,7 @@ export function seatbeltProfile(p: SandboxPaths): string {
     "(allow network* (remote unix-socket))",
     "(deny file-write*)",
     `(allow file-write* ${writable.map((d) => `(subpath ${sbplString(d)})`).join(" ")} (literal "/dev/null") (literal "/dev/tty") (literal "/dev/dtracehelper") (regex #"^/dev/fd/"))`,
+    `(deny file-write* (subpath ${sbplString(`${p.tree}/.git`)}))`,
     `(deny file-read* ${sensitiveDirs(p)
       .map((d) => `(subpath ${sbplString(d)})`)
       .join(" ")}${p.userHome ? ` (regex #"^${sbplRegex(p.userHome)}/\\.claude")` : ""})`,
@@ -58,6 +60,7 @@ export function sandboxed(kind: "sandbox-exec" | "bwrap" | "none", p: SandboxPat
   for (const d of sensitiveDirs(p)) if (p.exists(d)) args.push("--tmpfs", d);
   for (const e of p.claudeEntries) if (p.exists(e)) args.push("--tmpfs", e);
   for (const d of [p.tree, p.jobTmp, p.cargoTarget, ...(p.caches ?? [])]) if (p.exists(d)) args.push("--bind", d, d);
+  if (p.exists(`${p.tree}/.git`)) args.push("--ro-bind", `${p.tree}/.git`, `${p.tree}/.git`);
   args.push("--unshare-net", "--unshare-pid", "--die-with-parent", "--new-session", "--chdir", cwd, "--", ...argv);
   return args;
 }

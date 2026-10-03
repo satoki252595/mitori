@@ -92,6 +92,28 @@ async function parseAgentTurn(
   }
 }
 
+/**
+ * Before every agent turn: the Edit rules name `<wt>/<path>`, and the Edit / Write tools follow symlinks — so no
+ * write-scope path may reach its file through a symlink (a committed symlinked directory, a dependency link, or one
+ * a gate left behind), and the worktree's `.git` must still be the file git wrote. Otherwise the job fails before the
+ * engine runs (`E_SCOPE_VIOLATION`, no repair, no escalation).
+ */
+export async function assertWorktreeScope(core: RunnerCore, wt: string, scope: readonly RepoPath[]): Promise<void> {
+  await core.deps.git.ws.worktreeAdmin(wt);
+  for (const path of scope) {
+    const parts = path.split("/");
+    for (let i = 1; i <= parts.length; i++) {
+      const sub = parts.slice(0, i).join("/");
+      const st = core.deps.fs.stat(`${wt}/${sub}`);
+      if (st === null) break; // a declared new file (or its new directory): created by the tool inside the worktree
+      if (st.isSymlink || (i < parts.length && !st.isDir) || (i === parts.length && !st.isFile))
+        throw new MitoriError("E_SCOPE_VIOLATION", `the write-scope path ${path} goes through ${st.isSymlink ? "a symlink" : "a non-regular file"} (${sub})`, {
+          params: { reason: "symlink_in_scope", path, at: sub, actions: "copy_prompt" },
+        });
+    }
+  }
+}
+
 /** Denied tool calls of a turn ⇒ one visible system line per thread (the post-check still decides, RT-07). */
 async function noteDenials(core: RunnerCore, id: JobId, r: EngineResult): Promise<void> {
   if (r.denials.length === 0) return;
@@ -126,6 +148,7 @@ export async function runAgent(core: RunnerCore, id: JobId, plan: JobPlan, signa
     },
     { pipeline: true },
   );
+  await assertWorktreeScope(core, cwd, plan.scope.writeScope);
   core.phase(id, "spawn");
   const began = core.deps.clock.now();
   const run = core.deps.scheduler.submit(agentRequest(core, id, plan, cwd)(), signal);
@@ -150,8 +173,14 @@ async function gateWorktree(
   signal: AbortSignal,
 ): Promise<{ results: GateResult[]; head: GitOid }> {
   const specs: GateSpec[] = plan.gates.map((g) => g.spec);
-  const { runnable, results } = trustSplit(core, specs);
-  const changed = (await core.deps.git.ws.rawDiff(base, head)).filter((c) => c.newOid !== null).map((c) => c.path);
+  const diff = await core.deps.git.ws.rawDiff(base, head);
+  const { runnable, results } = trustSplit(
+    core,
+    specs,
+    specs,
+    diff.map((c) => ({ path: c.path, newOid: c.newOid })),
+  );
+  const changed = diff.filter((c) => c.newOid !== null).map((c) => c.path);
   const opts = { consent: false, sandbox: core.deps.sandbox };
   const format = runnable.filter((g) => g.kind === "format");
   const checks = runnable.filter((g) => g.kind !== "format");
@@ -281,6 +310,8 @@ async function agentRepairTurn(
     },
     { pipeline: true },
   );
+  // the gates of the last attempt ran repo code in this worktree: check it again before the engine edits it
+  await assertWorktreeScope(core, wt, plan.scope.writeScope);
   core.phase(id, "repair", retry.kind === "gate" ? (failingGate(retry.gates ?? [])?.gate ?? "gate") : "revise");
   const msg = await core.deps.bundles.repair({
     job: retry.kind === "gate" ? { ...saved.job, attempt: saved.job.attempt - 1 } : saved.job,

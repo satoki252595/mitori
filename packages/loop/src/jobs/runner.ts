@@ -215,7 +215,13 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
         r.job.failure = { code: err.code, message: err.message.slice(0, 300), actions: ["copy_prompt"] };
         for (const t of r.job.threads) {
           core.threads.fire(t, "cancel", "system");
-          core.threads.say(t, id, "system", "system", `検査の実行中に依存ディレクトリが書き換えられたため、この変更を破棄しました（${err.code}）。`);
+          core.threads.say(
+            t,
+            id,
+            "system",
+            "system",
+            `検査の実行中に依存ディレクトリまたはジョブの作業ツリーが書き換えられたため、この変更を破棄しました（${err.code}）。`,
+          );
         }
         core.store.unlock(id);
       })
@@ -369,8 +375,10 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
         ran = await runGates(core, id, gates);
       } catch (e) {
         const err = MitoriError.from(e);
-        // RT-31: a consented gate rewrote a linked dependency tree — the job must not stay acceptable
-        if ((err.params as { reason?: unknown } | undefined)?.reason === "dependency_changed") await discardTampered(id, err);
+        // RT-31: a consented gate rewrote a linked dependency tree, or left the job worktree tampered with (its `.git`,
+        // a symlinked directory) — the job must not stay acceptable
+        const reason = (err.params as { reason?: unknown } | undefined)?.reason;
+        if (reason === "dependency_changed" || reason === "worktree_tampered") await discardTampered(id, err);
         throw err;
       }
       // ADR-0013 4: the repair loop waited for this consent — a failing consented gate gets a REPAIR turn (bounded

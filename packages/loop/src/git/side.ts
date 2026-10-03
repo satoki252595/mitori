@@ -155,10 +155,41 @@ export class GitWorkspace {
   }
 
   /** Run inside a job worktree of the side repo (its `.git` file points at `side.git/worktrees/<id>`). */
-  inWorktree(wt: string, args: readonly string[], extra: Omit<GitCall, "cwd" | "gitDir" | "workTree"> = {}): Promise<GitOut> {
+  async inWorktree(wt: string, args: readonly string[], extra: Omit<GitCall, "cwd" | "gitDir" | "workTree"> = {}): Promise<GitOut> {
+    // GIT_DIR / GIT_WORK_TREE are pinned to the worktree's admin dir in side.git: git never discovers its repository
+    // through `<wt>/.git`, a file that code run inside the worktree (agent edits, gates) could have replaced (WP-08c)
+    const admin = await this.worktreeAdmin(wt);
     const call = this.sideCall({ ...extra, cwd: wt });
-    delete call.gitDir;
+    call.gitDir = admin;
+    call.workTree = wt;
     return this.exec.run(args, call);
+  }
+
+  /**
+   * The side.git admin dir of a job worktree, checked both ways: its `gitdir` names `<wt>/.git`, and `<wt>/.git` is
+   * still the regular file git wrote (`gitdir: <admin>`). Anything else ⇒ `E_SCOPE_VIOLATION` (the worktree was
+   * tampered with; the job must not continue).
+   */
+  async worktreeAdmin(wt: string): Promise<string> {
+    const fs = this.deps.fs;
+    const text = async (abs: string): Promise<string | null> => (fs.stat(abs)?.isFile ? dec.decode(await fs.read(abs)).trim() : null);
+    const same = (a: string | null, b: string) => a !== null && (a === b || (fs.realpath(a) ?? a) === (fs.realpath(b) ?? b));
+    const root = `${this.sideDir}/worktrees`;
+    const named = `${root}/${wt.slice(wt.lastIndexOf("/") + 1)}`;
+    const candidates = [named, ...(fs.readdir(root) ?? []).map((n) => `${root}/${n}`).filter((d) => d !== named)];
+    let admin: string | null = null;
+    for (const d of candidates) {
+      if (same(await text(`${d}/gitdir`), `${wt}/.git`)) {
+        admin = d;
+        break;
+      }
+    }
+    if (!admin) throw new MitoriError("E_GIT_FAILED", "not a worktree of the side repo", { params: { worktree: wt } });
+    const dotGit = fs.stat(`${wt}/.git`);
+    const pointer = dotGit?.isFile && !dotGit.isSymlink ? await text(`${wt}/.git`) : null;
+    if (pointer === null || !pointer.startsWith("gitdir: ") || !same(pointer.slice("gitdir: ".length), admin))
+      throw new MitoriError("E_SCOPE_VIOLATION", "the job worktree's .git was changed", { params: { reason: "worktree_tampered", worktree: wt } });
+    return admin;
   }
 
   /** Run in the user's repository. */
