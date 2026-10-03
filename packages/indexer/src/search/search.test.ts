@@ -36,6 +36,9 @@ describe("IDX-U search (spec §8): FTS5 trigram + fallback", () => {
     const mod = p.structure.modules[0];
     const m = search(db, mod?.name.slice(0, 5) ?? "", ["module"], 5, o);
     expect(m[0]?.href).toBe(HREFS.doc(WS, `s6/${mod?.slug}`));
+    // a module is also found by its representative symbols (spec §8 module row body)
+    const owner = p.structure.moduleOf.get("src/db/repo.ts");
+    expect(search(db, "BookRepo", ["module"], 5, o).map((h) => h.id)).toContain(owner as string);
     // scores are descending; snippets never carry raw markup from the source text
     for (const hits of [repo, route, file])
       for (let i = 1; i < hits.length; i++) expect((hits[i - 1] as { score: number }).score).toBeGreaterThanOrEqual((hits[i] as { score: number }).score);

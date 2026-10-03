@@ -45,9 +45,22 @@ export function searchRows(files: readonly StageFile[], structure: StructureResu
   const rows: SearchRow[] = [];
   const included = files.filter((f) => f.excluded === undefined).sort((a, b) => (a.path < b.path ? -1 : 1));
   for (const f of included) rows.push({ kind: "file", id: f.path, label: baseOf(f.path), sub: dirOf(f.path), body: f.path, path: f.path });
+  const rank = (p: RepoPath) => structure.fileRank.get(p) ?? 0;
+  const byPath = new Map(files.map((f) => [f.path, f]));
+  const leavesOf = new Map(structure.modules.map((m) => [m.id, m]));
+  const memberPaths = (m: StructureResult["modules"][number], hops = 0): RepoPath[] =>
+    m.paths.length > 0 || hops > 4 ? m.paths : m.children.flatMap((c) => (leavesOf.has(c) ? memberPaths(leavesOf.get(c) as typeof m, hops + 1) : []));
   for (const m of structure.modules) {
-    const reps = m.reps.slice(0, 10).join(" ");
-    rows.push({ kind: "module", id: m.id, label: m.name, sub: m.slug, body: `${m.dominantDir} ${reps}`, slug: m.slug });
+    // body = dominant dir + 10 representative symbols (exported top-level, highest-ranked files first), spec §8
+    const names: string[] = [];
+    for (const p of [...memberPaths(m)].sort((a, b) => rank(b) - rank(a) || (a < b ? -1 : 1))) {
+      for (const s of byPath.get(p)?.symbols ?? []) {
+        if (names.length >= 10) break;
+        if (s.exported && s.parent === undefined && s.kind !== "field" && !names.includes(s.name)) names.push(s.name);
+      }
+      if (names.length >= 10) break;
+    }
+    rows.push({ kind: "module", id: m.id, label: m.name, sub: m.slug, body: `${m.dominantDir} ${names.join(" ")}`.trim(), slug: m.slug });
   }
   for (const f of facts) {
     const l = factLabel(f);
@@ -62,7 +75,6 @@ export function searchRows(files: readonly StageFile[], structure: StructureResu
         line: f.line,
       });
   }
-  const rank = (p: RepoPath) => structure.fileRank.get(p) ?? 0;
   const symbols: SearchRow[] = [];
   for (const f of included)
     for (const s of f.symbols) {
