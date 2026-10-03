@@ -389,6 +389,8 @@ export interface ExistingRef {
   stale: boolean;
   /** Claim count. */
   claims: number;
+  /** Section, when the task lists blocks of several sections (gen.flows: `s3/<key>`). */
+  section?: SectionId;
 }
 
 /** Everything the validator needs for one task. */

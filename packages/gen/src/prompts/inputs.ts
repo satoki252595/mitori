@@ -605,13 +605,16 @@ class Gatherer {
    */
   private existing(sections: readonly SectionId[], keep: (blk: Block) => boolean = (blk) => blk.aspect !== "files"): string[] {
     const b = this.budget("EXISTING", "existing blocks");
+    // several sections (the flows: s3 + s3/<key>): each line says where its block is, or a kept block cannot be placed
+    // and the regeneration cannot tell which flow it describes [real run 2026-10-04: m3e §3 regen duplicated every flow]
+    const where = sections.some((s) => s.startsWith("s3/"));
     for (const sid of sections) {
       for (const blk of this.env.doc.section(sid)?.blocks ?? []) {
         if (blk.origin === "static" || blk.status === "placeholder" || !keep(blk)) continue;
         const stale = blk.freshness === "stale" ? "yes" : "no";
         const lock = blk.lock ? "human" : "-";
         b.add([
-          `> ${blk.id} aspect=${blk.aspect ?? "-"} kind=${blk.kind} depth=${blk.depth} stale=${stale} lock=${lock} claims=${blk.claims.length} | ${this.summary(blk)}`,
+          `> ${blk.id}${where ? ` section=${sid}` : ""} aspect=${blk.aspect ?? "-"} kind=${blk.kind} depth=${blk.depth} stale=${stale} lock=${lock} claims=${blk.claims.length} | ${this.summary(blk)}`,
         ]);
       }
     }

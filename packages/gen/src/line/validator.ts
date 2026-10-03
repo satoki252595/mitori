@@ -108,6 +108,8 @@ export class GenLineValidator implements LineValidator {
   private readonly newRefs = new Set<string>();
   private readonly accounted = new Set<BlockId>();
   private readonly flowKeys: string[] = [];
+  /** Flows whose blocks were kept (regeneration) without a flow line of their own. */
+  private readonly keptFlows = new Set<string>();
   private readonly moduleLines = new Set<ModuleId>();
   private readonly accepted: { section: SectionId; aspect: BlockAspect | undefined }[] = [];
   private readonly flowsEnabled: boolean;
@@ -189,13 +191,14 @@ export class GenLineValidator implements LineValidator {
       this.accepted.some((a) => a.aspect === aspect && (section === null || a.section === section));
     const missing: BlockAspect[] = [];
     const flowGaps: { key: string; aspect: BlockAspect }[] = [];
+    const flows = [...this.flowKeys, ...[...this.keptFlows].filter((k) => !this.flowKeys.includes(k))];
     if (this.flowsEnabled) {
       for (const a of ctx.requiredAspects) {
         if (!FLOW_ASPECTS.includes(a)) {
           if (!has(null, a)) missing.push(a);
           continue;
         }
-        const lacking = this.flowKeys.filter((k) => !has(`s3/${k}`, a));
+        const lacking = flows.filter((k) => !has(`s3/${k}`, a));
         if (lacking.length > 0) missing.push(a);
         for (const key of lacking) flowGaps.push({ key, aspect: a });
       }
@@ -207,10 +210,10 @@ export class GenLineValidator implements LineValidator {
       ...(flowGaps.length > 0 ? { flowGaps } : {}),
       unaccounted: [...ctx.existing.keys()].filter((id) => !this.accounted.has(id)),
       moduleLineMissing,
-      flows: this.flowKeys.length,
+      flows: flows.length,
       blocks: this.accepted.length,
       truncated,
-      ok: missing.length === 0 && !moduleLineMissing && this.flowKeys.length >= ctx.flows.min && !truncated,
+      ok: missing.length === 0 && !moduleLineMissing && flows.length >= ctx.flows.min && !truncated,
     };
   }
 
@@ -596,6 +599,14 @@ export class GenLineValidator implements LineValidator {
     else if (this.accounted.has(id as BlockId)) c.err("V26", "/id", "each EXISTING id accounted once", id);
     if (!c.ok) return null;
     this.accounted.add(id as BlockId);
+    // a kept block still covers its aspect (and its flow): otherwise a regeneration that keeps a page is told the
+    // required aspects are missing and writes them a second time [real run 2026-10-04: m3e §3 regen]
+    const ref = this.ctx.existing.get(id as BlockId);
+    if (t === "keep" && ref) {
+      const section = ref.section ?? this.ctx.primarySection;
+      this.accepted.push({ section, aspect: ref.aspect });
+      if (this.flowsEnabled && section.startsWith("s3/")) this.keptFlows.add(section.slice(3));
+    }
     return { t, id: id as BlockId };
   }
 

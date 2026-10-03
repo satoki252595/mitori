@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { BlockAspect, BlockId, ModuleId, SectionId } from "@mitori/core";
 import type { CitableSet, ExistingRef, GenBlockLine, GenClaimDraft, GenLineType, LineVerdict, ValidationContext } from "../contract.ts";
+import { parseExisting } from "../prompts/context.ts";
 import { sectionAspects } from "./aspects.ts";
 import { parseCiteObject, parseCompactClaim } from "./claims.ts";
 import { createLineValidator } from "./index.ts";
@@ -548,6 +549,16 @@ describe("regeneration accounting (AC-12)", () => {
     const { verdicts } = run([j({ t: "keep", id: B1 })]);
     expect(rules(verdicts[0] as LineVerdict)).toEqual(["V02"]);
   });
+
+  test("kept blocks cover their required aspects: a page kept as it is needs no retry (real run 2026-10-04: duplicated blocks)", () => {
+    const { v } = run([j({ t: "keep", id: B1 }), j({ t: "keep", id: B2 }), j({ t: "module", module: MOD, name: "x" })], ctx({ existing }));
+    const cov = v.finish("end");
+    expect(cov.missingAspects).toEqual([]);
+    expect(cov.ok).toBe(true);
+    // a deleted block does not
+    const del = run([j({ t: "keep", id: B1 }), j({ t: "delete", id: B2 }), j({ t: "module", module: MOD, name: "x" })], ctx({ existing })).v.finish("end");
+    expect(del.missingAspects).toEqual(["interface"]);
+  });
 });
 
 describe("module, term, flow lines", () => {
@@ -615,6 +626,28 @@ describe("module, term, flow lines", () => {
     const late = v.validate(blk("steps"), 99);
     expect(blockOf(late).section).toBe("s3/b");
     expect(v.finish("end").ok).toBe(true);
+  });
+
+  test("flows regeneration: kept blocks count for their flow (section= in EXISTING), with or without the flow line", () => {
+    const ref = (id: string, section: string, aspect: string): [BlockId, ExistingRef] => [
+      id as BlockId,
+      { id: id as BlockId, aspect: aspect as BlockAspect, kind: "prose", origin: "ai", stale: false, claims: 0, section: section as SectionId },
+    ];
+    const existing = new Map<BlockId, ExistingRef>([
+      ref("b_aaaaaaa1", "s3", "intro"),
+      ref("b_aaaaaaa2", "s3/login", "summary"),
+      ref("b_aaaaaaa3", "s3/login", "steps"),
+      ref("b_aaaaaaa4", "s3/logout", "summary"),
+      ref("b_aaaaaaa5", "s3/logout", "steps"),
+    ]);
+    const c = { ...flowsCtx(), lineTypes: ["block", "keep", "delete", "flow", "question", "end"] as GenLineType[], existing };
+    const keepAll = ["b_aaaaaaa1", "b_aaaaaaa2", "b_aaaaaaa3", "b_aaaaaaa4", "b_aaaaaaa5"].map((id) => j({ t: "keep", id }));
+    const withFlowLines = run([keepAll[0] as string, j({ t: "flow", key: "login", title: "ログイン" }), ...keepAll.slice(1)], c).v.finish("end");
+    expect(withFlowLines).toMatchObject({ ok: true, missingAspects: [], flows: 2 });
+    expect(run(keepAll, c).v.finish("end")).toMatchObject({ ok: true, missingAspects: [], flows: 2 });
+    expect(
+      parseExisting(["> b_aaaaaaa2 section=s3/login aspect=summary kind=prose depth=L1 stale=no lock=- claims=1 | x"]).get("b_aaaaaaa2" as BlockId)?.section,
+    ).toBe("s3/login");
   });
 
   test("W10: a diagram caption loses its markers and claims (never rendered as cites under the drawing)", () => {
