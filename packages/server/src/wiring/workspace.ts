@@ -492,7 +492,17 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
       stopDocWatch?.();
       // a running generation pauses (resumable after the next start, gen §3.7) before the DB goes away
       const run = gen.active();
-      if (run?.state === "running") await gen.control(run.id, "pause").catch((err: unknown) => log.warn("gen pause on close failed", { error: String(err) }));
+      if (run?.state === "running") {
+        await gen.control(run.id, "pause").catch((err: unknown) => log.warn("gen pause on close failed", { error: String(err) }));
+        // CR-PENDING(WP-INT): in-flight calls still settle (task rows written) after the pause; gen exposes `idle()`
+        // only on its internal handle (cr-requests/WP-INT.md). Bounded wait so a stuck call never blocks the stop.
+        const idle = (gen as GenOrchestrator & { idle?: () => Promise<void> }).idle;
+        if (idle) {
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          await Promise.race([idle.call(gen).catch(() => undefined), new Promise<void>((r) => (timer = setTimeout(r, 3000)))]);
+          clearTimeout(timer);
+        }
+      }
       await chain.catch(() => undefined);
       await rawDoc.flush({ force: true }).catch((err: unknown) => log.warn("doc flush on close failed", { error: String(err) }));
       await rawIndexer.close().catch(() => undefined);
