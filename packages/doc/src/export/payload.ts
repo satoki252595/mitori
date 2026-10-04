@@ -33,9 +33,9 @@ import {
 } from "@mitori/core";
 import type { BlockRenderer, DiagramLayouter, DocStore } from "../contract.ts";
 import { L } from "../store/i18n.ts";
+import { withDiagramSvg } from "./inline.ts";
 import { fromMermaid, mermaidFence } from "./mermaid.ts";
 import type { ExportFile, ExportSource } from "./source.ts";
-import { diagramSvg } from "./svg.ts";
 
 /** `ViewerPayload` (apps/web/src/contract.ts §16), structurally; the e2e suite type-checks the two against each other. */
 export interface ExportPayload {
@@ -299,13 +299,7 @@ export async function buildPayload(d: BuildDeps, req: ExportReq): Promise<Payloa
       ...(dg ? { diagram: { ir: dg.ir, layout: { width: dg.layout.width, height: dg.layout.height } } } : {}),
     });
     let inner = compactShiki(exportLinks(renderer.splice(body, claims, { ws: WS, level: "standard" })));
-    if (dg) {
-      const svg = diagramSvg(dg.ir, dg.layout, dg.ir.title ?? b.diagram ?? "diagram");
-      inner = inner.replace(
-        /<figure class="mdiagram"([^>]*)>/,
-        (_m, rest: string) => `<figure class="mdiagram"${rest} data-w="${dg.layout.width}" data-h="${dg.layout.height}">${svg}`,
-      );
-    }
+    if (dg) inner = withDiagramSvg(inner, dg.ir, dg.layout, dg.ir.title ?? b.diagram ?? "diagram");
     // the static doc tells its reader to press buttons of the app (「生成する」, 「決定として残す」): a file has none
     inner = readOnlyWording(inner, b);
     // belt and braces: text nodes of the final HTML (the renderer redacted the Markdown already)

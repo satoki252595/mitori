@@ -6,6 +6,7 @@
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/prose.css";
+import "./styles/diagram.css";
 import "./styles/levels.css";
 import { mount } from "svelte";
 import { createStores } from "../stores/app.svelte.ts";

@@ -34,7 +34,7 @@ import {
   type WorkspaceKey,
   type Xxh3,
 } from "@mitori/core";
-import type { BlockRenderer, DiagramLayouter, DocStore, HighlightReq } from "@mitori/doc";
+import { type BlockRenderer, blockDiagramIr, type DiagramLayouter, type DocStore, type HighlightReq, withDiagramSvg } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
 import { containerDiagram } from "./static-input.ts";
 
@@ -134,6 +134,8 @@ export interface ViewCtx {
   doc: DocStore;
   renderer: BlockRenderer;
   lines: MdLines;
+  /** Diagram layouts (cached by IR digest): the Reader draws diagram blocks as SVG, like the export (NC-03). */
+  layouter?: Pick<DiagramLayouter, "layout">;
   /** Thread counters of a block (open, non-draft total). */
   threads(block: BlockId): { open: number; total: number };
 }
@@ -144,7 +146,8 @@ export async function blockView(c: ViewCtx, b: Block, lang?: DocLang): Promise<B
   const terms = new Map(c.doc.index().glossary.map((g) => [g.term, g.id]));
   const htmlLang = lang ?? b.lang;
   const body = await c.renderer.render(b, claims, { lang: htmlLang, glossaryTerms: terms });
-  const inner = c.renderer.splice(body, claims, { ws: c.ws, level: "standard" });
+  let inner = c.renderer.splice(body, claims, { ws: c.ws, level: "standard" });
+  inner = await drawDiagram(c, b, inner);
   const mdLine = await c.lines.lineOf(b);
   const lock = b.lock ? ` data-lock="${attr(b.lock)}"` : "";
   const html = `<div class="mb" data-block="${b.id}" data-kind="${b.kind}" data-depth="${b.depth}" data-fresh="${b.freshness}"${lock} data-ln="${mdLine}">${inner}</div>`;
@@ -158,6 +161,19 @@ export async function blockView(c: ViewCtx, b: Block, lang?: DocLang): Promise<B
     threads: c.threads(b.id),
     proposals: c.doc.proposals({ state: "pending", block: b.id }).map((p) => p.id),
   };
+}
+
+/** NC-03: a diagram block's SVG in its `figure.mdiagram` (the node list stays as the text alternative). */
+async function drawDiagram(c: ViewCtx, b: Block, inner: string): Promise<string> {
+  if (!c.layouter || !inner.includes('<figure class="mdiagram"')) return inner;
+  const ir = blockDiagramIr(b, c.doc.index().diagrams);
+  if (!ir || ir.nodes.length === 0) return inner;
+  try {
+    const layout = await c.layouter.layout(ir);
+    return withDiagramSvg(inner, ir, layout, ir.title ?? b.diagram ?? "diagram");
+  } catch {
+    return inner; // an unlayoutable diagram keeps its text alternative
+  }
 }
 
 /** `GET /ws/:ws/doc/sections/:section`. */

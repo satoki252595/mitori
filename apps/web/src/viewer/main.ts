@@ -6,6 +6,7 @@
 import "../shell/styles/tokens.css";
 import "../shell/styles/base.css";
 import "../shell/styles/prose.css";
+import "../shell/styles/diagram.css";
 import "../shell/styles/levels.css";
 import "../map/plan.css";
 import "./viewer.css";

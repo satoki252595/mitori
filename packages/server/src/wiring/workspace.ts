@@ -278,6 +278,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
       return doc;
     },
     renderer,
+    layouter,
     lines: new MdLines(deps.fs, docDirAbs(info)),
     // per-block thread badge: unresolved / all non-draft threads whose primary anchor is the block
     threads: (block) => {

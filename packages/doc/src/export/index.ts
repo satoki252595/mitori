@@ -9,6 +9,8 @@ import { buildPayload } from "./payload.ts";
 import { sha256Hex, utf8 } from "./sha256.ts";
 import type { ExportSource } from "./source.ts";
 
+export { blockDiagramIr, withDiagramSvg } from "./inline.ts";
+
 /**
  * Exporter factory [CONS-26]. `viewerAssets` are embedded by the CLI build (doc cannot import apps/web).
  *
