@@ -134,5 +134,7 @@
   "code.otherVersion": "The cite points at lines of {cited}; this is the working tree now ({cur})",
   "reader.genPaused": "Generation is paused. This section is not written yet",
   "reader.genPausedBudget": "Generation paused at 80 % of its budget. This section is not written yet",
-  "reader.genResume": "Resume"
+  "reader.genResume": "Resume",
+  "reader.translateAsk": "Ask the AI to explain it in English",
+  "reader.translateAskBody": "Explain this section in English: the main points and what each name it mentions does."
 }

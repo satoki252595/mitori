@@ -27,6 +27,44 @@ const fiveH = $derived((s.session.window ?? s.session.engine(status?.genEngine ?
 const drawer = $derived("ws" in route && currentLayout(s).railMode === "drawer");
 let wsMenu = $state(false);
 
+// NC-14: the tabs never run into the project chip or the right group (English labels are wider, project names long):
+// when they do not fit, the header sheds the least useful text first — 1: the HEAD / tag and the usage block, 2: the
+// brand's latin line and the search label. Measured on resize and when the language or the name changes (a
+// ResizeObserver callback runs before paint: no visible shift); 120 px of slack before giving text back (no flapping).
+let hdrEl: HTMLElement | undefined = $state();
+let tight = $state(0);
+function fit() {
+  const mid = hdrEl?.querySelector<HTMLElement>(".hdr-m");
+  const tabs = hdrEl?.querySelector<HTMLElement>(".tabs");
+  if (!mid || !tabs) return;
+  const slack = mid.clientWidth - tabs.scrollWidth;
+  if (slack < 0 && tight < 2) {
+    tight++;
+    requestAnimationFrame(fit);
+  } else if (slack > 120 && tight > 0) {
+    tight--;
+    requestAnimationFrame(() => {
+      // giving text back made it overflow again: take it back
+      const m = hdrEl?.querySelector<HTMLElement>(".hdr-m");
+      const tb = hdrEl?.querySelector<HTMLElement>(".tabs");
+      if (m && tb && m.clientWidth < tb.scrollWidth) tight++;
+    });
+  }
+}
+$effect(() => {
+  const el = hdrEl;
+  if (!el || typeof ResizeObserver === "undefined") return;
+  const ro = new ResizeObserver(() => fit());
+  ro.observe(el);
+  return () => ro.disconnect();
+});
+$effect(() => {
+  void s.prefs.lang;
+  void status?.info.name;
+  void s.workspace.head7;
+  requestAnimationFrame(fit);
+});
+
 const LEVELS: ReaderLevel[] = ["newcomer", "standard", "expert"];
 
 function docHref(): string {
@@ -75,7 +113,7 @@ const crumbs = $derived.by(() => {
 });
 </script>
 
-<header class="hdr" data-chrome>
+<header class="hdr" data-chrome bind:this={hdrEl} data-tight={tight || undefined}>
   <div class="hdr-l">
     <button type="button" class="icon-btn menu-btn" class:show={drawer} class:in-review={current === "review"} aria-label={t("header.menu")} aria-expanded={drawer ? s.ui.railOpen : undefined} onclick={() => (s.ui.railOpen = !s.ui.railOpen)}><Icon name="menu" /></button>
     <a class="brand" href="/" aria-label={t("header.home")}>

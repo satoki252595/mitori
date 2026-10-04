@@ -2,12 +2,19 @@
  * UI preferences (theme, reader level, language, single-key shortcuts, rail, code-pane width, last effort):
  * boot from the `mitori_ui` cookie (already applied by the head script), reconcile with `GET /settings` (server
  * wins, cookie rewritten — ux.md §3.2-6), persist with `PATCH /settings` (debounced 1 s) + the cookie.
+ *
+ * A change still waiting for its PATCH survives a reload (NC-14: switching to English and reloading within the
+ * debounce came back in Japanese — the server, which had not heard of it, won): the pending patch is kept in
+ * `localStorage` until the server took it, and a new page sends it before it lets the server's copy win.
  */
 import type { ApiClient } from "@mitori/client";
 import { type DeepPartial, type Effort, type GlobalSettings, MitoriError, type ReaderLevel, type SettingsView, type UiLang } from "@mitori/core";
 import type { UiCookie } from "../contract.ts";
 import { cookieValue, EFFORT_CODES, EFFORT_OF_CODE, LEVEL_CODES, LEVEL_OF_CODE, parseUiCookieFields, uiCookieString } from "../shell/cookie.ts";
-import { readCookies, writeCookie } from "../shell/storage.ts";
+import { getJson, readCookies, removeItem, setJson, writeCookie } from "../shell/storage.ts";
+
+/** The unsent settings patch (a reload inside the debounce must not lose it). */
+export const PENDING_PREFS_KEY = "mitori:prefs:pending";
 
 export type Theme = "system" | "light" | "dark";
 
@@ -34,6 +41,24 @@ export class PrefsState {
     if (f.rc !== undefined) this.railCollapsed = f.rc === 1;
     if (f.cw !== undefined) this.codeWidth = f.cw;
     if (f.ef) this.effort = EFFORT_OF_CODE[f.ef];
+    // a patch the previous page could not send: send it first (and hold the server's copy back until then) — as
+    // soon as the settings version is known (`noteVersion`; a guessed version would only earn a 409), at the latest in 2 s
+    const kept = getJson<DeepPartial<GlobalSettings>>("local", PENDING_PREFS_KEY);
+    if (kept && typeof kept === "object") {
+      this.#keptWaiting = true;
+      this.#patch(kept, 2000);
+    }
+  }
+
+  #keptWaiting = false;
+
+  /** The server's settings version (boot / every `GET /settings`): a kept patch waiting for it goes now. */
+  noteVersion(version: number): void {
+    this.#version = version;
+    if (this.#keptWaiting) {
+      this.#keptWaiting = false;
+      this.#patch({}, 0);
+    }
   }
 
   /** A local change is waiting for its debounced `PATCH /settings`. */
@@ -140,15 +165,20 @@ export class PrefsState {
     }
   }
 
-  #patch(p: DeepPartial<GlobalSettings>): void {
+  #patch(p: DeepPartial<GlobalSettings>, delayMs = 1000): void {
     this.#pending = merge(this.#pending, p);
+    setJson("local", PENDING_PREFS_KEY, this.#pending);
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = setTimeout(() => {
       const patch = this.#pending;
       this.#pending = {};
       this.#timer = null;
-      void this.patchNow(patch);
-    }, 1000);
+      this.#keptWaiting = false;
+      void this.patchNow(patch).then((ok) => {
+        // nothing newer queued meanwhile: the server has it all
+        if (ok && this.#timer === null) removeItem("local", PENDING_PREFS_KEY);
+      });
+    }, delayMs);
   }
 }
 

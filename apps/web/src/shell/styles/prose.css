@@ -118,6 +118,24 @@
   color: var(--muted);
 }
 
+.sec-num .lang-ask {
+  flex: none;
+  margin-left: 10px;
+  padding: 1px 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-pill);
+  font-family: var(--font-ui);
+  font-size: var(--fs-label);
+  letter-spacing: normal;
+  font-variant-numeric: normal;
+  color: var(--ink);
+  background: var(--sheet);
+}
+
+.sec-num .lang-ask:hover {
+  background: var(--hover);
+}
+
 .sec-head h1 {
   font-family: var(--font-serif);
   font-size: var(--fs-h1);

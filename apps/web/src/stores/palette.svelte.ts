@@ -33,6 +33,8 @@ export class PaletteState implements PaletteStore {
   ms = $state(0);
   status = $state<"idle" | "loading" | "ready" | "error">("idle");
   scope = $state<"all" | "doc" | "actions">("all");
+  /** The query the worker's latest reply answers (rows that depend on 「nothing matched」 wait for it). */
+  answered = $state<string | null>(null);
   #worker: Worker | null = null;
   #qid = 0;
   #actions: PaletteActionItem[] = [];
@@ -76,6 +78,7 @@ export class PaletteState implements PaletteStore {
         return;
       }
       if (r.id !== this.#qid) return; // stale reply (AC-U70)
+      this.answered = this.query;
       this.results = r.groups;
       this.total = r.total;
       this.ms = r.ms;

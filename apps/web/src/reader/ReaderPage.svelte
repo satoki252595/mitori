@@ -693,6 +693,22 @@ const about = $derived.by(() => {
 });
 const marginView = $derived(ext?.margin ?? null);
 
+// ---------------------------------------------------------------- NC-14 the doc is in another language than the UI
+/**
+ * The translation entry point that works today: the AI explains the section in the UI's language (an Explain draft on
+ * the section's first paragraph, the question typed in, nothing sent until the user presses send). The section /
+ * block translate routes are not wired on the daemon (501), so no 「訳を表示」 promises what cannot run.
+ */
+function askInUiLang(p: PagePart) {
+  const b = p.blocks.find((x) => x.kind !== "heading" && x.status !== "placeholder");
+  if (!b) return;
+  host?.ensureMounted(b.id);
+  focused = b.id;
+  void loadExtensions(s).then(() =>
+    window.dispatchEvent(new CustomEvent("mitori:compose", { detail: { block: b.id, claim: null, intent: "question", body: t("reader.translateAskBody") } })),
+  );
+}
+
 // ---------------------------------------------------------------- §0 welcome: the 5-minute course (NC-08 / NC-13)
 let welcomeClosed = $state(false);
 const welcome = $derived.by(() => {
@@ -725,7 +741,10 @@ function startCourse() {
   {#if p.top}
     <header class="sec-head" data-chrome>
       <!-- UI ≠ doc language: the note shares the § row (fixed height) so switching the UI language moves nothing -->
-      <p class="sec-num">&sect;{p.num}{#if uiLang !== docLang}<span class="lang-note">{t("reader.translateBand")}</span>{/if}</p>
+      <p class="sec-num">
+        &sect;{p.num}{#if uiLang !== docLang}<span class="lang-note">{t("reader.translateBand")}</span
+          ><button type="button" class="lang-ask" onclick={() => askInUiLang(p)}>{t("reader.translateAsk")}</button>{/if}
+      </p>
       <h1 tabindex="-1" data-user-content>{p.node.title}</h1>
       <p class="sec-meta">
         <span>{t("reader.meta.minutes", { n: readingMinutes(p.node.readingSec) })}</span>

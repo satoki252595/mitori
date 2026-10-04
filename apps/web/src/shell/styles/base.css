@@ -238,6 +238,23 @@ svg.i {
 
 .hdr-m {
   justify-content: safe center;
+  /* the tabs never paint over a neighbour (the header sheds text first, Header.svelte `tight`) */
+  overflow-x: clip;
+}
+
+.hdr[data-tight] .proj-meta,
+.hdr[data-tight] .usage {
+  display: none;
+}
+
+.hdr[data-tight="2"] .brand-en,
+.hdr[data-tight="2"] .search span {
+  display: none;
+}
+
+.hdr[data-tight="2"] .search {
+  width: auto;
+  padding: 0 8px;
 }
 
 .tabs {

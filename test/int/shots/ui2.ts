@@ -239,13 +239,49 @@ try {
     await page.keyboard.press("Escape");
   }
 
+  // ------------------------------------------------------------------ NC-14 English UI over a Japanese doc
+  if (want("en")) {
+    phase = "en";
+    const overlap = async () =>
+      page.evaluate(() => {
+        const a = document.querySelector(".hdr .proj")?.getBoundingClientRect();
+        const b = document.querySelector(".hdr .tabs")?.getBoundingClientRect();
+        return a && b ? Math.max(0, a.right - b.left) : -1;
+      });
+    await page.keyboard.press(`${mod}+k`);
+    await page.locator(".pal input").waitFor();
+    // `>` = actions only (a symbol or a sentence may say 英語 too)
+    await page.keyboard.type(">英語");
+    await page.locator(".pal-it:not(.ask)", { hasText: "英語" }).first().waitFor();
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => document.documentElement.lang === "en");
+    await page.waitForTimeout(300);
+    steps.enHeaderOverlapDoc = await overlap();
+    await shot(page, "ui2-10-en-reader");
+    await page.goto(page.url().replace(/\/doc\/[^#?]+.*$/, ""));
+    await page.waitForFunction(() => performance.getEntriesByName("mitori:map:painted").length > 0, null, { timeout: 15_000 });
+    await page.waitForTimeout(500);
+    steps.enHeaderOverlapMap = await overlap();
+    await shot(page, "ui2-11-en-map");
+    check((steps.enHeaderOverlapDoc as number) <= 0 && (steps.enHeaderOverlapMap as number) <= 0, "the project chip never runs into the tabs");
+    // back to Japanese for the next steps
+    await page.keyboard.press(`${mod}+k`);
+    await page.locator(".pal input").waitFor();
+    await page.keyboard.type(">Japanese");
+    await page.locator(".pal-it:not(.ask)", { hasText: "Japanese" }).first().waitFor();
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => document.documentElement.lang === "ja");
+    await page.goto(page.url().replace(/\/w\/(ws_\w+).*$/, "/w/$1/doc/s0"));
+    await waitSection(page);
+  }
+
   // ------------------------------------------------------------------ in-app export (ux.md §4.13)
   if (want("export")) {
     phase = "export";
     await page.keyboard.press(`${mod}+k`);
     await page.locator(".pal input").waitFor();
     await page.keyboard.type("HTMLとして書き出す");
-    await page.locator(".pal-it", { hasText: "HTMLとして書き出す" }).first().waitFor();
+    await page.locator(".pal-it:not(.ask)", { hasText: "HTMLとして書き出す" }).first().waitFor();
     await page.keyboard.press("Enter");
     const dlg = page.locator("dialog.exp");
     await dlg.waitFor();

@@ -81,9 +81,15 @@ $effect(() => {
 const text = $derived.by(() => {
   void docText.version;
   const q = textQ.trim();
-  return q ? docText.search(q, p.scope === "doc" ? 20 : 4) : { hits: [], total: 0 };
+  // a prefix mode (`>` actions, `@` symbols, `#` sections, `:` files) is an explicit filter: no prose there
+  if (!q || /^[>@#:]/.test(q)) return { hits: [], total: 0 };
+  return docText.search(q, p.scope === "doc" ? 20 : 4);
 });
-const askable = $derived(!!ws && !!s.doc.outline && p.scope !== "actions" && [...p.query.trim()].length >= 2);
+// 「AI に聞く」 is for questions: not in a prefix mode (`>` actions, `@` symbols, `#` sections, `:` files), and only once the
+// index has answered THIS query — an Enter typed faster than the worker never runs a question by accident
+const askable = $derived(
+  !!ws && !!s.doc.outline && p.scope !== "actions" && [...p.query.trim()].length >= 2 && !/^[>@#:]/.test(p.query.trim()) && p.answered === p.query,
+);
 
 function textRows(): Row[] {
   const w = ws;
@@ -167,8 +173,10 @@ const rows = $derived.by(() => {
       if (want && want.group === g.group && want.id === it.id) top = r;
     }
   const found = top ? [{ ...top, top: true }, ...out.filter((r) => r !== top)] : out;
-  // in 「本文」 mode the doc's words lead; otherwise they follow the index groups
-  const listed = p.scope === "doc" ? [...textRows(), ...found] : [...found, ...textRows()];
+  // in 「本文」 mode the doc's words lead; otherwise they follow the index groups. They join once the index answered
+  // THIS query, so the rows never reshuffle under an Enter (the first row is what runs)
+  const words = p.answered === p.query ? textRows() : [];
+  const listed = p.scope === "doc" ? [...words, ...found] : [...found, ...words];
   return askable ? [...listed, askRow()] : listed;
 });
 

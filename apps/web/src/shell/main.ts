@@ -45,7 +45,9 @@ async function boot(): Promise<void> {
   if (!cookieLang) {
     const settings = stores.session.loadSettings();
     const v = await Promise.race([settings, new Promise<null>((r) => setTimeout(() => r(null), SETTINGS_WAIT_MS))]);
-    if (v) {
+    if (v) stores.prefs.noteVersion(v.version);
+    // an unsent change of the previous page (prefs PENDING_PREFS_KEY) is newer than the server's copy
+    if (v && !stores.prefs.pending) {
       setSettingsLang(v.settings.ui.lang);
       stores.prefs.reconcile(v);
       stores.doc.level = stores.prefs.level;
