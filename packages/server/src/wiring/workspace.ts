@@ -21,6 +21,7 @@ import {
   type PaletteIndex,
   type ProposalId,
   type RepoPath,
+  type RepoProfile,
   type SafeWriter,
   type ScanStatus,
   type SseEventPayload,
@@ -56,6 +57,7 @@ import { exportSource } from "./export.ts";
 import { assembleAnchoredItems, distributeReanchor } from "./index.ts";
 import { type LoopDepsExt, type LoopExtras, loopExtras } from "./loop.ts";
 import { NEUTRAL_CALIBRATION } from "./ports.ts";
+import { repoProfile } from "./profile.ts";
 import { proposalView } from "./proposals.ts";
 import { detectLicense, staticDocInput } from "./static-input.ts";
 import { claimReanchor, suggestionViews } from "./suggestions.ts";
@@ -433,18 +435,40 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
       base.events.emit({ type: "map.updated" });
     }
   };
+  // NC-02: the static repository profile (README lede, toolchain, license, remote, HEAD) after every scan
+  let profile: RepoProfile | null = null;
+  const refreshProfile = async () => {
+    try {
+      profile = await repoProfile({
+        info,
+        files: () => rawIndexer.files({ includeExcluded: true }),
+        read: async (p) => {
+          try {
+            return new TextDecoder().decode(await deps.fs.readHead(`${info.root}/${p}`, 65_536));
+          } catch {
+            return null;
+          }
+        },
+        git,
+      });
+    } catch (e) {
+      log.warn("repo profile failed", { error: MitoriError.from(e).message });
+    }
+  };
   const indexer: Indexer = override<Indexer>(rawIndexer, {
     async scan(opts) {
       const first = Object.keys(rawDoc.index().blocks).length === 0;
       try {
         const summary = await rawIndexer.scan(opts);
         await applyStatic(!first);
+        await refreshProfile();
         checkPalette();
         return summary;
       } finally {
         staticResolve?.();
       }
     },
+    profile: () => profile,
   });
 
   /* ---- palette ------------------------------------------------------------------------------------------------ */

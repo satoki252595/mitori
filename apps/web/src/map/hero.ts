@@ -85,3 +85,32 @@ export function generatedTokens(
 ): { tok: string; out: string; usd: string } {
   return { tok: fmtTok(totals.in + totals.cacheRead + totals.cacheWrite + totals.out), out: fmtTok(totals.out), usd: fmtUsd(totals.apiUsd) };
 }
+
+/**
+ * NC-02: the hero lede of a generated doc — the first model-written prose / list block of §0, as plain text (≤ 280
+ * chars, cut at a sentence end), with its block id for the link. Null when §0 has no written text yet.
+ */
+export function ledeOf(blocks: readonly { id: string; kind: string; origin: string; html: string }[]): { text: string; block: string } | null {
+  for (const b of blocks) {
+    if (b.origin !== "ai" || (b.kind !== "prose" && b.kind !== "list")) continue;
+    const text = b.html
+      .replace(/<(sup|button)[^>]*class="[^"]*(cite|chip)[^"]*"[^>]*>[\s\S]*?<\/\1>/g, "")
+      .replace(/<a [^>]*class="[^"]*cite[^"]*"[^>]*>[\s\S]*?<\/a>/g, "")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/（\s*）|\(\s*\)/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text.length < 10) continue;
+    if (text.length <= 280) return { text, block: b.id };
+    const cut = text.slice(0, 280);
+    const end = cut.lastIndexOf("。");
+    return { text: end > 60 ? cut.slice(0, end + 1) : `${cut.slice(0, 279)}…`, block: b.id };
+  }
+  return null;
+}

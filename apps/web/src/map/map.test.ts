@@ -335,3 +335,21 @@ describe("NC-11 the generation card's token line", () => {
     expect(interpolate(en["map.generated"] as string, p)).toContain(`(output ${fmtTokensImpl(27_046)})`);
   });
 });
+
+describe("NC-02 the hero lede of a generated doc", () => {
+  test("the first model-written §0 paragraph, as text without its cite chips; static blocks are skipped", async () => {
+    const { ledeOf } = await import("./hero.ts");
+    const blocks = [
+      { id: "b_h", kind: "heading", origin: "static", html: "<h2>ひとことで</h2>" },
+      { id: "b_cov", kind: "facts", origin: "static", html: "<ul><li>読んだファイル 87</li></ul>" },
+      {
+        id: "b_tl",
+        kind: "prose",
+        origin: "ai",
+        html: '<p><span class="mc">m3e-canvas は画面の配置を描き、AI 向けのプロンプトにして渡すツールである</span>（<a class="cite" href="#">page.tsx:1-9</a>）。バックエンドは無い。</p>',
+      },
+    ];
+    expect(ledeOf(blocks)).toEqual({ block: "b_tl", text: "m3e-canvas は画面の配置を描き、AI 向けのプロンプトにして渡すツールである。バックエンドは無い。" });
+    expect(ledeOf(blocks.slice(0, 2))).toBeNull();
+  });
+});

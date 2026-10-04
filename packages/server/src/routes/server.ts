@@ -72,6 +72,7 @@ export async function workspaceStatus(s: ServerServices, rt: WorkspaceRuntime): 
     connectedTabs: s.hub.connections({ ws, client: "web" }),
     genEngine: d.genEngine ?? null,
   };
+  if (d.profile) out.profile = d.profile;
   if (summary?.lastError) out.lastError = summary.lastError;
   return out;
 }

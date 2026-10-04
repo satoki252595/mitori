@@ -17,10 +17,11 @@ import { fmtInt, fmtLocShort, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts"
 import { errorText, t } from "../shell/index.ts";
 import { mark, markAfterPaint } from "../shell/perf.ts";
 import Rail from "../shell/Rail.svelte";
+import { choosePath } from "../shell/reading.ts";
 import { currentLayout, useStores } from "../stores/app.svelte.ts";
 import { engineProblem } from "./engine.ts";
 import FloorPlan from "./FloorPlan.svelte";
-import { generatedTokens, heroAreas, heroMeta, LANG_NAMES } from "./hero.ts";
+import { generatedTokens, heroAreas, heroMeta, LANG_NAMES, ledeOf } from "./hero.ts";
 import type { PlanController } from "./plan-dom.ts";
 import { buildPlanModel, type PlanText, type RoomModel } from "./render.ts";
 
@@ -99,6 +100,30 @@ function areaLabel(a: AreaStat): string {
   return t("map.hero.area.code", { lang: langName(a.lang), files: fmtInt(a.files, lang) });
 }
 const readme = $derived(profile?.readme ?? null);
+// NC-02: once §0 is generated, its first written paragraph (with its cites) is the lede — not the README excerpt
+let lede = $state<{ text: string; block: string } | null>(null);
+$effect(() => {
+  if (!ws || !generated) {
+    lede = null;
+    return;
+  }
+  const key = ws;
+  untrack(() => {
+    void s.api
+      .call("GET /ws/:ws/doc/sections/:section", { params: { ws: key, section: "s0" } })
+      .then((v) => {
+        if (ws !== key) return;
+        lede = ledeOf(v.blocks);
+      })
+      .catch(() => (lede = null));
+  });
+});
+function readFiveMinutes(): void {
+  if (!ws) return;
+  choosePath(ws, "5min");
+  void s.router.go({ name: "doc", ws, section: "s0" });
+}
+const expert = $derived(s.doc.level === "expert");
 
 // ---------------------------------------------------------------- data
 $effect(() => {
@@ -340,6 +365,8 @@ const facts = $derived.by(() => {
     { kind: "todo", n: f.todo ?? 0, sec: "s11" },
   ] as const;
 });
+// NC-18 / NC-12: a zero tile tells a first-time reader nothing (「0 HTTPルート」)
+const shownFacts = $derived(facts.filter((f) => f.n > 0 || !scan));
 const stale = $derived(s.doc.outline?.counts.stale ?? 0);
 const totals = $derived(s.doc.outline?.manifest.usageTotals ?? null);
 const planCounts = $derived(model ? t("map.plan.counts", { zones: model.zones.length, rooms: model.rooms.length }) : "");
@@ -370,7 +397,15 @@ const planCounts = $derived(model ? t("map.plan.counts", { zones: model.zones.le
             {#if m.href}<a href={m.href} target="_blank" rel="noopener noreferrer" data-user-content>{m.text}</a>{:else}<span data-user-content={m.user || undefined}>{m.text}</span>{/if}
           {/each}
         </p>
-        {#if readme && ws}
+        {#if lede && ws}
+          <figure class="readme lede">
+            <blockquote data-user-content>{lede.text}</blockquote>
+            <figcaption>
+              <a class="src" href={HREFS.doc(ws, "s0", lede.block as never)}>{t("map.lede.source")}</a>
+              <span class="sep" aria-hidden="true">&middot;</span><span>{t("map.lede.note")}</span>
+            </figcaption>
+          </figure>
+        {:else if readme && ws}
           <figure class="readme">
             <blockquote lang="" data-user-content>{readme.text}</blockquote>
             <figcaption>
@@ -407,7 +442,7 @@ const planCounts = $derived(model ? t("map.plan.counts", { zones: model.zones.le
                   <b>{t("map.generated", generatedTokens(totals, fmtTokensImpl, (u) => fmtUsdImpl(u, "gen")))}</b>
                   {#if stale > 0}<span class="stale">{t("map.staleChapters", { n: stale })}</span>{/if}
                 </p>
-                {#if ws}<a class="btn btn-pri" href={HREFS.doc(ws, "s0")}>{t("map.read")}</a>{/if}
+                {#if ws}<button type="button" class="btn btn-pri" onclick={readFiveMinutes}>{t("map.read5")}</button>{/if}
               </div>
             </section>
           {:else if problem && engineStatus}
@@ -548,20 +583,20 @@ const planCounts = $derived(model ? t("map.plan.counts", { zones: model.zones.le
       <section class="facts" aria-labelledby="facts-t">
         <h2 id="facts-t" class="rail-label">{t("map.facts.title")}</h2>
         <div class="grid">
-          {#each facts as f (f.kind)}
+          {#each shownFacts as f (f.kind)}
             <a class="fact card" href={ws ? HREFS.doc(ws, f.sec) : "#"}><span class="n mono">{scan ? fmtInt(f.n, lang) : "–"}</span><span class="l">{t(`map.facts.${f.kind}`)}</span></a>
           {/each}
         </div>
       </section>
 
-      <section class="times" aria-labelledby="times-t">
+      {#if expert}<section class="times" aria-labelledby="times-t">
         <h2 id="times-t" class="rail-label">{t("map.times.title")}</h2>
         <ul class="mono">
           {#each ["S0", "S1", "S2", "S3", "S4"] as stg (stg)}
             <li><span>{t(`map.times.${stg}`)}</span><span>{scan?.stageMs?.[stg as "S0"] !== undefined ? `${Math.round(scan?.stageMs?.[stg as "S0"] ?? 0)} ms` : "–"}</span></li>
           {/each}
         </ul>
-      </section>
+      </section>{/if}
     </div>
   </main>
 </div>
@@ -994,6 +1029,9 @@ const planCounts = $derived(model ? t("map.plan.counts", { zones: model.zones.le
   .fact .l {
     font-size: var(--fs-label);
     color: var(--muted);
+    /* 「エントリポ／イント」: break between words only (NC-18) */
+    word-break: keep-all;
+    overflow-wrap: anywhere;
   }
   .times li {
     display: flex;

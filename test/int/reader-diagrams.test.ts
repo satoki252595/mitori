@@ -2,7 +2,7 @@
 // 5-minute course) was a list of five names, and the exported file showed more than the app. The section view now
 // carries the pre-laid-out SVG in `figure.mdiagram`, with the node list kept as its text alternative. Real daemon, $0.
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import type { SectionView, WorkspaceKey } from "@mitori/core";
+import type { SectionView, WorkspaceKey, WorkspaceStatus } from "@mitori/core";
 import { buildFixture, type FixtureRepo } from "@mitori/testkit";
 import { type Int, startInt } from "./harness.ts";
 
@@ -37,5 +37,19 @@ describe("NC-03 diagrams in the Reader", () => {
     const t0 = performance.now();
     await int.json<SectionView>("GET", `/ws/${ws}/doc/sections/s2`);
     expect(performance.now() - t0).toBeLessThan(500);
+  });
+});
+
+describe("NC-02 the first screen's profile", () => {
+  test("GET /ws/:ws carries the README lede, the declared toolchain and the HEAD (0 tokens)", async () => {
+    const st = await int.json<WorkspaceStatus>("GET", `/ws/${ws}`);
+    expect(st.profile?.readme).toEqual({
+      path: "README.md",
+      line: 3,
+      text: "積読（買ったけれどまだ読んでいない本）を管理する小さな HTTP サービスと CLI。標準ライブラリだけで動く。",
+    });
+    expect(st.profile?.toolchain).toMatchObject({ name: "go", version: "1.23", path: "go.mod" });
+    expect(st.profile?.head?.commit).toBe(st.snapshot?.commit as string);
+    expect(st.profile?.areas.length).toBeGreaterThan(0);
   });
 });

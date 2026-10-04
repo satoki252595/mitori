@@ -183,6 +183,8 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
           gen: d.gen.active(),
           genEngine: rt.settings().global.defaultGenEngine ?? null,
         };
+        const profile = d.indexer.profile();
+        if (profile) out.profile = profile;
         return out;
       },
       inbox(rt) {

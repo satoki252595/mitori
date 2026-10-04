@@ -51,7 +51,7 @@ export interface DaemonControl {
 }
 
 /** Domain-derived parts of `GET /ws/:ws`. */
-export type WorkspaceStatusDomain = Pick<WorkspaceStatus, "counts" | "doc" | "snapshot" | "scan" | "gen" | "genEngine">;
+export type WorkspaceStatusDomain = Pick<WorkspaceStatus, "counts" | "doc" | "snapshot" | "scan" | "gen" | "genEngine" | "profile">;
 
 /** Providers that need domain packages (composition root). */
 export interface DomainProviders {

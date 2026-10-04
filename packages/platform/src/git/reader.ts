@@ -265,6 +265,27 @@ export function createGitReader(opts: GitReaderOptions): PlatformGitReader {
     },
     isShallow,
     objectFormat,
+    // CR m1-26 / NC-02: config reads only — never contacts the remote
+    async remoteUrl() {
+      const origin = await text(["config", "--get", "remote.origin.url"], [0, 1]);
+      let url = origin.code === 0 ? origin.out : "";
+      if (url === "") {
+        const remotes = await text(["remote"], [0, 1, 128]);
+        const first = remotes.code === 0 ? remotes.out.split("\n")[0]?.trim() : "";
+        if (first && /^[A-Za-z0-9._-]+$/.test(first)) {
+          const r = await text(["config", "--get", `remote.${first}.url`], [0, 1]);
+          url = r.code === 0 ? r.out : "";
+        }
+      }
+      return url === "" ? null : url.replace(/^([a-z+]+:\/\/)[^@/]+@/i, "$1");
+    },
+    async headMeta() {
+      if ((await verify("HEAD^{commit}")) === null) return null;
+      const d = await text(["log", "-1", "--format=%cI", "HEAD"], [0, 128]);
+      if (d.code !== 0 || d.out === "") return null;
+      const t = (await isShallow()) ? { code: 1, out: "" } : await text(["describe", "--tags", "--abbrev=0", "HEAD"], [0, 128]);
+      return { date: new Date(d.out).toISOString(), tag: t.code === 0 && t.out !== "" ? t.out : null };
+    },
     async close() {
       batch?.close();
       batch = null;
