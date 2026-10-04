@@ -342,6 +342,41 @@ describe("NC-10 outbound.calls@1: HTTP, SDK / DB clients, RPC, subprocesses (imp
     ]);
   });
 
+  test("TS: a socket.io connection (default import through a hinted dynamic import), firebase's Firestore (DB) and Storage factories", async () => {
+    // excalidraw's collaboration room and its firebase data layer were missing from §8
+    const got = await outbound({
+      "app/collab.ts": [
+        "export async function connect(url: string) {",
+        "  const { default: socketIOClient } = await import(",
+        '    /* webpackChunkName: "socketIoClient" */ "socket.io-client"',
+        "  );",
+        '  return socketIOClient(url, { transports: ["websocket"] });',
+        "}",
+        "",
+      ].join("\n"),
+      "app/live.ts": 'import { io } from "socket.io-client";\nexport const s = io("https://live.example.com/socket");\n',
+      "app/firebase.ts": [
+        'import { initializeApp } from "firebase/app";',
+        'import { getFirestore, doc } from "firebase/firestore";',
+        'import { getStorage, ref } from "firebase/storage";',
+        "let firestore: ReturnType<typeof getFirestore> | null = null;",
+        "export const init = () => {",
+        "  const app = initializeApp({});",
+        "  firestore = getFirestore(app);",
+        '  return [getStorage(app), doc(firestore, "x"), ref(getStorage(app))];',
+        "};",
+        "",
+      ].join("\n"),
+    });
+    expect(got).toEqual([
+      "app/collab.ts:5 http socket.io-client",
+      "app/firebase.ts:6 sdk firebase/app",
+      "app/firebase.ts:7 db firebase/firestore",
+      "app/firebase.ts:8 sdk firebase/storage",
+      "app/live.ts:2 http socket.io-client → https://live.example.com",
+    ]);
+  });
+
   test("Python: requests (aliased), urlopen, subprocess, sqlite3, boto3; comments and in-repo clients are not", async () => {
     const got = await outbound({
       "app/net.py": [

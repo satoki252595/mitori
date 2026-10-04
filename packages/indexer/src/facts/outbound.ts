@@ -76,7 +76,7 @@ const alt = (xs: Iterable<string>) => [...xs].map(esc).join("|");
 /** Package → channel for client constructors / factories (`new Pool(`, `createClient(`, `new OpenAI(`). */
 const JS_PACKAGES: readonly [RegExp, Channel][] = [
   [
-    /^(pg|postgres|mysql2?|sqlite3|better-sqlite3|bun:sqlite|@libsql\/client|@prisma\/client|mongodb|mongoose|redis|ioredis|@upstash\/redis|knex|typeorm|sequelize|kysely|drizzle-orm(\/.*)?|@neondatabase\/serverless|@planetscale\/database|cassandra-driver|neo4j-driver|@google-cloud\/firestore|@aws-sdk\/client-dynamodb)$/,
+    /^(pg|postgres|mysql2?|sqlite3|better-sqlite3|bun:sqlite|@libsql\/client|@prisma\/client|mongodb|mongoose|redis|ioredis|@upstash\/redis|knex|typeorm|sequelize|kysely|drizzle-orm(\/.*)?|@neondatabase\/serverless|@planetscale\/database|cassandra-driver|neo4j-driver|@google-cloud\/firestore|@aws-sdk\/client-dynamodb|firebase(-admin)?\/(firestore|database)(\/.*)?)$/,
     "db",
   ],
   [/^(@grpc\/grpc-js|@connectrpc\/.+|@bufbuild\/connect.*)$/, "rpc"],
@@ -85,10 +85,19 @@ const JS_PACKAGES: readonly [RegExp, Channel][] = [
     "sdk",
   ],
 ];
-const JS_HTTP_LIBS: Readonly<Record<string, string>> = { axios: "axios", ky: "ky", got: "got", ofetch: "ofetch", superagent: "superagent", undici: "undici" };
+const JS_HTTP_LIBS: Readonly<Record<string, string>> = {
+  axios: "axios",
+  ky: "ky",
+  got: "got",
+  ofetch: "ofetch",
+  superagent: "superagent",
+  undici: "undici",
+  // a realtime connection to a server (excalidraw's collaboration room: `socketIOClient(url, …)`)
+  "socket.io-client": "socket.io-client",
+};
 /** One pass over the text decides whether a file can hold a call at all (most components and utilities cannot). */
 const JS_PRECHECK =
-  /\bfetch\s*\(|["'](axios|ky|got|ofetch|superagent|undici|(node:)?https?|(node:)?child_process|execa)["']|XMLHttpRequest|WebSocket|EventSource|Bun\.spawn|Deno\.Command|Client\s*\(|["'](pg|postgres|mysql2?|sqlite3|better-sqlite3|bun:sqlite|mongodb|mongoose|redis|ioredis|knex|typeorm|sequelize|kysely|stripe|openai|twilio|resend|nodemailer|googleapis|octokit|algoliasearch|replicate|amqplib|kafkajs|drizzle-orm|aws-sdk|firebase|firebase-admin|discord\.js|cohere-ai|posthog-node)["'/]|["']@(prisma|libsql|upstash|neondatabase|planetscale|aws-sdk|anthropic-ai|supabase|google-cloud|google|octokit|slack|sendgrid|sentry|linear|elastic|notionhq|mistralai|vercel|grpc|connectrpc|bufbuild)\//;
+  /\bfetch\s*\(|["'](axios|ky|got|ofetch|superagent|undici|socket\.io-client|(node:)?https?|(node:)?child_process|execa)["']|XMLHttpRequest|WebSocket|EventSource|Bun\.spawn|Deno\.Command|Client\s*\(|["'](pg|postgres|mysql2?|sqlite3|better-sqlite3|bun:sqlite|mongodb|mongoose|redis|ioredis|knex|typeorm|sequelize|kysely|stripe|openai|twilio|resend|nodemailer|googleapis|octokit|algoliasearch|replicate|amqplib|kafkajs|drizzle-orm|aws-sdk|firebase|firebase-admin|discord\.js|cohere-ai|posthog-node)["'/]|["']@(prisma|libsql|upstash|neondatabase|planetscale|aws-sdk|anthropic-ai|supabase|google-cloud|google|octokit|slack|sendgrid|sentry|linear|elastic|notionhq|mistralai|vercel|grpc|connectrpc|bufbuild)\//;
 const isExternal = (spec: string) => !/^(\.|\/|@\/|~\/|#|node:|bun$|bun:test$)/.test(spec);
 
 /** Local bindings of a JS module: named / default imports (`ImportRecord.names`), `* as x`, `const x = require("m")`. */
@@ -107,9 +116,11 @@ function jsBindings(input: FactExtractInput): Map<string, string> {
     }
   }
   for (const m of input.text.matchAll(/import\s+\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s+["']([^"']+)["']/g)) out.set(m[1] as string, m[2] as string);
-  for (const m of input.text.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:await\s+import|require)\(\s*["']([^"']+)["']\s*\)/g))
+  // `require("m")` / `await import("m")`, a bundler hint comment allowed before the specifier (`import(/* webpackChunkName */ "m")`)
+  const SPEC = String.raw`\(\s*(?:\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\/\s*)?["']([^"']+)["']\s*\)`;
+  for (const m of input.text.matchAll(new RegExp(String.raw`\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:await\s+import|require)${SPEC}`, "g")))
     out.set(m[1] as string, m[2] as string);
-  for (const m of input.text.matchAll(/\b(?:const|let|var)\s*\{([^}]{1,400})\}\s*=\s*(?:await\s+import|require)\(\s*["']([^"']+)["']\s*\)/g))
+  for (const m of input.text.matchAll(new RegExp(String.raw`\b(?:const|let|var)\s*\{([^}]{1,400})\}\s*=\s*(?:await\s+import|require)${SPEC}`, "g")))
     for (const part of (m[1] as string).split(",")) {
       const local = (part.split(":").pop() ?? "").trim();
       if (/^[A-Za-z_$][\w$]*$/.test(local)) out.set(local, m[2] as string);
@@ -184,7 +195,12 @@ function jsHits(input: FactExtractInput): Hit[] {
     if (known) {
       // a command / input / type object of an SDK is no client (`new PutObjectCommand(`), an operator no factory (`eq(`)
       if (/(Command|Input|Output|Schema|Type|Error|Exception|Options|Config)$/.test(name)) continue;
-      const bare = /^(create\w*|connect\w*|drizzle|postgres|knex|mongoose|init\w*|\w*Client)$/i.test(name) ? `|${esc(name)}` : "";
+      // a factory called bare: `createClient(`, `initializeApp(`, firebase's `getFirestore(` / `getStorage(`
+      const bare = /^(create\w*|connect\w*|drizzle|postgres|knex|mongoose|init\w*|\w*Client|get(Firestore|Storage|Auth|Database|Functions|Messaging))$/i.test(
+        name,
+      )
+        ? `|${esc(name)}`
+        : "";
       const re = new RegExp(
         `(?<![\\w$.])(?:new\\s+${esc(name)}|${esc(name)}\\.(?:connect|createClient|createPool|createConnection|initializeApp|init|client|Client|Pool)${bare})\\s*\\(`,
         "g",
