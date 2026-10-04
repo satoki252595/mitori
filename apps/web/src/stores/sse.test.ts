@@ -138,6 +138,8 @@ describe("settings.updated applies the whole UI block (ux.md §3.2-6)", () => {
       prefs: {
         pending,
         level: "standard",
+        // the settings version reaches prefs even while a local change is pending (NC-14: a kept patch waits for it)
+        noteVersion: (n: number) => calls.push(`version:${n}`),
         reconcile(v: typeof view) {
           calls.push("reconcile");
           this.level = v.settings.ui.readerLevel;
@@ -162,7 +164,7 @@ describe("settings.updated applies the whole UI block (ux.md §3.2-6)", () => {
     const off = wireSse({ ...s, sse } as unknown as Stores, { resync() {}, notice() {}, firstBlock() {}, genDone() {} });
     emit({ type: "settings.updated" });
     await Bun.sleep(0);
-    expect(calls).toEqual(["reconcile", "keymap:read.next", "level:expert", "anchor"]);
+    expect(calls).toEqual(["version:4", "reconcile", "keymap:read.next", "level:expert", "anchor"]);
     off();
   });
 
@@ -172,7 +174,8 @@ describe("settings.updated applies the whole UI block (ux.md §3.2-6)", () => {
     const off = wireSse({ ...s, sse } as unknown as Stores, { resync() {}, notice() {}, firstBlock() {}, genDone() {} });
     emit({ type: "settings.updated" });
     await Bun.sleep(0);
-    expect(calls).toEqual([]);
+    // only the version (a kept patch of an earlier page waits for it): nothing of the server's copy is applied
+    expect(calls).toEqual(["version:4"]);
     off();
   });
 });
