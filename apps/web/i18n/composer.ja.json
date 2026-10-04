@@ -21,6 +21,7 @@
   "composer.details.close": "詳細 ▾",
   "composer.details.open": "詳細 ▸",
   "composer.draft": "下書き",
+  "composer.engineOff": "{engine}にログインしていません（ターミナルで`claude /login`）。送ると失敗します。下書きは残ります",
   "composer.est.accuracy": "見積り精度 ±{p}%（n={n}）",
   "composer.est.billed": "約{usd}が課金されます",
   "composer.est.breakdown": "見積りの内訳",

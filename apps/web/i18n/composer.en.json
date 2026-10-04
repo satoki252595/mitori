@@ -21,6 +21,7 @@
   "composer.details.close": "Details ▾",
   "composer.details.open": "Details ▸",
   "composer.draft": "Draft",
+  "composer.engineOff": "{engine} is not logged in (run claude /login in a terminal). Sending would fail; the draft is kept",
   "composer.est.accuracy": "Estimate accuracy ±{p}% (n={n})",
   "composer.est.billed": "about {usd} will be billed",
   "composer.est.breakdown": "Estimate breakdown",

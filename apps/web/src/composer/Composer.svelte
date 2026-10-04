@@ -70,6 +70,12 @@ const canSend = $derived(docTarget ? c.docChanged : (c.body.trim().length > 0 ||
 const offered = $derived((c.targets?.cited.length ?? 0) > 0 ? [] : c.openCandidates.slice(0, 4));
 /** Estimate items the 「対象コード」 row already shows (cites and picked / mentioned ranges). */
 const targetKeys = $derived(new Set([...(c.targets?.cited ?? []), ...c.mentions].map((x) => `code:${x.path}:${x.start}-${x.end}`)));
+/** NC-13: ⚡ with a logged-out / missing engine would only fail — say so next to 送信 (the draft is kept either way). */
+const loggedOut = $derived.by(() => {
+  if (!c.runsJob || c.path !== "push") return false;
+  const st = s.session.engine(engineId);
+  return st !== null && st !== undefined && (!st.installed || st.auth === "none");
+});
 const pendingGates = $derived([...loop.trust.values()].filter((r) => r.item === "gates" && r.status === "pending").length);
 const policyAcked = $derived(!!s.session.settings?.settings.privacy.dataPolicyAck[engineId]);
 const needsPolicy = $derived(c.runsJob && c.path === "push" && !policyAcked && s.session.settings !== null);
@@ -516,12 +522,18 @@ const sendLabel = $derived(
       <button type="button" class="path" onclick={cyclePath} aria-label={t("composer.path.label", { path: pathLabel })}><span class="pi" aria-hidden="true">{c.path === "push" ? "⚡" : c.path === "pull" ? "⤴" : "⧉"}</span>{pathLabel}</button>
     {/if}
     <span class="grow"></span>
+    {#if loggedOut}<span class="engine-off" role="status">{t("composer.engineOff", { engine: engineId })}</span>{/if}
     <button type="button" class="btn btn-pri btn-s send" disabled={!canSend} onclick={(e) => void send(e.timeStamp)}>{sendLabel}<kbd>{s.keys.label("Mod+Enter")}</kbd></button>
   </footer>
   <p class="hint">{t("composer.hint", { send: s.keys.label("Mod+Enter") })}</p>
 </section>
 
 <style>
+  .engine-off {
+    font-size: var(--fs-meta);
+    color: var(--warn, var(--muted));
+    margin-right: 8px;
+  }
   .md-note {
     margin: 4px 0 6px;
     font-size: var(--fs-meta);
