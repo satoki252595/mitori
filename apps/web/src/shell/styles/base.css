@@ -248,6 +248,11 @@ svg.i {
   display: none;
 }
 
+/* the reserved width yields first: a narrow header ellipsizes the name rather than run the tabs into it (AC-U-W01) */
+.hdr[data-tight] .proj {
+  min-width: 0;
+}
+
 .hdr[data-tight="2"] .brand-en,
 .hdr[data-tight="2"] .search span {
   display: none;
