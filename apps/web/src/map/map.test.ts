@@ -353,6 +353,19 @@ describe("NC-02 the hero lede of a generated doc", () => {
     expect(ledeOf(blocks)).toEqual({ block: "b_tl", text: "m3e-canvas は画面の配置を描き、AI 向けのプロンプトにして渡すツールである。バックエンドは無い。" });
     expect(ledeOf(blocks.slice(0, 2))).toBeNull();
   });
+
+  test("a doc that came with the repository (its blocks load as human) still leads with its §0 prose, not its fact list", async () => {
+    const { ledeOf } = await import("./hero.ts");
+    // committed .mitori/doc opened elsewhere: the store did not write these blocks, so every one is `human`
+    const blocks = [
+      { id: "b_h", kind: "heading", origin: "static", html: "<h2>ひとことで</h2>" },
+      { id: "b_facts", kind: "list", origin: "human", html: "<ul><li>言語: go 35664 行 · javascript 20971 行</li></ul>" },
+      { id: "b_tl", kind: "prose", origin: "human", html: "<p>Crit は計画やコード差分にブラウザ上でレビューコメントを付けるツールである。</p>" },
+    ];
+    expect(ledeOf(blocks)).toEqual({ block: "b_tl", text: "Crit は計画やコード差分にブラウザ上でレビューコメントを付けるツールである。" });
+    // no prose at all: the first written list
+    expect(ledeOf(blocks.filter((b) => b.kind !== "prose"))?.block).toBe("b_facts");
+  });
 });
 
 describe("NC-04 rooms say what they are", () => {
