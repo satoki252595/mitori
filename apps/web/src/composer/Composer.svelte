@@ -232,7 +232,7 @@ function onKey(e: KeyboardEvent) {
   if (isComposing(e)) return;
   if (!mention && e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
     const n = /^(?:Digit|Numpad)([1-4])$/.exec(e.code)?.[1];
-    const tg = n ? offered[Number(n) - 1] : undefined;
+    const tg = n && c.path === "push" ? offered[Number(n) - 1] : undefined;
     if (tg) {
       e.preventDefault();
       c.pickTarget(tg);

@@ -125,6 +125,10 @@ $effect(() => {
     line-break: strict;
     text-wrap: pretty;
   }
+  /* a cite link (`fetch.go:46-61`) is one unit, as the block's cite chip is: never 「fetch.go:45-」 / 「60」 */
+  .pp :global(.pp-b a[href*="#L"]) {
+    white-space: nowrap;
+  }
   /* a facts cite chip looks like the block's own (prose.css `.fcite`), not like a message's code span */
   .pp :global(.pp-b .fcite) {
     text-decoration: none;
