@@ -77,7 +77,7 @@
   "reader.meta.stale": "⚠ 古い可能性{n}",
   "reader.meta.static": "□ 静的 · 0 tok",
   "reader.meta.verified": "確認済{n}",
-  "reader.minimap": "見取り図で見る",
+  "reader.minimap": "間取り図で見る",
   "reader.more": "詳しく（{n}）",
   "reader.next": "次へ",
   "reader.notGenerated": "この設計書はまだ生成されていません",

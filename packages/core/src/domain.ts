@@ -1290,7 +1290,7 @@ export interface SectionTemplate {
 export const DOC_TEMPLATE = [
   { id: "s0", titleJa: "ひとことで", titleEn: "TL;DR", file: "doc/00-tldr.md", depths: ["L0"], source: "mixed", generatedAt: ["overview", "standard", "complete"] },
   { id: "s1", titleJa: "これは何か・誰のためか・なぜあるか", titleEn: "What & why", file: "doc/01-what-why.md", depths: ["L0", "L1"], source: "ai", generatedAt: ["overview", "standard", "complete"] },
-  { id: "s2", titleJa: "見取り図", titleEn: "Floor plan", file: "doc/02-floor-plan.md", depths: ["L1"], source: "mixed", generatedAt: ["overview", "standard", "complete"] },
+  { id: "s2", titleJa: "間取り図", titleEn: "Floor plan", file: "doc/02-floor-plan.md", depths: ["L1"], source: "mixed", generatedAt: ["overview", "standard", "complete"] },
   { id: "s3", titleJa: "主要な流れ", titleEn: "Key flows", file: "doc/03-key-flows.md", depths: ["L1", "L2"], source: "ai", generatedAt: ["overview", "standard", "complete"] },
   { id: "s4", titleJa: "動かしてみる", titleEn: "Quickstart", file: "doc/04-quickstart.md", depths: ["L1"], source: "static", generatedAt: [] },
   { id: "s5", titleJa: "コードの地図", titleEn: "Codebase map", file: "doc/05-codebase-map.md", depths: ["L2"], source: "mixed", generatedAt: ["overview", "standard", "complete"] },
