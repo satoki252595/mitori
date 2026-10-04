@@ -71,6 +71,10 @@ export function routeGen(message: string): string[] {
     }
     return [...out, end(n)];
   }
+  // go-small's migrations/0001_init.up.sql is a schema in the real daemon too (its `.sql` files are generic sources,
+  // whose text-only detectors now run — CR rdoc-7), so the plan has the §7 data-model task
+  if (/^TASK: Explain the data model/m.test(message))
+    return [j({ t: "block", id: "new:1", aspect: "overview", md: "本とタグが多対多でつながる[[1]]。", claims: { "1": "architecture" } }), end(1)];
   if (/^TASK: Build the glossary/m.test(message))
     return [j({ t: "term", term: "ハンドラ", yomi: "はんどら", en: "handler", def: "リクエストを処理する関数。" }), end(0)];
   if (/^TASK: Name the modules/m.test(message)) {

@@ -73,6 +73,22 @@ describe("grammarless source files run their text-only detectors (CR rdoc-7)", (
     expect(r.facts.map((f) => `${f.detector} ${f.line} ${JSON.stringify(f.data)}`)).toEqual(['entry.web@1 5 {"entry":"main","label":"app/index.tsx"}']);
     h.dispose();
   });
+
+  test("a migration `.sql` (a generic source file) yields its tables — before, schema.sql@1 never ran in the daemon", async () => {
+    // go-small's migrations/0001_init.up.sql: the fixture truth lists `books`, but the real index had no schema fact
+    const h = await createWorkerHandler(env, workerInit());
+    const sql = "CREATE TABLE books (\n  id INTEGER PRIMARY KEY,\n  title TEXT NOT NULL\n);\n\nCREATE TABLE tags (id INTEGER PRIMARY KEY);\n";
+    const path = "migrations/0001_init.up.sql";
+    const it = {
+      ...item(path, sql, true),
+      lang: "generic" as const,
+      grammar: null,
+      detectors: detectorsFor({ path, lang: "generic", class: "source", scope: "main" }),
+    };
+    const r = (await h.handle({ id: 1, items: [it] })).items[0] as ParseOkResult;
+    expect(r.facts.filter((f) => f.detector === "schema.sql@1").map((f) => `${f.line} ${f.data.entity}`)).toEqual(["1 books", "6 tags"]);
+    h.dispose();
+  });
 });
 
 describe("spec §3.7 incremental reparse via tree.edit", () => {
