@@ -64,6 +64,19 @@ export function linkByDetector(id: string, all: readonly FactCandidate[], ctx: F
     case "route.fastapi@1":
     case "route.flask@1":
       return routes(mine, ctx);
+    case "route.next-app@1":
+    case "route.next-pages@1":
+      // the router directory sits at a Next package's root: `<pkg>/(src/)app`, `next` in that package's manifest
+      return routes(
+        mine.filter((c) => {
+          const dir = str(c.data.pkgDir);
+          const index = isEnv(ctx) ? ctx.index : undefined;
+          return (
+            ctx.manifestDeps(c.path).has("next") && (index === undefined || index.exists((dir === "" ? "package.json" : `${dir}/package.json`) as RepoPath))
+          );
+        }),
+        ctx,
+      );
     case "cli.registry@1":
       return registry(mine, ctx);
     case "cli.click@1":

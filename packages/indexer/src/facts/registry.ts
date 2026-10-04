@@ -11,6 +11,7 @@ import { baseOf } from "../resolve/files.ts";
 import { goCobra, goEntry, goEnv, goRegistry, goRoutes, goTestMain, goTests } from "./go.ts";
 import { jsCommander, jsEnv, jsRegistry, jsRoutes, jsTests } from "./js.ts";
 import { linkByDetector } from "./link.ts";
+import { nextRouteFile, nextRoutes } from "./next.ts";
 import { outboundCalls } from "./outbound.ts";
 import { pyClick, pyEntry, pyEnv, pyRoutes, pyTests } from "./py.ts";
 import { rustClap, rustEntry, rustEnv, rustTests } from "./rust.ts";
@@ -133,6 +134,21 @@ export const FACT_DETECTORS: readonly FactDetector[] = [
   detector("route.nethttp@1", ["route"], GO, lang("go"), goRoutes),
   detector("route.hono@1", ["route"], JS, js, (i, t) => jsRoutes(i, t, "hono")),
   detector("route.express@1", ["route"], JS, js, (i, t) => jsRoutes(i, t, "express")),
+  // Next.js file-system routes (spec §5.2; gen #4a: a Next app had no flow seed)
+  detector(
+    "route.next-app@1",
+    ["route"],
+    JS,
+    (f) => js(f) && nextRouteFile(f.path),
+    (i, t) => nextRoutes(i, t, "app"),
+  ),
+  detector(
+    "route.next-pages@1",
+    ["route"],
+    JS,
+    (f) => js(f) && nextRouteFile(f.path),
+    (i, t) => nextRoutes(i, t, "pages"),
+  ),
   detector("route.fastapi@1", ["route"], ["python"], lang("python"), (i, t) => pyRoutes(i, t, "fastapi")),
   detector("route.flask@1", ["route"], ["python"], lang("python"), (i, t) => pyRoutes(i, t, "flask")),
   detector(

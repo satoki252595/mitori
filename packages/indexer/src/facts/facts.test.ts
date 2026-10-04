@@ -5,6 +5,7 @@ import { resolveImports } from "../resolve/stage.ts";
 import { input, sf } from "../resolve/test/stage-files.ts";
 import { classify, loadGrammars, loadRepo, parseStageFile } from "../structure/test/corpus.ts";
 import { mainFacts, miniIndexer, runPipeline } from "../structure/test/pipeline.ts";
+import { nextPattern } from "./next.ts";
 import { linkFacts } from "./stage.ts";
 import {
   compose,
@@ -27,8 +28,7 @@ const TIER2_FRAMEWORKS = new Set([
   "gin",
   "echo",
   "fastify",
-  "next-app",
-  "next-pages",
+  // next-app / next-pages are graded: `route.next-app@1` / `route.next-pages@1` exist (gen #4a)
   "django",
   "axum",
   "actix",
@@ -256,6 +256,61 @@ describe("gen #4c route handlers behind wrappers, factories and imports resolve"
       "flask GET /items": "app/views.py#Items",
       "fastapi ANY /api/items": "app/api.py#list_items",
     });
+  });
+});
+
+describe("gen #4a route.next-app@1 / route.next-pages@1: Next.js file-system routes", () => {
+  test("nextPattern: groups and slots dropped, [id] kept, index = the directory, private folders and intercepting routes are none", () => {
+    const pat = (p: string) => nextPattern(p)?.pattern ?? null;
+    expect(pat("app/page.tsx")).toBe("/");
+    expect(pat("src/app/(marketing)/about/page.tsx")).toBe("/about");
+    expect(pat("app/blog/[slug]/@modal/page.tsx")).toBe("/blog/[slug]");
+    expect(pat("app/api/books/[id]/route.ts")).toBe("/api/books/[id]");
+    expect(pat("apps/web/app/settings/page.jsx")).toBe("/settings");
+    expect(nextPattern("apps/web/app/settings/page.jsx")?.pkgDir).toBe("apps/web");
+    expect(nextPattern("src/app/page.tsx")?.pkgDir).toBe("");
+    expect(pat("app/_components/page.tsx")).toBeNull();
+    expect(pat("app/photos/(.)[id]/page.tsx")).toBeNull();
+    expect(pat("app/layout.tsx")).toBeNull();
+    expect(pat("app/Editor.tsx")).toBeNull();
+    expect(pat("pages/index.tsx")).toBe("/");
+    expect(pat("src/pages/posts/[id].tsx")).toBe("/posts/[id]");
+    expect(nextPattern("pages/api/books.ts")).toMatchObject({ pattern: "/api/books", api: true });
+    expect(pat("pages/_app.tsx")).toBeNull();
+    expect(pat("pages/page.test.tsx")).toBeNull();
+  });
+
+  test("routes with their handlers, only in a package that depends on next and at its root (m3e: GET / → Page)", async () => {
+    const gs = await loadGrammars();
+    const src: Record<string, string> = {
+      "package.json": JSON.stringify({ name: "app", dependencies: { next: "16.3.4", react: "19.0.0" } }),
+      "app/page.tsx":
+        '"use client";\nimport Editor from "./Editor";\n// export default function Old() {}\nexport default function Page() {\n  return <Editor />;\n}\n',
+      "app/Editor.tsx": "export default function Editor() {\n  return null;\n}\n",
+      "app/api/items/route.ts":
+        "export async function GET() {\n  return Response.json([]);\n}\n\nexport const POST = async (req: Request) => Response.json(await req.json());\nconst del = () => new Response(null);\nexport { del as DELETE };\n",
+      "pages/api/legacy.ts": "export default function handler(req, res) {\n  res.json({});\n}\n",
+      // a `pages/` folder below the package root is a component folder, not the pages router
+      "src/components/pages/Home.tsx": "export default function Home() {\n  return null;\n}\n",
+      // a server without next: its `app/` is no Next app
+      "server/package.json": JSON.stringify({ name: "server", dependencies: { express: "4.0.0" } }),
+      "server/app/page.ts": "export default function page() {}\n",
+    };
+    const files = Object.entries(src).map(([path, text]) => {
+      const c = classify(path, text.length, text);
+      return parseStageFile(path, text, c, c.grammar ? gs[c.grammar] : null, `b:${path}`);
+    });
+    const p = runPipeline(input(files, { "package.json": src["package.json"] as string, "server/package.json": src["server/package.json"] as string }));
+    const routes = mainFacts(p, "route")
+      .map((f) => (f.kind === "route" ? `${f.method} ${f.pattern} ${f.framework} ${f.path}:${f.line} ${f.handler ?? "-"}` : ""))
+      .sort();
+    expect(routes).toEqual([
+      "ANY /api/legacy next-pages pages/api/legacy.ts:1 pages/api/legacy.ts#handler",
+      "DELETE /api/items next-app app/api/items/route.ts:7 app/api/items/route.ts#del",
+      "GET / next-app app/page.tsx:4 app/page.tsx#Page",
+      "GET /api/items next-app app/api/items/route.ts:1 app/api/items/route.ts#GET",
+      "POST /api/items next-app app/api/items/route.ts:5 app/api/items/route.ts#POST",
+    ]);
   });
 });
 
