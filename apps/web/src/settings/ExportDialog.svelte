@@ -103,8 +103,9 @@ const LEVELS: ReaderLevel[] = ["newcomer", "standard", "expert"];
       </div>
     </div>
     <div class="opt">
-      <span class="k" id="exp-lang">{t("exportDlg.lang")}</span>
-      <div class="seg" role="radiogroup" aria-labelledby="exp-lang">
+      <!-- the viewer's chrome language (ExportReq.lang): the document text is exported as written, never translated -->
+      <span class="k lk"><span id="exp-lang">{t("exportDlg.lang")}</span><span class="hint" id="exp-lang-h">{t("exportDlg.langHint")}</span></span>
+      <div class="seg" role="radiogroup" aria-labelledby="exp-lang" aria-describedby="exp-lang-h">
         <label class:on={lang === "ja"}><input type="radio" name="exp-lang" value="ja" checked={lang === "ja"} onchange={() => (lang = "ja")} />{t("settings.langJa")}</label>
         <label class:on={lang === "en"}><input type="radio" name="exp-lang" value="en" checked={lang === "en"} onchange={() => (lang = "en")} />{t("settings.langEn")}</label>
       </div>
@@ -183,6 +184,10 @@ const LEVELS: ReaderLevel[] = ["newcomer", "standard", "expert"];
   }
   .k {
     color: var(--text);
+  }
+  .lk {
+    display: flex;
+    flex-direction: column;
   }
   .seg label.on {
     background: var(--sheet);

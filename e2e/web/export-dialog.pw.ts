@@ -53,6 +53,10 @@ test("@wp10a export dialog from the settings page; Escape closes it and returns 
   const dlg = page.locator("dialog.exp");
   await expect(dlg).toBeVisible();
   await expect(dlg.locator(".facts")).toContainText("1.08 MB");
+  // the language option is the viewer's chrome: it says so — a newcomer must not expect a translated document
+  const langGroup = dlg.getByRole("radiogroup", { name: "画面の言語" });
+  await expect(langGroup).toBeVisible();
+  await expect(langGroup).toHaveAccessibleDescription(/翻訳はしません/);
   await page.keyboard.press("Escape");
   await expect(dlg).toHaveCount(0);
   await expect(open).toBeFocused();
