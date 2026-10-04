@@ -286,13 +286,17 @@ function collectCalls(lines: readonly string[], from: number, to: number, into: 
  * level, ≤ 6 helpers, ≤ 400 lines each) — `handleX` → `s.addComment` (same file) → `session.AddComment`. Null
  * without the handler's text (the file-level walk then decides alone).
  */
-export function handlerCalls(handler: SymbolKey, files: ReadonlyMap<RepoPath, StageFile>, text: (p: RepoPath) => string | null): HandlerCalls | null {
+export function handlerCalls(
+  handler: SymbolKey,
+  files: ReadonlyMap<RepoPath, StageFile>,
+  text: (p: RepoPath) => string | null,
+  linesOf: (p: RepoPath) => readonly string[] | null = (p) => text(p)?.split("\n") ?? null,
+): HandlerCalls | null {
   const path = handler.slice(0, handler.indexOf("#"));
   const f = files.get(path);
   const sym = f?.symbols.find((s) => s.key === handler);
-  const src = f && sym ? text(path) : null;
-  if (!f || !sym || src === null) return null;
-  const lines = src.split("\n");
+  const lines = f && sym ? linesOf(path) : null;
+  if (!f || !sym || lines === null) return null;
   const calls: HandlerCalls = { names: new Set(), qualified: new Map() };
   collectCalls(lines, sym.bodyStart ?? sym.start, sym.end, calls);
   const helpers = f.symbols.filter((s) => s.key !== handler && CALLABLE.has(s.kind) && calls.names.has(s.name)).slice(0, 6);
@@ -337,10 +341,16 @@ export interface HandlerReach {
  * files and the file's graph neighbours that define it (common method names excepted). Only files of other modules
  * the walk may step into count. `file` = the most-reached one (calls edge, rank, path break ties).
  */
-export function handlerReach(handler: SymbolKey, start: ModuleId, st: StructureResult, src: FlowSources): HandlerReach {
+export function handlerReach(
+  handler: SymbolKey,
+  start: ModuleId,
+  st: StructureResult,
+  src: FlowSources,
+  linesOf?: (p: RepoPath) => readonly string[] | null,
+): HandlerReach {
   const none: HandlerReach = { file: null, targets: new Map() };
   const path = handler.slice(0, handler.indexOf("#"));
-  const calls = handlerCalls(handler, src.files, src.text);
+  const calls = handlerCalls(handler, src.files, src.text, linesOf);
   if (calls === null) return none;
   const g = st.graph;
   const from = g.index.get(path);
@@ -499,6 +509,16 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
     reach: HandlerReach | null;
   };
   const cands: Cand[] = [];
+  // a router file holds dozens of handlers (crit's server.go: 61): its lines are split once per call, not per route
+  const lineCache = new Map<RepoPath, readonly string[] | null>();
+  const linesOf = (p: RepoPath): readonly string[] | null => {
+    let l = lineCache.get(p);
+    if (l === undefined) {
+      l = src?.text(p)?.split("\n") ?? null;
+      lineCache.set(p, l);
+    }
+    return l;
+  };
   const bodyOf = (key: SymbolKey) => {
     const s = src?.files.get(key.slice(0, key.indexOf("#")))?.symbols.find((x) => x.key === key);
     return s ? s.end - s.start + 1 : 0;
@@ -521,7 +541,7 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         score: 0,
         weight: 0,
         size: r.handler ? bodyOf(r.handler) : 0,
-        reach: src && r.handler && start !== undefined ? handlerReach(r.handler, start, st, src) : null,
+        reach: src && r.handler && start !== undefined ? handlerReach(r.handler, start, st, src, linesOf) : null,
       });
     } else if (f.kind === "cli")
       cands.push({ kind: "cli", label: f.command, path: f.path, line: f.line, file: f.path, order: 1, tier: 0, score: 0, weight: 0, size: 0, reach: null });
