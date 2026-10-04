@@ -13,12 +13,25 @@ const GATES: ReadonlySet<string> = new Set(["relative", "absolute", "structural"
 
 type Entry = Partial<Record<keyof BudgetEntry | "minN" | "unmeasured", unknown>>;
 
+/** Measure files whose text must name the budget: bench case files and Playwright specs. */
+const HARNESS_FILE = /^(bench\/[^/]+\.bench\.ts|e2e\/.+\.spec\.ts)$/;
+const namesId = (text: string, id: string): boolean => new RegExp(`["'\`]${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["'\`]`).test(text);
+
 /** Lint all budget files together (ids are unique across files). */
 /**
  * `exists` (repo-relative path → bool): F4 (nonfunc audit) — a `measure` file that does not exist measures nothing;
  * such an entry must say so (`unmeasured: "<why>"`), and an entry whose file exists must not carry `unmeasured`.
+ * `read` (repo-relative path → text, undefined when unreadable): a measure file of the harness — a bench case file
+ * (`bench/<x>.bench.ts`) or a Playwright spec (`e2e/**\/*.spec.ts`) — must name the id it is said to measure as a string
+ * literal (a case id, a counter key, an `expectWithinBudget("<id>", …)`): an existing file that never mentions the
+ * budget is a budget that is written, not measured. Other measure files (eval, size tables, golden tests) build their
+ * ids and are not read.
  */
-export function lintBudgets(files: readonly { path: string; json: unknown }[], exists?: (path: string) => boolean): BudgetProblem[] {
+export function lintBudgets(
+  files: readonly { path: string; json: unknown }[],
+  exists?: (path: string) => boolean,
+  read?: (path: string) => string | undefined,
+): BudgetProblem[] {
   const out: BudgetProblem[] = [];
   const seen = new Map<string, string>();
   for (const { path, json } of files) {
@@ -43,6 +56,10 @@ export function lintBudgets(files: readonly { path: string; json: unknown }[], e
       if (e.unmeasured !== undefined && (typeof e.unmeasured !== "string" || e.unmeasured.trim() === "")) p(id, "unmeasured must be a non-empty reason");
       else if (!has && e.unmeasured === undefined) p(id, `measure file ${file} does not exist (add it, or say why with "unmeasured")`);
       else if (has && e.unmeasured !== undefined) p(id, `measure file ${file} exists: drop "unmeasured"`);
+      else if (has && read && HARNESS_FILE.test(file)) {
+        const text = read(file);
+        if (text !== undefined && !namesId(text, id)) p(id, `measure file ${file} never names "${id}" (no case or check measures it there)`);
+      }
     };
     for (const b of budgets) {
       const id = String(b.id);

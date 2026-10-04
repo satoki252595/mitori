@@ -36,7 +36,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 50
 
-      - name: Install (frozen lockfile; no dependency lifecycle scripts)
+      - name: Install (frozen lockfile; trustedDependencies = [])
         run: scripts/nd bun install --frozen-lockfile
 
       - name: Corpus (pinned clones, cached in ~/.cache/mitori-corpus)
@@ -45,14 +45,20 @@ jobs:
       - name: Build the binary (bin.* / srv.rss.* / mcp.init measure the compiled daemon)
         run: scripts/nd bun run build:bin
 
+      # dispatch inputs reach the shell as environment variables, never spliced into the script text (no injection)
       - name: Absolute budgets (all suites)
+        env:
+          SUITES: ${{ inputs.suites || 'all' }}
         run: |
           mkdir -p bench/results
-          scripts/nd bun run bench --suite "${{ inputs.suites || 'all' }}" --absolute --out bench/results/nightly.json | tee bench/results/nightly.txt
+          scripts/nd bun run bench --suite "$SUITES" --absolute --out bench/results/nightly.json | tee bench/results/nightly.txt
 
       - name: Head vs base (≥ 20 % slower above the noise floor fails; counters may not grow)
+        env:
+          BASE: ${{ inputs.base || 'HEAD~1' }}
+          SUITES: ${{ inputs.suites || 'all' }}
         run: |
-          scripts/nd bun run bench:compare --base "${{ inputs.base || 'HEAD~1' }}" --suite "${{ inputs.suites || 'all' }}" \
+          scripts/nd bun run bench:compare --base "$BASE" --suite "$SUITES" \
             --asset --md bench/results/compare.md --out bench/results/compare.json
 
       - name: Served bytes

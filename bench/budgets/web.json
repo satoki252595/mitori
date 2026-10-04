@@ -671,7 +671,7 @@
       "id": "ui.fetch.readerOpen",
       "max": 6,
       "owner": "web",
-      "measure": "e2e/perf/reader.spec.ts#ui-fetch-reader-open"
+      "measure": "bench/ui.bench.ts#reader-open"
     }
   ]
 }

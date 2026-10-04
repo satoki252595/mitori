@@ -1,7 +1,8 @@
 # Linux check image for mitori (scripts/linux-ci.sh): ubuntu 24.04 + the devShell's toolchain versions
 # (bun / node / go pinned to flake.nix's; python3 / rust from apt) + bubblewrap (the gate sandbox on Linux, ADR-0013).
 # Built for linux/arm64 natively on Apple silicon; linux/amd64 builds under emulation (Rosetta / qemu) for the binary check.
-# The repository is NOT copied in: linux-ci.sh mounts a clean export of HEAD at /src.
+# The repository is NOT copied in: linux-ci.sh mounts a scratch export of the working tree (tracked + untracked, not
+# ignored) at /src.
 FROM ubuntu:24.04
 
 ARG TARGETARCH

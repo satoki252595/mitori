@@ -7,7 +7,7 @@
  * All three are structural budgets (max 0). Run: `bun run e2e --grep @a11y`.
  */
 import { ui } from "@mitori/testkit";
-import { expectWithinBudget, test } from "../harness/fixtures.ts";
+import { expect, expectWithinBudget, test } from "../harness/fixtures.ts";
 import { probe, SCREENS } from "./screens.ts";
 
 test.use({ daemonOptions: { fixture: "go-small" } });
@@ -26,7 +26,9 @@ for (const scheme of ["light", "dark"] as const) {
       });
       const p = await probe(page);
       info.annotations.push({ type: "probe", description: JSON.stringify({ contrast, ...p }) });
-      if (contrast !== null) expectWithinBudget("ui.a11y.contrast", contrast);
+      // ui.axe injected axe-core above: a page without window.axe would measure nothing, which must not read as a pass
+      expect(contrast, "axe-core was not injected: ui.a11y.contrast measured nothing").not.toBeNull();
+      expectWithinBudget("ui.a11y.contrast", contrast as number);
       expectWithinBudget("ui.a11y.textSize", p.smallText.length);
       expectWithinBudget("ui.a11y.target", p.smallTargets.length);
     });

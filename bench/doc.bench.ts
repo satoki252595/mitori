@@ -264,9 +264,10 @@ function elkPool() {
   return elk;
 }
 
-function elkCase(n: 300 | 1000) {
+/** `id` is spelled out (not built from `n`): the budgets check finds the case by its literal id. */
+function elkCase(id: "doc.elk.300" | "doc.elk.1000", n: 300 | 1000) {
   return defineBench<{ seed: number; home: { dir: string; dispose(): void } }>({
-    id: `doc.elk.${n}`,
+    id,
     suite: "doc",
     mode: "inproc",
     runs: 7,
@@ -307,8 +308,8 @@ function elkCase(n: 300 | 1000) {
   });
 }
 
-export const elk300 = elkCase(300);
-export const elk1000 = elkCase(1000);
+export const elk300 = elkCase("doc.elk.300", 300);
+export const elk1000 = elkCase("doc.elk.1000", 1000);
 
 /* ------------------------------------------------------------------------------------------------- flush */
 

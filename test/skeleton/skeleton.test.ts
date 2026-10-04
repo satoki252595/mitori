@@ -51,13 +51,13 @@ function ensureBinary(): void {
 let iso = "";
 let mitori = "";
 beforeAll(() => {
-  if (UNBUILDABLE) return;
-  ensureBinary();
   iso = mkdtempSync(join(tmpdir(), "mitori-skel-"));
+  mkdirSync(join(iso, "home"));
+  if (UNBUILDABLE) return; // SKEL-AT-05 (the asset lock) needs no binary and still runs
+  ensureBinary();
   mitori = join(iso, "mitori");
   copyFileSync(BIN, mitori);
   Bun.spawnSync(["chmod", "755", mitori]);
-  mkdirSync(join(iso, "home"));
 }, 180_000);
 afterAll(() => {
   if (iso) rmSync(iso, { recursive: true, force: true });
@@ -232,7 +232,8 @@ describe.skipIf(UNBUILDABLE)("SKEL-AT-04 CLI-I-010 release binary: start-up (bin
   });
 });
 
-describe.skipIf(UNBUILDABLE)("SKEL-AT-05 asset lock (SEC-16)", () => {
+// not skipped where build:bin has no target: the lock check runs before any compile (an explicit, supported target)
+describe("SKEL-AT-05 asset lock (SEC-16)", () => {
   test("the committed lock matches the installed files", () => {
     const r = Bun.spawnSync(["bun", "scripts/gen-assets.ts", "--verify-only"], { cwd: ROOT, stderr: "pipe" });
     expect(r.exitCode).toBe(0);
@@ -245,10 +246,12 @@ describe.skipIf(UNBUILDABLE)("SKEL-AT-05 asset lock (SEC-16)", () => {
     go.sha256 = `${go.sha256.startsWith("0") ? "1" : "0"}${go.sha256.slice(1)}`;
     const tampered = join(iso, "tampered.lock.json");
     writeFileSync(tampered, JSON.stringify(lock));
-    const before = existsSync(HOST_BIN) ? statSync(HOST_BIN).mtimeMs : 0;
-    const r = Bun.spawnSync(["bun", "scripts/build-bin.ts", "--lock", tampered], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
+    const target = UNBUILDABLE ? "linux-x64" : `${process.platform}-${process.arch}`;
+    const out = join(ROOT, `dist/mitori-${target}`);
+    const before = existsSync(out) ? statSync(out).mtimeMs : 0;
+    const r = Bun.spawnSync(["bun", "scripts/build-bin.ts", "--target", target, "--lock", tampered], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
     expect(r.exitCode).toBe(1);
     expect(r.stderr.toString()).toContain("grammar.go: sha256");
-    expect(existsSync(HOST_BIN) ? statSync(HOST_BIN).mtimeMs : 0).toBe(before);
+    expect(existsSync(out) ? statSync(out).mtimeMs : 0).toBe(before);
   });
 });
