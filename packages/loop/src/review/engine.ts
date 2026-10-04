@@ -180,7 +180,8 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
     const last = store.lastMessage(t.id);
     const s: ThreadSummary = {
       ...t,
-      preview: Array.from(last?.body ?? "")
+      // EX-11: an answer's `[[path:a-b]]` cite reads as `path:a-b` in the one-line preview (the card body links it)
+      preview: Array.from((last?.body ?? "").replace(/\[\[([^[\]\s]+:\d+(?:-\d+)?)\]\]/gu, "$1"))
         .slice(0, 120)
         .join(""),
       messages: store.messageCount(t.id),

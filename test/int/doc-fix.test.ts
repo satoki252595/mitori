@@ -99,6 +99,10 @@ describe("EX-06 the AI fixes the doc to match the code", () => {
     const answer = t.messages.find((m) => m.kind === "answer");
     expect(answer?.body).toContain("再試行は 1 回だけです");
     expect(answer?.body).not.toContain("mitori-doc");
+    // EX-11: the one-line preview of the answer has no raw [[path:a-b]] token
+    const row = (await api<{ items: { id: string; preview?: string }[] }>("GET", "/threads?limit=50")).items.find((x) => x.id === th.id);
+    expect(row?.preview).toContain("internal/meta/fetch.go:19-19");
+    expect(row?.preview).not.toContain("[[");
     // the human accepts it in the prose: the doc changes, the code does not
     const res = await web.req("POST", `/ws/${ws}/doc/proposals/${p?.id}/accept`, {});
     expect(res.status).toBe(200);

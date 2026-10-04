@@ -33,10 +33,16 @@ export async function afterOpen(io: Io, s: Session, ws: WorkspaceKey, open: bool
   if (open) await openInBrowser(io, s, ws, to);
   const ja = helpLang(io.env) === "ja";
   try {
+    const never: string[] = [];
     for (const v of await s.api.call("GET /integrations", { params: {}, query: { ws } }))
       for (const state of ["outdated", "missing"] as const) {
         const n = v.files.filter((f) => f.state === state).length;
         if (n === 0) continue;
+        // NC-18 / F14: an integration never installed is a hint, not five warnings — one line for all of them
+        if (state === "missing" && n === v.files.length) {
+          never.push(v.target);
+          continue;
+        }
         const cmd = `mitori install ${v.target}${v.scope === "project" ? " --scope project" : ""}`;
         io.err(
           ja
@@ -44,6 +50,12 @@ export async function afterOpen(io: Io, s: Session, ws: WorkspaceKey, open: bool
             : `mitori: ${n} ${v.target} integration file(s) ${state === "outdated" ? "are outdated" : "are missing"} (\`${cmd}\` updates them)\n`,
         );
       }
+    if (never.length > 0)
+      io.err(
+        ja
+          ? `mitori: ヒント — \`mitori install\` で自分のエージェント（${[...new Set(never)].join(" / ")}）から設計書のレビューを受け取れます\n`
+          : `mitori: hint — \`mitori install\` lets your own agent (${[...new Set(never)].join(" / ")}) take reviews from the design doc\n`,
+      );
   } catch {
     // a daemon without the installer routes: nothing to report
   }
