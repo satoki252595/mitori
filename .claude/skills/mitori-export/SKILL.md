@@ -23,4 +23,11 @@ Things that bite:
 - The exporter refuses a viewer script containing `</script` / `<!--` or whose sha256 differs from `viewer.json` (`E_INTERNAL`): rebuild with gen-assets, do not hand-edit.
 - A new `t("…")` key in the viewer or in a Reader part it reuses must be in `src/viewer/catalog.ts` (`SHARED_KEYS` / `SHARED_PREFIXES`) or `export.{ja,en}.json` — `catalog.test.ts` checks.
 - Any change to `ViewerPayload` (apps/web contract §16) must be mirrored in `packages/doc/src/export/payload.ts` `ExportPayload` — `e2e/export/payload-contract.test.ts` fails to compile otherwise.
-- Golden: `fixtures/golden/cli/help.*.txt` change with the `export` help text (`MITORI_UPDATE_GOLDEN=1 scripts/nd bun test apps/cli/src/commands/cli.int.test.ts`, a `golden:` commit).
+- Golden: `fixtures/golden/cli/help.*.txt` change with the `export` help text (`MITORI_UPDATE_GOLDEN=1 scripts/nd bun test apps/cli/src/commands/cli.int.test.ts`, a `golden:` commit);
+  `fixtures/golden/secrets/export.meta.json` with anything that changes the bytes of the secrets export (`… export-golden.test.ts`).
+- Check the compiled binary too: `scripts/nd bun run build:bin` then `MITORI_E2E_BINARY=compiled MITORI_E2E_CHANNEL=chrome scripts/nd bun run e2e --grep @export`.
+  The suite also opens crit in WebKit (Safari's engine) when Playwright's WebKit is installed, and at 1,200 / 1,280 / 700 / 390 px.
+- Redactions are counted once, where their Markdown is (a glossary entry is also a row of the s12 table, a diagram label also its block's fence): use
+  the counting redactor only for text that exists in no block (`R` vs `Q` in payload.ts).
+- Look at more than one width: below 1,232 px the doc's rail is a drawer (the menu button must show), below 1,024 px the header loses the level /
+  theme / language switches (the drawer carries them).
