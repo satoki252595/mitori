@@ -1,0 +1,78 @@
+{
+  "platform": "linux-arm64",
+  "kind": "bwrap",
+  "bwrap": "/usr/bin/bwrap",
+  "checks": [
+    {
+      "name": "loopback listen + connect (go test with httptest)",
+      "want": "ok",
+      "got": "denied",
+      "pass": false,
+      "detail": "exit 1: bwrap: Can't mount proc on /newroot/proc: Operation not permitted"
+    },
+    {
+      "name": "outbound TCP to 1.1.1.1:443",
+      "want": "denied",
+      "got": "denied",
+      "pass": true,
+      "detail": "exit 1: bwrap: Can't mount proc on /newroot/proc: Operation not permitted"
+    },
+    {
+      "name": "DNS + HTTPS to example.com",
+      "want": "denied",
+      "got": "denied",
+      "pass": true,
+      "detail": "exit 1: bwrap: Can't mount proc on /newroot/proc: Operation not permitted"
+    },
+    {
+      "name": "write inside the tree",
+      "want": "ok",
+      "got": "denied",
+      "pass": false,
+      "detail": "exit 1: bwrap: Can't mount proc on /newroot/proc: Operation not permitted"
+    },
+    {
+      "name": "write the job TMPDIR",
+      "want": "ok",
+      "got": "denied",
+      "pass": false,
+      "detail": "exit 1: bwrap: Can't mount proc on /newroot/proc: Operation not permitted"
+    },
+    {
+      "name": "write the user's HOME",
+      "want": "denied",
+      "got": "denied",
+      "pass": true,
+      "detail": "exit 1: bwrap: Can't mount proc on /newroot/proc: Operation not permitted"
+    },
+    {
+      "name": "write the tree's .git",
+      "want": "denied",
+      "got": "denied",
+      "pass": true,
+      "detail": "exit 1: bwrap: Can't mount proc on /newroot/proc: Operation not permitted"
+    },
+    {
+      "name": "read ~/.ssh",
+      "want": "denied",
+      "got": "denied",
+      "pass": true,
+      "detail": "exit 1: bwrap: Can't mount proc on /newroot/proc: Operation not permitted"
+    },
+    {
+      "name": "read ~/.mitori",
+      "want": "denied",
+      "got": "denied",
+      "pass": true,
+      "detail": "exit 1: bwrap: Can't mount proc on /newroot/proc: Operation not permitted"
+    },
+    {
+      "name": "the tree write reached the host",
+      "want": "ok",
+      "got": "denied",
+      "pass": false,
+      "detail": ""
+    }
+  ],
+  "ok": false
+}
