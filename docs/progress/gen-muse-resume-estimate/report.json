@@ -1,0 +1,111 @@
+{
+ "v": "mitori.gen-real/1",
+ "repo": "/tmp/mitori-crit-muse-20261004",
+ "ws": "ws_9gerdxje6s5x",
+ "effort": "standard",
+ "build": "release",
+ "engine": {
+  "id": "generic",
+  "plan": "generic:8f60d84a1ee89fb4",
+  "billing": "unknown",
+  "pin": null
+ },
+ "models": {
+  "answer": "generic:muse-spark-1.3-contributor",
+  "patch": "generic:muse-spark-1.3-contributor",
+  "agent": "generic:muse-spark-1.3-contributor",
+  "genModule": "generic:muse-spark-1.3-contributor",
+  "genOverview": "generic:muse-spark-1.3-contributor",
+  "genLeaf": "generic:muse-spark-1.3-contributor",
+  "judge": "generic:muse-spark-1.3-contributor",
+  "rewrite": "generic:muse-spark-1.3-contributor",
+  "escalate": "generic:muse-spark-1.3-contributor"
+ },
+ "reasoning": {
+  "answer": "max",
+  "patch": "max",
+  "agent": "max",
+  "gen": "max",
+  "genOverview": "max"
+ },
+ "pricing": {
+  "inPerMTok": 0.1,
+  "outPerMTok": 0.2,
+  "cacheReadPerMTok": 0.002
+ },
+ "otherClaudeProcesses": 2,
+ "openMs": 1421.571625,
+ "estimate": {
+  "id": "es_6syndrer3f",
+  "engine": "generic",
+  "model": "generic:muse-spark-1.3-contributor",
+  "inTokens": 90449,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "outTokens": 6954,
+  "apiUsd": 0.010436,
+  "seconds": {
+   "p50": 62,
+   "p90": 84
+  },
+  "concurrency": 2,
+  "windowDeltaPct": null,
+  "billing": "unknown",
+  "confidencePct": 25,
+  "calibrationN": 0,
+  "band": "50k_200k",
+  "items": [
+   {
+    "key": "repo_pack",
+    "kind": "repo_pack",
+    "label": "repo pack",
+    "tokens": 9757,
+    "cached": false,
+    "removable": false
+   },
+   {
+    "key": "fixed",
+    "kind": "fixed",
+    "label": "gen.system",
+    "tokens": 1550,
+    "cached": false,
+    "removable": false
+   },
+   {
+    "key": "module",
+    "kind": "module",
+    "label": "module inputs",
+    "tokens": 0,
+    "cached": false,
+    "removable": false
+   },
+   {
+    "key": "output",
+    "kind": "output",
+    "label": "output",
+    "tokens": 6954,
+    "cached": false,
+    "removable": false
+   }
+  ],
+  "requiresConfirm": true,
+  "confirmReasons": [
+   "generation_run"
+  ],
+  "expiresAt": "2026-10-04T13:25:18.127Z",
+  "effort": "standard",
+  "stages": [
+   {
+    "stage": "S6o",
+    "tasks": 4,
+    "inTokens": 90449,
+    "outTokens": 6954,
+    "apiUsd": 0.010436,
+    "seconds": 61.9
+   }
+  ],
+  "criticalPathSeconds": 56.9,
+  "alternatives": [],
+  "dataPolicyKey": "gen.generic"
+ }
+}

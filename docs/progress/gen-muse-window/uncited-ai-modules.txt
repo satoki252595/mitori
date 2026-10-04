@@ -1,0 +1,45 @@
+scope: AI-origin blocks from adjacent doc.index.json; modules only
+file                                     sent  unc  code
+modules/cmd-crit.md                        38    2    0
+modules/internal-comment.md                25    0    0
+modules/internal-github-gitlab.md          34    6    4
+    ・internal/session の検討支援と表示用の型や実行部に頼り、RunReviewClient などで処理を委ねる（推測）。
+    ・internal/comment の BulkCommentEntry 周りと internal/vcs の URL 判定に頼って注釈と対象を扱う（推測）。
+    ・internal/share 側の RunAuth による認証状態と設定に依存する（推測）。
+    ・cmd/crit や internal/server から呼ばれ、Config などの上位型と組み合わせて使われる（推測）。
+modules/internal-server.md                 33    1    1
+    ・cmd/crit から DaemonCLIConfig を受け、設定済み待受として使われる（推測）。
+modules/internal-session-plan-cli.md       32    3    2
+    ・internal/session の DiffEntry 系と internal の RunAuth 系と internal/vcs の LooksLikePRURL 系を使う（推測）。
+    ・cmd/crit の Config 系と internal の ExitError 系と internal/comment の BulkCommentEntry 系から呼ばれる（推測）。
+modules/internal-session-session.md        33    4    3
+    ・internal/vcs の LooksLikePRURL などと internal の共有設定系の RunAuth などを使う（推測）。
+    ・internal/session の計画系の RunReviewClient などと internal のフォージ系の ExitError などとは相互に呼び合う（推測）。
+    ・internal/comment の BulkCommentEntry などと internal/server の FS などと cmd/crit の Config などから使われる（推測）。
+modules/internal-share-config-live.md      43    4    3
+    ・internal/session の RunReviewClient と DiffEntry を入力に使う（推測）。
+    ・internal/vcs の LooksLikePRURL と internal/comment の CheckCommentCLIAllowed に頼る（推測）。
+    ・internal/server の FS 側と cmd/crit の Session 側から利用される（推測）。
+modules/internal-vcs.md                    39    3    3
+    ・internal/session とは DiffHunk 系を介して相互に結ぶ（推測）。
+    ・ほかに internal/comment の AddCommentToCritJSONScoped 系と計画系の RunReviewClient 系を使う（推測）。
+    ・internal/server の FS 系と cmd/crit の Config 系と forge 系の ExitError 系から使われる（推測）。
+modules/internal.md                        22    3    3
+    ・Server は Session から差分とコメントを取り出し、VCS から差分を引いて画面と API に渡す（推測）。
+    ・RunComment 系は Session と ResolveReviewPath を介して保存先を決め、Provider からの取り込み分と合流させる（推測）。
+    ・設定と共有と live は LoadConfig の結果を各部に配り、BindProxyServer で中継しながら daemon と往復する（推測）。
+modules/scripts.md                         20    4    1
+    ・受け手は web ディレクトリであり、主な公開物は FS と trackTag である（推測）。
+modules/web-app.md                         22    1    0
+modules/web-crit.md                        19    4    0
+modules/web-live-mode.md                   19    3    0
+modules/web-style-live.md                  22    3    2
+    ・資産生成で scripts の parse_threshold 系に依存する（推測）。
+    ・資産配信で cmd/crit の Config と internal/server の FS に利用される（推測）。
+modules/web-style.md                        4    4    4
+    ・web/style.css は web 全体の見た目を定めるための単一のスタイル定義である（推測）。
+    ・web/style.css は公開する関数や型を持たず、呼び出して使う振る舞いはない（推測）。
+    ・画面構造や操作は JS 側に任せ、web/style.css は装飾だけを受け持つ（推測）。
+    ・個別画面専用の調整は他に譲り、web/style.css は共通の土台を保つ役割に絞っている（推測）。
+modules/web.md                             16    3    0
+total: 421 sentences · uncited 48 (11.4 %) · uncited naming code 26 (6.2 %)

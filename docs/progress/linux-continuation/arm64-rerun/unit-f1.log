@@ -1,0 +1,15 @@
+bun test v1.4.2 (744846f84)
+
+test/int/int08.test.ts:
+(skip) INT-08 with the OS sandbox: checks run unattended, repairs are automatic, secrets and dependencies stay out of reach > RT-30: an AI-written test that reads ~/.aws/credentials runs sandboxed — the read is denied
+(skip) INT-08 with the OS sandbox: checks run unattended, repairs are automatic, secrets and dependencies stay out of reach > a failing check during gating gets its REPAIR turn without a click; the job is ready with every gate passed
+(skip) INT-08 with the OS sandbox: checks run unattended, repairs are automatic, secrets and dependencies stay out of reach > F1 remainder: a symlink a sandboxed test leaves in the tree fails the job before the REPAIR turn could read through it
+(skip) INT-08 with the OS sandbox: checks run unattended, repairs are automatic, secrets and dependencies stay out of reach > RT-31 under the sandbox: the write through the dependency link is denied; the dependency is unchanged
+(pass) F1 (nonfunc audit): agent mode never shows the model a tracked secret > during the turn the worktree holds a token; after it the file is byte-identical and outside the diff [10139.60ms]
+(pass) F1 (nonfunc audit): agent mode never shows the model a tracked secret > F1 remainder: no dependency link and no escaping tracked symlink exists while the model reads the tree; the gates get the links [1267.78ms]
+
+ 2 pass
+ 4 skip
+ 0 fail
+ 29 expect() calls
+Ran 6 tests across 1 file. [14.83s]

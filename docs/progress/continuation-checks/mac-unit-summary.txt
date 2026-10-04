@@ -1,0 +1,12 @@
+3 tests failed:
+(fail) UX-UI: Fix without @, suggestions in prose, Review header, hint, co-editing, insert proposals — real web UI [19695.15ms]
+(fail) generic engine over a scripted process > Muse JSONL unwraps verified text/model records, estimates usage, and rejects tool/missing-terminal output [3.72ms]
+(fail) owned sources are clean > apps/web/src/{shell,map,reader,palette,settings,gen,stores} + apps/web/i18n/<owned>.*.json [137.51ms]
+
+ 2976 pass
+ 13 skip
+ 5 todo
+ 3 fail
+ 1 snapshots, 125095 expect() calls
+Ran 2997 tests across 318 files. [506.66s]
+error: script "test" exited with code 1

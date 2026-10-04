@@ -1,0 +1,11 @@
+$ bun scripts/check.ts
+✓ tsc -b          57.25 s
+✓ biome           1.30 s
+✓ boundaries      3.53 s
+✓ cr-ledger       0.55 s
+✓ budgets         0.03 s
+✓ contract-index  2.34 s
+✓ svelte-check    14.68 s
+check: ok in 57.25 s
+check: wall time over the 30 s limit (testing spec §1.6)
+error: script "check" exited with code 1

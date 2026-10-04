@@ -1,0 +1,688 @@
+{
+ "v": "mitori.gen-real/1",
+ "repo": "/tmp/mitori-crit-muse-20261004",
+ "ws": "ws_9gerdxje6s5x",
+ "effort": "standard",
+ "build": "release",
+ "engine": {
+  "id": "generic",
+  "plan": "generic:8f60d84a1ee89fb4",
+  "billing": "unknown",
+  "pin": null
+ },
+ "models": {
+  "answer": "generic:muse-spark-1.3-contributor",
+  "patch": "generic:muse-spark-1.3-contributor",
+  "agent": "generic:muse-spark-1.3-contributor",
+  "genModule": "generic:muse-spark-1.3-contributor",
+  "genOverview": "generic:muse-spark-1.3-contributor",
+  "genLeaf": "generic:muse-spark-1.3-contributor",
+  "judge": "generic:muse-spark-1.3-contributor",
+  "rewrite": "generic:muse-spark-1.3-contributor",
+  "escalate": "generic:muse-spark-1.3-contributor"
+ },
+ "reasoning": {
+  "answer": "max",
+  "patch": "max",
+  "agent": "max",
+  "gen": "max",
+  "genOverview": "max"
+ },
+ "pricing": {
+  "inPerMTok": 0.1,
+  "outPerMTok": 0.2,
+  "cacheReadPerMTok": 0.002
+ },
+ "otherClaudeProcesses": 2,
+ "openMs": 1346.6819579999997,
+ "estimate": {
+  "id": "es_195fkczgbs",
+  "engine": "generic",
+  "model": "generic:muse-spark-1.3-contributor",
+  "inTokens": 90449,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "outTokens": 6954,
+  "apiUsd": 0.010436,
+  "seconds": {
+   "p50": 62,
+   "p90": 84
+  },
+  "concurrency": 2,
+  "windowDeltaPct": null,
+  "billing": "unknown",
+  "confidencePct": 25,
+  "calibrationN": 0,
+  "band": "50k_200k",
+  "items": [
+   {
+    "key": "repo_pack",
+    "kind": "repo_pack",
+    "label": "repo pack",
+    "tokens": 9757,
+    "cached": false,
+    "removable": false
+   },
+   {
+    "key": "fixed",
+    "kind": "fixed",
+    "label": "gen.system",
+    "tokens": 1550,
+    "cached": false,
+    "removable": false
+   },
+   {
+    "key": "module",
+    "kind": "module",
+    "label": "module inputs",
+    "tokens": 0,
+    "cached": false,
+    "removable": false
+   },
+   {
+    "key": "output",
+    "kind": "output",
+    "label": "output",
+    "tokens": 6954,
+    "cached": false,
+    "removable": false
+   }
+  ],
+  "requiresConfirm": true,
+  "confirmReasons": [
+   "generation_run"
+  ],
+  "expiresAt": "2026-10-04T13:26:27.140Z",
+  "effort": "standard",
+  "stages": [
+   {
+    "stage": "S6o",
+    "tasks": 4,
+    "inTokens": 90449,
+    "outTokens": 6954,
+    "apiUsd": 0.010436,
+    "seconds": 61.9
+   }
+  ],
+  "criticalPathSeconds": 56.9,
+  "alternatives": [],
+  "dataPolicyKey": "gen.generic"
+ },
+ "run": {
+  "id": "gr_j137gpbr",
+  "ws": "ws_9gerdxje6s5x",
+  "effort": "standard",
+  "trigger": "user",
+  "engine": "generic",
+  "scope": [
+   "s3",
+   "s11",
+   "s12",
+   "s13"
+  ],
+  "state": "done",
+  "concurrency": 2,
+  "pinned": {
+   "packKey": "a5277b777a911307",
+   "systemHash": "e60118dcb181b020da5664d0a436bcb4d5e35e07d9a2860a5d46a2f7135abd64",
+   "snapshot": "22cb05cfde740453"
+  },
+  "windowAtStart": null,
+  "estimate": {
+   "id": "es_195fkczgbs",
+   "engine": "generic",
+   "model": "generic:muse-spark-1.3-contributor",
+   "inTokens": 90449,
+   "cacheReadTokens": 0,
+   "cacheWriteTokens": 0,
+   "outTokens": 6954,
+   "apiUsd": 0.010436,
+   "seconds": {
+    "p50": 62,
+    "p90": 84
+   },
+   "concurrency": 2,
+   "windowDeltaPct": null,
+   "billing": "unknown",
+   "confidencePct": 25,
+   "calibrationN": 0,
+   "band": "50k_200k",
+   "items": [
+    {
+     "key": "repo_pack",
+     "kind": "repo_pack",
+     "label": "repo pack",
+     "tokens": 9757,
+     "cached": false,
+     "removable": false
+    },
+    {
+     "key": "fixed",
+     "kind": "fixed",
+     "label": "gen.system",
+     "tokens": 1550,
+     "cached": false,
+     "removable": false
+    },
+    {
+     "key": "module",
+     "kind": "module",
+     "label": "module inputs",
+     "tokens": 0,
+     "cached": false,
+     "removable": false
+    },
+    {
+     "key": "output",
+     "kind": "output",
+     "label": "output",
+     "tokens": 6954,
+     "cached": false,
+     "removable": false
+    }
+   ],
+   "requiresConfirm": true,
+   "confirmReasons": [
+    "generation_run"
+   ],
+   "expiresAt": "2026-10-04T13:26:27.140Z",
+   "effort": "standard",
+   "stages": [
+    {
+     "stage": "S6o",
+     "tasks": 4,
+     "inTokens": 90449,
+     "outTokens": 6954,
+     "apiUsd": 0.010436,
+     "seconds": 61.9
+    }
+   ],
+   "criticalPathSeconds": 56.9,
+   "alternatives": [],
+   "dataPolicyKey": "gen.generic"
+  },
+  "progress": {
+   "total": 4,
+   "done": 4,
+   "failed": 0,
+   "blocks": 31
+  },
+  "usage": {
+   "calls": 3,
+   "in": 131543,
+   "cacheWrite": 0,
+   "cacheRead": 0,
+   "out": 18652,
+   "apiUsd": 0.016885
+  },
+  "startedAt": "2026-10-04T13:16:27.182Z",
+  "finishedAt": "2026-10-04T13:24:19.436Z"
+ },
+ "runMs": 472567.642459,
+ "firstPartialMs": 191710.813084,
+ "firstBlockMs": 191946.836459,
+ "childProcesses": {
+  "max": 2,
+  "atEnd": 0,
+  "after5s": 0
+ },
+ "cancelReason": null,
+ "spentUsd": 0.016884999999999983,
+ "window": {
+  "before": null,
+  "after": null,
+  "observed": []
+ },
+ "aggregate": {
+  "states": {
+   "done": 4
+  },
+  "total": {
+   "tasks": 4,
+   "engineTasks": 3,
+   "calls": 3,
+   "retried": 0,
+   "failed": 0,
+   "in": 131543,
+   "cacheWrite": 0,
+   "cacheRead": 0,
+   "out": 18652,
+   "thinking": 0,
+   "apiUsd": 0.016885,
+   "callMs": 657475,
+   "estIn": 68104,
+   "estOut": 6380,
+   "lines": 37,
+   "valid1": 37,
+   "valid": 37,
+   "dropped": 0,
+   "claims": 77,
+   "l0raw": 77,
+   "l1": {
+    "pass": 74,
+    "fail": 0,
+    "vacuous": 3
+   },
+   "repaired": 0,
+   "markerOk": 20,
+   "blockLines": 20,
+   "rules": {},
+   "inAll": 131543,
+   "cacheReadShare": 0,
+   "estErrInPct": 93.2,
+   "estErrOutPct": 192.4,
+   "estErrTotalPct": 101.6,
+   "l0Pct": 100,
+   "l1Pct": 100,
+   "l1VacuousPct": 3.9,
+   "markerPct": 100,
+   "valid1Pct": 100,
+   "retryPct": 0,
+   "droppedPct": 0,
+   "thinkingShareOfOut": 0,
+   "ttftP50Ms": null,
+   "ttftP95Ms": null
+  },
+  "byStage": {
+   "S6o": {
+    "tasks": 4,
+    "engineTasks": 3,
+    "calls": 3,
+    "retried": 0,
+    "failed": 0,
+    "in": 131543,
+    "cacheWrite": 0,
+    "cacheRead": 0,
+    "out": 18652,
+    "thinking": 0,
+    "apiUsd": 0.016885,
+    "callMs": 657475,
+    "estIn": 68104,
+    "estOut": 6380,
+    "lines": 37,
+    "valid1": 37,
+    "valid": 37,
+    "dropped": 0,
+    "claims": 77,
+    "l0raw": 77,
+    "l1": {
+     "pass": 74,
+     "fail": 0,
+     "vacuous": 3
+    },
+    "repaired": 0,
+    "markerOk": 20,
+    "blockLines": 20,
+    "rules": {},
+    "inAll": 131543,
+    "cacheReadShare": 0,
+    "estErrInPct": 93.2,
+    "estErrOutPct": 192.4,
+    "estErrTotalPct": 101.6,
+    "l0Pct": 100,
+    "l1Pct": 100,
+    "l1VacuousPct": 3.9,
+    "markerPct": 100,
+    "valid1Pct": 100,
+    "retryPct": 0,
+    "droppedPct": 0,
+    "thinkingShareOfOut": 0,
+    "ttftP50Ms": null,
+    "ttftP95Ms": null
+   }
+  },
+  "byPrompt": {
+   "gen.risks": {
+    "tasks": 1,
+    "engineTasks": 1,
+    "calls": 1,
+    "retried": 0,
+    "failed": 0,
+    "in": 37475,
+    "cacheWrite": 0,
+    "cacheRead": 0,
+    "out": 3362,
+    "thinking": 0,
+    "apiUsd": 0.00442,
+    "callMs": 185348,
+    "estIn": 14497,
+    "estOut": 1500,
+    "lines": 5,
+    "valid1": 5,
+    "valid": 5,
+    "dropped": 0,
+    "claims": 17,
+    "l0raw": 17,
+    "l1": {
+     "pass": 14,
+     "fail": 0,
+     "vacuous": 3
+    },
+    "repaired": 0,
+    "markerOk": 4,
+    "blockLines": 4,
+    "rules": {},
+    "inAll": 37475,
+    "cacheReadShare": 0,
+    "estErrInPct": 158.5,
+    "estErrOutPct": 124.1,
+    "estErrTotalPct": 155.3,
+    "l0Pct": 100,
+    "l1Pct": 100,
+    "l1VacuousPct": 17.6,
+    "markerPct": 100,
+    "valid1Pct": 100,
+    "retryPct": 0,
+    "droppedPct": 0,
+    "thinkingShareOfOut": 0,
+    "ttftP50Ms": null,
+    "ttftP95Ms": null
+   },
+   "gen.flows": {
+    "tasks": 1,
+    "engineTasks": 1,
+    "calls": 1,
+    "retried": 0,
+    "failed": 0,
+    "in": 63869,
+    "cacheWrite": 0,
+    "cacheRead": 0,
+    "out": 13789,
+    "thinking": 0,
+    "apiUsd": 0.009145,
+    "callMs": 331938,
+    "estIn": 25661,
+    "estOut": 2400,
+    "lines": 21,
+    "valid1": 21,
+    "valid": 21,
+    "dropped": 0,
+    "claims": 60,
+    "l0raw": 60,
+    "l1": {
+     "pass": 60,
+     "fail": 0,
+     "vacuous": 0
+    },
+    "repaired": 0,
+    "markerOk": 16,
+    "blockLines": 16,
+    "rules": {},
+    "inAll": 63869,
+    "cacheReadShare": 0,
+    "estErrInPct": 148.9,
+    "estErrOutPct": 474.5,
+    "estErrTotalPct": 176.7,
+    "l0Pct": 100,
+    "l1Pct": 100,
+    "l1VacuousPct": 0,
+    "markerPct": 100,
+    "valid1Pct": 100,
+    "retryPct": 0,
+    "droppedPct": 0,
+    "thinkingShareOfOut": 0,
+    "ttftP50Ms": null,
+    "ttftP95Ms": null
+   },
+   "gen.questions": {
+    "tasks": 1,
+    "engineTasks": 0,
+    "calls": 0,
+    "retried": 0,
+    "failed": 0,
+    "in": 0,
+    "cacheWrite": 0,
+    "cacheRead": 0,
+    "out": 0,
+    "thinking": 0,
+    "apiUsd": 0,
+    "callMs": 0,
+    "estIn": 13431,
+    "estOut": 800,
+    "lines": 0,
+    "valid1": 0,
+    "valid": 0,
+    "dropped": 0,
+    "claims": 0,
+    "l0raw": 0,
+    "l1": {
+     "pass": 0,
+     "fail": 0,
+     "vacuous": 0
+    },
+    "repaired": 0,
+    "markerOk": 0,
+    "blockLines": 0,
+    "rules": {},
+    "inAll": 0,
+    "cacheReadShare": null,
+    "estErrInPct": -100,
+    "estErrOutPct": -100,
+    "estErrTotalPct": -100,
+    "l0Pct": null,
+    "l1Pct": null,
+    "l1VacuousPct": null,
+    "markerPct": null,
+    "valid1Pct": null,
+    "retryPct": null,
+    "droppedPct": null,
+    "thinkingShareOfOut": null,
+    "ttftP50Ms": null,
+    "ttftP95Ms": null
+   },
+   "gen.glossary": {
+    "tasks": 1,
+    "engineTasks": 1,
+    "calls": 1,
+    "retried": 0,
+    "failed": 0,
+    "in": 30199,
+    "cacheWrite": 0,
+    "cacheRead": 0,
+    "out": 1501,
+    "thinking": 0,
+    "apiUsd": 0.00332,
+    "callMs": 140189,
+    "estIn": 14515,
+    "estOut": 1680,
+    "lines": 11,
+    "valid1": 11,
+    "valid": 11,
+    "dropped": 0,
+    "claims": 0,
+    "l0raw": 0,
+    "l1": {
+     "pass": 0,
+     "fail": 0,
+     "vacuous": 0
+    },
+    "repaired": 0,
+    "markerOk": 0,
+    "blockLines": 0,
+    "rules": {},
+    "inAll": 30199,
+    "cacheReadShare": 0,
+    "estErrInPct": 108.1,
+    "estErrOutPct": -10.7,
+    "estErrTotalPct": 95.7,
+    "l0Pct": null,
+    "l1Pct": null,
+    "l1VacuousPct": null,
+    "markerPct": null,
+    "valid1Pct": 100,
+    "retryPct": 0,
+    "droppedPct": 0,
+    "thinkingShareOfOut": 0,
+    "ttftP50Ms": null,
+    "ttftP95Ms": null
+   }
+  }
+ },
+ "tasks": [
+  {
+   "id": "gt_708yz00x62",
+   "stage": "S6o",
+   "prompt": "gen.risks",
+   "mode": null,
+   "target_kind": "section",
+   "target_id": "s11",
+   "state": "done",
+   "attempt": 1,
+   "est_in": 14497,
+   "est_out": 1500,
+   "usage": "{\"in\":37475,\"cacheWrite\":0,\"cacheWrite1h\":0,\"cacheRead\":0,\"out\":3362,\"apiUsd\":0.00442,\"pricingVer\":\"generic-configured-estimated@1\"}",
+   "metrics": "{\"prompt\":\"gen.risks\",\"model\":\"generic:muse-spark-1.3-contributor\",\"engine\":\"generic\",\"attempt\":1,\"inEst\":14497,\"outEst\":1500,\"in\":37475,\"cacheWrite\":0,\"cacheRead\":0,\"out\":3362,\"thinking\":0,\"lines\":5,\"valid1\":5,\"valid\":5,\"dropped\":0,\"rules\":{},\"l0raw\":17,\"l1\":{\"pass\":14,\"fail\":0,\"vacuous\":3},\"repaired\":0,\"markerOk\":4,\"blockLines\":4,\"durationMs\":185348,\"stop\":\"end\"}",
+   "error": null
+  },
+  {
+   "id": "gt_3cyvy2328y",
+   "stage": "S6o",
+   "prompt": "gen.flows",
+   "mode": null,
+   "target_kind": "section",
+   "target_id": "s3",
+   "state": "done",
+   "attempt": 1,
+   "est_in": 25661,
+   "est_out": 2400,
+   "usage": "{\"in\":63869,\"cacheWrite\":0,\"cacheWrite1h\":0,\"cacheRead\":0,\"out\":13789,\"apiUsd\":0.009145,\"pricingVer\":\"generic-configured-estimated@1\"}",
+   "metrics": "{\"prompt\":\"gen.flows\",\"model\":\"generic:muse-spark-1.3-contributor\",\"engine\":\"generic\",\"attempt\":1,\"inEst\":25661,\"outEst\":2400,\"in\":63869,\"cacheWrite\":0,\"cacheRead\":0,\"out\":13789,\"thinking\":0,\"lines\":21,\"valid1\":21,\"valid\":21,\"dropped\":0,\"rules\":{},\"l0raw\":60,\"l1\":{\"pass\":60,\"fail\":0,\"vacuous\":0},\"repaired\":0,\"markerOk\":16,\"blockLines\":16,\"durationMs\":331938,\"stop\":\"end\"}",
+   "error": null
+  },
+  {
+   "id": "gt_tfwdh4zaf9",
+   "stage": "S6o",
+   "prompt": "gen.questions",
+   "mode": null,
+   "target_kind": "section",
+   "target_id": "s13",
+   "state": "done",
+   "attempt": 1,
+   "est_in": 13431,
+   "est_out": 800,
+   "usage": null,
+   "metrics": null,
+   "error": null
+  },
+  {
+   "id": "gt_yvfrkvxs6g",
+   "stage": "S6o",
+   "prompt": "gen.glossary",
+   "mode": null,
+   "target_kind": "section",
+   "target_id": "s12",
+   "state": "done",
+   "attempt": 1,
+   "est_in": 14515,
+   "est_out": 1680,
+   "usage": "{\"in\":30199,\"cacheWrite\":0,\"cacheWrite1h\":0,\"cacheRead\":0,\"out\":1501,\"apiUsd\":0.00332,\"pricingVer\":\"generic-configured-estimated@1\"}",
+   "metrics": "{\"prompt\":\"gen.glossary\",\"model\":\"generic:muse-spark-1.3-contributor\",\"engine\":\"generic\",\"attempt\":1,\"inEst\":14515,\"outEst\":1680,\"in\":30199,\"cacheWrite\":0,\"cacheRead\":0,\"out\":1501,\"thinking\":0,\"lines\":11,\"valid1\":11,\"valid\":11,\"dropped\":0,\"rules\":{},\"l0raw\":0,\"l1\":{\"pass\":0,\"fail\":0,\"vacuous\":0},\"repaired\":0,\"markerOk\":0,\"blockLines\":0,\"durationMs\":140189,\"stop\":\"end\"}",
+   "error": null
+  }
+ ],
+ "records": [
+  {
+   "id": "us_cb81g72mg59y",
+   "at": "2026-10-04T13:19:42.560Z",
+   "ws": "ws_9gerdxje6s5x",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_708yz00x62"
+   },
+   "engine": "generic",
+   "model": "generic:muse-spark-1.3-contributor",
+   "auth": "unknown",
+   "usage": {
+    "in": 37475,
+    "cacheWrite": 0,
+    "cacheWrite1h": 0,
+    "cacheRead": 0,
+    "out": 3362,
+    "apiUsd": 0.00442,
+    "pricingVer": "generic-configured-estimated@1"
+   },
+   "estimate": {
+    "in": 15634,
+    "out": 1500,
+    "raw": {
+     "in": 15634,
+     "out": 1500
+    }
+   },
+   "durationMs": 185348,
+   "outcome": "ok",
+   "promptId": "gen.risks",
+   "usageEstimated": true,
+   "servedBy": "generic:muse-spark-1.3-contributor"
+  },
+  {
+   "id": "us_k2np8yvxn0dw",
+   "at": "2026-10-04T13:21:59.224Z",
+   "ws": "ws_9gerdxje6s5x",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_3cyvy2328y"
+   },
+   "engine": "generic",
+   "model": "generic:muse-spark-1.3-contributor",
+   "auth": "unknown",
+   "usage": {
+    "in": 63869,
+    "cacheWrite": 0,
+    "cacheWrite1h": 0,
+    "cacheRead": 0,
+    "out": 13789,
+    "apiUsd": 0.009145,
+    "pricingVer": "generic-configured-estimated@1"
+   },
+   "estimate": {
+    "in": 26798,
+    "out": 2400,
+    "raw": {
+     "in": 26798,
+     "out": 2400
+    }
+   },
+   "durationMs": 331938,
+   "outcome": "ok",
+   "promptId": "gen.flows",
+   "usageEstimated": true,
+   "servedBy": "generic:muse-spark-1.3-contributor"
+  },
+  {
+   "id": "us_q00fyn2cwxfb",
+   "at": "2026-10-04T13:24:19.429Z",
+   "ws": "ws_9gerdxje6s5x",
+   "scope": {
+    "kind": "gen_task",
+    "id": "gt_yvfrkvxs6g"
+   },
+   "engine": "generic",
+   "model": "generic:muse-spark-1.3-contributor",
+   "auth": "unknown",
+   "usage": {
+    "in": 30199,
+    "cacheWrite": 0,
+    "cacheWrite1h": 0,
+    "cacheRead": 0,
+    "out": 1501,
+    "apiUsd": 0.00332,
+    "pricingVer": "generic-configured-estimated@1"
+   },
+   "estimate": {
+    "in": 12933,
+    "out": 1680,
+    "raw": {
+     "in": 12933,
+     "out": 1680
+    }
+   },
+   "durationMs": 140189,
+   "outcome": "ok",
+   "promptId": "gen.glossary",
+   "usageEstimated": true,
+   "servedBy": "generic:muse-spark-1.3-contributor"
+  }
+ ],
+ "usageEstimatedCalls": 3
+}

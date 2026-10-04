@@ -1,0 +1,189 @@
+{
+  "at": "2026-10-04T12:35:13.062Z",
+  "capUsd": 0.2,
+  "engineId": "generic",
+  "engine": {
+    "auth": "unknown",
+    "billing": "unknown"
+  },
+  "repair": {
+    "first": {
+      "id": "j_ddrbwyn7xn",
+      "state": "ready",
+      "route": {
+        "mode": "patch",
+        "reason": "user_override",
+        "model": "generic:muse-spark-1.3-contributor"
+      },
+      "estimate": {
+        "in": 1692,
+        "out": 1500,
+        "usd": 0.000469,
+        "seconds": {
+          "p50": 10,
+          "p90": 18
+        },
+        "bundleTokens": 1692
+      },
+      "usage": {
+        "in": 4437,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 0,
+        "out": 393,
+        "apiUsd": 0.000522,
+        "pricingVer": "generic-configured-estimated@1"
+      },
+      "timings": {
+        "modelMs": 53706,
+        "wallMs": 53727
+      },
+      "wallToReadyMs": 54125,
+      "sinceCreateMs": 54177,
+      "attempt": 1,
+      "repairs": [],
+      "tools": [],
+      "gates": [
+        {
+          "gate": "fmt:gofmt",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "test:go",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "typecheck:go-vet",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        }
+      ],
+      "gateVerdict": "unverified",
+      "diff": [
+        {
+          "path": "internal/store/memory.go",
+          "additions": 1,
+          "deletions": 1,
+          "hunks": 1
+        }
+      ],
+      "writeScope": [
+        "internal/store/memory.go"
+      ]
+    },
+    "trustedSets": 1,
+    "repairObserved": true,
+    "gatesAndRepairMs": 134970,
+    "final": {
+      "id": "j_ddrbwyn7xn",
+      "state": "ready",
+      "route": {
+        "mode": "patch",
+        "reason": "user_override",
+        "model": "generic:muse-spark-1.3-contributor"
+      },
+      "estimate": {
+        "in": 1692,
+        "out": 1500,
+        "usd": 0.000469,
+        "seconds": {
+          "p50": 10,
+          "p90": 18
+        },
+        "bundleTokens": 1692
+      },
+      "usage": {
+        "in": 9652,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 0,
+        "out": 1595,
+        "apiUsd": 0.001284,
+        "pricingVer": "generic-configured-estimated@1"
+      },
+      "timings": {
+        "modelMs": 179504,
+        "wallMs": 179533
+      },
+      "wallToReadyMs": 54125,
+      "sinceCreateMs": 194414,
+      "attempt": 2,
+      "repairs": [
+        "typecheck:go-vet",
+        "cold"
+      ],
+      "tools": [],
+      "gates": [
+        {
+          "gate": "fmt:gofmt",
+          "status": "pass",
+          "ms": 370,
+          "sandboxed": true
+        },
+        {
+          "gate": "test:go",
+          "status": "pass",
+          "ms": 1979,
+          "sandboxed": true
+        },
+        {
+          "gate": "typecheck:go-vet",
+          "status": "pass",
+          "ms": 529,
+          "sandboxed": true
+        }
+      ],
+      "gateVerdict": "passed",
+      "diff": [
+        {
+          "path": "internal/store/memory.go",
+          "additions": 37,
+          "deletions": 1,
+          "hunks": 1
+        }
+      ],
+      "writeScope": [
+        "internal/store/memory.go"
+      ]
+    },
+    "line": "+\treturn \"book \" + string(buf[i:]) + \" not found\"\n+\treturn ErrNotFound\n+\t\treturn bookNotFoundError{id: id}"
+  },
+  "spentUsd": 0.001284,
+  "usageEstimated": true,
+  "requestedReasoning": "max",
+  "nativeCalls": [
+    {
+      "model": [
+        "muse-spark-1.3-contributor"
+      ],
+      "taskKinds": [
+        "model.meta.response"
+      ],
+      "operations": [
+        "model.meta.response"
+      ],
+      "terminal": [
+        "run.terminal.completed"
+      ]
+    },
+    {
+      "model": [
+        "muse-spark-1.3-contributor"
+      ],
+      "taskKinds": [
+        "model.meta.response"
+      ],
+      "operations": [
+        "model.meta.response"
+      ],
+      "terminal": [
+        "run.terminal.completed"
+      ]
+    }
+  ]
+}

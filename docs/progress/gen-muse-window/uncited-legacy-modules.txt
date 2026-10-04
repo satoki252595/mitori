@@ -1,0 +1,235 @@
+file                                     sent  unc  code
+modules/cmd-crit.md                        45    9    3
+    ・テスト: cmd/crit/integrations_test.go（44 件）・cmd/crit/main_test.go（39 件）・cmd/crit/opencode_v2_install_test.go（25 件）・cmd/crit
+    ・入口から: crit share（cmd/crit/cli_dispatch.go:24）・cmd/crit（cmd/crit/main.go:21）・crit fetch（cmd/crit/cli_dispatch.go:36）・crit
+    ・よく使われる宣言（変えると波及する）: Fingerprint internal/story/ingest.go:97（3 ファイル）・HunkID internal/story/ingest.go:37（2 ファイル）・Ingest in
+modules/internal-comment.md                32    7    3
+    ・テスト: internal/comment/list_test.go（22 件）・internal/comment/comment_json_input_test.go（18 件）・internal/comment/daemon_confi
+    ・入口から: ANY /api/comment/（internal/server/server.go:209）・ANY /api/review-comment/（internal/server/server.go:201）・ANY /api/
+    ・よく使われる宣言（変えると波及する）: LoadCritJSON internal/review/review_file.go:325（9 ファイル）・SaveCritJSON internal/review/review_file.go:
+modules/internal-github-gitlab.md          41   13    7
+    ・テスト: internal/github/github_test.go（133 件）・internal/github/push_buckets_test.go（27 件）・internal/github/push_cli_flags_tes
+    ・入口から: ANY /api/comment/（internal/server/server.go:209）・ANY /api/review-comment/（internal/server/server.go:201）・ANY /api/
+    ・よく使われる宣言（変えると波及する）: ChangeID internal/forge/forge.go:21（13 ファイル）・ExitError internal/clicmd/clicmd.go:11（12 ファイル）・Kind in
+    ・internal/session の検討支援と表示用の型や実行部に頼り、RunReviewClient などで処理を委ねる（推測）。
+    ・internal/comment の BulkCommentEntry 周りと internal/vcs の URL 判定に頼って注釈と対象を扱う（推測）。
+    ・internal/share 側の RunAuth による認証状態と設定に依存する（推測）。
+    ・cmd/crit や internal/server から呼ばれ、Config などの上位型と組み合わせて使われる（推測）。
+modules/internal-server.md                 66   34   30
+    ・テスト: internal/server/server_test.go（260 件）・internal/server/server_agent_test.go（14 件）・internal/server/daemon_cli_test.go
+    ・入口から: ANY /api/comment/（internal/server/server.go:209）・ANY /api/review-comment/（internal/server/server.go:201）・ANY /api/
+    ・よく使われる宣言（変えると波及する）: Server internal/server/server.go:58（10 ファイル）・Session internal/server/types.go:11（8 ファイル）・Config inte
+    ・注意: 大きいファイル internal/server/server.go（3,508 行）・循環依存（[CLI 入口と統合管理](cmd-crit.md)・[変更連携基盤](internal-github-gitlab.md)・[レビュー
+    ・internal/server/server.go（3,508 行）
+    ・internal/server/server.go:40-124 型（3）: Server・sseHeartbeatInterval・AgentScriptFiles
+    ・internal/server/server.go:127-228 関数: NewServer
+    ・internal/server/server.go:236-333 メソッド（9）: ServeHTTP・hostForbiddenMessage・secFetchSiteForbiddenMessage・checkSecFetchSite
+    ・internal/server/server.go:337-479 Server のメソッド（10）: requireReady・withReady・SetShutdownCtx・SetStopFunc
+    ・internal/server/server.go:481-645 ハンドラ（2）: handleConfig・handleCodeFonts
+    ・internal/server/server.go:648-808 メソッド（9）: serveEmbeddedJS・serveEmbeddedCSS・filterFilesAtRound・serveIndexHTML
+    ・internal/server/server.go:813-911 ハンドラ（3）: handleShareConsent・handleProjectPromptTrust・consentNeeded
+    ・internal/server/server.go:913-1063 ハンドラ（6）: handleShareURL・shareFilesForSession・shareCLIArgsForSession・previewEntryPath
+    ・internal/server/server.go:1067-1246 ハンドラ（2）: handleShare・handleRounds
+    ・internal/server/server.go:1252-1279 関数: lineStatsForRound
+    ・internal/server/server.go:1286-1442 ハンドラ（5）: handleSharePayload・handlePreviewPayload・handleUpsertPayload・handleSharePull
+    ・internal/server/server.go:1446-1604 メソッド（6）: softPullForReshare・reshareUpsertInputs・writeJSONError・pullAndMergeRemoteCom
+    ・internal/server/server.go:1609-1717 ハンドラ（2）: handleMergeComments・handleFile
+    ・internal/server/server.go:1725-1835 関数（3）: serveFileAtRound・handleFileDiff・serveFileDiffAtRound
+    ・internal/server/server.go:1846-1988 ハンドラ（4）: handleFileComments・normalizeCommentSide・commentRoute・routeCommentByID
+    ・internal/server/server.go:1990-2182 ハンドラ（7）: handleCommentByID・handleFileCommentResolve・handleFileCommentPut・handleFileC
+    ・internal/server/server.go:2185-2245 ハンドラ（2）: handleReplyCRUD・replyOps
+    ・internal/server/server.go:2247-2550 ハンドラ（9）: handleReplyRoute・handleReviewCommentReplyRoute・handleReviewComments・handleR
+    ・internal/server/server.go:2554-2654 ハンドラ（10）: handleShutdown・handleHealth・shellQuoteArg・listUnresolvedComments
+    ・internal/server/server.go:2660-3050 ハンドラ（9）: handleReviewCycle・handleWaitForEvent・handleEvents・handleAttachments
+    ・internal/server/server.go:3054-3215 ハンドラ（6）: handleAgentRequest・agentName・agentRequestBody・buildAgentPrompt
+    ・internal/server/server.go:3220-3304 Server のメソッド: runAgentCmd
+    ・internal/server/server.go:3310-3411 ハンドラ（2）: handleAuthOrgs・handleSharePolicy
+    ・internal/server/server.go:3413-3508 メソッド（9）: authTokenSnapshot・authLoggedIn・authUserID・authUserName
+    ・cmd/crit から DaemonCLIConfig を受け、設定済み待受として使われる（推測）。
+modules/internal-session-plan-cli.md       39   10    5
+    ・テスト: internal/session/session_reconnect_test.go（32 件）・internal/session/attachments_test.go（27 件）・internal/session/resume
+    ・入口から: ANY /api/files/list（internal/server/server.go:202）・ANY /api/attachments（internal/server/server.go:218）・crit share（
+    ・よく使われる宣言（変えると波及する）: ReviewPathsFor internal/session/review_paths.go:15（19 ファイル）・SessionEntry internal/daemon/daemon.go:9
+    ・internal/session の DiffEntry 系と internal の RunAuth 系と internal/vcs の LooksLikePRURL 系を使う（推測）。
+    ・cmd/crit の Config 系と internal の ExitError 系と internal/comment の BulkCommentEntry 系から呼ばれる（推測）。
+modules/internal-session-session.md        66   37   32
+    ・テスト: internal/session/session_test.go（207 件）・internal/session/watch_test.go（33 件）・internal/session/round_snapshots_v4_ga
+    ・入口から: ANY /api/comment/（internal/server/server.go:209）・ANY /api/review-comment/（internal/server/server.go:201）・ANY /api/
+    ・よく使われる宣言（変えると波及する）: CritJSON internal/session/session.go:540（31 ファイル）・Comment internal/session/session.go:129（17 ファイル）・S
+    ・注意: ハブ（多くから使われ、多くを使う）・大きいファイル internal/session/session.go（3,114 行）・循環依存（[CLI 入口と統合管理](cmd-crit.md)・[変更連携基盤](internal-git
+    ・internal/session/session.go（3,114 行）
+    ・internal/session/session.go:28-69 関数（11）: computeFileHash・fileHash・randomID・RandomCommentID
+    ・internal/session/session.go:72-255 型（6）: Reply・DOMAnchor・Comment・SSEEvent
+    ・internal/session/session.go:262-303 関数（3）: ensureFileLoaded・isLazy・finishLoad
+    ・internal/session/session.go:309-398 FileEntry のメソッド（3）: ensureLoaded・ensureLoadedAtRange・diffHunks
+    ・internal/session/session.go:401-413 関数（2）: diffHunksForFile・diffHunksForFileCtx
+    ・internal/session/session.go:416-583 型（2）: Session・CritJSON
+    ・internal/session/session.go:586-606 関数（2）: RemoteDeletesFor・ReplaceRemoteDeletes
+    ・internal/session/session.go:611-675 型（7）: Story・StoryPrologue・StoryChapter・StoryHunkRef
+    ・internal/session/session.go:681-805 関数（8）: populateLazyFile・populateEagerFile・populateEagerFileDiff・NewSessionFromGit
+    ・internal/session/session.go:812-825 Session のメソッド: baseRefForWorkingTreeDiscovery
+    ・internal/session/session.go:829-1087 関数（8）: NewGitSession・NewGitSessionLenient・newGitSession・canonicalAbsPath
+    ・internal/session/session.go:1099-1116 Session のメソッド: captureBaselineAndPersist
+    ・internal/session/session.go:1126-1250 関数（7）: walkDirectory・walkDirSubsFirst・fileIgnored・dirIgnored
+    ・internal/session/session.go:1253-1279 関数（2）: extractAnchor・FileByPath
+    ・internal/session/session.go:1282-1684 Session のメソッド（18）: AddComment・AddFileComment・AddLivePin・AddReviewComment
+    ・internal/session/session.go:1693-1698 定数・変数（4）: deleteResultDeleted・deleteResultNotFound・deleteResultForbidden・deleteRes
+    ・internal/session/session.go:1705-2502 Session のメソッド（41）: DeleteFileCommentAs・DeleteComment・appendPendingRemoteDelete・tra
+    ・internal/session/session.go:2508-2514 関数: reportLoadCritJSONLockViolation
+    ・internal/session/session.go:2528-2784 Session のメソッド（8）: loadCritJSON・restoreShareStateLocked・restoreFileCommentsLocked・l
+    ・internal/session/session.go:2786-2806 関数（2）: omitTombstonedComments・defaultEmptyCommentScopes
+    ・internal/session/session.go:2811-2929 Session のメソッド（9）: Subscribe・Unsubscribe・notify・BrowserConnect
+    ・internal/session/session.go:2936-3001 メソッド（2）: GetFileDiffSnapshot・whitespaceIgnoredHunks
+    ・internal/session/session.go:3004-3034 型（2）: SessionInfo・SessionFileInfo
+    ・internal/session/session.go:3037-3114 Session のメソッド: GetSessionInfo
+    ・internal/vcs の LooksLikePRURL などと internal の共有設定系の RunAuth などを使う（推測）。
+    ・internal/session の計画系の RunReviewClient などと internal のフォージ系の ExitError などとは相互に呼び合う（推測）。
+    ・internal/comment の BulkCommentEntry などと internal/server の FS などと cmd/crit の Config などから使われる（推測）。
+modules/internal-share-config-live.md      50   11    6
+    ・テスト: internal/share/share_test.go（104 件）・internal/config/config_test.go（71 件）・internal/auth/auth_test.go（65 件）・internal/
+    ・入口から: ANY /api/share/upsert-payload（internal/server/server.go:180）・crit share（cmd/crit/cli_dispatch.go:24）・cmd/crit（cmd/
+    ・よく使われる宣言（変えると波及する）: Config internal/config/config.go:22（17 ファイル）・LoadConfig internal/config/config.go:462（11 ファイル）・OpenB
+    ・internal/session の RunReviewClient と DiffEntry を入力に使う（推測）。
+    ・internal/vcs の LooksLikePRURL と internal/comment の CheckCommentCLIAllowed に頼る（推測）。
+    ・internal/server の FS 側と cmd/crit の Session 側から利用される（推測）。
+modules/internal-vcs.md                    64   28   24
+    ・テスト: internal/vcs/git_test.go（62 件）・internal/vcs/jj_methods_test.go（30 件）・internal/vcs/git_vcs_test.go（19 件）・internal/vc
+    ・入口から: ANY /api/comment/（internal/server/server.go:209）・ANY /api/review-comment/（internal/server/server.go:201）・ANY /api/
+    ・よく使われる宣言（変えると波及する）: VCS internal/vcs/vcs.go:14（17 ファイル）・FileChange internal/vcs/git.go:21（13 ファイル）・DetectVCS internal/vc
+    ・注意: ハブ（多くから使われ、多くを使う）・大きいファイル internal/vcs/git.go（1,609 行）・循環依存（[CLI 入口と統合管理](cmd-crit.md)・[変更連携基盤](internal-github-gitl
+    ・internal/vcs/git.go（1,609 行）
+    ・internal/vcs/git.go:21-31 型（3）: FileChange・DiffHunk・DiffLine
+    ・internal/vcs/git.go:38-371 関数（22）: stripExternalDiffEnv・runGit・IsGitRepo・RepoRoot
+    ・internal/vcs/git.go:374-381 型: CommitInfo
+    ・internal/vcs/git.go:388-422 関数: CommitLog
+    ・internal/vcs/git.go:427-427 定数・変数: commitishRe
+    ・internal/vcs/git.go:430-575 関数（9）: isCommitish・SplitCommitRange・ChangedFilesForCommit・FileDiffForCommit
+    ・internal/vcs/git.go:577-582 型: gitStatusSnapshot
+    ・internal/vcs/git.go:588-933 関数（16）: initialGitChangesAndScopes・gitStatusSnapshotInDir・parseGitStatusSnapshot・appendGitSt
+    ・internal/vcs/git.go:936-939 型: BranchEntry
+    ・internal/vcs/git.go:944-1226 関数（13）: RemoteBranchTips・remoteBranchTipsGit・remoteBranchTipsJJ・remoteBranchTipsSapling
+    ・internal/vcs/git.go:1230-1241 定数・変数: SkipDirs
+    ・internal/vcs/git.go:1246-1440 関数（9）: WalkFiles・parseNameStatus・fileStatusInRepo・dedup
+    ・internal/vcs/git.go:1443-1446 型: NumstatEntry
+    ・internal/vcs/git.go:1450-1506 関数（4）: DiffNumstatDir・DiffNumstatBetweenSHAs・runDiffNumstat・parseNumstatOutput
+    ・internal/vcs/git.go:1508-1508 定数・変数: hunkHeaderRe
+    ・internal/vcs/git.go:1511-1609 関数（2）: ParseUnifiedDiff・WorkingTreeFingerprint
+    ・internal/session とは DiffHunk 系を介して相互に結ぶ（推測）。
+    ・ほかに internal/comment の AddCommentToCritJSONScoped 系と計画系の RunReviewClient 系を使う（推測）。
+    ・internal/server の FS 系と cmd/crit の Config 系と forge 系の ExitError 系から使われる（推測）。
+modules/scripts.md                         24    8    3
+    ・テスト: scripts/bench-compare_test.py（18 件） · 実行: make test
+    ・入口から: scripts/bench-compare.py（scripts/bench-compare.py:169）
+    ・受け手は web ディレクトリであり、主な公開物は FS と trackTag である（推測）。
+modules/web-app.md                        100   79   74
+    ・テスト: web/__tests__/live-mode.connection-wiring.test.js（17 件）・web/__tests__/heading-anchors.test.js（12 件）・web/__tests__/s
+    ・注意: 大きいファイル web/app.js（11,055 行）・循環依存（[ライブレビュー画面](web-live-mode.md)・[共有画面部品群](web-crit.md) と）
+    ・web/app.js（11,055 行）
+    ・web/app.js:4-16 Comment Markdown Renderer
+    ・web/app.js:17-127 File Reference Inline Rule — 関数 5: file_ref・code_inline・linkifyCommentRefsInDom・scrollToCommentRef
+    ・web/app.js:128-146 Attachment Image Src Rewrite — 関数 1: image
+    ・web/app.js:147-191 Suggestion Diff Renderer — 関数 1: renderSuggestionDiff
+    ・web/app.js:192-243 Tab-Ready Indicator — 関数 4: noop・fence・render・renderInline
+    ・web/app.js:244-285 Document Markdown Renderer — 関数 2: heading_open・heading_close
+    ・web/app.js:286-294 Cookie helpers (persist across random ports on 127.0.0.1) — 関数 2: setCookie・getCookie
+    ・web/app.js:295-334 Settings (consolidated cookie) — 関数 4: loadSettings・getSetting・setSetting・bindSubmitCancelKeys
+    ・web/app.js:335-714 State — 関数 15: initialViewMode・hasActivePendingUpdates・syncPendingUpdateButtons・isHideResolved
+    ・web/app.js:715-849 Viewed State — 関数 8: viewedIdentityHash・viewedStorageKey・autoViewedMarkerKey・applyAutoViewedOnce
+    ・web/app.js:850-1155 Init — 関数 2: init・updateDiffModeToggle
+    ・web/app.js:1156-1193 Markdown Parsing — 関数 4: parseMarkdownTokens・fencesIn・buildMarkdown・extractTocItems
+    ・web/app.js:1194-1247 Utility Functions — 関数 4: processTaskLists・resolveImagePath・rewriteImageSrcs・getFileByPath
+    ・web/app.js:1248-1633 File Tree Sidebar — 関数 12: buildFileTree・collapseCommonPrefixes・renderFileTree・renderMobileFilePick
+    ・web/app.js:1634-2058 Pierre review view (the review list, git and files mode) — 関数 24: pierreViewActive・pierreThreadKey・
+    ・web/app.js:2059-2339 Keyboard focus (model-driven; Pierre rows are virtualized) — 関数 12: pierreNavRows・clearPierreDocVis
+    ・web/app.js:2340-3069 Quote highlights inside Pierre (CSS Custom Highlight API) — 関数 36・ハンドラ 1: pierreQuotedComments・pier
+    ・web/app.js:3070-3354 Rendered Diff View (Markdown, file mode) — 関数 8: buildDiffLineSetFromHunks・classifyBlock・applyBlock
+    ・web/app.js:3355-3404 Change Detection (for inter-round diffs in document view) — 関数 1: getChangeInfo
+    ・web/app.js:3405-3628 Document View (Markdown) — 関数 1: renderDocumentView
+    ・web/app.js:3629-3701 Diff Gutter Drag (multi-line comment selection) — 関数 3: expandHunksForComments・buildContextLines・bu
+    ・web/app.js:3702-3767 Unified diff (interleaved lines, single pane) — 関数 3: storyRawHunks・storyRawHunksWithTrailingContex
+    ・web/app.js:3768-3805 Comment Helpers — 関数 2: buildCommentIndices・getCommentsForBlock
+    ・web/app.js:3806-3938 Gutter Drag Selection — 関数 3・ハンドラ 2: attachDocGutterMouseHandler・beginDocGutterDrag・updateDragSelec
+    ・web/app.js:3939-4063 Text Selection → Line Range Mapping — 関数 8: getLineRangeFromSelection・closeEmptyReviewForm・formText
+    ・web/app.js:4064-4162 Comment Templates — 関数 2: attachTemplateUI・showSaveTemplateDialog
+    ・web/app.js:4163-4331 File Picker Autocomplete — 関数 1: attachFilePicker
+    ・web/app.js:4332-4501 Image Paste — 関数 6: attachImagePaste・attachImageDragDrop・attachImageUploads・uploadAndInsertImage
+    ・web/app.js:4502-4776 Comment Form — 関数 8: createCommentFormUI・createCommentForm・getOldSideLinesFromHunks・insertSuggestio
+    ・web/app.js:4777-4900 Draft Autosave (delegates to window.crit.draft) — 関数 5: saveDraft・debouncedSaveDraft・clearDraft・res
+    ・web/app.js:4901-4917 Agent Button — 関数 2: isLiveThread・checkAgentReplies
+    ・web/app.js:4918-5071 Comment Display — 関数 4: buildCommentEnv・buildCommentCard・createCommentElement・renderReplyList
+    ・web/app.js:5072-5342 Quote Highlighting in Document/Diff Body — 関数 6: highlightQuotesInSection・createInlineEditor・editCo
+    ・web/app.js:5343-5496 Review-Level (General) Comments — 関数 9: addReviewComment・updateReviewComment・deleteReviewComment・op
+    ・web/app.js:5497-6057 Inline Review Conversation Section (top of document) — 関数 13: createReviewConversationCard・isReview
+    ・web/app.js:6058-6387 Comment Count — 関数 11: updateCommentCount・updateTocPosition・toggleCommentsPanel・createPanelCommentC
+    ・web/app.js:6388-6525 PR Overview Panel — 関数 3: togglePRPanel・renderPRPanel・updateViewedCount
+    ・web/app.js:6526-6544 Waiting Modal Tips — 関数 2: startTipRotation・stopTipRotation
+    ・web/app.js:6545-6597 UI State — 関数 2: updateHeaderRound・setUIState
+    ・web/app.js:6598-6599 General Comment Button (in panel header)
+    ・web/app.js:6600-6731 Finish Review — 関数 4: doFinishReview・resolveAllAndFinish・showNoChangesConfirm・hideNoChangesConfirm
+    ・web/app.js:6732-6988 SSE Client — 関数 2: connectSSE・showDisconnected
+    ・web/app.js:6989-7021 Share — 関数 2: refreshAllComments・announceCopy
+    ・web/app.js:7022-7049 Toast System — 関数 2: showToast・dismissToast
+    ・web/app.js:7050-7181 Table of Contents — 関数 5: buildToc・reviewScroller・reviewScrollerTop・scrollReviewToElement
+    ・web/app.js:7182-7205 Hash Navigation (heading anchors) — 関数 1: scrollToHashHeading
+    ・web/app.js:7206-7264 Mermaid — 関数 4: getMermaidTheme・mermaidOptions・watchCodeBlocks・renderMermaidBlocks
+    ・web/app.js:7265-7550 Mermaid fullscreen overlay (GitHub-style pan/zoom) — 関数 10: mermaidOverlayNodes・mermaidOverlayApply
+    ・web/app.js:7551-7581 Theme — 関数 3: initTheme・applyCritPalette・applyTheme
+    ・web/app.js:7582-7594 Width — 関数 2: initWidth・applyWidth
+    ・web/app.js:7595-7626 Sidebar Resize — 関数 1: initSidebarWidths
+    ・web/app.js:7627-7631 Update Button
+    ・web/app.js:7632-7645 Diff Mode Toggle (Split / Unified)
+    ・web/app.js:7646-7652 Toggle Diff (rendered diff view for file mode)
+    ・web/app.js:7653-8266 Compare chrome (target + commit range) — 関数 25: sessionInRangeFocus・effectiveDiffScope・sessionFocus
+    ・web/app.js:8267-8473 Scope Toggle (All / Branch / Staged / Unstaged) — 関数 9・ハンドラ 1: reloadForScope・isStoryMobileRail・isS
+    ・web/app.js:8474-8492 Comments Panel Toggle (mirrors file-tree slide on right) — 関数 2: setCommentsPanelCollapsed・startCom
+    ・web/app.js:8493-8505 TOC Toggle
+    ・web/app.js:8506-8615 Comment Navigation — 関数 3: collectNavigableComments・highlightNavComment・navigateToComment
+    ・web/app.js:8616-8675 Comments Panel Toggle — 関数 1: activateFilterBtn
+    ・web/app.js:8676-9081 Settings Panel — 関数 8: getSettingsCtl・loadCodeFonts・openSettingsPanel・applyHideResolved
+    ・web/app.js:9082-9187 Select-to-Comment helper — 関数 1: tryOpenFormFromSelection
+    ・web/app.js:9188-9267 Stack breadcrumb + working-tree pill — 関数 3: truncateLabel・entryLabel・focusPayloadFromStackEntry
+    ・web/app.js:9268-9718 Stack chip + popover — 関数 11: chipLabelForFocus・isStackChipOpen・focusableStackPopoverItems・closeSta
+    ・web/app.js:9719-9902 Story mode — 関数 12: hunkKey・storyPageId・storyHasContent・storyNeedsRawDiff
+    ・web/app.js:9903-10069 Story progress — 関数 11: isStoryFileViewed・storyPageProgress・updateStoryMarkButton・storyStatusClass
+    ・web/app.js:10070-10174 Rail — 関数 3: renderStoryRail・railStatusHtml・countHunksForPage
+    ・web/app.js:10175-10287 Overview — 関数 2: renderStoryOverview・renderStoryPrologueBullets
+    ・web/app.js:10288-10626 Chapter / Support page — 関数 5: renderStoryPage・renderStoryFileGroup・storySupportReasonForFile・ren
+    ・web/app.js:10627-10940 Router — 関数 15・ハンドラ 1: renderStory・resetStoryScroll・showStory・storyFromHash
+    ・web/app.js:10941-11056 Start — 関数 2: locateFile・locate
+modules/web-crit.md                        24    9    1
+    ・テスト: web/__tests__/crit-shared.test.js（77 件）・web/__tests__/crit-settings-panes.test.js（35 件）・web/__tests__/crit-diff-ren
+modules/web-live-mode.md                   45   29   22
+    ・テスト: web/__tests__/agent-protocol.test.js（25 件）・web/__tests__/crit-comment-card-helpers.test.js（16 件）・web/__tests__/live
+    ・注意: 大きいファイル web/live-mode.js（2,805 行）・循環依存（[共有画面部品群](web-crit.md)・[レビュー画面主制御](web-app.md) と）
+    ・web/live-mode.js（2,805 行）
+    ・web/live-mode.js:14-58 State namespace contract
+    ・web/live-mode.js:59-490 Tab-Ready Indicator — 関数 16: setDocumentTitle・setTabBadge・clearTabBadge・notifyRoundReady
+    ・web/live-mode.js:491-747 Viewport selector — 関数 9: applyViewport・reflowFitViewport・setActiveModeButton・modeHintDismissed
+    ・web/live-mode.js:748-830 Iframe src wired to proxy_port — 関数 3・ハンドラ 1: proxyURL・loadIframe・startConnectionTracking・onIfr
+    ・web/live-mode.js:831-882 Drag-resize handle on iframe right edge — ハンドラ 2: onPointerMove・onPointerUp
+    ・web/live-mode.js:883-1832 Route detection via postMessage — 関数 26: renderBreadcrumb・recordRoute・startLiveTipRotation・sto
+    ・web/live-mode.js:1833-1854 Deep-link #pin=&lt;id> parsing — activation lives below.
+    ・— 関数 1: parsePinFragment
+    ・web/live-mode.js:1855-1907 Iframe load-error banner — 関数 3: showIframeError・postToAgent・showToast
+    ・web/live-mode.js:1908-1918 composer — 関数 1: ensureComposerHost
+    ・web/live-mode.js:1919-2096 Draft persistence (delegates to window.crit.draft) — 関数 5・ハンドラ 2: composerDraftKey・closeCompo
+    ・web/live-mode.js:2097-2282 ancestor menu — ハンドラ 5・関数 2: closeAncestorMenu・closeAncestorMenuOnce・handleAncestorMenu・handl
+    ・web/live-mode.js:2283-2468 Pins, resolution gate, re-anchor flow.
+    ・— 関数 5・ハンドラ 4: fireRequestResolution・currentPathname・pushPinsToAgent・handlePinResolutionResult
+    ・web/live-mode.js:2469-2536 keyboard shortcut (p/Esc) gated on focus-state — 関数 2: announceLive・lookupPin
+    ・web/live-mode.js:2537-2621 pinsByRoute view derived from state.comments — 関数 2: pinsByRoute・scheduleResolutionForPath
+    ・web/live-mode.js:2622-2730 deep-link activation — 関数 5: performFlashAndScroll・activatePendingPinId・openPinAndFocus・attem
+    ・web/live-mode.js:2731-2751 Esc cancels re-anchor (chrome side).
+    ・web/live-mode.js:2752-2806 Round-counter tooltip — 関数 2: show・hide
+modules/web-style-live.md                  27    8    4
+    ・テスト: web/__tests__/agent-anchor-utils.test.js（37 件）・web/__tests__/agent-marker-overlay.test.js（12 件）・web/__tests__/agent
+    ・よく使われる宣言（変えると波及する）: FS web/embed.go:6（2 ファイル）
+    ・資産生成で scripts の parse_threshold 系に依存する（推測）。
+    ・資産配信で cmd/crit の Config と internal/server の FS に利用される（推測）。
+modules/web-style.md                        7    7    5
+    ・注意: 大きいファイル web/style.css（6,820 行）・テストが無い
+    ・web/style.css は web 全体の見た目を定めるための単一のスタイル定義である（推測）。
+    ・web/style.css は公開する関数や型を持たず、呼び出して使う振る舞いはない（推測）。
+    ・画面構造や操作は JS 側に任せ、web/style.css は装飾だけを受け持つ（推測）。
+    ・個別画面専用の調整は他に譲り、web/style.css は共通の土台を保つ役割に絞っている（推測）。
+total: 630 sentences · uncited 289 (45.9 %) · uncited naming code 219 (34.8 %)

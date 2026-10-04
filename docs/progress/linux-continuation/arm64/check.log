@@ -1,0 +1,495 @@
+$ bun scripts/check.ts
+✓ tsc -b          58.23 s
+✗ biome           1.14 s
+    Checked 1424 files in 894ms. No fixes applied.
+    Found 1 error.
+    Found 21 warnings.
+    Found 2 infos.
+    packages/server/src/wiring/doc-deep.test.ts:372:14 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━
+    
+      i Template literals are preferred over string concatenation.
+      
+        370 │     const end = L.length;
+        371 │     for (const t of ["small geometry helpers", "flood fill", "public API"]) {
+      > 372 │       L.push("// " + "-".repeat(77), `// ${t}`, "// " + "-".repeat(77));
+            │              ^^^^^^^^^^^^^^^^^^^^^^
+        373 │       L.push(...Array.from({ length: 360 }, () => "// filler"));
+        374 │     }
+      
+      i Unsafe fix: Use a template literal.
+      
+        370 370 │       const end = L.length;
+        371 371 │       for (const t of ["small geometry helpers", "flood fill", "public API"]) {
+        372     │ - ······L.push("//·"·+·"-".repeat(77),·`//·${t}`,·"//·"·+·"-".repeat(77));
+            372 │ + ······L.push(`//·${"-".repeat(77)}`,·`//·${t}`,·"//·"·+·"-".repeat(77));
+        373 373 │         L.push(...Array.from({ length: 360 }, () => "// filler"));
+        374 374 │       }
+      
+    
+    packages/server/src/wiring/doc-deep.test.ts:372:49 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━
+    
+      i Template literals are preferred over string concatenation.
+      
+        370 │     const end = L.length;
+        371 │     for (const t of ["small geometry helpers", "flood fill", "public API"]) {
+      > 372 │       L.push("// " + "-".repeat(77), `// ${t}`, "// " + "-".repeat(77));
+            │                                                 ^^^^^^^^^^^^^^^^^^^^^^
+        373 │       L.push(...Array.from({ length: 360 }, () => "// filler"));
+        374 │     }
+      
+      i Unsafe fix: Use a template literal.
+      
+        370 370 │       const end = L.length;
+        371 371 │       for (const t of ["small geometry helpers", "flood fill", "public API"]) {
+        372     │ - ······L.push("//·"·+·"-".repeat(77),·`//·${t}`,·"//·"·+·"-".repeat(77));
+            372 │ + ······L.push("//·"·+·"-".repeat(77),·`//·${t}`,·`//·${"-".repeat(77)}`);
+        373 373 │         L.push(...Array.from({ length: 360 }, () => "// filler"));
+        374 374 │       }
+      
+    
+    apps/web/src/shell/cookie.test.ts:56:20 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! The comma operator is disallowed.
+      
+        54 │     const src = parseUiCookieFields.toString();
+        55 │     // biome-ignore lint/security/noGlobalEval: reconstructing the inlined copy is the point of the test
+      > 56 │     const copy = (0, eval)(`(${src})`) as typeof parseUiCookieFields;
+           │                    ^
+        57 │     expect(copy(enc({ v: 1, lv: "e", th: "d" }))).toEqual({ lv: "e", th: "d" });
+        58 │     expect(copy("garbage")).toEqual({});
+      
+      i Its use is often confusing and obscures side effects.
+      
+    
+    apps/web/src/shell/styles/base.css:341:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 0)
+      
+        339 │ }
+        340 │ 
+      > 341 │ .search {
+            │ ^^^^^^^
+        342 │   display: flex;
+        343 │   align-items: center;
+      
+      i This selector specificity is (0, 3, 0)
+      
+        259 │ }
+        260 │ 
+      > 261 │ .hdr[data-tight="2"] .search {
+            │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        262 │   width: auto;
+        263 │   padding: 0 8px;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/base.css:360:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 1)
+      
+        358 │ }
+        359 │ 
+      > 360 │ .search span {
+            │ ^^^^^^^^^^^^
+        361 │   flex: 1;
+        362 │   text-align: left;
+      
+      i This selector specificity is (0, 3, 1)
+      
+        256 │ .hdr[data-tight="2"] .brand-en,
+      > 257 │ .hdr[data-tight="2"] .search span {
+            │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        258 │   display: none;
+        259 │ }
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/base.css:480:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 0)
+      
+        478 │ }
+        479 │ 
+      > 480 │ .rail {
+            │ ^^^^^
+        481 │   position: sticky;
+        482 │   top: var(--hdr);
+      
+      i This selector specificity is (0, 2, 0)
+      
+        464 │ /* explicit tracks: a drawer rail (position: fixed) leaves its 0 px track empty instead of shifting main into it */
+      > 465 │ .body > .rail {
+            │ ^^^^^^^^^^^^^
+        466 │   grid-column: 1;
+        467 │   grid-row: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/base.css:523:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 0, 1)
+      
+        521 │ }
+        522 │ 
+      > 523 │ main {
+            │ ^^^^
+        524 │   min-width: 0;
+        525 │ }
+      
+      i This selector specificity is (0, 1, 1)
+      
+        468 │ }
+        469 │ 
+      > 470 │ .body > main {
+            │ ^^^^^^^^^^^^
+        471 │   grid-column: 2;
+        472 │   grid-row: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/base.css:913:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 1)
+      
+        911 │ }
+        912 │ 
+      > 913 │ .stopped h2 {
+            │ ^^^^^^^^^^^
+        914 │   font-family: var(--font-serif);
+        915 │   font-weight: var(--fw-strong);
+      
+      i This selector specificity is (0, 1, 2)
+      
+        799 │ }
+        800 │ 
+      > 801 │ dialog.dlg h2 {
+            │ ^^^^^^^^^^^^^
+        802 │   font-family: var(--font-serif);
+        803 │   font-size: var(--fs-title);
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/diagram.css:69:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 1)
+      
+        67 │   font-family: var(--font-mono);
+        68 │ }
+      > 69 │ .dg-edge path {
+           │ ^^^^^^^^^^^^^
+        70 │   fill: none;
+        71 │   stroke: var(--muted);
+      
+      i This selector specificity is (0, 3, 1)
+      
+        23 │   font-family: var(--font-ui);
+        24 │ }
+      > 25 │ .dg[data-dense] .dg-edge path {
+           │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        26 │   stroke-opacity: 0.3;
+        27 │   stroke-width: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/diagram.css:74:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 2, 1)
+      
+        72 │   stroke-width: 1.4;
+        73 │ }
+      > 74 │ .dg-edge[data-kind="event"] path {
+           │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        75 │   stroke-dasharray: 5 4;
+        76 │ }
+      
+      i This selector specificity is (0, 3, 1)
+      
+        23 │   font-family: var(--font-ui);
+        24 │ }
+      > 25 │ .dg[data-dense] .dg-edge path {
+           │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        26 │   stroke-opacity: 0.3;
+        27 │   stroke-width: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/diagram.css:77:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 0)
+      
+        75 │   stroke-dasharray: 5 4;
+        76 │ }
+      > 77 │ .dg-el {
+           │ ^^^^^^
+        78 │   font-size: 11px;
+        79 │   fill: var(--text);
+      
+      i This selector specificity is (0, 3, 0)
+      
+        27 │   stroke-width: 1;
+        28 │ }
+      > 29 │ .dg[data-dense] .dg-el {
+           │ ^^^^^^^^^^^^^^^^^^^^^^
+        30 │   display: none;
+        31 │ }
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/prose.css:521:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 3, 1)
+      
+        519 │ }
+        520 │ 
+      > 521 │ .blk[data-kind="pitfall"] .mb::before {
+            │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        522 │   display: none;
+        523 │ }
+      
+      i This selector specificity is (0, 3, 2)
+      
+        347 │ .blk:hover > .mb::before,
+      > 348 │ html.show-cites .blk > .mb::before,
+            │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        349 │ html[data-level="expert"] .blk > .mb::before {
+        350 │   opacity: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/viewer/viewer.css:96:19 lint/complexity/noImportantStyles  FIXABLE  ━━━━━━━━━━━━━━━━━━━
+    
+      ! Avoid the use of the !important style.
+      
+        94 │   .vband,
+        95 │   .pager {
+      > 96 │     display: none !important;
+           │                   ^^^^^^^^^^
+        97 │   }
+        98 │   .body {
+      
+      i This style reverses the cascade logic, and precedence is reversed. This could lead to having styles with higher specificity being overridden by styles with lower specificity.
+      
+      i Unsafe fix: Remove the style.
+      
+        96 │ ····display:·none·!important;
+           │                  ----------- 
+    
+    e2e/export/export.spec.ts:463:12 lint/complexity/useOptionalChain  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Change to an optional chain.
+      
+        461 │     expect(await noSideScroll(page)).toBe(true);
+        462 │     const box = await svg.boundingBox();
+      > 463 │     expect(box && box.width).toBeGreaterThan(500);
+            │            ^^^^^^^^^^^^^^^^
+        464 │     await page.close();
+        465 │   });
+      
+      i Unsafe fix: Change to an optional chain.
+      
+        461 461 │       expect(await noSideScroll(page)).toBe(true);
+        462 462 │       const box = await svg.boundingBox();
+        463     │ - ····expect(box·&&·box.width).toBeGreaterThan(500);
+            463 │ + ····expect(box?.width).toBeGreaterThan(500);
+        464 464 │       await page.close();
+        465 465 │     });
+      
+    
+    e2e/export/support/prepare.ts:84:42 lint/suspicious/noTemplateCurlyInString ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Unexpected template string placeholder.
+      
+        82 │       `const password = "${PLANTED.password}";`,
+        83 │       "export function legacyHeaders(): Record<string, string> {",
+      > 84 │       "  return { authorization: `Bearer ${GITHUB_TOKEN}`, password };",
+           │                                          ^^^^^^^^^^^^^^^
+        85 │       "}",
+        86 │       "",
+      
+      i Turn the string into a template string.
+      
+    
+    e2e/loop/shoot.tmp.mjs:7:7 lint/correctness/noUnusedVariables  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! This variable step is unused.
+      
+        5 │ const OUT = process.env.OUT ?? "/private/tmp/claude-501/-Users-satoki252595-work-20261002-aiAgentTool/99463a6e-6928-41bd-851e-ed1a1028dc52/scratchpad/shots";
+        6 │ const WS = "ws_cr1t00000000";
+      > 7 │ const step = process.argv[2] ?? "all";
+          │       ^^^^
+        8 │ 
+        9 │ const post = (p, b) => fetch(`${BASE}${p}`, { method: "POST", body: JSON.stringify(b), headers: { "content-type": "application/json" } });
+      
+      i Unused variables are often the result of typos, incomplete refactors, or other sources of bugs.
+      
+      i Unsafe fix: If this is intentional, prepend step with an underscore.
+      
+         5  5 │   const OUT = process.env.OUT ?? "/private/tmp/claude-501/-Users-satoki252595-work-20261002-aiAgentTool/99463a6e-6928-41bd-851e-ed1a1028dc52/scratchpad/shots";
+         6  6 │   const WS = "ws_cr1t00000000";
+         7    │ - const·step·=·process.argv[2]·??·"all";
+            7 │ + const·_step·=·process.argv[2]·??·"all";
+         8  8 │   
+         9  9 │   const post = (p, b) => fetch(`${BASE}${p}`, { method: "POST", body: JSON.stringify(b), headers: { "content-type": "application/json" } });
+      
+    
+    e2e/loop/shoot.tmp.mjs:26:7 lint/correctness/noUnusedVariables  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! This variable box is unused.
+      
+        24 │ const target = page.locator('.reader-root .blk[data-kind="prose"] .mc').filter({ hasText: "1回だけ再試行する" }).first();
+        25 │ await target.scrollIntoViewIfNeeded();
+      > 26 │ const box = await target.evaluate((el) => {
+           │       ^^^
+        27 │   const t = [...el.childNodes].find((n) => n.nodeType === 3 && n.textContent.includes("1回だけ"));
+        28 │   const r = document.createRange();
+      
+      i Unused variables are often the result of typos, incomplete refactors, or other sources of bugs.
+      
+      i Unsafe fix: If this is intentional, prepend box with an underscore.
+      
+        24 24 │   const target = page.locator('.reader-root .blk[data-kind="prose"] .mc').filter({ hasText: "1回だけ再試行する" }).first();
+        25 25 │   await target.scrollIntoViewIfNeeded();
+        26    │ - const·box·=·await·target.evaluate((el)·=>·{
+           26 │ + const·_box·=·await·target.evaluate((el)·=>·{
+        27 27 │     const t = [...el.childNodes].find((n) => n.nodeType === 3 && n.textContent.includes("1回だけ"));
+        28 28 │     const r = document.createRange();
+      
+    
+    packages/loop/src/git/accept.ts:224:9 lint/complexity/useOptionalChain  FIXABLE  ━━━━━━━━━━━━━━━━━━━
+    
+      ! Change to an optional chain.
+      
+        222 │     await this.g.ready();
+        223 │     const row = this.journal.get(ck);
+      > 224 │     if (!row || row.state !== "done") throw new MitoriError("E_NOT_FOUND", `checkpoint ${ck} not found`, { params: { checkpoint: ck } });
+            │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        225 │     if (row.undoneAt) throw new MitoriError("E_PRECONDITION", `checkpoint ${ck} was already undone`, { params: { checkpoint: ck } });
+        226 │     await this.requireObjects(row);
+      
+      i Unsafe fix: Change to an optional chain.
+      
+        222 222 │       await this.g.ready();
+        223 223 │       const row = this.journal.get(ck);
+        224     │ - ····if·(!row·||·row.state·!==·"done")·throw·new·MitoriError("E_NOT_FOUND",·`checkpoint·${ck}·not·found`,·{·params:·{·checkpoint:·ck·}·});
+            224 │ + ····if·(row?.state·!==·"done")·throw·new·MitoriError("E_NOT_FOUND",·`checkpoint·${ck}·not·found`,·{·params:·{·checkpoint:·ck·}·});
+        225 225 │       if (row.undoneAt) throw new MitoriError("E_PRECONDITION", `checkpoint ${ck} was already undone`, { params: { checkpoint: ck } });
+        226 226 │       await this.requireObjects(row);
+      
+    
+    packages/server/src/wiring/loop-routes.ts:106:7 lint/complexity/useOptionalChain  FIXABLE  ━━━━━━━━━━
+    
+      ! Change to an optional chain.
+      
+        104 │ async function roundChanges(x: WorkspaceDomain, deny: Glob[], n: number): Promise<RoundChanges | null> {
+        105 │   const scope = x.loop.review.roundScope(n);
+      > 106 │   if (!scope || scope.mode !== "pull") return null;
+            │       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        107 │   const c = await x.loop.git.roundChanges(n, deny);
+        108 │   if (!c) return null;
+      
+      i Unsafe fix: Change to an optional chain.
+      
+        104 104 │   async function roundChanges(x: WorkspaceDomain, deny: Glob[], n: number): Promise<RoundChanges | null> {
+        105 105 │     const scope = x.loop.review.roundScope(n);
+        106     │ - ··if·(!scope·||·scope.mode·!==·"pull")·return·null;
+            106 │ + ··if·(scope?.mode·!==·"pull")·return·null;
+        107 107 │     const c = await x.loop.git.roundChanges(n, deny);
+        108 108 │     if (!c) return null;
+      
+    
+    packages/server/src/wiring/loop-routes.ts:315:11 lint/complexity/useOptionalChain  FIXABLE  ━━━━━━━━━━
+    
+      ! Change to an optional chain.
+      
+        313 │       const n = roundNo(ctx);
+        314 │       const scope = x.loop.review.roundScope(n);
+      > 315 │       if (!scope || scope.mode !== "pull") throw notFound("pull round", String(n));
+            │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        316 │       const res = await x.loop.git.undoRound(n, rt.settings().denyGlobs);
+        317 │       return { checkpoint: res.checkpoint, files: res.files.map((f) => f.path) };
+      
+      i Unsafe fix: Change to an optional chain.
+      
+        313 313 │         const n = roundNo(ctx);
+        314 314 │         const scope = x.loop.review.roundScope(n);
+        315     │ - ······if·(!scope·||·scope.mode·!==·"pull")·throw·notFound("pull·round",·String(n));
+            315 │ + ······if·(scope?.mode·!==·"pull")·throw·notFound("pull·round",·String(n));
+        316 316 │         const res = await x.loop.git.undoRound(n, rt.settings().denyGlobs);
+        317 317 │         return { checkpoint: res.checkpoint, files: res.files.map((f) => f.path) };
+      
+    
+    scripts/lib/budgets.test.ts:70:39 lint/suspicious/noTemplateCurlyInString ━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Unexpected template string placeholder.
+      
+        68 │       "e2e/perf/a.spec.ts": `expectWithinBudget("ui.shellPaint", r.shellPaint);`,
+        69 │       "e2e/perf/b.spec.ts": `// mentions ui.shellPaint only in prose`,
+      > 70 │       "eval/run.ts": "const id = `gen.${name}`;",
+           │                                       ^^^^^^^
+        71 │     };
+        72 │     const has = (p: string) => p in files;
+      
+      i Turn the string into a template string.
+      
+    
+    test/int/shots/live.ts:171:25 lint/suspicious/noExplicitAny ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Unexpected any. Specify a different type.
+      
+        170 │ // ------------------------------------------------------------------------------------------- helpers
+      > 171 │ type J = Record<string, any>;
+            │                         ^^^
+        172 │ let spent = 0;
+        173 │ /** The API-equivalent $ of every job so far; aborts above the cap. */
+      
+      i any disables many type checking rules. Its use should be avoided.
+      
+    
+    test/int/shots/ux.ts:38:25 lint/suspicious/noExplicitAny ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Unexpected any. Specify a different type.
+      
+        36 │   if (!ok) throw new Error(`check failed: ${what}`);
+        37 │ };
+      > 38 │ type J = Record<string, any>;
+           │                         ^^^
+        39 │ 
+        40 │ let skew = 0;
+      
+      i any disables many type checking rules. Its use should be avoided.
+      
+    
+    packages/agent/src/adapters/adapters.test.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      × File content differs from formatting output
+      
+        503 503 │       const b = createTestBridge({
+        504 504 │         spawner,
+        505     │ - ······settings:·{·engines:·{·generic:·{·enabled:·true,·argv:·MUSE_ARGV,·protocol:·"muse-jsonl",·pricing:·{·inPerMTok:·1,·outPerMTok:·2,·cacheReadPerMTok:·0·}·}·}·},
+            505 │ + ······settings:·{
+            506 │ + ········engines:·{·generic:·{·enabled:·true,·argv:·MUSE_ARGV,·protocol:·"muse-jsonl",·pricing:·{·inPerMTok:·1,·outPerMTok:·2,·cacheReadPerMTok:·0·}·}·},
+            507 │ + ······},
+        506 508 │       });
+        507 509 │       let attempts = 0;
+      
+    
+    ci ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      × Some errors were emitted while running checks.
+✓ boundaries      2.94 s
+✓ cr-ledger       0.49 s
+✓ budgets         0.04 s
+✓ contract-index  2.03 s
+✓ svelte-check    14.33 s
+check: 1 step(s) failed in 58.23 s
+check: wall time over the 30 s limit (testing spec §1.6)
+error: script "check" exited with code 1

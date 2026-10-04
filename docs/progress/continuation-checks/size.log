@@ -1,0 +1,11 @@
+
+Running 2 tests using 1 worker
+
+(node:75488) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[size] S1 initial JS 87.4 KB gz, CSS 18.7 KB gz :: boot-_v44sn4O.js 657, entry-DjqjovZE.js 60888, i18n-ja-DapoRixD.js 10724, map-CZ92NKmU.js 16855, engine-BhHONrIB.js 398
+  ✓  1 [chromium] › e2e/web/size.pw.ts:14:3 › @wp10a asset budget S1: initial JS ≤ 150 KB gz, CSS ≤ 25 KB, no fonts, no cm6 (429ms)
+[size] S2 initial JS 91.3 KB gz, CSS 16.4 KB gz :: boot-_v44sn4O.js 657, entry-DjqjovZE.js 60888, i18n-ja-DapoRixD.js 10724, reader-CnLXY33d.js 19119, decorate-DDiRByF6.js 1727, levels-Bjhj3Xz8.js 425
+  ✓  2 [chromium] › e2e/web/size.pw.ts:14:3 › @wp10a asset budget S2: initial JS ≤ 150 KB gz, CSS ≤ 25 KB, no fonts, no cm6 (234ms)
+
+  2 passed (1.8s)

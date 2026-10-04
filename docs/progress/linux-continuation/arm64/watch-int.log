@@ -1,0 +1,23 @@
+bun test v1.4.2 (744846f84)
+
+packages/platform/src/watch/watch.int.test.ts:
+(pass) PLAT-I-007 FsWatcher > add / change / delete as repo-relative NFC paths [273.61ms]
+(pass) PLAT-I-007 FsWatcher > a burst on one path within the batch window collapses to one entry per batch [270.32ms]
+(pass) PLAT-I-007 FsWatcher > rename = delete(old) + add(new) in the same batch [164.49ms]
+(pass) PLAT-I-007 FsWatcher > mitori's own SafeWriter writes are not reported (hash match); a user edit right after is [498.77ms]
+(pass) PLAT-I-007 FsWatcher > ignore globs (DOC_WATCH_IGNORE), temp files and .git internals are dropped; index/HEAD/refs → {kind:'git'} [280.06ms]
+(pass) PLAT-I-007 FsWatcher > a git dir outside the tree (shadow repo) is watched separately [169.37ms]
+(pass) PLAT-I-007 FsWatcher > a linked worktree: ref moves in the main repository's common dir are {kind:'git'} too [217.80ms]
+(pass) PLAT-I-007 FsWatcher > files inside a newly created directory are reported [166.11ms]
+(pass) PLAT-I-007 FsWatcher > first sight of a file: `add` on create/move or when born after the watch started, else `change` [0.10ms]
+(pass) PLAT-I-007 FsWatcher > a directory rename: delete(old dir) + add(every file under the new name) in one batch [318.37ms]
+(pass) PLAT-I-007 FsWatcher > stop() ends delivery [306.47ms]
+(pass) PLAT-I-007 FsWatcher > an unwatchable root fails with E_IDX_WATCH [0.45ms]
+(pass) PLAT-I-007 batching: leading 5 ms, then max-wait 30 ms (FakeClock) > first event flushes after 5 ms; events right after a flush wait 30 ms [359.70ms]
+watcher write → batch (linux): p50 6.4 ms, p95 6.9 ms, n=40
+(pass) PLAT-I-007 latency (MILESTONES WP-01: macOS write → event p50 ≤ 25 ms) > isolated saves, 40 samples [3070.83ms]
+
+ 14 pass
+ 0 fail
+ 36 expect() calls
+Ran 14 tests across 1 file. [6.17s]

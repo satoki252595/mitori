@@ -1,0 +1,41 @@
+bun test v1.4.2 (744846f84)
+
+apps/web/src/settings/provider.test.ts:
+(pass) generic provider patch routes every model and requested effort without acknowledging data policy [0.40ms]
+(pass) generic provider rejects shell strings, empty argv, invalid model ids and unknown prices [0.20ms]
+(pass) execution setup command preserves quotes and shell expansions literally [19.69ms]
+(pass) blank timeout writes the explicit default so CLI deep merge replaces the previous override [0.31ms]
+
+apps/web/src/composer/composer.test.ts:
+(pass) WEB-U-028 prediction > instruction tokens: ja at 1/1.25 with a floor of 40, other text at 1/2.87 [0.40ms]
+(pass) WEB-U-028 prediction > Σ included + body; cached items priced as cache reads; the server's output tokens [1.21ms]
+(pass) WEB-U-028 prediction > Muse predictions charge all input, distinguish unknown prices, and preserve explicit zero prices [1.53ms]
+(pass) WEB-U-028 prediction > router: > 2 files or > 120 lines ⇒ agent in the same call; removing the chip ⇒ patch again [0.76ms]
+(pass) WEB-U-028 prediction > mergeChips keeps removals, drops the output line and lists candidates [0.15ms]
+(pass) WEB-U-028 prediction > ContextAdjust: removed keys, added candidates as ranges, mentions [0.17ms]
+(pass) UXP-27 mention trigger > @ / ＠ at a word start opens the picker; inside words and emails it does not [0.06ms]
+
+apps/web/src/composer/session.test.ts:
+(pass) LIVE-02 the estimate follows the saved text > before a server estimate, question/change predictions use their configured answer/patch model [3.29ms]
+(pass) LIVE-02 the estimate follows the saved text > text typed after the draft exists is PATCHed before the estimate is asked [12.17ms]
+(pass) LIVE-02 the estimate follows the saved text > typing on while the estimate is in flight leaves the Composer stale (a send re-estimates) [125.98ms]
+(pass) CR safe-6 context on every path > narrowing a submitted confirm card PATCHes context without a draft-only body [0.34ms]
+(pass) CR safe-6 context on every path > the loop's copy prompt sends the same context that was stored on the draft [0.59ms]
+(pass) CR safe-6 context on every path > changing context while an estimate is in flight keeps the Composer stale [105.58ms]
+(pass) EX-06 「AI に設計書を直させる」 > the AI doc fix is an Explain with docFix: the draft is a question, the estimate asks kind explain + docFix [6.81ms]
+
+apps/web/src/shell/lint/rules.test.ts:
+(pass) §13.2 rule set > all twelve spec rules are implemented [0.06ms]
+(pass) WEB-U-012 rule self-tests > ime-guard: the guard must be the handler's first statement [0.55ms]
+(pass) WEB-U-012 rule self-tests > no-ja-literal: literals and markup, not comments or tests [0.20ms]
+(pass) WEB-U-012 rule self-tests > no-ja-space on ja catalogs (placeholders → 1 / a) [0.17ms]
+(pass) WEB-U-012 rule self-tests > CSS rules: raw colour, z-index, font-weight, @font-face, faint surface [0.78ms]
+(pass) WEB-U-012 rule self-tests > storage / fetch / line components / progressbar [0.31ms]
+(pass) WEB-U-012 rule self-tests > extras: vw, trusted html, effects in stores, deep DTO state, console.log [0.76ms]
+(pass) WEB-U-012 rule self-tests > stripComments keeps line numbers and URLs in strings [0.04ms]
+(pass) owned sources are clean > apps/web/src/{shell,map,reader,palette,settings,gen,stores} + apps/web/i18n/<owned>.*.json [188.55ms]
+
+ 27 pass
+ 0 fail
+ 127 expect() calls
+Ran 27 tests across 4 files. [1059.00ms]

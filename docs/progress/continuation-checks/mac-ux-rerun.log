@@ -1,0 +1,9 @@
+bun test v1.4.2 (744846f84)
+
+test/int/ux-ui.test.ts:
+(pass) UX-UI: Fix without @, suggestions in prose, Review header, hint, co-editing, insert proposals — real web UI [31566.59ms]
+
+ 1 pass
+ 0 fail
+ 4 expect() calls
+Ran 1 test across 1 file. [31.59s]

@@ -1,0 +1,128 @@
+{
+ "v": "mitori.gen-real/1",
+ "repo": "/tmp/mitori-crit-muse-20261004",
+ "ws": "ws_9gerdxje6s5x",
+ "effort": "standard",
+ "build": "release",
+ "engine": {
+  "id": "generic",
+  "plan": "generic:8f60d84a1ee89fb4",
+  "billing": "unknown",
+  "pin": null
+ },
+ "models": {
+  "answer": "generic:muse-spark-1.3-contributor",
+  "patch": "generic:muse-spark-1.3-contributor",
+  "agent": "generic:muse-spark-1.3-contributor",
+  "genModule": "generic:muse-spark-1.3-contributor",
+  "genOverview": "generic:muse-spark-1.3-contributor",
+  "genLeaf": "generic:muse-spark-1.3-contributor",
+  "judge": "generic:muse-spark-1.3-contributor",
+  "rewrite": "generic:muse-spark-1.3-contributor",
+  "escalate": "generic:muse-spark-1.3-contributor"
+ },
+ "reasoning": {
+  "answer": "max",
+  "patch": "max",
+  "agent": "max",
+  "gen": "max",
+  "genOverview": "max"
+ },
+ "pricing": {
+  "inPerMTok": 0.1,
+  "outPerMTok": 0.2,
+  "cacheReadPerMTok": 0.002
+ },
+ "otherClaudeProcesses": 2,
+ "openMs": 2819.0934159999997,
+ "estimate": {
+  "id": "es_sr6zq96yjn",
+  "engine": "generic",
+  "model": "generic:muse-spark-1.3-contributor",
+  "inTokens": 729638,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "outTokens": 45130,
+  "apiUsd": 0.081991,
+  "seconds": {
+   "p50": 317,
+   "p90": 428
+  },
+  "concurrency": 2,
+  "windowDeltaPct": null,
+  "billing": "unknown",
+  "confidencePct": 25,
+  "calibrationN": 0,
+  "band": "gt200k",
+  "items": [
+   {
+    "key": "repo_pack",
+    "kind": "repo_pack",
+    "label": "repo pack",
+    "tokens": 9757,
+    "cached": false,
+    "removable": false
+   },
+   {
+    "key": "fixed",
+    "kind": "fixed",
+    "label": "gen.system",
+    "tokens": 1550,
+    "cached": false,
+    "removable": false
+   },
+   {
+    "key": "module",
+    "kind": "module",
+    "label": "module inputs",
+    "tokens": 226192,
+    "cached": false,
+    "removable": false
+   },
+   {
+    "key": "output",
+    "kind": "output",
+    "label": "output",
+    "tokens": 45130,
+    "cached": false,
+    "removable": false
+   }
+  ],
+  "requiresConfirm": true,
+  "confirmReasons": [
+   "generation_run",
+   "over_token_threshold"
+  ],
+  "expiresAt": "2026-10-04T12:31:23.101Z",
+  "effort": "standard",
+  "stages": [
+   {
+    "stage": "S6o",
+    "tasks": 8,
+    "inTokens": 177337,
+    "outTokens": 13712,
+    "apiUsd": 0.020476,
+    "seconds": 96.6
+   },
+   {
+    "stage": "S5",
+    "tasks": 14,
+    "inTokens": 507585,
+    "outTokens": 28148,
+    "apiUsd": 0.05639,
+    "seconds": 187.7
+   },
+   {
+    "stage": "S6",
+    "tasks": 2,
+    "inTokens": 44716,
+    "outTokens": 3270,
+    "apiUsd": 0.005125,
+    "seconds": 27.6
+   }
+  ],
+  "criticalPathSeconds": 115.7,
+  "alternatives": [],
+  "dataPolicyKey": "gen.generic"
+ }
+}

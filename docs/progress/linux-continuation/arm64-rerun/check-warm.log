@@ -1,0 +1,10 @@
+$ bun scripts/check.ts
+✓ tsc -b          0.76 s
+✓ biome           1.82 s
+✓ boundaries      4.34 s
+✓ cr-ledger       1.13 s
+✓ budgets         0.07 s
+✓ contract-index  3.36 s
+✓ svelte-check    15.67 s
+check: ok in 15.68 s
+check: wall time over the 15 s target

@@ -1,0 +1,8 @@
+$ bun scripts/build-bin.ts
+gen-assets: 9 pinned files match apps/cli/src/build/assets.lock.json
+gen-assets: pinned files packed 7.3 MB → 0.91 MB
+gen-assets: web from apps/web: 68 files, 1400.2 KiB raw / 402.6 KiB br (4750 ms)
+  [36ms]  minify  -3.36 MB (estimate)
+  [25ms]  bundle  813 modules
+ [149ms] compile  dist/mitori-darwin-arm64
+build:bin: dist/mitori-darwin-arm64

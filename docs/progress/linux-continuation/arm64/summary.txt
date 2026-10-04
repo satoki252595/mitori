@@ -1,0 +1,12 @@
+install exit=1 3s
+install-ignore-scripts exit=0 0s
+check exit=1 58s
+unit exit=1 209s
+ 2844 pass
+ 141 skip
+ 4 todo
+ 1 fail
+Ran 2990 tests across 318 files. [208.82s]
+watch-bench exit=0 161s
+watch-int exit=0 6s
+sandbox exit=0 8s

@@ -1,0 +1,26 @@
+scope: AI-origin blocks from adjacent doc.index.json; all files
+file                                     sent  unc  code
+00-tldr.md                                  3    0    0
+01-what-why.md                             15    0    0
+02-floor-plan.md                            3    0    0
+03-key-flows.md                            99   39    4
+09-quality.md                              18    0    0
+11-risks.md                                16    1    0
+13-open-questions.md                       15   15   10
+modules/cmd-crit.md                        38    2    0
+modules/internal-comment.md                25    0    0
+modules/internal-github-gitlab.md          34    6    4
+modules/internal-server.md                 33    1    1
+modules/internal-session-plan-cli.md       32    3    2
+modules/internal-session-session.md        33    4    3
+modules/internal-share-config-live.md      43    4    3
+modules/internal-vcs.md                    39    3    3
+modules/internal.md                        22    3    3
+modules/scripts.md                         20    4    1
+modules/web-app.md                         22    1    0
+modules/web-crit.md                        19    4    0
+modules/web-live-mode.md                   19    3    0
+modules/web-style-live.md                  22    3    2
+modules/web-style.md                        4    4    4
+modules/web.md                             16    3    0
+total: 590 sentences · uncited 103 (17.5 %) · uncited naming code 40 (6.8 %)

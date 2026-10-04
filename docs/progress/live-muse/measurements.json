@@ -1,0 +1,166 @@
+{
+  "at": "2026-10-04T12:11:21.699Z",
+  "engine": "generic",
+  "capUsd": 0.6,
+  "spentUsd": 0.001128,
+  "firstScreen": {
+    "shellPaintedMs": 23,
+    "mapPaintedMs": 135,
+    "tocPaintedMs": 120,
+    "navToIdleMs": 962
+  },
+  "sectionNavMs": 104,
+  "explainEstimateChip": "≈1.2k in · ≈600 out · $0.000 · 約4–8秒",
+  "explain": {
+    "optimisticCardMs": 33,
+    "firstTextMs": 8413,
+    "threadAnsweredApiMs": 10497,
+    "cardAnsweredMs": 10497,
+    "aiLabelVisibleMs": 101
+  },
+  "explainTimeline": {
+    "phase:queued": 20,
+    "phase:prepare": 22,
+    "phase:spawn": 22,
+    "phase:think": 26,
+    "firstText": 8413,
+    "result": 10450,
+    "phase:done": 10454,
+    "lastText": 10331
+  },
+  "explainJob": {
+    "state": "done",
+    "usage": {
+      "in": 2984,
+      "cacheWrite": 0,
+      "cacheWrite1h": 0,
+      "cacheRead": 0,
+      "out": 877,
+      "apiUsd": 0.000474,
+      "pricingVer": "generic-configured-estimated@1"
+    },
+    "timings": {
+      "modelMs": 10421,
+      "wallMs": 10430
+    },
+    "route": {
+      "mode": "answer",
+      "reason": "intent_question",
+      "model": "generic:muse-spark-1.3-contributor",
+      "effort": "max",
+      "tools": "none",
+      "contract": "answer/1",
+      "requiresConfirm": false,
+      "anchoredLines": 0,
+      "files": 0
+    },
+    "estimate": {
+      "in": 1231,
+      "out": 600,
+      "usd": 0.000243,
+      "seconds": {
+        "p50": 8,
+        "p90": 15
+      }
+    }
+  },
+  "explainAnswer": "## 結論\n\n`TSUNDOKU_API_TOKEN`は`internal/config/config.go`の`Load()`で読まれ、`Config.APIToken`に代入されます[[internal/config/config.go:32-37]]。既定値はなく、未設定時は`os.Getenv`の結果である空文字`\"\"`になります[[internal/config/config.go:36-36]]。\n\n空文字の場合の認証失敗・起動失敗などの挙動は、このbundleには含まれていないため不明です。`Config.APIToken`の利用先を確認する必要があります。\n\n## configの既定値\n\n- `PORT`: 既定値`\"8080\"`、数値変換失敗・0以下も`8080`[[internal/config/config.go:20-23]]\n- `DATABASE_URL`: 既定値なし、未設定時は`\"\"`[[internal/config/config.go:25-25]]\n- `LOG_LEVEL`: 既定値`\"info\"`[[internal/config/config.go:27-30]]\n- `TSUNDOKU_API_TOKEN`: 既定値なし、未設定時は`\"\"`[[internal/config/config.go:36-36]]\n",
+  "fixEstimateChip": "≈1.8k in · ≈1.5k out · $0.000 · 約25–40秒",
+  "fixOptimisticCardMs": 18,
+  "fixStateMs": {
+    "running": 348,
+    "gating": 24237,
+    "ready": 24452
+  },
+  "fixTimeline": {
+    "phase:queued": 24,
+    "phase:prepare": 25,
+    "phase:snapshot": 25,
+    "phase:spawn": 25,
+    "phase:think": 27,
+    "result": 24044,
+    "phase:apply": 24138,
+    "phase:scope": 24161,
+    "phase:gate": 24316,
+    "phase:ready": 24379
+  },
+  "fixJob": {
+    "usage": {
+      "in": 4876,
+      "cacheWrite": 0,
+      "cacheWrite1h": 0,
+      "cacheRead": 0,
+      "out": 833,
+      "apiUsd": 0.000654,
+      "pricingVer": "generic-configured-estimated@1"
+    },
+    "timings": {
+      "modelMs": 24014,
+      "wallMs": 24021
+    },
+    "route": {
+      "mode": "patch",
+      "reason": "small_change",
+      "model": "generic:muse-spark-1.3-contributor",
+      "effort": "max",
+      "tools": "none",
+      "contract": "patch/1",
+      "requiresConfirm": false,
+      "anchoredLines": 20,
+      "files": 1
+    },
+    "writeScope": [
+      "internal/config/config.go"
+    ],
+    "diffStat": {
+      "files": 1,
+      "additions": 1,
+      "deletions": 1,
+      "hunks": 1
+    },
+    "estimate": {
+      "in": 1912,
+      "out": 1500,
+      "usd": 0.000491,
+      "seconds": {
+        "p50": 10,
+        "p90": 18
+      }
+    }
+  },
+  "reviewOpenMs": 71,
+  "gates": {
+    "verdict": "passed",
+    "gates": [
+      {
+        "gate": "fmt:gofmt",
+        "status": "pass",
+        "ms": 299,
+        "sandboxed": true
+      },
+      {
+        "gate": "test:go",
+        "status": "pass",
+        "ms": 913,
+        "sandboxed": true
+      },
+      {
+        "gate": "typecheck:go-vet",
+        "status": "pass",
+        "ms": 3010,
+        "sandboxed": true
+      }
+    ]
+  },
+  "acceptToastMs": 287,
+  "afterAccept": {
+    "status": "M internal/config/config.go",
+    "diffStat": "internal/config/config.go | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+  },
+  "changedFile": "type Config struct {\n\tPort        int\n\tDatabaseURL string\n\tLogLevel    string\n\tAPIToken    string\n}\n\n// Load reads the configuration from the environment. Command-line flags override it (see cmd/tsundoku).\nfunc Load() Config {\n\tport, err := strconv.Atoi(cmp.Or(os.Getenv(\"PORT\"), \"8080\"))\n\tif err != nil || port <= 0 {\n\t\tport = 8080\n\t}\n\n\tdatabaseURL, _ := os.LookupEnv(\"DATABASE_URL\")\n\n\tlevel := os.Getenv(\"LOG_LEVEL\")\n\tif level == \"\" {\n\t\tlevel = \"info\"\n\t}",
+  "undoMs": 104,
+  "badResponses": [],
+  "consoleErrors": [],
+  "usageEstimated": true,
+  "measurementNote": "firstTextMs is the job text event; aiLabelVisibleMs was previously mislabeled firstTextMs."
+}

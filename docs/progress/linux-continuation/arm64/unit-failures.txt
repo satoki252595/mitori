@@ -1,0 +1,2 @@
+(fail) F1 (nonfunc audit): agent mode never shows the model a tracked secret > F1 remainder: no dependency link and no escaping tracked symlink exists while the model reads the tree; the gates get the links [206.00ms]
+(fail) F1 (nonfunc audit): agent mode never shows the model a tracked secret > F1 remainder: no dependency link and no escaping tracked symlink exists while the model reads the tree; the gates get the links [206.00ms]

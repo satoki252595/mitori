@@ -1,0 +1,10 @@
+bun test v1.4.2 (744846f84)
+
+apps/web/src/shell/lint/rules.test.ts:
+(pass) owned sources are clean > apps/web/src/{shell,map,reader,palette,settings,gen,stores} + apps/web/i18n/<owned>.*.json [123.25ms]
+
+ 1 pass
+ 8 filtered out
+ 0 fail
+ 2 expect() calls
+Ran 1 test across 1 file. [153.00ms]

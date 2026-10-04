@@ -1,17 +1,53 @@
-# mitori 引き継ぎ資料（2026-10-05 停止時点）
+# mitori 引き継ぎ資料（2026-10-04 続行）
 
-> **まず読むのは §★（この節）**。その下の §0 / §0a / §0b / §2〜§4 は、順に古い時点の記録（歴史）。
-> 停止理由: ユーザーが「他のエージェントで続ける」ため、残課題パス（ワークフロー）をキリの良いところで止めた。
+> **現在の入口は §★。以下の「履歴★」と §0 / §0a / §0b は以前の記録。**
+> 利用者の続行指示に加え、今回の Linux 既存 Docker ハーネス例外と、任意 LLM 対応・Muse Contributor / max の選択を反映した。
+
+## ★ 現在の状態
+
+### ★.1 統合と実装
+
+- `rem/bench` → `rem/safety` → `rem/doc` → `rem/ui` は **main へ統合済み**。merge commit は `8abe718` / `4c8f463` / `f393f17` / `84fa9c7`。各統合後の check は成功。CR 台帳の追記は両方保持し、INT-06 の両方の検証を残した。push は未実施。
+- 続行の実装は `8cdae9c`、scoped生成の問いの復元は `49c1575`、リスク生成のTODO状態保持は `28388df`、スレッド由来の決定の文言は `848c4d4` に保存した。検証・生成例・引き継ぎは別の資料コミットで保存する。
+- safety API の web 配線を追加した。Composer の保存・再開・見積り・送信に `Thread.context` を渡し、コード引用の × は書き込み権限だけを外す。外部 pull round の変更一覧と範囲外表示、Undo 前の再確認を Reader / Inbox / Review へ接続した。
+- F6 / CR ui-3 は実装済み。大きな節は anchor 周囲の HTML を先に取得し、残りを idle で補充する。section JSON は br/gzip に対応。SSE の更新・削除・freshness、全文検索、既読 marker との整合を保つ。
+- UI の非同期設定保存・全文検索の stale reply、freshness の DOM 更新、Git 2.43 の promisor missing object 処理、crit cold-open ベンチの重複 id を修正した。
+
+### ★.2 任意 LLM / 今回の Muse
+
+- 既存 generic CLI にモデル・reasoning・明示単価・出力 protocol・生成 deadline を接続した。説明、構造化 patch/findings、設計書生成で使う。任意 CLI の agent tools は未対応。設定境界と制限は `docs/design/adr/0015-configurable-llm.md`。
+- 今回は **`generic:muse-spark-1.3-contributor` / `max`**。既存 Muse native binary を使い、新しい依存は追加していない。Claude の OAuth は今回の検証に不要。
+- web は実行設定を直接 PATCH しない。Settings のコマンドを利用者が CLI で確認・登録し、その一致を再取得してからモデル/default/reasoning を保存する（SEC-06）。Contributor の入力・出力の学習利用は設定画面に明示している。
+- 実デモは成功: Explain → Fix → gofmt / go test / go vet → 人の採用 → 未コミット確認 → Undo。Explain の最初の本文 event は 8.413 s、回答 10.497 s。Fix は ready 24.452 s。記録値 $0.001128、**usage 推計**。証跡 `docs/progress/live-muse/measurements.json` と PNG。
+- Muse は正確な token usage / hidden thinking を返していない。設定価格と本文 byte 数の推計を記録するため、API 換算 cap は実請求額の保証ではない。料金未知を無料と表示せず、推計をキャッシュ校正へ使わない。
+- 実修復ターンも成功: go-vet 失敗 → attempt2 → 3ゲート成功、最後は reject して元の bytes を維持した。記録値 $0.001284（usage 推計）。Muse の各起動は認証だけをコピーした0700/0600の一時 profile と空 toolset を使い、終了時に削除する。tool/hook/reminder/MCP は観測0。generic の追加 context は同じWRITE範囲・current head・既存30行hintを用い、1 job で1回まで。証跡 `docs/progress/repair-muse/measurements.json`。
+- critは継続分を合わせ**24/24完了**。scoped集約の42問欠落を修正し、リスク節と問いだけを再生成した。最後は43RAWから15問、内部retry0%、壁時計再開8.3%、L1 99.6%、27calls、実行時間合計3,458.4秒。USD0.182344推計、初回120秒失敗分を含めUSD0.212474。45分一括完走は未達。最終文書・合成方法・原記録の入口は `docs/progress/gen-muse-final/README.md`。
+
+### ★.3 検証と次の入口
+
+- 最終 `scripts/nd bun run check` は10.63秒、`build:bin` は成功。全 unit の初回3失敗は各単位の再検証で解消。focused Chromium 32件中30件成功、残りCLSを修正しCLS/size4件成功。詳細は `docs/progress/continuation.md`。
+- UI / F6 の検証: `docs/progress/continuation-ui.md`。初期 JS は地図約87.4 / Reader約91.3 KB gz、**60 KB は未達**。CLSは1280/1440幅で0。初回に必要な shell/store 境界の再設計が残る。
+- Linux arm64 は frozen install を修正して成功、全体unitのF1失敗も限定再検証で解消。watch と sandbox は成功。cold check は約57秒で30秒上限未達、warm は15.68秒で成功。条件と証拠は `docs/progress/linux-continuation/README.md`。
+- bench の検証: `docs/progress/continuation-bench.md`。crit 静的文書込み cold open 中央値2,085.9 ms、高負荷補正下の計測。未計測7件と基準機の記録は残る。
+- 実 LLM の再実行コマンド、cap、観測上の制限: `docs/progress/continuation-live.md`。一時設定と生の provider 記録は `/tmp` のみに置き、認証情報を Git へ保存しない。
+- 作業追跡: [Issue #1](https://github.com/satoki252595/mitori/issues/1)。原コンセプトと運用上の安全・費用制約は以下の履歴★.4、repo の `AGENTS.md`、ADR-0013 / ADR-0015 を維持する。
+
+### ★.4 残り
+
+1. 生成品質の残り: 設計判断の細部偏重、識別子列挙/反復、TODO周辺文脈、未出典文など。実測で問いの欠落・TODO意味逆転・決定の曖昧表示を修正したが、全件解消ではない。具体例は `docs/progress/continuation-quality.md`。実修復の37行の独自error/整数formatにも簡潔さの改善余地がある。
+2. 初期 JS 60 KB、静かな基準機での bench 記録、未計測7件、self-hosted runner、Linux cold check の30秒上限。
+3. CR ui-4 の revert / translate / simplify、EX-04 / NC-19〜21、outbound fact の生成利用、浅い clone の co-change 制限。
+4. Cloudflare 共有・床面図・Windows・Firefox/Safari 実機・Codex agent mode・docpatch/GitHub PR。Cloudflare deploy / Paid 化、月1,000円以上の継続費用増は承認が必要。
 
 ---
 
-## ★ 現在の状態（残課題パスを止めた時点）
+## 履歴★ 前回停止時の状態
 
-### ★.1 main
+### 履歴★.1 main
 - `origin/main` = `a427f36`（監査 49 件の仕上げまで取り込み済み・push 済み）。`check` 緑、`bun test` 2,775 pass / 1 fail（IDX-AT-15 は高負荷のときだけ落ちる時間依存。単独では通る）。
 - 実エンジン（実 `claude`）の検証が未実施。この Mac の `claude` は **ログアウト中**（`claude auth status` → `loggedIn:false`）。OAuth は agent からは通せない。**利用者が `claude /login` する必要がある**。
 
-### ★.2 未マージの 4 ブランチ（すべて origin に push 済み・各 `check` 緑・未統合）
+### 履歴★.2 未マージの 4 ブランチ（すべて origin に push 済み・各 `check` 緑・未統合）
 残課題パス（ログイン不要の分）を 4 トラックで実装し、各トラックの敵対的検証まで終わっている（ui は検証の途中で止めたため、WIP コミットを含む）。統合（最終回帰）は未実施。
 
 | ブランチ | 内容（詳細は各報告書） | 報告書 |
@@ -23,7 +59,7 @@
 
 **統合の手順（推奨順 bench → safety → doc → ui）**: 試験マージ済み。衝突は **`packages/core/CR-LEDGER.md`（追記同士。両方残す）と `test/int/int06.test.ts`（safety）のみ**。`prompts.lock.json` は今回の 4 本では触っていないが、念のため `AC-40` を回すこと。各マージ後に `scripts/nd bun install --frozen-lockfile && scripts/nd bun run check`、最後に全 `scripts/nd bun test`（他プロセスが重いと時間依存で落ちる。`rem/bench` の `scripts/under-load.ts` と負荷ゲート済みのテストで安定する）。統合後に `scripts/linux-ci.sh` も回す。
 
-### ★.3 残り（優先順）
+### 履歴★.3 残り（優先順）
 1. **統合**（上）。ブランチは全部 origin にあるので、worktree は不要。
 2. **要ログイン・実費小**（`claude /login` 後）
    - 最終デモ（`@` なしの Fix を含む）: `scripts/nd bun run build:bin && scripts/nd bun test/int/shots/live.ts --engine real --out docs/progress/final`（上限 $0.60、想定 $0.03）
@@ -36,14 +72,14 @@
 7. **未着手**: WP-17 Cloudflare 共有（**デプロイ前にユーザー承認必須、Paid 化も同様**）、WP-18 床面図、Windows、Firefox/Safari 実機、codex の agent mode、docpatch/1・GitHub PR。
 8. **履歴の無い shallow clone では co-change が出ない**（platform の方針。`cr-requests/doc.md` #4）。
 
-### ★.4 守ること（コンセプト）
+### 履歴★.4 守ること（コンセプト）
 > 一度 repo を省トークンで読み、人が読める見やすい設計書にする。人がその箇所にコメント/修正を入れると、**その位置に紐づけて**ユーザー自身の AI が修正・レビュー対応する。初心者も専門家も同じ文書で。速度とトークン量と UI/UX に徹底的にこだわる。
 - AI の変更は常に **アンカー済み・範囲限定・ゲート済み・人が確認・未コミットで適用・Undo 可能**。ユーザー repo の refs/objects/worktree には書かない（side repo、ADR-0012）。
 - エージェントは lean 起動（I1〜I14）。対象 repo の設定/hook は読ませない（セキュリティ境界）。
 - 月 1,000 円以上の継続費用が増える操作（Cloudflare Paid 化など）は事前承認。実エンジンの費用は各タスクに API 換算の上限を付ける。
 - コミットは `Co-Authored-By` 付き、`.env` 等は commit しない。push は利用者の意向がある場合のみ。
 
-### ★.5 コスト（反省）
+### 履歴★.5 コスト（反省）
 ワークフローで多数エージェントを並列に回すと数 M〜十数 M トークンを消費する。今回の累計はサブエージェントで合計およそ 50M トークン級。次は、並列 3〜4、定型は sonnet、検証は失敗した受け入れ試験のある単位だけ、各エージェントは `docs/design/briefs/WP-xx.md` と該当報告書だけを読む、を守る。
 
 ---
