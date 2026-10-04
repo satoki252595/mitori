@@ -26,7 +26,9 @@ export function routeUx(prompt: string): { kind: "answer"; text: string } | { ki
     return { kind: "patch", patch: { ...(r.patch as object), doc_updates: doc ? [{ block: doc, md: CITED_MD_AI }] : [] } };
   }
   if (!prompt.includes(ASK)) return null;
-  const table = [...prompt.matchAll(/^> (\|.*)$/gm)].map((m) => m[1] as string).join("\n");
+  // the env block as the DOC shows it: its caption line (「**環境変数**」, NC-06) and the table
+  const caption = /^> (\*\*[^*\n]+\*\*)$/m.exec(prompt)?.[1];
+  const table = [...(caption ? [caption] : []), ...[...prompt.matchAll(/^> (\|.*)$/gm)].map((m) => m[1] as string)].join("\n");
   return {
     kind: "patch",
     patch: {

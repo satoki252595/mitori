@@ -10,10 +10,12 @@
  *       subscription). HARD CAP: API-equivalent total ≤ $0.60 (aborts when a job's ledger row says more); one Explain
  *       and one Fix.
  *
- * Steps (a screenshot after each): first screen → 設計書 → §4 → select a word → Composer (Explain, `@` mentions of the
- * retry code) → answer card → Fix → job stages → ready card → Review panel → trust the gofmt gate → accept (⌘⏎) →
- * the working tree changed UNCOMMITTED and nothing else of the user's repository → Undo (⌘Z) → the original bytes →
- * the code view. Every check throws; latency / tokens / $ of every step are printed as JSON on stdout.
+ * Steps (a screenshot after each): first screen (README lede) → 設計書 → §2 (the 間取り図 drawn) → §4 (the 0-token
+ * steps) → select a word of the env table → Composer opened with `e`, typed WITHOUT a click (NC-01; the text has a
+ * `g`, EX-02) → answer card → Fix with `f`, NO `@` mention: the row's own code is the first candidate, picked with ⌥1
+ * (CR ux-F1) → job stages → ready card → Review panel → trust the gates → accept (⌘⏎) → the working tree changed
+ * UNCOMMITTED and nothing else of the user's repository → Undo (⌘Z) → the original bytes → the code view. Every
+ * check throws; latency / tokens / $ of every step are printed as JSON on stdout.
  * Exit 77 = Chrome is not installed (the test skips).
  */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -25,7 +27,7 @@ import { buildFixture } from "@mitori/testkit";
 import { chromium, type Page } from "@playwright/test";
 import { FAKE_CLAUDE_CONFIG, fakeClaude } from "../fake-claude.ts";
 import { startInt } from "../harness.ts";
-import { routeLoop } from "../router.ts";
+import { CONFIG, ASK as FIX_ASK, routeUx } from "../ux-router.ts";
 
 const ROOT = resolve(import.meta.dir, "../../..");
 const argv = process.argv.slice(2);
@@ -34,8 +36,9 @@ const ENGINE = opt("--engine", "fake") as "fake" | "real";
 const OUT = resolve(ROOT, opt("--out", ENGINE === "real" ? "docs/progress/live" : join(tmpdir(), "mitori-live-fake")) as string);
 const BIN = join(ROOT, `dist/mitori-${process.platform}-${process.arch}`);
 const CAP_USD = 0.6;
-const FIX_ASK = "再試行回数を設定で変えられるようにして";
-const EXPLAIN_ASK = "この再試行は最大何回で、その回数はどこで決まっていますか？";
+// no `@`: the Fix targets the env row's own code (config.go `Load`), the question names `config` (a `g`, EX-02)
+const EXPLAIN_ASK = "この環境変数はどこで読まれ、未設定だと何が起きますか？config の既定値も教えて";
+const TARGET_FILE = CONFIG;
 
 mkdirSync(OUT, { recursive: true });
 const log = (...a: unknown[]) => console.error("[live]", ...a);
@@ -74,7 +77,7 @@ async function startFake(): Promise<Daemon> {
       chunkChars: 6,
       speed: 1,
       respond(prompt, spec) {
-        const r = routeLoop(prompt);
+        const r = routeUx(prompt);
         if (!r) return null;
         prompts.push(prompt);
         const model = spec.argv[spec.argv.indexOf("--model") + 1] ?? "claude-sonnet-5-5";
@@ -165,15 +168,6 @@ async function selectWord(page: Page, text: string): Promise<void> {
   await loc.scrollIntoViewIfNeeded();
   await loc.dblclick();
   await page.waitForTimeout(250);
-}
-
-/** `@<query>` in the Composer, wait for the symbol picker, take the first hit (the chip appears). */
-async function mention(page: Page, query: string): Promise<void> {
-  await page.keyboard.type(`@${query}`, { delay: 15 });
-  await page.locator("[role=option]").first().waitFor({ timeout: 5000 });
-  await page.waitForTimeout(200);
-  await page.keyboard.press("Enter");
-  await page.waitForTimeout(300);
 }
 
 /** The Composer's one-line estimate (`≈1.2k in · ≈600 out · $0.007 · 約4–8秒`). */
@@ -277,7 +271,7 @@ const sseTrace = async (): Promise<string[]> => {
 let exit = 0;
 try {
   const base = d.root;
-  const file = join(base, "internal/meta/fetch.go");
+  const file = join(base, TARGET_FILE);
   const original = readFileSync(file);
   const userState = () => ({
     head: git(base, "rev-parse", "HEAD"),
@@ -303,12 +297,21 @@ try {
   await page.waitForTimeout(800);
   steps.firstScreen = { ...painted, navToIdleMs: ms(tLogin) };
   if (ENGINE === "fake") skew = 61_000;
+  // NC-02: the first screen says what the repository is (README lede, toolchain)
+  const hero = await page.locator(".hero").first().innerText();
+  check(hero.includes("積読"), `the hero quotes the README: ${hero.slice(0, 200)}`);
+  check(/Go 1\.23/.test(hero), `the hero names the toolchain: ${hero.slice(0, 200)}`);
   await shot(page, "01-first-screen");
 
-  // (b) 設計書 (the zero-token static doc) → §4
+  // (b) 設計書 (the zero-token static doc) → §2 drawn → §4
   await page.getByRole("link", { name: "設計書" }).first().click();
   await page.waitForTimeout(800);
   await shot(page, "02-reader-s0");
+  await page.goto(new URL(`/w/${d.ws}/doc/s2`, page.url()).href);
+  await page.locator("figure.mdiagram svg").first().waitFor({ timeout: 10_000 });
+  check((await page.locator("figure.mdiagram svg .dg-node").count()) >= 1, "§2 draws the 間取り図 (NC-03)");
+  await page.waitForTimeout(500);
+  await shot(page, "02b-reader-s2-diagram");
   const tNav = performance.now();
   await page
     .getByRole("link", { name: /動かしてみる/ })
@@ -318,6 +321,8 @@ try {
   await page.locator(".mb code", { hasText: "TSUNDOKU_API_TOKEN" }).first().waitFor();
   steps.sectionNavMs = ms(tNav);
   await page.waitForTimeout(600);
+  const s4text = await page.locator("main").first().innerText();
+  check(/go run \.\/cmd\/tsundoku/.test(s4text), `§4 opens with the run command (NC-06): ${s4text.slice(0, 300)}`);
   await shot(page, "03-reader-s4");
 
   // (c) select → toolbar → Composer (Explain) → `@` mentions of the retry code → ask → send
@@ -327,16 +332,14 @@ try {
   await page.keyboard.press("e");
   const ta = page.locator("textarea").first();
   await ta.waitFor();
-  await ta.click();
-  await mention(page, "Fetch");
-  await mention(page, "maxRetries");
-  await shot(page, "05-composer-mention");
+  // NC-01: the textarea takes focus by itself — type without clicking it
+  await page.waitForFunction(() => document.activeElement?.tagName === "TEXTAREA", undefined, { timeout: 3000 });
+  await shot(page, "05-composer-focused");
   await page.keyboard.type(EXPLAIN_ASK, { delay: 8 });
+  check((await ta.inputValue()) === EXPLAIN_ASK, `the typed question arrived verbatim (NC-01 / EX-02), got ${JSON.stringify(await ta.inputValue())}`);
   await page.waitForTimeout(1200);
   steps.explainEstimateChip = await composerEstimate(page);
-  // every `@` mention is ONE chip (the estimate's code item carries the mention's ×), the doc chip names the section
   const chipTexts = await page.locator(".chips .chip").allInnerTexts();
-  check(chipTexts.filter((t) => t.includes("fetch.go:46-61")).length === 1, `one chip for the Fetch mention, got ${JSON.stringify(chipTexts)}`);
   check(
     chipTexts.some((t) => t.includes("§4")),
     `the doc chip names its section, got ${JSON.stringify(chipTexts)}`,
@@ -392,7 +395,11 @@ try {
     "the cites of the answer are links, not [[…]] text",
   );
   check(!(await page.locator("body").innerText()).includes("[["), "no raw [[path:a-b]] marker on the page");
-  if (ENGINE === "fake") check(d.prompts.at(-1)?.includes(`ASK\n> ${EXPLAIN_ASK}`), "the engine was sent the question (not an empty ASK)");
+  if (ENGINE === "fake") {
+    check(d.prompts.at(-1)?.includes(`ASK\n> ${EXPLAIN_ASK}`), "the engine was sent the question verbatim (not an empty ASK, no lost `g`)");
+    // EX-03: the env row's own code reached the model without any `@`
+    check(d.prompts.at(-1)?.includes(`CODE ${TARGET_FILE}:`), "the question's bundle carries the row's code (config.go)");
+  }
   check(!/本文が空|empty/i.test(steps.explainAnswer as string), "the answer does not complain about an empty ask");
   await checkCap(d, "after explain");
 
@@ -402,11 +409,14 @@ try {
   await page.keyboard.press("f");
   const ta2 = page.locator("textarea").first();
   await ta2.waitFor();
-  await ta2.click();
-  await page.waitForTimeout(500);
-  await shot(page, "08-composer-fix-open");
-  await mention(page, "maxRetries");
-  await mention(page, "Fetch");
+  await page.waitForFunction(() => document.activeElement?.tagName === "TEXTAREA", undefined, { timeout: 3000 });
+  // CR ux-F1: no `@` — the Composer offers the row's own code (config.go Load) as the first candidate; ⌥1 picks it
+  await page.locator(".cand-row").first().waitFor({ timeout: 5000 });
+  const cand = await page.locator(".cand-row").first().innerText();
+  check(cand.includes("config.go"), `the first candidate is the row's code: ${cand}`);
+  await shot(page, "08-composer-fix-candidates");
+  await page.keyboard.press("Alt+1");
+  await page.waitForTimeout(400);
   await page.keyboard.type(FIX_ASK, { delay: 8 });
   await page.waitForTimeout(1500);
   steps.fixEstimateChip = await composerEstimate(page);
@@ -459,10 +469,7 @@ try {
     diffStat: fixJob.diffStat,
     estimate: { in: fixJob.estimate?.inTokens, out: fixJob.estimate?.outTokens, usd: fixJob.estimate?.apiUsd, seconds: fixJob.estimate?.seconds },
   };
-  check(
-    fixJob.writeScope?.length >= 1 && fixJob.writeScope.every((p: string) => p === "internal/meta/fetch.go" || p.endsWith(".go")),
-    `write scope is Go files, got ${fixJob.writeScope}`,
-  );
+  check(fixJob.writeScope?.length === 1 && fixJob.writeScope[0] === TARGET_FILE, `write scope is the picked file, got ${fixJob.writeScope}`);
   if (ENGINE === "fake") check(d.prompts.at(-1)?.includes(`ASK\n> ${FIX_ASK}`), "the engine was sent the fix request");
   check(readFileSync(file).equals(original), "nothing reached the working tree before accept");
   await checkCap(d, "after fix");
@@ -525,7 +532,7 @@ try {
   const status = git(base, "status", "--porcelain");
   const after = userState();
   steps.afterAccept = { status: status.trim(), diffStat: git(base, "diff", "--stat").trim() };
-  check(/^ M internal\/meta\/fetch\.go$/m.test(status) && status.trim().split("\n").length === 1, `only fetch.go is modified (uncommitted), got:\n${status}`);
+  check(status.trim() === ` M ${TARGET_FILE}`.trim() || status === ` M ${TARGET_FILE}\n`, `only ${TARGET_FILE} is modified (uncommitted), got:\n${status}`);
   for (const k of ["head", "refs", "stash", "worktrees", "objects"] as const)
     check(after[k] === before[k], `the user's repository is untouched (${k}) after accept`);
   steps.changedFile = changed.toString("utf8").split("\n").slice(10, 30).join("\n");
@@ -546,7 +553,7 @@ try {
     check(final[k] === before[k], `the user's repository is untouched (${k}) after undo`);
 
   // (i) the code view: one row per line, with its number
-  await page.goto(new URL(`/w/${d.ws}/code/internal/meta/fetch.go#L46-L61`, page.url()).href);
+  await page.goto(new URL(`/w/${d.ws}/code/${TARGET_FILE}#L19-L38`, page.url()).href);
   await page.locator("[data-line]").first().waitFor();
   await page.waitForTimeout(600);
   const rows = await page.evaluate(() =>
