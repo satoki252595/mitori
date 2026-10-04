@@ -10,9 +10,10 @@
 // network namespace of its own with only `lo` up, so 127.0.0.1 there reaches nothing that runs on the host (the
 // mitori daemon, local proxies, databases, a browser's debugging port). macOS has no network namespace; the profile
 // emulates one: loopback bind / listen / connect is allowed, but every TCP / UDP port that was already bound on a
-// loopback or wildcard address when the gate started — the daemon's port among them, which is also denied by
-// name — and the privileged range are denied. Only sockets the gate opened itself are reachable. Without a listener
-// snapshot that provably sees the daemon's own port, the profile keeps loopback denied (fail closed).
+// loopback or wildcard address when the gate started — the daemon's port among them (the runner checks the snapshot
+// contains the port of `~/.mitori/daemon.json`) — and the privileged range are denied. Only sockets the gate opened
+// itself are reachable. Without a listener snapshot that provably sees the daemon's own port, the profile keeps
+// loopback denied (fail closed).
 
 /** Ports already bound on the host when a gate starts (denied to the gate, macOS). */
 export interface LoopbackPolicy {
