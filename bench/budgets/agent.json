@@ -51,7 +51,8 @@
       "owner": "agent",
       "measure": "bench/agent.bench.ts#first-phase:warm",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "agent.firstPhase.cold",
@@ -77,7 +78,8 @@
       "owner": "agent",
       "measure": "bench/agent.bench.ts#interactive-wait",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "agent.resident.procs",
@@ -90,7 +92,8 @@
       "owner": "agent",
       "measure": "bench/agent.bench.ts#resident-procs",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "agent.resident.rss",
@@ -103,7 +106,8 @@
       "owner": "agent",
       "measure": "bench/agent.bench.ts#resident-rss",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     }
   ],
   "counters": [

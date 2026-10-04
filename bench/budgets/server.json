@@ -12,7 +12,8 @@
       "owner": "server",
       "measure": "bench/server.bench.ts#idle-rss:empty",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "srv.rss.idleLoaded",
@@ -25,7 +26,8 @@
       "owner": "server",
       "measure": "bench/server.bench.ts#idle-rss:loaded",
       "scale": "none",
-      "provisional": true
+      "provisional": true,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "srv.sse.p99",
@@ -38,7 +40,8 @@
       "owner": "server",
       "measure": "bench/server.bench.ts#sse-p99",
       "scale": "machine",
-      "provisional": true
+      "provisional": true,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     }
   ]
 }

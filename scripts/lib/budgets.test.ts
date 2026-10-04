@@ -51,3 +51,20 @@ describe("budgets lint", () => {
     expect(lintBudgets([{ path: "a.json", json: { budgets: [] } }]).map((p) => p.message)).toEqual(['"v" must be "mitori.budgets/1"']);
   });
 });
+
+describe("F4 (nonfunc audit) a budget's measure file must exist, or the entry says why not", () => {
+  const doc = (b: Record<string, unknown>) => [{ path: "a.json", json: { v: "mitori.budgets/1", budgets: [{ ...ok, ...b }] } }];
+  const exists = (p: string) => p === "bench/idx.bench.ts";
+  test("missing file without `unmeasured` ⇒ a problem; with a reason ⇒ fine", () => {
+    expect(lintBudgets(doc({ measure: "bench/none.bench.ts#x" }), exists).map((p) => p.message)).toEqual([
+      'measure file bench/none.bench.ts does not exist (add it, or say why with "unmeasured")',
+    ]);
+    expect(lintBudgets(doc({ measure: "bench/none.bench.ts#x", unmeasured: "no harness yet" }), exists)).toEqual([]);
+  });
+  test("an existing file with `unmeasured` ⇒ drop it; an empty reason is refused", () => {
+    expect(lintBudgets(doc({ unmeasured: "stale note" }), exists).map((p) => p.message)).toEqual(['measure file bench/idx.bench.ts exists: drop "unmeasured"']);
+    expect(lintBudgets(doc({ measure: "bench/none.bench.ts#x", unmeasured: " " }), exists).map((p) => p.message)).toEqual([
+      "unmeasured must be a non-empty reason",
+    ]);
+  });
+});

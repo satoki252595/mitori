@@ -11,10 +11,14 @@ export interface BudgetProblem {
 const UNITS: ReadonlySet<string> = new Set(["ms", "s", "MB", "KB", "B", "tokens", "count", "ratio", "pct", "usd"]);
 const GATES: ReadonlySet<string> = new Set(["relative", "absolute", "structural", "golden", "eval", "contract", "counter"]);
 
-type Entry = Partial<Record<keyof BudgetEntry | "minN", unknown>>;
+type Entry = Partial<Record<keyof BudgetEntry | "minN" | "unmeasured", unknown>>;
 
 /** Lint all budget files together (ids are unique across files). */
-export function lintBudgets(files: readonly { path: string; json: unknown }[]): BudgetProblem[] {
+/**
+ * `exists` (repo-relative path → bool): F4 (nonfunc audit) — a `measure` file that does not exist measures nothing;
+ * such an entry must say so (`unmeasured: "<why>"`), and an entry whose file exists must not carry `unmeasured`.
+ */
+export function lintBudgets(files: readonly { path: string; json: unknown }[], exists?: (path: string) => boolean): BudgetProblem[] {
   const out: BudgetProblem[] = [];
   const seen = new Map<string, string>();
   for (const { path, json } of files) {
@@ -32,6 +36,14 @@ export function lintBudgets(files: readonly { path: string; json: unknown }[]): 
       if (prev) p(id, `duplicate id (also in ${prev})`);
       seen.set(id, path);
     };
+    const measured = (id: string, e: { measure?: unknown; unmeasured?: unknown }) => {
+      if (!exists || typeof e.measure !== "string") return;
+      const file = e.measure.split("#")[0] as string;
+      const has = exists(file);
+      if (e.unmeasured !== undefined && (typeof e.unmeasured !== "string" || e.unmeasured.trim() === "")) p(id, "unmeasured must be a non-empty reason");
+      else if (!has && e.unmeasured === undefined) p(id, `measure file ${file} does not exist (add it, or say why with "unmeasured")`);
+      else if (has && e.unmeasured !== undefined) p(id, `measure file ${file} exists: drop "unmeasured"`);
+    };
     for (const b of budgets) {
       const id = String(b.id);
       unique(b.id);
@@ -47,6 +59,7 @@ export function lintBudgets(files: readonly { path: string; json: unknown }[]): 
       if (b.scale !== "machine" && b.scale !== "none") p(id, `scale must be "machine" or "none"`);
       if (typeof b.provisional !== "boolean") p(id, "provisional must be a boolean");
       if (b.minN !== undefined && !(Number.isInteger(b.minN) && (b.minN as number) > 0)) p(id, "minN must be a positive integer");
+      measured(id, b);
     }
     for (const c of counters as Record<string, unknown>[]) {
       const id = String(c.id);
@@ -54,6 +67,7 @@ export function lintBudgets(files: readonly { path: string; json: unknown }[]): 
       if (!(Number.isInteger(c.max) && (c.max as number) >= 0)) p(id, "counter max must be a non-negative integer");
       if (typeof c.owner !== "string" || c.owner === "") p(id, "owner is required");
       if (typeof c.measure !== "string" || !/^[^#\s]+#[^#\s]+$/.test(c.measure)) p(id, `measure must be "<file>#<case>"`);
+      measured(id, c);
     }
   }
   return out;

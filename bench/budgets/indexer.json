@@ -12,7 +12,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#s01-cold:crit",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.s01.cold.7kfiles",
@@ -25,7 +26,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#s01-cold:gostd",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.s04.cold.100kloc",
@@ -38,7 +40,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#s04-cold:crit",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.s04.cold.react",
@@ -51,7 +54,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#s04-cold:react",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.s04.cold.small",
@@ -64,7 +68,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#s04-cold:small",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.warm.rescan",
@@ -77,7 +82,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#warm-rescan:crit",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.warm.rescan.7k",
@@ -90,7 +96,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#warm-rescan:gostd",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.update.1file",
@@ -103,7 +110,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#update-1file:crit",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.freshness",
@@ -116,7 +124,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#freshness:crit",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.staleBadge",
@@ -129,7 +138,8 @@
       "owner": "indexer",
       "measure": "e2e/perf/stale-badge.spec.ts#E2E-13",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.rss.peak",
@@ -142,7 +152,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#rss-peak:react",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.rss.idle",
@@ -155,7 +166,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#rss-idle:crit",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.search.ms",
@@ -168,7 +180,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#search:crit",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.pack.tokens",
@@ -181,7 +194,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#pack-tokens",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.pack.ms",
@@ -194,7 +208,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#pack-ms:crit",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.module.sig.tokens",
@@ -207,7 +222,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#module-sig-tokens",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.leaf.loc",
@@ -220,7 +236,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#leaf-loc",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.leiden.ms",
@@ -233,7 +250,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#leiden:react",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.persist.ms",
@@ -246,7 +264,8 @@
       "owner": "indexer",
       "measure": "bench/idx.bench.ts#persist:react",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     }
   ],
   "counters": [
@@ -254,19 +273,22 @@
       "id": "idx.warm.parseCalls",
       "max": 0,
       "owner": "indexer",
-      "measure": "bench/idx.bench.ts#warm:crit"
+      "measure": "bench/idx.bench.ts#warm:crit",
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.warm.filesHashed",
       "max": 0,
       "owner": "indexer",
-      "measure": "bench/idx.bench.ts#warm:crit"
+      "measure": "bench/idx.bench.ts#warm:crit",
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "idx.warm.sqlWrites",
       "max": 0,
       "owner": "indexer",
-      "measure": "bench/idx.bench.ts#warm:crit"
+      "measure": "bench/idx.bench.ts#warm:crit",
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     }
   ]
 }

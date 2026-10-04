@@ -73,7 +73,7 @@ export const renderMerged = (merged: MergedBudgets): string => `${renderJson(mer
 
 /** Problems that make the budget set unusable; empty = OK. `current` is the existing bench/budgets.json text, if any. */
 export function checkBudgets(files: readonly SourceFile[], current: string | undefined): string[] {
-  const problems = lintBudgets(files).map((p) => `${p.file} ${p.id}: ${p.message}`);
+  const problems = lintBudgets(files, (p) => existsSync(join(ROOT, p))).map((p) => `${p.file} ${p.id}: ${p.message}`);
   for (const f of files) {
     const d = f.json as Doc;
     for (const b of d.budgets ?? []) {

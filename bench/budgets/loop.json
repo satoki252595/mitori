@@ -12,7 +12,8 @@
       "owner": "loop",
       "measure": "bench/loop.bench.ts#thread-create",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "loop.bundle",
@@ -25,7 +26,8 @@
       "owner": "loop",
       "measure": "bench/loop.bench.ts#bundle:M",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "loop.bundle.tokens.XS",
@@ -129,7 +131,8 @@
       "owner": "loop",
       "measure": "packages/loop/test/golden/pull.test.ts#overhead",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "loop.batch.ratio",
@@ -155,7 +158,8 @@
       "owner": "loop",
       "measure": "bench/loop.bench.ts#snapshot-worktree",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "git.precheck",
@@ -168,7 +172,8 @@
       "owner": "loop",
       "measure": "bench/loop.bench.ts#precheck",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "git.accept",
@@ -181,7 +186,8 @@
       "owner": "loop",
       "measure": "bench/loop.bench.ts#accept",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "mcp.init",
@@ -194,7 +200,8 @@
       "owner": "loop",
       "measure": "bench/loop.bench.ts#mcp-init",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "mcp.toolsTokens",
@@ -207,7 +214,8 @@
       "owner": "loop",
       "measure": "packages/loop/test/golden/mcp.test.ts#tools-tokens",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "install.skillBytes",
@@ -220,7 +228,8 @@
       "owner": "loop",
       "measure": "packages/loop/test/golden/install.test.ts#skill-bytes",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "install.agentsTokens",
@@ -233,7 +242,8 @@
       "owner": "loop",
       "measure": "packages/loop/test/golden/install.test.ts#agents-tokens",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "quality.patch.gateFirst",

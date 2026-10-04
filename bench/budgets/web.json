@@ -12,7 +12,8 @@
       "owner": "web",
       "measure": "e2e/perf/first-use.spec.ts#E2E-01:shellPaint",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.scanSummary",
@@ -25,7 +26,8 @@
       "owner": "web",
       "measure": "e2e/perf/first-use.spec.ts#E2E-01:scanSummary",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.firstUseful.100k",
@@ -38,7 +40,8 @@
       "owner": "web",
       "measure": "e2e/perf/first-use.spec.ts#E2E-01:firstUseful",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.inp",
@@ -51,7 +54,8 @@
       "owner": "web",
       "measure": "e2e/perf/inp.spec.ts#ui-inp",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.section",
@@ -64,7 +68,8 @@
       "owner": "web",
       "measure": "e2e/perf/nav.spec.ts#ui-section",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.palette",
@@ -77,7 +82,8 @@
       "owner": "web",
       "measure": "e2e/perf/palette.spec.ts#ui-palette",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.level",
@@ -90,7 +96,8 @@
       "owner": "web",
       "measure": "e2e/perf/level.spec.ts#ui-level",
       "scale": "machine",
-      "provisional": true
+      "provisional": true,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.card.optimistic",
@@ -103,7 +110,8 @@
       "owner": "web",
       "measure": "e2e/perf/card.spec.ts#ui-card-optimistic",
       "scale": "machine",
-      "provisional": true
+      "provisional": true,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.shortcut",
@@ -116,7 +124,8 @@
       "owner": "web",
       "measure": "e2e/perf/shortcut.spec.ts#ui-shortcut",
       "scale": "machine",
-      "provisional": true
+      "provisional": true,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.inputRender.1000",
@@ -129,7 +138,8 @@
       "owner": "web",
       "measure": "e2e/perf/input-render.spec.ts#ui-input-render-1000",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.cls.boot",
@@ -142,7 +152,8 @@
       "owner": "web",
       "measure": "e2e/perf/cls.spec.ts#ui-cls-boot",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.cls.gen",
@@ -155,7 +166,8 @@
       "owner": "web",
       "measure": "e2e/perf/cls.spec.ts#ui-cls-gen",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.lcp.export.local",
@@ -168,7 +180,8 @@
       "owner": "web",
       "measure": "e2e/perf/export-lcp.spec.ts#ui-lcp-export:local",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.lcp.export",
@@ -181,7 +194,8 @@
       "owner": "web",
       "measure": "e2e/perf/export-lcp.spec.ts#ui-lcp-export:throttled",
       "scale": "machine",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.dom.typical",
@@ -194,7 +208,8 @@
       "owner": "web",
       "measure": "e2e/perf/dom.spec.ts#ui-dom-typical",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.dom.max",
@@ -207,7 +222,8 @@
       "owner": "web",
       "measure": "e2e/perf/dom.spec.ts#ui-dom-max",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.codeLines.mounted",
@@ -220,7 +236,8 @@
       "owner": "web",
       "measure": "e2e/perf/dom.spec.ts#ui-code-lines-mounted",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.reviewDiff5000.dom",
@@ -233,7 +250,8 @@
       "owner": "web",
       "measure": "e2e/perf/dom.spec.ts#ui-review-diff-5000",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.floorplan.nodes",
@@ -246,7 +264,8 @@
       "owner": "web",
       "measure": "e2e/perf/dom.spec.ts#ui-floorplan-nodes",
       "scale": "none",
-      "provisional": true
+      "provisional": true,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.listeners.reader",
@@ -259,7 +278,8 @@
       "owner": "web",
       "measure": "e2e/perf/dom.spec.ts#ui-listeners-reader",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.heap.10k",
@@ -272,7 +292,8 @@
       "owner": "web",
       "measure": "e2e/perf/heap.spec.ts#ui-heap-10k",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.a11y.contrast",
@@ -285,7 +306,8 @@
       "owner": "web",
       "measure": "e2e/a11y/probe.spec.ts#ui-a11y-contrast",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.a11y.textSize",
@@ -298,7 +320,8 @@
       "owner": "web",
       "measure": "e2e/a11y/probe.spec.ts#ui-a11y-text-size",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.a11y.target",
@@ -311,7 +334,8 @@
       "owner": "web",
       "measure": "e2e/a11y/probe.spec.ts#ui-a11y-target",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.a11y.axe",
@@ -324,7 +348,8 @@
       "owner": "web",
       "measure": "e2e/a11y/axe.spec.ts#ui-a11y-axe",
       "scale": "none",
-      "provisional": false
+      "provisional": false,
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "asset.js.initial.gz",
@@ -657,13 +682,15 @@
       "id": "ui.fetch.levelSwitch",
       "max": 0,
       "owner": "web",
-      "measure": "e2e/perf/level.spec.ts#ui-fetch-level-switch"
+      "measure": "e2e/perf/level.spec.ts#ui-fetch-level-switch",
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     },
     {
       "id": "ui.fetch.readerOpen",
       "max": 6,
       "owner": "web",
-      "measure": "e2e/perf/level.spec.ts#ui-fetch-reader-open"
+      "measure": "e2e/perf/level.spec.ts#ui-fetch-reader-open",
+      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
     }
   ]
 }
