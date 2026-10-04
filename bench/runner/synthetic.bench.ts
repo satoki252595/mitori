@@ -6,6 +6,9 @@
 //   MITORI_BENCH_SLOWDOWN=1.25    synthetic.spin takes 25 % longer
 //   MITORI_BENCH_EXTRA_CALLS=1    synthetic.counter reports one more call
 //   MITORI_BENCH_VALUE=300        synthetic.value reports 300 (a structural count)
+//   MITORI_BENCH_VIRTUAL=1        the timed cases report their nominal duration instead of busy-waiting: the harness's own
+//                                 self-tests use it like a fake clock (deterministic on a loaded machine); the real
+//                                 busy-wait path is checked by a load-gated test (runner.test.ts)
 import { defineBench } from "./define.ts";
 
 /** 20 ms: a 25 % slowdown (5 ms) must clear the compare gate's 2 ms noise floor. */
@@ -17,12 +20,14 @@ const num = (name: string, fallback: number): number => {
   return Number.isFinite(v) && process.env[name] !== undefined && process.env[name] !== "" ? v : fallback;
 };
 
-/** Busy-wait: the duration is exact, so the case has almost no variance of its own. */
-function spin(ms: number): void {
+/** Busy-wait: the duration is exact, so the case has almost no variance of its own (on a quiet machine). */
+function spin(ms: number): number | undefined {
+  if (process.env.MITORI_BENCH_VIRTUAL === "1") return ms; // the sample IS the nominal duration
   const end = performance.now() + ms;
   while (performance.now() < end) {
     /* spin */
   }
+  return undefined; // the runner times the call
 }
 
 export const spinCase = defineBench({

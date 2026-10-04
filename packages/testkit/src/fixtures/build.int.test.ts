@@ -26,7 +26,8 @@ describe("fixtures: buildFixture (testing spec 2.2)", () => {
     expect(repo.git).toBe(true);
     expect(repo.commits).toHaveLength(3);
     expect(git(repo.root, "rev-parse", "--abbrev-ref", "HEAD")).toBe("main");
-    expect(git(repo.root, "log", "--format=%an <%ae> %aI %s", "--reverse").split("\n")).toEqual([
+    const log = git(repo.root, "log", "--format=%an <%ae> %aI %s", "--reverse").replace(/\+00:00 /g, "Z ");
+    expect(log.split("\n")).toEqual([
       "mitori fixture <fixture@mitori.invalid> 2026-01-01T00:00:00Z init: tsundoku service",
       "mitori fixture <fixture@mitori.invalid> 2026-01-01T00:01:00Z meta: retry a failed lookup exactly once",
       "mitori fixture <fixture@mitori.invalid> 2026-01-01T00:02:00Z server: paginate GET /api/books",

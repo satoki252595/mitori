@@ -6,7 +6,9 @@
 // = chrome uses the installed Google Chrome.
 import { cpSync } from "node:fs";
 import { join } from "node:path";
+import type { PaletteItem } from "@mitori/core";
 import { type Browser, chromium } from "@playwright/test";
+import { buildIndex, runQuery } from "../apps/web/src/palette/search.ts";
 import {
   biggestSection,
   type ColdOpen,
@@ -241,5 +243,44 @@ export const heap = defineBench({
       copy.dispose();
       await closeBrowser();
     }
+  },
+});
+
+/* --------------------------------------------------------------------------- palette search (worker side) */
+
+/**
+ * The palette Worker's search over 50k items (apps/web/src/palette/search.ts, the unit test's corpus): the p95 of 10
+ * queries of one keystroke each. No budget of its own — the end-to-end keystroke → results is `ui.palette` (16 ms p95);
+ * this is the part of it a slow index would show in (compare-gated against base).
+ */
+export const paletteWorker = defineBench<{ index: ReturnType<typeof buildIndex> }>({
+  id: "ui.palette.worker",
+  suite: "ui",
+  mode: "inproc",
+  runs: 15,
+  setup() {
+    const words = ["session", "watch", "comment", "carry", "forward", "remap", "lines", "daemon", "router", "chunk", "reader", "writer", "pool", "loop"];
+    const items: PaletteItem[] = [];
+    for (let i = 0; i < 50_000; i++) {
+      const a = words[i % words.length] as string;
+      const b = words[(i * 7) % words.length] as string;
+      items.push({
+        k: i % 5 === 0 ? "s" : "y",
+        i: `x${i}`,
+        l: `${a}${b[0]?.toUpperCase()}${b.slice(1)}${i}`,
+        s: `internal/${a}/${b}.go:${i}`,
+        h: `/x/${i}`,
+      } as PaletteItem);
+    }
+    return { index: buildIndex(2, items, []) };
+  },
+  run(s) {
+    const times: number[] = [];
+    for (const q of ["m", "mo", "moc", "moch", "mochi", "carry", "carryf", "もち", "zz", "watch.go"]) {
+      const t0 = performance.now();
+      runQuery(s.index, q, "all", 3);
+      times.push(performance.now() - t0);
+    }
+    return p95(times);
   },
 });

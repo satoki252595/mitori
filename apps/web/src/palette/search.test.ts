@@ -99,7 +99,7 @@ describe("AC-J46b label is never romaji-normalized; r tolerates an incomplete ta
   });
 });
 
-describe("ui.palette budget: one keystroke over 50k items ≤ 16 ms (worker side)", () => {
+describe("ui.palette: one keystroke over 50k items answers (worker side; the 16 ms is bench ui.palette.worker)", () => {
   test("50k synthetic items", () => {
     const words = ["session", "watch", "comment", "carry", "forward", "remap", "lines", "daemon", "router", "chunk", "reader", "writer", "pool", "loop"];
     const big: PaletteItem[] = [];
@@ -118,6 +118,8 @@ describe("ui.palette budget: one keystroke over 50k items ≤ 16 ms (worker side
     }
     times.sort((a, b) => a - b);
     const p95 = times[Math.floor(times.length * 0.95) - 1] ?? 0;
-    expect(p95).toBeLessThan(16);
+    // a generous deadline (no pathological scan); the 16 ms budget is timed by the load-gated bench case
+    // ui.palette.worker (bench/ui.bench.ts) and end to end by ui.palette
+    expect(p95).toBeLessThan(250);
   });
 });

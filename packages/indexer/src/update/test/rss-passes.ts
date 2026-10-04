@@ -36,7 +36,14 @@ const rss: number[] = [];
 for (let pass = 0; pass < passes; pass++) {
   for (let i = 0; i < items.length; i += 64) await h.handle({ id: pass * 1_000 + i, items: items.slice(i, i + 64) });
   Bun.gc(true);
-  rss.push(process.memoryUsage().rss);
+  // the allocator hands freed pages back to the OS on its own timer, which a loaded machine delays: give it a moment
+  // and take the lowest of a few samples, so the series shows retained memory, not the scavenger's lag
+  let low = Number.POSITIVE_INFINITY;
+  for (let k = 0; k < 5; k++) {
+    await Bun.sleep(40);
+    low = Math.min(low, process.memoryUsage().rss);
+  }
+  rss.push(low);
 }
 const { parses, deletes } = h.stats();
 h.dispose();

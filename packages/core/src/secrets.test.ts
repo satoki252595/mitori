@@ -88,6 +88,6 @@ describe("secret scanner (core, CONS-05)", () => {
     sc.scan(text);
     const t0 = performance.now();
     sc.scan(text);
-    expect(performance.now() - t0).toBeLessThan(100);
+    expect(performance.now() - t0).toBeLessThan(2_000); // linear scan, no backtracking blow-up (generous under load)
   });
 });

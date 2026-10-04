@@ -130,7 +130,8 @@ describe("AgentScheduler (spec §6.8, PT-04, PT-18, SEC-15, CONS-28)", () => {
       await tick();
       expect(claude.live.at(-1)?.req.ref).toBe("interactive");
       expect((claude.live.at(-1)?.startedAt ?? 0) - t0).toBeLessThanOrEqual(50);
-      expect(performance.now() - w0).toBeLessThan(50);
+      // virtual time (above) is the functional statement; the real-clock 50 ms is the bench case agent.interactiveWait
+      expect(performance.now() - w0).toBeLessThan(1_000);
     }
   });
 

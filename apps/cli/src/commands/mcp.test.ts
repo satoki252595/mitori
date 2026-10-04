@@ -42,7 +42,7 @@ describe("CLI-I-009 mitori mcp", () => {
     d.registry(null);
     const t0 = performance.now();
     const [r] = await session([init, JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })]);
-    expect(performance.now() - t0).toBeLessThan(60);
+    expect(performance.now() - t0).toBeLessThan(2_000); // generous; mcp.init (60 ms) is the bench case of bench/loop.bench.ts
     expect(r).toEqual({
       jsonrpc: "2.0",
       id: 1,

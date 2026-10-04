@@ -5,7 +5,7 @@
 // `mitori review`: Finish(pull) → wait → bundle → reply → complete.
 // The engine is the REAL claude-cli engine, normalizer, scheduler and ledger behind a scripted `claude` (no tokens, no
 // network); git, gofmt and the filesystem are real.
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { synth } from "@mitori/agent/testing";
@@ -37,6 +37,10 @@ import type { SseReader } from "../../packages/server/src/http/test/sse-reader.t
 import { FAKE_CLAUDE_CONFIG, fakeClaude } from "./fake-claude.ts";
 import { type Int, startInt } from "./harness.ts";
 import { RETRY_ANCHOR, RETRY_FILE, routeLoop } from "./router.ts";
+
+// each step does real I/O (git, gofmt, go vet, the CLI, a job through the engine): bun's 5 s default per test is a
+// latency assertion this file does not mean to make — under load `go vet` alone takes longer
+setDefaultTimeout(60_000);
 
 let int: Int;
 let repo: FixtureRepo;

@@ -70,6 +70,7 @@ describe("INT-02 save → reanchor → doc.freshness", () => {
     expect(claims?.rev).toBe(fresh?.rev);
     expect(after(mark).some((x) => x.type === "index.changed")).toBe(true);
     expect(d.doc.claims(block.id)[0]?.verdict).toBe("stale");
-    expect(ms).toBeLessThan(50);
+    // generous deadline: the 50 ms (p50) budget of this chain is the bench case idx.freshness (bench/idx.bench.ts)
+    expect(ms).toBeLessThan(2_000);
   }, 30_000);
 });

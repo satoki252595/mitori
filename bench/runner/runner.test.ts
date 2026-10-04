@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import os, { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TEST_FORMATS } from "@mitori/testkit";
 import type { Budgets } from "./budgets.ts";
@@ -8,7 +8,7 @@ import { type AnyBench, defineBench, isBenchDef } from "./define.ts";
 import { discover, matchesId, select } from "./discover.ts";
 import { executeCase } from "./execute.ts";
 import { gateResult } from "./gate.ts";
-import { keepAwake, parsePower, QUIET_WAIT_MS, waitForQuiet } from "./machine.ts";
+import { keepAwake, NOISY_RATIO, parsePower, QUIET_WAIT_MS, waitForQuiet } from "./machine.ts";
 import type { BenchResultEntry, BenchResultFile } from "./result.ts";
 import { runBench } from "./run.ts";
 import { toSamples } from "./stats.ts";
@@ -334,18 +334,31 @@ describe("BENCH-U-15 runBench on the synthetic suite", () => {
     expect(r.text).toContain("synthetic.value");
   });
 
-  test("synthetic.spin takes MITORI_BENCH_SLOWDOWN into account", async () => {
-    const base = await runBench({ ids: ["synthetic.spin"], wait: false, runs: 3, warmup: 0 });
-    const prev = process.env.MITORI_BENCH_SLOWDOWN;
-    process.env.MITORI_BENCH_SLOWDOWN = "1.5";
+  test("synthetic.spin takes MITORI_BENCH_SLOWDOWN into account (virtual time: deterministic under load)", async () => {
+    const prev = { slow: process.env.MITORI_BENCH_SLOWDOWN, virt: process.env.MITORI_BENCH_VIRTUAL };
+    process.env.MITORI_BENCH_VIRTUAL = "1";
     try {
+      const base = await runBench({ ids: ["synthetic.spin"], wait: false, runs: 3, warmup: 0 });
+      process.env.MITORI_BENCH_SLOWDOWN = "1.5";
       const slow = await runBench({ ids: ["synthetic.spin"], wait: false, runs: 3, warmup: 0 });
       const [a, b] = [base.file.results[0]?.median ?? 0, slow.file.results[0]?.median ?? 0];
-      expect(b / a).toBeGreaterThan(1.4);
-      expect(b / a).toBeLessThan(1.6);
+      expect([a, b]).toEqual([20, 30]);
     } finally {
-      if (prev === undefined) delete process.env.MITORI_BENCH_SLOWDOWN;
-      else process.env.MITORI_BENCH_SLOWDOWN = prev;
+      for (const [k, v] of [
+        ["MITORI_BENCH_SLOWDOWN", prev.slow],
+        ["MITORI_BENCH_VIRTUAL", prev.virt],
+      ] as const)
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
     }
+  });
+
+  // the real busy-wait path, timed: meaningful on a quiet machine only (a loaded one preempts the spin)
+  const loaded = (os.loadavg()[0] ?? 0) > os.cpus().length * NOISY_RATIO;
+  if (loaded) console.warn(`BENCH-U-15: the real-time spin check is skipped — loadavg ${os.loadavg()[0]?.toFixed(1)} > cores × ${NOISY_RATIO}`);
+  test.skipIf(loaded)("the real busy-wait spin lasts its nominal 20 ms on a quiet machine", async () => {
+    const r = await runBench({ ids: ["synthetic.spin"], wait: false, runs: 3, warmup: 0 });
+    expect(r.file.results[0]?.median ?? 0).toBeGreaterThanOrEqual(20);
+    expect(r.file.results[0]?.median ?? 0).toBeLessThan(30);
   });
 });
