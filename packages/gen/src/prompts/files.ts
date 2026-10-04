@@ -39,7 +39,7 @@ export function baseMode(mode: string | undefined): string | undefined {
   return isFilesMode(mode) ? "files" : mode;
 }
 
-type FilesIndex = Pick<Indexer, "file" | "module">;
+type FilesIndex = Pick<Indexer, "file">;
 
 /** Tokens a file costs in FILES (full text numbered, or its skeleton capped at the full-text limit). */
 export function fileCost(ix: Pick<Indexer, "file">, path: RepoPath): number {
