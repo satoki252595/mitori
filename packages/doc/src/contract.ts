@@ -587,6 +587,11 @@ export interface ModuleChangeGuide {
   testCommand?: { command: string; path?: RepoPath; line?: LineNo };
   /** Entry points that reach it (routes, CLI commands, mains), ≤ 5. */
   entries: { label: string; path: RepoPath; line: LineNo }[];
+  /**
+   * Its declarations other files use the most (a change to them reaches those files; m3e: `Item` 15, `Kind` 8),
+   * ≥ 2 users, ≤ 5 [CR rdoc-5].
+   */
+  used?: { name: string; path: RepoPath; line: LineNo; users: number }[];
   /** Files outside it that changed in the same commits (git history, bounded), most often first, ≤ 5. */
   coChange: { path: RepoPath; together: number }[];
   /** Commits that touched it in the window; null without history (shallow clone, no git). */

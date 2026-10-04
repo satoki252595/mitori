@@ -468,6 +468,51 @@ describe("「変更の手引き」", () => {
     expect(changeGuides(ix, { history: null })[A]?.commits).toBeNull();
   });
 
+  test("most-used declarations: the module's exported declarations other files use the most (≥ 2 users, ≤ 5)", () => {
+    const S = "internal/session/session.go";
+    const decl = (name: string, kind: string, line: number, o: Partial<SymbolEntry> = {}) => sym(S, name, kind, line, line + 5, o);
+    const syms: Record<string, SymbolEntry[]> = {
+      [S]: [
+        decl("Session", "struct", 10),
+        decl("Comment", "struct", 30),
+        decl("Load", "function", 50),
+        decl("helper", "function", 70, { exported: false }),
+        decl("Files", "field", 11, { parent: `${S}#Session` as SymbolEntry["key"] }),
+        decl("Once", "function", 90),
+      ],
+      // a build-tag twin of the same name in another file of the module: one row
+      "internal/session/store.go": [sym("internal/session/store.go", "Comment", "struct", 3, 8)],
+    };
+    const users = new Map([
+      [`${S}#Session`, 4],
+      [`${S}#Comment`, 9],
+      [`${S}#Load`, 2],
+      [`${S}#Once`, 1],
+      [`${S}#helper`, 7],
+      ["internal/session/store.go#Comment", 9],
+    ]) as unknown as ReadonlyMap<SymbolEntry["key"], number>;
+    let asked: readonly string[] = [];
+    const g = changeGuides(
+      {
+        ...ix,
+        symbols: (p: RepoPath) => syms[p] ?? [],
+        symbolUsers: (keys) => {
+          asked = keys;
+          return users;
+        },
+      },
+      { history: null },
+    );
+    // exported top-level declarations only (no field, no unexported helper), one pass for the whole repo
+    expect([...asked].sort()).toEqual([`${S}#Comment`, `${S}#Load`, `${S}#Once`, `${S}#Session`, "internal/session/store.go#Comment"]);
+    expect(g[A]?.used).toEqual([
+      { name: "Comment", path: S, line: 30, users: 9 },
+      { name: "Session", path: S, line: 10, users: 4 },
+      { name: "Load", path: S, line: 50, users: 2 },
+    ]);
+    expect(g[B]?.used).toBeUndefined();
+  });
+
   test("the test command follows the tests: Go packages exactly (≤ 3, else their common directory), other tests the repo's own command", () => {
     const t = (...paths: string[]) => paths.map((path) => ({ path: path as RepoPath }));
     const rootTest = { command: "make test", path: "Makefile" as RepoPath, line: 12 as never };

@@ -141,6 +141,8 @@ async function deepGuide(d: GuideDeps, guide: StaticGuide, rootTest: ChangeInput
         flowSeeds: ix.flowSeeds,
         structure: ix.structure,
         files: ix.files,
+        symbols: ix.symbols,
+        ...(ix.symbolUsers ? { symbolUsers: ix.symbolUsers } : {}),
       },
       { history, ...(rootTest ? { rootTest } : {}), goModule },
     );

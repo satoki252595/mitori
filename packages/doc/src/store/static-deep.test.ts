@@ -44,6 +44,7 @@ function input(): StaticDocInput {
           tests: [{ path: "internal/x_test.go", cases: 3 }],
           testCommand: { command: "go test ./internal/x/..." },
           entries: [{ label: "GET /api/books", path: "internal/server/server.go", line: 34 as LineNo }],
+          used: [{ name: "Book", path: "internal/store/store.go", line: 5 as LineNo, users: 3 }],
           coChange: [{ path: "internal/server/server.go", together: 4 }],
           commits: 9,
           window: 120,
@@ -162,6 +163,7 @@ describe("NC-10 static §7 / §8 and the module page's change guide and region o
     expect(change).toContain(`](${bSlug}.md)`);
     expect(change).toContain("- テスト: `internal/x_test.go`（3 件） · 実行: `go test ./internal/x/...`");
     expect(change).toContain("- 入口から: `GET /api/books`（`internal/server/server.go:34`）");
+    expect(change).toContain("- よく使われる宣言（変えると波及する）: `Book` `internal/store/store.go:5`（3 ファイル）");
     expect(change).toContain("- 一緒に変わりやすいファイル（直近 120 commit）: `internal/server/server.go` 4 回");
     expect(change).toContain("ハブ（多くから使われ、多くを使う）");
     expect(change).toContain("（1,800 行）");

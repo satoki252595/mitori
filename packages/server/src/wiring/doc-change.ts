@@ -15,6 +15,10 @@ const SWEEP_FILES = 40;
 const CO_CHANGE_MAX = 5;
 const CO_CHANGE_MIN = 2;
 const ENTRIES_MAX = 5;
+/** Most-used declarations listed per module, and how many files must use one. */
+const USED_MAX = 5;
+const USED_MIN = 2;
+const DECL_KINDS = new Set(["function", "class", "interface", "type", "struct", "enum", "trait", "const", "var", "method"]);
 /** Files over this many lines are a risk marker (the region outline covers them). */
 export const LARGE_FILE_LINES = 1500;
 
@@ -54,7 +58,51 @@ export async function recentCommits(git: HistorySource, limit = HISTORY_WINDOW):
   return commits;
 }
 
-export type ChangeIndexer = Pick<Indexer, "modules" | "moduleStats" | "moduleDetail" | "facts" | "flowSeeds" | "structure" | "files">;
+export type ChangeIndexer = Pick<Indexer, "modules" | "moduleStats" | "moduleDetail" | "facts" | "flowSeeds" | "structure" | "files"> &
+  Partial<Pick<Indexer, "symbols" | "symbolUsers">>;
+
+/**
+ * The declarations of each leaf module that other files use the most (one `symbolUsers` pass for the whole repo):
+ * exported top-level declarations, ≥ {@link USED_MIN} users, most first, ≤ {@link USED_MAX}.
+ */
+function mostUsed(ix: ChangeIndexer, leaves: readonly { id: string; paths: readonly RepoPath[] }[]): Map<string, NonNullable<ModuleChangeGuide["used"]>> {
+  const out = new Map<string, NonNullable<ModuleChangeGuide["used"]>>();
+  if (!ix.symbols || !ix.symbolUsers) return out;
+  const source = new Set(
+    ix
+      .files()
+      .filter((f) => f.class === "source" && f.excluded === undefined)
+      .map((f) => f.path),
+  );
+  const decls = new Map<string, { module: string; name: string; path: RepoPath; line: LineNo }>();
+  for (const m of leaves)
+    for (const p of m.paths) {
+      if (!source.has(p)) continue;
+      for (const s of ix.symbols(p))
+        if (s.exported && !s.parent && DECL_KINDS.has(s.kind)) decls.set(s.key, { module: m.id, name: s.name, path: p, line: s.start as LineNo });
+    }
+  if (decls.size === 0) return out;
+  const users = ix.symbolUsers([...decls.keys()] as Parameters<NonNullable<Indexer["symbolUsers"]>>[0]);
+  const byModule = new Map<string, { name: string; path: RepoPath; line: LineNo; users: number }[]>();
+  for (const [key, d] of decls) {
+    const n = users.get(key as Parameters<typeof users.get>[0]) ?? 0;
+    if (n < USED_MIN) continue;
+    byModule.set(d.module, [...(byModule.get(d.module) ?? []), { name: d.name, path: d.path, line: d.line, users: n }]);
+  }
+  for (const [m, list] of byModule) {
+    // one row per name (Go build-tag twins: `atomic_unix.go` / `atomic_windows.go` both declare `ReadFileShared`)
+    const seen = new Set<string>();
+    const rows = list
+      .sort((a, b) => b.users - a.users || (a.path < b.path ? -1 : a.path > b.path ? 1 : a.line - b.line))
+      .filter((r) => {
+        if (seen.has(r.name)) return false;
+        seen.add(r.name);
+        return true;
+      });
+    out.set(m, rows.slice(0, USED_MAX));
+  }
+  return out;
+}
 
 /** Inputs beyond the index. */
 export interface ChangeInputs {
@@ -124,6 +172,7 @@ export function changeGuides(ix: ChangeIndexer, inputs: ChangeInputs): Record<st
   const clis = ix.facts("cli");
   const entries = ix.facts("entry").filter((f) => f.kind === "entry" && f.entry !== "test_main" && f.entry !== "dockerfile");
   const cycles = ix.structure()?.cycles ?? [];
+  const used = mostUsed(ix, leaves);
   // co-change: file → commits that touched it (sweeps dropped)
   const commits = (inputs.history ?? []).filter((c) => c.paths.length <= SWEEP_FILES);
   const touched = new Map<RepoPath, number[]>();
@@ -184,6 +233,7 @@ export function changeGuides(ix: ChangeIndexer, inputs: ChangeInputs): Record<st
       tests,
       ...(testCommand ? { testCommand } : {}),
       entries: ent,
+      ...(used.has(m.id) ? { used: used.get(m.id) as NonNullable<ModuleChangeGuide["used"]> } : {}),
       coChange,
       commits: inputs.history === null ? null : hits.size,
       window: commits.length,

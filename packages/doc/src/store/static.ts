@@ -433,6 +433,7 @@ function changeMd(c: Ctx, g: ModuleChangeGuide): string {
     }${run}`,
   );
   if (g.entries.length > 0) lines.push(`- ${l.entries}: ${list(g.entries.map((e) => `${code(e.label)}${aside(c, loc(e))}`))}`);
+  if (g.used && g.used.length > 0) lines.push(`- ${l.used}: ${list(g.used.map((u) => `${code(u.name)} ${loc(u)}${aside(c, l.users(u.users))}`))}`);
   if (g.commits === null) lines.push(`- ${l.coChangeNoWindow}: ${l.noHistory}`);
   else if (g.window > 0)
     lines.push(`- ${l.coChange(g.window)}: ${g.coChange.length === 0 ? l.noCoChange : list(g.coChange.map((x) => `${code(x.path)} ${l.times(x.together)}`))}`);
