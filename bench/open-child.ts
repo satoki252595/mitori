@@ -2,7 +2,8 @@
 // `startServerDaemon` → `@mitori/server`, as the binary runs it) with the given MITORI_HOME; POST /workspaces on
 // <root>, wait until the scan and the static doc are applied (`staticReady`).
 // Prints one JSON line: { open, scan, timings } — open = S0–S4 + the static (0-token) doc, scan = the indexer's own
-// S0–S4 total (`scan.done`), ms.
+// S0–S4 total (`scan.done`), ms. A release build, as shipped: the dev / test build's slow-write-slot assertion (50 ms)
+// is a development check, and on a loaded bench machine it aborted the open instead of timing it.
 // Usage: bun bench/open-child.ts <root> <home>
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -16,7 +17,7 @@ if (!root || !home) {
   process.exit(2);
 }
 const version = (JSON.parse(readFileSync(join(import.meta.dir, "../apps/cli/package.json"), "utf8")) as { version: string }).version;
-const d = await startServerDaemon({ home, port: 0, version, build: "test", overrides: { gateSandbox: "none" } });
+const d = await startServerDaemon({ home, port: 0, version, build: "release", overrides: { gateSandbox: "none" } });
 const origin = d.url.replace(/\/$/, "");
 const call = async <T>(method: string, path: string, body?: unknown): Promise<T> => {
   const res = await fetch(`${origin}${API_PREFIX}${path}`, {
