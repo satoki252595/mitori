@@ -283,6 +283,8 @@ export const PARSE_POOL = {
   recycleBytes: 536_870_912,
   /** Per-file parse timeout (progressCallback) [仮]. */
   parseTimeoutMs: 250,
+  /** Budget of the one retry after a timeout (wall time: a loaded machine must not change the index) [CR rdoc-4]. */
+  parseRetryMs: 8_000,
   /** Files whose ERROR-node bytes exceed this share keep defs only (`degraded`) [仮]. */
   degradedErrorRatio: 0.3,
   /** Folded refs per file cap [仮]. */

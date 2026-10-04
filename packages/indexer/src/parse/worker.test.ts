@@ -33,6 +33,20 @@ function bigTs(n: number, body: string): string {
   return `${s}export function tail(): string {\n  ${body}\n}\n`;
 }
 
+describe("parse budget on a loaded machine (CR rdoc-4)", () => {
+  test("a parse that overruns its 250 ms wall-clock budget once is retried with a patient budget, not indexed without symbols", async () => {
+    // a clock that jumps 300 ms per reading for a while: the machine is busy with other processes
+    let calls = 0;
+    const busy = { ...env, now: () => performance.now() + Math.min(calls++, 12) * 300 };
+    const h = await createWorkerHandler(busy, workerInit());
+    const text = bigTs(1_500, "return 'a';");
+    const r = (await h.handle({ id: 1, items: [item("big.ts", text, true)] })).items[0] as ParseOkResult;
+    expect(r.note).toBeUndefined();
+    expect(r.symbols.length).toBeGreaterThan(1_000);
+    h.dispose();
+  });
+});
+
 describe("spec §3.7 incremental reparse via tree.edit", () => {
   test("an edited big file reparsed from its LRU tree equals a fresh parse", async () => {
     const h = await createWorkerHandler(env, workerInit());

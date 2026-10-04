@@ -111,7 +111,9 @@ export function laterStages(view: IndexView): LaterStages {
   let ftsWrite: Promise<void> = Promise.resolve();
   let ftsTimer: ReturnType<typeof setTimeout> | null = null;
   /** Current texts of the files hot bodies, flow bodies and rationale comments read (sync contract methods). */
-  const texts = new Map<RepoPath, string>();
+  let texts = new Map<RepoPath, string>();
+  /** Blob of each cached text (a rescan keeps the texts whose file did not change). */
+  let textBlobs = new Map<RepoPath, string>();
   let lastTexts: ReadonlyMap<RepoPath, string> | null = null;
 
   function stageFile(path: RepoPath): StageFile | null {
@@ -263,7 +265,11 @@ export function laterStages(view: IndexView): LaterStages {
   }
 
   /** What `flowSeeds` reads: the files and the warmed texts (handler bodies decide a route's rank and first hop). */
-  const flowSources = (s: State): FlowSources => ({ files: s.byPath, text: (p) => texts.get(p) ?? null, imports: (p) => s.resolved.imports.get(p) ?? [] });
+  const flowSources = (s: State, from: ReadonlyMap<RepoPath, string> = texts): FlowSources => ({
+    files: s.byPath,
+    text: (p) => from.get(p) ?? null,
+    imports: (p) => s.resolved.imports.get(p) ?? [],
+  });
 
   /**
    * Files holding route handlers (main scope), most-routed first, ≤ {@link HANDLER_TEXT_FILES}: their texts are warmed
@@ -283,11 +289,11 @@ export function laterStages(view: IndexView): LaterStages {
   }
 
   /** The files the synchronous text consumers need: hot-body candidates, flow seeds, rationale comments. */
-  function textFiles(s: State): Set<RepoPath> {
+  function textFiles(s: State, from: ReadonlyMap<RepoPath, string> = texts): Set<RepoPath> {
     const want = hotFiles(s.pack, HOT_TEXT_TOKENS);
     for (const p of handlerFiles(s)) want.add(p);
     let flow = 0;
-    for (const seed of flowSeeds(s.structure, s.facts, undefined, flowSources(s)))
+    for (const seed of flowSeeds(s.structure, s.facts, undefined, flowSources(s, from)))
       for (const p of [seed.path, ...seed.files]) {
         if (flow >= FLOW_TEXT_FILES) break;
         if (!want.has(p)) flow++;
@@ -297,21 +303,37 @@ export function laterStages(view: IndexView): LaterStages {
     return want;
   }
 
-  /** Bring the text cache to `textFiles(s)`; `changed` paths are re-read. Handler files first: the seeds read them. */
+  /**
+   * Bring the text cache to `textFiles(s)`: built aside and swapped in whole, so a reader between two awaits (an
+   * estimate during a warm rescan) sees the previous complete cache, never a half-cleared one — hot bodies and flow
+   * seeds read it synchronously, and the plan's inputs must not depend on when they were read. A text is kept when
+   * its file's blob did not change (and it is not in `changed`); handler files load first: the seeds read them.
+   */
   async function warmTexts(s: State, changed: readonly RepoPath[] | null): Promise<void> {
-    if (changed === null) texts.clear();
-    else for (const p of changed) texts.delete(p);
+    const stale = new Set(changed ?? []);
+    const next = new Map<RepoPath, string>();
+    const nextBlobs = new Map<RepoPath, string>();
     const load = async (paths: Iterable<RepoPath>) => {
       for (const p of [...paths].sort()) {
-        if (texts.has(p)) continue;
+        if (next.has(p)) continue;
+        const blob = s.byPath.get(p)?.blob ?? "";
+        const old = texts.get(p);
+        if (old !== undefined && blob !== "" && !stale.has(p) && textBlobs.get(p) === blob) {
+          next.set(p, old);
+          nextBlobs.set(p, blob);
+          continue;
+        }
         const t = await view.text(p);
-        if (t !== null) texts.set(p, t);
+        if (t !== null) {
+          next.set(p, t);
+          nextBlobs.set(p, blob);
+        }
       }
     };
     await load(handlerFiles(s));
-    const want = textFiles(s);
-    for (const p of [...texts.keys()]) if (!want.has(p)) texts.delete(p);
-    await load(want);
+    await load(textFiles(s, next));
+    texts = next;
+    textBlobs = nextBlobs;
   }
 
   function need(): State {
@@ -402,9 +424,14 @@ export function laterStages(view: IndexView): LaterStages {
       // a changed file the cache holds is re-read before the update resolves; newly needed files follow in the background
       for (const p of changed) {
         if (!texts.has(p)) continue;
-        texts.delete(p);
         const text = await view.text(p);
-        if (text !== null) texts.set(p, text);
+        if (text !== null) {
+          texts.set(p, text);
+          textBlobs.set(p, next.byPath.get(p)?.blob ?? "");
+        } else {
+          texts.delete(p);
+          textBlobs.delete(p);
+        }
       }
       st = next;
       lastTexts = cfg;

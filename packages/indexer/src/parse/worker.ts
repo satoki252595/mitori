@@ -154,17 +154,26 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
         old.edit(editBetween(prev.text, text));
       } else dropTree(prev.tree);
     }
-    const t0 = env.now();
-    const cancel = (() => env.now() - t0 > PARSE_POOL.parseTimeoutMs) as unknown as () => void;
+    const attempt = (budget: number, base: Tree | null): Tree | null => {
+      const t0 = env.now();
+      const cancel = (() => env.now() - t0 > budget) as unknown as () => void;
+      const tree = parser.parse(text, base, { progressCallback: cancel });
+      // A cancelled parse would otherwise be resumed by the next parse() call, with another file's text.
+      if (tree === null) parser.reset();
+      return tree;
+    };
     let tree: Tree | null = null;
     try {
-      tree = parser.parse(text, old, { progressCallback: cancel });
+      tree = attempt(PARSE_POOL.parseTimeoutMs, old);
+      // the budget is wall time: on a loaded machine (other processes, parallel scans) an ordinary 3,000-line file can
+      // overrun it, and the same commit then indexed without that file's symbols — a different module context, task
+      // count (42 / 43 file-note tasks, CR gen #8), even partition. One patient retry from scratch keeps the guard for
+      // pathological input while a slow machine still gets the same index [CR rdoc-4].
+      if (tree === null) tree = attempt(PARSE_POOL.parseRetryMs, null);
     } finally {
       if (old !== null) dropTree(old);
     }
     if (tree !== null) stats.parses++;
-    // A cancelled parse would otherwise be resumed by the next parse() call, with another file's text.
-    else parser.reset();
     return tree;
   }
 
