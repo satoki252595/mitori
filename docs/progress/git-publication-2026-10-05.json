@@ -1,0 +1,408 @@
+{
+  "v": "mitori.git-publication/1",
+  "date": "2026-10-05",
+  "repo": "satoki252595/mitori",
+  "originMainBefore": "6d645e71f1c703d4e83d39fcc3505ca2b7930ab5",
+  "sourceAndEvidencePublished": "5ebc2fba098f4ff8d9ad3e7f74a345cb47e6d0ad",
+  "commitsPublished": 90,
+  "mergeAlreadyCompleted": true,
+  "mergeCommits": [
+    "8abe718",
+    "4c8f463",
+    "f393f17",
+    "84fa9c7"
+  ],
+  "mainPush": "fast-forward",
+  "remoteDelete": "atomic push with expected-tip leases",
+  "localDelete": "git branch --delete; merged and not checked out",
+  "deleted": {
+    "local": [
+      {
+        "ref": "refs/heads/fin/agent",
+        "sha": "476a427f909d1a9e70d13c2aa9a76f678b31d48b"
+      },
+      {
+        "ref": "refs/heads/fin/export",
+        "sha": "0f44a32e8c9ad732bb9b09050049099523c1a371"
+      },
+      {
+        "ref": "refs/heads/fin/gen",
+        "sha": "a19fb965e123e5cdbc8c8cd5a58eebbb7ac9e84b"
+      },
+      {
+        "ref": "refs/heads/fin/ux",
+        "sha": "03a327d098fe77a2a7955aa7dbf4c098c8968f85"
+      },
+      {
+        "ref": "refs/heads/rem/bench",
+        "sha": "5c2d6cb14cd93dd6f5103cc9d27e933675dc9e98"
+      },
+      {
+        "ref": "refs/heads/rem/doc",
+        "sha": "0cdc16de8af171f7d4b2b10456644de1d54304ad"
+      },
+      {
+        "ref": "refs/heads/rem/safety",
+        "sha": "6d53fc1e0c8b7e538e55ab154073dbf148ecc845"
+      },
+      {
+        "ref": "refs/heads/rem/ui",
+        "sha": "82064424f09eaeaa8202d92c658dbd43b7d33bdc"
+      },
+      {
+        "ref": "refs/heads/track/06b",
+        "sha": "4beba4e5da4cd68056f01802e0612aac20fbaa80"
+      },
+      {
+        "ref": "refs/heads/track/08b",
+        "sha": "8249b431ccbd16af692fd4202e1a899746100f41"
+      },
+      {
+        "ref": "refs/heads/track/10b",
+        "sha": "0be4346f830de0768cf97222e729dd53467be432"
+      },
+      {
+        "ref": "refs/heads/track/11",
+        "sha": "57699fd9354bfb4a9f4654f04c5384e83fe2eb3f"
+      },
+      {
+        "ref": "refs/heads/track/dogfood",
+        "sha": "5dda5954bb3ea07a3486a3503fee1a0dace12a6e"
+      },
+      {
+        "ref": "refs/heads/track/perf",
+        "sha": "93c66a5bb2a84b764ce32a4a51ab990cc25f3a39"
+      },
+      {
+        "ref": "refs/heads/track/structure",
+        "sha": "a74c6f9925d8528f4458a8d2bc1b21cd50b5e2b6"
+      },
+      {
+        "ref": "refs/heads/track/visual",
+        "sha": "70115e73fd007b781409045d4537d42079338b4c"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_5361805b-42e-10",
+        "sha": "c9c84fd72640efd8263aeae967cf75996e75ac22"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_5361805b-42e-2",
+        "sha": "c9c84fd72640efd8263aeae967cf75996e75ac22"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_5361805b-42e-3",
+        "sha": "c9c84fd72640efd8263aeae967cf75996e75ac22"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_5361805b-42e-4",
+        "sha": "c9c84fd72640efd8263aeae967cf75996e75ac22"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_5361805b-42e-5",
+        "sha": "c9c84fd72640efd8263aeae967cf75996e75ac22"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_5361805b-42e-6",
+        "sha": "c9c84fd72640efd8263aeae967cf75996e75ac22"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_5361805b-42e-7",
+        "sha": "c9c84fd72640efd8263aeae967cf75996e75ac22"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_5361805b-42e-8",
+        "sha": "c9c84fd72640efd8263aeae967cf75996e75ac22"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_5361805b-42e-9",
+        "sha": "c9c84fd72640efd8263aeae967cf75996e75ac22"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_53fb8deb-c15-1",
+        "sha": "a427f36d0ff428555351b37cbde29b6371d05b57"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_53fb8deb-c15-2",
+        "sha": "a427f36d0ff428555351b37cbde29b6371d05b57"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_53fb8deb-c15-3",
+        "sha": "a427f36d0ff428555351b37cbde29b6371d05b57"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_53fb8deb-c15-4",
+        "sha": "a427f36d0ff428555351b37cbde29b6371d05b57"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_53fb8deb-c15-5",
+        "sha": "a427f36d0ff428555351b37cbde29b6371d05b57"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_53fb8deb-c15-6",
+        "sha": "a427f36d0ff428555351b37cbde29b6371d05b57"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_53fb8deb-c15-7",
+        "sha": "a427f36d0ff428555351b37cbde29b6371d05b57"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_53fb8deb-c15-8",
+        "sha": "a427f36d0ff428555351b37cbde29b6371d05b57"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-10",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-11",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-12",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-13",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-14",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-15",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-16",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-17",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-18",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-19",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-2",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-20",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-21",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-22",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-23",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-3",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-4",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-5",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-6",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-7",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-8",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_6eba1191-17c-9",
+        "sha": "40cdc324b841c5fd3cec8e661aed0b75499f753a"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_86192961-190-3",
+        "sha": "4bccd8dd907d2ff500c81207b325805ca8954741"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_86192961-190-4",
+        "sha": "4bccd8dd907d2ff500c81207b325805ca8954741"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_9c485f3c-201-1",
+        "sha": "d9898c313302faa8370ccbb4ace3a5dea0d57ef1"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_9c485f3c-201-2",
+        "sha": "d9898c313302faa8370ccbb4ace3a5dea0d57ef1"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_9c485f3c-201-3",
+        "sha": "d9898c313302faa8370ccbb4ace3a5dea0d57ef1"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_9c485f3c-201-4",
+        "sha": "d9898c313302faa8370ccbb4ace3a5dea0d57ef1"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_9c485f3c-201-5",
+        "sha": "d9898c313302faa8370ccbb4ace3a5dea0d57ef1"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_9c485f3c-201-6",
+        "sha": "d9898c313302faa8370ccbb4ace3a5dea0d57ef1"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_9c485f3c-201-7",
+        "sha": "d9898c313302faa8370ccbb4ace3a5dea0d57ef1"
+      },
+      {
+        "ref": "refs/heads/worktree-wf_9c485f3c-201-8",
+        "sha": "d9898c313302faa8370ccbb4ace3a5dea0d57ef1"
+      },
+      {
+        "ref": "refs/heads/wp/00b",
+        "sha": "a4c5ca85b7fd47c1e350cfccc077e70de4f995e9"
+      },
+      {
+        "ref": "refs/heads/wp/01",
+        "sha": "f37385e60b90bc18ab7af9f9339e6a8b5ae7ed70"
+      },
+      {
+        "ref": "refs/heads/wp/02",
+        "sha": "91c01f34a4adefb4859d0bcc76de89c8097fa7e8"
+      },
+      {
+        "ref": "refs/heads/wp/03",
+        "sha": "dc4969f1815304e3c9d4c4d20e1a3af7b824f092"
+      },
+      {
+        "ref": "refs/heads/wp/04",
+        "sha": "22956e6cfd1de0f12bad9ef26404836dca2c398f"
+      },
+      {
+        "ref": "refs/heads/wp/05",
+        "sha": "cb09cc01c73831772b9d3cb27b6dbb4141794cf9"
+      },
+      {
+        "ref": "refs/heads/wp/06",
+        "sha": "6dc9569a625aa7d62a393d4e53deb400a49facba"
+      },
+      {
+        "ref": "refs/heads/wp/07",
+        "sha": "46a705a10633a9c466a7d133ae6a734f4eec744b"
+      },
+      {
+        "ref": "refs/heads/wp/08a",
+        "sha": "4e68e7897b101e92a42fff2ff06ca6d1bb6f64d3"
+      },
+      {
+        "ref": "refs/heads/wp/09",
+        "sha": "d91f90fee4930a71fa5d9f97a5da57549ddd8130"
+      },
+      {
+        "ref": "refs/heads/wp/10a",
+        "sha": "86f30510ba619d069f37ad2ef0b0dc6c535d00db"
+      },
+      {
+        "ref": "refs/heads/wp/11a",
+        "sha": "2c8ee53ab49e1617b520e21a38dd8bdb2203372d"
+      },
+      {
+        "ref": "refs/heads/wp/12",
+        "sha": "b84ae7afb21dfbb83b7e56fbd16fb97bc88f7830"
+      }
+    ],
+    "remote": [
+      {
+        "ref": "refs/remotes/origin/fin/agent",
+        "sha": "476a427f909d1a9e70d13c2aa9a76f678b31d48b"
+      },
+      {
+        "ref": "refs/remotes/origin/fin/export",
+        "sha": "0f44a32e8c9ad732bb9b09050049099523c1a371"
+      },
+      {
+        "ref": "refs/remotes/origin/fin/gen",
+        "sha": "a19fb965e123e5cdbc8c8cd5a58eebbb7ac9e84b"
+      },
+      {
+        "ref": "refs/remotes/origin/fin/ux",
+        "sha": "03a327d098fe77a2a7955aa7dbf4c098c8968f85"
+      },
+      {
+        "ref": "refs/remotes/origin/rem/bench",
+        "sha": "5c2d6cb14cd93dd6f5103cc9d27e933675dc9e98"
+      },
+      {
+        "ref": "refs/remotes/origin/rem/doc",
+        "sha": "0cdc16de8af171f7d4b2b10456644de1d54304ad"
+      },
+      {
+        "ref": "refs/remotes/origin/rem/safety",
+        "sha": "6d53fc1e0c8b7e538e55ab154073dbf148ecc845"
+      },
+      {
+        "ref": "refs/remotes/origin/rem/ui",
+        "sha": "82064424f09eaeaa8202d92c658dbd43b7d33bdc"
+      },
+      {
+        "ref": "refs/remotes/origin/track/06b",
+        "sha": "4beba4e5da4cd68056f01802e0612aac20fbaa80"
+      },
+      {
+        "ref": "refs/remotes/origin/track/08b",
+        "sha": "8249b431ccbd16af692fd4202e1a899746100f41"
+      },
+      {
+        "ref": "refs/remotes/origin/track/10b",
+        "sha": "0be4346f830de0768cf97222e729dd53467be432"
+      },
+      {
+        "ref": "refs/remotes/origin/track/11",
+        "sha": "57699fd9354bfb4a9f4654f04c5384e83fe2eb3f"
+      },
+      {
+        "ref": "refs/remotes/origin/track/dogfood",
+        "sha": "5dda5954bb3ea07a3486a3503fee1a0dace12a6e"
+      },
+      {
+        "ref": "refs/remotes/origin/track/perf",
+        "sha": "93c66a5bb2a84b764ce32a4a51ab990cc25f3a39"
+      },
+      {
+        "ref": "refs/remotes/origin/track/structure",
+        "sha": "a74c6f9925d8528f4458a8d2bc1b21cd50b5e2b6"
+      },
+      {
+        "ref": "refs/remotes/origin/track/visual",
+        "sha": "70115e73fd007b781409045d4537d42079338b4c"
+      }
+    ]
+  },
+  "remaining": {
+    "local": [
+      "main"
+    ],
+    "remote": [
+      "main"
+    ]
+  }
+}

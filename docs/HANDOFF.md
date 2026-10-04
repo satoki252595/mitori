@@ -1,4 +1,4 @@
-# mitori 引き継ぎ資料（2026-10-04 続行）
+# mitori 引き継ぎ資料（2026-10-05 push・整理済み）
 
 > **現在の入口は §★。以下の「履歴★」と §0 / §0a / §0b は以前の記録。**
 > 利用者の続行指示に加え、今回の Linux 既存 Docker ハーネス例外と、任意 LLM 対応・Muse Contributor / max の選択を反映した。
@@ -7,7 +7,7 @@
 
 ### ★.1 統合と実装
 
-- `rem/bench` → `rem/safety` → `rem/doc` → `rem/ui` は **main へ統合済み**。merge commit は `8abe718` / `4c8f463` / `f393f17` / `84fa9c7`。各統合後の check は成功。CR 台帳の追記は両方保持し、INT-06 の両方の検証を残した。push は未実施。
+- `rem/bench` → `rem/safety` → `rem/doc` → `rem/ui` は **main へ統合済み・push済み**。merge commit は `8abe718` / `4c8f463` / `f393f17` / `84fa9c7`。各統合後の check は成功。CR 台帳の追記は両方保持し、INT-06 の両方の検証を残した。2026-10-05に利用者の指示で未pushの90コミットを反映し、統合済みlocal78本・remote16本を削除した。両側のbranchはmainのみ。詳細と削除ref/SHAは `docs/progress/git-publication-2026-10-05.md` / `.json`。
 - 続行の実装は `8cdae9c`、scoped生成の問いの復元は `49c1575`、リスク生成のTODO状態保持は `28388df`、スレッド由来の決定の文言は `848c4d4` に保存した。検証・生成例・引き継ぎは別の資料コミットで保存する。
 - safety API の web 配線を追加した。Composer の保存・再開・見積り・送信に `Thread.context` を渡し、コード引用の × は書き込み権限だけを外す。外部 pull round の変更一覧と範囲外表示、Undo 前の再確認を Reader / Inbox / Review へ接続した。
 - F6 / CR ui-3 は実装済み。大きな節は anchor 周囲の HTML を先に取得し、残りを idle で補充する。section JSON は br/gzip に対応。SSE の更新・削除・freshness、全文検索、既読 marker との整合を保つ。

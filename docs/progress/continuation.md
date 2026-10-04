@@ -4,7 +4,7 @@
 
 ## 統合
 
-`rem/bench` → `rem/safety` → `rem/doc` → `rem/ui` を main へ順に統合した。merge commit: `8abe718` / `4c8f463` / `f393f17` / `84fa9c7`。CR 台帳の追記同士は両方残し、INT-06 は両方の import / 検証を維持した。各段階の frozen install と check は成功。push はしていない。
+`rem/bench` → `rem/safety` → `rem/doc` → `rem/ui` を main へ順に統合した。merge commit: `8abe718` / `4c8f463` / `f393f17` / `84fa9c7`。CR 台帳の追記同士は両方残し、INT-06 は両方の import / 検証を維持した。各段階の frozen install と check は成功。2026-10-04時点では未pushだったが、10-05に利用者の指示でmainをpushし、統合済みbranchを整理した。実施記録は `git-publication-2026-10-05.md` / `.json`。
 
 続行の実装は `8cdae9c`、scoped生成の問いの復元は `49c1575`、リスク生成のTODO状態保持は `28388df`、スレッド由来の決定の文言は `848c4d4` に保存した。検証・生成例・引き継ぎ資料はその後の資料コミットで追跡する。
 
