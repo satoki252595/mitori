@@ -160,9 +160,7 @@ function bodyRegions(lines: readonly string[], s: Pick<SymbolEntry, "start" | "e
  * language): consecutive members of one kind form a region (fields → `state`, `handle*` / `on*` → `handlers`).
  */
 function memberRegions(syms: readonly SymbolEntry[], owner: Pick<Run, "start" | "end" | "host">): Run[] {
-  const kids = syms
-    .filter((s) => s.parent?.endsWith(`#${owner.host}`) && s.start >= owner.start && s.end <= owner.end)
-    .sort((a, b) => a.start - b.start);
+  const kids = syms.filter((s) => s.parent?.endsWith(`#${owner.host}`) && s.start >= owner.start && s.end <= owner.end).sort((a, b) => a.start - b.start);
   const out: Run[] = [];
   for (const s of kids) {
     const kind: FileRegion["kind"] = s.kind === "field" ? "state" : HANDLER_NAME.test(s.name) ? "handlers" : FN_KINDS.has(s.kind) ? "methods" : "constants";
