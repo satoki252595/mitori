@@ -34,6 +34,7 @@ import type { DocStore } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
 import { type Bundle, type BundleBuilder, type BundleMode, JOB_BUDGET, type ReviewEngine, type RouteOutcome } from "../contract.ts";
 import { deriveWriteScope, route } from "../router/index.ts";
+import { touchingClaims } from "../router/ranges.ts";
 import type { ScopeCtx, ScopeResult } from "../router/scope.ts";
 
 /** A planned job. */
@@ -120,6 +121,7 @@ export function scopeCtx(
     deny: deps.settings().denyGlobs,
     citesOfBlock: (block) => deps.doc.claims(block).flatMap((c) => c.cites),
     citesOfClaim: (claim) => claims()[claim]?.cites ?? [],
+    claimsTouching: (block, start, end) => touchingClaims(deps.doc.blockText(block) ?? "", deps.doc.claims(block), start, end),
     moduleFilesOfSection: (section) => deps.indexer.modules().find((m) => `s6/${m.slug}` === section)?.paths ?? [],
     fileExists: (p) => deps.indexer.file(p) !== null,
     fileEntry: (p) => deps.indexer.file(p),

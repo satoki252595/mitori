@@ -67,5 +67,10 @@ export function fakeDoc(sections: FakeSection[]): BundleBuilderDeps["doc"] & { a
     },
     section: (id) => nodes.get(id) ?? null,
     claims: (block) => claims.get(block) ?? [],
+    // rendered text ≈ the Markdown without its cite links / code ticks (enough for the claim spans of EX-03)
+    blockText: (id) => {
+      const b = all.get(id);
+      return b ? b.md.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/`/g, "") : null;
+    },
   };
 }

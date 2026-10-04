@@ -25,6 +25,8 @@ export interface ScopeCtx {
   deny: Glob[];
   citesOfBlock(block: BlockId): Cite[];
   citesOfClaim(claim: ClaimId): Cite[];
+  /** EX-03: see {@link import("./ranges.ts").CiteSource.claimsTouching}. */
+  claimsTouching?(block: BlockId, start: number, end: number): ClaimId[] | null;
   moduleFilesOfSection(section: SectionId): RepoPath[];
   fileExists(path: RepoPath): boolean;
   fileEntry(path: RepoPath): FileEntry | null;

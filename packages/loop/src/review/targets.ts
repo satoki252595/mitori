@@ -19,7 +19,7 @@ import { parseRepoPath } from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
 import { pathMatcher } from "../router/deny.ts";
-import { anchorRanges, mergeRanges } from "../router/ranges.ts";
+import { anchorRanges, mergeRanges, touchingClaims } from "../router/ranges.ts";
 
 /** Ports. */
 export interface TargetDeps {
@@ -212,6 +212,7 @@ export function resolveCodeTargets(deps: TargetDeps, input: TargetInput): CodeTa
     anchorRanges(input.anchor, {
       citesOfBlock: cites,
       citesOfClaim: (claim) => deps.doc.claims((input.anchor.doc?.block ?? "") as never).find((c) => c.id === claim)?.cites ?? [],
+      claimsTouching: (block, start, end) => touchingClaims(deps.doc.blockText(block) ?? "", deps.doc.claims(block), start, end),
     }),
   );
   const cited: CodeTarget[] = [];

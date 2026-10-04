@@ -2,12 +2,13 @@ import { type BlockId, type Cite, type LineNo, MitoriError, type RepoPath, type 
 import { ACCEPT_FIXED, BUNDLE_LIMITS, type Bundle, type BundleInput, type BundleMode, PULL_DO_LINES } from "../contract.ts";
 import { denyLine } from "../prompts/fixed-lines.ts";
 import { pathMatcher } from "../router/deny.ts";
-import { anchorRanges, type CiteSource, type CodeRange, mergeRanges } from "../router/ranges.ts";
+import { anchorRanges, type CiteSource, type CodeRange, mergeRanges, touchingClaims } from "../router/ranges.ts";
 import { readableFile } from "../router/scope.ts";
 import { type AnchorSpan, CodeGroup } from "./code.ts";
 import type { BundleBuilderDeps } from "./deps.ts";
 import { Estimator } from "./estimate.ts";
 import { codeLines, field, safeLine, usdText } from "./lines.ts";
+import { namedRanges } from "./named.ts";
 import { drawNonce } from "./nonce.ts";
 import { Plan, type PlanInit, type RelPart } from "./plan.ts";
 import { findRelated, type RelAnchor, relAnchorsOf } from "./rel.ts";
@@ -34,6 +35,7 @@ function citeSource(doc: BundleBuilderDeps["doc"], thread: ThreadDetail): CiteSo
   return {
     citesOfBlock: cites,
     citesOfClaim: (claim) => (thread.anchor.doc ? (doc.claims(thread.anchor.doc.block).find((c) => c.id === claim)?.cites ?? []) : []),
+    claimsTouching: (block, start, end) => touchingClaims(doc.blockText(block) ?? "", doc.claims(block), start, end),
   };
 }
 
@@ -75,7 +77,12 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
 
   // --- anchored code: ranges of every thread (+ chips), merged per file, read once per group --------------
   const raw: CodeRange[] = [];
-  for (const t of input.threads) raw.push(...anchorRanges(t.anchor, citeSource(deps.doc, t)));
+  for (const t of input.threads) {
+    const anchored = anchorRanges(t.anchor, citeSource(deps.doc, t));
+    raw.push(...anchored);
+    // EX-03: the code an uncited selection names (read-only context; WRITE is the router's scope alone)
+    raw.push(...namedRanges(t, { md: (b) => deps.doc.block(b as never)?.md ?? null, find: (q, n) => deps.indexer.findSymbols(q, n) }, anchored));
+  }
   for (const x of input.extra) if (!(x.start === 0 && x.end === 0)) raw.push(x);
   const clamped: CodeRange[] = [];
   for (const r of raw) {

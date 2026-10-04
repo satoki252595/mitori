@@ -34,6 +34,18 @@ const sections = [
         claims: [{ id: "cl_meta0001" as const, cites: [{ path: FETCH, start: 43, end: 52, blob: "x", snippet: "y", precision: "exact" as const }] }],
       },
       { id: "b_meta0003" as const, md: "Fetch は ISBN を正規化してから 1 回だけ問い合わせる。 <!-- b_meta0003 -->" },
+      {
+        // EX-03: two sentences, only the second cited; the first NAMES `Load` (another file)
+        id: "b_meta0004" as const,
+        md: "次に `Load` で設定を読む。カタログへの問い合わせは失敗をそのまま返す（[fetch.go:43-52](../internal/meta/fetch.go#L43-L52)）。 <!-- b_meta0004 -->",
+        claims: [
+          {
+            id: "cl_meta0004" as const,
+            quote: "カタログへの問い合わせは失敗をそのまま返す",
+            cites: [{ path: FETCH, start: 43, end: 52, blob: "x", snippet: "y", precision: "exact" as const }],
+          },
+        ],
+      },
     ],
   },
 ];
@@ -546,5 +558,43 @@ describe("LOOP-U-012 deny globs", () => {
     const { builder } = setup();
     const r = await builder.build(bundleInput({ mode: "copy", out: "reply", threads: [change()], write: [FETCH], deny: [".git/**", ".env", ".git/**"] }), 4000);
     expect(r.text).toContain("\nDENY .env .git/**\n");
+  });
+});
+
+describe("EX-03 the selected sentence decides the code", () => {
+  const ask = (exact: string, offset: number) =>
+    thread({
+      id: "th_ex030001",
+      intent: "question",
+      anchor: { primary: "doc", doc: { block: "b_meta0004", blockHash: "x", offset, quote: { prefix: "", exact, suffix: "" } } },
+      messages: [msg("human", "これは本当？", 1)],
+    });
+  const codeHeads = (text: string) => text.split("\n").filter((l) => l.startsWith("CODE "));
+
+  test("an uncited sentence that names a symbol: its definition is CODE, the other sentence's cite is not", async () => {
+    const { builder } = setup();
+    const b = await builder.build(bundleInput({ threads: [ask("次に Load で設定を読む。", 0)], mode: "answer", out: "answer/1", write: [] }), 4000);
+    const heads = codeHeads(b.text);
+    expect(heads.some((h) => h.startsWith("CODE internal/config/config.go:"))).toBe(true);
+    expect(heads.some((h) => h.includes(FETCH))).toBe(false);
+  });
+
+  test("the cited sentence: its own cite is the CODE (and no name lookup)", async () => {
+    const { builder } = setup();
+    const at = "次に Load で設定を読む。".length;
+    const b = await builder.build(
+      bundleInput({ threads: [ask("カタログへの問い合わせは失敗をそのまま返す", at)], mode: "answer", out: "answer/1", write: [] }),
+      4000,
+    );
+    const heads = codeHeads(b.text);
+    expect(heads.some((h) => h.includes(FETCH))).toBe(true);
+    expect(heads.some((h) => h.includes("internal/config/config.go"))).toBe(false);
+  });
+
+  test("the whole block keeps every cite of the block", async () => {
+    const { builder, w } = setup();
+    const whole = w.deps.doc.blockText("b_meta0004") ?? "";
+    const b = await builder.build(bundleInput({ threads: [ask(whole, 0)], mode: "answer", out: "answer/1", write: [] }), 4000);
+    expect(codeHeads(b.text).some((h) => h.includes(FETCH))).toBe(true);
   });
 });

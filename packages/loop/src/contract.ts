@@ -444,8 +444,11 @@ export const BUNDLE_LIMITS = {
   docNeighborMaxChars: 80,
   /** CODE context steps (lines each side), shrunk in order when over budget. */
   codeContextSteps: [20, 10, 5, 0],
-  /** Grow the context to the enclosing symbol when it is at most this many lines. */
-  symbolWholeMaxLines: 120,
+  /**
+   * Grow the context to the enclosing symbol when it is at most this many lines (EX-03: 120 sent all of crit's
+   * `NewServer`, 102 lines ≈ 2.1k tok, for a 5-line anchor — half the input of one question).
+   */
+  symbolWholeMaxLines: 60,
   /** Per-line token overheads used by the estimator (`N|`, `|`, `> `) [仮, calibrated by EMA]. */
   lineOverheadTokens: { numbered: 0.45, plain: 0.25, quote: 0.3 },
   /** Fence lines overhead. */

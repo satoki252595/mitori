@@ -151,6 +151,11 @@ export function fakeIndexer(files: Record<string, string>, opts: FakeIndexerOpti
       return files[path] ?? null;
     },
     symbols,
+    findSymbols: (query, limit) =>
+      Object.keys(files)
+        .flatMap((p) => symbols(p))
+        .filter((x) => x.name === query)
+        .slice(0, limit),
     imports,
     dependents: (path) => {
       const out: { path: RepoPath; kind: "import"; weight: number }[] = [];
