@@ -627,12 +627,12 @@ const READ_ONLY: Record<DocLang, { section: string; module: string; noDecisions:
   ja: {
     section: "この節は、書き出した時点ではまだ生成されていませんでした。",
     module: "このモジュールのページは、書き出した時点ではまだ生成されていませんでした。",
-    noDecisions: [mdText(L.ja.noDecisions), "まだ決定はありません。"],
+    noDecisions: [mdText(L.ja.noDecisions), "スレッドから記録した決定はまだありません。"],
   },
   en: {
     section: "This section had not been generated yet when this file was exported.",
     module: "This module page had not been generated yet when this file was exported.",
-    noDecisions: [mdText(L.en.noDecisions), "No decisions yet."],
+    noDecisions: [mdText(L.en.noDecisions), "No decisions have been recorded from threads yet."],
   },
 };
 

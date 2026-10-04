@@ -445,6 +445,16 @@ describe("verification, freshness, decisions, glossary, flows, translations", ()
   });
   test("writeDecision validates, writes decisions/<id>.md and refreshes s10:decisions; supersedes rewrites the status line", async () => {
     const h = seeded();
+    const [ai] = h.store.applyGenerated(
+      [block({ section: "s10", aspect: "decision", kind: "why", depth: "L2", md: "**配布方針**\n単一の実行ファイルで配布する。" })],
+      opts,
+    ).written as BlockId[];
+    const empty = () => h.store.section("s10")?.blocks.find((b) => b.slot === "s10:decisions");
+    const slot = empty()?.id;
+    expect(empty()?.md).toContain("スレッドから記録した決定はまだありません。");
+    h.store.ensureManifest().primaryLang = "en";
+    h.store.applyStatic(staticInputFromTruth("ts-small"));
+    expect(empty()?.md).toContain("No decisions have been recorded from threads yet.");
     const d: Decision = {
       id: "dc_00000001",
       title: "再試行は 1 回",
@@ -464,6 +474,9 @@ describe("verification, freshness, decisions, glossary, flows, translations", ()
     expect(h.mem?.files.get("decisions/dc_00000001.md")).toContain("- status: superseded");
     expect(h.mem?.files.get("doc/10-decisions.md")).toContain("[再試行は 1 回](../decisions/dc_00000001.md)");
     expect(h.store.decisions().map((x) => x.status)).toEqual(["superseded", "accepted"]);
+    expect(empty()?.id).toBe(slot);
+    expect(empty()?.md).not.toContain("No decisions have been recorded from threads yet.");
+    expect(h.store.block(ai as BlockId)?.md).toContain("単一の実行ファイルで配布する。");
   });
   test("setGlossary: yomi order, romaji, usedIn, the s12 table replaces the placeholder", () => {
     const h = seeded();

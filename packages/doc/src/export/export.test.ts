@@ -328,6 +328,7 @@ describe("WP13-U-09 read-only wording, Markdown lines", () => {
       }
       // the empty decisions list does not invite promoting a thread (there are no threads in a file)
       const all = blocks.map((b) => b.html).join("");
+      expect(all).toContain("スレッドから記録した決定はまだありません。");
       expect(all).not.toContain("決定として残す");
       expect(all).not.toContain("Promote a thread");
     }
@@ -341,9 +342,12 @@ describe("WP13-U-09 read-only wording, Markdown lines", () => {
     expect(readOnlyWording(ph("This section has not been generated yet."), { kind: "placeholder", lang: "en", slot: "s3:ph" })).toContain(
       "<p>This section had not been generated yet when this file was exported.</p>",
     );
-    expect(readOnlyWording("<ul>\n<li>No decisions yet. Promote a thread's conclusion to record it here.</li>\n</ul>\n", { kind: "list", lang: "en" })).toBe(
-      "<ul>\n<li>No decisions yet.</li>\n</ul>\n",
-    );
+    expect(
+      readOnlyWording("<ul>\n<li>No decisions have been recorded from threads yet. Promote a thread's conclusion to record it here.</li>\n</ul>\n", {
+        kind: "list",
+        lang: "en",
+      }),
+    ).toBe("<ul>\n<li>No decisions have been recorded from threads yet.</li>\n</ul>\n");
     const prose = "<p>生成する。mitori の「生成する」で作られます。</p>";
     expect(readOnlyWording(prose, { kind: "prose", lang: "ja" })).toBe(prose);
   });
