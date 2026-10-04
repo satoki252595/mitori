@@ -189,7 +189,7 @@ MITORI_LIVE=1 scripts/nd bun eval/comprehension/run.ts --repo <clone> --max-usd 
 
 ### 再実行と費用の照合
 
-- `scripts/nd bun run check` 緑。`packages/gen`・`eval`・`bench` のテストは全通過。全体は検証の修正後 2,547 pass / 0 fail（修正前の
+- `scripts/nd bun run check` 緑。`packages/gen`・`eval`・`bench` のテストは全通過。全体は検証の修正後 2,552 pass / 0 fail（修正前の
   1 回目は IDX-AT の crit 構造更新の性能予算が負荷で 1 件落ちた。単独では 18 / 18 通り、gen と無関係）。
 - 実エンジン費用（scratch の各 `report.json` と台帳から）: m3e before $0.649 + after $0.690 + §3 単独再生成 $0.106 + $0.067
   + 理解テスト $0.155（出題のみ。初回は回答・採点の呼び出しが $0 で失敗）+ $0.109 + crit $1.652 = **$3.429**。報告どおりで、
