@@ -152,7 +152,39 @@ function bodyRegions(lines: readonly string[], s: Pick<SymbolEntry, "start" | "e
     }
     merged.push(r);
   }
-  return merged.filter((r) => r.kind !== "helpers" || (r.count ?? 1) > 0);
+  return merged;
+}
+
+/**
+ * Regions of a big declaration from its member symbols (a class's methods and fields, a Rust impl's functions — any
+ * language): consecutive members of one kind form a region (fields → `state`, `handle*` / `on*` → `handlers`).
+ */
+function memberRegions(syms: readonly SymbolEntry[], owner: Pick<Run, "start" | "end" | "host">): Run[] {
+  const kids = syms
+    .filter((s) => s.parent?.endsWith(`#${owner.host}`) && s.start >= owner.start && s.end <= owner.end)
+    .sort((a, b) => a.start - b.start);
+  const out: Run[] = [];
+  for (const s of kids) {
+    const kind: FileRegion["kind"] = s.kind === "field" ? "state" : HANDLER_NAME.test(s.name) ? "handlers" : FN_KINDS.has(s.kind) ? "methods" : "constants";
+    const last = out[out.length - 1];
+    if (last && last.kind === kind) {
+      last.end = Math.max(last.end, s.end) as LineNo;
+      last.count = (last.count ?? 1) + 1;
+      last.names.push(s.name);
+      continue;
+    }
+    out.push({
+      kind,
+      start: s.start as LineNo,
+      end: s.end as LineNo,
+      count: 1,
+      names: [s.name],
+      depth: 1,
+      exported: 0,
+      ...(owner.host ? { host: owner.host } : {}),
+    });
+  }
+  return out;
 }
 
 /**
@@ -207,7 +239,11 @@ export function fileRegions(text: string, symbols: readonly SymbolEntry[], lang:
   const out: Run[] = [];
   for (const r of coarsen(topRuns(symbols), MAX_REGIONS)) {
     out.push(r);
-    if (r.big && js) out.push(...coarsen(bodyRegions(lines, { start: r.start, end: r.end, name: r.host ?? r.names[0] ?? "" }), MAX_BODY_REGIONS));
+    if (!r.big) continue;
+    // a JS function (a component): its statements — hooks are no symbols; a class / impl / anything else: its members
+    const fn = js && (r.symbolKind === "function" || r.symbolKind === "const" || r.symbolKind === "method");
+    const body = fn ? bodyRegions(lines, { start: r.start, end: r.end, name: r.host ?? r.names[0] ?? "" }) : memberRegions(symbols, r);
+    out.push(...coarsen(body, MAX_BODY_REGIONS));
   }
   return out.map(({ exported, big: _big, ...r }) => ({
     ...r,

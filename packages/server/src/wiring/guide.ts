@@ -114,12 +114,13 @@ async function deepGuide(d: GuideDeps, guide: StaticGuide, rootTest: ChangeInput
       .sort((a, b) => b.lines - a.lines || (a.path < b.path ? -1 : 1))
       .slice(0, REGION_FILES_MAX);
     const out: NonNullable<StaticGuide["regions"]> = {};
-    for (const f of big) {
-      const text = await ix.currentText?.(f.path);
-      if (text == null) continue;
+    const texts = await Promise.all(big.map((f) => ix.currentText?.(f.path) ?? Promise.resolve(null)));
+    big.forEach((f, i) => {
+      const text = texts[i];
+      if (text == null) return;
       const regions = fileRegions(text, ix.symbols(f.path), f.lang);
       if (regions.length > 0) out[f.path] = { lines: f.lines, regions };
-    }
+    });
     if (Object.keys(out).length > 0) guide.regions = out;
   };
   const changeOf = async () => {

@@ -163,6 +163,19 @@ describe("large-file region outline (files over 1,500 lines)", () => {
     for (const r of body) expect(r.host).toBe("Editor");
   });
 
+  test("a big class (any language): its members — fields, methods, handlers — are its regions", () => {
+    const P = "app/store.py";
+    const syms: SymbolEntry[] = [sym(P, "Store", "class", 5, 1590)];
+    const child = (name: string, kind: string, start: number, end: number) =>
+      sym(P, name, kind, start, end, { parent: `${P}#Store` as SymbolEntry["key"], qualname: `Store.${name}` });
+    syms.push(child("items", "field", 6, 6), child("owner", "field", 7, 7));
+    for (let i = 0; i < 20; i++) syms.push(child(`load${i}`, "method", 10 + i * 40, 45 + i * 40));
+    for (let i = 0; i < 10; i++) syms.push(child(`on_change${i}`, "method", 900 + i * 50, 940 + i * 50));
+    const text = Array.from({ length: 1600 }, (_, i) => `# ${i}`).join("\n");
+    const body = fileRegions(text, syms, "python").filter((r) => r.depth === 1);
+    expect(body.map((r) => `${r.kind} ${r.start}-${r.end} ${r.count}`)).toEqual(["state 6-7 2", "methods 10-805 20", "handlers 900-1390 10"]);
+  });
+
   test("Go: methods (declared outside their type) group by receiver; a short file has no outline", () => {
     const P = "internal/server/server.go";
     const syms: SymbolEntry[] = [sym(P, "Server", "struct", 10, 30)];
