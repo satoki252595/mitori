@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { RepoPath } from "@mitori/core";
 import { makeS9Harness, type S9Harness } from "../incremental/test/harness.ts";
 import { dataSection } from "../incremental/test/router.ts";
 import { type FakeRepo, sampleRepo } from "../test/repo.ts";
@@ -109,6 +110,35 @@ describe("GEN-M4-03 complete effort: per-file notes (S8 gen.deepdive files, §3.
     // a second run replays every task from the cache and keeps the notes as they are
     const again = await h.generate("complete");
     expect(again.run?.tasks.filter((t) => t.stage === "S8").every((t) => t.state === "cached")).toBe(true);
+    expect(
+      h
+        .aiBlocks(page)
+        .filter((b) => b.aspect === "files")
+        .map((b) => b.id),
+    ).toEqual(notes.map((b) => b.id));
+  });
+
+  test("a later module page regeneration neither lists nor removes the per-file notes (verifier 2026-10-04)", async () => {
+    const h = makeS9Harness({ repo: m4Repo() });
+    await h.applyStatic();
+    await h.generate("complete");
+    const page = h.doc.index().modules.find((e) => e.id === "md_a0000001")?.section ?? "";
+    const notes = h.aiBlocks(page).filter((b) => b.aspect === "files");
+    expect(notes.length).toBe(1);
+    const before = h.engine.calls.filter((c) => c.call.spec.id === "gen.module").length;
+    // a signature change in the module: the standard run regenerates its page (new SKELETON ⇒ new cache key)
+    const path = "src/session/store.ts" as RepoPath;
+    h.edit(path, (h.repo.files[path] ?? "").replace("put(s: Session): void {", "put(s: Session): boolean {"));
+    await h.applyStatic();
+    const { run } = await h.generate("standard");
+    expect(run?.run.state).toBe("done");
+    const regen = h.engine.calls.filter((c) => c.call.spec.id === "gen.module").slice(before);
+    const unit = regen.find((c) => c.call.layout.unit.includes("md_a0000001"))?.call.layout.unit ?? "";
+    expect(unit).not.toBe("");
+    // EXISTING of the page lists its own blocks only, never a note
+    const listed = dataSection(unit, "EXISTING");
+    expect(listed.length).toBeGreaterThan(0);
+    expect(listed.some((l) => l.includes("aspect=files"))).toBe(false);
     expect(
       h
         .aiBlocks(page)
