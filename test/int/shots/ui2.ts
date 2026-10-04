@@ -275,6 +275,30 @@ try {
     await waitSection(page);
   }
 
+  // ------------------------------------------------------------------ NC-04 the map's 「文脈」 stage
+  if (want("context")) {
+    phase = "context";
+    await page.goto(page.url().replace(/\/w\/(ws_\w+).*$/, "/w/$1"));
+    await page.waitForFunction(() => performance.getEntriesByName("mitori:map:painted").length > 0, null, { timeout: 15_000 });
+    await page.locator(".stage svg.plan").click({ position: { x: 20, y: 20 } });
+    for (let i = 0; i < 3; i++) {
+      if ((await page.locator('svg.plan[data-z="Z0"]').count()) > 0) break;
+      await page.keyboard.press("-");
+      await page.waitForTimeout(450);
+    }
+    await page.locator('svg.plan[data-z="Z0"]').waitFor({ timeout: 5000 });
+    const cap = await page.locator(".stage .ctx-cap").innerText();
+    check(cap.length > 10, `the 文脈 stage names the building (${cap})`);
+    const names = await page
+      .locator('svg.plan[data-z="Z0"] .room .rn')
+      .evaluateAll((els) => els.filter((e) => getComputedStyle(e).opacity !== "0" && (e.textContent ?? "").length > 0).length);
+    check(names > 0, `room names stay at 文脈 (${names})`);
+    steps.contextCaption = cap.replace(/\s+/g, " ");
+    await shot(page, "ui2-12-map-context");
+    await page.goto(page.url().replace(/\/w\/(ws_\w+).*$/, "/w/$1/doc/s0"));
+    await waitSection(page);
+  }
+
   // ------------------------------------------------------------------ in-app export (ux.md §4.13)
   if (want("export")) {
     phase = "export";

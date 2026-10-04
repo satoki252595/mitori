@@ -117,6 +117,18 @@ $effect(() => {
       .catch(() => (lede = null));
   });
 });
+// NC-04 the 「文脈」 caption: one sentence of what the building is (the generated §0 lede, else the README's first
+// paragraph), cut at the first sentence end
+const contextLine = $derived.by(() => {
+  const src = lede?.text ?? readme?.text ?? "";
+  if (!src) return "";
+  const end = src.search(/[。！？]|[.!?](\s|$)/);
+  const one = end > 20 ? src.slice(0, end + 1) : src;
+  return [...one].length > 120 ? `${[...one].slice(0, 119).join("")}…` : one;
+});
+/** External actors on the plan (browsers, services, other repos): the people / systems around the building. */
+const externals = $derived(model ? model.rooms.filter((r) => r.external).map((r) => r.label) : []);
+
 function readFiveMinutes(): void {
   if (!ws) return;
   choosePath(ws, "5min");
@@ -518,6 +530,14 @@ const planCounts = $derived(
             bind:controller
           />
           <p id="plan-desc" class="sr-only">{t("map.text.summary", { zones: model.zones.length, rooms: model.rooms.length, edges: model.edges.length })}</p>
+          {#if s.map.stage === "Z0"}
+            <!-- NC-04 「文脈」: the building named and placed — what it is (§0 / README) and who is outside it -->
+            <div class="ctx-cap" data-chrome>
+              <p class="cn" data-user-content>{s.workspace.status?.info.name ?? ""}</p>
+              {#if contextLine}<p class="cl" data-user-content>{contextLine}</p>{/if}
+              {#if externals.length > 0}<p class="cx">{t("map.context.outside", { names: externals.join(" · ") })}</p>{/if}
+            </div>
+          {/if}
         {:else if s.map.error}
           <div class="err-card center" role="alert">
             <h2>{t("map.error")}</h2>
@@ -912,6 +932,35 @@ const planCounts = $derived(
     background-image: radial-gradient(circle at 1px 1px, var(--rule) 1px, transparent 1.2px);
     background-size: 16px 16px;
     overflow: hidden;
+  }
+  .ctx-cap {
+    position: absolute;
+    left: 18px;
+    top: 16px;
+    max-width: min(560px, calc(100% - 36px));
+    padding: 10px 14px;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-card);
+    background: var(--sheet);
+    pointer-events: none;
+    animation: pop-in var(--dur-lod) var(--ease-out);
+  }
+  .ctx-cap .cn {
+    margin: 0;
+    font-size: var(--fs-ui);
+    font-weight: var(--fw-strong);
+    color: var(--ink);
+  }
+  .ctx-cap .cl {
+    margin: 2px 0 0;
+    font-size: var(--fs-ui-s);
+    line-height: 1.6;
+    color: var(--text);
+  }
+  .ctx-cap .cx {
+    margin: 4px 0 0;
+    font-size: var(--fs-label);
+    color: var(--muted);
   }
   .stage-skel {
     position: absolute;

@@ -88,5 +88,6 @@
   "map.zoom.in": "Zoom in (=)",
   "map.zoom.label": "Zoom",
   "map.zoom.out": "Zoom out (-)",
-  "map.zoom.stages": "Zoom stages"
+  "map.zoom.stages": "Zoom stages",
+  "map.context.outside": "Outside: {names}"
 }

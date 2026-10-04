@@ -88,5 +88,6 @@
   "map.zoom.in": "拡大（=）",
   "map.zoom.label": "ズーム",
   "map.zoom.out": "縮小（-）",
-  "map.zoom.stages": "ズーム段"
+  "map.zoom.stages": "ズーム段",
+  "map.context.outside": "外とのやり取り: {names}"
 }
