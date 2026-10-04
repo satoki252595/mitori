@@ -184,7 +184,7 @@ async function main(argv: readonly string[]): Promise<number> {
     if (!values.url && !values.dist && !values["no-startup"] && startupBudget && existsSync(bin)) {
       const v = judgeStartup(measureStartup(bin), startupBudget, () => measureFactor(tree).factor);
       console.log(
-        `bin.startup ${bin.slice(tree.length + 1) || bin}: median ${fmt(v.median)} ms (target ${v.target}, limit ${v.limit})${v.level === "green" ? " ok" : v.hard ? " FAIL" : v.level === "red" ? ` over the limit, not gating on this machine (factor ${fmt(v.factor ?? 1)})` : " over target (warning)"}`,
+        `bin.startup ${bin.slice(tree.length + 1) || bin}: median ${fmt(v.median)} ms (target ${v.target}, limit ${v.limit})${v.level === "green" ? " ok" : v.hard ? " FAIL" : v.skipped ? ` over the limit, not gating (skipped: ${v.skipped})` : v.level === "red" ? ` over the limit, not gating on this machine (factor ${fmt(v.factor ?? 1)})` : " over target (warning)"}`,
       );
       startupOk = !v.hard;
     }

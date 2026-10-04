@@ -129,3 +129,14 @@ bench トラックは計測と Linux を担当し、下の項目は **所有外�
   走らせる）。入ったら `bun run bench --id ui.staleBadge` が数値を返す（今は「no stale badge in the Reader 10 s after the save」で
   case error になる）。
 - urgency: high（鮮度は「確かさ」の表示の根幹。表示が嘘になる）。
+
+## 12. loop: `git.precheck` は初めて測れた — 負荷 14〜15 で 87〜114 ms（budget 50 / 100 ms）
+
+- 経緯: 最初の baseline の `git.precheck` 0.75 ms は **測定の不具合**だった（bench case が `void precheck()` で promise を待たず、
+  呼び出しの開始だけを計っていた。残った git 呼び出しは teardown 後に「git not found on PATH」で落ちていた）。検証パスで
+  await に直し、runner が「待たれなかった rejection」を case の error にするようにした（BENCH-U-12）。
+- 観察: crit の clone（1.2k files）、1 ファイルの変更の merge pre-check が median 87 ms / 114 ms（2 回、負荷 14〜15、calibration
+  factor 1.25〜1.26）。target 50・limit 100 に対して、負荷を割り引いても target 超の可能性が高い。
+- 次の手: 静かな機械で `bun run bench --id git.precheck --exact` を取り直す。超えていれば precheck の内訳（snapshot・
+  `merge-tree`・blob の比較）を出す。
+- urgency: medium（Review の「承認して検査 → 採用」の前段の待ち時間）。

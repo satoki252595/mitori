@@ -178,7 +178,12 @@ export const precheck = defineBench<GitBench & { job: JobId }>({
     const b = await gitBench(ctx);
     return { ...b, job: (await job(b, FILES.slice(0, 1))).job };
   },
-  run: (b) => void b.git.precheck(b.job, { accept: "all" }),
+  // awaited: `void precheck()` timed only the start of the call (0.75 ms in the first baseline) and left the git
+  // calls running into the teardown, where they failed ("git not found on PATH" = the removed cwd)
+  async run(b) {
+    const r = await b.git.precheck(b.job, { accept: "all" });
+    if (!r.clean) throw new Error(`the pre-check of a clean 1-file change reported conflicts: ${r.conflicts.join(", ")}`);
+  },
   teardown: (b) => b.dispose(),
 });
 

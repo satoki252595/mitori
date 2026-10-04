@@ -103,6 +103,31 @@ describe("BENCH-U-12 executeCase", () => {
     expect(out.entry.unit).toBe("MB");
   });
 
+  test("a run that does not await its work (a rejection nobody handles) is an error, not a fast number", () => {
+    // in a plain Bun process, as the runner is (bun:test fails the current test on any unhandled rejection itself)
+    const script = `
+      import { defineBench } from "./define.ts";
+      import { executeCase } from "./execute.ts";
+      const work = async () => { await Bun.sleep(1); throw new Error("git not found on PATH"); };
+      const noRepo = { resolveRepo: async () => { throw new Error("no repo"); } };
+      const run = async (id, fn) => (await executeCase(defineBench({ id, suite: "idx", mode: "inproc", runs: 3, warmup: 0, run: fn }), noRepo)).entry;
+      const stray = await run("t.u", () => void work());
+      const awaited = await run("t.w", () => work());
+      const handled = await run("t.h", () => void work().catch(() => undefined));
+      console.log(JSON.stringify({ stray, awaited, handled }));
+    `;
+    const p = Bun.spawnSync([process.execPath, "-e", script], { cwd: import.meta.dir, stdout: "pipe", stderr: "pipe" });
+    expect(p.stderr.toString()).toBe("");
+    const r = JSON.parse(p.stdout.toString()) as Record<"stray" | "awaited" | "handled", { values: number[]; error?: string }>;
+    expect(r.stray.values).toEqual([]);
+    expect(r.stray.error).toContain("3 unhandled rejection(s)");
+    expect(r.stray.error).toContain("git not found on PATH");
+    // awaited, the same failure is the case's own error; a rejection the run handles is not stray
+    expect(r.awaited.error).toBe("git not found on PATH");
+    expect(r.handled.error).toBeUndefined();
+    expect(r.handled.values).toHaveLength(3);
+  });
+
   test("CLI overrides win over the case's own counts", async () => {
     const out = await executeCase(asAny(defineBench({ id: "t.o", suite: "idx", mode: "inproc", runs: 9, warmup: 5, run: () => {} })), {
       ...noRepo,

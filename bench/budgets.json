@@ -194,6 +194,19 @@
       "provisional": false
     },
     {
+      "id": "bin.health",
+      "metric": "mitori <go-small> --no-open の起動 → GET /api/v1/health 応答（node_modules の無い dir、compiled、cold home。MILESTONES WP-00 受け入れ・SKEL-AT-01）",
+      "target": 1000,
+      "limit": 1000,
+      "unit": "ms",
+      "dir": "max",
+      "gates": ["absolute"],
+      "owner": "cli",
+      "measure": "bench/server.bench.ts#bin-health",
+      "scale": "machine",
+      "provisional": false
+    },
+    {
       "id": "doc.render.2000.cached",
       "metric": "2,000 block の描画（キャッシュ済み）",
       "target": 100,

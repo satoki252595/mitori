@@ -9,7 +9,7 @@
 import { cpSync, existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { SseEventPayload, WorkspaceKey } from "@mitori/core";
-import { startTestDaemon, type TestDaemon } from "@mitori/testkit";
+import { buildFixture, type FixtureRepo, startTestDaemon, type TestDaemon } from "@mitori/testkit";
 import { type Harness, startHarness } from "../packages/server/src/http/test/harness.ts";
 import { type Int, startInt } from "../test/int/harness.ts";
 import { REPO_ROOT, scratch } from "./lib/child.ts";
@@ -102,6 +102,53 @@ export const rssIdleLoaded = defineBench({
       copy.dispose();
     }
   },
+});
+
+/* ------------------------------------------------------------------------------------------ spawn → health */
+
+/**
+ * MILESTONES WP-00 acceptance (SKEL-AT-01): `mitori <go-small> --no-open`, started from a directory without
+ * node_modules, answers `GET /api/v1/health` within 1 s of the spawn. The skeleton test checks that it answers (a
+ * generous deadline); the time is this case, load-gated like every time budget. The compiled binary only — the
+ * acceptance is about the shipped artifact. Every run: a fresh copy of go-small and a fresh MITORI_HOME (cold).
+ */
+export const binHealth = defineBench<{ src: FixtureRepo }>({
+  id: "bin.health",
+  suite: "srv",
+  mode: "process",
+  runs: 5,
+  async setup() {
+    if (binary() !== "compiled") throw new Error(`${BIN} is missing or older than apps/cli/src/main.ts (bun run build:bin)`);
+    return { src: await buildFixture("go-small") };
+  },
+  async run(s, ctx) {
+    const work = scratch("bin-health");
+    const root = join(work.dir, "go-small");
+    cpSync(s.src.root, root, { recursive: true, verbatimSymlinks: true });
+    const env = { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: work.dir, MITORI_HOME: ctx.home };
+    const t0 = performance.now();
+    const proc = Bun.spawn([BIN, root, "--no-open"], { cwd: work.dir, env, stdout: "pipe", stderr: "pipe" });
+    try {
+      const reader = proc.stdout.getReader();
+      let out = "";
+      let origin: string | undefined;
+      while (!origin) {
+        const { value, done } = await reader.read();
+        if (done) throw new Error(`mitori exited before printing its URL: ${(await new Response(proc.stderr).text()).slice(-300)}`);
+        out += new TextDecoder().decode(value);
+        origin = /http:\/\/127\.0\.0\.1:\d+/.exec(out)?.[0];
+      }
+      const res = await fetch(`${origin}/api/v1/health`);
+      const ms = performance.now() - t0;
+      if (!res.ok) throw new Error(`GET /api/v1/health answered ${res.status}`);
+      return ms;
+    } finally {
+      proc.kill("SIGTERM");
+      await proc.exited;
+      work.dispose();
+    }
+  },
+  teardown: (s) => s.src.dispose(),
 });
 
 /* ---------------------------------------------------------------------------------------------------- SSE */
