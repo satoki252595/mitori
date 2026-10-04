@@ -146,7 +146,7 @@ const covered = $derived(manifest?.coverage ?? null);
       <svg viewBox="0 0 34 34" aria-hidden="true"><circle class="trk" cx="17" cy="17" r="14" /></svg>
       <div class="path-h">
         <div class="path-t muted">{t("rail.pathDefault")}</div>
-        <div class="path-s">{t("rail.pathAfterGen")}</div>
+        <div class="path-s">{outline ? t("rail.pathAfterGen") : "\u2014"}</div>
       </div>
     {/if}
     <div class="path-f">
@@ -210,8 +210,11 @@ const covered = $derived(manifest?.coverage ?? null);
           usd: fmtUsdImpl(manifest.usageTotals.apiUsd, "gen"),
         })}
       </div>
-    {:else}
+    {:else if outline}
       <div>{t("rail.notGenerated")}</div>
+    {:else}
+      <!-- NC-16: while the outline is on its way, nothing claims the doc is not generated -->
+      <div aria-hidden="true">&mdash;</div>
     {/if}
     <div>{covered ? t("rail.coverage", { inc: fmtInt(covered.filesIncluded, s.prefs.lang), all: fmtInt(covered.filesTotal, s.prefs.lang) }) : "\u00a0"}</div>
     <div class="mono">{s.workspace.status?.info.docCommitted ? t("rail.committed") : t("rail.optIn")}</div>
