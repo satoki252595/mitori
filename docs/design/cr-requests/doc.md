@@ -32,6 +32,9 @@ asks of the other tracks. Details and measurements: `docs/progress/rem-doc.md`.
   and 42 / 43 / 44 file-note tasks from one open to the next (reproduced with 4 concurrent opens).
 - `update/later.ts`: the synchronous text cache is rebuilt aside and swapped in whole (unchanged blobs reused), never
   cleared first.
+- `update/persist.ts` (no contract change): the persist bookkeeping (dropping the in-memory skeleton bodies once
+  written) runs after the write slot resolves, not inside it — the workspace writer's outer transaction could roll the
+  rows back after the indexer's savepoint had released, and the skeletons were then gone from both places.
 
 ## Requests to other tracks
 
@@ -49,3 +52,9 @@ asks of the other tracks. Details and measurements: `docs/progress/rem-doc.md`.
    `--depth` clone with real history, like `refs/crit` with 41 commits) show 「履歴を読めません」 in the change guide.
    Reading the available commits of a shallow clone (the boundary commit's diff is the only wrong one) would make
    co-change work there; it would also make the map's churn overlay work.
+5. **indexer (pin store owner)**: `packages/indexer/src/pin/store.ts` `saveRows` applies `pending.delete` inside the
+   write slot. The server's workspace writer wraps every slot in its own transaction, which can still roll back after
+   `fn` returned (a dev / test build's 50 ms slow-slot guard on a loaded machine, a failing post-`fn` hook): the pinned
+   text of a dirty file is then neither in the DB nor in `pending`. `update/persist.ts` had the same shape and lost
+   skeletons that way (fixed in this track, `robustness.int.test.ts` "CR gen #8: a write slot whose outer transaction
+   rolls back…"); the same fix (delete from `pending` after `await write(...)` resolves) applies here.
