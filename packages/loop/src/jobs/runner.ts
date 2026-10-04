@@ -234,8 +234,10 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
   /** R2 hand-over ports (agent/escalate.ts). */
   const escalation = {
     core,
-    plan: async (job: Job, reason: RouteReason) => {
-      const p = await planJob({ ...planDeps, history: (t) => [...planDeps.history(t), reason] }, replanReq(core.get(job.id)));
+    plan: async (job: Job, reason: RouteReason, readHints?: readonly string[]) => {
+      const p = await planJob({ ...planDeps, history: (t) => [...planDeps.history(t), reason] }, replanReq(core.get(job.id)), {
+        ...(readHints && readHints.length > 0 ? { readHints } : {}),
+      });
 
       core.remember(p);
       return p;

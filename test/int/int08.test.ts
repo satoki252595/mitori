@@ -726,9 +726,14 @@ describe("INT-08 escalation: patch → agent automatically within the cap; the f
       ],
     });
     // the R2 agent job stops at its budget ⇒ E_BUDGET_EXCEEDED ⇒ agent_failed
+    let agentBundle = "";
     scenarios.unshift({
       name: "agent-budget",
-      match: (p, spec) => p.includes("待ち時間も設定") && spec.argv.includes("--permission-mode") && argAfter(spec.argv, "--model") !== "claude-opus-5-5",
+      match: (p, spec) => {
+        const hit = p.includes("待ち時間も設定") && spec.argv.includes("--permission-mode") && argAfter(spec.argv, "--model") !== "claude-opus-5-5";
+        if (hit) agentBundle = p;
+        return hit;
+      },
       turns: [{ failure: "budget_exceeded" }],
     });
     scenarios.unshift({
@@ -747,6 +752,10 @@ describe("INT-08 escalation: patch → agent automatically within the cap; the f
     const agent = list.items.find((j) => j.escalatedFrom === job.id);
     expect(agent?.route).toMatchObject({ mode: "agent", reason: "needs_more_context", model: "claude-sonnet-5-5" });
     const agentFailed = await jobUntil(agent?.id as JobId, ["failed"]);
+    // cr-requests/agent.md #6: what the patch turn asked for is in the agent's bundle as read-only REL, not in WRITE
+    expect(agentBundle).toContain("REL internal/config/config.go:1");
+    expect(agentBundle).not.toMatch(/WRITE[^\n]*internal\/config\/config\.go/);
+    expect(agentFailed.writeScope).not.toContain("internal/config/config.go");
     expect(agentFailed.failure?.code).toBe("E_BUDGET_EXCEEDED");
     expect(agentFailed.failure?.actions).toContain("escalate");
     expect((await api<ThreadDetail>("GET", `/threads/${thread.id}`)).state).toBe("failed");

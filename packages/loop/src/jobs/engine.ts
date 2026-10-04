@@ -20,6 +20,19 @@ const SCHEMAS: Partial<Record<LoopPromptId, object>> = {
 /** Wall-time budget of one turn per mode [仮]. */
 const TURN_MS: Record<LoopPromptId, number> = { "loop.answer": 120_000, "loop.findings": 180_000, "loop.patch": 180_000, "loop.agent": 600_000 };
 
+const enc = new TextEncoder();
+/** Conservative token count of fixed text (≈ 3 bytes per token; Japanese and code both stay under it). */
+const textTokens = (s: string) => Math.ceil(enc.encode(s).length / 3);
+
+/**
+ * The input-token meter limit of a first turn (cr-requests/agent.md #9): twice the planned input (bundle + the engine's
+ * fixed part, floor 4k) PLUS the system prompt and the JSON schema mitori sends with it. The system prompt grows with
+ * the deny globs; it was not counted, so a small Fix of a repo with a long deny list hit the 4k floor before answering.
+ */
+export function firstTurnInTokens(plan: Pick<JobPlan, "budget">, system: string, schema: object | undefined): number {
+  return Math.max(plan.budget.in * 2, 4000) + textTokens(system) + (schema ? textTokens(JSON.stringify(schema)) : 0);
+}
+
 /** The scheduled request of a plan. */
 export function engineRequest(
   plan: JobPlan,
@@ -29,6 +42,8 @@ export function engineRequest(
   const id = promptIdOf(plan);
   const keepAlive = id === "loop.patch" || id === "loop.agent";
   const schema = SCHEMAS[id];
+  const system = loopSystemPrompt(id, { cwd: ctx.cwd, deny: ctx.deny });
+  const sendsSchema = schema !== undefined && plan.route.engine !== "generic";
   const req: ScheduledRequest = {
     ref: job,
     mode: plan.mode === "patch" ? "patch" : plan.mode === "agent" ? "agent" : plan.mode === "findings" ? "findings" : "answer",
@@ -37,20 +52,20 @@ export function engineRequest(
     effort: plan.route.decision.effort,
     tools: plan.route.decision.tools,
     writeScope: plan.mode === "agent" ? plan.scope.writeScope : [],
-    system: loopSystemPrompt(id, { cwd: ctx.cwd, deny: ctx.deny }),
+    system,
     promptVer: LOOP_PROMPTS[id].version,
     prompt: ctx.prompt ?? plan.bundle.text,
     contract: plan.route.decision.contract,
     keepAlive,
     persistSession: ctx.persistSessions,
-    budget: { usd: plan.budget.usd, inTokens: Math.max(plan.budget.in * 2, 4000), outTokens: plan.budget.out, ms: TURN_MS[id] },
+    budget: { usd: plan.budget.usd, inTokens: firstTurnInTokens(plan, system, sendsSchema ? schema : undefined), outTokens: plan.budget.out, ms: TURN_MS[id] },
     engine: plan.route.engine,
     lane: "interactive",
     ws: ctx.ws as ScheduledRequest["ws"],
     scope: { kind: "job", id: job },
     estimate: { in: plan.estimate.inTokens, out: plan.estimate.outTokens },
   };
-  if (schema && plan.route.engine !== "generic") req.jsonSchema = schema;
+  if (sendsSchema) req.jsonSchema = schema;
   if (plan.scope.newFiles.length > 0 && plan.mode === "agent") req.newFiles = plan.scope.newFiles;
   return req;
 }

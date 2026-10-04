@@ -11,6 +11,7 @@ import { ROUTER_LIMITS } from "../contract.ts";
 import type { RunnerCore } from "../jobs/core.ts";
 import type { JobPlan } from "../jobs/plan.ts";
 import type { JobRecord } from "../jobs/store.ts";
+import { needsOf } from "./hints.ts";
 
 /** Failure codes that are injection signals: no repair, no escalation. */
 const NEVER: ReadonlySet<string> = new Set(["E_SCOPE_VIOLATION", "E_DENY_GLOB", "E_SECRET_DETECTED", "E_CANCELLED", "E_SHUTTING_DOWN"]);
@@ -73,8 +74,8 @@ export function autoBlocker(core: RunnerCore, plan: JobPlan, threads: readonly T
 /** Hooks of the runner the hand-over needs. */
 export interface EscalationPorts {
   core: RunnerCore;
-  /** Plan the same request with one more router history reason. */
-  plan(job: Job, reason: RouteReason): Promise<JobPlan>;
+  /** Plan the same request with one more router history reason (and the patch turn's `needs_more_context` items as read hints). */
+  plan(job: Job, reason: RouteReason, readHints?: readonly string[]): Promise<JobPlan>;
   /** A queued record for a plan (the runner's `newRecord`). */
   record(plan: JobPlan): JobRecord;
   /** Start the pipeline of a new job. */
@@ -94,7 +95,7 @@ export async function tryAutoEscalate(ports: EscalationPorts, id: JobId, err: Mi
   if (reason === null || reason === "agent_failed") return null;
   let plan: JobPlan;
   try {
-    plan = await ports.plan(rec.job, reason);
+    plan = await ports.plan(rec.job, reason, reason === "needs_more_context" ? needsOf(err.params) : []);
   } catch (e) {
     core.deps.log.info("escalation: no agent plan", { job: id, error: MitoriError.from(e).message });
     return null;
