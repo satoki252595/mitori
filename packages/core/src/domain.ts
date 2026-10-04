@@ -1987,11 +1987,29 @@ export interface Thread {
   batchRound?: number;
   /** For `note` threads: send to the AI on Finish (default false — notes are for humans) [UXP-02]. */
   sendToAi?: boolean;
+  /**
+   * The code the human chose for this thread beyond its anchor (CR safe-6, cr-requests/ux.md #2/#6): picked Fix
+   * candidates and `@` mentions (`add`, joining the write scope of change intents), and auto-derived targets the human
+   * took out (`remove`: `write:<path>` leaves a cited file out of WRITE, other keys are bundle item keys). It travels
+   * on every path — the push job, the pull bundle (⤴), the copy prompt (⧉) — so none of them drops it.
+   */
+  context?: ThreadContext;
   /** Created at. */
   createdAt: Iso8601;
   /** Updated at. */
   updatedAt: Iso8601;
 }
+
+/** {@link Thread.context} (the same shape as api `ContextAdjust`). */
+export interface ThreadContext {
+  /** Bundle item keys to drop; `write:<path>` keeps a cited file as read context only. */
+  remove?: string[];
+  /** Extra code ranges (`@` mention, a picked candidate); `start = end = 0` = a whole file / a new file. */
+  add?: { path: RepoPath; start: LineNo; end: LineNo }[];
+}
+
+/** Limits of {@link ThreadContext} (validated by the review engine). */
+export const THREAD_CONTEXT_LIMITS = { add: 20, remove: 20, keyMaxChars: 300 } as const;
 
 /** A review round (batch Finish). Pull rounds release `mitori review`; push rounds create a batch job. */
 export interface Round {

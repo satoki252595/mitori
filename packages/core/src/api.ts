@@ -920,6 +920,8 @@ export interface CreateThreadReq {
   body: string;
   /** Keep as draft (autosave) instead of submitting. */
   draft: boolean;
+  /** The code the human chose besides the anchor (`Thread.context`, CR safe-6): picked candidates, `@` mentions, removed targets. */
+  context?: ContextAdjust;
 }
 
 /** Patch a thread (drafts: body/anchor/intent; others: intent only). */
@@ -936,6 +938,8 @@ export interface PatchThreadReq {
   dismissStale?: true;
   /** `note` threads: send to the AI on Finish (default false) [UXP-02]. */
   sendToAi?: boolean;
+  /** Replace `Thread.context` (null clears it); not while a job of the thread runs (CR safe-6). */
+  context?: ContextAdjust | null;
 }
 
 /** Fire a state transition (resolve, reopen, cancel, submit, …). */
@@ -1074,7 +1078,10 @@ export interface JobDetail extends Job {
 
 /** Context adjustment from Composer chips. */
 export interface ContextAdjust {
-  /** Estimate item keys to drop (non-removable keys are rejected). */
+  /**
+   * Estimate item keys to drop (non-removable keys are rejected). `write:<path>` takes a file the anchor cites out of
+   * the write scope; its code stays read-only context (CR safe-6, cr-requests/ux.md #2).
+   */
   remove?: string[];
   /** Extra code ranges (`@` mention). */
   add?: { path: RepoPath; start: LineNo; end: LineNo }[];
@@ -1265,6 +1272,8 @@ export interface CopyPromptReq {
   intent: ThreadIntent;
   /** Target agent formatting. */
   target: "claude-code" | "codex" | "generic";
+  /** The Composer's picked candidates / `@` mentions / removed targets (CR safe-6): the same code a push job would get. */
+  context?: ContextAdjust;
 }
 
 /** Copy-as-prompt result. */

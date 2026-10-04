@@ -41,6 +41,12 @@ export interface ScopeCtx {
    * CR m1-82); they stay readable context but never join the scope. Absent ⇒ only the index exclusions apply.
    */
   writable?(path: RepoPath): boolean;
+  /**
+   * Files the human took out of WRITE (`ContextAdjust.remove` `write:<path>`, CR safe-6, cr-requests/ux.md #2): a
+   * cited file stays readable context (its CODE is still in the bundle) but is not written. A file the human added
+   * as a chip in the same request is not removed by its own removal key's absence — removal wins.
+   */
+  removedWrite?: ReadonlySet<RepoPath>;
 }
 
 export interface ScopeResult {
@@ -151,6 +157,7 @@ export function deriveScope(threads: ThreadDetail[], ctx: ScopeCtx): Result<Scop
   // Unwritable files can be read as context but never join the scope; paths that do not exist are only allowed as declared new files.
   const scope = new Set<RepoPath>();
   for (const p of scopePaths) {
+    if (ctx.removedWrite?.has(p)) continue;
     if (newFiles.has(p)) scope.add(p);
     else if (ctx.fileExists(p) && writable(p)) scope.add(p);
   }

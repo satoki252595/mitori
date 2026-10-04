@@ -169,8 +169,9 @@ export function createLoop(deps: LoopDeps): Loop & LoopLifecycle {
     if (!runner) throw new MitoriError("E_NOT_READY", "the job runner is not ready", { retryable: true });
     return runner;
   };
+  // CR safe-6: a thread's stored context (picked candidates, `@` mentions, removed targets) shapes its scope everywhere
   const writeScopeOf = (t: ThreadDetail): RepoPath[] => {
-    const r = deriveWriteScope([t], scopeCtx(planPorts, "patch", {}, new Set()));
+    const r = deriveWriteScope([t], scopeCtx(planPorts, "patch", t.context ? { context: t.context } : {}, new Set()));
     return r.ok ? r.value.writeScope : [];
   };
   const review = createReviewEngine({
@@ -244,7 +245,8 @@ export function createLoop(deps: LoopDeps): Loop & LoopLifecycle {
     const thread = review.get(id);
     if (!thread) throw new MitoriError("E_NOT_FOUND", `thread ${id} not found`, { params: { id } });
     const s = deps.settings();
-    const scope = deriveWriteScope([thread], scopeCtx(planPorts, "patch", {}, new Set()));
+    // CR safe-6: ⤴ / `mitori bundle` carry the code the human chose, like the push job does
+    const scope = deriveWriteScope([thread], scopeCtx(planPorts, "patch", thread.context ? { context: thread.context } : {}, new Set()));
     const write = scope.ok ? scope.value.writeScope : [];
     const detected = write.length > 0 ? await gatesFor(write) : [];
     const tokens = Math.min(o.budget ?? s.global.limits.bundleDefaultTokens, s.global.limits.bundleMaxTokens);
@@ -252,8 +254,8 @@ export function createLoop(deps: LoopDeps): Loop & LoopLifecycle {
       {
         threads: [thread],
         mode: o.mode ?? "pull",
-        extra: [],
-        removed: [],
+        extra: thread.context?.add ?? [],
+        removed: thread.context?.remove ?? [],
         write,
         deny: s.denyGlobs,
         gates: detected.map((g) => ({ id: g.spec.id, trusted: g.trusted })),

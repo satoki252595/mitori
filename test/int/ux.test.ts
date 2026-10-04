@@ -193,18 +193,19 @@ describe("UX-INT-02 doc proposals end to end", () => {
     expect(((await res.json()) as { error: { params: { job: string } } }).error.params.job).toBe(jobId);
   });
 
-  test("code accepted without the doc change: the static row follows the code by itself, so the AI's edit of it conflicts (409) and is rejected", async () => {
+  test("code accepted without the doc change: the static row follows the code by itself, so the AI's edit of it is closed — never a 409 dead end", async () => {
     await api("POST", `/jobs/${jobId}/accept`, { accept: "all", acceptUnverified: true });
     expect(readFileSync(join(repo.root, CONFIG), "utf8")).toContain('cmp.Or(os.Getenv("TSUNDOKU_API_TOKEN"), "dev")');
-    expect((await api<DocProposalView[]>("GET", "/doc/proposals?state=pending")).map((p) => p.id)).toContain(proposal.id);
-    // the env table is a static facts block: re-indexing the accepted code rewrote the row (default now detected)
-    await sse.until((ev) => ev.some((e) => e.type === "doc.block.upsert" && (e as { block: BlockView }).block.id === proposal.block), 5000);
-    const res = await web.req("POST", `/ws/${ws}/doc/proposals/${proposal.id}/accept`, {});
-    expect(res.status).toBe(409);
-    expect(((await res.json()) as { error: { code: string } }).error.code).toBe("E_DOC_BASE_MISMATCH");
-    expect(await webApi<{ ok: boolean }>("POST", `/doc/proposals/${proposal.id}/reject`)).toEqual({ ok: true });
+    // rem/safety (cr-requests/ux.md #2): the accept closed the static block's pending AI edit (before: it stayed
+    // pending and its accept answered 409 E_DOC_BASE_MISMATCH once re-indexing rewrote the row)
     await sse.until((ev) => ev.some((e) => e.type === "doc.proposal.removed" && (e as { id: string }).id === proposal.id));
     expect((await api<DocProposalView[]>("GET", "/doc/proposals?state=pending")).map((p) => p.id)).not.toContain(proposal.id);
+    // the env table is a static facts block: re-indexing the accepted code rewrote the row (default now detected)
+    await sse.until((ev) => ev.some((e) => e.type === "doc.block.upsert" && (e as { block: BlockView }).block.id === proposal.block), 5000);
+    expect(doc().block(proposal.block as never)?.md).toContain("| `TSUNDOKU_API_TOKEN` | あり |");
+    const res = await web.req("POST", `/ws/${ws}/doc/proposals/${proposal.id}/accept`, {});
+    expect(res.status).not.toBe(409);
+    expect(res.ok).toBe(false);
   });
 
   test("a prose sentence: the Fix's doc update, accepted on its own after the code, rewrites it — and the human lock stays", async () => {

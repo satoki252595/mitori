@@ -36,6 +36,35 @@ describe("LOOP §2.1 threads and messages", () => {
     expect(capUtf8("ab🚀", 6)).toBe("ab🚀");
   });
 
+  test("CR safe-6: a thread keeps the code the human chose (candidates, @ mentions, removed targets); patch replaces or clears it", () => {
+    const { engine } = harness();
+    const context = {
+      add: [
+        { path: "internal/config/config.go", start: 36, end: 50 },
+        { path: "internal/config/config.go", start: 36, end: 50 },
+        { path: "internal/new.go", start: 0, end: 0 },
+      ],
+      remove: ["write:internal/meta/fetch.go"],
+    };
+    const th = engine.create({ anchor: docSel(), intent: "change", body: "設定から読む", draft: false, context }, "human");
+    expect(th.context).toEqual({
+      add: [
+        { path: "internal/config/config.go", start: 36, end: 50 },
+        { path: "internal/new.go", start: 0, end: 0 },
+      ],
+      remove: ["write:internal/meta/fetch.go"],
+    });
+    expect(engine.get(th.id)?.context).toEqual(th.context);
+    const p = engine.patch(th.id, { version: th.version, context: { add: [{ path: "a.go", start: 1, end: 2 }] } });
+    expect(p.context).toEqual({ add: [{ path: "a.go", start: 1, end: 2 }] });
+    const cleared = engine.patch(th.id, { version: p.version, context: null });
+    expect(cleared.context).toBeUndefined();
+    // nothing to carry ⇒ no context at all; malformed ⇒ E_INVALID_INPUT
+    expect(engine.create({ anchor: code(), intent: "change", body: "x", draft: false, context: {} }, "human").context).toBeUndefined();
+    for (const bad of [{ add: [{ path: "../x", start: 1, end: 2 }] }, { add: [{ path: "a.go", start: 5, end: 2 }] }, { remove: ["write:/etc/passwd"] }])
+      expect(() => engine.create({ anchor: code(), intent: "change", body: "x", draft: false, context: bad as never }, "human")).toThrow(MitoriError);
+  });
+
   test("title: first non-empty line, whitespace-collapsed, ≤ 60 UTF-16 units", () => {
     const { engine } = harness();
     const th = engine.create({ anchor: code(), intent: "change", body: `\n\n${"あ".repeat(70)}\n2行目`, draft: false }, "human");

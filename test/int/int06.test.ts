@@ -448,4 +448,49 @@ describe("INT-06 review → AI fix loop (side repo, accept, undo)", () => {
     expect(copied.text).toContain(`WRITE ${RETRY_FILE}`);
     expect(copied.text).not.toContain("mitori reply");
   });
+
+  test("CR safe-6: a thread's chosen code reaches the pull bundle (⤴), the copy prompt (⧉) and the job; a cited file can leave WRITE", async () => {
+    const CONFIG = "internal/config/config.go";
+    const pick = { path: CONFIG, start: 1, end: 5 };
+    const t = await api<ThreadDetail>("POST", "/threads", {
+      anchor,
+      intent: "change",
+      body: "設定から読むようにして（safe-6）",
+      draft: false,
+      context: { add: [pick] },
+    });
+    expect(t.context).toEqual({ add: [pick] });
+    const writeLine = (text: string) => text.split("\n").find((l) => l.startsWith("WRITE ")) ?? "";
+    // ⤴: the pull bundle writes and shows the picked file (before: `WRITE` had only the anchor's file)
+    const pull = await (await int.cli("GET", `/ws/${ws}/threads/${t.id}/bundle`)).text();
+    expect(writeLine(pull).split(" ").slice(1).sort()).toEqual([CONFIG, RETRY_FILE].sort());
+    expect(pull).toContain(`CODE ${CONFIG}:`);
+    // ⧉: the copy prompt with the Composer's context
+    const copied = await api<{ text: string }>("POST", "/prompt", {
+      anchor: t.anchor,
+      ask: "設定から読む",
+      intent: "change",
+      target: "generic",
+      context: { add: [pick] },
+    });
+    expect(writeLine(copied.text).split(" ").slice(1).sort()).toEqual([CONFIG, RETRY_FILE].sort());
+    // ⚡: the job's estimate without any chip in the request carries the stored context
+    const est = await api<JobEstimate>("POST", "/jobs/estimate", { kind: "fix", threads: [t.id] });
+    expect(est.estimate.items.map((i) => i.key)).toContain(`code:${CONFIG}:1-5`);
+    // the anchor's own file taken out of WRITE: still read, no longer written
+    const p = await webApi<ThreadDetail>("PATCH", `/threads/${t.id}`, { version: t.version, context: { add: [pick], remove: [`write:${RETRY_FILE}`] } });
+    expect(p.context?.remove).toEqual([`write:${RETRY_FILE}`]);
+    const narrowed = await (await int.cli("GET", `/ws/${ws}/threads/${t.id}/bundle`)).text();
+    expect(writeLine(narrowed)).toBe(`WRITE ${CONFIG}`);
+    expect(narrowed).toContain(`CODE ${RETRY_FILE}:`);
+    // a malformed context is refused
+    const bad = await web.req("POST", `/ws/${ws}/threads`, {
+      anchor,
+      intent: "change",
+      body: "x",
+      draft: false,
+      context: { add: [{ path: "../etc/passwd", start: 1, end: 2 }] },
+    });
+    expect(bad.status).toBe(400);
+  });
 });

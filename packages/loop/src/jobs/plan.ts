@@ -34,6 +34,7 @@ import type { DocStore } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
 import { resolveReadHints } from "../agent/hints.ts";
 import { type Bundle, type BundleBuilder, type BundleMode, JOB_BUDGET, type ReviewEngine, type RouteOutcome } from "../contract.ts";
+import { mergeContexts, writeRemovals } from "../review/context.ts";
 import { deriveWriteScope, route } from "../router/index.ts";
 import { touchingClaims } from "../router/ranges.ts";
 import type { ScopeCtx, ScopeResult } from "../router/scope.ts";
@@ -138,9 +139,11 @@ export function scopeCtx(
   unwritable: ReadonlySet<RepoPath>,
 ): ScopeCtx {
   const claims = () => deps.doc.index().claims;
+  const removed = writeRemovals(req.context);
   return {
     mode,
     extra: req.context?.add ?? [],
+    ...(removed.size > 0 ? { removedWrite: removed } : {}),
     deny: deps.settings().denyGlobs,
     citesOfBlock: (block) => deps.doc.claims(block).flatMap((c) => c.cites),
     citesOfClaim: (claim) => claims()[claim]?.cites ?? [],
@@ -163,6 +166,13 @@ function modeOf(r: RouteOutcome): BundleMode {
 
 const sum = (b: Bundle) => b.items.filter((i) => i.kind !== "output").reduce((s, i) => s + i.tokens, 0);
 
+/** `req` with the stored `Thread.context` of its threads merged into `req.context` (CR safe-6). */
+export function withThreadContext(req: JobReq, threads: readonly Pick<ThreadDetail, "context">[]): JobReq {
+  const merged = mergeContexts(req.context, ...threads.map((t) => t.context));
+  if (merged === undefined) return req;
+  return { ...req, context: merged };
+}
+
 /** Inputs of a re-plan that are not part of the request. */
 export interface PlanOptions {
   /**
@@ -180,6 +190,8 @@ export async function planJob(deps: PlanDeps, req: JobReq, opts: PlanOptions = {
     if (!t) throw new MitoriError("E_NOT_FOUND", `thread ${id} not found`, { params: { id } });
     return t;
   });
+  // CR safe-6: the threads' own chosen code (picked candidates, `@` mentions, removed targets) joins the request's
+  req = withThreadContext(req, threads);
   const wrong = threads.filter((t) => INTENT_JOB_KIND[t.intent] !== req.kind);
   if (wrong.length > 0)
     throw new MitoriError("E_INVALID_INPUT", `kind ${req.kind} does not match the intents (${wrong.map((t) => t.intent).join(", ")})`, {
