@@ -20,7 +20,7 @@ import Rail from "../shell/Rail.svelte";
 import { currentLayout, useStores } from "../stores/app.svelte.ts";
 import { engineProblem } from "./engine.ts";
 import FloorPlan from "./FloorPlan.svelte";
-import { heroAreas, heroMeta, LANG_NAMES } from "./hero.ts";
+import { generatedTokens, heroAreas, heroMeta, LANG_NAMES } from "./hero.ts";
 import type { PlanController } from "./plan-dom.ts";
 import { buildPlanModel, type PlanText, type RoomModel } from "./render.ts";
 
@@ -354,7 +354,7 @@ const planCounts = $derived(model ? t("map.plan.counts", { zones: model.zones.le
         <p class="kicker">
           <span class="dot" aria-hidden="true"></span>
           {#if generated && totals}
-            <span>{t("map.strip.generated", { tok: fmtTokensImpl(totals.in + totals.cacheRead + totals.cacheWrite + totals.out), usd: fmtUsdImpl(totals.apiUsd, "gen") })}</span>
+            <span>{t("map.strip.generated", generatedTokens(totals, fmtTokensImpl, (u) => fmtUsdImpl(u, "gen")))}</span>
           {:else if scan}
             <span>{t("map.strip.scanned", { files: fmtInt(scan.files, lang), s: (scan.ms / 1000).toFixed(2) })}</span><b>{t("map.strip.zeroTok")}</b>
           {:else if s.workspace.scan}
@@ -401,10 +401,10 @@ const planCounts = $derived(model ? t("map.plan.counts", { zones: model.zones.le
             <GenProgress {run} tasks={s.gen.tasks} {tail} oncontrol={(a) => s.gen.control(a)} />
           {:else if generated && !s.gen.estimates.size && totals}
             <section class="done card" aria-labelledby="done-t" data-chrome>
-              <h2 id="done-t">{t("gen.card.title")}</h2>
+              <h2 id="done-t">{t("gen.card.doneTitle")}</h2>
               <div class="done-main">
                 <p>
-                  <b>{t("map.generated", { tok: fmtTokensImpl(totals.in + totals.cacheRead + totals.cacheWrite + totals.out), usd: fmtUsdImpl(totals.apiUsd, "gen") })}</b>
+                  <b>{t("map.generated", generatedTokens(totals, fmtTokensImpl, (u) => fmtUsdImpl(u, "gen")))}</b>
                   {#if stale > 0}<span class="stale">{t("map.staleChapters", { n: stale })}</span>{/if}
                 </p>
                 {#if ws}<a class="btn btn-pri" href={HREFS.doc(ws, "s0")}>{t("map.read")}</a>{/if}

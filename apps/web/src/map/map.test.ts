@@ -4,7 +4,7 @@ import type { EngineStatus, MapView } from "@mitori/core";
 import { ROOM_LOD, UI_THRESHOLDS } from "../contract.ts";
 import { cameraForK, centreOn, fitCamera, K_MAX, K_MIN, lerpCamera, lodClass, STAGE_K, stageOf, stepStageK, zoomAt } from "./camera.ts";
 import { engineProblem, fixSteps } from "./engine.ts";
-import { heroAreas, heroMeta } from "./hero.ts";
+import { generatedTokens, heroAreas, heroMeta } from "./hero.ts";
 import {
   buildPlanModel,
   FLOW_BULGE,
@@ -316,5 +316,20 @@ describe("AC-U-EN engine card: exact steps, the last one re-probes", () => {
     const steps = fixSteps(p);
     expect(steps[steps.length - 1]).toEqual({ key: "recheck" });
     expect(steps.slice(0, -1).every((s) => !!s.cmd)).toBe(true);
+  });
+});
+
+describe("NC-11 the generation card's token line", () => {
+  test("the total is labelled as a total; the model's output is shown on its own (27k, not 0.48M)", async () => {
+    const { interpolate } = await import("../shell/i18n.ts");
+    const { fmtTokensImpl } = await import("../shell/fmt.ts");
+    const ja = (await import("../../i18n/map.ja.json")).default as Record<string, string>;
+    const en = (await import("../../i18n/map.en.json")).default as Record<string, string>;
+    // m3e-canvas's mitori.json usageTotals
+    const p = generatedTokens({ in: 2_100, out: 27_046, cacheRead: 270_773, cacheWrite: 182_326, apiUsd: 0.86 }, fmtTokensImpl, (u) => `$${u.toFixed(2)}`);
+    expect(p.out).toBe(fmtTokensImpl(27_046));
+    expect(interpolate(ja["map.generated"] as string, p)).toBe(`生成済み · 合計 ${fmtTokensImpl(482_245)} tok（出力 ${fmtTokensImpl(27_046)}）· $0.86`);
+    expect(interpolate(ja["map.generated"] as string, p)).not.toMatch(/出力\s*0\.48M/);
+    expect(interpolate(en["map.generated"] as string, p)).toContain(`(output ${fmtTokensImpl(27_046)})`);
   });
 });

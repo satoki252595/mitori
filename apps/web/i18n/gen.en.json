@@ -40,6 +40,7 @@
   "gen.card.starting": "Starting…",
   "gen.card.supplement": "{engine} ({auth}) · C={c} · {window} · pauses automatically above 80%",
   "gen.card.title": "Generate the design doc",
+  "gen.card.doneTitle": "Design doc (generated)",
   "gen.card.uncalibrated": " (uncalibrated)",
   "gen.card.validity": "Estimate {id} is valid for {min} min",
   "gen.card.viaSession": "Run in my session",

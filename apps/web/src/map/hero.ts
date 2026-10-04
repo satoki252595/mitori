@@ -76,3 +76,12 @@ export function heroAreas(profile: RepoProfile | null, scan: ScanSummaryView | n
     .slice(0, 4)
     .map((l) => ({ kind: "code" as const, lang: l.lang, loc: l.loc, files: l.files }));
 }
+
+/** The token / cost params of a finished generation (NC-11): `tok` is everything billed, `out` what the model wrote. */
+export function generatedTokens(
+  totals: { in: number; out: number; cacheRead: number; cacheWrite: number; apiUsd: number },
+  fmtTok: (n: number) => string,
+  fmtUsd: (usd: number) => string,
+): { tok: string; out: string; usd: string } {
+  return { tok: fmtTok(totals.in + totals.cacheRead + totals.cacheWrite + totals.out), out: fmtTok(totals.out), usd: fmtUsd(totals.apiUsd) };
+}

@@ -40,6 +40,7 @@
   "gen.card.starting": "開始中…",
   "gen.card.supplement": "{engine}（{auth}）· C={c} · {window} · 80%を超えたら自動で一時停止",
   "gen.card.title": "設計書を生成する",
+  "gen.card.doneTitle": "設計書（生成済み）",
   "gen.card.uncalibrated": "（未較正）",
   "gen.card.validity": "見積り{id}は{min}分有効",
   "gen.card.viaSession": "sessionで実行",
