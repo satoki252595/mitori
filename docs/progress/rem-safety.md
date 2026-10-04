@@ -51,6 +51,8 @@ trade-off と残り（ADR-0013 R2 に詳しく書いた）:
 - loop・platform・server・core・doc・`test/int` の全部（INT-06/07/08、ux、proposal-close、RT-30〜33 を含む）: 緑（下の全体実行の結果を参照）。
 - 全体の `scripts/nd bun test`（ロードアベレージ 20〜63）: 2,827 件中 **2,811 pass**、9 skip、5 todo、**2 fail はどちらも indexer の時間の予算**（crit の検索 1 ms → 2.6 ms、構造の更新経路 10 ms → 26.5 ms）。単独で再実行しても同じ負荷で落ちる。HANDOFF §0 の「負荷に弱いテスト」の 2 件と同じもので、このトラックは indexer に触れていない（`git diff main -- packages/indexer` は空）。予算は緩めていない。
 
+- 検証パスの後（ロードアベレージ 45〜65）: 全体 2,840 件中 **2,821 pass**、12 skip、5 todo、2 fail。SKEL-AT-02 の ELK 予算（120 ms → 264 ms、HANDOFF の負荷に弱いテスト）と INT-07 の「scratch repo starts clean」（`?? .mitori/`、初回 flush の途中を見たもの。単独の再実行では pass。このトラックは doc の書き出しに触れていない）。Linux（コンテナ）では loop の全部が緑（573 pass）。
+
 ## 6. 残り（続ける人へ）
 
 1. **Linux のデスクトップ実機**: 検証パスで Ubuntu 24.04 のコンテナ（`docker run --privileged`）で RT-30L を通した（§7）。systemd-resolved・D-Bus・Docker が本当に動いているデスクトップ（Fedora / Ubuntu）で `bun test packages/loop/src/gates/runner.int.test.ts` を流し、`/run/user` などを隠して困る gate ツールが無いかを見る。再現手順: `docker run --rm --privileged --tmpfs /run/user/501:rw,uid=501,gid=1000,mode=700 -v $PWD:$PWD -w $PWD mitori-linux:arm64 bun test packages/loop/src/gates`。
