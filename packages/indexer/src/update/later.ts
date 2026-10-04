@@ -272,6 +272,21 @@ export function laterStages(view: IndexView): LaterStages {
   });
 
   /**
+   * `flowSeeds` of a state over one text cache (the cache is swapped, never mutated in place by a warm, so its identity
+   * keys the result): the gen planner, the input builder, the change guides and the text warm-up ask for the same
+   * seeds, and each call reads every route handler's body.
+   */
+  const seedMemo = new WeakMap<State, { texts: ReadonlyMap<RepoPath, string>; limit: number; seeds: FlowSeed[] }[]>();
+  function seedsOf(s: State, limit: number, from: ReadonlyMap<RepoPath, string> = texts): FlowSeed[] {
+    const list = seedMemo.get(s) ?? [];
+    const hit = list.find((x) => x.texts === from && x.limit === limit);
+    if (hit) return hit.seeds;
+    const seeds = flowSeeds(s.structure, s.facts, limit, flowSources(s, from));
+    seedMemo.set(s, [...list.filter((x) => x.texts === from), { texts: from, limit, seeds }]);
+    return seeds;
+  }
+
+  /**
    * Files holding route handlers (main scope), most-routed first, ≤ {@link HANDLER_TEXT_FILES}: their texts are warmed
    * before the seeds are ranked (gen #4c: a router file's handlers get their own flows).
    */
@@ -293,7 +308,7 @@ export function laterStages(view: IndexView): LaterStages {
     const want = hotFiles(s.pack, HOT_TEXT_TOKENS);
     for (const p of handlerFiles(s)) want.add(p);
     let flow = 0;
-    for (const seed of flowSeeds(s.structure, s.facts, undefined, flowSources(s, from)))
+    for (const seed of seedsOf(s, 8, from))
       for (const p of [seed.path, ...seed.files]) {
         if (flow >= FLOW_TEXT_FILES) break;
         if (!want.has(p)) flow++;
@@ -532,7 +547,7 @@ export function laterStages(view: IndexView): LaterStages {
     },
     moduleSeeds: () => (st ? moduleSeedsOf(st.structure) : []),
     moduleStats: (module) => (st ? moduleStats(module, st.structure, st.facts, st.byPath) : null),
-    flowSeeds: (limit) => (st ? flowSeeds(st.structure, st.facts, limit, flowSources(st)) : []),
+    flowSeeds: (limit = 8) => (st ? seedsOf(st, limit) : []),
     flowBodies(seed: FlowSeed, budgetTokens, tokenizer) {
       if (st === null) return [];
       const sec = secrets();

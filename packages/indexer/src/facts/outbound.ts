@@ -86,8 +86,9 @@ const JS_PACKAGES: readonly [RegExp, Channel][] = [
   ],
 ];
 const JS_HTTP_LIBS: Readonly<Record<string, string>> = { axios: "axios", ky: "ky", got: "got", ofetch: "ofetch", superagent: "superagent", undici: "undici" };
+/** One pass over the text decides whether a file can hold a call at all (most components and utilities cannot). */
 const JS_PRECHECK =
-  /\bfetch\b|axios|\bky\b|\bgot\b|ofetch|superagent|undici|https?\.(request|get)|XMLHttpRequest|WebSocket|EventSource|child_process|Bun\.spawn|execa|Deno\.Command|\bnew\s+\w|Client\b|connect|createPool|createClient/;
+  /\bfetch\s*\(|["'](axios|ky|got|ofetch|superagent|undici|(node:)?https?|(node:)?child_process|execa)["']|XMLHttpRequest|WebSocket|EventSource|Bun\.spawn|Deno\.Command|Client\s*\(|["'](pg|postgres|mysql2?|sqlite3|better-sqlite3|bun:sqlite|mongodb|mongoose|redis|ioredis|knex|typeorm|sequelize|kysely|stripe|openai|twilio|resend|nodemailer|googleapis|octokit|algoliasearch|replicate|amqplib|kafkajs|drizzle-orm|aws-sdk|firebase|firebase-admin|discord\.js|cohere-ai|posthog-node)["'/]|["']@(prisma|libsql|upstash|neondatabase|planetscale|aws-sdk|anthropic-ai|supabase|google-cloud|google|octokit|slack|sendgrid|sentry|linear|elastic|notionhq|mistralai|vercel|grpc|connectrpc|bufbuild)\//;
 const isExternal = (spec: string) => !/^(\.|\/|@\/|~\/|#|node:|bun$|bun:test$)/.test(spec);
 
 /** Local bindings of a JS module: named / default imports (`ImportRecord.names`), `* as x`, `const x = require("m")`. */

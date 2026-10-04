@@ -138,6 +138,8 @@ interface Ctx {
   infos: Map<ModuleId, ModuleInfo>;
   /** Page slug of every module (links between module pages). */
   slugs: Map<ModuleId, string>;
+  /** Path → module, built on first use. */
+  byPath?: Map<string, ModuleInfo>;
   estimates: Estimates;
 }
 
@@ -320,8 +322,13 @@ function readingMd(c: Ctx): string | null {
   return `**${l.title}**\n${lines.join("\n")}`;
 }
 
+/** The (first) module listing a path — an index built once per Ctx (TODOs and tests asked per item). */
 function moduleOfPath(c: Ctx, path: string): ModuleInfo | undefined {
-  return c.input.modules.find((m) => m.paths.includes(path));
+  if (!c.byPath) {
+    c.byPath = new Map();
+    for (const m of c.input.modules) for (const p of m.paths) if (!c.byPath.has(p)) c.byPath.set(p, m);
+  }
+  return c.byPath.get(path);
 }
 
 function s5(c: Ctx): StaticSpec[] {
@@ -711,14 +718,20 @@ function s11(c: Ctx): StaticSpec[] {
     .sort((a, b) => b.rank - a.rank || (a.t.path < b.t.path ? -1 : a.t.path > b.t.path ? 1 : a.t.line - b.t.line))
     .slice(0, 50);
   const tests = ofKind(c.input.facts, "test");
+  // one pass over the tests (a 5,000-test repo × 70 modules × their paths was ~40 ms of every static apply)
+  const testedIds = new Set<ModuleId>();
+  for (const t of tests) {
+    const own = moduleOfPath(c, t.path);
+    if (own) testedIds.add(own.id);
+    const subject = t.subject ? moduleOfPath(c, t.subject.split("#")[0] as string) : undefined;
+    if (subject) testedIds.add(subject.id);
+  }
+  const testPaths = [...new Set(tests.map((t) => t.path))];
   const tested = (m: ModuleInfo) => {
+    if (testedIds.has(m.id)) return true;
     const dir = pathPrefix(m.paths);
-    return tests.some(
-      (t) =>
-        m.paths.includes(t.path) ||
-        (t.subject && m.paths.includes(t.subject.split("#")[0] as string)) ||
-        (dir !== "" && t.path.includes(dir.split("/").pop() as string)),
-    );
+    const seg = dir.split("/").pop() as string;
+    return dir !== "" && testPaths.some((p) => p.includes(seg));
   };
   const untested = c.input.modules
     .filter((m) => m.children.length === 0 && !tested(m))
