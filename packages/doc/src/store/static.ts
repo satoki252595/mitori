@@ -459,13 +459,26 @@ const SYMBOL_KIND_JA: Record<string, string> = { function: "関数", class: "ク
 /** Display label of a region (`状態（useState 53・useRef 33）`, `Server のメソッド（12）`). */
 export function regionLabel(r: FileRegion, lang: DocLang): string {
   const l = L[lang].regions;
-  const n = r.count !== undefined && r.count > 1 ? r.count : null;
+  const sep = lang === "ja" ? "・" : ", ";
+  const paren = (s: string) => (s === "" ? "" : lang === "ja" ? `（${s}）` : ` (${s})`);
   const hooks = Object.entries(r.hooks ?? {})
     .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
     .slice(0, 3)
     .map(([h, k]) => `${h} ${k}`)
-    .join("・");
-  const paren = (s: string) => (s === "" ? "" : lang === "ja" ? `（${s}）` : ` (${s})`);
+    .join(sep);
+  // the author's name of a section first, then what it holds (`pointer: parts — 状態 10・副作用 6（useRef 5・…）`)
+  if (r.title !== undefined && r.title !== "") {
+    // the rendered JSX is a landmark: named whenever the section holds it, after its two main kinds
+    const jsx = r.mix?.render !== undefined;
+    const mix = (Object.entries(r.mix ?? {}) as [FileRegion["kind"], number][])
+      .filter(([k]) => k !== "render")
+      .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+      .slice(0, jsx ? 2 : 3)
+      .map(([k, n]) => `${l.kind[k]} ${n}`)
+      .concat(jsx ? [l.kind.render] : []);
+    return mix.length === 0 ? r.title : `${r.title} — ${mix.join(sep)}${paren(hooks)}`;
+  }
+  const n = r.count !== undefined && r.count > 1 ? r.count : null;
   if (r.kind === "symbol")
     return `${r.host ?? r.names[0] ?? ""}${paren(lang === "ja" ? (SYMBOL_KIND_JA[r.symbolKind ?? ""] ?? r.symbolKind ?? "") : (r.symbolKind ?? ""))}`;
   if (r.kind === "methods" && r.depth === 0 && r.host) return `${l.methodsOf(r.host)}${paren(n === null ? "" : String(n))}`;
@@ -484,7 +497,7 @@ function regionsMd(c: Ctx, paths: readonly string[]): string {
     lines.push(`- ${code(path)}${aside(c, l.lines(num(f.lines)))}`);
     for (const r of f.regions) {
       const names = r.kind === "symbol" || r.names.length === 0 ? "" : `: ${r.names.slice(0, 4).map(code).join("・")}`;
-      lines.push(`${"  ".repeat(r.depth + 1)}- ${code(`${path}:${r.start}-${r.end}`)} ${regionLabel(r, c.lang)}${names}`);
+      lines.push(`${"  ".repeat(r.depth + 1)}- ${code(`${path}:${r.start}-${r.end}`)} ${inline(regionLabel(r, c.lang))}${names}`);
     }
   }
   return `**${l.title}**\n${lines.join("\n")}`;

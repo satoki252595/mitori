@@ -4,9 +4,10 @@
  */
 import { describe, expect, test } from "bun:test";
 import type { Fact, FileEntry, GitOid, ModuleId, ModuleInfo, RepoPath, SymbolEntry } from "@mitori/core";
+import { type FileRegion, regionLabel } from "@mitori/doc";
 import type { FlowSeed, ModuleDetail, ModuleStats, ResolvedImport } from "@mitori/indexer";
 import { changeGuides, HISTORY_WINDOW, recentCommits, testCommandOf } from "./doc-change.ts";
-import { fileRegions } from "./doc-regions.ts";
+import { fileRegions, findBanners } from "./doc-regions.ts";
 import { fieldType, importFanIn, keyTypes } from "./doc-types.ts";
 
 const file = (path: string, lines = 80, cls: FileEntry["class"] = "source", lang = "typescript") => ({ path, lines, class: cls, lang }) as unknown as FileEntry;
@@ -222,6 +223,29 @@ describe("large-file region outline (files over 1,500 lines)", () => {
     expect(body.map((r) => `${r.kind} ${r.start}-${r.end} ${r.count}`)).toEqual(["state 6-7 2", "methods 10-805 20", "handlers 900-1390 10"]);
   });
 
+  test("a TS class whose methods are arrow-function fields (excalidraw's App): methods and handlers, not state", () => {
+    const P = "components/App.tsx";
+    const L = ["class App extends React.Component {", "  state = {", "    zoom: 1,", "  };", "  private canvas: HTMLCanvasElement | null = null;"];
+    const syms: SymbolEntry[] = [];
+    const child = (name: string, start: number, end: number) =>
+      sym(P, name, "field", start, end, { parent: `${P}#App` as SymbolEntry["key"], qualname: `App.${name}`, signature: `private ${name}` });
+    syms.push(child("state", 2, 4), child("canvas", 5, 5));
+    for (let i = 0; i < 20; i++) {
+      const name = i < 10 ? `syncScene${i}` : `onPointerMove${i}`;
+      syms.push(child(name, L.length + 1, L.length + 70));
+      // an arrow, a wrapped async arrow, an arrow whose parameters wrap onto the next lines
+      if (i % 3 === 0) L.push(`  private ${name} = (event: PointerEvent) => {`, "    work();", "    work();");
+      else if (i % 3 === 1) L.push(`  public ${name} = withBatchedUpdates(async () => {`, "    work();", "    work();");
+      else L.push(`  private ${name} = (`, "    event: React.PointerEvent<HTMLCanvasElement>,", "  ) => {");
+      L.push(...Array.from({ length: 66 }, () => "    work();"), "  };");
+    }
+    L.push("}");
+    syms.unshift(sym(P, "App", "class", 1, L.length));
+    while (L.length < 1600) L.push("");
+    const body = fileRegions(L.join("\n"), syms, "tsx").filter((r) => r.depth === 1);
+    expect(body.map((r) => `${r.kind} ${r.count}`)).toEqual(["state 2", "methods 10", "handlers 10"]);
+  });
+
   test("Go: methods (declared outside their type) group by receiver; a short file has no outline", () => {
     const P = "internal/server/server.go";
     const syms: SymbolEntry[] = [sym(P, "Server", "struct", 10, 30)];
@@ -236,6 +260,130 @@ describe("large-file region outline (files over 1,500 lines)", () => {
       "functions 1600-1610 1",
     ]);
     expect(fileRegions(text.split("\n").slice(0, 900).join("\n"), syms, "go")).toEqual([]);
+  });
+});
+
+describe("CR rdoc-6: the authors' own section headers name the regions", () => {
+  test("findBanners: one-line banners, JSX comments, #region / MARK:, boxed headers — not bare rules, lint pragmas or code", () => {
+    const lines = [
+      "  // ===== Comment Form =====", // 1
+      "  /* ---------- pointer: parts ---------- */", // 2
+      "        {/* ---- left: rail + parts / layers ---- */}", // 3
+      "# ===== Setup =====", // 4
+      "          // #region move crop region", // 5
+      "// MARK: - Helpers", // 6
+      "// ----- Keyboard focus", // 7
+      "// -----------------------------------------------------------------------------", // 8
+      "// small geometry helpers", // 9
+      "// -----------------------------------------------------------------------------", // 10
+      "// ---------------", // 11 a bare rule
+      "// --- eslint-disable-next-line no-console ---", // 12 a pragma
+      "// === x = y; ===", // 13 code
+      "const a = 1; // ===== not a header =====", // 14 code first
+      "// ====  ====", // 15 no title
+    ];
+    expect(findBanners(lines).map((b) => `${b.line}:${b.indent}:${b.title}`)).toEqual([
+      "1:2:Comment Form",
+      "2:2:pointer: parts",
+      "3:8:left: rail + parts / layers",
+      "4:0:Setup",
+      "5:10:move crop region",
+      "6:0:Helpers",
+      "7:0:Keyboard focus",
+      "8:0:small geometry helpers",
+    ]);
+  });
+
+  test("a file of functions with section headers (crit's 11,000-line web/app.js): one titled region per section, kind = what it holds", () => {
+    const P = "web/app.js";
+    const L: string[] = ["(function () {", "  'use strict';"];
+    const syms: SymbolEntry[] = [];
+    const titles = ["Comment Markdown Renderer", "State", "File Tree Sidebar", "Comment Form", "Keyboard Shortcuts", "Init"];
+    titles.forEach((t, k) => {
+      L.push(`  // ===== ${t} =====`);
+      if (t === "State") {
+        for (let i = 0; i < 280; i++) L.push(`  let s${i} = ${i};`);
+        return;
+      }
+      for (let i = 0; i < 14; i++) {
+        const name = t === "Keyboard Shortcuts" ? `handleKey${i}` : `${t.replace(/\W/g, "").toLowerCase()}${i}`;
+        syms.push(sym(P, name, "function", L.length + 1, L.length + 20, { exported: false }));
+        L.push(`  function ${name}() {`, ...Array.from({ length: 18 }, () => "    work();"), "  }");
+      }
+      if (k === 0) L.push("");
+    });
+    L.push("})();");
+    while (L.length < 1600) L.push("");
+    const rs = fileRegions(L.join("\n"), syms, "javascript");
+    expect(rs.map((r) => `${r.depth} ${r.kind} ${r.title} ${r.count}`)).toEqual([
+      "0 functions Comment Markdown Renderer 14",
+      "0 section State 0",
+      "0 functions File Tree Sidebar 14",
+      "0 functions Comment Form 14",
+      "0 handlers Keyboard Shortcuts 14",
+      "0 functions Init 14",
+    ]);
+    // a section runs from its header to the line before the next one
+    expect(rs[1]?.start).toBe(L.indexOf("  // ===== State =====") + 1);
+    expect(rs[1]?.end).toBe(L.indexOf("  // ===== File Tree Sidebar ====="));
+    expect(regionLabel(rs[3] as FileRegion, "ja")).toBe("Comment Form — 関数 14");
+    expect(regionLabel(rs[1] as FileRegion, "ja")).toBe("State");
+    // two headers do not structure 1,600 lines: the symbol runs stay
+    const two = L.map((l) => (/=====/.test(l) && !/Comment Markdown|Comment Form/.test(l) ? "" : l)).join("\n");
+    expect(fileRegions(two, syms, "javascript").some((r) => r.title !== undefined)).toBe(false);
+  });
+
+  test("a big component with section headers inside (m3e's Editor: document, history, pointer …): its body regions are the sections", () => {
+    const P = "app/Editor.tsx";
+    const L = ["export function Editor() {", "  const lang = useLang();", "  const [w, setW] = useState(0);", ""];
+    const section = (title: string, body: string[]) => L.push(`  /* ---------- ${title} ---------- */`, ...body, "");
+    section("document", [...Array.from({ length: 12 }, (_, i) => `  const [d${i}, setD${i}] = useState(${i});`), "  const docRef = useRef(null);"]);
+    section("history", Array.from({ length: 20 }, (_, i) => [`  const undo${i} = useCallback(() => {`, "    pop();", "  }, []);"]).flat());
+    section(
+      "pointer: parts",
+      Array.from({ length: 30 }, (_, i) => [`  const onPartPointer${i} = (e) => {`, ...Array.from({ length: 10 }, () => "    move(e);"), "  };"]).flat(),
+    );
+    section("render", ["  return (", "    <div>", ...Array.from({ length: 1200 }, () => "      <span />"), "    </div>", "  );"]);
+    L.push("}");
+    const syms = [sym(P, "Editor", "function", 1, L.length)];
+    const body = fileRegions(L.join("\n"), syms, "tsx").filter((r) => r.depth === 1);
+    expect(body.map((r) => `${r.kind} ${r.title ?? "-"}`)).toEqual([
+      "state -",
+      "state document",
+      "helpers history",
+      "handlers pointer: parts",
+      "render render",
+    ]);
+    expect(body[1]?.hooks).toEqual({ useState: 12, useRef: 1 });
+    expect(regionLabel(body[1] as FileRegion, "ja")).toBe("document — 状態 13（useState 12・useRef 1）");
+    expect(regionLabel(body[3] as FileRegion, "en")).toBe("pointer: parts — Handlers 30");
+    for (const r of body) expect(r.host).toBe("Editor");
+  });
+
+  test("a long Go function: the comments leading its blocks name its regions (≥ 3), boxed headers name a file's sections", () => {
+    const P = "internal/run/run.go";
+    const L = ["package run", "", "func Run() error {"];
+    for (const c of ["Load the configuration.", "Open the session store", "Serve until the context ends"]) {
+      L.push(`\t// ${c}`, ...Array.from({ length: 150 }, (_, i) => `\tx${i} := step()`), "");
+    }
+    L.push("\treturn nil", "}");
+    const end = L.length;
+    for (const t of ["small geometry helpers", "flood fill", "public API"]) {
+      L.push("// " + "-".repeat(77), `// ${t}`, "// " + "-".repeat(77));
+      L.push(...Array.from({ length: 360 }, () => "// filler"));
+    }
+    const syms = [sym(P, "Run", "function", 3, end), sym(P, "fill", "function", end + 400, end + 420)];
+    const rs = fileRegions(L.join("\n"), syms, "go");
+    expect(rs.filter((r) => r.depth === 1).map((r) => `${r.kind} ${r.title} ${r.start}`)).toEqual([
+      "section Load the configuration 4",
+      "section Open the session store 156",
+      "section Serve until the context ends 308",
+    ]);
+    expect(rs.filter((r) => r.depth === 0 && r.title).map((r) => `${r.title} ${r.count}`)).toEqual([
+      "small geometry helpers 0",
+      "flood fill 1",
+      "public API 0",
+    ]);
   });
 });
 

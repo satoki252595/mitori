@@ -602,14 +602,35 @@ export interface FileRegion {
   /**
    * What the lines hold. Top level: runs of `types` / `constants` / `functions` / `methods` (of `host`) / `handlers`,
    * and `symbol` = one declaration big enough to have its body outlined (the depth-1 regions after it): `state`
-   * (hooks), `effects`, `derived` (memos), `handlers`, `helpers`, `render` (the returned JSX).
+   * (hooks), `effects`, `derived` (memos), `handlers`, `helpers`, `render` (the returned JSX). `section`: a region the
+   * author named (`title`) holding nothing the outline recognizes (a long Go function's commented blocks).
    */
-  kind: "types" | "constants" | "functions" | "methods" | "handlers" | "symbol" | "state" | "effects" | "derived" | "render" | "helpers";
+  kind:
+    | "types"
+    | "constants"
+    | "functions"
+    | "methods"
+    | "handlers"
+    | "symbol"
+    | "state"
+    | "effects"
+    | "derived"
+    | "render"
+    | "helpers"
+    | "section";
+  /**
+   * The author's own name of the region: a section header (`// ===== Comment Form =====`, `/* ---- history ---- *\/`,
+   * `#region`, `MARK:`) or the comment leading a block of a long function. `kind` then says what most of it is
+   * [CR rdoc-6].
+   */
+  title?: string;
+  /** What a titled region holds, by kind (`{ state: 10, effects: 6, helpers: 8 }`), most first in its label. */
+  mix?: Partial<Record<FileRegion["kind"], number>>;
   /** First line. */
   start: LineNo;
   /** Last line. */
   end: LineNo;
-  /** 0 = top level, 1 = inside the `symbol` before it. */
+  /** 0 = top level, 1 = inside the `symbol` (or the titled section holding it) before it. */
   depth: 0 | 1;
   /** Declarations / statements in it. */
   count?: number;
