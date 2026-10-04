@@ -98,6 +98,7 @@ const ja = {
     channel: { http: "HTTP", rpc: "RPC", sdk: "外部サービス（SDK）", db: "データベース", subprocess: "子プロセス" },
     none: "外への呼び出しは見つかりませんでした（HTTP・SDK / DB クライアント・RPC・子プロセスの起動を探しました）。",
     more: (n: number) => `ほか ${n} 件`,
+    moreRows: (rows: number, sites: number) => `ほか ${rows} 行（${sites} か所）は表に載せていません`,
   },
   secrets: { title: "秘密情報らしい環境変数（名前だけ。値は読みません）", head: ["名前", "読む場所"] },
   change: {
@@ -237,6 +238,7 @@ const en: typeof ja = {
     channel: { http: "HTTP", rpc: "RPC", sdk: "External service (SDK)", db: "Database", subprocess: "Subprocess" },
     none: "No outbound call was found (looked for HTTP, SDK / DB clients, RPC and subprocesses).",
     more: (n: number) => `+${n} more`,
+    moreRows: (rows: number, sites: number) => `${rows} more rows (${sites} places) are not in the table`,
   },
   secrets: { title: "Environment variables that look like secrets (names only; values are never read)", head: ["Name", "Read at"] },
   change: {

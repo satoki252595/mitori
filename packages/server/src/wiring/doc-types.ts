@@ -1,8 +1,10 @@
 // NC-10 §7 「主要な型」 (newcomer audit: §7 had DB schemas only, a TS / Go repo showed 「検出されませんでした」): the
 // exported data types a reader meets everywhere, from the index alone (0 tokens). A type is in when it is a data
-// shape (struct / interface / class with fields, enum, type alias another key type holds); it ranks by how many other
-// files depend on its file and how many key types hold it in a field. Relations come from the field declarations
-// (`Comments []Comment`, `items: Item[]`, `owner: User | null`), so the table and the drawing say what holds what.
+// shape (struct / interface / class with fields, enum, type alias another key type holds); it ranks by how many files
+// use it (the index's references through the imports — not the importers of its file, which gave every type of one
+// file the same count and buried m3e's `Kind` under small aliases) and how many key types hold it in a field.
+// Relations come from the field declarations (`Comments []Comment`, `items: Item[]`, `owner: User | null`; a callback
+// field holds nothing), so the table and the drawing say what holds what.
 import type { LineNo, ModuleId, RepoPath, SymbolEntry } from "@mitori/core";
 import type { StaticKeyType } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
@@ -14,11 +16,12 @@ export const KEY_TYPES_MAX = 12;
 const FIELDS_SCANNED = 80;
 const TEST_PATH = /(^|\/)(test|tests|__tests__|spec|e2e|testdata|fixtures?)\/|[._-](test|spec)\.[A-Za-z0-9]+$|_test\.go$/;
 
-export type TypesIndexer = Pick<Indexer, "files" | "symbols" | "imports" | "moduleOf">;
+export type TypesIndexer = Pick<Indexer, "files" | "symbols" | "imports" | "moduleOf"> & Partial<Pick<Indexer, "symbolUsers">>;
 
 interface Cand {
   sym: SymbolEntry;
   fields: SymbolEntry[];
+  /** Files that use the type (the index's references), else the importers of its file. */
   fanIn: number;
 }
 
@@ -45,7 +48,11 @@ export function importFanIn(ix: Pick<Indexer, "files" | "imports">): Map<RepoPat
 }
 
 /** The key data types of the repo with their field relations (§7, NC-10). */
-export function keyTypes(ix: TypesIndexer, max = KEY_TYPES_MAX, fanInOf: ReadonlyMap<RepoPath, number> = importFanIn(ix)): StaticKeyType[] {
+export function keyTypes(
+  ix: TypesIndexer,
+  max = KEY_TYPES_MAX,
+  fanInOf: ReadonlyMap<RepoPath, number> = ix.symbolUsers ? new Map() : importFanIn(ix),
+): StaticKeyType[] {
   const files = ix.files().filter((f) => f.class === "source" && f.excluded === undefined && !TEST_PATH.test(f.path) && !f.path.endsWith(".d.ts"));
   const cands: Cand[] = [];
   for (const f of files) {
@@ -61,6 +68,9 @@ export function keyTypes(ix: TypesIndexer, max = KEY_TYPES_MAX, fanInOf: Readonl
     }
   }
   if (cands.length === 0) return [];
+  // the files that use each type, when the index can say (one pass over its references)
+  const users = ix.symbolUsers?.(cands.map((c) => c.sym.key));
+  if (users) for (const c of cands) c.fanIn = users.get(c.sym.key) ?? 0;
   // name → candidates (same file, then same directory, then unique in the repo)
   const byName = new Map<string, Cand[]>();
   for (const c of cands) byName.set(c.sym.name, [...(byName.get(c.sym.name) ?? []), c]);
@@ -80,7 +90,10 @@ export function keyTypes(ix: TypesIndexer, max = KEY_TYPES_MAX, fanInOf: Readonl
     const out: { to: Cand; field: string }[] = [];
     const seen = new Set<Cand>();
     for (const f of c.fields.slice(0, FIELDS_SCANNED)) {
-      for (const m of fieldType(f).matchAll(/\b[A-Z][A-Za-z0-9_]*\b/g)) {
+      const type = fieldType(f);
+      // a callback field (`onChange: (els: Element[]) => void`, `Hook func(*Session)`) holds none of its parameters
+      if (/=>|^\(?\s*func\s*\(/.test(type)) continue;
+      for (const m of type.matchAll(/\b[A-Z][A-Za-z0-9_]*\b/g)) {
         const to = resolve(m[0], c);
         if (!to || to === c || seen.has(to)) continue;
         seen.add(to);
@@ -120,6 +133,6 @@ export function fieldType(f: Pick<SymbolEntry, "name" | "signature">): string {
   // TS / Python / Rust `name: Type`, Go `Name Type`, default values dropped
   return rest
     .replace(/^\s*[?!]?\s*:?/, "")
-    .replace(/=.*$/, "")
+    .replace(/\s*=(?!>).*$/, "")
     .trim();
 }

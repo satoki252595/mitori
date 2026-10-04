@@ -640,9 +640,15 @@ const CHANNELS = ["http", "rpc", "sdk", "db", "subprocess"] as const;
 const OUTBOUND_ROWS = 30;
 const OUTBOUND_SITES = 3;
 
+const cmpStr = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
 /**
  * NC-10 §8 外とのやり取り: every place the code calls out (HTTP, RPC, SDK / database clients, subprocesses), one row
- * per kind × target × library with up to three locations, HTTP first. 0 tok (`outbound` facts).
+ * per kind × target × library with up to three locations. Calls that leave the program come first (an http(s)
+ * origin, a command, a client, or a target the code computes), HTTP first; calls to a relative path — the app's own
+ * server API from its front end, often dozens of rows — come last, so the cap never hides a real external party
+ * (crit: 25 `/api/*` fetch rows used to push its `glab` subprocess out of the table). Rows beyond the cap are
+ * counted under the table, never dropped silently. 0 tok (`outbound` facts).
  */
 function outboundMd(c: Ctx): string {
   const l = c.l.outbound;
@@ -652,22 +658,33 @@ function outboundMd(c: Ctx): string {
     groups.set(k, [...(groups.get(k) ?? []), f]);
   }
   if (groups.size === 0) return `**${l.title}**\n- ${l.none}`;
-  const rows = [...groups.values()]
-    .sort(
-      (a, b) =>
-        CHANNELS.indexOf((a[0] as OutboundFact).channel) - CHANNELS.indexOf((b[0] as OutboundFact).channel) ||
-        b.length - a.length ||
-        ((a[0] as OutboundFact).via < (b[0] as OutboundFact).via ? -1 : 1) ||
-        ((a[0] as OutboundFact).target ?? "").localeCompare((b[0] as OutboundFact).target ?? ""),
-    )
-    .slice(0, OUTBOUND_ROWS)
-    .map((fs) => {
-      const f = fs[0] as OutboundFact;
-      const sites = [...fs].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.line - b.line));
-      const where = sites.slice(0, OUTBOUND_SITES).map(loc).join(" ") + (sites.length > OUTBOUND_SITES ? ` ${l.more(sites.length - OUTBOUND_SITES)}` : "");
-      return [l.channel[f.channel], f.target ? code(f.target) : "—", code(f.via), where];
-    });
-  return `**${l.title}**\n${table(l.head, rows)}`;
+  const local = (f: OutboundFact) => (f.target?.startsWith("/") ? 1 : 0);
+  const sorted = [...groups.values()].sort((xs, ys) => {
+    const a = xs[0] as OutboundFact;
+    const b = ys[0] as OutboundFact;
+    return (
+      local(a) - local(b) ||
+      CHANNELS.indexOf(a.channel) - CHANNELS.indexOf(b.channel) ||
+      ys.length - xs.length ||
+      cmpStr(a.via, b.via) ||
+      cmpStr(a.target ?? "", b.target ?? "")
+    );
+  });
+  const rows = sorted.slice(0, OUTBOUND_ROWS).map((fs) => {
+    const f = fs[0] as OutboundFact;
+    const sites = [...fs].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.line - b.line));
+    const where = sites.slice(0, OUTBOUND_SITES).map(loc).join(" ") + (sites.length > OUTBOUND_SITES ? ` ${l.more(sites.length - OUTBOUND_SITES)}` : "");
+    return [l.channel[f.channel], f.target ? code(f.target) : "—", code(f.via), where];
+  });
+  const hidden = sorted.slice(OUTBOUND_ROWS);
+  const rest =
+    hidden.length > 0
+      ? `\n\n- ${l.moreRows(
+          hidden.length,
+          hidden.reduce((n, fs) => n + fs.length, 0),
+        )}`
+      : "";
+  return `**${l.title}**\n${table(l.head, rows)}${rest}`;
 }
 
 /** Names that hold a credential (values are never read: env facts carry names only). */

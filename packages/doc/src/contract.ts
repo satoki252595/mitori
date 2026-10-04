@@ -571,7 +571,7 @@ export interface StaticKeyType {
   fields: number;
   /** Other key types its fields hold (`Session.Files []File` → `{ name: "File", field: "Files" }`). */
   refs: { name: string; field: string }[];
-  /** Files that import its file. */
+  /** Files that use it (references through their imports; Go: `pkg.T`, or the same package) [CR rdoc-5]. */
   usedBy: number;
 }
 

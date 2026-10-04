@@ -80,6 +80,37 @@ function dirOf(paths: readonly string[]): string {
   return first.slice(0, n).join("/");
 }
 
+/** Go packages listed one by one up to this many; more share their common directory (`./internal/...`). */
+const GO_PACKAGES_MAX = 3;
+
+/**
+ * How to run a module's tests, decided by the tests themselves (none ⇒ no command): Go test files ⇒ `go test` of
+ * exactly their packages — the module's own packages when its tests live there (a test attached by an import vote
+ * elsewhere does not widen it to `./...`); any other tests ⇒ the repo's own test command. Whichever language holds
+ * more of the tests wins — a JS module that embeds its assets through one `.go` file is tested by `make test`, not by
+ * `go test ./web/...` (crit `web/style-live`).
+ */
+export function testCommandOf(
+  tests: readonly { path: RepoPath }[],
+  inputs: Pick<ChangeInputs, "rootTest" | "goModule">,
+  modulePaths: readonly RepoPath[] = [],
+): ModuleChangeGuide["testCommand"] {
+  const parent = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
+  const goTests = tests.filter((t) => t.path.endsWith("_test.go"));
+  const own = new Set(modulePaths.filter((p) => p.endsWith(".go")).map(parent));
+  const allDirs = [...new Set(goTests.map((t) => parent(t.path)))].sort();
+  const ownDirs = allDirs.filter((d) => own.has(d));
+  const goDirs = ownDirs.length > 0 ? ownDirs : allDirs;
+  const go = inputs.goModule === true && goDirs.length > 0 && goTests.length * 2 >= tests.length;
+  if (go) {
+    if (goDirs.length <= GO_PACKAGES_MAX) return { command: `go test ${goDirs.map((d) => (d === "" ? "." : `./${d}`)).join(" ")}` };
+    const common = dirOf(goDirs.map((d) => `${d}/_`)); // the directory the packages share
+    return { command: `go test ${common === "" ? "./..." : `./${common}/...`}` };
+  }
+  if (tests.length > 0 && inputs.rootTest) return { command: inputs.rootTest.command, path: inputs.rootTest.path, line: inputs.rootTest.line };
+  return undefined;
+}
+
 /** The change guide of every leaf module. */
 export function changeGuides(ix: ChangeIndexer, inputs: ChangeInputs): Record<string, ModuleChangeGuide> {
   const leaves = ix.modules().filter((m) => m.children.length === 0);
@@ -146,12 +177,7 @@ export function changeGuides(ix: ChangeIndexer, inputs: ChangeInputs): Record<st
     if (tests.length === 0) risks.push({ kind: "untested" });
     const cyc = cycles.find((c) => c.includes(m.id));
     if (cyc) risks.push({ kind: "cycle", with: cyc.filter((x) => x !== m.id) });
-    const testCommand =
-      inputs.goModule && m.paths.some((p) => p.endsWith(".go"))
-        ? { command: `go test ./${home === "" ? "" : `${home}/`}...` }
-        : inputs.rootTest
-          ? { command: inputs.rootTest.command, path: inputs.rootTest.path, line: inputs.rootTest.line }
-          : undefined;
+    const testCommand = testCommandOf(tests, inputs, m.paths);
     out[m.id] = {
       dependents,
       dependencies,

@@ -5,7 +5,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Fact, FileEntry, GitOid, ModuleId, ModuleInfo, RepoPath, SymbolEntry } from "@mitori/core";
 import type { FlowSeed, ModuleDetail, ModuleStats, ResolvedImport } from "@mitori/indexer";
-import { changeGuides, HISTORY_WINDOW, recentCommits } from "./doc-change.ts";
+import { changeGuides, HISTORY_WINDOW, recentCommits, testCommandOf } from "./doc-change.ts";
 import { fileRegions } from "./doc-regions.ts";
 import { fieldType, importFanIn, keyTypes } from "./doc-types.ts";
 
@@ -87,10 +87,56 @@ describe("NC-10 §7 key types", () => {
     expect(types[0]?.name).toBe("Item"); // used by two files and held by Doc
   });
 
+  test("CR rdoc-5: with the index's users per type, each type has its own count and ranks by it (m3e: `Kind` is no longer buried); callbacks hold nothing", () => {
+    // one file declaring every type (m3e's lib/tokens.ts): its importers are the same 33 files for all of them
+    const T = "lib/tokens.ts";
+    const syms: SymbolEntry[] = [
+      sym(T, "Radii", "type", 1, 6),
+      ...["tl", "tr", "bl", "br"].map((n, i) => field(T, "Radii", n, `${n}: number;`, 2 + i)),
+      sym(T, "Kind", "type", 10, 10),
+      sym(T, "Item", "type", 20, 60),
+      field(T, "Item", "kind", "kind: Kind;", 21),
+      field(T, "Item", "corners", "corners?: Radii;", 22),
+      sym(T, "Api", "interface", 70, 80),
+      field(T, "Api", "onChange", "onChange: (items: readonly Item[], kind: Kind) => void;", 71),
+      field(T, "Api", "hook", "hook func(*Item)", 72),
+    ];
+    const importers = Array.from({ length: 33 }, (_, i) => `app/f${i}.tsx`);
+    const users = new Map([
+      [`${T}#Kind`, 21],
+      [`${T}#Item`, 30],
+      [`${T}#Radii`, 2],
+      [`${T}#Api`, 1],
+    ]) as unknown as ReadonlyMap<SymbolEntry["key"], number>;
+    const ix = {
+      files: () => [file(T, 2700), ...importers.map((p) => file(p))],
+      symbols: (p: RepoPath) => (p === T ? syms : []),
+      imports: (p: RepoPath) => (p === T ? [] : [imp(p, [T])]),
+      moduleOf: () => null,
+      symbolUsers: (keys: readonly SymbolEntry["key"][]) => {
+        expect(keys).toContain(`${T}#Kind`);
+        return users;
+      },
+    };
+    const types = keyTypes(ix);
+    expect(types.map((t) => `${t.name} ${t.usedBy}`)).toEqual(["Item 30", "Kind 21", "Radii 2", "Api 1"]);
+    // the callback field `onChange` / `hook` relates nothing; `Item` holds `Kind` and `Radii`
+    expect(types.find((t) => t.name === "Api")?.refs).toEqual([]);
+    expect(types.find((t) => t.name === "Item")?.refs).toEqual([
+      { name: "Kind", field: "kind" },
+      { name: "Radii", field: "corners" },
+    ]);
+    // without the index's users, the file's importers stand in (every type the same number)
+    const { symbolUsers: _u, ...noUsers } = ix;
+    expect(new Set(keyTypes(noUsers).map((t) => t.usedBy))).toEqual(new Set([33]));
+  });
+
   test("fieldType keeps the type part of a declaration", () => {
     expect(fieldType({ name: "Files", signature: 'Files []FileEntry `json:"files"`' })).toBe("[]FileEntry");
     expect(fieldType({ name: "owner", signature: "owner?: User | null;" })).toBe("User | null;");
     expect(fieldType({ name: "title", signature: 'title: str = "x"' })).toBe("str");
+    // an arrow type keeps its arrow (a default value after it is still dropped)
+    expect(fieldType({ name: "onChange", signature: "onChange: (x: Item) => void = noop;" })).toBe("(x: Item) => void");
   });
 
   test("importFanIn counts distinct importing files once each", () => {
@@ -243,7 +289,7 @@ describe("「変更の手引き」", () => {
   };
   const c = (sha: string, paths: string[]) => ({ sha: sha as GitOid, paths: paths as RepoPath[] });
 
-  test("dependents, tests with cases and `go test ./dir/...`, entries reaching it, co-change (sweeps and one-offs dropped), risks", () => {
+  test("dependents, tests with cases and `go test` of their package, entries reaching it, co-change (sweeps and one-offs dropped), risks", () => {
     const history = [
       c("1", ["internal/session/session.go", "internal/server/server.go"]),
       c("2", ["internal/session/store.go", "internal/server/server.go", "go.sum"]),
@@ -256,7 +302,9 @@ describe("「変更の手引き」", () => {
     const a = g[A];
     expect(a?.dependents).toEqual([{ module: B, weight: 3 }]);
     expect(a?.tests).toEqual([{ path: "internal/session/session_test.go", cases: 2 }]);
-    expect(a?.testCommand).toEqual({ command: "go test ./internal/session/..." });
+    expect(a?.testCommand).toEqual({ command: "go test ./internal/session" });
+    // no tests, no command (the doc says none were found instead of telling the reader to run nothing)
+    expect(g[B]?.testCommand).toBeUndefined();
     expect(a?.entries).toEqual([{ label: "POST /api/comments", path: "internal/server/server.go", line: 20 }]);
     // server.go changed with the module twice, go.sum twice, main.go once (below the minimum), the sweep not at all
     expect(a?.coChange).toEqual([
@@ -270,6 +318,33 @@ describe("「変更の手引き」", () => {
     expect(g[B]?.entries.map((e) => e.label)).toEqual(["POST /api/comments"]);
     // without history: null commits (the doc says the history could not be read)
     expect(changeGuides(ix, { history: null })[A]?.commits).toBeNull();
+  });
+
+  test("the test command follows the tests: Go packages exactly (≤ 3, else their common directory), other tests the repo's own command", () => {
+    const t = (...paths: string[]) => paths.map((path) => ({ path: path as RepoPath }));
+    const rootTest = { command: "make test", path: "Makefile" as RepoPath, line: 12 as never };
+    // crit `web/style-live`: a JS module with one embedding .go file, tested by JS tests — not `go test ./web/...`
+    expect(testCommandOf(t("web/__tests__/a.test.js", "web/__tests__/b.test.js"), { goModule: true, rootTest })).toEqual(rootTest);
+    expect(
+      testCommandOf(t("internal/share/share_test.go", "internal/config/config_test.go", "internal/live/live_test.go"), { goModule: true, rootTest }),
+    ).toEqual({
+      command: "go test ./internal/config ./internal/live ./internal/share",
+    });
+    expect(testCommandOf(t("internal/a/a_test.go", "internal/b/b_test.go", "internal/c/c_test.go", "internal/d/x/d_test.go"), { goModule: true })).toEqual({
+      command: "go test ./internal/...",
+    });
+    expect(testCommandOf(t("a_test.go", "pkg/b_test.go", "cmd/c_test.go", "x/d_test.go"), { goModule: true })).toEqual({ command: "go test ./..." });
+    expect(testCommandOf(t("main_test.go"), { goModule: true })).toEqual({ command: "go test ." });
+    // crit `internal/vcs`: its own package's tests decide, not the 40 tests attached from other packages (`./...`)
+    expect(
+      testCommandOf(t("internal/vcs/git_test.go", "internal/session/a_test.go", "internal/server/b_test.go", "cmd/crit/c_test.go"), { goModule: true }, [
+        "internal/vcs/git.go",
+        "internal/vcs/jj.go",
+      ] as RepoPath[]),
+    ).toEqual({ command: "go test ./internal/vcs" });
+    // a Go test outside a Go module (no go.mod) has no `go test` to run; no tests, no command
+    expect(testCommandOf(t("tools/x_test.go"), { goModule: false })).toBeUndefined();
+    expect(testCommandOf([], { goModule: true, rootTest })).toBeUndefined();
   });
 
   test("the history is read once per HEAD; a shallow clone (empty log) or no HEAD gives null", async () => {

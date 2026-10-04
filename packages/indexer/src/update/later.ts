@@ -34,6 +34,7 @@ import {
   repoSkeleton,
 } from "../pack/module-context.ts";
 import { buildRepoPack } from "../pack/repo-pack.ts";
+import { symbolUsers } from "../pack/usage.ts";
 import { isResolverConfig, type StageFile, type StageInput } from "../resolve/files.ts";
 import { type ResolveResult, resolveImports } from "../resolve/stage.ts";
 import { type SymbolIndex, symbolIndex } from "../search/find.ts";
@@ -547,6 +548,7 @@ export function laterStages(view: IndexView): LaterStages {
     },
     moduleSeeds: () => (st ? moduleSeedsOf(st.structure) : []),
     moduleStats: (module) => (st ? moduleStats(module, st.structure, st.facts, st.byPath) : null),
+    symbolUsers: (keys) => (st ? symbolUsers(keys, st.byPath, st.resolved) : new Map()),
     flowSeeds: (limit = 8) => (st ? seedsOf(st, limit) : []),
     flowBodies(seed: FlowSeed, budgetTokens, tokenizer) {
       if (st === null) return [];

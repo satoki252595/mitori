@@ -119,6 +119,28 @@ describe("NC-10 static §7 / §8 and the module page's change guide and region o
     expect(order.indexOf("s8:outbound")).toBeLessThan(order.indexOf("s8:env"));
   });
 
+  test("§8: calls to the app's own API (relative paths) come after the real external parties; the rows past the cap are counted", () => {
+    // crit: 25 `/api/*` fetch rows of its web UI filled the 30-row cap ahead of the subprocesses, and `glab` was dropped silently
+    const base = input();
+    const ob = (path: string, line: number, channel: "http" | "subprocess", via: string, target: string): Fact =>
+      ({ kind: "outbound", detector: "outbound.calls@1", path, line, blob: "", channel, via, target }) as Fact;
+    const api = Array.from({ length: 34 }, (_, i) => ob("web/app.js", 100 + i, "http", "fetch", `/api/r${String(i).padStart(2, "0")}`));
+    const h = harness();
+    h.store.applyStatic({ ...base, facts: [...base.facts, ...api, ob("internal/gitlab/glab.go", 7, "subprocess", "os/exec", "glab")] });
+    const out = blocksOf(h, "s8").find((b) => b.slot === "s8:outbound")?.md ?? "";
+    const rows = out.split("\n").filter((l) => l.startsWith("| ") && !l.startsWith("| 種類"));
+    expect(rows).toHaveLength(30);
+    expect(rows.slice(0, 5)).toEqual([
+      "| HTTP | `https://api.example.com` | `net/http` | `internal/meta/fetch.go:53` `internal/meta/fetch.go:70` `internal/meta/fetch.go:80` ほか 1 件 |",
+      "| データベース | — | `database/sql` | `internal/store/sqlite.go:20` |",
+      "| 子プロセス | `git` | `os/exec` | `cmd/tsundoku/main.go:12` |",
+      "| 子プロセス | `glab` | `os/exec` | `internal/gitlab/glab.go:7` |",
+      "| HTTP | `/api/r00` | `fetch` | `web/app.js:100` |",
+    ]);
+    // 4 external rows + 26 of the 34 API rows; the other 8 are counted, not dropped silently
+    expect(out).toContain("- ほか 8 行（8 か所）は表に載せていません");
+  });
+
   test("§8 says so when nothing calls out", () => {
     const h = harness();
     h.store.applyStatic(staticInputFromTruth("go-small"));

@@ -86,7 +86,7 @@ function goMain(facts: readonly { kind: string }[], readme: string, gomod: strin
 
 export interface GuideDeps {
   indexer: Pick<Indexer, "files" | "facts" | "symbols" | "modules" | "graph" | "dependents" | "imports"> &
-    Partial<Pick<Indexer, "moduleStats" | "moduleDetail" | "flowSeeds" | "structure" | "moduleOf" | "currentText">>;
+    Partial<Pick<Indexer, "moduleStats" | "moduleDetail" | "flowSeeds" | "structure" | "moduleOf" | "currentText" | "symbolUsers">>;
   profile: RepoProfile | null;
   read(path: RepoPath): Promise<string | null>;
   /** Git history for the change guides' co-change (`GitReader`); absent ⇒ no co-change. */
@@ -103,7 +103,13 @@ const REGION_FILES_MAX = 40;
 async function deepGuide(d: GuideDeps, guide: StaticGuide, rootTest: ChangeInputs["rootTest"], goModule: boolean): Promise<void> {
   const ix = d.indexer;
   if (ix.moduleOf) {
-    const types = keyTypes({ files: ix.files, symbols: ix.symbols, imports: ix.imports, moduleOf: ix.moduleOf });
+    const types = keyTypes({
+      files: ix.files,
+      symbols: ix.symbols,
+      imports: ix.imports,
+      moduleOf: ix.moduleOf,
+      ...(ix.symbolUsers ? { symbolUsers: ix.symbolUsers } : {}),
+    });
     if (types.length > 0) guide.types = types;
   }
   const regionsOf = async () => {

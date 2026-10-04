@@ -396,6 +396,7 @@ export function createIndexerWith(deps: IndexerDeps, factory: LaterStagesFactory
     repoPack: (opts) => core.stages.repoPack(opts),
     moduleSeeds: () => core.stages.moduleSeeds(),
     moduleStats: (module) => core.stages.moduleStats(module),
+    symbolUsers: (keys) => core.stages.symbolUsers?.(keys) ?? new Map(),
     flowSeeds: (limit) => core.stages.flowSeeds(limit),
     flowBodies: (seed, budget, tokenizer) => core.stages.flowBodies(seed, budget, tokenizer),
     rationaleComments: (limit) => core.stages.rationaleComments(limit),

@@ -1173,6 +1173,12 @@ export interface Indexer {
   moduleSeeds(): ModuleSeed[];
   /** Cheap per-module statistics (gen request I3). */
   moduleStats(module: ModuleId): ModuleStats | null;
+  /**
+   * Distinct main-scope source files that use each symbol (S1 references through the resolved imports; Go: `alias.N`
+   * through the package import, or unqualified in the same package). Keys without a user are absent. Optional: the
+   * static doc ranks §7's key types by it and falls back to file importers without it [CR rdoc-5].
+   */
+  symbolUsers?(keys: readonly SymbolKey[]): ReadonlyMap<SymbolKey, number>;
   /** Entry points with shortest module paths (gen request I4), main scope, ranked. */
   flowSeeds(limit?: number): FlowSeed[];
   /** Handler + call-chain bodies along a seed's path within a token budget (numbered, secret-scanned). */
