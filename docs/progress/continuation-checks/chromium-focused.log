@@ -51,7 +51,7 @@ Running 32 tests using 1 worker
   ✓  32 [chromium] › e2e/web/size.pw.ts:14:3 › @wp10a asset budget S2: initial JS ≤ 150 KB gz, CSS ≤ 25 KB, no fonts, no cm6 (232ms)
 
 
-  1) [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900) 
+  1) [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900)
 
     Error: expect(received).toBeLessThanOrEqual(expected)
 
@@ -69,7 +69,7 @@ Running 32 tests using 1 worker
 
     Error Context: e2e/test-results/reader.pw.ts--wp10a-AC-U03-45ddb-itori-map-painted-1440×900--chromium/error-context.md
 
-  2) [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1280×800) 
+  2) [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1280×800)
 
     Error: expect(received).toBeLessThanOrEqual(expected)
 
@@ -88,8 +88,8 @@ Running 32 tests using 1 worker
     Error Context: e2e/test-results/reader.pw.ts--wp10a-AC-U03-928f4-itori-map-painted-1280×800--chromium/error-context.md
 
   2 failed
-    [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900) 
-    [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1280×800) 
+    [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900)
+    [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1280×800)
   30 passed (26.8s)
 
 Running 2 tests using 1 worker
@@ -104,7 +104,7 @@ Running 2 tests using 1 worker
   ✓  2 [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1280×800) (1.8s)
 
 
-  1) [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900) 
+  1) [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900)
 
     Error: expect(received).toBeLessThanOrEqual(expected)
 
@@ -123,7 +123,7 @@ Running 2 tests using 1 worker
     Error Context: e2e/test-results/reader.pw.ts--wp10a-AC-U03-45ddb-itori-map-painted-1440×900--chromium/error-context.md
 
   1 failed
-    [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900) 
+    [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900)
   1 passed (5.4s)
 
 Running 1 test using 1 worker
@@ -135,7 +135,7 @@ Running 1 test using 1 worker
   ✘  1 [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900) (1.9s)
 
 
-  1) [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900) 
+  1) [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900)
 
     Error: expect(received).toBeLessThanOrEqual(expected)
 
@@ -154,7 +154,7 @@ Running 1 test using 1 worker
     Error Context: e2e/test-results/reader.pw.ts--wp10a-AC-U03-45ddb-itori-map-painted-1440×900--chromium/error-context.md
 
   1 failed
-    [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900) 
+    [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900)
 
 Running 4 tests using 1 worker
 
@@ -173,7 +173,7 @@ Running 4 tests using 1 worker
   ✓  4 [chromium] › e2e/web/size.pw.ts:14:3 › @wp10a asset budget S2: initial JS ≤ 150 KB gz, CSS ≤ 25 KB, no fonts, no cm6 (215ms)
 
 
-  1) [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900) 
+  1) [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900)
 
     Error: expect(received).toBeLessThanOrEqual(expected)
 
@@ -192,7 +192,7 @@ Running 4 tests using 1 worker
     Error Context: e2e/test-results/reader.pw.ts--wp10a-AC-U03-45ddb-itori-map-painted-1440×900--chromium/error-context.md
 
   1 failed
-    [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900) 
+    [chromium] › e2e/web/reader.pw.ts:129:3 › @wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900)
   3 passed (5.9s)
 
 Running 4 tests using 1 worker
