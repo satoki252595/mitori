@@ -26,6 +26,7 @@ import {
 } from "@mitori/core";
 import { DOC_TEXT } from "../contract.ts";
 import type { RouteCtx, RouteHandlers } from "../routes/types.ts";
+import { exportHandlers } from "./export.ts";
 import { loopHandlers } from "./loop-routes.ts";
 import { blockView, citePeek, docOutline, fileContent, fileTree, mapView, readingOrder, sectionView } from "./views.ts";
 import type { WorkspaceDomain } from "./workspace.ts";
@@ -90,6 +91,9 @@ export function domainHandlers(env: RouteEnv): RouteHandlers {
       const ws = query.get("ws");
       return ws ? env.ledger().summary(range, ws as WorkspaceKey) : env.ledger().summary(range);
     },
+
+    /* ---- export (WP-13: the self-contained HTML; wiring/export.ts) ------------------------------------- */
+    ...exportHandlers({ domain: env.domain }),
 
     /* ---- indexer -------------------------------------------------------------------------------------- */
     "GET /ws/:ws/scan": async (ctx) => (await d(ctx)).scan(),

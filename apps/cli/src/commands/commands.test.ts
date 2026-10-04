@@ -220,6 +220,23 @@ describe("mitori export --html (the CLI writes the file)", () => {
     expect(t.stderr).toContain("2 redaction(s)");
     expect(await runCommand("export", io(["--out", "x.html"]))).toBe(2);
   });
+
+  test("WP13: -o and --no-code are the short and the plain-words forms (excerpts default on)", async () => {
+    const seen: unknown[] = [];
+    d.route("POST /ws/:ws/export", (c) => {
+      seen.push(c.body);
+      return { html: "<!doctype html><title>doc</title>", bytes: 100, sha256: "cd".repeat(32), redactions: 0, codeExcerpts: { count: 3, files: 2 } };
+    });
+    const t = io(["--html", "-o", "a.html"]);
+    expect(await runCommand("export", t)).toBe(0);
+    expect(await runCommand("export", io(["--html", "-o", "b.html", "--no-code"]))).toBe(0);
+    expect(seen).toEqual([
+      { format: "html", level: "standard", lang: "ja", includeDecisions: false, excerpts: true },
+      { format: "html", level: "standard", lang: "ja", includeDecisions: false, excerpts: false },
+    ]);
+    expect(readFileSync(join(d.repo, "b.html"), "utf8")).toContain("<title>doc</title>");
+    expect(t.stderr).toContain("3 code excerpt(s) from 2 file(s)");
+  });
 });
 
 describe("usage / stop / doctor", () => {

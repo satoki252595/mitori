@@ -181,6 +181,43 @@ export async function buildWeb(outDir: string): Promise<"apps/web" | "apps/web/s
   return "apps/web/src/__stub";
 }
 
+/**
+ * Build the export viewer (WP-13, `apps/web/vite.viewer.config.ts`) into the web dist: `assets/viewer-<hash>.js|css` (hashed,
+ * immutable and precompressed like every asset, so `bun run size` measures `asset.viewer.js` from them) and
+ * `viewer/viewer.json`, the pointer + seal the daemon reads (`apps/cli/src/commands/export-assets.ts`): the two paths, the
+ * sha256 of the script (the export's CSP source) and the sizes. The binary embeds them with the rest of the web assets.
+ */
+export async function buildViewer(
+  webDir: string,
+): Promise<{ js: string; css: string; jsSha256: string; jsBytes: number; jsGzipBytes: number; cssBytes: number }> {
+  const { build } = await import("vite");
+  const tmp = join(webDir, ".viewer");
+  await build({
+    logLevel: "warn",
+    root: join(ROOT, "apps/web"),
+    configFile: join(ROOT, "apps/web/vite.viewer.config.ts"),
+    build: { outDir: tmp, emptyOutDir: true },
+  });
+  const js = readFileSync(join(tmp, "viewer.js"));
+  const css = readFileSync(join(tmp, "viewer.css"));
+  const jsSha256 = sha256Hex(js);
+  const seal = {
+    js: `/assets/viewer-${jsSha256.slice(0, 8)}.js`,
+    css: `/assets/viewer-${sha256Hex(css).slice(0, 8)}.css`,
+    jsSha256,
+    jsBytes: js.length,
+    jsGzipBytes: gzipSync(js, { level: 9 }).length,
+    cssBytes: css.length,
+  };
+  mkdirSync(join(webDir, "assets"), { recursive: true });
+  mkdirSync(join(webDir, "viewer"), { recursive: true });
+  writeFileSync(join(webDir, seal.js), js);
+  writeFileSync(join(webDir, seal.css), css);
+  writeFileSync(join(webDir, "viewer/viewer.json"), `${JSON.stringify({ v: "mitori.viewer/1", ...seal }, null, 2)}\n`);
+  rmSync(tmp, { recursive: true, force: true });
+  return seal;
+}
+
 /** Source of dist/.build/assets.gen.ts. All paths are repo-relative; the file sits two levels down. */
 export function tableSource(
   lock: AssetLock,
@@ -258,13 +295,25 @@ export async function genAssets(opts: { lock?: string; verifyOnly?: boolean; log
   if (problems.length > 0) throw new Error(`asset lock ${lockPath} does not match the installed files (SEC-16):\n  ${problems.join("\n  ")}`);
   log(`gen-assets: ${lock.assets.length} pinned files match ${lockPath}`);
   if (opts.verifyOnly) return null;
+  // What gets embedded is always the production bundle. Vite takes "production" from NODE_ENV, and `bun test` sets it to
+  // "test" (INT-00 / SKEL rebuild a stale binary, INT-07 runs gen-assets): those builds resolved Svelte's development
+  // runtime — the export viewer grew from 58.7 to 67.5 KB gz, past its 60 KB budget — and hashed every asset differently
+  // from `build:bin`, so a test process holding the earlier dist/.build/web.json read files that were gone (ENOENT).
+  process.env.NODE_ENV = "production";
 
   const out = join(ROOT, OUT);
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
   const webDir = join(out, "web");
   const t0 = performance.now();
-  const [pinned, source] = await Promise.all([packPinned(lock), buildWeb(webDir)]);
+  const [pinned, source] = await Promise.all([
+    packPinned(lock),
+    // the viewer lands INSIDE the web dist, so it is built after the web build has emptied and filled it
+    buildWeb(webDir).then(async (src) => {
+      if (src === "apps/web") await buildViewer(webDir);
+      return src;
+    }),
+  ]);
   const web = precompress(webDir);
   const sum = (k: "raw" | "br" | "gz") => Object.values(web).reduce((n, e) => n + sizeOf(e[k]), 0);
   const manifest: Manifest = {

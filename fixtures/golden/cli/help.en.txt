@@ -53,8 +53,9 @@ mitori config set <path> <value>
   Change an execution setting (engines.*, limits.*, pins, security.*, …). Needs a TTY confirmation. <value> is JSON or a string.
 
 ## export
-mitori export --html [--out <file>] [--no-excerpts] [--level newcomer|standard|expert] [--lang ja|en] [--decisions]
-  Write a self-contained offline HTML of the design doc (secret-like strings redacted).
+mitori export --html [-o|--out <file|dir>] [--no-code] [--level newcomer|standard|expert] [--lang ja|en] [--decisions]
+  Write a self-contained, read-only HTML file that opens offline (contents, reader levels, cite excerpts, diagrams, ⌘K search; secret-like strings redacted and counted).
+  -o with a directory writes <name>.mitori.html into it. --no-code leaves out the code excerpts (cites show path:line only). --decisions includes the decisions list.
 
 ## init
 mitori init [--commit] [--lang ja|en] [--agents-md]
