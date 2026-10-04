@@ -12,7 +12,15 @@ import { join, resolve } from "node:path";
 const ROOT = resolve(import.meta.dir, "../..");
 
 test("INT-07: Explain → Fix → Review → gates → accept → Undo through the real web UI", async () => {
-  const gen = Bun.spawnSync([process.execPath, "scripts/gen-assets.ts"], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
+  // the shipped (production) bundle: `bun test` sets NODE_ENV=test, which builds another bundle with other chunk hashes —
+  // the asset table every earlier test file of this process cached (apps/cli/src/build/assets.ts) would then point at
+  // files that no longer exist (ENOENT in int02..int07 / ux-install of a full run)
+  const gen = Bun.spawnSync([process.execPath, "scripts/gen-assets.ts"], {
+    cwd: ROOT,
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...process.env, NODE_ENV: "production" },
+  });
   expect(gen.exitCode, gen.stderr.toString()).toBe(0);
   const out = mkdtempSync(join(tmpdir(), "mitori-live-ui-"));
   try {
