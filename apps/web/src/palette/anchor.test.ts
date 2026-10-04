@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { BlockId, BlockKind, OutlineBlock, SectionId } from "@mitori/core";
-import { summaryAnchor } from "./ask.ts";
+import { summaryAnchor } from "./anchor.ts";
 
 const ob = (id: string, section: string, kind: BlockKind): OutlineBlock => [id as BlockId, section as SectionId, "L1", kind, null, 0, "fresh"];
 
