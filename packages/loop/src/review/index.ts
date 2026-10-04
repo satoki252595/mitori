@@ -9,6 +9,10 @@ import { planPartitions } from "./plan.ts";
 import { LOOP_SCHEMA_V1, LOOP_SCHEMA_V2 } from "./schema.ts";
 import { bodyLines, bundleLabel, firstLine, labelText, lf, quoteLines } from "./text.ts";
 
+// CR-PENDING(ux) cr-requests/ux.md #1: the Fix code targets (`POST /ws/:ws/jobs/targets`, CR ux-F1) are not a
+// `ReviewEngine` method in the loop contract yet; the server route calls the pure resolver directly.
+export { resolveCodeTargets, TARGET_LIMITS, type TargetDeps, type TargetInput } from "./targets.ts";
+
 /** `anchorHealth === "outdated"` (and not resolved/draft) ⇒ "outdated", else the stored state. */
 export function displayState(t: Pick<Thread, "state" | "anchorHealth">): DisplayState {
   return t.anchorHealth === "outdated" && t.state !== "resolved" && t.state !== "draft" ? "outdated" : t.state;

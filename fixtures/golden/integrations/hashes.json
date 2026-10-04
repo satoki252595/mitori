@@ -1,11 +1,11 @@
 {
   "agents-md/block@1": {
-    "bytes": 280,
-    "sha256": "f94f7cc46cad7e9d4f31f4326470f310842a73c31a6eb9defd1034772cea9cf6"
+    "bytes": 210,
+    "sha256": "ba6b38355b7ed8cf8ef47515e8563b722843c4cc2faa496dc8a1b6f64b1b6dd4"
   },
   "claude-code/.claude-plugin/marketplace.json@1": {
-    "bytes": 281,
-    "sha256": "b15bdbd158d2216c663963b768f6ef3cb721d75d97d596c20071f05031031ffc"
+    "bytes": 400,
+    "sha256": "71f0d059326dced7aa9b7b8ce1fccb1d3cced937a7a49aa6780a077a8ccc26b1"
   },
   "claude-code/.claude-plugin/plugin.json@1": {
     "bytes": 263,
@@ -24,16 +24,16 @@
     "sha256": "57092e69b7a452d630e7add9a2d06cc5c38c45a65634932a320b6335750257de"
   },
   "claude-code/project/skills/mitori-review/SKILL.md@1": {
-    "bytes": 1519,
-    "sha256": "47ab186e87843ead8203f651fece571da4c4eceebd08a11e7e5bf4047841dc79"
+    "bytes": 1487,
+    "sha256": "72d9b7b654910fc952c1ffb05293356f9eb2710586ca0fc7e7829320d7b38e80"
   },
   "claude-code/skills/gen/SKILL.md@1": {
     "bytes": 841,
     "sha256": "5ce03d480876d8832136810ddb491135df20b031ddbc3e51db09f5fbef8b096a"
   },
   "claude-code/skills/review/SKILL.md@1": {
-    "bytes": 1512,
-    "sha256": "48b66ab8b1828e3f271b48da853f953c2f27022ae86c972f2fa9ef20acec3656"
+    "bytes": 1480,
+    "sha256": "75e28162817e253ee7179d20447fb18b48d83ae7696f7f121a6a440cc59538c2"
   },
   "codex/skills/mitori-review/SKILL.md@1": {
     "bytes": 1305,

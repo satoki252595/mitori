@@ -494,6 +494,16 @@ class Store implements DocStore {
       rec.meta.lock = "human-edited";
       delete rec.meta.verifiedBy;
       rec.meta.origin = "human";
+      // a human writing into a placeholder makes it prose of its own: it leaves the placeholder slot, so the section
+      // HAS content and no static refresh proposes 「この節はまだ生成されていません」 back over the human's text
+      // (ux finishing pass, cr-requests/ux.md #3 — seen in the co-editing flow)
+      if (rec.meta.kind === "placeholder") {
+        rec.meta.kind = "prose";
+        // and it reads as text, not as the 未生成 card with a 生成する button around the human's words
+        rec.meta.status = "ready";
+        if (rec.meta.slot && this.st.slots.get(rec.meta.slot) === id) this.st.slots.delete(rec.meta.slot);
+        delete rec.meta.slot;
+      }
       const ids = stamped.map((s) => {
         const cr = s.m ? this.st.claims.get(s.m.id) : undefined;
         const verdict = verdictOf(s.checks, s.cites, rec.meta.lock);

@@ -17,7 +17,9 @@
   "proposals.source.simplify": "Proposal · simpler · {kind}",
   "proposals.source.sync": "Proposal · doc sync · {kind}",
   "proposals.source.translate": "Proposal · translation · {kind}",
+  "proposals.toast.conflict": "The block changed after this proposal (overlapping edits). Reject it, or edit the block directly",
   "proposals.toast.docEdited": "The doc was changed (locked as human-edited)",
+  "proposals.toast.inReview": "This proposal belongs to a fix under review — decide it with the code in the Review",
   "proposals.willAccept": "will accept",
   "proposals.willReject": "will reject"
 }

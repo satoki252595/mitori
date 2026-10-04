@@ -58,16 +58,41 @@ function fileLineOf(scope: Element | null): string | null {
   return cs?.textContent?.trim() || null;
 }
 
-function build(block: BlockId, mb: Element, w: Walked, rawStart: number, rawEnd: number, scope: Element | null, wholeBlock: boolean): BlockAnchor {
+/** The text unit a selection belongs to: a table cell, a list item, a paragraph / heading (else the whole block). */
+const SEGMENT = "td,th,li,dt,dd,caption,figcaption,p,h1,h2,h3,h4,h5,h6,blockquote,pre";
+
+/** Normalized [start, end) of `el`'s text inside the walked block (null when it has no text node of its own). */
+function segmentBounds(w: Walked, n: ReturnType<typeof normalize>, el: Element): { start: number; end: number; cell: boolean } | null {
+  const inside = w.nodes.filter(({ node }) => el.contains(node));
+  const first = inside[0];
+  const last = inside[inside.length - 1];
+  if (!first || !last) return null;
+  const r = normalizedRange(n, first.at, last.at + last.node.data.length);
+  return { ...r, cell: el.matches("td,th") };
+}
+
+function build(
+  block: BlockId,
+  mb: Element,
+  w: Walked,
+  rawStart: number,
+  rawEnd: number,
+  scope: Element | null,
+  wholeBlock: boolean,
+  segment: Element | null = null,
+): BlockAnchor {
   const n = normalize(w.raw);
   const r = normalizedRange(n, rawStart, rawEnd);
   const q = quoteOf(n.text, r.start, r.end);
+  const bounds = segment ? segmentBounds(w, n, segment) : null;
+  // the file:line of the header: the claim's cite, else the first cite of the selection's row / item, else the block's
+  const row = segment?.closest("tr,li,p") ?? null;
   return {
     block,
     anchor: { primary: "doc", doc: { block, selStart: q.start, selEnd: q.end, quote: q.quote } },
     text: n.text,
-    quote: displayQuote(n.text, q.start, q.end),
-    fileLine: fileLineOf(scope) ?? fileLineOf(mb),
+    quote: displayQuote(n.text, q.start, q.end, 18, bounds ?? undefined),
+    fileLine: fileLineOf(scope) ?? fileLineOf(row) ?? fileLineOf(mb),
     start: q.start,
     end: q.end,
     wholeBlock,
@@ -97,11 +122,11 @@ export function anchorFromRange(range: Range): (BlockAnchor & { clipped: boolean
   const s = rawOffset(w, r.startContainer, r.startOffset, r, "start");
   const e = rawOffset(w, r.endContainer, r.endOffset, r, "end");
   if (e <= s) return null;
-  const scope =
-    (r.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ? (r.commonAncestorContainer as Element) : r.commonAncestorContainer.parentElement)?.closest(
-      ".mc",
-    ) ?? null;
-  return { ...build(b.id, b.mb, w, s, e, scope, false), clipped, range: r };
+  const common = r.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ? (r.commonAncestorContainer as Element) : r.commonAncestorContainer.parentElement;
+  const scope = common?.closest(".mc") ?? null;
+  const seg = common?.closest(SEGMENT) ?? null;
+  const segment = seg && b.mb.contains(seg) ? seg : null;
+  return { ...build(b.id, b.mb, w, s, e, scope, false, segment), clipped, range: r };
 }
 
 /** Whole block (focused block) or one claim span (claim cursor / claim popover). */

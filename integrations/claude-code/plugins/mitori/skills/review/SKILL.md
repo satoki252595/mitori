@@ -7,7 +7,7 @@ argument-hint: "[--round N]"
 ---
 # mitori review round
 
-1. Run `mitori review $ARGUMENTS` with run_in_background: true. Relay the URL it prints on stderr to the user, then wait. Do not read files or ask questions until it exits.
+1. Run `mitori review $ARGUMENTS` with run_in_background: true. Relay the stderr URL to the user, then wait. Do nothing else until it exits.
 2. stdout lists threads: a `## th_… <intent> <anchor>` line, then the human's words as `> ` lines. stderr ends with `approved: true`, `approved: false` or `pending: true`.
 3. `approved: true`: stop. `pending: true`: run the NEXT command again.
 4. Otherwise, per thread (4+ threads: one subagent per module):

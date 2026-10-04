@@ -66,6 +66,21 @@ describe("WEB-U-TH-02 anchor text normalization", () => {
     expect(d.before).toHaveLength(19);
   });
 
+  test("UX-QUOTE-01: a table cell's quote is exactly the selection — never the neighbouring cells' cite text (live finding)", () => {
+    // the §4 env table as block text: the selected name sits between two rows' `config.go:N` cells
+    const text = "名前 既定値 読む場所 PORT あり internal/config/config.go:20 TSUNDOKU_API_TOKEN なし internal/config/config.go:36";
+    const s = text.indexOf("TSUNDOKU_API_TOKEN");
+    const e = s + "TSUNDOKU_API_TOKEN".length;
+    expect(displayQuote(text, s, e).before).toContain("config.go:20"); // what the Composer used to show
+    expect(displayQuote(text, s, e, 18, { start: s, end: e, cell: true })).toEqual({ before: "", mark: "TSUNDOKU_API_TOKEN", after: "" });
+    // a paragraph keeps its own context, clipped at its edges (no "…" when the paragraph ends there)
+    const para = "前の段落。 再試行は 1 回だけ。 次の段落。";
+    const ps = para.indexOf("再試行は");
+    const pe = para.indexOf("。 次");
+    const q = displayQuote(para, ps + 4, ps + 7, 18, { start: ps, end: pe + 1 });
+    expect(q).toEqual({ before: "再試行は", mark: " 1 ", after: "回だけ。" });
+  });
+
   test("UXP-37: one CJK character is a selection, one Latin letter is not", () => {
     expect(selectionCounts("鍵")).toBe(true);
     expect(selectionCounts("a")).toBe(false);

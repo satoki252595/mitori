@@ -5,10 +5,28 @@
 -->
 <script lang="ts">
 import type { ProposalBlockProps } from "../contract.ts";
+import { decorateTable } from "../reader/decorate.ts";
 import { t } from "../shell/index.ts";
 import ServerHtml from "../threads/ServerHtml.svelte";
 
-let { proposal, producer, ondecide, decided = null }: ProposalBlockProps & { decided?: "accept" | "reject" | null } = $props();
+type CodeHref = (path: string, start: number, end: number) => string | null;
+let {
+  proposal,
+  producer,
+  ondecide,
+  decided = null,
+  codeHref = null,
+}: ProposalBlockProps & { decided?: "accept" | "reject" | null; codeHref?: CodeHref | null } = $props();
+
+let body = $state<HTMLElement>();
+// the proposed table reads like the block it replaces: the same column classes and, in a facts table, the same
+// `config.go:25` cite chips (the reader decorates the block's own tables the same way — reader/decorate.ts)
+$effect(() => {
+  void proposal.diffHtml;
+  void proposal.html;
+  if (!body) return;
+  for (const table of body.querySelectorAll<HTMLTableElement>("table")) decorateTable(table, codeHref);
+});
 </script>
 
 <div class="pp" data-decided={decided} data-mx="prop-body" data-chrome>
@@ -22,7 +40,7 @@ let { proposal, producer, ondecide, decided = null }: ProposalBlockProps & { dec
     </span>
   </header>
   {#if proposal.op === "delete"}<p class="del">{t("proposals.delete")}</p>{/if}
-  <ServerHtml html={proposal.diffHtml || proposal.html} cls="pp-b" />
+  <div bind:this={body}><ServerHtml html={proposal.diffHtml || proposal.html} cls="pp-b" /></div>
   {#if proposal.conflict}<p class="warn">{t("proposals.conflict")}</p>{/if}
   {#if proposal.externalLinks}<p class="warn">{t("proposals.links", { n: proposal.externalLinks })}</p>{/if}
 </div>
@@ -97,6 +115,44 @@ let { proposal, producer, ondecide, decided = null }: ProposalBlockProps & { dec
     line-height: var(--lh-prose);
     letter-spacing: var(--ls-prose);
     color: var(--text);
+  }
+  /* a table stays inside the card (the reader's full-bleed table would touch the card's edge) */
+  .pp :global(.pp-b table) {
+    width: 100%;
+    margin: 6px 0 0;
+  }
+  .pp :global(.pp-b) {
+    line-break: strict;
+    text-wrap: pretty;
+  }
+  /* a cite link (`fetch.go:46-61`) is one unit, as the block's cite chip is: never 「fetch.go:45-」 / 「60」 */
+  .pp :global(.pp-b a[href*="#L"]) {
+    white-space: nowrap;
+  }
+  /* a facts cite chip looks like the block's own (prose.css `.fcite`), not like a message's code span */
+  .pp :global(.pp-b .fcite) {
+    text-decoration: none;
+  }
+  .pp :global(.pp-b .fcite code) {
+    border: 1px solid var(--rule);
+    background: var(--sheet);
+    color: var(--muted);
+  }
+  /* suggestion mode (prototype 03d/03e): struck old words, underlined new ones */
+  .pp :global(del.d) {
+    color: var(--del-fg);
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
+    background: var(--del-bg);
+    border-radius: 3px;
+  }
+  .pp :global(ins.a) {
+    color: var(--add-fg);
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 3px;
+    background: var(--add-bg);
+    border-radius: 3px;
   }
   .del,
   .warn {

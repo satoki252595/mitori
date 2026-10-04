@@ -1,8 +1,8 @@
 /**
  * AC-L77 integration templates: rendered hashes and the installer plan are pinned (`fixtures/golden/integrations/`),
  * the shipped plugin tree `integrations/` is byte-identical to what `mitori install` renders (with `mitori` on PATH),
- * and the size budgets hold: SKILL.md ≤ 1.5 KB in all three variants (`install.skillBytes`), the AGENTS.md block
- * ≤ 80 tokens (`install.agentsTokens`).
+ * and the size budgets hold: SKILL.md ≤ 1,500 B in all three variants (`install.skillBytes` limit; the AC-L77 1.5 KB),
+ * the AGENTS.md block ≤ 80 tokens with its markers (`install.agentsTokens`).
  */
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -74,11 +74,11 @@ describe("AC-L77 integration templates", () => {
     for (const [rel, text] of want) expect({ rel, text: readFileSync(join(TREE, rel), "utf8") }).toEqual({ rel, text });
   });
 
-  test("install.skillBytes: every SKILL.md variant ≤ 1.5 KB; the instructions below the frontmatter ≤ 1,400 B", () => {
+  test("install.skillBytes: every SKILL.md variant ≤ 1,500 B; the instructions below the frontmatter ≤ 1,400 B", () => {
     for (const v of ["plugin", "project", "codex"] as const) {
       const text = renderSkill(v);
       const body = text.slice(text.indexOf("\n---\n", 4) + 5);
-      expect({ v, bytes: Buffer.byteLength(text) <= 1536 }).toEqual({ v, bytes: true });
+      expect({ v, bytes: Buffer.byteLength(text) <= 1500 }).toEqual({ v, bytes: true });
       expect({ v, body: Buffer.byteLength(body) <= 1400 }).toEqual({ v, body: true });
     }
     for (const id of ["claude-code/skills/gen/SKILL.md@1", "claude-code/agents/mitori-gen-writer.md@1"] as const)
@@ -106,11 +106,10 @@ describe("AC-L77 integration templates", () => {
     expect(renderSkill("project")).not.toContain("/mitori:review");
   });
 
-  // CR-PENDING(WP-11) cr-requests/WP-11.md #3: the R1 block (with the prep exception) measures ≈ 98 tokens incl. the
-  // markers (≈ 83 without) against the 80-token limit; the template is contract text, so this flips to passing when
-  // the architect shortens it (then drop `.failing`).
-  test.failing("install.agentsTokens: the AGENTS.md block ≤ 80 tokens", () => {
+  // cr-requests/WP-11.md #3 settled in the finishing pass (CR ux-F2): the block was shortened to fit WITH its markers
+  test("install.agentsTokens: the AGENTS.md block ≤ 80 tokens, markers included; it still says the four rules", () => {
     const block = renderTemplate("agents-md/block@1", VARS);
     expect(estimateTokensRaw(block, "markdown_en", "claude-v5")).toBeLessThanOrEqual(80);
+    for (const must of [".mitori/README.md", "mitori review", "only when asked", "mitori reply", "Never edit", "prep `out/`"]) expect(block).toContain(must);
   });
 });

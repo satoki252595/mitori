@@ -40,6 +40,19 @@ interface InstallRecord {
   docDir?: string;
 }
 
+/** One planned file of `states()`. */
+export interface InstallFileState {
+  /** Absolute path (the scope root's realpath + `rel`). */
+  abs: string;
+  /** Path relative to the scope root. */
+  rel: string;
+  /** Template id. */
+  template: string;
+  state: IntegrationState;
+  /** mitori wrote it (it is in `~/.mitori/integrations.json`). */
+  recorded: boolean;
+}
+
 export interface InstallerDeps {
   safeWrite: SafeWriter;
   hasher: Hasher;
@@ -52,7 +65,9 @@ export interface InstallerDeps {
 
 const dec = new TextDecoder();
 
-export function makeInstaller(deps: InstallerDeps): Installer {
+export function makeInstaller(deps: InstallerDeps): Installer & {
+  states(target: IntegrationTarget, scope: "project" | "user", opts: InstallOptions): Promise<InstallFileState[]>;
+} {
   const real = (p: string) => deps.fs.realpath(p) ?? p;
   const userRoot = () => real(deps.userHome);
   const homeRoot = () => real(deps.home);
@@ -197,6 +212,39 @@ export function makeInstaller(deps: InstallerDeps): Installer {
         deps.log.info("install", { target, scope, written: written.length, skipped: skipped.length });
         return { written, skipped, nextCommands: written.length > 0 ? nextCommands(target, scope, o.mcp, update) : [] };
       });
+    },
+
+    /**
+     * Per-file state of one target × scope as `install` would see it — planned files, recorded or not (a file the
+     * user wrote by hand is `modified`, an AGENTS.md without the block is `missing`). For `GET /integrations`.
+     * CR-PENDING(ux) cr-requests/ux.md #5: not an `Installer` contract method (the server reads it structurally).
+     */
+    async states(target: IntegrationTarget, scope: "project" | "user", opts: InstallOptions): Promise<InstallFileState[]> {
+      const { root, specs } = specsFor(target, scope, opts);
+      const vars = varsOf(opts);
+      const recorded = new Map((await readRecords()).map((r) => [r.path, r]));
+      const out: InstallFileState[] = [];
+      for (const spec of specs) {
+        const file = toFile(target, scope, spec, vars);
+        const abs = `${root}/${spec.rel}`;
+        let text: string | null;
+        try {
+          text = await readText(abs);
+        } catch {
+          text = null;
+        }
+        if (spec.rel === "CLAUDE.md" && text !== null && /(^|\s)@AGENTS\.md\b/.test(text)) continue; // includes AGENTS.md
+        let state: IntegrationState;
+        if (text === null) state = "missing";
+        else {
+          const onDisk = diskHash(spec, text);
+          if (onDisk === file.hash) state = "current";
+          else if (onDisk === null) state = spec.mode === "managed-block" ? "missing" : "modified";
+          else state = recorded.get(abs)?.sha256 === onDisk ? "outdated" : "modified";
+        }
+        out.push({ abs, rel: spec.rel, template: spec.template, state, recorded: recorded.has(abs) });
+      }
+      return out;
     },
 
     async status() {

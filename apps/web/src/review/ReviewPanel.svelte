@@ -7,7 +7,7 @@
 -->
 <script lang="ts">
 import { type JobDetail, type JobId, MitoriError } from "@mitori/core";
-import { onMount } from "svelte";
+import { onMount, untrack } from "svelte";
 import { acceptNeedsWarning, autofixedLines, gateBadge, gateLabel } from "../jobs/gates.ts";
 import { errorText, fmtDelta, fmtTokens, fmtUsd, t } from "../shell/index.ts";
 import { useStores } from "../stores/app.svelte.ts";
@@ -227,10 +227,12 @@ const realTok = $derived(usage ? usage.in + usage.cacheRead + usage.cacheWrite +
 const quote = $derived(th?.anchor.doc?.quote?.exact ?? "");
 /** The human's request (the thread's first human message; its title while the messages are not loaded) — NOT `preview`, the latest message (the AI's reply). */
 const askText = $derived(((th ? loop.messages.get(th.id)?.find((m) => m.by === "human")?.body : undefined) ?? th?.title ?? "").trim());
-// the panel has its own 「内容を見て承認」: the toast of a gate waiting for trust would cover the footer (accept / reject)
+// the panel has its own 「内容を見て承認」: the toast of a gate waiting for trust would cover the footer (accept / reject).
+// Dismissed whenever it (re)appears — and ONLY then: `dismiss` reads and rewrites the toast list, so an unconditional
+// call made this effect depend on its own write (effect_update_depth_exceeded on every Review open, ux finishing pass)
 $effect(() => {
   void job;
-  s.bottom.dismiss("trust.pending");
+  if (s.bottom.toasts.some((x) => x.id === "trust.pending")) untrack(() => s.bottom.dismiss("trust.pending"));
 });
 $effect(() => {
   const id = th?.id;
@@ -251,12 +253,12 @@ const sec = $derived.by(() => {
   {:else}
     <header class="rv-h">
       <p class="meta mono">
-        {#if th}{th.id} · R{th.round} · {/if}{summary.route.mode} mode · tools {summary.route.tools === "none" ? t("review.tools.none") : "Read + Edit"}
+        {#if th}<span>{th.id} · R{th.round} ·</span>{/if}<span>{summary.route.mode} mode · tools</span> {summary.route.tools === "none" ? t("review.tools.none") : "Read + Edit"}
         {#if position.total > 1}<span class="pos">{position.index + 1}/{position.total}</span>{/if}
         <button type="button" class="close" onclick={close}>× {t("review.close")}<kbd>Esc</kbd></button>
       </p>
       <h2>{t(`composer.intent.${th?.intent ?? "change"}`)}{t("review.titleSep")}<span data-user-content>{th?.title ?? ""}</span></h2>
-      <p class="ask">§{sec}<q data-user-content>{quote.slice(0, 40)}</q> <span class="mono">{th?.anchor.doc?.block ?? ""}</span> · {t("review.you")}<q data-user-content>{askText.slice(0, 60)}</q></p>
+      <p class="ask">§{sec}<q data-user-content>{quote.slice(0, 40)}</q>{#if s.doc.level === "expert" && th?.anchor.doc?.block} <span class="mono">{th.anchor.doc.block}</span>{/if} · {t("review.you")}<q data-user-content>{askText.slice(0, 60)}</q></p>
     </header>
 
     {#if resolvedElsewhere}<p class="elsewhere">{t("review.elsewhere")}</p>{/if}
@@ -269,16 +271,15 @@ const sec = $derived.by(() => {
             {gateLabel(g.gate)}{#if g.autofixed} {t("review.gate.autofixed")}{/if}{#if g.status === "pass" || g.status === "fail"} · {(g.ms / 1000).toFixed(1)}s{:else} · {t(`review.gate.${g.status}`)}{/if}
           </span>
         {/each}
-        <span class="gp mono" data-st={summary.writeScope.length ? "pass" : "skipped"}>✓ {t("review.scope", { n: summary.diffStat?.files ?? summary.writeScope.length })}</span>
-      </div>
-      {#if badge.kind === "unverified"}
-        <p class="unv">⚠ {t("jobs.ready.unverified", { n: badge.unchecked + badge.pending })}
-          {#if badge.unchecked}<button type="button" class="link" onclick={() => (loop.trustOpen = [...loop.trust.values()].find((r) => r.status === "pending") ?? null)}>{t("jobs.ready.approve")}</button>{/if}
+        <span class="gp mono" data-st={summary.writeScope.length ? "pass" : "skipped"} title={summary.writeScope.join("\n")}>✓ {t("review.scope", { n: summary.diffStat?.files ?? summary.writeScope.length })}</span>
+        <!-- the pills already say which check was skipped; only the way out stays (the footer says 「検査なしで採用」) -->
+        {#if badge.kind === "unverified"}
+          {#if badge.unchecked}<button type="button" class="link unv-act" onclick={() => (loop.trustOpen = [...loop.trust.values()].find((r) => r.status === "pending") ?? null)}>{t("jobs.ready.approve")}</button>{/if}
           {#if badge.pending}<button type="button" class="btn btn-sec btn-s" onclick={() => void loop.runGates(job)}>{t("jobs.ready.runGates")}</button>{/if}
-        </p>
-      {:else if badge.kind === "rechecking"}
-        <p class="unv">{t("jobs.ready.rechecking")}</p>
-      {/if}
+        {:else if badge.kind === "rechecking"}
+          <span class="unv">{t("jobs.ready.rechecking")}</span>
+        {/if}
+      </div>
 
       {#if usage}
         <div class="actual mono">
@@ -306,7 +307,7 @@ const sec = $derived.by(() => {
 
       {#if detail}
         <section class="code">
-          <h3>{t("review.code")}<span class="src mono">{t("review.codeMeta", { files: detail.diff.length, a: summary.diffStat?.additions ?? 0, d: summary.diffStat?.deletions ?? 0 })} · n / ⇧N</span>
+          <h3>{t("review.code")}<span class="src mono">{t("review.codeMeta", { n: detail.diff.length, a: summary.diffStat?.additions ?? 0, d: summary.diffStat?.deletions ?? 0 })} · n / ⇧N</span>
             {#if wide}
               <span class="seg" role="radiogroup" aria-label={t("review.view")}>
                 <button type="button" role="radio" aria-checked={view === "unified"} onclick={() => (view = "unified")}>Unified</button>
@@ -324,7 +325,7 @@ const sec = $derived.by(() => {
                 {@const dec = d.proposals.get(p.id)}
                 <li class:focus={focused?.id === p.id} data-dec={dec ?? null}>
                   <span class="mono">§{s.doc.index?.numbers.get(p.section) ?? p.section}</span>
-                  <span class="pt" data-user-content>{p.md.slice(0, 24)}</span>
+                  <span class="pt">{s.doc.section(p.section)?.section.title ?? ""}</span>
                   <span class="op">· {t(`review.op.${p.op}`)}</span>
                   <button type="button" class="link" onclick={() => {
                     const ws = s.workspace.key;
@@ -334,6 +335,7 @@ const sec = $derived.by(() => {
                     <button type="button" class="dbtn ok" class:on={dec === "accept"} aria-label={t("proposals.accept")} onclick={() => onDecide(p.id, "accept")}>✓</button>
                     <button type="button" class="dbtn no" class:on={dec === "reject"} aria-label={t("proposals.reject")} onclick={() => onDecide(p.id, "reject")}>✕</button>
                   </span>
+                  {#if p.diffHtml}<div class="pdiff"><ServerHtml html={p.diffHtml} cls="pd" /></div>{/if}
                 </li>
               {/each}
             </ul>
@@ -473,11 +475,10 @@ const sec = $derived.by(() => {
     background: var(--paper-2);
     color: var(--muted);
   }
-  .unv {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    margin: 8px 0 0;
+  .unv,
+  .unv-act {
+    align-self: center;
+    justify-self: start;
     font-size: var(--fs-label);
     color: var(--c-warn);
   }
@@ -544,6 +545,7 @@ const sec = $derived.by(() => {
   }
   .props li {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     padding: 6px 8px;
@@ -552,6 +554,36 @@ const sec = $derived.by(() => {
   }
   .props li.focus {
     background: var(--c-prop-bg);
+  }
+  /* the change itself, in suggestion mode (the same diff the prose shows): what accept writes into the doc */
+  .props .pdiff {
+    flex-basis: 100%;
+    max-height: 9.5em;
+    overflow: auto;
+    padding: 6px 10px;
+    border-radius: var(--r-input);
+    background: var(--sugg-bg);
+    box-shadow: inset 2px 0 0 var(--c-prop);
+    font-family: var(--font-prose);
+    font-size: var(--fs-ui-s);
+    line-height: 1.7;
+    color: var(--text);
+  }
+  .props .pdiff :global(p) {
+    margin: 0;
+  }
+  .props .pdiff :global(del.d) {
+    color: var(--del-fg);
+    text-decoration: line-through;
+    background: var(--del-bg);
+    border-radius: 3px;
+  }
+  .props .pdiff :global(ins.a) {
+    color: var(--add-fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    background: var(--add-bg);
+    border-radius: 3px;
   }
   .props .pt {
     overflow: hidden;

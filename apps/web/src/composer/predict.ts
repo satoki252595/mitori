@@ -130,7 +130,7 @@ export function contextAdjust(
   mentions: readonly { path: string; start: number; end: number }[],
 ): { remove?: string[]; add?: { path: string; start: number; end: number }[] } {
   const remove = chips.filter((c) => c.state === "removed" && c.item.removable && !candidateKeys.has(c.item.key)).map((c) => c.item.key);
-  const add = [...mentions];
+  const add = mentions.map((m) => ({ path: m.path, start: m.start, end: m.end }));
   for (const c of chips) {
     if (c.state !== "included" || !candidateKeys.has(c.item.key) || !c.item.path) continue;
     const r = labelRange(c.item.label);

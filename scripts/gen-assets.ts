@@ -162,6 +162,7 @@ export function precompress(dir: string): Record<string, WebEntry> {
 
 /** Build the SPA into `outDir`; returns which source was used. */
 export async function buildWeb(outDir: string): Promise<"apps/web" | "apps/web/src/__stub"> {
+  // NODE_ENV is forced to "production" by genAssets (the only caller) before this runs — see the note there
   const { build } = await import("vite");
   const app = existsSync(join(ROOT, "apps/web/index.html")) && existsSync(join(ROOT, "apps/web/vite.config.ts"));
   const common = { logLevel: "warn" as const, base: "/", build: { outDir, emptyOutDir: true, assetsDir: "assets", reportCompressedSize: false } };

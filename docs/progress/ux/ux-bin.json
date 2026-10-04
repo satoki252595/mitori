@@ -1,0 +1,41 @@
+{
+  "targetsMs": 5,
+  "targets": [
+    "config.go:19-38 Load (ref)"
+  ],
+  "proposals": [],
+  "integrationsBefore": [
+    "claude-code/user: missing,missing,missing,missing,missing,missing",
+    "codex/user: missing"
+  ],
+  "installClaude": {
+    "code": 0,
+    "out": [
+      "✓ current  ~/.mitori/integrations/claude-code/.claude-plugin/marketplace.json",
+      "✓ current  ~/.mitori/integrations/claude-code/plugins/mitori/.claude-plugin/plugin.json",
+      "✓ current  ~/.mitori/integrations/claude-code/plugins/mitori/skills/review/SKILL.md",
+      "✓ current  ~/.mitori/integrations/claude-code/plugins/mitori/skills/gen/SKILL.md",
+      "✓ current  ~/.mitori/integrations/claude-code/plugins/mitori/agents/mitori-gen-writer.md",
+      "✓ current  ~/.mitori/integrations/claude-code/plugins/mitori/hooks/hooks.json",
+      "next:",
+      "  claude plugin marketplace add ~/.mitori/integrations/claude-code",
+      "  claude plugin install mitori@mitori-local"
+    ]
+  },
+  "installAgents": {
+    "code": 0,
+    "out": [
+      "✓ current  <repo>/AGENTS.md"
+    ]
+  },
+  "integrationsAfter": [
+    "claude-code/user: current,current,current,current,current,current",
+    "codex/user: missing",
+    "claude-code/project: missing",
+    "codex/project: missing",
+    "agents-md/project: current"
+  ],
+  "validate ~/.mitori/integrations/claude-code": "0 ✔ Validation passed",
+  "validate ~/.mitori/integrations/claude-code/plugins/mitori": "0 ✔ Validation passed",
+  "stop": 0
+}

@@ -106,7 +106,8 @@ export function factCite(text: string): { path: string; start: number; end: numb
   return start >= 1 && end >= start ? { path, start, end } : null;
 }
 
-function decorateTable(table: HTMLTableElement, codeHref: ((path: string, start: number, end: number) => string | null) | null): void {
+/** Column classes, soft breaks in long code cells and (facts tables, `codeHref`) cite chips — also used on doc proposals. */
+export function decorateTable(table: HTMLTableElement, codeHref: ((path: string, start: number, end: number) => string | null) | null): void {
   if (table.dataset.dec !== undefined) return;
   table.dataset.dec = "";
   const head = [...table.querySelectorAll<HTMLElement>("thead th")];
