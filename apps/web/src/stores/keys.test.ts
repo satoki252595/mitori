@@ -125,6 +125,29 @@ describe("WEB-U-020 registry behaviour", () => {
     expect(fired).toEqual(["nav.map"]);
   });
 
+  test("EX-02 `g` typed in the Composer / palette input is a letter: no prefix, no preventDefault", () => {
+    const TEXTAREA: FakeTarget = { tagName: "TEXTAREA", closest: () => null };
+    for (const top of ["composer", "palette"] as const) {
+      const { keys, fired, press } = setup({ scopes: [top, "read", "global"] });
+      for (const [k, c] of [
+        ["g", "KeyG"],
+        ["o", "KeyO"],
+        ["g", "KeyG"],
+        ["h", "KeyH"],
+      ] as const)
+        expect(press(k, c, { target: TEXTAREA }).defaultPrevented).toBe(false);
+      expect(press("G", "KeyG", { target: TEXTAREA, shiftKey: true }).defaultPrevented).toBe(false);
+      expect(keys.pendingPrefix).toBeNull();
+      expect(fired).toEqual([]);
+    }
+    // a prefix pending from the page does not combine with the next key typed in the input
+    const { keys, fired, press } = setup({ scopes: ["composer", "read", "global"] });
+    keys.pendingPrefix = "g";
+    expect(press("h", "KeyH", { target: TEXTAREA }).defaultPrevented).toBe(false);
+    expect(fired).toEqual([]);
+    expect(keys.pendingPrefix).toBeNull();
+  });
+
   test("singleKeyShortcuts = false disables every single-key binding but keeps ⌘K (WCAG 2.1.4)", () => {
     const { fired, press, keys } = setup({ singleKeys: false });
     press("j", "KeyJ");

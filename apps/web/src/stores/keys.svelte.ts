@@ -187,7 +187,11 @@ export class KeysStore implements KeyRegistry {
       }
     }
     const now = performance.now();
-    if (this.pendingPrefix && now - this.#pendingAt <= KEY_SEQUENCE_TIMEOUT_MS) {
+    if (editable) {
+      // EX-02: typing in the Composer / palette never starts or continues a two-key sequence — `g` is a letter there
+      // (`gofmt config GET` reached the AI as `ofmt confi ET`)
+      this.pendingPrefix = null;
+    } else if (this.pendingPrefix && now - this.#pendingAt <= KEY_SEQUENCE_TIMEOUT_MS) {
       chord = `${this.pendingPrefix} ${chord}`;
       this.pendingPrefix = null;
     } else {
