@@ -732,7 +732,7 @@ export class Runner {
         return s;
       }),
       candidates: () => candidatesOf(this.svc.store, [...live.rows.values()]),
-      questions: () => questionsOf(this.svc.store, [...live.rows.values()]),
+      questions: () => questionsOf(this.svc.store, [...live.rows.values()], d.doc),
     };
   }
 }
@@ -802,6 +802,7 @@ export async function precomputeKeys(
     lang: svc.lang(),
     tokens: (t) => d.indexer.estimateTokens(t, "code", "claude-v5"),
     plan,
+    questions: () => questionsOf(svc.store, [], d.doc),
   };
   const tasks: PlannedTask[] = [];
   for (const t of plan.tasks) {

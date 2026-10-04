@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { RepoPath } from "@mitori/core";
 import { makeS9Harness, type S9Harness } from "../incremental/test/harness.ts";
-import { dataSection } from "../incremental/test/router.ts";
+import { dataSection, s9Router } from "../incremental/test/router.ts";
 import { type FakeRepo, sampleRepo } from "../test/repo.ts";
 
 /** The sample repo plus the facts the M4 section prompts read. */
@@ -68,6 +68,52 @@ describe("GEN-M4-01 the section prompts run in a standard generation with their 
 });
 
 describe("GEN-M4-02 open questions (§13, §5.6.10)", () => {
+  test("a scoped s13 resume reads current producer outputs, replacing an old module version without regenerating modules", async () => {
+    let revision = 0;
+    const router = s9Router({ questionsPerModule: 4 });
+    const h = makeS9Harness({
+      repo: m4Repo(),
+      router(call, turn) {
+        const reply = router(call, turn);
+        if (call.spec.id !== "gen.module" || !reply.lines) return reply;
+        return {
+          ...reply,
+          lines: reply.lines.map((raw) => {
+            const line = JSON.parse(raw);
+            if (line.t === "question") line.text += `（版${revision}）`;
+            if (line.t === "block" && line.aspect === "responsibility") line.md = `版${revision}: ${line.md}`;
+            return JSON.stringify(line);
+          }),
+        };
+      },
+    });
+    await h.applyStatic();
+    const first = await h.gen.estimate({ effort: "standard", scope: ["s6"] });
+    expect((await h.runEstimate(first.id))?.run.state).toBe("done");
+    expect(h.aiBlocks("s13")).toHaveLength(0);
+    const module = h.doc.index().modules.find((m) => m.id === "md_a0000001");
+    expect(module).toBeDefined();
+    revision = 1;
+    h.clock.advance(1000);
+    h.edit("src/session/store.ts" as RepoPath, (h.repo.files["src/session/store.ts"] ?? "").replace("put(s: Session): void {", "put(s: Session): boolean {"));
+    await h.applyStatic();
+    const newer = await h.gen.estimate({ effort: "standard", scope: [module?.section as never] });
+    const updated = await h.runEstimate(newer.id);
+    expect(updated?.run.state).toBe("done");
+    expect(h.aiBlocks(module?.section as never).find((b) => b.aspect === "responsibility")?.gen?.run).toBe(updated?.run.id);
+    const moduleCalls = h.engine.calls.filter((c) => c.call.spec.id === "gen.module").length;
+    h.clock.advance(1000);
+    const est = await h.gen.estimate({ effort: "standard", scope: ["s13"] });
+    expect((await h.runEstimate(est.id))?.run.state).toBe("done");
+    const raw = dataSection(unitOf(h, "gen.questions"), "RAW");
+    expect(raw).toHaveLength(16);
+    expect(raw.filter((q) => q.includes("md_a0000001"))).toHaveLength(4);
+    expect(raw.filter((q) => q.includes("md_a0000001")).every((q) => q.includes("版1"))).toBe(true);
+    expect(h.engine.calls.filter((c) => c.call.spec.id === "gen.module")).toHaveLength(moduleCalls);
+    expect(h.aiBlocks("s13").map((b) => h.doc.markerForm(b.id))).toEqual(["統合した問い（16 件から）"]);
+    expect(h.doc.section("s13")?.blocks.some((b) => b.kind === "placeholder")).toBe(false);
+  });
+
   test("up to 15 raw questions are written as is, without an engine call; a rerun keeps the same blocks", async () => {
     const h = await generated({ router: { questionsPerModule: 2 } });
     expect(h.engine.calls.some((c) => c.call.spec.id === "gen.questions")).toBe(false);

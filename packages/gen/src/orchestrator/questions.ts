@@ -1,6 +1,7 @@
 /**
  * Open questions (§13, gen spec §5.6.10): every gen.* task may emit `question` lines; they are collected from the
- * run's finished outputs (RAW), de-duplicated by normalized text and ordered by section and generation order. Up to
+ * run's finished outputs and the outputs behind current AI content (RAW), de-duplicated by normalized text and
+ * ordered by section and generation order. Up to
  * `questionsLlmAbove` (15) the list is written as is (0 tokens); above it `gen.questions` consolidates it first.
  * The list replaces the AI question blocks of `s13`; blocks whose text is unchanged are kept (same ids, no write).
  * CR-PENDING(WP-06b): `DocStore.setQuestions` (CR m1-18) does not exist; the list is written as `question` blocks
@@ -33,16 +34,33 @@ function sectionKey(s: SectionId): string {
 const norm = (t: string) => t.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 
 /**
- * RAW questions of the finished tasks of a run (gen.questions excluded) as question lines with their section set,
- * de-duplicated by normalized text, ordered by section then generation order.
+ * RAW questions of finished tasks, including skipped scoped dependencies whose output produced current AI blocks.
+ * Current-run producers take precedence; obsolete or unrelated outputs are not read.
  */
-export function questionsOf(store: Pick<GenStore, "getOutput">, rows: readonly TaskRow[]): GenQuestionLine[] {
+export function questionsOf(
+  store: Pick<GenStore, "getOutput" | "tasks" | "getRun">,
+  rows: readonly TaskRow[],
+  doc: Pick<DocStore, "index">,
+): GenQuestionLine[] {
+  const blocks = Object.values(doc.index().blocks).filter((b) => b.origin === "ai" && b.gen?.run && !b.gen.promptVer.startsWith("gen.questions@"));
+  const current = new Map(blocks.map((b) => [b.id, b]));
+  const sources = new Map<string, { row: TaskRow; at: number }>();
+  const producer = (r: TaskRow) => JSON.stringify([r.plan.prompt, r.plan.mode, r.plan.target]);
+  for (const run of new Set(blocks.map((b) => b.gen?.run as GenRunId))) {
+    const at = Date.parse(store.getRun(run)?.run.startedAt ?? "") || 0;
+    for (const r of store.tasks(run)) {
+      if (!FINISHED.has(r.task.state) || !r.task.cacheKey || r.plan.prompt === "gen.questions") continue;
+      if (!r.task.blocks.some((id) => current.get(id)?.gen?.run === run && current.get(id)?.gen?.promptVer.startsWith(`${r.plan.prompt}@`))) continue;
+      const key = producer(r);
+      if (!sources.has(key) || at > (sources.get(key)?.at ?? 0)) sources.set(key, { row: r, at });
+    }
+  }
+  for (const r of rows)
+    if (FINISHED.has(r.task.state) && r.task.cacheKey && r.plan.prompt !== "gen.questions") sources.set(producer(r), { row: r, at: Infinity });
   const seen = new Set<string>();
   const out: { q: GenQuestionLine & { section: SectionId }; order: number }[] = [];
   let order = 0;
-  const done = rows
-    .filter((r) => r.plan.prompt !== "gen.questions" && FINISHED.has(r.task.state) && r.task.cacheKey)
-    .sort((a, b) => a.plan.topoOrder - b.plan.topoOrder || (a.task.id < b.task.id ? -1 : 1));
+  const done = [...sources.values()].map(({ row }) => row).sort((a, b) => a.plan.topoOrder - b.plan.topoOrder || (a.task.id < b.task.id ? -1 : 1));
   for (const r of done) {
     for (const l of store.getOutput(r.task.cacheKey)?.lines ?? []) {
       const line = JSON.parse(l) as GenLine;
@@ -100,7 +118,7 @@ export async function writeQuestions(
   ctx: QuestionWriteCtx,
 ): Promise<BlockId[]> {
   const doc = env.doc;
-  // an empty list never wipes the section (a scoped run sees no RAW of its own)
+  // No newly extracted question is not evidence that existing questions have been resolved.
   if (list.length === 0) return [];
   const current = (doc.section("s13")?.blocks ?? []).filter((b) => b.origin === "ai" && b.kind === "question" && !b.lock);
   const byMd = new Map(current.map((b) => [doc.markerForm(b.id) ?? b.md, b.id]));
