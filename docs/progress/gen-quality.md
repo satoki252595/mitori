@@ -223,6 +223,11 @@ MITORI_LIVE=1 scripts/nd bun eval/comprehension/run.ts --repo <clone> --max-usd 
   欠く最初の flow」へ回す規則が、任意の aspect（`sequence`・`edge_cases`）にも効いていた。ある flow が 2 枚目の図や 2 つ目の
   例外ブロックを書くと、図を持たない前の flow の下に入り、別の flow の図がその flow の見出しの下に出る。振り替えは必須 aspect
   （summary・steps）だけにした。回帰テスト付き（修正を戻すと落ちることを確認）。
+- **gen.flows の BODIES に同じ本体が繰り返し入る**（`packages/gen/src/prompts/inputs.ts`）。seed ごとの `flowBodies` を連結していたので、
+  同じ handler から始まる seed は同じ slice を何度も出していた。m3e の導出 seed 3 本はすべて `Editor` 始まりで、記録した flows の
+  プロンプト 32.7 kB のうち 10 kB（31 %、約 3k token）が `Editor` 先頭 80 行の重複だった（再試行のたびに読み直す分も同じ）。同一 slice は
+  1 回だけ出す。回帰テスト付き（記録した crit と m3e のほかのプロンプトに重複は無かった）。
+- complete のファイル別ノートの単体テスト（mode 名、チャンク分割、巨大ファイルの skeleton 見出しが引用可能になること）。
 - `gen-inspect.ts` の scheduler（上記）。
 
 ### 自分で突き合わせた claim（25 件）
