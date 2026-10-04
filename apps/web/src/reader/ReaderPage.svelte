@@ -17,6 +17,7 @@ import BlockHost from "./BlockHost.svelte";
 import ContextColumn from "./ContextColumn.svelte";
 import { editorUrl, factPeek, parseCite } from "./code.ts";
 import { applyLevel } from "./decorate.ts";
+import { paintFind } from "./find.ts";
 import Gutter from "./Gutter.svelte";
 import { blockVisibleImpl, permalinkTextImpl, stepLevel } from "./levels.ts";
 import Minimap from "./Minimap.svelte";
@@ -110,6 +111,16 @@ $effect(() => {
       if (restored.focusBlock) focusBlock(restored.focusBlock as BlockId, false);
     } else if (r.name === "doc" && r.block) {
       focusBlock(r.block, true);
+      // a ⌘K full-text jump marks the words it matched (NC-09)
+      const f = s.ui.find;
+      if (f && f.block === r.block) {
+        s.ui.find = null;
+        const el = main?.querySelector(`.blk[data-b="${CSS.escape(r.block)}"]`);
+        if (el) {
+          el.scrollIntoView({ block: "center" });
+          paintFind(el, f.words);
+        }
+      }
     } else if (r.name === "doc" && r.section !== model.page) {
       document.querySelector(`[data-sec="${CSS.escape(r.section)}"]`)?.scrollIntoView({ block: "start" });
     } else window.scrollTo(0, 0);

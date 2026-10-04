@@ -53,6 +53,8 @@ export class UiState {
   textViewOpen = $state(false);
   /** Bumped when reading-path progress is written (the rail re-reads localStorage). */
   readTick = $state(0);
+  /** ⌘K full-text jump (NC-09): the words to mark in the block the Reader opens next. */
+  find = $state.raw<{ block: string; words: readonly string[] } | null>(null);
   imeHintShown = false;
   /** Announcements (live regions). */
   polite = $state("");

@@ -106,6 +106,13 @@ code {
   text-decoration: underline 2px var(--accent);
 }
 
+/* ⌘K full-text hit: the matched words in the block the palette jumped to (NC-09) */
+::highlight(mitori-find) {
+  background-color: var(--mark);
+  text-decoration: underline 2px var(--accent);
+  text-underline-offset: 3px;
+}
+
 svg.i {
   width: 16px;
   height: 16px;

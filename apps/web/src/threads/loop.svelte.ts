@@ -151,9 +151,13 @@ export class Loop {
       // the Reader's hand-off: focused block / claim popover / gutter (`c` `e` `f`)
       window.addEventListener("mitori:compose", (ev) => {
         if (Date.now() - this.selectionClaim < 250) return;
-        const d = (ev as CustomEvent<{ block: BlockId; claim: string | null; intent: ThreadIntent }>).detail;
+        // `body`: a question typed elsewhere (⌘K 「AI に聞く」, NC-09) arrives as the Composer's text, unsent
+        const d = (ev as CustomEvent<{ block: BlockId; claim: string | null; intent: ThreadIntent; body?: string }>).detail;
         const target = targetOfBlock(s, d.block, d.claim);
-        if (target) void this.openComposer(target, d.intent, ev.timeStamp);
+        if (!target) return;
+        void this.openComposer(target, d.intent, ev.timeStamp).then((c) => {
+          if (d.body && !c.body.trim()) c.input(d.body);
+        });
       });
     }
     $effect.root(() => {

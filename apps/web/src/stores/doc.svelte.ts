@@ -174,7 +174,16 @@ export class DocState implements DocViewStore {
     return page && pv?.blocks.some((b) => b.section === section) ? [page, pv] : null;
   }
 
+  #blockListeners = new Set<(b: BlockView | { removed: BlockId; section: SectionId }) => void>();
+
+  /** Every block upsert / removal (SSE, a verify, an edit) — also for sections not in the cache (⌘K's text index). */
+  onBlock(fn: (b: BlockView | { removed: BlockId; section: SectionId }) => void): () => void {
+    this.#blockListeners.add(fn);
+    return () => this.#blockListeners.delete(fn);
+  }
+
   upsertBlock(b: BlockView): void {
+    for (const fn of this.#blockListeners) fn(b);
     const h = this.#holder(b.section);
     // the open block is now confirmed: its partial text goes, the reservation H_est stays (§4.3.9-2)
     const cur = this.streaming.get(b.section);
@@ -201,6 +210,7 @@ export class DocState implements DocViewStore {
   }
 
   removeBlock(block: BlockId, section: SectionId): void {
+    for (const fn of this.#blockListeners) fn({ removed: block, section });
     const h = this.#holder(section);
     if (!h) return;
     const [id, v] = h;

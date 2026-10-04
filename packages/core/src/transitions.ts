@@ -30,11 +30,14 @@ export type TransitionQuery =
       to: JobState;
     };
 
-const THREAD_ROWS = new Map<string, ThreadTransition>(THREAD_TRANSITIONS.map((t) => [`${t.from}\u0000${t.on}`, t]));
+// built on first use, not at module load: a module-level `new Map(…)` is a side effect no bundler may drop, so the
+// whole 200-row table travelled into every web bundle that imports core (the export viewer, CR ui-1)
+let threadRows: Map<string, ThreadTransition> | null = null;
 
 /** The row for (from, on) when `by` may fire it, else null. */
 export function threadTransition(from: ThreadState, on: ThreadTrigger, by: TransitionActor): ThreadTransition | null {
-  const row = THREAD_ROWS.get(`${from}\u0000${on}`);
+  threadRows ??= new Map<string, ThreadTransition>(THREAD_TRANSITIONS.map((t) => [`${t.from}\u0000${t.on}`, t]));
+  const row = threadRows.get(`${from}\u0000${on}`);
   return row?.by.includes(by) ? row : null;
 }
 

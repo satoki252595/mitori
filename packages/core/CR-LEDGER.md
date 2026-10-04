@@ -303,3 +303,9 @@
 | CR fin-3 | finisher（NC-07 / NC-04） | accepted | api `FileContent.outline?`（300 行超のファイルのトップレベルのシンボル）、`MapView.modules[].summary?`（生成済みのモジュールの一行の役割）(applied) | 4,300 行のハブに目次が無い / 部屋の popover が export 名しか出さない |
 | CR fin-4 | finisher（NC-12） | accepted | core `DOC_TEMPLATE` s2 `titleJa`: 見取り図 → 間取り図（製品名と図の名前を分ける。ファイル名 `doc/02-floor-plan.md` は不変）(applied) | 「見取り図」が 3 つの別物を指していた |
 | CR fin-5 | finisher（NC-06 / NC-07） | accepted | doc `StaticDocInput.guide?: StaticGuide`（§4 の手順・§5 の読む順番。server が索引から作る、0 tok）(applied、doc の契約) | 「どう動かすか」「どこから読むか」に静的節が答えていなかった |
+
+## 8. 残課題パス — ui トラック（2026-10-04、`docs/progress/rem-ui.md`）
+
+| id | requester | 決定 | 適用先 | 理由・備考 |
+|---|---|---|---|---|
+| CR ui-1 | ui（F5 / export viewer の予算） | accepted | core `transitions.ts`: thread の遷移表の索引（`THREAD_ROWS`）をモジュール読み込み時ではなく最初の `threadTransition()` で作る (applied)。公開面・挙動は不変 | モジュール直下の `new Map(…)` は副作用なので bundler が落とせず、200 行の `THREAD_TRANSITIONS` が core を import する web の bundle（export viewer 60 KB gz の予算）に毎回入っていた。viewer −0.5 KB gz |

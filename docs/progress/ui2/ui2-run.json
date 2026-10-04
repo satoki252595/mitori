@@ -1,0 +1,13 @@
+{
+  "open": {
+    "ms": 447.24816599999997
+  },
+  "docArrivedMs": 157,
+  "fulltextFirstQueryMs": 11,
+  "fulltextJumpMs": 21,
+  "askIntentChips": [
+    "質問\n⌘1"
+  ],
+  "consoleErrors": [],
+  "badResponses": []
+}
