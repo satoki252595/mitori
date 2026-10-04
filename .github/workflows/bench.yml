@@ -1,0 +1,74 @@
+# Nightly / on-demand performance (testing spec §1.7 `bench-abs`, §6.7–6.8; nonfunc audit F4): the absolute budgets on
+# the reference machine, head vs base, the UI perf + a11y specs. Self-hosted macOS arm64 ONLY (the reference machine;
+# GitHub-hosted macOS minutes bill 10×, so they are never used). No push / pull_request trigger: it never runs on a PR.
+# Time gates skip themselves (with a notice) when the machine is loaded (bench/runner/verdict.ts), so a busy runner
+# reports instead of failing; structural, size and counter gates always gate. No secrets, read-only token.
+name: bench
+
+on:
+  schedule:
+    - cron: "0 18 * * *" # 03:00 JST
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "base ref for bench:compare (default: the previous commit)"
+        required: false
+        default: "HEAD~1"
+      suites:
+        description: "bench suites (idx,doc,loop,srv,ui,asset,dev or all)"
+        required: false
+        default: "all"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bench
+  cancel-in-progress: false
+
+jobs:
+  bench:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 50
+
+      - name: Install (frozen lockfile; no dependency lifecycle scripts)
+        run: scripts/nd bun install --frozen-lockfile
+
+      - name: Corpus (pinned clones, cached in ~/.cache/mitori-corpus)
+        run: scripts/nd bun run corpus:fetch --verify || scripts/nd bun run corpus:fetch
+
+      - name: Build the binary (bin.* / srv.rss.* / mcp.init measure the compiled daemon)
+        run: scripts/nd bun run build:bin
+
+      - name: Absolute budgets (all suites)
+        run: |
+          mkdir -p bench/results
+          scripts/nd bun run bench --suite "${{ inputs.suites || 'all' }}" --absolute --out bench/results/nightly.json | tee bench/results/nightly.txt
+
+      - name: Head vs base (≥ 20 % slower above the noise floor fails; counters may not grow)
+        run: |
+          scripts/nd bun run bench:compare --base "${{ inputs.base || 'HEAD~1' }}" --suite "${{ inputs.suites || 'all' }}" \
+            --asset --md bench/results/compare.md --out bench/results/compare.json
+
+      - name: Served bytes
+        run: scripts/nd bun run size
+
+      - name: UI perf specs (real daemon + Chromium, one worker) and a11y
+        run: |
+          scripts/nd bun run e2e --project perf
+          scripts/nd bun run e2e --grep @a11y
+
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: bench-${{ github.sha }}
+          path: |
+            bench/results/
+            test-results/
+          retention-days: 30
