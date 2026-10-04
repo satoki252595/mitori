@@ -13,7 +13,7 @@ export default defineConfig({
   testMatch: /.*\.pw\.ts$/,
   workers: 1,
   fullyParallel: false,
-  timeout: 90_000,
+  timeout: Number(process.env.MITORI_PW_TIMEOUT ?? 90_000),
   reporter: [["list"]],
   globalSetup: "./support/global-setup.ts",
   use: {
@@ -21,6 +21,8 @@ export default defineConfig({
     viewport: { width: 1440, height: 900 },
     trace: "off",
     locale: "ja-JP",
+    // a returning browser: the first visit's 「初めて」 + 5-minute course (NC-08) has its own spec (first-run.pw.ts)
+    storageState: { cookies: [], origins: [{ origin: `http://127.0.0.1:${PORT}`, localStorage: [{ name: "mitori:firstRun", value: "2026-10-01" }] }] },
   },
   projects: [
     { name: "chromium", testIgnore: /\.webkit\.pw\.ts$/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },

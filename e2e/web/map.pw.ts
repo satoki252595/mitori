@@ -5,21 +5,28 @@
 import { expect, test } from "@playwright/test";
 import { configure, mockLog, now, p95, WS, waitMark } from "./support/helpers.ts";
 
-test("@wp10a AC-J01 1440×900: strip ≤ 96, stage ≥ 700, TOC, estimate main line + 生成 and 0-tok list without scrolling; 0 LLM calls", async ({ page }) => {
+/*
+ * AC-J01 on the editorial layout (ux.md R1 §2.2, prototype `01-first-run-map`, which replaced the strip + full-height
+ * stage of JUDGEMENT §6.3): the first screen at 1440×900 holds the hero's 0-tok line (「スキャン完了 … ここまで0 tok」,
+ * what the old 0-tok list said up front), the TOC, the estimate card's main line and [生成], and the plan's first
+ * 200 px — with no scrolling and no LLM call. The 0-tok list itself moved below the plan in that layout.
+ */
+test("@wp10a AC-J01 1440×900: the 0-tok line, TOC, estimate main line + 生成 and the plan's start without scrolling; 0 LLM calls", async ({ page }) => {
   await configure({ generated: false });
   await page.goto(`/w/${WS}`);
   await waitMark(page, "mitori:map:painted");
   await page.locator(".est .sum .lead").waitFor();
   const box = async (sel: string) => (await page.locator(sel).first().boundingBox()) as { x: number; y: number; width: number; height: number };
-  const strip = await box(".strip");
-  const stage = await box(".stage");
-  expect(strip.height).toBeLessThanOrEqual(96);
-  expect(stage.height).toBeGreaterThanOrEqual(700);
-  for (const sel of [".toc a[data-toc='s0']", ".est .sum", ".est .go", ".zero"]) {
+  const fold = 900 - 24;
+  await expect(page.locator(".hero .kicker")).toContainText("0 tok");
+  for (const sel of [".hero .kicker", ".toc a[data-toc='s0']", ".est .sum", ".est .go"]) {
     const b = await box(sel);
-    expect(b.y + b.height, sel).toBeLessThanOrEqual(900 - 24);
+    expect(b.y + b.height, sel).toBeLessThanOrEqual(fold);
     expect(b.y).toBeGreaterThanOrEqual(0);
   }
+  const stage = await box(".stage");
+  expect(fold - stage.y, "the plan starts on the first screen").toBeGreaterThanOrEqual(200);
+  expect(stage.height).toBeGreaterThanOrEqual(600);
   expect(await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBe(0);
   const log = await mockLog();
   expect(log.filter((r) => /\/(gen\/runs|jobs)$/.test(r.path) && r.method === "POST")).toEqual([]);
@@ -53,7 +60,9 @@ test("@wp10a AC-J06 map labels ≥ 11 px on screen and clipped by their room at 
         const ctm = tx.getScreenCTM();
         const px = parseFloat(cs.fontSize) * (ctm ? Math.hypot(ctm.a, ctm.b) : 1);
         if (px < 10.99) out.push(`${tx.textContent} ${px.toFixed(2)}px`);
-        const room = tx.closest(".room svg, svg.zl") as SVGSVGElement | null;
+        // the clipping viewport is the room's own <svg> (or the zone label's): the zero-size `.corner` anchors inside
+        // it (size label, ✓) are overflow-visible by design and still clipped by the room around them
+        const room = tx.closest(".room > svg, svg.zl") as SVGSVGElement | null;
         if (room && getComputedStyle(room).overflow !== "hidden") out.push(`${tx.textContent} not clipped`);
       }
       return out;

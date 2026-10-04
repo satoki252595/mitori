@@ -4,12 +4,39 @@
   aria-activedescendant); Escape closes and RETURNS focus (LayerStack). IME: `input` keeps filtering while
   composing; Enter runs only after commit (the registry's isComposing guard, IME_RULES.paletteRunsAfterCommit).
 -->
+<script lang="ts" module>
+import type { Stores } from "../stores/app.svelte.ts";
+import { DocText } from "./doctext.svelte.ts";
+
+const texts = new WeakMap<object, DocText>();
+/** One text index per store root, kept across palette openings (built once, patched by SSE). */
+function docTextOf(s: Stores): DocText {
+  let d = texts.get(s);
+  if (!d) {
+    d = new DocText({
+      ws: () => s.workspace.key,
+      outline: () => s.doc.outline,
+      index: () => s.doc.index,
+      cached: (id) => s.doc.section(id),
+      load: (ws, id) => s.api.call("GET /ws/:ws/doc/sections/:section", { params: { ws, section: id }, query: { lang: s.doc.lang } }),
+      onBlock: (fn) => s.doc.onBlock(fn),
+    });
+    texts.set(s, d);
+  }
+  return d;
+}
+</script>
+
 <script lang="ts">
+import { HREFS, type SectionId } from "@mitori/core";
 import { flushSync, onMount } from "svelte";
 import { copyText } from "../shell/clipboard.ts";
+import { hasKey } from "../shell/i18n.ts";
 import { t } from "../shell/index.ts";
+import { choosePath, courseName, NEWCOMER_PATH, readMapOf } from "../shell/reading.ts";
 import { useStores } from "../stores/app.svelte.ts";
 import { actionItems, runAction } from "./actions.ts";
+import { askAi } from "./ask.ts";
 
 const s = useStores();
 const p = s.palette;
@@ -27,7 +54,110 @@ type Row = {
   group: string;
   top?: boolean;
   score?: number;
+  /** A near (not literal) full-text match. */
+  near?: boolean;
+  /** Rows that are not a link: 「AI に聞く」, the suggestions. */
+  go?: () => void;
 };
+
+// ---------------------------------------------------------------- full text (NC-09): the doc's own words, indexed lazily
+const docText = docTextOf(s);
+const ws = $derived(s.workspace.key);
+$effect(() => {
+  // first open, and again when the outline changes while the palette is open
+  void s.doc.outline?.outlineRev;
+  void docText.ensure();
+});
+// a big document waits for a typing pause; a small one answers on every keystroke (the worker groups never wait)
+let textQ = $state("");
+$effect(() => {
+  const q = p.query;
+  if (docText.entries().length < 3000) {
+    textQ = q;
+    return;
+  }
+  const h = setTimeout(() => (textQ = q), 120);
+  return () => clearTimeout(h);
+});
+const text = $derived.by(() => {
+  void docText.version;
+  const q = textQ.trim();
+  // a prefix mode (`>` actions, `@` symbols, `#` sections, `:` files) is an explicit filter: no prose there
+  if (!q || /^[>@#:]/.test(q)) return { hits: [], total: 0 };
+  return docText.search(q, p.scope === "doc" ? 20 : 4);
+});
+// 「AI に聞く」 is for questions: not in a prefix mode (`>` actions, `@` symbols, `#` sections, `:` files), and only once the
+// index has answered THIS query — an Enter typed faster than the worker never runs a question by accident
+const askable = $derived(
+  !!ws && !!s.doc.outline && p.scope !== "actions" && [...p.query.trim()].length >= 2 && !/^[>@#:]/.test(p.query.trim()) && p.answered === p.query,
+);
+
+function textRows(): Row[] {
+  const w = ws;
+  if (!w) return [];
+  return text.hits.map((h) => ({
+    id: h.entry.block,
+    label: h.label,
+    marks: h.marks,
+    sub: `§${s.doc.index?.numbers.get(h.entry.section) ?? ""} ${s.doc.index?.nodes.get(h.entry.section)?.title ?? ""}`,
+    href: HREFS.doc(w, h.entry.section, h.entry.block),
+    group: "text",
+    ...(h.tier === "near" ? { near: true } : {}),
+  }));
+}
+
+function askRow(): Row {
+  const q = p.query.trim();
+  const short = [...q].length > 40 ? `${[...q].slice(0, 40).join("")}…` : q;
+  const hit = text.hits[0]?.entry;
+  return {
+    id: "ask",
+    label: t("palette.ask", { q: short }),
+    marks: [],
+    sub: hit
+      ? t("palette.askSubAt", { num: s.doc.index?.numbers.get(hit.section) ?? "", title: s.doc.index?.nodes.get(hit.section)?.title ?? "" })
+      : t("palette.askSub"),
+    href: "",
+    group: "ask",
+    go: () => void askAi(s, q, hit ? { section: hit.section, block: hit.block } : null),
+  };
+}
+
+/** The empty palette: where a newcomer starts (§0, the 5-minute course, how to run it, what this screen does). */
+function suggestRows(): Row[] {
+  const w = ws;
+  const ix = s.doc.index;
+  if (!w || !ix) return [];
+  const out: Row[] = [];
+  const title = (id: SectionId) => ix.nodes.get(id)?.title ?? "";
+  if (ix.nodes.has("s0")) out.push({ id: "s0", label: `§0 ${title("s0")}`, marks: [], sub: t("palette.suggest.s0"), href: HREFS.doc(w, "s0"), group: "suggest" });
+  const paths = s.doc.outline?.readingPaths ?? [];
+  const five = paths.find((x) => x.id === NEWCOMER_PATH);
+  if (five && s.doc.outline?.manifest.generatedAt) {
+    const read = readMapOf(w, five.id);
+    const next = five.steps.find((st) => !read[st.section])?.section ?? five.steps[0]?.section;
+    // the course by the name the rail gives it (its real time)
+    const name = courseName(paths, five.id, (id) => ix.nodes.get(id)?.readingSec ?? 0, t, hasKey) ?? five.title;
+    if (next)
+      out.push({
+        id: "path5",
+        label: t("palette.suggest.path5", { name }),
+        marks: [],
+        sub: five.steps.map((st) => `§${ix.numbers.get(st.section) ?? ""}`).join(" → "),
+        href: "",
+        group: "suggest",
+        go: () => {
+          choosePath(w, five.id);
+          s.ui.readTick++;
+          void s.router.go({ name: "doc", ws: w, section: next });
+        },
+      });
+  }
+  if (ix.nodes.has("s4")) out.push({ id: "s4", label: `§4 ${title("s4")}`, marks: [], sub: t("palette.suggest.s4"), href: HREFS.doc(w, "s4"), group: "suggest" });
+  out.push({ id: "help", label: t("palette.suggest.help"), marks: [], sub: t("palette.suggest.helpSub"), href: "", group: "suggest", go: () => (s.ui.helpOpen = true) });
+  return out;
+}
+
 const rows = $derived.by(() => {
   if (actionsFor) {
     return [
@@ -35,7 +165,8 @@ const rows = $derived.by(() => {
       { id: "copy", label: t("palette.panel.copyLink"), marks: [], href: "", group: "panel" },
     ] as Row[];
   }
-  if (!p.query.trim()) return p.recents().map((r) => ({ ...r, marks: [] as [number, number][], group: "recent" })) as Row[];
+  // ux.md §4.10: 「最近」 first, then where to start (a first visit has no recents: the suggestions lead)
+  if (!p.query.trim()) return [...(p.recents().map((r) => ({ ...r, marks: [] as [number, number][], group: "recent" })) as Row[]), ...suggestRows()];
   const out: Row[] = [];
   let top: Row | null = null;
   const want = p.top;
@@ -45,7 +176,12 @@ const rows = $derived.by(() => {
       out.push(r);
       if (want && want.group === g.group && want.id === it.id) top = r;
     }
-  return top ? [{ ...top, top: true }, ...out.filter((r) => r !== top)] : out;
+  const found = top ? [{ ...top, top: true }, ...out.filter((r) => r !== top)] : out;
+  // in 「本文」 mode the doc's words lead; otherwise they follow the index groups. They join once the index answered
+  // THIS query, so the rows never reshuffle under an Enter (the first row is what runs)
+  const words = p.answered === p.query ? textRows() : [];
+  const listed = p.scope === "doc" ? [...words, ...found] : [...found, ...words];
+  return askable ? [...listed, askRow()] : listed;
 });
 
 $effect(() => {
@@ -56,7 +192,7 @@ $effect(() => {
 // result count for screen readers once typing pauses 300 ms (ux.md §11.2); never per keystroke
 $effect(() => {
   const q = p.query.trim();
-  const n = p.total;
+  const n = p.total + text.total;
   if (!q || p.status !== "ready") return;
   const h = setTimeout(() => s.ui.announce(t("palette.announce", { n })), 300);
   return () => clearTimeout(h);
@@ -81,7 +217,7 @@ onMount(() => {
     k.on("palette.run", () => run(active)),
     k.on("palette.actions", () => {
       const r = rows[active];
-      if (r && !actionsFor) actionsFor = { id: r.id, label: r.label, href: r.href };
+      if (r && !actionsFor && r.href) actionsFor = { id: r.id, label: r.label, href: r.href };
     }),
     k.on("palette.back", () => (actionsFor = null)),
   ];
@@ -104,6 +240,18 @@ function run(i: number) {
     close();
     return;
   }
+  if (r.go) {
+    // the layer gives focus back first; the Composer (「AI に聞く」) takes it afterwards
+    close();
+    r.go();
+    return;
+  }
+  if (r.group === "text") {
+    s.ui.find = { block: r.id, words: r.marks.map(([a, b]) => r.label.slice(a, b)) };
+    close();
+    void s.router.go(s.router.parse(r.href));
+    return;
+  }
   if (r.group !== "recent") p.remember({ id: r.id, label: r.label, href: r.href, group: r.group as "term" });
   close();
   if (r.group === "action" || (!r.href && r.id.startsWith("action."))) runAction(r.id, s);
@@ -124,7 +272,7 @@ function marked(label: string, marks: [number, number][]): { text: string; hit: 
 }
 
 // group glyphs; the glossary one is a word, so it comes from the catalog (EN chrome carries no Japanese, AC-J12)
-const ICON: Record<string, string> = { section: "§", room: "□", symbol: "f", thread: "●", action: "›", recent: "↺", panel: "›" };
+const ICON: Record<string, string> = { section: "§", room: "□", symbol: "f", thread: "●", action: "›", recent: "↺", panel: "›", text: "¶", ask: "?", suggest: "→" };
 const icon = (g: string) => (g === "term" ? t("palette.icon.term") : (ICON[g] ?? "›"));
 </script>
 
@@ -156,20 +304,23 @@ const icon = (g: string) => (g === "term" ? t("palette.icon.term") : (ICON[g] ??
       {#each rows as r, i (`${r.group}:${r.id}:${r.top ? "t" : ""}`)}
         {#if !r.top && (i === 0 || rows[i - 1]?.group !== r.group || rows[i - 1]?.top)}<li class="pal-g" role="presentation">{t(`palette.group.${r.group}`)}</li>{/if}
         {#if r.top && i === 0}<li class="pal-g" role="presentation">{t("palette.group.top")}</li>{/if}
-        <li id={`pal-o-${i}`} class="pal-it" role="option" aria-selected={i === active} onclick={() => run(i)} onpointermove={() => (active = i)}>
+        <li id={`pal-o-${i}`} class="pal-it" class:ask={r.group === "ask"} class:txt={r.group === "text"} role="option" aria-selected={i === active} onclick={() => run(i)} onpointermove={() => (active = i)}>
           <span class="ic" aria-hidden="true">{icon(r.group)}</span>
           <span class="mid">
-            <span class="lb" data-user-content>{#each marked(r.label, r.marks) as seg, j (j)}{#if seg.hit}<mark>{seg.text}</mark>{:else}{seg.text}{/if}{/each}</span>
-            {#if r.sub}<span class="sub mono" data-user-content>{r.sub}</span>{/if}
+            <span class="lb" data-user-content={r.group === "ask" ? undefined : true}>{#each marked(r.label, r.marks) as seg, j (j)}{#if seg.hit}<mark>{seg.text}</mark>{:else}{seg.text}{/if}{/each}</span>
+            {#if r.sub}<span class="sub" class:mono={r.group !== "ask" && r.group !== "suggest"} data-user-content={r.group === "text" ? true : undefined}>{r.sub}</span>{/if}
           </span>
           {#if r.reason}<span class="via" data-user-content>{r.reason.kind === "via" ? t("palette.via", { term: r.reason.text }) : t("palette.match", { alias: r.reason.text })}</span>{/if}
+          {#if r.near}<span class="near">{t("palette.near")}</span>{/if}
         </li>
       {/each}
       {#if p.query.trim() && !rows.length && p.status !== "loading"}<li class="pal-empty" role="presentation">{t("palette.empty")}</li>{/if}
       {#if p.status === "error"}<li class="pal-empty" role="presentation">{t("palette.indexError")}</li>{/if}
     </ul>
     <div class="pal-foot">
-      <span data-ms={p.ms}>{t("palette.foot", { n: p.total, ms: p.ms })}</span>
+      <span data-ms={p.ms}
+        >{t("palette.foot", { n: p.total + text.total, ms: p.ms })}{#if docText.status === "building"}<span class="idx"> · {t("palette.textIndexing", { done: docText.done, total: docText.total })}</span>{/if}</span
+      >
       <span class="keys"><kbd>&uarr;</kbd><kbd>&darr;</kbd> {t("palette.move")} <kbd>&#x23CE;</kbd> {t("palette.open")} <kbd>{s.keys.hint("palette.actions")}</kbd> {t("palette.actions")} <kbd>Esc</kbd></span>
     </div>
   </div>
@@ -292,6 +443,38 @@ const icon = (g: string) => (g === "term" ? t("palette.icon.term") : (ICON[g] ??
     padding: 1px 6px;
     border-radius: 4px;
     white-space: nowrap;
+  }
+  .near {
+    font-size: var(--fs-meta);
+    color: var(--muted);
+    border: 1px solid var(--rule);
+    padding: 0 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  /* full-text rows: the snippet may take two lines (the words around the match are the point) */
+  .pal-it.txt .lb {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-size: var(--fs-ui);
+    line-height: 1.55;
+  }
+  /* 「AI に聞く」: the way out when the document does not say it */
+  .pal-it.ask .ic {
+    color: var(--accent);
+    border-color: var(--accent);
+    font-family: var(--font-sans);
+    font-weight: var(--fw-strong);
+  }
+  .pal-it.ask .lb {
+    color: var(--ink);
+    font-weight: var(--fw-strong);
+  }
+  .idx {
+    color: var(--muted);
   }
   .row-skel {
     height: 44px;

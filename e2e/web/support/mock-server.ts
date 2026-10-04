@@ -22,6 +22,12 @@ let seq = 100;
 let estSeq = 0;
 let settingsVersion = 3;
 let acked = opts.policyAcked;
+/** The reader level a PATCH saved (the first visit saves 「初めて」, NC-08); reset by configure. */
+let savedLevel: string | null = null;
+/** The UI language a PATCH saved (NC-14: a reload in English stays English); reset by configure. */
+let savedLang: string | null = null;
+/** Bumped by an emitted `index.changed` (an accept / Undo touched the files): the files are another version now. */
+let fileRev = 0;
 const streams = new Set<ReadableStreamDefaultController<Uint8Array>>();
 const enc = new TextEncoder();
 const gz = new Map<string, Uint8Array>();
@@ -31,7 +37,15 @@ function configure(o: Partial<FixtureOptions>) {
   doc = docFixture(opts);
   log = [];
   acked = opts.policyAcked;
+  savedLevel = null;
+  savedLang = null;
+  fileRev = 0;
   estSeq = 0;
+}
+
+function withSaved<T extends { settings: { ui: { readerLevel: string; lang: string } } }>(v: T): T {
+  const ui = { ...v.settings.ui, ...(savedLevel ? { readerLevel: savedLevel } : {}), ...(savedLang ? { lang: savedLang } : {}) };
+  return { ...v, settings: { ...v.settings, ui } };
 }
 
 function emit(e: Partial<SseEvent> & { type: string }) {
@@ -111,14 +125,16 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
       estimateAccuracyPct: 12,
     });
   if (m === "GET" && p === "/settings") {
-    const s = settings({ ...opts, policyAcked: acked });
+    const s = withSaved(settings({ ...opts, policyAcked: acked }));
     return json({ ...s, version: settingsVersion });
   }
   if (m === "PATCH" && p === "/settings") {
-    const b = body as { patch?: { privacy?: { dataPolicyAck?: unknown } } };
+    const b = body as { patch?: { privacy?: { dataPolicyAck?: unknown }; ui?: { readerLevel?: string; lang?: string } } };
     if (b?.patch?.privacy?.dataPolicyAck) acked = true;
+    if (b?.patch?.ui?.readerLevel) savedLevel = b.patch.ui.readerLevel;
+    if (b?.patch?.ui?.lang) savedLang = b.patch.ui.lang;
     settingsVersion++;
-    return json({ ...settings({ ...opts, policyAcked: acked }), version: settingsVersion });
+    return json({ ...withSaved(settings({ ...opts, policyAcked: acked })), version: settingsVersion });
   }
   if (m === "GET" && p === "/engines") return json(engines(opts));
   if (m === "GET" && p === "/workspaces") {
@@ -154,16 +170,39 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     if (sec === "s3") return json({ ...v, blocks: [...v.blocks, ...(doc.sections.get("s3/review-cycle")?.blocks ?? [])] });
     return json(v);
   }
+  // the HTML export (UXP-18): what the file WOULD be for these options — with excerpts it is bigger and says how many
+  if (m === "POST" && rest === "/export") {
+    const b = (body ?? {}) as { level?: string; excerpts?: boolean };
+    const html = `<!doctype html><title>crit</title><meta name="mitori-level" content="${b.level ?? "standard"}">${b.excerpts ? "<pre>x</pre>".repeat(400) : ""}`;
+    return json({
+      html,
+      bytes: b.excerpts ? 1_080_000 : 561_000,
+      sha256: "0".repeat(64),
+      redactions: 1,
+      codeExcerpts: b.excerpts ? { count: 12, files: 4 } : { count: 0, files: 0 },
+    });
+  }
+  if (m === "GET" && /^\/doc\/blocks\/[^/]+\/history$/.test(rest)) {
+    const bid = rest.split("/")[3];
+    return json([
+      { block: bid, rev: 1, hash: "0000000000000001", by: "agent:claude-sonnet-5-5", at: "2026-10-02T09:00:00Z", source: "generate" },
+      { block: bid, rev: 2, hash: "0000000000000002", by: "human", at: "2026-10-03T10:30:00Z", source: "human_edit" },
+      { block: bid, rev: 3, hash: "0000000000000003", by: "human", at: "2026-10-03T11:00:00Z", round: 2, source: "accept_job" },
+    ]);
+  }
   if (m === "POST" && /^\/doc\/blocks\/[^/]+\/verify$/.test(rest)) {
     const bid = rest.split("/")[3];
     for (const v of doc.sections.values()) {
       const b = v.blocks.find((x) => x.id === bid);
-      if (b)
+      if (b) {
+        const on = (body as { verified?: boolean } | undefined)?.verified !== false;
         return json({
           ...b,
-          claimViews: b.claimViews.map((c) => ({ ...c, verdict: "human-verified" })),
-          html: b.html.replaceAll('data-verdict="inferred"', 'data-verdict="human-verified"'),
+          ...(on ? { lock: "human-verified", verifiedBy: "me" } : { lock: undefined, verifiedBy: undefined }),
+          claimViews: b.claimViews.map((c) => ({ ...c, verdict: on ? "human-verified" : c.verdict })),
+          html: on ? b.html.replace(/data-verdict="(inferred|verified|cited)"/g, 'data-verdict="human-verified"') : b.html,
         });
+      }
     }
     return err("E_NOT_FOUND", 404);
   }
@@ -219,7 +258,8 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     const last = end + 3;
     const lines = Array.from(
       { length: last - first + 1 },
-      (_, i) => `<span data-line="${first + i}"><span class="ln">${first + i}</span>  h.Write([]byte(cwd)) // line ${first + i}</span>`,
+      // like the daemon (server wiring/views.ts shikiLines): a `span.line[data-line]` per line, the number is the client's gutter
+      (_, i) => `<span class="line" data-line="${first + i}">  h.Write([]byte(cwd)) // line ${first + i}</span>`,
     ).join("\n");
     return json({
       path,
@@ -239,13 +279,12 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     const path = url.searchParams.get("path") ?? "";
     const start = Number(url.searchParams.get("start") ?? 1);
     const end = Number(url.searchParams.get("end") ?? start + 80);
-    const html = Array.from(
-      { length: end - start + 1 },
-      (_, i) => `<span data-line="${start + i}"><span class="ln">${start + i}</span>  return sha256.Sum(${start + i})</span>`,
-    ).join("\n");
+    const html = Array.from({ length: end - start + 1 }, (_, i) => `<span class="line" data-line="${start + i}">  return sha256.Sum(${start + i})</span>`).join(
+      "\n",
+    );
     return json({
       path,
-      blob: "d94e6b7a1c",
+      blob: fileRev === 0 ? "d94e6b7a1c" : `c0ffee${fileRev}a1`,
       lang: "go",
       text: "",
       startLine: start,
@@ -332,6 +371,7 @@ Bun.serve({
       return json({ ok: true });
     }
     if (url.pathname === "/__mock/emit") {
+      if ((body as { type?: string }).type === "index.changed") fileRev++;
       emit(body as SseEvent);
       return json({ ok: true, tabs: streams.size });
     }

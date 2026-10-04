@@ -50,9 +50,13 @@ export class UiState {
   railOpen = $state(false);
   showCites = $state(false);
   helpOpen = $state(false);
+  /** 「HTML として書き出す」 dialog (⌘K, settings; ux.md §4.13). */
+  exportOpen = $state(false);
   textViewOpen = $state(false);
   /** Bumped when reading-path progress is written (the rail re-reads localStorage). */
   readTick = $state(0);
+  /** ⌘K full-text jump (NC-09): the words to mark in the block the Reader opens next. */
+  find = $state.raw<{ block: string; words: readonly string[] } | null>(null);
   imeHintShown = false;
   /** Announcements (live regions). */
   polite = $state("");
@@ -128,7 +132,9 @@ export function currentLayout(s: Stores): Layout {
  * change that is still waiting for its debounced PATCH is newer than the server's copy, so it is kept.
  */
 export function applySettings(s: Stores, v: SettingsView | null): void {
-  if (!v || s.prefs.pending) return;
+  if (!v) return;
+  s.prefs.noteVersion(v.version);
+  if (s.prefs.pending) return;
   s.prefs.reconcile(v);
   s.keys.setOverrides(v.settings.ui.keymap);
   setSettingsLang(v.settings.ui.lang);

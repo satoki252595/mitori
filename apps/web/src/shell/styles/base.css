@@ -106,6 +106,13 @@ code {
   text-decoration: underline 2px var(--accent);
 }
 
+/* ⌘K full-text hit: the matched words in the block the palette jumped to (NC-09) */
+::highlight(mitori-find) {
+  background-color: var(--mark);
+  text-decoration: underline 2px var(--accent);
+  text-underline-offset: 3px;
+}
+
 svg.i {
   width: 16px;
   height: 16px;
@@ -231,11 +238,35 @@ svg.i {
 
 .hdr-m {
   justify-content: safe center;
+  /* the tabs never paint over a neighbour (the header sheds text first, Header.svelte `tight`) */
+  overflow-x: clip;
+}
+
+.hdr[data-tight] .proj-meta,
+.hdr[data-tight] .usage {
+  display: none;
+}
+
+/* a workspace's first visit in this browser: the chip's usual width is held while its name arrives (Header.svelte;
+   it yields before the header sheds any text) */
+.proj.reserve {
+  min-width: 11em;
+}
+
+.hdr[data-tight="2"] .brand-en,
+.hdr[data-tight="2"] .search span {
+  display: none;
+}
+
+.hdr[data-tight="2"] .search {
+  width: auto;
+  padding: 0 8px;
 }
 
 .tabs {
   display: flex;
-  justify-content: center;
+  /* safe: tabs that do not fit start at the left edge (the first tab whole), never cut on both sides */
+  justify-content: safe center;
   gap: 4px;
   height: 100%;
   min-width: 0;
@@ -967,6 +998,25 @@ dialog.dlg h2 {
 @media (max-width: 600px) {
   .seg.level {
     display: none;
+  }
+  /* a phone has no room for the four tabs beside the brand and the workspace: the brand goes (its 「見取り図」 is
+     also the first tab; the workspace menu links home) and the tabs scroll sideways, whole tabs from the left edge,
+     the current one scrolled into view (Header.svelte) — they used to be cut on both sides to 「書 Inbox」 */
+  .hdr .brand {
+    display: none;
+  }
+  .hdr-m {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+  .tab {
+    padding: 0 8px;
+  }
+  .tab[aria-current="page"]::after {
+    bottom: 0;
+    left: 8px;
+    right: 8px;
   }
 }
 

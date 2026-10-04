@@ -34,3 +34,38 @@ export function takeTrigger(): number | undefined {
   lastTrigger = null;
   return t ?? undefined;
 }
+
+/**
+ * Run `fn` once one of the marks `names` exists (now, or when it is issued) — or after `fallbackMs` when none comes.
+ * Lazy work that must not compete with a view's first paint (F5) waits on this. Returns a cancel function.
+ */
+export function afterMark(names: readonly string[], fn: () => void, fallbackMs = 3000): () => void {
+  let done = false;
+  let obs: PerformanceObserver | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const stop = () => {
+    done = true;
+    obs?.disconnect();
+    if (timer) clearTimeout(timer);
+  };
+  const go = () => {
+    if (done) return;
+    stop();
+    fn();
+  };
+  const seen = () => typeof performance !== "undefined" && names.some((m) => performance.getEntriesByName(m, "mark").length > 0);
+  if (seen()) {
+    go();
+    return stop;
+  }
+  try {
+    obs = new PerformanceObserver((list) => {
+      if (list.getEntries().some((e) => names.includes(e.name))) go();
+    });
+    obs.observe({ type: "mark" });
+  } catch {
+    /* no PerformanceObserver: the fallback timer decides */
+  }
+  timer = setTimeout(go, fallbackMs);
+  return stop;
+}

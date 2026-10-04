@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import type { BlockId, SectionId, ThreadId } from "@mitori/core";
 import { type MarginCardInput, UI_THRESHOLDS } from "../contract.ts";
 import { blockVisible, layoutMarginCards, permalinkText } from "./index.ts";
 import { stepLevel } from "./levels.ts";
-import { popoverPos } from "./popover.ts";
+import { naturalHeight, popoverPos } from "./popover.ts";
+import { reviewAnchor } from "./review-anchor.ts";
 
 const card = (id: string, ideal: number, o: Partial<MarginCardInput> = {}): MarginCardInput => ({
   id,
@@ -92,5 +94,44 @@ describe("reader popovers (ux.md §4.3.6): touching the chip, below or above", (
     // chip at 585–605 in a 900 px viewport, a 575 px peek: 259 px below, 519 px above ⇒ above, 519 px high
     expect(popoverPos({ left: 100, top: 585, bottom: 605 }, 560, 575, 1440, 900)).toEqual({ left: 100, top: 60, maxH: 519 });
     expect(popoverPos({ left: 100, top: 120, bottom: 140 }, 560, 800, 1440, 900)).toEqual({ left: 100, top: 146, maxH: 724 });
+  });
+
+  test("a capped box is measured at its natural height (no cap / un-cap oscillation over the chip)", () => {
+    // the peek's flex column: capped at 432 px its code shrinks and scrollHeight says 430; uncapped it is 574
+    const box = {
+      style: { maxHeight: "432.25px" },
+      get scrollHeight() {
+        return this.style.maxHeight === "none" || this.style.maxHeight === "" ? 574 : 430;
+      },
+    };
+    expect(naturalHeight(box, 0)).toBe(574);
+    expect(box.style.maxHeight).toBe("432.25px"); // the cap is put back (the next placement decides)
+    // chip at 498–518: 574 fits neither side ⇒ capped above again — placing twice gives the same box
+    const a = { left: 100, top: 498.25, bottom: 518.25 };
+    const first = popoverPos(a, 560, naturalHeight(box, 0), 1440, 900);
+    box.style.maxHeight = `${first.maxH}px`;
+    expect(popoverPos(a, 560, naturalHeight(box, 0), 1440, 900)).toEqual(first);
+    expect(first.maxH).not.toBeNull();
+    expect(naturalHeight({ style: { maxHeight: "" }, scrollHeight: 120 }, 0)).toBe(120);
+    expect(naturalHeight(null, 160)).toBe(160);
+  });
+});
+
+describe("EX-09 the Review opens its left body on the job's anchor", () => {
+  const th = (block?: string) => ({ anchor: block ? { doc: { block: block as BlockId, section: "s3" as SectionId, quote: "", hash: "" } } : {} });
+  const threads = new Map<string, ReturnType<typeof th>>([
+    ["th_code0001", th()],
+    ["th_doc00001", th("b_00000031")],
+  ]);
+  const of = (id: string) => threads.get(id) as never;
+  test("the first thread anchored in the doc (a code-only thread is skipped)", () => {
+    expect(reviewAnchor({ threads: ["th_code0001", "th_doc00001"] as ThreadId[], proposalViews: [] }, of)).toBe("b_00000031" as BlockId);
+  });
+  test("no doc thread: the block of the first doc proposal (an insert has none)", () => {
+    const pv = [{ block: null }, { block: "b_00000042" }] as unknown as Parameters<typeof reviewAnchor>[0]["proposalViews"];
+    expect(reviewAnchor({ threads: ["th_code0001"] as ThreadId[], proposalViews: pv }, of)).toBe("b_00000042" as BlockId);
+  });
+  test("nothing anchored: null (the body opens at §0)", () => {
+    expect(reviewAnchor({ threads: ["th_unknown1"] as ThreadId[], proposalViews: [] }, of)).toBeNull();
   });
 });

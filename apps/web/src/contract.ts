@@ -156,6 +156,11 @@ export interface CodePin {
   start: LineNo;
   /** Last line. */
   end: LineNo;
+  /**
+   * Blob the range was cited against (a claim's cite; absent for a static fact or a URL pin). When the file
+   * changed since (an accepted Fix, its Undo), the pane says the lines are the current version's (EX-08).
+   */
+  blob?: string;
 }
 
 /** Parsed route (the router store's value). Unknown query keys are dropped; invalid values ⇒ defaults. */

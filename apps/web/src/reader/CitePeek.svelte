@@ -2,13 +2,14 @@
   Cite peek (contract `CitePeekProps`, ux.md §4.3.6): adjacent to the chip (below, above when there is no room),
   560 px, ≤ 26 body lines with the cited range marked, header path:a–b · symbol · precision · blob7, footer with
   the per-check verdicts (L0 / L1 / L2, UXP-06) and `o` pin / ⇧O editor. Does not take focus (role tooltip-like),
-  stays open while the pointer travels into it (WCAG 1.4.13).
+  stays open while the pointer travels into it (WCAG 1.4.13). In the app (not the export) the footer also carries the
+  paragraph's human check (EX-10, `PeekVerify` through the `extra` snippet).
 -->
 <script lang="ts">
 import type { CitePeek as CitePeekData, ClaimChecks } from "@mitori/core";
-import { onMount } from "svelte";
+import { onMount, type Snippet } from "svelte";
 import { t } from "../shell/index.ts";
-import { followAnchor, popoverPos } from "./popover.ts";
+import { followAnchor, naturalHeight, popoverPos } from "./popover.ts";
 
 let {
   data,
@@ -19,6 +20,7 @@ let {
   oneditor,
   onenter,
   onleave,
+  extra,
 }: {
   data: CitePeekData;
   checks: Pick<ClaimChecks, "l0" | "l1" | "l2"> | null;
@@ -28,6 +30,8 @@ let {
   oneditor: () => void;
   onenter: () => void;
   onleave: () => void;
+  /** Footer actions before pin / editor (the app's paragraph check; the export has none). */
+  extra?: Snippet;
 } = $props();
 
 let el: HTMLDivElement | undefined = $state();
@@ -37,12 +41,13 @@ let pos = $state<{ left: number; top: number; maxH: number | null }>({ left: 0, 
 function place() {
   if (!el) return;
   // natural height (the max-height of a previous placement must not shrink the measurement)
-  const h = el.scrollHeight;
+  const h = naturalHeight(el, 0);
   pos = popoverPos(anchorEl.getBoundingClientRect(), Math.min(560, window.innerWidth - 32), h, window.innerWidth, window.innerHeight);
 }
 
 onMount(() => {
-  const stop = followAnchor(place, body);
+  // the whole box is observed, not only the code: the footer (the paragraph's ✓✓ check) can grow it too
+  const stop = followAnchor(place, el);
   if (body) {
     for (const ln of body.querySelectorAll<HTMLElement>("[data-line]")) {
       const n = Number(ln.dataset.line);
@@ -85,6 +90,7 @@ const l1Text = $derived(
       </span>
     {:else}<span></span>{/if}
     <span class="keys">
+      {@render extra?.()}
       <button type="button" onclick={onpin}><kbd>o</kbd> {t("cite.pin")}</button>
       <button type="button" onclick={oneditor}><kbd>&#x21E7;O</kbd> {t("cite.editor")}</button>
     </span>
@@ -108,7 +114,10 @@ const l1Text = $derived(
     border-bottom: 1px solid var(--rule);
     background: var(--paper);
   }
+  /* the header keeps the whole path:range and gives up the symbol / precision / blob part first */
   .p {
+    flex: none;
+    max-width: calc(100% - 5em);
     font-size: var(--fs-label);
     color: var(--ink);
     white-space: nowrap;
@@ -116,6 +125,10 @@ const l1Text = $derived(
     text-overflow: ellipsis;
   }
   .m {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: var(--fs-meta);
     color: var(--muted);
     white-space: nowrap;
@@ -139,13 +152,34 @@ const l1Text = $derived(
     color: var(--shiki-foreground);
     font-variant-ligatures: none;
   }
+  /* the server HTML is `<span data-line>…</span>\n` per line: lines are blocks, so the newlines between them are not rows */
+  .peek-code {
+    white-space: normal;
+    tab-size: 4;
+  }
   .peek-code :global([data-line]) {
     display: block;
+    min-height: 1lh;
     padding: 0 16px 0 0;
+    white-space: pre;
+  }
+  /* a line-number gutter: the peek is read without the file next to it — the numbers are how a reader says 「:182 の行」 */
+  .peek-code :global([data-line])::before {
+    content: attr(data-line);
+    display: inline-block;
+    box-sizing: content-box;
+    width: 5ch;
+    padding: 0 12px 0 4px;
+    text-align: right;
+    color: var(--faint);
+    user-select: none;
   }
   .peek-code :global([data-line].hi) {
     background: var(--mark-line);
     box-shadow: inset 2px 0 0 var(--accent);
+  }
+  .peek-code :global([data-line].hi)::before {
+    color: var(--muted);
   }
   .peek-f {
     display: flex;

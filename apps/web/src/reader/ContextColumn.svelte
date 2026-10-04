@@ -7,13 +7,13 @@
 <script lang="ts">
 import type { FileContent, JobId, LineNo, RepoPath, SectionId } from "@mitori/core";
 import { MitoriError } from "@mitori/core";
-import type { Component } from "svelte";
+import { type Component, untrack } from "svelte";
 import { errorText, t } from "../shell/index.ts";
 import { markAfterPaint } from "../shell/perf.ts";
 import Rich from "../shell/Rich.svelte";
 import { useStores } from "../stores/app.svelte.ts";
 import CodePane from "./CodePane.svelte";
-import { codeWindow, loadCode } from "./code.ts";
+import { codeWindow, invalidateCode, loadCode } from "./code.ts";
 
 let {
   placement,
@@ -28,7 +28,7 @@ let {
   placement: "column" | "overlay" | "sheet" | "none";
   width: number;
   page: SectionId;
-  spy: { path: RepoPath; start: LineNo; end: LineNo } | null;
+  spy: { path: RepoPath; start: LineNo; end: LineNo; blob?: string } | null;
   margin: Component<{ page: string }> | null;
   review: Component<{ job: JobId }> | null;
   /** 「この節について」 of the empty margin (no loop UI yet / no threads): stats and the files the page cites. */
@@ -64,9 +64,23 @@ $effect(() => {
   markAfterPaint("mitori:ctx:mode", { mode: m });
 });
 
+// EX-08: an accepted Fix or its Undo changes files under the open range (SSE index.changed): the pane re-reads the
+// current file at once, so it never shows a version that is gone (and never marks lines of another version)
+let rev = $state(0);
+$effect(() => {
+  const ch = s.workspace.changed;
+  const ws = s.workspace.key;
+  if (!ch || !ws) return;
+  untrack(() => {
+    const tg = target;
+    if (invalidateCode(ws, ch.paths) && tg && ch.paths.includes(tg.path)) rev++;
+  });
+});
+
 $effect(() => {
   const tg = target;
   const ws = s.workspace.key;
+  void rev;
   if (mode !== "code" || !tg || !ws) return;
   const w = codeWindow(tg.start, tg.end);
   error = null;
@@ -105,7 +119,7 @@ function up() {
     {/if}
     <div class="code-wrap">
       {#if target}
-        <CodePane {content} range={{ start: target.start, end: target.end }} badge={s.ctx.pin ? "pinned" : "exact"} {error} />
+        <CodePane {content} range={{ start: target.start, end: target.end }} badge={s.ctx.pin ? "pinned" : "exact"} {error} citedBlob={target.blob ?? null} />
       {:else}
         <p class="empty">{t("ctx.codeEmpty")}</p>
       {/if}
@@ -127,40 +141,49 @@ function up() {
     {/if}
   {:else if margin}
     {@const Margin = margin}
-    <Margin {page} />
+    <!-- the loop UI renders nothing on a page without threads / an open Composer: the empty margin (「この節について」)
+         then stays — it no longer flashes until the loop chunk arrives and vanishes (display: contents: the cards lay
+         out as children of the column, as before) -->
+    <div class="margin-host"><Margin {page} /></div>
+    {@render emptyMargin()}
   {:else}
-    <div class="margin-empty" data-chrome>
-      {#if about}
-        <section class="about" aria-labelledby="about-t">
-          <h2 id="about-t" class="rail-label">{t("ctx.about.title")}</h2>
-          <dl class="stats">
-            <div><dt>{t("ctx.about.read")}</dt><dd>{t("reader.meta.minutes", { n: about.minutes })}</dd></div>
-            <div><dt>{t("ctx.about.blocks")}</dt><dd class="mono">{about.blocks}</dd></div>
-            <div><dt>{t("ctx.about.cites")}</dt><dd class="mono">{about.files.reduce((n, f) => n + f.n, 0)}</dd></div>
-            <div>
-              <dt>{t("ctx.about.trust")}</dt>
-              <dd>{#if about.staticOnly}{t("ctx.about.static")}{:else}{t("ctx.about.claims", { v: about.verified, i: about.inferred })}{#if about.stale > 0}<span class="warn"> &middot; {t("reader.meta.stale", { n: about.stale })}</span>{/if}{/if}</dd>
-            </div>
-          </dl>
-          {#if about.files.length}
-            <h3 class="rail-label">{t("ctx.about.files")}</h3>
-            <ul class="files">
-              {#each about.files.slice(0, FILES_SHOWN) as f (f.path)}
-                <li>
-                  <button type="button" onclick={() => pin(f)} title={t("ctx.about.pin")}>
-                    <span class="p mono" data-user-content>{f.path}</span><span class="n mono">{f.n}</span>
-                  </button>
-                </li>
-              {/each}
-            </ul>
-            {#if about.files.length > FILES_SHOWN}<p class="more">{t("ctx.about.more", { n: about.files.length - FILES_SHOWN })}</p>{/if}
-          {/if}
-        </section>
-      {/if}
-      <p class="hint"><Rich text={t("ctx.marginEmpty")} /></p>
-    </div>
+    {@render emptyMargin()}
   {/if}
 </aside>
+
+{#snippet emptyMargin()}
+  <div class="margin-empty" data-chrome>
+    <!-- the tip first: the stats / cited files below arrive with the page and grow downward (CLS 0) -->
+    <p class="hint"><Rich text={t("ctx.marginEmpty")} /></p>
+    {#if about}
+      <section class="about" aria-labelledby="about-t">
+        <h2 id="about-t" class="rail-label">{t("ctx.about.title")}</h2>
+        <dl class="stats">
+          <div><dt>{t("ctx.about.read")}</dt><dd>{t("reader.meta.minutes", { n: about.minutes })}</dd></div>
+          <div><dt>{t("ctx.about.blocks")}</dt><dd class="mono">{about.blocks}</dd></div>
+          <div><dt>{t("ctx.about.cites")}</dt><dd class="mono">{about.files.reduce((n, f) => n + f.n, 0)}</dd></div>
+          <div>
+            <dt>{t("ctx.about.trust")}</dt>
+            <dd>{#if about.staticOnly}{t("ctx.about.static")}{:else}{t("ctx.about.claims", { v: about.verified, i: about.inferred })}{#if about.stale > 0}<span class="warn"> &middot; {t("reader.meta.stale", { n: about.stale })}</span>{/if}{/if}</dd>
+          </div>
+        </dl>
+        {#if about.files.length}
+          <h3 class="rail-label">{t("ctx.about.files")}</h3>
+          <ul class="files">
+            {#each about.files.slice(0, FILES_SHOWN) as f (f.path)}
+              <li>
+                <button type="button" onclick={() => pin(f)} title={t("ctx.about.pin")}>
+                  <span class="p mono" data-user-content>{f.path}</span><span class="n mono">{f.n}</span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+          {#if about.files.length > FILES_SHOWN}<p class="more">{t("ctx.about.more", { n: about.files.length - FILES_SHOWN })}</p>{/if}
+        {/if}
+      </section>
+    {/if}
+  </div>
+{/snippet}
 
 <style>
   .ctx {
@@ -235,6 +258,12 @@ function up() {
     color: var(--muted);
     font-size: var(--fs-ui);
     margin: 0;
+  }
+  .margin-host {
+    display: contents;
+  }
+  .margin-host:not(:empty) + .margin-empty {
+    display: none;
   }
   .margin-empty {
     position: sticky;

@@ -32,6 +32,7 @@ let {
   tail = null,
   mutate = (apply: () => void) => apply(),
   codeHref = () => null,
+  onread,
 }: {
   page: PageModel;
   level: ReaderLevel;
@@ -55,6 +56,11 @@ let {
   mutate?: (apply: () => void) => void;
   /** Code-view link of a static fact cite (`a.fcite` in facts tables). */
   codeHref?: (path: string, start: number, end: number) => string | null;
+  /**
+   * A section was read: its END marker (after its last block) entered the viewport above the bottom 20 % (ux.md
+   * §4.3.8, NC-15 — arriving at a chapter is not reading it). Markers of windows mounted later are observed as they mount.
+   */
+  onread?: (section: SectionId) => void;
 } = $props();
 
 let root: HTMLDivElement | undefined = $state();
@@ -109,7 +115,8 @@ type Row =
   | { k: "head"; key: string; part: number }
   | { k: "chip"; key: string; ids: BlockId[] }
   | { k: "blk"; key: string; b: BlockView }
-  | { k: "stream"; key: string; section: SectionId };
+  | { k: "stream"; key: string; section: SectionId }
+  | { k: "end"; key: string; section: SectionId };
 
 const partRows = $derived(
   page.parts.map((p, i) => {
@@ -122,6 +129,7 @@ const partRows = $derived(
       out.push({ k: "blk", key: b.id, b });
     });
     if (isStreaming(p)) out.push({ k: "stream", key: `s:${p.node.id}`, section: p.node.id });
+    out.push({ k: "end", key: `e:${p.node.id}`, section: p.node.id });
     return out;
   }),
 );
@@ -155,7 +163,8 @@ $effect(() => {
   untrack(() => {
     heights = ws.map(
       (w, i) =>
-        measured.get(i) ?? rows.slice(w.from, w.to).reduce((n, r) => n + (r.k === "blk" ? estimateBlockPx(r.b.readingSec) : r.k === "head" ? 140 : 40), 0),
+        measured.get(i) ??
+        rows.slice(w.from, w.to).reduce((n, r) => n + (r.k === "blk" ? estimateBlockPx(r.b.readingSec) : r.k === "head" ? 140 : r.k === "end" ? 1 : 40), 0),
     );
   });
 });
@@ -166,6 +175,21 @@ function recompute() {
   const r = visibleWindows(heights, top, window.scrollY, window.scrollY + window.innerHeight);
   if (r.first !== range.first || r.last !== range.last) range = r;
 }
+
+// one observer for every end marker (windows mount and unmount markers; the action follows them)
+let readIo: IntersectionObserver | null = null;
+function readMark(node: HTMLElement) {
+  if (!onread || typeof IntersectionObserver === "undefined") return;
+  readIo ??= new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) if (e.isIntersecting) onread?.((e.target as HTMLElement).dataset.read as SectionId);
+    },
+    { rootMargin: "0px 0px -20% 0px" },
+  );
+  readIo.observe(node);
+  return { destroy: () => readIo?.unobserve(node) };
+}
+onMount(() => () => readIo?.disconnect());
 
 /** Make sure the window holding a block is mounted (j/k, hash jumps). */
 export function ensureMounted(id: BlockId): void {
@@ -366,6 +390,8 @@ onMount(() => {
         {@html r.b.html}
       </div>
     {/if}
+  {:else if r.k === "end"}
+    <span class="read-mark" data-read={r.section} aria-hidden="true" use:readMark></span>
   {:else if r.k === "stream"}
     <!-- the open block: plain text + caret at the end of the reserved region -->
     {@const st = streaming.get(r.section)}

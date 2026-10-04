@@ -11,10 +11,10 @@ import { applySettings, provideStores, type Stores } from "../stores/app.svelte.
 import { wireSse } from "../stores/sse.ts";
 import Banner from "./Banner.svelte";
 import { copyText } from "./clipboard.ts";
-import { loadExtensions, type UiExtension } from "./ext.ts";
+import { loadExtensions, scheduleExtensions, type UiExtension, whenExtensions } from "./ext.ts";
 import { fmtDeltaImpl, fmtDurationImpl, fmtTokensImpl, fmtUsdImpl } from "./fmt.ts";
 import Header from "./Header.svelte";
-import { switchLang } from "./i18n-cell.svelte.ts";
+import { ensureNs, switchLang } from "./i18n-cell.svelte.ts";
 import { t } from "./index.ts";
 import { mark } from "./perf.ts";
 import Rich from "./Rich.svelte";
@@ -33,12 +33,13 @@ const kind = $derived(viewKind(route));
 
 // ---------------------------------------------------------------- lazy route views (chunks: map, reader, gen, settings, launcher)
 const LOADERS: Record<string, () => Promise<{ default: Component<Record<string, never>> }>> = {
-  launcher: () => import("./Launcher.svelte"),
+  // the Launcher names each workspace's effort (gen strings)
+  launcher: () => Promise.all([import("./Launcher.svelte"), ensureNs("gen")]).then(([m]) => m),
   map: () => import("../map/views.ts").then((m) => ({ default: m.MapPage })),
   doc: () => import("../reader/views.ts").then((m) => ({ default: m.ReaderPage })),
   code: () => import("../reader/views.ts").then((m) => ({ default: m.CodeView })),
   settings: () => import("../settings/SettingsPage.svelte"),
-  gen: () => import("../gen/GenPage.svelte"),
+  gen: () => Promise.all([import("../gen/GenPage.svelte"), ensureNs("gen")]).then(([m]) => m),
 };
 let View = $state.raw<Component<Record<string, never>> | null>(null);
 let viewKey = $state<string | null>(null);
@@ -372,7 +373,18 @@ onMount(() => {
   void s.session.loadSettings({ reuse: true }).then((v) => applySettings(s, v));
   void s.session.loadDaemon();
   void s.session.loadUsage();
-  void loadExtensions(s).then((e) => (ext = e));
+  // F5: the loop UI arrives after the first paint (idle), or at once when a route / a selection needs it
+  void whenExtensions().then((e) => (ext = e));
+  offs.push(scheduleExtensions(s));
+  const onSel = () => {
+    const sel = document.getSelection();
+    if (sel && !sel.isCollapsed && sel.toString().trim()) {
+      document.removeEventListener("selectionchange", onSel);
+      void loadExtensions(s);
+    }
+  };
+  document.addEventListener("selectionchange", onSel);
+  offs.push(() => document.removeEventListener("selectionchange", onSel));
   return () => {
     for (const off of offs) off();
   };
@@ -384,16 +396,28 @@ function runMs(r: { startedAt?: string; finishedAt?: string }): number {
   return Math.max(0, (r.finishedAt ? Date.parse(r.finishedAt) : Date.now()) - Date.parse(r.startedAt));
 }
 
-// help chunk, loaded on the first `?`
+// help chunk (+ its strings), loaded on the first `?`
 let Help = $state.raw<Component<Record<string, never>> | null>(null);
 $effect(() => {
-  if (s.ui.helpOpen && !Help) void import("./HelpOverlay.svelte").then((m) => (Help = m.default));
+  if (s.ui.helpOpen && !Help) void Promise.all([import("./HelpOverlay.svelte"), ensureNs("help")]).then(([m]) => (Help = m.default));
 });
 
-// palette chunk, loaded on first ⌘K
+// palette chunk (+ its strings), loaded on first ⌘K
 let Palette = $state.raw<Component<Record<string, never>> | null>(null);
 $effect(() => {
-  if (s.palette.open && !Palette) void import("../palette/Palette.svelte").then((m) => (Palette = m.default));
+  if (s.palette.open && !Palette) void Promise.all([import("../palette/Palette.svelte"), ensureNs("palette")]).then(([m]) => (Palette = m.default));
+});
+
+// export dialog chunk, loaded on the first 「HTML として書き出す」 (⌘K, settings)
+let Export = $state.raw<Component<Record<string, never>> | null>(null);
+$effect(() => {
+  if (s.ui.exportOpen && !Export) void import("../settings/ExportDialog.svelte").then((m) => (Export = m.default));
+});
+
+// the Inbox / Review routes ARE the loop UI: no waiting for idle there
+$effect(() => {
+  const n = route.name;
+  if (n === "inbox" || n === "review" || n === "reviewNext" || n === "thread") untrack(() => void loadExtensions(s));
 });
 
 const conn = $derived(s.session.connection);
@@ -445,6 +469,7 @@ const InboxView = $derived(ext?.views?.inbox ?? null);
 
 {#if s.ui.helpOpen && Help}<Help />{/if}
 {#if Palette && s.palette.open}<Palette />{/if}
+{#if s.ui.exportOpen && Export && s.workspace.key}<Export />{/if}
 
 {#if conn.kind === "stopped"}
   <div class="stopped" role="alertdialog" aria-modal="true" aria-labelledby="stopped-t" data-chrome>

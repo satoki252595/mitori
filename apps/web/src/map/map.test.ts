@@ -4,7 +4,7 @@ import type { EngineStatus, MapView } from "@mitori/core";
 import { ROOM_LOD, UI_THRESHOLDS } from "../contract.ts";
 import { cameraForK, centreOn, fitCamera, K_MAX, K_MIN, lerpCamera, lodClass, STAGE_K, stageOf, stepStageK, zoomAt } from "./camera.ts";
 import { engineProblem, fixSteps } from "./engine.ts";
-import { generatedTokens, heroAreas, heroMeta } from "./hero.ts";
+import { generatedTokens, heroAreas, heroMeta, oneSentence } from "./hero.ts";
 import {
   buildPlanModel,
   FLOW_BULGE,
@@ -353,6 +353,19 @@ describe("NC-02 the hero lede of a generated doc", () => {
     expect(ledeOf(blocks)).toEqual({ block: "b_tl", text: "m3e-canvas は画面の配置を描き、AI 向けのプロンプトにして渡すツールである。バックエンドは無い。" });
     expect(ledeOf(blocks.slice(0, 2))).toBeNull();
   });
+
+  test("a doc that came with the repository (its blocks load as human) still leads with its §0 prose, not its fact list", async () => {
+    const { ledeOf } = await import("./hero.ts");
+    // committed .mitori/doc opened elsewhere: the store did not write these blocks, so every one is `human`
+    const blocks = [
+      { id: "b_h", kind: "heading", origin: "static", html: "<h2>ひとことで</h2>" },
+      { id: "b_facts", kind: "list", origin: "human", html: "<ul><li>言語: go 35664 行 · javascript 20971 行</li></ul>" },
+      { id: "b_tl", kind: "prose", origin: "human", html: "<p>Crit は計画やコード差分にブラウザ上でレビューコメントを付けるツールである。</p>" },
+    ];
+    expect(ledeOf(blocks)).toEqual({ block: "b_tl", text: "Crit は計画やコード差分にブラウザ上でレビューコメントを付けるツールである。" });
+    // no prose at all: the first written list
+    expect(ledeOf(blocks.filter((b) => b.kind !== "prose"))?.block).toBe("b_facts");
+  });
 });
 
 describe("NC-04 rooms say what they are", () => {
@@ -388,5 +401,19 @@ describe("NC-04 rooms say what they are", () => {
     expect(m.rooms[0]).toMatchObject({ label: "文書モデルとトークン", path: "lib", summary: "部品型・寸法・配色を定義する基盤層" });
     const bare = { ...view, modules: [{ ...view.modules[0], summary: undefined }] } as unknown as MapView;
     expect(buildPlanModel(bare).rooms[0]?.summary).toBeNull();
+  });
+});
+
+describe("NC-04 the 「文脈」 caption is one sentence of what the building is", () => {
+  test("cut at the first sentence end (Japanese or Latin), not at an early abbreviation", () => {
+    expect(oneSentence("M3E Canvas は画面をスケッチするエディタである。Next.js 16 で作られた。")).toBe("M3E Canvas は画面をスケッチするエディタである。");
+    expect(oneSentence("Works with any AI coding tool that takes a prompt. Copy it and paste.")).toBe("Works with any AI coding tool that takes a prompt.");
+    expect(oneSentence("v2. Works with any AI coding tool that takes a prompt")).toBe("v2. Works with any AI coding tool that takes a prompt");
+  });
+  test("long text ends with … at the limit; empty stays empty", () => {
+    const long = "あ".repeat(200);
+    expect([...oneSentence(long)].length).toBe(120);
+    expect(oneSentence(long).endsWith("…")).toBe(true);
+    expect(oneSentence("")).toBe("");
   });
 });

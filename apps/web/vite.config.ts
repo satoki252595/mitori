@@ -29,6 +29,9 @@ const FACADES: [RegExp, string][] = [
 
 function chunkName(facade: string | null, fallback: string): string {
   const id = (facade ?? "").replaceAll("\\", "/");
+  // the lazy catalog groups (src/shell/i18n-ns.ts): `i18n-ja-loop`, `i18n-en-help`, …
+  const lazyCat = /\/src\/shell\/(i18n-(?:ja|en)-[a-z]+)\.ts$/.exec(id);
+  if (lazyCat) return lazyCat[1] as string;
   for (const [re, name] of FACADES) if (re.test(id)) return name;
   if (/@codemirror\/merge/.test(id)) return "merge";
   if (/codemirror|@codemirror|@lezer/.test(id)) return "cm6";
@@ -91,7 +94,7 @@ export default defineConfig(({ mode }) => ({
               test: (id: string) =>
                 /[\\/](node_modules[\\/](svelte|esm-env|clsx)|packages[\\/](core|client)[\\/]src|apps[\\/]web[\\/]src[\\/](shell|stores|contract\.ts))[\\/.]/.test(
                   id,
-                ) && !/[\\/]shell[\\/](?:(?:i18n-(?:ja|en)|main)\.ts|(?:Launcher|HelpOverlay)\.svelte)$/.test(id),
+                ) && !/[\\/]shell[\\/](?:(?:i18n-(?:ja|en)(?:-[a-z]+)?|main|help-guide)\.ts|(?:Launcher|HelpOverlay)\.svelte)$/.test(id),
               priority: 10,
             },
           ],

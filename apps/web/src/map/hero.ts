@@ -6,6 +6,18 @@
 import type { AreaStat, RepoProfile, ScanSummaryView, SourceLang } from "@mitori/core";
 import { fmtInt, fmtLocShort } from "../shell/fmt.ts";
 
+/**
+ * NC-04 the 「文脈」 caption: the first sentence of a lede / README paragraph (a sentence end after 20 characters at
+ * least, so 「v2. Works…」 is not cut at 「v2.」), at most `max` characters with an ellipsis.
+ */
+export function oneSentence(src: string, max = 120): string {
+  if (!src) return "";
+  const end = src.search(/[。！？]|[.!?](\s|$)/);
+  const one = end > 20 ? src.slice(0, end + 1) : src;
+  const chars = [...one];
+  return chars.length > max ? `${chars.slice(0, max - 1).join("")}…` : one;
+}
+
 /** Display names of source languages (proper nouns: the same in every UI language). */
 export const LANG_NAMES: Record<SourceLang, string> = {
   typescript: "TypeScript",
@@ -87,12 +99,16 @@ export function generatedTokens(
 }
 
 /**
- * NC-02: the hero lede of a generated doc — the first model-written prose / list block of §0, as plain text (≤ 280
- * chars, cut at a sentence end), with its block id for the link. Null when §0 has no written text yet.
+ * NC-02: the hero lede of a generated doc — the first written (not static) prose block of §0 (else its first written
+ * list), as plain text (≤ 280 chars, cut at a sentence end), with its block id for the link. Null when §0 has no
+ * written text yet. A block the store did not write itself counts too: a doc that came with the repository
+ * (committed `.mitori/doc`, a teammate's generation) loads as `origin: "human"` — it is still the doc's own
+ * summary, and the English README excerpt must not stand in for it. (Such a doc's fact lists load as `human` too:
+ * prose first, so 「言語: go 35664 行 …」 never becomes the lede.)
  */
 export function ledeOf(blocks: readonly { id: string; kind: string; origin: string; html: string }[]): { text: string; block: string } | null {
-  for (const b of blocks) {
-    if (b.origin !== "ai" || (b.kind !== "prose" && b.kind !== "list")) continue;
+  const written = blocks.filter((b) => b.origin !== "static");
+  for (const b of [...written.filter((x) => x.kind === "prose"), ...written.filter((x) => x.kind === "list")]) {
     const text = b.html
       .replace(/<(sup|button)[^>]*class="[^"]*(cite|chip)[^"]*"[^>]*>[\s\S]*?<\/\1>/g, "")
       .replace(/<a [^>]*class="[^"]*cite[^"]*"[^>]*>[\s\S]*?<\/a>/g, "")

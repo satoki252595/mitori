@@ -192,8 +192,11 @@ svg.plan .chip .cs {
 }
 
 /* label fitting (plan-dom #fitRoom) shows / shortens / hides parts; data-lod only marks Z3-size rooms */
-/* zoom stages: Z0 context (zones only), Z1 zones + room names, Z2 rooms */
-svg.plan[data-z="Z0"] .room .lbl,
+/* zoom stages: Z0 context (the building captioned + zones + room names, NC-04), Z1 zones + room names, Z2 rooms */
+svg.plan[data-z="Z0"] .room .rp,
+svg.plan[data-z="Z0"] .room .rs,
+svg.plan[data-z="Z0"] .room .chips,
+svg.plan[data-z="Z0"] .room .corner,
 svg.plan[data-z="Z1"] .room .rp,
 svg.plan[data-z="Z1"] .room .rs,
 svg.plan[data-z="Z1"] .room .chips {

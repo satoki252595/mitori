@@ -14,23 +14,24 @@ import { defaultEffort, isRange } from "../gen/estimate.ts";
 import { isActive, roomTargets } from "../gen/progress.ts";
 import { copyText } from "../shell/clipboard.ts";
 import { fmtInt, fmtLocShort, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
+import { hasKey } from "../shell/i18n.ts";
+import { ensureNs } from "../shell/i18n-cell.svelte.ts";
 import { errorText, t } from "../shell/index.ts";
-import { mark, markAfterPaint } from "../shell/perf.ts";
+import { afterMark, mark, markAfterPaint } from "../shell/perf.ts";
 import Rail from "../shell/Rail.svelte";
-import { choosePath } from "../shell/reading.ts";
+import { choosePath, courseName, NEWCOMER_PATH } from "../shell/reading.ts";
 import { currentLayout, useStores } from "../stores/app.svelte.ts";
 import { engineProblem } from "./engine.ts";
 import FloorPlan from "./FloorPlan.svelte";
-import { generatedTokens, heroAreas, heroMeta, LANG_NAMES, ledeOf } from "./hero.ts";
+import { generatedTokens, heroAreas, heroMeta, LANG_NAMES, ledeOf, oneSentence } from "./hero.ts";
 import type { PlanController } from "./plan-dom.ts";
 import { buildPlanModel, type PlanText, type RoomModel } from "./render.ts";
 
 const s = useStores();
-// the card states, room card and text view arrive in the lazy `gen` chunk right after mount (not first-paint)
+// the card states, room card and text view arrive in the lazy `gen` chunk once the plan has painted (F5: not
+// first-paint; the card column holds a same-size skeleton meanwhile)
 let side = $state.raw<typeof import("./side.ts") | null>(null);
-onMount(() => {
-  void import("./side.ts").then((m) => (side = m));
-});
+onMount(() => afterMark(["mitori:map:painted"], () => void Promise.all([import("./side.ts"), ensureNs("gen")]).then(([m]) => (side = m)), 800));
 const route = $derived(s.router.route);
 const ws = $derived(route.name === "map" ? route.ws : null);
 const st = $derived(s.workspace.status);
@@ -118,9 +119,19 @@ $effect(() => {
       .catch(() => (lede = null));
   });
 });
+// NC-04 the 「文脈」 caption: one sentence of what the building is (the generated §0 lede, else the README's first
+// paragraph), cut at the first sentence end
+const contextLine = $derived(oneSentence(lede?.text ?? readme?.text ?? ""));
+/** External actors on the plan (browsers, services, other repos): the people / systems around the building. */
+const externals = $derived(model ? model.rooms.filter((r) => r.external).map((r) => r.label) : []);
+
+// the 5-minute course by the name the rail and §0 give it (its real time: 「約13分コースで読む」, never a promise of 5)
+const fiveName = $derived(
+  courseName(s.doc.outline?.readingPaths ?? [], NEWCOMER_PATH, (id) => s.doc.index?.nodes.get(id)?.readingSec ?? 0, t, hasKey) ?? t("rail.pathName.5min"),
+);
 function readFiveMinutes(): void {
   if (!ws) return;
-  choosePath(ws, "5min");
+  choosePath(ws, NEWCOMER_PATH);
   void s.router.go({ name: "doc", ws, section: "s0" });
 }
 const expert = $derived(s.doc.level === "expert");
@@ -170,7 +181,8 @@ $effect(() => {
 $effect(() => {
   const running = s.gen.tasks.filter((x) => x.state === "running");
   const last = running[running.length - 1];
-  tail = last ? `${t(`gen.stage.${last.stage}`)} · ${last.target.id}` : null;
+  // gen strings arrive with the side chunk (i18n-ns.ts `gen`): until then the tail is the task id alone
+  tail = last ? (hasKey(`gen.stage.${last.stage}`) ? `${t(`gen.stage.${last.stage}`)} · ${last.target.id}` : last.target.id) : null;
 });
 
 // `?text=1` opens 「テキストで見る」 (permalink, ⌘K); closing it drops the parameter again (ux.md §4.2.6)
@@ -417,11 +429,17 @@ const planCounts = $derived(
             <blockquote lang="" data-user-content>{readme.text}</blockquote>
             <figcaption>
               <a class="src" href={HREFS.code(ws, readme.path as RepoPath, readme.line)}>{readme.path}:{readme.line}</a>
-              <span class="sep" aria-hidden="true">&middot;</span><span>{t("map.readme.verbatim")}</span>
+              <span class="sep" aria-hidden="true">&middot;</span><span>{t(generated ? "map.readme.verbatimGenerated" : "map.readme.verbatim")}</span>
             </figcaption>
           </figure>
+        {:else}
+          <!-- AC-U03: the README / lede box is reserved until the profile says there is none (then it stays as space),
+               so the plan below never moves when it arrives -->
+          <div class="readme readme-ph" aria-hidden="true"><span class:skel={!profile}></span></div>
         {/if}
-        {#if areas.length}
+        {#if !areas.length}
+          <div class="tiles tiles-ph" aria-hidden="true"><span class:skel={!profile && !scan}></span></div>
+        {:else}
           <dl class="tiles" style:--n={areas.length}>
             {#each areas as a, i (i)}
               <div class="tile">
@@ -434,7 +452,9 @@ const planCounts = $derived(
         {/if}
       </section>
 
-      <aside class="side" aria-label={t("map.right")} aria-busy={!rightReady || undefined}>
+      <!-- AC-U03: an ungenerated repository gets the estimate card — taller than the hero: its height is reserved
+           while the card's chunk loads (after the plan painted), so the plan below never moves -->
+      <aside class="side" class:est={rightReady && !generated} aria-label={t("map.right")} aria-busy={!rightReady || undefined}>
         {#if rightReady && side}
           {@const GenProgress = side.GenProgress}
           {@const GenEstimateCard = side.GenEstimateCard}
@@ -449,7 +469,7 @@ const planCounts = $derived(
                   <b>{t("map.generated", generatedTokens(totals, fmtTokensImpl, (u) => fmtUsdImpl(u, "gen")))}</b>
                   {#if stale > 0}<span class="stale">{t("map.staleChapters", { n: stale })}</span>{/if}
                 </p>
-                {#if ws}<button type="button" class="btn btn-pri" onclick={readFiveMinutes}>{t("map.read5")}</button>{/if}
+                {#if ws}<button type="button" class="btn btn-pri" onclick={readFiveMinutes}>{t("map.read5", { name: fiveName })}</button>{/if}
               </div>
             </section>
           {:else if problem && engineStatus}
@@ -519,6 +539,14 @@ const planCounts = $derived(
             bind:controller
           />
           <p id="plan-desc" class="sr-only">{t("map.text.summary", { zones: model.zones.length, rooms: model.rooms.length, edges: model.edges.length })}</p>
+          {#if s.map.stage === "Z0"}
+            <!-- NC-04 「文脈」: the building named and placed — what it is (§0 / README) and who is outside it -->
+            <div class="ctx-cap" data-chrome>
+              <p class="cn" data-user-content>{s.workspace.status?.info.name ?? ""}</p>
+              {#if contextLine}<p class="cl" data-user-content>{contextLine}</p>{/if}
+              {#if externals.length > 0}<p class="cx">{t("map.context.outside", { names: externals.join(" · ") })}</p>{/if}
+            </div>
+          {/if}
         {:else if s.map.error}
           <div class="err-card center" role="alert">
             <h2>{t("map.error")}</h2>
@@ -668,7 +696,9 @@ const planCounts = $derived(
     display: flex;
     flex-wrap: wrap;
     gap: 2px 8px;
-    min-height: 1.6em;
+    /* two lines reserved (remote · toolchain · license · HEAD wraps on most repos): the profile arriving moves nothing */
+    min-height: calc(2 * 1.5em + 2px);
+    line-height: 1.5;
     margin: 10px 0 0;
     font-size: var(--fs-ui);
     color: var(--muted);
@@ -698,11 +728,34 @@ const planCounts = $derived(
     font-size: var(--fs-body-l, 18px);
     line-height: 1.7;
     color: var(--text);
+    /* three lines, always (AC-U03: a shorter excerpt must not pull the plan up when it arrives) */
+    min-height: calc(3 * 1.7em);
     display: -webkit-box;
     -webkit-line-clamp: 3;
     line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+  /* the reserved box: 3 blockquote lines + the caption line */
+  .readme-ph {
+    height: calc(3 * 1.7 * var(--fs-body-l, 18px) + 6px + 1.5em + 4px);
+    border-left-color: transparent;
+  }
+  .readme-ph .skel {
+    display: block;
+    width: 70%;
+    height: 1.2em;
+    margin-top: 6px;
+  }
+  .tiles-ph {
+    display: block;
+    height: calc(14px + 30px * 1.15 + 4px + 1.5em + 14px + 2px);
+  }
+  .tiles-ph .skel {
+    display: block;
+    width: 90%;
+    height: 60%;
+    margin: 12px 0;
   }
   .readme figcaption {
     margin-top: 6px;
@@ -772,6 +825,9 @@ const planCounts = $derived(
     display: flex;
     flex-direction: column;
     gap: 10px;
+  }
+  .side.est {
+    min-height: var(--est-card-h, 464px);
   }
   .side-skel {
     min-height: 352px;
@@ -914,6 +970,35 @@ const planCounts = $derived(
     background-image: radial-gradient(circle at 1px 1px, var(--rule) 1px, transparent 1.2px);
     background-size: 16px 16px;
     overflow: hidden;
+  }
+  .ctx-cap {
+    position: absolute;
+    left: 18px;
+    top: 16px;
+    max-width: min(560px, calc(100% - 36px));
+    padding: 10px 14px;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-card);
+    background: var(--sheet);
+    pointer-events: none;
+    animation: pop-in var(--dur-lod) var(--ease-out);
+  }
+  .ctx-cap .cn {
+    margin: 0;
+    font-size: var(--fs-ui);
+    font-weight: var(--fw-strong);
+    color: var(--ink);
+  }
+  .ctx-cap .cl {
+    margin: 2px 0 0;
+    font-size: var(--fs-ui-s);
+    line-height: 1.6;
+    color: var(--text);
+  }
+  .ctx-cap .cx {
+    margin: 4px 0 0;
+    font-size: var(--fs-label);
+    color: var(--muted);
   }
   .stage-skel {
     position: absolute;
@@ -1059,6 +1144,7 @@ const planCounts = $derived(
   @container map (max-width: 1080px) {
     .top {
       --map-card-w: 360px;
+      --est-card-h: 484px;
       gap: 24px 32px;
     }
     .below {
@@ -1072,6 +1158,7 @@ const planCounts = $derived(
   @container map (max-width: 860px) {
     .top {
       grid-template-columns: minmax(0, 1fr);
+      --est-card-h: 445px;
     }
     .side {
       max-width: none;

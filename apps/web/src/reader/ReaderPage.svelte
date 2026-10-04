@@ -3,26 +3,41 @@
   column (chapter head, BlockHost, pager) │ context column. Keys of the `read` scope live here.
 -->
 <script lang="ts">
-import { type BlockId, type CitePeek as CitePeekData, HREFS, type LineNo, MitoriError, type RepoPath, type SectionId } from "@mitori/core";
+import {
+  type BlockHistoryEntry,
+  type BlockId,
+  type CitePeek as CitePeekData,
+  HREFS,
+  type LineNo,
+  MitoriError,
+  type RepoPath,
+  type SectionId,
+} from "@mitori/core";
 import { flushSync, onMount, untrack } from "svelte";
 import { copyText } from "../shell/clipboard.ts";
-import { loadExtensions, type UiExtension } from "../shell/ext.ts";
+import { loadExtensions, type UiExtension, whenExtensions } from "../shell/ext.ts";
+import { welcomeKey } from "../shell/firstrun.ts";
+import { hasKey } from "../shell/i18n.ts";
+import { ensureNs } from "../shell/i18n-cell.svelte.ts";
 import { errorText, t } from "../shell/index.ts";
 import { mark } from "../shell/perf.ts";
 import Rail from "../shell/Rail.svelte";
-import { DEFAULT_PATH, selectedPath } from "../shell/reading.ts";
-import { getItem, getJson, STORAGE_KEYS, setItem, setJson } from "../shell/storage.ts";
+import { choosePath, markRead, NEWCOMER_PATH, pathProgress, readMapOf } from "../shell/reading.ts";
+import { getItem, STORAGE_KEYS, setItem } from "../shell/storage.ts";
 import { currentLayout, setReaderLevel, useStores } from "../stores/app.svelte.ts";
 import BlockHost from "./BlockHost.svelte";
 import ContextColumn from "./ContextColumn.svelte";
 import { editorUrl, factPeek, parseCite } from "./code.ts";
 import { applyLevel } from "./decorate.ts";
+import { paintFind } from "./find.ts";
 import Gutter from "./Gutter.svelte";
 import { blockVisibleImpl, permalinkTextImpl, stepLevel } from "./levels.ts";
 import Minimap from "./Minimap.svelte";
 import { readingMinutes, subtreeStats } from "./outline.ts";
-import { buildPage, type PagePart, sectionsToFetch, stepBlock } from "./page.ts";
+import { buildPage, genNoteOf, type PagePart, sectionsToFetch, stepBlock } from "./page.ts";
+import { reviewAnchor } from "./review-anchor.ts";
 import { type Anchor, captureAnchor, restoreAnchor } from "./scroll-anchor.ts";
+import Welcome from "./Welcome.svelte";
 
 const s = useStores();
 // peek / term card / claim popover: a lazy chunk, fetched when idle after the first section paint (or on demand)
@@ -43,6 +58,8 @@ let focused = $state<BlockId | null>(null);
 let forced = $state.raw<ReadonlySet<BlockId>>(new Set());
 let loadError = $state<string | null>(null);
 let reviewSection = $state<SectionId | null>(null);
+/** EX-09: the block the reviewed job is anchored on (or its first doc proposal's): the left body opens THERE. */
+let reviewBlock = $state<BlockId | null>(null);
 
 // ---------------------------------------------------------------- which page
 const section = $derived<SectionId | null>(route.name === "doc" ? route.section : route.name === "review" ? (reviewSection ?? null) : null);
@@ -57,18 +74,25 @@ $effect(() => {
       s.ctx.set("review", { job });
       void s.review.jobDetail(job).then(
         (d) => {
-          const th = d.threads.map((id) => s.review.threads.get(id)).find((x) => x?.anchor.doc);
-          const block = th?.anchor.doc?.block;
+          const block = reviewAnchor(d, (id) => s.review.threads.get(id));
+          reviewBlock = block;
           reviewSection = (block && s.doc.index?.blockSection.get(block)) || "s0";
         },
-        () => (reviewSection = "s0"),
+        () => {
+          reviewBlock = null;
+          reviewSection = "s0";
+        },
       );
     });
   } else if (route.name === "doc") {
     const r = route;
     untrack(() => {
-      if (r.ctx === "code") s.ctx.set("code", r.pin ? { pin: r.pin } : {});
-      else if (r.ctx === "review") s.ctx.set("review");
+      if (r.ctx === "code") {
+        // the URL carries path:a-b only: the pin set from a chip keeps its cited blob (EX-08)
+        const cur = s.ctx.pin;
+        const same = !!cur && !!r.pin && cur.path === r.pin.path && cur.start === r.pin.start && cur.end === r.pin.end;
+        s.ctx.set("code", r.pin ? { pin: same && cur ? cur : r.pin } : {});
+      } else if (r.ctx === "review") s.ctx.set("review");
       else s.ctx.defaultFor(s.doc.level);
     });
   }
@@ -110,11 +134,30 @@ $effect(() => {
       if (restored.focusBlock) focusBlock(restored.focusBlock as BlockId, false);
     } else if (r.name === "doc" && r.block) {
       focusBlock(r.block, true);
+      // a ⌘K full-text jump marks the words it matched (NC-09)
+      const f = s.ui.find;
+      if (f && f.block === r.block) {
+        s.ui.find = null;
+        const el = main?.querySelector(`.blk[data-b="${CSS.escape(r.block)}"]`);
+        if (el) {
+          el.scrollIntoView({ block: "center" });
+          paintFind(el, f.words);
+        }
+      }
     } else if (r.name === "doc" && r.section !== model.page) {
       document.querySelector(`[data-sec="${CSS.escape(r.section)}"]`)?.scrollIntoView({ block: "start" });
+    } else if (r.name === "review" && reviewBlock) {
+      // EX-09: the anchored block (and its proposal right after it) in the middle of the left column, marked; the
+      // keyboard stays with the Review panel
+      const b = reviewBlock;
+      host?.ensureMounted(b);
+      focused = b;
+      flushSync();
+      main?.querySelector(`.blk[data-b="${CSS.escape(b)}"]`)?.scrollIntoView({ block: "center" });
     } else window.scrollTo(0, 0);
     // the page heading gets focus (§2.3-5) unless the link targeted a block, which then keeps it
-    if (s.router.focusMain && !restored && !(r.name === "doc" && r.block)) (main?.querySelector("h1") as HTMLElement | null)?.focus({ preventScroll: true });
+    if (s.router.focusMain && !restored && !(r.name === "doc" && r.block) && r.name !== "review")
+      (main?.querySelector("h1") as HTMLElement | null)?.focus({ preventScroll: true });
     const n = ix?.nodes.get(model.page);
     if (n) s.ui.announce(t("reader.announce.page", { num: ix?.numbers.get(model.page) ?? "", title: n.title }));
   });
@@ -141,9 +184,22 @@ onMount(() => {
       restoreAnchor(main, a, model?.order);
     };
   };
-  void loadExtensions(s).then((e) => (ext = e));
+  // the margin cards show once the shell has loaded the loop UI (after the first paint, F5)
+  void whenExtensions().then((e) => (ext = e));
   s.router.focusedBlock = () => (focused && main?.querySelector(`.blk[data-b="${CSS.escape(focused)}"]`) ? focused : null);
+  // NC-17: no reader popover stays over a Composer (selection toolbar, gutter, ⌘K 「AI に聞く」)
+  const onComposer = () => closePops(null);
+  // ⌘K 「この段落の履歴」 (the focused block)
+  const onHistory = () => {
+    const b = focused;
+    const el = b ? main?.querySelector<HTMLElement>(`.blk[data-b="${CSS.escape(b)}"]`) : null;
+    if (b && el) openHistory(b, el);
+  };
+  window.addEventListener("mitori:composer:open", onComposer);
+  window.addEventListener("mitori:block-history", onHistory);
   return () => {
+    window.removeEventListener("mitori:composer:open", onComposer);
+    window.removeEventListener("mitori:block-history", onHistory);
     s.doc.mutate = (apply) => apply();
     s.doc.levelTransition = null;
     s.router.focusedBlock = null;
@@ -255,8 +311,21 @@ function compose(intent: "note" | "question" | "change", block: BlockId | null =
     }
     return;
   }
-  window.dispatchEvent(new CustomEvent("mitori:compose", { detail: { block, claim, intent } }));
-  if (!ext?.margin) s.bottom.toast({ id: "hint.loopPending", kind: "info", key: "hint.loopPending" });
+  closePops(null);
+  const detail = { block, claim, intent };
+  if (ext) {
+    window.dispatchEvent(new CustomEvent("mitori:compose", { detail }));
+    return;
+  }
+  // the loop UI is still on its way (F5): ask for it now and hand over once it listens
+  void loadExtensions(s).then(
+    (e) => {
+      ext = e;
+      if (e.margin) window.dispatchEvent(new CustomEvent("mitori:compose", { detail }));
+      else s.bottom.toast({ id: "hint.loopPending", kind: "info", key: "hint.loopPending" });
+    },
+    () => s.bottom.toast({ id: "hint.loopPending", kind: "info", key: "hint.loopPending" }),
+  );
 }
 
 // ---------------------------------------------------------------- cite peek / term card / claim popover
@@ -264,6 +333,14 @@ let peek = $state.raw<{ data: CitePeekData; anchorEl: HTMLElement; claimEl: HTML
 let peekHover = false;
 let peekTimer: ReturnType<typeof setTimeout> | null = null;
 const peekCache = new Map<string, Promise<CitePeekData>>();
+// a static fact's peek is the CURRENT file window: an accept / Undo (SSE index.changed) makes it old (EX-08)
+$effect(() => {
+  const ch = s.workspace.changed;
+  if (!ch) return;
+  untrack(() => {
+    for (const key of [...peekCache.keys()]) if (key.endsWith("@") && ch.paths.some((p) => key.startsWith(`${p}:`))) peekCache.delete(key);
+  });
+});
 const peeked = new Set<string>();
 
 function fetchPeek(cite: string, blob: string): Promise<CitePeekData> | null {
@@ -298,7 +375,11 @@ function closePeek() {
 }
 
 function onCite(e: { cite: string; blob: string; anchorEl: HTMLElement; via: "hover" | "focus" | "click" | "leave" }) {
-  if (e.via === "leave") return closePeekSoon();
+  if (e.via === "leave") {
+    closePeekSoon();
+    closeTermSoon();
+    return;
+  }
   loadPop();
   if (peekTimer) clearTimeout(peekTimer);
   const p = fetchPeek(e.cite, e.blob);
@@ -306,6 +387,7 @@ function onCite(e: { cite: string; blob: string; anchorEl: HTMLElement; via: "ho
   const claimEl = e.anchorEl.closest(".mc") as HTMLElement | null;
   p.then(
     (data) => {
+      closePops("peek");
       main?.querySelector("a.mcite.on")?.classList.remove("on");
       e.anchorEl.classList.add("on");
       peek = { data, anchorEl: e.anchorEl, claimEl, pinned: e.via === "click" };
@@ -353,11 +435,13 @@ function pinPeek() {
     else leaveCode();
     return;
   }
-  const cite = peek?.anchorEl.dataset.cite ?? (document.activeElement as HTMLElement | null)?.closest?.("a.mcite, a.fcite")?.getAttribute("data-cite");
+  const chip = (peek?.anchorEl ?? (document.activeElement as HTMLElement | null)?.closest?.("a.mcite, a.fcite")) as HTMLElement | null | undefined;
+  const cite = chip?.dataset.cite;
   const c = cite ? parseCite(cite) : null;
   if (!c) return;
+  const blob = chip?.dataset.blob;
   closePeek();
-  s.ctx.set("code", { pin: { path: c.path, start: c.start, end: c.end } });
+  s.ctx.set("code", { pin: { path: c.path, start: c.start, end: c.end, ...(blob ? { blob } : {}) } });
   if (route.name === "doc") s.router.replaceUrl({ ...route, ctx: "code", pin: { path: c.path, start: c.start, end: c.end } });
 }
 
@@ -385,24 +469,104 @@ const termEntry = $derived.by(() => {
 });
 
 let claim = $state.raw<{ block: BlockId; claim: string | null; anchorEl: HTMLElement } | null>(null);
-async function verify() {
-  const c = claim;
-  if (!c || !ws) return;
-  const el = c.claim ? main?.querySelector<HTMLElement>(`.mc[data-claim="${CSS.escape(c.claim)}"]`) : null;
-  const prev = el?.dataset.verdict;
-  if (el) el.dataset.verdict = "human-verified";
-  claim = null;
-  s.layers.drop("claim");
+let history = $state.raw<{ block: BlockId; anchorEl: HTMLElement; entries: readonly BlockHistoryEntry[] | null; error: string | null } | null>(null);
+let verifying = $state(false);
+
+function closeTerm() {
+  term = null;
+  s.layers.drop("term");
+}
+function closeTermSoon() {
+  setTimeout(() => {
+    if (!termHover) closeTerm();
+  }, 160);
+}
+function closeHistory() {
+  history = null;
+  s.layers.drop("history");
+}
+
+/**
+ * ONE reader popover at a time (NC-17): opening the peek, a term card, a claim check or the block history closes
+ * the others, and each is a layer, so Escape closes whichever is open. The Composer opening closes them all.
+ */
+function closePops(keep: "peek" | "term" | "claim" | "history" | null) {
+  if (keep !== "peek" && peek) closePeek();
+  if (keep !== "term" && term) closeTerm();
+  if (keep !== "claim" && claim) {
+    claim = null;
+    s.layers.drop("claim");
+  }
+  if (keep !== "history" && history) closeHistory();
+}
+
+function openTerm(e: { term: string; anchorEl: HTMLElement }) {
+  loadPop();
+  closePops("term");
+  term = { id: e.term, anchorEl: e.anchorEl };
+  s.layers.open("popover", "term", () => (term = null));
+}
+
+function openClaim(e: { block: BlockId; claim: string | null; anchorEl: HTMLElement }) {
+  closePops("claim");
+  claim = e;
+  s.layers.open("popover", "claim", () => (claim = null));
+}
+
+/** The block history popover (EX-10): `GET /doc/blocks/:block/history`, newest first. */
+function openHistory(block: BlockId, anchorEl: HTMLElement) {
+  if (!ws) return;
+  loadPop();
+  closePops("history");
+  history = { block, anchorEl, entries: null, error: null };
+  s.layers.open("popover", "history", () => (history = null));
+  s.api.call("GET /ws/:ws/doc/blocks/:block/history", { params: { ws, block } }).then(
+    (entries) => {
+      if (history?.block === block) history = { ...history, entries };
+    },
+    (err) => {
+      if (history?.block === block) history = { ...history, error: errorText(MitoriError.from(err).toData()) };
+    },
+  );
+}
+
+const blockViewOf = (id: BlockId) => model?.parts.flatMap((p) => p.blocks).find((b) => b.id === id) ?? null;
+
+/**
+ * The human check of a paragraph (`POST /doc/blocks/:block/verify`): the server marks EVERY claim of the block
+ * human-verified (✓✓, kept across regenerations) or takes it back. Optimistic for ✓✓ (rolled back on failure).
+ */
+async function verifyBlock(block: BlockId, verified: boolean) {
+  if (!ws || verifying) return;
+  verifying = true;
+  const els = verified ? [...(main?.querySelectorAll<HTMLElement>(`.blk[data-b="${CSS.escape(block)}"] .mc[data-claim]`) ?? [])] : [];
+  const prev = els.map((el) => el.dataset.verdict);
+  for (const el of els) el.dataset.verdict = "human-verified";
   try {
-    const body: { verified: boolean; claims?: `cl_${string}`[] } = { verified: true };
-    if (c.claim) body.claims = [c.claim as `cl_${string}`];
-    const v = await s.api.call("POST /ws/:ws/doc/blocks/:block/verify", { params: { ws, block: c.block }, body });
+    const v = await s.api.call("POST /ws/:ws/doc/blocks/:block/verify", { params: { ws, block }, body: { verified } });
     s.doc.upsertBlock(v);
+    s.ui.announce(t(verified ? "history.announce.verified" : "history.announce.unverified"));
   } catch (err) {
-    if (el && prev) el.dataset.verdict = prev;
+    els.forEach((el, i) => {
+      if (prev[i]) el.dataset.verdict = prev[i];
+    });
     s.bottom.toast({ id: "verify.failed", kind: "error", key: "toast.verifyFailed", params: { error: errorText(MitoriError.from(err).toData()) } });
+  } finally {
+    verifying = false;
   }
 }
+
+async function verify() {
+  const c = claim;
+  if (!c) return;
+  claim = null;
+  s.layers.drop("claim");
+  await verifyBlock(c.block, true);
+}
+
+/** The peek's ✓✓: the cited claim's paragraph (EX-10 — every claim can be checked, not only the inferred ones). */
+const peekBlock = $derived((peek?.anchorEl.closest(".blk") as HTMLElement | null)?.dataset.b as BlockId | undefined);
+const peekBlockView = $derived(peekBlock ? blockViewOf(peekBlock) : null);
 
 // ---------------------------------------------------------------- shared gutter
 let gutter = $state<{ block: BlockId | null; top: number; left: number }>({ block: null, top: 0, left: 0 });
@@ -431,17 +595,22 @@ $effect(() => {
 });
 
 // ---------------------------------------------------------------- scrollspy (code mode follows the first visible block's main cite)
-let spy = $state.raw<{ path: RepoPath; start: LineNo; end: LineNo } | null>(null);
+let spy = $state.raw<{ path: RepoPath; start: LineNo; end: LineNo; blob?: string } | null>(null);
 $effect(() => {
   if (s.ctx.mode !== "code" || s.ctx.pin || !main || !loaded) return;
   let settle: ReturnType<typeof setTimeout> | null = null;
   const io = new IntersectionObserver(
     (entries) => {
       const first = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-      const cite = first?.target.querySelector<HTMLElement>("a.mcite")?.dataset.cite;
+      const chip = first?.target.querySelector<HTMLElement>("a.mcite");
+      const cite = chip?.dataset.cite;
       if (!cite) return;
+      const blob = chip?.dataset.blob;
       if (settle) clearTimeout(settle);
-      settle = setTimeout(() => (spy = parseCite(cite)), 100);
+      settle = setTimeout(() => {
+        const c = parseCite(cite);
+        spy = c ? { ...c, ...(blob ? { blob } : {}) } : null;
+      }, 100);
     },
     { rootMargin: "-18% 0px -62% 0px" },
   );
@@ -449,37 +618,23 @@ $effect(() => {
   return () => io.disconnect();
 });
 
-// ---------------------------------------------------------------- reading-path progress (marker passes the bottom 20 %)
+// a running / paused generation: its stage names (the streaming tail) are in the gen strings (i18n-ns.ts `gen`)
 $effect(() => {
-  if (!loaded || !main || !ws || !model) return;
-  // progress belongs to the path chosen in the rail card (sessionStorage `mitori:path:<ws>`)
-  const pathId = selectedPath(s.doc.outline, ws)?.id ?? DEFAULT_PATH;
-  const io = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        const sec = (e.target as HTMLElement).dataset.read;
-        if (!sec) continue;
-        const key = STORAGE_KEYS.read(ws, pathId);
-        const cur = getJson<Record<string, string>>("local", key) ?? {};
-        if (!cur[sec]) {
-          cur[sec] = new Date().toISOString();
-          setJson("local", key, cur);
-          s.ui.readTick++;
-        }
-      }
-    },
-    { rootMargin: "0px 0px -20% 0px" },
-  );
-  for (const el of main.querySelectorAll("[data-read]")) io.observe(el);
-  return () => io.disconnect();
+  const st = s.gen.run?.state;
+  if (st === "running" || st === "paused") untrack(() => void ensureNs("gen"));
 });
+
+// ---------------------------------------------------------------- reading-path progress (a section's END marker passes the bottom 20 %)
+function onRead(sec: SectionId) {
+  // a section read counts for every course that stops there (NC-15)
+  if (ws && markRead(ws, sec, new Date().toISOString())) s.ui.readTick++;
+}
 
 // tail of the running generation (`◐ 生成中 · modules · internal/session`, §4.3.9-6)
 const streamTail = $derived.by(() => {
   const running = s.gen.tasks.filter((x) => x.state === "running");
   const last = running[running.length - 1];
-  return last ? `${t(`gen.stage.${last.stage}`)} · ${last.target.id}` : null;
+  return last ? (hasKey(`gen.stage.${last.stage}`) ? `${t(`gen.stage.${last.stage}`)} · ${last.target.id}` : last.target.id) : null;
 });
 
 // ---------------------------------------------------------------- placeholders: first click estimates, second runs
@@ -545,6 +700,48 @@ const about = $derived.by(() => {
   };
 });
 const marginView = $derived(ext?.margin ?? null);
+
+// ---------------------------------------------------------------- NC-14 the doc is in another language than the UI
+/**
+ * The translation entry point that works today: the AI explains the section in the UI's language (an Explain draft on
+ * the section's first paragraph, the question typed in, nothing sent until the user presses send). The section /
+ * block translate routes are not wired on the daemon (501), so no 「訳を表示」 promises what cannot run.
+ */
+function askInUiLang(p: PagePart) {
+  const b = p.blocks.find((x) => x.kind !== "heading" && x.status !== "placeholder");
+  if (!b) return;
+  host?.ensureMounted(b.id);
+  focused = b.id;
+  void loadExtensions(s).then(() =>
+    window.dispatchEvent(new CustomEvent("mitori:compose", { detail: { block: b.id, claim: null, intent: "question", body: t("reader.translateAskBody") } })),
+  );
+}
+
+// ---------------------------------------------------------------- §0 welcome: the 5-minute course (NC-08 / NC-13)
+let welcomeClosed = $state(false);
+const welcome = $derived.by(() => {
+  void s.ui.readTick;
+  const w = ws;
+  const o = s.doc.outline;
+  if (!w || !o?.manifest.generatedAt || welcomeClosed || getItem("local", welcomeKey(w))) return null;
+  const five = o.readingPaths.find((p) => p.id === NEWCOMER_PATH);
+  if (!five || five.steps.length === 0) return null;
+  const prog = pathProgress(five, readMapOf(w, five.id), (id) => ix?.nodes.get(id)?.readingSec ?? 0);
+  return prog.done ? null : { path: five, prog };
+});
+function closeWelcome() {
+  if (ws) setItem("local", welcomeKey(ws), new Date().toISOString().slice(0, 10));
+  welcomeClosed = true;
+}
+function startCourse() {
+  const w = welcome;
+  if (!ws || !w) return;
+  choosePath(ws, w.path.id);
+  s.ui.readTick++;
+  const next = w.prog.next ?? w.path.steps[0]?.section;
+  if (next && next !== model?.page) void s.router.go({ name: "doc", ws, section: next });
+  else main?.querySelector<HTMLElement>(".sec-body .blk")?.focus();
+}
 </script>
 
 {#snippet head(p: PagePart)}
@@ -552,7 +749,10 @@ const marginView = $derived(ext?.margin ?? null);
   {#if p.top}
     <header class="sec-head" data-chrome>
       <!-- UI ≠ doc language: the note shares the § row (fixed height) so switching the UI language moves nothing -->
-      <p class="sec-num">&sect;{p.num}{#if uiLang !== docLang}<span class="lang-note">{t("reader.translateBand")}</span>{/if}</p>
+      <p class="sec-num">
+        &sect;{p.num}{#if uiLang !== docLang}<span class="lang-note">{t("reader.translateBand")}</span
+          ><button type="button" class="lang-ask" onclick={() => askInUiLang(p)}>{t("reader.translateAsk")}</button>{/if}
+      </p>
       <h1 tabindex="-1" data-user-content>{p.node.title}</h1>
       <p class="sec-meta">
         <span>{t("reader.meta.minutes", { n: readingMinutes(p.node.readingSec) })}</span>
@@ -564,7 +764,27 @@ const marginView = $derived(ext?.margin ?? null);
         {#if s.doc.outline?.manifest.models[0]}<span class="sep" aria-hidden="true">&middot;</span><span class="mono">{s.doc.outline.manifest.models[0]}</span>{/if}
       </p>
     </header>
-    {#if notGenerated && p.node.state !== "static_only"}
+    {#if p.node.id === "s0" && welcome && ws}
+      <Welcome
+        {ws}
+        path={welcome.path}
+        prog={welcome.prog}
+        {level}
+        numbers={(id) => ix?.numbers.get(id) ?? ""}
+        titles={(id) => ix?.nodes.get(id)?.title ?? ""}
+        onstart={startCourse}
+        onlevel={(l) => setLevel(l)}
+        onclose={closeWelcome}
+      />
+    {/if}
+    {@const note = genNoteOf(s.gen.run, p.node, !notGenerated)}
+    {#if note === "paused" || note === "pausedBudget"}
+      <!-- EX-11: a run paused (budget / the 5h window) says so and resumes here; a written page never claims to be ungenerated -->
+      <p class="gen-note" data-chrome>
+        <span>{t(note === "pausedBudget" ? "reader.genPausedBudget" : "reader.genPaused")}</span>
+        <button type="button" class="btn btn-sec btn-s" onclick={() => void s.gen.control("resume")}>{t("reader.genResume")}</button>
+      </p>
+    {:else if note === "notGenerated"}
       <p class="gen-note" data-chrome>
         <span>{t("reader.notGenerated")}</span>
         {#if ws}<a class="btn btn-sec btn-s" href={HREFS.map(ws)}>{t("reader.seeEstimate")}</a>{/if}
@@ -573,13 +793,13 @@ const marginView = $derived(ext?.margin ?? null);
   {:else}
     <h2 class="sub" id={`sec-${p.node.id}`}><span class="hn">{p.num}</span><span data-user-content>{p.node.title}</span></h2>
   {/if}
-  <span class="read-mark" data-read={p.node.id} aria-hidden="true"></span>
 {/snippet}
 
 <div class="body reader-body" style:grid-template-columns="{layout.rail}px minmax(0,1fr) {layout.ctxPlacement === 'column' ? layout.ctx : 0}px">
   <Rail mode={layout.railMode}>
     {#snippet top()}
-      {#if s.doc.outline && !s.map.fallback}<Minimap page={model?.page ?? null} />{/if}
+      <!-- not gated on the outline: its box is there from the first paint (the outline arriving moves nothing) -->
+      {#if !s.map.fallback}<Minimap page={model?.page ?? null} />{/if}
     {/snippet}
   </Rail>
 
@@ -596,7 +816,13 @@ const marginView = $derived(ext?.margin ?? null);
           block={gutter.block}
           top={gutter.top}
           left={gutter.left}
-          onaction={(a) => compose(a === "comment" ? "note" : a === "explain" ? "question" : "change", gutter.block)}
+          onaction={(a, el) => {
+            if (a === "history") {
+              if (gutter.block && el) openHistory(gutter.block, el);
+              return;
+            }
+            compose(a === "comment" ? "note" : a === "explain" ? "question" : "change", gutter.block);
+          }}
           onenter={() => (gutterHover = true)}
           onleave={() => (gutterHover = false)}
         />
@@ -609,14 +835,8 @@ const marginView = $derived(ext?.margin ?? null);
           {forced}
           {head}
           oncite={onCite}
-          onterm={(e) => {
-            term = e ? { id: e.term, anchorEl: e.anchorEl } : null;
-            if (!e) return;
-          }}
-          onclaim={(e) => {
-            claim = e;
-            s.layers.open("popover", "claim", () => (claim = null));
-          }}
+          onterm={(e) => (e ? openTerm(e) : closeTerm())}
+          onclaim={openClaim}
           onhoverblock={onHoverBlock}
           onplaceholder={onPlaceholder}
           onmore={(ids) => (forced = new Set([...forced, ...ids]))}
@@ -625,6 +845,7 @@ const marginView = $derived(ext?.margin ?? null);
           tail={streamTail}
           mutate={(apply) => s.doc.mutate(apply)}
           codeHref={(p, a, b) => (ws ? HREFS.code(ws, p as RepoPath, a as LineNo, b as LineNo) : null)}
+          onread={onRead}
         />
         {#if next && ws}
           <nav class="pager" aria-label={t("reader.pager")} data-chrome>
@@ -674,7 +895,19 @@ const marginView = $derived(ext?.margin ?? null);
       peekHover = false;
       closePeekSoon();
     }}
-  />
+  >
+    {#snippet extra()}
+      {#if pop && peekBlockView && peekBlockView.claims.length > 0}
+        {@const PeekVerify = pop.PeekVerify}
+        <PeekVerify
+          verified={peekBlockView.lock === "human-verified"}
+          n={peekBlockView.claims.length}
+          busy={verifying}
+          onverify={(next) => peekBlock && void verifyBlock(peekBlock, next)}
+        />
+      {/if}
+    {/snippet}
+  </CitePeek>
 {/if}
 {#if term && termEntry && ws && pop}
   {@const TermCard = pop.TermCard}
@@ -685,8 +918,24 @@ const marginView = $derived(ext?.margin ?? null);
     onenter={() => (termHover = true)}
     onleave={() => {
       termHover = false;
-      setTimeout(() => !termHover && (term = null), 160);
+      closeTermSoon();
     }}
+  />
+{/if}
+{#if history && pop}
+  {@const BlockHistory = pop.BlockHistory}
+  {@const hb = blockViewOf(history.block)}
+  <BlockHistory
+    entries={history.entries}
+    error={history.error}
+    anchorEl={history.anchorEl}
+    lang={s.prefs.lang}
+    verified={hb?.lock === "human-verified"}
+    verifiedBy={hb?.verifiedBy ?? null}
+    claims={hb?.claims.length ?? 0}
+    busy={verifying}
+    onverify={(next) => history && void verifyBlock(history.block, next)}
+    onclose={() => s.layers.close("history")}
   />
 {/if}
 {#if claim && pop}

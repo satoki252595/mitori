@@ -31,6 +31,10 @@ const box = $derived(view ? `0 0 ${view.layout.width} ${view.layout.height}` : "
       {#each view.layout.nodes as n (n.id)}<rect class="r" class:cur={n.id === node} x={n.x} y={n.y} width={n.w} height={n.h} />{/each}
     </svg>
   </a>
+{:else}
+  <!-- the thumbnail's box is held while the map view loads (it is fetched after the section paints): the path card
+       and the TOC below it never move (reader boot CLS, AC-U03) -->
+  <div class="mini held" aria-hidden="true" data-chrome></div>
 {/if}
 
 <style>
@@ -44,7 +48,11 @@ const box = $derived(view ? `0 0 ${view.layout.width} ${view.layout.height}` : "
     padding: 6px;
     flex: none;
   }
-  .mini:hover {
+  .mini.held {
+    border-style: dashed;
+    border-color: var(--rule-soft);
+  }
+  a.mini:hover {
     border-color: var(--rule-2);
   }
   svg {

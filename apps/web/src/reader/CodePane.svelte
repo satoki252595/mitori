@@ -12,8 +12,17 @@ let {
   range,
   badge,
   error,
-}: { content: FileContent | null; range: { start: LineNo; end: LineNo }; badge: "exact" | "search" | "pinned" | "uncommitted"; error: string | null } =
-  $props();
+  citedBlob = null,
+}: {
+  content: FileContent | null;
+  range: { start: LineNo; end: LineNo };
+  badge: "exact" | "search" | "pinned" | "uncommitted";
+  error: string | null;
+  /** Blob the range was cited against: when the file is another version now, the band says so (EX-08). */
+  citedBlob?: string | null;
+} = $props();
+// a 7+ char prefix of the cited blob vs the file's current one
+const otherVersion = $derived(!!content && !!citedBlob && !content.blob.startsWith(citedBlob.slice(0, 7)) && !citedBlob.startsWith(content.blob.slice(0, 7)));
 let body: HTMLPreElement | undefined = $state();
 
 $effect(() => {
@@ -42,6 +51,9 @@ const base = $derived(content ? content.path.slice(content.path.lastIndexOf("/")
       <span class="skel path-skel">&nbsp;</span>
     {/if}
   </div>
+  {#if otherVersion && content && citedBlob}
+    <p class="other" role="status">{t("code.otherVersion", { cited: citedBlob.slice(0, 7), cur: content.blob.slice(0, 7) })}</p>
+  {/if}
   {#if error}
     <p class="err" role="alert">{error}</p>
   {:else if content?.html}
@@ -138,5 +150,13 @@ const base = $derived(content ? content.path.slice(content.path.lastIndexOf("/")
   .err {
     padding: 16px;
     color: var(--c-bad);
+  }
+  .other {
+    margin: 0;
+    padding: 6px 12px;
+    font-size: var(--fs-label);
+    color: var(--c-warn);
+    background: var(--c-warn-bg);
+    border-bottom: 1px solid var(--rule);
   }
 </style>

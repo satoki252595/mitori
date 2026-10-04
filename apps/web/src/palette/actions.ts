@@ -5,8 +5,8 @@
 import type { SectionId } from "@mitori/core";
 import type { PaletteActionItem } from "../contract.ts";
 import { copyText } from "../shell/clipboard.ts";
-import { selectedPath } from "../shell/reading.ts";
-import { getItem, getJson, STORAGE_KEYS } from "../shell/storage.ts";
+import { readMapOf, selectedPath } from "../shell/reading.ts";
+import { getItem, STORAGE_KEYS } from "../shell/storage.ts";
 import { type Stores, setReaderLevel } from "../stores/app.svelte.ts";
 
 export interface ActionDef {
@@ -21,9 +21,9 @@ const has = (s: Stores) => s.workspace.key !== null;
 /** 「次に読む」 (ux.md §7.2): the first unread step of the tab's reading path. */
 export function nextToRead(s: Stores): SectionId | null {
   const w = ws(s);
-  const path = selectedPath(s.doc.outline, w);
+  const path = selectedPath(s.doc.outline, w, s.doc.level);
   if (!w || !path) return null;
-  const read = getJson<Record<string, string>>("local", STORAGE_KEYS.read(w, path.id)) ?? {};
+  const read = readMapOf(w, path.id);
   return path.steps.find((st) => !read[st.section])?.section ?? null;
 }
 
@@ -72,6 +72,13 @@ export const ACTIONS: readonly ActionDef[] = [
     run: (s) => ws(s) && void s.router.go({ name: "map", ws: ws(s) as `ws_${string}`, textView: true }).then(() => (s.ui.textViewOpen = true)),
     when: has,
   },
+  {
+    // the Reader opens the popover on its focused block (EX-10)
+    id: "action.blockHistory",
+    run: () => window.dispatchEvent(new CustomEvent("mitori:block-history")),
+    when: (s) => s.router.route.name === "doc" && !!s.router.focusedBlock?.(),
+  },
+  { id: "action.exportHtml", run: (s) => (s.ui.exportOpen = true), when: (s) => s.workspace.key !== null && s.doc.outline !== null },
   { id: "action.toggleCites", run: (s) => (s.ui.showCites = !s.ui.showCites) },
   { id: "action.singleKeys", run: (s) => s.prefs.setSingleKeys(!s.prefs.singleKeys) },
   { id: "action.help", run: (s) => (s.ui.helpOpen = true) },

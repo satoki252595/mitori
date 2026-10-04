@@ -9,7 +9,7 @@ import { UI_THRESHOLDS } from "../contract.ts";
 import { codeWindow, editorUrl, invalidateCode, loadCode, parseCite } from "./code.ts";
 import { columnKinds, factCite } from "./decorate.ts";
 import { indexOutline, pageSections, readingMinutes, subtreeStats, tocState } from "./outline.ts";
-import { buildPage, isTitleBlock, l3Runs, sectionsToFetch, stepBlock } from "./page.ts";
+import { buildPage, genNoteOf, isTitleBlock, l3Runs, sectionsToFetch, stepBlock } from "./page.ts";
 import { estimateBlockPx, visibleWindows, windowOf } from "./virtual.ts";
 
 const node = (id: string, file: string, children: string[] = [], state = "generated"): SectionNode =>
@@ -190,5 +190,22 @@ describe("M1 §5-7 comfortable tables: short / numeric columns and fact cites", 
     expect(factCite("Makefile:87")).toEqual({ path: "Makefile", start: 87, end: 87 });
     expect(factCite("package.json:5-9")).toEqual({ path: "package.json", start: 5, end: 9 });
     for (const x of ["localhost:8080", "example.com:443", "ANY", "server.go", "a.go:0", "x.go:9-3"]) expect(factCite(x)).toBeNull();
+  });
+});
+
+describe("EX-11 the generation note under a chapter head", () => {
+  const node = (state: SectionNode["state"]) => ({ state });
+  test("a paused run says so (and why) on the pages it has not written", () => {
+    expect(genNoteOf({ state: "paused", paused: { reason: "budget" } as never }, node("pending"), true)).toBe("pausedBudget");
+    expect(genNoteOf({ state: "paused", paused: { reason: "window" } as never }, node("pending"), false)).toBe("paused");
+  });
+  test("a written page never claims to be ungenerated, paused or not", () => {
+    expect(genNoteOf({ state: "paused" }, node("generated"), false)).toBeNull();
+    expect(genNoteOf(null, node("static_only"), false)).toBeNull();
+  });
+  test("no run at work over an ungenerated doc: 「まだ生成していません」; a running one streams instead", () => {
+    expect(genNoteOf(null, node("pending"), false)).toBe("notGenerated");
+    expect(genNoteOf({ state: "running" }, node("pending"), false)).toBeNull();
+    expect(genNoteOf(null, node("pending"), true)).toBeNull();
   });
 });

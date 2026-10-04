@@ -78,6 +78,8 @@ export const STORAGE_KEYS = {
   /** Last S3 file of the tab (`g c`, ux.md §8.4). */
   lastFile: (ws: string) => `mitori:lastFile:${ws}`,
   path: (ws: string) => `mitori:path:${ws}`,
+  /** The header's project chip as last shown (name · HEAD · tag): drawn at once on the next visit (AC-U03). */
+  proj: (ws: string) => `mitori:proj:${ws}`,
   imeHint: "mitori:hint:imeOn",
   hint: (id: string) => `mitori:hint:${id}`,
 } as const;

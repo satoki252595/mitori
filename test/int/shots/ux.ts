@@ -70,6 +70,14 @@ const nonce = await int.json<{ url: string }>("POST", "/auth/nonce", { to: `/w/$
 
 const scheme = opt("--scheme", "light") === "dark" ? "dark" : "light";
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: scheme });
+// a returning browser: a first visit reads at 「初めて」 with the 5-minute course (NC-08), which this drive is not about
+await ctx.addInitScript(() => {
+  try {
+    localStorage.setItem("mitori:firstRun", "2026-10-01");
+  } catch {
+    /* storage blocked: the first-run default applies */
+  }
+});
 const page = await ctx.newPage();
 const consoleErrors: string[] = [];
 const badResponses: string[] = [];

@@ -7,7 +7,7 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { t } from "../shell/index.ts";
-import { followAnchor, popoverPos } from "./popover.ts";
+import { followAnchor, naturalHeight, popoverPos } from "./popover.ts";
 
 let {
   verdict,
@@ -24,7 +24,7 @@ let pos = $state<{ left: number; top: number; maxH: number | null }>({ left: 0, 
 
 onMount(() => {
   const stop = followAnchor(() => {
-    pos = popoverPos(anchorEl.getBoundingClientRect(), 340, el?.scrollHeight ?? 160, window.innerWidth, window.innerHeight);
+    pos = popoverPos(anchorEl.getBoundingClientRect(), 340, naturalHeight(el, 160), window.innerWidth, window.innerHeight);
   }, el);
   (el?.querySelector("button:not([aria-disabled='true'])") as HTMLElement | null)?.focus();
   return stop;

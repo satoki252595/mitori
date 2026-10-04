@@ -151,9 +151,13 @@ export class Loop {
       // the Reader's hand-off: focused block / claim popover / gutter (`c` `e` `f`)
       window.addEventListener("mitori:compose", (ev) => {
         if (Date.now() - this.selectionClaim < 250) return;
-        const d = (ev as CustomEvent<{ block: BlockId; claim: string | null; intent: ThreadIntent }>).detail;
+        // `body`: a question typed elsewhere (⌘K 「AI に聞く」, NC-09) arrives as the Composer's text, unsent
+        const d = (ev as CustomEvent<{ block: BlockId; claim: string | null; intent: ThreadIntent; body?: string }>).detail;
         const target = targetOfBlock(s, d.block, d.claim);
-        if (target) void this.openComposer(target, d.intent, ev.timeStamp);
+        if (!target) return;
+        void this.openComposer(target, d.intent, ev.timeStamp).then((c) => {
+          if (d.body && !c.body.trim()) c.input(d.body);
+        });
       });
     }
     $effect.root(() => {
@@ -377,6 +381,8 @@ export class Loop {
     if (range) this.highlight(range);
     const session = new ComposerSession(this.s, target, intent, this.execPath());
     this.composer = session;
+    // one floating layer at a time (NC-17): the Reader closes its peek / term / claim / history popovers
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("mitori:composer:open"));
     this.active = session.tempKey;
     markAfterPaint("mitori:composer:opened", trigger !== undefined ? { trigger } : undefined);
     // a draft on the same quote: resume it — its intent and its body verbatim (WCAG 3.3.7)

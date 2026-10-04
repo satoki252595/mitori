@@ -12,12 +12,13 @@ import { mount } from "svelte";
 import { createStores } from "../stores/app.svelte.ts";
 import { completeLogin } from "./auth.ts";
 import { cookieValue, parseUiCookieFields } from "./cookie.ts";
-import { setCatalog, setMissingKeyReporter, setSettingsLang } from "./i18n.ts";
-import { installReactiveCatalog, loadCatalog } from "./i18n-cell.svelte.ts";
+import { FIRST_RUN_KEY, firstRunLevel } from "./firstrun.ts";
+import { setMissingKeyReporter, setSettingsLang } from "./i18n.ts";
+import { installReactiveCatalog, loadCatalog, switchLang } from "./i18n-cell.svelte.ts";
 import { detectUiLang } from "./index.ts";
 import { makeClients } from "./net/clients.ts";
 import Shell from "./Shell.svelte";
-import { readCookies } from "./storage.ts";
+import { getItem, readCookies, setItem } from "./storage.ts";
 
 declare const __MITORI_TEST__: boolean;
 
@@ -31,9 +32,11 @@ async function boot(): Promise<void> {
   const { api, sse } = makeClients((st) => {
     if (stores) stores.session.connection = st;
   });
-  const cookieLang = parseUiCookieFields(cookieValue(readCookies())).lg ?? null;
+  const cookieFields = parseUiCookieFields(cookieValue(readCookies()));
+  const cookieLang = cookieFields.lg ?? null;
   const guess = detectUiLang();
-  const guessCat = loadCatalog(guess);
+  // the guessed language's base catalog is modulepreloaded by the head script: start its import now
+  void loadCatalog(guess);
   await completeLogin(api, location, history);
   stores = createStores(api, sse, () => new Worker(new URL("../palette/worker.ts", import.meta.url), { type: "module", name: "palette" }));
   // no language in the cookie (first visit): the server setting decides before the first paint, so the UI never
@@ -42,15 +45,25 @@ async function boot(): Promise<void> {
   if (!cookieLang) {
     const settings = stores.session.loadSettings();
     const v = await Promise.race([settings, new Promise<null>((r) => setTimeout(() => r(null), SETTINGS_WAIT_MS))]);
-    if (v) {
+    if (v) stores.prefs.noteVersion(v.version);
+    // an unsent change of the previous page (prefs PENDING_PREFS_KEY) is newer than the server's copy
+    if (v && !stores.prefs.pending) {
       setSettingsLang(v.settings.ui.lang);
       stores.prefs.reconcile(v);
       stores.doc.level = stores.prefs.level;
       lang = v.settings.ui.lang;
     }
   }
-  setCatalog(lang, await (lang === guess ? guessCat : loadCatalog(lang)));
+  await switchLang(lang);
   stores.prefs.lang = lang;
+  // NC-08: a browser's first visit reads at 「初めて」 (and so the 5-minute course), decided before the first mount
+  const first = firstRunLevel({ cookieHasLevel: cookieFields.lv !== undefined, seen: getItem("local", FIRST_RUN_KEY) !== null, current: stores.prefs.level });
+  setItem("local", FIRST_RUN_KEY, new Date().toISOString().slice(0, 10));
+  if (first) {
+    stores.prefs.setLevel(first, { immediate: true });
+    stores.doc.level = first;
+    document.documentElement.dataset.level = first;
+  }
   const target = document.getElementById("app");
   if (!target) return;
   target.textContent = "";

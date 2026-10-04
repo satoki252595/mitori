@@ -586,7 +586,10 @@ const sendLabel = $derived(
   }
   .cm-q {
     margin: 10px 0 12px;
-    padding: 8px 12px;
+    /* the vertical room is a border, not padding: `overflow: hidden` clips at the padding box, so an 8 px padding let
+       the top of a third line show under the two clamped ones */
+    padding: 0 12px;
+    border-block: 8px solid var(--paper);
     border-radius: var(--r-input);
     background: var(--paper);
     color: var(--muted);
