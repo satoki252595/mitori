@@ -140,3 +140,15 @@ bench トラックは計測と Linux を担当し、下の項目は **所有外�
 - 次の手: 静かな機械で `bun run bench --id git.precheck --exact` を取り直す。超えていれば precheck の内訳（snapshot・
   `merge-tree`・blob の比較）を出す。
 - urgency: medium（Review の「承認して検査 → 採用」の前段の待ち時間）。
+
+## 13. web: 生成が始まると、開いている節の本文が 23 px 下がる（`ui.cls.gen.start` 0.035）
+
+- 観察（検証パスで `ui.cls.gen` を実 daemon で測って見つけた。`bench/ui.bench.ts` `genRun`、go-small、§1 を開いたまま API から標準生成を
+  開始）: run の開始から 27 ms で「◐ 生成中 · …」の行（`.stream-note`）が節の頭に差し込まれ、下の `div.blk.ph-wrap` と `nav.pager` が
+  23 px 下がる（layout-shift 0.0355、sources: `div.blk.ph-wrap [318→341]`・`nav.pager`）。その後の streaming は 0.002（予約領域が効いて
+  いる。0.0018 は終わりの toast の伸び）。
+- この tab のクリックで始めた run は `hadRecentInput` で CLS に数えられないが、`mitori gen`・別 tab・自動の再生成で始まった run では、
+  読んでいる本文が跳ぶ。mock の `e2e/web/streaming.pw.ts` は region が出た後から測るので、この移り変わりを見ていなかった。
+- 変更案: 生成中の行を節の予約領域の中（`.sec-body.mstream` の上端の内側）に置くか、static な節でも同じ高さの行を常に確保する。
+  入ったら `bun run bench --id ui.cls.gen.start` が 0 に近づく（budget は無い。必要なら `ui.cls.gen` の測り始めを run の開始に戻す）。
+- urgency: low〜medium（読書中の跳び。ux §4.3.9 の意図に反する）。

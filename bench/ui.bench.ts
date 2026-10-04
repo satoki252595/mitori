@@ -7,7 +7,7 @@
 import { cpSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { synth } from "@mitori/agent/testing";
-import type { BlockId, PaletteItem, ThreadState, WorkspaceKey } from "@mitori/core";
+import type { BlockId, PaletteItem, SseEvent, ThreadState, WorkspaceKey } from "@mitori/core";
 import { buildFixture, type FixtureRepo } from "@mitori/testkit";
 import { type Browser, type BrowserContext, chromium, type Page } from "@playwright/test";
 import { buildIndex, runQuery } from "../apps/web/src/palette/search.ts";
@@ -18,6 +18,7 @@ import {
   type FirstUse,
   firstUse,
   heapMB,
+  INIT_OBSERVERS,
   inpScenario,
   levelSwitch,
   median,
@@ -482,4 +483,94 @@ export const staleBadge = defineBench<Loop & { original: string; used: Set<strin
     return ((await h.jsonValue()) as number) - t0;
   },
   teardown: loopTeardown,
+});
+
+/** Layout shifts of one standard generation watched from the Reader: its start (the section turns into a stream) and the streaming. */
+interface GenCls {
+  /** From the run's start until the section shows its stream region (`.sec-body.mstream` / `.stream-note`). */
+  start: number;
+  /** From then until 500 ms after the run is done (ui.cls.gen). */
+  streaming: number;
+}
+
+const readCls = (page: Page) => page.evaluate(() => (window as unknown as { __perf: { cls: number } }).__perf.cls);
+const resetCls = (page: Page) =>
+  page.evaluate(() => {
+    (window as unknown as { __perf: { cls: number } }).__perf.cls = 0;
+  });
+
+/**
+ * One standard generation of go-small on the in-process daemon with the scenario claude of INT-04 streaming at a visible
+ * pace (no tokens), the Reader open on §1. A rerun of an unchanged repository generates nothing, so every run is a fresh
+ * daemon, repository and page; both GenCls numbers come from the same run.
+ */
+const genRun = (ctx: BenchContext) =>
+  sharedRun<GenCls>("ui:gen-cls", ctx, async () => {
+    const repo = await buildFixture("go-small");
+    const int = await startInt({ spawner: fakeClaude({ speed: 1, dtMs: 15, chunkChars: 24 }), config: FAKE_CLAUDE_CONFIG });
+    let context: BrowserContext | null = null;
+    try {
+      const { ws } = await int.open(repo.root);
+      const sse = await int.sse(ws);
+      const nonce = await int.json<{ url: string }>("POST", "/auth/nonce", { to: `/w/${ws}/doc/s1` });
+      context = await (await theBrowser()).newContext({ viewport: { width: 1440, height: 900 }, locale: "ja-JP", timezoneId: "Asia/Tokyo" });
+      const page = await context.newPage();
+      await page.addInitScript(INIT_OBSERVERS);
+      await page.goto(nonce.url);
+      await page.waitForFunction(() => performance.getEntriesByName("mitori:section:rendered", "mark").length > 0, undefined, { timeout: 30_000 });
+      await page.waitForTimeout(500); // the first paint's own shifts are ui.cls.boot
+      await resetCls(page);
+      // started through the API, as a run from the CLI or another tab: no click excuses a shift (`hadRecentInput`)
+      const est = await int.json<{ id: string }>("POST", `/ws/${ws}/gen/estimate`, { effort: "standard" });
+      const run = await int.json<{ id: string }>("POST", `/ws/${ws}/gen/runs`, { estimateId: est.id, confirm: true });
+      await page.locator('.sec-body.mstream[data-section="s1"], .stream-note').first().waitFor({ timeout: 30_000 });
+      await page.waitForTimeout(100);
+      const start = await readCls(page);
+      await resetCls(page);
+      const ended = () =>
+        sse.events.find(
+          (x): x is Extract<SseEvent, { type: "gen.run" }> =>
+            x.type === "gen.run" && x.run.id === run.id && ["done", "failed", "cancelled"].includes(x.run.state),
+        );
+      await sse.until(() => ended() !== undefined, 180_000);
+      const state = ended()?.run.state;
+      sse.close();
+      if (state !== "done") throw new Error(`the generation ended ${state}`);
+      await page.waitForTimeout(500);
+      return { start, streaming: await readCls(page) };
+    } finally {
+      await context?.close().catch(() => undefined);
+      await int.close();
+      await repo.dispose();
+    }
+  });
+
+/**
+ * CLS while the generation streams into the open section (ui.cls.gen, ux §4.3.9: confirmed blocks and the open partial
+ * fill one reserved region without moving what is below) — the phase the mock spec e2e/web/streaming.pw.ts covers.
+ */
+export const clsGen = defineBench({
+  id: "ui.cls.gen",
+  suite: "ui",
+  mode: "process",
+  unit: "ratio",
+  runs: 3,
+  warmup: 0,
+  run: async (_s, ctx) => (await genRun(ctx)).streaming,
+  teardown: closeBrowser,
+});
+
+/**
+ * The run's start seen from the open section (no budget of its own; compare-gated): the section turning into its stream
+ * region. A run started by a click in this tab is excused by `hadRecentInput`; one from the CLI or another tab is not.
+ */
+export const clsGenStart = defineBench({
+  id: "ui.cls.gen.start",
+  suite: "ui",
+  mode: "process",
+  unit: "ratio",
+  runs: 3,
+  warmup: 0,
+  run: async (_s, ctx) => (await genRun(ctx)).start,
+  teardown: closeBrowser,
 });

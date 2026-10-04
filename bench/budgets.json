@@ -1239,10 +1239,9 @@
       "dir": "max",
       "gates": ["structural"],
       "owner": "web",
-      "measure": "e2e/perf/cls.spec.ts#ui-cls-gen",
+      "measure": "bench/ui.bench.ts#cls-gen",
       "scale": "none",
-      "provisional": false,
-      "unmeasured": "needs a streaming generation on the real daemon (scenario engine through the browser); the mock-API spec e2e/web/streaming.pw.ts measures it today; see docs/progress/rem-bench.md"
+      "provisional": false
     },
     {
       "id": "ui.lcp.export.local",
