@@ -2,7 +2,7 @@
 
 コンセプトの「一度だけ省トークンで読む → 読める設計書 → 初見者が分かり、専門家が細部を詰める」のうち、
 **0 トークンで出せる中身**と**同じ commit なら同じ結果**を詰めた。LLM 消費は **$0**（実エンジンは使っていない）。
-契約の変更は `packages/core/CR-LEDGER.md` §8（CR rdoc-1〜4）、他トラックへの依頼は `docs/design/cr-requests/doc.md`。
+契約の変更は `packages/core/CR-LEDGER.md` §8（CR rdoc-1〜7。5〜7 は敵対的検証パス、§5）、他トラックへの依頼は `docs/design/cr-requests/doc.md`。
 
 ## 1. 何が変わったか（タスク別）
 
@@ -68,13 +68,16 @@ head の追加分（outbound 検出・ハンドラの text・型 / 変更の手�
 ## 4. やっていないこと・残り
 
 1. **履歴の無い clone では co-change が出ない**: `GitReader.log` は shallow clone で空を返す（platform の方針）。コーパスはすべて
-   shallow なので「履歴を読めません」になる。履歴のある clone では出る（単体テストで確認、実 repo での見た目の確認はしていない）。
+   shallow なので「履歴を読めません」になる。履歴のある clone では出る（検証パスで実 repo でも確認: この repo を `.git` ごと複製して開くと
+   289 commit の窓で意味のある行が出る。例 gen の prompts モジュール → `prompts.lock.json` 11 回）。
    直すなら platform が shallow でも読める範囲の commit を返す（地図の churn overlay も同じ理由で無い）。`cr-requests/doc.md` #4。
 2. **gen は outbound 事実をまだ使わない**: module 文脈・repo pack には載せていない（pack 形式と prompt golden が変わる）。
    `cr-requests/doc.md` #1。
-3. **関数の体の区分けは JS/TS だけ**: Go / Python の 400 行超の*関数*は中を区分けしない（トップレベルの並びは出る。クラス・impl はメンバーで出る）。
+3. **関数の体の区分けは JS/TS だけ** → 検証パスで一部解消: Go / Python の 400 行超の関数は、ブロックの先頭コメントが 3 つ以上あればそれで区切る
+   （コメントの無い長い関数は今も 1 行）。
 4. **「新しい Kind を足すには」の理解テストの再採点はしていない**（実エンジンが要る）。変更の手引きがその問いに答える材料
-   （`lib/tokens.ts` の `KIND_SPEC`・`Kind` 型を使う module と、その tests、一緒に変わるファイル）を出すところまで。
+   （`lib/tokens.ts` の `KIND_SPEC`・`Kind` 型を使う module と、その tests、一緒に変わるファイル）を出すところまで。検証パスで §7 に `Kind`
+   （8 ファイル）が出るようになり、変更の手引きに「よく使われる宣言」（`Item` 15・`Kind` 8 …）、`lib/tokens.ts` の目次に `KIND_SPEC`（924-1580）。
 5. **parse の再試行は最大 8 s**: 2 MB 以下（それ以上は読まない）のファイルが 250 ms を超えたときだけ。極端な負荷でも 8 s を超えれば
    今までどおり `parse_timeout` になり、そのときだけ揺れは残る。
 6. **pin store にも同じ形の後始末がある**（担当外のため未修正）: `packages/indexer/src/pin/store.ts` の `saveRows` は
@@ -84,4 +87,36 @@ head の追加分（outbound 検出・ハンドラの text・型 / 変更の手�
    50 ms を超えることがある。今回の修正で「落ちても結果は変わらない」ようにしたが、落ちること自体は残る（test の時間ゆらぎの原因になりうる）。
 8. **web は加算だけ**: コード画面の「このファイルの中身」と部屋カードの「変更の手引き」は既存の部品（`.outline`、`.btn-sec`）。
    見た目の調整は ux トラックへ（`cr-requests/doc.md` #3）。
+
+## 5. 敵対的検証パス（2026-10-04、同じ `rem/doc` に 8 commit、`c8bcf08..`）
+
+実装者の受け入れ確認をすべてやり直し、`git diff main...HEAD` を読み、crit・m3e-canvas・excalidraw（と hono・flask・fastapi・react）を
+本物の daemon で開いて出力を確かめた。LLM 消費は **$0**。契約の変更は CR rdoc-5〜7（`packages/core/CR-LEDGER.md` §8）。
+
+### 見つけた問題と直したこと
+
+| # | 見つけたこと（実 corpus での症状） | 直したこと · 回帰テスト |
+|---|---|---|
+| 1 | §7「使うファイル」が型の**ファイル**を import する数だった。crit の `session.go` の型は全部 42、m3e の `tokens.ts` の型は全部 33、excalidraw は 181 / 186。順位も型ごとに区別できず、m3e の `Kind`（「Kind を足すには」の型）が表に出なかった | indexer `symbolUsers`（CR rdoc-5、`pack/usage.ts`）: S1 の参照と解決済み import から型を使うファイルを数える（Go は `pkg.T` と同じパッケージ）。m3e は `Kind` 8・`Doc` 8・`Item` 15（grep と一致）、crit は `CritJSON` 31・`Comment` 17。コールバックのフィールド（`onChange: (…) => void`）は「持っている型」に数えない。`usage.test.ts`・`doc-deep.test.ts` |
+| 2 | §8 の表は 30 行で黙って切れ、HTTP が先頭だったので、crit の Web UI の `/api/*` への fetch 25 行が `glab` 子プロセスを押し出していた。行の比較関数も `via` が同じだと両向きに 1 を返していた | 相対パスへの呼び出し（自分のサーバーの API）を外部の相手の後に、切った行は表の下に「ほか n 行（m か所）」、比較を全順序に。`static-deep.test.ts` |
+| 3 | 変更の手引きの実行コマンド: JS のテストしか無い crit `web/style-live` に `go test ./web/...`（`embed.go` が 1 つあるだけ）、他の package から付いたテストで `go test ./...`、テストが無いのに「実行」 | テストの言語で決める。Go はその module 自身のパッケージだけ（`go test ./internal/vcs`、4 つ以上は共通の親 `/...`）、他は repo の test コマンド、テストが無ければ出さない。`doc-deep.test.ts` |
+| 4 | 1,500 行超の目次が作者の区切りを無視していた: crit `web/app.js`（11,055 行）は「関数（152）」が 4,500 行、作者は 72 個の見出し（Comment Form・SSE Client・Story mode…）を書いている。m3e `Editor` の中にも 13 個（document・history・pointer: parts…）。excalidraw の `App` クラスは矢印関数のフィールド（ハンドラ）が「状態（22）」 | CR rdoc-6: 見出しコメント（1 行・`#region`・`MARK:`・罫線で囲む形）が 3 つ以上・平均 600 行以内なら、それを領域にする（`pointer: parts — 状態 10・内部の関数 8・副作用 6（useEffect 6・…）`）。区切りの中の大きな宣言はその名前の行の後に中身。Go / Python の長い関数はブロックの先頭コメントで。関数を値に持つフィールドはメソッド / ハンドラ。体の上限は 300 行ごとに 1（12〜24）。見出しは Markdown に入れる前にエスケープ。`doc-deep.test.ts`（crit / m3e / excalidraw の形をそれぞれ再現） |
+| 5 | §8 に excalidraw の共同編集の socket と Firestore が無かった（`await import(/* webpackChunkName */ "socket.io-client")` のコメントで束縛が取れない、firebase の `getFirestore(` を数えない） | socket.io-client・`firebase/firestore`（DB）・`firebase/storage`・ヒントコメント付きの動的 import。`facts.test.ts` |
+| 6 | gen #4 (a) が手付かず: m3e（Next.js）と excalidraw（Vite）は flow seed 0、読む順番に「入口」も無かった | `route.next-app@1` / `route.next-pages@1`（indexer spec §5.2 の定義どおり）と `entry.web@1`（`index.html` の module script）。m3e `GET / → app/page.tsx#Page`、excalidraw `excalidraw-app/index.tsx → i18n → App.tsx`。mixed fixture の next-app の truth 5 本を採点対象に。`facts.test.ts`・`worker.test.ts` |
+| 7 | **本番だけの不具合**: `.sql` は generic の source なので parse Worker が検出器を 1 つも走らせず、`schema.sql@1` は daemon では一度も動いていなかった（go-small の `migrations/0001_init.up.sql` の books / tags / book_tags が §7 に出ない。test の pipeline は全検出器を走らせるので隠れていた） | Worker: grammar の無い source ファイルでも、当てはまる text 専用の検出器を走らせる（CR rdoc-7、`parse/worker.ts` 5 行）。INT-04 / 05 の fake engine に §7 データモデルの返答を足した（計画に s7 が入るため）。`worker.test.ts` |
+| 8 | 変更の手引きは「誰が使うか」は言うが「何を使うか」を言わなかった | 「よく使われる宣言（変えると波及する）」: module の export 宣言のうち他のファイルが多く使うもの（2 ファイル以上・5 件、同名は 1 行）。m3e `lib (tokens, tidy)` → `Palette` 26・`Item` 15・`Frame` 13・`Group` 9・`Kind` 8 |
+| 9 | flow seed がルートごとに router ファイル（crit `server.go` 3,500 行）を split していた | 1 回の呼び出しで 1 回だけ。crit の `flowSeeds` 9〜15 → 6〜9 ms |
+
+### 受け入れ確認のやり直し
+
+| 確認 | 結果 |
+|---|---|
+| `scripts/nd bun run check` | 緑（tsc・biome・boundaries・cr-ledger・budgets・contract-index・svelte-check） |
+| `scripts/nd bun test`（全体、ロードアベレージ 15〜50） | 1 回目 2,827 pass / 3 fail: INT-04 / INT-05 は #7 の修正で計画に s7 が入ったための fake engine の不足 → 直した。最終 commit で 2 回目 **2,830 pass / 2 fail**、どちらも時間の予算: SKEL-AT-02 の ELK ≤ 120 ms（272 ms。実装者の `c8bcf08` でも単独で 136 ms で fail）と INT-03 の dev build の slot 検査（`doc.static` 55 ms > 50 ms、crit の open が 1,735 ms かかった負荷の回。単独では pass、§4-7 の既知の揺れ）。静的文書の適用は crit で warm 4.5 ms（`c8bcf08` 4.5 ms）、新しい store へ cold 4.3 ms（3.5 ms）で、この pass の追加は 1 ms 未満 |
+| `bun run golden` | 113 pass |
+| `test/int/reopen-corpus.test.ts`（crit / excalidraw、新しい copy + home × 3） | 単独でも **3 並列**でも pass（分割と complete 見積りの task 数・入力 token が一致） |
+| route 数（全 scope） | crit 62（ハンドラ 61）・hono 3・flask 21・fastapi 438 は不変。react / excalidraw の Next の例（examples）は example scope で main に出ない |
+| 変更の手引きの co-change | 履歴のある repo（この repo の複製、289 commit）で意味のある行が出る。shallow な corpus では「履歴を読めません」（platform の CR #4） |
+| `staticGuide`（§4 / §5 + 型 + 変更の手引き + 領域） | crit 9 ms・excalidraw 19 ms・react 89 ms（中央値、負荷の下）。うち `keyTypes`（`symbolUsers` 込み）crit 3 ms・react 13 ms |
+| crit cold open（S0〜S4 + 静的文書） | `bench:compare --id idx.s04.cold.100kloc --pairs 5`（base = main の export + bench の 2 ファイル、release build）: base 2,286 ms / head 2,329 ms（**+1.9 %、gate pass**、cv 0.17 / 0.11）。ロードアベレージ 37〜50 の下（機械係数 2.98）なので絶対値に意味は無い。途中の commit（`6a38398`）で測った絶対値はロードアベレージ約 13 で中央値 1,044 ms（p95 1,159 ms）。1.0 s の目標は静かな機械での確認が残る |
 
