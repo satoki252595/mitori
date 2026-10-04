@@ -117,3 +117,27 @@ test("@wp10a NC-14 English header at 1440×900: every tab whole, nothing runs in
   await page.waitForTimeout(600);
   expect(await clipped(), "after a reload").toEqual([]);
 });
+
+test("@wp10a NC-14 English status bar: every segment and 「? Shortcuts」 inside the viewport (1440 · 1366 · 1280 · 1024)", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}/doc/s3`);
+  await waitMark(page, "mitori:section:rendered");
+  await page.locator(".lang-btn").click();
+  await expect(page.locator(".status .w-help")).toHaveText("? Shortcuts");
+  for (const w of [1440, 1366, 1280, 1024]) {
+    await page.setViewportSize({ width: w, height: 900 });
+    await page.waitForTimeout(250);
+    const off = await page.evaluate(() => {
+      const bar = document.querySelector(".status") as HTMLElement;
+      const edge = bar.getBoundingClientRect().right;
+      const out: string[] = [];
+      for (const el of bar.querySelectorAll<HTMLElement>(":scope > *")) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0) continue;
+        if (r.right > edge + 0.5) out.push(`${el.className.split(" ")[0]} ends at ${Math.round(r.right)} > ${Math.round(edge)}`);
+      }
+      return out;
+    });
+    expect(off, `${w} px`).toEqual([]);
+  }
+});

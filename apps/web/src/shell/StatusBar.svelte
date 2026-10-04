@@ -132,4 +132,41 @@ const ready = $derived(timedOut || (s.session.daemon !== null && s.session.today
       display: none;
     }
   }
+  /*
+   * NC-14 English: the same segments are wider (「jobs 0 running · 0 queued · C=3」, 「today 21.4k tok · API-equiv.
+   * $0.14 (not billed)」, 「? Shortcuts」) — the Japanese thresholds let 「? Shortcuts」 run off the right edge at
+   * 1440 px. English thresholds, for English text of typical values (jobs ≤ 244, today ≤ 364, engine ≤ 200 px:
+   * 1,480 px with every segment): below that the engine (the last segment) gives up its tail first
+   * (「claude-cli · subscri…」) and goes at 1423 like the Japanese one. The slots themselves stay the Japanese ones:
+   * wider slots would move the segments on the ja → en switch (AC-U81 counts that shift).
+   */
+  @container status (max-width: 1479px) {
+    :global(:root[lang="en"]) .w-engine {
+      /* a block (not the bar's inline-flex) so the text itself gets the ellipsis */
+      display: block;
+      flex: 0 1 auto;
+      min-width: 0;
+      line-height: 23px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+  @container status (max-width: 1278px) {
+    :global(:root[lang="en"]) .w-win:not(.warn),
+    :global(:root[lang="en"]) .w-win-sep:not(.warn) {
+      display: none;
+    }
+  }
+  @container status (max-width: 1141px) {
+    :global(:root[lang="en"]) .w-jobs,
+    :global(:root[lang="en"]) .w-jobs-sep {
+      display: none;
+    }
+  }
+  @container status (max-width: 896px) {
+    :global(:root[lang="en"]) .w-today,
+    :global(:root[lang="en"]) .w-today-sep {
+      display: none;
+    }
+  }
 </style>
