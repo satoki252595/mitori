@@ -35,6 +35,11 @@ const sections = [
       },
       { id: "b_meta0003" as const, md: "Fetch は ISBN を正規化してから 1 回だけ問い合わせる。 <!-- b_meta0003 -->" },
       {
+        // a static facts table: the row points at its code
+        id: "b_meta0005" as const,
+        md: "| 名前 | 既定値 | 読む場所 |\n|---|---|---|\n| `CATALOG_URL` | なし | `internal/meta/fetch.go:43` |\n| `OTHER` | あり | `internal/config/config.go:20` | <!-- b_meta0005 -->",
+      },
+      {
         // EX-03: two sentences, only the second cited; the first NAMES `Load` (another file)
         id: "b_meta0004" as const,
         md: "次に `Load` で設定を読む。カタログへの問い合わせは失敗をそのまま返す（[fetch.go:43-52](../internal/meta/fetch.go#L43-L52)）。 <!-- b_meta0004 -->",
@@ -596,5 +601,23 @@ describe("EX-03 the selected sentence decides the code", () => {
     const whole = w.deps.doc.blockText("b_meta0004") ?? "";
     const b = await builder.build(bundleInput({ threads: [ask(whole, 0)], mode: "answer", out: "answer/1", write: [] }), 4000);
     expect(codeHeads(b.text).some((h) => h.includes(FETCH))).toBe(true);
+  });
+});
+
+describe("EX-03 / live demo: a question on a static table row carries the row's code", () => {
+  test("selecting CATALOG_URL in the env table ⇒ CODE of fetch.go around line 43 (not config.go of the other row)", async () => {
+    const { builder, w } = setup();
+    const text = w.deps.doc.blockText("b_meta0005") ?? "";
+    const at = text.indexOf("CATALOG_URL");
+    const t = thread({
+      id: "th_ex030002",
+      intent: "question",
+      anchor: { primary: "doc", doc: { block: "b_meta0005", blockHash: "x", offset: at, quote: { prefix: "", exact: "CATALOG_URL", suffix: "" } } },
+      messages: [msg("human", "どこで読まれる？", 1)],
+    });
+    const b = await builder.build(bundleInput({ threads: [t], mode: "answer", out: "answer/1", write: [] }), 4000);
+    const heads = b.text.split("\n").filter((l) => l.startsWith("CODE "));
+    expect(heads.some((h) => h.startsWith(`CODE ${FETCH}:`))).toBe(true);
+    expect(heads.some((h) => h.includes("internal/config/config.go"))).toBe(false);
   });
 });

@@ -81,7 +81,19 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
     const anchored = anchorRanges(t.anchor, citeSource(deps.doc, t));
     raw.push(...anchored);
     // EX-03: the code an uncited selection names (read-only context; WRITE is the router's scope alone)
-    raw.push(...namedRanges(t, { md: (b) => deps.doc.block(b as never)?.md ?? null, find: (q, n) => deps.indexer.findSymbols(q, n) }, anchored));
+    raw.push(
+      ...namedRanges(
+        t,
+        {
+          md: (b) => deps.doc.block(b as never)?.md ?? null,
+          text: (b) => deps.doc.blockText(b as never),
+          find: (q, n) => deps.indexer.findSymbols(q, n),
+          lines: (p) => deps.indexer.file(p)?.lines ?? null,
+          enclosing: (p, l) => deps.indexer.enclosingSymbol(p, l, l),
+        },
+        anchored,
+      ),
+    );
   }
   for (const x of input.extra) if (!(x.start === 0 && x.end === 0)) raw.push(x);
   const clamped: CodeRange[] = [];
