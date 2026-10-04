@@ -27,12 +27,14 @@ const CHUNKS: Record<UiLang, Record<Part, () => Promise<{ default: Cat }>>> = {
     loop: () => import("./i18n-ja-loop.ts"),
     help: () => import("./i18n-ja-help.ts"),
     palette: () => import("./i18n-ja-palette.ts"),
+    gen: () => import("./i18n-ja-gen.ts"),
   },
   en: {
     base: () => import("./i18n-en.ts"),
     loop: () => import("./i18n-en-loop.ts"),
     help: () => import("./i18n-en-help.ts"),
     palette: () => import("./i18n-en-palette.ts"),
+    gen: () => import("./i18n-en-gen.ts"),
   },
 };
 

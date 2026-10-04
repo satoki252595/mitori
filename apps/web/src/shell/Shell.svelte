@@ -33,12 +33,13 @@ const kind = $derived(viewKind(route));
 
 // ---------------------------------------------------------------- lazy route views (chunks: map, reader, gen, settings, launcher)
 const LOADERS: Record<string, () => Promise<{ default: Component<Record<string, never>> }>> = {
-  launcher: () => import("./Launcher.svelte"),
+  // the Launcher names each workspace's effort (gen strings)
+  launcher: () => Promise.all([import("./Launcher.svelte"), ensureNs("gen")]).then(([m]) => m),
   map: () => import("../map/views.ts").then((m) => ({ default: m.MapPage })),
   doc: () => import("../reader/views.ts").then((m) => ({ default: m.ReaderPage })),
   code: () => import("../reader/views.ts").then((m) => ({ default: m.CodeView })),
   settings: () => import("../settings/SettingsPage.svelte"),
-  gen: () => import("../gen/GenPage.svelte"),
+  gen: () => Promise.all([import("../gen/GenPage.svelte"), ensureNs("gen")]).then(([m]) => m),
 };
 let View = $state.raw<Component<Record<string, never>> | null>(null);
 let viewKey = $state<string | null>(null);

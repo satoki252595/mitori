@@ -14,6 +14,8 @@ import { defaultEffort, isRange } from "../gen/estimate.ts";
 import { isActive, roomTargets } from "../gen/progress.ts";
 import { copyText } from "../shell/clipboard.ts";
 import { fmtInt, fmtLocShort, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
+import { hasKey } from "../shell/i18n.ts";
+import { ensureNs } from "../shell/i18n-cell.svelte.ts";
 import { errorText, t } from "../shell/index.ts";
 import { afterMark, mark, markAfterPaint } from "../shell/perf.ts";
 import Rail from "../shell/Rail.svelte";
@@ -29,7 +31,7 @@ const s = useStores();
 // the card states, room card and text view arrive in the lazy `gen` chunk once the plan has painted (F5: not
 // first-paint; the card column holds a same-size skeleton meanwhile)
 let side = $state.raw<typeof import("./side.ts") | null>(null);
-onMount(() => afterMark(["mitori:map:painted"], () => void import("./side.ts").then((m) => (side = m)), 800));
+onMount(() => afterMark(["mitori:map:painted"], () => void Promise.all([import("./side.ts"), ensureNs("gen")]).then(([m]) => (side = m)), 800));
 const route = $derived(s.router.route);
 const ws = $derived(route.name === "map" ? route.ws : null);
 const st = $derived(s.workspace.status);
@@ -181,7 +183,8 @@ $effect(() => {
 $effect(() => {
   const running = s.gen.tasks.filter((x) => x.state === "running");
   const last = running[running.length - 1];
-  tail = last ? `${t(`gen.stage.${last.stage}`)} · ${last.target.id}` : null;
+  // gen strings arrive with the side chunk (i18n-ns.ts `gen`): until then the tail is the task id alone
+  tail = last ? (hasKey(`gen.stage.${last.stage}`) ? `${t(`gen.stage.${last.stage}`)} · ${last.target.id}` : last.target.id) : null;
 });
 
 // `?text=1` opens 「テキストで見る」 (permalink, ⌘K); closing it drops the parameter again (ux.md §4.2.6)

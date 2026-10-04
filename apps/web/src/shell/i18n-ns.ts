@@ -11,6 +11,11 @@ export const LAZY_NAMESPACES = {
   help: ["help"],
   /** ⌘K: group names, action labels and aliases. */
   palette: ["palette"],
+  /**
+   * Generation: the estimate / progress cards (the map's side chunk, after the plan painted), S7, the Launcher's
+   * effort names and the streaming tail of a running generation.
+   */
+  gen: ["gen"],
 } as const;
 
 export type LazyNs = keyof typeof LAZY_NAMESPACES;

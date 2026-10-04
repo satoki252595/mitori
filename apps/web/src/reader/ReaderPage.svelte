@@ -17,6 +17,8 @@ import { flushSync, onMount, untrack } from "svelte";
 import { copyText } from "../shell/clipboard.ts";
 import { loadExtensions, type UiExtension, whenExtensions } from "../shell/ext.ts";
 import { welcomeKey } from "../shell/firstrun.ts";
+import { hasKey } from "../shell/i18n.ts";
+import { ensureNs } from "../shell/i18n-cell.svelte.ts";
 import { errorText, t } from "../shell/index.ts";
 import { mark } from "../shell/perf.ts";
 import Rail from "../shell/Rail.svelte";
@@ -616,6 +618,12 @@ $effect(() => {
   return () => io.disconnect();
 });
 
+// a running / paused generation: its stage names (the streaming tail) are in the gen strings (i18n-ns.ts `gen`)
+$effect(() => {
+  const st = s.gen.run?.state;
+  if (st === "running" || st === "paused") untrack(() => void ensureNs("gen"));
+});
+
 // ---------------------------------------------------------------- reading-path progress (a section's END marker passes the bottom 20 %)
 function onRead(sec: SectionId) {
   // a section read counts for every course that stops there (NC-15)
@@ -626,7 +634,7 @@ function onRead(sec: SectionId) {
 const streamTail = $derived.by(() => {
   const running = s.gen.tasks.filter((x) => x.state === "running");
   const last = running[running.length - 1];
-  return last ? `${t(`gen.stage.${last.stage}`)} · ${last.target.id}` : null;
+  return last ? (hasKey(`gen.stage.${last.stage}`) ? `${t(`gen.stage.${last.stage}`)} · ${last.target.id}` : last.target.id) : null;
 });
 
 // ---------------------------------------------------------------- placeholders: first click estimates, second runs

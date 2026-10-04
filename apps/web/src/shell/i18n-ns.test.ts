@@ -54,8 +54,17 @@ describe("WEB-F5-01 catalog split", () => {
       return statSync(p).isDirectory() ? walk(p) : [p];
     });
   const dirs = ["shell", "map", "reader", "gen", "settings", "stores"].map((d) => join(WEB, "src", d));
-  // components that only mount after their group is ensured (Shell's lazy loaders)
-  const LATE: Record<string, LazyNs> = { "src/shell/HelpOverlay.svelte": "help" };
+  // components that only mount after their group is ensured (Shell's lazy loaders, the map's side chunk): the gen
+  // cards and S7 (src/gen/), the map's done card / start announcement (inside the side chunk's branch, which waits for
+  // ensureNs("gen")) and the Launcher (its loader ensures gen); the streaming tails test hasKey before using gen keys
+  const LATE: Record<string, LazyNs> = {
+    "src/shell/HelpOverlay.svelte": "help",
+    "src/shell/Launcher.svelte": "gen",
+    "src/map/MapPage.svelte": "gen",
+    "src/map/EngineCard.svelte": "gen",
+    "src/reader/ReaderPage.svelte": "gen",
+  };
+  const lateOf = (p: string): LazyNs | undefined => LATE[p] ?? (p.startsWith("src/gen/") ? "gen" : undefined);
   const sources = dirs
     .flatMap(walk)
     .filter((p) => /\.(ts|svelte)$/.test(p) && !/\.test\.ts$/.test(p) && !p.includes("/lint/") && !p.includes("/__tests__/"))
@@ -66,7 +75,7 @@ describe("WEB-F5-01 catalog split", () => {
     const missing: string[] = [];
     const lit = /\bt\(\s*"([a-z][a-zA-Z0-9]*(?:\.[a-zA-Z0-9_]+)+)"|\bkey:\s*"((?:toast|hint|notice)\.[a-zA-Z0-9_.]+)"/g;
     for (const { p, code } of sources) {
-      const late = LATE[p];
+      const late = lateOf(p);
       const cat = late ? { ...ja, ...group(late, "ja") } : ja;
       for (const m of code.matchAll(lit)) {
         const k = (m[1] ?? m[2]) as string;
@@ -80,7 +89,7 @@ describe("WEB-F5-01 catalog split", () => {
     const ja = base("ja");
     const missing: string[] = [];
     for (const { p, code } of sources) {
-      const late = LATE[p];
+      const late = lateOf(p);
       const keys = Object.keys(late ? { ...ja, ...group(late, "ja") } : ja);
       for (const m of code.matchAll(/\bt\(\s*`([a-z][a-zA-Z0-9.]*\.)\$\{/g)) {
         const prefix = m[1] as string;
@@ -93,8 +102,8 @@ describe("WEB-F5-01 catalog split", () => {
 
 describe("WEB-F5-02 catalog loader", () => {
   const cats: Record<UiLang, Record<Part, Cat>> = {
-    ja: { base: { a: "あ" }, loop: { l: "ル" }, help: { h: "ヘ" }, palette: { p: "パ" } },
-    en: { base: { a: "A" }, loop: { l: "L" }, help: { h: "H" }, palette: { p: "P" } },
+    ja: { base: { a: "あ" }, loop: { l: "ル" }, help: { h: "ヘ" }, palette: { p: "パ" }, gen: { g: "ゲ" } },
+    en: { base: { a: "A" }, loop: { l: "L" }, help: { h: "H" }, palette: { p: "P" }, gen: { g: "G" } },
   };
   const rig = () => {
     let lang: UiLang = "ja";
