@@ -527,16 +527,20 @@ html.show-cites .mc[data-verdict="cited"]::after {
   counter-reset: learn;
 }
 
+/* NC-05 / F3: a block li with an absolutely placed number. A grid li made every inline child (text run, `code`,
+   abbr) its own grid item, and the ones that fell into the 22px column broke one character per line. */
 .blk[data-kind="learn"] li {
   counter-increment: learn;
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr);
+  display: block;
+  position: relative;
+  padding: 2px 0 2px 22px;
   font-size: var(--fs-h3);
   line-height: 1.75;
-  padding: 2px 0;
 }
 
 .blk[data-kind="learn"] li::before {
+  position: absolute;
+  left: 0;
   content: counter(learn);
   font-family: var(--font-serif);
   color: var(--faint);

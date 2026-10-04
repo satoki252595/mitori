@@ -197,3 +197,29 @@ test("@wp10a S2 `o` pins the focused cite in code mode; Escape returns to the pr
   expect(new URL(page.url()).searchParams.get("ctx")).toBeNull();
   expect(new URL(page.url()).searchParams.get("pin")).toBeNull();
 });
+
+test("@wp10a NC-05 「この章で分かること」: inline code and terms stay in the line (no one-character columns)", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}/doc/s3`);
+  await waitMark(page, "mitori:section:rendered");
+  const items = page.locator('.blk[data-kind="learn"] li');
+  await expect(items.first()).toBeVisible();
+  const m = await page.evaluate(() => {
+    const out: { code: string; h: number; w: number; lh: number; liH: number }[] = [];
+    for (const li of document.querySelectorAll<HTMLElement>('.blk[data-kind="learn"] li')) {
+      const lh = Number.parseFloat(getComputedStyle(li).lineHeight);
+      for (const c of li.querySelectorAll<HTMLElement>("code, abbr")) {
+        const r = c.getBoundingClientRect();
+        out.push({ code: c.textContent ?? "", h: r.height, w: r.width, lh, liH: li.getBoundingClientRect().height });
+      }
+    }
+    return out;
+  });
+  expect(m.length).toBeGreaterThanOrEqual(3);
+  for (const x of m) {
+    // one line: the inline box is not taller than the line, and wider than one character
+    expect(x.h, `${x.code} is one line`).toBeLessThanOrEqual(x.lh + 1);
+    expect(x.w, `${x.code} is not squeezed into the number column`).toBeGreaterThan(14);
+    expect(x.liH, `the item holding ${x.code} is at most two lines`).toBeLessThanOrEqual(x.lh * 2 + 6);
+  }
+});

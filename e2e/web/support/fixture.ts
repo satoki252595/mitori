@@ -267,7 +267,8 @@ function makeBlock(
   let inner = "";
   if (kind === "heading") inner = `<h3>${["前提", "流れ", "例外"][n % 3]}</h3>`;
   else if (kind === "learn")
-    inner = `<span class="lbl-k">この章で分かること</span><ol><li>エージェントと人が1往復する仕組み</li><li>storyをエージェントに書かせる流れ</li><li>未解決のコメントが次のラウンドへ運ばれる仕組み</li></ol>`;
+    // the renderer's shape (aside.malert > ul > li with inline code and a term): NC-05 regression in reader.pw.ts
+    inner = `<aside class="malert" data-alert="learn"><p class="malert-label">この章で分かること</p><ul><li><code>crit</code>コマンドの入口と、エージェントと人が1往復する仕組み</li><li>storyをエージェントに書かせる流れ（<code>gh</code> 経由で <abbr class="term">PR</abbr> を作る）</li><li>未解決のコメントが次のラウンドへ運ばれる仕組み</li></ul></aside>`;
   else if (kind === "recap")
     inner = `<span class="lbl-k">まとめ</span><ul><li>デーモンはセッションキーで1つにまとまる。</li><li>コメントは持ち越される。</li></ul>`;
   else if (kind === "pitfall") inner = `<span class="lbl-k">落とし穴</span><p>ブランチを切り替えると別のデーモンに繋がる。</p>`;
