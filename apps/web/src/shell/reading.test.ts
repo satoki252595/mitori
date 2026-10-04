@@ -1,7 +1,7 @@
 /** ux.md §4.2.1 / §4.3.8 / §7.2: the tab's reading path (sessionStorage `mitori:path:<ws>`), none before generation. */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { DocOutline, WorkspaceKey } from "@mitori/core";
-import { choosePath, markRead, nextPathAfter, pathName, pathProgress, plannedPath, readMapOf, selectedPath } from "./reading.ts";
+import { choosePath, courseName, markRead, nextPathAfter, pathName, pathProgress, plannedPath, readMapOf, selectedPath } from "./reading.ts";
 
 const WS = "ws_cr1t00000000" as WorkspaceKey;
 const paths = [
@@ -78,6 +78,17 @@ describe("NC-15 progress, names, completion", () => {
     expect(pathName(five, 6, t, has)).toBe("rail.pathName.5min");
     expect(pathName({ id: "30min", title: "30 分コース" }, 11, t, has)).toBe('rail.pathName.timed{"min":11}');
     expect(pathName({ id: "custom", title: "Onboarding" }, 11, t, () => false)).toBe("Onboarding");
+  });
+
+  test("one name everywhere: the map card, ⌘K and the rail call the 5-minute course by the same (real-time) name", () => {
+    const has = (k: string) => k.startsWith("rail.pathName.");
+    const long = (id: string) => ({ s0: 120, s1: 240, s2: 420, s3: 180 })[id] ?? 0;
+    // 16 minutes of stops: named by the real time, exactly as the rail card names it
+    expect(courseName([five], "5min", long, t, has)).toBe('rail.pathName.timed{"min":16}');
+    expect(courseName([five], "5min", long, t, has)).toBe(pathName(five, pathProgress(five, {}, long).totalMin, t, has));
+    // close to its nominal time: the nominal name; no such course: null
+    expect(courseName([five], "5min", (id) => (id === "s0" ? 300 : 0), t, has)).toBe("rail.pathName.5min");
+    expect(courseName([five], "30min", at, t, has)).toBeNull();
   });
 
   test("after a course, the next unread one in course order", () => {

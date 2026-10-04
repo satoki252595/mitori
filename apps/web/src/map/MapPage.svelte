@@ -19,7 +19,7 @@ import { ensureNs } from "../shell/i18n-cell.svelte.ts";
 import { errorText, t } from "../shell/index.ts";
 import { afterMark, mark, markAfterPaint } from "../shell/perf.ts";
 import Rail from "../shell/Rail.svelte";
-import { choosePath } from "../shell/reading.ts";
+import { choosePath, courseName, NEWCOMER_PATH } from "../shell/reading.ts";
 import { currentLayout, useStores } from "../stores/app.svelte.ts";
 import { engineProblem } from "./engine.ts";
 import FloorPlan from "./FloorPlan.svelte";
@@ -125,9 +125,13 @@ const contextLine = $derived(oneSentence(lede?.text ?? readme?.text ?? ""));
 /** External actors on the plan (browsers, services, other repos): the people / systems around the building. */
 const externals = $derived(model ? model.rooms.filter((r) => r.external).map((r) => r.label) : []);
 
+// the 5-minute course by the name the rail and §0 give it (its real time: 「約13分コースで読む」, never a promise of 5)
+const fiveName = $derived(
+  courseName(s.doc.outline?.readingPaths ?? [], NEWCOMER_PATH, (id) => s.doc.index?.nodes.get(id)?.readingSec ?? 0, t, hasKey) ?? t("rail.pathName.5min"),
+);
 function readFiveMinutes(): void {
   if (!ws) return;
-  choosePath(ws, "5min");
+  choosePath(ws, NEWCOMER_PATH);
   void s.router.go({ name: "doc", ws, section: "s0" });
 }
 const expert = $derived(s.doc.level === "expert");
@@ -425,7 +429,7 @@ const planCounts = $derived(
             <blockquote lang="" data-user-content>{readme.text}</blockquote>
             <figcaption>
               <a class="src" href={HREFS.code(ws, readme.path as RepoPath, readme.line)}>{readme.path}:{readme.line}</a>
-              <span class="sep" aria-hidden="true">&middot;</span><span>{t("map.readme.verbatim")}</span>
+              <span class="sep" aria-hidden="true">&middot;</span><span>{t(generated ? "map.readme.verbatimGenerated" : "map.readme.verbatim")}</span>
             </figcaption>
           </figure>
         {:else}
@@ -465,7 +469,7 @@ const planCounts = $derived(
                   <b>{t("map.generated", generatedTokens(totals, fmtTokensImpl, (u) => fmtUsdImpl(u, "gen")))}</b>
                   {#if stale > 0}<span class="stale">{t("map.staleChapters", { n: stale })}</span>{/if}
                 </p>
-                {#if ws}<button type="button" class="btn btn-pri" onclick={readFiveMinutes}>{t("map.read5")}</button>{/if}
+                {#if ws}<button type="button" class="btn btn-pri" onclick={readFiveMinutes}>{t("map.read5", { name: fiveName })}</button>{/if}
               </div>
             </section>
           {:else if problem && engineStatus}

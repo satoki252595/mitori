@@ -83,7 +83,7 @@
   "palette.results": "Results",
   "palette.suggest.help": "What you can do here",
   "palette.suggest.helpSub": "Select a sentence, ask the AI or have it fixed, and more · ?",
-  "palette.suggest.path5": "Read the 5-minute course",
+  "palette.suggest.path5": "Read the {name}",
   "palette.suggest.s0": "Start here — what this repository is",
   "palette.suggest.s4": "How to run it locally",
   "palette.textIndexing": "indexing the text {done}/{total}",

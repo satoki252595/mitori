@@ -74,11 +74,26 @@ function startPath(p: ReadingPath) {
   if (first) void s.router.go({ name: "doc", ws, section: first });
 }
 
+// the course menu (ux.md §4.2/§4.3.2 「30分コース ▾」): this course's stops, then the other courses — one layer,
+// closed by Escape, a pick, or a press outside the card
+let pathEl: HTMLElement | undefined = $state();
 $effect(() => {
   if (!stopsOpen) return;
-  untrack(() => s.layers.open("popover", "path-stops", () => (stopsOpen = false)));
-  return () => s.layers.drop("path-stops");
+  untrack(() => s.layers.open("menu", "path-stops", () => (stopsOpen = false)));
+  const outside = (e: PointerEvent) => {
+    if (pathEl && !pathEl.contains(e.target as Node)) s.layers.close("path-stops");
+  };
+  document.addEventListener("pointerdown", outside, true);
+  return () => {
+    document.removeEventListener("pointerdown", outside, true);
+    s.layers.drop("path-stops");
+  };
 });
+
+function pickCourse(id: string) {
+  pickPath(id);
+  s.layers.close("path-stops");
+}
 
 const threadCounts = $derived(ix ? s.review.threadsBySection(ix.blockSection) : new Map<string, number>());
 
@@ -146,38 +161,56 @@ const covered = $derived(manifest?.coverage ?? null);
   {@render top?.()}
 
   <!-- fixed-height card in every state (outline arriving never moves the TOC: CLS 0) -->
-  <section class="path card" aria-label={t("rail.path")}>
+  <section class="path card" aria-label={t("rail.path")} bind:this={pathEl}>
     {#if path && prog}
       <svg viewBox="0 0 34 34" aria-hidden="true"
         ><circle class="trk" cx="17" cy="17" r="14" /><circle class="bar" class:done={prog.done} cx="17" cy="17" r="14" stroke-dasharray="87.96" stroke-dashoffset={87.96 * (1 - ring)} /></svg
       >
       <div class="path-h">
-        <button type="button" class="path-t" aria-expanded={stopsOpen} aria-controls="path-stops" onclick={() => (stopsOpen = !stopsOpen)}>
+        <!-- 「約13分コース 0/4 ▾」 must fit the 248 px rail whole: the count is `n/m` (ux.md §4.3.8), the chevron 12 px -->
+        <button type="button" class="path-t" aria-haspopup="true" aria-expanded={stopsOpen} aria-controls="path-stops" onclick={() => (stopsOpen = !stopsOpen)}>
           <span class="pt-name" data-user-content>{pathTitle}</span>
-          {#if prog.done}<span class="done-badge">{t("rail.pathDoneBadge")}</span>{:else}<span class="mono">{prog.read} / {prog.total}</span>{/if}
+          {#if prog.done}<span class="done-badge">{t("rail.pathDoneBadge")}</span>{:else}<span class="mono cnt">{prog.read}<span class="sl">/</span>{prog.total}</span>{/if}
           <span class="chev"><Icon name="down" size={12} /></span>
         </button>
         <div class="path-s">{prog.done ? t("rail.pathDone", { min: prog.totalMin }) : t("rail.pathLeft", { min: prog.leftMin })}</div>
       </div>
       {#if stopsOpen}
-        <ol class="stops" id="path-stops" aria-label={t("rail.pathStops")}>
-          {#each prog.stops as st (st.section)}
-            <li>
-              <a href={ws ? HREFS.doc(ws, st.section) : "#"} class:read={st.read} onclick={() => (stopsOpen = false)}>
-                <span class="sm" aria-hidden="true">{#if st.read}&#x2713;{/if}</span>
-                <span class="sn mono">&sect;{ix?.numbers.get(st.section)}</span>
-                <span class="sttl" data-user-content>{ix?.nodes.get(st.section)?.title ?? ""}</span>
-                <span class="smin mono">{st.min}{t("fmt.minShort")}</span>
-                {#if st.read}<span class="sr-only">{t("rail.stopRead")}</span>{/if}
-              </a>
-            </li>
-          {/each}
-        </ol>
+        <div class="stops" id="path-stops">
+          <ol aria-label={t("rail.pathStops")}>
+            {#each prog.stops as st (st.section)}
+              <li>
+                <a href={ws ? HREFS.doc(ws, st.section) : "#"} class:read={st.read} onclick={() => s.layers.close("path-stops")}>
+                  <span class="sm" aria-hidden="true">{#if st.read}&#x2713;{/if}</span>
+                  <span class="sn mono">&sect;{ix?.numbers.get(st.section)}</span>
+                  <span class="sttl" data-user-content>{ix?.nodes.get(st.section)?.title ?? ""}</span>
+                  <span class="smin mono">{st.min}{t("fmt.minShort")}</span>
+                  {#if st.read}<span class="sr-only">{t("rail.stopRead")}</span>{/if}
+                </a>
+              </li>
+            {/each}
+          </ol>
+          {#if (outline?.readingPaths.length ?? 0) > 1}
+            <!-- the other courses (ux.md §4.3.2: the ▾ menu chooses 5 分 / 30 分 / レビュアー / PM / SRE / repo 定義) -->
+            <p class="others-h" id="path-others">{t("rail.pathPick")}</p>
+            <ul class="others" aria-labelledby="path-others">
+              {#each outline?.readingPaths ?? [] as p (p.id)}
+                <li>
+                  <button type="button" class:cur={p.id === path.id} aria-pressed={p.id === path.id} onclick={() => pickCourse(p.id)}>
+                    <span class="sm" aria-hidden="true">{#if p.id === path.id}&#x2713;{/if}</span>
+                    <span class="sttl" data-user-content>{nameOf(p)}</span>
+                    <span class="smin mono">{p.steps.length}</span>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
       {/if}
     {:else if planned}
       <svg viewBox="0 0 34 34" aria-hidden="true"><circle class="trk" cx="17" cy="17" r="14" /></svg>
       <div class="path-h">
-        <div class="path-t">{t("rail.pathDefault")} <span class="mono">0 / {planned.steps}</span></div>
+        <div class="path-t">{t("rail.pathDefault")} <span class="mono cnt">0<span class="sl">/</span>{planned.steps}</span></div>
         <div class="path-s">{t("rail.pathLeft", { min: planned.minutes })}</div>
       </div>
     {:else}
@@ -196,11 +229,6 @@ const covered = $derived(manifest?.coverage ?? null);
         <a class="path-next" href={HREFS.doc(ws, planned.first)}>{t("rail.next")} <b>&sect;{ix?.numbers.get(planned.first)} <span data-user-content>{ix?.nodes.get(planned.first)?.title ?? ""}</span></b></a>
       {:else}
         <span class="path-next muted">{t("rail.next")} &mdash;</span>
-      {/if}
-      {#if path && (outline?.readingPaths.length ?? 0) > 1}
-        <select class="path-pick" aria-label={t("rail.pathPick")} value={path.id} onchange={(e) => pickPath(e.currentTarget.value)}>
-          {#each outline?.readingPaths ?? [] as p (p.id)}<option value={p.id}>{nameOf(p)}</option>{/each}
-        </select>
       {/if}
     </div>
   </section>
@@ -313,8 +341,12 @@ const covered = $derived(manifest?.coverage ?? null);
   button.path-t {
     display: flex;
     align-items: baseline;
-    gap: 6px;
+    gap: 5px;
     min-width: 0;
+  }
+  /* `0/4` (ux.md §4.3.8 `n/7`): a hair of room around the slash, not a mono space each side */
+  .cnt .sl {
+    margin: 0 1px;
   }
   .pt-name {
     min-width: 0;
@@ -341,6 +373,8 @@ const covered = $derived(manifest?.coverage ?? null);
     color: var(--muted);
   }
   .chev :global(svg) {
+    width: 12px;
+    height: 12px;
     stroke: currentColor;
     fill: none;
     stroke-width: 1.6;
@@ -354,26 +388,55 @@ const covered = $derived(manifest?.coverage ?? null);
     right: 0;
     top: calc(100% + 6px);
     z-index: var(--z-popover);
-    list-style: none;
-    margin: 0;
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
     padding: 6px;
     background: var(--sheet);
     border: 1px solid var(--rule);
     border-radius: var(--r-card);
     box-shadow: var(--shadow-pop);
   }
-  .stops a {
+  .stops ol,
+  .stops ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .stops a,
+  .others button {
     display: grid;
     grid-template-columns: 14px 34px minmax(0, 1fr) auto;
     gap: 4px;
     align-items: baseline;
+    width: 100%;
     padding: 6px 8px;
+    border: 0;
     border-radius: var(--r-btn);
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
     font-size: var(--fs-ui-s);
     color: var(--text);
   }
-  .stops a:hover {
+  .others button {
+    grid-template-columns: 14px minmax(0, 1fr) auto;
+  }
+  .others button.cur {
+    font-weight: var(--fw-strong);
+    color: var(--ink);
+  }
+  .stops a:hover,
+  .others button:hover,
+  .others button:focus-visible {
     background: var(--hover);
+  }
+  .others-h {
+    margin: 6px 8px 2px;
+    padding-top: 8px;
+    border-top: 1px solid var(--rule-soft);
+    font-size: var(--fs-meta);
+    color: var(--muted);
   }
   .stops a.read {
     color: var(--muted);
@@ -447,16 +510,6 @@ const covered = $derived(manifest?.coverage ?? null);
   .path-next b {
     font-weight: var(--fw-strong);
     color: var(--text);
-  }
-  .path-pick {
-    flex: none;
-    max-width: 45%;
-    font-size: var(--fs-meta);
-    border: 1px solid var(--rule);
-    border-radius: var(--r-btn);
-    background: var(--sheet);
-    color: var(--muted);
-    height: 24px;
   }
   /* the TOC scrolls inside the rail: its row count arriving never moves the card or the footer */
   .toc-wrap {

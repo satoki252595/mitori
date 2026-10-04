@@ -15,6 +15,7 @@ export interface MockOptions {
   paletteItems?: number;
   utilization?: number;
   readyJob?: boolean;
+  fiveMinStops?: number;
 }
 
 export async function configure(o: MockOptions = {}): Promise<void> {

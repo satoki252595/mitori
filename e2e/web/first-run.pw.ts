@@ -18,7 +18,7 @@ test.describe("first visit", () => {
     const card = page.locator(".welcome");
     await expect(card).toBeVisible();
     await expect(card).toContainText("§0 → §1 → §2");
-    await expect(page.locator(".rail .path-t")).toContainText("0 / 3");
+    await expect(page.locator(".rail .path-t")).toContainText("0/3");
     await expect
       .poll(async () => (await mockLog()).some((r) => r.method === "PATCH" && JSON.stringify(r.body).includes('"readerLevel":"newcomer"')), { timeout: 3000 })
       .toBe(true);

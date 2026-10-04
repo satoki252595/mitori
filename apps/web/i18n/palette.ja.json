@@ -83,7 +83,7 @@
   "palette.results": "検索結果",
   "palette.suggest.help": "この画面でできること",
   "palette.suggest.helpSub": "文を選んでAIに質問・修正を頼む ほか · ?",
-  "palette.suggest.path5": "5分コースで読む",
+  "palette.suggest.path5": "{name}で読む",
   "palette.suggest.s0": "まずここから — このリポジトリは何か",
   "palette.suggest.s4": "手元で動かす手順",
   "palette.textIndexing": "本文を索引中{done}/{total}",

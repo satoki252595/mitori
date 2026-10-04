@@ -31,8 +31,9 @@ function docTextOf(s: Stores): DocText {
 import { HREFS, type SectionId } from "@mitori/core";
 import { flushSync, onMount } from "svelte";
 import { copyText } from "../shell/clipboard.ts";
+import { hasKey } from "../shell/i18n.ts";
 import { t } from "../shell/index.ts";
-import { choosePath, readMapOf } from "../shell/reading.ts";
+import { choosePath, courseName, NEWCOMER_PATH, readMapOf } from "../shell/reading.ts";
 import { useStores } from "../stores/app.svelte.ts";
 import { actionItems, runAction } from "./actions.ts";
 import { askAi } from "./ask.ts";
@@ -130,14 +131,17 @@ function suggestRows(): Row[] {
   const out: Row[] = [];
   const title = (id: SectionId) => ix.nodes.get(id)?.title ?? "";
   if (ix.nodes.has("s0")) out.push({ id: "s0", label: `§0 ${title("s0")}`, marks: [], sub: t("palette.suggest.s0"), href: HREFS.doc(w, "s0"), group: "suggest" });
-  const five = s.doc.outline?.readingPaths.find((x) => x.id === "5min");
+  const paths = s.doc.outline?.readingPaths ?? [];
+  const five = paths.find((x) => x.id === NEWCOMER_PATH);
   if (five && s.doc.outline?.manifest.generatedAt) {
     const read = readMapOf(w, five.id);
     const next = five.steps.find((st) => !read[st.section])?.section ?? five.steps[0]?.section;
+    // the course by the name the rail gives it (its real time)
+    const name = courseName(paths, five.id, (id) => ix.nodes.get(id)?.readingSec ?? 0, t, hasKey) ?? five.title;
     if (next)
       out.push({
         id: "path5",
-        label: t("palette.suggest.path5"),
+        label: t("palette.suggest.path5", { name }),
         marks: [],
         sub: five.steps.map((st) => `§${ix.numbers.get(st.section) ?? ""}`).join(" → "),
         href: "",

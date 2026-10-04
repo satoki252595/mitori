@@ -120,6 +120,21 @@ export function pathName(
   return has(key) ? t(key) : path.title;
 }
 
+/**
+ * The UI name of the course `id` of `paths` — the same name the rail card, the §0 welcome card, the map's card and ⌘K
+ * show (「約13分コース」 when the 5-minute course really takes 13), or null when the outline has no such course.
+ */
+export function courseName(
+  paths: readonly Pick<ReadingPath, "id" | "title" | "steps">[],
+  id: string,
+  readingSec: (id: SectionId) => number,
+  t: (k: string, p?: Record<string, string | number>) => string,
+  has: (k: string) => boolean,
+): string | null {
+  const p = paths.find((x) => x.id === id);
+  return p ? pathName(p, pathProgress(p, {}, readingSec).totalMin, t, has) : null;
+}
+
 /** The course to suggest once `cur` is read: the next of {@link PATH_ORDER} that exists and is not read yet. */
 export function nextPathAfter(paths: readonly ReadingPath[], cur: string, isDone: (p: ReadingPath) => boolean): ReadingPath | null {
   const order = [...PATH_ORDER, ...paths.map((p) => p.id).filter((id) => !(PATH_ORDER as readonly string[]).includes(id))];

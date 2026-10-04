@@ -56,6 +56,8 @@ export interface FixtureOptions {
   utilization: number;
   /** One job in `ready` (header レビュー tab / `/w/:ws/review` redirect). */
   readyJob?: boolean;
+  /** Stops of the 5-minute course (default s0–s2; more makes it a ≥ 1.5× longer course, named by its real time). */
+  fiveMinStops?: number;
 }
 
 export const DEFAULTS: FixtureOptions = {
@@ -439,7 +441,13 @@ export function docFixture(o: FixtureOptions): DocFixture {
         steps: ["s0", "s1", "s2", "s3", "s4", "s5", "s6"].map((s) => ({ section: s as SectionId })),
         readingSec: 1800,
       },
-      { id: "5min", title: "5分コース", audience: "newcomer", steps: ["s0", "s1", "s2"].map((s) => ({ section: s as SectionId })), readingSec: 300 },
+      {
+        id: "5min",
+        title: "5分コース",
+        audience: "newcomer",
+        steps: ["s0", "s1", "s2", "s3", "s4", "s5", "s6"].slice(0, o.fiveMinStops ?? 3).map((s) => ({ section: s as SectionId })),
+        readingSec: 300,
+      },
     ],
     glossaryCount: TERMS.length,
     counts: { blocks: outlineBlocks.length, claims: 300, stale: 3, verified: 250, openThreads: 4, proposals: 0 },
