@@ -168,7 +168,8 @@ export class Flusher {
       const lang = core.lang();
       if (!this.written.has("README.md")) pending.push({ rel: "README.md", content: L[lang].readme, tick: 0, md: false });
       const ignore = core.deps.ws.docCommitted ? "cache/\ntmp/\n" : "*\n";
-      if (this.written.get(".gitignore") !== ignore) pending.push({ rel: ".gitignore", content: ignore, tick: 0, md: false });
+      // written FIRST: until it exists the whole docDir shows as untracked (`?? .mitori/`) in the user's `git status`
+      if (this.written.get(".gitignore") !== ignore) pending.unshift({ rel: ".gitignore", content: ignore, tick: 0, md: false });
     }
     for (const [rel, content] of this.extra) pending.push({ rel, content, tick: 0, md: true });
     for (const [rel, content] of core.orphans) pending.push({ rel, content, tick: 0, md: true });

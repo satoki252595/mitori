@@ -281,7 +281,8 @@ try {
     objects: git(base, "count-objects", "-v"),
   });
   const before = userState();
-  check(git(base, "status", "--porcelain").trim() === "", "the scratch repo starts clean");
+  const status0 = git(base, "status", "--porcelain").trim();
+  check(status0 === "", `the scratch repo starts clean, got:\n${status0}`);
 
   // (a) first screen
   const tLogin = performance.now();

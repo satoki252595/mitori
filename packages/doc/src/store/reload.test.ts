@@ -351,3 +351,16 @@ describe("text that enters the Markdown keeps the block structure", () => {
     expect(h.store.section("s3/login")?.blocks[0]?.md).toBe("## 3.1 ログイン ## 乗っ取り");
   });
 });
+
+describe("the docDir never shows as untracked", () => {
+  test("the first flush writes .mitori/.gitignore before any other file", async () => {
+    const root = dir("mitori-ignore-first-");
+    const writer = spySafeWriter();
+    const h = harness({ root, fs: true, writer });
+    await h.store.load();
+    h.store.applyStatic(staticInputFromTruth("ts-small"));
+    await h.store.flush({ force: true });
+    expect(writer.writes.length).toBeGreaterThan(3);
+    expect(writer.writes[0]?.abs.endsWith(".mitori/.gitignore")).toBe(true);
+  });
+});
