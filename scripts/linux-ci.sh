@@ -2,17 +2,22 @@
 # linux-ci — run mitori's checks in an Ubuntu 24.04 container (OrbStack / Docker), repeatably.
 #
 #   scripts/linux-ci.sh [--arch arm64|amd64] [--steps install,check,unit,bin,watch,sandbox] [--corpus] [--keep]
-#                       [--out <dir>] [--seccomp default|unconfined]
+#                       [--out <dir>] [--seccomp default|unconfined|masked-proc] [--ref <git ref>]
 #
 # - The image is scripts/linux/Dockerfile (bun / node / go pinned to flake.nix's versions, python3 + rust from apt,
 #   bubblewrap). It is built once per arch and cached by Docker.
 # - The repository is exported as it is on disk (tracked + untracked, not ignored: `git ls-files -co
 #   --exclude-standard`) into a scratch copy that becomes a fresh one-commit repository in the container; the
 #   developer's checkout is never mounted writable and node_modules are installed inside (linux-native binaries).
+# - --ref <ref> exports that commit (`git archive`) instead of the working tree, with THIS checkout's scripts/linux/
+#   laid over it: another track's branch is checked with the current harness (e.g. `--ref rem/safety --steps
+#   install,sandbox` before it is merged).
 # - --corpus mounts ~/.cache/mitori-corpus read-only (the corpus-dependent tests then run instead of skipping).
 # - --seccomp unconfined (default) lets bwrap create its user / network namespaces like on a developer's Linux box;
 #   `--seccomp default` keeps Docker's profile, under which the gate-sandbox probe must answer "none" (verified by the
-#   sandbox step: detection degrades instead of breaking the gates).
+#   sandbox step: detection degrades instead of breaking the gates). `--seccomp masked-proc` lifts seccomp and AppArmor
+#   but keeps the runtime's masked /proc (a typical devcontainer): bwrap makes its namespaces but cannot mount a new
+#   /proc, so the probe must answer "none" there too (cr-requests/bench.md #1).
 # - Output (logs, results JSON) goes to --out (default: <scratch>/out), printed at the end.
 # - Docker credentials: only public images are pulled. When the user's docker config uses a credential store
 #   (osxkeychain), a headless run can hang on the keychain; a scratch DOCKER_CONFIG without credsStore is used unless
@@ -25,6 +30,7 @@ CORPUS=0
 KEEP=0
 OUT=""
 SECCOMP="unconfined"
+REF=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --arch) ARCH="$2"; shift 2 ;;
@@ -33,11 +39,13 @@ while [ $# -gt 0 ]; do
     --keep) KEEP=1; shift ;;
     --out) OUT="$2"; shift 2 ;;
     --seccomp) SECCOMP="$2"; shift 2 ;;
-    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
+    --ref) REF="$2"; shift 2 ;;
+    -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
     *) echo "linux-ci: unknown argument $1" >&2; exit 2 ;;
   esac
 done
 case "$ARCH" in arm64|amd64) ;; *) echo "linux-ci: --arch must be arm64 or amd64" >&2; exit 2 ;; esac
+case "$SECCOMP" in default|unconfined|masked-proc) ;; *) echo "linux-ci: --seccomp must be default, unconfined or masked-proc" >&2; exit 2 ;; esac
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/mitori-linux-ci.XXXXXX")"
@@ -68,9 +76,15 @@ echo "linux-ci: building $IMAGE (cached after the first time)"
 docker build --platform "linux/$ARCH" --build-arg "TARGETARCH=$ARCH" --build-arg "UID=$(id -u)" -t "$IMAGE" "$ROOT/scripts/linux" > "$OUT/image-$ARCH.log" 2>&1 || { tail -30 "$OUT/image-$ARCH.log" >&2; exit 4; }
 [ "$STEPS" = image ] && { echo "linux-ci: image ready"; exit 0; }
 
-echo "linux-ci: exporting the working tree"
 mkdir -p "$WORK/src"
-git -C "$ROOT" ls-files -z --cached --others --exclude-standard | (cd "$ROOT" && tar --null -T - -cf -) | tar -xf - -C "$WORK/src"
+if [ -n "$REF" ]; then
+  echo "linux-ci: exporting $REF (with this checkout's scripts/linux)"
+  git -C "$ROOT" archive --format=tar "$REF" | tar -xf - -C "$WORK/src"
+  rm -rf "$WORK/src/scripts/linux" && mkdir -p "$WORK/src/scripts" && cp -R "$ROOT/scripts/linux" "$WORK/src/scripts/linux"
+else
+  echo "linux-ci: exporting the working tree"
+  git -C "$ROOT" ls-files -z --cached --others --exclude-standard | (cd "$ROOT" && tar --null -T - -cf -) | tar -xf - -C "$WORK/src"
+fi
 
 CORPUS_MOUNT=()
 if [ "$CORPUS" = 1 ] && [ -d "$HOME/.cache/mitori-corpus" ]; then
@@ -78,6 +92,7 @@ if [ "$CORPUS" = 1 ] && [ -d "$HOME/.cache/mitori-corpus" ]; then
 fi
 SEC=()
 [ "$SECCOMP" = unconfined ] && SEC=(--security-opt seccomp=unconfined --security-opt apparmor=unconfined --security-opt systempaths=unconfined)
+[ "$SECCOMP" = masked-proc ] && SEC=(--security-opt seccomp=unconfined --security-opt apparmor=unconfined)
 
 echo "linux-ci: running steps $STEPS ($ARCH, seccomp $SECCOMP)"
 set +e

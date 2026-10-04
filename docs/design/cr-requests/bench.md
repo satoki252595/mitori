@@ -20,6 +20,17 @@ bench トラックは計測と Linux を担当し、下の項目は **所有外�
   go test は sandbox 内で通る（`sandbox-check.ts` の 1 行目。外向きの TCP・DNS は失敗する）。macOS の `sandbox-exec` だけが
   ループバックも拒否している。macOS 側を (b) にするかは safety トラックの判断（このトラックは Linux で確かめただけ）。
 - urgency: high（Linux で gate が動かない環境がある）。
+- **検証済み（bench 検証パス、safety トラックの `rem/safety` を merge 前に）**: safety が `BWRAP_PROBE_ARGS`（gate と同じ
+  `--proc /proc --tmpfs /tmp --unshare-net --unshare-pid …`）で probe するように直した。`scripts/linux-ci.sh --ref rem/safety
+  --steps install,sandbox --seccomp <m>`（この checkout の `scripts/linux/` を重ねて走らせる）で 3 条件を確かめた:
+
+  | 条件 | rem/bench（= main の検出） | rem/safety |
+  |---|---|---|
+  | `masked-proc`（seccomp・AppArmor だけ外す） | `bwrap` を返し、gate は `Can't mount proc` で全部 error（6 / 10） | **`none`**（同意の経路。直った） |
+  | `unconfined`（素の Linux 相当） | `bwrap`、10 / 10 | `bwrap`、**10 / 10**（loopback の `httptest` も通る。退行なし） |
+  | `default`（Docker 既定の seccomp） | `none` | `none` |
+
+  生データ: `docs/progress/linux/sandbox-arm64-rem-safety-*.json`。main に入ったら `--ref` なしで同じ 3 回を走らせれば同じ表になる。
 
 ## 2. web: 「scan の要約を表示した」時点の mark が無い（`ui.scanSummary`）
 

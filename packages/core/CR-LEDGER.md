@@ -309,4 +309,4 @@
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
 | CR bench-1 | bench（F4、= CR m1-106 の解消） | accepted | `e2e/package.json` devDependencies `axe-core` 4.13.0（exact、`bun.lock` 更新。hoisted linker なので testkit `ui.axe` がそのまま解決する）(applied) | `e2e/a11y/axe.spec.ts`（`ui.a11y.axe`）。契約の変更は無い（testkit の manifest も触らない） |
-| CR bench-2 | bench（Linux、ADR-0013） | deferred（safety トラック） | platform `probeGateSandbox` の Linux argv を gate profile と同じ名前空間の組に（`--unshare-pid --unshare-net --proc /proc --tmpfs /tmp`） | `/proc` が masked のコンテナで検出が "bwrap" を返し、gate が全部 error になる（`docs/progress/linux/sandbox-arm64-masked-proc.json`、cr-requests/bench.md #1） |
+| CR bench-2 | bench（Linux、ADR-0013） | deferred（safety トラック。`rem/safety` の `BWRAP_PROBE_ARGS` で修正済み・main 未統合。bench 検証パスが Linux 3 条件で確認: masked `/proc` → none、素の Linux → bwrap 10 / 10、既定 seccomp → none） | platform `probeGateSandbox` の Linux argv を gate profile と同じ名前空間の組に（`--unshare-pid --unshare-net --proc /proc --tmpfs /tmp`） | `/proc` が masked のコンテナで検出が "bwrap" を返し、gate が全部 error になる（`docs/progress/linux/sandbox-arm64-masked-proc.json`、`sandbox-arm64-rem-safety-*.json`、cr-requests/bench.md #1） |

@@ -42,6 +42,9 @@ jobs:
       - name: Corpus (pinned clones, cached in ~/.cache/mitori-corpus)
         run: scripts/nd bun run corpus:fetch --verify || scripts/nd bun run corpus:fetch
 
+      - name: Chromium for the ui.* cases and the perf / a11y specs (cached on the runner after the first run)
+        run: scripts/nd bunx playwright install chromium
+
       - name: Build the binary (bin.* / srv.rss.* / mcp.init measure the compiled daemon)
         run: scripts/nd bun run build:bin
 

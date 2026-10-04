@@ -70,6 +70,8 @@ v1.0（Ubuntu 22.04 userland、`--cpus 4`）と同じ手順・同じ木（small 
 watcher 全体（`createFsWatcher`、書込 → batch、40 回、`watch.int.test.ts`）: Linux p50 **7.2 ms** / p95 8.4 ms、PLAT-I-007 の 14 件すべて pass。
 2 回目の run（`o3-linux-arm64-ubuntu24-run2.json`）も同じ: A は setup 7.2 / 15.5 ms・p95 0.9 / 1.1 ms・捕捉 100 %・idle CPU 0.23 / 0.20 %、
 B は p95 239 / 278 ms・idle CPU 8.7 / 17.2 %、watcher p50 7.0 ms。
+3 回目（検証パス、`o3-linux-arm64-ubuntu24-run3.json`、ホストの負荷 10〜20）も同じ結論: A は setup 5.5 / 21.4 ms・p95 0.9 / 0.7 ms・
+捕捉 100 %・idle CPU 0.11 / 0.14 %、B は p95 266 / 279 ms・idle CPU 13.3 / 19.5 %（5 s 間隔でも 0.9 / 1.33 %）。
 
 - **決定（A を Linux でも採用、polling は実装しない）はそのまま**。A は 2,800 dir の木でも setup 15 ms・p95 1 ms・捕捉 100 %・
   idle CPU 0.14 % で、採用規則（setup ≤ 500 ms・p95 ≤ 100 ms・捕捉率 100 %・idle CPU ≤ 1 %）を大差で満たす。B は p95 が間隔 +

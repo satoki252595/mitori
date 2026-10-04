@@ -25,22 +25,35 @@ const busy = Array.from({ length: procs }, () => Bun.spawn([process.execPath, "-
 const stopBusy = () => {
   for (const p of busy) p.kill("SIGKILL");
 };
-process.on("SIGINT", () => {
-  stopBusy();
-  process.exit(130);
-});
-// the 1-minute average needs time to climb before the command starts
-await Bun.sleep(warm * 1000);
-console.error(`under-load: loadavg ${la()} → running: ${command.join(" ")}`);
+// the busy loops never outlive this script: an interrupt, a kill or a command that cannot start stops them too
+for (const [sig, code] of [
+  ["SIGINT", 130],
+  ["SIGTERM", 143],
+  ["SIGHUP", 129],
+] as const)
+  process.on(sig, () => {
+    stopBusy();
+    process.exit(code);
+  });
 const samples: number[] = [];
-const iv = setInterval(() => {
-  samples.push(loadavg()[0] ?? 0);
-  console.error(`under-load: loadavg ${la()}`);
-}, 30_000);
-const child = Bun.spawn(command, { stdout: "inherit", stderr: "inherit", stdin: "inherit" });
-const code = await child.exited;
-clearInterval(iv);
-stopBusy();
+let code = 1;
+try {
+  // the 1-minute average needs time to climb before the command starts
+  await Bun.sleep(warm * 1000);
+  console.error(`under-load: loadavg ${la()} → running: ${command.join(" ")}`);
+  const iv = setInterval(() => {
+    samples.push(loadavg()[0] ?? 0);
+    console.error(`under-load: loadavg ${la()}`);
+  }, 30_000);
+  try {
+    const child = Bun.spawn(command, { stdout: "inherit", stderr: "inherit", stdin: "inherit" });
+    code = await child.exited;
+  } finally {
+    clearInterval(iv);
+  }
+} finally {
+  stopBusy();
+}
 const min = samples.length ? Math.min(...samples).toFixed(1) : la();
 console.error(`under-load: exit ${code}; loadavg during the run: min ${min}, end ${la()} (samples every 30 s: ${samples.map((x) => x.toFixed(0)).join(" ")})`);
 process.exit(code);
