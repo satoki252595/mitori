@@ -84,3 +84,36 @@ test("@wp10a en → ja back: the chrome returns to Japanese and the doc body is 
   await expect(page.locator(".hdr .tab").nth(1)).toHaveText("設計書");
   expect(await page.evaluate(() => document.documentElement.lang)).toBe("ja");
 });
+
+test("@wp10a NC-14 English header at 1440×900: every tab whole, nothing runs into the tabs (also after a reload in English)", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}/doc/s3`);
+  await waitMark(page, "mitori:section:rendered");
+  await page.locator(".lang-btn").click();
+  await expect(page.locator(".hdr .tab").nth(1)).toHaveText("Design doc");
+  const clipped = () =>
+    page.evaluate(() => {
+      const m = document.querySelector(".hdr-m")?.getBoundingClientRect();
+      const out: string[] = [];
+      if (!m) return ["no tab strip"];
+      for (const tab of document.querySelectorAll<HTMLElement>(".hdr .tab")) {
+        const r = tab.getBoundingClientRect();
+        if (r.left < m.left - 0.5 || r.right > m.right + 0.5)
+          out.push(`${tab.textContent?.trim()} ${Math.round(r.left)}..${Math.round(r.right)} outside ${Math.round(m.left)}..${Math.round(m.right)}`);
+      }
+      const l = document.querySelector(".hdr-l")?.getBoundingClientRect();
+      const r = document.querySelector(".hdr-r")?.getBoundingClientRect();
+      if (l && l.right > m.left + 0.5) out.push(`left group ends at ${Math.round(l.right)} > ${Math.round(m.left)}`);
+      if (r && r.left < m.right - 0.5) out.push(`right group starts at ${Math.round(r.left)} < ${Math.round(m.right)}`);
+      return out;
+    });
+  await page.waitForTimeout(400);
+  expect(await clipped(), "after the switch").toEqual([]);
+  // the saved language boots in English: the counts and the catalog arrive after the first fit
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await waitMark(page, "mitori:section:rendered");
+  await expect(page.locator(".hdr .tab").nth(1)).toHaveText("Design doc");
+  await page.waitForTimeout(600);
+  expect(await clipped(), "after a reload").toEqual([]);
+});

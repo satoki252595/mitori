@@ -205,8 +205,7 @@ svg.i {
   margin-left: -8px;
   border-radius: var(--r-btn);
   min-height: 28px;
-  /* the name + HEAD arrive after the first paint: their usual width is reserved (AC-U03, the tabs do not move) */
-  min-width: 11em;
+  min-width: 0;
 }
 
 .proj:hover {
@@ -248,8 +247,13 @@ svg.i {
   display: none;
 }
 
-/* the reserved width yields first: a narrow header ellipsizes the name rather than run the tabs into it (AC-U-W01) */
-.hdr[data-tight] .proj {
+/* a workspace's first visit in this browser: the chip's usual width is held while its name arrives (Header.svelte);
+   a tight header gives it up first */
+.proj.reserve {
+  min-width: 11em;
+}
+
+.hdr[data-tight] .proj.reserve {
   min-width: 0;
 }
 

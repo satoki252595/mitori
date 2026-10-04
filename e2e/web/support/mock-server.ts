@@ -24,6 +24,8 @@ let settingsVersion = 3;
 let acked = opts.policyAcked;
 /** The reader level a PATCH saved (the first visit saves 「初めて」, NC-08); reset by configure. */
 let savedLevel: string | null = null;
+/** The UI language a PATCH saved (NC-14: a reload in English stays English); reset by configure. */
+let savedLang: string | null = null;
 /** Bumped by an emitted `index.changed` (an accept / Undo touched the files): the files are another version now. */
 let fileRev = 0;
 const streams = new Set<ReadableStreamDefaultController<Uint8Array>>();
@@ -36,12 +38,14 @@ function configure(o: Partial<FixtureOptions>) {
   log = [];
   acked = opts.policyAcked;
   savedLevel = null;
+  savedLang = null;
   fileRev = 0;
   estSeq = 0;
 }
 
-function withSaved<T extends { settings: { ui: { readerLevel: string } } }>(v: T): T {
-  return savedLevel ? { ...v, settings: { ...v.settings, ui: { ...v.settings.ui, readerLevel: savedLevel } } } : v;
+function withSaved<T extends { settings: { ui: { readerLevel: string; lang: string } } }>(v: T): T {
+  const ui = { ...v.settings.ui, ...(savedLevel ? { readerLevel: savedLevel } : {}), ...(savedLang ? { lang: savedLang } : {}) };
+  return { ...v, settings: { ...v.settings, ui } };
 }
 
 function emit(e: Partial<SseEvent> & { type: string }) {
@@ -125,9 +129,10 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     return json({ ...s, version: settingsVersion });
   }
   if (m === "PATCH" && p === "/settings") {
-    const b = body as { patch?: { privacy?: { dataPolicyAck?: unknown }; ui?: { readerLevel?: string } } };
+    const b = body as { patch?: { privacy?: { dataPolicyAck?: unknown }; ui?: { readerLevel?: string; lang?: string } } };
     if (b?.patch?.privacy?.dataPolicyAck) acked = true;
     if (b?.patch?.ui?.readerLevel) savedLevel = b.patch.ui.readerLevel;
+    if (b?.patch?.ui?.lang) savedLang = b.patch.ui.lang;
     settingsVersion++;
     return json({ ...withSaved(settings({ ...opts, policyAcked: acked })), version: settingsVersion });
   }

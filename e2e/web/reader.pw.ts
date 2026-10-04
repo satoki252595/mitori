@@ -139,6 +139,25 @@ for (const [w, h] of [
   });
 }
 
+test("@wp10a AC-U03 a returning browser draws the project chip as last shown: no reserved width, CLS ≤ 0.001 (1280×800)", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await installCls(page);
+  await configure({ generated: false });
+  await page.goto(`/w/${WS}`);
+  await waitMark(page, "mitori:map:painted");
+  // the first visit holds the usual width; the chip it showed is remembered
+  await expect(page.locator(".hdr .proj.reserve")).toHaveCount(1);
+  await expect(page.locator(".hdr .proj-name")).not.toHaveText("");
+  await page.waitForTimeout(300);
+  await page.reload();
+  await waitMark(page, "mitori:map:painted");
+  await page.waitForTimeout(1500);
+  await expect(page.locator(".hdr .proj.reserve")).toHaveCount(0);
+  const v = await cls(page);
+  console.log(`[cls] map second boot 1280×800 ${v}`);
+  expect(v).toBeLessThanOrEqual(0.001);
+});
+
 test("@wp10a TOC thread badges (ux.md §4.3.2-3): an open thread on a §3.1 block counts on §3.1 and its chapter §3; resolved ones do not", async ({ page }) => {
   await configure({});
   await page.goto(`/w/${WS}/doc/s3/review-cycle`);
