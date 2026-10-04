@@ -317,3 +317,40 @@ export function deriveSpans(md: string, quoteChars = 300): ClaimSpan[] {
   }
   return out;
 }
+
+/**
+ * EX-04 (expert audit): factual sentences without a source. A cite marker after two sentences made only the last a
+ * claim; the first got no claim, no L1, no 〜推測 mark — and looked like verified text. 17 % of crit's module-page
+ * sentences had no cite (27 of them naming code), including the one wrong security statement. This counts them, for
+ * the quality report and the spot-check sample: a sentence is cited when a marker (`[[n]]`, marker form) or a line
+ * link (`](…#L12…)`, file form) sits inside it or right after it. Headings, callout labels, fences and table rows are
+ * not prose.
+ */
+export function uncitedSentences(md: string): { sentences: number; uncited: string[]; uncitedWithCode: string[] } {
+  const prose = md
+    .split("\n")
+    .filter((l) => !/^\s*(#{1,6}\s|\||<!--|> \[!|```|~~~)/.test(l) && !/^\s*>\s*\*\*/.test(l))
+    .join("\n");
+  const ranges = fenceRanges(prose);
+  const text = prose
+    .split("")
+    .map((c, i) => (inRanges(ranges, i) ? " " : c))
+    .join("");
+  const cite = /\[\[\d+\]\]|\]\([^)\s]*#L\d+[^)]*\)/;
+  // a sentence ends at 。！？ (or ". "), its cite may follow in a full-width paren group 「（[a](…#L1)）。」
+  const parts = text.split(/(?<=[。！？])|(?<=[.!?])\s+|\n+/);
+  let sentences = 0;
+  const uncited: string[] = [];
+  const withCode: string[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    const raw = (parts[i] ?? "").trim();
+    const plain = plainText(raw.replace(/^\s*(>|[-*+]|\d+\.)\s+/, "")).trim();
+    if (plain.length < 8) continue;
+    sentences++;
+    const next = (parts[i + 1] ?? "").trim();
+    if (cite.test(raw) || /^[（(]\s*\[/.test(next)) continue;
+    uncited.push(plain);
+    if (/`[^`\n]+`/.test(raw)) withCode.push(plain);
+  }
+  return { sentences, uncited, uncitedWithCode: withCode };
+}

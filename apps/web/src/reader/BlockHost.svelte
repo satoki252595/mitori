@@ -358,6 +358,7 @@ onMount(() => {
         data-b={r.b.id}
         data-depth={r.b.depth}
         data-kind={r.b.kind}
+        data-origin={r.b.origin}
         data-ln={r.b.mdLine}
         tabindex="-1"
         use:deco={r.b}

@@ -885,3 +885,11 @@ html.show-cites .mc[data-verdict="cited"]::after {
     padding: 28px 16px 100px;
   }
 }
+
+/* EX-04: in a written (AI) block, a code name OUTSIDE every claim has no source — the expert sees it (詳しい, or ⌥ to
+   show cites); a verified-looking sentence without a cite was where the audit's one wrong statement hid */
+html[data-level="expert"] .blk[data-origin="ai"] :is(p, li) > code,
+html.show-cites .blk[data-origin="ai"] :is(p, li) > code {
+  text-decoration: underline dotted var(--faint);
+  text-underline-offset: 3px;
+}

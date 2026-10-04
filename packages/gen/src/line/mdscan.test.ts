@@ -67,3 +67,22 @@ describe("code spans", () => {
     expect(codeSpans("```\n`not`\n```\n`yes`")).toEqual(["yes"]);
   });
 });
+
+describe("EX-04 uncited factual sentences", () => {
+  test("the sentence before a cited one is counted as uncited; the code-naming ones are reported apart", async () => {
+    const { uncitedSentences } = await import("./mdscan.ts");
+    const md = [
+      "## 処理の流れ",
+      "",
+      "- まず `NewServer` がルートを組み立てる（[server.go:170-174](../../../internal/server/server.go#L170-L174)）。",
+      "- 次に `checkSecFetchSite` で別オリジンからのブラウザ要求を拒否する。続いて `ServeHTTP` が要求を振り分ける（[server.go:278-291](../../../internal/server/server.go#L278-L291)）。",
+      "- 終了時には保存処理が走る。",
+    ].join("\n");
+    const r = uncitedSentences(md);
+    expect(r.sentences).toBe(4);
+    expect(r.uncited).toEqual(["次に checkSecFetchSite で別オリジンからのブラウザ要求を拒否する。", "終了時には保存処理が走る。"]);
+    expect(r.uncitedWithCode).toEqual(["次に checkSecFetchSite で別オリジンからのブラウザ要求を拒否する。"]);
+    // marker form
+    expect(uncitedSentences("A は B を返す[[1]]。C は D を呼ぶ。").uncited).toEqual(["C は D を呼ぶ。"]);
+  });
+});
