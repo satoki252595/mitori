@@ -2,8 +2,9 @@
 // new index.sqlite, new Worker pool; the OS page cache is warmed by the case's discarded first run). Prints one JSON
 // line on stdout:
 //   bun bench/runners/idx-cold.ts --repo <dir> --home <dir> [--until S1|S4] [--shadow] [--idle-ms <n>] [--structure]
-// `--idle-ms` (idx.rss.idle): after the scan and its background persistence, stay idle that long and report how much
-// RSS the indexer still holds over the process baseline (both after a full GC).
+// `--idle-ms` (idx.rss.idle, indexer spec §3.1: "60 s 無操作で Worker 0 本 → idle RSS 寄与 0"): after the scan and its
+// background persistence, stay idle that long, then report how much RSS terminating the parse Workers by hand still frees
+// (0 when the pool's own idle shrink released them) and how many Workers were still alive.
 // `--structure` (idx.pack.tokens, idx.module.sig.tokens, idx.leaf.loc): the repo pack, every leaf's sig skeleton and
 // the leaf LOC distribution of the scanned repository.
 import { parseArgs } from "node:util";
@@ -16,20 +17,39 @@ export interface ColdResult {
   timings: Record<string, number | null>;
   /** Peak RSS during the scan, MB (2^20). */
   rssPeakMB: number;
-  /** RSS held after the idle period over the pre-indexer baseline, MB (only with --idle-ms). */
+  /** RSS the parse Workers still held after the idle period, MB (only with --idle-ms). */
   rssIdleMB?: number;
+  /** Parse Workers alive after the idle period (only with --idle-ms). */
+  workersAfterIdle?: number;
   files: number;
   included: number;
   structure?: {
     packTokens: number;
     leaves: number;
-    /** Largest sig skeleton of a leaf module (no budget given), tokens. */
+    /** Largest sig skeleton of a leaf module (no budget given), tokens, and that leaf's slug and LOC. */
     sigTokensMax: number;
+    sigTokensMaxLeaf: string;
+    sigTokensMaxLoc: number;
     leafLoc: { median: number; p10: number; p90: number };
   };
 }
 
 const MB = 1_048_576;
+
+/** RSS after a full GC, the lowest of the samples taken until it stops falling (the allocator returns pages lazily). */
+async function settledRss(): Promise<number> {
+  Bun.gc(true);
+  let low = process.memoryUsage().rss;
+  for (let k = 0, still = 0; k < 40 && still < 3; k++) {
+    await Bun.sleep(50);
+    const v = process.memoryUsage().rss;
+    if (v < low) {
+      low = v;
+      still = 0;
+    } else still++;
+  }
+  return low;
+}
 
 const quantile = (xs: readonly number[], q: number): number => {
   const s = [...xs].sort((a, b) => a - b);
@@ -50,8 +70,6 @@ async function main(): Promise<ColdResult> {
   });
   if (!values.repo || !values.home) throw new Error("--repo and --home are required");
   const idle = values["idle-ms"] ? Number(values["idle-ms"]) : null;
-  if (idle !== null) Bun.gc(true);
-  const baseline = process.memoryUsage().rss;
   const b = await benchIndexer({ root: values.repo, home: values.home, shadow: values.shadow ?? false });
   const rss = rssSampler();
   const t0 = performance.now();
@@ -70,17 +88,23 @@ async function main(): Promise<ColdResult> {
     const leaves = b.idx.modules().filter((m) => m.children.length === 0);
     const sig = leaves.map((m) => b.idx.skeleton({ kind: "module", module: m.id }, "sig", "claude-v5").tokens);
     const locs = leaves.map((m) => m.loc);
+    const top = sig.indexOf(Math.max(...sig));
     out.structure = {
       packTokens: b.idx.repoPack({ tokenizer: "claude-v5" }).tokens,
       leaves: leaves.length,
       sigTokensMax: sig.length ? Math.max(...sig) : 0,
+      sigTokensMaxLeaf: leaves[top]?.slug ?? "",
+      sigTokensMaxLoc: leaves[top]?.loc ?? 0,
       leafLoc: { median: quantile(locs, 0.5), p10: quantile(locs, 0.1), p90: quantile(locs, 0.9) },
     };
   }
   if (idle !== null) {
     await Bun.sleep(idle);
-    Bun.gc(true);
-    out.rssIdleMB = Math.max(0, (process.memoryUsage().rss - baseline) / MB);
+    out.workersAfterIdle = b.workers();
+    const afterIdle = await settledRss();
+    await b.shrinkWorkers();
+    const afterShrink = await settledRss();
+    out.rssIdleMB = Math.max(0, (afterIdle - afterShrink) / MB);
   }
   await b.close();
   return out;

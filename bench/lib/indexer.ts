@@ -29,6 +29,10 @@ export interface BenchIndexer {
   counters: Map<MetricName, number>;
   /** Every event the indexer emitted (scan.progress / scan.done / doc.freshness inputs). */
   events: SseEventPayload[];
+  /** Parse Workers alive right now (all pools the indexer created). */
+  workers(): number;
+  /** Terminate every parse Worker now (what the pool's 60 s idle shrink should already have done). */
+  shrinkWorkers(): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -96,6 +100,7 @@ export async function benchIndexer(o: BenchIndexerOptions): Promise<BenchIndexer
   const init = await workerInit();
   const parseWorker = new URL("../../packages/server/src/workers/parse.ts", import.meta.url).href;
   const counters = new Map<MetricName, number>();
+  const pools: ReturnType<typeof createWorkerPool>[] = [];
   const metrics: Metrics = {
     inc: (n, k = 1) => counters.set(n, (counters.get(n) ?? 0) + k),
     observe() {},
@@ -120,15 +125,18 @@ export async function benchIndexer(o: BenchIndexerOptions): Promise<BenchIndexer
     hasher: createHasher(),
     log: silent,
     clock: systemClock,
-    parsePool: (size) =>
-      createWorkerPool({
+    parsePool: (size) => {
+      const pool = createWorkerPool({
         create: () => {
           const w = new Worker(parseWorker);
           w.postMessage({ type: "init", init });
           return w;
         },
         size,
-      }),
+      });
+      pools.push(pool);
+      return pool as never;
+    },
     hardware: { cores: availableParallelism(), perfCores: null },
     settings: () => settings,
     events: sink,
@@ -143,6 +151,10 @@ export async function benchIndexer(o: BenchIndexerOptions): Promise<BenchIndexer
     db,
     counters,
     events,
+    workers: () => pools.reduce((n, p) => n + p.size(), 0),
+    async shrinkWorkers() {
+      await Promise.all(pools.map((p) => p.shrink(0)));
+    },
     async close() {
       await idx.close();
       await git.close();

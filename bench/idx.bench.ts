@@ -376,6 +376,8 @@ interface Freshness {
   root: string;
   original: string;
   n: number;
+  /** Blocks already cited by an earlier run. */
+  used: Set<string>;
   dispose(): void;
 }
 
@@ -410,27 +412,39 @@ export const freshness = defineBench<Freshness>({
       root,
       original: readFileSync(join(root, FRESH_FILE), "utf8"),
       n: 0,
+      used: new Set<string>(),
       dispose: () => copy.dispose(),
     };
   },
   async run(s) {
     const d = s.int.domain(s.ws);
-    // a block whose claims went stale stays stale (no second event): every run cites from a block not used before
-    const blocks = d.doc
+    // a block whose claims went stale stays stale (no second event): every run cites from a block not used before, and
+    // checks that the edit produced the human cite
+    const candidates = d.doc
       .sections()
       .flatMap((x) => d.doc.section(x.id)?.blocks ?? [])
-      .filter((b) => b.kind !== "heading" && b.freshness !== "stale");
-    const block = blocks[0];
-    if (!block) throw new Error("crit's static doc has no fresh block left to cite from");
-    await d.doc.editBlock(block.id, block.hash, `設定は Config 構造体に集まる。（[config.go:21](../../${FRESH_FILE}#L21-L32)）`, "human");
+      .filter((b) => b.kind !== "heading" && b.freshness !== "stale" && !s.used.has(b.id));
+    let block: (typeof candidates)[number] | undefined;
+    for (const b of candidates) {
+      s.used.add(b.id);
+      // the cite link is relative to the block's own Markdown file (`.mitori/<file>`): one `../` per directory level
+      const up = "../".repeat(`.mitori/${b.file}`.split("/").length - 1);
+      await d.doc.editBlock(b.id, b.hash, `設定は Config 構造体に集まる。（[config.go:21](${up}${FRESH_FILE}#L21-L32)）`, "human");
+      if (d.doc.claims(b.id).some((c) => c.cites.some((x) => x.path === FRESH_FILE))) {
+        block = b;
+        break;
+      }
+    }
+    if (!block) throw new Error("crit's static doc has no block left to cite from");
     await Bun.sleep(50);
     const mark = s.sse.events.length;
     const t0 = performance.now();
     const lines = s.original.split("\n");
     lines[22] = `${lines[22]} // bench ${++s.n}`; // line 23 (Port), inside the cited range
     writeFileSync(join(s.root, FRESH_FILE), lines.join("\n"));
-    const hit = (x: SseEvent) => x.type === "doc.freshness" && x.freshness === "stale" && x.blocks.includes(block.id);
-    await s.sse.until((e) => e.slice(mark).some(hit), 10_000);
+    const id = block.id;
+    const hit = (x: SseEvent) => x.type === "doc.freshness" && x.freshness === "stale" && x.blocks.includes(id);
+    await s.sse.until((e) => e.slice(mark).some(hit), 30_000);
     const i = s.sse.events.findIndex((x, k) => k >= mark && hit(x));
     return (s.sse.times[i] ?? Number.NaN) - t0;
   },
