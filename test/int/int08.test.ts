@@ -1123,6 +1123,44 @@ describe.if(SANDBOX)("INT-08 with the OS sandbox: checks run unattended, repairs
     await api("POST", `/jobs/${job.id}/reject`, {});
   }, 180_000);
 
+  test("F1 remainder: a symlink a sandboxed test leaves in the tree fails the job before the REPAIR turn could read through it", async () => {
+    const LEAK = "internal/store/leak_test.go";
+    const thread = await memoryThread("Get のテストを足して（リンク）");
+    // the sandbox denies reading the credentials, not creating a link to them; a deep `node_modules` link survives the
+    // post-check sync (dependency links stay) and the dependency unlink (depth ≤ 3) — the agent's Read would follow it
+    const src =
+      'package store\n\nimport (\n\t"os"\n\t"testing"\n)\n\nfunc TestLeavesALink(t *testing.T) {\n\t_ = os.MkdirAll("testdata/a/b", 0o755)\n\tif err := os.Symlink(os.Getenv("HOME")+"/.aws/credentials", "testdata/a/b/node_modules"); err != nil {\n\t\tt.Log(err)\n\t}\n\tt.Fatal("fails on purpose: the REPAIR turn reads the tree")\n}\n';
+    let repaired = 0;
+    let leaked = "";
+    const repair: Turn = {
+      ...writeTest(() => thread.id, LEAK, src),
+      // what the model's Read would get in this turn (before the fix: the credentials)
+      edit: (cwd) => {
+        repaired++;
+        const link = join(cwd, "internal/store/testdata/a/b/node_modules");
+        if (existsSync(link)) leaked = readFileSync(link, "utf8");
+      },
+    };
+    scenarios.unshift({ name: "leak-repair", match: (p) => p.includes("（リンク）") && p.includes("mode=repair"), turns: [repair] });
+    scenarios.unshift({
+      name: "leak",
+      match: (p) => p.includes("（リンク）") && !p.includes("mode=repair"),
+      turns: [writeTest(() => thread.id, LEAK, src), repair],
+    });
+    const { job } = await createJob(thread, { add: [{ path: LEAK, start: 0, end: 0 }] });
+    let j = await jobUntil(job.id, ["ready", "failed"], 120_000);
+    if (j.state === "ready" && j.gates.some((g) => g.status === "untrusted")) {
+      // run alone (-t): the gate set is not trusted yet
+      await trustGates();
+      const ran = await webApi<Job>("POST", `/jobs/${job.id}/gates/run`, {});
+      j = await jobUntil(ran.id, ["ready", "failed"], 120_000);
+    }
+    expect(j.state).toBe("failed");
+    expect(j.failure?.code).toBe("E_SCOPE_VIOLATION");
+    expect(j.failure?.message).toContain("internal/store/testdata/a/b/node_modules");
+    expect({ repaired, leaked }).toEqual({ repaired: 0, leaked: "" });
+  }, 240_000);
+
   test("RT-31 under the sandbox: the write through the dependency link is denied; the dependency is unchanged", async () => {
     writeFileSync(join(repo.root, ".gitignore"), "node_modules/\n");
     mkdirSync(join(repo.root, "node_modules/pkg"), { recursive: true });

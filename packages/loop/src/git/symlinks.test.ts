@@ -29,5 +29,18 @@ describe("escapingSymlinks", () => {
       escapingSymlinks(links({ chain: "abs", abs: "/etc/hosts", "via/dir": "../linked/file", linked: "/tmp", fine: "inside", inside: "README.md" })),
     ).toEqual(["abs", "chain", "linked", "via/dir"]);
     expect(escapingSymlinks(links({ a: "b", b: "a" }))).toEqual(["a", "b"]);
+    expect(escapingSymlinks(links({ self: "self/x" }))).toEqual(["self"]);
+  });
+
+  test("resolved like the kernel, not lexically: `..` after a link climbs from the link's TARGET", () => {
+    // p/q/l is the root; x = <root>/../.. (lexically `p/q/l/../../..` is the root itself)
+    expect(escapingSymlinks(links({ "p/q/l": "../..", x: "p/q/l/../../.." }))).toEqual(["x"]);
+    // and the other way round: lexically `d/../../secret` climbs, physically it is <root>/secret
+    expect(escapingSymlinks(links({ d: "sub/deeper", z: "d/../../secret" }))).toEqual([]);
+  });
+
+  test("a component matches a link whatever its case (case-insensitive file systems); .git in any case escapes", () => {
+    expect(escapingSymlinks(links({ Link: "/etc", y: "link/passwd" }))).toEqual(["Link", "y"]);
+    expect(escapingSymlinks(links({ g: ".GIT/config" }))).toEqual(["g"]);
   });
 });

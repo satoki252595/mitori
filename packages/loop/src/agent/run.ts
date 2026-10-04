@@ -13,7 +13,7 @@ import { type GateResult, type GateSpec, type GitOid, type JobId, MitoriError, t
 import type { ParsedAgent } from "../contract.ts";
 import { parseContract } from "../contracts/index.ts";
 import { checksInWorktree, treeTexts, trustSplit } from "../gates/job.ts";
-import { trackedSymlinks } from "../git/worktree.ts";
+import { escapingOnDisk, trackedSymlinks } from "../git/worktree.ts";
 import type { RunnerCore } from "../jobs/core.ts";
 import { consume, engineRequest } from "../jobs/engine.ts";
 import { checkScopeOrFail, checkText, engineError, finishOutcomes, type GateRetry, record, start, verdictOf } from "../jobs/pipeline.ts";
@@ -98,14 +98,24 @@ async function parseAgentTurn(
 /**
  * Before every agent turn: the Edit rules name `<wt>/<path>`, and the Edit / Write tools follow symlinks — so no
  * write-scope path may reach its file through a symlink (a committed symlinked directory, a dependency link, or one
- * a gate left behind), and the worktree's `.git` must still be the file git wrote. Otherwise the job fails before the
- * engine runs (`E_SCOPE_VIOLATION`, no repair, no escalation).
+ * a gate left behind), no symlink anywhere in the worktree may lead out of it (Read / Grep follow them), and the
+ * worktree's `.git` must still be the file git wrote. Otherwise the job fails before the engine runs
+ * (`E_SCOPE_VIOLATION`, no repair, no escalation).
  */
 export async function assertWorktreeScope(core: RunnerCore, wt: string, scope: readonly RepoPath[]): Promise<void> {
   await core.deps.git.ws.worktreeAdmin(wt);
   // a tracked symlink is a symlink in the USER's tree even where the worktree does not materialize it (an escaping
   // one is never checked out): accepting `link/new.go` would write through it there
   const links = await trackedSymlinks(core.deps.git.ws, wt);
+  // F1 remainder: the model's Read / Grep follow symlinks and run outside any sandbox — no link on disk may lead out
+  // of the worktree (a gate ran the AI's code here: a test can leave `a/b/c/node_modules -> ~/.aws/credentials`)
+  const escaping = await escapingOnDisk(core.deps.git.ws, wt, links);
+  if (escaping.length > 0)
+    throw new MitoriError(
+      "E_SCOPE_VIOLATION",
+      `a symlink in the job worktree leads outside it: ${escaping.slice(0, 5).join(", ")}${escaping.length > 5 ? " …" : ""}`,
+      { params: { reason: "symlink_escape", paths: escaping.slice(0, 20).join(","), actions: "copy_prompt" } },
+    );
   for (const path of scope) {
     const parts = path.split("/");
     for (let i = 1; i <= parts.length; i++) {

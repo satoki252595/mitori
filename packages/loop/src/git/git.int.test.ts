@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { GIT_REFS, type HunkId, type JobId } from "@mitori/core";
 import { childEnv } from "./exec.ts";
 import { type GitWorld, gitWorld, userRepoState } from "./test/world.ts";
+import { escapingOnDisk, trackedSymlinks } from "./worktree.ts";
 
 let w: GitWorld | null = null;
 const extra: string[] = [];
@@ -513,6 +514,47 @@ describe("LOOP-I-035 shadow repo, remote-readonly export, gc, crash recovery", (
     await w.git.unlinkDependencies(job);
     expect(present("node_modules")).toBe("absent");
     expect(readFileSync(join(root, "node_modules/pkg/index.js"), "utf8")).toBe("x\n");
+  });
+
+  test("F1 remainder: a link that escapes only when resolved like the kernel is not checked out; links left on disk are found", async () => {
+    w = await gitWorld("go-small");
+    const root = w.repo.root;
+    const outsideFile = join(realpathSync(mkdtempSync(join(tmpdir(), "mitori-outside-"))), "secret.txt");
+    extra.push(join(outsideFile, ".."));
+    writeFileSync(outsideFile, "TOP SECRET\n");
+    mkdirSync(join(root, "p/q"), { recursive: true });
+    symlinkSync("../..", join(root, "p/q/l"));
+    // lexically the root; physically two directories above it (the worktree's parent's parent)
+    symlinkSync("p/q/l/../../..", join(root, "x"));
+    symlinkSync(README, join(root, "inside"));
+    symlinkSync("missing.txt", join(root, "dangling"));
+    w.userGit(["add", "p/q/l", "x", "inside", "dangling"]);
+    w.userGit(["commit", "-q", "-m", "tricky symlinks"]);
+    const s = await w.git.snapshot(w.deps.deny());
+    const job = newJob();
+    const wt = (await w.git.createWorktree(job, s.commit, { dependencyLinks: false })).path;
+    const kind = (p: string) => {
+      try {
+        return lstatSync(join(wt, p)).isSymbolicLink() ? "link" : "file";
+      } catch {
+        return "absent";
+      }
+    };
+    expect(["p/q/l", "x", "inside", "dangling"].map(kind)).toEqual(["link", "absent", "link", "link"]);
+    const g = w.git.ws;
+    const onDisk = async () => escapingOnDisk(g, wt, await trackedSymlinks(g, wt));
+    // mitori's own checkout: nothing leads out (a tracked, unmodified dangling link is fine)
+    expect(await onDisk()).toEqual([]);
+    // what a gate running the AI's code could leave: deep `node_modules` links survive the post-check sync and the
+    // dependency unlink; a re-targeted tracked link; a neutralized one materialized; a dangling untracked one
+    mkdirSync(join(wt, "internal/meta/testdata/a/b"), { recursive: true });
+    symlinkSync(outsideFile, join(wt, "internal/meta/testdata/a/b/node_modules"));
+    symlinkSync("../../../README.md", join(wt, "internal/meta/testdata/ok"));
+    symlinkSync("/nonexistent/creds", join(wt, "gone"));
+    rmSync(join(wt, "dangling"));
+    symlinkSync("/nonexistent/other", join(wt, "dangling"));
+    symlinkSync("p/q/l/../../..", join(wt, "x"));
+    expect(await onDisk()).toEqual(["dangling", "gone", "internal/meta/testdata/a/b/node_modules", "x"]);
   });
 
   test("RT-24 / SEC-18: LFS pointers and filter / working-tree-encoding paths are unwritable", async () => {

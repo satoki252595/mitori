@@ -26,51 +26,102 @@ function homeRel(g: GitWorkspace, abs: string): string {
 
 const dec = new TextDecoder();
 
-/** Lexical normalization of a repo-relative path; null when it climbs above the root. */
-function normalizeRel(p: string): string | null {
-  const out: string[] = [];
-  for (const seg of p.split("/")) {
-    if (seg === "" || seg === ".") continue;
-    if (seg === "..") {
-      if (out.length === 0) return null;
-      out.pop();
-    } else out.push(seg);
-  }
-  return out.join("/");
-}
+/** Resolution steps one link may take before it counts as escaping (a loop, or a chain nobody needs). */
+const RESOLVE_STEPS = 256;
 
 /**
  * Tracked symlinks whose target leaves the worktree (F1 remainder, cr-requests/agent.md): absolute targets, relative
  * ones that climb above the root, targets inside `.git`, and links that reach such a target through other tracked
  * links (`a -> b`, `b -> /etc`). The agent's Read / Grep follow symlinks; a repo (or a prompt-injected earlier job)
  * with `config -> ~/.aws/credentials` would hand the file to the model. Pure over `targets` (path → link text).
+ *
+ * The target is resolved the way the kernel does, component by component, substituting every tracked link on the
+ * way — never by lexical normalization: with `p/q/l -> ../..` (the root), `x -> p/q/l/../../..` normalizes to the
+ * root but resolves to two directories ABOVE it. A component matches a link whatever its case (APFS / NTFS are case
+ * insensitive); where only the case differs both readings are followed and either escaping counts.
  */
 export function escapingSymlinks(targets: ReadonlyMap<RepoPath, string>): RepoPath[] {
-  const verdict = new Map<RepoPath, boolean>();
-  const escapes = (link: RepoPath, seen: Set<string>): boolean => {
-    const known = verdict.get(link);
-    if (known !== undefined) return known;
-    if (seen.has(link) || seen.size > 40) return true; // a loop or a chain too long to follow: never materialize
-    seen.add(link);
-    const target = targets.get(link) as string;
-    let out = target.startsWith("/");
-    if (!out) {
-      const dir = link.includes("/") ? link.slice(0, link.lastIndexOf("/")) : "";
-      const joined = normalizeRel(dir === "" ? target : `${dir}/${target}`);
-      if (joined === null || joined === ".git" || joined.startsWith(".git/")) out = true;
-      else {
-        // every prefix of the resolved path that is itself a tracked link is followed
-        const parts = joined.split("/");
-        for (let i = 1; i <= parts.length && !out; i++) {
-          const prefix = parts.slice(0, i).join("/") as RepoPath;
-          if (targets.has(prefix) && prefix !== link) out = escapes(prefix, seen);
-        }
+  const folded = new Map<string, RepoPath[]>();
+  for (const l of targets.keys()) folded.set(l.toLowerCase(), [...(folded.get(l.toLowerCase()) ?? []), l]);
+  /** Does walking `rest` from the directory `at` ever leave the root or enter `.git`? */
+  const leaves = (start: readonly string[], rest: readonly string[], budget: { n: number }): boolean => {
+    const at = [...start];
+    for (let i = 0; i < rest.length; i++) {
+      const seg = rest[i] as string;
+      if (seg === "" || seg === ".") continue;
+      if (--budget.n < 0) return true;
+      if (seg === "..") {
+        if (at.length === 0) return true;
+        at.pop();
+        continue;
       }
+      at.push(seg);
+      if ((at[0] as string).toLowerCase() === ".git") return true;
+      const key = at.join("/");
+      const links = folded.get(key.toLowerCase()) ?? [];
+      for (const l of links) {
+        const t = targets.get(l) as string;
+        if (t.startsWith("/") || leaves(at.slice(0, -1), [...t.split("/"), ...rest.slice(i + 1)], budget)) return true;
+      }
+      // the component IS that link: the rest of the path was resolved through it above
+      if (links.includes(key as RepoPath)) return false;
     }
-    verdict.set(link, out);
-    return out;
+    return false;
   };
-  return [...targets.keys()].filter((l) => escapes(l, new Set())).sort();
+  return [...targets.keys()]
+    .filter((l) => {
+      const t = targets.get(l) as string;
+      const dir = l.includes("/") ? l.slice(0, l.lastIndexOf("/")).split("/") : [];
+      return t.startsWith("/") || leaves([], [...dir, ...t.split("/")], { n: RESOLVE_STEPS });
+    })
+    .sort();
+}
+
+/**
+ * Symlinks ON DISK in a job worktree that lead outside it or into its `.git`, whatever made them — a gate that ran
+ * the AI's code (a sandboxed test may create `testdata/a/b/node_modules -> ~/.aws/credentials`: the sandbox denies
+ * reading through it, the agent's Read in the next turn would not), a tracked link a gate re-targeted, a
+ * neutralized link something materialized. Each link is judged by its realpath; a dangling one counts unless it is a
+ * tracked, unmodified, non-escaping link (nothing can be read through a dangling link; one that is not mitori's
+ * checkout is still refused). `.git` itself is not walked. Paths are repo-relative, sorted.
+ */
+export async function escapingOnDisk(g: GitWorkspace, wt: string, tracked: ReadonlyMap<RepoPath, string>): Promise<RepoPath[]> {
+  const fs = g.deps.fs;
+  const root = fs.realpath(wt) ?? wt;
+  const inside = (real: string) => (real === root || real.startsWith(`${root}/`)) && real !== `${root}/.git` && !real.startsWith(`${root}/.git/`);
+  const neutralized = new Set(escapingSymlinks(tracked));
+  const out: RepoPath[] = [];
+  const dangling: RepoPath[] = [];
+  const walk = (rel: string): void => {
+    for (const name of fs.readdir(rel === "" ? wt : `${wt}/${rel}`) ?? []) {
+      if (rel === "" && name === ".git") continue;
+      const p = rel === "" ? name : `${rel}/${name}`;
+      const st = fs.stat(`${wt}/${p}`);
+      if (!st) continue;
+      if (st.isSymlink) {
+        const real = fs.realpath(`${wt}/${p}`);
+        const path = nfc(p) as RepoPath;
+        if (neutralized.has(path) || (real !== null && !inside(real))) out.push(path);
+        else if (real === null) dangling.push(path);
+      } else if (st.isDir) walk(p);
+    }
+  };
+  walk("");
+  if (dangling.length > 0) {
+    const candidates = dangling.filter((p) => tracked.has(p));
+    const modified =
+      candidates.length === 0
+        ? new Set<string>()
+        : new Set(
+            // `diff`, not `diff-files`: checkout-index leaves the stat cache cold, and only the porcelain compares the
+            // link text of a stat-dirty entry instead of listing it
+            splitZ(
+              (await g.inWorktree(wt, ["diff", "--name-only", "-z", "--no-ext-diff", "--no-textconv", "--", ...candidates.map((p) => `:(literal)${p}`)])).out,
+            ).map(nfc),
+          );
+    for (const p of dangling) if (!tracked.has(p) || modified.has(p)) out.push(p);
+  }
+  return out.sort();
 }
 
 /** Tracked symlinks of a worktree's index with their link text. */
