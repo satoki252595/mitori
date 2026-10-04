@@ -54,6 +54,7 @@ import { DOC_WATCH_IGNORE, type ServerDeps, type TrustService, type WorkspaceRun
 import type { Timers } from "../http/timers.ts";
 import type { WorkspaceBase, WorkspaceParts } from "../ws/manager.ts";
 import { exportSource } from "./export.ts";
+import { staticGuide } from "./guide.ts";
 import { assembleAnchoredItems, distributeReanchor } from "./index.ts";
 import { type LoopDepsExt, type LoopExtras, loopExtras } from "./loop.ts";
 import { NEUTRAL_CALIBRATION } from "./ports.ts";
@@ -412,6 +413,8 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
 
   /* ---- static doc ------------------------------------------------------------------------------------------- */
   let license: string | null | undefined;
+  // NC-02: the static repository profile (README lede, toolchain, license, remote, HEAD) after every scan
+  let profile: RepoProfile | null = null;
   let staticDone: Promise<void> = Promise.resolve();
   let staticResolve: (() => void) | null = null;
   const staticGate = () => {
@@ -425,8 +428,15 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     if (closed) return;
     license ??= await detectLicense(info, rawIndexer, deps.fs);
     if (closed) return;
-    const input = staticDocInput(rawIndexer, rawDoc, license);
-    if (input === null) return;
+    const base0 = staticDocInput(rawIndexer, rawDoc, license);
+    if (base0 === null) return;
+    // NC-06 / NC-07: §4 steps and §5 reading order, from the index and the profile (0 tokens)
+    const guide = await staticGuide({ indexer: rawIndexer, profile, read: readRepoText }).catch((e: unknown) => {
+      log.warn("static guide failed", { error: MitoriError.from(e).message });
+      return undefined;
+    });
+    if (closed) return;
+    const input = guide ? { ...base0, guide } : base0;
     const res = await base.write("doc.static", () => rawDoc.applyStatic(input));
     if (publish) {
       for (const id of res.written) pendingUpserts.add(id);
@@ -435,22 +445,16 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
       base.events.emit({ type: "map.updated" });
     }
   };
-  // NC-02: the static repository profile (README lede, toolchain, license, remote, HEAD) after every scan
-  let profile: RepoProfile | null = null;
+  const readRepoText = async (p: RepoPath): Promise<string | null> => {
+    try {
+      return new TextDecoder().decode(await deps.fs.readHead(`${info.root}/${p}`, 65_536));
+    } catch {
+      return null;
+    }
+  };
   const refreshProfile = async () => {
     try {
-      profile = await repoProfile({
-        info,
-        files: () => rawIndexer.files({ includeExcluded: true }),
-        read: async (p) => {
-          try {
-            return new TextDecoder().decode(await deps.fs.readHead(`${info.root}/${p}`, 65_536));
-          } catch {
-            return null;
-          }
-        },
-        git,
-      });
+      profile = await repoProfile({ info, files: () => rawIndexer.files({ includeExcluded: true }), read: readRepoText, git });
     } catch (e) {
       log.warn("repo profile failed", { error: MitoriError.from(e).message });
     }
@@ -460,8 +464,8 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
       const first = Object.keys(rawDoc.index().blocks).length === 0;
       try {
         const summary = await rawIndexer.scan(opts);
-        await applyStatic(!first);
         await refreshProfile();
+        await applyStatic(!first);
         checkPalette();
         return summary;
       } finally {

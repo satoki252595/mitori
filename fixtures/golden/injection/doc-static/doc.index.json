@@ -28,13 +28,13 @@
       "depth": "L1",
       "file": "doc/04-quickstart.md",
       "freshness": "fresh",
-      "hash": "13f7de4ef0d02995",
+      "hash": "8f5c79ceb1eaaee1",
       "id": "b_0h895x4x",
       "kind": "facts",
       "lang": "ja",
       "ord": 3,
       "origin": "static",
-      "readingSec": 6,
+      "readingSec": 5,
       "section": "s4",
       "slot": "s4:entries",
       "status": "ready"
@@ -117,13 +117,13 @@
       "depth": "L1",
       "file": "doc/04-quickstart.md",
       "freshness": "fresh",
-      "hash": "2893b0d69f261029",
+      "hash": "4c155e49e24066f4",
       "id": "b_59zqtq6w",
       "kind": "facts",
       "lang": "ja",
       "ord": 1,
       "origin": "static",
-      "readingSec": 14,
+      "readingSec": 13,
       "section": "s4",
       "slot": "s4:scripts",
       "status": "ready"
@@ -136,13 +136,13 @@
       "depth": "L1",
       "file": "doc/04-quickstart.md",
       "freshness": "fresh",
-      "hash": "20aa28b657ae3dcc",
+      "hash": "8bb482b70408bf9e",
       "id": "b_7jpkd0se",
       "kind": "facts",
       "lang": "ja",
       "ord": 2,
       "origin": "static",
-      "readingSec": 5,
+      "readingSec": 6,
       "section": "s4",
       "slot": "s4:env",
       "status": "ready"
@@ -175,13 +175,13 @@
       "depth": "L2",
       "file": "doc/05-codebase-map.md",
       "freshness": "fresh",
-      "hash": "217ec90a3e4cbc62",
+      "hash": "df77ecd6d652f153",
       "id": "b_8jabk1vc",
       "kind": "facts",
       "lang": "ja",
       "ord": 3,
       "origin": "static",
-      "readingSec": 5,
+      "readingSec": 3,
       "section": "s5",
       "slot": "s5:noise",
       "status": "ready"
@@ -319,21 +319,20 @@
     },
     "b_he87g2c2": {
       "audience": [
-        "newcomer",
-        "pm",
+        "reviewer",
         "dev"
       ],
       "claims": [],
-      "depth": "L0",
+      "depth": "L3",
       "file": "doc/00-tldr.md",
       "freshness": "fresh",
-      "hash": "eea177d6d6688ae8",
+      "hash": "5a9971f189439e53",
       "id": "b_he87g2c2",
       "kind": "facts",
       "lang": "ja",
       "ord": 3,
       "origin": "static",
-      "readingSec": 6,
+      "readingSec": 5,
       "section": "s0",
       "slot": "s0:coverage",
       "status": "ready"
@@ -348,7 +347,7 @@
       "depth": "L0",
       "file": "doc/00-tldr.md",
       "freshness": "fresh",
-      "hash": "610366ae5ca32625",
+      "hash": "943475539f95e887",
       "id": "b_hhewf7jr",
       "kind": "facts",
       "lang": "ja",
@@ -1002,7 +1001,7 @@
     {
       "audience": "newcomer",
       "id": "5min",
-      "readingSec": 60,
+      "readingSec": 59,
       "steps": [
         {
           "section": "s0"
@@ -1022,7 +1021,7 @@
     {
       "audience": "newcomer",
       "id": "30min",
-      "readingSec": 118,
+      "readingSec": 114,
       "steps": [
         {
           "section": "s0"
@@ -1077,7 +1076,7 @@
     {
       "audience": "pm",
       "id": "pm",
-      "readingSec": 45,
+      "readingSec": 44,
       "steps": [
         {
           "section": "s0"
@@ -1100,7 +1099,7 @@
     {
       "audience": "sre",
       "id": "sre",
-      "readingSec": 49,
+      "readingSec": 48,
       "steps": [
         {
           "section": "s4"
@@ -1130,7 +1129,7 @@
       "children": [],
       "file": "doc/00-tldr.md",
       "id": "s0",
-      "readingSec": 19,
+      "readingSec": 18,
       "state": "pending",
       "title": "ひとことで"
     },
@@ -1181,7 +1180,7 @@
       "children": [],
       "file": "doc/04-quickstart.md",
       "id": "s4",
-      "readingSec": 26,
+      "readingSec": 25,
       "state": "static_only",
       "title": "動かしてみる"
     },
@@ -1195,7 +1194,7 @@
       "children": [],
       "file": "doc/05-codebase-map.md",
       "id": "s5",
-      "readingSec": 15,
+      "readingSec": 13,
       "state": "static_only",
       "title": "コードの地図"
     },

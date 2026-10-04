@@ -53,3 +53,26 @@ describe("NC-02 the first screen's profile", () => {
     expect(st.profile?.areas.length).toBeGreaterThan(0);
   });
 });
+
+describe("NC-06 / NC-07 how to run it, where to start reading (0 tokens)", () => {
+  test("§4 opens with ordered steps (toolchain → run); §5 has a reading order with line ranges", async () => {
+    const s4 = await int.json<SectionView>("GET", `/ws/${ws}/doc/sections/s4`);
+    const steps = s4.blocks.find((b) => b.slot === "s4:steps");
+    if (!steps) throw new Error(`no steps block in §4: ${s4.blocks.map((b) => b.slot).join(",")}`);
+    expect(s4.blocks.indexOf(steps)).toBeLessThan(s4.blocks.findIndex((b) => b.slot === "s4:scripts"));
+    expect(steps.depth).toBe("L0");
+    expect(steps.html).toContain("Go");
+    expect(steps.html).toContain("1.23");
+    expect(steps.html).toMatch(/go run \.\/cmd\/tsundoku/);
+    // captions; no 「状態 未実行」 column
+    const scripts = s4.blocks.find((b) => b.slot === "s4:scripts");
+    expect(scripts?.html).toContain("スクリプト");
+    expect(s4.blocks.map((b) => b.html).join("")).not.toContain("未実行");
+    const s5 = await int.json<SectionView>("GET", `/ws/${ws}/doc/sections/s5`);
+    const reading = s5.blocks.find((b) => b.slot === "s5:reading");
+    if (!reading) throw new Error("no reading order in §5");
+    expect(reading.html).toContain("読む順番");
+    expect(reading.html).toMatch(/入口/);
+    expect(reading.html).toMatch(/\.go:\d+(-\d+)?/);
+  });
+});

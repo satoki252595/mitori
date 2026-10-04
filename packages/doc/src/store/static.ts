@@ -156,9 +156,10 @@ function s0(c: Ctx): StaticSpec[] {
   const commit = input.snapshot.commit
     ? `${code(input.snapshot.commit.slice(0, 12))}${input.snapshot.branch ? `（${input.snapshot.branch}）` : ""}`
     : l.badges.noCommit;
+  // NC-18: language names as written (TSX, not `tsx`), thousands separators (17,191 行)
   const badges = [
-    `- ${l.badges.languages}: ${langs.length === 0 ? l.badges.unknown : langs.map((x) => `${x.lang} ${x.loc} ${l.badges.lines}`).join(" · ")}`,
-    `- ${l.badges.size}: ${input.coverage.filesTotal} ${l.badges.files} · ${input.coverage.locIncluded} ${l.badges.lines}`,
+    `- ${l.badges.languages}: ${langs.length === 0 ? l.badges.unknown : langs.map((x) => `${LANG_LABEL[x.lang] ?? x.lang} ${num(x.loc)} ${l.badges.lines}`).join(" · ")}`,
+    `- ${l.badges.size}: ${num(input.coverage.filesTotal)} ${l.badges.files} · ${num(input.coverage.locIncluded)} ${l.badges.lines}`,
     `- ${l.badges.commit}: ${commit}`,
     `- ${l.badges.license}: ${input.license ?? l.badges.unknown}`,
   ].join("\n");
@@ -166,12 +167,13 @@ function s0(c: Ctx): StaticSpec[] {
   const reasons = Object.entries(input.coverage.filesExcluded)
     .filter(([, n]) => (n ?? 0) > 0)
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-    .map(([r, n]) => `${r} ${n}`)
+    .map(([r, n]) => `${l.reasons[r as keyof typeof l.reasons] ?? r} ${n}`)
     .join(" · ");
   const coverage = [`- ${l.coverage(input.coverage.filesIncluded, excluded)}`, ...(reasons ? [`- ${l.coverageReasons}: ${reasons}`] : [])].join("\n");
   return [
     facts("s0", "s0:badges", badges, RANK.post, "L0", ["newcomer", "pm", "dev"]),
-    facts("s0", "s0:coverage", coverage, RANK.post2, "L0", ["newcomer", "pm", "dev"]),
+    // NC-08: mitori's own reading metadata is for the expert, not the first-time reader (hidden at 初めて)
+    facts("s0", "s0:coverage", coverage, RANK.post2, "L3", ["reviewer", "dev"]),
   ];
 }
 
@@ -234,26 +236,82 @@ function s4(c: Ctx): StaticSpec[] {
   const scripts = ofKind(c.input.facts, "script").sort(
     (a: ScriptFact, b: ScriptFact) => PURPOSE_ORDER.indexOf(a.purpose) - PURPOSE_ORDER.indexOf(b.purpose) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
   );
+  const caption = (t: string, md: string) => `**${t}**\n${md}`;
+  // NC-06: no 「状態 未実行」 column (nothing records runs), each table under its caption
   const scriptsMd =
     scripts.length === 0
       ? `- ${c.l.none}`
       : table(
           c.l.scripts,
-          scripts.map((s) => [s.purpose, code(s.name), code(s.command), loc(s), c.l.notRun]),
+          scripts.map((s) => [s.purpose, code(s.name), code(s.command), loc(s)]),
         );
-  const entries = ofKind(c.input.facts, "entry").sort((a: EntryFact, b: EntryFact) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.line - b.line));
-  const entriesMd =
-    entries.length === 0
-      ? `- ${c.l.none}`
-      : table(
-          c.l.entries,
-          entries.map((e) => [inline(e.label), e.entry, loc(e), c.l.notRun]),
-        );
-  return [
-    facts("s4", "s4:scripts", scriptsMd, RANK.post),
-    facts("s4", "s4:env", envTable(c, ofKind(c.input.facts, "env")), RANK.post2),
-    facts("s4", "s4:entries", entriesMd, RANK.post3),
+  const g = c.input.guide;
+  // a framework's page is the entry a reader opens; a `start` script is in the scripts table already
+  const entries = ofKind(c.input.facts, "entry")
+    .filter((e: EntryFact) => !(g?.framework && e.entry === "script"))
+    .sort((a: EntryFact, b: EntryFact) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.line - b.line));
+  const entryRows = [
+    ...(g?.framework ? [[inline(g.framework.label), "page", code(g.framework.path)]] : []),
+    ...entries.map((e) => [inline(e.label), e.entry, loc(e)]),
   ];
+  const entriesMd = entryRows.length === 0 ? `- ${c.l.none}` : table(c.l.entries, entryRows);
+  const out: StaticSpec[] = [];
+  const steps = stepsMd(c);
+  if (steps) out.push(facts("s4", "s4:steps", steps, RANK.post - 1, "L0", ["newcomer", "dev"]));
+  out.push(
+    facts("s4", "s4:scripts", caption(c.l.captions.scripts, scriptsMd), RANK.post),
+    facts("s4", "s4:env", caption(c.l.captions.env, envTable(c, ofKind(c.input.facts, "env"))), RANK.post2),
+    facts("s4", "s4:entries", caption(c.l.captions.entries, entriesMd), RANK.post3),
+  );
+  return out;
+}
+
+/** NC-06: the ordered steps of §4 (toolchain → install → run → open), 0 tok; null when the index knows none. */
+function stepsMd(c: Ctx): string | null {
+  const g = c.input.guide;
+  if (!g) return null;
+  const st = c.l.steps;
+  const items: string[] = [];
+  if (g.toolchain) items.push(st.toolchain(TOOLCHAIN[g.toolchain.name] ?? g.toolchain.name, code(g.toolchain.version), loc(g.toolchain)));
+  if (g.install) items.push(st.install(code(g.install.command), code(g.install.path)));
+  if (g.run) items.push(st.run(code(g.run.command), loc(g.run), g.run.raw && g.run.raw !== g.run.command ? code(g.run.raw) : ""));
+  if (g.url) items.push(st.url(g.url.url, loc(g.url)));
+  if (items.length === 0) return null;
+  return `**${st.title}**\n${items.map((t, i) => `${i + 1}. ${t}`).join("\n")}`;
+}
+
+const LANG_LABEL: Record<string, string> = {
+  typescript: "TypeScript",
+  tsx: "TSX",
+  javascript: "JavaScript",
+  jsx: "JSX",
+  python: "Python",
+  go: "Go",
+  rust: "Rust",
+  java: "Java",
+  csharp: "C#",
+  php: "PHP",
+};
+const num = (n: number): string => n.toLocaleString("en-US");
+
+const TOOLCHAIN: Record<string, string> = { go: "Go", python: "Python", rust: "Rust", node: "Node.js", typescript: "TypeScript", deno: "Deno", bun: "Bun" };
+
+/** NC-07: 「読む順番」 — entry, base types, hub, feature core — each with its lines; null without a guide. */
+function readingMd(c: Ctx): string | null {
+  const r = c.input.guide?.reading;
+  if (!r || r.length === 0) return null;
+  const l = c.l.reading;
+  const lines = r.map((x, i) => {
+    const at = code(x.end && x.end > x.line ? `${x.path}:${x.line}-${x.end}` : `${x.path}:${x.line}`);
+    const syms =
+      x.symbols.length === 1
+        ? ` — ${code(x.symbols[0]?.name ?? "")}`
+        : x.symbols.length > 1
+          ? ` — ${x.symbols.map((y) => `${code(y.name)} L${y.line}`).join("・")}`
+          : "";
+    return `${i + 1}. ${l[x.role]}: ${at}${syms}`;
+  });
+  return `**${l.title}**\n${lines.join("\n")}`;
 }
 
 function moduleOfPath(c: Ctx, path: string): ModuleInfo | undefined {
@@ -280,8 +338,10 @@ function s5(c: Ctx): StaticSpec[] {
   const noise = Object.entries(c.input.coverage.filesExcluded)
     .filter(([, n]) => (n ?? 0) > 0)
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-    .map(([r, n]) => [r, String(n)]);
+    .map(([r, n]) => [c.l.reasons[r as keyof typeof c.l.reasons] ?? r, String(n)]);
+  const reading = readingMd(c);
   return [
+    ...(reading ? [facts("s5", "s5:reading", reading, RANK.post - 1, "L1", ["newcomer", "dev"])] : []),
     facts("s5", "s5:tree", tree, RANK.post, "L2"),
     facts("s5", "s5:start", start.length === 0 ? `- ${c.l.none}` : start.join("\n"), RANK.post2, "L2"),
     facts("s5", "s5:noise", noise.length === 0 ? `- ${c.l.none}` : table(c.l.noise, noise), RANK.post3, "L2"),

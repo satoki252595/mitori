@@ -48,13 +48,13 @@
       "depth": "L1",
       "file": "doc/04-quickstart.md",
       "freshness": "fresh",
-      "hash": "3832076ca2a92b15",
+      "hash": "c5557cd8da1ebedf",
       "id": "b_0h895x4x",
       "kind": "facts",
       "lang": "ja",
       "ord": 3,
       "origin": "static",
-      "readingSec": 36,
+      "readingSec": 34,
       "section": "s4",
       "slot": "s4:entries",
       "status": "ready"
@@ -235,13 +235,13 @@
       "depth": "L1",
       "file": "doc/04-quickstart.md",
       "freshness": "fresh",
-      "hash": "4120c101308e7a0e",
+      "hash": "2184dfa7cb5935e0",
       "id": "b_59zqtq6w",
       "kind": "facts",
       "lang": "ja",
       "ord": 1,
       "origin": "static",
-      "readingSec": 15,
+      "readingSec": 14,
       "section": "s4",
       "slot": "s4:scripts",
       "status": "ready"
@@ -332,7 +332,7 @@
       "depth": "L1",
       "file": "doc/04-quickstart.md",
       "freshness": "fresh",
-      "hash": "80f006e591b759f3",
+      "hash": "98d91c393cb6eb14",
       "id": "b_7jpkd0se",
       "kind": "facts",
       "lang": "ja",
@@ -391,7 +391,7 @@
       "depth": "L2",
       "file": "doc/05-codebase-map.md",
       "freshness": "fresh",
-      "hash": "eaed4c03ef43d6df",
+      "hash": "1e25bfd791481562",
       "id": "b_8jabk1vc",
       "kind": "facts",
       "lang": "ja",
@@ -534,15 +534,14 @@
     },
     "b_he87g2c2": {
       "audience": [
-        "newcomer",
-        "pm",
+        "reviewer",
         "dev"
       ],
       "claims": [],
-      "depth": "L0",
+      "depth": "L3",
       "file": "doc/00-tldr.md",
       "freshness": "fresh",
-      "hash": "36b82e6772530e58",
+      "hash": "d4611f826573672c",
       "id": "b_he87g2c2",
       "kind": "facts",
       "lang": "ja",
@@ -563,7 +562,7 @@
       "depth": "L0",
       "file": "doc/00-tldr.md",
       "freshness": "fresh",
-      "hash": "24cef17b158e445d",
+      "hash": "a0d65d02b56c7884",
       "id": "b_hhewf7jr",
       "kind": "facts",
       "lang": "ja",
@@ -1737,7 +1736,7 @@
     {
       "audience": "newcomer",
       "id": "30min",
-      "readingSec": 242,
+      "readingSec": 239,
       "steps": [
         {
           "section": "s0"
@@ -1815,7 +1814,7 @@
     {
       "audience": "sre",
       "id": "sre",
-      "readingSec": 179,
+      "readingSec": 176,
       "steps": [
         {
           "section": "s4"
@@ -1896,7 +1895,7 @@
       "children": [],
       "file": "doc/04-quickstart.md",
       "id": "s4",
-      "readingSec": 65,
+      "readingSec": 62,
       "state": "static_only",
       "title": "動かしてみる"
     },

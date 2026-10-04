@@ -520,6 +520,24 @@ export interface StaticDocInput {
   estimates?: Partial<Record<SectionId, { inTokens: number; outTokens: number }>>;
   /** Largest included files for `s11:large` (大きいファイル表, gen §4.1), largest first, ≤ 20 [CR m1-42]. */
   largeFiles?: { path: RepoPath; loc: number; bytes: number }[];
+  /** §4 quick start and §5 reading order, from the index (0 tokens; NC-06 / NC-07). Absent ⇒ the tables only. */
+  guide?: StaticGuide;
+}
+
+/** What §4 「動かしてみる」 and §5 「読む順番」 say before their tables (NC-06 / NC-07). */
+export interface StaticGuide {
+  /** Declared toolchain (`RepoProfile.toolchain`). */
+  toolchain?: { name: string; version: string; path: RepoPath; line: number };
+  /** Dependency install command chosen from the lockfile (`npm install`, `pnpm install`, `uv sync`). */
+  install?: { command: string; path: RepoPath };
+  /** The run command, qualified by the package manager (`npm run dev`, `go run ./cmd/x`); `raw` = the script's own text. */
+  run?: { command: string; path: RepoPath; line: number; raw?: string };
+  /** The local URL the README / CONTRIBUTING gives (`http://localhost:3000`). */
+  url?: { url: string; path: RepoPath; line: number };
+  /** The framework's own entry page (Next.js App Router → `app/page.tsx`), listed first under 入口. */
+  framework?: { path: RepoPath; label: string };
+  /** Reading order: entry → base types → hub → feature core, each with its lines and main symbols. */
+  reading?: { role: "entry" | "types" | "hub" | "core"; path: RepoPath; line: number; end?: number; symbols: { name: string; line: number }[] }[];
 }
 
 /** Cached translation of a block (D5). Not a proposal. */

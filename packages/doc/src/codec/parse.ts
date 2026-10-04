@@ -86,8 +86,18 @@ function classify(lines: string[], own: boolean, lang: DocLang, known?: BlockKin
   if (own && known === undefined) {
     if (last.type === "fence" && fenceLang(last.info) === "mermaid") return owned(tbs[n - 2]?.type === "paragraph_open" ? n - 2 : n - 1, "diagram");
     if (last.type === "fence" || last.type === "code_block") return owned(n - 1, "code");
-    if (last.type === "table_open") return owned(n - 1, "table");
-    if (isList(last.type)) return owned(n - 1, "facts");
+    // a static table / list under its bold caption line (「**スクリプト**」, NC-06) is one block, also without the sidecar
+    const captioned =
+      n >= 2 &&
+      tbs[n - 2]?.type === "paragraph_open" &&
+      /^\*\*[^*\n]+\*\*$/.test(
+        lines
+          .slice(startOf(tbs, n - 2), last.start)
+          .join("\n")
+          .trim(),
+      );
+    if (last.type === "table_open") return owned(captioned ? n - 2 : n - 1, "table");
+    if (isList(last.type)) return owned(captioned ? n - 2 : n - 1, "facts");
   }
   if (last.type === "heading_open") return owned(n - 1, "heading");
   if (last.type === "blockquote_open") {

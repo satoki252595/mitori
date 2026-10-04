@@ -28,13 +28,13 @@
       "depth": "L1",
       "file": "doc/04-quickstart.md",
       "freshness": "fresh",
-      "hash": "2987417ee32c8cae",
+      "hash": "8118c1c8b8677fe8",
       "id": "b_0h895x4x",
       "kind": "facts",
       "lang": "ja",
       "ord": 3,
       "origin": "static",
-      "readingSec": 12,
+      "readingSec": 11,
       "section": "s4",
       "slot": "s4:entries",
       "status": "ready"
@@ -176,13 +176,13 @@
       "depth": "L1",
       "file": "doc/04-quickstart.md",
       "freshness": "fresh",
-      "hash": "b897a50527a18226",
+      "hash": "6445b4763103f77c",
       "id": "b_59zqtq6w",
       "kind": "facts",
       "lang": "ja",
       "ord": 1,
       "origin": "static",
-      "readingSec": 14,
+      "readingSec": 13,
       "section": "s4",
       "slot": "s4:scripts",
       "status": "ready"
@@ -215,13 +215,13 @@
       "depth": "L1",
       "file": "doc/04-quickstart.md",
       "freshness": "fresh",
-      "hash": "6957ebf273cb6fb2",
+      "hash": "eb546ae51c148181",
       "id": "b_7jpkd0se",
       "kind": "facts",
       "lang": "ja",
       "ord": 2,
       "origin": "static",
-      "readingSec": 20,
+      "readingSec": 21,
       "section": "s4",
       "slot": "s4:env",
       "status": "ready"
@@ -475,12 +475,11 @@
     },
     "b_he87g2c2": {
       "audience": [
-        "newcomer",
-        "pm",
+        "reviewer",
         "dev"
       ],
       "claims": [],
-      "depth": "L0",
+      "depth": "L3",
       "file": "doc/00-tldr.md",
       "freshness": "fresh",
       "hash": "ec4427ef417678ad",
@@ -504,7 +503,7 @@
       "depth": "L0",
       "file": "doc/00-tldr.md",
       "freshness": "fresh",
-      "hash": "cb34838b2336e54d",
+      "hash": "2198ea60fb4d8fcd",
       "id": "b_hhewf7jr",
       "kind": "facts",
       "lang": "ja",
@@ -1440,7 +1439,7 @@
     {
       "audience": "newcomer",
       "id": "30min",
-      "readingSec": 172,
+      "readingSec": 171,
       "steps": [
         {
           "section": "s0"
@@ -1518,7 +1517,7 @@
     {
       "audience": "sre",
       "id": "sre",
-      "readingSec": 166,
+      "readingSec": 165,
       "steps": [
         {
           "section": "s4"
@@ -1599,7 +1598,7 @@
       "children": [],
       "file": "doc/04-quickstart.md",
       "id": "s4",
-      "readingSec": 47,
+      "readingSec": 46,
       "state": "static_only",
       "title": "動かしてみる"
     },
