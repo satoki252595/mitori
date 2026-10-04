@@ -190,6 +190,19 @@ describe("PLAT-I-005 Spawner", () => {
     expect(slow.timedOut).toBe(true);
     process.kill(Number(slow.stdout[0]), "SIGKILL");
   });
+
+  test("runToExit reapGroup: what is left of the process group dies with its leader (gates)", async () => {
+    const r = await runToExit(spawner, spec("/bin/sh", ["-c", "sleep 30 >/dev/null 2>&1 & echo $!"], { processGroup: true }), { drainMs: 50, reapGroup: true });
+    expect(r.code).toBe(0);
+    const left = Number(r.stdout[0]);
+    for (let i = 0; i < 50 && alive(left); i++) await Bun.sleep(10);
+    expect(alive(left)).toBe(false);
+    // without it the background job lives on (the default for tools)
+    const kept = await runToExit(spawner, spec("/bin/sh", ["-c", "sleep 30 >/dev/null 2>&1 & echo $!"], { processGroup: true }), { drainMs: 50 });
+    const pid = Number(kept.stdout[0]);
+    expect(alive(pid)).toBe(true);
+    process.kill(pid, "SIGKILL");
+  });
 });
 
 describe("PLAT-U resolveSafePath (SEC-10)", () => {

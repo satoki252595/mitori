@@ -225,7 +225,9 @@ export function createGateRunner(deps: GateRunnerDeps): GateRunner {
     let r: Awaited<ReturnType<typeof runToExit>> | null = null;
     let spawnError: MitoriError | null = null;
     try {
-      r = await runToExit(deps.spawner, spec, { signal });
+      // nothing the gate started outlives it: a background job could keep writing into the tree (a symlink to a
+      // secret) after the post-gate checks, while the agent's next turn reads it
+      r = await runToExit(deps.spawner, spec, { signal, reapGroup: true });
     } catch (e) {
       spawnError = MitoriError.from(e);
     }

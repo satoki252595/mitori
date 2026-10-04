@@ -132,6 +132,19 @@ describe("LOOP-I-041 gate runner", () => {
     expect(two.map((g) => g.status)).toEqual(["fail", "skipped"]);
   });
 
+  test("nothing a gate starts outlives it: a background job cannot write into the tree after the gate returned", async () => {
+    const tree = join(realpathSync(home.dir), "repos/ws_gatetest0001/tmp", job, "tree");
+    mkdirSync(tree, { recursive: true });
+    writeFileSync(join(tree, "a.txt"), "x\n");
+    const sandbox = process.platform === "darwin" && existsSync("/usr/bin/sandbox-exec") ? "sandbox-exec" : "none";
+    // the gate passes at once; its background job would plant a link while the agent's next turn reads the tree
+    const late = script("late", `(sleep 1; ln -s "${userHome}/.ssh/id_test" late-link) >/dev/null 2>&1 &\nexit 0`);
+    const res = await runner().run(tree, [late], ["a.txt"], { consent: true, sandbox }, new AbortController().signal);
+    expect(res[0]?.status).toBe("pass");
+    await Bun.sleep(1_800);
+    expect(existsSync(join(tree, "late-link"))).toBe(false);
+  });
+
   test.if(process.platform === "darwin" && existsSync("/usr/bin/sandbox-exec"))(
     "RT-30: inside sandbox-exec a gate can write its tree but not read ~/.ssh, write HOME or reach the network",
     async () => {
