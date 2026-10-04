@@ -22,6 +22,7 @@ import {
   type Logger,
   type Metrics,
   MitoriError,
+  type ProposalId,
   type Random,
   type RepoPath,
   type SafeWriter,
@@ -202,6 +203,27 @@ export class RunnerCore {
     );
   }
 
+  /**
+   * EX-05: a job that will never be applied (rejected / failed / cancelled / reverted) takes its pending doc proposals
+   * with it — a proposal describes the job's code, and accepting it alone made the doc state code that does not exist.
+   * Accepted / superseded ones stay as they are (Undo reverts accepted ones itself).
+   */
+  closeProposals(job: { id: JobId; proposals: readonly ProposalId[] }): ProposalId[] {
+    const closed: ProposalId[] = [];
+    if (job.proposals.length === 0) return closed;
+    const pending = new Set(this.deps.doc.proposals({ state: "pending" }).map((p) => p.id));
+    for (const p of job.proposals) {
+      if (!pending.has(p)) continue;
+      try {
+        this.deps.doc.rejectProposal(p);
+        closed.push(p);
+      } catch (e) {
+        this.deps.log.warn("doc proposal of a closed job not rejected", { job: job.id, proposal: p, error: MitoriError.from(e).message });
+      }
+    }
+    return closed;
+  }
+
   /** Fail an active job: failure info, threads → failed, a system message, locks released, worktree dropped. */
   async fail(id: JobId, err: unknown): Promise<void> {
     if (err instanceof Stop) return;
@@ -227,6 +249,7 @@ export class RunnerCore {
       if (x instanceof Stop) return;
       throw x;
     }
+    this.closeProposals(rec.job);
     this.notifyUnlock();
     this.parking.release(id);
     if (rec.job.worktree) await this.deps.git.removeWorktree(id).catch(() => {});

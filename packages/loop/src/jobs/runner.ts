@@ -304,6 +304,7 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
         core.store.unlock(id);
       });
       core.live.get(id)?.abort.abort();
+      core.closeProposals(saved.job);
       core.notifyUnlock();
       core.parking.release(id);
       if (saved.job.worktree) await deps.git.removeWorktree(id).catch(() => {});

@@ -77,6 +77,11 @@ async function decide(p: DocProposalView, d: "accept" | "reject") {
       s.bottom.toast({ id: "loop.proposal", kind: "info", key: "proposals.toast.inReview" });
       return;
     }
+    if (e.code === "E_STATE_TRANSITION" && e.params?.jobState) {
+      // EX-05: the job behind it was rejected / undone — the proposal describes code that is not in the tree
+      s.bottom.toast({ id: "loop.proposal", kind: "warn", key: "proposals.toast.jobClosed" });
+      return;
+    }
     s.bottom.toast({ id: "loop.proposal", kind: "error", key: "review.toast.failed", params: { error: errorText(e.toData()) } });
   }
 }

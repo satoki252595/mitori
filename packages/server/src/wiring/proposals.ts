@@ -263,9 +263,11 @@ function claimLabel(c: Claim): string {
 
 /** Job states whose proposals are decided in the job's Review panel (the job's accept takes them). */
 const UNDER_REVIEW: readonly JobState[] = ["ready", "partially_accepted"];
+/** A job whose code is in the working tree: its leftover proposals may still be accepted on their own. */
+const APPLIED: readonly JobState[] = ["accepted", "partially_accepted", "done"];
 
 export function proposalHandlers(env: { domain(ctx: RouteCtx): Promise<WorkspaceDomain> }): RouteHandlers {
-  const pending = (x: WorkspaceDomain, id: ProposalId): DocProposal => {
+  const pending = (x: WorkspaceDomain, id: ProposalId, forAccept = false): DocProposal => {
     const p = x.doc.proposals().find((q) => q.id === id);
     if (!p) throw new MitoriError("E_NOT_FOUND", `proposal ${id} not found`, { params: { id } });
     if (p.state !== "pending") throw new MitoriError("E_PRECONDITION", `proposal ${id} is already ${p.state}`, { params: { id, state: p.state } });
@@ -275,6 +277,13 @@ export function proposalHandlers(env: { domain(ctx: RouteCtx): Promise<Workspace
         throw new MitoriError("E_PRECONDITION", "this proposal belongs to a job under review: decide it in the job's Review panel", {
           params: { job: job.id },
           hint: "open the job's Review (r) and decide the doc proposal with the code",
+        });
+      // EX-05: the change it describes was never applied (or was undone) — accepting it would make the doc state
+      // code that does not exist. Rejecting it is always fine.
+      if (forAccept && job && !APPLIED.includes(job.state))
+        throw new MitoriError("E_STATE_TRANSITION", `the job behind this proposal is ${job.state}: its code change is not in the tree`, {
+          params: { machine: "proposal", from: p.state, to: "accepted", job: job.id, jobState: job.state },
+          hint: "reject the proposal, or edit the block by hand",
         });
     }
     return p;
@@ -318,7 +327,7 @@ export function proposalHandlers(env: { domain(ctx: RouteCtx): Promise<Workspace
       const md = (ctx.body as { md?: unknown } | undefined)?.md;
       if (md !== undefined && typeof md !== "string") throw new MitoriError("E_INVALID_INPUT", "md must be a string", { params: { field: "md" } });
       const id = ctx.params.pp;
-      pending(x, id);
+      pending(x, id, true);
       const block = await rt.write("doc.proposal.accept", () => x.doc.acceptProposal(id, md));
       const now = x.doc.block(block.id as BlockId);
       // a delete returns the block as it was; there is no view of a tombstone, so the old one stands in

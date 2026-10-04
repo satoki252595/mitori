@@ -20,6 +20,7 @@
   "proposals.toast.conflict": "この提案のあとで本文が変わりました（重なる変更）。却下するか、本文を直接直してください",
   "proposals.toast.docEdited": "設計書を直しました（human-editedとして固定）",
   "proposals.toast.inReview": "この提案はレビュー中の修正のものです。レビューでコードと一緒に決めてください",
+  "proposals.toast.jobClosed": "この提案の元になったコードの変更は採用されていません（却下・取り消し済み）。却下するか、本文を直接直してください",
   "proposals.willAccept": "採用予定",
   "proposals.willReject": "却下予定"
 }

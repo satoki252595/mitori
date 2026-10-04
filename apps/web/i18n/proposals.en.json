@@ -20,6 +20,7 @@
   "proposals.toast.conflict": "The block changed after this proposal (overlapping edits). Reject it, or edit the block directly",
   "proposals.toast.docEdited": "The doc was changed (locked as human-edited)",
   "proposals.toast.inReview": "This proposal belongs to a fix under review — decide it with the code in the Review",
+  "proposals.toast.jobClosed": "The code change behind this proposal was not applied (rejected or undone). Reject it, or edit the block directly",
   "proposals.willAccept": "will accept",
   "proposals.willReject": "will reject"
 }

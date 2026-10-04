@@ -193,6 +193,7 @@ export async function reject(core: RunnerCore, id: JobId, reason?: string): Prom
     for (const t of r.job.threads) core.threads.fire(t, "reject", "human", reason ? { message: reason } : {});
     core.store.unlock(id);
   });
+  core.closeProposals(rec.job);
   core.notifyUnlock();
   core.parking.release(id);
   if (rec.job.worktree) await core.deps.git.removeWorktree(id).catch(() => {});
@@ -209,7 +210,7 @@ export async function undo(core: RunnerCore, ck: CheckpointId, force: boolean): 
   if (res.diverged.length > 0) return res;
   const proposals = row.extra.proposals ?? [];
   const latest = deps.git.journal.ofJob(row.job).find((c) => c.state === "done" && !c.undoneAt && c.id !== ck);
-  await core.update(row.job, "job.reverted", (r) => {
+  const reverted = await core.update(row.job, "job.reverted", (r) => {
     if (latest === undefined && (r.job.state === "accepted" || r.job.state === "partially_accepted")) core.setState(r, "reverted");
     for (const t of r.job.threads) {
       if (!core.threads.fire(t, "undo", "human")) core.threads.fire(t, "reopen", "human");
@@ -219,6 +220,8 @@ export async function undo(core: RunnerCore, ck: CheckpointId, force: boolean): 
       if (d.diverged.length > 0) deps.log.info("doc blocks changed since the accept; kept", { blocks: d.diverged.length });
     }
   });
+  // the job's proposals nobody accepted describe code that is gone now (EX-05)
+  if (reverted.job.state === "reverted") core.closeProposals(reverted.job);
   deps.events.emit({ type: "checkpoint.upsert", checkpoint: res.checkpoint });
   deps.domain.emit({ type: "checkpoint.undone", checkpoint: ck, files: res.restored, proposals });
   return res;
