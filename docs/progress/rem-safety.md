@@ -49,7 +49,7 @@ trade-off と残り（ADR-0013 R2 に詳しく書いた）:
 
 - `scripts/nd bun run check`: 緑。
 - loop・platform・server・core・doc・`test/int` の全部（INT-06/07/08、ux、proposal-close、RT-30〜33 を含む）: 緑（下の全体実行の結果を参照）。
-- 全体の `scripts/nd bun test`: 結果は commit メッセージと最終報告に書く（負荷で時間の予算のテストが落ちることがある。HANDOFF §0 の 11 件と同じ種類）。
+- 全体の `scripts/nd bun test`（ロードアベレージ 20〜63）: 2,827 件中 **2,811 pass**、9 skip、5 todo、**2 fail はどちらも indexer の時間の予算**（crit の検索 1 ms → 2.6 ms、構造の更新経路 10 ms → 26.5 ms）。単独で再実行しても同じ負荷で落ちる。HANDOFF §0 の「負荷に弱いテスト」の 2 件と同じもので、このトラックは indexer に触れていない（`git diff main -- packages/indexer` は空）。予算は緩めていない。
 
 ## 6. 残り（続ける人へ）
 
