@@ -321,6 +321,10 @@ export const GEN_RULES = {
   W06: "existing id not accounted; kept",
   W07: "marker moved before sentence terminator",
   W08: "cite relocated (precision search)",
+  W09: "claim kind normalized (inferred / aspect name)",
+  W10: "claim markers repaired (orphan marker → inferred claim, markers placed one per sentence or item)",
+  W11: "unshown cite dropped from a claim that has other cites",
+  W12: "space after full-width punctuation removed",
 } as const;
 
 /** Rule id. */
@@ -385,6 +389,8 @@ export interface ExistingRef {
   stale: boolean;
   /** Claim count. */
   claims: number;
+  /** Section, when the task lists blocks of several sections (gen.flows: `s3/<key>`). */
+  section?: SectionId;
 }
 
 /** Everything the validator needs for one task. */
@@ -433,6 +439,8 @@ export interface LineVerdict {
 export interface CoverageReport {
   /** Required aspects missing. */
   missingAspects: BlockAspect[];
+  /** gen.flows: the flows that miss a required aspect, as `{key, aspect}` (the retry names the flow and its section). */
+  flowGaps?: { key: string; aspect: BlockAspect }[];
   /** EXISTING ids not accounted (auto-kept, W06). */
   unaccounted: BlockId[];
   /** Module line missing. */
@@ -599,7 +607,7 @@ export interface GenPromptSpec {
 export const GEN_PROMPTS = {
   "gen.module": {
     id: "gen.module",
-    version: "gen.module@4",
+    version: "gen.module@5",
     system: "gen.system",
     stage: "S5",
     data: ["MODULE", "DEPS", "SKELETON", "BODIES", "TESTS", "FACTS", "DOCS", "EXISTING", "CHANGES"],
@@ -625,7 +633,7 @@ export const GEN_PROMPTS = {
   },
   "gen.overview": {
     id: "gen.overview",
-    version: "gen.overview@2",
+    version: "gen.overview@3",
     system: "gen.system",
     stage: "S6o",
     data: ["DOCS", "FACTS", "FLOORPLAN", "MODULES", "PARENTS", "EXISTING"],
@@ -642,7 +650,7 @@ export const GEN_PROMPTS = {
   },
   "gen.flows": {
     id: "gen.flows",
-    version: "gen.flows@2",
+    version: "gen.flows@3",
     system: "gen.system",
     stage: "S6o",
     data: ["SEEDS", "BODIES", "MODULES", "EXISTING_FLOWS", "EXISTING"],
@@ -668,7 +676,7 @@ export const GEN_PROMPTS = {
   },
   "gen.quality": {
     id: "gen.quality",
-    version: "gen.quality@1",
+    version: "gen.quality@2",
     system: "gen.system",
     stage: "S6o",
     data: ["CLAIMS", "BODIES", "FACTS", "EXISTING"],
@@ -695,7 +703,7 @@ export const GEN_PROMPTS = {
   },
   "gen.risks": {
     id: "gen.risks",
-    version: "gen.risks@1",
+    version: "gen.risks@2",
     system: "gen.system",
     stage: "S6o",
     data: ["TODOS", "UNTESTED", "LARGE", "CHURN", "CLAIMS", "EXISTING"],
@@ -747,11 +755,12 @@ export const GEN_PROMPTS = {
   },
   "gen.deepdive": {
     id: "gen.deepdive",
-    version: "gen.deepdive@1",
+    version: "gen.deepdive@2",
     system: "gen.system",
     stage: "S8",
-    data: ["MODULE", "TOPIC", "BODIES", "SKELETON", "FILES"],
-    lineTypes: ["block", "end"],
+    // EXISTING: files mode only (the per-file notes of earlier complete runs are kept / replaced / deleted)
+    data: ["MODULE", "TOPIC", "BODIES", "SKELETON", "FILES", "EXISTING"],
+    lineTypes: ["block", "keep", "delete", "end"],
     form: "compact",
     modelKey: "genModule",
     effort: "low",
@@ -818,7 +827,7 @@ export const GEN_PROMPTS = {
 
 /** System / addendum versions. */
 export const GEN_SYSTEM_VERSIONS = {
-  "gen.system": "gen.system@4",
+  "gen.system": "gen.system@5",
   "doc.system": "doc.system@2",
   "gen.regen": "gen.regen@2",
   "gen.retry": "gen.retry@2",
@@ -837,7 +846,7 @@ export const DATA_BUDGETS = {
   "gen.glossary": { GLOSSARY_SEEDS: 1000, CANDIDATES: 4000 },
   "gen.questions": { RAW: 2000 },
   "gen.labels": { MODULES: 9600 },
-  "gen.deepdive": { MODULE: 100, TOPIC: 100, BODIES: 16000, SKELETON: 4000, FILES: 20000 },
+  "gen.deepdive": { MODULE: 100, TOPIC: 100, BODIES: 16000, SKELETON: 4000, FILES: 20000, EXISTING: 1500 },
   "gen.judge": { CLAIMS_JUDGE: 8000 },
   "doc.sync": { BLOCKS: 2000, CHANGES: 3000 },
   "doc.simplify": { BLOCKS: 1000, GLOSSARY: 500 },
@@ -1029,10 +1038,12 @@ export const GEN_ESTIMATE_PARAMS = {
   cliMaxOutput: { factor: 1.5, min: 2000 },
   /**
    * Share of tasks that take the one line-retry, and the retry reply relative to the first one. Measured on real
-   * standard runs (dogfood M-2, 2026-10-04: crit 0.63, m3e-canvas 0.71 at prompt @2-@3; reply 0.25-0.31). The
-   * estimator adds the expected continuation (cache re-read of the conversation + this share of output).
+   * standard runs (dogfood M-2, 2026-10-04: crit 0.63, m3e-canvas 0.71 at prompt @2-@3; reply 0.25-0.31; after the
+   * repairs of gen-quality.md at gen.system@5: m3e-canvas 0.25, crit 0.33). The estimator adds the expected
+   * continuation (cache re-read of the conversation + this share of output). At 0.3 the standard estimates of the
+   * 2026-10-04 runs at C = 3 are within ±20 % in $, tokens and wall time (docs/progress/gen-quality.md §1).
    */
-  retryRate: 0.6,
+  retryRate: 0.3,
   retryCost: 0.3,
   /** Batch prefix cache hit rate [仮: docs 30–98%]. */
   batchPrefixHit: 0.6,
@@ -1044,16 +1055,23 @@ export const GEN_ESTIMATE_PARAMS = {
   },
   /** Haiku on the API runs without thinking. */
   apiHaikuThinking: false,
-  /** Time to first token (s) per model × effort [Sonnet low 06 §10; Haiku low 実測 4.85 s; Opus 仮]. */
+  /**
+   * Fixed seconds of a call besides its output (prefill, first event) per model × effort. Real claude-cli runs of
+   * 2026-10-04 (32 crit + 27 m3e calls, warm prompt cache): duration ≈ 0.7 s + (out + thinking) / 135 for Sonnet low,
+   * Opus medium ≈ (out + thinking) / 140 — the earlier 4 s / 8 s [06 §10, 仮] doubled every estimated run time.
+   * Haiku low keeps its measured 4.85 s.
+   */
   ttftSec: {
-    "claude-sonnet-5-5": { low: 4.0, medium: 6.0 },
-    "claude-opus-5-5": { medium: 8.0, high: 12.0 },
+    "claude-sonnet-5-5": { low: 1.0, medium: 2.0 },
+    "claude-opus-5-5": { medium: 2.0, high: 4.0 },
     "claude-haiku-4-5": { low: 4.9 },
   },
+  /** Output tokens/s measured on claude-cli (2026-10-04), preferred over the price table's `outTokPerSec`. */
+  outTokPerSec: { "claude-sonnet-5-5": 135, "claude-opus-5-5": 140 } as Partial<Record<ClaudeModelId, number>>,
   /** Haiku ttft on the API (no thinking) [仮]. */
   apiHaikuTtftSec: 1.5,
-  /** Startup per engine (s). */
-  startupSec: { "claude-cli": 2.5, "anthropic-api": 0.4, session: 6 },
+  /** Startup per engine (s). claude-cli: the warm pool hides most of the spawn (measured calls include it). */
+  startupSec: { "claude-cli": 1.0, "anthropic-api": 0.4, session: 6 },
   /** p90 = p50 × this [仮]. */
   p90OverP50: 1.35,
   /** Use the 1h TTL on the API when the run is expected to exceed this (s). */
@@ -1074,7 +1092,12 @@ export const GEN_ESTIMATE_PARAMS = {
   onDemandDialogAboveTokens: 100000,
   /** Default run cap when `limits.genRunMaxUsd` is unset [仮]. */
   defaultRunMaxUsd: 10,
-  /** Output target coefficients (§5.3). module: clamp(900 + 0.06·tail, 900, 3500). */
+  /**
+   * Output target coefficients (§5.3). module: clamp(900 + 0.06·tail, 900, 3500). quality / decisions / flows / perTerm
+   * calibrated on the real standard runs of 2026-10-04 (m3e-canvas ×2, crit; visible output per task incl. retries:
+   * quality 704–1477, decisions 1219–1853, flows 1877, glossary 22–40 per term) — the [仮] values overestimated the
+   * output by 30–43 % (docs/progress/gen-quality.md).
+   */
   outTargets: {
     moduleBase: 900,
     moduleSlope: 0.06,
@@ -1082,12 +1105,12 @@ export const GEN_ESTIMATE_PARAMS = {
     parent: 1500,
     overviewEarly: 900,
     overviewFinal: 2500,
-    flows: 3000,
+    flows: 2400,
     datamodel: 1500,
-    quality: 2000,
-    decisions: 2000,
+    quality: 1200,
+    decisions: 1600,
     risks: 1500,
-    perTerm: 45,
+    perTerm: 28,
     questions: 800,
     perLabel: 45,
     deepdiveTopic: 1500,

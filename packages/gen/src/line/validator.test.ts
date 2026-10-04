@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { BlockAspect, BlockId, ModuleId, SectionId } from "@mitori/core";
-import type { CitableSet, ExistingRef, GenBlockLine, GenLineType, LineVerdict, ValidationContext } from "../contract.ts";
+import type { CitableSet, ExistingRef, GenBlockLine, GenClaimDraft, GenLineType, LineVerdict, ValidationContext } from "../contract.ts";
+import { parseExisting } from "../prompts/context.ts";
 import { sectionAspects } from "./aspects.ts";
 import { parseCiteObject, parseCompactClaim } from "./claims.ts";
 import { createLineValidator } from "./index.ts";
+import { planRetryImpl } from "./retry.ts";
 
 const MOD = "md_7hq2m4xa" as ModuleId;
 const B1 = "b_k3f9a2cq" as BlockId;
@@ -49,6 +51,9 @@ function blockOf(v: LineVerdict | undefined): GenBlockLine {
   if (v?.value?.t !== "block") throw new Error(`not a block verdict: ${JSON.stringify(v)}`);
   return v.value;
 }
+
+/** Claims of an accepted block verdict (the validator always emits the normalized array form). */
+const claimsOf = (v: LineVerdict | undefined): GenClaimDraft[] => blockOf(v).claims as GenClaimDraft[];
 
 const rules = (v: LineVerdict) => v.errors.map((e) => e.expected.split(" ")[0]);
 const j = (o: unknown) => JSON.stringify(o);
@@ -159,15 +164,102 @@ describe("GEN-U-013 unknown type, missing fields, wrong types", () => {
 });
 
 describe("GEN-U-014 markers vs claims (V14) and compact claim grammar (V03)", () => {
-  test("missing claim, missing marker, repeated marker, marker only inside code", () => {
+  test("unrepairable mismatches: a claim without marker beside marked ones, more sentences than claims, a repeated marker, a marker only inside code", () => {
     const { verdicts } = run([
-      j({ t: "block", id: "new:1", aspect: "responsibility", md: "A[[1]]。B[[2]]。", claims: { "1": "fact" } }),
-      j({ t: "block", id: "new:2", aspect: "responsibility", md: "A。", claims: { "1": "fact" } }),
+      j({ t: "block", id: "new:1", aspect: "responsibility", md: "A[[1]]。B。", claims: { "1": "fact", "2": "fact" } }),
+      j({ t: "block", id: "new:2", aspect: "responsibility", md: "A。B。", claims: { "1": "fact" } }),
       j({ t: "block", id: "new:3", aspect: "responsibility", md: "A[[1]]。B[[1]]。", claims: { "1": "fact" } }),
-      j({ t: "block", id: "new:4", aspect: "responsibility", md: "`x[[1]]` だ。", claims: { "1": "fact" } }),
+      j({ t: "block", id: "new:4", aspect: "responsibility", md: "`x[[1]]` だ。次も。", claims: { "1": "fact" } }),
     ]);
     expect(verdicts.map(rules)).toEqual([["V14"], ["V14"], ["V14"], ["V14"]]);
     expect(verdicts[3]?.errors[0]?.actual).toContain("code span");
+  });
+
+  test("W10: an orphan marker becomes an inferred claim; claims without any marker are placed one per sentence / item", () => {
+    const { verdicts } = run([
+      j({ t: "block", id: "new:1", aspect: "responsibility", md: "A[[1]]。B[[2]]。", claims: { "1": "fact internal/session/store.go:1-2" } }),
+      j({ t: "block", id: "new:2", aspect: "responsibility", md: "セッションを発行する。失効もさせる。", claims: { "1": "fact", "2": "behavior" } }),
+      j({ t: "block", id: "new:3", aspect: "interface", md: "- `Open` は開く\n- `Close` は閉じる。", claims: { "1": "behavior", "2": "behavior" } }),
+      j({ t: "block", id: "new:4", aspect: "responsibility", md: "`x[[1]]` だ。", claims: { "1": "fact" } }),
+    ]);
+    expect(verdicts.map(rules)).toEqual([[], [], [], []]);
+    expect(verdicts.every((v) => v.warnings.includes("W10"))).toBe(true);
+    expect(blockOf(verdicts[0]).claims).toEqual([
+      { n: 1, kind: "fact", cites: [{ path: "internal/session/store.go", start: 1, end: 2 }] },
+      { n: 2, kind: "fact", cites: [] },
+    ]);
+    expect(blockOf(verdicts[1]).md).toBe("セッションを発行する[[1]]。失効もさせる[[2]]。");
+    expect(blockOf(verdicts[2]).md).toBe("- `Open` は開く[[1]]\n- `Close` は閉じる[[2]]。");
+    expect(blockOf(verdicts[3]).md).toBe("`x[[1]]` だ[[1]]。");
+  });
+
+  test("W09: 'inferred' and aspect names written as the claim kind are normalized (real run 2026-10-04: m3e / crit retries)", () => {
+    const { verdicts } = run([
+      j({
+        t: "block",
+        id: "new:1",
+        aspect: "responsibility",
+        md: "A[[1]]。B[[2]]。",
+        claims: { "1": "inferred", "2": "interface internal/session/store.go:3" },
+      }),
+    ]);
+    expect(rules(verdicts[0] as LineVerdict)).toEqual([]);
+    expect(verdicts[0]?.warnings).toContain("W09");
+    expect(claimsOf(verdicts[0]).map((c) => c.kind)).toEqual(["fact", "behavior"]);
+    expect(parseCompactClaim("inferred")).toEqual({ kind: "fact", cites: [], aliased: true });
+  });
+
+  test("W11: an unshown cite is dropped while the claim keeps a shown one; an only cite stays V17", () => {
+    const c = ctx({ citable: citable({ "internal/session/store.go": 400, "internal/session/ttl.go": 40 }, { "internal/session/store.go": [10, 20] }) });
+    const { verdicts } = run(
+      [
+        j({
+          t: "block",
+          id: "new:1",
+          aspect: "responsibility",
+          md: "A[[1]]。",
+          claims: { "1": "fact internal/session/store.go:12-14,internal/session/store.go:300" },
+        }),
+        j({ t: "block", id: "new:2", aspect: "responsibility", md: "A[[1]]。", claims: { "1": "fact internal/session/store.go:300" } }),
+        j({
+          t: "block",
+          id: "new:3",
+          aspect: "responsibility",
+          md: "A[[1]]。",
+          claims: { "1": "fact internal/session/store.go:12,internal/session/nope.go:3" },
+        }),
+      ],
+      c,
+    );
+    expect(verdicts.map(rules)).toEqual([[], ["V17"], []]);
+    expect(claimsOf(verdicts[0])[0]?.cites).toEqual([{ path: "internal/session/store.go", start: 12, end: 14 }]);
+    expect(verdicts[0]?.warnings).toContain("W11");
+    expect(claimsOf(verdicts[2])[0]?.cites).toEqual([{ path: "internal/session/store.go", start: 12, end: 12 }]);
+  });
+
+  test("W04: a range running past the shown lines keeps its shown part when that is at least half of it", () => {
+    const c = ctx({ citable: citable({ "internal/session/store.go": 400 }, { "internal/session/store.go": [10, 20] }) });
+    const { verdicts } = run(
+      [
+        j({ t: "block", id: "new:1", aspect: "responsibility", md: "A[[1]]。", claims: { "1": "fact internal/session/store.go:12-30" } }),
+        j({ t: "block", id: "new:2", aspect: "responsibility", md: "A[[1]]。", claims: { "1": "fact internal/session/store.go:12-60" } }),
+      ],
+      c,
+    );
+    // shown 10..20 (±2 slack ⇒ up to 22): 12-30 keeps 12-22 (11 of 19 lines); 12-60 keeps too little ⇒ V17 (retried)
+    expect(verdicts.map(rules)).toEqual([[], ["V17"]]);
+    expect(claimsOf(verdicts[0])[0]?.cites).toEqual([{ path: "internal/session/store.go", start: 12, end: 22 }]);
+    expect(verdicts[0]?.warnings).toContain("W04");
+  });
+
+  test("W12: spaces after full-width punctuation are removed outside code (Japanese only)", () => {
+    const { verdicts } = run([
+      j({ t: "block", id: "new:1", aspect: "responsibility", md: "持つ[[1]]。 次に `a。 b` を使う（推測）。 終わり。", claims: { "1": "fact" } }),
+    ]);
+    expect(blockOf(verdicts[0]).md).toBe("持つ[[1]]。次に `a。 b` を使う（推測）。終わり。");
+    expect(verdicts[0]?.warnings).toContain("W12");
+    const en = run([j({ t: "block", id: "new:1", aspect: "responsibility", md: "It holds[[1]]。 then.", claims: { "1": "fact" } })], ctx({ lang: "en" }));
+    expect(blockOf(en.verdicts[0]).md).toBe("It holds[[1]]。 then.");
   });
 
   test("compact grammar violations are V03", () => {
@@ -322,6 +414,17 @@ describe("GEN-U-017 sections, foreign ids, duplicate new refs, unknown after", (
     expect(blockOf(verdicts[0]).section).toBe("s6/internal-session");
     expect(rules(verdicts[1] as LineVerdict)).toEqual(["V06"]);
   });
+
+  test("W03: a task section with the aspect appended is the section (real run 2026-10-04: gen.decisions wrote s10/decision)", () => {
+    const { verdicts } = run([
+      j({ t: "block", id: "new:1", section: "s6/internal-session/interface", aspect: "interface", md: "x", claims: {} }),
+      j({ t: "block", id: "new:2", section: "s6/internal/interface", aspect: "interface", md: "x", claims: {} }),
+    ]);
+    expect(verdicts[0]?.errors).toEqual([]);
+    expect(verdicts[0]?.warnings).toEqual(["W03"]);
+    expect(blockOf(verdicts[0]).section).toBe("s6/internal-session");
+    expect(rules(verdicts[1] as LineVerdict)).toEqual(["V05"]);
+  });
 });
 
 describe("GEN-U-020 framing noise", () => {
@@ -461,6 +564,16 @@ describe("regeneration accounting (AC-12)", () => {
     const { verdicts } = run([j({ t: "keep", id: B1 })]);
     expect(rules(verdicts[0] as LineVerdict)).toEqual(["V02"]);
   });
+
+  test("kept blocks cover their required aspects: a page kept as it is needs no retry (real run 2026-10-04: duplicated blocks)", () => {
+    const { v } = run([j({ t: "keep", id: B1 }), j({ t: "keep", id: B2 }), j({ t: "module", module: MOD, name: "x" })], ctx({ existing }));
+    const cov = v.finish("end");
+    expect(cov.missingAspects).toEqual([]);
+    expect(cov.ok).toBe(true);
+    // a deleted block does not
+    const del = run([j({ t: "keep", id: B1 }), j({ t: "delete", id: B2 }), j({ t: "module", module: MOD, name: "x" })], ctx({ existing })).v.finish("end");
+    expect(del.missingAspects).toEqual(["interface"]);
+  });
 });
 
 describe("module, term, flow lines", () => {
@@ -487,6 +600,7 @@ describe("module, term, flow lines", () => {
       moduleLineRequired: false,
       modules: new Set([MOD]),
     });
+  const flowsCtx2 = () => ({ ...flowsCtx(), flows: { min: 3, max: 3 } });
 
   test("flow blocks take the current flow's section; V24 for blocks before the flow line, duplicates and too many flows", () => {
     const { verdicts, v } = run(
@@ -509,7 +623,104 @@ describe("module, term, flow lines", () => {
     const cov = v.finish("end");
     expect(cov.flows).toBe(2);
     expect(cov.missingAspects).toEqual(["steps"]);
+    expect(cov.flowGaps).toEqual([{ key: "logout", aspect: "steps" }]);
     expect(cov.ok).toBe(false);
+  });
+
+  test("a flow block without section goes to the first flow lacking its aspect; the retry names the flow (real run 2026-10-04: m3e §3 failed)", () => {
+    const flow = (key: string) => j({ t: "flow", key, title: key });
+    let n = 1;
+    const blk = (aspect: string) => j({ t: "block", id: `new:${n++}`, aspect, md: "1. x", claims: {} });
+    const lines = [blk("intro"), flow("a"), blk("summary"), blk("steps"), flow("b"), blk("summary"), flow("c"), blk("summary"), blk("steps")];
+    const v = createLineValidator(flowsCtx2());
+    for (const [i, l] of lines.entries()) expect(v.validate(l, i + 1).errors).toEqual([]);
+    const cov = v.finish("end");
+    expect(cov.flowGaps).toEqual([{ key: "b", aspect: "steps" }]);
+    expect(planRetryImpl([], cov, 1)?.missing).toEqual(['aspect steps of flow b (a block with "section":"s3/b")']);
+    // the retry's steps block without a section lands under b, not under the last flow c
+    const late = v.validate(blk("steps"), 99);
+    expect(blockOf(late).section).toBe("s3/b");
+    expect(v.finish("end").ok).toBe(true);
+  });
+
+  test("an optional flow aspect (sequence, edge_cases) stays with the current flow even when an earlier flow lacks it (verifier 2026-10-04)", () => {
+    const flow = (key: string) => j({ t: "flow", key, title: key });
+    let n = 1;
+    const blk = (aspect: string, md = "1. x") => j({ t: "block", id: `new:${n++}`, aspect, md, claims: {} });
+    const diagram = (id: string) =>
+      j({
+        t: "block",
+        id,
+        aspect: "sequence",
+        kind: "diagram",
+        md: "c の呼び出し。",
+        claims: {},
+        diagram: {
+          kind: "sequence",
+          nodes: [
+            { id: "u", label: "user", shape: "actor" },
+            { id: "s", label: "server", shape: "box" },
+          ],
+          edges: [{ id: "e1", from: "u", to: "s", kind: "calls", label: "go", seq: 1 }],
+          groups: [],
+          direction: "RIGHT",
+        },
+      });
+    const v = createLineValidator(flowsCtx2());
+    // flow b has no diagram and no edge cases; flow c writes two of each
+    const lines = [blk("intro"), flow("a"), blk("summary"), blk("steps"), flow("b"), blk("summary"), blk("steps"), flow("c"), blk("summary")];
+    for (const [i, l] of lines.entries()) expect(v.validate(l, i + 1).errors).toEqual([]);
+    const placed = [diagram("new:90"), diagram("new:91"), blk("edge_cases", "- a"), blk("edge_cases", "- b")].map((l, i) => v.validate(l, 50 + i));
+    expect(placed.map((x) => x.errors)).toEqual([[], [], [], []]);
+    expect(placed.map((x) => blockOf(x).section)).toEqual(["s3/c", "s3/c", "s3/c", "s3/c"]);
+    // a required aspect still goes to the first flow lacking it
+    expect(blockOf(v.validate(blk("summary"), 60)).section).toBe("s3/c");
+    expect(blockOf(v.validate(blk("steps"), 61)).section).toBe("s3/c");
+    expect(blockOf(v.validate(blk("steps"), 62)).section).toBe("s3/c");
+  });
+
+  test("flows regeneration: kept blocks count for their flow (section= in EXISTING), with or without the flow line", () => {
+    const ref = (id: string, section: string, aspect: string): [BlockId, ExistingRef] => [
+      id as BlockId,
+      { id: id as BlockId, aspect: aspect as BlockAspect, kind: "prose", origin: "ai", stale: false, claims: 0, section: section as SectionId },
+    ];
+    const existing = new Map<BlockId, ExistingRef>([
+      ref("b_aaaaaaa1", "s3", "intro"),
+      ref("b_aaaaaaa2", "s3/login", "summary"),
+      ref("b_aaaaaaa3", "s3/login", "steps"),
+      ref("b_aaaaaaa4", "s3/logout", "summary"),
+      ref("b_aaaaaaa5", "s3/logout", "steps"),
+    ]);
+    const c = { ...flowsCtx(), lineTypes: ["block", "keep", "delete", "flow", "question", "end"] as GenLineType[], existing };
+    const keepAll = ["b_aaaaaaa1", "b_aaaaaaa2", "b_aaaaaaa3", "b_aaaaaaa4", "b_aaaaaaa5"].map((id) => j({ t: "keep", id }));
+    const withFlowLines = run([keepAll[0] as string, j({ t: "flow", key: "login", title: "ログイン" }), ...keepAll.slice(1)], c).v.finish("end");
+    expect(withFlowLines).toMatchObject({ ok: true, missingAspects: [], flows: 2 });
+    expect(run(keepAll, c).v.finish("end")).toMatchObject({ ok: true, missingAspects: [], flows: 2 });
+    expect(
+      parseExisting(["> b_aaaaaaa2 section=s3/login aspect=summary kind=prose depth=L1 stale=no lock=- claims=1 | x"]).get("b_aaaaaaa2" as BlockId)?.section,
+    ).toBe("s3/login");
+  });
+
+  test("W10: a diagram caption loses its markers and claims (never rendered as cites under the drawing)", () => {
+    const diagram = { kind: "sequence", nodes: [{ id: "user", label: "利用者", shape: "actor" }], edges: [] };
+    const { verdicts } = run(
+      [
+        j({ t: "flow", key: "login", title: "ログイン" }),
+        j({
+          t: "block",
+          id: "new:1",
+          aspect: "sequence",
+          md: "`Editor` が状態を更新する[[1]]。",
+          claims: { "1": "behavior internal/session/store.go:3" },
+          diagram,
+        }),
+      ],
+      flowsCtx(),
+    );
+    expect(rules(verdicts[1] as LineVerdict)).toEqual([]);
+    expect(blockOf(verdicts[1]).md).toBe("`Editor` が状態を更新する。");
+    expect(claimsOf(verdicts[1])).toEqual([]);
+    expect(verdicts[1]?.warnings).toContain("W10");
   });
 
   test("V20 / V21 diagrams (flows limit 12 nodes, unknown edge node, seq gaps, unknown module ref)", () => {
@@ -549,6 +760,27 @@ describe("module, term, flow lines", () => {
 });
 
 describe("question and verdict lines", () => {
+  test("gen.questions keeps the section of its source, any section (real run 2026-10-04: crit's list was rejected whole)", () => {
+    const c = ctx({
+      prompt: "gen.questions",
+      lineTypes: ["question", "end"],
+      sections: ["s13"],
+      primarySection: "s13",
+      requiredAspects: [],
+      moduleLineRequired: false,
+    });
+    const { verdicts } = run(
+      [
+        j({ t: "question", section: "s1", text: "?", from: ["q1"] }),
+        j({ t: "question", section: "S6/Internal_Session", text: "?" }),
+        j({ t: "question", section: "nowhere", text: "?" }),
+      ],
+      c,
+    );
+    expect(verdicts.map(rules)).toEqual([[], [], ["V05"]]);
+    expect(verdicts.map((v) => (v.value?.t === "question" ? v.value.section : null))).toEqual(["s1", "s6/internal-session", null]);
+  });
+
   test("question cites are checked like claim cites; bad section is V05", () => {
     const { verdicts } = run([
       j({ t: "question", text: "?", cites: [{ path: "nope.go", start: 1, end: 2 }] }),

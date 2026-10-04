@@ -21,9 +21,11 @@ import {
 import type { DocStore } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
 import { DATA_BUDGETS, GEN_ESTIMATE_PARAMS, type GenEstimator, type GenPlan, type GenPlanner, type GenPromptId, type PlannedTask } from "../contract.ts";
+import { fileChunks, filesModeOf } from "../prompts/files.ts";
 import { LABELS_PER_CALL, labelModules } from "../prompts/inputs.ts";
-import { UNIT_TEMPLATES } from "../prompts/templates.ts";
-import { compareTasks, groupOf, modelOf } from "./params.ts";
+import { genFlowSeeds } from "../prompts/seeds.ts";
+import { DEEPDIVE_FILES_TEMPLATE, UNIT_TEMPLATES } from "../prompts/templates.ts";
+import { compareTasks, groupOf, modelOf, outTarget } from "./params.ts";
 
 /** Ports of the planner. */
 export interface PlannerDeps {
@@ -126,6 +128,28 @@ export function createPlanner(deps: PlannerDeps): GenPlanner {
         );
       }
 
+      // complete: S8 per-file notes of every paged leaf (gen.deepdive files, ≤ 20k FILES tokens per task, §3.2)
+      if (req.effort === "complete") {
+        for (const m of eagerList) {
+          const page = pageOf.get(m.id);
+          for (const [i, chunk] of fileChunks(ix, m).entries())
+            add({
+              stage: "S8",
+              prompt: "gen.deepdive",
+              mode: filesModeOf(i + 1),
+              target: { kind: "module", id: m.id },
+              sections: [`s6/${m.slug}`],
+              deps: page ? [draftId(page)] : [],
+              softDeps: [],
+              topoOrder: m.topoOrder,
+              rank: m.rank,
+              phase: 2,
+              tail: 80 + chunk.tokens + tokens(DEEPDIVE_FILES_TEMPLATE),
+              out: outTarget("gen.deepdive", "files", chunk.tokens, chunk.paths.length),
+            });
+        }
+      }
+
       // S6 parents with ≥ 1 paged child, deepest first; phase = 1 + height above the leaves
       const height = new Map<ModuleId, number>();
       const heightOf = (m: ModuleInfo): number => {
@@ -203,7 +227,7 @@ export function createPlanner(deps: PlannerDeps): GenPlanner {
         phase: lastPhase,
         tail: overviewTail(true) + Math.min(6000, 100 * eager.size) + Math.min(1500, 100 * pages.filter((d) => d.prompt === "gen.parent").length),
       });
-      const seeds = ix.flowSeeds(8).length;
+      const seeds = genFlowSeeds(ix).length;
       const flows =
         seeds > 0
           ? add({
@@ -237,10 +261,11 @@ export function createPlanner(deps: PlannerDeps): GenPlanner {
       // M4 section prompts (standard / complete): their inputs are the index plus the claims of the module pages
       if (req.effort !== "overview") {
         const modulePages = pages.filter((d) => d.prompt === "gen.module");
-        const sectionTask = (prompt: GenPromptId, section: SectionId, deps: readonly Draft[], tail: number): Draft =>
+        const sectionTask = (prompt: GenPromptId, section: SectionId, deps: readonly Draft[], tail: number, mode?: string): Draft =>
           add({
             stage: "S6o",
             prompt,
+            ...(mode !== undefined ? { mode } : {}),
             target: { kind: "section", id: section },
             sections: [section],
             deps: deps.map(draftId),
@@ -256,7 +281,16 @@ export function createPlanner(deps: PlannerDeps): GenPlanner {
         const m4: Draft[] = [];
         const schema = count("schema");
         if (schema > 0) m4.push(sectionTask("gen.datamodel", "s7", [], Math.min(DATA_BUDGETS["gen.datamodel"].SCHEMA, 40 + 350 * schema)));
-        m4.push(sectionTask("gen.quality", "s9", modulePages, claimsTail + Math.min(DATA_BUDGETS["gen.quality"].BODIES, 1200 * Math.min(5, eager.size)) + 300));
+        // complete: the quality section on the overview model at medium effort (§3.2, §5.3 `modes.complete`)
+        m4.push(
+          sectionTask(
+            "gen.quality",
+            "s9",
+            modulePages,
+            claimsTail + Math.min(DATA_BUDGETS["gen.quality"].BODIES, 1200 * Math.min(5, eager.size)) + 300,
+            req.effort === "complete" ? "complete" : undefined,
+          ),
+        );
         const decisionDocs = facts.filter((f) => f.kind === "existing_doc" && f.role !== "readme" && f.role !== "other").length;
         m4.push(sectionTask("gen.decisions", "s10", modulePages, claimsTail + Math.min(DATA_BUDGETS["gen.decisions"].DOCS, 600 * decisionDocs) + 1500));
         m4.push(sectionTask("gen.risks", "s11", modulePages, claimsTail + Math.min(DATA_BUDGETS["gen.risks"].TODOS, 25 * count("todo")) + 500));

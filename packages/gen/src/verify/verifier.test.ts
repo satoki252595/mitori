@@ -26,7 +26,14 @@ describe("GEN-U-062 L1: a backticked path naming a cited file is satisfied by th
     const paths = ["lib/i18n.test.ts", "internal/session/store.go"];
     for (const ok of ["lib/i18n.test.ts", "./lib/i18n.test.ts", "i18n.test.ts", "session/store.go", "internal/session", "lib/"])
       expect(namesCitedFile(ok, paths)).toBe(true);
-    for (const no of ["lib/i18n.ts", "internal/diff", "crit install", "isLang", "store", "lib/i18n.test.tsx"]) expect(namesCitedFile(no, paths)).toBe(false);
+    for (const no of ["lib/i18n.ts", "internal/diff", "crit install", "isLang", "st", "lib/i18n.test.tsx"]) expect(namesCitedFile(no, paths)).toBe(false);
+  });
+
+  test("a bare name equal to a cited file's stem names that file (real run 2026-10-04: `layout` citing app/layout.tsx)", () => {
+    expect(namesCitedFile("layout", ["app/layout.tsx"])).toBe(true);
+    expect(namesCitedFile("Editor", ["app/Editor.test.tsx"])).toBe(true);
+    expect(namesCitedFile("editor", ["app/Editor.tsx"])).toBe(false);
+    expect(namesCitedFile("app", ["app/layout.tsx"])).toBe(false);
   });
 
   test('m3e-canvas: "`lib/i18n.test.ts` は `isLang` が…" citing lib/i18n.test.ts:1 passes; without the path it does not change', () => {
@@ -104,6 +111,27 @@ describe("GEN-U-031 L1: identifiers within the cited range ±2", () => {
     expect(computeVerdict({ checks: vac.checks, cites: vac.cites.length, anyStale: false })).toBe("cited");
     expect(metrics.counts.get("gen.cite.l1.vacuous")).toBe(1);
     expect((await v.stamp([], span(["x"]))).checks.l1).toBe("vacuous");
+  });
+
+  test("the enclosing symbol's qualified name counts (real run 2026-10-04: `LoadingAnimator.update` cited inside update)", async () => {
+    const { v, indexer } = setup();
+    const inside = await v.stamp([{ path: "src/session/store.ts", start: 18, end: 18 }], span(["Store.put"]));
+    expect(inside.checks.l1).toBe("pass");
+    expect(inside.checks.repaired).toBeUndefined();
+    // outside any symbol the scope is empty and the same claim still fails
+    expect(l1(["Store.put"], [{ path: "src/session/store.ts", lines: ["", "x", "y"], start: 2, end: 2 }])).toBe("fail");
+    expect(l1(["Store.put"], [{ path: "src/session/store.ts", lines: ["", "x", "y"], start: 2, end: 2, scope: ["Store.put"] }])).toBe("pass");
+    // check() (L1 re-check of stored claims) uses the same scope
+    const stamped = inside.cites[0] as Claim["cites"][number];
+    expect((await v.check([{ cites: [stamped], markdown: "`Store.put` は保存する" }]))[0]?.l1).toBe("pass");
+    expect(indexer.enclosingSymbol("src/session/store.ts", 18, 18)?.qualname).toBe("Store.put");
+  });
+
+  test("the cited file's directory is the package qualifier (real run 2026-10-04: `clicmd.Exit` citing internal/clicmd/clicmd.go)", async () => {
+    const { v } = setup();
+    // lines 7-8 say `export class Store {` but never the word "session": the directory src/session supplies it
+    expect((await v.stamp([{ path: "src/session/store.ts", start: 7, end: 8 }], span(["session.Store"]))).checks.l1).toBe("pass");
+    expect((await v.stamp([{ path: "src/session/store.ts", start: 7, end: 8 }], span(["auth.Store"]))).checks.l1).toBe("fail");
   });
 
   test("W08 relocates a single cite by the smallest shift and marks precision search", async () => {

@@ -5,7 +5,7 @@
 // ledger's API-equivalent spend passes `--max-usd` or a call reports overage / API-key billing.
 //
 //   scripts/nd bun bench/measure/gen-real.ts --repo <git clone> [--effort standard] [--home <dir>]                # estimate only
-//   MITORI_LIVE=1 scripts/nd bun bench/measure/gen-real.ts --repo <clone> --run --max-usd 6 --out <dir> [--home <dir>]
+//   MITORI_LIVE=1 scripts/nd bun bench/measure/gen-real.ts --repo <clone> --run --max-usd 6 --out <dir> [--home <dir>] [--scope s3]
 //
 // `--home` keeps the daemon home (gen_outputs cache): a re-run after a prompt version bump only pays for the tasks whose
 // cache key changed. `--out` receives report.json (per-call ledger rows, per-task metrics, aggregates) and doc/ (a copy of
@@ -44,6 +44,7 @@ const { values: a } = parseArgs({
     serve: { type: "string" },
     "timeout-min": { type: "string", default: "40" },
     record: { type: "string" },
+    scope: { type: "string" },
   },
 });
 
@@ -66,7 +67,9 @@ writeFileSync(
   JSON.stringify({
     ...prev,
     scheduler: { ...((prev.scheduler as object) ?? {}), concurrency, reserveInteractive: 0 },
-    limits: { ...((prev.limits as object) ?? {}), genRunMaxUsd: live ? maxUsd : 10 },
+    // the product stops dispatching at stopAtBudgetFraction (0.8) of genRunMaxUsd and pauses the run: give it head room
+    // so that this harness's own --max-usd guard (cancel when spent > cap) is the one that applies [crit run 2026-10-04]
+    limits: { ...((prev.limits as object) ?? {}), genRunMaxUsd: live ? Math.round((maxUsd / 0.8) * 100) / 100 + 0.01 : 10 },
   }),
 );
 
@@ -133,7 +136,9 @@ const openMs = performance.now() - tOpen;
 log(`opened ${repo} as ${ws} in ${openMs.toFixed(0)} ms (daemon start → ready ${(performance.now() - t0).toFixed(0)} ms)`);
 
 // 3. estimate
-const est = await call<GenEstimate>("POST", `/ws/${ws}/gen/estimate`, { effort: a.effort });
+// `--scope s3,s9`: only those sections (+ their hard deps without content), e.g. to re-run one prompt after a fix
+const scope = a.scope ? a.scope.split(",").filter(Boolean) : [];
+const est = await call<GenEstimate>("POST", `/ws/${ws}/gen/estimate`, { effort: a.effort, ...(scope.length > 0 ? { scope } : {}) });
 const estIn = est.inTokens + est.cacheReadTokens + est.cacheWriteTokens;
 log(
   `estimate ${est.effort}: $${est.apiUsd.toFixed(2)} (±${est.confidencePct}%), in ${estIn} (uncached ${est.inTokens}, cache r/w ${est.cacheReadTokens}/${est.cacheWriteTokens}), out ${est.outTokens}, ${est.seconds.p50}s p50 / ${est.seconds.p90}s p90 at C=${est.concurrency}, billing ${est.billing}, window ${est.windowDeltaPct ?? "-"}pt ${JSON.stringify(est.windowDeltaRange ?? null)}`,
@@ -210,6 +215,13 @@ while (!finished) {
     if (e.type === "gen.task" && terminal(e.task.state)) log(`task ${e.task.state}: ${e.task.stage} ${e.task.target.kind}:${e.task.target.id}`);
   }
   if (state && terminal(state.state)) break;
+  if (state?.state === "paused" && !cancelReason) {
+    cancelReason = `run paused (${JSON.stringify(state.paused ?? null)})`;
+    log(`cancelling: ${cancelReason}`);
+    await call("POST", `/ws/${ws}/gen/runs/${run.id}/control`, { action: "cancel" }).catch(() => undefined);
+    await sse.until((ev) => ev.some((x) => x.type === "gen.run" && x.run.id === run.id && terminal(x.run.state)), 30_000).catch(() => undefined);
+    break;
+  }
   if (performance.now() - lastPoll > 3000) {
     lastPoll = performance.now();
     childMax = Math.max(childMax, children());

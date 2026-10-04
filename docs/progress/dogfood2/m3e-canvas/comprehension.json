@@ -1,0 +1,770 @@
+{
+ "v": "mitori.comprehension/1",
+ "repo": "m3e-canvas",
+ "prompts": {
+  "writer": "comprehension.writer@1",
+  "answer": "comprehension.answer@1",
+  "grader": "comprehension.grader@1"
+ },
+ "models": {
+  "writer": "claude-sonnet-5-5",
+  "answer": "claude-haiku-4-5",
+  "grader": "claude-sonnet-5-5"
+ },
+ "materials": {
+  "readme": {
+   "tokens": 8076,
+   "files": 1,
+   "truncated": false
+  },
+  "mitori": {
+   "tokens": 9493,
+   "files": 19,
+   "truncated": false
+  }
+ },
+ "questions": [
+  {
+   "id": "q01",
+   "level": "newcomer",
+   "category": "setup_run",
+   "question": "このプロジェクトを開発するのに必要な Node のバージョン条件と、PR 前に通すべき 3 つのコマンドは何ですか?",
+   "answerKey": "Node 22.12 以上(テストに必要、CI は Node 22)。PR 前に npm run typecheck、npm test、npm run build を実行する(CI も同じ3つ)。",
+   "rubric": {
+    "full": "Node 22.12 以上と typecheck・test・build の3コマンドを挙げる",
+    "partial": "3コマンドのみ、またはNodeの条件のみ"
+   },
+   "evidence": [
+    {
+     "path": "CONTRIBUTING.md",
+     "start": 15,
+     "end": 25
+    },
+    {
+     "path": "CONTRIBUTING.md",
+     "start": 62,
+     "end": 66
+    }
+   ],
+   "readmeAnswerable": false
+  },
+  {
+   "id": "q02",
+   "level": "newcomer",
+   "category": "entry_point",
+   "question": "app/page.tsx は Editor をどのように読み込み、起動中は何を表示しますか?",
+   "answerKey": "Editor は next/dynamic で ssr:false として ./Editor を動的 import し、モジュール実行時に先読みする。読み込み中は Skeleton を含む Boot オーバーレイを表示し、onReady 後にフェードして消える。",
+   "rubric": {
+    "full": "dynamic import(ssr:false)、先読み、Skeleton の Boot オーバーレイが onReady でフェードアウトすることを述べる",
+    "partial": "Editor を動的に読み込むことだけ、またはスケルトン表示のみ"
+   },
+   "evidence": [
+    {
+     "path": "app/page.tsx",
+     "start": 8,
+     "end": 23
+    },
+    {
+     "path": "app/page.tsx",
+     "start": 37,
+     "end": 56
+    }
+   ],
+   "readmeAnswerable": false
+  },
+  {
+   "id": "q03",
+   "level": "newcomer",
+   "category": "purpose",
+   "question": "M3E Canvas は何をするツールで、サーバーやバックエンドはありますか?データはどこに保存されますか?",
+   "answerKey": "ブラウザで Material 3 Expressive の画面を組み、画面を連結してプレビューし、AIコーディングツール向けプロンプトを生成するツール。バックエンドは無く、静的な Next.js 出力でデータはブラウザの localStorage に保存される。",
+   "rubric": {
+    "full": "画面スケッチ→プロンプト生成、サーバー無し、localStorage 保存を述べる",
+    "partial": "スケッチ/プロンプト生成のみ、または保存先のみ"
+   },
+   "evidence": [
+    {
+     "path": "README.md",
+     "start": 7,
+     "end": 8
+    },
+    {
+     "path": "CONTRIBUTING.md",
+     "start": 25,
+     "end": 25
+    }
+   ],
+   "readmeAnswerable": true
+  },
+  {
+   "id": "q04",
+   "level": "newcomer",
+   "category": "where_to_change",
+   "question": "プロンプトの文言を変えたいとき、どのファイルを編集しますか?また文字列を追加するときの言語に関する規則は?",
+   "answerKey": "lib/prompt.ts を編集する。UI文字列とプロンプト文は日本語・英語・中国語・韓国語の4言語すべてに追加する必要がある(コードコメントは英語)。",
+   "rubric": {
+    "full": "lib/prompt.ts と4言語(ja/en/zh/ko)すべてに追加する規則",
+    "partial": "lib/prompt.ts のみ、または4言語規則のみ"
+   },
+   "evidence": [
+    {
+     "path": "CONTRIBUTING.md",
+     "start": 27,
+     "end": 39
+    },
+    {
+     "path": "CONTRIBUTING.md",
+     "start": 51,
+     "end": 54
+    }
+   ],
+   "readmeAnswerable": false
+  },
+  {
+   "id": "q05",
+   "level": "intermediate",
+   "category": "extension_point",
+   "question": "新しい部品(Kind)を追加するとき、触る必要のあるファイルと主な変更点を順に挙げてください。",
+   "answerKey": "lib/tokens.ts(Kind, KIND_SPEC, KIND_ORDER, sizeOf等)、lib/i18n.ts(KIND_TEXT 4言語)、components/M3Node.tsx(描画)、lib/prompt.ts(itemJa/En/Zh/Ko と STYLE_NOTES)、Inspector.tsx と、タップ可能なら Preview.tsx。",
+   "rubric": {
+    "full": "tokens, i18n, M3Node, prompt, Inspector/Preview の5領域を挙げる",
+    "partial": "3つ程度の領域を挙げる"
+   },
+   "evidence": [
+    {
+     "path": "CONTRIBUTING.md",
+     "start": 41,
+     "end": 49
+    }
+   ],
+   "readmeAnswerable": false
+  },
+  {
+   "id": "q06",
+   "level": "intermediate",
+   "category": "config_env",
+   "question": "GitHub Pages のサブパスで配信するにはどうしますか?next.config.ts ではどう反映されますか?",
+   "answerKey": "ビルド時に NEXT_PUBLIC_BASE_PATH=/リポジトリ名 を指定する。next.config.ts は process.env.NEXT_PUBLIC_BASE_PATH(未設定なら空文字)を basePath に使い、output:\"export\" で静的書き出しする。",
+   "rubric": {
+    "full": "環境変数名、next.config.ts の basePath への反映、output export を述べる",
+    "partial": "環境変数名のみ"
+   },
+   "evidence": [
+    {
+     "path": "next.config.ts",
+     "start": 1,
+     "end": 10
+    }
+   ],
+   "readmeAnswerable": true
+  },
+  {
+   "id": "q07",
+   "level": "intermediate",
+   "category": "data_flow",
+   "question": "共有リンクにはデザインがどのように格納され、何が除外されますか?",
+   "answerKey": "URLハッシュに格納。CompressionStream があれば deflate-raw+base64url で #docz=、なければ JSON を #doc= に入れる。ハッシュなのでサーバーに送られない。shareable() は noteHistory と http(s)以外の画像 src を除く。",
+   "rubric": {
+    "full": "#docz/#doc の2形式、圧縮の有無、noteHistory と選択画像の除外",
+    "partial": "ハッシュに圧縮JSONを入れることのみ"
+   },
+   "evidence": [
+    {
+     "path": "lib/share.ts",
+     "start": 4,
+     "end": 21
+    },
+    {
+     "path": "lib/share.ts",
+     "start": 46,
+     "end": 53
+    }
+   ],
+   "readmeAnswerable": false
+  },
+  {
+   "id": "q08",
+   "level": "intermediate",
+   "category": "cross_module",
+   "question": "AI補助がプロバイダへリクエストを送る際、Claude とそれ以外でどう違い、キーはどこに保存されますか?",
+   "answerKey": "Claude は {base}/v1/messages に x-api-key と anthropic-dangerous-direct-browser-access ヘッダで送る。他は {base}/chat/completions に Bearer 認証。設定(キー含む)は localStorage の m3e:ai に保存され、サーバーを介さず直接送信。",
+   "rubric": {
+    "full": "2種類のエンドポイント/認証の違いと localStorage(m3e:ai)保存",
+    "partial": "直接送信とlocalStorage保存のみ"
+   },
+   "evidence": [
+    {
+     "path": "lib/ai.ts",
+     "start": 31,
+     "end": 53
+    },
+    {
+     "path": "lib/ai.ts",
+     "start": 84,
+     "end": 122
+    }
+   ],
+   "readmeAnswerable": false
+  },
+  {
+   "id": "q09",
+   "level": "expert",
+   "category": "invariant",
+   "question": "AI呼び出しでAPIキーを守るためにどんな制約があり、キー無しで許される条件は何ですか?",
+   "answerKey": "isSecureUrl により https:// か localhost/127.0.0.1/[::1] 以外では complete() が \"insecure\" エラーを投げ、キーを平文httpで送らない。hasKey はキーが空でもローカル baseUrl なら true。",
+   "rubric": {
+    "full": "https かローカルのみ許可、insecure エラー、ローカルならキー不要を述べる",
+    "partial": "httpsを要求することのみ"
+   },
+   "evidence": [
+    {
+     "path": "lib/ai.ts",
+     "start": 55,
+     "end": 61
+    },
+    {
+     "path": "lib/ai.ts",
+     "start": 79,
+     "end": 83
+    }
+   ],
+   "readmeAnswerable": false
+  },
+  {
+   "id": "q10",
+   "level": "expert",
+   "category": "error_handling",
+   "question": "壊れた共有リンクや不正なプロジェクトファイルを読み込んだとき、どう処理されますか?",
+   "answerKey": "readShareHash と readProject は try/catch で例外を握り、JSONでない・展開失敗・isProject の検証(groups/frames配列、各要素の妥当性)に失敗した場合は null を返す。クラッシュせず呼び出し側が無効として扱える。",
+   "rubric": {
+    "full": "try/catch で null を返すことと isProject による構造検証を述べる",
+    "partial": "null を返すことのみ"
+   },
+   "evidence": [
+    {
+     "path": "lib/share.ts",
+     "start": 55,
+     "end": 73
+    },
+    {
+     "path": "lib/project.ts",
+     "start": 66,
+     "end": 98
+    }
+   ],
+   "readmeAnswerable": false
+  }
+ ],
+ "dropped": [],
+ "answers": {
+  "none": [
+   {
+    "id": "q01",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   },
+   {
+    "id": "q02",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   },
+   {
+    "id": "q03",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   },
+   {
+    "id": "q04",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   },
+   {
+    "id": "q05",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   },
+   {
+    "id": "q06",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   },
+   {
+    "id": "q07",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   },
+   {
+    "id": "q08",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   },
+   {
+    "id": "q09",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   },
+   {
+    "id": "q10",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   }
+  ],
+  "readme": [
+   {
+    "id": "q01",
+    "answer": "不明",
+    "confidence": 0.1,
+    "basis": "unknown"
+   },
+   {
+    "id": "q02",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   },
+   {
+    "id": "q03",
+    "answer": "Material 3 Expressive の画面をブラウザで組み立てて、画面同士をつなぎ、タップして確かめ、AI コーディング用のプロンプトにするツール。バックエンドなし（localStorage）、データはブラウザに保存されます。",
+    "confidence": 0.95,
+    "basis": "material"
+   },
+   {
+    "id": "q04",
+    "answer": "不明。参照資料には CONTRIBUTING.md に説明があるとのみ記載（英語コメント、すべての文字列は4言語対応の規則）",
+    "confidence": 0.2,
+    "basis": "unknown"
+   },
+   {
+    "id": "q05",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   },
+   {
+    "id": "q06",
+    "answer": "ビルド時に `NEXT_PUBLIC_BASE_PATH=/リポジトリ名` を指定します。`.github/workflows/deploy.yml` が main への push ごとにこれを実行し、GitHub Pages に公開します。next.config.ts での反映方法は不明。",
+    "confidence": 0.7,
+    "basis": "material"
+   },
+   {
+    "id": "q07",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   },
+   {
+    "id": "q08",
+    "answer": "キーはブラウザ内にのみ保存され、リクエストはプロバイダへ直接送信されます。Claude とそれ以外の違いは不明。",
+    "confidence": 0.6,
+    "basis": "material"
+   },
+   {
+    "id": "q09",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   },
+   {
+    "id": "q10",
+    "answer": "不明",
+    "confidence": 0,
+    "basis": "unknown"
+   }
+  ],
+  "mitori": [
+   {
+    "id": "q01",
+    "answer": "Node版条件は材料に明記なし。PR前に実行すべき3コマンドは `npm run typecheck`（tsc --noEmit）、`npm run build`（next build）、`npm run test`（vitest run）",
+    "confidence": 0.6,
+    "basis": "material"
+   },
+   {
+    "id": "q02",
+    "answer": "app/page.tsx は静的な起動画面を表示し、その後 Editor を動的に読み込む (page.tsx:8-17)。起動中は起動画面を表示",
+    "confidence": 0.95,
+    "basis": "material"
+   },
+   {
+    "id": "q03",
+    "answer": "Material 3 Expressiveの部品でブラウザ上に画面をスケッチし、タップで試し、AIコーディングツール用プロンプトをコピーするエディタ。サーバー・バックエンド無し。データはブラウザの localStorage に保存 (README.md:17-20)",
+    "confidence": 0.99,
+    "basis": "material"
+   },
+   {
+    "id": "q04",
+    "answer": "lib/prompt.ts（プロンプト生成）と lib/i18n.ts（多言語辞書）を編集。言語追加時は itemJa・itemEn・itemZh・itemKo の分岐と UI・KO の対応表を揃える必要がある (i18n.ts:487-490)",
+    "confidence": 0.92,
+    "basis": "material"
+   },
+   {
+    "id": "q05",
+    "answer": "lib/tokens.ts の KIND_SPEC、sizeOf、baseRadii の3箇所の分岐を直す (tokens.ts:2448-2451, tokens.ts:2530-2532)。新しい Kind を足すときは全3箇所を揃える必要がある",
+    "confidence": 0.93,
+    "basis": "material"
+   },
+   {
+    "id": "q06",
+    "answer": "NEXT_PUBLIC_BASE_PATH 環境変数で basePath を指定。Editor.tsx:140、layout.tsx:4 などで読まれるが、next.config.ts の具体的な反映方法は材料に記載なし",
+    "confidence": 0.65,
+    "basis": "material"
+   },
+   {
+    "id": "q07",
+    "answer": "shareable が履歴を除き HTTP(s) URL のみを残し JSON に。CompressionStream で deflate-raw 圧縮して docz として、または doc として URL ハッシュに格納 (share.ts:12-21, share.ts:46-52)",
+    "confidence": 0.9,
+    "basis": "material"
+   },
+   {
+    "id": "q08",
+    "answer": "全プロバイダ (OpenAI、Anthropic、Google、DeepSeek) を同じ方法で呼び出す。APIキーは localStorage の m3e:ai に保存。ユーザー自身のキーでブラウザから直接呼ぶ (SECURITY.md:4-9)",
+    "confidence": 0.94,
+    "basis": "material"
+   },
+   {
+    "id": "q09",
+    "answer": "キーは localStorage に置き、isSecureUrl で URL の安全性を判定。http(s) 以外のリンクは linkUrlOf で null。キー無しでも画面描画・保存・共有はできる (SECURITY.md:4-9、tokens.ts:1711-1719)",
+    "confidence": 0.8,
+    "basis": "material"
+   },
+   {
+    "id": "q10",
+    "answer": "isProject で検証し通らなければ null を返す。readProject と readShareHash は解析失敗や形式不正で例外を投げず null で返す (project.ts:91-98、share.ts:56-73)",
+    "confidence": 0.95,
+    "basis": "material"
+   }
+  ]
+ },
+ "grades": [
+  {
+   "id": "q01",
+   "label": "A",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "none"
+  },
+  {
+   "id": "q01",
+   "label": "B",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "readme"
+  },
+  {
+   "id": "q01",
+   "label": "C",
+   "score": 0.5,
+   "hallucination": false,
+   "reason": "3コマンドのみ正しい。Node条件は欠落",
+   "condition": "mitori"
+  },
+  {
+   "id": "q02",
+   "label": "A",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "none"
+  },
+  {
+   "id": "q02",
+   "label": "B",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "readme"
+  },
+  {
+   "id": "q02",
+   "label": "C",
+   "score": 0.5,
+   "hallucination": false,
+   "reason": "動的読込と起動画面に触れるが詳細不足",
+   "condition": "mitori"
+  },
+  {
+   "id": "q03",
+   "label": "A",
+   "score": 1,
+   "hallucination": false,
+   "reason": "目的・サーバー無し・localStorage全て正しい",
+   "condition": "mitori"
+  },
+  {
+   "id": "q03",
+   "label": "B",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "none"
+  },
+  {
+   "id": "q03",
+   "label": "C",
+   "score": 1,
+   "hallucination": false,
+   "reason": "目的・バックエンド無し・localStorageを述べる",
+   "condition": "readme"
+  },
+  {
+   "id": "q04",
+   "label": "A",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明で、ファイル名なし",
+   "condition": "readme"
+  },
+  {
+   "id": "q04",
+   "label": "B",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "none"
+  },
+  {
+   "id": "q04",
+   "label": "C",
+   "score": 0.5,
+   "hallucination": false,
+   "reason": "prompt.ts挙げるが4言語規則は曖昧、i18nは余分",
+   "condition": "mitori"
+  },
+  {
+   "id": "q05",
+   "label": "A",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "readme"
+  },
+  {
+   "id": "q05",
+   "label": "B",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "none"
+  },
+  {
+   "id": "q05",
+   "label": "C",
+   "score": 0,
+   "hallucination": false,
+   "reason": "tokens.tsのみで1領域だけ",
+   "condition": "mitori"
+  },
+  {
+   "id": "q06",
+   "label": "A",
+   "score": 0.5,
+   "hallucination": true,
+   "reason": "環境変数は正しいがdeploy.yml主張は根拠なし",
+   "condition": "readme"
+  },
+  {
+   "id": "q06",
+   "label": "B",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "none"
+  },
+  {
+   "id": "q06",
+   "label": "C",
+   "score": 0.5,
+   "hallucination": false,
+   "reason": "環境変数名のみ正しい",
+   "condition": "mitori"
+  },
+  {
+   "id": "q07",
+   "label": "A",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "readme"
+  },
+  {
+   "id": "q07",
+   "label": "B",
+   "score": 0.5,
+   "hallucination": false,
+   "reason": "docz/doc形式と圧縮は述べるが除外が不正確",
+   "condition": "mitori"
+  },
+  {
+   "id": "q07",
+   "label": "C",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "none"
+  },
+  {
+   "id": "q08",
+   "label": "A",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "none"
+  },
+  {
+   "id": "q08",
+   "label": "B",
+   "score": 0.5,
+   "hallucination": true,
+   "reason": "保存は正しいが全プロバイダ同一方法は誤り",
+   "condition": "mitori"
+  },
+  {
+   "id": "q08",
+   "label": "C",
+   "score": 0.5,
+   "hallucination": false,
+   "reason": "直接送信と保存のみ正しい",
+   "condition": "readme"
+  },
+  {
+   "id": "q09",
+   "label": "A",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "none"
+  },
+  {
+   "id": "q09",
+   "label": "B",
+   "score": 0,
+   "hallucination": false,
+   "reason": "https/ローカル要件やinsecureに触れず不正確",
+   "condition": "mitori"
+  },
+  {
+   "id": "q09",
+   "label": "C",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "readme"
+  },
+  {
+   "id": "q10",
+   "label": "A",
+   "score": 1,
+   "hallucination": false,
+   "reason": "isProject検証とnull返却を正しく述べる",
+   "condition": "mitori"
+  },
+  {
+   "id": "q10",
+   "label": "B",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "none"
+  },
+  {
+   "id": "q10",
+   "label": "C",
+   "score": 0,
+   "hallucination": false,
+   "reason": "不明",
+   "condition": "readme"
+  }
+ ],
+ "scores": [
+  {
+   "condition": "none",
+   "mean": 0,
+   "hallucinationRate": 0,
+   "byLevel": {
+    "newcomer": 0,
+    "intermediate": 0,
+    "expert": 0
+   },
+   "notReadmeAnswerable": 0,
+   "unknown": 10
+  },
+  {
+   "condition": "readme",
+   "mean": 0.2,
+   "hallucinationRate": 0.1,
+   "byLevel": {
+    "newcomer": 0.25,
+    "intermediate": 0.25,
+    "expert": 0
+   },
+   "notReadmeAnswerable": 0.063,
+   "unknown": 7
+  },
+  {
+   "condition": "mitori",
+   "mean": 0.5,
+   "hallucinationRate": 0.1,
+   "byLevel": {
+    "newcomer": 0.625,
+    "intermediate": 0.375,
+    "expert": 0.5
+   },
+   "notReadmeAnswerable": 0.438,
+   "unknown": 0
+  }
+ ],
+ "calls": [
+  {
+   "role": "answer",
+   "condition": "none",
+   "model": "claude-haiku-4-5",
+   "apiUsd": 0.007755,
+   "in": 1880,
+   "out": 1175,
+   "ms": 10594,
+   "stop": "end"
+  },
+  {
+   "role": "answer",
+   "condition": "readme",
+   "model": "claude-haiku-4-5",
+   "apiUsd": 0.0268,
+   "in": 12474,
+   "out": 2242,
+   "ms": 18554,
+   "stop": "end"
+  },
+  {
+   "role": "answer",
+   "condition": "mitori",
+   "model": "claude-haiku-4-5",
+   "apiUsd": 0.032309,
+   "in": 14249,
+   "out": 2900,
+   "ms": 31624,
+   "stop": "end"
+  },
+  {
+   "role": "grader",
+   "model": "claude-sonnet-5-5",
+   "apiUsd": 0.042544,
+   "in": 11730,
+   "out": 1322,
+   "ms": 9197,
+   "stop": "end"
+  }
+ ],
+ "spentUsd": 0.109408,
+ "partial": false
+}

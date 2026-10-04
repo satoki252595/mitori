@@ -24,7 +24,14 @@ import { BLOCK_ASPECTS, kindsOf } from "./aspects.ts";
 import { isObject, parseCiteObject, parseClaims, short } from "./claims.ts";
 import { validateDiagram } from "./diagram.ts";
 import { headingProblem, inlineProblems, isGfmTable, mdLength } from "./mdrules.ts";
-import { codeRanges, markersInCode, normalizeMarkers, scanMarkers } from "./mdscan.ts";
+import { codeRanges, markersInCode, normalizeMarkers, placeMarkers, scanMarkers, stripMarkers, tightenFullWidth } from "./mdscan.ts";
+
+/** A cite that cannot be accepted as written. */
+interface CiteProblem {
+  rule: "V17" | "V18";
+  expected: string;
+  actual: string;
+}
 
 const LINE_TYPES: ReadonlySet<string> = new Set<GenLineType>(["block", "keep", "delete", "module", "flow", "term", "question", "verdict", "end"]);
 const KNOWN_KEYS: Readonly<Record<GenLineType, readonly string[]>> = {
@@ -101,6 +108,8 @@ export class GenLineValidator implements LineValidator {
   private readonly newRefs = new Set<string>();
   private readonly accounted = new Set<BlockId>();
   private readonly flowKeys: string[] = [];
+  /** Flows whose blocks were kept (regeneration) without a flow line of their own. */
+  private readonly keptFlows = new Set<string>();
   private readonly moduleLines = new Set<ModuleId>();
   private readonly accepted: { section: SectionId; aspect: BlockAspect | undefined }[] = [];
   private readonly flowsEnabled: boolean;
@@ -181,25 +190,30 @@ export class GenLineValidator implements LineValidator {
     const has = (section: SectionId | null, aspect: BlockAspect) =>
       this.accepted.some((a) => a.aspect === aspect && (section === null || a.section === section));
     const missing: BlockAspect[] = [];
+    const flowGaps: { key: string; aspect: BlockAspect }[] = [];
+    const flows = [...this.flowKeys, ...[...this.keptFlows].filter((k) => !this.flowKeys.includes(k))];
     if (this.flowsEnabled) {
       for (const a of ctx.requiredAspects) {
         if (!FLOW_ASPECTS.includes(a)) {
           if (!has(null, a)) missing.push(a);
           continue;
         }
-        if (this.flowKeys.some((k) => !has(`s3/${k}`, a))) missing.push(a);
+        const lacking = flows.filter((k) => !has(`s3/${k}`, a));
+        if (lacking.length > 0) missing.push(a);
+        for (const key of lacking) flowGaps.push({ key, aspect: a });
       }
     } else for (const a of ctx.requiredAspects) if (!has(null, a)) missing.push(a);
     const moduleLineMissing = ctx.moduleLineRequired && this.moduleLines.size === 0;
     const truncated = (stop === "budget" || stop === "max_turns") && !this.endSeen;
     return {
       missingAspects: missing,
+      ...(flowGaps.length > 0 ? { flowGaps } : {}),
       unaccounted: [...ctx.existing.keys()].filter((id) => !this.accounted.has(id)),
       moduleLineMissing,
-      flows: this.flowKeys.length,
+      flows: flows.length,
       blocks: this.accepted.length,
       truncated,
-      ok: missing.length === 0 && !moduleLineMissing && this.flowKeys.length >= ctx.flows.min && !truncated,
+      ok: missing.length === 0 && !moduleLineMissing && flows.length >= ctx.flows.min && !truncated,
     };
   }
 
@@ -267,15 +281,32 @@ export class GenLineValidator implements LineValidator {
       const norm = normalizeMarkers(mdNorm);
       if (norm.moved) c.warn("W07");
       mdNorm = norm.md;
+      if (ctx.lang === "ja") {
+        const tight = tightenFullWidth(mdNorm);
+        if (tight.changed) c.warn("W12");
+        mdNorm = tight.md;
+      }
     }
 
     const parsed = parseClaims(o.claims, GEN_LIMITS.claimsPerBlock, GEN_LIMITS.citesPerClaim);
     if (parsed.unknownKeys > 0) c.warn("W02");
+    if (parsed.aliased > 0) c.warn("W09");
     for (const p of parsed.problems) c.err("V03", p.at, p.expected, p.actual);
+    let claims = parsed.claims;
+    // a diagram caption is shown under its drawing, where markers are not rendered as cites, and the flow's steps carry
+    // the claims: both are dropped (W10) [real run 2026-10-04: a raw [[1]] under every m3e sequence diagram]
+    if (kind === "diagram" && mdOk && (claims.length > 0 || scanMarkers(mdNorm).length > 0)) {
+      mdNorm = stripMarkers(mdNorm);
+      claims = [];
+      c.warn("W10");
+    }
     // patch lines without "claims" (doc.translate / doc.simplify) keep the block's claims: markers [[1]]..[[n]] once each
     if (mdOk && patch && o.claims === undefined && existing) this.inheritedMarkers(mdNorm, existing.claims, c);
-    else if (mdOk) this.markers(mdNorm, parsed.claims, c);
-    for (const cl of parsed.claims) for (const [j, cite] of cl.cites.entries()) this.cite(cite, `/claims/${cl.n}/${j}`, c);
+    else if (mdOk) {
+      if (parsed.problems.length === 0) ({ md: mdNorm, claims } = this.repairMarkers(mdNorm, claims, c));
+      this.markers(mdNorm, claims, c);
+    }
+    claims = claims.map((cl) => this.claimCites(cl, c));
 
     let after: BlockId | NewBlockRef | undefined;
     if (o.after !== undefined) {
@@ -293,7 +324,7 @@ export class GenLineValidator implements LineValidator {
     if (ref) this.newRefs.add(ref);
     else this.accounted.add(id as BlockId);
     this.accepted.push({ section, aspect });
-    const value: GenBlockLine = { t: "block", id: ref ?? (id as BlockId), section, md: mdNorm, claims: parsed.claims };
+    const value: GenBlockLine = { t: "block", id: ref ?? (id as BlockId), section, md: mdNorm, claims };
     if (aspect) value.aspect = aspect;
     if (kind) value.kind = kind;
     if (depth) value.depth = depth;
@@ -342,11 +373,18 @@ export class GenLineValidator implements LineValidator {
       return norm;
     }
     if (aspect && this.flowsEnabled && FLOW_ASPECTS.includes(aspect)) {
-      const key = this.flowKeys.at(-1);
-      if (!key) {
+      const last = this.flowKeys.at(-1);
+      if (!last) {
         c.err("V24", "/aspect", "a flow line before the blocks of a flow", aspect);
         return null;
       }
+      // a flow has one block per REQUIRED aspect: when the current flow already has this one, the block belongs to
+      // the first flow that lacks it (a retry adds the missing steps of an earlier flow; real run 2026-10-04: m3e §3
+      // failed). An optional aspect (sequence, edge_cases) stays with the current flow: a second diagram of flow c is
+      // not a diagram of flow b, and moving it there would caption one flow with another's drawing.
+      if (!ctx.requiredAspects.includes(aspect)) return `s3/${last}`;
+      const taken = (k: string) => this.accepted.some((x) => x.section === `s3/${k}` && x.aspect === aspect);
+      const key = taken(last) ? (this.flowKeys.find((k) => !taken(k)) ?? last) : last;
       return `s3/${key}`;
     }
     if (aspect) for (const s of ctx.sections) if (ctx.aspectsOf(s).includes(aspect)) return s;
@@ -363,7 +401,11 @@ export class GenLineValidator implements LineValidator {
     if (!n.includes("/")) {
       for (const s of ctx.sections) if (s.includes("/") && s.slice(s.indexOf("/") + 1) === n) return s;
       if (this.flowsEnabled && this.flowKeys.includes(n)) return `s3/${n}`;
+      return null;
     }
+    // a task section with the aspect (or any sub-path) appended: `s10/decision`, `s6/app/interface` [real run 2026-10-04]
+    const prefix = [...ctx.sections].sort((a, b) => b.length - a.length).find((s) => n.startsWith(`${s}/`));
+    if (prefix && !(this.flowsEnabled && prefix === "s3")) return prefix;
     return null;
   }
 
@@ -464,13 +506,75 @@ export class GenLineValidator implements LineValidator {
       if (!seen.has(k)) c.err("V14", "/md", `marker [[${k}]] of the original block`, inCode.has(k) ? "marker only inside a code span" : "no marker");
   }
 
-  /** V17 / V18 with the W04 repairs applied virtually (the Verifier performs and records them). */
-  private cite(cite: RawCite, at: string, c: LineCheck): void {
-    const lines = this.ctx.citable.lines(cite.path);
-    if (lines === null) {
-      c.err("V17", at, "a path shown in the task", cite.path);
-      return;
+  /**
+   * W10 before V14: an orphan marker (a marker whose claim is missing) becomes an inferred claim — the sentence was
+   * meant as a claim and has no proof, which is exactly what "inferred" shows; a block that has claims but no
+   * marker at all gets one marker per sentence / list item when they are equally many ({@link placeMarkers}).
+   * Anything else is left to V14 (retried). Only for lines whose claims parsed cleanly.
+   */
+  private repairMarkers(md: string, claims: GenClaimDraft[], c: LineCheck): { md: string; claims: GenClaimDraft[] } {
+    const markers = scanMarkers(md);
+    const claimNs = new Set(claims.map((cl) => cl.n));
+    let out = claims;
+    let outMd = md;
+    let repaired = false;
+    if (markers.length === 0 && claims.length > 0) {
+      const placed = placeMarkers(
+        md,
+        claims.map((cl) => cl.n),
+      );
+      if (placed !== null) {
+        outMd = placed;
+        repaired = true;
+      }
+    } else if (new Set(markers.map((m) => m.n)).size === markers.length) {
+      // (a repeated marker is V14 whatever claims exist: no repair then)
+      const orphans = markers.map((m) => m.n).filter((n) => !claimNs.has(n));
+      if (orphans.length > 0 && orphans.length + claims.length <= GEN_LIMITS.claimsPerBlock) {
+        out = [...claims, ...orphans.map((n): GenClaimDraft => ({ n, kind: "fact", cites: [] }))].sort((a, b) => a.n - b.n);
+        repaired = true;
+      }
     }
+    if (repaired) c.warn("W10");
+    return { md: outMd, claims: out };
+  }
+
+  /** V17 / V18 of a claim's cites; an unshown cite (V17) is dropped (W11) while the claim keeps another valid cite. */
+  private claimCites(cl: GenClaimDraft, c: LineCheck): GenClaimDraft {
+    const keep: RawCite[] = [];
+    const unshown: { j: number; problem: CiteProblem }[] = [];
+    let clamped = false;
+    for (const [j, cite] of cl.cites.entries()) {
+      const p = this.citeProblem(cite, c);
+      if (p === null) keep.push(cite);
+      else if (p.rule === "V17") {
+        const part = this.shownPart(cite);
+        if (part) {
+          keep.push(part);
+          clamped = true;
+        } else unshown.push({ j, problem: p });
+      } else c.err(p.rule, `/claims/${cl.n}/${j}`, p.expected, p.actual);
+    }
+    if (clamped) c.warn("W04");
+    if (unshown.length === 0) return clamped ? { ...cl, cites: keep } : cl;
+    if (keep.length > 0 && keep.length + unshown.length === cl.cites.length) {
+      c.warn("W11");
+      return { ...cl, cites: keep };
+    }
+    for (const u of unshown) c.err("V17", `/claims/${cl.n}/${u.j}`, u.problem.expected, u.problem.actual);
+    return cl;
+  }
+
+  /** V17 / V18 with an error for a question cite. */
+  private cite(cite: RawCite, at: string, c: LineCheck): void {
+    const p = this.citeProblem(cite, c);
+    if (p) c.err(p.rule, at, p.expected, p.actual);
+  }
+
+  /** V17 / V18 with the W04 repairs applied virtually (the Verifier performs and records them); null = citable. */
+  private citeProblem(cite: RawCite, c: LineCheck): CiteProblem | null {
+    const lines = this.ctx.citable.lines(cite.path);
+    if (lines === null) return { rule: "V17", expected: "a path shown in the task", actual: cite.path };
     let { start, end } = cite;
     const slack = GEN_LIMITS.citeClampSlack;
     let repaired = false;
@@ -486,13 +590,42 @@ export class GenLineValidator implements LineValidator {
       end = lines;
       repaired = true;
     }
-    if (!(start >= 1 && start <= end && end <= lines) || end - start >= GEN_LIMITS.citeMaxSpan) {
-      c.err("V18", at, `1 ≤ start ≤ end ≤ ${lines} and fewer than ${GEN_LIMITS.citeMaxSpan} lines`, `${cite.path}:${cite.start}-${cite.end}`);
-      return;
-    }
+    if (!(start >= 1 && start <= end && end <= lines) || end - start >= GEN_LIMITS.citeMaxSpan)
+      return {
+        rule: "V18",
+        expected: `1 ≤ start ≤ end ≤ ${lines} and fewer than ${GEN_LIMITS.citeMaxSpan} lines`,
+        actual: `${cite.path}:${cite.start}-${cite.end}`,
+      };
     if (repaired) c.warn("W04");
     if (!this.ctx.citable.allows(cite.path, start, end))
-      c.err("V17", at, "lines shown in the task (N| lines, FACTS locations or given cites)", `${cite.path}:${cite.start}-${cite.end}`);
+      return { rule: "V17", expected: "lines shown in the task (N| lines, FACTS locations or given cites)", actual: `${cite.path}:${cite.start}-${cite.end}` };
+    return null;
+  }
+
+  /**
+   * W04 (clamp to the shown part): a range that runs past the lines shown in the task keeps its shown part when that
+   * part is at least half of it — the model saw those lines, and L1 still checks that they carry the claim's
+   * identifiers. Null when no such part exists (V17 stays). [real run 2026-10-04: 5 of 8 crit retries were one range
+   * a few lines longer than the shown body]
+   */
+  private shownPart(cite: RawCite): RawCite | null {
+    const lines = this.ctx.citable.lines(cite.path);
+    if (lines === null || cite.start < 1 || cite.end > lines || cite.start > cite.end) return null;
+    const { path, start, end } = cite;
+    const allows = (s: number, e: number) => this.ctx.citable.allows(path, s, e);
+    let best: [number, number] | null = null;
+    for (let e = end - 1; e >= start; e--)
+      if (allows(start, e)) {
+        best = [start, e];
+        break;
+      }
+    for (let s = start + 1; s <= end; s++)
+      if (allows(s, end)) {
+        if (!best || end - s > best[1] - best[0]) best = [s, end];
+        break;
+      }
+    if (!best || (best[1] - best[0] + 1) * 2 < end - start + 1) return null;
+    return { path, start: best[0], end: best[1] };
   }
 
   private keepDelete(t: "keep" | "delete", o: Record<string, unknown>, c: LineCheck): GenLine | null {
@@ -502,6 +635,14 @@ export class GenLineValidator implements LineValidator {
     else if (this.accounted.has(id as BlockId)) c.err("V26", "/id", "each EXISTING id accounted once", id);
     if (!c.ok) return null;
     this.accounted.add(id as BlockId);
+    // a kept block still covers its aspect (and its flow): otherwise a regeneration that keeps a page is told the
+    // required aspects are missing and writes them a second time [real run 2026-10-04: m3e §3 regen]
+    const ref = this.ctx.existing.get(id as BlockId);
+    if (t === "keep" && ref) {
+      const section = ref.section ?? this.ctx.primarySection;
+      this.accepted.push({ section, aspect: ref.aspect });
+      if (this.flowsEnabled && section.startsWith("s3/")) this.keptFlows.add(section.slice(3));
+    }
     return { t, id: id as BlockId };
   }
 
@@ -566,7 +707,13 @@ export class GenLineValidator implements LineValidator {
     if (typeof text !== "string" || text.length < 1 || text.length > GEN_LIMITS.questionChars)
       c.err("V03", "/text", `text string 1..${GEN_LIMITS.questionChars}`, text);
     let section: SectionId | undefined;
-    if (o.section !== undefined) {
+    const merged = typeof o.section === "string" ? o.section.trim().toLowerCase().replace(/_/g, "-") : "";
+    if (this.ctx.prompt === "gen.questions" && SECTION_RE.test(merged)) {
+      // the consolidated list keeps "the section of the most specific source" (§5.6.10): any section, not only s13
+      // [real run 2026-10-04: crit's consolidation was rejected whole (V05) and resent from the start]
+      section = merged as SectionId;
+      if (merged !== o.section) c.warn("W03");
+    } else if (o.section !== undefined) {
       if (typeof o.section !== "string") c.err("V03", "/section", "section string", o.section);
       else {
         const norm = this.normalizeSection(o.section);

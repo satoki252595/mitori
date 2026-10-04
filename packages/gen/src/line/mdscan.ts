@@ -154,6 +154,89 @@ export function normalizeMarkers(md: string): { md: string; moved: boolean } {
   return { md: out, moved };
 }
 
+const LIST_ITEM_RE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+\S/;
+const FULL_WIDTH_PUNCT = "。、）」』！？：；";
+
+/**
+ * W10: place the markers `ns` (in this order) one per unit of a block that has claims but no marker at all — one
+ * per list item for a list, one per sentence for prose — before the unit's final punctuation. Only when the units
+ * and the claims are equally many (otherwise which sentence a claim proves is a guess, and the line is retried).
+ * Tables and fenced code are never touched. Returns null when no placement is safe.
+ */
+export function placeMarkers(md: string, ns: readonly number[]): string | null {
+  if (ns.length === 0 || md.includes("|") || fencedLines(md).some(Boolean)) return null;
+  const ranges = codeRanges(md);
+  if (scanMarkers(md, ranges).length > 0) return null;
+  const lines = md.split("\n");
+  const nonEmpty = lines.filter((l) => l.trim() !== "");
+  const ends: number[] = [];
+  if (nonEmpty.length > 0 && nonEmpty.every((l) => LIST_ITEM_RE.test(l))) {
+    let pos = 0;
+    for (const l of lines) {
+      if (l.trim() !== "") ends.push(pos + l.trimEnd().length);
+      pos += l.length + 1;
+    }
+  } else {
+    if (nonEmpty.some((l) => LIST_ITEM_RE.test(l))) return null;
+    let last = 0;
+    for (let i = 0; i < md.length; i++) {
+      if (inRanges(ranges, i)) continue;
+      const ch = md[i] as string;
+      const full = "。．！？".includes(ch);
+      const half = "!?.".includes(ch) && /\s|$/.test(md[i + 1] ?? "") && i > 0 && /[A-Za-z)\]`'"]/.test(md[i - 1] ?? "");
+      if (!full && !half) continue;
+      let k = i + 1;
+      while (k < md.length && CLOSERS.includes(md[k] as string)) k++;
+      if (md.slice(last, i).trim() !== "") ends.push(k);
+      last = k;
+    }
+    if (md.slice(last).trim() !== "") ends.push(md.trimEnd().length);
+  }
+  if (ends.length !== ns.length) return null;
+  let out = md;
+  for (let u = ends.length - 1; u >= 0; u--) {
+    let at = ends[u] as number;
+    // before the closers and the terminator of the unit (`返す。」` → `返す[[1]]。」`)
+    while (at > 0 && CLOSERS.includes(out[at - 1] as string) && !inRanges(ranges, at - 1)) at--;
+    while (at > 0 && TERMINATORS.includes(out[at - 1] as string) && !inRanges(ranges, at - 1)) at--;
+    out = `${out.slice(0, at)}[[${ns[u]}]]${out.slice(at)}`;
+  }
+  return out;
+}
+
+/** `md` without its `[[n]]` markers (outside code). */
+export function stripMarkers(md: string): string {
+  const markers = scanMarkers(md);
+  let out = md;
+  for (let i = markers.length - 1; i >= 0; i--) {
+    const m = markers[i] as Marker;
+    out = out.slice(0, m.start) + out.slice(m.end);
+  }
+  return out;
+}
+
+/**
+ * W12 (Japanese): drop the spaces models put after full-width punctuation (`返す。 次に`, `（推測）。 AI`). The style
+ * rule asks for one ASCII space only between Japanese and Latin text; after 。、）」 it shows as a gap. Code is kept.
+ */
+export function tightenFullWidth(md: string): { md: string; changed: boolean } {
+  const ranges = codeRanges(md);
+  let out = "";
+  let changed = false;
+  for (let i = 0; i < md.length; i++) {
+    const ch = md[i] as string;
+    out += ch;
+    if (!FULL_WIDTH_PUNCT.includes(ch) || inRanges(ranges, i)) continue;
+    let k = i + 1;
+    while (md[k] === " " || md[k] === "\t") k++;
+    if (k > i + 1 && k < md.length && md[k] !== "\n" && md[k] !== "|") {
+      changed = true;
+      i = k - 1;
+    }
+  }
+  return { md: out, changed };
+}
+
 /** Contents of the inline code spans of `md` (CommonMark: one surrounding space is stripped when both sides have one). */
 export function codeSpans(md: string): string[] {
   const out: string[] = [];

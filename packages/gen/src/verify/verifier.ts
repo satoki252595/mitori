@@ -78,12 +78,29 @@ export function createVerifier(deps: VerifierDeps): GenVerifier {
     return { blob: used, text, lines: splitLines(text), current: used === current };
   }
 
-  async function symbolOf(path: RepoPath, l: Loaded, start: LineNo, end: LineNo): Promise<SymbolKey | undefined> {
-    if (l.current) return deps.indexer.enclosingSymbol(path, start, end)?.key;
+  /** The innermost symbol whose lines contain start..end (at the loaded blob). */
+  async function enclosing(path: RepoPath, l: Loaded, start: LineNo, end: LineNo): Promise<SymbolEntry | undefined> {
+    if (l.current) return deps.indexer.enclosingSymbol(path, start, end) ?? undefined;
     const symbols = await deps.indexer.symbolsAt(path, l.blob);
     let best: SymbolEntry | undefined;
     for (const s of symbols ?? []) if (s.start <= start && s.end >= end && (!best || s.end - s.start < best.end - best.start)) best = s;
-    return best?.key;
+    return best;
+  }
+
+  async function symbolOf(path: RepoPath, l: Loaded, start: LineNo, end: LineNo): Promise<SymbolKey | undefined> {
+    return (await enclosing(path, l, start, end))?.key;
+  }
+
+  /**
+   * L1 scope of a window: the qualified name of its enclosing symbol (`Server.handleLogin`) and the file's directory
+   * name, which is the package qualifier in Go (`clicmd.Exit` citing internal/clicmd/clicmd.go) and the module name in
+   * most layouts [real run 2026-10-04: 6 of 32 crit L1 failures were package-qualified Go names].
+   */
+  async function scopeOf(path: RepoPath, l: Loaded, start: LineNo, end: LineNo): Promise<string[]> {
+    const s = await enclosing(path, l, start, end);
+    const dirs = path.split("/").slice(0, -1);
+    const dir = dirs[dirs.length - 1];
+    return [...(s ? [s.qualname] : []), ...(dir ? [dir] : [])];
   }
 
   async function stamp(raw: readonly RawCite[], span: ClaimSpan, snapshot: Xxh3 | null, pack: Xxh3 | null): Promise<StampResult> {
@@ -119,7 +136,7 @@ export function createVerifier(deps: VerifierDeps): GenVerifier {
         l0 = false;
         continue;
       }
-      windows.push({ path: c.path, loaded, lines: loaded.lines, start, end });
+      windows.push({ path: c.path, loaded, lines: loaded.lines, start, end, scope: await scopeOf(c.path, loaded, start, end) });
     }
     let result = raw.length === 0 || windows.length === 0 ? "vacuous" : l1(span.identifiers, windows);
     if (raw.length > 0 && windows.length > 0 && result === "vacuous") deps.metrics?.inc("gen.cite.l1.vacuous");
@@ -174,7 +191,7 @@ export function createVerifier(deps: VerifierDeps): GenVerifier {
             l2 = false;
             continue;
           }
-          windows.push({ path: c.path, lines: loaded.lines, start: c.start, end: c.end });
+          windows.push({ path: c.path, lines: loaded.lines, start: c.start, end: c.end, scope: await scopeOf(c.path, loaded, c.start, c.end) });
           if (deps.anchors.codeAnchor(c.path, c.start, c.end, loaded.text, loaded.blob, c.symbol).snippet !== c.snippet) l2 = false;
         }
         const res = claim.cites.length === 0 || windows.length === 0 ? "vacuous" : l1(identifiers, windows);

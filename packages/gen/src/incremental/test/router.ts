@@ -181,6 +181,14 @@ export function s9Router(opts: S9RouterOptions = {}): (call: GenCall, t: Turn) =
         return { lines: [...out, end(out.length)] };
       }
       case "gen.deepdive": {
+        if (msg.includes("TASK: Write per-file notes")) {
+          // files mode (complete): one note per file of FILES, citing the file's first shown line
+          const notes = dataSection(msg, "FILES")
+            .map((l) => /^=== (\S+) · /.exec(l)?.[1])
+            .filter((p): p is string => p !== undefined)
+            .map((p, i) => j({ t: "block", id: `new:${i + 1}`, aspect: "files", md: `\`${p}\` の中身を説明する[[1]]。`, claims: { "1": `fact ${p}:1` } }));
+          return { lines: [...notes, end(notes.length)] };
+        }
         const id = /^> block (b_\w{8})/m.exec(dataSection(msg, "TOPIC").join("\n"))?.[1] as string;
         const shown = firstShown(msg);
         const cite = shown ? `behavior ${shown.path}:${shown.line}-${shown.line}` : "behavior";

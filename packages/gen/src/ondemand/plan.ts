@@ -12,6 +12,7 @@ import { GEN_ESTIMATE_PARAMS, GEN_PROMPTS, type GenPlan, type GenPromptId, type 
 import { modelOf } from "../planner/params.ts";
 import { engineOf, planTaskId } from "../planner/planner.ts";
 import { LABELS_PER_CALL } from "../prompts/inputs.ts";
+import { genFlowSeeds } from "../prompts/seeds.ts";
 import { SYSTEM_TEMPLATES } from "../prompts/templates.ts";
 
 /** What scoped planning reads. */
@@ -149,7 +150,7 @@ export function sectionTasks(env: ScopeEnv, engine: EngineId, section: SectionId
     ];
   const prompt = SECTION_PROMPT[top];
   if (!prompt) return [];
-  if (prompt === "gen.flows" && ix.flowSeeds(8).length === 0) return [];
+  if (prompt === "gen.flows" && genFlowSeeds(ix).length === 0) return [];
   if (prompt === "gen.datamodel" && ix.facts("schema").length === 0) return [];
   const pages = env.doc.index().modules.filter((e) => (env.doc.section(e.section)?.blocks ?? []).some((b) => b.origin === "ai")).length;
   const out =

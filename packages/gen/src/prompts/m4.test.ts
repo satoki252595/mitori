@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { RepoPath } from "@mitori/core";
 import { makeS9Harness, type S9Harness } from "../incremental/test/harness.ts";
 import { dataSection } from "../incremental/test/router.ts";
 import { type FakeRepo, sampleRepo } from "../test/repo.ts";
@@ -86,5 +87,63 @@ describe("GEN-M4-02 open questions (§13, §5.6.10)", () => {
     expect(dataSection(u, "RAW").length).toBe(16);
     expect(dataSection(u, "RAW")[0]).toMatch(/^> q1 s6\/\w+ \| md_a\w{7} の問い 1 \| $/);
     expect(h.aiBlocks("s13").map((b) => h.doc.markerForm(b.id))).toEqual(["統合した問い（16 件から）"]);
+  });
+});
+
+describe("GEN-M4-03 complete effort: per-file notes (S8 gen.deepdive files, §3.2, §5.6.12)", () => {
+  test("every paged leaf gets per-file notes from a FILES chunk; a rerun replays them from the cache", async () => {
+    const h = makeS9Harness({ repo: m4Repo() });
+    await h.applyStatic();
+    const { run } = await h.generate("complete");
+    expect(run?.run.state).toBe("done");
+    const calls = h.engine.calls.filter((c) => c.call.spec.id === "gen.deepdive");
+    expect(calls.length).toBe(4);
+    const session = calls.find((c) => c.call.layout.unit.includes("=== src/session/store.ts"))?.call.layout.unit ?? "";
+    expect(session).toContain("TASK: Write per-file notes for module md_a0000001");
+    expect(dataSection(session, "FILES").slice(0, 2)).toEqual(["=== src/session/store.ts · lines 1-25", "1|// Session store keeps sessions in memory."]);
+    expect(dataSection(session, "EXISTING")).toEqual([]);
+    expect(run?.tasks.filter((t) => t.stage === "S8").map((t) => t.state)).toEqual(["done", "done", "done", "done"]);
+    const page = h.doc.index().modules.find((e) => e.id === "md_a0000001")?.section ?? "";
+    const notes = h.aiBlocks(page).filter((b) => b.aspect === "files");
+    expect(notes.map((b) => [b.kind, b.depth])).toEqual([["deepdive", "L3"]]);
+    expect(h.doc.markerForm(notes[0]?.id as never)).toBe("`src/session/store.ts` の中身を説明する[[1]]。");
+    // a second run replays every task from the cache and keeps the notes as they are
+    const again = await h.generate("complete");
+    expect(again.run?.tasks.filter((t) => t.stage === "S8").every((t) => t.state === "cached")).toBe(true);
+    expect(
+      h
+        .aiBlocks(page)
+        .filter((b) => b.aspect === "files")
+        .map((b) => b.id),
+    ).toEqual(notes.map((b) => b.id));
+  });
+
+  test("a later module page regeneration neither lists nor removes the per-file notes (verifier 2026-10-04)", async () => {
+    const h = makeS9Harness({ repo: m4Repo() });
+    await h.applyStatic();
+    await h.generate("complete");
+    const page = h.doc.index().modules.find((e) => e.id === "md_a0000001")?.section ?? "";
+    const notes = h.aiBlocks(page).filter((b) => b.aspect === "files");
+    expect(notes.length).toBe(1);
+    const before = h.engine.calls.filter((c) => c.call.spec.id === "gen.module").length;
+    // a signature change in the module: the standard run regenerates its page (new SKELETON ⇒ new cache key)
+    const path = "src/session/store.ts" as RepoPath;
+    h.edit(path, (h.repo.files[path] ?? "").replace("put(s: Session): void {", "put(s: Session): boolean {"));
+    await h.applyStatic();
+    const { run } = await h.generate("standard");
+    expect(run?.run.state).toBe("done");
+    const regen = h.engine.calls.filter((c) => c.call.spec.id === "gen.module").slice(before);
+    const unit = regen.find((c) => c.call.layout.unit.includes("md_a0000001"))?.call.layout.unit ?? "";
+    expect(unit).not.toBe("");
+    // EXISTING of the page lists its own blocks only, never a note
+    const listed = dataSection(unit, "EXISTING");
+    expect(listed.length).toBeGreaterThan(0);
+    expect(listed.some((l) => l.includes("aspect=files"))).toBe(false);
+    expect(
+      h
+        .aiBlocks(page)
+        .filter((b) => b.aspect === "files")
+        .map((b) => b.id),
+    ).toEqual(notes.map((b) => b.id));
   });
 });

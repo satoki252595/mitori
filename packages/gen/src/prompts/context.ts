@@ -110,18 +110,19 @@ export class CitableBuilder {
   }
 }
 
-const EXISTING_RE = /^> (b_[0-9a-hjkmnp-tv-z]{8}) aspect=(\S+) kind=(\S+) depth=\S+ stale=(yes|no) lock=(human|-) claims=(\d+)/;
+const EXISTING_RE = /^> (b_[0-9a-hjkmnp-tv-z]{8})(?: section=(\S+))? aspect=(\S+) kind=(\S+) depth=\S+ stale=(yes|no) lock=(human|-) claims=(\d+)/;
 
-/** Parse EXISTING lines back into refs. */
+/** Parse EXISTING lines back into refs (`section=` appears when the task lists several sections, e.g. the flows). */
 export function parseExisting(lines: readonly string[]): Map<BlockId, ExistingRef> {
   const out = new Map<BlockId, ExistingRef>();
   for (const l of lines) {
     const m = EXISTING_RE.exec(l);
     if (!m) continue;
     const id = m[1] as BlockId;
-    const ref: ExistingRef = { id, kind: m[3] as BlockKind, origin: m[5] === "human" ? "human" : "ai", stale: m[4] === "yes", claims: Number(m[6]) };
-    if (m[2] !== "-") ref.aspect = m[2] as BlockAspect;
-    if (m[5] === "human") ref.lock = "human-edited";
+    const ref: ExistingRef = { id, kind: m[4] as BlockKind, origin: m[6] === "human" ? "human" : "ai", stale: m[5] === "yes", claims: Number(m[7]) };
+    if (m[3] !== "-") ref.aspect = m[3] as BlockAspect;
+    if (m[6] === "human") ref.lock = "human-edited";
+    if (m[2]) ref.section = m[2] as SectionId;
     out.set(id, ref);
   }
   return out;
@@ -148,7 +149,8 @@ export function parseBlocks(lines: readonly string[]): Map<BlockId, ExistingRef>
 
 /** Where a task's answerable blocks are listed: EXISTING (gen.* regeneration), BLOCKS (doc.*), TOPIC (deep dive). */
 function existingOf(prompt: GenPromptId, sections: ReadonlyMap<string, readonly string[]>): Map<BlockId, ExistingRef> {
-  if (prompt === "gen.deepdive") return parseBlocks(sections.get("TOPIC") ?? []);
+  // topic mode replaces the placeholder in TOPIC; files mode (complete effort) regenerates its notes from EXISTING
+  if (prompt === "gen.deepdive") return sections.has("TOPIC") ? parseBlocks(sections.get("TOPIC") ?? []) : parseExisting(sections.get("EXISTING") ?? []);
   if (GEN_PROMPTS[prompt].form === "patch") return parseBlocks(sections.get("BLOCKS") ?? []);
   return parseExisting(sections.get("EXISTING") ?? []);
 }
@@ -199,7 +201,17 @@ export function buildContext(
     modules,
     citable: citable.build(index),
     flows: task.prompt === "gen.flows" ? flowLimits(seeds) : { min: 0, max: 0 },
-    requiredAspects: spec.requiredAspects,
+    requiredAspects: requiredAspectsOf(task.prompt, spec.requiredAspects, sections),
     moduleLineRequired: task.prompt === "gen.module" || task.prompt === "gen.parent",
   };
+}
+
+/**
+ * Required aspects of a task: the prompt's, except `interface` for a module page whose MODULE says `exported: 0` (a
+ * stylesheet, a script directory): there is no exported surface to describe, and requiring one only buys a retry and a
+ * filler block [real run 2026-10-04: crit web/style.css].
+ */
+export function requiredAspectsOf(prompt: GenPromptId, required: readonly BlockAspect[], sections: ReadonlyMap<string, readonly string[]>): BlockAspect[] {
+  if (prompt === "gen.module" && (sections.get("MODULE") ?? []).includes("> exported: 0")) return required.filter((a) => a !== "interface");
+  return [...required];
 }

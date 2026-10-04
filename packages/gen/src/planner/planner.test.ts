@@ -70,6 +70,23 @@ describe("GEN-U-001 effort tiers", () => {
     expect(planner.plan({ effort: "complete" }).eager.length).toBe(4);
   });
 
+  test("complete ≠ standard: quality on the overview model at medium, S8 per-file notes per leaf (§3.2), a larger estimate", () => {
+    const { planner, estimator } = setup();
+    const std = planner.plan({ effort: "standard" });
+    const plan = planner.plan({ effort: "complete" });
+    const notes = plan.tasks.filter((t) => t.prompt === "gen.deepdive");
+    expect(notes.map((t) => `${t.mode}:${t.target.id}`).sort()).toEqual([M_AUTH, M_CLI, M_HTTP, M_SESSION].map((m) => `files:${m}`).sort());
+    for (const t of notes) {
+      expect(t.stage).toBe("S8");
+      expect(t.deps).toEqual([plan.tasks.find((p) => p.prompt === "gen.module" && p.target.id === t.target.id)?.id as `gt_${string}`]);
+      expect(t.estimate.out).toBeGreaterThan(0);
+    }
+    const quality = plan.tasks.find((t) => t.prompt === "gen.quality");
+    expect(quality).toMatchObject({ mode: "complete", model: "claude-opus-5-5", effort: "medium" });
+    expect(std.tasks.find((t) => t.prompt === "gen.quality")).toMatchObject({ model: "claude-sonnet-5-5", effort: "low" });
+    expect(estimator.estimate(plan, "claude-cli", 3).apiUsd).toBeGreaterThan(estimator.estimate(std, "claude-cli", 3).apiUsd);
+  });
+
   test("hard deps: S6 ← its children, final ← early + pages + labels, flows ← S5, glossary ← pages + final + flows", () => {
     const { planner } = setup();
     const plan = planner.plan({ effort: "standard" });
@@ -171,7 +188,8 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
       est.stages.reduce((n, s) => n + s.apiUsd, 0),
       5,
     );
-    expect(Math.abs(est.seconds.p90 - est.seconds.p50 * 1.35)).toBeLessThanOrEqual(1);
+    // both are rounded to whole seconds: |round(1.35x) − 1.35·round(x)| ≤ 0.5 + 1.35 × 0.5
+    expect(Math.abs(est.seconds.p90 - est.seconds.p50 * 1.35)).toBeLessThanOrEqual(1.175);
     expect(est.stages.map((s) => s.stage)).toEqual(["S6o", "S5", "S6"]);
     expect(est.stages.find((s) => s.stage === "S5")?.tasks).toBe(4);
     expect(est.expiresAt).toBe("2026-10-03T00:10:00.000Z");
@@ -206,12 +224,12 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
     const cold = estimator.task({ ...t, estimate: { ...t.estimate } }, "claude-cli", false);
     expect(cold).toMatchObject({ prefix: 11550, tail: 14100, out: O, thinking: th, cacheWrite: P + 14100, cacheRead: 0, uncached: 0 });
     expect(cold.apiUsd).toBeCloseTo(usd(1), 6);
-    expect(cold.seconds).toBeCloseTo(2.5 + 4.0 + (O + th) / 125, 1);
+    expect(cold.seconds).toBeCloseTo(1.0 + 1.0 + (O + th) / 135, 1);
     const warm = estimator.task({ ...t, estimate: { ...t.estimate } }, "claude-cli", true);
     expect(warm).toMatchObject({ cacheWrite: 14100, cacheRead: P });
     expect(warm.apiUsd).toBeCloseTo(usd(0), 6);
     // session: same $ formula (reference value), no start-up σ in the task duration
-    expect(estimator.task({ ...t, estimate: { ...t.estimate } }, "session", true).seconds).toBeCloseTo(4.0 + (O + th) / 125, 1);
+    expect(estimator.task({ ...t, estimate: { ...t.estimate } }, "session", true).seconds).toBeCloseTo(1.0 + (O + th) / 135, 1);
     // the expected line-retry (dogfood M-2): r × (conversation re-read + reply written + retryCost × reply)
     const r = GEN_ESTIMATE_PARAMS.retryRate;
     const k = GEN_ESTIMATE_PARAMS.retryCost;
@@ -243,7 +261,8 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
     expect(sim.criticalPathSec).toBeCloseTo(longest, 0);
     expect(sim.criticalPathSec).toBeLessThanOrEqual(sim.makespanSec);
     expect(estimator.estimate(plan, "claude-cli", 3).criticalPathSeconds).toBe(sim.criticalPathSec);
-    expect(sim.firstBlockSec).toBeGreaterThan(5);
+    // measured on claude-cli 2026-10-04: the first AI block arrives after 2.8–4.3 s
+    expect(sim.firstBlockSec).toBeGreaterThan(2);
     expect(sim.firstBlockSec).toBeLessThan(20);
   });
 
