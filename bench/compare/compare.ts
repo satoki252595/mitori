@@ -328,7 +328,7 @@ async function main(argv: readonly string[]): Promise<number> {
       baseSha = baseTree.sha;
     }
     keepAwake();
-    const quiet = values["no-wait"] ? { loadavg: 0, noisy: false } : await waitForQuiet();
+    const quiet = await waitForQuiet(values["no-wait"] ? { retries: 0 } : {});
     if (quiet.noisy) console.error(`bench:compare: the machine is busy (load ${fmt(quiet.loadavg)}); numbers may be noisy`);
     const f = values["no-absolute"] ? { factor: 1, source: "assumed" as const } : measureFactor(headRoot);
     const pairs = values.pairs ? Number(values.pairs) : undefined;

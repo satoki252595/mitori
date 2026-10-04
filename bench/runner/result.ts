@@ -13,6 +13,8 @@ export interface BenchResultEntry extends Samples {
   budgetStat: "median" | "p95";
   /** The case threw; `values` is empty. */
   error?: string;
+  /** 1-minute load average when this case started (a long run's load changes between cases). */
+  loadavg?: number;
 }
 
 export interface BenchResultFile {

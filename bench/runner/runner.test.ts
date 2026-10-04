@@ -263,6 +263,28 @@ describe("BENCH-U-13 budget verdicts", () => {
     expect(gateResult(file([entry("a.fast", "ms", [], { error: "boom" })]), bs).errors).toEqual([{ id: "a.fast", error: "boom" }]);
   });
 
+  test("a loaded machine reports time budgets as skipped instead of failing them; sizes still gate", () => {
+    const bs = budgets([
+      { ...B, id: "a.slow" },
+      { ...B, id: "a.bytes", scale: "none", unit: "KB", gates: ["structural"] },
+    ]);
+    const loaded = file([entry("a.slow", "ms", [25])]);
+    loaded.machine = { ...loaded.machine, cores: 18, loadavg: 30, noisy: true };
+    const g = gateResult(loaded, bs);
+    expect(g.ok).toBe(true);
+    expect(g.verdicts[0]).toMatchObject({ level: "red", gating: false, skipped: "machine under load (loadavg 30.00)" });
+    // the load of the case itself counts too: the run started quiet, this case did not
+    const lateLoad = file([entry("a.slow", "ms", [25], { loadavg: 12 })]);
+    lateLoad.machine = { ...lateLoad.machine, cores: 18, loadavg: 2 };
+    expect(gateResult(lateLoad, bs)).toMatchObject({ ok: true, verdicts: [{ skipped: "machine under load (loadavg 12.00)" }] });
+    const quiet = file([entry("a.slow", "ms", [25], { loadavg: 3 })]);
+    quiet.machine = { ...quiet.machine, cores: 18, loadavg: 2 };
+    expect(gateResult(quiet, bs).ok).toBe(false);
+    const big = file([entry("a.bytes", "KB", [25])]);
+    big.machine = { ...big.machine, cores: 18, loadavg: 30, noisy: true };
+    expect(gateResult(big, bs).ok).toBe(false);
+  });
+
   test("budgetStat p95 feeds the p95 into the budget", () => {
     const bs = budgets([{ ...B, id: "a.p" }]);
     const values = [1, 1, 1, 1, 1, 1, 1, 1, 1, 30];
