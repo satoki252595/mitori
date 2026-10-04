@@ -117,6 +117,7 @@ import type {
   SubscriptionWindow,
   SuggestionId,
   SymbolEntry,
+  SymbolKind,
   SymbolKey,
   TextQuote,
   Thread,
@@ -564,6 +565,11 @@ export interface FileContent {
   symbols: SymbolEntry[];
   /** Doc blocks citing ranges in this file (gutter backlinks). */
   backlinks: { block: BlockId; section: SectionId; start: LineNo; end: LineNo }[];
+  /**
+   * NC-07: the file's top-level symbols (name, kind, first line), only for files over 300 lines — a 4,300-line hub
+   * opened without a map of itself told the reader nothing about where to look.
+   */
+  outline?: { name: string; kind: SymbolKind; line: LineNo; exported: boolean }[];
   /**
    * Server-rendered Shiki (css-variables theme) HTML of `text`, one `span[data-line]` per line; present with
    * `?html=1` (code mode, S3 — the client never highlights) [CR ux-R6]. Tokenized from the per-blob full-file

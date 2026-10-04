@@ -66,6 +66,15 @@ $effect(() => {
   <aside class="backlinks" aria-label={t("code.backlinks")} data-chrome>
     <h2 class="rail-label">{t("code.backlinks")}</h2>
     {#if content && route.name === "code"}
+      {#if content.outline?.length}
+        <h2 class="rail-label outline-h">{t("code.outline", { n: content.outline.length })}</h2>
+        <ol class="outline">
+          {#each content.outline as o (`${o.name}:${o.line}`)}
+            <li><a href={HREFS.code(route.ws, content.path, o.line)} class:exp={o.exported}><span class="mono" data-user-content>{o.name}</span> <span class="mono ln">L{o.line}</span></a></li>
+          {/each}
+        </ol>
+        <h2 class="rail-label">{t("code.backlinks")}</h2>
+      {/if}
       {#each content.backlinks as b (`${b.block}:${b.start}-${b.end}`)}
         <a class="bl" href={HREFS.doc(route.ws, b.section, b.block)}><span class="mono">&sect;{s.doc.index?.numbers.get(b.section) ?? b.section}</span> <span class="mono">L{b.start}&ndash;{b.end}</span></a>
       {:else}
@@ -76,6 +85,31 @@ $effect(() => {
 </div>
 
 <style>
+  .outline {
+    list-style: none;
+    margin: 0 0 18px;
+    padding: 0;
+    max-height: 40vh;
+    overflow-y: auto;
+    font-size: var(--fs-meta);
+  }
+  .outline a {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 2px 0;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .outline a.exp {
+    color: var(--text);
+  }
+  .outline a:hover {
+    color: var(--ink);
+  }
+  .outline .ln {
+    color: var(--faint);
+  }
   .code-main {
     position: sticky;
     top: var(--hdr);

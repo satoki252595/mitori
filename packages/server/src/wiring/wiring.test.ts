@@ -177,3 +177,22 @@ describe("EX-07 code view backlinks", () => {
     expect(new Set(rows.map((r) => `${r.block}:${r.start}-${r.end}`)).size).toBe(rows.length);
   });
 });
+
+describe("NC-07 code view outline", () => {
+  test("top-level symbols in file order, fields / tests / members left out", async () => {
+    const { fileOutline } = await import("./views.ts");
+    const sym = (name: string, kind: string, start: number, extra: Record<string, unknown> = {}) =>
+      ({ name, kind, start, end: start + 5, exported: true, ...extra }) as never;
+    const out = fileOutline([
+      sym("Editor", "function", 453),
+      sym("useStore", "function", 120),
+      sym("x", "field", 10),
+      sym("inner", "function", 460, { parent: "k" }),
+      sym("TestA", "test", 900),
+    ]);
+    expect(out.map((o) => [o.name, o.line])).toEqual([
+      ["useStore", 120],
+      ["Editor", 453],
+    ]);
+  });
+});

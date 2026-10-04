@@ -30,6 +30,7 @@ import {
   type SectionNode,
   type SectionView,
   type SourceLang,
+  type SymbolEntry,
   type Verdict,
   type WorkspaceKey,
   type Xxh3,
@@ -366,6 +367,16 @@ export function fileBacklinks(
   return out.sort((a, b) => hits(a) - hits(b) || a.start - b.start || a.end - b.end || (a.block < b.block ? -1 : a.block > b.block ? 1 : 0));
 }
 
+/** Files longer than this get an outline in the code view (NC-07). */
+export const OUTLINE_MIN_LINES = 300;
+
+/** Top-level symbols (no parent), in file order, ≤ 200; exported first when there are more. */
+export function fileOutline(syms: readonly SymbolEntry[]): NonNullable<FileContent["outline"]> {
+  const top = syms.filter((s) => !s.parent && s.kind !== "field" && s.kind !== "test");
+  const pick = top.length > 200 ? top.filter((s) => s.exported).slice(0, 200) : top;
+  return [...pick].sort((a, b) => a.start - b.start).map((s) => ({ name: s.name, kind: s.kind, line: s.start, exported: s.exported }));
+}
+
 export async function fileContent(
   indexer: Indexer,
   doc: DocStore,
@@ -389,6 +400,7 @@ export async function fileContent(
     startLine: start,
     totalLines: total,
     symbols: indexer.symbols(q.path).filter((s) => s.end >= start && s.start <= end),
+    ...(total > OUTLINE_MIN_LINES ? { outline: fileOutline(indexer.symbols(q.path)) } : {}),
     backlinks,
   };
   if (q.html) out.html = await highlightLines(pool, whole.text, entry.lang, whole.blob, start, end);
