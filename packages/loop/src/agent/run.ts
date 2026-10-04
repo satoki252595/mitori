@@ -19,6 +19,7 @@ import { checkScopeOrFail, checkText, engineError, finishOutcomes, type GateRetr
 import { docContext, type JobPlan } from "../jobs/plan.ts";
 import { failingGate, failureRanges, failureText, hunkRanges } from "../repair/ranges.ts";
 import { remainingUsd, repairTurn, withPrompt } from "../repair/turn.ts";
+import { type HideDeps, hideSecrets } from "./secrets.ts";
 
 /** Least USD left in a job's budget for another agent repair turn. */
 const AGENT_REPAIR_MIN_USD = 0.005;
@@ -151,15 +152,49 @@ export async function runAgent(core: RunnerCore, id: JobId, plan: JobPlan, signa
   await assertWorktreeScope(core, cwd, plan.scope.writeScope);
   core.phase(id, "spawn");
   const began = core.deps.clock.now();
-  const run = core.deps.scheduler.submit(agentRequest(core, id, plan, cwd)(), signal);
-  await core.update(id, "job.running", (r) => core.setState(r, "running"), { pipeline: true });
-  core.phase(id, "think");
-  const result = await consume(run, (e) => core.emit(id, e), { text: false });
+  // F1: the model reads this worktree — tracked secrets are tokens while it runs, real again before commit / gates
+  const hider = await hideSecrets(hideDeps(core, id, s.commit), plan.scope.writeScope);
+  noteHidden(core, id, hider.files);
+  let result: EngineResult;
+  let session: EngineSession | null = null;
+  try {
+    const run = core.deps.scheduler.submit(agentRequest(core, id, plan, cwd)(), signal);
+    await core.update(id, "job.running", (r) => core.setState(r, "running"), { pipeline: true });
+    core.phase(id, "think");
+    result = await consume(run, (e) => core.emit(id, e), { text: false });
+    session = run.session ?? null;
+  } finally {
+    await hider.reveal();
+  }
   await record(core, id, result, began);
   if (result.stop !== "end") throw engineError(result);
   await noteDenials(core, id, result);
-  const turn = await parseAgentTurn(core, id, plan, result, run.session ?? null, signal);
+  const turn = await parseAgentTurn(core, id, plan, result, session, signal);
   await agentAttempts(core, id, plan, s.commit, cwd, turn, signal);
+}
+
+/** Shared scan cache of the secret hider (blob id → hidden form). */
+const HIDE_CACHE = new Map<GitOid, { hidden: string; secrets: string[] } | null>();
+const utf8 = new TextDecoder("utf-8", { fatal: false });
+
+/** The hider's ports over the job worktree (the canonical `~/.mitori/wt/<ws>/<job>` path, as the SafeWriter wants it). */
+function hideDeps(core: RunnerCore, id: JobId, base: GitOid): HideDeps {
+  const g = core.deps.git;
+  const wt = `${g.ws.wtDir}/${id}`;
+  return {
+    secrets: core.deps.secrets,
+    tree: () => g.ws.lsTree(base),
+    blob: (oid) => g.ws.blob(oid),
+    read: async (p) => (core.deps.fs.stat(`${wt}/${p}`)?.isFile ? utf8.decode(await core.deps.fs.read(`${wt}/${p}`)) : null),
+    write: (files) => g.writeFiles(wt, files),
+    cache: HIDE_CACHE,
+  };
+}
+
+function noteHidden(core: RunnerCore, id: JobId, files: readonly RepoPath[]): void {
+  if (files.length === 0) return;
+  core.deps.log.info("agent: secrets hidden from the model", { job: id, files: files.length });
+  core.phase(id, "snapshot", `secrets hidden ×${files.length}`);
 }
 
 /** The gates of the agent worktree: format in place (autofix), then the checks. */
@@ -320,17 +355,24 @@ async function agentRepairTurn(
     ranges: retry.ranges,
     ...(retry.humanMessage !== undefined ? { humanMessage: retry.humanMessage } : {}),
   });
-  const turn = await repairTurn({
-    core,
-    id,
-    plan,
-    session: core.parking.take(id),
-    message: msg.text,
-    cwd: wt,
-    request: agentRequest(core, id, plan, wt),
-    limits: { inTokens: agentInputLimit(core), ms: 600_000 },
-    signal,
-  });
+  const base = core.get(id).baseCommit;
+  const hider = base ? await hideSecrets(hideDeps(core, id, base), plan.scope.writeScope) : null;
+  let turn: Awaited<ReturnType<typeof repairTurn>>;
+  try {
+    turn = await repairTurn({
+      core,
+      id,
+      plan,
+      session: core.parking.take(id),
+      message: msg.text,
+      cwd: wt,
+      request: agentRequest(core, id, plan, wt),
+      limits: { inTokens: agentInputLimit(core), ms: 600_000 },
+      signal,
+    });
+  } finally {
+    await hider?.reveal();
+  }
   if (turn.result.stop !== "end") throw engineError(turn.result);
   await noteDenials(core, id, turn.result);
   return parseAgentTurn(core, id, plan, turn.result, turn.session, signal);

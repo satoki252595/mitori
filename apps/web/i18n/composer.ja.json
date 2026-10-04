@@ -64,6 +64,7 @@
   "composer.path.pull": "自分のセッションへ · mitori review（待機中{n}）",
   "composer.path.push": "その場で実行 · {engine}",
   "composer.policy": "送信先: Anthropic（あなたの{engine}経由）· 選んだ範囲と依頼文だけ · 秘密情報は伏せ字 · 送ると同意したことになります",
+  "composer.policyAgent": "送信先: Anthropic（あなたの{engine}経由）· AI は作業コピーのファイルを読みます（あなたの作業ツリーには書きません）· 秘密情報を含む行は伏せ字 · 送ると同意したことになります",
   "composer.router.files.one": "{n}ファイル",
   "composer.router.files.other": "{n}ファイル",
   "composer.router.filesOver": "{n}ファイル > {max}",

@@ -472,7 +472,7 @@ const sendLabel = $derived(
   {/if}
 
   {#if needsPolicy}
-    <p class="disc" class:nudge bind:this={disc}>{t("composer.policy", { engine: engineId })}</p>
+    <p class="disc" class:nudge bind:this={disc}>{t(p.mode === "agent" ? "composer.policyAgent" : "composer.policy", { engine: engineId })}</p>
   {/if}
   {#if c.runsJob && c.intent === "change" && pendingGates > 0}
     <p class="gatewarn">{t("composer.gates.pending", { n: pendingGates })} <button type="button" class="link" onclick={() => (loop.trustOpen = [...loop.trust.values()].find((r) => r.status === "pending") ?? null)}>{t("trust.action.review")}</button></p>

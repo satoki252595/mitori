@@ -1131,3 +1131,74 @@ describe.if(SANDBOX)("INT-08 with the OS sandbox: checks run unattended, repairs
     await api("POST", `/jobs/${job.id}/reject`, {});
   }, 180_000);
 });
+
+describe("F1 (nonfunc audit): agent mode never shows the model a tracked secret", () => {
+  const KEYS = "internal/config/keys.go";
+  const SECRET = `sk_live_${"4eC39HqLyjWDarjtT1zdp7dc"}`;
+  const keysGo = `package config\n\n// StripeKey is the live payment key (a committed secret, as many repos have).\nconst StripeKey = "${SECRET}"\n`;
+
+  test("during the turn the worktree holds a token; after it the file is byte-identical and outside the diff", async () => {
+    writeFileSync(join(repo.root, KEYS), keysGo);
+    git("add", KEYS);
+    git("commit", "-q", "-m", "add keys");
+    const t = await countThread("Store に件数メソッドを追加（伏せ字の確認）");
+    let seen = "";
+    let anyClear = false;
+    const turn = countTurn1(() => t.thread.id);
+    scenarios.push({
+      name: "secrets",
+      match: (p) => p.includes(`TASK ${t.thread.id} `) && !p.includes("mode=repair"),
+      turns: [
+        {
+          ...turn,
+          edit: (cwd) => {
+            // what Read / Grep would return to the model
+            seen = readFileSync(join(cwd, KEYS), "utf8");
+            const walk = (d: string): void => {
+              for (const e of readdirSync(d, { withFileTypes: true })) {
+                if (e.name === ".git" || e.isSymbolicLink()) continue;
+                const p = join(d, e.name);
+                if (e.isDirectory()) walk(p);
+                else if (readFileSync(p, "utf8").includes(SECRET)) anyClear = true;
+              }
+            };
+            walk(cwd);
+            turn.edit?.(cwd);
+          },
+        },
+        // the trusted, consented go vet of the earlier scenarios fails turn 1's code: the REPAIR turn (same process)
+        {
+          ...countTurn2(() => t.thread.id),
+          edit: (cwd) => {
+            if (readFileSync(join(cwd, KEYS), "utf8").includes(SECRET)) anyClear = true;
+            countTurn2(() => t.thread.id).edit?.(cwd);
+          },
+        },
+      ],
+    });
+    // a REPAIR turn that goes resume / cold spawns again: the same hiding applies there
+    scenarios.push({
+      name: "secrets-repair",
+      match: (p) => p.includes(`TASK ${t.thread.id} `) && p.includes("mode=repair"),
+      turns: [
+        {
+          ...countTurn2(() => t.thread.id),
+          edit: (cwd) => {
+            if (readFileSync(join(cwd, KEYS), "utf8").includes(SECRET)) anyClear = true;
+            countTurn2(() => t.thread.id).edit?.(cwd);
+          },
+        },
+      ],
+    });
+    const { job } = await createJob(t.thread, t.context);
+    const ready = await jobUntil(job.id, ["ready"]);
+    expect(ready.route.mode).toBe("agent");
+    expect(seen).toContain("«redacted:secret#1»");
+    expect(seen).not.toContain("sk_live_");
+    expect(anyClear).toBe(false);
+    expect(ready.diff.map((f) => f.path)).not.toContain(KEYS);
+    expect(readFileSync(join(ready.worktree as string, KEYS), "utf8")).toBe(keysGo);
+    expect(read(KEYS)).toBe(keysGo);
+    await api("POST", `/jobs/${job.id}/reject`);
+  });
+});

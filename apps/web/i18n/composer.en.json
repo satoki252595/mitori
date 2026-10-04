@@ -64,6 +64,7 @@
   "composer.path.pull": "To my session · mitori review ({n} waiting)",
   "composer.path.push": "Run here · {engine}",
   "composer.policy": "Sent to: Anthropic (through your {engine}) · only the selected range and your text · secrets redacted · sending means you agree",
+  "composer.policyAgent": "Sent to: Anthropic (through your {engine}) · the AI reads files of a working copy (never your working tree) · lines with secrets are redacted · sending means you agree",
   "composer.router.files.one": "{n} file",
   "composer.router.files.other": "{n} files",
   "composer.router.filesOver": "{n} files > {max}",
