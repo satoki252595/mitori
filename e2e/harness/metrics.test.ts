@@ -66,6 +66,12 @@ describe("E2EH-U-02 budget checks", () => {
     expect(over).toMatchObject({ failed: false, warned: true });
     expect(over.reportOnly).toContain("reference machine");
     expect(checkBudget("ui.inp", 500, { project: "perf" })).toMatchObject({ failed: false, warned: true });
+    // a loaded reference machine reports a time budget instead of failing it; structure still gates
+    const loaded = checkBudget("ui.inp", 500, { project: "perf", factor: 1, loadavg: 30, cores: 18 });
+    expect(loaded).toMatchObject({ failed: false, warned: true });
+    expect(loaded.reportOnly).toContain("under load");
+    expect(checkBudget("ui.inp", 500, { project: "perf", factor: 1, loadavg: 3, cores: 18 }).failed).toBe(true);
+    expect(checkBudget("ui.dom.typical", 15001, { project: "perf", factor: 1, loadavg: 30, cores: 18 }).failed).toBe(true);
     expect(checkBudget("ui.inp", 500).reportOnly).toBeDefined();
   });
 

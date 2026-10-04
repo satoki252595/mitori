@@ -36,7 +36,15 @@ git init -q && git add -A && git -c commit.gpgsign=false commit -qm "linux-ci sn
 if has install; then
   if ! step install bun install --frozen-lockfile; then
     # diagnostics for the failing lifecycle script, then continue without scripts (mitori loads the wasm grammars only)
-    { cd node_modules/tree-sitter-typescript 2>/dev/null && node -e "console.log(require('node-gyp-build').path(process.cwd()))"; } > /out/install-diag.log 2>&1
+    {
+      echo "-- which prebuild node-gyp-build picks, and whether node can load it (what its install script tests)"
+      cd node_modules/tree-sitter-typescript 2>/dev/null &&
+        node -e "const p = require('node-gyp-build').path(process.cwd()); console.log(p); require(p); console.log('loads ok')"
+      echo "-- node-gyp on PATH: $(command -v node-gyp || echo none)"
+      echo "-- the install script itself"
+      npm_config_build_from_source= node "$(dirname "$(node -p "require.resolve('node-gyp-build/package.json')")")/bin.js"
+      echo "exit $?"
+    } > /out/install-diag.log 2>&1
     cd /src
     step install-ignore-scripts bun install --frozen-lockfile --ignore-scripts
   fi

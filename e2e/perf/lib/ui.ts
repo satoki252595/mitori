@@ -224,12 +224,33 @@ export interface LevelSwitch {
   ms: number[];
   /** Requests made while switching (ui.fetch.levelSwitch, max 0). */
   requests: number;
+  /** Their paths (what a non-zero count was). */
+  urls: string[];
+}
+
+/**
+ * Wait until the page made no request for `quietMs` (at most `maxMs`): the Reader loads its lazy chunks (Margin, Composer,
+ * threads, …) in idle time after the first render — those are not caused by what is measured next. (Playwright's
+ * `networkidle` never settles while the SSE stream is open.)
+ */
+export async function networkQuiet(page: Page, quietMs = 1_000, maxMs = 10_000): Promise<void> {
+  let last = Date.now();
+  const on = () => {
+    last = Date.now();
+  };
+  page.on("request", on);
+  const end = Date.now() + maxMs;
+  try {
+    while (Date.now() - last < quietMs && Date.now() < end) await page.waitForTimeout(100);
+  } finally {
+    page.off("request", on);
+  }
 }
 
 export async function levelSwitch(page: Page, rounds = 3): Promise<LevelSwitch> {
-  await page.waitForTimeout(500);
-  let requests = 0;
-  const on = () => void requests++;
+  await networkQuiet(page);
+  const urls: string[] = [];
+  const on = (r: Request) => void urls.push(`${r.method()} ${new URL(r.url()).pathname}`);
   page.on("request", on);
   const ms: number[] = [];
   try {
@@ -237,7 +258,7 @@ export async function levelSwitch(page: Page, rounds = 3): Promise<LevelSwitch> 
   } finally {
     page.off("request", on);
   }
-  return { ms, requests };
+  return { ms, requests: urls.length, urls };
 }
 
 /** ⌘K, then type `text` one key at a time: per-key latency to `mitori:palette:results` (ui.palette). */

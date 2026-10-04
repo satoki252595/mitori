@@ -78,7 +78,7 @@ test.describe("Reader interactions (perf)", () => {
     const runs = [];
     for (let i = 0; i < 3; i++) runs.push(await inpScenario(o.page));
     info.annotations.push({ type: "measure", description: JSON.stringify(runs) });
-    expect(runs.every((r) => r.count >= 40)).toBe(true);
+    expect(runs.every((r) => r.count >= 30)).toBe(true); // 37 interactions (a static doc has no Composer / cite pins)
     expectWithinBudget("ui.inp", median(runs.map((r) => r.p98)));
   });
 });

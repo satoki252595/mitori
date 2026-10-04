@@ -1,6 +1,7 @@
 // `test` for every e2e spec (testing spec §5.1): `mitori` is a daemon with its own MITORI_HOME, started per test; set the
 // fixture and replay options with `test.use({ daemonOptions: { fixture: "go-small", seedDoc: "generated" } })`.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { availableParallelism, loadavg } from "node:os";
 import { join } from "node:path";
 import { startTestDaemon, type TestDaemon } from "@mitori/testkit";
 import { test as base, expect } from "@playwright/test";
@@ -47,7 +48,7 @@ export { expect };
  */
 export function expectWithinBudget(id: string, value: number): BudgetCheck {
   const info = test.info();
-  const check = checkBudget(id, value, { project: info.project.name, factor: envFactor() });
+  const check = checkBudget(id, value, { project: info.project.name, factor: envFactor(), loadavg: loadavg()[0] ?? null, cores: availableParallelism() });
   const unit = check.entry.unit;
   if (check.warned)
     info.annotations.push({
