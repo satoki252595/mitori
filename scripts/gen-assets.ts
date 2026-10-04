@@ -295,6 +295,11 @@ export async function genAssets(opts: { lock?: string; verifyOnly?: boolean; log
   if (problems.length > 0) throw new Error(`asset lock ${lockPath} does not match the installed files (SEC-16):\n  ${problems.join("\n  ")}`);
   log(`gen-assets: ${lock.assets.length} pinned files match ${lockPath}`);
   if (opts.verifyOnly) return null;
+  // What gets embedded is always the production bundle. Vite takes "production" from NODE_ENV, and `bun test` sets it to
+  // "test" (INT-00 / SKEL rebuild a stale binary, INT-07 runs gen-assets): those builds resolved Svelte's development
+  // runtime — the export viewer grew from 58.7 to 67.5 KB gz, past its 60 KB budget — and hashed every asset differently
+  // from `build:bin`, so a test process holding the earlier dist/.build/web.json read files that were gone (ENOENT).
+  process.env.NODE_ENV = "production";
 
   const out = join(ROOT, OUT);
   rmSync(out, { recursive: true, force: true });
