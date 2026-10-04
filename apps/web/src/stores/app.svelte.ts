@@ -50,6 +50,8 @@ export class UiState {
   railOpen = $state(false);
   showCites = $state(false);
   helpOpen = $state(false);
+  /** 「HTML として書き出す」 dialog (⌘K, settings; ux.md §4.13). */
+  exportOpen = $state(false);
   textViewOpen = $state(false);
   /** Bumped when reading-path progress is written (the rail re-reads localStorage). */
   readTick = $state(0);

@@ -3,6 +3,8 @@
   "palette.action.blockHistory.alias": "history",
   "palette.action.copyLocalUrl": "Copy the local URL",
   "palette.action.copyLocalUrl.alias": "local link",
+  "palette.action.exportHtml": "Export as HTML",
+  "palette.action.exportHtml.alias": "export html share",
   "palette.action.generate": "Generate the design doc",
   "palette.action.generate.alias": "generate the design doc",
   "palette.action.goDoc": "Open the design doc",

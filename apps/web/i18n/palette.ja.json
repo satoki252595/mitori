@@ -3,6 +3,8 @@
   "palette.action.blockHistory.alias": "りれき",
   "palette.action.copyLocalUrl": "ローカルURLをコピー",
   "palette.action.copyLocalUrl.alias": "ろーかるゆーあーるえる",
+  "palette.action.exportHtml": "HTMLとして書き出す",
+  "palette.action.exportHtml.alias": "かきだす",
   "palette.action.generate": "設計書を生成する",
   "palette.action.generate.alias": "せいせいする",
   "palette.action.goDoc": "設計書を開く",

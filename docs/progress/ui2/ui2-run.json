@@ -1,14 +1,15 @@
 {
   "open": {
-    "ms": 479.641208
+    "ms": 608.114042
   },
-  "docArrivedMs": 162,
-  "courseMs": 1663,
-  "fulltextFirstQueryMs": 11,
-  "fulltextJumpMs": 23,
-  "askIntentChips": [
-    "質問\n⌘1"
-  ],
+  "docArrivedMs": 195,
+  "exportPreviewMs": 1285,
+  "exportFacts": "1.08 MB · コードの抜粋134箇所（37ファイル）を含みます · 秘密情報らしき文字列0件を伏せ字",
+  "exportFactsNoCode": "562 KB · コードは含みません · 秘密情報らしき文字列0件を伏せ字",
+  "exportDownload": {
+    "name": "m3e-canvas-mitori-2026-10-04.html",
+    "bytes": 538906
+  },
   "consoleErrors": [],
   "badResponses": []
 }

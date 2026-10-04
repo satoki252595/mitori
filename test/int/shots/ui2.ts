@@ -5,12 +5,12 @@
  * `.mitori/` (real-engine output, docs/progress/dogfood2), so the Reader shows what a user would read.
  *
  *   scripts/nd bun scripts/gen-assets.ts && scripts/nd bun test/int/shots/ui2.ts [--out docs/progress/ui2] [--only a,b]
- *     MITORI_UI2_REPO=<a repo with .mitori/> overrides the m3e-canvas copy (default: $MITORI_REFS/m3e-canvas)
+ *     MITORI_UI2_REPO=<a repo with .mitori/> overrides the m3e-canvas checkout (else $MITORI_REFS/m3e-canvas, else ~/.cache/mitori-corpus/m3e-canvas*)
  *
  * Every check throws; timings and the HTTP errors seen are printed as JSON. Exit 77 = no Chrome, 78 = no repo.
  */
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { synth } from "@mitori/agent/testing";
 import { chromium, type Page } from "@playwright/test";
@@ -23,10 +23,18 @@ const argv = process.argv.slice(2);
 const opt = (k: string, d?: string) => (argv.includes(k) ? argv[argv.indexOf(k) + 1] : d);
 const OUT = resolve(ROOT, opt("--out", join(tmpdir(), "mitori-ui2")) as string);
 const ONLY = new Set((opt("--only", "") as string).split(",").filter(Boolean));
-const REFS =
-  process.env.MITORI_REFS ?? "/private/tmp/claude-501/-Users-satoki252595-work-20261002-aiAgentTool/99463a6e-6928-41bd-851e-ed1a1028dc52/scratchpad/refs";
-const SRC = process.env.MITORI_UI2_REPO ?? join(REFS, "m3e-canvas");
+/** The m3e-canvas checkout: $MITORI_UI2_REPO, $MITORI_REFS/m3e-canvas, or the corpus cache of `bun run corpus:fetch`. */
+function sourceRepo(): string {
+  if (process.env.MITORI_UI2_REPO) return process.env.MITORI_UI2_REPO;
+  if (process.env.MITORI_REFS) return join(process.env.MITORI_REFS, "m3e-canvas");
+  const cache = join(homedir(), ".cache/mitori-corpus");
+  const hit = existsSync(cache) ? readdirSync(cache).find((f) => f === "m3e-canvas" || f.startsWith("m3e-canvas@")) : undefined;
+  return hit ? join(cache, hit) : join(cache, "m3e-canvas");
+}
+const SRC = sourceRepo();
 mkdirSync(OUT, { recursive: true });
+// a failure shot of an earlier run is not evidence of this one
+for (const f of readdirSync(OUT)) if (/^ui2-FAILED-/.test(f)) rmSync(join(OUT, f));
 const log = (...a: unknown[]) => console.error("[ui2]", ...a);
 const steps: Record<string, unknown> = {};
 const ms = (t0: number) => Math.round(performance.now() - t0);
@@ -35,8 +43,8 @@ const check = (ok: unknown, what: string): void => {
 };
 const want = (name: string) => ONLY.size === 0 || ONLY.has(name);
 
-if (!existsSync(join(SRC, ".mitori"))) {
-  console.error(`[ui2] ${SRC} has no .mitori/ (set MITORI_UI2_REPO or MITORI_REFS)`);
+if (!existsSync(join(SRC, "package.json"))) {
+  console.error(`[ui2] ${SRC} is not a checkout of m3e-canvas (set MITORI_UI2_REPO or MITORI_REFS, or bun run corpus:fetch --only m3e-canvas)`);
   process.exit(78);
 }
 let browser: Awaited<ReturnType<typeof chromium.launch>>;
@@ -97,7 +105,7 @@ if (generated) {
 }
 const nonce = await int.json<{ url: string }>("POST", "/auth/nonce", { to: `/w/${ws}/doc/s0` });
 
-const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: "light", locale: "ja-JP" });
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: "light", locale: "ja-JP", acceptDownloads: true });
 const page = await ctx.newPage();
 const consoleErrors: string[] = [];
 const badResponses: string[] = [];
@@ -229,6 +237,43 @@ try {
     check(posts.filter((x) => /POST \/jobs(\?|$)/.test(x)).length === before, "nothing is sent until the user presses send");
     await shot(page, "ui2-05-ask-ai-composer");
     await page.keyboard.press("Escape");
+  }
+
+  // ------------------------------------------------------------------ in-app export (ux.md §4.13)
+  if (want("export")) {
+    phase = "export";
+    await page.keyboard.press(`${mod}+k`);
+    await page.locator(".pal input").waitFor();
+    await page.keyboard.type("HTMLとして書き出す");
+    await page.locator(".pal-it", { hasText: "HTMLとして書き出す" }).first().waitFor();
+    await page.keyboard.press("Enter");
+    const dlg = page.locator("dialog.exp");
+    await dlg.waitFor();
+    const t0 = performance.now();
+    await dlg.locator(".facts").waitFor({ timeout: 20_000 });
+    steps.exportPreviewMs = ms(t0);
+    const facts = await dlg.locator(".facts").innerText();
+    check(/コードの抜粋\d+箇所/.test(facts) && /伏せ字/.test(facts), `the dialog says what the file contains (${facts})`);
+    steps.exportFacts = facts.replace(/\s+/g, " ");
+    await shot(page, "ui2-09-export-dialog");
+    await dlg.getByText("コードの抜粋を含める").click();
+    await page.waitForFunction(
+      () => {
+        const f = document.querySelector("dialog.exp .facts");
+        return !!f && !f.classList.contains("stale") && /コードは含みません/.test(f.textContent ?? "");
+      },
+      null,
+      { timeout: 20_000 },
+    );
+    const noCode = (await dlg.locator(".facts").innerText()).replace(/\s+/g, " ");
+    steps.exportFactsNoCode = noCode;
+    const [dl] = await Promise.all([page.waitForEvent("download"), dlg.getByRole("button", { name: "ダウンロード" }).click()]);
+    const file = join(scratch, dl.suggestedFilename());
+    await dl.saveAs(file);
+    const html = readFileSync(file, "utf8");
+    check(html.includes('id="mitori-export"') && html.length > 10_000, `the download is the export (${html.length} B)`);
+    check(/-mitori-\d{4}-\d{2}-\d{2}\.html$/.test(dl.suggestedFilename()), `file name (${dl.suggestedFilename()})`);
+    steps.exportDownload = { name: dl.suggestedFilename(), bytes: html.length };
   }
 
   steps.consoleErrors = consoleErrors;

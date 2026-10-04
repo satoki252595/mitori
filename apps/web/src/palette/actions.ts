@@ -78,6 +78,7 @@ export const ACTIONS: readonly ActionDef[] = [
     run: () => window.dispatchEvent(new CustomEvent("mitori:block-history")),
     when: (s) => s.router.route.name === "doc" && !!s.router.focusedBlock?.(),
   },
+  { id: "action.exportHtml", run: (s) => (s.ui.exportOpen = true), when: (s) => s.workspace.key !== null && s.doc.outline !== null },
   { id: "action.toggleCites", run: (s) => (s.ui.showCites = !s.ui.showCites) },
   { id: "action.singleKeys", run: (s) => s.prefs.setSingleKeys(!s.prefs.singleKeys) },
   { id: "action.help", run: (s) => (s.ui.helpOpen = true) },

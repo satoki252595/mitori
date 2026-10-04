@@ -407,6 +407,12 @@ $effect(() => {
   if (s.palette.open && !Palette) void Promise.all([import("../palette/Palette.svelte"), ensureNs("palette")]).then(([m]) => (Palette = m.default));
 });
 
+// export dialog chunk, loaded on the first 「HTML として書き出す」 (⌘K, settings)
+let Export = $state.raw<Component<Record<string, never>> | null>(null);
+$effect(() => {
+  if (s.ui.exportOpen && !Export) void import("../settings/ExportDialog.svelte").then((m) => (Export = m.default));
+});
+
 // the Inbox / Review routes ARE the loop UI: no waiting for idle there
 $effect(() => {
   const n = route.name;
@@ -462,6 +468,7 @@ const InboxView = $derived(ext?.views?.inbox ?? null);
 
 {#if s.ui.helpOpen && Help}<Help />{/if}
 {#if Palette && s.palette.open}<Palette />{/if}
+{#if s.ui.exportOpen && Export && s.workspace.key}<Export />{/if}
 
 {#if conn.kind === "stopped"}
   <div class="stopped" role="alertdialog" aria-modal="true" aria-labelledby="stopped-t" data-chrome>

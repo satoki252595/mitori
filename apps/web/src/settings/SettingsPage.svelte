@@ -61,6 +61,16 @@ const LEVELS: ReaderLevel[] = ["newcomer", "standard", "expert"];
     <p class="note">{t("settings.singleKeysNote")}</p>
   </section>
 
+  {#if s.workspace.key}
+    <section>
+      <h2>{t("settings.export")}</h2>
+      <div class="row">
+        <span>{t("settings.exportLead")}</span>
+        <button type="button" class="btn btn-sec btn-s" onclick={() => (s.ui.exportOpen = true)}>{t("settings.exportOpen")}</button>
+      </div>
+    </section>
+  {/if}
+
   <section>
     <h2>{t("settings.engines")}</h2>
     {#each s.session.engines ?? [] as e (e.engine)}
