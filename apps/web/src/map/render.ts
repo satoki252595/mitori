@@ -8,7 +8,7 @@
  * a zero-size corner `<svg>` at the right wall. The MVP draws the container map (doc layout `mitori-rooms@1`:
  * zones as bands, rooms sized for their labels); the floor plan (WP-18) reuses the same model.
  */
-import type { DiagramNode, MapView, ModuleId, ModuleInfo, SectionId } from "@mitori/core";
+import type { BlockId, DiagramNode, MapView, ModuleId, ModuleInfo, SectionId } from "@mitori/core";
 import { fmtLocShort } from "../shell/fmt.ts";
 
 export interface RoomChip {
@@ -39,6 +39,8 @@ export interface RoomModel {
   topSymbols: string[];
   /** The module's one-line role from the generated doc (NC-04), null before generation. */
   summary: string | null;
+  /** The block of its page's 「変更の手引き」 (the room card links to it), null when the page has none. */
+  change?: BlockId | null;
   /** Largest files of the room (furniture), largest first, ≤ 3. */
   chips: RoomChip[];
 }
@@ -136,6 +138,7 @@ export function buildPlanModel(view: MapView): PlanModel {
       fresh: view.overlays.freshness[n.id] ?? "unknown",
       topSymbols: top.flatMap((f) => f.symbols).slice(0, 3),
       summary: (mod as { summary?: string } | undefined)?.summary ?? null,
+      change: (mod as { change?: BlockId } | undefined)?.change ?? null,
       chips: top.slice(0, 3).map((f) => ({ name: baseName(f.path), size: fmtLocShort(f.loc) })),
     });
   }

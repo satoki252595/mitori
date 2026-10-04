@@ -16,6 +16,7 @@ let {
   sectionLabel,
   genTokens,
   flows = [],
+  changeHref = null,
   onflow,
   onread,
   ongenerate,
@@ -29,6 +30,8 @@ let {
   genTokens: number | null;
   /** §3 flows through this room (`§3.1 ⑤⑥`); a click overlays that flow on the map. */
   flows?: { section: SectionId; num: string; steps: number[]; on: boolean }[];
+  /** The module page's 「変更の手引き」 (what a change here reaches, its tests, its entries), when it has one. */
+  changeHref?: string | null;
   onflow?: (section: SectionId) => void;
   onread: () => void;
   ongenerate: () => void;
@@ -61,6 +64,7 @@ $effect(() => {
   {/if}
   <div class="acts">
     {#if section}<button type="button" class="btn btn-pri btn-s" onclick={onread}>{t("map.room.read", { section: sectionLabel })}</button>{/if}
+    {#if changeHref}<a class="btn btn-sec btn-s" href={changeHref}>{t("map.room.change")}</a>{/if}
     {#if genTokens !== null}<button type="button" class="btn btn-sec btn-s" onclick={ongenerate}>{t("map.room.generate", { k: fmtTokensImpl(genTokens, { approx: true }) })}</button>{/if}
   </div>
 </section>

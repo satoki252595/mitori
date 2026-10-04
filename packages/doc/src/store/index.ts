@@ -67,3 +67,6 @@ export function createDocStore(deps: {
 
 /** SQLite migrations owned by `@mitori/doc` (`doc_*`). */
 export const DOC_MIGRATIONS: readonly Migration[] = MIGRATIONS;
+
+/** Display label of a large-file region (module chapter and code view share it) [CR rdoc-2]. */
+export { regionLabel } from "./static.ts";

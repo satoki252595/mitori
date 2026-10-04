@@ -303,3 +303,12 @@
 | CR fin-3 | finisher（NC-07 / NC-04） | accepted | api `FileContent.outline?`（300 行超のファイルのトップレベルのシンボル）、`MapView.modules[].summary?`（生成済みのモジュールの一行の役割）(applied) | 4,300 行のハブに目次が無い / 部屋の popover が export 名しか出さない |
 | CR fin-4 | finisher（NC-12） | accepted | core `DOC_TEMPLATE` s2 `titleJa`: 見取り図 → 間取り図（製品名と図の名前を分ける。ファイル名 `doc/02-floor-plan.md` は不変）(applied) | 「見取り図」が 3 つの別物を指していた |
 | CR fin-5 | finisher（NC-06 / NC-07） | accepted | doc `StaticDocInput.guide?: StaticGuide`（§4 の手順・§5 の読む順番。server が索引から作る、0 tok）(applied、doc の契約) | 「どう動かすか」「どこから読むか」に静的節が答えていなかった |
+
+## 8. 残課題 — doc トラック（2026-10-04、`docs/progress/rem-doc.md`）
+
+| id | requester | 決定 | 適用先 | 理由・備考 |
+|---|---|---|---|---|
+| CR rdoc-1 | rem/doc（NC-10 §8） | accepted | core `FactKind` + `"outbound"`、`OutboundFact {channel: http\|rpc\|sdk\|db\|subprocess, via, target?}`、`Fact` union (applied)。testkit `factKey` に case（採点対象外: truth 行なし）(applied)。indexer の検出器 `outbound.calls@1`（TS/JS・Go・Python・Rust、import が無い呼び出しは数えない、tree で識別子か確かめる、target はリテラルの origin / 相対 API パス / コマンド名だけ）(applied) | §8 に「外とのやり取り」が無かった（HTTP・SDK / DB クライアント・子プロセス）。0 tok の事実にして出典付きで出す |
+| CR rdoc-2 | rem/doc（NC-10 §7・変更の手引き・大きなファイル） | accepted | doc `StaticGuide.types?: StaticKeyType[]` / `change?: Record<ModuleId, ModuleChangeGuide>` / `regions?: Record<RepoPath, {lines, regions: FileRegion[]}>`、`STATIC_SLOTS` に `s7:types`・`s7:types-map`・`s8:outbound`・`s8:secrets`・`m:<id>:change`・`m:<id>:regions`、公開関数 `regionLabel` (applied)。api `FileContent.regions?: {label, start, end, depth}[]`（1,500 行超のファイル）、`MapView.modules[].change?: BlockId`（部屋のカードから 変更の手引き へ）(applied)。web: CodeView に「このファイルの中身」、RoomCard に「変更の手引き」(applied、加算のみ) | 「新しい Kind を足すには」が 0 点（どこを触ると何に波及するかを文書が言わなかった）。4,800 行のコンポーネントが目次の 1 行だった |
+| CR rdoc-3 | rem/doc（gen #4c） | accepted | indexer `FactLinkContext.symbolAt(path, name, opts?: {callable?})`（ハンドラの候補を順に試す・import 先も探す）、`INDEXER_FORMAT.detectors` 1 → 2（ルートの候補一覧が candidate に載る。キャッシュ済みの candidate を一度だけ作り直す）(applied) | `s.withReady(s.handleX)`・`s.serveIndexHTML()`・import したハンドラ・`add_url_rule(view_func=)` が解決できず、crit の 62 ルートのうち 18 本にハンドラが無かった（今は 61 / 62） |
+| CR rdoc-4 | rem/doc（CR gen #8 の残り） | accepted | indexer `PARSE_POOL.parseRetryMs: 8_000`: 250 ms の壁時計予算を超えた parse を 1 回だけ最初から長い予算でやり直す（`parse/worker.ts`）。facade の text cache は再走査のあいだ空にせず、作り直したものと丸ごと入れ替える（`update/later.ts`、blob が同じ text は再利用）(applied) | 負荷のある機械では crit の `session.go`・`server.go`・`web/app.js` などが 250 ms を超え、シンボル無しで索引された。同じ commit でも module 文脈・S5 の入力・S8 の task 数（42 / 43 / 44）が開くたびに変わった（4 並列の open で再現、修正後は 5 / 5 一致） |

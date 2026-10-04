@@ -35,8 +35,9 @@ import {
   type WorkspaceKey,
   type Xxh3,
 } from "@mitori/core";
-import { type BlockRenderer, blockDiagramIr, type DiagramLayouter, type DocStore, type HighlightReq, withDiagramSvg } from "@mitori/doc";
+import { type BlockRenderer, blockDiagramIr, type DiagramLayouter, type DocStore, type HighlightReq, regionLabel, withDiagramSvg } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
+import { fileRegions, REGION_MIN_LINES } from "./doc-regions.ts";
 import { containerDiagram } from "./static-input.ts";
 
 const VERDICT_ORDER: readonly Verdict[] = ["stale", "unsupported", "inferred", "cited", "verified", "human-verified"];
@@ -141,6 +142,35 @@ export interface ViewCtx {
   threads(block: BlockId): { open: number; total: number };
 }
 
+/**
+ * Links between the doc's own files (`modules/<slug>.md` in §6, `<slug>.md` between module pages — the change guide
+ * links the modules a change reaches) are relative Markdown links, right on GitHub; in the Reader they are app routes
+ * to the section, or they would 404 against the daemon. Other links stay as written.
+ */
+export function docLinks(html: string, fromFile: string, sectionOfFile: ReadonlyMap<string, SectionId>, ws: WorkspaceKey): string {
+  if (!html.includes('.md"')) return html;
+  const base = fromFile.includes("/") ? fromFile.slice(0, fromFile.lastIndexOf("/")) : "";
+  return html.replace(/<a href="([^":#?]+\.md)(#[^"]*)?"/g, (whole, rel: string) => {
+    const segs = base === "" ? [] : base.split("/");
+    for (const s of rel.split("/")) {
+      if (s === "" || s === ".") continue;
+      if (s === "..") {
+        if (segs.length === 0) return whole;
+        segs.pop();
+      } else segs.push(s);
+    }
+    const section = sectionOfFile.get(segs.join("/"));
+    return section ? `<a href="${attr(HREFS.doc(ws, section))}"` : whole;
+  });
+}
+
+/** File → section (the first, outermost section a file holds) of the doc's sections. */
+function sectionsByFile(doc: Pick<DocStore, "sections">): Map<string, SectionId> {
+  const out = new Map<string, SectionId>();
+  for (const s of doc.sections()) if (!out.has(s.file) || s.id.length < (out.get(s.file) as string).length) out.set(s.file, s.id);
+  return out;
+}
+
 /** `BlockView` of one block (body cached by the renderer, chips spliced from the current claims). */
 export async function blockView(c: ViewCtx, b: Block, lang?: DocLang): Promise<BlockView> {
   const claims = c.doc.claims(b.id);
@@ -148,6 +178,7 @@ export async function blockView(c: ViewCtx, b: Block, lang?: DocLang): Promise<B
   const htmlLang = lang ?? b.lang;
   const body = await c.renderer.render(b, claims, { lang: htmlLang, glossaryTerms: terms });
   let inner = c.renderer.splice(body, claims, { ws: c.ws, level: "standard" });
+  if (inner.includes('.md"')) inner = docLinks(inner, b.file, sectionsByFile(c.doc), c.ws);
   inner = await drawDiagram(c, b, inner);
   const mdLine = await c.lines.lineOf(b);
   const lock = b.lock ? ` data-lock="${attr(b.lock)}"` : "";
@@ -265,11 +296,20 @@ export async function mapView(c: ViewCtx, indexer: Indexer, layouter: DiagramLay
     const k = n.ref?.module ? comments(n.ref.module) : 0;
     if (k > 0) commentsBy[n.id] = k;
   }
-  // NC-04: the generated name and one-line role of each module (the popover says what the room is for)
+  // NC-04: the generated name and one-line role of each module (the popover says what the room is for); the popover
+  // also links the page's 「変更の手引き」 [CR rdoc-2]
   const entries = new Map(idx.modules.map((e) => [e.id, e]));
+  const change = new Map<string, BlockId>();
+  for (const b of Object.values(idx.blocks)) {
+    const m = b.slot ? /^m:(md_[0-9a-z]+):change$/.exec(b.slot) : null;
+    if (m) change.set(m[1] as string, b.id);
+  }
   const modules = indexer.modules().map((m) => {
     const e = entries.get(m.id);
-    const named = e ? { ...m, name: e.name || m.name, ...(e.summary ? { summary: e.summary } : {}) } : m;
+    const block = change.get(m.id);
+    const named = e
+      ? { ...m, name: e.name || m.name, ...(e.summary ? { summary: e.summary } : {}), ...(block ? { change: block } : {}) }
+      : { ...m, ...(block ? { change: block } : {}) };
     if (m.children.length > 0) return named;
     const topFiles = m.paths
       .map((p) => ({ path: p, loc: indexer.file(p)?.loc ?? 0 }))
@@ -403,6 +443,17 @@ export async function fileContent(
     ...(total > OUTLINE_MIN_LINES ? { outline: fileOutline(indexer.symbols(q.path)) } : {}),
     backlinks,
   };
+  // a file over 1,500 lines: where its parts are (a 4,800-line component is not one outline row) [CR rdoc-2]
+  if (total > REGION_MIN_LINES) {
+    const lang = doc.manifest()?.primaryLang ?? "ja";
+    const regions = fileRegions(whole.text, indexer.symbols(q.path), entry.lang).map((r) => ({
+      label: regionLabel(r, lang),
+      start: r.start,
+      end: r.end,
+      depth: r.depth,
+    }));
+    if (regions.length > 0) out.regions = regions;
+  }
   if (q.html) out.html = await highlightLines(pool, whole.text, entry.lang, whole.blob, start, end);
   return out;
 }

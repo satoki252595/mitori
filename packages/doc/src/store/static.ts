@@ -18,6 +18,7 @@ import {
   type GlossaryEntry,
   type ModuleId,
   type ModuleInfo,
+  type OutboundFact,
   type RouteFact,
   type SchemaFact,
   type ScriptFact,
@@ -25,7 +26,7 @@ import {
   type TodoFact,
   type TopSectionId,
 } from "@mitori/core";
-import type { StaticDocInput } from "../contract.ts";
+import type { FileRegion, ModuleChangeGuide, StaticDocInput } from "../contract.ts";
 import { toMermaidText } from "../layout/mermaid.ts";
 import { L, type Labels } from "./i18n.ts";
 
@@ -135,8 +136,13 @@ interface Ctx {
   l: Labels;
   modules: Map<ModuleId, DocModuleEntry>;
   infos: Map<ModuleId, ModuleInfo>;
+  /** Page slug of every module (links between module pages). */
+  slugs: Map<ModuleId, string>;
   estimates: Estimates;
 }
+
+/** Parenthesised aside in the doc's language (`（…）` / ` (…)`). */
+const aside = (c: Pick<Ctx, "lang">, s: string): string => (c.lang === "ja" ? `（${s}）` : ` (${s})`);
 
 const facts = (section: SectionId, slot: string, md: string, rank: number, depth: Depth = "L1", audience: Audience[] = ["dev"]): StaticSpec => ({
   slot,
@@ -383,13 +389,171 @@ function modulePage(c: Ctx, p: ModulePageSpec): StaticSpec[] {
     const ir = c.input.diagrams.find((d) => d.kind === "component" && d.nodes.some((n) => n.ref?.module && m.children.includes(n.ref.module)));
     if (ir) out.push({ slot: `m:${m.id}:diagram`, section, kind: "diagram", md: diagramMd(ir), depth: "L2", audience: ["dev"], rank: RANK.pre2, diagram: ir });
   }
+  const guide = c.input.guide?.change?.[m.id];
+  if (guide) out.push(facts(section, `m:${m.id}:change`, changeMd(c, guide), RANK.pre2 + 5, "L2", ["dev", "reviewer"]));
+  const big = m.paths.filter((path) => c.input.guide?.regions?.[path] !== undefined).sort();
+  if (big.length > 0) out.push(facts(section, `m:${m.id}:regions`, regionsMd(c, big), RANK.pre2 + 6, "L2", ["dev"]));
+  return out;
+}
+
+/** A link to a module's page from another module page (`doc/modules/<slug>.md` siblings). */
+function moduleLink(c: Ctx, id: ModuleId): string {
+  const m = c.infos.get(id);
+  const slug = c.slugs.get(id);
+  const name = m ? moduleName(c, m) : id;
+  return slug ? `[${linkText(name)}](${slug}.md)` : inline(name);
+}
+
+/** At most this many names per list item of the change guide. */
+const GUIDE_ITEMS = 6;
+
+/** 「変更の手引き」 of a module page (0 tok, `StaticGuide.change`). */
+function changeMd(c: Ctx, g: ModuleChangeGuide): string {
+  const l = c.l.change;
+  const list = (xs: string[], cap = GUIDE_ITEMS) => (xs.length > cap ? `${xs.slice(0, cap).join("・")} ${l.more(xs.length - cap)}` : xs.join("・"));
+  const lines: string[] = [];
+  if (g.dependents.length > 0) lines.push(`- ${l.dependents}: ${list(g.dependents.map((d) => moduleLink(c, d.module)))}`);
+  if (g.dependencies.length > 0) lines.push(`- ${l.dependencies}: ${list(g.dependencies.map((d) => moduleLink(c, d.module)))}`);
+  const run = g.testCommand ? ` · ${l.run}: ${code(g.testCommand.command)}` : "";
+  lines.push(
+    `- ${l.tests}: ${
+      g.tests.length === 0
+        ? l.noTests
+        : list(
+            g.tests.map((t) => `${code(t.path)}${t.cases > 0 ? aside(c, l.testCases(t.cases)) : ""}`),
+            4,
+          )
+    }${run}`,
+  );
+  if (g.entries.length > 0) lines.push(`- ${l.entries}: ${list(g.entries.map((e) => `${code(e.label)}${aside(c, loc(e))}`))}`);
+  if (g.commits === null) lines.push(`- ${l.coChangeNoWindow}: ${l.noHistory}`);
+  else if (g.window > 0)
+    lines.push(`- ${l.coChange(g.window)}: ${g.coChange.length === 0 ? l.noCoChange : list(g.coChange.map((x) => `${code(x.path)} ${l.times(x.together)}`))}`);
+  const risks = g.risks.map((r) =>
+    r.kind === "hub"
+      ? l.hub
+      : r.kind === "large_file"
+        ? l.largeFile(code(r.path ?? ""), num(r.lines ?? 0))
+        : r.kind === "untested"
+          ? l.untested
+          : l.cycle(
+              list(
+                (r.with ?? []).map((id) => moduleLink(c, id)),
+                3,
+              ),
+            ),
+  );
+  if (risks.length > 0) lines.push(`- ${l.risks}: ${risks.join("・")}`);
+  return `**${l.title}**\n${lines.join("\n")}`;
+}
+
+const SYMBOL_KIND_JA: Record<string, string> = { function: "関数", class: "クラス", const: "定数", var: "変数", method: "メソッド", struct: "構造体" };
+
+/** Display label of a region (`状態（useState 53・useRef 33）`, `Server のメソッド（12）`). */
+export function regionLabel(r: FileRegion, lang: DocLang): string {
+  const l = L[lang].regions;
+  const n = r.count !== undefined && r.count > 1 ? r.count : null;
+  const hooks = Object.entries(r.hooks ?? {})
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+    .slice(0, 3)
+    .map(([h, k]) => `${h} ${k}`)
+    .join("・");
+  const paren = (s: string) => (s === "" ? "" : lang === "ja" ? `（${s}）` : ` (${s})`);
+  if (r.kind === "symbol")
+    return `${r.host ?? r.names[0] ?? ""}${paren(lang === "ja" ? (SYMBOL_KIND_JA[r.symbolKind ?? ""] ?? r.symbolKind ?? "") : (r.symbolKind ?? ""))}`;
+  if (r.kind === "methods" && r.depth === 0 && r.host) return `${l.methodsOf(r.host)}${paren(n === null ? "" : String(n))}`;
+  if (r.kind === "state" || r.kind === "effects" || r.kind === "derived") return `${l.kind[r.kind]}${paren(hooks || (n === null ? "" : String(n)))}`;
+  if (r.kind === "render") return l.kind.render;
+  return `${l.kind[r.kind]}${paren(n === null ? "" : String(n))}`;
+}
+
+/** 「大きなファイルの中身」 of a module page: each large member file's regions with their line ranges. */
+function regionsMd(c: Ctx, paths: readonly string[]): string {
+  const l = c.l.regions;
+  const lines: string[] = [];
+  for (const path of paths) {
+    const f = c.input.guide?.regions?.[path];
+    if (!f) continue;
+    lines.push(`- ${code(path)}${aside(c, l.lines(num(f.lines)))}`);
+    for (const r of f.regions) {
+      const names = r.kind === "symbol" || r.names.length === 0 ? "" : `: ${r.names.slice(0, 4).map(code).join("・")}`;
+      lines.push(`${"  ".repeat(r.depth + 1)}- ${code(`${path}:${r.start}-${r.end}`)} ${regionLabel(r, c.lang)}${names}`);
+    }
+  }
+  return `**${l.title}**\n${lines.join("\n")}`;
+}
+
+/**
+ * NC-10 §7 主要な型: the key data types (what holds what, where declared, how widely used) and, when their fields
+ * relate them, a drawing of the relations (0 tok, `StaticGuide.types`).
+ */
+function keyTypeSpecs(c: Ctx): StaticSpec[] {
+  const types = c.input.guide?.types ?? [];
+  if (types.length === 0) return [];
+  const l = c.l.types;
+  const rows = types.map((t) => [
+    code(t.name),
+    t.kind,
+    loc(t),
+    t.fields > 0 ? String(t.fields) : "—",
+    t.refs.length > 0 ? t.refs.map((r) => `${code(r.field)} → ${code(r.name)}`).join("・") : "—",
+    String(t.usedBy),
+  ]);
+  const out: StaticSpec[] = [facts("s7", "s7:types", `**${l.title}**\n${table(l.head, rows)}`, RANK.pre - 4, "L1", ["newcomer", "dev"])];
+  const related = new Set<string>();
+  for (const t of types)
+    for (const r of t.refs) {
+      related.add(t.name);
+      related.add(r.name);
+    }
+  if (related.size >= 2) {
+    const shown = types.filter((t) => related.has(t.name));
+    const idOf = new Map(
+      shown.map((t, i) => [
+        t.name,
+        `t${i}_${t.name
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]/g, "_")
+          .slice(0, 40)}`,
+      ]),
+    );
+    const ir: Omit<DiagramIR, "id"> = {
+      kind: "er",
+      nodes: shown.map((t) => ({ id: idOf.get(t.name) as string, label: t.name, sublabel: `${t.path}:${t.line}`, shape: "box", ref: { path: t.path } })),
+      edges: shown.flatMap((t) =>
+        t.refs
+          .filter((r) => idOf.has(r.name))
+          .map((r, i) => ({
+            id: `${idOf.get(t.name)}_${i}`,
+            from: idOf.get(t.name) as string,
+            to: idOf.get(r.name) as string,
+            kind: "data" as const,
+            label: r.field,
+          })),
+      ),
+      groups: [],
+      direction: "RIGHT",
+      origin: "static",
+    };
+    out.push({
+      slot: "s7:types-map",
+      section: "s7",
+      kind: "diagram",
+      md: diagramMd(ir),
+      depth: "L1",
+      audience: ["newcomer", "dev"],
+      rank: RANK.pre - 3,
+      diagram: ir,
+    });
+  }
   return out;
 }
 
 function s7(c: Ctx): StaticSpec[] {
   const schema = ofKind(c.input.facts, "schema").sort((a: SchemaFact, b: SchemaFact) => (a.entity < b.entity ? -1 : a.entity > b.entity ? 1 : 0));
-  if (schema.length === 0) return [facts("s7", "s7:schema", `- ${c.l.noSchema}`, RANK.pre, "L2")];
+  if (schema.length === 0) return [...keyTypeSpecs(c), facts("s7", "s7:schema", `- ${c.l.noSchema}`, RANK.pre, "L2")];
   const out = [
+    ...keyTypeSpecs(c),
     facts(
       "s7",
       "s7:schema",
@@ -458,8 +622,57 @@ function s8(c: Ctx): StaticSpec[] {
       RANK.post2,
       "L2",
     ),
+    facts("s8", "s8:outbound", outboundMd(c), RANK.post2 + 5, "L2", ["dev", "reviewer"]),
     facts("s8", "s8:env", envTable(c, ofKind(c.input.facts, "env")), RANK.post3, "L2"),
+    ...secretsSpec(c),
   ];
+}
+
+const CHANNELS = ["http", "rpc", "sdk", "db", "subprocess"] as const;
+/** Rows of the outbound table (grouped by kind × target × library), and locations shown per row. */
+const OUTBOUND_ROWS = 30;
+const OUTBOUND_SITES = 3;
+
+/**
+ * NC-10 §8 外とのやり取り: every place the code calls out (HTTP, RPC, SDK / database clients, subprocesses), one row
+ * per kind × target × library with up to three locations, HTTP first. 0 tok (`outbound` facts).
+ */
+function outboundMd(c: Ctx): string {
+  const l = c.l.outbound;
+  const groups = new Map<string, OutboundFact[]>();
+  for (const f of ofKind(c.input.facts, "outbound")) {
+    const k = `${f.channel}\u0000${f.target ?? ""}\u0000${f.via}`;
+    groups.set(k, [...(groups.get(k) ?? []), f]);
+  }
+  if (groups.size === 0) return `**${l.title}**\n- ${l.none}`;
+  const rows = [...groups.values()]
+    .sort(
+      (a, b) =>
+        CHANNELS.indexOf((a[0] as OutboundFact).channel) - CHANNELS.indexOf((b[0] as OutboundFact).channel) ||
+        b.length - a.length ||
+        ((a[0] as OutboundFact).via < (b[0] as OutboundFact).via ? -1 : 1) ||
+        ((a[0] as OutboundFact).target ?? "").localeCompare((b[0] as OutboundFact).target ?? ""),
+    )
+    .slice(0, OUTBOUND_ROWS)
+    .map((fs) => {
+      const f = fs[0] as OutboundFact;
+      const sites = [...fs].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.line - b.line));
+      const where = sites.slice(0, OUTBOUND_SITES).map(loc).join(" ") + (sites.length > OUTBOUND_SITES ? ` ${l.more(sites.length - OUTBOUND_SITES)}` : "");
+      return [l.channel[f.channel], f.target ? code(f.target) : "—", code(f.via), where];
+    });
+  return `**${l.title}**\n${table(l.head, rows)}`;
+}
+
+/** Names that hold a credential (values are never read: env facts carry names only). */
+const SECRET_NAME = /(SECRET|TOKEN|PASSW(OR)?D|PASSPHRASE|API_?KEY|ACCESS_?KEY|PRIVATE_?KEY|CREDENTIAL|_DSN$|^DSN$|DATABASE_URL|_AUTH$|^AUTH_|WEBHOOK)/i;
+
+/** §8 秘密情報らしい環境変数 (names and where they are read), only when there is one. */
+function secretsSpec(c: Ctx): StaticSpec[] {
+  const by = new Map<string, EnvFact[]>();
+  for (const e of ofKind(c.input.facts, "env")) if (SECRET_NAME.test(e.name)) by.set(e.name, [...(by.get(e.name) ?? []), e]);
+  if (by.size === 0) return [];
+  const rows = [...by.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([name, fs]) => [code(name), fs.slice(0, OUTBOUND_SITES).map(loc).join(" ")]);
+  return [facts("s8", "s8:secrets", `**${c.l.secrets.title}**\n${table(c.l.secrets.head, rows)}`, RANK.post3 + 5, "L2", ["dev", "reviewer"])];
 }
 
 export function decisionsTable(decisions: Decision[], l: Labels): string {
@@ -589,7 +802,15 @@ export function buildStatic(
   decisions: Decision[],
   estimates: Estimates,
 ): StaticSpec[] {
-  const c: Ctx = { input, lang, l: L[lang], modules, infos: new Map(input.modules.map((m) => [m.id, m])), estimates };
+  const c: Ctx = {
+    input,
+    lang,
+    l: L[lang],
+    modules,
+    infos: new Map(input.modules.map((m) => [m.id, m])),
+    slugs: new Map(pages.map((p) => [p.module, p.slug])),
+    estimates,
+  };
   return [
     ...s0(c),
     ...s2(c),

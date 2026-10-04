@@ -66,6 +66,15 @@ $effect(() => {
   <aside class="backlinks" aria-label={t("code.backlinks")} data-chrome>
     <h2 class="rail-label">{t("code.backlinks")}</h2>
     {#if content && route.name === "code"}
+      {#if content.regions?.length}
+        <!-- a file over 1,500 lines: where its parts are, with their ranges (CR rdoc-2) -->
+        <h2 class="rail-label outline-h">{t("code.regions", { n: content.regions.length })}</h2>
+        <ol class="outline regions">
+          {#each content.regions as r (`${r.start}-${r.end}-${r.depth}`)}
+            <li class:sub={r.depth === 1}><a href={HREFS.code(route.ws, content.path, r.start, r.end)}><span data-user-content>{r.label}</span> <span class="mono ln">L{r.start}–{r.end}</span></a></li>
+          {/each}
+        </ol>
+      {/if}
       {#if content.outline?.length}
         <h2 class="rail-label outline-h">{t("code.outline", { n: content.outline.length })}</h2>
         <ol class="outline">
@@ -109,6 +118,9 @@ $effect(() => {
   }
   .outline .ln {
     color: var(--faint);
+  }
+  .regions li.sub a {
+    padding-left: 12px;
   }
   .code-main {
     position: sticky;
