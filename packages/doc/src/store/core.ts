@@ -21,6 +21,7 @@ import {
   type SafeWriter,
   type SecretScanner,
   type SectionId,
+  type SectionNode,
   type SseEventPayload,
   staticBlockId,
   type WorkspaceInfo,
@@ -80,6 +81,10 @@ export class StoreCore {
   schedule: () => void = () => {};
   /** Reading paths of the current doc (set by the store). */
   readingPaths: () => ReadingPath[] = () => [];
+  /** EX-01: pages of vanished modules kept as files (`orphaned/<slug>.md` → text), written by the next flush. */
+  readonly orphans = new Map<string, string>();
+  /** A file's text from its sections' blocks (set by the flusher; used to keep an orphaned module page). */
+  orphanText: (sections: SectionNode[]) => string = () => "";
   /** Modules that have children (aspect set `s6/parent`); recomputed when the module map changes. */
   private parents = new Set<string>();
   private parentsOf = -1;

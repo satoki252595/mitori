@@ -24,7 +24,7 @@ export const INTEGRATION_PATHS = [
 
 /**
  * Allowlist per kind (`rel` relative to the kind's root):
- * - `doc` (root = docDir): DOC_TEMPLATE files, `doc/modules/<slug>.md`, `decisions/dc_<id>.md`, the manifest/index/
+ * - `doc` (root = docDir): DOC_TEMPLATE files, `doc/modules/<slug>.md`, `orphaned/<slug>.md` (EX-01), `decisions/dc_<id>.md`, the manifest/index/
  *   config/README/.gitignore, `cache/**`.  - `prep` (root = docDir): `tmp/prep/pr_<id>[/**]`.
  * - `integration`: {@link INTEGRATION_PATHS}.  - `repo_meta` (root = repo): `.gitattributes`, `AGENTS.md`, `CLAUDE.md`.
  * - `accept` (root = repo): any RepoPath (the job's write scope is checked by loop).  - `home` (root = `~/.mitori`): any.
@@ -32,7 +32,7 @@ export const INTEGRATION_PATHS = [
  */
 export const SAFE_WRITE_RULES: Readonly<Record<SafeWriteKind, RegExp>> = {
   doc: new RegExp(
-    `^(?:${DOC_TEMPLATE.map((s) => esc(s.file)).join("|")}|doc/modules/${SLUG}\\.md|decisions/${ID("decision")}\\.md|mitori\\.json|doc\\.index\\.json|config\\.json|README\\.md|\\.gitignore|cache/.+)$`,
+    `^(?:${DOC_TEMPLATE.map((s) => esc(s.file)).join("|")}|doc/modules/${SLUG}\\.md|orphaned/${SLUG}\\.md|decisions/${ID("decision")}\\.md|mitori\\.json|doc\\.index\\.json|config\\.json|README\\.md|\\.gitignore|cache/.+)$`,
     "u",
   ),
   prep: new RegExp(`^tmp/prep/${ID("prep")}(?:/.+)?$`, "u"),

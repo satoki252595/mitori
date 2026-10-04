@@ -1336,6 +1336,9 @@
     {
       "id": "md_0589x3tt",
       "ifaceDigest": "bbc18531f8395f2e",
+      "members": [
+        "cmd/tsundoku-cobra/main.go"
+      ],
       "name": "tsundoku-cobra",
       "reps": [
         "cmd/tsundoku-cobra/main.go"
@@ -1346,6 +1349,9 @@
     {
       "id": "md_3jpx92tq",
       "ifaceDigest": "734cb230531a237f",
+      "members": [
+        "cmd/tsundoku/main.go"
+      ],
       "name": "tsundoku",
       "reps": [
         "cmd/tsundoku/main.go"
@@ -1356,6 +1362,10 @@
     {
       "id": "md_b334f63e",
       "ifaceDigest": "327d6e2a4ba78891",
+      "members": [
+        "internal/store/memory.go",
+        "internal/store/store.go"
+      ],
       "name": "store",
       "reps": [
         "internal/store/memory.go",
@@ -1367,6 +1377,10 @@
     {
       "id": "md_qkqykx7t",
       "ifaceDigest": "13bfd3860b78496b",
+      "members": [
+        "internal/server/chi_routes.go",
+        "internal/server/server.go"
+      ],
       "name": "server",
       "reps": [
         "internal/server/chi_routes.go",
@@ -1378,6 +1392,9 @@
     {
       "id": "md_v815ga4j",
       "ifaceDigest": "5612406cd8248439",
+      "members": [
+        "internal/meta/fetch.go"
+      ],
       "name": "meta",
       "reps": [
         "internal/meta/fetch.go"
@@ -1388,6 +1405,9 @@
     {
       "id": "md_w5rsgwv9",
       "ifaceDigest": "19a2c9cda0b59520",
+      "members": [
+        "internal/config/config.go"
+      ],
       "name": "config",
       "reps": [
         "internal/config/config.go"

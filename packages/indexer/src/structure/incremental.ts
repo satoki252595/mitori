@@ -26,6 +26,9 @@ export interface CarryInput {
   seeded?: boolean;
 }
 
+/** Share of today's graph files a seeded member list must cover to be restored as is (EX-01). */
+export const SEED_EXACT_MIN_COVER = 0.8;
+
 const commonPrefix = (a: string, b: string): number => {
   const x = a.split("/");
   const y = b.split("/");
@@ -48,12 +51,20 @@ export function carryOver(c: CarryInput): number[][] | null {
 
   const leaves = [...c.prevLeaves].sort((a, b) => (a.id < b.id ? -1 : 1));
   const leafOf = new Int32Array(fg.paths.length).fill(-1);
+  // seeds with their full member lists (doc.index.json `members`, EX-01) restore the partition as it was
+  const exact = c.seeded && leaves.length > 0 && leaves.every((m) => m.members.length > 0);
+  let covered = 0;
   leaves.forEach((m, li) => {
-    for (const p of c.seeded ? m.reps : m.members) {
+    for (const p of c.seeded && !exact ? m.reps : m.members) {
       const i = fg.index.get(p);
-      if (i !== undefined) leafOf[i] = li;
+      if (i !== undefined) {
+        if (leafOf[i] === -1) covered++;
+        leafOf[i] = li;
+      }
     }
   });
+  // a member list that no longer describes this tree (most files new / gone) is not a partition to restore
+  const restored = exact && covered / Math.max(1, fg.paths.length) >= SEED_EXACT_MIN_COVER;
   assignNewcomers(fg, leafOf);
   const groups = new Map<number, number[]>();
   for (let v = 0; v < fg.paths.length; v++) {
@@ -67,7 +78,9 @@ export function carryOver(c: CarryInput): number[][] | null {
   const t = c.tuning;
   for (const [l, g] of groups) {
     const loc = g.reduce((s, v) => s + (fg.size[v] as number), 0);
-    // seeds carry no sizes: a stale doc.index.json whose few surviving reps soak up the whole repo must cluster
+    // seeds carry no sizes: a stale doc.index.json whose few surviving reps soak up the whole repo must cluster.
+    // A restored exact partition keeps its sizes as they were chosen.
+    if (restored) continue;
     if (c.seeded) {
       if (g.length > 1 && loc > t.leafLocHard) return null;
       continue;

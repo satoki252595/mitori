@@ -170,6 +170,8 @@
   "notice.settings.ignoredRepoKeys": "Some repository settings were ignored",
   "notice.settings.reloaded": "Settings reloaded",
   "notice.slug.rewritten": "Section ids were rewritten",
+  "notice.doc.moduleReattached": "The module partition changed. The page of “{module}” moved to the new partition (it may be out of date)",
+  "notice.doc.moduleOrphaned": "Module “{module}” left the partition. Its page was kept as {file}",
   "notice.trust.pending": "Automatic checks of this repository await approval (proposals are made without checks until then)",
   "notice.ws.notProject": "This does not look like a project folder",
   "notice.ws.shallowNoChurn": "Change frequency is unavailable on a shallow clone",

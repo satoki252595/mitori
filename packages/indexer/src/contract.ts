@@ -560,6 +560,8 @@ export interface ModuleSeed {
   parent?: ModuleId;
   /** Representative member paths (≤ 32, PageRank-ranked, stored sorted). */
   reps: RepoPath[];
+  /** Every member path of a leaf (doc.index.json `members`): the seeded warm start reproduces the partition (EX-01). */
+  members?: RepoPath[];
 }
 
 /** Everything the indexer needs from the outside world. */

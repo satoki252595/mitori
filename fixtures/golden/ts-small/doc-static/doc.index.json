@@ -1180,6 +1180,9 @@
     {
       "id": "md_1nfwbg51",
       "ifaceDigest": "74d71d06aab90ec0",
+      "members": [
+        "bin/tsundoku.js"
+      ],
       "name": "bin",
       "reps": [
         "bin/tsundoku.js"
@@ -1190,6 +1193,10 @@
     {
       "id": "md_3brq1jp6",
       "ifaceDigest": "1635586a83af10f4",
+      "members": [
+        "src/ui/BookList.tsx",
+        "src/ui/legacy.jsx"
+      ],
       "name": "ui",
       "reps": [
         "src/ui/BookList.tsx",
@@ -1201,6 +1208,9 @@
     {
       "id": "md_9nakc22c",
       "ifaceDigest": "6321406db000b4e9",
+      "members": [
+        "src/http/legacy-express.js"
+      ],
       "name": "http",
       "reps": [
         "src/http/legacy-express.js"
@@ -1211,6 +1221,9 @@
     {
       "id": "md_vg5srk7z",
       "ifaceDigest": "cbdceafc9b273bbe",
+      "members": [
+        "src/index.ts"
+      ],
       "name": "src",
       "reps": [
         "src/index.ts"

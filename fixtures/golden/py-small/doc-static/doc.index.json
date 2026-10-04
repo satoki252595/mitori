@@ -976,6 +976,12 @@
     {
       "id": "md_t7qy8mc3",
       "ifaceDigest": "014a749da92d09e5",
+      "members": [
+        "tsundoku/__main__.py",
+        "tsundoku/api.py",
+        "tsundoku/metadata.py",
+        "tsundoku/repo.py"
+      ],
       "name": "tsundoku",
       "reps": [
         "tsundoku/__main__.py",

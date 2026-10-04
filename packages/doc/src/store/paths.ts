@@ -84,5 +84,7 @@ export function allowedDocFile(rel: string): boolean {
   if (["mitori.json", "doc.index.json", "README.md", ".gitignore"].includes(rel)) return true;
   const m = /^doc\/modules\/([^/]+)\.md$/.exec(rel);
   if (m) return SLUG_RE.test(m[1] as string);
+  const o = /^orphaned\/([^/]+)\.md$/.exec(rel);
+  if (o) return SLUG_RE.test(o[1] as string);
   return /^decisions\/dc_[0-9a-hjkmnp-tv-z]{8}\.md$/.test(rel);
 }

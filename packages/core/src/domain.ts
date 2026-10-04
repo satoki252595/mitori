@@ -1461,6 +1461,12 @@ export interface DocModuleEntry {
   parent?: ModuleId;
   /** Representative member paths: ≤ 32, chosen by PageRank, stored path-sorted. */
   reps: RepoPath[];
+  /**
+   * Every member path, path-sorted (leaf modules). With it a fresh index (new path, new home, a teammate's clone)
+   * reproduces the partition instead of re-clustering, so module pages keep their ids (EX-01). Optional: older
+   * doc.index.json files have reps only.
+   */
+  members?: RepoPath[];
 }
 
 /** Doc change proposal (D12: doc updates after code changes are always proposals). */
@@ -3781,6 +3787,8 @@ export const NOTICE_KEYS = [
   "notice.doc.notOwned",
   "notice.doc.externalEdit",
   "notice.doc.claimsDropped",
+  "notice.doc.moduleReattached",
+  "notice.doc.moduleOrphaned",
   "notice.git.configNeutralized",
   "notice.gate.noSandbox",
   "notice.gate.consentNeeded",

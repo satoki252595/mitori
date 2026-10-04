@@ -215,7 +215,14 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
 
   /* ---- indexer ------------------------------------------------------------------------------------------- */
   const seeds = (): ModuleSeed[] =>
-    doc.index().modules.map((m) => ({ id: m.id, slug: m.slug, name: m.name, reps: [...m.reps], ...(m.parent !== undefined ? { parent: m.parent } : {}) }));
+    doc.index().modules.map((m) => ({
+      id: m.id,
+      slug: m.slug,
+      name: m.name,
+      reps: [...m.reps],
+      ...(m.members && m.members.length > 0 ? { members: [...m.members] } : {}),
+      ...(m.parent !== undefined ? { parent: m.parent } : {}),
+    }));
   const rawIndexer = createIndexer({
     ws: info,
     db: base.db,

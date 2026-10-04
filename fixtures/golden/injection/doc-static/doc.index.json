@@ -964,6 +964,9 @@
     {
       "id": "md_7peeh3rx",
       "ifaceDigest": "a4064e2a4f8f81d4",
+      "members": [
+        "config/aws.ts"
+      ],
       "name": "config",
       "reps": [
         "config/aws.ts"
@@ -974,6 +977,14 @@
     {
       "id": "md_ar6p09pg",
       "ifaceDigest": "cbdceafc9b273bbe",
+      "members": [
+        "src/accounts.ts",
+        "src/csv.ts",
+        "src/errors.ts",
+        "src/evil-fence.ts",
+        "src/payments.ts",
+        "src/trojan.ts"
+      ],
       "name": "src",
       "reps": [
         "src/accounts.ts",

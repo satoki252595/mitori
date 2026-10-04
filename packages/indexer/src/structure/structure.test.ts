@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isId, type ModuleId, SLUG_RE } from "@mitori/core";
+import { isId, type ModuleId, type RepoPath, SLUG_RE } from "@mitori/core";
 import type { ModuleDetail, ModuleSeed } from "../contract.ts";
 import { linkFacts } from "../facts/stage.ts";
 import { resolveImports } from "../resolve/stage.ts";
@@ -290,6 +290,22 @@ describe("IDX-U structure stage on a small repo (TEST_TUNING)", () => {
     expect(st.modules.filter((m) => m.id === a.id || m.id === b.id).map((m) => m.slug)).toContain(a.slug);
     expect(st.modules.some((m) => m.id === b.id)).toBe(true);
     saveStructure(memDb(), st, NOW); // the UNIQUE(slug) / PRIMARY KEY(id) constraints hold
+  });
+
+  test("EX-01 seeds with their full member lists (doc.index.json `members`) reproduce the partition: same ids, slugs and files", () => {
+    const first = runPipeline(smallRepo(), { tuning: TEST_TUNING }).structure;
+    const leaves = new Map(first.modules.filter((m) => m.paths.length > 0).map((m) => [m.id, [...m.paths].sort()]));
+    // the doc keeps reps (a sample) and, now, every member of a leaf
+    const seeds: ModuleSeed[] = moduleSeedsOf(first).map((sd) => ({
+      ...sd,
+      reps: sd.reps.slice(0, 1),
+      ...(leaves.has(sd.id) ? { members: leaves.get(sd.id) as RepoPath[] } : {}),
+    }));
+    const again = runPipeline(smallRepo(), { tuning: TEST_TUNING, seeds }).structure;
+    const shape = (st: typeof first) =>
+      st.modules.map((m) => ({ id: m.id, slug: m.slug, parent: m.parent ?? null, paths: [...m.paths].sort() })).sort((a, b) => (a.id < b.id ? -1 : 1));
+    expect(shape(again)).toEqual(shape(first));
+    expect(again.info.clustered).toBe(false); // carried, not re-clustered
   });
 
   test("seed restore never carries a stale doc whose few surviving reps would soak up the repo (size cap)", () => {

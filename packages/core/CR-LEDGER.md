@@ -293,3 +293,9 @@
 |---|---|---|---|---|
 | CR ux-F1 | ux（仕上げ） | accepted | api `CodeTargetsReq`・`CodeTarget`・`CodeTargets`、route `POST /ws/:ws/jobs/targets`（`mutates: false`、owner loop）(applied)。実装は loop `review/targets.ts`（`resolveCodeTargets`、純関数）+ server `wiring/loop-routes.ts` | 設計書の文へのコメントから、ファイル名を知らなくても Fix が書ける（コンセプトの中心）。出典（claim の cite）は自動の対象コード、出典の無い文は表の行・文の参照（バッククォートのシンボル名を含む）・シンボル名・全文検索・同じ節の近くの文の出典（`source: "near"`、検証パスで追加）の候補をユーザーが 1 クリックで選ぶ（黙って推測して書かない）。`ReviewEngine` のメソッドにはしていない（cr-requests/ux.md #1） |
 | CR ux-F2 | ux（仕上げ、= WP-11 #3） | accepted | loop `INTEGRATION_TEMPLATES`（文面のみ、id は `@1` のまま — daemon の install route は今回まで 501 で、配布済みの block は無い）: `agents-md/block@1` を markers 込み 74 tok に短縮（「Run `mitori review` only when asked; reply via `mitori reply`. Never edit `{docDir}/` except prep `out/` files.」）、review SKILL.md step 1 を短縮（plugin 1,480 B / project 1,487 B / codex 1,305 B ≤ 1,500 B）、`marketplace.json@1` に `metadata.description`（`claude plugin validate` の警告を解消）(applied)。server: `createInstaller` を compose に、`GET /integrations`・`POST /integrations/:target/install`（`wiring/integrations.ts`）、`POST /ws/:ws/init {agentsBlock}` | `install.agentsTokens`（limit 80）と `install.skillBytes`（limit 1,500 B）を満たす。`test.failing` を外した |
+
+## 7. 監査の仕上げ — finisher（2026-10-04、`docs/progress/audit-resolution.md`）
+
+| id | requester | 決定 | 適用先 | 理由・備考 |
+|---|---|---|---|---|
+| CR fin-1 | finisher（EX-01） | accepted | core `DocModuleEntry.members?: RepoPath[]`（葉モジュールの全メンバー、path 順。省略可 = 旧 doc.index.json）、`NOTICE_KEYS` に `notice.doc.moduleReattached` / `notice.doc.moduleOrphaned`、indexer `ModuleSeed.members?`、platform SafeWriter `doc` の許可に `orphaned/<slug>.md` (applied) | 新しいパス・新しい home で開くと分割が変わり、生成済み module 章 16 のうち 14 がスタブで上書きされた（親モジュールの id 変更が子の節まで削除していた）。seed に全メンバーを載せて分割をそのまま復元し、消えたモジュールの頁は重なり（≥ 0.6）で新しい id に付け替えるか `orphaned/` に残す |

@@ -239,13 +239,111 @@ function citedPaths(core: StoreCore, rec: BlockRec): string {
   return [...paths].sort().join("\n");
 }
 
+/** The sections stored in a module page's file: the page and any sub-sections in the same file (not child modules). */
+function pageSections(core: StoreCore, section: SectionId): SectionNode[] {
+  const st = core.st;
+  const root = st.sections.get(section);
+  if (!root) return [];
+  const out: SectionNode[] = [];
+  const walk = (n: SectionNode) => {
+    out.push(n);
+    for (const c of n.children) {
+      const k = st.sections.get(c);
+      if (k && k.file === root.file) walk(k);
+    }
+  };
+  walk(root);
+  return out;
+}
+
+/** Blocks of a module page whose text a model or a human wrote (what a re-partition must never lose). */
+function authoredBlocks(core: StoreCore, section: SectionId): BlockRec[] {
+  const out: BlockRec[] = [];
+  for (const s of pageSections(core, section))
+    for (const b of s.blocks) {
+      const rec = core.st.blocks.get(b);
+      if (rec && (rec.meta.origin === "ai" || rec.meta.origin === "human")) out.push(rec);
+    }
+  return out;
+}
+
+/** Member paths of a doc module row: the full list when the row carries it, else its ≤ 32 representatives. */
+const membersOf = (e: DocModuleEntry): readonly string[] => (e.members && e.members.length > 0 ? e.members : e.reps);
+
+/**
+ * How well a vanished module row matches a new module: Jaccard over the full member lists when the row has them;
+ * for a reps-only row (an older doc.index.json), the share of its representatives that the new module holds.
+ */
+export function partitionOverlap(prev: DocModuleEntry, paths: readonly string[]): number {
+  const a = new Set(membersOf(prev));
+  if (a.size === 0 || paths.length === 0) return 0;
+  let inter = 0;
+  for (const p of paths) if (a.has(p)) inter++;
+  if (prev.members && prev.members.length > 0) return inter / (a.size + paths.length - inter);
+  return inter / a.size;
+}
+
+function jaccard(a: readonly string[], b: readonly string[]): number {
+  const x = new Set(a);
+  let inter = 0;
+  for (const v of new Set(b)) if (x.has(v)) inter++;
+  const union = x.size + new Set(b).size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+
+/** Minimum overlap for a vanished module's page to follow a new module (EX-01). */
+export const REATTACH_MIN = 0.6;
+
+/**
+ * EX-01: a re-partition (new path, fresh home, moved repo, teammate clone) gives some modules new ids. Their pages
+ * held generated and human text; tombstoning them lost a paid generation that `.mitori/` (gitignored) cannot bring
+ * back. A vanished row whose page has authored blocks hands its slug / section / name to the best-overlapping NEW
+ * module (≥ {@link REATTACH_MIN}); with no such module the page is copied to `orphaned/<slug>.md` before it goes.
+ */
+function reattach(core: StoreCore, input: StaticDocInput): { inherit: Map<ModuleId, DocModuleEntry>; orphans: DocModuleEntry[]; moved: DocModuleEntry[] } {
+  const st = core.st;
+  const ids = new Set(input.modules.map((m) => m.id));
+  const vanished = [...st.modules.values()].filter((e) => !ids.has(e.id) && authoredBlocks(core, e.section).length > 0);
+  const inherit = new Map<ModuleId, DocModuleEntry>();
+  const orphans: DocModuleEntry[] = [];
+  const moved: DocModuleEntry[] = [];
+  if (vanished.length === 0) return { inherit, orphans, moved };
+  const fresh = input.modules.filter((m) => !st.modules.has(m.id));
+  const pairs: { prev: DocModuleEntry; to: ModuleId; score: number; exact: boolean }[] = [];
+  // a parent has no files of its own: it matches by its children (module ids that mostly survive a re-partition)
+  const kidsOf = new Map<string, string[]>();
+  for (const e of st.modules.values()) if (e.parent) kidsOf.set(e.parent, [...(kidsOf.get(e.parent) ?? []), e.id]);
+  for (const prev of vanished) {
+    const kids = kidsOf.get(prev.id) ?? [];
+    for (const m of fresh) {
+      const parent = kids.length > 0 && m.children.length > 0;
+      const score = parent ? jaccard(kids, m.children) : partitionOverlap(prev, m.paths);
+      if (score >= REATTACH_MIN) pairs.push({ prev, to: m.id, score, exact: score === 1 && (parent || !!prev.members?.length) });
+    }
+  }
+  // best pairs first; ties: the module id order (deterministic)
+  pairs.sort((x, y) => y.score - x.score || (x.prev.id < y.prev.id ? -1 : x.prev.id > y.prev.id ? 1 : x.to < y.to ? -1 : 1));
+  const used = new Set<string>();
+  for (const pr of pairs) {
+    if (used.has(pr.prev.id) || inherit.has(pr.to)) continue;
+    used.add(pr.prev.id);
+    inherit.set(pr.to, pr.prev);
+    if (!pr.exact) moved.push(pr.prev);
+  }
+  for (const prev of vanished) if (!used.has(prev.id)) orphans.push(prev);
+  return { inherit, orphans, moved };
+}
+
 /** Create/update module entries and their `s6/<slug>` sections; removed modules lose their sections. */
 function syncModules(core: StoreCore, input: StaticDocInput, res: ApplyResult): void {
   const st = core.st;
   const next = new Map<ModuleId, DocModuleEntry>();
   const taken = new Set<string>();
+  const { inherit, orphans, moved } = reattach(core, input);
+  const kept = new Set<SectionId>([...inherit.values()].map((e) => e.section));
+  for (const [to, prev] of inherit) rekeySlots(core, prev.id, to);
   for (const m of input.modules) {
-    const prev = st.modules.get(m.id);
+    const prev = st.modules.get(m.id) ?? inherit.get(m.id);
     const s = safeSlug(prev?.slug ?? m.slug, `${m.name} ${m.id}`);
     if (s.rewritten) core.notice("warn", "notice.slug.rewritten", { from: (prev?.slug ?? m.slug).slice(0, 60), to: s.slug });
     const slug = uniqueSlug(s.slug, taken);
@@ -259,9 +357,27 @@ function syncModules(core: StoreCore, input: StaticDocInput, res: ApplyResult): 
       ...(prev?.summary ? { summary: prev.summary } : {}),
       ...(m.parent ? { parent: m.parent } : {}),
       reps: [...m.paths].sort().slice(0, 32),
+      // the exact partition, so a fresh index (new path / home) reproduces it instead of re-clustering (EX-01)
+      ...(m.paths.length > 0 ? { members: [...m.paths].sort() } : {}),
     });
   }
-  for (const [id, prev] of st.modules) if (!next.has(id)) removeSection(core, prev.section, res);
+  for (const prev of orphans) keepOrphan(core, prev);
+  // a vanished parent must not take the pages of modules that are still here with it (EX-01: a parent's new id
+  // cascaded into its 14 children, and every one of them became a 「未生成」 stub)
+  const live = new Set<SectionId>([...next.values()].map((e) => `s6/${e.slug}` as SectionId));
+  for (const [id, prev] of st.modules) if (!next.has(id) && !kept.has(prev.section)) removeSection(core, prev.section, res, live);
+  for (const prev of moved) {
+    // the page now describes a module whose files changed: its text may no longer fit
+    const stale = authoredBlocks(core, prev.section)
+      .filter((r) => r.meta.freshness !== "stale")
+      .map((r) => {
+        r.meta.freshness = "stale";
+        st.touchMeta(r);
+        return r.meta.id;
+      });
+    if (stale.length > 0) core.deps.events.emit({ type: "doc.freshness", blocks: stale, freshness: "stale", paths: [] });
+    core.notice("warn", "notice.doc.moduleReattached", { module: prev.name.slice(0, 60), slug: prev.slug });
+  }
   st.modules.clear();
   for (const [id, e] of next) st.modules.set(id, e);
   core.modulesChanged();
@@ -286,12 +402,40 @@ function syncModules(core: StoreCore, input: StaticDocInput, res: ApplyResult): 
   }
 }
 
-/** Tombstone a sub-section's blocks (and its children) and unlink it. */
-export function removeSection(core: StoreCore, id: SectionId, res?: ApplyResult): void {
+/** Module-page static slots `m:<from>:…` become `m:<to>:…` (same block ids: an inherited page keeps its bytes). */
+function rekeySlots(core: StoreCore, from: ModuleId, to: ModuleId): void {
+  const st = core.st;
+  const pre = `m:${from}:`;
+  for (const [slot, id] of [...st.slots]) {
+    if (!slot.startsWith(pre)) continue;
+    const next = `m:${to}:${slot.slice(pre.length)}`;
+    st.slots.delete(slot);
+    if (st.slots.has(next)) continue;
+    st.slots.set(next, id);
+    const rec = st.blocks.get(id);
+    if (rec) {
+      rec.meta.slot = next;
+      st.touchMeta(rec);
+    }
+  }
+}
+
+/** Copy a vanished module's page (its file as last serialized) to `orphaned/<slug>.md` before its section goes. */
+function keepOrphan(core: StoreCore, prev: DocModuleEntry): void {
+  const sections = pageSections(core, prev.section);
+  if (sections.length === 0) return;
+  const text = core.orphanText(sections);
+  if (text.trim() === "") return;
+  core.orphans.set(`orphaned/${prev.slug}.md`, text);
+  core.notice("warn", "notice.doc.moduleOrphaned", { module: prev.name.slice(0, 60), file: `orphaned/${prev.slug}.md` });
+}
+
+/** Tombstone a sub-section's blocks (and its children, except the `keep` ones: those are only unlinked) and unlink it. */
+export function removeSection(core: StoreCore, id: SectionId, res?: ApplyResult, keep?: ReadonlySet<SectionId>): void {
   const st = core.st;
   const s = st.sections.get(id);
   if (!s || id === topOf(id)) return;
-  for (const c of s.children) removeSection(core, c, res);
+  for (const c of s.children) if (!keep?.has(c)) removeSection(core, c, res, keep);
   const gone = core.tombstone([...s.blocks]);
   res?.deleted.push(...gone);
   st.sections.delete(id);

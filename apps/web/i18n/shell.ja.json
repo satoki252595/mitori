@@ -170,6 +170,8 @@
   "notice.settings.ignoredRepoKeys": "repoの設定で無視した項目があります",
   "notice.settings.reloaded": "設定を読み直しました",
   "notice.slug.rewritten": "節のIDを付け直しました",
+  "notice.doc.moduleReattached": "モジュールの分割が変わりました。「{module}」の頁は新しい分割に引き継ぎました（内容が古い可能性があります）",
+  "notice.doc.moduleOrphaned": "モジュール「{module}」が分割から消えました。その頁は {file} に残しました",
   "notice.trust.pending": "このリポジトリの自動検査が承認待ちです（承認するまでは検査せずに提案します）",
   "notice.ws.notProject": "プロジェクトのフォルダではないようです",
   "notice.ws.shallowNoChurn": "shallow cloneのため変更頻度は出せません",

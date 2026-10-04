@@ -10,6 +10,7 @@ import {
   type DocManifest,
   type DocModuleEntry,
   FORMAT,
+  type RepoPath,
   type SectionId,
   type SectionNode,
 } from "@mitori/core";
@@ -21,6 +22,8 @@ import type { BlockRec, StoreCore } from "./core.ts";
 import { safeSlug, topOf, uniqueSlug } from "./paths.ts";
 
 const MAX_PROBLEMS = 20;
+/** Upper bound of one module row's member list read from doc.index.json (EX-01). */
+const MAX_MEMBERS = 50_000;
 const dec = new TextDecoder();
 type ParsedBlock = ParsedDocFile["blocks"][number];
 
@@ -78,6 +81,12 @@ function restoreIndex(core: StoreCore, idx: DocIndex, problems: CheckError[]): v
     taken.add(slug);
     if (slug !== m.slug) slugRename.set(m.section, `s6/${slug}`);
     const entry: DocModuleEntry = { ...m, slug, section: `s6/${slug}` as SectionId };
+    // untrusted file: `members` (EX-01) is a list of path strings or nothing
+    delete entry.members;
+    if (Array.isArray(m.members)) {
+      const members = m.members.filter((p): p is RepoPath => typeof p === "string" && p.length > 0 && p.length < 4096).slice(0, MAX_MEMBERS);
+      if (members.length > 0) entry.members = members;
+    }
     st.modules.set(m.id, entry);
   }
   const rename = (id: SectionId): SectionId => (slugRename.get(id) as SectionId | undefined) ?? id;

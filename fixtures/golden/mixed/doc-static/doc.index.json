@@ -1583,6 +1583,9 @@
     {
       "id": "md_5hz1gcd5",
       "ifaceDigest": "fd56afa2883a0594",
+      "members": [
+        "tools/indexer-rs/src/main.rs"
+      ],
       "name": "src",
       "reps": [
         "tools/indexer-rs/src/main.rs"
@@ -1593,6 +1596,9 @@
     {
       "id": "md_6sc4zdz9",
       "ifaceDigest": "48e2e3f5939e0ef7",
+      "members": [
+        "web/app/api/books/route.ts"
+      ],
       "name": "books",
       "reps": [
         "web/app/api/books/route.ts"
@@ -1603,6 +1609,9 @@
     {
       "id": "md_7snefhq2",
       "ifaceDigest": "4e9dc038c51ccfef",
+      "members": [
+        "web/app/api/books/[id]/route.ts"
+      ],
       "name": "[id]",
       "reps": [
         "web/app/api/books/[id]/route.ts"
@@ -1613,6 +1622,9 @@
     {
       "id": "md_d20gw9zg",
       "ifaceDigest": "e15c881ce5ac96fa",
+      "members": [
+        "web/tools/cli.js"
+      ],
       "name": "tools",
       "reps": [
         "web/tools/cli.js"
@@ -1623,6 +1635,9 @@
     {
       "id": "md_dsyrcjd7",
       "ifaceDigest": "0dc68e279a2edc80",
+      "members": [
+        "services/api/cmd/admin/main.go"
+      ],
       "name": "admin",
       "reps": [
         "services/api/cmd/admin/main.go"
@@ -1633,6 +1648,9 @@
     {
       "id": "md_hzev8hxw",
       "ifaceDigest": "a517374c5cf921eb",
+      "members": [
+        "scripts/report.py"
+      ],
       "name": "scripts",
       "reps": [
         "scripts/report.py"
@@ -1643,6 +1661,10 @@
     {
       "id": "md_jkqpd1s8",
       "ifaceDigest": "e5ce90dee048465a",
+      "members": [
+        "services/api/echo.go",
+        "services/api/main.go"
+      ],
       "name": "api",
       "reps": [
         "services/api/echo.go",
@@ -1654,6 +1676,9 @@
     {
       "id": "md_v0azgjhx",
       "ifaceDigest": "20c6f8f498391709",
+      "members": [
+        "web/lib/upstream.ts"
+      ],
       "name": "lib",
       "reps": [
         "web/lib/upstream.ts"
@@ -1664,6 +1689,9 @@
     {
       "id": "md_vazqshb9",
       "ifaceDigest": "90e6d7a3acd7e0b5",
+      "members": [
+        "web/components/Nav.jsx"
+      ],
       "name": "components",
       "reps": [
         "web/components/Nav.jsx"
@@ -1674,6 +1702,9 @@
     {
       "id": "md_zf1cmsp5",
       "ifaceDigest": "4ed91b617ece44c9",
+      "members": [
+        "web/app/page.tsx"
+      ],
       "name": "app",
       "reps": [
         "web/app/page.tsx"

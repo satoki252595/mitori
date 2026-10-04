@@ -964,6 +964,9 @@
     {
       "id": "md_7vgqt6t9",
       "ifaceDigest": "a4f5f2335a8f888f",
+      "members": [
+        "detect-only/clap_cli.rs"
+      ],
       "name": "detect-only",
       "reps": [
         "detect-only/clap_cli.rs"
@@ -974,6 +977,13 @@
     {
       "id": "md_jbbyhfcf",
       "ifaceDigest": "cbdceafc9b273bbe",
+      "members": [
+        "src/config.rs",
+        "src/lib.rs",
+        "src/main.rs",
+        "src/meta.rs",
+        "src/store.rs"
+      ],
       "name": "src",
       "reps": [
         "src/config.rs",

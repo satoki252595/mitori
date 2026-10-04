@@ -493,7 +493,8 @@ function seedModules(seeds: readonly ModuleSeed[], now: Iso8601, notices: string
     }
     ids.add(s.id);
     const reps = s.reps.filter((p): p is RepoPath => typeof p === "string").slice(0, STRUCTURE_PARAMS.seedReps);
-    valid.push({ ...s, name: typeof s.name === "string" ? s.name.slice(0, 200) : s.slug, reps });
+    const members = Array.isArray(s.members) ? s.members.filter((p): p is RepoPath => typeof p === "string") : [];
+    valid.push({ ...s, name: typeof s.name === "string" ? s.name.slice(0, 200) : s.slug, reps, ...(members.length > 0 ? { members } : {}) });
   }
   const parents = new Set(valid.map((s) => s.parent).filter((x): x is ModuleId => isId("module", x)));
   return valid
@@ -505,7 +506,8 @@ function seedModules(seeds: readonly ModuleSeed[], now: Iso8601, notices: string
       ...(isId("module", s.parent) ? { parent: s.parent } : {}),
       leaf: !parents.has(s.id),
       alive: true,
-      members: [],
+      // a seed with its full member list carries the partition exactly (EX-01); reps-only seeds are a hint
+      members: s.members && !parents.has(s.id) ? [...s.members] : [],
       reps: [...s.reps],
       anchor: s.reps[0] ?? "",
       bornAt: now,

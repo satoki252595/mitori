@@ -44,7 +44,9 @@ export class Flusher {
   /** Extra docDir files (decisions/…) waiting to be written. */
   readonly extra = new Map<string, string>();
 
-  constructor(private readonly core: StoreCore) {}
+  constructor(private readonly core: StoreCore) {
+    core.orphanText = (sections) => this.fileText(sections);
+  }
 
   /** Reserve a flush per the cadence. */
   schedule(): void {
@@ -69,7 +71,12 @@ export class Flusher {
 
   private dirtyText(): boolean {
     const st = this.core.st;
-    if (st.indexTick > (this.writtenTick.get("doc.index.json") ?? -1) || st.manifestTick > (this.writtenTick.get("mitori.json") ?? -1) || this.extra.size > 0)
+    if (
+      st.indexTick > (this.writtenTick.get("doc.index.json") ?? -1) ||
+      st.manifestTick > (this.writtenTick.get("mitori.json") ?? -1) ||
+      this.extra.size > 0 ||
+      this.core.orphans.size > 0
+    )
       return true;
     for (const [rel, t] of st.fileTick) if (t > (this.writtenTick.get(rel) ?? -1)) return true;
     return false;
@@ -164,6 +171,7 @@ export class Flusher {
       if (this.written.get(".gitignore") !== ignore) pending.push({ rel: ".gitignore", content: ignore, tick: 0, md: false });
     }
     for (const [rel, content] of this.extra) pending.push({ rel, content, tick: 0, md: true });
+    for (const [rel, content] of core.orphans) pending.push({ rel, content, tick: 0, md: true });
     return { pending, remove: removes };
   }
 
@@ -230,6 +238,7 @@ export class Flusher {
     this.written.set(p.rel, p.content);
     if (p.tick > (this.writtenTick.get(p.rel) ?? -1)) this.writtenTick.set(p.rel, p.tick);
     if (this.extra.get(p.rel) === p.content) this.extra.delete(p.rel);
+    if (this.core.orphans.get(p.rel) === p.content) this.core.orphans.delete(p.rel);
     this.noticed.delete(p.rel);
   }
 

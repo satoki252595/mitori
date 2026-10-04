@@ -964,6 +964,9 @@
     {
       "id": "md_4vky00ek",
       "ifaceDigest": "1cf38ab23afaac83",
+      "members": [
+        "notes-app/app.py"
+      ],
       "name": "notes-app",
       "reps": [
         "notes-app/app.py"
@@ -974,6 +977,9 @@
     {
       "id": "md_y0dnkgk7",
       "ifaceDigest": "e9c3f6cb61e5ba1d",
+      "members": [
+        "notes-app/static/app.js"
+      ],
       "name": "static",
       "reps": [
         "notes-app/static/app.js"
