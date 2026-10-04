@@ -133,10 +133,23 @@ function settle() {
   }
 }
 
+/** EX-09: checks were skipped only because nobody approved them — the main action approves and checks first. */
+const trustFirst = $derived(badge.kind === "unverified" && !!badge.unchecked && [...loop.trust.values()].some((r) => r.status === "pending"));
+function openTrust(): void {
+  loop.trustOpen = [...loop.trust.values()].find((r) => r.status === "pending") ?? null;
+}
+function acceptUnchecked(): void {
+  if (sensitive) return;
+  const req = acceptAll(units, { sensitive, unverified: true });
+  if (req) void finishWith(req);
+}
+
 function acceptKey() {
   const u = focusedUnit(d, units);
   if (!u) {
     if (sensitive) return;
+    // ⌘⏎ with unapproved checks opens the approval (diff and commands are on screen), not an unchecked accept
+    if (trustFirst) return openTrust();
     const req = acceptAll(units, { sensitive, unverified: warn !== "none" });
     if (req) void finishWith(req);
     return;
@@ -215,6 +228,7 @@ const mainLabel = $derived.by(() => {
   if (accepting) return rechecking ? t("review.rechecking") : t("review.accepting");
   if (focused) return t(focused.kind === "hunk" ? "review.acceptHunk" : "review.acceptProposal");
   if (warn === "failed") return t("review.acceptFailed");
+  if (trustFirst) return t("review.approveAndCheck");
   if (warn === "unverified") return t("review.acceptUnverified");
   return t("review.acceptAll");
 });
@@ -274,7 +288,7 @@ const sec = $derived.by(() => {
         <span class="gp mono" data-st={summary.writeScope.length ? "pass" : "skipped"} title={summary.writeScope.join("\n")}>✓ {t("review.scope", { n: summary.diffStat?.files ?? summary.writeScope.length })}</span>
         <!-- the pills already say which check was skipped; only the way out stays (the footer says 「検査なしで採用」) -->
         {#if badge.kind === "unverified"}
-          {#if badge.unchecked}<button type="button" class="link unv-act" onclick={() => (loop.trustOpen = [...loop.trust.values()].find((r) => r.status === "pending") ?? null)}>{t("jobs.ready.approve")}</button>{/if}
+          {#if badge.unchecked}<button type="button" class="link unv-act" onclick={openTrust}>{t("jobs.ready.approve")}</button>{/if}
           {#if badge.pending}<button type="button" class="btn btn-sec btn-s" onclick={() => void loop.runGates(job)}>{t("jobs.ready.runGates")}</button>{/if}
         {:else if badge.kind === "rechecking"}
           <span class="unv">{t("jobs.ready.rechecking")}</span>
@@ -353,6 +367,9 @@ const sec = $derived.by(() => {
           <button type="button" class="btn btn-pri main" class:warn={!focused && warn !== "none"} disabled={accepting || resolvedElsewhere} onclick={acceptKey}>
             <span class="lbl">{mainLabel}</span><kbd>{s.keys.label("Mod+Enter")}</kbd>
           </button>
+        {/if}
+        {#if trustFirst && !focused && !sensitive}
+          <button type="button" class="btn btn-sec" disabled={accepting || resolvedElsewhere} onclick={acceptUnchecked}>{t("review.acceptUnverified")}</button>
         {/if}
         <button type="button" class="btn btn-sec" disabled={accepting || resolvedElsewhere} onclick={rejectKey}>{focused ? t("review.rejectUnit") : t("review.reject")}<kbd>{s.keys.label("Mod+Backspace")}</kbd></button>
       </div>

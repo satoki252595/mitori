@@ -5,6 +5,7 @@
   "review.acceptHunk": "この変更箇所を採用",
   "review.acceptProposal": "この提案を採用",
   "review.acceptUnverified": "検査なしで採用",
+  "review.approveAndCheck": "承認して検査 → 採用",
   "review.accepting": "採用中…",
   "review.action.copyPath": "パスをコピー",
   "review.action.undo": "元に戻す",

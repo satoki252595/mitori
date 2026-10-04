@@ -5,6 +5,7 @@
   "review.acceptHunk": "Accept this change",
   "review.acceptProposal": "Accept this proposal",
   "review.acceptUnverified": "Accept without checks",
+  "review.approveAndCheck": "Approve, check, then accept",
   "review.accepting": "Accepting…",
   "review.action.copyPath": "Copy path",
   "review.action.undo": "Undo",

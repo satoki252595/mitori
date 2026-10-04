@@ -34,14 +34,15 @@ describe("budgets-merge", () => {
 
   test("--check passes only when bench/budgets.json equals a fresh merge", () => {
     const fresh = renderMerged(mergeBudgets([a, b]));
-    expect(checkBudgets([a, b], fresh)).toEqual([]);
-    expect(checkBudgets([a, b], `${fresh} `)[0]).toMatch(/out of date/);
-    expect(checkBudgets([a, b], undefined)[0]).toMatch(/missing/);
+    const any = () => true; // these fixtures name a bench file that does not exist (the F4 rule is tested in lib/budgets)
+    expect(checkBudgets([a, b], fresh, any)).toEqual([]);
+    expect(checkBudgets([a, b], `${fresh} `, any)[0]).toMatch(/out of date/);
+    expect(checkBudgets([a, b], undefined, any)[0]).toMatch(/missing/);
   });
 
   test("duplicate ids across files and a missing unit are reported", () => {
     const dup = file("bench/budgets/c.json", [entry("a.one"), entry("c.nounit", { unit: undefined })]);
-    const msgs = checkBudgets([a, b, dup], undefined).join("\n");
+    const msgs = checkBudgets([a, b, dup], undefined, () => true).join("\n");
     expect(msgs).toMatch(/duplicate id/);
     expect(msgs).toMatch(/c\.nounit: unit is missing/);
   });
