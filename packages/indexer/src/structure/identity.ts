@@ -144,9 +144,12 @@ export function assignIdentities(comms: readonly Community[], prev: readonly Pre
     for (const p of o.members.length > 0 ? o.members : o.reps) {
       for (const c of memberIndex.get(p) ?? []) touching.add(c);
     }
+    // members decide for alive DB rows and for seeded parents (their leaves' union): parents nest, and a
+    // representative hit of 1.0 would hold for every ancestor too — Jaccard picks the level the parent was
+    const byMembers = o.members.length > 0 && (o.seed ? !o.leaf : o.alive);
     for (const ci of touching) {
       const set = sets[ci] as Set<RepoPath>;
-      const score = o.alive && o.members.length > 0 && !o.seed ? jaccard(o.members, set, ctx) : hit(o.reps, set, ctx);
+      const score = byMembers ? jaccard(o.members, set, ctx) : hit(o.reps, set, ctx);
       if (score > 0) cands.push({ c: ci, o: oi, score });
     }
   });

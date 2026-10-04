@@ -121,3 +121,26 @@ export function miniIndexer(p: Pipeline): Indexer {
     },
   });
 }
+
+/**
+ * The module rows `.mitori/doc.index.json` carries (doc store `syncModules`), as seeds: reps = the first 32 member
+ * paths, every member of a leaf, nothing for a parent (`ModuleInfo.paths` is empty for parents) — the seed shape a
+ * fresh home / copied checkout actually opens with (CR gen #8).
+ */
+export function docRowSeeds(st: Pick<StructureResult, "modules">): ModuleSeed[] {
+  return st.modules.map((m) => ({
+    id: m.id,
+    slug: m.slug,
+    name: m.name,
+    ...(m.parent !== undefined ? { parent: m.parent } : {}),
+    reps: [...m.paths].sort().slice(0, 32),
+    ...(m.paths.length > 0 ? { members: [...m.paths].sort() } : {}),
+  }));
+}
+
+/** Ids, slugs, tree and membership of every module, id-sorted (partition equality across opens). */
+export function partitionShape(st: Pick<StructureResult, "modules">) {
+  return st.modules
+    .map((m) => ({ id: m.id, slug: m.slug, parent: m.parent ?? null, children: [...m.children].sort(), paths: [...m.paths].sort() }))
+    .sort((a, b) => (a.id < b.id ? -1 : 1));
+}

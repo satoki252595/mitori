@@ -13,7 +13,7 @@ import { louvain, modularity, splitDisconnected } from "./louvain.ts";
 import { loadStructure, saveStructure } from "./persist.ts";
 import type { StructureResult } from "./stage.ts";
 import { memDb } from "./test/db.ts";
-import { NOW, runPipeline, xxh3 } from "./test/pipeline.ts";
+import { docRowSeeds, NOW, partitionShape, runPipeline, xxh3 } from "./test/pipeline.ts";
 import { loadReal } from "./test/real.ts";
 
 const P = STRUCTURE_PARAMS;
@@ -174,5 +174,32 @@ for (const [name, want] of Object.entries(EXPECTED)) {
       for (const x of want.parents ?? []) expect(parentNames).toContain(x);
     },
     120_000,
+  );
+}
+
+/**
+ * CR gen #8 (reopen stability): a checkout opened with a fresh home (copied repo, teammate's clone, reinstall) seeds
+ * S3 from `.mitori/doc.index.json`; the same commit must come back with the same partition — ids, slugs, tree,
+ * members — open after open. Before, the parent rows (no files of their own) were re-born on every seeded open
+ * (`internal` ⇄ `internal-2`, `web` ⇄ `web-2` on crit; three parents on excalidraw), which moved module pages and
+ * re-planned module tasks without any code change.
+ */
+for (const name of ["crit", "excalidraw"] as const) {
+  const dir = corpusDir(name);
+  test.skipIf(dir === null)(
+    `CR gen #8 ${name}: seeded reopens of the same commit reproduce the partition (ids, slugs, tree, members)`,
+    async () => {
+      const input = await loadReal(dir as string);
+      const first = runPipeline(input).structure;
+      expect(first.modules.some((m) => m.children.length > 0)).toBe(true);
+      // a first open without `.mitori/` is deterministic too
+      expect(partitionShape(runPipeline(input).structure)).toEqual(partitionShape(first));
+      let st = first;
+      for (let open = 1; open <= 3; open++) {
+        st = runPipeline(input, { seeds: docRowSeeds(st) }).structure;
+        expect(partitionShape(st)).toEqual(partitionShape(first));
+      }
+    },
+    180_000,
   );
 }
