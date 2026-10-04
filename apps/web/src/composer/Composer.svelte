@@ -15,6 +15,7 @@ import { fmtTokens, isComposing, t } from "../shell/index.ts";
 import { useStores } from "../stores/app.svelte.ts";
 import { loopOf } from "../threads/loop.svelte.ts";
 import EstimateChip from "./EstimateChip.svelte";
+import { focusWhenShown } from "./focus.ts";
 import { dropMention, type MentionQuery, mentionAt } from "./mention.ts";
 import { instrTokens } from "./predict.ts";
 import RouterChip from "./RouterChip.svelte";
@@ -93,7 +94,8 @@ onMount(() => {
       s.layers.closeTop();
     }),
   ];
-  void tick().then(() => (docTarget ? mdArea : ta)?.focus({ preventScroll: true }));
+  // NC-01: the margin slot is visibility:hidden until placed — a one-shot focus() there is a no-op
+  void tick().then(() => focusWhenShown(docTarget ? mdArea : ta));
   return () => {
     for (const off of offs) off();
     s.layers.drop(layerId);
