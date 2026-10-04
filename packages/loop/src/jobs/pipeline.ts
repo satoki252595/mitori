@@ -20,7 +20,7 @@ import {
   type ThreadId,
   type ThreadOutcome,
 } from "@mitori/core";
-import { NEEDS_PARAM } from "../agent/hints.ts";
+import { NEEDS_PARAM, READ_HINT_MAX_LINES, resolveReadHints } from "../agent/hints.ts";
 import { CONTRACT_LIMITS, DOC_FIX_FENCE, type ParsedPatch } from "../contract.ts";
 import { applyEditsToText, parseContract } from "../contracts/index.ts";
 import { gatePatchTree, treeTexts } from "../gates/job.ts";
@@ -357,7 +357,7 @@ export async function runPatch(core: RunnerCore, id: JobId, plan: JobPlan, signa
 }
 
 /** A turn's outcome: the edits did not apply / the gates failed. Feeds the next REPAIR (spec §7.7). */
-type Retry = { kind: "apply" | "gate"; excerpt: string; ranges: HeadRange[]; gates?: GateResult[] };
+type Retry = { kind: "apply" | "gate" | "context"; excerpt: string; ranges: HeadRange[]; gates?: GateResult[] };
 /** A failing gate as the input of a REPAIR turn. */
 export type GateRetry = Retry & { kind: "gate" };
 
@@ -371,14 +371,47 @@ async function patchAttempts(core: RunnerCore, id: JobId, plan: JobPlan, base: G
   let cur = first;
   let gateRepairs = 0;
   let applyRepairs = 0;
+  let contextFetched = core.events(id).some((e) => e.t === "phase" && e.phase === "repair" && e.detail === "context");
   for (;;) {
     if (cur.session) core.parking.park(id, cur.session);
+    const needs = cur.parsed.core.needsMoreContext;
+    // Text-only providers cannot take R2's tool-enabled path. Supply current-head context once, without widening WRITE.
+    if (
+      plan.route.engine === "generic" &&
+      needs?.length &&
+      !contextFetched &&
+      core.get(id).job.attempt <= max &&
+      remainingUsd(core, id, plan) >= REPAIR_MIN_USD
+    ) {
+      const hints = resolveReadHints(core.deps.indexer, needs)
+        .filter((h) => plan.scope.writeScope.includes(h.path))
+        .map((h) => ({ ...h, end: Math.min(h.end, h.start + READ_HINT_MAX_LINES - 1) }));
+      if (hints.length > 0) {
+        contextFetched = true;
+        gateRepairs++;
+        await core.update(id, "job.gating", (r) => core.setState(r, "gating"), { pipeline: true });
+        const fresh = cur.fresh;
+        cur = await repairPatchTurn(
+          core,
+          id,
+          plan,
+          {
+            kind: "context",
+            excerpt: "",
+            ranges: [...hints, ...plan.scope.ranges, ...hunkRanges(await core.deps.git.diff(id))],
+          },
+          signal,
+        );
+        if (fresh) cur.fresh = true;
+        continue;
+      }
+    }
     const retry = await patchAttempt(core, id, plan, base, cur, signal);
     if (retry === null) return;
     const used = retry.kind === "gate" ? gateRepairs : applyRepairs;
     const allowed = retry.kind === "gate" ? max : Math.min(1, max);
     const left = remainingUsd(core, id, plan);
-    if (used >= allowed || left < REPAIR_MIN_USD) {
+    if (used >= allowed || (plan.route.engine === "generic" && core.get(id).job.attempt - 1 >= max) || left < REPAIR_MIN_USD) {
       const why = left < REPAIR_MIN_USD ? " (the job budget is spent)" : "";
       if (retry.kind === "gate")
         throw new MitoriError(
@@ -516,13 +549,19 @@ async function repairPatchTurn(core: RunnerCore, id: JobId, plan: JobPlan, retry
     },
     { pipeline: true },
   );
-  core.phase(id, "repair", retry.kind === "gate" ? (failingGate(retry.gates ?? [])?.gate ?? "gate") : "apply");
+  core.phase(id, "repair", retry.kind === "gate" ? (failingGate(retry.gates ?? [])?.gate ?? "gate") : retry.kind);
   // the GATE header counts repairs (`attempt=1/2` for the first), the job counts attempts (the first one included)
   const msg = await core.deps.bundles.repair({
     job: { ...saved.job, attempt: saved.job.attempt - 1 },
-    kind: retry.kind,
+    kind: retry.kind === "context" ? "revise" : retry.kind,
     excerpt: retry.excerpt,
     ranges: retry.ranges,
+    ...(retry.kind === "context"
+      ? {
+          humanMessage:
+            "Use the additional current CODE to complete the original task and fix any failing gate. Return patch/1 within the original WRITE scope.",
+        }
+      : {}),
   });
   const turn = await repairTurn({
     core,

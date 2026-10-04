@@ -23,6 +23,7 @@ export class GenState implements GenStore {
   /** True once the user picked an effort (the default no longer follows the estimates). */
   effortChosen = $state(false);
   engine = $state<EngineId>("claude-cli");
+  engineChosen = false;
   estimates = new SvelteMap<string, GenEstimate>();
   run = $state.raw<GenRun | null>(null);
   #tasks = new SvelteMap<string, GenTaskView>();
@@ -51,6 +52,7 @@ export class GenState implements GenStore {
   }
 
   reset(): void {
+    this.engineChosen = false;
     this.estimates.clear();
     this.sectionEstimates.clear();
     this.#tasks.clear();
@@ -82,6 +84,7 @@ export class GenState implements GenStore {
   }
 
   async setEngine(e: EngineId): Promise<void> {
+    this.engineChosen = true;
     this.engine = e;
     if (!this.estimates.has(this.key(this.effort, e))) await this.loadEstimates();
   }

@@ -17,7 +17,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates curl unzip xz-utils git bubblewrap procps jq \
-      python3 python3-venv cargo rustc rustfmt \
+      python3 python3-venv cargo rustc rustfmt make g++ \
  && rm -rf /var/lib/apt/lists/*
 
 # bun: the x64 baseline build (no AVX2) also runs under Rosetta / qemu
@@ -26,8 +26,10 @@ RUN set -eux; \
     curl -fsSL -o /tmp/bun.zip "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/${b}.zip"; \
     unzip -q /tmp/bun.zip -d /tmp; install -m 0755 "/tmp/${b}/bun" /usr/local/bin/bun; ln -s bun /usr/local/bin/bunx; rm -rf /tmp/bun.zip "/tmp/${b}"; \
     curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${n}.tar.xz" | tar -xJ -C /opt; \
+    ln -s "/opt/node-v${NODE_VERSION}-linux-${n}" /opt/node; \
     ln -s "/opt/node-v${NODE_VERSION}-linux-${n}/bin/node" /usr/local/bin/node; \
     ln -s "/opt/node-v${NODE_VERSION}-linux-${n}/bin/npm" /usr/local/bin/npm; \
+    ln -s /opt/node/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js /usr/local/bin/node-gyp; \
     curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${g}.tar.gz" | tar -xz -C /opt; \
     ln -s /opt/go/bin/go /usr/local/bin/go; ln -s /opt/go/bin/gofmt /usr/local/bin/gofmt; \
     bun --version; node --version; go version; bwrap --version
@@ -40,7 +42,8 @@ RUN (userdel -r ubuntu 2>/dev/null || true) \
  && mkdir -p /home/mitori/.bun/install/cache /home/mitori/go \
  && chown -R mitori:mitori /home/mitori
 USER mitori
-ENV GOPATH=/home/mitori/go GOFLAGS=-modcacherw GOTOOLCHAIN=local MITORI_CI=1
+# Native grammar fallback uses the pinned Node's bundled node-gyp and headers (no npm install or header download).
+ENV GOPATH=/home/mitori/go GOFLAGS=-modcacherw GOTOOLCHAIN=local MITORI_CI=1 npm_config_nodedir=/opt/node
 RUN git config --global user.email ci@mitori.invalid \
  && git config --global user.name "mitori linux ci" \
  && git config --global init.defaultBranch main \

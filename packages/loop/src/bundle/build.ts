@@ -1,4 +1,5 @@
 import { type BlockId, type Cite, type LineNo, MitoriError, type RepoPath, type SymbolEntry, type ThreadDetail } from "@mitori/core";
+import { READ_HINT_MAX_LINES } from "../agent/hints.ts";
 import { ACCEPT_FIXED, BUNDLE_LIMITS, type Bundle, type BundleInput, type BundleMode, PULL_DO_LINES } from "../contract.ts";
 import { denyLine } from "../prompts/fixed-lines.ts";
 import { pathMatcher } from "../router/deny.ts";
@@ -26,7 +27,6 @@ const FIXED_OVERHEAD: Partial<Record<BundleMode, number>> = { answer: 800, findi
 /** Pull tiers (spec R1 §4): question/note XS, small change S. */
 const PULL_TIER = { XS: 800, S: 1500 } as const;
 const CONTEXT_MARGIN = BUNDLE_LIMITS.codeContextSteps[0];
-const HINT_MAX_LINES = 30;
 const RULE_FILES = ["AGENTS.md", "CLAUDE.md"] as const;
 
 /** DocStore cites for a thread's doc anchor. */
@@ -169,7 +169,7 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
     for (const h of input.hints ?? []) {
       const f = deps.indexer.file(h.path);
       if (denied(h.path) || !readableFile(f) || !f || h.start < 1 || h.start > f.lines || removed.has(`related:${h.path}:${h.start}`)) continue;
-      const end = Math.min(f.lines, Math.max(h.start, h.end), h.start + HINT_MAX_LINES - 1);
+      const end = Math.min(f.lines, Math.max(h.start, h.end), h.start + READ_HINT_MAX_LINES - 1);
       const slice = await deps.indexer.read(h.path, { start: h.start, end }, { numbered: false });
       redactions += slice.redactions;
       const body = codeLines(

@@ -1231,7 +1231,7 @@ export interface GenCall {
   estimate: { in: number; out: number };
   /** Backstop budget passed as `--max-budget-usd` (max(0.05, 3 × estimate)). */
   budgetUsd: number;
-  /** Hard timeout (max(120 s, 4 × estimated seconds)). */
+  /** Hard timeout: generic provider's configured turnMs, else max(120 s, 4 × estimated seconds). */
   timeoutMs: number;
   /** JSON Schema (small tasks only, D14). */
   jsonSchema?: object;

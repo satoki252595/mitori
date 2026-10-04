@@ -99,6 +99,14 @@ describe("NC-09 DocText", () => {
     expect(r.t.search("install", 5).total).toBe(0);
   });
 
+  test("a Reader window with pending HTML is fetched in full for the text index", async () => {
+    const partial = { ...s0, total: 1, from: 1, blocks: s0.blocks.map((b) => ({ ...b, html: "" })) };
+    const r = rig(o1, { s0, s4 }, { s0: partial });
+    await r.t.ensure();
+    expect(r.fetched).toEqual(["s0", "s4"]);
+    expect(r.t.search("設計書", 5).total).toBe(1);
+  });
+
   test("an outline change re-reads only the sections whose block list changed", async () => {
     const r = rig(o1, { s0, s4, "s4/run": view("s4/run", [blk("b_00000041", "s4/run", "npm run dev で起動"), blk("b_00000042", "s4/run", "ポート 3000")]) });
     await r.t.ensure();
@@ -127,5 +135,43 @@ describe("NC-09 DocText", () => {
     r.setWs("ws_b");
     await r.t.ensure();
     expect(r.fetched.filter((x) => x === "s0").length).toBe(2);
+  });
+
+  test.each(["workspace", "language", "outline"] as const)("a shared build converges after its %s changes during a fetch", async (change) => {
+    let ws = "ws_a" as WorkspaceKey;
+    let o = outline(1, [{ id: "s0", blocks: ["b_00000001"] }]);
+    o.manifest = { primaryLang: "ja" } as DocOutline["manifest"];
+    const stale = view("s0", [{ ...blk("b_00000001", "s0", "古い文書"), htmlLang: "ja" }]);
+    let release: ((v: SectionView) => void) | undefined;
+    const first = new Promise<SectionView>((r) => (release = r));
+    const calls: string[] = [];
+    const t = new DocText({
+      ws: () => ws,
+      outline: () => o,
+      index: () => indexOutline(o),
+      // A cached page rendered in the previous language must not prevent refetching in the new one.
+      cached: () => (change === "language" && calls.length > 0 ? stale : undefined),
+      load: (w, id) => {
+        calls.push(`${w}:${o.manifest.primaryLang}:${id}`);
+        if (calls.length === 1) return first;
+        const idOfBlock = change === "outline" ? "b_00000002" : "b_00000001";
+        return Promise.resolve(view(id, [{ ...blk(idOfBlock, id, "latest document"), htmlLang: o.manifest.primaryLang }]));
+      },
+      onBlock: () => () => {},
+    });
+    const building = t.ensure();
+    if (change === "workspace") ws = "ws_b" as WorkspaceKey;
+    if (change === "language") o = { ...o, manifest: { ...o.manifest, primaryLang: "en" } };
+    if (change === "outline") o = { ...outline(2, [{ id: "s0", blocks: ["b_00000002"] }]), manifest: o.manifest };
+    const latest = t.ensure();
+    expect(latest).toBe(building);
+    release?.(stale);
+    await latest;
+    expect(calls).toEqual(["ws_a:ja:s0", `${ws}:${o.manifest.primaryLang}:s0`]);
+    expect(t.status).toBe("ready");
+    expect(t.search("latest", 5).total).toBe(1);
+    expect(t.search("古い", 5).total).toBe(0);
+    await t.ensure();
+    expect(calls).toHaveLength(2);
   });
 });

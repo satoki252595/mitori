@@ -170,7 +170,7 @@ const anchorLine = $derived.by(() => {
           {#each job.failure.actions as a (a)}
             {#if a === "retry"}<button type="button" class="btn btn-sec btn-s" onclick={() => void loop.retryJob(job.id)}>{t("inbox.fail.retry")}</button>{/if}
             {#if a === "other_engine"}<button type="button" class="btn btn-gh" onclick={() => void loop.retryJob(job.id, "anthropic-api")}>{t("inbox.fail.otherEngine")}</button>{/if}
-            {#if a === "copy_prompt" && detail}<button type="button" class="btn btn-gh" onclick={() => detail && void loop.copyPrompt(detail.anchor, detail.messages[0]?.body ?? "", detail.intent)}>{t("jobs.confirm.copy")}</button>{/if}
+            {#if a === "copy_prompt" && detail}<button type="button" class="btn btn-gh" onclick={() => detail && void loop.copyPrompt(detail.anchor, detail.messages[0]?.body ?? "", detail.intent, detail.context)}>{t("jobs.confirm.copy")}</button>{/if}
             {#if a === "narrow_scope"}<button type="button" class="btn btn-gh" onclick={() => onopen(item)}>{t("jobs.confirm.narrow")}</button>{/if}
             {#if a === "escalate"}<button type="button" class="btn btn-gh" onclick={() => void askEscalate()}>{t("inbox.fail.escalate")}</button>{/if}
           {/each}

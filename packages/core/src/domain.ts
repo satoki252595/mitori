@@ -383,8 +383,8 @@ export const INCLUDED_CLASSES = [
  */
 export type EngineId = "claude-cli" | "session" | "anthropic-api" | "codex-cli" | "generic";
 
-/** Engines that can run generation (gen cannot run `codex-cli`/`generic`) [CONS-28]. */
-export type GenEngineId = Extract<EngineId, "claude-cli" | "anthropic-api" | "session">;
+/** Engines that can run generation (`codex-cli` has no generation adapter) [CONS-28]. */
+export type GenEngineId = Extract<EngineId, "claude-cli" | "anthropic-api" | "session" | "generic">;
 
 /** Full Claude model ids only — aliases (`sonnet`, `opus`) are forbidden everywhere. */
 export type ClaudeModelId = "claude-opus-5-5" | "claude-sonnet-5-5" | "claude-haiku-4-5";
@@ -2876,6 +2876,8 @@ export interface UsageRecord {
   auth: AuthKind;
   /** Usage. */
   usage: Usage;
+  /** True when token counts are estimated because the engine did not report them; excluded from calibration. */
+  usageEstimated?: boolean;
   /** Estimate given beforehand (calibration input). */
   estimate?: {
     /** Estimated input tokens (all classes), after calibration. */
@@ -3084,6 +3086,12 @@ export interface EngineSettings {
     enabled: boolean;
     /** argv; prompt is written to stdin. */
     argv: string[];
+    /** stdout protocol; omitted = plain text. */
+    protocol?: "text" | "muse-jsonl";
+    /** Explicit prices per million tokens; zero is permitted for local models. */
+    pricing?: { inPerMTok: number; outPerMTok: number; cacheReadPerMTok: number };
+    /** Hard timeout of a generation turn in milliseconds, when provider reasoning exceeds the default. */
+    turnMs?: number;
   };
 }
 

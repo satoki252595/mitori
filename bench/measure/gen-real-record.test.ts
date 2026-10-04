@@ -1,7 +1,7 @@
 // The recorder of bench/measure/gen-real.ts over a scripted claude (0 tokens): an engine process is saved with its argv,
 // CLAUDE_CODE_* env values (other env values are not kept), stdin, later writes and stdout lines; other spawns pass through.
 import { afterAll, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createFakeSpawner, synth } from "@mitori/agent/testing";
@@ -45,4 +45,6 @@ test("BENCH-GENREAL-01 recordingSpawner saves an engine process after its result
   expect(rec.writes).toEqual(["retry\n"]);
   expect(rec.out.map(([, l]) => l)).toEqual(lines);
   expect(rec.exit).toBe(0);
+  expect(statSync(dir).mode & 0o777).toBe(0o700);
+  expect(statSync(join(dir, "001.json")).mode & 0o777).toBe(0o600);
 });

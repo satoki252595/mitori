@@ -3,20 +3,28 @@
 // git copy of go-small, with the macOS gate sandbox:
 //   1. a cross-file Fix that needs agent mode (3 files via `@` chips) → gates (sandboxed) → per-hunk accept → undo;
 //   2. two patch jobs in parallel on different files, then two on the same line (lock wait, then the accept conflict).
+//   3. one patch repair, also runnable with MITORI_LIVE_ENGINE=generic and MITORI_LIVE_CONFIG=<Muse config>.
 // It spends nothing unless MITORI_LIVE=1 and MITORI_MAX_USD > 0; every new job first checks the API-equivalent spend
 // (job usage from the ledger) + its estimate against the cap and stops the run when it would be exceeded.
 //
 //   MITORI_LIVE=1 MITORI_MAX_USD=1.5 scripts/nd bun test test/int/int08.live.test.ts
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import type { Spawner } from "@mitori/agent";
 import type { AcceptRes, EngineStatus, Job, JobDetail, JobEstimate, JobId, JobState, ThreadDetail, TrustRequest, UndoRes, WorkspaceKey } from "@mitori/core";
+import { createSpawner, resolveSafePath } from "@mitori/platform";
 import { buildFixture, type FixtureRepo } from "@mitori/testkit";
 import { type Int, startInt } from "./harness.ts";
 
 const LIVE = process.env.MITORI_LIVE === "1";
 const MAX_USD = Number(process.env.MITORI_MAX_USD ?? "0");
-const OUT = join(import.meta.dir, "../../docs/progress/agent-mode");
+const ENGINE = process.env.MITORI_LIVE_ENGINE ?? "claude-cli";
+const CONFIG_PATH = ENGINE === "generic" ? process.env.MITORI_LIVE_CONFIG : undefined;
+const OUT = resolve(
+  process.env.MITORI_LIVE_OUT ?? join(import.meta.dir, ENGINE === "generic" ? "../../docs/progress/repair-muse" : "../../docs/progress/agent-mode"),
+);
 setDefaultTimeout(600_000);
 
 let int: Int;
@@ -24,8 +32,62 @@ let repo: FixtureRepo;
 let ws: WorkspaceKey;
 let web: Awaited<ReturnType<Int["browser"]>>;
 let sessionAt = 0;
-const report: Record<string, unknown> = { at: new Date().toISOString(), capUsd: MAX_USD };
+const report: Record<string, unknown> = { at: new Date().toISOString(), capUsd: MAX_USD, engineId: ENGINE };
 const jobsSeen = new Set<JobId>();
+
+/** Opt-in diagnostic records contain prompts; keep them outside the repo under /tmp. */
+function liveRecordingSpawner(dir: string): Spawner {
+  const root = resolve(dir);
+  if (!root.startsWith("/tmp/") && !root.startsWith("/private/tmp/")) throw new Error("MITORI_LIVE_RECORD must be under /tmp");
+  mkdirSync(root, { recursive: true, mode: 0o700 });
+  const real = createSpawner({ safePath: resolveSafePath(process.env.PATH ?? "", { workspaceRoots: [], startCwd: process.cwd() }) });
+  let n = 0;
+  return {
+    spawn(spec) {
+      const child = real.spawn(spec);
+      if (!spec.argv.includes("--json") && !spec.argv.includes("stream-json")) return child;
+      const path = join(root, `${String(++n).padStart(3, "0")}.json`);
+      const records: string[] = [];
+      const stdout = (async function* () {
+        try {
+          for await (const line of child.stdout) {
+            records.push(line);
+            yield line;
+          }
+        } finally {
+          writeFileSync(path, JSON.stringify({ argv: spec.argv, out: records }), { mode: 0o600 });
+        }
+      })();
+      return { ...child, stdout };
+    },
+  };
+}
+
+test("generic live demo dry-run parses config/cap without starting a daemon or engine", () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-live-options-"));
+  try {
+    const config = join(dir, "config.json");
+    writeFileSync(
+      config,
+      JSON.stringify({
+        defaultEngine: "generic",
+        engines: { generic: { enabled: true, protocol: "muse-jsonl", argv: ["/does-not-exist"] } },
+        models: { answer: "generic:dry", patch: "generic:dry" },
+      }),
+    );
+    const script = join(import.meta.dir, "shots/live.ts");
+    const env = { ...process.env, MITORI_LIVE: "0" };
+    const args = [process.execPath, script, "--engine", "generic", "--config", config, "--max-usd", "0.6", "--dry-run"];
+    const ok = Bun.spawnSync(args, { env });
+    expect(ok.exitCode, ok.stderr.toString()).toBe(0);
+    expect(JSON.parse(ok.stdout.toString())).toMatchObject({ engine: "generic", configFile: config, capUsd: 0.6, paidCallsStarted: 0 });
+    const bad = Bun.spawnSync([...args.slice(0, -3), "--max-usd", "NaN", "--dry-run"], { env });
+    expect(bad.exitCode).not.toBe(0);
+    expect(bad.stderr.toString()).toContain("finite and positive");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 const api = <T>(method: string, path: string, body?: unknown) => int.json<T>(method, `/ws/${ws}${path}`, body);
 const raw = (method: string, path: string, body?: unknown) => int.cli(method, `/ws/${ws}${path}`, body);
@@ -74,7 +136,7 @@ async function thread(path: string, start: number, end: number, body: string): P
 }
 
 async function dispatch(th: ThreadDetail, label: string, context?: unknown): Promise<{ est: JobEstimate; job: Job; createdAt: number }> {
-  const req = { kind: "fix", threads: [th.id], ...(context ? { context } : {}) };
+  const req = { kind: "fix", threads: [th.id], ...(context ? { context } : {}), ...(ENGINE === "generic" ? { engine: "generic", mode: "patch" } : {}) };
   const est = await api<JobEstimate>("POST", "/jobs/estimate", req);
   await capFor(est, label);
   const createdAt = Date.now();
@@ -122,19 +184,33 @@ async function trustGates(): Promise<number> {
   return pending.length;
 }
 
-describe.if(LIVE && MAX_USD > 0)("INT-08 live: agent mode and parallel jobs with the real claude", () => {
+describe.if(LIVE && MAX_USD > 0)("INT-08 live: Claude agent/parallel jobs or generic patch repair", () => {
   beforeAll(async () => {
+    if (!Number.isFinite(MAX_USD) || MAX_USD <= 0) throw new Error("MITORI_MAX_USD must be finite and positive");
+    if (ENGINE !== "claude-cli" && ENGINE !== "generic") throw new Error("MITORI_LIVE_ENGINE must be claude-cli or generic");
+    const config = CONFIG_PATH ? JSON.parse(readFileSync(resolve(CONFIG_PATH), "utf8")) : undefined;
+    if (
+      ENGINE === "generic" &&
+      (config?.engines?.generic?.enabled !== true ||
+        config?.engines?.generic?.protocol !== "muse-jsonl" ||
+        !String(config?.models?.patch ?? "").startsWith("generic:"))
+    )
+      throw new Error("generic REPAIR needs MITORI_LIVE_CONFIG with an enabled Muse engine and generic patch model");
     repo = await buildFixture("go-small");
-    int = await startInt({ overrides: { gateSandbox: process.platform === "darwin" ? "sandbox-exec" : "none" } });
+    int = await startInt({
+      ...(config !== undefined ? { config } : {}),
+      ...(process.env.MITORI_LIVE_RECORD ? { spawner: liveRecordingSpawner(process.env.MITORI_LIVE_RECORD) } : {}),
+      overrides: { gateSandbox: process.platform === "darwin" ? "sandbox-exec" : "none" },
+    });
     ws = (await int.open(repo.root)).ws;
     web = await int.browser();
     sessionAt = Date.now();
     const engines = await int.json<EngineStatus[]>("GET", "/engines");
-    const claude = engines.find((e) => e.engine === "claude-cli");
-    report.engine = { version: claude?.version, auth: claude?.auth, billing: claude?.billing };
+    const engine = engines.find((e) => e.engine === ENGINE);
+    report.engine = { version: engine?.version, auth: engine?.auth, billing: engine?.billing };
     // never on an API key (CLAUDE.md: a cost increase needs the user's approval)
-    expect(claude?.installed).toBe(true);
-    expect(claude?.auth).not.toBe("api-key");
+    expect(engine?.installed).toBe(true);
+    expect(engine?.auth).not.toBe("api-key");
   }, 120_000);
   afterAll(async () => {
     report.spentUsd = await spent().catch(() => null);
@@ -144,7 +220,7 @@ describe.if(LIVE && MAX_USD > 0)("INT-08 live: agent mode and parallel jobs with
     await repo?.dispose();
   });
 
-  test("1. a cross-file Fix in agent mode: worktree, sandboxed gates, per-hunk accept (uncommitted), undo", async () => {
+  test.skipIf(ENGINE === "generic")("1. a cross-file Fix in agent mode: worktree, sandboxed gates, per-hunk accept (uncommitted), undo", async () => {
     const STORE = "internal/store/store.go";
     const MEMORY = "internal/store/memory.go";
     const SERVER = "internal/server/server.go";
@@ -204,7 +280,7 @@ describe.if(LIVE && MAX_USD > 0)("INT-08 live: agent mode and parallel jobs with
     expect(restored).toBe(true);
   });
 
-  test("2. two patch jobs in parallel on different files, then two on the same line (lock wait, accept conflict)", async () => {
+  test.skipIf(ENGINE === "generic")("2. two patch jobs in parallel on different files, then two on the same line (lock wait, accept conflict)", async () => {
     const CONFIG = "internal/config/config.go";
     const FETCH = "internal/meta/fetch.go";
     const lv = lineOf(CONFIG, 'level = "info"');
@@ -273,6 +349,7 @@ describe.if(LIVE && MAX_USD > 0)("INT-08 live: agent mode and parallel jobs with
     const at = lineOf(FETCH, "func (m *MemoryStore) Delete");
     const th = await thread(FETCH, at, at + 9, "存在しない id を Delete したときのエラーメッセージを「book 42 not found」のように id を含む文にして");
     const { est, job, createdAt } = await dispatch(th, "repair");
+    expect(est.route.mode).toBe("patch");
     let j = await jobUntil(job.id, ["ready", "done", "failed"]);
     const first = facts(est, j, createdAt);
     report.repair = { first };

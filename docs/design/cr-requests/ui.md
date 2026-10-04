@@ -23,7 +23,8 @@ Track ui of the remaining-backlog pass (`docs/progress/rem-ui.md`). Owned: `apps
   when the file's blob differs (and the column re-reads the file on `workspace.changed`). Optional field: every
   existing producer and consumer is unchanged.
 
-## #3 api / server: deliver a big section in pieces (DEFERRED, CR ui-3 — F6)
+## #3 api / server: deliver a big section in pieces (APPLIED, CR ui-3 — F6)
+- applied 2026-10-04: range/outline requests, br/gzip section JSON, anchor-first Reader hydration and full-text search compatibility. Verification and bounds: `docs/progress/continuation-ui.md`.
 - observed: `GET /ws/:ws/doc/sections/:section` answers the whole `SectionView` (every block's HTML) in one
   uncompressed JSON body — `packages/server/src/http/static.ts` precompresses static assets only. The Reader already
   renders big sections in virtual windows (a 10,000-block section: 1,389 DOM nodes at first paint, ≤ 2,440 while
@@ -46,4 +47,3 @@ Track ui of the remaining-backlog pass (`docs/progress/rem-ui.md`). Owned: `apps
   over a Japanese doc (NC-14) offers 「AI に英語で説明させる」 (an Explain draft, nothing sent) instead of 「英語で表示」.
 - request: wire them in the loop / doc routes (owner: loop + server); the web entry points are one button each
   (`reader/BlockHistory.svelte` per revision, `reader/ReaderPage.svelte` the original-language note).
-

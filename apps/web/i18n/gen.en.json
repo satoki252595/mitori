@@ -102,5 +102,7 @@
   "genPage.title": "Generation and freshness",
   "policy.claude_cli_max": "Sent to: Anthropic (your claude CLI · Max plan) · {files} files (excluded {excluded}) · secrets redacted · training and retention follow your Max settings",
   "policy.claude_cli_pro": "Sent to: Anthropic (your claude CLI · Pro plan) · {files} files (excluded {excluded}) · secrets redacted · training and retention follow your Pro settings",
-  "policy.default": "Sent to: Anthropic (through your claude CLI · credentials are not read) · {files} files (excluded {excluded}) · secrets redacted · training follows your plan's settings"
+  "policy.default": "Recipient: selected {engine} · {files} files ({excluded} excluded) · secrets masked · Training and retention are unverified. Check the provider terms before sending.",
+  "gen.card.reasoning": "Reasoning effort {effort}",
+  "policy.museContributor": "Recipient: Meta (Muse Spark 1.3 Contributor) · {files} files ({excluded} excluded) · secrets masked · Prompts and completions are eligible for Meta model training"
 }

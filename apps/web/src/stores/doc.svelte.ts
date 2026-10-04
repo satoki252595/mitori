@@ -33,6 +33,8 @@ export class DocState implements DocViewStore {
   streaming = new SvelteMap<SectionId, StreamingSection>();
   #sections = new SvelteMap<SectionId, SectionView>();
   #inflight = new Map<SectionId, Promise<SectionView>>();
+  #hydrating = new Set<SectionId>();
+  #epoch = 0;
   #proposals = new SvelteMap<ProposalId, DocProposalView>();
   /** Blocks whose `data-fresh` changed since render (written by the Reader on the DOM). */
   freshness = new SvelteMap<BlockId, Freshness>();
@@ -50,14 +52,17 @@ export class DocState implements DocViewStore {
   }
 
   reset(): void {
+    this.#epoch++;
     this.#outlineP = null;
     this.outline = null;
     this.index = null;
     this.page = null;
     this.#sections.clear();
     this.#inflight.clear();
+    this.#hydrating.clear();
     this.streaming.clear();
     this.#proposals.clear();
+    this.freshness.clear();
   }
 
   #outlineP: Promise<DocOutline | null> | null = null;
@@ -101,26 +106,49 @@ export class DocState implements DocViewStore {
     return this.#sections.get(id);
   }
 
-  load(id: SectionId): Promise<SectionView> {
+  /** Reader requests an anchor window; other consumers keep the full response. */
+  load(id: SectionId, window?: { anchor?: BlockId | undefined }): Promise<SectionView> {
     const hit = this.#sections.get(id);
-    if (hit) {
+    const ws = this.ws();
+    if (!ws) return Promise.reject(new Error("no workspace"));
+    const epoch = this.#epoch;
+    const limit = UI_THRESHOLDS.blockWindow * 3;
+    const at = window?.anchor ? (this.index?.nodes.get(id)?.blocks.indexOf(window.anchor) ?? 0) : 0;
+    const from = Math.max(0, at - UI_THRESHOLDS.blockWindow);
+    if (hit && (window || !hit.blocks.some((b) => b.html === ""))) {
       // LRU touch
       this.#sections.delete(id);
       this.#sections.set(id, hit);
+      if (window?.anchor && hit.blocks.some((b) => b.id === window.anchor && b.html === "")) {
+        return this.#fill(id, ws, epoch, from).then(() => {
+          this.#hydrate(id, ws, epoch);
+          return this.#sections.get(id) ?? hit;
+        });
+      }
+      if (window) this.#hydrate(id, ws, epoch);
       return Promise.resolve(hit);
     }
     const running = this.#inflight.get(id);
-    if (running) return running;
-    const ws = this.ws();
-    if (!ws) return Promise.reject(new Error("no workspace"));
+    if (running) {
+      return running.then((v) =>
+        (!window && v.blocks.some((b) => b.html === "")) || (window?.anchor && v.blocks.some((b) => b.id === window.anchor && b.html === ""))
+          ? this.load(id, window)
+          : v,
+      );
+    }
     const p = this.api
-      .call("GET /ws/:ws/doc/sections/:section", { params: { ws, section: id }, query: { lang: this.lang } })
+      .call("GET /ws/:ws/doc/sections/:section", { params: { ws, section: id }, query: { lang: this.lang, ...(window ? { from, limit } : {}) } })
       .then((v) => {
         // a workspace switch while loading must not leak the old workspace's section into the new cache
-        if (this.ws() === ws) this.#put(id, v);
+        if (this.ws() === ws && this.#epoch === epoch) {
+          this.#put(id, v);
+          if (window) this.#hydrate(id, ws, epoch);
+        }
         return v;
       })
-      .finally(() => this.#inflight.delete(id));
+      .finally(() => {
+        if (this.#inflight.get(id) === p) this.#inflight.delete(id);
+      });
     this.#inflight.set(id, p);
     return p;
   }
@@ -128,11 +156,51 @@ export class DocState implements DocViewStore {
   /** Hover-intent prefetch (failures are silently dropped, ux.md §4.0 error rule). */
   prefetch(id: SectionId): void {
     if (this.#sections.has(id) || this.#inflight.has(id)) return;
-    this.load(id).catch(() => {});
+    this.load(id, {}).catch(() => {});
+  }
+
+  async #fill(id: SectionId, ws: WorkspaceKey, epoch: number, from: number): Promise<void> {
+    const v = await this.api.call("GET /ws/:ws/doc/sections/:section", {
+      params: { ws, section: id },
+      query: { lang: this.lang, from, limit: UI_THRESHOLDS.blockWindow * 3, outline: false },
+    });
+    const current = this.#sections.get(id);
+    if (!current || this.ws() !== ws || this.#epoch !== epoch) return;
+    const rendered = new Map(v.blocks.map((b) => [b.id, b]));
+    // SSE upserts/removals own the metadata and order; never overwrite a rendered upsert with an older fetch.
+    const blocks = current.blocks.map((b) => {
+      const next = rendered.get(b.id);
+      return b.html === "" && next && b.hash === next.hash ? { ...b, html: next.html, mdLine: next.mdLine, htmlLang: next.htmlLang } : b;
+    });
+    this.mutate(() => this.#sections.set(id, { ...current, blocks }));
+  }
+
+  #hydrate(id: SectionId, ws: WorkspaceKey, epoch: number): void {
+    if (this.#hydrating.has(id) || !this.#sections.get(id)?.blocks.some((b) => b.html === "")) return;
+    this.#hydrating.add(id);
+    void (async () => {
+      while (this.ws() === ws && this.#epoch === epoch) {
+        await new Promise<void>((resolve) => {
+          if (globalThis.requestIdleCallback) globalThis.requestIdleCallback(() => resolve(), { timeout: 200 });
+          else setTimeout(resolve, 50);
+        });
+        const current = this.#sections.get(id);
+        if (!current || this.ws() !== ws || this.#epoch !== epoch) return;
+        const from = current.blocks.findIndex((b) => b.html === "");
+        if (from < 0) return;
+        const pending = current.blocks[from]?.id;
+        await this.#fill(id, ws, epoch, from);
+        if (this.#sections.get(id)?.blocks.find((b) => b.id === pending)?.html === "") return;
+      }
+    })()
+      .catch(() => {}) // a subsequent navigation retries missing windows (like hover prefetch)
+      .finally(() => {
+        if (this.#epoch === epoch) this.#hydrating.delete(id);
+      });
   }
 
   #put(id: SectionId, v: SectionView): void {
-    this.#sections.set(id, v);
+    this.#sections.set(id, { ...v, blocks: v.blocks.map((b) => (this.freshness.has(b.id) ? { ...b, freshness: this.freshness.get(b.id) as Freshness } : b)) });
     while (this.#sections.size > UI_THRESHOLDS.sectionCacheSize) {
       const oldest = this.#sections.keys().next().value as SectionId | undefined;
       if (oldest === undefined || oldest === this.page) break;
@@ -183,6 +251,7 @@ export class DocState implements DocViewStore {
   }
 
   upsertBlock(b: BlockView): void {
+    this.freshness.set(b.id, b.freshness);
     for (const fn of this.#blockListeners) fn(b);
     const h = this.#holder(b.section);
     // the open block is now confirmed: its partial text goes, the reservation H_est stays (§4.3.9-2)
@@ -210,6 +279,7 @@ export class DocState implements DocViewStore {
   }
 
   removeBlock(block: BlockId, section: SectionId): void {
+    this.freshness.delete(block);
     for (const fn of this.#blockListeners) fn({ removed: block, section });
     const h = this.#holder(section);
     if (!h) return;
@@ -228,6 +298,11 @@ export class DocState implements DocViewStore {
 
   applyFreshness(blocks: readonly BlockId[], f: Freshness): void {
     for (const b of blocks) this.freshness.set(b, f);
+    const changed = new Set(blocks);
+    for (const [id, v] of this.#sections) {
+      if (!v.blocks.some((b) => changed.has(b.id))) continue;
+      this.#sections.set(id, { ...v, blocks: v.blocks.map((b) => (changed.has(b.id) ? { ...b, freshness: f } : b)) });
+    }
   }
 
   /** Verdict updates are attribute-only on the DOM (the Reader listens); the cached views get the new claims. */

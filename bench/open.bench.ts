@@ -29,7 +29,7 @@ const setup = (ctx: { repo: string | undefined }): OpenState => {
   return { copy };
 };
 
-/** idx.s04.cold.100kloc: crit (≈ 65k LOC, 1,200 files), S0–S4 + static doc. */
+/** Canonical idx.s04.cold.100kloc: pinned crit (≈ 65k LOC, 1,200 files), S0–S4 + static doc. */
 export const coldOpenCrit = defineBench<OpenState>({
   id: "idx.s04.cold.100kloc",
   suite: "idx",

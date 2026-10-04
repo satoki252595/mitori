@@ -57,7 +57,7 @@ function partialObj<T>(fields: { [K in keyof T]-?: Spec }): Spec {
 
 const MODEL: Spec = { t: "str", pattern: /^(claude-opus-5-5|claude-sonnet-5-5|claude-haiku-4-5|codex:[^\s]{1,100}|generic:[^\s]{1,100})$/ };
 const ENGINE = oneOf("claude-cli", "session", "anthropic-api", "codex-cli", "generic");
-const GEN_ENGINE = oneOf("claude-cli", "anthropic-api", "session");
+const GEN_ENGINE = oneOf("claude-cli", "anthropic-api", "session", "generic");
 const EFFORT = oneOf("overview", "standard", "complete");
 const LANG = oneOf("ja", "en");
 const READER = oneOf("newcomer", "standard", "expert");
@@ -98,7 +98,16 @@ const engines = obj<EngineSettings>({
     monthlyCapUsd: num(0),
   }),
   "codex-cli": obj<EngineSettings["codex-cli"]>({ enabled: bool, binary: str, model: { t: "str", max: 128 } }),
-  generic: obj<EngineSettings["generic"]>({ enabled: bool, argv: arr(str, 64) }),
+  generic: obj<EngineSettings["generic"]>(
+    {
+      enabled: bool,
+      argv: arr(str, 64),
+      protocol: oneOf("text", "muse-jsonl"),
+      pricing: obj<NonNullable<EngineSettings["generic"]["pricing"]>>({ inPerMTok: num(0), outPerMTok: num(0), cacheReadPerMTok: num(0) }),
+      turnMs: int(1_000, 3_600_000),
+    },
+    ["protocol", "pricing", "turnMs"],
+  ),
 });
 
 const models = obj<ModelDefaults>({

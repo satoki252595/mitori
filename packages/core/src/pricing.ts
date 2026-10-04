@@ -1,4 +1,4 @@
-import { type ClaudeModelId, PRICING, type TokenBand } from "./domain.ts";
+import { type ClaudeModelId, type EngineSettings, type ModelId, PRICING, type TokenBand } from "./domain.ts";
 import { MitoriError } from "./errors.ts";
 
 /**
@@ -7,14 +7,20 @@ import { MitoriError } from "./errors.ts";
  * Message Batches, rounded to 6 decimals (micro-USD) so ledger sums are stable. Re-exported by `@mitori/agent`.
  */
 export function priceUsage(
-  model: ClaudeModelId,
+  model: ModelId,
   t: { in: number; cacheWrite5m: number; cacheWrite1h: number; cacheRead: number; out: number },
   batch: boolean,
+  prices?: EngineSettings["generic"]["pricing"],
 ): number {
-  const p = (PRICING as Partial<Record<string, (typeof PRICING)[ClaudeModelId]>>)[model];
+  const p =
+    (PRICING as Partial<Record<string, (typeof PRICING)[ClaudeModelId]>>)[model] ??
+    (prices ? { ...prices, cacheWrite5mPerMTok: prices.inPerMTok, cacheWrite1hPerMTok: prices.inPerMTok, batchMultiplier: 1 } : undefined);
   if (!p) throw new MitoriError("E_INVALID_INPUT", `priceUsage: unpriced model ${model}`, { params: { model } });
   for (const [k, n] of Object.entries(t)) {
     if (!Number.isFinite(n) || n < 0) throw new MitoriError("E_INVALID_INPUT", `priceUsage: ${k} must be a non-negative count`, { params: { field: k } });
+  }
+  for (const [k, n] of Object.entries(p)) {
+    if (k.endsWith("PerMTok") && (!Number.isFinite(n) || (n as number) < 0)) throw new MitoriError("E_INVALID_INPUT", `priceUsage: invalid price ${k}`);
   }
   const usd =
     (t.in * p.inPerMTok +

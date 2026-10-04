@@ -7,7 +7,7 @@
  * Kept fresh: block upserts / removals (SSE) patch their entry; an outline whose section lists changed re-reads
  * just those sections on the next `ensure()`. A workspace switch starts over.
  */
-import type { BlockId, BlockView, DocOutline, SectionId, SectionView, WorkspaceKey } from "@mitori/core";
+import type { BlockId, BlockView, DocLang, DocOutline, SectionId, SectionView, WorkspaceKey } from "@mitori/core";
 import type { OutlineIndex } from "../reader/outline.ts";
 import { entriesOf, nearTier, searchText, type TextEntry, type TextHit } from "./fulltext.ts";
 
@@ -36,6 +36,7 @@ export class DocText {
   #sig = new Map<SectionId, string>();
   #order = new Map<BlockId, number>();
   #ws: WorkspaceKey | null = null;
+  #lang: DocLang | undefined;
   #rev = -1;
   #run: Promise<void> | null = null;
   #sorted: TextEntry[] | null = null;
@@ -62,29 +63,50 @@ export class DocText {
     const o = this.#d.outline();
     const ix = this.#d.index();
     if (!ws || !o || !ix) return Promise.resolve();
-    if (ws !== this.#ws) this.#reset(ws);
+    if (ws !== this.#ws || o.manifest?.primaryLang !== this.#lang) this.#reset(ws, o.manifest?.primaryLang);
     if (this.#run) return this.#run;
     if (o.outlineRev === this.#rev && this.status === "ready") return Promise.resolve();
-    this.#run = this.#sync(ws, o, ix).finally(() => {
+    this.#run = this.#syncLatest(ws, o, ix).finally(() => {
       this.#run = null;
     });
     return this.#run;
   }
 
-  #reset(ws: WorkspaceKey): void {
+  #reset(ws: WorkspaceKey, lang: DocLang | undefined): void {
     this.#ws = ws;
+    this.#lang = lang;
     this.#rev = -1;
     this.#entries.clear();
     this.#bySection.clear();
     this.#sig.clear();
-    this.#sorted = null;
     this.status = "idle";
     this.done = 0;
     this.total = 0;
+    this.#changed();
+  }
+
+  /** A shared run finishes the latest workspace/language/outline, even when it changed during a fetch. */
+  async #syncLatest(ws: WorkspaceKey, o: DocOutline, ix: OutlineIndex): Promise<void> {
+    for (;;) {
+      const rev = o.outlineRev;
+      const lang = o.manifest?.primaryLang;
+      if (ws !== this.#ws || lang !== this.#lang) this.#reset(ws, lang);
+      await this.#sync(ws, o, ix);
+      const nextWs = this.#d.ws();
+      const next = this.#d.outline();
+      const nextIx = this.#d.index();
+      if (!nextWs || !next || !nextIx || (nextWs === ws && next.outlineRev === rev && next.manifest?.primaryLang === lang)) return;
+      ws = nextWs;
+      o = next;
+      ix = nextIx;
+    }
   }
 
   async #sync(ws: WorkspaceKey, o: DocOutline, ix: OutlineIndex): Promise<void> {
     this.#rev = o.outlineRev;
+    const rev = o.outlineRev;
+    const lang = o.manifest?.primaryLang;
+    const current = () => this.#d.ws() === ws && this.#d.outline()?.outlineRev === rev && this.#d.outline()?.manifest?.primaryLang === lang;
     this.#order = new Map(o.blocks.map((b, i) => [b[0], i]));
     // drop sections that are gone; mark the changed ones
     for (const id of [...this.#sig.keys()]) {
@@ -115,13 +137,16 @@ export class DocText {
     const queue = [...pages.values()];
     const worker = async () => {
       for (;;) {
+        if (!current()) return;
         const group = queue.shift();
         if (group === undefined) return;
         for (const id of group) {
+          if (!current()) return;
           if (this.#sig.has(id)) continue; // carried by its page
           try {
-            const v = this.#d.cached(id) ?? (await this.#d.load(ws, id));
-            if (this.#ws !== ws) return;
+            const cached = this.#d.cached(id);
+            const v = cached?.blocks.every((b) => b.html !== "" && (!lang || b.htmlLang === lang)) ? cached : await this.#d.load(ws, id);
+            if (!current()) return;
             this.#put(v, ix);
           } catch {
             failed = true;
@@ -132,7 +157,7 @@ export class DocText {
       }
     };
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker));
-    if (this.#ws !== ws) return;
+    if (!current()) return;
     // a failed section is retried by the next ensure()
     this.status = failed ? "error" : "ready";
     if (failed) this.#rev = -1;

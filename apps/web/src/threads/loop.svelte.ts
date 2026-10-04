@@ -14,6 +14,7 @@ import {
   type BlockId,
   type Checkpoint,
   type CheckpointId,
+  type ContextAdjust,
   type DocProposalView,
   type InboxItem,
   type JobEstimate,
@@ -22,6 +23,8 @@ import {
   type MessageView,
   MitoriError,
   type ReviewStatus,
+  type Round,
+  type RoundChanges,
   type ThreadDetail,
   type ThreadId,
   type ThreadIntent,
@@ -32,7 +35,6 @@ import {
 } from "@mitori/core";
 import { untrack } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
-import { contextAdjust } from "../composer/predict.ts";
 import { ComposerSession, type ComposerTarget } from "../composer/session.svelte.ts";
 import { targetOfBlock } from "../composer/targets.ts";
 import type { ExecPath, StageRow } from "../contract.ts";
@@ -96,6 +98,12 @@ export class Loop {
   waiting = $state.raw<{ round: number; clients: number; agents: readonly string[] } | null>(null);
   trust = new SvelteMap<TrustItemId, TrustRequest>();
   checkpoints = new SvelteMap<CheckpointId, Checkpoint>();
+  completedPull = $state<number | null>(null);
+  roundChanges = $state.raw<RoundChanges | null>(null);
+  roundChangesError = $state<string | null>(null);
+  roundChangesLoading = $state(false);
+  roundUndoing = $state(false);
+  #roundSeq = 0;
   finishOpen = $state(false);
   trustOpen = $state.raw<TrustRequest | null>(null);
   dialog = $state.raw<LoopDialog>(null);
@@ -122,7 +130,10 @@ export class Loop {
   constructor(s: Stores) {
     this.s = s;
     this.undo = new UndoManager(s);
-    this.undo.onUndone = () => void this.refreshReview();
+    this.undo.onUndone = () => {
+      void this.refreshReview();
+      void this.refreshRoundChanges();
+    };
   }
 
   get ws(): WorkspaceKey | null {
@@ -140,7 +151,10 @@ export class Loop {
     sse.on("thread.removed", (e) => this.#inbox((items) => removeRow(items, e.id)));
     sse.on("job.upsert", (e) => this.#onJob(e.job));
     sse.on("review.waiting", (e) => (this.waiting = { round: e.round, clients: e.clients, agents: e.agents }));
-    sse.on("review.round", () => void this.refreshReview());
+    sse.on("review.round", (e) => {
+      this.#onRound(e.round);
+      void this.refreshReview();
+    });
     sse.on("trust.request", (e) => this.#onTrust(e.request));
     sse.on("checkpoint.upsert", (e) => this.checkpoints.set(e.checkpoint.id, e.checkpoint));
     sse.on("doc.proposal.upsert", (e) => this.#onProposal(e.proposal));
@@ -177,6 +191,12 @@ export class Loop {
       this.messages.clear();
       this.trust.clear();
       this.checkpoints.clear();
+      this.completedPull = null;
+      this.roundChanges = null;
+      this.roundChangesError = null;
+      this.roundChangesLoading = false;
+      this.roundUndoing = false;
+      this.#roundSeq++;
       this.waiting = null;
     }
     this.#ws = ws;
@@ -211,7 +231,67 @@ export class Loop {
 
   #applyReview(v: ReviewStatus): void {
     this.s.review.round = v;
+    this.#onRound(v.round);
     this.waiting = { round: (v.round?.n ?? 0) + (v.round?.state === "collecting" ? 0 : 1), clients: v.waitingClients, agents: v.waitingAgents };
+  }
+
+  #onRound(round: Round | null): void {
+    if (round?.mode !== "pull" || round.state !== "complete" || (this.completedPull !== null && round.n <= this.completedPull)) return;
+    this.completedPull = round.n;
+    this.roundChanges = null;
+    void this.refreshRoundChanges();
+  }
+
+  /** Read-only: a completed pull round shows every changed file, with scope exclusions marked (CR safe-5). */
+  async refreshRoundChanges(): Promise<RoundChanges | null> {
+    const ws = this.ws;
+    const n = this.completedPull;
+    if (!ws || n === null) return null;
+    const seq = ++this.#roundSeq;
+    this.roundChangesLoading = true;
+    this.roundChangesError = null;
+    try {
+      const changes = await this.s.api.call("GET /ws/:ws/review/rounds/:n/changes", { params: { ws, n: String(n) } });
+      if (ws !== this.ws || seq !== this.#roundSeq) return null;
+      this.roundChanges = changes;
+      return changes;
+    } catch (err) {
+      if (ws === this.ws && seq === this.#roundSeq) this.roundChangesError = errorText(MitoriError.from(err).toData());
+      return null;
+    } finally {
+      if (ws === this.ws && seq === this.#roundSeq) this.roundChangesLoading = false;
+    }
+  }
+
+  /** Human click only. New files require another look; the backend retains its divergence checks. */
+  async undoRound(): Promise<boolean> {
+    const ws = this.ws;
+    const shown = this.roundChanges;
+    if (!ws || !shown?.files.length || this.roundUndoing || this.roundChangesLoading) return false;
+    this.roundUndoing = true;
+    try {
+      const fresh = await this.refreshRoundChanges();
+      if (!fresh || ws !== this.ws || fresh.round !== shown.round) return false;
+      if (
+        JSON.stringify([...fresh.files].sort()) !== JSON.stringify([...shown.files].sort()) ||
+        JSON.stringify([...fresh.outside].sort()) !== JSON.stringify([...shown.outside].sort()) ||
+        fresh.base !== shown.base
+      ) {
+        this.roundChangesError = t("review.round.changed");
+        return false;
+      }
+      const res = await this.s.api.call("POST /ws/:ws/review/rounds/:n/undo", { params: { ws, n: String(shown.round) } });
+      if (ws !== this.ws) return true;
+      this.checkpoints.set(res.checkpoint.id, res.checkpoint);
+      this.undo.accepted(res.checkpoint.job, res.checkpoint.id, "review.toast.roundUndone", { n: shown.round });
+      await this.refreshRoundChanges();
+      return true;
+    } catch (err) {
+      if (ws === this.ws) this.roundChangesError = errorText(MitoriError.from(err).toData());
+      return false;
+    } finally {
+      if (ws === this.ws) this.roundUndoing = false;
+    }
   }
 
   // =============================================================================== SSE
@@ -548,7 +628,7 @@ export class Loop {
       return;
     }
     if (c.path === "copy") {
-      await this.copyPrompt(th.anchor, body, c.intent);
+      await this.copyPrompt(th.anchor, body, c.intent, c.context);
       return;
     }
     // 3. estimate (fresh) → job
@@ -557,19 +637,22 @@ export class Loop {
 
   async #submitThread(c: ComposerSession, body: string): Promise<ThreadDetail> {
     const ws = this.ws as WorkspaceKey;
-    const id = c.draft ?? (c.body.trim() ? await c.flushSave() : null);
+    if (body !== c.body) c.input(body);
+    c.dispose();
+    const id = await c.flushSave();
+    if (id && c.save !== "saved") throw new MitoriError("E_CONFLICT", "draft has not been saved");
     if (!id) {
       return this.s.api.call("POST /ws/:ws/threads", {
         params: { ws },
-        body: { anchor: c.target.anchor, intent: c.sentIntent, body, draft: false },
+        body: { anchor: c.target.anchor, intent: c.sentIntent, body, draft: false, context: c.context },
         idempotencyKey: `${c.tempKey}:submit`,
       });
     }
-    if (body !== c.body || c.stale) {
-      const saved = await this.s.api.call("PATCH /ws/:ws/threads/:th", { params: { ws, th: id }, body: { version: c.version, body, intent: c.sentIntent } });
-      c.version = saved.version;
-    } else await c.flushSave();
-    return this.s.api.call("POST /ws/:ws/threads/:th/transition", { params: { ws, th: id }, body: { on: "submit", version: c.version } });
+    if (c.submitted) return this.s.api.call("GET /ws/:ws/threads/:th", { params: { ws, th: id } });
+    const th = await this.s.api.call("POST /ws/:ws/threads/:th/transition", { params: { ws, th: id }, body: { on: "submit", version: c.version } });
+    c.submitted = true;
+    c.version = th.version;
+    return th;
   }
 
   async #startJob(key: string, c: ComposerSession, th: ThreadId, confirm = false): Promise<void> {
@@ -586,7 +669,7 @@ export class Loop {
         this.#patchPending(key, { phase: "confirm" });
         return;
       }
-      const context = contextAdjust(c.chips, c.candidateKeys, c.mentions);
+      const context = c.context;
       const job = await this.s.api.call("POST /ws/:ws/jobs", {
         params: { ws },
         body: {
@@ -990,11 +1073,14 @@ export class Loop {
   }
 
   /** `p` / ⧉: the prompt for my own agent (no engine needed). */
-  async copyPrompt(anchor: Anchor, ask: string, intent: ThreadIntent): Promise<void> {
+  async copyPrompt(anchor: Anchor, ask: string, intent: ThreadIntent, context?: ContextAdjust): Promise<void> {
     const ws = this.ws;
     if (!ws) return;
     try {
-      const r = await this.s.api.call("POST /ws/:ws/prompt", { params: { ws }, body: { anchor, ask, intent, target: "claude-code" } });
+      const r = await this.s.api.call("POST /ws/:ws/prompt", {
+        params: { ws },
+        body: { anchor, ask, intent, target: "claude-code", ...(context ? { context } : {}) },
+      });
       await copyText(r.text, this.s, "copy.prompt", { k: Math.round(r.tokens / 100) / 10 });
     } catch (err) {
       this.#error(err);

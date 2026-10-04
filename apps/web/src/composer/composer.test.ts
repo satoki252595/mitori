@@ -42,6 +42,23 @@ describe("WEB-U-028 prediction", () => {
     expect(p.usd).toBeCloseTo((1680 * 2 + 1800 * 0.2 + 1200 * 10) / 1e6, 6);
   });
 
+  test("Muse predictions charge all input, distinguish unknown prices, and preserve explicit zero prices", () => {
+    const input = {
+      chips: chips(),
+      body: "あ".repeat(100),
+      intent: "change" as const,
+      outTokens: 1200,
+      model: "generic:muse-spark-1.3-contributor" as const,
+      engine: "generic" as const,
+    };
+    const prices = { inPerMTok: 0.1, outPerMTok: 0.2, cacheReadPerMTok: 0.002 };
+    const p = predict({ ...input, genericPricing: prices });
+    expect(p.usd).toBeCloseTo((p.tokensIn * 0.1 + 1200 * 0.2) / 1e6, 6);
+    expect(p.usd).toBeGreaterThan(0);
+    expect(predict(input).usd).toBeNull();
+    expect(predict({ ...input, genericPricing: { inPerMTok: 0, outPerMTok: 0, cacheReadPerMTok: 0 } }).usd).toBe(0);
+  });
+
   test("router: > 2 files or > 120 lines ⇒ agent in the same call; removing the chip ⇒ patch again", () => {
     const three = [...chips(), { item: item("c3", "code", 50, { path: "c.go", lines: 3, label: "c.go:1-3" }), state: "included" as const }];
     expect(predict({ chips: three, body: "", intent: "change", outTokens: 0, model: "claude-sonnet-5-5" })).toMatchObject({

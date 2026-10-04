@@ -29,6 +29,7 @@ export class PrefsState {
   editor = $state<"vscode" | "cursor" | "none">("none");
   #pending: DeepPartial<GlobalSettings> = {};
   #timer: ReturnType<typeof setTimeout> | null = null;
+  #writes: Promise<boolean> = Promise.resolve(true);
   #version = 0;
   private readonly api: ApiClient;
 
@@ -61,9 +62,9 @@ export class PrefsState {
     }
   }
 
-  /** A local change is waiting for its debounced `PATCH /settings`. */
+  /** A local change is queued, in flight, or awaiting retry after a failed `PATCH /settings`. */
   get pending(): boolean {
-    return this.#timer !== null;
+    return Object.keys(this.#pending).length > 0;
   }
 
   /** Apply the server settings (server wins) and rewrite the cookie. */
@@ -143,7 +144,13 @@ export class PrefsState {
   }
 
   /** Immediate settings patch (privacy acks): no debounce. */
-  async patchNow(patch: DeepPartial<GlobalSettings>): Promise<boolean> {
+  patchNow(patch: DeepPartial<GlobalSettings>): Promise<boolean> {
+    // Serialize every write, including immediate privacy acks, so an older retry cannot overwrite a newer edit.
+    this.#writes = this.#writes.then(() => this.#sendPatch(patch));
+    return this.#writes;
+  }
+
+  async #sendPatch(patch: DeepPartial<GlobalSettings>): Promise<boolean> {
     try {
       const v = await this.api.call("PATCH /settings", { params: {}, body: { version: this.#version, patch } });
       this.#version = v.version;
@@ -171,12 +178,14 @@ export class PrefsState {
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = setTimeout(() => {
       const patch = this.#pending;
-      this.#pending = {};
       this.#timer = null;
       this.#keptWaiting = false;
       void this.patchNow(patch).then((ok) => {
-        // nothing newer queued meanwhile: the server has it all
-        if (ok && this.#timer === null) removeItem("local", PENDING_PREFS_KEY);
+        // Keep failed writes and newer edits together until that exact snapshot is acknowledged.
+        if (ok && this.#pending === patch) {
+          this.#pending = {};
+          if (JSON.stringify(getJson("local", PENDING_PREFS_KEY)) === JSON.stringify(patch)) removeItem("local", PENDING_PREFS_KEY);
+        }
       });
     }, delayMs);
   }

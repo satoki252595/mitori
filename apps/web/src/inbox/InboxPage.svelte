@@ -12,6 +12,7 @@ import { fmtTokens, fmtUsd, isComposing, t } from "../shell/index.ts";
 import { markAfterPaint } from "../shell/perf.ts";
 import { useStores } from "../stores/app.svelte.ts";
 import { loopOf } from "../threads/loop.svelte.ts";
+import PullRoundChanges from "../threads/PullRoundChanges.svelte";
 import StatusPill from "../threads/StatusPill.svelte";
 import InboxDetail from "./InboxDetail.svelte";
 import { itemStatus } from "./status.ts";
@@ -176,6 +177,7 @@ const savePct = $derived(batch && batch.separateTokens > batch.batchTokens ? Mat
         · <kbd>j</kbd><kbd>k</kbd> {t("inbox.subMove")} · <kbd>↵</kbd> {t("inbox.subOpen")}
       </p>
     </header>
+    <PullRoundChanges />
     {#if drafts.length >= 2}
       <div class="batch" role="region" aria-label={t("inbox.batch.label")} data-chrome>
         <div class="bt">

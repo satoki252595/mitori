@@ -44,6 +44,15 @@ describe("CORE-U-004 priceUsage", () => {
     expect(() => priceUsage("claude-opus-5-5", { ...zero, out: -1 }, false)).toThrow(MitoriError);
     expect(() => priceUsage("claude-opus-5-5", { ...zero, in: Number.NaN }, false)).toThrow(MitoriError);
   });
+
+  test("arbitrary models require explicit prices, including free local models", () => {
+    const model = "generic:muse-spark-1.3-contributor" as const;
+    const prices = { inPerMTok: 0.1, outPerMTok: 0.2, cacheReadPerMTok: 0.002 };
+    expect(priceUsage(model, { ...zero, in: M, out: M, cacheRead: M }, false, prices)).toBe(0.302);
+    expect(() => priceUsage(model, zero, false)).toThrow(MitoriError);
+    expect(() => priceUsage(model, zero, false, { ...prices, inPerMTok: -1 })).toThrow(MitoriError);
+    expect(priceUsage("generic:local", { ...zero, in: M }, false, { inPerMTok: 0, outPerMTok: 0, cacheReadPerMTok: 0 })).toBe(0);
+  });
 });
 
 describe("CORE-U-005 tokenBand", () => {

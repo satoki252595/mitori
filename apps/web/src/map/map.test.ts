@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import type { EngineStatus, MapView } from "@mitori/core";
 import { ROOM_LOD, UI_THRESHOLDS } from "../contract.ts";
 import { cameraForK, centreOn, fitCamera, K_MAX, K_MIN, lerpCamera, lodClass, STAGE_K, stageOf, stepStageK, zoomAt } from "./camera.ts";
-import { engineProblem, fixSteps } from "./engine.ts";
+import { engineProblem, fixSteps, policyAcknowledged } from "./engine.ts";
 import { generatedTokens, heroAreas, heroMeta, oneSentence } from "./hero.ts";
 import {
   buildPlanModel,
@@ -182,6 +182,14 @@ describe("UXP-15 / AC-U-EN engine problems", () => {
     expect(engineProblem({ ...base, ...(patch as Partial<EngineStatus>) } as EngineStatus)).toBe(want);
   });
   test("no status yet ⇒ no card", () => expect(engineProblem(null)).toBeNull());
+  test("generic consent is scoped to the detected provider/model identity", () => {
+    const ack = { at: "2026-10-04T00:00:00Z", shownAt: "2026-10-04T00:00:00Z", plan: "generic:one" };
+    const status = { ...base, engine: "generic", plan: "generic:one" } as EngineStatus;
+    expect(policyAcknowledged("generic", status, ack)).toBe(true);
+    expect(policyAcknowledged("generic", { ...status, plan: "generic:two" }, ack)).toBe(false);
+    expect(policyAcknowledged("generic", null, ack)).toBe(false);
+    expect(policyAcknowledged("generic", status, undefined)).toBe(false);
+  });
 });
 
 describe("§3 flow overlay geometry (ux.md §4.2.3)", () => {
@@ -316,7 +324,16 @@ describe("AC-U-EN engine card: exact steps, the last one re-probes", () => {
   test.each(["notInstalled", "notLoggedIn", "capabilityLost"] as const)("%s", (p) => {
     const steps = fixSteps(p);
     expect(steps[steps.length - 1]).toEqual({ key: "recheck" });
-    expect(steps.slice(0, -1).every((s) => !!s.cmd)).toBe(true);
+    expect(steps.some((s) => s.cmd?.includes("npm install -g"))).toBe(false);
+  });
+  test("arbitrary engines receive provider guidance, never Claude commands", () => {
+    for (const engine of ["generic", "codex-cli", "anthropic-api"] as const)
+      for (const p of ["notInstalled", "notLoggedIn", "capabilityLost"] as const) {
+        const steps = fixSteps(p, engine);
+        expect(steps).toContainEqual({ key: "providerSetup" });
+        expect(steps.every((s) => s.cmd === undefined)).toBe(true);
+        expect(steps.at(-1)?.key).toBe("recheck");
+      }
   });
 });
 

@@ -20,15 +20,20 @@ const PROBLEM = new Set(["inferred", "unsupported", "stale"]);
 export function decorateBlock(wrapper: HTMLElement, b: BlockView, level: ReaderLevel, text: DecorateText): void {
   const mb = wrapper.querySelector<HTMLElement>(":scope > .mb");
   if (!mb) return;
+  mb.dataset.fresh = b.freshness;
   // gutter ✓ (shown on hover / ⌥ / expert by CSS)
   const verdicts = b.claimViews.map((c) => c.verdict);
   if (verdicts.length && verdicts.every((v) => v === "verified" || v === "human-verified"))
     wrapper.dataset.v = verdicts.every((v) => v === "human-verified") ? "human" : "verified";
   else delete wrapper.dataset.v;
   // claim spans: screen-reader description of the badge (attribute only)
+  const claims = new Map(b.claimViews.map((c) => [String(c.id), c]));
   for (const span of mb.querySelectorAll<HTMLElement>(".mc[data-verdict]")) {
+    const claim = claims.get(span.dataset.claim ?? "");
+    if (claim) span.dataset.verdict = claim.verdict;
     const v = span.dataset.verdict ?? "";
     if (PROBLEM.has(v)) span.setAttribute("aria-describedby", `sr-verdict-${v}`);
+    else span.removeAttribute("aria-describedby");
   }
   // newcomer: paragraph-end "出典 n"
   const cites = mb.querySelectorAll("a.mcite").length;
@@ -51,6 +56,7 @@ export function decorateBlock(wrapper: HTMLElement, b: BlockView, level: ReaderL
     const last = mb.lastElementChild;
     (last && /^(P|LI)$/.test(last.tagName) ? last : (last?.querySelector("li:last-child, p:last-child") ?? mb)).appendChild(btn);
   }
+  if (!verdicts.some((v) => PROBLEM.has(v))) mb.querySelector("button.vsum")?.remove();
   for (const table of mb.querySelectorAll<HTMLTableElement>("table")) decorateTable(table, b.kind === "facts" ? (text.codeHref ?? null) : null);
   applyLevel(wrapper, level);
 }

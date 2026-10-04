@@ -40,10 +40,13 @@ export function engineRequest(
   ctx: { ws: string; cwd: string; deny: readonly string[]; persistSessions: boolean; prompt?: string },
 ): ScheduledRequest {
   const id = promptIdOf(plan);
-  const keepAlive = id === "loop.patch" || id === "loop.agent";
+  const generic = plan.route.engine === "generic";
+  const keepAlive = !generic && (id === "loop.patch" || id === "loop.agent");
   const schema = SCHEMAS[id];
-  const system = loopSystemPrompt(id, { cwd: ctx.cwd, deny: ctx.deny });
-  const sendsSchema = schema !== undefined && plan.route.engine !== "generic";
+  const baseSystem = loopSystemPrompt(id, { cwd: ctx.cwd, deny: ctx.deny });
+  const inlineSchema = generic && (id === "loop.patch" || id === "loop.findings") ? schema : undefined;
+  const system = inlineSchema ? `${baseSystem}\n\nReply with one JSON object matching this schema:\n${JSON.stringify(inlineSchema)}` : baseSystem;
+  const sendsSchema = schema !== undefined && !generic;
   const req: ScheduledRequest = {
     ref: job,
     mode: plan.mode === "patch" ? "patch" : plan.mode === "agent" ? "agent" : plan.mode === "findings" ? "findings" : "answer",
@@ -57,7 +60,7 @@ export function engineRequest(
     prompt: ctx.prompt ?? plan.bundle.text,
     contract: plan.route.decision.contract,
     keepAlive,
-    persistSession: ctx.persistSessions,
+    persistSession: !generic && ctx.persistSessions,
     budget: { usd: plan.budget.usd, inTokens: firstTurnInTokens(plan, system, sendsSchema ? schema : undefined), outTokens: plan.budget.out, ms: TURN_MS[id] },
     engine: plan.route.engine,
     lane: "interactive",

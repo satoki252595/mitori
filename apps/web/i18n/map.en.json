@@ -4,11 +4,11 @@
   "engine.capabilityLost.title": "a required capability is missing",
   "engine.checking": "Checking…",
   "engine.copy": "Copy",
-  "engine.notInstalled.body": "Generation runs on the Claude Code CLI (your subscription; mitori never reads your credentials). Set it up in three steps.",
+  "engine.notInstalled.body": "The selected {engine} is unavailable. Check your nix environment and provider authentication, then recheck.",
   "engine.notInstalled.title": "not installed",
-  "engine.notLoggedIn.body": "The Claude Code CLI is not signed in. Sign in, then detect it again.",
+  "engine.notLoggedIn.body": "Authentication for the selected {engine} could not be verified. Follow its provider authentication instructions, then recheck.",
   "engine.notLoggedIn.title": "not logged in",
-  "engine.pathHint": "To use a claude installed elsewhere, set its path in Settings → Engines.",
+  "engine.pathHint": "Choose the executable in your nix environment or Settings → Engines.",
   "engine.recheck": "Recheck",
   "engine.step.install": "Install the Claude Code CLI",
   "engine.step.login": "Start it in a terminal and sign in with /login",
@@ -91,5 +91,7 @@
   "map.zoom.label": "Zoom",
   "map.zoom.out": "Zoom out (-)",
   "map.zoom.stages": "Zoom stages",
-  "map.context.outside": "Outside: {names}"
+  "map.context.outside": "Outside: {names}",
+  "engine.step.installNix": "Provide or update the CLI in the project nix configuration; check the provider for its package name",
+  "engine.step.providerSetup": "Check the selected provider installation and authentication instructions, and the configured executable"
 }

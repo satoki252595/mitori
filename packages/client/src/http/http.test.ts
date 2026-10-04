@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MitoriError } from "@mitori/core";
+import { MitoriError, ROUTE_META, type RouteKey } from "@mitori/core";
 import { createApiClient } from "./index.ts";
 import { probeDaemon } from "./probe.ts";
 
@@ -25,6 +25,21 @@ function fakeFetch(respond: (seen: Seen) => Response) {
 }
 
 describe("createApiClient", () => {
+  test("response decoding matches every canonical route kind", async () => {
+    const api = createApiClient({
+      base: "/api/v1",
+      auth: { scheme: "session", token: () => "t" },
+      client: { kind: "web", version: "1" },
+      fetch: (async () => new Response('"response"')) as unknown as typeof fetch,
+    });
+    for (const [route, meta] of Object.entries(ROUTE_META)) {
+      const params = Object.fromEntries([...route.matchAll(/:([A-Za-z]+)/g)].map((m) => [m[1], "param"]));
+      const result = api.call(route as RouteKey, { params } as never);
+      if (meta.kind === "sse") await expect(result).rejects.toThrow("stream");
+      else expect(await result).toBe(meta.kind === "text" || meta.kind === "download" ? '"response"' : "response");
+    }
+  });
+
   test("builds the request: encoded params, query, auth scheme, client header, idempotency, JSON body", async () => {
     const { f, calls } = fakeFetch(() => Response.json({ ok: true }));
     let token: string | null = "tok-1";

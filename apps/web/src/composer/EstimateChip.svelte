@@ -24,7 +24,7 @@ let {
 }: {
   tokensIn: number;
   tokensOut: number;
-  usd: number;
+  usd: number | null;
   seconds: { lo: number; hi: number; n: number };
   band: TokenBand;
   items: readonly EstimateItem[];
@@ -42,11 +42,12 @@ let open = $state(false);
 let timer: ReturnType<typeof setTimeout> | null = null;
 const price = $derived((PRICING as Partial<Record<string, (typeof PRICING)[ClaudeModelId]>>)[model] ?? null);
 const secs = $derived(seconds.lo === seconds.hi ? t("composer.est.secs", { n: seconds.lo }) : t("composer.est.secsRange", { lo: seconds.lo, hi: seconds.hi }));
+const cost = $derived(usd === null ? "—" : fmtUsd(usd, "job"));
 const billed = $derived(
   billing === "subscription-window"
     ? t("composer.est.inWindow")
     : billing === "metered-api" || billing === "overage"
-      ? t("composer.est.billed", { usd: fmtUsd(usd, "job") })
+      ? t("composer.est.billed", { usd: cost })
       : "",
 );
 const fixed = $derived(items.filter((i) => i.cached).reduce((n, i) => n + i.tokens, 0));
@@ -75,7 +76,7 @@ function show(on: boolean) {
       data-chrome
     >
       <span class="band" data-band={band} aria-hidden="true"></span>
-      <span>{fmtTokens(tokensIn, { approx: true })} in</span><span class="sep" aria-hidden="true">·</span><span>{fmtTokens(tokensOut, { approx: true })} out</span><span class="sep" aria-hidden="true">·</span><span>{fmtUsd(usd, "job")}</span><span class="sep" aria-hidden="true">·</span><span>{secs}</span>
+      <span>{fmtTokens(tokensIn, { approx: true })} in</span><span class="sep" aria-hidden="true">·</span><span>{fmtTokens(tokensOut, { approx: true })} out</span><span class="sep" aria-hidden="true">·</span><span>{cost}</span><span class="sep" aria-hidden="true">·</span><span>{secs}</span>
     </button>
     {#if open}
       <div class="est-pop" role="tooltip" {id} onpointerenter={() => show(true)} onpointerleave={() => show(false)} data-chrome>
@@ -87,7 +88,7 @@ function show(on: boolean) {
           {#if instr > 0}<li><span class="l">{t("composer.est.instr")}</span><span class="v mono">{fmtTokens(instr)}</span></li>{/if}
           <li><span class="l">{t("composer.est.out")}</span><span class="v mono">{fmtTokens(tokensOut)}</span></li>
         </ul>
-        <p class="tot mono">{t("composer.est.total", { tok: fmtTokens(tokensIn + tokensOut), usd: fmtUsd(usd, "job"), cache: fmtTokens(fixed) })}</p>
+        <p class="tot mono">{t("composer.est.total", { tok: fmtTokens(tokensIn + tokensOut), usd: cost, cache: fmtTokens(fixed) })}</p>
         {#if price}<p class="note">{t("composer.est.price", { model, in: price.inPerMTok, cr: price.cacheReadPerMTok, out: price.outPerMTok })}</p>{/if}
         <p class="note">{t("composer.est.accuracy", { p: accuracy.pct, n: accuracy.n })}{#if pending} · {t("composer.est.predicted")}{/if}</p>
       </div>

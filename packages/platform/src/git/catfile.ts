@@ -66,7 +66,7 @@ const dec = new TextDecoder();
 
 /** Persistent batch reader. `argv` = full git argv ending in `cat-file --batch`. */
 export class CatFileBatch {
-  private proc: ReturnType<typeof Bun.spawn<"pipe", "pipe", "ignore">> | null = null;
+  private proc: ReturnType<typeof Bun.spawn<"pipe", "pipe", "pipe">> | null = null;
   private pending: Pending[] = [];
   private buf = new Bytes();
   private header: { type: string; size: number } | null = null;
@@ -102,9 +102,9 @@ export class CatFileBatch {
 
   private ensure() {
     if (this.proc) return this.proc;
-    let proc: ReturnType<typeof Bun.spawn<"pipe", "pipe", "ignore">>;
+    let proc: ReturnType<typeof Bun.spawn<"pipe", "pipe", "pipe">>;
     try {
-      proc = Bun.spawn(this.argv, { cwd: this.cwd, env: this.env, stdin: "pipe", stdout: "pipe", stderr: "ignore" });
+      proc = Bun.spawn(this.argv, { cwd: this.cwd, env: this.env, stdin: "pipe", stdout: "pipe", stderr: "pipe" });
     } catch (cause) {
       const code = (cause as { code?: string }).code ?? "?";
       throw new MitoriError(code === "ENOENT" ? "E_NOT_FOUND" : "E_GIT_FAILED", `cannot start git cat-file --batch (${code})`, { cause, params: { code } });
@@ -112,6 +112,12 @@ export class CatFileBatch {
     this.proc = proc;
     this.buf = new Bytes();
     this.header = null;
+    // Drain stderr while stdout is read; retain only the diagnostic tail.
+    const diagnostic = (async () => {
+      let tail = "";
+      for await (const chunk of proc.stderr) tail = (tail + dec.decode(chunk)).slice(-8192);
+      return tail;
+    })().catch(() => "");
     void (async () => {
       try {
         for await (const chunk of proc.stdout) {
@@ -120,8 +126,15 @@ export class CatFileBatch {
           this.drain();
         }
       } catch {}
+      const [code, stderr] = await Promise.all([proc.exited, diagnostic]);
       if (this.proc === proc) {
         this.proc = null;
+        // Git 2.43 exits instead of answering "<oid> missing" for an unfetched promisor object.
+        const missing = code === 128 ? /could not fetch ([0-9a-f]{40,64}) from promisor remote/.exec(stderr)?.[1] : undefined;
+        if (missing && !this.header) {
+          const i = this.pending.findIndex((p) => p.oid === missing);
+          if (i >= 0) this.pending.splice(i, 1)[0]?.resolve(null);
+        }
         this.fail(new MitoriError("E_GIT_FAILED", "cat-file --batch exited", { retryable: true }));
       }
     })();

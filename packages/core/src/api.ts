@@ -724,8 +724,11 @@ export interface DocOutline {
 export interface SectionView {
   /** Section. */
   section: SectionNode;
-  /** All blocks (reader level is applied client-side). */
+  /** All blocks; a range request leaves `html` empty outside its window. `outline=false` returns only the window. */
   blocks: BlockView[];
+  /** Full block count and clamped zero-based window start (range requests only). */
+  total?: number;
+  from?: number;
   /** Breadcrumbs from root. */
   breadcrumbs: { id: SectionId; title: string }[];
   /** Previous section in reading order. */
@@ -1781,7 +1784,7 @@ export interface ApiRoutes {
 
   // --- doc ---------------------------------------------------------------------
   "GET /ws/:ws/doc": Route<WsParam, Empty, undefined, DocOutline>;
-  "GET /ws/:ws/doc/sections/:section": Route<WsParam & { section: SectionId }, { lang?: DocLang }, undefined, SectionView>;
+  "GET /ws/:ws/doc/sections/:section": Route<WsParam & { section: SectionId }, { lang?: DocLang; from?: number; limit?: number; outline?: boolean }, undefined, SectionView>;
   "POST /ws/:ws/doc/sections/:section/translate": Route<WsParam & { section: SectionId }, Empty, { lang: DocLang; confirm?: boolean }, BlockOpRes>;
   "GET /ws/:ws/doc/text": Route<WsParam, { ref: string; depth?: number }, undefined, string>;
   "GET /ws/:ws/doc/blocks/:block": Route<WsParam & { block: BlockId }, { lang?: DocLang; md?: "marker" | "file" }, undefined, BlockView | BlockSourceView>;

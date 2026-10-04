@@ -48,13 +48,7 @@ export const s01Gostd = defineBench({
   run: async (_s, ctx) => (await cold(need(ctx), ["--until", "S1", "--shadow"])).ms,
 });
 
-export const s04Crit = defineBench({
-  id: "idx.s04.cold.100kloc",
-  suite: "idx",
-  mode: "process",
-  repo: "crit",
-  run: async (_s, ctx) => (await cold(need(ctx))).ms,
-});
+// crit's canonical S0–S4 + static-doc cold open is measured by open.bench.ts (the budget includes both).
 
 /** react's cold S0–S4: one scan per run feeds idx.s04.cold.react, idx.rss.peak, idx.persist.ms and idx.leiden.ms. */
 const reactRun = (ctx: BenchContext) => sharedRun("react:s04", ctx, () => cold(need(ctx)));

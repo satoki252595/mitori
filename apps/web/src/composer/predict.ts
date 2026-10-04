@@ -5,8 +5,9 @@
  */
 import {
   CHARS_PER_TOKEN,
-  type ClaudeModelId,
   DEFAULT_LIMITS,
+  type EngineId,
+  type EngineSettings,
   type EstimateItem,
   type ExecMode,
   type Limits,
@@ -38,7 +39,7 @@ export interface Prediction {
   files: number;
   tokensIn: number;
   tokensOut: number;
-  usd: number;
+  usd: number | null;
   /** Why the router picks `mode` (shown in the router chip when ≠ patch). */
   reason: "small_change" | "large_change" | "intent_question" | "intent_review" | null;
 }
@@ -54,6 +55,8 @@ export function predict(opts: {
   intent: ThreadIntent;
   outTokens: number;
   model: ModelId;
+  engine?: EngineId;
+  genericPricing?: EngineSettings["generic"]["pricing"];
   limits?: Pick<Limits, "patchMaxLines" | "patchMaxFiles">;
   override?: ComposerState["override"];
 }): Prediction {
@@ -89,8 +92,16 @@ export function predict(opts: {
   }
   if (opts.override?.mode) mode = opts.override.mode;
   const model = opts.override?.model ?? opts.model;
-  const priced = model in PRICING;
-  const usd = priced ? priceUsage(model as ClaudeModelId, { in: fresh, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead: cached, out: opts.outTokens }, false) : 0;
+  const generic = opts.engine === "generic" || model.startsWith("generic:");
+  const priced = model in PRICING || (generic && opts.genericPricing !== undefined);
+  const usd = priced
+    ? priceUsage(
+        model,
+        { in: generic ? fresh + cached : fresh, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead: generic ? 0 : cached, out: opts.outTokens },
+        false,
+        generic ? opts.genericPricing : undefined,
+      )
+    : null;
   return { mode, lines, files: files.size, tokensIn: fresh + cached, tokensOut: opts.outTokens, usd, reason };
 }
 

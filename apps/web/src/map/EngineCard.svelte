@@ -17,7 +17,7 @@ let {
   onrecheck,
 }: { status: EngineStatus; problem: EngineProblem; effort: string; oncopy: (s: string) => void; onrecheck: () => void | Promise<void> } = $props();
 
-const steps = $derived(fixSteps(problem));
+const steps = $derived(fixSteps(problem, status.engine));
 let checking = $state(false);
 async function recheck() {
   checking = true;
@@ -32,7 +32,7 @@ async function recheck() {
 <section class="eng card" aria-labelledby="eng-t" data-testid="engine-card" data-problem={problem} data-chrome>
   <h2 id="eng-t">{t("gen.card.title")}</h2>
   <p class="state"><span class="w" aria-hidden="true">&#x26A0;&#xFE0E;</span><span class="mono">{status.engine}</span> &middot; {t(`engine.${problem}.title`)}</p>
-  <p class="desc">{t(`engine.${problem}.body`, { version: status.version ?? "–" })}</p>
+  <p class="desc">{t(`engine.${problem}.body`, { version: status.version ?? "–", engine: status.engine })}</p>
   <ol class="steps">
     {#each steps as st, i (i)}
       <li>
@@ -40,7 +40,7 @@ async function recheck() {
         <span class="what">{t(`engine.step.${st.key}`)}</span>
         {#if st.cmd}
           <button type="button" class="cmd mono" title={t("engine.copy")} onclick={() => oncopy(st.cmd ?? "")}>{st.cmd}<span class="cp" aria-hidden="true">&#x2398;</span></button>
-        {:else}
+        {:else if st.key === "recheck"}
           <button type="button" class="btn btn-sec btn-s" aria-disabled={checking || undefined} onclick={recheck}>{checking ? t("engine.checking") : t("engine.recheck")}</button>
         {/if}
       </li>

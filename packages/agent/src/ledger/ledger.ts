@@ -130,7 +130,7 @@ export function createUsageLedger(deps: LedgerDeps): UsageLedgerImpl {
 
   /** EMA of actual / RAW estimate on input tokens (all classes), only for clean calls [CONS-24, PT-09]. */
   const calibrate = (r: UsageRecord): void => {
-    if (r.outcome !== "ok" || (r.continuations ?? 0) > 0 || !r.promptId || !r.estimate) return;
+    if (r.usageEstimated || r.outcome !== "ok" || (r.continuations ?? 0) > 0 || !r.promptId || !r.estimate) return;
     const raw = r.estimate.raw ?? r.estimate;
     const actual = r.usage.in + r.usage.cacheWrite + r.usage.cacheRead;
     if (!(raw.in > 0) || !(actual > 0)) return;

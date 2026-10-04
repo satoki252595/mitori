@@ -13,7 +13,7 @@ export interface ReadHint {
 }
 
 /** Lines shown for a hint that names a whole file (the bundle caps a hint at 30 lines). */
-const FILE_HEAD = 30;
+export const READ_HINT_MAX_LINES = 30;
 
 /** `MitoriError.params` key the patch pipeline stores the engine's `needs_more_context` items under (newline-joined). */
 export const NEEDS_PARAM = "needs";
@@ -44,7 +44,7 @@ export function resolveReadHints(
       if (!f || f.lines < 1) continue;
       matched = true;
       const a = m[2] ? Math.min(Math.max(1, Number(m[2])), f.lines) : 1;
-      const b = m[3] ? Math.min(Math.max(a, Number(m[3])), f.lines) : m[2] ? a : Math.min(f.lines, FILE_HEAD);
+      const b = m[3] ? Math.min(Math.max(a, Number(m[3])), f.lines) : m[2] ? a : Math.min(f.lines, READ_HINT_MAX_LINES);
       push({ path, start: a as LineNo, end: b as LineNo });
     }
     if (matched) continue;

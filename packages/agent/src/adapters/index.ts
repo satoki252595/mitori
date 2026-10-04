@@ -46,25 +46,88 @@ export function buildCodexSpawn(
   };
 }
 
+/** Muse supports only the verified text-only argv profile; duplicate or extra options can override its policy. */
+export function assertMuseTextOnlyArgv(argv: readonly string[]): void {
+  const flags = new Set(["--json", "--disable-shell", "--disable-write", "--disable-web-tools", "--no-foreign-personal-context", "--no-session-log"]);
+  const pairs = new Map([
+    ["--model", "{model}"],
+    ["--reasoning-effort", "{effort}"],
+    ["--prompt-file", "{promptFile}"],
+    ["--workspace", "{emptyCwd}"],
+    ["--max-model-steps", "1"],
+    ["--worktree", "off"],
+    ["--approval-mode", "untrusted"],
+    ["--approval-judge", "off"],
+  ]);
+  let valid = argv[0] === "exec";
+  for (let i = 1; i < argv.length; i++) {
+    const arg = argv[i] ?? "";
+    if (flags.delete(arg)) continue;
+    if (pairs.has(arg) && argv[i + 1] === pairs.get(arg)) {
+      pairs.delete(arg);
+      i++;
+    } else valid = false;
+  }
+  if (!valid || flags.size || pairs.size) throw new MitoriError("E_CFG_INVALID", "Muse argv must preserve the text-only sandbox policy (ADR-0015)");
+}
+
 /** generic adapter spawn (global `engines.generic.argv`; prompt = system + bundle + contract text on stdin). */
 export function buildGenericSpawn(
   req: EngineRequest,
   settings: EngineSettings["generic"],
-  paths: { emptyCwd: string },
+  paths: { emptyCwd: string; promptFile?: string; museHooksFile?: string; museConfigRoot?: string },
   parentEnv: Readonly<Record<string, string | undefined>>,
 ): SpawnSpec {
   if (req.mode === "agent") throw new MitoriError("E_UNSUPPORTED", "the generic engine has no agent mode (spec §6.11)");
+  if (req.tools !== "none") throw new MitoriError("E_UNSUPPORTED", "the generic engine only accepts text-only requests");
   const [command, ...argv] = settings.argv;
   if (command === undefined || !command.startsWith("/")) throw new MitoriError("E_INVALID_INPUT", "engines.generic.argv[0] must be an absolute path");
+  if (argv.some((arg) => arg.includes("{promptFile}")) && !paths.promptFile?.startsWith("/"))
+    throw new MitoriError("E_PRECONDITION", "generic {promptFile} needs a secure absolute prompt file");
   const contract = req.jsonSchema === undefined ? "" : `\n\nReply with one JSON object matching this schema:\n${JSON.stringify(req.jsonSchema)}`;
+  const prompt = `${req.system}\n\n${(req.promptBlocks ?? [req.prompt]).join("\n\n")}${contract}`;
+  const values: Record<string, string> = {
+    model: req.model.replace(/^generic:/, ""),
+    effort: req.effort,
+    promptFile: paths.promptFile ?? "",
+    emptyCwd: paths.emptyCwd,
+  };
+  const env = scrubEnv(parentEnv, []);
+  if (settings.protocol === "muse-jsonl") {
+    if (!paths.museHooksFile?.startsWith("/")) throw new MitoriError("E_PRECONDITION", "Muse needs a secure empty managed-hooks file");
+    if (!paths.museConfigRoot?.startsWith("/")) throw new MitoriError("E_PRECONDITION", "Muse needs an isolated config root");
+    env.TBH_MANAGED_HOOKS_PATH = paths.museHooksFile;
+    env.XDG_CONFIG_HOME = paths.museConfigRoot;
+    assertMuseTextOnlyArgv(argv);
+    // Fixed gates override saved/passed settings. Echo verification: zero reminder child runs (ADR-0015).
+    for (const gate of [
+      "TODO_REMINDER",
+      "MEMORY_REMINDER",
+      "SKILL_REMINDER",
+      "GOAL_REMINDER",
+      "VERIFY_REMINDER",
+      "SCOPE_REMINDER",
+      "PLUGINS",
+      "HOOK_SELECTED_SKILLS",
+      "HOOK_SELECTED_SKILLS_APPLY",
+      "AGENTS",
+      "WORKFLOW_TOOL",
+      "ARTIFACT_TOOL",
+      "MONITOR",
+      "VOICE",
+      "LOCAL_SESSION_MESSAGING",
+    ])
+      env[`MUSE_EXPERIMENTAL_${gate}`] = "off";
+    env.MUSE_EXPERIMENTAL_FOREIGN_PERSONAL_CONTEXT_KILL = "on";
+  }
   return {
     command,
-    argv,
-    env: scrubEnv(parentEnv, []),
+    argv: argv.map((arg) => arg.replace(/\{(model|effort|promptFile|emptyCwd)\}/g, (_match, key: string) => values[key] ?? "")),
+    env,
     cwd: paths.emptyCwd,
-    stdin: `${req.system}\n\n${req.prompt}${contract}`,
+    stdin: paths.promptFile ? "" : prompt,
     keepStdinOpen: false,
-    timeoutMs: CLAUDE_MODE_DEFAULTS.patch.turnMs,
+    timeoutMs: req.budget.ms > 0 ? req.budget.ms : (settings.turnMs ?? CLAUDE_MODE_DEFAULTS[req.mode].turnMs),
     processGroup: true,
   };
 }

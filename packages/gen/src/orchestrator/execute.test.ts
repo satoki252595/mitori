@@ -36,6 +36,11 @@ const ctx = (engine: GenEngine["id"], runSeconds?: number): RunCtx =>
 const prompts = {} as PromptRenderer;
 
 describe("GenCall per engine (§8.2 / §8.3)", () => {
+  test("generic uses its configured reasoning deadline without changing Claude timeouts", () => {
+    const c = { ...ctx("generic"), turnMs: 600_000 };
+    expect(buildCall(c, task, rendered, 1, "background", null, prompts).timeoutMs).toBe(600_000);
+    expect(buildCall(ctx("claude-cli"), task, rendered, 1, "background", null, prompts).timeoutMs).toBe(120_000);
+  });
   test("anthropic-api writes the prefix with the 1h TTL only when the RUN is expected to take > 4 min", () => {
     expect(buildCall(ctx("anthropic-api", 300), task, rendered, 1, "background", null, prompts).ttl).toBe("1h");
     expect(buildCall(ctx("anthropic-api", 100), task, rendered, 1, "background", null, prompts).ttl).toBe("5m");

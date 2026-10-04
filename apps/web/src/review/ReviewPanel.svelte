@@ -12,6 +12,7 @@ import { acceptNeedsWarning, autofixedLines, gateBadge, gateLabel } from "../job
 import { errorText, fmtDelta, fmtTokens, fmtUsd, t } from "../shell/index.ts";
 import { useStores } from "../stores/app.svelte.ts";
 import { loopOf } from "../threads/loop.svelte.ts";
+import PullRoundChanges from "../threads/PullRoundChanges.svelte";
 import ServerHtml from "../threads/ServerHtml.svelte";
 import DiffView from "./DiffView.svelte";
 import { acceptAll, clear, decide, focusedUnit, outcome, step, type Unit, unitsOf } from "./decisions.ts";
@@ -278,6 +279,7 @@ const sec = $derived.by(() => {
     {#if resolvedElsewhere}<p class="elsewhere">{t("review.elsewhere")}</p>{/if}
 
     <div class="scroll">
+      <PullRoundChanges />
       <div class="gates">
         {#each summary.gates as g (g.gate)}
           <span class="gp mono" data-st={g.status} title={g.gate}>

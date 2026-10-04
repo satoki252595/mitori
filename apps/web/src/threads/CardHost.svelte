@@ -105,7 +105,7 @@ function review() {
 function copyFromPending() {
   const p = pending;
   if (!p) return;
-  void loop.copyPrompt(anchorOfTarget(p.session.target), p.body, p.intent);
+  void loop.copyPrompt(anchorOfTarget(p.session.target), p.body, p.intent, p.session.context);
 }
 </script>
 

@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import os, { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TEST_FORMATS } from "@mitori/testkit";
-import type { Budgets } from "./budgets.ts";
+import { type Budgets, readBudgets } from "./budgets.ts";
 import { type AnyBench, defineBench, isBenchDef } from "./define.ts";
 import { discover, matchesId, select } from "./discover.ts";
 import { executeCase } from "./execute.ts";
@@ -43,6 +43,16 @@ describe("BENCH-U-10 defineBench", () => {
 });
 
 describe("BENCH-U-11 discovery and selection", () => {
+  test("the merged registry selects one crit cold open including the static doc, from the budget's canonical measure", async () => {
+    const root = join(import.meta.dir, "../..");
+    const cases = select(await discover(root), { ids: ["idx.s04.cold.100kloc"], exact: true });
+    expect(cases).toHaveLength(1);
+    expect(cases[0]?.def).toMatchObject({ repo: "crit", suite: "idx", mode: "process" });
+    const measure = readBudgets(root).budgets.get("idx.s04.cold.100kloc")?.measure.split("#")[0];
+    expect(measure).toBe("bench/open.bench.ts");
+    expect(cases[0]?.file).toBe(join(root, measure as string));
+  });
+
   test("finds every exported case of every *.bench.ts, skips node_modules, rejects duplicate ids", async () => {
     const root = tmp();
     mkdirSync(join(root, "bench/node_modules/x"), { recursive: true });

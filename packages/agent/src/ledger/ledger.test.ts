@@ -40,6 +40,15 @@ function setup(write?: WriteQueue) {
 }
 
 describe("UsageLedger (use_* in state.sqlite)", () => {
+  test("estimated usage is retained for budget accounting but never calibrates token estimates", async () => {
+    const { ledger, db, runWrites } = setup();
+    ledger.record(rec({ usageEstimated: true }));
+    runWrites();
+    await ledger.flush();
+    expect(ledger.summary("today").totals.apiUsd).toBe(0.003);
+    expect(ledger.factor({ engine: "claude-cli", model: "claude-sonnet-5-5", promptId: "loop.answer" }).n).toBe(0);
+    expect(JSON.parse(db.get<{ record: string }>("SELECT record FROM use_ledger")?.record ?? "{}").usageEstimated).toBe(true);
+  });
   test("AGT-U-021 one record ⇒ one row, written only through stateWrite; summary sees pending rows", async () => {
     const { ledger, db, runWrites } = setup();
     const r = ledger.record(rec());

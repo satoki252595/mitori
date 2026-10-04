@@ -1,8 +1,8 @@
 // REAL generation through mitori's own engine — the M2 measurement window (gen spec §16 M-2 / M-4 / M-5 / M-8 / M-10,
 // ARCHITECTURE O2). The daemon composition of the binary runs in-process (apps/cli `startServerDaemon`), opens the repo,
-// estimates, and — only with MITORI_LIVE=1, `--run` and `--max-usd` — starts the run on the claude-cli engine: lean
-// `claude -p` on the user's subscription (agent spec I1–I14; never an API key). The run is cancelled as soon as the
-// ledger's API-equivalent spend passes `--max-usd` or a call reports overage / API-key billing.
+// estimates, and — only with MITORI_LIVE=1, `--run` and `--max-usd` — starts the chosen engine. Claude requires
+// subscription auth; generic accepts `--config <json>` with explicit prices. Cancellation uses the ledger's
+// API-equivalent usage (estimated when the CLI does not report tokens), not a provider invoice guarantee.
 //
 //   scripts/nd bun bench/measure/gen-real.ts --repo <git clone> [--effort standard] [--home <dir>]                # estimate only
 //   MITORI_LIVE=1 scripts/nd bun bench/measure/gen-real.ts --repo <clone> --run --max-usd 6 --out <dir> [--home <dir>] [--scope s3]
@@ -29,6 +29,8 @@ import {
 } from "@mitori/core";
 import { startServerDaemon } from "../../apps/cli/src/daemon/server.ts";
 import { openSse } from "../../packages/server/src/http/test/sse-reader.ts";
+import { deepMerge } from "../../packages/server/src/settings/merge.ts";
+import { parseGlobalSettings } from "../../packages/server/src/settings/service.ts";
 import { recordingSpawner } from "./gen-real-record.ts";
 import { aggregate, collectRun } from "./gen-real-report.ts";
 
@@ -45,11 +47,15 @@ const { values: a } = parseArgs({
     "timeout-min": { type: "string", default: "40" },
     record: { type: "string" },
     scope: { type: "string" },
+    engine: { type: "string", default: "claude-cli" },
+    config: { type: "string" },
   },
 });
 
 if (!a.repo) throw new Error("--repo <dir> is required");
 const repo = resolve(a.repo);
+const engine = a.engine as "claude-cli" | "anthropic-api" | "generic";
+if (!["claude-cli", "anthropic-api", "generic"].includes(engine)) throw new Error("--engine must be claude-cli, anthropic-api or generic");
 const live = a.run === true;
 const maxUsd = a["max-usd"] === undefined ? Number.NaN : Number(a["max-usd"]);
 if (live && (process.env.MITORI_LIVE !== "1" || !(maxUsd > 0))) {
@@ -60,12 +66,14 @@ const concurrency = Number(a.concurrency);
 const home = a.home ? resolve(a.home) : mkdtempSync(join(tmpdir(), "mitori-genreal-"));
 mkdirSync(home, { recursive: true });
 const configPath = join(home, "config.json");
-const prev = existsSync(configPath) ? (JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>) : {};
+const existing = existsSync(configPath) ? parseGlobalSettings(readFileSync(configPath, "utf8")) : parseGlobalSettings("{}");
+const prev = a.config ? deepMerge(existing, parseGlobalSettings(readFileSync(resolve(a.config), "utf8"))) : existing;
 // C = 3 for the BACKGROUND lane (the run): no interactive reservation during a measurement (spec §3.5 R1, PT-04)
 writeFileSync(
   configPath,
   JSON.stringify({
     ...prev,
+    defaultGenEngine: engine,
     scheduler: { ...((prev.scheduler as object) ?? {}), concurrency, reserveInteractive: 0 },
     // the product stops dispatching at stopAtBudgetFraction (0.8) of genRunMaxUsd and pauses the run: give it head room
     // so that this harness's own --max-usd guard (cancel when spent > cap) is the one that applies [crit run 2026-10-04]
@@ -79,7 +87,9 @@ const d = await startServerDaemon({
   home,
   port: 0,
   version: "0.0.0",
-  build: "test",
+  // Measure the shipped runtime. Test builds deliberately roll back any write slot over 50 ms,
+  // including a synchronous static-doc write delayed by other work on this machine.
+  build: "release",
   overrides: a.record ? { spawner: recordingSpawner(resolve(a.record)) } : {},
 });
 const origin = d.url.replace(/\/$/, "");
@@ -106,17 +116,17 @@ const stop = async (code: number) => {
   process.exit(code);
 };
 
-// 1. engine card: claude-cli must be ready on the subscription (never an API key)
-let claude: EngineStatus | undefined;
-for (let i = 0; i < 200 && !claude; i++) {
-  claude = (await call<EngineStatus[]>("GET", "/engines")).find((e) => e.engine === "claude-cli");
-  if (!claude) await Bun.sleep(50);
+// 1. The chosen engine must be configured. Claude additionally requires subscription auth.
+let status: EngineStatus | undefined;
+for (let i = 0; i < 200 && !status; i++) {
+  status = (await call<EngineStatus[]>("GET", "/engines")).find((e) => e.engine === engine);
+  if (!status) await Bun.sleep(50);
 }
 log(
-  `engine claude-cli: installed=${claude?.installed} auth=${claude?.auth} billing=${claude?.billing} plan=${claude?.plan} version=${claude?.version} pin=${claude?.pin?.by ?? "-"} problems=${JSON.stringify(claude?.problems ?? [])}`,
+  `engine ${engine}: installed=${status?.installed} auth=${status?.auth} billing=${status?.billing} plan=${status?.plan} version=${status?.version} pin=${status?.pin?.by ?? "-"} problems=${JSON.stringify(status?.problems ?? [])}`,
 );
-if (live && (!claude?.installed || claude.auth !== "subscription" || (claude.problems.length ?? 0) > 0)) {
-  log("claude-cli is not ready on the subscription: refusing to run");
+if (live && (!status?.installed || (engine === "claude-cli" && status.auth !== "subscription") || status.problems.length > 0)) {
+  log(`${engine} is not ready: refusing to run`);
   await stop(3);
 }
 const otherClaude = Bun.spawnSync(["pgrep", "-x", "claude"]).stdout.toString().trim().split("\n").filter(Boolean).length;
@@ -138,7 +148,7 @@ log(`opened ${repo} as ${ws} in ${openMs.toFixed(0)} ms (daemon start → ready 
 // 3. estimate
 // `--scope s3,s9`: only those sections (+ their hard deps without content), e.g. to re-run one prompt after a fix
 const scope = a.scope ? a.scope.split(",").filter(Boolean) : [];
-const est = await call<GenEstimate>("POST", `/ws/${ws}/gen/estimate`, { effort: a.effort, ...(scope.length > 0 ? { scope } : {}) });
+const est = await call<GenEstimate>("POST", `/ws/${ws}/gen/estimate`, { effort: a.effort, engine, ...(scope.length > 0 ? { scope } : {}) });
 const estIn = est.inTokens + est.cacheReadTokens + est.cacheWriteTokens;
 log(
   `estimate ${est.effort}: $${est.apiUsd.toFixed(2)} (±${est.confidencePct}%), in ${estIn} (uncached ${est.inTokens}, cache r/w ${est.cacheReadTokens}/${est.cacheWriteTokens}), out ${est.outTokens}, ${est.seconds.p50}s p50 / ${est.seconds.p90}s p90 at C=${est.concurrency}, billing ${est.billing}, window ${est.windowDeltaPct ?? "-"}pt ${JSON.stringify(est.windowDeltaRange ?? null)}`,
@@ -149,7 +159,11 @@ const report: Record<string, unknown> = {
   repo,
   ws,
   effort: a.effort,
-  claude: { version: claude?.version, plan: claude?.plan, billing: claude?.billing, pin: claude?.pin?.by ?? null },
+  build: "release",
+  engine: { id: engine, version: status?.version, plan: status?.plan, billing: status?.billing, pin: status?.pin?.by ?? null },
+  models: prev.models,
+  reasoning: prev.reasoning,
+  pricing: engine === "generic" ? prev.engines.generic.pricing : undefined,
   otherClaudeProcesses: otherClaude,
   openMs,
   estimate: est,
@@ -228,7 +242,7 @@ while (!finished) {
     const u = await call<UsageSummary>("GET", "/usage/summary?range=all");
     lastSpend = u.totals.apiUsd - before.totals.apiUsd;
     const w = u.window;
-    if (w?.overage?.active || w?.billing === "overage" || w?.billing === "metered-api") cancelReason = `billing ${w.billing}`;
+    if (engine === "claude-cli" && (w?.overage?.active || w?.billing === "overage" || w?.billing === "metered-api")) cancelReason = `billing ${w.billing}`;
     else if (lastSpend > maxUsd) cancelReason = `spend $${lastSpend.toFixed(2)} > cap $${maxUsd}`;
     else if (performance.now() > deadline) cancelReason = "timeout";
     if (cancelReason) {
@@ -268,6 +282,7 @@ Object.assign(report, {
   aggregate: agg,
   tasks,
   records: runRecords,
+  usageEstimatedCalls: runRecords.filter((r) => r.usageEstimated).length,
 });
 writeReport();
 if (a.out && existsSync(join(repo, ".mitori/doc"))) {
@@ -281,4 +296,4 @@ if (a.serve) {
   await Bun.sleep(Number(a.serve) * 1000);
 }
 sse.close();
-await stop(cancelReason ? 5 : 0);
+await stop(cancelReason || detail.run.state !== "done" || detail.run.progress.failed > 0 ? 5 : 0);

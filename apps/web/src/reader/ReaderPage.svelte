@@ -102,13 +102,14 @@ $effect(() => {
 $effect(() => {
   const pg = page;
   const index = ix;
+  const anchor = route.name === "doc" ? route.block : (reviewBlock ?? undefined);
   if (!pg || !index) return;
   untrack(() => {
     s.doc.page = pg;
     loadError = null;
     s.doc
-      .load(pg)
-      .then(() => Promise.all(sectionsToFetch(index, pg, (id) => s.doc.section(id)).map((id) => s.doc.load(id))))
+      .load(pg, { anchor })
+      .then(() => Promise.all(sectionsToFetch(index, pg, (id) => s.doc.section(id)).map((id) => s.doc.load(id, { anchor }))))
       .catch((err) => (loadError = errorText(MitoriError.from(err).toData())));
   });
 });

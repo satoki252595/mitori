@@ -72,4 +72,38 @@ describe("NC-14 prefs survive a reload", () => {
     expect(calls.map((c) => c.key)).toEqual(["PATCH /settings"]);
     expect(p.pending).toBe(true);
   });
+
+  test("an older acknowledgement keeps newer in-flight edits and failed writes survive the next edit", async () => {
+    store.set(PENDING, JSON.stringify({ ui: { lang: "en" } }));
+    const calls: unknown[] = [];
+    const replies: { resolve: (v: { version: number }) => void; reject: (err: Error) => void }[] = [];
+    const a = {
+      call: (_key: string, args: { body: unknown }) => {
+        calls.push(args.body);
+        return new Promise<{ version: number }>((resolve, reject) => replies.push({ resolve, reject }));
+      },
+    } as unknown as ApiClient;
+    const p = new PrefsState(a);
+    p.noteVersion(7);
+    await wait(20);
+    p.setLang("ja");
+    p.setTheme("dark");
+    await wait(1100);
+    expect(calls).toHaveLength(1); // the second write waits for the first, including its conflict retry
+    expect(p.pending).toBe(true);
+    replies[0]?.resolve({ version: 8 });
+    await wait(20);
+    expect(calls[1]).toEqual({ version: 8, patch: { ui: { lang: "ja", theme: "dark" } } });
+    expect(JSON.parse(store.get(PENDING) ?? "{}")).toEqual({ ui: { lang: "ja", theme: "dark" } });
+    replies[1]?.reject(new Error("offline"));
+    await wait(20);
+    expect(p.pending).toBe(true);
+    p.setEditor("cursor");
+    await wait(1100);
+    expect(calls[2]).toEqual({ version: 8, patch: { ui: { lang: "ja", theme: "dark", editor: "cursor" } } });
+    replies[2]?.resolve({ version: 9 });
+    await wait(20);
+    expect(p.pending).toBe(false);
+    expect(store.has(PENDING)).toBe(false);
+  });
 });

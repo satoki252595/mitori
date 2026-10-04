@@ -99,6 +99,8 @@ export interface RunCtx {
   packSnapshot?: Xxh3;
   /** Estimated run duration p50 (s): anthropic-api writes BP1/BP2 with the 1h TTL above `ttl1hAboveSec` (§8.3). */
   runSeconds?: number;
+  /** Provider-specific generation turn deadline (generic settings), still bounded by server schema. */
+  turnMs?: number;
 }
 
 /** Outcome of one task. */
@@ -187,7 +189,7 @@ export function buildCall(
     fanoutKey: rendered.fanoutKey,
     estimate: { in: rendered.tokens.prefix + (cli ? p.cliOverheadTokens : 0) + rendered.tokens.tail, out: o + th },
     budgetUsd: Math.max(0.05, 3 * task.estimate.apiUsd),
-    timeoutMs: Math.max(120_000, 4 * task.estimate.seconds * 1000),
+    timeoutMs: run.engine.id === "generic" && run.turnMs !== undefined ? run.turnMs : Math.max(120_000, 4 * task.estimate.seconds * 1000),
     attempt,
     ttl: cli ? p.cliCacheTtl.default : (run.runSeconds ?? task.estimate.seconds) > p.ttl1hAboveSec ? "1h" : "5m",
   };

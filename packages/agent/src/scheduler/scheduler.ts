@@ -325,6 +325,7 @@ export function createAgentScheduler(deps: SchedulerDeps): AgentScheduler {
       outcome: outcomeOf(r),
     };
     if (job.promptId !== undefined) rec.promptId = job.promptId;
+    if (r.usageEstimated) rec.usageEstimated = true;
     const served = meta?.servedBy;
     if (served && baseModelId(served) !== job.model) rec.servedBy = served;
     if (meta && meta.continuations > 0) rec.continuations = meta.continuations;

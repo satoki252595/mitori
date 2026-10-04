@@ -111,7 +111,7 @@ function enter(ws: WorkspaceKey | null) {
   void s.workspace.open(ws).then(() => {
     const st = s.workspace.status;
     if (st?.gen) s.gen.applyRun(st.gen);
-    if (st?.genEngine) s.gen.engine = st.genEngine;
+    if (st?.genEngine && !s.gen.engineChosen) s.gen.engine = st.genEngine;
   });
   void s.doc.loadOutline();
   void s.review.load();

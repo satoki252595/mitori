@@ -178,16 +178,19 @@ function recompute() {
 
 // one observer for every end marker (windows mount and unmount markers; the action follows them)
 let readIo: IntersectionObserver | null = null;
-function readMark(node: HTMLElement) {
+function readMark(node: HTMLElement, ready: boolean) {
   if (!onread || typeof IntersectionObserver === "undefined") return;
   readIo ??= new IntersectionObserver(
     (entries) => {
-      for (const e of entries) if (e.isIntersecting) onread?.((e.target as HTMLElement).dataset.read as SectionId);
+      for (const e of entries) {
+        const section = (e.target as HTMLElement).dataset.read as SectionId;
+        if (e.isIntersecting && !page.parts.find((p) => p.node.id === section)?.blocks.some((b) => b.html === "")) onread?.(section);
+      }
     },
     { rootMargin: "0px 0px -20% 0px" },
   );
-  readIo.observe(node);
-  return { destroy: () => readIo?.unobserve(node) };
+  if (ready) readIo.observe(node);
+  return { update: (ready: boolean) => (ready ? readIo?.observe(node) : readIo?.unobserve(node)), destroy: () => readIo?.unobserve(node) };
 }
 onMount(() => () => readIo?.disconnect());
 
@@ -366,7 +369,11 @@ onMount(() => {
   {:else if r.k === "chip"}
     <button type="button" class="more-chip" data-ids={r.ids.join(",")}>{t("reader.more", { n: r.ids.length })}</button>
   {:else if r.k === "blk"}
-    {#if r.b.status === "placeholder"}
+    {#if r.b.html === ""}
+      <div class="blk" data-b={r.b.id} data-depth={r.b.depth} data-kind={r.b.kind} tabindex="-1" aria-busy="true" style:min-height="{estimateBlockPx(r.b.readingSec)}px">
+        <div class="skel" style:height="{estimateBlockPx(r.b.readingSec)}px" aria-hidden="true"></div>
+      </div>
+    {:else if r.b.status === "placeholder"}
       <div class="blk ph-wrap" data-b={r.b.id} data-depth={r.b.depth} data-kind={r.b.kind} data-ln={r.b.mdLine} tabindex="-1">
         <div class="ph">
           <div>{@html r.b.html}</div>
@@ -391,7 +398,7 @@ onMount(() => {
       </div>
     {/if}
   {:else if r.k === "end"}
-    <span class="read-mark" data-read={r.section} aria-hidden="true" use:readMark></span>
+    <span class="read-mark" data-read={r.section} aria-hidden="true" use:readMark={!page.parts.find((p) => p.node.id === r.section)?.blocks.some((b) => b.html === "")}></span>
   {:else if r.k === "stream"}
     <!-- the open block: plain text + caret at the end of the reserved region -->
     {@const st = streaming.get(r.section)}

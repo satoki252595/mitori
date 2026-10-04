@@ -8,7 +8,7 @@
   as the acknowledgement (UXP-04, AC-U-DP). `detecting`: engines are being probed (no button yet).
 -->
 <script lang="ts">
-import type { Effort, EngineId, EngineStatus, GenEstimate, ScanSummaryView, SubscriptionWindow } from "@mitori/core";
+import type { Effort, EngineId, EngineStatus, GenEstimate, ReasoningEffort, ScanSummaryView, SubscriptionWindow } from "@mitori/core";
 import { fmtHm, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
 import { hasKey } from "../shell/i18n.ts";
 import { t } from "../shell/index.ts";
@@ -31,6 +31,7 @@ let {
   estimates,
   effort,
   engine,
+  reasoning,
   window: win,
   policyAcked,
   breakdownOpen,
@@ -48,6 +49,7 @@ let {
   estimates: Partial<Record<Effort, GenEstimate>>;
   effort: Effort;
   engine: EngineId;
+  reasoning?: ReasoningEffort | undefined;
   window: SubscriptionWindow | null;
   policyAcked: boolean;
   breakdownOpen: boolean;
@@ -72,6 +74,7 @@ const bill = $derived(est && main ? billingLine(est, main.usd, t) : null);
 const mode = $derived(est ? startMode(est, engine, overageOk) : null);
 const util = $derived(win?.fiveHour?.utilization ?? null);
 const policyKey = $derived.by(() => {
+  if (engine === "generic" && est?.model.includes("muse-spark-1.3-contributor")) return "policy.museContributor";
   const k = engineStatus?.dataPolicyKey ? `policy.${engineStatus.dataPolicyKey.replace(/[^a-zA-Z0-9]/g, "_")}` : "";
   return k && hasKey(k) ? k : "policy.default";
 });
@@ -151,6 +154,7 @@ const scopeText = $derived(est ? t(`gen.card.scope.${effort}`, { n: moduleChapte
   {#if !policyAcked && !detecting}
     <p class="disc" class:nudge bind:this={disclosure} data-testid="disclosure">
       {t(policyKey, {
+        engine,
         files: scan ? scan.included.toLocaleString() : "–",
         excluded: scan ? (scan.files - scan.included).toLocaleString() : "–",
       })}
@@ -187,7 +191,7 @@ const scopeText = $derived(est ? t(`gen.card.scope.${effort}`, { n: moduleChapte
   </div>
 
   {#if est && !detecting}
-    <p class="detail">{scopeText}<span class="sep" aria-hidden="true">&middot;</span>{detailLine(est, t)}</p>
+    <p class="detail">{scopeText}<span class="sep" aria-hidden="true">&middot;</span>{detailLine(est, t)}{#if reasoning}<span class="sep" aria-hidden="true">&middot;</span>{t("gen.card.reasoning", { effort: reasoning })}{/if}</p>
   {/if}
 
   {#if mode?.kind === "overage"}

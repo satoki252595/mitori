@@ -26,6 +26,7 @@ import {
   type WorkspaceKey,
   type WorkspaceStatus,
 } from "@mitori/core";
+import { DEFAULT_GLOBAL_SETTINGS } from "../../../packages/server/src/settings/index.ts";
 
 export const WS: WorkspaceKey = "ws_cr1t00000000";
 
@@ -571,6 +572,7 @@ export function estimate(o: FixtureOptions, effort: "overview" | "standard" | "c
 export function settings(o: FixtureOptions): SettingsView {
   return {
     settings: {
+      ...DEFAULT_GLOBAL_SETTINGS,
       schemaVersion: 1,
       ui: {
         lang: "ja",

@@ -96,7 +96,7 @@
   "composer.send.doc": "設計書を保存",
   "composer.send.note": "メモを残す",
   "composer.targets.altAsk": "答えだけなら「質問」（{ask}）",
-  "composer.targets.citedHelp": "この文が引用しているコードです。AIはこの範囲を書き換えます（外すには、別の文を選び直してください）。",
+  "composer.targets.citedHelp": "×で書き込み対象から外します。コードは参照用に残ります。",
   "composer.targets.files.one": "書き込み{n}ファイル",
   "composer.targets.files.other": "書き込み{n}ファイル",
   "composer.targets.label": "対象コード",

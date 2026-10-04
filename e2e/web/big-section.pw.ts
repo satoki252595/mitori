@@ -5,10 +5,33 @@
  * structural ones (ux.md §13.3: DOM ≤ 15k nodes) and a heap ceiling with wide headroom (timings are not asserted
  * here — the machine is shared; bench cases own them).
  */
+
+import type { DocOutline } from "@mitori/core";
 import { expect, test } from "@playwright/test";
-import { configure, WS, waitMark } from "./support/helpers.ts";
+import { configure, emit, WS, waitMark } from "./support/helpers.ts";
 
 const N = Number(process.env.MITORI_BIG_BLOCKS ?? 10_000);
+
+test("@wp10a F6 a far anchor has HTML at first paint and idle fetches omit the repeated outline", async ({ page }) => {
+  await configure({ generated: true, bigBlocks: 1000 });
+  const outline = (await (await page.request.get(`/api/v1/ws/${WS}/doc`)).json()) as DocOutline;
+  const block = outline.blocks.filter((b) => b[1] === "s6/big")[900]?.[0];
+  expect(block).toBeTruthy();
+  const queries: URLSearchParams[] = [];
+  page.on("request", (r) => {
+    const url = new URL(r.url());
+    if (url.pathname.endsWith("/doc/sections/s6%2Fbig")) queries.push(url.searchParams);
+  });
+  await page.goto(`/w/${WS}/doc/s6/big#${block}`);
+  await waitMark(page, "mitori:section:rendered");
+  const paragraph = page.locator(`.blk[data-b="${block}"] > .mb`);
+  await expect(paragraph).toBeAttached();
+  expect(queries[0]?.get("from")).toBe("850");
+  expect(queries[0]?.get("limit")).toBe("150");
+  await expect.poll(() => queries.some((q) => q.get("outline") === "false")).toBe(true);
+  await emit({ type: "doc.freshness", blocks: [block], freshness: "stale" });
+  await expect(paragraph).toHaveAttribute("data-fresh", "stale");
+});
 
 test(`@wp10a F6/F7 ${N}-block section: DOM bounded, heap measured, ⌘K full text over it`, async ({ page }, info) => {
   test.setTimeout(180_000);

@@ -13,8 +13,10 @@ import {
   type ConfirmReason,
   type EffectiveSettings,
   type EngineId,
+  type EngineSettings,
   type GenEstimate,
   type GenStage,
+  MitoriError,
   type ModelId,
   PRICING,
   type SubscriptionWindow,
@@ -43,7 +45,12 @@ export interface EstimatorDeps {
 
 const P = GEN_ESTIMATE_PARAMS;
 const round6 = (x: number) => Math.round(x * 1e6) / 1e6;
-const price = (m: ModelId) => PRICING[(m in PRICING ? m : "claude-sonnet-5-5") as ClaudeModelId];
+const price = (m: ModelId, prices?: EngineSettings["generic"]["pricing"]) => {
+  const base = PRICING[(m in PRICING ? m : "claude-sonnet-5-5") as ClaudeModelId];
+  return prices && !(m in PRICING)
+    ? { ...base, ...prices, cacheWrite5mPerMTok: prices.inPerMTok, cacheWrite1hPerMTok: prices.inPerMTok, batchMultiplier: 1 }
+    : base;
+};
 
 /**
  * The expected value of the one line-retry a task may take (§6.4): with probability `retryRate` a continuation
@@ -53,17 +60,19 @@ const price = (m: ModelId) => PRICING[(m in PRICING ? m : "claude-sonnet-5-5") a
  * Measured (dogfood M-2, 2026-10-04): 63-71 % of tasks retried, retry input 0.70-0.88 × the first calls',
  * retry output 0.25-0.31 × theirs; without this term the token estimate was off by +84 % / +93 %.
  */
-export function withRetry(t: PlannedTask, e: TaskEstimate, engine: EngineId): TaskEstimate {
+export function withRetry(t: PlannedTask, e: TaskEstimate, engine: EngineId, prices?: EngineSettings["generic"]["pricing"]): TaskEstimate {
   if (t.cached || engine === "session" || e.tail === 0) return e;
   const r = P.retryRate;
-  const pr = price(t.model);
+  const pr = price(t.model, prices);
   const reply = e.out + e.thinking;
   const read = e.uncached + e.cacheWrite + e.cacheRead;
-  const usd = (read * pr.cacheReadPerMTok + reply * pr.cacheWrite5mPerMTok + P.retryCost * reply * pr.outPerMTok) / 1e6;
+  const cold = engine === "generic";
+  const usd = (read * (cold ? pr.inPerMTok : pr.cacheReadPerMTok) + reply * pr.cacheWrite5mPerMTok + P.retryCost * reply * pr.outPerMTok) / 1e6;
   return {
     ...e,
-    cacheRead: Math.round(e.cacheRead + r * read),
-    cacheWrite: Math.round(e.cacheWrite + r * reply),
+    cacheRead: cold ? e.cacheRead : Math.round(e.cacheRead + r * read),
+    cacheWrite: cold ? e.cacheWrite : Math.round(e.cacheWrite + r * reply),
+    uncached: cold ? Math.round(e.uncached + r * (read + reply)) : e.uncached,
     out: Math.round(e.out + r * P.retryCost * e.out),
     thinking: Math.round(e.thinking + r * P.retryCost * e.thinking),
     apiUsd: round6(e.apiUsd + r * usd),
@@ -106,9 +115,12 @@ export function createEstimator(
     const tail = t.estimate.tail;
     const o = t.estimate.out > 0 ? t.estimate.out : outTarget(t.prompt, t.mode, tail);
     const th = thinkingOf(t.model, t.effort, o, engine);
-    const pr = price(t.model);
+    const prices = engine === "generic" ? deps.settings().global.engines.generic.pricing : undefined;
+    if (engine === "generic" && !(t.model in PRICING) && !prices)
+      throw new MitoriError("E_CFG_INVALID", "engines.generic.pricing is required for a model without known prices");
+    const pr = price(t.model, prices);
     const tau = (P.tailCacheWriteShare as Readonly<Record<string, number>>)[engine] ?? 0;
-    const w = warmPrefix ? 0 : 1;
+    const w = warmPrefix && engine !== "generic" ? 0 : 1;
     const pw = pr.cacheWrite5mPerMTok;
     const usd = (w * p * pw + (1 - w) * p * pr.cacheReadPerMTok + tau * tail * pw + (1 - tau) * tail * pr.inPerMTok + (o + th) * pr.outPerMTok) / 1e6;
     const sigma = engine === "session" ? 0 : startupOf(engine);
@@ -117,9 +129,9 @@ export function createEstimator(
       tail,
       out: o,
       thinking: th,
-      cacheWrite: Math.round(w * p + tau * tail),
-      cacheRead: Math.round((1 - w) * p),
-      uncached: Math.round((1 - tau) * tail),
+      cacheWrite: engine === "generic" ? 0 : Math.round(w * p + tau * tail),
+      cacheRead: engine === "generic" ? 0 : Math.round((1 - w) * p),
+      uncached: Math.round(engine === "generic" ? p + tail : (1 - tau) * tail),
       apiUsd: round6(usd),
       seconds: Math.round((sigma + ttftOf(t.model, t.effort, engine) + (o + th) / speedOf(t.model)) * 10) / 10,
     };
@@ -145,7 +157,15 @@ export function createEstimator(
   /** Expected per-task figures in plan order for `engine` (calibrated, with the expected retry). */
   function durations(plan: GenPlan, engine: EngineId): { t: PlannedTask; e: TaskEstimate }[] {
     const warm = warmFlags(plan.tasks);
-    return plan.tasks.map((t, i) => ({ t, e: withRetry(t, calibrated(t, task(t, engine, warm[i] ?? false), engine), engine) }));
+    return plan.tasks.map((t, i) => ({
+      t,
+      e: withRetry(
+        t,
+        calibrated(t, task(t, engine, warm[i] ?? false), engine),
+        engine,
+        engine === "generic" ? deps.settings().global.engines.generic.pricing : undefined,
+      ),
+    }));
   }
 
   function simulateWith(items: readonly { t: PlannedTask; e: TaskEstimate }[], engine: EngineId, slots: number): ScheduleSimulation {
@@ -260,34 +280,36 @@ export function createEstimator(
         seconds: sim.byStage.find((b) => b.stage === stage)?.seconds ?? 0,
       };
     });
-    const sessionItems = durations(plan, "session");
+    const sessionItems = engine === "generic" ? [] : durations(plan, "session");
     const sessionSeconds = sessionItems.reduce((n, x) => n + (x.t.cached ? 0 : x.e.seconds + P.startupSec.session), 0);
     const batches = sessionBatches(sessionItems);
     const alternatives: GenEstimate["alternatives"] = [];
-    if (engine !== "session") alternatives.push(alternative(plan, "claude-cli", concurrency));
-    alternatives.push({
-      engine: "session",
-      concurrency: 1,
-      seconds: Math.round(sessionSeconds),
-      apiUsd: round6(sessionItems.reduce((n, x) => n + x.e.apiUsd, 0)),
-      sessionTokens: batches.reduce((n, b) => n + b.tokens, 0),
-      batches: batches.length,
-      uncalibrated: true,
-    });
-    if (s.global.engines["anthropic-api"].enabled && engine !== "anthropic-api") alternatives.push(alternative(plan, "anthropic-api", concurrency));
+    if (engine !== "session" && engine !== "generic") alternatives.push(alternative(plan, "claude-cli", concurrency));
+    if (engine !== "generic")
+      alternatives.push({
+        engine: "session",
+        concurrency: 1,
+        seconds: Math.round(sessionSeconds),
+        apiUsd: round6(sessionItems.reduce((n, x) => n + x.e.apiUsd, 0)),
+        sessionTokens: batches.reduce((n, b) => n + b.tokens, 0),
+        batches: batches.length,
+        uncalibrated: true,
+      });
+    if (s.global.engines["anthropic-api"].enabled && engine !== "anthropic-api" && engine !== "generic")
+      alternatives.push(alternative(plan, "anthropic-api", concurrency));
     if (engine === "anthropic-api") alternatives.unshift(alternative(plan, "anthropic-api", concurrency));
 
     const window = deps.window();
     const kappa = deps.ledger.windowFactor();
     const prior = WINDOW_PRIORS[(deps.plan?.() ?? "unknown") as keyof typeof WINDOW_PRIORS] ?? WINDOW_PRIORS.unknown;
-    const windowed = engine !== "anthropic-api";
+    const windowed = engine !== "anthropic-api" && engine !== "generic";
     const calibrated = kappa.kappa !== null && kappa.n >= P.kappaMinN;
     const windowDeltaPct = windowed && window?.fiveHour && calibrated ? Math.round(100 * (kappa.kappa as number) * usd * 10) / 10 : null;
     const range = windowed && !calibrated ? { low: Math.round(prior.low * usd * 10) / 10, high: Math.round(prior.high * usd * 10) / 10 } : undefined;
     const reasons: ConfirmReason[] = ["generation_run"];
     if (inTok + cw + cr + out > s.global.limits.confirmAboveTokens) reasons.push("over_token_threshold");
     if (plan.effort === "complete") reasons.push("whole_repo_scope");
-    if (window?.billing === "overage") reasons.push("billing_overage");
+    if (windowed && window?.billing === "overage") reasons.push("billing_overage");
     if (engine === "anthropic-api") reasons.push("api_key_billing");
     if (windowed && window?.fiveHour) {
       const delta = windowDeltaPct ?? range?.high ?? 0;
@@ -299,7 +321,7 @@ export function createEstimator(
       cal.n < CALIBRATION.pointEstimateN
         ? P.confidenceInitPct
         : Math.min(P.confidenceClampPct[1], Math.max(P.confidenceClampPct[0], Math.round(cal.accuracyPct)));
-    const billing = engine === "anthropic-api" ? "metered-api" : (window?.billing ?? "unknown");
+    const billing = engine === "anthropic-api" ? "metered-api" : engine === "generic" ? "unknown" : (window?.billing ?? "unknown");
     const packTokens = items.find((x) => x.e.prefix > 0)?.e.prefix ?? 0;
     const est: GenEstimate = {
       id: deps.ids.next("estimate") as GenEstimate["id"],
@@ -318,8 +340,15 @@ export function createEstimator(
       calibrationN: cal.n,
       band: tokenBand(inTok + cw + cr + out),
       items: [
-        { key: "repo_pack", kind: "repo_pack", label: "repo pack", tokens: Math.max(0, packTokens - P.systemTokens), cached: true, removable: false },
-        { key: "fixed", kind: "fixed", label: "gen.system", tokens: P.systemTokens, cached: true, removable: false },
+        {
+          key: "repo_pack",
+          kind: "repo_pack",
+          label: "repo pack",
+          tokens: Math.max(0, packTokens - P.systemTokens),
+          cached: engine !== "generic",
+          removable: false,
+        },
+        { key: "fixed", kind: "fixed", label: "gen.system", tokens: P.systemTokens, cached: engine !== "generic", removable: false },
         {
           key: "module",
           kind: "module",

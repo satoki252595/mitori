@@ -54,9 +54,25 @@ export function p95(xs: number[]): number {
 export async function installCls(page: Page): Promise<void> {
   await page.addInitScript(() => {
     (window as unknown as { __cls: number }).__cls = 0;
+    (window as unknown as { __clsSources: unknown[] }).__clsSources = [];
     new PerformanceObserver((list) => {
-      for (const e of list.getEntries() as (PerformanceEntry & { value: number; hadRecentInput: boolean })[]) {
-        if (!e.hadRecentInput) (window as unknown as { __cls: number }).__cls += e.value;
+      for (const e of list.getEntries() as (PerformanceEntry & {
+        value: number;
+        hadRecentInput: boolean;
+        sources: { node?: Node; previousRect: DOMRectReadOnly; currentRect: DOMRectReadOnly }[];
+      })[]) {
+        if (!e.hadRecentInput) {
+          (window as unknown as { __cls: number }).__cls += e.value;
+          (window as unknown as { __clsSources: unknown[] }).__clsSources.push({
+            at: e.startTime,
+            value: e.value,
+            sources: e.sources.map((s) => ({
+              node: `${s.node?.nodeName}.${(s.node as Element)?.className}`,
+              previous: s.previousRect.toJSON(),
+              current: s.currentRect.toJSON(),
+            })),
+          });
+        }
       }
     }).observe({ type: "layout-shift", buffered: true });
   });

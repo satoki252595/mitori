@@ -13,6 +13,28 @@ const info: WorkspaceInfo = { key: WS, root: "/repo", kind: "git", name: "repo",
 const code = (e: unknown) => (e instanceof MitoriError ? e.code : String(e));
 
 describe("settings defaults and schema", () => {
+  test("generic generation accepts a configured protocol, model, effort and prices; invalid prices are rejected", () => {
+    const configured = {
+      defaultGenEngine: "generic",
+      engines: {
+        generic: {
+          enabled: true,
+          argv: ["/usr/bin/llm", "{model}", "{effort}"],
+          protocol: "muse-jsonl" as const,
+          turnMs: 600_000,
+          pricing: { inPerMTok: 0.1, outPerMTok: 0.2, cacheReadPerMTok: 0.002 },
+        },
+      },
+      models: { genModule: "generic:muse-spark-1.3-contributor" },
+      reasoning: { gen: "max" },
+    };
+    expect(parseGlobalSettings(JSON.stringify(configured)).engines.generic).toEqual(configured.engines.generic);
+    configured.engines.generic.pricing.inPerMTok = -1;
+    expect(code(tryParse(JSON.stringify(configured)))).toBe("E_CFG_INVALID");
+    configured.engines.generic.pricing.inPerMTok = 0.1;
+    configured.engines.generic.turnMs = 3_600_001;
+    expect(code(tryParse(JSON.stringify(configured)))).toBe("E_CFG_INVALID");
+  });
   test("DEFAULT_GLOBAL_SETTINGS validates against the schema; sparse serialization round-trips", () => {
     expect(validate(DEFAULT_GLOBAL_SETTINGS, GLOBAL_SPEC)).toEqual([]);
     expect(serializeGlobalSettings(DEFAULT_GLOBAL_SETTINGS)).toBe('{\n  "schemaVersion": 1\n}\n');

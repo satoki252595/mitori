@@ -1,10 +1,10 @@
 // `--record <dir>` of bench/measure/gen-real.ts: tee every engine process of the daemon into JSON files.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Spawner } from "@mitori/agent";
 import { createSpawner, resolveSafePath } from "@mitori/platform";
 
-/** One recorded engine process. `env` keeps only the `CLAUDE_CODE_*` values mitori injects; `envKeys` lists all keys. */
+/** One recorded engine process. `env` keeps injected Claude/Muse gates; `envKeys` lists all keys, never credentials. */
 export interface RecordedProcess {
   argv: string[];
   envKeys: string[];
@@ -27,25 +27,30 @@ export interface RecordedProcess {
  * exit. Never committed: prompts carry repository code.
  */
 export function recordingSpawner(dir: string, inner?: Spawner): Spawner {
-  mkdirSync(dir, { recursive: true });
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  chmodSync(dir, 0o700);
   const real = inner ?? createSpawner({ safePath: resolveSafePath(process.env.PATH ?? "", { workspaceRoots: [], startCwd: process.cwd() }) });
   let n = 0;
   return {
     spawn(spec) {
       const child = real.spawn(spec);
-      if (!spec.argv.includes("stream-json")) return child;
+      if (!spec.argv.includes("stream-json") && !spec.argv.includes("--json")) return child;
       const id = String(++n).padStart(3, "0");
       const t = performance.now();
       const rec: RecordedProcess = {
         argv: spec.argv,
         envKeys: Object.keys(spec.env).sort(),
-        env: Object.fromEntries(Object.entries(spec.env).filter(([k]) => k.startsWith("CLAUDE_CODE_"))),
+        env: Object.fromEntries(Object.entries(spec.env).filter(([k]) => k.startsWith("CLAUDE_CODE_") || k.startsWith("MUSE_EXPERIMENTAL_"))),
         cwd: spec.cwd,
         stdin: spec.stdin,
         writes: [],
         out: [],
       };
-      const save = () => writeFileSync(join(dir, `${id}.json`), JSON.stringify(rec));
+      const save = () => {
+        const file = join(dir, `${id}.json`);
+        writeFileSync(file, JSON.stringify(rec), { mode: 0o600 });
+        chmodSync(file, 0o600);
+      };
       void child.exited.then(
         (code) => {
           rec.exit = code;

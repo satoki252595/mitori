@@ -98,7 +98,7 @@ export function readingOrder(doc: Pick<DocStore, "sections">): { order: SectionN
  * written file: a heading carries its id comment inline, other blocks end with an own-line id comment.
  */
 export class MdLines {
-  private readonly cache = new Map<string, { mtime: bigint; lines: Map<BlockId, number> }>();
+  private readonly cache = new Map<string, { mtime: bigint; lines: Promise<Map<BlockId, number>> }>();
   constructor(
     private readonly fs: { stat(abs: string): { mtimeNs: bigint } | null; read(abs: string): Promise<Uint8Array> },
     private readonly docDir: string,
@@ -110,24 +110,29 @@ export class MdLines {
     if (st === null) return 0;
     let hit = this.cache.get(abs);
     if (!hit || hit.mtime !== st.mtimeNs) {
-      hit = { mtime: st.mtimeNs, lines: new Map() };
-      try {
-        const text = new TextDecoder().decode(await this.fs.read(abs)).split("\n");
-        let start = 1;
-        text.forEach((line, i) => {
-          const m = /<!-- (b_[0-9a-z]{8}) -->\s*$/.exec(line);
-          if (!m) return;
-          const own = line.trim().startsWith("<!--");
-          hit?.lines.set(m[1] as BlockId, own ? start : i + 1);
-          start = i + 2;
-          while (start <= text.length && (text[start - 1] ?? "").trim() === "") start++;
-        });
-      } catch {
-        // unreadable: 0 below
-      }
+      const lines = (async () => {
+        const out = new Map<BlockId, number>();
+        try {
+          const text = new TextDecoder().decode(await this.fs.read(abs)).split("\n");
+          let start = 1;
+          text.forEach((line, i) => {
+            const m = /<!-- (b_[0-9a-z]{8}) -->\s*$/.exec(line);
+            if (!m) return;
+            const own = line.trim().startsWith("<!--");
+            out.set(m[1] as BlockId, own ? start : i + 1);
+            start = i + 2;
+            while (start <= text.length && (text[start - 1] ?? "").trim() === "") start++;
+          });
+        } catch {
+          // unreadable: 0 below
+        }
+        return out;
+      })();
+      // Concurrent block DTOs share the file read and parse, including while the first read is still in flight.
+      hit = { mtime: st.mtimeNs, lines };
       this.cache.set(abs, hit);
     }
-    return hit.lines.get(b.id) ?? 0;
+    return (await hit.lines).get(b.id) ?? 0;
   }
 }
 
@@ -172,17 +177,20 @@ function sectionsByFile(doc: Pick<DocStore, "sections">): Map<string, SectionId>
 }
 
 /** `BlockView` of one block (body cached by the renderer, chips spliced from the current claims). */
-export async function blockView(c: ViewCtx, b: Block, lang?: DocLang): Promise<BlockView> {
+export async function blockView(c: ViewCtx, b: Block, lang?: DocLang, renderHtml = true): Promise<BlockView> {
   const claims = c.doc.claims(b.id);
-  const terms = new Map(c.doc.index().glossary.map((g) => [g.term, g.id]));
   const htmlLang = lang ?? b.lang;
-  const body = await c.renderer.render(b, claims, { lang: htmlLang, glossaryTerms: terms });
-  let inner = c.renderer.splice(body, claims, { ws: c.ws, level: "standard" });
-  if (inner.includes('.md"')) inner = docLinks(inner, b.file, sectionsByFile(c.doc), c.ws);
-  inner = await drawDiagram(c, b, inner);
   const mdLine = await c.lines.lineOf(b);
-  const lock = b.lock ? ` data-lock="${attr(b.lock)}"` : "";
-  const html = `<div class="mb" data-block="${b.id}" data-kind="${b.kind}" data-depth="${b.depth}" data-fresh="${b.freshness}"${lock} data-ln="${mdLine}">${inner}</div>`;
+  let html = "";
+  if (renderHtml) {
+    const terms = new Map(c.doc.index().glossary.map((g) => [g.term, g.id]));
+    const body = await c.renderer.render(b, claims, { lang: htmlLang, glossaryTerms: terms });
+    let inner = c.renderer.splice(body, claims, { ws: c.ws, level: "standard" });
+    if (inner.includes('.md"')) inner = docLinks(inner, b.file, sectionsByFile(c.doc), c.ws);
+    inner = await drawDiagram(c, b, inner);
+    const lock = b.lock ? ` data-lock="${attr(b.lock)}"` : "";
+    html = `<div class="mb" data-block="${b.id}" data-kind="${b.kind}" data-depth="${b.depth}" data-fresh="${b.freshness}"${lock} data-ln="${mdLine}">${inner}</div>`;
+  }
   const { md: _md, ...meta } = b;
   return {
     ...meta,
@@ -209,7 +217,12 @@ async function drawDiagram(c: ViewCtx, b: Block, inner: string): Promise<string>
 }
 
 /** `GET /ws/:ws/doc/sections/:section`. */
-export async function sectionView(c: ViewCtx, id: SectionId, lang?: DocLang): Promise<SectionView | null> {
+export async function sectionView(
+  c: ViewCtx,
+  id: SectionId,
+  lang?: DocLang,
+  range?: { from: number; limit: number; outline?: boolean },
+): Promise<SectionView | null> {
   const sec = c.doc.section(id);
   if (sec === null) return null;
   const { order, parent } = readingOrder(c.doc);
@@ -219,10 +232,17 @@ export async function sectionView(c: ViewCtx, id: SectionId, lang?: DocLang): Pr
     const n = order.find((s) => s.id === p);
     if (n) crumbs.unshift({ id: n.id, title: n.title });
   }
-  const blocks = await Promise.all(sec.blocks.map((b) => blockView(c, b, lang)));
+  const from = Math.min(range?.from ?? 0, sec.blocks.length);
+  const end = from + (range?.limit ?? sec.blocks.length);
+  const selected = range?.outline === false ? sec.blocks.slice(from, end) : sec.blocks;
+  const blocks = await Promise.all(selected.map((b, i) => blockView(c, b, lang, !range || range.outline === false || (i >= from && i < end))));
   const used = new Set(sec.blocks.map((b) => b.id));
   const terms = c.doc.index().glossary.filter((g) => g.usedIn.some((u) => used.has(u)));
   const view: SectionView = { section: sec.node, blocks, breadcrumbs: crumbs };
+  if (range) {
+    view.total = sec.blocks.length;
+    view.from = from;
+  }
   const prev = order[i - 1];
   const next = order[i + 1];
   if (i > 0 && prev) view.prev = prev.id;

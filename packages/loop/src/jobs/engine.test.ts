@@ -2,7 +2,7 @@
 // estimate counts what every call reads from the cache besides the bundle).
 import { describe, expect, test } from "bun:test";
 import type { JobId } from "@mitori/core";
-import { PATCH_V1_ENGINE_SCHEMA } from "../contract.ts";
+import { FINDINGS_V1_ENGINE_SCHEMA, PATCH_V1_ENGINE_SCHEMA } from "../contract.ts";
 import { loopSystemPrompt } from "../prompts/index.ts";
 import { engineRequest, firstTurnInTokens } from "./engine.ts";
 import { AGENT_EXPECTED_CALLS, cachedReads, ENGINE_FIXED_EXTRA, type JobPlan } from "./plan.ts";
@@ -34,14 +34,22 @@ describe("#9 first-turn input limit", () => {
     expect(req.budget.inTokens).toBeGreaterThanOrEqual(4000 + Math.ceil((bytes(system) + bytes(JSON.stringify(PATCH_V1_ENGINE_SCHEMA))) / 3));
   });
 
-  test("a generic engine gets no schema, so the schema is not counted", () => {
-    const p = {
-      ...plan("patch", 1000),
-      route: { engine: "generic", decision: { model: "m", effort: "low", tools: [], contract: "patch/1" } },
-    } as unknown as JobPlan;
-    const req = engineRequest(p, "j_1" as JobId, ctx([]));
-    expect(req.jsonSchema).toBeUndefined();
-    expect(req.budget.inTokens).toBe(firstTurnInTokens(p, req.system ?? "", undefined));
+  test("generic patch/findings receive the exact contract in system text, count it once, and never request a session", () => {
+    for (const [mode, schema] of [
+      ["patch", PATCH_V1_ENGINE_SCHEMA],
+      ["findings", FINDINGS_V1_ENGINE_SCHEMA],
+    ] as const) {
+      const p = plan(mode, 1000);
+      p.route.engine = "generic";
+      p.route.decision.model = "generic:custom";
+      const req = engineRequest(p, "j_1" as JobId, { ...ctx([]), persistSessions: true });
+      const marker = "\n\nReply with one JSON object matching this schema:\n";
+      expect(JSON.parse(req.system.split(marker)[1] ?? "null")).toEqual(schema);
+      expect(req.jsonSchema).toBeUndefined();
+      expect(req.budget.inTokens).toBe(4000 + Math.ceil(bytes(req.system) / 3));
+      expect(req.keepAlive).toBe(false);
+      expect(req.persistSession).toBe(false);
+    }
   });
 });
 

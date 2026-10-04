@@ -13,7 +13,8 @@ import type { SectionId, SseEvent } from "@mitori/core";
 import { DEFAULTS, docFixture, engines, estimate, type FixtureOptions, mapView, paletteItems, settings, streamBlock, WS, workspaceStatus } from "./fixture.ts";
 
 const PORT = Number(process.argv[2] ?? process.env.MOCK_PORT ?? 4317);
-const DIST = resolve(import.meta.dir, "../../../apps/web/dist");
+const DIST = process.env.MITORI_E2E_DIST ? resolve(process.env.MITORI_E2E_DIST) : resolve(import.meta.dir, "../../../apps/web/dist");
+const VERSION = process.env.MITORI_E2E_VERSION ?? "dev";
 
 let opts: FixtureOptions = { ...DEFAULTS };
 let doc = docFixture(opts);
@@ -77,7 +78,7 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
         seq++;
         c.enqueue(
           enc.encode(
-            `id: ${seq}\ndata: ${JSON.stringify({ type: "hello", version: "dev", apiVersion: 1, resumedFrom: null, boot: "boot1", seq, ws: null, rev: null, at: new Date().toISOString() })}\n\n`,
+            `id: ${seq}\ndata: ${JSON.stringify({ type: "hello", version: VERSION, apiVersion: 1, resumedFrom: null, boot: "boot1", seq, ws: null, rev: null, at: new Date().toISOString() })}\n\n`,
           ),
         );
       },
@@ -90,7 +91,7 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
   if (m === "POST" && p === "/auth/exchange") return json({ token: "tok_test", session: "se_000000000000", expiresAt: "2026-11-01T00:00:00Z" });
   if (m === "GET" && p === "/daemon")
     return json({
-      version: "dev",
+      version: VERSION,
       pid: 1,
       port: PORT,
       uptimeSec: 10,
@@ -167,8 +168,19 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     const v = doc.sections.get(sec);
     if (!v) return err("E_NOT_FOUND", 404);
     // a page view also carries its same-file children (exercises both client paths)
-    if (sec === "s3") return json({ ...v, blocks: [...v.blocks, ...(doc.sections.get("s3/review-cycle")?.blocks ?? [])] });
-    return json(v);
+    const blocks = sec === "s3" ? [...v.blocks, ...(doc.sections.get("s3/review-cycle")?.blocks ?? [])] : v.blocks;
+    if (!url.searchParams.has("from") && !url.searchParams.has("limit")) return json({ ...v, blocks });
+    const from = Math.min(Number(url.searchParams.get("from") ?? 0), blocks.length);
+    const limit = Number(url.searchParams.get("limit") ?? 150);
+    return json({
+      ...v,
+      total: blocks.length,
+      from,
+      blocks:
+        url.searchParams.get("outline") === "false"
+          ? blocks.slice(from, from + limit)
+          : blocks.map((b, i) => ({ ...b, html: i >= from && i < from + limit ? b.html : "" })),
+    });
   }
   // the HTML export (UXP-18): what the file WOULD be for these options — with excerpts it is bigger and says how many
   if (m === "POST" && rest === "/export") {

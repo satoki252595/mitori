@@ -152,28 +152,73 @@ describe("Fix code targets in the Composer (CR ux-F1)", () => {
     c.dispose();
   });
 
-  test("UX-FIX-18: an uncited sentence goes ⚡ only — your session / Copy would get WRITE - (a thread carries no picked range)", async () => {
-    const { c } = fixture(() => ({ cited: [], candidates: [LOAD] }));
+  test("CR safe-6: an uncited sentence keeps its picked range on ⤴ / ⧉ and stores chip changes on the draft", async () => {
+    const { c, calls } = fixture(() => ({ cited: [], candidates: [LOAD] }));
     await settle();
     c.pickTarget(LOAD);
-    expect(c.pushOnly).toBe(false);
-    expect(c.writeFiles).toEqual(["internal/config/config.go"]);
+    await c.flushSave();
+    expect(calls.find((x) => x.route === "POST /ws/:ws/threads")?.body.context).toEqual({ add: [{ path: LOAD.path, start: LOAD.start, end: LOAD.end }] });
     c.setPath("pull");
-    // the pick would be lost on the way: the Composer says so instead of sending a Fix with nothing to write
-    expect(c.pushOnly).toBe(true);
-    expect(c.writeFiles).toEqual([]);
+    expect(c.needsTarget).toBe(false);
+    expect(c.writeFiles).toEqual([LOAD.path]);
     c.setPath("copy");
-    expect(c.pushOnly).toBe(true);
-    c.setPath("push");
-    expect(c.pushOnly).toBe(false);
+    expect(c.needsTarget).toBe(false);
+    expect(c.writeFiles).toEqual([LOAD.path]);
+    c.addMention(FETCH);
+    await c.flushSave();
+    expect(calls.filter((x) => x.route === "PATCH /ws/:ws/threads/:th").at(-1)?.body.context).toEqual({
+      add: [
+        { path: LOAD.path, start: LOAD.start, end: LOAD.end },
+        { path: FETCH.path, start: FETCH.start, end: FETCH.end },
+      ],
+    });
+    c.removeMention(0);
+    c.removeMention(0);
+    await c.flushSave();
+    expect(calls.filter((x) => x.route === "PATCH /ws/:ws/threads/:th").at(-1)?.body.context).toBeNull();
     c.dispose();
-    // a cited sentence: the thread's own anchor carries the cites, so every path writes them
-    const cited = fixture(() => ({ cited: [FETCH], candidates: [] }));
+  });
+
+  test("CR safe-6: cited file × removes only WRITE, + clears the stored exclusion before the estimate", async () => {
+    const { c, calls } = fixture(() => ({ cited: [FETCH, { ...LOAD, source: "cite" }], candidates: [] }));
     await settle();
-    cited.c.setPath("pull");
-    expect(cited.c.pushOnly).toBe(false);
-    expect(cited.c.writeFiles).toEqual(["internal/meta/fetch.go"]);
-    cited.c.dispose();
+    c.input("変更して");
+    await c.flushSave();
+    c.toggleWrite(FETCH.path);
+    const n = calls.length;
+    await c.refreshEstimate();
+    expect(calls.slice(n).map((x) => x.route)).toEqual(["PATCH /ws/:ws/threads/:th", "POST /ws/:ws/jobs/estimate"]);
+    expect(calls[n]?.body.context).toEqual({ remove: [`write:${FETCH.path}`] });
+    expect(c.targets?.cited).toContainEqual(FETCH); // CODE remains readable; only the write target is removed
+    for (const path of ["push", "pull", "copy"] as const) {
+      c.setPath(path);
+      expect(c.writeFiles).toEqual([LOAD.path]);
+    }
+    c.toggleWrite(FETCH.path);
+    const restore = calls.length;
+    await c.refreshEstimate();
+    expect(calls[restore]).toMatchObject({ route: "PATCH /ws/:ws/threads/:th", body: { context: null } });
+    expect(calls[restore + 1]?.body.context).toBeUndefined();
+    expect(c.writeFiles).toEqual([FETCH.path, LOAD.path]);
+    c.toggleWrite(FETCH.path);
+    c.toggleWrite(LOAD.path);
+    expect(c.needsTarget).toBe(true);
+    expect(c.estimate).toBeUndefined();
+    c.dispose();
+  });
+
+  test("CR safe-6: reopening a draft restores picks and excluded cites", async () => {
+    const { c } = fixture(() => ({ cited: [FETCH], candidates: [] }));
+    await settle();
+    const context = { add: [{ path: LOAD.path, start: LOAD.start, end: LOAD.end }], remove: [`write:${FETCH.path}`] };
+    c.resume({ id: "th_draft", version: 3, state: "draft", intent: "change", context, messages: [{ body: "元の依頼" }] } as never);
+    c.setPath("pull");
+    expect(c.body).toBe("元の依頼");
+    expect(c.context).toEqual(context);
+    expect(c.writeFiles).toEqual([LOAD.path]);
+    await c.refreshEstimate();
+    expect(c.context).toEqual(context);
+    c.dispose();
   });
 
   test("UX-FIX-15: questions and the doc-target edit never ask for targets (answers need no write scope)", async () => {

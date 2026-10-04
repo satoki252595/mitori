@@ -6,10 +6,9 @@
  *
  * A. Fix on a static facts row WITHOUT `@`: the row's own code is offered (⌥1 picks it) → estimate → job → the AI's
  *    doc edit shows IN the prose as a suggestion → Review (decluttered header) → accept.
- * B. Fix on an uncited sentence: nothing to point at ⇒ the Composer says how (no estimate request, no 412); on ⤴ it
- *    says the pick would not travel (WRITE -) and offers ⚡ back.
+ * B. Fix on an uncited sentence: nothing to point at ⇒ the Composer says how (no estimate request, no 412), on every path.
  * C. Co-editing: the human writes a cited sentence into the doc (「設計書を自分で直す」) → a Fix on it has its 対象コード
- *    automatically (the cite) → the AI's rewrite of the sentence is accepted on its own after the code (✓ in prose).
+ *    automatically (the cite); ⤴ / ⧉ preserve read context when WRITE is removed and restored → the AI's rewrite is accepted.
  * D. Explain → 「文書に追記」 → the INSERT proposal shows after its block → ✕ rejects it.
  * Every check throws; latencies and the HTTP errors seen are printed as JSON. Exit 77 = no Chrome.
  */
@@ -17,6 +16,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { synth } from "@mitori/agent/testing";
+import type { ThreadDetail } from "@mitori/core";
 import { buildFixture } from "@mitori/testkit";
 import { chromium } from "@playwright/test";
 import { FAKE_CLAUDE_CONFIG, fakeClaude } from "../fake-claude.ts";
@@ -239,16 +239,13 @@ try {
   check(!reqsSince(r1).some((r) => r.includes("/jobs/estimate")), "no estimate request for a Fix with nothing to write");
   check(!(await composer().locator("button.send").isEnabled()), "send stays disabled");
   await shot("ux-06-fix-no-target-hint");
-  // your own session (⤴) would get WRITE - for an uncited sentence: the Composer says so and offers ⚡ back
-  await composer().locator("button.path").click();
-  await composer().getByText("自分のセッションやコピーでは書き込み先が空").waitFor({ timeout: 3000 });
-  check(!(await composer().locator("button.send").isEnabled()), "send stays disabled on ⤴ for an uncited Fix");
-  await sleep(200);
-  await shot("ux-13-fix-push-only");
-  await composer()
-    .getByRole("button", { name: /その場で実行にする/ })
-    .click();
-  await composer().locator(".tg-none", { hasText: "@ でコードを指す" }).waitFor({ timeout: 3000 });
+  for (const path of ["pull", "copy", "push"]) {
+    await composer().locator("button.path").click();
+    await composer().locator(".tg-none", { hasText: "@ でコードを指す" }).waitFor({ timeout: 3000 });
+    check(!(await composer().locator("button.send").isEnabled()), `no-target Fix stays blocked on ${path}`);
+    check(!reqsSince(r1).some((r) => r.includes("/jobs/estimate")), `${path} does not estimate without a write target`);
+  }
+  await shot("ux-13-fix-no-target-all-paths");
   await page.keyboard.press("Escape");
   await sleep(300);
 
@@ -270,6 +267,7 @@ try {
   await sleep(900);
   await shot("ux-08-doc-edited");
   const r2 = sinceReq();
+  const beforeC = new Set((await api<{ items: { id: string }[] }>("GET", "/threads")).items.map((t) => t.id));
   await select(".reader-root .blk .mb", "再試行する");
   await page.keyboard.press("f");
   await composer().waitFor();
@@ -278,6 +276,42 @@ try {
   check(String(steps.citedTargets).includes("fetch.go:46-61"), "the sentence's cite is the target");
   await composer().locator("textarea").first().click();
   await page.keyboard.type(RETRY_ASK, { delay: 5 });
+  await waitText(/≈[\d.,]+k? in/, 5000);
+  const FETCH = "internal/meta/fetch.go";
+  const savedContext = async (removed: boolean): Promise<ThreadDetail> => {
+    for (let i = 0; i < 50; i++) {
+      const draft = (await api<{ items: { id: string }[] }>("GET", "/threads?state=draft")).items.find((t) => !beforeC.has(t.id));
+      if (draft) {
+        const t = await api<ThreadDetail>("GET", `/threads/${draft.id}`);
+        if ((t.context?.remove?.includes(`write:${FETCH}`) ?? false) === removed) return t;
+      }
+      await sleep(100);
+    }
+    throw new Error(`the Composer did not persist the ${removed ? "read-only" : "write"} selection`);
+  };
+  for (const path of ["pull", "copy"]) {
+    await composer().locator("button.path").click();
+    const cite = composer().locator(".chip.tg.cited").first();
+    for (const removed of [true, false]) {
+      await cite.locator("button").click();
+      await composer()
+        .locator(`.chip.tg.cited${removed ? ".removed" : ":not(.removed)"}`)
+        .first()
+        .waitFor();
+      check(removed === !(await composer().locator("button.send").isEnabled()), `${path}: send requires a selected write target`);
+      const t = await savedContext(removed);
+      const prompt = await api<{ text: string }>("POST", "/prompt", {
+        anchor: t.anchor,
+        ask: RETRY_ASK,
+        intent: "change",
+        target: "generic",
+        context: t.context,
+      });
+      check(prompt.text.includes(`CODE ${FETCH}:`), `${path}: the removed write target remains readable`);
+      check(prompt.text.includes(`\nWRITE ${removed ? "-" : FETCH}\n`), `${path}: prompt WRITE follows the human selection`);
+    }
+  }
+  await composer().locator("button.path").click(); // return to push for the existing scripted Fix
   await waitText(/≈[\d.,]+k? in/, 5000);
   await sleep(400);
   await shot("ux-09-fix-cited-target");

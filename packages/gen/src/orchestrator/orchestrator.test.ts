@@ -17,6 +17,26 @@ async function runToEnd(h: ReturnType<typeof makeHarness>, effort: "overview" | 
 const taskStates = (r: ReturnType<ReturnType<typeof makeHarness>["gen"]["run"]>) => r?.tasks.map((t) => t.state) ?? [];
 
 describe("end-to-end standard run over scripted engines", () => {
+  test("a configured arbitrary model runs generation with its selected effort and explicit prices", async () => {
+    const s = testSettings();
+    s.global.defaultGenEngine = "generic";
+    s.global.engines.generic = { enabled: true, argv: ["/usr/bin/custom-llm"], pricing: { inPerMTok: 0.1, outPerMTok: 0.2, cacheReadPerMTok: 0.002 } };
+    for (const k of Object.keys(s.global.models) as (keyof typeof s.global.models)[]) s.global.models[k] = "generic:muse-spark-1.3-contributor";
+    s.global.reasoning.gen = s.global.reasoning.genOverview = "max";
+    const h = makeHarness({ settings: s, router: (call, turn) => ({ ...validRouter(call, turn), apiUsd: 0.001 }) });
+    h.deps.engines.generic = { ...h.engine, id: "generic" };
+    const { est, run } = await runToEnd(h);
+    expect(run?.run.state).toBe("done");
+    expect(run?.run.progress.failed).toBe(0);
+    expect(est.engine).toBe("generic");
+    expect(est.apiUsd).toBeGreaterThan(0);
+    expect(est.cacheReadTokens + est.cacheWriteTokens).toBe(0);
+    expect(est.alternatives).toEqual([]);
+    expect(est.windowDeltaRange).toBeUndefined();
+    expect(h.engine.calls.length).toBeGreaterThan(0);
+    expect(h.engine.calls.every((c) => c.call.model === "generic:muse-spark-1.3-contributor" && c.call.effort === "max")).toBe(true);
+  });
+
   test("every task finishes, blocks land in the doc, module names are stored, the run is done", async () => {
     const h = makeHarness();
     const { run } = await runToEnd(h);

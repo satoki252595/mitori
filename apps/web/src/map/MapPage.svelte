@@ -21,7 +21,7 @@ import { afterMark, mark, markAfterPaint } from "../shell/perf.ts";
 import Rail from "../shell/Rail.svelte";
 import { choosePath, courseName, NEWCOMER_PATH } from "../shell/reading.ts";
 import { currentLayout, useStores } from "../stores/app.svelte.ts";
-import { engineProblem } from "./engine.ts";
+import { engineProblem, policyAcknowledged } from "./engine.ts";
 import FloorPlan from "./FloorPlan.svelte";
 import { generatedTokens, heroAreas, heroMeta, LANG_NAMES, ledeOf, oneSentence } from "./hero.ts";
 import type { PlanController } from "./plan-dom.ts";
@@ -47,7 +47,7 @@ let estimatesRequested = false;
 let breakdown = $state(false);
 let tail = $state<string | null>(null);
 
-const engineStatus = $derived(s.session.engine(st?.genEngine ?? "claude-cli"));
+const engineStatus = $derived(s.session.engine(s.gen.engine));
 const enginesLoaded = $derived(s.session.engines !== null);
 const problem = $derived(engineProblem(engineStatus));
 const run = $derived(s.gen.run);
@@ -61,7 +61,7 @@ $effect(() => {
   return () => clearTimeout(h);
 });
 const rightReady = $derived(rightTimedOut || s.doc.outline !== null || s.doc.outlineError);
-const policyAcked = $derived(!!s.session.settings?.settings.privacy.dataPolicyAck[s.gen.engine]);
+const policyAcked = $derived(policyAcknowledged(s.gen.engine, engineStatus, s.session.settings?.settings.privacy.dataPolicyAck[s.gen.engine]));
 const estimates = $derived.by(() => {
   const out: Partial<Record<Effort, ReturnType<typeof s.gen.current>>> = {};
   for (const e of ["overview", "standard", "complete"] as const) out[e] = s.gen.estimates.get(s.gen.key(e));
@@ -155,7 +155,10 @@ $effect(() => {
 function onPainted() {
   if (estimatesRequested || generated) return;
   estimatesRequested = true;
-  void s.gen.loadEstimates();
+  void s.session.loadSettings({ reuse: true }).then((v) => {
+    if (!s.gen.engineChosen) s.gen.engine = st?.genEngine ?? v?.settings.defaultGenEngine ?? s.gen.engine;
+    void s.gen.loadEstimates();
+  });
 }
 
 $effect(() => {
@@ -452,9 +455,8 @@ const planCounts = $derived(
         {/if}
       </section>
 
-      <!-- AC-U03: an ungenerated repository gets the estimate card — taller than the hero: its height is reserved
-           while the card's chunk loads (after the plan painted), so the plan below never moves -->
-      <aside class="side" class:est={rightReady && !generated} aria-label={t("map.right")} aria-busy={!rightReady || undefined}>
+      <!-- AC-U03: reserve the estimate height from the first frame, before the outline decides which card loads. -->
+      <aside class="side" aria-label={t("map.right")} aria-busy={!rightReady || undefined}>
         {#if rightReady && side}
           {@const GenProgress = side.GenProgress}
           {@const GenEstimateCard = side.GenEstimateCard}
@@ -479,6 +481,7 @@ const planCounts = $derived(
               {estimates}
               effort={s.gen.effort}
               engine={s.gen.engine}
+              reasoning={s.session.settings?.settings.reasoning[s.gen.effort === "overview" ? "genOverview" : "gen"]}
               window={s.session.window ?? engineStatus?.window ?? null}
               {policyAcked}
               breakdownOpen={breakdown || s.doc.level === "expert"}
@@ -684,6 +687,7 @@ const planCounts = $derived(
     font-family: var(--font-serif);
     font-size: clamp(40px, 4.4cqi, 54px);
     line-height: 1.08;
+    min-height: 1.08em;
     font-weight: var(--fw-strong);
     color: var(--ink);
     margin: 0;
@@ -825,9 +829,7 @@ const planCounts = $derived(
     display: flex;
     flex-direction: column;
     gap: 10px;
-  }
-  .side.est {
-    min-height: var(--est-card-h, 464px);
+    min-height: var(--est-card-h, 484px);
   }
   .side-skel {
     min-height: 352px;

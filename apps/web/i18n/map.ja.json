@@ -4,11 +4,11 @@
   "engine.capabilityLost.title": "必要な機能が使えません",
   "engine.checking": "確認中…",
   "engine.copy": "コピー",
-  "engine.notInstalled.body": "生成にはClaude Code CLIを使います（あなたのサブスクで動き、mitoriは認証情報を読みません）。次の手順で準備してください。",
+  "engine.notInstalled.body": "選択中の{engine}を利用できません。nix環境と提供元の認証設定を確認してから再検出してください。",
   "engine.notInstalled.title": "見つかりません",
-  "engine.notLoggedIn.body": "Claude Code CLIにサインインしていません。サインインしてから再検出してください。",
+  "engine.notLoggedIn.body": "選択中の{engine}の認証が確認できません。提供元の手順で認証してから再検出してください。",
   "engine.notLoggedIn.title": "ログインしていません",
-  "engine.pathHint": "別の場所にあるclaudeを使うときは、設定のエンジンでパスを指定します。",
+  "engine.pathHint": "別の場所にあるCLIを使う場合は、nix環境または設定のエンジンで実行ファイルを指定します。",
   "engine.recheck": "再検出",
   "engine.step.install": "Claude Code CLIをインストールする",
   "engine.step.login": "ターミナルで起動し、/loginでサインインする",
@@ -91,5 +91,7 @@
   "map.zoom.label": "ズーム",
   "map.zoom.out": "縮小（-）",
   "map.zoom.stages": "ズーム段",
-  "map.context.outside": "外とのやり取り: {names}"
+  "map.context.outside": "外とのやり取り: {names}",
+  "engine.step.installNix": "プロジェクトのnix設定でCLIを用意・更新する（パッケージ名は提供元で確認）",
+  "engine.step.providerSetup": "選択した提供元のインストール・認証手順と、設定の実行ファイルを確認する"
 }

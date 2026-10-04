@@ -10,6 +10,7 @@ import {
   type BlockId,
   type CodeTarget,
   type CodeTargets,
+  type ContextAdjust,
   DEFAULT_LIMITS,
   type EstimateItem,
   INTENT_JOB_KIND,
@@ -68,6 +69,8 @@ export class ComposerSession {
   intent = $state<ThreadIntent>("note");
   body = $state("");
   draft = $state<ThreadId | null>(null);
+  /** A confirm card can reopen this session to narrow the context of its already-open thread. */
+  submitted = false;
   version = 0;
   /** The 2-way choice of `change` on a doc anchor (`ComposerState.target`). */
   /**
@@ -82,6 +85,8 @@ export class ComposerSession {
   chips = $state.raw<ComposerChip[]>([]);
   readonly candidateKeys = new Set<string>();
   mentions = $state.raw<MentionRange[]>([]);
+  /** Persisted exclusions, including `write:<path>` (CODE stays readable). */
+  removedKeys = $state.raw<string[]>([]);
   /**
    * Code targets of a Fix on a doc anchor (CR ux-F1, `POST /jobs/targets`): `cited` = the anchored claim's cites (the
    * router writes them), `candidates` = suggestions the user picks. `null` until known, or when nothing changes code.
@@ -108,10 +113,13 @@ export class ComposerSession {
   #saveTimer: ReturnType<typeof setTimeout> | null = null;
   #estTimer: ReturnType<typeof setTimeout> | null = null;
   #creating: Promise<ThreadId | null> | null = null;
+  #saving: Promise<ThreadId | null> | null = null;
   #estSeq = 0;
   #targetsSeq = 0;
   #targetsTimer: ReturnType<typeof setTimeout> | null = null;
   #savedBody = "";
+  #savedContext = "{}";
+  #savedIntent: ThreadIntent = "note";
 
   constructor(s: Stores, target: ComposerTarget, intent: ThreadIntent, path: ExecPath) {
     this.#s = s;
@@ -119,9 +127,11 @@ export class ComposerSession {
     this.intent = intent;
     this.path = path;
     const offline = this.#offlineKey();
-    const kept = offline ? getJson<{ body: string; intent: ThreadIntent }>("local", offline) : null;
-    if (kept?.body) {
+    const kept = offline ? getJson<{ body: string; intent: ThreadIntent; context?: ContextAdjust }>("local", offline) : null;
+    if (kept) {
       this.body = kept.body;
+      this.intent = kept.intent;
+      this.#restoreContext(kept.context);
       this.save = "offline";
     }
     if (this.wantsTargets) void this.refreshTargets();
@@ -153,17 +163,22 @@ export class ComposerSession {
     };
   }
 
-  predicted: Prediction = $derived.by(() =>
-    predict({
+  predicted: Prediction = $derived.by(() => {
+    const settings = this.#s.session.settings?.settings;
+    const prediction = predict({
       chips: this.chips,
       body: this.body,
       intent: this.intent,
       outTokens: this.estimate?.estimate.outTokens ?? 0,
-      model: this.estimate?.estimate.model ?? DEFAULT_MODEL,
-      limits: this.#s.session.settings?.settings.limits ?? DEFAULT_LIMITS,
+      model: this.estimate?.estimate.model ?? (answerIntent(this.sentIntent) ? settings?.models.answer : settings?.models.patch) ?? DEFAULT_MODEL,
+      engine: this.estimate?.estimate.engine ?? settings?.defaultEngine ?? "claude-cli",
+      ...(settings?.engines.generic.pricing ? { genericPricing: settings.engines.generic.pricing } : {}),
+      limits: settings?.limits ?? DEFAULT_LIMITS,
       override: this.override,
-    }),
-  );
+    });
+    if (this.estimate && !this.stale) prediction.usd = this.estimate.estimate.apiUsd;
+    return prediction;
+  });
 
   /** The job kind this Composer would create (`note` is dispatched only by Finish). */
   get kind() {
@@ -193,26 +208,17 @@ export class ComposerSession {
 
   /** The Fix has a write target: a cite of the anchor, or a range the user picked / mentioned. */
   get hasTarget(): boolean {
-    return (this.targets?.cited.length ?? 0) > 0 || this.mentions.length > 0;
+    return this.writeFiles.length > 0;
   }
 
   /** Whether the anchor has cites is not known yet (the first targets answer is on its way). */
   get targetsPending(): boolean {
-    return this.wantsTargets && this.targets === null && this.mentions.length === 0;
+    return this.wantsTargets && this.targets === null && !this.hasTarget;
   }
 
   /** A Fix with nothing to write: the Composer offers the candidates, or says how to point at code — never a silent 412. */
   get needsTarget(): boolean {
     return this.wantsTargets && this.targets !== null && !this.hasTarget;
-  }
-
-  /**
-   * The anchor cites nothing and the Composer sends to your own session (⤴) or copies (⧉): a thread carries no code
-   * range of its own, so its bundle would say `WRITE -` (the agent could only ask back). Picks and `@` travel with ⚡
-   * only (as `context.add`) — cr-requests/ux.md #6.
-   */
-  get pushOnly(): boolean {
-    return this.wantsTargets && this.path !== "push" && this.targets !== null && this.targets.cited.length === 0;
   }
 
   /** Candidates not picked yet (a pick moves the range into `mentions`). */
@@ -221,12 +227,29 @@ export class ComposerSession {
     return (this.targets?.candidates ?? []).filter((t) => !picked(t));
   }
 
-  /** Files the AI may write (cites + picked / mentioned ranges — those only when run here), shown before sending. */
+  /** The same human-selected context on push, pull, copy and saved drafts (CR safe-6). */
+  get context(): ContextAdjust {
+    const c = contextAdjust(this.chips, this.candidateKeys, this.mentions);
+    const add = [...new Map((c.add ?? []).map((a) => [`${a.path}:${a.start}-${a.end}`, a])).values()];
+    const remove = [...new Set([...this.removedKeys, ...(c.remove ?? [])])].sort();
+    return { ...(add.length ? { add } : {}), ...(remove.length ? { remove } : {}) };
+  }
+
+  /** Files the AI may write, shown before sending on every execution path. */
   get writeFiles(): string[] {
     const out: string[] = [];
-    const picked = this.path === "push" ? this.mentions.map((m) => m.path) : [];
-    for (const p of [...(this.targets?.cited ?? []).map((t) => t.path), ...picked]) if (!out.includes(p)) out.push(p);
+    for (const p of [...(this.targets?.cited ?? []).map((t) => t.path), ...this.mentions.map((m) => m.path)])
+      if (!this.removedKeys.includes(`write:${p}`) && !out.includes(p)) out.push(p);
     return out;
+  }
+
+  toggleWrite(path: string): void {
+    const key = `write:${path}`;
+    this.removedKeys = this.removedKeys.includes(key) ? this.removedKeys.filter((k) => k !== key) : [...this.removedKeys, key];
+    this.stale = true;
+    this.#ensureDraft();
+    this.#scheduleSave(UI_THRESHOLDS.draftDebounceMs);
+    this.#scheduleEstimate();
   }
 
   /** `POST /jobs/targets` for the anchor and the request typed so far (deterministic, 0 tok). */
@@ -297,8 +320,10 @@ export class ComposerSession {
     if (!c) return;
     if (next === "removed" && !c.item.removable) return;
     this.chips = this.chips.map((x) => (x.item.key === key ? { ...x, state: next } : x));
+    if (!this.candidateKeys.has(key)) this.removedKeys = [...this.removedKeys.filter((k) => k !== key), ...(next === "removed" ? [key] : [])];
     this.stale = true;
     this.#ensureDraft();
+    this.#scheduleSave(UI_THRESHOLDS.draftDebounceMs);
     this.#scheduleEstimate();
   }
 
@@ -307,12 +332,14 @@ export class ComposerSession {
     this.mentions = [...this.mentions.filter((m) => !(m.path === r.path && m.start === r.start && m.end === r.end)), { ...r, label }];
     this.stale = true;
     this.#ensureDraft();
+    this.#scheduleSave(UI_THRESHOLDS.draftDebounceMs);
     this.#scheduleEstimate();
   }
 
   removeMention(i: number): void {
     this.mentions = this.mentions.filter((_, j) => j !== i);
     this.stale = true;
+    this.#scheduleSave(UI_THRESHOLDS.draftDebounceMs);
     this.#scheduleEstimate();
   }
 
@@ -366,16 +393,21 @@ export class ComposerSession {
     if (!ws) return Promise.resolve(null);
     this.save = "saving";
     const body = this.body;
+    const context = this.context;
+    const intent = this.sentIntent;
     this.#creating = this.#s.api
       .call("POST /ws/:ws/threads", {
         params: { ws },
-        body: { anchor: this.target.anchor, intent: this.sentIntent, body, draft: true },
+        body: { anchor: this.target.anchor, intent, body, draft: true, context },
         idempotencyKey: this.tempKey,
       })
       .then((th) => {
         this.#adopt(th);
         this.#savedBody = body;
-        if (this.body !== body) this.#scheduleSave(UI_THRESHOLDS.draftDebounceMs);
+        this.#savedContext = JSON.stringify(context);
+        this.#savedIntent = intent;
+        if (this.body !== body || JSON.stringify(this.context) !== this.#savedContext || this.sentIntent !== intent)
+          this.#scheduleSave(UI_THRESHOLDS.draftDebounceMs);
         else this.save = "saved";
         this.#scheduleEstimate(0);
         return th.id;
@@ -393,10 +425,19 @@ export class ComposerSession {
   /** Continue an existing draft (same anchor reopened): its id, version, intent and first message verbatim. */
   resume(d: ThreadDetail): void {
     this.#adopt(d);
+    this.submitted = d.state !== "draft";
     this.intent = d.intent === "doc_edit" ? "change" : d.intent;
     this.body = d.messages[0]?.body ?? "";
+    this.#restoreContext(d.context);
     this.#savedBody = this.body;
+    this.#savedContext = JSON.stringify(this.context);
+    this.#savedIntent = this.sentIntent;
     this.save = "saved";
+  }
+
+  #restoreContext(context?: ContextAdjust): void {
+    this.removedKeys = [...(context?.remove ?? [])];
+    this.mentions = (context?.add ?? []).map((m) => ({ ...m, label: `${m.path.split("/").pop() ?? m.path}:${m.start}-${m.end}` }));
   }
 
   #adopt(th: ThreadDetail | { id: ThreadId; version: number }): void {
@@ -414,7 +455,7 @@ export class ComposerSession {
       return;
     }
     const key = this.#offlineKey();
-    if (key) setJson("local", key, { body: this.body, intent: this.intent });
+    if (key) setJson("local", key, { body: this.body, intent: this.intent, context: this.context });
     if (this.save !== "offline") this.#s.bottom.toast({ id: "draft.offline", kind: "warn", key: "toast.draft.offline" });
     this.save = "offline";
   }
@@ -424,23 +465,44 @@ export class ComposerSession {
     this.#saveTimer = setTimeout(() => void this.flushSave(), ms);
   }
 
-  /** Save the body / intent now (Escape, submit). Resolves with the draft id (null when offline). */
+  /** Save the body / intent / context now (Escape, submit). Resolves with the draft id (null when offline). */
   async flushSave(): Promise<ThreadId | null> {
     if (this.#saveTimer) clearTimeout(this.#saveTimer);
     this.#saveTimer = null;
+    if (this.#saving) {
+      await this.#saving;
+      return this.flushSave();
+    }
+    this.#saving = this.#flushSave().finally(() => {
+      this.#saving = null;
+    });
+    return this.#saving;
+  }
+
+  async #flushSave(): Promise<ThreadId | null> {
     const id = await this.#ensureDraft();
     const ws = this.ws;
     if (!id || !ws) return id;
-    if (this.body === this.#savedBody && !this.stale) return id;
+    const context = this.context;
+    const intent = this.sentIntent;
+    const serialized = JSON.stringify(context);
+    if (this.body === this.#savedBody && serialized === this.#savedContext && intent === this.#savedIntent) return id;
     const body = this.body;
+    if (this.submitted && body !== this.#savedBody) {
+      this.error = "E_PRECONDITION";
+      this.save = "idle";
+      return id;
+    }
     this.save = "saving";
     try {
       const th = await this.#s.api.call("PATCH /ws/:ws/threads/:th", {
         params: { ws, th: id },
-        body: { version: this.version, body, intent: this.sentIntent },
+        body: { version: this.version, ...(!this.submitted ? { body } : {}), intent, context: Object.keys(context).length ? context : null },
       });
       this.version = th.version;
       this.#savedBody = body;
+      this.#savedContext = serialized;
+      this.#savedIntent = intent;
       this.save = "saved";
     } catch (err) {
       const e = MitoriError.from(err);
@@ -485,12 +547,15 @@ export class ComposerSession {
     try {
       // the server estimates what it has stored: the body's autosave (500 ms) is slower than this debounce (300 ms),
       // so write the text first — otherwise the estimate (and the plan a send reuses) is made for an empty ASK
-      if (this.body !== this.#savedBody) await this.flushSave();
+      if (this.body !== this.#savedBody || JSON.stringify(this.context) !== this.#savedContext || this.sentIntent !== this.#savedIntent) await this.flushSave();
       const th = this.draft;
       if (!th) return null;
       const sent = this.#savedBody; // what the server has — and so what it estimates
       const before = this.predicted.tokensIn;
-      const context = contextAdjust(this.chips, this.candidateKeys, this.mentions);
+      const context = this.context;
+      const serialized = JSON.stringify(context);
+      if (this.body !== sent || serialized !== this.#savedContext || this.sentIntent !== this.#savedIntent)
+        throw new MitoriError("E_CONFLICT", "draft has not been saved");
       const est = await this.#s.api.call("POST /ws/:ws/jobs/estimate", {
         params: { ws },
         body: {
@@ -505,7 +570,7 @@ export class ComposerSession {
       if (seq !== this.#estSeq) return est;
       this.applyEstimate(est);
       // typed on while it was in flight: a send must not trust this one
-      if (this.body !== sent) this.stale = true;
+      if (this.body !== sent || JSON.stringify(this.context) !== serialized) this.stale = true;
       if (Math.abs(this.predicted.tokensIn - before) > 0 && this.chips.length > 0) {
         this.flash = true;
         setTimeout(() => (this.flash = false), 350);
@@ -523,6 +588,7 @@ export class ComposerSession {
     for (const c of est.candidates ?? []) this.candidateKeys.add(c.key);
     this.estimate = est;
     this.chips = mergeChips(this.chips, est.estimate.items, est.candidates ?? []);
+    this.chips = this.chips.map((c) => (c.item.removable && this.removedKeys.includes(c.item.key) ? { ...c, state: "removed" } : c));
     this.stale = false;
     this.error = null;
   }

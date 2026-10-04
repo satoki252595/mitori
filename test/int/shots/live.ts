@@ -1,14 +1,15 @@
 /**
  * LIVE loop drive (integrate/live): the review → AI fix loop end to end through the REAL web UI (installed Google
- * Chrome via Playwright, 1440×900), the real daemon routes and — with `--engine real` — the REAL `claude`.
+ * Chrome via Playwright, 1440×900), the real daemon routes and the selected real engine.
  *
  *   scripts/nd bun test/int/shots/live.ts --engine fake [--out <dir>] [--trace-sse]
  *       in-process daemon + the scripted claude of INT-06 (no tokens, ≈ 25 s): iterate on UI / wiring bugs for free;
  *       `live-ui.test.ts` runs exactly this as a test.
  *   scripts/nd bun run build:bin && scripts/nd bun test/int/shots/live.ts --engine real [--out docs/progress/live]
  *       the compiled binary on a scratch git copy of go-small, a fresh MITORI_HOME, the user's `claude` (Max
- *       subscription). HARD CAP: API-equivalent total ≤ $0.60 (aborts when a job's ledger row says more); one Explain
- *       and one Fix.
+ *       subscription). Stops above the API-equivalent ledger cap (default $0.60); one Explain and one Fix.
+ *   MITORI_LIVE=1 scripts/nd bun test/int/shots/live.ts --engine generic --config <Muse config> [--max-usd 0.60]
+ *       same UI loop with Muse; checks estimate ×1.5 plus recorded spend before each job. `--dry-run` starts nothing.
  *
  * Steps (a screenshot after each): first screen (README lede) → 設計書 → §2 (the 間取り図 drawn) → §4 (the 0-token
  * steps) → select a word of the env table → Composer opened with `e`, typed WITHOUT a click (NC-01; the text has a
@@ -32,10 +33,33 @@ import { CONFIG, ASK as FIX_ASK, routeUx } from "../ux-router.ts";
 const ROOT = resolve(import.meta.dir, "../../..");
 const argv = process.argv.slice(2);
 const opt = (k: string, d?: string) => (argv.includes(k) ? argv[argv.indexOf(k) + 1] : d);
-const ENGINE = opt("--engine", "fake") as "fake" | "real";
-const OUT = resolve(ROOT, opt("--out", ENGINE === "real" ? "docs/progress/live" : join(tmpdir(), "mitori-live-fake")) as string);
+const ENGINE = opt("--engine", "fake") as "fake" | "real" | "generic";
+const CONFIG_PATH = ENGINE === "generic" ? opt("--config", process.env.MITORI_LIVE_CONFIG) : undefined;
+const liveConfig = CONFIG_PATH ? JSON.parse(readFileSync(resolve(CONFIG_PATH), "utf8")) : undefined;
+const OUT = resolve(
+  ROOT,
+  opt("--out", ENGINE === "generic" ? "docs/progress/live-muse" : ENGINE === "real" ? "docs/progress/live" : join(tmpdir(), "mitori-live-fake")) as string,
+);
 const BIN = join(ROOT, `dist/mitori-${process.platform}-${process.arch}`);
-const CAP_USD = 0.6;
+const CAP_USD = Number(opt("--max-usd", process.env.MITORI_MAX_USD ?? "0.6"));
+if (!["fake", "real", "generic"].includes(ENGINE)) throw new Error("--engine must be fake, real or generic");
+if (!Number.isFinite(CAP_USD) || CAP_USD <= 0) throw new Error("--max-usd / MITORI_MAX_USD must be finite and positive");
+if (ENGINE === "generic") {
+  if (
+    !CONFIG_PATH ||
+    liveConfig?.defaultEngine !== "generic" ||
+    liveConfig?.engines?.generic?.enabled !== true ||
+    liveConfig?.engines?.generic?.protocol !== "muse-jsonl"
+  )
+    throw new Error("--engine generic needs --config / MITORI_LIVE_CONFIG with an enabled Muse generic engine");
+  for (const mode of ["answer", "patch"])
+    if (!String(liveConfig?.models?.[mode] ?? "").startsWith("generic:")) throw new Error(`generic config needs models.${mode}`);
+  if (!argv.includes("--dry-run") && process.env.MITORI_LIVE !== "1") throw new Error("generic live run needs MITORI_LIVE=1");
+}
+if (argv.includes("--dry-run")) {
+  console.log(JSON.stringify({ engine: ENGINE, configFile: CONFIG_PATH ? resolve(CONFIG_PATH) : null, capUsd: CAP_USD, paidCallsStarted: 0 }));
+  process.exit(0);
+}
 // no `@`: the Fix targets the env row's own code (config.go `Load`), the question names `config` (a `g`, EX-02)
 const EXPLAIN_ASK = "この環境変数はどこで読まれ、未設定だと何が起きますか？config の既定値も教えて";
 const TARGET_FILE = CONFIG;
@@ -105,6 +129,7 @@ async function startReal(): Promise<Daemon> {
   if (!existsSync(BIN)) throw new Error(`${BIN} missing (bun run build:bin)`);
   const repo = await buildFixture("go-small");
   const home = mkdtempSync(join(tmpdir(), "mitori-live-home-"));
+  if (liveConfig !== undefined) writeFileSync(join(home, "config.json"), JSON.stringify(liveConfig));
   const proc = Bun.spawn([BIN, repo.root, "--no-open"], { env: { ...process.env, MITORI_HOME: home }, stdout: "pipe", stderr: "pipe" });
   let err = "";
   let url = "";
@@ -153,6 +178,22 @@ async function checkCap(d: Daemon, label: string): Promise<void> {
   if (spent > CAP_USD) throw new Error(`cap exceeded: $${spent} > $${CAP_USD}`);
 }
 
+/** Muse: check the stored draft's estimate before the UI can start a paid job (not a provider invoice cap). */
+async function beforeGenericJob(d: Daemon, kind: "explain" | "fix"): Promise<void> {
+  if (ENGINE !== "generic") return;
+  await checkCap(d, `before ${kind}`);
+  const drafts = await d.api<{ items: { id: string }[] }>("GET", "/threads?state=draft");
+  const th = drafts.items[0];
+  if (!th) throw new Error(`no saved draft before ${kind}`);
+  const est = await d.api<{ estimate: { apiUsd: number } }>("POST", "/jobs/estimate", {
+    kind,
+    threads: [th.id],
+    engine: "generic",
+    ...(kind === "fix" ? { mode: "patch" } : {}),
+  });
+  if (spent + est.estimate.apiUsd * 1.5 > CAP_USD) throw new Error(`cap: ${kind} estimate with slack would exceed $${CAP_USD}`);
+}
+
 const shot = async (page: Page, name: string) => {
   await page.screenshot({ path: join(OUT, `${name}.png`) });
   log("shot", name);
@@ -195,7 +236,7 @@ async function optimisticCardMs(page: Page): Promise<number | null> {
 }
 
 // ------------------------------------------------------------------------------------------- run
-if (ENGINE === "real" && !existsSync(BIN)) {
+if (ENGINE !== "fake" && !existsSync(BIN)) {
   console.error(`${BIN} missing`);
   process.exit(2);
 }
@@ -206,7 +247,7 @@ try {
   console.error("[live] Google Chrome is not available:", e instanceof Error ? e.message.split("\n")[0] : e);
   process.exit(77);
 }
-const d = await (ENGINE === "real" ? startReal() : startFake());
+const d = await (ENGINE !== "fake" ? startReal() : startFake());
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: "light" });
 // a returning browser: a first visit reads at 「初めて」 with the 5-minute course (NC-08), which this drive is not about
 await ctx.addInitScript(() => {
@@ -354,10 +395,11 @@ try {
     `the doc chip names its section, got ${JSON.stringify(chipTexts)}`,
   );
   await shot(page, "06-composer-explain");
+  await beforeGenericJob(d, "explain");
   const explainSentAt = Date.now();
   await page.keyboard.press("Meta+Enter");
   const tSend = performance.now();
-  let tFirst = 0;
+  let tLabel = 0;
   let tApi = 0;
   let tCard = 0;
   const badge = page.getByText("回答済", { exact: true }).first();
@@ -365,7 +407,7 @@ try {
   for (;;) {
     await page.waitForTimeout(100);
     const now = ms(tSend);
-    if (!tFirst && (await answerText.isVisible().catch(() => false))) tFirst = now;
+    if (!tLabel && (await answerText.isVisible().catch(() => false))) tLabel = now;
     if (!tApi) {
       const ths = await d.api<{ items: { state: string }[] }>("GET", "/threads");
       if (ths.items[0]?.state === "answered") tApi = now;
@@ -376,7 +418,14 @@ try {
     }
     if (now > 120_000) throw new Error("the explain card never reached 回答済 (state stuck in the UI?)");
   }
-  steps.explain = { optimisticCardMs: await optimisticCardMs(page), firstTextMs: tFirst, threadAnsweredApiMs: tApi, cardAnsweredMs: tCard };
+  const explainMetrics = {
+    optimisticCardMs: await optimisticCardMs(page),
+    aiLabelVisibleMs: tLabel,
+    firstTextMs: null as number | null,
+    threadAnsweredApiMs: tApi,
+    cardAnsweredMs: tCard,
+  };
+  steps.explain = explainMetrics;
   await page.waitForTimeout(500);
   await shot(page, "07-explain-answered");
   const th1 = (await d.api<{ items: { id: string; state: string; jobs: string[] }[] }>("GET", "/threads")).items[0];
@@ -384,7 +433,9 @@ try {
   const explainThread = await d.api<J>("GET", `/threads/${th1?.id}`);
   const explainJob = await d.api<J>("GET", `/jobs/${th1?.jobs[0]}`);
   const answer = explainThread.messages.find((m: J) => String(m.by).startsWith("agent:"));
-  steps.explainTimeline = await timeline(d, explainJob.id, explainSentAt);
+  const explainTimeline = await timeline(d, explainJob.id, explainSentAt);
+  steps.explainTimeline = explainTimeline;
+  explainMetrics.firstTextMs = explainTimeline.firstText ?? null;
   steps.explainJob = {
     state: explainJob.state,
     usage: explainJob.usage,
@@ -430,6 +481,7 @@ try {
   await page.waitForTimeout(1500);
   steps.fixEstimateChip = await composerEstimate(page);
   await shot(page, "09-composer-fix");
+  await beforeGenericJob(d, "fix");
   const fixSentAt = Date.now();
   await page.keyboard.press("Meta+Enter");
   const tFix = performance.now();
@@ -503,7 +555,7 @@ try {
 
   // (f) trust the gofmt gate: the approval from the Review panel runs the gates (session must be older than 60 s)
   const waitSession = Math.max(0, 62_000 - (performance.now() - tLogin));
-  if (ENGINE === "real" && waitSession > 0) {
+  if (ENGINE !== "fake" && waitSession > 0) {
     log(`session is younger than 60 s: waiting ${Math.round(waitSession / 1000)} s`);
     await sleep(waitSession);
   }
@@ -591,9 +643,9 @@ try {
   steps.consoleErrors = consoleErrors;
   await page.screenshot({ path: join(OUT, "99-failure.png") }).catch(() => undefined);
 } finally {
-  const result = { engine: ENGINE, spentUsd: Math.round(spent * 1e6) / 1e6, ...steps };
+  const result = { engine: ENGINE, usageEstimated: ENGINE === "generic", capUsd: CAP_USD, spentUsd: Math.round(spent * 1e6) / 1e6, ...steps };
   await Bun.write(Bun.stdout, `${JSON.stringify(result, null, 1)}\n`); // not console.log: process.exit below would cut a piped stdout
-  if (ENGINE === "real") writeFileSync(join(OUT, "measurements.json"), `${JSON.stringify({ at: new Date().toISOString(), ...result }, null, 2)}\n`);
+  if (ENGINE !== "fake") writeFileSync(join(OUT, "measurements.json"), `${JSON.stringify({ at: new Date().toISOString(), ...result }, null, 2)}\n`);
   await browser.close();
   await d.close();
 }

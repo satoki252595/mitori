@@ -351,5 +351,11 @@
 |---|---|---|---|---|
 | CR ui-1 | ui（F5 / export viewer の予算） | accepted | core `transitions.ts`: thread の遷移表の索引（`THREAD_ROWS`）をモジュール読み込み時ではなく最初の `threadTransition()` で作る (applied)。公開面・挙動は不変 | モジュール直下の `new Map(…)` は副作用なので bundler が落とせず、200 行の `THREAD_TRANSITIONS` が core を import する web の bundle（export viewer 60 KB gz の予算）に毎回入っていた。viewer −0.5 KB gz |
 | CR ui-2 | ui（EX-08） | accepted | web 契約 `apps/web/src/contract.ts` `CodePin.blob?: string`（claim の cite から開いた pin が引用時の blob を持つ。省略 = 静的 fact / URL の pin）(applied) | Fix の採用や Undo の後、コード列が変わったファイルの上に引用時の行番号のまま印を付けていた。blob が違えば「今の版の行」と言う。省略可なので既存の生成側・利用側は不変 |
-| CR ui-3 | ui（F6） | deferred（M3、server / api） | api `GET /ws/:ws/doc/sections/:section` に `?from&limit`（窓の外の block は `html` なし + `total`）、server の JSON 応答（≥ 8 KB）に `content-encoding: br/gzip` | 1 万 block の節も Reader は仮想窓で描く（DOM ≤ 2,440）。残るのは 1 本の非圧縮 JSON の転送と parse。依頼の詳細は `docs/design/cr-requests/ui.md` #3 |
+| CR ui-3 | ui（F6） | accepted-modified | api `GET /ws/:ws/doc/sections/:section` に `?from&limit&outline`、`SectionView.total?/from?`。range 初回は全 block metadata と窓の HTML、`outline=false` は窓だけ。server は section JSON（≥ 8 KB）を既存の negotiate で br/gzip。Reader は初期 anchor 周囲を取得し idle で補完 | default の全文応答は互換維持。SSE の更新・削除・freshness を古い取得で戻さない。DocText は完全な本文を取得する。今回の続行指示に基づく実装、詳細は `docs/progress/continuation-ui.md` |
 | CR ui-4 | ui（EX-10 / NC-14） | deferred（M3、loop / server） | server: `POST …/doc/blocks/:block/revert`・`…/sections/:section/translate`・`…/blocks/:block/translate`・`…/blocks/:block/simplify` の handler（今は 501） | UI はどれも出さない（履歴は読むだけ、英語 UI の和文 doc には「AI に英語で説明させる」）。配線されたら web の入口は各 1 ボタン（`docs/design/cr-requests/ui.md` #4） |
+
+## 12. 継続・任意 LLM（2026-10-04）
+
+| id | requester | 決定 | 適用先 | 理由・備考 |
+|---|---|---|---|---|
+| CR llm-1 | 利用者（任意 LLM、今回 Muse / max） | accepted-modified | core `GenEngineId` + generic、`EngineSettings.generic.protocol?/pricing?/turnMs?`、`UsageRecord.usageEstimated?`、`priceUsage(ModelId, …, prices?)`。server schema、agent generic adapter/scheduler/ledger、gen factory/planner/estimator、loop estimate、web provider form | 既存 generic と ModelId を拡張し、CLI stdin/stdout と model/effort/promptFile の argv 置換を再利用。Muse は native CLI の検証済み text-only profile。任意 CLI の agent tools は未対応のまま。料金未知・usage 未取得を無料としない。実トークン未取得の推計を校正へ入れない。実行設定は CLI の人の確認を維持し web PATCH へ許可しない。ADR-0015 |

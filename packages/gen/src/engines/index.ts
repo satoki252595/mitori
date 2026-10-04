@@ -31,7 +31,7 @@ export function toScheduledRequest(call: GenCall, ctx: { ws: WorkspaceKey; sandb
     promptVer: call.spec.version,
     prompt,
     contract: "gen.block/1",
-    keepAlive: true,
+    keepAlive: ctx.engine !== "generic",
     persistSession: false,
     budget: { usd: call.budgetUsd, inTokens: Math.ceil(3 * call.estimate.in), outTokens: call.maxOutTokens, ms: call.timeoutMs },
     engine: ctx.engine,

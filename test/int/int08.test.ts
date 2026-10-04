@@ -1184,6 +1184,39 @@ describe("F1 (nonfunc audit): agent mode never shows the model a tracked secret"
   const SECRET = `sk_live_${"4eC39HqLyjWDarjtT1zdp7dc"}`;
   const keysGo = `package config\n\n// StripeKey is the live payment key (a committed secret, as many repos have).\nconst StripeKey = "${SECRET}"\n`;
 
+  beforeAll(async () => {
+    // F1 exercises initial + repair turns on every OS, independently of the preceding macOS sandbox scenarios.
+    await int.close();
+    await repo.dispose();
+    repo = await buildFixture("go-small");
+    // Dependencies are ignored in a real project; this fixture must not inherit an earlier test's .gitignore.
+    const exclude = join(repo.root, ".git/info/exclude");
+    writeFileSync(exclude, `${readFileSync(exclude, "utf8")}\nnode_modules/\n`);
+    userHome = join(repo.root, "..", "int08-home-f1");
+    mkdirSync(userHome, { recursive: true });
+    int = await startInt({
+      spawner: fakeClaude(),
+      config: { engines: { "claude-cli": { binary: FAKE } } },
+      overrides: { clock, userHome, gateSandbox: "none" },
+    });
+    ws = (await int.open(repo.root)).ws;
+    web = await int.browser();
+  }, 60_000);
+
+  async function repairThroughConsentedGates(id: JobId): Promise<JobDetail> {
+    const initial = await jobUntil(id, ["ready"]);
+    expect(initial.attempt).toBe(1);
+    await trustGates();
+    await webApi<Job>("POST", `/jobs/${id}/gates/run`, {});
+    const repaired = await jobUntil(id, ["ready"], 120_000);
+    expect(repaired.attempt).toBe(2);
+    // Without an OS sandbox the repaired diff needs another explicit human consent before its checks run.
+    await webApi<Job>("POST", `/jobs/${id}/gates/run`, {});
+    const checked = await jobUntil(id, ["ready"], 120_000);
+    expect(checked.gateVerdict).toBe("passed");
+    return checked;
+  }
+
   test("during the turn the worktree holds a token; after it the file is byte-identical and outside the diff", async () => {
     writeFileSync(join(repo.root, KEYS), keysGo);
     git("add", KEYS);
@@ -1238,7 +1271,7 @@ describe("F1 (nonfunc audit): agent mode never shows the model a tracked secret"
       ],
     });
     const { job } = await createJob(t.thread, t.context);
-    const ready = await jobUntil(job.id, ["ready"]);
+    const ready = await repairThroughConsentedGates(job.id);
     expect(ready.route.mode).toBe("agent");
     expect(seen).toContain("«redacted:secret#1»");
     expect(seen).not.toContain("sk_live_");
@@ -1315,7 +1348,7 @@ describe("F1 (nonfunc audit): agent mode never shows the model a tracked secret"
       ],
     });
     const { job } = await createJob(t.thread, t.context);
-    const ready = await jobUntil(job.id, ["ready"]);
+    const ready = await repairThroughConsentedGates(job.id);
     expect(ready.route.mode).toBe("agent");
     expect(during.length).toBeGreaterThanOrEqual(2);
     for (const d of during) {

@@ -135,6 +135,7 @@ for (const [w, h] of [
     await page.waitForTimeout(1500);
     const v = await cls(page);
     console.log(`[cls] map boot ${w}×${h} ${v}`);
+    if (v > 0.001) console.log(`[cls-sources] ${JSON.stringify(await page.evaluate(() => (window as unknown as { __clsSources: unknown[] }).__clsSources))}`);
     expect(v).toBeLessThanOrEqual(0.001);
   });
 }

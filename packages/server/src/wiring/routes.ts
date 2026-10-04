@@ -3,6 +3,9 @@
  * indexer, doc, gen, agent, loop (`ROUTE_OWNERS`). Routes not listed answer 501 `E_UNSUPPORTED` (the router), which is
  * where the M4 features (doc proposals, export, integrations) still are.
  */
+
+import { promisify } from "node:util";
+import { brotliCompress, constants, gzip } from "node:zlib";
 import type { Engine, UsageLedger } from "@mitori/agent";
 import {
   type BlockId,
@@ -25,6 +28,7 @@ import {
   type WorkspaceKey,
 } from "@mitori/core";
 import { DOC_TEXT } from "../contract.ts";
+import { negotiate } from "../http/static.ts";
 import type { RouteCtx, RouteHandlers } from "../routes/types.ts";
 import { exportHandlers } from "./export.ts";
 import { loopHandlers } from "./loop-routes.ts";
@@ -45,6 +49,8 @@ const ok: Ok = { ok: true };
 const invalid = (field: string, message: string) => new MitoriError("E_INVALID_INPUT", message, { params: { field } });
 const SEARCH_KINDS: readonly SearchKind[] = ["file", "symbol", "module", "fact", "section", "block", "term", "thread"] as SearchKind[];
 const LANGS: readonly DocLang[] = ["ja", "en"];
+const sectionBrotli = promisify(brotliCompress);
+const sectionGzip = promisify(gzip);
 
 function int(q: URLSearchParams, name: string, def: number | null, min = 0, max = 1_000_000): number {
   const raw = q.get(name);
@@ -197,11 +203,30 @@ export function domainHandlers(env: RouteEnv): RouteHandlers {
       return docOutline(x.doc, x.outlineRev(), x.openThreads());
     },
     "GET /ws/:ws/doc/sections/:section": async (ctx) => {
+      const ranged = ctx.query.has("from") || ctx.query.has("limit");
+      const outline = ctx.query.get("outline");
+      if (outline !== null && (!ranged || !["true", "false"].includes(outline))) throw invalid("outline", "outline requires a range and must be true|false");
+      const range = ranged ? { from: int(ctx.query, "from", 0), limit: int(ctx.query, "limit", 150, 1, 512), outline: outline !== "false" } : undefined;
       const x = await d(ctx);
       await x.staticReady();
-      const v = await sectionView(x.view, ctx.params.section, lang(ctx.query));
+      const v = await sectionView(x.view, ctx.params.section, lang(ctx.query), range);
       if (!v) throw new MitoriError("E_NOT_FOUND", `no section ${ctx.params.section}`, { params: { section: ctx.params.section } });
-      return v;
+      const json = Buffer.from(JSON.stringify(v));
+      if (json.length < 8192) return v;
+      const encoding = negotiate(ctx.req.headers.get("accept-encoding"), { br: true, gz: true });
+      const payload =
+        encoding === "br"
+          ? await sectionBrotli(json, { params: { [constants.BROTLI_PARAM_QUALITY]: 4 } })
+          : encoding === "gzip"
+            ? await sectionGzip(json)
+            : json;
+      return new Response(payload, {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          vary: "accept-encoding",
+          ...(encoding === "identity" ? {} : { "content-encoding": encoding }),
+        },
+      });
     },
     "GET /ws/:ws/doc/text": async (ctx) => {
       const x = await d(ctx);

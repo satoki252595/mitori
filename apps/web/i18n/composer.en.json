@@ -96,7 +96,7 @@
   "composer.send.doc": "Save the doc",
   "composer.send.note": "Leave note",
   "composer.targets.altAsk": "Just an answer? Ask ({ask})",
-  "composer.targets.citedHelp": "The code this sentence cites. The AI rewrites this range (to leave it out, select another sentence).",
+  "composer.targets.citedHelp": "Use × to exclude this range from edits. The code remains available as read-only context.",
   "composer.targets.files.one": "writes {n} file",
   "composer.targets.files.other": "writes {n} files",
   "composer.targets.label": "Code to change",

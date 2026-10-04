@@ -11,6 +11,7 @@ import {
   type Hasher,
   type Logger,
   type Metrics,
+  MitoriError,
   PRICING,
   type Random,
   type SseEventPayload,
@@ -99,6 +100,71 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     safePath: deps.safePath,
     emptyCwd: `${home}/${EMPTY_REL}`,
     ensureEmptyCwd: () => sandbox.ensureEmptyCwd(),
+    systemPromptFile: (text) => sandbox.systemPromptFile(text),
+    prepareMuseConfig: async () => {
+      if (!ports) throw new MitoriError("E_PRECONDITION", "Muse config storage is not wired");
+      const sourceRoot = deps.env.XDG_CONFIG_HOME ?? (deps.env.HOME ? `${deps.env.HOME}/.config` : null);
+      if (!sourceRoot?.startsWith("/")) throw new MitoriError("E_CFG_INVALID", "Muse config root must be absolute");
+      const id = Array.from(deps.random.bytes(16), (x) => x.toString(16).padStart(2, "0")).join("");
+      const rel = `run/muse/${id}`;
+      const root = `${home}/${rel}`;
+      if (ports.fs.stat(root)) throw new MitoriError("E_PRECONDITION", "Muse isolated config collision");
+      const cleanup = () => ports.safeWrite.remove(home, rel, "home");
+      try {
+        await ports.safeWrite.write(home, `${rel}/muse/settings.json`, '{"schema_version":1,"run":{"toolset":[]}}', "home");
+        const source = `${sourceRoot}/muse/auth.json`;
+        const before = ports.fs.stat(source);
+        if (before) {
+          if (!before.isFile || before.isSymlink) throw new MitoriError("E_CFG_INVALID", "Muse auth must be a regular non-symlink file");
+          const bytes = await ports.fs.read(source);
+          const after = ports.fs.stat(source);
+          if (
+            !after?.isFile ||
+            after.isSymlink ||
+            after.ino !== before.ino ||
+            after.mtimeNs !== before.mtimeNs ||
+            after.ctimeNs !== before.ctimeNs ||
+            bytes.length !== after.size
+          )
+            throw new MitoriError("E_CFG_INVALID", "Muse auth changed while preparing an isolated run");
+          await ports.safeWrite.write(home, `${rel}/muse/auth.json`, bytes, "home");
+        }
+        return { root, cleanup };
+      } catch (err) {
+        await cleanup();
+        throw err;
+      }
+    },
+    validateMuseConfig: async () => {
+      if (!ports) throw new MitoriError("E_PRECONDITION", "Muse config inspection is not wired");
+      const root = deps.env.XDG_CONFIG_HOME ?? (deps.env.HOME ? `${deps.env.HOME}/.config` : null);
+      if (!root?.startsWith("/")) throw new MitoriError("E_CFG_INVALID", "Muse config root must be absolute");
+      const path = `${root}/muse/settings.json`;
+      if (!ports.fs.stat(path)) return;
+      let config: Record<string, unknown>;
+      try {
+        config = JSON.parse(new TextDecoder().decode(await ports.fs.read(path))) as Record<string, unknown>;
+        if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("invalid object");
+      } catch {
+        throw new MitoriError("E_CFG_INVALID", "Muse settings could not be inspected for text-only isolation");
+      }
+      // managed_hooks_path is deliberately replaced by our empty file. Never modify the user's config or auth.
+      for (const key of [
+        "hooks",
+        "mcpServers",
+        "mcp_servers",
+        "plugins",
+        "presets",
+        "agent_definitions",
+        "managed_plugins_path",
+        "managed_skills_path",
+        "runtime_capabilities",
+      ])
+        if (config[key] != null && (typeof config[key] === "object" ? Object.keys(config[key] as object).length > 0 : config[key] !== ""))
+          throw new MitoriError("E_CFG_INVALID", `Muse ${key} must be disabled before a text-only run`);
+    },
+    policyPlan: () =>
+      `generic:${deps.hasher.xxh3(JSON.stringify({ argv: deps.settings().engines.generic.argv, protocol: deps.settings().engines.generic.protocol ?? "text", models: deps.settings().models }))}`,
     clock: deps.clock,
     timers,
     log: deps.log,

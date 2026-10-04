@@ -512,7 +512,7 @@ export interface DocViewStore {
   /** Section (cached). */
   section(id: SectionId): SectionView | undefined;
   /** Load (hover-intent prefetch after `UI_THRESHOLDS.prefetchHoverMs`). */
-  load(id: SectionId): Promise<SectionView>;
+  load(id: SectionId, window?: { anchor?: BlockId | undefined }): Promise<SectionView>;
   /** Change level (≤ 50 ms; no network; sets `html[data-level]` and re-runs margin layout once). */
   setLevel(level: ReaderLevel): void;
   /** Pending proposals per block. */
@@ -579,7 +579,7 @@ export interface ComposerState {
   /** Chips (included / removed / candidate). */
   chips: ComposerChip[];
   /** Client-side prediction of the router for the current chips (same frame; server re-checks). */
-  predicted: { mode: ExecMode; lines: number; files: number; tokensIn: number; tokensOut: number; usd: number };
+  predicted: { mode: ExecMode; lines: number; files: number; tokensIn: number; tokensOut: number; usd: number | null };
   /**
    * Execution path. Initial value: last path used in this workspace → `UiSettings.defaultExecPath` /
    * workspace override; never derived from the waiter count [UXP-10].
@@ -1012,8 +1012,8 @@ export interface EstimateChipProps {
   tokensIn: number;
   /** Output tokens. */
   tokensOut: number;
-  /** API-equivalent USD. */
-  usd: number;
+  /** API-equivalent USD (null when the model's price is unknown). */
+  usd: number | null;
   /** Seconds band (p25–p75 of same intent × mode history; prior when n < 20). */
   seconds: { lo: number; hi: number; n: number };
   /** Band. */

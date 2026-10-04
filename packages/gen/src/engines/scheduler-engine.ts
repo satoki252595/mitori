@@ -9,9 +9,10 @@ import { type Cancel, type JobEvent, MitoriError, type WorkspaceKey } from "@mit
 import type { GenCall, GenCallResult, GenCallRun, GenEngine, GenEngineCaps } from "../contract.ts";
 import { toScheduledRequest } from "./index.ts";
 
-const CAPS: Readonly<Record<"claude-cli" | "anthropic-api", GenEngineCaps>> = {
+const CAPS: Readonly<Record<"claude-cli" | "anthropic-api" | "generic", GenEngineCaps>> = {
   "claude-cli": { streaming: true, batch: false, countTokens: false, structuredOutputs: true, serverFallback: false, explicitCache: false },
   "anthropic-api": { streaming: true, batch: true, countTokens: true, structuredOutputs: true, serverFallback: true, explicitCache: true },
+  generic: { streaming: true, batch: false, countTokens: false, structuredOutputs: false, serverFallback: false, explicitCache: false },
 };
 
 /** Wrap one scheduler turn as a GenCallRun. */
@@ -96,13 +97,18 @@ function wrap(run: EngineRun, onContinue: ((retry: string, signal: Cancel, sessi
 }
 
 /** Factory. */
-export function createSchedulerEngine(id: "claude-cli" | "anthropic-api", scheduler: AgentScheduler, ctx: { ws: WorkspaceKey; sandboxCwd: string }): GenEngine {
+export function createSchedulerEngine(
+  id: "claude-cli" | "anthropic-api" | "generic",
+  scheduler: AgentScheduler,
+  ctx: { ws: WorkspaceKey; sandboxCwd: string },
+): GenEngine {
   return {
     id,
     caps: CAPS[id],
     run(call: GenCall, signal: Cancel): GenCallRun {
       const req = toScheduledRequest(call, { ws: ctx.ws, sandboxCwd: ctx.sandboxCwd, engine: id });
       const run = scheduler.submit(req, signal);
+      if (id === "generic") return wrap(run, null);
       return wrap(run, (retry, sig, session) =>
         scheduler.continueSession(
           session,

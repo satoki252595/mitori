@@ -6,6 +6,32 @@ import { buildAnthropicRequest, buildCodexSpawn, buildGenericSpawn, extractJsonF
 
 const EMPTY = "/home/u/.mitori/run/empty";
 const SCHEMA = { type: "object", properties: { summary: { type: "string" } }, required: ["summary"] };
+const MUSE_ARGV = [
+  "/opt/muse",
+  "exec",
+  "--json",
+  "--model",
+  "{model}",
+  "--reasoning-effort",
+  "{effort}",
+  "--prompt-file",
+  "{promptFile}",
+  "--workspace",
+  "{emptyCwd}",
+  "--worktree",
+  "off",
+  "--disable-shell",
+  "--disable-write",
+  "--disable-web-tools",
+  "--no-foreign-personal-context",
+  "--no-session-log",
+  "--max-model-steps",
+  "1",
+  "--approval-mode",
+  "untrusted",
+  "--approval-judge",
+  "off",
+];
 
 function req(o: Partial<ScheduledRequest> = {}): ScheduledRequest {
   return {
@@ -93,6 +119,45 @@ describe("generic / codex spawn builders and JSON extraction (spec §6.10–6.11
       "--output-schema",
     );
     expect(() => buildCodexSpawn(req({ mode: "agent" }), { enabled: true, binary: "codex", model: "gpt-5" }, paths, {})).toThrow(/agent/);
+  });
+
+  test("generic substitutes literal argv without a shell, cold retries include every prompt block, Muse stays lean", () => {
+    const r = req({ model: "generic:muse-spark-1.3-contributor", effort: "max", promptBlocks: ["cold full context", "repair request"] });
+    const stdin = buildGenericSpawn(r, { enabled: true, argv: ["/opt/cli", "--model={model}", "{effort}"] }, { emptyCwd: EMPTY }, {});
+    expect(stdin.argv).toEqual(["--model=muse-spark-1.3-contributor", "max"]);
+    expect(stdin.stdin).toContain("cold full context\n\nrepair request");
+    expect(stdin.stdin).not.toContain("MBF/1 bundle");
+    const muse = buildGenericSpawn(
+      r,
+      { enabled: true, argv: MUSE_ARGV, protocol: "muse-jsonl" },
+      { emptyCwd: EMPTY, promptFile: "/safe/prompt.txt", museHooksFile: "/safe/empty-hooks.json", museConfigRoot: "/safe/config" },
+      { MUSE_EXPERIMENTAL_SKILL_REMINDER: "on" },
+    );
+    expect(muse.stdin).toBe("");
+    expect(muse.argv).toContain("/safe/prompt.txt");
+    expect(muse.argv).toContain(EMPTY);
+    expect(muse.env.MUSE_EXPERIMENTAL_SKILL_REMINDER).toBe("off");
+    expect(muse.env.MUSE_EXPERIMENTAL_VERIFY_REMINDER).toBe("off");
+    expect(muse.env.MUSE_EXPERIMENTAL_FOREIGN_PERSONAL_CONTEXT_KILL).toBe("on");
+    expect(muse.env.TBH_MANAGED_HOOKS_PATH).toBe("/safe/empty-hooks.json");
+    expect(muse.env.XDG_CONFIG_HOME).toBe("/safe/config");
+    expect(() => buildGenericSpawn(r, { enabled: true, argv: MUSE_ARGV }, { emptyCwd: EMPTY }, {})).toThrow(/prompt file/);
+    expect(() =>
+      buildGenericSpawn(
+        r,
+        { enabled: true, argv: MUSE_ARGV.filter((v) => v !== "--disable-shell"), protocol: "muse-jsonl" },
+        { emptyCwd: EMPTY, promptFile: "/safe/prompt.txt", museHooksFile: "/safe/empty-hooks.json", museConfigRoot: "/safe/config" },
+        {},
+      ),
+    ).toThrow(/sandbox policy/);
+    expect(() =>
+      buildGenericSpawn(
+        r,
+        { enabled: true, argv: [...MUSE_ARGV, "--max-model-steps", "2"], protocol: "muse-jsonl" },
+        { emptyCwd: EMPTY, promptFile: "/safe/prompt.txt", museHooksFile: "/safe/empty-hooks.json", museConfigRoot: "/safe/config" },
+        {},
+      ),
+    ).toThrow(/sandbox policy/);
   });
 
   test("extractJsonFromText: last ```json fence, else the whole stdout; errors are E_AGENT_PROTOCOL", () => {
@@ -284,18 +349,21 @@ describe("engines never leave a run unresolved", () => {
 });
 
 describe("generic engine over a scripted process", () => {
-  test("answer = whole stdout; patch = last ```json fence; usage is zero with auth unknown; agent refused", async () => {
+  test("answer/generate = whole stdout; patch = last ```json fence; unknown cost reserves the cap; agent refused", async () => {
     const spawner = createFakeSpawner()
       .script((s) => s.stdin.includes("ANSWER"), { stdout: ["line one", "line two"] })
-      .script((s) => s.stdin.includes("PATCH"), { stdout: ["thinking…", "```json", '{"summary":"done"}', "```"] });
+      .script((s) => s.stdin.includes("PATCH"), { stdout: ["thinking…", "```json", '{"summary":"done"}', "```"] })
+      .script((s) => s.stdin.includes("GENERATE"), { stdout: ['{"t":"block","md":"generated"}', '{"t":"end"}'] });
     const settings = testSettings({ engines: { generic: { enabled: true, argv: ["/usr/local/bin/agent"] } } });
     const b = createTestBridge({ spawner, settings: { engines: settings.engines } });
-    const a = await b.scheduler.submit(
-      req({ engine: "generic", mode: "answer", prompt: "ANSWER", jsonSchema: undefined as never }),
-      new AbortController().signal,
-    ).result;
+    const answerRequest = req({ engine: "generic", mode: "answer", prompt: "ANSWER" });
+    delete answerRequest.jsonSchema;
+    const a = await b.scheduler.submit(answerRequest, new AbortController().signal).result;
     expect(a.text).toBe("line one\nline two");
-    expect(a.usage.apiUsd).toBe(0);
+    expect(a.usage.apiUsd).toBe(0.1);
+    expect(a.usageEstimated).toBe(true);
+    expect(a.usage.in).toBeGreaterThan(0);
+    expect(a.usage.out).toBe("line one\nline two".length);
     expect(a.auth).toBe("unknown");
     const p = await b.scheduler.submit(req({ engine: "generic", prompt: "PATCH" }), new AbortController().signal).result;
     expect(p.structured).toEqual({ summary: "done" });
@@ -303,7 +371,156 @@ describe("generic engine over a scripted process", () => {
       ["generic", "unknown"],
       ["generic", "unknown"],
     ]);
+    const generateRequest = req({ engine: "generic", mode: "generate", prompt: "GENERATE" });
+    delete generateRequest.jsonSchema;
+    const generated = await b.scheduler.submit(generateRequest, new AbortController().signal).result;
+    expect(generated.stop).toBe("end");
+    expect(generated.text).toBe('{"t":"block","md":"generated"}\n{"t":"end"}');
+    expect(generated.structured).toBeUndefined();
     const ag = await b.scheduler.submit(req({ engine: "generic", mode: "agent", tools: "read_edit", cwd: "/w" }), new AbortController().signal).result;
     expect(ag.error?.code).toBe("E_UNSUPPORTED");
+  });
+
+  test("unreported generic usage estimates the full UTF-8 prompt/output and uses configured prices", async () => {
+    const spawner = createFakeSpawner().script(
+      () => true,
+      () => ({ stdout: ["日本語"] }),
+    );
+    const b = createTestBridge({
+      spawner,
+      settings: { engines: { generic: { enabled: true, argv: ["/opt/text"], pricing: { inPerMTok: 1, outPerMTok: 2, cacheReadPerMTok: 0.01 } } } },
+    });
+    const request = req({ engine: "generic", model: "generic:custom", mode: "generate", promptBlocks: ["full context 日本語", "repair"] });
+    delete request.jsonSchema;
+    const result = await b.scheduler.submit(request, new AbortController().signal).result;
+    const bytes = new TextEncoder().encode(spawner.calls[0]?.stdin).byteLength;
+    expect(result.usage.in).toBe(bytes);
+    expect(result.usage.out).toBe(9);
+    expect(result.usage.apiUsd).toBeCloseTo((bytes + 18) / 1e6, 6);
+    expect(result.usageEstimated).toBe(true);
+    expect(b.ledger.rows[0]?.usageEstimated).toBe(true);
+  });
+
+  test("Muse JSONL unwraps verified text/model records, estimates usage, and rejects tool/missing-terminal output", async () => {
+    const record = (payload_type: string, payload: object) => JSON.stringify({ schema_version: 1, payload_type, payload });
+    const runOutput = (extra: string[] = [], final = true) => [
+      record("run.model.configured", { kind: "run_model_configured", model_id: "muse-spark-1.3-contributor" }),
+      record("run.output.delta", { kind: "run_output_delta", text: '{"t":"end"}' }),
+      record("task.lifecycle.completed", { kind: "task_lifecycle", event: { kind: "completed", task_id: "t_1" } }),
+      ...extra,
+      ...(final ? [record("run.terminal.completed", { kind: "run_terminal", terminal: "completed", text: '{"t":"end"}' })] : []),
+    ];
+    const outputs = [
+      runOutput(),
+      runOutput([record("task.lifecycle.proposed", { kind: "task_lifecycle", event: { task_kind: "reminder.agent.verify-reminder" } })]),
+      runOutput(
+        [
+          record("task.lifecycle.proposed", { kind: "task_lifecycle", event: { task_kind: "tool.read_file" } }),
+          record("task.lifecycle.side_effect_intent", { kind: "task_lifecycle", event: { operation: "tool:read_file" } }),
+          record("run.terminal.failed", { kind: "run_terminal", terminal: "failed", reason: "model did not reach a terminal state within 1 step(s)" }),
+        ],
+        false,
+      ),
+      runOutput([], false),
+    ];
+    const auth = new Uint8Array([0, 255, 1, 2]);
+    const spawner = createFakeSpawner().script(
+      () => true,
+      (spec) => {
+        const root = spec.env.XDG_CONFIG_HOME ?? "";
+        expect(root).toStartWith(`${b.home}/run/muse/`);
+        expect(new TextDecoder().decode(b.fs.files.get(`${root}/muse/settings.json`))).toBe('{"schema_version":1,"run":{"toolset":[]}}');
+        expect(b.fs.files.get(`${root}/muse/auth.json`)).toEqual(auth);
+        return { stdout: outputs.shift() ?? [] };
+      },
+    );
+    const settings = testSettings({
+      engines: { generic: { enabled: true, argv: MUSE_ARGV, protocol: "muse-jsonl", pricing: { inPerMTok: 0.1, outPerMTok: 0.2, cacheReadPerMTok: 0.002 } } },
+    });
+    const b = createTestBridge({ spawner, settings: { engines: settings.engines } });
+    b.fs.files.set("/home/u/.config/muse/auth.json", auth);
+    const r = req({
+      engine: "generic",
+      model: "generic:muse-spark-1.3-contributor",
+      effort: "max",
+      mode: "generate",
+      promptBlocks: ["full context", "repair"],
+    });
+    delete r.jsonSchema;
+    const ok = await b.scheduler.submit(r, new AbortController().signal).result;
+    expect(ok.stop).toBe("end");
+    expect(ok.text).toBe('{"t":"end"}');
+    expect(ok.usage.out).toBe('{"t":"end"}'.length);
+    expect(ok.usage.apiUsd).toBeGreaterThan(0);
+    expect(ok.usageEstimated).toBe(true);
+    expect(b.ledger.rows[0]?.servedBy).toBe("generic:muse-spark-1.3-contributor");
+    const spawn = spawner.calls[0];
+    expect(b.fs.files.has(`${spawn?.env.XDG_CONFIG_HOME}/muse/auth.json`)).toBe(false);
+    expect(b.fs.files.has(`${spawn?.env.XDG_CONFIG_HOME}/muse/settings.json`)).toBe(false);
+    expect(b.fs.files.get("/home/u/.config/muse/auth.json")).toEqual(auth);
+    expect(spawn?.stdin).toBe("");
+    const promptPath = spawn?.argv[(spawn?.argv.indexOf("--prompt-file") ?? -1) + 1];
+    expect(promptPath).toStartWith(`${b.home}/run/sp/`);
+    expect(new TextDecoder().decode(b.fs.files.get(promptPath ?? ""))).toContain("full context\n\nrepair");
+    expect(new TextDecoder().decode(b.fs.files.get(promptPath ?? ""))).toStartWith("Text-only request: do not call tools");
+    const hooksPath = spawn?.env.TBH_MANAGED_HOOKS_PATH ?? "";
+    expect(new TextDecoder().decode(b.fs.files.get(hooksPath))).toBe('{"hooks":{}}');
+    const st = await b.engines.generic?.detect();
+    expect(st?.plan).toStartWith("generic:");
+    const tool = await b.scheduler.submit(r, new AbortController().signal).result;
+    expect(tool.error?.code).toBe("E_AGENT_PROTOCOL");
+    const read = await b.scheduler.submit(r, new AbortController().signal).result;
+    expect(read.error?.code).toBe("E_AGENT_PROTOCOL");
+    expect(read.error?.message).toContain("tool.read_file");
+    expect(read.error?.message).not.toContain("terminal state");
+    const missing = await b.scheduler.submit(r, new AbortController().signal).result;
+    expect(missing.error?.message).toContain("terminal record");
+    b.fs.files.set("/home/u/.config/muse/settings.json", new TextEncoder().encode('{"hooks":{"SessionStart":[{"command":"secret hook"}]}}'));
+    const blocked = await b.engines.generic?.detect();
+    expect(blocked?.installed).toBe(false);
+    expect(blocked?.problems).toEqual([{ code: "E_CFG_INVALID", message: "Muse hooks must be disabled before a text-only run" }]);
+    const rejected = await b.scheduler.submit(r, new AbortController().signal).result;
+    expect(rejected.error?.code).toBe("E_CFG_INVALID");
+    expect(spawner.calls).toHaveLength(4);
+    expect(new Set(spawner.calls.map((s) => s.env.XDG_CONFIG_HOME)).size).toBe(4);
+    expect([...b.fs.files.keys()].filter((p) => p.startsWith(`${b.home}/run/muse/`))).toEqual([]);
+    b.fs.files.delete("/home/u/.config/muse/settings.json");
+    const stat = b.fs.fs.stat;
+    b.fs.fs.stat = (path) => {
+      const value = stat(path);
+      return path === "/home/u/.config/muse/auth.json" && value ? { ...value, isSymlink: true } : value;
+    };
+    const unsafeAuth = await b.scheduler.submit(r, new AbortController().signal).result;
+    expect(unsafeAuth.error?.code).toBe("E_CFG_INVALID");
+    expect(spawner.calls).toHaveLength(4);
+    expect([...b.fs.files.keys()].filter((p) => p.startsWith(`${b.home}/run/muse/`))).toEqual([]);
+  });
+
+  test("Muse cleanup failure is reported before success and retains the completed call's usage", async () => {
+    const spawner = createFakeSpawner().script(() => true, {
+      stdout: [JSON.stringify({ payload_type: "run.terminal.completed", payload: { terminal: "completed", text: "OK" } })],
+    });
+    const b = createTestBridge({
+      spawner,
+      settings: {
+        engines: { generic: { enabled: true, argv: MUSE_ARGV, protocol: "muse-jsonl", pricing: { inPerMTok: 1, outPerMTok: 2, cacheReadPerMTok: 0 } } },
+      },
+    });
+    let attempts = 0;
+    b.fs.safeWrite.remove = async () => {
+      attempts++;
+      throw new Error("private credential path must not escape");
+    };
+    const request = req({ engine: "generic", model: "generic:muse-spark-1.3-contributor", effort: "max", mode: "generate" });
+    delete request.jsonSchema;
+    const result = await b.scheduler.submit(request, new AbortController().signal).result;
+    expect(result.stop).toBe("error");
+    expect(result.error).toEqual({ code: "E_AGENT_EXIT", message: "isolated Muse config cleanup failed", retryable: false });
+    expect(result.usage.in).toBeGreaterThan(0);
+    expect(result.usage.out).toBe(2);
+    expect(result.usage.apiUsd).toBeGreaterThan(0);
+    expect(b.ledger.rows).toHaveLength(1);
+    expect(b.ledger.rows[0]?.usage.apiUsd).toBe(result.usage.apiUsd);
+    expect(attempts).toBe(1);
   });
 });
