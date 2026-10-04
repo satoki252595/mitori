@@ -171,5 +171,7 @@ describe("SRV-AT-03 / PT-01 over HTTP", () => {
     } finally {
       worker.terminate();
     }
-  }, 30_000);
+    // 200 streams opened from one Worker plus 130 publishes: seconds when quiet, much longer under load (a missing event
+    // still fails: the Worker never reports `done`)
+  }, 180_000);
 });

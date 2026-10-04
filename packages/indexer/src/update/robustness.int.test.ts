@@ -1,6 +1,8 @@
 // Failure paths of persistence (IDX-D7: the write queue may fail; nothing may be lost or left poisoned) and state that
 // must survive a daemon restart (R03 include, spec §2.3).
 import { afterEach, describe, expect, test } from "bun:test";
+import { utimesSync } from "node:fs";
+import { join } from "node:path";
 import type { Logger, SqlDb } from "@mitori/core";
 import type { Indexer, IndexerDeps } from "../contract.ts";
 import { env, workerInit } from "../parse/test/env.ts";
@@ -153,8 +155,14 @@ describe("IDX-AT-15 a parse timeout is not a property of the blob", () => {
   test("a timed-out file is reused within the process but parsed again after a restart", async () => {
     // Big enough for tree-sitter to consult the progress callback (it does so every few thousand operations).
     const big = Array.from({ length: 400 }, (_, i) => `export function f${i}(x: number): number {\n  return x + ${i};\n}\n`).join("");
-    const repo = tempRepo({ "a.ts": big });
+    // the file is older than the index (git's "racily clean" window closed): a scan that lands in the same second as the
+    // commit would otherwise re-check it by content, which sometimes re-parsed it (1 run in ~15 on a loaded machine)
+    const repo = tempRepo({ "a.ts": big }, { git: false });
     cleanup.push(() => repo.dispose());
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(join(repo.root, "a.ts"), past, past);
+    repo.run("init", "-q", "-b", "main");
+    repo.commit("init");
     const db = memoryDb();
     migrate(db);
     // A clock that races makes every parse exceed its 250 ms budget (a loaded machine, in effect).
