@@ -1,9 +1,24 @@
 {
   "open": {
-    "ms": 696.5202089999999
+    "ms": 561.5863330000001
   },
-  "docArrivedMs": 161,
+  "docArrivedMs": 162,
+  "courseMs": 1667,
+  "fulltextFirstQueryMs": 10,
+  "fulltextJumpMs": 32,
+  "askIntentChips": [
+    "質問\n⌘1"
+  ],
+  "enHeaderOverlapDoc": 0,
+  "enHeaderOverlapMap": 0,
   "contextCaption": "repo Works with any AI coding tool that takes a prompt, such as Claude Code, Codex, Gemini CLI or Cursor: copy the prompt, p…",
+  "exportPreviewMs": 1287,
+  "exportFacts": "1.08 MB · コードの抜粋134箇所（37ファイル）を含みます · 秘密情報らしき文字列0件を伏せ字",
+  "exportFactsNoCode": "561 KB · コードは含みません · 秘密情報らしき文字列0件を伏せ字",
+  "exportDownload": {
+    "name": "m3e-canvas-mitori-2026-10-04.html",
+    "bytes": 537363
+  },
   "consoleErrors": [],
   "badResponses": []
 }
