@@ -15,6 +15,7 @@ import type {
   JobFailure,
   JobId,
   JobKind,
+  JobReq,
   JobState,
   PromptVersion,
   ProposalId,
@@ -44,6 +45,11 @@ export interface JobExtra {
   newFiles?: RepoPath[];
   /** Route note ("agent mode は claude-cli で実行"). */
   note?: string;
+  /**
+   * What the request added to the threads (context chips, mode / model / budget overrides): a re-plan for revise,
+   * retry or a repair after consent must see the same write scope (WP-08c: `@` chips widen it to other files).
+   */
+  req?: Pick<JobReq, "context" | "mode" | "model" | "budgetTokens">;
 }
 
 /** A stored job. */

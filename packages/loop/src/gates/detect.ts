@@ -1,4 +1,4 @@
-// Format-gate detection (spec §7.6.1, the `format` column; typecheck / test detectors are WP-08c). Nothing is
+// Format-gate detection (spec §7.6.1, the `format` column; the typecheck / test / lint detectors are in checks.ts). Nothing is
 // executed: the nearest manifest directory of each changed file becomes the gate `cwd`, binaries are repo-local
 // (`node_modules/.bin`, `.venv/bin`) or language toolchains on SAFE_PATH — never a download path (npx, bunx, dlx).
 // `executesRepoCode` is false only for the pure-formatter allowlist of ADR-0013 (gofmt, cargo fmt, ruff format,
@@ -11,14 +11,14 @@ export type DetectInput = Parameters<GateDetector["detect"]>[0];
 
 const FILES: GateArg = { var: "files" };
 
-const dirOf = (p: RepoPath): string => {
+export const dirOf = (p: RepoPath): string => {
   const i = p.lastIndexOf("/");
   return i < 0 ? "" : p.slice(0, i);
 };
-const join = (dir: string, name: string): RepoPath => (dir === "" ? name : `${dir}/${name}`);
+export const join = (dir: string, name: string): RepoPath => (dir === "" ? name : `${dir}/${name}`);
 
 /** Ancestors of a directory, nearest first, ending with the root `""`. */
-function ancestors(dir: string): string[] {
+export function ancestors(dir: string): string[] {
   const out: string[] = [];
   let d = dir;
   for (;;) {
@@ -29,7 +29,7 @@ function ancestors(dir: string): string[] {
 }
 
 /** Groups changed files by the nearest directory containing one of `manifests`. */
-function byManifest(input: DetectInput, manifests: readonly string[], exts: RegExp): Map<string, RepoPath[]> {
+export function byManifest(input: DetectInput, manifests: readonly string[], exts: RegExp): Map<string, RepoPath[]> {
   const present = new Set(input.files.map((f) => f.path));
   const out = new Map<string, RepoPath[]>();
   for (const path of input.changed) {
@@ -42,7 +42,7 @@ function byManifest(input: DetectInput, manifests: readonly string[], exts: RegE
 }
 
 /** `!<dir>/**` for every manifest directory strictly below `cwd` (those files belong to their own gate). */
-function nested(input: DetectInput, manifests: readonly string[], cwd: string): string[] {
+export function nested(input: DetectInput, manifests: readonly string[], cwd: string): string[] {
   const dirs = new Set<string>();
   for (const f of input.files) {
     const name = f.path.slice(f.path.lastIndexOf("/") + 1);
@@ -54,7 +54,7 @@ function nested(input: DetectInput, manifests: readonly string[], cwd: string): 
 }
 
 /** First config file of `names` found in `dir` or its ancestors (text + path). */
-function nearestConfig(input: DetectInput, dir: string, names: readonly string[]): { path: RepoPath; text: string } | null {
+export function nearestConfig(input: DetectInput, dir: string, names: readonly string[]): { path: RepoPath; text: string } | null {
   for (const d of ancestors(dir)) {
     for (const n of names) {
       const path = join(d, n);
@@ -76,12 +76,12 @@ export interface DetectEnv {
 }
 
 /** A tool on SAFE_PATH: the bare name (resolved by the spawner at run time, so a toolchain update keeps trust). */
-function onPath(env: DetectEnv, input: DetectInput, name: string): string | null {
+export function onPath(env: DetectEnv, input: DetectInput, name: string): string | null {
   return env.pathDirs.some((d) => d !== "" && input.binaryExists(`${d}/${name}`)) ? name : null;
 }
 
 /** A repo-local binary under `dir` or the root: its repo-relative path. */
-function repoLocal(env: DetectEnv, input: DetectInput, dir: string, rel: string): RepoPath | null {
+export function repoLocal(env: DetectEnv, input: DetectInput, dir: string, rel: string): RepoPath | null {
   for (const d of [dir, ""]) {
     const p = join(d, rel);
     if (input.binaryExists(`${env.root}/${p}`)) return p;

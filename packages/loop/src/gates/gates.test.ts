@@ -133,6 +133,16 @@ describe("ADR-0013 sandbox wrapping", () => {
     expect(sandboxed("sandbox-exec", paths, "/x", ["gofmt", "-w"]).slice(0, 2)).toEqual(["/usr/bin/sandbox-exec", "-p"]);
     expect(sandboxed("none", paths, "/x", ["gofmt"])).toEqual(["gofmt"]);
   });
+  test("WP-08c: the tree's own .git pointer stays read-only inside the sandbox (after the tree's write allowance)", () => {
+    const p = seatbeltProfile(paths);
+    const deny = '(deny file-write* (subpath "/m/repos/ws/tmp/j/tree/.git"))';
+    expect(p).toContain(deny);
+    expect(p.indexOf(deny)).toBeGreaterThan(p.indexOf("(allow file-write*"));
+    const a = sandboxed("bwrap", paths, "/m/repos/ws/tmp/j/tree", ["go", "test"]).join(" ");
+    expect(a.indexOf("--ro-bind /m/repos/ws/tmp/j/tree/.git /m/repos/ws/tmp/j/tree/.git")).toBeGreaterThan(
+      a.indexOf("--bind /m/repos/ws/tmp/j/tree /m/repos/ws/tmp/j/tree"),
+    );
+  });
   test("Linux: bwrap without network, hidden secrets, bound writable dirs", () => {
     const a = sandboxed("bwrap", paths, "/m/repos/ws/tmp/j/tree", ["gofmt", "-w", "--", "a.go"]);
     expect(a).toContain("--unshare-net");

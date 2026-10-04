@@ -1,6 +1,7 @@
 // The job pipelines (spec §8): answer / findings (§8.1, §8.4) and patch (§8.2: lock → snapshot ‖ spawn → structured
-// output → apply → in-memory head → scope → format gates on temp copies → ready). Revise continues a parked process
-// with the human's message (spec §6.6.3) or re-plans cold. Every state change goes through `core.update`.
+// output → apply → in-memory head → scope → gates (format on temp copies, checks in a lazy worktree) → repair loop
+// (§7.7) → ready). Revise is a repair turn with the human's message (spec §6.6.3: continuation → resume → cold).
+// Agent mode (§8.3) is in ../agent/. Every state change goes through `core.update`.
 import type { EngineResult, EngineSession } from "@mitori/agent";
 import {
   type BlockId,
@@ -9,26 +10,27 @@ import {
   type GateResult,
   type GateSpec,
   type GateVerdict,
+  GIT_REFS,
   type GitOid,
   type HunkId,
   type JobId,
   MitoriError,
-  newId,
   type ProposalId,
   type RepoPath,
   type ThreadId,
   type ThreadOutcome,
-  type TrustRequest,
 } from "@mitori/core";
 import { CONTRACT_LIMITS, type ParsedPatch } from "../contract.ts";
 import { applyEditsToText, parseContract } from "../contracts/index.ts";
-import { runOnCopies } from "../gates/copies.ts";
-import { supportFiles } from "../gates/detect.ts";
+import { gatePatchTree, treeTexts } from "../gates/job.ts";
 import { scopeFailure } from "../git/scope.ts";
+import { failingGate, failureRanges, failureText, type HeadRange, hunkRanges } from "../repair/ranges.ts";
+import { plainRequest, remainingUsd, repairInTokens, repairTurn } from "../repair/turn.ts";
 import { isSensitiveJob } from "../router/index.ts";
 import { type RunnerCore, Stop } from "./core.ts";
 import { addUsage, consume, engineRequest } from "./engine.ts";
 import { docContext, type JobPlan } from "./plan.ts";
+import type { JobRecord } from "./store.ts";
 
 const dec = new TextDecoder();
 
@@ -56,7 +58,7 @@ export function citeLinks(md: string): string {
   );
 }
 
-const checkText = (errors: readonly CheckError[]) =>
+export const checkText = (errors: readonly CheckError[]) =>
   errors
     .slice(0, 10)
     .map((e) => `${e.at}: expected ${e.expected}, got ${e.actual}`)
@@ -64,7 +66,7 @@ const checkText = (errors: readonly CheckError[]) =>
 
 /* ---- engine turns ------------------------------------------------------------------------------------------ */
 
-async function record(core: RunnerCore, id: JobId, r: EngineResult, startedAt: number): Promise<void> {
+export async function record(core: RunnerCore, id: JobId, r: EngineResult, startedAt: number): Promise<void> {
   await core.update(
     id,
     "job.usage",
@@ -79,7 +81,7 @@ async function record(core: RunnerCore, id: JobId, r: EngineResult, startedAt: n
 }
 
 /** Start: threads → running, `preparing` (+ the job's locks when it writes). */
-async function start(core: RunnerCore, id: JobId, signal: AbortSignal): Promise<void> {
+export async function start(core: RunnerCore, id: JobId, signal: AbortSignal): Promise<void> {
   const rec = core.get(id);
   await core.lock(id, rec.job.writeScope, signal);
   await core.update(
@@ -213,7 +215,7 @@ async function parsePatchTurn(
       throw new MitoriError("E_SCOPE_VIOLATION", `the engine named a file outside the write scope: ${checkText(parsed.error.errors)}`, {
         params: { actions: "narrow_scope" },
       });
-    if (attempt >= CONTRACT_LIMITS.invalidOutputRetries || !live)
+    if (attempt >= CONTRACT_LIMITS.invalidOutputRetries || !live?.parked())
       throw new MitoriError("E_AGENT_PROTOCOL", `invalid patch/1 output: ${checkText(parsed.error.errors)}`);
     const msg = await core.deps.bundles.repair({
       job: core.get(id).job,
@@ -222,7 +224,7 @@ async function parsePatchTurn(
       ranges: plan.scope.ranges,
     });
     const began = core.deps.clock.now();
-    const run = core.deps.scheduler.continueSession(live, msg.text, continueReq(core, id, plan), signal);
+    const run = core.deps.scheduler.continueSession(live, msg.text, continueReq(core, id, plan, msg.text), signal);
     result = await consume(run, (e) => core.emit(id, e), { text: false });
     await record(core, id, result, began);
     if (result.stop !== "end") throw engineError(result);
@@ -230,55 +232,15 @@ async function parsePatchTurn(
   }
 }
 
-function continueReq(core: RunnerCore, id: JobId, plan: JobPlan) {
+function continueReq(core: RunnerCore, id: JobId, plan: JobPlan, message: string) {
   return {
     lane: "interactive" as const,
     ws: core.deps.ws.key,
     scope: { kind: "job" as const, id },
     estimate: { in: plan.estimate.inTokens, out: plan.estimate.outTokens },
-    budget: { usd: plan.budget.usd, inTokens: Math.max(plan.budget.in * 2, 4000), outTokens: plan.budget.out, ms: 180_000 },
+    budget: { usd: Math.max(0.0001, remainingUsd(core, id, plan)), inTokens: repairInTokens(core, id, plan, message), outTokens: plan.budget.out, ms: 180_000 },
     ref: id,
   };
-}
-
-/** patch/1 jobs, first attempt (or a cold revise / retry: a fresh snapshot and plan). */
-export async function runPatch(core: RunnerCore, id: JobId, plan: JobPlan, signal: AbortSignal): Promise<void> {
-  await start(core, id, signal);
-  core.phase(id, "snapshot");
-  core.phase(id, "spawn");
-  const began = core.deps.clock.now();
-  const run = core.deps.scheduler.submit(engineRequest(plan, id, requestCtx(core)), signal);
-  const snap = core.deps.git.snapshot(core.deps.settings().denyGlobs);
-  snap.catch(() => {}); // awaited below; never an unhandled rejection while the engine runs
-  await core.update(id, "job.running", (r) => core.setState(r, "running"), { pipeline: true });
-  core.phase(id, "think");
-  const result = await consume(run, (e) => core.emit(id, e), { text: false });
-  await record(core, id, result, began);
-  if (result.stop !== "end") throw engineError(result);
-  const s = await snap;
-  await core.update(
-    id,
-    "job.base",
-    (r) => {
-      r.baseCommit = s.commit;
-    },
-    { pipeline: true },
-  );
-  const { parsed, session } = await parsePatchTurn(core, id, plan, result, run.session ?? null, signal);
-  if (session) core.parking.park(id, session);
-  const texts = async (paths: readonly RepoPath[]) => {
-    const entries = new Map((await core.deps.git.ws.lsTree(s.commit, paths)).map((e) => [e.path, e.oid]));
-    const current: Record<RepoPath, string> = {};
-    const currentBlob: Record<RepoPath, GitOid> = {};
-    for (const p of paths) {
-      const oid = entries.get(p);
-      if (!oid) continue;
-      current[p] = await core.deps.git.blobText(oid);
-      currentBlob[p] = oid;
-    }
-    return { current, currentBlob, unchanged: {} as Record<RepoPath, string> };
-  };
-  await applyAndFinish(core, id, plan, s.commit, parsed, texts, async (p) => bundleText(core, plan.bundle.blobs[p]), signal);
 }
 
 /** Text of a blob the bundle showed (the indexer pins dirty blobs; committed ones come through alternates). */
@@ -293,38 +255,179 @@ type Texts = (
   paths: readonly RepoPath[],
 ) => Promise<{ current: Record<RepoPath, string>; currentBlob: Record<RepoPath, GitOid>; unchanged: Record<RepoPath, string> }>;
 
+/** One parsed patch turn and what its edits were written against. */
+interface PatchTurn {
+  parsed: ParsedPatch;
+  /** The first turn of an attempt (no earlier edits of this attempt exist). */
+  fresh?: boolean;
+  /** The parked process after the turn. */
+  session: EngineSession | null;
+  /** Current texts the edits apply to (S on the first attempt, the job head on a repair / revise). */
+  texts: Texts;
+  /** Blob the engine was shown per path, and its text (first_line / lineMap reference). */
+  blobOf(p: RepoPath): GitOid | undefined;
+  shown(p: RepoPath): Promise<string | null>;
+}
+
+/** The S texts of a first attempt (the snapshot commit). */
+function snapshotTexts(core: RunnerCore, commit: GitOid): Texts {
+  return async (paths) => {
+    const entries = new Map((await core.deps.git.ws.lsTree(commit, paths)).map((e) => [e.path, e.oid]));
+    const current: Record<RepoPath, string> = {};
+    const currentBlob: Record<RepoPath, GitOid> = {};
+    for (const p of paths) {
+      const oid = entries.get(p);
+      if (!oid) continue;
+      current[p] = await core.deps.git.blobText(oid);
+      currentBlob[p] = oid;
+    }
+    return { current, currentBlob, unchanged: {} as Record<RepoPath, string> };
+  };
+}
+
+/** The job head's texts (a repair / revise turn's edits address the head; other changed files keep their head text). */
+async function headTexts(core: RunnerCore, id: JobId): Promise<Texts> {
+  const { base, head } = await core.deps.git.commits(id);
+  const changed: Record<RepoPath, string> = {};
+  for (const c of await core.deps.git.ws.rawDiff(base, head)) if (c.newOid) changed[c.path] = dec.decode(await core.deps.git.ws.blob(c.newOid));
+  return async (paths) => {
+    const current: Record<RepoPath, string> = {};
+    const currentBlob: Record<RepoPath, GitOid> = {};
+    const entries = new Map((await core.deps.git.ws.lsTree(head, paths)).map((e) => [e.path, e.oid]));
+    for (const p of paths) {
+      const oid = entries.get(p);
+      if (!oid) continue;
+      current[p] = changed[p] ?? (await core.deps.git.blobText(oid));
+      currentBlob[p] = oid;
+    }
+    const unchanged: Record<RepoPath, string> = {};
+    for (const [p, text] of Object.entries(changed)) if (!paths.includes(p)) unchanged[p] = text;
+    return { current, currentBlob, unchanged };
+  };
+}
+
+/** patch/1 jobs, first attempt (or a retry: a fresh snapshot and plan). */
+export async function runPatch(core: RunnerCore, id: JobId, plan: JobPlan, signal: AbortSignal): Promise<void> {
+  await start(core, id, signal);
+  core.phase(id, "snapshot");
+  core.phase(id, "spawn");
+  const began = core.deps.clock.now();
+  const run = core.deps.scheduler.submit(engineRequest(plan, id, requestCtx(core)), signal);
+  const snap = core.deps.git.snapshot(core.deps.settings().denyGlobs);
+  snap.catch(() => {}); // awaited below; never an unhandled rejection while the engine runs
+  await core.update(id, "job.running", (r) => core.setState(r, "running"), { pipeline: true });
+  core.phase(id, "think");
+  const result = await consume(run, (e) => core.emit(id, e), { text: false });
+  await record(core, id, result, began);
+  if (result.stop !== "end") throw engineError(result);
+  const s = await snap;
+  // the base ref exists from here on (a REPAIR turn before the first head reads the job's files through it)
+  await core.deps.git.ws.updateRef(GIT_REFS.jobBase(id), s.commit);
+  // and no head yet: a retry of this job must not see the head of its failed attempt (REPAIR CODE, the no-edit check)
+  await core.deps.git.ws.updateRef(GIT_REFS.jobHead(id), s.commit);
+  await core.update(
+    id,
+    "job.base",
+    (r) => {
+      r.baseCommit = s.commit;
+    },
+    { pipeline: true },
+  );
+  const { parsed, session } = await parsePatchTurn(core, id, plan, result, run.session ?? null, signal);
+  await patchAttempts(
+    core,
+    id,
+    plan,
+    s.commit,
+    {
+      parsed,
+      session,
+      fresh: true,
+      texts: snapshotTexts(core, s.commit),
+      blobOf: (p) => plan.bundle.blobs[p],
+      shown: (p) => bundleText(core, plan.bundle.blobs[p]),
+    },
+    signal,
+  );
+}
+
+/** A turn's outcome: the edits did not apply / the gates failed. Feeds the next REPAIR (spec §7.7). */
+type Retry = { kind: "apply" | "gate"; excerpt: string; ranges: HeadRange[]; gates?: GateResult[] };
+/** A failing gate as the input of a REPAIR turn. */
+export type GateRetry = Retry & { kind: "gate" };
+
 /**
- * apply → head → scope → gates → ready (or done when the turn had no edits). `texts` gives the text the edits apply
- * to (S for a first attempt, the job head for a continuation) plus already-changed files that must stay in the head.
+ * apply → head → scope → gates → ready (or done when the turn had no edits), with the repair loop of spec §7.7: a
+ * failing gate gets ≤ `limits.repairMaxAttempts` REPAIR turns, an apply failure (E_PATCH_RANGE / E_PATCH_APPLY) one;
+ * after that the job fails with the reason the router escalates on (`gates_failed_twice` / `patch_apply_failed`).
  */
-async function applyAndFinish(
-  core: RunnerCore,
-  id: JobId,
-  plan: JobPlan,
-  base: GitOid,
-  parsed: ParsedPatch,
-  texts: Texts,
-  shown: (p: RepoPath) => Promise<string | null>,
-  signal: AbortSignal,
-): Promise<void> {
+async function patchAttempts(core: RunnerCore, id: JobId, plan: JobPlan, base: GitOid, first: PatchTurn, signal: AbortSignal): Promise<void> {
+  const max = core.deps.settings().global.limits.repairMaxAttempts;
+  let cur = first;
+  let gateRepairs = 0;
+  let applyRepairs = 0;
+  for (;;) {
+    if (cur.session) core.parking.park(id, cur.session);
+    const retry = await patchAttempt(core, id, plan, base, cur, signal);
+    if (retry === null) return;
+    const used = retry.kind === "gate" ? gateRepairs : applyRepairs;
+    const allowed = retry.kind === "gate" ? max : Math.min(1, max);
+    const left = remainingUsd(core, id, plan);
+    if (used >= allowed || left < REPAIR_MIN_USD) {
+      const why = left < REPAIR_MIN_USD ? " (the job budget is spent)" : "";
+      if (retry.kind === "gate")
+        throw new MitoriError(
+          "E_GATE_FAILED",
+          `the gates still fail after ${used} repair turn(s)${why}: ${retry.excerpt.split("\n")[0]?.slice(0, 200) ?? ""}`,
+          {
+            params: { actions: "escalate,retry,copy_prompt" },
+          },
+        );
+      throw new MitoriError("E_PATCH_APPLY", `the edits still do not apply after ${used} repair turn(s)${why}: ${retry.excerpt.slice(0, 200)}`, {
+        params: { actions: "escalate,retry,copy_prompt" },
+      });
+    }
+    if (retry.kind === "gate") gateRepairs++;
+    else applyRepairs++;
+    cur = await repairPatchTurn(core, id, plan, retry, signal);
+  }
+}
+
+/** Least USD left in a job's budget for another repair turn (a continuation costs ≈ $0.0003–0.005, spec §6.6.3). */
+const REPAIR_MIN_USD = 0.002;
+
+/** One attempt; null when the job reached `ready` / `done`, else what the next REPAIR turn must fix. */
+async function patchAttempt(core: RunnerCore, id: JobId, plan: JobPlan, base: GitOid, cur: PatchTurn, signal: AbortSignal): Promise<Retry | null> {
+  const parsed = cur.parsed;
   if (parsed.core.needsMoreContext && parsed.core.needsMoreContext.length > 0) {
-    // escalation to agent mode with these hints is WP-08c (spec §3.5)
+    // spec §3.5: the patch bundle was not enough — the router escalates to agent mode (R2, `needs_more_context`)
     throw new MitoriError("E_PRECONDITION", `the engine needs more context: ${parsed.core.needsMoreContext.join(", ")}`, {
-      params: { actions: "escalate,copy_prompt,narrow_scope" },
+      params: { reason: "needs_more_context", actions: "escalate,copy_prompt,narrow_scope" },
     });
   }
   if (parsed.edits.length === 0) {
-    await finishOutcomes(core, id, plan, parsed, null);
-    return;
+    // a first turn that only answers: done
+    if (cur.fresh) {
+      await finishOutcomes(core, id, plan, parsed, null);
+      return null;
+    }
+    const { head } = await core.deps.git.commits(id).catch(() => ({ head: base }));
+    // a REPAIR of edits that never applied, with no edits: nothing to check
+    if (head === base) throw new MitoriError("E_PATCH_APPLY", "the repair turn returned no edits", { params: { actions: "escalate,retry,copy_prompt" } });
+    // a repair / revise turn without new edits: the head's edits stand and are checked again as they are
+    await core.update(id, "job.gating", (r) => core.setState(r, "gating"), { pipeline: true });
+    const files: Record<RepoPath, string> = {};
+    for (const [p, text] of Object.entries(await treeTexts(core, base, head))) if (text !== null) files[p] = text;
+    return gateAndFinish(core, id, plan, base, parsed, files, head, signal);
   }
   await core.update(id, "job.gating", (r) => core.setState(r, "gating"), { pipeline: true });
   core.phase(id, "apply");
   const paths = [...new Set(parsed.edits.map((e) => e.path))].sort();
-  const t = await texts(paths);
+  const t = await cur.texts(paths);
   const bundleTexts: Record<RepoPath, { blob: GitOid; text: string }> = {};
   for (const p of paths) {
-    const blob = plan.bundle.blobs[p];
-    const text = await shown(p);
+    const blob = cur.blobOf(p);
+    const text = await cur.shown(p);
     if (blob && text !== null) bundleTexts[p] = { blob, text };
   }
   const applied = applyEditsToText(
@@ -341,41 +444,107 @@ async function applyAndFinish(
   );
   if (!applied.ok) {
     const first = applied.problems[0];
-    throw new MitoriError(
-      first?.code ?? "E_PATCH_APPLY",
-      applied.problems
-        .map((p) => p.message)
-        .join("; ")
-        .slice(0, 500),
-      { params: { problems: applied.problems.length } },
-    );
+    const text = applied.problems
+      .map((p) => p.message)
+      .join("\n")
+      .slice(0, 2000);
+    // a scope / deny problem is never repaired (an injection signal, spec §3.5)
+    if (first && (first.code === "E_SCOPE_VIOLATION" || first.code === "E_DENY_GLOB"))
+      throw new MitoriError(first.code, text.slice(0, 500), { params: { problems: applied.problems.length } });
+    const ranges = paths.flatMap((p) => plan.scope.ranges.filter((r) => r.path === p));
+    return { kind: "apply", excerpt: text, ranges: ranges.length > 0 ? ranges : paths.map((p) => ({ path: p, start: 1, end: 40 })) };
   }
   core.phase(id, "scope");
-  let files: Record<RepoPath, string> = { ...t.unchanged, ...applied.files };
-  let head = await core.deps.git.buildTree(id, base, files);
+  const files: Record<RepoPath, string> = { ...t.unchanged, ...applied.files };
+  const head = await core.deps.git.buildTree(id, base, files);
   await checkScopeOrFail(core, id, plan);
+  return gateAndFinish(core, id, plan, base, parsed, files, head, signal);
+}
 
+/** Gates of an applied head; a failure becomes the next REPAIR's input, else the job is ready. */
+async function gateAndFinish(
+  core: RunnerCore,
+  id: JobId,
+  plan: JobPlan,
+  base: GitOid,
+  parsed: ParsedPatch,
+  applied: Record<RepoPath, string>,
+  first: GitOid,
+  signal: AbortSignal,
+): Promise<Retry | null> {
+  let files = applied;
+  let head = first;
   core.phase(id, "gate");
-  const g = await gateHead(
-    core,
-    id,
-    plan.gates.map((x) => x.spec),
-    files,
-    head,
-    { consent: false },
-    signal,
-  );
+  const specs = plan.gates.map((x) => x.spec);
+  const g = await gatePatchTree(core, id, specs, base, files, head, { consent: false }, signal);
   if (Object.keys(g.formatted).length > 0) {
     files = { ...files, ...g.formatted };
     head = await core.deps.git.buildTree(id, base, files);
     await checkScopeOrFail(core, id, plan);
   }
+  const verdict = verdictOf(g.results, specs.length > 0);
+  const bad = failingGate(g.results);
+  if (verdict === "failed" && bad) {
+    const diff = await core.deps.git.diff(id);
+    const ranges = [...hunkRanges(diff), ...failureRanges(bad.excerpt ?? "", plan.scope.writeScope)];
+    return { kind: "gate", excerpt: failureText(bad), ranges, gates: g.results };
+  }
   const tree = (await core.deps.git.ws.rev(`${head}^{tree}`)) ?? undefined;
-  await finishOutcomes(core, id, plan, parsed, { gates: g.results, verdict: verdictOf(g.results, plan.gates.length > 0), tree, head });
+  await finishOutcomes(core, id, plan, parsed, { gates: g.results, verdict, tree, head });
+  return null;
 }
 
-async function checkScopeOrFail(core: RunnerCore, id: JobId, plan: JobPlan): Promise<void> {
-  const report = await core.deps.git.checkScope(id, plan.scope.writeScope, core.deps.settings().denyGlobs);
+/** The REPAIR turn of a patch job (continuation → resume → cold), parsed, against the current head. */
+async function repairPatchTurn(core: RunnerCore, id: JobId, plan: JobPlan, retry: Retry, signal: AbortSignal): Promise<PatchTurn> {
+  const saved = await core.update(
+    id,
+    "job.repairing",
+    (r) => {
+      core.setState(r, "repairing");
+      if (retry.gates) {
+        r.job.gates = retry.gates;
+        r.job.gateVerdict = "failed";
+        core.store.putGates(id, r.job.attempt, retry.gates);
+      }
+      r.job.attempt += 1;
+    },
+    { pipeline: true },
+  );
+  core.phase(id, "repair", retry.kind === "gate" ? (failingGate(retry.gates ?? [])?.gate ?? "gate") : "apply");
+  // the GATE header counts repairs (`attempt=1/2` for the first), the job counts attempts (the first one included)
+  const msg = await core.deps.bundles.repair({
+    job: { ...saved.job, attempt: saved.job.attempt - 1 },
+    kind: retry.kind,
+    excerpt: retry.excerpt,
+    ranges: retry.ranges,
+  });
+  const turn = await repairTurn({
+    core,
+    id,
+    plan,
+    session: core.parking.take(id),
+    message: msg.text,
+    cwd: `${core.deps.home}/run/empty`,
+    request: plainRequest(core, id, plan),
+    signal,
+  });
+  if (turn.result.stop !== "end") throw engineError(turn.result);
+  core.emit(id, { t: "phase", phase: "think", detail: `repair via ${turn.path}`, at: core.deps.clock.now() });
+  const { parsed, session } = await parsePatchTurn(core, id, plan, turn.result, turn.session, signal);
+  return {
+    parsed,
+    session,
+    texts: await headTexts(core, id),
+    blobOf: (p) => msg.blobs[p] ?? plan.bundle.blobs[p],
+    shown: async (p) => {
+      const blob = msg.blobs[p];
+      return blob ? core.deps.git.blobText(blob).catch(() => null) : bundleText(core, plan.bundle.blobs[p]);
+    },
+  };
+}
+
+async function checkScopeOrFail(core: RunnerCore, id: JobId, plan: { scope: { writeScope: readonly RepoPath[] } }): Promise<void> {
+  const report = await core.deps.git.checkScope(id, [...plan.scope.writeScope], core.deps.settings().denyGlobs);
   const code = scopeFailure(report);
   if (code === null) return;
   const what = [
@@ -387,9 +556,13 @@ async function checkScopeOrFail(core: RunnerCore, id: JobId, plan: JobPlan): Pro
   throw new MitoriError(code, `scope check failed — ${what.slice(0, 5).join(", ")}`, { params: { files: [...report.outside, ...report.denied].join(",") } });
 }
 
+export { checkScopeOrFail };
+
 /**
- * Format gates on temp copies of the changed files of `files` (the head texts). Untrusted gates are not run
- * (`untrusted` + one `trust.request`); trusted ones need consent only when they execute repo code without a sandbox.
+ * Gates of a patch-mode tree (`files` = the head texts of the changed paths): format on temp copies, checks in the
+ * job worktree (gates/job.ts). Untrusted gates are not run (`untrusted` + one `trust.request`); trusted ones need
+ * consent only when they execute repo code without a sandbox. Used for the head, H′ of a partial accept and the
+ * consent run.
  */
 export async function gateHead(
   core: RunnerCore,
@@ -400,58 +573,22 @@ export async function gateHead(
   opts: { consent: boolean; only?: readonly string[] },
   signal: AbortSignal,
 ): Promise<{ results: GateResult[]; formatted: Record<RepoPath, string> }> {
-  const results: GateResult[] = [];
-  const runnable: GateSpec[] = [];
-  for (const spec of specs) {
-    if (opts.only && !opts.only.includes(spec.id)) continue;
-    const trust = core.deps.trust("gates", spec.trustHash);
-    if (trust === "trusted") runnable.push(spec);
-    else {
-      results.push({ gate: spec.id, status: "untrusted", ms: 0 });
-      if (!core.asked.has(spec.trustHash)) {
-        core.asked.add(spec.trustHash);
-        core.deps.events.emit({
-          type: "trust.request",
-          request: {
-            id: newId("trust", core.deps.random) as TrustRequest["id"],
-            item: "gates",
-            hash: spec.trustHash,
-            preview: `${spec.id} (cwd ${spec.cwd || "."}): ${spec.argvTemplate.map((a) => (typeof a === "string" ? a : `{${a.var}}`)).join(" ")}`,
-            status: trust === "denied" ? "denied" : "pending",
-          },
-        });
-      }
-    }
-  }
-  if (runnable.length === 0) return { results, formatted: {} };
-  const tree = await core.deps.git.ws.lsTree(head);
-  const allPaths = tree.map((e) => e.path);
-  const oid = new Map(tree.map((e) => [e.path, e.oid]));
-  const support: Record<RepoPath, string> = {};
-  for (const spec of runnable) {
-    for (const p of supportFiles(spec, allPaths)) {
-      const o = oid.get(p);
-      if (o && !(p in files)) support[p] = await core.deps.git.blobText(o);
-    }
-  }
-  const out = await runOnCopies(
-    { runner: core.deps.gates, safeWrite: core.deps.safeWrite, fs: core.deps.fs, home: core.deps.home, ws: core.deps.ws.key },
-    id,
-    runnable,
-    files,
-    support,
-    { consent: opts.consent, sandbox: core.deps.sandbox },
-    signal,
-  );
-  return { results: [...results, ...out.results].sort((a, b) => (a.gate < b.gate ? -1 : 1)), formatted: out.files };
+  const { base } = await core.deps.git.commits(id);
+  return gatePatchTree(core, id, specs, base, files, head, opts, signal);
 }
 
+/** What a turn reports besides edits (patch/1 and agent/1 alike). */
+export type TurnOutcome = Pick<ParsedPatch, "docUpdates" | "threads"> & { core: { summary: string } };
+
+/** What finishing a job reads of its plan (an external patch has no engine plan, only these). */
+export type FinishPlan = { route: Pick<JobPlan["route"], "engine">; threads: JobPlan["threads"]; gates: JobPlan["gates"] };
+
 /** Thread outcomes, doc proposals, diff and gates ⇒ `ready` (with edits) or `done` (answers only). */
-async function finishOutcomes(
+export async function finishOutcomes(
   core: RunnerCore,
   id: JobId,
-  plan: JobPlan,
-  parsed: ParsedPatch,
+  plan: FinishPlan,
+  parsed: TurnOutcome,
   gated: { gates: GateResult[]; verdict: GateVerdict; tree: GitOid | undefined; head: GitOid } | null,
 ): Promise<void> {
   const diff: FileDiff[] = gated ? await core.deps.git.diff(id) : [];
@@ -511,7 +648,7 @@ async function finishOutcomes(
 }
 
 /** Doc proposals of a ready job (spec §9.1): model doc_updates, and a doc_edit thread's own target text. Inside the slot. */
-function propose(core: RunnerCore, id: JobId, plan: JobPlan, parsed: ParsedPatch): ProposalId[] {
+function propose(core: RunnerCore, id: JobId, plan: FinishPlan, parsed: TurnOutcome): ProposalId[] {
   const out: ProposalId[] = [];
   const targets = new Map<BlockId, string>();
   for (const t of plan.threads) {
@@ -543,53 +680,93 @@ function propose(core: RunnerCore, id: JobId, plan: JobPlan, parsed: ParsedPatch
 
 /* ---- revise (spec §6.6.3, T14) ------------------------------------------------------------------------------ */
 
-/** A new attempt on a parked process: the human's message as ASK, edits against the job head. */
-export async function runRevision(core: RunnerCore, id: JobId, plan: JobPlan, session: EngineSession, message: string, signal: AbortSignal): Promise<void> {
+/**
+ * A new attempt after the human's Request changes: the message as ASK with the head's CODE, on the best repair path
+ * (continuation of the parked process → resume → cold with the original bundle), edits against the job head — then
+ * the same apply / gate / repair loop as a first attempt.
+ */
+export async function runRevision(
+  core: RunnerCore,
+  id: JobId,
+  plan: JobPlan,
+  session: EngineSession | null,
+  message: string,
+  signal: AbortSignal,
+): Promise<void> {
   await start(core, id, signal);
   const rec = core.get(id);
-  const { base, head } = await core.deps.git.commits(id);
-  const changed = await core.deps.git.ws.rawDiff(base, head);
-  const ranges = [...plan.scope.ranges];
-  for (const d of rec.extra.diff ?? [])
-    for (const h of d.hunks) ranges.push({ path: d.path, start: Math.max(1, h.newStart), end: Math.max(h.newStart, h.newStart + h.newLines - 1) });
+  const { base } = await core.deps.git.commits(id);
+  const ranges = [...plan.scope.ranges, ...hunkRanges(rec.extra.diff ?? [])];
   const msg = await core.deps.bundles.repair({ job: rec.job, kind: "revise", excerpt: "", humanMessage: message, ranges });
   core.phase(id, "spawn");
-  const began = core.deps.clock.now();
-  const run = core.deps.scheduler.continueSession(session, msg.text, continueReq(core, id, plan), signal);
   await core.update(id, "job.running", (r) => core.setState(r, "running"), { pipeline: true });
   core.phase(id, "think");
-  const result = await consume(run, (e) => core.emit(id, e), { text: false });
-  await record(core, id, result, began);
-  if (result.stop !== "end") throw engineError(result);
-  const { parsed, session: next } = await parsePatchTurn(core, id, plan, result, run.session ?? session, signal);
-  if (next) core.parking.park(id, next);
-  // the edits address the head as shown in the REPAIR message; every other changed file keeps its head text
-  const headTexts: Record<RepoPath, string> = {};
-  const headBlobs: Record<RepoPath, GitOid> = {};
-  for (const c of changed) {
-    if (!c.newOid) continue;
-    headTexts[c.path] = dec.decode(await core.deps.git.ws.blob(c.newOid));
-    headBlobs[c.path] = c.newOid;
-  }
-  const texts: Texts = async (paths) => {
-    const current: Record<RepoPath, string> = {};
-    const currentBlob: Record<RepoPath, GitOid> = {};
-    const entries = new Map((await core.deps.git.ws.lsTree(head, paths)).map((e) => [e.path, e.oid]));
-    for (const p of paths) {
-      const oid = entries.get(p);
-      if (!oid) continue;
-      current[p] = headTexts[p] ?? (await core.deps.git.blobText(oid));
-      currentBlob[p] = oid;
-    }
-    const unchanged: Record<RepoPath, string> = {};
-    for (const [p, text] of Object.entries(headTexts)) if (!paths.includes(p)) unchanged[p] = text;
-    return { current, currentBlob, unchanged };
+  const turn = await repairTurn({
+    core,
+    id,
+    plan,
+    session,
+    message: msg.text,
+    cwd: `${core.deps.home}/run/empty`,
+    request: plainRequest(core, id, plan),
+    signal,
+  });
+  if (turn.result.stop !== "end") throw engineError(turn.result);
+  const { parsed, session: next } = await parsePatchTurn(core, id, plan, turn.result, turn.session, signal);
+  await patchAttempts(
+    core,
+    id,
+    plan,
+    base,
+    {
+      parsed,
+      session: next,
+      texts: await headTexts(core, id),
+      blobOf: (p) => msg.blobs[p] ?? plan.bundle.blobs[p],
+      shown: async (p) => {
+        const blob = msg.blobs[p];
+        return blob ? core.deps.git.blobText(blob).catch(() => null) : bundleText(core, plan.bundle.blobs[p]);
+      },
+    },
+    signal,
+  );
+}
+
+/* ---- repair after consent (ADR-0013 4) ---------------------------------------------------------------------- */
+
+/** The failing gate of a ready job whose consented run failed, as the REPAIR input (null: nothing to repair). */
+export function consentRetry(rec: JobRecord): GateRetry | null {
+  const bad = failingGate(rec.job.gates);
+  if (!bad || rec.job.gateVerdict !== "failed") return null;
+  const diff = rec.extra.diff ?? [];
+  return {
+    kind: "gate",
+    excerpt: failureText(bad),
+    ranges: [...hunkRanges(diff), ...failureRanges(bad.excerpt ?? "", rec.job.writeScope)],
+    gates: rec.job.gates,
   };
-  const shown = async (p: RepoPath) => {
-    const blob = msg.blobs[p];
-    return blob ? core.deps.git.blobText(blob).catch(() => null) : null;
-  };
-  await applyAndFinish(core, id, { ...plan, bundle: { ...plan.bundle, blobs: { ...plan.bundle.blobs, ...msg.blobs } } }, base, parsed, texts, shown, signal);
+}
+
+/**
+ * Without an OS sandbox the repair loop waits for the human's consent (ADR-0013 4): after a consented gate run failed,
+ * one REPAIR turn on the best path, then the usual apply / gate loop — whose repo-code gates are `pending_consent`
+ * again for the new diff (the human looks at it before it runs).
+ */
+export async function runConsentRepair(
+  core: RunnerCore,
+  id: JobId,
+  plan: JobPlan,
+  session: EngineSession | null,
+  retry: GateRetry,
+  signal: AbortSignal,
+): Promise<void> {
+  if (session) core.parking.park(id, session);
+  await start(core, id, signal);
+  const { base } = await core.deps.git.commits(id);
+  await core.update(id, "job.running", (r) => core.setState(r, "running"), { pipeline: true });
+  await core.update(id, "job.gating", (r) => core.setState(r, "gating"), { pipeline: true });
+  const turn = await repairPatchTurn(core, id, plan, retry, signal);
+  await patchAttempts(core, id, plan, base, turn, signal);
 }
 
 export { Stop };

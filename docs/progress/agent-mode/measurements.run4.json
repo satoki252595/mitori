@@ -1,0 +1,171 @@
+{
+  "at": "2026-10-03T23:47:48.563Z",
+  "capUsd": 0.5,
+  "engine": {
+    "version": "2.1.288 (Claude Code)",
+    "auth": "subscription",
+    "billing": "subscription-window"
+  },
+  "repair": {
+    "first": {
+      "id": "j_kjy3c32at4",
+      "state": "ready",
+      "route": {
+        "mode": "patch",
+        "reason": "small_change",
+        "model": "claude-sonnet-5-5"
+      },
+      "estimate": {
+        "in": 2039,
+        "out": 1500,
+        "usd": 0.019078,
+        "seconds": {
+          "p50": 10,
+          "p90": 18
+        },
+        "bundleTokens": 2039
+      },
+      "usage": {
+        "in": 2,
+        "cacheWrite": 3279,
+        "cacheWrite1h": 0,
+        "cacheRead": 0,
+        "out": 625,
+        "apiUsd": 0.014452,
+        "pricingVer": "2026-09-25",
+        "thinking": 151,
+        "reportedUsd": 0.014451
+      },
+      "timings": {
+        "modelMs": 6618,
+        "wallMs": 6627
+      },
+      "wallToReadyMs": 6791,
+      "sinceCreateMs": 6856,
+      "attempt": 1,
+      "repairs": [],
+      "tools": [],
+      "gates": [
+        {
+          "gate": "fmt:gofmt",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "test:go",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        },
+        {
+          "gate": "typecheck:go-vet",
+          "status": "untrusted",
+          "ms": 0,
+          "sandboxed": false
+        }
+      ],
+      "gateVerdict": "unverified",
+      "diff": [
+        {
+          "path": "internal/meta/fetch.go",
+          "additions": 1,
+          "deletions": 1,
+          "hunks": 1
+        }
+      ],
+      "writeScope": [
+        "internal/meta/fetch.go"
+      ]
+    },
+    "trustedSets": 1,
+    "repairObserved": true,
+    "gatesAndRepairMs": 7786,
+    "final": {
+      "id": "j_kjy3c32at4",
+      "state": "failed",
+      "route": {
+        "mode": "patch",
+        "reason": "small_change",
+        "model": "claude-sonnet-5-5"
+      },
+      "estimate": {
+        "in": 2039,
+        "out": 1500,
+        "usd": 0.019078,
+        "seconds": {
+          "p50": 10,
+          "p90": 18
+        },
+        "bundleTokens": 2039
+      },
+      "usage": {
+        "in": 4,
+        "cacheWrite": 4568,
+        "cacheWrite1h": 0,
+        "cacheRead": 3279,
+        "out": 628,
+        "apiUsd": 0.018364,
+        "pricingVer": "2026-09-25",
+        "thinking": 151,
+        "reportedUsd": 0.014451
+      },
+      "timings": {
+        "modelMs": 8011,
+        "wallMs": 8020
+      },
+      "wallToReadyMs": 6791,
+      "sinceCreateMs": 68302,
+      "attempt": 2,
+      "repairs": [
+        "test:go",
+        "continuation"
+      ],
+      "tools": [],
+      "gates": [
+        {
+          "gate": "fmt:gofmt",
+          "status": "pass",
+          "ms": 17,
+          "sandboxed": true
+        },
+        {
+          "gate": "test:go",
+          "status": "fail",
+          "ms": 1474,
+          "sandboxed": true,
+          "excerpt": "goroutine 4 [running]:\nFAIL\texample.com/tsundoku/internal/meta\t0.237s"
+        },
+        {
+          "gate": "typecheck:go-vet",
+          "status": "pass",
+          "ms": 3777,
+          "sandboxed": true
+        }
+      ],
+      "gateVerdict": "failed",
+      "diff": [
+        {
+          "path": "internal/meta/fetch.go",
+          "additions": 1,
+          "deletions": 1,
+          "hunks": 1
+        }
+      ],
+      "writeScope": [
+        "internal/meta/fetch.go"
+      ],
+      "failure": {
+        "code": "E_BUDGET_EXCEEDED",
+        "message": "budget reached (mitori meter)",
+        "actions": [
+          "retry",
+          "other_engine",
+          "copy_prompt"
+        ]
+      }
+    },
+    "line": "+\t\treturn Metadata{}, fmt.Errorf(\"catalogue answered HTTP %d (%s)\", resp.StatusCode, resp.Status)"
+  },
+  "spentUsd": 0.018364
+}

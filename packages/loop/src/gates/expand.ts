@@ -32,6 +32,8 @@ const relTo = (cwd: string, p: RepoPath): string => {
   return rel.startsWith("-") ? `./${rel}` : rel;
 };
 
+const asPath = (rel: string): string => (rel.startsWith("./") ? rel : `./${rel}`);
+
 /** `GateRunner.expand` (pure). */
 export function expandGate(
   gate: GateSpec,
@@ -53,7 +55,8 @@ export function expandGate(
     if (!expanded && gate.endOfOptions) out.push("--");
     expanded = true;
     if (arg.var === "files") out.push(...files.map((p) => relTo(gate.cwd, p)));
-    else if (arg.var === "tests") out.push(...ctx.testsOf(files).map((p) => relTo(gate.cwd, p)));
+    // test paths always as `./path`: `bun test` reads a bare argument as a name filter, not as a file
+    else if (arg.var === "tests") out.push(...ctx.testsOf(files).map((p) => asPath(relTo(gate.cwd, p))));
     else out.push(...ctx.pkgsOf(files));
   }
   return out;

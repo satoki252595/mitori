@@ -35,11 +35,11 @@ Verified: `scripts/nd bun run check` green; `scripts/nd bun test` 2,511 pass / 0
 - **Contract gaps** (CR doc): `LoopDeps` has no `fs` / `env`, `createLoop` no `close()`, `JobRunner.list` / `GitSafety.checkpoints` /
   thread bundle are not contract methods, trust-request ids (loop vs `TrustService`), `trust.decided` cannot re-run gates without
   the consent a manual run implies, long-poll deadline semantics, post-accept `syncBlocks` has no suggestion to publish.
-- **Not wired**: `GET/POST /integrations` (installer is still the WP-11 stub), doc proposal routes, `POST /export`, MCP `submit_patch`
-  (`externalPatch` → `E_UNSUPPORTED`, WP-08c), agent mode / test gates / repair turns (WP-08c), PR creation. `bundle≈k` in the
-  `mitori.review/1` heading (the engine's port is synchronous; the bundle builder is not). Word-level `diffHtml` of doc proposals.
-- **Known soft spots**: a continuation (REPAIR / revise) on a resident process that already exited waits for the turn timeout
-  instead of failing fast (observed with a test double whose process ends after one turn; the scope-violation path no longer
-  gets there); `list` of threads is capped at 500 per call (re-anchoring reads one page).
+- **Not wired**: `GET/POST /integrations` (installer is still the WP-11 stub), doc proposal routes, `POST /export`, PR creation.
+  `bundle≈k` in the `mitori.review/1` heading (the engine's port is synchronous; the bundle builder is not). Word-level `diffHtml`
+  of doc proposals. (MCP `submit_patch`, agent mode, check gates and repair turns: done in `fin/agent`, `docs/progress/agent-mode.md`.)
+- **Known soft spots**: ~~a continuation on a resident process that already exited waits for the turn timeout~~ — fixed in
+  `fin/agent` (`repair/turn.ts`: a gone process is skipped at once, the REPAIR goes resume / cold; `repair/turn.test.ts`, INT-08);
+  `list` of threads is capped at 500 per call (re-anchoring reads one page).
 - **Not run**: Linux; `e2e/loop` from track/10b. (The real engine and the web UI against the real routes ran in `integrate/live`:
   see `docs/progress/live.md`.)

@@ -1,5 +1,7 @@
 // Job planning (spec §3 + §4 + §8 intro): threads → write scope → patch-bundle size → router decision → final bundle →
 // estimate. Deterministic and token-free; the plan is remembered by estimate id so `create` reuses it (≤ 100 ms).
+
+import { agentPathsOk } from "@mitori/agent";
 import {
   type BlockId,
   type BlockKind,
@@ -168,7 +170,7 @@ export async function planJob(deps: PlanDeps, req: JobReq): Promise<JobPlan> {
     }
   }
   const budgetTokens = Math.min(req.budgetTokens ?? limits.bundleDefaultTokens, limits.bundleMaxTokens);
-  const gates = changes && scope.writeScope.length > 0 ? await deps.gates(scope.writeScope) : [];
+  let gates = changes && scope.writeScope.length > 0 ? await deps.gates(scope.writeScope) : [];
   const bundleFor = (mode: BundleMode, sc: ScopeResult, budget: JobPlan["budget"], contract: string) =>
     deps.bundles.build(
       {
@@ -203,7 +205,8 @@ export async function planJob(deps: PlanDeps, req: JobReq): Promise<JobPlan> {
     newFiles: scope.newFiles.length,
     bundleTokens: probe ? (probe.overBudget ? limits.bundleMaxTokens + 1 : sum(probe)) : 0,
     history: deps.history(threads),
-    agentPathsOk: true,
+    // SEC-09: a path that cannot be written into an `Edit(//abs)` rule keeps the job out of agent mode
+    agentPathsOk: agentPathsOk([...scope.writeScope, ...scope.newFiles]),
     engine: {
       id: engineId,
       ...(ENGINE_CAPS[engineId] ?? { tools: false, jsonSchema: false }),
@@ -216,7 +219,10 @@ export async function planJob(deps: PlanDeps, req: JobReq): Promise<JobPlan> {
   } satisfies Parameters<typeof route>[0];
   const outcome = unwrap(route(input, s));
   const mode = modeOf(outcome);
-  if (mode === "agent") scope = unwrap(deriveWriteScope(threads, scopeCtx(deps, "agent", req, unwritable)));
+  if (mode === "agent") {
+    scope = unwrap(deriveWriteScope(threads, scopeCtx(deps, "agent", req, unwritable)));
+    gates = scope.writeScope.length > 0 ? await deps.gates(scope.writeScope) : [];
+  }
   const budget = prelim(mode, outcome.decision.model);
   const bundle =
     mode === "patch" && probe
@@ -230,7 +236,10 @@ export async function planJob(deps: PlanDeps, req: JobReq): Promise<JobPlan> {
   const total = inTokens + outTokens;
   const reasons: ConfirmReason[] = [];
   if (total > limits.confirmAboveTokens) reasons.push("over_token_threshold");
-  if (outcome.decision.requiresConfirm) reasons.push("escalation");
+  // the final escalation is a proposal: R1, or any agent job on the escalation model (the web's "escalate" asks for
+  // mode=agent + model=escalate explicitly), runs only after the human confirmed its cost (spec §3.5, L9)
+  const escalated = mode === "agent" && outcome.decision.model === s.global.models.escalate && s.global.models.escalate !== s.global.models.agent;
+  if (outcome.decision.requiresConfirm || escalated) reasons.push("escalation");
   if (status?.auth === "api-key") reasons.push("api_key_billing");
   const [p50, p90] = SECONDS[mode];
   const estimate: Estimate = {

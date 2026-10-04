@@ -17,9 +17,12 @@ import {
   type ThreadDetail,
   type ThreadId,
 } from "@mitori/core";
+import { escalationReason, tryAutoEscalate, withEscalateAction } from "../agent/escalate.ts";
+import { runAgent, runAgentConsentRepair, runAgentRevision } from "../agent/run.ts";
 import type { JobRunner } from "../contract.ts";
+import { externalPatch } from "../external/patch.ts";
 import { ACTIVE, type JobRunnerDeps, RunnerCore, Stop } from "./core.ts";
-import { runAnswer, runPatch, runRevision } from "./pipeline.ts";
+import { consentRetry, runAnswer, runConsentRepair, runPatch, runRevision } from "./pipeline.ts";
 import { type JobPlan, jobEstimate, type PlanDeps, planJob } from "./plan.ts";
 import { accept, commit, reject, runGates, undo } from "./review-ops.ts";
 import type { JobRecord } from "./store.ts";
@@ -54,7 +57,15 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
       const out: RouteReason[] = [];
       for (const t of threads)
         for (const rec of core.store.ofThread(t.id)) {
-          const r = rec.job.failure ? HISTORY[rec.job.failure.code] : undefined;
+          const f = rec.job.failure;
+          if (!f) continue;
+          // an agent job's failure is the final escalation's input (R1), whatever its code (spec §3.5)
+          const r =
+            rec.job.route.mode === "agent"
+              ? (escalationReason(rec.job, new MitoriError(f.code, f.message)) ?? undefined)
+              : f.code === "E_PRECONDITION" && /needs more context/.test(f.message)
+                ? "needs_more_context"
+                : HISTORY[f.code];
           if (r) out.push(r);
         }
       return out;
@@ -103,8 +114,21 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
         await fn(abort.signal);
       } catch (e) {
         if (!(e instanceof Stop)) {
-          if (MitoriError.from(e).code === "E_CANCELLED" && core.get(id).job.state === "cancelled") return;
-          await core.fail(id, e).catch((x: unknown) => deps.log.error("job failure not recorded", { job: id, error: MitoriError.from(x).message }));
+          const err = MitoriError.from(e);
+          if (err.code === "E_CANCELLED" && core.get(id).job.state === "cancelled") return;
+          // spec §3.5: R2 hands the threads to an agent job when the cap allows; else the failure offers `escalate`
+          const next = abort.signal.aborted
+            ? null
+            : await tryAutoEscalate(escalation, id, err).catch((x: unknown) => {
+                deps.log.warn("auto-escalation failed", { job: id, error: MitoriError.from(x).message });
+                return null;
+              });
+          if (next === null) {
+            const rec = core.store.get(id);
+            await core
+              .fail(id, rec ? withEscalateAction(rec.job, err) : err)
+              .catch((x: unknown) => deps.log.error("job failure not recorded", { job: id, error: MitoriError.from(x).message }));
+          }
         }
       } finally {
         core.live.delete(id);
@@ -115,18 +139,45 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
 
   function pipeline(id: JobId, p: JobPlan): (signal: AbortSignal) => Promise<void> {
     if (p.mode === "patch") return (signal) => runPatch(core, id, p, signal);
+    if (p.mode === "agent") return (signal) => runAgent(core, id, p, signal);
     return (signal) => runAnswer(core, id, p, signal);
   }
 
-  /** Only patch / answer / findings run here; agent mode and docpatch notes arrive with WP-08c. */
+  /** A sent doc note (docpatch/1) is not run by the job runner yet. */
   function supported(p: JobPlan): void {
-    if (p.mode === "agent")
-      throw new MitoriError("E_UNSUPPORTED", "agent mode arrives with WP-08c", { params: { what: "loop.jobs.agent", actions: "copy_prompt,narrow_scope" } });
     if (p.route.decision.contract === "docpatch/1")
       throw new MitoriError("E_UNSUPPORTED", "a sent doc note (docpatch/1) arrives with WP-08c", {
         params: { what: "loop.jobs.docpatch", actions: "copy_prompt" },
       });
   }
+
+  /** What a request adds to its threads (persisted on the job; null when nothing). */
+  const reqExtra = (r: JobReq): NonNullable<JobRecord["extra"]["req"]> | null => {
+    const out: NonNullable<JobRecord["extra"]["req"]> = {};
+    if (r.context && ((r.context.add?.length ?? 0) > 0 || (r.context.remove?.length ?? 0) > 0)) out.context = r.context;
+    if (r.mode !== undefined) out.mode = r.mode;
+    if (r.model !== undefined) out.model = r.model;
+    if (r.budgetTokens !== undefined) out.budgetTokens = r.budgetTokens;
+    return Object.keys(out).length > 0 ? out : null;
+  };
+  /** The request a re-plan of a job uses (revise / retry / repair after consent / escalation / recovery). */
+  const replanReq = (rec: JobRecord, engine?: EngineId): JobReq => ({
+    kind: rec.job.kind,
+    threads: rec.job.threads,
+    engine: engine ?? rec.job.engine,
+    ...(rec.extra.req ?? {}),
+  });
+
+  /** The write scope a job of `p` locks and is post-checked against (answers write nothing). */
+  const writesOf = (p: JobPlan) => (p.mode === "patch" || p.mode === "agent" ? p.scope.writeScope : []);
+  const promptVerOf = (p: JobPlan) =>
+    (p.mode === "patch"
+      ? "loop.patch@1"
+      : p.mode === "agent"
+        ? "loop.agent@1"
+        : p.mode === "findings"
+          ? "loop.findings@1"
+          : "loop.answer@1") as Job["promptVer"];
 
   function newRecord(p: JobPlan, attempt = 1): JobRecord {
     const j: Job = {
@@ -139,20 +190,59 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
       state: "queued",
       attempt,
       estimate: p.estimate as Estimate,
-      writeScope: p.mode === "patch" ? p.scope.writeScope : [],
+      writeScope: writesOf(p),
       gates: [],
       proposals: [],
-      promptVer: (p.mode === "patch" ? "loop.patch@1" : p.mode === "findings" ? "loop.findings@1" : "loop.answer@1") as Job["promptVer"],
+      promptVer: promptVerOf(p),
       createdAt: deps.clock.iso(),
     };
+    const req = reqExtra(p.req);
     return {
       job: j,
       baseCommit: null,
       bundleTokens: p.estimate.inTokens,
       bundleBlobs: p.bundle.blobs,
-      extra: { newFiles: p.scope.newFiles, ...(p.route.note ? { note: p.route.note } : {}) },
+      extra: { newFiles: p.scope.newFiles, ...(p.route.note ? { note: p.route.note } : {}), ...(req ? { req } : {}) },
     };
   }
+
+  /** A ready job whose consented gate run tampered with the dependencies: cancelled, threads back to `open`. */
+  async function discardTampered(id: JobId, err: MitoriError): Promise<void> {
+    const saved = await core
+      .update(id, "job.tampered", (r) => {
+        if (r.job.state !== "ready") return;
+        core.setState(r, "cancelled");
+        r.job.failure = { code: err.code, message: err.message.slice(0, 300), actions: ["copy_prompt"] };
+        for (const t of r.job.threads) {
+          core.threads.fire(t, "cancel", "system");
+          core.threads.say(
+            t,
+            id,
+            "system",
+            "system",
+            `検査の実行中に依存ディレクトリまたはジョブの作業ツリーが書き換えられたため、この変更を破棄しました（${err.code}）。`,
+          );
+        }
+        core.store.unlock(id);
+      })
+      .catch(() => null);
+    core.parking.release(id);
+    if (saved?.job.worktree) await deps.git.removeWorktree(id).catch(() => {});
+    await core.flushEvents(id);
+  }
+
+  /** R2 hand-over ports (agent/escalate.ts). */
+  const escalation = {
+    core,
+    plan: async (job: Job, reason: RouteReason) => {
+      const p = await planJob({ ...planDeps, history: (t) => [...planDeps.history(t), reason] }, replanReq(core.get(job.id)));
+
+      core.remember(p);
+      return p;
+    },
+    record: (p: JobPlan) => newRecord(p),
+    launch: (id: JobId, p: JobPlan) => launch(id, pipeline(id, p)),
+  };
 
   const runner: JobRunnerHandle = {
     async estimate(req) {
@@ -167,19 +257,32 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
           params: { estimateId: p.id, reasons: p.estimate.confirmReasons.join(",") },
         });
       const rec = newRecord(p);
+      // the human's escalation of a failed thread (spec §3.5 R1/R2 "escalate"): an agent job, failed → queued (retry)
+      const escalating = p.mode === "agent";
       const job = await deps.write("job.create", () =>
         deps.db.tx(() => {
           for (const t of p.threads) {
             const cur = deps.review.get(t.id);
-            const ok = cur && (cur.state === "open" || (cur.state === "queued" && cur.batchRound !== undefined));
+            const ok = cur && (cur.state === "open" || (cur.state === "queued" && cur.batchRound !== undefined) || (escalating && cur.state === "failed"));
             if (!ok)
               throw new MitoriError("E_PRECONDITION", `thread ${t.id} cannot be dispatched (${cur?.state ?? "missing"})`, {
                 params: { id: t.id, state: cur?.state ?? "missing" },
               });
           }
+          if (escalating) {
+            const from = p.threads
+              .flatMap((t) => core.store.ofThread(t.id))
+              .filter((r) => r.job.state === "failed")
+              .sort((a, b) => (a.job.createdAt < b.job.createdAt ? 1 : -1))[0];
+            if (from && p.threads.every((t) => deps.review.get(t.id)?.state === "failed")) rec.job.escalatedFrom = from.job.id;
+          }
           core.store.insert(rec);
           // CR m1-73: Finish already dispatched its threads (queued + batchRound)
-          for (const t of p.threads) if (deps.review.get(t.id)?.state === "open") core.threads.fire(t.id, "dispatch", "human");
+          for (const t of p.threads) {
+            const state = deps.review.get(t.id)?.state;
+            if (state === "open") core.threads.fire(t.id, "dispatch", "human");
+            else if (state === "failed") core.threads.fire(t.id, "retry", "human");
+          }
           deps.events.emit({ type: "job.upsert", job: rec.job });
           core.threads.touch(rec.job.threads);
           return rec.job;
@@ -216,7 +319,7 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
         });
       if (message.trim() === "") throw new MitoriError("E_INVALID_INPUT", "a revision needs a message");
       const session = core.parking.take(id);
-      const req: JobReq = { kind: rec.job.kind, threads: rec.job.threads, engine: rec.job.engine };
+      const req: JobReq = replanReq(rec);
       const saved = await core.update(id, "job.revise", (r) => {
         core.setState(r, "queued");
         r.job.attempt += 1;
@@ -224,8 +327,13 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
         for (const t of r.job.threads) core.threads.fire(t, "revise", "human", { message });
       });
       const p = await freshPlan(req);
-      if (session) launch(id, (signal) => runRevision(core, id, p, session, message, signal));
-      else launch(id, pipeline(id, p));
+      // the same mode as the ready job (a revision continues its conversation / worktree; spec §6.6.3)
+      if (rec.job.route.mode === "agent" && p.mode === "agent") launch(id, (signal) => runAgentRevision(core, id, p, session, message, signal));
+      else if (rec.job.route.mode === "patch" && p.mode === "patch") launch(id, (signal) => runRevision(core, id, p, session, message, signal));
+      else {
+        if (session) void session.close().catch(() => {});
+        launch(id, pipeline(id, p));
+      }
       return saved.job;
     },
 
@@ -235,16 +343,23 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
         throw new MitoriError("E_STATE_TRANSITION", `job ${id} is ${rec.job.state}, not failed`, {
           params: { machine: "job", from: rec.job.state, to: "queued" },
         });
-      const req: JobReq = { kind: rec.job.kind, threads: rec.job.threads, engine: engine ?? rec.job.engine };
+      const req: JobReq = replanReq(rec, engine);
       const p = await freshPlan(req);
       supported(p);
+      // a retry never runs the final escalation on its own: that goes through `create` with `confirm` (spec §3.5: Opus
+      // is a proposal). Other confirm reasons keep the retry behaviour they had.
+      if (p.estimate.confirmReasons.includes("escalation"))
+        throw new MitoriError("E_PRECONDITION", "this retry needs a confirmed estimate: escalate with a confirmation", {
+          params: { estimateId: p.id, reasons: p.estimate.confirmReasons.join(","), actions: "escalate" },
+        });
       const saved = await core.update(id, "job.retry", (r) => {
         core.setState(r, "queued");
         r.job.attempt += 1;
         r.job.engine = p.route.engine;
         r.job.route = p.route.decision;
         r.job.estimate = p.estimate;
-        r.job.writeScope = p.mode === "patch" ? p.scope.writeScope : [];
+        r.job.writeScope = writesOf(p);
+        r.job.promptVer = promptVerOf(p);
         r.bundleBlobs = p.bundle.blobs;
         delete r.job.failure;
         for (const t of r.job.threads) core.threads.fire(t, "retry", "human");
@@ -254,14 +369,39 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
     },
 
     accept: (id, sel) => accept(core, id, sel),
-    runGates: (id, gates) => runGates(core, id, gates),
+    async runGates(id, gates) {
+      let ran: Job;
+      try {
+        ran = await runGates(core, id, gates);
+      } catch (e) {
+        const err = MitoriError.from(e);
+        // RT-31: a consented gate rewrote a linked dependency tree, or left the job worktree tampered with (its `.git`,
+        // a symlinked directory) — the job must not stay acceptable
+        const reason = (err.params as { reason?: unknown } | undefined)?.reason;
+        if (reason === "dependency_changed" || reason === "worktree_tampered") await discardTampered(id, err);
+        throw err;
+      }
+      // ADR-0013 4: the repair loop waited for this consent — a failing consented gate gets a REPAIR turn (bounded
+      // by `limits.repairMaxAttempts` over the job's attempts; the new diff waits for consent again)
+      const rec = core.get(id);
+      const retry = ran.state === "ready" && ran.kind === "fix" ? consentRetry(rec) : null;
+      if (!retry || rec.job.attempt > deps.settings().global.limits.repairMaxAttempts) return ran;
+      const p = await freshPlan(replanReq(rec)).catch(() => null);
+      if (!p || p.mode !== rec.job.route.mode) return ran;
+      const session = core.parking.take(id);
+      const saved = await core.update(id, "job.consent_repair", (r) => {
+        core.setState(r, "queued");
+        for (const t of r.job.threads) core.threads.fire(t, "revise", "human");
+      });
+      if (p.mode === "agent") launch(id, (signal) => runAgentConsentRepair(core, id, p, session, retry, signal));
+      else launch(id, (signal) => runConsentRepair(core, id, p, session, retry, signal));
+      return saved.job;
+    },
     commit: (id, message) => commit(core, id, message),
     reject: (id, reason) => reject(core, id, reason),
     undo: (ck: CheckpointId, force) => undo(core, ck, force),
 
-    async externalPatch() {
-      throw new MitoriError("E_UNSUPPORTED", "external patches (MCP submit_patch) arrive with WP-08c", { params: { what: "loop.jobs.externalPatch" } });
-    },
+    externalPatch: (req, agent) => externalPatch({ core, plan, launch }, req, agent),
     async pullRequest() {
       throw new MitoriError("E_UNSUPPORTED", "pull requests arrive with WP-08c", { params: { what: "loop.jobs.pullRequest" } });
     },
@@ -306,7 +446,7 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
       for (const rec of core.store.inStates(["queued", "waiting_lock"])) {
         await deps.write("job.recover.unlock", () => core.store.unlock(rec.job.id));
         try {
-          const p = await freshPlan({ kind: rec.job.kind, threads: rec.job.threads, engine: rec.job.engine });
+          const p = await freshPlan(replanReq(rec));
           supported(p);
           launch(rec.job.id, pipeline(rec.job.id, p));
           out.requeued.push(rec.job.id);
