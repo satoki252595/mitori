@@ -434,8 +434,14 @@ const planCounts = $derived(
               <span class="sep" aria-hidden="true">&middot;</span><span>{t("map.readme.verbatim")}</span>
             </figcaption>
           </figure>
+        {:else}
+          <!-- AC-U03: the README / lede box is reserved until the profile says there is none (then it stays as space),
+               so the plan below never moves when it arrives -->
+          <div class="readme readme-ph" aria-hidden="true"><span class:skel={!profile}></span></div>
         {/if}
-        {#if areas.length}
+        {#if !areas.length}
+          <div class="tiles tiles-ph" aria-hidden="true"><span class:skel={!profile && !scan}></span></div>
+        {:else}
           <dl class="tiles" style:--n={areas.length}>
             {#each areas as a, i (i)}
               <div class="tile">
@@ -448,7 +454,9 @@ const planCounts = $derived(
         {/if}
       </section>
 
-      <aside class="side" aria-label={t("map.right")} aria-busy={!rightReady || undefined}>
+      <!-- AC-U03: an ungenerated repository gets the estimate card — taller than the hero: its height is reserved
+           while the card's chunk loads (after the plan painted), so the plan below never moves -->
+      <aside class="side" class:est={rightReady && !generated} aria-label={t("map.right")} aria-busy={!rightReady || undefined}>
         {#if rightReady && side}
           {@const GenProgress = side.GenProgress}
           {@const GenEstimateCard = side.GenEstimateCard}
@@ -689,7 +697,9 @@ const planCounts = $derived(
     display: flex;
     flex-wrap: wrap;
     gap: 2px 8px;
-    min-height: 1.6em;
+    /* two lines reserved (remote · toolchain · license · HEAD wraps on most repos): the profile arriving moves nothing */
+    min-height: calc(2 * 1.5em + 2px);
+    line-height: 1.5;
     margin: 10px 0 0;
     font-size: var(--fs-ui);
     color: var(--muted);
@@ -719,11 +729,34 @@ const planCounts = $derived(
     font-size: var(--fs-body-l, 18px);
     line-height: 1.7;
     color: var(--text);
+    /* three lines, always (AC-U03: a shorter excerpt must not pull the plan up when it arrives) */
+    min-height: calc(3 * 1.7em);
     display: -webkit-box;
     -webkit-line-clamp: 3;
     line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+  /* the reserved box: 3 blockquote lines + the caption line */
+  .readme-ph {
+    height: calc(3 * 1.7 * var(--fs-body-l, 18px) + 6px + 1.5em + 4px);
+    border-left-color: transparent;
+  }
+  .readme-ph .skel {
+    display: block;
+    width: 70%;
+    height: 1.2em;
+    margin-top: 6px;
+  }
+  .tiles-ph {
+    display: block;
+    height: calc(14px + 30px * 1.15 + 4px + 1.5em + 14px + 2px);
+  }
+  .tiles-ph .skel {
+    display: block;
+    width: 90%;
+    height: 60%;
+    margin: 12px 0;
   }
   .readme figcaption {
     margin-top: 6px;
@@ -793,6 +826,9 @@ const planCounts = $derived(
     display: flex;
     flex-direction: column;
     gap: 10px;
+  }
+  .side.est {
+    min-height: var(--est-card-h, 464px);
   }
   .side-skel {
     min-height: 352px;
@@ -1109,6 +1145,7 @@ const planCounts = $derived(
   @container map (max-width: 1080px) {
     .top {
       --map-card-w: 360px;
+      --est-card-h: 484px;
       gap: 24px 32px;
     }
     .below {
@@ -1122,6 +1159,7 @@ const planCounts = $derived(
   @container map (max-width: 860px) {
     .top {
       grid-template-columns: minmax(0, 1fr);
+      --est-card-h: 445px;
     }
     .side {
       max-width: none;

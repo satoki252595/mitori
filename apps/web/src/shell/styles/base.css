@@ -205,7 +205,8 @@ svg.i {
   margin-left: -8px;
   border-radius: var(--r-btn);
   min-height: 28px;
-  min-width: 0;
+  /* the name + HEAD arrive after the first paint: their usual width is reserved (AC-U03, the tabs do not move) */
+  min-width: 11em;
 }
 
 .proj:hover {
