@@ -1,5 +1,7 @@
 // SqlDb over bun:sqlite: WAL + synchronous=NORMAL, IMMEDIATE transactions, savepoints for nesting.
+
 import { Database, type SQLQueryBindings } from "bun:sqlite";
+import { chmodSync, existsSync } from "node:fs";
 import { MitoriError, type SqlDb, type SqlParams, type SqlValue } from "@mitori/core";
 
 /** Options of {@link openSqlDb}. */
@@ -47,6 +49,16 @@ export function openSqlDb(path: string, opts: SqlDbOptions = {}): SqlDb {
   if (!opts.readonly) {
     if (path !== ":memory:" && path !== "") db.exec("PRAGMA journal_mode = WAL");
     db.exec("PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON");
+    // F13 (nonfunc audit): the state DB holds doc text, threads and code excerpts — owner-only, whatever the umask
+    // (an existing MITORI_HOME opened 0755 left it readable by every local user)
+    if (path !== ":memory:" && path !== "")
+      for (const f of [path, `${path}-wal`, `${path}-shm`]) {
+        try {
+          if (existsSync(f)) chmodSync(f, 0o600);
+        } catch {
+          // not ours to change (a read-only mount): the DB still works
+        }
+      }
   }
   let depth = 0;
   let closed = false;
