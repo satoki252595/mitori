@@ -50,7 +50,9 @@ export async function startInt(opts: IntOptions = {}): Promise<Int> {
     // the CLI's version, as in the binary (the web shell shows a reload banner on a mismatch)
     version: (JSON.parse(readFileSync(join(import.meta.dir, "../../apps/cli/package.json"), "utf8")) as { version: string }).version,
     build: "test",
-    overrides: { ...(opts.spawner ? { spawner: opts.spawner } : {}), ...opts.overrides },
+    // the shipped daemon detects the gate sandbox (F2); scenarios here pin "none" (consent-gated repo-code gates)
+    // unless they pass one — INT-08 passes sandbox-exec to exercise the sandboxed gates
+    overrides: { gateSandbox: "none", ...(opts.spawner ? { spawner: opts.spawner } : {}), ...opts.overrides },
   });
   const origin = d.url.replace(/\/$/, "");
   const cli = (method: string, path: string, body?: unknown) =>

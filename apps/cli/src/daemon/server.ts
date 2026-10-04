@@ -18,6 +18,7 @@ import {
   createSpawner,
   createWorkerPool,
   cryptoRandom,
+  detectGateSandbox,
   openLogFile,
   openSqlDb,
   resolveSafePath,
@@ -103,8 +104,9 @@ export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerD
     pid: process.pid,
     userHome,
     port: o.port,
-    // CR m1-119 / m1-116: platform `detectGateSandbox()` and `hardwareInfo()` (WP-01) replace these two defaults.
-    gateSandbox: "none",
+    // F2 / CR m1-119: the machine's gate sandbox (macOS sandbox-exec, Linux bwrap), so typecheck / test / lint gates run
+    // without a click. CR m1-116: `hardwareInfo()` (WP-01) replaces the hardware default.
+    gateSandbox: detectGateSandbox(safePath),
     hardware: { cores: availableParallelism(), perfCores: null },
     ...(gh ? { gh: real(gh) } : {}),
     build: o.build,

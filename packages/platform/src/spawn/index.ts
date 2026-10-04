@@ -13,6 +13,9 @@ export function resolveSafePath(path: string, opts: { workspaceRoots: readonly s
   return computeSafePath(path, opts);
 }
 
+// `SpawnSpec` / `Spawner` / `ChildHandle` (./types.ts) are structural copies of the @mitori/agent contract types and
+// are deliberately not re-exported: consumers name the agent's types.
+export { detectGateSandbox, type GateSandboxKind, probeGateSandbox, type SandboxProbe } from "./sandbox.ts";
 export {
   createSpawner,
   KILL_POLICY,
@@ -23,5 +26,3 @@ export {
   type SpawnerOptions,
   stopChild,
 } from "./spawner.ts";
-// `SpawnSpec` / `Spawner` / `ChildHandle` (./types.ts) are structural copies of the @mitori/agent contract types and
-// are deliberately not re-exported: consumers name the agent's types.
