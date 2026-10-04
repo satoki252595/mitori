@@ -241,3 +241,29 @@ describe("retry rendering (§5.6.18)", () => {
     ).toBeNull();
   });
 });
+
+describe("gen.flows BODIES (§5.6.3)", () => {
+  test("seeds that start in the same handler show its body once (verifier 2026-10-04: m3e's Editor body three times)", async () => {
+    const repo = sampleRepo();
+    // a second route served by the same handler (lines 5-7): its seed returns the very same slice
+    repo.facts.push({
+      kind: "route",
+      detector: "route.test@1",
+      path: "src/http/server.ts",
+      line: 6,
+      method: "GET",
+      pattern: "/login",
+      handler: "src/http/server.ts#handleLogin",
+      framework: "test",
+    });
+    const { env, indexer } = setup(repo);
+    const seeds = indexer.flowSeeds(8);
+    expect(seeds.filter((s) => s.path === "src/http/server.ts").length).toBe(2);
+    const task = plannedTask("gen.flows", { kind: "section", id: "s3" }, ["s3" as SectionId]);
+    const g = await gatherInputs(task, env);
+    const heads = (g.inputs.BODIES ?? []).filter((l) => l.startsWith("=== "));
+    expect(heads.filter((h) => h.startsWith("=== src/http/server.ts")).length).toBe(1);
+    expect(new Set(heads).size).toBe(heads.length);
+    expect(g.inputs.SEEDS?.length).toBe(seeds.length);
+  });
+});

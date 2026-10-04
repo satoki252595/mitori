@@ -209,7 +209,17 @@ class Gatherer {
         return { MODULES: this.labels() };
       case "gen.flows": {
         const seeds = genFlowSeeds(ix);
-        const bodies = seeds.flatMap((s) => ix.flowBodies(s, Math.floor((this.budgets.BODIES ?? 12000) / Math.max(1, seeds.length)), "claude-v5"));
+        // seeds that start at the same handler return the same slice: show it once [verifier 2026-10-04: m3e's three
+        // derived seeds all start at `Editor`, whose first 80 lines filled BODIES three times]
+        const shown = new Set<string>();
+        const bodies = seeds
+          .flatMap((s) => ix.flowBodies(s, Math.floor((this.budgets.BODIES ?? 12000) / Math.max(1, seeds.length)), "claude-v5"))
+          .filter((b) => {
+            const key = `${b.path}\u0000${b.blob}\u0000${b.start}\u0000${b.end}`;
+            if (shown.has(key)) return false;
+            shown.add(key);
+            return true;
+          });
         return {
           SEEDS: seeds.map((s) => `> seed${s.k} ${s.kind} ${s.label} ${s.path}:${s.line} path: ${s.modules.join(" > ")}`),
           BODIES: this.bodies(bodies, "BODIES"),
