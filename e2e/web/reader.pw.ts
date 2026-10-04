@@ -100,11 +100,26 @@ test("@wp10a reader root listeners ≤ 10 and CLS 0 at boot", async ({ page }) =
   await page.waitForTimeout(1200);
   const v = await cls(page);
   console.log(`[cls] reader boot ${v}`);
-  expect(v).toBeLessThan(0.01);
+  // AC-U03: the minimap's box is held while the map view loads, the header usage box is fixed, the margin tip sits
+  // above the stats that grow with the page (was 0.0142: the path card + TOC dropped 142 px when the minimap came)
+  expect(v).toBeLessThanOrEqual(0.001);
   const client = await page.context().newCDPSession(page);
   const { result } = await client.send("Runtime.evaluate", { expression: "document.querySelector('.reader-root')" });
   const { listeners } = await client.send("DOMDebugger.getEventListeners", { objectId: result.objectId as string });
   expect(listeners.length).toBeLessThanOrEqual(10);
+});
+
+test("@wp10a the empty margin (「この節について」) stays once the loop UI is installed on a page without threads", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}/doc/s3`);
+  await waitMark(page, "mitori:section:rendered");
+  await expect(page.locator(".ctx .margin-empty .about")).toBeVisible();
+  // the loop extension arrives after the first paint; its margin has nothing to show here — the about card must not vanish
+  await expect(page.locator("#mitori-loop")).toBeAttached();
+  await expect(page.locator(".ctx .margin-host")).toBeAttached();
+  await page.waitForTimeout(300);
+  await expect(page.locator(".ctx .margin-empty .about")).toBeVisible();
+  await expect(page.locator(".rail .mini")).toHaveAttribute("href", /\/w\//);
 });
 
 for (const [w, h] of [
@@ -164,6 +179,12 @@ test("@wp10a cite peek (ux.md §4.3.6): keyboard focus on a chip opens it touchi
   await expect.poll(gap, { timeout: 2000 }).toBeLessThanOrEqual(8);
   await page.mouse.wheel(0, 120);
   await expect.poll(gap, { timeout: 2000 }).toBeLessThanOrEqual(8);
+  // re-placing a capped peek keeps it capped (it was measured at its capped height, un-capped and grew over the chip)
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(() => window.dispatchEvent(new Event("resize")));
+    await page.waitForTimeout(120);
+    expect(await gap()).toBeLessThanOrEqual(8);
+  }
 });
 
 test("@wp10a dialogs return focus (ux.md §3.6): ? → help → Escape puts focus back on the focused block; j still works", async ({ page }) => {

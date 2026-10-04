@@ -263,10 +263,19 @@ const crumbs = $derived.by(() => {
     flex-direction: column;
     align-items: flex-end;
     justify-content: center;
-    min-width: 10.5em;
+    /* a fixed box, not a minimum (AC-U03): today's numbers arriving (or growing a digit) never move the tabs;
+       a longer line ellipsizes — the status bar always carries the same numbers in full */
+    width: 12em;
+    overflow: hidden;
     margin: 0 2px 0 4px;
     line-height: 1.25;
     white-space: nowrap;
+  }
+  .u1,
+  .u2 {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .u1 {
     font-size: var(--fs-label);

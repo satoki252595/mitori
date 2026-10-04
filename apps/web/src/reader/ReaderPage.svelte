@@ -797,7 +797,8 @@ function startCourse() {
 <div class="body reader-body" style:grid-template-columns="{layout.rail}px minmax(0,1fr) {layout.ctxPlacement === 'column' ? layout.ctx : 0}px">
   <Rail mode={layout.railMode}>
     {#snippet top()}
-      {#if s.doc.outline && !s.map.fallback}<Minimap page={model?.page ?? null} />{/if}
+      <!-- not gated on the outline: its box is there from the first paint (the outline arriving moves nothing) -->
+      {#if !s.map.fallback}<Minimap page={model?.page ?? null} />{/if}
     {/snippet}
   </Rail>
 
