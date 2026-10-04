@@ -3,7 +3,7 @@
 > **検証パスで直したもの（この表を読む前に）**: 下の最初の表の `git.precheck` 0.751 ms は**測定の不具合**（case が promise を待たず、
 > 呼び出しの開始だけを計っていた）。正しい値は 87〜114 ms（負荷 14〜15、末尾の「検証パスの再計測」）。`ui.heap.10k` 3.6 MB は main thread
 > だけ・palette の索引なしの値で、定義を spec に寄せた再計測は 13.9 MB。`ui.card.optimistic`・`ui.listeners.reader`・`ui.staleBadge`・
-> `bin.health` は検証パスで初めて測った。全 suite の再計測（負荷 9〜20）は末尾にある。
+> `bin.health`・`ui.cls.gen` は検証パスで初めて測った。全 suite の再計測（負荷 9〜20）は末尾にある。
 
 `scripts/nd bun run bench --suite all --absolute --out <file>`（`--no-wait` なし: 開始前に負荷が下がるのを 2 回待ってから走った）。
 表は `bun bench/report.ts <file>` の出力で、**machine factor を掛けない生の値と、生の target / limit の比較**（この機械を基準機とみなした判定）。
@@ -270,6 +270,7 @@ compiled binary（`dist/mitori-darwin-arm64`、同じ tree から 18:20 に buil
 | `ui.card.optimistic` | 未計測 | 9.7 / 18.6 ms | 新規。in-process daemon + scripted claude（トークン 0） |
 | `ui.listeners.reader` | 未計測 | 9 | 新規。CDP で Reader の root 以下すべて（max 10） |
 | `ui.staleBadge` | 未計測 | **ERROR** | 新規。保存しても Reader に「古い」が出ない（再読み込みまで）。cr-requests/bench.md #11 |
+| `ui.cls.gen` / `ui.cls.gen.start` | 未計測 | 0.002 / **0.035** | 新規（全 suite の run の後に追加、単独 run・負荷 45）。streaming は予約領域が効く。run の開始で本文が 23 px 下がる（cr-requests/bench.md #13） |
 | `bin.health` | （budget なし） | 103〜106 ms | 新規 budget。SKEL-AT-01 の「起動 → health ≤ 1 s」を時間として測る（test は 15 s の緩い期限だけ） |
 | `doc.elk.300` | 170.8 ms | 85.8 ms | 負荷の差（最初は case 開始時 29、今回 15）。cv 0.80 → 0.14 |
 | `ui.cls.boot` | 0.049 | 0.018（e2e では 0.037） | どちらも limit 0.01 超。run ごとに 0.02〜0.05 で揺れる |
