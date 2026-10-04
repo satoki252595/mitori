@@ -19,6 +19,10 @@
 | `tsundoku serve` | `-p` `--port` | `bin/tsundoku.js:1` |
 <!-- b_pb7fbtty -->
 
+**外とのやり取り（HTTP・RPC・SDK・DB・子プロセス）**
+- 外への呼び出しは見つかりませんでした（HTTP・SDK / DB クライアント・RPC・子プロセスの起動を探しました）。
+<!-- b_vckgmkw8 -->
+
 | 名前 | 既定値 | 読む場所 |
 |---|---|---|
 | `DATABASE_URL` | なし | `src/config.ts:24` |
@@ -27,3 +31,10 @@
 | `TSUNDOKU_API_TOKEN` | なし | `src/config.ts:26` |
 | `TSUNDOKU_DEBUG_SQL` | なし | `.env.example:6` |
 <!-- b_n17ff8er -->
+
+**秘密情報らしい環境変数（名前だけ。値は読みません）**
+| 名前 | 読む場所 |
+|---|---|
+| `DATABASE_URL` | `src/config.ts:24` |
+| `TSUNDOKU_API_TOKEN` | `src/config.ts:26` |
+<!-- b_28h655da -->

@@ -20,6 +20,10 @@
 | `web-cli sync` | `--dry-run` | `web/tools/cli.js:1` |
 <!-- b_pb7fbtty -->
 
+**外とのやり取り（HTTP・RPC・SDK・DB・子プロセス）**
+- 外への呼び出しは見つかりませんでした（HTTP・SDK / DB クライアント・RPC・子プロセスの起動を探しました）。
+<!-- b_vckgmkw8 -->
+
 | 名前 | 既定値 | 読む場所 |
 |---|---|---|
 | `API_BASE_URL` | なし | `web/lib/upstream.ts:3` |
