@@ -70,13 +70,13 @@
     {
       "name": "gostd",
       "url": "https://github.com/golang/go",
-      "commit": null,
+      "commit": "862c888e612ac346c7c4d99c9392bdfd265f33b0",
       "tag": "go1.27.1",
-      "tree": null,
+      "tree": "cdb027640162ada52eac600797bff595a5767479",
       "depth": 1,
       "subdir": "src",
       "exclude": ["testdata"],
-      "contentHash": null,
+      "contentHash": "f21c254a8a653ec14936cd32ed622e0bc059991af174edf0952f62c4a9c14a2a",
       "role": "7k files / 100MB class (*.7kfiles); a plain directory with no .git, opened through the shadow path; resolved on the first online fetch"
     }
   ]

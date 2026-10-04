@@ -12,8 +12,7 @@
       "owner": "anchor",
       "measure": "bench/anchor.bench.ts#remap-10k",
       "scale": "machine",
-      "provisional": false,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "provisional": false
     },
     {
       "id": "anchor.batch1k",
@@ -26,8 +25,7 @@
       "owner": "anchor",
       "measure": "bench/anchor.bench.ts#batch-1k",
       "scale": "machine",
-      "provisional": false,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "provisional": false
     },
     {
       "id": "anchor.loss",
