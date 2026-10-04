@@ -22,7 +22,11 @@ edit, tiny and additive.
   files a user may want fewer files written; the router always writes every cite (spec §3.2), so the chip cannot offer
   an honest ×.
 - workaround in place: cited targets have no × (tooltip: select another sentence to leave it out); picked candidates
-  and `@` mentions do (they are `context.add`). Narrowing = selecting the sentence (the claim's own cites only).
+  and `@` mentions do (they are `context.add`). Narrowing = selecting the sentence (the claim's own cites only); with
+  2+ cited files the Composer says so visibly (「減らすには、その文だけを選び直す」, verifier pass).
+- note: the finishing brief asked for REMOVABLE cited chips. Not done: it needs `router/scope.ts`, `jobs/plan.ts`
+  (WP-08c's track edits it now) and `bundle/plan.ts` (`removable: false` of anchored code) together, and spec §3.2
+  makes the anchor's cites the write scope by design — the loop owner decides.
 - urgency: before the router is touched again (WP-08c).
 
 ## #3 A human-edited placeholder kept being a placeholder (FIXED here, cross-owner — please review)
@@ -34,9 +38,11 @@ edit, tiny and additive.
   (`docs/progress/ux/ux-10-proposal-standalone.png` before the fix).
 - fix: `editBlock` turns a placeholder into `prose` and detaches it from the placeholder slot (6 lines). Regression
   test `DOC-U-007b` in `packages/doc/src/store/store.test.ts` (fails without the fix).
-- left open: a locked static facts block still gets a proposal whenever its generated text differs from the human's
-  text, even when the generated text itself did not change since the last apply (compare with the last static text
-  instead). Not seen in the flows of this track.
+- verifier pass (same track): the fix left `status: "placeholder"`, so the reader still framed the human's words in the
+  未生成 card with a 生成する button (`ux-10` before) — `editBlock` now sets `status: "ready"` too (DOC-U-007b asserts it).
+- the open part is FIXED in the verifier pass (`apply.ts`, 2 lines): a locked static block whose generated text equals a
+  pending OR rejected proposal of that block is not proposed again — static proposals are now published live (SSE), so
+  the old behaviour re-proposed a rejected text on every file save. Regression test `DOC-U-007c` (fails without it).
 
 ## #4 Cross-owner edits this track made (small, additive — please keep or move)
 - `packages/server/src/wiring/workspace.ts` (WP-INT): `observeDoc` also reports created proposals; the workspace
@@ -48,7 +54,10 @@ edit, tiny and additive.
 - `apps/web/src/shell/Header.svelte` (WP-10a), the Review header declutter: the job chip no longer repeats the ready
   count the レビュー tab already shows (◆ once), and the drawer menu button is hidden while reviewing on a ≥ 1024 px
   screen (prototype 03e; the drawer stays on `pane.nav`).
-- `packages/doc/src/store/store.ts` (#3 above).
+- `packages/doc/src/store/store.ts`, `packages/doc/src/store/apply.ts` (#3 above).
+- verifier pass: `packages/core/src/api.ts` `CodeTarget.source` += `"near"` (additive, ledger row CR ux-F1 updated);
+  `apps/web/src/reader/decorate.ts` exports `decorateTable` (a proposed table gets the block's column classes and facts
+  cite chips); `workspace.ts` also publishes the proposals of a static refresh (`applyStatic` bypassed `observeDoc`).
 
 ## #5 `Installer` has no per-file state of a target × scope
 - contract: `packages/loop/src/contract.ts` C11 `Installer`
@@ -60,3 +69,17 @@ edit, tiny and additive.
   reads it structurally. `project` still travels in the options object (cr-requests/WP-11.md #2).
 - also: compose (`packages/server/src/compose.ts`, WP-INT) now creates the installer and merges the integration
   handlers; `POST /ws/:ws/init {agentsBlock: true}` installs the AGENTS.md block (spec §11.3).
+
+## #6 A thread carries no code range of its own: ⤴ (pull) and ⧉ (copy) cannot take a picked target
+- contract: core `CreateThreadReq` / `CopyPromptReq` (no `context`), loop `threadBundle` / `bundle/copy.ts` (`extra: []`)
+- observed (verifier pass, real daemon): a `change` thread on an uncited sentence sent to your own session gets
+  `WRITE -` in its pull bundle while the DO lines say "Edit only WRITE paths" — the agent can only ask back. A picked
+  candidate or an `@` mention travels only as the push job's `context.add`; on ⤴ / ⧉ it is dropped silently. The first
+  version of the Composer hint even promised 「自分のセッションへ送れば、あなたのエージェントがコードを探します」.
+- change (either): (a) `CreateThreadReq.context?: ContextAdjust` stored with the thread and passed as `extra` by
+  `threadBundle` / Finish(push) / the copy prompt; or (b) a doc-primary anchor may carry a user-chosen `code` member that
+  `anchorRanges` uses when the claim has no cite (and the anchor engine keeps instead of re-deriving).
+- workaround in place: on ⤴ / ⧉ an uncited Fix is blocked with 「この文には出典がないため、直すコードは ⚡ その場で実行
+  のときだけAIに渡せます…」 and a one-click 「⚡ その場で実行にする」; picks and `@` chips are shown only on ⚡ (where
+  they travel). A cited sentence is unaffected (the thread's anchor carries its cites on every path).
+- urgency: before the pull path is advertised for Fix (the concept's "your own agent").

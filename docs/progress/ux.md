@@ -91,18 +91,19 @@ crit での質（`agent_cmd を repo 設定でも上書きできるように` �
 init の agentsBlock）、`packages/server/src/wiring/workspace.ts`（提案の発行）、`apps/web/src/stores/doc.svelte.ts`（`pendingInserts()`）、
 `apps/web/src/shell/Header.svelte`（ヘッダー整理）、`packages/doc/src/store/store.ts`（UX-B2）、`packages/core/CR-LEDGER.md`（§6）。
 
-## 6. 動かないもの・残り（正直に）
+## 6. 動かないもの・残り（正直に、検証パス後）
 
 1. **出典の「対象コード」は外せない**（× なし）。router が出典を必ず書き込み範囲にする（loop spec §3.2）ので、外すには別の文を
-   選び直す。ブロック全体を選ぶと全 claim の出典が入る。CR #2（router が `context.remove` を受けるように）。
-2. **実エンジンでは試していない**（このトラックは実費禁止）。候補を選んだ Fix が本物の claude で通るか、候補の質が生成済みの
-   設計書でどうかは未確認。fake では Fix → ready → Review → 採用 → 提案の採用まで通る。
-3. 本文中の提案は `renderMessage` で描くので、静的表の `config.go:25` チップが提案の中ではフルパスのコード表示になる（見た目の差）。
+   選び直す。出典が 2 ファイル以上なら Composer に「減らすには、その文だけを選び直す」と出す。仕上げの指示（外せるチップ）とは違う
+   — router・`jobs/plan.ts`（WP-08c が今触っている）・`bundle/plan.ts` を同時に変える必要がある。CR #2。
+2. **⤴ 自分のセッション / ⧉ コピーには選んだ対象コードが渡らない**（スレッドがコード範囲を持たない。pull bundle は `WRITE -`）。
+   出典の無い文の Fix はその 2 経路では止めて「⚡ その場で実行にする」を出す。CR #6。
+3. **実エンジンでは試していない**（このトラックは実費禁止）。候補を選んだ Fix が本物の claude で通るかは未確認。生成済みの文書に
+   近い形（crit の索引 + 生成文書の文）では、文中のバッククォートの名前・近くの文の出典が正しいコードを先頭に出す（§8）。
 4. 静的 facts の行への AI の提案は、コードを採用すると行がコードから作り直されて重なり（409）になる。今は提案に「本文が変わりました」
    と出して却下を促すだけ（正しい内容はコードから自動で入る）。静的ブロックには doc_updates を出させない方が筋かもしれない（loop 側）。
-5. 未生成の節に人が書いた文は prose になったが、Reader は節を「この設計書はまだ生成されていません / 生成する」の枠で囲んだまま（WP-10a の節表示）。
-6. ready カード・trust トースト・「内容を見て承認」で同じ未承認ゲートが 3 回言われる（Review パネルの中だけは 1 回にした）。
-7. 和文だけの依頼から候補は出ない（(c) の案内になる）。Linux・Windows・Codex は未確認。
+5. ready カード・trust トースト・「内容を見て承認」で同じ未承認ゲートが 3 回言われる（Review パネルの中だけは 1 回にした）。
+6. 和文だけの依頼で、出典も名前も近くの出典も無い文（静的文書の説明文など）は (c) の案内になる。Linux・Windows・Codex は未確認。
 
 ## 7. 再現
 
@@ -111,6 +112,7 @@ scripts/nd bun run check
 scripts/nd bun test packages/loop/src/review packages/loop/src/install packages/server/src/wiring apps/web/src/composer \
   apps/web/src/threads packages/doc/src/store/store.test.ts test/int/ux.test.ts test/int/ux-install.test.ts test/int/ux-ui.test.ts
 scripts/nd bun scripts/gen-assets.ts && scripts/nd bun test/int/shots/ux.ts --out docs/progress/ux     # Chrome、fake engine、≈ 20 s
+scripts/nd bun test/int/shots/ux-en.ts --out docs/progress/ux [--scheme dark]                            # EN の Composer、送信なし
 scripts/nd bun run build:bin && scripts/nd bun test/int/shots/ux-bin.ts --out docs/progress/ux         # コンパイル済み、送信なし
 ```
 
@@ -118,4 +120,35 @@ scripts/nd bun run build:bin && scripts/nd bun test/int/shots/ux-bin.ts --out do
 
 スクリーンショット（`docs/progress/ux/`）: 01 候補（⌥1）・02 選んだ後の見積り・03 本文中の提案差分と ready カード・04 Review
 （整理後のヘッダー）・05 採用・06 対象なしの案内・07 設計書を直す・08 直した文（出典付き）・09 出典 = 対象コード・10 単独の提案・
-11 採用後・12 追記（INSERT）提案。
+11 採用後・12 追記（INSERT）提案・13 ⤴ では対象コードが渡らない旨と ⚡ への切り替え。`ux-en-0{1,2,3}`（+ `-dark`）: 英語 UI の
+同じ 3 状態。
+
+## 8. 検証パス（adversarial verifier、同じブランチ）
+
+実装の報告をそのまま信じず、check・テスト・UI（Chrome、ライト / ダーク / 英語）・コンパイル済みバイナリ・`claude plugin validate`
+を自分で回し、差分を読み、実 repo（crit）の索引で候補を試した。見つけて直したもの（全部に回帰テスト）:
+
+| # | 見つけたこと | 直し方 | テスト |
+|---|---|---|---|
+| V1 | **(c) の案内が嘘を言っていた**: 「自分のセッションへ送れば、あなたのエージェントがコードを探します」— 実 daemon で確かめると、出典の無い文の pull bundle は `WRITE -` で、DO 行は「WRITE のパスだけ直す」。エージェントは聞き返すしかない。選んだ候補・`@` も ⤴ / ⧉ では捨てられていた | ⤴ / ⧉ で出典の無い Fix は止め、理由と「⚡ その場で実行にする」を出す。選択・`@` のチップは渡る経路（⚡）でだけ出す | UX-FIX-18、UI `ux-13` / `ux-en-03` |
+| V2 | **生成文書の文では候補がほぼ出ない**: 文の中のバッククォートの名前（`Server.handlePicker`、`sess.PickerContext()`）はファイルでないので捨てられていた。2 語以上の選択は、本文テキスト（和欧間の空白なし）と md（空白あり）が一致せず行の参照が全部外れていた。和文の選択の中の `VCS` のような語がシンボル検索に回り、crit で無関係なフィールド 3 件が先頭に来た | 文中のコードスパンを名前として引く（修飾名、無ければ末尾の名前。選択の中のものが先）。行の照合は空白を無視。和文・長文の選択は名前として引かない | UX-FIX-16、UX-FIX-19 |
+| V3 | **和文だけの依頼で候補が出ない**（実装の「残り」7） | 新しい最後の層 `near`: 同じ節の近いブロックの出典（見出し・図の説明文・推測の文の隣には出典付きの文がある）。core `CodeTarget.source` に `"near"` を追加（追加のみ、台帳 CR ux-F1 更新） | UX-FIX-17 |
+| V4 | **人が未生成の節に書いた文が「未生成 / 生成する」の枠に入ったまま**（実装の「残り」5）: 実装の修正は `kind` だけ変えて `status: "placeholder"` を残していた | `editBlock` が `status: "ready"` にもする | DOC-U-007b（追加の検査） |
+| V5 | 却下した静的提案が、静的更新（ファイル保存のたび）に同じ文面で出直す（実装の CR #3 の「残り」）。提案を SSE で即時に出すようにした今は毎回出る | 同じ文面が pending か rejected なら出さない | DOC-U-007c（修正なしで失敗を確認） |
+| V6 | 静的更新が作った提案は `observeDoc` を通らず SSE に出ていなかった | `applyStatic` の結果の提案も発行 | — |
+| V7 | **提案の差分が出典の中で割れる**: 「fetch.go:4546-6061」 | リンク・インラインコードは 1 トークン、コードブロックは行単位 | UX-PROP-06 |
+| V8 | **提案の表がカードの端まではみ出し、出典が全パスのコード表示**（実装の「残り」3） | 表はカードの内側、reader と同じ表の装飾（列の種類・facts の `config.go:25` チップ）を `decorateTable` で付ける。出典リンクは改行しない | UI `ux-03` / `ux-04` |
+| V9 | Review のコード見出しが「1 files」 | 単複対応（ja「1ファイル」） | — |
+| V10 | 和文の案内の最後の行が「ん。」だけになる | 案内文に `line-break: strict` と `text-wrap: pretty` | UI `ux-01` |
+
+crit（1,219 files、in-process daemon、送信なし）での候補（生成文書と同じ形の文を人の編集で書いて試した）:
+
+| 選択 | 依頼 | 候補（先頭から） | 時間 |
+|---|---|---|---|
+| 「ブラウザが `/api/picker` を GET すると、`Server.handlePicker` が…`writeJSON` で返す。」全体 | ここをもっと速くして | `picker.go:193-249 Server.handlePicker`・`accessors.go:17-21 Session.PickerContext`・`server.go:3478-3483 writeJSON`・`picker.go:251-273 Server.openChanges`（全部 ref） | 70 ms |
+| その中の 1 文「`sess.PickerContext()` で VCS を得て、…」 | エラーを返すように | `Session.PickerContext`・`Server.openChanges`・`writeJSON`・`Server.handlePicker`（修正前は `VCS` 型とフィールド 2 件が先頭） | 71 ms |
+| §1 の見出し（隣に出典付きの文） | 説明を足して | `config.go:277-316 LoadConfigFile`（near） | — |
+
+実装の主張の再確認: check 緑、トラックのテスト（loop review / install、server wiring、web、doc store、UX-INT、UX-INST）全部通過、
+UI 走行（Chrome、ページエラー 0・4xx/5xx 0）、コンパイル済みバイナリのスモーク（`claude plugin validate` 警告なし）、daemon が
+起動していない状態からの `mitori install agents-md / claude-code / codex` も通る。費用は $0（実エンジンの呼び出しなし）。
