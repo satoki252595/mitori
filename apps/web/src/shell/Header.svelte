@@ -24,11 +24,14 @@ const tag = $derived(status?.profile?.head?.tag ?? null);
 
 // AC-U03: the chip's name and HEAD arrive after the first paint and the tabs are centred beside it, so a growing chip
 // moved them. The chip as last shown for this workspace is drawn at once (stale until the status answers, same
-// width when nothing changed); a workspace never opened in this browser reserves the usual width for the page's life.
+// width when nothing changed); a workspace never opened in this browser reserves the usual width for the page's life
+// — unless the tabs would not fit beside it: the reservation then goes before any text is shed (fit()).
 type ProjChip = { name: string; head: string; tag: string | null };
 const cachedChip = $derived(ws ? getJson<ProjChip>("local", STORAGE_KEYS.proj(ws)) : null);
 // a snapshot at mount, on purpose: the reservation must not drop (and move the tabs) when the status arrives
 const coldWs = untrack(() => (ws && !cachedChip ? ws : null));
+let reserveOn = $state(true);
+const reserve = $derived(reserveOn && ws !== null && ws === coldWs);
 const projName = $derived(status?.info.name ?? cachedChip?.name ?? "");
 const projHead = $derived(s.workspace.head7 || cachedChip?.head || "");
 const projTag = $derived(status ? tag : (cachedChip?.tag ?? null));
@@ -64,6 +67,11 @@ function fit() {
   let k = 0;
   if (tight !== 0) {
     tight = 0;
+    flushSync();
+  }
+  // the chip's held width yields first, and for good (it never comes back to push the tabs again)
+  if (reserve && over()) {
+    reserveOn = false;
     flushSync();
   }
   while (k < 2 && over()) {
@@ -146,7 +154,7 @@ const crumbs = $derived.by(() => {
     </a>
     {#if ws}
       <span class="hdr-sep" aria-hidden="true"></span>
-      <button type="button" class="proj" class:reserve={ws === coldWs} aria-haspopup="true" aria-expanded={wsMenu} onclick={toggleWsMenu}>
+      <button type="button" class="proj" class:reserve aria-haspopup="true" aria-expanded={wsMenu} onclick={toggleWsMenu}>
         <span class="proj-name" data-user-content>{projName}</span>
         <span class="proj-meta">{projHead}{#if projTag}<span class="tag"> &middot; <span data-user-content>{projTag}</span></span>{/if}</span>
         {#if status?.info.kind === "shadow"}<span class="kind-badge" title={t("header.shadowTip")}>{t("header.shadow")}</span>{/if}
@@ -288,12 +296,15 @@ const crumbs = $derived.by(() => {
     flex-direction: column;
     align-items: flex-end;
     justify-content: center;
-    /* the slot of a usual day's line (「今日$0.00 · 0 tok」 / 「Today $0.00 · 0 tok」): today's numbers arriving after
-       the first paint do not move the tabs (AC-U03); a bigger day widens it once */
+    /* the slot of a usual day's line (「今日$0.00 · 0 tok」): today's numbers arriving after the first paint do not
+       move the tabs (AC-U03); a bigger day widens it once. 「Today …」 is narrower, and English tabs need the room */
     min-width: 11.5em;
     margin: 0 2px 0 4px;
     line-height: 1.25;
     white-space: nowrap;
+  }
+  :global(:root[lang="en"]) .usage {
+    min-width: 10.5em;
   }
   .u1 {
     font-size: var(--fs-label);

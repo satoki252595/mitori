@@ -247,14 +247,10 @@ svg.i {
   display: none;
 }
 
-/* a workspace's first visit in this browser: the chip's usual width is held while its name arrives (Header.svelte);
-   a tight header gives it up first */
+/* a workspace's first visit in this browser: the chip's usual width is held while its name arrives (Header.svelte;
+   it yields before the header sheds any text) */
 .proj.reserve {
   min-width: 11em;
-}
-
-.hdr[data-tight] .proj.reserve {
-  min-width: 0;
 }
 
 .hdr[data-tight="2"] .brand-en,
