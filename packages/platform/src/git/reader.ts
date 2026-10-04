@@ -280,10 +280,11 @@ export function createGitReader(opts: GitReaderOptions): PlatformGitReader {
       return url === "" ? null : url.replace(/^([a-z+]+:\/\/)[^@/]+@/i, "$1");
     },
     async headMeta() {
-      if ((await verify("HEAD^{commit}")) === null) return null;
-      const d = await text(["log", "-1", "--format=%cI", "HEAD"], [0, 128]);
+      const [d, t] = await Promise.all([
+        text(["log", "-1", "--format=%cI", "HEAD"], [0, 128]),
+        isShallow().then((sh) => (sh ? { code: 1, out: "" } : text(["describe", "--tags", "--abbrev=0", "HEAD"], [0, 128]))),
+      ]);
       if (d.code !== 0 || d.out === "") return null;
-      const t = (await isShallow()) ? { code: 1, out: "" } : await text(["describe", "--tags", "--abbrev=0", "HEAD"], [0, 128]);
       return { date: new Date(d.out).toISOString(), tag: t.code === 0 && t.out !== "" ? t.out : null };
     },
     async close() {

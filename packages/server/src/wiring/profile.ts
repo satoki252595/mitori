@@ -235,7 +235,8 @@ export async function repoProfile(d: ProfileDeps): Promise<RepoProfile> {
       byLoc.set(f.lang as SourceLang, (byLoc.get(f.lang as SourceLang) ?? 0) + f.lines);
   const primary = [...byLoc].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
-  const readme = await (async () => {
+  // everything in parallel: the profile is on the open path (the hero and §4 need it), git spawns dominate
+  const readmeP = (async () => {
     const f = root.filter((x) => README_RE.test(x.path)).sort((a, b) => Number(!/\.md$/i.test(a.path)) - Number(!/\.md$/i.test(b.path)))[0];
     if (!f) return null;
     const text = await d.read(f.path);
@@ -243,7 +244,7 @@ export async function repoProfile(d: ProfileDeps): Promise<RepoProfile> {
     return lede ? { path: f.path, ...lede } : null;
   })();
 
-  const license = await (async () => {
+  const licenseP = (async () => {
     for (const f of root.filter((x) => LICENSE_RE.test(x.path)).sort((a, b) => (a.path < b.path ? -1 : 1))) {
       const text = await d.read(f.path);
       const spdx = text ? spdxOf(text.slice(0, 4096)) : null;
@@ -261,18 +262,21 @@ export async function repoProfile(d: ProfileDeps): Promise<RepoProfile> {
     return null;
   })();
 
-  let toolchain: RepoProfile["toolchain"] = null;
-  for (const name of manifestsFor(primary)) {
-    const f = root.find((x) => x.path === name);
-    if (!f) continue;
-    const text = await d.read(f.path);
-    toolchain = text ? toolchainOf(f.path, text, primary) : null;
-    if (toolchain) break;
-  }
-
-  const remote = parseRemote((await d.git.remoteUrl?.().catch(() => null)) ?? null);
-  const commit = await d.git.head().catch(() => null);
-  const meta = commit ? await d.git.headMeta?.().catch(() => null) : null;
-  const head = commit && meta ? { commit, date: meta.date, tag: meta.tag } : null;
+  const toolchainP = (async (): Promise<RepoProfile["toolchain"]> => {
+    for (const name of manifestsFor(primary)) {
+      const f = root.find((x) => x.path === name);
+      if (!f) continue;
+      const text = await d.read(f.path);
+      const t = text ? toolchainOf(f.path, text, primary) : null;
+      if (t) return t;
+    }
+    return null;
+  })();
+  const remoteP = (async () => parseRemote((await d.git.remoteUrl?.().catch(() => null)) ?? null))();
+  const headP = (async () => {
+    const [commit, meta] = await Promise.all([d.git.head().catch(() => null), d.git.headMeta?.().catch(() => null) ?? Promise.resolve(null)]);
+    return commit && meta ? { commit, date: meta.date, tag: meta.tag } : null;
+  })();
+  const [readme, license, toolchain, remote, head] = await Promise.all([readmeP, licenseP, toolchainP, remoteP, headP]);
   return { remote, head, license, toolchain, readme, areas: areasOf(files) };
 }
