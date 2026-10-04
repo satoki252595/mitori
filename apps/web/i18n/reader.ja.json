@@ -130,5 +130,9 @@
   "cite.verify": "確かめた",
   "cite.verified": "確認済み",
   "cite.verifyHint": "この段落の主張{n}件を確認済み（✓✓）にします。再生成しても保持します",
-  "cite.unverifyHint": "この段落の確認を外します"
+  "cite.unverifyHint": "この段落の確認を外します",
+  "code.otherVersion": "出典は{cited}の版の行です。表示しているのは今の作業ツリー（{cur}）",
+  "reader.genPaused": "生成を一時停止しています。この節はまだ書かれていません",
+  "reader.genPausedBudget": "生成の予算の80%に達したため一時停止しています。この節はまだ書かれていません",
+  "reader.genResume": "再開する"
 }

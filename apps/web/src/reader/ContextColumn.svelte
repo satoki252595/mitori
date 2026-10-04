@@ -7,13 +7,13 @@
 <script lang="ts">
 import type { FileContent, JobId, LineNo, RepoPath, SectionId } from "@mitori/core";
 import { MitoriError } from "@mitori/core";
-import type { Component } from "svelte";
+import { type Component, untrack } from "svelte";
 import { errorText, t } from "../shell/index.ts";
 import { markAfterPaint } from "../shell/perf.ts";
 import Rich from "../shell/Rich.svelte";
 import { useStores } from "../stores/app.svelte.ts";
 import CodePane from "./CodePane.svelte";
-import { codeWindow, loadCode } from "./code.ts";
+import { codeWindow, invalidateCode, loadCode } from "./code.ts";
 
 let {
   placement,
@@ -28,7 +28,7 @@ let {
   placement: "column" | "overlay" | "sheet" | "none";
   width: number;
   page: SectionId;
-  spy: { path: RepoPath; start: LineNo; end: LineNo } | null;
+  spy: { path: RepoPath; start: LineNo; end: LineNo; blob?: string } | null;
   margin: Component<{ page: string }> | null;
   review: Component<{ job: JobId }> | null;
   /** 「この節について」 of the empty margin (no loop UI yet / no threads): stats and the files the page cites. */
@@ -64,9 +64,23 @@ $effect(() => {
   markAfterPaint("mitori:ctx:mode", { mode: m });
 });
 
+// EX-08: an accepted Fix or its Undo changes files under the open range (SSE index.changed): the pane re-reads the
+// current file at once, so it never shows a version that is gone (and never marks lines of another version)
+let rev = $state(0);
+$effect(() => {
+  const ch = s.workspace.changed;
+  const ws = s.workspace.key;
+  if (!ch || !ws) return;
+  untrack(() => {
+    const tg = target;
+    if (invalidateCode(ws, ch.paths) && tg && ch.paths.includes(tg.path)) rev++;
+  });
+});
+
 $effect(() => {
   const tg = target;
   const ws = s.workspace.key;
+  void rev;
   if (mode !== "code" || !tg || !ws) return;
   const w = codeWindow(tg.start, tg.end);
   error = null;
@@ -105,7 +119,7 @@ function up() {
     {/if}
     <div class="code-wrap">
       {#if target}
-        <CodePane {content} range={{ start: target.start, end: target.end }} badge={s.ctx.pin ? "pinned" : "exact"} {error} />
+        <CodePane {content} range={{ start: target.start, end: target.end }} badge={s.ctx.pin ? "pinned" : "exact"} {error} citedBlob={target.blob ?? null} />
       {:else}
         <p class="empty">{t("ctx.codeEmpty")}</p>
       {/if}

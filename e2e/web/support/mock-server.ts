@@ -24,6 +24,8 @@ let settingsVersion = 3;
 let acked = opts.policyAcked;
 /** The reader level a PATCH saved (the first visit saves 「初めて」, NC-08); reset by configure. */
 let savedLevel: string | null = null;
+/** Bumped by an emitted `index.changed` (an accept / Undo touched the files): the files are another version now. */
+let fileRev = 0;
 const streams = new Set<ReadableStreamDefaultController<Uint8Array>>();
 const enc = new TextEncoder();
 const gz = new Map<string, Uint8Array>();
@@ -34,6 +36,7 @@ function configure(o: Partial<FixtureOptions>) {
   log = [];
   acked = opts.policyAcked;
   savedLevel = null;
+  fileRev = 0;
   estSeq = 0;
 }
 
@@ -264,7 +267,7 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     );
     return json({
       path,
-      blob: "d94e6b7a1c",
+      blob: fileRev === 0 ? "d94e6b7a1c" : `c0ffee${fileRev}a1`,
       lang: "go",
       text: "",
       startLine: start,
@@ -351,6 +354,7 @@ Bun.serve({
       return json({ ok: true });
     }
     if (url.pathname === "/__mock/emit") {
+      if ((body as { type?: string }).type === "index.changed") fileRev++;
       emit(body as SseEvent);
       return json({ ok: true, tabs: streams.size });
     }

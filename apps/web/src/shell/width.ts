@@ -24,6 +24,22 @@ export interface Layout {
   mapRight: number;
 }
 
+/** Toast width (`--toast-w`) and the gap to the edge of what it sits beside. */
+export const TOAST_W = 420;
+const TOAST_GAP = 20;
+
+/**
+ * Right offset of the toast stack (EX-11): beside the context column / the map's card column, never over it (their
+ * footers carry 送信 · 採用 · 却下 · 生成する). When the page area left of the column is narrower than a toast (a
+ * tablet sheet, an overlay), the stack keeps the page edge.
+ */
+export function toastRight(l: Pick<Layout, "width" | "ctx" | "ctxPlacement" | "mapRight">, view: ViewForLayout): number {
+  const beside = l.ctxPlacement === "column" ? l.ctx : view === "map" ? l.mapRight : 0;
+  if (beside <= 0) return TOAST_GAP;
+  const right = beside + TOAST_GAP;
+  return l.width - right >= TOAST_W + TOAST_GAP ? right : TOAST_GAP;
+}
+
 export function computeLayout(width: number, view: ViewForLayout, mode: CtxMode, codeWidth: number, railCollapsed: boolean): Layout {
   const tier = width >= 1281 ? "wide" : width >= 1024 ? "laptop" : width >= 600 ? "tablet" : "phone";
   const railW = tier === "wide" ? 248 : 228;

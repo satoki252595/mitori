@@ -130,5 +130,9 @@
   "cite.verify": "Checked",
   "cite.verified": "Checked",
   "cite.verifyHint": "Marks the paragraph's {n} claims checked (✓✓). Kept across regenerations",
-  "cite.unverifyHint": "Removes the paragraph's check"
+  "cite.unverifyHint": "Removes the paragraph's check",
+  "code.otherVersion": "The cite points at lines of {cited}; this is the working tree now ({cur})",
+  "reader.genPaused": "Generation is paused. This section is not written yet",
+  "reader.genPausedBudget": "Generation paused at 80 % of its budget. This section is not written yet",
+  "reader.genResume": "Resume"
 }

@@ -1,14 +1,18 @@
 <!--
   Toast stack (BottomStack, ux.md §3.5): above the status bar, newest at the bottom, ≤ 3. Lifetimes pause while
   the pointer or focus is inside (WCAG 2.2.1). Text comes from the catalog (`toast.*`, `notice.*`).
+  EX-11: a toast never covers the context column (the Composer's 送信, the Review panel's 採用 / 却下 footer, the
+  map's card column): the stack sits at the right edge of the page's main area (tokens: width.ts toastRight).
 -->
 <script lang="ts">
-import { useStores } from "../stores/app.svelte.ts";
+import { currentLayout, layoutView, useStores } from "../stores/app.svelte.ts";
 import { t } from "./index.ts";
 import Rich from "./Rich.svelte";
+import { toastRight } from "./width.ts";
 
 const s = useStores();
 const bottom = $derived(s.bottom.bottomOf("toasts"));
+const right = $derived(toastRight(currentLayout(s), layoutView(s.router.route)));
 let el: HTMLDivElement | undefined = $state();
 
 // the lifetime stops while the pointer OR the focus is inside, and runs again only when both have left (WCAG 2.2.1)
@@ -33,7 +37,7 @@ $effect(() => {
 });
 </script>
 
-<div class="toasts" bind:this={el} style:bottom="{bottom}px" data-chrome>
+<div class="toasts" bind:this={el} style:bottom="{bottom}px" style:right="{right}px" data-chrome>
   {#each s.bottom.toasts as tt (tt.id)}
     <div
       class="toast"

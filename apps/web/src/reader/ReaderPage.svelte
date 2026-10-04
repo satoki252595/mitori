@@ -55,6 +55,8 @@ let focused = $state<BlockId | null>(null);
 let forced = $state.raw<ReadonlySet<BlockId>>(new Set());
 let loadError = $state<string | null>(null);
 let reviewSection = $state<SectionId | null>(null);
+/** EX-09: the block the reviewed job is anchored on (or its first doc proposal's): the left body opens THERE. */
+let reviewBlock = $state<BlockId | null>(null);
 
 // ---------------------------------------------------------------- which page
 const section = $derived<SectionId | null>(route.name === "doc" ? route.section : route.name === "review" ? (reviewSection ?? null) : null);
@@ -70,17 +72,25 @@ $effect(() => {
       void s.review.jobDetail(job).then(
         (d) => {
           const th = d.threads.map((id) => s.review.threads.get(id)).find((x) => x?.anchor.doc);
-          const block = th?.anchor.doc?.block;
+          const block = th?.anchor.doc?.block ?? d.proposalViews?.find((p) => p.block)?.block;
+          reviewBlock = block ?? null;
           reviewSection = (block && s.doc.index?.blockSection.get(block)) || "s0";
         },
-        () => (reviewSection = "s0"),
+        () => {
+          reviewBlock = null;
+          reviewSection = "s0";
+        },
       );
     });
   } else if (route.name === "doc") {
     const r = route;
     untrack(() => {
-      if (r.ctx === "code") s.ctx.set("code", r.pin ? { pin: r.pin } : {});
-      else if (r.ctx === "review") s.ctx.set("review");
+      if (r.ctx === "code") {
+        // the URL carries path:a-b only: the pin set from a chip keeps its cited blob (EX-08)
+        const cur = s.ctx.pin;
+        const same = !!cur && !!r.pin && cur.path === r.pin.path && cur.start === r.pin.start && cur.end === r.pin.end;
+        s.ctx.set("code", r.pin ? { pin: same && cur ? cur : r.pin } : {});
+      } else if (r.ctx === "review") s.ctx.set("review");
       else s.ctx.defaultFor(s.doc.level);
     });
   }
@@ -134,9 +144,18 @@ $effect(() => {
       }
     } else if (r.name === "doc" && r.section !== model.page) {
       document.querySelector(`[data-sec="${CSS.escape(r.section)}"]`)?.scrollIntoView({ block: "start" });
+    } else if (r.name === "review" && reviewBlock) {
+      // EX-09: the anchored block (and its proposal right after it) in the middle of the left column, marked; the
+      // keyboard stays with the Review panel
+      const b = reviewBlock;
+      host?.ensureMounted(b);
+      focused = b;
+      flushSync();
+      main?.querySelector(`.blk[data-b="${CSS.escape(b)}"]`)?.scrollIntoView({ block: "center" });
     } else window.scrollTo(0, 0);
     // the page heading gets focus (§2.3-5) unless the link targeted a block, which then keeps it
-    if (s.router.focusMain && !restored && !(r.name === "doc" && r.block)) (main?.querySelector("h1") as HTMLElement | null)?.focus({ preventScroll: true });
+    if (s.router.focusMain && !restored && !(r.name === "doc" && r.block) && r.name !== "review")
+      (main?.querySelector("h1") as HTMLElement | null)?.focus({ preventScroll: true });
     const n = ix?.nodes.get(model.page);
     if (n) s.ui.announce(t("reader.announce.page", { num: ix?.numbers.get(model.page) ?? "", title: n.title }));
   });
@@ -312,6 +331,14 @@ let peek = $state.raw<{ data: CitePeekData; anchorEl: HTMLElement; claimEl: HTML
 let peekHover = false;
 let peekTimer: ReturnType<typeof setTimeout> | null = null;
 const peekCache = new Map<string, Promise<CitePeekData>>();
+// a static fact's peek is the CURRENT file window: an accept / Undo (SSE index.changed) makes it old (EX-08)
+$effect(() => {
+  const ch = s.workspace.changed;
+  if (!ch) return;
+  untrack(() => {
+    for (const key of [...peekCache.keys()]) if (key.endsWith("@") && ch.paths.some((p) => key.startsWith(`${p}:`))) peekCache.delete(key);
+  });
+});
 const peeked = new Set<string>();
 
 function fetchPeek(cite: string, blob: string): Promise<CitePeekData> | null {
@@ -406,11 +433,13 @@ function pinPeek() {
     else leaveCode();
     return;
   }
-  const cite = peek?.anchorEl.dataset.cite ?? (document.activeElement as HTMLElement | null)?.closest?.("a.mcite, a.fcite")?.getAttribute("data-cite");
+  const chip = (peek?.anchorEl ?? (document.activeElement as HTMLElement | null)?.closest?.("a.mcite, a.fcite")) as HTMLElement | null | undefined;
+  const cite = chip?.dataset.cite;
   const c = cite ? parseCite(cite) : null;
   if (!c) return;
+  const blob = chip?.dataset.blob;
   closePeek();
-  s.ctx.set("code", { pin: { path: c.path, start: c.start, end: c.end } });
+  s.ctx.set("code", { pin: { path: c.path, start: c.start, end: c.end, ...(blob ? { blob } : {}) } });
   if (route.name === "doc") s.router.replaceUrl({ ...route, ctx: "code", pin: { path: c.path, start: c.start, end: c.end } });
 }
 
@@ -564,17 +593,22 @@ $effect(() => {
 });
 
 // ---------------------------------------------------------------- scrollspy (code mode follows the first visible block's main cite)
-let spy = $state.raw<{ path: RepoPath; start: LineNo; end: LineNo } | null>(null);
+let spy = $state.raw<{ path: RepoPath; start: LineNo; end: LineNo; blob?: string } | null>(null);
 $effect(() => {
   if (s.ctx.mode !== "code" || s.ctx.pin || !main || !loaded) return;
   let settle: ReturnType<typeof setTimeout> | null = null;
   const io = new IntersectionObserver(
     (entries) => {
       const first = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-      const cite = first?.target.querySelector<HTMLElement>("a.mcite")?.dataset.cite;
+      const chip = first?.target.querySelector<HTMLElement>("a.mcite");
+      const cite = chip?.dataset.cite;
       if (!cite) return;
+      const blob = chip?.dataset.blob;
       if (settle) clearTimeout(settle);
-      settle = setTimeout(() => (spy = parseCite(cite)), 100);
+      settle = setTimeout(() => {
+        const c = parseCite(cite);
+        spy = c ? { ...c, ...(blob ? { blob } : {}) } : null;
+      }, 100);
     },
     { rootMargin: "-18% 0px -62% 0px" },
   );
@@ -716,7 +750,13 @@ function startCourse() {
         onclose={closeWelcome}
       />
     {/if}
-    {#if notGenerated && p.node.state !== "static_only"}
+    {#if s.gen.run?.state === "paused" && p.node.state !== "generated" && p.node.state !== "static_only"}
+      <!-- EX-11: a run paused (budget / the 5h window) says so and resumes here; a written page never claims to be ungenerated -->
+      <p class="gen-note" data-chrome>
+        <span>{t(s.gen.run.paused?.reason === "budget" ? "reader.genPausedBudget" : "reader.genPaused")}</span>
+        <button type="button" class="btn btn-sec btn-s" onclick={() => void s.gen.control("resume")}>{t("reader.genResume")}</button>
+      </p>
+    {:else if notGenerated && s.gen.run?.state !== "running" && p.node.state !== "static_only" && p.node.state !== "generated"}
       <p class="gen-note" data-chrome>
         <span>{t("reader.notGenerated")}</span>
         {#if ws}<a class="btn btn-sec btn-s" href={HREFS.map(ws)}>{t("reader.seeEstimate")}</a>{/if}
