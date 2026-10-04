@@ -1,6 +1,7 @@
 {
   "composer.aim.code": "Make the code follow this request",
-  "composer.aim.doc": "Fix the doc (the code is right)",
+  "composer.aim.ai": "Let the AI fix the doc (the code is right)",
+  "composer.aim.doc": "Edit the doc yourself (0 tok)",
   "composer.aim.label": "What to fix",
   "composer.body.label": "Request",
   "composer.body.placeholder.change": "Describe the change (@ points at code · ⌘⏎ sends)",
@@ -53,6 +54,7 @@
   "composer.md.dropSave": "Remove and save",
   "composer.md.dropped": "{n} citations ({list}) will be removed",
   "composer.md.label": "Block Markdown",
+  "composer.md.note": "This is the doc text itself (saving changes the doc; nothing goes to the AI). To have the AI fix it from your comment, choose “Let the AI fix the doc”.",
   "composer.md.mine": "Yours",
   "composer.md.overwrite": "Overwrite with yours",
   "composer.md.restore": "Restore",

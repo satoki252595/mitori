@@ -80,7 +80,7 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
 
   /** What the bundle is made of besides the index: a thread's intent, anchor and human text, and the context adjustments. */
   const threadSig = (t: ThreadDetail): string => JSON.stringify([t.intent, t.anchor, t.messages.map((m) => [m.by, m.body])]);
-  const contextSig = (r: JobReq): string => JSON.stringify([r.context ?? null, r.mode ?? null, r.model ?? null, r.engine ?? null]);
+  const contextSig = (r: JobReq): string => JSON.stringify([r.context ?? null, r.mode ?? null, r.model ?? null, r.engine ?? null, r.docFix === true]);
   /** The remembered plan still describes what a create would send (live finding: a draft saved after its estimate). */
   function inputsUnchanged(known: JobPlan, req: CreateJobReq): boolean {
     if (contextSig(known.req) !== contextSig(req)) return false;

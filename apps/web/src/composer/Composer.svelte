@@ -300,6 +300,7 @@ const sendLabel = $derived(
   {#if c.intent === "change" && docPrimary}
     <div class="aim" role="radiogroup" aria-label={t("composer.aim.label")}>
       <label class:on={c.fixTarget === "code"}><input type="radio" name="aim-{c.tempKey}" checked={c.fixTarget === "code"} onchange={() => void c.setTarget("code")} />{t("composer.aim.code")}</label>
+      <label class:on={c.fixTarget === "ai"}><input type="radio" name="aim-{c.tempKey}" checked={c.fixTarget === "ai"} onchange={() => void c.setTarget("ai")} />{t("composer.aim.ai")}</label>
       <label class:on={c.fixTarget === "doc"}><input type="radio" name="aim-{c.tempKey}" checked={c.fixTarget === "doc"} onchange={() => void c.setTarget("doc")} />{t("composer.aim.doc")}</label>
     </div>
   {/if}
@@ -308,6 +309,8 @@ const sendLabel = $derived(
     {#if c.docMd === undefined}
       <div class="skel md-skel" aria-busy="true"></div>
     {:else}
+      <!-- EX-06: this field IS the doc's text (a comment typed here would be saved into the doc) -->
+      <p class="md-note">{t("composer.md.note")}</p>
       <textarea
         bind:this={mdArea}
         class="body md"
@@ -519,6 +522,11 @@ const sendLabel = $derived(
 </section>
 
 <style>
+  .md-note {
+    margin: 4px 0 6px;
+    font-size: var(--fs-meta);
+    color: var(--muted);
+  }
   .composer {
     padding: 14px 16px 12px;
     border: 1px solid var(--rule);

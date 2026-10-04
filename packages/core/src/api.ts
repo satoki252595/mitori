@@ -1090,6 +1090,11 @@ export interface JobReq {
   context?: ContextAdjust;
   /** Bundle budget override (≤ `limits.bundleMaxTokens`). */
   budgetTokens?: number;
+  /**
+   * EX-06 (`kind: "explain"` only): the code is right and the design-doc text is wrong — the answer also proposes the
+   * anchored block rewritten to match the code, as a doc proposal the human accepts or rejects (no code changes).
+   */
+  docFix?: boolean;
 }
 
 /** Estimate response (bundle is built ≤ 100 ms p95). */

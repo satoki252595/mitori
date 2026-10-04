@@ -228,6 +228,7 @@ export async function build(deps: BundleBuilderDeps, input: BundleInputExt, budg
   if (gateRuns && trusted.length > 0) bullets.push(ACCEPT_FIXED.gates.replace("{gates}", trusted.map(field).join(" ")));
   if (input.mode === "copy") bullets.push(ACCEPT_FIXED.scope);
   if (input.threads.some((t) => t.intent === "doc_edit")) bullets.push(ACCEPT_FIXED.docEdit);
+  if (input.docFix && input.mode === "answer") bullets.push(ACCEPT_FIXED.docFix);
   const accept = bullets.length > 0 ? ["ACCEPT", ...bullets.map((b) => `- ${b}`)] : [];
 
   const doLines = doBlock(input);

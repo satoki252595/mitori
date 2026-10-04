@@ -20,7 +20,7 @@ import {
   type ThreadId,
   type ThreadOutcome,
 } from "@mitori/core";
-import { CONTRACT_LIMITS, type ParsedPatch } from "../contract.ts";
+import { CONTRACT_LIMITS, DOC_FIX_FENCE, type ParsedPatch } from "../contract.ts";
 import { applyEditsToText, parseContract } from "../contracts/index.ts";
 import { gatePatchTree, treeTexts } from "../gates/job.ts";
 import { scopeFailure } from "../git/scope.ts";
@@ -168,13 +168,17 @@ export async function runAnswer(core: RunnerCore, id: JobId, plan: JobPlan, sign
   } else {
     const parsed = parseContract("answer/1", raw, { citeExists });
     if (!parsed.ok) throw new MitoriError("E_AGENT_PROTOCOL", `invalid answer/1 output: ${checkText(parsed.error.errors)}`);
+    // EX-06: an Explain asked to fix the doc may end with the anchored block rewritten to match the code
+    const fix = plan.req.docFix === true ? splitDocFix(parsed.value.markdown) : null;
+    const answer = fix ? fix.answer : parsed.value.markdown;
     await core.update(
       id,
       "job.done",
       (rec) => {
         core.setState(rec, "done");
+        if (fix) rec.job.proposals = [...new Set([...rec.job.proposals, ...proposeDocFix(core, id, plan, fix.md)])];
         for (const t of rec.job.threads) {
-          core.threads.say(t, id, engine, "answer", parsed.value.markdown, parsed.value.cites);
+          core.threads.say(t, id, engine, "answer", answer, parsed.value.cites);
           core.threads.fire(t, "answer", "system");
         }
       },
@@ -676,6 +680,45 @@ function propose(core: RunnerCore, id: JobId, plan: FinishPlan, parsed: TurnOutc
     }
   }
   return out;
+}
+
+/**
+ * EX-06: the answer text and the rewritten block of a doc-fix Explain (the LAST ```mitori-doc``` fence), or null
+ * when the model found the doc accurate. The fence never stays in the answer.
+ */
+export function splitDocFix(markdown: string): { answer: string; md: string } | null {
+  const re = new RegExp(`\\n?\`\`\`${DOC_FIX_FENCE}[ \\t]*\\n([\\s\\S]*?)\\n\`\`\`[ \\t]*(?:\\n|$)`, "g");
+  let last: RegExpExecArray | null = null;
+  for (let m = re.exec(markdown); m !== null; m = re.exec(markdown)) last = m;
+  if (!last) return null;
+  const md = (last[1] as string).trim();
+  if (md === "") return null;
+  const answer = (markdown.slice(0, last.index) + markdown.slice(last.index + last[0].length)).trim();
+  return { answer: answer === "" ? "設計書の記述をコードに合わせる修正を提案しました。" : answer, md };
+}
+
+/** EX-06: the rewritten block as an update proposal of the thread's anchored block (inside the slot). */
+function proposeDocFix(core: RunnerCore, id: JobId, plan: JobPlan, md: string): ProposalId[] {
+  const blockId = plan.threads[0]?.anchor.doc?.block;
+  const block = blockId ? core.deps.doc.block(blockId) : null;
+  if (!block) return [];
+  try {
+    const p = core.deps.doc.propose({
+      block: block.id,
+      section: block.section,
+      op: "update",
+      baseHash: block.hash,
+      // the answer's `[[path:a-b]]` cites → the DOC token form → cite links (the store re-stamps them)
+      md: citeLinks(md.replace(/\[\[([^[\]\s]+:\d+(?:-\d+)?)\]\]/gu, "[$1]")),
+      source: { kind: "job", id },
+      reason: "コードに合わせた設計書の修正",
+    });
+    return [p.id];
+  } catch (e) {
+    // invalid AI Markdown (SEC-11: HTML, headings in prose) stays out of the doc; the answer still arrives
+    core.deps.log.warn("doc fix proposal refused", { job: id, block: block.id, error: MitoriError.from(e).message });
+    return [];
+  }
 }
 
 /* ---- revise (spec §6.6.3, T14) ------------------------------------------------------------------------------ */

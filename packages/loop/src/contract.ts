@@ -472,7 +472,13 @@ export const ACCEPT_FIXED = {
   gates: "GATE checks pass: {gates}.",
   scope: "Behaviour not mentioned in ASK stays the same.",
   docEdit: "After the change, the new DOC text is true of the code.",
+  /** EX-06: an Explain that may rewrite the anchored doc block to match the code (the code is the truth). */
+  docFix:
+    "The CODE is correct; the DOC may be wrong. Answer ASK citing [[path:start-end]]. If the DOC block (the one SEL is in) says anything the CODE contradicts, end the answer with a fenced block ```mitori-doc``` holding that whole block rewritten so every sentence is true of the CODE: same language and style, no headings, no HTML, cites as [[path:start-end]]. If the DOC is accurate, add no such block.",
 } as const;
+
+/** EX-06: the fence tag of the rewritten doc block in an answer. */
+export const DOC_FIX_FENCE = "mitori-doc";
 
 /** DO lines for pull/copy bundles (spec §4.7). `{id}` = thread id. */
 export const PULL_DO_LINES = [
@@ -505,6 +511,8 @@ export interface BundleInput {
   target?: CopyPromptReq["target"];
   /** Fixed nonce for golden tests (otherwise crypto random). */
   nonce?: string;
+  /** EX-06: the answer may end with the anchored block rewritten to match the code (`ACCEPT_FIXED.docFix`). */
+  docFix?: boolean;
   /** Hints resolved from `needs_more_context` (read-only REL/CODE additions; spec §3.5). */
   hints?: { path: RepoPath; start: LineNo; end: LineNo }[];
   /**

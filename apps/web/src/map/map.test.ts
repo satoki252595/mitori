@@ -331,7 +331,7 @@ describe("NC-11 the generation card's token line", () => {
     // m3e-canvas's mitori.json usageTotals
     const p = generatedTokens({ in: 2_100, out: 27_046, cacheRead: 270_773, cacheWrite: 182_326, apiUsd: 0.86 }, fmtTokensImpl, (u) => `$${u.toFixed(2)}`);
     expect(p.out).toBe(fmtTokensImpl(27_046));
-    expect(interpolate(ja["map.generated"] as string, p)).toBe(`生成済み · 合計 ${fmtTokensImpl(482_245)} tok（出力 ${fmtTokensImpl(27_046)}）· $0.86`);
+    expect(interpolate(ja["map.generated"] as string, p)).toBe(`生成済み · 合計${fmtTokensImpl(482_245)} tok（出力${fmtTokensImpl(27_046)}）· $0.86`);
     expect(interpolate(ja["map.generated"] as string, p)).not.toMatch(/出力\s*0\.48M/);
     expect(interpolate(en["map.generated"] as string, p)).toContain(`(output ${fmtTokensImpl(27_046)})`);
   });

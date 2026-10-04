@@ -70,7 +70,11 @@ export class ComposerSession {
   draft = $state<ThreadId | null>(null);
   version = 0;
   /** The 2-way choice of `change` on a doc anchor (`ComposerState.target`). */
-  fixTarget = $state<"code" | "doc">("code");
+  /**
+   * `change` on a doc anchor: `code` = make the code follow the request; `ai` = the code is right, the AI rewrites the
+   * doc sentence (EX-06: an Explain with `docFix`); `doc` = edit the block's Markdown yourself (0 tok).
+   */
+  fixTarget = $state<"code" | "ai" | "doc">("code");
   docMd = $state<string | undefined>(undefined);
   /** Markdown the doc edit started from (3-way base, and the undo text). */
   docBase = $state.raw<{ md: string; hash: string } | null>(null);
@@ -163,7 +167,17 @@ export class ComposerSession {
 
   /** The job kind this Composer would create (`note` is dispatched only by Finish). */
   get kind() {
-    return INTENT_JOB_KIND[this.intent === "change" && this.fixTarget === "doc" ? "doc_edit" : this.intent];
+    return INTENT_JOB_KIND[this.intent === "change" && this.fixTarget === "doc" ? "doc_edit" : this.sentIntent];
+  }
+
+  /** EX-06: the AI doc fix is a question to the server (an Explain that also proposes the block rewritten). */
+  get sentIntent(): ThreadIntent {
+    return this.intent === "change" && this.fixTarget === "ai" ? "question" : this.intent;
+  }
+
+  /** EX-06: the job asks the answer to propose the anchored block rewritten to match the code. */
+  get docFix(): boolean {
+    return this.intent === "change" && this.fixTarget === "ai";
   }
 
   /** Notes never start a job; the doc-target edit costs 0 tok. */
@@ -313,8 +327,15 @@ export class ComposerSession {
   }
 
   /** The 2-way choice (`change` on a doc anchor): the doc target edits the block's Markdown (0 tok). */
-  async setTarget(t: "code" | "doc"): Promise<void> {
+  async setTarget(t: "code" | "ai" | "doc"): Promise<void> {
+    const was = this.sentIntent;
     this.fixTarget = t;
+    // the draft's stored intent follows (an AI doc fix is a question), and the estimate is for the new job kind
+    if (this.sentIntent !== was) {
+      this.stale = true;
+      if (this.draft) this.#scheduleSave(0);
+      this.#scheduleEstimate();
+    }
     if (t === "code" && this.targets === null) void this.refreshTargets();
     if (t !== "doc" || this.docMd !== undefined) return;
     const ws = this.ws;
@@ -348,7 +369,7 @@ export class ComposerSession {
     this.#creating = this.#s.api
       .call("POST /ws/:ws/threads", {
         params: { ws },
-        body: { anchor: this.target.anchor, intent: this.intent, body, draft: true },
+        body: { anchor: this.target.anchor, intent: this.sentIntent, body, draft: true },
         idempotencyKey: this.tempKey,
       })
       .then((th) => {
@@ -414,7 +435,10 @@ export class ComposerSession {
     const body = this.body;
     this.save = "saving";
     try {
-      const th = await this.#s.api.call("PATCH /ws/:ws/threads/:th", { params: { ws, th: id }, body: { version: this.version, body, intent: this.intent } });
+      const th = await this.#s.api.call("PATCH /ws/:ws/threads/:th", {
+        params: { ws, th: id },
+        body: { version: this.version, body, intent: this.sentIntent },
+      });
       this.version = th.version;
       this.#savedBody = body;
       this.save = "saved";
@@ -472,6 +496,7 @@ export class ComposerSession {
         body: {
           kind: this.kind,
           threads: [th],
+          ...(this.docFix ? { docFix: true } : {}),
           ...(Object.keys(context).length ? { context } : {}),
           ...(this.override?.mode ? { mode: this.override.mode } : {}),
           ...(this.override?.model ? { model: this.override.model } : {}),
@@ -511,7 +536,7 @@ export class ComposerSession {
 
   /** Answer-mode intents run without edits (router R0). */
   get answers(): boolean {
-    return answerIntent(this.intent);
+    return answerIntent(this.sentIntent);
   }
 
   dispose(): void {

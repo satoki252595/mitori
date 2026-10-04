@@ -96,3 +96,24 @@ describe("LIVE-02 the estimate follows the saved text", () => {
     c.dispose();
   });
 });
+
+describe("EX-06 「AI に設計書を直させる」", () => {
+  test("the AI doc fix is an Explain with docFix: the draft is a question, the estimate asks kind explain + docFix", async () => {
+    const { c, calls } = fixture();
+    c.setIntent("change");
+    await c.setTarget("ai");
+    expect(c.kind).toBe("explain");
+    expect(c.sentIntent).toBe("question");
+    expect(c.docFix).toBe(true);
+    expect(c.wantsTargets).toBe(false); // no code to pick: the code is the truth here
+    c.input("この文は間違っている。GET は常に通す。");
+    await Bun.sleep(5); // the draft is created
+    await c.refreshEstimate();
+    expect(calls.find((x) => x.route === "POST /ws/:ws/threads")?.body).toMatchObject({ intent: "question", draft: true });
+    expect(calls.filter((x) => x.route === "POST /ws/:ws/jobs/estimate").at(-1)?.body).toMatchObject({ kind: "explain", docFix: true });
+    // back to "make the code follow": a change again, no docFix
+    await c.setTarget("code");
+    expect([c.kind, c.sentIntent, c.docFix]).toEqual(["fix", "change", false]);
+    c.dispose();
+  });
+});

@@ -566,7 +566,7 @@ export interface ComposerState {
   /** Temp key used before the draft exists (`tmp_<uuid>`). */
   tempKey: string;
   /** 2-way choice for `change` on a doc anchor: fix the code (default) or fix the doc (0 tok). */
-  target: "code" | "doc";
+  target: "code" | "ai" | "doc";
   /** Markdown being edited when `target === "doc"` (prefilled from the block). */
   docMd?: string;
   /** Latest server estimate. */

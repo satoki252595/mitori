@@ -185,6 +185,7 @@ export async function planJob(deps: PlanDeps, req: JobReq): Promise<JobPlan> {
         gates: gates.map((g) => ({ id: g.spec.id, trusted: g.trusted })),
         out: contract as never,
         budget,
+        ...(req.docFix === true && req.kind === "explain" ? { docFix: true } : {}),
       },
       budgetTokens,
     );

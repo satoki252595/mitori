@@ -15,7 +15,6 @@ import {
   type Checkpoint,
   type CheckpointId,
   type DocProposalView,
-  INTENT_JOB_KIND,
   type InboxItem,
   type JobEstimate,
   type JobId,
@@ -466,7 +465,7 @@ export class Loop {
       },
       anchorHealth: "ok",
       stale: false,
-      intent: c.intent,
+      intent: c.sentIntent,
       state: runs ? "queued" : "open",
       round: this.s.review.round?.round?.n ?? 1,
       version: 0,
@@ -556,12 +555,12 @@ export class Loop {
     if (!id) {
       return this.s.api.call("POST /ws/:ws/threads", {
         params: { ws },
-        body: { anchor: c.target.anchor, intent: c.intent, body, draft: false },
+        body: { anchor: c.target.anchor, intent: c.sentIntent, body, draft: false },
         idempotencyKey: `${c.tempKey}:submit`,
       });
     }
     if (body !== c.body || c.stale) {
-      const saved = await this.s.api.call("PATCH /ws/:ws/threads/:th", { params: { ws, th: id }, body: { version: c.version, body, intent: c.intent } });
+      const saved = await this.s.api.call("PATCH /ws/:ws/threads/:th", { params: { ws, th: id }, body: { version: c.version, body, intent: c.sentIntent } });
       c.version = saved.version;
     } else await c.flushSave();
     return this.s.api.call("POST /ws/:ws/threads/:th/transition", { params: { ws, th: id }, body: { on: "submit", version: c.version } });
@@ -585,9 +584,10 @@ export class Loop {
       const job = await this.s.api.call("POST /ws/:ws/jobs", {
         params: { ws },
         body: {
-          kind: INTENT_JOB_KIND[c.intent],
+          kind: c.kind,
           threads: [th],
           estimateId: est.estimate.id,
+          ...(c.docFix ? { docFix: true } : {}),
           ...(Object.keys(context).length ? { context } : {}),
           ...(c.override?.mode ? { mode: c.override.mode } : {}),
           ...(c.override?.model ? { model: c.override.model } : {}),
