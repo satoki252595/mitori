@@ -17,17 +17,37 @@ export interface SandboxProbe {
 
 const SEATBELT = "/usr/bin/sandbox-exec";
 
+/**
+ * A profile with every construct the gate profile uses (loop `gates/sandbox.ts`, ADR-0013 R2): the loopback
+ * allowance with per-port TCP / UDP denials, unix sockets under a subpath, mach-lookup denials by name and regex.
+ * A macOS whose Seatbelt no longer parses one of them must not get a gate profile that fails on every run: it gets
+ * `"none"` (the consent path) instead.
+ */
+export const SEATBELT_PROBE_PROFILE = [
+  "(version 1)",
+  "(allow default)",
+  "(deny network*)",
+  '(allow network-bind network-outbound network-inbound (local unix-socket (subpath "/private/tmp")) (remote unix-socket (subpath "/private/tmp")))',
+  '(allow network-bind network-inbound (local ip "localhost:*"))',
+  '(allow network-outbound (remote ip "localhost:*"))',
+  '(deny network-outbound (remote tcp "localhost:1") (remote udp "localhost:1"))',
+  '(deny mach-lookup (global-name "com.apple.SecurityServer") (global-name-regex #"^com\\.apple\\.lsd\\."))',
+  "(deny file-write*)",
+  '(allow file-write* (literal "/dev/null"))',
+].join("");
+
 /** Pure decision over a probe (unit-tested with a fake). */
 export function probeGateSandbox(p: SandboxProbe): GateSandboxKind {
   if (p.platform === "darwin") {
     if (!p.exists(SEATBELT)) return "none";
-    return p.run([SEATBELT, "-p", "(version 1)(allow default)", "/usr/bin/true"]) === 0 ? "sandbox-exec" : "none";
+    return p.run([SEATBELT, "-p", SEATBELT_PROBE_PROFILE, "/usr/bin/true"]) === 0 ? "sandbox-exec" : "none";
   }
   if (p.platform === "linux") {
     const bwrap = p.which("bwrap");
     if (!bwrap) return "none";
     const t = p.which("true") ?? "/bin/true";
-    return p.run([bwrap, "--unshare-user", "--ro-bind", "/", "/", "--dev", "/dev", t]) === 0 ? "bwrap" : "none";
+    // the gate needs its own network namespace (loopback isolation, ADR-0013 R2): probe that too
+    return p.run([bwrap, "--unshare-user", "--unshare-net", "--ro-bind", "/", "/", "--dev", "/dev", t]) === 0 ? "bwrap" : "none";
   }
   return "none";
 }

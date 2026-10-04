@@ -75,6 +75,12 @@ and 6 are the ones that change what a user sees.
   `(remote ip "localhost:*")`; bwrap would need a private netns with lo up) — local services and a loopback proxy
   become reachable from AI-written code; (c) (b) plus a deny list of known local proxy ports.
 - urgency: medium (common in Go / Node / Python test suites).
+- **DECIDED (rem/safety, ADR-0013 R2)**: the gate's own loopback is allowed, nothing of the host is. Linux keeps
+  `--unshare-net` (a private namespace, only `lo`); macOS allows loopback and denies every port bound before the gate
+  started (`netstat` ∪ `lsof`), the privileged range and 8021, failing closed when the snapshot does not contain the
+  daemon's own port. Same pass: unix sockets only under the writable dirs (closes DNS via mDNSResponder and the Docker /
+  nix daemon sockets), keychain / LaunchServices / nsurlsessiond / pasteboard mach services denied. RT-30b in
+  `gates/runner.int.test.ts` runs a Bun server + client and `go test` with `httptest.NewServer` inside the sandbox.
 
 ## 9. First-turn input limit ignores the system prompt
 - contract: `jobs/engine.ts` (WP-08b) `inTokens: Math.max(plan.budget.in * 2, 4000)`
