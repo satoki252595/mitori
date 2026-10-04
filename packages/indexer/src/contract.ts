@@ -84,8 +84,11 @@ import type {
 export const INDEXER_FORMAT = {
   /** Extraction code version (qualname/signature/doc/hash rules). Part of every ExtractorVersion (`q8`). */
   extractorCode: 1,
-  /** Fact detector set version (bumped whenever any detector `@ver` changes). */
-  detectors: 1,
+  /**
+   * Fact detector set version (bumped whenever any detector `@ver` changes, or a detector's candidate payload does:
+   * 2 = route handler candidate lists, gen #4c).
+   */
+  detectors: 2,
   /** Structure algorithm version (graph weights, Leiden, id matching). Part of the structure cache key. */
   structure: 1,
   /** Skeleton rendering version (spec §7.1). Part of `idx_skeleton` keys via the extractor version. */
@@ -1294,8 +1297,11 @@ export interface FactLinkContext {
   manifestDeps(path: RepoPath): ReadonlySet<string>;
   /** Resolve an import binding of a file to repo files. */
   resolve(path: RepoPath, spec: string): readonly RepoPath[];
-  /** Symbol defined in a file by name (handler stamping). */
-  symbolAt(path: RepoPath, name: string): SymbolKey | null;
+  /**
+   * Symbol defined in a file by name (handler stamping): the file, then (Go) its package directory, then the files it
+   * imports. `callable` skips declarations that cannot be a handler (types, fields, modules) [gen #4c].
+   */
+  symbolAt(path: RepoPath, name: string, opts?: { callable?: boolean }): SymbolKey | null;
   /** Scope of a path. */
   scopeOf(path: RepoPath): FileScope;
 }

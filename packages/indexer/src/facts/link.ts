@@ -2,7 +2,7 @@
  * Main-thread linking of fact candidates (spec §5.1): guards on the evidence, cross-file composition (click groups ↔
  * pyproject scripts, Rust bin roots), handler stamping, scope assignment (IDX-D12) and de-duplication.
  */
-import type { CliFact, EntryFact, Fact, FactBase, GitOid, RepoPath, RouteFact } from "@mitori/core";
+import type { CliFact, EntryFact, Fact, FactBase, GitOid, RepoPath, RouteFact, SymbolKey } from "@mitori/core";
 import type { FactCandidate, FactLinkContext, FileScope } from "../contract.ts";
 import type { ProjectIndex } from "../resolve/context.ts";
 import { baseOf, dirOf, joinPath } from "../resolve/files.ts";
@@ -153,8 +153,13 @@ function routes(cands: readonly FactCandidate[], ctx: FactLinkContext): Fact[] {
     if (!b) continue;
     const method = str(c.data.method, "ANY").toUpperCase();
     if (!METHOD_RE.test(method)) continue;
-    const handlerName = str(c.data.handler);
-    const handler = handlerName === "" ? null : ctx.symbolAt(c.path, handlerName);
+    // the first candidate that names a function-like symbol (gen #4c: wrapped values, then the factory)
+    const names = [...new Set([str(c.data.handler), ...strs(c.data.handlers)].filter((n) => n !== ""))];
+    let handler: SymbolKey | null = null;
+    for (const n of names) {
+      handler = ctx.symbolAt(c.path, n, { callable: true });
+      if (handler !== null) break;
+    }
     out.push({
       ...b,
       kind: "route",

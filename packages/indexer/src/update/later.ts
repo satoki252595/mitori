@@ -20,7 +20,7 @@ import type {
 import { type FactsResult, linkFacts } from "../facts/stage.ts";
 import { extractorSetVersion } from "../lang/versions.ts";
 import { moduleSummary } from "../pack/describe.ts";
-import { flowBodies, flowSeeds, moduleStats } from "../pack/flow.ts";
+import { type FlowSources, flowBodies, flowSeeds, moduleStats } from "../pack/flow.ts";
 import {
   hotBodies,
   hotFiles,
@@ -52,6 +52,8 @@ const FTS_QUIET_MS = 2000;
 
 /** Flow seed files whose texts are kept for the synchronous `flowBodies` (contract method is sync). */
 const FLOW_TEXT_FILES = 64;
+/** Route handler files whose texts rank the routes and pick their first hop (`flowSeeds`, gen #4c). */
+const HANDLER_TEXT_FILES = 12;
 /** Hot-body budget per module the text cache covers (gen asks ≤ 25 % of a 28k module input). */
 const HOT_TEXT_TOKENS = 8_000;
 /** `rationaleComments()` default limit (spec §7.8 I5). */
@@ -260,11 +262,32 @@ export function laterStages(view: IndexView): LaterStages {
       });
   }
 
+  /** What `flowSeeds` reads: the files and the warmed texts (handler bodies decide a route's rank and first hop). */
+  const flowSources = (s: State): FlowSources => ({ files: s.byPath, text: (p) => texts.get(p) ?? null, imports: (p) => s.resolved.imports.get(p) ?? [] });
+
+  /**
+   * Files holding route handlers (main scope), most-routed first, ≤ {@link HANDLER_TEXT_FILES}: their texts are warmed
+   * before the seeds are ranked (gen #4c: a router file's handlers get their own flows).
+   */
+  function handlerFiles(s: State): RepoPath[] {
+    const n = new Map<RepoPath, number>();
+    s.facts.facts.forEach((f, i) => {
+      if (f.kind !== "route" || !f.handler || f.scope === "example" || s.facts.scopes[i] !== "main") return;
+      const p = f.handler.slice(0, f.handler.indexOf("#"));
+      n.set(p, (n.get(p) ?? 0) + 1);
+    });
+    return [...n]
+      .sort((a, b) => b[1] - a[1] || byStr(a[0], b[0]))
+      .slice(0, HANDLER_TEXT_FILES)
+      .map(([p]) => p);
+  }
+
   /** The files the synchronous text consumers need: hot-body candidates, flow seeds, rationale comments. */
   function textFiles(s: State): Set<RepoPath> {
     const want = hotFiles(s.pack, HOT_TEXT_TOKENS);
+    for (const p of handlerFiles(s)) want.add(p);
     let flow = 0;
-    for (const seed of flowSeeds(s.structure, s.facts))
+    for (const seed of flowSeeds(s.structure, s.facts, undefined, flowSources(s)))
       for (const p of [seed.path, ...seed.files]) {
         if (flow >= FLOW_TEXT_FILES) break;
         if (!want.has(p)) flow++;
@@ -274,17 +297,21 @@ export function laterStages(view: IndexView): LaterStages {
     return want;
   }
 
-  /** Bring the text cache to `textFiles(s)`; `changed` paths are re-read. */
+  /** Bring the text cache to `textFiles(s)`; `changed` paths are re-read. Handler files first: the seeds read them. */
   async function warmTexts(s: State, changed: readonly RepoPath[] | null): Promise<void> {
     if (changed === null) texts.clear();
     else for (const p of changed) texts.delete(p);
+    const load = async (paths: Iterable<RepoPath>) => {
+      for (const p of [...paths].sort()) {
+        if (texts.has(p)) continue;
+        const t = await view.text(p);
+        if (t !== null) texts.set(p, t);
+      }
+    };
+    await load(handlerFiles(s));
     const want = textFiles(s);
     for (const p of [...texts.keys()]) if (!want.has(p)) texts.delete(p);
-    for (const p of [...want].sort()) {
-      if (texts.has(p)) continue;
-      const t = await view.text(p);
-      if (t !== null) texts.set(p, t);
-    }
+    await load(want);
   }
 
   function need(): State {
@@ -478,7 +505,7 @@ export function laterStages(view: IndexView): LaterStages {
     },
     moduleSeeds: () => (st ? moduleSeedsOf(st.structure) : []),
     moduleStats: (module) => (st ? moduleStats(module, st.structure, st.facts, st.byPath) : null),
-    flowSeeds: (limit) => (st ? flowSeeds(st.structure, st.facts, limit) : []),
+    flowSeeds: (limit) => (st ? flowSeeds(st.structure, st.facts, limit, flowSources(st)) : []),
     flowBodies(seed: FlowSeed, budgetTokens, tokenizer) {
       if (st === null) return [];
       const sec = secrets();

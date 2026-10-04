@@ -105,3 +105,61 @@ export function ancestor(n: Node, types: readonly string[], maxUp = 64): Node | 
   for (let i = 0; cur && i < maxUp; i++, cur = cur.parent) if (types.includes(cur.type)) return cur;
   return null;
 }
+
+/** The name a function value is referenced by: `h`, `s.handleX` (Go), `ctrl.list` (JS), `views.index` (Python). */
+function valueName(n: Node): string | null {
+  switch (n.type) {
+    case "identifier":
+      return n.text;
+    case "selector_expression":
+      return n.childForFieldName("field")?.text ?? null;
+    case "member_expression":
+      return n.childForFieldName("property")?.text ?? null;
+    case "attribute":
+      return n.childForFieldName("attribute")?.text ?? null;
+    default:
+      return null;
+  }
+}
+
+const WRAPPERS = new Set(["parenthesized_expression", "unary_expression", "await_expression", "as_expression", "non_null_expression", "satisfies_expression"]);
+
+/**
+ * Names a route's handler expression may resolve to, most specific first (gen #4c): the function value itself
+ * (`s.handleX`, `listBooks`, `ctrl.list`); for a wrapped value — middleware (`s.withReady(s.handleX)`), adapters
+ * (`http.HandlerFunc(h)`), bound methods (`h.bind(this)`), class views (`View.as_view("v")`) — the wrapped arguments
+ * from the last one in, innermost first; the called factory last (`s.serveIndexHTML()`, `s.serveEmbeddedJS("x.js")`,
+ * `makeHandler(cfg)`), so a factory names the route when nothing it wraps resolves. Literals and inline functions
+ * name nothing. Duplicates are dropped (first kept), ≤ 8 names.
+ */
+export function handlerNames(n: Node | null | undefined): string[] {
+  const out: string[] = [];
+  const walk = (x: Node | null | undefined, depth: number): void => {
+    if (!x || depth > 4 || out.length >= 8) return;
+    const direct = valueName(x);
+    if (direct !== null) {
+      out.push(direct);
+      return;
+    }
+    if (WRAPPERS.has(x.type)) {
+      walk(
+        x.namedChildren.find((c) => c !== null && c.type !== "comment"),
+        depth + 1,
+      );
+      return;
+    }
+    if (x.type !== "call_expression" && x.type !== "call") return;
+    const fn = x.childForFieldName("function");
+    const args = (x.childForFieldName("arguments")?.namedChildren ?? []).filter((c): c is Node => c !== null && c.type !== "comment");
+    const callee = fn ? valueName(fn) : null;
+    // `View.as_view("v")` / `h.bind(this)`: the receiver is the function value
+    if ((callee === "as_view" || callee === "bind") && fn) {
+      walk(fn.childForFieldName("object") ?? fn.childForFieldName("operand"), depth + 1);
+      return;
+    }
+    for (const a of [...args].reverse()) walk(a.type === "keyword_argument" ? a.childForFieldName("value") : a, depth + 1);
+    if (callee !== null) out.push(callee);
+  };
+  walk(n, 0);
+  return [...new Set(out)];
+}

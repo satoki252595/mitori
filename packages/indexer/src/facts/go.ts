@@ -3,7 +3,7 @@ import type { FactCandidate, FactEvidence, FactExtractInput } from "../contract.
 import { dirOf } from "../resolve/files.ts";
 import { candidate } from "./candidate.ts";
 import { GO } from "./queries.ts";
-import { capsFor, lineOf, type Node, patternOf, stringValue, type Tree, unquote } from "./tsq.ts";
+import { capsFor, handlerNames, lineOf, type Node, patternOf, stringValue, type Tree, unquote } from "./tsq.ts";
 
 const imports = (input: FactExtractInput, spec: string) => input.imports.some((i) => i.spec === spec);
 /** `package main` (the clause is the first statement; comment lines never start with `package`). */
@@ -63,7 +63,8 @@ export function goRoutes(input: FactExtractInput, tree: Tree): FactCandidate[] {
     const evidence: FactEvidence[] = [...ev, `recv:${recv}`];
     const bound = binds.get(recv);
     if (bound !== undefined) evidence.push(`bind:${bound}`);
-    const handler = /\.?([A-Za-z_]\w*)\)*$/.exec(c["route.handler"]?.text ?? "")?.[1];
+    // the wrapped method value first (`s.withReady(s.handleX)` → handleX), the factory last (`s.serveIndexHTML()`)
+    const handlers = handlerNames(c["route.handler"]);
     out.push(
       candidate(
         "route.nethttp@1",
@@ -75,7 +76,7 @@ export function goRoutes(input: FactExtractInput, tree: Tree): FactCandidate[] {
           pattern,
           framework: "net/http",
           ...(p.dynamic ? { dynamic: true } : {}),
-          ...(handler !== undefined && !c["route.handler"]?.text.startsWith("func") ? { handler } : {}),
+          ...(handlers.length > 0 ? { handler: handlers[0], handlers } : {}),
         },
         evidence,
       ),

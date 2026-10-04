@@ -2,10 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { createSecretScanner, type ModuleId, type RepoPath } from "@mitori/core";
 import type { StageFile } from "../resolve/files.ts";
-import { ref, sf } from "../resolve/test/stage-files.ts";
-import { corpusDir, FIXTURES, loadRepo } from "../structure/test/corpus.ts";
+import { input, ref, sf } from "../resolve/test/stage-files.ts";
+import { classify, corpusDir, FIXTURES, loadGrammars, loadRepo, parseStageFile } from "../structure/test/corpus.ts";
 import { estimateCode, runPipeline } from "../structure/test/pipeline.ts";
-import { flowBodies, flowSeeds, moduleStats } from "./flow.ts";
+import { TEST_TUNING } from "../structure/tuning.ts";
+import { flowBodies, flowSeeds, infraRoute, langFamily, moduleStats, walkable } from "./flow.ts";
 
 const FIX = ["ts-small", "go-small", "py-small", "rust-small", "mixed"];
 
@@ -104,6 +105,108 @@ describe("IDX-U flow bodies: long bodies, merging, secrets", () => {
   });
 });
 
+/** A hono app: one router file whose handlers call into two different modules, plus a health check. */
+async function routerRepo() {
+  const gs = await loadGrammars();
+  const pad = (tag: string, n: number) =>
+    Array.from({ length: n }, (_, i) => `export function ${tag}Helper${i}(x: number): number {\n  return x + ${i};\n}`).join("\n");
+  const src: Record<string, string> = {
+    "src/server/routes.ts": [
+      'import { Hono } from "hono";',
+      'import { addComment, readComments } from "../session/store";',
+      'import * as vcs from "../vcs/git";',
+      "const app = new Hono();",
+      'app.get("/health", health);',
+      'app.post("/comments", withAuth(postComment));',
+      'app.get("/files", listFiles);',
+      "export function health(c: unknown) {",
+      '  return "ok";',
+      "}",
+      "export function postComment(c: unknown) {",
+      "  const all = readComments();",
+      '  return addComment(all.length, "body");',
+      "}",
+      "export function listFiles(c: unknown) {",
+      "  return vcs.listTracked(c);",
+      "}",
+      "function withAuth(h: unknown) {",
+      "  return h;",
+      "}",
+      pad("server", 75),
+      "",
+    ].join("\n"),
+    "src/session/store.ts": [
+      'import { listTracked } from "../vcs/git";',
+      "export function addComment(n: number, body: string): number {",
+      "  return n + body.length + listTracked(n).length;",
+      "}",
+      "export function readComments(): number[] {",
+      "  return [];",
+      "}",
+      pad("store", 75),
+      "",
+    ].join("\n"),
+    "src/vcs/git.ts": ["export function listTracked(c: unknown): string[] {", "  return [String(c)];", "}", pad("git", 75), ""].join("\n"),
+  };
+  const files = Object.entries(src).map(([path, text]) => {
+    const c = classify(path, text.length, text);
+    return parseStageFile(path, text, c, c.grammar ? gs[c.grammar] : null, `b:${path}`);
+  });
+  const p = runPipeline(input(files), { tuning: TEST_TUNING });
+  const byPath = new Map(p.input.files.map((f) => [f.path, f]));
+  const sources = { files: byPath, text: (x: RepoPath) => src[x] ?? null, imports: (x: RepoPath) => p.resolved.imports.get(x) ?? [] };
+  return { p, sources };
+}
+
+describe("gen #4c flow seeds follow the handler, not the router file", () => {
+  test("each handler of one router file is a flow of its own, walking where its calls go; the health check comes last", async () => {
+    const { p, sources } = await routerRepo();
+    const st = p.structure;
+    const mod = (x: string) => st.moduleOf.get(x);
+    // the case needs three modules
+    expect(new Set([mod("src/server/routes.ts"), mod("src/session/store.ts"), mod("src/vcs/git.ts")]).size).toBe(3);
+    const seeds = flowSeeds(st, p.facts, 8, sources);
+    expect(seeds.map((s) => s.label)).toEqual(["POST /comments", "GET /files", "GET /health"]);
+    expect(seeds[0]?.files.slice(0, 2)).toEqual(["src/server/routes.ts", "src/session/store.ts"]);
+    expect(seeds[1]?.files.slice(0, 2)).toEqual(["src/server/routes.ts", "src/vcs/git.ts"]);
+    expect(seeds[0]?.handler).toBe("src/server/routes.ts#postComment" as never);
+    // flowBodies: the handler, then what it calls on the first hop (not every callee of the router file)
+    const io = { text: sources.text, estimate: estimateCode };
+    const bodies = flowBodies(seeds[0] as NonNullable<(typeof seeds)[0]>, sources.files, 4_000, io);
+    expect(bodies[0]?.text).toContain("postComment");
+    expect(bodies.map((b) => b.path)).toContain("src/session/store.ts");
+    expect(bodies.some((b) => b.text.includes("readComments"))).toBe(true);
+    // deterministic
+    expect(flowSeeds(st, p.facts, 8, sources)).toEqual(seeds);
+  });
+
+  test("without texts the module walk still dedupes (the file-level walk is all there is)", async () => {
+    const { p } = await routerRepo();
+    const seeds = flowSeeds(p.structure, p.facts);
+    expect(seeds.length).toBe(1);
+    // the health check is ranked after the others even without texts
+    expect(seeds[0]?.label).not.toBe("GET /health");
+  });
+
+  test("infra routes and walk targets", () => {
+    for (const pattern of ["/api/health", "/healthz", "/version", "/metrics", "/static/app.js", "/live-mode.js", "/favicon.ico", "/debug/pprof/"])
+      expect(infraRoute({ pattern, handler: "a.go#Server.handleX" as never })).toBe(true);
+    expect(infraRoute({ pattern: "/live", handler: "a.go#Server.serveIndexHTML" as never })).toBe(true);
+    expect(infraRoute({ pattern: "/api/comments" })).toBe(true); // no handler: nothing to walk from
+    expect(infraRoute({ pattern: "/api/comments", handler: "a.go#Server.handleReviewComments" as never })).toBe(false);
+    const files = new Map<RepoPath, StageFile>([
+      ["web/embed.go", sf("web/embed.go", { lang: "go", symbols: [{ name: "Assets", kind: "var" }] })],
+      ["scripts/bench.py", sf("scripts/bench.py", { lang: "python", scope: "tooling", symbols: [{ name: "main" }] })],
+      ["internal/session/session.go", sf("internal/session/session.go", { lang: "go", symbols: [{ name: "AddComment", kind: "method" }] })],
+      ["web/app.js", sf("web/app.js", { lang: "javascript", symbols: [{ name: "boot" }] })],
+    ]);
+    expect(walkable("web/embed.go", files)).toBe(false); // data only
+    expect(walkable("scripts/bench.py", files)).toBe(false); // tooling
+    expect(walkable("internal/session/session.go", files, langFamily("go"))).toBe(true);
+    expect(walkable("web/app.js", files, langFamily("go"))).toBe(false); // a Go walk never steps into JS
+  });
+});
+
 const crit = corpusDir("crit");
 
 describe.skipIf(!crit)("IDX-AT-48 flow seeds on crit", () => {
@@ -121,6 +224,33 @@ describe.skipIf(!crit)("IDX-AT-48 flow seeds on crit", () => {
     }
     expect(seeds[0]?.kind).toBe("route"); // routes first (spec §7.8)
     expect(seeds.some((s) => s.kind === "cli")).toBe(true);
+  }, 60_000);
+
+  test("gen #4c with the handler texts: the review loop's handlers are seeds, the health check and assets are not on top, no walk into scripts / JS", async () => {
+    const repo = await loadRepo(crit as string);
+    const p = runPipeline(repo.input);
+    const st = p.structure;
+    const files = new Map<RepoPath, StageFile>(p.input.files.map((f) => [f.path, f]));
+    const src = { files, text: (x: RepoPath) => repo.texts.get(x) ?? null, imports: (x: RepoPath) => p.resolved.imports.get(x) ?? [] };
+    const seeds = flowSeeds(st, p.facts, 8, src);
+    const routes = seeds.filter((s) => s.kind === "route");
+    // before: `/api/health` (line 136, the first route) was seed 1 and every wrapped handler shared its walk
+    expect(routes[0]?.label).not.toBe("ANY /api/health");
+    for (const s of routes.slice(0, 3))
+      expect(infraRoute({ pattern: s.label.split(" ")[1] as string, ...(s.handler ? { handler: s.handler } : {}) })).toBe(false);
+    const core = routes.filter((s) => /comment|review|round|finish|event/.test(s.label));
+    expect(core.length).toBeGreaterThanOrEqual(2);
+    for (const s of core) expect(s.files[1]).toMatch(/^internal\/session\//); // they reach the session first
+    // distinct handlers, never collapsed onto one module walk
+    expect(new Set(routes.map((s) => s.handler)).size).toBe(routes.length);
+    expect(new Set(routes.map((s) => s.files.join(">"))).size).toBeGreaterThan(1);
+    for (const s of seeds)
+      for (const f of s.files.slice(1)) {
+        expect(files.get(f)?.scope).toBe("main");
+        expect(langFamily(files.get(f)?.lang ?? "")).toBe(langFamily(files.get(s.files[0] as RepoPath)?.lang ?? ""));
+      }
+    expect(seeds.some((s) => s.kind === "cli")).toBe(true);
+    expect(seeds.some((s) => s.kind === "entry")).toBe(true);
   }, 60_000);
 });
 

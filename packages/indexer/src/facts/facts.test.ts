@@ -156,6 +156,109 @@ describe("IDX-AT-25 env.js@1 reads", () => {
   });
 });
 
+describe("gen #4c route handlers behind wrappers, factories and imports resolve", () => {
+  const handlerOf = async (src: Record<string, string>) => {
+    const gs = await loadGrammars();
+    const files = Object.entries(src).map(([path, text]) => {
+      const c = classify(path, text.length, text);
+      return parseStageFile(path, text, c, c.grammar ? gs[c.grammar] : null, `b:${path}`);
+    });
+    const p = runPipeline(input(files));
+    return Object.fromEntries(
+      mainFacts(p, "route").map((r) => (r.kind === "route" ? [`${r.framework} ${r.method} ${r.pattern}`, r.handler ?? null] : ["", null])),
+    );
+  };
+
+  test("net/http: middleware-wrapped method values, adapters and handler factories (crit's router)", async () => {
+    const got = await handlerOf({
+      "internal/server/server.go": [
+        "package server",
+        'import "net/http"',
+        "type Server struct{ mux *http.ServeMux }",
+        "func (s *Server) routes() {",
+        "\tmux := http.NewServeMux()",
+        '\tmux.HandleFunc("/api/health", s.handleHealth)',
+        '\tmux.HandleFunc("/api/comments", s.withReady(s.handleComments))',
+        '\tmux.HandleFunc("/api/file", s.withReady(s.withAuth(s.handleFile)))',
+        '\tmux.Handle("/api/x", http.HandlerFunc(s.handleX))',
+        '\tmux.HandleFunc("/live", s.serveIndexHTML())',
+        '\tmux.HandleFunc("/live.js", s.serveEmbeddedJS("live.js"))',
+        '\tmux.Handle("/", http.FileServer(http.Dir(".")))',
+        '\tmux.HandleFunc("/inline", func(w http.ResponseWriter, r *http.Request) {})',
+        "}",
+        "func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request)   {}",
+        "func (s *Server) handleComments(w http.ResponseWriter, r *http.Request) {}",
+        "func (s *Server) handleX(w http.ResponseWriter, r *http.Request)        {}",
+        "func (s *Server) withReady(h http.HandlerFunc) http.HandlerFunc        { return h }",
+        "func (s *Server) withAuth(h http.HandlerFunc) http.HandlerFunc         { return h }",
+        "func (s *Server) serveIndexHTML() http.HandlerFunc                      { return nil }",
+        "func (s *Server) serveEmbeddedJS(name string) http.HandlerFunc         { return nil }",
+        "",
+      ].join("\n"),
+      "internal/server/files.go": 'package server\n\nimport "net/http"\n\nfunc (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {}\n',
+    });
+    expect(got).toEqual({
+      "net/http ANY /api/health": "internal/server/server.go#Server.handleHealth",
+      "net/http ANY /api/comments": "internal/server/server.go#Server.handleComments",
+      "net/http ANY /api/file": "internal/server/files.go#Server.handleFile",
+      "net/http ANY /api/x": "internal/server/server.go#Server.handleX",
+      "net/http ANY /live": "internal/server/server.go#Server.serveIndexHTML",
+      "net/http ANY /live.js": "internal/server/server.go#Server.serveEmbeddedJS",
+      "net/http ANY /": null,
+      "net/http ANY /inline": null,
+    });
+  });
+
+  test("hono / express: imported handlers, wrapped values, controller methods; flask / fastapi: call-registered views", async () => {
+    const got = await handlerOf({
+      "src/routes.ts": [
+        'import { Hono } from "hono";',
+        'import { listBooks, createBook } from "./handlers";',
+        'import * as ctrl from "./ctrl";',
+        "const app = new Hono();",
+        'app.get("/books", listBooks);',
+        'app.post("/books", auth(createBook));',
+        'app.delete("/books/:id", ctrl.removeBook);',
+        'app.get("/inline", (c) => c.text("ok"));',
+        "function auth(h: unknown) { return h; }",
+        "",
+      ].join("\n"),
+      "src/handlers.ts": "export function listBooks(c: unknown) { return c; }\nexport const createBook = async (c: unknown) => c;\n",
+      "src/ctrl.ts": "export function removeBook(c: unknown) { return c; }\n",
+      "app/views.py": [
+        "from flask import Flask",
+        "from flask.views import MethodView",
+        "app = Flask(__name__)",
+        "def index():",
+        "    return 'ok'",
+        "class Items(MethodView):",
+        "    def get(self):",
+        "        return 'items'",
+        'app.add_url_rule("/", view_func=index)',
+        'app.add_url_rule("/items", "items", Items.as_view("items"))',
+        "",
+      ].join("\n"),
+      "app/api.py": [
+        "from fastapi import FastAPI",
+        "app = FastAPI()",
+        "async def list_items():",
+        "    return []",
+        'app.add_api_route("/api/items", list_items)',
+        "",
+      ].join("\n"),
+    });
+    expect(got).toEqual({
+      "hono GET /books": "src/handlers.ts#listBooks",
+      "hono POST /books": "src/handlers.ts#createBook",
+      "hono DELETE /books/:id": "src/ctrl.ts#removeBook",
+      "hono GET /inline": null,
+      "flask GET /": "app/views.py#index",
+      "flask GET /items": "app/views.py#Items",
+      "fastapi ANY /api/items": "app/api.py#list_items",
+    });
+  });
+});
+
 describe("IDX-AT-25 entry.go@1", () => {
   test("a `//go:build ignore` generator main is labelled by its path, the package main by its directory", async () => {
     const gs = await loadGrammars();
