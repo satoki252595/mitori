@@ -1,10 +1,64 @@
-# mitori 引き継ぎ資料（2026-10-04 仕上げパス統合後）
+# mitori 引き継ぎ資料（2026-10-04 監査の仕上げ後）
 
-> **現在の状態は §0**。§0b はその前の更新（グループ B の取り込みと実機デモ）、§2〜§4 は最初の停止時点の記録（歴史）。
+> **現在の状態は §0**。§0a はその前の更新（仕上げパス 4 トラックの統合）、§0b はさらにその前（グループ B の取り込みと実機デモ）、§2〜§4 は最初の停止時点の記録（歴史）。
 
 ---
 
-## 0. 現在の状態（仕上げパス 4 トラックを main に統合、2026-10-04）
+## 0. 現在の状態（監査 49 件の仕上げ、2026-10-04、main・未 push）
+
+統合後の main を 3 本の監査（初見者・専門家・非機能。`docs/progress/audit-{newcomer,expert,nonfunc}.md`）で見て、49 件の指摘を受けた。
+そのうち critical / high の 17 件（中身は 16 件）を直した。13 件は修正、4 件は一部修正。安く直せる medium / low も直した。
+件ごとの判定と回帰テストは **`docs/progress/audit-resolution.md`** にある。commit は `9b7ce32`〜（`git log bb496b4..`）。push はリードが行う。
+
+| コンセプト | 今回の変更 |
+|---|---|
+| 初見者が「これは何か」を知る | 最初の画面に README の 1 段落目・toolchain・ライセンス・remote が出る（生成後は §0 の文）。Reader が §2 間取り図と §3 の流れを SVG で描く。§4 は 0 tok の手順（m3e: Node ^22.12… → `npm install` → `npm run dev` → `localhost:3000`）。§5 に「読む順番」（入口 → 基盤の型 → ハブ → 機能の芯、行範囲付き）。地図の部屋名は生成名になり、popover に役割が出る |
+| 専門家が細部を詰める | 選んだ文の出典だけを使い、出典の無い文が名指しするコードは定義を渡す（EX-03）。「AI に設計書を直させる（コードが正しい）」（EX-06）。却下・Undo した Fix の提案は閉じる（EX-05）。出典の無い事実文を数えて（crit 16 %）、「詳しい」で点線を引く（EX-04）。逆リンクの重複を直した。300 行を超えるファイルに目次を出す |
+| 文書の一点 → AI がそこを直す・答える | Composer は開いた瞬間に打てる（NC-01）。`g` が消えない（EX-02）。静的な表の行は、その行のコードを AI に渡す（`@` 不要）。Review の主ボタンは「承認して検査 → 採用」 |
+| 一度だけ読んだ成果物を失わない | 生成済み `.mitori/` を別パス・新しい home で開いても、module 章はスタブにならない（実 crit: 0 / 16。以前は 14 / 16）。`members` で分割を完全に復元する（EX-01） |
+| 安全・非機能 | agent mode が追跡ファイルの秘密を伏せ字にする（F1）。出荷版が gate の sandbox を検出する（F2）。測っていない budget は理由が無いと check で失敗する（F4）。state DB は 0600（F13） |
+
+**main で再確認したもの**（Apple M5 Max。他のセッションと同居していて、**ロードアベレージは 20〜55**）:
+
+| 確認 | 結果 |
+|---|---|
+| `scripts/nd bun run check` | 緑 |
+| `scripts/nd bun test`（全体） | 2,790 件中 **2,765 pass**、9 skip、5 todo、**11 fail はすべて時間の予算**（health 1 s、ELK 120 ms、`--version` 50 ms、GitReader 20 ms、SSE p99 5 ms、検索 1 ms、更新 10 ms、INT-02 50 ms、INT-06 の go vet 5 s、RSS）。単独で再実行して INT-02・INT-06・pack は通った。構造の更新経路は、同じ負荷で base `bb496b4` が 22.4 ms、現在が 13.9 ms（退行ではない） |
+| `scripts/nd bun run build:bin` | `dist/mitori-darwin-arm64` 70.8 MB、`--version` 中央値 ≈ 50 ms（負荷下） |
+| export e2e（`MITORI_E2E_CHANNEL=chrome bun run e2e --grep @export`） | **29 / 29** |
+| web e2e（モック、`bunx playwright test -c e2e/web/playwright.config.ts --project=chromium`） | 79 件中 73 件が pass。6 件は失敗で、どれも **base `bb496b4` の web でも同じように失敗する**（地図の AC-J01 / J06、起動時の CLS ×3、streaming の CLS）。この suite は `ci:pr` に入っていない（F4 の残り）。NC-05 の新しい e2e は pass（base では失敗） |
+| 最終デモ `test/int/shots/live.ts --engine fake` | 通過（`docs/progress/live.md` 冒頭、スクショは `docs/progress/final/`）。説明も修正も **`@` なし**で、設計書の表の行から始めた。gofmt・go test・go vet が pass、採用 810 ms、Undo 108 ms、コンソールエラー 0・4xx/5xx 0 |
+| 実エンジンでの最終デモ | **未実施**。`claude` CLI がログアウト状態（`loggedIn: false`）。このパスの LLM 消費は **$0** |
+
+### 0.1 残り（優先順）
+
+1. **（要ログイン・実費小）** `claude /login` してから、実エンジンで 3 つ確かめる。
+   - 最終デモ: `scripts/nd bun run build:bin && scripts/nd bun test/int/shots/live.ts --engine real --out docs/progress/final`（上限 $0.60、想定 $0.03 前後）
+   - 修復ターン: `MITORI_LIVE=1 MITORI_MAX_USD=0.2 scripts/nd bun test test/int/int08.live.test.ts -t "3\."`
+   - crit の S5 の再計測: `bench/measure/gen-real.ts --scope`、≈ $1.0
+2. **生成の質（実エンジンが要る）**
+   - EX-04 の残り: 出典の無い文を claim にするか、span を広げる。再試行率への影響を測ってから入れる。指標は `bench/measure/doc-uncited.ts`
+   - NC-19〜21: 未解決の問いが mitori 自身に向く、設計判断が細部に寄る
+   - gen.overview の「フロアプラン」→「間取り図」（`prompts.lock.json` が変わる）
+   - 横断的な「変更の手引き」節
+3. **判断が要る**: sandbox はループバックも遮断する（ADR-0013、`cr-requests/agent.md` #8）。出荷版が sandbox を使うようになったので、`httptest` を使う repo の go test は base でも head でも失敗し、⚠ になる。
+4. **残った監査項目**（`audit-resolution.md` の「見送り」「一部」）
+   - 初見者: 本文の全文検索と「AI に聞く」（NC-09）、§7 / §8 の静的事実（NC-10）、初回の既定を「初めて」と 5 分コースに（NC-08）、ヘルプの「この画面でできること」（NC-13）、EN 表示（NC-14）、読書パス（NC-15）、popover の 1 層化（NC-17）、地図の「文脈」ズーム（NC-04）
+   - 専門家: Undo の後のコード列（EX-08）、Review の左の本文をアンカーしたブロックへ（EX-09）、履歴の UI と全 claim への ✓✓（EX-10）、trust toast の重なり（EX-11）
+   - 非機能: 初期 JS の分割（F5、117.7 KB gz）、大きな節の分割配信（F6）、メモリ（F7）、pull 経路の範囲チェックと Undo（F8）、formatter の信頼 hash（F9）、見積りの固定分（F10）、agent の依存リンクと symlink（F1 の残り）、`ci:pr` の e2e/web と毎晩の perf（F4 の残り）
+5. **前回からの残り**（§0a.3 のうち、まだ開いているもの）
+   - アプリ内の書き出しダイアログ
+   - スレッドがコード範囲を持たない問題（⤴ / ⧉ に候補が渡らない）
+   - 4,800 行級のコンポーネントの中身
+   - agent 周り: 初回入力の上限、`needs_more_context` のヒント、`FsStat` の ctime、Linux / bwrap、codex の agent mode、`maxWorktreesPerWs`
+   - export viewer の予算に余裕が無い（58.75 / 60 KB）
+   - 負荷に弱いテスト（上の 11 件）
+   - 所有者のレビュー待ち: CR fin-1〜5 を含む（`packages/core/CR-LEDGER.md` §7）
+   - 未着手: WP-17（Cloudflare 共有。**デプロイ前にユーザー承認必須**）、WP-18、Windows、Firefox / Safari 実機
+
+---
+
+## 0a. 前回の更新（仕上げパス 4 トラックを main に統合、2026-10-04。歴史）
 
 ユーザーの「残っていること」（コード指定なしの Fix・Review ヘッダー・Composer の引用・提案 accept/reject・`mitori install`・
 実エンジン未検証の項目）と「次の 3 手」（`@` なしの Fix の案内・実エンジンでの標準生成の再実行・エージェントモードと HTML エクスポート）を
@@ -30,7 +84,7 @@
 ux・export **$0**。**現在この環境の `claude` CLI はログアウト状態**（`claude auth status` → `loggedIn: false`）で、実エンジンが要る残り（下の 1）は
 ユーザーの再ログイン待ち。
 
-### 0.1 ユーザーの依頼ごとの状態
+### 0a.1 ユーザーの依頼ごとの状態
 
 | 依頼 | 状態 | 何がどう変わったか（根拠） |
 |---|---|---|
@@ -45,7 +99,7 @@ ux・export **$0**。**現在この環境の `claude` CLI はログアウト状�
 | HTML エクスポート（WP-13） | **済（アプリ内ダイアログのみ未）** | `mitori export --html [-o file\|dir] [--no-code]` と `GET /ws/:ws/export/html`。1 ファイル・ネットワーク不要・読み取り専用で Reader と同じ体験（目次・読者レベル・出典 peek・確かさバッジ・用語・図・⌘K・ダーク・EN）。viewer JS **58.75 KB gz**（予算 60）、crit 1.58 MB（`--no-code` 0.92 MB）を **0.41–0.65 s**、LCP 92–104 ms、秘密は伏せ字（fixture で 6 件・原文 0）、CSP で外部読み込み 0。Chrome + WebKit で確認。`docs/progress/export/README.md` |
 | Linux | **未** | bwrap・watcher とも未実行 |
 
-### 0.2 コンセプトに対してどうなったか
+### 0a.2 コンセプトに対してどうなったか
 
 - **一度だけ省トークンで読む → 読める設計書**: 0 トークンの静的文書（crit 1.05 s）+ 標準生成（m3e $0.69 / crit $1.65、L0 100 %）。初見者は README より +30 pt 理解でき、専門家が出典を開いて確かめても支持されない claim 0。
 - **文書の一点にコメント → AI がそこに対応するコードを直す / 答える**: 文の出典がそのまま書き込み範囲になり（`@` 不要）、patch（1 ファイル $0.014）でも agent（複数ファイル $0.05）でも、採用は人が hunk ごとに・未コミットで・Undo 可。設計書側の変更は提案として本文に出て、人が採用 / 却下する。
@@ -53,30 +107,12 @@ ux・export **$0**。**現在この環境の `claude` CLI はログアウト状�
 - **非機能**: 見積 → 上限 → 実績を全ジョブで表示、修復は会話の継続（増分のみ）、UI の楽観カード 26–44 ms。
 - **ローカルファースト / 自分のエージェント**: ⤴ 自分のセッション（pull bundle）・`mitori install`（Claude Code / AGENTS.md）・MCP `submit_patch`。
 
-### 0.3 残り（優先順）
+### 0a.3 残り（その時点。解消したものは §0 で消した。まだ開いているものは §0.1-5）
 
-1. **（要ログイン・実費小）** `claude` に再ログインしてから: 修復ターンの実エンジン確認
-   `MITORI_LIVE=1 MITORI_MAX_USD=0.2 scripts/nd bun test test/int/int08.live.test.ts -t "3\."`（$0.01–0.03）。crit の S5 だけ再計測
-   （`bench/measure/gen-real.ts --scope`、14 module ≈ $1.0）で再試行 < 30 %・L1 ≥ 90 % を実測で確かめる。候補を選んだ Fix の実エンジン 1 回。
-2. **CLI がゲートの sandbox を検出しない**（`cr-requests/agent.md` #1）: `apps/cli` が `gateSandbox: "none"` 固定なので、出荷版では go vet / go test などが
-   毎回「自動検査を実行」のクリック待ち。platform に `detectGateSandbox()`（macOS: sandbox-exec、Linux: bwrap）を足して CLI で渡す。**体験への影響が最大**。
-3. **判断が要る**: sandbox はループバックも遮断する（ADR-0013、`agent.md` #8）。`httptest` などのテストは base/head とも失敗 → ⚠ のまま。
-   現状維持 / ループバック許可 / プロキシ port を拒否してループバック許可、のどれか。
-4. **アプリ内の書き出しダイアログ**（⌘K「HTML として書き出す」→ 読者レベル・言語・決定事項・抜粋の有無）。route と数字（`ExportRes.codeExcerpts`・redactions）は揃っている（`cr-requests/WP-13.md` §8）。
-5. Fix の対象コード: 出典のチップを外せない（`ux.md` #2、router・`jobs/plan.ts`・`bundle/plan.ts`）。スレッドがコード範囲を持たないので ⤴ / ⧉ に選んだ候補が渡らない（`ux.md` #6、`CreateThreadReq.context`）— 今は出典の無い文の ⤴ / ⧉ を止めて ⚡ へ誘導している。
-6. 生成の質: 横断的な「変更の手引き」節が無い（理解テストの 0 点問）、flow の seed が本筋を外す（crit で「コメント → review ファイル」が出ない、`gen.md` #4）、
-   4,800 行級コンポーネントの中身、再 open で module 分割が変わる（#8）、「5 分で試す」が Node ≥ 22.12 を落とす、complete effort 未実行、理解テストを spec 規模（12 問 × 4 条件）に。
-7. agent 周り: 初回ターンの入力上限が system prompt を含まない（`agent.md` #9）、`--restricted` の Read がワークツリー外を指す追跡済み symlink を辿るか未確認、
-   `needs_more_context` のヒントが agent の束に入らない（#6）、`FsStat` に ctime が無い（#3）、Linux/bwrap、codex の agent mode、docpatch/1、GitHub PR、`maxWorktreesPerWs`。
-8. UI の小物: 同じ未承認ゲートが Review 外で 3 回言われる、静的 facts 行への AI 提案はコード採用後に 409、アプリ本体の cite peek に行番号が無い、
-   TermCard がローマ字と英語が同じとき 2 回出す、WebKit で和欧間の隙間が出ない（`text-autospace` 未対応）。
-9. 予算の余裕: export viewer は 58.75 / 60 KB gz。`packages/core/src/domain.ts` の module 直下の Set/Map/RegExp に `/* @__PURE__ */`（試算 −0.65 KB）。
-10. 負荷に弱いテスト（単独では通る）: INT-06 の go vet（空の GOCACHE・5 s 枠）、SKEL-AT-02（ELK 中央値 ≤ 120 ms）、IDX-AT-15（parse timeout）。
-11. 所有者のレビュー待ち: WP-08b のファイルへの agent の変更（`agent.md` #4: `git/side.ts`・`jobs/runner.ts`）、ux の他所有者ファイルへの追加（`ux.md` #4）、WP-13 #7。
-    非契約 export（`Installer.states()`・`resolveCodeTargets`、`ux.md` #1 / #5）。
-12. 未着手: WP-17（Cloudflare 共有、**デプロイ前にユーザー承認必須**）、WP-18（床面図）、Windows、Firefox / 実機 Safari の確認。
-
----
+- その時点の 1（実エンジンの確認）は §0.1-1、3（ループバック）は §0.1-3 に残る。
+- 2（CLI がゲートの sandbox を検出しない）は **解消した**（F2）。
+- 6 のうち、再 open で分割が変わる問題（#8）は **解消した**（EX-01）。「5 分で試す」が Node の版を落とす問題も **解消した**（NC-06）。
+- 8 のうち、cite peek の行番号は export だけで、アプリ本体は未。
 
 ## 0b. 前回の更新（2026-10-04 再開後 — グループ B の取り込みと実機デモ。歴史）
 
@@ -95,7 +131,7 @@ main の状態: `check` 緑・テスト 2,440 pass / 0 fail。crit のコール�
 - `createLoop` の組み立て + サーバー配線 + INT-06/07（`docs/progress/loop-wiring.md`）。
 - **実機デモ**（本物の UI・daemon・`claude`）で 説明 → 修正 → gofmt ゲート → 採用 → Undo を通した（`docs/progress/live.md`、スクショ `docs/progress/live/`）。Explain 4.7 s / $0.009、Fix 7.9 s / $0.014、UI の楽観カード 26〜44 ms。実機で見つけた結合バグ（SSE の同一 rev 取りこぼし、空の ASK 送信、他）は修正済み。再実行: `scripts/nd bun test/int/shots/live.ts --engine fake|real`。
 
-**その時点の「次にやること」**（1〜3 は §0 で済。4 は小規模版のみ — §0.3-6）:
+**その時点の「次にやること」**（1〜3 は §0a で済。4 は小規模版のみ — §0.1-2）:
 1. Fix が `@` 指定なしだと何も書かずに 412 になる件の UX（ヒント表示 or 自動でコード候補を選ぶ）。
 2. 本物のエンジンでの標準生成の再実行（dogfood のプロンプト修正後の品質確認。API 換算 $1〜3）。
 3. WP-08c（agent mode・test gate・修復ターン）、WP-13（HTML export）、`mitori install` 配線、doc proposal の accept/reject ルート。
@@ -142,7 +178,7 @@ main の状態: `check` 緑・テスト 2,440 pass / 0 fail。crit のコール�
 
 推奨マージ順（依存と衝突の少なさ）: `dogfood` → `perf` → `structure` → `06b` → `08b` → `11` → `visual` → `10b`。マージ後に `packages/server/src/compose.ts` へ `createLoop`（08b）と 06b の入口を配線する（WP-INT の仕事。`docs/design/briefs/WP-INT.md`）。
 
-## 3. 実測値（停止時点。最新の生成・agent・export の数字は §0.1）
+## 3. 実測値（停止時点。最新の生成・agent・export の数字は §0a.1、監査後の数字は §0）
 
 ### 3.1 解析・UI（M1、Apple M5 Max、他エージェント稼働中）
 
@@ -166,7 +202,7 @@ main の状態: `check` 緑・テスト 2,440 pass / 0 fail。crit のコール�
 - 課題: 行の再試行率 63%（費用の主因）、見積誤差 +84%（再試行分を見積に加算する修正は入った）、L1 が limit 85% をわずかに下回る。
 - 生成された実物の設計書: `docs/progress/dogfood/{crit,m3e-canvas}/doc/*.md`（品質確認用）。
 
-## 4. 既知の課題（停止時点の記録。1〜3 と 7 の WP-08c / WP-13 は解消済み。現在の残りは §0.3）
+## 4. 既知の課題（停止時点の記録。1〜3 と 7 の WP-08c / WP-13 は解消済み。現在の残りは §0.1）
 
 1. **レビュー→修正ループが main で動かない**（08b + 10b + 11 のマージと配線が必要）。MVP の「魔法の瞬間」はここ。
 2. **モジュール分割が粗い**（crit で 1 module 35.7k 行、名前が `internal + cmd · CritJSON`）→ track/structure。
@@ -184,7 +220,7 @@ main の状態: `check` 緑・テスト 2,440 pass / 0 fail。crit のコール�
 cd ~/work/20261002_aiAgentTool
 scripts/nd bun install --frozen-lockfile   # nd = キャッシュ済み nix devShell で実行（nix develop は使わない）
 scripts/nd bun run check                   # typecheck + biome + 境界 + CR 台帳 + budgets + svelte-check
-scripts/nd bun test                        # 全テスト（約 4 分、2,716 件）
+scripts/nd bun test                        # 全テスト（静かな機械で約 4〜5 分、2,790 件）
 scripts/nd bun run build:bin               # dist/mitori-darwin-arm64
 ./dist/mitori-darwin-arm64 <repo-path>     # ブラウザで見取り図が開く
 ```
@@ -204,7 +240,7 @@ scripts/nd bun run check && scripts/nd bun test
 
 失敗したら原因をそのブランチで直してから main へ。08b / structure は lint エラーがあるので `scripts/nd bunx biome check --write <path>` と未使用変数の修正から。
 
-### 5.3 推奨する次の一手（停止時点のもの。すべて済み — 現在の次の一手は §0.3）
+### 5.3 推奨する次の一手（停止時点のもの。すべて済み — 現在の次の一手は §0.1）
 
 1. **（ほぼ無料）** `track/dogfood`・`track/perf`・`track/06b`・`track/11` は check 緑。テストを通してマージ。
 2. **（小）** `track/08b`・`track/structure` の lint 修正 → テスト → マージ → `compose.ts` に `createLoop` 配線 → INT-06（デモ台本: Explain → Fix → 採用 → Undo → `mitori review`）を録画エンジンで通す。
@@ -231,6 +267,7 @@ scripts/nd bun run check && scripts/nd bun test
 | 仕様の優先順位 | 契約（`packages/*/src/contract.ts`、`packages/core/src/{domain,api}.ts`）> `docs/design/REVIEW-LOG.md` > ARCHITECTURE/ADR > `docs/design/specs/*.md`（各 spec 冒頭「改訂 R1」が本文に優先） |
 | 契約変更の台帳 | `packages/core/CR-LEDGER.md`、未処理の要望 `docs/design/cr-requests/` |
 | UI の正解（目標の見た目） | `docs/design/prototypes/editorial/`（index.html + shots）、統合仕様 `docs/design/prototypes/JUDGEMENT.md` §6 |
+| 監査とその解決（現在） | `docs/progress/audit-{newcomer,expert,nonfunc}.md`、件ごとの判定 `docs/progress/audit-resolution.md`、最終デモ `docs/progress/live.md` 冒頭 + `docs/progress/final/` |
 | 進捗・実測 | `docs/progress/M1.md`、`docs/progress/m1/*.png`、`docs/progress/dogfood/`、ループ配線 `loop-wiring.md`、実機デモ `live.md`、生成品質 `gen-quality.md`（生成物 `dogfood2/`）、agent mode `agent-mode.md`、レビュー UX `ux.md`（`ux/*.png`）、HTML export `export/README.md` |
 | 開発コマンド・規約 | `CLAUDE.md`、`.claude/skills/{mitori-check,mitori-bench,mitori-measure,mitori-release-build,mitori-export}` |
 

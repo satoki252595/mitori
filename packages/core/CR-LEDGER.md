@@ -299,3 +299,7 @@
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
 | CR fin-1 | finisher（EX-01） | accepted | core `DocModuleEntry.members?: RepoPath[]`（葉モジュールの全メンバー、path 順。省略可 = 旧 doc.index.json）、`NOTICE_KEYS` に `notice.doc.moduleReattached` / `notice.doc.moduleOrphaned`、indexer `ModuleSeed.members?`、platform SafeWriter `doc` の許可に `orphaned/<slug>.md` (applied) | 新しいパス・新しい home で開くと分割が変わり、生成済み module 章 16 のうち 14 がスタブで上書きされた（親モジュールの id 変更が子の節まで削除していた）。seed に全メンバーを載せて分割をそのまま復元し、消えたモジュールの頁は重なり（≥ 0.6）で新しい id に付け替えるか `orphaned/` に残す |
+| CR fin-2 | finisher（EX-06） | accepted | api `JobReq.docFix?: boolean`（`kind: "explain"` のみ: 答えの最後の ```mitori-doc``` を、アンカーしたブロックの更新提案にする）(applied)。loop `ACCEPT_FIXED.docFix` / `DOC_FIX_FENCE`、web の 3 択（コードを直す / AI に設計書を直させる / 自分で直す） | 「設計書が間違っていてコードが正しい」に AI の道が無かった |
+| CR fin-3 | finisher（NC-07 / NC-04） | accepted | api `FileContent.outline?`（300 行超のファイルのトップレベルのシンボル）、`MapView.modules[].summary?`（生成済みのモジュールの一行の役割）(applied) | 4,300 行のハブに目次が無い / 部屋の popover が export 名しか出さない |
+| CR fin-4 | finisher（NC-12） | accepted | core `DOC_TEMPLATE` s2 `titleJa`: 見取り図 → 間取り図（製品名と図の名前を分ける。ファイル名 `doc/02-floor-plan.md` は不変）(applied) | 「見取り図」が 3 つの別物を指していた |
+| CR fin-5 | finisher（NC-06 / NC-07） | accepted | doc `StaticDocInput.guide?: StaticGuide`（§4 の手順・§5 の読む順番。server が索引から作る、0 tok）(applied、doc の契約) | 「どう動かすか」「どこから読むか」に静的節が答えていなかった |

@@ -1,5 +1,39 @@
 # live — レビュー → AI 修正ループを実 UI・実 daemon・実 claude で一周（branch `integrate/live`、2026-10-04）
 
+## 最終デモ（finisher、2026-10-04）— `@` なしで、設計書の文から 説明 → 修正 → 採用 → Undo
+
+台本 `test/int/shots/live.ts` を、監査の後の main に合わせて書き直した。スクショと計測は `docs/progress/final/`。
+
+**実エンジンでの実行は、まだしていない**。この環境の `claude` CLI がログアウト状態（`claude auth status` → `loggedIn: false`）のため。
+実費の上限は $0.60 で、このパスでの実 LLM 消費は **$0**。ログインしたら、次の 1 回で実エンジンでも通せる。
+
+```bash
+claude /login                                   # ユーザーが行う
+scripts/nd bun run build:bin
+scripts/nd bun test/int/shots/live.ts --engine real --out docs/progress/final   # 上限 $0.60（台帳を見て超えたら中断）
+```
+
+今回は、同じ台本を **scripted claude（`--engine fake`、0 tok）** で通した。本物の web UI（Chrome、1440×900）・本物の daemon の route・本物の git / gofmt / go vet / go test を使っている。
+`test/int/live-ui.test.ts` が、これと同じ実行をテストとして回す。
+
+| 段階 | 確認したこと | 実測（fake、ロードアベレージ ≈ 20〜50） |
+|---|---|---|
+| 01 最初の画面 | hero に README の 1 段落目（「積読…」）と `Go 1.23` が出る（NC-02） | shell 25 ms・map 182 ms・TOC 135 ms |
+| 02b §2 | 間取り図が SVG で描かれる（`figure.mdiagram svg .dg-node`、NC-03） | — |
+| 03 §4 | 先頭が 0 tok の手順で、`go run ./cmd/tsundoku` を含む（NC-06）。表に見出しがある | 節の遷移 115 ms |
+| 04→06 説明 | 環境変数表の語を選び、`e` を押して、**クリックせずに**打つ。値はそのまま入る（NC-01）。`config` の `g` も消えない（EX-02）。`@` なしで、行のコード（`config.go`）が bundle の CODE に入る（EX-03） | 楽観カード 41 ms、回答済 527 ms |
+| 08→09 修正 | `f` → 「どのコードを直しますか？」。1 番目の候補は行のコード（`config.go:19-38 Load`）で、⌥1 で選ぶ。`@` は使わない（CR ux-F1）。3 択（コードを直す / AI に設計書を直させる / 自分で直す、EX-06） | 楽観カード 19 ms |
+| 10→12 ジョブ | running → gating → ready | 386 / 1,212 / 1,590 ms |
+| 13→15 Review | 依頼の見出し、承認ダイアログ、gofmt・go test・go vet の 3 つが **pass** | Review を開く 92 ms |
+| 16 採用 | 作業ツリーで変わったのは ` M internal/config/config.go` だけ（未コミット）。HEAD・ref・stash・worktree・object 数は変わらない。`gofmt -l` もクリーン | ⌘⏎ → toast 810 ms |
+| 17 Undo | 元のバイト列に戻る。`git status` は空 | 108 ms |
+| 18 コード画面 | 行は 1 行ずつ、行番号付き | — |
+
+コンソールエラー 0、4xx/5xx 0。
+
+この実行で見つけた不具合は 1 件。最初の flush の途中で `?? .mitori/` が出ていた。`.gitignore` を最初に書くように直した（`audit-resolution.md`）。
+
+
 これまで通っていたのはシナリオエンジン（INT-06）とモックサーバー上の UI だけだった。今回は **コンパイル済みバイナリ**
 （`dist/mitori-darwin-arm64`）を go-small の git コピー（`$TMPDIR`、新しい `MITORI_HOME`）に向け、
 **インストール済み Google Chrome（Playwright `channel: "chrome"`、1440×900）で本物の UI を操作**し、
@@ -64,9 +98,9 @@
 6. **Composer が背が高い**: 実エンジンの束に「関連」chip が 5 つ自動で入る（`fetch.go:22/29/40/63`・`server.go:102`、合計 ≈ 0.2k tok）。
 7. Explain カード: 回答が長いと本文がカードに全部出てページがカードまで追従しない（`07-explain-answered.png` は下端で切れる）。
 
-## 残り
+## 残り（この run の時点。現在の状態は冒頭の「最終デモ」と `docs/HANDOFF.md` §0）
 
-- **Fix は `@` で指さないと書き込み範囲が空**（設計書のブロックの出典は Fix の書き込み範囲にならない）。Composer を開いた直後と空の本文で見積りが `412 E_PRECONDITION`（hint「`@` でコードを指して」）を返し、コンソールに赤い 412 が 2 つ残る。UI はヒントを出していない（プレースホルダーに `@` を促す一文を足すのが最小）。
+- ~~**Fix は `@` で指さないと書き込み範囲が空**~~（ux トラックで解消、最終デモで `@` なしを確認）（設計書のブロックの出典は Fix の書き込み範囲にならない）。Composer を開いた直後と空の本文で見積りが `412 E_PRECONDITION`（hint「`@` でコードを指して」）を返し、コンソールに赤い 412 が 2 つ残る。UI はヒントを出していない（プレースホルダーに `@` を促す一文を足すのが最小）。
 - trust トースト（margin カードから）経由の承認はゲートを再実行しない（CR loop-wiring #5 のまま。Review パネルからのみ自動）。
 - `GET /doc/proposals` は一覧のみ。`POST /doc/proposals/:pp/accept|reject`、`/integrations`、`/export`、MCP `submit_patch`、agent mode はまだ 501（`loop-wiring.md`）。
 - 請求ベースの `loop.patch.in` が 3 k を超える件（上の表）。`budgets` の定義を確認するか、claude CLI の固定 overhead を見積りに載せる。

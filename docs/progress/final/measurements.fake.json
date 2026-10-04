@@ -1,0 +1,164 @@
+{
+ "engine": "fake",
+ "spentUsd": 0.0068,
+ "firstScreen": {
+  "shellPaintedMs": 25,
+  "mapPaintedMs": 182,
+  "tocPaintedMs": 135,
+  "navToIdleMs": 1032
+ },
+ "sectionNavMs": 115,
+ "explainEstimateChip": "≈1.2k in · ≈600 out · $0.007 · 約4–8秒",
+ "explain": {
+  "optimisticCardMs": 41,
+  "firstTextMs": 102,
+  "threadAnsweredApiMs": 527,
+  "cardAnsweredMs": 527
+ },
+ "explainTimeline": {
+  "phase:queued": 42,
+  "phase:prepare": 45,
+  "phase:spawn": 45,
+  "phase:think": 48,
+  "firstText": 265,
+  "usage": 514,
+  "result": 514,
+  "phase:done": 519,
+  "lastText": 306
+ },
+ "explainJob": {
+  "state": "done",
+  "usage": {
+   "in": 900,
+   "cacheWrite": 0,
+   "cacheWrite1h": 0,
+   "cacheRead": 0,
+   "out": 34,
+   "apiUsd": 0.00214,
+   "pricingVer": "2026-09-25",
+   "thinking": 0,
+   "reportedUsd": 0.00214
+  },
+  "timings": {
+   "modelMs": 460,
+   "wallMs": 471
+  },
+  "route": {
+   "mode": "answer",
+   "reason": "intent_question",
+   "model": "claude-sonnet-5-5",
+   "effort": "low",
+   "tools": "none",
+   "contract": "answer/1",
+   "requiresConfirm": false,
+   "anchoredLines": 0,
+   "files": 0
+  },
+  "estimate": {
+   "in": 1231,
+   "out": 600,
+   "usd": 0.008462,
+   "seconds": {
+    "p50": 8,
+    "p90": 15
+   }
+  }
+ },
+ "explainAnswer": "`Load` が環境変数を起動時に 1 回だけ読む [[internal/config/config.go:19-38]]。未設定なら空文字のまま動く。",
+ "fixEstimateChip": "≈1.8k in · ≈1.5k out · $0.016 · 約25–40秒",
+ "fixOptimisticCardMs": 19,
+ "fixStateMs": {
+  "running": 386,
+  "gating": 1212,
+  "ready": 1590
+ },
+ "fixTimeline": {
+  "phase:queued": 27,
+  "phase:prepare": 28,
+  "phase:snapshot": 28,
+  "phase:spawn": 28,
+  "phase:think": 29,
+  "usage": 1147,
+  "result": 1147,
+  "phase:apply": 1185,
+  "phase:scope": 1203,
+  "phase:gate": 1368,
+  "phase:ready": 1473
+ },
+ "fixJob": {
+  "usage": {
+   "in": 900,
+   "cacheWrite": 0,
+   "cacheWrite1h": 0,
+   "cacheRead": 0,
+   "out": 286,
+   "apiUsd": 0.00466,
+   "pricingVer": "2026-09-25",
+   "thinking": 0,
+   "reportedUsd": 0.00466
+  },
+  "timings": {
+   "modelMs": 1115,
+   "wallMs": 1120
+  },
+  "route": {
+   "mode": "patch",
+   "reason": "small_change",
+   "model": "claude-sonnet-5-5",
+   "effort": "low",
+   "tools": "none",
+   "contract": "patch/1",
+   "requiresConfirm": false,
+   "anchoredLines": 20,
+   "files": 1
+  },
+  "writeScope": [
+   "internal/config/config.go"
+  ],
+  "diffStat": {
+   "files": 1,
+   "additions": 1,
+   "deletions": 1,
+   "hunks": 1
+  },
+  "estimate": {
+   "in": 1912,
+   "out": 1500,
+   "usd": 0.018824,
+   "seconds": {
+    "p50": 10,
+    "p90": 18
+   }
+  }
+ },
+ "reviewOpenMs": 92,
+ "gates": {
+  "verdict": "passed",
+  "gates": [
+   {
+    "gate": "fmt:gofmt",
+    "status": "pass",
+    "ms": 19
+   },
+   {
+    "gate": "test:go",
+    "status": "pass",
+    "ms": 208
+   },
+   {
+    "gate": "typecheck:go-vet",
+    "status": "pass",
+    "ms": 350
+   }
+  ]
+ },
+ "acceptToastMs": 810,
+ "afterAccept": {
+  "status": "M internal/config/config.go",
+  "diffStat": "internal/config/config.go | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)"
+ },
+ "changedFile": "type Config struct {\n\tPort        int\n\tDatabaseURL string\n\tLogLevel    string\n\tAPIToken    string\n}\n\n// Load reads the configuration from the environment. Command-line flags override it (see cmd/tsundoku).\nfunc Load() Config {\n\tport, err := strconv.Atoi(cmp.Or(os.Getenv(\"PORT\"), \"8080\"))\n\tif err != nil || port <= 0 {\n\t\tport = 8080\n\t}\n\n\tdatabaseURL, _ := os.LookupEnv(\"DATABASE_URL\")\n\n\tlevel := os.Getenv(\"LOG_LEVEL\")\n\tif level == \"\" {\n\t\tlevel = \"info\"\n\t}",
+ "undoMs": 108,
+ "badResponses": [],
+ "consoleErrors": []
+}
