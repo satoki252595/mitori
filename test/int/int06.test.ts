@@ -492,5 +492,17 @@ describe("INT-06 review → AI fix loop (side repo, accept, undo)", () => {
       context: { add: [{ path: "../etc/passwd", start: 1, end: 2 }] },
     });
     expect(bad.status).toBe(400);
+    // ⧉ on the job card (GET /jobs/:job/prompt) builds from the thread: it carries the stored context too
+    const est2 = await api<JobEstimate>("POST", "/jobs/estimate", { kind: "fix", threads: [t.id] });
+    const job = await api<Job>("POST", "/jobs", { kind: "fix", threads: [t.id], estimateId: est2.estimate.id, confirm: est2.estimate.requiresConfirm });
+    const jobPrompt = await (await int.cli("GET", `/ws/${ws}/jobs/${job.id}/prompt?target=generic`)).text();
+    expect(writeLine(jobPrompt)).toBe(`WRITE ${CONFIG}`);
+    expect(jobPrompt).toContain(`CODE ${RETRY_FILE}:`);
+    // the scripted engine has no answer for this ask: let the job end before the next test
+    const t0 = Date.now();
+    while (!["failed", "ready", "done", "cancelled"].includes((await api<JobDetail>("GET", `/jobs/${job.id}`)).state)) {
+      if (Date.now() - t0 > 20_000) throw new Error("safe-6 job did not end");
+      await Bun.sleep(20);
+    }
   });
 });

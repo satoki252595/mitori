@@ -29,7 +29,9 @@ export async function makeWorktreeRoom(core: RunnerCore, job: JobId, limit: numb
   let count = live.length;
   for (const r of live) {
     if (count < limit) break;
-    if (BUSY.has(r.job.state)) continue;
+    // the state NOW (an earlier eviction awaited git: the job may have started its gates or an accept since)
+    const state = core.store.get(r.job.id)?.job.state ?? r.job.state;
+    if (BUSY.has(state)) continue;
     await core.deps.git.removeWorktree(r.job.id).catch((e: unknown) => core.deps.log.warn("worktree eviction failed", { job: r.job.id, error: String(e) }));
     await core.update(r.job.id, "job.worktree.evict", (x) => {
       delete x.job.worktree;

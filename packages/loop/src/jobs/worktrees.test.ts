@@ -5,7 +5,7 @@ import { GIT_LIMITS } from "../contract.ts";
 import type { RunnerCore } from "./core.ts";
 import { makeWorktreeRoom } from "./worktrees.ts";
 
-function fakeCore(jobs: { id: string; state: JobState; at: string; worktree?: string }[]) {
+function fakeCore(jobs: { id: string; state: JobState; at: string; worktree?: string }[], onRemove?: (id: JobId, recs: { job: Job }[]) => void) {
   const recs = jobs.map((j) => ({
     job: { id: j.id as JobId, state: j.state, createdAt: j.at, ...(j.worktree ? { worktree: j.worktree } : {}) } as unknown as Job,
   }));
@@ -13,13 +13,18 @@ function fakeCore(jobs: { id: string; state: JobState; at: string; worktree?: st
   const dirs = new Set(jobs.filter((j) => j.worktree && !j.worktree.endsWith("_removed")).map((j) => j.worktree as string));
   const removed: string[] = [];
   const core = {
-    store: { inStates: (states: readonly JobState[]) => recs.filter((r) => states.includes(r.job.state)) },
+    // copies, like the real store's rows: a state change after `inStates` is only seen through `get`
+    store: {
+      inStates: (states: readonly JobState[]) => recs.filter((r) => states.includes(r.job.state)).map((r) => ({ job: { ...r.job } })),
+      get: (id: JobId) => recs.find((r) => r.job.id === id) ?? null,
+    },
     deps: {
       fs: { stat: (p: string) => (dirs.has(p) ? { isDir: true } : null) },
       git: {
         removeWorktree: async (id: JobId) => {
           removed.push(id);
           dirs.delete(`/wt/${id}`);
+          onRemove?.(id, recs);
         },
       },
       log: { info: () => undefined, warn: () => undefined },
@@ -65,6 +70,21 @@ describe("#7 maxWorktreesPerWs", () => {
       worktree: `/wt/j_b${i}`,
     }));
     expect(await makeWorktreeRoom(fakeCore(busy).core, "j_new" as JobId)).toEqual([]);
+  });
+
+  test("a job that became busy while an earlier eviction ran is not evicted (its state is read again)", async () => {
+    const jobs = Array.from({ length: GIT_LIMITS.maxWorktreesPerWs + 1 }, (_, i) => ({
+      id: `j_${i}`,
+      state: "ready" as const,
+      at: `2026-10-02T00:00:0${i}Z`,
+      worktree: `/wt/j_${i}`,
+    }));
+    // removing j_0 takes a while; meanwhile the human runs j_1's gates
+    const { core, removed } = fakeCore(jobs, (id, recs) => {
+      if (id === "j_0") (recs.find((r) => r.job.id === "j_1") as { job: Job }).job.state = "gating";
+    });
+    expect(await makeWorktreeRoom(core, "j_new" as JobId)).toEqual(["j_0", "j_2"] as JobId[]);
+    expect(removed).not.toContain("j_1");
   });
 
   test("the job asking for room is not counted against itself (re-creating its own worktree)", async () => {

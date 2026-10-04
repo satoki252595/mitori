@@ -390,7 +390,14 @@ export function loopHandlers(env: LoopRouteEnv): RouteHandlers {
       const thread = job.threads[0] ? x.loop.review.get(job.threads[0]) : null;
       if (!thread) throw notFound("thread", job.threads[0] ?? "?");
       const first = thread.messages.find((m) => m.by === "human");
-      const res = await x.extras.bundles.copyPrompt({ anchor: thread.anchor, ask: first?.body ?? thread.title, intent: thread.intent, target });
+      // CR safe-6: the job's ⧉ carries the code the human chose for the thread, like ⤴ and the push job do
+      const res = await x.extras.bundles.copyPrompt({
+        anchor: thread.anchor,
+        ask: first?.body ?? thread.title,
+        intent: thread.intent,
+        target,
+        ...(thread.context ? { context: thread.context } : {}),
+      });
       return res.text;
     },
     "POST /ws/:ws/jobs/:job/cancel": async (ctx) => {
