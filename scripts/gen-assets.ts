@@ -162,6 +162,10 @@ export function precompress(dir: string): Record<string, WebEntry> {
 
 /** Build the SPA into `outDir`; returns which source was used. */
 export async function buildWeb(outDir: string): Promise<"apps/web" | "apps/web/src/__stub"> {
+  // the shipped bundle whoever runs this: under `bun test` (NODE_ENV=test, inherited by a spawned build) Vite / Svelte
+  // build ANOTHER bundle with other chunk hashes, and the asset table the test process cached (apps/cli/src/build/
+  // assets.ts) then points at deleted files — ENOENT in every later daemon start of a full run (ux verifier pass)
+  process.env.NODE_ENV = "production";
   const { build } = await import("vite");
   const app = existsSync(join(ROOT, "apps/web/index.html")) && existsSync(join(ROOT, "apps/web/vite.config.ts"));
   const common = { logLevel: "warn" as const, base: "/", build: { outDir, emptyOutDir: true, assetsDir: "assets", reportCompressedSize: false } };
