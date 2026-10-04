@@ -94,7 +94,7 @@ export default defineConfig(({ mode }) => ({
               test: (id: string) =>
                 /[\\/](node_modules[\\/](svelte|esm-env|clsx)|packages[\\/](core|client)[\\/]src|apps[\\/]web[\\/]src[\\/](shell|stores|contract\.ts))[\\/.]/.test(
                   id,
-                ) && !/[\\/]shell[\\/](?:(?:i18n-(?:ja|en)(?:-[a-z]+)?|main)\.ts|(?:Launcher|HelpOverlay)\.svelte)$/.test(id),
+                ) && !/[\\/]shell[\\/](?:(?:i18n-(?:ja|en)(?:-[a-z]+)?|main|help-guide)\.ts|(?:Launcher|HelpOverlay)\.svelte)$/.test(id),
               priority: 10,
             },
           ],

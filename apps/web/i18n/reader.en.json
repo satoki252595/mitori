@@ -96,5 +96,14 @@
   "verdict.inferred": "Inferred",
   "verdict.stale": "May be stale",
   "verdict.unsupported": "Unsupported",
-  "verdict.verified": "Identifiers match the source"
+  "verdict.verified": "Identifiers match the source",
+  "reader.welcome.title": "New here? — {name}",
+  "reader.welcome.stops": "{stops} · about {min} min",
+  "reader.welcome.newcomerLine": "You are reading at <b>New</b> (details and citations folded). Select a sentence you do not follow to ask the AI about it, or have it fixed.",
+  "reader.welcome.standardLine": "<b>New</b> folds details and citations so you read the gist. Select a sentence you do not follow to ask the AI about it, or have it fixed.",
+  "reader.welcome.start": "Start the {name}",
+  "reader.welcome.continue": "Continue: §{num} {title}",
+  "reader.welcome.standard": "Read at Standard",
+  "reader.welcome.newcomerLevel": "Read at New",
+  "reader.welcome.close": "Close (not shown again for this workspace)"
 }

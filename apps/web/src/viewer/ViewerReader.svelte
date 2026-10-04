@@ -210,25 +210,6 @@ onMount(() => {
   };
 });
 
-// ---------------------------------------------------------------- reading-path progress
-$effect(() => {
-  void model.page;
-  if (!main) return;
-  const io = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries) if (e.isIntersecting) v.markRead((e.target as HTMLElement).dataset.read ?? "");
-    },
-    { rootMargin: "0px 0px -20% 0px" },
-  );
-  const raf = requestAnimationFrame(() => {
-    for (const el of main?.querySelectorAll("[data-read]") ?? []) io.observe(el);
-  });
-  return () => {
-    cancelAnimationFrame(raf);
-    io.disconnect();
-  };
-});
-
 // ---------------------------------------------------------------- 「この節について」
 let citedFiles = $state.raw<About["files"]>([]);
 $effect(() => {
@@ -290,7 +271,6 @@ const next = $derived.by(() => {
   {:else}
     <h2 class="sub" id={`sec-${p.node.id}`}><span class="hn">{p.num}</span><span data-user-content>{p.node.title}</span></h2>
   {/if}
-  <span class="read-mark" data-read={p.node.id} aria-hidden="true"></span>
 {/snippet}
 
 <main id="main" class="doc" tabindex="-1" bind:this={main} lang={v.docLang}>
@@ -309,6 +289,7 @@ const next = $derived.by(() => {
         onhoverblock={() => {}}
         onplaceholder={() => {}}
         onmore={(ids) => (forced = new Set([...forced, ...ids]))}
+        onread={(sec) => v.markRead(sec)}
         generating={false}
         docLang={v.docLang}
         codeHref={() => "#c"}

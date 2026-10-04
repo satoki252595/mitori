@@ -1,10 +1,11 @@
 {
   "open": {
-    "ms": 447.24816599999997
+    "ms": 479.641208
   },
-  "docArrivedMs": 157,
+  "docArrivedMs": 162,
+  "courseMs": 1663,
   "fulltextFirstQueryMs": 11,
-  "fulltextJumpMs": 21,
+  "fulltextJumpMs": 23,
   "askIntentChips": [
     "質問\n⌘1"
   ],

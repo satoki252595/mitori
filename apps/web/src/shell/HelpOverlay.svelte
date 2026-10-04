@@ -1,15 +1,33 @@
 <!--
-  Help (`?`, ux.md §4.11): the effective keymap per scope in a modal <dialog>, a filter box (IME-safe: `input`
-  only), the single-key toggle (WCAG 2.1.4). Closing returns focus (LayerStack).
+  Help (`?`, ux.md §4.11): first 「この画面でできること」 (NC-13) — the three steps of THIS screen (Reader: read →
+  select and ask → check and accept; map; Review; Inbox), what a request costs and whether the AI engine can take one
+  right now — then the effective keymap per scope in a modal <dialog>, a filter box (IME-safe: `input` only), the
+  single-key toggle (WCAG 2.1.4). Closing returns focus (LayerStack).
 -->
 <script lang="ts">
+import { engineProblem } from "../map/engine.ts";
 import { useStores } from "../stores/app.svelte.ts";
+import { guideOf } from "./help-guide.ts";
 import { t } from "./index.ts";
+import Rich from "./Rich.svelte";
 
 const s = useStores();
 let dlg: HTMLDialogElement | undefined = $state();
 let q = $state("");
 const SCOPES = ["global", "read", "map", "inbox", "review", "composer", "palette"] as const;
+
+const guide = $derived(guideOf(s.router.route.name));
+const engine = $derived(s.session.engine(s.workspace.status?.genEngine ?? null));
+const engineLine = $derived.by(() => {
+  if (s.session.engines === null) return t("help.engine.unknown");
+  const p = engineProblem(engine);
+  const name = engine?.engine ?? "claude-cli";
+  if (p === "notInstalled") return t("help.engine.notInstalled", { engine: name });
+  if (p === "notLoggedIn") return t("help.engine.notLoggedIn", { engine: name });
+  if (p === "capabilityLost") return t("help.engine.capabilityLost", { engine: name });
+  return t("help.engine.ok", { engine: name });
+});
+const engineOk = $derived(s.session.engines !== null && engineProblem(engine) === null);
 
 const groups = $derived.by(() => {
   const needle = q.trim().toLowerCase();
@@ -43,9 +61,24 @@ function close() {
 
 <dialog class="dlg help" bind:this={dlg} aria-modal="true" aria-labelledby="help-t" oncancel={(e) => (e.preventDefault(), close())} data-chrome>
   <div class="hd">
-    <h2 id="help-t">{t("help.title")}</h2>
+    <h2 id="help-t">{t("help.guide.title")}</h2>
     <button type="button" class="icon-btn" aria-label={t("help.close")} onclick={close}>&times;</button>
   </div>
+  <ol class="guide" aria-label={t("help.guide.title")}>
+    {#each guide as step, i (step)}
+      <li>
+        <span class="num" aria-hidden="true">{i + 1}</span>
+        <p class="gt">{t(`help.guide.${step}.t`)}</p>
+        <p class="gd"><Rich text={t(`help.guide.${step}.d`)} /></p>
+      </li>
+    {/each}
+  </ol>
+  <p class="meta">
+    <span class="eng" class:bad={!engineOk && s.session.engines !== null}><Rich text={engineLine} /></span>
+    <span class="cost"><Rich text={t("help.cost")} /></span>
+  </p>
+
+  <h3 class="keys-t">{t("help.title")}</h3>
   <input class="flt" type="search" placeholder={t("help.filter")} aria-label={t("help.filter")} bind:value={q} />
   <div class="cols">
     {#each groups as g (g.scope)}
@@ -68,12 +101,82 @@ function close() {
 
 <style>
   .help {
-    width: 820px;
+    width: 860px;
   }
   .hd {
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+  .guide {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .guide li {
+    position: relative;
+    padding: 12px 14px 12px 44px;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-card);
+    background: var(--paper);
+  }
+  .num {
+    position: absolute;
+    left: 14px;
+    top: 9px;
+    font-family: var(--font-serif);
+    font-size: 1.375rem;
+    line-height: 1;
+    color: var(--muted);
+    font-variant-numeric: oldstyle-nums;
+  }
+  .gt {
+    margin: 0 0 4px;
+    font-size: var(--fs-ui);
+    font-weight: var(--fw-strong);
+    color: var(--ink);
+  }
+  .gd {
+    margin: 0;
+    font-size: var(--fs-ui-s);
+    line-height: 1.7;
+    color: var(--text);
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+    margin: 12px 0 0;
+    font-size: var(--fs-label);
+    color: var(--muted);
+  }
+  .eng::before {
+    content: "";
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: var(--c-ok);
+    vertical-align: 1px;
+  }
+  .eng.bad {
+    color: var(--c-warn);
+  }
+  .eng.bad::before {
+    background: var(--c-warn);
+  }
+  .keys-t {
+    margin: 20px 0 8px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    font-size: var(--fs-ui);
+    font-weight: var(--fw-strong);
+    color: var(--ink);
+    letter-spacing: 0;
   }
   .flt {
     width: 100%;
@@ -121,7 +224,8 @@ function close() {
     color: var(--muted);
   }
   @media (max-width: 900px) {
-    .cols {
+    .cols,
+    .guide {
       grid-template-columns: 1fr;
     }
   }

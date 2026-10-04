@@ -96,5 +96,14 @@
   "verdict.inferred": "推測",
   "verdict.stale": "古い可能性",
   "verdict.unsupported": "裏付けなし",
-  "verdict.verified": "出典と識別子が一致"
+  "verdict.verified": "出典と識別子が一致",
+  "reader.welcome.title": "はじめての方へ — {name}",
+  "reader.welcome.stops": "{stops} · 約{min}分",
+  "reader.welcome.newcomerLine": "表示は<b>初めて</b>です（細部と出典を畳んでいます）。わからない文を選ぶと、AIに質問・修正を頼めます。",
+  "reader.welcome.standardLine": "<b>初めて</b>にすると、細部と出典を畳んで要点だけを読めます。わからない文を選ぶと、AIに質問・修正を頼めます。",
+  "reader.welcome.start": "{name}で読む",
+  "reader.welcome.continue": "続きを読む: §{num} {title}",
+  "reader.welcome.standard": "標準の表示にする",
+  "reader.welcome.newcomerLevel": "初めての表示で読む",
+  "reader.welcome.close": "閉じる（このワークスペースでは出しません）"
 }

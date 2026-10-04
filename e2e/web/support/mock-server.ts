@@ -22,6 +22,8 @@ let seq = 100;
 let estSeq = 0;
 let settingsVersion = 3;
 let acked = opts.policyAcked;
+/** The reader level a PATCH saved (the first visit saves 「初めて」, NC-08); reset by configure. */
+let savedLevel: string | null = null;
 const streams = new Set<ReadableStreamDefaultController<Uint8Array>>();
 const enc = new TextEncoder();
 const gz = new Map<string, Uint8Array>();
@@ -31,7 +33,12 @@ function configure(o: Partial<FixtureOptions>) {
   doc = docFixture(opts);
   log = [];
   acked = opts.policyAcked;
+  savedLevel = null;
   estSeq = 0;
+}
+
+function withSaved<T extends { settings: { ui: { readerLevel: string } } }>(v: T): T {
+  return savedLevel ? { ...v, settings: { ...v.settings, ui: { ...v.settings.ui, readerLevel: savedLevel } } } : v;
 }
 
 function emit(e: Partial<SseEvent> & { type: string }) {
@@ -111,14 +118,15 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
       estimateAccuracyPct: 12,
     });
   if (m === "GET" && p === "/settings") {
-    const s = settings({ ...opts, policyAcked: acked });
+    const s = withSaved(settings({ ...opts, policyAcked: acked }));
     return json({ ...s, version: settingsVersion });
   }
   if (m === "PATCH" && p === "/settings") {
-    const b = body as { patch?: { privacy?: { dataPolicyAck?: unknown } } };
+    const b = body as { patch?: { privacy?: { dataPolicyAck?: unknown }; ui?: { readerLevel?: string } } };
     if (b?.patch?.privacy?.dataPolicyAck) acked = true;
+    if (b?.patch?.ui?.readerLevel) savedLevel = b.patch.ui.readerLevel;
     settingsVersion++;
-    return json({ ...settings({ ...opts, policyAcked: acked }), version: settingsVersion });
+    return json({ ...withSaved(settings({ ...opts, policyAcked: acked })), version: settingsVersion });
   }
   if (m === "GET" && p === "/engines") return json(engines(opts));
   if (m === "GET" && p === "/workspaces") {

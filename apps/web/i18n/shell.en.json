@@ -236,5 +236,15 @@
   "toc.state.static": "static (0 tok)",
   "toc.static": "static",
   "toc.threads.one": "{n} thread",
-  "toc.threads.other": "{n} threads"
+  "toc.threads.other": "{n} threads",
+  "rail.pathName.5min": "5-minute course",
+  "rail.pathName.30min": "30-minute course",
+  "rail.pathName.reviewer": "For reviewers",
+  "rail.pathName.pm": "For PMs",
+  "rail.pathName.sre": "For SREs",
+  "rail.pathName.timed": "About-{min}-minute course",
+  "rail.pathDone": "Finished · {min} min in all",
+  "rail.pathStops": "Stops",
+  "rail.stopRead": "read",
+  "rail.pathDoneBadge": "✓ done"
 }

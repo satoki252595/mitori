@@ -7,11 +7,12 @@ import { type BlockId, type CitePeek as CitePeekData, HREFS, type LineNo, Mitori
 import { flushSync, onMount, untrack } from "svelte";
 import { copyText } from "../shell/clipboard.ts";
 import { loadExtensions, type UiExtension, whenExtensions } from "../shell/ext.ts";
+import { welcomeKey } from "../shell/firstrun.ts";
 import { errorText, t } from "../shell/index.ts";
 import { mark } from "../shell/perf.ts";
 import Rail from "../shell/Rail.svelte";
-import { DEFAULT_PATH, selectedPath } from "../shell/reading.ts";
-import { getItem, getJson, STORAGE_KEYS, setItem, setJson } from "../shell/storage.ts";
+import { choosePath, markRead, NEWCOMER_PATH, pathProgress, readMapOf } from "../shell/reading.ts";
+import { getItem, STORAGE_KEYS, setItem } from "../shell/storage.ts";
 import { currentLayout, setReaderLevel, useStores } from "../stores/app.svelte.ts";
 import BlockHost from "./BlockHost.svelte";
 import ContextColumn from "./ContextColumn.svelte";
@@ -24,6 +25,7 @@ import Minimap from "./Minimap.svelte";
 import { readingMinutes, subtreeStats } from "./outline.ts";
 import { buildPage, type PagePart, sectionsToFetch, stepBlock } from "./page.ts";
 import { type Anchor, captureAnchor, restoreAnchor } from "./scroll-anchor.ts";
+import Welcome from "./Welcome.svelte";
 
 const s = useStores();
 // peek / term card / claim popover: a lazy chunk, fetched when idle after the first section paint (or on demand)
@@ -473,31 +475,11 @@ $effect(() => {
   return () => io.disconnect();
 });
 
-// ---------------------------------------------------------------- reading-path progress (marker passes the bottom 20 %)
-$effect(() => {
-  if (!loaded || !main || !ws || !model) return;
-  // progress belongs to the path chosen in the rail card (sessionStorage `mitori:path:<ws>`)
-  const pathId = selectedPath(s.doc.outline, ws)?.id ?? DEFAULT_PATH;
-  const io = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        const sec = (e.target as HTMLElement).dataset.read;
-        if (!sec) continue;
-        const key = STORAGE_KEYS.read(ws, pathId);
-        const cur = getJson<Record<string, string>>("local", key) ?? {};
-        if (!cur[sec]) {
-          cur[sec] = new Date().toISOString();
-          setJson("local", key, cur);
-          s.ui.readTick++;
-        }
-      }
-    },
-    { rootMargin: "0px 0px -20% 0px" },
-  );
-  for (const el of main.querySelectorAll("[data-read]")) io.observe(el);
-  return () => io.disconnect();
-});
+// ---------------------------------------------------------------- reading-path progress (a section's END marker passes the bottom 20 %)
+function onRead(sec: SectionId) {
+  // a section read counts for every course that stops there (NC-15)
+  if (ws && markRead(ws, sec, new Date().toISOString())) s.ui.readTick++;
+}
 
 // tail of the running generation (`◐ 生成中 · modules · internal/session`, §4.3.9-6)
 const streamTail = $derived.by(() => {
@@ -569,6 +551,32 @@ const about = $derived.by(() => {
   };
 });
 const marginView = $derived(ext?.margin ?? null);
+
+// ---------------------------------------------------------------- §0 welcome: the 5-minute course (NC-08 / NC-13)
+let welcomeClosed = $state(false);
+const welcome = $derived.by(() => {
+  void s.ui.readTick;
+  const w = ws;
+  const o = s.doc.outline;
+  if (!w || !o?.manifest.generatedAt || welcomeClosed || getItem("local", welcomeKey(w))) return null;
+  const five = o.readingPaths.find((p) => p.id === NEWCOMER_PATH);
+  if (!five || five.steps.length === 0) return null;
+  const prog = pathProgress(five, readMapOf(w, five.id), (id) => ix?.nodes.get(id)?.readingSec ?? 0);
+  return prog.done ? null : { path: five, prog };
+});
+function closeWelcome() {
+  if (ws) setItem("local", welcomeKey(ws), new Date().toISOString().slice(0, 10));
+  welcomeClosed = true;
+}
+function startCourse() {
+  const w = welcome;
+  if (!ws || !w) return;
+  choosePath(ws, w.path.id);
+  s.ui.readTick++;
+  const next = w.prog.next ?? w.path.steps[0]?.section;
+  if (next && next !== model?.page) void s.router.go({ name: "doc", ws, section: next });
+  else main?.querySelector<HTMLElement>(".sec-body .blk")?.focus();
+}
 </script>
 
 {#snippet head(p: PagePart)}
@@ -588,6 +596,19 @@ const marginView = $derived(ext?.margin ?? null);
         {#if s.doc.outline?.manifest.models[0]}<span class="sep" aria-hidden="true">&middot;</span><span class="mono">{s.doc.outline.manifest.models[0]}</span>{/if}
       </p>
     </header>
+    {#if p.node.id === "s0" && welcome && ws}
+      <Welcome
+        {ws}
+        path={welcome.path}
+        prog={welcome.prog}
+        {level}
+        numbers={(id) => ix?.numbers.get(id) ?? ""}
+        titles={(id) => ix?.nodes.get(id)?.title ?? ""}
+        onstart={startCourse}
+        onlevel={(l) => setLevel(l)}
+        onclose={closeWelcome}
+      />
+    {/if}
     {#if notGenerated && p.node.state !== "static_only"}
       <p class="gen-note" data-chrome>
         <span>{t("reader.notGenerated")}</span>
@@ -597,7 +618,6 @@ const marginView = $derived(ext?.margin ?? null);
   {:else}
     <h2 class="sub" id={`sec-${p.node.id}`}><span class="hn">{p.num}</span><span data-user-content>{p.node.title}</span></h2>
   {/if}
-  <span class="read-mark" data-read={p.node.id} aria-hidden="true"></span>
 {/snippet}
 
 <div class="body reader-body" style:grid-template-columns="{layout.rail}px minmax(0,1fr) {layout.ctxPlacement === 'column' ? layout.ctx : 0}px">
@@ -649,6 +669,7 @@ const marginView = $derived(ext?.margin ?? null);
           tail={streamTail}
           mutate={(apply) => s.doc.mutate(apply)}
           codeHref={(p, a, b) => (ws ? HREFS.code(ws, p as RepoPath, a as LineNo, b as LineNo) : null)}
+          onread={onRead}
         />
         {#if next && ws}
           <nav class="pager" aria-label={t("reader.pager")} data-chrome>

@@ -79,10 +79,16 @@ export class PrefsState {
     this.#patch({ ui: { lang: l } });
   }
 
-  setLevel(l: ReaderLevel): void {
+  /**
+   * `immediate`: also PATCH right away (the first-run level, NC-08): the server's copy wins at the next boot, so a
+   * reload inside the 1 s debounce would otherwise bring the old level back. The debounced patch still runs, so the
+   * boot's own (older) settings view is not re-applied over it meanwhile (`pending`).
+   */
+  setLevel(l: ReaderLevel, opts: { immediate?: boolean } = {}): void {
     this.level = l;
     this.writeCookie();
     this.#patch({ ui: { readerLevel: l } });
+    if (opts.immediate) void this.patchNow({ ui: { readerLevel: l } });
   }
 
   /** `⇧O` target (UiSettings.editor, §16 R21). */

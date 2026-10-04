@@ -73,6 +73,14 @@ async function coldRun(browser: Browser, name: string, src: string, shoot: boole
   }
   if (!loginUrl) throw new Error(`${name}: no login URL\n${err}`);
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: "light" });
+  // a returning browser: a first visit reads at 「初めて」 with the 5-minute course (NC-08), which this drive is not about
+  await ctx.addInitScript(() => {
+    try {
+      localStorage.setItem("mitori:firstRun", "2026-10-01");
+    } catch {
+      /* storage blocked: the first-run default applies */
+    }
+  });
   const page = await ctx.newPage();
   await page.goto(loginUrl);
   const m = await marks(page, ["mitori:shell:painted", "mitori:map:painted", "mitori:toc:painted"]);
@@ -133,6 +141,14 @@ async function generationShot(browser: Browser, src: string): Promise<void> {
     await int.json("POST", `/ws/${ws}/gen/runs`, { estimateId: est.id, confirm: true });
     const nonce = await int.json<{ url: string }>("POST", "/auth/nonce", { to: `/w/${ws}` });
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: "light" });
+    // a returning browser: a first visit reads at 「初めて」 with the 5-minute course (NC-08), which this drive is not about
+    await ctx.addInitScript(() => {
+      try {
+        localStorage.setItem("mitori:firstRun", "2026-10-01");
+      } catch {
+        /* storage blocked: the first-run default applies */
+      }
+    });
     const page = await ctx.newPage();
     await page.goto(nonce.url);
     await page.waitForTimeout(3500);

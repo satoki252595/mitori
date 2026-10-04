@@ -3,15 +3,16 @@
   thread badge), generation meta. TOC click on a waiting chapter during generation prioritizes it (AC-J48).
 -->
 <script lang="ts">
-import { HREFS, type SectionId } from "@mitori/core";
-import type { Snippet } from "svelte";
+import { HREFS, type ReadingPath, type SectionId } from "@mitori/core";
+import { type Snippet, untrack } from "svelte";
 import { readingMinutes, subtreeStats, tocState } from "../reader/outline.ts";
 import { useStores } from "../stores/app.svelte.ts";
 import { fmtInt, fmtTokensImpl, fmtUsdImpl } from "./fmt.ts";
+import Icon from "./Icon.svelte";
+import { hasKey } from "./i18n.ts";
 import { t } from "./index.ts";
 import { markAfterPaint } from "./perf.ts";
-import { choosePath, plannedPath, selectedPath } from "./reading.ts";
-import { getJson, STORAGE_KEYS } from "./storage.ts";
+import { choosePath, nextPathAfter, pathName, pathProgress, plannedPath, readMapOf, selectedPath } from "./reading.ts";
 
 let { mode, top }: { mode: "inline" | "drawer"; top?: Snippet } = $props();
 const s = useStores();
@@ -46,18 +47,38 @@ $effect(() => {
   }
 });
 
-// reading path (ux.md §4.3.8 / §7.2)
+// reading path (ux.md §4.3.8 / §7.2): the tab's course (default: 5 minutes at 「初めて」, NC-08), its progress
+// across every course (NC-15), the completion line and the next course instead of 「残り約1分 · 次 —」
 // readTick also bumps when the path is chosen (sessionStorage itself is not reactive)
-const path = $derived(s.ui.readTick >= 0 ? selectedPath(outline, ws) : null);
+const path = $derived(s.ui.readTick >= 0 ? selectedPath(outline, ws, s.doc.level) : null);
 // before generation the default path is already planned (0 extra tokens later): 「30分コース 0 / 7 · 残り約30分」 (CR m1-103)
 const planned = $derived(path ? null : plannedPath(outline));
-const readMap = $derived(s.ui.readTick >= 0 && ws && path ? (getJson<Record<string, string>>("local", STORAGE_KEYS.read(ws, path.id)) ?? {}) : {});
-const readCount = $derived(path ? path.steps.filter((st) => readMap[st.section]).length : 0);
-const nextStep = $derived(path?.steps.find((st) => !readMap[st.section]) ?? null);
-const leftMin = $derived(
-  path && ix ? readingMinutes(path.steps.filter((st) => !readMap[st.section]).reduce((n, st) => n + (ix.nodes.get(st.section)?.readingSec ?? 0), 0)) : 0,
-);
-const ring = $derived(path?.steps.length ? readCount / path.steps.length : 0);
+const secOf = (id: SectionId) => ix?.nodes.get(id)?.readingSec ?? 0;
+const readMap = $derived(s.ui.readTick >= 0 && ws && path ? readMapOf(ws, path.id) : {});
+const prog = $derived(path ? pathProgress(path, readMap, secOf) : null);
+const nameOf = (p: ReadingPath) => pathName(p, pathProgress(p, readMap, secOf).totalMin, t, hasKey);
+const pathTitle = $derived(path ? nameOf(path) : "");
+const nextPath = $derived.by(() => {
+  const w = ws;
+  if (!path || !prog?.done || !w || !outline) return null;
+  return nextPathAfter(outline.readingPaths, path.id, (p) => pathProgress(p, readMapOf(w, p.id), secOf).done);
+});
+const ring = $derived(prog?.total ? prog.read / prog.total : 0);
+let stopsOpen = $state(false);
+
+function startPath(p: ReadingPath) {
+  if (!ws) return;
+  choosePath(ws, p.id);
+  s.ui.readTick++;
+  const first = pathProgress(p, readMapOf(ws, p.id), secOf).next ?? p.steps[0]?.section;
+  if (first) void s.router.go({ name: "doc", ws, section: first });
+}
+
+$effect(() => {
+  if (!stopsOpen) return;
+  untrack(() => s.layers.open("popover", "path-stops", () => (stopsOpen = false)));
+  return () => s.layers.drop("path-stops");
+});
 
 const threadCounts = $derived(ix ? s.review.threadsBySection(ix.blockSection) : new Map<string, number>());
 
@@ -126,16 +147,33 @@ const covered = $derived(manifest?.coverage ?? null);
 
   <!-- fixed-height card in every state (outline arriving never moves the TOC: CLS 0) -->
   <section class="path card" aria-label={t("rail.path")}>
-    {#if path}
+    {#if path && prog}
       <svg viewBox="0 0 34 34" aria-hidden="true"
-        ><circle class="trk" cx="17" cy="17" r="14" /><circle class="bar" cx="17" cy="17" r="14" stroke-dasharray="87.96" stroke-dashoffset={87.96 * (1 - ring)} /></svg
+        ><circle class="trk" cx="17" cy="17" r="14" /><circle class="bar" class:done={prog.done} cx="17" cy="17" r="14" stroke-dasharray="87.96" stroke-dashoffset={87.96 * (1 - ring)} /></svg
       >
       <div class="path-h">
-        <div class="path-t">
-          <span data-user-content>{path.title}</span> <span class="mono">{readCount} / {path.steps.length}</span>
-        </div>
-        <div class="path-s">{t("rail.pathLeft", { min: leftMin })}</div>
+        <button type="button" class="path-t" aria-expanded={stopsOpen} aria-controls="path-stops" onclick={() => (stopsOpen = !stopsOpen)}>
+          <span class="pt-name" data-user-content>{pathTitle}</span>
+          {#if prog.done}<span class="done-badge">{t("rail.pathDoneBadge")}</span>{:else}<span class="mono">{prog.read} / {prog.total}</span>{/if}
+          <span class="chev"><Icon name="down" size={12} /></span>
+        </button>
+        <div class="path-s">{prog.done ? t("rail.pathDone", { min: prog.totalMin }) : t("rail.pathLeft", { min: prog.leftMin })}</div>
       </div>
+      {#if stopsOpen}
+        <ol class="stops" id="path-stops" aria-label={t("rail.pathStops")}>
+          {#each prog.stops as st (st.section)}
+            <li>
+              <a href={ws ? HREFS.doc(ws, st.section) : "#"} class:read={st.read} onclick={() => (stopsOpen = false)}>
+                <span class="sm" aria-hidden="true">{#if st.read}&#x2713;{/if}</span>
+                <span class="sn mono">&sect;{ix?.numbers.get(st.section)}</span>
+                <span class="sttl" data-user-content>{ix?.nodes.get(st.section)?.title ?? ""}</span>
+                <span class="smin mono">{st.min}{t("fmt.minShort")}</span>
+                {#if st.read}<span class="sr-only">{t("rail.stopRead")}</span>{/if}
+              </a>
+            </li>
+          {/each}
+        </ol>
+      {/if}
     {:else if planned}
       <svg viewBox="0 0 34 34" aria-hidden="true"><circle class="trk" cx="17" cy="17" r="14" /></svg>
       <div class="path-h">
@@ -146,12 +184,14 @@ const covered = $derived(manifest?.coverage ?? null);
       <svg viewBox="0 0 34 34" aria-hidden="true"><circle class="trk" cx="17" cy="17" r="14" /></svg>
       <div class="path-h">
         <div class="path-t muted">{t("rail.pathDefault")}</div>
-        <div class="path-s">{outline ? t("rail.pathAfterGen") : "\u2014"}</div>
+        <div class="path-s">{#if outline}{t("rail.pathAfterGen")}{:else}&mdash;{/if}</div>
       </div>
     {/if}
     <div class="path-f">
-      {#if path && nextStep && ws}
-        <a class="path-next" href={HREFS.doc(ws, nextStep.section)}>{t("rail.next")} <b>&sect;{ix?.numbers.get(nextStep.section)} <span data-user-content>{ix?.nodes.get(nextStep.section)?.title ?? ""}</span></b></a>
+      {#if path && prog?.done && nextPath}
+        <button type="button" class="path-next as-link" onclick={() => nextPath && startPath(nextPath)}>{t("rail.next")} <b data-user-content>{nameOf(nextPath)}</b></button>
+      {:else if path && prog?.next && ws}
+        <a class="path-next" href={HREFS.doc(ws, prog.next)}>{t("rail.next")} <b>&sect;{ix?.numbers.get(prog.next)} <span data-user-content>{ix?.nodes.get(prog.next)?.title ?? ""}</span></b></a>
       {:else if planned && ws}
         <a class="path-next" href={HREFS.doc(ws, planned.first)}>{t("rail.next")} <b>&sect;{ix?.numbers.get(planned.first)} <span data-user-content>{ix?.nodes.get(planned.first)?.title ?? ""}</span></b></a>
       {:else}
@@ -159,7 +199,7 @@ const covered = $derived(manifest?.coverage ?? null);
       {/if}
       {#if path && (outline?.readingPaths.length ?? 0) > 1}
         <select class="path-pick" aria-label={t("rail.pathPick")} value={path.id} onchange={(e) => pickPath(e.currentTarget.value)}>
-          {#each outline?.readingPaths ?? [] as p (p.id)}<option value={p.id}>{p.title}</option>{/each}
+          {#each outline?.readingPaths ?? [] as p (p.id)}<option value={p.id}>{nameOf(p)}</option>{/each}
         </select>
       {/if}
     </div>
@@ -252,6 +292,113 @@ const covered = $derived(manifest?.coverage ?? null);
   }
   .path-h {
     min-width: 0;
+  }
+  .path {
+    position: relative;
+  }
+  /* the course name opens its stops (a popover over the TOC: the card keeps its 104 px, CLS 0) */
+  button.path-t {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--fs-ui);
+    font-weight: var(--fw-strong);
+    color: var(--ink);
+  }
+  button.path-t {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+  }
+  .pt-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  button.path-t .mono,
+  .done-badge,
+  .chev {
+    flex: none;
+  }
+  .done-badge {
+    font-size: var(--fs-meta);
+    font-weight: var(--fw-regular);
+    color: var(--c-ok);
+  }
+  button.path-t:hover .chev {
+    color: var(--ink);
+  }
+  .chev {
+    align-self: center;
+    display: inline-flex;
+    color: var(--muted);
+  }
+  .chev :global(svg) {
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.6;
+  }
+  .bar.done {
+    stroke: var(--c-ok);
+  }
+  .stops {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: var(--z-popover);
+    list-style: none;
+    margin: 0;
+    padding: 6px;
+    background: var(--sheet);
+    border: 1px solid var(--rule);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-pop);
+  }
+  .stops a {
+    display: grid;
+    grid-template-columns: 14px 34px minmax(0, 1fr) auto;
+    gap: 4px;
+    align-items: baseline;
+    padding: 6px 8px;
+    border-radius: var(--r-btn);
+    font-size: var(--fs-ui-s);
+    color: var(--text);
+  }
+  .stops a:hover {
+    background: var(--hover);
+  }
+  .stops a.read {
+    color: var(--muted);
+  }
+  .sm {
+    color: var(--c-ok);
+  }
+  .sn,
+  .smin {
+    font-size: var(--fs-meta);
+    color: var(--muted);
+  }
+  .sttl {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .as-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--fs-label);
   }
   .path-t {
     font-size: var(--fs-ui);

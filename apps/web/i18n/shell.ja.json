@@ -236,5 +236,15 @@
   "toc.state.static": "静的（0 tok）",
   "toc.static": "静的",
   "toc.threads.one": "スレッド{n}件",
-  "toc.threads.other": "スレッド{n}件"
+  "toc.threads.other": "スレッド{n}件",
+  "rail.pathName.5min": "5分コース",
+  "rail.pathName.30min": "30分コース",
+  "rail.pathName.reviewer": "レビュアー向け",
+  "rail.pathName.pm": "PM向け",
+  "rail.pathName.sre": "SRE向け",
+  "rail.pathName.timed": "約{min}分コース",
+  "rail.pathDone": "読み終えました · 全{min}分",
+  "rail.pathStops": "停車駅",
+  "rail.stopRead": "読了",
+  "rail.pathDoneBadge": "✓ 読了"
 }

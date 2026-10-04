@@ -36,6 +36,14 @@ const int = await startInt({ spawner: fakeClaude({ dtMs: 1 }), config: FAKE_CLAU
 const { ws } = await int.open(repo.root);
 const nonce = await int.json<{ url: string }>("POST", "/auth/nonce", { to: `/w/${ws}/doc/s4` });
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: scheme, locale: "en-US" });
+// a returning browser: a first visit reads at 「初めて」 with the 5-minute course (NC-08), which this drive is not about
+await ctx.addInitScript(() => {
+  try {
+    localStorage.setItem("mitori:firstRun", "2026-10-01");
+  } catch {
+    /* storage blocked: the first-run default applies */
+  }
+});
 const page = await ctx.newPage();
 const errors: string[] = [];
 page.on("pageerror", (e) => errors.push(e.message));

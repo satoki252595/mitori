@@ -131,6 +131,47 @@ try {
   await waitSection(page);
   await page.waitForTimeout(400);
 
+  // ------------------------------------------------------------------ NC-08 first run: 初めて + the 5-minute course
+  if (want("firstrun")) {
+    phase = "firstrun";
+    const level = await page.evaluate(() => document.documentElement.dataset.level);
+    check(level === "newcomer", `a first visit reads at 初めて (${level})`);
+    await page.locator(".welcome").waitFor();
+    const railTitle = await page.locator(".rail .path-t").first().innerText();
+    check(/分コース\s+0 \/ 4/.test(railTitle), `the rail follows the 5-minute course: 4 stops (${railTitle})`);
+    await shot(page, "ui2-06-first-run-welcome");
+    // read the course: each stop counts once its END passes into view (NC-15), the rail ends with the next course
+    const t0 = performance.now();
+    for (const sec of ["s0", "s1", "s2", "s3"]) {
+      if (sec !== "s0") {
+        await page.goto(page.url().replace(/\/doc\/[^#?]+.*$/, `/doc/${sec}`));
+        await waitSection(page);
+      }
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await page.waitForTimeout(350);
+    }
+    steps.courseMs = ms(t0);
+    const done = await page.locator(".rail .path-t").first().innerText();
+    check(/読了/.test(done), `the rail says the course is finished (${done})`);
+    const nextCourse = await page.locator(".rail .path-next").first().innerText();
+    check(/30分コース|分コース/.test(nextCourse), `and offers the next course (${nextCourse})`);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator(".rail .path-t").first().click();
+    await page.locator("#path-stops").waitFor();
+    await shot(page, "ui2-07-course-done-stops");
+    await page.keyboard.press("Escape");
+    // NC-13: 「この画面でできること」 on the Reader
+    await page.keyboard.press("?");
+    await page.locator("dialog.help .guide").waitFor();
+    const guide = await page.locator("dialog.help .guide li .gt").allInnerTexts();
+    check(guide.length === 3 && /文を選んで/.test(guide[1] ?? ""), `the Reader's three steps (${guide.join(" | ")})`);
+    await page.waitForTimeout(200);
+    await shot(page, "ui2-08-help-reader");
+    await page.keyboard.press("Escape");
+    await page.goto(page.url().replace(/\/doc\/[^#?]+.*$/, "/doc/s0"));
+    await waitSection(page);
+  }
+
   // ------------------------------------------------------------------ NC-09 full text + 「AI に聞く」
   if (want("fulltext")) {
     phase = "fulltext";

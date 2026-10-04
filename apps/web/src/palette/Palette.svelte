@@ -32,8 +32,7 @@ import { HREFS, type SectionId } from "@mitori/core";
 import { flushSync, onMount } from "svelte";
 import { copyText } from "../shell/clipboard.ts";
 import { t } from "../shell/index.ts";
-import { choosePath } from "../shell/reading.ts";
-import { getJson, STORAGE_KEYS } from "../shell/storage.ts";
+import { choosePath, readMapOf } from "../shell/reading.ts";
 import { useStores } from "../stores/app.svelte.ts";
 import { actionItems, runAction } from "./actions.ts";
 import { askAi } from "./ask.ts";
@@ -127,7 +126,7 @@ function suggestRows(): Row[] {
   if (ix.nodes.has("s0")) out.push({ id: "s0", label: `§0 ${title("s0")}`, marks: [], sub: t("palette.suggest.s0"), href: HREFS.doc(w, "s0"), group: "suggest" });
   const five = s.doc.outline?.readingPaths.find((x) => x.id === "5min");
   if (five && s.doc.outline?.manifest.generatedAt) {
-    const read = getJson<Record<string, string>>("local", STORAGE_KEYS.read(w, five.id)) ?? {};
+    const read = readMapOf(w, five.id);
     const next = five.steps.find((st) => !read[st.section])?.section ?? five.steps[0]?.section;
     if (next)
       out.push({
@@ -156,7 +155,8 @@ const rows = $derived.by(() => {
       { id: "copy", label: t("palette.panel.copyLink"), marks: [], href: "", group: "panel" },
     ] as Row[];
   }
-  if (!p.query.trim()) return [...suggestRows(), ...(p.recents().map((r) => ({ ...r, marks: [] as [number, number][], group: "recent" })) as Row[])];
+  // ux.md §4.10: 「最近」 first, then where to start (a first visit has no recents: the suggestions lead)
+  if (!p.query.trim()) return [...(p.recents().map((r) => ({ ...r, marks: [] as [number, number][], group: "recent" })) as Row[]), ...suggestRows()];
   const out: Row[] = [];
   let top: Row | null = null;
   const want = p.top;
