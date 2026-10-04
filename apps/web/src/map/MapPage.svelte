@@ -15,7 +15,7 @@ import { isActive, roomTargets } from "../gen/progress.ts";
 import { copyText } from "../shell/clipboard.ts";
 import { fmtInt, fmtLocShort, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
 import { errorText, t } from "../shell/index.ts";
-import { mark, markAfterPaint } from "../shell/perf.ts";
+import { afterMark, mark, markAfterPaint } from "../shell/perf.ts";
 import Rail from "../shell/Rail.svelte";
 import { choosePath } from "../shell/reading.ts";
 import { currentLayout, useStores } from "../stores/app.svelte.ts";
@@ -26,11 +26,10 @@ import type { PlanController } from "./plan-dom.ts";
 import { buildPlanModel, type PlanText, type RoomModel } from "./render.ts";
 
 const s = useStores();
-// the card states, room card and text view arrive in the lazy `gen` chunk right after mount (not first-paint)
+// the card states, room card and text view arrive in the lazy `gen` chunk once the plan has painted (F5: not
+// first-paint; the card column holds a same-size skeleton meanwhile)
 let side = $state.raw<typeof import("./side.ts") | null>(null);
-onMount(() => {
-  void import("./side.ts").then((m) => (side = m));
-});
+onMount(() => afterMark(["mitori:map:painted"], () => void import("./side.ts").then((m) => (side = m)), 800));
 const route = $derived(s.router.route);
 const ws = $derived(route.name === "map" ? route.ws : null);
 const st = $derived(s.workspace.status);

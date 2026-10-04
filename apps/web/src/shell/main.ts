@@ -12,8 +12,8 @@ import { mount } from "svelte";
 import { createStores } from "../stores/app.svelte.ts";
 import { completeLogin } from "./auth.ts";
 import { cookieValue, parseUiCookieFields } from "./cookie.ts";
-import { setCatalog, setMissingKeyReporter, setSettingsLang } from "./i18n.ts";
-import { installReactiveCatalog, loadCatalog } from "./i18n-cell.svelte.ts";
+import { setMissingKeyReporter, setSettingsLang } from "./i18n.ts";
+import { installReactiveCatalog, loadCatalog, switchLang } from "./i18n-cell.svelte.ts";
 import { detectUiLang } from "./index.ts";
 import { makeClients } from "./net/clients.ts";
 import Shell from "./Shell.svelte";
@@ -33,7 +33,8 @@ async function boot(): Promise<void> {
   });
   const cookieLang = parseUiCookieFields(cookieValue(readCookies())).lg ?? null;
   const guess = detectUiLang();
-  const guessCat = loadCatalog(guess);
+  // the guessed language's base catalog is modulepreloaded by the head script: start its import now
+  void loadCatalog(guess);
   await completeLogin(api, location, history);
   stores = createStores(api, sse, () => new Worker(new URL("../palette/worker.ts", import.meta.url), { type: "module", name: "palette" }));
   // no language in the cookie (first visit): the server setting decides before the first paint, so the UI never
@@ -49,7 +50,7 @@ async function boot(): Promise<void> {
       lang = v.settings.ui.lang;
     }
   }
-  setCatalog(lang, await (lang === guess ? guessCat : loadCatalog(lang)));
+  await switchLang(lang);
   stores.prefs.lang = lang;
   const target = document.getElementById("app");
   if (!target) return;

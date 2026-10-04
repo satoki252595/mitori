@@ -6,7 +6,7 @@
 import { type BlockId, type CitePeek as CitePeekData, HREFS, type LineNo, MitoriError, type RepoPath, type SectionId } from "@mitori/core";
 import { flushSync, onMount, untrack } from "svelte";
 import { copyText } from "../shell/clipboard.ts";
-import { loadExtensions, type UiExtension } from "../shell/ext.ts";
+import { loadExtensions, type UiExtension, whenExtensions } from "../shell/ext.ts";
 import { errorText, t } from "../shell/index.ts";
 import { mark } from "../shell/perf.ts";
 import Rail from "../shell/Rail.svelte";
@@ -141,7 +141,8 @@ onMount(() => {
       restoreAnchor(main, a, model?.order);
     };
   };
-  void loadExtensions(s).then((e) => (ext = e));
+  // the margin cards show once the shell has loaded the loop UI (after the first paint, F5)
+  void whenExtensions().then((e) => (ext = e));
   s.router.focusedBlock = () => (focused && main?.querySelector(`.blk[data-b="${CSS.escape(focused)}"]`) ? focused : null);
   return () => {
     s.doc.mutate = (apply) => apply();
@@ -255,8 +256,20 @@ function compose(intent: "note" | "question" | "change", block: BlockId | null =
     }
     return;
   }
-  window.dispatchEvent(new CustomEvent("mitori:compose", { detail: { block, claim, intent } }));
-  if (!ext?.margin) s.bottom.toast({ id: "hint.loopPending", kind: "info", key: "hint.loopPending" });
+  const detail = { block, claim, intent };
+  if (ext) {
+    window.dispatchEvent(new CustomEvent("mitori:compose", { detail }));
+    return;
+  }
+  // the loop UI is still on its way (F5): ask for it now and hand over once it listens
+  void loadExtensions(s).then(
+    (e) => {
+      ext = e;
+      if (e.margin) window.dispatchEvent(new CustomEvent("mitori:compose", { detail }));
+      else s.bottom.toast({ id: "hint.loopPending", kind: "info", key: "hint.loopPending" });
+    },
+    () => s.bottom.toast({ id: "hint.loopPending", kind: "info", key: "hint.loopPending" }),
+  );
 }
 
 // ---------------------------------------------------------------- cite peek / term card / claim popover
