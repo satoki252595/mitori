@@ -6,7 +6,7 @@
 import type { GlossaryEntry } from "@mitori/core";
 import { onMount } from "svelte";
 import { t } from "../shell/index.ts";
-import { followAnchor, popoverPos } from "./popover.ts";
+import { followAnchor, naturalHeight, popoverPos } from "./popover.ts";
 import { termLine } from "./term.ts";
 
 let { entry, anchorEl, href, onenter, onleave }: { entry: GlossaryEntry; anchorEl: HTMLElement; href: string; onenter: () => void; onleave: () => void } =
@@ -17,7 +17,7 @@ let pos = $state<{ left: number; top: number; maxH: number | null }>({ left: 0, 
 
 onMount(() =>
   followAnchor(() => {
-    pos = popoverPos(anchorEl.getBoundingClientRect(), 320, el?.scrollHeight ?? 160, window.innerWidth, window.innerHeight);
+    pos = popoverPos(anchorEl.getBoundingClientRect(), 320, naturalHeight(el, 160), window.innerWidth, window.innerHeight);
   }, el),
 );
 </script>

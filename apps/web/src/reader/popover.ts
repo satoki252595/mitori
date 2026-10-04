@@ -25,6 +25,28 @@ export function popoverPos(a: Rect, w: number, h: number, vw: number, vh: number
   return { left, top: a.top - 6 - maxH, maxH };
 }
 
+/** What {@link naturalHeight} reads and writes (an `HTMLElement` in the app; a stub in the unit test). */
+export interface Measured {
+  readonly scrollHeight: number;
+  readonly style: { maxHeight: string };
+}
+
+/**
+ * The box's natural height, measured with the cap of a previous placement lifted. Capped, a flex body (the peek's
+ * code) shrinks inside the box and `scrollHeight` reports the CAPPED height: the next placement (a scroll, the
+ * resize observer) then thought it fits, dropped the cap, the box grew back over its chip, the observer capped it
+ * again — an oscillation that stopped in either state (the peek left covering the chip after a wheel, 2 runs in 12).
+ */
+export function naturalHeight(el: Measured | null | undefined, fallback: number): number {
+  if (!el) return fallback;
+  const cap = el.style.maxHeight;
+  if (!cap || cap === "none") return el.scrollHeight;
+  el.style.maxHeight = "none";
+  const h = el.scrollHeight;
+  el.style.maxHeight = cap;
+  return h;
+}
+
 /** Place now and on every scroll / resize / own content resize (rAF-batched). Returns the cleanup. */
 export function followAnchor(place: () => void, el?: Element | null): () => void {
   place();

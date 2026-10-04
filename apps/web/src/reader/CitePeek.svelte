@@ -9,7 +9,7 @@
 import type { CitePeek as CitePeekData, ClaimChecks } from "@mitori/core";
 import { onMount } from "svelte";
 import { t } from "../shell/index.ts";
-import { followAnchor, popoverPos } from "./popover.ts";
+import { followAnchor, naturalHeight, popoverPos } from "./popover.ts";
 
 let {
   data,
@@ -43,12 +43,13 @@ let pos = $state<{ left: number; top: number; maxH: number | null }>({ left: 0, 
 function place() {
   if (!el) return;
   // natural height (the max-height of a previous placement must not shrink the measurement)
-  const h = el.scrollHeight;
+  const h = naturalHeight(el, 0);
   pos = popoverPos(anchorEl.getBoundingClientRect(), Math.min(560, window.innerWidth - 32), h, window.innerWidth, window.innerHeight);
 }
 
 onMount(() => {
-  const stop = followAnchor(place, body);
+  // the whole box is observed, not only the code: the footer (the paragraph's ✓✓ check) can grow it too
+  const stop = followAnchor(place, el);
   if (body) {
     for (const ln of body.querySelectorAll<HTMLElement>("[data-line]")) {
       const n = Number(ln.dataset.line);

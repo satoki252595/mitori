@@ -9,7 +9,7 @@ import type { BlockHistoryEntry } from "@mitori/core";
 import { onMount } from "svelte";
 import { fmtDateTime } from "../shell/fmt.ts";
 import { t } from "../shell/index.ts";
-import { followAnchor, popoverPos } from "./popover.ts";
+import { followAnchor, naturalHeight, popoverPos } from "./popover.ts";
 
 let {
   entries,
@@ -39,7 +39,7 @@ let el: HTMLDivElement | undefined = $state();
 let pos = $state<{ left: number; top: number; maxH: number | null }>({ left: 0, top: 0, maxH: null });
 onMount(() =>
   followAnchor(() => {
-    pos = popoverPos(anchorEl.getBoundingClientRect(), 380, el?.scrollHeight ?? 200, window.innerWidth, window.innerHeight);
+    pos = popoverPos(anchorEl.getBoundingClientRect(), 380, naturalHeight(el, 200), window.innerWidth, window.innerHeight);
   }, el),
 );
 
