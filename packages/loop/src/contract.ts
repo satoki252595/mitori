@@ -1056,8 +1056,25 @@ export interface GateDetector {
   /** Detector id (`gates.js@1`, `gates.go@1`, `gates.py@1`, `gates.rust@1`). */
   id: string;
   /** Detect gate specs for the changed files from files + script facts (local binaries only; no npx/bunx). */
-  detect(input: { files: FileEntry[]; facts: Fact[]; changed: RepoPath[]; readConfig(path: RepoPath): string | null; binaryExists(abs: string): boolean }): GateSpec[];
+  detect(input: {
+    files: FileEntry[];
+    facts: Fact[];
+    changed: RepoPath[];
+    readConfig(path: RepoPath): string | null;
+    binaryExists(abs: string): boolean;
+    /**
+     * F9 (CR safe-4): what a repo-local binary IS — sha256 over its realpath and bytes (joins the trust hash, so an
+     * `npm install` / `pip install` that swaps the formatter asks again) and whether it is a `#!` script launcher
+     * (a launcher runs dependency code: never a pure formatter). Null when unknown; absent ⇒ no content in the hash.
+     */
+    binaryInfo?(abs: string): { digest: string; script: boolean } | null;
+    /** Entries of a directory (absolute; null when missing) — finds biome's native `@biomejs/cli-<os>-<arch>/biome`. */
+    readdir?(abs: string): string[] | null;
+  }): GateSpec[];
 }
+
+/** F9: repo-local binaries whose identity the detection hashes (relative to a manifest directory). */
+export const GATE_LOCAL_BINARIES = ["node_modules/.bin/biome", "node_modules/.bin/prettier", ".venv/bin/ruff", ".venv/bin/black"] as const;
 
 /**
  * Gate runner (ADR-0013): argv template expanded per job (validated RepoPaths, `--` before expansions when

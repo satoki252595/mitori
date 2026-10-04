@@ -6,6 +6,7 @@ import { MitoriError } from "@mitori/core";
 import { createFsReader, createGitReader } from "@mitori/platform";
 import { createBundleBuilder } from "../bundle/index.ts";
 import type { BundleBuilder, CapturedAnchor, GateRunner, GitSafety, JobRunner, LoopDeps, ReviewEngine } from "../contract.ts";
+import { binaryInfos, localBinaryCandidates } from "../gates/binaries.ts";
 import { detectGates, gateConfigCandidates } from "../gates/checks.ts";
 import { createGateRunner } from "../gates/runner.ts";
 import { gateTrust } from "../gates/trust.ts";
@@ -131,9 +132,19 @@ export function createLoop(deps: LoopDeps): Loop & LoopLifecycle {
       const text = await deps.indexer.currentText(p).catch(() => null);
       if (text !== null) texts.set(p, text);
     }
+    // F9: the repo-local formatters' identity (digest, launcher or native) joins their trust hash
+    const bins = await binaryInfos(fs, deps.hasher, localBinaryCandidates(fs, ws.root, writeScope));
     const specs = detectGates(
       { pathDirs, root: ws.root, hasher: deps.hasher },
-      { files: deps.indexer.files(), facts: deps.indexer.facts(), changed: [...writeScope], readConfig: (p) => texts.get(p) ?? null, binaryExists },
+      {
+        files: deps.indexer.files(),
+        facts: deps.indexer.facts(),
+        changed: [...writeScope],
+        readConfig: (p) => texts.get(p) ?? null,
+        binaryExists,
+        binaryInfo: (abs) => bins.get(abs) ?? null,
+        readdir: (abs) => fs.readdir(abs),
+      },
       deps.settings().trustedGates,
     );
     const { trusted } = gateTrust((h) => deps.trust("gates", h), deps.hasher.sha256, specs);
