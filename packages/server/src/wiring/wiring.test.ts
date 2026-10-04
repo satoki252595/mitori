@@ -4,7 +4,7 @@ import type { Cite, Claim, ClaimId, DocIndex, IndexDelta, ThreadId } from "@mito
 import { MIGRATION_ORDER } from "../contract.ts";
 import { assembleAnchoredItems, distributeReanchor, migrationsFor } from "./index.ts";
 import { claimReanchor, suggestionViews } from "./suggestions.ts";
-import { citeLinks } from "./views.ts";
+import { citeLinks, fileBacklinks } from "./views.ts";
 
 const cite = (path: string, start: number, end: number): Cite => ({ path, start, end, blob: `b-${path}`, snippet: "0000000000000000", precision: "exact" });
 const claim = (id: string, cites: Cite[]): Claim =>
@@ -150,5 +150,30 @@ describe("LIVE-06 [[path:a-b]] cites in thread messages", () => {
     expect(citeLinks(ws, "[[../etc/passwd:1-2]] [[a.go:9-3]] [[a.go:0-2]] [[no range]] [[x]]")).toBe(
       "[[../etc/passwd:1-2]] [[a.go:9-3]] [[a.go:0-2]] [[no range]] [[x]]",
     );
+  });
+});
+
+describe("EX-07 code view backlinks", () => {
+  test("a block citing the same file three times gives three distinct rows (no duplicate keys), the requested range first", () => {
+    const cite = (start: number, end: number): Cite => ({
+      path: "internal/server/server.go",
+      start,
+      end,
+      blob: "b".repeat(40),
+      snippet: "s".repeat(16),
+      precision: "exact",
+    });
+    const claim = (id: string, cites: Cite[]) => ({ id, block: "b_aaaaaaaa", kind: "behavior", cites }) as unknown as Claim;
+    const idx = {
+      blocks: {
+        b_aaaaaaaa: { section: "s6/server", claims: ["c_1", "c_2"] },
+        b_bbbbbbbb: { section: "s3/flow", claims: ["c_3"] },
+      },
+      claims: { c_1: claim("c_1", [cite(127, 228), cite(425, 430)]), c_2: claim("c_2", [cite(449, 460), cite(127, 228)]), c_3: claim("c_3", [cite(323, 333)]) },
+    } as unknown as DocIndex;
+    const doc = { index: () => idx, blocksCiting: () => ["b_aaaaaaaa", "b_bbbbbbbb"] } as never;
+    const rows = fileBacklinks(doc, "internal/server/server.go" as never, { start: 323, end: 333 });
+    expect(rows.map((r) => `${r.block}:${r.start}-${r.end}`)).toEqual(["b_bbbbbbbb:323-333", "b_aaaaaaaa:127-228", "b_aaaaaaaa:425-430", "b_aaaaaaaa:449-460"]);
+    expect(new Set(rows.map((r) => `${r.block}:${r.start}-${r.end}`)).size).toBe(rows.length);
   });
 });

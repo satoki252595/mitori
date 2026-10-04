@@ -317,6 +317,35 @@ async function highlightLines(
 }
 
 /** `GET /ws/:ws/files/content`. */
+/**
+ * The doc blocks citing `path` (EX-07): one row per distinct (block, range) — a block citing the same file at three
+ * places is three rows, never three rows with the same key (Svelte's `each_key_duplicate` emptied the column) —
+ * the rows overlapping the requested range first, then by line.
+ */
+export function fileBacklinks(
+  doc: Pick<DocStore, "index" | "blocksCiting">,
+  path: RepoPath,
+  range: { start: number; end: number } | null,
+): FileContent["backlinks"] {
+  const out: FileContent["backlinks"] = [];
+  const seen = new Set<string>();
+  const idx = doc.index();
+  for (const id of doc.blocksCiting(path)) {
+    const b = idx.blocks[id];
+    if (!b) continue;
+    for (const cid of b.claims)
+      for (const cite of idx.claims[cid]?.cites ?? []) {
+        if (cite.path !== path) continue;
+        const key = `${id}:${cite.start}-${cite.end}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ block: id, section: b.section, start: cite.start, end: cite.end });
+      }
+  }
+  const hits = (x: { start: number; end: number }) => (range !== null && x.start <= range.end && x.end >= range.start ? 0 : 1);
+  return out.sort((a, b) => hits(a) - hits(b) || a.start - b.start || a.end - b.end || (a.block < b.block ? -1 : a.block > b.block ? 1 : 0));
+}
+
 export async function fileContent(
   indexer: Indexer,
   doc: DocStore,
@@ -331,15 +360,7 @@ export async function fileContent(
   const end = Math.min(Math.max(start, q.end ?? total), Math.max(1, total));
   const lines = whole.text.split("\n");
   const text = q.start === undefined && q.end === undefined ? whole.text : lines.slice(start - 1, end).join("\n");
-  const backlinks: FileContent["backlinks"] = [];
-  const idx = doc.index();
-  for (const id of doc.blocksCiting(q.path)) {
-    const b = idx.blocks[id];
-    if (!b) continue;
-    for (const cid of b.claims)
-      for (const cite of idx.claims[cid]?.cites ?? [])
-        if (cite.path === q.path) backlinks.push({ block: id, section: b.section, start: cite.start, end: cite.end });
-  }
+  const backlinks = fileBacklinks(doc, q.path, q.start !== undefined ? { start, end } : null);
   const out: FileContent = {
     path: q.path,
     blob: whole.blob,

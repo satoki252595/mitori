@@ -66,7 +66,7 @@ $effect(() => {
   <aside class="backlinks" aria-label={t("code.backlinks")} data-chrome>
     <h2 class="rail-label">{t("code.backlinks")}</h2>
     {#if content && route.name === "code"}
-      {#each content.backlinks as b (b.block)}
+      {#each content.backlinks as b (`${b.block}:${b.start}-${b.end}`)}
         <a class="bl" href={HREFS.doc(route.ws, b.section, b.block)}><span class="mono">&sect;{s.doc.index?.numbers.get(b.section) ?? b.section}</span> <span class="mono">L{b.start}&ndash;{b.end}</span></a>
       {:else}
         <p class="empty">{t("code.noBacklinks")}</p>
