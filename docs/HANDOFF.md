@@ -1,6 +1,50 @@
-# mitori 引き継ぎ資料（2026-10-04 監査の仕上げ後）
+# mitori 引き継ぎ資料（2026-10-05 停止時点）
 
-> **現在の状態は §0**。§0a はその前の更新（仕上げパス 4 トラックの統合）、§0b はさらにその前（グループ B の取り込みと実機デモ）、§2〜§4 は最初の停止時点の記録（歴史）。
+> **まず読むのは §★（この節）**。その下の §0 / §0a / §0b / §2〜§4 は、順に古い時点の記録（歴史）。
+> 停止理由: ユーザーが「他のエージェントで続ける」ため、残課題パス（ワークフロー）をキリの良いところで止めた。
+
+---
+
+## ★ 現在の状態（残課題パスを止めた時点）
+
+### ★.1 main
+- `origin/main` = `a427f36`（監査 49 件の仕上げまで取り込み済み・push 済み）。`check` 緑、`bun test` 2,775 pass / 1 fail（IDX-AT-15 は高負荷のときだけ落ちる時間依存。単独では通る）。
+- 実エンジン（実 `claude`）の検証が未実施。この Mac の `claude` は **ログアウト中**（`claude auth status` → `loggedIn:false`）。OAuth は agent からは通せない。**利用者が `claude /login` する必要がある**。
+
+### ★.2 未マージの 4 ブランチ（すべて origin に push 済み・各 `check` 緑・未統合）
+残課題パス（ログイン不要の分）を 4 トラックで実装し、各トラックの敵対的検証まで終わっている（ui は検証の途中で止めたため、WIP コミットを含む）。統合（最終回帰）は未実施。
+
+| ブランチ | 内容（詳細は各報告書） | 報告書 |
+|---|---|---|
+| `rem/bench` | 計測ハーネス: 予算 132 件を実測できる bench case（13 ファイル）、e2e/perf・a11y(axe)、nightly 用 `bench.yml`（dispatch/schedule のみ）、負荷に強い全テスト（負荷 66〜83 でも 0 fail）、**Linux 検証**（OrbStack の Ubuntu arm64 + x64 バイナリ、`scripts/linux-ci.sh`）、O3 watcher は A のまま | `docs/progress/rem-bench.md`、`docs/progress/bench-baseline.md` |
+| `rem/safety` | **ゲートのサンドボックス決定**（ADR-0013 R2: 自分のループバックだけ許可、デーモンポート等は遮断。macOS は sandbox-exec、Linux は bwrap の private netns）、agent の残り全部（初回入力上限・`needs_more_context`・ctime・worktree 上限・symlink 脱出の無効化・F1/F8/F9/F10）、**スレッドがコード範囲を持つ**（`Thread.context`）、自動「対象コード」チップを外せる（API 側）、所有者外編集のレビュー | `docs/progress/rem-safety.md` |
+| `rem/doc` | 0 トークンの設計書内容: §7 型/データモデル・§8 外部通信、**「変更の手引き」**節（依存元/先・テスト・co-change・よく使われる宣言）、1,500 行超ファイルの領域目次、**再オープンの安定化**（親モジュール ID の再生成バグ修正）、route/flow seed の解決（crit 44→61/62）、Next.js/Vite の入口検出 | `docs/progress/rem-doc.md` |
+| `rem/ui` | UI 残り: NC-04/08/09/13/14/15/17、EX-08〜11、CitePeek 行番号、アプリ内 HTML 書き出しダイアログ、ブラウザ側の初回描画の CLS 修正、route ごとの初回 JS 118.8→86.3 KB（目標 60 は未達）。WIP コミット 1 件 | `docs/progress/rem-ui.md` |
+
+**統合の手順（推奨順 bench → safety → doc → ui）**: 試験マージ済み。衝突は **`packages/core/CR-LEDGER.md`（追記同士。両方残す）と `test/int/int06.test.ts`（safety）のみ**。`prompts.lock.json` は今回の 4 本では触っていないが、念のため `AC-40` を回すこと。各マージ後に `scripts/nd bun install --frozen-lockfile && scripts/nd bun run check`、最後に全 `scripts/nd bun test`（他プロセスが重いと時間依存で落ちる。`rem/bench` の `scripts/under-load.ts` と負荷ゲート済みのテストで安定する）。統合後に `scripts/linux-ci.sh` も回す。
+
+### ★.3 残り（優先順）
+1. **統合**（上）。ブランチは全部 origin にあるので、worktree は不要。
+2. **要ログイン・実費小**（`claude /login` 後）
+   - 最終デモ（`@` なしの Fix を含む）: `scripts/nd bun run build:bin && scripts/nd bun test/int/shots/live.ts --engine real --out docs/progress/final`（上限 $0.60、想定 $0.03）
+   - 修復ターンの実エンジン確認: `MITORI_LIVE=1 MITORI_MAX_USD=0.2 scripts/nd bun test test/int/int08.live.test.ts -t "3\."`（$0.01〜0.03）
+   - crit の標準生成の再計測（再試行率 <30%・L1 ≥ 90% が実エンジンで出るか）: `bench/measure/gen-real.ts --scope`（≈ $1.0）
+3. **生成の質（実エンジンで測ってから入れる）**: EX-04（出典の無い文を claim 化するか span を広げる、指標 `bench/measure/doc-uncited.ts`）、NC-19〜21、`gen.overview` の「フロアプラン→間取り図」（`prompts.lock.json` が変わる）、gen が outbound 事実を使う（`cr-requests/doc.md` #1）、「新しい Kind を足すには」の理解チェック再採点。
+4. **web 側の未配線（rem/safety の API は入っている）**: Composer が `POST /threads`・`/prompt` に `context` を送る、出典チップの ×（`write:<path>`）、⤴/⧉ の「⚡ その場で実行」ブロック解除（手順 `cr-requests/safety.md` CR safe-6）。
+5. **rem/ui 由来**: 初期 JS 60 KB（route 表を client 用に生成、Rail/Header の縮退ロジックを route chunk へ）、F6 のサーバー側範囲取得・圧縮（CR ui-3）、ブロック revert・節の translate/simplify の route（501、CR ui-4）、AC-J01 の spec 書き直し（地図の作り直しで古い）、`ui.cls.boot` 0.037（limit 0.01）と地図の axe `nested-interactive`（bench/a11y が本物の違反を検出）。
+6. **rem/bench 由来**: 未計測 7 件、`reference.json` の静かな機械での記録（`bench --record-reference`）、self-hosted runner の登録（ユーザー作業）、`ci:pr` に e2e/web を入れる件、Linux の tree-sitter install 不具合（`--ignore-scripts` で回避中）、PLAT-I-008（Linux）、`.pin/store.ts` の `saveRows` の後始末（`cr-requests/doc.md` #5）。
+7. **未着手**: WP-17 Cloudflare 共有（**デプロイ前にユーザー承認必須、Paid 化も同様**）、WP-18 床面図、Windows、Firefox/Safari 実機、codex の agent mode、docpatch/1・GitHub PR。
+8. **履歴の無い shallow clone では co-change が出ない**（platform の方針。`cr-requests/doc.md` #4）。
+
+### ★.4 守ること（コンセプト）
+> 一度 repo を省トークンで読み、人が読める見やすい設計書にする。人がその箇所にコメント/修正を入れると、**その位置に紐づけて**ユーザー自身の AI が修正・レビュー対応する。初心者も専門家も同じ文書で。速度とトークン量と UI/UX に徹底的にこだわる。
+- AI の変更は常に **アンカー済み・範囲限定・ゲート済み・人が確認・未コミットで適用・Undo 可能**。ユーザー repo の refs/objects/worktree には書かない（side repo、ADR-0012）。
+- エージェントは lean 起動（I1〜I14）。対象 repo の設定/hook は読ませない（セキュリティ境界）。
+- 月 1,000 円以上の継続費用が増える操作（Cloudflare Paid 化など）は事前承認。実エンジンの費用は各タスクに API 換算の上限を付ける。
+- コミットは `Co-Authored-By` 付き、`.env` 等は commit しない。push は利用者の意向がある場合のみ。
+
+### ★.5 コスト（反省）
+ワークフローで多数エージェントを並列に回すと数 M〜十数 M トークンを消費する。今回の累計はサブエージェントで合計およそ 50M トークン級。次は、並列 3〜4、定型は sonnet、検証は失敗した受け入れ試験のある単位だけ、各エージェントは `docs/design/briefs/WP-xx.md` と該当報告書だけを読む、を守る。
 
 ---
 
