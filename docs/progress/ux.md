@@ -117,10 +117,12 @@ scripts/nd bun run build:bin && scripts/nd bun test/int/shots/ux-bin.ts --out do
 ```
 
 全体: `scripts/nd bun test` 2,558 pass / 0 fail（225 s、UI テスト 2 本込み）、`bun run check` 緑。
+検証パス後: **2,565 pass / 0 fail**（204 s、ロードアベレージ 9〜19 の中）、`bun run check` 緑。途中の回では INT-06 の `go vet`（空の
+GOCACHE、5 s 枠）と SKEL-AT-02 の ELK 中央値（127 ms / 120 ms）が負荷で 1 回ずつ落ちた — どちらも単独では通る、このトラックと無関係。
 
 スクリーンショット（`docs/progress/ux/`）: 01 候補（⌥1）・02 選んだ後の見積り・03 本文中の提案差分と ready カード・04 Review
 （整理後のヘッダー）・05 採用・06 対象なしの案内・07 設計書を直す・08 直した文（出典付き）・09 出典 = 対象コード・10 単独の提案・
-11 採用後・12 追記（INSERT）提案・13 ⤴ では対象コードが渡らない旨と ⚡ への切り替え。`ux-en-0{1,2,3}`（+ `-dark`）: 英語 UI の
+11 採用後・12 追記（INSERT）提案・13 ⤴ では対象コードが渡らない旨と ⚡ への切り替え・`ux-04-review-dark`（ダーク）。`ux-en-0{1,2,3}`（+ `-dark`）: 英語 UI の
 同じ 3 状態。
 
 ## 8. 検証パス（adversarial verifier、同じブランチ）
@@ -141,7 +143,7 @@ scripts/nd bun run build:bin && scripts/nd bun test/int/shots/ux-bin.ts --out do
 | V9 | Review のコード見出しが「1 files」 | 単複対応（ja「1ファイル」） | — |
 | V10 | 和文の案内の最後の行が「ん。」だけになる | 案内文に `line-break: strict` と `text-wrap: pretty` | UI `ux-01` |
 | V11 | Inbox の「エージェントで再実行」（escalate）は出典の無い文の Fix で 412 になる（選んだ候補はスレッドに残らない） | 前のジョブの書き込み範囲をファイル単位の `context.add` で渡し直す | UX-INT-01（agent 見積り 200、無しなら 412） |
-| V12 | 全体テストで int02〜07・ux-install が毎回 ENOENT（`dist/.build/web`） | `bun test` の NODE_ENV=test を継いだ gen-assets が別のハッシュの bundle を作り、同じプロセスの前のファイルがキャッシュした asset 表が消えたファイルを指していた。UI テストは NODE_ENV=production で gen-assets を呼ぶ | 全体テスト（ENOENT 0） |
+| V12 | 全体テストで int02〜07・ux-install が毎回 ENOENT（`dist/.build/web`） | `bun test` の NODE_ENV=test を継いだ gen-assets が別のハッシュの bundle を作り、同じプロセスの前のファイルがキャッシュした asset 表が消えたファイルを指していた（int00 / skeleton の build:bin も同じ）。`buildWeb` が NODE_ENV=production に固定し、同じソースなら毎回同じ bundle | 全体テスト（ENOENT 0） |
 
 crit（1,219 files、in-process daemon、送信なし）での候補（生成文書と同じ形の文を人の編集で書いて試した）:
 
