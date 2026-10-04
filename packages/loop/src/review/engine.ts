@@ -1022,6 +1022,34 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
         store.upsertRound(rec);
       });
     },
+
+    roundScope(n) {
+      const rec = store.round(n);
+      if (!rec) return null;
+      const scope = new Set<RepoPath>();
+      for (const id of rec.round.threads) {
+        const t = store.thread(id)?.thread;
+        if (t) for (const p of deps.partition.writeScopeOf(detailOf(t))) scope.add(p);
+      }
+      return { mode: rec.round.mode === "push" ? "push" : "pull", threads: [...rec.round.threads], writeScope: [...scope].sort() };
+    },
+
+    noteRoundChanges(n, outside) {
+      return mutate(() => {
+        const rec = store.round(n);
+        if (!rec || outside.length === 0) return [];
+        const files = [...new Set(outside)].sort();
+        const shown = files.slice(0, 5).join(", ");
+        const line = `R${n} の作業ツリーの変更のうち ${files.length} 件はスレッドの書き込み範囲の外です（${shown}${files.length > 5 ? " ほか" : ""}）。確かめてから残すか、このラウンドを元に戻してください（POST /review/rounds/${n}/undo、元に戻した後もチェックポイントから再適用できます）。`;
+        const told: ThreadId[] = [];
+        for (const id of rec.round.threads) {
+          if (store.messages(id).some((m) => m.body === line)) continue;
+          addMessage_(id, "system", "system", line);
+          told.push(id);
+        }
+        return told;
+      });
+    },
   };
 
   function inboxTags(t: Thread): InboxFilter[] | null {

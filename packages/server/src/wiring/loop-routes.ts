@@ -14,6 +14,7 @@ import {
   type DocProposalView,
   type EngineId,
   type GateId,
+  type Glob,
   type JobId,
   MitoriError,
   type Ok,
@@ -21,6 +22,7 @@ import {
   type ProposalId,
   parseRepoPath,
   type RepoPath,
+  type RoundChanges,
   type ThreadId,
   type ThreadIntent,
   type ThreadState,
@@ -91,6 +93,22 @@ function touchedPath(root: string, raw: string): RepoPath | null {
 }
 
 const agentOf = (ctx: RouteCtx): string => ctx.auth.agent?.trim() || "agent";
+
+function roundNo(ctx: RouteCtx): number {
+  const n = Number((ctx.params as { n?: string }).n);
+  if (!Number.isInteger(n) || n < 1) throw invalid("n", "n must be a round number");
+  return n;
+}
+
+/** F8: the round's working-tree changes against the union write scope of its threads; null without a recorded base. */
+async function roundChanges(x: WorkspaceDomain, deny: Glob[], n: number): Promise<RoundChanges | null> {
+  const scope = x.loop.review.roundScope(n);
+  if (!scope || scope.mode !== "pull") return null;
+  const c = await x.loop.git.roundChanges(n, deny);
+  if (!c) return null;
+  const inside = new Set(scope.writeScope);
+  return { round: n, base: c.base, files: c.files, writeScope: scope.writeScope, outside: c.files.filter((p) => !inside.has(p)) };
+}
 
 export function loopHandlers(env: LoopRouteEnv): RouteHandlers {
   const d = env.domain;
@@ -249,7 +267,16 @@ export function loopHandlers(env: LoopRouteEnv): RouteHandlers {
       const x = await d(ctx);
       const req = body<FinishReq>(ctx);
       if (req.mode !== "push" && req.mode !== "pull") throw invalid("mode", "mode must be push|pull");
-      return x.loop.review.finish(req);
+      if (req.mode !== "pull") return x.loop.review.finish(req);
+      // F8: the working tree the user's agent starts from — taken BEFORE the round is visible to `review wait`
+      const rt = await ctx.runtime();
+      const base = await x.loop.git.snapshot(rt.settings().denyGlobs).then(
+        (s) => s.commit,
+        () => null,
+      );
+      const res = await x.loop.review.finish(req);
+      if (base !== null && res.round.state === "dispatched") await x.loop.git.markRound(res.round.n, base);
+      return res;
     },
     "GET /ws/:ws/review/wait": async (ctx) => {
       // The HTTP layer registers the waiter (UXP-01) and aborts `ctx.signal` at the `timeoutMs` deadline; the engine
@@ -264,7 +291,30 @@ export function loopHandlers(env: LoopRouteEnv): RouteHandlers {
       const rt = await ctx.runtime();
       const n = Number(ctx.params.n);
       if (!Number.isInteger(n) || n < 1) throw invalid("n", "n must be a round number");
-      return rt.write("review.complete", () => x.loop.review.completeRound(n));
+      const round = await rt.write("review.complete", () => x.loop.review.completeRound(n));
+      // F8: what the round changed outside its threads' write scope is said on the threads (a failure here never
+      // undoes the completion)
+      await roundChanges(x, rt.settings().denyGlobs, n)
+        .then((c) => (c && c.outside.length > 0 ? rt.write("review.round.outside", () => x.loop.review.noteRoundChanges(n, c.outside)) : null))
+        .catch(() => null);
+      return round;
+    },
+    "GET /ws/:ws/review/rounds/:n/changes": async (ctx) => {
+      const x = await d(ctx);
+      const rt = await ctx.runtime();
+      const n = roundNo(ctx);
+      const c = await roundChanges(x, rt.settings().denyGlobs, n);
+      if (!c) throw new MitoriError("E_NOT_FOUND", `round ${n} has no recorded working-tree base (not a pull round)`, { params: { round: n } });
+      return c;
+    },
+    "POST /ws/:ws/review/rounds/:n/undo": async (ctx) => {
+      const x = await d(ctx);
+      const rt = await ctx.runtime();
+      const n = roundNo(ctx);
+      const scope = x.loop.review.roundScope(n);
+      if (!scope || scope.mode !== "pull") throw notFound("pull round", String(n));
+      const res = await x.loop.git.undoRound(n, rt.settings().denyGlobs);
+      return { checkpoint: res.checkpoint, files: res.files.map((f) => f.path) };
     },
     "POST /ws/:ws/review/rounds/:n/withdraw": async (ctx) => {
       const x = await d(ctx);

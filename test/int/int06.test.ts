@@ -6,7 +6,7 @@
 // The engine is the REAL claude-cli engine, normalizer, scheduler and ledger behind a scripted `claude` (no tokens, no
 // network); git, gofmt and the filesystem are real.
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { synth } from "@mitori/agent/testing";
 import {
@@ -21,6 +21,8 @@ import {
   type JobState,
   type ReviewWaitRes,
   type Round,
+  type RoundChanges,
+  type RoundUndoRes,
   type ThreadDetail,
   type ThreadSummary,
   type TrustRequest,
@@ -353,6 +355,52 @@ describe("INT-06 review → AI fix loop (side repo, accept, undo)", () => {
     expect({ code: next.code, out: next.stdout, err: next.stderr }).toMatchObject({ code: REVIEW_EXIT.pending });
     expect((await api<ThreadDetail>("GET", `/threads/${fixThread.id}`)).state).toBe("open");
     await Bun.write(file(), original.bytes as Buffer);
+  });
+
+  test("F8: a pull round's changes outside its write scope are said on its threads; the round can be undone and re-applied", async () => {
+    const readme = join(repo.root, "README.md");
+    const readmeBefore = readFileSync(readme);
+    const t = await api<ThreadDetail>("POST", "/threads", { anchor, intent: "change", body: "ログの文言を直して（F8）", draft: false });
+    const fin = await webApi<{ round: Round }>("POST", "/review/finish", { mode: "pull" });
+    const n = fin.round.n;
+    expect(fin.round.state).toBe("dispatched");
+    const before = userRepoState();
+    // the user's own agent writes the working tree directly: the anchored file, and two files no thread asked for
+    const edited = (original.bytes as Buffer).toString("utf8").replace("attempt <= maxRetries;", "attempt <= maxRetries /* f8 */;");
+    await Bun.write(file(), edited);
+    await Bun.write(readme, `${readmeBefore.toString("utf8")}\nedited by the session\n`);
+    await Bun.write(join(repo.root, "notes-f8.md"), "new file\n");
+    const done = await int.json<Round>("POST", `/ws/${ws}/review/rounds/${n}/complete`);
+    expect(done.state).toBe("complete");
+    const changes = await api<RoundChanges>("GET", `/review/rounds/${n}/changes`);
+    expect(changes.files).toEqual(["README.md", RETRY_FILE, "notes-f8.md"].sort());
+    expect(changes.writeScope).toContain(RETRY_FILE);
+    expect(changes.outside).toEqual(["README.md", "notes-f8.md"]);
+    const said = (await api<ThreadDetail>("GET", `/threads/${t.id}`)).messages.filter((m) => m.by === "system" && m.body.includes("書き込み範囲の外"));
+    expect(said).toHaveLength(1);
+    expect(said[0]?.body).toContain("README.md");
+    // a second completion call says nothing new
+    await int.json<Round>("POST", `/ws/${ws}/review/rounds/${n}/complete`);
+    expect((await api<ThreadDetail>("GET", `/threads/${t.id}`)).messages.filter((m) => m.body.includes("書き込み範囲の外"))).toHaveLength(1);
+
+    // Undo the round: every changed file back to its pre-round bytes, uncommitted (refs, index, HEAD untouched)
+    const undone = await webApi<RoundUndoRes>("POST", `/review/rounds/${n}/undo`);
+    expect(undone.files.sort()).toEqual(["README.md", RETRY_FILE, "notes-f8.md"].sort());
+    expect(bytes().equals(original.bytes as Buffer)).toBe(true);
+    expect(readFileSync(readme).equals(readmeBefore)).toBe(true);
+    expect(existsSync(join(repo.root, "notes-f8.md"))).toBe(false);
+    expect(userRepoState()).toEqual(before as never);
+    // …and the Undo is itself undoable from the checkpoint list: the session's edits come back
+    expect((await api<Checkpoint[]>("GET", "/checkpoints")).map((c) => c.id)).toContain(undone.checkpoint.id);
+    await webApi("POST", `/checkpoints/${undone.checkpoint.id}/undo`, {});
+    expect(readFileSync(file(), "utf8")).toBe(edited);
+    expect(readFileSync(join(repo.root, "notes-f8.md"), "utf8")).toBe("new file\n");
+    // a push round has no working-tree base
+    const res = await web.req("POST", `/ws/${ws}/review/rounds/999/undo`);
+    expect(res.status).toBe(404);
+    await Bun.write(file(), original.bytes as Buffer);
+    await Bun.write(readme, readmeBefore);
+    rmSync(join(repo.root, "notes-f8.md"), { force: true });
   });
 
   test("an edit outside the thread's WRITE scope fails the job (E_SCOPE_VIOLATION); nothing reaches the working tree", async () => {

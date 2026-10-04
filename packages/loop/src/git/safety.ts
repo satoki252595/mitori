@@ -9,6 +9,7 @@ import { dependencyLinks } from "../gates/deps.ts";
 import { AcceptEngine, type AcceptOutcome, type CommitRequest } from "./accept.ts";
 import { gc } from "./gc.ts";
 import { checkpointOf, Journal } from "./journal.ts";
+import { markRound, roundChanges, undoRound } from "./rounds.ts";
 import { checkScope } from "./scope.ts";
 import { type GitDeps, GitWorkspace } from "./side.ts";
 import { Snapshotter, unwritablePaths } from "./snapshot.ts";
@@ -86,6 +87,15 @@ export function createGitSafety(deps: GitSafetyDeps): GitSafetyHandle {
       const all = [...new Set([...(links.get(job) ?? []), ...made])].sort();
       links.set(job, all);
       return all;
+    },
+    markRound: (n, base) => markRound(ws, n, base),
+    async roundChanges(n, deny) {
+      const r = await roundChanges(ws, snapshots, n, deny);
+      return r ? { base: r.base, files: r.changes.map((c) => c.path) } : null;
+    },
+    async undoRound(n, deny) {
+      const out = await undoRound(ws, snapshots, engine, n, deny);
+      return { checkpoint: out.checkpoint, files: out.files };
     },
     async unlinkDependencies(job) {
       const wt = worktreeOf(ws, job);

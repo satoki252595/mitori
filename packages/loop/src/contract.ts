@@ -334,6 +334,13 @@ export interface ReviewEngine {
    * with the reply files (spec §2.5) [CR m1-72].
    */
   recordTouched(paths: RepoPath[]): void;
+  /** F8 (CR safe-5): the threads of round `n` and the union of their write scopes (spec §3.3); null for an unknown round. */
+  roundScope(n: number): { mode: "push" | "pull"; threads: ThreadId[]; writeScope: RepoPath[] } | null;
+  /**
+   * F8: report a pull round's working-tree changes outside its write scope on each of its threads (one system line,
+   * at most once per round and file set). Returns the threads told.
+   */
+  noteRoundChanges(n: number, outside: RepoPath[]): ThreadId[];
 }
 
 // `renderDecisionMarkdown` → ./review/index.ts
@@ -1021,6 +1028,15 @@ export interface GitSafety {
   linkDependencies(job: JobId): Promise<RepoPath[]>;
   /** Remove the job worktree's dependency links (symlinks only; real directories are never touched) (CR safe-3). */
   unlinkDependencies(job: JobId): Promise<void>;
+  /** F8 (CR safe-5): remember the working-tree snapshot pull round `n` was dispatched on (`refs/mitori/round/<n>/base`). */
+  markRound(n: number, base: GitOid): Promise<void>;
+  /** F8: the paths the working tree changed since round `n` was dispatched; null when the round has no recorded base. */
+  roundChanges(n: number, deny: Glob[]): Promise<{ base: GitOid; files: RepoPath[] } | null>;
+  /**
+   * F8: every file round `n` changed back to its pre-round content — an accept of the reverse change (uncommitted,
+   * divergence-checked, one checkpoint whose Undo re-applies the round).
+   */
+  undoRound(n: number, deny: Glob[]): Promise<{ checkpoint: Checkpoint; files: CheckpointFile[] }>;
   /** Write the result of {@link applyEditsToText} into the worktree (temp → rename, all or nothing). */
   writeFiles(worktree: string, files: Record<RepoPath, string>): Promise<void>;
   /** Record the worktree state as `refs/mitori/j/<id>/head` (temp index, `add -A --sparse`, excluding dependency links). */

@@ -419,7 +419,9 @@ export class GitWorkspace {
       const adds = changes.filter((c) => c.oid !== null);
       if (adds.length > 0)
         await this.side(["update-index", "--add", "-z", "--index-info"], { indexFile, input: adds.map((c) => `${c.mode} ${c.oid}\t${c.path}\0`).join("") });
-      if (removes.length > 0) await this.side(["update-index", "--force-remove", "-z", "--stdin"], { indexFile, input: `${removes.join("\0")}\0` });
+      // `--force-remove` needs a work tree (side.git has none): `--index-info` removes an entry given mode 0 + the null oid
+      const zero = "0".repeat(this.format === "sha256" ? 64 : 40);
+      if (removes.length > 0) await this.side(["update-index", "-z", "--index-info"], { indexFile, input: removes.map((p) => `0 ${zero}\t${p}\0`).join("") });
       return (await this.side(["write-tree"], { indexFile })).out.trim();
     });
   }

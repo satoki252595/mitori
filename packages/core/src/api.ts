@@ -1161,6 +1161,31 @@ export interface CodeTarget {
   match?: string;
 }
 
+/**
+ * `GET /ws/:ws/review/rounds/:n/changes` [CR safe-5, F8]: what the user's own agent changed in the working tree since
+ * the pull round was dispatched, against the union write scope of the round's threads.
+ */
+export interface RoundChanges {
+  /** Round. */
+  round: number;
+  /** Snapshot commit the round was dispatched on (side repo). */
+  base: GitOid;
+  /** Files changed since (snapshot-filtered: deny globs and untracked secrets are not seen). */
+  files: RepoPath[];
+  /** Union write scope of the round's threads. */
+  writeScope: RepoPath[];
+  /** `files` outside `writeScope`. */
+  outside: RepoPath[];
+}
+
+/** `POST /ws/:ws/review/rounds/:n/undo` [CR safe-5, F8]: the round's changes reverted, uncommitted; Undo of `checkpoint` re-applies them. */
+export interface RoundUndoRes {
+  /** Checkpoint of the revert. */
+  checkpoint: Checkpoint;
+  /** Files restored to their pre-round content. */
+  files: RepoPath[];
+}
+
 /** `POST /ws/:ws/jobs/targets` response [CR ux-F1]. */
 export interface CodeTargets {
   /** Automatic targets (cites), merged per file. */
@@ -1779,6 +1804,8 @@ export interface ApiRoutes {
   "GET /ws/:ws/review/wait": Route<WsParam, { round?: number; timeoutMs?: number }, undefined, ReviewWaitRes>;
   "POST /ws/:ws/review/rounds/:n/complete": Route<WsParam & { n: string }, Empty, undefined, Round>;
   "POST /ws/:ws/review/rounds/:n/withdraw": Route<WsParam & { n: string }, Empty, undefined, Round>;
+  "GET /ws/:ws/review/rounds/:n/changes": Route<WsParam & { n: string }, Empty, undefined, RoundChanges>;
+  "POST /ws/:ws/review/rounds/:n/undo": Route<WsParam & { n: string }, Empty, undefined, RoundUndoRes>;
 
   // --- jobs ----------------------------------------------------------------------
   "POST /ws/:ws/jobs/estimate": Route<WsParam, Empty, JobReq, JobEstimate>;
@@ -1922,6 +1949,8 @@ export const ROUTE_META = {
   "GET /ws/:ws/review/wait": { auth: "required", kind: "longpoll", clients: ["cli"], mutates: false },
   "POST /ws/:ws/review/rounds/:n/complete": { auth: "required", kind: "json", clients: ["cli"], mutates: true },
   "POST /ws/:ws/review/rounds/:n/withdraw": { auth: "required", kind: "json", clients: ["web"], mutates: true },
+  "GET /ws/:ws/review/rounds/:n/changes": { auth: "required", kind: "json", mutates: false },
+  "POST /ws/:ws/review/rounds/:n/undo": { auth: "required", kind: "json", mutates: true },
   "POST /ws/:ws/jobs/estimate": { auth: "required", kind: "json", mutates: false },
   "POST /ws/:ws/jobs/targets": { auth: "required", kind: "json", mutates: false },
   "POST /ws/:ws/jobs": { auth: "required", kind: "json", mutates: true },

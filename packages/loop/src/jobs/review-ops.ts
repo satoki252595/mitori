@@ -208,6 +208,12 @@ export async function undo(core: RunnerCore, ck: CheckpointId, force: boolean): 
   if (!row) throw new MitoriError("E_NOT_FOUND", `checkpoint ${ck} not found`, { params: { checkpoint: ck } });
   const res = await deps.git.undo(ck, force);
   if (res.diverged.length > 0) return res;
+  if (!core.store.get(row.job)) {
+    // F8: the checkpoint of a pull round's Undo belongs to no job (`git/rounds.ts`): undoing it re-applies the round
+    deps.events.emit({ type: "checkpoint.upsert", checkpoint: res.checkpoint });
+    deps.domain.emit({ type: "checkpoint.undone", checkpoint: ck, files: res.restored, proposals: [] });
+    return res;
+  }
   const proposals = row.extra.proposals ?? [];
   const latest = deps.git.journal.ofJob(row.job).find((c) => c.state === "done" && !c.undoneAt && c.id !== ck);
   const reverted = await core.update(row.job, "job.reverted", (r) => {

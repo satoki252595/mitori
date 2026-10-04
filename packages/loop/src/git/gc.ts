@@ -4,6 +4,7 @@
 import { GIT_REFS, type JobId } from "@mitori/core";
 import { GIT_LIMITS } from "../contract.ts";
 import type { Journal } from "./journal.ts";
+import { ROUND_REF_RE } from "./rounds.ts";
 import type { GitWorkspace } from "./side.ts";
 import { listWorktrees, removeWorktree } from "./worktree.ts";
 
@@ -53,6 +54,8 @@ export async function gc(
     if (j && old && !active.has(j[1] as string)) drop.push(ref);
     const c = CK_REF_RE.exec(ref);
     if (c && old && !keepCk.has(c[1] as string)) drop.push(ref);
+    // F8: a pull round's base snapshot goes with the job refs of its age
+    if (old && ROUND_REF_RE.test(ref)) drop.push(ref);
   }
   await g.deleteRefs(drop);
 
