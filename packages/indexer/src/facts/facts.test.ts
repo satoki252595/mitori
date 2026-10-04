@@ -21,6 +21,7 @@ import {
   requirementsTxt,
   sqlSchema,
   todos,
+  webEntries,
 } from "./text.ts";
 
 const TIER2_FRAMEWORKS = new Set([
@@ -311,6 +312,39 @@ describe("gen #4a route.next-app@1 / route.next-pages@1: Next.js file-system rou
       "GET /api/items next-app app/api/items/route.ts:1 app/api/items/route.ts#GET",
       "POST /api/items next-app app/api/items/route.ts:5 app/api/items/route.ts#POST",
     ]);
+  });
+});
+
+describe("gen #4a entry.web@1: the module script a web page loads (Vite index.html)", () => {
+  test("webEntries resolves `/x` and `./x` against the page's directory; URLs and classic scripts are none", () => {
+    const got = webEntries({
+      file: { path: "excalidraw-app/index.html", lang: "generic", class: "source", scope: "main" },
+      text: [
+        '<script src="/legacy.js"></script>',
+        '<script type="module" src="/index.tsx"></script>',
+        "<script type='module' src='./boot.ts?v=2'></script>",
+        '<script type="module" src="https://cdn.example.com/m.js"></script>',
+        '<script type="module" src="//cdn.example.com/m.js"></script>',
+        '<script type="module">import "./inline.ts";</script>',
+      ].join("\n"),
+    });
+    expect(got.map((c) => `${c.line} ${c.data.label}`)).toEqual(["2 excalidraw-app/index.tsx", "3 excalidraw-app/boot.ts"]);
+  });
+
+  test("the link keeps a page's entry only when its script is a file of the repo", () => {
+    const cand = (label: string, line: number) => ({
+      detector: "entry.web@1",
+      kind: "entry" as const,
+      path: "web/index.html",
+      line,
+      data: { entry: "main", label },
+      evidence: [],
+      scope: "main" as const,
+    });
+    const files = [sf("web/index.html", { lang: "generic", facts: [cand("web/src/main.tsx", 9), cand("web/src/gone.tsx", 10)] }), sf("web/src/main.tsx")];
+    const inp = input(files);
+    const entries = linkFacts(inp, resolveImports(inp)).facts.filter((f) => f.kind === "entry");
+    expect(entries.map((f) => (f.kind === "entry" ? `${f.path}:${f.line} ${f.entry} ${f.label}` : ""))).toEqual(["web/index.html:9 main web/src/main.tsx"]);
   });
 });
 

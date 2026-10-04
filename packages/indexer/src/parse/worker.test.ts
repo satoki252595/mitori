@@ -3,6 +3,7 @@
 import { describe, expect, test } from "bun:test";
 import { LANG_GRAMMAR, type ParseItem } from "../contract.ts";
 import { lptBatches } from "./batch.ts";
+import { detectorsFor } from "./detectors.ts";
 import { poolSize } from "./index.ts";
 import type { ParseOkResult } from "./protocol.ts";
 import { env, workerInit } from "./test/env.ts";
@@ -43,6 +44,33 @@ describe("parse budget on a loaded machine (CR rdoc-4)", () => {
     const r = (await h.handle({ id: 1, items: [item("big.ts", text, true)] })).items[0] as ParseOkResult;
     expect(r.note).toBeUndefined();
     expect(r.symbols.length).toBeGreaterThan(1_000);
+    h.dispose();
+  });
+});
+
+describe("grammarless source files run their text-only detectors (CR rdoc-7)", () => {
+  test("a Vite index.html yields its module script as a web entry; tree detectors still need a tree", async () => {
+    const h = await createWorkerHandler(env, workerInit());
+    const html = [
+      "<!doctype html>",
+      "<html>",
+      "  <body>",
+      '    <script src="https://cdn.example.com/x.js"></script>',
+      '    <script type="module" src="/index.tsx?v=1"></script>',
+      "  </body>",
+      "</html>",
+      "",
+    ].join("\n");
+    const it = {
+      ...item("app/index.html", html, true),
+      lang: "generic" as const,
+      grammar: null,
+      detectors: detectorsFor({ path: "app/index.html", lang: "generic", class: "source", scope: "main" }),
+    };
+    expect(it.detectors).toContain("entry.web@1");
+    expect(it.detectors).toContain("todo.comment@1"); // applies to any source file, but needs a JS / Go / … tree here
+    const r = (await h.handle({ id: 1, items: [it] })).items[0] as ParseOkResult;
+    expect(r.facts.map((f) => `${f.detector} ${f.line} ${JSON.stringify(f.data)}`)).toEqual(['entry.web@1 5 {"entry":"main","label":"app/index.tsx"}']);
     h.dispose();
   });
 });

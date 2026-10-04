@@ -293,6 +293,12 @@ export async function createWorkerHandler(env: ParseWorkerEnv, init: ParseWorker
         }
       } else g = null;
     }
+    // a grammarless source file (a web page's `index.html`) still runs the text-only detectors that apply to it —
+    // `entry.web@1` reads the module script it loads [CR rdoc-7]
+    if (g === null) {
+      const textOnly = it.detectors.filter((id) => detectorById(id)?.runsOn.every((r) => r === "text") === true);
+      if (textOnly.length > 0) facts = runDetectors({ ...it, detectors: textOnly }, tx, undefined, []);
+    }
     t = env.now();
     let symbols: ExtractedSymbol[];
     let commentLines: Set<number>;

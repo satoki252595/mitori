@@ -236,13 +236,16 @@ export async function staticGuide(d: GuideDeps): Promise<StaticGuide> {
     });
   };
   // 1. entry: the framework page, else the best-ranked entry fact
+  // the program file of an entry: a web page's module script (`entry.web@1` labels it), else the fact's own file
+  const programOf = (f: EntryFact): string => (f.entry === "main" && src.has(f.label) ? f.label : f.path);
   const entryFacts = facts
     .filter(
       (f): f is EntryFact =>
-        f.kind === "entry" && f.entry !== "test_main" && f.entry !== "script" && f.entry !== "dockerfile" && f.scope !== "example" && src.has(f.path),
+        f.kind === "entry" && f.entry !== "test_main" && f.entry !== "script" && f.entry !== "dockerfile" && f.scope !== "example" && src.has(programOf(f)),
     )
-    .sort((a, b) => (rank.get(b.path) ?? 0) - (rank.get(a.path) ?? 0) || (a.path < b.path ? -1 : 1));
-  const entry = fw?.path ?? mainPath ?? entryFacts[0]?.path;
+    .sort((a, b) => (rank.get(programOf(b)) ?? 0) - (rank.get(programOf(a)) ?? 0) || (programOf(a) < programOf(b) ? -1 : 1));
+  const first = entryFacts[0];
+  const entry = fw?.path ?? mainPath ?? (first ? programOf(first) : undefined);
   if (entry) {
     const syms = d.indexer.symbols(entry as RepoPath);
     // the program's own entry (`main`, a page's default export) before the file's largest function

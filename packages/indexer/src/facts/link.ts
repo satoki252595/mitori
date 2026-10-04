@@ -96,6 +96,14 @@ export function linkByDetector(id: string, all: readonly FactCandidate[], ctx: F
         ctx,
       );
     }
+    case "entry.web@1": {
+      // the page's script must be a file of the repo
+      const index = isEnv(ctx) ? ctx.index : undefined;
+      return entries(
+        mine.filter((c) => index === undefined || index.exists(str(c.data.label) as RepoPath)),
+        ctx,
+      );
+    }
     case "entry.python@1":
       return entries(
         mine.map((c) =>

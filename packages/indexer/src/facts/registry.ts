@@ -34,6 +34,7 @@ import {
   sqlSchema,
   taskfile,
   todos,
+  webEntries,
   wrangler,
 } from "./text.ts";
 import { asTree, type Tree } from "./tsq.ts";
@@ -80,6 +81,12 @@ const MANIFESTS: { test: (f: File) => boolean; fn: TextFn; ids: readonly string[
   { test: (f) => /^(docker-compose[^/]*|compose)\.ya?ml$/.test(baseOf(f.path)), fn: compose, ids: ["env.files@1"] },
   { test: (f) => isEnvTemplate(f.path), fn: envTemplate, ids: ["env.files@1"] },
   { test: (f) => /\.sql$/i.test(f.path), fn: sqlSchema, ids: ["schema.sql@1"] },
+  // a web page's module scripts (Vite's index.html): not a build output's copy
+  {
+    test: (f) => baseOf(f.path) === "index.html" && !inVendor(f.path) && !/(^|\/)(dist|build|out|coverage|\.next)\//.test(f.path),
+    fn: webEntries,
+    ids: ["entry.web@1"],
+  },
 ];
 
 const fromText =
@@ -131,6 +138,8 @@ export const FACT_DETECTORS: readonly FactDetector[] = [
   ),
   detector("entry.rust@1", ["entry"], ["rust"], lang("rust"), rustEntry),
   detector("entry.deploy@1", ["entry"], ["text"], (f) => textApplies("entry.deploy@1", f), undefined, fromText("entry.deploy@1")),
+  // gen #4a: the module script a web page loads (Vite `index.html` → `src/main.tsx`)
+  detector("entry.web@1", ["entry"], ["text"], (f) => textApplies("entry.web@1", f), undefined, fromText("entry.web@1")),
   detector("route.nethttp@1", ["route"], GO, lang("go"), goRoutes),
   detector("route.hono@1", ["route"], JS, js, (i, t) => jsRoutes(i, t, "hono")),
   detector("route.express@1", ["route"], JS, js, (i, t) => jsRoutes(i, t, "express")),
