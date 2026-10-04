@@ -34,7 +34,8 @@ import Gutter from "./Gutter.svelte";
 import { blockVisibleImpl, permalinkTextImpl, stepLevel } from "./levels.ts";
 import Minimap from "./Minimap.svelte";
 import { readingMinutes, subtreeStats } from "./outline.ts";
-import { buildPage, type PagePart, sectionsToFetch, stepBlock } from "./page.ts";
+import { buildPage, genNoteOf, type PagePart, sectionsToFetch, stepBlock } from "./page.ts";
+import { reviewAnchor } from "./review-anchor.ts";
 import { type Anchor, captureAnchor, restoreAnchor } from "./scroll-anchor.ts";
 import Welcome from "./Welcome.svelte";
 
@@ -73,9 +74,8 @@ $effect(() => {
       s.ctx.set("review", { job });
       void s.review.jobDetail(job).then(
         (d) => {
-          const th = d.threads.map((id) => s.review.threads.get(id)).find((x) => x?.anchor.doc);
-          const block = th?.anchor.doc?.block ?? d.proposalViews?.find((p) => p.block)?.block;
-          reviewBlock = block ?? null;
+          const block = reviewAnchor(d, (id) => s.review.threads.get(id));
+          reviewBlock = block;
           reviewSection = (block && s.doc.index?.blockSection.get(block)) || "s0";
         },
         () => {
@@ -777,13 +777,14 @@ function startCourse() {
         onclose={closeWelcome}
       />
     {/if}
-    {#if s.gen.run?.state === "paused" && p.node.state !== "generated" && p.node.state !== "static_only"}
+    {@const note = genNoteOf(s.gen.run, p.node, !notGenerated)}
+    {#if note === "paused" || note === "pausedBudget"}
       <!-- EX-11: a run paused (budget / the 5h window) says so and resumes here; a written page never claims to be ungenerated -->
       <p class="gen-note" data-chrome>
-        <span>{t(s.gen.run.paused?.reason === "budget" ? "reader.genPausedBudget" : "reader.genPaused")}</span>
+        <span>{t(note === "pausedBudget" ? "reader.genPausedBudget" : "reader.genPaused")}</span>
         <button type="button" class="btn btn-sec btn-s" onclick={() => void s.gen.control("resume")}>{t("reader.genResume")}</button>
       </p>
-    {:else if notGenerated && s.gen.run?.state !== "running" && p.node.state !== "static_only" && p.node.state !== "generated"}
+    {:else if note === "notGenerated"}
       <p class="gen-note" data-chrome>
         <span>{t("reader.notGenerated")}</span>
         {#if ws}<a class="btn btn-sec btn-s" href={HREFS.map(ws)}>{t("reader.seeEstimate")}</a>{/if}

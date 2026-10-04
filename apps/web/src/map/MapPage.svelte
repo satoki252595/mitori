@@ -23,7 +23,7 @@ import { choosePath } from "../shell/reading.ts";
 import { currentLayout, useStores } from "../stores/app.svelte.ts";
 import { engineProblem } from "./engine.ts";
 import FloorPlan from "./FloorPlan.svelte";
-import { generatedTokens, heroAreas, heroMeta, LANG_NAMES, ledeOf } from "./hero.ts";
+import { generatedTokens, heroAreas, heroMeta, LANG_NAMES, ledeOf, oneSentence } from "./hero.ts";
 import type { PlanController } from "./plan-dom.ts";
 import { buildPlanModel, type PlanText, type RoomModel } from "./render.ts";
 
@@ -121,13 +121,7 @@ $effect(() => {
 });
 // NC-04 the 「文脈」 caption: one sentence of what the building is (the generated §0 lede, else the README's first
 // paragraph), cut at the first sentence end
-const contextLine = $derived.by(() => {
-  const src = lede?.text ?? readme?.text ?? "";
-  if (!src) return "";
-  const end = src.search(/[。！？]|[.!?](\s|$)/);
-  const one = end > 20 ? src.slice(0, end + 1) : src;
-  return [...one].length > 120 ? `${[...one].slice(0, 119).join("")}…` : one;
-});
+const contextLine = $derived(oneSentence(lede?.text ?? readme?.text ?? ""));
 /** External actors on the plan (browsers, services, other repos): the people / systems around the building. */
 const externals = $derived(model ? model.rooms.filter((r) => r.external).map((r) => r.label) : []);
 

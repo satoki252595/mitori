@@ -6,6 +6,18 @@
 import type { AreaStat, RepoProfile, ScanSummaryView, SourceLang } from "@mitori/core";
 import { fmtInt, fmtLocShort } from "../shell/fmt.ts";
 
+/**
+ * NC-04 the 「文脈」 caption: the first sentence of a lede / README paragraph (a sentence end after 20 characters at
+ * least, so 「v2. Works…」 is not cut at 「v2.」), at most `max` characters with an ellipsis.
+ */
+export function oneSentence(src: string, max = 120): string {
+  if (!src) return "";
+  const end = src.search(/[。！？]|[.!?](\s|$)/);
+  const one = end > 20 ? src.slice(0, end + 1) : src;
+  const chars = [...one];
+  return chars.length > max ? `${chars.slice(0, max - 1).join("")}…` : one;
+}
+
 /** Display names of source languages (proper nouns: the same in every UI language). */
 export const LANG_NAMES: Record<SourceLang, string> = {
   typescript: "TypeScript",

@@ -3,8 +3,24 @@
  * descendants. Blocks may arrive in the page's view (server includes descendants) or in each child's view; both
  * are accepted. Pure.
  */
-import type { BlockId, BlockView, SectionId, SectionNode, SectionView } from "@mitori/core";
+import type { BlockId, BlockView, GenRun, SectionId, SectionNode, SectionView } from "@mitori/core";
 import { type OutlineIndex, pageSections } from "./outline.ts";
+
+/**
+ * The note under a chapter head about its generation (EX-11): a paused run says so on the pages it has not written
+ * (budget, or the 5h window, with 再開する); with no run at work, an ungenerated doc says so; a written page
+ * (`generated` / `static_only`) never claims to be ungenerated. null = no note.
+ */
+export function genNoteOf(
+  run: Pick<GenRun, "state" | "paused"> | null,
+  node: Pick<SectionNode, "state">,
+  docGenerated: boolean,
+): "paused" | "pausedBudget" | "notGenerated" | null {
+  const written = node.state === "generated" || node.state === "static_only";
+  if (run?.state === "paused" && !written) return run.paused?.reason === "budget" ? "pausedBudget" : "paused";
+  if (!docGenerated && run?.state !== "running" && !written) return "notGenerated";
+  return null;
+}
 
 export interface PagePart {
   node: SectionNode;

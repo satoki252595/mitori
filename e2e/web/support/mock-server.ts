@@ -170,6 +170,18 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     if (sec === "s3") return json({ ...v, blocks: [...v.blocks, ...(doc.sections.get("s3/review-cycle")?.blocks ?? [])] });
     return json(v);
   }
+  // the HTML export (UXP-18): what the file WOULD be for these options — with excerpts it is bigger and says how many
+  if (m === "POST" && rest === "/export") {
+    const b = (body ?? {}) as { level?: string; excerpts?: boolean };
+    const html = `<!doctype html><title>crit</title><meta name="mitori-level" content="${b.level ?? "standard"}">${b.excerpts ? "<pre>x</pre>".repeat(400) : ""}`;
+    return json({
+      html,
+      bytes: b.excerpts ? 1_080_000 : 561_000,
+      sha256: "0".repeat(64),
+      redactions: 1,
+      codeExcerpts: b.excerpts ? { count: 12, files: 4 } : { count: 0, files: 0 },
+    });
+  }
   if (m === "GET" && /^\/doc\/blocks\/[^/]+\/history$/.test(rest)) {
     const bid = rest.split("/")[3];
     return json([

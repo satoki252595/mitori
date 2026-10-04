@@ -5,7 +5,6 @@
  * user sees the estimate and presses send (the loop's usual gate).
  */
 import type { BlockId, DocOutline, SectionId } from "@mitori/core";
-import { loadExtensions } from "../shell/ext.ts";
 import type { Stores } from "../stores/app.svelte.ts";
 
 export interface AskAnchor {
@@ -26,8 +25,9 @@ export async function askAi(s: Stores, question: string, at: AskAnchor | null): 
   const ws = s.workspace.key;
   const anchor = at ?? summaryAnchor(s.doc.outline);
   if (!ws || !anchor || !question.trim()) return false;
-  // the loop chunk and the page load in parallel; the Composer needs both (its target is read from the DOM)
-  const loop = loadExtensions(s);
+  // the loop chunk and the page load in parallel; the Composer needs both (its target is read from the DOM). The
+  // shell's extension loader is in the entry chunk already: a dynamic import keeps this module pure for its tests
+  const loop = import("../shell/ext.ts").then((m) => m.loadExtensions(s));
   await s.router.go({ name: "doc", ws, section: anchor.section, block: anchor.block });
   await loop;
   window.dispatchEvent(new CustomEvent("mitori:compose", { detail: { block: anchor.block, claim: null, intent: "question", body: question.trim() } }));

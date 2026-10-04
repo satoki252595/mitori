@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import type { BlockId, SectionId, ThreadId } from "@mitori/core";
 import { type MarginCardInput, UI_THRESHOLDS } from "../contract.ts";
 import { blockVisible, layoutMarginCards, permalinkText } from "./index.ts";
 import { stepLevel } from "./levels.ts";
 import { naturalHeight, popoverPos } from "./popover.ts";
+import { reviewAnchor } from "./review-anchor.ts";
 
 const card = (id: string, ideal: number, o: Partial<MarginCardInput> = {}): MarginCardInput => ({
   id,
@@ -112,5 +114,24 @@ describe("reader popovers (ux.md §4.3.6): touching the chip, below or above", (
     expect(first.maxH).not.toBeNull();
     expect(naturalHeight({ style: { maxHeight: "" }, scrollHeight: 120 }, 0)).toBe(120);
     expect(naturalHeight(null, 160)).toBe(160);
+  });
+});
+
+describe("EX-09 the Review opens its left body on the job's anchor", () => {
+  const th = (block?: string) => ({ anchor: block ? { doc: { block: block as BlockId, section: "s3" as SectionId, quote: "", hash: "" } } : {} });
+  const threads = new Map<string, ReturnType<typeof th>>([
+    ["th_code0001", th()],
+    ["th_doc00001", th("b_00000031")],
+  ]);
+  const of = (id: string) => threads.get(id) as never;
+  test("the first thread anchored in the doc (a code-only thread is skipped)", () => {
+    expect(reviewAnchor({ threads: ["th_code0001", "th_doc00001"] as ThreadId[], proposalViews: [] }, of)).toBe("b_00000031" as BlockId);
+  });
+  test("no doc thread: the block of the first doc proposal (an insert has none)", () => {
+    const pv = [{ block: null }, { block: "b_00000042" }] as unknown as Parameters<typeof reviewAnchor>[0]["proposalViews"];
+    expect(reviewAnchor({ threads: ["th_code0001"] as ThreadId[], proposalViews: pv }, of)).toBe("b_00000042" as BlockId);
+  });
+  test("nothing anchored: null (the body opens at §0)", () => {
+    expect(reviewAnchor({ threads: ["th_unknown1"] as ThreadId[], proposalViews: [] }, of)).toBeNull();
   });
 });
