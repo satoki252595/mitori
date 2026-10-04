@@ -94,6 +94,44 @@ describe("IDX-D7 persistence failures", () => {
     expect(idx2.skeleton({ kind: "file", path: "b.ts" }, "sig", "claude-v5").text).toContain("1|export function b(");
   });
 
+  test("CR gen #8: a write slot whose outer transaction rolls back after the persist step returned drops no skeleton", async () => {
+    // The server's workspace writer wraps every slot in its own transaction and, in dev / test builds, throws (and
+    // rolls back) when the slot ran over 50 ms — on a loaded machine, a persist chunk does. The indexer's own
+    // transaction is only a savepoint then, so its bookkeeping must wait for the slot to resolve.
+    const repo = tempRepo({ "a.ts": "export function a(): number {\n  return 1;\n}\n", "b.ts": "export function b(): number {\n  return 2;\n}\n" });
+    cleanup.push(() => repo.dispose());
+    const db = memoryDb();
+    migrate(db);
+    const deps = testDeps(repo.root, { db });
+    const log = capturingLog();
+    deps.log = log;
+    const queue = deps.write;
+    let overrun = true;
+    deps.write = (label, fn) =>
+      queue(label, () =>
+        db.tx(() => {
+          const out = fn();
+          if (label === "idx.persist" && overrun) {
+            overrun = false;
+            throw new Error(`write slot "${label}" ran 61 ms (> 50 ms)`);
+          }
+          return out;
+        }),
+      );
+    const idx = createIndexer(deps);
+    cleanup.push(() => idx.close());
+    await idx.scan();
+    await until(() => log.warns.length > 0);
+    expect(log.warns).toContain("persist failed");
+    expect(db.get<{ n: number }>("SELECT count(*) AS n FROM idx_skeleton")?.n).toBe(0); // the whole slot rolled back
+    for (const p of ["a.ts", "b.ts"]) expect(idx.skeleton({ kind: "file", path: p }, "sig", "claude-v5").text).toContain(`1|export function ${p[0]}(`);
+
+    await idx.scan(); // retried: everything is still dirty
+    await until(() => persisted(idx));
+    expect(db.get<{ n: number }>("SELECT count(*) AS n FROM idx_skeleton")?.n).toBe(6);
+    for (const p of ["a.ts", "b.ts"]) expect(idx.skeleton({ kind: "file", path: p }, "sig", "claude-v5").text).toContain(`1|export function ${p[0]}(`);
+  });
+
   test("a failed update() write is logged, later updates still work and the rows are written by the next persist", async () => {
     const repo = tempRepo({ "a.ts": "export const a = 1;\n", "b.ts": "export const b = 1;\n" });
     cleanup.push(() => repo.dispose());
