@@ -835,7 +835,7 @@
       "id": "b_n17ff8er",
       "kind": "facts",
       "lang": "ja",
-      "ord": 3,
+      "ord": 4,
       "origin": "static",
       "readingSec": 13,
       "section": "s8",
@@ -1133,6 +1133,26 @@
       "readingSec": 1,
       "section": "s10",
       "slot": "s10:h",
+      "status": "ready"
+    },
+    "b_vckgmkw8": {
+      "audience": [
+        "dev",
+        "reviewer"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/08-interfaces.md",
+      "freshness": "fresh",
+      "hash": "a135f46702c5a12a",
+      "id": "b_vckgmkw8",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 10,
+      "section": "s8",
+      "slot": "s8:outbound",
       "status": "ready"
     },
     "b_vt3apkqs": {
@@ -1814,7 +1834,7 @@
     {
       "audience": "sre",
       "id": "sre",
-      "readingSec": 176,
+      "readingSec": 186,
       "steps": [
         {
           "section": "s4"
@@ -2095,12 +2115,13 @@
         "b_4px30qmk",
         "b_fy6j047k",
         "b_pb7fbtty",
+        "b_vckgmkw8",
         "b_n17ff8er"
       ],
       "children": [],
       "file": "doc/08-interfaces.md",
       "id": "s8",
-      "readingSec": 77,
+      "readingSec": 87,
       "state": "static_only",
       "title": "外部インターフェース"
     },

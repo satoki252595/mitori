@@ -24,6 +24,7 @@
   "claim.verifyNeedsPeek": "先に出典を開いて確かめてください",
   "code.backlinks": "この範囲を説明している節",
   "code.outline": "このファイルの目次（{n}）",
+  "code.regions": "このファイルの中身（{n}か所）",
   "code.badge.exact": "正確",
   "code.badge.pinned": "固定中",
   "code.badge.search": "推定",

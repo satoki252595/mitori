@@ -507,8 +507,11 @@ export interface MapView {
     freshness: Record<string, Freshness>;
   };
   /** Module tree, with up to 5 top files per module for Z3 furniture [JUDGEMENT §9]. */
-  /** `summary`: the module's one-line role from the generated doc (`DocModuleEntry.summary`, NC-04). */
-  modules: (ModuleInfo & { topFiles?: { path: RepoPath; loc: number; symbols: string[] }[]; summary?: string })[];
+  /**
+   * `summary`: the module's one-line role from the generated doc (`DocModuleEntry.summary`, NC-04). `change`: the block of
+   * its page's 「変更の手引き」 (the popover links to it) [CR rdoc-2].
+   */
+  modules: (ModuleInfo & { topFiles?: { path: RepoPath; loc: number; symbols: string[] }[]; summary?: string; change?: BlockId })[];
   /** Blocks of the "5 分で分かる" pane (L0/L1), possibly empty before generation. */
   quick: BlockId[];
 }
@@ -570,6 +573,12 @@ export interface FileContent {
    * opened without a map of itself told the reader nothing about where to look.
    */
   outline?: { name: string; kind: SymbolKind; line: LineNo; exported: boolean }[];
+  /**
+   * The region outline of a file over 1,500 lines (runs of types / constants / functions / one receiver's methods,
+   * and inside a 400+-line symbol its state hooks, effects, handlers, helpers, rendered JSX), labelled in the doc's
+   * language — a 4,800-line component is no longer one outline row [CR rdoc-2].
+   */
+  regions?: { label: string; start: LineNo; end: LineNo; depth: 0 | 1 }[];
   /**
    * Server-rendered Shiki (css-variables theme) HTML of `text`, one `span[data-line]` per line; present with
    * `?html=1` (code mode, S3 — the client never highlights) [CR ux-R6]. Tokenized from the per-blob full-file

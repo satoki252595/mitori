@@ -6,6 +6,9 @@
 import type { DependencyFact, EntryFact, FileEntry, LineNo, RepoPath, RepoProfile, ScriptFact, SymbolEntry } from "@mitori/core";
 import type { StaticGuide } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
+import { type ChangeInputs, changeGuides, type HistorySource, recentCommits } from "./doc-change.ts";
+import { fileRegions, REGION_MIN_LINES } from "./doc-regions.ts";
+import { keyTypes } from "./doc-types.ts";
 
 type Pm = { name: string; install: string; run: (script: string) => string; lock: string };
 
@@ -82,9 +85,79 @@ function goMain(facts: readonly { kind: string }[], readme: string, gomod: strin
 }
 
 export interface GuideDeps {
-  indexer: Pick<Indexer, "files" | "facts" | "symbols" | "modules" | "graph" | "dependents" | "imports">;
+  indexer: Pick<Indexer, "files" | "facts" | "symbols" | "modules" | "graph" | "dependents" | "imports"> &
+    Partial<Pick<Indexer, "moduleStats" | "moduleDetail" | "flowSeeds" | "structure" | "moduleOf" | "currentText" | "symbolUsers">>;
   profile: RepoProfile | null;
   read(path: RepoPath): Promise<string | null>;
+  /** Git history for the change guides' co-change (`GitReader`); absent ⇒ no co-change. */
+  git?: HistorySource;
+}
+
+/** At most this many large files get a region outline per static apply (largest first). */
+const REGION_FILES_MAX = 40;
+
+/**
+ * §7 key types, the per-module change guides and the large-file region outlines (NC-10 / 変更の手引き / large
+ * components; 0 tokens) — each only when the index offers what it needs.
+ */
+async function deepGuide(d: GuideDeps, guide: StaticGuide, rootTest: ChangeInputs["rootTest"], goModule: boolean): Promise<void> {
+  const ix = d.indexer;
+  if (ix.moduleOf) {
+    const types = keyTypes({
+      files: ix.files,
+      symbols: ix.symbols,
+      imports: ix.imports,
+      moduleOf: ix.moduleOf,
+      ...(ix.symbolUsers ? { symbolUsers: ix.symbolUsers } : {}),
+    });
+    if (types.length > 0) guide.types = types;
+  }
+  const regionsOf = async () => {
+    if (!ix.currentText) return;
+    const big = ix
+      .files()
+      .filter((f) => f.class === "source" && f.excluded === undefined && f.lines > REGION_MIN_LINES)
+      .sort((a, b) => b.lines - a.lines || (a.path < b.path ? -1 : 1))
+      .slice(0, REGION_FILES_MAX);
+    const out: NonNullable<StaticGuide["regions"]> = {};
+    const texts = await Promise.all(big.map((f) => ix.currentText?.(f.path) ?? Promise.resolve(null)));
+    big.forEach((f, i) => {
+      const text = texts[i];
+      if (text == null) return;
+      const regions = fileRegions(text, ix.symbols(f.path), f.lang);
+      if (regions.length > 0) out[f.path] = { lines: f.lines, regions };
+    });
+    if (Object.keys(out).length > 0) guide.regions = out;
+  };
+  const changeOf = async () => {
+    if (!ix.moduleStats || !ix.moduleDetail || !ix.flowSeeds || !ix.structure) return;
+    const history = d.git ? await recentCommits(d.git) : null;
+    const change = changeGuides(
+      {
+        modules: ix.modules,
+        moduleStats: ix.moduleStats,
+        moduleDetail: ix.moduleDetail,
+        facts: ix.facts,
+        flowSeeds: ix.flowSeeds,
+        structure: ix.structure,
+        files: ix.files,
+        symbols: ix.symbols,
+        ...(ix.symbolUsers ? { symbolUsers: ix.symbolUsers } : {}),
+      },
+      { history, ...(rootTest ? { rootTest } : {}), goModule },
+    );
+    if (Object.keys(change).length > 0) guide.change = change;
+  };
+  await Promise.all([regionsOf(), changeOf()]);
+}
+
+/** The repo's own test command: the root `test` script qualified by its package manager, a Makefile / just `test`. */
+function rootTestOf(scripts: readonly ScriptFact[], pm: Pm | undefined): ChangeInputs["rootTest"] {
+  const pkg = scripts.find((s) => s.path === "package.json" && s.name === "test");
+  if (pkg && pm) return { command: pm.name === "npm" ? "npm test" : pm.run("test"), path: pkg.path, line: pkg.line as LineNo };
+  const make = scripts.find((s) => /^(Makefile|GNUmakefile|justfile)$/.test(s.path) && s.name === "test");
+  if (make) return { command: `${make.path === "justfile" ? "just" : "make"} test`, path: make.path, line: make.line as LineNo };
+  return undefined;
 }
 
 /** The static guide of §4 / §5 (quick start + reading order). */
@@ -165,13 +238,16 @@ export async function staticGuide(d: GuideDeps): Promise<StaticGuide> {
     });
   };
   // 1. entry: the framework page, else the best-ranked entry fact
+  // the program file of an entry: a web page's module script (`entry.web@1` labels it), else the fact's own file
+  const programOf = (f: EntryFact): string => (f.entry === "main" && src.has(f.label) ? f.label : f.path);
   const entryFacts = facts
     .filter(
       (f): f is EntryFact =>
-        f.kind === "entry" && f.entry !== "test_main" && f.entry !== "script" && f.entry !== "dockerfile" && f.scope !== "example" && src.has(f.path),
+        f.kind === "entry" && f.entry !== "test_main" && f.entry !== "script" && f.entry !== "dockerfile" && f.scope !== "example" && src.has(programOf(f)),
     )
-    .sort((a, b) => (rank.get(b.path) ?? 0) - (rank.get(a.path) ?? 0) || (a.path < b.path ? -1 : 1));
-  const entry = fw?.path ?? mainPath ?? entryFacts[0]?.path;
+    .sort((a, b) => (rank.get(programOf(b)) ?? 0) - (rank.get(programOf(a)) ?? 0) || (programOf(a) < programOf(b) ? -1 : 1));
+  const first = entryFacts[0];
+  const entry = fw?.path ?? mainPath ?? (first ? programOf(first) : undefined);
   if (entry) {
     const syms = d.indexer.symbols(entry as RepoPath);
     // the program's own entry (`main`, a page's default export) before the file's largest function
@@ -230,6 +306,7 @@ export async function staticGuide(d: GuideDeps): Promise<StaticGuide> {
     }
   }
   if (order.length > 0) guide.reading = order;
+  await deepGuide(d, guide, rootTestOf(scripts, pm), paths.has("go.mod"));
   return guide;
 }
 

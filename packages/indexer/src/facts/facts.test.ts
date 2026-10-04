@@ -5,6 +5,7 @@ import { resolveImports } from "../resolve/stage.ts";
 import { input, sf } from "../resolve/test/stage-files.ts";
 import { classify, loadGrammars, loadRepo, parseStageFile } from "../structure/test/corpus.ts";
 import { mainFacts, miniIndexer, runPipeline } from "../structure/test/pipeline.ts";
+import { nextPattern } from "./next.ts";
 import { linkFacts } from "./stage.ts";
 import {
   compose,
@@ -20,6 +21,7 @@ import {
   requirementsTxt,
   sqlSchema,
   todos,
+  webEntries,
 } from "./text.ts";
 
 const TIER2_FRAMEWORKS = new Set([
@@ -27,8 +29,7 @@ const TIER2_FRAMEWORKS = new Set([
   "gin",
   "echo",
   "fastify",
-  "next-app",
-  "next-pages",
+  // next-app / next-pages are graded: `route.next-app@1` / `route.next-pages@1` exist (gen #4a)
   "django",
   "axum",
   "actix",
@@ -154,6 +155,390 @@ describe("IDX-AT-25 env.js@1 reads", () => {
       ["g", 5, false],
     ]);
   });
+});
+
+describe("gen #4c route handlers behind wrappers, factories and imports resolve", () => {
+  const handlerOf = async (src: Record<string, string>) => {
+    const gs = await loadGrammars();
+    const files = Object.entries(src).map(([path, text]) => {
+      const c = classify(path, text.length, text);
+      return parseStageFile(path, text, c, c.grammar ? gs[c.grammar] : null, `b:${path}`);
+    });
+    const p = runPipeline(input(files));
+    return Object.fromEntries(
+      mainFacts(p, "route").map((r) => (r.kind === "route" ? [`${r.framework} ${r.method} ${r.pattern}`, r.handler ?? null] : ["", null])),
+    );
+  };
+
+  test("net/http: middleware-wrapped method values, adapters and handler factories (crit's router)", async () => {
+    const got = await handlerOf({
+      "internal/server/server.go": [
+        "package server",
+        'import "net/http"',
+        "type Server struct{ mux *http.ServeMux }",
+        "func (s *Server) routes() {",
+        "\tmux := http.NewServeMux()",
+        '\tmux.HandleFunc("/api/health", s.handleHealth)',
+        '\tmux.HandleFunc("/api/comments", s.withReady(s.handleComments))',
+        '\tmux.HandleFunc("/api/file", s.withReady(s.withAuth(s.handleFile)))',
+        '\tmux.Handle("/api/x", http.HandlerFunc(s.handleX))',
+        '\tmux.HandleFunc("/live", s.serveIndexHTML())',
+        '\tmux.HandleFunc("/live.js", s.serveEmbeddedJS("live.js"))',
+        '\tmux.Handle("/", http.FileServer(http.Dir(".")))',
+        '\tmux.HandleFunc("/inline", func(w http.ResponseWriter, r *http.Request) {})',
+        "}",
+        "func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request)   {}",
+        "func (s *Server) handleComments(w http.ResponseWriter, r *http.Request) {}",
+        "func (s *Server) handleX(w http.ResponseWriter, r *http.Request)        {}",
+        "func (s *Server) withReady(h http.HandlerFunc) http.HandlerFunc        { return h }",
+        "func (s *Server) withAuth(h http.HandlerFunc) http.HandlerFunc         { return h }",
+        "func (s *Server) serveIndexHTML() http.HandlerFunc                      { return nil }",
+        "func (s *Server) serveEmbeddedJS(name string) http.HandlerFunc         { return nil }",
+        "",
+      ].join("\n"),
+      "internal/server/files.go": 'package server\n\nimport "net/http"\n\nfunc (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {}\n',
+    });
+    expect(got).toEqual({
+      "net/http ANY /api/health": "internal/server/server.go#Server.handleHealth",
+      "net/http ANY /api/comments": "internal/server/server.go#Server.handleComments",
+      "net/http ANY /api/file": "internal/server/files.go#Server.handleFile",
+      "net/http ANY /api/x": "internal/server/server.go#Server.handleX",
+      "net/http ANY /live": "internal/server/server.go#Server.serveIndexHTML",
+      "net/http ANY /live.js": "internal/server/server.go#Server.serveEmbeddedJS",
+      "net/http ANY /": null,
+      "net/http ANY /inline": null,
+    });
+  });
+
+  test("hono / express: imported handlers, wrapped values, controller methods; flask / fastapi: call-registered views", async () => {
+    const got = await handlerOf({
+      "src/routes.ts": [
+        'import { Hono } from "hono";',
+        'import { listBooks, createBook } from "./handlers";',
+        'import * as ctrl from "./ctrl";',
+        "const app = new Hono();",
+        'app.get("/books", listBooks);',
+        'app.post("/books", auth(createBook));',
+        'app.delete("/books/:id", ctrl.removeBook);',
+        'app.get("/inline", (c) => c.text("ok"));',
+        "function auth(h: unknown) { return h; }",
+        "",
+      ].join("\n"),
+      "src/handlers.ts": "export function listBooks(c: unknown) { return c; }\nexport const createBook = async (c: unknown) => c;\n",
+      "src/ctrl.ts": "export function removeBook(c: unknown) { return c; }\n",
+      "app/views.py": [
+        "from flask import Flask",
+        "from flask.views import MethodView",
+        "app = Flask(__name__)",
+        "def index():",
+        "    return 'ok'",
+        "class Items(MethodView):",
+        "    def get(self):",
+        "        return 'items'",
+        'app.add_url_rule("/", view_func=index)',
+        'app.add_url_rule("/items", "items", Items.as_view("items"))',
+        "",
+      ].join("\n"),
+      "app/api.py": [
+        "from fastapi import FastAPI",
+        "app = FastAPI()",
+        "async def list_items():",
+        "    return []",
+        'app.add_api_route("/api/items", list_items)',
+        "",
+      ].join("\n"),
+    });
+    expect(got).toEqual({
+      "hono GET /books": "src/handlers.ts#listBooks",
+      "hono POST /books": "src/handlers.ts#createBook",
+      "hono DELETE /books/:id": "src/ctrl.ts#removeBook",
+      "hono GET /inline": null,
+      "flask GET /": "app/views.py#index",
+      "flask GET /items": "app/views.py#Items",
+      "fastapi ANY /api/items": "app/api.py#list_items",
+    });
+  });
+});
+
+describe("gen #4a route.next-app@1 / route.next-pages@1: Next.js file-system routes", () => {
+  test("nextPattern: groups and slots dropped, [id] kept, index = the directory, private folders and intercepting routes are none", () => {
+    const pat = (p: string) => nextPattern(p)?.pattern ?? null;
+    expect(pat("app/page.tsx")).toBe("/");
+    expect(pat("src/app/(marketing)/about/page.tsx")).toBe("/about");
+    expect(pat("app/blog/[slug]/@modal/page.tsx")).toBe("/blog/[slug]");
+    expect(pat("app/api/books/[id]/route.ts")).toBe("/api/books/[id]");
+    expect(pat("apps/web/app/settings/page.jsx")).toBe("/settings");
+    expect(nextPattern("apps/web/app/settings/page.jsx")?.pkgDir).toBe("apps/web");
+    expect(nextPattern("src/app/page.tsx")?.pkgDir).toBe("");
+    expect(pat("app/_components/page.tsx")).toBeNull();
+    expect(pat("app/photos/(.)[id]/page.tsx")).toBeNull();
+    expect(pat("app/layout.tsx")).toBeNull();
+    expect(pat("app/Editor.tsx")).toBeNull();
+    expect(pat("pages/index.tsx")).toBe("/");
+    expect(pat("src/pages/posts/[id].tsx")).toBe("/posts/[id]");
+    expect(nextPattern("pages/api/books.ts")).toMatchObject({ pattern: "/api/books", api: true });
+    expect(pat("pages/_app.tsx")).toBeNull();
+    expect(pat("pages/page.test.tsx")).toBeNull();
+  });
+
+  test("routes with their handlers, only in a package that depends on next and at its root (m3e: GET / → Page)", async () => {
+    const gs = await loadGrammars();
+    const src: Record<string, string> = {
+      "package.json": JSON.stringify({ name: "app", dependencies: { next: "16.3.4", react: "19.0.0" } }),
+      "app/page.tsx":
+        '"use client";\nimport Editor from "./Editor";\n// export default function Old() {}\nexport default function Page() {\n  return <Editor />;\n}\n',
+      "app/Editor.tsx": "export default function Editor() {\n  return null;\n}\n",
+      "app/api/items/route.ts":
+        "export async function GET() {\n  return Response.json([]);\n}\n\nexport const POST = async (req: Request) => Response.json(await req.json());\nconst del = () => new Response(null);\nexport { del as DELETE };\n",
+      "pages/api/legacy.ts": "export default function handler(req, res) {\n  res.json({});\n}\n",
+      // a `pages/` folder below the package root is a component folder, not the pages router
+      "src/components/pages/Home.tsx": "export default function Home() {\n  return null;\n}\n",
+      // a server without next: its `app/` is no Next app
+      "server/package.json": JSON.stringify({ name: "server", dependencies: { express: "4.0.0" } }),
+      "server/app/page.ts": "export default function page() {}\n",
+    };
+    const files = Object.entries(src).map(([path, text]) => {
+      const c = classify(path, text.length, text);
+      return parseStageFile(path, text, c, c.grammar ? gs[c.grammar] : null, `b:${path}`);
+    });
+    const p = runPipeline(input(files, { "package.json": src["package.json"] as string, "server/package.json": src["server/package.json"] as string }));
+    const routes = mainFacts(p, "route")
+      .map((f) => (f.kind === "route" ? `${f.method} ${f.pattern} ${f.framework} ${f.path}:${f.line} ${f.handler ?? "-"}` : ""))
+      .sort();
+    expect(routes).toEqual([
+      "ANY /api/legacy next-pages pages/api/legacy.ts:1 pages/api/legacy.ts#handler",
+      "DELETE /api/items next-app app/api/items/route.ts:7 app/api/items/route.ts#del",
+      "GET / next-app app/page.tsx:4 app/page.tsx#Page",
+      "GET /api/items next-app app/api/items/route.ts:1 app/api/items/route.ts#GET",
+      "POST /api/items next-app app/api/items/route.ts:5 app/api/items/route.ts#POST",
+    ]);
+  });
+});
+
+describe("gen #4a entry.web@1: the module script a web page loads (Vite index.html)", () => {
+  test("webEntries resolves `/x` and `./x` against the page's directory; URLs and classic scripts are none", () => {
+    const got = webEntries({
+      file: { path: "excalidraw-app/index.html", lang: "generic", class: "source", scope: "main" },
+      text: [
+        '<script src="/legacy.js"></script>',
+        '<script type="module" src="/index.tsx"></script>',
+        "<script type='module' src='./boot.ts?v=2'></script>",
+        '<script type="module" src="https://cdn.example.com/m.js"></script>',
+        '<script type="module" src="//cdn.example.com/m.js"></script>',
+        '<script type="module">import "./inline.ts";</script>',
+      ].join("\n"),
+    });
+    expect(got.map((c) => `${c.line} ${c.data.label}`)).toEqual(["2 excalidraw-app/index.tsx", "3 excalidraw-app/boot.ts"]);
+  });
+
+  test("the link keeps a page's entry only when its script is a file of the repo", () => {
+    const cand = (label: string, line: number) => ({
+      detector: "entry.web@1",
+      kind: "entry" as const,
+      path: "web/index.html",
+      line,
+      data: { entry: "main", label },
+      evidence: [],
+      scope: "main" as const,
+    });
+    const files = [sf("web/index.html", { lang: "generic", facts: [cand("web/src/main.tsx", 9), cand("web/src/gone.tsx", 10)] }), sf("web/src/main.tsx")];
+    const inp = input(files);
+    const entries = linkFacts(inp, resolveImports(inp)).facts.filter((f) => f.kind === "entry");
+    expect(entries.map((f) => (f.kind === "entry" ? `${f.path}:${f.line} ${f.entry} ${f.label}` : ""))).toEqual(["web/index.html:9 main web/src/main.tsx"]);
+  });
+});
+
+describe("NC-10 outbound.calls@1: HTTP, SDK / DB clients, RPC, subprocesses (imports gate every rule)", () => {
+  const outbound = async (src: Record<string, string>) => {
+    const gs = await loadGrammars();
+    const files = Object.entries(src).map(([path, text]) => {
+      const c = classify(path, text.length, text);
+      return parseStageFile(path, text, c, c.grammar ? gs[c.grammar] : null, `b:${path}`);
+    });
+    const p = runPipeline(input(files, src["go.mod"] ? { "go.mod": src["go.mod"] } : {}));
+    return mainFacts(p, "outbound")
+      .map((f) => (f.kind === "outbound" ? `${f.path}:${f.line} ${f.channel} ${f.via}${f.target ? ` → ${f.target}` : ""}` : ""))
+      .sort();
+  };
+
+  test("Go: net/http, os/exec, database/sql, an external NewClient; comments, strings and in-repo clients are not calls", async () => {
+    const got = await outbound({
+      "go.mod": "module example.com/app\n\ngo 1.22\n",
+      "internal/meta/fetch.go": [
+        "package meta",
+        "import (",
+        '\t"database/sql"',
+        '\t"net/http"',
+        '\t"os/exec"',
+        '\tgh "github.com/google/go-github/v57/github"',
+        '\t"example.com/app/internal/store"',
+        ")",
+        "func run() {",
+        '\t_, _ = http.Get("https://api.example.com/v1/books?token=abc")',
+        '\t_, _ = http.NewRequestWithContext(ctx, http.MethodGet, base+"/x", nil)',
+        '\t_ = exec.Command("git", "status")',
+        '\t_, _ = sql.Open("sqlite", path)',
+        "\t_ = gh.NewClient(nil)",
+        "\t_ = store.NewClient()",
+        '\t// http.Get("https://commented.example.com")',
+        '\t_ = "exec.Command(rm)"',
+        "}",
+        "",
+      ].join("\n"),
+      "internal/store/store.go": "package store\n\ntype Client struct{}\n\nfunc NewClient() *Client { return &Client{} }\n",
+    });
+    expect(got).toEqual([
+      "internal/meta/fetch.go:10 http net/http → https://api.example.com",
+      "internal/meta/fetch.go:11 http net/http",
+      "internal/meta/fetch.go:12 subprocess os/exec → git",
+      "internal/meta/fetch.go:13 db database/sql",
+      "internal/meta/fetch.go:14 sdk github.com/google/go-github/v57/github",
+    ]);
+  });
+
+  test("TS / JS: fetch, axios, WebSocket, child_process, SDK and DB clients; SDK commands, operators and RegExp.exec are not", async () => {
+    const got = await outbound({
+      "src/api.ts": [
+        'import axios from "axios";',
+        'import { spawn } from "node:child_process";',
+        'import { PrismaClient } from "@prisma/client";',
+        'import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";',
+        'import { eq } from "drizzle-orm";',
+        "export async function go(url: string) {",
+        '  await fetch("/api/books?page=2");',
+        "  await fetch(url);",
+        '  await axios.get("https://api.github.com/repos/x");',
+        '  spawn("git", ["status"]);',
+        "  /x/.exec(url);",
+        "  const db = new PrismaClient();",
+        "  const s3 = new S3Client({});",
+        "  await s3.send(new PutObjectCommand({}));",
+        "  eq(1, 2);",
+        '  const ws = new WebSocket("wss://collab.example.com/room/1");',
+        "}",
+        "",
+      ].join("\n"),
+      "src/local.ts": "function fetch(a: number) { return a; }\nexport const x = fetch(1);\n",
+    });
+    expect(got).toEqual([
+      "src/api.ts:10 subprocess child_process → git",
+      "src/api.ts:12 db @prisma/client",
+      "src/api.ts:13 sdk @aws-sdk/client-s3",
+      "src/api.ts:16 http WebSocket → wss://collab.example.com",
+      "src/api.ts:7 http fetch → /api/books",
+      "src/api.ts:8 http fetch",
+      "src/api.ts:9 http axios → https://api.github.com",
+    ]);
+  });
+
+  test("TS: a socket.io connection (default import through a hinted dynamic import), firebase's Firestore (DB) and Storage factories", async () => {
+    // excalidraw's collaboration room and its firebase data layer were missing from §8
+    const got = await outbound({
+      "app/collab.ts": [
+        "export async function connect(url: string) {",
+        "  const { default: socketIOClient } = await import(",
+        '    /* webpackChunkName: "socketIoClient" */ "socket.io-client"',
+        "  );",
+        '  return socketIOClient(url, { transports: ["websocket"] });',
+        "}",
+        "",
+      ].join("\n"),
+      "app/live.ts": 'import { io } from "socket.io-client";\nexport const s = io("https://live.example.com/socket");\n',
+      "app/firebase.ts": [
+        'import { initializeApp } from "firebase/app";',
+        'import { getFirestore, doc } from "firebase/firestore";',
+        'import { getStorage, ref } from "firebase/storage";',
+        "let firestore: ReturnType<typeof getFirestore> | null = null;",
+        "export const init = () => {",
+        "  const app = initializeApp({});",
+        "  firestore = getFirestore(app);",
+        '  return [getStorage(app), doc(firestore, "x"), ref(getStorage(app))];',
+        "};",
+        "",
+      ].join("\n"),
+    });
+    expect(got).toEqual([
+      "app/collab.ts:5 http socket.io-client",
+      "app/firebase.ts:6 sdk firebase/app",
+      "app/firebase.ts:7 db firebase/firestore",
+      "app/firebase.ts:8 sdk firebase/storage",
+      "app/live.ts:2 http socket.io-client → https://live.example.com",
+    ]);
+  });
+
+  test("Python: requests (aliased), urlopen, subprocess, sqlite3, boto3; comments and in-repo clients are not", async () => {
+    const got = await outbound({
+      "app/net.py": [
+        "import subprocess",
+        "import sys",
+        "import sqlite3",
+        "import boto3",
+        "import requests as rq",
+        "from urllib.request import urlopen",
+        "from app.clients import FooClient",
+        "def go():",
+        '    rq.get("https://api.github.com/repos")',
+        '    urlopen("http://localhost:8000/health")',
+        '    subprocess.call([sys.executable, "-m", "uvicorn", "app:api"])',
+        '    sqlite3.connect("x.db")',
+        '    boto3.client("s3")',
+        "    FooClient()",
+        '    # rq.get("https://commented.example.com")',
+        "",
+      ].join("\n"),
+      "app/clients.py": "class FooClient:\n    pass\n",
+      "app/__init__.py": "",
+    });
+    expect(got).toEqual([
+      "app/net.py:10 http urllib.request → http://localhost:8000",
+      "app/net.py:11 subprocess subprocess → uvicorn",
+      "app/net.py:12 db sqlite3",
+      "app/net.py:13 sdk boto3",
+      "app/net.py:9 http requests → https://api.github.com",
+    ]);
+  });
+
+  test("Rust: std::process::Command and reqwest are calls; clap::Command and a local fetch() are not", async () => {
+    const got = await outbound({
+      "src/run.rs": [
+        "use std::process::Command;",
+        "pub fn go() {",
+        '    let _ = Command::new("git").arg("status").output();',
+        '    let _ = reqwest::blocking::get("https://crates.io/api/v1/crates");',
+        "}",
+        "",
+      ].join("\n"),
+      "src/cli.rs": [
+        "use clap::Command;",
+        "fn fetch(t: u8, isbn: &str) -> u8 { t }",
+        "pub fn cli() {",
+        '    let _ = Command::new("indexer");',
+        '    let _ = fetch(1, "x");',
+        "}",
+        "",
+      ].join("\n"),
+    });
+    expect(got).toEqual(["src/run.rs:3 subprocess std::process → git", "src/run.rs:4 http reqwest → https://crates.io"]);
+  });
+
+  test("the fixtures' real calls: go-small's request, py-small's uvicorn, ts-small's spawnSync, mixed's upstream fetch", async () => {
+    for (const [name, want] of [
+      ["go-small", /^internal\/meta\/fetch\.go:\d+ http net\/http$/],
+      ["py-small", /^tsundoku\/cli\.py:\d+ subprocess subprocess → uvicorn$/],
+      ["ts-small", /^bin\/tsundoku\.js:\d+ subprocess child_process/],
+      ["mixed", /^web\/lib\/upstream\.ts:\d+ http fetch$/],
+    ] as const) {
+      const repo = await buildFixture(name);
+      built.push(repo);
+      const p = runPipeline((await loadRepo(repo.root)).input);
+      const got = mainFacts(p, "outbound").map((f) =>
+        f.kind === "outbound" ? `${f.path}:${f.line} ${f.channel} ${f.via}${f.target ? ` → ${f.target}` : ""}` : "",
+      );
+      expect({ name, hit: got.some((g) => want.test(g)), got }).toMatchObject({ name, hit: true });
+      // test files never contribute (ts-small's test/repo.test.ts calls fetch)
+      expect(got.some((g) => g.startsWith("test/"))).toBe(false);
+    }
+  }, 60_000);
 });
 
 describe("IDX-AT-25 entry.go@1", () => {

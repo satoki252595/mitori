@@ -431,7 +431,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     const base0 = staticDocInput(rawIndexer, rawDoc, license);
     if (base0 === null) return;
     // NC-06 / NC-07: §4 steps and §5 reading order, from the index and the profile (0 tokens)
-    const guide = await staticGuide({ indexer: rawIndexer, profile, read: readRepoText }).catch((e: unknown) => {
+    const guide = await staticGuide({ indexer: rawIndexer, profile, read: readRepoText, git }).catch((e: unknown) => {
       log.warn("static guide failed", { error: MitoriError.from(e).message });
       return undefined;
     });

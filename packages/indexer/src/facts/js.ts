@@ -2,7 +2,7 @@
 import type { FactCandidate, FactEvidence, FactExtractInput } from "../contract.ts";
 import { candidate, ENV_NAME_RE } from "./candidate.ts";
 import { JS } from "./queries.ts";
-import { type Caps, capsFor, lineOf, type Node, patternOf, stringValue, type Tree } from "./tsq.ts";
+import { type Caps, capsFor, handlerNames, lineOf, type Node, patternOf, stringValue, type Tree } from "./tsq.ts";
 
 /** `.get("/x"` / `` .post(`/x `` / `.on("GET", "/x"` — the route query only runs on files that have one. */
 const ROUTE_HINT = /\.(?:get|post|put|patch|delete|options|head|all)\s*\(\s*["'`][/*]|\.on\s*\(\s*["'`][A-Za-z]+["'`]\s*,\s*["'`][/*]/;
@@ -93,19 +93,15 @@ function jsRouteCandidates(input: FactExtractInput, tree: Tree): FactCandidate[]
     const evidence: FactEvidence[] = [...ev, `recv:${recv}`];
     const bound = binds.get(recv);
     if (bound !== undefined) evidence.push(`bind:${bound}`);
-    const handler =
-      handlerNode?.type === "identifier"
-        ? handlerNode.text
-        : handlerNode?.type === "member_expression"
-          ? handlerNode.childForFieldName("property")?.text
-          : undefined;
+    // `list`, `ctrl.list`, `wrap(list)` → list, `makeHandler(deps)` → makeHandler (gen #4c)
+    const handlers = handlerNames(handlerNode);
     out.push(
       candidate(
         "route.js@1",
         "route",
         input,
         lineOf(call),
-        { method, pattern: p.pattern, ...(p.dynamic ? { dynamic: true } : {}), ...(handler ? { handler } : {}) },
+        { method, pattern: p.pattern, ...(p.dynamic ? { dynamic: true } : {}), ...(handlers.length > 0 ? { handler: handlers[0], handlers } : {}) },
         evidence,
       ),
     );

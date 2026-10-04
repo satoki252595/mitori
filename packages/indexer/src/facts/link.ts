@@ -2,7 +2,7 @@
  * Main-thread linking of fact candidates (spec §5.1): guards on the evidence, cross-file composition (click groups ↔
  * pyproject scripts, Rust bin roots), handler stamping, scope assignment (IDX-D12) and de-duplication.
  */
-import type { CliFact, EntryFact, Fact, FactBase, GitOid, RepoPath, RouteFact } from "@mitori/core";
+import type { CliFact, EntryFact, Fact, FactBase, GitOid, RepoPath, RouteFact, SymbolKey } from "@mitori/core";
 import type { FactCandidate, FactLinkContext, FileScope } from "../contract.ts";
 import type { ProjectIndex } from "../resolve/context.ts";
 import { baseOf, dirOf, joinPath } from "../resolve/files.ts";
@@ -20,7 +20,7 @@ export interface LinkEnv extends FactLinkContext {
 const isEnv = (ctx: FactLinkContext): ctx is LinkEnv => typeof (ctx as Partial<LinkEnv>).blobOf === "function";
 
 /** Kinds that may only be shown from `main` files (IDX-D12): tooling/example files are kept as `scope: "example"`. */
-const MAIN_ONLY = new Set(["route", "cli", "env"]);
+const MAIN_ONLY = new Set(["route", "cli", "env", "outbound"]);
 /** TODO facts kept per snapshot (the first candidates in path, line order). */
 export const TODO_CAP = 2_000;
 
@@ -64,6 +64,19 @@ export function linkByDetector(id: string, all: readonly FactCandidate[], ctx: F
     case "route.fastapi@1":
     case "route.flask@1":
       return routes(mine, ctx);
+    case "route.next-app@1":
+    case "route.next-pages@1":
+      // the router directory sits at a Next package's root: `<pkg>/(src/)app`, `next` in that package's manifest
+      return routes(
+        mine.filter((c) => {
+          const dir = str(c.data.pkgDir);
+          const index = isEnv(ctx) ? ctx.index : undefined;
+          return (
+            ctx.manifestDeps(c.path).has("next") && (index === undefined || index.exists((dir === "" ? "package.json" : `${dir}/package.json`) as RepoPath))
+          );
+        }),
+        ctx,
+      );
     case "cli.registry@1":
       return registry(mine, ctx);
     case "cli.click@1":
@@ -80,6 +93,14 @@ export function linkByDetector(id: string, all: readonly FactCandidate[], ctx: F
       const real = new Set(mine.filter((c) => c.data.ignored !== true).map((c) => str(c.data.label)));
       return entries(
         mine.map((c) => (c.data.ignored === true && real.has(str(c.data.label)) ? { ...c, data: { ...c.data, label: c.path } } : c)),
+        ctx,
+      );
+    }
+    case "entry.web@1": {
+      // the page's script must be a file of the repo
+      const index = isEnv(ctx) ? ctx.index : undefined;
+      return entries(
+        mine.filter((c) => index === undefined || index.exists(str(c.data.label) as RepoPath)),
         ctx,
       );
     }
@@ -100,6 +121,12 @@ export function linkByDetector(id: string, all: readonly FactCandidate[], ctx: F
     case "schema.sql@1":
       return simple(
         mine.map((c) => (isD1(c.path, ctx) ? { ...c, data: { ...c.data, source: "d1" } } : c)),
+        ctx,
+      );
+    case "outbound.calls@1":
+      // a generic rule (`new XxxClient(` / `x.NewClient(`) only counts for an import from outside the repo
+      return simple(
+        mine.filter((c) => typeof c.data.spec !== "string" || ctx.resolve(c.path, c.data.spec).length === 0),
         ctx,
       );
     default:
@@ -136,6 +163,11 @@ function simple(cands: readonly FactCandidate[], ctx: FactLinkContext): Fact[] {
       case "test":
         out.push({ ...b, kind: "test", name: str(d.name) });
         break;
+      case "outbound": {
+        const target = str(d.target);
+        out.push({ ...b, kind: "outbound", channel: str(d.channel, "sdk") as "sdk", via: str(d.via), ...(target !== "" ? { target } : {}) });
+        break;
+      }
       default:
         break;
     }
@@ -153,8 +185,13 @@ function routes(cands: readonly FactCandidate[], ctx: FactLinkContext): Fact[] {
     if (!b) continue;
     const method = str(c.data.method, "ANY").toUpperCase();
     if (!METHOD_RE.test(method)) continue;
-    const handlerName = str(c.data.handler);
-    const handler = handlerName === "" ? null : ctx.symbolAt(c.path, handlerName);
+    // the first candidate that names a function-like symbol (gen #4c: wrapped values, then the factory)
+    const names = [...new Set([str(c.data.handler), ...strs(c.data.handlers)].filter((n) => n !== ""))];
+    let handler: SymbolKey | null = null;
+    for (const n of names) {
+      handler = ctx.symbolAt(c.path, n, { callable: true });
+      if (handler !== null) break;
+    }
     out.push({
       ...b,
       kind: "route",

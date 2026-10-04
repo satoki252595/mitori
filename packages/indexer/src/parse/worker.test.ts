@@ -3,6 +3,7 @@
 import { describe, expect, test } from "bun:test";
 import { LANG_GRAMMAR, type ParseItem } from "../contract.ts";
 import { lptBatches } from "./batch.ts";
+import { detectorsFor } from "./detectors.ts";
 import { poolSize } from "./index.ts";
 import type { ParseOkResult } from "./protocol.ts";
 import { env, workerInit } from "./test/env.ts";
@@ -32,6 +33,63 @@ function bigTs(n: number, body: string): string {
   for (let i = 0; i < n; i++) s += `export function f${i}(a: number): number {\n  const x = a * ${i};\n  return x + 1;\n}\n\n`;
   return `${s}export function tail(): string {\n  ${body}\n}\n`;
 }
+
+describe("parse budget on a loaded machine (CR rdoc-4)", () => {
+  test("a parse that overruns its 250 ms wall-clock budget once is retried with a patient budget, not indexed without symbols", async () => {
+    // a clock that jumps 300 ms per reading for a while: the machine is busy with other processes
+    let calls = 0;
+    const busy = { ...env, now: () => performance.now() + Math.min(calls++, 12) * 300 };
+    const h = await createWorkerHandler(busy, workerInit());
+    const text = bigTs(1_500, "return 'a';");
+    const r = (await h.handle({ id: 1, items: [item("big.ts", text, true)] })).items[0] as ParseOkResult;
+    expect(r.note).toBeUndefined();
+    expect(r.symbols.length).toBeGreaterThan(1_000);
+    h.dispose();
+  });
+});
+
+describe("grammarless source files run their text-only detectors (CR rdoc-7)", () => {
+  test("a Vite index.html yields its module script as a web entry; tree detectors still need a tree", async () => {
+    const h = await createWorkerHandler(env, workerInit());
+    const html = [
+      "<!doctype html>",
+      "<html>",
+      "  <body>",
+      '    <script src="https://cdn.example.com/x.js"></script>',
+      '    <script type="module" src="/index.tsx?v=1"></script>',
+      "  </body>",
+      "</html>",
+      "",
+    ].join("\n");
+    const it = {
+      ...item("app/index.html", html, true),
+      lang: "generic" as const,
+      grammar: null,
+      detectors: detectorsFor({ path: "app/index.html", lang: "generic", class: "source", scope: "main" }),
+    };
+    expect(it.detectors).toContain("entry.web@1");
+    expect(it.detectors).toContain("todo.comment@1"); // applies to any source file, but needs a JS / Go / … tree here
+    const r = (await h.handle({ id: 1, items: [it] })).items[0] as ParseOkResult;
+    expect(r.facts.map((f) => `${f.detector} ${f.line} ${JSON.stringify(f.data)}`)).toEqual(['entry.web@1 5 {"entry":"main","label":"app/index.tsx"}']);
+    h.dispose();
+  });
+
+  test("a migration `.sql` (a generic source file) yields its tables — before, schema.sql@1 never ran in the daemon", async () => {
+    // go-small's migrations/0001_init.up.sql: the fixture truth lists `books`, but the real index had no schema fact
+    const h = await createWorkerHandler(env, workerInit());
+    const sql = "CREATE TABLE books (\n  id INTEGER PRIMARY KEY,\n  title TEXT NOT NULL\n);\n\nCREATE TABLE tags (id INTEGER PRIMARY KEY);\n";
+    const path = "migrations/0001_init.up.sql";
+    const it = {
+      ...item(path, sql, true),
+      lang: "generic" as const,
+      grammar: null,
+      detectors: detectorsFor({ path, lang: "generic", class: "source", scope: "main" }),
+    };
+    const r = (await h.handle({ id: 1, items: [it] })).items[0] as ParseOkResult;
+    expect(r.facts.filter((f) => f.detector === "schema.sql@1").map((f) => `${f.line} ${f.data.entity}`)).toEqual(["1 books", "6 tags"]);
+    h.dispose();
+  });
+});
 
 describe("spec §3.7 incremental reparse via tree.edit", () => {
   test("an edited big file reparsed from its LRU tree equals a fresh parse", async () => {

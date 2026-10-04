@@ -21,6 +21,10 @@
 | `tsundoku serve` | — | `cmd/tsundoku/main.go:1` |
 <!-- b_pb7fbtty -->
 
+**外とのやり取り（HTTP・RPC・SDK・DB・子プロセス）**
+- 外への呼び出しは見つかりませんでした（HTTP・SDK / DB クライアント・RPC・子プロセスの起動を探しました）。
+<!-- b_vckgmkw8 -->
+
 | 名前 | 既定値 | 読む場所 |
 |---|---|---|
 | `DATABASE_URL` | なし | `internal/config/config.go:25` |
@@ -28,3 +32,10 @@
 | `PORT` | あり | `internal/config/config.go:20` |
 | `TSUNDOKU_API_TOKEN` | なし | `internal/config/config.go:36` |
 <!-- b_n17ff8er -->
+
+**秘密情報らしい環境変数（名前だけ。値は読みません）**
+| 名前 | 読む場所 |
+|---|---|
+| `DATABASE_URL` | `internal/config/config.go:25` |
+| `TSUNDOKU_API_TOKEN` | `internal/config/config.go:36` |
+<!-- b_28h655da -->

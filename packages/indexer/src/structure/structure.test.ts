@@ -13,7 +13,7 @@ import { loadStructure, saveStructure } from "./persist.ts";
 import { bottomUpOrder, tarjan } from "./scc.ts";
 import { moduleSeedsOf } from "./stage.ts";
 import { memDb } from "./test/db.ts";
-import { NOW, runPipeline, xxh3 } from "./test/pipeline.ts";
+import { docRowSeeds, NOW, partitionShape, runPipeline, xxh3 } from "./test/pipeline.ts";
 import { TEST_TUNING } from "./tuning.ts";
 import { updateStructure } from "./update.ts";
 
@@ -170,6 +170,19 @@ describe("IDX-U identity matching (spec §6.6)", () => {
   });
 });
 
+/** Two packages of six feature directories (two 120-line files each): more than ten leaves, so parents exist. */
+function nestedRepo() {
+  const files: Parameters<typeof sf>[] = [];
+  for (const pkg of ["app", "lib"])
+    for (let i = 0; i < 6; i++) {
+      const dir = `${pkg}/f${i}`;
+      files.push([`${dir}/a.ts`, { loc: 120, imports: [imp("./b.ts"), ...(i > 0 ? [imp(`../f${i - 1}/a.ts`)] : [])] }]);
+      files.push([`${dir}/b.ts`, { loc: 120, imports: [imp("./a.ts")] }]);
+    }
+  files.push(["app/main.ts", { loc: 40, imports: [imp("./f0/a.ts"), imp("../lib/f0/a.ts")] }]);
+  return input(files.map((a) => sf(...a)));
+}
+
 /** A small repo: three directories of related files with a clear dependency structure. */
 function smallRepo(extra: Parameters<typeof sf>[] = []) {
   const files = [
@@ -306,6 +319,31 @@ describe("IDX-U structure stage on a small repo (TEST_TUNING)", () => {
       st.modules.map((m) => ({ id: m.id, slug: m.slug, parent: m.parent ?? null, paths: [...m.paths].sort() })).sort((a, b) => (a.id < b.id ? -1 : 1));
     expect(shape(again)).toEqual(shape(first));
     expect(again.info.clustered).toBe(false); // carried, not re-clustered
+  });
+
+  test("CR gen #8 seeds as doc.index.json writes them (parents: reps [], no members) keep every parent's id and slug, open after open", () => {
+    const first = runPipeline(nestedRepo(), { tuning: TEST_TUNING }).structure;
+    expect(first.modules.some((m) => m.children.length > 0)).toBe(true); // the case needs parents
+    const shape = partitionShape;
+    // before: every seeded open re-born the parents (`pkg` ⇄ `pkg-2`): their rows carried no file to match by
+    let st = first;
+    for (let open = 1; open <= 3; open++) {
+      st = runPipeline(nestedRepo(), { tuning: TEST_TUNING, seeds: docRowSeeds(st) }).structure;
+      expect(shape(st)).toEqual(shape(first));
+      expect(st.notices.filter((n) => n.startsWith("notice.slug.rewritten"))).toEqual([]);
+    }
+  });
+
+  test("CR gen #8 an older doc.index.json (reps only, parents without files) still keeps the parents", () => {
+    const first = runPipeline(nestedRepo(), { tuning: TEST_TUNING }).structure;
+    const seeds = docRowSeeds(first).map(({ members: _m, ...s }) => s);
+    const again = runPipeline(nestedRepo(), { tuning: TEST_TUNING, seeds }).structure;
+    const parents = (st: typeof first) =>
+      st.modules
+        .filter((m) => m.children.length > 0)
+        .map((m) => `${m.id} ${m.slug}`)
+        .sort();
+    expect(parents(again)).toEqual(parents(first));
   });
 
   test("seed restore never carries a stale doc whose few surviving reps would soak up the repo (size cap)", () => {

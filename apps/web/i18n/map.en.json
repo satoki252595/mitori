@@ -50,6 +50,7 @@
   "map.room.flows": "Flows through this room",
   "map.room.fresh": "Up to date",
   "map.room.generate": "Generate first · {k} tok",
+  "map.room.change": "How to change it",
   "map.room.read": "Read §{section}",
   "map.room.stale": "May be stale",
   "map.room.static": "{files} files · {loc} lines",

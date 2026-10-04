@@ -139,7 +139,7 @@ export function linkFacts(input: StageInput, resolved: ResolveResult, opts: Link
           if (d === "") return new Set();
         }
       },
-      symbolAt: (p, name) => symbolAt(p, name, resolved),
+      symbolAt: (p, name, o) => symbolAt(p, name, resolved, o?.callable === true),
     };
     return env;
   };
@@ -165,7 +165,13 @@ export function linkFacts(input: StageInput, resolved: ResolveResult, opts: Link
   const linked: Fact[] = [];
   const todos: (Fact | null)[] = [];
   for (const f of input.files) {
-    const key = f.lang === "go" ? (goKeys.get(dirOf(f.path)) ?? ctx) : ctx;
+    // Go handlers resolve in the package directory, other languages through the file's imports (gen #4c)
+    const key =
+      f.lang === "go"
+        ? (goKeys.get(dirOf(f.path)) ?? ctx)
+        : f.facts.some((c) => c.kind === "route" && c.data.handler !== undefined)
+          ? `${ctx}|i${importsKey(f.path, resolved)}`
+          : ctx;
     let link = fileLinks.get(f);
     if (link === undefined || link.ctx !== key) {
       link = linkFile(f, key, { env: linkEnv, scripts: scriptCandidates, goMains }, opts.secrets);
@@ -309,6 +315,7 @@ const NOT_SCANNED = new Set([
   "dynamic",
   "handler",
   "subject",
+  "channel",
 ]);
 
 /** Redact secrets inside the string fields of a fact (in place; field shapes unchanged). */
@@ -352,19 +359,49 @@ function manifestDeps(files: readonly StageFile[]): Map<string, Set<string>> {
   return out;
 }
 
-/** Handler stamping: a symbol named `name` in the file, then (Go) in the same package directory. */
-function symbolAt(path: RepoPath, name: string, resolved: ResolveResult): SymbolKey | null {
+/** Declarations that cannot be a route handler (gen #4c: a wrapped value's arguments include config values and types). */
+const NOT_CALLABLE: ReadonlySet<string> = new Set(["module", "namespace", "struct", "interface", "trait", "impl", "enum", "type", "field", "macro", "test"]);
+
+/**
+ * Handler stamping: a symbol named `name` in the file, then (Go) in the same package directory, then (other
+ * languages) in the files the route file imports — the name first among the imports that bind it, then any import
+ * (`import * as ctrl` / a default object); `callable` skips type-like declarations.
+ */
+function symbolAt(path: RepoPath, name: string, resolved: ResolveResult, callable: boolean): SymbolKey | null {
   const files = resolved.index.files;
   const pick = (f: StageFile | undefined) => {
-    const syms = (f?.symbols ?? []).filter((s) => s.name === name);
+    const syms = (f?.symbols ?? []).filter((s) => s.name === name && !(callable && NOT_CALLABLE.has(s.kind)));
     return syms.find((s) => s.exported) ?? syms[0];
   };
   const own = pick(files.get(path));
   if (own) return own.key;
-  if (!path.endsWith(".go")) return null;
-  for (const p of resolved.index.goFiles(dirOf(path))) {
-    const s = pick(files.get(p));
-    if (s) return s.key;
+  if (path.endsWith(".go")) {
+    for (const p of resolved.index.goFiles(dirOf(path))) {
+      const s = pick(files.get(p));
+      if (s) return s.key;
+    }
+    return null;
   }
+  const imps = resolved.imports.get(path) ?? [];
+  for (const pass of [true, false])
+    for (const imp of imps) {
+      if (imp.names.includes(name) !== pass) continue;
+      for (const to of imp.to) {
+        const s = pick(files.get(to));
+        if (s?.exported) return s.key;
+      }
+    }
   return null;
+}
+
+/** Identity of the files a file imports (its handler stamping reads their symbols; memo key of its linked facts). */
+function importsKey(path: RepoPath, resolved: ResolveResult): string {
+  const files = resolved.index.files;
+  const ids: number[] = [];
+  for (const imp of resolved.imports.get(path) ?? [])
+    for (const to of imp.to) {
+      const f = files.get(to);
+      if (f) ids.push(idOf(f));
+    }
+  return ids.join(",");
 }

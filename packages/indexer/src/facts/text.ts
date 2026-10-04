@@ -3,6 +3,7 @@
  * script.*), deploy files (entry.deploy, env.files), env templates (key names only, CR idx-11), SQL schemas, docs,
  * TODO markers. Values are never captured (spec §5.1).
  */
+import type { LineNo } from "@mitori/core";
 import type { FactCandidate, FactExtractInput } from "../contract.ts";
 import { baseOf, dirOf, joinPath } from "../resolve/files.ts";
 import { isObj, jsonSectionKeyLines, parseJsonc } from "../resolve/jsonc.ts";
@@ -306,6 +307,30 @@ export function flakeNix(input: In): FactCandidate[] {
   }
   return out;
 }
+
+/* ------------------------------------------------------------------ web pages: entry.web */
+
+/**
+ * `entry.web@1` (gen #4a: "Vite `index.html` → `src/main.*`"): the module scripts an `index.html` loads are the web
+ * app's entry (`<script type="module" src="/src/main.tsx">` — Vite, and any plain ES-module page). `/x` is relative to
+ * the page's directory (the dev server's root), `./x` / `x` too; a URL or a protocol-relative src is no repo file.
+ * The label is the script's repo path; the link keeps it when that file exists.
+ */
+export function webEntries(input: In): FactCandidate[] {
+  const out: FactCandidate[] = [];
+  const dir = dirOf(input.file.path);
+  for (const m of input.text.matchAll(/<script\b([^>]{0,400})>/gi)) {
+    const attrs = m[1] as string;
+    if (!/\btype\s*=\s*["']?module\b/i.test(attrs)) continue;
+    const src = /\bsrc\s*=\s*["']([^"'?#]+)/i.exec(attrs)?.[1];
+    if (!src || /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(src)) continue;
+    const label = joinPath(dir, src.replace(/^\/+/, ""));
+    if (label) out.push(candidate("entry.web@1", "entry", input, lineOf(input.text, m.index ?? 0), { entry: "main", label }));
+  }
+  return out;
+}
+
+const lineOf = (text: string, at: number): LineNo => ((text.slice(0, at).match(/\n/g)?.length ?? 0) + 1) as LineNo;
 
 /* ------------------------------------------------------------------ deploy files: entry.deploy + env.files */
 

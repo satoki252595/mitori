@@ -446,11 +446,17 @@ export async function persist(
   for (let gi = 0; gi < groups.length; gi++) {
     const g = groups[gi] as (() => () => void)[];
     if (gi > 0) await yieldToLoop();
-    await write("idx.persist", () => {
-      const done = db.tx(() => g.map((s) => s()));
-      for (const d of done) d();
+    // The bookkeeping runs once the write slot has resolved, not inside it: the server's workspace writer wraps the
+    // slot in its own transaction (ours is a savepoint of it), and that outer transaction can still roll back after
+    // `fn` returned (a dev build's slow-slot guard under load, a failing post-`fn` hook). Applied inside, a rolled-back
+    // write had already dropped the in-memory skeletons (`parsedWritten`) — the next read found neither copy, and the
+    // same commit got smaller module contexts and a different generation estimate (CR gen #8).
+    const done = await write("idx.persist", () => {
+      const out = db.tx(() => g.map((s) => s()));
       metrics.inc("idx.sql.writes");
+      return out;
     });
+    for (const d of done) d();
   }
   return groups.length;
 }

@@ -71,6 +71,7 @@ import type {
   SectionId,
   SectionNode,
   SourceLang,
+  SymbolKind,
   UsageTotals,
   Verdict,
   WorkspaceKey,
@@ -307,12 +308,18 @@ export const STATIC_SLOTS = [
   "m:<id>:facts",
   "m:<id>:h:<aspect>",
   "m:<id>:diagram",
+  "m:<id>:change",
+  "m:<id>:regions",
   "m:<id>:ph",
+  "s7:types",
+  "s7:types-map",
   "s7:schema",
   "s7:er",
   "s8:routes",
   "s8:cli",
+  "s8:outbound",
   "s8:env",
+  "s8:secrets",
   "s10:decisions",
   "s10:adrs",
   "s11:todos",
@@ -538,6 +545,110 @@ export interface StaticGuide {
   framework?: { path: RepoPath; label: string };
   /** Reading order: entry → base types → hub → feature core, each with its lines and main symbols. */
   reading?: { role: "entry" | "types" | "hub" | "core"; path: RepoPath; line: number; end?: number; symbols: { name: string; line: number }[] }[];
+  /** §7 主要な型 (NC-10): the exported data types ranked by use, with what their fields hold [CR rdoc-2]. */
+  types?: StaticKeyType[];
+  /** 変更の手引き of every leaf module, by module id (module chapter; the map popover links to it) [CR rdoc-2]. */
+  change?: Record<string, ModuleChangeGuide>;
+  /** Region outlines of the files over 1,500 lines, by path (module chapter; the code view has the same) [CR rdoc-2]. */
+  regions?: Record<string, { lines: number; regions: FileRegion[] }>;
+}
+
+/** One key data type of §7 (NC-10). */
+export interface StaticKeyType {
+  /** Name. */
+  name: string;
+  /** Declaration kind (`struct`, `interface`, `class`, `type`, `enum`, `trait`). */
+  kind: SymbolKind;
+  /** Where it is declared. */
+  path: RepoPath;
+  /** First line. */
+  line: LineNo;
+  /** Last line. */
+  end: LineNo;
+  /** Its module. */
+  module?: ModuleId;
+  /** Fields declared. */
+  fields: number;
+  /** Other key types its fields hold (`Session.Files []File` → `{ name: "File", field: "Files" }`). */
+  refs: { name: string; field: string }[];
+  /** Files that use it (references through their imports; Go: `pkg.T`, or the same package) [CR rdoc-5]. */
+  usedBy: number;
+}
+
+/** 変更の手引き of one module: what a change here reaches, what checks it, where it is entered [CR rdoc-2]. */
+export interface ModuleChangeGuide {
+  /** Modules that depend on this one (a change here reaches them), strongest first. */
+  dependents: { module: ModuleId; weight: number }[];
+  /** Modules it depends on. */
+  dependencies: { module: ModuleId; weight: number }[];
+  /** Test files attached to it, with their case counts. */
+  tests: { path: RepoPath; cases: number }[];
+  /** How to run them (`go test ./internal/session/...`, the root `test` script), when known. */
+  testCommand?: { command: string; path?: RepoPath; line?: LineNo };
+  /** Entry points that reach it (routes, CLI commands, mains), ≤ 5. */
+  entries: { label: string; path: RepoPath; line: LineNo }[];
+  /**
+   * Its declarations other files use the most (a change to them reaches those files; m3e: `Item` 15, `Kind` 8),
+   * ≥ 2 users, ≤ 5 [CR rdoc-5].
+   */
+  used?: { name: string; path: RepoPath; line: LineNo; users: number }[];
+  /** Files outside it that changed in the same commits (git history, bounded), most often first, ≤ 5. */
+  coChange: { path: RepoPath; together: number }[];
+  /** Commits that touched it in the window; null without history (shallow clone, no git). */
+  commits: number | null;
+  /** History window (commits read). */
+  window: number;
+  /** Risk markers. */
+  risks: { kind: "hub" | "large_file" | "untested" | "cycle"; path?: RepoPath; lines?: number; with?: ModuleId[] }[];
+}
+
+/** One region of a large file (code view, module chapter) [CR rdoc-2]. */
+export interface FileRegion {
+  /**
+   * What the lines hold. Top level: runs of `types` / `constants` / `functions` / `methods` (of `host`) / `handlers`,
+   * and `symbol` = one declaration big enough to have its body outlined (the depth-1 regions after it): `state`
+   * (hooks), `effects`, `derived` (memos), `handlers`, `helpers`, `render` (the returned JSX). `section`: a region the
+   * author named (`title`) holding nothing the outline recognizes (a long Go function's commented blocks).
+   */
+  kind:
+    | "types"
+    | "constants"
+    | "functions"
+    | "methods"
+    | "handlers"
+    | "symbol"
+    | "state"
+    | "effects"
+    | "derived"
+    | "render"
+    | "helpers"
+    | "section";
+  /**
+   * The author's own name of the region: a section header (`// ===== Comment Form =====`, `/* ---- history ---- *\/`,
+   * `#region`, `MARK:`) or the comment leading a block of a long function. `kind` then says what most of it is
+   * [CR rdoc-6].
+   */
+  title?: string;
+  /** What a titled region holds, by kind (`{ state: 10, effects: 6, helpers: 8 }`), most first in its label. */
+  mix?: Partial<Record<FileRegion["kind"], number>>;
+  /** First line. */
+  start: LineNo;
+  /** Last line. */
+  end: LineNo;
+  /** 0 = top level, 1 = inside the `symbol` (or the titled section holding it) before it. */
+  depth: 0 | 1;
+  /** Declarations / statements in it. */
+  count?: number;
+  /** Representative names (≤ 6, in order). */
+  names: string[];
+  /** The receiver of `methods`, the name of a `symbol`, the enclosing symbol of a depth-1 region. */
+  host?: string;
+  /** Declaration kind of a `symbol`. */
+  symbolKind?: SymbolKind;
+  /** Hooks of a depth-1 region (`{ useState: 14, useRef: 6 }`). */
+  hooks?: Record<string, number>;
+  /** Exported declarations in a top-level run. */
+  exported?: number;
 }
 
 /** Cached translation of a block (D5). Not a proposal. */

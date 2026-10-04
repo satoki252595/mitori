@@ -50,6 +50,7 @@
   "map.room.flows": "この部屋を通る流れ",
   "map.room.fresh": "最新",
   "map.room.generate": "先に生成（{k} tok）",
+  "map.room.change": "変更の手引き",
   "map.room.read": "§{section}を読む",
   "map.room.stale": "古い可能性",
   "map.room.static": "{files}ファイル · {loc}行",

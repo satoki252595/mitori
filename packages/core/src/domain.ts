@@ -805,7 +805,9 @@ export type FactKind =
   | "existing_doc"
   | "todo"
   /** Configuration file (build/lint/test/deploy tooling) [CR idx-4]. */
-  | "config";
+  | "config"
+  /** An outbound call: HTTP request, SDK / database client, RPC dial, subprocess (§8, NC-10) [CR rdoc-1]. */
+  | "outbound";
 
 /** Common fields of every fact. */
 export interface FactBase {
@@ -949,6 +951,22 @@ export interface TodoFact extends FactBase {
   text: string;
 }
 
+/**
+ * Where the code talks to the outside world (§8 「外とのやり取り」, NC-10) [CR rdoc-1]: an HTTP request, an SDK or
+ * database client being created, an RPC dial, a subprocess. Arguments are never captured; `target` is a literal only
+ * (an http(s) origin without path / query, a relative API path, a command name), secret-scanned at link time.
+ */
+export interface OutboundFact extends FactBase {
+  /** Discriminator. */
+  kind: "outbound";
+  /** What goes out. */
+  channel: "http" | "rpc" | "sdk" | "db" | "subprocess";
+  /** The API / library used (`fetch`, `net/http`, `requests`, `child_process`, `os/exec`, `@aws-sdk/client-s3`). */
+  via: string;
+  /** Literal target when the call names one (`https://api.github.com`, `/api/books`, `git`). */
+  target?: string;
+}
+
 /** Union of all static facts. */
 export type Fact =
   | RouteFact
@@ -961,7 +979,8 @@ export type Fact =
   | DependencyFact
   | ExistingDocFact
   | TodoFact
-  | ConfigFact;
+  | ConfigFact
+  | OutboundFact;
 
 /** Static scan stages (all zero-token). */
 export type ScanStage = "S0" | "S1" | "S2" | "S3" | "S4";

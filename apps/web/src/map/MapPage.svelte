@@ -542,6 +542,7 @@ const planCounts = $derived(
               sectionLabel={sec ? (s.doc.index?.numbers.get(sec) ?? "") : ""}
               genTokens={genEstimateFor(selected)}
               flows={roomFlows}
+              changeHref={sec && selected.change && ws ? HREFS.doc(ws, sec, selected.change) : null}
               onflow={toggleFlow}
               onread={() => open(selected.id)}
               ongenerate={() => prioritize(selected)}

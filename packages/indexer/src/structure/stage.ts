@@ -497,22 +497,60 @@ function seedModules(seeds: readonly ModuleSeed[], now: Iso8601, notices: string
     valid.push({ ...s, name: typeof s.name === "string" ? s.name.slice(0, 200) : s.slug, reps, ...(members.length > 0 ? { members } : {}) });
   }
   const parents = new Set(valid.map((s) => s.parent).filter((x): x is ModuleId => isId("module", x)));
+  const files = seedFiles(valid, parents);
   return valid
     .sort((a, b) => byPath(a.id, b.id))
-    .map((s) => ({
-      id: s.id,
-      slug: s.slug,
-      name: s.name,
-      ...(isId("module", s.parent) ? { parent: s.parent } : {}),
-      leaf: !parents.has(s.id),
-      alive: true,
-      // a seed with its full member list carries the partition exactly (EX-01); reps-only seeds are a hint
-      members: s.members && !parents.has(s.id) ? [...s.members] : [],
-      reps: [...s.reps],
-      anchor: s.reps[0] ?? "",
-      bornAt: now,
-      seed: true,
-    }));
+    .map((s) => {
+      const leaf = !parents.has(s.id);
+      const own = files.get(s.id) ?? { paths: [], exact: false };
+      // a parent row of doc.index.json lists no files of its own (`reps: []`): it is matched by what its children hold
+      const reps = s.reps.length > 0 || leaf ? [...s.reps] : own.paths.slice(0, STRUCTURE_PARAMS.seedReps);
+      return {
+        id: s.id,
+        slug: s.slug,
+        name: s.name,
+        ...(isId("module", s.parent) ? { parent: s.parent } : {}),
+        leaf,
+        alive: true,
+        // a seed with its full member list carries the partition exactly (EX-01); reps-only seeds are a hint. A parent
+        // whose leaves all carry theirs gets the union, so it keeps its id instead of being re-born on every seeded
+        // open (`internal` ⇄ `internal-2`, CR gen #8)
+        members: leaf ? (s.members ? [...s.members] : []) : own.exact ? [...own.paths] : [],
+        reps,
+        anchor: reps[0] ?? "",
+        bornAt: now,
+        seed: true,
+      };
+    });
+}
+
+/**
+ * Files of every seed: a leaf's member list (else its reps), a parent's union over its descendant leaves, path-sorted.
+ * `exact` = every descendant leaf carried its full member list. Seeds are untrusted: a parent chain that loops or nests
+ * deeper than 8 levels contributes nothing beyond that point.
+ */
+function seedFiles(seeds: readonly ModuleSeed[], parents: ReadonlySet<string>): Map<string, { paths: RepoPath[]; exact: boolean }> {
+  const kids = new Map<string, ModuleSeed[]>();
+  for (const s of seeds) if (isId("module", s.parent) && s.parent !== s.id) kids.set(s.parent, [...(kids.get(s.parent) ?? []), s]);
+  const out = new Map<string, { paths: RepoPath[]; exact: boolean }>();
+  const visit = (s: ModuleSeed, trail: ReadonlySet<string>): { paths: RepoPath[]; exact: boolean } => {
+    const hit = out.get(s.id);
+    if (hit) return hit;
+    let res: { paths: RepoPath[]; exact: boolean };
+    if (!parents.has(s.id)) {
+      const members = s.members ?? [];
+      res = members.length > 0 ? { paths: [...members], exact: true } : { paths: [...s.reps], exact: false };
+    } else if (trail.has(s.id) || trail.size >= 8) res = { paths: [], exact: false };
+    else {
+      const next = new Set(trail).add(s.id);
+      const parts = (kids.get(s.id) ?? []).map((k) => visit(k, next));
+      res = { paths: [...new Set(parts.flatMap((x) => x.paths))].sort(byPath), exact: parts.length > 0 && parts.every((x) => x.exact) };
+    }
+    out.set(s.id, res);
+    return res;
+  };
+  for (const s of seeds) visit(s, new Set());
+  return out;
 }
 
 /** Top-32 members by PageRank, stored path-sorted (CR idx-1). */

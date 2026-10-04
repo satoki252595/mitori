@@ -3,7 +3,7 @@ import type { FactCandidate, FactEvidence, FactExtractInput } from "../contract.
 import { baseOf } from "../resolve/files.ts";
 import { candidate, ENV_NAME_RE } from "./candidate.ts";
 import { PY } from "./queries.ts";
-import { capsFor, lineOf, type Node, stringValue, type Tree } from "./tsq.ts";
+import { capsFor, handlerNames, lineOf, type Node, stringValue, type Tree } from "./tsq.ts";
 
 const ROUTE_METHODS = new Set([
   "get",
@@ -41,6 +41,19 @@ function stringList(n: Node | null): string[] | null {
 }
 
 const routeCache = new WeakMap<Tree, FactCandidate[]>();
+
+/**
+ * The view argument of a call-registered route: `view_func=` (Flask) / `endpoint=` (FastAPI, a function there), else
+ * the positional one (`add_url_rule(rule, endpoint, view_func)` → 3rd, `add_api_route(path, endpoint)` → 2nd).
+ */
+function callHandlerArg(args: Node | undefined, method: string): Node | null {
+  if (method !== "add_url_rule" && method !== "add_api_route") return null;
+  const flask = method === "add_url_rule";
+  const kw = kwarg(args, flask ? "view_func" : "endpoint");
+  if (kw) return kw;
+  const positional = (args?.namedChildren ?? []).filter((a): a is Node => a !== null && a.type !== "keyword_argument" && a.type !== "comment");
+  return positional[flask ? 2 : 1] ?? null;
+}
 
 /** Framework of a Python route candidate from the receiver binding, then the imports (null = ambiguous). */
 export function pyRouteFramework(evidence: readonly string[]): "fastapi" | "flask" | null {
@@ -89,9 +102,14 @@ function pyRouteCandidates(input: FactExtractInput, tree: Tree): FactCandidate[]
     const evidence: FactEvidence[] = [...ev, `recv:${recv}`];
     const bound = binds.get(recv);
     if (bound !== undefined) evidence.push(`bind:${bound}`);
-    const handler = c["route.handler"]?.text;
+    // decorated: the function itself; `add_url_rule(rule, endpoint, view_func)` / `add_api_route(path, endpoint)`:
+    // the function value argument (`views.index`, `Items.as_view("items")`, `router_fn`) — gen #4c
+    const handlers = c["route.handler"] ? [c["route.handler"].text] : handlerNames(callHandlerArg(args, methodName));
     const line = lineOf(c["route.path"] ?? node);
-    for (const method of methods) out.push(candidate("route.py@1", "route", input, line, { method, pattern, ...(handler ? { handler } : {}) }, evidence));
+    for (const method of methods)
+      out.push(
+        candidate("route.py@1", "route", input, line, { method, pattern, ...(handlers.length > 0 ? { handler: handlers[0], handlers } : {}) }, evidence),
+      );
   }
   return out;
 }

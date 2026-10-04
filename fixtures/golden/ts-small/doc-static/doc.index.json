@@ -75,6 +75,26 @@
       "slot": "s5:tree",
       "status": "ready"
     },
+    "b_28h655da": {
+      "audience": [
+        "dev",
+        "reviewer"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/08-interfaces.md",
+      "freshness": "fresh",
+      "hash": "43b1fe2c2cd56aeb",
+      "id": "b_28h655da",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 5,
+      "origin": "static",
+      "readingSec": 11,
+      "section": "s8",
+      "slot": "s8:secrets",
+      "status": "ready"
+    },
     "b_291d5216": {
       "audience": [
         "newcomer",
@@ -658,7 +678,7 @@
       "id": "b_n17ff8er",
       "kind": "facts",
       "lang": "ja",
-      "ord": 3,
+      "ord": 4,
       "origin": "static",
       "readingSec": 18,
       "section": "s8",
@@ -858,6 +878,26 @@
       "readingSec": 1,
       "section": "s10",
       "slot": "s10:h",
+      "status": "ready"
+    },
+    "b_vckgmkw8": {
+      "audience": [
+        "dev",
+        "reviewer"
+      ],
+      "claims": [],
+      "depth": "L2",
+      "file": "doc/08-interfaces.md",
+      "freshness": "fresh",
+      "hash": "a135f46702c5a12a",
+      "id": "b_vckgmkw8",
+      "kind": "facts",
+      "lang": "ja",
+      "ord": 3,
+      "origin": "static",
+      "readingSec": 10,
+      "section": "s8",
+      "slot": "s8:outbound",
       "status": "ready"
     },
     "b_vt3apkqs": {
@@ -1333,7 +1373,7 @@
     {
       "audience": "sre",
       "id": "sre",
-      "readingSec": 143,
+      "readingSec": 164,
       "steps": [
         {
           "section": "s4"
@@ -1524,12 +1564,14 @@
         "b_4px30qmk",
         "b_fy6j047k",
         "b_pb7fbtty",
-        "b_n17ff8er"
+        "b_vckgmkw8",
+        "b_n17ff8er",
+        "b_28h655da"
       ],
       "children": [],
       "file": "doc/08-interfaces.md",
       "id": "s8",
-      "readingSec": 71,
+      "readingSec": 92,
       "state": "static_only",
       "title": "外部インターフェース"
     },

@@ -84,8 +84,11 @@ import type {
 export const INDEXER_FORMAT = {
   /** Extraction code version (qualname/signature/doc/hash rules). Part of every ExtractorVersion (`q8`). */
   extractorCode: 1,
-  /** Fact detector set version (bumped whenever any detector `@ver` changes). */
-  detectors: 1,
+  /**
+   * Fact detector set version (bumped whenever any detector `@ver` changes, or a detector's candidate payload does:
+   * 2 = route handler candidate lists, gen #4c).
+   */
+  detectors: 2,
   /** Structure algorithm version (graph weights, Leiden, id matching). Part of the structure cache key. */
   structure: 1,
   /** Skeleton rendering version (spec §7.1). Part of `idx_skeleton` keys via the extractor version. */
@@ -280,6 +283,8 @@ export const PARSE_POOL = {
   recycleBytes: 536_870_912,
   /** Per-file parse timeout (progressCallback) [仮]. */
   parseTimeoutMs: 250,
+  /** Budget of the one retry after a timeout (wall time: a loaded machine must not change the index) [CR rdoc-4]. */
+  parseRetryMs: 8_000,
   /** Files whose ERROR-node bytes exceed this share keep defs only (`degraded`) [仮]. */
   degradedErrorRatio: 0.3,
   /** Folded refs per file cap [仮]. */
@@ -1168,6 +1173,12 @@ export interface Indexer {
   moduleSeeds(): ModuleSeed[];
   /** Cheap per-module statistics (gen request I3). */
   moduleStats(module: ModuleId): ModuleStats | null;
+  /**
+   * Distinct main-scope source files that use each symbol (S1 references through the resolved imports; Go: `alias.N`
+   * through the package import, or unqualified in the same package). Keys without a user are absent. Optional: the
+   * static doc ranks §7's key types by it and falls back to file importers without it [CR rdoc-5].
+   */
+  symbolUsers?(keys: readonly SymbolKey[]): ReadonlyMap<SymbolKey, number>;
   /** Entry points with shortest module paths (gen request I4), main scope, ranked. */
   flowSeeds(limit?: number): FlowSeed[];
   /** Handler + call-chain bodies along a seed's path within a token budget (numbered, secret-scanned). */
@@ -1294,8 +1305,11 @@ export interface FactLinkContext {
   manifestDeps(path: RepoPath): ReadonlySet<string>;
   /** Resolve an import binding of a file to repo files. */
   resolve(path: RepoPath, spec: string): readonly RepoPath[];
-  /** Symbol defined in a file by name (handler stamping). */
-  symbolAt(path: RepoPath, name: string): SymbolKey | null;
+  /**
+   * Symbol defined in a file by name (handler stamping): the file, then (Go) its package directory, then the files it
+   * imports. `callable` skips declarations that cannot be a handler (types, fields, modules) [gen #4c].
+   */
+  symbolAt(path: RepoPath, name: string, opts?: { callable?: boolean }): SymbolKey | null;
   /** Scope of a path. */
   scopeOf(path: RepoPath): FileScope;
 }

@@ -24,6 +24,10 @@
 | `tsundoku-stats stats` | `--since` | `tsundoku/cli_click.py:1` |
 <!-- b_pb7fbtty -->
 
+**外とのやり取り（HTTP・RPC・SDK・DB・子プロセス）**
+- 外への呼び出しは見つかりませんでした（HTTP・SDK / DB クライアント・RPC・子プロセスの起動を探しました）。
+<!-- b_vckgmkw8 -->
+
 | 名前 | 既定値 | 読む場所 |
 |---|---|---|
 | `DATABASE_URL` | なし | `tsundoku/config.py:15` |
@@ -31,3 +35,10 @@
 | `PORT` | あり | `tsundoku/config.py:10` |
 | `TSUNDOKU_API_TOKEN` | なし | `tsundoku/config.py:26` |
 <!-- b_n17ff8er -->
+
+**秘密情報らしい環境変数（名前だけ。値は読みません）**
+| 名前 | 読む場所 |
+|---|---|
+| `DATABASE_URL` | `tsundoku/config.py:15` |
+| `TSUNDOKU_API_TOKEN` | `tsundoku/config.py:26` |
+<!-- b_28h655da -->

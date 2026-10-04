@@ -59,6 +59,7 @@ export type LaterQueries = Pick<
   | "repoPack"
   | "moduleSeeds"
   | "moduleStats"
+  | "symbolUsers"
   | "flowSeeds"
   | "flowBodies"
   | "rationaleComments"
@@ -120,6 +121,7 @@ export function s1OnlyStages(view: IndexView): LaterStages {
     repoPack: () => nope("repoPack"),
     moduleSeeds: () => [],
     moduleStats: () => null,
+    symbolUsers: () => new Map(),
     flowSeeds: () => [],
     flowBodies: () => nope("flowBodies"),
     rationaleComments: () => [],

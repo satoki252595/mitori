@@ -24,6 +24,7 @@
   "claim.verifyNeedsPeek": "Open the source first to check it",
   "code.backlinks": "Sections describing this file",
   "code.outline": "In this file ({n})",
+  "code.regions": "Parts of this file ({n})",
   "code.badge.exact": "exact",
   "code.badge.pinned": "pinned",
   "code.badge.search": "estimated",
