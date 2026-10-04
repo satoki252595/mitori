@@ -16,6 +16,8 @@
   display: block;
   width: 100%;
   min-width: calc(var(--w) * 0.68px);
+  /* a small diagram (one or two rooms) keeps its drawn size instead of filling the column */
+  max-width: calc(var(--w) * 1px);
   height: auto;
   margin: 0 auto;
   font-family: var(--font-ui);
