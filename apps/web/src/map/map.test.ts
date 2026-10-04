@@ -323,8 +323,10 @@ describe("NC-11 the generation card's token line", () => {
   test("the total is labelled as a total; the model's output is shown on its own (27k, not 0.48M)", async () => {
     const { interpolate } = await import("../shell/i18n.ts");
     const { fmtTokensImpl } = await import("../shell/fmt.ts");
-    const ja = (await import("../../i18n/map.ja.json")).default as Record<string, string>;
-    const en = (await import("../../i18n/map.en.json")).default as Record<string, string>;
+    const { readFileSync } = await import("node:fs");
+    const cat = (lang: string) => JSON.parse(readFileSync(new URL(`../../i18n/map.${lang}.json`, import.meta.url), "utf8")) as Record<string, string>;
+    const ja = cat("ja");
+    const en = cat("en");
     // m3e-canvas's mitori.json usageTotals
     const p = generatedTokens({ in: 2_100, out: 27_046, cacheRead: 270_773, cacheWrite: 182_326, apiUsd: 0.86 }, fmtTokensImpl, (u) => `$${u.toFixed(2)}`);
     expect(p.out).toBe(fmtTokensImpl(27_046));
