@@ -703,7 +703,7 @@ export const GEN_PROMPTS = {
   },
   "gen.risks": {
     id: "gen.risks",
-    version: "gen.risks@2",
+    version: "gen.risks@3",
     system: "gen.system",
     stage: "S6o",
     data: ["TODOS", "UNTESTED", "LARGE", "CHURN", "CLAIMS", "EXISTING"],
