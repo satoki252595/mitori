@@ -378,8 +378,11 @@ export class GenLineValidator implements LineValidator {
         c.err("V24", "/aspect", "a flow line before the blocks of a flow", aspect);
         return null;
       }
-      // a flow has one block per aspect: when the current flow already has this one, the block belongs to the first
-      // flow that lacks it (a retry adds the missing steps of an earlier flow; real run 2026-10-04: m3e §3 failed)
+      // a flow has one block per REQUIRED aspect: when the current flow already has this one, the block belongs to
+      // the first flow that lacks it (a retry adds the missing steps of an earlier flow; real run 2026-10-04: m3e §3
+      // failed). An optional aspect (sequence, edge_cases) stays with the current flow: a second diagram of flow c is
+      // not a diagram of flow b, and moving it there would caption one flow with another's drawing.
+      if (!ctx.requiredAspects.includes(aspect)) return `s3/${last}`;
       const taken = (k: string) => this.accepted.some((x) => x.section === `s3/${k}` && x.aspect === aspect);
       const key = taken(last) ? (this.flowKeys.find((k) => !taken(k)) ?? last) : last;
       return `s3/${key}`;

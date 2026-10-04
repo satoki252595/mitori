@@ -643,6 +643,42 @@ describe("module, term, flow lines", () => {
     expect(v.finish("end").ok).toBe(true);
   });
 
+  test("an optional flow aspect (sequence, edge_cases) stays with the current flow even when an earlier flow lacks it (verifier 2026-10-04)", () => {
+    const flow = (key: string) => j({ t: "flow", key, title: key });
+    let n = 1;
+    const blk = (aspect: string, md = "1. x") => j({ t: "block", id: `new:${n++}`, aspect, md, claims: {} });
+    const diagram = (id: string) =>
+      j({
+        t: "block",
+        id,
+        aspect: "sequence",
+        kind: "diagram",
+        md: "c の呼び出し。",
+        claims: {},
+        diagram: {
+          kind: "sequence",
+          nodes: [
+            { id: "u", label: "user", shape: "actor" },
+            { id: "s", label: "server", shape: "box" },
+          ],
+          edges: [{ id: "e1", from: "u", to: "s", kind: "calls", label: "go", seq: 1 }],
+          groups: [],
+          direction: "RIGHT",
+        },
+      });
+    const v = createLineValidator(flowsCtx2());
+    // flow b has no diagram and no edge cases; flow c writes two of each
+    const lines = [blk("intro"), flow("a"), blk("summary"), blk("steps"), flow("b"), blk("summary"), blk("steps"), flow("c"), blk("summary")];
+    for (const [i, l] of lines.entries()) expect(v.validate(l, i + 1).errors).toEqual([]);
+    const placed = [diagram("new:90"), diagram("new:91"), blk("edge_cases", "- a"), blk("edge_cases", "- b")].map((l, i) => v.validate(l, 50 + i));
+    expect(placed.map((x) => x.errors)).toEqual([[], [], [], []]);
+    expect(placed.map((x) => blockOf(x).section)).toEqual(["s3/c", "s3/c", "s3/c", "s3/c"]);
+    // a required aspect still goes to the first flow lacking it
+    expect(blockOf(v.validate(blk("summary"), 60)).section).toBe("s3/c");
+    expect(blockOf(v.validate(blk("steps"), 61)).section).toBe("s3/c");
+    expect(blockOf(v.validate(blk("steps"), 62)).section).toBe("s3/c");
+  });
+
   test("flows regeneration: kept blocks count for their flow (section= in EXISTING), with or without the flow line", () => {
     const ref = (id: string, section: string, aspect: string): [BlockId, ExistingRef] => [
       id as BlockId,
