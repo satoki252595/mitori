@@ -259,6 +259,164 @@ describe("gen #4c route handlers behind wrappers, factories and imports resolve"
   });
 });
 
+describe("NC-10 outbound.calls@1: HTTP, SDK / DB clients, RPC, subprocesses (imports gate every rule)", () => {
+  const outbound = async (src: Record<string, string>) => {
+    const gs = await loadGrammars();
+    const files = Object.entries(src).map(([path, text]) => {
+      const c = classify(path, text.length, text);
+      return parseStageFile(path, text, c, c.grammar ? gs[c.grammar] : null, `b:${path}`);
+    });
+    const p = runPipeline(input(files, src["go.mod"] ? { "go.mod": src["go.mod"] } : {}));
+    return mainFacts(p, "outbound")
+      .map((f) => (f.kind === "outbound" ? `${f.path}:${f.line} ${f.channel} ${f.via}${f.target ? ` → ${f.target}` : ""}` : ""))
+      .sort();
+  };
+
+  test("Go: net/http, os/exec, database/sql, an external NewClient; comments, strings and in-repo clients are not calls", async () => {
+    const got = await outbound({
+      "go.mod": "module example.com/app\n\ngo 1.22\n",
+      "internal/meta/fetch.go": [
+        "package meta",
+        "import (",
+        '\t"database/sql"',
+        '\t"net/http"',
+        '\t"os/exec"',
+        '\tgh "github.com/google/go-github/v57/github"',
+        '\t"example.com/app/internal/store"',
+        ")",
+        "func run() {",
+        '\t_, _ = http.Get("https://api.example.com/v1/books?token=abc")',
+        '\t_, _ = http.NewRequestWithContext(ctx, http.MethodGet, base+"/x", nil)',
+        '\t_ = exec.Command("git", "status")',
+        '\t_, _ = sql.Open("sqlite", path)',
+        "\t_ = gh.NewClient(nil)",
+        "\t_ = store.NewClient()",
+        '\t// http.Get("https://commented.example.com")',
+        '\t_ = "exec.Command(rm)"',
+        "}",
+        "",
+      ].join("\n"),
+      "internal/store/store.go": "package store\n\ntype Client struct{}\n\nfunc NewClient() *Client { return &Client{} }\n",
+    });
+    expect(got).toEqual([
+      "internal/meta/fetch.go:10 http net/http → https://api.example.com",
+      "internal/meta/fetch.go:11 http net/http",
+      "internal/meta/fetch.go:12 subprocess os/exec → git",
+      "internal/meta/fetch.go:13 db database/sql",
+      "internal/meta/fetch.go:14 sdk github.com/google/go-github/v57/github",
+    ]);
+  });
+
+  test("TS / JS: fetch, axios, WebSocket, child_process, SDK and DB clients; SDK commands, operators and RegExp.exec are not", async () => {
+    const got = await outbound({
+      "src/api.ts": [
+        'import axios from "axios";',
+        'import { spawn } from "node:child_process";',
+        'import { PrismaClient } from "@prisma/client";',
+        'import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";',
+        'import { eq } from "drizzle-orm";',
+        "export async function go(url: string) {",
+        '  await fetch("/api/books?page=2");',
+        "  await fetch(url);",
+        '  await axios.get("https://api.github.com/repos/x");',
+        '  spawn("git", ["status"]);',
+        "  /x/.exec(url);",
+        "  const db = new PrismaClient();",
+        "  const s3 = new S3Client({});",
+        "  await s3.send(new PutObjectCommand({}));",
+        "  eq(1, 2);",
+        '  const ws = new WebSocket("wss://collab.example.com/room/1");',
+        "}",
+        "",
+      ].join("\n"),
+      "src/local.ts": "function fetch(a: number) { return a; }\nexport const x = fetch(1);\n",
+    });
+    expect(got).toEqual([
+      "src/api.ts:10 subprocess child_process → git",
+      "src/api.ts:12 db @prisma/client",
+      "src/api.ts:13 sdk @aws-sdk/client-s3",
+      "src/api.ts:16 http WebSocket → wss://collab.example.com",
+      "src/api.ts:7 http fetch → /api/books",
+      "src/api.ts:8 http fetch",
+      "src/api.ts:9 http axios → https://api.github.com",
+    ]);
+  });
+
+  test("Python: requests (aliased), urlopen, subprocess, sqlite3, boto3; comments and in-repo clients are not", async () => {
+    const got = await outbound({
+      "app/net.py": [
+        "import subprocess",
+        "import sys",
+        "import sqlite3",
+        "import boto3",
+        "import requests as rq",
+        "from urllib.request import urlopen",
+        "from app.clients import FooClient",
+        "def go():",
+        '    rq.get("https://api.github.com/repos")',
+        '    urlopen("http://localhost:8000/health")',
+        '    subprocess.call([sys.executable, "-m", "uvicorn", "app:api"])',
+        '    sqlite3.connect("x.db")',
+        '    boto3.client("s3")',
+        "    FooClient()",
+        '    # rq.get("https://commented.example.com")',
+        "",
+      ].join("\n"),
+      "app/clients.py": "class FooClient:\n    pass\n",
+      "app/__init__.py": "",
+    });
+    expect(got).toEqual([
+      "app/net.py:10 http urllib.request → http://localhost:8000",
+      "app/net.py:11 subprocess subprocess → uvicorn",
+      "app/net.py:12 db sqlite3",
+      "app/net.py:13 sdk boto3",
+      "app/net.py:9 http requests → https://api.github.com",
+    ]);
+  });
+
+  test("Rust: std::process::Command and reqwest are calls; clap::Command and a local fetch() are not", async () => {
+    const got = await outbound({
+      "src/run.rs": [
+        "use std::process::Command;",
+        "pub fn go() {",
+        '    let _ = Command::new("git").arg("status").output();',
+        '    let _ = reqwest::blocking::get("https://crates.io/api/v1/crates");',
+        "}",
+        "",
+      ].join("\n"),
+      "src/cli.rs": [
+        "use clap::Command;",
+        "fn fetch(t: u8, isbn: &str) -> u8 { t }",
+        "pub fn cli() {",
+        '    let _ = Command::new("indexer");',
+        '    let _ = fetch(1, "x");',
+        "}",
+        "",
+      ].join("\n"),
+    });
+    expect(got).toEqual(["src/run.rs:3 subprocess std::process → git", "src/run.rs:4 http reqwest → https://crates.io"]);
+  });
+
+  test("the fixtures' real calls: go-small's request, py-small's uvicorn, ts-small's spawnSync, mixed's upstream fetch", async () => {
+    for (const [name, want] of [
+      ["go-small", /^internal\/meta\/fetch\.go:\d+ http net\/http$/],
+      ["py-small", /^tsundoku\/cli\.py:\d+ subprocess subprocess → uvicorn$/],
+      ["ts-small", /^bin\/tsundoku\.js:\d+ subprocess child_process/],
+      ["mixed", /^web\/lib\/upstream\.ts:\d+ http fetch$/],
+    ] as const) {
+      const repo = await buildFixture(name);
+      built.push(repo);
+      const p = runPipeline((await loadRepo(repo.root)).input);
+      const got = mainFacts(p, "outbound").map((f) =>
+        f.kind === "outbound" ? `${f.path}:${f.line} ${f.channel} ${f.via}${f.target ? ` → ${f.target}` : ""}` : "",
+      );
+      expect({ name, hit: got.some((g) => want.test(g)), got }).toMatchObject({ name, hit: true });
+      // test files never contribute (ts-small's test/repo.test.ts calls fetch)
+      expect(got.some((g) => g.startsWith("test/"))).toBe(false);
+    }
+  }, 60_000);
+});
+
 describe("IDX-AT-25 entry.go@1", () => {
   test("a `//go:build ignore` generator main is labelled by its path, the package main by its directory", async () => {
     const gs = await loadGrammars();

@@ -11,6 +11,7 @@ import { baseOf } from "../resolve/files.ts";
 import { goCobra, goEntry, goEnv, goRegistry, goRoutes, goTestMain, goTests } from "./go.ts";
 import { jsCommander, jsEnv, jsRegistry, jsRoutes, jsTests } from "./js.ts";
 import { linkByDetector } from "./link.ts";
+import { outboundCalls } from "./outbound.ts";
 import { pyClick, pyEntry, pyEnv, pyRoutes, pyTests } from "./py.ts";
 import { rustClap, rustEntry, rustEnv, rustTests } from "./rust.ts";
 import {
@@ -41,6 +42,7 @@ type TreeFn = (input: FactExtractInput, tree: Tree) => FactCandidate[];
 type TextFn = (input: FactExtractInput) => FactCandidate[];
 
 const JS_LANGS = new Set(["typescript", "tsx", "javascript", "jsx"]);
+const OUTBOUND_LANGS = new Set([...JS_LANGS, "go", "python", "rust"]);
 const isEnvTemplate = picomatch([...ENV_TEMPLATE_GLOBS], { dot: true });
 const inVendor = (p: string) => /(^|\/)node_modules\//.test(p);
 
@@ -165,6 +167,8 @@ export const FACT_DETECTORS: readonly FactDetector[] = [
     (input, t) => (TODO_WORD.test(input.text) ? todos(input, (i) => /comment/.test(t.rootNode.descendantForIndex(i)?.type ?? "")) : []),
     (input) => (asTree(input.tree) || !TODO_WORD.test(input.text) ? [] : todos(input)),
   ),
+  // NC-10 §8: HTTP / SDK / DB clients / RPC / subprocesses of the code (imports gate every rule) [CR rdoc-1]
+  detector("outbound.calls@1", ["outbound"], [...GO, ...JS, "python", "rust"], (f) => f.class === "source" && OUTBOUND_LANGS.has(f.lang), outboundCalls),
   detector("test.go@1", ["test"], GO, lang("go"), goTests),
   detector("test.js@1", ["test"], JS, js, jsTests),
   detector("test.python@1", ["test"], ["python"], lang("python"), pyTests),

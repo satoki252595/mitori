@@ -20,7 +20,7 @@ export interface LinkEnv extends FactLinkContext {
 const isEnv = (ctx: FactLinkContext): ctx is LinkEnv => typeof (ctx as Partial<LinkEnv>).blobOf === "function";
 
 /** Kinds that may only be shown from `main` files (IDX-D12): tooling/example files are kept as `scope: "example"`. */
-const MAIN_ONLY = new Set(["route", "cli", "env"]);
+const MAIN_ONLY = new Set(["route", "cli", "env", "outbound"]);
 /** TODO facts kept per snapshot (the first candidates in path, line order). */
 export const TODO_CAP = 2_000;
 
@@ -102,6 +102,12 @@ export function linkByDetector(id: string, all: readonly FactCandidate[], ctx: F
         mine.map((c) => (isD1(c.path, ctx) ? { ...c, data: { ...c.data, source: "d1" } } : c)),
         ctx,
       );
+    case "outbound.calls@1":
+      // a generic rule (`new XxxClient(` / `x.NewClient(`) only counts for an import from outside the repo
+      return simple(
+        mine.filter((c) => typeof c.data.spec !== "string" || ctx.resolve(c.path, c.data.spec).length === 0),
+        ctx,
+      );
     default:
       return id.startsWith("entry.") ? entries(mine, ctx) : simple(mine, ctx);
   }
@@ -136,6 +142,11 @@ function simple(cands: readonly FactCandidate[], ctx: FactLinkContext): Fact[] {
       case "test":
         out.push({ ...b, kind: "test", name: str(d.name) });
         break;
+      case "outbound": {
+        const target = str(d.target);
+        out.push({ ...b, kind: "outbound", channel: str(d.channel, "sdk") as "sdk", via: str(d.via), ...(target !== "" ? { target } : {}) });
+        break;
+      }
       default:
         break;
     }

@@ -34,6 +34,9 @@ export function factKey(f: Fact): { key: string; attrs: Record<string, AttrValue
       return { key: f.marker, attrs: {} };
     case "config":
       return { key: f.tool, attrs: { role: f.role } };
+    // not graded yet (no truth rows): the indexer's own tests cover it [CR rdoc-1]
+    case "outbound":
+      return { key: `${f.channel}:${f.via}`, attrs: f.target === undefined ? {} : { target: f.target } };
   }
 }
 

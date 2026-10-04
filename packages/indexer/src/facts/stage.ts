@@ -315,6 +315,7 @@ const NOT_SCANNED = new Set([
   "dynamic",
   "handler",
   "subject",
+  "channel",
 ]);
 
 /** Redact secrets inside the string fields of a fact (in place; field shapes unchanged). */
