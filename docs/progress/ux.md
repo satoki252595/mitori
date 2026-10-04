@@ -140,6 +140,8 @@ scripts/nd bun run build:bin && scripts/nd bun test/int/shots/ux-bin.ts --out do
 | V8 | **提案の表がカードの端まではみ出し、出典が全パスのコード表示**（実装の「残り」3） | 表はカードの内側、reader と同じ表の装飾（列の種類・facts の `config.go:25` チップ）を `decorateTable` で付ける。出典リンクは改行しない | UI `ux-03` / `ux-04` |
 | V9 | Review のコード見出しが「1 files」 | 単複対応（ja「1ファイル」） | — |
 | V10 | 和文の案内の最後の行が「ん。」だけになる | 案内文に `line-break: strict` と `text-wrap: pretty` | UI `ux-01` |
+| V11 | Inbox の「エージェントで再実行」（escalate）は出典の無い文の Fix で 412 になる（選んだ候補はスレッドに残らない） | 前のジョブの書き込み範囲をファイル単位の `context.add` で渡し直す | UX-INT-01（agent 見積り 200、無しなら 412） |
+| V12 | 全体テストで int02〜07・ux-install が毎回 ENOENT（`dist/.build/web`） | `bun test` の NODE_ENV=test を継いだ gen-assets が別のハッシュの bundle を作り、同じプロセスの前のファイルがキャッシュした asset 表が消えたファイルを指していた。UI テストは NODE_ENV=production で gen-assets を呼ぶ | 全体テスト（ENOENT 0） |
 
 crit（1,219 files、in-process daemon、送信なし）での候補（生成文書と同じ形の文を人の編集で書いて試した）:
 

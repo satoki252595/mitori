@@ -81,5 +81,6 @@ edit, tiny and additive.
   `anchorRanges` uses when the claim has no cite (and the anchor engine keeps instead of re-deriving).
 - workaround in place: on ⤴ / ⧉ an uncited Fix is blocked with 「この文には出典がないため、直すコードは ⚡ その場で実行
   のときだけAIに渡せます…」 and a one-click 「⚡ その場で実行にする」; picks and `@` chips are shown only on ⚡ (where
-  they travel). A cited sentence is unaffected (the thread's anchor carries its cites on every path).
+  they travel). A cited sentence is unaffected (the thread's anchor carries its cites on every path). The Inbox's
+  escalation (agent mode) re-sends the previous job's write scope as whole-file `context.add` (else a 412).
 - urgency: before the pull path is advertised for Fix (the concept's "your own agent").

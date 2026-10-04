@@ -6,7 +6,7 @@
   ［設計書で開く ↵］［地図で見る］ on all.
 -->
 <script lang="ts">
-import { type InboxItem, type JobEstimate, MitoriError, type ThreadDetail, type ThreadId } from "@mitori/core";
+import { type InboxItem, type JobEstimate, MitoriError, type RepoPath, type ThreadDetail, type ThreadId } from "@mitori/core";
 import { DOC_EDIT_CHOICES } from "../contract.ts";
 import { gateBadge } from "../jobs/gates.ts";
 import { errorText, fmtTokens, fmtUsd, t } from "../shell/index.ts";
@@ -67,13 +67,23 @@ export async function choose(target: "code" | "doc"): Promise<void> {
   busy = false;
 }
 
+/**
+ * The escalated Fix writes what the first one wrote: a thread keeps no picked code of its own (a Fix of an uncited
+ * sentence wrote the candidate the user picked, sent as `context.add` — cr-requests/ux.md #6), so the previous job's
+ * write scope travels again (whole files; agent mode reads them itself). Without it the estimate is a 412.
+ */
+function sameScope(): { context?: { add: { path: RepoPath; start: number; end: number }[] } } {
+  const scope = job?.writeScope ?? [];
+  return scope.length > 0 ? { context: { add: scope.map((path) => ({ path, start: 0, end: 0 })) } } : {};
+}
+
 async function askEscalate() {
   const ws = s.workspace.key;
   if (!ws || !thId) return;
   try {
     escalate = await s.api.call("POST /ws/:ws/jobs/estimate", {
       params: { ws },
-      body: { kind: "fix", threads: [thId], mode: "agent", model: s.session.settings?.settings.models.escalate ?? "claude-opus-5-5" },
+      body: { kind: "fix", threads: [thId], mode: "agent", model: s.session.settings?.settings.models.escalate ?? "claude-opus-5-5", ...sameScope() },
     });
   } catch (err) {
     s.bottom.toast({ id: "loop.error", kind: "error", key: "review.toast.failed", params: { error: errorText(MitoriError.from(err).toData()) } });
@@ -88,7 +98,7 @@ async function runEscalate() {
   try {
     const j = await s.api.call("POST /ws/:ws/jobs", {
       params: { ws },
-      body: { kind: "fix", threads: [thId], mode: "agent", model: e.route.model, estimateId: e.estimate.id, confirm: true },
+      body: { kind: "fix", threads: [thId], mode: "agent", model: e.route.model, estimateId: e.estimate.id, confirm: true, ...sameScope() },
     });
     s.review.jobs.set(j.id, j);
   } catch (err) {

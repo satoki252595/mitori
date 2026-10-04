@@ -118,6 +118,16 @@ describe("UX-INT-01 Fix without @ (CR ux-F1)", () => {
     expect(prompts.at(-1)).toContain(`WRITE ${CONFIG}\n`);
     expect(prompts.at(-1)).toContain("CODE internal/config/config.go:19-38");
     expect(ready.diff.map((f) => f.path)).toEqual([CONFIG]);
+    // the Inbox's escalation (agent mode) of this thread: the thread keeps no picked code, so the web sends the previous
+    // job's write scope again (whole files, cr-requests/ux.md #6) — accepted by the router, same file written
+    const again = await api<JobEstimate>("POST", "/jobs/estimate", {
+      kind: "fix",
+      threads: [th.id],
+      mode: "agent",
+      context: { add: ready.writeScope.map((path) => ({ path, start: 0, end: 0 })) },
+    });
+    expect(again.route.mode).toBe("agent");
+    expect((await int.cli("POST", `/ws/${ws}/jobs/estimate`, { kind: "fix", threads: [th.id], mode: "agent" })).status).toBe(412);
   });
 
   test("(b) the request text finds names too; a whole-block anchor offers every row's code, distinct files first", async () => {
