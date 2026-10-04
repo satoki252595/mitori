@@ -12,6 +12,8 @@
  *     holding ≥ 50 % of the query's weight is a hit, ranked by that share. A bigram that occurs nowhere but whose
  *     neighbours both do (起動|動方|方法) is a word-boundary artifact of a compound and is not counted.
  * Ranking ties go to reading order (the earlier chapters are the newcomer's), so §0–§5 come before module pages.
+ * The near tier is passed in ({@link nearTier}): the app's palette uses it; the export viewer's search stays exact
+ * (its script has a 60 KB gz budget, and the tier's tables and scoring are ≈ 1.3 KB of it — tree-shaken there).
  */
 import type { BlockId, SectionId, SectionView } from "@mitori/core";
 import { mapRawRange, rawForm, toHiragana } from "./normalize.ts";
@@ -225,27 +227,58 @@ function occurrences(hay: string, needle: string, cap = 6): [number, number][] {
   return out;
 }
 
+/** What of a query one block holds (null: not a near hit). */
+export type NearMatch = (e: TextEntry) => { found: string[]; coverage: number } | null;
+/** A near tier: the matcher for one query over one index (null: the query has no near tier). */
+export type NearTier = (ix: readonly TextEntry[], query: string, folded: string) => NearMatch | null;
+
+/** The near tier of the app's ⌘K (NC-09): the weighted content units of a natural-language question. */
+export const nearTier: NearTier = (ix, query, folded) => {
+  const runs = queryRuns(query);
+  const wr = runs.length > 0 ? weighRuns(ix, runs) : [];
+  const total = wr.reduce((n, r) => n + r.w, 0);
+  // a near match needs a question of ≥ 2 content units (one word is the exact tier's job)
+  const nUnits = wr.reduce((n, r) => n + r.units.length, 0);
+  if (nUnits >= 2 && total > 0)
+    return (e) => {
+      let got = 0;
+      const found: string[] = [];
+      for (const r of wr) {
+        let rg = 0;
+        let rt = 0;
+        for (const u of r.units) {
+          rt += u.w;
+          if (e.raw.includes(u.unit)) {
+            rg += u.w;
+            found.push(u.unit);
+          }
+        }
+        got += r.w * (rt > 0 ? rg / rt : 0);
+      }
+      const coverage = got / total;
+      // a hit needs ≥ 2 characters of matched text (one kanji alone is everywhere)
+      return coverage >= NEAR_MIN_COVERAGE && found.join("").length >= 2 ? { found, coverage } : null;
+    };
+  // a question with one content word left (「起動方法は？」 → 起動): the blocks that say it
+  const single = nUnits === 1 && (wr[0]?.units[0]?.unit.length ?? 0) >= 2 ? (wr[0]?.units[0]?.unit as string) : null;
+  return single && single !== folded ? (e) => (e.raw.includes(single) ? { found: [single], coverage: 1 } : null) : null;
+};
+
 /**
- * Search `ix` for `query`. Exact hits first (reading order), then near hits (coverage, then reading order);
- * `max` rows at most, `total` counts every hit. A one-letter Latin query is too short (one CJK character is not).
+ * Search `ix` for `query`. Exact hits first (reading order), then — with a `near` tier — near hits (coverage, then
+ * reading order); `max` rows at most, `total` counts every hit. A one-letter Latin query is too short (one CJK
+ * character is not).
  */
-export function searchText(ix: readonly TextEntry[], query: string, max: number): { hits: TextHit[]; total: number } {
+export function searchText(ix: readonly TextEntry[], query: string, max: number, near: NearTier | null = null): { hits: TextHit[]; total: number } {
   const q = foldForm(query);
   if (q === "" || (q.length < 2 && !/\P{ASCII}/u.test(q))) return { hits: [], total: 0 };
   const words = query
     .split(/\s+/)
     .map(foldForm)
     .filter((w) => w.length > 0);
-  const runs = queryRuns(query);
-  const wr = runs.length > 0 ? weighRuns(ix, runs) : [];
-  const total = wr.reduce((n, r) => n + r.w, 0);
-  // a near match needs a question of ≥ 2 content units (one word is the exact tier's job)
-  const nUnits = wr.reduce((n, r) => n + r.units.length, 0);
-  const weighted = nUnits >= 2 && total > 0 ? { runs: wr, total } : null;
-  // a question with one content word left (「起動方法は？」 → 起動): the blocks that say it
-  const single = nUnits === 1 && (wr[0]?.units[0]?.unit.length ?? 0) >= 2 ? (wr[0]?.units[0]?.unit as string) : null;
+  const match = near?.(ix, query, q) ?? null;
   const exact: TextHit[] = [];
-  const near: { e: TextEntry; found: string[]; coverage: number }[] = [];
+  const nears: { e: TextEntry; found: string[]; coverage: number }[] = [];
   let exactTotal = 0;
   for (const e of ix) {
     const at = e.raw.indexOf(q);
@@ -257,31 +290,12 @@ export function searchText(ix: readonly TextEntry[], query: string, max: number)
       }
       continue;
     }
-    if (!weighted) {
-      if (single && single !== q && e.raw.includes(single)) near.push({ e, found: [single], coverage: 1 });
-      continue;
-    }
-    let got = 0;
-    const found: string[] = [];
-    for (const r of weighted.runs) {
-      let rg = 0;
-      let rt = 0;
-      for (const u of r.units) {
-        rt += u.w;
-        if (e.raw.includes(u.unit)) {
-          rg += u.w;
-          found.push(u.unit);
-        }
-      }
-      got += r.w * (rt > 0 ? rg / rt : 0);
-    }
-    const coverage = got / weighted.total;
-    // a hit needs ≥ 2 characters of matched text (one kanji alone is everywhere)
-    if (coverage >= NEAR_MIN_COVERAGE && found.join("").length >= 2) near.push({ e, found, coverage });
+    const m = match?.(e);
+    if (m) nears.push({ e, ...m });
   }
-  near.sort((a, b) => b.coverage - a.coverage || a.e.order - b.e.order);
+  nears.sort((a, b) => b.coverage - a.coverage || a.e.order - b.e.order);
   const hits = exact.slice(0, max);
-  for (const n of near) {
+  for (const n of nears) {
     if (hits.length >= max) break;
     hits.push({
       entry: n.e,
@@ -293,5 +307,5 @@ export function searchText(ix: readonly TextEntry[], query: string, max: number)
       coverage: n.coverage,
     });
   }
-  return { hits, total: exactTotal + near.length };
+  return { hits, total: exactTotal + nears.length };
 }

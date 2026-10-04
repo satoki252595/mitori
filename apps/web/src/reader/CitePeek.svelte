@@ -3,11 +3,11 @@
   560 px, ≤ 26 body lines with the cited range marked, header path:a–b · symbol · precision · blob7, footer with
   the per-check verdicts (L0 / L1 / L2, UXP-06) and `o` pin / ⇧O editor. Does not take focus (role tooltip-like),
   stays open while the pointer travels into it (WCAG 1.4.13). In the app (not the export) the footer also carries the
-  paragraph's human check (EX-10): having read the code, 「✓✓ 確かめた」 marks the paragraph's claims human-verified.
+  paragraph's human check (EX-10, `PeekVerify` through the `extra` snippet).
 -->
 <script lang="ts">
 import type { CitePeek as CitePeekData, ClaimChecks } from "@mitori/core";
-import { onMount } from "svelte";
+import { onMount, type Snippet } from "svelte";
 import { t } from "../shell/index.ts";
 import { followAnchor, naturalHeight, popoverPos } from "./popover.ts";
 
@@ -20,8 +20,7 @@ let {
   oneditor,
   onenter,
   onleave,
-  verify = null,
-  onverify,
+  extra,
 }: {
   data: CitePeekData;
   checks: Pick<ClaimChecks, "l0" | "l1" | "l2"> | null;
@@ -31,9 +30,8 @@ let {
   oneditor: () => void;
   onenter: () => void;
   onleave: () => void;
-  /** The cited paragraph's human check: null = not offered (export, no claims). */
-  verify?: { verified: boolean; n: number; busy: boolean } | null;
-  onverify?: (next: boolean) => void;
+  /** Footer actions before pin / editor (the app's paragraph check; the export has none). */
+  extra?: Snippet;
 } = $props();
 
 let el: HTMLDivElement | undefined = $state();
@@ -92,16 +90,7 @@ const l1Text = $derived(
       </span>
     {:else}<span></span>{/if}
     <span class="keys">
-      {#if verify}
-        <button
-          type="button"
-          class="ver"
-          class:on={verify.verified}
-          disabled={verify.busy}
-          title={t(verify.verified ? "cite.unverifyHint" : "cite.verifyHint", { n: verify.n })}
-          onclick={() => onverify?.(!verify.verified)}>&#x2713;&#x2713; {t(verify.verified ? "cite.verified" : "cite.verify")}</button
-        >
-      {/if}
+      {@render extra?.()}
       <button type="button" onclick={onpin}><kbd>o</kbd> {t("cite.pin")}</button>
       <button type="button" onclick={oneditor}><kbd>&#x21E7;O</kbd> {t("cite.editor")}</button>
     </span>
@@ -219,12 +208,5 @@ const l1Text = $derived(
   }
   .keys button:hover {
     color: var(--ink);
-  }
-  .keys .ver {
-    color: var(--ink);
-    font-weight: var(--fw-strong);
-  }
-  .keys .ver.on {
-    color: var(--v-human);
   }
 </style>

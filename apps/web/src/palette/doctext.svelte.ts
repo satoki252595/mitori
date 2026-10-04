@@ -9,7 +9,7 @@
  */
 import type { BlockId, BlockView, DocOutline, SectionId, SectionView, WorkspaceKey } from "@mitori/core";
 import type { OutlineIndex } from "../reader/outline.ts";
-import { entriesOf, searchText, type TextEntry, type TextHit } from "./fulltext.ts";
+import { entriesOf, nearTier, searchText, type TextEntry, type TextHit } from "./fulltext.ts";
 
 export interface DocTextDeps {
   ws(): WorkspaceKey | null;
@@ -53,7 +53,7 @@ export class DocText {
   }
 
   search(query: string, max: number): { hits: TextHit[]; total: number } {
-    return searchText(this.entries(), query, max);
+    return searchText(this.entries(), query, max, nearTier);
   }
 
   /** Index what is missing or changed (idempotent; concurrent calls share the run). */

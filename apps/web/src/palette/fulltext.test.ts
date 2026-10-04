@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { BlockId, BlockView, SectionId, SectionView } from "@mitori/core";
-import { buildTextIndex, entriesOf, queryRuns, queryUnits, searchText, weighRuns } from "./fulltext.ts";
+import { buildTextIndex, entriesOf, nearTier, queryRuns, queryUnits, searchText, weighRuns } from "./fulltext.ts";
 
 const block = (id: string, html: string, section = "s3", over: Partial<BlockView> = {}): BlockView =>
   ({ id: id as BlockId, section: section as SectionId, kind: "prose", status: "ready", html, ...over }) as BlockView;
@@ -33,7 +33,7 @@ describe("NC-09 full-text search (app ⌘K and export)", () => {
   ]);
 
   test("a whole query that occurs is an exact hit, in reading order, with its marks", () => {
-    const r = searchText(ix, "localhost", 5);
+    const r = searchText(ix, "localhost", 5, nearTier);
     expect(r.total).toBe(1);
     const h = r.hits[0];
     expect(h?.tier).toBe("exact");
@@ -43,14 +43,14 @@ describe("NC-09 full-text search (app ⌘K and export)", () => {
   });
 
   test("several words: every word must occur (any order)", () => {
-    const r = searchText(ix, "dev npm", 5);
+    const r = searchText(ix, "dev npm", 5, nearTier);
     expect(r.hits.map((x) => x.entry.block)).toEqual(["b_00000041"]);
     expect(r.hits[0]?.tier).toBe("exact");
     expect(r.hits[0]?.marks.length).toBeGreaterThanOrEqual(2);
   });
 
   test("a natural question finds the blocks carrying most of its weight (near tier), best share first", () => {
-    const r = searchText(ix, "起動順序の基盤は？", 5);
+    const r = searchText(ix, "起動順序の基盤は？", 5, nearTier);
     // 起動 · 順序 · 基盤 all occur only in b_61; b_41 / b_42 say 起動 alone, the commonest word
     expect(r.hits.map((x) => x.entry.block)).toEqual(["b_00000061"]);
     expect(r.hits[0]?.tier).toBe("near");
@@ -61,7 +61,7 @@ describe("NC-09 full-text search (app ⌘K and export)", () => {
   });
 
   test("a question left with one content word finds the blocks that say it (「起動方法は？」 → 起動)", () => {
-    const r = searchText(ix, "起動方法は？", 5);
+    const r = searchText(ix, "起動方法は？", 5, nearTier);
     expect(r.hits.map((x) => x.entry.block)).toEqual(["b_00000041", "b_00000042", "b_00000061"]);
     expect(r.hits.every((x) => x.tier === "near")).toBe(true);
   });
@@ -75,12 +75,12 @@ describe("NC-09 full-text search (app ⌘K and export)", () => {
 
   test("katakana and hiragana meet (セッション = せっしょん); width and case do not matter", () => {
     const ix2 = buildTextIndex([section("s3", [block("b_00000001", "<p>セッションキーは SHA-256 で計算する</p>")])]);
-    expect(searchText(ix2, "せっしょん", 3).total).toBe(1);
-    expect(searchText(ix2, "ｓｈａ２５６", 3).total).toBe(1);
+    expect(searchText(ix2, "せっしょん", 3, nearTier).total).toBe(1);
+    expect(searchText(ix2, "ｓｈａ２５６", 3, nearTier).total).toBe(1);
   });
 
   test("exact hits come before near hits; `max` caps the rows, `total` counts all", () => {
-    const r = searchText(ix, "起動", 1);
+    const r = searchText(ix, "起動", 1, nearTier);
     expect(r.hits.length).toBe(1);
     expect(r.total).toBe(3);
     expect(r.hits[0]?.entry.block).toBe("b_00000041");
@@ -101,6 +101,15 @@ describe("NC-09 full-text search (app ⌘K and export)", () => {
   });
 
   test("an unrelated question has no hit (the palette then offers 「AI に聞く」)", () => {
-    expect(searchText(ix, "認証トークンの失効", 5).total).toBe(0);
+    expect(searchText(ix, "認証トークンの失効", 5, nearTier).total).toBe(0);
+  });
+
+  test("without a near tier (the export viewer) only the exact tier answers", () => {
+    expect(searchText(ix, "起動順序の基盤は？", 5).total).toBe(0);
+    expect(searchText(ix, "起動方法は？", 5).total).toBe(0);
+    const r = searchText(ix, "起動", 5);
+    expect(r.hits.length).toBeGreaterThan(0);
+    expect(r.hits.every((x) => x.tier === "exact")).toBe(true);
+    expect(r).toEqual(searchText(ix, "起動", 5, nearTier));
   });
 });

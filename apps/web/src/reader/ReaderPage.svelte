@@ -889,14 +889,24 @@ function startCourse() {
     anchorEl={peek.anchorEl}
     onpin={pinPeek}
     oneditor={openEditor}
-    verify={peekBlockView && peekBlockView.claims.length > 0 ? { verified: peekBlockView.lock === "human-verified", n: peekBlockView.claims.length, busy: verifying } : null}
-    onverify={(next) => peekBlock && void verifyBlock(peekBlock, next)}
     onenter={() => (peekHover = true)}
     onleave={() => {
       peekHover = false;
       closePeekSoon();
     }}
-  />
+  >
+    {#snippet extra()}
+      {#if pop && peekBlockView && peekBlockView.claims.length > 0}
+        {@const PeekVerify = pop.PeekVerify}
+        <PeekVerify
+          verified={peekBlockView.lock === "human-verified"}
+          n={peekBlockView.claims.length}
+          busy={verifying}
+          onverify={(next) => peekBlock && void verifyBlock(peekBlock, next)}
+        />
+      {/if}
+    {/snippet}
+  </CitePeek>
 {/if}
 {#if term && termEntry && ws && pop}
   {@const TermCard = pop.TermCard}

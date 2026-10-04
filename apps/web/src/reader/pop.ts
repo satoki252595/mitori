@@ -6,4 +6,5 @@
 export { default as BlockHistory } from "./BlockHistory.svelte";
 export { default as CitePeek } from "./CitePeek.svelte";
 export { default as ClaimPopover } from "./ClaimPopover.svelte";
+export { default as PeekVerify } from "./PeekVerify.svelte";
 export { default as TermCard } from "./TermCard.svelte";
