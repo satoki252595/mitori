@@ -8,7 +8,7 @@
  *    doc edit shows IN the prose as a suggestion → Review (decluttered header) → accept.
  * B. Fix on an uncited sentence: nothing to point at ⇒ the Composer says how (no estimate request, no 412); on ⤴ it
  *    says the pick would not travel (WRITE -) and offers ⚡ back.
- * C. Co-editing: the human writes a cited sentence into the doc (「設計書を直す」) → a Fix on it has its 対象コード
+ * C. Co-editing: the human writes a cited sentence into the doc (「設計書を自分で直す」) → a Fix on it has its 対象コード
  *    automatically (the cite) → the AI's rewrite of the sentence is accepted on its own after the code (✓ in prose).
  * D. Explain → 「文書に追記」 → the INSERT proposal shows after its block → ✕ rejects it.
  * Every check throws; latencies and the HTTP errors seen are printed as JSON. Exit 77 = no Chrome.
@@ -207,7 +207,9 @@ try {
   check((await page.locator("header.hdr .chip-slot button").count()) === 0, "no second ◆ job chip next to the レビュー tab");
   check((await page.locator(".rv .props .pdiff ins.a").count()) > 0, "the proposal's diff is in the Review panel");
   await shot("ux-04-review");
-  await page.locator(".rv-f .btn-pri").first().click(); // 検査なしで採用 (gofmt not approved in this run)
+  // EX-09: with checks waiting for approval the main action is 「承認して検査 → 採用」; the unchecked accept is secondary
+  check((await page.locator(".rv-f .btn-pri").first().innerText()).includes("承認して検査"), "the main Review action approves the checks first");
+  await page.locator(".rv-f").getByRole("button", { name: "検査なしで採用" }).click(); // gofmt not approved in this run
   await waitText(/反映しました/, 15000);
   await sleep(800);
   await shot("ux-05-accepted");
@@ -249,7 +251,7 @@ try {
   await select(".reader-root .blk .mb", "この節はまだ生成されていません");
   await page.keyboard.press("f");
   await composer().waitFor();
-  await composer().getByText("設計書を直す", { exact: false }).first().click();
+  await composer().getByText("設計書を自分で直す", { exact: false }).first().click();
   const md = composer().locator("textarea.md");
   await md.waitFor();
   await md.fill(CITED_MD);
