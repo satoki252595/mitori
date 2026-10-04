@@ -178,7 +178,19 @@ function s0(c: Ctx): StaticSpec[] {
 /** Container (map) diagram of the module graph; falls back to the top-level modules when gen supplied none. */
 function containerIR(c: Ctx): Omit<DiagramIR, "id"> | null {
   const given = c.input.diagrams.find((d) => d.kind === "container") ?? c.input.diagrams.find((d) => d.kind === "floorplan");
-  if (given) return { ...given, kind: "container" };
+  if (given) {
+    // NC-04: the module names of the doc (generated ones once written), whatever the diagram was built with
+    const name = (id: string | undefined): string | null => {
+      const m = id ? c.infos.get(id as ModuleId) : undefined;
+      return m ? moduleName(c, m) : null;
+    };
+    return {
+      ...given,
+      kind: "container",
+      nodes: given.nodes.map((n) => ({ ...n, label: name(n.ref?.module) ?? n.label })),
+      groups: given.groups.map((g) => ({ ...g, label: name(g.id) ?? g.label })),
+    };
+  }
   const tops = c.input.modules.filter((m) => !m.parent).sort((a, b) => b.rank - a.rank || (a.slug < b.slug ? -1 : 1));
   if (tops.length === 0) return null;
   return {

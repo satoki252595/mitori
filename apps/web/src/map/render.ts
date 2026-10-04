@@ -37,6 +37,8 @@ export interface RoomModel {
   working: number;
   fresh: "fresh" | "stale" | "unknown";
   topSymbols: string[];
+  /** The module's one-line role from the generated doc (NC-04), null before generation. */
+  summary: string | null;
   /** Largest files of the room (furniture), largest first, ≤ 3. */
   chips: RoomChip[];
 }
@@ -133,6 +135,7 @@ export function buildPlanModel(view: MapView): PlanModel {
       working: view.overlays.working[n.id] ?? 0,
       fresh: view.overlays.freshness[n.id] ?? "unknown",
       topSymbols: top.flatMap((f) => f.symbols).slice(0, 3),
+      summary: (mod as { summary?: string } | undefined)?.summary ?? null,
       chips: top.slice(0, 3).map((f) => ({ name: baseName(f.path), size: fmtLocShort(f.loc) })),
     });
   }

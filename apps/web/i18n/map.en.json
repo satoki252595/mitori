@@ -37,6 +37,7 @@
   "map.hud.view": "View ▾",
   "map.hud.working": "AI working",
   "map.plan.counts": "{zones} zones · {rooms} rooms",
+  "map.plan.rooms": "{rooms} rooms",
   "map.plan.title": "Floor plan",
   "map.read": "Read",
   "map.read5": "Read the 5-minute course",

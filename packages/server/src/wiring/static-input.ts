@@ -69,10 +69,29 @@ const leafPaths = (m: ModuleInfo, byId: Map<ModuleId, ModuleInfo>): string[] =>
   m.children.length === 0 ? m.paths : m.children.flatMap((c) => (byId.has(c) ? leafPaths(byId.get(c) as ModuleInfo, byId) : []));
 
 /** The map: the indexer's module graph as a container diagram. */
-export function containerDiagram(indexer: Indexer): Omit<DiagramIR, "id"> | null {
+/** The strongest module edges a map shows (NC-04: 15 of the 20 possible pairs among 5 rooms said nothing). */
+export function strongEdges<E extends { from: string; to: string; weight: number }>(edges: readonly E[], nodes: number): E[] {
+  const cap = Math.max(nodes - 1, Math.ceil(nodes * 1.5));
+  if (edges.length <= cap) return [...edges];
+  const sorted = [...edges].sort((a, b) => b.weight - a.weight || (a.from < b.from ? -1 : a.from > b.from ? 1 : a.to < b.to ? -1 : 1));
+  const keep = new Set(sorted.slice(0, cap));
+  // no room left without its strongest link
+  const touched = new Set<string>();
+  for (const e of keep) touched.add(e.from).add(e.to);
+  for (const e of sorted)
+    if (!touched.has(e.from) || !touched.has(e.to)) {
+      keep.add(e);
+      touched.add(e.from).add(e.to);
+    }
+  return sorted.filter((e) => keep.has(e));
+}
+
+export function containerDiagram(indexer: Indexer, doc?: Pick<DocStore, "index">): Omit<DiagramIR, "id"> | null {
   const g = indexer.graph("module");
   if (g.nodes.length === 0) return null;
-  const mods = indexer.modules();
+  // NC-04: rooms are called what the generated doc calls the modules (§5 / §6), the directory is the subtitle
+  const named = new Map((doc?.index().modules ?? []).map((e) => [e.id, e.name]));
+  const mods = indexer.modules().map((m) => ({ ...m, name: named.get(m.id) || m.name }));
   const byId = new Map(mods.map((m) => [m.id, m]));
   const topOf = (id: ModuleId): ModuleInfo | undefined => {
     let m = byId.get(id);
@@ -94,9 +113,10 @@ export function containerDiagram(indexer: Indexer): Omit<DiagramIR, "id"> | null
     return node;
   });
   const shown = new Set(nodes.map((n) => n.id));
-  const edges: DiagramEdge[] = g.edges
-    .filter((e) => shown.has(e.from) && shown.has(e.to))
-    .map((e, i) => ({ id: `e${i}`, from: e.from, to: e.to, kind: "imports" as const }));
+  const edges: DiagramEdge[] = strongEdges(
+    g.edges.filter((e) => shown.has(e.from) && shown.has(e.to) && e.from !== e.to),
+    nodes.length,
+  ).map((e, i) => ({ id: `e${i}`, from: e.from, to: e.to, kind: "imports" as const }));
   return { kind: "container", nodes, edges, groups: [...groups.values()], direction: "RIGHT", origin: "static" };
 }
 
@@ -132,7 +152,7 @@ export function staticDocInput(indexer: Indexer, doc: DocStore, license: string 
     claimsTotal: claims.length,
     claimsVerified: claims.filter((c) => c.verdict === "verified" || c.verdict === "human-verified").length,
   };
-  const map = containerDiagram(indexer);
+  const map = containerDiagram(indexer, doc);
   return {
     snapshot,
     coverage,

@@ -369,7 +369,14 @@ const facts = $derived.by(() => {
 const shownFacts = $derived(facts.filter((f) => f.n > 0 || !scan));
 const stale = $derived(s.doc.outline?.counts.stale ?? 0);
 const totals = $derived(s.doc.outline?.manifest.usageTotals ?? null);
-const planCounts = $derived(model ? t("map.plan.counts", { zones: model.zones.length, rooms: model.rooms.length }) : "");
+// 「区画0 · 部屋5」: a zero count is not shown (NC-04 / NC-12)
+const planCounts = $derived(
+  model
+    ? model.zones.length > 0
+      ? t("map.plan.counts", { zones: model.zones.length, rooms: model.rooms.length })
+      : t("map.plan.rooms", { rooms: model.rooms.length })
+    : "",
+);
 </script>
 
 <div class="body map-body" style:grid-template-columns="{layout.rail}px minmax(0,1fr)">
@@ -528,7 +535,7 @@ const planCounts = $derived(model ? t("map.plan.counts", { zones: model.zones.le
           <div class="room-float" class:left={cardLeft}>
             <RoomCard
               title={selected.zoneLabel ? `${selected.zoneLabel} › ${selected.label}` : selected.label}
-              summary={t("map.room.static", { files: selected.files, loc: fmtLocShort(selected.loc) }) + (selected.topSymbols.length ? ` · ${selected.topSymbols.join(", ")}` : "")}
+              summary={selected.summary ?? t("map.room.static", { files: selected.files, loc: fmtLocShort(selected.loc) }) + (selected.topSymbols.length ? ` · ${selected.topSymbols.join(", ")}` : "")}
               freshness={selected.fresh}
               threads={selected.threads}
               section={sec}
@@ -553,9 +560,10 @@ const planCounts = $derived(model ? t("map.plan.counts", { zones: model.zones.le
           <button type="button" class="icon-btn" aria-label={t("map.zoom.fit")} onclick={() => controller?.fit()}>&#x2922;</button>
         </div>
 
-        {#if hover?.room}
+        {#if hover?.room && hover.room.id !== s.map.selected}
           <div class="pop l0" role="tooltip" style:left="{Math.max(8, hover.rect.left)}px" style:top="{hover.rect.bottom + 6}px" data-chrome>
             <b data-user-content>{hover.room.label}</b>
+            {#if hover.room.summary}<span data-user-content>{hover.room.summary}</span>{/if}
             <span class="mono">{t("map.room.static", { files: hover.room.files, loc: fmtLocShort(hover.room.loc) })}</span>
             {#if hover.room.topSymbols.length}<span class="mono" data-user-content>{hover.room.topSymbols.join(" · ")}</span>{/if}
           </div>

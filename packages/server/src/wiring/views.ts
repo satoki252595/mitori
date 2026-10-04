@@ -246,7 +246,7 @@ export function docOutline(doc: DocStore, outlineRev: number, openThreads: numbe
 export function mapDiagram(doc: DocStore, indexer: Indexer): DiagramIR | null {
   const dg = Object.values(doc.index().diagrams).find((d) => d.kind === "container");
   if (dg) return dg;
-  const ir = containerDiagram(indexer);
+  const ir = containerDiagram(indexer, doc);
   return ir ? { ...ir, id: "dg_map00000" as DiagramIR["id"] } : null;
 }
 
@@ -264,8 +264,12 @@ export async function mapView(c: ViewCtx, indexer: Indexer, layouter: DiagramLay
     const k = n.ref?.module ? comments(n.ref.module) : 0;
     if (k > 0) commentsBy[n.id] = k;
   }
+  // NC-04: the generated name and one-line role of each module (the popover says what the room is for)
+  const entries = new Map(idx.modules.map((e) => [e.id, e]));
   const modules = indexer.modules().map((m) => {
-    if (m.children.length > 0) return m;
+    const e = entries.get(m.id);
+    const named = e ? { ...m, name: e.name || m.name, ...(e.summary ? { summary: e.summary } : {}) } : m;
+    if (m.children.length > 0) return named;
     const topFiles = m.paths
       .map((p) => ({ path: p, loc: indexer.file(p)?.loc ?? 0 }))
       .sort((a, b) => b.loc - a.loc || (a.path < b.path ? -1 : 1))
@@ -278,7 +282,7 @@ export async function mapView(c: ViewCtx, indexer: Indexer, layouter: DiagramLay
           .slice(0, 3)
           .map((s) => s.name),
       }));
-    return { ...m, topFiles };
+    return { ...named, topFiles };
   });
   const quick = Object.values(idx.blocks)
     .filter((b) => (b.section === "s0" || b.section === "s1") && (b.depth === "L0" || b.depth === "L1") && b.kind !== "heading" && b.status === "ready")

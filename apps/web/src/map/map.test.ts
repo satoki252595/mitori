@@ -205,6 +205,7 @@ describe("§3 flow overlay geometry (ux.md §4.2.3)", () => {
       working: 0,
       fresh: "unknown",
       topSymbols: [],
+      summary: null,
       chips: [],
     }) as RoomModel;
   const rooms = [room("a", 0, 0), room("b", 400, 0), room("c", 400, 300)];
@@ -351,5 +352,41 @@ describe("NC-02 the hero lede of a generated doc", () => {
     ];
     expect(ledeOf(blocks)).toEqual({ block: "b_tl", text: "m3e-canvas は画面の配置を描き、AI 向けのプロンプトにして渡すツールである。バックエンドは無い。" });
     expect(ledeOf(blocks.slice(0, 2))).toBeNull();
+  });
+});
+
+describe("NC-04 rooms say what they are", () => {
+  test("a room carries the module's generated one-line role; the static count line stays for ungenerated rooms", () => {
+    const view = {
+      diagram: {
+        id: "dg_map00000",
+        kind: "container",
+        nodes: [{ id: "md_a", label: "文書モデルとトークン", sublabel: "lib", ref: { module: "md_a", section: "s6/lib" } }],
+        edges: [],
+        groups: [],
+        direction: "RIGHT",
+        origin: "static",
+      },
+      layout: { width: 200, height: 100, nodes: [{ id: "md_a", x: 0, y: 0, w: 100, h: 60 }], edges: [], groups: [] },
+      overlays: { comments: {}, working: {}, churn: {}, churnUnavailable: true, freshness: {} },
+      modules: [
+        {
+          id: "md_a",
+          slug: "lib",
+          name: "文書モデルとトークン",
+          children: [],
+          paths: ["lib/tokens.ts"],
+          loc: 900,
+          rank: 1,
+          summary: "部品型・寸法・配色を定義する基盤層",
+          topFiles: [],
+        },
+      ],
+      quick: [],
+    } as unknown as MapView;
+    const m = buildPlanModel(view);
+    expect(m.rooms[0]).toMatchObject({ label: "文書モデルとトークン", path: "lib", summary: "部品型・寸法・配色を定義する基盤層" });
+    const bare = { ...view, modules: [{ ...view.modules[0], summary: undefined }] } as unknown as MapView;
+    expect(buildPlanModel(bare).rooms[0]?.summary).toBeNull();
   });
 });

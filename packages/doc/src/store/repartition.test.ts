@@ -159,3 +159,30 @@ describe("EX-01 a re-partition never stubs a generated module page", () => {
     expect(ix.modules.every((e) => (e.members ?? []).every((p) => typeof p === "string"))).toBe(true);
   });
 });
+
+describe("NC-04 the §2 floor plan uses the doc's module names", () => {
+  test("a container diagram built with directory names is relabelled with the generated names", () => {
+    const h = harness();
+    const base = staticInputFromTruth("ts-small");
+    const [a] = base.modules;
+    if (!a) throw new Error("no module");
+    const input: StaticDocInput = {
+      ...base,
+      diagrams: [
+        {
+          kind: "container",
+          nodes: [{ id: a.id, label: "src (ui, button)", sublabel: "src/ui", ref: { module: a.id } }],
+          edges: [],
+          groups: [],
+          direction: "RIGHT",
+          origin: "static",
+        },
+      ],
+    };
+    h.store.applyStatic(input);
+    h.store.setModuleLabels([{ module: a.id, name: "画面部品", summary: "ボタンと入力欄" }]);
+    const fp = h.store.section("s2" as SectionId)?.blocks.find((b) => b.kind === "diagram");
+    expect(fp?.md).toContain("画面部品");
+    expect(fp?.md).not.toContain("src (ui, button)");
+  });
+});

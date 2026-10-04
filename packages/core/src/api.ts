@@ -506,7 +506,8 @@ export interface MapView {
     freshness: Record<string, Freshness>;
   };
   /** Module tree, with up to 5 top files per module for Z3 furniture [JUDGEMENT §9]. */
-  modules: (ModuleInfo & { topFiles?: { path: RepoPath; loc: number; symbols: string[] }[] })[];
+  /** `summary`: the module's one-line role from the generated doc (`DocModuleEntry.summary`, NC-04). */
+  modules: (ModuleInfo & { topFiles?: { path: RepoPath; loc: number; symbols: string[] }[]; summary?: string })[];
   /** Blocks of the "5 分で分かる" pane (L0/L1), possibly empty before generation. */
   quick: BlockId[];
 }

@@ -37,6 +37,7 @@
   "map.hud.view": "表示 ▾",
   "map.hud.working": "AI作業中",
   "map.plan.counts": "区画{zones} · 部屋{rooms}",
+  "map.plan.rooms": "部屋{rooms}",
   "map.plan.title": "間取り図",
   "map.read": "読む",
   "map.read5": "5 分コースで読む",
