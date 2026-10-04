@@ -1,8 +1,9 @@
 // OS sandbox for gates (ADR-0013 3, R2): no network except the gate's OWN loopback sockets; writes only to the
 // worktree (or temp-copy tree), the job TMPDIR and CARGO_TARGET_DIR — never to the tree's own `.git` pointer
 // (mitori's later version-control calls in the worktree must not be redirected by the code under test, WP-08c);
-// reads of ~/.ssh ~/.aws ~/.config/gh ~/.mitori ~/.claude* and the keychains denied (the gate's own tree inside
-// ~/.mitori is re-allowed). macOS: `sandbox-exec -p <SBPL>`, Linux: `bwrap` with a private network namespace.
+// reads of ~/.mitori, ~/.claude*, the keychains and the credential stores of other tools denied (the gate's own tree
+// inside ~/.mitori is re-allowed): a gate may not read them, and so cannot copy them into the tree the next agent turn
+// reads. macOS: `sandbox-exec -p <SBPL>`, Linux: `bwrap` with a private network namespace.
 //
 // Loopback (ADR-0013 R2, cr-requests/agent.md #8): test suites start servers on 127.0.0.1 (`httptest.NewServer`,
 // `app.listen(0)`, pytest-httpserver) and talk to them. Linux gets that for free: `--unshare-net` gives the gate a
@@ -37,8 +38,18 @@ export interface SandboxPaths {
   mitoriHome: string;
   /** Entries of the user's HOME named `.claude*` (Linux: hidden one by one). */
   claudeEntries: readonly string[];
-  /** Which of the sensitive dirs exist (Linux binds over existing paths only). */
+  /** Which of the sensitive paths exist (Linux binds over existing paths only). */
   exists(abs: string): boolean;
+  /**
+   * A directory (after symlinks)? Linux hides a directory with a tmpfs and a file with `/dev/null` — a tmpfs cannot be
+   * mounted over a file (`~/.claude.json`: bwrap failed every gate). Absent ⇒ every sensitive path counts as a directory.
+   */
+  isDir?(abs: string): boolean;
+  /**
+   * realpath (null when missing). macOS matches the RESOLVED path of a read: a secret behind a symlink (dotfile
+   * managers link `~/.aws` into a dotfiles repo) is denied at its target too. Absent ⇒ the paths as given.
+   */
+  realpath?(abs: string): string | null;
   /**
    * macOS: allow the gate's own loopback sockets and deny these pre-existing ports. Absent ⇒ loopback is denied like
    * every other address. (Linux: the private network namespace isolates loopback whatever this says.)
@@ -49,11 +60,62 @@ export interface SandboxPaths {
 const sbplString = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 const sbplRegex = (s: string) => s.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&");
 
-/** Directories whose contents a gate may never read. */
+/**
+ * Credential stores in HOME a gate may never read (relative to HOME). No formatter, compiler or test runner needs one
+ * (npm and bun run with `~/.npmrc` unreadable; the gates are offline anyway). Directories: SSH / AWS / gh / GnuPG /
+ * Docker registry / kube / gcloud / Azure / pass / 1Password CLI / GNOME keyring / macOS keychains, and Firefox's
+ * profiles (plain-text session cookies).
+ */
+export const SENSITIVE_HOME_DIRS: readonly string[] = [
+  ".ssh",
+  ".aws",
+  ".config/gh",
+  "Library/Keychains",
+  ".gnupg",
+  ".docker",
+  ".kube",
+  ".config/gcloud",
+  ".azure",
+  ".password-store",
+  ".config/op",
+  ".local/share/keyrings",
+  "Library/Application Support/Firefox",
+  ".mozilla",
+];
+/** Credential files in HOME (relative): netrc, the credential store of git, npm / PyPI / cargo / gem / Vault / Terraform tokens. */
+export const SENSITIVE_HOME_FILES: readonly string[] = [
+  ".netrc",
+  ".git-credentials",
+  ".config/git/credentials",
+  ".npmrc",
+  ".pypirc",
+  ".cargo/credentials",
+  ".cargo/credentials.toml",
+  ".gem/credentials",
+  ".vault-token",
+  ".terraform.d/credentials.tfrc.json",
+  ".config/hub",
+];
+
+/** Directories whose contents a gate may never read (`~/.mitori` and the credential directories of HOME). */
 export function sensitiveDirs(p: Pick<SandboxPaths, "userHome" | "mitoriHome">): string[] {
-  const out = [p.mitoriHome];
-  if (p.userHome) out.push(`${p.userHome}/.ssh`, `${p.userHome}/.aws`, `${p.userHome}/.config/gh`, `${p.userHome}/Library/Keychains`, `${p.userHome}/.gnupg`);
-  return out;
+  return [p.mitoriHome, ...(p.userHome ? SENSITIVE_HOME_DIRS.map((d) => `${p.userHome}/${d}`) : [])];
+}
+
+/** The sensitive paths as listed: the dirs, the credential files, the `.claude*` entries. */
+function listedSecrets(p: SandboxPaths): string[] {
+  return [...sensitiveDirs(p), ...(p.userHome ? SENSITIVE_HOME_FILES.map((f) => `${p.userHome}/${f}`) : []), ...p.claudeEntries];
+}
+
+/** Every sensitive path, each also at its realpath when that differs (macOS: Seatbelt matches resolved paths). */
+export function sensitivePaths(p: SandboxPaths): string[] {
+  const listed = listedSecrets(p);
+  const out = new Set<string>(listed);
+  for (const x of listed) {
+    const real = p.realpath?.(x) ?? null;
+    if (real !== null && real !== x) out.add(real);
+  }
+  return [...out];
 }
 
 /**
@@ -73,8 +135,23 @@ export const DENIED_MACH_SERVICES: readonly string[] = [
 ];
 const DENIED_MACH_PREFIXES: readonly string[] = ["com.apple.lsd."];
 
-/** Unix-domain sockets (Linux) that reach a service acting outside the sandbox: the Docker / Podman API, the nix daemon, D-Bus. */
-export const HIDDEN_SOCKET_DIRS: readonly string[] = ["/run/user", "/run/dbus", "/run/podman", "/run/containerd", "/nix/var/nix/daemon-socket"];
+/**
+ * Unix-domain sockets (Linux) that reach a service acting outside the sandbox: the Docker / Podman API, the nix daemon,
+ * D-Bus — and the name-resolution daemons. A private network namespace stops the gate's own DNS packets, not a lookup
+ * a daemon makes for it: glibc's NSS asks systemd-resolved over its varlink socket (`nss-resolve`, Fedora / Arch),
+ * nscd, or avahi (`mdns4_minimal`, Ubuntu) — `<secret>.attacker.example` would leave as the daemon's DNS query (the
+ * macOS profile closes the same channel by denying mDNSResponder's socket).
+ */
+export const HIDDEN_SOCKET_DIRS: readonly string[] = [
+  "/run/user",
+  "/run/dbus",
+  "/run/podman",
+  "/run/containerd",
+  "/nix/var/nix/daemon-socket",
+  "/run/systemd/resolve",
+  "/run/nscd",
+  "/run/avahi-daemon",
+];
 export const HIDDEN_SOCKET_FILES: readonly string[] = ["/run/docker.sock", "/var/run/docker.sock"];
 
 /**
@@ -111,7 +188,8 @@ export function seatbeltProfile(p: SandboxPaths): string {
     "(deny file-write*)",
     `(allow file-write* ${under} (literal "/dev/null") (literal "/dev/tty") (literal "/dev/dtracehelper") (regex #"^/dev/fd/"))`,
     `(deny file-write* (subpath ${sbplString(`${p.tree}/.git`)}))`,
-    `(deny file-read* ${sensitiveDirs(p)
+    // `subpath` of a file is that file; the realpaths cover secrets behind symlinks
+    `(deny file-read* ${sensitivePaths(p)
       .map((d) => `(subpath ${sbplString(d)})`)
       .join(" ")}${p.userHome ? ` (regex #"^${sbplRegex(p.userHome)}/\\.claude")` : ""})`,
     `(allow file-read* ${under})`,
@@ -124,8 +202,8 @@ export function sandboxed(kind: "sandbox-exec" | "bwrap" | "none", p: SandboxPat
   if (kind === "none") return [...argv];
   if (kind === "sandbox-exec") return ["/usr/bin/sandbox-exec", "-p", seatbeltProfile(p), ...argv];
   const args = ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp"];
-  for (const d of sensitiveDirs(p)) if (p.exists(d)) args.push("--tmpfs", d);
-  for (const e of p.claudeEntries) if (p.exists(e)) args.push("--tmpfs", e);
+  // a directory gets an empty tmpfs, a file `/dev/null` (bwrap follows a symlinked destination to its target)
+  for (const d of listedSecrets(p)) if (p.exists(d)) args.push(...((p.isDir?.(d) ?? true) ? ["--tmpfs", d] : ["--ro-bind", "/dev/null", d]));
   // a read-only bind does not stop connect(2) on a unix socket: hide the dirs and files of the daemons that act for the caller
   for (const d of HIDDEN_SOCKET_DIRS) if (p.exists(d)) args.push("--tmpfs", d);
   for (const f of HIDDEN_SOCKET_FILES) if (p.exists(f)) args.push("--ro-bind", "/dev/null", f);

@@ -133,7 +133,13 @@ export function createGateRunner(deps: GateRunnerDeps): GateRunner {
       userHome,
       mitoriHome: deps.home,
       claudeEntries: userHome ? (deps.fs.readdir(userHome) ?? []).filter((n) => n.startsWith(".claude")).map((n) => `${userHome}/${n}`) : [],
-      exists: (abs) => deps.fs.stat(abs) !== null,
+      // a dangling symlink hides nothing (and bwrap could not mount over it)
+      exists: (abs) => deps.fs.realpath(abs) !== null,
+      isDir: (abs) => {
+        const real = deps.fs.realpath(abs);
+        return real !== null && deps.fs.stat(real)?.isDir === true;
+      },
+      realpath: (abs) => deps.fs.realpath(abs),
     };
   };
 

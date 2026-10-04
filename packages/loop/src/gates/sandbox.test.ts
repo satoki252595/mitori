@@ -71,6 +71,45 @@ describe("ADR-0013 R2 seatbelt loopback", () => {
     // the hidden socket dirs come before the writable binds (a tree under /run/user would be bound again after)
     expect(s.indexOf("--tmpfs /run/user")).toBeLessThan(s.indexOf(`--bind ${paths.tree} ${paths.tree}`));
     expect(s).toContain("--tmpfs /m");
+    // name-resolution daemons do DNS for the caller: hidden like the container APIs
+    for (const d of ["/run/systemd/resolve", "/run/nscd", "/run/avahi-daemon"]) expect(s).toContain(`--tmpfs ${d}`);
+  });
+});
+
+describe("gate secrets: credential stores of other tools, files vs directories, symlinked dotfiles", () => {
+  const dirs = new Set(["/m", "/Users/u/.ssh", "/Users/u/.aws", "/Users/u/.claude", "/Users/u/.docker", "/dotfiles/aws"]);
+  const real: Record<string, string> = { "/Users/u/.aws": "/dotfiles/aws", "/Users/u/.netrc": "/dotfiles/netrc" };
+  const p = {
+    ...paths,
+    claudeEntries: ["/Users/u/.claude", "/Users/u/.claude.json"],
+    exists: (a: string) => dirs.has(a) || a in real || a === "/Users/u/.claude.json" || a === "/Users/u/.npmrc",
+    isDir: (a: string) => dirs.has(a) || dirs.has(real[a] ?? ""),
+    realpath: (a: string) => real[a] ?? a,
+  };
+
+  test("macOS: credential files and dirs are read-denied, at their realpath too (Seatbelt matches resolved paths)", () => {
+    const prof = seatbeltProfile(p);
+    const deny = prof.split("\n").find((l) => l.startsWith("(deny file-read*")) ?? "";
+    for (const x of ["/Users/u/.netrc", "/Users/u/.npmrc", "/Users/u/.git-credentials", "/Users/u/.docker", "/Users/u/.kube", "/Users/u/.claude.json"])
+      expect(deny).toContain(`(subpath "${x}")`);
+    // the secret behind the symlink, where Seatbelt sees the read
+    expect(deny).toContain('(subpath "/dotfiles/aws")');
+    expect(deny).toContain('(subpath "/dotfiles/netrc")');
+    // the gate's own tree inside ~/.mitori is re-allowed after the denial
+    expect(prof.indexOf("(allow file-read* (subpath")).toBeGreaterThan(prof.indexOf("(deny file-read*"));
+  });
+
+  test("Linux: a directory gets a tmpfs, a file /dev/null — a tmpfs over ~/.claude.json made bwrap fail every gate", () => {
+    const s = sandboxed("bwrap", p, paths.tree, ["go", "test"]).join(" ");
+    expect(s).toContain("--tmpfs /Users/u/.claude ");
+    expect(s).toContain("--ro-bind /dev/null /Users/u/.claude.json");
+    expect(s).not.toContain("--tmpfs /Users/u/.claude.json");
+    expect(s).toContain("--ro-bind /dev/null /Users/u/.netrc");
+    expect(s).toContain("--ro-bind /dev/null /Users/u/.npmrc");
+    expect(s).toContain("--tmpfs /Users/u/.aws");
+    expect(s).toContain("--tmpfs /Users/u/.docker");
+    // what does not exist is not mounted over
+    expect(s).not.toContain(".kube");
   });
 });
 
