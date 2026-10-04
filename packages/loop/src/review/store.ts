@@ -14,6 +14,7 @@ import type {
   Round,
   SqlDb,
   Thread,
+  ThreadContext,
   ThreadId,
   ThreadIntent,
   ThreadState,
@@ -37,6 +38,8 @@ interface ThreadRow {
   session_id: string | null;
   target_doc_md: string | null;
   send_to_ai: number;
+  /** JSON `Thread.context` (v3). */
+  context?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -102,6 +105,7 @@ function toThread(r: ThreadRow, jobs: JobId[]): Thread {
   if (r.session_id !== null) t.sessionId = r.session_id;
   if (r.batch_round !== null) t.batchRound = r.batch_round;
   if (r.intent === "note") t.sendToAi = r.send_to_ai !== 0;
+  if (r.context) t.context = JSON.parse(r.context) as ThreadContext;
   return t;
 }
 
@@ -189,8 +193,8 @@ export class ReviewStore {
     const p = primaryCols(t.anchor);
     this.db.run(
       `INSERT INTO rev_threads (id, intent, state, resolution, anchor, anchor_health, stale, primary_block, primary_path, primary_start, primary_end,
-        round, batch_round, version, title, session_id, target_doc_md, send_to_ai, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        round, batch_round, version, title, session_id, target_doc_md, send_to_ai, context, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         t.id,
         t.intent,
@@ -210,6 +214,7 @@ export class ReviewStore {
         t.sessionId ?? null,
         targetDocMd,
         t.sendToAi ? 1 : 0,
+        t.context ? JSON.stringify(t.context) : null,
         t.createdAt,
         t.updatedAt,
       ],
@@ -220,7 +225,7 @@ export class ReviewStore {
     const p = primaryCols(t.anchor);
     this.db.run(
       `UPDATE rev_threads SET intent = ?, state = ?, resolution = ?, anchor = ?, anchor_health = ?, stale = ?, primary_block = ?, primary_path = ?,
-        primary_start = ?, primary_end = ?, round = ?, batch_round = ?, version = ?, title = ?, session_id = ?, send_to_ai = ?, updated_at = ? WHERE id = ?`,
+        primary_start = ?, primary_end = ?, round = ?, batch_round = ?, version = ?, title = ?, session_id = ?, send_to_ai = ?, context = ?, updated_at = ? WHERE id = ?`,
       [
         t.intent,
         t.state,
@@ -238,6 +243,7 @@ export class ReviewStore {
         t.title,
         t.sessionId ?? null,
         t.sendToAi ? 1 : 0,
+        t.context ? JSON.stringify(t.context) : null,
         t.updatedAt,
         t.id,
       ],

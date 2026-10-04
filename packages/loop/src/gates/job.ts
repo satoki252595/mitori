@@ -9,6 +9,7 @@
 // After a check the worktree is put back to the tree under test (a test that writes files must not change the head).
 import { type GateResult, type GateSpec, type GitOid, type JobId, MitoriError, newId, type RepoPath, type TrustRequest } from "@mitori/core";
 import type { RunnerCore } from "../jobs/core.ts";
+import { makeWorktreeRoom } from "../jobs/worktrees.ts";
 import { runOnCopies } from "./copies.ts";
 import { supportFiles } from "./detect.ts";
 import { changedTrustInputs, gatePreview, gateTrust, type TreeChange, treeSpecs } from "./trust.ts";
@@ -148,6 +149,7 @@ export async function syncWorktree(core: RunnerCore, wt: string, base: GitOid, w
 export async function ensureWorktree(core: RunnerCore, id: JobId, base: GitOid): Promise<string> {
   const rec = core.get(id);
   if (rec.job.worktree && core.deps.fs.stat(rec.job.worktree)?.isDir) return rec.job.worktree;
+  await makeWorktreeRoom(core, id);
   const wt = await core.deps.git.createWorktree(id, base, { dependencyLinks: true });
   await core.update(id, "job.worktree", (r) => {
     r.job.worktree = wt.path;

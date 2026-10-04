@@ -7,8 +7,8 @@
 // (no Bash), `dontAsk` and one `Edit(//abs)` rule per write-scope path; nothing reaches the user's tree before a human
 // accepts; the accept is uncommitted and undoable; out-of-scope writes fail the job without escalation.
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
-import { existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { ChildHandle, Spawner, SpawnSpec } from "@mitori/agent";
 import { createFakeSpawner, promptOfStdin, REQUIRED_FLAGS, type ScriptLine, synth } from "@mitori/agent/testing";
 import type {
@@ -726,9 +726,14 @@ describe("INT-08 escalation: patch → agent automatically within the cap; the f
       ],
     });
     // the R2 agent job stops at its budget ⇒ E_BUDGET_EXCEEDED ⇒ agent_failed
+    let agentBundle = "";
     scenarios.unshift({
       name: "agent-budget",
-      match: (p, spec) => p.includes("待ち時間も設定") && spec.argv.includes("--permission-mode") && argAfter(spec.argv, "--model") !== "claude-opus-5-5",
+      match: (p, spec) => {
+        const hit = p.includes("待ち時間も設定") && spec.argv.includes("--permission-mode") && argAfter(spec.argv, "--model") !== "claude-opus-5-5";
+        if (hit) agentBundle = p;
+        return hit;
+      },
       turns: [{ failure: "budget_exceeded" }],
     });
     scenarios.unshift({
@@ -747,6 +752,10 @@ describe("INT-08 escalation: patch → agent automatically within the cap; the f
     const agent = list.items.find((j) => j.escalatedFrom === job.id);
     expect(agent?.route).toMatchObject({ mode: "agent", reason: "needs_more_context", model: "claude-sonnet-5-5" });
     const agentFailed = await jobUntil(agent?.id as JobId, ["failed"]);
+    // cr-requests/agent.md #6: what the patch turn asked for is in the agent's bundle as read-only REL, not in WRITE
+    expect(agentBundle).toContain("REL internal/config/config.go:1");
+    expect(agentBundle).not.toMatch(/WRITE[^\n]*internal\/config\/config\.go/);
+    expect(agentFailed.writeScope).not.toContain("internal/config/config.go");
     expect(agentFailed.failure?.code).toBe("E_BUDGET_EXCEEDED");
     expect(agentFailed.failure?.actions).toContain("escalate");
     expect((await api<ThreadDetail>("GET", `/threads/${thread.id}`)).state).toBe("failed");
@@ -1114,6 +1123,44 @@ describe.if(SANDBOX)("INT-08 with the OS sandbox: checks run unattended, repairs
     await api("POST", `/jobs/${job.id}/reject`, {});
   }, 180_000);
 
+  test("F1 remainder: a symlink a sandboxed test leaves in the tree fails the job before the REPAIR turn could read through it", async () => {
+    const LEAK = "internal/store/leak_test.go";
+    const thread = await memoryThread("Get のテストを足して（リンク）");
+    // the sandbox denies reading the credentials, not creating a link to them; a deep `node_modules` link survives the
+    // post-check sync (dependency links stay) and the dependency unlink (depth ≤ 3) — the agent's Read would follow it
+    const src =
+      'package store\n\nimport (\n\t"os"\n\t"testing"\n)\n\nfunc TestLeavesALink(t *testing.T) {\n\t_ = os.MkdirAll("testdata/a/b", 0o755)\n\tif err := os.Symlink(os.Getenv("HOME")+"/.aws/credentials", "testdata/a/b/node_modules"); err != nil {\n\t\tt.Log(err)\n\t}\n\tt.Fatal("fails on purpose: the REPAIR turn reads the tree")\n}\n';
+    let repaired = 0;
+    let leaked = "";
+    const repair: Turn = {
+      ...writeTest(() => thread.id, LEAK, src),
+      // what the model's Read would get in this turn (before the fix: the credentials)
+      edit: (cwd) => {
+        repaired++;
+        const link = join(cwd, "internal/store/testdata/a/b/node_modules");
+        if (existsSync(link)) leaked = readFileSync(link, "utf8");
+      },
+    };
+    scenarios.unshift({ name: "leak-repair", match: (p) => p.includes("（リンク）") && p.includes("mode=repair"), turns: [repair] });
+    scenarios.unshift({
+      name: "leak",
+      match: (p) => p.includes("（リンク）") && !p.includes("mode=repair"),
+      turns: [writeTest(() => thread.id, LEAK, src), repair],
+    });
+    const { job } = await createJob(thread, { add: [{ path: LEAK, start: 0, end: 0 }] });
+    let j = await jobUntil(job.id, ["ready", "failed"], 120_000);
+    if (j.state === "ready" && j.gates.some((g) => g.status === "untrusted")) {
+      // run alone (-t): the gate set is not trusted yet
+      await trustGates();
+      const ran = await webApi<Job>("POST", `/jobs/${job.id}/gates/run`, {});
+      j = await jobUntil(ran.id, ["ready", "failed"], 120_000);
+    }
+    expect(j.state).toBe("failed");
+    expect(j.failure?.code).toBe("E_SCOPE_VIOLATION");
+    expect(j.failure?.message).toContain("internal/store/testdata/a/b/node_modules");
+    expect({ repaired, leaked }).toEqual({ repaired: 0, leaked: "" });
+  }, 240_000);
+
   test("RT-31 under the sandbox: the write through the dependency link is denied; the dependency is unchanged", async () => {
     writeFileSync(join(repo.root, ".gitignore"), "node_modules/\n");
     mkdirSync(join(repo.root, "node_modules/pkg"), { recursive: true });
@@ -1201,4 +1248,90 @@ describe("F1 (nonfunc audit): agent mode never shows the model a tracked secret"
     expect(read(KEYS)).toBe(keysGo);
     await api("POST", `/jobs/${job.id}/reject`);
   });
+
+  test("F1 remainder: no dependency link and no escaping tracked symlink exists while the model reads the tree; the gates get the links", async () => {
+    // the user's real dependency dir, next to an untracked .env the link would expose (`node_modules/../.env`)
+    mkdirSync(join(repo.root, "node_modules/left-pad"), { recursive: true });
+    writeFileSync(join(repo.root, "node_modules/left-pad/index.js"), "module.exports = 1;\n");
+    writeFileSync(join(repo.root, ".env"), "STRIPE_KEY=sk_live_never_shown\n");
+    const outside = join(dirname(repo.root), "outside-secret.txt");
+    writeFileSync(outside, "TOP SECRET\n");
+    symlinkSync(outside, join(repo.root, "creds"));
+    symlinkSync("../../etc", join(repo.root, "up"));
+    symlinkSync("creds", join(repo.root, "chain"));
+    symlinkSync("README.md", join(repo.root, "readme-link"));
+    git("add", "creds", "up", "chain", "readme-link");
+    git("commit", "-q", "-m", "symlinks");
+    const t = await countThread("Store に件数メソッドを追加（リンクの確認）");
+    const during: { links: string[]; reachable: string[]; inside: boolean }[] = [];
+    const look = (cwd: string) => {
+      const exists = (p: string) => {
+        try {
+          lstatSync(join(cwd, p));
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      during.push({
+        links: ["node_modules"].filter(exists),
+        reachable: ["creds", "up", "chain", "node_modules/../.env"].filter(exists),
+        inside: exists("readme-link"),
+      });
+    };
+    const turn1 = countTurn1(() => t.thread.id);
+    const turn2 = countTurn2(() => t.thread.id);
+    scenarios.push({
+      name: "links",
+      match: (p) => p.includes(`TASK ${t.thread.id} `) && !p.includes("mode=repair"),
+      turns: [
+        {
+          ...turn1,
+          edit: (cwd) => {
+            look(cwd);
+            turn1.edit?.(cwd);
+          },
+        },
+        {
+          ...turn2,
+          edit: (cwd) => {
+            look(cwd);
+            turn2.edit?.(cwd);
+          },
+        },
+      ],
+    });
+    scenarios.push({
+      name: "links-repair",
+      match: (p) => p.includes(`TASK ${t.thread.id} `) && p.includes("mode=repair"),
+      turns: [
+        {
+          ...turn2,
+          edit: (cwd) => {
+            look(cwd);
+            turn2.edit?.(cwd);
+          },
+        },
+      ],
+    });
+    const { job } = await createJob(t.thread, t.context);
+    const ready = await jobUntil(job.id, ["ready"]);
+    expect(ready.route.mode).toBe("agent");
+    expect(during.length).toBeGreaterThanOrEqual(2);
+    for (const d of during) {
+      expect(d.links).toEqual([]);
+      expect(d.reachable).toEqual([]);
+      expect(d.inside).toBe(true);
+    }
+    // after the last gates the links are back (the gates of the ready job ran with them)
+    expect(lstatSync(join(ready.worktree as string, "node_modules")).isSymbolicLink()).toBe(true);
+    // the neutralized symlinks are not "deleted by the agent": nothing of them is in the diff
+    for (const p of ["creds", "up", "chain", "readme-link", "node_modules"]) expect(ready.diff.map((f) => f.path)).not.toContain(p);
+    // the user's own tree is untouched
+    expect(readlinkSync(join(repo.root, "creds"))).toBe(outside);
+    expect(readFileSync(join(repo.root, "node_modules/left-pad/index.js"), "utf8")).toBe("module.exports = 1;\n");
+    await api("POST", `/jobs/${job.id}/reject`);
+    rmSync(join(repo.root, "node_modules"), { recursive: true, force: true });
+    rmSync(join(repo.root, ".env"), { force: true });
+  }, 180_000);
 });

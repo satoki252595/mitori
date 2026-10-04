@@ -143,6 +143,18 @@ export async function accept(core: RunnerCore, id: JobId, sel: AcceptReq): Promi
       }
     }
     core.deps.git.journal.patchExtra(ck, { proposals }, true);
+    // cr-requests/ux.md #2: a static facts block follows the code by itself (the accepted code re-derives the row), so
+    // the AI's pending edit of one is moot now — closed here instead of turning into a 409 once the row is rewritten
+    const pending = new Map(deps.doc.proposals({ state: "pending" }).map((p) => [p.id as string, p]));
+    for (const p of j.proposals) {
+      const prop = pending.get(p);
+      if (!prop || proposals.includes(p) || !prop.block || deps.doc.block(prop.block)?.origin !== "static") continue;
+      try {
+        deps.doc.rejectProposal(p as ProposalId);
+      } catch (e) {
+        deps.log.warn("static doc proposal not closed", { job: id, proposal: p, error: MitoriError.from(e).message });
+      }
+    }
     if (first) for (const t of r.job.threads) core.threads.fire(t, "accept", "human");
     if (d.full && s.autoResolveOnAccept) for (const t of r.job.threads) core.threads.fire(t, "resolve", "system", { resolution: "applied" });
     stale = deps.review.markStale(
@@ -208,6 +220,12 @@ export async function undo(core: RunnerCore, ck: CheckpointId, force: boolean): 
   if (!row) throw new MitoriError("E_NOT_FOUND", `checkpoint ${ck} not found`, { params: { checkpoint: ck } });
   const res = await deps.git.undo(ck, force);
   if (res.diverged.length > 0) return res;
+  if (!core.store.get(row.job)) {
+    // F8: the checkpoint of a pull round's Undo belongs to no job (`git/rounds.ts`): undoing it re-applies the round
+    deps.events.emit({ type: "checkpoint.upsert", checkpoint: res.checkpoint });
+    deps.domain.emit({ type: "checkpoint.undone", checkpoint: ck, files: res.restored, proposals: [] });
+    return res;
+  }
   const proposals = row.extra.proposals ?? [];
   const latest = deps.git.journal.ofJob(row.job).find((c) => c.state === "done" && !c.undoneAt && c.id !== ck);
   const reverted = await core.update(row.job, "job.reverted", (r) => {

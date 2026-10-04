@@ -64,6 +64,7 @@ import {
 } from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
 import { type CapturedAnchor, type JobRunner, type LoopDomainEvent, REVIEW_STDOUT, type ReviewEngine } from "../contract.ts";
+import { threadContext } from "./context.ts";
 import { anchorLabel, displayState, planBatch, renderDecisionMarkdown, renderDocEditAsk, renderReviewStdout } from "./index.ts";
 import { ReviewStore, type RoundRecord } from "./store.ts";
 import { capUtf8, firstLine, lf, plainHtml, titleOf } from "./text.ts";
@@ -474,6 +475,8 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
           updatedAt: at,
         };
         if (t.intent === "note") t.sendToAi = false;
+        const context = threadContext(req.context);
+        if (context) t.context = context;
         store.insertThread(t, null);
         addMessage_(t.id, by, "comment", body);
         snapshot(t.id, cap, ["captured", "last_ok"], false);
@@ -511,6 +514,13 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
         if (req.sendToAi !== undefined) {
           if (t.intent !== "note") throw new MitoriError("E_INVALID_INPUT", "sendToAi applies to note threads only", { params: { id } });
           t = { ...t, sendToAi: req.sendToAi };
+        }
+        if (req.context !== undefined) {
+          if (t.state === "queued" || t.state === "running")
+            throw new MitoriError("E_PRECONDITION", "the context cannot change while a job runs", { params: { id, state: t.state } });
+          const context = req.context === null ? null : threadContext(req.context);
+          const { context: _old, ...rest } = t;
+          t = context ? { ...rest, context } : rest;
         }
         return detailOf(save(t));
       });
@@ -1020,6 +1030,34 @@ export function createReviewEngine(deps: ReviewEngineDeps): ReviewEngineHandle {
         if (merged.length === rec.files.length) return;
         rec.files = merged;
         store.upsertRound(rec);
+      });
+    },
+
+    roundScope(n) {
+      const rec = store.round(n);
+      if (!rec) return null;
+      const scope = new Set<RepoPath>();
+      for (const id of rec.round.threads) {
+        const t = store.thread(id)?.thread;
+        if (t) for (const p of deps.partition.writeScopeOf(detailOf(t))) scope.add(p);
+      }
+      return { mode: rec.round.mode === "push" ? "push" : "pull", threads: [...rec.round.threads], writeScope: [...scope].sort() };
+    },
+
+    noteRoundChanges(n, outside) {
+      return mutate(() => {
+        const rec = store.round(n);
+        if (!rec || outside.length === 0) return [];
+        const files = [...new Set(outside)].sort();
+        const shown = files.slice(0, 5).join(", ");
+        const line = `R${n} の作業ツリーの変更のうち ${files.length} 件はスレッドの書き込み範囲の外です（${shown}${files.length > 5 ? " ほか" : ""}）。確かめてから残すか、このラウンドを元に戻してください（POST /review/rounds/${n}/undo、元に戻した後もチェックポイントから再適用できます）。`;
+        const told: ThreadId[] = [];
+        for (const id of rec.round.threads) {
+          if (store.messages(id).some((m) => m.body === line)) continue;
+          addMessage_(id, "system", "system", line);
+          told.push(id);
+        }
+        return told;
       });
     },
   };

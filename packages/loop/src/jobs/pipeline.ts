@@ -20,6 +20,7 @@ import {
   type ThreadId,
   type ThreadOutcome,
 } from "@mitori/core";
+import { NEEDS_PARAM } from "../agent/hints.ts";
 import { CONTRACT_LIMITS, DOC_FIX_FENCE, type ParsedPatch } from "../contract.ts";
 import { applyEditsToText, parseContract } from "../contracts/index.ts";
 import { gatePatchTree, treeTexts } from "../gates/job.ts";
@@ -406,7 +407,8 @@ async function patchAttempt(core: RunnerCore, id: JobId, plan: JobPlan, base: Gi
   if (parsed.core.needsMoreContext && parsed.core.needsMoreContext.length > 0) {
     // spec §3.5: the patch bundle was not enough — the router escalates to agent mode (R2, `needs_more_context`)
     throw new MitoriError("E_PRECONDITION", `the engine needs more context: ${parsed.core.needsMoreContext.join(", ")}`, {
-      params: { reason: "needs_more_context", actions: "escalate,copy_prompt,narrow_scope" },
+      // #6: the items travel with the failure, so the R2 agent bundle can carry them as read-only REL
+      params: { reason: "needs_more_context", actions: "escalate,copy_prompt,narrow_scope", [NEEDS_PARAM]: parsed.core.needsMoreContext.join("\n") },
     });
   }
   if (parsed.edits.length === 0) {

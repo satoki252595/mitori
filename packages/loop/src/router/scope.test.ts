@@ -43,6 +43,17 @@ const val = (r: ReturnType<typeof derive>) => {
 
 const A: World = { files: { "src/a.ts": {}, "src/b.ts": {}, "src/c.ts": {} } };
 
+describe("CR safe-6: a removed cited target (`write:<path>`) leaves WRITE, its code stays context", () => {
+  test("a doc anchor citing two files, one taken out: one file is written, both ranges are still read", () => {
+    const world: World = { ...A, blocks: { b_flow0002: [cite("src/a.ts", 1, 5), cite("src/b.ts", 7, 9)] } };
+    const t = thread({ anchor: docAnchor("b_flow0002") });
+    expect(val(derive([t], world)).writeScope).toEqual(["src/a.ts", "src/b.ts"]);
+    const v = val(deriveWriteScope([t], { ...ctx(world), removedWrite: new Set(["src/b.ts" as RepoPath]) }));
+    expect(v.writeScope).toEqual(["src/a.ts"]);
+    expect(v.ranges.map((r) => r.path)).toEqual(["src/a.ts", "src/b.ts"]);
+  });
+});
+
 describe("AC-L20 deriveWriteScope — intents (spec §3.3)", () => {
   test("change: the anchored code range is the scope", () => {
     const v = val(derive([thread({ anchor: codeAnchor("src/a.ts", 10, 29) })], A));

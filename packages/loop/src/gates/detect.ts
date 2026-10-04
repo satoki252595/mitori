@@ -89,6 +89,35 @@ export function repoLocal(env: DetectEnv, input: DetectInput, dir: string, rel: 
   return null;
 }
 
+/**
+ * F9: the identity of a repo-local binary as a pseudo config entry of the trust hash (`<path>#bin` → digest): a swapped
+ * formatter (a new `node_modules`, another `.venv`) is a new gate set and asks for trust again. No entry when the
+ * caller cannot hash (the hash then covers the argv and configs only, as before).
+ */
+export function binaryConfig(env: DetectEnv, input: DetectInput, rel: RepoPath): { path: RepoPath; text: string }[] {
+  const info = input.binaryInfo?.(`${env.root}/${rel}`) ?? null;
+  return info ? [{ path: `${rel}#bin` as RepoPath, text: info.digest }] : [];
+}
+
+/** A `#!` launcher (Node / Python script): running it runs dependency code. Unknown counts as a launcher. */
+export function isLauncher(env: DetectEnv, input: DetectInput, rel: RepoPath): boolean {
+  return input.binaryInfo?.(`${env.root}/${rel}`)?.script ?? true;
+}
+
+/**
+ * F9: biome's native binary (`node_modules/@biomejs/cli-<os>-<arch>[-musl]/biome`, installed as the one matching
+ * optional dependency) next to the `node_modules/.bin/biome` launcher: the formatter itself, without the Node
+ * launcher that reads `BIOME_BINARY` and spawns it. Null when there is none or more than one candidate.
+ */
+export function biomeNative(env: DetectEnv, input: DetectInput, launcher: RepoPath): RepoPath | null {
+  const nm = launcher.slice(0, -"/.bin/biome".length);
+  const names = (input.readdir?.(`${env.root}/${nm}/@biomejs`) ?? []).filter((n) => n.startsWith("cli-")).sort();
+  const found = names.map((n) => `${nm}/@biomejs/${n}/biome` as RepoPath).filter((p) => input.binaryExists(`${env.root}/${p}`) && !isLauncher(env, input, p));
+  // a glibc and a musl build side by side: prefer glibc (the musl one is chosen by its own launcher on Alpine)
+  const plain = found.filter((p) => !p.includes("-musl/"));
+  return plain.length === 1 ? (plain[0] as RepoPath) : found.length === 1 ? (found[0] as RepoPath) : null;
+}
+
 /** Trust hash: canonical gate fields + the config texts the detection read (CONS-12). */
 export function gateTrustHash(hasher: Pick<Hasher, "sha256">, spec: Omit<GateSpec, "trustHash">, configs: readonly { path: RepoPath; text: string }[]): string {
   const canon = canonicalJson({
@@ -170,8 +199,10 @@ function jsDetector(env: DetectEnv): GateDetector {
       for (const [cwd] of byManifest(input, ["package.json"], /\.(?:[cm]?[jt]sx?|json|jsonc|css|scss|less|md|html|vue|svelte|ya?ml)$/)) {
         const pkg = input.readConfig(join(cwd, "package.json")) ?? "";
         const biomeCfg = nearestConfig(input, cwd, BIOME_CONFIGS);
-        const biome = repoLocal(env, input, cwd, "node_modules/.bin/biome");
-        if (biomeCfg && biome) {
+        const launcher = repoLocal(env, input, cwd, "node_modules/.bin/biome");
+        if (biomeCfg && launcher) {
+          const native = biomeNative(env, input, launcher);
+          const biome = native ?? launcher;
           out.push(
             spec(
               env,
@@ -181,9 +212,10 @@ function jsDetector(env: DetectEnv): GateDetector {
                 endOfOptions: false,
                 cwd,
                 appliesTo: ["**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json,jsonc,css}", ...nested(input, ["package.json"], cwd)],
-                executesRepoCode: false,
+                // F9: the native formatter is a pure formatter; the Node launcher (no native build found) is not
+                executesRepoCode: native === null,
               },
-              [biomeCfg, { path: join(cwd, "package.json"), text: pkg }],
+              [biomeCfg, { path: join(cwd, "package.json"), text: pkg }, ...binaryConfig(env, input, biome)],
             ),
           );
           continue;
@@ -203,7 +235,7 @@ function jsDetector(env: DetectEnv): GateDetector {
                 appliesTo: ["**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json,css,scss,less,md,html,vue,svelte,yml,yaml}", ...nested(input, ["package.json"], cwd)],
                 executesRepoCode: true,
               },
-              [...(prettierCfg ? [prettierCfg] : []), { path: join(cwd, "package.json"), text: pkg }],
+              [...(prettierCfg ? [prettierCfg] : []), { path: join(cwd, "package.json"), text: pkg }, ...binaryConfig(env, input, prettier)],
             ),
           );
         }
@@ -223,10 +255,21 @@ function pyDetector(env: DetectEnv): GateDetector {
       for (const [cwd] of byManifest(input, PY_MANIFESTS, /\.pyi?$/)) {
         const pyproject = input.readConfig(join(cwd, "pyproject.toml"));
         const ruffToml = nearestConfig(input, cwd, ["ruff.toml", ".ruff.toml"]);
-        const tool = (name: string) => repoLocal(env, input, cwd, `.venv/bin/${name}`) ?? onPath(env, input, name);
+        const local = (name: string) => repoLocal(env, input, cwd, `.venv/bin/${name}`);
+        const tool = (name: string) => local(name) ?? onPath(env, input, name);
+        // F9: a `.venv` binary is hashed into the trust; a `#!` console-script launcher imports site-packages
+        const venv = (bin: string | null) =>
+          bin !== null && bin === local(bin.slice(bin.lastIndexOf("/") + 1))
+            ? { configs: binaryConfig(env, input, bin as RepoPath), launcher: isLauncher(env, input, bin as RepoPath) }
+            : { configs: [], launcher: false };
         const ruff = tool("ruff");
         if ((ruffToml || (pyproject !== null && /^\[tool\.ruff/m.test(pyproject))) && ruff) {
-          const configs = [...(ruffToml ? [ruffToml] : []), ...(pyproject !== null ? [{ path: join(cwd, "pyproject.toml"), text: pyproject }] : [])];
+          const v = venv(ruff);
+          const configs = [
+            ...(ruffToml ? [ruffToml] : []),
+            ...(pyproject !== null ? [{ path: join(cwd, "pyproject.toml"), text: pyproject }] : []),
+            ...v.configs,
+          ];
           out.push(
             spec(
               env,
@@ -236,7 +279,7 @@ function pyDetector(env: DetectEnv): GateDetector {
                 endOfOptions: true,
                 cwd,
                 appliesTo: ["**/*.py", "**/*.pyi", ...nested(input, PY_MANIFESTS, cwd)],
-                executesRepoCode: false,
+                executesRepoCode: v.launcher,
               },
               configs,
             ),
@@ -245,6 +288,7 @@ function pyDetector(env: DetectEnv): GateDetector {
         }
         const black = tool("black");
         if (pyproject !== null && /^\[tool\.black\]/m.test(pyproject) && black) {
+          const v = venv(black);
           out.push(
             spec(
               env,
@@ -254,9 +298,9 @@ function pyDetector(env: DetectEnv): GateDetector {
                 endOfOptions: true,
                 cwd,
                 appliesTo: ["**/*.py", "**/*.pyi", ...nested(input, PY_MANIFESTS, cwd)],
-                executesRepoCode: false,
+                executesRepoCode: v.launcher,
               },
-              [{ path: join(cwd, "pyproject.toml"), text: pyproject }],
+              [{ path: join(cwd, "pyproject.toml"), text: pyproject }, ...v.configs],
             ),
           );
         }

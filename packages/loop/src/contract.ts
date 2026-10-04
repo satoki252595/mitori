@@ -334,6 +334,13 @@ export interface ReviewEngine {
    * with the reply files (spec §2.5) [CR m1-72].
    */
   recordTouched(paths: RepoPath[]): void;
+  /** F8 (CR safe-5): the threads of round `n` and the union of their write scopes (spec §3.3); null for an unknown round. */
+  roundScope(n: number): { mode: "push" | "pull"; threads: ThreadId[]; writeScope: RepoPath[] } | null;
+  /**
+   * F8: report a pull round's working-tree changes outside its write scope on each of its threads (one system line,
+   * at most once per round and file set). Returns the threads told.
+   */
+  noteRoundChanges(n: number, outside: RepoPath[]): ThreadId[];
 }
 
 // `renderDecisionMarkdown` → ./review/index.ts
@@ -1013,6 +1020,23 @@ export interface GitSafety {
   restoreWorktree(job: JobId): Promise<string>;
   /** Remove; prune ONLY inside side.git (never a global `git worktree prune` in the user's repo) [SEC-08]. */
   removeWorktree(job: JobId): Promise<void>;
+  /**
+   * Read-only links to the user's dependency dirs in the job's worktree (spec §7.3), for the gates. Agent jobs make
+   * them only right before the gates and drop them again before every engine turn ({@link unlinkDependencies}) — a
+   * link is the user's real directory, and `node_modules/../.env` the user's `.env` (F1, CR safe-3).
+   */
+  linkDependencies(job: JobId): Promise<RepoPath[]>;
+  /** Remove the job worktree's dependency links (symlinks only; real directories are never touched) (CR safe-3). */
+  unlinkDependencies(job: JobId): Promise<void>;
+  /** F8 (CR safe-5): remember the working-tree snapshot pull round `n` was dispatched on (`refs/mitori/round/<n>/base`). */
+  markRound(n: number, base: GitOid): Promise<void>;
+  /** F8: the paths the working tree changed since round `n` was dispatched; null when the round has no recorded base. */
+  roundChanges(n: number, deny: Glob[]): Promise<{ base: GitOid; files: RepoPath[] } | null>;
+  /**
+   * F8: every file round `n` changed back to its pre-round content — an accept of the reverse change (uncommitted,
+   * divergence-checked, one checkpoint whose Undo re-applies the round).
+   */
+  undoRound(n: number, deny: Glob[]): Promise<{ checkpoint: Checkpoint; files: CheckpointFile[] }>;
   /** Write the result of {@link applyEditsToText} into the worktree (temp → rename, all or nothing). */
   writeFiles(worktree: string, files: Record<RepoPath, string>): Promise<void>;
   /** Record the worktree state as `refs/mitori/j/<id>/head` (temp index, `add -A --sparse`, excluding dependency links). */
@@ -1048,8 +1072,25 @@ export interface GateDetector {
   /** Detector id (`gates.js@1`, `gates.go@1`, `gates.py@1`, `gates.rust@1`). */
   id: string;
   /** Detect gate specs for the changed files from files + script facts (local binaries only; no npx/bunx). */
-  detect(input: { files: FileEntry[]; facts: Fact[]; changed: RepoPath[]; readConfig(path: RepoPath): string | null; binaryExists(abs: string): boolean }): GateSpec[];
+  detect(input: {
+    files: FileEntry[];
+    facts: Fact[];
+    changed: RepoPath[];
+    readConfig(path: RepoPath): string | null;
+    binaryExists(abs: string): boolean;
+    /**
+     * F9 (CR safe-4): what a repo-local binary IS — sha256 over its realpath and bytes (joins the trust hash, so an
+     * `npm install` / `pip install` that swaps the formatter asks again) and whether it is a `#!` script launcher
+     * (a launcher runs dependency code: never a pure formatter). Null when unknown; absent ⇒ no content in the hash.
+     */
+    binaryInfo?(abs: string): { digest: string; script: boolean } | null;
+    /** Entries of a directory (absolute; null when missing) — finds biome's native `@biomejs/cli-<os>-<arch>/biome`. */
+    readdir?(abs: string): string[] | null;
+  }): GateSpec[];
 }
+
+/** F9: repo-local binaries whose identity the detection hashes (relative to a manifest directory). */
+export const GATE_LOCAL_BINARIES = ["node_modules/.bin/biome", "node_modules/.bin/prettier", ".venv/bin/ruff", ".venv/bin/black"] as const;
 
 /**
  * Gate runner (ADR-0013): argv template expanded per job (validated RepoPaths, `--` before expansions when

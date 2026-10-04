@@ -64,3 +64,11 @@ ALTER TABLE job_checkpoints ADD COLUMN state TEXT NOT NULL DEFAULT 'done';
 ALTER TABLE job_checkpoints ADD COLUMN extra TEXT;
 CREATE INDEX job_checkpoints_job ON job_checkpoints(job);
 `;
+
+/**
+ * `LOOP_MIGRATIONS` version 3 (rem/safety, CR safe-6): `Thread.context` — the code the human chose besides the anchor
+ * (picked candidates, `@` mentions, removed targets) as JSON, so the pull bundle and the copy prompt carry it too.
+ */
+export const LOOP_SCHEMA_V3 = `
+ALTER TABLE rev_threads ADD COLUMN context TEXT;
+`;

@@ -23,7 +23,7 @@ import type { JobRunner } from "../contract.ts";
 import { externalPatch } from "../external/patch.ts";
 import { ACTIVE, type JobRunnerDeps, RunnerCore, Stop } from "./core.ts";
 import { consentRetry, runAnswer, runConsentRepair, runPatch, runRevision } from "./pipeline.ts";
-import { type JobPlan, jobEstimate, type PlanDeps, planJob } from "./plan.ts";
+import { type JobPlan, jobEstimate, type PlanDeps, planJob, withThreadContext } from "./plan.ts";
 import { accept, commit, reject, runGates, undo } from "./review-ops.ts";
 import type { JobRecord } from "./store.ts";
 
@@ -79,15 +79,15 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
   }
 
   /** What the bundle is made of besides the index: a thread's intent, anchor and human text, and the context adjustments. */
-  const threadSig = (t: ThreadDetail): string => JSON.stringify([t.intent, t.anchor, t.messages.map((m) => [m.by, m.body])]);
+  const threadSig = (t: ThreadDetail): string => JSON.stringify([t.intent, t.anchor, t.messages.map((m) => [m.by, m.body]), t.context ?? null]);
   const contextSig = (r: JobReq): string => JSON.stringify([r.context ?? null, r.mode ?? null, r.model ?? null, r.engine ?? null, r.docFix === true]);
   /** The remembered plan still describes what a create would send (live finding: a draft saved after its estimate). */
   function inputsUnchanged(known: JobPlan, req: CreateJobReq): boolean {
-    if (contextSig(known.req) !== contextSig(req)) return false;
-    return known.threads.every((t) => {
-      const now = deps.review.get(t.id);
-      return now !== null && threadSig(now) === threadSig(t);
-    });
+    const now = known.threads.map((t) => deps.review.get(t.id));
+    if (now.some((t) => t === null)) return false;
+    // the plan's request carries the threads' stored context merged in (CR safe-6): compare like with like
+    if (contextSig(known.req) !== contextSig(withThreadContext(req, now as ThreadDetail[]))) return false;
+    return known.threads.every((t, i) => threadSig(now[i] as ThreadDetail) === threadSig(t));
   }
 
   /** The plan a create confirms: the remembered one while the index and the inputs are unchanged, else a re-plan within ±20 %. */
@@ -234,8 +234,10 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
   /** R2 hand-over ports (agent/escalate.ts). */
   const escalation = {
     core,
-    plan: async (job: Job, reason: RouteReason) => {
-      const p = await planJob({ ...planDeps, history: (t) => [...planDeps.history(t), reason] }, replanReq(core.get(job.id)));
+    plan: async (job: Job, reason: RouteReason, readHints?: readonly string[]) => {
+      const p = await planJob({ ...planDeps, history: (t) => [...planDeps.history(t), reason] }, replanReq(core.get(job.id)), {
+        ...(readHints && readHints.length > 0 ? { readHints } : {}),
+      });
 
       core.remember(p);
       return p;

@@ -6,7 +6,7 @@
 import type { Anchor, BlockId, Decision, DiagramId, Message, Migration, RepoPath, SectionId, Thread, ThreadDetail } from "@mitori/core";
 import { type BatchJobPlan, type DisplayState, REVIEW_STDOUT } from "../contract.ts";
 import { planPartitions } from "./plan.ts";
-import { LOOP_SCHEMA_V1, LOOP_SCHEMA_V2 } from "./schema.ts";
+import { LOOP_SCHEMA_V1, LOOP_SCHEMA_V2, LOOP_SCHEMA_V3 } from "./schema.ts";
 import { bodyLines, bundleLabel, firstLine, labelText, lf, quoteLines } from "./text.ts";
 
 // CR-PENDING(ux) cr-requests/ux.md #1: the Fix code targets (`POST /ws/:ws/jobs/targets`, CR ux-F1) are not a
@@ -123,4 +123,5 @@ export function anchorLabel(
 export const LOOP_MIGRATIONS: readonly Migration[] = [
   { pkg: "@mitori/loop", db: "workspace", version: 1, up: LOOP_SCHEMA_V1 },
   { pkg: "@mitori/loop", db: "workspace", version: 2, up: LOOP_SCHEMA_V2 },
+  { pkg: "@mitori/loop", db: "workspace", version: 3, up: LOOP_SCHEMA_V3 },
 ];

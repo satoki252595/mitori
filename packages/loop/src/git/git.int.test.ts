@@ -1,12 +1,13 @@
 // Git safety against real repositories (loop spec §7, §13.5; testing spec GIT-S-01…07, LOOP-I-030…035, RT-09/18/21/24/32).
 import { afterEach, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { GIT_REFS, type HunkId, type JobId } from "@mitori/core";
 import { childEnv } from "./exec.ts";
 import { type GitWorld, gitWorld, userRepoState } from "./test/world.ts";
+import { escapingOnDisk, trackedSymlinks } from "./worktree.ts";
 
 let w: GitWorld | null = null;
 const extra: string[] = [];
@@ -471,6 +472,89 @@ describe("LOOP-I-035 shadow repo, remote-readonly export, gc, crash recovery", (
     expect(await w.git.recoverAccept(acc2.checkpoint.id)).toBe("rolled_back");
     expect(read(FETCH)).toContain("maxRetries = 1");
     expect(read(README)).not.toBe(readmeAfter);
+  });
+
+  test("F1 remainder: escaping tracked symlinks are never checked out, yet stay in the head commit; dependency links come and go", async () => {
+    w = await gitWorld("go-small");
+    const root = w.repo.root;
+    const outsideFile = join(realpathSync(mkdtempSync(join(tmpdir(), "mitori-outside-"))), "secret.txt");
+    extra.push(join(outsideFile, ".."));
+    writeFileSync(outsideFile, "TOP SECRET\n");
+    symlinkSync(outsideFile, join(root, "abs"));
+    symlinkSync("../../../etc", join(root, "climb"));
+    symlinkSync("abs", join(root, "chain"));
+    symlinkSync(".git/config", join(root, "gitcfg"));
+    symlinkSync(README, join(root, "inside"));
+    w.userGit(["add", "abs", "climb", "chain", "gitcfg", "inside"]);
+    w.userGit(["commit", "-q", "-m", "symlinks"]);
+    writeFileSync(join(root, ".git/info/exclude"), "node_modules/\n");
+    mkdirSync(join(root, "node_modules/pkg"), { recursive: true });
+    writeFileSync(join(root, "node_modules/pkg/index.js"), "x\n");
+    const s = await w.git.snapshot(w.deps.deny());
+    const job = newJob();
+    const wt = await w.git.createWorktree(job, s.commit, { dependencyLinks: false });
+    const present = (p: string) => {
+      try {
+        return lstatSync(join(wt.path, p)).isSymbolicLink() ? "link" : "file";
+      } catch {
+        return "absent";
+      }
+    };
+    expect(["abs", "climb", "chain", "gitcfg", "inside", "node_modules"].map(present)).toEqual(["absent", "absent", "absent", "absent", "link", "absent"]);
+    // the head commit of an untouched worktree is the base tree: nothing was "deleted"
+    writeFileSync(join(wt.path, FETCH), `${read(FETCH)}// x\n`);
+    const head = await w.git.commitHead(job, wt.path, 1);
+    const tree = (await w.git.ws.lsTree(head)).map((f) => f.path);
+    for (const p of ["abs", "climb", "chain", "gitcfg", "inside"]) expect(tree).toContain(p);
+    expect((await w.git.diffCommits(s.commit, head)).map((f) => f.path)).toEqual([FETCH]);
+    // the gates' links: made, then dropped again (the user's real directory is untouched)
+    expect(await w.git.linkDependencies(job)).toEqual(["node_modules"]);
+    expect(present("node_modules")).toBe("link");
+    expect((await w.git.diffCommits(s.commit, await w.git.commitHead(job, wt.path, 2))).map((f) => f.path)).toEqual([FETCH]);
+    await w.git.unlinkDependencies(job);
+    expect(present("node_modules")).toBe("absent");
+    expect(readFileSync(join(root, "node_modules/pkg/index.js"), "utf8")).toBe("x\n");
+  });
+
+  test("F1 remainder: a link that escapes only when resolved like the kernel is not checked out; links left on disk are found", async () => {
+    w = await gitWorld("go-small");
+    const root = w.repo.root;
+    const outsideFile = join(realpathSync(mkdtempSync(join(tmpdir(), "mitori-outside-"))), "secret.txt");
+    extra.push(join(outsideFile, ".."));
+    writeFileSync(outsideFile, "TOP SECRET\n");
+    mkdirSync(join(root, "p/q"), { recursive: true });
+    symlinkSync("../..", join(root, "p/q/l"));
+    // lexically the root; physically two directories above it (the worktree's parent's parent)
+    symlinkSync("p/q/l/../../..", join(root, "x"));
+    symlinkSync(README, join(root, "inside"));
+    symlinkSync("missing.txt", join(root, "dangling"));
+    w.userGit(["add", "p/q/l", "x", "inside", "dangling"]);
+    w.userGit(["commit", "-q", "-m", "tricky symlinks"]);
+    const s = await w.git.snapshot(w.deps.deny());
+    const job = newJob();
+    const wt = (await w.git.createWorktree(job, s.commit, { dependencyLinks: false })).path;
+    const kind = (p: string) => {
+      try {
+        return lstatSync(join(wt, p)).isSymbolicLink() ? "link" : "file";
+      } catch {
+        return "absent";
+      }
+    };
+    expect(["p/q/l", "x", "inside", "dangling"].map(kind)).toEqual(["link", "absent", "link", "link"]);
+    const g = w.git.ws;
+    const onDisk = async () => escapingOnDisk(g, wt, await trackedSymlinks(g, wt));
+    // mitori's own checkout: nothing leads out (a tracked, unmodified dangling link is fine)
+    expect(await onDisk()).toEqual([]);
+    // what a gate running the AI's code could leave: deep `node_modules` links survive the post-check sync and the
+    // dependency unlink; a re-targeted tracked link; a neutralized one materialized; a dangling untracked one
+    mkdirSync(join(wt, "internal/meta/testdata/a/b"), { recursive: true });
+    symlinkSync(outsideFile, join(wt, "internal/meta/testdata/a/b/node_modules"));
+    symlinkSync("../../../README.md", join(wt, "internal/meta/testdata/ok"));
+    symlinkSync("/nonexistent/creds", join(wt, "gone"));
+    rmSync(join(wt, "dangling"));
+    symlinkSync("/nonexistent/other", join(wt, "dangling"));
+    symlinkSync("p/q/l/../../..", join(wt, "x"));
+    expect(await onDisk()).toEqual(["dangling", "gone", "internal/meta/testdata/a/b/node_modules", "x"]);
   });
 
   test("RT-24 / SEC-18: LFS pointers and filter / working-tree-encoding paths are unwritable", async () => {

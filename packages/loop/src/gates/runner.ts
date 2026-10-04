@@ -21,7 +21,7 @@ import { relatedTests } from "./checks.ts";
 import { dependencyFingerprint, dependencyLinks } from "./deps.ts";
 import { excerpt } from "./excerpt.ts";
 import { expandGate, filesFor } from "./expand.ts";
-import { type SandboxPaths, sandboxed } from "./sandbox.ts";
+import { type LoopbackPolicy, mergeListeners, parseLsofListeners, parseNetstatListeners, type SandboxPaths, sandboxed } from "./sandbox.ts";
 
 /** Ports of the runner. */
 export interface GateRunnerDeps {
@@ -43,6 +43,11 @@ export interface GateRunnerDeps {
   estimateTokens: (text: string) => number;
   /** Secret redaction of excerpts. */
   secrets: SecretScanner;
+  /**
+   * macOS: the ports already bound on loopback / wildcard addresses (ADR-0013 R2), or null when they cannot be listed
+   * (then the gate gets no loopback at all). Default: `/usr/sbin/netstat` through the spawner. Tests override it.
+   */
+  loopbackListeners?: (signal: Cancel) => Promise<LoopbackPolicy | null>;
 }
 
 const KIND_ORDER: readonly GateSpec["kind"][] = ["format", "lint", "typecheck", "test", "build", "custom"];
@@ -75,6 +80,48 @@ async function readText(fs: FsReader, abs: string): Promise<string | null> {
   return fs.stat(abs)?.isFile ? dec.decode(await fs.read(abs)) : null;
 }
 
+const NETSTAT = "/usr/sbin/netstat";
+const LSOF = "/usr/sbin/lsof";
+
+/**
+ * Ports bound on loopback / wildcard addresses of this Mac: `netstat` (every user's sockets — but the kernel shows a
+ * Bun- or Node-spawned netstat no sockets at all on macOS 26+) ∪ `lsof` (the user's own processes, ≈ 50–100 ms).
+ * Null when neither could run.
+ */
+export async function hostListeners(deps: Pick<GateRunnerDeps, "spawner" | "fs">, signal: Cancel): Promise<LoopbackPolicy | null> {
+  const run = async (command: string, argv: string[], ok: (code: number) => boolean): Promise<string | null> => {
+    if (!deps.fs.stat(command)?.isFile) return null;
+    const spec: SpawnSpec = { command, argv, env: {}, cwd: "/", stdin: "", keepStdinOpen: false, timeoutMs: 5_000, processGroup: true };
+    try {
+      const r = await runToExit(deps.spawner, spec, { signal });
+      return ok(r.code) && !r.timedOut && !r.cancelled ? r.stdout.join("\n") : null;
+    } catch {
+      return null;
+    }
+  };
+  const [v4, v6, lsof] = await Promise.all([
+    run(NETSTAT, ["-an", "-f", "inet"], (c) => c === 0),
+    run(NETSTAT, ["-an", "-f", "inet6"], (c) => c === 0),
+    // exit 1 = nothing matched
+    run(LSOF, ["-nP", "-w", "-iTCP", "-sTCP:LISTEN", "-iUDP", "-F", "Pn"], (c) => c === 0 || c === 1),
+  ]);
+  const parts: LoopbackPolicy[] = [];
+  if (v4 !== null && v6 !== null) parts.push(parseNetstatListeners(`${v4}\n${v6}`));
+  if (lsof !== null) parts.push(parseLsofListeners(lsof));
+  return parts.length === 0 ? null : mergeListeners(...parts);
+}
+
+/** The daemon's port from `~/.mitori/daemon.json` (the snapshot must contain it). */
+async function registryPort(fs: FsReader, home: string): Promise<number | null> {
+  try {
+    const text = await readText(fs, `${home}/daemon.json`);
+    const port = text === null ? null : (JSON.parse(text) as { port?: unknown }).port;
+    return typeof port === "number" && Number.isInteger(port) && port > 0 ? port : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Build the runner. */
 export function createGateRunner(deps: GateRunnerDeps): GateRunner {
   const sandboxPaths = (tree: string, jobTmp: string): SandboxPaths => {
@@ -86,7 +133,13 @@ export function createGateRunner(deps: GateRunnerDeps): GateRunner {
       userHome,
       mitoriHome: deps.home,
       claudeEntries: userHome ? (deps.fs.readdir(userHome) ?? []).filter((n) => n.startsWith(".claude")).map((n) => `${userHome}/${n}`) : [],
-      exists: (abs) => deps.fs.stat(abs) !== null,
+      // a dangling symlink hides nothing (and bwrap could not mount over it)
+      exists: (abs) => deps.fs.realpath(abs) !== null,
+      isDir: (abs) => {
+        const real = deps.fs.realpath(abs);
+        return real !== null && deps.fs.stat(real)?.isDir === true;
+      },
+      realpath: (abs) => deps.fs.realpath(abs),
     };
   };
 
@@ -113,6 +166,21 @@ export function createGateRunner(deps: GateRunnerDeps): GateRunner {
     return { env: { GOCACHE: goCache }, dirs: [goCache] };
   }
 
+  /**
+   * ADR-0013 R2 (macOS): the gate may use loopback, except every port bound before it started and the daemon's port.
+   * A snapshot that does not contain the daemon's own listener cannot be trusted to have seen the others: then, and
+   * without a snapshot, no loopback at all (the fully closed profile). bwrap needs none: its network namespace is private.
+   */
+  async function loopbackPolicy(signal: Cancel): Promise<LoopbackPolicy | undefined> {
+    const [snapshot, daemon] = await Promise.all([
+      (deps.loopbackListeners ?? ((s: Cancel) => hostListeners(deps, s)))(signal),
+      registryPort(deps.fs, deps.home),
+    ]);
+    if (snapshot === null) return undefined;
+    if (daemon !== null && !snapshot.tcp.includes(daemon)) return undefined;
+    return snapshot;
+  }
+
   async function runOne(
     tree: string,
     gate: GateSpec,
@@ -137,7 +205,8 @@ export function createGateRunner(deps: GateRunnerDeps): GateRunner {
     const jobTmp = jobTmpOf(deps.home, deps.ws.key, tree);
     await deps.safeWrite.write(deps.home, `${jobTmp.slice(deps.home.length + 1)}/.keep`, "", "home");
     const caches = opts.sandbox === "none" ? { env: {}, dirs: [] as string[] } : await sandboxCaches();
-    const full = sandboxed(opts.sandbox, { ...sandboxPaths(tree, jobTmp), caches: caches.dirs }, cwd, argv);
+    const loopback = opts.sandbox === "sandbox-exec" ? await loopbackPolicy(signal) : undefined;
+    const full = sandboxed(opts.sandbox, { ...sandboxPaths(tree, jobTmp), caches: caches.dirs, ...(loopback ? { loopback } : {}) }, cwd, argv);
     const before = new Map<RepoPath, string | null>();
     if (gate.autofix) for (const p of files) before.set(p, await readText(deps.fs, `${tree}/${p}`));
     // RT-31: without a sandbox a repo-code gate could rewrite the linked dependency trees — fingerprint them around it
@@ -156,7 +225,9 @@ export function createGateRunner(deps: GateRunnerDeps): GateRunner {
     let r: Awaited<ReturnType<typeof runToExit>> | null = null;
     let spawnError: MitoriError | null = null;
     try {
-      r = await runToExit(deps.spawner, spec, { signal });
+      // nothing the gate started outlives it: a background job could keep writing into the tree (a symlink to a
+      // secret) after the post-gate checks, while the agent's next turn reads it
+      r = await runToExit(deps.spawner, spec, { signal, reapGroup: true });
     } catch (e) {
       spawnError = MitoriError.from(e);
     }

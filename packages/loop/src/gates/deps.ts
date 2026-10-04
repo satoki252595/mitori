@@ -3,9 +3,9 @@
 // sandbox a consented gate runs with the user's rights, so the trees are fingerprinted before and after the run and
 // a change fails the job — a test that rewrites a dependency would otherwise outlive a reject.
 //
-// The fingerprint is (path, type, size, mtime, inode) of every entry, walked in name order without following links
-// (FsReader.stat is an lstat). A writer that restores size AND mtime of an in-place edit is not seen (FsStat carries
-// no ctime — docs/design/cr-requests/agent.md #3); the sandbox is the defence, this is the fallback's tripwire.
+// The fingerprint is (path, type, size, mtime, ctime, inode) of every entry, walked in name order without following
+// links (FsReader.stat is an lstat). ctime (cr-requests/agent.md #3) catches a writer that restores size AND mtime of
+// an in-place edit with `utimes`: user space cannot set it. The sandbox is the defence, this is the fallback's tripwire.
 import type { FsReader, RepoPath } from "@mitori/core";
 
 /** Dependency directory names linked into worktrees (git/worktree.ts `DEPENDENCY_DIRS` + workspace `node_modules`). */
@@ -69,7 +69,7 @@ export function dependencyFingerprint(fs: FsReader, tree: string, links: readonl
         const st = fs.stat(abs);
         if (!st) continue;
         const kind = st.isSymlink ? "l" : st.isDir ? "d" : "f";
-        h.add(`${kind} ${abs.slice(root.length)} ${st.size} ${st.mtimeNs} ${st.ino}`);
+        h.add(`${kind} ${abs.slice(root.length)} ${st.size} ${st.mtimeNs} ${st.ctimeNs ?? 0n} ${st.ino}`);
         if (st.isDir && !st.isSymlink) stack.push(abs);
       }
       if (!complete) break;

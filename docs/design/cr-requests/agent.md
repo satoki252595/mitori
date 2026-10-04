@@ -32,6 +32,8 @@ and 6 are the ones that change what a user sees.
   edits a file in place and restores its size and mtime with `utimes` is not seen; ctime cannot be set from user space.
 - workaround in place: the fingerprint documents the gap (`gates/deps.ts`); the sandbox (item 1) is the real defence.
 - urgency: low (only the consent path without a sandbox).
+- **DONE (rem/safety, CR safe-2)**: `FsStat.ctimeNs?` (optional), set by the platform reader, part of the fingerprint
+  (`gates/deps.test.ts` restores size + mtime with `utimes` and is still seen).
 
 ## 4. Owner-file edits outside the WP-08c directories (please review with WP-08b)
 - `jobs/runner.ts`: dispatch of agent mode, agent revise, the R2 hand-over hook in `launch`, repair after a consented gate run,
@@ -48,6 +50,7 @@ and 6 are the ones that change what a user sees.
   discovered the repository through `<wt>/.git`, a file code under test (or the agent) can rewrite — mitori's own git
   would then follow it outside the sandbox. WP-08b please review.
 - urgency: review only.
+- **REVIEWED (rem/safety, ledger §8.1 `review agent-4`)**: kept.
 
 ## 5. One trust dialog for a SET of gates
 - contract: core `TrustRequest.preview` (one string, ≤ 8000 chars)
@@ -65,6 +68,9 @@ and 6 are the ones that change what a user sees.
 - why: the R2 agent job starts without the files the patch turn asked for; the agent can still Read them (one call each).
 - workaround in place: none (the agent reads them itself).
 - urgency: low.
+- **DONE (rem/safety)**: the items travel with the patch failure (`params.needs`), are resolved by
+  `agent/hints.ts` (path, `path:a-b`, `path#La-Lb`, symbol names) and become the agent bundle's `hints` (REL, read
+  only). No contract change was needed (`BundleInput.hints` existed; `planJob` takes `PlanOptions.readHints`).
 
 ## 8. The gate sandbox blocks loopback too (decision needed, ADR-0013)
 - contract: ADR-0013 decision 3 ("network 拒否"), `gates/sandbox.ts`
@@ -75,6 +81,12 @@ and 6 are the ones that change what a user sees.
   `(remote ip "localhost:*")`; bwrap would need a private netns with lo up) — local services and a loopback proxy
   become reachable from AI-written code; (c) (b) plus a deny list of known local proxy ports.
 - urgency: medium (common in Go / Node / Python test suites).
+- **DECIDED (rem/safety, ADR-0013 R2)**: the gate's own loopback is allowed, nothing of the host is. Linux keeps
+  `--unshare-net` (a private namespace, only `lo`); macOS allows loopback and denies every port bound before the gate
+  started (`netstat` ∪ `lsof`), the privileged range and 8021, failing closed when the snapshot does not contain the
+  daemon's own port. Same pass: unix sockets only under the writable dirs (closes DNS via mDNSResponder and the Docker /
+  nix daemon sockets), keychain / LaunchServices / nsurlsessiond / pasteboard mach services denied. RT-30b in
+  `gates/runner.int.test.ts` runs a Bun server + client and `go test` with `httptest.NewServer` inside the sandbox.
 
 ## 9. First-turn input limit ignores the system prompt
 - contract: `jobs/engine.ts` (WP-08b) `inTokens: Math.max(plan.budget.in * 2, 4000)`
@@ -82,9 +94,11 @@ and 6 are the ones that change what a user sees.
   the system prompt would push a small Fix over it before it answers. Repair / revise turns were fixed in this track
   (`repair/turn.ts repairInTokens`); the first turn needs `+ system prompt tokens` (or the same rule).
 - urgency: medium.
+- **DONE (rem/safety)**: `firstTurnInTokens` = max(in × 2, 4k) + the system prompt + the JSON schema actually sent;
+  the planned `in` also counts the CLI's own fixed part now (F10).
 
 ## 7. Not done in this pass
 - `docpatch/1` (a sent doc note) still answers `E_UNSUPPORTED` from `create`.
 - `GIT_LIMITS.maxWorktreesPerWs` is not enforced for the lazily created check worktrees of ready patch jobs (GC and accept / reject
-  remove them).
+  remove them). **DONE (rem/safety)**: `jobs/worktrees.ts` evicts the oldest idle worktrees before any new one.
 - GitHub PR creation (☆) stays 501.

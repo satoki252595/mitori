@@ -1,4 +1,5 @@
 import { type BlockId, type CopyPromptReq, type CopyPromptRes, MitoriError, type ThreadDetail, type ThreadId } from "@mitori/core";
+import { threadContext, writeRemovals } from "../review/context.ts";
 import { deriveScope } from "../router/scope.ts";
 import { type BundleInputExt, build } from "./build.ts";
 import type { BundleBuilderDeps } from "./deps.ts";
@@ -33,9 +34,13 @@ export async function copyPrompt(deps: BundleBuilderDeps, req: CopyPromptReq): P
   };
   const writes = req.intent === "change" || req.intent === "doc_edit";
   const claimCites = (claim: string) => (req.anchor.doc ? (deps.doc.claims(req.anchor.doc.block).find((c) => c.id === claim)?.cites ?? []) : []);
+  // CR safe-6: the Composer's picked candidates / `@` mentions / removed targets — the code a push job would get
+  const context = threadContext(req.context);
+  const removedWrite = writeRemovals(context);
   const scope = deriveScope([thread], {
     mode: writes ? "patch" : "answer",
-    extra: [],
+    extra: context?.add ?? [],
+    ...(removedWrite.size > 0 ? { removedWrite } : {}),
     deny: s.denyGlobs,
     citesOfBlock: (b: BlockId) => deps.doc.claims(b).flatMap((c) => c.cites),
     citesOfClaim: claimCites,
@@ -52,8 +57,8 @@ export async function copyPrompt(deps: BundleBuilderDeps, req: CopyPromptReq): P
   const input: BundleInputExt = {
     threads: [thread],
     mode: "copy",
-    extra: [],
-    removed: [],
+    extra: context?.add ?? [],
+    removed: context?.remove ?? [],
     write: scope.value.writeScope,
     deny: s.denyGlobs,
     gates: [],

@@ -24,6 +24,116 @@ function homeRel(g: GitWorkspace, abs: string): string {
   return abs.slice(g.deps.home.length + 1);
 }
 
+const dec = new TextDecoder();
+
+/** Resolution steps one link may take before it counts as escaping (a loop, or a chain nobody needs). */
+const RESOLVE_STEPS = 256;
+
+/**
+ * Tracked symlinks whose target leaves the worktree (F1 remainder, cr-requests/agent.md): absolute targets, relative
+ * ones that climb above the root, targets inside `.git`, and links that reach such a target through other tracked
+ * links (`a -> b`, `b -> /etc`). The agent's Read / Grep follow symlinks; a repo (or a prompt-injected earlier job)
+ * with `config -> ~/.aws/credentials` would hand the file to the model. Pure over `targets` (path → link text).
+ *
+ * The target is resolved the way the kernel does, component by component, substituting every tracked link on the
+ * way — never by lexical normalization: with `p/q/l -> ../..` (the root), `x -> p/q/l/../../..` normalizes to the
+ * root but resolves to two directories ABOVE it. A component matches a link whatever its case (APFS / NTFS are case
+ * insensitive); where only the case differs both readings are followed and either escaping counts.
+ */
+export function escapingSymlinks(targets: ReadonlyMap<RepoPath, string>): RepoPath[] {
+  const folded = new Map<string, RepoPath[]>();
+  for (const l of targets.keys()) folded.set(l.toLowerCase(), [...(folded.get(l.toLowerCase()) ?? []), l]);
+  /** Does walking `rest` from the directory `at` ever leave the root or enter `.git`? */
+  const leaves = (start: readonly string[], rest: readonly string[], budget: { n: number }): boolean => {
+    const at = [...start];
+    for (let i = 0; i < rest.length; i++) {
+      const seg = rest[i] as string;
+      if (seg === "" || seg === ".") continue;
+      if (--budget.n < 0) return true;
+      if (seg === "..") {
+        if (at.length === 0) return true;
+        at.pop();
+        continue;
+      }
+      at.push(seg);
+      if ((at[0] as string).toLowerCase() === ".git") return true;
+      const key = at.join("/");
+      const links = folded.get(key.toLowerCase()) ?? [];
+      for (const l of links) {
+        const t = targets.get(l) as string;
+        if (t.startsWith("/") || leaves(at.slice(0, -1), [...t.split("/"), ...rest.slice(i + 1)], budget)) return true;
+      }
+      // the component IS that link: the rest of the path was resolved through it above
+      if (links.includes(key as RepoPath)) return false;
+    }
+    return false;
+  };
+  return [...targets.keys()]
+    .filter((l) => {
+      const t = targets.get(l) as string;
+      const dir = l.includes("/") ? l.slice(0, l.lastIndexOf("/")).split("/") : [];
+      return t.startsWith("/") || leaves([], [...dir, ...t.split("/")], { n: RESOLVE_STEPS });
+    })
+    .sort();
+}
+
+/**
+ * Symlinks ON DISK in a job worktree that lead outside it or into its `.git`, whatever made them — a gate that ran
+ * the AI's code (a sandboxed test may create `testdata/a/b/node_modules -> ~/.aws/credentials`: the sandbox denies
+ * reading through it, the agent's Read in the next turn would not), a tracked link a gate re-targeted, a
+ * neutralized link something materialized. Each link is judged by its realpath; a dangling one counts unless it is a
+ * tracked, unmodified, non-escaping link (nothing can be read through a dangling link; one that is not mitori's
+ * checkout is still refused). `.git` itself is not walked. Paths are repo-relative, sorted.
+ */
+export async function escapingOnDisk(g: GitWorkspace, wt: string, tracked: ReadonlyMap<RepoPath, string>): Promise<RepoPath[]> {
+  const fs = g.deps.fs;
+  const root = fs.realpath(wt) ?? wt;
+  const inside = (real: string) => (real === root || real.startsWith(`${root}/`)) && real !== `${root}/.git` && !real.startsWith(`${root}/.git/`);
+  const neutralized = new Set(escapingSymlinks(tracked));
+  const out: RepoPath[] = [];
+  const dangling: RepoPath[] = [];
+  const walk = (rel: string): void => {
+    for (const name of fs.readdir(rel === "" ? wt : `${wt}/${rel}`) ?? []) {
+      if (rel === "" && name === ".git") continue;
+      const p = rel === "" ? name : `${rel}/${name}`;
+      const st = fs.stat(`${wt}/${p}`);
+      if (!st) continue;
+      if (st.isSymlink) {
+        const real = fs.realpath(`${wt}/${p}`);
+        const path = nfc(p) as RepoPath;
+        if (neutralized.has(path) || (real !== null && !inside(real))) out.push(path);
+        else if (real === null) dangling.push(path);
+      } else if (st.isDir) walk(p);
+    }
+  };
+  walk("");
+  if (dangling.length > 0) {
+    const candidates = dangling.filter((p) => tracked.has(p));
+    const modified =
+      candidates.length === 0
+        ? new Set<string>()
+        : new Set(
+            // `diff`, not `diff-files`: checkout-index leaves the stat cache cold, and only the porcelain compares the
+            // link text of a stat-dirty entry instead of listing it
+            splitZ(
+              (await g.inWorktree(wt, ["diff", "--name-only", "-z", "--no-ext-diff", "--no-textconv", "--", ...candidates.map((p) => `:(literal)${p}`)])).out,
+            ).map(nfc),
+          );
+    for (const p of dangling) if (!tracked.has(p) || modified.has(p)) out.push(p);
+  }
+  return out.sort();
+}
+
+/** Tracked symlinks of a worktree's index with their link text. */
+export async function trackedSymlinks(g: GitWorkspace, wt: string): Promise<Map<RepoPath, string>> {
+  const out = new Map<RepoPath, string>();
+  for (const e of splitZ((await g.inWorktree(wt, ["ls-files", "-s", "-z"])).out)) {
+    const m = /^120000 ([0-9a-f]{40,64}) \d\t(.+)$/s.exec(e);
+    if (m) out.set(nfc(m[2] as string) as RepoPath, dec.decode(await g.blob(m[1] as GitOid)));
+  }
+  return out;
+}
+
 /** `git worktree add --detach --no-checkout` + read-tree + checkout-index (+ skip-worktree outside `partial`). */
 async function addWorktree(g: GitWorkspace, job: JobId, commit: GitOid, partial?: readonly RepoPath[]): Promise<string> {
   await g.ready();
@@ -31,12 +141,15 @@ async function addWorktree(g: GitWorkspace, job: JobId, commit: GitOid, partial?
   if (g.deps.fs.stat(wt)) await removeWorktree(g, job);
   await g.side(["worktree", "add", "--detach", "--no-checkout", wt, commit]);
   await g.inWorktree(wt, ["read-tree", commit]);
+  const skip = new Set<RepoPath>();
   if (partial) {
     const keep = new Set(partial);
-    const all = splitZ((await g.inWorktree(wt, ["ls-files", "-z"])).out).map(nfc);
-    const skip = all.filter((p) => !keep.has(p));
-    if (skip.length > 0) await g.inWorktree(wt, ["update-index", "--skip-worktree", "-z", "--stdin"], { input: `${skip.join("\0")}\0` });
+    for (const p of splitZ((await g.inWorktree(wt, ["ls-files", "-z"])).out).map(nfc)) if (!keep.has(p)) skip.add(p as RepoPath);
   }
+  // a tracked symlink that leaves the worktree is never materialized: skip-worktree keeps its index entry (the head
+  // commit records it unchanged) while `checkout-index -a` does not create it, so nothing can Read through it
+  for (const p of escapingSymlinks(await trackedSymlinks(g, wt))) skip.add(p);
+  if (skip.size > 0) await g.inWorktree(wt, ["update-index", "--skip-worktree", "-z", "--stdin"], { input: `${[...skip].join("\0")}\0` });
   await g.inWorktree(wt, ["checkout-index", "-a", "-q"]);
   return wt;
 }
@@ -46,7 +159,7 @@ async function addWorktree(g: GitWorkspace, job: JobId, commit: GitOid, partial?
  * `node_modules` of `package.json` workspaces up to depth 2). Created by git itself (`checkout-index` of a symlink
  * entry from a throwaway index), so no symlink-capable write port is needed; excluded from every head commit.
  */
-async function linkDependencies(g: GitWorkspace, wt: string): Promise<RepoPath[]> {
+export async function linkDependencies(g: GitWorkspace, wt: string): Promise<RepoPath[]> {
   const candidates = new Set<RepoPath>(DEPENDENCY_DIRS);
   const pkg = g.deps.fs.stat(`${g.root}/package.json`)?.isFile ? new TextDecoder().decode(await g.deps.fs.read(`${g.root}/package.json`)) : null;
   if (pkg) {
@@ -74,6 +187,18 @@ async function linkDependencies(g: GitWorkspace, wt: string): Promise<RepoPath[]
     await g.side(["checkout-index", "-f", "-z", "--stdin"], { indexFile, cwd: wt, workTree: wt, input: `${links.join("\0")}\0` });
   });
   return links;
+}
+
+/**
+ * Remove the dependency links again (F1 remainder): a link is the user's real `node_modules` / `.venv`, and through
+ * it `node_modules/../.env` is the user's untracked `.env` — the agent's Read must not have it during a turn. `git
+ * clean` without `-d` unlinks a symlink and never descends into or removes a real directory; each path is checked to
+ * be a symlink first.
+ */
+export async function unlinkDependencies(g: GitWorkspace, wt: string, links: readonly RepoPath[]): Promise<void> {
+  const present = links.filter((p) => g.deps.fs.stat(`${wt}/${p}`)?.isSymlink === true);
+  if (present.length === 0) return;
+  await g.inWorktree(wt, ["clean", "-f", "-x", "-q", "--", ...present.map((p) => `:(literal)${p}`)]);
 }
 
 /** `GitSafety.createWorktree`. */
@@ -128,7 +253,9 @@ export async function writeFiles(g: GitWorkspace, worktree: string, files: Recor
 /** `GitSafety.commitHead`: the worktree state (minus dependency links) as `refs/mitori/j/<job>/head`. */
 export async function commitHead(g: GitWorkspace, job: JobId, worktree: string, attempt: number, links: readonly RepoPath[] = []): Promise<GitOid> {
   const { base } = await jobCommits(g, job);
-  const pathspec = [".", ...links.map((l) => `:(exclude,literal)${l}`)];
+  // a neutralized symlink keeps its base entry: absent from the worktree is not "deleted by the agent"
+  const kept = [...new Set([...links, ...escapingSymlinks(await trackedSymlinks(g, worktree))])];
+  const pathspec = [".", ...kept.map((l) => `:(exclude,literal)${l}`)];
   await g.inWorktree(worktree, ["add", "-A", "--sparse", "--pathspec-from-file=-", "--pathspec-file-nul"], { input: `${pathspec.join("\0")}\0` });
   const tree = (await g.inWorktree(worktree, ["write-tree"])).out.trim();
   const head = await g.commitTree(tree, [base], `mitori job ${job} attempt ${attempt}\n`);

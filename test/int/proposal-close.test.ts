@@ -10,7 +10,7 @@ import { buildFixture, type FixtureRepo } from "@mitori/testkit";
 import type { SseReader } from "../../packages/server/src/http/test/sse-reader.ts";
 import { FAKE_CLAUDE_CONFIG, fakeClaude } from "./fake-claude.ts";
 import { type Int, startInt } from "./harness.ts";
-import { ASK, CONFIG, routeUx } from "./ux-router.ts";
+import { ASK, CITED_MD, CONFIG, RETRY_ASK, routeUx } from "./ux-router.ts";
 
 let int: Int;
 let repo: FixtureRepo;
@@ -118,9 +118,38 @@ describe("EX-05 a closed job's doc proposals close with it", () => {
     const { job, proposal } = await tokenFix();
     const acc = await api<{ checkpoint: { id: string } }>("POST", `/jobs/${job.id}/accept`, { accept: "all", acceptUnverified: true });
     expect(readFileSync(join(repo.root, CONFIG), "utf8")).not.toBe(before);
-    expect(stateOf(proposal)).toBe("pending"); // still acceptable on its own while the code is in the tree
+    // the env row is a static facts block: it follows the accepted code by itself, so the accept closed the AI edit
+    // of it (rem/safety, cr-requests/ux.md #2; a prose block's proposal stays acceptable on its own, ux.test.ts)
+    expect(stateOf(proposal)).toBe("rejected");
     await api("POST", `/checkpoints/${acc.checkpoint.id}/undo`, {});
     expect(readFileSync(join(repo.root, CONFIG), "utf8")).toBe(before);
+    expect((await api<JobDetail>("GET", `/jobs/${job.id}`)).state).toBe("reverted");
+    expect(stateOf(proposal)).toBe("rejected");
+  });
+
+  test("a prose sentence's proposal: still pending after the code alone is accepted, rejected by the Undo", async () => {
+    // a human writes a cited sentence into the doc; the retry Fix on it proposes the sentence's rewrite (ux-router)
+    const ph = doc()
+      .section("s1")
+      ?.blocks.find((b) => b.kind === "placeholder");
+    if (!ph) throw new Error("no placeholder in s1");
+    const edited = await web.req("POST", `/ws/${ws}/doc/blocks/${ph.id}/edit`, { baseHash: ph.hash, md: CITED_MD, mdForm: "file", apply: "doc" });
+    expect(edited.status).toBe(200);
+    const text = doc().blockText(ph.id) ?? "";
+    const anchor: AnchorInput = { primary: "doc", doc: { block: ph.id, selStart: 0, selEnd: text.length } };
+    const th = await api<ThreadDetail>("POST", "/threads", { anchor, intent: "change", body: RETRY_ASK, draft: false });
+    const est = await api<JobEstimate>("POST", "/jobs/estimate", { kind: "fix", threads: [th.id] });
+    const job = await api<Job>("POST", "/jobs", { kind: "fix", threads: [th.id], estimateId: est.estimate.id, confirm: true });
+    const ready = await jobUntil(job.id, ["ready"]);
+    const proposal = ready.proposalViews[0]?.id as ProposalId;
+    expect(doc().block(ready.proposalViews[0]?.block as never)?.origin).not.toBe("static");
+    const FETCH = "internal/meta/fetch.go";
+    const before = readFileSync(join(repo.root, FETCH), "utf8");
+    const acc = await api<{ checkpoint: { id: string } }>("POST", `/jobs/${job.id}/accept`, { accept: "all", acceptUnverified: true });
+    expect(readFileSync(join(repo.root, FETCH), "utf8")).not.toBe(before);
+    expect(stateOf(proposal)).toBe("pending"); // still acceptable on its own while the code is in the tree
+    await api("POST", `/checkpoints/${acc.checkpoint.id}/undo`, {});
+    expect(readFileSync(join(repo.root, FETCH), "utf8")).toBe(before);
     expect((await api<JobDetail>("GET", `/jobs/${job.id}`)).state).toBe("reverted");
     expect(stateOf(proposal)).toBe("rejected");
   });

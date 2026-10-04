@@ -32,7 +32,9 @@ import {
 } from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
+import { resolveReadHints } from "../agent/hints.ts";
 import { type Bundle, type BundleBuilder, type BundleMode, JOB_BUDGET, type ReviewEngine, type RouteOutcome } from "../contract.ts";
+import { mergeContexts, writeRemovals } from "../review/context.ts";
 import { deriveWriteScope, route } from "../router/index.ts";
 import { touchingClaims } from "../router/ranges.ts";
 import type { ScopeCtx, ScopeResult } from "../router/scope.ts";
@@ -92,6 +94,28 @@ const SECONDS: Record<BundleMode, [number, number]> = { answer: [8, 15], finding
 /** Estimates stay valid this long. */
 const ESTIMATE_TTL_MS = 10 * 60_000;
 
+/**
+ * F10: the engine's OWN fixed input per call, on top of mitori's system prompt + schema (the bundle's `fixed` item):
+ * the CLI's lean system prompt and tool definitions, read from the prompt cache. From the ledger (nonfunc audit §1.5):
+ * Explain 1,249 → 1,958 input tokens, patch 2,039 → 3,281 and ≈2k → 3,386 — 0.7k (answer) and ≈1.25k (patch) every
+ * time. The agent's 4.5k `fixed` item already counts its tool definitions. [仮, CT-08 bounds; per-profile
+ * calibration (`UsageLedger.fixedOverhead`) is not wired into loop.]
+ */
+export const ENGINE_FIXED_EXTRA: Partial<Record<EngineId, Partial<Record<BundleMode, number>>>> = {
+  "claude-cli": { answer: 700, findings: 1250, patch: 1250 },
+};
+/**
+ * F10: API calls of one agent turn [仮]. Every tool round-trip re-sends the conversation from the cache: the live
+ * 3-file agent Fix read 33.7k input tokens in total over a 7.7k context (≈ 4.4 calls).
+ */
+export const AGENT_EXPECTED_CALLS = 4;
+
+/** F10: what a job's calls read besides the bundle — the engine's fixed part (first call) and the agent's further round-trips. */
+export function cachedReads(engine: EngineId, mode: BundleMode, bundleTokens: number): { extra: number; cacheReadTokens: number } {
+  const extra = ENGINE_FIXED_EXTRA[engine]?.[mode] ?? 0;
+  return { extra, cacheReadTokens: extra + (mode === "agent" ? (bundleTokens + extra) * (AGENT_EXPECTED_CALLS - 1) : 0) };
+}
+
 /** Engines' capabilities the router needs. */
 const ENGINE_CAPS: Record<EngineId, { tools: boolean; jsonSchema: boolean }> = {
   "claude-cli": { tools: true, jsonSchema: true },
@@ -115,9 +139,11 @@ export function scopeCtx(
   unwritable: ReadonlySet<RepoPath>,
 ): ScopeCtx {
   const claims = () => deps.doc.index().claims;
+  const removed = writeRemovals(req.context);
   return {
     mode,
     extra: req.context?.add ?? [],
+    ...(removed.size > 0 ? { removedWrite: removed } : {}),
     deny: deps.settings().denyGlobs,
     citesOfBlock: (block) => deps.doc.claims(block).flatMap((c) => c.cites),
     citesOfClaim: (claim) => claims()[claim]?.cites ?? [],
@@ -140,14 +166,32 @@ function modeOf(r: RouteOutcome): BundleMode {
 
 const sum = (b: Bundle) => b.items.filter((i) => i.kind !== "output").reduce((s, i) => s + i.tokens, 0);
 
+/** `req` with the stored `Thread.context` of its threads merged into `req.context` (CR safe-6). */
+export function withThreadContext(req: JobReq, threads: readonly Pick<ThreadDetail, "context">[]): JobReq {
+  const merged = mergeContexts(req.context, ...threads.map((t) => t.context));
+  if (merged === undefined) return req;
+  return { ...req, context: merged };
+}
+
+/** Inputs of a re-plan that are not part of the request. */
+export interface PlanOptions {
+  /**
+   * cr-requests/agent.md #6: the `needs_more_context` items of the patch turn this plan escalates (R2). Resolved into
+   * read-only REL items of an AGENT bundle; never the write scope (spec §3.5).
+   */
+  readHints?: readonly string[];
+}
+
 /** Plan a job (no tokens spent). */
-export async function planJob(deps: PlanDeps, req: JobReq): Promise<JobPlan> {
+export async function planJob(deps: PlanDeps, req: JobReq, opts: PlanOptions = {}): Promise<JobPlan> {
   if (req.threads.length === 0) throw new MitoriError("E_INVALID_INPUT", "a job serves at least one thread");
   const threads = [...new Set(req.threads)].map((id) => {
     const t = deps.review.get(id);
     if (!t) throw new MitoriError("E_NOT_FOUND", `thread ${id} not found`, { params: { id } });
     return t;
   });
+  // CR safe-6: the threads' own chosen code (picked candidates, `@` mentions, removed targets) joins the request's
+  req = withThreadContext(req, threads);
   const wrong = threads.filter((t) => INTENT_JOB_KIND[t.intent] !== req.kind);
   if (wrong.length > 0)
     throw new MitoriError("E_INVALID_INPUT", `kind ${req.kind} does not match the intents (${wrong.map((t) => t.intent).join(", ")})`, {
@@ -173,6 +217,7 @@ export async function planJob(deps: PlanDeps, req: JobReq): Promise<JobPlan> {
   }
   const budgetTokens = Math.min(req.budgetTokens ?? limits.bundleDefaultTokens, limits.bundleMaxTokens);
   let gates = changes && scope.writeScope.length > 0 ? await deps.gates(scope.writeScope) : [];
+  const hints = opts.readHints && opts.readHints.length > 0 ? resolveReadHints(deps.indexer, opts.readHints) : [];
   const bundleFor = (mode: BundleMode, sc: ScopeResult, budget: JobPlan["budget"], contract: string) =>
     deps.bundles.build(
       {
@@ -186,6 +231,7 @@ export async function planJob(deps: PlanDeps, req: JobReq): Promise<JobPlan> {
         out: contract as never,
         budget,
         ...(req.docFix === true && req.kind === "explain" ? { docFix: true } : {}),
+        ...(mode === "agent" && hints.length > 0 ? { hints } : {}),
       },
       budgetTokens,
     );
@@ -232,11 +278,13 @@ export async function planJob(deps: PlanDeps, req: JobReq): Promise<JobPlan> {
       ? probe
       : await bundleFor(mode, mode === "patch" || mode === "agent" ? scope : { ...scope, writeScope: [] }, budget, outcome.decision.contract);
 
-  // 3. estimate
+  // 3. estimate — the bundle (fresh input) plus what every call also reads from the cache (F10): the engine's own fixed
+  // part, and for agent mode the context re-sent by each further tool round-trip
   const inTokens = sum(bundle);
+  const { extra, cacheReadTokens } = cachedReads(outcome.engine, mode, inTokens);
   const outTokens = OUT_CAP[mode];
-  const apiUsd = price(outcome.decision.model, inTokens, outTokens);
-  const total = inTokens + outTokens;
+  const apiUsd = price(outcome.decision.model, inTokens, outTokens, cacheReadTokens);
+  const total = inTokens + cacheReadTokens + outTokens;
   const reasons: ConfirmReason[] = [];
   if (total > limits.confirmAboveTokens) reasons.push("over_token_threshold");
   // the final escalation is a proposal: R1, or any agent job on the escalation model (the web's "escalate" asks for
@@ -250,7 +298,7 @@ export async function planJob(deps: PlanDeps, req: JobReq): Promise<JobPlan> {
     engine: outcome.engine,
     model: outcome.decision.model,
     inTokens,
-    cacheReadTokens: 0,
+    cacheReadTokens,
     cacheWriteTokens: 0,
     outTokens,
     apiUsd,
@@ -275,7 +323,8 @@ export async function planJob(deps: PlanDeps, req: JobReq): Promise<JobPlan> {
     scope,
     mode,
     bundle,
-    budget: { ...budget, in: inTokens },
+    // the first call's whole input (the meter counts every input class, cache reads included)
+    budget: { ...budget, in: inTokens + extra },
     gates,
     estimate,
     digest: deps.indexer.snapshot()?.indexDigest ?? null,
@@ -283,9 +332,9 @@ export async function planJob(deps: PlanDeps, req: JobReq): Promise<JobPlan> {
 }
 
 /** List price of a call, 0 for a model without a price entry. */
-function price(model: ModelId, inTok: number, outTok: number): number {
+function price(model: ModelId, inTok: number, outTok: number, cacheRead = 0): number {
   if (!(model in PRICING)) return 0;
-  return priceUsage(model as ClaudeModelId, { in: inTok, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead: 0, out: outTok }, false);
+  return priceUsage(model as ClaudeModelId, { in: inTok, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead, out: outTok }, false);
 }
 
 /** The public estimate of a plan. */

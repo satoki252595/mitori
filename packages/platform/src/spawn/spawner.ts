@@ -155,6 +155,13 @@ export interface RunOptions {
   stderrTail?: number;
   /** How long the pipes are still read after the child exited (default {@link PIPE_DRAIN_MS}). */
   drainMs?: number;
+  /**
+   * With `spec.processGroup`: SIGKILL whatever is left of the group once the leader exited. Gates: a test's background
+   * job (`(sleep 2; ln -s ~/.aws/credentials leak) &`) would otherwise keep writing into the job worktree while the
+   * agent's next turn reads it (only a process that leaves the group with setsid escapes; on Linux the gate's PID
+   * namespace ends with it anyway).
+   */
+  reapGroup?: boolean;
 }
 
 /** {@link runToExit} keeps reading the pipes this long after the exit (a lingering grandchild may hold them). */
@@ -204,6 +211,7 @@ export async function runToExit(spawner: Spawner, spec: SpawnSpec, opts: RunOpti
   const code = await child.exited;
   if (timer !== null) timers.clearTimeout(timer);
   opts.signal?.removeEventListener("abort", onAbort);
+  if (opts.reapGroup && spec.processGroup) child.kill("SIGKILL");
   // A grandchild that outlives the leader (a daemon the gate started) may hold the pipes open forever: read what is
   // left for at most `drainMs` after the exit, then return without it.
   let drainId: unknown;

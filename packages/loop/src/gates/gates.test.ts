@@ -47,7 +47,8 @@ describe("LOOP-U-040 format gate detection", () => {
   test("JS: biome (JSON config, local binary) wins over prettier; prettier counts as repo code; no npx", () => {
     const files = { "package.json": '{"devDependencies":{"prettier":"3.0.0"}}', "biome.json": "{}", "src/a.ts": "" };
     const both = detectFormatGates(env, input(files, ["src/a.ts"], ["/repo/node_modules/.bin/biome", "/repo/node_modules/.bin/prettier"]));
-    expect(both.map((g) => [g.id, g.argvTemplate[0], g.executesRepoCode])).toEqual([["fmt:biome", "node_modules/.bin/biome", false]]);
+    // F9: only the Node launcher (no native build found, nothing known about it) ⇒ it runs dependency code
+    expect(both.map((g) => [g.id, g.argvTemplate[0], g.executesRepoCode])).toEqual([["fmt:biome", "node_modules/.bin/biome", true]]);
     const { "biome.json": _, ...noBiome } = files;
     const prettier = detectFormatGates(env, input(noBiome, ["src/a.ts"], ["/repo/node_modules/.bin/prettier"]));
     expect(prettier.map((g) => [g.id, g.executesRepoCode])).toEqual([["fmt:prettier", true]]);

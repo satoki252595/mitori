@@ -12,7 +12,15 @@ function missing(err: unknown): boolean {
 export function lstatOrNull(abs: string): FsStat | null {
   try {
     const s = lstatSync(abs, { bigint: true });
-    return { size: Number(s.size), mtimeNs: s.mtimeNs, ino: s.ino, isFile: s.isFile(), isDir: s.isDirectory(), isSymlink: s.isSymbolicLink() };
+    return {
+      size: Number(s.size),
+      mtimeNs: s.mtimeNs,
+      ctimeNs: s.ctimeNs,
+      ino: s.ino,
+      isFile: s.isFile(),
+      isDir: s.isDirectory(),
+      isSymlink: s.isSymbolicLink(),
+    };
   } catch (err) {
     if (missing(err)) return null;
     throw err;
