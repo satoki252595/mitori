@@ -525,17 +525,16 @@
     },
     {
       "id": "idx.s04.cold.100kloc",
-      "metric": "S0–S4 cold（crit）",
+      "metric": "S0–S4 + 静的文書 cold（crit、初回 open: 新しい home・.mitori なし、POST /workspaces → 静的文書の適用まで）",
       "target": 1000,
       "limit": 2000,
       "unit": "ms",
       "dir": "max",
       "gates": ["relative", "absolute"],
       "owner": "indexer",
-      "measure": "bench/idx.bench.ts#s04-cold:crit",
+      "measure": "bench/open.bench.ts#idx.s04.cold.100kloc",
       "scale": "machine",
-      "provisional": false,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "provisional": false
     },
     {
       "id": "idx.s04.cold.react",
