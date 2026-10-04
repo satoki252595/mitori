@@ -7,7 +7,7 @@
 
 | 依頼 | 状態 | 根拠 |
 |---|---|---|
-| F4: budget を測る（71 / 131 が存在しない measure を指していた） | **済（131 + counter 8 のうち未計測 11、すべて理由つき）** | bench case 13 ファイル（§1）。`check` が「ファイルがあるのに unmeasured / 無いのに理由なし」を落とす |
+| F4: budget を測る（71 / 131 が存在しない measure を指していた） | **済（132 + counter 8 のうち未計測 8、すべて理由つき。検証パスで 3 件を計測、1 件を追加）** | bench case 13 ファイル（§1）。`check` が「ファイルがあるのに unmeasured / 無いのに理由なし」に加え、**検証パスから「measure の bench / spec がその id を名指ししない」も落とす**（§6） |
 | `bun run bench` / `bench:compare` / `size` が新しい case を回す | **済** | 全 suite の実測は bench-baseline.md。compare は base に case が無い新規 case を `new` として出す |
 | e2e/perf・e2e/a11y（axe） | **済（budget 超過は所有トラックへ）** | `e2e/perf/{first-use,reader,heap}.spec.ts`、`e2e/a11y/{axe,probe}.spec.ts`。axe-core 4.13.0（CR bench-1） |
 | 毎晩 / 手動の workflow（push trigger なし） | **済** | `.github/workflows/bench.yml`（schedule + workflow_dispatch、self-hosted macOS arm64） |
@@ -35,17 +35,18 @@
 | golden の test | `gen.prep.readmeBytes`・`loop.pull.overhead`・`mcp.toolsTokens`・`install.*` | 既にその値を assert している test を measure に指した |
 | `e2e/export/export.spec.ts` | `ui.lcp.export.{local,throttled}` | 既存の LCP 計測を measure に指した |
 
-**未計測 11 件**（`bench/budgets/*.json` の `unmeasured` に理由）と、続け方:
+検証パスで足した case（§6）: `ui.card.optimistic`・`ui.staleBadge`（`bench/ui.bench.ts`、in-process daemon + scripted claude +
+Chromium。CLI daemon にはエンジン注入口が無いので bench case だけ）、`ui.listeners.reader`（CDP、cold open を共有 + perf spec）、
+`bin.health`（新 budget、`bench/server.bench.ts`）。`ui.heap.10k` は palette の索引と Worker の heap を含む定義に直した。
+
+**未計測 8 件**（`bench/budgets/*.json` の `unmeasured` に理由）と、続け方:
 
 | budget | 理由 | 続け方 |
 |---|---|---|
 | `ui.scanSummary` | 「scan の要約を表示した」mark が web に無い | web が `mitori:scan:summary` を出したら `firstUse` に 1 行（cr-requests/bench.md #2） |
 | `agent.resident.{procs,rss}` | 常駐 claude プロセス（warm + parked）は本物の CLI が要る | `claude /login` 後に `bench/agent-live.bench.ts`（`MITORI_LIVE=1` のときだけ discover される形）で warm pool を有効にした daemon の子プロセスを `ps` で数える |
-| `ui.staleBadge` | Reader に人の出典つき block を作って保存する流れ | `idx.freshness` の setup（editBlock）を `coldOpen` の daemon に API で行い、Reader で `mitori:stale:badge` を待つ。部品は揃っている |
-| `ui.card.optimistic` | Composer の流れ（選択 → `c` → ⌘⏎）を実 daemon で | e2e/web の mock 版 `streaming.pw.ts` の手順を `e2e/perf/lib/ui.ts` に移す |
-| `ui.inputRender.1000` / `ui.dom.max` / `ui.codeLines.mounted` / `ui.reviewDiff5000.dom` | 1,000 block・20k 行・5,000 行 diff の fixture が実 daemon 用に無い | `fixtures/gen/` の生成 fixture（testing spec §2.3.10）を作り、`seedDoc` で daemon に入れる |
-| `ui.cls.gen` | 実 daemon での生成中 streaming | scenario engine（INT-04 の fakeClaude）を CLI daemon に注入する口が要る（今は in-process daemon だけ） |
-| `ui.listeners.reader` | CDP `DOMDebugger.getEventListeners` の巡回 | `heapMB` と同じく CDP session で root と 100 要素 |
+| `ui.inputRender.1000` / `ui.dom.max` / `ui.codeLines.mounted` / `ui.reviewDiff5000.dom` | 1,000 block・20k 行・5,000 行 diff の fixture が実 daemon 用に無い（testkit の `gen:doc-1000` / `gen:large-file` は名前だけで、`buildFixture` は作らない） | testkit が生成 fixture（testing spec §2.3.10）を作り、`seedDoc` で daemon に入れる。`ui.dom.typical`・`ui.listeners.reader` も今は crit の最大節（945 ノード）で、spec の gen:doc-1000 ではない |
+| `ui.cls.gen` | 実 daemon での生成中 streaming | `ui.card.optimistic` と同じ in-process daemon + scripted claude（INT-04 の `routeGen`）で、生成の SSE を受けている Reader の CLS を取る。部品は `bench/ui.bench.ts` `loopSetup` にある |
 
 ## 2. 負荷に弱いテスト → 機能は test、時間は bench
 
@@ -134,6 +135,9 @@ node 22.23.3、go 1.26.8）。再実行: `bash scripts/linux-ci.sh [--arch amd64
 8. UI の予算超過: 起動 CLS 0.049、axe `nested-interactive`（地図）、Reader の 1 回の読み込みで 29 requests（max 6 [仮]）。
 9. 1 ファイルの `update()` が daemon の部品で 49 ms（test 用の deps では 2.3 ms、indexer）。
 10. 大きな葉の sig skeleton 63k tokens（excalidraw、indexer）。
+11. （検証パス）**保存しても Reader に鮮度バッジが出ない**（web、high）: daemon は stale にし SSE も届くが、web は `doc.freshness` を
+    誰も読まない map に書くだけ。再読み込みまで「古い」が見えない。`ui.staleBadge` は case error になる。
+12. （検証パス）`git.precheck` は初めて測れて 87〜114 ms（負荷 14〜15、budget 50 / 100、loop）。
 
 `bun run e2e --project perf`（負荷 10 前後）: 8 件中 7 pass。残る 1 件は `ui.cls.boot`（構造の budget なので負荷に関係なく fail する。#8）。
 `ui.shellPaint` は時間 budget なので、この機械（calibration factor 1.24）では report だけ。`bun run e2e --grep @a11y`: 8 件中 6 pass、
@@ -141,8 +145,71 @@ fail 2 件は地図の axe `nested-interactive`（light / dark）。
 
 ## 5. 残り（次にやること）
 
-- §1 の未計測 11 件（続け方は表のとおり）。
+- §1 の未計測 8 件（続け方は表のとおり。検証パスで 11 → 8）。
+- `ui.staleBadge` の bench case は web の修正（cr-requests/bench.md #11）が入るまで case error になる（nightly の赤は正しい信号）。
 - reference 機の記録: `bun bench/runner/run.ts --record-reference` を静かな機械で（今は `reference.json` が古く、負荷下の calibration で
   factor が 1.0〜1.5 に振れるので、時間 budget はほぼ「scaled / skipped」になる）。self-hosted runner の登録はユーザー作業（testing spec §1.7）。
 - `ci:pr` に e2e/web（mock）を入れる件（F4 の残り）は、PR job の時間（≤ 10 分）との兼ね合いで未着手。`bench.yml` は nightly だけ。
 - `e2e/perf` の spec は budget 超過（cls・requests）で今は fail する。予算か UI のどちらかが動くまで nightly の赤は正しい信号。
+
+## 6. 検証パス（敵対的検証 + 仕上げ、2026-10-04 後半）
+
+実装パスの報告を全部やり直して確かめ、`git diff main...HEAD` を読み、見つけたものを直した（commit `f36489c`〜）。LLM 消費 $0。
+
+### 6.1 やり直した確認
+
+| 確認 | 結果 |
+|---|---|
+| `scripts/nd bun run check` | 緑（各 commit の後） |
+| `scripts/nd bun test`（全体、他のエージェントと同居、負荷 9.8〜16.8） | **2,777 pass / 10 skip / 5 todo / 0 fail**。notice つき skip: BENCH-U-15 の実時間 spin、IDX-AT-14 の RSS 半分 |
+| 同（修正後、`scripts/under-load.ts --procs 24`） | §6.4 |
+| 全 bench（`--suite all --absolute`、負荷 9.1〜19.6） | 66 case、bench-baseline.md 末尾。最初の baseline の判定を再現（構造・メモリ・warm rescan・update・RSS の超過は本物） |
+| `bench:compare --base HEAD~1`（5 系列、2 pairs） | pass |
+| `bun run size` | exit 0（警告のみ） |
+| `bun run e2e --project perf` | 8 件中 7 pass。fail は `ui.cls.boot` 0.037（limit 0.01、本物） |
+| `bun run e2e --grep @a11y` | 8 件中 6 pass。fail は地図の axe `nested-interactive`（light / dark、本物） |
+| Linux arm64（`scripts/linux-ci.sh`、Ubuntu 24.04.5 / kernel 7.0.14-orbstack / aarch64、**コンテナ内で実行したことを env.txt で確認**） | install は tree-sitter の upstream 不具合で失敗 → `--ignore-scripts` で ok、check ok、`bun test` **2,650 pass / 130 skip / 1 fail**（PLAT-I-008、#6）、O3 3 回目も A、sandbox 10 / 10（`summary-arm64-verify.txt`） |
+| Linux x64（Rosetta、x86_64） | `build:bin`・`--version`・skeleton + INT-00 で **15 pass / 0 fail**（`summary-amd64-verify.txt`） |
+| 予算の数値 | `git diff main...HEAD -- bench/budgets` に target / limit / max の変更は 0。緩めた budget は無い（検証パスで `bin.health` を 1 つ足した） |
+
+### 6.2 直した不具合（すべて回帰試験つき）
+
+1. **`git.precheck` が測っていなかった**: `run: (b) => void b.git.precheck(...)` で、runner は呼び出しの開始（0.75 ms）だけを計り、
+   git の呼び出しは teardown の後で「git not found on PATH」（消えた cwd）で落ちていた（run の出力に stack trace 28 個）。await して
+   `clean` を確かめるようにした: 87〜114 ms（budget 50 / 100）。同じ種類の不具合を二度と数字にしないよう、runner は case の間
+   （setup〜teardown 後 25 ms）の unhandled rejection を case の error にする（BENCH-U-12、素の Bun プロセスで確認）。
+2. **「測っている」が書いてあるだけの budget を check が通していた**: measure のファイルがあるかしか見ていなかった。bench case の
+   ファイルか Playwright spec を measure にする budget は、そのファイルが id を文字列で名指ししないと失敗するようにした
+   （`scripts/lib/budgets.ts`）。見つかった 2 件: `doc.elk.*`（id を `n` から組み立てていた → 文字列に）、`ui.fetch.readerOpen`
+   （spec は annotation だけで gate は bench の counter → measure を `bench/ui.bench.ts` に）。
+3. **`scripts/linux/sandbox-check.ts` が本物の HOME に書いていた**: `~/.ssh/id_mitori_check` を置き、**`~/.mitori/state.sqlite` を
+   上書きしていた**（開発者の Linux 機で実行すると mitori の state DB が壊れる）。profile の user home を `~/.cache` 下の scratch に
+   した（`/tmp` は profile が tmpfs で隠すので、別の理由で「見えない」になるのを避けた）。finally で消す。
+4. **bench.yml**: (a) `workflow_dispatch` の入力を `run:` に直接埋めていた（script injection）→ `env:` 経由に。(b) **`bench … | tee`
+   が既定の `bash -e`（pipefail なし）で tee の exit code を返し、budget が赤でも step が通っていた** → job の `defaults.run.shell:
+   bash`（`-eo pipefail`）。(c) 1 つ目の失敗で後の計測が全部 skip されていた → 計測 step は `!cancelled()` で全部走る（perf と a11y も
+   別 step に）。(d) Chromium の install step を追加。
+5. **SKEL-AT-05（asset lock）を linux-arm64 で不要に skip していた** → binary が要らないので走らせる（改ざん lock の確認は対応 target を明示）。
+6. **SRV-AT-10 の題名が assert と違った**（「≤ 30 MB」で 50 MB を assert）→ 題名を limit に、target 超は警告。
+7. **e2e/a11y の contrast**: axe が注入されていないと黙って gate を飛ばしていた → 失敗にした。
+8. **`ui.heap.10k` が spec の状態を測っていなかった**: Reader 1 節・main thread だけ（3.6 MB）→ palette の索引を読み込み、Worker の
+   heap も CDP auto-attach で足す（13.9 MB）。spec の「file tree」は shell に無いので、workspace 全体の構造として palette を使う。
+9. **`bun run size` の `bin.startup`** が負荷を見ずに reference 機で落ちていた（ci:pr の負荷 flake の残り）→ bench と同じ規則で skipped。
+10. `scripts/under-load.ts` が SIGTERM や起動失敗で busy プロセスを残していた → 止める。
+
+### 6.3 仕上げ（未計測 → 計測）と、それで見つかったもの
+
+- `ui.card.optimistic`: 9.7 ms（p95 18.6、target 100）。Composer は推定が出て、送信先の注意書きが 1 秒見えてからでないと送らない
+  （初回の送信 = 同意。早い ⌘⏎ は nudge だけ）— bench はそれを待ってから計る。
+- `ui.listeners.reader`: 9（max 10）。
+- **`ui.staleBadge`: 計れない = 本物の不具合**。保存して daemon が block を stale にし SSE が届いても、Reader の DOM は
+  `data-fresh="fresh"`・`data-verdict="cited"` のまま。再読み込みすると stale。`applyFreshness` は誰も読まない map に書くだけ
+  （cr-requests/bench.md #11、high、web）。
+- `bin.health`（新 budget）: MILESTONES WP-00 の「起動 → health ≤ 1 s」。skeleton の test は 15 s の緩い期限にしたので、時間は
+  この case が測る: 103〜106 ms。
+- Linux sandbox（CR bench-2）: safety トラックの修正（`rem/safety` の `BWRAP_PROBE_ARGS`）を **merge 前に Linux で確認**した。
+  `scripts/linux-ci.sh --ref rem/safety --seccomp masked-proc|unconfined|default`: masked `/proc` → `none`（直った）、素の Linux →
+  `bwrap` 10 / 10（loopback の httptest も通る）、既定 seccomp → `none`（cr-requests/bench.md #1 の表）。`--ref`（別 branch を今の
+  harness で）と `--seccomp masked-proc`（devcontainer 相当）を linux-ci に足した。
+- PLAT-I-008（git 2.43）の原因を特定: 2.43 の `cat-file --batch` は promisor にしか無い object で exit 128 する（`missing` を
+  返さない）。SEC-05（lazy fetch しない・sshCommand を走らせない）は 2.43 でも守られる（cr-requests/bench.md #6、変更案つき）。

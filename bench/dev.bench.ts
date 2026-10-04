@@ -12,9 +12,10 @@ export const check = defineBench({
   async run() {
     const t0 = performance.now();
     const p = Bun.spawn([process.execPath, "run", "check"], { cwd: REPO_ROOT, stdout: "pipe", stderr: "pipe", env: { ...process.env, NO_COLOR: "1" } });
-    const [out, code] = await Promise.all([new Response(p.stdout).text(), p.exited]);
+    // both streams are drained (an unread pipe that fills would stall the child) and both explain a failure
+    const [out, err, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
     const ms = performance.now() - t0;
-    if (code !== 0) throw new Error(`bun run check failed:\n${out.split("\n").slice(-12).join("\n")}`);
+    if (code !== 0) throw new Error(`bun run check failed:\n${`${out}\n${err}`.trim().split("\n").slice(-12).join("\n")}`);
     return ms;
   },
 });

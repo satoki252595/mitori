@@ -128,13 +128,14 @@ export const binHealth = defineBench<{ src: FixtureRepo }>({
     const env = { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: work.dir, MITORI_HOME: ctx.home };
     const t0 = performance.now();
     const proc = Bun.spawn([BIN, root, "--no-open"], { cwd: work.dir, env, stdout: "pipe", stderr: "pipe" });
+    const stderr = new Response(proc.stderr).text(); // drained from the start: a full pipe would stall the daemon
     try {
       const reader = proc.stdout.getReader();
       let out = "";
       let origin: string | undefined;
       while (!origin) {
         const { value, done } = await reader.read();
-        if (done) throw new Error(`mitori exited before printing its URL: ${(await new Response(proc.stderr).text()).slice(-300)}`);
+        if (done) throw new Error(`mitori exited before printing its URL: ${(await stderr).slice(-300)}`);
         out += new TextDecoder().decode(value);
         origin = /http:\/\/127\.0\.0\.1:\d+/.exec(out)?.[0];
       }

@@ -1,5 +1,10 @@
 # bench-baseline — 全 bench を 1 回（2026-10-04、rem/bench）
 
+> **検証パスで直したもの（この表を読む前に）**: 下の最初の表の `git.precheck` 0.751 ms は**測定の不具合**（case が promise を待たず、
+> 呼び出しの開始だけを計っていた）。正しい値は 87〜114 ms（負荷 14〜15、末尾の「検証パスの再計測」）。`ui.heap.10k` 3.6 MB は main thread
+> だけ・palette の索引なしの値で、定義を spec に寄せた再計測は 13.9 MB。`ui.card.optimistic`・`ui.listeners.reader`・`ui.staleBadge`・
+> `bin.health` は検証パスで初めて測った。全 suite の再計測（負荷 9〜20）は末尾にある。
+
 `scripts/nd bun run bench --suite all --absolute --out <file>`（`--no-wait` なし: 開始前に負荷が下がるのを 2 回待ってから走った）。
 表は `bun bench/report.ts <file>` の出力で、**machine factor を掛けない生の値と、生の target / limit の比較**（この機械を基準機とみなした判定）。
 runner 自身の判定は、calibration の factor 1.245（基準機の記録 `bench/runner/reference.json` は 2026-10-03）で時間 budget を「scaled・gate しない」にし、
@@ -157,3 +162,119 @@ scripts/nd bun run bench --suite all --absolute --out bench/results/<sha>.json
 scripts/nd bun bench/report.ts bench/results/<sha>.json
 scripts/nd bun bench/runners/idx-structure.ts
 ```
+
+## 検証パスの再計測（2026-10-04 18:36〜18:44 JST、rem/bench `d872876`）
+
+敵対的検証パスで、同じ機械・同じ手順（`scripts/nd bun run bench --suite all --absolute --out <file>`、`bun bench/report.ts <file>`）で
+全 suite をもう一度走らせた。**負荷**: run 開始時の 1 分ロードアベレージ 10.07（`noisy`）、case ごとの開始時 10.2〜19.5（表の `load`）、
+30 秒ごとの `sysctl vm.loadavg` は 9.1〜19.6（他のエージェントと同居）。calibration factor 1.317（measured）。所要 ≈ 8 分、66 case。
+compiled binary（`dist/mitori-darwin-arm64`、同じ tree から 18:20 に build）を `srv.rss.*`・`mcp.init` が使った。
+この run の後で 2 つ直した（commit `084a7c0`）ので、`git.precheck`（待たない promise の修正）と新しい `bin.health` は直後に単独で
+測り直した値を 2 つ目の表に置く（1 つ目の表の `git.precheck` 行は修正前の誤った値のまま残してある）。
+
+- sha d872876e2040 · Apple M5 Max · 18 cores · 128 GB · Darwin 27.0.0 · bun 1.4.2 · node 22.23.3 · chrome 153.0.8010.12
+- started 2026-10-04T09:36:13.140Z · loadavg at start 10.07 (noisy: true) · power ac · factor 1.317 (measured)
+
+| id | unit | median | p95 | n | cv | target / limit | verdict (raw) | load |
+|---|---|---:|---:|---:|---:|---|---|---:|
+| `agent.firstPhase` | ms | 1.372 | 3.055 | 10 | 0.377 | 300.0 / 1000 | ok | 10.15 |
+| `agent.interactiveWait` | ms | 0.002 | 0.007 | 20 | 0.707 | 50.00 / 50.00 | ok | 10.15 |
+| `anchor.batch1k` | ms | 9.950 | 15.84 | 15 | 0.216 | 50.00 / 100.0 | ok · relative gate | 10.15 |
+| `anchor.remap10k` | ms | 3.655 | 6.442 | 243 | 0.300 | 20.00 / 50.00 | ok · relative gate | 10.15 |
+| `dev.check` | ms | 4652 | 4778 | 3 | 0.066 | 15000 / 30000 | ok | 10.15 |
+| `doc.elk.1000` | ms | 261.7 | 290.4 | 7 | 0.069 | 400.0 / 600.0 | ok · relative gate | 16.09 |
+| `doc.elk.300` | ms | 85.81 | 109.4 | 7 | 0.142 | 100.0 / 150.0 | ok · relative gate | 15.20 |
+| `doc.flush.10k` | ms | 14.37 | 19.97 | 20 | 0.227 | 5.000 / 20.00 | over target · relative gate | 15.20 |
+| `doc.render.2000.cached` | ms | 4.772 | 9.432 | 10 | 0.460 | 100.0 / 150.0 | ok · relative gate | 15.20 |
+| `doc.render.2000.cold` | ms | 146.2 | 164.5 | 5 | 0.077 | 1000 / 1500 | ok · relative gate | 15.20 |
+| `doc.reopen` | ms | 18.93 | 26.77 | 3 | 0.249 | — | — (no budget) | 15.20 |
+| `doc.shiki.100` | ms | 5.605 | 9.981 | 30 | 0.287 | 5.000 / 10.00 | over target · relative gate | 15.20 |
+| `gen.rerun` | ms | 256.9 | 257.6 | 3 | 0.005 | — | — (no budget) | 14.46 |
+| `idx.freshness` | ms | 90.45 | 218.6 | 10 | 0.430 | 50.00 / 1000 | over target (p95) | 14.46 |
+| `idx.leaf.loc` | count | 5605 | 5605 | 1 | 0.000 | 6000 / 9000 | ok | 14.10 |
+| `idx.leiden.ms` | ms | 299.8 | 304.3 | 3 | 0.063 | 80.00 / 200.0 | **over limit** · relative gate | 14.18 |
+| `idx.pack.ms` | ms | 7.699 | 12.05 | 124 | 0.229 | 20.00 / 50.00 | ok | 15.62 |
+| `idx.pack.tokens` | tokens | 9935 | 9935 | 1 | 0.000 | 10000 / 12000 | ok · golden gate | 15.62 |
+| `idx.persist.ms` | ms | 838.5 | 937.3 | 3 | 0.086 | 300.0 / 800.0 | **over limit** · relative gate | 15.62 |
+| `idx.rss.idle` | MB | 0.000 | 0.000 | 1 | 0.000 | 0.000 / 5.000 | ok | 15.62 |
+| `idx.rss.peak` | MB | 1145 | 1160 | 3 | 0.014 | 700.0 / 1000 | **over limit** | 13.21 |
+| `idx.s01.cold.100kloc` | ms | 750.3 | 794.0 | 5 | 0.029 | 300.0 / 500.0 | **over limit** | 13.21 |
+| `idx.s01.cold.7kfiles` | ms | 2211 | 2335 | 5 | 0.031 | 1200 / 1500 | **over limit** | 12.87 |
+| `idx.s04.cold.100kloc` | ms | 973.8 | 1041 | 5 | 0.062 | 1000 / 2000 | ok | 13.74 |
+| `idx.s04.cold.react` | ms | 1941 | 1959 | 3 | 0.007 | 1500 / 3000 | over target | 14.72 |
+| `idx.s04.cold.small` | ms | 440.6 | 459.0 | 5 | 0.028 | 400.0 / 800.0 | over target | 14.72 |
+| `idx.search.ms` | ms | 1.175 | 1.488 | 840 | 0.147 | 1.000 / 5.000 | over target · relative gate | 13.00 |
+| `idx.module.sig.tokens` | tokens | 63181 | 63181 | 1 | 0.000 | 24000 / 32000 | **over limit** · golden gate | 11.84 |
+| `idx.update.1file` | ms | 46.43 | 57.11 | 20 | 0.122 | 15.00 / 30.00 | **over limit** | 11.84 |
+| `idx.warm.rescan` | ms | 237.2 | 268.2 | 15 | 0.083 | 10.00 / 25.00 | **over limit** | 11.84 |
+| `idx.warm.rescan.s01` | ms | 16.46 | 22.69 | 59 | 0.158 | — | — (no budget) | 12.33 |
+| `idx.warm.rescan.7k` | ms | 1917 | 2433 | 10 | 0.121 | 25.00 / 50.00 | **over limit** | 12.79 |
+| `idx.warm.rescan.7k.s01` | ms | 50.30 | 64.81 | 15 | 0.151 | — | — (no budget) | 14.43 |
+| `git.accept` | ms | 183.2 | 197.3 | 10 | 0.061 | 300.0 / 800.0 | ok | 16.88 |
+| `loop.bundle` | ms | 0.586 | 1.794 | 100 | 0.553 | 60.00 / 100.0 | ok (p95) · relative gate | 17.68 |
+| `mcp.init` | ms | 41.41 | 47.93 | 10 | 0.078 | 60.00 / 200.0 | ok · relative gate | 17.68 |
+| `git.precheck` | ms | 1.162 | 3.971 | 15 | 0.713 | 50.00 / 100.0 | ok | 17.68 |
+| `git.snapshotWorktree` | ms | 406.1 | 417.9 | 10 | 0.043 | 500.0 / 1000 | ok | 17.68 |
+| `loop.threadCreate` | ms | 0.710 | 1.755 | 30 | 0.511 | 30.00 / 100.0 | ok · relative gate | 17.14 |
+| `srv.rss.idleEmpty` | MB | 69.30 | 69.56 | 3 | 0.005 | 30.00 / 50.00 | **over limit** | 17.14 |
+| `srv.rss.idleLoaded` | MB | 718.4 | 718.4 | 1 | 0.000 | 150.0 / 250.0 | **over limit** | 19.53 |
+| `srv.sse.p99` | ms | 4.389 | 4.594 | 5 | 0.037 | 5.000 / 10.00 | ok · relative gate | 15.16 |
+| `srv.ttfb.health` | ms | 0.098 | 0.384 | 30 | 0.673 | — | — (no budget) | 15.16 |
+| `srv.ttfb.shell` | ms | 0.109 | 0.298 | 30 | 0.582 | — | — (no budget) | 15.16 |
+| `ui.card.optimistic` | ms | 9.650 | 18.60 | 8 | 0.686 | 100.0 / 150.0 | ok | 15.16 |
+| `ui.cls.boot` | ratio | 0.018 | 0.032 | 3 | 0.382 | 0.000 / 0.010 | **over limit** | 16.24 |
+| `ui.dom.typical` | count | 945.0 | 945.0 | 3 | 0.000 | 5000 / 15000 | ok | 15.54 |
+| `ui.firstUseful.100k` | ms | 1527 | 1588 | 3 | 0.035 | 3000 / 5000 | ok | 15.54 |
+| `ui.floorplan.nodes` | count | 410.0 | 410.0 | 3 | 0.000 | 1500 / 1500 | ok | 15.54 |
+| `ui.heap.10k` | MB | 13.91 | 13.91 | 1 | 0.000 | 100.0 / 150.0 | ok | 15.54 |
+| `ui.inp` | ms | 24.00 | 40.00 | 3 | 0.458 | 100.0 / 200.0 | ok | 16.95 |
+| `ui.inp.p75` | ms | 16.00 | 16.00 | 3 | 0.000 | — | — (no budget) | 14.71 |
+| `ui.level` | ms | 7.050 | 14.75 | 5 | 0.504 | 50.00 / 100.0 | ok | 13.22 |
+| `ui.listeners.reader` | count | 9.000 | 9.000 | 3 | 0.000 | 10.00 / 10.00 | ok | 13.04 |
+| `ui.palette` | ms | 31.50 | 32.90 | 5 | 0.031 | 16.00 / 33.00 | over target | 13.04 |
+| `ui.palette.worker` | ms | 4.517 | 6.720 | 15 | 0.167 | — | — (no budget) | 13.68 |
+| `ui.readerOpen` | ms | 50.90 | 127.4 | 3 | 0.630 | — | — (no budget) | 12.90 |
+| `ui.section` | ms | 64.50 | 66.70 | 5 | 0.016 | 100.0 / 150.0 | ok | 12.90 |
+| `ui.shellPaint` | ms | 1463 | 1519 | 3 | 0.035 | 300.0 / 500.0 | **over limit** | 17.11 |
+| `ui.shortcut` | ms | 0.700 | 0.800 | 5 | 0.173 | 50.00 / 100.0 | ok | 17.11 |
+| `ui.staleBadge` | ms | — | — | 0 | — | 50.00 / 1000 ms | ERROR: no stale badge in the Reader 10 s after the save (the daemon has the block stale; a reload shows it): the web stores doc | 17.11 |
+
+| counter | value | max | verdict |
+|---|---:|---:|---|
+| `doc.reopen.renderCalls` | 0 | 0 | ok |
+| `gen.rerun.engineCalls` | 0 | 0 | ok |
+| `idx.warm.parseCalls` | 0 | 0 | ok |
+| `idx.warm.filesHashed` | 0 | 0 | ok |
+| `idx.warm.sqlWrites` | 0 | 0 | ok |
+| `ui.fetch.levelSwitch` | 0 | 0 | ok |
+| `ui.fetch.readerOpen` | 29 | 6 | **over max** |
+
+修正後の単独 run（`--id git.precheck --id bin.health --exact --absolute`、`084a7c0` になった working tree。2 回目の値）:
+
+- sha 28c5c59f88c1 · Apple M5 Max · 18 cores · 128 GB · Darwin 27.0.0 · bun 1.4.2 · node 22.23.3 · chrome 153.0.8010.12
+- started 2026-10-04T09:45:32.542Z · loadavg at start 13.85 (noisy: true) · power ac · factor 1.250 (measured)
+
+| id | unit | median | p95 | n | cv | target / limit | verdict (raw) | load |
+|---|---|---:|---:|---:|---:|---|---|---:|
+| `git.precheck` | ms | 113.6 | 125.2 | 15 | 0.050 | 50.00 / 100.0 | **over limit** | 13.78 |
+| `bin.health` | ms | 102.7 | 110.6 | 5 | 0.063 | 1000 / 1000 | ok | 13.78 |
+
+1 回目の単独 run（負荷 15.2、factor 1.262）は `git.precheck` 87.1 / 103.2 ms（median / p95）、`bin.health` 106.1 / 115.1 ms。
+
+### 最初の baseline との違い（どれが測り方の変化で、どれが負荷か）
+
+| id | 最初 | 再計測 | 読み方 |
+|---|---:|---:|---|
+| `git.precheck` | 0.751 ms | **87〜114 ms** | 最初の値は不具合（`run: () => void precheck()`）。runner が「待たれなかった rejection」を case の error にするようにした（BENCH-U-12）。budget 50 / 100 に対して負荷下で target 超〜limit 超（cr-requests/bench.md #12） |
+| `ui.heap.10k` | 3.62 MB | **13.9 MB** | 定義の修正: Reader だけ・main thread だけ → Reader + palette の索引（⌘K で読み込み）、main + Worker（CDP auto-attach）。spec の「file tree」は shell に存在しない |
+| `ui.card.optimistic` | 未計測 | 9.7 / 18.6 ms | 新規。in-process daemon + scripted claude（トークン 0） |
+| `ui.listeners.reader` | 未計測 | 9 | 新規。CDP で Reader の root 以下すべて（max 10） |
+| `ui.staleBadge` | 未計測 | **ERROR** | 新規。保存しても Reader に「古い」が出ない（再読み込みまで）。cr-requests/bench.md #11 |
+| `bin.health` | （budget なし） | 103〜106 ms | 新規 budget。SKEL-AT-01 の「起動 → health ≤ 1 s」を時間として測る（test は 15 s の緩い期限だけ） |
+| `doc.elk.300` | 170.8 ms | 85.8 ms | 負荷の差（最初は case 開始時 29、今回 15）。cv 0.80 → 0.14 |
+| `ui.cls.boot` | 0.049 | 0.018（e2e では 0.037） | どちらも limit 0.01 超。run ごとに 0.02〜0.05 で揺れる |
+| `idx.s04.cold.react` | 2,552 ms | 1,941 ms | 負荷の差（19 → 15） |
+| その他 | | | 同じ判定（over limit の構造・メモリ・warm rescan・update・RSS は再現した） |
+
+counter 7 つの判定は同じ（`ui.fetch.readerOpen` 29 > 6 だけ超過）。`bench:compare --base HEAD~1`（anchor・`idx.search.ms`・
+`loop.bundle`・`ui.palette.worker`・`agent.interactiveWait`、2 pairs）は pass、`bun run size` は exit 0（`bin.startup` 46 ms が target 超の警告）。

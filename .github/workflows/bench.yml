@@ -30,6 +30,11 @@ jobs:
   bench:
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 90
+    # an explicit `bash` runs every step with `-eo pipefail`: without it `bench … | tee` took tee's exit code and a red
+    # budget passed the step
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -56,7 +61,9 @@ jobs:
           mkdir -p bench/results
           scripts/nd bun run bench --suite "$SUITES" --absolute --out bench/results/nightly.json | tee bench/results/nightly.txt
 
+      # every measurement below runs even when an earlier one failed (`!cancelled()`): one red budget must not hide the rest
       - name: Head vs base (≥ 20 % slower above the noise floor fails; counters may not grow)
+        if: ${{ !cancelled() }}
         env:
           BASE: ${{ inputs.base || 'HEAD~1' }}
           SUITES: ${{ inputs.suites || 'all' }}
@@ -65,12 +72,16 @@ jobs:
             --asset --md bench/results/compare.md --out bench/results/compare.json
 
       - name: Served bytes
+        if: ${{ !cancelled() }}
         run: scripts/nd bun run size
 
-      - name: UI perf specs (real daemon + Chromium, one worker) and a11y
-        run: |
-          scripts/nd bun run e2e --project perf
-          scripts/nd bun run e2e --grep @a11y
+      - name: UI perf specs (real daemon + Chromium, one worker)
+        if: ${{ !cancelled() }}
+        run: scripts/nd bun run e2e --project perf
+
+      - name: a11y (axe + probes, map and Reader, light and dark)
+        if: ${{ !cancelled() }}
+        run: scripts/nd bun run e2e --grep @a11y
 
       - name: Keep the results
         if: always()
