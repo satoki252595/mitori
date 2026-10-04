@@ -303,3 +303,26 @@
 | CR fin-3 | finisher（NC-07 / NC-04） | accepted | api `FileContent.outline?`（300 行超のファイルのトップレベルのシンボル）、`MapView.modules[].summary?`（生成済みのモジュールの一行の役割）(applied) | 4,300 行のハブに目次が無い / 部屋の popover が export 名しか出さない |
 | CR fin-4 | finisher（NC-12） | accepted | core `DOC_TEMPLATE` s2 `titleJa`: 見取り図 → 間取り図（製品名と図の名前を分ける。ファイル名 `doc/02-floor-plan.md` は不変）(applied) | 「見取り図」が 3 つの別物を指していた |
 | CR fin-5 | finisher（NC-06 / NC-07） | accepted | doc `StaticDocInput.guide?: StaticGuide`（§4 の手順・§5 の読む順番。server が索引から作る、0 tok）(applied、doc の契約) | 「どう動かすか」「どこから読むか」に静的節が答えていなかった |
+
+## 8. 残課題 — safety トラック（2026-10-04、`rem/safety`、`docs/progress/rem-safety.md`）
+
+| id | requester | 決定 | 適用先 | 理由・備考 |
+|---|---|---|---|---|
+| CR safe-1 | safety（agent.md #8、ADR-0013 R2） | accepted | loop `SandboxPaths.loopback?: LoopbackPolicy`、`GateRunnerDeps.loopbackListeners?`（テスト用の差し替え）、`parseNetstatListeners` / `parseLsofListeners` / `mergeListeners`、`ALWAYS_DENIED_LOOPBACK_PORTS`、`DENIED_MACH_SERVICES`、`HIDDEN_SOCKET_DIRS/FILES`。platform `SEATBELT_PROBE_PROFILE`（`detectGateSandbox` が使う構文を全部確かめる。非公開名）、Linux の検出に `--unshare-net` (applied) | gate は自分のループバックだけを使える（`httptest` 系のテストが通る）。daemon・事前のリスナー・特権ポート・外部・DNS は拒否、daemon のポートが一覧に無ければ全部拒否（fail closed）。同時に unix socket・keychain・LaunchServices などの穴も閉じた。決定と trade-off は ADR-0013 R2 |
+| CR safe-2 | safety（agent.md #3） | accepted | core `FsStat.ctimeNs?: bigint`（省略可、lstat の ctime）、platform `lstatOrNull` が設定 (applied、platform `fs/reader.ts` は WP-01 所有: 1 行の追加) | RT-31 の依存ツリーの指紋が、size と mtime を `utimes` で戻した書き換えを見逃していた。省略可にしたのは 23 か所の fake を壊さないため |
+| CR safe-3 | safety（F1 の残り） | accepted | loop `GitSafety.linkDependencies(job)` / `unlinkDependencies(job)` (applied)。worktree 作成時、外を指す追跡済み symlink は skip-worktree（`checkout-index -a` が作らない、head commit は元の entry を保つ）。agent mode は依存リンク無しでワークツリーを作り、ゲートの直前にリンクし、各ターンの前に外す。書き込み範囲が追跡済み symlink を通るなら（実体化していなくても）`E_SCOPE_VIOLATION` | agent の Read が `node_modules/../.env`（利用者の `.env`）や `creds -> ~/.aws/credentials` を辿れた。INT-08 と git.int で確認 |
+| CR safe-4 | safety（F9） | accepted | loop `GateDetector.detect` の入力に `binaryInfo?(abs)` と `readdir?(abs)`、`GATE_LOCAL_BINARIES` (applied) | repo 内の formatter の信頼 hash に実体（realpath + bytes の sha256）を含める。biome は native build を直接実行、launcher だけなら `executesRepoCode: true`。`.venv` の console-script launcher（black）も同様 |
+| CR safe-5 | safety（F8） | accepted | loop `GitSafety.markRound` / `roundChanges` / `undoRound`、`ReviewEngine.roundScope` / `noteRoundChanges`。api `RoundChanges`・`RoundUndoRes`、route `GET /ws/:ws/review/rounds/:n/changes`（mutates: false）・`POST /ws/:ws/review/rounds/:n/undo`（mutates: true）、server `ROUTE_OWNERS` に 2 行（server 契約: WP-09 所有、additive）(applied) | 自分のエージェント（⤴）の経路に範囲チェックと Undo が無かった。ラウンドの基点はサイドリポの ref、Undo は通常の accept（未コミット・divergence 検査・チェックポイントから再適用可）。web の表示は未（rem-safety.md） |
+| CR safe-6 | safety（ux.md #2 / #6） | accepted | core `Thread.context?: ThreadContext`、`ThreadContext`、`THREAD_CONTEXT_LIMITS`、api `CreateThreadReq.context?`・`PatchThreadReq.context?`（null で消す）・`CopyPromptReq.context?`、`ContextAdjust.remove` の `write:<path>`。loop migration v3（`rev_threads.context`）(applied) | 選んだ候補と `@` が push の job にしか届かず、⤴ / ⧉ では `WRITE -` だった。出典の自動の対象を WRITE から外す手段も無かった。Composer の送信・× の表示は web 側の残り（rem-safety.md） |
+
+### 8.1 §7 と他トラックの所有者外の編集のレビュー（rem/safety、loop の所有者として）
+
+| id | requester | 決定 | 対象 | 判断 |
+|---|---|---|---|---|
+| review fin-1 | rem/safety | accepted | CR fin-1（EX-01: `DocModuleEntry.members`、`orphaned/<slug>.md`） | 維持。SafeWriter の `orphaned/` は `SLUG` の 1 段だけを許し、`..`・多段は fs.test が拒否を確かめている |
+| review fin-2 | rem/safety | accepted | CR fin-2（EX-06: `JobReq.docFix`、`DOC_FIX_FENCE`） | 維持（loop 側も確認）。answer モードはコードを書かない。fence の中身は `doc.propose` を通るので SEC-11 の検査が効く。答えから fence は必ず外れる |
+| review fin-3 | rem/safety | accepted | CR fin-3（`FileContent.outline`、`MapView.modules[].summary`） | 維持。読み取りのみ・省略可 |
+| review fin-4 | rem/safety | accepted | CR fin-4（`DOC_TEMPLATE` s2 の和名） | 維持。表示名だけでファイル名は不変 |
+| review fin-5 | rem/safety | accepted | CR fin-5（`StaticDocInput.guide`） | 維持。0 tok の静的節。README の URL・コマンドは文字列として描画されるだけ |
+| review agent-4 | rem/safety | accepted | agent.md #4（`jobs/runner.ts`・`assemble.ts`・`store.ts`、`git/side.ts` の `inWorktree` の GIT_DIR / GIT_WORK_TREE 固定と `worktreeAdmin`） | 維持。`<wt>/.git` を書き換えられても mitori の git は外へ出ない（両方向の照合）。今回の変更（symlink・依存リンク・worktree 上限）もこの前提の上にある |
+| review ux-4 | rem/safety | accepted-modified | ux.md #4（`workspace.ts` の提案 SSE、web `pendingInserts`、`ROUTE_OWNERS` の jobs/targets、Header、doc の placeholder 修正、`CodeTarget.source "near"`、`decorateTable`、静的更新の提案の配信） | loop / server 契約に関わる部分は維持。1 点だけ挙動を変えた: 静的な facts ブロックへの AI の編集提案は、コードの採用で閉じる（行がコードから再導出されると 409 の行き止まりになっていた。CR safe-6 の項、`ux.test.ts` / `proposal-close.test.ts` を更新）。web / doc のファイルはこのトラックの所有外で、読んだだけ |

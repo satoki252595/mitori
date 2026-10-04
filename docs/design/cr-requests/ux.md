@@ -28,6 +28,9 @@ edit, tiny and additive.
   (WP-08c's track edits it now) and `bundle/plan.ts` (`removable: false` of anchored code) together, and spec §3.2
   makes the anchor's cites the write scope by design — the loop owner decides.
 - urgency: before the router is touched again (WP-08c).
+- **DONE in loop (rem/safety, CR safe-6)**: `ContextAdjust.remove` `write:<path>` leaves a cited file out of WRITE
+  (router `removedWrite`; the CODE stays read-only context). The Composer's × on cited chips is the web's part
+  (`docs/design/cr-requests/safety.md`).
 
 ## #3 A human-edited placeholder kept being a placeholder (FIXED here, cross-owner — please review)
 - where: doc `editBlock` (`packages/doc/src/store/store.ts`), static `placeholders()` / `hasContent()` (`apply.ts`)
@@ -84,3 +87,6 @@ edit, tiny and additive.
   they travel). A cited sentence is unaffected (the thread's anchor carries its cites on every path). The Inbox's
   escalation (agent mode) re-sends the previous job's write scope as whole-file `context.add` (else a 412).
 - urgency: before the pull path is advertised for Fix (the concept's "your own agent").
+- **DONE in loop / core (rem/safety, CR safe-6)**: option (a) — `CreateThreadReq.context` / `PatchThreadReq.context` stored
+  as `Thread.context`; `threadBundle` (⤴), the copy prompt (`CopyPromptReq.context`, ⧉) and every job of the thread use
+  it. The web still has to send it and drop the ⤴ / ⧉ block (`docs/design/cr-requests/safety.md`).

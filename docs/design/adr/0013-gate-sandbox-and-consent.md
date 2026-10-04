@@ -56,6 +56,9 @@ F2 で出荷版が sandbox を使うようになったので、この種のパ�
 - **費用**: 一覧の取得（並列で lsof ≈ 50–100 ms）と、≈ 2,100 規則の profile の compile（≈ 60 ms）が gate ごとに増える。`go test` などの実行時間に比べて小さい。
 - `(allow default)` の profile のままなので、上で名前を挙げていない mach service が代理で何かをする可能性は残る。deny-default の profile か `@anthropic-ai/sandbox-runtime` の比較は Consequences の R1-O2 のとおり。
 
+### 決定 2 の補足（同じパス、F9）
+純 formatter の allowlist は「バイナリそのもの」に対して判定する。`node_modules/.bin/biome` は Node の launcher（`BIOME_BINARY` を読んで native を起動する）なので、biome は native build（`node_modules/@biomejs/cli-<os>-<arch>/biome`）を直接実行するときだけ `executesRepoCode: false`。native が見つからなければ launcher を `true` として扱う。`.venv/bin/black` のような `#!` の console script も `true`。repo 内のバイナリは realpath とバイト列の sha256 を trust hash に含めるので、信頼した後の `npm install` / `pip install` で差し替わると再確認になる（`gates/binaries.ts`、CR safe-4）。
+
 ### Alternatives（R2）
 - (a) 従来どおり全部拒否: 正直だが、loopback を使うテストのあるパッケージは永久に未検証。
 - (b) ループバックを全部許可: ローカルのプロキシ（Clash などの 127.0.0.1:7890）経由で外に出られ、daemon・DB・ブラウザの CDP（9222）にも届く。
