@@ -353,13 +353,106 @@ export async function inpScenario(page: Page): Promise<Inp> {
   return { count: padded.length, reported: durations.length, p75: pct(75), p98: pct(98) };
 }
 
-/** JS heap after a full GC (CDP), MB (ui.heap.10k). Chromium only. */
-export async function heapMB(page: Page): Promise<number> {
+const MB = 1_048_576;
+
+export interface Heap {
+  /** Main thread + every dedicated Worker of the page, MB (2^20) — the ui.heap.10k sample. */
+  total: number;
+  /** The page's main thread, MB. */
+  main: number;
+  /** Each dedicated Worker (the palette index lives in one), MB. */
+  workers: number[];
+}
+
+/**
+ * JS heap after a full GC (CDP `HeapProfiler.collectGarbage` + `Runtime.getHeapUsage`), MB (ui.heap.10k): the main
+ * thread AND the page's dedicated Workers — the palette keeps the workspace's file / symbol index in a Worker, which a
+ * main-thread-only reading would leave out. Workers are reached through the page session's auto-attach (non-flat
+ * sessions, `Target.sendMessageToTarget`). Chromium only.
+ */
+export async function heapMB(page: Page): Promise<Heap> {
   const cdp = await page.context().newCDPSession(page);
-  await cdp.send("HeapProfiler.collectGarbage");
-  const h = (await cdp.send("Runtime.getHeapUsage")) as { usedSize: number };
-  await cdp.detach();
-  return h.usedSize / 1_000_000;
+  const sessions: string[] = [];
+  const pending = new Map<number, (r: { result?: { usedSize?: number }; error?: unknown }) => void>();
+  let seq = 0;
+  const onAttach = (e: { sessionId: string; targetInfo: { type: string } }) => {
+    if (e.targetInfo.type === "worker") sessions.push(e.sessionId);
+  };
+  const onMessage = (e: { sessionId: string; message: string }) => {
+    const m = JSON.parse(e.message) as { id?: number; result?: { usedSize?: number }; error?: unknown };
+    if (m.id !== undefined) pending.get(m.id)?.(m);
+  };
+  const inWorker = (sessionId: string, method: string) =>
+    new Promise<{ result?: { usedSize?: number }; error?: unknown }>((resolve) => {
+      const id = ++seq;
+      const timer = setTimeout(() => resolve({ error: "timeout" }), 10_000);
+      pending.set(id, (r) => {
+        clearTimeout(timer);
+        resolve(r);
+      });
+      void cdp.send("Target.sendMessageToTarget", { sessionId, message: JSON.stringify({ id, method }) }).catch((error: unknown) => resolve({ error }));
+    });
+  try {
+    cdp.on("Target.attachedToTarget", onAttach as never);
+    cdp.on("Target.receivedMessageFromTarget", onMessage as never);
+    await cdp.send("Target.setAutoAttach", { autoAttach: true, waitForDebuggerOnStart: false, flatten: false });
+    await new Promise((r) => setTimeout(r, 200)); // existing Workers are reported right after the call
+    await cdp.send("HeapProfiler.collectGarbage");
+    const main = ((await cdp.send("Runtime.getHeapUsage")) as { usedSize: number }).usedSize / MB;
+    const workers: number[] = [];
+    for (const s of sessions) {
+      await inWorker(s, "HeapProfiler.collectGarbage");
+      const r = await inWorker(s, "Runtime.getHeapUsage");
+      if (r.error !== undefined || r.result?.usedSize === undefined) throw new Error(`a Worker's heap could not be read: ${JSON.stringify(r.error)}`);
+      workers.push(r.result.usedSize / MB);
+    }
+    return { total: main + workers.reduce((a, b) => a + b, 0), main, workers };
+  } finally {
+    await cdp.detach().catch(() => undefined);
+  }
+}
+
+export interface ReaderListeners {
+  /** Event listeners on the Reader root (`main#main`) and on every element under it (ui.listeners.reader). */
+  total: number;
+  /** Listeners on the root element itself. */
+  root: number;
+  /** Elements carrying at least one listener. */
+  elements: number;
+  /** Count per event type (what a regression added). */
+  types: Record<string, number>;
+}
+
+/**
+ * Event listeners of the Reader (ui.listeners.reader, testing spec §6.4): CDP `DOMDebugger.getEventListeners` on the
+ * Reader root with the whole subtree (`depth: -1`; the spec's "root + 100 sampled elements" is a sample of this).
+ * Svelte delegates the common events to the app root, so a block component that adds a listener of its own shows up
+ * here as a count that grows with the document.
+ */
+export async function readerListeners(page: Page): Promise<ReaderListeners> {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const { result } = (await cdp.send("Runtime.evaluate", { expression: "document.querySelector('main#main')", objectGroup: "mitori-perf" })) as {
+      result: { objectId?: string };
+    };
+    if (!result.objectId) throw new Error("the Reader root (main#main) is not in the page");
+    const { node } = (await cdp.send("DOM.describeNode", { objectId: result.objectId })) as { node: { backendNodeId: number } };
+    const { listeners } = (await cdp.send("DOMDebugger.getEventListeners", { objectId: result.objectId, depth: -1, pierce: true })) as {
+      listeners: { type: string; backendNodeId?: number }[];
+    };
+    await cdp.send("Runtime.releaseObjectGroup", { objectGroup: "mitori-perf" });
+    const types: Record<string, number> = {};
+    const owners = new Set<number>();
+    let root = 0;
+    for (const l of listeners) {
+      types[l.type] = (types[l.type] ?? 0) + 1;
+      if (l.backendNodeId !== undefined) owners.add(l.backendNodeId);
+      if (l.backendNodeId === node.backendNodeId) root++;
+    }
+    return { total: listeners.length, root, elements: owners.size, types };
+  } finally {
+    await cdp.detach().catch(() => undefined);
+  }
 }
 
 export const median = (xs: readonly number[]): number => {

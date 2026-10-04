@@ -610,10 +610,9 @@
       "dir": "max",
       "gates": ["absolute"],
       "owner": "indexer",
-      "measure": "e2e/perf/stale-badge.spec.ts#E2E-13",
+      "measure": "bench/ui.bench.ts#stale-badge",
       "scale": "machine",
-      "provisional": false,
-      "unmeasured": "not implemented yet: needs a human-cited block in the Reader and a save (the indexer half is idx.freshness, bench/idx.bench.ts); see docs/progress/rem-bench.md"
+      "provisional": false
     },
     {
       "id": "idx.rss.peak",
@@ -1174,10 +1173,9 @@
       "dir": "max",
       "gates": ["relative", "absolute"],
       "owner": "web",
-      "measure": "e2e/perf/card.spec.ts#ui-card-optimistic",
+      "measure": "bench/ui.bench.ts#card-optimistic",
       "scale": "machine",
-      "provisional": true,
-      "unmeasured": "needs the Composer flow (select → c → Mod+Enter) on the real daemon; the mock-API spec e2e/web/streaming.pw.ts covers the UI side; see docs/progress/rem-bench.md"
+      "provisional": true
     },
     {
       "id": "ui.shortcut",
@@ -1336,10 +1334,9 @@
       "dir": "max",
       "gates": ["structural"],
       "owner": "web",
-      "measure": "e2e/perf/dom.spec.ts#ui-listeners-reader",
+      "measure": "e2e/perf/reader.spec.ts#ui-listeners-reader",
       "scale": "none",
-      "provisional": false,
-      "unmeasured": "needs a CDP DOMDebugger.getEventListeners walk of the Reader root; see docs/progress/rem-bench.md"
+      "provisional": false
     },
     {
       "id": "ui.heap.10k",

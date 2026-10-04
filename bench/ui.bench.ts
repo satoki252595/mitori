@@ -4,10 +4,12 @@
 // Workspaces are copies of the corpus (opening a repository writes its `.mitori/` doc into it). The browser is launched
 // once per process and warmed, so browser start-up is never charged to mitori (testing spec §6.2). `MITORI_E2E_CHANNEL`
 // = chrome uses the installed Google Chrome.
-import { cpSync } from "node:fs";
+import { cpSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { PaletteItem } from "@mitori/core";
-import { type Browser, chromium } from "@playwright/test";
+import { synth } from "@mitori/agent/testing";
+import type { BlockId, PaletteItem, ThreadState, WorkspaceKey } from "@mitori/core";
+import { buildFixture, type FixtureRepo } from "@mitori/testkit";
+import { type Browser, type BrowserContext, chromium, type Page } from "@playwright/test";
 import { buildIndex, runQuery } from "../apps/web/src/palette/search.ts";
 import {
   biggestSection,
@@ -21,10 +23,13 @@ import {
   median,
   p95,
   paletteKeys,
+  readerListeners,
   readerOpen,
   sectionNav,
   shortcutKeys,
 } from "../e2e/perf/lib/ui.ts";
+import { FAKE_CLAUDE_CONFIG, fakeClaude } from "../test/int/fake-claude.ts";
+import { type Int, startInt } from "../test/int/harness.ts";
 import { scratch, sharedRun } from "./lib/child.ts";
 import { type BenchContext, defineBench } from "./runner/define.ts";
 
@@ -57,7 +62,7 @@ function copyOf(ctx: BenchContext, name: string): { root: string; dispose(): voi
 /* -------------------------------------------------------------------- E2E-01: cold open → first useful screen */
 
 interface ColdRun extends FirstUse {
-  reader: { rendered: number; dom: number; requests: number };
+  reader: { rendered: number; dom: number; requests: number; listeners: number };
 }
 
 /** One cold open of a crit copy per run, shared by the first-use budgets (one spawn feeds six numbers). */
@@ -69,7 +74,8 @@ const critCold = (ctx: BenchContext) =>
       o = await coldOpen(await theBrowser(), copy.root);
       const first = await firstUse(o);
       const r = await readerOpen(o, await biggestSection(o));
-      return { ...first, reader: { rendered: r.rendered, dom: r.dom, requests: r.requests } };
+      const l = await readerListeners(o.page);
+      return { ...first, reader: { rendered: r.rendered, dom: r.dom, requests: r.requests, listeners: l.total } };
     } finally {
       await o?.close();
       copy.dispose();
@@ -94,6 +100,8 @@ export const firstUseful = coldCase("ui.firstUseful.100k", (r) => r.firstUseful)
 export const domTypical = coldCase("ui.dom.typical", (r) => Math.max(r.dom, r.reader.dom), "count");
 export const floorplanNodes = coldCase("ui.floorplan.nodes", (r) => r.mapNodes, "count");
 export const clsBoot = coldCase("ui.cls.boot", (r) => r.cls, "ratio");
+/** Event listeners on the Reader root and its whole subtree (CDP), crit's biggest section (e2e/perf/lib/ui.ts readerListeners). */
+export const listenersReader = coldCase("ui.listeners.reader", (r) => r.reader.listeners, "count");
 /**
  * Reader of the biggest section, loaded in the page of the cold open: the sample is navigation → rendered; the counter
  * `ui.fetch.readerOpen` = the most requests one load made (document, scripts, styles, API, the SSE stream; max 6).
@@ -221,7 +229,11 @@ export const inpP75 = defineBench<Warm>({
 
 /* -------------------------------------------------------------------------------------- heap (react, 7k files) */
 
-/** JS heap after GC with react (7,252 files) open in the Reader (ui.heap.10k: the 10k-file class). */
+/**
+ * JS heap after GC with react (7,252 files: the 10k-file class) open in the Reader of its biggest section and the
+ * palette's workspace index loaded (⌘K + a query): main thread + the page's Workers (ui.heap.10k). The spec's state is
+ * "Reader and file tree"; the web shell has no file tree, the palette index is its workspace-wide structure.
+ */
 export const heap = defineBench({
   id: "ui.heap.10k",
   suite: "ui",
@@ -237,7 +249,8 @@ export const heap = defineBench({
       o = await coldOpen(await theBrowser(), copy.root, { timeoutMs: 120_000 });
       await o.waitMarks(["mitori:map:painted"], 120_000);
       await readerOpen(o, await biggestSection(o));
-      return await heapMB(o.page);
+      await paletteKeys(o.page, "use");
+      return (await heapMB(o.page)).total;
     } finally {
       await o?.close();
       copy.dispose();
@@ -283,4 +296,190 @@ export const paletteWorker = defineBench<{ index: ReturnType<typeof buildIndex> 
     }
     return p95(times);
   },
+});
+
+/* ------------------------------------------- the loop and the freshness badge (in-process daemon, go-small) */
+
+/**
+ * A go-small workspace on the in-process daemon (test/int/harness.ts: the real composition) with the scripted claude of
+ * INT-06 (no tokens, no network — a real `claude` is never started, whatever the machine's login), and a Chromium
+ * page signed in through a login nonce. The CLI daemon has no engine injection (`/__test/engine` is not wired), so the
+ * two budgets that need a job or a cited human block are measured here.
+ */
+interface Loop {
+  repo: FixtureRepo;
+  int: Int;
+  ws: WorkspaceKey;
+  context: BrowserContext;
+  page: Page;
+  n: number;
+}
+
+async function loopSetup(path: string): Promise<Loop> {
+  const repo = await buildFixture("go-small");
+  const int = await startInt({
+    spawner: fakeClaude({
+      respond: (_prompt, spec) => synth.text("環境変数から読みます。", { model: spec.argv[spec.argv.indexOf("--model") + 1] ?? "claude-sonnet-5-5", dtMs: 20 }),
+    }),
+    config: FAKE_CLAUDE_CONFIG,
+  });
+  const { ws } = await int.open(repo.root);
+  const nonce = await int.json<{ url: string }>("POST", "/auth/nonce", { to: `/w/${ws}${path}` });
+  const context = await (await theBrowser()).newContext({ viewport: { width: 1440, height: 900 }, locale: "ja-JP", timezoneId: "Asia/Tokyo" });
+  const page = await context.newPage();
+  await page.goto(nonce.url);
+  return { repo, int, ws, context, page, n: 0 };
+}
+
+async function loopTeardown(s: Loop): Promise<void> {
+  await s.context.close().catch(() => undefined);
+  await s.int.close();
+  await s.repo.dispose();
+  await closeBrowser();
+}
+
+/**
+ * Composer → optimistic card (ux §6.4, testing spec E2E-04 step 3): on §4 the word `TSUNDOKU_API_TOKEN` is selected,
+ * `e` opens the Composer, a question is typed, ⌘⏎ sends — the sample is `mitori:card:optimistic` − the keydown's
+ * timeStamp (the app records it as the mark's `trigger`). Each run waits for the scripted answer before the next.
+ */
+export const cardOptimistic = defineBench<Loop>({
+  id: "ui.card.optimistic",
+  suite: "ui",
+  mode: "inproc",
+  runs: 8,
+  warmup: 1,
+  async setup() {
+    const s = await loopSetup("/doc/s4");
+    await s.page.locator(".mb code", { hasText: "TSUNDOKU_API_TOKEN" }).first().waitFor({ timeout: 30_000 });
+    return s;
+  },
+  async run(s) {
+    const { page } = s;
+    const word = page.locator(".mb code", { hasText: "TSUNDOKU_API_TOKEN" }).first();
+    await word.scrollIntoViewIfNeeded();
+    await word.dblclick();
+    await page.waitForTimeout(250);
+    await page.keyboard.press("e");
+    await page.waitForFunction(() => document.activeElement?.tagName === "TEXTAREA", undefined, { timeout: 5_000 });
+    await page.keyboard.type(`この環境変数はどこで読まれますか？ (${++s.n})`, { delay: 5 });
+    // untimed: the estimate is in (`≈1.2k in · ≈600 out · $0.007 · 約4–8秒`), and the data-policy notice has been on
+    // screen ≥ 1 s (the first send to an engine is the user's consent; an earlier ⌘⏎ only nudges, by design)
+    await page.waitForFunction(() => /≈[\d.,]+k? in/.test(document.body.innerText), undefined, { timeout: 15_000, polling: 50 });
+    await page.waitForTimeout(1_200);
+    const before = await page.evaluate(() => performance.getEntriesByName("mitori:card:optimistic", "mark").length);
+    await page.keyboard.press("ControlOrMeta+Enter");
+    const h = await page
+      .waitForFunction(
+        (n) => {
+          const all = performance.getEntriesByName("mitori:card:optimistic", "mark");
+          const m = all[all.length - 1] as (PerformanceMark & { detail?: { trigger?: number } }) | undefined;
+          return all.length > n && m ? { at: m.startTime, trigger: m.detail?.trigger ?? null } : null;
+        },
+        before,
+        { timeout: 10_000, polling: 8 },
+      )
+      .catch(async () => {
+        // what the page did instead (a `composer.submit` without a card = the send was refused)
+        const marks = await page.evaluate(() =>
+          performance
+            .getEntriesByType("mark")
+            .filter((x) => x.name.startsWith("mitori:"))
+            .map((x) => `${x.name}@${Math.round(x.startTime)}`)
+            .join(" "),
+        );
+        throw new Error(`⌘⏎ produced no mitori:card:optimistic within 10 s; marks: ${marks}`);
+      });
+    const m = (await h.jsonValue()) as { at: number; trigger: number | null };
+    if (m.trigger === null) throw new Error("mitori:card:optimistic carries no trigger (the keydown's timeStamp)");
+    // the scripted answer lands before the next run (a run never overlaps the previous job)
+    const end = Date.now() + 60_000;
+    for (;;) {
+      const th = await s.int.json<{ items: { state: ThreadState }[] }>("GET", `/ws/${s.ws}/threads`);
+      const states = th.items.map((t) => t.state);
+      if (states.includes("failed")) throw new Error(`a question failed: ${states.join(", ")}`);
+      if (states.filter((x) => x === "answered").length >= s.n) break;
+      if (Date.now() > end) throw new Error(`the scripted answer did not arrive: ${states.join(", ")}`);
+      await Bun.sleep(50);
+    }
+    await page.keyboard.press("Escape");
+    return m.at - m.trigger;
+  },
+  teardown: loopTeardown,
+});
+
+const CONFIG_GO = "internal/config/config.go";
+
+/**
+ * Save → the Reader's freshness badge (testing spec E2E-13, go-small): a block is re-written by a human with a cite of
+ * `config.go` L19–L30 (untimed), its claim shows in the page; then Node writes a line inside the range and the sample is
+ * the browser's `Date.now()` when a MutationObserver sees `.mc[data-verdict="stale"]` in that block minus Node's
+ * `Date.now()` before the write. One block per run (a stale block stays stale). The SSE half is idx.freshness.
+ */
+export const staleBadge = defineBench<Loop & { original: string; used: Set<string> }>({
+  id: "ui.staleBadge",
+  suite: "ui",
+  mode: "inproc",
+  runs: 10,
+  warmup: 1,
+  async setup() {
+    const s = await loopSetup("/doc/s4");
+    await s.page.waitForFunction(() => performance.getEntriesByName("mitori:section:rendered", "mark").length > 0, undefined, { timeout: 30_000 });
+    return { ...s, original: readFileSync(join(s.repo.root, CONFIG_GO), "utf8"), used: new Set<string>() };
+  },
+  async run(s) {
+    const d = s.int.domain(s.ws);
+    const sections = d.doc.sections().map((x) => x.id);
+    let block: { id: BlockId; section: string } | null = null;
+    for (const sec of sections) {
+      for (const b of d.doc.section(sec)?.blocks ?? []) {
+        if (b.kind === "heading" || b.freshness === "stale" || s.used.has(b.id)) continue;
+        s.used.add(b.id);
+        const up = "../".repeat(`.mitori/${b.file}`.split("/").length - 1);
+        await d.doc.editBlock(b.id, b.hash, `設定は環境変数から読む。（[config.go:19](${up}${CONFIG_GO}#L19-L30)）`, "human");
+        if (d.doc.claims(b.id).some((c) => c.cites.some((x) => x.path === CONFIG_GO))) {
+          block = { id: b.id, section: sec };
+          break;
+        }
+      }
+      if (block) break;
+    }
+    if (!block) throw new Error("go-small's static doc has no block left to cite from");
+    const { page } = s;
+    if (!page.url().endsWith(`/doc/${block.section}`)) {
+      await page.goto(page.url().replace(/\/doc\/[^/?#]+.*$/, `/doc/${block.section}`));
+      await page.waitForFunction(() => performance.getEntriesByName("mitori:section:rendered", "mark").length > 0, undefined, { timeout: 30_000 });
+    }
+    await page.locator(`[data-b="${block.id}"] .mc[data-verdict]`).first().waitFor({ timeout: 10_000 }); // the human claim is on screen
+    // the badge: the claim's verdict or the block's freshness turning "stale" in the DOM (either rendering counts)
+    await page.evaluate((id) => {
+      const w = window as unknown as { __staleAt: number | null };
+      w.__staleAt = null;
+      const q = `[data-b="${id}"] .mc[data-verdict="stale"], [data-b="${id}"] [data-fresh="stale"], [data-b="${id}"][data-fresh="stale"]`;
+      const mo = new MutationObserver(() => {
+        if (w.__staleAt === null && document.querySelector(q)) {
+          w.__staleAt = Date.now();
+          mo.disconnect();
+        }
+      });
+      mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-verdict", "data-fresh"] });
+    }, block.id);
+    await Bun.sleep(50);
+    const lines = s.original.split("\n");
+    lines[26] = `${lines[26]} // bench ${++s.n}`; // line 27 (LOG_LEVEL), inside the cited 19–30
+    const t0 = Date.now();
+    writeFileSync(join(s.repo.root, CONFIG_GO), lines.join("\n"));
+    const h = await page
+      .waitForFunction(() => (window as unknown as { __staleAt: number | null }).__staleAt, undefined, { timeout: 10_000, polling: 8 })
+      .catch(() => null);
+    if (!h) {
+      const server = d.doc.block(block.id)?.freshness;
+      throw new Error(
+        `no stale badge in the Reader 10 s after the save (the daemon has the block ${server ?? "?"}; a reload shows it): ` +
+          "the web stores doc.freshness / doc.claims but no rendered block reads them (docs/design/cr-requests/bench.md #11)",
+      );
+    }
+    return ((await h.jsonValue()) as number) - t0;
+  },
+  teardown: loopTeardown,
 });

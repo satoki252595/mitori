@@ -1,6 +1,6 @@
 /**
  * Reader interactions on the REAL daemon (testing spec §5.2 E2E-05/06, §6.4, §6.6), project `perf`, on a copy of crit:
- * Reader open (ui.fetch.readerOpen, ui.dom.typical), reader level `-` `=` `0` (ui.level, 0 requests:
+ * Reader open (ui.fetch.readerOpen, ui.dom.typical, ui.listeners.reader), reader level `-` `=` `0` (ui.level, 0 requests:
  * ui.fetch.levelSwitch), ⌘K per-key results (ui.palette), j/k (ui.shortcut), TOC section transitions (ui.section) and
  * the INP-equivalent of a mixed scenario (ui.inp: p98 against the limit, p75 against the target).
  * The same measurements are bench cases (bench/ui.bench.ts).
@@ -17,6 +17,7 @@ import {
   median,
   p95,
   paletteKeys,
+  readerListeners,
   readerOpen,
   sectionNav,
   shortcutKeys,
@@ -40,12 +41,15 @@ test.describe("Reader interactions (perf)", () => {
     copy?.dispose();
   });
 
-  test("Reader open: requests and DOM", async ({ browserName: _b }, info) => {
+  test("Reader open: requests, DOM and event listeners", async ({ browserName: _b }, info) => {
     const r = await readerOpen(o, await biggestSection(o));
     info.annotations.push({ type: "measure", description: JSON.stringify({ rendered: r.rendered, dom: r.dom, requests: r.requests }) });
     expectWithinBudget("ui.dom.typical", r.dom);
     // ui.fetch.readerOpen is a deterministic counter (max 6, provisional): recorded, see bench/ui.bench.ts for the gate
     info.annotations.push({ type: "counter", description: `ui.fetch.readerOpen = ${r.requests}: ${r.urls.map((u) => new URL(u).pathname).join(" ")}` });
+    const l = await readerListeners(o.page);
+    info.annotations.push({ type: "measure", description: `listeners ${JSON.stringify(l)}` });
+    expectWithinBudget("ui.listeners.reader", l.total);
   });
 
   test("reader level switch: latency, no request", async ({ browserName: _b }, info) => {

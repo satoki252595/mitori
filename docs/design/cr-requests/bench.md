@@ -55,6 +55,13 @@ bench トラックは計測と Linux を担当し、下の項目は **所有外�
 
 - 観察: promisor にだけある blob を読むと、新しい git では `E_NOT_FOUND`、2.43 では `E_GIT_FAILED`（`cat-file` の文言の違い）。
   lazy fetch しないこと（sshCommand が走らないこと）は 2.43 でも守られている。
+- 検証パスで原因を特定（reader と同じ env・`-c` で素の git 2.43 を叩いた。`docker run mitori-linux:arm64`）: 2.43 の
+  `cat-file --batch` は promisor にだけある object で `<oid> missing` を返さず、**`warning: lazy fetching disabled` →
+  `fatal: could not fetch <oid> from promisor remote` で exit 128** する。batch プロセスごと落ちるので reader は
+  「cat-file --batch exited」（`E_GIT_FAILED`、retryable）を返し、次の要求で batch を起こし直す（同じ test の「the batch
+  survived」は通る）。marker は作られない = sshCommand は走らない。
+- 変更案（具体）: `catfile.ts` で、batch が exit 128 で落ちる直前の stderr が `could not fetch .* from promisor remote` なら、
+  待っていた要求を `E_NOT_FOUND`（その blob だけ）にする。
 - 変更案: `packages/platform/src/git/reader.ts` の分類に 2.43 の文言を足すか、`--batch-check` の `missing` を見て分類する。
 - urgency: low（Ubuntu 24.04 の既定の git で 1 テストが落ちる）。
 
@@ -92,3 +99,22 @@ bench トラックは計測と Linux を担当し、下の項目は **所有外�
   hono `src` 30.6k、react `compiler-react-compiler-ast` 35.7k も target を超える（`docs/progress/bench-baseline.md` の corpus 表）。
 - 変更案: S3 で LOC 上限を超える葉を分ける、または skeleton の degradation（spec §7.2）が `budget` 無しでも上限を守る。
 - urgency: medium（生成の入力 token と費用に直結）。
+
+## 11. web: 保存しても Reader に鮮度バッジが出ない（`ui.staleBadge`、E2E-13）— 再読み込みするまで「古い」が見えない
+
+- 契約: `apps/web/src/stores/doc.svelte.ts` `applyFreshness` / `applyClaims`、`apps/web/src/reader/BlockHost.svelte`・`decorate.ts`
+- 観察（検証パスで `ui.staleBadge` の bench case を実装して見つけた。`bench/ui.bench.ts#stale-badge`、go-small、in-process daemon +
+  Chromium）: 人が出典をつけた block を表示したまま、出典の範囲内の行を保存する → daemon 側は block が `stale`、claim が `stale`
+  になり、SSE（`doc.freshness`・`doc.claims`）がページに届く（同じ save で「提案 · 再生成」が本文に出るので SSE は動いている）。
+  しかし **10 s 待っても DOM は `.mb[data-fresh="fresh"]`・`.mc[data-verdict="cited"]` のまま**。再読み込みすると
+  `data-fresh="stale"`・`data-verdict="stale"` になる。
+- 原因: `applyFreshness` は `doc.freshness`（SvelteMap）に書くだけで、**それを読む component が無い**。`applyClaims` は cache した
+  section の `claimViews` を差し替えるが、`.mc[data-verdict]` は server の HTML の属性で、`decorateBlock` は「mount か html の
+  変化」でしか走らない（verdict だけの変化では block の html は変わらない）。
+- 影響（コンセプト）: 「コードを直しながら設計書を読む」人に、いま読んでいる文が古くなったことが見えない。E2E-13 の
+  「保存 → バッジ ≤ 50 ms（上限 1 s）」は現状 ∞（再読み込みまで）。
+- 変更案: Reader の block の wrapper（`.blk[data-b]`）に `data-fresh={s.doc.freshness.get(id) ?? b.freshness}` を出し、
+  `applyClaims` の後に該当 block の `.mc[data-claim]` の `data-verdict` を claimViews から書き直す（`decorateBlock` を verdict 変化でも
+  走らせる）。入ったら `bun run bench --id ui.staleBadge` が数値を返す（今は「no stale badge in the Reader 10 s after the save」で
+  case error になる）。
+- urgency: high（鮮度は「確かさ」の表示の根幹。表示が嘘になる）。
