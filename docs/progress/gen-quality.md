@@ -26,7 +26,7 @@ mitori 自身の lean エンジン（claude-cli、`--setting-sources ""`・stdin
 | 識別子なし（vacuous） | 37 % | 39 % | 27.7 % | — |
 | 見積誤差 $（実績−見積）/見積 | +14 % | −12.6 % | −14.0 %（較正後の見積で −10.4 %） | ±30 % ✅ |
 | 見積誤差 入力 / 出力 token | — | −10 % / −29 % | −16 % / −30 %（較正後 −16 % / −23 %） | ±30 % ✅ |
-| 見積誤差 所要時間 | — | 198 s → 79 s | 198 s → 86 s（較正後 133 s、+55 %） | ❌（下記） |
+| 見積誤差 所要時間 | — | 198 s → 79 s | 198 s → 86 s（較正後、同じ C = 3 で 101 s → **−15 %**。§7） | ±30 % ✅ |
 | §3 主要な流れ | なし | **なし（未生成）** | 3 本（編集とトークン、プロンプト生成、部品描画） | — |
 
 ### crit（Go + JS、1,219 files・65k 行、leaf 14 + 親 2）
@@ -145,7 +145,7 @@ standard と complete の違いが eager の数（≤ 40 / 全 leaf）だけで�
 - **S8 ファイル別ノート**: leaf ごとに `gen.deepdive` mode `files`（≤ 20k token の FILES ごとに分割、mode `files#k`）。6k token 以下のファイルは
   全文に行番号、超えるものは doc スケルトン。ノートは aspect `files`（「ファイル別の詳細」）でモジュールページに入り、その task 自身の
   EXISTING（このチャンクのファイルのノートだけ）で再生成される。モジュールページの再生成はノートを見ない・消さない。
-- 見積（free、`bench/measure/gen-inspect.ts`）: m3e standard $0.77 / complete **$1.79**（S8 12 task）、crit standard $1.62 / complete **$5.27**（S8 43 task）。
+- 見積（free、`bench/measure/gen-inspect.ts`、C = 3、retryRate 0.3 — §7）: m3e standard $0.71 / complete **$1.65**（S8 12 task）、crit standard $1.50 / complete **$4.86**（S8 42 task）。
   complete は実エンジンでは未実行（上限内に収まらないため）。
 
 ## 5. 残っている問題（正直に）
@@ -153,7 +153,7 @@ standard と complete の違いが eager の数（≤ 40 / 全 leaf）だけで�
 1. **crit は実測では目標に届いていない**: 再試行 33 %・L1 88.2 %・1 回目 valid 84.6 %。最後の修正（範囲の切り詰め、questions の section、
    exported: 0、Go のパッケージ名）は、記録した同じ出力の再生では 16 % / 90.6 % になるが、**実エンジンでの再計測はしていない**
    （残り予算 $0.57 では crit 1 回 ≈ $1.6 が走らない）。プロンプトが変わると出力も変わるので、次の実測で確かめる必要がある。
-2. **所要時間の見積はまだ +55 %**（m3e 133 s 見積 → 86 s 実測）。出力 token の過大見積（−23 %）と再試行の時間見込みが残っている。
+2. ~~所要時間の見積はまだ +55 %~~ → 検証で訂正（§7）: 133 s は製品既定（対話枠を 1 つ予約 = 背景 2 並列）での見積で、計測は 3 並列だった。同じ 3 並列なら m3e 101 s / crit 170 s に対し実測 86 s / 約 155 s（−15 % / −9 %）。
 3. **flows の選び方**: crit の 3 本は「コマンドの振り分け」「プレビュー配信」「story API」で、肝心の「ブラウザでコメント → review ファイル →
    エージェントが読む」が入らない。seed の順位（index の route 優先）に引きずられる。m3e の導出 seed も Editor の先頭 80 行しか本体が見えず、手順が浅い。
 4. **横断的な「変更の手引き」が無い**: 理解テストの 0 点問（新しい Kind を足す手順）はまさにこれ。モジュール単位の構成では書けない。
@@ -182,3 +182,65 @@ scripts/nd bun bench/measure/gen-replay.ts --rec <record dir> --repo <clone> [--
 # 初見者理解テスト（出題を再利用すると $0.11）
 MITORI_LIVE=1 scripts/nd bun eval/comprehension/run.ts --repo <clone> --max-usd 0.6 [--quiz <report.json>] --out <dir>
 ```
+
+## 7. 検証（敵対的検証、2026-10-04 同日）
+
+実装者の受け入れ項目をすべて自分で再実行し、差分を読み、生成物の claim を出典と突き合わせた。
+
+### 再実行と費用の照合
+
+- `scripts/nd bun run check` 緑。`packages/gen`・`eval`・`bench` のテストは全通過。全体は検証の修正後 2,547 pass / 0 fail（修正前の
+  1 回目は IDX-AT の crit 構造更新の性能予算が負荷で 1 件落ちた。単独では 18 / 18 通り、gen と無関係）。
+- 実エンジン費用（scratch の各 `report.json` と台帳から）: m3e before $0.649 + after $0.690 + §3 単独再生成 $0.106 + $0.067
+  + 理解テスト $0.155（出題のみ。初回は回答・採点の呼び出しが $0 で失敗）+ $0.109 + crit $1.652 = **$3.429**。報告どおりで、
+  上限 $4.00 内。
+- **検証での実エンジン消費は $0**。この環境では `claude auth status` が未ログインを返し、`gen-real.ts` の事前確認が実行を拒否する
+  （ログインは行わない）。そのため crit の最終修正後の実測はできていない。記録した 1 回目の返答を最終コードで再生した結果は再現した
+  （25 返答中 4 件が再試行 = 16 %、L1 90.6 %）。
+- 補足: m3e after の本番 run では gen.flows が failed（再試行後も steps を欠いた）。§1 の表の §3 と `dogfood2/m3e-canvas/doc/03-key-flows.md`
+  は、そのあとの単独再生成 2 回目（$0.067）の結果である。
+
+### 所要時間の見積（訂正）と retryRate の較正
+
+§5-2 の「+55 %」は比べ方の誤りだった。`gen-inspect.ts` は製品既定の設定（対話枠を 1 つ予約するので背景は 2 並列）で見積もり、
+計測の `gen-real.ts` は 3 並列・予約 0 で走らせていた。`gen-inspect.ts` を `gen-real.ts` と同じ scheduler にし（`--concurrency`、
+既定 3）、初回 open の新しいコピー（CR #8）で見積もり直した。あわせて `GEN_ESTIMATE_PARAMS.retryRate` を 0.6 → **0.3** にした
+（このブランチの実測は 25 % / 33 %。0.6 は @2〜@3 の 63〜71 % 時代の値）。retryRate は見積だけに効き、1 回の呼び出しの予算や
+出力上限には効かない。
+
+| 3 並列の見積 | 見積 $ / 入力 / 出力 / 秒 | 実測 | 誤差（実測 − 見積）/ 見積 |
+|---|---|---|---|
+| m3e、retryRate 0.6 | $0.77 / 410k / 28.5k / 110 s | $0.690 / 345k / 24.2k / 86 s | −10 % / −16 % / −15 % / −22 % |
+| m3e、**0.3** | $0.71 / 329k / 26.3k / 101 s | 同上 | **−3 % / +5 % / −8 % / −15 %** |
+| crit、retryRate 0.6 | $1.62 / 925k / 57.0k / 約 181 s | $1.652 / 877k / 51.9k / 約 155 s | +2 % / −5 % / −9 % / −14 % |
+| crit、**0.3** | $1.50 / 743k / 52.6k / 170 s | 同上 | **+10 % / +18 % / −1 % / −9 %** |
+
+（出力は thinking を含む。crit の実測秒は予算停止の 12 分を除いた実働。complete の見積は m3e $1.65、crit $4.86 になった。）
+
+### 差分のレビューで直したもの
+
+- **flow の任意 aspect が前の flow へ移される**（`packages/gen/src/line/validator.ts`）。section なしの flow ブロックは「その aspect を
+  欠く最初の flow」へ回す規則が、任意の aspect（`sequence`・`edge_cases`）にも効いていた。ある flow が 2 枚目の図や 2 つ目の
+  例外ブロックを書くと、図を持たない前の flow の下に入り、別の flow の図がその flow の見出しの下に出る。振り替えは必須 aspect
+  （summary・steps）だけにした。回帰テスト付き（修正を戻すと落ちることを確認）。
+- `gen-inspect.ts` の scheduler（上記）。
+
+### 自分で突き合わせた claim（25 件）
+
+| 判定 | 件数 | 例 |
+|---|---|---|
+| 支持される | 21 | crit §3.1 の手順 1〜4（main.go:21-32、clicmd.go:26-37）、§3.2 の 5 手順（preview_handlers.go:12-57）、session の `GetComments` の focus 絞り込み（1870-1890）、差分取得失敗は警告だけ（1072-1079）、`ChangeBaseBranch` のコメント取り直し・墓標の移し替え・`rewriteReviewJSONRenames`（2458-2493）、`Lazy`/`loadOnce`（231-233）、m3e の `buildPrompt`・`effectivePrompt`（prompt.ts:1745、1864）、`setGroups` → `constrainModalRails`（Editor.tsx:461-463）、`paletteOf`（tokens.ts:538-547）、`M3Static`（M3Node.tsx:1939-1976）、`Frame` の w/h 省略は phone 寸法（tokens.ts:2122-2124、2147）、`Group` の `free`/`pos`（2317-2327）、リンク URL のテスト（button.test.ts:80-86） |
+| 一部 | 4 | m3e s1「5 分で試す」: `npm install`・`npm run dev`・localhost:3000 は CONTRIBUTING.md:17-19 どおりだが、「左のパレットからドラッグ」はその行に無く、Node 22.12 以上の条件（25 行）を落とした / §3 の導入と 3.1 の要約: Editor.tsx の引用行は状態の宣言だけで「トークン・プロンプト・描画へ渡す」部分は推論 / §3.3「パーツの描画」は `M3Static`（決定的な静止描画。Editor.tsx:3058・3090 などの一部だけ）を描画の流れとして説明しているが、キャンバス本体は `M3Node`（3574・3720・3877）で描く — 引用は正しいが初見者を誤導する / s1「描いた内容はブラウザの外へ送られない」（実装者の判定と同じ） |
+| 支持されない | 0 | — |
+
+### 受け入れ判定の訂正と、追加で見つけた残課題
+
+- 「再試行率 < 30 %」「L1 ≥ 90 %」は **m3e では実測で達成、crit は記録の再生でのみ達成**（実測は 33.3 % / 88.2 %）。次に実エンジンが
+  使えるときに crit の S5 だけを `--scope` で測れば確認できる（14 module で約 $1.0）。
+- 見積誤差 ±30 % は、上の訂正後は $・token・所要時間とも m3e・crit で達成。
+- **§3 は seed で決まる**。m3e の 3 本はどれも手順 2 つ・登場者 2 つの図で、「部品を置く → プロンプトをコピー」という利用者の本筋に
+  なっていない（導出 seed は Editor から各モジュールへの 1 hop で、BODIES には 4,800 行の `Editor` の先頭 80 行しか入らない）。
+  crit は §3.2・§3.3 に図がなく、本筋（ブラウザでコメント → `session.AddComment` → review ファイル）が無い。原因は index の route seed
+  の重複除去（`/api/health` だけが残る）で、CR #4 (c) に具体を追記した。
+- **再 open で module 分割が変わる**（CR #8）。同じ commit でも初回 open と 2 回目以降で module の所属ファイルが変わり、before / after の
+  比較と見積（complete の S8 task 数 42 / 43）が揺れる。計測は `.mitori/` の無い新しいコピーで行うこと。

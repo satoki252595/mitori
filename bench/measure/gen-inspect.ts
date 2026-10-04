@@ -1,9 +1,11 @@
 // Inspect what generation would feed the model for a repo — no LLM call, no token spent. Opens the repo in an in-process
 // daemon (like gen-real.ts) and prints the flow seeds (index seeds or the derived ones), the complete-effort file chunks
 // and the module graph roots. Used to check planner / input changes against real repositories before a paid run.
+// The estimates use the scheduler of a gen-real.ts run (background lane at C = --concurrency, no interactive
+// reservation), so their seconds compare with a measured run; the product default reserves one slot (C − 1 = 2).
 //
-//   scripts/nd bun bench/measure/gen-inspect.ts --repo <git clone> [--home <dir>]
-import { mkdtempSync, rmSync } from "node:fs";
+//   scripts/nd bun bench/measure/gen-inspect.ts --repo <git clone> [--home <dir>] [--concurrency 3]
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -13,9 +15,17 @@ import { startServerDaemon } from "../../apps/cli/src/daemon/server.ts";
 import { fileChunks } from "../../packages/gen/src/prompts/files.ts";
 import { derivedSeeds, genFlowSeeds } from "../../packages/gen/src/prompts/seeds.ts";
 
-const { values: a } = parseArgs({ options: { repo: { type: "string" }, home: { type: "string" } } });
+const { values: a } = parseArgs({ options: { repo: { type: "string" }, home: { type: "string" }, concurrency: { type: "string", default: "3" } } });
 if (!a.repo) throw new Error("--repo <dir> is required");
 const home = a.home ? resolve(a.home) : mkdtempSync(join(tmpdir(), "mitori-inspect-"));
+mkdirSync(home, { recursive: true });
+// the scheduler of gen-real.ts: a 2-slot estimate read against a 3-slot run looked +55 % slow [verifier 2026-10-04]
+const configPath = join(home, "config.json");
+const prev = existsSync(configPath) ? (JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>) : {};
+writeFileSync(
+  configPath,
+  JSON.stringify({ ...prev, scheduler: { ...((prev.scheduler as object) ?? {}), concurrency: Number(a.concurrency), reserveInteractive: 0 } }),
+);
 const d = await startServerDaemon({ home, port: 0, version: "0.0.0", build: "test", overrides: {} });
 const origin = d.url.replace(/\/$/, "");
 const call = async <T>(method: string, path: string, body?: unknown): Promise<T> => {
@@ -70,7 +80,7 @@ try {
     const est = await call<GenEstimate>("POST", `/ws/${ws}/gen/estimate`, { effort });
     const stages = est.stages.map((s) => `${s.stage} ${s.tasks}`).join(", ");
     console.log(
-      `estimate ${effort}: $${est.apiUsd.toFixed(2)}, in ${est.inTokens + est.cacheReadTokens + est.cacheWriteTokens}, out ${est.outTokens}, ${est.seconds.p50}s p50 — ${stages}`,
+      `estimate ${effort}: $${est.apiUsd.toFixed(2)}, in ${est.inTokens + est.cacheReadTokens + est.cacheWriteTokens}, out ${est.outTokens}, ${est.seconds.p50}s p50 at C=${est.concurrency} — ${stages}`,
     );
   }
 } finally {

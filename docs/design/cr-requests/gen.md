@@ -38,6 +38,12 @@ has a working workaround for each; the root cause sits in another package's cont
 - change: (a) treat framework entries as `entry` facts (Next.js `app/**/page.tsx` / `layout.tsx`, `pages/**`, Vite
   `index.html` → `src/main.*`), so a UI app has seeds; (b) do not continue a flow walk into embed / asset / script files
   (crit: `… > web/embed.go > scripts/bench-compare.py`).
+  (c) resolve wrapped handlers (`mux.HandleFunc("/api/comments", s.withReady(s.handleReviewComments))`) and do not let the
+  "one seed per distinct module walk" rule keep the first route by line: in crit every wrapped route falls back to
+  `server.go`, shares the walk of `/api/health` (line 136, the first one) and is dropped, so §3 gets the health check
+  and never the core loop (`/api/comments`, `/api/file/comments` → `session.AddComment` → review file). Prefer the
+  route whose handler is most central (file rank of the handler, not of the router file) and rank health / version /
+  static routes last [verifier 2026-10-04].
 - why: m3e-canvas had no seed at all, so §3 "主要な流れ" was never generated — the section a newcomer needs most.
 - workaround in place: `genFlowSeeds` (`packages/gen/src/prompts/seeds.ts`) derives seeds from the file graph when the
   index has none (root module's most outgoing file → the core file of each important module).
@@ -69,3 +75,17 @@ has a working workaround for each; the root cause sits in another package's cont
   without hovering.
 - workaround in place: none.
 - urgency: nice to have.
+
+## 8. A reopen of the same commit gets a different module partition
+- contract: `packages/indexer/src/structure/stage.ts` — the warm start from `Indexer.moduleSeeds()` (`.mitori/` seeds)
+- change: seeding from the previous partition's own seeds should reproduce that partition (idempotent warm start), or
+  the first open should already write the partition it would settle on.
+- why: crit at one commit, fresh copies: the first open (no `.mitori/`) gives `web-crit` 19 files,
+  `internal-session-plan-cli` 39, `internal-server` 38, `internal-share-config-live` 25; every later open of the same
+  checkout (seeded) gives 36 / 34 / 28 for the same ids, and a copy that went through other opens settled on
+  `internal-web` / `internal-share-live-auth` instead. Module pages are keyed by module: a reopen can move files between
+  pages and re-plan module tasks without any code change, and before / after measurements of generation compare
+  different module sets (the complete estimate counted 42 or 43 file-note tasks for the same commit).
+- workaround in place: none in gen. Measurements (`gen-real.ts`, `gen-inspect.ts`) must run on a fresh copy without
+  `.mitori/` to compare with a first run.
+- urgency: before S9 incremental runs are measured on real repositories.

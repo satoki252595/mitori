@@ -1038,10 +1038,12 @@ export const GEN_ESTIMATE_PARAMS = {
   cliMaxOutput: { factor: 1.5, min: 2000 },
   /**
    * Share of tasks that take the one line-retry, and the retry reply relative to the first one. Measured on real
-   * standard runs (dogfood M-2, 2026-10-04: crit 0.63, m3e-canvas 0.71 at prompt @2-@3; reply 0.25-0.31). The
-   * estimator adds the expected continuation (cache re-read of the conversation + this share of output).
+   * standard runs (dogfood M-2, 2026-10-04: crit 0.63, m3e-canvas 0.71 at prompt @2-@3; reply 0.25-0.31; after the
+   * repairs of gen-quality.md at gen.system@5: m3e-canvas 0.25, crit 0.33). The estimator adds the expected
+   * continuation (cache re-read of the conversation + this share of output). At 0.3 the standard estimates of the
+   * 2026-10-04 runs at C = 3 are within ±20 % in $, tokens and wall time (docs/progress/gen-quality.md §1).
    */
-  retryRate: 0.6,
+  retryRate: 0.3,
   retryCost: 0.3,
   /** Batch prefix cache hit rate [仮: docs 30–98%]. */
   batchPrefixHit: 0.6,
