@@ -1,4 +1,6 @@
 {
+  "palette.action.blockHistory": "History of this paragraph",
+  "palette.action.blockHistory.alias": "history",
   "palette.action.copyLocalUrl": "Copy the local URL",
   "palette.action.copyLocalUrl.alias": "local link",
   "palette.action.generate": "Generate the design doc",

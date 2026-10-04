@@ -7,10 +7,12 @@ import type { GlossaryEntry } from "@mitori/core";
 import { onMount } from "svelte";
 import { t } from "../shell/index.ts";
 import { followAnchor, popoverPos } from "./popover.ts";
+import { termLine } from "./term.ts";
 
 let { entry, anchorEl, href, onenter, onleave }: { entry: GlossaryEntry; anchorEl: HTMLElement; href: string; onenter: () => void; onleave: () => void } =
   $props();
 let el: HTMLDivElement | undefined = $state();
+const line = $derived(termLine(entry));
 let pos = $state<{ left: number; top: number; maxH: number | null }>({ left: 0, top: 0, maxH: null });
 
 onMount(() =>
@@ -22,7 +24,9 @@ onMount(() =>
 
 <div class="pop termcard" bind:this={el} style:left="{pos.left}px" style:top="{pos.top}px" style:max-height={pos.maxH === null ? undefined : `${pos.maxH}px`} style:overflow-y={pos.maxH === null ? undefined : "auto"} role="group" aria-label={entry.term} onpointerenter={onenter} onpointerleave={onleave} data-chrome>
   <p class="tt" data-user-content>{entry.term}</p>
-  <p class="ty" data-user-content>{[entry.yomi, entry.en, entry.romaji].filter(Boolean).join(" · ")}</p>
+  {#if line.yomi || line.en || line.where}
+    <p class="ty" data-user-content>{[line.yomi, line.en].filter(Boolean).join(" · ")}{#if line.where}<span class="where mono">{line.yomi || line.en ? " · " : ""}{line.where}</span>{/if}</p>
+  {/if}
   <p class="td" data-user-content>{entry.definition}</p>
   <p class="tf"><span>{t("term.uses", { n: entry.usedIn.length })}</span><a {href}>{t("term.open")}</a></p>
 </div>
@@ -42,6 +46,12 @@ onMount(() =>
     font-size: var(--fs-label);
     color: var(--muted);
     margin: 1px 0 8px;
+  }
+  .tt + .td {
+    margin-top: 8px;
+  }
+  .where {
+    font-size: var(--fs-meta);
   }
   .td {
     font-size: var(--fs-ui);

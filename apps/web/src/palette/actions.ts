@@ -72,6 +72,12 @@ export const ACTIONS: readonly ActionDef[] = [
     run: (s) => ws(s) && void s.router.go({ name: "map", ws: ws(s) as `ws_${string}`, textView: true }).then(() => (s.ui.textViewOpen = true)),
     when: has,
   },
+  {
+    // the Reader opens the popover on its focused block (EX-10)
+    id: "action.blockHistory",
+    run: () => window.dispatchEvent(new CustomEvent("mitori:block-history")),
+    when: (s) => s.router.route.name === "doc" && !!s.router.focusedBlock?.(),
+  },
   { id: "action.toggleCites", run: (s) => (s.ui.showCites = !s.ui.showCites) },
   { id: "action.singleKeys", run: (s) => s.prefs.setSingleKeys(!s.prefs.singleKeys) },
   { id: "action.help", run: (s) => (s.ui.helpOpen = true) },

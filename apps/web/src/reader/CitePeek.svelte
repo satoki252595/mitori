@@ -2,7 +2,8 @@
   Cite peek (contract `CitePeekProps`, ux.md §4.3.6): adjacent to the chip (below, above when there is no room),
   560 px, ≤ 26 body lines with the cited range marked, header path:a–b · symbol · precision · blob7, footer with
   the per-check verdicts (L0 / L1 / L2, UXP-06) and `o` pin / ⇧O editor. Does not take focus (role tooltip-like),
-  stays open while the pointer travels into it (WCAG 1.4.13).
+  stays open while the pointer travels into it (WCAG 1.4.13). In the app (not the export) the footer also carries the
+  paragraph's human check (EX-10): having read the code, 「✓✓ 確かめた」 marks the paragraph's claims human-verified.
 -->
 <script lang="ts">
 import type { CitePeek as CitePeekData, ClaimChecks } from "@mitori/core";
@@ -19,6 +20,8 @@ let {
   oneditor,
   onenter,
   onleave,
+  verify = null,
+  onverify,
 }: {
   data: CitePeekData;
   checks: Pick<ClaimChecks, "l0" | "l1" | "l2"> | null;
@@ -28,6 +31,9 @@ let {
   oneditor: () => void;
   onenter: () => void;
   onleave: () => void;
+  /** The cited paragraph's human check: null = not offered (export, no claims). */
+  verify?: { verified: boolean; n: number; busy: boolean } | null;
+  onverify?: (next: boolean) => void;
 } = $props();
 
 let el: HTMLDivElement | undefined = $state();
@@ -85,6 +91,16 @@ const l1Text = $derived(
       </span>
     {:else}<span></span>{/if}
     <span class="keys">
+      {#if verify}
+        <button
+          type="button"
+          class="ver"
+          class:on={verify.verified}
+          disabled={verify.busy}
+          title={t(verify.verified ? "cite.unverifyHint" : "cite.verifyHint", { n: verify.n })}
+          onclick={() => onverify?.(!verify.verified)}>&#x2713;&#x2713; {t(verify.verified ? "cite.verified" : "cite.verify")}</button
+        >
+      {/if}
       <button type="button" onclick={onpin}><kbd>o</kbd> {t("cite.pin")}</button>
       <button type="button" onclick={oneditor}><kbd>&#x21E7;O</kbd> {t("cite.editor")}</button>
     </span>
@@ -108,7 +124,10 @@ const l1Text = $derived(
     border-bottom: 1px solid var(--rule);
     background: var(--paper);
   }
+  /* the header keeps the whole path:range and gives up the symbol / precision / blob part first */
   .p {
+    flex: none;
+    max-width: calc(100% - 5em);
     font-size: var(--fs-label);
     color: var(--ink);
     white-space: nowrap;
@@ -116,6 +135,10 @@ const l1Text = $derived(
     text-overflow: ellipsis;
   }
   .m {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: var(--fs-meta);
     color: var(--muted);
     white-space: nowrap;
@@ -139,13 +162,34 @@ const l1Text = $derived(
     color: var(--shiki-foreground);
     font-variant-ligatures: none;
   }
+  /* the server HTML is `<span data-line>…</span>\n` per line: lines are blocks, so the newlines between them are not rows */
+  .peek-code {
+    white-space: normal;
+    tab-size: 4;
+  }
   .peek-code :global([data-line]) {
     display: block;
+    min-height: 1lh;
     padding: 0 16px 0 0;
+    white-space: pre;
+  }
+  /* a line-number gutter: the peek is read without the file next to it — the numbers are how a reader says 「:182 の行」 */
+  .peek-code :global([data-line])::before {
+    content: attr(data-line);
+    display: inline-block;
+    box-sizing: content-box;
+    width: 5ch;
+    padding: 0 12px 0 4px;
+    text-align: right;
+    color: var(--faint);
+    user-select: none;
   }
   .peek-code :global([data-line].hi) {
     background: var(--mark-line);
     box-shadow: inset 2px 0 0 var(--accent);
+  }
+  .peek-code :global([data-line].hi)::before {
+    color: var(--muted);
   }
   .peek-f {
     display: flex;
@@ -174,5 +218,12 @@ const l1Text = $derived(
   }
   .keys button:hover {
     color: var(--ink);
+  }
+  .keys .ver {
+    color: var(--ink);
+    font-weight: var(--fw-strong);
+  }
+  .keys .ver.on {
+    color: var(--v-human);
   }
 </style>

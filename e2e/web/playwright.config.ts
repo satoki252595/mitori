@@ -13,7 +13,7 @@ export default defineConfig({
   testMatch: /.*\.pw\.ts$/,
   workers: 1,
   fullyParallel: false,
-  timeout: 90_000,
+  timeout: Number(process.env.MITORI_PW_TIMEOUT ?? 90_000),
   reporter: [["list"]],
   globalSetup: "./support/global-setup.ts",
   use: {

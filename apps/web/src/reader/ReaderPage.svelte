@@ -3,7 +3,16 @@
   column (chapter head, BlockHost, pager) │ context column. Keys of the `read` scope live here.
 -->
 <script lang="ts">
-import { type BlockId, type CitePeek as CitePeekData, HREFS, type LineNo, MitoriError, type RepoPath, type SectionId } from "@mitori/core";
+import {
+  type BlockHistoryEntry,
+  type BlockId,
+  type CitePeek as CitePeekData,
+  HREFS,
+  type LineNo,
+  MitoriError,
+  type RepoPath,
+  type SectionId,
+} from "@mitori/core";
 import { flushSync, onMount, untrack } from "svelte";
 import { copyText } from "../shell/clipboard.ts";
 import { loadExtensions, type UiExtension, whenExtensions } from "../shell/ext.ts";
@@ -157,7 +166,19 @@ onMount(() => {
   // the margin cards show once the shell has loaded the loop UI (after the first paint, F5)
   void whenExtensions().then((e) => (ext = e));
   s.router.focusedBlock = () => (focused && main?.querySelector(`.blk[data-b="${CSS.escape(focused)}"]`) ? focused : null);
+  // NC-17: no reader popover stays over a Composer (selection toolbar, gutter, ⌘K 「AI に聞く」)
+  const onComposer = () => closePops(null);
+  // ⌘K 「この段落の履歴」 (the focused block)
+  const onHistory = () => {
+    const b = focused;
+    const el = b ? main?.querySelector<HTMLElement>(`.blk[data-b="${CSS.escape(b)}"]`) : null;
+    if (b && el) openHistory(b, el);
+  };
+  window.addEventListener("mitori:composer:open", onComposer);
+  window.addEventListener("mitori:block-history", onHistory);
   return () => {
+    window.removeEventListener("mitori:composer:open", onComposer);
+    window.removeEventListener("mitori:block-history", onHistory);
     s.doc.mutate = (apply) => apply();
     s.doc.levelTransition = null;
     s.router.focusedBlock = null;
@@ -269,6 +290,7 @@ function compose(intent: "note" | "question" | "change", block: BlockId | null =
     }
     return;
   }
+  closePops(null);
   const detail = { block, claim, intent };
   if (ext) {
     window.dispatchEvent(new CustomEvent("mitori:compose", { detail }));
@@ -324,7 +346,11 @@ function closePeek() {
 }
 
 function onCite(e: { cite: string; blob: string; anchorEl: HTMLElement; via: "hover" | "focus" | "click" | "leave" }) {
-  if (e.via === "leave") return closePeekSoon();
+  if (e.via === "leave") {
+    closePeekSoon();
+    closeTermSoon();
+    return;
+  }
   loadPop();
   if (peekTimer) clearTimeout(peekTimer);
   const p = fetchPeek(e.cite, e.blob);
@@ -332,6 +358,7 @@ function onCite(e: { cite: string; blob: string; anchorEl: HTMLElement; via: "ho
   const claimEl = e.anchorEl.closest(".mc") as HTMLElement | null;
   p.then(
     (data) => {
+      closePops("peek");
       main?.querySelector("a.mcite.on")?.classList.remove("on");
       e.anchorEl.classList.add("on");
       peek = { data, anchorEl: e.anchorEl, claimEl, pinned: e.via === "click" };
@@ -411,24 +438,104 @@ const termEntry = $derived.by(() => {
 });
 
 let claim = $state.raw<{ block: BlockId; claim: string | null; anchorEl: HTMLElement } | null>(null);
-async function verify() {
-  const c = claim;
-  if (!c || !ws) return;
-  const el = c.claim ? main?.querySelector<HTMLElement>(`.mc[data-claim="${CSS.escape(c.claim)}"]`) : null;
-  const prev = el?.dataset.verdict;
-  if (el) el.dataset.verdict = "human-verified";
-  claim = null;
-  s.layers.drop("claim");
+let history = $state.raw<{ block: BlockId; anchorEl: HTMLElement; entries: readonly BlockHistoryEntry[] | null; error: string | null } | null>(null);
+let verifying = $state(false);
+
+function closeTerm() {
+  term = null;
+  s.layers.drop("term");
+}
+function closeTermSoon() {
+  setTimeout(() => {
+    if (!termHover) closeTerm();
+  }, 160);
+}
+function closeHistory() {
+  history = null;
+  s.layers.drop("history");
+}
+
+/**
+ * ONE reader popover at a time (NC-17): opening the peek, a term card, a claim check or the block history closes
+ * the others, and each is a layer, so Escape closes whichever is open. The Composer opening closes them all.
+ */
+function closePops(keep: "peek" | "term" | "claim" | "history" | null) {
+  if (keep !== "peek" && peek) closePeek();
+  if (keep !== "term" && term) closeTerm();
+  if (keep !== "claim" && claim) {
+    claim = null;
+    s.layers.drop("claim");
+  }
+  if (keep !== "history" && history) closeHistory();
+}
+
+function openTerm(e: { term: string; anchorEl: HTMLElement }) {
+  loadPop();
+  closePops("term");
+  term = { id: e.term, anchorEl: e.anchorEl };
+  s.layers.open("popover", "term", () => (term = null));
+}
+
+function openClaim(e: { block: BlockId; claim: string | null; anchorEl: HTMLElement }) {
+  closePops("claim");
+  claim = e;
+  s.layers.open("popover", "claim", () => (claim = null));
+}
+
+/** The block history popover (EX-10): `GET /doc/blocks/:block/history`, newest first. */
+function openHistory(block: BlockId, anchorEl: HTMLElement) {
+  if (!ws) return;
+  loadPop();
+  closePops("history");
+  history = { block, anchorEl, entries: null, error: null };
+  s.layers.open("popover", "history", () => (history = null));
+  s.api.call("GET /ws/:ws/doc/blocks/:block/history", { params: { ws, block } }).then(
+    (entries) => {
+      if (history?.block === block) history = { ...history, entries };
+    },
+    (err) => {
+      if (history?.block === block) history = { ...history, error: errorText(MitoriError.from(err).toData()) };
+    },
+  );
+}
+
+const blockViewOf = (id: BlockId) => model?.parts.flatMap((p) => p.blocks).find((b) => b.id === id) ?? null;
+
+/**
+ * The human check of a paragraph (`POST /doc/blocks/:block/verify`): the server marks EVERY claim of the block
+ * human-verified (✓✓, kept across regenerations) or takes it back. Optimistic for ✓✓ (rolled back on failure).
+ */
+async function verifyBlock(block: BlockId, verified: boolean) {
+  if (!ws || verifying) return;
+  verifying = true;
+  const els = verified ? [...(main?.querySelectorAll<HTMLElement>(`.blk[data-b="${CSS.escape(block)}"] .mc[data-claim]`) ?? [])] : [];
+  const prev = els.map((el) => el.dataset.verdict);
+  for (const el of els) el.dataset.verdict = "human-verified";
   try {
-    const body: { verified: boolean; claims?: `cl_${string}`[] } = { verified: true };
-    if (c.claim) body.claims = [c.claim as `cl_${string}`];
-    const v = await s.api.call("POST /ws/:ws/doc/blocks/:block/verify", { params: { ws, block: c.block }, body });
+    const v = await s.api.call("POST /ws/:ws/doc/blocks/:block/verify", { params: { ws, block }, body: { verified } });
     s.doc.upsertBlock(v);
+    s.ui.announce(t(verified ? "history.announce.verified" : "history.announce.unverified"));
   } catch (err) {
-    if (el && prev) el.dataset.verdict = prev;
+    els.forEach((el, i) => {
+      if (prev[i]) el.dataset.verdict = prev[i];
+    });
     s.bottom.toast({ id: "verify.failed", kind: "error", key: "toast.verifyFailed", params: { error: errorText(MitoriError.from(err).toData()) } });
+  } finally {
+    verifying = false;
   }
 }
+
+async function verify() {
+  const c = claim;
+  if (!c) return;
+  claim = null;
+  s.layers.drop("claim");
+  await verifyBlock(c.block, true);
+}
+
+/** The peek's ✓✓: the cited claim's paragraph (EX-10 — every claim can be checked, not only the inferred ones). */
+const peekBlock = $derived((peek?.anchorEl.closest(".blk") as HTMLElement | null)?.dataset.b as BlockId | undefined);
+const peekBlockView = $derived(peekBlock ? blockViewOf(peekBlock) : null);
 
 // ---------------------------------------------------------------- shared gutter
 let gutter = $state<{ block: BlockId | null; top: number; left: number }>({ block: null, top: 0, left: 0 });
@@ -640,7 +747,13 @@ function startCourse() {
           block={gutter.block}
           top={gutter.top}
           left={gutter.left}
-          onaction={(a) => compose(a === "comment" ? "note" : a === "explain" ? "question" : "change", gutter.block)}
+          onaction={(a, el) => {
+            if (a === "history") {
+              if (gutter.block && el) openHistory(gutter.block, el);
+              return;
+            }
+            compose(a === "comment" ? "note" : a === "explain" ? "question" : "change", gutter.block);
+          }}
           onenter={() => (gutterHover = true)}
           onleave={() => (gutterHover = false)}
         />
@@ -653,14 +766,8 @@ function startCourse() {
           {forced}
           {head}
           oncite={onCite}
-          onterm={(e) => {
-            term = e ? { id: e.term, anchorEl: e.anchorEl } : null;
-            if (!e) return;
-          }}
-          onclaim={(e) => {
-            claim = e;
-            s.layers.open("popover", "claim", () => (claim = null));
-          }}
+          onterm={(e) => (e ? openTerm(e) : closeTerm())}
+          onclaim={openClaim}
           onhoverblock={onHoverBlock}
           onplaceholder={onPlaceholder}
           onmore={(ids) => (forced = new Set([...forced, ...ids]))}
@@ -714,6 +821,8 @@ function startCourse() {
     anchorEl={peek.anchorEl}
     onpin={pinPeek}
     oneditor={openEditor}
+    verify={peekBlockView && peekBlockView.claims.length > 0 ? { verified: peekBlockView.lock === "human-verified", n: peekBlockView.claims.length, busy: verifying } : null}
+    onverify={(next) => peekBlock && void verifyBlock(peekBlock, next)}
     onenter={() => (peekHover = true)}
     onleave={() => {
       peekHover = false;
@@ -730,8 +839,24 @@ function startCourse() {
     onenter={() => (termHover = true)}
     onleave={() => {
       termHover = false;
-      setTimeout(() => !termHover && (term = null), 160);
+      closeTermSoon();
     }}
+  />
+{/if}
+{#if history && pop}
+  {@const BlockHistory = pop.BlockHistory}
+  {@const hb = blockViewOf(history.block)}
+  <BlockHistory
+    entries={history.entries}
+    error={history.error}
+    anchorEl={history.anchorEl}
+    lang={s.prefs.lang}
+    verified={hb?.lock === "human-verified"}
+    verifiedBy={hb?.verifiedBy ?? null}
+    claims={hb?.claims.length ?? 0}
+    busy={verifying}
+    onverify={(next) => history && void verifyBlock(history.block, next)}
+    onclose={() => s.layers.close("history")}
   />
 {/if}
 {#if claim && pop}

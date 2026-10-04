@@ -29,6 +29,7 @@ const PATHS = {
   explain: "M8 14.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13ZM6.3 6.3a1.8 1.8 0 1 1 2.4 1.7c-.4.2-.7.5-.7 1v.3M8 11.3v.1",
   fix: "M10.5 2.5l3 3-7.5 7.5H3v-3Z",
   ext: "M9.5 2.5h4v4M13.5 2.5 7.5 8.5M12 9.5v4H2.5V4h4",
+  clock: "M8 14.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13ZM8 4.5V8l2.5 1.5",
 } as const;
 export type IconName = keyof typeof PATHS;
 </script>

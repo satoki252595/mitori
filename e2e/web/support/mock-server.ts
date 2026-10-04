@@ -162,16 +162,27 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     if (sec === "s3") return json({ ...v, blocks: [...v.blocks, ...(doc.sections.get("s3/review-cycle")?.blocks ?? [])] });
     return json(v);
   }
+  if (m === "GET" && /^\/doc\/blocks\/[^/]+\/history$/.test(rest)) {
+    const bid = rest.split("/")[3];
+    return json([
+      { block: bid, rev: 1, hash: "0000000000000001", by: "agent:claude-sonnet-5-5", at: "2026-10-02T09:00:00Z", source: "generate" },
+      { block: bid, rev: 2, hash: "0000000000000002", by: "human", at: "2026-10-03T10:30:00Z", source: "human_edit" },
+      { block: bid, rev: 3, hash: "0000000000000003", by: "human", at: "2026-10-03T11:00:00Z", round: 2, source: "accept_job" },
+    ]);
+  }
   if (m === "POST" && /^\/doc\/blocks\/[^/]+\/verify$/.test(rest)) {
     const bid = rest.split("/")[3];
     for (const v of doc.sections.values()) {
       const b = v.blocks.find((x) => x.id === bid);
-      if (b)
+      if (b) {
+        const on = (body as { verified?: boolean } | undefined)?.verified !== false;
         return json({
           ...b,
-          claimViews: b.claimViews.map((c) => ({ ...c, verdict: "human-verified" })),
-          html: b.html.replaceAll('data-verdict="inferred"', 'data-verdict="human-verified"'),
+          ...(on ? { lock: "human-verified", verifiedBy: "me" } : { lock: undefined, verifiedBy: undefined }),
+          claimViews: b.claimViews.map((c) => ({ ...c, verdict: on ? "human-verified" : c.verdict })),
+          html: on ? b.html.replace(/data-verdict="(inferred|verified|cited)"/g, 'data-verdict="human-verified"') : b.html,
         });
+      }
     }
     return err("E_NOT_FOUND", 404);
   }
@@ -227,7 +238,8 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     const last = end + 3;
     const lines = Array.from(
       { length: last - first + 1 },
-      (_, i) => `<span data-line="${first + i}"><span class="ln">${first + i}</span>  h.Write([]byte(cwd)) // line ${first + i}</span>`,
+      // like the daemon (server wiring/views.ts shikiLines): a `span.line[data-line]` per line, the number is the client's gutter
+      (_, i) => `<span class="line" data-line="${first + i}">  h.Write([]byte(cwd)) // line ${first + i}</span>`,
     ).join("\n");
     return json({
       path,
@@ -247,10 +259,9 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     const path = url.searchParams.get("path") ?? "";
     const start = Number(url.searchParams.get("start") ?? 1);
     const end = Number(url.searchParams.get("end") ?? start + 80);
-    const html = Array.from(
-      { length: end - start + 1 },
-      (_, i) => `<span data-line="${start + i}"><span class="ln">${start + i}</span>  return sha256.Sum(${start + i})</span>`,
-    ).join("\n");
+    const html = Array.from({ length: end - start + 1 }, (_, i) => `<span class="line" data-line="${start + i}">  return sha256.Sum(${start + i})</span>`).join(
+      "\n",
+    );
     return json({
       path,
       blob: "d94e6b7a1c",
