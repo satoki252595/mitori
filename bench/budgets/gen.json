@@ -184,10 +184,9 @@
       "dir": "max",
       "gates": ["golden"],
       "owner": "gen",
-      "measure": "packages/gen/test/golden/prep.test.ts#readme-bytes",
+      "measure": "packages/gen/src/session/session.test.ts#readme-bytes",
       "scale": "none",
-      "provisional": false,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "provisional": false
     },
     {
       "id": "quality.quiz.deltaReadme",
@@ -221,8 +220,7 @@
       "id": "gen.rerun.engineCalls",
       "max": 0,
       "owner": "gen",
-      "measure": "bench/gen.bench.ts#rerun",
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "measure": "bench/gen.bench.ts#rerun"
     }
   ]
 }

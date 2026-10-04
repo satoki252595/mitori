@@ -6,6 +6,7 @@
 //                           [--runs n] [--warmup n] [--absolute] [--no-wait] [--factor <n>] [--list] [--json]
 //                           [--calibrate] [--record-reference]
 import { mkdirSync } from "node:fs";
+import os from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { TEST_FORMATS } from "@mitori/testkit";
@@ -49,7 +50,8 @@ export async function runBench(opts: RunOptions = {}): Promise<RunReport> {
   const root = opts.root ?? RUNNER_ROOT;
   const log = opts.log ?? (() => {});
   const found = select(await discover(root), { suites: opts.suites ?? [], ids: opts.ids ?? [], exact: opts.exact ?? false });
-  const quiet = opts.wait === false ? { loadavg: 0, noisy: false } : await waitForQuiet();
+  // --no-wait still records (and gates on) the load it starts under; it only skips the waiting
+  const quiet = await waitForQuiet(opts.wait === false ? { retries: 0 } : {});
   const f =
     opts.factor !== undefined
       ? { factor: opts.factor, source: "measured" as const }
@@ -68,12 +70,13 @@ export async function runBench(opts: RunOptions = {}): Promise<RunReport> {
   };
   for (const { def } of found) {
     log(`  ${def.id} …`);
+    const loadavg = os.loadavg()[0] ?? 0;
     const out = await executeCase(def, {
       ...(opts.runs !== undefined ? { runs: opts.runs } : {}),
       ...(opts.warmup !== undefined ? { warmup: opts.warmup } : {}),
       resolveRepo: (name) => resolveRepo(name, root),
     });
-    file.results.push(out.entry);
+    file.results.push({ ...out.entry, loadavg });
     file.counters.push(...out.counters);
   }
   const budgets: Budgets = readBudgets(root);
@@ -92,10 +95,15 @@ export function renderText(file: BenchResultFile, gate: GateReport | null, budge
     const v = verdicts.get(r.id);
     const b = budgets.budgets.get(r.id);
     const limits = v ? `${fmt(v.target)} / ${fmt(v.limit)}${v.scaled ? " (scaled)" : ""}` : b && gate ? "(not gated)" : "";
-    const status = v ? `${mark(v.level)}${v.level === "red" && !v.gating ? " (not gating here)" : ""}` : "";
+    const status = v
+      ? `${mark(v.level)}${v.skipped && v.level !== "green" ? ` (skipped: ${v.skipped})` : v.level === "red" && !v.gating ? " (not gating here)" : ""}`
+      : "";
     return [r.id, r.unit, fmt(r.median), fmt(r.p95), fmt(r.cv), limits, status];
   });
   const lines = [head, textTable(["id", "unit", "median", "p95", "cv", "target / limit", "status"], rows)];
+  const skipped = gate?.verdicts.filter((v) => v.skipped && v.level !== "green") ?? [];
+  if (skipped.length > 0)
+    lines.push(`notice: ${skipped.length} time budget(s) over target were not gated: ${skipped[0]?.skipped} — re-run on a quiet machine to gate them`);
   for (const c of file.counters) {
     const v = gate?.counters.find((x) => x.id === c.id);
     lines.push(`counter ${c.id} = ${c.value}${v ? ` (max ${v.max}) ${v.ok ? "ok" : "FAIL"}` : ""}`);
@@ -200,4 +208,7 @@ if (import.meta.main) {
     console.error(`bench: ${err instanceof Error ? err.message : String(err)}`);
     process.exitCode = 2;
   }
+  // a case that leaves a Worker or a socket alive (a shared pool, a daemon) must not keep the run — or a compare
+  // child — waiting forever after its result is out; an idle loop exits before this unref'd timer fires
+  setTimeout(() => process.exit(process.exitCode ?? 0), 200).unref();
 }

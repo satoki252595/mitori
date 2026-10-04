@@ -18,8 +18,13 @@ export interface Verdict {
   dir: BudgetEntry["dir"];
   /** Target and limit were multiplied by the machine factor. */
   scaled: boolean;
-  /** A red level fails the run. False for machine-scaled budgets on a non-reference machine. */
+  /** A red level fails the run. False for machine-scaled budgets on a non-reference machine or on a loaded one. */
   gating: boolean;
+  /**
+   * Why a time budget did not gate although this is the reference machine: the run started under load
+   * (`MachineInfo.noisy`, 1-minute load average above cores × 0.5 after the waits). Reported as "skipped", never a flake.
+   */
+  skipped?: string;
 }
 
 const TIME: Readonly<Record<string, number>> = { ms: 1, s: 1000 };
@@ -41,7 +46,7 @@ export const isReferenceMachine = (factor: number): boolean => Math.abs(factor -
 export function judgeBudget(
   b: Pick<BudgetEntry, "id" | "target" | "limit" | "unit" | "dir" | "gates" | "scale">,
   value: number,
-  machine: { factor: number },
+  machine: { factor: number; noisy?: boolean; loadavg?: number },
 ): Verdict {
   const machineScaled = b.scale === "machine";
   const reference = isReferenceMachine(machine.factor);
@@ -51,9 +56,22 @@ export function judgeBudget(
   const limit = b.limit * k;
   const over = (bound: number) => (b.dir === "max" ? value > bound : value < bound);
   const level: Level = over(limit) ? "red" : over(target) ? "yellow" : "green";
-  // a time budget is a machine statement; everything else (sizes, counts, ratios) is the same everywhere
-  const gating = !machineScaled || reference;
-  return { id: b.id, level, value, target, limit, unit: b.unit, dir: b.dir, scaled, gating };
+  // a time budget is a machine statement; everything else (sizes, counts, ratios) is the same everywhere. On a loaded
+  // machine a time sample says more about the other processes than about mitori: report it, skip the gate.
+  const noisy = machineScaled && reference && machine.noisy === true;
+  const gating = (!machineScaled || reference) && !noisy;
+  return {
+    id: b.id,
+    level,
+    value,
+    target,
+    limit,
+    unit: b.unit,
+    dir: b.dir,
+    scaled,
+    gating,
+    ...(noisy ? { skipped: `machine under load (loadavg ${fmt(machine.loadavg ?? Number.NaN)})` } : {}),
+  };
 }
 
 /** Number as it should read in a table: 3 significant digits for small values, no decimals for large. */

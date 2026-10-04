@@ -71,13 +71,23 @@ export function renderJson(value: unknown, indent = ""): string {
 
 export const renderMerged = (merged: MergedBudgets): string => `${renderJson(merged)}\n`;
 
+/** A repository file's text, or undefined when it cannot be read. */
+function readRepoFile(path: string): string | undefined {
+  try {
+    return readFileSync(join(ROOT, path), "utf8");
+  } catch {
+    return undefined;
+  }
+}
+
 /** Problems that make the budget set unusable; empty = OK. `current` is the existing bench/budgets.json text, if any. */
 export function checkBudgets(
   files: readonly SourceFile[],
   current: string | undefined,
   exists: (path: string) => boolean = (p) => existsSync(join(ROOT, p)),
+  read: (path: string) => string | undefined = readRepoFile,
 ): string[] {
-  const problems = lintBudgets(files, exists).map((p) => `${p.file} ${p.id}: ${p.message}`);
+  const problems = lintBudgets(files, exists, read).map((p) => `${p.file} ${p.id}: ${p.message}`);
   for (const f of files) {
     const d = f.json as Doc;
     for (const b of d.budgets ?? []) {

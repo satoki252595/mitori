@@ -138,7 +138,8 @@ describe.skipIf(!RUN)("WP-04 perf budgets", () => {
         const times: number[] = [];
         for (let seed = 1; seed <= 7; seed++) {
           const layouter = createDiagramLayouter({ elk: pool as never, db: memDb(DOC_MIGRATIONS), hasher, log: silentLog });
-          const ir = syntheticGraph(n, { seed });
+          // a layered (ELK) kind: `container` diagrams are packed as rooms and never reach ELK
+          const ir = { ...syntheticGraph(n, { seed }), kind: "dependency" as const };
           const t = performance.now();
           const l: DiagramLayout = await layouter.layout(ir);
           if (seed > 2) times.push(performance.now() - t);

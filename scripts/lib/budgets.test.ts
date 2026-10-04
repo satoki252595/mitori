@@ -61,6 +61,37 @@ describe("F4 (nonfunc audit) a budget's measure file must exist, or the entry sa
     ]);
     expect(lintBudgets(doc({ measure: "bench/none.bench.ts#x", unmeasured: "no harness yet" }), exists)).toEqual([]);
   });
+  test("a bench case file or a Playwright spec must name the id it measures (a written budget is not a measured one)", () => {
+    const files: Record<string, string> = {
+      "bench/idx.bench.ts": `export const c = defineBench({ id: "idx.s01.cold.100kloc", suite: "idx", mode: "process", run: () => 1 });`,
+      "bench/other.bench.ts": `export const c = defineBench({ id: "idx.something.else", suite: "idx", mode: "process", run: () => 1 });`,
+      "e2e/perf/a.spec.ts": `expectWithinBudget("ui.shellPaint", r.shellPaint);`,
+      "e2e/perf/b.spec.ts": `// mentions ui.shellPaint only in prose`,
+      "eval/run.ts": "const id = `gen.${name}`;",
+    };
+    const has = (p: string) => p in files;
+    const read = (p: string) => files[p];
+    expect(lintBudgets(doc({}), has, read)).toEqual([]);
+    expect(lintBudgets(doc({ measure: "bench/other.bench.ts#x" }), has, read).map((p) => p.message)).toEqual([
+      'measure file bench/other.bench.ts never names "idx.s01.cold.100kloc" (no case or check measures it there)',
+    ]);
+    expect(lintBudgets(doc({ id: "ui.shellPaint", measure: "e2e/perf/a.spec.ts#x" }), has, read)).toEqual([]);
+    expect(lintBudgets(doc({ id: "ui.shellPaint", measure: "e2e/perf/b.spec.ts#x" }), has, read)).toHaveLength(1);
+    // a counter is named by its key in a case's counters()
+    const counter = [
+      {
+        path: "a.json",
+        json: { v: "mitori.budgets/1", counters: [{ id: "idx.warm.parseCalls", max: 0, owner: "indexer", measure: "bench/idx.bench.ts#warm" }] },
+      },
+    ];
+    expect(lintBudgets(counter, has, read)).toHaveLength(1);
+    files["bench/idx.bench.ts"] += `\ncounters: () => ({ "idx.warm.parseCalls": 0 }),`;
+    expect(lintBudgets(counter, has, read)).toEqual([]);
+    // files that build their ids (eval, size tables, golden tests) are not read; without `read` nothing is read
+    expect(lintBudgets(doc({ id: "gen.cite.l0", measure: "eval/run.ts#cite:l0" }), has, read)).toEqual([]);
+    expect(lintBudgets(doc({ measure: "bench/other.bench.ts#x" }), has)).toEqual([]);
+  });
+
   test("an existing file with `unmeasured` ⇒ drop it; an empty reason is refused", () => {
     expect(lintBudgets(doc({ unmeasured: "stale note" }), exists).map((p) => p.message)).toEqual(['measure file bench/idx.bench.ts exists: drop "unmeasured"']);
     expect(lintBudgets(doc({ measure: "bench/none.bench.ts#x", unmeasured: " " }), exists).map((p) => p.message)).toEqual([

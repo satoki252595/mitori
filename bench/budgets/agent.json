@@ -51,8 +51,7 @@
       "owner": "agent",
       "measure": "bench/agent.bench.ts#first-phase:warm",
       "scale": "machine",
-      "provisional": false,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "provisional": false
     },
     {
       "id": "agent.firstPhase.cold",
@@ -78,8 +77,7 @@
       "owner": "agent",
       "measure": "bench/agent.bench.ts#interactive-wait",
       "scale": "machine",
-      "provisional": false,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "provisional": false
     },
     {
       "id": "agent.resident.procs",
@@ -90,10 +88,10 @@
       "dir": "max",
       "gates": ["structural"],
       "owner": "agent",
-      "measure": "bench/agent.bench.ts#resident-procs",
+      "measure": "bench/agent-live.bench.ts#resident-procs",
       "scale": "none",
       "provisional": false,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "unmeasured": "needs real claude processes (warm + parked); the scenario engine spawns none and this pass spends no tokens — measure after `claude /login` (docs/progress/rem-bench.md)"
     },
     {
       "id": "agent.resident.rss",
@@ -104,10 +102,10 @@
       "dir": "max",
       "gates": ["absolute"],
       "owner": "agent",
-      "measure": "bench/agent.bench.ts#resident-rss",
+      "measure": "bench/agent-live.bench.ts#resident-rss",
       "scale": "none",
       "provisional": false,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "unmeasured": "needs real claude processes (warm + parked); the scenario engine spawns none and this pass spends no tokens — measure after `claude /login` (docs/progress/rem-bench.md)"
     }
   ],
   "counters": [

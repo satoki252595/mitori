@@ -12,8 +12,7 @@
       "owner": "doc",
       "measure": "bench/doc.bench.ts#render-2000:cached",
       "scale": "machine",
-      "provisional": true,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "provisional": true
     },
     {
       "id": "doc.render.2000.cold",
@@ -26,8 +25,7 @@
       "owner": "doc",
       "measure": "bench/doc.bench.ts#render-2000:cold",
       "scale": "machine",
-      "provisional": true,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "provisional": true
     },
     {
       "id": "doc.elk.300",
@@ -40,8 +38,7 @@
       "owner": "doc",
       "measure": "bench/doc.bench.ts#elk:300",
       "scale": "machine",
-      "provisional": true,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "provisional": true
     },
     {
       "id": "doc.elk.1000",
@@ -54,8 +51,7 @@
       "owner": "doc",
       "measure": "bench/doc.bench.ts#elk:1000",
       "scale": "machine",
-      "provisional": true,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "provisional": true
     },
     {
       "id": "doc.shiki.100",
@@ -68,8 +64,7 @@
       "owner": "doc",
       "measure": "bench/doc.bench.ts#shiki:100",
       "scale": "machine",
-      "provisional": true,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "provisional": true
     },
     {
       "id": "doc.flush.10k",
@@ -82,8 +77,7 @@
       "owner": "doc",
       "measure": "bench/doc.bench.ts#flush:10k",
       "scale": "machine",
-      "provisional": false,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "provisional": false
     }
   ],
   "counters": [
@@ -91,8 +85,7 @@
       "id": "doc.reopen.renderCalls",
       "max": 0,
       "owner": "doc",
-      "measure": "bench/doc.bench.ts#reopen",
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "measure": "bench/doc.bench.ts#reopen"
     }
   ]
 }

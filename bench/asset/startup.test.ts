@@ -42,7 +42,16 @@ describe("ASSET-U-05 bin.startup", () => {
 
   test("over the limit it fails only on the reference machine", () => {
     const budget = { target: 20, limit: 50 };
-    expect(judgeStartup({ samples: [], median: 80 }, budget, () => 1.02)).toMatchObject({ level: "red", hard: true, factor: 1.02 });
-    expect(judgeStartup({ samples: [], median: 80 }, budget, () => 1.8)).toMatchObject({ level: "red", hard: false, factor: 1.8 });
+    const quiet = { loadavg: 2, cores: 18 };
+    expect(judgeStartup({ samples: [], median: 80 }, budget, () => 1.02, quiet)).toMatchObject({ level: "red", hard: true, factor: 1.02 });
+    expect(judgeStartup({ samples: [], median: 80 }, budget, () => 1.8, quiet)).toMatchObject({ level: "red", hard: false, factor: 1.8 });
+  });
+
+  test("a loaded reference machine reports an over-limit start-up instead of failing (the bench runner's rule)", () => {
+    const budget = { target: 20, limit: 50 };
+    const v = judgeStartup({ samples: [], median: 80 }, budget, () => 1.02, { loadavg: 30, cores: 18 });
+    expect(v).toMatchObject({ level: "red", hard: false, factor: 1.02 });
+    expect(v.skipped).toContain("under load");
+    expect(judgeStartup({ samples: [], median: 80 }, budget, () => 1.02, { loadavg: 8, cores: 18 }).hard).toBe(true);
   });
 });

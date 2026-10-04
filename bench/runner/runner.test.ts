@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import os, { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TEST_FORMATS } from "@mitori/testkit";
 import type { Budgets } from "./budgets.ts";
@@ -8,7 +8,7 @@ import { type AnyBench, defineBench, isBenchDef } from "./define.ts";
 import { discover, matchesId, select } from "./discover.ts";
 import { executeCase } from "./execute.ts";
 import { gateResult } from "./gate.ts";
-import { keepAwake, parsePower, QUIET_WAIT_MS, waitForQuiet } from "./machine.ts";
+import { keepAwake, NOISY_RATIO, parsePower, QUIET_WAIT_MS, waitForQuiet } from "./machine.ts";
 import type { BenchResultEntry, BenchResultFile } from "./result.ts";
 import { runBench } from "./run.ts";
 import { toSamples } from "./stats.ts";
@@ -101,6 +101,31 @@ describe("BENCH-U-12 executeCase", () => {
     );
     expect(out.entry.values).toEqual([100, 101, 102]);
     expect(out.entry.unit).toBe("MB");
+  });
+
+  test("a run that does not await its work (a rejection nobody handles) is an error, not a fast number", () => {
+    // in a plain Bun process, as the runner is (bun:test fails the current test on any unhandled rejection itself)
+    const script = `
+      import { defineBench } from "./define.ts";
+      import { executeCase } from "./execute.ts";
+      const work = async () => { await Bun.sleep(1); throw new Error("git not found on PATH"); };
+      const noRepo = { resolveRepo: async () => { throw new Error("no repo"); } };
+      const run = async (id, fn) => (await executeCase(defineBench({ id, suite: "idx", mode: "inproc", runs: 3, warmup: 0, run: fn }), noRepo)).entry;
+      const stray = await run("t.u", () => void work());
+      const awaited = await run("t.w", () => work());
+      const handled = await run("t.h", () => void work().catch(() => undefined));
+      console.log(JSON.stringify({ stray, awaited, handled }));
+    `;
+    const p = Bun.spawnSync([process.execPath, "-e", script], { cwd: import.meta.dir, stdout: "pipe", stderr: "pipe" });
+    expect(p.stderr.toString()).toBe("");
+    const r = JSON.parse(p.stdout.toString()) as Record<"stray" | "awaited" | "handled", { values: number[]; error?: string }>;
+    expect(r.stray.values).toEqual([]);
+    expect(r.stray.error).toContain("3 unhandled rejection(s)");
+    expect(r.stray.error).toContain("git not found on PATH");
+    // awaited, the same failure is the case's own error; a rejection the run handles is not stray
+    expect(r.awaited.error).toBe("git not found on PATH");
+    expect(r.handled.error).toBeUndefined();
+    expect(r.handled.values).toHaveLength(3);
   });
 
   test("CLI overrides win over the case's own counts", async () => {
@@ -263,6 +288,28 @@ describe("BENCH-U-13 budget verdicts", () => {
     expect(gateResult(file([entry("a.fast", "ms", [], { error: "boom" })]), bs).errors).toEqual([{ id: "a.fast", error: "boom" }]);
   });
 
+  test("a loaded machine reports time budgets as skipped instead of failing them; sizes still gate", () => {
+    const bs = budgets([
+      { ...B, id: "a.slow" },
+      { ...B, id: "a.bytes", scale: "none", unit: "KB", gates: ["structural"] },
+    ]);
+    const loaded = file([entry("a.slow", "ms", [25])]);
+    loaded.machine = { ...loaded.machine, cores: 18, loadavg: 30, noisy: true };
+    const g = gateResult(loaded, bs);
+    expect(g.ok).toBe(true);
+    expect(g.verdicts[0]).toMatchObject({ level: "red", gating: false, skipped: "machine under load (loadavg 30.00)" });
+    // the load of the case itself counts too: the run started quiet, this case did not
+    const lateLoad = file([entry("a.slow", "ms", [25], { loadavg: 12 })]);
+    lateLoad.machine = { ...lateLoad.machine, cores: 18, loadavg: 2 };
+    expect(gateResult(lateLoad, bs)).toMatchObject({ ok: true, verdicts: [{ skipped: "machine under load (loadavg 12.00)" }] });
+    const quiet = file([entry("a.slow", "ms", [25], { loadavg: 3 })]);
+    quiet.machine = { ...quiet.machine, cores: 18, loadavg: 2 };
+    expect(gateResult(quiet, bs).ok).toBe(false);
+    const big = file([entry("a.bytes", "KB", [25])]);
+    big.machine = { ...big.machine, cores: 18, loadavg: 30, noisy: true };
+    expect(gateResult(big, bs).ok).toBe(false);
+  });
+
   test("budgetStat p95 feeds the p95 into the budget", () => {
     const bs = budgets([{ ...B, id: "a.p" }]);
     const values = [1, 1, 1, 1, 1, 1, 1, 1, 1, 30];
@@ -312,18 +359,31 @@ describe("BENCH-U-15 runBench on the synthetic suite", () => {
     expect(r.text).toContain("synthetic.value");
   });
 
-  test("synthetic.spin takes MITORI_BENCH_SLOWDOWN into account", async () => {
-    const base = await runBench({ ids: ["synthetic.spin"], wait: false, runs: 3, warmup: 0 });
-    const prev = process.env.MITORI_BENCH_SLOWDOWN;
-    process.env.MITORI_BENCH_SLOWDOWN = "1.5";
+  test("synthetic.spin takes MITORI_BENCH_SLOWDOWN into account (virtual time: deterministic under load)", async () => {
+    const prev = { slow: process.env.MITORI_BENCH_SLOWDOWN, virt: process.env.MITORI_BENCH_VIRTUAL };
+    process.env.MITORI_BENCH_VIRTUAL = "1";
     try {
+      const base = await runBench({ ids: ["synthetic.spin"], wait: false, runs: 3, warmup: 0 });
+      process.env.MITORI_BENCH_SLOWDOWN = "1.5";
       const slow = await runBench({ ids: ["synthetic.spin"], wait: false, runs: 3, warmup: 0 });
       const [a, b] = [base.file.results[0]?.median ?? 0, slow.file.results[0]?.median ?? 0];
-      expect(b / a).toBeGreaterThan(1.4);
-      expect(b / a).toBeLessThan(1.6);
+      expect([a, b]).toEqual([20, 30]);
     } finally {
-      if (prev === undefined) delete process.env.MITORI_BENCH_SLOWDOWN;
-      else process.env.MITORI_BENCH_SLOWDOWN = prev;
+      for (const [k, v] of [
+        ["MITORI_BENCH_SLOWDOWN", prev.slow],
+        ["MITORI_BENCH_VIRTUAL", prev.virt],
+      ] as const)
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
     }
+  });
+
+  // the real busy-wait path, timed: meaningful on a quiet machine only (a loaded one preempts the spin)
+  const loaded = (os.loadavg()[0] ?? 0) > os.cpus().length * NOISY_RATIO;
+  if (loaded) console.warn(`BENCH-U-15: the real-time spin check is skipped — loadavg ${os.loadavg()[0]?.toFixed(1)} > cores × ${NOISY_RATIO}`);
+  test.skipIf(loaded)("the real busy-wait spin lasts its nominal 20 ms on a quiet machine", async () => {
+    const r = await runBench({ ids: ["synthetic.spin"], wait: false, runs: 3, warmup: 0 });
+    expect(r.file.results[0]?.median ?? 0).toBeGreaterThanOrEqual(20);
+    expect(r.file.results[0]?.median ?? 0).toBeLessThan(30);
   });
 });

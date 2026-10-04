@@ -1,0 +1,72 @@
+{
+  "v": "mitori.o3/1",
+  "bun": "1.4.2",
+  "results": [
+    {
+      "tree": "small",
+      "cand": "A",
+      "platform": "linux-arm64",
+      "setupMs": 6.5,
+      "p50Ms": 0.3,
+      "p95Ms": 1,
+      "samples": 200,
+      "missed": 0,
+      "capturePct": 100,
+      "newDirCapturePct": 100,
+      "idleCpuPct": 0.11,
+      "rssMB": 1.5
+    },
+    {
+      "tree": "small",
+      "cand": "B",
+      "platform": "linux-arm64",
+      "setupMs": 13.2,
+      "p50Ms": 122.7,
+      "p95Ms": 251,
+      "samples": 40,
+      "missed": 0,
+      "capturePct": 100,
+      "newDirCapturePct": null,
+      "idleCpuPct": 8.97,
+      "idleCpuPctByInterval": {
+        "250ms": 8.97,
+        "1000ms": 2.68,
+        "5000ms": 0.54
+      },
+      "rssMB": 9
+    },
+    {
+      "tree": "large",
+      "cand": "A",
+      "platform": "linux-arm64",
+      "setupMs": 15.2,
+      "p50Ms": 0.3,
+      "p95Ms": 0.8,
+      "samples": 200,
+      "missed": 0,
+      "capturePct": 100,
+      "newDirCapturePct": 100,
+      "idleCpuPct": 0.14,
+      "rssMB": 0.3
+    },
+    {
+      "tree": "large",
+      "cand": "B",
+      "platform": "linux-arm64",
+      "setupMs": 34.1,
+      "p50Ms": 149.2,
+      "p95Ms": 288,
+      "samples": 40,
+      "missed": 0,
+      "capturePct": 100,
+      "newDirCapturePct": null,
+      "idleCpuPct": 17.16,
+      "idleCpuPctByInterval": {
+        "250ms": 17.16,
+        "1000ms": 5.04,
+        "5000ms": 1.16
+      },
+      "rssMB": 5
+    }
+  ]
+}

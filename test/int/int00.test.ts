@@ -11,6 +11,10 @@ import { buildFixture, type FixtureRepo } from "@mitori/testkit";
 const ROOT = resolve(import.meta.dir, "../..");
 const HOST_BIN = join(ROOT, `dist/mitori-${process.platform}-${process.arch}`);
 const SOURCES = ["apps/cli/src", "apps/web/src", "packages", "scripts/gen-assets.ts", "scripts/build-bin.ts", "bun.lock"];
+/** build:bin targets (scripts/build-bin.ts `TARGETS`, MILESTONES §11): elsewhere (linux-arm64) INT-00 needs MITORI_BIN. */
+const TARGETS: readonly string[] = ["darwin-arm64", "linux-x64"];
+const UNBUILDABLE = !process.env.MITORI_BIN && !TARGETS.includes(`${process.platform}-${process.arch}`);
+if (UNBUILDABLE) console.warn(`INT-00: skipped — build:bin does not target ${process.platform}-${process.arch}; pass MITORI_BIN=<binary>`);
 
 function newest(p: string): number {
   if (!existsSync(p)) return 0;
@@ -25,6 +29,7 @@ let t0 = 0;
 let repo: FixtureRepo;
 
 beforeAll(async () => {
+  if (UNBUILDABLE) return;
   let bin = process.env.MITORI_BIN ?? HOST_BIN;
   if (!process.env.MITORI_BIN && (!existsSync(bin) || statSync(bin).mtimeMs < Math.max(...SOURCES.map((s) => newest(join(ROOT, s)))))) {
     const r = Bun.spawnSync(["bun", "scripts/build-bin.ts"], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
@@ -59,7 +64,7 @@ afterAll(async () => {
   if (iso) rmSync(iso, { recursive: true, force: true });
 });
 
-describe("INT-00 binary → health → shell → doc", () => {
+describe.skipIf(UNBUILDABLE)("INT-00 binary → health → shell → doc", () => {
   test("health within 1 s of spawning; the shell on / and /doc", async () => {
     expect(url).not.toBe("");
     const h = (await (await fetch(`${url}api/v1/health`)).json()) as HealthRes;

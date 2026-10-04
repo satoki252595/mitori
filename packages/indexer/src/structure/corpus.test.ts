@@ -72,8 +72,9 @@ describe.skipIf(!crit)("crit structure", () => {
       `[idx.s04] crit loc=${loc} S2–S4=${total.toFixed(1)}ms resolve=${p.ms.resolve.toFixed(1)} facts=${p.ms.facts.toFixed(1)} structure=${p.ms.structure.toFixed(1)} pack+rows=${(t2 - t1).toFixed(1)} (pack ${pack.tokens} tok, ${rows.length} rows)`,
     );
     // budget idx.s04.cold.100kloc: S0–S4 ≤ 1.0 s (limit 2.0) with S0–S1 ≤ 0.3 s (limit 0.5) ⇒ S2–S4 ≤ 0.7 s (limit 1.5)
-    expect(total).toBeLessThanOrEqual(700);
-    expect(p.ms.facts).toBeLessThanOrEqual(50); // spec §5.1: link ≤ 50 ms
+    // generous deadlines (×10); the budget is timed by bench idx.s04.cold.100kloc in a fresh process, load-gated
+    expect(total).toBeLessThanOrEqual(7_000);
+    expect(p.ms.facts).toBeLessThanOrEqual(500); // spec §5.1: link ≤ 50 ms (the S2 part of idx.s04.cold.100kloc)
   }, 60_000);
 
   test("IDX-AT-30 determinism: same snapshot + same previous state ⇒ identical membership, ids, slugs, ranks, topo", async () => {
@@ -157,7 +158,8 @@ describe.skipIf(!crit)("crit structure", () => {
     }
     const med = median(times);
     console.log(`[idx.update.1file] crit S3 update path median=${med.toFixed(2)}ms`);
-    expect(med).toBeLessThanOrEqual(10); // idx.update.1file 15 ms (limit 30) covers parse + S2 + S3
+    // generous deadline: idx.update.1file 15 ms (limit 30, parse + S2 + S3) is the bench case of bench/idx.bench.ts
+    expect(med).toBeLessThanOrEqual(200);
   }, 60_000);
 
   test("IDX-AT-35 small changes: random body edits keep membership and ids (20 edits on crit)", async () => {

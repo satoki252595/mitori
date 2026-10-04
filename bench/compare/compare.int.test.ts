@@ -7,8 +7,12 @@ import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "../..");
 
+/**
+ * The gate's behaviour is under test, not the machine's timing: the synthetic cases run on virtual time
+ * (`MITORI_BENCH_VIRTUAL=1`, bench/runner/synthetic.bench.ts), so a loaded machine cannot turn a 25 % slowdown into "noisy".
+ */
 async function run(argv: string[], cwd = ROOT, env: Record<string, string> = {}): Promise<{ code: number; out: string; err: string }> {
-  const proc = Bun.spawn(argv, { cwd, env: { ...process.env, ...env }, stdout: "pipe", stderr: "pipe" });
+  const proc = Bun.spawn(argv, { cwd, env: { ...process.env, MITORI_BENCH_VIRTUAL: "1", ...env }, stdout: "pipe", stderr: "pipe" });
   const [out, err, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
   return { code, out, err };
 }
@@ -130,8 +134,9 @@ describe("BENCH-AT-02 real base worktree: head slower than its parent commit", (
     writeFileSync(join(repo, "bench/budgets.json"), JSON.stringify({ v: "mitori.budgets/1", budgets: [], counters: [] }));
     symlinkSync(join(ROOT, "node_modules"), join(repo, "node_modules")); // untracked; the base worktree gets the same link via --base-setup
     await git("init", "-q", "-b", "main");
+    // the sample is the nominal duration (virtual time): the base-worktree flow and the gate are under test, not timing
     const caseFile = (ms: number) =>
-      `import { defineBench } from "./runner/define.ts";\nexport const c = defineBench({ id: "idx.demo", suite: "idx", mode: "inproc", runs: 5, warmup: 0, run: () => { const end = performance.now() + ${ms}; while (performance.now() < end) {} } });\n`;
+      `import { defineBench } from "./runner/define.ts";\nexport const c = defineBench({ id: "idx.demo", suite: "idx", mode: "inproc", runs: 5, warmup: 0, run: () => ${ms} });\n`;
     writeFileSync(join(repo, "bench/demo.bench.ts"), caseFile(20));
     await git("add", "bench");
     await git("commit", "-q", "-m", "base");

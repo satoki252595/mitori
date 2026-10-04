@@ -1,0 +1,78 @@
+{
+  "platform": "linux-arm64",
+  "kind": "bwrap",
+  "bwrap": "/usr/bin/bwrap",
+  "checks": [
+    {
+      "name": "loopback listen + connect (go test with httptest)",
+      "want": "ok",
+      "got": "ok",
+      "pass": true,
+      "detail": "exit 0: ok  \texample.com/sbx\t0.002s"
+    },
+    {
+      "name": "outbound TCP to 1.1.1.1:443",
+      "want": "denied",
+      "got": "denied",
+      "pass": true,
+      "detail": "exit 1: TypeError: Was there a typo in the url or port?\n  path: \"https://1.1.1.1/\",\n errno: 0,\n  code: \"FailedToOpenSocket\"\n\n\nBun v1.4.2 (Linux arm64)"
+    },
+    {
+      "name": "DNS + HTTPS to example.com",
+      "want": "denied",
+      "got": "denied",
+      "pass": true,
+      "detail": "exit 1: TypeError: getaddrinfo ETIMEOUT example.com\n     path: \"https://example.com/\",\n  syscall: \"getaddrinfo\",\n hostname: \"example.com\",\n    errno: 12,\n     code: \"ETIMEOUT\"\n\n\nBun v1.4.2 (Linux arm64)"
+    },
+    {
+      "name": "write inside the tree",
+      "want": "ok",
+      "got": "ok",
+      "pass": true,
+      "detail": "exit 0: "
+    },
+    {
+      "name": "write the job TMPDIR",
+      "want": "ok",
+      "got": "ok",
+      "pass": true,
+      "detail": "exit 0: "
+    },
+    {
+      "name": "write the user's HOME",
+      "want": "denied",
+      "got": "denied",
+      "pass": true,
+      "detail": "exit 2: /bin/sh: 1: cannot create /home/mitori/.cache/mitori-sbx-home-jhFnej/pwned.txt: Read-only file system"
+    },
+    {
+      "name": "write the tree's .git",
+      "want": "denied",
+      "got": "denied",
+      "pass": true,
+      "detail": "exit 2: /bin/sh: 1: cannot create /tmp/mitori-sbx-8Z3qoC/tree/.git/HEAD: Read-only file system"
+    },
+    {
+      "name": "read ~/.ssh",
+      "want": "denied",
+      "got": "denied",
+      "pass": true,
+      "detail": "exit 1: cat: /home/mitori/.cache/mitori-sbx-home-jhFnej/.ssh/id_mitori_check: No such file or directory"
+    },
+    {
+      "name": "read ~/.mitori",
+      "want": "denied",
+      "got": "denied",
+      "pass": true,
+      "detail": "exit 1: cat: /home/mitori/.cache/mitori-sbx-home-jhFnej/.mitori/state.sqlite: No such file or directory"
+    },
+    {
+      "name": "the tree write reached the host",
+      "want": "ok",
+      "got": "ok",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "ok": true
+}

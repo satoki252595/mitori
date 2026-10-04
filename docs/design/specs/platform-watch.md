@@ -52,3 +52,31 @@ macOS p50 **17.2–17.5 ms** / p95 18.7 ms（受け入れ試験 p50 ≤ 25 ms）
 
 - inotify の上限: `fs.inotify.max_user_watches` が小さい古い distro（8,192）で dir 数がそれを超えると `watch()` が失敗する → `E_IDX_WATCH`（起動時）または `onError`（実行中）。その場合の polling fallback は実装していない（kernel 5.11 以降は既定が RAM 比例で 100 万規模）。発生したら `mitori doctor` で上限を表示し、B を後付けする（spec の手順はそのまま使える）。
 - GitHub Actions `ubuntu-24.04`（x64、ext4）では未計測。CI で `watch.int.test.ts` が走るので、遅延の退行はそこで見える。
+
+## 7. 再計測（v1.1、2026-10-04、残課題パス bench トラック）— 決定は変わらない
+
+`scripts/linux-ci.sh`（OrbStack の Docker、**Ubuntu 24.04.5** userland、kernel 7.0.14-orbstack、arm64、18 vCPU、bun 1.4.2、
+`fs.inotify.max_user_watches = 1,048,576`）の `watch` step で同じ bench を走らせた。木はコンテナ内の overlayfs。
+v1.0（Ubuntu 22.04 userland、`--cpus 4`）と同じ手順・同じ木（small = gostd と同じ 923 dirs / 7,768 files、large = 2,800 dirs）。
+ホストの負荷はロードアベレージ 10〜20（他のエージェント）。生データ: `docs/progress/linux/o3-linux-arm64-ubuntu24.json`。
+
+| OS | 候補 | 木 | setup | p50 | p95 | 取りこぼし | 捕捉率（一括 / 新 dir） | idle CPU | RSS 増分 | 規則 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Linux arm64 (24.04) | **A** inotify | small | 6.5 ms | 0.3 ms | 1.0 ms | 0 / 200 | 100 % / 100 % | 0.11 % | 1.5 MB | 満たす |
+| Linux arm64 (24.04) | **A** inotify | large | 15.2 ms | 0.3 ms | 0.8 ms | 0 / 200 | 100 % / 100 % | 0.14 % | 0.3 MB | 満たす |
+| Linux arm64 (24.04) | B poll 250 ms | small | 13.2 ms | 122.7 ms | 251 ms | 0 / 40 | 100 % / — | 8.97 %（1 s: 2.68 %、5 s: 0.54 %） | 9.0 MB | — |
+| Linux arm64 (24.04) | B poll 250 ms | large | 34.1 ms | 149.2 ms | 288 ms | 0 / 40 | 100 % / — | 17.16 %（1 s: 5.04 %、5 s: 1.16 %） | 5.0 MB | — |
+
+watcher 全体（`createFsWatcher`、書込 → batch、40 回、`watch.int.test.ts`）: Linux p50 **7.2 ms** / p95 8.4 ms、PLAT-I-007 の 14 件すべて pass。
+2 回目の run（`o3-linux-arm64-ubuntu24-run2.json`）も同じ: A は setup 7.2 / 15.5 ms・p95 0.9 / 1.1 ms・捕捉 100 %・idle CPU 0.23 / 0.20 %、
+B は p95 239 / 278 ms・idle CPU 8.7 / 17.2 %、watcher p50 7.0 ms。
+3 回目（検証パス、`o3-linux-arm64-ubuntu24-run3.json`、ホストの負荷 10〜20）も同じ結論: A は setup 5.5 / 21.4 ms・p95 0.9 / 0.7 ms・
+捕捉 100 %・idle CPU 0.11 / 0.14 %、B は p95 266 / 279 ms・idle CPU 13.3 / 19.5 %（5 s 間隔でも 0.9 / 1.33 %）。
+
+- **決定（A を Linux でも採用、polling は実装しない）はそのまま**。A は 2,800 dir の木でも setup 15 ms・p95 1 ms・捕捉 100 %・
+  idle CPU 0.14 % で、採用規則（setup ≤ 500 ms・p95 ≤ 100 ms・捕捉率 100 %・idle CPU ≤ 1 %）を大差で満たす。B は p95 が間隔 +
+  git 実行時間で 250〜290 ms、250 ms 間隔の idle CPU 9〜17 % で、規則の 1 % を超える（5 s 間隔でも large で 1.16 %）。
+- `watch.int.test.ts` の p50 ≤ 25 ms は受け入れ値として記録に残し、テスト自体は負荷下でも決定的に「全件届く」と緩い期限だけを見る
+  （保存 → 鮮度の連鎖の時間は bench `idx.freshness` が負荷を見て判定する）。
+- §6 の「GitHub Actions ubuntu-24.04（x64）では未計測」は残る。x64 は `scripts/linux-ci.sh --arch amd64`（Rosetta）で動くが、
+  エミュレーション下の時間は x64 実機の数字にならないので、O3 の判定には使わない。

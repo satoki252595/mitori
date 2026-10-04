@@ -1,5 +1,5 @@
 // IDX-AT-14 helper, run in a child process so the RSS is this workload's alone: parse crit's Go `passes` times in one
-// Worker handler (GC after each pass) and print `{ rss: number[], parses, deletes }` as JSON.
+// Worker handler (GC after each pass) and print `{ rss: number[], heap: number[], parses, deletes }` as JSON.
 //   bun packages/indexer/src/update/test/rss-passes.ts <root> [passes]
 import { readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -33,11 +33,15 @@ const items = files.map((abs) => ({
   scope: "main" as const,
 }));
 const rss: number[] = [];
+const heap: number[] = [];
 for (let pass = 0; pass < passes; pass++) {
   for (let i = 0; i < items.length; i += 64) await h.handle({ id: pass * 1_000 + i, items: items.slice(i, i + 64) });
   Bun.gc(true);
   rss.push(process.memoryUsage().rss);
+  // live JS heap after the full GC: what this process still references (RSS also holds the allocator's free pages,
+  // which it returns on its own schedule — later on a loaded machine)
+  heap.push(process.memoryUsage().heapUsed);
 }
 const { parses, deletes } = h.stats();
 h.dispose();
-console.log(JSON.stringify({ rss, parses, deletes }));
+console.log(JSON.stringify({ rss, heap, parses, deletes }));

@@ -1,0 +1,7 @@
+{
+  "platform": "linux-arm64",
+  "kind": "none",
+  "bwrap": "/usr/bin/bwrap",
+  "checks": [],
+  "ok": true
+}

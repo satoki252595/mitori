@@ -87,6 +87,9 @@ export function gitSha(root: string): string {
   return r.status === 0 ? r.stdout.trim() : "";
 }
 
+/** Load above cores × this is a loaded machine (§6.2): time budgets are reported, not gated. */
+export const NOISY_RATIO = 0.5;
+
 /** Default wait between two load checks. */
 export const QUIET_WAIT_MS = 30_000;
 
@@ -109,7 +112,7 @@ export interface QuietOptions {
  */
 export async function waitForQuiet(opts: QuietOptions = {}): Promise<{ loadavg: number; noisy: boolean; waited: number }> {
   const load = opts.loadavg ?? (() => os.loadavg()[0] ?? 0);
-  const limit = (opts.cores ?? os.cpus().length) * (opts.ratio ?? 0.5);
+  const limit = (opts.cores ?? os.cpus().length) * (opts.ratio ?? NOISY_RATIO);
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const retries = opts.retries ?? 2;
   let waited = 0;

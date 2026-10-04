@@ -12,8 +12,7 @@
       "owner": "root",
       "measure": "bench/dev.bench.ts#check",
       "scale": "machine",
-      "provisional": false,
-      "unmeasured": "no file measures it yet (nonfunc audit F4); hand measurements: docs/progress/audit-nonfunc.md §1"
+      "provisional": false
     }
   ]
 }

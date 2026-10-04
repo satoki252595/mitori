@@ -1,0 +1,6 @@
+install exit=0 3s
+bin-build exit=0 10s
+bin-version exit=0 1s
+bin-skeleton exit=0 20s
+ 15 pass
+ 0 fail

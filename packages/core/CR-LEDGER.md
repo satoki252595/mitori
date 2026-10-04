@@ -303,3 +303,10 @@
 | CR fin-3 | finisher（NC-07 / NC-04） | accepted | api `FileContent.outline?`（300 行超のファイルのトップレベルのシンボル）、`MapView.modules[].summary?`（生成済みのモジュールの一行の役割）(applied) | 4,300 行のハブに目次が無い / 部屋の popover が export 名しか出さない |
 | CR fin-4 | finisher（NC-12） | accepted | core `DOC_TEMPLATE` s2 `titleJa`: 見取り図 → 間取り図（製品名と図の名前を分ける。ファイル名 `doc/02-floor-plan.md` は不変）(applied) | 「見取り図」が 3 つの別物を指していた |
 | CR fin-5 | finisher（NC-06 / NC-07） | accepted | doc `StaticDocInput.guide?: StaticGuide`（§4 の手順・§5 の読む順番。server が索引から作る、0 tok）(applied、doc の契約) | 「どう動かすか」「どこから読むか」に静的節が答えていなかった |
+
+## 8. 残課題パス — bench トラック（2026-10-04、`docs/progress/rem-bench.md`）
+
+| id | requester | 決定 | 適用先 | 理由・備考 |
+|---|---|---|---|---|
+| CR bench-1 | bench（F4、= CR m1-106 の解消） | accepted | `e2e/package.json` devDependencies `axe-core` 4.13.0（exact、`bun.lock` 更新。hoisted linker なので testkit `ui.axe` がそのまま解決する）(applied) | `e2e/a11y/axe.spec.ts`（`ui.a11y.axe`）。契約の変更は無い（testkit の manifest も触らない） |
+| CR bench-2 | bench（Linux、ADR-0013） | deferred（safety トラック。`rem/safety` の `BWRAP_PROBE_ARGS` で修正済み・main 未統合。bench 検証パスが Linux 3 条件で確認: masked `/proc` → none、素の Linux → bwrap 10 / 10、既定 seccomp → none） | platform `probeGateSandbox` の Linux argv を gate profile と同じ名前空間の組に（`--unshare-pid --unshare-net --proc /proc --tmpfs /tmp`） | `/proc` が masked のコンテナで検出が "bwrap" を返し、gate が全部 error になる（`docs/progress/linux/sandbox-arm64-masked-proc.json`、`sandbox-arm64-rem-safety-*.json`、cr-requests/bench.md #1） |

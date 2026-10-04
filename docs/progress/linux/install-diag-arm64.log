@@ -1,0 +1,44 @@
+-- which prebuild node-gyp-build picks, and whether node can load it (what its install script tests)
+/src/node_modules/tree-sitter-typescript/prebuilds/linux-arm64/tree-sitter-typescript.node
+node:internal/modules/cjs/loader:1939
+  return process.dlopen(module, path.toNamespacedPath(filename));
+                 ^
+
+Error: /src/node_modules/tree-sitter-typescript/prebuilds/linux-arm64/tree-sitter-typescript.node: cannot open shared object file: No such file or directory
+    at Object..node (node:internal/modules/cjs/loader:1939:18)
+    at Module.load (node:internal/modules/cjs/loader:1505:32)
+    at Function._load (node:internal/modules/cjs/loader:1309:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at Module.require (node:internal/modules/cjs/loader:1527:12)
+    at require (node:internal/modules/helpers:147:16)
+    at [eval]:1:74
+    at runScriptInThisContext (node:internal/vm:209:10)
+    at node:internal/process/execution:446:12
+    at [eval]-wrapper:6:24 {
+  code: 'ERR_DLOPEN_FAILED'
+}
+
+Node.js v22.23.3
+-- node-gyp on PATH: none
+-- the install script itself
+node:events:497
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: spawn node-gyp ENOENT
+    at ChildProcess._handle.onexit (node:internal/child_process:285:19)
+    at onErrorNT (node:internal/child_process:483:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+Emitted 'error' event on ChildProcess instance at:
+    at ChildProcess._handle.onexit (node:internal/child_process:291:12)
+    at onErrorNT (node:internal/child_process:483:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'spawn node-gyp',
+  path: 'node-gyp',
+  spawnargs: [ 'rebuild' ]
+}
+
+Node.js v22.23.3
+exit 1

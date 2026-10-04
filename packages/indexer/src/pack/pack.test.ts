@@ -135,6 +135,6 @@ describe.skipIf(CORPUS.length === 0)("IDX-AT-43 repo pack on the corpus", () => 
       expect(a.tokens).toBeLessThanOrEqual(REPO_PACK_BUDGET.cap);
       expect(pack(p, name).text).toBe(a.text);
       expect(pack(p, name, { maxTokens: 6_000 }).tokens).toBeLessThanOrEqual(6_000);
-      expect(ms).toBeLessThan(50); // idx.pack.ms limit
+      expect(ms).toBeLessThan(1_000); // generous; idx.pack.ms (limit 50) is the bench case of bench/idx.bench.ts
     }, 60_000);
 });

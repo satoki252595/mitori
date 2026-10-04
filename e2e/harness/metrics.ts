@@ -149,7 +149,13 @@ export interface BudgetCheck {
 export interface MeasureContext {
   project?: string;
   factor?: number | null;
+  /** 1-minute load average and core count where it was measured: above cores × 0.5 a time budget is reported, not gated. */
+  loadavg?: number | null;
+  cores?: number;
 }
+
+/** Load above cores × this is a loaded machine (the bench runner uses the same ratio, bench/runner/machine.ts). */
+export const NOISY_RATIO = 0.5;
 
 /** |factor − 1| ≤ this ⇒ the reference machine (testing spec §6.8; the bench runner uses the same tolerance). */
 export const REFERENCE_TOLERANCE = 0.1;
@@ -175,6 +181,7 @@ export function checkBudget(id: string, value: number, ctx: MeasureContext = {})
   const target = entry.target * k;
   const limit = entry.limit * k;
   const beyond = (bound: number) => (entry.dir === "max" ? value > bound : value < bound);
+  const loaded = ctx.loadavg != null && ctx.cores !== undefined && ctx.loadavg > ctx.cores * NOISY_RATIO;
   const reportOnly = !timed
     ? undefined
     : ctx.project !== "perf"
@@ -183,7 +190,9 @@ export function checkBudget(id: string, value: number, ctx: MeasureContext = {})
         ? factor === null
           ? "the machine factor was not measured (run through `bun run e2e`)"
           : `not the reference machine (factor ${factor.toFixed(2)})`
-        : undefined;
+        : loaded
+          ? `machine under load (loadavg ${(ctx.loadavg as number).toFixed(1)} > ${ctx.cores} cores × ${NOISY_RATIO})`
+          : undefined;
   const over = beyond(limit);
   return {
     id,

@@ -9,6 +9,8 @@ import { toSamples } from "./stats.ts";
 /** `inproc` cases without an explicit run count keep sampling until this much work has been measured. */
 const MICRO_MIN_TOTAL_MS = 1000;
 const MICRO_MAX_RUNS = 5000;
+/** How long after its teardown a case's stray rejections still count as the case's. */
+const STRAY_GRACE_MS = 25;
 
 export interface ExecuteOptions {
   /** Overrides of the case's own run/warm-up counts (CLI `--runs` / `--warmup`). */
@@ -24,7 +26,31 @@ export interface CaseOutcome {
   counters: { id: string; value: number }[];
 }
 
+/**
+ * A case whose run starts work it does not wait for (`run: () => void somethingAsync()`) is timed for the start of that
+ * work only, and the work fails later in the background. Rejections nobody handles while the case runs (setup to
+ * teardown) therefore turn the case into an error instead of a number.
+ */
 export async function executeCase(def: AnyBench, opts: ExecuteOptions): Promise<CaseOutcome> {
+  const stray: unknown[] = [];
+  const onStray = (reason: unknown) => void stray.push(reason);
+  process.on("unhandledRejection", onStray);
+  try {
+    const out = await runCase(def, opts);
+    // work the runs left behind fails soon after the teardown removed what it used: a short grace catches it
+    await new Promise((r) => setTimeout(r, STRAY_GRACE_MS));
+    if (stray.length === 0 || out.entry.error !== undefined) return out;
+    const first = stray[0] instanceof Error ? stray[0].message : String(stray[0]);
+    const error = `${stray.length} unhandled rejection(s) while the case ran — work its run did not await? First: ${first}`;
+    return { entry: { ...toSamples(def.id, out.entry.unit, []), ...stripSamples(out.entry), error }, counters: [] };
+  } finally {
+    process.off("unhandledRejection", onStray);
+  }
+}
+
+const stripSamples = (e: BenchResultEntry) => ({ suite: e.suite, mode: e.mode, budgetStat: e.budgetStat, ...(e.repo ? { repo: e.repo } : {}) });
+
+async function runCase(def: AnyBench, opts: ExecuteOptions): Promise<CaseOutcome> {
   const unit = def.unit ?? "ms";
   const base = { suite: def.suite, mode: def.mode, budgetStat: def.budgetStat ?? "median", ...(def.repo ? { repo: def.repo } : {}) } as const;
   const scratch = await mkdtemp(join(opts.tmp ?? tmpdir(), "mitori-bench-"));
