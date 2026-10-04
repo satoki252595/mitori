@@ -1,7 +1,7 @@
 // RT-31 (ADR-0013 4): the dependency links of a worktree are found and their trees fingerprinted; a write through a
 // link changes the fingerprint, reading does not.
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { appendFileSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, realpathSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createFsReader } from "@mitori/platform";
 import { createTestHome, type TestHome } from "@mitori/testkit";
@@ -38,6 +38,24 @@ describe("RT-31 dependency fingerprint", () => {
     expect(dependencyFingerprint(fs, tree, links).hash).toBe(before.hash);
     appendFileSync(join(tree, "node_modules/pkg/index.js"), "tampered\n");
     expect(dependencyFingerprint(fs, tree, links).hash).not.toBe(before.hash);
+  });
+  test("#3: an in-place edit that restores size and mtime (utimes) is seen through ctime", async () => {
+    const links = dependencyLinks(fs, tree);
+    const file = join(shared, "pkg/index.js");
+    // a whole-second mtime the writer can restore exactly
+    utimesSync(file, 1_700_000_000, 1_700_000_000);
+    const st = statSync(file, { bigint: true });
+    const before = dependencyFingerprint(fs, tree, links).hash;
+    // ctime has the clock's resolution: make sure it can move
+    await Bun.sleep(5);
+    writeFileSync(file, "module.exports = 2;\n"); // same length
+    utimesSync(file, 1_700_000_000, 1_700_000_000);
+    const after = statSync(file, { bigint: true });
+    expect(after.size).toBe(st.size);
+    expect(after.mtimeNs).toBe(st.mtimeNs);
+    expect(after.ino).toBe(st.ino);
+    expect(fs.stat(file)?.ctimeNs).toBeDefined();
+    expect(dependencyFingerprint(fs, tree, links).hash).not.toBe(before);
   });
   test("a new file in the dependency tree is seen too", () => {
     const links = dependencyLinks(fs, tree);

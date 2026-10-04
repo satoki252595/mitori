@@ -3989,6 +3989,11 @@ export interface FsStat {
   size: number;
   /** Modification time in nanoseconds since the epoch. */
   mtimeNs: bigint;
+  /**
+   * Status-change time in nanoseconds (lstat `ctime`; absent when unavailable). Unlike mtime it cannot be set from user
+   * space: an in-place edit that restores size and mtime with `utimes` still moves it (RT-31, cr-requests/agent.md #3).
+   */
+  ctimeNs?: bigint;
   /** Inode (0n when unavailable). */
   ino: bigint;
   /** Regular file. */

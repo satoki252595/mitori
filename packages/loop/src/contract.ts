@@ -1013,6 +1013,14 @@ export interface GitSafety {
   restoreWorktree(job: JobId): Promise<string>;
   /** Remove; prune ONLY inside side.git (never a global `git worktree prune` in the user's repo) [SEC-08]. */
   removeWorktree(job: JobId): Promise<void>;
+  /**
+   * Read-only links to the user's dependency dirs in the job's worktree (spec §7.3), for the gates. Agent jobs make
+   * them only right before the gates and drop them again before every engine turn ({@link unlinkDependencies}) — a
+   * link is the user's real directory, and `node_modules/../.env` the user's `.env` (F1, CR safe-3).
+   */
+  linkDependencies(job: JobId): Promise<RepoPath[]>;
+  /** Remove the job worktree's dependency links (symlinks only; real directories are never touched) (CR safe-3). */
+  unlinkDependencies(job: JobId): Promise<void>;
   /** Write the result of {@link applyEditsToText} into the worktree (temp → rename, all or nothing). */
   writeFiles(worktree: string, files: Record<RepoPath, string>): Promise<void>;
   /** Record the worktree state as `refs/mitori/j/<id>/head` (temp index, `add -A --sparse`, excluding dependency links). */

@@ -13,10 +13,12 @@ import { type GateResult, type GateSpec, type GitOid, type JobId, MitoriError, t
 import type { ParsedAgent } from "../contract.ts";
 import { parseContract } from "../contracts/index.ts";
 import { checksInWorktree, treeTexts, trustSplit } from "../gates/job.ts";
+import { trackedSymlinks } from "../git/worktree.ts";
 import type { RunnerCore } from "../jobs/core.ts";
 import { consume, engineRequest } from "../jobs/engine.ts";
 import { checkScopeOrFail, checkText, engineError, finishOutcomes, type GateRetry, record, start, verdictOf } from "../jobs/pipeline.ts";
 import { docContext, type JobPlan } from "../jobs/plan.ts";
+import { makeWorktreeRoom } from "../jobs/worktrees.ts";
 import { failingGate, failureRanges, failureText, hunkRanges } from "../repair/ranges.ts";
 import { remainingUsd, repairTurn, withPrompt } from "../repair/turn.ts";
 import { type HideDeps, hideSecrets } from "./secrets.ts";
@@ -101,6 +103,19 @@ async function parseAgentTurn(
  */
 export async function assertWorktreeScope(core: RunnerCore, wt: string, scope: readonly RepoPath[]): Promise<void> {
   await core.deps.git.ws.worktreeAdmin(wt);
+  // a tracked symlink is a symlink in the USER's tree even where the worktree does not materialize it (an escaping
+  // one is never checked out): accepting `link/new.go` would write through it there
+  const links = await trackedSymlinks(core.deps.git.ws, wt);
+  for (const path of scope) {
+    const parts = path.split("/");
+    for (let i = 1; i <= parts.length; i++) {
+      const sub = parts.slice(0, i).join("/") as RepoPath;
+      if (links.has(sub))
+        throw new MitoriError("E_SCOPE_VIOLATION", `the write-scope path ${path} goes through a symlink (${sub})`, {
+          params: { reason: "symlink_in_scope", path, at: sub, actions: "copy_prompt" },
+        });
+    }
+  }
   for (const path of scope) {
     const parts = path.split("/");
     for (let i = 1; i <= parts.length; i++) {
@@ -136,7 +151,10 @@ export async function runAgent(core: RunnerCore, id: JobId, plan: JobPlan, signa
   await start(core, id, signal);
   core.phase(id, "snapshot");
   const s = await core.deps.git.snapshot(core.deps.settings().denyGlobs);
-  const wt = await core.deps.git.createWorktree(id, s.commit, { dependencyLinks: true });
+  await makeWorktreeRoom(core, id);
+  // F1 remainder: no dependency links while the model reads the tree (they are the user's real directories); the
+  // gates get them (`gateWorktree`). Escaping tracked symlinks are never materialized (git/worktree.ts).
+  const wt = await core.deps.git.createWorktree(id, s.commit, { dependencyLinks: false });
   // the permission rules and the system prompt name the worktree by its realpath (a `/var` → `/private/var` alias
   // would make every Edit rule miss and every edit be denied)
   const cwd = core.deps.fs.realpath(wt.path) ?? wt.path;
@@ -217,6 +235,8 @@ async function gateWorktree(
   );
   const changed = diff.filter((c) => c.newOid !== null).map((c) => c.path);
   const opts = { consent: false, sandbox: core.deps.sandbox };
+  // the gates need the dependencies (tsc, jest, pytest); the next engine turn drops the links again
+  if (runnable.length > 0) await core.deps.git.linkDependencies(id);
   const format = runnable.filter((g) => g.kind === "format");
   const checks = runnable.filter((g) => g.kind !== "format");
   let current = head;
@@ -345,6 +365,8 @@ async function agentRepairTurn(
     },
     { pipeline: true },
   );
+  // F1 remainder: the gates' dependency links go before the model reads the tree again
+  await core.deps.git.unlinkDependencies(id);
   // the gates of the last attempt ran repo code in this worktree: check it again before the engine edits it
   await assertWorktreeScope(core, wt, plan.scope.writeScope);
   core.phase(id, "repair", retry.kind === "gate" ? (failingGate(retry.gates ?? [])?.gate ?? "gate") : "revise");
@@ -401,6 +423,7 @@ export async function runAgentRevision(
 async function jobWorktree(core: RunnerCore, id: JobId): Promise<string> {
   const rec = core.get(id);
   if (rec.job.worktree && core.deps.fs.stat(rec.job.worktree)?.isDir) return rec.job.worktree;
+  await makeWorktreeRoom(core, id);
   const restored = await core.deps.git.restoreWorktree(id);
   const wt = core.deps.fs.realpath(restored) ?? restored;
   await core.update(id, "job.worktree", (r) => {

@@ -5,6 +5,7 @@
 import type { AcceptReq, CheckpointId, FileDiff, GitOid, Glob, JobId, RepoPath, SecretScanner, SqlDb, WriteQueue } from "@mitori/core";
 import { MitoriError } from "@mitori/core";
 import type { GitSafety, ScopeReport } from "../contract.ts";
+import { dependencyLinks } from "../gates/deps.ts";
 import { AcceptEngine, type AcceptOutcome, type CommitRequest } from "./accept.ts";
 import { gc } from "./gc.ts";
 import { checkpointOf, Journal } from "./journal.ts";
@@ -12,7 +13,7 @@ import { checkScope } from "./scope.ts";
 import { type GitDeps, GitWorkspace } from "./side.ts";
 import { Snapshotter, unwritablePaths } from "./snapshot.ts";
 import { buildTree, diffCommits, jobCommits, selectionCommit } from "./tree.ts";
-import { commitHead, createWorktree, removeWorktree, restoreWorktree, worktreeOf, writeFiles } from "./worktree.ts";
+import { commitHead, createWorktree, linkDependencies, removeWorktree, restoreWorktree, unlinkDependencies, worktreeOf, writeFiles } from "./worktree.ts";
 
 /** Ports of {@link createGitSafety}. */
 export interface GitSafetyDeps extends GitDeps {
@@ -77,6 +78,20 @@ export function createGitSafety(deps: GitSafetyDeps): GitSafetyHandle {
     async removeWorktree(job) {
       links.delete(job);
       await removeWorktree(ws, job);
+    },
+    async linkDependencies(job) {
+      const wt = worktreeOf(ws, job);
+      const made = await linkDependencies(ws, wt);
+      // links made earlier and still there stay excluded from the head commit too
+      const all = [...new Set([...(links.get(job) ?? []), ...made])].sort();
+      links.set(job, all);
+      return all;
+    },
+    async unlinkDependencies(job) {
+      const wt = worktreeOf(ws, job);
+      if (!deps.fs.stat(wt)?.isDir) return;
+      // the remembered links, and whatever a restart forgot: every dependency-named symlink of the tree
+      await unlinkDependencies(ws, wt, [...new Set([...(links.get(job) ?? []), ...dependencyLinks(deps.fs, wt)])]);
     },
     writeFiles: (worktree, files) => writeFiles(ws, worktree, files),
     commitHead: (job, worktree, attempt) => commitHead(ws, job, worktree, attempt, links.get(job) ?? []),

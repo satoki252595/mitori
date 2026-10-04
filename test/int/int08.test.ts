@@ -7,8 +7,8 @@
 // (no Bash), `dontAsk` and one `Edit(//abs)` rule per write-scope path; nothing reaches the user's tree before a human
 // accepts; the accept is uncommitted and undoable; out-of-scope writes fail the job without escalation.
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
-import { existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { ChildHandle, Spawner, SpawnSpec } from "@mitori/agent";
 import { createFakeSpawner, promptOfStdin, REQUIRED_FLAGS, type ScriptLine, synth } from "@mitori/agent/testing";
 import type {
@@ -1210,4 +1210,90 @@ describe("F1 (nonfunc audit): agent mode never shows the model a tracked secret"
     expect(read(KEYS)).toBe(keysGo);
     await api("POST", `/jobs/${job.id}/reject`);
   });
+
+  test("F1 remainder: no dependency link and no escaping tracked symlink exists while the model reads the tree; the gates get the links", async () => {
+    // the user's real dependency dir, next to an untracked .env the link would expose (`node_modules/../.env`)
+    mkdirSync(join(repo.root, "node_modules/left-pad"), { recursive: true });
+    writeFileSync(join(repo.root, "node_modules/left-pad/index.js"), "module.exports = 1;\n");
+    writeFileSync(join(repo.root, ".env"), "STRIPE_KEY=sk_live_never_shown\n");
+    const outside = join(dirname(repo.root), "outside-secret.txt");
+    writeFileSync(outside, "TOP SECRET\n");
+    symlinkSync(outside, join(repo.root, "creds"));
+    symlinkSync("../../etc", join(repo.root, "up"));
+    symlinkSync("creds", join(repo.root, "chain"));
+    symlinkSync("README.md", join(repo.root, "readme-link"));
+    git("add", "creds", "up", "chain", "readme-link");
+    git("commit", "-q", "-m", "symlinks");
+    const t = await countThread("Store に件数メソッドを追加（リンクの確認）");
+    const during: { links: string[]; reachable: string[]; inside: boolean }[] = [];
+    const look = (cwd: string) => {
+      const exists = (p: string) => {
+        try {
+          lstatSync(join(cwd, p));
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      during.push({
+        links: ["node_modules"].filter(exists),
+        reachable: ["creds", "up", "chain", "node_modules/../.env"].filter(exists),
+        inside: exists("readme-link"),
+      });
+    };
+    const turn1 = countTurn1(() => t.thread.id);
+    const turn2 = countTurn2(() => t.thread.id);
+    scenarios.push({
+      name: "links",
+      match: (p) => p.includes(`TASK ${t.thread.id} `) && !p.includes("mode=repair"),
+      turns: [
+        {
+          ...turn1,
+          edit: (cwd) => {
+            look(cwd);
+            turn1.edit?.(cwd);
+          },
+        },
+        {
+          ...turn2,
+          edit: (cwd) => {
+            look(cwd);
+            turn2.edit?.(cwd);
+          },
+        },
+      ],
+    });
+    scenarios.push({
+      name: "links-repair",
+      match: (p) => p.includes(`TASK ${t.thread.id} `) && p.includes("mode=repair"),
+      turns: [
+        {
+          ...turn2,
+          edit: (cwd) => {
+            look(cwd);
+            turn2.edit?.(cwd);
+          },
+        },
+      ],
+    });
+    const { job } = await createJob(t.thread, t.context);
+    const ready = await jobUntil(job.id, ["ready"]);
+    expect(ready.route.mode).toBe("agent");
+    expect(during.length).toBeGreaterThanOrEqual(2);
+    for (const d of during) {
+      expect(d.links).toEqual([]);
+      expect(d.reachable).toEqual([]);
+      expect(d.inside).toBe(true);
+    }
+    // after the last gates the links are back (the gates of the ready job ran with them)
+    expect(lstatSync(join(ready.worktree as string, "node_modules")).isSymbolicLink()).toBe(true);
+    // the neutralized symlinks are not "deleted by the agent": nothing of them is in the diff
+    for (const p of ["creds", "up", "chain", "readme-link", "node_modules"]) expect(ready.diff.map((f) => f.path)).not.toContain(p);
+    // the user's own tree is untouched
+    expect(readlinkSync(join(repo.root, "creds"))).toBe(outside);
+    expect(readFileSync(join(repo.root, "node_modules/left-pad/index.js"), "utf8")).toBe("module.exports = 1;\n");
+    await api("POST", `/jobs/${job.id}/reject`);
+    rmSync(join(repo.root, "node_modules"), { recursive: true, force: true });
+    rmSync(join(repo.root, ".env"), { force: true });
+  }, 180_000);
 });
