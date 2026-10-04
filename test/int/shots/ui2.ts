@@ -9,7 +9,7 @@
  *
  * Every check throws; timings and the HTTP errors seen are printed as JSON. Exit 77 = no Chrome, 78 = no repo.
  */
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { synth } from "@mitori/agent/testing";
@@ -224,6 +224,15 @@ try {
     await page.locator(".pal-it.ask").waitFor();
     const first = await page.locator(".pal-it").first().getAttribute("class");
     check(first?.includes("ask"), "with no hit, 「AI に聞く」 is the first row");
+    // the palette's open animation done (the shot used to catch it half transparent over the page title)
+    await page.evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => a.effect?.getTiming().iterations !== Number.POSITIVE_INFINITY)
+          .map((a) => a.finished.catch(() => {})),
+      ),
+    );
     await shot(page, "ui2-04-palette-ask");
     const before = posts.filter((x) => /POST \/jobs(\?|$)/.test(x)).length;
     await page.keyboard.press("Enter");
@@ -331,9 +340,15 @@ try {
     const file = join(scratch, dl.suggestedFilename());
     await dl.saveAs(file);
     const html = readFileSync(file, "utf8");
-    check(html.includes('id="mitori-export"') && html.length > 10_000, `the download is the export (${html.length} B)`);
+    // bytes on disk (the string length counts UTF-16 units: a Japanese doc is ~5 % more bytes than characters)
+    const bytes = statSync(file).size;
+    check(html.includes('id="mitori-export"') && bytes > 10_000, `the download is the export (${bytes} B)`);
     check(/-mitori-\d{4}-\d{2}-\d{2}\.html$/.test(dl.suggestedFilename()), `file name (${dl.suggestedFilename()})`);
-    steps.exportDownload = { name: dl.suggestedFilename(), bytes: html.length };
+    // the size the dialog announced is the size of the file it saved (decimal units, as fmtBytes)
+    const said = /([\d.]+) (KB|MB)/.exec(noCode);
+    const saidBytes = said ? Number(said[1]) * (said[2] === "MB" ? 1_000_000 : 1000) : Number.NaN;
+    check(Math.abs(saidBytes - bytes) <= (said?.[2] === "MB" ? 5_000 : 500), `the dialog said ${said?.[0]}, the file is ${bytes} B`);
+    steps.exportDownload = { name: dl.suggestedFilename(), bytes };
   }
 
   steps.consoleErrors = consoleErrors;
