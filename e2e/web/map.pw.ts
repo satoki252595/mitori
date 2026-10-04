@@ -53,7 +53,9 @@ test("@wp10a AC-J06 map labels ≥ 11 px on screen and clipped by their room at 
         const ctm = tx.getScreenCTM();
         const px = parseFloat(cs.fontSize) * (ctm ? Math.hypot(ctm.a, ctm.b) : 1);
         if (px < 10.99) out.push(`${tx.textContent} ${px.toFixed(2)}px`);
-        const room = tx.closest(".room svg, svg.zl") as SVGSVGElement | null;
+        // the clipping viewport is the room's own <svg> (or the zone label's): the zero-size `.corner` anchors inside
+        // it (size label, ✓) are overflow-visible by design and still clipped by the room around them
+        const room = tx.closest(".room > svg, svg.zl") as SVGSVGElement | null;
         if (room && getComputedStyle(room).overflow !== "hidden") out.push(`${tx.textContent} not clipped`);
       }
       return out;
