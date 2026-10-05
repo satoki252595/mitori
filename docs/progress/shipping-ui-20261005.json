@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-05T13:21:53.649Z",
+  "date": "2026-10-05T14:13:18.362Z",
   "compiled": true,
   "fixture": "go-small static doc",
   "viewport": "1440x900",
@@ -7,11 +7,11 @@
   "mockJsGzipBaseline": 43792,
   "binary": {
     "bytes": 70548978,
-    "sha256": "700514e4ecb5ac2b488dc65dd7ee13b69d516a468b926bb3eeea0cd5ed205de9"
+    "sha256": "ea86a183194c15f50d2897f3bc8ee24a03dc5b15ce76ebf67982f80f032743f2"
   },
   "manifest": {
     "bytes": 1309,
-    "sha256": "62b7d4609f3d1cbbd8289cd9a23155456638e804edd3fb96793eaa4f7dd8b3f4"
+    "sha256": "5d76efac12243083559f3bd791b7e031b70cc5a7e1e283cf1870bee4ffbf8c75"
   },
   "renderer": {
     "bytes": 797054,
@@ -19,7 +19,7 @@
   },
   "webManifest": {
     "bytes": 38802,
-    "sha256": "685e9b56d090d8e79b723ffb17406ed9a63ad6d230e8703502a47a962f662827"
+    "sha256": "2b2ddd7a2c4ff9c57cf1bf073bced79d2be12d45cf3646140a661bceb6c8c810"
   },
   "providerCalls": 0,
   "records": [
@@ -27,30 +27,30 @@
       "name": "S1-static",
       "route": "/w/<fixture-ws>",
       "mark": "mitori:map:painted",
-      "at": 121.19999998807907,
+      "at": 125,
       "document": {
-        "encoded": 1264,
+        "encoded": 1263,
         "decoded": 3681,
-        "transfer": 1564
+        "transfer": 1563
       },
       "rows": [
         {
-          "path": "/assets/boot-Cmkbg0xc.js",
-          "encoded": 6747,
-          "decoded": 18564,
-          "transfer": 7047
-        },
-        {
-          "path": "/assets/src-CIaV-dS-.js",
-          "encoded": 6265,
-          "decoded": 18746,
-          "transfer": 6565
+          "path": "/assets/boot-BIxnQu2K.js",
+          "encoded": 7122,
+          "decoded": 19714,
+          "transfer": 7422
         },
         {
           "path": "/assets/i18n-nTD9Qz4Q.js",
           "encoded": 2100,
           "decoded": 5059,
           "transfer": 2400
+        },
+        {
+          "path": "/assets/src-CIaV-dS-.js",
+          "encoded": 6265,
+          "decoded": 18746,
+          "transfer": 6565
         },
         {
           "path": "/assets/shell-BYC95Yxr.js",
@@ -71,16 +71,16 @@
           "transfer": 442
         },
         {
-          "path": "/assets/decorate-DDiRByF6.js",
-          "encoded": 1575,
-          "decoded": 3788,
-          "transfer": 1875
-        },
-        {
           "path": "/assets/plan-dom-CWyHdjml.js",
           "encoded": 3043,
           "decoded": 8433,
           "transfer": 3343
+        },
+        {
+          "path": "/assets/decorate-DDiRByF6.js",
+          "encoded": 1575,
+          "decoded": 3788,
+          "transfer": 1875
         },
         {
           "path": "/assets/outline-NRFFquok.js",
@@ -125,6 +125,12 @@
           "transfer": 1109
         },
         {
+          "path": "/assets/preload-helper-Di4PVeSe.js",
+          "encoded": 679,
+          "decoded": 1531,
+          "transfer": 979
+        },
+        {
           "path": "/assets/native-CQkreT9R.js",
           "encoded": 3909,
           "decoded": 11881,
@@ -141,12 +147,6 @@
           "encoded": 9514,
           "decoded": 42572,
           "transfer": 9814
-        },
-        {
-          "path": "/assets/preload-helper-Di4PVeSe.js",
-          "encoded": 679,
-          "decoded": 1531,
-          "transfer": 979
         },
         {
           "path": "/assets/keymap-BgDOoc2F.json",
@@ -173,22 +173,22 @@
           "transfer": 2335
         },
         {
-          "path": "/api/v1/ws/ws_713drymjqxmd/ui",
-          "encoded": 11631,
-          "decoded": 51516,
-          "transfer": 11931
-        },
-        {
-          "path": "/assets/i18n-ja-DKiKiZi7.js",
-          "encoded": 178,
-          "decoded": 348,
-          "transfer": 478
+          "path": "/api/v1/ws/ws_3dd0fvgc5yk0/ui",
+          "encoded": 11621,
+          "decoded": 51505,
+          "transfer": 11921
         },
         {
           "path": "/assets/catalog-CEciZ-C_.js",
           "encoded": 129,
           "decoded": 190,
           "transfer": 429
+        },
+        {
+          "path": "/assets/i18n-ja-DKiKiZi7.js",
+          "encoded": 178,
+          "decoded": 348,
+          "transfer": 478
         },
         {
           "path": "/assets/Rail-B-oQSTiZ.css",
@@ -239,15 +239,15 @@
           "transfer": 5075
         }
       ],
-      "jsWire": 39567,
+      "jsWire": 39942,
       "cssWire": 16832,
-      "dataWire": 25872,
-      "encodedTotal": 83535,
-      "transferTotal": 94035,
-      "jsGzip": 43798,
+      "dataWire": 25862,
+      "encodedTotal": 83899,
+      "transferTotal": 94399,
+      "jsGzip": 44216,
       "cssGzip": 19234,
       "initialUi": {
-        "raw": 51516,
+        "raw": 51505,
         "html": 26459,
         "encoding": "br",
         "sections": 0,
@@ -255,25 +255,14 @@
       },
       "initialAssets": [
         {
-          "path": "/assets/boot-Cmkbg0xc.js",
-          "encoded": 6747,
-          "decoded": 18564,
-          "transfer": 7047,
+          "path": "/assets/boot-BIxnQu2K.js",
+          "encoded": 7122,
+          "decoded": 19714,
+          "transfer": 7422,
           "encoding": "br",
-          "gzip": 7466,
-          "raw": 18564,
-          "sha256": "5a72522b5a3d12c5611b149ebbe167f2f504a7edc73bab1cbaca05832c88083b",
-          "matchesManifest": true
-        },
-        {
-          "path": "/assets/src-CIaV-dS-.js",
-          "encoded": 6265,
-          "decoded": 18746,
-          "transfer": 6565,
-          "encoding": "br",
-          "gzip": 7055,
-          "raw": 18746,
-          "sha256": "852a6030ced3325cfb449f3ce255020a81ea8701c26d9d34d86410622da467dc",
+          "gzip": 7884,
+          "raw": 19714,
+          "sha256": "78912eeb6d6a47c6304c1b075b7e21370d8b84eb89b89c43127f31e15bef9ded",
           "matchesManifest": true
         },
         {
@@ -285,6 +274,17 @@
           "gzip": 2322,
           "raw": 5059,
           "sha256": "d77587d15f8ad0963b645e2bbab8ea036ef52287f9fdc7c34f24a82fad9d94ee",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/src-CIaV-dS-.js",
+          "encoded": 6265,
+          "decoded": 18746,
+          "transfer": 6565,
+          "encoding": "br",
+          "gzip": 7055,
+          "raw": 18746,
+          "sha256": "852a6030ced3325cfb449f3ce255020a81ea8701c26d9d34d86410622da467dc",
           "matchesManifest": true
         },
         {
@@ -321,17 +321,6 @@
           "matchesManifest": true
         },
         {
-          "path": "/assets/decorate-DDiRByF6.js",
-          "encoded": 1575,
-          "decoded": 3788,
-          "transfer": 1875,
-          "encoding": "br",
-          "gzip": 1727,
-          "raw": 3788,
-          "sha256": "6f541acc7cb706d8f2482e8ee8c4d145161fa8afd3e1b4b66a29c57bfc482207",
-          "matchesManifest": true
-        },
-        {
           "path": "/assets/plan-dom-CWyHdjml.js",
           "encoded": 3043,
           "decoded": 8433,
@@ -340,6 +329,17 @@
           "gzip": 3321,
           "raw": 8433,
           "sha256": "2d27f4d8b9d8d54bf3396583c85c412c3a47c2a8491ab17e302ef83a6434d594",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/decorate-DDiRByF6.js",
+          "encoded": 1575,
+          "decoded": 3788,
+          "transfer": 1875,
+          "encoding": "br",
+          "gzip": 1727,
+          "raw": 3788,
+          "sha256": "6f541acc7cb706d8f2482e8ee8c4d145161fa8afd3e1b4b66a29c57bfc482207",
           "matchesManifest": true
         },
         {
@@ -420,6 +420,17 @@
           "matchesManifest": true
         },
         {
+          "path": "/assets/preload-helper-Di4PVeSe.js",
+          "encoded": 679,
+          "decoded": 1531,
+          "transfer": 979,
+          "encoding": "br",
+          "gzip": 811,
+          "raw": 1531,
+          "sha256": "d7408ca3dfa6d22e025bff2744c56a56886cc7d0039a074c1c7a4f4dae1ca1d9",
+          "matchesManifest": true
+        },
+        {
           "path": "/assets/native-CQkreT9R.js",
           "encoded": 3909,
           "decoded": 11881,
@@ -453,14 +464,14 @@
           "matchesManifest": true
         },
         {
-          "path": "/assets/preload-helper-Di4PVeSe.js",
-          "encoded": 679,
-          "decoded": 1531,
-          "transfer": 979,
+          "path": "/assets/catalog-CEciZ-C_.js",
+          "encoded": 129,
+          "decoded": 190,
+          "transfer": 429,
           "encoding": "br",
-          "gzip": 811,
-          "raw": 1531,
-          "sha256": "d7408ca3dfa6d22e025bff2744c56a56886cc7d0039a074c1c7a4f4dae1ca1d9",
+          "gzip": 163,
+          "raw": 190,
+          "sha256": "dce5a0560a90c120b02ed170207776c66f1f5b25e874342e00de15e7561bef9f",
           "matchesManifest": true
         },
         {
@@ -472,17 +483,6 @@
           "gzip": 213,
           "raw": 348,
           "sha256": "61b1788df25ef04719f4b4b8587a629e38c8b80187c416f1fe902647bce77db7",
-          "matchesManifest": true
-        },
-        {
-          "path": "/assets/catalog-CEciZ-C_.js",
-          "encoded": 129,
-          "decoded": 190,
-          "transfer": 429,
-          "encoding": "br",
-          "gzip": 163,
-          "raw": 190,
-          "sha256": "dce5a0560a90c120b02ed170207776c66f1f5b25e874342e00de15e7561bef9f",
           "matchesManifest": true
         },
         {
@@ -535,30 +535,30 @@
       "name": "S2-static",
       "route": "/w/<fixture-ws>/doc/s4",
       "mark": "mitori:section:rendered",
-      "at": 74.5,
+      "at": 81.39999997615814,
       "document": {
-        "encoded": 1264,
+        "encoded": 1263,
         "decoded": 3681,
-        "transfer": 1564
+        "transfer": 1563
       },
       "rows": [
         {
-          "path": "/assets/boot-Cmkbg0xc.js",
-          "encoded": 6747,
-          "decoded": 18564,
-          "transfer": 7047
-        },
-        {
-          "path": "/assets/src-CIaV-dS-.js",
-          "encoded": 6265,
-          "decoded": 18746,
-          "transfer": 6565
+          "path": "/assets/boot-BIxnQu2K.js",
+          "encoded": 7122,
+          "decoded": 19714,
+          "transfer": 7422
         },
         {
           "path": "/assets/i18n-nTD9Qz4Q.js",
           "encoded": 2100,
           "decoded": 5059,
           "transfer": 2400
+        },
+        {
+          "path": "/assets/src-CIaV-dS-.js",
+          "encoded": 6265,
+          "decoded": 18746,
+          "transfer": 6565
         },
         {
           "path": "/assets/shell-BYC95Yxr.js",
@@ -597,16 +597,16 @@
           "transfer": 1309
         },
         {
-          "path": "/assets/virtual-CikFQlUN.js",
-          "encoded": 1296,
-          "decoded": 2998,
-          "transfer": 1596
-        },
-        {
           "path": "/assets/perf-CmriWRdL.js",
           "encoded": 298,
           "decoded": 563,
           "transfer": 598
+        },
+        {
+          "path": "/assets/virtual-CikFQlUN.js",
+          "encoded": 1296,
+          "decoded": 2998,
+          "transfer": 1596
         },
         {
           "path": "/assets/dom-anchor-DbcUOA8W.js",
@@ -621,10 +621,10 @@
           "transfer": 668
         },
         {
-          "path": "/assets/clients-7hO7tisj.css",
-          "encoded": 9514,
-          "decoded": 42572,
-          "transfer": 9814
+          "path": "/assets/native-CQkreT9R.js",
+          "encoded": 3909,
+          "decoded": 11881,
+          "transfer": 4209
         },
         {
           "path": "/assets/firstrun-Cffd1ZOf.js",
@@ -639,22 +639,22 @@
           "transfer": 1109
         },
         {
-          "path": "/assets/preload-helper-Di4PVeSe.js",
-          "encoded": 679,
-          "decoded": 1531,
-          "transfer": 979
-        },
-        {
-          "path": "/assets/native-CQkreT9R.js",
-          "encoded": 3909,
-          "decoded": 11881,
-          "transfer": 4209
-        },
-        {
           "path": "/assets/router-DDK1jBwG.js",
           "encoded": 4192,
           "decoded": 11290,
           "transfer": 4492
+        },
+        {
+          "path": "/assets/clients-7hO7tisj.css",
+          "encoded": 9514,
+          "decoded": 42572,
+          "transfer": 9814
+        },
+        {
+          "path": "/assets/preload-helper-Di4PVeSe.js",
+          "encoded": 679,
+          "decoded": 1531,
+          "transfer": 979
         },
         {
           "path": "/assets/keymap-BgDOoc2F.json",
@@ -681,10 +681,10 @@
           "transfer": 2335
         },
         {
-          "path": "/api/v1/ws/ws_713drymjqxmd/ui",
-          "encoded": 8882,
-          "decoded": 35926,
-          "transfer": 9182
+          "path": "/api/v1/ws/ws_3dd0fvgc5yk0/ui",
+          "encoded": 8901,
+          "decoded": 35923,
+          "transfer": 9201
         },
         {
           "path": "/assets/i18n-ja-DKiKiZi7.js",
@@ -753,41 +753,30 @@
           "transfer": 5075
         }
       ],
-      "jsWire": 39567,
+      "jsWire": 39942,
       "cssWire": 13611,
-      "dataWire": 23123,
-      "encodedTotal": 77565,
-      "transferTotal": 88365,
-      "jsGzip": 43798,
+      "dataWire": 23142,
+      "encodedTotal": 77958,
+      "transferTotal": 88758,
+      "jsGzip": 44216,
       "cssGzip": 15711,
       "initialUi": {
-        "raw": 35926,
-        "html": 15410,
+        "raw": 35923,
+        "html": 15414,
         "encoding": "br",
         "sections": 1,
         "blocks": 5
       },
       "initialAssets": [
         {
-          "path": "/assets/boot-Cmkbg0xc.js",
-          "encoded": 6747,
-          "decoded": 18564,
-          "transfer": 7047,
+          "path": "/assets/boot-BIxnQu2K.js",
+          "encoded": 7122,
+          "decoded": 19714,
+          "transfer": 7422,
           "encoding": "br",
-          "gzip": 7466,
-          "raw": 18564,
-          "sha256": "5a72522b5a3d12c5611b149ebbe167f2f504a7edc73bab1cbaca05832c88083b",
-          "matchesManifest": true
-        },
-        {
-          "path": "/assets/src-CIaV-dS-.js",
-          "encoded": 6265,
-          "decoded": 18746,
-          "transfer": 6565,
-          "encoding": "br",
-          "gzip": 7055,
-          "raw": 18746,
-          "sha256": "852a6030ced3325cfb449f3ce255020a81ea8701c26d9d34d86410622da467dc",
+          "gzip": 7884,
+          "raw": 19714,
+          "sha256": "78912eeb6d6a47c6304c1b075b7e21370d8b84eb89b89c43127f31e15bef9ded",
           "matchesManifest": true
         },
         {
@@ -799,6 +788,17 @@
           "gzip": 2322,
           "raw": 5059,
           "sha256": "d77587d15f8ad0963b645e2bbab8ea036ef52287f9fdc7c34f24a82fad9d94ee",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/src-CIaV-dS-.js",
+          "encoded": 6265,
+          "decoded": 18746,
+          "transfer": 6565,
+          "encoding": "br",
+          "gzip": 7055,
+          "raw": 18746,
+          "sha256": "852a6030ced3325cfb449f3ce255020a81ea8701c26d9d34d86410622da467dc",
           "matchesManifest": true
         },
         {
@@ -868,17 +868,6 @@
           "matchesManifest": true
         },
         {
-          "path": "/assets/virtual-CikFQlUN.js",
-          "encoded": 1296,
-          "decoded": 2998,
-          "transfer": 1596,
-          "encoding": "br",
-          "gzip": 1418,
-          "raw": 2998,
-          "sha256": "a90483b19b300b5dbbfc3a8909449d0ddb4a6c31201667072ba33e13b6c8a7d2",
-          "matchesManifest": true
-        },
-        {
           "path": "/assets/perf-CmriWRdL.js",
           "encoded": 298,
           "decoded": 563,
@@ -887,6 +876,17 @@
           "gzip": 349,
           "raw": 563,
           "sha256": "869965677d182912c78c4b8fcace13ef216967aef9e4d7b1e5bed2765298e97c",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/virtual-CikFQlUN.js",
+          "encoded": 1296,
+          "decoded": 2998,
+          "transfer": 1596,
+          "encoding": "br",
+          "gzip": 1418,
+          "raw": 2998,
+          "sha256": "a90483b19b300b5dbbfc3a8909449d0ddb4a6c31201667072ba33e13b6c8a7d2",
           "matchesManifest": true
         },
         {
@@ -912,14 +912,14 @@
           "matchesManifest": true
         },
         {
-          "path": "/assets/clients-7hO7tisj.css",
-          "encoded": 9514,
-          "decoded": 42572,
-          "transfer": 9814,
+          "path": "/assets/native-CQkreT9R.js",
+          "encoded": 3909,
+          "decoded": 11881,
+          "transfer": 4209,
           "encoding": "br",
-          "gzip": 10907,
-          "raw": 42572,
-          "sha256": "3fe6bd326622f1eaca443a98071887816b6b953dc0f82f792e05d04caf928ba0",
+          "gzip": 4308,
+          "raw": 11881,
+          "sha256": "94caeb6fb8ee445eeacc676fe453515f908a7b4808f9a994d37878b68ca4533b",
           "matchesManifest": true
         },
         {
@@ -945,28 +945,6 @@
           "matchesManifest": true
         },
         {
-          "path": "/assets/preload-helper-Di4PVeSe.js",
-          "encoded": 679,
-          "decoded": 1531,
-          "transfer": 979,
-          "encoding": "br",
-          "gzip": 811,
-          "raw": 1531,
-          "sha256": "d7408ca3dfa6d22e025bff2744c56a56886cc7d0039a074c1c7a4f4dae1ca1d9",
-          "matchesManifest": true
-        },
-        {
-          "path": "/assets/native-CQkreT9R.js",
-          "encoded": 3909,
-          "decoded": 11881,
-          "transfer": 4209,
-          "encoding": "br",
-          "gzip": 4308,
-          "raw": 11881,
-          "sha256": "94caeb6fb8ee445eeacc676fe453515f908a7b4808f9a994d37878b68ca4533b",
-          "matchesManifest": true
-        },
-        {
           "path": "/assets/router-DDK1jBwG.js",
           "encoded": 4192,
           "decoded": 11290,
@@ -975,6 +953,28 @@
           "gzip": 4587,
           "raw": 11290,
           "sha256": "120e5d56e140a5f432cd3ddc416710f826a3ec703f127f99fd0a1d04fb4fc040",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/clients-7hO7tisj.css",
+          "encoded": 9514,
+          "decoded": 42572,
+          "transfer": 9814,
+          "encoding": "br",
+          "gzip": 10907,
+          "raw": 42572,
+          "sha256": "3fe6bd326622f1eaca443a98071887816b6b953dc0f82f792e05d04caf928ba0",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/preload-helper-Di4PVeSe.js",
+          "encoded": 679,
+          "decoded": 1531,
+          "transfer": 979,
+          "encoding": "br",
+          "gzip": 811,
+          "raw": 1531,
+          "sha256": "d7408ca3dfa6d22e025bff2744c56a56886cc7d0039a074c1c7a4f4dae1ca1d9",
           "matchesManifest": true
         },
         {

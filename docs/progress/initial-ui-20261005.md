@@ -77,7 +77,7 @@ Reader peerのcanonical/full handoff・first quote・Escape・citation pin・pen
 
 Windows binaryのhard95,000,000 B超過はweb資産の重複梱包を除いて解消した。Brotliがあるfileはその一つをidentityとbr用に共有し、compiled registryだけが既存Brotli decoderでidentityを復元する。gzip、配信内容、SHA、dev checkoutのraw pathは保持した。web埋込みは2,498,478→**978,653 B**。rootの梱包回帰10 tests / 55 assertions、all-target build / size / selftestが成功し、Windowsは**94,345,728 B**でhard95,000,000 B内となった。85 MB target超過のwarningは残す。
 
-facts mark修正後の最終Mac binary **70,548,978 B**（SHA256 `700514e4ecb5ac2b488dc65dd7ee13b69d516a468b926bb3eeea0cd5ed205de9`）を既存 `startTestDaemon` で起動し、fresh Chromium・1440×900で測った。[一回限りのprobe](shipping-ui-probe.ts)と[最新実測JSON](shipping-ui-20261005.json)に保存した。対象は小さな **go-small静的fixture** の未生成Mapと静的s4 Readerであり、大規模生成文書・実Safari・性能時間の代表値とはしない。修正前のf49252e2 binaryの数値は[修正前JSON](shipping-ui-before-facts-20261005.json)にそのSHAとともに保持した。
+facts mark修正後・PR修正前のMac binary **70,548,978 B**（SHA256 `700514e4ecb5ac2b488dc65dd7ee13b69d516a468b926bb3eeea0cd5ed205de9`）を既存 `startTestDaemon` で起動し、fresh Chromium・1440×900で測った。[一回限りのprobe](shipping-ui-probe.ts)と[当時の実測JSON](shipping-ui-before-pr5-20261005.json)に保存した。対象は小さな **go-small静的fixture** の未生成Mapと静的s4 Readerであり、大規模生成文書・実Safari・性能時間の代表値とはしない。修正前のf49252e2 binaryの数値は[修正前JSON](shipping-ui-before-facts-20261005.json)にそのSHAとともに保持した。
 
 | 画面 | JS実wire（br） | JS gzip9換算 | CSS実wire（br） | CSS gzip9換算 | HTML/JSON/document込みbody合計 | header等込み |
 |---|---:|---:|---:|---:|---:|---:|
@@ -93,6 +93,12 @@ facts mark修正後の最終Mac binary **70,548,978 B**（SHA256 `700514e4ecb5ac
 compiled palette計測は、測定keyへ進む前の `firstUse` が `mitori:facts:painted` を待って30秒で失敗した。factsはcanonical SSRで既に表示されていたが、元のmarkはMapPageのscan `$effect` にあり、SSRではeffectが実行されない。native `loadView` でMap route・scan summary・実DOM `.facts .grid` を確認してから、同じ `markAfterPaint` を呼ぶ最小修正を行った。30秒の上限、必須mark、key→paint測定は変更していない。
 
 3browserの回帰は、mark時に実facts tile・非空の値・gridの実寸があることと、Readerではmarkを発行しないことを確認し **3/3成功**。S1 hard sizeも **1/1成功**（43,792 B / 42.8 KiB、29 B増、CSS18.8 KiB、font / CM6なし）。非ChromiumのCDP size2件は従来どおり明示skip。対象tscとBiomeはexit0。ログは `/tmp/mitori-facts-mark-browser.log`、`/tmp/mitori-facts-mark-types.log`、`/tmp/mitori-facts-mark-format.log`。
+
+## PR #5の通知・focus修正後
+
+通常harnessのS1/S2は **44,210B（43.2KiB gzip）**、60KiB以内。native selection/Compose/取消/focusの全3browser対象とsizeで14pass/4skip。引用focusを読込中の最新意図に保つ修正の同caseも3browser3/3。[CIと修正経緯](pr5-ci-20261005.md)に実product欠落とfixture/旧DOM期待を区別した。
+
+commit `ed95494` の新compiled Mac SHA **ea86a183194c15f50d2897f3bc8ee24a03dc5b15ce76ebf67982f80f032743f2**で同static fixtureを測り、JS実br **39,942B** / gzip相当 **44,216B**、CSS実br16,832 / 13,611B、gzip19,234 / 15,711B、document/HTML/JSON込みencoded total **83,899 / 77,958B**、header込みtransfer **94,399 / 88,758B**。served SHA一致・4 seal前後不変・provider0、font/初回editing無し。[最新実測JSON](shipping-ui-20261005.json)。以前の7005/f492測定を現版へ付け替えず保持する。
 
 この修正後のshipping再build / size / selftest / compiled asset checkはrootが完了し、そのbinaryで上記静的fixtureの初期転送を再測定した。F7 / F15のfresh実測はrootが続ける。修正前のJSONとSHAも保持し、異なるbinaryへ測定値を付け替えない。
 

@@ -1,12 +1,12 @@
 {
   "v": "mitori.asset-size/1",
-  "url": "http://127.0.0.1:54371/",
+  "url": "http://127.0.0.1:64877/",
   "metrics": [
     {
       "id": "asset.js.initial.gz",
-      "value": 43.422,
+      "value": 43.84,
       "unit": "KB",
-      "detail": "18 files requested by the shell (static; br 39.3 KB). Route-specific initial JS is measured by the e2e harness"
+      "detail": "18 files requested by the shell (static; br 39.6 KB). Route-specific initial JS is measured by the e2e harness"
     },
     {
       "id": "asset.css.gz",
@@ -184,7 +184,7 @@
     },
     {
       "id": "asset.chunk.boot",
-      "value": 7.466,
+      "value": 7.884,
       "unit": "KB",
       "detail": "gzip"
     },
@@ -571,14 +571,14 @@
     {
       "id": "asset.js.initial.gz",
       "level": "green",
-      "value": 43.422,
+      "value": 43.84,
       "target": 60,
       "limit": 150,
       "unit": "KB",
       "dir": "max",
       "scaled": false,
       "gating": true,
-      "detail": "18 files requested by the shell (static; br 39.3 KB). Route-specific initial JS is measured by the e2e harness",
+      "detail": "18 files requested by the shell (static; br 39.6 KB). Route-specific initial JS is measured by the e2e harness",
       "hard": false
     },
     {

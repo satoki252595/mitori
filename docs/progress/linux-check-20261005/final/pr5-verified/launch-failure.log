@@ -1,0 +1,4 @@
+The first attempt exited 125 before the container or check started.
+The requested relative --out path was parsed by Docker as a volume name:
+docker: Error response from daemon: create docs/progress/linux-check-20261005/final/pr5-verified: includes invalid characters for a local volume name. If you intended to pass a host directory, use absolute path.
+The same destination was resolved to an absolute path for the next launch; no source or check limit changed.

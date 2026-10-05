@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-05T13:21:03.000Z",
+  "workingTree": true,
+  "build": "scripts/nd bun scripts/build-bin.ts --target all",
+  "hardLimitBytes": 95000000,
+  "targetBytes": 85000000,
+  "records": [
+    {
+      "path": "dist/mitori-darwin-arm64",
+      "bytes": 70548978,
+      "sha256": "700514e4ecb5ac2b488dc65dd7ee13b69d516a468b926bb3eeea0cd5ed205de9",
+      "executed": true
+    },
+    {
+      "path": "dist/mitori-linux-x64",
+      "bytes": 89572832,
+      "sha256": "30a060dd688e460fe435d57ee57c204f63264993476a9426ef9b0d583fab6db9",
+      "executed": false
+    },
+    {
+      "path": "dist/mitori-windows-x64.exe",
+      "bytes": 94345728,
+      "sha256": "fb8220dab4f9120b199596549626084f5e4f34345944d145f3ffd4974bc3776e",
+      "executed": false
+    }
+  ]
+}

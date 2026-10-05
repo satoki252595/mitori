@@ -1,26 +1,28 @@
 {
-  "date": "2026-10-05T13:21:03.000Z",
-  "workingTree": true,
+  "date": "2026-10-05T14:13:15.843Z",
+  "sourceCommit": "ed95494c69aebee054f833b1c51f9d148788465a",
+  "sourceWorkingTreeChanged": false,
   "build": "scripts/nd bun scripts/build-bin.ts --target all",
   "hardLimitBytes": 95000000,
   "targetBytes": 85000000,
+  "previous": "shipping-binaries-before-pr5-20261005.json",
   "records": [
     {
       "path": "dist/mitori-darwin-arm64",
       "bytes": 70548978,
-      "sha256": "700514e4ecb5ac2b488dc65dd7ee13b69d516a468b926bb3eeea0cd5ed205de9",
+      "sha256": "ea86a183194c15f50d2897f3bc8ee24a03dc5b15ce76ebf67982f80f032743f2",
       "executed": true
     },
     {
       "path": "dist/mitori-linux-x64",
       "bytes": 89572832,
-      "sha256": "30a060dd688e460fe435d57ee57c204f63264993476a9426ef9b0d583fab6db9",
+      "sha256": "1b19fcc897fd159eb28bda862cdaa011b3599823b25fa37a25fd042143ef7ed5",
       "executed": false
     },
     {
       "path": "dist/mitori-windows-x64.exe",
-      "bytes": 94345728,
-      "sha256": "fb8220dab4f9120b199596549626084f5e4f34345944d145f3ffd4974bc3776e",
+      "bytes": 94346752,
+      "sha256": "b00edcf327a9591dd92c0e41dcaf03c591136dd3cb6d805f3ac5f4625e2c55d6",
       "executed": false
     }
   ]

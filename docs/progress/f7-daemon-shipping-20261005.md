@@ -22,4 +22,10 @@ CR m1-117に従い、Macの判定値は`proc_pid_rusage`のphysical footprint（
 
 ## facts paint mark修正後の最終出荷版
 
-初期Mapのfacts markを追加した最終binary SHA `700514e4ecb5ac2b488dc65dd7ee13b69d516a468b926bb3eeea0cd5ed205de9`（bytes同一70,548,978）で規定のidle計測を再実行した。[最終結果](shipping-performance-20261005.json)。empty physical footprintは48.2508 / 48.3445 / 48.1883MB、residentは105.9063 / 105.5469 / 106.0469MB。中央値48.2508、p9548.3445、target30 WARN・limit50内。loaded critはphysical146.5796MB / resident593.0156MBでtarget150・limit250内。旧f492の実測は上表と元JSONに保持する。
+初期Mapのfacts markを追加したbinary SHA `700514e4ecb5ac2b488dc65dd7ee13b69d516a468b926bb3eeea0cd5ed205de9`（bytes同一70,548,978）で規定のidle計測を再実行した。[当時の結果](shipping-performance-before-pr5-20261005.json)。empty physical footprintは48.2508 / 48.3445 / 48.1883MB、residentは105.9063 / 105.5469 / 106.0469MB。中央値48.2508、p9548.3445、target30 WARN・limit50内。loaded critはphysical146.5796MB / resident593.0156MBでtarget150・limit250内。旧f492の実測は上表と元JSONに保持する。
+
+## PR #5修正後の出荷版
+
+source `ed95494c69aebee054f833b1c51f9d148788465a`、compiled Mac SHA `ea86a183194c15f50d2897f3bc8ee24a03dc5b15ce76ebf67982f80f032743f2`で同じ3回×15秒 / crit60秒を再測定した。`MITORI_E2E_BINARY=compiled`でpaletteと一緒に限定実行し、14:13:54Z開始、AC・quiet判定、factor1.023824、exit0。[最新結果](shipping-performance-20261005.json)。
+
+empty physical footprintは48.3133 / 47.8446 / 48.3758MB、residentは104.9531 / 104.7188 / 105.9531MB。中央値 **48.3133MB**、p95 **48.3758MB**、target30 WARN・limit50内。loaded critはphysical **161.0952MB** / resident **612.3281MB**、target150 WARN・limit250内。旧版の146.5796MBを最新のtarget達成として転用しない。各版は1回のloaded観測であり、この差だけでUI修正がメモリ増加の原因だとは断定しない。
