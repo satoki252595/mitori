@@ -12,3 +12,4 @@ DENY **/*.gpg **/*.jks **/*.kdbx **/*.key **/*.keystore **/*.p12 **/*.pem **/*.p
 ACCEPT
 - Only files listed in WRITE change.
 - Behaviour not mentioned in ASK stays the same.
+Use the language standard library or an existing repository helper when it solves the failure. Prefer the smallest edit that preserves the requested behaviour, including a necessary import within WRITE. Do not replace standard error/formatting facilities with new wrapper types, manual conversions or parallel helpers just to avoid adding an import.

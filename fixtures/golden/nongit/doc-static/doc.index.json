@@ -693,13 +693,13 @@
       "depth": "L2",
       "file": "doc/10-decisions.md",
       "freshness": "fresh",
-      "hash": "0a8c26df56e0426d",
+      "hash": "209b24e3c03d4197",
       "id": "b_t4nkfvpz",
       "kind": "facts",
       "lang": "ja",
       "ord": 2,
       "origin": "static",
-      "readingSec": 5,
+      "readingSec": 6,
       "section": "s10",
       "slot": "s10:decisions",
       "status": "ready"
@@ -770,13 +770,13 @@
       "depth": "L2",
       "file": "doc/08-interfaces.md",
       "freshness": "fresh",
-      "hash": "a135f46702c5a12a",
+      "hash": "394124bb0fa70bab",
       "id": "b_vckgmkw8",
       "kind": "facts",
       "lang": "ja",
       "ord": 3,
       "origin": "static",
-      "readingSec": 10,
+      "readingSec": 11,
       "section": "s8",
       "slot": "s8:outbound",
       "status": "ready"
@@ -1063,7 +1063,7 @@
     {
       "audience": "reviewer",
       "id": "reviewer",
-      "readingSec": 47,
+      "readingSec": 48,
       "steps": [
         {
           "section": "s6"
@@ -1109,7 +1109,7 @@
     {
       "audience": "sre",
       "id": "sre",
-      "readingSec": 44,
+      "readingSec": 45,
       "steps": [
         {
           "section": "s4"
@@ -1274,7 +1274,7 @@
       "children": [],
       "file": "doc/08-interfaces.md",
       "id": "s8",
-      "readingSec": 20,
+      "readingSec": 21,
       "state": "static_only",
       "title": "外部インターフェース"
     },
@@ -1299,7 +1299,7 @@
       "children": [],
       "file": "doc/10-decisions.md",
       "id": "s10",
-      "readingSec": 10,
+      "readingSec": 11,
       "state": "pending",
       "title": "設計判断"
     },

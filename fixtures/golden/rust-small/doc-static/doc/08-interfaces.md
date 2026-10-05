@@ -10,7 +10,7 @@
 | `tsundoku serve` | `--port` | `detect-only/clap_cli.rs:1` |
 <!-- b_pb7fbtty -->
 
-**外とのやり取り（HTTP・RPC・SDK・DB・子プロセス）**
+**外とのやり取り（HTTP・RPC・SDK・DB・子プロセス・書き込み）**
 - 外への呼び出しは見つかりませんでした（HTTP・SDK / DB クライアント・RPC・子プロセスの起動を探しました）。
 <!-- b_vckgmkw8 -->
 
