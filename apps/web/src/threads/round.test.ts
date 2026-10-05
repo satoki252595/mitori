@@ -9,10 +9,11 @@ beforeAll(async () => {
   ({ Loop } = await import("./loop.svelte.ts"));
 });
 
-function fixture() {
+function fixture(rejectWait?: Promise<void>) {
   const original: RoundChanges = { round: 7, base: "base", files: ["a.ts", "human.txt"], writeScope: ["a.ts"], outside: ["human.txt"] };
   let changes = original;
   let failUndo = false;
+  let rejectionWs: string | undefined;
   const checkpoint: Checkpoint = {
     id: "ck_round7",
     job: "j_round7",
@@ -24,7 +25,7 @@ function fixture() {
   };
   const calls: { route: string; body?: unknown }[] = [];
   const api = {
-    async call(route: string, args: { body?: unknown }) {
+    async call(route: string, args: { body?: unknown; params?: { ws?: string; job?: string } }) {
       calls.push({ route, ...("body" in args ? { body: args.body } : {}) });
       if (route === "GET /ws/:ws/review") return { round: { n: 7, mode: "pull", state: "complete" }, waitingClients: 0, waitingAgents: [] };
       if (route === "GET /ws/:ws/review/rounds/:n/changes") return changes;
@@ -37,13 +38,18 @@ function fixture() {
         changes = original;
         return { checkpoint: checkpoint.id, restored: original.files, diverged: [] };
       }
+      if (route === "POST /ws/:ws/jobs/:job/reject") {
+        rejectionWs = args.params?.ws;
+        if (rejectWait) await rejectWait;
+        return { id: args.params?.job, state: "rejected" };
+      }
       throw new Error(`unexpected ${route}`);
     },
   };
   const s = {
     api,
     workspace: { key: "ws_cccccccccccc" },
-    review: { round: null },
+    review: { round: null, jobs: new Map(), pendingRejects: new Map() },
     bottom: {
       toast() {},
       dismiss() {},
@@ -55,9 +61,11 @@ function fixture() {
   const loop = new Loop(s);
   return {
     loop,
+    s,
     calls,
     original,
     checkpoint,
+    rejectionWs: () => rejectionWs,
     setChanges: (v: RoundChanges) => {
       changes = v;
     },
@@ -68,6 +76,28 @@ function fixture() {
 }
 
 describe("CR safe-5 completed pull-round review and Undo", () => {
+  test("a deferred rejection uses its original workspace without adding its late response to another workspace's jobs", async () => {
+    let release!: () => void;
+    const rejectWait = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { loop, s, rejectionWs } = fixture(rejectWait);
+    const original = s.workspace.key;
+    if (original === null) throw new Error("fixture requires a workspace");
+    loop.undo.rejectLater("j_old", {});
+    const flushing = loop.undo.flush();
+    expect(rejectionWs()).toBe(original);
+    s.workspace.key = "ws_dddddddddddd";
+    release();
+    await flushing;
+    expect(s.review.jobs.size).toBe(0);
+    expect(s.review.pendingRejects.size).toBe(0);
+    loop.undo.rejectLater("j_current", {});
+    await loop.undo.flush();
+    expect(rejectionWs()).toBe(s.workspace.key);
+    expect(s.review.jobs.get("j_current")).toMatchObject({ state: "rejected" });
+  });
+
   test("reads all files without mutating; changed lists require another click; the restore uses an ordinary Undo checkpoint", async () => {
     const { loop, calls, original, checkpoint, setChanges } = fixture();
     await loop.refreshReview();

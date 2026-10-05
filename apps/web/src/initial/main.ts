@@ -6,7 +6,7 @@ import "../shell/styles/diagram.css";
 import "../shell/styles/levels.css";
 import type { ConnectionState } from "@mitori/client";
 import { type BlockId, HREFS, hydratePlan, type InitialUiSnapshot, type InitialUiState, MitoriError, type SectionId } from "@mitori/core";
-import type { MapCamera, ShortcutWhen } from "../contract.ts";
+import type { ShortcutWhen } from "../contract.ts";
 import { VisibleClock } from "../gen/visibility.ts";
 import { PlanController } from "../map/plan-dom.ts";
 import { decorateBlock } from "../reader/decorate.ts";
@@ -38,6 +38,7 @@ let actionEpoch = 0;
 let enhanced = false;
 let enhancementModule: Promise<typeof import("../shell/main.ts")> | null = null;
 let enhancementStarted = false;
+let receiveEnhancement: ((request: EnhanceRequest) => void) | null = null;
 let pendingHover = false;
 let pendingFocus = false;
 let pendingImeHint = false;
@@ -438,6 +439,16 @@ function saveLevel(level: InitialUiState["level"]) {
 }
 
 type EnhanceRequest = { readerAction?: NativeReaderAction; reader?: NativeReaderState; key?: KeyboardEvent; selector?: string; href?: string };
+function displayAction(request: EnhanceRequest): boolean {
+  const action = request.readerAction;
+  return action?.kind === "gutter" || ((action?.kind === "cite" || action?.kind === "term") && action.via !== "click");
+}
+function pendingAction(request: EnhanceRequest) {
+  pendingHover =
+    request.readerAction?.kind === "gutter" ||
+    ((request.readerAction?.kind === "cite" || request.readerAction?.kind === "term") && request.readerAction.via === "hover");
+  pendingFocus = (request.readerAction?.kind === "cite" || request.readerAction?.kind === "term") && request.readerAction.via === "focus";
+}
 /** Proposal controls mount through the existing lazy LoopRoot/ProposalLayer after the full Shell's tick. */
 async function proposalControl(selector: string): Promise<HTMLElement | null> {
   const current = () => document.querySelector<HTMLElement>(selector);
@@ -457,68 +468,84 @@ async function proposalControl(selector: string): Promise<HTMLElement | null> {
 }
 async function enhance(request: EnhanceRequest = {}) {
   if (enhanced) return;
-  const epoch = ++actionEpoch;
-  pendingHover =
-    request.readerAction?.kind === "gutter" ||
-    ((request.readerAction?.kind === "cite" || request.readerAction?.kind === "term") && request.readerAction.via === "hover");
-  pendingFocus = (request.readerAction?.kind === "cite" || request.readerAction?.kind === "term") && request.readerAction.via === "focus";
+  if (receiveEnhancement) return receiveEnhancement(request);
+  let epoch = ++actionEpoch;
+  pendingAction(request);
   const at = nativeUrl();
   const identity = viewKey(at);
   enhancementModule ??= import("../shell/main.ts");
   const full = await enhancementModule;
   if (epoch !== actionEpoch || viewKey(nativeUrl()) !== identity || enhancementStarted) return;
-  const latestUrl = nativeUrl();
   const snap = snapshot;
-  const liveReader = reader?.capture();
-  const captured = liveReader ? { ...liveReader, ...(request.reader?.selection ? { selection: request.reader.selection } : {}) } : request.reader;
-  const camera: MapCamera | undefined = plan ? { ...plan.cam } : undefined;
-  const scrollY = window.scrollY;
-  const pendingLevel = levelPending ? state.level : undefined;
+  let captured: NativeReaderState | undefined;
+  let scrollY = window.scrollY;
+  const initial: Parameters<typeof full.boot>[0] = snap
+    ? {
+        snapshot: { ...snap, ui: { ...state, url: nativeUrl() } },
+        clients,
+        onConnection: (listener) => {
+          connectionTarget = listener;
+        },
+      }
+    : undefined;
   // The native DOM stays visible while boot imports the full view. A later cite focus must win over an older display action.
-  let latestCiteFocus: NativeReaderAction | null = null;
+  let latestCiteFocus: NativeReaderAction | null = request.readerAction?.kind === "cite" && request.readerAction.via === "focus" ? request.readerAction : null;
   const captureFocus = (event: FocusEvent) => {
-    const action = request.readerAction;
-    if (!action || !["cite", "term", "gutter"].includes(action.kind) || ((action.kind === "cite" || action.kind === "term") && action.via === "click")) return;
+    if (!displayAction(request)) return;
     const cite = (event.target as Element | null)?.closest<HTMLElement>("a.mcite,a.fcite");
     const block = cite?.closest<HTMLElement>(".blk[data-b]")?.dataset.b as BlockId | undefined;
     if (!cite || !block || !root.contains(cite)) return;
     latestCiteFocus = { kind: "cite", cite: cite.dataset.cite ?? "", blob: cite.dataset.blob ?? "", block, via: "focus" };
   };
   window.addEventListener("focusin", captureFocus, true);
-  if (levelTimer) {
-    clearTimeout(levelTimer);
-    levelTimer = null;
-  }
   enhancementStarted = true;
-  disconnectView();
-  stopDisclosure();
-  offKeys();
-  root.removeEventListener("click", click);
-  window.removeEventListener("popstate", pop);
-  window.removeEventListener("hashchange", hash);
-  window.removeEventListener("resize", fitHeader);
-  window.removeEventListener("pagehide", persistProject);
-  if (refreshTimer) clearTimeout(refreshTimer);
-  for (const off of sseOffs) off();
-  enhanced = true;
+  // Keep the existing native action/keyboard matcher alive while the full view loads. Explicit actions win over display-only focus/hover.
+  receiveEnhancement = (next) => {
+    if (!displayAction(request) && displayAction(next)) return;
+    const nextAction = next.readerAction;
+    const nextFocus = (nextAction?.kind === "cite" || nextAction?.kind === "term") && nextAction.via === "focus";
+    const focusedCite = (document.activeElement as Element | null)?.closest<HTMLElement>("a.mcite,a.fcite");
+    if (displayAction(next) && !nextFocus && focusedCite && root.contains(focusedCite)) return;
+    request = next;
+    epoch = ++actionEpoch;
+    if (nextAction?.kind === "cite" && nextAction.via === "focus") latestCiteFocus = nextAction;
+    else if (!displayAction(next) || (nextAction?.kind === "term" && nextAction.via === "focus")) latestCiteFocus = null;
+    pendingAction(request);
+  };
   let stores: Awaited<ReturnType<typeof full.boot>>;
   try {
-    stores = await full.boot(
-      snap
-        ? {
-            snapshot: { ...snap, ui: { ...state, url: latestUrl } },
-            ...(captured ? { reader: captured } : {}),
-            ...(pendingLevel ? { pendingLevel } : {}),
-            ...(camera ? { mapCamera: camera } : {}),
-            ...(disclosure ? { disclosureClock: disclosure.clock } : {}),
-            clients,
-            onConnection: (listener) => {
-              connectionTarget = listener;
-            },
-          }
-        : undefined,
-    );
+    stores = await full.boot(initial, () => {
+      if (epoch !== actionEpoch || viewKey(nativeUrl()) !== identity) return false;
+      const liveReader = reader?.capture();
+      captured = liveReader ? { ...liveReader, ...(request.reader?.selection ? { selection: request.reader.selection } : {}) } : request.reader;
+      scrollY = window.scrollY;
+      if (initial) {
+        initial.snapshot = { ...(snapshot ?? initial.snapshot), ui: { ...state, url: nativeUrl() } };
+        if (captured) initial.reader = captured;
+        if (levelPending) initial.pendingLevel = state.level;
+        if (plan) initial.mapCamera = { ...plan.cam };
+        if (disclosure) initial.disclosureClock = disclosure.clock;
+      }
+      if (levelTimer) {
+        clearTimeout(levelTimer);
+        levelTimer = null;
+      }
+      disconnectView();
+      stopDisclosure();
+      offKeys();
+      root.removeEventListener("click", click);
+      window.removeEventListener("popstate", pop);
+      window.removeEventListener("hashchange", hash);
+      window.removeEventListener("resize", fitHeader);
+      window.removeEventListener("pagehide", persistProject);
+      if (refreshTimer) clearTimeout(refreshTimer);
+      for (const off of sseOffs) off();
+      enhanced = true;
+      return true;
+    });
   } finally {
+    receiveEnhancement = null;
+    if (!enhanced) enhancementStarted = false;
     window.removeEventListener("focusin", captureFocus, true);
   }
   if (!stores || epoch !== actionEpoch || viewKey(nativeUrl()) !== identity) return;

@@ -152,3 +152,69 @@ test("native citation keyboard focus remains valid when only the pointer leaves 
   await page.keyboard.press("Escape");
   await expect(page.locator(".pop")).toHaveCount(0);
 });
+
+test("native focused cite o survives the full Reader import and Escape returns from its exact pin", async ({ page }) => {
+  await configure({ generated: true });
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requested = false;
+  await page.route("**/ReaderPage-*.js", async (route) => {
+    requested = true;
+    await held;
+    await route.continue();
+  });
+  await page.goto(`/w/${WS}/doc/s3`);
+  await waitMark(page, "mitori:section:rendered");
+  await page.keyboard.press("Tab");
+  const chip = page.locator(".blk a.mcite").first();
+  const cite = await chip.getAttribute("data-cite");
+  expect(cite).toBeTruthy();
+  await chip.focus();
+  await expect.poll(() => requested).toBe(true);
+  await page.keyboard.press("o");
+  // A later display-only leave cannot cancel the explicit pin already accepted by the native key matcher.
+  await chip.dispatchEvent("pointerout", { relatedTarget: null });
+  release();
+  const ctx = page.locator("aside.ctx");
+  await expect(ctx).toHaveAttribute("data-mode", "code");
+  expect(new URL(page.url()).searchParams.get("ctx")).toBe("code");
+  expect(new URL(page.url()).searchParams.get("pin")).toBe(cite);
+  await page.keyboard.press("Escape");
+  await expect(ctx).toHaveAttribute("data-mode", "margin");
+  expect(new URL(page.url()).searchParams.get("ctx")).toBeNull();
+  expect(new URL(page.url()).searchParams.get("pin")).toBeNull();
+});
+
+test("native Escape cancels a citation while the full Reader import is pending", async ({ page }) => {
+  await configure({ generated: true });
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requested = false;
+  await page.route("**/ReaderPage-*.js", async (route) => {
+    requested = true;
+    await held;
+    await route.continue();
+  });
+  await page.goto(`/w/${WS}/doc/s3`);
+  await waitMark(page, "mitori:section:rendered");
+  await page.keyboard.press("Tab");
+  await page.locator(".blk a.mcite").first().focus();
+  await expect.poll(() => requested).toBe(true);
+  await page.keyboard.press("Escape");
+  const complete = page.waitForResponse((response) => /\/ReaderPage-[^/]+\.js$/.test(response.url()));
+  release();
+  await (await complete).finished();
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(page.locator(".pop")).toHaveCount(0);
+  await expect(page.locator("aside.ctx")).toHaveAttribute("data-mode", "margin");
+  await page.locator("h1").focus();
+  await page.keyboard.press("j");
+  await expect(page.locator(".blk.focus")).toHaveCount(1);
+  await page.keyboard.press("e");
+  await expect(page.locator(".composer textarea").first()).toBeFocused();
+  await expect(page.locator(".pop")).toHaveCount(0);
+});

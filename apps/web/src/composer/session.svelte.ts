@@ -21,6 +21,7 @@ import {
   type ThreadDetail,
   type ThreadId,
   type ThreadIntent,
+  type WorkspaceKey,
 } from "@mitori/core";
 import { type ComposerChip, type ComposerState, type ExecPath, UI_THRESHOLDS } from "../contract.ts";
 import { getJson, removeItem, STORAGE_KEYS, setJson } from "../shell/storage.ts";
@@ -66,6 +67,7 @@ const DEFAULT_MODEL: ModelId = "claude-sonnet-5-5";
 export class ComposerSession {
   readonly tempKey = `tmp_${crypto.randomUUID()}`;
   readonly target: ComposerTarget;
+  readonly ws: WorkspaceKey | null;
   intent = $state<ThreadIntent>("note");
   body = $state("");
   draft = $state<ThreadId | null>(null);
@@ -124,6 +126,7 @@ export class ComposerSession {
   constructor(s: Stores, target: ComposerTarget, intent: ThreadIntent, path: ExecPath) {
     this.#s = s;
     this.target = target;
+    this.ws = s.workspace.key;
     this.intent = intent;
     this.path = path;
     const offline = this.#offlineKey();
@@ -135,10 +138,6 @@ export class ComposerSession {
       this.save = "offline";
     }
     if (this.wantsTargets) void this.refreshTargets();
-  }
-
-  get ws() {
-    return this.#s.workspace.key;
   }
 
   /** Contract snapshot (for components that take `ComposerState`). */

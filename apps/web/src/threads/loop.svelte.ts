@@ -125,6 +125,8 @@ export class Loop {
   /** When a key acted on the live selection (the Reader's own handler of the same key is then ignored). */
   selectionClaim = 0;
   #ws: WorkspaceKey | null = null;
+  #enterSeq = 0;
+  #scopeSeq = 0;
   #installed = false;
 
   constructor(s: Stores) {
@@ -184,13 +186,17 @@ export class Loop {
 
   async #enter(ws: WorkspaceKey | null, force = false): Promise<void> {
     if (ws === this.#ws && !force) return;
-    if (ws !== this.#ws) {
-      await this.undo.flush();
-      this.closeComposer();
-      this.pending.clear();
-      this.messages.clear();
-      this.trust.clear();
-      this.checkpoints.clear();
+    const previous = this.#ws;
+    const seq = ++this.#enterSeq;
+    this.#ws = ws;
+    // The first install has no outgoing scope; its delayed reset must not close the first Composer.
+    if (previous !== null && ws !== previous) {
+      this.#scopeSeq++;
+      const pending = [...this.pending];
+      const messages = [...this.messages];
+      const trust = [...this.trust];
+      const checkpoints = [...this.checkpoints];
+      if (this.composer?.ws === previous) this.closeComposer();
       this.completedPull = null;
       this.roundChanges = null;
       this.roundChangesError = null;
@@ -198,8 +204,14 @@ export class Loop {
       this.roundUndoing = false;
       this.#roundSeq++;
       this.waiting = null;
+      await this.undo.flush();
+      // Old Undo finishes before removal; new-scope input and SSE entries created while it waits survive.
+      for (const [id, value] of pending) if (this.pending.get(id)?.session === value.session) this.pending.delete(id);
+      for (const [id, value] of messages) if (this.messages.get(id) === value) this.messages.delete(id);
+      for (const [id, value] of trust) if (this.trust.get(id) === value) this.trust.delete(id);
+      for (const [id, value] of checkpoints) if (this.checkpoints.get(id) === value) this.checkpoints.delete(id);
+      if (seq !== this.#enterSeq || this.ws !== ws) return;
     }
-    this.#ws = ws;
     if (!ws) return;
     const [rv, tr, ck, pp] = await Promise.allSettled([
       this.s.api.call("GET /ws/:ws/review", { params: { ws } }),
@@ -207,7 +219,7 @@ export class Loop {
       this.s.api.call("GET /ws/:ws/checkpoints", { params: { ws } }),
       this.s.api.call("GET /ws/:ws/doc/proposals", { params: { ws }, query: { state: "pending" } }),
     ]);
-    if (this.ws !== ws) return;
+    if (seq !== this.#enterSeq || this.ws !== ws) return;
     if (rv.status === "fulfilled") this.#applyReview(rv.value);
     if (tr.status === "fulfilled") for (const r of tr.value) this.trust.set(r.id, r);
     if (ck.status === "fulfilled") for (const c of ck.value) this.checkpoints.set(c.id, c);
@@ -452,7 +464,7 @@ export class Loop {
    */
   async openComposer(target: ComposerTarget, intent: ThreadIntent, trigger?: number, range?: Range): Promise<ComposerSession> {
     const cur = this.composer;
-    if (cur && cur.target.key === target.key) {
+    if (cur && cur.ws === this.ws && cur.target.key === target.key) {
       cur.setIntent(intent);
       return cur;
     }
@@ -514,14 +526,14 @@ export class Loop {
 
   /** Closed without choosing: the edited Markdown waits in Inbox as 「要選択」 (doc_edit draft, ux.md §5.5). */
   async #holdDocEdit(c: ComposerSession): Promise<void> {
-    const ws = this.ws;
+    const ws = c.ws;
     if (!ws || c.docMd === undefined) return;
     try {
       const th = await this.s.api.call("POST /ws/:ws/threads", {
         params: { ws },
         body: { anchor: c.target.anchor, intent: "doc_edit", body: c.docMd, draft: true },
       });
-      this.s.review.threads.set(th.id, { ...th, preview: c.docMd.slice(0, 120), messages: 1 });
+      if (this.ws === ws) this.s.review.threads.set(th.id, { ...th, preview: c.docMd.slice(0, 120), messages: 1 });
       if (c.draft) await this.s.api.call("DELETE /ws/:ws/threads/:th", { params: { ws, th: c.draft } }).catch(() => {});
     } catch {
       /* the edit stays in the closed Composer's memory only */
@@ -530,8 +542,9 @@ export class Loop {
 
   // =============================================================================== submit (⌘⏎) — ux.md §5.2 B5
   async submit(c: ComposerSession, trigger?: number): Promise<void> {
-    const ws = this.ws;
-    if (!ws) return;
+    const ws = c.ws;
+    if (!ws || ws !== this.ws) return;
+    const seq = this.#scopeSeq;
     if (c.intent === "change" && c.fixTarget === "doc") {
       await this.saveDocEdit(c);
       return;
@@ -613,9 +626,11 @@ export class Loop {
     try {
       th = await this.#submitThread(c, body);
     } catch (err) {
+      if (ws !== this.ws || seq !== this.#scopeSeq) return;
       this.#failSubmit(key, c, err);
       return;
     }
+    if (ws !== this.ws || seq !== this.#scopeSeq) return;
     this.s.review.threads.delete(key);
     this.s.review.threads.set(th.id, { ...th, preview: body.slice(0, 120), messages: th.messages.length || 1 });
     this.messages.set(th.id, th.messages);
@@ -636,10 +651,13 @@ export class Loop {
   }
 
   async #submitThread(c: ComposerSession, body: string): Promise<ThreadDetail> {
-    const ws = this.ws as WorkspaceKey;
+    const ws = c.ws;
+    if (!ws || ws !== this.ws) throw new MitoriError("E_PRECONDITION", "workspace changed");
+    const seq = this.#scopeSeq;
     if (body !== c.body) c.input(body);
     c.dispose();
     const id = await c.flushSave();
+    if (ws !== this.ws || seq !== this.#scopeSeq) throw new MitoriError("E_PRECONDITION", "workspace changed");
     if (id && c.save !== "saved") throw new MitoriError("E_CONFLICT", "draft has not been saved");
     if (!id) {
       return this.s.api.call("POST /ws/:ws/threads", {
@@ -656,13 +674,16 @@ export class Loop {
   }
 
   async #startJob(key: string, c: ComposerSession, th: ThreadId, confirm = false): Promise<void> {
-    const ws = this.ws as WorkspaceKey;
+    const ws = c.ws;
+    if (!ws || ws !== this.ws) return;
+    const seq = this.#scopeSeq;
     try {
       let est = c.estimate && !c.stale && c.draft === th ? c.estimate : null;
       if (!est || confirm) {
         if (!c.draft) c.draft = th;
         est = (await c.refreshEstimate()) ?? null;
       }
+      if (ws !== this.ws || seq !== this.#scopeSeq) return;
       if (!est) throw new MitoriError("E_PRECONDITION", "no estimate");
       this.#patchPending(key, { estimate: est, rows: planStages(est.route, this.#gatesFor(est.route.mode)), mode: est.route.mode, model: est.route.model });
       if ((est.estimate.requiresConfirm || est.route.requiresConfirm) && !confirm) {
@@ -684,10 +705,12 @@ export class Loop {
         },
         idempotencyKey: `${key}:job`,
       });
+      if (ws !== this.ws || seq !== this.#scopeSeq) return;
       this.#patchPending(key, { job: job.id });
       if (!this.s.review.jobs.has(job.id)) this.s.review.jobs.set(job.id, job);
       this.#onJob(job);
     } catch (err) {
+      if (ws !== this.ws || seq !== this.#scopeSeq) return;
       const fresh = (err as ApiCallError).estimate;
       if (MitoriError.from(err).code === "E_CONFLICT" && fresh && "route" in fresh) {
         c.applyEstimate(fresh);
@@ -731,6 +754,7 @@ export class Loop {
   }
 
   #failSubmit(key: string, c: ComposerSession, err: unknown): void {
+    if (c.ws !== this.ws) return;
     const msg = errorText(MitoriError.from(err).toData());
     if (this.pending.has(key)) this.#patchPending(key, { phase: "error", error: msg });
     else {
@@ -758,13 +782,15 @@ export class Loop {
   // =============================================================================== doc edit (apply doc) — ux.md §5.5
   /** Save the edited Markdown as the doc (L1-checked, locked human-edited). `dropped` ⇒ ask first (UXP-20). */
   async saveDocEdit(c: ComposerSession, confirmDrop = false): Promise<"saved" | "dropped" | "conflict" | "error"> {
-    const ws = this.ws;
-    if (!ws || c.docMd === undefined || !c.docBase) return "error";
+    const ws = c.ws;
+    if (!ws || ws !== this.ws || c.docMd === undefined || !c.docBase) return "error";
+    const seq = this.#scopeSeq;
     try {
       const res = await this.s.api.call("POST /ws/:ws/doc/blocks/:block/edit", {
         params: { ws, block: c.target.block },
         body: { baseHash: c.docBase.hash, md: c.docMd, mdForm: "file", apply: "doc", ...(confirmDrop ? { confirmDrop: true } : {}) },
       });
+      if (ws !== this.ws || seq !== this.#scopeSeq) return res.dropped?.length && !confirmDrop ? "dropped" : "saved";
       if (res.dropped?.length && !confirmDrop) {
         c.dropped = res.dropped;
         return "dropped";
@@ -772,16 +798,19 @@ export class Loop {
       if (res.block) this.s.doc.upsertBlock(res.block);
       this.undo.docEdited(c.target.block, 0, c.docBase.md);
       if (c.draft) await this.s.api.call("DELETE /ws/:ws/threads/:th", { params: { ws, th: c.draft } }).catch(() => {});
+      if (ws !== this.ws || seq !== this.#scopeSeq) return "saved";
       c.dispose();
       if (this.composer === c) this.composer = null;
       this.flash([c.target.block]);
       return "saved";
     } catch (err) {
+      if (ws !== this.ws || seq !== this.#scopeSeq) return "error";
       const e = MitoriError.from(err);
       if (e.code === "E_DOC_BASE_MISMATCH") {
         const fresh = await this.s.api
           .call("GET /ws/:ws/doc/blocks/:block", { params: { ws, block: c.target.block }, query: { md: "file" } })
           .catch(() => null);
+        if (ws !== this.ws || seq !== this.#scopeSeq) return "error";
         c.conflict = { base: c.docBase.md, other: fresh && "md" in fresh ? fresh.md : "", otherHash: fresh?.hash ?? c.docBase.hash };
         return "conflict";
       }

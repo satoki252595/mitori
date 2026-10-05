@@ -21,6 +21,7 @@ import { setMissingKeyReporter, setSettingsLang } from "./i18n.ts";
 import { installReactiveCatalog, loadCatalog, switchLang } from "./i18n-cell.svelte.ts";
 import { detectUiLang } from "./index.ts";
 import { makeClients } from "./net/clients.ts";
+import { parseRoute } from "./router.ts";
 import Shell from "./Shell.svelte";
 import { getItem, readCookies, setItem } from "./storage.ts";
 
@@ -29,15 +30,18 @@ declare const __MITORI_TEST__: boolean;
 /** Upper bound for waiting on `GET /settings` when the cookie carries no language (local daemon: a few ms). */
 const SETTINGS_WAIT_MS = 400;
 
-export async function boot(initial?: {
-  snapshot: InitialUiSnapshot;
-  reader?: NativeReaderState;
-  pendingLevel?: InitialUiSnapshot["ui"]["level"];
-  clients?: ReturnType<typeof makeClients>;
-  mapCamera?: import("../contract.ts").MapCamera;
-  disclosureClock?: import("../gen/visibility.ts").VisibleClock;
-  onConnection?: (listener: (state: import("@mitori/client").ConnectionState) => void) => void;
-}): Promise<ReturnType<typeof createStores> | null> {
+export async function boot(
+  initial?: {
+    snapshot: InitialUiSnapshot;
+    reader?: NativeReaderState;
+    pendingLevel?: InitialUiSnapshot["ui"]["level"];
+    clients?: ReturnType<typeof makeClients>;
+    mapCamera?: import("../contract.ts").MapCamera;
+    disclosureClock?: import("../gen/visibility.ts").VisibleClock;
+    onConnection?: (listener: (state: import("@mitori/client").ConnectionState) => void) => void;
+  },
+  beforeMount?: () => boolean,
+): Promise<ReturnType<typeof createStores> | null> {
   installReactiveCatalog();
   if (typeof __MITORI_TEST__ !== "undefined" && __MITORI_TEST__) setMissingKeyReporter((k) => console.error(`[i18n-missing] ${k}`));
   let stores: ReturnType<typeof createStores> | null = null;
@@ -47,6 +51,15 @@ export async function boot(initial?: {
       if (stores) stores.session.connection = st;
     });
   if (initial) {
+    await switchLang(initial.snapshot.ui.lang);
+    const isMap = parseRoute(initial.snapshot.ui.url).name === "map";
+    const [{ default: View }, side] = await Promise.all([
+      isMap ? import("../map/MapPage.svelte") : import("../reader/ReaderPage.svelte"),
+      isMap ? Promise.all([import("../map/side.ts"), import("./i18n-cell.svelte.ts").then((m) => m.ensureNs("gen"))]).then(([m]) => m) : Promise.resolve(null),
+    ]);
+    const target = document.getElementById("app");
+    if (!target || beforeMount?.() === false) return null;
+    // The native view stays interactive through the imports; seed its latest state at the DOM hand-off.
     const snap = initial.snapshot;
     stores = createStores(api, sse, () => new Worker(new URL("../palette/worker.ts", import.meta.url), { type: "module", name: "palette" }));
     seedInitial(stores, snap);
@@ -62,14 +75,6 @@ export async function boot(initial?: {
     initial.onConnection?.((state) => {
       liveStores.session.connection = state;
     });
-    await switchLang(snap.ui.lang);
-    const isMap = stores.router.route.name === "map";
-    const [{ default: View }, side] = await Promise.all([
-      isMap ? import("../map/MapPage.svelte") : import("../reader/ReaderPage.svelte"),
-      isMap ? Promise.all([import("../map/side.ts"), import("./i18n-cell.svelte.ts").then((m) => m.ensureNs("gen"))]).then(([m]) => m) : Promise.resolve(null),
-    ]);
-    const target = document.getElementById("app");
-    if (!target) return null;
     target.textContent = "";
     mount(Shell, {
       target,
@@ -120,7 +125,7 @@ export async function boot(initial?: {
     document.documentElement.dataset.level = first;
   }
   const target = document.getElementById("app");
-  if (!target) return null;
+  if (!target || beforeMount?.() === false) return null;
   target.textContent = "";
   mount(Shell, { target, props: { stores } });
   return stores;

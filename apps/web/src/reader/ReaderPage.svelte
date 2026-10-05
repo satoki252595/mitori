@@ -431,9 +431,10 @@ function compose(intent: "note" | "question" | "change", block: BlockId | null =
     // Keep the first selection key while the loop chunk loads; the toolbar may not be listening yet.
     const workspace = ws;
     const pg = page;
+    const nav = s.router.nav;
     void Promise.all([loadExtensions(s), import("../threads/dom-anchor.ts"), import("../composer/targets.ts"), import("../threads/loop.svelte.ts")]).then(
       ([, { anchorFromRange }, { targetOf }, { loopOf }]) => {
-        if (ws !== workspace || page !== pg || !range.startContainer.isConnected) return;
+        if (ws !== workspace || page !== pg || nav !== s.router.nav || !range.startContainer.isConnected) return;
         const loop = loopOf(s);
         // An already-mounted selection toolbar answers the same key first.
         if (Date.now() - loop.selectionClaim < 250) return;
@@ -463,8 +464,12 @@ function compose(intent: "note" | "question" | "change", block: BlockId | null =
     return;
   }
   // the loop UI is still on its way (F5): ask for it now and hand over once it listens
+  const workspace = ws;
+  const pg = page;
+  const nav = s.router.nav;
   void loadExtensions(s).then(
     (e) => {
+      if (ws !== workspace || page !== pg || nav !== s.router.nav) return;
       ext = e;
       if (e.margin) window.dispatchEvent(new CustomEvent("mitori:compose", { detail }));
       else s.bottom.toast({ id: "hint.loopPending", kind: "info", key: "hint.loopPending" });

@@ -70,7 +70,7 @@ export class UndoManager {
       target: { kind: "reject", job },
       commit: async () => {
         const j = await this.#s.api.call("POST /ws/:ws/jobs/:job/reject", { params: { ws, job }, body: {} });
-        this.#s.review.jobs.set(j.id, j);
+        if (this.#ws() === ws) this.#s.review.jobs.set(j.id, j);
       },
     });
   }
