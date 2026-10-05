@@ -5,7 +5,7 @@
 
 ## ★ 現在の状態（残タスク全件と最近のOSS検証）
 
-作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。統合前`origin/main`は`815957fd01fb4856b5ae8d3aa2091edd1ddd263f`。実装`d0fa109`・golden`f9955cf`をpushして[PR #5](https://github.com/satoki252595/mitori/pull/5)を作成済み。第3回は実remote head `ad4fa817`をmanual dispatchしたが、Ubuntuの時間1件・Chromiumの時間3件でfailure。後続sourceはchecker/guard `fffa530`、native handoff/Composer scope `46dfcd3`、runner ProcessType `552db80`までcommit済み。対象unit17pass/68assert、fixture型修正後tsc/Svelteと他5内容check、Escape→j→e全3browserが成功。全CI・merge・branch整理は未完。[実CI経緯](progress/pr5-ci-20261005.md)。以前の4 remブランチの統合・整理は完了済み。現在のPR応答headは旧`08bb494`のままで、remote refとの一致を確認するまでmergeしない。
+作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。統合前`origin/main`は`815957fd01fb4856b5ae8d3aa2091edd1ddd263f`。[PR #5](https://github.com/satoki252595/mitori/pull/5)の第4回CIはhead `6d10eed`とremoteが一致し、3browser 344pass/14skip/0fail・暗号化共有2pass/37assert・Ubuntu check68.53秒/limit70.40秒が成功した。ただしUbuntu unit4failとa11y起動8failで全体failure。後続source `e229e4e`で実UI資産の準備・共有Map SVGのrole・CIテストの録画/Go cache/TMPDIRを修正し、失敗単位の検証とMac全check3.90秒が成功した。全CI・merge・branch整理は未完。[実CI経緯](progress/pr5-ci-20261005.md)。以前の4 remブランチの統合・整理は完了済み。最新sourceのcompiled出荷物を更新し、次の全CIの成功とhead一致を確認してからmergeする。
 
 ### ★.1 実装・単位検証済み
 
@@ -15,7 +15,7 @@
 - floorplanはdefault offのfeature flagで実装。8 corpusのactor保持 / determinism、fallback25%、40room algorithm約1.4–1.5msを確認。[floorplan証跡](progress/floorplan-20261005.json)。初回worker起動時間とは区別した。
 - 未計測7benchを5UI＋2agent residentとして測定。[UI計測](progress/ui-bench-20261005/README.md)。scanSummary中央値1,413.6msは1,000ms target超過だが2,000ms limit内のWARN。他の対象予算はgreen。Muse終了5秒後は0 process / 0MBで、Claude常駐cacheを測ったとは扱わない。
 - AC接続・前後負荷guardを維持して静かな基準機を校正。2026-10-05T03:01:28Z、5試行best316.23ms。[基準機記録](progress/reference-machine-20261005.md)。以前の補正結果を新係数で遡って成功へ変えていない。
-- Nix管理のself-hosted Mac runnerは `mitori-reference-mac`、label `mitori-reference` で online。内部PRの3browser / shared viewer / a11y CIを実行した。初回3browserの28failを修正し、対象再検証で解消した。修正後全suiteの再CIはまだ未完。
+- Nix管理のself-hosted Mac runnerは `mitori-reference-mac`、label `mitori-reference` で online。ProcessTypeをInteractiveへ変更後、第4回の3browser全suite344pass/14skipとshared viewerが成功。a11yは未ビルドshellで検査前に失敗し、後続の起動修正後にReader/probe6pass、共有SVG role修正後に残るMap axe2pass・違反0。全CIの成功は未完。
 - WindowsはNix/ZigのJob Object helper、SHA検証・配布assets、path対応、manual native CIを用意。Nix crossbuildは成功し、native実行は未実施。[Windows報告](progress/windows-job-20261005.md)。unverified helper/profileを安全機能付きと表示しない。
 - 暗号化共有はAES-GCM・署名付きsnapshot・R2/D1 quota・期限・コメントとCLIを実装。Miniflare/D1とChromium/Firefox/WebKit、保存file://viewerを確認、Worker dryrun15.41KiBraw/5.30KiBgz。[共有報告](progress/cloudflare-share-2026-10-05.md)。remote resource作成 / deploy / Paid化はしていない。
 
