@@ -83,6 +83,7 @@ export const HELP: Readonly<Record<string, Help>> = {
     ja: `mitori gen [--effort overview|standard|complete] [--scope <section>…]      見積りを出して TTY で確認してから生成
 mitori gen --prep [--effort E] [--scope <section>…] [--continue <pr_id>]   この session の agent が書く packet を作る
 mitori gen --ingest <pr_id> [--partial] [--model <model id>]             agent が書いた out/*.ndjson を取り込む
+  --repo /absolute/repo は起動元フォルダに関係なく対象repoを指定します。
   --prep / --ingest は mitori 自身は API を使いません。exit 0=妥当 / 1=誤り（直して再実行）/ 3=期限切れ・fingerprint 不一致。
 `,
     en: `mitori gen [--effort overview|standard|complete] [--scope <section>…]      estimate, confirm on a TTY, generate
@@ -106,13 +107,37 @@ mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in
 `,
   },
   mcp: {
-    ja: `mitori mcp
+    ja: `mitori mcp [--repo <path>]
+  --repo  MCP host の起動ディレクトリにかかわらず、このリポジトリに接続します。
   stdio の MCP server（opt-in）。8 tool: mitori_status / list_threads / get_bundle / get_doc / find_symbol / reply /
   submit_patch / propose_resolution。登録: claude mcp add mitori -- mitori mcp
 `,
-    en: `mitori mcp
+    en: `mitori mcp [--repo <path>]
+  --repo  Bind to this repository regardless of the MCP host's working directory.
   stdio MCP server (opt-in). 8 tools: mitori_status / list_threads / get_bundle / get_doc / find_symbol / reply /
   submit_patch / propose_resolution. Register: claude mcp add mitori -- mitori mcp
+`,
+  },
+  setup: {
+    ja: `mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> [options]
+  既存のLLMを設定し、TTYで1回確認して保存します。インストール・モデル呼出しは行いません。
+  --model ID                     ローカル/任意APIのモデル（Grok既定grok-4.7、Muse既定contributor）
+  --repo /absolute/repo          Codex/Cursor/Antigravityの外部セッションとMCP対象
+  --binary /absolute/path        Claude/Museの実行ファイル（Museはnative binary）
+  --base-url URL --key-env NAME  OpenAI互換APIのURLとキーの環境変数名（キー自体は保存しない）
+  --in-price N --out-price N     任意remoteモデルのUSD/百万token単価
+  --effort low|medium|high|xhigh|max  Museの推論強度（既定max、HTTPへは送らない）
+  --print                        設定・連携手順の表示だけ（保存・接続しない）
+`,
+    en: `mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> [options]
+  Configure an existing provider after one terminal confirmation. No installs or model calls.
+  --model ID                     Required for local/custom APIs; Grok defaults to grok-4.7, Muse to contributor
+  --repo /absolute/repo          External Codex/Cursor/Antigravity session and MCP workspace
+  --binary /absolute/path        Claude/Muse executable (Muse: native binary)
+  --base-url URL --key-env NAME  OpenAI-compatible URL and credential environment variable name
+  --in-price N --out-price N     Custom remote model prices in USD per million tokens
+  --effort low|medium|high|xhigh|max  Muse reasoning effort (default max; HTTP does not send effort)
+  --print                        Preview settings/instructions without saving or connecting
 `,
   },
   config: {

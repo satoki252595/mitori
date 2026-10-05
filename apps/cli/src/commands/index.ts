@@ -22,6 +22,7 @@ const COMMANDS: Readonly<Record<string, () => Promise<Command>>> = {
   install: () => import("./install.ts"),
   mcp: () => import("./mcp.ts"),
   config: () => import("./config.ts"),
+  setup: () => import("./setup.ts"),
   export: () => import("./export.ts"),
   share: () => import("./share.ts"),
   init: () => import("./init.ts"),

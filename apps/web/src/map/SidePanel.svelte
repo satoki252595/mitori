@@ -106,11 +106,13 @@ function setEffort(e: Effort) {
               </div>
             </section>
           {:else if problem && engineStatus}
-            <EngineCard status={engineStatus} {problem} {effort} oncopy={(c) => copyText(c, s, "copy.command")} onrecheck={() => s.session.loadEngines()} />
+            <EngineCard status={engineStatus} {problem} {effort} repo={s.workspace.status?.info.root} launcher={s.session.settings?.launcher} oncopy={(c) => copyText(c, s, "copy.command")} onrecheck={() => s.session.loadEngines()} />
           {:else}
             <GenEstimateCard
               {estimates}
               {initialClock}
+              repo={s.workspace.status?.info.root}
+              launcher={s.session.settings?.launcher}
               {effort}
               engine={s.gen.engine}
               reasoning={s.session.settings?.settings.reasoning[effort === "overview" ? "genOverview" : "gen"]}

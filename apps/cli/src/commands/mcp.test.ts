@@ -72,6 +72,24 @@ describe("CLI-I-009 mitori mcp", () => {
     expect(req?.headers.get("x-mitori-agent")).toBe("claude-code");
   });
 
+  test("--repo binds the explicit workspace when the host starts in another directory", async () => {
+    d.route("GET /ws/:ws", () => ({ rev: 1, counts: { openThreads: 0, staleBlocks: 0, runningJobs: 0 } }));
+    const t = testIo({ argv: ["--repo", d.repo], home: d.home, cwd: d.home, stdin: [init, call(2, "mitori_status")].join("\n") });
+    expect(await runCommand("mcp", t)).toBe(0);
+    expect(t.stderr).toBe("");
+    expect(d.calls("POST /workspaces")[0]?.body).toEqual({ target: d.repo });
+  });
+
+  test("--repo rejects missing, empty and non-directory paths before starting the daemon", async () => {
+    for (const argv of [["--repo"], ["--repo", ""], ["--repo", join(d.dir, "missing")], ["unexpected"]]) {
+      const t = testIo({ argv, home: d.home, cwd: d.home, stdin: init });
+      expect(await runCommand("mcp", t)).toBe(2);
+      expect(t.stdout).toBe("");
+      expect(t.spawned).toEqual([]);
+    }
+    expect(d.seen).toEqual([]);
+  });
+
   test("mitori_list_threads: filtered client-side, one fenced line per thread with the anchor label", async () => {
     const base = { anchorHealth: "ok", stale: false, round: 1, version: 1, jobs: [], createdAt: "", updatedAt: "", preview: "", messages: 1 };
     d.route("GET /ws/:ws/threads", () => ({

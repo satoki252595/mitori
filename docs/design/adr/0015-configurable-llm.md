@@ -27,6 +27,14 @@
 
 ## Verification and limits
 
+2026-10-06 追記: Grok・Ollama・LM Studio は既存の generic に `protocol: openai-chat` と `api: {baseUrl, keyEnv?}` を加え、CLI を介さず `POST /v1/chat/completions` を使う。`argv` は空、モデルは同じ `generic:<id>`。遠隔は HTTPS と環境変数の key、HTTP は文字通りの localhost / 127.0.0.1 / [::1] に限定し、URL の資格情報・query・fragment と redirect を拒否する。key 自体を設定・ログ・ledgerへ保存せず、失敗応答や transport exception の内容を表示しない。tool declaration は送らず、agent / tool request と応答の tool call は拒否する。出力は 1 MiB、壁時計 timeout・cancel は AbortSignal で止める。回答・生成と既存 JSON 抽出を共用し、追加 SDK は使わない。
+
+HTTP usage の prompt / completion があればその報告値を使い、total に含まれる reasoning を出力へ算入する。usage 欠落は UTF-8 byte 推計、価格不明は承認済み cap の予約扱い。出力 token の承認は1以上必須で、`max_tokens` はその値を変更せず送る。USD 0 の承認は明示ゼロ単価のローカルだけ許可する。`-cloud` / `:cloud` で終わるモデルは localhost 経由でもゼロ単価を拒否する。生成 planner は価格不明のまま実行しない。明示ゼロ単価は localhost の実ローカルモデル用で、名前から分からない proxy の課金を検証するものではない。provider 固有の reasoning option や tools、Responses API は送らない。無償 loopback HTTP と fake response で検証し、Grok / 実 Ollama / 実 LM Studio のモデル実行は今回行っていない。
+
+provider の登録時は `api` を一つの接続として置き換え、Grok → ローカル切替で元の keyEnv を残さない。CLI protocol を明示して戻すと古い api metadata を取り除く。その他の部分設定は既存 deep merge を維持する。
+
+追記の回帰: `scripts/nd bun test packages/agent/src/adapters/generic-http.test.ts`（8件成功）、`scripts/nd bun test packages/server/src/settings/settings.test.ts`（19件成功、接続切替・rollback を含む）、`scripts/nd bunx --no-install tsc -b packages/agent packages/server --pretty false`（成功）。
+
 - 検証対象: Muse Code `1.4.2-R4684.1`、2026-10-04、この Mac。`exec --help` で上記 option、モデル profile で `max` 対応を確認。`config status` の enterprise defaults/policy はこの機械では absent。
 - 無償 `--provider echo` では通常起動と `--preset native-basic` の両方に自動リマインダーが現れた。固定 gate 後は 13 JSONL records、reminder child run 0。native-basic 自体を lean の保証として採用しない。
 - 管理 SessionStart hook の canary は安全 flag だけでは実行された。管理ファイルの override 後は canary 未実行、hook record 0、reminder record 0、terminal completed。echo の本文・terminal envelope は実測済み。
@@ -39,3 +47,5 @@
 ## Sources
 
 2026-10-04 に [Muse Code Configuration and context](https://dev.meta.ai/docs/muse-code/configuration)（headless flags、user settings、managed config）と [Muse Code Developer Docs: Hooks](https://meta-models.github.io/muse-code-sdk/next/guides/extend/hooks/)（managed/user hook は project trust を要しない）を確認。[Extending Muse Code](https://meta-models.github.io/muse-code-sdk/next/guides/extend/) は MCP の旧表記も設定で受け付けると記載する。環境 gate と管理 hook override の効き方は公開仕様ではなく上記バージョンのローカル実測による。
+
+2026-10-06 に [xAI Chat Completions](https://docs.x.ai/developers/rest-api-reference/inference/chat-completions)、[Ollama OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility)、[LM Studio Chat Completions](https://lmstudio.ai/docs/developer/openai-compat/chat-completions) を確認。xAI は新規接続で Responses API を推奨するが、ここでは三者に共通する現行 Chat Completions を使用する。

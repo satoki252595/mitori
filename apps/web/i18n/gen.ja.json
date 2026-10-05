@@ -20,7 +20,7 @@
   "gen.card.colIo": "入力 / 出力",
   "gen.card.colStage": "段階 · 件数",
   "gen.card.colTime": "時間",
-  "gen.card.copySession": "コマンドをコピー",
+  "gen.card.copySession": "生成手順をコピー",
   "gen.card.critical": "* クリティカルパス（並列度を上げても短くならない）",
   "gen.card.detail": "入力{in}（cache {cache}）· 出力{out} · {model} · 並列{c}",
   "gen.card.detecting": "{engine}を確認しています…",
@@ -79,9 +79,9 @@
   "gen.progress.state.waiting": "待機",
   "gen.progress.title": "設計書を生成中",
   "gen.progress.usd": "API換算",
-  "gen.session.step1": "このコマンドをClaude Codeで実行する",
-  "gen.session.step2": "表示された手順どおりに生成が進みます",
-  "gen.session.step3": "ブロックが届き始めるとここに進捗が出ます",
+  "gen.session.step1": "普段使っているAIのセッションへ、コピーした生成手順を貼り付ける",
+  "gen.session.step2": "AIが準備パケットを読み、生成した文書をmitoriへ取り込む",
+  "gen.session.step3": "取り込みが完了すると、ここに設計書と進捗が表示される",
   "gen.stage.S5": "モジュール",
   "gen.stage.S6": "親モジュール",
   "gen.stage.S6o": "概要",
@@ -104,5 +104,7 @@
   "policy.claude_cli_pro": "送信先: Anthropic（あなたのclaude CLI経由 · Proプラン）· 対象{files}ファイル（除外{excluded}）· 秘密情報は伏せ字 · 学習と保持はProの設定に従います",
   "policy.default": "送信先: 選択中の{engine} · 対象{files}ファイル（除外{excluded}）· 秘密情報は伏せ字 · 学習・保持の扱いは未確認です。提供元の規約を確認してから送信してください",
   "gen.card.reasoning": "推論強度：{effort}",
-  "policy.museContributor": "送信先: Meta（Muse Spark 1.3 Contributor）· 対象{files}ファイル（除外{excluded}）· 秘密情報は伏せ字 · 入力と出力はMetaのモデル学習に利用可能なプランです"
+  "policy.museContributor": "送信先: Meta（Muse Spark 1.3 Contributor）· 対象{files}ファイル（除外{excluded}）· 秘密情報は伏せ字 · 入力と出力はMetaのモデル学習に利用可能なプランです",
+  "gen.session.cwd": "以下のコマンドはmitoriをcloneしたフォルダの端末で実行してください。",
+  "gen.session.prompt": "リポジトリの設計書を生成してください。対象のソースやGitのコミットは変更せず、準備パケットのout/*.ndjsonだけを書いてください。\n1. 次のコマンドを実行する:\n{prep}\n2. 出力のreadmeに示されたREADMEを読み、指定のタスクを実施してout/*.ndjsonへ結果を書く。\n3. PREP_IDを出力のidに置き換えて取り込む:\n{ingest}\n4. エラーは修正して再取り込みする。次のフェーズが示された場合はPREP_IDをそのidに置き換え、準備・生成・取り込みを繰り返す:\n{next}"
 }

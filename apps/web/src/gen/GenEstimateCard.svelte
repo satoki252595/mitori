@@ -10,6 +10,7 @@
 <script lang="ts">
 import type { Effort, EngineId, EngineStatus, GenEstimate, ReasoningEffort, ScanSummaryView, SubscriptionWindow } from "@mitori/core";
 import { untrack } from "svelte";
+import type { LauncherCommand } from "../settings/provider.ts";
 import { fmtHm, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
 import { hasKey } from "../shell/i18n.ts";
 import { t } from "../shell/index.ts";
@@ -21,6 +22,7 @@ import {
   figures,
   moduleChapters,
   narrowerEffort,
+  sessionMode,
   stageRows,
   startMode,
   tileFigures,
@@ -47,6 +49,8 @@ let {
   oncopy,
   onsettings,
   initialClock = null,
+  repo,
+  launcher,
 }: {
   estimates: Partial<Record<Effort, GenEstimate>>;
   effort: Effort;
@@ -68,13 +72,15 @@ let {
   /** 「変更」 of a first-run pin (settings page). */
   onsettings?: () => void;
   initialClock?: VisibleClock | null;
+  repo?: string | undefined;
+  launcher?: LauncherCommand | undefined;
 } = $props();
 
 let overageOk = $state(false);
 const est = $derived(estimates[effort] ?? null);
 const main = $derived(est ? figures(est, true) : null);
 const bill = $derived(est && main ? billingLine(est, main.usd, t) : null);
-const mode = $derived(est ? startMode(est, engine, overageOk) : null);
+const mode = $derived(est ? startMode(est, engine, overageOk, { repo, launcher }) : null);
 const util = $derived(win?.fiveHour?.utilization ?? null);
 const policyKey = $derived.by(() => {
   if (engine === "generic" && est?.model.includes("muse-spark-1.3-contributor")) return "policy.museContributor";
@@ -83,7 +89,7 @@ const policyKey = $derived.by(() => {
 });
 const pin = $derived(engineStatus?.pin ?? null);
 const api = $derived(est?.alternatives.find((a) => a.engine === "anthropic-api") ?? null);
-const sessionCmd = $derived(`mitori gen --prep --effort ${effort}`);
+const sessionCmd = $derived(sessionMode(effort, { repo, launcher }));
 
 // disclosure visibility (≥ 1 s in view before a click may acknowledge it)
 let disclosure: HTMLElement | undefined = $state();
@@ -227,7 +233,7 @@ const scopeText = $derived(est ? t(`gen.card.scope.${effort}`, { n: moduleChapte
     <li>
       <span class="pk" aria-hidden="true">&gt;_</span>
       <span>{t("gen.card.ownSession")}</span>
-      <button type="button" class="cmd mono" title={t("gen.card.copySession")} onclick={() => oncopy(sessionCmd)}>{sessionCmd}</button>
+      <button type="button" class="cmd mono" title={t("gen.card.copySession")} onclick={() => oncopy(sessionCmd.copy)}>{sessionCmd.raw}</button>
     </li>
     <li>
       <span class="pk" aria-hidden="true">$</span>

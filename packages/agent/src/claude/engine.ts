@@ -108,7 +108,7 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
   const warm = new Map<Xxh3, WarmEntry[]>();
   /** Last request per warm profile key (refill + `warm(profile)`), with its time. */
   const templates = new Map<Xxh3, { req: EngineRequest; at: number }>();
-  let status: { s: EngineStatus; at: number } | null = null;
+  let status: { s: EngineStatus; at: number; launch: string } | null = null;
   let detecting: Promise<EngineStatus> | null = null;
   /** Trust-on-first-use pin of this daemon (until the composition root persists it into settings) [CR m1-65]. */
   let tofu: BinaryPin | null = null;
@@ -125,11 +125,16 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
   };
 
   const currentPin = (): BinaryPin | undefined => deps.settings().pins.claude ?? tofu ?? undefined;
+  const launchIdentity = () => JSON.stringify([JSON.stringify(cs()), currentPin() ?? null]);
 
   const binary = (): { path: string; realpath: string; version: string } | null => {
     const pin = currentPin();
-    if (pin) return { path: pin.path, realpath: pin.realpath, version: pin.version };
     const b = cs().binary;
+    if (pin) {
+      if (b.startsWith("/") && b !== pin.path && b !== pin.realpath)
+        throw new MitoriError("E_ENGINE_BINARY_CHANGED", "the configured Claude executable does not match its pin; confirm it with mitori setup claude");
+      return { path: pin.path, realpath: pin.realpath, version: pin.version };
+    }
     return b.startsWith("/") ? { path: b, realpath: b, version: status?.s.version ?? "" } : null;
   };
 
@@ -331,8 +336,11 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
 
   const detect = async (): Promise<EngineStatus> => {
     const now = deps.clock.now();
-    if (status && status.s.problems.length === 0 && now - status.at < DETECT_TTL_MS) return status.s;
+    if (status && status.launch === launchIdentity() && status.s.problems.length === 0 && now - status.at < DETECT_TTL_MS) return status.s;
     detecting ??= (async () => {
+      const initialSettings = JSON.stringify(cs());
+      const pin = currentPin();
+      const initialPin = pin ? { ...pin } : undefined;
       try {
         const probe = (bin: string | null, pin: BinaryPin | undefined) =>
           probeClaude({
@@ -347,18 +355,27 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
           });
         // the probes run in the sandbox cwd (I9); on a fresh home it does not exist yet and the spawn would fail
         await deps.sandbox.ensureEmptyCwd().catch((err: unknown) => deps.log.warn("agent.claude.sandbox_unavailable", { error: String(err) }));
-        const bin = binary();
-        const s = bin ? await probe(bin.path, currentPin()) : await probeFirstRun(probe);
+        let s: EngineStatus;
+        try {
+          const bin = binary();
+          s = bin ? await probe(bin.path, currentPin()) : await probeFirstRun(probe);
+        } catch (err) {
+          const e = MitoriError.from(err);
+          s = await probe(null, undefined);
+          s.problems = [{ code: e.code, message: e.message }];
+        }
         if (!cs().enabled) s.problems.unshift({ code: "E_AGENT_NOT_INSTALLED", message: "claude-cli is disabled in settings" });
         // ANTHROPIC_BASE_URL reaches the CLI only via envPassthrough; the engine card says "via proxy" (spec §6.4)
         if (cs().envPassthrough.includes("ANTHROPIC_BASE_URL") && typeof deps.env.ANTHROPIC_BASE_URL === "string") s.capabilities.push("via-proxy");
-        status = { s, at: deps.clock.now() };
+        status = { s, at: deps.clock.now(), launch: JSON.stringify([initialSettings, initialPin ?? s.pin ?? null]) };
         return s;
       } finally {
         detecting = null;
       }
     })();
-    return detecting;
+    const s = await detecting;
+    // A settings update can arrive while probes are running; never return the previous launch's status.
+    return status?.launch === launchIdentity() ? s : detect();
   };
 
   return {
@@ -391,6 +408,6 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
     invalidate: () => {
       status = null;
     },
-    lastStatus: () => status?.s ?? null,
+    lastStatus: () => (status?.launch === launchIdentity() ? status.s : null),
   };
 }

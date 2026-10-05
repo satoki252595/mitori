@@ -71,6 +71,7 @@ export const bunServe: Serve = (port, app) => {
 };
 
 export interface DaemonOptions {
+  launcher?: { command: string; args: string[] };
   /** `~/.mitori` (or `MITORI_HOME`); must exist. */
   home: string;
   /** The user's `$HOME`. */
@@ -197,6 +198,7 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
     const bearer = createBearer(o.random);
     let workspacesRef: ReturnType<typeof createWorkspaceManager> | null = null;
     const settings = await createSettingsService({
+      ...(o.launcher ? { launcher: o.launcher } : {}),
       home: o.home,
       fs: o.fs,
       safeWrite: o.safeWrite,

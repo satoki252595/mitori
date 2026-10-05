@@ -170,11 +170,11 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
         if (config[key] != null && (typeof config[key] === "object" ? Object.keys(config[key] as object).length > 0 : config[key] !== ""))
           throw new MitoriError("E_CFG_INVALID", `Muse ${key} must be disabled before a text-only run`);
     },
-    policyPlan: () =>
-      `generic:${deps.hasher.xxh3(JSON.stringify({ argv: deps.settings().engines.generic.argv, protocol: deps.settings().engines.generic.protocol ?? "text", models: deps.settings().models }))}`,
+    policyPlan: () => `generic:${deps.hasher.xxh3(JSON.stringify({ config: deps.settings().engines.generic, models: deps.settings().models }))}`,
     clock: deps.clock,
     timers,
     log: deps.log,
+    fetch: deps.fetch ?? ((url, init) => globalThis.fetch(url, init)),
   });
 
   const codex = createCodexEngine({

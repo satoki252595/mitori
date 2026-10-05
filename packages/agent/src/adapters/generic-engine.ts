@@ -12,6 +12,8 @@ import {
 import { type ChildHandle, type Engine, type EngineRequest, type EngineResult, type EngineRun, SIGINT_GRACE_MS, type Spawner } from "../contract.ts";
 import { RESULT_META, RelayRun, zeroUsage } from "../util/run.ts";
 import type { Timers } from "../util/timers.ts";
+import type { FetchLike } from "./anthropic-engine.ts";
+import { genericApiTarget, runGenericApi } from "./generic-http.ts";
 import { assertMuseTextOnlyArgv, buildGenericSpawn, extractJsonFromText } from "./index.ts";
 
 export interface GenericEngineDeps {
@@ -32,6 +34,7 @@ export interface GenericEngineDeps {
   clock: Clock;
   timers: Timers;
   log: Logger;
+  fetch: FetchLike;
 }
 
 /** stdout read limit (spec §6.11). */
@@ -46,7 +49,19 @@ export function createGenericEngine(deps: GenericEngineDeps): Engine {
     const c = cfg();
     const problems: EngineStatus["problems"] = [];
     if (!c.enabled) problems.push({ code: "E_AGENT_NOT_INSTALLED", message: "the generic engine is disabled" });
-    if (!c.argv[0]?.startsWith("/")) problems.push({ code: "E_CFG_INVALID", message: "engines.generic.argv[0] must be an absolute path" });
+    let apiAuth: EngineStatus["auth"] = "unknown";
+    if (c.protocol === "openai-chat") {
+      try {
+        const target = genericApiTarget(c);
+        const hasKey = !!(c.api?.keyEnv && deps.env[c.api.keyEnv]);
+        apiAuth = hasKey ? "api-key" : "none";
+        if ((!target.local || c.api?.keyEnv) && !hasKey)
+          problems.push({ code: "E_AGENT_AUTH", message: "the configured API key environment variable is not set" });
+      } catch (err) {
+        const e = MitoriError.from(err);
+        problems.push({ code: e.code, message: e.message });
+      }
+    } else if (!c.argv[0]?.startsWith("/")) problems.push({ code: "E_CFG_INVALID", message: "engines.generic.argv[0] must be an absolute path" });
     if (c.enabled && c.protocol === "muse-jsonl") {
       try {
         assertMuseTextOnlyArgv(c.argv.slice(1));
@@ -60,18 +75,19 @@ export function createGenericEngine(deps: GenericEngineDeps): Engine {
     const s: EngineStatus = {
       engine: "generic",
       installed: c.enabled && problems.length === 0,
-      auth: "unknown",
+      auth: apiAuth,
       capabilities: [],
       billing: "unknown",
       problems,
       checkedAt: deps.clock.iso(),
     };
-    if (c.argv[0]) s.path = c.argv[0];
+    if (c.protocol !== "openai-chat" && c.argv[0]) s.path = c.argv[0];
     if (deps.policyPlan) s.plan = deps.policyPlan();
     return s;
   };
 
   const run = (req: EngineRequest, signal: Cancel): EngineRun => {
+    if (cfg().protocol === "openai-chat") return runGenericApi(deps, req, signal);
     const outer = new RelayRun(deps.clock);
     const settings = cfg();
     const textRequest = {

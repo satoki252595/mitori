@@ -352,16 +352,17 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   const deps = { doc: env.doc, write: env.write, verifier: env.verifier, log: env.log };
   const sinkOf = (ctx: ApplyContext, idMap: Record<NewBlockRef, BlockId>, onWritten?: (ids: readonly BlockId[]) => void): LineSink => {
     const lang = translateTarget(task);
-    if (lang !== null) return new TranslationSink(deps, { lang, promptVer: version, model: task.model as ModelId, hashes: gathered.hashes });
+    if (lang !== null) return new TranslationSink(deps, { lang, promptVer: version, model: ctx.model, hashes: gathered.hashes });
     return new ApplySink(deps, ctx, idMap, onWritten);
   };
 
   const cached = env.store.getOutput(rendered.cacheKey);
   if (cached && replayable(cached.lines, env.doc)) {
-    const sink = sinkOf({ ...applyCtx, replay: true }, cached.idMap);
+    const cachedCtx = { ...applyCtx, model: cached.model ?? applyCtx.model, replay: true };
+    const sink = sinkOf(cachedCtx, cached.idMap);
     for (const l of cached.lines) sink.accept(JSON.parse(l) as GenLine);
     await sink.finish();
-    const after = await afterLines(env, task, sink, applyCtx);
+    const after = await afterLines(env, task, sink, cachedCtx);
     await env.write("gen.output", () => env.store.touchOutput(rendered.cacheKey));
     env.metrics.inc("gen.cache.hits");
     return { state: "cached", usage: null, calls: 0, attempts: 0, blocks: [...sink.written, ...after] };

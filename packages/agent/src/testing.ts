@@ -36,6 +36,7 @@ import {
   type WriteQueue,
   type Xxh3,
 } from "@mitori/core";
+import type { FetchLike } from "./adapters/anthropic-engine.ts";
 import { assembleBridge } from "./bridge/assemble.ts";
 import { AGENT_MIGRATIONS } from "./bridge/index.ts";
 import { expectedTools } from "./claude/engine.ts";
@@ -693,7 +694,7 @@ export function createTestBridge(opts: {
   settings?: Parameters<typeof testSettings>[0] | ((s: ReturnType<typeof testSettings>) => void);
   env?: Record<string, string | undefined>;
   clock?: FakeClock;
-  fetch?: (url: string, init: { method: string; headers: Record<string, string>; body: string; signal: AbortSignal }) => Promise<Response>;
+  fetch?: FetchLike;
   /** The composition root's pin persistence (first-run pins) [CR m1-65]. */
   pin?: (engine: EngineId, pin: import("@mitori/core").BinaryPin) => Promise<void>;
 }): TestBridge {

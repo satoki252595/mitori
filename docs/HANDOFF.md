@@ -1,9 +1,11 @@
-# mitori 引き継ぎ資料（2026-10-06 PR #5統合済み、外部2件待ち・ローカル利用が基本）
+# mitori 引き継ぎ資料（2026-10-06 ローカル起動・主要LLMの簡単設定、外部条件は未確認）
 
 > **現在の入口は §★。以下の「履歴★」と §0 / §0a / §0b は以前の記録。**
 > 利用者の続行指示に加え、今回の Linux 既存 Docker ハーネス例外と、任意 LLM 対応・Muse Contributor / max の選択を反映した。
 
 ## ★ 現在の状態（残タスク全件と最近のOSS検証）
+
+最新の追加は[Issue #6](https://github.com/satoki252595/mitori/issues/6)のローカル起動と主要LLM設定。通常利用は既存Bun/Gitで`bun run start -- <repo>`、Nixは開発・検証に維持する。Claude Code / Muse / Grok / Ollama / LM Studio / Codex / Cursor / Antigravityの簡単設定を用意し、外部セッションはMCPとprep/ingestを案内する。[README](../README.md)、[実装・検証記録](progress/onboarding-20261006.md)、[公式仕様の確認](research/llm-onboarding-20261006.md)。新providerの実推論は実施せず、既存Muse実検証と今回のmock/loopback成功を区別する。
 
 作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。第7回CI（head `a663a459`、実merge checkout `24a342e8`）は全体success。Ubuntu全7check/20semantic/0cached/0errors・unit2944pass/134skip/4todo/0fail・fixture全12・golden109pass/4skip・size・Linux binary smoke、Mac web344pass/14skip・共有2pass/37assert・a11y8passが成功した。Windowsは未承認skip。 [PR #5](https://github.com/satoki252595/mitori/pull/5)は2026-10-06 JSTにmainへmerge済み（`09610433865b444372aeee1e4a00d628b5702c4c`）、作業branchはlocal/remoteとも削除した。merge treeは成功CIのtreeと一致し、golden専用commitを含む履歴を保持した。[CI経緯](progress/pr5-ci-20261005.md)、[統合・削除照合](progress/pr5-publication-20261006.json)。以前の4 remブランチも統合・整理済み。
 
@@ -38,7 +40,7 @@
 
 任意のCloudflare共有は実装・Miniflare・3browserまで検証済み、remote/Paid化は未実施。[必要になった場合の公開手順](progress/cloudflare-share-2026-10-05.md)。GitHubは現在private、ルートLICENSEは未設定。一般公開するOSSとして配布する段階では、公開範囲とライセンスを決める必要がある。
 
-最新compiled出荷物は7f77419（production品質promptの修正8f7176c）、Mac SHA1e170b95…、all-target全95MB hard内・Mac自己検査成功。compiled asset hard gateと起動表示中央値48.39ms/limit50が成功、target20 WARN。UIのmanifest/renderer/web manifest 3SHAは前版と一致。前版fdf71b9/e229e4eの初期JS gzip相当44,355B・実br40,066Bと、AC/quiet/factor1.000573のphysical footprint48.1571/156.5953MB、palette指定median30.5ms/round p9531.2msは元binaryの実測として保持し、新binaryへ付け替えない。advisory asset targetの未達も保持。[最新出荷物と旧測定](progress/shipping-validation-20261006.md)。
+前回のall-target compiled出荷検証は7f77419（production品質promptの修正8f7176c）、Mac SHA1e170b95…、all-target全95MB hard内・Mac自己検査成功。compiled asset hard gateと起動表示中央値48.39ms/limit50が成功、target20 WARN。UIのmanifest/renderer/web manifest 3SHAは前版と一致。前版fdf71b9/e229e4eの初期JS gzip相当44,355B・実br40,066Bと、AC/quiet/factor1.000573のphysical footprint48.1571/156.5953MB、palette指定median30.5ms/round p9531.2msは元binaryの実測として保持し、新binaryへ付け替えない。advisory asset targetの未達も保持。[最新出荷物と旧測定](progress/shipping-validation-20261006.md)。
 
 3OSSの実Muse/source照合は完了。説明省略と未取得のexact provider usageは限界として記録し、1,421引用先の無効0を全文semantic passとは扱わない。F11の同Claude-v5推計比0.476356はtarget内、保守的byte比1.1142のred・後続全prompt fresh未測定も保持。[品質証跡](progress/oss-quality-2026-10-05/README.md)。未完を「残なし」と報告しない。
 

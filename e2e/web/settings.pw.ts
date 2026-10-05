@@ -21,10 +21,11 @@ test("@wp10a Muse setup keeps execution registration on the CLI and saves only m
   });
   await page.goto(`/w/${WS}/settings`);
   await waitMark(page, "mitori:section:rendered");
+  await page.getByText("詳細設定（独自CLI・API）", { exact: true }).click();
   await page.getByRole("button", { name: "Muse Spark 1.3 Contributor / maxを入力" }).click();
   await page.getByLabel("実行ファイルと引数（JSON配列）").fill(JSON.stringify(patch.engines?.generic?.argv));
   await page.getByRole("button", { name: "エンジン設定を保存" }).click();
-  await expect(page.locator("pre")).toContainText("mitori config set engines.generic");
+  await expect(page.locator("details pre")).toContainText("bun run start -- config set engines.generic");
   expect((await mockLog()).filter((r) => r.method === "PATCH")).toHaveLength(0);
   Object.assign(view.settings.engines.generic, patch.engines?.generic);
   await page.getByRole("button", { name: "エンジン設定を保存" }).click();
@@ -34,6 +35,24 @@ test("@wp10a Muse setup keeps execution registration on the CLI and saves only m
   expect(saved.patch.models).toEqual(patch.models);
   expect(saved.patch.reasoning).toEqual(patch.reasoning);
   expect(saved.patch.privacy).toBeUndefined();
+});
+
+test("@wp10a guided setup gives local and external commands without saving browser execution settings", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}/settings`);
+  await waitMark(page, "mitori:section:rendered");
+  await page.getByRole("combobox", { name: "使うAI", exact: true }).selectOption("ollama");
+  await page.getByLabel("モデル名", { exact: true }).fill("qwen3:8b");
+  await page.getByRole("button", { name: "接続コマンドを作る" }).click();
+  await expect(page.locator("form pre").first()).toContainText("bun run start -- setup ollama --model 'qwen3:8b'");
+  await page.getByRole("button", { name: "登録コマンドをコピー" }).click();
+  expect((await mockLog()).filter((r) => r.method === "PATCH")).toHaveLength(0);
+  await page.getByRole("combobox", { name: "使うAI", exact: true }).selectOption("cursor");
+  await page.getByLabel("対象リポジトリのパス").fill("/repo/it's $(literal)");
+  await page.getByRole("button", { name: "接続コマンドを作る" }).click();
+  await expect(page.locator("form pre").first()).toContainText("bun run start -- setup cursor --repo '/repo/it'\\''s $(literal)'");
+  expect((await mockLog()).filter((r) => r.method === "PATCH")).toHaveLength(0);
+  await expect(page.locator("details")).not.toHaveAttribute("open");
 });
 
 test("@wp10a settings: editor (⇧O target) and single-key switch are saved in one debounced PATCH", async ({ page }) => {
