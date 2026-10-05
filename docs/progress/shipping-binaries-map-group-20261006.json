@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-05T16:52:30.602Z",
+  "sourceCommit": "fdf71b9be2e77217830eff1ce0764203b1543273",
+  "productionRuntimeCommit": "e229e4ef770366430c38a6afb39ae4ca596b53b3",
+  "sourceWorkingTreeChanged": false,
+  "build": "scripts/nd bun scripts/build-bin.ts --target all",
+  "hardLimitBytes": 95000000,
+  "targetBytes": 85000000,
+  "previous": "shipping-binaries-20261006.json",
+  "records": [
+    {
+      "path": "dist/mitori-darwin-arm64",
+      "bytes": 70548978,
+      "sha256": "60fb1c0d9be1b1579a491839d0513157d3f7d16388d815bf2ff33dcd68f0e94d",
+      "executed": true
+    },
+    {
+      "path": "dist/mitori-linux-x64",
+      "bytes": 89572832,
+      "sha256": "a5b4410738815eb9b2585d022572fb07f465eb2e2a3f66b6229b02feae47ed5b",
+      "executed": false
+    },
+    {
+      "path": "dist/mitori-windows-x64.exe",
+      "bytes": 94348288,
+      "sha256": "5b5eb539720beb56c7f7dec9fab904b8d0915f90cb63e2adcb9eed657c0ec860",
+      "executed": false
+    }
+  ],
+  "hostStartup": {
+    "command": "scripts/nd bun bench/asset/size.ts --compiled --json docs/progress/shipping-assets-map-group-20261006.json",
+    "exitCode": 0,
+    "medianDisplayedMs": 44.91,
+    "targetMs": 20,
+    "limitMs": 50,
+    "status": "target warning, inside hard limit",
+    "log": {
+      "name": "mitori-map-group-assets-20261006.log",
+      "sha256": "9ea0b19efe2c999afb7a0226d65cf77c4c453310be5ce46385349fbece65dddc"
+    },
+    "scope": "Rounded console median only; asset JSON does not contain startup samples."
+  },
+  "afterPerformance": {
+    "date": "2026-10-05T16:58:54.264Z",
+    "allBinariesAndUiSealsUnchanged": true,
+    "performance": "shipping-performance-map-group-20261006.json",
+    "command": "MITORI_E2E_BINARY=compiled scripts/nd bun bench/runner/run.ts --id srv.rss.idleEmpty --id srv.rss.idleLoaded --id ui.palette --exact --absolute --out docs/progress/shipping-performance-map-group-20261006.json",
+    "exitCode": 0,
+    "log": {
+      "name": "mitori-map-group-performance-20261006.log",
+      "sha256": "6f70b40c39b9318325d5d3b92cbf3ad0e111a5585ff77bdc3670a3759d5054cf"
+    }
+  }
+}

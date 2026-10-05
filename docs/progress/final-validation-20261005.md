@@ -1,6 +1,10 @@
 # 最終統合の検証（2026-10-05、進行中）
 
-対象は `codex/complete-backlog` の残タスク実装。2026-10-06 JST現在、第3回CIはUbuntu時間1件・Chromium時間3件が未達で、mergeは未完。後続sourceはfffa530 / 46dfcd3 / 552db80までcommit済み、pushと全CIの結果は後で追記する。未実施を成功として扱わない。
+対象は `codex/complete-backlog` の残タスク実装。2026-10-06 JST現在、第4回6d10eedでは3browser344pass/14skip・暗号化共有2pass/37assert・Ubuntu全checkが成功したが、unit4failとa11y起動8failで全体failure。後続sourcee229e4eの修正後はMap35unit/149assert、a11y6pass＋残るMap2pass、INT08 25pass/221assert、CI cassette8pass/31assert、custom TMPDIR3file16pass/75assert、Mac全check3.90sが成功。最新全CI・mergeは未完。[全CIと失敗単位の記録](pr5-ci-20261005.md)。
+
+fdf71b9（production e229e4e）のall-target build・Mac自己検査・asset hard budget・compiled UIは成功。初期JS44,355B gzip相当、F7 footprint48.1571/156.5953MB、F15指定中央値30.5ms・round p9531.2ms、起動44.91msは既存hard内。soft target未達を保持し、旧測定へ改善率を付けない。[最新出荷物](shipping-validation-20261006.md)。Windows native / Cloudflare公開 / Safari実機・実IMEは承認またはMac解除待ち。
+
+## 以前のCI・出荷物の履歴
 
 第3回のactual remote headは`ad4fa817`、PR応答headは旧`08bb494`のためmanual dispatchで確認した。Ubuntu wall76.46秒 / limit72.14秒、Mac335pass/14skip/3fail。[第三CI詳細](pr5-ci-20261005.md)。後続checkerはCPU数に応じたキューと標準JSDoc解析条件を追加し、回帰3pass/23assert成功。追加Chromium診断は114pass/2failでcold handoffの操作欠落を発見、修正・検証中。[診断条件](pr5-browser-profile-20261006.md)。高負荷診断はquiet性能証拠に数えず、既存quiet/AC/較正guardをbrowser CIのbuild後へ接続し、実出力先の証跡を保存する。
 
