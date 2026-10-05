@@ -184,6 +184,7 @@ export const UNIT_TEMPLATES: Readonly<Partial<Record<GenPromptId, string>>> = {
     "  observability: logs, metrics, tracing and debug switches.",
     '- Every block has "kind": prose, list or pitfall.',
     "- Base every statement on CLAIMS (repeat their cites exactly) or on N| lines in BODIES and locations in FACTS. No generic advice.",
+    "- State each numeric bound's subject, unit and scope as shown by the source: per observation, request and run are different limits, not one combined cap. If the input does not establish the scope, leave it uncertain and ask a question rather than inventing one.",
     "- CLAIMS already stand on the module pages: do not copy a claim sentence. Describe what holds across the system (name the modules it spans), and use a claim only as the example of such a property.",
     "- If the input does not establish a shared cross-module policy, describe the concrete boundary instead of inventing a common pattern. For server security, state the demonstrated default bind address and whether authentication is optional, including the condition that enables or bypasses it. Do not present a conditional protection as always active.",
     "- Explain each mechanism under its most relevant aspect once. Refer to its consequence briefly under another aspect; do not repeat the same cache, helper or lookup explanation under hotpaths, caching and reliability.",

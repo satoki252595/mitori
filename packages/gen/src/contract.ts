@@ -676,7 +676,7 @@ export const GEN_PROMPTS = {
   },
   "gen.quality": {
     id: "gen.quality",
-    version: "gen.quality@4",
+    version: "gen.quality@5",
     system: "gen.system",
     stage: "S6o",
     data: ["CLAIMS", "BODIES", "FACTS", "EXISTING"],
