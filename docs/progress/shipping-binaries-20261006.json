@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-05T16:06:08.788Z",
+  "sourceCommit": "46dfcd30ee112aa824947608dff850e68985995f",
+  "sourceWorkingTreeChanged": false,
+  "build": "scripts/nd bun scripts/build-bin.ts --target all",
+  "hardLimitBytes": 95000000,
+  "targetBytes": 85000000,
+  "previous": "shipping-binaries-20261005.json",
+  "records": [
+    {
+      "path": "dist/mitori-darwin-arm64",
+      "bytes": 70548978,
+      "sha256": "1f8056e8e73c46016e551b4adaadc46dc562d1b46f7aaaa4539a0ed054267ef8",
+      "executed": true
+    },
+    {
+      "path": "dist/mitori-linux-x64",
+      "bytes": 89572832,
+      "sha256": "b78c5fca3450fa089fbfbe40b96cd2ca2506655e5371799935247d11e2b4095d",
+      "executed": false
+    },
+    {
+      "path": "dist/mitori-windows-x64.exe",
+      "bytes": 94348288,
+      "sha256": "f40d8697a679194c9978d92e73779d87660242ffb6091421e1b21666d806a5b6",
+      "executed": false
+    }
+  ],
+  "hostStartup": {
+    "command": "scripts/nd bun bench/asset/size.ts --compiled --json docs/progress/shipping-assets-startup-20261006.json",
+    "exitCode": 0,
+    "medianDisplayedMs": 41.3,
+    "targetMs": 20,
+    "limitMs": 50,
+    "status": "target warning, inside hard limit",
+    "log": {
+      "name": "mitori-shipping-assets-startup-20261006.log",
+      "sha256": "efddb68ed835e94b18fe3a05a3f11113556231c59a272fd0ce226d0b60a71628"
+    },
+    "scope": "Median is the console display rounded to two decimals; asset JSON does not contain startup samples. Binary hash verified unchanged after startup and performance checks."
+  }
+}

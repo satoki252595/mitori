@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-05T16:06:50.269Z",
+  "sourceCommit": "46dfcd30ee112aa824947608dff850e68985995f",
+  "binarySha256": "1f8056e8e73c46016e551b4adaadc46dc562d1b46f7aaaa4539a0ed054267ef8",
+  "quiet": {
+    "loadavg": 7.25830078125,
+    "noisy": false,
+    "waited": 0
+  },
+  "machine": {
+    "cpu": "Apple M5 Max",
+    "cores": 18,
+    "ramGb": 128,
+    "os": "Darwin 27.0.0",
+    "bun": "1.4.2",
+    "node": "22.23.3",
+    "chrome": "153.0.8010.12",
+    "loadavg": 7.25830078125,
+    "noisy": false,
+    "waited": 0,
+    "power": "ac"
+  },
+  "factor": {
+    "factor": 1.0639369389975055,
+    "source": "measured"
+  },
+  "ready": true,
+  "browserOrBenchStarted": false,
+  "scope": "Precondition check only; failed readiness is pending performance validation, never a passed benchmark."
+}

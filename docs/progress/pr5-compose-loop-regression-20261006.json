@@ -1,0 +1,274 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-06",
+  "scope": "summaries of existing logs only; no new execution",
+  "source": {
+    "commit": null,
+    "state": "Initial unit record predates commit and fixture type correction; follow-up corrected source was committed as followUpRuntimeCommit. Per-run records retain their separate timing and provenance.",
+    "checkerAndGuardCommit": "fffa530",
+    "followUpRuntimeCommit": "46dfcd30ee112aa824947608dff850e68985995f"
+  },
+  "targetedUnit": {
+    "log": {
+      "name": "mitori-compose-scope-final-unit.log",
+      "sha256": null,
+      "originalRawOverwritten": true,
+      "evidence": "agent/operator initial summary; original raw unavailable after fixture-correction rerun"
+    },
+    "passed": 17,
+    "failed": 0,
+    "assertions": 68,
+    "elapsedMs": 367,
+    "files": [
+      {
+        "path": "apps/web/src/composer/session.test.ts",
+        "passed": 9
+      },
+      {
+        "path": "apps/web/src/threads/loop-lint.test.ts",
+        "passed": 5
+      },
+      {
+        "path": "apps/web/src/threads/round.test.ts",
+        "passed": 3
+      }
+    ],
+    "proves": "Composer/Loop/Undo target units; not native browser handoff"
+  },
+  "format": {
+    "tool": "Biome",
+    "files": 6,
+    "passed": true,
+    "evidence": "operator report"
+  },
+  "changes": [
+    {
+      "area": "loop first-use",
+      "behavior": "initial workspace observation does not close a Composer opened during cold handoff"
+    },
+    {
+      "area": "session origin",
+      "behavior": "draft POST/PATCH, submit and jobs keep the originating workspace and avoid mutating the switched Composer/review"
+    },
+    {
+      "area": "old Undo jobs",
+      "behavior": "late Undo/round responses stay associated with the originating workspace and do not append jobs to the switched workspace"
+    },
+    {
+      "area": "reader delayed callbacks",
+      "behavior": "delayed actions validate navigation, workspace and page before applying"
+    }
+  ],
+  "nativeBrowserHistory": [
+    {
+      "log": {
+        "name": "mitori-native-handoff-regression.log",
+        "sha256": "4d28c2062e819532b4c7ab502c1b91ea3cedb5828d9ea241877c03740794d66d"
+      },
+      "projects": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "workers": 1,
+      "tests": 27,
+      "passed": 23,
+      "failed": 4,
+      "elapsedSeconds": 58.8,
+      "failures": [
+        {
+          "path": "e2e/web/native-reader.pw.ts",
+          "line": 190,
+          "behavior": "Escape during pending import, then e focus",
+          "projects": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ]
+        },
+        {
+          "path": "e2e/web/reader.pw.ts",
+          "line": 193,
+          "behavior": "cite peek position",
+          "projects": [
+            "firefox"
+          ]
+        }
+      ],
+      "suiteSuccess": false
+    },
+    {
+      "log": {
+        "name": "mitori-native-handoff-failed-only.log",
+        "sha256": "0746811038ace6a3960b3a63ce52052858d5f89f53bf146424d46cbc5e46d7f9"
+      },
+      "projects": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "workers": 1,
+      "tests": 6,
+      "passed": 3,
+      "failed": 3,
+      "elapsedSeconds": 27.6,
+      "passing": [
+        {
+          "path": "e2e/web/reader.pw.ts",
+          "line": 193,
+          "behavior": "cite peek position",
+          "projects": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ]
+        }
+      ],
+      "failures": [
+        {
+          "path": "e2e/web/native-reader.pw.ts",
+          "line": 190,
+          "behavior": "Escape during pending import, then e focus",
+          "projects": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ]
+        }
+      ],
+      "suiteSuccess": false
+    }
+  ],
+  "followingFullCheck": {
+    "log": {
+      "name": "mitori-final-scope-check-20261006.log",
+      "sha256": "9b73b12d58072b7c299e4b10479f62cf7e77339271e521887eadaa3670164eee"
+    },
+    "elapsedSeconds": 3.65,
+    "exit": 1,
+    "passedSteps": [
+      "biome",
+      "boundaries",
+      "cr-ledger",
+      "budgets",
+      "contract-index"
+    ],
+    "failedSteps": [
+      "tsc",
+      "svelte-check"
+    ],
+    "typecheck": {
+      "projects": 20,
+      "semanticBuilds": 7,
+      "errors": 3,
+      "elapsedSeconds": 1.59
+    },
+    "fixtureErrors": [
+      {
+        "path": "apps/web/src/composer/session.test.ts",
+        "line": 49,
+        "code": "TS2379"
+      },
+      {
+        "path": "apps/web/src/composer/session.test.ts",
+        "line": 132,
+        "code": "TS2769"
+      },
+      {
+        "path": "apps/web/src/threads/round.test.ts",
+        "line": 88,
+        "code": "TS2769"
+      }
+    ],
+    "productionTypeErrorsObserved": 0,
+    "status": "fixture errors resolved by failed-only check; original failure retained"
+  },
+  "latestLoopFixesBrowser": {
+    "status": "completed",
+    "runtimeSource": "46dfcd3",
+    "checkerAndGuardSource": "fffa530",
+    "log": {
+      "name": "mitori-native-escape-composer-final.log",
+      "sha256": "8f8cd8bad51deeb6a339c8f06304b1e9e8dd22be2a767c311874994c2ffedff3"
+    },
+    "setup": "fresh canonical globalSetup build",
+    "githubActionsEnv": "unset",
+    "mockPort": 4399,
+    "trace": "retain-on-failure; raw trace excluded",
+    "workers": 1,
+    "scope": {
+      "path": "e2e/web/native-reader.pw.ts",
+      "line": 190,
+      "behavior": "Escape during pending citation import, then j and e"
+    },
+    "projects": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "tests": 3,
+    "passed": 3,
+    "failed": 0,
+    "elapsedSeconds": 6.3,
+    "exit": 0,
+    "exitSource": "operator report; log confirms all three cases pass",
+    "success": true,
+    "fullBrowserSuite": false,
+    "ciSuccessClaim": false,
+    "cleanup": {
+      "port4399": "empty",
+      "temporaryDiagnostics": false,
+      "source": "operator report"
+    }
+  },
+  "interpretation": {
+    "earlierFailuresRetained": true,
+    "nativeSuccessFromUnitClaim": false,
+    "ciGreenClaim": false,
+    "rawTraceAuthAndPrivatePathsExcluded": true
+  },
+  "additionalProviderCalls": 0,
+  "afterFixtureTypeCorrection": {
+    "changes": "test fixture types only",
+    "targetedUnit": {
+      "log": {
+        "name": "mitori-compose-scope-final-unit.log",
+        "sha256": "7f809a48c53a50ff84e7995d77db96f493300baa0b0890f5ca2c9238991e9aea"
+      },
+      "passed": 17,
+      "failed": 0,
+      "assertions": 68,
+      "elapsedMs": 376,
+      "originalLogPathOverwritten": true
+    },
+    "failedOnlyCheck": {
+      "log": {
+        "name": "mitori-final-scope-check-failed-only-20261006.log",
+        "sha256": "85bf4e3472c91b20f4599946eb939c4c7521f765d24f58fc72041bba841455e1"
+      },
+      "elapsedSeconds": 3.42,
+      "exit": 0,
+      "steps": [
+        "tsc",
+        "svelte-check"
+      ],
+      "typecheck": {
+        "projects": 20,
+        "semanticBuilds": 1,
+        "cached": 19,
+        "errors": 0,
+        "elapsedSeconds": 0.52
+      },
+      "svelte": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    "combinedContentChecks": {
+      "passed": 7,
+      "basis": "five content checks from initial run plus two failed-only successes",
+      "singleColdWholeRun": false,
+      "ciSuccessClaim": false
+    }
+  }
+}

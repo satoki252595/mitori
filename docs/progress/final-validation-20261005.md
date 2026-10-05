@@ -1,8 +1,14 @@
 # 最終統合の検証（2026-10-05、進行中）
 
-対象は `codex/complete-backlog` の残タスク実装。最終 commit と PR の結果は後で追記する。未実施を成功として扱わない。
+対象は `codex/complete-backlog` の残タスク実装。2026-10-06 JST現在、第3回CIはUbuntu時間1件・Chromium時間3件が未達で、mergeは未完。後続sourceはfffa530 / 46dfcd3 / 552db80までcommit済み、pushと全CIの結果は後で追記する。未実施を成功として扱わない。
+
+第3回のactual remote headは`ad4fa817`、PR応答headは旧`08bb494`のためmanual dispatchで確認した。Ubuntu wall76.46秒 / limit72.14秒、Mac335pass/14skip/3fail。[第三CI詳細](pr5-ci-20261005.md)。後続checkerはCPU数に応じたキューと標準JSDoc解析条件を追加し、回帰3pass/23assert成功。追加Chromium診断は114pass/2failでcold handoffの操作欠落を発見、修正・検証中。[診断条件](pr5-browser-profile-20261006.md)。高負荷診断はquiet性能証拠に数えず、既存quiet/AC/較正guardをbrowser CIのbuild後へ接続し、実出力先の証跡を保存する。
 
 [PR #5](https://github.com/satoki252595/mitori/pull/5)を作成・pushした。初回CIの28failは修正し、第2回は335pass/14skip/Chromium時間3fail、Ubuntuは補正済み時間超過だった。経緯は [PR実CI資料](pr5-ci-20261005.md)。source修正`7a39335`は標準checked solution builderへ変更、Mac cold全check9.42秒/20semantic builds・warm3.68秒/20cached、両exit0。出荷runtimeは`ed95494`のまま。native Reader/sizeは14pass/4skip、引用位置は全3browser成功。最終PR全体成功・mergeはまだ未実施。
+
+更新版runtime46dfcd3の対象unit17pass/68assert、fixture型修正後tsc/Svelte3.42s成功（他5段は初回成功）、Escape→j→eは3browser全成功。all-target build・Mac自己検査・初期JS44,345B・compiled footprint48.4071/163.2358MB・palette中央値31.6msも確認した。[最新出荷物と実測](shipping-validation-20261006.md)。旧runtimeの以下の記録を新sourceへ付け替えず、全CIとは区別する。
+
+quiet/ref条件のProcessType比較ではStandard0pass/3fail、Interactive3pass。同3case・同旧checkoutの限定結果として保存し、runner起動設定をInteractiveへ変更。初回再bootstrapはexit5、旧job終了後の同plist bootstrapで復旧した。全CIで確認予定。[条件・失敗を含むprofile](pr5-browser-profile-20261006.md)。
 
 ## 最初の全体実行と限定再検証
 

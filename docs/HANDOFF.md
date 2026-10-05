@@ -1,11 +1,11 @@
-# mitori 引き継ぎ資料（2026-10-05 残タスク対応中）
+# mitori 引き継ぎ資料（2026-10-06 残タスク対応中）
 
 > **現在の入口は §★。以下の「履歴★」と §0 / §0a / §0b は以前の記録。**
 > 利用者の続行指示に加え、今回の Linux 既存 Docker ハーネス例外と、任意 LLM 対応・Muse Contributor / max の選択を反映した。
 
 ## ★ 現在の状態（残タスク全件と最近のOSS検証）
 
-作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。統合前`origin/main`は`815957fd01fb4856b5ae8d3aa2091edd1ddd263f`。実装`d0fa109`・golden`f9955cf`をpushして[PR #5](https://github.com/satoki252595/mitori/pull/5)を作成済み。初回CIで見つかった問題の修正は`ed95494`へcommitし、修正後の全CI・merge・branch整理を進めている。[実CI経緯](progress/pr5-ci-20261005.md)。以前の4 remブランチの統合・整理は完了済み。
+作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。統合前`origin/main`は`815957fd01fb4856b5ae8d3aa2091edd1ddd263f`。実装`d0fa109`・golden`f9955cf`をpushして[PR #5](https://github.com/satoki252595/mitori/pull/5)を作成済み。第3回は実remote head `ad4fa817`をmanual dispatchしたが、Ubuntuの時間1件・Chromiumの時間3件でfailure。後続sourceはchecker/guard `fffa530`、native handoff/Composer scope `46dfcd3`、runner ProcessType `552db80`までcommit済み。対象unit17pass/68assert、fixture型修正後tsc/Svelteと他5内容check、Escape→j→e全3browserが成功。全CI・merge・branch整理は未完。[実CI経緯](progress/pr5-ci-20261005.md)。以前の4 remブランチの統合・整理は完了済み。現在のPR応答headは旧`08bb494`のままで、remote refとの一致を確認するまでmergeしない。
 
 ### ★.1 実装・単位検証済み
 
@@ -29,12 +29,12 @@
 
 ### ★.3 完了前に残ること
 
-1. 初期JSはPR修正後の通常S1/S2で44,210 bytes（43.2KiB）、hard60KiB gateを成功。cold proposalの既存Svelteと同じ表示・CSS・28px control、人の文書採用、引用範囲をreal UXで確認した。最終shipping実daemon（source ed95494 / Mac SHA ea86a183…）のstatic Map/ReaderもJS実br39,942B / gzip相当44,216B、HTML/JSON/document込みencoded total83,899 / 77,958B、served SHA一致・provider0を確認。生成済みmockと静的fixtureの違いと以前の42.8KiBは証跡に明記。
+1. 更新版runtime `46dfcd3`をall-target buildし、compiled Mac（SHA `1f8056e8…`）のstatic Map/Readerは初期JS実br40,083B / gzip相当44,345B（43.3KiB）で60KiB hard内。HTML/JSON/document込みencoded total84,061 / 78,112B、served SHA一致・4build seal不変・provider0。Mac70,548,978 / Linux89,572,832 / Windows94,348,288Bで全95MB hard内、Mac自己検査成功。[更新版出荷物](progress/shipping-validation-20261006.md)。前版ed95494の44,216Bも旧JSONへ保持。
 2. 生成の改善と3OSSのsource照合は完了。m3eの条件付き変更先、Jevのchoose内部・過去履歴の保持理由・PRESS_KEY全手順などの説明省略は限界として記録した。識別子検査L1のvacuousを意味の正しさと同一視しない。
-3. 最終Mac checkは標準checked solution builderへ変更後cold9.42秒（20semantic builds/0cached）、warm3.68秒（20cached）、両exit0。未検査cacheの意味エラー検出回帰2pass/16assert。失敗19int filesは88pass/733assert、renderer17pass/144assert。Windows95.89MB超過はraw/br重複埋込みを省いて94,346,752Bへ修正し全target95MB以内。Mac compiled自己検査は成功。source7a39335のLinux native filesystemで全cold check11.44秒/exit0、両type cache空・全20semantic builds/0cached/0errors、15秒target・30秒limitを達成。以前の失敗と13.02/14.59/16秒の成功も保持。第2回PR CIは335pass/14skip/Chromium時間3fail、Ubuntuは補正後時間超過。修正後再CI待ち。
-4. **回答待ち:** 今回限りのWindows native CI Nix例外、専用Cloudflare resource作成＋deployの承認。Macは最終確認前に再ロックしてnative Safariは解除待ち。WebKitをSafari実機・実IME検証の代わりとして報告しない。
+3. Mac checkは標準checked solution builderへ変更後cold9.42秒（20semantic builds/0cached）、warm3.68秒（20cached）、両exit0。未検査cacheの意味エラー検出回帰2pass/16assertを保持し、追加check回帰は3pass/23assert。JSDoc解析条件を標準tsc-bへ揃えた後のMac cold checkは10.07秒/exit0、20semantic builds/0cached。失敗19int filesは88pass/733assert、renderer17pass/144assert。Windows95.89MB超過はraw/br重複埋込みを省いて94,346,752Bへ修正し全target95MB以内。Mac compiled自己検査は成功。source7a39335のLinux native filesystemで全cold check11.44秒/exit0、両type cache空・全20semantic builds/0cached/0errors、15秒target・30秒limitを達成。以前の失敗と13.02/14.59/16秒の成功も保持。第3回PR CI（run37329097381、exact ad4fa817）はfailure。Mac335pass/14skip/Chromium時間3fail、Ubuntuは全7内容検査成功でもwall76.46秒が補正limit72.14秒を超えてexit1、unit以降未到達。[CI証跡](progress/pr5-ci-20261005.md)。後続17pass/68assert、初回whole check3.65sのfixture型3errorは修正後tsc/Svelte限定3.42sで解消。他5段の初回成功と区別し、最新cold whole timingとは扱わない。Escape→j→eはfresh buildで3browser全成功。[対象回帰](progress/pr5-compose-loop-regression-20261006.json)。次CIは未実施。
+4. **回答待ち:** 今回限りのWindows native CI Nix例外、専用Cloudflare resource作成＋deployの承認、Safari実機/実IMEのためのMacロック解除。AX取得やWebKitをnative操作成功へ丸めない。[browser診断](progress/pr5-browser-profile-20261006.md)の旧noisy runとfactor範囲外中止は保持。後続quiet/ref条件の同3case比較はStandard0pass/3fail、Interactive3passで、現runnerへInteractiveを再登録した。次の全CIで確認するまで速度3failの解消とは扱わない。
 5. 最終証跡更新、修正版push・green後merge・不要branch削除。利用者の公開意向は今回も有効。未完を残なしとは報告しない。
-6. F7/F15は最終shipping版で計測済み。Mac physical footprintはempty48.31MB（limit50内・target30 WARN）、loaded161.10MB（limit250内・target150 WARN）、React peak886.86MB（limit1000内・target700 WARN）。real crit paletteの指定統計中央値31.9ms（limit33内・target16 WARN）、round間p95 33.2ms（全sampleが33以内ではない）。resident値やmock workerの別計測と区別する。[最終計測](progress/shipping-performance-20261005.json)。F11は13callの完全入力とrun/task/hashを照合し、同Claude-v5推計296051 / 621491 =0.476356でtarget0.5以内を確認。費用管理の保守的byte比1.1142は元red reportを維持し、provider exactは未測定。[同counterの証拠](progress/oss-quality-2026-10-05/token-efficiency-comparable.md)。
+6. 更新版compiledのF7/F15はAC・quiet、factor0.993150で実測済み。physical footprint empty48.4071MB（limit50・target30 WARN）、loaded163.2358MB（limit250・target150 WARN）、real crit palette指定統計median31.6ms（limit33・target16 WARN）、round間p95 32.6ms。[最新実測](progress/shipping-performance-20261006.json)。旧ed95494の48.31 / 161.10 / 31.9msとp95 33.2ms、React indexer peak886.86MBの別測定も保持。residentとは区別。F11は同Claude-v5推計296051/621491=0.476356でtarget内、保守的byte比1.1142のredとprovider exact/後続全prompt fresh未測定を保持。[token証拠](progress/oss-quality-2026-10-05/token-efficiency-comparable.md)。
 
 ---
 
