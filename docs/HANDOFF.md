@@ -5,7 +5,7 @@
 
 ## ★ 現在の状態（残タスク全件と最近のOSS検証）
 
-作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。統合前`origin/main`は`815957fd01fb4856b5ae8d3aa2091edd1ddd263f`。[PR #5](https://github.com/satoki252595/mitori/pull/5)の第5回CIはhead `ddf748c`とremoteが一致し、Macの3browser 344pass/14skip/0fail・暗号化共有2pass/37assert・a11y8passが成功した。Ubuntuは全7checkの内容・20project意味検査が成功したが、wall43.57秒/limit42.95秒で時間gateが失敗しunit以降は未到達。source `e229e4e`の第4回失敗単位の修正・局所成功は保持し、最新全CI・merge・branch整理は未完。[実CI経緯](progress/pr5-ci-20261005.md)。以前の4 remブランチの統合・整理は完了済み。最新compiled出荷物は更新済み。型検査の実行条件を確認し、全CIの成功とhead一致を確認してからmergeする。
+作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。統合前`origin/main`は`815957fd01fb4856b5ae8d3aa2091edd1ddd263f`。[PR #5](https://github.com/satoki252595/mitori/pull/5)の第6回CIはhead `141a53b`とremoteが一致し、Macの3browser 344pass/14skip/0fail・暗号化共有2pass/37assert・a11y8passが成功した。Ubuntuは全7check・20project意味検査・時間gate（64.28秒/limit70.18秒）が成功。unitは2943pass/134skip/4todo/1failで、INT08修復のconsent→readyが23,944ms/limit20,000msを超えた。fixture/golden/size・binary smokeは未到達、全CI・merge・branch整理は未完。[実CI経緯](progress/pr5-ci-20261005.md)。以前の4 remブランチの統合・整理は完了済み。最新compiled出荷物は更新済み。型検査の実行条件を確認し、全CIの成功とhead一致を確認してからmergeする。
 
 ### ★.1 実装・単位検証済み
 
@@ -15,7 +15,7 @@
 - floorplanはdefault offのfeature flagで実装。8 corpusのactor保持 / determinism、fallback25%、40room algorithm約1.4–1.5msを確認。[floorplan証跡](progress/floorplan-20261005.json)。初回worker起動時間とは区別した。
 - 未計測7benchを5UI＋2agent residentとして測定。[UI計測](progress/ui-bench-20261005/README.md)。scanSummary中央値1,413.6msは1,000ms target超過だが2,000ms limit内のWARN。他の対象予算はgreen。Muse終了5秒後は0 process / 0MBで、Claude常駐cacheを測ったとは扱わない。
 - AC接続・前後負荷guardを維持して静かな基準機を校正。2026-10-05T03:01:28Z、5試行best316.23ms。[基準機記録](progress/reference-machine-20261005.md)。以前の補正結果を新係数で遡って成功へ変えていない。
-- Nix管理のself-hosted Mac runnerは `mitori-reference-mac`、label `mitori-reference` で online。第5回CIの3browser全suite344pass/14skip、shared viewer2pass、a11y8passが成功。第4回のa11y起動8failと局所Map違反2件は後続修正で解消。Ubuntuの時間gateが失敗したため全CIの成功は未完。
+- Nix管理のself-hosted Mac runnerは `mitori-reference-mac`、label `mitori-reference` で online。第6回CIの3browser全suite344pass/14skip、shared viewer2pass、a11y8passが成功。第4回のa11y起動8failと局所Map違反2件は後続修正で解消。Ubuntuのcheck時間gateは成功したがINT08修復の時間assertが1failで全CIの成功は未完。
 - WindowsはNix/ZigのJob Object helper、SHA検証・配布assets、path対応、manual native CIを用意。Nix crossbuildは成功し、native実行は未実施。[Windows報告](progress/windows-job-20261005.md)。unverified helper/profileを安全機能付きと表示しない。
 - 暗号化共有はAES-GCM・署名付きsnapshot・R2/D1 quota・期限・コメントとCLIを実装。Miniflare/D1とChromium/Firefox/WebKit、保存file://viewerを確認、Worker dryrun15.41KiBraw/5.30KiBgz。[共有報告](progress/cloudflare-share-2026-10-05.md)。remote resource作成 / deploy / Paid化はしていない。
 
@@ -31,10 +31,12 @@
 
 ### ★.3 完了前に残ること
 
-1. **全CIとGit整理:** 第5回ddf748cのMac全段は成功。Ubuntuは全7内容成功だが43.57秒/limit42.95秒で時間gate失敗。後続5ca80a1でtestkit全barrelによる重複型検査を回避し、cold2CPU Linux全7/20semantic/0cachedが16.25秒、Mac全7が4.06秒で成功。型検査と上限は維持し、次CIを確認してgreenかつhead一致後にmerge・不要branch削除を行う。以前の失敗履歴は保持する。
+1. **全CIとGit整理:** 第6回141a53bのMac全段・Ubuntu全7内容/時間gateは成功。Ubuntu unitはINT08修復の時間assertだけ1fail（23,944ms >20,000ms）。後続5ca80a1によるtestkit importの修正は全20意味検査を維持してCI gateを通過した。INT08の原因を修正し、全CI greenかつhead一致後にmerge・不要branch削除を行う。以前の失敗履歴は保持する。
+
+第6回後、INT08の準備先と実ゲートのGo cache不一致をtest-onlyで修正。一時HOME内の実cacheをtrusted fixtureで準備し、20秒assert/production gateを維持した。Linux2CPUの対象fileは21pass/5skip/0fail/206assertions、修復case1,686.96ms。Biome・対象tsc・独立reviewも成功。全CIの成功は次runで確認する。
 2. **Windows native:** 今回限りの公式Bun依存に対するNix例外は回答待ち。crossbuild成功をnative Job Object/配布実行成功へ丸めない。
 3. **Cloudflare公開:** 専用R2/D1作成＋Worker deployの具体的な承認待ち。実装・Miniflare・3browserは検証済み、remote/Paid化は未実施。
-4. **Safari実機/実IME:** 第5回CI後のCUA再確認でもMacロック中。Firefox/WebKitとsynthetic IMEの成功は実Safari/IMEの代わりにしない。
+4. **Safari実機/実IME:** 第6回Mac job終了後のCUA再確認でもMacロック中。Firefox/WebKitとsynthetic IMEの成功は実Safari/IMEの代わりにしない。
 
 最新compiled出荷物は7f77419（production品質promptの修正8f7176c）、Mac SHA1e170b95…、all-target全95MB hard内・Mac自己検査成功。compiled asset hard gateと起動表示中央値48.39ms/limit50が成功、target20 WARN。UIのmanifest/renderer/web manifest 3SHAは前版と一致。前版fdf71b9/e229e4eの初期JS gzip相当44,355B・実br40,066Bと、AC/quiet/factor1.000573のphysical footprint48.1571/156.5953MB、palette指定median30.5ms/round p9531.2msは元binaryの実測として保持し、新binaryへ付け替えない。advisory asset targetの未達も保持。[最新出荷物と旧測定](progress/shipping-validation-20261006.md)。
 

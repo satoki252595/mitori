@@ -8,7 +8,7 @@
 // accepts; the accept is uncommitted and undoable; out-of-scope writes fail the job without escalation.
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, relative } from "node:path";
 import type { ChildHandle, Spawner, SpawnSpec } from "@mitori/agent";
 import { createFakeSpawner, promptOfStdin, REQUIRED_FLAGS, type ScriptLine, synth } from "@mitori/agent/testing";
 import type {
@@ -144,6 +144,9 @@ let web: Awaited<ReturnType<Int["browser"]>>;
 let userHome: string;
 let skew = 0;
 const clock = { now: () => (Date.now() + skew) as UnixMs, iso: () => new Date(Date.now() + skew).toISOString() as never };
+// Unsandboxed gates inherit PATH/HOME only, then pin offline, read-only module resolution. Their default Go cache
+// therefore belongs to this temporary HOME, unlike the explicit mitori-owned cache of sandboxed gates.
+const goGateEnv = () => ({ PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: userHome, GOFLAGS: "-mod=readonly", GOPROXY: "off" });
 
 beforeAll(async () => {
   repo = await buildFixture("go-small");
@@ -159,17 +162,19 @@ beforeAll(async () => {
   web = await int.browser();
   const go = Bun.which("go");
   if (go) {
-    const cache = join(int.home, "cache", "go", ws);
-    mkdirSync(cache, { recursive: true });
-    // The gate runner uses this isolated, mitori-owned cache. Warm it with trusted fixture code before any AI edit;
-    // the measured POST→ready still includes the actual failing vet, continuation, edit, diff and formatter gates.
-    const vet = Bun.spawn([go, "vet", "./..."], {
+    const cache = Bun.spawnSync([go, "env", "GOCACHE"], { cwd: repo.root, env: goGateEnv() });
+    expect(cache.exitCode).toBe(0);
+    const rel = relative(userHome, cache.stdout.toString().trim());
+    expect(isAbsolute(rel) || rel.startsWith("..")).toBe(false);
+    // Warm the actual unsandboxed gate cache with unchanged, trusted fixture tests (including vet). The measured
+    // POST→ready still includes the failing vet, continuation, edit, diff and formatter gates, with the same 20 s bound.
+    const test = Bun.spawn([go, "test", "-count=1", "./..."], {
       cwd: repo.root,
-      env: { ...process.env, GOTOOLCHAIN: "local", GOCACHE: cache, GOFLAGS: "-mod=readonly", GOPROXY: "off" },
+      env: goGateEnv(),
       stdout: "ignore",
       stderr: "pipe",
     });
-    const [code, err] = await Promise.all([vet.exited, new Response(vet.stderr).text()]);
+    const [code, err] = await Promise.all([test.exited, new Response(test.stderr).text()]);
     expect({ code, err }).toMatchObject({ code: 0 });
   }
 }, 60_000);
@@ -455,7 +460,7 @@ describe("INT-08 agent mode: a cross-file Fix in a worktree, gates, a REPAIR tur
     if (Bun.which("go")) {
       const vet = Bun.spawnSync(["go", "vet", "./..."], {
         cwd: repo.root,
-        env: { ...process.env, GOTOOLCHAIN: "local", GOCACHE: join(int.home, "cache", "go", ws), GOFLAGS: "-mod=readonly", GOPROXY: "off" },
+        env: goGateEnv(),
       });
       expect({ code: vet.exitCode, err: vet.stderr.toString() }).toMatchObject({ code: 0 });
     }

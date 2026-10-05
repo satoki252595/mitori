@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "scope": "INT08 test-only, private Linux ARM64 diagnostic export",
+  "changes": "trusted prewarm and accepted-code vet use same temporary HOME, PATH, offline readonly env as unsandboxed gates; go test -count=1 ./... before any agent edit",
+  "sourceSha256": "e67f8a65d667d561c7b0acb282a06123826013e0886f2887f4ebf0278eb24b00",
+  "sourceDiffFiles": [
+    "test/int/int08.test.ts"
+  ],
+  "diagnosticExport": "real gate Go env GOCACHE probe and sanitized timings only, no test outcome/assertion changes",
+  "conditions": {
+    "architecture": "aarch64",
+    "imageSha256": "771c128cdf9578d2f989d34c4e6a367e3140b8f7fbfcef451ac604f3b09a4c91",
+    "cpuset": [
+      0,
+      1
+    ],
+    "cpuQuota": 2,
+    "filesystem": "native container",
+    "frozenInstallExit": 0,
+    "network": "disconnected after frozen install",
+    "bun": "1.4.2",
+    "node": "22.23.3",
+    "go": "1.26.8"
+  },
+  "cache": {
+    "oldPrewarmRelative": "mitori-home/cache/go/workspace-key",
+    "actualAndNewPrewarmRelative": "fixture-home/.cache/go-build",
+    "explicitGocache": false,
+    "warmAndGateCacheMatch": true,
+    "actualProbeExit": 0
+  },
+  "prewarm": {
+    "event": "trusted-fixture-prewarm",
+    "ms": 8249,
+    "code": 0,
+    "cacheWithinFixtureHome": true,
+    "explicitGocache": false
+  },
+  "repair": {
+    "limitMs": 20000,
+    "elapsedMs": 1686.96,
+    "sameWorkflowAssert": true,
+    "gates": [
+      {
+        "event": "real-go-gate",
+        "mode": "vet",
+        "ms": 1205,
+        "code": 1,
+        "cacheProbeCode": 0,
+        "cacheWithinFixtureHome": true,
+        "warmCacheMatches": true,
+        "homeMatches": true,
+        "explicitGocache": false,
+        "readonly": true,
+        "offline": true
+      },
+      {
+        "event": "real-go-gate",
+        "mode": "vet",
+        "ms": 96,
+        "code": 0,
+        "cacheProbeCode": 0,
+        "cacheWithinFixtureHome": true,
+        "warmCacheMatches": true,
+        "homeMatches": true,
+        "explicitGocache": false,
+        "readonly": true,
+        "offline": true
+      },
+      {
+        "event": "real-go-gate",
+        "mode": "vet",
+        "ms": 91,
+        "code": 0,
+        "cacheProbeCode": 0,
+        "cacheWithinFixtureHome": true,
+        "warmCacheMatches": true,
+        "homeMatches": true,
+        "explicitGocache": false,
+        "readonly": true,
+        "offline": true
+      },
+      {
+        "event": "real-go-gate",
+        "mode": "test",
+        "ms": 172,
+        "code": 0,
+        "cacheProbeCode": 0,
+        "cacheWithinFixtureHome": true,
+        "warmCacheMatches": true,
+        "homeMatches": true,
+        "explicitGocache": false,
+        "readonly": true,
+        "offline": true
+      }
+    ]
+  },
+  "result": {
+    "exit": 0,
+    "pass": 21,
+    "skip": 5,
+    "fail": 0,
+    "assertions": 206,
+    "seconds": 23.13,
+    "preloadProblems": 0,
+    "realProviderSpawnHits": 0
+  },
+  "rawLog": {
+    "bytes": 11774,
+    "sha256": "1afbbe4cafec3d03ed44099f574b095a611f7aa64f353d5cfa06a0d4162ebe28"
+  },
+  "limitations": [
+    "Linux ARM64 scoped file proof; Ubuntu whole CI remains failed until rerun",
+    "macOS-only sandbox cases skipped, production sandbox and gates unchanged",
+    "private instrumentation adds Go env probes; all original assertions and 20s bound unchanged"
+  ],
+  "baseCommit": "141a53bb6a1701ea6f00e55f98337e89d6bd884b",
+  "macTargetedTypecheck": {
+    "exit": 0,
+    "seconds": 0.72,
+    "cold": false
+  },
+  "independentReadOnlyReview": {
+    "actionableFindings": 0,
+    "productionChanged": false,
+    "twentySecondAssertionChanged": false
+  }
+}
