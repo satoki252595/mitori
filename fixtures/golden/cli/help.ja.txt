@@ -34,6 +34,7 @@ mitori digest [--max-tokens N]
 mitori gen [--effort overview|standard|complete] [--scope <section>…]      見積りを出して TTY で確認してから生成
 mitori gen --prep [--effort E] [--scope <section>…] [--continue <pr_id>]   この session の agent が書く packet を作る
 mitori gen --ingest <pr_id> [--partial] [--model <model id>]             agent が書いた out/*.ndjson を取り込む
+  --repo /absolute/repo は起動元フォルダに関係なく対象repoを指定します。
   --prep / --ingest は mitori 自身は API を使いません。exit 0=妥当 / 1=誤り（直して再実行）/ 3=期限切れ・fingerprint 不一致。
 
 ## install
@@ -44,13 +45,25 @@ mitori install <claude-code|claude|codex|agents-md> [--scope user|project] [--mc
   --mcp  MCP server も登録（opt-in）   --yes  表示した claude plugin コマンドも実行
 
 ## mcp
-mitori mcp
+mitori mcp [--repo <path>]
+  --repo  MCP host の起動ディレクトリにかかわらず、このリポジトリに接続します。
   stdio の MCP server（opt-in）。8 tool: mitori_status / list_threads / get_bundle / get_doc / find_symbol / reply /
   submit_patch / propose_resolution。登録: claude mcp add mitori -- mitori mcp
 
 ## config
 mitori config set <path> <value>
   実行系の設定（engines.* / limits.* / pins / security.* など）を変えます。TTY での確認が必須です。<value> は JSON（数値・真偽・"文字列"）か文字列。
+
+## setup
+mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> [options]
+  既存のLLMを設定し、TTYで1回確認して保存します。インストール・モデル呼出しは行いません。
+  --model ID                     ローカル/任意APIのモデル（Grok既定grok-4.7、Muse既定contributor）
+  --repo /absolute/repo          Codex/Cursor/Antigravityの外部セッションとMCP対象
+  --binary /absolute/path        Claude/Museの実行ファイル（Museはnative binary）
+  --base-url URL --key-env NAME  OpenAI互換APIのURLとキーの環境変数名（キー自体は保存しない）
+  --in-price N --out-price N     任意remoteモデルのUSD/百万token単価
+  --effort low|medium|high|xhigh|max  Museの推論強度（既定max、HTTPへは送らない）
+  --print                        設定・連携手順の表示だけ（保存・接続しない）
 
 ## export
 mitori export --html [-o|--out <file|dir>] [--no-code] [--level newcomer|standard|expert] [--lang ja|en] [--decisions]

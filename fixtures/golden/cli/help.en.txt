@@ -34,6 +34,7 @@ mitori digest [--max-tokens N]
 mitori gen [--effort overview|standard|complete] [--scope <section>…]      estimate, confirm on a TTY, generate
 mitori gen --prep [--effort E] [--scope <section>…] [--continue <pr_id>]   build a packet for the agent of this session
 mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in the agent's out/*.ndjson
+  --repo /absolute/repo selects the repository regardless of the working directory.
   --prep / --ingest make no API calls of their own. Exit 0 valid / 1 errors (fix and re-run) / 3 expired or fingerprint.
 
 ## install
@@ -44,13 +45,25 @@ mitori install <claude-code|claude|codex|agents-md> [--scope user|project] [--mc
   --mcp  also register the MCP server (opt-in)   --yes  also run the printed claude plugin commands
 
 ## mcp
-mitori mcp
+mitori mcp [--repo <path>]
+  --repo  Bind to this repository regardless of the MCP host's working directory.
   stdio MCP server (opt-in). 8 tools: mitori_status / list_threads / get_bundle / get_doc / find_symbol / reply /
   submit_patch / propose_resolution. Register: claude mcp add mitori -- mitori mcp
 
 ## config
 mitori config set <path> <value>
   Change an execution setting (engines.*, limits.*, pins, security.*, …). Needs a TTY confirmation. <value> is JSON or a string.
+
+## setup
+mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> [options]
+  Configure an existing provider after one terminal confirmation. No installs or model calls.
+  --model ID                     Required for local/custom APIs; Grok defaults to grok-4.7, Muse to contributor
+  --repo /absolute/repo          External Codex/Cursor/Antigravity session and MCP workspace
+  --binary /absolute/path        Claude/Muse executable (Muse: native binary)
+  --base-url URL --key-env NAME  OpenAI-compatible URL and credential environment variable name
+  --in-price N --out-price N     Custom remote model prices in USD per million tokens
+  --effort low|medium|high|xhigh|max  Muse reasoning effort (default max; HTTP does not send effort)
+  --print                        Preview settings/instructions without saving or connecting
 
 ## export
 mitori export --html [-o|--out <file|dir>] [--no-code] [--level newcomer|standard|expert] [--lang ja|en] [--decisions]
