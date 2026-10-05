@@ -106,6 +106,7 @@ export function testAssets(): Assets {
 }
 
 export interface HarnessOptions {
+  providerLogin?: DaemonOptions["providerLogin"];
   home?: string;
   clock?: Clock;
   timers?: Timers;
@@ -159,6 +160,7 @@ export async function startHarness(opts: HarnessOptions = {}): Promise<Harness> 
   const userHome = tempDir("mitori-user-");
   const domain: FakeDomain = { scans: 0, loads: 0, closes: 0, busy: false, scanGate: null };
   const started = await startDaemon({
+    ...(opts.providerLogin ? { providerLogin: opts.providerLogin } : {}),
     home,
     userHome,
     version: opts.version ?? TEST_VERSION,

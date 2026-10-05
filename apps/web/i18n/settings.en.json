@@ -75,5 +75,15 @@
   "settings.reloadSettings": "Reload settings",
   "settings.advancedProvider": "Advanced setup (custom CLI / API)",
   "settings.setupInvalid": "Check the model, API URL, environment variable name, prices and repository path.",
-  "settings.quickSetupCwd": "The launcher is unavailable; run this from a terminal in your mitori clone."
+  "settings.quickSetupCwd": "The launcher is unavailable; run this from a terminal in your mitori clone.",
+  "settings.useApi": "Connect with an API key (check its pricing and allowance)",
+  "settings.officialSignIn": "Sign in to official {provider}",
+  "settings.subscriptionLogin": "Sign in to the official tool with your own account. Its supported plan allowance and billing settings apply. Do not enter API keys or credentials in mitori. Review overage settings in the official tool.",
+  "settings.ollamaLogin": "Local models need no login. This button is for Ollama cloud, which consumes your plan allowance or credits.",
+  "settings.antigravityLogin": "Sign in in the official Antigravity app or your own CLI. Set AI Credit Overages to Never in its official settings to stop automatic credit overages.",
+  "settings.officialLoginGuide": "Open official sign-in instructions",
+  "settings.loginOpened": "Opened a terminal for authentication. Review the executable and finish official sign-in. The official tool keeps your credentials. Reload settings when finished.",
+  "settings.loginFallback": "Could not open a terminal. Run this command in your own terminal.",
+  "settings.copyLogin": "Copy sign-in command",
+  "settings.museSubscription": "Saved API keys take priority over browser sign-in. After terminal confirmation, this action clears the official Muse sign-in and reconnects through the browser. Other Muse sessions will be signed out too. Review plan allowance and overages in the official tool."
 }

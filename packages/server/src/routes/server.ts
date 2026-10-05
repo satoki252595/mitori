@@ -9,6 +9,8 @@ import {
   type InitReq,
   MitoriError,
   type Ok,
+  PROVIDER_AUTH_IDS,
+  type ProviderAuthId,
   type WorkspaceKey,
   type WorkspaceStatus,
   type WorkspaceSummary,
@@ -157,6 +159,17 @@ export function serverHandlers(s: ServerServices): RouteHandlers {
     "GET /settings": () => s.settings.view(),
     "PATCH /settings": ({ body }) => s.settings.patch(body),
     "PATCH /settings/exec": ({ body }) => s.settings.patchExec(body),
+    "POST /settings/provider-login": ({ auth, body }) => {
+      if (auth.client !== "web" || !auth.session || auth.bearer) throw new MitoriError("E_FORBIDDEN", "provider login needs a browser session");
+      if (
+        !isPlainObject(body) ||
+        Object.keys(body).length !== 1 ||
+        typeof body.provider !== "string" ||
+        !(PROVIDER_AUTH_IDS as readonly string[]).includes(body.provider)
+      )
+        throw invalid("provider", "expected only a supported provider name");
+      return s.providerLogin?.(body.provider as ProviderAuthId) ?? { opened: false };
+    },
     "GET /workspaces": () => s.workspaces.list(),
     "POST /workspaces": async ({ body }) => {
       if (!isPlainObject(body) || typeof body.target !== "string") throw invalid("target", "target required");

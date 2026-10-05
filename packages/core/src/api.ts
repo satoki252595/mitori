@@ -137,6 +137,7 @@ import type {
   Xxh3,
 } from "./domain.ts";
 import type { InitialUiView } from "./initial-ui.ts";
+import type { ProviderAuthId } from "./provider-auth.ts";
 
 /* ============================================================================
  * 0. Transport constants
@@ -1582,6 +1583,16 @@ export interface PatchExecSettingReq {
   confirm: true;
 }
 
+/** Open a visible terminal for an official sign-in flow; no executable or credential is accepted [CR provider-auth-1]. */
+export interface ProviderLoginReq {
+  provider: ProviderAuthId;
+}
+
+/** Terminal launch was submitted. This does not assert that the provider is authenticated. */
+export interface ProviderLoginRes {
+  opened: boolean;
+}
+
 /** Workspace settings view. */
 export type WorkspaceSettingsView = EffectiveSettings;
 
@@ -1760,6 +1771,7 @@ export interface ApiRoutes {
   "GET /settings": Route<Empty, Empty, undefined, SettingsView>;
   "PATCH /settings": Route<Empty, Empty, PatchSettingsReq, SettingsView>;
   "PATCH /settings/exec": Route<Empty, Empty, PatchExecSettingReq, SettingsView>;
+  "POST /settings/provider-login": Route<Empty, Empty, ProviderLoginReq, ProviderLoginRes>;
   "GET /usage/summary": Route<Empty, { range: UsageRange; ws?: WorkspaceKey }, undefined, UsageSummary>;
   "GET /usage/records": Route<Empty, PageQuery & { ws?: WorkspaceKey }, undefined, Page<UsageRecord>>;
   "GET /workspaces": Route<Empty, Empty, undefined, WorkspaceSummary[]>;
@@ -1918,6 +1930,7 @@ export const ROUTE_META = {
   "GET /settings": { auth: "required", kind: "json", mutates: false },
   "PATCH /settings": { auth: "required", kind: "json", clients: ["web"], mutates: true },
   "PATCH /settings/exec": { auth: "required", kind: "json", clients: ["cli"], mutates: true },
+  "POST /settings/provider-login": { auth: "required", kind: "json", clients: ["web"], mutates: true, maxBody: 256 },
   "GET /usage/summary": { auth: "required", kind: "json", mutates: false },
   "GET /usage/records": { auth: "required", kind: "json", mutates: false },
   "GET /workspaces": { auth: "required", kind: "json", mutates: false },

@@ -4,6 +4,38 @@ import { genericProviderPatch, MUSE_ARGS } from "../../apps/web/src/settings/pro
 import { DEFAULTS, settings } from "./support/fixture.ts";
 import { configure, mockLog, WS, waitMark } from "./support/helpers.ts";
 
+test("@wp10a official sign-in is an explicit click and Grok defaults to the subscription session", async ({ page }) => {
+  await configure({});
+  const requests: unknown[] = [];
+  await page.route("**/api/v1/settings/provider-login", async (route) => {
+    requests.push(route.request().postDataJSON());
+    await route.fulfill({ json: { opened: requests.length === 1 } });
+  });
+  await page.goto(`/w/${WS}/settings`);
+  await waitMark(page, "mitori:section:rendered");
+  expect(requests).toHaveLength(0);
+  await page.getByRole("button", { name: "公式Claude Codeにログイン", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "認証用のターミナルを開きました" })).toBeVisible();
+  expect(requests).toEqual([{ provider: "claude" }]);
+  await page.getByRole("combobox", { name: "使うAI", exact: true }).selectOption("grok");
+  await expect(page.getByLabel("接続先URL（/v1）").first()).not.toBeVisible();
+  await page.getByRole("button", { name: "公式Grok Buildにログイン", exact: true }).click();
+  await expect(page.locator("form pre").first()).toContainText("auth grok");
+  expect(requests).toEqual([{ provider: "claude" }, { provider: "grok" }]);
+  await page.getByRole("button", { name: "接続コマンドを作る" }).click();
+  await expect(page.locator("form pre").last()).toContainText("setup grok --repo");
+  await page.getByLabel("APIキーで接続する（料金と利用枠を別途確認）").check();
+  await expect(page.getByLabel("接続先URL（/v1）").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "公式Grok Buildにログイン", exact: true })).not.toBeVisible();
+  await page.getByRole("button", { name: "接続コマンドを作る" }).click();
+  await expect(page.locator("form pre").first()).toContainText("setup grok --api");
+  await page.getByRole("combobox", { name: "使うAI", exact: true }).selectOption("ollama");
+  await expect(page.getByText(/ローカルモデルはログイン不要です/)).toBeVisible();
+  await page.getByRole("combobox", { name: "使うAI", exact: true }).selectOption("antigravity");
+  await expect(page.getByRole("link", { name: "公式ログイン手順を開く" })).toHaveAttribute("href", "https://antigravity.google/docs/cli/install/");
+  expect(requests).toHaveLength(2);
+});
+
 test("@wp10a Muse setup keeps execution registration on the CLI and saves only model settings in the browser", async ({ page }) => {
   await configure({});
   const view = settings(DEFAULTS);

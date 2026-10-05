@@ -4,13 +4,22 @@
   a stretch item (☆).
 -->
 <script lang="ts">
-import type { GenEngineId, ReaderLevel, ReasoningEffort } from "@mitori/core";
+import { type GenEngineId, PROVIDER_AUTH_IDS, type ProviderAuthId, type ReaderLevel, type ReasoningEffort } from "@mitori/core";
 import { onMount } from "svelte";
 import { copyText } from "../shell/clipboard.ts";
+import { authDisplayKind } from "../shell/fmt.ts";
 import { t } from "../shell/index.ts";
 import { markAfterPaint } from "../shell/perf.ts";
 import { setReaderLevel, useStores } from "../stores/app.svelte.ts";
-import { genericProviderCommand, genericProviderPatch, MUSE_ARGS, providerSetupCommand, SETUP_PROVIDERS, type SetupProvider } from "./provider.ts";
+import {
+  genericProviderCommand,
+  genericProviderPatch,
+  MUSE_ARGS,
+  providerAuthCommand,
+  providerSetupCommand,
+  SETUP_PROVIDERS,
+  type SetupProvider,
+} from "./provider.ts";
 
 const s = useStores();
 onMount(() => {
@@ -46,19 +55,24 @@ let setupRepo = $state("");
 let guidedCommand = $state("");
 let guidedError = $state(false);
 let reloading = $state(false);
-const setupExternal = $derived(["codex", "cursor", "antigravity"].includes(simpleProvider));
-const setupHttp = $derived(["grok", "ollama", "lmstudio", "openai"].includes(simpleProvider));
+let useApi = $state(false);
+let signingIn = $state(false);
+let loginResult = $state<"opened" | "fallback" | "">("");
+const setupExternal = $derived(["codex", "cursor", "antigravity"].includes(simpleProvider) || (simpleProvider === "grok" && !useApi));
+const setupHttp = $derived(["ollama", "lmstudio", "openai"].includes(simpleProvider) || (simpleProvider === "grok" && useApi));
+const authProvider = $derived(PROVIDER_AUTH_IDS.includes(simpleProvider as ProviderAuthId) ? (simpleProvider as ProviderAuthId) : null);
+const authCommand = $derived(authProvider ? providerAuthCommand(authProvider, s.session.settings?.launcher) : "");
 const setupLocalApi = $derived(/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?\/v1\/?$/u.test(simpleBaseUrl));
 const setupPrices = $derived(
   simpleProvider === "openai" ||
     (simpleProvider === "muse" && !!simpleModel.trim() && simpleModel.trim() !== "muse-spark-1.3-contributor") ||
-    (simpleProvider === "grok" && !!simpleModel.trim() && simpleModel.trim() !== "grok-4.7") ||
+    (simpleProvider === "grok" && useApi && !!simpleModel.trim() && simpleModel.trim() !== "grok-4.7") ||
     (["ollama", "lmstudio"].includes(simpleProvider) && (!setupLocalApi || /(?:[:-]cloud)$/i.test(simpleModel.trim()))),
 );
 const PROVIDER_NAMES: Record<SetupProvider, string> = {
   claude: "Claude Code",
   muse: "Muse",
-  grok: "Grok",
+  grok: "Grok Build",
   ollama: "Ollama",
   lmstudio: "LM Studio",
   openai: "",
@@ -99,6 +113,7 @@ $effect(() => {
   if (provider === "generic") {
     simpleModel = model.replace(/^generic:/, "");
     if (protocol === "openai-chat") {
+      if (simpleProvider === "grok") useApi = true;
       simpleBaseUrl = baseUrl;
       simpleKeyEnv = keyEnv;
       simpleInputPrice = inputPrice;
@@ -110,6 +125,8 @@ $effect(() => {
 
 function chooseSetup(value: SetupProvider) {
   simpleProvider = value;
+  useApi = false;
+  loginResult = "";
   simpleModel = value === "muse" ? "muse-spark-1.3-contributor" : value === "grok" ? "grok-4.7" : "";
   simpleBaseUrl =
     value === "grok"
@@ -128,6 +145,21 @@ function chooseSetup(value: SetupProvider) {
   guidedError = false;
 }
 
+async function signIn() {
+  if (!authProvider || signingIn) return;
+  signingIn = true;
+  const selected = authProvider;
+  loginResult = "";
+  try {
+    const result = await s.api.call("POST /settings/provider-login", { params: {}, body: { provider: selected } });
+    if (authProvider === selected) loginResult = result.opened ? "opened" : "fallback";
+  } catch {
+    if (authProvider === selected) loginResult = "fallback";
+  } finally {
+    signingIn = false;
+  }
+}
+
 function createSetup(e: SubmitEvent) {
   e.preventDefault();
   guidedError = false;
@@ -136,6 +168,7 @@ function createSetup(e: SubmitEvent) {
     guidedCommand = providerSetupCommand(
       {
         provider: simpleProvider,
+        api: useApi,
         model: simpleModel,
         repo: setupRepo || s.workspace.status?.info.root,
         baseUrl: simpleBaseUrl,
@@ -299,6 +332,25 @@ async function saveProvider(e: SubmitEvent) {
       <label class="row"><span>{t("settings.quickProvider")}</span><select value={simpleProvider} onchange={(e) => chooseSetup(e.currentTarget.value as SetupProvider)}>
         {#each SETUP_PROVIDERS as name (name)}<option value={name}>{name === "openai" ? t("settings.openaiCompatible") : PROVIDER_NAMES[name]}</option>{/each}
       </select></label>
+      {#if simpleProvider === "grok"}
+        <label class="row check"><input type="checkbox" bind:checked={useApi} /><span>{t("settings.useApi")}</span></label>
+      {/if}
+      {#if authProvider && !(simpleProvider === "grok" && useApi)}
+        {#if simpleProvider === "antigravity"}
+          <p class="note">{t("settings.antigravityLogin")}</p>
+          <a class="btn btn-sec btn-s" href="https://antigravity.google/docs/cli/install/" target="_blank" rel="noopener noreferrer">{t("settings.officialLoginGuide")}</a>
+        {:else}
+          <button type="button" class="btn btn-sec btn-s" disabled={signingIn} onclick={signIn}>{t(signingIn ? "app.loading" : "settings.officialSignIn", { provider: PROVIDER_NAMES[simpleProvider] })}</button>
+          <p class="note">{t(simpleProvider === "ollama" ? "settings.ollamaLogin" : "settings.subscriptionLogin")}</p>
+        {/if}
+        {#if loginResult === "opened"}<p class="note" role="status">{t("settings.loginOpened")}</p>{/if}
+        {#if loginResult === "fallback"}
+          <p class="note" role="status">{t("settings.loginFallback")}</p>
+          {#if !s.session.settings?.launcher}<p class="note">{t("settings.quickSetupCwd")}</p>{/if}
+          <pre class="mono">{authCommand}</pre>
+          <button type="button" class="btn btn-sec btn-s" onclick={() => copyText(authCommand, s, "copy.command")}>{t("settings.copyLogin")}</button>
+        {/if}
+      {/if}
       {#if setupExternal}
         <p class="note">{t("settings.externalSetup")}</p>
         <label class="row"><span>{t("settings.setupRepo")}</span><input class="mono" bind:value={setupRepo} required={!s.workspace.status?.info.root} placeholder={s.workspace.status?.info.root ?? "/path/to/repository"} /></label>
@@ -316,7 +368,7 @@ async function saveProvider(e: SubmitEvent) {
             <label class="row"><span>{t("settings.priceInput")}</span><input type="number" min="0" step="any" required bind:value={simpleInputPrice} /></label>
             <label class="row"><span>{t("settings.priceOutput")}</span><input type="number" min="0" step="any" required bind:value={simpleOutputPrice} /></label>
           {/if}
-        {#if simpleProvider === "muse"}<p class="note">{t("settings.museContributor")}</p>{/if}
+        {#if simpleProvider === "muse"}<p class="note">{t("settings.museSubscription")} <a href="https://dev.meta.ai/docs/muse-code/auth" target="_blank" rel="noopener noreferrer">{t("settings.officialLoginGuide")}</a></p><p class="note">{t("settings.museContributor")}</p>{/if}
       {/if}
       <button type="submit" class="btn btn-pri btn-s">{t("settings.createSetup")}</button>
       {#if guidedError}<p class="bad" role="alert">{t("settings.setupInvalid")}</p>{/if}
@@ -369,7 +421,7 @@ async function saveProvider(e: SubmitEvent) {
       <div class="eng card">
         <b class="mono">{e.engine}</b>
         <span>{e.installed ? t("settings.installed", { version: e.version ?? "" }) : t("settings.notInstalled")}</span>
-        <span>{t(`statusbar.auth.${e.auth}`)}</span>
+        <span>{t(`statusbar.auth.${authDisplayKind(e)}`)}</span>
         {#each e.problems as p (p.code)}<span class="bad">{t(`error.${p.code}`)}</span>{/each}
       </div>
     {:else}

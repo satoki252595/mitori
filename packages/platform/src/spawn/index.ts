@@ -4,6 +4,8 @@
  */
 import { computeSafePath } from "./safe-path.ts";
 
+export { type AuthSpawn, spawnOfficialLogin } from "./official-login.ts";
+
 /**
  * SAFE_PATH (§2.3) [SEC-10]: from the daemon's start env, drop empty/relative PATH entries, entries under any
  * registered workspace root or the cwd the CLI was started in, `node_modules/.bin`, `.venv/bin`; the daemon then

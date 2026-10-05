@@ -4,7 +4,7 @@ import { usage } from "./io.ts";
 
 export const PROVIDERS = ["claude", "muse", "grok", "ollama", "lmstudio", "openai", "codex", "cursor", "antigravity"] as const;
 export type Provider = (typeof PROVIDERS)[number];
-export const SESSION_PROVIDERS = new Set<Provider>(["codex", "cursor", "antigravity"]);
+export const SESSION_PROVIDERS = new Set<Provider>(["codex", "cursor", "antigravity", "grok"]);
 
 // ADR-0015 profile; kept equal to the adapter's required flags, never the auto-updating Muse launcher.
 const MUSE_ARGS = [
@@ -34,6 +34,7 @@ const MUSE_ARGS = [
 ];
 export interface SetupInput {
   provider: Provider;
+  api?: boolean;
   binary?: string;
   model?: string;
   baseUrl?: string;
@@ -49,7 +50,7 @@ function models(model: ModelId): GlobalSettings["models"] {
 /** Explicit prices for known presets; custom remote models cannot silently inherit another model's rates. */
 export function setupPatch(input: SetupInput): DeepPartial<GlobalSettings> {
   const { provider } = input;
-  if (SESSION_PROVIDERS.has(provider))
+  if (SESSION_PROVIDERS.has(provider) && !input.api)
     return { defaultEngine: "session", defaultGenEngine: "session", engines: { session: { enabled: true } }, ui: { defaultExecPath: "copy" } };
   if (provider === "claude") {
     const model = input.model ?? "claude-sonnet-5-5";

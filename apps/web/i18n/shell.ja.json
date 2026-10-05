@@ -246,5 +246,6 @@
   "rail.pathDone": "読み終えました · 全{min}分",
   "rail.pathStops": "停車駅",
   "rail.stopRead": "読了",
-  "rail.pathDoneBadge": "✓ 読了"
+  "rail.pathDoneBadge": "✓ 読了",
+  "statusbar.auth.local": "ローカル接続（APIキー不要）"
 }

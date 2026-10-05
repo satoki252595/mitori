@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { useCatalog } from "./__tests__/catalog.ts";
-import { ellipsizeMiddle, fmtClock, fmtInt, fmtLocShort, fmtRelative } from "./fmt.ts";
+import { authDisplayKind, ellipsizeMiddle, fmtClock, fmtInt, fmtLocShort, fmtRelative } from "./fmt.ts";
 import { fmtDelta, fmtDuration, fmtTokens, fmtUsd } from "./index.ts";
+
+test("local keyless connection is not displayed as signed out; CLI and missing-key failures remain distinct", () => {
+  expect(authDisplayKind({ engine: "generic", auth: "none", installed: true })).toBe("local");
+  expect(authDisplayKind({ engine: "generic", auth: "none", installed: false })).toBe("none");
+  expect(authDisplayKind({ engine: "claude-cli", auth: "none", installed: true })).toBe("none");
+  expect(authDisplayKind({ engine: "generic", auth: "unknown", installed: true })).toBe("unknown");
+});
 
 describe("WEB-U fmt (ux.md §9.3, JUDGEMENT §6.17) — table driven", () => {
   beforeEach(() => useCatalog("ja"));

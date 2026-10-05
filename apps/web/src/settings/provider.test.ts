@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { genericProviderCommand, genericProviderPatch, MUSE_ARGS, providerSetupCommand } from "./provider.ts";
+import { genericProviderCommand, genericProviderPatch, MUSE_ARGS, providerAuthCommand, providerSetupCommand } from "./provider.ts";
 
 const input = {
   model: "generic:muse-spark-1.3-contributor" as const,
@@ -50,6 +50,13 @@ test("guided setup quotes repository paths literally and requires the local mode
   const exact = Bun.spawnSync(["/bin/sh", "-c", `bun() { printf '%s\\0' "$@"; }\n${absolute}`]);
   expect(exact.exitCode).toBe(0);
   expect(exact.stdout.toString().split("\0").slice(0, -1)).toEqual(["/clone with spaces/scripts/start.ts", "setup", "cursor", "--repo", repo]);
+  expect(providerSetupCommand({ provider: "grok", repo })).toContain("--repo");
+  expect(providerSetupCommand({ provider: "grok", repo })).not.toContain("--key-env");
+  expect(providerSetupCommand({ provider: "grok", api: true })).toContain("--api");
+  expect(providerAuthCommand("muse", { command: "/path with space/bun", args: ["/clone/scripts/start.ts"] })).toBe(
+    "'/path with space/bun' '/clone/scripts/start.ts' auth muse",
+  );
+  expect(() => providerAuthCommand("invalid" as never)).toThrow();
 });
 
 test("API settings keep keys in named environment variables, disable argv, and reject unsafe endpoints", () => {

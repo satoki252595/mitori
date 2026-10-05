@@ -11,7 +11,7 @@
 import type { Effort, EngineId, EngineStatus, GenEstimate, ReasoningEffort, ScanSummaryView, SubscriptionWindow } from "@mitori/core";
 import { untrack } from "svelte";
 import type { LauncherCommand } from "../settings/provider.ts";
-import { fmtHm, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
+import { authDisplayKind, fmtHm, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
 import { hasKey } from "../shell/i18n.ts";
 import { t } from "../shell/index.ts";
 import {
@@ -220,7 +220,7 @@ const scopeText = $derived(est ? t(`gen.card.scope.${effort}`, { n: moduleChapte
   <p class="sub">
     {t("gen.card.supplement", {
       engine: engine,
-      auth: t(`gen.card.auth.${engineStatus?.auth ?? "unknown"}`),
+      auth: t(`gen.card.auth.${authDisplayKind(engineStatus)}`),
       c: est?.concurrency ?? "–",
       window: windowText || t("gen.window.uncalibrated"),
     })}

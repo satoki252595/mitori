@@ -14,6 +14,8 @@ import type {
   Iso8601,
   Logger,
   Metrics,
+  ProviderAuthId,
+  ProviderLoginRes,
   Random,
   SafeWriter,
   SchedulerStatus,
@@ -72,6 +74,7 @@ export const bunServe: Serve = (port, app) => {
 
 export interface DaemonOptions {
   launcher?: { command: string; args: string[] };
+  providerLogin?: (provider: ProviderAuthId) => Promise<ProviderLoginRes>;
   /** `~/.mitori` (or `MITORI_HOME`); must exist. */
   home: string;
   /** The user's `$HOME`. */
@@ -247,6 +250,7 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
       resolveStopped = r;
     });
     const services: ServerServices = {
+      ...(o.providerLogin ? { providerLogin: o.providerLogin } : {}),
       info: { version: o.version, pid: o.pid, startedAt, build: o.build, home: o.home, port: () => port },
       control: {
         shutdown: (reason) => void daemon.stop(reason),

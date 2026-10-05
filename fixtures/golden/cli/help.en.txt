@@ -58,12 +58,22 @@ mitori config set <path> <value>
 mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> [options]
   Configure an existing provider after one terminal confirmation. No installs or model calls.
   --model ID                     Required for local/custom APIs; Grok defaults to grok-4.7, Muse to contributor
-  --repo /absolute/repo          External Codex/Cursor/Antigravity session and MCP workspace
+  --repo /absolute/repo          External Codex/Cursor/Antigravity/Grok session and MCP workspace
+  --api                         Select metered Grok API instead of an existing external session
   --binary /absolute/path        Claude/Muse executable (Muse: native binary)
   --base-url URL --key-env NAME  OpenAI-compatible URL and credential environment variable name
   --in-price N --out-price N     Custom remote model prices in USD per million tokens
   --effort low|medium|high|xhigh|max  Muse reasoning effort (default max; HTTP does not send effort)
   --print                        Preview settings/instructions without saving or connecting
+  Examples: mitori setup grok --repo /absolute/repo (existing session) / mitori setup grok --api (XAI_API_KEY)
+
+## auth
+mitori auth <claude|muse|codex|cursor|antigravity|grok|ollama> [--binary /absolute/path]
+  Review the executable and SHA-256 on a human TTY, then start the official login-only command.
+  Credentials stay with the official tool. No installs, model calls, or mitori configuration changes.
+  Uses cursor-agent for Cursor and native Muse/Grok binaries. Sign into Antigravity in its official app.
+  Muse uses logout then login after confirmation, clearing saved sign-in/API keys to switch to account authentication.
+  Local Ollama models need no authentication; cloud usage consumes Ollama allowances or credits.
 
 ## export
 mitori export --html [-o|--out <file|dir>] [--no-code] [--level newcomer|standard|expert] [--lang ja|en] [--decisions]

@@ -3,11 +3,16 @@
  * U+2212) live here; the words around the numbers (`約` / `~`, `秒` / `s`, `分` / `min`) come from the active
  * catalog's `fmt.*` keys (§9.1), so no UI text is written in code (lint `mitori/no-ja-literal`).
  */
-import type { UiLang } from "@mitori/core";
+import type { EngineStatus, UiLang } from "@mitori/core";
 import { NUMBER_FORMAT, type UsdContext } from "../contract.ts";
 import { tIn } from "./i18n.ts";
 
 const MINUS = NUMBER_FORMAT.deltaMinus;
+
+/** A healthy keyless local HTTP connection is distinct from a logged-out official CLI. */
+export function authDisplayKind(status?: Pick<EngineStatus, "engine" | "auth" | "installed"> | null): string {
+  return status?.engine === "generic" && status.auth === "none" && status.installed ? "local" : (status?.auth ?? "unknown");
+}
 
 /** M-notation starts at the contract's `mThreshold` (0.1 M since CR m1-96: `≈0.12M`, `0.38M`, `0.4M`). */
 const M_FROM = NUMBER_FORMAT.tokens.mThreshold;
