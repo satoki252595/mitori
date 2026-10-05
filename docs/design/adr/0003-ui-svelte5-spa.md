@@ -28,3 +28,10 @@
 - UI の試験: 純 TS のロジックは `bun test`、component の振る舞いは Playwright（`e2e/component/`）。happy-dom と bun-plugin-svelte（0.0.6）は使わない。
 - 初期 JS の hard gate は M3 まで 150KB（60KB は警告）、CSS 25KB、Web フォント 0、Review 前に CM6 を要求しない、の 4 つ。chunk ごとの値は M3 で確定。
 - 認証は header（`Mitori-Session`）と `localStorage`。SSE は fetch stream（EventSource は header を送れない）。
+
+## 改訂 R2（2026-10-05、初期JS目標と初回操作）
+
+- 初期Map / Readerは同じSvelte componentをdaemonで描画し、認証済み`GET /ws/:ws/ui`でHTMLとredacted DTOを返す。大きなJSONは既存sectionと同じ8KiB閾値・br/gzip negotiationで配信する。任意HTMLの入力やinline executable scriptは受け付けない。
+- 初期JSはnative controllerでMapの選択・移動、Readerのlevel / hash / j,k / TOC / 引用popoverを扱う。Composer・Review・Paletteなどを初めて必要とした時に既存Svelte UIを読み、選択・focus・scroll・費用見積りを引き渡す。Readerの窓取得・SSE・Undo・人の同意は維持する。
+- effort切替は3種のdry estimateと非活性のSSR variantsを初回に受け取り、追加fetchなしで切り替える。同じGenEstimateCardのvisible clockと明示クリック条件を使い、費用・data同意を描画だけで成立させない。
+- M3の初期JS hard gateを60KiB gzipへ進めた。PR #5の通知・引用focus修正後は通常S1/S2で44,210 bytes（43.2KiB）、shipping実daemonのstatic Map/Readerで44,216 bytes gzip相当を確認済み。CSS / fonts / CM6条件も維持し、HTML・SVG・JSON込みの転送量はJSとは別に記録する。以前の42.8KiBも履歴として保持し、fixtureと圧縮条件、最終CIの証跡はprogressに保存する。

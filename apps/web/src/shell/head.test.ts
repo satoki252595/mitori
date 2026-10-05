@@ -1,6 +1,6 @@
 /**
  * WEB-U-030 head inline script: restores theme · reader level · language · code-pane width · rail from
- * `mitori_ui` before the first paint, never throws on a bad cookie, preloads the language + view chunks, and the
+ * `mitori_ui` before the first paint, never throws on a bad cookie, leaves enhanced chunks for first use, and the
  * inlined source (Function.toString, the CSP-hashed bytes) runs stand-alone.
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
@@ -33,20 +33,17 @@ const at = (pathname: string) => {
 };
 
 describe("WEB-U-030 bootHead", () => {
-  test("restores every field and preloads the reader chunk on a doc URL", () => {
+  test("restores every field without preloading the enhanced Reader on a doc URL", () => {
     at("/w/ws_cr1t00000000/doc/s3");
     const { d, h, props, links } = fakeDoc(`a=1; mitori_ui=${serializeUiCookie({ v: 1, lv: "e", lg: "en", th: "d", cw: 640, rc: 1 })}`);
     bootHead(d, parseUiCookieFields, CHUNKS);
     expect(h.dataset).toEqual({ level: "expert", theme: "dark", rail: "collapsed", boot: "doc" });
     expect(h.lang).toBe("en");
     expect(props.get("--ctx-w-code")).toBe("640px");
-    expect(links.map((l) => [l.rel, l.href])).toEqual([
-      ["modulepreload", CHUNKS.en],
-      ["modulepreload", CHUNKS.reader],
-    ]);
+    expect(links).toEqual([]);
   });
 
-  test("garbage / missing cookie ⇒ defaults, no throw; S1 preloads the map chunk", () => {
+  test("garbage / missing cookie ⇒ defaults, no throw; S1 does not preload the enhanced map", () => {
     at("/w/ws_cr1t00000000");
     for (const cookie of ["mitori_ui=%E0%A4%A", "mitori_ui={not json", "mitori_ui=", "", `mitori_ui=${"x".repeat(4000)}`]) {
       const { d, h, links } = fakeDoc(cookie);
@@ -54,7 +51,7 @@ describe("WEB-U-030 bootHead", () => {
       expect(h.dataset.level).toBe("standard");
       expect(h.dataset.theme).toBeUndefined();
       expect(["ja", "en"]).toContain(h.lang);
-      expect(links.map((l) => l.href)).toContain(CHUNKS.map);
+      expect(links).toEqual([]);
     }
   });
 

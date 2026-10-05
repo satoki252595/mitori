@@ -8,12 +8,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { brotliDecompressSync } from "node:zlib";
+import type { InitialUiRenderer } from "@mitori/core";
 import type { ServerDeps } from "@mitori/server";
 
 /** `parse` / `compute`: skeleton probes (`_selftest`); `serverParse` / `serverCompute`: the daemon's Workers (WP-INT). */
 export type WorkerName = "parse" | "compute" | "serverParse" | "serverCompute";
 
-/** One served web file: the raw bytes plus precompressed variants (paths), and whether its name is content-hashed. */
+/** One served web file and its precompressed variants. In an embedded table, raw===br shares the Brotli file;
+ * loadWebAssets restores identity bytes. Checkout raw always points to the uncompressed file. */
 export interface WebAssetPaths {
   raw: string;
   br?: string;
@@ -22,6 +24,8 @@ export interface WebAssetPaths {
 }
 
 export interface AssetTable {
+  /** Canonical server renderer, bundled from the same UI sources at release build time. */
+  uiRenderer?: InitialUiRenderer;
   /** `embedded` = registered by the generated entry (compiled binary); `dev` = source checkout. */
   source: "embedded" | "dev";
   /** `assets.lock.json` entries the files were verified against at build time (dev: read from disk). */
@@ -32,6 +36,8 @@ export interface AssetTable {
   web: Readonly<Record<string, WebAssetPaths>>;
   /** Worker entry specifiers for `new Worker(spec)`. */
   workers: Readonly<Record<WorkerName, string>>;
+  /** Trusted native Windows Job Object launcher, bound to the bytes embedded at build time. */
+  windowsJobLauncher?: { path: string; sha256: string; bytes: number };
 }
 
 export interface LockEntry {
@@ -57,8 +63,8 @@ export function registerAssets(t: Omit<AssetTable, "source">): void {
 }
 
 export function assetTable(): AssetTable {
-  table ??= devTable();
-  return table;
+  // The registered binary is immutable; a checkout can rebuild its manifest between daemon starts.
+  return table ?? devTable();
 }
 
 function devTable(): AssetTable {
@@ -67,6 +73,10 @@ function devTable(): AssetTable {
   const lock = (JSON.parse(readFileSync(new URL("./assets.lock.json", import.meta.url), "utf8")) as { assets: LockEntry[] }).assets;
   const files = Object.fromEntries(lock.map((a) => [a.id, abs(a.path)]));
   const manifest = abs(DEV_WEB_MANIFEST);
+  const nativeManifest = abs("dist/.build/windows-job.json");
+  const windowsJobLauncher = existsSync(nativeManifest)
+    ? (JSON.parse(readFileSync(nativeManifest, "utf8")) as { path: string; sha256: string; bytes: number })
+    : undefined;
   const web: Record<string, WebAssetPaths> = {};
   if (existsSync(manifest)) {
     const rel = JSON.parse(readFileSync(manifest, "utf8")) as Record<string, WebAssetPaths>;
@@ -85,6 +95,7 @@ function devTable(): AssetTable {
     files,
     web,
     workers: { parse: worker("parse"), compute: worker("compute"), serverParse: server("parse"), serverCompute: server("compute") },
+    ...(windowsJobLauncher ? { windowsJobLauncher: { ...windowsJobLauncher, path: abs(windowsJobLauncher.path) } } : {}),
   };
 }
 
@@ -113,7 +124,9 @@ export async function loadWebAssets(t: AssetTable = assetTable()): Promise<WebAs
   const read = (p: string) => Bun.file(p).bytes();
   const entries = await Promise.all(
     Object.entries(t.web).map(async ([url, v]) => {
-      const [raw, br, gz] = await Promise.all([read(v.raw), v.br ? read(v.br) : null, v.gz ? read(v.gz) : null]);
+      const stored = read(v.raw);
+      const [bytes, br, gz] = await Promise.all([stored, v.br ? (v.br === v.raw ? stored : read(v.br)) : null, v.gz ? read(v.gz) : null]);
+      const raw = t.source === "embedded" && v.raw === v.br ? brotliDecompressSync(bytes) : bytes;
       const a: { raw: Uint8Array; br?: Uint8Array; gz?: Uint8Array; immutable: boolean } = { raw, immutable: v.immutable };
       if (br) a.br = br;
       if (gz) a.gz = gz;
@@ -123,4 +136,13 @@ export async function loadWebAssets(t: AssetTable = assetTable()): Promise<WebAs
   const map = new Map(entries);
   if (!map.has("/index.html")) map.set("/index.html", { raw: new TextEncoder().encode(PLACEHOLDER), immutable: false });
   return map;
+}
+
+/** Release: registered code embedded by Bun. Checkout: only the generated, local server module is loaded. */
+export async function loadInitialUiRenderer(t: AssetTable = assetTable()): Promise<InitialUiRenderer | undefined> {
+  if (t.uiRenderer) return t.uiRenderer;
+  if (t.source !== "dev") return undefined;
+  const url = new URL("../../../../dist/.build/initial/initial.js", import.meta.url);
+  if (!existsSync(fileURLToPath(url))) return undefined;
+  return (await import(url.href)).renderInitialUi as InitialUiRenderer;
 }

@@ -120,6 +120,7 @@ export interface HarnessOptions {
   configPollMs?: number;
   workspace?: Partial<DaemonOptions["workspace"]>;
   hooks?: DaemonOptions["hooks"];
+  uiRenderer?: DaemonOptions["uiRenderer"];
   pid?: number;
 }
 
@@ -185,6 +186,7 @@ export async function startHarness(opts: HarnessOptions = {}): Promise<Harness> 
       ...opts.workspace,
     },
     ...(opts.hooks ? { hooks: opts.hooks } : {}),
+    ...(opts.uiRenderer ? { uiRenderer: opts.uiRenderer } : {}),
     ...(opts.idleExitMs !== undefined ? { idleExitMs: opts.idleExitMs } : {}),
     ...(opts.idlePollMs !== undefined ? { idlePollMs: opts.idlePollMs } : {}),
     ...(opts.configPollMs !== undefined ? { configPollMs: opts.configPollMs } : {}),

@@ -52,6 +52,25 @@ function scan(code: string, re: RegExp): { line: number; text: string; index: nu
 
 const hits = (code: string, re: RegExp) => scan(code, re).map(({ line, text }) => ({ line, text }));
 
+/** Reviewed sinks, not whole-file exemptions: chrome builders escape values; Reader fill validates sanitized DTO hashes. */
+const HTML_SINKS: Readonly<Record<string, RegExp>> = {
+  "src/shell/Header.svelte": /\{@html initialHtml\[[0-4]\] \?\? ""\}/g,
+  "src/shell/Rail.svelte": /\{@html initialHtml\}/g,
+  "src/shell/StatusBar.svelte": /\{@html initialHtml\}/g,
+  "src/shell/native.ts": /(?:template\.innerHTML = html;|old\.innerHTML = next\.innerHTML;)/g,
+  "src/map/FloorPlan.svelte": /\{@html initialSvg\}/g,
+  "src/reader/native.ts": /(?:prose|el)\.innerHTML = old\.html;/g,
+};
+
+function untrustedHtml(file: string, code: string): { line: number; text: string }[] {
+  const approved = HTML_SINKS[file.replaceAll("\\", "/")];
+  const ranges = approved ? [...code.matchAll(approved)].map((m) => [m.index, m.index + m[0].length] as const) : [];
+  return [scan(code, /\{@html\b/), scan(code, /\.(inner|outer)HTML\s*=/), scan(code, /insertAdjacentHTML/)]
+    .flat()
+    .filter((m) => !ranges.some(([a, b]) => m.index >= a && m.index + m.text.length <= b))
+    .map(({ line, text }) => ({ line, text }));
+}
+
 /** `<style>` blocks of a component (or the whole file for .css); everything else blanked. */
 function styles(file: string, code: string): string {
   if (file.endsWith(".css")) return code;
@@ -224,7 +243,7 @@ export const RULES: Rule[] = [
     id: "mitori/trusted-html",
     why: "§12.7: only server HTML (blocks, code, our map SVG) and the <b>/<kbd>/<code> subset reach innerHTML",
     applies: (f) => isCode(f) && !/(reader[\\/](BlockHost|CodePane|CitePeek)\.svelte|map[\\/](plan-dom|render)\.ts|shell[\\/](Rich\.svelte|rich\.ts))$/.test(f),
-    check: (_f, code) => [...hits(code, /\{@html\b/), ...hits(code, /\.(inner|outer)HTML\s*=/), ...hits(code, /insertAdjacentHTML/)],
+    check: untrustedHtml,
   },
   {
     id: "mitori/no-effect-in-store",

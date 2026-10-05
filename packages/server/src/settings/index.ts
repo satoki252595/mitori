@@ -25,6 +25,7 @@ import { gateFromDeclaration, parseRepoSettings, repoTrustHash } from "./repo.ts
 export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   schemaVersion: 1,
   ui: {
+    map: { floorplan: false },
     lang: "ja",
     theme: "system",
     readerLevel: "standard",

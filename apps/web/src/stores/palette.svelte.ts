@@ -3,9 +3,8 @@
  * palette worker; this store only sends `load` / `query` and keeps the reply of the LATEST query id.
  */
 import type { ApiClient } from "@mitori/client";
-import type { PaletteIndex, WorkspaceKey } from "@mitori/core";
-import type { PaletteActionItem, PaletteGroupResult, PaletteStore, PaletteWorkerMsg, PaletteWorkerReply } from "../contract.ts";
-import { markAfterPaint } from "../shell/perf.ts";
+import type { WorkspaceKey } from "@mitori/core";
+import type { PaletteActionItem, PaletteGroupResult, PaletteStore } from "../contract.ts";
 import { getJson, STORAGE_KEYS, setJson } from "../shell/storage.ts";
 
 /** Top-hit row chosen by the worker (score ≥ 120, a via-symbol yields to its term). */
@@ -21,6 +20,10 @@ export interface RecentEntry {
   group: PaletteGroupResult["group"];
 }
 
+import type { PaletteController } from "../palette/controller.ts";
+
+const loadController = () => import("../palette/controller.ts");
+
 export class PaletteState implements PaletteStore {
   open = $state(false);
   query = $state("");
@@ -35,12 +38,10 @@ export class PaletteState implements PaletteStore {
   scope = $state<"all" | "doc" | "actions">("all");
   /** The query the worker's latest reply answers (rows that depend on 「nothing matched」 wait for it). */
   answered = $state<string | null>(null);
-  #worker: Worker | null = null;
-  #qid = 0;
+  #controller: PaletteController | null = null;
+  #loading: Promise<PaletteController> | null = null;
   #actions: PaletteActionItem[] = [];
   #actionsSig = "";
-  #items: PaletteIndex["items"] = [];
-  #loadedFor: WorkspaceKey | null = null;
   #keyAt = 0;
   private readonly api: ApiClient;
   private readonly ws: () => WorkspaceKey | null;
@@ -61,54 +62,37 @@ export class PaletteState implements PaletteStore {
     if (sig === this.#actionsSig) return;
     this.#actionsSig = sig;
     this.#actions = a;
-    if (this.#worker && this.#loadedFor !== null) {
-      this.#worker.postMessage({ t: "load", rev: this.rev, items: this.#items, actions: a } satisfies PaletteWorkerMsg);
-    }
+    this.#controller?.setActions(a);
   }
 
-  #ensureWorker(): Worker {
-    if (this.#worker) return this.#worker;
-    const w = this.makeWorker();
-    w.onmessage = (ev: MessageEvent<PaletteWorkerReply & { counts?: Partial<Record<PaletteGroupResult["group"], number>>; top?: PaletteTop | null }>) => {
-      const r = ev.data;
-      if (r.t === "loaded") {
-        this.rev = r.rev;
-        this.status = "ready";
-        if (this.query) this.#send();
-        return;
-      }
-      if (r.id !== this.#qid) return; // stale reply (AC-U70)
-      this.answered = this.query;
-      this.results = r.groups;
-      this.total = r.total;
-      this.ms = r.ms;
-      this.counts = r.counts ?? {};
-      this.top = r.top ?? null;
-      markAfterPaint("mitori:palette:results", { trigger: this.#keyAt });
-    };
-    this.#worker = w;
-    return w;
+  #ensureController(): Promise<PaletteController> {
+    if (this.#loading) return this.#loading;
+    this.#loading = loadController()
+      .then(({ PaletteController }) => {
+        this.#controller = new PaletteController(
+          this,
+          this.api,
+          this.ws,
+          this.makeWorker,
+          () => this.#actions,
+          () => this.#keyAt,
+        );
+        return this.#controller;
+      })
+      .catch((error) => {
+        this.#loading = null;
+        this.status = "error";
+        throw error;
+      });
+    return this.#loading;
   }
 
   /** Fetch the index (idle or first ⌘K) and hand it to the worker. */
   async loadIndex(force = false): Promise<void> {
-    const ws = this.ws();
-    const w = this.#ensureWorker();
-    if (!ws) {
-      w.postMessage({ t: "load", rev: 0, items: [], actions: this.#actions } satisfies PaletteWorkerMsg);
-      return;
-    }
-    if (!force && this.#loadedFor === ws) return;
-    this.#loadedFor = ws;
-    this.status = "loading";
     try {
-      const ix: PaletteIndex = await this.api.call("GET /ws/:ws/search/palette", { params: { ws } });
-      this.#items = ix.items;
-      w.postMessage({ t: "load", rev: ix.rev, items: ix.items, actions: this.#actions } satisfies PaletteWorkerMsg);
+      await (await this.#ensureController()).loadIndex(force);
     } catch {
       this.status = "error";
-      this.#items = [];
-      w.postMessage({ t: "load", rev: 0, items: [], actions: this.#actions } satisfies PaletteWorkerMsg);
     }
   }
 
@@ -127,19 +111,11 @@ export class PaletteState implements PaletteStore {
   setQuery(q: string, keyAt = performance.now()): void {
     this.query = q;
     this.#keyAt = keyAt;
-    this.#send();
-  }
-
-  #send(): void {
-    const w = this.#ensureWorker();
-    const id = ++this.#qid;
-    if (!this.query.trim()) {
-      this.results = [];
-      this.total = 0;
-      this.top = null;
-      return;
-    }
-    w.postMessage({ t: "query", id, q: this.query, scope: this.scope, groupMax: 3 } satisfies PaletteWorkerMsg);
+    if (this.#controller) this.#controller.send();
+    else
+      void this.#ensureController()
+        .then((controller) => controller.send())
+        .catch(() => {});
   }
 
   recents(): RecentEntry[] {
@@ -155,7 +131,6 @@ export class PaletteState implements PaletteStore {
   }
 
   invalidate(): void {
-    this.#loadedFor = null;
-    if (this.#worker) void this.loadIndex(true);
+    this.#controller?.invalidate();
   }
 }

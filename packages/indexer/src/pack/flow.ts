@@ -1,10 +1,8 @@
 /**
- * gen requests I3 / I4 (spec §7.8): cheap per-module statistics and flow seeds — entry points (main-scope routes, then
- * CLI commands, then entries; handler file rank desc) with the path they take over the effective module graph: from
- * the handler's file, each hop follows that file's strongest dependency (calls first) into a module the current one
- * has an effective edge to (hop ≤ 6); where no file edge continues, the BFS over the module graph (neighbours by edge
- * weight desc then slug) runs down to the deepest reachable bottom module. Two handlers of one module therefore get
- * different seeds when their code goes different ways.
+ * gen requests I3 / I4 (spec §7.8): cheap per-module statistics and ranked main-scope flow seeds. With warmed source,
+ * a flow follows calls / JSX into imported repo callables, including files of the same module (≤ 6 file hops).
+ * Sparse boot entries retain branches into the core modules; server entry files also offer their actual callbacks.
+ * Without source the compatibility path uses file / module graph edges, which alone do not prove execution.
  */
 import type { CodeSlice, FactKind, ModuleId, RepoPath, RouteFact, SecretScanner, SymbolKey } from "@mitori/core";
 import type { FlowSeed, ModuleStats, ResolvedImport } from "../contract.ts";
@@ -202,7 +200,7 @@ function flowWalk(
   return { modules, files: path };
 }
 
-const CALLABLE = new Set(["function", "method", "constructor"]);
+const CALLABLE = new Set(["function", "method", "constructor", "class"]);
 /** Words followed by `(` that are no call of a repo symbol. */
 const NOT_CALLS = new Set([
   "if",
@@ -260,24 +258,48 @@ const COMMON_METHODS = new Set([
 /** A handler's calls: every called name, and the names called through a qualifier (`session.New(` → session: New). */
 export interface HandlerCalls {
   names: Set<string>;
+  bare: Set<string>;
   qualified: Map<string, Set<string>>;
+  /** Source lines of calls / JSX renders, for narrow caller excerpts. */
+  sites: Map<string, number[]>;
 }
 
 /** Calls in a range of source lines (string contents and line comments blanked first). */
-function collectCalls(lines: readonly string[], from: number, to: number, into: HandlerCalls): void {
+function collectCalls(lines: readonly string[], from: number, to: number, into: HandlerCalls, partial = false, declarations?: ReadonlySet<string>): void {
+  const add = (name: string, line: number) => {
+    into.names.add(name);
+    const at = into.sites.get(name) ?? [];
+    if (!at.includes(line)) at.push(line);
+    into.sites.set(name, at);
+  };
   for (let i = Math.max(1, from); i <= Math.min(lines.length, to); i++) {
     const l = (lines[i - 1] as string).replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`[^`\n]*`/g, '""').replace(/\/\/.*$|#.*$/, "");
     for (const m of l.matchAll(/(?:([A-Za-z_$][\w$]*)\s*\.\s*)?([A-Za-z_$][\w$]*)\s*\(/g)) {
       const name = m[2] as string;
-      if (NOT_CALLS.has(name)) continue;
-      into.names.add(name);
+      if (NOT_CALLS.has(name) || declarations?.has(`${i}:${name}`)) continue;
+      add(name, i);
       const q = m[1];
-      if (q !== undefined) {
+      if (q === undefined) into.bare.add(name);
+      else {
         const set = into.qualified.get(q);
         if (set) set.add(name);
         else into.qualified.set(q, new Set([name]));
       }
     }
+    // React components are called by JSX, including an imported dynamic component.
+    for (const m of l.matchAll(/<([A-Z][\w$]*)\b(?=[\s/>])[^<>]*\/?>/g)) {
+      add(m[1] as string, i);
+      into.bare.add(m[1] as string);
+    }
+    if (partial)
+      for (const m of l.matchAll(/\bpartial\(\s*([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)\s*,/g)) {
+        const name = m[2] as string;
+        add(name, i);
+        const q = m[1] as string;
+        const ns = into.qualified.get(q) ?? new Set<string>();
+        ns.add(name);
+        into.qualified.set(q, ns);
+      }
   }
 }
 
@@ -297,11 +319,21 @@ export function handlerCalls(
   const sym = f?.symbols.find((s) => s.key === handler);
   const lines = f && sym ? linesOf(path) : null;
   if (!f || !sym || lines === null) return null;
-  const calls: HandlerCalls = { names: new Set(), qualified: new Map() };
-  collectCalls(lines, sym.bodyStart ?? sym.start, sym.end, calls);
-  const helpers = f.symbols.filter((s) => s.key !== handler && CALLABLE.has(s.kind) && calls.names.has(s.name)).slice(0, 6);
-  for (const h of helpers) collectCalls(lines, h.bodyStart ?? h.start, Math.min(h.end, (h.bodyStart ?? h.start) + 400), calls);
-  calls.names.delete(sym.name);
+  const calls: HandlerCalls = { names: new Set(), bare: new Set(), qualified: new Map(), sites: new Map() };
+  const partial = f.imports.some((i) => i.spec === "functools" && i.names.includes("partial"));
+  const declarations = new Set(f.symbols.map((s) => `${s.start}:${s.name}`));
+  const body = sym.kind === "class" ? f.symbols.find((s) => s.parent === sym.key && (s.kind === "constructor" || s.name === "__init__")) : sym;
+  if (!body) return calls;
+  collectCalls(lines, body.bodyStart ?? body.start, body.end, calls, partial, declarations);
+  const helpers = f.symbols
+    .filter(
+      (s) =>
+        s.key !== handler &&
+        CALLABLE.has(s.kind) &&
+        (calls.bare.has(s.name) || (s.parent === body.parent && (calls.qualified.get("self")?.has(s.name) || calls.qualified.get("this")?.has(s.name)))),
+    )
+    .slice(0, 6);
+  for (const h of helpers) collectCalls(lines, h.bodyStart ?? h.start, Math.min(h.end, (h.bodyStart ?? h.start) + 400), calls, partial, declarations);
   return calls;
 }
 
@@ -329,7 +361,7 @@ function importAliases(imps: readonly ResolvedImport[]): Map<string, { to: reado
 
 /** Where a handler's calls land: per file of another module, the callables it calls there. */
 export interface HandlerReach {
-  /** The file of another module its calls reach most (null: none, or no text). */
+  /** The file its calls reach most (null: none, or no text). */
   file: RepoPath | null;
   /** Distinct callables reached per file. */
   targets: Map<RepoPath, number>;
@@ -338,8 +370,8 @@ export interface HandlerReach {
 /**
  * Where a handler's own calls go (gen #4c). A call through an import alias lands only in that import's files (one
  * through a stdlib / external alias — `http.Error(` — lands nowhere); a method or bare call lands in the imported
- * files and the file's graph neighbours that define it (common method names excepted). Only files of other modules
- * the walk may step into count. `file` = the most-reached one (calls edge, rank, path break ties).
+ * repo files imported by this file (common method names excepted). Go also permits calls into the same package
+ * without imports. A name edge into an unrelated file is not call evidence. `file` is the most-reached target.
  */
 export function handlerReach(
   handler: SymbolKey,
@@ -347,6 +379,7 @@ export function handlerReach(
   st: StructureResult,
   src: FlowSources,
   linesOf?: (p: RepoPath) => readonly string[] | null,
+  sameModule = false,
 ): HandlerReach {
   const none: HandlerReach = { file: null, targets: new Map() };
   const path = handler.slice(0, handler.indexOf("#"));
@@ -357,7 +390,7 @@ export function handlerReach(
   const aliases = importAliases(src.imports?.(path) ?? []);
   const ok = (p: RepoPath) => {
     const m = st.moduleOf.get(p);
-    return m !== undefined && m !== start && walkable(p, src.files);
+    return p !== path && m !== undefined && (sameModule || m !== start) && walkable(p, src.files, langFamily(src.files.get(path)?.lang ?? ""));
   };
   const defines = (p: RepoPath, names: ReadonlySet<string>) =>
     new Set((src.files.get(p)?.symbols ?? []).filter((s) => CALLABLE.has(s.kind) && names.has(s.name)).map((s) => s.name));
@@ -374,11 +407,22 @@ export function handlerReach(
     for (const n of ns) viaAlias.add(n);
     for (const p of imp.to) if (ok(p)) add(p, defines(p, ns));
   }
-  // method / bare calls: by name, in the imported files and the graph neighbours
-  const loose = new Set([...calls.names].filter((n) => !COMMON_METHODS.has(n) && !viaAlias.has(n)));
+  // A self/this method is resolved through its same-file helper body, not an unrelated imported namesake.
+  const loose = new Set(
+    [...calls.names].filter(
+      (n) =>
+        !COMMON_METHODS.has(n) &&
+        (!viaAlias.has(n) || calls.bare.has(n)) &&
+        (calls.bare.has(n) || [...calls.qualified].some(([q, ns]) => q !== "self" && q !== "this" && !aliases.has(q) && ns.has(n))),
+    ),
+  );
   const pool = new Set<RepoPath>();
   for (const { to } of aliases.values()) for (const p of to) pool.add(p);
-  if (from !== undefined) for (const j of (g.out[from] ?? new Map()).keys()) pool.add(g.paths[j] as RepoPath);
+  if (src.files.get(path)?.lang === "go" && from !== undefined)
+    for (const j of (g.out[from] ?? new Map()).keys()) {
+      const p = g.paths[j] as RepoPath;
+      if (p.slice(0, p.lastIndexOf("/")) === path.slice(0, path.lastIndexOf("/"))) pool.add(p);
+    }
   for (const p of pool) if (ok(p)) add(p, defines(p, loose));
   const rank = (p: RepoPath) => st.fileRank.get(p) ?? 0;
   const call = (p: RepoPath) => (from !== undefined && g.calls.has(from * g.paths.length + (g.index.get(p) ?? -1)) ? 1 : 0);
@@ -436,6 +480,27 @@ function flowTargets(seed: FlowSeed, files: ReadonlyMap<RepoPath, StageFile>, te
       out.push(s);
     }
   };
+  const helpers = (symbols: readonly Sym[]) => {
+    if (!text) return;
+    for (const s of symbols) {
+      const calls = handlerCalls(s.key, files, text);
+      for (const h of (files.get(s.path)?.symbols ?? [])
+        .filter(
+          (h) =>
+            h.key !== s.key &&
+            CALLABLE.has(h.kind) &&
+            (calls?.bare.has(h.name) || (h.parent === s.parent && (calls?.qualified.get("self")?.has(h.name) || calls?.qualified.get("this")?.has(h.name)))),
+        )
+        .sort((a, b) => {
+          const at = calls?.sites.get(a.name)?.[0] ?? Infinity;
+          const bt = calls?.sites.get(b.name)?.[0] ?? Infinity;
+          const direct = (n: number) => (n >= s.start && n <= s.end ? 1 : 0);
+          return direct(bt) - direct(at) || at - bt;
+        })
+        .slice(0, 6))
+        push(h);
+    }
+  };
   const first = files.get(seed.files[0] ?? seed.path);
   if (seed.handler) push(files.get(seed.handler.slice(0, seed.handler.indexOf("#")))?.symbols.find((s) => s.key === seed.handler));
   else if (seed.path === first?.path)
@@ -443,15 +508,25 @@ function flowTargets(seed: FlowSeed, files: ReadonlyMap<RepoPath, StageFile>, te
     push(
       first.symbols.filter((s) => CALLABLE.has(s.kind) && s.start <= seed.line && seed.line <= s.end).sort((a, b) => a.end - a.start - (b.end - b.start))[0],
     );
-  const own = seed.handler && text ? (handlerCalls(seed.handler, files, text)?.names ?? null) : null;
+  let previous = [...out];
+  helpers(previous);
   for (let j = 1; j < seed.files.length; j++) {
     const from = files.get(seed.files[j - 1] as RepoPath);
     const to = files.get(seed.files[j] as RepoPath);
     if (!from || !to) continue;
     const fileCalls = () => new Set(from.refs.filter((r) => r.kind === "call" || r.kind === "new" || r.kind === "jsx" || r.kind === "qual").map((r) => r.name));
-    const byHandler = j === 1 && own !== null && to.symbols.some((s) => CALLABLE.has(s.kind) && own.has(s.name));
-    const called = byHandler ? (own as Set<string>) : fileCalls();
-    for (const s of [...to.symbols].sort((a, b) => a.start - b.start)) if (CALLABLE.has(s.kind) && called.has(s.name)) push(s);
+    const called = text && previous.length > 0 ? new Set(previous.flatMap((s) => [...(handlerCalls(s.key, files, text)?.names ?? [])])) : fileCalls();
+    const next = [...to.symbols]
+      .filter((s) => CALLABLE.has(s.kind) && called.has(s.name))
+      .sort((a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start)
+      .slice(0, 6);
+    // Keep a callee's same-file validation / dispatch helpers beside it, before the next sibling body.
+    for (const s of next) {
+      push(s);
+      if (s.kind === "function") helpers([s]);
+    }
+    helpers(next.filter((s) => s.kind !== "function")); // explicitly called class methods precede class-wide helpers
+    previous = next;
   }
   return out;
 }
@@ -462,11 +537,43 @@ function flowTargets(seed: FlowSeed, files: ReadonlyMap<RepoPath, StageFile>, te
  * skipped and 3 skips in a row stop, adjacent / overlapping slices of a file are merged.
  */
 export function flowBodies(seed: FlowSeed, files: ReadonlyMap<RepoPath, StageFile>, budgetTokens: number, io: SliceIo): CodeSlice[] {
-  return packSlices(
-    flowTargets(seed, files, io.text).map((x) => ({ path: x.path, blob: x.blob, start: x.start, end: x.end })),
-    budgetTokens,
-    io,
+  const targets = flowTargets(seed, files, io.text);
+  const ranges: { path: RepoPath; blob: string; start: number; end: number }[] = [];
+  for (const s of targets) {
+    const head = { path: s.path, blob: s.blob, start: s.start, end: s.end };
+    ranges.push(head);
+    const calls = handlerCalls(s.key, files, io.text);
+    // A calling body keeps its declaration and the bounded lines where the selected callee is actually used.
+    // Long components still use the existing 80-line head; short wrappers / guards remain whole.
+    const headLines = s.end - s.start + 1 > 200 ? 80 : 24;
+    let shown = 0;
+    for (const next of targets) {
+      if (next.key === s.key) continue;
+      const sites = calls?.sites.get(next.name) ?? [];
+      for (const line of s.kind === "function" ? sites : sites.slice(0, 1)) {
+        if (line < s.start + headLines || line > s.end || shown >= 6) continue;
+        ranges.push({ path: s.path, blob: s.blob, start: Math.max(s.start, line - 3), end: Math.min(s.end, line + 3) });
+        shown++;
+      }
+    }
+    if (shown > 0 || targets.some((t) => t.key !== s.key && t.path === s.path && t.start >= s.start + headLines && t.end <= s.end))
+      head.end = s.start + headLines - 1; // do not merge deep callers / selected class methods back into a folded whole body
+  }
+  // A selected class already contains its short methods. Charge displayed lines once before the packer's skip
+  // limit can discard a later real callee. A folded body covers only its displayed 80-line head.
+  const unique = ranges.filter(
+    (r, i) =>
+      !ranges
+        .slice(0, i)
+        .some(
+          (p) =>
+            p.path === r.path &&
+            p.blob === r.blob &&
+            p.start <= r.start &&
+            (p.end - p.start + 1 > 200 ? p.start + 79 : p.end) >= (r.end - r.start + 1 > 200 ? r.start + 79 : r.end),
+        ),
   );
+  return packSlices(unique, budgetTokens, io);
 }
 
 /** What `flowSeeds` may read beyond the structure: the S1 files (symbols, scopes), current texts, resolved imports. */
@@ -476,6 +583,49 @@ export interface FlowSources {
   text(path: RepoPath): string | null;
   /** Resolved imports of a file (an alias-qualified call lands in its import's files only). */
   imports?(path: RepoPath): readonly ResolvedImport[];
+}
+
+/** Source-confirmed call paths, including files inside one module. Import edges alone are not calls. */
+function sourceWalks(first: RepoPath, handler: SymbolKey, st: StructureResult, src: FlowSources): { modules: ModuleId[]; files: RepoPath[] }[] {
+  const start = st.moduleOf.get(first);
+  if (start === undefined) return [];
+  const queue = [{ files: [first], symbols: [handler] }];
+  const found = new Map<RepoPath, { files: RepoPath[]; symbols: SymbolKey[] }>([[first, queue[0] as (typeof queue)[number]]]);
+  for (let i = 0; i < queue.length && found.size < 64; i++) {
+    const cur = queue[i] as (typeof queue)[number];
+    if (cur.files.length > MAX_HOPS) continue;
+    const from = cur.files[cur.files.length - 1] as RepoPath;
+    const targets = new Set<RepoPath>();
+    const names = new Set<string>();
+    for (const key of cur.symbols) {
+      for (const p of handlerReach(key, st.moduleOf.get(from) ?? start, st, src, undefined, true).targets.keys()) targets.add(p);
+      for (const n of handlerCalls(key, src.files, src.text)?.names ?? []) names.add(n);
+    }
+    const next = [...targets]
+      .filter((p) => !found.has(p))
+      .map((p) => ({ p, symbols: (src.files.get(p)?.symbols ?? []).filter((s) => CALLABLE.has(s.kind) && names.has(s.name)) }))
+      .sort((a, b) => b.symbols.reduce((n, s) => n + s.end - s.start, 0) - a.symbols.reduce((n, s) => n + s.end - s.start, 0) || byStr(a.p, b.p));
+    for (const { p, symbols } of next) {
+      if (found.size >= 64 || symbols.length === 0) continue;
+      const item = { files: [...cur.files, p], symbols: symbols.map((s) => s.key) };
+      found.set(p, item);
+      queue.push(item);
+    }
+  }
+  const moduleRank = (p: RepoPath) => (st.moduleOf.get(p) === start ? 0 : (st.modules.find((m) => m.id === st.moduleOf.get(p))?.rank ?? 0));
+  return [...found.values()]
+    .sort((a, b) => {
+      const ap = a.files.at(-1) as RepoPath;
+      const bp = b.files.at(-1) as RepoPath;
+      const sameModule = st.moduleOf.get(ap) === start && st.moduleOf.get(bp) === start;
+      return (
+        moduleRank(bp) - moduleRank(ap) ||
+        (sameModule ? b.files.length - a.files.length : 0) ||
+        (src.files.get(bp)?.loc ?? 0) - (src.files.get(ap)?.loc ?? 0) ||
+        byStr(a.files.join(">"), b.files.join(">"))
+      );
+    })
+    .map(({ files }) => ({ files, modules: [...new Set(files.flatMap((p) => st.moduleOf.get(p) ?? []))] }));
 }
 
 /** Share of the seeds routes may take while CLI commands / entries exist (a server's CLI is a flow of its own). */
@@ -545,13 +695,18 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
       });
     } else if (f.kind === "cli")
       cands.push({ kind: "cli", label: f.command, path: f.path, line: f.line, file: f.path, order: 1, tier: 0, score: 0, weight: 0, size: 0, reach: null });
-    else if (f.kind === "entry")
+    else if (f.kind === "entry") {
+      const file = f.entry === "main" && st.moduleOf.has(f.label) ? f.label : f.path;
+      const symbols = src?.files.get(file)?.symbols ?? [];
+      const handler =
+        symbols.find((s) => s.name === "main" && CALLABLE.has(s.kind)) ?? symbols.find((s) => CALLABLE.has(s.kind) && s.start <= f.line && f.line <= s.end);
       cands.push({
         kind: "entry",
         label: f.label,
         path: f.path,
         line: f.line,
-        file: f.entry === "main" && st.moduleOf.has(f.label) ? f.label : f.path,
+        file,
+        ...(handler ? { handler: handler.key } : {}),
         order: 2,
         // `go run gen.go` style generators are labelled by their file: after the program's own mains
         tier: f.entry === "main" && /\.[A-Za-z0-9]+$/.test(f.label) ? 1 : 0,
@@ -560,6 +715,31 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         size: 0,
         reach: null,
       });
+      // A server main registers callbacks but does not execute the product's operation itself. Keep the actual
+      // callables of its entry file as candidates too; their names/locations are evidence, not inferred HTTP routes.
+      if (src)
+        for (const s of symbols) {
+          if (!CALLABLE.has(s.kind) || s.kind === "class" || s.key === handler?.key || s.name.startsWith("_")) continue;
+          const start = st.moduleOf.get(file);
+          if (start === undefined) continue;
+          const reach = handlerReach(s.key, start, st, src, linesOf, true);
+          if (reach.targets.size === 0) continue;
+          cands.push({
+            kind: "entry",
+            label: s.qualname,
+            path: file,
+            line: s.start,
+            file,
+            handler: s.key,
+            order: 2,
+            tier: 0,
+            score: 0,
+            weight: 0,
+            size: s.end - s.start + 1,
+            reach,
+          });
+        }
+    }
   });
   // a file many endpoints call into is the app's core; a handler scores what of it it uses
   const pop = new Map<RepoPath, number>();
@@ -606,7 +786,9 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
       const start = st.moduleOf.get(c.file) ?? st.moduleOf.get(c.path);
       if (start === undefined) continue;
       const first = st.graph.index.has(c.file) ? c.file : (st.modules.find((m) => m.id === start)?.paths[0] ?? c.file);
-      const { modules, files } = flowWalk(first, start, st, src?.files, c.reach?.file ?? undefined);
+      const { modules, files } = src
+        ? ((c.handler ? sourceWalks(first, c.handler, st, src)[0] : undefined) ?? { modules: [start], files: [first] })
+        : flowWalk(first, start, st, undefined, c.reach?.file ?? undefined);
       // never the module walk: a handler is a flow of its own (its body and callees differ); without a handler the
       // file walk decides (with text the handlers of one router file walk where their own calls go)
       const key = c.handler && src ? `${c.kind}\u0000${c.handler}` : `${c.kind}\u0000${src ? files.join(",") : modules.join(",")}`;
@@ -626,6 +808,26 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
   );
   if (walked.length < limit) take(routes, limit); // CLI / entries left room: more routes
   walked.sort((a, b) => cands.indexOf(a.c) - cands.indexOf(b.c));
+  // One boot route must not suppress its real internal branches. Supplement sparse entry sets only; the same
+  // source-confirmed paths supply gen, the static change guides and text warming (no import-only graph fallback).
+  if (src && walked.length < limit) {
+    const sparse = walked.length < Math.min(3, limit);
+    const cap = sparse ? Math.min(3, limit) : limit;
+    const covered = new Set(walked.flatMap((w) => w.modules));
+    for (const { c } of [...walked]) {
+      if (!c.handler || (!sparse && c.kind !== "entry")) continue;
+      for (const path of sourceWalks(c.file, c.handler, st, src)) {
+        if (walked.length >= cap) break;
+        if (path.files.length < 2 || walked.some((w) => w.files.join(">") === path.files.join(">"))) continue;
+        const end = path.files.at(-1) as RepoPath;
+        const module = st.moduleOf.get(end);
+        if (module === undefined) continue;
+        if (sparse && covered.has(module)) continue;
+        covered.add(module);
+        walked.push({ c: { ...c, label: `${c.label} → ${end}` }, ...path });
+      }
+    }
+  }
   return walked.map(({ c, modules, files }, i) => ({
     k: i + 1,
     kind: c.kind,

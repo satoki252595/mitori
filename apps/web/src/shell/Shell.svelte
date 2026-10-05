@@ -9,21 +9,29 @@ import { type Component, onMount, untrack } from "svelte";
 import { type AppMode, ROUTE_SCOPES, type ShortcutScope, type ShortcutWhen } from "../contract.ts";
 import { applySettings, provideStores, type Stores } from "../stores/app.svelte.ts";
 import { wireSse } from "../stores/sse.ts";
-import Banner from "./Banner.svelte";
-import { copyText } from "./clipboard.ts";
 import { loadExtensions, scheduleExtensions, type UiExtension, whenExtensions } from "./ext.ts";
 import { fmtDeltaImpl, fmtDurationImpl, fmtTokensImpl, fmtUsdImpl } from "./fmt.ts";
 import Header from "./Header.svelte";
 import { ensureNs, switchLang } from "./i18n-cell.svelte.ts";
 import { t } from "./index.ts";
 import { mark } from "./perf.ts";
-import Rich from "./Rich.svelte";
 import { viewKind } from "./router.ts";
 import StatusBar from "./StatusBar.svelte";
 import { getItem, STORAGE_KEYS, setItem } from "./storage.ts";
-import Toasts from "./Toasts.svelte";
 
-let { stores, mode = "daemon" }: { stores: Stores; mode?: AppMode } = $props();
+let {
+  stores,
+  mode = "daemon",
+  initialView = null,
+  initialViewProps = {},
+  primed = false,
+}: {
+  stores: Stores;
+  mode?: AppMode;
+  initialView?: Component<Record<string, never>> | null;
+  initialViewProps?: Record<string, never>;
+  primed?: boolean;
+} = $props();
 // the store root is created once in main.ts and never replaced
 const s = untrack(() => stores);
 provideStores(s);
@@ -37,12 +45,12 @@ const LOADERS: Record<string, () => Promise<{ default: Component<Record<string, 
   launcher: () => Promise.all([import("./Launcher.svelte"), ensureNs("gen")]).then(([m]) => m),
   map: () => import("../map/views.ts").then((m) => ({ default: m.MapPage })),
   doc: () => import("../reader/views.ts").then((m) => ({ default: m.ReaderPage })),
-  code: () => import("../reader/views.ts").then((m) => ({ default: m.CodeView })),
+  code: () => import("../reader/CodeView.svelte"),
   settings: () => import("../settings/SettingsPage.svelte"),
   gen: () => Promise.all([import("../gen/GenPage.svelte"), ensureNs("gen")]).then(([m]) => m),
 };
-let View = $state.raw<Component<Record<string, never>> | null>(null);
-let viewKey = $state<string | null>(null);
+let View = $state.raw<Component<Record<string, never>> | null>(untrack(() => initialView));
+let viewKey = $state<string | null>(untrack(() => (initialView ? loaderKey() : null)));
 let ext = $state.raw<UiExtension | null>(null);
 
 function loaderKey(): string | null {
@@ -88,7 +96,7 @@ $effect(() => {
 });
 
 // ---------------------------------------------------------------- workspace switching (+ SSE re-scope)
-let current: WorkspaceKey | null | undefined;
+let current: WorkspaceKey | null | undefined = untrack(() => (primed ? s.workspace.key : undefined));
 $effect(() => {
   const ws = "ws" in route ? route.ws : null;
   untrack(() => enter(ws));
@@ -421,6 +429,44 @@ $effect(() => {
 });
 
 const conn = $derived(s.session.connection);
+// These views have no DOM in a normal boot. Keep their real rendering/actions on first use.
+let Banner = $state.raw<typeof import("./Banner.svelte").default | null>(null);
+let Toasts = $state.raw<typeof import("./Toasts.svelte").default | null>(null);
+let Stopped = $state.raw<typeof import("./StoppedOverlay.svelte").default | null>(null);
+const bannerKey = $derived(
+  conn.kind === "auth_expired"
+    ? "banner.authExpired"
+    : conn.kind === "version_mismatch"
+      ? "banner.version"
+      : conn.kind === "retrying"
+        ? "banner.retrying"
+        : s.session.window?.billing === "overage"
+          ? "banner.overage"
+          : s.gen.run?.state === "paused" && s.gen.run.paused?.reason === "yield_5h"
+            ? "banner.yield"
+            : null,
+);
+$effect(() => {
+  if (bannerKey && !Banner) void import("./Banner.svelte").then((m) => (Banner = m.default));
+});
+$effect(() => {
+  if (s.bottom.toasts.length && !Toasts) void import("./Toasts.svelte").then((m) => (Toasts = m.default));
+});
+$effect(() => {
+  if (conn.kind === "stopped" && !Stopped) void import("./StoppedOverlay.svelte").then((m) => (Stopped = m.default));
+});
+const pendingBanner = $derived(
+  bannerKey
+    ? t(
+        bannerKey,
+        conn.kind === "version_mismatch"
+          ? { web: conn.web, daemon: conn.daemon }
+          : conn.kind === "retrying"
+            ? { s: Math.max(1, Math.round(conn.nextInMs / 1000)) }
+            : { at: "–" },
+      ).replace(/<\/?(?:b|kbd|code)>/g, "")
+    : "",
+);
 
 // live regions (ux.md §11.2): the connection coming back (the loss itself is the retrying banner, role=alert)
 let wasDown = false;
@@ -452,19 +498,19 @@ const InboxView = $derived(ext?.views?.inbox ?? null);
 <!-- the page behind the ⌘K palette (aria-modal) is inert: Tab stays in the palette -->
 <div class="app" data-view={kind} data-mode={mode} inert={conn.kind === "stopped" || (s.palette.open && !!Palette) || undefined}>
   <Header />
-  <Banner />
+  {#if Banner}<Banner />{:else if bannerKey}<div class="banner" role="alert" data-chrome>{pendingBanner}</div>{/if}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (delegated link interception) -->
   <div class="body-wrap" bind:this={body} onclick={(e) => s.router.intercept(e)}>
     {#if route.name === "inbox"}
       {#if InboxView}<InboxView />{:else}<main id="main" class="pending-view" tabindex="-1"><p>{t("app.inboxPending")}</p></main>{/if}
     {:else if View}
-      <View />
+      <View {...initialViewProps} />
     {:else}
       <div class="body skel-body" aria-busy="true"><aside class="rail"></aside><main id="main"></main></div>
     {/if}
   </div>
   <StatusBar />
-  <Toasts />
+  {#if Toasts}<Toasts />{:else if s.bottom.toasts.length}<p class="sr-only" role="status">{s.bottom.toasts.map((x) => t(x.key, x.params)).join(" · ")}</p>{/if}
 </div>
 
 {#if s.ui.helpOpen && Help}<Help />{/if}
@@ -472,14 +518,7 @@ const InboxView = $derived(ext?.views?.inbox ?? null);
 {#if s.ui.exportOpen && Export && s.workspace.key}<Export />{/if}
 
 {#if conn.kind === "stopped"}
-  <div class="stopped" role="alertdialog" aria-modal="true" aria-labelledby="stopped-t" data-chrome>
-    <div class="card">
-      <h2 id="stopped-t">{t("app.stopped")}</h2>
-      <p>{conn.reason}</p>
-      <p><Rich text={t("app.stoppedHint")} /></p>
-      <button type="button" class="btn btn-sec" onclick={() => copyText("mitori", s, "copy.command")}>{t("banner.copyCommand")}</button>
-    </div>
-  </div>
+  {#if Stopped}<Stopped />{:else}<div class="stopped" role="alert"><h2>{t("app.stopped")}</h2><p>{conn.reason}</p></div>{/if}
 {/if}
 
 <div class="sr-only" aria-live="polite" id="live-polite">{s.ui.polite}</div>

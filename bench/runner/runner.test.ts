@@ -92,6 +92,11 @@ describe("BENCH-U-11 discovery and selection", () => {
     expect(select(all, { ids: ["synthetic.a"] }).map((f) => f.def.id)).toEqual(["synthetic.a"]);
     expect(() => select(all, { suites: ["nope"] })).toThrow("unknown suite");
   });
+  test("routine selections exclude live engine artifacts, even for an explicit id", () => {
+    const live = { file: "f", def: asAny(defineBench({ id: "agent.resident.procs", suite: "loop", mode: "inproc", live: true, run: () => 0 })) };
+    expect(select([live], { ids: [live.def.id] })).toHaveLength(0);
+    expect(select([live], { ids: [live.def.id], live: true })).toEqual([live]);
+  });
 });
 
 describe("BENCH-U-12 executeCase", () => {

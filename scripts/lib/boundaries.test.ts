@@ -80,6 +80,16 @@ describe("check-boundaries (WP-00a acceptance)", () => {
     expect(check("apps/web/src/x.ts", "const t = Date.now(); const k = crypto.randomUUID();")).toEqual([]);
   });
 
+  test("only the named testkit helper subpaths are public in test code", () => {
+    for (const subpath of ["fixtures", "golden"]) {
+      const text = `import { helper } from "@mitori/testkit/${subpath}";`;
+      expect(check("packages/doc/src/x.test.ts", text)).toEqual([]);
+      expect(check("packages/doc/src/x.ts", text)).toContain("testing-import@1");
+    }
+    expect(check("packages/doc/src/x.test.ts", 'import { helper } from "@mitori/testkit/fixtures/build.ts";')).toEqual(["deep-import@1"]);
+    expect(check("packages/doc/src/x.test.ts", 'import { helper } from "@mitori/agent/golden";')).toContain("deep-import@1");
+  });
+
   test("classify: tests, testing.ts, testkit and zones are test code; data and declarations are ignored", () => {
     expect(classify("packages/core/src/ids.test.ts")?.test).toBe(true);
     expect(classify("packages/core/test/unit/a.ts")?.test).toBe(true);

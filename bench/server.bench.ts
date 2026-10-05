@@ -1,7 +1,8 @@
 // srv.* — daemon budgets (server spec §1.4, bench/budgets/server.json):
 // - srv.rss.idleEmpty / srv.rss.idleLoaded: the shipped CLI daemon as its own process (the compiled binary when dist/
 //   holds a current one, else `bun apps/cli/src/main.ts`, which carries the transpiler: the result says which), idle, its
-//   RSS read from the OS (`ps -o rss`). Loaded = a copy of crit (100k LOC class) opened and scanned, then 60 s idle (PT-14).
+//   memory read from the OS (CR m1-117: macOS phys_footprint, otherwise ps RSS). Loaded = a copy of crit
+//   (100k LOC class) opened and scanned, then 60 s idle (PT-14). Both macOS values are kept in stderr evidence.
 // - srv.sse.p99: 200 SSE clients in their own thread (packages/server/src/sse/test/sse-clients.worker.ts), the hub's
 //   publish → arrival latency, p99 of one round of 40 events per run (the SSE int test now asserts delivery, not time).
 // - srv.ttfb.shell / srv.ttfb.health (no budget of their own; ui.shellPaint is the user-facing one): time to the first
@@ -10,6 +11,7 @@ import { cpSync, existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { SseEventPayload, WorkspaceKey } from "@mitori/core";
 import { buildFixture, type FixtureRepo, startTestDaemon, type TestDaemon } from "@mitori/testkit";
+import { footprint } from "../packages/indexer/src/update/test/footprint.ts";
 import { type Harness, startHarness } from "../packages/server/src/http/test/harness.ts";
 import { type Int, startInt } from "../test/int/harness.ts";
 import { REPO_ROOT, scratch } from "./lib/child.ts";
@@ -20,11 +22,17 @@ const BIN = join(REPO_ROOT, `dist/mitori-${process.platform}-${process.arch}`);
 const binary = (): "compiled" | "source" =>
   existsSync(BIN) && statSync(BIN).mtimeMs >= statSync(join(REPO_ROOT, "apps/cli/src/main.ts")).mtimeMs ? "compiled" : "source";
 
-/** RSS of a process in MB (2^20) as the OS reports it. */
+/** CR m1-117 idle memory in MB (2^20); do not fall back to a different metric on macOS. */
 function rssMB(pid: number): number {
   const r = Bun.spawnSync(["ps", "-o", "rss=", "-p", String(pid)], { stdout: "pipe", stderr: "ignore" });
   const kb = Number(r.stdout.toString().trim());
   if (!Number.isFinite(kb) || kb <= 0) throw new Error(`no RSS for pid ${pid}`);
+  if (process.platform === "darwin") {
+    const f = footprint(pid);
+    if (!f) throw new Error(`no physical footprint for pid ${pid}`);
+    console.error(JSON.stringify({ memory: "darwin", pid, residentMB: kb / 1024, footprintMB: f.footprint / 1_048_576 }));
+    return f.footprint / 1_048_576;
+  }
   return kb / 1024;
 }
 

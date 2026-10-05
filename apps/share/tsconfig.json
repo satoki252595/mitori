@@ -1,0 +1,6 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "outDir": "../../node_modules/.cache/tsc/share", "types": [] },
+  "include": ["src", "worker-configuration.d.ts"],
+  "references": [{ "path": "../../packages/core" }]
+}

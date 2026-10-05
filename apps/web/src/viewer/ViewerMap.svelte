@@ -5,12 +5,13 @@
 -->
 <script lang="ts">
 import type { SectionId } from "@mitori/core";
+import { buildPlanModel, renderPlanSvg } from "@mitori/core";
 import { untrack } from "svelte";
 import type { ZoomStage } from "../contract.ts";
 import FloorPlan from "../map/FloorPlan.svelte";
 import type { PlanController } from "../map/plan-dom.ts";
 import RoomCard from "../map/RoomCard.svelte";
-import { buildPlanModel, type PlanText, type RoomModel } from "../map/render.ts";
+import type { PlanText, RoomModel } from "../map/render.ts";
 import { fmtInt, fmtLocShort } from "../shell/fmt.ts";
 import { t } from "../shell/index.ts";
 import { formatHash } from "./route.ts";
@@ -28,11 +29,18 @@ let hover = $state.raw<{ room: RoomModel; rect: DOMRect } | null>(null);
 const ZOOMS: ZoomStage[] = ["Z0", "Z1", "Z2"];
 
 const text: PlanText = {
-  title: t("map.aria.plan"),
+  get title() {
+    return t("map.aria.plan");
+  },
   roomLabel: (r) => t("map.aria.room", { zone: r.zoneLabel, room: r.label, files: r.files, n: r.threads }),
   roomHref: (r) => (r.section ? formatHash({ name: "doc", section: r.section, block: null }) : "#"),
   files: (n) => t("map.room.files", { n }),
 };
+// Self-contained exports retain their hash links and never fetch the daemon's presentation.
+const presented = $derived.by(() => {
+  void v.lang;
+  return view && model ? { ...view, plan: model, svg: renderPlanSvg(model, text, "plan-desc") } : null;
+});
 const overlays = $derived({ comments: false, working: false, churn: false, freshness: true, allDeps, legend: false });
 const none = new Set<string>();
 const room = $derived(selected && model ? (model.byId.get(selected) ?? null) : null);
@@ -101,10 +109,10 @@ const sectionOf = (r: RoomModel): SectionId | null => r.section;
         {/if}
       </header>
 
-      {#if view && model}
+      {#if presented && model}
         <div class="stage" aria-label={t("map.stage")} role="group">
           <FloorPlan
-            {view}
+            view={presented}
             {text}
             {selected}
             {overlays}

@@ -81,7 +81,7 @@
     },
     {
       "id": "agent.resident.procs",
-      "metric": "常駐 engine プロセス数（warm + parked）",
+      "metric": "生成終了5秒後の常駐 engine プロセス数（warm + parked、実設定のエンジン）",
       "target": 2,
       "limit": 2,
       "unit": "count",
@@ -90,8 +90,7 @@
       "owner": "agent",
       "measure": "bench/agent-live.bench.ts#resident-procs",
       "scale": "none",
-      "provisional": false,
-      "unmeasured": "needs real claude processes (warm + parked); the scenario engine spawns none and this pass spends no tokens — measure after `claude /login` (docs/progress/rem-bench.md)"
+      "provisional": false
     },
     {
       "id": "agent.resident.rss",
@@ -104,8 +103,7 @@
       "owner": "agent",
       "measure": "bench/agent-live.bench.ts#resident-rss",
       "scale": "none",
-      "provisional": false,
-      "unmeasured": "needs real claude processes (warm + parked); the scenario engine spawns none and this pass spends no tokens — measure after `claude /login` (docs/progress/rem-bench.md)"
+      "provisional": false
     }
   ],
   "counters": [

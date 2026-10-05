@@ -45,6 +45,17 @@ describe("fixture generators (testing spec 2.1 rule 4)", () => {
     expect(md).toMatch(/ <!-- b_[0-9a-hjkmnp-tv-z]{8} -->\n$/);
   });
 
+  test("the large-code fixture has exactly 20,000 numbered lines", () => {
+    const g = { path: "src/large.ts", generator: "ts-numbered-lines", bytes: 300_000 };
+    const out = generate(g);
+    expect(out.length).toBe(300_000);
+    const lines = text(out).trimEnd().split("\n");
+    expect(lines).toHaveLength(20_000);
+    expect([lines[0], lines.at(-1)]).toEqual(["// line 000001", "// line 020000"]);
+    expect(generate(g)).toEqual(out);
+    expect(() => generate({ ...g, bytes: 64 })).toThrow(/multiple of 15/);
+  });
+
   test("text and hex are verbatim; bad input is E_INVALID_INPUT", () => {
     expect(text(generate({ path: "x", generator: "text", text: "a\r\nb" }))).toBe("a\r\nb");
     expect([...generate({ path: "x", generator: "hex", hex: "efbbbf00ff" })]).toEqual([0xef, 0xbb, 0xbf, 0, 0xff]);

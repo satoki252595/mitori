@@ -6,12 +6,25 @@ import { Language } from "web-tree-sitter";
 import type { GrammarId, ParseWorkerInit } from "../contract.ts";
 
 /**
- * CR-PENDING(perf): `ParseWorkerInit.compiled` (docs/design/cr-requests/perf.md §1). The factory posts compiled
+ * CR perf-1: the structural `ParseWorkerInit.compiled` port (docs/design/cr-requests/perf.md §1). The factory posts compiled
  * modules next to the bytes (structured clone shares a `WebAssembly.Module`); the bytes stay the fallback.
  */
 export interface PrecompiledWasm {
   runtime?: WebAssembly.Module;
   grammars?: Partial<Record<GrammarId, WebAssembly.Module>>;
+}
+
+/** Compile once on the pool's thread; unsupported runtimes keep the worker's existing byte loader. */
+export function withPrecompiled<T extends Pick<ParseWorkerInit, "runtime" | "grammars">>(init: T): T & { compiled?: PrecompiledWasm } {
+  try {
+    const grammars: NonNullable<PrecompiledWasm["grammars"]> = {};
+    for (const [g, bytes] of Object.entries(init.grammars)) grammars[g as GrammarId] = new WebAssembly.Module(bytes as BufferSource);
+    const compiled = { runtime: new WebAssembly.Module(init.runtime as BufferSource), grammars };
+    structuredClone(compiled); // detect unsupported module cloning before a Worker is started
+    return { ...init, compiled };
+  } catch {
+    return init;
+  }
 }
 
 /** The precompiled modules an init message carries, if any. */
@@ -25,16 +38,17 @@ const wasm = WebAssembly as unknown as { instantiate: Instantiate };
 
 /** `Parser.init` options: the emscripten `instantiateWasm` hook instantiates the shared module (bytes on failure). */
 export function runtimeOptions(init: ParseWorkerInit, compiled: PrecompiledWasm | undefined): object {
+  const binary = init.runtime; // the runtime fallback must not retain the init's entire grammar byte map
   const mod = compiled?.runtime;
-  if (!(mod instanceof WebAssembly.Module)) return { wasmBinary: init.runtime };
+  if (!(mod instanceof WebAssembly.Module)) return { wasmBinary: binary };
   return {
-    wasmBinary: init.runtime,
+    wasmBinary: binary,
     instantiateWasm(imports: WebAssembly.Imports, done: (instance: WebAssembly.Instance, module: WebAssembly.Module) => void): object {
       WebAssembly.instantiate(mod, imports).then(
         (instance) => done(instance, mod),
         () =>
           // emscripten passes no reject: a module that does not instantiate falls back to the bytes
-          WebAssembly.compile(init.runtime as BufferSource).then((m) => WebAssembly.instantiate(m, imports).then((instance) => done(instance, m))),
+          WebAssembly.compile(binary as BufferSource).then((m) => WebAssembly.instantiate(m, imports).then((instance) => done(instance, m))),
       );
       return {};
     },

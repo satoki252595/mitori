@@ -1,0 +1,57 @@
+{
+  "v": "mitori.bench-result/1",
+  "sha": "815957fd01fb4856b5ae8d3aa2091edd1ddd263f",
+  "machine": {
+    "cpu": "Apple M5 Max",
+    "cores": 18,
+    "ramGb": 128,
+    "os": "Darwin 27.0.0",
+    "bun": "1.4.2",
+    "node": "22.23.3",
+    "chrome": "153.0.8010.12",
+    "loadavg": 8.255859375,
+    "noisy": false,
+    "waited": 0,
+    "power": "ac"
+  },
+  "factor": 1.0817120018416495,
+  "factorSource": "measured",
+  "startedAt": "2026-10-05T04:22:25.157Z",
+  "results": [
+    {
+      "id": "idx.rss.peak",
+      "unit": "MB",
+      "values": [
+        886.859375,
+        892.140625,
+        861.734375
+      ],
+      "median": 886.859375,
+      "p95": 892.140625,
+      "cv": 0.018456824989085168,
+      "suite": "idx",
+      "mode": "process",
+      "budgetStat": "median",
+      "repo": "react",
+      "loadavg": 8.255859375
+    },
+    {
+      "id": "idx.s04.cold.react",
+      "unit": "ms",
+      "values": [
+        1535.6781250000001,
+        1580.573791,
+        1635.128916
+      ],
+      "median": 1580.573791,
+      "p95": 1635.128916,
+      "cv": 0.03144571204135612,
+      "suite": "idx",
+      "mode": "process",
+      "budgetStat": "median",
+      "repo": "react",
+      "loadavg": 8.9052734375
+    }
+  ],
+  "counters": []
+}

@@ -46,6 +46,9 @@
       "path": "../apps/web"
     },
     {
+      "path": "../apps/share"
+    },
+    {
       "path": "../test"
     }
   ]

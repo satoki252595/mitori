@@ -4,6 +4,18 @@
  * quota errors degrade to "nothing stored", never to an exception.
  */
 type Area = "local" | "session";
+let serverValues: ReadonlyMap<string, string> | null = null;
+
+/** Synchronous server render only; the caller supplies the bounded reading UI keys, never credentials. */
+export function withServerStorage<T>(values: ReadonlyMap<string, string>, render: () => T): T {
+  const previous = serverValues;
+  serverValues = values;
+  try {
+    return render();
+  } finally {
+    serverValues = previous;
+  }
+}
 
 function area(a: Area): Storage | null {
   try {
@@ -15,6 +27,7 @@ function area(a: Area): Storage | null {
 
 export function getItem(a: Area, key: string): string | null {
   try {
+    if (serverValues) return serverValues.get(`${a}:${key}`) ?? null;
     return area(a)?.getItem(key) ?? null;
   } catch {
     return null;

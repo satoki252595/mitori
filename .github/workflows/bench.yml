@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   bench:
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: [self-hosted, macOS, ARM64, mitori-reference]
     timeout-minutes: 90
     # an explicit `bash` runs every step with `-eo pipefail`: without it `bench … | tee` took tee's exit code and a red
     # budget passed the step

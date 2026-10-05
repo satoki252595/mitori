@@ -3,11 +3,25 @@
  * export only contract names; keep helpers in sibling files.
  */
 import type { AnchorEngine } from "@mitori/anchor";
-import type { AnswerOutput, BlockId, BlockKind, CheckError, ErrorCode, FindingsOutput, Hasher, LineNo, RepoPath, Result, ThreadId } from "@mitori/core";
+import type {
+  AnswerOutput,
+  BlockId,
+  BlockKind,
+  CheckError,
+  DocPatchOutput,
+  ErrorCode,
+  FindingsOutput,
+  Hasher,
+  LineNo,
+  RepoPath,
+  Result,
+  ThreadId,
+} from "@mitori/core";
 import type { ApplyEditsInput, ApplyEditsResult, ParsedAgent, ParsedPatch } from "../contract.ts";
 import { parseAnswer, parseFindings } from "./answer.ts";
 import { applyEdits } from "./apply.ts";
 import { Checks } from "./check.ts";
+import { parseDocpatch } from "./docpatch.ts";
 import { parseAgent, parsePatch } from "./patch.ts";
 
 /** Pure text-level patch application (the repository layer writes the files; spec §5.2 steps 1–6): all or nothing, every problem reported. */
@@ -39,6 +53,11 @@ export function parseContract(
   raw: Raw,
   ctx: { citeExists(path: RepoPath, start: LineNo, end: LineNo): boolean },
 ): Result<FindingsOutput, Failure>;
+export function parseContract(
+  contract: "docpatch/1",
+  raw: Raw,
+  ctx: { docBlocks: BlockId[]; blockKinds: Record<BlockId, BlockKind> },
+): Result<DocPatchOutput, Failure>;
 export function parseContract(contract: string, raw: Raw, ctx: unknown): Result<unknown, Failure> {
   switch (contract) {
     case "patch/1":
@@ -49,9 +68,11 @@ export function parseContract(contract: string, raw: Raw, ctx: unknown): Result<
       return parseAnswer(raw, ctx as Parameters<typeof parseAnswer>[1]);
     case "findings/1":
       return parseFindings(raw, ctx as Parameters<typeof parseFindings>[1]);
+    case "docpatch/1":
+      return parseDocpatch(raw, ctx as Parameters<typeof parseDocpatch>[1]);
     default: {
       const checks = new Checks();
-      checks.add("", "patch/1 | agent/1 | answer/1 | findings/1", contract, "E_INVALID_INPUT");
+      checks.add("", "patch/1 | agent/1 | answer/1 | findings/1 | docpatch/1", contract, "E_INVALID_INPUT");
       return { ok: false, error: checks.failure() };
     }
   }

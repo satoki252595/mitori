@@ -7,30 +7,38 @@
   stage times). Everything here is 0 tok; the three estimates are fetched after `mitori:map:painted`.
 -->
 <script lang="ts">
-import { type AreaStat, type Effort, type EngineId, HREFS, type RepoPath, type SectionId, type SourceLang } from "@mitori/core";
+import { type AreaStat, HREFS, type RepoPath, type SectionId, type SourceLang } from "@mitori/core";
 import { onMount, untrack } from "svelte";
 import type { ZoomStage } from "../contract.ts";
-import { defaultEffort, isRange } from "../gen/estimate.ts";
-import { isActive, roomTargets } from "../gen/progress.ts";
-import { copyText } from "../shell/clipboard.ts";
+import { isActive, roomTargets } from "../gen/state.ts";
 import { fmtInt, fmtLocShort, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
 import { hasKey } from "../shell/i18n.ts";
 import { ensureNs } from "../shell/i18n-cell.svelte.ts";
 import { errorText, t } from "../shell/index.ts";
-import { afterMark, mark, markAfterPaint } from "../shell/perf.ts";
+import { afterMark, markAfterPaint } from "../shell/perf.ts";
 import Rail from "../shell/Rail.svelte";
 import { choosePath, courseName, NEWCOMER_PATH } from "../shell/reading.ts";
 import { currentLayout, useStores } from "../stores/app.svelte.ts";
-import { engineProblem, policyAcknowledged } from "./engine.ts";
 import FloorPlan from "./FloorPlan.svelte";
 import { generatedTokens, heroAreas, heroMeta, LANG_NAMES, ledeOf, oneSentence } from "./hero.ts";
 import type { PlanController } from "./plan-dom.ts";
-import { buildPlanModel, type PlanText, type RoomModel } from "./render.ts";
+import { hydratePlan, type PlanText, type RoomModel } from "./render.ts";
 
+let {
+  initialSide = null,
+  initialCamera = null,
+  native = false,
+  initialDisclosureClock = null,
+}: {
+  initialSide?: typeof import("./side.ts") | null;
+  initialCamera?: import("../contract.ts").MapCamera | null;
+  native?: boolean;
+  initialDisclosureClock?: import("../gen/visibility.ts").VisibleClock | null;
+} = $props();
 const s = useStores();
 // the card states, room card and text view arrive in the lazy `gen` chunk once the plan has painted (F5: not
 // first-paint; the card column holds a same-size skeleton meanwhile)
-let side = $state.raw<typeof import("./side.ts") | null>(null);
+let side = $state.raw<typeof import("./side.ts") | null>(untrack(() => initialSide));
 onMount(() => afterMark(["mitori:map:painted"], () => void Promise.all([import("./side.ts"), ensureNs("gen")]).then(([m]) => (side = m)), 800));
 const route = $derived(s.router.route);
 const ws = $derived(route.name === "map" ? route.ws : null);
@@ -38,18 +46,14 @@ const st = $derived(s.workspace.status);
 const scan = $derived(st?.scan.summary ?? null);
 const profile = $derived(st?.profile ?? null);
 const view = $derived(s.map.view);
-const model = $derived(view ? buildPlanModel(view) : null);
+const model = $derived(view?.plan ? hydratePlan(view.plan) : null);
 const layout = $derived(currentLayout(s));
 const lang = $derived(s.prefs.lang);
 let controller = $state.raw<PlanController | null>(null);
 let hover = $state.raw<{ room: RoomModel; rect: DOMRect } | null>(null);
 let estimatesRequested = false;
 let breakdown = $state(false);
-let tail = $state<string | null>(null);
 
-const engineStatus = $derived(s.session.engine(s.gen.engine));
-const enginesLoaded = $derived(s.session.engines !== null);
-const problem = $derived(engineProblem(engineStatus));
 const run = $derived(s.gen.run);
 const active = $derived(isActive(run));
 const generated = $derived(!!s.doc.outline?.manifest.generatedAt);
@@ -61,12 +65,6 @@ $effect(() => {
   return () => clearTimeout(h);
 });
 const rightReady = $derived(rightTimedOut || s.doc.outline !== null || s.doc.outlineError);
-const policyAcked = $derived(policyAcknowledged(s.gen.engine, engineStatus, s.session.settings?.settings.privacy.dataPolicyAck[s.gen.engine]));
-const estimates = $derived.by(() => {
-  const out: Partial<Record<Effort, ReturnType<typeof s.gen.current>>> = {};
-  for (const e of ["overview", "standard", "complete"] as const) out[e] = s.gen.estimates.get(s.gen.key(e));
-  return out as Partial<Record<Effort, NonNullable<ReturnType<typeof s.gen.current>>>>;
-});
 const targets = $derived(roomTargets(s.gen.tasks));
 const nodeOfModule = $derived(new Map((model?.rooms ?? []).filter((r) => r.module).map((r) => [r.module as string, r.id])));
 const genRooms = $derived(new Set([...targets.generating].map((m) => nodeOfModule.get(m) ?? m)));
@@ -85,9 +83,11 @@ $effect(() => {
 });
 
 const text: PlanText = {
-  title: t("map.aria.plan"),
+  get title() {
+    return t("map.aria.plan");
+  },
   roomLabel: (r) => t("map.aria.room", { zone: r.zoneLabel, room: r.label, files: r.files, n: r.threads }),
-  roomHref: (r) => (ws ? HREFS.map(ws, r.id as `md_${string}`) : "#"),
+  roomHref: (r) => (ws ? (r.external && r.path ? HREFS.code(ws, r.path as RepoPath) : HREFS.map(ws, r.id as `md_${string}`)) : "#"),
   files: (n) => t("map.room.files", { n }),
 };
 
@@ -102,7 +102,7 @@ function areaLabel(a: AreaStat): string {
 }
 const readme = $derived(profile?.readme ?? null);
 // NC-02: once §0 is generated, its first written paragraph (with its cites) is the lede — not the README excerpt
-let lede = $state<{ text: string; block: string } | null>(null);
+let lede = $state<{ text: string; block: string } | null>(untrack(() => ledeOf(s.doc.section("s0")?.blocks ?? [])));
 $effect(() => {
   if (!ws || !generated) {
     lede = null;
@@ -139,6 +139,7 @@ const expert = $derived(s.doc.level === "expert");
 // ---------------------------------------------------------------- data
 $effect(() => {
   if (!ws) return;
+  void lang;
   untrack(() => void s.map.load());
 });
 
@@ -154,6 +155,7 @@ $effect(() => {
 // three estimates in parallel AFTER the map painted (fetch 0 when switching effort)
 function onPainted() {
   if (estimatesRequested || generated) return;
+  if ((["overview", "standard", "complete"] as const).every((e) => s.gen.estimates.has(s.gen.key(e)))) return;
   estimatesRequested = true;
   void s.session.loadSettings({ reuse: true }).then((v) => {
     if (!s.gen.engineChosen) s.gen.engine = st?.genEngine ?? v?.settings.defaultGenEngine ?? s.gen.engine;
@@ -163,29 +165,6 @@ function onPainted() {
 
 $effect(() => {
   if (controller) untrack(onPainted);
-});
-
-// default effort (cookie → uncalibrated pro ⇒ overview → workspace → global), until the user picks one
-$effect(() => {
-  const std = estimates.standard;
-  if (!std || s.gen.effortChosen) return;
-  const settings = s.session.settings?.settings;
-  const uncalPro = engineStatus?.plan === "pro" && (!!std.windowDeltaRange || isRange(std));
-  const e = defaultEffort({
-    cookie: s.prefs.effort ?? undefined,
-    workspace: ws ? settings?.workspaces[ws]?.defaultEffort : undefined,
-    global: settings?.defaultEffort,
-    uncalibratedPro: uncalPro,
-  });
-  untrack(() => s.gen.setEffort(e, false));
-});
-
-// tail line = the latest running task
-$effect(() => {
-  const running = s.gen.tasks.filter((x) => x.state === "running");
-  const last = running[running.length - 1];
-  // gen strings arrive with the side chunk (i18n-ns.ts `gen`): until then the tail is the task id alone
-  tail = last ? (hasKey(`gen.stage.${last.stage}`) ? `${t(`gen.stage.${last.stage}`)} · ${last.target.id}` : last.target.id) : null;
 });
 
 // `?text=1` opens 「テキストで見る」 (permalink, ⌘K); closing it drops the parameter again (ux.md §4.2.6)
@@ -285,6 +264,7 @@ function sectionOf(r: RoomModel): SectionId | null {
 function open(id: string) {
   const r = model?.byId.get(id);
   if (!r || !ws) return;
+  if (r.external && r.path) return void s.router.go({ name: "code", ws, path: r.path as RepoPath });
   const sec = sectionOf(r) ?? "s5";
   void s.router.go({ name: "doc", ws, section: sec });
 }
@@ -314,27 +294,6 @@ async function prioritize(r: RoomModel) {
     if (await s.gen.prioritize(sec))
       s.bottom.toast({ id: "gen.prioritized", kind: "info", key: "toast.gen.prioritized", params: { id: s.doc.index?.numbers.get(sec) ?? sec } });
   } else await s.gen.estimateSection(sec);
-}
-
-async function start(opts: { notBefore?: string }) {
-  const r = await s.gen.start(opts);
-  if (r === "refreshed") s.bottom.toast({ id: "gen.refreshed", kind: "warn", key: "toast.gen.refreshed" });
-  if (r === "started") {
-    s.ui.announce(t("gen.announce.started"));
-    s.prefs.setEffort(s.gen.effort);
-  }
-}
-
-function ack(shownAt: string): Promise<unknown> {
-  const engine = s.gen.engine;
-  const plan = engineStatus?.plan ?? "unknown";
-  const at = new Date().toISOString();
-  return s.prefs.patchNow({ privacy: { dataPolicyAck: { [engine]: { at, shownAt, plan } } } }).then(() => s.session.loadSettings());
-}
-
-function setEffort(e: Effort) {
-  s.gen.setEffort(e);
-  mark("mitori:estimate:updated");
 }
 
 // ---------------------------------------------------------------- map keys (scope: map)
@@ -382,7 +341,6 @@ const facts = $derived.by(() => {
 });
 // NC-18 / NC-12: a zero tile tells a first-time reader nothing (「0 HTTPルート」)
 const shownFacts = $derived(facts.filter((f) => f.n > 0 || !scan));
-const stale = $derived(s.doc.outline?.counts.stale ?? 0);
 const totals = $derived(s.doc.outline?.manifest.usageTotals ?? null);
 // 「区画0 · 部屋5」: a zero count is not shown (NC-04 / NC-12)
 const planCounts = $derived(
@@ -458,46 +416,8 @@ const planCounts = $derived(
       <!-- AC-U03: reserve the estimate height from the first frame, before the outline decides which card loads. -->
       <aside class="side" aria-label={t("map.right")} aria-busy={!rightReady || undefined}>
         {#if rightReady && side}
-          {@const GenProgress = side.GenProgress}
-          {@const GenEstimateCard = side.GenEstimateCard}
-          {@const EngineCard = side.EngineCard}
-          {#if active && run}
-            <GenProgress {run} tasks={s.gen.tasks} {tail} oncontrol={(a) => s.gen.control(a)} />
-          {:else if generated && !s.gen.estimates.size && totals}
-            <section class="done card" aria-labelledby="done-t" data-chrome>
-              <h2 id="done-t">{t("gen.card.doneTitle")}</h2>
-              <div class="done-main">
-                <p>
-                  <b>{t("map.generated", generatedTokens(totals, fmtTokensImpl, (u) => fmtUsdImpl(u, "gen")))}</b>
-                  {#if stale > 0}<span class="stale">{t("map.staleChapters", { n: stale })}</span>{/if}
-                </p>
-                {#if ws}<button type="button" class="btn btn-pri" onclick={readFiveMinutes}>{t("map.read5", { name: fiveName })}</button>{/if}
-              </div>
-            </section>
-          {:else if problem && engineStatus}
-            <EngineCard status={engineStatus} {problem} effort={s.gen.effort} oncopy={(c) => copyText(c, s, "copy.command")} onrecheck={() => s.session.loadEngines()} />
-          {:else}
-            <GenEstimateCard
-              {estimates}
-              effort={s.gen.effort}
-              engine={s.gen.engine}
-              reasoning={s.session.settings?.settings.reasoning[s.gen.effort === "overview" ? "genOverview" : "gen"]}
-              window={s.session.window ?? engineStatus?.window ?? null}
-              {policyAcked}
-              breakdownOpen={breakdown || s.doc.level === "expert"}
-              {engineStatus}
-              detecting={!enginesLoaded}
-              {scan}
-              busy={s.gen.starting}
-              oneffort={setEffort}
-              onengine={(e: EngineId) => void s.gen.setEngine(e)}
-              onstart={start}
-              onack={ack}
-              oncopy={(c) => copyText(c, s, "copy.command")}
-              onsettings={() => ws && void s.router.go({ name: "wsSettings", ws })}
-            />
-          {/if}
-          {#if s.gen.error}<p class="gen-err" role="alert">{errorText(s.gen.error)}</p>{/if}
+          {@const SidePanel = side.SidePanel}
+          <SidePanel {breakdown} {fiveName} onread={readFiveMinutes} initialClock={initialDisclosureClock} />
         {:else}
           <div class="card side-skel" aria-hidden="true"></div>
         {/if}
@@ -528,6 +448,7 @@ const planCounts = $derived(
           <FloorPlan
             {view}
             {text}
+            {initialCamera}
             selected={s.map.selected}
             overlays={s.map.overlays}
             generating={genRooms}
@@ -600,6 +521,7 @@ const planCounts = $derived(
             {#if hover.room.topSymbols.length}<span class="mono" data-user-content>{hover.room.topSymbols.join(" · ")}</span>{/if}
           </div>
         {/if}
+        {#if native}<div class="pop l0" role="tooltip" data-native-map-tooltip data-chrome hidden></div>{/if}
       </div>
     </section>
 
@@ -644,6 +566,13 @@ const planCounts = $derived(
 {#if s.ui.textViewOpen && model && side}
   {@const TextViewDialog = side.TextViewDialog}
   <TextViewDialog {model} onclose={closeTextView} />
+{/if}
+
+{#if native && !generated && side}
+  {@const SidePanel = side.SidePanel}
+  {#each ["overview", "standard", "complete"] as effort}
+    <template data-native-effort={effort}><SidePanel breakdown={expert} {fiveName} onread={readFiveMinutes} effortOverride={effort as import('@mitori/core').Effort} /></template>
+  {/each}
 {/if}
 
 <style>
@@ -834,39 +763,6 @@ const planCounts = $derived(
   .side-skel {
     min-height: 352px;
   }
-  .done {
-    padding: 18px 20px 16px;
-    box-shadow: var(--shadow-soft);
-  }
-  .done h2 {
-    font-family: var(--font-serif);
-    font-size: var(--fs-lead);
-    font-weight: var(--fw-strong);
-    color: var(--ink);
-    margin: 0 0 12px;
-  }
-  .done-main {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    font-size: var(--fs-ui);
-  }
-  .done-main p {
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  .stale {
-    color: var(--c-warn);
-    font-size: var(--fs-label);
-  }
-  .gen-err {
-    color: var(--c-bad);
-    margin: 0;
-    font-size: var(--fs-label);
-  }
-  /* ---------------------------------------------------------------- ② plan */
   .plan-sec {
     margin-top: 40px;
   }
@@ -1064,6 +960,7 @@ const planCounts = $derived(
     font-size: var(--fs-ui-s);
     pointer-events: none;
   }
+  .l0[hidden] { display: none; }
   .l0 b {
     color: var(--ink);
   }

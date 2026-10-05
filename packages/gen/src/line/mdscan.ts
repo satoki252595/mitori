@@ -291,6 +291,26 @@ function boundaries(md: string, ranges: Ranges): number[] {
   return out;
 }
 
+/** Unmarked code-naming sentences: insertion offsets for inferred claims, never borrowed proof from a neighbour. */
+export function uncitedCodeEnds(md: string): number[] {
+  if (md.includes("|") || fencedLines(md).some(Boolean)) return [];
+  const ranges = codeRanges(md);
+  const bounds = [...boundaries(md, ranges), md.length];
+  const out: number[] = [];
+  for (let i = 1; i < bounds.length; i++) {
+    const start = bounds[i - 1] as number;
+    const end = bounds[i] as number;
+    const text = md.slice(start, end);
+    if (codeSpans(text).length === 0 || scanMarkers(text).length > 0) continue;
+    let at = end;
+    while (at > start && /\s/.test(md[at - 1] as string)) at--;
+    while (at > start && CLOSERS.includes(md[at - 1] as string) && !inRanges(ranges, at - 1)) at--;
+    while (at > start && TERMINATORS.includes(md[at - 1] as string) && !inRanges(ranges, at - 1)) at--;
+    out.push(at);
+  }
+  return out;
+}
+
 /**
  * Claim spans of a marker-form md (§6.6 steps 3–5). The span of marker n is the text from the nearest
  * sentence / line / cell / previous-marker boundary to the marker; a marker directly following another

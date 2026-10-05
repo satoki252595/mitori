@@ -2,7 +2,7 @@
  * @mitori/doc — `layout/` (owner: WP-04). Everything exported here is public (re-exported by `src/index.ts`):
  * export only contract names; keep helpers in sibling files.
  */
-import { canonicalJson, type DiagramIR, type DiagramLayout, type Hasher, type Logger, MitoriError, type SqlDb, type WorkerPool } from "@mitori/core";
+import { canonicalJson, type DiagramIR, type DiagramLayout, type Hasher, type Logger, type SqlDb, type WorkerPool } from "@mitori/core";
 import type { DiagramLayouter } from "../contract.ts";
 import { ELK_ENGINE, SEQUENCE_ENGINE, sequenceLayout } from "./elk.ts";
 import { toMermaidText } from "./mermaid.ts";
@@ -12,7 +12,10 @@ const MEM_MAX = 256;
 
 /** Layouter factory [CONS-26]. ELK runs in its own Worker (elk-api.js + embedded elk-worker.min.js) [SC-04]. */
 export function createDiagramLayouter(deps: {
-  elk: WorkerPool<{ ir: DiagramIR; kind: "layered" | "floorplan"; prev: DiagramLayout | null }, DiagramLayout>;
+  elk: WorkerPool<
+    { ir: DiagramIR; kind: "layered" | "floorplan"; prev: DiagramLayout | null },
+    DiagramLayout | Awaited<ReturnType<DiagramLayouter["layoutFloorplan"]>>
+  >;
   db: SqlDb;
   hasher: Hasher;
   log: Logger;
@@ -46,16 +49,19 @@ export function createDiagramLayouter(deps: {
           ? sequenceLayout(ir, irHash)
           : ir.kind === "container"
             ? roomsLayout(ir, irHash)
-            : { ...(await deps.elk.run({ ir, kind: "layered", prev: null }, signal)), irHash, diagram: ir.id };
+            : { ...((await deps.elk.run({ ir, kind: "layered", prev: null }, signal)) as DiagramLayout), irHash, diagram: ir.id };
       log.debug("layout", { diagram: ir.id, nodes: ir.nodes.length, ms: Math.round(performance.now() - t0) });
       deps.db.run("INSERT OR REPLACE INTO doc_layouts (ir_hash, engine, diagram, json) VALUES (?, ?, ?, ?)", [irHash, engine, ir.id, JSON.stringify(out)]);
       remember(key, out);
       return out;
     },
-    async layoutFloorplan(ir) {
-      throw new MitoriError("E_UNSUPPORTED", "floor-plan layout is not available yet (WP-18); use layout() on the container diagram", {
-        params: { diagram: ir.id },
-      });
+    async layoutFloorplan(ir, prev, signal) {
+      signal?.throwIfAborted();
+      const irHash = deps.hasher.xxh3(canonicalJson({ ...ir, id: null }));
+      // Previous room order is an input, so it must never reuse the container/IR-only cache.
+      const out = (await deps.elk.run({ ir, kind: "floorplan", prev }, signal)) as Awaited<ReturnType<DiagramLayouter["layoutFloorplan"]>>;
+      signal?.throwIfAborted();
+      return { ...out, layout: { ...out.layout, irHash, diagram: ir.id } };
     },
     toMermaid: toMermaidText,
   };
@@ -66,3 +72,4 @@ export function createDiagramLayouter(deps: {
  * composition root adapts the raw ELK pool to the layouter's `WorkerPool<{ir…}, DiagramLayout>` with it.
  */
 export { elkLayout } from "./elk.ts";
+export { floorplanLayout, floorplanQuality } from "./floorplan.ts";

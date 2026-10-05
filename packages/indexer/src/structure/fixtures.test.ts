@@ -1,6 +1,6 @@
 /** Fixture truth for imports, cross-file calls and module constraints (testing spec §2.4) under the test structure params. */
 import { afterAll, describe, expect, test } from "bun:test";
-import { buildFixture, type FixtureName, type FixtureRepo, loadTruth, scoreIndex, type TruthScore } from "@mitori/testkit";
+import { buildFixture, type FixtureName, type FixtureRepo, loadTruth, scoreIndex, type TruthScore } from "@mitori/testkit/fixtures";
 import { loadRepo } from "./test/corpus.ts";
 import { miniIndexer, runPipeline } from "./test/pipeline.ts";
 import { TEST_TUNING } from "./tuning.ts";

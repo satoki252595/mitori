@@ -5,16 +5,18 @@
 
 import { Database } from "bun:sqlite";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "../..");
-const HOST_BIN = join(ROOT, `dist/mitori-${process.platform}-${process.arch}`);
+const HOST_TARGET = `${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`;
+const EXE = process.platform === "win32" ? ".exe" : "";
+const HOST_BIN = join(ROOT, `dist/mitori-${HOST_TARGET}${EXE}`);
 const BIN = process.env.MITORI_BIN ?? HOST_BIN;
 /** build:bin targets (scripts/build-bin.ts `TARGETS`, MILESTONES §11): elsewhere (linux-arm64) the suite needs MITORI_BIN. */
-const TARGETS: readonly string[] = ["darwin-arm64", "linux-x64"];
-const UNBUILDABLE = !process.env.MITORI_BIN && !TARGETS.includes(`${process.platform}-${process.arch}`);
+const TARGETS: readonly string[] = ["darwin-arm64", "linux-x64", "windows-x64"];
+const UNBUILDABLE = !process.env.MITORI_BIN && !TARGETS.includes(HOST_TARGET);
 if (UNBUILDABLE) console.warn(`skeleton: skipped — build:bin does not target ${process.platform}-${process.arch}; pass MITORI_BIN=<binary>`);
 // go-small arrives with WP-00b; until then the M0 fixture stands in
 const FIXTURE = join(ROOT, existsSync(join(ROOT, "fixtures/repos/go-small")) ? "fixtures/repos/go-small" : "fixtures/repos/ts-small");
@@ -55,9 +57,9 @@ beforeAll(() => {
   mkdirSync(join(iso, "home"));
   if (UNBUILDABLE) return; // SKEL-AT-05 (the asset lock) needs no binary and still runs
   ensureBinary();
-  mitori = join(iso, "mitori");
+  mitori = join(iso, `mitori${EXE}`);
   copyFileSync(BIN, mitori);
-  Bun.spawnSync(["chmod", "755", mitori]);
+  if (!EXE) chmodSync(mitori, 0o755);
 }, 180_000);
 afterAll(() => {
   if (iso) rmSync(iso, { recursive: true, force: true });
@@ -68,7 +70,7 @@ async function startDaemon(args: string[], env: Record<string, string> = {}) {
   const t0 = performance.now();
   const proc = Bun.spawn([mitori, ...args], {
     cwd: iso,
-    env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: iso, MITORI_HOME: join(iso, "home"), ...env },
+    env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: iso, MITORI_HOME: join(iso, "home"), TMPDIR: tmpdir(), ...env },
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -206,7 +208,12 @@ describe.skipIf(UNBUILDABLE)("SKEL-AT-03 the binary ignores bunfig.toml / .env i
     writeFileSync(join(dir, ".env"), "MITORI_PORT=not-a-port\n");
     const v = Bun.spawnSync([mitori, "--version"], { cwd: dir, env: { PATH: process.env.PATH ?? "" } });
     expect(v.stdout.toString()).not.toContain("PRELOAD-RAN");
-    const proc = Bun.spawn([mitori, "_serve"], { cwd: dir, env: { PATH: process.env.PATH ?? "", HOME: iso }, stdout: "pipe", stderr: "pipe" });
+    const proc = Bun.spawn([mitori, "_serve"], {
+      cwd: dir,
+      env: { PATH: process.env.PATH ?? "", HOME: iso, TMPDIR: tmpdir() },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     const first = await proc.stdout.getReader().read();
     proc.kill("SIGTERM");
     expect(new TextDecoder().decode(first.value)).toMatch(/http:\/\/127\.0\.0\.1:\d+\//);

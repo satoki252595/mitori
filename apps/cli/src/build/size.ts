@@ -17,15 +17,15 @@ export function verdict(bytes: number): SizeVerdict {
 const mb = (n: number) => `${(n / 1e6).toFixed(1)} MB`;
 
 interface Manifest {
-  web: { source: string; files: number; rawBytes: number; brBytes: number; gzBytes: number };
+  web: { source: string; files: number; rawBytes: number; brBytes: number; gzBytes: number; embeddedBytes?: number };
   assets: { id: string; bytes: number; packedBytes: number }[];
 }
 
 if (import.meta.main) {
   const root = resolve(import.meta.dir, "../../../..");
   const dist = join(root, "dist");
-  const host = `mitori-${process.platform}-${process.arch}`;
-  const bins = existsSync(dist) ? readdirSync(dist).filter((f) => /^mitori-(darwin-arm64|linux-x64)$/.test(f)) : [];
+  const host = `mitori-${process.platform === "win32" ? "windows" : process.platform}-${process.arch}${process.platform === "win32" ? ".exe" : ""}`;
+  const bins = existsSync(dist) ? readdirSync(dist).filter((f) => /^mitori-(darwin-arm64|linux-x64|windows-x64\.exe)$/.test(f)) : [];
   if (!bins.includes(host)) {
     console.error(`size: dist/${host} is missing — run \`bun run build:bin\` first`);
     process.exit(1);
@@ -43,7 +43,8 @@ if (import.meta.main) {
   if (existsSync(manifestPath)) {
     const m = JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
     const pinned = m.assets.reduce((n, a) => n + a.packedBytes, 0);
-    const web = m.web.rawBytes + m.web.brBytes + m.web.gzBytes;
+    // Older build manifests embedded all three variants. New tables reconstruct identity from the shared Brotli file.
+    const web = m.web.embeddedBytes ?? m.web.rawBytes + m.web.brBytes + m.web.gzBytes;
     console.log(`  embeds: ${m.assets.length} pinned files ${mb(pinned)} (brotli) · web (${m.web.source}) ${m.web.files} files ${mb(web)} incl. br/gz`);
   }
   process.exit(failed ? 1 : 0);

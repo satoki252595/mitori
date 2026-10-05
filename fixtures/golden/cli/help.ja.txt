@@ -57,6 +57,11 @@ mitori export --html [-o|--out <file|dir>] [--no-code] [--level newcomer|standar
   ネットワーク不要・読み取り専用の 1 ファイルの HTML を書きます（目次・読者レベル・出典の抜粋・図・⌘K 検索つき。秘密らしき文字列は伏せ字にして件数を表示）。
   -o にディレクトリを渡すとその中に <名前>.mitori.html を書きます。--no-code はコードの抜粋を入れません（出典は path:行 だけ）。--decisions は決定事項の一覧を含めます。
 
+## share
+mitori share --server <HTTPS origin> [--ttl-days 1..30] [--code] [--decisions] [-o viewer.html]
+  設計書を暗号化して期限付きリンクで共有します（TTY確認）。コード抜粋は --code で追加。リンクの鍵はブラウザ履歴・同期に残ります。
+  -o は CLI に固定した viewer を保存し、表示した SHA-256 で viewer の同一性を確認できます。
+
 ## init
 mitori init [--commit] [--lang ja|en] [--agents-md]
   設計書の置き場所を用意します。--commit は .gitattributes と .mitori/.gitignore を書き、設計書を commit 対象にします（TTY 確認）。

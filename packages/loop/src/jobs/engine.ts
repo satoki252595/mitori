@@ -4,6 +4,7 @@
 import { type EngineResult, type EngineRun, type EngineSession, LOOP_PROMPTS, type LoopPromptId, type ScheduledRequest, WARM_POOL } from "@mitori/agent";
 import type { JobEvent, JobId, Usage } from "@mitori/core";
 import { AGENT_V1_ENGINE_SCHEMA, FINDINGS_V1_ENGINE_SCHEMA, PATCH_V1_ENGINE_SCHEMA } from "../contract.ts";
+import { DOCPATCH_SCHEMA } from "../contracts/docpatch.ts";
 import { loopSystemPrompt } from "../prompts/index.ts";
 import type { JobPlan } from "./plan.ts";
 
@@ -41,10 +42,13 @@ export function engineRequest(
 ): ScheduledRequest {
   const id = promptIdOf(plan);
   const generic = plan.route.engine === "generic";
-  const keepAlive = !generic && (id === "loop.patch" || id === "loop.agent");
-  const schema = SCHEMAS[id];
-  const baseSystem = loopSystemPrompt(id, { cwd: ctx.cwd, deny: ctx.deny });
-  const inlineSchema = generic && (id === "loop.patch" || id === "loop.findings") ? schema : undefined;
+  const docpatch = plan.route.decision.contract === "docpatch/1";
+  const keepAlive = plan.route.engine === "claude-cli" && (id === "loop.patch" || id === "loop.agent");
+  const schema = docpatch ? DOCPATCH_SCHEMA : SCHEMAS[id];
+  const baseSystem = docpatch
+    ? `Working directory: ${ctx.cwd}\nYou propose scoped documentation edits. Return docpatch/1 JSON only. Never edit files or execute commands. Existing ids must be anchored DOC ids; insert ids are new:<positive integer> and after names a DOC id or earlier insert. Keep/delete omit md; update/insert contain Markdown. Preserve citations and meaning. Proposals require human review.`
+    : loopSystemPrompt(id, { cwd: ctx.cwd, deny: ctx.deny });
+  const inlineSchema = generic && (docpatch || id === "loop.patch" || id === "loop.findings") ? schema : undefined;
   const system = inlineSchema ? `${baseSystem}\n\nReply with one JSON object matching this schema:\n${JSON.stringify(inlineSchema)}` : baseSystem;
   const sendsSchema = schema !== undefined && !generic;
   const req: ScheduledRequest = {
@@ -56,11 +60,11 @@ export function engineRequest(
     tools: plan.route.decision.tools,
     writeScope: plan.mode === "agent" ? plan.scope.writeScope : [],
     system,
-    promptVer: LOOP_PROMPTS[id].version,
+    promptVer: docpatch ? "loop.docpatch@1" : LOOP_PROMPTS[id].version,
     prompt: ctx.prompt ?? plan.bundle.text,
     contract: plan.route.decision.contract,
     keepAlive,
-    persistSession: !generic && ctx.persistSessions,
+    persistSession: plan.route.engine === "claude-cli" && ctx.persistSessions,
     budget: { usd: plan.budget.usd, inTokens: firstTurnInTokens(plan, system, sendsSchema ? schema : undefined), outTokens: plan.budget.out, ms: TURN_MS[id] },
     engine: plan.route.engine,
     lane: "interactive",

@@ -113,6 +113,8 @@ async function mountCm(list: readonly FileDiff[], split: boolean) {
                 original: m.a,
                 mergeControls: false,
                 gutter: true,
+                // A pure deletion is already <del> inside a deleted chunk; per-line changed-text spans add no information.
+                highlightChanges: f.additions > 0,
                 ...(collapsedByDefault ? { collapseUnchanged: { margin: 3, minSize: 8 } } : {}),
               }),
             ],

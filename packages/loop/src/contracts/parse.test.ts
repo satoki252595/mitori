@@ -339,7 +339,7 @@ describe("parseContract findings/1", () => {
 
 describe("parseContract dispatch", () => {
   test("an unknown contract is E_INVALID_INPUT", () => {
-    const r = (parseContract as (c: string, raw: object, ctx: object) => ReturnType<typeof parseContract>)("docpatch/1", {}, {});
+    const r = (parseContract as (c: string, raw: object, ctx: object) => ReturnType<typeof parseContract>)("unknown/1", {}, {});
     expect(r.ok === false && r.error.code).toBe("E_INVALID_INPUT");
   });
 });

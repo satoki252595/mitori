@@ -1,0 +1,10 @@
+{
+  "date": "2026-10-05T16:19:44.446Z",
+  "scope": "Incremental changes after ad4fa817 plus current owned working-tree evidence; original whole-repo scan is retained separately.",
+  "head": "552db80f10a9cf0b2575a72b2bbfb20201c6f1b4",
+  "files": 31,
+  "bytes": 403961,
+  "scannerHits": [],
+  "invalidJson": [],
+  "privateArtifactsIncluded": false
+}

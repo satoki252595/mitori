@@ -17,6 +17,7 @@ import {
   type SseEventPayload,
 } from "@mitori/core";
 import { createAnthropicApiEngine, type FetchLike } from "../adapters/anthropic-engine.ts";
+import { createCodexEngine } from "../adapters/codex-engine.ts";
 import { createGenericEngine } from "../adapters/generic-engine.ts";
 import { createClaudeCliEngine } from "../claude/engine.ts";
 import { type BridgeFs, createSandboxStore, EMPTY_REL } from "../claude/fsports.ts";
@@ -65,6 +66,24 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
   if (!ports) deps.log.warn("agent.bridge.no_fs_ports", { note: "claude-cli and generic runs fail until SafeWriter/FsReader are wired (CR-PENDING WP-05)" });
   const sandbox = createSandboxStore(deps.home, deps.hasher, ports);
   const home = deps.home.replace(/\/+$/, "");
+  const authBytes = async (source: string): Promise<Uint8Array | null> => {
+    if (!ports) throw new MitoriError("E_PRECONDITION", "isolated auth storage is not wired");
+    const before = ports.fs.stat(source);
+    if (!before) return null;
+    if (!before.isFile || before.isSymlink) throw new MitoriError("E_CFG_INVALID", "auth must be a regular non-symlink file");
+    const data = await ports.fs.read(source);
+    const after = ports.fs.stat(source);
+    if (
+      !after?.isFile ||
+      after.isSymlink ||
+      after.ino !== before.ino ||
+      after.mtimeNs !== before.mtimeNs ||
+      after.ctimeNs !== before.ctimeNs ||
+      data.length !== after.size
+    )
+      throw new MitoriError("E_CFG_INVALID", "auth changed while preparing an isolated run");
+    return data;
+  };
   let scheduler: AgentScheduler | null = null;
   const claude = createClaudeCliEngine({
     spawner: deps.spawner,
@@ -113,20 +132,8 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
       try {
         await ports.safeWrite.write(home, `${rel}/muse/settings.json`, '{"schema_version":1,"run":{"toolset":[]}}', "home");
         const source = `${sourceRoot}/muse/auth.json`;
-        const before = ports.fs.stat(source);
-        if (before) {
-          if (!before.isFile || before.isSymlink) throw new MitoriError("E_CFG_INVALID", "Muse auth must be a regular non-symlink file");
-          const bytes = await ports.fs.read(source);
-          const after = ports.fs.stat(source);
-          if (
-            !after?.isFile ||
-            after.isSymlink ||
-            after.ino !== before.ino ||
-            after.mtimeNs !== before.mtimeNs ||
-            after.ctimeNs !== before.ctimeNs ||
-            bytes.length !== after.size
-          )
-            throw new MitoriError("E_CFG_INVALID", "Muse auth changed while preparing an isolated run");
+        const bytes = await authBytes(source);
+        if (bytes) {
           await ports.safeWrite.write(home, `${rel}/muse/auth.json`, bytes, "home");
         }
         return { root, cleanup };
@@ -170,6 +177,47 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     log: deps.log,
   });
 
+  const codex = createCodexEngine({
+    spawner: deps.spawner,
+    settings: deps.settings,
+    env: deps.env,
+    safePath: deps.safePath,
+    clock: deps.clock,
+    timers,
+    hasher: deps.hasher,
+    fs: ports?.fs ?? null,
+    sandbox,
+    ...(deps.pin ? { pin: (p: BinaryPin) => deps.pin?.("codex-cli", p) ?? Promise.resolve() } : {}),
+    prepareConfig: async () => {
+      if (!ports) throw new MitoriError("E_PRECONDITION", "Codex config storage is not wired");
+      const sourceRoot = deps.env.CODEX_HOME ?? (deps.env.HOME ? `${deps.env.HOME}/.codex` : null);
+      if (!sourceRoot?.startsWith("/")) throw new MitoriError("E_CFG_INVALID", "Codex auth root must be absolute");
+      const id = Array.from(deps.random.bytes(16), (x) => x.toString(16).padStart(2, "0")).join("");
+      const rel = `run/codex/${id}`;
+      const root = `${home}/${rel}`;
+      if (ports.fs.stat(root)) throw new MitoriError("E_PRECONDITION", "Codex isolated config collision");
+      const cleanup = () => ports.safeWrite.remove(home, rel, "home");
+      try {
+        await ports.safeWrite.write(home, `${rel}/config.toml`, "", "home");
+        const bytes = await authBytes(`${sourceRoot}/auth.json`);
+        let auth: "subscription" | "none" = "none";
+        if (bytes) {
+          const j = JSON.parse(new TextDecoder().decode(bytes)) as { auth_mode?: string; OPENAI_API_KEY?: unknown; tokens?: { access_token?: unknown } };
+          if (j.OPENAI_API_KEY || j.auth_mode === "apikey")
+            throw new MitoriError("E_AGENT_AUTH_SOURCE", "Codex API keys are not permitted; use subscription login");
+          if (typeof j.tokens?.access_token === "string" && j.tokens.access_token) {
+            auth = "subscription";
+            await ports.safeWrite.write(home, `${rel}/auth.json`, bytes, "home");
+          }
+        }
+        return { root, auth, cleanup };
+      } catch (err) {
+        await cleanup();
+        throw err;
+      }
+    },
+  });
+
   // `engines.updated` whenever a detect() result changes
   const statuses = new Map<EngineId, string>();
   const latest = new Map<EngineId, EngineStatus>();
@@ -192,9 +240,9 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     "claude-cli": withEvents(claude),
     "anthropic-api": withEvents(anthropic),
     generic: withEvents(generic),
-    // `session` is gen's in-session Pull engine (no process); codex-cli comes after the MVP (WP-16)
+    // `session` is gen's in-session Pull engine (no process).
     session: null,
-    "codex-cli": null,
+    "codex-cli": withEvents(codex),
   };
 
   const ledger = deps.ledger as Partial<UsageLedgerImpl>;

@@ -44,6 +44,7 @@ import type {
   Hasher,
   InboxItem,
   IndexDelta,
+  InitialUiRenderer,
   Iso8601,
   JobId,
   Logger,
@@ -447,6 +448,7 @@ export const ROUTE_OWNERS = {
   "GET /integrations": "loop",
   "POST /integrations/:target/install": "loop",
   "GET /ws/:ws": "server",
+  "GET /ws/:ws/ui": "server",
   "POST /ws/:ws/init": "server",
   "GET /ws/:ws/scan": "indexer",
   "POST /ws/:ws/scan": "indexer",
@@ -617,6 +619,8 @@ export interface ServerDeps {
   secrets: SecretScanner;
   /** Embedded web assets (path → bytes, precompressed variants). */
   assets: ReadonlyMap<string, { raw: Uint8Array; br?: Uint8Array; gz?: Uint8Array; immutable: boolean }>;
+  /** Canonical initial read UI from authenticated, redacted GET DTOs. */
+  uiRenderer?: InitialUiRenderer;
   /** Viewer bundle for exports. */
   viewerAssets: { js: string; css: string; jsSha256: Sha256 };
   /** SAFE_PATH env for every child. */

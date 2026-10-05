@@ -4,6 +4,8 @@
  * handler (missing ⇒ 501). Every response carries `SECURITY_HEADERS`; API responses are `no-store` and echo the
  * request id; workspace mutations carry `x-mitori-rev`. No CORS header is ever emitted.
  */
+import { promisify } from "node:util";
+import { brotliCompress, constants, gzip } from "node:zlib";
 import {
   API_PREFIX,
   type ApiErrorBody,
@@ -13,6 +15,7 @@ import {
   ERROR_META,
   HREFS,
   HTTP_HEADERS,
+  type InitialUiRenderer,
   MitoriError,
   newId,
   type RequestId,
@@ -30,13 +33,15 @@ import { resolveDocId } from "../ws/index.ts";
 import { requestWriteScope } from "../ws/queue.ts";
 import { checkIdempotencyKey, createIdempotencyStore, type IdempotencyStore, type StoredResponse } from "./idempotency.ts";
 import { checkRepoPathQuery, REPO_PATH_QUERY_ROUTES } from "./repo-path.ts";
-import { type Assets, securityHeaders, serveStatic } from "./static.ts";
+import { type Assets, negotiate, securityHeaders, serveStatic } from "./static.ts";
 
 /** Default body limit (1 MiB) [CONS-19]. */
 export const DEFAULT_MAX_BODY = 1024 * 1024;
 /** Long-poll default and cap. */
 const LONGPOLL_DEFAULT_MS = 25_000;
 const LONGPOLL_MAX_MS = 60_000;
+const uiBrotli = promisify(brotliCompress);
+const uiGzip = promisify(gzip);
 
 /** The parts of Bun's `Server` the handler uses. */
 export interface ServerLike {
@@ -52,6 +57,7 @@ export interface HttpAppOptions {
   /** Domain route adapters (WP-INT); server-owned routes always use the server's handlers. */
   handlers?: RouteHandlers;
   assets: Assets;
+  uiRenderer?: InitialUiRenderer;
 }
 
 const MUTATING = new Set(["POST", "PATCH", "PUT", "DELETE"]);
@@ -109,6 +115,76 @@ export function createHttpApp(opts: HttpAppOptions): HttpApp {
   const s = opts.services;
   const own = serverHandlers(s);
   const handlers: RouteHandlers = { ...opts.handlers, ...own };
+  if (opts.uiRenderer) {
+    const render = opts.uiRenderer;
+    handlers["GET /ws/:ws/ui"] = async (ctx) => {
+      if (ctx.query.toString().length > 65_536) throw fail("E_PAYLOAD_TOO_LARGE", "initial UI query is too large");
+      const target = ctx.query.get("url") ?? "";
+      if (!target.startsWith("/") || target.startsWith("//") || target.includes("\\")) throw fail("E_INVALID_INPUT", "invalid initial UI URL");
+      const page = new URL(target, ctx.url);
+      const prefix = `/w/${ctx.ws}`;
+      if (page.origin !== ctx.url.origin || (page.pathname !== prefix && !page.pathname.startsWith(`${prefix}/doc/`)))
+        throw fail("E_FORBIDDEN", "initial UI is limited to this workspace's map and document");
+      const view = await render(
+        ctx.query,
+        async (path) => {
+          if (!path.startsWith("/") || path.startsWith("//") || /[\\#]/.test(path)) throw fail("E_FORBIDDEN", "invalid initial UI read path");
+          const url = new URL(`${API_PREFIX}${path}`, ctx.url);
+          const match = matchRoute("GET", url.pathname.slice(API_PREFIX.length));
+          const globals: readonly RouteKey[] = ["GET /settings", "GET /daemon", "GET /usage/summary", "GET /engines"];
+          const workspace: readonly RouteKey[] = [
+            "GET /ws/:ws",
+            "GET /ws/:ws/doc",
+            "GET /ws/:ws/doc/sections/:section",
+            "GET /ws/:ws/doc/proposals",
+            "GET /ws/:ws/map",
+            "GET /ws/:ws/threads",
+            "GET /ws/:ws/jobs",
+            "GET /ws/:ws/inbox",
+          ];
+          if (
+            match?.meta.kind !== "json" ||
+            match.meta.mutates ||
+            (!globals.includes(match.key) && !(workspace.includes(match.key) && match.params.ws === ctx.ws)) ||
+            (url.searchParams.has("ws") && url.searchParams.get("ws") !== ctx.ws)
+          )
+            throw fail("E_FORBIDDEN", "initial UI read is outside its allowlist");
+          const headers = new Headers(ctx.req.headers);
+          headers.delete("accept-encoding"); // Internal Response.json() consumes canonical DTOs, not compressed wire bytes.
+          headers.delete("if-none-match");
+          headers.delete("range");
+          const req = new Request(url, { method: "GET", headers, signal: ctx.signal });
+          const res = await api(req, url, ctx.requestId, undefined);
+          if (!res.ok) throw fail("E_INTERNAL", `initial UI read failed (${res.status})`);
+          return res.json();
+        },
+        async (effort, engine) => {
+          const url = new URL(`${API_PREFIX}/ws/${ctx.ws}/gen/estimate`, ctx.url);
+          const headers = new Headers(ctx.req.headers);
+          for (const name of ["accept-encoding", "if-none-match", "range", "content-length", "transfer-encoding", HTTP_HEADERS.idempotencyKey])
+            headers.delete(name);
+          headers.set("content-type", "application/json");
+          const req = new Request(url, { method: "POST", headers, body: JSON.stringify({ effort, engine }), signal: ctx.signal });
+          const res = await api(req, url, ctx.requestId, undefined);
+          if (!res.ok) throw fail("E_INTERNAL", `initial UI estimate failed (${res.status})`);
+          return res.json();
+        },
+      );
+      // Use the same threshold and negotiation as large document sections.
+      const json = Buffer.from(JSON.stringify(view));
+      if (json.length < 8192) return view;
+      const encoding = negotiate(ctx.req.headers.get("accept-encoding"), { br: true, gz: true });
+      const payload =
+        encoding === "br" ? await uiBrotli(json, { params: { [constants.BROTLI_PARAM_QUALITY]: 4 } }) : encoding === "gzip" ? await uiGzip(json) : json;
+      return new Response(payload, {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          vary: "accept-encoding",
+          ...(encoding === "identity" ? {} : { "content-encoding": encoding }),
+        },
+      });
+    };
+  }
   const index = opts.assets.get("/index.html");
   const secure = securityHeaders(index ? new TextDecoder().decode(index.raw) : "");
   const globalIdem = createIdempotencyStore({ db: s.state.db, write: s.state.stateWrite, clock: s.clock, table: "srv_idempotency_global" });

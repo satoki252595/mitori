@@ -209,6 +209,32 @@ describe("GEN-U-014 markers vs claims (V14) and compact claim grammar (V03)", ()
     expect(parseCompactClaim("inferred")).toEqual({ kind: "fact", cites: [], aliased: true });
   });
 
+  test("an unmarked code sentence is inferred without borrowing the next sentence's cite; learning text keeps its shape", () => {
+    const { verdicts } = run([
+      j({
+        t: "block",
+        id: "new:1",
+        aspect: "responsibility",
+        md: "`Open` accepts a path. `Close` releases it[[1]].",
+        claims: { "1": "behavior internal/session/store.go:30-31" },
+      }),
+      j({ t: "block", id: "new:2", aspect: "learn", md: "- Understand how `Open` is used.", claims: {} }),
+    ]);
+    expect(verdicts.map(rules)).toEqual([[], []]);
+    expect(blockOf(verdicts[0]).md).toBe("`Open` accepts a path[[2]]. `Close` releases it[[1]].");
+    expect(blockOf(verdicts[0]).claims).toEqual([
+      { n: 1, kind: "behavior", cites: [{ path: "internal/session/store.go", start: 30, end: 31 }] },
+      { n: 2, kind: "fact", cites: [] },
+    ]);
+    expect(verdicts[0]?.warnings).toContain("W10");
+    expect(blockOf(verdicts[1]).md).toBe("- Understand how `Open` is used.");
+    expect(blockOf(verdicts[1]).claims).toEqual([]);
+    const over = run([
+      j({ t: "block", id: "new:1", aspect: "responsibility", md: Array.from({ length: 13 }, (_, i) => `\`F${i}\` runs.`).join(" "), claims: {} }),
+    ]);
+    expect(rules(over.verdicts[0] as LineVerdict)).toEqual(["V14"]);
+  });
+
   test("W11: an unshown cite is dropped while the claim keeps a shown one; an only cite stays V17", () => {
     const c = ctx({ citable: citable({ "internal/session/store.go": 400, "internal/session/ttl.go": 40 }, { "internal/session/store.go": [10, 20] }) });
     const { verdicts } = run(
@@ -256,7 +282,7 @@ describe("GEN-U-014 markers vs claims (V14) and compact claim grammar (V03)", ()
     const { verdicts } = run([
       j({ t: "block", id: "new:1", aspect: "responsibility", md: "持つ[[1]]。 次に `a。 b` を使う（推測）。 終わり。", claims: { "1": "fact" } }),
     ]);
-    expect(blockOf(verdicts[0]).md).toBe("持つ[[1]]。次に `a。 b` を使う（推測）。終わり。");
+    expect(blockOf(verdicts[0]).md).toBe("持つ[[1]]。次に `a。 b` を使う（推測）[[2]]。終わり。");
     expect(verdicts[0]?.warnings).toContain("W12");
     const en = run([j({ t: "block", id: "new:1", aspect: "responsibility", md: "It holds[[1]]。 then.", claims: { "1": "fact" } })], ctx({ lang: "en" }));
     expect(blockOf(en.verdicts[0]).md).toBe("It holds[[1]]。 then.");
@@ -392,6 +418,53 @@ describe("GEN-U-016 forbidden Markdown", () => {
 });
 
 describe("GEN-U-017 sections, foreign ids, duplicate new refs, unknown after", () => {
+  test("45/48-character module slugs accept explicit blocks and questions", () => {
+    for (const slug of ["examples-laya-dotnet-samples-laya-ts-examples", "a".repeat(48)]) {
+      const section = `s6/${slug}` as SectionId;
+      const { verdicts } = run(
+        [j({ ...JSON.parse(responsibility), section }), j({ t: "question", section, text: "責任はどこか", cites: [] })],
+        ctx({ sections: [section] }),
+      );
+      expect(verdicts.map(rules)).toEqual([[], []]);
+      expect(blockOf(verdicts[0]).section).toBe(section);
+      expect(verdicts[1]?.value).toMatchObject({ t: "question", section });
+    }
+  });
+
+  test("49-character slugs and valid sections outside task scope stay rejected", () => {
+    const long = `s6/${"a".repeat(49)}` as SectionId;
+    const { verdicts } = run(
+      [long, long.slice(3), `${long}/interface`].map((section) => j({ t: "question", section, text: "範囲外か", cites: [] })),
+      ctx({ sections: [long] }),
+    );
+    expect(verdicts.map(rules)).toEqual([["V05"], ["V05"], ["V05"]]);
+    const outside = run([j({ ...JSON.parse(responsibility), section: `s6/${"b".repeat(48)}` })]);
+    expect(outside.verdicts.map(rules)).toEqual([["V05"]]);
+  });
+
+  test("cold diff replay retains compact responsibility/interface under a long module section", () => {
+    const section = "s6/examples-laya-dotnet-samples-laya-ts-examples" as SectionId;
+    const context = ctx({ sections: [section] });
+    const first = run(
+      [
+        j({ t: "module", module: MOD, name: "サンプル", summary: "利用例を示す" }),
+        responsibility,
+        iface,
+        j({ t: "question", section: "s7", text: "設定はどこか" }),
+      ],
+      context,
+    );
+    expect(first.verdicts.map(rules)).toEqual([[], [], [], ["V05"]]);
+    expect(planRetryImpl(first.verdicts, first.v.finish("end"), 1)?.kind).toBe("diff");
+    const second = createLineValidator(context);
+    let line = 0;
+    for (const verdict of first.verdicts) {
+      if (verdict.value) expect(second.validate(j(verdict.value), --line).errors).toEqual([]);
+    }
+    expect(second.validate(j({ t: "question", section, text: "設定はどこか" }), 1).errors).toEqual([]);
+    expect(second.finish("end")).toMatchObject({ ok: true, missingAspects: [], moduleLineMissing: false, blocks: 2 });
+  });
+
   test("V05 / V04 / V03 / V04", () => {
     const { verdicts } = run([
       responsibility,

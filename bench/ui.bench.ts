@@ -11,6 +11,7 @@ import type { BlockId, PaletteItem, SseEvent, ThreadState, WorkspaceKey } from "
 import { buildFixture, type FixtureRepo } from "@mitori/testkit";
 import { type Browser, type BrowserContext, chromium, type Page } from "@playwright/test";
 import { buildIndex, runQuery } from "../apps/web/src/palette/search.ts";
+import { inputRender1000, maxDom, mountedCodeLines, openMax, reviewDom5000 } from "../e2e/perf/lib/max.ts";
 import {
   biggestSection,
   type ColdOpen,
@@ -63,6 +64,7 @@ function copyOf(ctx: BenchContext, name: string): { root: string; dispose(): voi
 /* -------------------------------------------------------------------- E2E-01: cold open → first useful screen */
 
 interface ColdRun extends FirstUse {
+  scanSummary: number;
   reader: { rendered: number; dom: number; requests: number; listeners: number };
 }
 
@@ -74,9 +76,10 @@ const critCold = (ctx: BenchContext) =>
     try {
       o = await coldOpen(await theBrowser(), copy.root);
       const first = await firstUse(o);
+      const [summaryAt] = await o.waitMarks(["mitori:scan:summary"]);
       const r = await readerOpen(o, await biggestSection(o));
       const l = await readerListeners(o.page);
-      return { ...first, reader: { rendered: r.rendered, dom: r.dom, requests: r.requests, listeners: l.total } };
+      return { ...first, scanSummary: (summaryAt as number) - o.t0, reader: { rendered: r.rendered, dom: r.dom, requests: r.requests, listeners: l.total } };
     } finally {
       await o?.close();
       copy.dispose();
@@ -96,6 +99,7 @@ const coldCase = (id: string, pick: (r: ColdRun) => number, unit?: "ms" | "count
   });
 
 export const shellPaint = coldCase("ui.shellPaint", (r) => r.shellPaint);
+export const scanSummary = coldCase("ui.scanSummary", (r) => r.scanSummary);
 export const firstUseful = coldCase("ui.firstUseful.100k", (r) => r.firstUseful);
 /** The larger of the two everyday screens: the first screen (map) and the Reader of the biggest section. */
 export const domTypical = coldCase("ui.dom.typical", (r) => Math.max(r.dom, r.reader.dom), "count");
@@ -103,6 +107,51 @@ export const floorplanNodes = coldCase("ui.floorplan.nodes", (r) => r.mapNodes, 
 export const clsBoot = coldCase("ui.cls.boot", (r) => r.cls, "ratio");
 /** Event listeners on the Reader root and its whole subtree (CDP), crit's biggest section (e2e/perf/lib/ui.ts readerListeners). */
 export const listenersReader = coldCase("ui.listeners.reader", (r) => r.reader.listeners, "count");
+
+/** One real max-state fixture per sample feeds all three budgets; fixed target/limits remain in budgets/web.json. */
+const maxState = (ctx: BenchContext) =>
+  sharedRun("ui:max-state", ctx, async () => {
+    const o = await openMax(await theBrowser());
+    try {
+      const input = await inputRender1000(o);
+      const dom = await maxDom(o);
+      const review = await reviewDom5000(o);
+      return { input: input.p95, dom: dom.max, review: review.max };
+    } finally {
+      await o.close();
+    }
+  });
+const maxCase = (id: string, pick: "input" | "dom" | "review", unit: "ms" | "count") =>
+  defineBench({
+    id,
+    suite: "ui",
+    mode: "process",
+    runs: 3,
+    warmup: 0,
+    unit,
+    run: async (_s, ctx) => (await maxState(ctx))[pick],
+    teardown: closeBrowser,
+  });
+export const inputRender = maxCase("ui.inputRender.1000", "input", "ms");
+export const domMax = maxCase("ui.dom.max", "dom", "count");
+export const reviewDiff5000 = maxCase("ui.reviewDiff5000.dom", "review", "count");
+export const codeLinesMounted = defineBench({
+  id: "ui.codeLines.mounted",
+  suite: "ui",
+  mode: "process",
+  runs: 3,
+  warmup: 0,
+  unit: "count",
+  async run() {
+    const o = await openMax(await theBrowser(), true);
+    try {
+      return (await mountedCodeLines(o)).max;
+    } finally {
+      await o.close();
+    }
+  },
+  teardown: closeBrowser,
+});
 /**
  * Reader of the biggest section, loaded in the page of the cold open: the sample is navigation → rendered; the counter
  * `ui.fetch.readerOpen` = the most requests one load made (document, scripts, styles, API, the SSE stream; max 6).

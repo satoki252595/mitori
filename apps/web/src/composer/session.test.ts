@@ -42,13 +42,16 @@ const ESTIMATE = {
   bundle: { tokens: 900, omitted: [] },
 };
 
-function fixture(estimateMs = 0) {
-  const calls: { route: string; body: unknown }[] = [];
+function fixture(estimateMs = 0, draftWait?: Promise<void>) {
+  const calls: { route: string; body: unknown; ws: string | undefined }[] = [];
   const api = {
-    async call(route: string, args: { body?: unknown }) {
-      calls.push({ route, body: args.body });
+    async call(route: string, args: { body?: unknown; params?: { ws?: string } }) {
+      calls.push({ route, body: args.body, ws: args.params?.ws });
       if (route === "POST /ws/:ws/jobs/estimate" && estimateMs > 0) await Bun.sleep(estimateMs);
-      if (route === "POST /ws/:ws/threads") return { id: "th_draft", version: 1, messages: [] };
+      if (route === "POST /ws/:ws/threads") {
+        if (draftWait) await draftWait;
+        return { id: "th_draft", version: 1, messages: [] };
+      }
       if (route === "PATCH /ws/:ws/threads/:th") return { id: "th_draft", version: 2 };
       if (route === "POST /ws/:ws/jobs/estimate") return ESTIMATE;
       if (route === "POST /ws/:ws/prompt") return { text: "prompt", tokens: 100 };
@@ -72,6 +75,75 @@ function fixture(estimateMs = 0) {
 }
 
 describe("LIVE-02 the estimate follows the saved text", () => {
+  test("a draft POST pending during a workspace switch keeps its following PATCH in the originating workspace", async () => {
+    let release!: () => void;
+    const draftWait = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { c, calls, s } = fixture(0, draftWait);
+    const original = s.workspace.key;
+    c.input("保存を始める");
+    const saving = c.flushSave();
+    expect(calls[0]).toMatchObject({ route: "POST /ws/:ws/threads", ws: original, body: { body: "保存を始める", draft: true } });
+    c.input("待機中の変更も保持する");
+    s.workspace.key = "ws_dddddddddddd";
+    release();
+    await saving;
+    expect(c.ws).toBe(original);
+    expect(calls.find((call) => call.route === "PATCH /ws/:ws/threads/:th")).toMatchObject({ ws: original, body: { body: "待機中の変更も保持する" } });
+    expect(calls.every((call) => call.ws === original)).toBe(true);
+    c.dispose();
+  });
+
+  test("switching workspace during submit saves the original draft and leaves the new Composer and review untouched", async () => {
+    let release!: () => void;
+    const draftWait = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { c, calls, s } = fixture(0, draftWait);
+    s.review = { threads: new Map(), jobs: new Map(), round: null } as unknown as Stores["review"];
+    const original = c.ws;
+    if (original === null) throw new Error("fixture requires a workspace");
+    const loop = new Loop(s);
+    const g = globalThis as unknown as Record<string, unknown>;
+    const previousCss = g.CSS;
+    const previousFrame = g.requestAnimationFrame;
+    g.CSS = { highlights: new Map() };
+    g.requestAnimationFrame = (fn: FrameRequestCallback) => {
+      fn(0);
+      return 0;
+    };
+    let next: InstanceType<typeof ComposerSession> | undefined;
+    try {
+      c.input("元のworkspaceの依頼");
+      const submitting = loop.submit(c);
+      expect(loop.pending.size).toBe(1);
+      s.workspace.key = "ws_dddddddddddd";
+      s.review.threads.clear();
+      s.review.jobs.clear();
+      next = new ComposerSession(s, c.target, "question", "push");
+      loop.composer = next;
+      release();
+      await submitting;
+      expect(c.save).toBe("saved");
+      expect(c.draft).toBe("th_draft");
+      expect(loop.composer).toBe(next);
+      expect(s.review.threads.size).toBe(0);
+      expect(s.review.jobs.size).toBe(0);
+      expect(calls.map((call) => call.route)).toEqual(["POST /ws/:ws/threads"]);
+      expect(calls[0]?.ws).toBe(original);
+      await loop.submit(c);
+      expect(calls).toHaveLength(1);
+      expect(loop.composer).toBe(next);
+    } finally {
+      release();
+      c.dispose();
+      next?.dispose();
+      g.CSS = previousCss;
+      g.requestAnimationFrame = previousFrame;
+    }
+  });
+
   test("before a server estimate, question/change predictions use their configured answer/patch model", () => {
     for (const [intent, role, other] of [
       ["question", "answer", "patch"],

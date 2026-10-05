@@ -5,7 +5,9 @@
   "description": "Test-only kit (fixtures, truth, golden, cassettes, server/daemon harness, perf, e2e helpers). Never imported by production code.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./fixtures": "./src/fixtures/index.ts",
+    "./golden": "./src/golden/index.ts"
   },
   "dependencies": {
     "@mitori/agent": "workspace:*",

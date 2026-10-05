@@ -6,7 +6,7 @@ import { imp, input, sf } from "../resolve/test/stage-files.ts";
 import { corpusDir, FIXTURES, loadRepo } from "../structure/test/corpus.ts";
 import { estimateCode, type Pipeline, runPipeline, xxh3 } from "../structure/test/pipeline.ts";
 import { packValue } from "./escape.ts";
-import { buildRepoPack, type RepoPackOpts } from "./repo-pack.ts";
+import { buildRepoPack, moduleFactLines, type RepoPackOpts } from "./repo-pack.ts";
 
 function pack(p: Pipeline, name: string, opts: Partial<RepoPackOpts> = {}, secrets = false) {
   return buildRepoPack(
@@ -32,7 +32,7 @@ function assertShape(text: string) {
   const lines = text.split("\n");
   for (const l of lines) expect(l.startsWith("=== ") || l.startsWith("> ")).toBe(true);
   expect(text.includes("<<<")).toBe(false);
-  expect(lines[0]).toMatch(/^=== mitori\.repopack\/1 repo=\S+( langs=\S+)?$/);
+  expect(lines[0]).toMatch(/^=== mitori\.repopack\/2 repo=\S+( langs=\S+)?$/);
   expect(lines[0]).not.toMatch(/digest=|files=|loc=/);
 }
 
@@ -50,12 +50,45 @@ describe("IDX-U pack values (spec §7.4)", () => {
 });
 
 describe("IDX-AT-43 repo pack on the fixtures", () => {
+  test("outbound calls enter the repo and module facts once; examples and test calls stay out of the repo pack", () => {
+    const p = runPipeline(input([sf("src/client.ts", { loc: 20 })]));
+    const call = {
+      kind: "outbound",
+      detector: "outbound.calls@2",
+      path: "src/client.ts",
+      line: 3,
+      blob: "a".repeat(40),
+      channel: "http",
+      via: "fetch",
+      target: "https://api.example.test",
+    } as const;
+    const write = { ...call, line: 6, channel: "write_sink", via: "node:fs", target: "out/report.json" } as const;
+    p.facts.facts.push(
+      call,
+      call,
+      write,
+      { ...call, line: 4, target: "https://example-only.test", scope: "example" },
+      { ...call, line: 5, target: "https://test-only.test" },
+    );
+    p.facts.scopes.push("main", "main", "main", "example", "test");
+    const text = pack(p, "outbound").text;
+    const expected = "> O http fetch https://api.example.test src/client.ts:3";
+    const writeLine = "> O write_sink node:fs out/report.json src/client.ts:6";
+    expect(text).toContain("=== OUTBOUND 2/2");
+    expect(text.split("\n").filter((line) => line === expected)).toHaveLength(1);
+    expect(text).not.toContain("https://example-only.test");
+    expect(text).not.toContain("https://test-only.test");
+    expect(moduleFactLines([write, call, call], p.facts, () => 0)).toEqual([expected, writeLine]);
+    expect(text.indexOf(writeLine)).toBeGreaterThan(text.indexOf(expected));
+  });
+
   for (const name of ["ts-small", "go-small", "py-small", "rust-small", "mixed"]) {
     test(`${name}: shape, sections, byte-identical rebuilds`, async () => {
       const p = runPipeline((await loadRepo(join(FIXTURES, name))).input);
       const a = pack(p, name);
       assertShape(a.text);
-      for (const h of ["MODULES", "ENTRY", "ROUTES", "CLI", "ENV", "SCHEMA", "SCRIPTS", "DEPS", "MAP", "TERMS", "DOCS"]) expect(a.text).toContain(`=== ${h} `);
+      for (const h of ["MODULES", "ENTRY", "ROUTES", "CLI", "ENV", "SCHEMA", "OUTBOUND", "SCRIPTS", "DEPS", "MAP", "TERMS", "DOCS"])
+        expect(a.text).toContain(`=== ${h} `);
       // same packKey ⇒ same bytes; a fresh pipeline over the same index (mtime-only rescan) ⇒ same bytes
       expect(pack(p, name).text).toBe(a.text);
       expect(pack(runPipeline(p.input), name).text).toBe(a.text);

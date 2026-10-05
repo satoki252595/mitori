@@ -13,6 +13,7 @@
     { "path": "packages/client" },
     { "path": "packages/testkit" },
     { "path": "apps/cli" },
+    { "path": "apps/share" },
     { "path": "apps/web" },
     { "path": "scripts" },
     { "path": "fixtures" },

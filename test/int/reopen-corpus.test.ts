@@ -70,3 +70,34 @@ for (const name of ["crit", "excalidraw"]) {
     }, 240_000);
   });
 }
+
+const react = corpus("react");
+test.skipIf(react === null)(
+  "F16 React: independent clean cold opens and seeded reopens keep the partition and plan",
+  async () => {
+    const child = join(import.meta.dir, "../../bench/open-child.ts");
+    // Run the existing process-mode helper at runtime; bench references test, so a static project reference would cycle.
+    const { runJson } = await import(join(import.meta.dir, "../../bench/lib/child.ts"));
+    const open = async (root: string) => {
+      const home = mkdtempSync(join(tmpdir(), "mitori-react-home-"));
+      dirs.push(home);
+      return (await runJson(child, [root, home, "--partition"])).partition as { source: { commit: string }; modules: string[]; plan: string[] };
+    };
+    const firstRoot = freshCopy(react as string);
+    const first = await open(firstRoot);
+    expect(first.modules.length).toBeGreaterThan(5);
+    const clean = await open(freshCopy(react as string));
+    expect(clean.source.commit).toBe(first.source.commit);
+    expect(clean.modules).toEqual(first.modules);
+    expect(clean.plan).toEqual(first.plan);
+    let seededRoot = firstRoot;
+    for (let n = 0; n < 2; n++) {
+      seededRoot = freshCopy(react as string, seededRoot);
+      const seeded = await open(seededRoot);
+      expect(seeded.source.commit).toBe(first.source.commit);
+      expect(seeded.modules).toEqual(first.modules);
+      expect(seeded.plan).toEqual(first.plan);
+    }
+  },
+  240_000,
+);

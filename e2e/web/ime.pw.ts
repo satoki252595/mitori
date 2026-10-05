@@ -7,6 +7,8 @@
 import { type CDPSession, expect, type Page, test } from "@playwright/test";
 import { configure, WS, waitMark } from "./support/helpers.ts";
 
+test.skip(({ browserName }) => browserName !== "chromium", "Trusted IME automation requires Chromium CDP; other engines run DOM event replay.");
+
 async function key(cdp: CDPSession, type: "keyDown" | "keyUp" | "rawKeyDown", key: string, code: string, keyCode: number) {
   await cdp.send("Input.dispatchKeyEvent", { type, key, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode });
 }

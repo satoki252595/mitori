@@ -9,6 +9,9 @@ scripts/nd bun install --frozen-lockfile
 scripts/nd bun run check     # typecheck + lint + boundaries + CR ledger + contract index + svelte-check
 scripts/nd bun test
 scripts/nd bun run build:bin && ./dist/mitori-darwin-arm64 --version
+./dist/mitori-darwin-arm64 <repo-path>
 ```
+
+ブラウザを自動で開かない場合は、起動コマンドに `--no-open` を付けます。
 
 設計: `docs/design/`（作業分割 `MILESTONES.md`、各 WP の brief `docs/design/briefs/`）。開発規約: `CLAUDE.md`。

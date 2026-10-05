@@ -237,7 +237,7 @@ export async function planJob(deps: PlanDeps, req: JobReq, opts: PlanOptions = {
     );
   const prelim = (mode: BundleMode, model: ModelId): JobPlan["budget"] => {
     const inTok = budgetTokens;
-    const usd = price(model, inTok, OUT_CAP[mode], 0, engineId === "generic" ? s.global.engines.generic.pricing : undefined);
+    const usd = price(model, inTok, OUT_CAP[mode], 0, providerPrices(engineId, s.global.engines));
     return { in: inTok, out: OUT_CAP[mode], usd: Math.min(limits.jobMaxUsd, Math.max(usd * JOB_BUDGET.estimateFactor, USD_FLOOR[mode])) };
   };
 
@@ -283,13 +283,7 @@ export async function planJob(deps: PlanDeps, req: JobReq, opts: PlanOptions = {
   const inTokens = sum(bundle);
   const { extra, cacheReadTokens } = cachedReads(outcome.engine, mode, inTokens);
   const outTokens = OUT_CAP[mode];
-  const apiUsd = price(
-    outcome.decision.model,
-    inTokens,
-    outTokens,
-    cacheReadTokens,
-    outcome.engine === "generic" ? s.global.engines.generic.pricing : undefined,
-  );
+  const apiUsd = price(outcome.decision.model, inTokens, outTokens, cacheReadTokens, providerPrices(outcome.engine, s.global.engines));
   const total = inTokens + cacheReadTokens + outTokens;
   const reasons: ConfirmReason[] = [];
   if (total > limits.confirmAboveTokens) reasons.push("over_token_threshold");
@@ -337,9 +331,13 @@ export async function planJob(deps: PlanDeps, req: JobReq, opts: PlanOptions = {
   };
 }
 
-/** List price of a call, 0 for a model without a price entry. */
+function providerPrices(engine: EngineId, settings: EngineSettings): EngineSettings["generic"]["pricing"] {
+  return engine === "generic" ? settings.generic.pricing : engine === "codex-cli" ? settings["codex-cli"].pricing : undefined;
+}
+
+/** List price of a call; configurable providers refuse unknown prices. */
 function price(model: ModelId, inTok: number, outTok: number, cacheRead = 0, prices?: EngineSettings["generic"]["pricing"]): number {
-  if (!(model in PRICING) && !model.startsWith("generic:")) return 0;
+  if (!(model in PRICING) && !model.startsWith("generic:") && !model.startsWith("codex:")) return 0;
   return priceUsage(model, { in: inTok, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead, out: outTok }, false, prices);
 }
 

@@ -10,6 +10,7 @@ import type { Engine, UsageLedger } from "@mitori/agent";
 import {
   type BlockId,
   type BlockSourceView,
+  buildPlanModel,
   type DiagramId,
   type DiagramIR,
   type DocLang,
@@ -20,7 +21,9 @@ import {
   type GenTaskView,
   type GraphView,
   MitoriError,
+  mapSvgPresentation,
   type Ok,
+  planData,
   type RepoPath,
   type SearchKind,
   type SectionId,
@@ -30,6 +33,7 @@ import {
 import { DOC_TEXT } from "../contract.ts";
 import { negotiate } from "../http/static.ts";
 import type { RouteCtx, RouteHandlers } from "../routes/types.ts";
+import { docOperations } from "./doc-operations.ts";
 import { exportHandlers } from "./export.ts";
 import { loopHandlers } from "./loop-routes.ts";
 import { blockView, citePeek, docOutline, fileContent, fileTree, mapView, readingOrder, sectionView } from "./views.ts";
@@ -41,6 +45,8 @@ export interface RouteEnv {
   /** `POST /ws/:ws/scan` (WorkspaceManager.rescan). */
   rescan(ws: WorkspaceKey, force: boolean): Promise<void>;
   engines(): Record<EngineId, Engine | null>;
+  /** Provider policy acknowledgement, before newly wired on-demand operations may send context. */
+  dataPolicyAcked?(engine: EngineId): boolean;
   ledger(): UsageLedger;
   highlighter: Parameters<typeof fileContent>[2];
 }
@@ -89,6 +95,7 @@ async function engineStatus(engines: Record<EngineId, Engine | null>): Promise<E
 export function domainHandlers(env: RouteEnv): RouteHandlers {
   const d = env.domain;
   return {
+    ...docOperations(env),
     /* ---- agent ---------------------------------------------------------------------------------------- */
     "GET /engines": () => engineStatus(env.engines()),
     "GET /usage/summary": ({ query }) => {
@@ -187,9 +194,16 @@ export function domainHandlers(env: RouteEnv): RouteHandlers {
 
     /* ---- doc ------------------------------------------------------------------------------------------- */
     "GET /ws/:ws/map": async (ctx) => {
+      const svg = ctx.query.get("svg");
+      const lang = ctx.query.get("lang") ?? "ja";
+      if (svg !== null && svg !== "true" && svg !== "false") throw new MitoriError("E_INVALID_INPUT", "svg must be true or false");
+      if (lang !== "ja" && lang !== "en") throw new MitoriError("E_INVALID_INPUT", "lang must be ja or en");
       const x = await d(ctx);
       await x.staticReady();
-      return mapView(x.view, x.indexer, x.layouter, (module) => x.commentsIn(module));
+      const view = await mapView(x.view, x.indexer, x.layouter, (module) => x.commentsIn(module));
+      if (svg !== "true") return view;
+      const plan = buildPlanModel(view);
+      return { ...view, plan: planData(plan), svg: mapSvgPresentation(view, ctx.params.ws as WorkspaceKey, lang, plan) };
     },
     "GET /ws/:ws/diagrams/:dg": async (ctx) => {
       const x = await d(ctx);

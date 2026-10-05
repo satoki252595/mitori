@@ -4,7 +4,7 @@
  * `createServer`, which runs the state migrations of every package — CR m0-14 is done there).
  */
 import { realpathSync } from "node:fs";
-import { availableParallelism, homedir } from "node:os";
+import { homedir } from "node:os";
 import { createSecretScanner, type HealthRes, MitoriError, type WorkspaceInfo } from "@mitori/core";
 import {
   createFsReader,
@@ -19,13 +19,15 @@ import {
   createWorkerPool,
   cryptoRandom,
   detectGateSandbox,
+  hardwareInfo,
   openLogFile,
   openSqlDb,
   resolveSafePath,
   systemClock,
 } from "@mitori/platform";
-import { createServer, type ServerDeps, type ServerHandle } from "@mitori/server";
-import { type AssetTable, assetTable, GRAMMAR_LANGS, loadWebAssets, pinnedScriptUrl, readPinned } from "../build/assets.ts";
+import { createServer, type ServerDeps, type ServerHandle, withPrecompiled } from "@mitori/server";
+import { type AssetTable, assetTable, GRAMMAR_LANGS, loadInitialUiRenderer, loadWebAssets, pinnedScriptUrl, readPinned } from "../build/assets.ts";
+import { materializeWindowsJob } from "../build/windows-job.ts";
 import { viewerBundle } from "../commands/export-assets.ts";
 import { createElkPool } from "./elk.ts";
 
@@ -63,7 +65,7 @@ const withInit = (spec: string, init: unknown) => () => {
 async function parseInit(t: AssetTable) {
   const grammars: Record<string, Uint8Array> = {};
   for (const g of GRAMMAR_LANGS) grammars[g] = await readPinned(`grammar.${g}`, t);
-  return { runtime: await readPinned("treesitter.runtime", t), grammars };
+  return withPrecompiled({ runtime: await readPinned("treesitter.runtime", t), grammars });
 }
 
 /** Realpath of `p`, or `p` itself. */
@@ -95,9 +97,11 @@ export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerD
   const sink = o.logToStderr ? (line: string) => process.stderr.write(`${line}\n`) : openLogFile({ dir: `${o.home}/logs`, clock }).write;
   const log = createLogger({ sink, clock, level: process.env.MITORI_LOG === "debug" ? "debug" : "info" });
   const [init, onig, assets] = await Promise.all([parseInit(t), readPinned("shiki.onig", t), loadWebAssets(t)]);
+  const uiRenderer = await loadInitialUiRenderer(t);
   const userHome = homedir();
   // remote-readonly clones (`mitori <github-url>`) need `gh` on SAFE_PATH; without it GitHub targets are refused
   const gh = Bun.which("gh", { PATH: safePath });
+  const windowsJobLauncher = process.platform === "win32" ? await materializeWindowsJob(o.home, safeWrite, t) : undefined;
   const deps: ServerDeps = {
     home: o.home,
     version: o.version,
@@ -107,7 +111,7 @@ export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerD
     // F2 / CR m1-119: the machine's gate sandbox (macOS sandbox-exec, Linux bwrap), so typecheck / test / lint gates run
     // without a click. CR m1-116: `hardwareInfo()` (WP-01) replaces the hardware default.
     gateSandbox: detectGateSandbox(safePath),
-    hardware: { cores: availableParallelism(), perfCores: null },
+    hardware: hardwareInfo(),
     ...(gh ? { gh: real(gh) } : {}),
     build: o.build,
     clock,
@@ -116,7 +120,7 @@ export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerD
     log,
     metrics: createMetrics(),
     openDb: (path) => openSqlDb(path),
-    spawner: createSpawner({ safePath }),
+    spawner: createSpawner({ safePath, ...(windowsJobLauncher ? { windowsJobLauncher } : {}) }),
     fs,
     safeWrite,
     watcher: createFsWatcher({ selfWrites }),
@@ -134,6 +138,7 @@ export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerD
     secrets: createSecretScanner(),
     assets,
     viewerAssets: viewerBundle(assets),
+    ...(uiRenderer ? { uiRenderer } : {}),
     safePath,
     env: process.env,
     mitoriBin: mitoriBinary(process.env.PATH ?? ""),

@@ -34,6 +34,19 @@ let saving = $state(false);
 let saved = $state(false);
 let providerError = $state(false);
 let setupCommand = $state("");
+let savingFloorplan = $state(false);
+async function setFloorplan(enabled: boolean) {
+  if (savingFloorplan) return;
+  savingFloorplan = true;
+  try {
+    if (await s.prefs.patchNow({ ui: { map: { floorplan: enabled } } })) {
+      await s.session.loadSettings();
+      await s.map.load(true);
+    }
+  } finally {
+    savingFloorplan = false;
+  }
+}
 $effect(() => {
   const cfg = s.session.settings?.settings;
   if (!cfg || initialized) return;
@@ -153,6 +166,12 @@ async function saveProvider(e: SubmitEvent) {
   </section>
 
   <section>
+    <h2>{t("settings.map")}</h2>
+    <label class="row check"><input type="checkbox" disabled={savingFloorplan} checked={s.session.settings?.settings.ui.map?.floorplan ?? false} onchange={(e) => void setFloorplan(e.currentTarget.checked)} /><span>{t("settings.floorplan")}</span></label>
+    <p class="note">{t("settings.floorplanNote")}</p>
+  </section>
+
+  <section>
     <h2>{t("settings.shortcuts")}</h2>
     <label class="row check"><input type="checkbox" checked={s.prefs.singleKeys} onchange={(e) => s.prefs.setSingleKeys(e.currentTarget.checked)} /><span>{t("settings.singleKeys")}</span></label>
     <p class="note">{t("settings.singleKeysNote")}</p>
@@ -163,7 +182,7 @@ async function saveProvider(e: SubmitEvent) {
       <h2>{t("settings.export")}</h2>
       <div class="row">
         <span>{t("settings.exportLead")}</span>
-        <button type="button" class="btn btn-sec btn-s" onclick={() => (s.ui.exportOpen = true)}>{t("settings.exportOpen")}</button>
+        <button type="button" class="btn btn-sec btn-s" onclick={(e) => { e.currentTarget.focus(); s.ui.exportOpen = true; }}>{t("settings.exportOpen")}</button>
       </div>
     </section>
   {/if}

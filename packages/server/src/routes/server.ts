@@ -175,6 +175,9 @@ export function serverHandlers(s: ServerServices): RouteHandlers {
       else await s.workspaces.unload(params.ws);
       return ok;
     },
+    "GET /ws/:ws/ui": () => {
+      throw new MitoriError("E_UNSUPPORTED", "initial UI renderer is unavailable");
+    },
     "GET /ws/:ws": async (ctx) => {
       let rt: WorkspaceRuntime;
       try {

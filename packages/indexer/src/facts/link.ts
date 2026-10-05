@@ -123,7 +123,7 @@ export function linkByDetector(id: string, all: readonly FactCandidate[], ctx: F
         mine.map((c) => (isD1(c.path, ctx) ? { ...c, data: { ...c.data, source: "d1" } } : c)),
         ctx,
       );
-    case "outbound.calls@1":
+    case "outbound.calls@2":
       // a generic rule (`new XxxClient(` / `x.NewClient(`) only counts for an import from outside the repo
       return simple(
         mine.filter((c) => typeof c.data.spec !== "string" || ctx.resolve(c.path, c.data.spec).length === 0),

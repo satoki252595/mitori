@@ -27,7 +27,7 @@ describe("AC-40 rendered prompt bytes are locked per version", () => {
   test("system + user message of every M2 prompt (sample repo) match render.lock.json", async () => {
     const actual = await renderedCalls();
     const url = new URL("./render.lock.json", import.meta.url);
-    if (process.env.MITORI_UPDATE_GOLDEN === "1") await Bun.write(url, `${canonicalJson(actual)}\n`);
+    if (process.env.MITORI_UPDATE_GOLDEN === "1") await Bun.write(url, canonicalJson(actual));
     const locked = (await Bun.file(url).json()) as Record<string, string>;
     expect(Object.keys(actual).length).toBeGreaterThanOrEqual(13);
     expect(actual).toEqual(locked);

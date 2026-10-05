@@ -4,7 +4,6 @@
 // platform WorkerPool — the parts `apps/cli/src/daemon/server.ts` hands `createServer`, minus the HTTP / doc layers.
 // Settings are the shipped defaults (`DEFAULT_GLOBAL_SETTINGS` through the server's own `resolveSettings`).
 import { mkdirSync, writeFileSync } from "node:fs";
-import { availableParallelism } from "node:os";
 import { join } from "node:path";
 import {
   createSecretScanner,
@@ -17,8 +16,8 @@ import {
   type WorkspaceInfo,
   type WorkspaceKey,
 } from "@mitori/core";
-import { createIndexer, INDEXER_MIGRATIONS, INVENTORY_SETS, type Indexer, type IndexerDeps } from "@mitori/indexer";
-import { createFsReader, createGitReader, createHasher, createWorkerPool, openSqlDb, systemClock } from "@mitori/platform";
+import { createIndexer, INDEXER_MIGRATIONS, INVENTORY_SETS, type Indexer, type IndexerDeps, withPrecompiled } from "@mitori/indexer";
+import { createFsReader, createGitReader, createHasher, createWorkerPool, hardwareInfo, openSqlDb, systemClock } from "@mitori/platform";
 import { DEFAULT_GLOBAL_SETTINGS, resolveSettings } from "@mitori/server";
 import { assetTable, GRAMMAR_LANGS, readPinned } from "../../apps/cli/src/build/assets.ts";
 
@@ -54,7 +53,7 @@ function workerInit() {
     const t = assetTable();
     const grammars: Record<string, Uint8Array> = {};
     for (const g of GRAMMAR_LANGS) grammars[g] = await readPinned(`grammar.${g}`, t);
-    return { runtime: await readPinned("treesitter.runtime", t), grammars };
+    return withPrecompiled({ runtime: await readPinned("treesitter.runtime", t), grammars });
   })();
   return parseInit;
 }
@@ -137,7 +136,7 @@ export async function benchIndexer(o: BenchIndexerOptions): Promise<BenchIndexer
       pools.push(pool);
       return pool as never;
     },
-    hardware: { cores: availableParallelism(), perfCores: null },
+    hardware: hardwareInfo(),
     settings: () => settings,
     events: sink,
     secrets: createSecretScanner(),

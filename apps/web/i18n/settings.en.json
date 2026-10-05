@@ -56,5 +56,8 @@
   "settings.providerInvalid": "Could not save. Check the model id, executable and JSON argument array, token prices and connection.",
   "settings.providerSetup": "Register the executable with confirmation in your terminal. Run this command, then save again.",
   "settings.copySetup": "Copy setup command",
-  "settings.timeout": "Generation turn timeout (seconds; blank = 120 seconds)"
+  "settings.timeout": "Generation turn timeout (seconds; blank = 120 seconds)",
+  "settings.map": "Structure map",
+  "settings.floorplan": "Use floor plan",
+  "settings.floorplanNote": "Rooms reflect source LOC and doors reflect imports. Repositories that fail the readability gate use the dependency map"
 }

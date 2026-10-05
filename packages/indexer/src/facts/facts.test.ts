@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { createSecretScanner, type FactKind, REDACTION_TOKEN } from "@mitori/core";
-import { buildFixture, type FixtureName, type FixtureRepo, type FixtureTruth, loadTruth, scoreIndex, type TruthFact } from "@mitori/testkit";
+import { buildFixture, type FixtureName, type FixtureRepo, type FixtureTruth, loadTruth, scoreIndex, type TruthFact } from "@mitori/testkit/fixtures";
 import { resolveImports } from "../resolve/stage.ts";
 import { input, sf } from "../resolve/test/stage-files.ts";
 import { classify, loadGrammars, loadRepo, parseStageFile } from "../structure/test/corpus.ts";
@@ -348,7 +348,7 @@ describe("gen #4a entry.web@1: the module script a web page loads (Vite index.ht
   });
 });
 
-describe("NC-10 outbound.calls@1: HTTP, SDK / DB clients, RPC, subprocesses (imports gate every rule)", () => {
+describe("NC-10 outbound.calls@2: HTTP, SDK / DB clients, RPC, subprocesses and write sinks", () => {
   const outbound = async (src: Record<string, string>) => {
     const gs = await loadGrammars();
     const files = Object.entries(src).map(([path, text]) => {
@@ -360,6 +360,55 @@ describe("NC-10 outbound.calls@1: HTTP, SDK / DB clients, RPC, subprocesses (imp
       .map((f) => (f.kind === "outbound" ? `${f.path}:${f.line} ${f.channel} ${f.via}${f.target ? ` → ${f.target}` : ""}` : ""))
       .sort();
   };
+
+  test("literal file writes use known bindings or built-ins; dynamic paths, read modes and unrelated names do not count", async () => {
+    const got = await outbound({
+      "src/output.ts":
+        'import * as fs from "node:fs";\nimport { writeFile } from "node:fs/promises";\nfs.writeFile("out/report.json", "PAYLOAD_CANARY", () => {});\nwriteFile("out/cache.json", data);\nfs.writeFile(dynamic, "must-not-be-target.txt");\nfs.readFile("input.json");\n// fs.writeFile("comment.json", data);\n',
+      "src/local.ts": 'const fs = { writeFile() {} };\nfs.writeFile("local.json", data);\n',
+      "app/output.py":
+        'with open("out/report.txt", "w") as f:\n    f.write("PAYLOAD_CANARY")\nopen("out/log.txt", mode="a")\nopen("input.txt", "r")\nopen(dynamic, "w")\n',
+      "app/local.py": 'def open(path, mode):\n    pass\nopen("local.txt", "w")\n',
+      "main.go":
+        'package main\nimport "os"\nfunc main() {\n _ = os.WriteFile("out/report.txt", []byte("PAYLOAD_CANARY"), 0600)\n _, _ = os.Create("out/new.txt")\n _ = os.WriteFile(dynamic, data, 0600)\n}\n',
+      "src/main.rs":
+        'use std::fs;\nfn main() {\n fs::write("out/report.txt", "PAYLOAD_CANARY").unwrap();\n std::fs::write("out/cache.txt", data).unwrap();\n fs::write(dynamic, data).unwrap();\n}\n',
+    });
+    expect(got).toEqual([
+      "app/output.py:1 write_sink builtins.open → out/report.txt",
+      "app/output.py:3 write_sink builtins.open → out/log.txt",
+      "main.go:4 write_sink os → out/report.txt",
+      "main.go:5 write_sink os → out/new.txt",
+      "src/main.rs:3 write_sink std::fs → out/report.txt",
+      "src/main.rs:4 write_sink std::fs → out/cache.txt",
+      "src/output.ts:3 write_sink node:fs → out/report.json",
+      "src/output.ts:4 write_sink node:fs/promises → out/cache.json",
+    ]);
+  });
+
+  test("direct DB clients executing literal write SQL record only the operation, not queries, values or prepare-only calls", async () => {
+    const got = await outbound({
+      "src/db.ts":
+        'import { Pool } from "pg";\nconst db = new Pool();\ndb.query("INSERT INTO users (token) VALUES ($1)", ["VALUE_CANARY"]);\ndb.query("SELECT * FROM users");\ndb.query(sql);\ndb.prepare("DELETE FROM users");\nfunction unrelated(db) { db.query("DROP TABLE fake"); }\n',
+      "src/local.ts": 'const db = { execute() {} };\ndb.execute("DELETE FROM local");\n',
+      "app/db.py":
+        'import sqlite3\ndb = sqlite3.connect("db.sqlite")\ndb.execute("UPDATE users SET token = ?", ["VALUE_CANARY"])\ndb.execute("SELECT token FROM users")\n',
+      "main.go":
+        'package main\nimport "database/sql"\nfunc main() {\n db, _ := sql.Open("sqlite", "db.sqlite")\n _, _ = db.ExecContext(ctx, "DELETE FROM users WHERE token = ?", "VALUE_CANARY")\n}\n',
+      "src/main.rs":
+        'use rusqlite::Connection;\nfn main() {\n let db = Connection::open("db.sqlite").unwrap();\n db.execute("INSERT INTO users VALUES (?1)", ["VALUE_CANARY"]).unwrap();\n}\n',
+    });
+    expect(got).toEqual([
+      "app/db.py:2 db sqlite3",
+      "app/db.py:3 db sqlite3 → UPDATE",
+      "main.go:4 db database/sql",
+      "main.go:5 db database/sql → DELETE",
+      "src/db.ts:2 db pg",
+      "src/db.ts:3 db pg → INSERT",
+      "src/main.rs:3 db rusqlite",
+      "src/main.rs:4 db rusqlite → INSERT",
+    ]);
+  });
 
   test("Go: net/http, os/exec, database/sql, an external NewClient; comments, strings and in-repo clients are not calls", async () => {
     const got = await outbound({
@@ -574,7 +623,7 @@ describe("IDX-AT-25 entry.testmain@1", () => {
 });
 
 describe("IDX-AT-26 / IDX-AT-45 secrets in fact text are redacted at link time (spec §5.1)", () => {
-  test("script arguments, dependency URLs, TODO text and doc titles", async () => {
+  test("script arguments, dependency URLs, TODO text, doc titles and literal write sinks", async () => {
     const gs = await loadGrammars();
     const token = "ghp_0123456789abcdefghijABCDEFGHIJ012345";
     const aws = "AKIA4F7Q2Z9XWJ3KLM8N";
@@ -585,6 +634,7 @@ describe("IDX-AT-26 / IDX-AT-45 secrets in fact text are redacted at link time (
         dependencies: { priv: `git+https://bot:${token}@github.com/acme/priv.git` },
       }),
       "src/a.ts": `// TODO: rotate ${aws} before release\nexport const a = 1;\n`,
+      "src/write.ts": `import { writeFile } from "node:fs/promises";\nwriteFile("out/${token}.txt", "VALUE_CANARY");\n`,
       "README.md": `# Setup with ${token}\n`,
     };
     const files = Object.entries(sources).map(([path, text]) => {
@@ -602,6 +652,8 @@ describe("IDX-AT-26 / IDX-AT-45 secrets in fact text are redacted at link time (
     expect(facts.find((f) => f.kind === "script")).toMatchObject({ name: "deploy" });
     expect(facts.find((f) => f.kind === "todo" && f.text.includes(REDACTION_TOKEN))).toBeDefined();
     expect(facts.find((f) => f.kind === "dependency")).toMatchObject({ name: "priv", ecosystem: "npm" });
+    expect(facts.find((f) => f.kind === "outbound")).toMatchObject({ channel: "write_sink", target: `out/${REDACTION_TOKEN}.txt` });
+    expect(json).not.toContain("VALUE_CANARY");
   });
 });
 

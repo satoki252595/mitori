@@ -74,7 +74,7 @@ describe("IDX-U flow bodies (gen I4, spec §7.8 / §7.3 slice rules)", () => {
 describe("IDX-U flow bodies: long bodies, merging, secrets", () => {
   test("a 250-line handler keeps 80 lines + ⋮; adjacent callees merge; secrets are redacted in place", () => {
     const text = [
-      "export function handler() {",
+      "export function handler() { a(); b();",
       ...Array.from({ length: 248 }, (_, i) => `  step(${i}); // AKIA4F7Q2Z9XWJ3KLM8N`),
       "}",
       "export function a() { return 1; }",
@@ -158,6 +158,128 @@ async function routerRepo() {
   return { p, sources };
 }
 
+async function callRepo(src: Record<string, string>) {
+  const gs = await loadGrammars();
+  const files = Object.entries(src).map(([path, text]) => {
+    const c = classify(path, text.length, text);
+    return parseStageFile(path, text, c, c.grammar ? gs[c.grammar] : null, `b:${path}`);
+  });
+  const p = runPipeline(input(files, Object.fromEntries(Object.entries(src).filter(([path]) => path === "package.json"))));
+  const sources = {
+    files: new Map(files.map((f) => [f.path, f])),
+    text: (path: RepoPath) => src[path] ?? null,
+    imports: (path: RepoPath) => p.resolved.imports.get(path) ?? [],
+  };
+  return { p, sources };
+}
+
+describe("OSS flow context: actual internal calls, not just a boot shell or import graph", () => {
+  test("entry callbacks cross files inside one module; same-named imported methods and downstream branches survive", async () => {
+    const { p, sources } = await callRepo({
+      "pkg/demo.py":
+        "from .agent import Agent\nfrom .unused import never\ndef command():\n    return Agent().command()\nclass Handler:\n    def do_POST(self):\n        return command()\ndef main():\n    print('ready')\nif __name__ == '__main__':\n    main()\n",
+      "pkg/agent.py":
+        "from .model import choose\nfrom .browser import Browser\nclass Agent:\n    def __init__(self):\n        self.browser = Browser()\n    def command(self):\n        return self.browser.act(choose())\n",
+      "pkg/model.py": "def choose():\n    return 'click'\n",
+      "pkg/browser.py": "class Browser:\n    def act(self, action):\n        return action\n",
+      "pkg/unused.py": "def never():\n    return 'not called'\n",
+      // A name edge may connect this file, but no import or call receiver identifies it as a callee.
+      "pkg/unrelated.py": "def choose():\n    return 'unrelated'\nclass Other:\n    def act(self, action):\n        return action\n",
+    });
+    expect(new Set(p.structure.moduleOf.values()).size).toBe(1);
+    const seeds = flowSeeds(p.structure, p.facts, 8, sources);
+    expect(seeds.some((s) => s.label === "Handler.do_POST")).toBe(true);
+    expect(seeds.some((s) => s.files.includes("pkg/model.py"))).toBe(true);
+    expect(seeds.some((s) => s.files.includes("pkg/browser.py"))).toBe(true);
+    expect(seeds.flatMap((s) => s.files)).not.toContain("pkg/unused.py");
+    expect(seeds.flatMap((s) => s.files)).not.toContain("pkg/unrelated.py");
+    for (const s of seeds) {
+      expect(new Set(s.files).size).toBe(s.files.length);
+      expect(s.modules).toHaveLength(1);
+      expect(s.files.length).toBeLessThanOrEqual(7);
+    }
+    const text = seeds
+      .flatMap((s) => flowBodies(s, sources.files, 12_000, { text: sources.text, estimate: estimateCode }))
+      .map((s) => s.text)
+      .join("\n");
+    expect(text).toContain("return self.browser.act(choose())");
+    expect(text).toContain("def choose():");
+  });
+
+  test("JSX reaches a same-module component and a deep caller / callee stays numbered and bounded", async () => {
+    const { p, sources } = await callRepo({
+      "package.json": '{"dependencies":{"next":"15.0.0"}}',
+      "app/page.tsx": 'import Editor from "./Editor";\nexport default function Page() { return <Editor />; }\n',
+      "app/Editor.tsx": [
+        'import { buildPrompt } from "./prompt";',
+        'import { never } from "./unused";',
+        "export default function Editor() {",
+        ...Array.from({ length: 250 }, (_, i) => `  const n${i} = ${i};`),
+        "  return buildPrompt();",
+        "}",
+      ].join("\n"),
+      "app/prompt.ts": "export function buildPrompt() { return 'prompt'; }\n",
+      "app/unused.ts": "export function never() { return 'unused'; }\n",
+    });
+    const seeds = flowSeeds(p.structure, p.facts, 8, sources);
+    const seed = seeds.find((s) => s.files.includes("app/prompt.ts"));
+    expect(seed).toBeDefined();
+    expect(seeds.flatMap((s) => s.files)).not.toContain("app/unused.ts");
+    const bodies = flowBodies(seed as NonNullable<typeof seed>, sources.files, 4_000, { text: sources.text, estimate: estimateCode });
+    expect(bodies.map((s) => s.text).join("\n")).toContain("254|  return buildPrompt();");
+    expect(bodies.map((s) => s.text).join("\n")).toContain("1|export function buildPrompt()");
+    expect(bodies.reduce((n, s) => n + s.tokens, 0)).toBeLessThanOrEqual(4_000);
+  });
+
+  test("a same-file private helper passed through imported functools.partial reaches the real prediction call", async () => {
+    const { p, sources } = await callRepo({
+      "api.py":
+        "from functools import partial\nimport router\ndef _authorized(key):\n    if key is None:\n        return True\n    return key == 'test'\ndef _check_auth(key):\n    if not _authorized(key):\n        raise ValueError('denied')\ndef systemone():\n    _check_auth(None)\n    return _systemone_inner()\ndef _systemone_inner():\n" +
+        Array.from({ length: 55 }, (_, i) => `    state${i} = ${i}\n`).join("") +
+        "    return partial(router.predict, 'state')\nif __name__ == '__main__':\n    systemone()\n",
+      "router.py": "def predict(state):\n    return state\n",
+    });
+    const seed = flowSeeds(p.structure, p.facts, 8, sources).find((s) => s.handler === "api.py#systemone");
+    expect(seed).toBeDefined();
+    const bodies = flowBodies(seed as NonNullable<typeof seed>, sources.files, 4_000, { text: sources.text, estimate: estimateCode });
+    const text = bodies.map((s) => s.text).join("\n");
+    expect(text).toContain("return _systemone_inner()");
+    expect(text).toContain("partial(router.predict");
+    expect(text).toContain("def predict(state)");
+    expect(text).toContain("if key is None:");
+    expect(text).toContain("raise ValueError('denied')");
+    expect(text).not.toContain("state30 = 30"); // caller head + actual deep call site, within the existing budget
+    expect(bodies.reduce((n, s) => n + s.tokens, 0)).toBeLessThanOrEqual(4_000);
+  });
+
+  test("both operation and target validation sites and their rejection helper reach a bounded downstream body", async () => {
+    const { p, sources } = await callRepo({
+      "entry.py": "from model import choose, field_text\ndef main():\n    return choose(field_text())\nif __name__ == '__main__':\n    main()\n",
+      "model.py": [
+        "def validate_choice(value):",
+        "    if value is None:",
+        "        raise ValueError('invalid choice')",
+        "    return value",
+        "def choose(value):",
+        ...Array.from({ length: 28 }, (_, i) => `    state${i} = ${i}`),
+        "    operation = validate_choice(value)",
+        ...Array.from({ length: 8 }, (_, i) => `    target${i} = ${i}`),
+        "    return validate_choice(operation)",
+        "def field_text():",
+        "    return 'text'",
+      ].join("\n"),
+    });
+    const seed = flowSeeds(p.structure, p.facts, 8, sources).find((s) => s.files.includes("model.py"));
+    expect(seed).toBeDefined();
+    const bodies = flowBodies(seed as NonNullable<typeof seed>, sources.files, 4_000, { text: sources.text, estimate: estimateCode });
+    const text = bodies.map((s) => s.text).join("\n");
+    expect(text).toContain("operation = validate_choice(value)");
+    expect(text).toContain("return validate_choice(operation)");
+    expect(text).toContain("raise ValueError('invalid choice')");
+    expect(bodies.reduce((n, s) => n + s.tokens, 0)).toBeLessThanOrEqual(4_000);
+  });
+});
+
 describe("gen #4c flow seeds follow the handler, not the router file", () => {
   test("each handler of one router file is a flow of its own, walking where its calls go; the health check comes last", async () => {
     const { p, sources } = await routerRepo();
@@ -240,7 +362,8 @@ describe.skipIf(!crit)("IDX-AT-48 flow seeds on crit", () => {
       expect(infraRoute({ pattern: s.label.split(" ")[1] as string, ...(s.handler ? { handler: s.handler } : {}) })).toBe(false);
     const core = routes.filter((s) => /comment|review|round|finish|event/.test(s.label));
     expect(core.length).toBeGreaterThanOrEqual(2);
-    for (const s of core) expect(s.files[1]).toMatch(/^internal\/session\//); // they reach the session first
+    // A real same-module server helper may precede the session; it is no longer silently skipped.
+    for (const s of core) expect(s.files.some((p) => p.startsWith("internal/session/"))).toBe(true);
     // distinct handlers, never collapsed onto one module walk
     expect(new Set(routes.map((s) => s.handler)).size).toBe(routes.length);
     expect(new Set(routes.map((s) => s.files.join(">"))).size).toBeGreaterThan(1);

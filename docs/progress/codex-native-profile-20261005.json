@@ -1,0 +1,28 @@
+{
+  "root": "$PROBE_ROOT",
+  "stop": "end",
+  "requests": 7,
+  "tools": [
+    {
+      "type": "custom",
+      "name": "apply_patch"
+    }
+  ],
+  "scoped": "after\n",
+  "other": "other-before\n",
+  "outside": "outside-before\n",
+  "newFile": "new scoped content\n",
+  "deleted": true,
+  "repositoryMcpRan": false,
+  "deniedPatchAttempts": 3,
+  "usage": {
+    "in": 70,
+    "cacheWrite": 0,
+    "cacheWrite1h": 0,
+    "cacheRead": 0,
+    "out": 70,
+    "apiUsd": 0,
+    "pricingVer": "2026-09-25",
+    "thinking": 0
+  }
+}

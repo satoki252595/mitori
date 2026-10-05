@@ -1,0 +1,5338 @@
+[
+  {
+    "name": "flask",
+    "ir": {
+      "kind": "floorplan",
+      "origin": "static",
+      "direction": "RIGHT",
+      "nodes": [
+        {
+          "id": "md_0stcn762",
+          "label": "src/flask/sansio",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 2410,
+          "ref": {
+            "module": "md_0stcn762",
+            "section": "s6/flask-sansio"
+          }
+        },
+        {
+          "id": "md_mkkdrkw4",
+          "label": "src/flask",
+          "sublabel": "src/flask",
+          "group": "zone:entry",
+          "loc": 4685,
+          "ref": {
+            "module": "md_mkkdrkw4",
+            "section": "s6/flask"
+          }
+        },
+        {
+          "id": "md_vfkhtwk8",
+          "label": "examples/tutorial/flaskr",
+          "sublabel": "examples",
+          "group": "zone:core",
+          "loc": 777,
+          "ref": {
+            "module": "md_vfkhtwk8",
+            "section": "s6/examples-tutorial-flaskr"
+          }
+        },
+        {
+          "id": "ext0",
+          "label": "FLASK_RUN_FROM_CLI",
+          "shape": "external",
+          "ref": {
+            "path": "src/flask/app.py"
+          }
+        },
+        {
+          "id": "ext1",
+          "label": "FLASK_DEBUG",
+          "shape": "external",
+          "ref": {
+            "path": "src/flask/cli.py"
+          }
+        },
+        {
+          "id": "ext2",
+          "label": "PYTHONSTARTUP",
+          "shape": "external",
+          "ref": {
+            "path": "src/flask/cli.py"
+          }
+        },
+        {
+          "id": "ext3",
+          "label": "FLASK_SKIP_DOTENV",
+          "shape": "external",
+          "ref": {
+            "path": "src/flask/helpers.py"
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "md_0stcn762",
+          "to": "md_mkkdrkw4",
+          "weight": 15.03,
+          "id": "e0",
+          "kind": "imports"
+        },
+        {
+          "from": "md_mkkdrkw4",
+          "to": "md_0stcn762",
+          "weight": 15.01,
+          "id": "e1",
+          "kind": "imports"
+        },
+        {
+          "from": "md_vfkhtwk8",
+          "to": "md_0stcn762",
+          "weight": 6.42,
+          "id": "e2",
+          "kind": "imports"
+        },
+        {
+          "from": "md_vfkhtwk8",
+          "to": "md_mkkdrkw4",
+          "weight": 15.12,
+          "id": "e3",
+          "kind": "imports"
+        },
+        {
+          "id": "e4",
+          "from": "md_mkkdrkw4",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e5",
+          "from": "md_mkkdrkw4",
+          "to": "ext1",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e6",
+          "from": "md_mkkdrkw4",
+          "to": "ext2",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e7",
+          "from": "md_mkkdrkw4",
+          "to": "ext3",
+          "kind": "data",
+          "label": "env"
+        }
+      ],
+      "groups": [
+        {
+          "id": "zone:entry",
+          "label": "entry",
+          "zone": "entry"
+        },
+        {
+          "id": "zone:core",
+          "label": "core",
+          "zone": "core"
+        }
+      ],
+      "id": "dg_floor0001"
+    }
+  },
+  {
+    "name": "ripgrep",
+    "ir": {
+      "kind": "floorplan",
+      "origin": "static",
+      "direction": "RIGHT",
+      "nodes": [
+        {
+          "id": "md_bd216hj8",
+          "label": "crates/ignore/src",
+          "sublabel": "crates/ignore/src",
+          "group": "zone:core",
+          "loc": 5955,
+          "ref": {
+            "module": "md_bd216hj8",
+            "section": "s6/ignore"
+          }
+        },
+        {
+          "id": "md_bm463cyr",
+          "label": "crates/regex · index · matcher",
+          "sublabel": "crates",
+          "group": "zone:core",
+          "loc": 4246,
+          "ref": {
+            "module": "md_bm463cyr",
+            "section": "s6/crates-regex-index-matcher"
+          }
+        },
+        {
+          "id": "md_ch7qjg54",
+          "label": "benchsuite",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 5266,
+          "ref": {
+            "module": "md_ch7qjg54",
+            "section": "s6/benchsuite"
+          }
+        },
+        {
+          "id": "md_es5jcyad",
+          "label": "crates/searcher/src",
+          "sublabel": "crates/searcher/src",
+          "group": "zone:core",
+          "loc": 4536,
+          "ref": {
+            "module": "md_es5jcyad",
+            "section": "s6/searcher"
+          }
+        },
+        {
+          "id": "md_jag83ee2",
+          "label": "crates/core/flags/doc · complete",
+          "sublabel": "crates",
+          "group": "zone:entry",
+          "loc": 4573,
+          "ref": {
+            "module": "md_jag83ee2",
+            "section": "s6/core-flags-doc-complete"
+          }
+        },
+        {
+          "id": "md_mjktt5bv",
+          "label": "crates/globset/src",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 3524,
+          "ref": {
+            "module": "md_mjktt5bv",
+            "section": "s6/globset"
+          }
+        },
+        {
+          "id": "md_saya4g17",
+          "label": "crates/printer/src",
+          "sublabel": "crates/printer/src",
+          "group": "zone:core",
+          "loc": 5742,
+          "ref": {
+            "module": "md_saya4g17",
+            "section": "s6/printer"
+          }
+        },
+        {
+          "id": "md_yy82z18k",
+          "label": "crates/core/flags/defs.rs",
+          "sublabel": "crates/core/flags",
+          "group": "zone:core",
+          "loc": 7025,
+          "ref": {
+            "module": "md_yy82z18k",
+            "section": "s6/core-flags-defs"
+          }
+        },
+        {
+          "id": "ext0",
+          "label": "CARGO_CFG_TARGET_OS",
+          "shape": "external",
+          "ref": {
+            "path": "build.rs"
+          }
+        },
+        {
+          "id": "ext1",
+          "label": "CARGO_CFG_TARGET_ENV",
+          "shape": "external",
+          "ref": {
+            "path": "build.rs"
+          }
+        },
+        {
+          "id": "ext2",
+          "label": "PATH",
+          "shape": "external",
+          "ref": {
+            "path": "crates/cli/src/decompress.rs"
+          }
+        },
+        {
+          "id": "ext3",
+          "label": "RIPGREP_CONFIG_PATH",
+          "shape": "external",
+          "ref": {
+            "path": "crates/core/flags/config.rs"
+          }
+        },
+        {
+          "id": "ext4",
+          "label": "CARGO_PKG_VERSION",
+          "shape": "external",
+          "ref": {
+            "path": "crates/core/flags/doc/version.rs"
+          }
+        },
+        {
+          "id": "ext5",
+          "label": "RIPGREP_BUILD_GIT_HASH",
+          "shape": "external",
+          "ref": {
+            "path": "crates/core/flags/doc/version.rs"
+          }
+        },
+        {
+          "id": "ext6",
+          "label": "PWD",
+          "shape": "external",
+          "ref": {
+            "path": "crates/core/flags/hiargs.rs"
+          }
+        },
+        {
+          "id": "ext7",
+          "label": "WSL_DISTRO_NAME",
+          "shape": "external",
+          "ref": {
+            "path": "crates/core/flags/hiargs.rs"
+          }
+        },
+        {
+          "id": "ext8",
+          "label": "GIT_CONFIG_GLOBAL",
+          "shape": "external",
+          "ref": {
+            "path": "crates/ignore/src/gitignore.rs"
+          }
+        },
+        {
+          "id": "ext9",
+          "label": "GIT_CONFIG_SYSTEM",
+          "shape": "external",
+          "ref": {
+            "path": "crates/ignore/src/gitignore.rs"
+          }
+        },
+        {
+          "id": "ext10",
+          "label": "XDG_CONFIG_HOME",
+          "shape": "external",
+          "ref": {
+            "path": "crates/ignore/src/gitignore.rs"
+          }
+        },
+        {
+          "id": "ext11",
+          "label": "git",
+          "shape": "external",
+          "ref": {
+            "path": "build.rs"
+          }
+        },
+        {
+          "id": "ext12",
+          "label": "std::process",
+          "shape": "external",
+          "ref": {
+            "path": "crates/core/flags/hiargs.rs"
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "md_bd216hj8",
+          "to": "md_bm463cyr",
+          "weight": 2.36,
+          "id": "e0",
+          "kind": "imports"
+        },
+        {
+          "from": "md_bd216hj8",
+          "to": "md_jag83ee2",
+          "weight": 2.9,
+          "id": "e1",
+          "kind": "imports"
+        },
+        {
+          "from": "md_bd216hj8",
+          "to": "md_mjktt5bv",
+          "weight": 6.9,
+          "id": "e2",
+          "kind": "imports"
+        },
+        {
+          "from": "md_bd216hj8",
+          "to": "md_saya4g17",
+          "weight": 2.36,
+          "id": "e3",
+          "kind": "imports"
+        },
+        {
+          "from": "md_bm463cyr",
+          "to": "md_mjktt5bv",
+          "weight": 2.83,
+          "id": "e4",
+          "kind": "imports"
+        },
+        {
+          "from": "md_ch7qjg54",
+          "to": "md_bd216hj8",
+          "weight": 2.37,
+          "id": "e5",
+          "kind": "imports"
+        },
+        {
+          "from": "md_ch7qjg54",
+          "to": "md_bm463cyr",
+          "weight": 2.4,
+          "id": "e6",
+          "kind": "imports"
+        },
+        {
+          "from": "md_ch7qjg54",
+          "to": "md_es5jcyad",
+          "weight": 2.72,
+          "id": "e7",
+          "kind": "imports"
+        },
+        {
+          "from": "md_ch7qjg54",
+          "to": "md_saya4g17",
+          "weight": 2.84,
+          "id": "e8",
+          "kind": "imports"
+        },
+        {
+          "from": "md_es5jcyad",
+          "to": "md_bm463cyr",
+          "weight": 8.53,
+          "id": "e9",
+          "kind": "imports"
+        },
+        {
+          "from": "md_es5jcyad",
+          "to": "md_saya4g17",
+          "weight": 2.99,
+          "id": "e10",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jag83ee2",
+          "to": "md_bd216hj8",
+          "weight": 7.92,
+          "id": "e11",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jag83ee2",
+          "to": "md_bm463cyr",
+          "weight": 7.81,
+          "id": "e12",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jag83ee2",
+          "to": "md_es5jcyad",
+          "weight": 5.61,
+          "id": "e13",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jag83ee2",
+          "to": "md_mjktt5bv",
+          "weight": 7.47,
+          "id": "e14",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jag83ee2",
+          "to": "md_saya4g17",
+          "weight": 10.44,
+          "id": "e15",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jag83ee2",
+          "to": "md_yy82z18k",
+          "weight": 7.5,
+          "id": "e16",
+          "kind": "imports"
+        },
+        {
+          "from": "md_mjktt5bv",
+          "to": "md_bd216hj8",
+          "weight": 3.15,
+          "id": "e17",
+          "kind": "imports"
+        },
+        {
+          "from": "md_mjktt5bv",
+          "to": "md_bm463cyr",
+          "weight": 3.65,
+          "id": "e18",
+          "kind": "imports"
+        },
+        {
+          "from": "md_saya4g17",
+          "to": "md_bm463cyr",
+          "weight": 10.08,
+          "id": "e19",
+          "kind": "imports"
+        },
+        {
+          "from": "md_saya4g17",
+          "to": "md_ch7qjg54",
+          "weight": 5,
+          "id": "e20",
+          "kind": "imports"
+        },
+        {
+          "from": "md_saya4g17",
+          "to": "md_es5jcyad",
+          "weight": 12.81,
+          "id": "e21",
+          "kind": "imports"
+        },
+        {
+          "from": "md_saya4g17",
+          "to": "md_mjktt5bv",
+          "weight": 3.4,
+          "id": "e22",
+          "kind": "imports"
+        },
+        {
+          "from": "md_yy82z18k",
+          "to": "md_jag83ee2",
+          "weight": 3,
+          "id": "e23",
+          "kind": "imports"
+        },
+        {
+          "id": "e24",
+          "from": "md_ch7qjg54",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e25",
+          "from": "md_ch7qjg54",
+          "to": "ext1",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e26",
+          "from": "md_mjktt5bv",
+          "to": "ext2",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e27",
+          "from": "md_jag83ee2",
+          "to": "ext3",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e28",
+          "from": "md_jag83ee2",
+          "to": "ext4",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e29",
+          "from": "md_jag83ee2",
+          "to": "ext5",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e30",
+          "from": "md_jag83ee2",
+          "to": "ext6",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e31",
+          "from": "md_jag83ee2",
+          "to": "ext7",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e32",
+          "from": "md_bd216hj8",
+          "to": "ext8",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e33",
+          "from": "md_bd216hj8",
+          "to": "ext9",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e34",
+          "from": "md_bd216hj8",
+          "to": "ext10",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e35",
+          "from": "md_ch7qjg54",
+          "to": "ext11",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e36",
+          "from": "md_jag83ee2",
+          "to": "ext12",
+          "kind": "data",
+          "label": "subprocess"
+        }
+      ],
+      "groups": [
+        {
+          "id": "zone:entry",
+          "label": "entry",
+          "zone": "entry"
+        },
+        {
+          "id": "zone:core",
+          "label": "core",
+          "zone": "core"
+        }
+      ],
+      "id": "dg_floor0001"
+    }
+  },
+  {
+    "name": "hono",
+    "ir": {
+      "kind": "floorplan",
+      "origin": "static",
+      "direction": "RIGHT",
+      "nodes": [
+        {
+          "id": "md_2rk0bd8q",
+          "label": "src/helper",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 3506,
+          "ref": {
+            "module": "md_2rk0bd8q",
+            "section": "s6/helper"
+          }
+        },
+        {
+          "id": "md_hz7fheax",
+          "label": "src",
+          "sublabel": "src",
+          "group": "zone:core",
+          "loc": 5800,
+          "ref": {
+            "module": "md_hz7fheax",
+            "section": "s6/src"
+          }
+        },
+        {
+          "id": "md_jsyh4t61",
+          "label": "src/middleware",
+          "sublabel": "src",
+          "group": "zone:core",
+          "loc": 4103,
+          "ref": {
+            "module": "md_jsyh4t61",
+            "section": "s6/middleware"
+          }
+        },
+        {
+          "id": "md_peg2vqn2",
+          "label": "src/jsx",
+          "sublabel": "src",
+          "group": "zone:core",
+          "loc": 3932,
+          "ref": {
+            "module": "md_peg2vqn2",
+            "section": "s6/jsx"
+          }
+        },
+        {
+          "id": "md_w1mn5pvf",
+          "label": "src · adapters",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 3733,
+          "ref": {
+            "module": "md_w1mn5pvf",
+            "section": "s6/src-adapters"
+          }
+        },
+        {
+          "id": "ext0",
+          "label": "child_process",
+          "shape": "external",
+          "ref": {
+            "path": "build/release-adapter.ts"
+          }
+        },
+        {
+          "id": "ext1",
+          "label": "fetch",
+          "shape": "external",
+          "ref": {
+            "path": "src/adapter/cloudflare-pages/handler.ts"
+          }
+        },
+        {
+          "id": "ext2",
+          "label": "WebSocket",
+          "shape": "external",
+          "ref": {
+            "path": "src/client/client.ts"
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "md_2rk0bd8q",
+          "to": "md_hz7fheax",
+          "weight": 38.47,
+          "id": "e0",
+          "kind": "imports"
+        },
+        {
+          "from": "md_2rk0bd8q",
+          "to": "md_jsyh4t61",
+          "weight": 3,
+          "id": "e1",
+          "kind": "imports"
+        },
+        {
+          "from": "md_2rk0bd8q",
+          "to": "md_peg2vqn2",
+          "weight": 5.85,
+          "id": "e2",
+          "kind": "imports"
+        },
+        {
+          "from": "md_hz7fheax",
+          "to": "md_2rk0bd8q",
+          "weight": 30.14,
+          "id": "e3",
+          "kind": "imports"
+        },
+        {
+          "from": "md_hz7fheax",
+          "to": "md_jsyh4t61",
+          "weight": 7.12,
+          "id": "e4",
+          "kind": "imports"
+        },
+        {
+          "from": "md_hz7fheax",
+          "to": "md_peg2vqn2",
+          "weight": 2.95,
+          "id": "e5",
+          "kind": "imports"
+        },
+        {
+          "from": "md_hz7fheax",
+          "to": "md_w1mn5pvf",
+          "weight": 10.92,
+          "id": "e6",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jsyh4t61",
+          "to": "md_2rk0bd8q",
+          "weight": 15.23,
+          "id": "e7",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jsyh4t61",
+          "to": "md_hz7fheax",
+          "weight": 66.49,
+          "id": "e8",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jsyh4t61",
+          "to": "md_peg2vqn2",
+          "weight": 4.58,
+          "id": "e9",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jsyh4t61",
+          "to": "md_w1mn5pvf",
+          "weight": 5.48,
+          "id": "e10",
+          "kind": "imports"
+        },
+        {
+          "from": "md_peg2vqn2",
+          "to": "md_2rk0bd8q",
+          "weight": 9,
+          "id": "e11",
+          "kind": "imports"
+        },
+        {
+          "from": "md_peg2vqn2",
+          "to": "md_w1mn5pvf",
+          "weight": 7.94,
+          "id": "e12",
+          "kind": "imports"
+        },
+        {
+          "from": "md_w1mn5pvf",
+          "to": "md_hz7fheax",
+          "weight": 17.28,
+          "id": "e13",
+          "kind": "imports"
+        },
+        {
+          "from": "md_w1mn5pvf",
+          "to": "md_peg2vqn2",
+          "weight": 14.06,
+          "id": "e14",
+          "kind": "imports"
+        },
+        {
+          "id": "e15",
+          "from": "md_w1mn5pvf",
+          "to": "ext0",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e16",
+          "from": "md_hz7fheax",
+          "to": "ext1",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e17",
+          "from": "md_2rk0bd8q",
+          "to": "ext2",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e18",
+          "from": "md_jsyh4t61",
+          "to": "ext1",
+          "kind": "data",
+          "label": "http"
+        }
+      ],
+      "groups": [
+        {
+          "id": "zone:core",
+          "label": "core",
+          "zone": "core"
+        }
+      ],
+      "id": "dg_floor0001"
+    }
+  },
+  {
+    "name": "excalidraw",
+    "ir": {
+      "kind": "floorplan",
+      "origin": "static",
+      "direction": "RIGHT",
+      "nodes": [
+        {
+          "id": "md_0tk7edpq",
+          "label": "packages/element/src (binding, linearElementEditor)",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 5955,
+          "ref": {
+            "module": "md_0tk7edpq",
+            "section": "s6/element-binding"
+          }
+        },
+        {
+          "id": "md_1eq6rjv9",
+          "label": "packages/excalidraw/actions (actionExport, actionFinalize)",
+          "sublabel": "packages/excalidraw",
+          "group": "zone:ui",
+          "loc": 5819,
+          "ref": {
+            "module": "md_1eq6rjv9",
+            "section": "s6/excalidraw-actions-actionexport"
+          }
+        },
+        {
+          "id": "md_2wgg3bec",
+          "label": "packages/excalidraw/components · common",
+          "sublabel": "",
+          "group": "zone:ui",
+          "loc": 5924,
+          "ref": {
+            "module": "md_2wgg3bec",
+            "section": "s6/packages-excalidraw-components-common"
+          }
+        },
+        {
+          "id": "md_6sabjwjr",
+          "label": "packages/element/src (elbowArrow, delta)",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 5362,
+          "ref": {
+            "module": "md_6sabjwjr",
+            "section": "s6/element-elbowarrow"
+          }
+        },
+        {
+          "id": "md_6t6fmwae",
+          "label": "packages/excalidraw/subset/woff2",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 5128,
+          "ref": {
+            "module": "md_6t6fmwae",
+            "section": "s6/excalidraw-subset-woff2"
+          }
+        },
+        {
+          "id": "md_7s51g85e",
+          "label": "packages/excalidraw/components (icons, LibraryMenuItems)",
+          "sublabel": "",
+          "group": "zone:ui",
+          "loc": 5851,
+          "ref": {
+            "module": "md_7s51g85e",
+            "section": "s6/excalidraw-components-icons"
+          }
+        },
+        {
+          "id": "md_7vrg69ba",
+          "label": "packages/excalidraw/components/dropdownMenu · FontPicker · TopPicksDnD …",
+          "sublabel": "packages/excalidraw",
+          "group": "zone:ui",
+          "loc": 3711,
+          "ref": {
+            "module": "md_7vrg69ba",
+            "section": "s6/excalidraw-components-dropdownmenu-fontpicker-to"
+          }
+        },
+        {
+          "id": "md_852357hj",
+          "label": "packages/element/src (renderElement, stickyNote)",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 5880,
+          "ref": {
+            "module": "md_852357hj",
+            "section": "s6/element-renderelement"
+          }
+        },
+        {
+          "id": "md_89a3rs8a",
+          "label": "packages/excalidraw/components/App.tsx",
+          "sublabel": "packages/excalidraw/components",
+          "group": "zone:ui",
+          "loc": 10842,
+          "ref": {
+            "module": "md_89a3rs8a",
+            "section": "s6/excalidraw-components-app"
+          }
+        },
+        {
+          "id": "md_8v26jehz",
+          "label": "packages/excalidraw/components (Actions, SearchMenu)",
+          "sublabel": "packages/excalidraw",
+          "group": "zone:ui",
+          "loc": 5633,
+          "ref": {
+            "module": "md_8v26jehz",
+            "section": "s6/excalidraw-components-actions"
+          }
+        },
+        {
+          "id": "md_ajc99scc",
+          "label": "packages/element/src (frame, flowchart)",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 5962,
+          "ref": {
+            "module": "md_ajc99scc",
+            "section": "s6/element-frame"
+          }
+        },
+        {
+          "id": "md_bdp4xsqm",
+          "label": "packages/excalidraw/actions (actionProperties, actionCanvas)",
+          "sublabel": "packages/excalidraw",
+          "group": "zone:ui",
+          "loc": 4349,
+          "ref": {
+            "module": "md_bdp4xsqm",
+            "section": "s6/excalidraw-actions-actionproperties"
+          }
+        },
+        {
+          "id": "md_bs5j84tx",
+          "label": "excalidraw-app",
+          "sublabel": "",
+          "group": "zone:entry",
+          "loc": 5987,
+          "ref": {
+            "module": "md_bs5j84tx",
+            "section": "s6/excalidraw-app"
+          }
+        },
+        {
+          "id": "md_e3h3phkp",
+          "label": "packages/excalidraw/components/TTDDialog",
+          "sublabel": "packages/excalidraw/components",
+          "group": "zone:ui",
+          "loc": 4523,
+          "ref": {
+            "module": "md_e3h3phkp",
+            "section": "s6/excalidraw-components-ttddialog"
+          }
+        },
+        {
+          "id": "md_eq5g0mhx",
+          "label": "dev-docs/src",
+          "sublabel": "dev-docs",
+          "group": "zone:core",
+          "loc": 1645,
+          "ref": {
+            "module": "md_eq5g0mhx",
+            "section": "s6/dev-docs"
+          }
+        },
+        {
+          "id": "md_fqv72rf8",
+          "label": "scripts",
+          "sublabel": "scripts",
+          "group": "zone:core",
+          "loc": 1145,
+          "ref": {
+            "module": "md_fqv72rf8",
+            "section": "s6/scripts"
+          }
+        },
+        {
+          "id": "md_fty727f5",
+          "label": "packages/excalidraw/renderer",
+          "sublabel": "packages/excalidraw",
+          "group": "zone:core",
+          "loc": 5939,
+          "ref": {
+            "module": "md_fty727f5",
+            "section": "s6/excalidraw-renderer"
+          }
+        },
+        {
+          "id": "md_hvw6gfas",
+          "label": "packages/excalidraw/components/Stats · math",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 5907,
+          "ref": {
+            "module": "md_hvw6gfas",
+            "section": "s6/packages-excalidraw-components-stats-math"
+          }
+        },
+        {
+          "id": "md_n70mcn7g",
+          "label": "packages/excalidraw/components (Tools, MobileToolbar)",
+          "sublabel": "packages/excalidraw/components",
+          "group": "zone:ui",
+          "loc": 4650,
+          "ref": {
+            "module": "md_n70mcn7g",
+            "section": "s6/excalidraw-components-tools"
+          }
+        },
+        {
+          "id": "md_q1paw9bm",
+          "label": "packages/element/src (resizeElements, transform)",
+          "sublabel": "packages/element/src",
+          "group": "zone:core",
+          "loc": 5605,
+          "ref": {
+            "module": "md_q1paw9bm",
+            "section": "s6/element-resizeelements"
+          }
+        },
+        {
+          "id": "md_s2b79s6w",
+          "label": "packages/excalidraw/charts",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 3344,
+          "ref": {
+            "module": "md_s2b79s6w",
+            "section": "s6/excalidraw-charts"
+          }
+        },
+        {
+          "id": "md_synmvzfp",
+          "label": "packages/excalidraw/data",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 3959,
+          "ref": {
+            "module": "md_synmvzfp",
+            "section": "s6/excalidraw-data"
+          }
+        },
+        {
+          "id": "md_v0x5cpmn",
+          "label": "packages/element/src (bucketFill, bounds)",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 5849,
+          "ref": {
+            "module": "md_v0x5cpmn",
+            "section": "s6/element-bucketfill"
+          }
+        },
+        {
+          "id": "md_wkmfj0k9",
+          "label": "examples/with-script-in-browser",
+          "sublabel": "examples",
+          "group": "zone:ui",
+          "loc": 2428,
+          "ref": {
+            "module": "md_wkmfj0k9",
+            "section": "s6/examples-with-script-in-browser"
+          }
+        },
+        {
+          "id": "md_x7m7b8p2",
+          "label": "packages/excalidraw (snapping, clipboard)",
+          "sublabel": "packages/excalidraw",
+          "group": "zone:core",
+          "loc": 5979,
+          "ref": {
+            "module": "md_x7m7b8p2",
+            "section": "s6/excalidraw-snapping"
+          }
+        },
+        {
+          "id": "md_z22vjzqz",
+          "label": "packages/excalidraw/fonts/Xiaolai · css",
+          "sublabel": "packages/excalidraw",
+          "group": "zone:core",
+          "loc": 2367,
+          "ref": {
+            "module": "md_z22vjzqz",
+            "section": "s6/excalidraw-fonts-xiaolai-css"
+          }
+        },
+        {
+          "id": "ext0",
+          "label": "VITE_APP_DISABLE_PREVENT_UNLOAD",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/App.tsx"
+          }
+        },
+        {
+          "id": "ext1",
+          "label": "VITE_APP_PLUS_LP",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/App.tsx"
+          }
+        },
+        {
+          "id": "ext2",
+          "label": "VITE_APP_PLUS_APP",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/App.tsx"
+          }
+        },
+        {
+          "id": "ext3",
+          "label": "VITE_APP_PLUS_EXPORT_PUBLIC_KEY",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/ExcalidrawPlusIframeExport.tsx"
+          }
+        },
+        {
+          "id": "ext4",
+          "label": "VITE_APP_WS_SERVER_URL",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/collab/Collab.tsx"
+          }
+        },
+        {
+          "id": "ext5",
+          "label": "VITE_APP_AI_BACKEND",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/components/AI.tsx"
+          }
+        },
+        {
+          "id": "ext6",
+          "label": "VITE_APP_FIREBASE_CONFIG",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/data/firebase.ts"
+          }
+        },
+        {
+          "id": "ext7",
+          "label": "VITE_APP_BACKEND_V2_GET_URL",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/data/index.ts"
+          }
+        },
+        {
+          "id": "ext8",
+          "label": "VITE_APP_BACKEND_V2_POST_URL",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/data/index.ts"
+          }
+        },
+        {
+          "id": "ext9",
+          "label": "VITE_APP_GIT_SHA",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/index.tsx"
+          }
+        },
+        {
+          "id": "ext10",
+          "label": "VITE_APP_DISABLE_SENTRY",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/sentry.ts"
+          }
+        },
+        {
+          "id": "ext11",
+          "label": "MODE",
+          "shape": "external",
+          "ref": {
+            "path": "packages/common/src/utils.ts"
+          }
+        },
+        {
+          "id": "ext12",
+          "label": "DEV",
+          "shape": "external",
+          "ref": {
+            "path": "packages/element/src/duplicate.ts"
+          }
+        },
+        {
+          "id": "ext13",
+          "label": "PROD",
+          "shape": "external",
+          "ref": {
+            "path": "packages/element/src/elbowArrow.ts"
+          }
+        },
+        {
+          "id": "ext14",
+          "label": "VITE_APP_DEBUG_ENABLE_TEXT_CONTAINER_BOUNDING_BOX",
+          "shape": "external",
+          "ref": {
+            "path": "packages/element/src/renderElement.ts"
+          }
+        },
+        {
+          "id": "ext15",
+          "label": "VITE_WORKER_ID",
+          "shape": "external",
+          "ref": {
+            "path": "packages/excalidraw/analytics.ts"
+          }
+        },
+        {
+          "id": "ext16",
+          "label": "VITE_APP_ENABLE_TRACKING",
+          "shape": "external",
+          "ref": {
+            "path": "packages/excalidraw/analytics.ts"
+          }
+        },
+        {
+          "id": "ext17",
+          "label": "VITE_APP_LIBRARY_URL",
+          "shape": "external",
+          "ref": {
+            "path": "packages/excalidraw/components/LibraryMenuBrowseButton.tsx"
+          }
+        },
+        {
+          "id": "ext18",
+          "label": "VITE_APP_LIBRARY_BACKEND",
+          "shape": "external",
+          "ref": {
+            "path": "packages/excalidraw/components/PublishLibrary.tsx"
+          }
+        },
+        {
+          "id": "ext19",
+          "label": "PKG_NAME",
+          "shape": "external",
+          "ref": {
+            "path": "packages/excalidraw/fonts/ExcalidrawFontFace.ts"
+          }
+        },
+        {
+          "id": "ext20",
+          "label": "PKG_VERSION",
+          "shape": "external",
+          "ref": {
+            "path": "packages/excalidraw/fonts/ExcalidrawFontFace.ts"
+          }
+        },
+        {
+          "id": "ext21",
+          "label": "VITE_DEBUG_DOM",
+          "shape": "external",
+          "ref": {
+            "path": "setupTests.ts"
+          }
+        },
+        {
+          "id": "ext22",
+          "label": "fetch",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/App.tsx"
+          }
+        },
+        {
+          "id": "ext23",
+          "label": "socket.io-client",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/collab/Collab.tsx"
+          }
+        },
+        {
+          "id": "ext24",
+          "label": "firebase/app",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/data/firebase.ts"
+          }
+        },
+        {
+          "id": "ext25",
+          "label": "firebase/firestore",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/data/firebase.ts"
+          }
+        },
+        {
+          "id": "ext26",
+          "label": "firebase/storage",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/data/firebase.ts"
+          }
+        },
+        {
+          "id": "ext27",
+          "label": "@sentry/browser",
+          "shape": "external",
+          "ref": {
+            "path": "excalidraw-app/sentry.ts"
+          }
+        },
+        {
+          "id": "ext28",
+          "label": "test.png",
+          "shape": "external",
+          "ref": {
+            "path": "packages/excalidraw/index-node.ts"
+          }
+        },
+        {
+          "id": "ext29",
+          "label": "XMLHttpRequest",
+          "shape": "external",
+          "ref": {
+            "path": "packages/excalidraw/subset/woff2/woff2-bindings.ts"
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "md_0tk7edpq",
+          "to": "md_hvw6gfas",
+          "weight": 10.32,
+          "id": "e0",
+          "kind": "imports"
+        },
+        {
+          "from": "md_1eq6rjv9",
+          "to": "md_2wgg3bec",
+          "weight": 47.37,
+          "id": "e1",
+          "kind": "imports"
+        },
+        {
+          "from": "md_1eq6rjv9",
+          "to": "md_7s51g85e",
+          "weight": 34.75,
+          "id": "e2",
+          "kind": "imports"
+        },
+        {
+          "from": "md_1eq6rjv9",
+          "to": "md_852357hj",
+          "weight": 24,
+          "id": "e3",
+          "kind": "imports"
+        },
+        {
+          "from": "md_1eq6rjv9",
+          "to": "md_ajc99scc",
+          "weight": 58.99,
+          "id": "e4",
+          "kind": "imports"
+        },
+        {
+          "from": "md_1eq6rjv9",
+          "to": "md_fty727f5",
+          "weight": 13,
+          "id": "e5",
+          "kind": "imports"
+        },
+        {
+          "from": "md_1eq6rjv9",
+          "to": "md_q1paw9bm",
+          "weight": 11.28,
+          "id": "e6",
+          "kind": "imports"
+        },
+        {
+          "from": "md_1eq6rjv9",
+          "to": "md_s2b79s6w",
+          "weight": 16.33,
+          "id": "e7",
+          "kind": "imports"
+        },
+        {
+          "from": "md_1eq6rjv9",
+          "to": "md_x7m7b8p2",
+          "weight": 37,
+          "id": "e8",
+          "kind": "imports"
+        },
+        {
+          "from": "md_2wgg3bec",
+          "to": "md_852357hj",
+          "weight": 13.5,
+          "id": "e9",
+          "kind": "imports"
+        },
+        {
+          "from": "md_2wgg3bec",
+          "to": "md_hvw6gfas",
+          "weight": 10.82,
+          "id": "e10",
+          "kind": "imports"
+        },
+        {
+          "from": "md_2wgg3bec",
+          "to": "md_x7m7b8p2",
+          "weight": 19,
+          "id": "e11",
+          "kind": "imports"
+        },
+        {
+          "from": "md_6sabjwjr",
+          "to": "md_2wgg3bec",
+          "weight": 14.16,
+          "id": "e12",
+          "kind": "imports"
+        },
+        {
+          "from": "md_6t6fmwae",
+          "to": "md_2wgg3bec",
+          "weight": 11.82,
+          "id": "e13",
+          "kind": "imports"
+        },
+        {
+          "from": "md_7s51g85e",
+          "to": "md_2wgg3bec",
+          "weight": 17.2,
+          "id": "e14",
+          "kind": "imports"
+        },
+        {
+          "from": "md_7s51g85e",
+          "to": "md_8v26jehz",
+          "weight": 11.5,
+          "id": "e15",
+          "kind": "imports"
+        },
+        {
+          "from": "md_7s51g85e",
+          "to": "md_s2b79s6w",
+          "weight": 11.01,
+          "id": "e16",
+          "kind": "imports"
+        },
+        {
+          "from": "md_7s51g85e",
+          "to": "md_x7m7b8p2",
+          "weight": 28.01,
+          "id": "e17",
+          "kind": "imports"
+        },
+        {
+          "from": "md_7vrg69ba",
+          "to": "md_2wgg3bec",
+          "weight": 19.32,
+          "id": "e18",
+          "kind": "imports"
+        },
+        {
+          "from": "md_7vrg69ba",
+          "to": "md_7s51g85e",
+          "weight": 13.74,
+          "id": "e19",
+          "kind": "imports"
+        },
+        {
+          "from": "md_7vrg69ba",
+          "to": "md_89a3rs8a",
+          "weight": 12,
+          "id": "e20",
+          "kind": "imports"
+        },
+        {
+          "from": "md_7vrg69ba",
+          "to": "md_8v26jehz",
+          "weight": 10.29,
+          "id": "e21",
+          "kind": "imports"
+        },
+        {
+          "from": "md_852357hj",
+          "to": "md_2wgg3bec",
+          "weight": 25.16,
+          "id": "e22",
+          "kind": "imports"
+        },
+        {
+          "from": "md_852357hj",
+          "to": "md_ajc99scc",
+          "weight": 10.58,
+          "id": "e23",
+          "kind": "imports"
+        },
+        {
+          "from": "md_852357hj",
+          "to": "md_hvw6gfas",
+          "weight": 26.5,
+          "id": "e24",
+          "kind": "imports"
+        },
+        {
+          "from": "md_852357hj",
+          "to": "md_q1paw9bm",
+          "weight": 19.4,
+          "id": "e25",
+          "kind": "imports"
+        },
+        {
+          "from": "md_852357hj",
+          "to": "md_s2b79s6w",
+          "weight": 12.59,
+          "id": "e26",
+          "kind": "imports"
+        },
+        {
+          "from": "md_852357hj",
+          "to": "md_v0x5cpmn",
+          "weight": 10.26,
+          "id": "e27",
+          "kind": "imports"
+        },
+        {
+          "from": "md_89a3rs8a",
+          "to": "md_1eq6rjv9",
+          "weight": 15.11,
+          "id": "e28",
+          "kind": "imports"
+        },
+        {
+          "from": "md_89a3rs8a",
+          "to": "md_2wgg3bec",
+          "weight": 10.71,
+          "id": "e29",
+          "kind": "imports"
+        },
+        {
+          "from": "md_89a3rs8a",
+          "to": "md_fty727f5",
+          "weight": 11,
+          "id": "e30",
+          "kind": "imports"
+        },
+        {
+          "from": "md_89a3rs8a",
+          "to": "md_x7m7b8p2",
+          "weight": 13.68,
+          "id": "e31",
+          "kind": "imports"
+        },
+        {
+          "from": "md_8v26jehz",
+          "to": "md_1eq6rjv9",
+          "weight": 17.77,
+          "id": "e32",
+          "kind": "imports"
+        },
+        {
+          "from": "md_8v26jehz",
+          "to": "md_2wgg3bec",
+          "weight": 19.86,
+          "id": "e33",
+          "kind": "imports"
+        },
+        {
+          "from": "md_8v26jehz",
+          "to": "md_7s51g85e",
+          "weight": 28.81,
+          "id": "e34",
+          "kind": "imports"
+        },
+        {
+          "from": "md_8v26jehz",
+          "to": "md_89a3rs8a",
+          "weight": 16.35,
+          "id": "e35",
+          "kind": "imports"
+        },
+        {
+          "from": "md_8v26jehz",
+          "to": "md_s2b79s6w",
+          "weight": 14,
+          "id": "e36",
+          "kind": "imports"
+        },
+        {
+          "from": "md_8v26jehz",
+          "to": "md_x7m7b8p2",
+          "weight": 25.79,
+          "id": "e37",
+          "kind": "imports"
+        },
+        {
+          "from": "md_ajc99scc",
+          "to": "md_2wgg3bec",
+          "weight": 28.9,
+          "id": "e38",
+          "kind": "imports"
+        },
+        {
+          "from": "md_ajc99scc",
+          "to": "md_852357hj",
+          "weight": 24,
+          "id": "e39",
+          "kind": "imports"
+        },
+        {
+          "from": "md_ajc99scc",
+          "to": "md_q1paw9bm",
+          "weight": 23.05,
+          "id": "e40",
+          "kind": "imports"
+        },
+        {
+          "from": "md_ajc99scc",
+          "to": "md_s2b79s6w",
+          "weight": 16.01,
+          "id": "e41",
+          "kind": "imports"
+        },
+        {
+          "from": "md_ajc99scc",
+          "to": "md_v0x5cpmn",
+          "weight": 10.38,
+          "id": "e42",
+          "kind": "imports"
+        },
+        {
+          "from": "md_bdp4xsqm",
+          "to": "md_2wgg3bec",
+          "weight": 12.06,
+          "id": "e43",
+          "kind": "imports"
+        },
+        {
+          "from": "md_bdp4xsqm",
+          "to": "md_x7m7b8p2",
+          "weight": 11.01,
+          "id": "e44",
+          "kind": "imports"
+        },
+        {
+          "from": "md_bs5j84tx",
+          "to": "md_2wgg3bec",
+          "weight": 28.21,
+          "id": "e45",
+          "kind": "imports"
+        },
+        {
+          "from": "md_bs5j84tx",
+          "to": "md_7s51g85e",
+          "weight": 14.68,
+          "id": "e46",
+          "kind": "imports"
+        },
+        {
+          "from": "md_bs5j84tx",
+          "to": "md_852357hj",
+          "weight": 15.35,
+          "id": "e47",
+          "kind": "imports"
+        },
+        {
+          "from": "md_bs5j84tx",
+          "to": "md_s2b79s6w",
+          "weight": 17.98,
+          "id": "e48",
+          "kind": "imports"
+        },
+        {
+          "from": "md_bs5j84tx",
+          "to": "md_synmvzfp",
+          "weight": 24.67,
+          "id": "e49",
+          "kind": "imports"
+        },
+        {
+          "from": "md_bs5j84tx",
+          "to": "md_x7m7b8p2",
+          "weight": 39.33,
+          "id": "e50",
+          "kind": "imports"
+        },
+        {
+          "from": "md_e3h3phkp",
+          "to": "md_2wgg3bec",
+          "weight": 10.92,
+          "id": "e51",
+          "kind": "imports"
+        },
+        {
+          "from": "md_e3h3phkp",
+          "to": "md_7s51g85e",
+          "weight": 14,
+          "id": "e52",
+          "kind": "imports"
+        },
+        {
+          "from": "md_e3h3phkp",
+          "to": "md_x7m7b8p2",
+          "weight": 24,
+          "id": "e53",
+          "kind": "imports"
+        },
+        {
+          "from": "md_fty727f5",
+          "to": "md_2wgg3bec",
+          "weight": 28.33,
+          "id": "e54",
+          "kind": "imports"
+        },
+        {
+          "from": "md_fty727f5",
+          "to": "md_852357hj",
+          "weight": 14.45,
+          "id": "e55",
+          "kind": "imports"
+        },
+        {
+          "from": "md_fty727f5",
+          "to": "md_ajc99scc",
+          "weight": 15.5,
+          "id": "e56",
+          "kind": "imports"
+        },
+        {
+          "from": "md_fty727f5",
+          "to": "md_hvw6gfas",
+          "weight": 11.04,
+          "id": "e57",
+          "kind": "imports"
+        },
+        {
+          "from": "md_fty727f5",
+          "to": "md_s2b79s6w",
+          "weight": 18.35,
+          "id": "e58",
+          "kind": "imports"
+        },
+        {
+          "from": "md_fty727f5",
+          "to": "md_x7m7b8p2",
+          "weight": 14.05,
+          "id": "e59",
+          "kind": "imports"
+        },
+        {
+          "from": "md_hvw6gfas",
+          "to": "md_2wgg3bec",
+          "weight": 12.8,
+          "id": "e60",
+          "kind": "imports"
+        },
+        {
+          "from": "md_hvw6gfas",
+          "to": "md_852357hj",
+          "weight": 17.86,
+          "id": "e61",
+          "kind": "imports"
+        },
+        {
+          "from": "md_hvw6gfas",
+          "to": "md_ajc99scc",
+          "weight": 28.29,
+          "id": "e62",
+          "kind": "imports"
+        },
+        {
+          "from": "md_hvw6gfas",
+          "to": "md_s2b79s6w",
+          "weight": 14.6,
+          "id": "e63",
+          "kind": "imports"
+        },
+        {
+          "from": "md_q1paw9bm",
+          "to": "md_2wgg3bec",
+          "weight": 25.04,
+          "id": "e64",
+          "kind": "imports"
+        },
+        {
+          "from": "md_q1paw9bm",
+          "to": "md_852357hj",
+          "weight": 18,
+          "id": "e65",
+          "kind": "imports"
+        },
+        {
+          "from": "md_q1paw9bm",
+          "to": "md_hvw6gfas",
+          "weight": 10.91,
+          "id": "e66",
+          "kind": "imports"
+        },
+        {
+          "from": "md_s2b79s6w",
+          "to": "md_2wgg3bec",
+          "weight": 14.35,
+          "id": "e67",
+          "kind": "imports"
+        },
+        {
+          "from": "md_s2b79s6w",
+          "to": "md_hvw6gfas",
+          "weight": 12.1,
+          "id": "e68",
+          "kind": "imports"
+        },
+        {
+          "from": "md_synmvzfp",
+          "to": "md_2wgg3bec",
+          "weight": 26.57,
+          "id": "e69",
+          "kind": "imports"
+        },
+        {
+          "from": "md_synmvzfp",
+          "to": "md_s2b79s6w",
+          "weight": 13.02,
+          "id": "e70",
+          "kind": "imports"
+        },
+        {
+          "from": "md_synmvzfp",
+          "to": "md_x7m7b8p2",
+          "weight": 11.39,
+          "id": "e71",
+          "kind": "imports"
+        },
+        {
+          "from": "md_v0x5cpmn",
+          "to": "md_2wgg3bec",
+          "weight": 15.91,
+          "id": "e72",
+          "kind": "imports"
+        },
+        {
+          "from": "md_v0x5cpmn",
+          "to": "md_852357hj",
+          "weight": 11.5,
+          "id": "e73",
+          "kind": "imports"
+        },
+        {
+          "from": "md_v0x5cpmn",
+          "to": "md_hvw6gfas",
+          "weight": 33.61,
+          "id": "e74",
+          "kind": "imports"
+        },
+        {
+          "from": "md_x7m7b8p2",
+          "to": "md_2wgg3bec",
+          "weight": 26.76,
+          "id": "e75",
+          "kind": "imports"
+        },
+        {
+          "from": "md_x7m7b8p2",
+          "to": "md_hvw6gfas",
+          "weight": 10.56,
+          "id": "e76",
+          "kind": "imports"
+        },
+        {
+          "from": "md_x7m7b8p2",
+          "to": "md_s2b79s6w",
+          "weight": 13.27,
+          "id": "e77",
+          "kind": "imports"
+        },
+        {
+          "id": "e78",
+          "from": "md_bs5j84tx",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e79",
+          "from": "md_bs5j84tx",
+          "to": "ext1",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e80",
+          "from": "md_bs5j84tx",
+          "to": "ext2",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e81",
+          "from": "md_bs5j84tx",
+          "to": "ext3",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e82",
+          "from": "md_bs5j84tx",
+          "to": "ext4",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e83",
+          "from": "md_bs5j84tx",
+          "to": "ext5",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e84",
+          "from": "md_bs5j84tx",
+          "to": "ext6",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e85",
+          "from": "md_bs5j84tx",
+          "to": "ext7",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e86",
+          "from": "md_bs5j84tx",
+          "to": "ext8",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e87",
+          "from": "md_bs5j84tx",
+          "to": "ext9",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e88",
+          "from": "md_bs5j84tx",
+          "to": "ext10",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e89",
+          "from": "md_2wgg3bec",
+          "to": "ext11",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e90",
+          "from": "md_ajc99scc",
+          "to": "ext12",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e91",
+          "from": "md_6sabjwjr",
+          "to": "ext13",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e92",
+          "from": "md_852357hj",
+          "to": "ext14",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e93",
+          "from": "md_x7m7b8p2",
+          "to": "ext15",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e94",
+          "from": "md_x7m7b8p2",
+          "to": "ext16",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e95",
+          "from": "md_x7m7b8p2",
+          "to": "ext13",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e96",
+          "from": "md_7s51g85e",
+          "to": "ext17",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e97",
+          "from": "md_synmvzfp",
+          "to": "ext18",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e98",
+          "from": "md_e3h3phkp",
+          "to": "ext1",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e99",
+          "from": "md_6t6fmwae",
+          "to": "ext19",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e100",
+          "from": "md_6t6fmwae",
+          "to": "ext20",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e101",
+          "from": "md_6t6fmwae",
+          "to": "ext21",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e102",
+          "from": "md_bs5j84tx",
+          "to": "ext22",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e103",
+          "from": "md_bs5j84tx",
+          "to": "ext23",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e104",
+          "from": "md_bs5j84tx",
+          "to": "ext24",
+          "kind": "data",
+          "label": "sdk"
+        },
+        {
+          "id": "e105",
+          "from": "md_bs5j84tx",
+          "to": "ext25",
+          "kind": "data",
+          "label": "db"
+        },
+        {
+          "id": "e106",
+          "from": "md_bs5j84tx",
+          "to": "ext26",
+          "kind": "data",
+          "label": "sdk"
+        },
+        {
+          "id": "e107",
+          "from": "md_bs5j84tx",
+          "to": "ext27",
+          "kind": "data",
+          "label": "sdk"
+        },
+        {
+          "id": "e108",
+          "from": "md_synmvzfp",
+          "to": "ext22",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e109",
+          "from": "md_e3h3phkp",
+          "to": "ext22",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e110",
+          "from": "md_6t6fmwae",
+          "to": "ext22",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e111",
+          "from": "md_x7m7b8p2",
+          "to": "ext28",
+          "kind": "data",
+          "label": "write_sink"
+        },
+        {
+          "id": "e112",
+          "from": "md_6t6fmwae",
+          "to": "ext29",
+          "kind": "data",
+          "label": "http"
+        }
+      ],
+      "groups": [
+        {
+          "id": "zone:entry",
+          "label": "entry",
+          "zone": "entry"
+        },
+        {
+          "id": "zone:core",
+          "label": "core",
+          "zone": "core"
+        },
+        {
+          "id": "zone:ui",
+          "label": "ui",
+          "zone": "ui"
+        }
+      ],
+      "id": "dg_floor0001"
+    }
+  },
+  {
+    "name": "fastapi",
+    "ir": {
+      "kind": "floorplan",
+      "origin": "static",
+      "direction": "RIGHT",
+      "nodes": [
+        {
+          "id": "md_1c7d2w0s",
+          "label": "scripts",
+          "sublabel": "scripts",
+          "group": "zone:entry",
+          "loc": 2913,
+          "ref": {
+            "module": "md_1c7d2w0s",
+            "section": "s6/scripts"
+          }
+        },
+        {
+          "id": "md_82sb0nnz",
+          "label": "fastapi (param_functions, params)",
+          "sublabel": "fastapi",
+          "group": "zone:core",
+          "loc": 4906,
+          "ref": {
+            "module": "md_82sb0nnz",
+            "section": "s6/fastapi-param-functions"
+          }
+        },
+        {
+          "id": "md_aqmc6brc",
+          "label": "docs_src/handling_errors · extra_models …",
+          "sublabel": "docs_src",
+          "group": "zone:core",
+          "loc": 2022,
+          "ref": {
+            "module": "md_aqmc6brc",
+            "section": "s6/docs-src-handling-errors-extra-models"
+          }
+        },
+        {
+          "id": "md_jgjm1ft8",
+          "label": "docs_src/security · query_params_str_validations …",
+          "sublabel": "docs_src",
+          "group": "zone:core",
+          "loc": 1857,
+          "ref": {
+            "module": "md_jgjm1ft8",
+            "section": "s6/docs-src-security-query-params-str-validations"
+          }
+        },
+        {
+          "id": "md_pw5ftyzt",
+          "label": "fastapi/security · openapi",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 3762,
+          "ref": {
+            "module": "md_pw5ftyzt",
+            "section": "s6/fastapi-security-openapi"
+          }
+        },
+        {
+          "id": "md_r8t67j1n",
+          "label": "fastapi (routing, sse)",
+          "sublabel": "fastapi",
+          "group": "zone:core",
+          "loc": 5980,
+          "ref": {
+            "module": "md_r8t67j1n",
+            "section": "s6/fastapi-routing"
+          }
+        },
+        {
+          "id": "md_s3fwag07",
+          "label": "fastapi (applications, encoders)",
+          "sublabel": "fastapi",
+          "group": "zone:entry",
+          "loc": 5843,
+          "ref": {
+            "module": "md_s3fwag07",
+            "section": "s6/fastapi-applications"
+          }
+        },
+        {
+          "id": "md_tbj66t39",
+          "label": "docs_src/dependencies …",
+          "sublabel": "docs_src",
+          "group": "zone:core",
+          "loc": 2191,
+          "ref": {
+            "module": "md_tbj66t39",
+            "section": "s6/docs-src-dependencies"
+          }
+        },
+        {
+          "id": "ext0",
+          "label": "FASTAPI_ENV",
+          "shape": "external",
+          "ref": {
+            "path": "fastapi/routing.py"
+          }
+        },
+        {
+          "id": "ext1",
+          "label": "OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS",
+          "shape": "external",
+          "ref": {
+            "path": "fastapi/telemetry/_asgi.py"
+          }
+        },
+        {
+          "id": "ext2",
+          "label": "OTEL_EXPORTER_OTLP_ENDPOINT",
+          "shape": "external",
+          "ref": {
+            "path": "fastapi/telemetry/_runtime.py"
+          }
+        },
+        {
+          "id": "ext3",
+          "label": "OTEL_EXPORTER_OTLP_PROTOCOL",
+          "shape": "external",
+          "ref": {
+            "path": "fastapi/telemetry/_runtime.py"
+          }
+        },
+        {
+          "id": "ext4",
+          "label": "OTEL_SDK_DISABLED",
+          "shape": "external",
+          "ref": {
+            "path": "fastapi/telemetry/_runtime.py"
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "md_1c7d2w0s",
+          "to": "md_s3fwag07",
+          "weight": 1.06,
+          "id": "e0",
+          "kind": "imports"
+        },
+        {
+          "from": "md_82sb0nnz",
+          "to": "md_pw5ftyzt",
+          "weight": 5.68,
+          "id": "e1",
+          "kind": "imports"
+        },
+        {
+          "from": "md_82sb0nnz",
+          "to": "md_s3fwag07",
+          "weight": 10.47,
+          "id": "e2",
+          "kind": "imports"
+        },
+        {
+          "from": "md_aqmc6brc",
+          "to": "md_82sb0nnz",
+          "weight": 12.33,
+          "id": "e3",
+          "kind": "imports"
+        },
+        {
+          "from": "md_aqmc6brc",
+          "to": "md_pw5ftyzt",
+          "weight": 5.86,
+          "id": "e4",
+          "kind": "imports"
+        },
+        {
+          "from": "md_aqmc6brc",
+          "to": "md_r8t67j1n",
+          "weight": 21.72,
+          "id": "e5",
+          "kind": "imports"
+        },
+        {
+          "from": "md_aqmc6brc",
+          "to": "md_s3fwag07",
+          "weight": 180.88,
+          "id": "e6",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jgjm1ft8",
+          "to": "md_82sb0nnz",
+          "weight": 15.91,
+          "id": "e7",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jgjm1ft8",
+          "to": "md_pw5ftyzt",
+          "weight": 20.77,
+          "id": "e8",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jgjm1ft8",
+          "to": "md_r8t67j1n",
+          "weight": 6.66,
+          "id": "e9",
+          "kind": "imports"
+        },
+        {
+          "from": "md_jgjm1ft8",
+          "to": "md_s3fwag07",
+          "weight": 88.53,
+          "id": "e10",
+          "kind": "imports"
+        },
+        {
+          "from": "md_pw5ftyzt",
+          "to": "md_82sb0nnz",
+          "weight": 8.5,
+          "id": "e11",
+          "kind": "imports"
+        },
+        {
+          "from": "md_pw5ftyzt",
+          "to": "md_r8t67j1n",
+          "weight": 3.35,
+          "id": "e12",
+          "kind": "imports"
+        },
+        {
+          "from": "md_pw5ftyzt",
+          "to": "md_s3fwag07",
+          "weight": 8,
+          "id": "e13",
+          "kind": "imports"
+        },
+        {
+          "from": "md_r8t67j1n",
+          "to": "md_82sb0nnz",
+          "weight": 6,
+          "id": "e14",
+          "kind": "imports"
+        },
+        {
+          "from": "md_r8t67j1n",
+          "to": "md_s3fwag07",
+          "weight": 6.15,
+          "id": "e15",
+          "kind": "imports"
+        },
+        {
+          "from": "md_s3fwag07",
+          "to": "md_82sb0nnz",
+          "weight": 9.71,
+          "id": "e16",
+          "kind": "imports"
+        },
+        {
+          "from": "md_s3fwag07",
+          "to": "md_pw5ftyzt",
+          "weight": 2,
+          "id": "e17",
+          "kind": "imports"
+        },
+        {
+          "from": "md_s3fwag07",
+          "to": "md_r8t67j1n",
+          "weight": 4,
+          "id": "e18",
+          "kind": "imports"
+        },
+        {
+          "from": "md_tbj66t39",
+          "to": "md_82sb0nnz",
+          "weight": 18.64,
+          "id": "e19",
+          "kind": "imports"
+        },
+        {
+          "from": "md_tbj66t39",
+          "to": "md_r8t67j1n",
+          "weight": 39.22,
+          "id": "e20",
+          "kind": "imports"
+        },
+        {
+          "from": "md_tbj66t39",
+          "to": "md_s3fwag07",
+          "weight": 139.35,
+          "id": "e21",
+          "kind": "imports"
+        },
+        {
+          "id": "e22",
+          "from": "md_r8t67j1n",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e23",
+          "from": "md_s3fwag07",
+          "to": "ext1",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e24",
+          "from": "md_s3fwag07",
+          "to": "ext2",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e25",
+          "from": "md_s3fwag07",
+          "to": "ext3",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e26",
+          "from": "md_s3fwag07",
+          "to": "ext4",
+          "kind": "data",
+          "label": "env"
+        }
+      ],
+      "groups": [
+        {
+          "id": "zone:entry",
+          "label": "entry",
+          "zone": "entry"
+        },
+        {
+          "id": "zone:core",
+          "label": "core",
+          "zone": "core"
+        }
+      ],
+      "id": "dg_floor0001"
+    }
+  },
+  {
+    "name": "react",
+    "ir": {
+      "kind": "floorplan",
+      "origin": "static",
+      "direction": "RIGHT",
+      "nodes": [
+        {
+          "id": "md_03hxp06y",
+          "label": "packages/react-server/src (ReactFizzServer)",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 5999,
+          "ref": {
+            "module": "md_03hxp06y",
+            "section": "s6/react-server-reactfizzserver"
+          }
+        },
+        {
+          "id": "md_23m49jp3",
+          "label": "packages/react-reconciler · react-client · shared",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 2646,
+          "ref": {
+            "module": "md_23m49jp3",
+            "section": "s6/packages-react-reconciler-react-client-shared"
+          }
+        },
+        {
+          "id": "md_2vg0nars",
+          "label": "scripts/shared · eslint-rules …",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 3238,
+          "ref": {
+            "module": "md_2vg0nars",
+            "section": "s6/scripts-shared-eslint-rules"
+          }
+        },
+        {
+          "id": "md_3dx1n7jq",
+          "label": "packages/react-server/src (ReactFlightServer, ReactFlightHooks)",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 5983,
+          "ref": {
+            "module": "md_3dx1n7jq",
+            "section": "s6/react-server-reactflightserver"
+          }
+        },
+        {
+          "id": "md_3qyyrf7s",
+          "label": "packages/react-devtools-extensions",
+          "sublabel": "packages",
+          "group": "zone:resident",
+          "loc": 5927,
+          "ref": {
+            "module": "md_3qyyrf7s",
+            "section": "s6/react-devtools-extensions"
+          }
+        },
+        {
+          "id": "md_4fhrrc04",
+          "label": "packages/react-server-dom-webpack/src",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 5985,
+          "ref": {
+            "module": "md_4fhrrc04",
+            "section": "s6/react-server-dom-webpack"
+          }
+        },
+        {
+          "id": "md_4r4y0jfe",
+          "label": "packages/react-dom-bindings/src/server",
+          "sublabel": "packages",
+          "group": "zone:resident",
+          "loc": 5999,
+          "ref": {
+            "module": "md_4r4y0jfe",
+            "section": "s6/react-dom-bindings-server"
+          }
+        },
+        {
+          "id": "md_59y6t8fe",
+          "label": "flow-typed/environments · packages/react-devtools-shared/src/devtools/views",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 5259,
+          "ref": {
+            "module": "md_59y6t8fe",
+            "section": "s6/flow-typed-environments-packages-react-devtools"
+          }
+        },
+        {
+          "id": "md_7eded06k",
+          "label": "packages/react-dom-bindings/src/client (ReactFiberConfigDOM, DOMAccessibilityRoles)",
+          "sublabel": "",
+          "group": "zone:infra",
+          "loc": 5997,
+          "ref": {
+            "module": "md_7eded06k",
+            "section": "s6/react-dom-bindings-client-reactfiberconfigdom"
+          }
+        },
+        {
+          "id": "md_8mx5dgn9",
+          "label": "packages/eslint-plugin-react-hooks/src",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 5335,
+          "ref": {
+            "module": "md_8mx5dgn9",
+            "section": "s6/eslint-plugin-react-hooks"
+          }
+        },
+        {
+          "id": "md_av8edxdn",
+          "label": "packages/react-noop-renderer/src",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 2283,
+          "ref": {
+            "module": "md_av8edxdn",
+            "section": "s6/react-noop-renderer"
+          }
+        },
+        {
+          "id": "md_bfcbd1t7",
+          "label": "packages/react-dom/src",
+          "sublabel": "packages",
+          "group": "zone:resident",
+          "loc": 4936,
+          "ref": {
+            "module": "md_bfcbd1t7",
+            "section": "s6/react-dom"
+          }
+        },
+        {
+          "id": "md_cxngypa8",
+          "label": "flow-typed/environments",
+          "sublabel": "flow-typed/environments",
+          "group": "zone:core",
+          "loc": 5658,
+          "ref": {
+            "module": "md_cxngypa8",
+            "section": "s6/flow-typed-environments"
+          }
+        },
+        {
+          "id": "md_d8kyfj28",
+          "label": "packages · compiler/packages/babel-plugin-react-compiler/src/HIR",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 3223,
+          "ref": {
+            "module": "md_d8kyfj28",
+            "section": "s6/packages-compiler-packages-babel-plugin-react-2"
+          }
+        },
+        {
+          "id": "md_deg68hrj",
+          "label": "packages/react/src",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 5315,
+          "ref": {
+            "module": "md_deg68hrj",
+            "section": "s6/react"
+          }
+        },
+        {
+          "id": "md_df6qt8ty",
+          "label": "packages/react-dom-bindings/src/client (ReactDOMComponent, CSSShorthandProperty)",
+          "sublabel": "",
+          "group": "zone:infra",
+          "loc": 5541,
+          "ref": {
+            "module": "md_df6qt8ty",
+            "section": "s6/react-dom-bindings-client-reactdomcomponent"
+          }
+        },
+        {
+          "id": "md_dgpggad9",
+          "label": "packages · flow-typed/environments",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 5712,
+          "ref": {
+            "module": "md_dgpggad9",
+            "section": "s6/packages-flow-typed-environments"
+          }
+        },
+        {
+          "id": "md_dsrx3ps9",
+          "label": "scripts/jest · tasks/generate-changelog …",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 4495,
+          "ref": {
+            "module": "md_dsrx3ps9",
+            "section": "s6/scripts-jest-tasks-generate-changelog"
+          }
+        },
+        {
+          "id": "md_g1qpfsp1",
+          "label": "compiler/apps/playground/components",
+          "sublabel": "compiler/apps/playground",
+          "group": "zone:ui",
+          "loc": 2109,
+          "ref": {
+            "module": "md_g1qpfsp1",
+            "section": "s6/apps-playground-components"
+          }
+        },
+        {
+          "id": "md_ga0ea2yr",
+          "label": "packages/react-server-dom-parcel · react-server · react-flight-server-fb",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 5799,
+          "ref": {
+            "module": "md_ga0ea2yr",
+            "section": "s6/packages-react-server-dom-parcel-react-server-re"
+          }
+        },
+        {
+          "id": "md_hdy1346j",
+          "label": "packages/react-server-dom-turbopack/src",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 3201,
+          "ref": {
+            "module": "md_hdy1346j",
+            "section": "s6/react-server-dom-turbopack"
+          }
+        },
+        {
+          "id": "md_kf59hr9h",
+          "label": "packages/react-reconciler · react-client · react-test-renderer …",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 5629,
+          "ref": {
+            "module": "md_kf59hr9h",
+            "section": "s6/packages-react-reconciler-react-client-react-tes"
+          }
+        },
+        {
+          "id": "md_mfrksfby",
+          "label": "packages · compiler/packages/babel-plugin-react-compiler/src/Flood",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 4494,
+          "ref": {
+            "module": "md_mfrksfby",
+            "section": "s6/packages-compiler-packages-babel-plugin-react-co"
+          }
+        },
+        {
+          "id": "md_n5g0tfdf",
+          "label": "scripts/release · devtools · sizebot",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 4210,
+          "ref": {
+            "module": "md_n5g0tfdf",
+            "section": "s6/scripts-release-devtools-sizebot"
+          }
+        },
+        {
+          "id": "md_nvzz67v4",
+          "label": "packages/react-reconciler",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 37650,
+          "ref": {
+            "module": "md_nvzz67v4",
+            "section": "s6/react-reconciler"
+          }
+        },
+        {
+          "id": "md_qhxbxm9p",
+          "label": "packages/react-devtools-shell/src/app",
+          "sublabel": "packages",
+          "group": "zone:ui",
+          "loc": 3225,
+          "ref": {
+            "module": "md_qhxbxm9p",
+            "section": "s6/react-devtools-shell"
+          }
+        },
+        {
+          "id": "md_qnqe1akn",
+          "label": "packages/react-client/src",
+          "sublabel": "packages/react-client",
+          "group": "zone:core",
+          "loc": 4736,
+          "ref": {
+            "module": "md_qnqe1akn",
+            "section": "s6/react-client"
+          }
+        },
+        {
+          "id": "md_rm44a89s",
+          "label": "compiler/crates",
+          "sublabel": "compiler/crates",
+          "group": "zone:core",
+          "loc": 64059,
+          "ref": {
+            "module": "md_rm44a89s",
+            "section": "s6/compiler"
+          }
+        },
+        {
+          "id": "md_sbqkrhmr",
+          "label": "packages/dom-event-testing-library · react-devtools-shell · react-devtools",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 2379,
+          "ref": {
+            "module": "md_sbqkrhmr",
+            "section": "s6/packages-dom-event-testing-library-react-devtool"
+          }
+        },
+        {
+          "id": "md_sp7a3hcb",
+          "label": "compiler/scripts",
+          "sublabel": "compiler/scripts",
+          "group": "zone:core",
+          "loc": 5880,
+          "ref": {
+            "module": "md_sp7a3hcb",
+            "section": "s6/compiler-scripts"
+          }
+        },
+        {
+          "id": "md_tv3k1yj1",
+          "label": "packages/scheduler/src/forks · internal-test-utils …",
+          "sublabel": "packages",
+          "group": "zone:resident",
+          "loc": 4005,
+          "ref": {
+            "module": "md_tv3k1yj1",
+            "section": "s6/packages-scheduler-src-forks-internal-test-utils"
+          }
+        },
+        {
+          "id": "md_vvyr9dxh",
+          "label": "packages/react-native-renderer/src",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 4942,
+          "ref": {
+            "module": "md_vvyr9dxh",
+            "section": "s6/react-native-renderer"
+          }
+        },
+        {
+          "id": "md_w8sabaj1",
+          "label": "packages/react-dom-bindings/src/events",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 4943,
+          "ref": {
+            "module": "md_w8sabaj1",
+            "section": "s6/react-dom-bindings-events"
+          }
+        },
+        {
+          "id": "md_wkr9as96",
+          "label": "compiler/packages",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 49464,
+          "ref": {
+            "module": "md_wkr9as96",
+            "section": "s6/compiler-2"
+          }
+        },
+        {
+          "id": "md_wwtgnztq",
+          "label": "scripts/rollup",
+          "sublabel": "scripts",
+          "group": "zone:core",
+          "loc": 4698,
+          "ref": {
+            "module": "md_wwtgnztq",
+            "section": "s6/scripts-rollup"
+          }
+        },
+        {
+          "id": "md_z4qjrhhf",
+          "label": "packages/react-server-dom-unbundled · react-server",
+          "sublabel": "packages",
+          "group": "zone:core",
+          "loc": 5169,
+          "ref": {
+            "module": "md_z4qjrhhf",
+            "section": "s6/packages-react-server-dom-unbundled-react-server"
+          }
+        },
+        {
+          "id": "md_zvk23vw9",
+          "label": "packages/react-devtools-shared",
+          "sublabel": "",
+          "group": "zone:ui",
+          "loc": 36497,
+          "ref": {
+            "module": "md_zvk23vw9",
+            "section": "s6/react-devtools-shared"
+          }
+        },
+        {
+          "id": "ext0",
+          "label": "NODE_ENV",
+          "shape": "external",
+          "ref": {
+            "path": "compiler/packages/babel-plugin-react-compiler-rust/src/options.ts"
+          }
+        },
+        {
+          "id": "ext1",
+          "label": "ENABLE_REACT_COMPILER_TIMINGS",
+          "shape": "external",
+          "ref": {
+            "path": "compiler/packages/babel-plugin-react-compiler/src/Babel/BabelPlugin.ts"
+          }
+        },
+        {
+          "id": "ext2",
+          "label": "DEBUG",
+          "shape": "external",
+          "ref": {
+            "path": "compiler/packages/eslint-plugin-react-compiler/src/shared/RunReactCompiler.ts"
+          }
+        },
+        {
+          "id": "ext3",
+          "label": "REACT_EDITOR",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-core/src/editor.js"
+          }
+        },
+        {
+          "id": "ext4",
+          "label": "VISUAL",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-core/src/editor.js"
+          }
+        },
+        {
+          "id": "ext5",
+          "label": "EDITOR",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-core/src/editor.js"
+          }
+        },
+        {
+          "id": "ext6",
+          "label": "FEATURE_FLAG_TARGET",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-core/webpack.backend.js"
+          }
+        },
+        {
+          "id": "ext7",
+          "label": "BABEL_CONFIG_ADDITIONAL_TARGETS",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-core/webpack.backend.js"
+          }
+        },
+        {
+          "id": "ext8",
+          "label": "EDITOR_URL",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-core/webpack.standalone.js"
+          }
+        },
+        {
+          "id": "ext9",
+          "label": "LOGGING_URL",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-core/webpack.standalone.js"
+          }
+        },
+        {
+          "id": "ext10",
+          "label": "WEB_EXT_FIREFOX",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-extensions/firefox/test.js"
+          }
+        },
+        {
+          "id": "ext11",
+          "label": "DEVTOOLS_VERSION",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-shared/src/backend/agent.js"
+          }
+        },
+        {
+          "id": "ext12",
+          "label": "GITHUB_URL",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-shared/src/devtools/views/ErrorBoundary/ReportNewIssue.js"
+          }
+        },
+        {
+          "id": "ext13",
+          "label": "DEVTOOLS_PACKAGE",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-shared/src/devtools/views/ErrorBoundary/ReportNewIssue.js"
+          }
+        },
+        {
+          "id": "ext14",
+          "label": "E2E_APP_REACT_VERSION",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-shell/src/app/index.js"
+          }
+        },
+        {
+          "id": "ext15",
+          "label": "REACT_VERSION",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-shell/webpack-server.js"
+          }
+        },
+        {
+          "id": "ext16",
+          "label": "CERT",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools/preload.js"
+          }
+        },
+        {
+          "id": "ext17",
+          "label": "KEY",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools/preload.js"
+          }
+        },
+        {
+          "id": "ext18",
+          "label": "HOST",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools/preload.js"
+          }
+        },
+        {
+          "id": "ext19",
+          "label": "PORT",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools/preload.js"
+          }
+        },
+        {
+          "id": "ext20",
+          "label": "REACT_DEVTOOLS_PORT",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools/preload.js"
+          }
+        },
+        {
+          "id": "ext21",
+          "label": "REACT_DEVTOOLS_PATH",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools/preload.js"
+          }
+        },
+        {
+          "id": "ext22",
+          "label": "REACT_DEVTOOLS_CLIENT_HOST",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools/preload.js"
+          }
+        },
+        {
+          "id": "ext23",
+          "label": "REACT_DEVTOOLS_CLIENT_PORT",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools/preload.js"
+          }
+        },
+        {
+          "id": "ext24",
+          "label": "REACT_DEVTOOLS_CLIENT_USE_HTTPS",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools/preload.js"
+          }
+        },
+        {
+          "id": "ext25",
+          "label": "vscode-languageclient/node",
+          "shape": "external",
+          "ref": {
+            "path": "compiler/packages/react-forgive/client/src/extension.ts"
+          }
+        },
+        {
+          "id": "ext26",
+          "label": "fetch",
+          "shape": "external",
+          "ref": {
+            "path": "compiler/packages/react-mcp-server/src/utils/algolia.ts"
+          }
+        },
+        {
+          "id": "ext27",
+          "label": "child_process",
+          "shape": "external",
+          "ref": {
+            "path": "compiler/packages/snap/src/main.ts"
+          }
+        },
+        {
+          "id": "ext28",
+          "label": "yarn",
+          "shape": "external",
+          "ref": {
+            "path": "compiler/packages/snap/src/runner-watch.ts"
+          }
+        },
+        {
+          "id": "ext29",
+          "label": "cargo",
+          "shape": "external",
+          "ref": {
+            "path": "compiler/packages/snap/src/runner-watch.ts"
+          }
+        },
+        {
+          "id": "ext30",
+          "label": "ps",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-core/src/editor.js"
+          }
+        },
+        {
+          "id": "ext31",
+          "label": "cmd.exe",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-core/src/editor.js"
+          }
+        },
+        {
+          "id": "ext32",
+          "label": "git",
+          "shape": "external",
+          "ref": {
+            "path": "packages/react-devtools-extensions/deploy.js"
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "md_dgpggad9",
+          "to": "md_mfrksfby",
+          "weight": 1.8,
+          "id": "e0",
+          "kind": "imports"
+        },
+        {
+          "from": "md_mfrksfby",
+          "to": "md_d8kyfj28",
+          "weight": 4.22,
+          "id": "e1",
+          "kind": "imports"
+        },
+        {
+          "from": "md_mfrksfby",
+          "to": "md_dgpggad9",
+          "weight": 2,
+          "id": "e2",
+          "kind": "imports"
+        },
+        {
+          "id": "e3",
+          "from": "md_wkr9as96",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e4",
+          "from": "md_wkr9as96",
+          "to": "ext1",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e5",
+          "from": "md_8mx5dgn9",
+          "to": "ext2",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e6",
+          "from": "md_8mx5dgn9",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e7",
+          "from": "md_tv3k1yj1",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e8",
+          "from": "md_vvyr9dxh",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e9",
+          "from": "md_zvk23vw9",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e10",
+          "from": "md_dgpggad9",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e11",
+          "from": "md_3qyyrf7s",
+          "to": "ext3",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e12",
+          "from": "md_3qyyrf7s",
+          "to": "ext4",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e13",
+          "from": "md_3qyyrf7s",
+          "to": "ext5",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e14",
+          "from": "md_sbqkrhmr",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e15",
+          "from": "md_sbqkrhmr",
+          "to": "ext6",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e16",
+          "from": "md_sbqkrhmr",
+          "to": "ext7",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e17",
+          "from": "md_sbqkrhmr",
+          "to": "ext8",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e18",
+          "from": "md_sbqkrhmr",
+          "to": "ext9",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e19",
+          "from": "md_3qyyrf7s",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e20",
+          "from": "md_3qyyrf7s",
+          "to": "ext10",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e21",
+          "from": "md_zvk23vw9",
+          "to": "ext11",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e22",
+          "from": "md_59y6t8fe",
+          "to": "ext11",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e23",
+          "from": "md_zvk23vw9",
+          "to": "ext12",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e24",
+          "from": "md_zvk23vw9",
+          "to": "ext13",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e25",
+          "from": "md_3qyyrf7s",
+          "to": "ext11",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e26",
+          "from": "md_3qyyrf7s",
+          "to": "ext9",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e27",
+          "from": "md_3qyyrf7s",
+          "to": "ext8",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e28",
+          "from": "md_qhxbxm9p",
+          "to": "ext14",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e29",
+          "from": "md_sbqkrhmr",
+          "to": "ext15",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e30",
+          "from": "md_sbqkrhmr",
+          "to": "ext16",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e31",
+          "from": "md_sbqkrhmr",
+          "to": "ext17",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e32",
+          "from": "md_sbqkrhmr",
+          "to": "ext18",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e33",
+          "from": "md_sbqkrhmr",
+          "to": "ext19",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e34",
+          "from": "md_sbqkrhmr",
+          "to": "ext20",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e35",
+          "from": "md_sbqkrhmr",
+          "to": "ext21",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e36",
+          "from": "md_sbqkrhmr",
+          "to": "ext22",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e37",
+          "from": "md_sbqkrhmr",
+          "to": "ext23",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e38",
+          "from": "md_sbqkrhmr",
+          "to": "ext24",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e39",
+          "from": "md_bfcbd1t7",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e40",
+          "from": "md_03hxp06y",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e41",
+          "from": "md_av8edxdn",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e42",
+          "from": "md_4fhrrc04",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e43",
+          "from": "md_ga0ea2yr",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e44",
+          "from": "md_hdy1346j",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e45",
+          "from": "md_z4qjrhhf",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e46",
+          "from": "md_kf59hr9h",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e47",
+          "from": "md_deg68hrj",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e48",
+          "from": "md_mfrksfby",
+          "to": "ext25",
+          "kind": "data",
+          "label": "sdk"
+        },
+        {
+          "id": "e49",
+          "from": "md_wkr9as96",
+          "to": "ext26",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e50",
+          "from": "md_wkr9as96",
+          "to": "ext27",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e51",
+          "from": "md_wkr9as96",
+          "to": "ext28",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e52",
+          "from": "md_wkr9as96",
+          "to": "ext29",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e53",
+          "from": "md_tv3k1yj1",
+          "to": "ext26",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e54",
+          "from": "md_3qyyrf7s",
+          "to": "ext30",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e55",
+          "from": "md_3qyyrf7s",
+          "to": "ext31",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e56",
+          "from": "md_3qyyrf7s",
+          "to": "ext27",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e57",
+          "from": "md_3qyyrf7s",
+          "to": "ext26",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e58",
+          "from": "md_3qyyrf7s",
+          "to": "ext32",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e59",
+          "from": "md_zvk23vw9",
+          "to": "ext26",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e60",
+          "from": "md_dgpggad9",
+          "to": "ext26",
+          "kind": "data",
+          "label": "http"
+        }
+      ],
+      "groups": [
+        {
+          "id": "zone:core",
+          "label": "core",
+          "zone": "core"
+        },
+        {
+          "id": "zone:resident",
+          "label": "resident",
+          "zone": "resident"
+        },
+        {
+          "id": "zone:infra",
+          "label": "infra",
+          "zone": "infra"
+        },
+        {
+          "id": "zone:ui",
+          "label": "ui",
+          "zone": "ui"
+        }
+      ],
+      "id": "dg_floor0001"
+    }
+  },
+  {
+    "name": "crit",
+    "ir": {
+      "kind": "floorplan",
+      "origin": "static",
+      "direction": "RIGHT",
+      "nodes": [
+        {
+          "id": "md_45844dgv",
+          "label": "web (live-mode*)",
+          "sublabel": "web",
+          "group": "zone:ui",
+          "loc": 4820,
+          "ref": {
+            "module": "md_45844dgv",
+            "section": "s6/web-live-mode"
+          }
+        },
+        {
+          "id": "md_542cnad9",
+          "label": "web (crit*)",
+          "sublabel": "web",
+          "group": "zone:ui",
+          "loc": 5445,
+          "ref": {
+            "module": "md_542cnad9",
+            "section": "s6/web-crit"
+          }
+        },
+        {
+          "id": "md_7z89xx50",
+          "label": "web (style-live, crit-agent)",
+          "sublabel": "",
+          "group": "zone:ui",
+          "loc": 2403,
+          "ref": {
+            "module": "md_7z89xx50",
+            "section": "s6/web-style-live"
+          }
+        },
+        {
+          "id": "md_81hf7jm0",
+          "label": "web/app.js",
+          "sublabel": "web",
+          "group": "zone:ui",
+          "loc": 9031,
+          "ref": {
+            "module": "md_81hf7jm0",
+            "section": "s6/web-app"
+          }
+        },
+        {
+          "id": "md_8zxhv5eg",
+          "label": "cmd/crit",
+          "sublabel": "",
+          "group": "zone:entry",
+          "loc": 4901,
+          "ref": {
+            "module": "md_8zxhv5eg",
+            "section": "s6/cmd-crit"
+          }
+        },
+        {
+          "id": "md_adekddkx",
+          "label": "internal/github · gitlab",
+          "sublabel": "internal",
+          "group": "zone:core",
+          "loc": 4214,
+          "ref": {
+            "module": "md_adekddkx",
+            "section": "s6/internal-github-gitlab"
+          }
+        },
+        {
+          "id": "md_e1v0hgx2",
+          "label": "scripts",
+          "sublabel": "scripts",
+          "group": "zone:entry",
+          "loc": 997,
+          "ref": {
+            "module": "md_e1v0hgx2",
+            "section": "s6/scripts"
+          }
+        },
+        {
+          "id": "md_ecsfkz72",
+          "label": "internal/session (session, watch)",
+          "sublabel": "internal",
+          "group": "zone:core",
+          "loc": 5850,
+          "ref": {
+            "module": "md_ecsfkz72",
+            "section": "s6/internal-session-session"
+          }
+        },
+        {
+          "id": "md_em5fyh7k",
+          "label": "internal/server",
+          "sublabel": "",
+          "group": "zone:entry",
+          "loc": 5799,
+          "ref": {
+            "module": "md_em5fyh7k",
+            "section": "s6/internal-server"
+          }
+        },
+        {
+          "id": "md_hd12merg",
+          "label": "internal/vcs",
+          "sublabel": "internal",
+          "group": "zone:core",
+          "loc": 3551,
+          "ref": {
+            "module": "md_hd12merg",
+            "section": "s6/internal-vcs"
+          }
+        },
+        {
+          "id": "md_jeb8n6j5",
+          "label": "web/style.css",
+          "sublabel": "web",
+          "group": "zone:ui",
+          "loc": 6279,
+          "ref": {
+            "module": "md_jeb8n6j5",
+            "section": "s6/web-style"
+          }
+        },
+        {
+          "id": "md_mr6t12q3",
+          "label": "internal/session (plan_cli, plans)",
+          "sublabel": "internal",
+          "group": "zone:resident",
+          "loc": 4482,
+          "ref": {
+            "module": "md_mr6t12q3",
+            "section": "s6/internal-session-plan-cli"
+          }
+        },
+        {
+          "id": "md_y2y67yyw",
+          "label": "internal/share · config · live",
+          "sublabel": "internal",
+          "group": "zone:resident",
+          "loc": 4821,
+          "ref": {
+            "module": "md_y2y67yyw",
+            "section": "s6/internal-share-config-live"
+          }
+        },
+        {
+          "id": "md_yp81jwbp",
+          "label": "internal/comment",
+          "sublabel": "internal",
+          "group": "zone:core",
+          "loc": 2318,
+          "ref": {
+            "module": "md_yp81jwbp",
+            "section": "s6/internal-comment"
+          }
+        },
+        {
+          "id": "ext0",
+          "label": "CODEX_HOME",
+          "shape": "external",
+          "ref": {
+            "path": "cmd/crit/cli_install.go"
+          }
+        },
+        {
+          "id": "ext1",
+          "label": "CRIT_NO_INTEGRATION_CHECK",
+          "shape": "external",
+          "ref": {
+            "path": "cmd/crit/cli_serve.go"
+          }
+        },
+        {
+          "id": "ext2",
+          "label": "CRIT_NO_UPDATE_CHECK",
+          "shape": "external",
+          "ref": {
+            "path": "cmd/crit/cli_serve.go"
+          }
+        },
+        {
+          "id": "ext3",
+          "label": "CRIT_AUTH_TOKEN",
+          "shape": "external",
+          "ref": {
+            "path": "internal/auth/auth.go"
+          }
+        },
+        {
+          "id": "ext4",
+          "label": "WSL_DISTRO_NAME",
+          "shape": "external",
+          "ref": {
+            "path": "internal/browser/browser.go"
+          }
+        },
+        {
+          "id": "ext5",
+          "label": "WSL_INTEROP",
+          "shape": "external",
+          "ref": {
+            "path": "internal/browser/browser.go"
+          }
+        },
+        {
+          "id": "ext6",
+          "label": "CRIT_PORT",
+          "shape": "external",
+          "ref": {
+            "path": "internal/config/cli_resolve.go"
+          }
+        },
+        {
+          "id": "ext7",
+          "label": "CRIT_HOST",
+          "shape": "external",
+          "ref": {
+            "path": "internal/config/cli_resolve.go"
+          }
+        },
+        {
+          "id": "ext8",
+          "label": "CRIT_SHARE_URL",
+          "shape": "external",
+          "ref": {
+            "path": "internal/config/cli_resolve.go"
+          }
+        },
+        {
+          "id": "ext9",
+          "label": "CRIT_PUBLIC_URL",
+          "shape": "external",
+          "ref": {
+            "path": "internal/config/public_url.go"
+          }
+        },
+        {
+          "id": "ext10",
+          "label": "_CRIT_READY_STDOUT",
+          "shape": "external",
+          "ref": {
+            "path": "internal/daemon/daemon.go"
+          }
+        },
+        {
+          "id": "ext11",
+          "label": "GOBIN",
+          "shape": "external",
+          "ref": {
+            "path": "internal/server/install_source.go"
+          }
+        },
+        {
+          "id": "ext12",
+          "label": "GOPATH",
+          "shape": "external",
+          "ref": {
+            "path": "internal/server/install_source.go"
+          }
+        },
+        {
+          "id": "ext13",
+          "label": "CRIT_PLAN_REVIEW",
+          "shape": "external",
+          "ref": {
+            "path": "internal/session/plan_cli.go"
+          }
+        },
+        {
+          "id": "ext14",
+          "label": "CRIT_DEBUG",
+          "shape": "external",
+          "ref": {
+            "path": "internal/session/session.go"
+          }
+        },
+        {
+          "id": "ext15",
+          "label": "HOME",
+          "shape": "external",
+          "ref": {
+            "path": "internal/testutil/testutil.go"
+          }
+        },
+        {
+          "id": "ext16",
+          "label": "USERPROFILE",
+          "shape": "external",
+          "ref": {
+            "path": "internal/testutil/testutil.go"
+          }
+        },
+        {
+          "id": "ext17",
+          "label": "os/exec",
+          "shape": "external",
+          "ref": {
+            "path": "cmd/crit/cli_handlers_story.go"
+          }
+        },
+        {
+          "id": "ext18",
+          "label": "net/http",
+          "shape": "external",
+          "ref": {
+            "path": "cmd/crit/cli_handlers_story.go"
+          }
+        },
+        {
+          "id": "ext19",
+          "label": "xdg-user-dir",
+          "shape": "external",
+          "ref": {
+            "path": "cmd/crit/cli_install.go"
+          }
+        },
+        {
+          "id": "ext20",
+          "label": "git",
+          "shape": "external",
+          "ref": {
+            "path": "cmd/crit/wire.go"
+          }
+        },
+        {
+          "id": "ext21",
+          "label": "glab",
+          "shape": "external",
+          "ref": {
+            "path": "cmd/crit/wire.go"
+          }
+        },
+        {
+          "id": "ext22",
+          "label": "child_process",
+          "shape": "external",
+          "ref": {
+            "path": "copy-deps.js"
+          }
+        },
+        {
+          "id": "ext23",
+          "label": "crit",
+          "shape": "external",
+          "ref": {
+            "path": "integrations/opencode/v2/crit/index.ts"
+          }
+        },
+        {
+          "id": "ext24",
+          "label": "jj",
+          "shape": "external",
+          "ref": {
+            "path": "internal/config/config.go"
+          }
+        },
+        {
+          "id": "ext25",
+          "label": "sl",
+          "shape": "external",
+          "ref": {
+            "path": "internal/config/config.go"
+          }
+        },
+        {
+          "id": "ext26",
+          "label": "gh",
+          "shape": "external",
+          "ref": {
+            "path": "internal/github/github.go"
+          }
+        },
+        {
+          "id": "ext27",
+          "label": "fetch",
+          "shape": "external",
+          "ref": {
+            "path": "web/app.js"
+          }
+        },
+        {
+          "id": "ext28",
+          "label": "/api/files/list",
+          "shape": "external",
+          "ref": {
+            "path": "web/app.js"
+          }
+        },
+        {
+          "id": "ext29",
+          "label": "/api/attachments",
+          "shape": "external",
+          "ref": {
+            "path": "web/app.js"
+          }
+        },
+        {
+          "id": "ext30",
+          "label": "/api/agent/request",
+          "shape": "external",
+          "ref": {
+            "path": "web/app.js"
+          }
+        },
+        {
+          "id": "ext31",
+          "label": "/api/comments",
+          "shape": "external",
+          "ref": {
+            "path": "web/app.js"
+          }
+        },
+        {
+          "id": "ext32",
+          "label": "/api/commits",
+          "shape": "external",
+          "ref": {
+            "path": "web/app.js"
+          }
+        },
+        {
+          "id": "ext33",
+          "label": "/api/branches",
+          "shape": "external",
+          "ref": {
+            "path": "web/app.js"
+          }
+        },
+        {
+          "id": "ext34",
+          "label": "/api/base-branch",
+          "shape": "external",
+          "ref": {
+            "path": "web/app.js"
+          }
+        },
+        {
+          "id": "ext35",
+          "label": "/api/config",
+          "shape": "external",
+          "ref": {
+            "path": "web/app.js"
+          }
+        },
+        {
+          "id": "ext36",
+          "label": "/api/code-fonts",
+          "shape": "external",
+          "ref": {
+            "path": "web/app.js"
+          }
+        },
+        {
+          "id": "ext37",
+          "label": "/api/picker",
+          "shape": "external",
+          "ref": {
+            "path": "web/app.js"
+          }
+        },
+        {
+          "id": "ext38",
+          "label": "/api/focus",
+          "shape": "external",
+          "ref": {
+            "path": "web/app.js"
+          }
+        },
+        {
+          "id": "ext39",
+          "label": "/api/story",
+          "shape": "external",
+          "ref": {
+            "path": "web/app.js"
+          }
+        },
+        {
+          "id": "ext40",
+          "label": "/api/share-url",
+          "shape": "external",
+          "ref": {
+            "path": "web/crit-share.js"
+          }
+        },
+        {
+          "id": "ext41",
+          "label": "/api/share",
+          "shape": "external",
+          "ref": {
+            "path": "web/crit-share.js"
+          }
+        },
+        {
+          "id": "ext42",
+          "label": "/api/share-consent",
+          "shape": "external",
+          "ref": {
+            "path": "web/crit-share.js"
+          }
+        },
+        {
+          "id": "ext43",
+          "label": "/api/comments/merge",
+          "shape": "external",
+          "ref": {
+            "path": "web/crit-share.js"
+          }
+        },
+        {
+          "id": "ext44",
+          "label": "/api/share/pull",
+          "shape": "external",
+          "ref": {
+            "path": "web/crit-share.js"
+          }
+        },
+        {
+          "id": "ext45",
+          "label": "/api/share/upsert-payload",
+          "shape": "external",
+          "ref": {
+            "path": "web/crit-share.js"
+          }
+        },
+        {
+          "id": "ext46",
+          "label": "/api/share/reshare",
+          "shape": "external",
+          "ref": {
+            "path": "web/crit-share.js"
+          }
+        },
+        {
+          "id": "ext47",
+          "label": "/api/finish",
+          "shape": "external",
+          "ref": {
+            "path": "web/crit-shared.js"
+          }
+        },
+        {
+          "id": "ext48",
+          "label": "/api/project-prompts/trust",
+          "shape": "external",
+          "ref": {
+            "path": "web/crit-shared.js"
+          }
+        },
+        {
+          "id": "ext49",
+          "label": "EventSource",
+          "shape": "external",
+          "ref": {
+            "path": "web/crit-sse.js"
+          }
+        },
+        {
+          "id": "ext50",
+          "label": "/api/session",
+          "shape": "external",
+          "ref": {
+            "path": "web/live-mode.js"
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "md_45844dgv",
+          "to": "md_542cnad9",
+          "weight": 5.62,
+          "id": "e0",
+          "kind": "imports"
+        },
+        {
+          "from": "md_45844dgv",
+          "to": "md_81hf7jm0",
+          "weight": 2.3,
+          "id": "e1",
+          "kind": "imports"
+        },
+        {
+          "from": "md_542cnad9",
+          "to": "md_81hf7jm0",
+          "weight": 2.37,
+          "id": "e2",
+          "kind": "imports"
+        },
+        {
+          "from": "md_81hf7jm0",
+          "to": "md_45844dgv",
+          "weight": 4.04,
+          "id": "e3",
+          "kind": "imports"
+        },
+        {
+          "from": "md_81hf7jm0",
+          "to": "md_542cnad9",
+          "weight": 7.38,
+          "id": "e4",
+          "kind": "imports"
+        },
+        {
+          "from": "md_8zxhv5eg",
+          "to": "md_adekddkx",
+          "weight": 15,
+          "id": "e5",
+          "kind": "imports"
+        },
+        {
+          "from": "md_8zxhv5eg",
+          "to": "md_ecsfkz72",
+          "weight": 8,
+          "id": "e6",
+          "kind": "imports"
+        },
+        {
+          "from": "md_8zxhv5eg",
+          "to": "md_em5fyh7k",
+          "weight": 15,
+          "id": "e7",
+          "kind": "imports"
+        },
+        {
+          "from": "md_8zxhv5eg",
+          "to": "md_hd12merg",
+          "weight": 8,
+          "id": "e8",
+          "kind": "imports"
+        },
+        {
+          "from": "md_8zxhv5eg",
+          "to": "md_mr6t12q3",
+          "weight": 18,
+          "id": "e9",
+          "kind": "imports"
+        },
+        {
+          "from": "md_8zxhv5eg",
+          "to": "md_y2y67yyw",
+          "weight": 13,
+          "id": "e10",
+          "kind": "imports"
+        },
+        {
+          "from": "md_8zxhv5eg",
+          "to": "md_yp81jwbp",
+          "weight": 6,
+          "id": "e11",
+          "kind": "imports"
+        },
+        {
+          "from": "md_adekddkx",
+          "to": "md_ecsfkz72",
+          "weight": 14,
+          "id": "e12",
+          "kind": "imports"
+        },
+        {
+          "from": "md_adekddkx",
+          "to": "md_hd12merg",
+          "weight": 6,
+          "id": "e13",
+          "kind": "imports"
+        },
+        {
+          "from": "md_adekddkx",
+          "to": "md_mr6t12q3",
+          "weight": 20,
+          "id": "e14",
+          "kind": "imports"
+        },
+        {
+          "from": "md_adekddkx",
+          "to": "md_y2y67yyw",
+          "weight": 9,
+          "id": "e15",
+          "kind": "imports"
+        },
+        {
+          "from": "md_adekddkx",
+          "to": "md_yp81jwbp",
+          "weight": 7,
+          "id": "e16",
+          "kind": "imports"
+        },
+        {
+          "from": "md_ecsfkz72",
+          "to": "md_hd12merg",
+          "weight": 14,
+          "id": "e17",
+          "kind": "imports"
+        },
+        {
+          "from": "md_ecsfkz72",
+          "to": "md_mr6t12q3",
+          "weight": 11.2,
+          "id": "e18",
+          "kind": "imports"
+        },
+        {
+          "from": "md_ecsfkz72",
+          "to": "md_y2y67yyw",
+          "weight": 4,
+          "id": "e19",
+          "kind": "imports"
+        },
+        {
+          "from": "md_em5fyh7k",
+          "to": "md_adekddkx",
+          "weight": 4,
+          "id": "e20",
+          "kind": "imports"
+        },
+        {
+          "from": "md_em5fyh7k",
+          "to": "md_ecsfkz72",
+          "weight": 14,
+          "id": "e21",
+          "kind": "imports"
+        },
+        {
+          "from": "md_em5fyh7k",
+          "to": "md_hd12merg",
+          "weight": 13,
+          "id": "e22",
+          "kind": "imports"
+        },
+        {
+          "from": "md_em5fyh7k",
+          "to": "md_mr6t12q3",
+          "weight": 7,
+          "id": "e23",
+          "kind": "imports"
+        },
+        {
+          "from": "md_em5fyh7k",
+          "to": "md_y2y67yyw",
+          "weight": 20,
+          "id": "e24",
+          "kind": "imports"
+        },
+        {
+          "from": "md_em5fyh7k",
+          "to": "md_yp81jwbp",
+          "weight": 3,
+          "id": "e25",
+          "kind": "imports"
+        },
+        {
+          "from": "md_hd12merg",
+          "to": "md_ecsfkz72",
+          "weight": 4,
+          "id": "e26",
+          "kind": "imports"
+        },
+        {
+          "from": "md_mr6t12q3",
+          "to": "md_adekddkx",
+          "weight": 4,
+          "id": "e27",
+          "kind": "imports"
+        },
+        {
+          "from": "md_mr6t12q3",
+          "to": "md_ecsfkz72",
+          "weight": 19.2,
+          "id": "e28",
+          "kind": "imports"
+        },
+        {
+          "from": "md_mr6t12q3",
+          "to": "md_hd12merg",
+          "weight": 6,
+          "id": "e29",
+          "kind": "imports"
+        },
+        {
+          "from": "md_mr6t12q3",
+          "to": "md_y2y67yyw",
+          "weight": 14,
+          "id": "e30",
+          "kind": "imports"
+        },
+        {
+          "from": "md_y2y67yyw",
+          "to": "md_adekddkx",
+          "weight": 5,
+          "id": "e31",
+          "kind": "imports"
+        },
+        {
+          "from": "md_y2y67yyw",
+          "to": "md_ecsfkz72",
+          "weight": 10,
+          "id": "e32",
+          "kind": "imports"
+        },
+        {
+          "from": "md_y2y67yyw",
+          "to": "md_em5fyh7k",
+          "weight": 5,
+          "id": "e33",
+          "kind": "imports"
+        },
+        {
+          "from": "md_y2y67yyw",
+          "to": "md_hd12merg",
+          "weight": 5,
+          "id": "e34",
+          "kind": "imports"
+        },
+        {
+          "from": "md_y2y67yyw",
+          "to": "md_mr6t12q3",
+          "weight": 15,
+          "id": "e35",
+          "kind": "imports"
+        },
+        {
+          "from": "md_y2y67yyw",
+          "to": "md_yp81jwbp",
+          "weight": 5,
+          "id": "e36",
+          "kind": "imports"
+        },
+        {
+          "from": "md_yp81jwbp",
+          "to": "md_adekddkx",
+          "weight": 4,
+          "id": "e37",
+          "kind": "imports"
+        },
+        {
+          "from": "md_yp81jwbp",
+          "to": "md_ecsfkz72",
+          "weight": 18,
+          "id": "e38",
+          "kind": "imports"
+        },
+        {
+          "from": "md_yp81jwbp",
+          "to": "md_hd12merg",
+          "weight": 4,
+          "id": "e39",
+          "kind": "imports"
+        },
+        {
+          "from": "md_yp81jwbp",
+          "to": "md_mr6t12q3",
+          "weight": 18,
+          "id": "e40",
+          "kind": "imports"
+        },
+        {
+          "from": "md_yp81jwbp",
+          "to": "md_y2y67yyw",
+          "weight": 4,
+          "id": "e41",
+          "kind": "imports"
+        },
+        {
+          "id": "e42",
+          "from": "md_8zxhv5eg",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e43",
+          "from": "md_8zxhv5eg",
+          "to": "ext1",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e44",
+          "from": "md_8zxhv5eg",
+          "to": "ext2",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e45",
+          "from": "md_y2y67yyw",
+          "to": "ext3",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e46",
+          "from": "md_y2y67yyw",
+          "to": "ext4",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e47",
+          "from": "md_y2y67yyw",
+          "to": "ext5",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e48",
+          "from": "md_y2y67yyw",
+          "to": "ext6",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e49",
+          "from": "md_y2y67yyw",
+          "to": "ext7",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e50",
+          "from": "md_y2y67yyw",
+          "to": "ext8",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e51",
+          "from": "md_y2y67yyw",
+          "to": "ext9",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e52",
+          "from": "md_mr6t12q3",
+          "to": "ext10",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e53",
+          "from": "md_em5fyh7k",
+          "to": "ext8",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e54",
+          "from": "md_em5fyh7k",
+          "to": "ext6",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e55",
+          "from": "md_em5fyh7k",
+          "to": "ext11",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e56",
+          "from": "md_em5fyh7k",
+          "to": "ext12",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e57",
+          "from": "md_em5fyh7k",
+          "to": "ext3",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e58",
+          "from": "md_mr6t12q3",
+          "to": "ext1",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e59",
+          "from": "md_mr6t12q3",
+          "to": "ext13",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e60",
+          "from": "md_ecsfkz72",
+          "to": "ext14",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e61",
+          "from": "md_y2y67yyw",
+          "to": "ext15",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e62",
+          "from": "md_y2y67yyw",
+          "to": "ext16",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e63",
+          "from": "md_y2y67yyw",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e64",
+          "from": "md_8zxhv5eg",
+          "to": "ext17",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e65",
+          "from": "md_8zxhv5eg",
+          "to": "ext18",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e66",
+          "from": "md_8zxhv5eg",
+          "to": "ext19",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e67",
+          "from": "md_8zxhv5eg",
+          "to": "ext20",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e68",
+          "from": "md_8zxhv5eg",
+          "to": "ext21",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e69",
+          "from": "md_7z89xx50",
+          "to": "ext22",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e70",
+          "from": "md_em5fyh7k",
+          "to": "ext23",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e71",
+          "from": "md_y2y67yyw",
+          "to": "ext18",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e72",
+          "from": "md_y2y67yyw",
+          "to": "ext17",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e73",
+          "from": "md_y2y67yyw",
+          "to": "ext20",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e74",
+          "from": "md_y2y67yyw",
+          "to": "ext24",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e75",
+          "from": "md_y2y67yyw",
+          "to": "ext25",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e76",
+          "from": "md_mr6t12q3",
+          "to": "ext17",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e77",
+          "from": "md_adekddkx",
+          "to": "ext26",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e78",
+          "from": "md_em5fyh7k",
+          "to": "ext17",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e79",
+          "from": "md_em5fyh7k",
+          "to": "ext18",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e80",
+          "from": "md_mr6t12q3",
+          "to": "ext26",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e81",
+          "from": "md_hd12merg",
+          "to": "ext20",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e82",
+          "from": "md_hd12merg",
+          "to": "ext25",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e83",
+          "from": "md_hd12merg",
+          "to": "ext24",
+          "kind": "data",
+          "label": "subprocess"
+        },
+        {
+          "id": "e84",
+          "from": "md_81hf7jm0",
+          "to": "ext27",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e85",
+          "from": "md_81hf7jm0",
+          "to": "ext28",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e86",
+          "from": "md_81hf7jm0",
+          "to": "ext29",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e87",
+          "from": "md_81hf7jm0",
+          "to": "ext30",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e88",
+          "from": "md_81hf7jm0",
+          "to": "ext31",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e89",
+          "from": "md_81hf7jm0",
+          "to": "ext32",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e90",
+          "from": "md_81hf7jm0",
+          "to": "ext33",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e91",
+          "from": "md_81hf7jm0",
+          "to": "ext34",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e92",
+          "from": "md_81hf7jm0",
+          "to": "ext35",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e93",
+          "from": "md_81hf7jm0",
+          "to": "ext36",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e94",
+          "from": "md_81hf7jm0",
+          "to": "ext37",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e95",
+          "from": "md_81hf7jm0",
+          "to": "ext38",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e96",
+          "from": "md_81hf7jm0",
+          "to": "ext39",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e97",
+          "from": "md_7z89xx50",
+          "to": "ext27",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e98",
+          "from": "md_542cnad9",
+          "to": "ext27",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e99",
+          "from": "md_542cnad9",
+          "to": "ext40",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e100",
+          "from": "md_542cnad9",
+          "to": "ext41",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e101",
+          "from": "md_542cnad9",
+          "to": "ext35",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e102",
+          "from": "md_542cnad9",
+          "to": "ext42",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e103",
+          "from": "md_542cnad9",
+          "to": "ext43",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e104",
+          "from": "md_542cnad9",
+          "to": "ext44",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e105",
+          "from": "md_542cnad9",
+          "to": "ext45",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e106",
+          "from": "md_542cnad9",
+          "to": "ext46",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e107",
+          "from": "md_542cnad9",
+          "to": "ext47",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e108",
+          "from": "md_542cnad9",
+          "to": "ext29",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e109",
+          "from": "md_542cnad9",
+          "to": "ext48",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e110",
+          "from": "md_45844dgv",
+          "to": "ext49",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e111",
+          "from": "md_542cnad9",
+          "to": "ext36",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e112",
+          "from": "md_45844dgv",
+          "to": "ext35",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e113",
+          "from": "md_45844dgv",
+          "to": "ext27",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e114",
+          "from": "md_45844dgv",
+          "to": "ext50",
+          "kind": "data",
+          "label": "http"
+        }
+      ],
+      "groups": [
+        {
+          "id": "zone:entry",
+          "label": "entry",
+          "zone": "entry"
+        },
+        {
+          "id": "zone:core",
+          "label": "core",
+          "zone": "core"
+        },
+        {
+          "id": "zone:resident",
+          "label": "resident",
+          "zone": "resident"
+        },
+        {
+          "id": "zone:ui",
+          "label": "ui",
+          "zone": "ui"
+        }
+      ],
+      "id": "dg_floor0001"
+    }
+  },
+  {
+    "name": "m3e-canvas",
+    "ir": {
+      "kind": "floorplan",
+      "origin": "static",
+      "direction": "RIGHT",
+      "nodes": [
+        {
+          "id": "md_6rz0zywa",
+          "label": "lib (prompt, i18n)",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 3782,
+          "ref": {
+            "module": "md_6rz0zywa",
+            "section": "s6/lib-prompt"
+          }
+        },
+        {
+          "id": "md_amdmz6vp",
+          "label": "app",
+          "sublabel": "",
+          "group": "zone:ui",
+          "loc": 5875,
+          "ref": {
+            "module": "md_amdmz6vp",
+            "section": "s6/app"
+          }
+        },
+        {
+          "id": "md_d0v7m1ce",
+          "label": "components (ui, PartPanel)",
+          "sublabel": "components",
+          "group": "zone:ui",
+          "loc": 5469,
+          "ref": {
+            "module": "md_d0v7m1ce",
+            "section": "s6/components-ui"
+          }
+        },
+        {
+          "id": "md_yfxde1bq",
+          "label": "lib (tokens, tidy)",
+          "sublabel": "",
+          "group": "zone:core",
+          "loc": 4799,
+          "ref": {
+            "module": "md_yfxde1bq",
+            "section": "s6/lib-tokens"
+          }
+        },
+        {
+          "id": "md_zwsqh27y",
+          "label": "components (M3Node, Mobile)",
+          "sublabel": "",
+          "group": "zone:ui",
+          "loc": 3715,
+          "ref": {
+            "module": "md_zwsqh27y",
+            "section": "s6/components-m3node"
+          }
+        },
+        {
+          "id": "ext0",
+          "label": "NEXT_PUBLIC_BASE_PATH",
+          "shape": "external",
+          "ref": {
+            "path": "app/Editor.tsx"
+          }
+        },
+        {
+          "id": "ext1",
+          "label": "NEXT_PUBLIC_SITE_ORIGIN",
+          "shape": "external",
+          "ref": {
+            "path": "app/layout.tsx"
+          }
+        },
+        {
+          "id": "ext2",
+          "label": "fetch",
+          "shape": "external",
+          "ref": {
+            "path": "app/Editor.tsx"
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "md_6rz0zywa",
+          "to": "md_d0v7m1ce",
+          "weight": 2,
+          "id": "e0",
+          "kind": "imports"
+        },
+        {
+          "from": "md_6rz0zywa",
+          "to": "md_yfxde1bq",
+          "weight": 6,
+          "id": "e1",
+          "kind": "imports"
+        },
+        {
+          "from": "md_6rz0zywa",
+          "to": "md_zwsqh27y",
+          "weight": 3,
+          "id": "e2",
+          "kind": "imports"
+        },
+        {
+          "from": "md_amdmz6vp",
+          "to": "md_6rz0zywa",
+          "weight": 11.29,
+          "id": "e3",
+          "kind": "imports"
+        },
+        {
+          "from": "md_amdmz6vp",
+          "to": "md_d0v7m1ce",
+          "weight": 6,
+          "id": "e4",
+          "kind": "imports"
+        },
+        {
+          "from": "md_amdmz6vp",
+          "to": "md_yfxde1bq",
+          "weight": 12,
+          "id": "e5",
+          "kind": "imports"
+        },
+        {
+          "from": "md_amdmz6vp",
+          "to": "md_zwsqh27y",
+          "weight": 9.5,
+          "id": "e6",
+          "kind": "imports"
+        },
+        {
+          "from": "md_d0v7m1ce",
+          "to": "md_6rz0zywa",
+          "weight": 9.69,
+          "id": "e7",
+          "kind": "imports"
+        },
+        {
+          "from": "md_d0v7m1ce",
+          "to": "md_yfxde1bq",
+          "weight": 8,
+          "id": "e8",
+          "kind": "imports"
+        },
+        {
+          "from": "md_d0v7m1ce",
+          "to": "md_zwsqh27y",
+          "weight": 9.45,
+          "id": "e9",
+          "kind": "imports"
+        },
+        {
+          "from": "md_yfxde1bq",
+          "to": "md_6rz0zywa",
+          "weight": 4.5,
+          "id": "e10",
+          "kind": "imports"
+        },
+        {
+          "from": "md_yfxde1bq",
+          "to": "md_d0v7m1ce",
+          "weight": 2.25,
+          "id": "e11",
+          "kind": "imports"
+        },
+        {
+          "from": "md_zwsqh27y",
+          "to": "md_6rz0zywa",
+          "weight": 6.45,
+          "id": "e12",
+          "kind": "imports"
+        },
+        {
+          "from": "md_zwsqh27y",
+          "to": "md_d0v7m1ce",
+          "weight": 4,
+          "id": "e13",
+          "kind": "imports"
+        },
+        {
+          "from": "md_zwsqh27y",
+          "to": "md_yfxde1bq",
+          "weight": 7.32,
+          "id": "e14",
+          "kind": "imports"
+        },
+        {
+          "id": "e15",
+          "from": "md_amdmz6vp",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e16",
+          "from": "md_amdmz6vp",
+          "to": "ext1",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e17",
+          "from": "md_6rz0zywa",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e18",
+          "from": "md_d0v7m1ce",
+          "to": "ext0",
+          "kind": "data",
+          "label": "env"
+        },
+        {
+          "id": "e19",
+          "from": "md_amdmz6vp",
+          "to": "ext2",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e20",
+          "from": "md_d0v7m1ce",
+          "to": "ext2",
+          "kind": "data",
+          "label": "http"
+        },
+        {
+          "id": "e21",
+          "from": "md_6rz0zywa",
+          "to": "ext2",
+          "kind": "data",
+          "label": "http"
+        }
+      ],
+      "groups": [
+        {
+          "id": "zone:core",
+          "label": "core",
+          "zone": "core"
+        },
+        {
+          "id": "zone:ui",
+          "label": "ui",
+          "zone": "ui"
+        }
+      ],
+      "id": "dg_floor0001"
+    }
+  }
+]

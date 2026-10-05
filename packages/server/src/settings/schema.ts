@@ -67,18 +67,22 @@ const GLOB: Spec = { t: "str", max: 1024 };
 const ISO: Spec = { t: "str", max: 64 };
 const WS_KEY = /^ws_[0-9a-z]{12}$/;
 
-const ui = obj<UiSettings>({
-  lang: LANG,
-  theme: oneOf("system", "light", "dark"),
-  readerLevel: READER,
-  singleKeyShortcuts: bool,
-  keymap: map({ t: "str", max: 64 }),
-  showUsd: bool,
-  notifyOnDone: oneOf(true, false, null),
-  openBrowser: bool,
-  editor: oneOf("vscode", "cursor", "none"),
-  defaultExecPath: EXEC_PATH,
-});
+const ui = obj<UiSettings>(
+  {
+    map: obj<{ floorplan: boolean }>({ floorplan: bool }),
+    lang: LANG,
+    theme: oneOf("system", "light", "dark"),
+    readerLevel: READER,
+    singleKeyShortcuts: bool,
+    keymap: map({ t: "str", max: 64 }),
+    showUsd: bool,
+    notifyOnDone: oneOf(true, false, null),
+    openBrowser: bool,
+    editor: oneOf("vscode", "cursor", "none"),
+    defaultExecPath: EXEC_PATH,
+  },
+  ["map"],
+);
 
 const engines = obj<EngineSettings>({
   "claude-cli": obj<EngineSettings["claude-cli"]>({
@@ -97,7 +101,17 @@ const engines = obj<EngineSettings>({
     useBatch: bool,
     monthlyCapUsd: num(0),
   }),
-  "codex-cli": obj<EngineSettings["codex-cli"]>({ enabled: bool, binary: str, model: { t: "str", max: 128 } }),
+  "codex-cli": obj<EngineSettings["codex-cli"]>(
+    {
+      enabled: bool,
+      binary: str,
+      model: { t: "str", max: 128 },
+      pricing: obj<NonNullable<EngineSettings["codex-cli"]["pricing"]>>({ inPerMTok: num(0), outPerMTok: num(0), cacheReadPerMTok: num(0) }),
+      maxEstimatedSpendUsd: num(0),
+      maxPatchSteps: int(1, 8),
+    },
+    ["pricing", "maxEstimatedSpendUsd", "maxPatchSteps"],
+  ),
   generic: obj<EngineSettings["generic"]>(
     {
       enabled: bool,

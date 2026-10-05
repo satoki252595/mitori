@@ -8,12 +8,19 @@ import { type FakeRepo, sampleRepo } from "../test/repo.ts";
 function m4Repo(): FakeRepo {
   const repo = sampleRepo();
   repo.files["docs/adr/0001-memory.md"] = "# Keep sessions in memory\n\nWe keep sessions in memory because one person uses the app.\n";
+  repo.files["AGENTS.md"] =
+    `${Array.from({ length: 30 }, (_, i) => `Contributor note ${i + 1}.`).join("\n")}\n## Architecture\nKeep all user data in the browser; there is no server.\n`;
+  repo.files["src/auth/login.ts"] = (repo.files["src/auth/login.ts"] ?? "").replace(
+    "  const id =",
+    "  // TODO derive the id from a random token\n  // Keep the supplied user as the seed until then.\n  const id =",
+  );
   repo.facts.push(
     { kind: "schema", detector: "schema.test@1", path: "src/session/store.ts", line: 2, entity: "Session", source: "ts", fields: ["id", "expiresAt"] },
     { kind: "todo", detector: "todo.test@1", path: "src/auth/login.ts", line: 4, marker: "TODO", text: "derive the id from a random token" },
     { kind: "env", detector: "env.test@1", path: "src/cli/main.ts", line: 2, name: "TSUNDOKU_USER", hasDefault: true },
     { kind: "dependency", detector: "dep.test@1", path: "README.md", line: 1, ecosystem: "npm", name: "jose", version: "5.9.0", dev: false },
     { kind: "existing_doc", detector: "doc.test@1", path: "docs/adr/0001-memory.md", line: 1, role: "adr", title: "Keep sessions in memory" },
+    { kind: "existing_doc", detector: "doc.test@1", path: "AGENTS.md", line: 1, role: "agents", title: "Contributor guidance" },
   );
   return repo;
 }
@@ -50,17 +57,31 @@ describe("GEN-M4-01 the section prompts run in a standard generation with their 
     expect(h.aiBlocks("s9").map((b) => [b.aspect, b.kind])).toEqual([["hotpaths", "prose"]]);
   });
 
-  test("decisions: design documents (not the README) and architecture claims", async () => {
+  test("decisions: design documents precede the README and include architecture after contributor setup", async () => {
     const h = await generated();
     const u = unitOf(h, "gen.decisions");
     expect(dataSection(u, "DOCS")[0]).toBe("=== docs/adr/0001-memory.md · lines 1-3");
-    expect(dataSection(u, "DOCS").join("\n")).not.toContain("README.md");
+    expect(dataSection(u, "DOCS")).toContain("32|Keep all user data in the browser; there is no server.");
+    expect(dataSection(u, "DOCS")).toContain("=== README.md · lines 1-4");
+  });
+
+  test("module input includes an ancestor's declared contribution checklist beyond setup, within its DOCS cap", async () => {
+    const repo = m4Repo();
+    repo.files["CONTRIBUTING.md"] =
+      `${Array.from({ length: 42 }, (_, i) => `Setup ${i + 1}.`).join("\n")}\n## Adding a kind\nUpdate Kind, rendering and every language's prompt notes.\n${Array.from({ length: 40 }, () => "Later contributor guidance. ".repeat(12)).join("\n")}\n`;
+    repo.facts.push({ kind: "existing_doc", detector: "doc.test@1", path: "CONTRIBUTING.md", line: 1, role: "contributing", title: "Contribution guide" });
+    const h = await generated({ repo });
+    const docs = dataSection(unitOf(h, "gen.module"), "DOCS");
+    expect(docs[0]).toMatch(/^=== CONTRIBUTING.md · lines 1-\d+$/);
+    expect(docs).toContain("44|Update Kind, rendering and every language's prompt notes.");
+    expect(docs.some((l) => l.startsWith("80|"))).toBe(false);
   });
 
   test("risks: TODOS, UNTESTED (modules without tests) and LARGE", async () => {
     const h = await generated();
     const u = unitOf(h, "gen.risks");
-    expect(dataSection(u, "TODOS")).toEqual(["> TODO src/auth/login.ts:4 derive the id from a random token"]);
+    expect(dataSection(u, "TODOS")[0]).toBe("> TODO src/auth/login.ts:4 derive the id from a random token");
+    expect(dataSection(u, "TODOS")).toContain("5|  // Keep the supplied user as the seed until then.");
     expect(dataSection(u, "UNTESTED").length).toBe(4);
     expect(dataSection(u, "UNTESTED")[0]).toMatch(/^> md_a0000001 "名前01" loc=\d+ rank=0\.90$/);
     expect(dataSection(u, "LARGE")[0]).toMatch(/^> src\/session\/store\.ts lines=25 module=md_a0000001$/);
@@ -131,6 +152,7 @@ describe("GEN-M4-02 open questions (§13, §5.6.10)", () => {
     const h = await generated({ router: { questionsPerModule: 4 } });
     const u = unitOf(h, "gen.questions");
     expect(dataSection(u, "RAW").length).toBe(16);
+    expect(dataSection(u, "DOCS").join("\n")).toContain("Keep sessions in memory");
     expect(dataSection(u, "RAW")[0]).toMatch(/^> q1 s6\/\w+ \| md_a\w{7} の問い 1 \| $/);
     expect(h.aiBlocks("s13").map((b) => h.doc.markerForm(b.id))).toEqual(["統合した問い（16 件から）"]);
   });

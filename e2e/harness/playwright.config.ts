@@ -15,6 +15,7 @@ export default defineConfig({
   testMatch: ["**/*.spec.ts", "**/*.e2e.ts"],
   testIgnore: ["**/node_modules/**"],
   outputDir: "../../test-results",
+  globalSetup: "./global-setup.ts",
   fullyParallel: true,
   workers: ci ? 2 : "50%",
   retries: ci ? 1 : 0,
@@ -34,6 +35,7 @@ export default defineConfig({
   },
   projects: [
     { name: "chromium", testIgnore: ["**/node_modules/**", "**/perf/**"], use: chromium },
+    { name: "firefox", testIgnore: ["**/node_modules/**", "**/perf/**"], use: { ...devices["Desktop Firefox"], viewport: desktop } },
     // Safari's IME order and content-visibility quirks (§5.1): M3 and release
     { name: "webkit", testIgnore: ["**/node_modules/**", "**/perf/**"], use: { ...devices["Desktop Safari"], viewport: desktop } },
     {

@@ -61,6 +61,7 @@ describe("WEB-F5-01 catalog split", () => {
     "src/shell/HelpOverlay.svelte": "help",
     "src/shell/Launcher.svelte": "gen",
     "src/map/MapPage.svelte": "gen",
+    "src/map/SidePanel.svelte": "gen",
     "src/map/EngineCard.svelte": "gen",
     "src/reader/ReaderPage.svelte": "gen",
   };

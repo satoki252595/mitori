@@ -4,12 +4,12 @@
 -->
 <script lang="ts">
 import type { MapView } from "@mitori/core";
-import { onMount } from "svelte";
+import { onMount, untrack } from "svelte";
 import "./plan.css";
 import type { MapStore, ZoomStage } from "../contract.ts";
 import { markAfterPaint } from "../shell/perf.ts";
 import { PlanController } from "./plan-dom.ts";
-import { buildPlanModel, type FlowStep, type PlanText } from "./render.ts";
+import { type FlowStep, hydratePlan, type PlanText } from "./render.ts";
 
 let {
   view,
@@ -26,6 +26,7 @@ let {
   onhover,
   onzoom,
   controller = $bindable(null),
+  initialCamera = null,
 }: {
   view: MapView;
   text: PlanText;
@@ -41,21 +42,27 @@ let {
   onhover: (node: string | null, rect: DOMRect | null) => void;
   onzoom?: (k: number) => void;
   controller?: PlanController | null;
+  initialCamera?: import("../contract.ts").MapCamera | null;
 } = $props();
 
 let host: HTMLDivElement | undefined = $state();
 const descId = "plan-desc";
+const initialSvg = import.meta.env.SSR ? untrack(() => view.svg ?? "") : "";
 
+let lastView: MapView | null = null;
 onMount(() => {
   if (!host) return;
   const c = new PlanController(
     host,
-    buildPlanModel(view),
+    hydratePlan(view.plan!),
     text,
     descId,
     { onselect, onopen, onstage, onhover, onzoom: (k) => onzoom?.(k) },
     view.diagram.kind === "floorplan" && !view.fallback,
+    view.svg!,
   );
+  if (initialCamera) c.restoreCamera(initialCamera);
+  lastView = view;
   controller = c;
   const ro = new ResizeObserver(() => c.resize());
   ro.observe(host);
@@ -66,14 +73,12 @@ onMount(() => {
     controller = null;
   };
 });
-
-// re-render only when the server view object changes
-let lastView: MapView | null = null;
 $effect(() => {
   const v = view;
-  if (!controller || v === lastView) return;
-  if (lastView !== null) controller.render(buildPlanModel(v), text, descId);
+  const c = controller;
+  if (!c || v === lastView) return;
   lastView = v;
+  c.render(hydratePlan(v.plan!), text, descId, v.svg!);
 });
 $effect(() => {
   const id = selected;
@@ -97,4 +102,4 @@ $effect(() => {
 });
 </script>
 
-<div class="stage-host" bind:this={host}></div>
+<div class="stage-host" bind:this={host}>{@html initialSvg}</div>

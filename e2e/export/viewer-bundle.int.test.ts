@@ -6,6 +6,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
+import { assetTable, loadWebAssets } from "../../apps/cli/src/build/assets.ts";
 
 const ROOT = join(import.meta.dir, "../..");
 const SEAL = join(ROOT, "dist/.build/web/viewer/viewer.json");
@@ -29,15 +30,21 @@ const gen = (env: Record<string, string | undefined>) => {
 describe("EXP-I-05 the embedded viewer bundle", () => {
   test(
     "gen-assets under NODE_ENV=test builds the same production bundle as under NODE_ENV=production: ≤ 60 KB gz, same hashes",
-    () => {
+    async () => {
+      // A running checkout may already have read the preceding build, as earlier export tests do.
+      assetTable();
       const asTest = gen({ NODE_ENV: "test" });
       const js = readFileSync(join(ROOT, "dist/.build/web", asTest.seal.js));
       expect(new Bun.CryptoHasher("sha256").update(js).digest("hex")).toBe(asTest.seal.jsSha256);
       expect(gzipSync(js, { level: 9 }).length).toBe(asTest.seal.jsGzipBytes);
       expect(asTest.seal.jsGzipBytes, "viewer JS gzip bytes (budget asset.viewer.js 60 KB)").toBeLessThanOrEqual(60_000);
+      const assets = await loadWebAssets();
+      expect([...assets.keys()].sort()).toEqual(Object.keys(JSON.parse(asTest.web)).sort());
+      expect(assets.get(asTest.seal.js)?.raw).toEqual(new Uint8Array(js));
       const asProd = gen({ NODE_ENV: "production" });
       expect(asProd.seal.jsSha256).toBe(asTest.seal.jsSha256);
       expect(asProd.web).toBe(asTest.web); // every asset of the web dist hashes the same: a process holding web.json stays valid
+      expect((await loadWebAssets()).get(asProd.seal.js)?.raw).toEqual(new Uint8Array(js));
     },
     { timeout: 60_000 },
   );

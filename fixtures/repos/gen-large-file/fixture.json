@@ -1,0 +1,11 @@
+{
+  "v": "mitori.fixture/1",
+  "name": "gen-large-file",
+  "git": true,
+  "objectFormat": "sha1",
+  "branch": "main",
+  "history": [{ "message": "init: 20,000-line code benchmark", "tree": "." }],
+  "generate": [{ "path": "src/large.ts", "generator": "ts-numbered-lines", "bytes": 300000 }],
+  "symlinks": [],
+  "dirty": []
+}

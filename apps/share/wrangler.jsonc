@@ -1,0 +1,13 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "mitori-share",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-05",
+  "workers_dev": true,
+  "observability": { "enabled": true, "logs": { "enabled": true, "head_sampling_rate": 0.1 }, "traces": { "enabled": true, "head_sampling_rate": 0.01 } },
+  "r2_buckets": [{ "binding": "SNAPSHOTS", "bucket_name": "mitori-snapshots" }],
+  "d1_databases": [
+    { "binding": "META", "database_name": "mitori-meta", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+  ],
+  "triggers": { "crons": ["17 19 * * *"] }
+}

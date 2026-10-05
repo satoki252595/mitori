@@ -7,6 +7,7 @@ import type { Logger, SqlDb } from "@mitori/core";
 import type { Indexer, IndexerDeps } from "../contract.ts";
 import { env, workerInit } from "../parse/test/env.ts";
 import { createWorkerHandler } from "../parse/worker.ts";
+import { createPinStore } from "../pin/store.ts";
 import { createIndexer } from "./index.ts";
 import { inlinePool, memoryDb, migrate, settings, testDeps } from "./test/deps.ts";
 import { tempRepo } from "./test/repo.ts";
@@ -67,6 +68,34 @@ async function until(f: () => boolean, ms = 5_000): Promise<void> {
 const persisted = (idx: Indexer) => idx.lastTimings()?.persist !== null;
 
 describe("IDX-D7 persistence failures", () => {
+  test("a pin write whose outer transaction rolls back retains pending text and retries after commit failure", async () => {
+    const db = memoryDb();
+    migrate(db);
+    const deps = testDeps("/unused", { db });
+    let fail = true;
+    const write: IndexerDeps["write"] = (label, fn) =>
+      deps.write(label, () =>
+        db.tx(() => {
+          const value = fn();
+          if (fail) {
+            fail = false;
+            throw new Error("outer rollback");
+          }
+          return value;
+        }),
+      );
+    const pins = createPinStore(db, write, deps.clock, deps.metrics);
+    const blob = "a".repeat(40);
+    const bytes = new TextEncoder().encode("uncommitted old text");
+    await expect(pins.save(blob, bytes)).rejects.toThrow("outer rollback");
+    expect(db.get("SELECT blob FROM idx_blob_text WHERE blob = ?", [blob])).toBeNull();
+    expect(pins.get(blob)).toEqual(bytes);
+    expect(pins.has(blob)).toBe(true);
+    await pins.save(blob, bytes);
+    expect(pins.get(blob)).toEqual(bytes);
+    expect(db.get<{ bytes: Uint8Array }>("SELECT bytes FROM idx_blob_text WHERE blob = ?", [blob])?.bytes).toEqual(bytes);
+  });
+
   test("a rolled-back scan persist keeps skeleton fragments in memory and is retried by the next scan", async () => {
     const repo = tempRepo({ "a.ts": "export function a(): number {\n  return 1;\n}\n", "b.ts": "export function b(): number {\n  return 2;\n}\n" });
     cleanup.push(() => repo.dispose());

@@ -148,11 +148,13 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
 
   async function prepPhase(run: GenRun, rows: TaskRow[], plan: import("../contract.ts").GenPlan, phase: number, req: PrepReq): Promise<PrepInfo> {
     const env = gatherEnv({ plan }, rows);
+    const byId = new Map(rows.map((r) => [r.task.id, r]));
     const phases = [...new Set(rows.map((r) => r.plan.phase))].sort((a, b) => a - b);
     for (const ph of phases.filter((p) => p >= phase)) {
       const todo = rows.filter((r) => r.plan.phase === ph && r.task.state === "pending");
       const entries: { row: TaskRow; rendered: RenderedTask; labels: Record<string, Xxh3> }[] = [];
       for (const row of todo) {
+        if (row.plan.deps.some((id) => !TERMINAL_STATES.includes(byId.get(id)?.task.state ?? "pending"))) continue;
         if (row.plan.prompt === "gen.flows" && genFlowSeeds(d.indexer).length === 0) {
           row.task.state = "skipped";
           await d.write("gen.task", () => store.putTask(row));
@@ -432,7 +434,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
       run.progress = progressOf(rows);
       await d.write("gen.ingest.run", () => store.updateRun(run));
       d.events.emit({ type: "gen.run", run });
-      const nextPhase = rows.filter((r) => r.plan.phase > prep.phase && r.task.state === "pending").map((r) => r.plan.phase);
+      const nextPhase = rows.filter((r) => r.plan.phase >= prep.phase && r.task.state === "pending").map((r) => r.plan.phase);
       return {
         ok: errors.length === 0 && missing.length === 0,
         prep: req.prep,
@@ -440,7 +442,7 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
         errors: errors.slice(0, MAX_ERRORS),
         missing,
         coveragePct: Math.round((100 * doneIds) / Math.max(1, total)),
-        next: phaseDone && nextPhase.length > 0 ? { prep: req.prep, phase: Math.min(...nextPhase) } : null,
+        next: doneIds === total && nextPhase.length > 0 ? { prep: req.prep, phase: Math.min(...nextPhase) } : null,
       };
     },
 

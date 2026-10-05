@@ -8,7 +8,9 @@
 #   bubblewrap). It is built once per arch and cached by Docker.
 # - The repository is exported as it is on disk (tracked + untracked, not ignored: `git ls-files -co
 #   --exclude-standard`) into a scratch copy that becomes a fresh one-commit repository in the container; the
-#   developer's checkout is never mounted writable and node_modules are installed inside (linux-native binaries).
+#   developer's checkout is never mounted writable. The export is copied to the container filesystem, where
+#   node_modules are installed (linux-native binaries). --keep retains the host source export; container work is
+#   disposable and removed on exit.
 # - --ref <ref> exports that commit (`git archive`) instead of the working tree, with THIS checkout's scripts/linux/
 #   laid over it: another track's branch is checked with the current harness (e.g. `--ref rem/safety --steps
 #   install,sandbox` before it is merged).
@@ -97,7 +99,7 @@ SEC=()
 echo "linux-ci: running steps $STEPS ($ARCH, seccomp $SECCOMP)"
 set +e
 docker run --rm --platform "linux/$ARCH" ${SEC[@]+"${SEC[@]}"} \
-  -v "$WORK/src:/src" -v "$OUT:/out" ${CORPUS_MOUNT[@]+"${CORPUS_MOUNT[@]}"} \
+  -v "$WORK/src:/src:ro" -v "$OUT:/out" ${CORPUS_MOUNT[@]+"${CORPUS_MOUNT[@]}"} \
   -v "mitori-linux-bun-cache-$ARCH:/home/mitori/.bun/install/cache" \
   -e "STEPS=$STEPS" -e "ARCH=$ARCH" -e "SECCOMP=$SECCOMP" \
   "$IMAGE" bash /src/scripts/linux/in-container.sh

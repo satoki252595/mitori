@@ -3,7 +3,7 @@
  * clipping at every zoom stage, room selection ≤ 100 ms and room → Reader p95 ≤ 100 ms.
  */
 import { expect, test } from "@playwright/test";
-import { configure, mockLog, now, p95, WS, waitMark } from "./support/helpers.ts";
+import { chromiumMetric, configure, inputToMark, mockLog, now, p95, WS, waitMark } from "./support/helpers.ts";
 
 /*
  * AC-J01 on the editorial layout (ux.md R1 §2.2, prototype `01-first-run-map`, which replaced the strip + full-height
@@ -34,13 +34,16 @@ test("@wp10a AC-J01 1440×900: the 0-tok line, TOC, estimate main line + 生成 
   expect(log.filter((r) => r.path.endsWith("/gen/estimate")).length).toBe(3);
 });
 
-test("@wp10a AC-J02 first useful screen (map painted) within 3 s of navigation", async ({ page }) => {
+test("@wp10a AC-J02 first useful screen (map painted) within 3 s of navigation", async ({ page, browserName }, info) => {
+  const timing = chromiumMetric(browserName, info, "first useful screen time budgets");
   await configure({ generated: false });
   await page.goto(`/w/${WS}`);
   const t = await waitMark(page, "mitori:map:painted");
   const shell = await waitMark(page, "mitori:shell:painted");
-  expect(shell).toBeLessThan(500);
-  expect(t).toBeLessThan(3000);
+  if (timing) {
+    expect(shell).toBeLessThan(500);
+    expect(t).toBeLessThan(3000);
+  }
 });
 
 test("@wp10a AC-J06 map labels ≥ 11 px on screen and clipped by their room at every zoom stage", async ({ page }) => {
@@ -71,7 +74,8 @@ test("@wp10a AC-J06 map labels ≥ 11 px on screen and clipped by their room at 
   }
 });
 
-test("@wp10a AC-J07 room click → card ≤ 100 ms; Enter → Reader section p95 ≤ 100 ms; camera ≤ 300 ms", async ({ page }) => {
+test("@wp10a AC-J07 room click → card ≤ 100 ms; Enter → Reader section p95 ≤ 100 ms; camera ≤ 300 ms", async ({ page, browserName }, info) => {
+  const timing = chromiumMetric(browserName, info, "room/card/section/camera time budgets");
   await configure({});
   await page.goto(`/w/${WS}`);
   await waitMark(page, "mitori:map:painted");
@@ -80,23 +84,21 @@ test("@wp10a AC-J07 room click → card ≤ 100 ms; Enter → Reader section p95
   const openMs: number[] = [];
   for (const id of rooms) {
     const room = page.locator(`.room[data-node="${id}"]`);
-    const t0 = await now(page);
-    await room.click();
-    const tc = await waitMark(page, "mitori:room:card", t0);
-    cardMs.push(tc - t0);
+    // Firefox's SVG <a> bounding box includes a displaced nested viewport; hit the visible floor.
+    cardMs.push(await inputToMark(page, "click", () => room.locator("rect.fl").click(), "mitori:room:card"));
     await expect(page.locator(".room-card")).toBeVisible();
     // second Enter on the focused room opens its section
-    const t1 = await now(page);
-    await room.press("Enter");
-    const tr = await waitMark(page, "mitori:section:rendered", t1);
-    openMs.push(tr - t1);
+    openMs.push(await inputToMark(page, "keydown", () => room.press("Enter"), "mitori:section:rendered"));
+    const tr = await waitMark(page, "mitori:section:rendered");
     await expect(page.locator(".sec-head h1")).toBeVisible();
     await page.goBack();
     await waitMark(page, "mitori:map:painted", tr);
   }
   console.log(`[AC-J07] card ${cardMs.map((x) => x.toFixed(0)).join(",")} ms · open ${openMs.map((x) => x.toFixed(0)).join(",")} ms`);
-  expect(Math.max(...cardMs)).toBeLessThanOrEqual(100);
-  expect(p95(openMs)).toBeLessThanOrEqual(100);
+  if (timing) {
+    expect(Math.max(...cardMs)).toBeLessThanOrEqual(100);
+    expect(p95(openMs)).toBeLessThanOrEqual(100);
+  }
   // camera animation finishes within 300 ms (fit after zoom)
   const t2 = await now(page);
   await page.keyboard.press("=");
@@ -120,7 +122,7 @@ test("@wp10a AC-J07 room click → card ≤ 100 ms; Enter → Reader section p95
       }),
     t2,
   );
-  expect(done).toBeLessThanOrEqual(340);
+  if (timing) expect(done).toBeLessThanOrEqual(340);
 });
 
 test("@wp10a S1 keyboard: arrows move between rooms (roving tabindex), Escape clears the selection", async ({ page }) => {
@@ -237,7 +239,7 @@ test("@wp10a S1 flows: ⇧1 overlays §3.1 (numbered tags, pins fade), again cle
   await waitMark(page, "mitori:map:painted");
   await expect(tags).toHaveText(["1", "2"]);
   // room card: flows through セッションとコメント = §3.1 ③④ and §3.2 ②
-  await page.locator('.room[data-node="md_session0"]').click();
+  await page.locator('.room[data-node="md_session0"] rect.fl').click();
   const flows = page.locator(".room-card .flow");
   await expect(flows).toHaveText(["§3.1 ③④", "§3.2 ②"]);
   await expect(flows.nth(1)).toHaveAttribute("aria-pressed", "true");

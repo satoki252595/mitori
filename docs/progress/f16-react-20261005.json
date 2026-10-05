@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-05",
+  "repo": "facebook/react",
+  "commit": "7c6ac13e19fef500b7f669a16bbd01ecc95965ca",
+  "command": "scripts/nd bun test test/int/reopen-corpus.test.ts -t 'F16 React'",
+  "llmCalls": 0,
+  "freshProcesses": 4,
+  "freshHomes": 4,
+  "cleanColdCopies": 2,
+  "seededCopies": 2,
+  "comparisons": {
+    "sourceCommit": "equal",
+    "moduleIdSlugParentSortedPaths": "equal",
+    "completePlanStageTaskCountInputTokens": "equal"
+  },
+  "moduleCount": {
+    "assertedMinimum": 6,
+    "exactNotRecorded": true
+  },
+  "result": {
+    "pass": 1,
+    "fail": 0,
+    "filteredOut": 2,
+    "assertions": 10,
+    "testMs": 19503.6,
+    "suiteMs": 21030
+  },
+  "rawLog": "/tmp/mitori-f16-react-20261005.log",
+  "limitsChanged": false,
+  "afterRuntimeWiring": {
+    "pass": 1,
+    "fail": 0,
+    "assertions": 10,
+    "testMs": 18322.69,
+    "suiteMs": 19940,
+    "rawLog": "/tmp/mitori-f16-react-after-20261005.log"
+  }
+}

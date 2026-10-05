@@ -1,0 +1,1450 @@
+{
+  "format": "mitori.typecheck-imports-evidence/1",
+  "date": "2026-10-06",
+  "scope": "Test-only fixture/golden public subpaths and five callers. Shipping product runtime, TypeScript builder, worker queue, calibration and timing limits are unchanged.",
+  "environment": {
+    "platform": "linux/arm64",
+    "image": "mitori-linux:arm64",
+    "imageIdPrefix": "771c128cdf95",
+    "bun": "1.4.2",
+    "node": "22.23.3",
+    "cpuAffinityCount": 2,
+    "cpuQuota": 2,
+    "availableParallelism": 2,
+    "filesystem": "native container filesystem",
+    "install": "bun install --frozen-lockfile, exit0",
+    "network": "disconnected after install",
+    "diskCachesDeletedBeforeEachRun": [
+      "node_modules/.cache/tsc",
+      "node_modules/.cache/tsc-semantic"
+    ],
+    "allTwentyOutDirs": "node_modules/.cache/tsc/*",
+    "osPageCacheCleared": false
+  },
+  "sourceSnapshots": {
+    "beforeExportTreeSHA1": "d4af2aaa4ebdc081a39184bd2e13b710f330fe4d",
+    "afterExportTreeSHA1": "0c3bc62d3b806fdb07da0d82a73c044f8b50e907",
+    "afterIncludesQualityVersion": "quality@5 and locked fixtures",
+    "originalCheckerSHA256": "2dfe9defdf33bccdd8c1be7086ffc83ee56d6cf9a7405966f8f8d152246ff9d6",
+    "originalBuilderSHA256": "8b598b3ad508402c68badb0c03b2ea56cf28d0eb0177e5680b23a66b93242862",
+    "originalRepoHelperSHA256": "5212d3d0ad39e7c5e24b340b4e7e665042e70e13638ac1b571499e35594d7352",
+    "beforeProfilerBuilderSHA256": "204d85e1559362b0f6a077f0d59e8cd1fc185cc577303bf1b2ed0af70fb80134",
+    "afterProfilerBuilderSHA256": "bb71dc6967450967bf2109ec980244ab84ff0cb21049ab42723d2705339fca23",
+    "privateProfilerPatchSHA256": "7d9490558799c9571e4c76eba34a878fd496c395d429414fbd04f5f8d4a540bf"
+  },
+  "preservedInvariants": {
+    "solutionBuilder": "TypeScript createSolutionBuilder",
+    "noCheck": false,
+    "stopBuildOnErrors": false,
+    "jsDocParsingMode": "ParseForTypeErrors",
+    "projects": 20,
+    "declarationEmitPreserved": true,
+    "testsRemainInProjects": true,
+    "referenceTargetSeconds": 15,
+    "referenceLimitSeconds": 30,
+    "otherDeepSubpathsStillRejected": true,
+    "testkitProductionImportsStillRejected": true
+  },
+  "priorUbuntuFailure": {
+    "runId": 37345632019,
+    "jobId": 111883374511,
+    "requestedHead": "ddf748cdbfa3be38e290a0054cf2508beac42cb9",
+    "checkoutMergeHead": "fee61e0d8ba46f49e5fd3531c7625692a0b93df5",
+    "checkWallSecondsPrinted": 43.57,
+    "limitSecondsPrinted": 42.95,
+    "factorPrinted": 1.432,
+    "allSevenContentChecksPassed": true,
+    "semanticBuilds": 20,
+    "cached": 0,
+    "errors": 0,
+    "checkExitCode": 1,
+    "unitFixturesGoldenSizeReached": false,
+    "binarySmoke": "skipped",
+    "rawLogSHA256": "f9e12c71018dd39ea69eb0f16356069dcbcede762b7a44fb6569d8ff0d220d98",
+    "status": "Failure retained; local success does not replace this CI result."
+  },
+  "rejectedCandidates": [
+    {
+      "candidate": "tsc first on two CPUs; remaining pool unchanged",
+      "baseline": {
+        "rawLogFilename": "baseline.log",
+        "rawLogSHA256": "fb73c7cfbb6c4c083ae4c596e7e92fd00f75e3bd6a71196d2bc033254bd70e56",
+        "exitCode": 0,
+        "wallSecondsPrinted": 19.38,
+        "calibrationPrinted": {
+          "factor": 1.105,
+          "targetSeconds": 16.57,
+          "limitSeconds": 33.14
+        },
+        "semantic": {
+          "projects": 20,
+          "builds": 20,
+          "cached": 0,
+          "errors": 0,
+          "secondsPrinted": 19.27
+        },
+        "allSevenContentChecksPassed": true,
+        "steps": [
+          {
+            "name": "tsc",
+            "success": true,
+            "secondsPrinted": 19.38
+          },
+          {
+            "name": "svelte-check",
+            "success": true,
+            "secondsPrinted": 9.07
+          },
+          {
+            "name": "biome",
+            "success": true,
+            "secondsPrinted": 3.72
+          },
+          {
+            "name": "boundaries",
+            "success": true,
+            "secondsPrinted": 2.21
+          },
+          {
+            "name": "cr-ledger",
+            "success": true,
+            "secondsPrinted": 0.1
+          },
+          {
+            "name": "budgets",
+            "success": true,
+            "secondsPrinted": 0.01
+          },
+          {
+            "name": "contract-index",
+            "success": true,
+            "secondsPrinted": 1.57
+          }
+        ],
+        "resourceSecondsIncludingCalibration": {
+          "real": 20.821,
+          "user": 37.786,
+          "sys": 0.878
+        }
+      },
+      "candidateResult": {
+        "rawLogFilename": "reserved.log",
+        "rawLogSHA256": "090085b9c7ea1747af43fdca0c3d0a874ad28544f7e8a7dec08fa8aba41d4083",
+        "exitCode": 1,
+        "wallSecondsPrinted": 21.88,
+        "calibrationPrinted": {
+          "factor": 1.171,
+          "targetSeconds": 17.56,
+          "limitSeconds": 35.12
+        },
+        "semantic": {
+          "projects": 20,
+          "builds": 20,
+          "cached": null,
+          "errors": 2,
+          "secondsPrinted": 11.95
+        },
+        "allSevenContentChecksPassed": false,
+        "steps": [
+          {
+            "name": "tsc",
+            "success": false,
+            "secondsPrinted": 12.06
+          },
+          {
+            "name": "svelte-check",
+            "success": true,
+            "secondsPrinted": 9.82
+          },
+          {
+            "name": "biome",
+            "success": true,
+            "secondsPrinted": 3.72
+          },
+          {
+            "name": "boundaries",
+            "success": true,
+            "secondsPrinted": 2.42
+          },
+          {
+            "name": "cr-ledger",
+            "success": true,
+            "secondsPrinted": 0.11
+          },
+          {
+            "name": "budgets",
+            "success": true,
+            "secondsPrinted": 0.01
+          },
+          {
+            "name": "contract-index",
+            "success": true,
+            "secondsPrinted": 1.81
+          }
+        ],
+        "resourceSecondsIncludingCalibration": {
+          "real": 23.397,
+          "user": 39.791,
+          "sys": 0.869
+        }
+      },
+      "reason": "Full wall time increased. The private candidate also had TS18048 twice because the investigator omitted a guard for a spliced task; it was not a successful candidate. No repository scheduling change."
+    },
+    {
+      "candidate": "Pinned Node/V8 runs the unchanged builder",
+      "baseline": {
+        "rawLogFilename": "bun.log",
+        "rawLogSHA256": "402c8d4034c8eb26d73e72bf303c02f3cf18345f48b5e6900063f1dd3c52c808",
+        "exitCode": 0,
+        "wallSecondsPrinted": 16.76,
+        "calibrationPrinted": {
+          "factor": 1.034,
+          "targetSeconds": 15.5,
+          "limitSeconds": 31.01
+        },
+        "semantic": {
+          "projects": 20,
+          "builds": 20,
+          "cached": 0,
+          "errors": 0,
+          "secondsPrinted": 16.66
+        },
+        "allSevenContentChecksPassed": true,
+        "steps": [
+          {
+            "name": "tsc",
+            "success": true,
+            "secondsPrinted": 16.76
+          },
+          {
+            "name": "svelte-check",
+            "success": true,
+            "secondsPrinted": 8.07
+          },
+          {
+            "name": "biome",
+            "success": true,
+            "secondsPrinted": 2.74
+          },
+          {
+            "name": "boundaries",
+            "success": true,
+            "secondsPrinted": 1.82
+          },
+          {
+            "name": "cr-ledger",
+            "success": true,
+            "secondsPrinted": 0.08
+          },
+          {
+            "name": "budgets",
+            "success": true,
+            "secondsPrinted": 0.02
+          },
+          {
+            "name": "contract-index",
+            "success": true,
+            "secondsPrinted": 1.24
+          }
+        ],
+        "resourceSecondsIncludingCalibration": {
+          "real": 18.102,
+          "user": 32.63,
+          "sys": 0.797
+        }
+      },
+      "candidateResult": {
+        "rawLogFilename": "node.log",
+        "rawLogSHA256": "ae99fc000192c036c3f4cd422c5faa7a03b16cc5153a3242ed1aeefdeada509b",
+        "exitCode": 0,
+        "wallSecondsPrinted": 20.15,
+        "calibrationPrinted": {
+          "factor": 1.01,
+          "targetSeconds": 15.14,
+          "limitSeconds": 30.29
+        },
+        "semantic": {
+          "projects": 20,
+          "builds": 20,
+          "cached": 0,
+          "errors": 0,
+          "secondsPrinted": 19.89
+        },
+        "allSevenContentChecksPassed": true,
+        "steps": [
+          {
+            "name": "tsc",
+            "success": true,
+            "secondsPrinted": 20.15
+          },
+          {
+            "name": "svelte-check",
+            "success": true,
+            "secondsPrinted": 7.93
+          },
+          {
+            "name": "biome",
+            "success": true,
+            "secondsPrinted": 3.2
+          },
+          {
+            "name": "boundaries",
+            "success": true,
+            "secondsPrinted": 1.78
+          },
+          {
+            "name": "cr-ledger",
+            "success": true,
+            "secondsPrinted": 0.1
+          },
+          {
+            "name": "budgets",
+            "success": true,
+            "secondsPrinted": 0.02
+          },
+          {
+            "name": "contract-index",
+            "success": true,
+            "secondsPrinted": 1.31
+          }
+        ],
+        "resourceSecondsIncludingCalibration": {
+          "real": 21.471,
+          "user": 36.972,
+          "sys": 0.649
+        }
+      },
+      "reason": "Both all-seven checks and twenty semantic builds passed, but Node wall time increased. No repository runtime, entry or ROOT helper change."
+    }
+  ],
+  "beforeImportsProfile": {
+    "result": {
+      "rawLogFilename": "profile.log",
+      "rawLogSHA256": "3551cb8471b3d39cd4b216d1fa7d69bc5c25fd64fe8f9ef5e3fd9c94697cf664",
+      "exitCode": 1,
+      "wallSecondsPrinted": 17.2,
+      "calibrationPrinted": {
+        "factor": 1.029,
+        "targetSeconds": 15.44,
+        "limitSeconds": 30.88
+      },
+      "semantic": {
+        "projects": 20,
+        "builds": 20,
+        "cached": 0,
+        "errors": 0,
+        "secondsPrinted": 17.09
+      },
+      "allSevenContentChecksPassed": false,
+      "steps": [
+        {
+          "name": "tsc",
+          "success": true,
+          "secondsPrinted": 17.19
+        },
+        {
+          "name": "svelte-check",
+          "success": true,
+          "secondsPrinted": 8.39
+        },
+        {
+          "name": "biome",
+          "success": false,
+          "secondsPrinted": 2.9
+        },
+        {
+          "name": "boundaries",
+          "success": true,
+          "secondsPrinted": 1.79
+        },
+        {
+          "name": "cr-ledger",
+          "success": true,
+          "secondsPrinted": 0.1
+        },
+        {
+          "name": "budgets",
+          "success": true,
+          "secondsPrinted": 0.01
+        },
+        {
+          "name": "contract-index",
+          "success": true,
+          "secondsPrinted": 1.38
+        }
+      ],
+      "resourceSecondsIncludingCalibration": {
+        "real": 18.534,
+        "user": 33.601,
+        "sys": 0.826
+      }
+    },
+    "aggregate": {
+      "projectCount": 20,
+      "rootFiles": 1305,
+      "astParses": 2567,
+      "newASTsForPreviouslySeenPaths": 510,
+      "durationsMs": {
+        "Parse": 1787.329953000005,
+        "Program": 2379.2075480000058,
+        "Bind": 762.8925330000545,
+        "Check": 12674.120168000016,
+        "Emit": 940.4472049999993,
+        "I/O Read": 111.47241500001633,
+        "I/O Write": 78.7743600000756
+      },
+      "writeMs": 75.55264899999543,
+      "writeBytes": 3770411
+    },
+    "projects": [
+      {
+        "project": "packages/core/tsconfig.json",
+        "files": 254,
+        "rootFiles": 28,
+        "declarationFiles": 226,
+        "parses": 254,
+        "reusedObjects": 0,
+        "newObjects": 254,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 1681.1348699999999,
+        "durationsMs": {
+          "Parse": 276.9433810000002,
+          "Program": 417.76710699999995,
+          "Bind": 265.53863800000204,
+          "Check": 700.6602430000002,
+          "Emit": 201.87812699999927,
+          "I/O Read": 43.340962999999874,
+          "I/O Write": 1.9660070000002179
+        },
+        "writeMs": 1.7006730000000516,
+        "writeBytes": 360905,
+        "writeCount": 29
+      },
+      {
+        "project": "packages/platform/tsconfig.json",
+        "files": 303,
+        "rootFiles": 66,
+        "declarationFiles": 237,
+        "parses": 82,
+        "reusedObjects": 221,
+        "newObjects": 82,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 835.7145549999998,
+        "durationsMs": {
+          "Parse": 71.26888000000031,
+          "Program": 105.78985600000004,
+          "Bind": 36.260857999998734,
+          "Check": 637.8262799999999,
+          "Emit": 25.921571999999742,
+          "I/O Read": 1.7182549999988623,
+          "I/O Write": 1.9647189999991497
+        },
+        "writeMs": 1.776002999999946,
+        "writeBytes": 112227,
+        "writeCount": 67
+      },
+      {
+        "project": "packages/indexer/tsconfig.json",
+        "files": 646,
+        "rootFiles": 166,
+        "declarationFiles": 307,
+        "parses": 404,
+        "reusedObjects": 242,
+        "newObjects": 404,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 4004.516009,
+        "durationsMs": {
+          "Parse": 374.72534799999636,
+          "Program": 466.96502299999975,
+          "Bind": 123.10305000000199,
+          "Check": 3278.8639650000073,
+          "Emit": 103.18351000000712,
+          "I/O Read": 12.531725000003917,
+          "I/O Write": 10.974417999998877
+        },
+        "writeMs": 10.539585999995325,
+        "writeBytes": 371745,
+        "writeCount": 167
+      },
+      {
+        "project": "packages/doc/tsconfig.json",
+        "files": 695,
+        "rootFiles": 75,
+        "declarationFiles": 391,
+        "parses": 422,
+        "reusedObjects": 273,
+        "newObjects": 422,
+        "newObjectsForSeenPaths": 277,
+        "wallMs": 2854.769733000001,
+        "durationsMs": {
+          "Parse": 402.65030700000625,
+          "Program": 497.3885250000003,
+          "Bind": 122.63724599999296,
+          "Check": 2057.7148010000037,
+          "Emit": 149.08399700000518,
+          "I/O Read": 28.806286000006367,
+          "I/O Write": 6.178605000010066
+        },
+        "writeMs": 5.94702600000528,
+        "writeBytes": 265639,
+        "writeCount": 76
+      },
+      {
+        "project": "packages/anchor/tsconfig.json",
+        "files": 262,
+        "rootFiles": 25,
+        "declarationFiles": 237,
+        "parses": 25,
+        "reusedObjects": 237,
+        "newObjects": 25,
+        "newObjectsForSeenPaths": 12,
+        "wallMs": 406.1139370000001,
+        "durationsMs": {
+          "Parse": 23.133512000000337,
+          "Program": 47.868657000000894,
+          "Bind": 9.624422000018967,
+          "Check": 312.2306709999939,
+          "Emit": 14.988185000001977,
+          "I/O Read": 1.3623390000011568,
+          "I/O Write": 3.852182000005996
+        },
+        "writeMs": 3.759808000000703,
+        "writeBytes": 85452,
+        "writeCount": 26
+      },
+      {
+        "project": "packages/agent/tsconfig.json",
+        "files": 288,
+        "rootFiles": 51,
+        "declarationFiles": 237,
+        "parses": 51,
+        "reusedObjects": 237,
+        "newObjects": 51,
+        "newObjectsForSeenPaths": 34,
+        "wallMs": 729.7803639999984,
+        "durationsMs": {
+          "Parse": 43.71109699999033,
+          "Program": 52.70559400000093,
+          "Bind": 13.608845999988262,
+          "Check": 594.882973000007,
+          "Emit": 62.84534099999655,
+          "I/O Read": 0.8714569999974628,
+          "I/O Write": 1.8928420000047481
+        },
+        "writeMs": 1.700711000003139,
+        "writeBytes": 160129,
+        "writeCount": 52
+      },
+      {
+        "project": "packages/gen/tsconfig.json",
+        "files": 417,
+        "rootFiles": 94,
+        "declarationFiles": 323,
+        "parses": 143,
+        "reusedObjects": 274,
+        "newObjects": 143,
+        "newObjectsForSeenPaths": 50,
+        "wallMs": 1078.2891040000013,
+        "durationsMs": {
+          "Parse": 120.49124500000653,
+          "Program": 152.39263299999948,
+          "Bind": 34.208892000026026,
+          "Check": 776.8760160000038,
+          "Emit": 99.77658400001383,
+          "I/O Read": 2.6669670000101178,
+          "I/O Write": 24.67718199999581
+        },
+        "writeMs": 24.421269999997094,
+        "writeBytes": 283096,
+        "writeCount": 95
+      },
+      {
+        "project": "packages/loop/tsconfig.json",
+        "files": 563,
+        "rootFiles": 147,
+        "declarationFiles": 337,
+        "parses": 235,
+        "reusedObjects": 328,
+        "newObjects": 235,
+        "newObjectsForSeenPaths": 79,
+        "wallMs": 1745.6238759999997,
+        "durationsMs": {
+          "Parse": 124.55884899999546,
+          "Program": 148.9520360000006,
+          "Bind": 57.12409900000057,
+          "Check": 1424.6256249999988,
+          "Emit": 95.82044700001279,
+          "I/O Read": 2.551638000006278,
+          "I/O Write": 11.949847000008958
+        },
+        "writeMs": 11.502884000001359,
+        "writeBytes": 393393,
+        "writeCount": 148
+      },
+      {
+        "project": "packages/server/tsconfig.json",
+        "files": 454,
+        "rootFiles": 97,
+        "declarationFiles": 357,
+        "parses": 131,
+        "reusedObjects": 323,
+        "newObjects": 131,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 1114.0334189999994,
+        "durationsMs": {
+          "Parse": 87.05598500001179,
+          "Program": 118.55811800000083,
+          "Bind": 16.60703700000886,
+          "Check": 920.8220789999941,
+          "Emit": 43.15513499999906,
+          "I/O Read": 1.3282510000026377,
+          "I/O Write": 2.4848460000048362
+        },
+        "writeMs": 2.285675999995874,
+        "writeBytes": 226545,
+        "writeCount": 98
+      },
+      {
+        "project": "packages/client/tsconfig.json",
+        "files": 252,
+        "rootFiles": 15,
+        "declarationFiles": 237,
+        "parses": 15,
+        "reusedObjects": 237,
+        "newObjects": 15,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 108.3742000000002,
+        "durationsMs": {
+          "Parse": 4.896977000002153,
+          "Program": 11.878758000000744,
+          "Bind": 1.2372940000004746,
+          "Check": 82.68384499999775,
+          "Emit": 3.626224000001457,
+          "I/O Read": 0.1166269999994256,
+          "I/O Write": 0.47850300000573043
+        },
+        "writeMs": 0.44187699999747565,
+        "writeBytes": 68117,
+        "writeCount": 16
+      },
+      {
+        "project": "apps/share/tsconfig.json",
+        "files": 68,
+        "rootFiles": 5,
+        "declarationFiles": 64,
+        "parses": 5,
+        "reusedObjects": 63,
+        "newObjects": 5,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 37.191280000000916,
+        "durationsMs": {
+          "Parse": 16.755444999998872,
+          "Program": 19.389914000001227,
+          "Bind": 3.476224000009097,
+          "Check": 10.096582999998645,
+          "Emit": 2.082133000001704,
+          "I/O Read": 0.22466700000040873,
+          "I/O Write": 0.23270799999772862
+        },
+        "writeMs": 0.21675000000141154,
+        "writeBytes": 16840,
+        "writeCount": 5
+      },
+      {
+        "project": "apps/cli/tsconfig.json",
+        "files": 503,
+        "rootFiles": 66,
+        "declarationFiles": 408,
+        "parses": 121,
+        "reusedObjects": 382,
+        "newObjects": 121,
+        "newObjectsForSeenPaths": 29,
+        "wallMs": 259.8827459999993,
+        "durationsMs": {
+          "Parse": 18.819409999996424,
+          "Program": 28.432160000000295,
+          "Bind": 6.329845999973259,
+          "Check": 203.69042300000183,
+          "Emit": 14.188893000000462,
+          "I/O Read": 0.8957179999979417,
+          "I/O Write": 1.4437590000015916
+        },
+        "writeMs": 1.3242959999861341,
+        "writeBytes": 154543,
+        "writeCount": 66
+      },
+      {
+        "project": "packages/testkit/tsconfig.json",
+        "files": 454,
+        "rootFiles": 41,
+        "declarationFiles": 413,
+        "parses": 41,
+        "reusedObjects": 413,
+        "newObjects": 41,
+        "newObjectsForSeenPaths": 29,
+        "wallMs": 124.04897399999936,
+        "durationsMs": {
+          "Parse": 7.23823799999991,
+          "Program": 12.981512000000293,
+          "Bind": 2.543725999970775,
+          "Check": 89.78724700000566,
+          "Emit": 13.109637999996266,
+          "I/O Read": 0.3026329999938753,
+          "I/O Write": 1.2605900000053225
+        },
+        "writeMs": 1.162465000001248,
+        "writeBytes": 141544,
+        "writeCount": 42
+      },
+      {
+        "project": "apps/web/tsconfig.json",
+        "files": 446,
+        "rootFiles": 192,
+        "declarationFiles": 255,
+        "parses": 204,
+        "reusedObjects": 242,
+        "newObjects": 204,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 652.3416680000009,
+        "durationsMs": {
+          "Parse": 45.479773000015484,
+          "Program": 57.08477900000071,
+          "Bind": 25.52271000003384,
+          "Check": 512.9135500000011,
+          "Emit": 43.497970999991594,
+          "I/O Read": 1.4249180000060733,
+          "I/O Write": 4.25292500001342
+        },
+        "writeMs": 3.959472000007736,
+        "writeBytes": 359358,
+        "writeCount": 192
+      },
+      {
+        "project": "scripts/tsconfig.json",
+        "files": 408,
+        "rootFiles": 31,
+        "declarationFiles": 377,
+        "parses": 95,
+        "reusedObjects": 313,
+        "newObjects": 95,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 185.78060499999992,
+        "durationsMs": {
+          "Parse": 53.534185999997135,
+          "Program": 66.48040099999889,
+          "Bind": 15.051308999987668,
+          "Check": 93.98730600001,
+          "Emit": 5.243191000001389,
+          "I/O Read": 1.9106710000032763,
+          "I/O Write": 0.6082060000026104
+        },
+        "writeMs": 0.565837999996802,
+        "writeBytes": 104491,
+        "writeCount": 32
+      },
+      {
+        "project": "fixtures/tsconfig.json",
+        "files": 345,
+        "rootFiles": 4,
+        "declarationFiles": 341,
+        "parses": 7,
+        "reusedObjects": 338,
+        "newObjects": 7,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 44.19076700000005,
+        "durationsMs": {
+          "Parse": 1.3285459999988234,
+          "Program": 5.47023099999933,
+          "Bind": 0.4914670000107435,
+          "Check": 29.008036999999604,
+          "Emit": 5.764108000001215,
+          "I/O Read": 0.06441700000141282,
+          "I/O Write": 0.26525000000037835
+        },
+        "writeMs": 0.24887699999999313,
+        "writeBytes": 70763,
+        "writeCount": 4
+      },
+      {
+        "project": "test/tsconfig.json",
+        "files": 559,
+        "rootFiles": 34,
+        "declarationFiles": 525,
+        "parses": 57,
+        "reusedObjects": 502,
+        "newObjects": 57,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 316.34547999999995,
+        "durationsMs": {
+          "Parse": 32.47696999999789,
+          "Program": 56.09064900000158,
+          "Bind": 6.818688000017573,
+          "Check": 241.4395870000153,
+          "Emit": 5.576396000004024,
+          "I/O Read": 8.671455000001515,
+          "I/O Write": 0.7095840000056342
+        },
+        "writeMs": 0.660251999994216,
+        "writeBytes": 119542,
+        "writeCount": 35
+      },
+      {
+        "project": "e2e/tsconfig.json",
+        "files": 663,
+        "rootFiles": 73,
+        "declarationFiles": 590,
+        "parses": 128,
+        "reusedObjects": 535,
+        "newObjects": 128,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 415.55697599999985,
+        "durationsMs": {
+          "Parse": 49.04862100000901,
+          "Program": 62.41163500000039,
+          "Bind": 12.912593000019115,
+          "Check": 316.2727709999708,
+          "Emit": 16.69894499997463,
+          "I/O Read": 1.555672999998933,
+          "I/O Write": 1.3985870000105933
+        },
+        "writeMs": 1.3057150000022375,
+        "writeBytes": 164927,
+        "writeCount": 73
+      },
+      {
+        "project": "bench/tsconfig.json",
+        "files": 666,
+        "rootFiles": 70,
+        "declarationFiles": 596,
+        "parses": 122,
+        "reusedObjects": 544,
+        "newObjects": 122,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 402.0491289999991,
+        "durationsMs": {
+          "Parse": 25.294900999986567,
+          "Program": 36.15531700000065,
+          "Bind": 7.331530999956158,
+          "Check": 323.0010130000155,
+          "Emit": 28.2724489999855,
+          "I/O Read": 0.9270869999963907,
+          "I/O Write": 1.6295519999985117
+        },
+        "writeMs": 1.5179239999997662,
+        "writeBytes": 197855,
+        "writeCount": 70
+      },
+      {
+        "project": "eval/tsconfig.json",
+        "files": 405,
+        "rootFiles": 25,
+        "declarationFiles": 380,
+        "parses": 25,
+        "reusedObjects": 380,
+        "newObjects": 25,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 93.79980599999908,
+        "durationsMs": {
+          "Parse": 7.918281999995088,
+          "Program": 14.444642999998905,
+          "Bind": 2.4640570000374282,
+          "Check": 66.73715299999094,
+          "Emit": 5.734359000005497,
+          "I/O Read": 0.20066799999040086,
+          "I/O Write": 0.5540480000054231
+        },
+        "writeMs": 0.5155460000096355,
+        "writeBytes": 113300,
+        "writeCount": 25
+      }
+    ]
+  },
+  "afterImportsProfile": {
+    "result": {
+      "rawLogFilename": "profile-after.log",
+      "rawLogSHA256": "dba10bca7572817654dd6a6b44841c90b43a995ef40db2ae7dfdb92f79f14814",
+      "exitCode": 0,
+      "wallSecondsPrinted": 16.25,
+      "calibrationPrinted": {
+        "factor": 1.012,
+        "targetSeconds": 15.17,
+        "limitSeconds": 30.35
+      },
+      "semantic": {
+        "projects": 20,
+        "builds": 20,
+        "cached": 0,
+        "errors": 0,
+        "secondsPrinted": 16.14
+      },
+      "allSevenContentChecksPassed": true,
+      "steps": [
+        {
+          "name": "tsc",
+          "success": true,
+          "secondsPrinted": 16.25
+        },
+        {
+          "name": "svelte-check",
+          "success": true,
+          "secondsPrinted": 8.49
+        },
+        {
+          "name": "biome",
+          "success": true,
+          "secondsPrinted": 3.24
+        },
+        {
+          "name": "boundaries",
+          "success": true,
+          "secondsPrinted": 1.75
+        },
+        {
+          "name": "cr-ledger",
+          "success": true,
+          "secondsPrinted": 0.09
+        },
+        {
+          "name": "budgets",
+          "success": true,
+          "secondsPrinted": 0.01
+        },
+        {
+          "name": "contract-index",
+          "success": true,
+          "secondsPrinted": 1.36
+        }
+      ],
+      "resourceSecondsIncludingCalibration": {
+        "real": 17.565,
+        "user": 32.347,
+        "sys": 0.732
+      }
+    },
+    "aggregate": {
+      "projectCount": 20,
+      "rootFiles": 1305,
+      "astParses": 2244,
+      "newASTsForPreviouslySeenPaths": 187,
+      "durationsMs": {
+        "Parse": 1604.8285009999636,
+        "Program": 2159.7806959999966,
+        "Bind": 653.6753330000006,
+        "Check": 12094.239881999983,
+        "Emit": 893.3089609999824,
+        "I/O Read": 116.37929199998862,
+        "I/O Write": 84.54270099999894
+      },
+      "writeMs": 81.36464700002057,
+      "writeBytes": 3698167
+    },
+    "projects": [
+      {
+        "project": "packages/core/tsconfig.json",
+        "files": 254,
+        "rootFiles": 28,
+        "declarationFiles": 226,
+        "parses": 254,
+        "reusedObjects": 0,
+        "newObjects": 254,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 1718.536177,
+        "durationsMs": {
+          "Parse": 352.524103,
+          "Program": 484.26470600000005,
+          "Bind": 178.2029730000013,
+          "Check": 789.4890160000008,
+          "Emit": 147.77296599999954,
+          "I/O Read": 56.73746600000018,
+          "I/O Write": 1.4150480000002972
+        },
+        "writeMs": 1.1965880000000197,
+        "writeBytes": 360905,
+        "writeCount": 29
+      },
+      {
+        "project": "packages/platform/tsconfig.json",
+        "files": 303,
+        "rootFiles": 66,
+        "declarationFiles": 237,
+        "parses": 82,
+        "reusedObjects": 221,
+        "newObjects": 82,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 899.258656,
+        "durationsMs": {
+          "Parse": 65.5784470000001,
+          "Program": 90.11776200000008,
+          "Bind": 32.18497099999831,
+          "Check": 703.6549440000005,
+          "Emit": 46.638331000002836,
+          "I/O Read": 8.05945399999996,
+          "I/O Write": 12.253552999998647
+        },
+        "writeMs": 11.859175000000505,
+        "writeBytes": 112227,
+        "writeCount": 67
+      },
+      {
+        "project": "packages/indexer/tsconfig.json",
+        "files": 484,
+        "rootFiles": 166,
+        "declarationFiles": 277,
+        "parses": 242,
+        "reusedObjects": 242,
+        "newObjects": 242,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 2830.670455,
+        "durationsMs": {
+          "Parse": 166.20091200000155,
+          "Program": 214.335505,
+          "Bind": 74.21327699999893,
+          "Check": 2396.6138079999923,
+          "Emit": 116.19749599999341,
+          "I/O Read": 6.431026999994629,
+          "I/O Write": 20.68522399999256
+        },
+        "writeMs": 20.208677999999054,
+        "writeBytes": 339322,
+        "writeCount": 167
+      },
+      {
+        "project": "packages/doc/tsconfig.json",
+        "files": 498,
+        "rootFiles": 75,
+        "declarationFiles": 385,
+        "parses": 261,
+        "reusedObjects": 237,
+        "newObjects": 261,
+        "newObjectsForSeenPaths": 36,
+        "wallMs": 1738.478846,
+        "durationsMs": {
+          "Parse": 192.23790799999642,
+          "Program": 268.398362,
+          "Bind": 72.29839600000741,
+          "Check": 1291.0919140000028,
+          "Emit": 80.60660000000371,
+          "I/O Read": 23.075259999999616,
+          "I/O Write": 4.727689000003011
+        },
+        "writeMs": 4.527639999997518,
+        "writeBytes": 225717,
+        "writeCount": 76
+      },
+      {
+        "project": "packages/anchor/tsconfig.json",
+        "files": 262,
+        "rootFiles": 25,
+        "declarationFiles": 237,
+        "parses": 25,
+        "reusedObjects": 237,
+        "newObjects": 25,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 217.2847670000001,
+        "durationsMs": {
+          "Parse": 14.39818600000035,
+          "Program": 22.649929999999586,
+          "Bind": 4.917445000000043,
+          "Check": 165.6967930000019,
+          "Emit": 17.45140899999751,
+          "I/O Read": 0.26729399999931047,
+          "I/O Write": 6.0610300000007555
+        },
+        "writeMs": 5.98848099999941,
+        "writeBytes": 85452,
+        "writeCount": 26
+      },
+      {
+        "project": "packages/agent/tsconfig.json",
+        "files": 288,
+        "rootFiles": 51,
+        "declarationFiles": 237,
+        "parses": 51,
+        "reusedObjects": 237,
+        "newObjects": 51,
+        "newObjectsForSeenPaths": 34,
+        "wallMs": 601.6042939999998,
+        "durationsMs": {
+          "Parse": 48.80624999999782,
+          "Program": 79.81896799999959,
+          "Bind": 17.174251000003096,
+          "Check": 449.1676819999957,
+          "Emit": 47.233289000000696,
+          "I/O Read": 0.9293359999946915,
+          "I/O Write": 1.631584999995539
+        },
+        "writeMs": 1.4846770000021934,
+        "writeBytes": 160129,
+        "writeCount": 52
+      },
+      {
+        "project": "packages/gen/tsconfig.json",
+        "files": 417,
+        "rootFiles": 94,
+        "declarationFiles": 323,
+        "parses": 143,
+        "reusedObjects": 274,
+        "newObjects": 143,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 1178.849274000001,
+        "durationsMs": {
+          "Parse": 97.94520199999624,
+          "Program": 122.58065100000113,
+          "Bind": 32.903839000020525,
+          "Check": 915.3363119999849,
+          "Emit": 97.76171499999873,
+          "I/O Read": 1.7482149999996182,
+          "I/O Write": 10.568421999993006
+        },
+        "writeMs": 10.343249000005017,
+        "writeBytes": 283096,
+        "writeCount": 95
+      },
+      {
+        "project": "packages/loop/tsconfig.json",
+        "files": 563,
+        "rootFiles": 147,
+        "declarationFiles": 337,
+        "parses": 235,
+        "reusedObjects": 328,
+        "newObjects": 235,
+        "newObjectsForSeenPaths": 59,
+        "wallMs": 2079.168266999999,
+        "durationsMs": {
+          "Parse": 210.75306599997384,
+          "Program": 252.55950200000007,
+          "Bind": 111.09412500001235,
+          "Check": 1612.5728399999944,
+          "Emit": 80.23525600000357,
+          "I/O Read": 2.811762000006638,
+          "I/O Write": 6.631396999990102
+        },
+        "writeMs": 6.34111599998505,
+        "writeBytes": 393393,
+        "writeCount": 148
+      },
+      {
+        "project": "packages/server/tsconfig.json",
+        "files": 454,
+        "rootFiles": 97,
+        "declarationFiles": 357,
+        "parses": 131,
+        "reusedObjects": 323,
+        "newObjects": 131,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 1013.3823969999994,
+        "durationsMs": {
+          "Parse": 69.66500300000371,
+          "Program": 87.10516599999937,
+          "Bind": 15.524115999985952,
+          "Check": 855.6140090000245,
+          "Emit": 44.5364079999963,
+          "I/O Read": 1.7746749999914755,
+          "I/O Write": 6.463275000005524
+        },
+        "writeMs": 6.243363000006866,
+        "writeBytes": 226545,
+        "writeCount": 98
+      },
+      {
+        "project": "packages/client/tsconfig.json",
+        "files": 252,
+        "rootFiles": 15,
+        "declarationFiles": 237,
+        "parses": 15,
+        "reusedObjects": 237,
+        "newObjects": 15,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 151.6354850000007,
+        "durationsMs": {
+          "Parse": 11.814049999995405,
+          "Program": 14.974315000001297,
+          "Bind": 4.433771000001798,
+          "Check": 125.25207999998929,
+          "Emit": 3.587264999998297,
+          "I/O Read": 0.16941800000313378,
+          "I/O Write": 0.448169000002963
+        },
+        "writeMs": 0.41375000000152795,
+        "writeBytes": 68117,
+        "writeCount": 16
+      },
+      {
+        "project": "apps/share/tsconfig.json",
+        "files": 68,
+        "rootFiles": 5,
+        "declarationFiles": 64,
+        "parses": 5,
+        "reusedObjects": 63,
+        "newObjects": 5,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 60.47159300000021,
+        "durationsMs": {
+          "Parse": 27.331992000001264,
+          "Program": 29.986628999999084,
+          "Bind": 8.52887199998986,
+          "Check": 13.93101900000147,
+          "Emit": 2.062923999999839,
+          "I/O Read": 0.22837499999695865,
+          "I/O Write": 0.1969180000014603
+        },
+        "writeMs": 0.17975200000000768,
+        "writeBytes": 16840,
+        "writeCount": 5
+      },
+      {
+        "project": "apps/cli/tsconfig.json",
+        "files": 503,
+        "rootFiles": 66,
+        "declarationFiles": 408,
+        "parses": 121,
+        "reusedObjects": 382,
+        "newObjects": 121,
+        "newObjectsForSeenPaths": 29,
+        "wallMs": 677.1270349999995,
+        "durationsMs": {
+          "Parse": 32.042521000001216,
+          "Program": 50.42121699999916,
+          "Bind": 16.407495999992534,
+          "Check": 574.0059199999905,
+          "Emit": 20.535878000000594,
+          "I/O Read": 1.1222150000066904,
+          "I/O Write": 1.5115470000055211
+        },
+        "writeMs": 1.3772179999996297,
+        "writeBytes": 154543,
+        "writeCount": 66
+      },
+      {
+        "project": "packages/testkit/tsconfig.json",
+        "files": 454,
+        "rootFiles": 41,
+        "declarationFiles": 413,
+        "parses": 41,
+        "reusedObjects": 413,
+        "newObjects": 41,
+        "newObjectsForSeenPaths": 29,
+        "wallMs": 184.6425849999996,
+        "durationsMs": {
+          "Parse": 12.74742800000422,
+          "Program": 19.73266799999874,
+          "Bind": 3.935101000004579,
+          "Check": 130.81209700000727,
+          "Emit": 21.94196799999918,
+          "I/O Read": 0.3605450000031851,
+          "I/O Write": 1.1200060000010126
+        },
+        "writeMs": 1.0455450000063138,
+        "writeBytes": 141645,
+        "writeCount": 42
+      },
+      {
+        "project": "apps/web/tsconfig.json",
+        "files": 446,
+        "rootFiles": 192,
+        "declarationFiles": 255,
+        "parses": 204,
+        "reusedObjects": 242,
+        "newObjects": 204,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 1139.9797319999998,
+        "durationsMs": {
+          "Parse": 72.0577710000216,
+          "Program": 94.29940499999975,
+          "Bind": 24.18805300000895,
+          "Check": 910.309999000001,
+          "Emit": 101.09225999999217,
+          "I/O Read": 1.8115429999907064,
+          "I/O Write": 5.4221010000073875
+        },
+        "writeMs": 5.101475000014034,
+        "writeBytes": 359358,
+        "writeCount": 192
+      },
+      {
+        "project": "scripts/tsconfig.json",
+        "files": 408,
+        "rootFiles": 31,
+        "declarationFiles": 377,
+        "parses": 95,
+        "reusedObjects": 313,
+        "newObjects": 95,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 375.1590290000004,
+        "durationsMs": {
+          "Parse": 127.60496299999068,
+          "Program": 178.70410099999935,
+          "Bind": 27.374245999995765,
+          "Check": 154.071285,
+          "Emit": 5.879694000004747,
+          "I/O Read": 6.9823189999933675,
+          "I/O Write": 0.6438790000011068
+        },
+        "writeMs": 0.5919200000025739,
+        "writeBytes": 104491,
+        "writeCount": 32
+      },
+      {
+        "project": "fixtures/tsconfig.json",
+        "files": 345,
+        "rootFiles": 4,
+        "declarationFiles": 341,
+        "parses": 7,
+        "reusedObjects": 338,
+        "newObjects": 7,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 29.823127999999997,
+        "durationsMs": {
+          "Parse": 1.5660489999991114,
+          "Program": 6.925779999999577,
+          "Bind": 0.6051679999873159,
+          "Check": 16.476488000000245,
+          "Emit": 1.9700100000009115,
+          "I/O Read": 0.09445799999593874,
+          "I/O Write": 0.24375099999997474
+        },
+        "writeMs": 0.23016699999971024,
+        "writeBytes": 70763,
+        "writeCount": 4
+      },
+      {
+        "project": "test/tsconfig.json",
+        "files": 559,
+        "rootFiles": 34,
+        "declarationFiles": 525,
+        "parses": 57,
+        "reusedObjects": 502,
+        "newObjects": 57,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 251.3404129999999,
+        "durationsMs": {
+          "Parse": 23.422933999991074,
+          "Program": 32.39351399999941,
+          "Bind": 6.197720000000118,
+          "Check": 201.03303200000482,
+          "Emit": 5.063561999999365,
+          "I/O Read": 0.6545429999951011,
+          "I/O Write": 0.6958780000022671
+        },
+        "writeMs": 0.6548789999942528,
+        "writeBytes": 119542,
+        "writeCount": 35
+      },
+      {
+        "project": "e2e/tsconfig.json",
+        "files": 663,
+        "rootFiles": 73,
+        "declarationFiles": 590,
+        "parses": 128,
+        "reusedObjects": 535,
+        "newObjects": 128,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 460.60218800000075,
+        "durationsMs": {
+          "Parse": 42.97651899999801,
+          "Program": 56.0178649999998,
+          "Bind": 11.809308999992936,
+          "Check": 367.0959089999942,
+          "Emit": 18.36220099998536,
+          "I/O Read": 1.6861710000102903,
+          "I/O Write": 1.5072609999897395
+        },
+        "writeMs": 1.415755000001809,
+        "writeBytes": 164927,
+        "writeCount": 73
+      },
+      {
+        "project": "bench/tsconfig.json",
+        "files": 666,
+        "rootFiles": 70,
+        "declarationFiles": 596,
+        "parses": 122,
+        "reusedObjects": 544,
+        "newObjects": 122,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 398.7832130000006,
+        "durationsMs": {
+          "Parse": 28.352040999991004,
+          "Program": 42.05226399999992,
+          "Bind": 9.399914000001445,
+          "Check": 312.0241780000033,
+          "Emit": 26.44215300000178,
+          "I/O Read": 1.2627600000087114,
+          "I/O Write": 1.58667200000491
+        },
+        "writeMs": 1.4833380000054603,
+        "writeBytes": 197855,
+        "writeCount": 70
+      },
+      {
+        "project": "eval/tsconfig.json",
+        "files": 405,
+        "rootFiles": 25,
+        "declarationFiles": 380,
+        "parses": 25,
+        "reusedObjects": 380,
+        "newObjects": 25,
+        "newObjectsForSeenPaths": 0,
+        "wallMs": 137.04783899999893,
+        "durationsMs": {
+          "Parse": 6.8031559999999445,
+          "Program": 12.442386000000624,
+          "Bind": 2.2822899999973743,
+          "Check": 109.99055699999371,
+          "Emit": 7.937576000003901,
+          "I/O Read": 0.17245599999841943,
+          "I/O Write": 0.7292960000031599
+        },
+        "writeMs": 0.6778809999996156,
+        "writeBytes": 113300,
+        "writeCount": 25
+      }
+    ]
+  },
+  "beforeProfileFailure": "The private profiler file was unformatted, so only Biome failed. Twenty semantic builds completed with zero TypeScript errors. This diagnostic run is not all-seven green evidence. The later profiler was formatted before its separate cold run.",
+  "observedStructuralChange": {
+    "samePathNewASTs": {
+      "before": 510,
+      "after": 187,
+      "removed": 323
+    },
+    "indexerProgramFiles": {
+      "before": 646,
+      "after": 484,
+      "removed": 162
+    },
+    "docProgramFiles": {
+      "before": 695,
+      "after": 498,
+      "removed": 197
+    },
+    "rootFiles": {
+      "before": 1305,
+      "after": 1305
+    },
+    "remaining": "Fixture contract still pulls the agent public barrel, including 34 agent source files before their checked project. No fixture-type redesign."
+  },
+  "targetedRegression": {
+    "command": "scripts/nd bun test scripts/lib/boundaries.test.ts packages/testkit/src/fixtures/build.int.test.ts packages/testkit/src/golden/golden.test.ts packages/indexer/src/structure/fixtures.test.ts packages/indexer/src/facts/facts.test.ts packages/indexer/src/update/later.int.test.ts packages/doc/src/export/export-golden.test.ts",
+    "pass": 67,
+    "existingTodo": 4,
+    "fail": 0,
+    "assertions": 266,
+    "secondsPrinted": 3.43,
+    "rawLogSHA256": "98bb693cab651b543cf463f75e93fa377323045d8798ecf895c1e5b22c7160b0",
+    "biome": {
+      "files": 11,
+      "success": true,
+      "millisecondsPrinted": 12,
+      "rawLogSHA256": "2a3f10a9fd05afd8df2327f8e043a53009a8a370dd76e710ef2d013d896399b3"
+    }
+  },
+  "limitations": [
+    "One run per candidate, fixed baseline-first order, OS page cache not controlled.",
+    "Native ARM container results do not establish Ubuntu x64 CI performance.",
+    "After snapshot also includes frozen quality@5 prompt and locked-fixture changes, so this is not a randomized isolated timing comparison.",
+    "TypeScript timing measures can be nested and must not be summed as disjoint wall-time categories.",
+    "Only numerical/repository-relative metadata and hashes are public; original logs and profiler source remain private.",
+    "The previous Linux CI failure remains until a new CI run verifies the changed source."
+  ]
+}

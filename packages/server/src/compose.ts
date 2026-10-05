@@ -18,7 +18,7 @@ import {
   type WorkerPool,
   type WorkspaceKey,
 } from "@mitori/core";
-import { elkLayout, type HighlightReq } from "@mitori/doc";
+import { type DiagramLayouter, elkLayout, type HighlightReq } from "@mitori/doc";
 import { INVENTORY_SETS } from "@mitori/indexer";
 import { createInstaller, type Installer } from "@mitori/loop";
 import { runMigrations } from "@mitori/platform";
@@ -36,14 +36,19 @@ interface ServerDepsExt {
   timers?: Timers;
 }
 
-type ElkPool = WorkerPool<{ ir: DiagramIR; kind: "layered" | "floorplan"; prev: DiagramLayout | null }, DiagramLayout>;
+type ElkPool = WorkerPool<
+  { ir: DiagramIR; kind: "layered" | "floorplan"; prev: DiagramLayout | null },
+  DiagramLayout | Awaited<ReturnType<DiagramLayouter["layoutFloorplan"]>>
+>;
 type ElkPort = Parameters<typeof elkLayout>[0];
 
 /** The doc layouter's pool (IR → layout) over the daemon's ELK Worker (ELK JSON in/out). */
-function elkAdapter(raw: ServerDeps["pools"]["elk"]): ElkPool {
+function elkAdapter(raw: ServerDeps["pools"]["elk"], compute: ServerDeps["pools"]["compute"]): ElkPool {
   return {
     run: (req, signal) =>
-      elkLayout({ layout: (g) => raw.run({ ir: g, kind: "layered", prev: null }, signal) as ReturnType<ElkPort["layout"]> }, { ir: req.ir }),
+      req.kind === "floorplan"
+        ? (compute.run({ type: "floorplan", ir: req.ir, prev: req.prev }, signal) as ReturnType<DiagramLayouter["layoutFloorplan"]>)
+        : elkLayout({ layout: (g) => raw.run({ ir: g, kind: "layered", prev: null }, signal) as ReturnType<ElkPort["layout"]> }, { ir: req.ir }),
     size: () => raw.size(),
     resize: (n) => raw.resize(n),
     shrink: (keep) => raw.shrink(keep),
@@ -66,7 +71,7 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
 
   const anchors = createAnchorEngine({ hasher: deps.hasher });
   const highlighter = deps.pools.compute as WorkerPool<HighlightReq, string>;
-  const elk = elkAdapter(deps.pools.elk);
+  const elk = elkAdapter(deps.pools.elk, deps.pools.compute);
   const domains = new Map<WorkspaceKey, WorkspaceDomain>();
   let bridge: {
     scheduler: import("@mitori/agent").AgentScheduler;
@@ -155,6 +160,7 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
     },
     ...(deps.port !== undefined ? { port: deps.port } : {}),
     assets: deps.assets,
+    ...(deps.uiRenderer ? { uiRenderer: deps.uiRenderer } : {}),
     handlers: {
       ...domainHandlers({
         async domain(ctx) {
@@ -165,6 +171,7 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
         },
         rescan: (ws, force) => (services ? services.workspaces.rescan(ws, force) : Promise.resolve()),
         engines: () => bridge?.engines ?? ({} as Record<EngineId, Engine | null>),
+        dataPolicyAcked: (engine) => !!services?.settings.current().privacy.dataPolicyAck[engine],
         ledger: () => shared.agent().ledger,
         highlighter,
       }),

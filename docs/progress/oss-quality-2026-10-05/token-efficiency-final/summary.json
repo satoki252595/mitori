@@ -1,0 +1,80 @@
+{
+  "v": "mitori.eval-report/1",
+  "tier": "quick",
+  "engine": "offline",
+  "partial": false,
+  "startedAt": "2026-10-05T11:27:00.110Z",
+  "finishedAt": "2026-10-05T11:27:00.111Z",
+  "git": {
+    "sha": "815957fd01fb4856b5ae8d3aa2091edd1ddd263f",
+    "dirty": true
+  },
+  "versions": {
+    "mitori": "0.0.0",
+    "claude": null,
+    "prompts": {},
+    "pricing": "2026-09-25"
+  },
+  "corpus": [
+    {
+      "name": "m3e-token-pass1-final/report.json",
+      "sha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491"
+    }
+  ],
+  "budget": {
+    "capUsd": 0,
+    "spentUsd": 0,
+    "windowBefore": null,
+    "windowAfter": null,
+    "billing": "unknown"
+  },
+  "suites": {
+    "tokens": {
+      "id": "tokens",
+      "status": "failed",
+      "checks": [
+        {
+          "id": "inputFiltered:m3e-token-pass1-final/report.json",
+          "ok": false,
+          "detail": "estimated 1.1142; target 0.5, limit 0.6; numerator estimated, denominator estimated"
+        }
+      ],
+      "metrics": {
+        "report.0.pass1In": 692453,
+        "report.0.filteredTokens": 621491,
+        "report.0.inputFiltered": 1.1141802536159011,
+        "report.0.estimatedCalls": 13
+      },
+      "notes": [
+        "Offline report analysis: no engine detection or model call; every filtered denominator and ratio is estimated.",
+        "m3e-token-pass1-final/report.json: SHA 039ec311acc33dd0c76a54cbc16af4fc8ab9b491, indexDigest 093c4511769c4384; numerator estimated (13 estimated calls), denominator FileEntry.tokensEst (claude-v5)."
+      ]
+    }
+  },
+  "slo": [
+    {
+      "id": "gen.ratio.inputFiltered",
+      "target": 0.5,
+      "limit": 0.6,
+      "unit": "ratio",
+      "value": 1.1141802536159011,
+      "status": "red",
+      "estimated": true,
+      "context": "m3e-token-pass1-final/report.json"
+    }
+  ],
+  "tokenEfficiency": [
+    {
+      "label": "m3e-token-pass1-final/report.json",
+      "status": "measured",
+      "sha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "indexDigest": "093c4511769c4384",
+      "pass1In": 692453,
+      "filteredTokens": 621491,
+      "inputFiltered": 1.1141802536159011,
+      "numerator": "estimated",
+      "denominator": "estimated",
+      "estimatedCalls": 13
+    }
+  ]
+}

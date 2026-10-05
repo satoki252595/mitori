@@ -21,6 +21,7 @@ let {
   claims,
   busy,
   onverify,
+  onrevert,
   onclose,
 }: {
   entries: readonly BlockHistoryEntry[] | null;
@@ -32,6 +33,7 @@ let {
   claims: number;
   busy: boolean;
   onverify: (next: boolean) => void;
+  onrevert: (rev: number) => void;
   onclose: () => void;
 } = $props();
 
@@ -73,6 +75,7 @@ const who = (by: string) => (by === "human" ? t("history.by.human") : by === "sy
           <span class="rev mono">R{e.rev}</span>
           <span class="src">{t(`history.source.${e.source}`)}{#if e.round !== undefined}<span class="rnd"> · {t("history.round", { n: e.round })}</span>{/if}</span>
           <span class="meta">{who(e.by)} · {fmtDateTime(e.at, lang)}{#if i === 0} · <b>{t("history.current")}</b>{/if}</span>
+          {#if i > 0}<button type="button" class="btn btn-gh btn-s revert" disabled={busy} onclick={() => onrevert(e.rev)}>{t("history.revert")}</button>{/if}
         </li>
       {/each}
     </ol>
@@ -124,6 +127,7 @@ const who = (by: string) => (by === "human" ? t("history.by.human") : by === "sy
     color: var(--muted);
     padding-top: 2px;
   }
+  .revert { grid-column: 2; justify-self: start; margin-top: 4px; }
   .src {
     color: var(--text);
   }

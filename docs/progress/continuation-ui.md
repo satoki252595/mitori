@@ -1,5 +1,7 @@
 # UI 継続検証（2026-10-04）
 
+**2026-10-05追記:** 以下は10月4日の段階別記録。canonical SSR＋native初期操作のPR #5修正後は、初期JS **43.2 KiB gzip**（通常harness S1/S2 44,210 B、compiled静的S1/S2 44,216 B）でhard60 KiBを達成した。未採用proposalの初期canonical CSS・CLS 0・人の採用/拒否を実UIで確認した。以前の42.8KiBとmockの初回測定JSONは履歴。CSS・HTML / JSONを含む総配信量、3browserの対象検証、shippingでの実wireとgzip換算の区別は [初期UIの最新記録](initial-ui-20261005.md)、[mock初回JSON](initial-ui-20261005.json)、[compiled静的fixture最新JSON](shipping-ui-20261005.json)、[PR修正検証](pr5-ci-20261005.md) を参照する。
+
 生成/文言の最後の修正後も出荷assetでsize2/2成功。JSはS1/S2 **87.4/91.3KB gz**、CSS **18.7/16.4KB**、初期font/CM6なし。証拠は `continuation-checks/size.log`。CSSはfirst useful paintまでに取得した資産の値。
 
 最終の費用・timeout修正後に出荷資産を再buildし、Settings2件とsize2件は4/4成功。served gzipはS1/S2 JS **87.4/91.3KB**、CSS **18.7/17.6KB**。証拠は `continuation-checks/provider-browser.log`。以下の前段の測定値は各段階の記録として残す。

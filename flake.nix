@@ -31,6 +31,16 @@
           '';
         };
 
+        # The reference runner itself is installed and pinned by Nix, not a userland tarball.
+        devShells.runner = pkgs.mkShell {
+          packages = with pkgs; [ github-runner git nix ];
+        };
+
+        # The tiny Job Object launcher is cross-built through Nix; do not add a compiler to daily devShells.default.
+        devShells.windowsCross = pkgs.mkShell {
+          packages = with pkgs; [ bun zig ];
+        };
+
         # GitHub-hosted PR job (MILESTONES §9): slim — no gh/ripgrep/hyperfine; Playwright's chromium and
         # CJK fonts are added by WP-12 for the e2e-pr job only.
         devShells.ci = pkgs.mkShell {

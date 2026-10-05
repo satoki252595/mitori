@@ -127,6 +127,7 @@ import type {
   ThreadTrigger,
   TrustItemId,
   TrustRecord,
+  UiLang,
   UsageRecord,
   UsageTotals,
   Verdict,
@@ -135,6 +136,7 @@ import type {
   WorkspaceOverrides,
   Xxh3,
 } from "./domain.ts";
+import type { InitialUiView } from "./initial-ui.ts";
 
 /* ============================================================================
  * 0. Transport constants
@@ -485,6 +487,10 @@ export interface GitStatusView {
  * `ui.map.floorplan` and is used only when its quality gate passes [CONS-10, SC-03].
  */
 export interface MapView {
+  /** JSON-safe server presentation, present with svg=true. */
+  plan?: import("./map-model.ts").PlanData;
+  /** Opt-in escaped initial SVG, served only for svg=true; native pan/LOD/overlays remain client-side. */
+  svg?: string;
   /** IR of the map (`container` in MVP; `floorplan` when enabled and the gate passed). */
   diagram: DiagramIR;
   /** Server-computed layout. */
@@ -687,7 +693,7 @@ export type DocManifestSummary = Pick<DocManifest, "docId" | "title" | "primaryL
  * `[id, section, depth, kind, worstVerdict | null, ord, freshness]`. The client keeps full BlockMeta
  * incrementally from `doc.block.upsert`; `doc.outline` only invalidates the section tree.
  */
-export type OutlineBlock = [BlockId, SectionId, Depth, BlockKind, Verdict | null, number, Freshness];
+export type OutlineBlock = [BlockId, SectionId, Depth, BlockKind, Verdict | null, number, Freshness, BlockMeta["origin"]?];
 
 /** `GET /ws/:ws/doc` — outline only (no HTML). */
 export interface DocOutline {
@@ -1762,6 +1768,7 @@ export interface ApiRoutes {
 
   // --- workspace status, scan, settings, trust, git --------------------------
   "GET /ws/:ws": Route<WsParam, Empty, undefined, WorkspaceStatus>;
+  "GET /ws/:ws/ui": Route<WsParam, { url: string; width?: number; ui?: string }, undefined, InitialUiView>;
   "POST /ws/:ws/init": Route<WsParam, Empty, InitReq, WorkspaceStatus>;
   "GET /ws/:ws/scan": Route<WsParam, Empty, undefined, ScanStatus>;
   "POST /ws/:ws/scan": Route<WsParam, Empty, { force?: boolean }, ScanStatus>;
@@ -1772,7 +1779,7 @@ export interface ApiRoutes {
   "GET /ws/:ws/git": Route<WsParam, Empty, undefined, GitStatusView>;
 
   // --- map, graph, code, facts ------------------------------------------------
-  "GET /ws/:ws/map": Route<WsParam, Empty, undefined, MapView>;
+  "GET /ws/:ws/map": Route<WsParam, { svg?: boolean; lang?: UiLang }, undefined, MapView>;
   "GET /ws/:ws/graph": Route<WsParam, { level: "module" | "file"; focus?: string }, undefined, GraphView>;
   "GET /ws/:ws/modules": Route<WsParam, Empty, undefined, ModuleInfo[]>;
   "GET /ws/:ws/facts": Route<WsParam, { kind?: FactKind }, undefined, Fact[]>;
@@ -1917,6 +1924,7 @@ export const ROUTE_META = {
   "GET /integrations": { auth: "required", kind: "json", mutates: false },
   "POST /integrations/:target/install": { auth: "required", kind: "json", clients: ["cli"], mutates: true },
   "GET /ws/:ws": { auth: "required", kind: "json", mutates: false },
+  "GET /ws/:ws/ui": { auth: "required", kind: "json", mutates: false },
   "POST /ws/:ws/init": { auth: "required", kind: "json", clients: ["cli", "web"], mutates: true },
   "GET /ws/:ws/scan": { auth: "required", kind: "json", mutates: false },
   "POST /ws/:ws/scan": { auth: "required", kind: "json", mutates: true },

@@ -1,0 +1,2 @@
+install exit=0 4s
+check exit=1 15s

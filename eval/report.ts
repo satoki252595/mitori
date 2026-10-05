@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { BillingMode } from "@mitori/core";
 import type { TEST_FORMATS } from "@mitori/testkit";
 import type { SloEntry } from "./slo.ts";
+import type { TokenEfficiency } from "./tokens.ts";
 
 export type ReportTier = "smoke" | "quick" | "standard" | "full";
 
@@ -26,7 +27,7 @@ export interface SuiteResult {
 export interface EvalReport {
   v: typeof TEST_FORMATS.evalReport;
   tier: ReportTier;
-  engine: "fake" | "claude-cli";
+  engine: "fake" | "claude-cli" | "offline";
   /** The run stopped early (budget) or a suite was skipped. */
   partial: boolean;
   startedAt: string;
@@ -37,6 +38,8 @@ export interface EvalReport {
   budget: { capUsd: number; spentUsd: number; windowBefore: number | null; windowAfter: number | null; billing: BillingMode };
   suites: Record<string, SuiteResult>;
   slo: SloEntry[];
+  /** Offline measurements, including explicit missing-provenance reasons. */
+  tokenEfficiency?: TokenEfficiency[];
 }
 
 export function gitInfo(root: string): { sha: string; dirty: boolean } {
@@ -59,11 +62,11 @@ const cell = (s: string): string => s.replaceAll("|", "\\|").replaceAll("\n", " 
 
 export function renderMarkdown(r: EvalReport): string {
   const lines: string[] = [
-    `# eval レポート: ${r.tier}${r.engine === "fake" ? "（fake engine）" : ""}`,
+    `# eval レポート: ${r.tier}${r.engine === "fake" ? "（fake engine）" : r.engine === "offline" ? "（オフライン集計）" : ""}`,
     "",
     `- 実行: ${r.startedAt} → ${r.finishedAt}`,
     `- git: \`${r.git.sha.slice(0, 12) || "(なし)"}\`${r.git.dirty ? "（未コミットの変更あり）" : ""}`,
-    `- 予算: 上限 $${num(r.budget.capUsd)}（API 換算）／使用 $${num(r.budget.spentUsd)}／課金: ${r.budget.billing}${r.partial ? "／**途中で停止**" : ""}`,
+    `- 予算: 上限 $${num(r.budget.capUsd)}（API 換算）／使用 $${num(r.budget.spentUsd)}／課金: ${r.budget.billing}${r.partial ? (r.engine === "offline" ? "／**未測定の項目あり**" : "／**途中で停止**") : ""}`,
     `- 価格表: ${r.versions.pricing}${r.versions.claude ? `／claude ${r.versions.claude}` : ""}`,
     "",
     "## SLO",
@@ -74,7 +77,7 @@ export function renderMarkdown(r: EvalReport): string {
     lines.push("| id | 値 | target | limit | 判定 | n | 備考 |", "|---|---|---|---|---|---|---|");
     for (const s of r.slo) {
       lines.push(
-        `| ${cell(s.id)} | ${num(s.value)} ${s.unit} | ${num(s.target)} | ${num(s.limit)} | ${STATUS_JA[s.status]} | ${s.n ?? ""} | ${s.synthetic ? "harness の自己検査" : s.bound !== undefined ? `Wilson 境界 ${num(s.bound)}` : ""} |`,
+        `| ${cell(s.id)} | ${num(s.value)} ${s.unit} | ${num(s.target)} | ${num(s.limit)} | ${STATUS_JA[s.status]} | ${s.n ?? ""} | ${s.estimated ? `推計（分母を含む） ${cell(s.context ?? "")}` : s.synthetic ? "harness の自己検査" : s.bound !== undefined ? `Wilson 境界 ${num(s.bound)}` : ""} |`,
       );
     }
     lines.push("");

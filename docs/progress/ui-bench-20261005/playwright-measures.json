@@ -1,0 +1,128 @@
+{
+  "machineFactor": 1.06,
+  "tests": [
+    {
+      "title": "ui-dom-max: 20 sections, open Deep Dive, Inbox 500, ready Review 5,000",
+      "status": "expected",
+      "measure": {
+        "max": 10368,
+        "states": {
+          "section:s0": 315,
+          "section:s1": 300,
+          "section:s2": 316,
+          "section:s3": 351,
+          "section:s3/bench-16": 354,
+          "section:s3/bench-17": 354,
+          "section:s3/bench-18": 354,
+          "section:s3/bench-19": 354,
+          "section:s4": 309,
+          "section:s5": 323,
+          "section:s6": 308,
+          "section:s6/src-large": 321,
+          "section:s7": 590,
+          "section:s8": 309,
+          "section:s9": 300,
+          "section:s10": 306,
+          "section:s11": 321,
+          "section:s12": 298,
+          "section:s13": 298,
+          "section:appendix": 300,
+          "deepDive": 354,
+          "inbox500": 8194,
+          "review5000": 10368
+        },
+        "sections": 20,
+        "inboxThreads": 500,
+        "diffLines": 5003
+      }
+    },
+    {
+      "title": "ui-code-lines-mounted: scroll windows in a real 20,000-line file",
+      "status": "expected",
+      "measure": {
+        "max": 361,
+        "samples": [
+          181,
+          181,
+          181,
+          361,
+          361,
+          361,
+          361,
+          361,
+          361,
+          361,
+          361,
+          361,
+          181,
+          181,
+          181
+        ],
+        "totalLines": 20000
+      }
+    },
+    {
+      "title": "ui-review-diff-5000: virtualized ready diff before human accept",
+      "status": "expected",
+      "measure": {
+        "max": 10370,
+        "samples": [
+          10368,
+          10368,
+          10368,
+          10368,
+          10370
+        ],
+        "diffLines": 5003
+      }
+    },
+    {
+      "title": "ui-input-render-1000: real Reader focus paints with 4× CPU throttle",
+      "status": "expected",
+      "measure": {
+        "p95": 22.700000017881393,
+        "ms": [
+          22.700000017881393,
+          20.200000017881393,
+          12.699999988079071,
+          21.69999998807907,
+          13.099999994039536,
+          21.299999982118607,
+          12.799999982118607,
+          21,
+          11.5,
+          23.19999998807907,
+          11.399999976158142,
+          22.200000017881393,
+          11.900000005960464,
+          20.099999994039536,
+          10.5,
+          11.299999982118607,
+          11.799999982118607,
+          10.5,
+          12,
+          11.599999994039536,
+          11.800000011920929,
+          13.099999994039536,
+          11.100000023841858,
+          11.200000017881393,
+          11.899999976158142,
+          18.69999998807907,
+          21.599999994039536,
+          10.599999994039536,
+          11.799999982118607,
+          10.800000011920929
+        ],
+        "blocks": 1000,
+        "cpuRate": 4
+      }
+    },
+    {
+      "title": "CLI spawn to painted scan summary on crit",
+      "status": "expected",
+      "measure": {
+        "scanSummary": 1457.400146484375
+      }
+    }
+  ]
+}

@@ -9,18 +9,37 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
-import type { SectionId, SseEvent } from "@mitori/core";
+import {
+  buildPlanModel,
+  type GenRun,
+  type InitialUiRenderer,
+  MitoriError,
+  mapSvgPresentation,
+  planData,
+  type SectionId,
+  type SseEvent,
+  type ThreadSummary,
+} from "@mitori/core";
 import { DEFAULTS, docFixture, engines, estimate, type FixtureOptions, mapView, paletteItems, settings, streamBlock, WS, workspaceStatus } from "./fixture.ts";
 
 const PORT = Number(process.argv[2] ?? process.env.MOCK_PORT ?? 4317);
 const DIST = process.env.MITORI_E2E_DIST ? resolve(process.env.MITORI_E2E_DIST) : resolve(import.meta.dir, "../../../apps/web/dist");
 const VERSION = process.env.MITORI_E2E_VERSION ?? "dev";
+const SSR = process.env.MITORI_E2E_SSR ?? resolve(import.meta.dir, "../../../dist/.build/e2e-initial/initial.js");
+// Playwright starts this daemon before globalSetup builds. Import only on the first UI request after setup.
+let initialRenderer: Promise<InitialUiRenderer> | null = null;
+function renderer() {
+  initialRenderer ??= import(SSR).then((module) => module.renderInitialUi as InitialUiRenderer);
+  return initialRenderer;
+}
 
 let opts: FixtureOptions = { ...DEFAULTS };
 let doc = docFixture(opts);
 let log: { method: string; path: string; body?: unknown; at: number }[] = [];
 let seq = 100;
 let estSeq = 0;
+let currentGen: GenRun | null = null;
+const threads = new Map<string, ThreadSummary>();
 let settingsVersion = 3;
 let acked = opts.policyAcked;
 /** The reader level a PATCH saved (the first visit saves 「初めて」, NC-08); reset by configure. */
@@ -42,7 +61,11 @@ function configure(o: Partial<FixtureOptions>) {
   savedLang = null;
   fileRev = 0;
   estSeq = 0;
+  currentGen = null;
+  threads.clear();
 }
+
+const currentStatus = () => ({ ...workspaceStatus(opts), gen: currentGen });
 
 function withSaved<T extends { settings: { ui: { readerLevel: string; lang: string } } }>(v: T): T {
   const ui = { ...v.settings.ui, ...(savedLevel ? { readerLevel: savedLevel } : {}), ...(savedLang ? { lang: savedLang } : {}) };
@@ -50,6 +73,28 @@ function withSaved<T extends { settings: { ui: { readerLevel: string; lang: stri
 }
 
 function emit(e: Partial<SseEvent> & { type: string }) {
+  // A real daemon commits canonical views before publishing the event. SSR refresh observes that same state.
+  const event = e as SseEvent;
+  if (event.type === "thread.upsert") threads.set(event.thread.id, event.thread);
+  else if (event.type === "thread.removed") threads.delete(event.id);
+  if (event.type === "gen.run") currentGen = event.run;
+  if (event.type === "doc.block.upsert") {
+    const view = doc.sections.get(event.block.section);
+    if (view) {
+      const blocks = [...view.blocks.filter((b) => b.id !== event.block.id), event.block].sort((a, b) => a.ord - b.ord);
+      doc.sections.set(event.block.section, { ...view, blocks });
+    }
+  } else if (event.type === "doc.block.removed") {
+    for (const [id, view] of doc.sections) doc.sections.set(id, { ...view, blocks: view.blocks.filter((b) => b.id !== event.block) });
+  } else if (event.type === "doc.freshness") {
+    const changed = new Set(event.blocks);
+    for (const [id, view] of doc.sections)
+      doc.sections.set(id, { ...view, blocks: view.blocks.map((b) => (changed.has(b.id) ? { ...b, freshness: event.freshness } : b)) });
+  } else if (event.type === "doc.claims") {
+    const claims = new Map(event.claims.map((c) => [c.id, c]));
+    for (const [id, view] of doc.sections)
+      doc.sections.set(id, { ...view, blocks: view.blocks.map((b) => ({ ...b, claimViews: b.claimViews.map((c) => ({ ...c, ...claims.get(c.id) })) })) });
+  }
   seq++;
   const full = { seq, ws: WS, rev: seq, at: new Date().toISOString(), ...e };
   const frame = enc.encode(`id: ${seq}\ndata: ${JSON.stringify(full)}\n\n`);
@@ -68,6 +113,35 @@ const err = (code: string, status: number) => json({ error: { code, message: cod
 async function api(req: Request, url: URL, body: unknown): Promise<Response> {
   const p = url.pathname.replace(/^\/api\/v1/, "");
   const m = req.method;
+  if (m === "GET" && p === `/ws/${WS}/ui`) {
+    try {
+      const renderInitialUi = await renderer();
+      const view = await renderInitialUi(
+        url.searchParams,
+        async (path) => {
+          if (!path.startsWith("/") || path.startsWith("//") || path.includes("/ui")) throw new Error("invalid initial mock read");
+          const response = await api(new Request(`http://127.0.0.1:${PORT}/api/v1${path}`), new URL(`http://127.0.0.1:${PORT}/api/v1${path}`), undefined);
+          if (!response.ok) throw new Error(`initial mock read: ${response.status}`);
+          return response.json();
+        },
+        async (effort, engine) => {
+          const path = `/api/v1/ws/${WS}/gen/estimate`;
+          const body = { effort, engine };
+          log.push({ method: "POST", path, body, at: Date.now() });
+          const response = await api(new Request(`http://127.0.0.1:${PORT}${path}`, { method: "POST" }), new URL(`http://127.0.0.1:${PORT}${path}`), body);
+          return response.json();
+        },
+      );
+      return new Response(gzipSync(JSON.stringify(view)), {
+        headers: { "content-type": "application/json", "content-encoding": "gzip", "cache-control": "no-store" },
+      });
+    } catch (error) {
+      const e = MitoriError.from(error);
+      if (e.code === "E_INVALID_INPUT") return err(e.code, 400);
+      console.error("initial mock render", error);
+      return err("E_INTERNAL", 500);
+    }
+  }
   if (m === "GET" && p === "/events") {
     let ctrl: ReadableStreamDefaultController<Uint8Array>;
     const stream = new ReadableStream<Uint8Array>({
@@ -160,8 +234,13 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
   const wm = /^\/ws\/(ws_[0-9a-z]+)(\/.*)?$/.exec(p);
   if (!wm) return err("E_NOT_FOUND", 404);
   const rest = wm[2] ?? "";
-  if (m === "GET" && rest === "") return json(workspaceStatus(opts));
-  if (m === "GET" && rest === "/map") return json(mapView(opts));
+  if (m === "GET" && rest === "") return json(currentStatus());
+  if (m === "GET" && rest === "/map") {
+    const view = mapView(opts);
+    if (url.searchParams.get("svg") !== "true") return json(view);
+    const plan = buildPlanModel(view);
+    return json({ ...view, plan: planData(plan), svg: mapSvgPresentation(view, WS, url.searchParams.get("lang") === "en" ? "en" : "ja", plan) });
+  }
   if (m === "GET" && rest === "/doc") return json(doc.outline);
   if (m === "GET" && rest.startsWith("/doc/sections/")) {
     const sec = decodeURIComponent(rest.slice("/doc/sections/".length)) as SectionId;
@@ -218,7 +297,7 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     }
     return err("E_NOT_FOUND", 404);
   }
-  if (m === "GET" && rest === "/threads") return json({ items: [], next: null });
+  if (m === "GET" && rest === "/threads") return json({ items: [...threads.values()], next: null });
   if (m === "GET" && /^\/threads\/th_[0-9a-z]+$/.test(rest)) {
     // a thread anchored on the first block of §3.1 (thread permalink redirect)
     const block = doc.outline.blocks.find((x) => x[1] === "s3/review-cycle")?.[0];

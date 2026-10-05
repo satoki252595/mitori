@@ -51,7 +51,10 @@ describe("CR-PENDING(perf) precompiled wasm in the parse Worker", () => {
   });
 
   test("an init without modules, or with something that is not a module, uses the bytes", async () => {
-    expect(precompiledOf(workerInit())).toBeUndefined();
+    const init = workerInit();
+    expect(precompiledOf(init)).toBeUndefined();
+    const unsupported = { ...init, runtime: new Uint8Array([0]) };
+    expect(withPrecompiled(unsupported)).toBe(unsupported);
     const odd = { ...workerInit(), compiled: { runtime: "nope", grammars: { go: 42 } } } as unknown as ReturnType<typeof workerInit>;
     const res = await parseWith(odd);
     expect(res.every((r) => r.status === "ok")).toBe(true);

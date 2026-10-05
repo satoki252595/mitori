@@ -22,6 +22,7 @@ class FakeWorker {
   ix: PaletteIndexState = buildIndex(0, [], []);
   pending: PaletteWorkerReply[] = [];
   loads = 0;
+  terminate() {}
   postMessage(m: PaletteWorkerMsg) {
     if (m.t === "load") {
       this.loads++;
@@ -121,5 +122,46 @@ describe("WEB-U-024 palette store", () => {
     expect(w.pending).toEqual([]);
     expect(p.results).toEqual([]);
     expect(p.top).toBeNull();
+  });
+
+  test("first-use queries keep the latest text, and an old workspace's index/replies are discarded", async () => {
+    let ws = "ws_cr1t00000000" as import("@mitori/core").WorkspaceKey;
+    let oldIndex!: (value: import("@mitori/core").PaletteIndex) => void;
+    const workers: FakeWorker[] = [];
+    const api = {
+      call: (_key: string, args: { params: { ws: string } }) =>
+        args.params.ws === "ws_cr1t00000000"
+          ? new Promise<import("@mitori/core").PaletteIndex>((resolve) => {
+              oldIndex = resolve;
+            })
+          : Promise.resolve({ digest: "new", rev: 8, items: [] }),
+    } as unknown as ApiClient;
+    const p = new PaletteState(
+      api,
+      () => ws,
+      () => {
+        const worker = new FakeWorker();
+        workers.push(worker);
+        return worker as unknown as Worker;
+      },
+    );
+    p.show("old");
+    p.setQuery("latest");
+    await Bun.sleep(0);
+    const oldWorker = workers[0] as FakeWorker;
+    expect(oldWorker.pending.every((reply) => reply.t === "results")).toBe(true);
+    ws = "ws_n3w000000000" as never;
+    await p.loadIndex();
+    const currentWorker = workers[1] as FakeWorker;
+    oldIndex({ digest: "old", rev: 3, items: ITEMS });
+    await Bun.sleep(0);
+    oldWorker.onmessage?.({ data: { t: "loaded", rev: 3, n: 2, ms: 0 } } as MessageEvent<PaletteWorkerReply>);
+    expect(p.rev).not.toBe(3);
+    currentWorker.flush();
+    currentWorker.flush();
+    expect(p.query).toBe("latest");
+    expect(p.rev).toBe(8);
+    expect(p.results).toEqual([]);
+    expect(currentWorker.loads).toBe(1);
   });
 });

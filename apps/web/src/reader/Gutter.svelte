@@ -15,11 +15,13 @@ let {
   onaction,
   onenter,
   onleave,
+  canTranslate = false,
 }: {
   block: BlockId | null;
   top: number;
   left: number;
-  onaction: (a: "comment" | "explain" | "fix" | "history", el?: HTMLElement) => void;
+  onaction: (a: "comment" | "explain" | "fix" | "history" | "simplify" | "translate", el?: HTMLElement) => void;
+  canTranslate?: boolean;
   onenter: () => void;
   onleave: () => void;
 } = $props();
@@ -30,6 +32,8 @@ let {
   <button type="button" aria-label={t("reader.act.explain")} title={t("reader.act.explain")} tabindex={block ? 0 : -1} onclick={() => onaction("explain")}><Icon name="explain" /></button>
   <button type="button" aria-label={t("reader.act.fix")} title={t("reader.act.fix")} tabindex={block ? 0 : -1} onclick={() => onaction("fix")}><Icon name="fix" /></button>
   <button type="button" class="hist" aria-label={t("reader.act.history")} title={t("reader.act.history")} tabindex={block ? 0 : -1} onclick={(e) => onaction("history", e.currentTarget)}><Icon name="clock" /></button>
+  <button type="button" aria-label={t("reader.act.simplify")} title={t("reader.act.simplify")} tabindex={block ? 0 : -1} onclick={() => onaction("simplify")}><Icon name="minus" /></button>
+  {#if canTranslate}<button type="button" aria-label={t("reader.act.translate")} title={t("reader.act.translate")} tabindex={block ? 0 : -1} onclick={() => onaction("translate")}><Icon name="refresh" /></button>{/if}
 </div>
 
 <style>

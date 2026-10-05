@@ -2,12 +2,12 @@
 //
 //   bun eval/run.ts --suite smoke [--out <dir>]                       the harness on a fake engine (no tokens); JSON + Markdown report
 //   bun eval/run.ts --tier quick|standard|full [--suites cite,patch,tokens] [--max-usd N] [--approve-metered-usd X] [--out <dir>]
+//   bun eval/run.ts --suites tokens --gen-report <report.json> [--gen-report <another report>] [--out <dir>]   offline, no engine
 //
 // Exit codes: 0 ok · 1 a check failed · 2 usage, or nothing could run · 3 the engine does not bill the subscription window.
-// The tier suites (cite / patch / tokens) land in M2 and M3; until then they are reported as `pending` and the run exits 2.
-// This session never calls a paid engine: only the fake one exists here.
+// The live tier suites are still reported as `pending`; tokens also supports offline captured reports.
 import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { Engine } from "@mitori/agent";
 import { type BillingMode, PRICING_VERSION } from "@mitori/core";
@@ -20,6 +20,7 @@ import type { SloEntry } from "./slo.ts";
 import { EVAL_SEED } from "./stats.ts";
 import { isSuite, SUITE_REGISTRY } from "./suites/index.ts";
 import { createSmokeEngine } from "./suites/smoke.ts";
+import { offlineTokens } from "./tokens.ts";
 
 const ROOT = resolve(import.meta.dir, "..");
 
@@ -35,6 +36,8 @@ export interface EvalOptions {
   now?: () => Date;
   root?: string;
   reportsDir?: string;
+  /** Existing gen-real reports only: no provider detection, subprocess or model call. */
+  genReports?: readonly string[];
 }
 
 export interface EvalOutcome {
@@ -49,6 +52,37 @@ export async function runEval(opts: EvalOptions): Promise<EvalOutcome> {
   const root = opts.root ?? ROOT;
   const reportsDir = opts.reportsDir ?? join(root, "eval/reports");
   const startedAt = now().toISOString();
+  if (opts.genReports?.length) {
+    if (opts.suite || opts.suites?.some((name) => name !== "tokens")) throw new EvalRefusal("--gen-report supports only the offline tokens suite", EXIT.usage);
+    const inputs = opts.genReports.map((path) => {
+      try {
+        return { label: `${basename(dirname(path))}/${basename(path)}`, value: JSON.parse(readFileSync(resolve(path), "utf8")) as unknown };
+      } catch {
+        throw new EvalRefusal(`cannot read generation report: ${path}`, EXIT.usage);
+      }
+    });
+    const { result, slo, measurements } = offlineTokens(inputs);
+    const tier = opts.tier ?? "quick";
+    const report: EvalReport = {
+      v: TEST_FORMATS.evalReport,
+      tier,
+      engine: "offline",
+      partial: measurements.some((m) => m.status === "unmeasured"),
+      startedAt,
+      finishedAt: now().toISOString(),
+      git: gitInfo(root),
+      versions: { mitori: mitoriVersion(root), claude: null, prompts: {}, pricing: PRICING_VERSION },
+      corpus: measurements.flatMap((m) => (m.sha ? [{ name: m.label, sha: m.sha }] : [])),
+      budget: { capUsd: 0, spentUsd: 0, windowBefore: null, windowAfter: null, billing: "unknown" },
+      suites: { tokens: result },
+      slo,
+      tokenEfficiency: measurements,
+    };
+    const dir = opts.out ? resolve(opts.out) : join(reportsDir, reportDirName(report));
+    const paths = writeReport(dir, report);
+    const exit = result.status === "failed" ? EXIT.failed : report.partial ? EXIT.usage : EXIT.ok;
+    return { report, paths, exit, message: `eval ${tier}: tokens ${result.status} (offline; estimated ratios) · $0 · ${paths.md}\n${result.notes.join("\n")}` };
+  }
   const smoke = opts.suite === "smoke";
   const tier: ReportTier = smoke ? "smoke" : (opts.tier ?? "quick");
   const names = smoke ? ["smoke"] : (opts.suites?.length ? opts.suites : TIERS[tier as Tier].suites).map(String);
@@ -129,6 +163,7 @@ async function main(argv: readonly string[]): Promise<number> {
       "max-usd": { type: "string" },
       "approve-metered-usd": { type: "string" },
       out: { type: "string" },
+      "gen-report": { type: "string", multiple: true },
     },
   });
   if (values.suite !== undefined && values.suite !== "smoke")
@@ -149,6 +184,7 @@ async function main(argv: readonly string[]): Promise<number> {
     ...(maxUsd !== undefined ? { maxUsd } : {}),
     ...(approve !== undefined ? { approveMeteredUsd: approve } : {}),
     ...(values.out ? { out: values.out } : {}),
+    ...(values["gen-report"] ? { genReports: values["gen-report"] } : {}),
   });
   console.log(outcome.message);
   return outcome.exit;

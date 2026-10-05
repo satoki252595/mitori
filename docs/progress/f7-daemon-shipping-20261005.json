@@ -1,0 +1,54 @@
+{
+  "v": "mitori.bench-result/1",
+  "sha": "815957fd01fb4856b5ae8d3aa2091edd1ddd263f",
+  "machine": {
+    "cpu": "Apple M5 Max",
+    "cores": 18,
+    "ramGb": 128,
+    "os": "Darwin 27.0.0",
+    "bun": "1.4.2",
+    "node": "22.23.3",
+    "chrome": "153.0.8010.12",
+    "loadavg": 7.09228515625,
+    "noisy": false,
+    "waited": 0,
+    "power": "ac"
+  },
+  "factor": 1.0786584414726865,
+  "factorSource": "measured",
+  "startedAt": "2026-10-05T13:11:45.035Z",
+  "results": [
+    {
+      "id": "srv.rss.idleEmpty",
+      "unit": "MB",
+      "values": [
+        47.76640319824219,
+        48.453948974609375,
+        48.360198974609375
+      ],
+      "median": 48.360198974609375,
+      "p95": 48.453948974609375,
+      "cv": 0.007736512860770905,
+      "suite": "srv",
+      "mode": "process",
+      "budgetStat": "median",
+      "loadavg": 7.09228515625
+    },
+    {
+      "id": "srv.rss.idleLoaded",
+      "unit": "MB",
+      "values": [
+        144.2358169555664
+      ],
+      "median": 144.2358169555664,
+      "p95": 144.2358169555664,
+      "cv": 0,
+      "suite": "srv",
+      "mode": "process",
+      "budgetStat": "median",
+      "repo": "crit",
+      "loadavg": 8.7080078125
+    }
+  ],
+  "counters": []
+}

@@ -3,11 +3,13 @@
 // line on stdout:
 //   bun bench/runners/idx-cold.ts --repo <dir> --home <dir> [--until S1|S4] [--shadow] [--idle-ms <n>] [--structure]
 // `--idle-ms` (idx.rss.idle, indexer spec §3.1: "60 s 無操作で Worker 0 本 → idle RSS 寄与 0"): after the scan and its
-// background persistence, stay idle that long, then report how much RSS terminating the parse Workers by hand still frees
+// background persistence, stay idle that long, then report how much memory terminating the parse Workers by hand still frees
+// (CR m1-117: Darwin physical footprint, otherwise RSS)
 // (0 when the pool's own idle shrink released them) and how many Workers were still alive.
 // `--structure` (idx.pack.tokens, idx.module.sig.tokens, idx.leaf.loc): the repo pack, every leaf's sig skeleton and
 // the leaf LOC distribution of the scanned repository.
 import { parseArgs } from "node:util";
+import { footprint } from "../../packages/indexer/src/update/test/footprint.ts";
 import { benchIndexer, rssSampler, settled } from "../lib/indexer.ts";
 
 export interface ColdResult {
@@ -17,7 +19,7 @@ export interface ColdResult {
   timings: Record<string, number | null>;
   /** Peak RSS during the scan, MB (2^20). */
   rssPeakMB: number;
-  /** RSS the parse Workers still held after the idle period, MB (only with --idle-ms). */
+  /** Idle worker memory contribution, MB: Darwin physical footprint, otherwise RSS (only with --idle-ms). */
   rssIdleMB?: number;
   /** Parse Workers alive after the idle period (only with --idle-ms). */
   workersAfterIdle?: number;
@@ -36,13 +38,19 @@ export interface ColdResult {
 
 const MB = 1_048_576;
 
-/** RSS after a full GC, the lowest of the samples taken until it stops falling (the allocator returns pages lazily). */
+/** Idle memory after a full GC, lowest until it stops falling: Darwin physical footprint, otherwise RSS. */
 async function settledRss(): Promise<number> {
   Bun.gc(true);
-  let low = process.memoryUsage().rss;
+  const memory = () => {
+    if (process.platform !== "darwin") return process.memoryUsage().rss;
+    const f = footprint();
+    if (!f) throw new Error("physical footprint unavailable (CR m1-117)");
+    return f.footprint;
+  };
+  let low = memory();
   for (let k = 0, still = 0; k < 40 && still < 3; k++) {
     await Bun.sleep(50);
-    const v = process.memoryUsage().rss;
+    const v = memory();
     if (v < low) {
       low = v;
       still = 0;

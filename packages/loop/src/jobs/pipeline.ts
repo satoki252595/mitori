@@ -6,6 +6,8 @@ import type { EngineResult, EngineSession } from "@mitori/agent";
 import {
   type BlockId,
   type CheckError,
+  type DocPatchOutput,
+  type DocProposal,
   type FileDiff,
   type GateResult,
   type GateSpec,
@@ -20,6 +22,7 @@ import {
   type ThreadId,
   type ThreadOutcome,
 } from "@mitori/core";
+import { createAiMarkdownValidator } from "@mitori/doc";
 import { NEEDS_PARAM, READ_HINT_MAX_LINES, resolveReadHints } from "../agent/hints.ts";
 import { CONTRACT_LIMITS, DOC_FIX_FENCE, type ParsedPatch } from "../contract.ts";
 import { applyEditsToText, parseContract } from "../contracts/index.ts";
@@ -123,7 +126,37 @@ export async function runAnswer(core: RunnerCore, id: JobId, plan: JobPlan, sign
     return f !== null && s >= 1 && e >= s && e <= f.lines;
   };
   const raw = { ...(result.structured !== undefined ? { structured: result.structured } : {}), ...(result.text !== undefined ? { text: result.text } : {}) };
-  if (plan.mode === "findings") {
+  if (plan.route.decision.contract === "docpatch/1") {
+    const parsed = parseContract(
+      "docpatch/1",
+      raw,
+      (() => {
+        const d = docContext(core.deps.doc, plan.threads);
+        return { docBlocks: d.blocks, blockKinds: d.kinds };
+      })(),
+    );
+    if (!parsed.ok) throw new MitoriError(parsed.error.code, `invalid docpatch/1 output: ${checkText(parsed.error.errors)}`);
+    const proposals = docpatchProposals(core, id, plan, parsed.value);
+    await core.update(
+      id,
+      "job.done",
+      (rec) => {
+        rec.job.proposals = proposals.map((p) => core.deps.doc.propose(p).id);
+        core.setState(rec, "done");
+        for (const t of rec.job.threads) {
+          core.threads.say(
+            t,
+            id,
+            engine,
+            "answer",
+            proposals.length ? "設計書の変更を提案しました。内容を確認して採用してください。" : "設計書の変更はありません。",
+          );
+          core.threads.fire(t, "answer", "system");
+        }
+      },
+      { pipeline: true },
+    );
+  } else if (plan.mode === "findings") {
     const parsed = parseContract("findings/1", raw, { citeExists });
     if (!parsed.ok) throw new MitoriError("E_AGENT_PROTOCOL", `invalid findings/1 output: ${checkText(parsed.error.errors)}`);
     const findings = parsed.value.findings;
@@ -188,6 +221,45 @@ export async function runAnswer(core: RunnerCore, id: JobId, plan: JobPlan, sign
   }
   core.phase(id, "done");
   await core.flushEvents(id);
+}
+
+/** Prepare the complete proposal batch before persisting any of it. Insert chains share one review/Undo card. */
+function docpatchProposals(core: RunnerCore, id: JobId, plan: JobPlan, output: DocPatchOutput): Omit<DocProposal, "id" | "state" | "createdAt">[] {
+  const out: Omit<DocProposal, "id" | "state" | "createdAt">[] = [];
+  const inserts = new Map<string, Omit<DocProposal, "id" | "state" | "createdAt">>();
+  for (const op of output.blocks) {
+    if (op.op === "keep") continue;
+    const anchor = op.op === "insert" ? op.after : op.id;
+    const chain = anchor ? inserts.get(anchor) : undefined;
+    if (op.op === "insert" && chain) {
+      chain.md += `\n\n${citeLinks(op.md ?? "")}`;
+      inserts.set(op.id, chain);
+      continue;
+    }
+    const block = anchor ? core.deps.doc.block(anchor as BlockId) : null;
+    if (!block) throw new MitoriError("E_ANCHOR_LOST", "the anchored document block no longer exists");
+    const p: Omit<DocProposal, "id" | "state" | "createdAt"> = {
+      block: op.op === "insert" ? null : block.id,
+      section: block.section,
+      ...(op.op === "insert" ? { after: block.id } : {}),
+      op: op.op,
+      baseHash: op.op === "insert" ? null : (plan.threads.find((t) => t.anchor.doc?.block === block.id)?.anchor.doc?.blockHash ?? block.hash),
+      md: op.op === "delete" ? "" : citeLinks(op.md ?? ""),
+      source: { kind: "job", id },
+      reason: "設計書へのコメントに沿った変更",
+    };
+    if (op.op === "insert") {
+      inserts.set(op.id, p);
+      inserts.set(block.id, p);
+    }
+    out.push(p);
+  }
+  const validator = createAiMarkdownValidator();
+  const lang = core.deps.doc.manifest()?.primaryLang ?? core.deps.settings().global.defaultDocLang;
+  for (const p of out)
+    if (!validator.validate(p.md, { lang, allowRepoLinks: true }).ok)
+      throw new MitoriError("E_AGENT_PROTOCOL", "docpatch Markdown failed the AI Markdown rules");
+  return out;
 }
 
 /* ---- patch -------------------------------------------------------------------------------------------------- */

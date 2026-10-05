@@ -391,7 +391,7 @@ export async function buildPayload(d: BuildDeps, req: ExportReq): Promise<Payloa
       if (!b) continue;
       if (b.freshness === "stale") stale++;
       const claims = b.claims.map((cid) => idx.claims[cid]).filter((x): x is Claim => x !== undefined);
-      outlineBlocks.push([b.id, b.section, b.depth, b.kind, worstVerdict(claims), b.ord, b.freshness]);
+      outlineBlocks.push([b.id, b.section, b.depth, b.kind, worstVerdict(claims), b.ord, b.freshness, b.origin]);
     }
   const allClaims = Object.values(idx.claims);
   const outline: DocOutline = {

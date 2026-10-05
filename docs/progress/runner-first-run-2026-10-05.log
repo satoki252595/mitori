@@ -1,0 +1,49 @@
+bench	Absolute budgets (all suites)	﻿2026-10-05T01:27:20.9871980Z ##[group]Run mkdir -p bench/results
+bench	Absolute budgets (all suites)	2026-10-05T01:27:20.9872190Z ^[[36;1mmkdir -p bench/results^[[0m
+bench	Absolute budgets (all suites)	2026-10-05T01:27:20.9872470Z ^[[36;1mscripts/nd bun run bench --suite "$SUITES" --absolute --out bench/results/nightly.json | tee bench/results/nightly.txt^[[0m
+bench	Absolute budgets (all suites)	2026-10-05T01:27:20.9892510Z shell: /nix/store/f0b9dbw2gl596cm03pvdsss72381qhlp-bash-5.3p15/bin/bash --noprofile --norc -e -o pipefail {0}
+bench	Absolute budgets (all suites)	2026-10-05T01:27:20.9892760Z env:
+bench	Absolute budgets (all suites)	2026-10-05T01:27:20.9892870Z   SUITES: all
+bench	Absolute budgets (all suites)	2026-10-05T01:27:20.9892990Z ##[endgroup]
+bench	Absolute budgets (all suites)	2026-10-05T01:27:21.0636830Z $ bun scripts/run-owned.ts bench/runner/run.ts:WP-12 --suite all --absolute --out bench/results/nightly.json
+bench	Absolute budgets (all suites)	2026-10-05T01:27:21.1249960Z bench: no case matches the selection
+bench	Absolute budgets (all suites)	2026-10-05T01:27:21.1284700Z ##[error]Process completed with exit code 2.
+bench	UI perf specs (real daemon + Chromium, one worker)	﻿2026-10-05T01:28:29.8483940Z ##[group]Run scripts/nd bun run e2e --project perf
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:29.8484130Z ^[[36;1mscripts/nd bun run e2e --project perf^[[0m
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:29.8500260Z shell: /nix/store/f0b9dbw2gl596cm03pvdsss72381qhlp-bash-5.3p15/bin/bash --noprofile --norc -e -o pipefail {0}
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:29.8500520Z ##[endgroup]
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:29.9115300Z $ bun scripts/run-owned.ts e2e/harness/run.ts:WP-12 --project perf
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.2540090Z e2e: machine factor 1.05
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4692530Z Error: Stripping types is currently unsupported for files under node_modules, for "file:///Users/satoki252595/work/20261002_aiAgentTool/node_modules/.cache/mitori-runner/_work/mitori/mitori/e2e/harness/playwright.config.ts"
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4693810Z     at stripTypeScriptModuleTypes (node:internal/modules/typescript:156:11)
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4694140Z     at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:660:29)
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4694400Z     at ModuleLoader.#translate (node:internal/modules/esm/loader:559:20)
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4694690Z     at afterLoad (node:internal/modules/esm/loader:612:29)
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4694920Z     at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:617:12)
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4695180Z     at ModuleLoader.#createModuleJob (node:internal/modules/esm/loader:640:36)
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4695460Z     at ModuleLoader.#getJobFromResolveResult (node:internal/modules/esm/loader:353:34)
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4695770Z     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:321:41)
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4696310Z     at onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:680:25) {
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4696600Z   code: 'ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING'
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4696760Z }
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4822520Z error: script "e2e" exited with code 1
+bench	UI perf specs (real daemon + Chromium, one worker)	2026-10-05T01:28:31.4834100Z ##[error]Process completed with exit code 1.
+bench	a11y (axe + probes, map and Reader, light and dark)	﻿2026-10-05T01:28:31.4853430Z ##[group]Run scripts/nd bun run e2e --grep @a11y
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.4853620Z ^[[36;1mscripts/nd bun run e2e --grep @a11y^[[0m
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.4868310Z shell: /nix/store/f0b9dbw2gl596cm03pvdsss72381qhlp-bash-5.3p15/bin/bash --noprofile --norc -e -o pipefail {0}
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.4868580Z ##[endgroup]
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.5537350Z $ bun scripts/run-owned.ts e2e/harness/run.ts:WP-12 --grep "@a11y"
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7919620Z Error: Stripping types is currently unsupported for files under node_modules, for "file:///Users/satoki252595/work/20261002_aiAgentTool/node_modules/.cache/mitori-runner/_work/mitori/mitori/e2e/harness/playwright.config.ts"
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7920240Z     at stripTypeScriptModuleTypes (node:internal/modules/typescript:156:11)
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7920560Z     at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:660:29)
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7920830Z     at ModuleLoader.#translate (node:internal/modules/esm/loader:559:20)
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7921090Z     at afterLoad (node:internal/modules/esm/loader:612:29)
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7921360Z     at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:617:12)
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7921630Z     at ModuleLoader.#createModuleJob (node:internal/modules/esm/loader:640:36)
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7921900Z     at ModuleLoader.#getJobFromResolveResult (node:internal/modules/esm/loader:353:34)
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7922210Z     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:321:41)
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7922490Z     at onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:680:25) {
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7922750Z   code: 'ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING'
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7922910Z }
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7980410Z error: script "e2e" exited with code 1
+bench	a11y (axe + probes, map and Reader, light and dark)	2026-10-05T01:28:31.7990350Z ##[error]Process completed with exit code 1.

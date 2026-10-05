@@ -1,0 +1,1060 @@
+{
+  "date": "2026-10-05T13:21:53.649Z",
+  "compiled": true,
+  "fixture": "go-small static doc",
+  "viewport": "1440x900",
+  "scope": "Completed responses through the useful mark; live SSE excluded because ResourceTiming reports no completed body. Normal Chromium content negotiation; actual wire and gzip equivalents are separate.",
+  "mockJsGzipBaseline": 43792,
+  "binary": {
+    "bytes": 70548978,
+    "sha256": "700514e4ecb5ac2b488dc65dd7ee13b69d516a468b926bb3eeea0cd5ed205de9"
+  },
+  "manifest": {
+    "bytes": 1309,
+    "sha256": "62b7d4609f3d1cbbd8289cd9a23155456638e804edd3fb96793eaa4f7dd8b3f4"
+  },
+  "renderer": {
+    "bytes": 797054,
+    "sha256": "dcb0f1ca007da6ffb41e83ffc92a60af3d3da99d4d9db455f1a4d1b89ffbd203"
+  },
+  "webManifest": {
+    "bytes": 38802,
+    "sha256": "685e9b56d090d8e79b723ffb17406ed9a63ad6d230e8703502a47a962f662827"
+  },
+  "providerCalls": 0,
+  "records": [
+    {
+      "name": "S1-static",
+      "route": "/w/<fixture-ws>",
+      "mark": "mitori:map:painted",
+      "at": 121.19999998807907,
+      "document": {
+        "encoded": 1264,
+        "decoded": 3681,
+        "transfer": 1564
+      },
+      "rows": [
+        {
+          "path": "/assets/boot-Cmkbg0xc.js",
+          "encoded": 6747,
+          "decoded": 18564,
+          "transfer": 7047
+        },
+        {
+          "path": "/assets/src-CIaV-dS-.js",
+          "encoded": 6265,
+          "decoded": 18746,
+          "transfer": 6565
+        },
+        {
+          "path": "/assets/i18n-nTD9Qz4Q.js",
+          "encoded": 2100,
+          "decoded": 5059,
+          "transfer": 2400
+        },
+        {
+          "path": "/assets/shell-BYC95Yxr.js",
+          "encoded": 1908,
+          "decoded": 4605,
+          "transfer": 2208
+        },
+        {
+          "path": "/assets/clients-CyGF_zSl.js",
+          "encoded": 2990,
+          "decoded": 6987,
+          "transfer": 3290
+        },
+        {
+          "path": "/assets/visibility-jMp-Z3kW.js",
+          "encoded": 142,
+          "decoded": 247,
+          "transfer": 442
+        },
+        {
+          "path": "/assets/decorate-DDiRByF6.js",
+          "encoded": 1575,
+          "decoded": 3788,
+          "transfer": 1875
+        },
+        {
+          "path": "/assets/plan-dom-CWyHdjml.js",
+          "encoded": 3043,
+          "decoded": 8433,
+          "transfer": 3343
+        },
+        {
+          "path": "/assets/outline-NRFFquok.js",
+          "encoded": 1009,
+          "decoded": 2381,
+          "transfer": 1309
+        },
+        {
+          "path": "/assets/perf-CmriWRdL.js",
+          "encoded": 298,
+          "decoded": 563,
+          "transfer": 598
+        },
+        {
+          "path": "/assets/virtual-CikFQlUN.js",
+          "encoded": 1296,
+          "decoded": 2998,
+          "transfer": 1596
+        },
+        {
+          "path": "/assets/dom-anchor-DbcUOA8W.js",
+          "encoded": 1802,
+          "decoded": 4420,
+          "transfer": 2102
+        },
+        {
+          "path": "/assets/levels-CzfTl5uu.js",
+          "encoded": 368,
+          "decoded": 684,
+          "transfer": 668
+        },
+        {
+          "path": "/assets/firstrun-Cffd1ZOf.js",
+          "encoded": 128,
+          "decoded": 174,
+          "transfer": 428
+        },
+        {
+          "path": "/assets/reading-Ev8gIKQA.js",
+          "encoded": 809,
+          "decoded": 1837,
+          "transfer": 1109
+        },
+        {
+          "path": "/assets/native-CQkreT9R.js",
+          "encoded": 3909,
+          "decoded": 11881,
+          "transfer": 4209
+        },
+        {
+          "path": "/assets/router-DDK1jBwG.js",
+          "encoded": 4192,
+          "decoded": 11290,
+          "transfer": 4492
+        },
+        {
+          "path": "/assets/clients-7hO7tisj.css",
+          "encoded": 9514,
+          "decoded": 42572,
+          "transfer": 9814
+        },
+        {
+          "path": "/assets/preload-helper-Di4PVeSe.js",
+          "encoded": 679,
+          "decoded": 1531,
+          "transfer": 979
+        },
+        {
+          "path": "/assets/keymap-BgDOoc2F.json",
+          "encoded": 802,
+          "decoded": 4980,
+          "transfer": 1102
+        },
+        {
+          "path": "/initial-css.json",
+          "encoded": 158,
+          "decoded": 355,
+          "transfer": 458
+        },
+        {
+          "path": "/api/v1/auth/exchange",
+          "encoded": 122,
+          "decoded": 122,
+          "transfer": 422
+        },
+        {
+          "path": "/api/v1/settings",
+          "encoded": 2035,
+          "decoded": 2035,
+          "transfer": 2335
+        },
+        {
+          "path": "/api/v1/ws/ws_713drymjqxmd/ui",
+          "encoded": 11631,
+          "decoded": 51516,
+          "transfer": 11931
+        },
+        {
+          "path": "/assets/i18n-ja-DKiKiZi7.js",
+          "encoded": 178,
+          "decoded": 348,
+          "transfer": 478
+        },
+        {
+          "path": "/assets/catalog-CEciZ-C_.js",
+          "encoded": 129,
+          "decoded": 190,
+          "transfer": 429
+        },
+        {
+          "path": "/assets/Rail-B-oQSTiZ.css",
+          "encoded": 1268,
+          "decoded": 5297,
+          "transfer": 1568
+        },
+        {
+          "path": "/assets/main-iBWEjTXp.css",
+          "encoded": 763,
+          "decoded": 2800,
+          "transfer": 1063
+        },
+        {
+          "path": "/assets/MapPage-Bx9glOqL.css",
+          "encoded": 2972,
+          "decoded": 14091,
+          "transfer": 3272
+        },
+        {
+          "path": "/assets/side-DEa8dco1.css",
+          "encoded": 2315,
+          "decoded": 13223,
+          "transfer": 2615
+        },
+        {
+          "path": "/assets/map.ja-BA1GnC6c.json",
+          "encoded": 1837,
+          "decoded": 5286,
+          "transfer": 2137
+        },
+        {
+          "path": "/assets/reader.ja-BNwMYj6m.json",
+          "encoded": 2825,
+          "decoded": 9239,
+          "transfer": 3125
+        },
+        {
+          "path": "/assets/settings.ja-BuGUexIb.json",
+          "encoded": 1687,
+          "decoded": 4534,
+          "transfer": 1987
+        },
+        {
+          "path": "/assets/shell.ja-RTBNV1sy.json",
+          "encoded": 4775,
+          "decoded": 15594,
+          "transfer": 5075
+        }
+      ],
+      "jsWire": 39567,
+      "cssWire": 16832,
+      "dataWire": 25872,
+      "encodedTotal": 83535,
+      "transferTotal": 94035,
+      "jsGzip": 43798,
+      "cssGzip": 19234,
+      "initialUi": {
+        "raw": 51516,
+        "html": 26459,
+        "encoding": "br",
+        "sections": 0,
+        "blocks": 0
+      },
+      "initialAssets": [
+        {
+          "path": "/assets/boot-Cmkbg0xc.js",
+          "encoded": 6747,
+          "decoded": 18564,
+          "transfer": 7047,
+          "encoding": "br",
+          "gzip": 7466,
+          "raw": 18564,
+          "sha256": "5a72522b5a3d12c5611b149ebbe167f2f504a7edc73bab1cbaca05832c88083b",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/src-CIaV-dS-.js",
+          "encoded": 6265,
+          "decoded": 18746,
+          "transfer": 6565,
+          "encoding": "br",
+          "gzip": 7055,
+          "raw": 18746,
+          "sha256": "852a6030ced3325cfb449f3ce255020a81ea8701c26d9d34d86410622da467dc",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/i18n-nTD9Qz4Q.js",
+          "encoded": 2100,
+          "decoded": 5059,
+          "transfer": 2400,
+          "encoding": "br",
+          "gzip": 2322,
+          "raw": 5059,
+          "sha256": "d77587d15f8ad0963b645e2bbab8ea036ef52287f9fdc7c34f24a82fad9d94ee",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/shell-BYC95Yxr.js",
+          "encoded": 1908,
+          "decoded": 4605,
+          "transfer": 2208,
+          "encoding": "br",
+          "gzip": 2119,
+          "raw": 4605,
+          "sha256": "87f81e6a11717c56db778401ba297568f5f17037e316044cd5fadfac741ae8b1",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/clients-CyGF_zSl.js",
+          "encoded": 2990,
+          "decoded": 6987,
+          "transfer": 3290,
+          "encoding": "br",
+          "gzip": 3266,
+          "raw": 6987,
+          "sha256": "446da77e73916761eddea4a1f99461af8b8a809c4048ef5f95a59906b8e8e4db",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/visibility-jMp-Z3kW.js",
+          "encoded": 142,
+          "decoded": 247,
+          "transfer": 442,
+          "encoding": "br",
+          "gzip": 159,
+          "raw": 247,
+          "sha256": "f6d355f6012373483a84652656a4c05fbb6d5d1f3a9cca2f9a0c8a7b8b6beb28",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/decorate-DDiRByF6.js",
+          "encoded": 1575,
+          "decoded": 3788,
+          "transfer": 1875,
+          "encoding": "br",
+          "gzip": 1727,
+          "raw": 3788,
+          "sha256": "6f541acc7cb706d8f2482e8ee8c4d145161fa8afd3e1b4b66a29c57bfc482207",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/plan-dom-CWyHdjml.js",
+          "encoded": 3043,
+          "decoded": 8433,
+          "transfer": 3343,
+          "encoding": "br",
+          "gzip": 3321,
+          "raw": 8433,
+          "sha256": "2d27f4d8b9d8d54bf3396583c85c412c3a47c2a8491ab17e302ef83a6434d594",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/outline-NRFFquok.js",
+          "encoded": 1009,
+          "decoded": 2381,
+          "transfer": 1309,
+          "encoding": "br",
+          "gzip": 1092,
+          "raw": 2381,
+          "sha256": "b214e3dfe2d8f582e6342b1aab1e99e0f381afee4482e64ef21827c15dd891b8",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/perf-CmriWRdL.js",
+          "encoded": 298,
+          "decoded": 563,
+          "transfer": 598,
+          "encoding": "br",
+          "gzip": 349,
+          "raw": 563,
+          "sha256": "869965677d182912c78c4b8fcace13ef216967aef9e4d7b1e5bed2765298e97c",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/virtual-CikFQlUN.js",
+          "encoded": 1296,
+          "decoded": 2998,
+          "transfer": 1596,
+          "encoding": "br",
+          "gzip": 1418,
+          "raw": 2998,
+          "sha256": "a90483b19b300b5dbbfc3a8909449d0ddb4a6c31201667072ba33e13b6c8a7d2",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/dom-anchor-DbcUOA8W.js",
+          "encoded": 1802,
+          "decoded": 4420,
+          "transfer": 2102,
+          "encoding": "br",
+          "gzip": 1960,
+          "raw": 4420,
+          "sha256": "10ebe9175c0eaf1b26329837c63838cd0fd8f8a178461331a0e8e4191b3573dc",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/levels-CzfTl5uu.js",
+          "encoded": 368,
+          "decoded": 684,
+          "transfer": 668,
+          "encoding": "br",
+          "gzip": 424,
+          "raw": 684,
+          "sha256": "a38cd753278d814e7c4e90efc05106ba299b226a41823bb0890d6dbe6d89ec1c",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/firstrun-Cffd1ZOf.js",
+          "encoded": 128,
+          "decoded": 174,
+          "transfer": 428,
+          "encoding": "br",
+          "gzip": 156,
+          "raw": 174,
+          "sha256": "60d80fb5405b3e174e5669e69402bb4efe83e0ebbf67c3a55d0f1bbd27d30169",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/reading-Ev8gIKQA.js",
+          "encoded": 809,
+          "decoded": 1837,
+          "transfer": 1109,
+          "encoding": "br",
+          "gzip": 882,
+          "raw": 1837,
+          "sha256": "3f4b205ce42c1034ccd25fe4436213d86740e959088add2ea2e24847c92915cb",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/native-CQkreT9R.js",
+          "encoded": 3909,
+          "decoded": 11881,
+          "transfer": 4209,
+          "encoding": "br",
+          "gzip": 4308,
+          "raw": 11881,
+          "sha256": "94caeb6fb8ee445eeacc676fe453515f908a7b4808f9a994d37878b68ca4533b",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/router-DDK1jBwG.js",
+          "encoded": 4192,
+          "decoded": 11290,
+          "transfer": 4492,
+          "encoding": "br",
+          "gzip": 4587,
+          "raw": 11290,
+          "sha256": "120e5d56e140a5f432cd3ddc416710f826a3ec703f127f99fd0a1d04fb4fc040",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/clients-7hO7tisj.css",
+          "encoded": 9514,
+          "decoded": 42572,
+          "transfer": 9814,
+          "encoding": "br",
+          "gzip": 10907,
+          "raw": 42572,
+          "sha256": "3fe6bd326622f1eaca443a98071887816b6b953dc0f82f792e05d04caf928ba0",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/preload-helper-Di4PVeSe.js",
+          "encoded": 679,
+          "decoded": 1531,
+          "transfer": 979,
+          "encoding": "br",
+          "gzip": 811,
+          "raw": 1531,
+          "sha256": "d7408ca3dfa6d22e025bff2744c56a56886cc7d0039a074c1c7a4f4dae1ca1d9",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/i18n-ja-DKiKiZi7.js",
+          "encoded": 178,
+          "decoded": 348,
+          "transfer": 478,
+          "encoding": "br",
+          "gzip": 213,
+          "raw": 348,
+          "sha256": "61b1788df25ef04719f4b4b8587a629e38c8b80187c416f1fe902647bce77db7",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/catalog-CEciZ-C_.js",
+          "encoded": 129,
+          "decoded": 190,
+          "transfer": 429,
+          "encoding": "br",
+          "gzip": 163,
+          "raw": 190,
+          "sha256": "dce5a0560a90c120b02ed170207776c66f1f5b25e874342e00de15e7561bef9f",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/Rail-B-oQSTiZ.css",
+          "encoded": 1268,
+          "decoded": 5297,
+          "transfer": 1568,
+          "encoding": "br",
+          "gzip": 1462,
+          "raw": 5297,
+          "sha256": "f8a3df4d1bad766102936a22c25f8ddc6bc562b5480becb582a42d123dd0ae57",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/main-iBWEjTXp.css",
+          "encoded": 763,
+          "decoded": 2800,
+          "transfer": 1063,
+          "encoding": "br",
+          "gzip": 900,
+          "raw": 2800,
+          "sha256": "e5d1fe315a666f66cc711b6751a29eb370d0a3a7e902ce8e18e587100a7fceb0",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/MapPage-Bx9glOqL.css",
+          "encoded": 2972,
+          "decoded": 14091,
+          "transfer": 3272,
+          "encoding": "br",
+          "gzip": 3350,
+          "raw": 14091,
+          "sha256": "9cc68971ff03e37e8511de8af119e0e6775ddacef18444c273be6ada1b5330d3",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/side-DEa8dco1.css",
+          "encoded": 2315,
+          "decoded": 13223,
+          "transfer": 2615,
+          "encoding": "br",
+          "gzip": 2615,
+          "raw": 13223,
+          "sha256": "0d73dbe849801eec942340366d6b5b3875c9b0206567e99fd72876917f5827e8",
+          "matchesManifest": true
+        }
+      ]
+    },
+    {
+      "name": "S2-static",
+      "route": "/w/<fixture-ws>/doc/s4",
+      "mark": "mitori:section:rendered",
+      "at": 74.5,
+      "document": {
+        "encoded": 1264,
+        "decoded": 3681,
+        "transfer": 1564
+      },
+      "rows": [
+        {
+          "path": "/assets/boot-Cmkbg0xc.js",
+          "encoded": 6747,
+          "decoded": 18564,
+          "transfer": 7047
+        },
+        {
+          "path": "/assets/src-CIaV-dS-.js",
+          "encoded": 6265,
+          "decoded": 18746,
+          "transfer": 6565
+        },
+        {
+          "path": "/assets/i18n-nTD9Qz4Q.js",
+          "encoded": 2100,
+          "decoded": 5059,
+          "transfer": 2400
+        },
+        {
+          "path": "/assets/shell-BYC95Yxr.js",
+          "encoded": 1908,
+          "decoded": 4605,
+          "transfer": 2208
+        },
+        {
+          "path": "/assets/clients-CyGF_zSl.js",
+          "encoded": 2990,
+          "decoded": 6987,
+          "transfer": 3290
+        },
+        {
+          "path": "/assets/visibility-jMp-Z3kW.js",
+          "encoded": 142,
+          "decoded": 247,
+          "transfer": 442
+        },
+        {
+          "path": "/assets/plan-dom-CWyHdjml.js",
+          "encoded": 3043,
+          "decoded": 8433,
+          "transfer": 3343
+        },
+        {
+          "path": "/assets/decorate-DDiRByF6.js",
+          "encoded": 1575,
+          "decoded": 3788,
+          "transfer": 1875
+        },
+        {
+          "path": "/assets/outline-NRFFquok.js",
+          "encoded": 1009,
+          "decoded": 2381,
+          "transfer": 1309
+        },
+        {
+          "path": "/assets/virtual-CikFQlUN.js",
+          "encoded": 1296,
+          "decoded": 2998,
+          "transfer": 1596
+        },
+        {
+          "path": "/assets/perf-CmriWRdL.js",
+          "encoded": 298,
+          "decoded": 563,
+          "transfer": 598
+        },
+        {
+          "path": "/assets/dom-anchor-DbcUOA8W.js",
+          "encoded": 1802,
+          "decoded": 4420,
+          "transfer": 2102
+        },
+        {
+          "path": "/assets/levels-CzfTl5uu.js",
+          "encoded": 368,
+          "decoded": 684,
+          "transfer": 668
+        },
+        {
+          "path": "/assets/clients-7hO7tisj.css",
+          "encoded": 9514,
+          "decoded": 42572,
+          "transfer": 9814
+        },
+        {
+          "path": "/assets/firstrun-Cffd1ZOf.js",
+          "encoded": 128,
+          "decoded": 174,
+          "transfer": 428
+        },
+        {
+          "path": "/assets/reading-Ev8gIKQA.js",
+          "encoded": 809,
+          "decoded": 1837,
+          "transfer": 1109
+        },
+        {
+          "path": "/assets/preload-helper-Di4PVeSe.js",
+          "encoded": 679,
+          "decoded": 1531,
+          "transfer": 979
+        },
+        {
+          "path": "/assets/native-CQkreT9R.js",
+          "encoded": 3909,
+          "decoded": 11881,
+          "transfer": 4209
+        },
+        {
+          "path": "/assets/router-DDK1jBwG.js",
+          "encoded": 4192,
+          "decoded": 11290,
+          "transfer": 4492
+        },
+        {
+          "path": "/assets/keymap-BgDOoc2F.json",
+          "encoded": 802,
+          "decoded": 4980,
+          "transfer": 1102
+        },
+        {
+          "path": "/initial-css.json",
+          "encoded": 158,
+          "decoded": 355,
+          "transfer": 458
+        },
+        {
+          "path": "/api/v1/auth/exchange",
+          "encoded": 122,
+          "decoded": 122,
+          "transfer": 422
+        },
+        {
+          "path": "/api/v1/settings",
+          "encoded": 2035,
+          "decoded": 2035,
+          "transfer": 2335
+        },
+        {
+          "path": "/api/v1/ws/ws_713drymjqxmd/ui",
+          "encoded": 8882,
+          "decoded": 35926,
+          "transfer": 9182
+        },
+        {
+          "path": "/assets/i18n-ja-DKiKiZi7.js",
+          "encoded": 178,
+          "decoded": 348,
+          "transfer": 478
+        },
+        {
+          "path": "/assets/catalog-CEciZ-C_.js",
+          "encoded": 129,
+          "decoded": 190,
+          "transfer": 429
+        },
+        {
+          "path": "/assets/Rail-B-oQSTiZ.css",
+          "encoded": 1268,
+          "decoded": 5297,
+          "transfer": 1568
+        },
+        {
+          "path": "/assets/main-iBWEjTXp.css",
+          "encoded": 763,
+          "decoded": 2800,
+          "transfer": 1063
+        },
+        {
+          "path": "/assets/ProposalLayer-C_VlqoU7.css",
+          "encoded": 631,
+          "decoded": 2285,
+          "transfer": 931
+        },
+        {
+          "path": "/assets/ReaderPage-CMxcs2Oh.css",
+          "encoded": 1148,
+          "decoded": 4622,
+          "transfer": 1448
+        },
+        {
+          "path": "/assets/ServerHtml-DB5xN-3m.css",
+          "encoded": 287,
+          "decoded": 873,
+          "transfer": 587
+        },
+        {
+          "path": "/assets/map.ja-BA1GnC6c.json",
+          "encoded": 1837,
+          "decoded": 5286,
+          "transfer": 2137
+        },
+        {
+          "path": "/assets/reader.ja-BNwMYj6m.json",
+          "encoded": 2825,
+          "decoded": 9239,
+          "transfer": 3125
+        },
+        {
+          "path": "/assets/settings.ja-BuGUexIb.json",
+          "encoded": 1687,
+          "decoded": 4534,
+          "transfer": 1987
+        },
+        {
+          "path": "/assets/shell.ja-RTBNV1sy.json",
+          "encoded": 4775,
+          "decoded": 15594,
+          "transfer": 5075
+        }
+      ],
+      "jsWire": 39567,
+      "cssWire": 13611,
+      "dataWire": 23123,
+      "encodedTotal": 77565,
+      "transferTotal": 88365,
+      "jsGzip": 43798,
+      "cssGzip": 15711,
+      "initialUi": {
+        "raw": 35926,
+        "html": 15410,
+        "encoding": "br",
+        "sections": 1,
+        "blocks": 5
+      },
+      "initialAssets": [
+        {
+          "path": "/assets/boot-Cmkbg0xc.js",
+          "encoded": 6747,
+          "decoded": 18564,
+          "transfer": 7047,
+          "encoding": "br",
+          "gzip": 7466,
+          "raw": 18564,
+          "sha256": "5a72522b5a3d12c5611b149ebbe167f2f504a7edc73bab1cbaca05832c88083b",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/src-CIaV-dS-.js",
+          "encoded": 6265,
+          "decoded": 18746,
+          "transfer": 6565,
+          "encoding": "br",
+          "gzip": 7055,
+          "raw": 18746,
+          "sha256": "852a6030ced3325cfb449f3ce255020a81ea8701c26d9d34d86410622da467dc",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/i18n-nTD9Qz4Q.js",
+          "encoded": 2100,
+          "decoded": 5059,
+          "transfer": 2400,
+          "encoding": "br",
+          "gzip": 2322,
+          "raw": 5059,
+          "sha256": "d77587d15f8ad0963b645e2bbab8ea036ef52287f9fdc7c34f24a82fad9d94ee",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/shell-BYC95Yxr.js",
+          "encoded": 1908,
+          "decoded": 4605,
+          "transfer": 2208,
+          "encoding": "br",
+          "gzip": 2119,
+          "raw": 4605,
+          "sha256": "87f81e6a11717c56db778401ba297568f5f17037e316044cd5fadfac741ae8b1",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/clients-CyGF_zSl.js",
+          "encoded": 2990,
+          "decoded": 6987,
+          "transfer": 3290,
+          "encoding": "br",
+          "gzip": 3266,
+          "raw": 6987,
+          "sha256": "446da77e73916761eddea4a1f99461af8b8a809c4048ef5f95a59906b8e8e4db",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/visibility-jMp-Z3kW.js",
+          "encoded": 142,
+          "decoded": 247,
+          "transfer": 442,
+          "encoding": "br",
+          "gzip": 159,
+          "raw": 247,
+          "sha256": "f6d355f6012373483a84652656a4c05fbb6d5d1f3a9cca2f9a0c8a7b8b6beb28",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/plan-dom-CWyHdjml.js",
+          "encoded": 3043,
+          "decoded": 8433,
+          "transfer": 3343,
+          "encoding": "br",
+          "gzip": 3321,
+          "raw": 8433,
+          "sha256": "2d27f4d8b9d8d54bf3396583c85c412c3a47c2a8491ab17e302ef83a6434d594",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/decorate-DDiRByF6.js",
+          "encoded": 1575,
+          "decoded": 3788,
+          "transfer": 1875,
+          "encoding": "br",
+          "gzip": 1727,
+          "raw": 3788,
+          "sha256": "6f541acc7cb706d8f2482e8ee8c4d145161fa8afd3e1b4b66a29c57bfc482207",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/outline-NRFFquok.js",
+          "encoded": 1009,
+          "decoded": 2381,
+          "transfer": 1309,
+          "encoding": "br",
+          "gzip": 1092,
+          "raw": 2381,
+          "sha256": "b214e3dfe2d8f582e6342b1aab1e99e0f381afee4482e64ef21827c15dd891b8",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/virtual-CikFQlUN.js",
+          "encoded": 1296,
+          "decoded": 2998,
+          "transfer": 1596,
+          "encoding": "br",
+          "gzip": 1418,
+          "raw": 2998,
+          "sha256": "a90483b19b300b5dbbfc3a8909449d0ddb4a6c31201667072ba33e13b6c8a7d2",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/perf-CmriWRdL.js",
+          "encoded": 298,
+          "decoded": 563,
+          "transfer": 598,
+          "encoding": "br",
+          "gzip": 349,
+          "raw": 563,
+          "sha256": "869965677d182912c78c4b8fcace13ef216967aef9e4d7b1e5bed2765298e97c",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/dom-anchor-DbcUOA8W.js",
+          "encoded": 1802,
+          "decoded": 4420,
+          "transfer": 2102,
+          "encoding": "br",
+          "gzip": 1960,
+          "raw": 4420,
+          "sha256": "10ebe9175c0eaf1b26329837c63838cd0fd8f8a178461331a0e8e4191b3573dc",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/levels-CzfTl5uu.js",
+          "encoded": 368,
+          "decoded": 684,
+          "transfer": 668,
+          "encoding": "br",
+          "gzip": 424,
+          "raw": 684,
+          "sha256": "a38cd753278d814e7c4e90efc05106ba299b226a41823bb0890d6dbe6d89ec1c",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/clients-7hO7tisj.css",
+          "encoded": 9514,
+          "decoded": 42572,
+          "transfer": 9814,
+          "encoding": "br",
+          "gzip": 10907,
+          "raw": 42572,
+          "sha256": "3fe6bd326622f1eaca443a98071887816b6b953dc0f82f792e05d04caf928ba0",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/firstrun-Cffd1ZOf.js",
+          "encoded": 128,
+          "decoded": 174,
+          "transfer": 428,
+          "encoding": "br",
+          "gzip": 156,
+          "raw": 174,
+          "sha256": "60d80fb5405b3e174e5669e69402bb4efe83e0ebbf67c3a55d0f1bbd27d30169",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/reading-Ev8gIKQA.js",
+          "encoded": 809,
+          "decoded": 1837,
+          "transfer": 1109,
+          "encoding": "br",
+          "gzip": 882,
+          "raw": 1837,
+          "sha256": "3f4b205ce42c1034ccd25fe4436213d86740e959088add2ea2e24847c92915cb",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/preload-helper-Di4PVeSe.js",
+          "encoded": 679,
+          "decoded": 1531,
+          "transfer": 979,
+          "encoding": "br",
+          "gzip": 811,
+          "raw": 1531,
+          "sha256": "d7408ca3dfa6d22e025bff2744c56a56886cc7d0039a074c1c7a4f4dae1ca1d9",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/native-CQkreT9R.js",
+          "encoded": 3909,
+          "decoded": 11881,
+          "transfer": 4209,
+          "encoding": "br",
+          "gzip": 4308,
+          "raw": 11881,
+          "sha256": "94caeb6fb8ee445eeacc676fe453515f908a7b4808f9a994d37878b68ca4533b",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/router-DDK1jBwG.js",
+          "encoded": 4192,
+          "decoded": 11290,
+          "transfer": 4492,
+          "encoding": "br",
+          "gzip": 4587,
+          "raw": 11290,
+          "sha256": "120e5d56e140a5f432cd3ddc416710f826a3ec703f127f99fd0a1d04fb4fc040",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/i18n-ja-DKiKiZi7.js",
+          "encoded": 178,
+          "decoded": 348,
+          "transfer": 478,
+          "encoding": "br",
+          "gzip": 213,
+          "raw": 348,
+          "sha256": "61b1788df25ef04719f4b4b8587a629e38c8b80187c416f1fe902647bce77db7",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/catalog-CEciZ-C_.js",
+          "encoded": 129,
+          "decoded": 190,
+          "transfer": 429,
+          "encoding": "br",
+          "gzip": 163,
+          "raw": 190,
+          "sha256": "dce5a0560a90c120b02ed170207776c66f1f5b25e874342e00de15e7561bef9f",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/Rail-B-oQSTiZ.css",
+          "encoded": 1268,
+          "decoded": 5297,
+          "transfer": 1568,
+          "encoding": "br",
+          "gzip": 1462,
+          "raw": 5297,
+          "sha256": "f8a3df4d1bad766102936a22c25f8ddc6bc562b5480becb582a42d123dd0ae57",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/main-iBWEjTXp.css",
+          "encoded": 763,
+          "decoded": 2800,
+          "transfer": 1063,
+          "encoding": "br",
+          "gzip": 900,
+          "raw": 2800,
+          "sha256": "e5d1fe315a666f66cc711b6751a29eb370d0a3a7e902ce8e18e587100a7fceb0",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/ProposalLayer-C_VlqoU7.css",
+          "encoded": 631,
+          "decoded": 2285,
+          "transfer": 931,
+          "encoding": "br",
+          "gzip": 762,
+          "raw": 2285,
+          "sha256": "b4a049a38334821f49572f7b5bc7736997edfe2b88fe5f32b841f60c127178b6",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/ReaderPage-CMxcs2Oh.css",
+          "encoded": 1148,
+          "decoded": 4622,
+          "transfer": 1448,
+          "encoding": "br",
+          "gzip": 1323,
+          "raw": 4622,
+          "sha256": "e80e320559a6f113b9c32738582acaf85db9225de36591f881337c816c8f4ad6",
+          "matchesManifest": true
+        },
+        {
+          "path": "/assets/ServerHtml-DB5xN-3m.css",
+          "encoded": 287,
+          "decoded": 873,
+          "transfer": 587,
+          "encoding": "br",
+          "gzip": 357,
+          "raw": 873,
+          "sha256": "e6cf819dd305f99a14e0b26511659911f471bdd68b98770ad9ca1765569fed88",
+          "matchesManifest": true
+        }
+      ]
+    }
+  ]
+}

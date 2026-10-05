@@ -1,5 +1,7 @@
 /** Shared helpers of the WP-10a Playwright specs. */
-import type { Page } from "@playwright/test";
+
+import { loadavg } from "node:os";
+import type { Page, TestInfo } from "@playwright/test";
 
 export const WS = "ws_cr1t00000000";
 export const BASE = `http://127.0.0.1:${process.env.MOCK_PORT ?? 4318}`;
@@ -45,14 +47,48 @@ export async function waitMark(page: Page, name: string, after = 0, timeout = 10
 
 export const now = (page: Page) => page.evaluate(() => performance.now());
 
+/** Actual browser input → the existing paint mark; excludes Playwright transport and actionability waits. */
+export async function inputToMark(page: Page, event: "click" | "keydown", action: () => Promise<unknown>, name: string): Promise<number> {
+  const input = `mitori:test:input:${event}`;
+  await page.evaluate(
+    ([type, mark]) => {
+      performance.clearMarks(mark);
+      window.addEventListener(type, (e) => performance.mark(mark, { startTime: e.timeStamp, detail: { trusted: e.isTrusted, handlerAt: performance.now() } }), {
+        once: true,
+        capture: true,
+      });
+    },
+    [event, input] as const,
+  );
+  await action();
+  const trigger = await page.evaluate((mark) => {
+    const e = performance.getEntriesByName(mark, "mark").at(-1) as PerformanceMark | undefined;
+    if (!e?.detail?.trusted) throw new Error("Trusted browser input was not observed");
+    return { at: e.startTime, handlerAt: e.detail.handlerAt as number };
+  }, input);
+  const painted = await waitMark(page, name, trigger.at);
+  console.log(
+    `[input→paint] ${name}: queue ${(trigger.handlerAt - trigger.at).toFixed(1)} / handler→mark ${(painted - trigger.handlerAt).toFixed(1)} ms; host load ${loadavg()[0]?.toFixed(2)}`,
+  );
+  return painted - trigger.at;
+}
+
 export function p95(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
   return s[Math.min(s.length - 1, Math.ceil(s.length * 0.95) - 1)] ?? 0;
 }
 
+/** The reference time budgets and Chromium-only probes are not baseline measurements for another engine. */
+export function chromiumMetric(browserName: string, info: TestInfo, metric: string): boolean {
+  if (browserName === "chromium") return true;
+  info.annotations.push({ type: "skip-metric", description: `${metric}: Chromium only (${browserName})` });
+  return false;
+}
+
 /** Cumulative layout shift observed so far (buffered), excluding shifts right after input. */
 export async function installCls(page: Page): Promise<void> {
   await page.addInitScript(() => {
+    if (!PerformanceObserver.supportedEntryTypes.includes("layout-shift")) throw new Error("layout-shift PerformanceObserver unavailable");
     (window as unknown as { __cls: number }).__cls = 0;
     (window as unknown as { __clsSources: unknown[] }).__clsSources = [];
     new PerformanceObserver((list) => {

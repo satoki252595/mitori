@@ -27,3 +27,7 @@
 - `@mitori/testkit`（test 専用）を `PACKAGE_DEPS` に追加。全 package に依存してよく、どの production package からも依存されない。各 package は test 専用の subpath `@mitori/<pkg>/testing`（`src/testing.ts`）を export してよい（`test/**`・`e2e/**`・`bench/**`・`eval/**`・testkit からのみ import 可）。
 - `@mitori/doc` の重い処理（ELK・Shiki）は factory に `WorkerPool` を注入して行う（`createBlockRenderer` / `createDiagramLayouter` / `createHtmlExporter`）。doc は Bun API もファイル読みも直接使わない。
 - composition root と配線は `contracts/server.ts`（`createServer`・`DOMAIN_WIRING`）が正本。
+
+## 改訂 R2（2026-10-06、CR test-7）
+
+- test codeからは既存helperだけを公開する `@mitori/testkit/fixtures` / `@mitori/testkit/golden` も使用できる。全barrel経由の不要な型検査を避けるための完全一致2subpathに限り、productionからのtestkit importとその他のdeep importは禁止を維持する。

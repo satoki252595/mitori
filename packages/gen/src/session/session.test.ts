@@ -284,13 +284,27 @@ describe("AC-45 phases: the next phase sees the previous phase's output", () => 
     expect(r2.next).toEqual({ prep: p2.id, phase: 3 });
     const p3 = await h.gen.session.prep({ effort: "standard", continueFrom: p2.id });
     expect(tasksOf(h, p3).map((t) => t.prompt)).toEqual(
-      (["gen.quality", "gen.risks", "gen.decisions", "gen.overview", "gen.flows", "gen.glossary", "gen.questions"] as const).map((id) => v(id)),
+      (["gen.quality", "gen.risks", "gen.decisions", "gen.overview", "gen.flows"] as const).map((id) => v(id)),
     );
-    expect(tasksOf(h, p3).find((t) => t.prompt === v("gen.glossary"))?.after.length).toBe(2);
     answer(h, p3);
     const r3 = await h.gen.session.ingest({ prep: p3.id, fingerprint: p3.fingerprint, partial: false });
     expect(r3.ok).toBe(true);
-    expect(r3.next).toBeNull();
+    expect(r3.next).toEqual({ prep: p3.id, phase: 3 });
+    let next = r3.next;
+    let questionsPrepared = false;
+    while (next) {
+      const packet = await h.gen.session.prep({ effort: "standard", continueFrom: next.prep });
+      const questions = tasksOf(h, packet).find((t) => t.prompt === v("gen.questions"));
+      if (questions) {
+        expect(file(h, packet, questions.input)).toContain("behavior src/http/server.ts:5-7 | 受け付ける");
+        questionsPrepared = true;
+      }
+      answer(h, packet);
+      const result = await h.gen.session.ingest({ prep: packet.id, fingerprint: packet.fingerprint, partial: false });
+      expect(result.ok).toBe(true);
+      next = result.next;
+    }
+    expect(questionsPrepared).toBe(true);
     const runId = h.db.get<{ run: string }>("SELECT run FROM gen_prep WHERE id = ?", [p3.id])?.run as `gr_${string}`;
     expect(h.gen.run(runId)?.run.state).toBe("done");
     expect(h.gen.run(runId)?.run.usage.calls).toBe(0);
@@ -322,6 +336,7 @@ describe("AC-45 phases: the next phase sees the previous phase's output", () => 
     }
     // the agent's glossary omitted the repo seed: ingest merges it like the push path does
     expect(h.doc.index().glossary.map((g) => g.term)).toEqual(["セッション", "積読"]);
+    const firstRun = h.db.get<{ id: string }>("SELECT id FROM gen_runs")?.id;
     h.doc.setGlossary([]);
     await expect(h.gen.session.prep({ effort: "standard" })).rejects.toMatchObject({ code: "E_PRECONDITION" });
     // the replayed glossary task wrote the glossary again
@@ -329,7 +344,7 @@ describe("AC-45 phases: the next phase sees the previous phase's output", () => 
     const runs = h.db.all<{ id: string; state: string }>("SELECT id, state FROM gen_runs ORDER BY created_at, id");
     expect(runs.length).toBe(2);
     expect(runs.map((r) => r.state)).toEqual(["done", "done"]);
-    expect(h.gen.run(runs[1]?.id as `gr_${string}`)?.tasks.every((t) => t.state === "cached")).toBe(true);
+    expect(h.gen.run(runs.find((r) => r.id !== firstRun)?.id as `gr_${string}`)?.tasks.every((t) => t.state === "cached")).toBe(true);
   });
 
   test("continuing before the phase is complete is refused", async () => {

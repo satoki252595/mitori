@@ -1,0 +1,540 @@
+{
+  "schema": "mitori.crossbrowser/1",
+  "gitHead": "815957fd01fb4856b5ae8d3aa2091edd1ddd263f",
+  "dirty": true,
+  "reports": [
+    {
+      "name": "initial-firefox-webkit",
+      "started": "2026-10-05T02:36:20.756Z",
+      "durationMs": 369235.218,
+      "projects": {
+        "firefox": {
+          "passed": 92,
+          "failed": 3,
+          "skipped": 7
+        },
+        "webkit": {
+          "passed": 88,
+          "failed": 7,
+          "skipped": 7
+        }
+      },
+      "failures": [
+        {
+          "file": "composer-quote.pw.ts",
+          "title": "@wp10a Composer quote: a long selection shows exactly two lines, no sliver of a third",
+          "project": "webkit",
+          "status": "failed",
+          "durationMs": 10446,
+          "annotations": [],
+          "errors": [
+            "Error: expect(locator).toBeVisible() failed\n\nLocator: locator('.cm-q')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" locator('.cm-q') with timeout 10000ms\n  - waiting for locator('.cm-q')\n\n\n  24 |   await page.keyboard.press(\"e\");\n  25 |   const q = page.locator(\".cm-q\");\n> 26 |   await expect(q).toBeVisible({ timeout: 10_000 });\n     |                   ^\n  27 |   const m = await q.evaluate((el) => {\n  28 |     const cs = getComputedStyle(el);\n  29 |     return { client: el.clientHeight, scroll: el.scrollHeight, lh: Number.parseFloat(cs.lineHeight) };\n    at /Users/satoki252595/work/20261002_aiAgentTool/e2e/web/composer-quote.pw.ts:26:19"
+          ],
+          "stdout": ""
+        },
+        {
+          "file": "export-dialog.pw.ts",
+          "title": "@wp10a export dialog from the settings page; Escape closes it and returns focus to the button",
+          "project": "webkit",
+          "status": "failed",
+          "durationMs": 5790,
+          "annotations": [],
+          "errors": [
+            "Error: expect(locator).toBeFocused() failed\n\nLocator:  getByRole('button', { name: 'HTMLとして書き出す…' })\nExpected: focused\nReceived: inactive\nTimeout:  5000ms\n\nCall log:\n  - Expect \"toBeFocused\" getByRole('button', { name: 'HTMLとして書き出す…' }) with timeout 5000ms\n  - waiting for getByRole('button', { name: 'HTMLとして書き出す…' })\n    14 × locator resolved to <button type=\"button\" class=\"btn btn-sec btn-s\">HTMLとして書き出す…</button>\n       - unexpected value \"inactive\"\n\n\n  60 |   await page.keyboard.press(\"Escape\");\n  61 |   await expect(dlg).toHaveCount(0);\n> 62 |   await expect(open).toBeFocused();\n     |                      ^\n  63 | });\n  64 |\n    at /Users/satoki252595/work/20261002_aiAgentTool/e2e/web/export-dialog.pw.ts:62:22"
+          ],
+          "stdout": ""
+        },
+        {
+          "file": "map.pw.ts",
+          "title": "@wp10a AC-J07 room click → card ≤ 100 ms; Enter → Reader section p95 ≤ 100 ms; camera ≤ 300 ms",
+          "project": "firefox",
+          "status": "failed",
+          "durationMs": 90073,
+          "annotations": [
+            {
+              "type": "skip-metric",
+              "description": "room/card/section/camera time budgets: Chromium only (firefox)"
+            }
+          ],
+          "errors": [
+            "Test timeout of 90000ms exceeded.",
+            "Error: locator.click: Test timeout of 90000ms exceeded.\nCall log:\n  - waiting for locator('.room[data-node=\"md_daemon00\"]')\n    - locator resolved to <a class=\"room\" tabindex=\"-1\" data-lod=\"md\" data-fresh=\"unknown\" data-node=\"md_daemon00\" href=\"/w/ws_cr1t00000000?room=md_daemon00\" aria-label=\"常駐・中核 デーモンとAPI · 9ファイル · スレッド1\">…</a>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <rect class=\"fl\" width=\"100%\" height=\"100%\"></rect> from <a class=\"room\" tabindex=\"-1\" data-lod=\"md\" data-fresh=\"unknown\" data-node=\"md_vcs00000\" aria-label=\"外部連携 差分とVCS · 7ファイル · スレッド0\" href=\"/w/ws_cr1t00000000?room=md_vcs00000\">…</a> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <rect class=\"fl\" width=\"100%\" height=\"100%\"></rect> from <a class=\"room\" tabindex=\"-1\" data-lod=\"md\" data-fresh=\"unknown\" data-node=\"md_vcs00000\" aria-label=\"外部連携 差分とVCS · 7ファイル · スレッド0\" href=\"/w/ws_cr1t00000000?room=md_vcs00000\">…</a> subtree intercepts pointer even"
+          ],
+          "stdout": ""
+        },
+        {
+          "file": "map.pw.ts",
+          "title": "@wp10a S1 flows: ⇧1 overlays §3.1 (numbered tags, pins fade), again clears; ?flow= restores; the room card lists the flows through a room",
+          "project": "firefox",
+          "status": "failed",
+          "durationMs": 90068,
+          "annotations": [],
+          "errors": [
+            "Test timeout of 90000ms exceeded.",
+            "Error: locator.click: Test timeout of 90000ms exceeded.\nCall log:\n  - waiting for locator('.room[data-node=\"md_session0\"]')\n    - locator resolved to <a class=\"room\" tabindex=\"-1\" data-lod=\"md\" data-fresh=\"stale\" data-node=\"md_session0\" href=\"/w/ws_cr1t00000000?room=md_session0\" aria-label=\"常駐・中核 セッションとコメント · 18ファイル · スレッド2\">…</a>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n    - waiting 20ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - element is outside of the viewport\n  2 × retrying click action\n      - waiting 100ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <rect class=\"fl\" width=\"100%\" height=\"100%\"></rect> from <a class=\"room\" tabindex=\"-1\" data-lod=\"md\" data-fresh=\"unknown\" data-node=\"md_prmr0000\" href=\"/w/ws_cr1t00000000?room=md_prmr0000\" aria-label=\"外部連携 PR/MR同期と共有 · 11ファイル · スレッド0\">…</a> subtree"
+          ],
+          "stdout": ""
+        },
+        {
+          "file": "reader.pw.ts",
+          "title": "@wp10a S2 `o` pins the focused cite in code mode; Escape returns to the previous mode and the URL drops ctx / pin (ux.md §4.4)",
+          "project": "firefox",
+          "status": "failed",
+          "durationMs": 5354,
+          "annotations": [],
+          "errors": [
+            "Error: expect(locator).toHaveAttribute(expected) failed\n\nLocator:  locator('aside.ctx')\nExpected: \"margin\"\nReceived: \"code\"\nTimeout:  5000ms\n\nCall log:\n  - Expect \"toHaveAttribute\" locator('aside.ctx') with timeout 5000ms\n  - waiting for locator('aside.ctx')\n    14 × locator resolved to <aside data-mode=\"code\" aria-label=\"コード\" data-place=\"column\" class=\"ctx svelte-g65eb4\">…</aside>\n       - unexpected value \"code\"\n\n\n  245 |   expect(new URL(page.url()).searchParams.get(\"pin\")).toMatch(/:\\d+-\\d+$/);\n  246 |   await page.keyboard.press(\"Escape\");\n> 247 |   await expect(ctx).toHaveAttribute(\"data-mode\", \"margin\");\n      |                     ^\n  248 |   expect(new URL(page.url()).searchParams.get(\"ctx\")).toBeNull();\n  249 |   expect(new URL(page.url()).searchParams.get(\"pin\")).toBeNull();\n  250 | });\n    at /Users/satoki252595/work/20261002_aiAgentTool/e2e/web/reader.pw.ts:247:21"
+          ],
+          "stdout": ""
+        },
+        {
+          "file": "reader.pw.ts",
+          "title": "@wp10a S2 `o` pins the focused cite in code mode; Escape returns to the previous mode and the URL drops ctx / pin (ux.md §4.4)",
+          "project": "webkit",
+          "status": "failed",
+          "durationMs": 5403,
+          "annotations": [],
+          "errors": [
+            "Error: expect(locator).toHaveAttribute(expected) failed\n\nLocator:  locator('aside.ctx')\nExpected: \"margin\"\nReceived: \"code\"\nTimeout:  5000ms\n\nCall log:\n  - Expect \"toHaveAttribute\" locator('aside.ctx') with timeout 5000ms\n  - waiting for locator('aside.ctx')\n    14 × locator resolved to <aside data-mode=\"code\" aria-label=\"コード\" data-place=\"column\" class=\"ctx svelte-g65eb4\">…</aside>\n       - unexpected value \"code\"\n\n\n  245 |   expect(new URL(page.url()).searchParams.get(\"pin\")).toMatch(/:\\d+-\\d+$/);\n  246 |   await page.keyboard.press(\"Escape\");\n> 247 |   await expect(ctx).toHaveAttribute(\"data-mode\", \"margin\");\n      |                     ^\n  248 |   expect(new URL(page.url()).searchParams.get(\"ctx\")).toBeNull();\n  249 |   expect(new URL(page.url()).searchParams.get(\"pin\")).toBeNull();\n  250 | });\n    at /Users/satoki252595/work/20261002_aiAgentTool/e2e/web/reader.pw.ts:247:21"
+          ],
+          "stdout": ""
+        },
+        {
+          "file": "viewports.pw.ts",
+          "title": "@wp10a AC-U-W01 S2 code 1180×820: no horizontal scroll, measure ≥ 34 字, controls in view",
+          "project": "webkit",
+          "status": "failed",
+          "durationMs": 664,
+          "annotations": [],
+          "errors": [
+            "Error: horizontal page scroll\n\nexpect(received).toBeLessThanOrEqual(expected)\n\nExpected: <= 0\nReceived:    1\n\n  78 |         };\n  79 |       });\n> 80 |       expect(m.hScroll, \"horizontal page scroll\").toBeLessThanOrEqual(0);\n     |                                                   ^\n  81 |       expect(m.off, \"header / status controls outside the viewport\").toEqual([]);\n  82 |       if (sc.name !== \"S1\") {\n  83 |         expect(m.measure, \"Reader line length in full-width characters\").not.toBeNull();\n    at /Users/satoki252595/work/20261002_aiAgentTool/e2e/web/viewports.pw.ts:80:51"
+          ],
+          "stdout": ""
+        },
+        {
+          "file": "viewports.pw.ts",
+          "title": "@wp10a AC-U-W01 S2 code 1194×834: no horizontal scroll, measure ≥ 34 字, controls in view",
+          "project": "webkit",
+          "status": "failed",
+          "durationMs": 673,
+          "annotations": [],
+          "errors": [
+            "Error: horizontal page scroll\n\nexpect(received).toBeLessThanOrEqual(expected)\n\nExpected: <= 0\nReceived:    1\n\n  78 |         };\n  79 |       });\n> 80 |       expect(m.hScroll, \"horizontal page scroll\").toBeLessThanOrEqual(0);\n     |                                                   ^\n  81 |       expect(m.off, \"header / status controls outside the viewport\").toEqual([]);\n  82 |       if (sc.name !== \"S1\") {\n  83 |         expect(m.measure, \"Reader line length in full-width characters\").not.toBeNull();\n    at /Users/satoki252595/work/20261002_aiAgentTool/e2e/web/viewports.pw.ts:80:51"
+          ],
+          "stdout": ""
+        },
+        {
+          "file": "viewports.pw.ts",
+          "title": "@wp10a AC-U-W01 S2 code 1280×720: no horizontal scroll, measure ≥ 34 字, controls in view",
+          "project": "webkit",
+          "status": "failed",
+          "durationMs": 678,
+          "annotations": [],
+          "errors": [
+            "Error: horizontal page scroll\n\nexpect(received).toBeLessThanOrEqual(expected)\n\nExpected: <= 0\nReceived:    1\n\n  78 |         };\n  79 |       });\n> 80 |       expect(m.hScroll, \"horizontal page scroll\").toBeLessThanOrEqual(0);\n     |                                                   ^\n  81 |       expect(m.off, \"header / status controls outside the viewport\").toEqual([]);\n  82 |       if (sc.name !== \"S1\") {\n  83 |         expect(m.measure, \"Reader line length in full-width characters\").not.toBeNull();\n    at /Users/satoki252595/work/20261002_aiAgentTool/e2e/web/viewports.pw.ts:80:51"
+          ],
+          "stdout": ""
+        },
+        {
+          "file": "viewports.pw.ts",
+          "title": "@wp10a AC-U-W01 S2 code 1280×800: no horizontal scroll, measure ≥ 34 字, controls in view",
+          "project": "webkit",
+          "status": "failed",
+          "durationMs": 690,
+          "annotations": [],
+          "errors": [
+            "Error: horizontal page scroll\n\nexpect(received).toBeLessThanOrEqual(expected)\n\nExpected: <= 0\nReceived:    1\n\n  78 |         };\n  79 |       });\n> 80 |       expect(m.hScroll, \"horizontal page scroll\").toBeLessThanOrEqual(0);\n     |                                                   ^\n  81 |       expect(m.off, \"header / status controls outside the viewport\").toEqual([]);\n  82 |       if (sc.name !== \"S1\") {\n  83 |         expect(m.measure, \"Reader line length in full-width characters\").not.toBeNull();\n    at /Users/satoki252595/work/20261002_aiAgentTool/e2e/web/viewports.pw.ts:80:51"
+          ],
+          "stdout": ""
+        }
+      ],
+      "skipped": [
+        {
+          "title": "@wp10a IME: keyCode 229 fires no single-key shortcut and shows the IME hint once",
+          "project": "firefox",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "Trusted IME automation requires Chromium CDP; other engines run DOM event replay.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/ime.pw.ts",
+                "line": 10,
+                "column": 6
+              }
+            }
+          ]
+        },
+        {
+          "title": "@wp10a IME: Enter / Escape during composition in ⌘K do nothing; Enter after the commit opens the item",
+          "project": "firefox",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "Trusted IME automation requires Chromium CDP; other engines run DOM event replay.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/ime.pw.ts",
+                "line": 10,
+                "column": 6
+              }
+            }
+          ]
+        },
+        {
+          "title": "@wp10a IME: keyCode 229 fires no single-key shortcut and shows the IME hint once",
+          "project": "webkit",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "Trusted IME automation requires Chromium CDP; other engines run DOM event replay.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/ime.pw.ts",
+                "line": 10,
+                "column": 6
+              }
+            }
+          ]
+        },
+        {
+          "title": "@wp10a IME: Enter / Escape during composition in ⌘K do nothing; Enter after the commit opens the item",
+          "project": "webkit",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "Trusted IME automation requires Chromium CDP; other engines run DOM event replay.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/ime.pw.ts",
+                "line": 10,
+                "column": 6
+              }
+            }
+          ]
+        },
+        {
+          "title": "@wp10a reader root listeners ≤ 10 and CLS 0 at boot",
+          "project": "firefox",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "Reader listener probe requires CDP and CLS requires layout-shift PerformanceObserver.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/reader.pw.ts",
+                "line": 98,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "@wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900)",
+          "project": "firefox",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "CLS requires layout-shift PerformanceObserver.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/reader.pw.ts",
+                "line": 133,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "@wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1280×800)",
+          "project": "firefox",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "CLS requires layout-shift PerformanceObserver.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/reader.pw.ts",
+                "line": 133,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "@wp10a reader root listeners ≤ 10 and CLS 0 at boot",
+          "project": "webkit",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "Reader listener probe requires CDP and CLS requires layout-shift PerformanceObserver.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/reader.pw.ts",
+                "line": 98,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "@wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1440×900)",
+          "project": "webkit",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "CLS requires layout-shift PerformanceObserver.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/reader.pw.ts",
+                "line": 133,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "@wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (1280×800)",
+          "project": "webkit",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "CLS requires layout-shift PerformanceObserver.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/reader.pw.ts",
+                "line": 133,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "@wp10a asset budget S1: initial JS ≤ 150 KB gz, CSS ≤ 25 KB, no fonts, no cm6",
+          "project": "firefox",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "Served-byte performance budgets use the Chromium reference probe.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/size.pw.ts",
+                "line": 15,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "@wp10a asset budget S2: initial JS ≤ 150 KB gz, CSS ≤ 25 KB, no fonts, no cm6",
+          "project": "firefox",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "Served-byte performance budgets use the Chromium reference probe.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/size.pw.ts",
+                "line": 15,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "@wp10a asset budget S1: initial JS ≤ 150 KB gz, CSS ≤ 25 KB, no fonts, no cm6",
+          "project": "webkit",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "Served-byte performance budgets use the Chromium reference probe.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/size.pw.ts",
+                "line": 15,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "@wp10a asset budget S2: initial JS ≤ 150 KB gz, CSS ≤ 25 KB, no fonts, no cm6",
+          "project": "webkit",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "Served-byte performance budgets use the Chromium reference probe.",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/web/size.pw.ts",
+                "line": 15,
+                "column": 10
+              }
+            }
+          ]
+        }
+      ],
+      "metricExclusions": [
+        "HeapProfiler measurements and heap ceiling: Chromium only (firefox)",
+        "HeapProfiler measurements and heap ceiling: Chromium only (webkit)",
+        "language-switch layout-shift: Chromium only (firefox)",
+        "language-switch layout-shift: Chromium only (webkit)",
+        "room/card/section/camera time budgets: Chromium only (firefox)",
+        "room/card/section/camera time budgets: Chromium only (webkit)",
+        "50k palette worker matching ≤ 16ms: Chromium only (firefox)",
+        "50k palette worker matching ≤ 16ms: Chromium only (webkit)",
+        "reader level ≤ 50ms: Chromium only (firefox)",
+        "section transitions ≤ 100ms: Chromium only (firefox)",
+        "returning browser CLS: Chromium only (firefox)",
+        "reader level ≤ 50ms: Chromium only (webkit)",
+        "section transitions ≤ 100ms: Chromium only (webkit)",
+        "returning browser CLS: Chromium only (webkit)",
+        "streaming layout-shift: Chromium only (firefox)",
+        "streaming layout-shift: Chromium only (webkit)"
+      ],
+      "measurements": [
+        {
+          "title": "@wp10a F6/F7 10000-block section: DOM bounded, heap measured, ⌘K full text over it",
+          "project": "firefox",
+          "stdout": "[big] {\"blocks\":10000,\"firstPaintMs\":134,\"nodesAtPaint\":1393,\"maxNodes\":1916,\"heapMb\":{\"s0\":null,\"reader\":null,\"withTextIndex\":null},\"fullTextFirstHitMs\":34}"
+        },
+        {
+          "title": "@wp10a F6/F7 10000-block section: DOM bounded, heap measured, ⌘K full text over it",
+          "project": "webkit",
+          "stdout": "[big] {\"blocks\":10000,\"firstPaintMs\":101,\"nodesAtPaint\":1393,\"maxNodes\":2446,\"heapMb\":{\"s0\":null,\"reader\":null,\"withTextIndex\":null},\"fullTextFirstHitMs\":22}"
+        },
+        {
+          "title": "@wp10a AC-J07 room click → card ≤ 100 ms; Enter → Reader section p95 ≤ 100 ms; camera ≤ 300 ms",
+          "project": "webkit",
+          "stdout": "[AC-J07] card 56,42,49,41,49 ms · open 37,12,13,12,12 ms"
+        },
+        {
+          "title": "@wp10a AC-J46 50k items: mochi / mochikoshi / motikosi / もちこし / carry → 持ち越し first, ≤ 16 ms per keystroke",
+          "project": "firefox",
+          "stdout": "[palette] worker ms p95 4 (n=29, max 4)"
+        },
+        {
+          "title": "@wp10a AC-J46 50k items: mochi / mochikoshi / motikosi / もちこし / carry → 持ち越し first, ≤ 16 ms per keystroke",
+          "project": "webkit",
+          "stdout": "[palette] worker ms p95 3 (n=29, max 3)"
+        },
+        {
+          "title": "@wp10a 1,000-block Reader: DOM ≤ 5k nodes, j/k reaches far blocks, one gutter",
+          "project": "firefox",
+          "stdout": "[dom] 1000-block page: 1377 nodes"
+        },
+        {
+          "title": "@wp10a reader level switch ≤ 50 ms, no fetch, position kept (AC-J20)",
+          "project": "firefox",
+          "stdout": "[level] 8.0, 10.0, 7.0, 10.0, 3.0, 3.0 ms"
+        },
+        {
+          "title": "@wp10a section transitions p95 ≤ 100 ms (TOC clicks)",
+          "project": "firefox",
+          "stdout": "[section] 30, 31, 29, 23, 20, 29, 24, 21, 23, 21 ms"
+        },
+        {
+          "title": "@wp10a 1,000-block Reader: DOM ≤ 5k nodes, j/k reaches far blocks, one gutter",
+          "project": "webkit",
+          "stdout": "[dom] 1000-block page: 1377 nodes"
+        },
+        {
+          "title": "@wp10a reader level switch ≤ 50 ms, no fetch, position kept (AC-J20)",
+          "project": "webkit",
+          "stdout": "[level] 8.0, 6.0, 17.0, 11.0, 4.0, 10.0 ms"
+        },
+        {
+          "title": "@wp10a section transitions p95 ≤ 100 ms (TOC clicks)",
+          "project": "webkit",
+          "stdout": "[section] 21, 42, 42, 21, 39, 39, 41, 40, 41, 39 ms"
+        }
+      ]
+    },
+    {
+      "name": "fixed-firefox-webkit",
+      "started": "2026-10-05T02:55:42.643Z",
+      "durationMs": 10352.378999999999,
+      "projects": {
+        "firefox": {
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0
+        },
+        "webkit": {
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0
+        }
+      },
+      "failures": [],
+      "skipped": [],
+      "metricExclusions": [],
+      "measurements": []
+    },
+    {
+      "name": "fixed-chromium",
+      "started": "2026-10-05T02:56:15.428Z",
+      "durationMs": 4562.78,
+      "projects": {
+        "chromium": {
+          "passed": 10,
+          "failed": 0,
+          "skipped": 0
+        }
+      },
+      "failures": [],
+      "skipped": [],
+      "metricExclusions": [],
+      "measurements": []
+    },
+    {
+      "name": "pagination-chromium",
+      "started": "2026-10-05T02:55:43.833Z",
+      "durationMs": 718.1669999999999,
+      "projects": {
+        "chromium": {
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0
+        }
+      },
+      "failures": [],
+      "skipped": [],
+      "metricExclusions": [],
+      "measurements": []
+    },
+    {
+      "name": "map-all-engines",
+      "started": "2026-10-05T02:57:23.354Z",
+      "durationMs": 8461.184,
+      "projects": {
+        "chromium": {
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0
+        },
+        "firefox": {
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0
+        },
+        "webkit": {
+          "passed": 3,
+          "failed": 0,
+          "skipped": 0
+        }
+      },
+      "failures": [],
+      "skipped": [],
+      "metricExclusions": [
+        "first useful screen time budgets: Chromium only (firefox)",
+        "room/card/section/camera time budgets: Chromium only (firefox)",
+        "first useful screen time budgets: Chromium only (webkit)",
+        "room/card/section/camera time budgets: Chromium only (webkit)"
+      ],
+      "measurements": [
+        {
+          "title": "@wp10a AC-J07 room click → card ≤ 100 ms; Enter → Reader section p95 ≤ 100 ms; camera ≤ 300 ms",
+          "project": "chromium",
+          "stdout": "[AC-J07] card 76,43,47,48,47 ms · open 27,25,27,26,27 ms"
+        },
+        {
+          "title": "@wp10a AC-J07 room click → card ≤ 100 ms; Enter → Reader section p95 ≤ 100 ms; camera ≤ 300 ms",
+          "project": "firefox",
+          "stdout": "[AC-J07] card 117,3,42,25,3 ms · open 33,22,19,17,12 ms"
+        },
+        {
+          "title": "@wp10a AC-J07 room click → card ≤ 100 ms; Enter → Reader section p95 ≤ 100 ms; camera ≤ 300 ms",
+          "project": "webkit",
+          "stdout": "[AC-J07] card 55,36,51,42,42 ms · open 41,16,24,24,25 ms"
+        }
+      ]
+    }
+  ]
+}

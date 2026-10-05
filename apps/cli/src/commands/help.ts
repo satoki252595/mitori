@@ -123,6 +123,16 @@ mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in
   Change an execution setting (engines.*, limits.*, pins, security.*, …). Needs a TTY confirmation. <value> is JSON or a string.
 `,
   },
+  share: {
+    ja: `mitori share --server <HTTPS origin> [--ttl-days 1..30] [--code] [--decisions] [-o viewer.html]
+  設計書を暗号化して期限付きリンクで共有します（TTY確認）。コード抜粋は --code で追加。リンクの鍵はブラウザ履歴・同期に残ります。
+  -o は CLI に固定した viewer を保存し、表示した SHA-256 で viewer の同一性を確認できます。
+`,
+    en: `mitori share --server <HTTPS origin> [--ttl-days 1..30] [--code] [--decisions] [-o viewer.html]
+  Publish an encrypted, expiring doc snapshot after human TTY confirmation. --code opts in to excerpts. Keys remain in browser history/sync.
+  -o saves the CLI-pinned viewer; compare the displayed script SHA-256 for integrity.
+`,
+  },
   export: {
     ja: `mitori export --html [-o|--out <file|dir>] [--no-code] [--level newcomer|standard|expert] [--lang ja|en] [--decisions]
   ネットワーク不要・読み取り専用の 1 ファイルの HTML を書きます（目次・読者レベル・出典の抜粋・図・⌘K 検索つき。秘密らしき文字列は伏せ字にして件数を表示）。

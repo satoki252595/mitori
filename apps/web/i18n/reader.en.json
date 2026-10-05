@@ -137,5 +137,18 @@
   "reader.genPausedBudget": "Generation paused at 80 % of its budget. This section is not written yet",
   "reader.genResume": "Resume",
   "reader.translateAsk": "Ask the AI to explain it in English",
-  "reader.translateAskBody": "Explain this section in English: the main points and what each name it mentions does."
+  "reader.translateAskBody": "Explain this section in English: the main points and what each name it mentions does.",
+  "reader.act.simplify": "Propose a simpler version of this paragraph",
+  "reader.act.translate": "Translate this paragraph",
+  "reader.translate": "Show a translation of this section",
+  "reader.translationShown": "Showing translation (original preserved)",
+  "reader.showOriginal": "Show original",
+  "reader.op.confirm": "Start {op}?\nModel: {model}\nEstimated {tokens} tokens, API equivalent ~${usd} (actual billing depends on the engine)",
+  "reader.op.proposal": "Preparing a simplification proposal. The text changes only after you review and accept it",
+  "reader.op.translating": "Preparing translation. It will appear when complete",
+  "reader.op.translationFailed": "Translation failed. Showing the original text",
+  "reader.op.failed": "Document operation failed: {error}",
+  "history.revert": "Restore this revision",
+  "history.revertConfirm": "Restore this paragraph to R{rev}? The current text stays in history and can be restored again",
+  "history.reverted": "Restored paragraph text from R{rev}"
 }

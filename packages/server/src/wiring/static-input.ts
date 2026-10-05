@@ -10,6 +10,7 @@ import type {
   DiagramIR,
   DiagramNode,
   ExcludeReason,
+  FloorZone,
   FsReader,
   ModuleId,
   ModuleInfo,
@@ -67,6 +68,116 @@ function prefixOf(paths: readonly string[]): string {
 
 const leafPaths = (m: ModuleInfo, byId: Map<ModuleId, ModuleInfo>): string[] =>
   m.children.length === 0 ? m.paths : m.children.flatMap((c) => (byId.has(c) ? leafPaths(byId.get(c) as ModuleInfo, byId) : []));
+
+const INFRA_DEPS =
+  /^(?:@aws-sdk\/|(?:pg|mysql|sqlite|redis|prisma|drizzle|gorm|sqlalchemy|axios|node-fetch|reqwest|aws-sdk|google-cloud|boto3|kafka|amqp|nats)(?:$|[-/.]))/;
+
+/** WP-18 ordered classifier. Files and facts are from the existing scan; no I/O or LLM calls. */
+export async function floorZone(indexer: Indexer, paths: readonly string[]): Promise<FloorZone> {
+  const members = new Set(paths);
+  const facts = indexer.facts().filter((f) => members.has(f.path));
+  if (
+    facts.some((f) => f.kind === "entry" && f.entry !== "test_main") ||
+    facts.some((f) => f.kind === "cli") ||
+    facts.filter((f) => f.kind === "route" && f.handler).length >= 3
+  )
+    return "entry";
+  const total = paths.reduce((a, p) => a + (indexer.file(p as ModuleInfo["paths"][number])?.loc ?? 0), 0);
+  const loc = (test: (p: string) => boolean) => paths.reduce((a, p) => a + (test(p) ? (indexer.file(p as ModuleInfo["paths"][number])?.loc ?? 0) : 0), 0);
+  // A cross-directory module has no common prefix. A named directory is dominant only with a majority of source LOC.
+  const hasDir = (re: RegExp) =>
+    total > 0 &&
+    loc((p) =>
+      p
+        .split("/")
+        .slice(0, -1)
+        .some((d) => re.test(d)),
+    ) /
+      total >=
+      0.5;
+  if ((total > 0 && loc((p) => /\.(?:tsx|jsx|svelte|vue|css)$/.test(p)) / total >= 0.6) || hasDir(/^(?:web|ui|frontend|app|components|pages|views)$/))
+    return "ui";
+  if (
+    (total > 0 && loc((p) => indexer.imports(p as ModuleInfo["paths"][number]).some((i) => INFRA_DEPS.test(i.external ?? i.spec))) / total >= 0.4) ||
+    hasDir(/^(?:db|store|storage|infra|adapters?|clients?|repo(?:sitory)?|persistence|migrations?)$/)
+  )
+    return "infra";
+  if (hasDir(/^(?:worker|daemon|server|scheduler|jobs?|cron|consumer)s?$/)) return "resident";
+  const texts = await Promise.all(paths.map((p) => indexer.currentText(p as ModuleInfo["paths"][number])));
+  const spawns = texts.reduce(
+    (a, text) => a + [...(text ?? "").matchAll(/\bgo\s+func\b|\btokio::spawn\b|\bsetInterval\s*\(|\basyncio\.create_task\s*\(/g)].length,
+    0,
+  );
+  return spawns >= 2 ? "resident" : "core";
+}
+
+/** Leaf modules, folded through actual parents above 40 rooms, import edges only, facts as external actors. */
+export async function floorplanDiagram(indexer: Indexer, doc?: Pick<DocStore, "index">): Promise<Omit<DiagramIR, "id"> | null> {
+  const all = indexer.modules();
+  if (all.length === 0) return null;
+  const byId = new Map(all.map((m) => [m.id, m]));
+  const named = new Map((doc?.index().modules ?? []).map((m) => [m.id, m.name]));
+  const shown = new Set(all.filter((m) => m.children.length === 0).map((m) => m.id));
+  while (shown.size > 40) {
+    const candidates = all
+      .filter((m) => m.children.length > 1 && m.children.every((id) => shown.has(id)))
+      .sort((a, b) => b.children.length - a.children.length || (a.id < b.id ? -1 : 1));
+    const next = candidates[0];
+    if (!next) break;
+    for (const id of next.children) shown.delete(id);
+    shown.add(next.id);
+  }
+  const mapToShown = (id: string): ModuleId | null => {
+    let m = byId.get(id as ModuleId);
+    for (let hops = 0; m && hops <= all.length; hops++) {
+      if (shown.has(m.id)) return m.id;
+      m = m.parent ? byId.get(m.parent) : undefined;
+    }
+    return null;
+  };
+  const nodes: DiagramNode[] = await Promise.all(
+    [...shown].sort().map(async (id) => {
+      const m = byId.get(id) as ModuleInfo;
+      const paths = leafPaths(m, byId);
+      const zone = await floorZone(indexer, paths);
+      return { id, label: named.get(id) || m.name, sublabel: prefixOf(paths), group: `zone:${zone}`, loc: m.loc, ref: { module: id, section: `s6/${m.slug}` } };
+    }),
+  );
+  const edges: DiagramEdge[] = [];
+  const weights = new Map<string, { from: string; to: string; weight: number }>();
+  for (const e of indexer.graph("module").edges) {
+    if (e.kind !== "import") continue;
+    const from = mapToShown(e.from),
+      to = mapToShown(e.to);
+    if (!from || !to || from === to) continue;
+    const key = `${from}|${to}`;
+    const old = weights.get(key);
+    weights.set(key, { from, to, weight: (old?.weight ?? 0) + e.weight });
+  }
+  for (const e of [...weights.values()].sort((a, b) => `${a.from}|${a.to}`.localeCompare(`${b.from}|${b.to}`)))
+    edges.push({ ...e, id: `e${edges.length}`, kind: "imports" });
+  const actors = new Map<string, string>();
+  for (const f of indexer.facts()) {
+    if (f.kind !== "env" && f.kind !== "outbound") continue;
+    const module = indexer.moduleOf(f.path);
+    const from = module ? mapToShown(module) : null;
+    if (!from) continue;
+    const label = f.kind === "env" ? f.name : (f.target ?? f.via);
+    const kind = f.kind === "env" ? "env" : f.channel;
+    const key = `${kind}:${label}`;
+    let id = actors.get(key);
+    if (!id) {
+      id = `ext${actors.size}`;
+      actors.set(key, id);
+      nodes.push({ id, label, shape: "external", ref: { path: f.path } });
+    }
+    if (!edges.some((e) => e.from === from && e.to === id)) edges.push({ id: `e${edges.length}`, from, to: id, kind: "data", label: kind });
+  }
+  const groups: DiagramGroup[] = (["entry", "core", "resident", "infra", "ui"] as const)
+    .filter((zone) => nodes.some((n) => n.group === `zone:${zone}`))
+    .map((zone) => ({ id: `zone:${zone}`, label: zone, zone }));
+  return { kind: "floorplan", origin: "static", direction: "RIGHT", nodes, edges, groups };
+}
 
 /** The map: the indexer's module graph as a container diagram. */
 /** The strongest module edges a map shows (NC-04: 15 of the 20 possible pairs among 5 rooms said nothing). */

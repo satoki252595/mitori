@@ -57,6 +57,11 @@ mitori export --html [-o|--out <file|dir>] [--no-code] [--level newcomer|standar
   Write a self-contained, read-only HTML file that opens offline (contents, reader levels, cite excerpts, diagrams, ⌘K search; secret-like strings redacted and counted).
   -o with a directory writes <name>.mitori.html into it. --no-code leaves out the code excerpts (cites show path:line only). --decisions includes the decisions list.
 
+## share
+mitori share --server <HTTPS origin> [--ttl-days 1..30] [--code] [--decisions] [-o viewer.html]
+  Publish an encrypted, expiring doc snapshot after human TTY confirmation. --code opts in to excerpts. Keys remain in browser history/sync.
+  -o saves the CLI-pinned viewer; compare the displayed script SHA-256 for integrity.
+
 ## init
 mitori init [--commit] [--lang ja|en] [--agents-md]
   Prepare the doc directory. --commit writes .gitattributes and .mitori/.gitignore so the doc is committed (TTY confirmation).

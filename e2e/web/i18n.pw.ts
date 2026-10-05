@@ -4,7 +4,7 @@
  * EN the visible chrome (`[data-chrome]` minus `[data-user-content]`) carries 0 Japanese characters.
  */
 import { expect, type Page, test } from "@playwright/test";
-import { configure, WS, waitMark } from "./support/helpers.ts";
+import { chromiumMetric, configure, WS, waitMark } from "./support/helpers.ts";
 
 /** Visible Japanese characters in the chrome that are not user content (brand and `lang="ja"` labels excepted). */
 function japaneseInChrome(page: Page) {
@@ -30,6 +30,7 @@ function japaneseInChrome(page: Page) {
 
 async function installAllShifts(page: Page) {
   await page.addInitScript(() => {
+    if (!PerformanceObserver.supportedEntryTypes.includes("layout-shift")) throw new Error("layout-shift PerformanceObserver unavailable");
     const w = window as unknown as { __shifts: { t: number; v: number }[] };
     w.__shifts = [];
     new PerformanceObserver((l) => {
@@ -41,8 +42,12 @@ async function installAllShifts(page: Page) {
 const shiftsSince = (page: Page, t0: number) =>
   page.evaluate((t) => (window as unknown as { __shifts: { t: number; v: number }[] }).__shifts.filter((s) => s.t >= t).reduce((a, s) => a + s.v, 0), t0);
 
-test("@wp10a AC-U81 ja → en at runtime: chrome only, no reload, shift ≤ 0.01, doc body unchanged; AC-J12 0 Japanese chrome chars", async ({ page }) => {
-  await installAllShifts(page);
+test("@wp10a AC-U81 ja → en at runtime: chrome only, no reload, shift ≤ 0.01, doc body unchanged; AC-J12 0 Japanese chrome chars", async ({
+  page,
+  browserName,
+}, info) => {
+  const measureCLS = chromiumMetric(browserName, info, "language-switch layout-shift");
+  if (measureCLS) await installAllShifts(page);
   await configure({});
   await page.goto(`/w/${WS}/doc/s3`);
   await waitMark(page, "mitori:section:rendered");
@@ -57,9 +62,11 @@ test("@wp10a AC-U81 ja → en at runtime: chrome only, no reload, shift ≤ 0.01
   await page.waitForTimeout(300);
   expect(await page.evaluate(() => document.documentElement.lang)).toBe("en");
   expect(await page.evaluate(() => performance.getEntriesByType("navigation").length)).toBe(navs);
-  const shift = await shiftsSince(page, t0);
-  console.log(`[i18n] ja→en shift ${shift}`);
-  expect(shift).toBeLessThanOrEqual(0.01);
+  if (measureCLS) {
+    const shift = await shiftsSince(page, t0);
+    console.log(`[i18n] ja→en shift ${shift}`);
+    expect(shift).toBeLessThanOrEqual(0.01);
+  }
   expect(await body()).toBe(before);
   expect(await japaneseInChrome(page), "S2 chrome in EN").toEqual([]);
   // S1 through the header tab (client-side navigation keeps EN)

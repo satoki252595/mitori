@@ -607,7 +607,7 @@ export interface GenPromptSpec {
 export const GEN_PROMPTS = {
   "gen.module": {
     id: "gen.module",
-    version: "gen.module@5",
+    version: "gen.module@7",
     system: "gen.system",
     stage: "S5",
     data: ["MODULE", "DEPS", "SKELETON", "BODIES", "TESTS", "FACTS", "DOCS", "EXISTING", "CHANGES"],
@@ -650,7 +650,7 @@ export const GEN_PROMPTS = {
   },
   "gen.flows": {
     id: "gen.flows",
-    version: "gen.flows@3",
+    version: "gen.flows@7",
     system: "gen.system",
     stage: "S6o",
     data: ["SEEDS", "BODIES", "MODULES", "EXISTING_FLOWS", "EXISTING"],
@@ -676,7 +676,7 @@ export const GEN_PROMPTS = {
   },
   "gen.quality": {
     id: "gen.quality",
-    version: "gen.quality@2",
+    version: "gen.quality@5",
     system: "gen.system",
     stage: "S6o",
     data: ["CLAIMS", "BODIES", "FACTS", "EXISTING"],
@@ -690,7 +690,7 @@ export const GEN_PROMPTS = {
   },
   "gen.decisions": {
     id: "gen.decisions",
-    version: "gen.decisions@1",
+    version: "gen.decisions@6",
     system: "gen.system",
     stage: "S6o",
     data: ["DOCS", "COMMENTS", "CLAIMS", "COMMITS", "EXISTING"],
@@ -703,7 +703,7 @@ export const GEN_PROMPTS = {
   },
   "gen.risks": {
     id: "gen.risks",
-    version: "gen.risks@3",
+    version: "gen.risks@4",
     system: "gen.system",
     stage: "S6o",
     data: ["TODOS", "UNTESTED", "LARGE", "CHURN", "CLAIMS", "EXISTING"],
@@ -729,10 +729,10 @@ export const GEN_PROMPTS = {
   },
   "gen.questions": {
     id: "gen.questions",
-    version: "gen.questions@1",
+    version: "gen.questions@3",
     system: "gen.system",
     stage: "S6o",
-    data: ["RAW"],
+    data: ["RAW", "DOCS", "CLAIMS"],
     lineTypes: ["question", "end"],
     form: "compact",
     modelKey: "genModule",
@@ -827,7 +827,7 @@ export const GEN_PROMPTS = {
 
 /** System / addendum versions. */
 export const GEN_SYSTEM_VERSIONS = {
-  "gen.system": "gen.system@5",
+  "gen.system": "gen.system@8",
   "doc.system": "doc.system@2",
   "gen.regen": "gen.regen@2",
   "gen.retry": "gen.retry@2",
@@ -844,7 +844,7 @@ export const DATA_BUDGETS = {
   "gen.decisions": { DOCS: 6000, COMMENTS: 4000, CLAIMS: 3000, COMMITS: 1500, EXISTING: 1500 },
   "gen.risks": { TODOS: 3000, UNTESTED: 500, LARGE: 300, CHURN: 300, CLAIMS: 3000, EXISTING: 1500 },
   "gen.glossary": { GLOSSARY_SEEDS: 1000, CANDIDATES: 4000 },
-  "gen.questions": { RAW: 2000 },
+  "gen.questions": { RAW: 2000, DOCS: 1500, CLAIMS: 3000 },
   "gen.labels": { MODULES: 9600 },
   "gen.deepdive": { MODULE: 100, TOPIC: 100, BODIES: 16000, SKELETON: 4000, FILES: 20000, EXISTING: 1500 },
   "gen.judge": { CLAIMS_JUDGE: 8000 },

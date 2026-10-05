@@ -159,11 +159,14 @@ export function measureFactor(root: string): { factor: number; source: "measured
 
 /** Record this machine as the reference: the best of `n` calibrations (an idle machine is the one we want to describe). */
 export function recordReference(root: string, n = 5): Reference {
+  const threshold = os.cpus().length * NOISY_RATIO;
+  if ((os.loadavg()[0] ?? 0) > threshold || powerSource() === "battery") throw new Error("record-reference requires a quiet machine on AC power");
   let best: { parts: Record<string, number>; totalMs: number } | null = null;
   for (let i = 0; i < n; i++) {
     const c = runCalibration(root);
     if (!best || c.totalMs < best.totalMs) best = c;
   }
+  if ((os.loadavg()[0] ?? 0) > threshold || powerSource() === "battery") throw new Error("machine became busy during calibration; reference was not changed");
   const { loadavg: _l, noisy: _n, power: _p, ...machine } = machineInfo(root, { loadavg: 0, noisy: false });
   const ref: Reference = { v: 1, machine, recordedAt: new Date().toISOString(), calib: best as NonNullable<typeof best> };
   writeFileSync(referencePath(root), `${JSON.stringify(ref, null, 2)}\n`);

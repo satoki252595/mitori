@@ -1,6 +1,6 @@
 // WP-INT: the real facade with WP-03's stages wired in (later.ts) answers S2–S4 on the fixture repos.
 import { afterAll, describe, expect, test } from "bun:test";
-import { buildFixture, type FixtureRepo } from "@mitori/testkit";
+import { buildFixture, type FixtureRepo } from "@mitori/testkit/fixtures";
 import { bunWorkerPool } from "../parse/test/bun-pool.ts";
 import { workerInit } from "../parse/test/env.ts";
 import { createIndexer } from "./index.ts";
@@ -33,7 +33,7 @@ describe("WP-INT later stages behind the facade", () => {
       }
       expect(idx.graph("module").nodes.length).toBeGreaterThan(0);
       expect(idx.paletteItems().some((i) => i.k === "m")).toBe(true);
-      expect(idx.repoPack({ tokenizer: "claude-v5" }).text.startsWith("=== mitori.repopack/1")).toBe(true);
+      expect(idx.repoPack({ tokenizer: "claude-v5" }).text.startsWith("=== mitori.repopack/2")).toBe(true);
       expect(idx.search("config", ["file", "symbol"], 10).length).toBeGreaterThan(0);
     } finally {
       await idx.close();

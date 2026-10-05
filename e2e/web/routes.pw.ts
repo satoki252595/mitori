@@ -1,4 +1,5 @@
 /** @wp10a redirect routes (ux.md §2.2 + R1 §2.3): /review → oldest ready job or Inbox, /glossary → §12. */
+import type { InboxItem, Iso8601 } from "@mitori/core";
 import { expect, test } from "@playwright/test";
 import { configure, WS, waitMark } from "./support/helpers.ts";
 
@@ -12,6 +13,35 @@ test("@wp10a /w/:ws/review without a ready job goes to the Inbox (mine)", async 
   await configure({});
   await page.goto(`/w/${WS}/review`);
   await expect(page).toHaveURL(new RegExp(`/w/${WS}/inbox\\?f=mine$`));
+});
+
+test("@wp10a Inbox follows 200-item cursors to render all 500 rows", async ({ page }) => {
+  await configure({});
+  const items: InboxItem[] = Array.from({ length: 500 }, (_, i) => ({
+    kind: "thread",
+    id: `th_${String(i).padStart(12, "0")}`,
+    title: `Pagination row ${i + 1}`,
+    state: "open",
+    tags: ["mine"],
+    intent: "note",
+    updatedAt: "2026-10-05T00:00:00Z" as Iso8601,
+    href: `/w/${WS}/doc/s3`,
+  }));
+  const cursors = new Set<string>();
+  await page.route(`**/api/v1/ws/${WS}/inbox?*`, async (route) => {
+    const query = new URL(route.request().url()).searchParams;
+    expect(query.get("limit")).toBe("200");
+    const cursor = query.get("cursor") ?? "";
+    cursors.add(cursor);
+    const from = Number(cursor || 0);
+    await route.fulfill({ json: { items: items.slice(from, from + 200), next: from + 200 < items.length ? String(from + 200) : null } });
+  });
+  await page.goto(`/w/${WS}/inbox?f=all`);
+  const rows = page.locator("[role='listbox'] [data-id^='th_']");
+  await expect(rows).toHaveCount(500);
+  await rows.last().scrollIntoViewIfNeeded();
+  await expect(rows.last()).toContainText("Pagination row 500");
+  expect([...cursors]).toEqual(["", "200", "400"]);
 });
 
 test("@wp10a /w/:ws/glossary is §12 in the MVP", async ({ page }) => {

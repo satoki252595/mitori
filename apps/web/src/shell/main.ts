@@ -8,7 +8,11 @@ import "./styles/base.css";
 import "./styles/prose.css";
 import "./styles/diagram.css";
 import "./styles/levels.css";
-import { mount } from "svelte";
+import type { InitialUiSnapshot } from "@mitori/core";
+import { mount, tick } from "svelte";
+import { seedInitial } from "../initial/seed.ts";
+import { restoreNativeSelection } from "../reader/native.ts";
+import type { NativeReaderState } from "../reader/native-state.ts";
 import { createStores } from "../stores/app.svelte.ts";
 import { completeLogin } from "./auth.ts";
 import { cookieValue, parseUiCookieFields } from "./cookie.ts";
@@ -17,6 +21,7 @@ import { setMissingKeyReporter, setSettingsLang } from "./i18n.ts";
 import { installReactiveCatalog, loadCatalog, switchLang } from "./i18n-cell.svelte.ts";
 import { detectUiLang } from "./index.ts";
 import { makeClients } from "./net/clients.ts";
+import { parseRoute } from "./router.ts";
 import Shell from "./Shell.svelte";
 import { getItem, readCookies, setItem } from "./storage.ts";
 
@@ -25,13 +30,68 @@ declare const __MITORI_TEST__: boolean;
 /** Upper bound for waiting on `GET /settings` when the cookie carries no language (local daemon: a few ms). */
 const SETTINGS_WAIT_MS = 400;
 
-async function boot(): Promise<void> {
+export async function boot(
+  initial?: {
+    snapshot: InitialUiSnapshot;
+    reader?: NativeReaderState;
+    pendingLevel?: InitialUiSnapshot["ui"]["level"];
+    clients?: ReturnType<typeof makeClients>;
+    mapCamera?: import("../contract.ts").MapCamera;
+    disclosureClock?: import("../gen/visibility.ts").VisibleClock;
+    onConnection?: (listener: (state: import("@mitori/client").ConnectionState) => void) => void;
+  },
+  beforeMount?: () => boolean,
+): Promise<ReturnType<typeof createStores> | null> {
   installReactiveCatalog();
   if (typeof __MITORI_TEST__ !== "undefined" && __MITORI_TEST__) setMissingKeyReporter((k) => console.error(`[i18n-missing] ${k}`));
   let stores: ReturnType<typeof createStores> | null = null;
-  const { api, sse } = makeClients((st) => {
-    if (stores) stores.session.connection = st;
-  });
+  const { api, sse } =
+    initial?.clients ??
+    makeClients((st) => {
+      if (stores) stores.session.connection = st;
+    });
+  if (initial) {
+    await switchLang(initial.snapshot.ui.lang);
+    const isMap = parseRoute(initial.snapshot.ui.url).name === "map";
+    const [{ default: View }, side] = await Promise.all([
+      isMap ? import("../map/MapPage.svelte") : import("../reader/ReaderPage.svelte"),
+      isMap ? Promise.all([import("../map/side.ts"), import("./i18n-cell.svelte.ts").then((m) => m.ensureNs("gen"))]).then(([m]) => m) : Promise.resolve(null),
+    ]);
+    const target = document.getElementById("app");
+    if (!target || beforeMount?.() === false) return null;
+    // The native view stays interactive through the imports; seed its latest state at the DOM hand-off.
+    const snap = initial.snapshot;
+    stores = createStores(api, sse, () => new Worker(new URL("../palette/worker.ts", import.meta.url), { type: "module", name: "palette" }));
+    seedInitial(stores, snap);
+    // A native level change still awaiting its PATCH must hold back the older settings view during hand-off.
+    if (initial.pendingLevel) stores.prefs.setLevel(initial.pendingLevel);
+    for (const partial of initial.reader?.partials ?? []) {
+      stores.doc.partial(partial.section, partial.text);
+      const value = stores.doc.streaming.get(partial.section);
+      if (value) stores.doc.streaming.set(partial.section, { ...value, reservedPx: Math.max(value.reservedPx, partial.reservedPx) });
+    }
+    stores.session.connection = sse.state;
+    const liveStores = stores;
+    initial.onConnection?.((state) => {
+      liveStores.session.connection = state;
+    });
+    target.textContent = "";
+    mount(Shell, {
+      target,
+      props: {
+        stores,
+        primed: true,
+        initialView: View,
+        initialViewProps: (isMap
+          ? { initialSide: side, initialCamera: initial.mapCamera, initialDisclosureClock: initial.disclosureClock }
+          : { initialReader: initial.reader }) as unknown as Record<string, never>,
+      },
+    });
+    await tick();
+    const main = target.querySelector<HTMLElement>("main");
+    if (main && initial.reader) restoreNativeSelection(main, initial.reader.selection);
+    return stores;
+  }
   const cookieFields = parseUiCookieFields(cookieValue(readCookies()));
   const cookieLang = cookieFields.lg ?? null;
   const guess = detectUiLang();
@@ -65,9 +125,8 @@ async function boot(): Promise<void> {
     document.documentElement.dataset.level = first;
   }
   const target = document.getElementById("app");
-  if (!target) return;
+  if (!target || beforeMount?.() === false) return null;
   target.textContent = "";
   mount(Shell, { target, props: { stores } });
+  return stores;
 }
-
-void boot();

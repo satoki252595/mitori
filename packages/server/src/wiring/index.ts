@@ -131,3 +131,4 @@ export function migrationsFor(db: Migration["db"]): readonly Migration[] {
     (a, b) => order.indexOf(a.pkg) - order.indexOf(b.pkg) || a.version - b.version,
   );
 }
+export { withPrecompiled } from "@mitori/indexer";

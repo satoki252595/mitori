@@ -6,42 +6,83 @@ import { type ClaudeModelId, type EngineSettings, MitoriError, PRICING, type Res
 import { scrubEnv } from "../claude/env.ts";
 import { type AnthropicApiRequest, CLAUDE_MODE_DEFAULTS, CODEX_ARGV_TEMPLATE, type EngineRequest, type SpawnSpec } from "../contract.ts";
 import { anthropicRequest } from "./anthropic-request.ts";
+import { CODEX_DISABLED_FEATURES, codexFilesystem } from "./codex-policy.ts";
 
-/** codex-cli spawn builder (after MVP). Agent mode is not supported until a no-shell config is verified. */
+/** Codex native apply_patch-only agent, or a tool-free text turn. All settings are isolated and fixed. */
 export function buildCodexSpawn(
   req: EngineRequest,
   settings: EngineSettings["codex-cli"],
-  paths: { codexBinary: string; schemaFile: string | null; lastMessageFile: string; emptyCwd: string },
+  paths: {
+    codexBinary: string;
+    schemaFile: string | null;
+    lastMessageFile: string;
+    emptyCwd: string;
+    configRoot?: string;
+    modelCatalogFile?: string;
+    systemPromptFile?: string;
+  },
   parentEnv: Readonly<Record<string, string | undefined>>,
 ): SpawnSpec {
-  if (req.mode === "agent") throw new MitoriError("E_UNSUPPORTED", "codex-cli has no shell-free agent mode yet (spec §6.10)");
+  if (!paths.configRoot?.startsWith("/") || !paths.modelCatalogFile?.startsWith("/") || !paths.systemPromptFile?.startsWith("/"))
+    throw new MitoriError("E_PRECONDITION", "Codex needs isolated config, trusted catalog and system prompt files");
+  if (!paths.lastMessageFile.startsWith(`${paths.configRoot}/`)) throw new MitoriError("E_INVALID_INPUT", "Codex result must stay in its isolated config root");
   if (!paths.codexBinary.startsWith("/")) throw new MitoriError("E_INVALID_INPUT", "codex binary must be a resolved absolute path");
+  const cwd = req.mode === "agent" ? req.cwd : paths.emptyCwd;
   const model = req.model.startsWith("codex:") ? req.model.slice("codex:".length) : settings.model;
   const argv: string[] = [];
   for (let i = 0; i < CODEX_ARGV_TEMPLATE.length; i++) {
     const el = CODEX_ARGV_TEMPLATE[i] as string;
+    if (el === "-s") {
+      i++;
+      continue;
+    } // precise permissions and legacy sandbox_mode cannot be combined
     if (el === "--output-schema" && paths.schemaFile === null) {
       i++; // no schema (answer): drop the flag and its value
       continue;
     }
     argv.push(
       el
-        .replace("{emptyCwd}", paths.emptyCwd)
+        .replace("{emptyCwd}", cwd)
         .replace("{model}", model)
         .replace("{effort}", req.effort)
         .replace("{schemaFile}", paths.schemaFile ?? "")
         .replace("{lastMessageFile}", paths.lastMessageFile),
     );
   }
+  argv.pop(); // stdin marker follows fixed profile overrides
+  argv.push(
+    "--strict-config",
+    "-c",
+    'default_permissions="mitori"',
+    "-c",
+    `permissions.mitori.filesystem=${codexFilesystem(req, paths.codexBinary, cwd)}`,
+    "-c",
+    "permissions.mitori.network.enabled=false",
+    "-c",
+    "tools.update_plan.enabled=false",
+    "-c",
+    "tools.experimental_request_user_input.enabled=false",
+    "-c",
+    `model_catalog_json=${JSON.stringify(paths.modelCatalogFile)}`,
+    "-c",
+    `model_instructions_file=${JSON.stringify(paths.systemPromptFile)}`,
+    "-c",
+    'web_search="disabled"',
+    ...CODEX_DISABLED_FEATURES.flatMap((feature) => ["-c", `features.${feature}=false`]),
+    "-",
+  );
+  const env = scrubEnv(parentEnv, []);
+  env.HOME = paths.configRoot;
+  env.CODEX_HOME = paths.configRoot;
   return {
     command: paths.codexBinary,
     argv,
-    env: scrubEnv(parentEnv, []),
-    cwd: paths.emptyCwd,
+    env,
+    cwd,
     // no system-prompt flag: the system text leads stdin (spec §6.10)
-    stdin: `${req.system}\n\n${req.prompt}`,
+    stdin: (req.promptBlocks ?? [req.prompt]).join("\n\n"),
     keepStdinOpen: false,
-    timeoutMs: CLAUDE_MODE_DEFAULTS[req.mode].turnMs,
+    timeoutMs: req.budget.ms > 0 ? req.budget.ms : CLAUDE_MODE_DEFAULTS[req.mode].turnMs,
     processGroup: true,
   };
 }

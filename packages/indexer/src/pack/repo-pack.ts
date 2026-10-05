@@ -1,5 +1,5 @@
 /**
- * Repo context pack `mitori.repopack/1` (spec §7.4–7.5 改訂 R1 PT-05): the shared, cacheable prefix of every LLM
+ * Repo context pack `mitori.repopack/2` (spec §7.4–7.5 改訂 R1 PT-05): the shared, cacheable prefix of every LLM
  * call. Deterministic per packKey (no time, randomness, absolute paths, digests or file counts in the text); every
  * line starts with `=== ` or `> `; budgets in `claude-v5` tokens (target 10k ± 15 %, cap 12k).
  */
@@ -98,6 +98,7 @@ export function buildRepoPack(input: RepoPackInput, opts: RepoPackOpts): RepoPac
     cliSection(facts),
     envSection(facts),
     schemaSection(facts),
+    outboundSection(facts),
     scriptSection(facts),
     depSection(facts, input.resolved),
   ];
@@ -199,12 +200,18 @@ export function buildRepoPack(input: RepoPackInput, opts: RepoPackOpts): RepoPac
 
 /**
  * A module's facts in the repo-pack item format, without section headings (`moduleContext().facts`, spec §7.2):
- * entries, routes, CLI commands, env vars, schema entities and scripts, each in its section's order.
+ * entries, routes, CLI commands, env vars, schema entities, outbound calls and scripts, each in its section's order.
  */
 export function moduleFactLines(facts: readonly Fact[], all: FactsResult, rank: (p: RepoPath) => number): string[] {
-  return [entrySection(facts), routeSection(facts, rank, all), cliSection(facts), envSection(facts), schemaSection(facts), scriptSection(facts)].flatMap((s) =>
-    s.items.flat(),
-  );
+  return [
+    entrySection(facts),
+    routeSection(facts, rank, all),
+    cliSection(facts),
+    envSection(facts),
+    schemaSection(facts),
+    outboundSection(facts),
+    scriptSection(facts),
+  ].flatMap((s) => s.items.flat());
 }
 
 /* ------------------------------------------------------------------ sections */
@@ -249,6 +256,19 @@ function moduleSection(st: StructureResult): Section {
 }
 
 const loc = (f: Fact) => `${packValue(f.path)}:${f.line}`;
+
+function outboundSection(facts: readonly Fact[]): Section {
+  const items = [
+    ...new Set(
+      facts
+        .filter((f) => f.kind === "outbound")
+        .map((f) => (f.kind === "outbound" ? `> O ${f.channel} ${packValue(f.via)} ${f.target ? packValue(f.target) : "-"} ${loc(f)}` : "")),
+    ),
+  ]
+    .sort(byStr)
+    .map((line) => [line]);
+  return { head: (n, t) => `=== OUTBOUND ${n}/${t}`, items: items.slice(0, B.lines.outbound), total: items.length };
+}
 
 function entrySection(facts: readonly Fact[]): Section {
   const seen = new Set<string>();

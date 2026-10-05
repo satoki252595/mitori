@@ -6,6 +6,7 @@ import {
   type DocProposalView,
   type EngineId,
   type Estimate,
+  type HunkId,
   type Job,
   type JobDetail,
   type JobId,
@@ -24,7 +25,7 @@ import { externalPatch } from "../external/patch.ts";
 import { ACTIVE, type JobRunnerDeps, RunnerCore, Stop } from "./core.ts";
 import { consentRetry, runAnswer, runConsentRepair, runPatch, runRevision } from "./pipeline.ts";
 import { type JobPlan, jobEstimate, type PlanDeps, planJob, withThreadContext } from "./plan.ts";
-import { accept, commit, reject, runGates, undo } from "./review-ops.ts";
+import { accept, commit, commitRequest, reject, runGates, undo } from "./review-ops.ts";
 import type { JobRecord } from "./store.ts";
 
 /** Token drift between the confirmed estimate and a re-plan that still counts as the same job (spec §8). */
@@ -143,14 +144,6 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
     return (signal) => runAnswer(core, id, p, signal);
   }
 
-  /** A sent doc note (docpatch/1) is not run by the job runner yet. */
-  function supported(p: JobPlan): void {
-    if (p.route.decision.contract === "docpatch/1")
-      throw new MitoriError("E_UNSUPPORTED", "a sent doc note (docpatch/1) arrives with WP-08c", {
-        params: { what: "loop.jobs.docpatch", actions: "copy_prompt" },
-      });
-  }
-
   /** What a request adds to its threads (persisted on the job; null when nothing). */
   const reqExtra = (r: JobReq): NonNullable<JobRecord["extra"]["req"]> | null => {
     const out: NonNullable<JobRecord["extra"]["req"]> = {};
@@ -253,7 +246,6 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
 
     async create(req) {
       const p = await planFor(req);
-      supported(p);
       if (p.estimate.requiresConfirm && req.confirm !== true)
         throw new MitoriError("E_PRECONDITION", "this job needs a confirmed estimate", {
           params: { estimateId: p.id, reasons: p.estimate.confirmReasons.join(",") },
@@ -348,7 +340,6 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
         });
       const req: JobReq = replanReq(rec, engine);
       const p = await freshPlan(req);
-      supported(p);
       // a retry never runs the final escalation on its own: that goes through `create` with `confirm` (spec §3.5: Opus
       // is a proposal). Other confirm reasons keep the retry behaviour they had.
       if (p.estimate.confirmReasons.includes("escalation"))
@@ -405,8 +396,22 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
     undo: (ck: CheckpointId, force) => undo(core, ck, force),
 
     externalPatch: (req, agent) => externalPatch({ core, plan, launch }, req, agent),
-    async pullRequest() {
-      throw new MitoriError("E_UNSUPPORTED", "pull requests arrive with WP-08c", { params: { what: "loop.jobs.pullRequest" } });
+    async pullRequest(id, req) {
+      const rec = core.get(id),
+        j = rec.job;
+      if ((j.state !== "accepted" && j.state !== "partially_accepted") || j.gateVerdict !== "passed")
+        throw new MitoriError("E_PRECONDITION", "PR creation requires human-accepted changes with passing gates");
+      const accepted = Object.entries(j.hunkDecisions ?? {})
+        .filter(([, decision]) => decision === "accepted")
+        .map(([h]) => h as HunkId);
+      const c = commitRequest(core, rec);
+      return deps.git.createPullRequest(id, {
+        ...req,
+        slug: req.title,
+        threadIds: j.threads,
+        trailers: c.trailers,
+        accept: j.state === "accepted" ? "all" : accepted,
+      });
     },
 
     get(id) {
@@ -450,7 +455,6 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
         await deps.write("job.recover.unlock", () => core.store.unlock(rec.job.id));
         try {
           const p = await freshPlan(replanReq(rec));
-          supported(p);
           launch(rec.job.id, pipeline(rec.job.id, p));
           out.requeued.push(rec.job.id);
         } catch (e) {

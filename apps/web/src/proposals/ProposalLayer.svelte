@@ -126,6 +126,7 @@ $effect(() => {
     if (!mb) continue;
     const host = document.createElement("div");
     host.dataset.mx = "prop";
+    host.dataset.proposal = p.id;
     host.className = "mx-prop";
     if (p.op === "insert") mb.append(host);
     else {

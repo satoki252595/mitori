@@ -1,5 +1,7 @@
 # crit 実生成の品質確認（2026-10-04）
 
+> このcritの結果は履歴として保持する。新しい3 OSSによる実生成・品質改善は [2026-10-05の報告](oss-quality-2026-10-05/README.md)、現在の残りは [HANDOFF §★](../HANDOFF.md) を参照する。
+
 対象は [crit](https://github.com/tomasz-tomczyk/crit) の `406875dd31e0eacc9af33b7643d54100620e8775`。Muse Contributor / 要求 max の生成本文を、元ソースと照合した。引用 L1 は行範囲等の構造検査であり、引用文の意味が正しいことの証明ではない。
 
 ## 実測後に直した箇所
