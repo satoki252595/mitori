@@ -1,4 +1,4 @@
-# mitori 引き継ぎ資料（2026-10-06 PR #5統合済み、外部3件待ち）
+# mitori 引き継ぎ資料（2026-10-06 PR #5統合済み、外部2件待ち・ローカル利用が基本）
 
 > **現在の入口は §★。以下の「履歴★」と §0 / §0a / §0b は以前の記録。**
 > 利用者の続行指示に加え、今回の Linux 既存 Docker ハーネス例外と、任意 LLM 対応・Muse Contributor / max の選択を反映した。
@@ -31,9 +31,12 @@
 
 ### ★.3 残る外部条件
 
+2026-10-06の利用者確認: 本体はcloneしてローカル利用する想定。Cloudflare公開は必須の残タスクから除外する。URL共有を利用する場合だけ、別途承認してデプロイする。
+
 1. **Windows native:** 今回限りの公式Bun依存に対するNix例外は回答待ち。Nix crossbuild・配布準備は成功、native Job Object/自己検査は未実施。[承認後のmain実行手順](progress/windows-job-20261005.md)。
-2. **Cloudflare公開:** 専用R2/D1作成＋Worker deployの承認待ち。実装・Miniflare・3browserは検証済み、remote/Paid化は未実施。[具体的な公開手順と費用条件](progress/cloudflare-share-2026-10-05.md)。
-3. **Safari実機/実IME:** 第7回CI終了後もCUAでMacロックを確認。Firefox/WebKitとsynthetic IMEの成功は実Safari/IMEの代わりにしない。
+2. **Safari実機/実IME:** 第7回CI終了後もCUAでMacロックを確認。Firefox/WebKitとsynthetic IMEの成功は実Safari/IMEの代わりにしない。
+
+任意のCloudflare共有は実装・Miniflare・3browserまで検証済み、remote/Paid化は未実施。[必要になった場合の公開手順](progress/cloudflare-share-2026-10-05.md)。GitHubは現在private、ルートLICENSEは未設定。一般公開するOSSとして配布する段階では、公開範囲とライセンスを決める必要がある。
 
 最新compiled出荷物は7f77419（production品質promptの修正8f7176c）、Mac SHA1e170b95…、all-target全95MB hard内・Mac自己検査成功。compiled asset hard gateと起動表示中央値48.39ms/limit50が成功、target20 WARN。UIのmanifest/renderer/web manifest 3SHAは前版と一致。前版fdf71b9/e229e4eの初期JS gzip相当44,355B・実br40,066Bと、AC/quiet/factor1.000573のphysical footprint48.1571/156.5953MB、palette指定median30.5ms/round p9531.2msは元binaryの実測として保持し、新binaryへ付け替えない。advisory asset targetの未達も保持。[最新出荷物と旧測定](progress/shipping-validation-20261006.md)。
 

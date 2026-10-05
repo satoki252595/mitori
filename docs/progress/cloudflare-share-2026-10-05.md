@@ -1,6 +1,6 @@
 # 暗号化共有の公開準備
 
-2026-10-05、公開前。Worker/R2/D1の新規作成とdeployは利用者の承認待ち。
+2026-10-06の利用者確認により、Cloudflare公開は必須タスクから除外した。本体はcloneしてローカルで利用できる。以下は任意のURL共有機能が必要になった場合の手順で、Worker/R2/D1作成・deployはその時点の承認後に行う。現在は未公開。
 
 `apps/share`のWorkerと `mitori share --server ... -o viewer.html` を実装。閲覧文書は既存HTML export、AES-256-GCM、鍵はfragmentのみ。Ed25519署名、暗号化コメント、期限確認、日次削除、D1 transaction内quota。詳細はADR-0016。
 

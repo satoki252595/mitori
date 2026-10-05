@@ -4,6 +4,8 @@
 
 Status: M0 — 契約凍結済み、実装中 (pre-alpha)
 
+本体はリポジトリをcloneしてローカルで起動するツールです。Cloudflareへのデプロイは不要です。Cloudflareは、生成文書をURLで共有する任意の追加機能にだけ使います。
+
 ```sh
 scripts/nd bun install --frozen-lockfile
 scripts/nd bun run check     # typecheck + lint + boundaries + CR ledger + contract index + svelte-check

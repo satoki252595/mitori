@@ -2,9 +2,9 @@
 
 第7回CI（head `a663a459`、実merge checkout `24a342e8`）は全体success。Ubuntu全7check/20semantic/0cached/0errors・unit2944pass/134skip/4todo/0fail・fixture全12・golden109pass/4skip・size・Linux binary smoke、Mac web344pass/14skip・共有2pass/37assert・a11y8passが成功した。Windowsは未承認skip。 PR #5をmainへmerge（`09610433865b444372aeee1e4a00d628b5702c4c`）、local/remoteの作業branchを削除した。成功CIとmergeのtree一致・履歴保持を[機械照合](pr5-publication-20261006.json)した。[全CIと失敗単位の履歴](pr5-ci-20261005.md)。
 
-INT08はテスト準備と実ゲートのGo cache不一致を修正し、第7回の実修復4,374.61msで20秒assertを通過。Ubuntu check65.32秒/limit72.13秒も成功、target36.06秒超過WARNは保持。残る外部条件はWindows nativeのNix例外承認、Cloudflare公開承認、Mac解除後のnative Safari/実IME。
+INT08はテスト準備と実ゲートのGo cache不一致を修正し、第7回の実修復4,374.61msで20秒assertを通過。Ubuntu check65.32秒/limit72.13秒も成功、target36.06秒超過WARNは保持。残る外部条件はWindows nativeのNix例外承認、Mac解除後のnative Safari/実IME。2026-10-06の利用者確認により、本体はcloneしてローカル利用する構成とし、Cloudflare公開は任意のURL共有機能として必須残タスクから除外した。
 
-7f77419（production品質promptの修正8f7176c）のall-target build・Mac自己検査・compiled asset hard budgetは成功、起動48.39ms/limit50/target20 WARN。UIのmanifest/renderer/web manifest 3SHAは前版と一致。前版fdf71b9/e229e4eの初期JS44,355B gzip相当、F7 footprint48.1571/156.5953MB、F15指定中央値30.5ms・round p9531.2msを元binaryの記録として保持し、最新binaryへ付け替えない。soft target未達も保持。[最新出荷物](shipping-validation-20261006.md)。Windows native / Cloudflare公開 / Safari実機・実IMEは承認またはMac解除待ち。
+7f77419（production品質promptの修正8f7176c）のall-target build・Mac自己検査・compiled asset hard budgetは成功、起動48.39ms/limit50/target20 WARN。UIのmanifest/renderer/web manifest 3SHAは前版と一致。前版fdf71b9/e229e4eの初期JS44,355B gzip相当、F7 footprint48.1571/156.5953MB、F15指定中央値30.5ms・round p9531.2msを元binaryの記録として保持し、最新binaryへ付け替えない。soft target未達も保持。[最新出荷物](shipping-validation-20261006.md)。Windows native / Safari実機・実IMEは承認またはMac解除待ち。Cloudflareは未デプロイで、ローカル利用の完了条件に含めない。
 
 ## 以前のCI・出荷物の履歴
 
