@@ -200,6 +200,13 @@ test("Muse resolves its native marker, Grok avoids ambiguous PATH agent, and Cur
   grok.io.argv = ["grok"];
   expect(await runWith(grok.io, grok.deps)).toBe(0);
   expect(grok.calls[0]?.cmd).toEqual([grok.binary, "login", "--oauth"]);
+  const canonicalNative = join(grok.dir, "grok-1.0.47-macos-aarch64");
+  writeFileSync(canonicalNative, "new official native fixture; never run", { mode: 0o700 });
+  symlinkSync(canonicalNative, join(grokDir, "grok"));
+  rmSync(join(grokDir, "agent"));
+  writeFileSync(join(grokDir, "agent"), "bogus legacy alias; must never run", { mode: 0o700 });
+  expect(await runWith(grok.io, grok.deps)).toBe(0);
+  expect(grok.calls[1]?.cmd).toEqual([canonicalNative, "login", "--oauth"]);
 
   const cursor = fixture("cursor");
   const ambiguous = join(cursor.dir, "agent");

@@ -17,7 +17,7 @@
 | --- | --- |
 | `scripts/nd bun run check` | 全7工程、3.45秒。型・Svelte・Biome・境界・台帳・予算・契約索引が緑 |
 | setup・MCP案内・webのコマンド生成 | 13件、113 assertions |
-| 認証CLI | 8件、104 assertions。固定argv、Muse解除と失敗停止、非TTY/agent拒否、差し替え、制御文字、認証保管先 |
+| 認証CLI | 8件、106 assertions。固定argv、Muse解除と失敗停止、非TTY/agent拒否、差し替え、制御文字、認証保管先、Grokの標準名と旧名 |
 | HTTP認証境界とOS起動計画 | 5件、65 assertions。偽装web/bearer、CLI/MCP、匿名、cross-site、追加引数拒否。二重quoteを無害なfixtureで検証 |
 | native IOのneutral cwd/cleanup | 1件。実行プロセスはmock |
 | ローカル認証表示 | 1件、4 assertions。CLI未ログイン・remote missing keyと区別 |

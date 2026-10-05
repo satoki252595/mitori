@@ -1,6 +1,6 @@
 /** Human-owned sign-in through the existing official CLI. mitori never handles its auth output or credentials. */
 import { createHash } from "node:crypto";
-import { accessSync, constants, readFileSync, realpathSync, statSync } from "node:fs";
+import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, isAbsolute, join } from "node:path";
 import { PROVIDER_AUTH_IDS, type ProviderAuthId } from "@mitori/core";
 import { resolveSafePath } from "@mitori/platform";
@@ -23,7 +23,7 @@ const LOGIN: Readonly<Partial<Record<ProviderAuthId, { binary: string; args: rea
   muse: { binary: "muse", args: ["login"] },
   codex: { binary: "codex", args: ["login"] },
   cursor: { binary: "cursor-agent", args: ["login"] },
-  grok: { binary: "agent", args: ["login", "--oauth"] },
+  grok: { binary: "grok", args: ["login", "--oauth"] },
   ollama: { binary: "ollama", args: ["signin"] },
 };
 
@@ -91,7 +91,13 @@ export async function runWith(io: Io, deps: AuthDeps): Promise<number> {
   const steps: readonly (readonly string[])[] = provider === "muse" ? [["logout"], login.args] : [login.args];
   const path = resolveSafePath(io.env.PATH ?? "", { workspaceRoots: [], startCwd: io.cwd });
   // The ambiguous name `agent` is never resolved on PATH: it can identify an unrelated provider.
-  const found = values.binary ?? (provider === "grok" ? (io.env.HOME ? join(io.env.HOME, ".grok/bin/agent") : undefined) : deps.which(login.binary, path));
+  let found: string | null | undefined = values.binary;
+  if (found === undefined) {
+    if (provider === "grok" && io.env.HOME) {
+      const canonical = join(io.env.HOME, ".grok/bin/grok");
+      found = existsSync(canonical) ? canonical : join(io.env.HOME, ".grok/bin/agent");
+    } else if (provider !== "grok") found = deps.which(login.binary, path);
+  }
   if (!found) throw usage(`${login.binary} was not found; install it using official instructions or pass --binary /absolute/path`);
   if (!isAbsolute(found) || hasControlCharacters(found)) throw usage("the executable path must be absolute and contain no control characters");
   const binary = provider === "claude" || provider === "muse" ? binaryOf(provider, found) : found;
