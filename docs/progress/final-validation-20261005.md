@@ -2,7 +2,7 @@
 
 対象は `codex/complete-backlog` の残タスク実装。最終 commit と PR の結果は後で追記する。未実施を成功として扱わない。
 
-[PR #5](https://github.com/satoki252595/mitori/pull/5)を作成・pushした。初回CIのUbuntu wall判定と3browserの28 failを修正した経緯は [PR実CI資料](pr5-ci-20261005.md)。source修正は`ed95494`にcommit済み。修正後のMac全checkは6.01秒/exit0、native Reader/sizeは14pass/4skip、引用位置は全3browser成功。最終PR全体成功・mergeはまだ未実施。
+[PR #5](https://github.com/satoki252595/mitori/pull/5)を作成・pushした。初回CIの28failは修正し、第2回は335pass/14skip/Chromium時間3fail、Ubuntuは補正済み時間超過だった。経緯は [PR実CI資料](pr5-ci-20261005.md)。source修正`7a39335`は標準checked solution builderへ変更、Mac cold全check9.42秒/20semantic builds・warm3.68秒/20cached、両exit0。出荷runtimeは`ed95494`のまま。native Reader/sizeは14pass/4skip、引用位置は全3browser成功。最終PR全体成功・mergeはまだ未実施。
 
 ## 最初の全体実行と限定再検証
 
@@ -29,10 +29,10 @@
 - compiled Mac `_selftest --json --elk-runs 5` は成功。pinned9 filesのintegrity、web166 files、6言語parse、ELK、Shiki、SQLiteを実binaryで確認。[自己検査](shipping-selftest-20261005.json)。同じWindows/Linux binaryをnative実行した証拠ではない。
 - compiled asset/static sizeはhard対象を成功。PR修正後の`--version`中央値45.87msは50ms limit内、20ms target WARN。gen/merge/paletteのchunk予算とprecompression率のnon-hard診断はredを保持。[asset結果](shipping-assets-20261005.json)。以前の43.14msも別JSONに保持。
 - compiled実daemonのgo-small静的Map/Readerをfresh Chromiumで確認。最終Mac SHA`ea86a183194c15f50d2897f3bc8ee24a03dc5b15ce76ebf67982f80f032743f2`、JS実br **39,942B**、同decoded bytesのgzip9相当 **44,216B（43.2KiB）**。CSS実br16,832 / 13,611B、HTML/JSON/document込みencoded total83,899 / 77,958B。font/初回editing module無し、served JS/CSS raw SHAがmanifest一致、4build sealが前後不変、provider calls0。[実転送量](shipping-ui-20261005.json)。通常build S1/S2の44,210B、静的fixture、実brとgzip相当、未完了SSEを区別する。旧f492と7005の結果も別JSONに保持。
-- Linux cold全check（Mac共有mount）は各stepの検査結果は成功したが **167.20秒、30秒hard超過でexit 1**。native Linuxの使い捨てfolderへexportをコピーし、frozen installと両type cache空からPR修正後source`ed95494`の全check **13.02秒、exit 0**。全20意味検査・Svelte・他checks成功、30秒hard・15秒targetとも達成。facts mark修正後の14.59秒成功、途中のnative22.15秒のnew test型失敗、16.00秒の成功と共有mount167秒も保持。比較sourceとfilesystem条件を [Linux結果](linux-check-20261005/final/README.md) に記録し、同一snapshotの性能改善とは主張しない。PR5相対out指定のDocker起動前exit125は測定回数0として保存し、absolute outへ直して上記1回を測定した。
+- Linux cold全check（Mac共有mount）は各stepの検査結果は成功したが **167.20秒、30秒hard超過でexit 1**。native Linuxの使い捨てfolderへexportをコピーし、frozen installと両type cache空からsource`7a39335`のchecked solution builder全check **11.44秒、exit 0**。全20semantic builds・0cached/0errors、Svelte・他checks成功、30秒hard・15秒targetとも達成。旧20compiler方式の13.02/14.59秒成功、途中のnative22.15秒のnew test型失敗、16.00秒の成功と共有mount167秒も保持。比較sourceとfilesystem条件を [Linux結果](linux-check-20261005/final/README.md) に記録し、同一snapshotの性能改善とは主張しない。PR5相対out指定のDocker起動前exit125は測定回数0として保存した。
 - 最終compiled Macでdaemonとpaletteを一緒に限定測定。F7 physical footprintはempty3回中央値 **48.31MB**（50MB limit内・30MB target WARN）、loaded crit60秒 **161.10MB**（250MB limit内・150MB target WARN）。resident RSSとは別値。F15 crit Readerのkey→results paintはwarmup1＋5round中央値 **31.9ms**（指定統計medianは元33ms limit内・16ms target WARN）、round間p95 **33.2ms**（全sampleが33ms以内ではない）。最初のfacts mark欠落によるsetup timeoutは計測値無しの失敗として保持し、実facts gridにだけmarkを追加後、3browser表示確認3/3とS1 size1/1を成功した。[実測JSON](shipping-performance-20261005.json)、[F7条件](f7-daemon-shipping-20261005.md)、[F15条件と失敗履歴](f15-palette-shipping-20261005.md)。旧7005の48.25 / 146.58 / 32.1msは別JSONに保持。
 - GitHub PRへ初回push済み。UbuntuとNix self-hosted Mac browser CIの初回失敗は修正済みで再CI待ち。merge / branch整理は未実施。
-- native Safari: Mac解除を一度UIで再観測したが、最終確認前に再ロックしたため解除待ち。WebKitをnative Safari/実IMEと同一視しない。
+- native Safari: 起動済みSafariのAX取得後にもnative navigationでMacロックが確認され、解除待ち。compiled使い捨てfixtureを停止・nonce private file削除、前後provider calls0。AX取得を実機操作成功とは扱わず、WebKitをnative Safari/実IMEと同一視しない。
 - Windows native CIの今回限定Nix例外とCloudflare専用resource / deployment: 利用者の承認待ち。未承認の操作を実施していない。
 
 local private logsは `/tmp/mitori-final-*.log` に保持し、auth / nonce / private raw recordingをGitへ保存しない。計測のtargetとlimitを緩和しない。
