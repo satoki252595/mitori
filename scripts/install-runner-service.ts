@@ -20,6 +20,7 @@ writeFileSync(
 <key>ProgramArguments</key><array><string>/nix/var/nix/profiles/default/bin/nix</string><string>develop</string><string>.#runner</string><string>--command</string><string>Runner.Listener</string><string>run</string></array>
 <key>WorkingDirectory</key><string>${xmlEscape(project)}</string>
 <key>EnvironmentVariables</key><dict><key>RUNNER_ROOT</key><string>${xmlEscape(runnerRoot)}</string><key>PATH</key><string>/nix/var/nix/profiles/default/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+<key>ProcessType</key><string>Interactive</string>
 <key>RunAtLoad</key><true/><key>KeepAlive</key><true/><key>ThrottleInterval</key><integer>60</integer>
 <key>StandardOutPath</key><string>${xmlEscape(join(runnerRoot, "service.log"))}</string>
 <key>StandardErrorPath</key><string>${xmlEscape(join(runnerRoot, "service-error.log"))}</string>
