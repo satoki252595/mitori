@@ -25,7 +25,7 @@ import { makeClients } from "../shell/net/clients.ts";
 import { markAfterPaint } from "../shell/perf.ts";
 import { markRead, readMapOf } from "../shell/reading.ts";
 import { parseRoute } from "../shell/router.ts";
-import { getItem, readCookies, STORAGE_KEYS, setItem, writeCookie } from "../shell/storage.ts";
+import { getItem, getJson, readCookies, STORAGE_KEYS, setItem, setJson, writeCookie } from "../shell/storage.ts";
 
 const root = document.getElementById("app")!;
 let snapshot: InitialUiSnapshot | null = null;
@@ -40,6 +40,9 @@ let enhancementModule: Promise<typeof import("../shell/main.ts")> | null = null;
 let enhancementStarted = false;
 let pendingHover = false;
 let pendingFocus = false;
+let pendingImeHint = false;
+let projectWorkspace: string | null = null;
+let reserveProject = true;
 let disclosure: { key: string; clock: VisibleClock } | null = null;
 let stopDisclosure = () => {};
 let reader: ReturnType<typeof mountNativeReader> | null = null;
@@ -66,7 +69,11 @@ const offKeys = keys.attach(window, {
         ? !!document.activeElement?.closest("a.mcite,a.fcite")
         : true,
   singleKeys: () => snapshot?.settings.settings.ui.singleKeyShortcuts ?? true,
-  imeHint: () => {},
+  imeHint: () => {
+    if (getItem("session", STORAGE_KEYS.imeHint)) return;
+    pendingImeHint = true;
+    void enhance();
+  },
   holdAlt: (on) => document.documentElement.classList.toggle("show-cites", on),
 });
 
@@ -165,6 +172,12 @@ async function loadView(initialReader?: NativeReaderState): Promise<void> {
   showLevel();
   keys.setOverrides(snapshot.settings.settings.ui.keymap);
   const ws = snapshot.status.info.key;
+  // The server cannot read browser storage. Keep the first-visit width for this page, including a later full hand-off.
+  if (projectWorkspace !== ws) {
+    projectWorkspace = ws;
+    reserveProject = !getJson("local", STORAGE_KEYS.proj(ws));
+  }
+  root.querySelector(".hdr .proj")?.classList.toggle("reserve", reserveProject);
   const ix = indexOutline(snapshot.outline);
   const node = route.name === "doc" ? ix.nodes.get(ix.pageOf.get(route.section) ?? route.section) : null;
   document.title = `${node?.title ?? t("title.map")} — mitori · ${snapshot.status.info.name}`;
@@ -337,6 +350,10 @@ async function loadView(initialReader?: NativeReaderState): Promise<void> {
     connectedWorkspace = ws;
     clients.sse.connect(ws);
   }
+  // Reuse the Shell's once-per-session notice and accessible toast lifetime; ordinary cold views stay native.
+  const usageWindow = snapshot.usage?.window;
+  if ((usageWindow?.billing === "overage" || usageWindow?.overage?.active) && !getItem("session", STORAGE_KEYS.hint("overage")) && !enhancementModule)
+    void enhance();
 }
 
 function observeDisclosure() {
@@ -457,6 +474,17 @@ async function enhance(request: EnhanceRequest = {}) {
   const camera: MapCamera | undefined = plan ? { ...plan.cam } : undefined;
   const scrollY = window.scrollY;
   const pendingLevel = levelPending ? state.level : undefined;
+  // The native DOM stays visible while boot imports the full view. A later cite focus must win over an older display action.
+  let latestCiteFocus: NativeReaderAction | null = null;
+  const captureFocus = (event: FocusEvent) => {
+    const action = request.readerAction;
+    if (!action || !["cite", "term", "gutter"].includes(action.kind) || ((action.kind === "cite" || action.kind === "term") && action.via === "click")) return;
+    const cite = (event.target as Element | null)?.closest<HTMLElement>("a.mcite,a.fcite");
+    const block = cite?.closest<HTMLElement>(".blk[data-b]")?.dataset.b as BlockId | undefined;
+    if (!cite || !block || !root.contains(cite)) return;
+    latestCiteFocus = { kind: "cite", cite: cite.dataset.cite ?? "", blob: cite.dataset.blob ?? "", block, via: "focus" };
+  };
+  window.addEventListener("focusin", captureFocus, true);
   if (levelTimer) {
     clearTimeout(levelTimer);
     levelTimer = null;
@@ -469,29 +497,43 @@ async function enhance(request: EnhanceRequest = {}) {
   window.removeEventListener("popstate", pop);
   window.removeEventListener("hashchange", hash);
   window.removeEventListener("resize", fitHeader);
+  window.removeEventListener("pagehide", persistProject);
   if (refreshTimer) clearTimeout(refreshTimer);
   for (const off of sseOffs) off();
   enhanced = true;
-  const stores = await full.boot(
-    snap
-      ? {
-          snapshot: { ...snap, ui: { ...state, url: latestUrl } },
-          ...(captured ? { reader: captured } : {}),
-          ...(pendingLevel ? { pendingLevel } : {}),
-          ...(camera ? { mapCamera: camera } : {}),
-          ...(disclosure ? { disclosureClock: disclosure.clock } : {}),
-          clients,
-          onConnection: (listener) => {
-            connectionTarget = listener;
-          },
-        }
-      : undefined,
-  );
+  let stores: Awaited<ReturnType<typeof full.boot>>;
+  try {
+    stores = await full.boot(
+      snap
+        ? {
+            snapshot: { ...snap, ui: { ...state, url: latestUrl } },
+            ...(captured ? { reader: captured } : {}),
+            ...(pendingLevel ? { pendingLevel } : {}),
+            ...(camera ? { mapCamera: camera } : {}),
+            ...(disclosure ? { disclosureClock: disclosure.clock } : {}),
+            clients,
+            onConnection: (listener) => {
+              connectionTarget = listener;
+            },
+          }
+        : undefined,
+    );
+  } finally {
+    window.removeEventListener("focusin", captureFocus, true);
+  }
   if (!stores || epoch !== actionEpoch || viewKey(nativeUrl()) !== identity) return;
   stores.session.connection = connection;
+  if (pendingImeHint) {
+    pendingImeHint = false;
+    if (!stores.ui.imeHintShown && !getItem("session", STORAGE_KEYS.imeHint)) {
+      stores.ui.imeHintShown = true;
+      setItem("session", STORAGE_KEYS.imeHint, "1");
+      stores.bottom.toast({ id: "hint.imeOn", kind: "info", key: "hint.imeOn" });
+    }
+  }
   window.scrollTo(0, captured?.scrollY ?? scrollY);
-  if (request.readerAction && captured)
-    window.dispatchEvent(new CustomEvent("mitori:native-reader", { detail: { action: request.readerAction, state: captured } }));
+  const readerAction = latestCiteFocus ?? request.readerAction;
+  if (readerAction && captured) window.dispatchEvent(new CustomEvent("mitori:native-reader", { detail: { action: readerAction, state: captured } }));
   if (request.href) void stores.router.go(parseRoute(request.href));
   if (request.selector) {
     if (request.selector.startsWith("[data-proposal=")) {
@@ -551,6 +593,11 @@ function fitHeader() {
   delete header.dataset.tight;
   if (mid.clientWidth < tabs.scrollWidth) header.querySelector(".proj")?.classList.remove("reserve");
   for (let n = 1; n <= 2 && mid.clientWidth < tabs.scrollWidth; n++) header.dataset.tight = String(n);
+}
+function persistProject() {
+  const status = snapshot?.status;
+  const head = status?.snapshot?.commit?.slice(0, 7);
+  if (status?.info.name && head) setJson("local", STORAGE_KEYS.proj(status.info.key), { name: status.info.name, head, tag: status.profile?.head?.tag ?? null });
 }
 function selectorFor(el: HTMLElement): string | null {
   if (el.id) return `#${CSS.escape(el.id)}`;
@@ -632,6 +679,8 @@ root.addEventListener("click", click);
 window.addEventListener("popstate", pop);
 window.addEventListener("hashchange", hash);
 window.addEventListener("resize", fitHeader);
+// The enhanced Header persists itself; native pages remember the last shown chip when this visit ends.
+window.addEventListener("pagehide", persistProject);
 for (const def of keys.defs())
   keys.on(def.id, (e) => {
     if (def.id === "layer.close") {

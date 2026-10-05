@@ -6,7 +6,7 @@
  * here — the machine is shared; bench cases own them).
  */
 
-import type { DocOutline } from "@mitori/core";
+import type { DocOutline, InitialUiView } from "@mitori/core";
 import { expect, test } from "@playwright/test";
 import { chromiumMetric, configure, emit, WS, waitMark } from "./support/helpers.ts";
 
@@ -22,12 +22,18 @@ test("@wp10a F6 a far anchor has HTML at first paint and idle fetches omit the r
     const url = new URL(r.url());
     if (url.pathname.endsWith("/doc/sections/s6%2Fbig")) queries.push(url.searchParams);
   });
+  const initialResponse = page.waitForResponse((r) => new URL(r.url()).pathname.endsWith("/ui") && r.ok());
   await page.goto(`/w/${WS}/doc/s6/big#${block}`);
   await waitMark(page, "mitori:section:rendered");
   const paragraph = page.locator(`.blk[data-b="${block}"] > .mb`);
   await expect(paragraph).toBeAttached();
-  expect(queries[0]?.get("from")).toBe("850");
-  expect(queries[0]?.get("limit")).toBe("150");
+  // SSR's section read happens inside the daemon. Inspect the actual initial window, not a later idle prefix fetch.
+  const initial = (await (await initialResponse).json()) as InitialUiView;
+  const section = initial.snapshot.sections.find((s) => s.section.id === "s6/big");
+  expect(section?.from).toBe(850);
+  expect(section?.blocks.filter((b) => b.html).length).toBe(150);
+  expect(section?.blocks.find((b) => b.id === block)?.html).toBeTruthy();
+  expect(queries[0]?.get("outline")).toBe("false");
   await expect.poll(() => queries.some((q) => q.get("outline") === "false")).toBe(true);
   await emit({ type: "doc.freshness", blocks: [block], freshness: "stale" });
   await expect(paragraph).toHaveAttribute("data-fresh", "stale");

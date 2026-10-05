@@ -45,6 +45,25 @@ export async function waitMark(page: Page, name: string, after = 0, timeout = 10
 
 export const now = (page: Page) => page.evaluate(() => performance.now());
 
+/** Actual browser input → the existing paint mark; excludes Playwright transport and actionability waits. */
+export async function inputToMark(page: Page, event: "click" | "keydown", action: () => Promise<unknown>, name: string): Promise<number> {
+  const input = `mitori:test:input:${event}`;
+  await page.evaluate(
+    ([type, mark]) => {
+      performance.clearMarks(mark);
+      window.addEventListener(type, (e) => performance.mark(mark, { startTime: e.timeStamp, detail: { trusted: e.isTrusted } }), { once: true, capture: true });
+    },
+    [event, input] as const,
+  );
+  await action();
+  const trigger = await page.evaluate((mark) => {
+    const e = performance.getEntriesByName(mark, "mark").at(-1) as PerformanceMark | undefined;
+    if (!e?.detail?.trusted) throw new Error("Trusted browser input was not observed");
+    return e.startTime;
+  }, input);
+  return (await waitMark(page, name, trigger)) - trigger;
+}
+
 export function p95(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
   return s[Math.min(s.length - 1, Math.ceil(s.length * 0.95) - 1)] ?? 0;

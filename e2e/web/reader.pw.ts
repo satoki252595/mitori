@@ -4,7 +4,7 @@
  * the reader root ≤ 10, one shared gutter (AC-U32), boot CLS ≤ 0.001 (AC-U03).
  */
 import { expect, test } from "@playwright/test";
-import { chromiumMetric, cls, configure, emit, installCls, mockLog, now, p95, WS, waitMark } from "./support/helpers.ts";
+import { chromiumMetric, cls, configure, emit, inputToMark, installCls, mockLog, p95, WS, waitMark } from "./support/helpers.ts";
 
 test("@wp10a 1,000-block Reader: DOM ≤ 5k nodes, j/k reaches far blocks, one gutter", async ({ page }) => {
   await configure({ bigBlocks: 1000 });
@@ -22,7 +22,10 @@ test("@wp10a 1,000-block Reader: DOM ≤ 5k nodes, j/k reaches far blocks, one g
     await page.waitForTimeout(80);
     expect(await count()).toBeLessThanOrEqual(5000);
   }
-  expect(await page.locator(".gutter").count()).toBe(1);
+  // The shared interactive gutter is installed on the first block hover, after the native first paint.
+  await page.locator(".blk").first().hover();
+  await expect(page.locator(".gutter")).toHaveCount(1);
+  expect(await count()).toBeLessThanOrEqual(5000);
   // j moves block by block with virtualization
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
@@ -51,10 +54,7 @@ test("@wp10a reader level switch ≤ 50 ms, no fetch, position kept (AC-J20)", a
   const keys = ["-", "=", "=", "-", "-", "0"];
   for (const k of keys) {
     const a = await anchor();
-    const t0 = await now(page);
-    await page.keyboard.press(k);
-    const t1 = await waitMark(page, "mitori:level:applied", t0);
-    times.push(t1 - t0);
+    times.push(await inputToMark(page, "keydown", () => page.keyboard.press(k), "mitori:level:applied"));
     const b = await page.evaluate((id) => document.querySelector(`.blk[data-b="${id}"]`)?.getBoundingClientRect().top ?? null, a?.id);
     if (a && b !== null) expect(Math.abs(b - a.top), `${k} keeps the anchor block`).toBeLessThanOrEqual(4);
   }
@@ -85,10 +85,7 @@ test("@wp10a section transitions p95 ≤ 100 ms (TOC clicks)", async ({ page, br
     const link = page.locator(`.toc a[data-toc="${sec}"]`);
     await link.hover();
     await page.waitForTimeout(90);
-    const t0 = await now(page);
-    await link.click();
-    const t1 = await waitMark(page, "mitori:section:rendered", t0);
-    times.push(t1 - t0);
+    times.push(await inputToMark(page, "click", () => link.click(), "mitori:section:rendered"));
   }
   console.log(`[section] ${times.map((x) => x.toFixed(0)).join(", ")} ms`);
   if (timing) expect(p95(times)).toBeLessThanOrEqual(100);
@@ -117,7 +114,10 @@ test("@wp10a the empty margin (「この節について」) stays once the loop 
   await page.goto(`/w/${WS}/doc/s3`);
   await waitMark(page, "mitori:section:rendered");
   await expect(page.locator(".ctx .margin-empty .about")).toBeVisible();
-  // the loop extension arrives after the first paint; its margin has nothing to show here — the about card must not vanish
+  // A real help action loads the editing extension; its empty margin must preserve the native about card.
+  await page.keyboard.press("?");
+  await expect(page.locator("dialog.help")).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(page.locator("#mitori-loop")).toBeAttached();
   await expect(page.locator(".ctx .margin-host")).toBeAttached();
   await page.waitForTimeout(300);
@@ -194,12 +194,23 @@ test("@wp10a cite peek (ux.md §4.3.6): keyboard focus on a chip opens it touchi
   await configure({});
   await page.goto(`/w/${WS}/doc/s3`);
   await waitMark(page, "mitori:section:rendered");
-  const chip = page.locator(".blk a.mcite").nth(2);
+  const selector = await page
+    .locator(".blk a.mcite")
+    .nth(2)
+    .evaluate((el) => {
+      const block = (el.closest(".blk") as HTMLElement | null)?.dataset.b;
+      const cite = el.getAttribute("data-cite");
+      if (!block || !cite) throw new Error("Citation identity is missing");
+      return `.blk[data-b="${CSS.escape(block)}"] a.mcite[data-cite="${CSS.escape(cite)}"]`;
+    });
+  // Native → editing rendering replaces nodes; keep the original block/citation identity across that handoff.
+  const chip = page.locator(selector).first();
   await chip.scrollIntoViewIfNeeded();
   await page.keyboard.press("Tab"); // keyboard modality, so the chip's focus is :focus-visible
   await chip.focus();
   const peek = page.locator(".pop.peek");
   await expect(peek).toBeVisible();
+  await expect(chip).toBeFocused();
   const gap = async () => {
     const c = await chip.boundingBox();
     const p = await peek.boundingBox();

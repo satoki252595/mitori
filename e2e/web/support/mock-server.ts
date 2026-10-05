@@ -9,7 +9,17 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
-import { buildPlanModel, type GenRun, type InitialUiRenderer, MitoriError, mapSvgPresentation, planData, type SectionId, type SseEvent } from "@mitori/core";
+import {
+  buildPlanModel,
+  type GenRun,
+  type InitialUiRenderer,
+  MitoriError,
+  mapSvgPresentation,
+  planData,
+  type SectionId,
+  type SseEvent,
+  type ThreadSummary,
+} from "@mitori/core";
 import { DEFAULTS, docFixture, engines, estimate, type FixtureOptions, mapView, paletteItems, settings, streamBlock, WS, workspaceStatus } from "./fixture.ts";
 
 const PORT = Number(process.argv[2] ?? process.env.MOCK_PORT ?? 4317);
@@ -29,6 +39,7 @@ let log: { method: string; path: string; body?: unknown; at: number }[] = [];
 let seq = 100;
 let estSeq = 0;
 let currentGen: GenRun | null = null;
+const threads = new Map<string, ThreadSummary>();
 let settingsVersion = 3;
 let acked = opts.policyAcked;
 /** The reader level a PATCH saved (the first visit saves 「初めて」, NC-08); reset by configure. */
@@ -51,6 +62,7 @@ function configure(o: Partial<FixtureOptions>) {
   fileRev = 0;
   estSeq = 0;
   currentGen = null;
+  threads.clear();
 }
 
 const currentStatus = () => ({ ...workspaceStatus(opts), gen: currentGen });
@@ -63,6 +75,8 @@ function withSaved<T extends { settings: { ui: { readerLevel: string; lang: stri
 function emit(e: Partial<SseEvent> & { type: string }) {
   // A real daemon commits canonical views before publishing the event. SSR refresh observes that same state.
   const event = e as SseEvent;
+  if (event.type === "thread.upsert") threads.set(event.thread.id, event.thread);
+  else if (event.type === "thread.removed") threads.delete(event.id);
   if (event.type === "gen.run") currentGen = event.run;
   if (event.type === "doc.block.upsert") {
     const view = doc.sections.get(event.block.section);
@@ -283,7 +297,7 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     }
     return err("E_NOT_FOUND", 404);
   }
-  if (m === "GET" && rest === "/threads") return json({ items: [], next: null });
+  if (m === "GET" && rest === "/threads") return json({ items: [...threads.values()], next: null });
   if (m === "GET" && /^\/threads\/th_[0-9a-z]+$/.test(rest)) {
     // a thread anchored on the first block of §3.1 (thread permalink redirect)
     const block = doc.outline.blocks.find((x) => x[1] === "s3/review-cycle")?.[0];

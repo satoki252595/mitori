@@ -2,6 +2,8 @@
 
 対象は `codex/complete-backlog` の残タスク実装。最終 commit と PR の結果は後で追記する。未実施を成功として扱わない。
 
+[PR #5](https://github.com/satoki252595/mitori/pull/5)を作成・pushした。初回CIのUbuntu wall判定と3browserの28 failを修正中の経緯は [PR実CI資料](pr5-ci-20261005.md)。修正後のMac全checkは6.01秒/exit0。最終PR全体成功・mergeはまだ未実施。
+
 ## 最初の全体実行と限定再検証
 
 - Mac 全 `bun test`: **2,952 pass / 42 fail / 16 skip / 5 todo**、3,015 tests、342 files、124,897 assertions、229.25秒。失敗を残し、修正対象の単位だけ再実行した。
@@ -14,6 +16,8 @@
 - generation dependency: prep phase内でもhard dependencyの完了を待つ共有経路へ修正。questionsへflowsのCLAIMSが入り、再実行の12 tasksが全cached。session14 tests / 93 assertions成功。資料は [session-deps-20261005.md](session-deps-20261005.md)。
 
 最初の失敗には、web assetの再生成後にsource daemonのtableが旧chunk名を保持する問題、export viewerの60,000 bytes制約、隣接table cellの引用range境界、namespace監査の新SidePanel、source lint監査、古いgoldenと編集中の生成promptが含まれた。共有asset table / range / viewer / UI監査を修正し、失敗した19 int filesの限定再実行は **88 pass / 0 fail / 733 assertions、85.09秒**。生成renderer全体も **17 pass / 144 assertions**。
+
+残る失敗単位は別の限定実行で確認した。UX-UI＋viewerは **2 pass / 12 assertions**、UI監査は **36 pass / 1,127 assertions**。golden13件は上記16 passの実行、gen2件はrendererとsessionの実行、fixture1件はdescriptor/truthの実行へ対応する。19 int filesの実行だけで最初の42 fail全てを検証したとは扱わない。
 
 最終Mac `scripts/nd bun run check` は **12.61秒、exit 0**。全20 projectの意味型検査、Svelte 0 errors / 0 warnings、Biome、boundaries、CR ledger、budgets、contract indexが成功した。全unitの最初の42 failは履歴として保持し、その後の全unitをMacで再実行したとは報告しない。
 

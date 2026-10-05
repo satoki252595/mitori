@@ -93,13 +93,16 @@ test("@wp10a palette: Escape returns focus to where it was and the next single-k
   await waitMark(page, "mitori:section:rendered");
   await page.keyboard.press("j");
   await expect(page.locator(".blk.focus")).toHaveCount(1);
-  const before = await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80) ?? "");
+  const before = await page.evaluate(() => ({ tag: document.activeElement?.tagName, block: (document.activeElement as HTMLElement | null)?.dataset.b }));
+  expect(before.block).toBeTruthy();
   const input = await openPalette(page);
   await input.fill("mochi");
   await expect(page.locator(".pal-it").first()).toContainText("持ち越し");
   await page.keyboard.press("Escape");
   await expect(page.locator(".pal")).toHaveCount(0);
-  expect(await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80) ?? "")).toBe(before);
+  expect(await page.evaluate(() => ({ tag: document.activeElement?.tagName, block: (document.activeElement as HTMLElement | null)?.dataset.b }))).toEqual(
+    before,
+  );
   const focused = await page.locator(".blk.focus").getAttribute("data-b");
   await page.keyboard.press("j");
   await expect(page.locator(".blk.focus")).not.toHaveAttribute("data-b", focused ?? "");

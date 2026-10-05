@@ -3,7 +3,7 @@
  * clipping at every zoom stage, room selection ≤ 100 ms and room → Reader p95 ≤ 100 ms.
  */
 import { expect, test } from "@playwright/test";
-import { chromiumMetric, configure, mockLog, now, p95, WS, waitMark } from "./support/helpers.ts";
+import { chromiumMetric, configure, inputToMark, mockLog, now, p95, WS, waitMark } from "./support/helpers.ts";
 
 /*
  * AC-J01 on the editorial layout (ux.md R1 §2.2, prototype `01-first-run-map`, which replaced the strip + full-height
@@ -84,17 +84,12 @@ test("@wp10a AC-J07 room click → card ≤ 100 ms; Enter → Reader section p95
   const openMs: number[] = [];
   for (const id of rooms) {
     const room = page.locator(`.room[data-node="${id}"]`);
-    const t0 = await now(page);
     // Firefox's SVG <a> bounding box includes a displaced nested viewport; hit the visible floor.
-    await room.locator("rect.fl").click();
-    const tc = await waitMark(page, "mitori:room:card", t0);
-    cardMs.push(tc - t0);
+    cardMs.push(await inputToMark(page, "click", () => room.locator("rect.fl").click(), "mitori:room:card"));
     await expect(page.locator(".room-card")).toBeVisible();
     // second Enter on the focused room opens its section
-    const t1 = await now(page);
-    await room.press("Enter");
-    const tr = await waitMark(page, "mitori:section:rendered", t1);
-    openMs.push(tr - t1);
+    openMs.push(await inputToMark(page, "keydown", () => room.press("Enter"), "mitori:section:rendered"));
+    const tr = await waitMark(page, "mitori:section:rendered");
     await expect(page.locator(".sec-head h1")).toBeVisible();
     await page.goBack();
     await waitMark(page, "mitori:map:painted", tr);
