@@ -6,6 +6,11 @@ import { configure, mockLog, WS, waitMark } from "./support/helpers.ts";
 
 test("@wp10a official sign-in is an explicit click and Grok defaults to the subscription session", async ({ page }) => {
   await configure({});
+  const view = structuredClone(settings(DEFAULTS));
+  await page.route("**/api/v1/settings", async (route) => {
+    if (route.request().method() === "GET") await route.fulfill({ json: view });
+    else await route.continue();
+  });
   const requests: unknown[] = [];
   await page.route("**/api/v1/settings/provider-login", async (route) => {
     requests.push(route.request().postDataJSON());
@@ -24,6 +29,11 @@ test("@wp10a official sign-in is an explicit click and Grok defaults to the subs
   expect(requests).toEqual([{ provider: "claude" }, { provider: "grok" }]);
   await page.getByRole("button", { name: "接続コマンドを作る" }).click();
   await expect(page.locator("form pre").last()).toContainText("setup grok --repo");
+  // An external session retains old direct-engine model settings; those must not replace the selected tool.
+  view.settings.defaultGenEngine = "session";
+  view.settings.models.genModule = "generic:muse-spark-1.3-contributor";
+  await page.getByRole("button", { name: "設定を再読み込み", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "使うAI", exact: true })).toHaveValue("grok");
   await page.getByLabel("APIキーで接続する（料金と利用枠を別途確認）").check();
   await expect(page.getByLabel("接続先URL（/v1）").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "公式Grok Buildにログイン", exact: true })).not.toBeVisible();

@@ -107,10 +107,10 @@ $effect(() => {
   outputPrice = cfg.engines.generic.pricing?.outPerMTok;
   cachePrice = cfg.engines.generic.pricing?.cacheReadPerMTok;
   timeoutSeconds = cfg.engines.generic.turnMs === undefined ? undefined : cfg.engines.generic.turnMs / 1000;
-  if (model.includes("muse-")) chooseSetup("muse");
-  else if (model.includes("grok-")) chooseSetup("grok");
-  else if (protocol === "openai-chat") chooseSetup(baseUrl.includes(":11434/") ? "ollama" : baseUrl.includes(":1234/") ? "lmstudio" : "openai");
   if (provider === "generic") {
+    if (model.includes("muse-")) chooseSetup("muse");
+    else if (model.includes("grok-")) chooseSetup("grok");
+    else if (protocol === "openai-chat") chooseSetup(baseUrl.includes(":11434/") ? "ollama" : baseUrl.includes(":1234/") ? "lmstudio" : "openai");
     simpleModel = model.replace(/^generic:/, "");
     if (protocol === "openai-chat") {
       if (simpleProvider === "grok") useApi = true;

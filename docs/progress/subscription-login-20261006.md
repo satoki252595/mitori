@@ -22,7 +22,7 @@
 | native IOのneutral cwd/cleanup | 1件。実行プロセスはmock |
 | ローカル認証表示 | 1件、4 assertions。CLI未ログイン・remote missing keyと区別 |
 | CLI JA/EN help golden | 2件、84 assertions |
-| Chromium認証ボタン・Grok session/API・Ollama・Antigravity | 1件。mock endpointのみ、実認証しない |
+| Chromium認証ボタン・Grok session/API・再読み込み時の選択保持・Ollama・Antigravity | 1件。mock endpointのみ、実認証しない |
 
 実ログイン・ログアウト、実LLM推論、プラン購入・課金設定変更は自動検証で実施していない。認証完了と利用可能なモデル・残枠は本人が公式ツールで確認する。以前のMuse実検証を更新版や他providerの証拠へ付け替えない。PRのCI結果と統合commitはIssueに追記する。
 
