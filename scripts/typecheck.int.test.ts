@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { typecheck } from "./typecheck.ts";
 
-test("parallel typecheck catches errors in every transitive project after unchecked declaration emission", async () => {
+test("checked solution build rejects noCheck-only cache errors in every transitive project and reuses checked state", async () => {
   const root = mkdtempSync(join(tmpdir(), "mitori-typecheck-"));
   const json = (path: string, value: unknown) => writeFileSync(join(root, path), JSON.stringify(value));
   const logs: string[] = [];
@@ -32,15 +32,21 @@ test("parallel typecheck catches errors in every transitive project after unchec
     json("tsconfig.json", { files: [], references: [{ path: "b" }] });
     writeFileSync(join(root, "a/index.ts"), "export const value: string = 1;\n");
     writeFileSync(join(root, "b/index.ts"), 'import { value } from "../a/index"; export const result: number = value;\n');
-    expect(await typecheck(root, (line) => logs.push(line))).toBe(1);
+    const seed = Bun.spawn(["tsc", "-b", "--noCheck", "--pretty", "false"], { cwd: root, stdout: "pipe", stderr: "pipe" });
+    const [, , seeded] = await Promise.all([new Response(seed.stdout).text(), new Response(seed.stderr).text(), seed.exited]);
+    expect(seeded).toBe(0);
     expect(existsSync(join(root, "build/a/index.d.ts"))).toBe(true);
     expect(existsSync(join(root, "build/b/index.d.ts"))).toBe(true);
-    expect(logs.some((line) => line.startsWith("a/tsconfig.json:") && line.includes("TS2322"))).toBe(true);
-    expect(logs.some((line) => line.startsWith("b/tsconfig.json:") && line.includes("TS2322"))).toBe(true);
-    expect(logs.at(-1)).toContain("2 semantic checks, 3 parallel, 2 failure(s)");
+    expect(typecheck(root, (line) => logs.push(line))).toBe(1);
+    expect(logs.some((line) => line.startsWith("a/index.ts(") && line.includes("TS2322"))).toBe(true);
+    expect(logs.some((line) => line.startsWith("b/index.ts(") && line.includes("TS2322"))).toBe(true);
+    expect(logs.at(-1)).toContain("2 projects, 2 semantic builds, 2 error(s)");
     writeFileSync(join(root, "a/index.ts"), 'export const value: string = "ok";\n');
     writeFileSync(join(root, "b/index.ts"), 'import { value } from "../a/index"; export const result: string = value;\n');
-    expect(await typecheck(root, () => {})).toBe(0);
+    expect(typecheck(root, () => {})).toBe(0);
+    logs.length = 0;
+    expect(typecheck(root, (line) => logs.push(line))).toBe(0);
+    expect(logs.at(-1)).toContain("2 projects, 0 semantic builds, 2 cached, 0 error(s)");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

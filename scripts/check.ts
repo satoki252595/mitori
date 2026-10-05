@@ -65,7 +65,7 @@ if (import.meta.main) {
     const ok = r.code === 0;
     if (!ok) failed++;
     console.log(`${ok ? "✓" : "✗"} ${r.name.padEnd(15)} ${(r.ms / 1000).toFixed(2)} s`);
-    if ((!ok || verbose) && r.log) console.log(r.log.replace(/^/gm, "    "));
+    if ((!ok || verbose || (process.env.GITHUB_ACTIONS === "true" && r.name === "tsc")) && r.log) console.log(r.log.replace(/^/gm, "    "));
   }
   const verdict = checkVerdict(wall, failed, factor);
   console.log(`check: ${failed === 0 ? "ok" : `${failed} step(s) failed`} in ${wall.toFixed(2)} s`);

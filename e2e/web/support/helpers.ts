@@ -1,4 +1,6 @@
 /** Shared helpers of the WP-10a Playwright specs. */
+
+import { loadavg } from "node:os";
 import type { Page, TestInfo } from "@playwright/test";
 
 export const WS = "ws_cr1t00000000";
@@ -51,7 +53,10 @@ export async function inputToMark(page: Page, event: "click" | "keydown", action
   await page.evaluate(
     ([type, mark]) => {
       performance.clearMarks(mark);
-      window.addEventListener(type, (e) => performance.mark(mark, { startTime: e.timeStamp, detail: { trusted: e.isTrusted } }), { once: true, capture: true });
+      window.addEventListener(type, (e) => performance.mark(mark, { startTime: e.timeStamp, detail: { trusted: e.isTrusted, handlerAt: performance.now() } }), {
+        once: true,
+        capture: true,
+      });
     },
     [event, input] as const,
   );
@@ -59,9 +64,13 @@ export async function inputToMark(page: Page, event: "click" | "keydown", action
   const trigger = await page.evaluate((mark) => {
     const e = performance.getEntriesByName(mark, "mark").at(-1) as PerformanceMark | undefined;
     if (!e?.detail?.trusted) throw new Error("Trusted browser input was not observed");
-    return e.startTime;
+    return { at: e.startTime, handlerAt: e.detail.handlerAt as number };
   }, input);
-  return (await waitMark(page, name, trigger)) - trigger;
+  const painted = await waitMark(page, name, trigger.at);
+  console.log(
+    `[input→paint] ${name}: queue ${(trigger.handlerAt - trigger.at).toFixed(1)} / handler→mark ${(painted - trigger.handlerAt).toFixed(1)} ms; host load ${loadavg()[0]?.toFixed(2)}`,
+  );
+  return painted - trigger.at;
 }
 
 export function p95(xs: number[]): number {

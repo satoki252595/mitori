@@ -1,11 +1,9 @@
-// Emit project-reference declarations once, then check every project's source with bounded parallelism.
-// Separate semantic build-info files keep --noEmit from disturbing the declaration build's incremental state.
-import { mkdirSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+// One checked solution build shares TypeScript's declaration/source and resolution caches across project references.
+import { dirname, join, resolve } from "node:path";
 import ts from "typescript";
 import { ROOT } from "./lib/repo.ts";
 
-export async function typecheck(root = ROOT, log: (text: string) => void = console.log): Promise<number> {
+export function typecheck(root = ROOT, log: (text: string) => void = console.log): number {
   const projects = new Set<string>();
   const visit = (file: string) => {
     if (projects.has(file)) return;
@@ -21,31 +19,29 @@ export async function typecheck(root = ROOT, log: (text: string) => void = conso
   visit(rootConfig);
   // This repository's solution config has no source; all referenced configs (including transitive ones) are checked.
   projects.delete(rootConfig);
-  const run = async (name: string, argv: string[]) => {
-    const started = performance.now();
-    const proc = Bun.spawn(argv, { cwd: root, stdout: "pipe", stderr: "pipe" });
-    const [out, err, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
-    if (code !== 0) log(`${name}:\n${out}${err}`.trim());
-    return { code, ms: performance.now() - started };
-  };
-
-  const emit = await run("declarations", ["tsc", "-b", "--noCheck", "--pretty", "false"]);
-  log(`typecheck: declarations ${(emit.ms / 1000).toFixed(2)} s`);
-  let failed = emit.code !== 0 ? 1 : 0;
-  const pending = [...projects];
   const started = performance.now();
-  await Promise.all(
-    Array.from({ length: 3 }, async () => {
-      for (let file = pending.shift(); file; file = pending.shift()) {
-        const info = join(root, "node_modules/.cache/tsc-semantic", relative(root, dirname(file)), "tsconfig.tsbuildinfo");
-        mkdirSync(dirname(info), { recursive: true });
-        const r = await run(relative(root, file), ["tsc", "-p", file, "--noEmit", "--noCheck", "false", "--pretty", "false", "--tsBuildInfoFile", info]);
-        if (r.code !== 0) failed++;
-      }
-    }),
+  let errors = 0;
+  let built = 0;
+  const host = ts.createSolutionBuilderHost(ts.sys, undefined, (diagnostic) => {
+    if (diagnostic.category === ts.DiagnosticCategory.Error) errors++;
+    log(
+      ts
+        .formatDiagnostics([diagnostic], {
+          getCanonicalFileName: (file) => file,
+          getCurrentDirectory: () => root,
+          getNewLine: () => "\n",
+        })
+        .trim(),
+    );
+  });
+  host.afterProgramEmitAndDiagnostics = () => built++;
+  // noCheck-only build-info has checkPending=true; the canonical builder rechecks it before reusing diagnostics.
+  const code = ts.createSolutionBuilder(host, [rootConfig], { noCheck: false, stopBuildOnErrors: false }).build();
+  // Only a successful solution proves that projects without a new semantic build reused checked incremental state.
+  log(
+    `typecheck: ${projects.size} projects, ${built} semantic builds${code === ts.ExitStatus.Success ? `, ${projects.size - built} cached` : ""}, ${errors} error(s), ${((performance.now() - started) / 1000).toFixed(2)} s`,
   );
-  log(`typecheck: ${projects.size} semantic checks, 3 parallel, ${failed} failure(s), ${((performance.now() - started) / 1000).toFixed(2)} s`);
-  return failed === 0 ? 0 : 1;
+  return code === ts.ExitStatus.Success ? 0 : 1;
 }
 
-if (import.meta.main) process.exit(await typecheck());
+if (import.meta.main) process.exit(typecheck());
