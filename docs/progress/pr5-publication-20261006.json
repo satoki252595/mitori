@@ -1,0 +1,130 @@
+{
+  "version": "mitori.pr5-publication/1",
+  "checkedAt": "2026-10-05T18:37:00.047Z",
+  "repository": "satoki252595/mitori",
+  "pullRequest": "https://github.com/satoki252595/mitori/pull/5",
+  "mergedAt": "2026-10-05T18:32:08Z",
+  "testedHead": "a663a459f0c1c5a446d158dbb9acbed80f67f4ad",
+  "testedMergeCheckout": "24a342e82fd20f320d9fbef4db36e992ac298ca4",
+  "testedTree": "e4ae49882564616a5c25dd99bf944eafdd83332d",
+  "mergedCommit": "09610433865b444372aeee1e4a00d628b5702c4c",
+  "mergedTreeMatchesTestedTree": true,
+  "goldenCommitsRetained": [
+    "f9955cf5478b625b099d04f35afb3446eca7d7cd",
+    "7f774191172bb3017a571ebea6cae5eea91291f1"
+  ],
+  "deletedBranch": {
+    "name": "codex/complete-backlog",
+    "tip": "a663a459f0c1c5a446d158dbb9acbed80f67f4ad",
+    "local": true,
+    "remote": true
+  },
+  "remainingLocalBranches": [
+    "main"
+  ],
+  "remainingRemoteBranches": [
+    "main"
+  ],
+  "ci": {
+    "run": 37355410161,
+    "url": "https://github.com/satoki252595/mitori/actions/runs/37355410161",
+    "conclusion": "success",
+    "ubuntu": {
+      "job": 111916472949,
+      "check": {
+        "stages": 7,
+        "projects": 20,
+        "semanticBuilds": 20,
+        "cached": 0,
+        "errors": 0,
+        "factor": 2.404,
+        "seconds": 65.32,
+        "targetSeconds": 36.06,
+        "limitSeconds": 72.13,
+        "targetWarning": true
+      },
+      "unit": {
+        "pass": 2944,
+        "skip": 134,
+        "todo": 4,
+        "fail": 0,
+        "assertions": 121227,
+        "tests": 3082,
+        "files": 343,
+        "seconds": 371.61
+      },
+      "repair": {
+        "elapsedMs": 4374.61,
+        "limitMs": 20000
+      },
+      "fixturesVerified": 12,
+      "golden": {
+        "pass": 109,
+        "skip": 4,
+        "fail": 0,
+        "assertions": 1028,
+        "tests": 113,
+        "files": 11,
+        "seconds": 6.11
+      },
+      "sizeStage": "success with retained advisory warnings",
+      "startup": {
+        "milliseconds": 96.34,
+        "target": 20,
+        "limit": 50,
+        "factor": 2.284,
+        "gatingOnThisMachine": false
+      },
+      "nativeLinuxSmoke": {
+        "build": "success",
+        "output": "mitori 0.0.0 (api 1)",
+        "binaryShaCaptured": false
+      },
+      "raw": {
+        "bytes": 664015,
+        "sha256": "215e2deed45486dab5028ad928a6eca6b0c366b5ba783f7bd0e6cdb1d3c25b87"
+      }
+    },
+    "mac": {
+      "job": 111916473422,
+      "guard": {
+        "ac": true,
+        "load": 6.1328125,
+        "cores": 18,
+        "noisy": false,
+        "factor": 1.012264164072741
+      },
+      "web": {
+        "pass": 344,
+        "skip": 14,
+        "fail": 0
+      },
+      "share": {
+        "browsers": 3,
+        "pass": 2,
+        "assertions": 37
+      },
+      "a11y": {
+        "pass": 8,
+        "fail": 0
+      },
+      "raw": {
+        "bytes": 108148,
+        "sha256": "de6069af53e775990e70c967c9a23ef83f1b1ba415d42f1cd4ddc3325c158bc4"
+      }
+    },
+    "windows": "skipped: Nix exception/native execution approval pending"
+  },
+  "postmergeFollowup": "Documentation only; source and binary performance measurements retain their original provenance",
+  "remaining": [
+    "Windows native verification after this-run-only Nix exception approval",
+    "Cloudflare dedicated R2/D1 creation and Worker deployment approval",
+    "Native Safari and Japanese IME after manual Mac unlock"
+  ],
+  "limitations": [
+    "134 unit skips and 4 todos, 4 golden skips and 14 browser skips remain explicit",
+    "Performance target warnings and foreign-machine startup limit overrun remain visible",
+    "OSS source review is not full-text semantic assurance; exact provider usage and latest whole-prompt fresh comparison are unavailable",
+    "The earlier local shipping binary SHA and F7/F15 measurements are not relabeled as this CI build"
+  ]
+}

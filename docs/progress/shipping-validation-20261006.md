@@ -1,5 +1,7 @@
 # 更新版の出荷物確認（2026-10-06 JST）
 
+統合CIの第7回（source a663a459、checkout24a342e8）はLinux x64 build/`--version`で`mitori 0.0.0 (api 1)`を実行成功した。以下のlocal出荷SHAとは別buildで、CIのbinary SHAは未収集。CI startup96.34msは50ms limit超過だがfactor2.284の非基準機規則でnon-gating、成功性能へ丸めない。[統合CI照合](pr5-publication-20261006.json)。
+
 ## 最新: 品質説明の数値範囲修正後
 
 実build sourceは `7f774191172bb3017a571ebea6cae5eea91291f1`、productionの変更は `8f7176c` のquality prompt/versionだけ。README・検証/意思決定資料は未コミットだったが、production sourceとlocksはコミット済み。all-target build成功、Mac70,548,978B / Linux89,572,832B / Windows94,348,288Bは全95MB hard内。Mac SHA `1e170b95c33275db828901a297995b7111487df8ea4a02e744701d1b82328910`。Mac自己検査全6項目とcompiled asset hard gateも成功。起動表示中央値48.39ms / limit50 / target20 WARN。[build/SHA/起動](shipping-binaries-quality-scope-20261006.json)、[自己検査](shipping-selftest-quality-scope-20261006.json)、[assets](shipping-assets-quality-scope-20261006.json)。Linux/Windowsの85MB target WARNとnative未実行は維持する。

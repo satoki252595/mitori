@@ -1,11 +1,11 @@
 # Windows process tree の続行
 
-確認日: 2026-10-05。source と crossbuild まで実施。**Windows native 実行は未確認**であり、Windows 対応完了とは扱わない。変更は未コミット、生成 EXE は ignored cache のみ。
+作成日: 2026-10-05。2026-10-06にPR #5でsourceと検証資料をmainへ統合・push済み。Nix crossbuildは成功、生成EXEはignored cacheのみ。**Windows native実行は未確認**であり、Windows対応完了とは扱わない。
 
-統合担当の追加準備: `.github/workflows/windows.yml` は manual / reusable workflow として、Nix crossbuild→公式Bunのdigestを確認したWindows2025 native test→compiled Worker selftestを用意した。既存 `ci.yml` のdispatchから現在branchのreusable workflowを呼べるため、native test前にmainへ入れる必要はない。Nix例外の入力は既定false、未承認で実行しない。YAML parseとopt-in条件のassertを確認済み。承認とbranch push後の実行例:
+統合担当の追加準備: `.github/workflows/windows.yml` は manual / reusable workflow として、Nix crossbuild→公式Bunのdigestを確認したWindows2025 native test→compiled Worker selftestを用意した。既存 `ci.yml` のdispatchから現在branchのreusable workflowを呼べるため、native test前にmainへ入れる必要はない。Nix例外の入力は既定false、未承認で実行しない。YAML parseとopt-in条件のassertを確認済み。今回限定のNix例外承認後、統合済みmainでの実行例:
 
 ```sh
-scripts/nd gh workflow run ci.yml --repo satoki252595/mitori --ref codex/complete-backlog -f windows_nix_exception_approved=true
+scripts/nd gh workflow run ci.yml --repo satoki252595/mitori --ref main -f windows_nix_exception_approved=true
 ```
 
 既存 Spawner の `process.kill(-pid)` は POSIX の process group に限定される。Windows の taskkill では leader が既に終了した子孫を保証できないため、小さな native Job Object launcher に接続した。Bun FFI や shell は使わない。

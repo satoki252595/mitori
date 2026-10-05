@@ -1,11 +1,11 @@
-# mitori 引き継ぎ資料（2026-10-06 残タスク対応中）
+# mitori 引き継ぎ資料（2026-10-06 PR #5統合済み、外部3件待ち）
 
 > **現在の入口は §★。以下の「履歴★」と §0 / §0a / §0b は以前の記録。**
 > 利用者の続行指示に加え、今回の Linux 既存 Docker ハーネス例外と、任意 LLM 対応・Muse Contributor / max の選択を反映した。
 
 ## ★ 現在の状態（残タスク全件と最近のOSS検証）
 
-作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。統合前`origin/main`は`815957fd01fb4856b5ae8d3aa2091edd1ddd263f`。[PR #5](https://github.com/satoki252595/mitori/pull/5)の第6回CIはhead `141a53b`とremoteが一致し、Macの3browser 344pass/14skip/0fail・暗号化共有2pass/37assert・a11y8passが成功した。Ubuntuは全7check・20project意味検査・時間gate（64.28秒/limit70.18秒）が成功。unitは2943pass/134skip/4todo/1failで、INT08修復のconsent→readyが23,944ms/limit20,000msを超えた。fixture/golden/size・binary smokeは未到達、全CI・merge・branch整理は未完。[実CI経緯](progress/pr5-ci-20261005.md)。以前の4 remブランチの統合・整理は完了済み。最新compiled出荷物は更新済み。型検査の実行条件を確認し、全CIの成功とhead一致を確認してからmergeする。
+作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。第7回CI（head `a663a459`、実merge checkout `24a342e8`）は全体success。Ubuntu全7check/20semantic/0cached/0errors・unit2944pass/134skip/4todo/0fail・fixture全12・golden109pass/4skip・size・Linux binary smoke、Mac web344pass/14skip・共有2pass/37assert・a11y8passが成功した。Windowsは未承認skip。 [PR #5](https://github.com/satoki252595/mitori/pull/5)は2026-10-06 JSTにmainへmerge済み（`09610433865b444372aeee1e4a00d628b5702c4c`）、作業branchはlocal/remoteとも削除した。merge treeは成功CIのtreeと一致し、golden専用commitを含む履歴を保持した。[CI経緯](progress/pr5-ci-20261005.md)、[統合・削除照合](progress/pr5-publication-20261006.json)。以前の4 remブランチも統合・整理済み。
 
 ### ★.1 実装・単位検証済み
 
@@ -15,7 +15,7 @@
 - floorplanはdefault offのfeature flagで実装。8 corpusのactor保持 / determinism、fallback25%、40room algorithm約1.4–1.5msを確認。[floorplan証跡](progress/floorplan-20261005.json)。初回worker起動時間とは区別した。
 - 未計測7benchを5UI＋2agent residentとして測定。[UI計測](progress/ui-bench-20261005/README.md)。scanSummary中央値1,413.6msは1,000ms target超過だが2,000ms limit内のWARN。他の対象予算はgreen。Muse終了5秒後は0 process / 0MBで、Claude常駐cacheを測ったとは扱わない。
 - AC接続・前後負荷guardを維持して静かな基準機を校正。2026-10-05T03:01:28Z、5試行best316.23ms。[基準機記録](progress/reference-machine-20261005.md)。以前の補正結果を新係数で遡って成功へ変えていない。
-- Nix管理のself-hosted Mac runnerは `mitori-reference-mac`、label `mitori-reference` で online。第6回CIの3browser全suite344pass/14skip、shared viewer2pass、a11y8passが成功。第4回のa11y起動8failと局所Map違反2件は後続修正で解消。Ubuntuのcheck時間gateは成功したがINT08修復の時間assertが1failで全CIの成功は未完。
+- Nix管理のself-hosted Mac runnerは `mitori-reference-mac`、label `mitori-reference` で online。第7回CIの3browser全suite344pass/14skip、shared viewer2pass、a11y8passが成功。Ubuntu全体も成功。型検査/修復時間・a11y/guard/cassetteの過去の失敗と原因修正はCI経緯へ保持した。
 - WindowsはNix/ZigのJob Object helper、SHA検証・配布assets、path対応、manual native CIを用意。Nix crossbuildは成功し、native実行は未実施。[Windows報告](progress/windows-job-20261005.md)。unverified helper/profileを安全機能付きと表示しない。
 - 暗号化共有はAES-GCM・署名付きsnapshot・R2/D1 quota・期限・コメントとCLIを実装。Miniflare/D1とChromium/Firefox/WebKit、保存file://viewerを確認、Worker dryrun15.41KiBraw/5.30KiBgz。[共有報告](progress/cloudflare-share-2026-10-05.md)。remote resource作成 / deploy / Paid化はしていない。
 
@@ -29,14 +29,11 @@
 
 - 追加照合でJev旧§9の「250候補/run」誤文を発見。qualityへ数値の適用範囲の指示を加え@5で§9だけ再生成、1/1・323.8秒・推計$0.004909/cap$0.03。誤文は削除されたが、上限の具体数は入力に不足し説明省略、POSTの共有LOCKを全HTTPへ広げない補足も保存。全文semantic保証とは扱わない。[修正と限界](progress/oss-quality-2026-10-05/jev-quality-correction-20261006.md)。
 
-### ★.3 完了前に残ること
+### ★.3 残る外部条件
 
-1. **全CIとGit整理:** 第6回141a53bのMac全段・Ubuntu全7内容/時間gateは成功。Ubuntu unitはINT08修復の時間assertだけ1fail（23,944ms >20,000ms）。後続5ca80a1によるtestkit importの修正は全20意味検査を維持してCI gateを通過した。INT08の原因を修正し、全CI greenかつhead一致後にmerge・不要branch削除を行う。以前の失敗履歴は保持する。
-
-第6回後、INT08の準備先と実ゲートのGo cache不一致をtest-onlyで修正。一時HOME内の実cacheをtrusted fixtureで準備し、20秒assert/production gateを維持した。Linux2CPUの対象fileは21pass/5skip/0fail/206assertions、修復case1,686.96ms。Biome・対象tsc・独立reviewも成功。全CIの成功は次runで確認する。
-2. **Windows native:** 今回限りの公式Bun依存に対するNix例外は回答待ち。crossbuild成功をnative Job Object/配布実行成功へ丸めない。
-3. **Cloudflare公開:** 専用R2/D1作成＋Worker deployの具体的な承認待ち。実装・Miniflare・3browserは検証済み、remote/Paid化は未実施。
-4. **Safari実機/実IME:** 第6回Mac job終了後のCUA再確認でもMacロック中。Firefox/WebKitとsynthetic IMEの成功は実Safari/IMEの代わりにしない。
+1. **Windows native:** 今回限りの公式Bun依存に対するNix例外は回答待ち。Nix crossbuild・配布準備は成功、native Job Object/自己検査は未実施。[承認後のmain実行手順](progress/windows-job-20261005.md)。
+2. **Cloudflare公開:** 専用R2/D1作成＋Worker deployの承認待ち。実装・Miniflare・3browserは検証済み、remote/Paid化は未実施。[具体的な公開手順と費用条件](progress/cloudflare-share-2026-10-05.md)。
+3. **Safari実機/実IME:** 第7回CI終了後もCUAでMacロックを確認。Firefox/WebKitとsynthetic IMEの成功は実Safari/IMEの代わりにしない。
 
 最新compiled出荷物は7f77419（production品質promptの修正8f7176c）、Mac SHA1e170b95…、all-target全95MB hard内・Mac自己検査成功。compiled asset hard gateと起動表示中央値48.39ms/limit50が成功、target20 WARN。UIのmanifest/renderer/web manifest 3SHAは前版と一致。前版fdf71b9/e229e4eの初期JS gzip相当44,355B・実br40,066Bと、AC/quiet/factor1.000573のphysical footprint48.1571/156.5953MB、palette指定median30.5ms/round p9531.2msは元binaryの実測として保持し、新binaryへ付け替えない。advisory asset targetの未達も保持。[最新出荷物と旧測定](progress/shipping-validation-20261006.md)。
 

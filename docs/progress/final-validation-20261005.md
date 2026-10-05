@@ -1,8 +1,8 @@
-# 最終統合の検証（2026-10-05、進行中）
+# 最終統合の検証（2026-10-06、PR #5統合済み）
 
-対象は `codex/complete-backlog` の残タスク実装。2026-10-06 JST現在、第6回141a53bで3browser344pass/14skip・暗号化共有2pass/37assert・a11y8passが成功。Ubuntu全7check・全20project意味検査・時間gate64.28秒/limit70.18秒も成功。unitは2943pass/134skip/4todo/1failで、INT08修復の時間assert23,944ms/limit20,000msだけが失敗。fixture/golden/size/smoke・全CI・mergeは未完。[全CIと失敗単位の記録](pr5-ci-20261005.md)。
+第7回CI（head `a663a459`、実merge checkout `24a342e8`）は全体success。Ubuntu全7check/20semantic/0cached/0errors・unit2944pass/134skip/4todo/0fail・fixture全12・golden109pass/4skip・size・Linux binary smoke、Mac web344pass/14skip・共有2pass/37assert・a11y8passが成功した。Windowsは未承認skip。 PR #5をmainへmerge（`09610433865b444372aeee1e4a00d628b5702c4c`）、local/remoteの作業branchを削除した。成功CIとmergeのtree一致・履歴保持を[機械照合](pr5-publication-20261006.json)した。[全CIと失敗単位の履歴](pr5-ci-20261005.md)。
 
-第6回後、INT08の準備先と実ゲートのGo cache不一致をtest-onlyで修正。一時HOME内の実cacheをtrusted fixtureで準備し、20秒assert/production gateを維持した。Linux2CPUの対象fileは21pass/5skip/0fail/206assertions、修復case1,686.96ms。Biome・対象tsc・独立reviewも成功。全CIの成功は次runで確認する。
+INT08はテスト準備と実ゲートのGo cache不一致を修正し、第7回の実修復4,374.61msで20秒assertを通過。Ubuntu check65.32秒/limit72.13秒も成功、target36.06秒超過WARNは保持。残る外部条件はWindows nativeのNix例外承認、Cloudflare公開承認、Mac解除後のnative Safari/実IME。
 
 7f77419（production品質promptの修正8f7176c）のall-target build・Mac自己検査・compiled asset hard budgetは成功、起動48.39ms/limit50/target20 WARN。UIのmanifest/renderer/web manifest 3SHAは前版と一致。前版fdf71b9/e229e4eの初期JS44,355B gzip相当、F7 footprint48.1571/156.5953MB、F15指定中央値30.5ms・round p9531.2msを元binaryの記録として保持し、最新binaryへ付け替えない。soft target未達も保持。[最新出荷物](shipping-validation-20261006.md)。Windows native / Cloudflare公開 / Safari実機・実IMEは承認またはMac解除待ち。
 
