@@ -54,7 +54,7 @@ CLI は各プランの機能に含まれ、Google AI Pro / Ultra で利用枠が
 
 サブスクは Muse Code CLI にサインインして使うもの。CLI onboarding が接続する資格情報は Muse Code 専用で、アカウントに追加作成した API key は従量課金。資格情報を汎用 HTTP adapter にコピーしない。地域や契約により提供内容が異なる。[Subscriptions](https://dev.meta.ai/docs/muse-code/subscriptions)
 
-mitoriの`auth muse`は本人のTTYで認証解除の影響を表示して確認した後、公式の`logout`→`login`を実行する。保存APIキーの優先を避けるためで、途中失敗なら後続のログインを開始しない。認証用プロセスは`META_API_KEY`を継承せず、各ステップ前に確認済み実行ファイルの同一性を再確認する。既存の他のMuseセッションもログアウトされる。課金形態の機械可読確認は未対応のため、生成時のbillingは推測せずunknownを維持する。
+mitoriの`auth muse`は本人のTTYで認証解除の影響を表示して確認した後、公式の`logout`→`login`を実行する。保存APIキーの優先を避けるためで、途中失敗なら後続のログインを開始しない。認証用プロセスは`META_API_KEY`を継承せず、各ステップ前に確認済み実行ファイルの同一性を再確認する。課金形態の機械可読確認は未対応のため、生成時のbillingは推測せずunknownを維持する。
 
 今回確認した native は `~/.local/bin/muse-bin-1.4.3-R5018.1`。バージョン marker `~/.local/bin/.muse-version` から選ぶ既存方式を維持する。`~/.local/bin/muse` wrapper は確認作業で実行していない。
 
