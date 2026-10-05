@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { WorkspaceKey } from "@mitori/core";
@@ -33,6 +33,18 @@ import {
 const HOME = "/home/u/.mitori";
 const EMPTY = `${HOME}/run/empty`;
 const ctx = { cwd: EMPTY, home: HOME };
+
+// These stores record synthetic streams in disposable directories, never provider processes.
+function recordingFixture(dir: string) {
+  const ci = process.env.CI;
+  try {
+    delete process.env.CI;
+    return openCassettes({ dirs: [dir], mode: "record" });
+  } finally {
+    if (ci === undefined) delete process.env.CI;
+    else process.env.CI = ci;
+  }
+}
 
 function req(o: Partial<EngineRequest> = {}): EngineRequest {
   return {
@@ -79,7 +91,7 @@ describe("@mitori/agent/testing — cassette layer (testing spec §3)", () => {
   test("store + ReplaySpawner: exact key, scenario router, miss error, sanitize on save, unused report", async () => {
     const dir = mkdtempSync(join(tmpdir(), "mitori-cassettes-"));
     try {
-      const store = openCassettes({ dirs: [dir], mode: "record" });
+      const store = recordingFixture(dir);
       const r = req();
       const key = cassetteKey(r, "claude-cli", ctx);
       const c = synth.text("{}", { structured: { a: "1" } });
@@ -114,16 +126,16 @@ describe("@mitori/agent/testing — cassette layer (testing spec §3)", () => {
           ),
         ),
       ).toThrow(/scenario:nope/);
-      expect(() => openCassettes({ dirs: [dir], mode: "replay" }).save(c, "")).toThrow();
+      await expect(openCassettes({ dirs: [dir], mode: "replay" }).save(c, "")).rejects.toThrow(/replay mode/);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  test("TeeSpawner records a real run under its exact key (placeholders for paths) and stops at maxUsd", async () => {
+  test("TeeSpawner records a synthetic run under its exact key (placeholders for paths) and stops at maxUsd", async () => {
     const dir = mkdtempSync(join(tmpdir(), "mitori-tee-"));
     try {
-      const store = openCassettes({ dirs: [dir], mode: "record" });
+      const store = recordingFixture(dir);
       const r = req();
       const spf = `${HOME}/run/sp/${testHasher.sha256(r.system).slice(0, 32)}.txt`;
       const spec = buildClaudeSpawn(r, testSettings().engines["claude-cli"], { claudeBinary: "/bin/claude", systemPromptFile: spf, emptyCwd: EMPTY }, {});
@@ -145,6 +157,26 @@ describe("@mitori/agent/testing — cassette layer (testing spec §3)", () => {
       expect(store.spentUsd()).toBeGreaterThan(0);
       const broke = createTeeSpawner(real, store, { keyContext: ctx, readFile: () => r.system, maxUsd: 0 });
       expect(() => broke.spawn(spec)).toThrow(/budget/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("CI forces replay even for an explicit recording store and refuses writes", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "mitori-ci-cassettes-"));
+    const ci = process.env.CI;
+    let store: ReturnType<typeof openCassettes>;
+    try {
+      process.env.CI = "true";
+      store = openCassettes({ dirs: [dir], mode: "record" });
+    } finally {
+      if (ci === undefined) delete process.env.CI;
+      else process.env.CI = ci;
+    }
+    try {
+      expect(store.mode).toBe("replay");
+      await expect(store.save(synth.text("synthetic"), "prompt")).rejects.toThrow(/replay mode/);
+      expect(readdirSync(dir)).toEqual([]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

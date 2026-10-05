@@ -44,7 +44,7 @@ beforeAll(async () => {
   t0 = performance.now();
   proc = Bun.spawn([bin, "_serve"], {
     cwd: iso,
-    env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: iso, MITORI_HOME: join(iso, "home") },
+    env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: iso, MITORI_HOME: join(iso, "home"), TMPDIR: tmpdir() },
     stdout: "pipe",
     stderr: "pipe",
   });

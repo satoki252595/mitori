@@ -74,7 +74,7 @@ test("Codex agent uses side worktree, reports missing gates, and preserves human
     },
     spawner: { spawn: (s) => (s.command === native ? fake.spawn(s) : real.spawn(s)) },
     overrides: {
-      env: { HOME: source, PATH: process.env.PATH ?? "/usr/bin:/bin" },
+      env: { HOME: source, PATH: process.env.PATH ?? "/usr/bin:/bin", TMPDIR: tmpdir() },
       fs: {
         ...baseFs,
         stat: (p) => (p === native ? { isFile: true, isDir: false, isSymlink: false, size: 6, mtimeNs: 0n, ino: 1n } : baseFs.stat(p)),

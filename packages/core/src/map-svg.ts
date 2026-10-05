@@ -31,7 +31,7 @@ function chipsSvg(r: RoomModel): string {
 export function renderPlanSvg(m: PlanModel, text: PlanText, descId: string): string {
   const out: string[] = [];
   out.push(
-    `<svg class="plan${m.doors ? " floor" : ""}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(text.title)}" aria-describedby="${esc(descId)}" width="100%" height="100%">`,
+    `<svg class="plan${m.doors ? " floor" : ""}" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="${esc(text.title)}" aria-describedby="${esc(descId)}" width="100%" height="100%">`,
     '<defs><pattern id="pl-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" class="hatch-line"/></pattern>',
     '<marker id="pl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path class="fl-head" d="M0 1L10 5L0 9z"/></marker></defs>',
     '<g class="cam">',

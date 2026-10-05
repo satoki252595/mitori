@@ -30,7 +30,8 @@ import { createSpawner } from "@mitori/platform";
 import { buildFixture, type FixtureRepo } from "@mitori/testkit";
 import { type Int, startInt } from "./harness.ts";
 
-// real git / gofmt / go vet / go test turns: a cold build cache takes seconds
+// Real git / gofmt / go vet / go test turns. Prepare the Go toolchain cache on the unchanged fixture below;
+// the 20 s consent→ready assertion measures the complete repair workflow, not cold compiler bootstrap.
 setDefaultTimeout(60_000);
 
 /* ---- a scripted claude that can play agent-mode turns ----------------------------------------------------------- */
@@ -156,6 +157,21 @@ beforeAll(async () => {
   });
   ws = (await int.open(repo.root)).ws;
   web = await int.browser();
+  const go = Bun.which("go");
+  if (go) {
+    const cache = join(int.home, "cache", "go", ws);
+    mkdirSync(cache, { recursive: true });
+    // The gate runner uses this isolated, mitori-owned cache. Warm it with trusted fixture code before any AI edit;
+    // the measured POST→ready still includes the actual failing vet, continuation, edit, diff and formatter gates.
+    const vet = Bun.spawn([go, "vet", "./..."], {
+      cwd: repo.root,
+      env: { ...process.env, GOTOOLCHAIN: "local", GOCACHE: cache, GOFLAGS: "-mod=readonly", GOPROXY: "off" },
+      stdout: "ignore",
+      stderr: "pipe",
+    });
+    const [code, err] = await Promise.all([vet.exited, new Response(vet.stderr).text()]);
+    expect({ code, err }).toMatchObject({ code: 0 });
+  }
 }, 60_000);
 afterAll(async () => {
   await int?.close();
@@ -439,7 +455,7 @@ describe("INT-08 agent mode: a cross-file Fix in a worktree, gates, a REPAIR tur
     if (Bun.which("go")) {
       const vet = Bun.spawnSync(["go", "vet", "./..."], {
         cwd: repo.root,
-        env: { ...process.env, GOTOOLCHAIN: "local", GOCACHE: join(int.home, "gocache"), GOFLAGS: "-mod=mod" },
+        env: { ...process.env, GOTOOLCHAIN: "local", GOCACHE: join(int.home, "cache", "go", ws), GOFLAGS: "-mod=readonly", GOPROXY: "off" },
       });
       expect({ code: vet.exitCode, err: vet.stderr.toString() }).toMatchObject({ code: 0 });
     }

@@ -15,6 +15,7 @@ export default defineConfig({
   testMatch: ["**/*.spec.ts", "**/*.e2e.ts"],
   testIgnore: ["**/node_modules/**"],
   outputDir: "../../test-results",
+  globalSetup: "./global-setup.ts",
   fullyParallel: true,
   workers: ci ? 2 : "50%",
   retries: ci ? 1 : 0,

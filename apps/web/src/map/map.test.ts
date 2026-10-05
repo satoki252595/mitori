@@ -162,6 +162,7 @@ describe("plan model + SVG (AC-J06 / AC-U75)", () => {
   test("one SVG: escaped labels, rooms as focusable links (one tab stop), zone labels in a clipped top layer", () => {
     const m = buildPlanModel(view());
     const svg = renderPlanSvg(m, { title: "map", roomHref: (r) => `/w/x?room=${r.id}`, roomLabel: (r) => r.label, files: (n) => `${n} files` }, "desc");
+    expect(svg).toMatch(/^<svg [^>]*role="group"/);
     expect(svg).toContain("&#60;core&#62; &#38; co");
     expect(svg).toContain("C &#34;x&#34;");
     expect(svg.match(/tabindex="0"/g)?.length).toBe(1);
