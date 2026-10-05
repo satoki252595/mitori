@@ -69,7 +69,7 @@ jobs:
       - run: scripts/nd bun install --frozen-lockfile
       - run: scripts/nd bunx playwright install chromium firefox webkit
       - name: Reader, map, large sections and IME in real browsers
-        run: scripts/nd bunx playwright test -c e2e/web/playwright.config.ts --project chromium --project firefox --project webkit
+        run: scripts/nd caffeinate -i bunx playwright test -c e2e/web/playwright.config.ts --project chromium --project firefox --project webkit
       - name: Encrypted shared viewer in Chromium, Firefox and WebKit
         run: MITORI_BROWSER_SHARE=1 scripts/nd bun test e2e/share/share.int.test.ts
       - name: Accessibility
@@ -79,5 +79,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: browsers-${{ github.sha }}
-          path: test-results/
+          path: |
+            e2e/test-results/
+            test-results/
           retention-days: 30

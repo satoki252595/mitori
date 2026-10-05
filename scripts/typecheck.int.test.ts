@@ -23,14 +23,16 @@ test("checked solution build rejects noCheck-only cache errors in every transiti
           moduleResolution: "bundler",
           types: [],
           outDir: `../build/${name}`,
+          ...(name === "a" ? { allowJs: true, checkJs: true } : {}),
         },
-        include: ["index.ts"],
+        include: name === "a" ? ["index.ts", "types.js"] : ["index.ts"],
         ...(name === "b" ? { references: [{ path: "../a" }] } : {}),
       });
     }
     // Only b is listed at the solution level; a must be discovered through b's reference.
     json("tsconfig.json", { files: [], references: [{ path: "b" }] });
     writeFileSync(join(root, "a/index.ts"), "export const value: string = 1;\n");
+    writeFileSync(join(root, "a/types.js"), '/** @type {number} */\nexport const documented = "wrong";\n');
     writeFileSync(join(root, "b/index.ts"), 'import { value } from "../a/index"; export const result: number = value;\n');
     const seed = Bun.spawn(["tsc", "-b", "--noCheck", "--pretty", "false"], { cwd: root, stdout: "pipe", stderr: "pipe" });
     const [, , seeded] = await Promise.all([new Response(seed.stdout).text(), new Response(seed.stderr).text(), seed.exited]);
@@ -40,8 +42,10 @@ test("checked solution build rejects noCheck-only cache errors in every transiti
     expect(typecheck(root, (line) => logs.push(line))).toBe(1);
     expect(logs.some((line) => line.startsWith("a/index.ts(") && line.includes("TS2322"))).toBe(true);
     expect(logs.some((line) => line.startsWith("b/index.ts(") && line.includes("TS2322"))).toBe(true);
-    expect(logs.at(-1)).toContain("2 projects, 2 semantic builds, 2 error(s)");
+    expect(logs.some((line) => line.startsWith("a/types.js(") && line.includes("TS2322"))).toBe(true);
+    expect(logs.at(-1)).toContain("2 projects, 2 semantic builds, 3 error(s)");
     writeFileSync(join(root, "a/index.ts"), 'export const value: string = "ok";\n');
+    writeFileSync(join(root, "a/types.js"), "/** @type {number} */\nexport const documented = 1;\n");
     writeFileSync(join(root, "b/index.ts"), 'import { value } from "../a/index"; export const result: string = value;\n');
     expect(typecheck(root, () => {})).toBe(0);
     logs.length = 0;

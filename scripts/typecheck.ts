@@ -34,6 +34,8 @@ export function typecheck(root = ROOT, log: (text: string) => void = console.log
         .trim(),
     );
   });
+  // Match tsc -b: retain all JSDoc needed for JS/TS type errors, without parsing unrelated TS documentation.
+  host.jsDocParsingMode = ts.JSDocParsingMode.ParseForTypeErrors;
   host.afterProgramEmitAndDiagnostics = () => built++;
   // noCheck-only build-info has checkPending=true; the canonical builder rechecks it before reusing diagnostics.
   const code = ts.createSolutionBuilder(host, [rootConfig], { noCheck: false, stopBuildOnErrors: false }).build();

@@ -1,17 +1,18 @@
-// `bun run check`: the dev-loop gate (MILESTONES WP-00a 成果物 6). Steps run in parallel; output is shown per
+// `bun run check`: the dev-loop gate (MILESTONES WP-00a 成果物 6). Steps run with CPU-bounded parallelism; output is shown per
 // step only when it fails (or with --verbose). Reference wall time: warn > 15 s, fail > 30 s; Ubuntu Actions scales
 // those budgets by a measured machine factor (testing spec §1.6).
+import { availableParallelism } from "node:os";
 import { join } from "node:path";
 import { ROOT } from "./lib/repo.ts";
 
 const STEPS: [name: string, argv: string[]][] = [
   ["tsc", ["bun", "scripts/typecheck.ts"]],
+  ["svelte-check", ["svelte-check", "--workspace", "apps/web", "--tsconfig", "./tsconfig.json", "--fail-on-warnings", "--output", "human"]],
   ["biome", ["biome", "ci", "--colors=off", "."]],
   ["boundaries", ["bun", "scripts/check-boundaries.ts"]],
   ["cr-ledger", ["bun", "scripts/check-cr-ledger.ts"]],
   ["budgets", ["bun", "scripts/check-budgets.ts"]],
   ["contract-index", ["bun", "scripts/contract-index.ts", "--check"]],
-  ["svelte-check", ["svelte-check", "--workspace", "apps/web", "--tsconfig", "./tsconfig.json", "--fail-on-warnings", "--output", "human"]],
 ];
 
 export async function runCheckStep(name: string, argv: string[]) {
@@ -21,6 +22,19 @@ export async function runCheckStep(name: string, argv: string[]) {
   const proc = Bun.spawn(argv, { cwd: ROOT, stdout: "pipe", stderr: "pipe", env: { ...env, NO_COLOR: "1" } });
   const [out, err, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
   return { name, code, ms: performance.now() - start, log: `${out}${err}`.trim() };
+}
+
+export async function runCheckSteps(steps: readonly [string, string[]][], parallelism = availableParallelism(), run = runCheckStep) {
+  const pending = steps.map((step, index) => ({ step, index }));
+  const results: Awaited<ReturnType<typeof runCheckStep>>[] = [];
+  await Promise.all(
+    Array.from({ length: Math.min(steps.length, Math.max(1, parallelism)) }, async () => {
+      for (let task = pending.shift(); task; task = pending.shift()) {
+        results[task.index] = await run(...task.step);
+      }
+    }),
+  );
+  return results;
 }
 
 export function checkVerdict(wall: number, failed: number, factor = 1) {
@@ -55,10 +69,13 @@ if (import.meta.main) {
   }
   const verbose = process.argv.includes("--verbose");
   const only = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+  const selected = STEPS.filter(([name]) => only.length === 0 || only.some((o) => name.includes(o)));
+  const parallelism = availableParallelism();
+  if (process.env.GITHUB_ACTIONS === "true") {
+    console.log(`check: available parallelism ${parallelism}; ${Math.min(selected.length, Math.max(1, parallelism))} concurrent steps`);
+  }
   const t0 = performance.now();
-  const results = await Promise.all(
-    STEPS.filter(([name]) => only.length === 0 || only.some((o) => name.includes(o))).map(([name, argv]) => runCheckStep(name, argv)),
-  );
+  const results = await runCheckSteps(selected, parallelism);
   const wall = (performance.now() - t0) / 1000;
   let failed = 0;
   for (const r of results) {
