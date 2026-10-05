@@ -49,7 +49,13 @@ provider切替ではendpointとkeyEnvを一つの接続として置換し、Grok
 
 CLI / agent / server / web / e2eの対象型検査と、Svelte check（0 errors / 0 warnings）、変更ファイルのBiome・whitespaceも成功した。sessionの新テストで`scope`の型注釈が不足した点も修正し、失敗した型検査単位は再実行して成功した。
 
-最終Mac binaryのSHA-256は`43f8366d9836f8e6f56565b20cd2b43fedd31b8d7561807e6895b2e92135aef3`。base `0e8c40f`に今回の未コミット変更を加えた作業ツリーからビルドし、実測値は[自己検査JSON](onboarding-binary-20261006.json)へ保存した。今回のhost binaryを、前回のall-target測定や性能値へ付け替えない。
+最終Mac binaryのSHA-256は`cc9d5027c4f86740cac5dc0efe128954ec0f1f34313f6f9e935e2bc57aa1883f`。base `59ba629`に英語helpの`--repo`説明1行を加えた作業ツリーから再ビルドし、自己検査とcompiledのHTTP / 起動元 / 終了を再確認した。実測値は[自己検査JSON](onboarding-binary-20261006.json)へ保存した。今回のhost binaryを、前回のall-target測定や性能値へ付け替えない。
+
+## PR CIの経過
+
+[PR #7](https://github.com/satoki252595/mitori/pull/7)の[初回CI](https://github.com/satoki252595/mitori/actions/runs/37383098685)（head `59ba629`）ではMacのChromium / Firefox / WebKit **347成功 / 14skip**、共有 **2成功**、a11y **8成功**。Linuxの7checkと20projectすべてのsemantic型検査は成功し、unitは **2,973成功 / 134skip / 4todo / 2失敗**だった。失敗は追加したCLIヘルプに対する日英2つのgolden未更新だけで、後続のfixtures / golden / size / Linux binaryはまだ実行されていない。この初回runを全体successとは扱わない。
+
+英語genの`--repo`説明も日本語と揃え、`scripts/nd env MITORI_UPDATE_GOLDEN=1 bun test apps/cli/src/commands/cli.int.test.ts --test-name-pattern 'CLI-G-001'`で2期待ファイルだけを更新した。差分を確認後、更新envなしで同じ単位を再実行し、**2成功 / 80 assertions**。ソース・検証記録とgoldenは専用commitへ分ける。push後の既存CIは自動実行され、最終結果はPRとIssueへリンクして保存する。
 
 ## 確認範囲
 

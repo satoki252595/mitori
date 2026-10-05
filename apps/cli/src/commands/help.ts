@@ -89,6 +89,7 @@ mitori gen --ingest <pr_id> [--partial] [--model <model id>]             agent �
     en: `mitori gen [--effort overview|standard|complete] [--scope <section>…]      estimate, confirm on a TTY, generate
 mitori gen --prep [--effort E] [--scope <section>…] [--continue <pr_id>]   build a packet for the agent of this session
 mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in the agent's out/*.ndjson
+  --repo /absolute/repo selects the repository regardless of the working directory.
   --prep / --ingest make no API calls of their own. Exit 0 valid / 1 errors (fix and re-run) / 3 expired or fingerprint.
 `,
   },
