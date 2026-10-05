@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-10-05T12:33:17.814Z",
+  "checkedAt": "2026-10-05T17:51:11.159Z",
   "results": [
     {
       "repo": "lnkiai/m3e-canvas",
@@ -229,13 +229,13 @@
     {
       "repo": "browser-use/jev-ultrafast",
       "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
-      "latestSnapshot": "jev-order-rewrite",
+      "latestSnapshot": "jev-quality-final",
       "run": "done",
       "progress": {
         "total": 1,
         "done": 1,
         "failed": 0,
-        "blocks": 4
+        "blocks": 7
       },
       "runHistory": [
         {
@@ -325,10 +325,21 @@
             "blocks": 4
           },
           "apiEquivalentUsd": 0.006018
+        },
+        {
+          "snapshot": "jev-quality-final",
+          "state": "done",
+          "progress": {
+            "total": 1,
+            "done": 1,
+            "failed": 0,
+            "blocks": 7
+          },
+          "apiEquivalentUsd": 0.004909000000000002
         }
       ],
-      "apiEquivalentUsd": 0.083574,
-      "generationMs": 171362.42962500002,
+      "apiEquivalentUsd": 0.08848299999999999,
+      "generationMs": 323764.154667,
       "nativeChildren": {
         "max": 1,
         "atEnd": 0,
@@ -386,9 +397,9 @@
         }
       ],
       "docFiles": 18,
-      "sourceLinks": 257,
+      "sourceLinks": 253,
       "invalidCites": [],
-      "inferredLabels": 13,
+      "inferredLabels": 17,
       "awkwardTermCounts": {
         "卓上版": 0,
         "携帯面": 0,

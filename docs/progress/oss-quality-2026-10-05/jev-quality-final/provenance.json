@@ -1,0 +1,55 @@
+{
+  "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+  "indexDigest": "29bdbb49700e9fcf",
+  "changedScope": [
+    "s9"
+  ],
+  "sections": [
+    {
+      "section": "s3",
+      "aiBlockVersions": [
+        "gen.flows@7",
+        "gen.flows@5"
+      ],
+      "runs": [
+        "gr_afdvbdrd",
+        "gr_28kahmht"
+      ]
+    },
+    {
+      "section": "s9",
+      "aiBlockVersions": [
+        "gen.quality@5"
+      ],
+      "runs": [
+        "gr_sga79bzn"
+      ]
+    },
+    {
+      "section": "s10",
+      "aiBlockVersions": [
+        "gen.decisions@6"
+      ],
+      "runs": [
+        "gr_f2b1r6hv"
+      ]
+    }
+  ],
+  "originalQualitySha256": "4dd3056c2b01c9030a06732a46bbe6a5c2fbd27780c90230f5a40b8bc1249249",
+  "qualitySha256": "fd68ddaf27c3cf2bf2d557a217f36fbeef16524b36f286fb88f40b0f99085e14",
+  "reportSha256": "1979675b80274197fe375f9dd72c9f2577be352bdb14ab5f586a6cc055f27b45",
+  "savedPromptSha256": "990a11478bcd8d1a4ff186ecb34c16139b5db1edfbe37dcc16345726c80a0f6e",
+  "numericScopeRulePresent": true,
+  "sourceInputCoverage": {
+    "maxStepsTimes2": true,
+    "maxSteps60Definition": false,
+    "actionsSplice250": false,
+    "snapshotBody": false,
+    "actionLimit102to104": false
+  },
+  "semanticScope": {
+    "oldRun250ClaimRemoved": true,
+    "allNumericLimitsExplained": false,
+    "postConcurrencyScopeAmbiguous": true
+  }
+}

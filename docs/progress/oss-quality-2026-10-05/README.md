@@ -1,6 +1,6 @@
 # 最近の GitHub OSS を用いた実 Muse 品質検証（2026-10-05）
 
-3 件の公開 OSS を固定 SHA で解析し、利用者指定の **Muse `muse-spark-1.3-contributor` / `max`** で設計書を生成した。初回と修正後の scoped 実行を別々に保存した。実験のAPI相当推計累計は **$0.482213**、全体cap $1内。最新文書の引用先 **1,425件、範囲無効0件** と全module生成を確認した。これは全文の意味が正しいという判定ではない。
+3 件の公開 OSS を固定 SHA で解析し、利用者指定の **Muse `muse-spark-1.3-contributor` / `max`** で設計書を生成した。初回と修正後の scoped 実行を別々に保存した。実験のAPI相当推計累計は **$0.487122**、全体cap $1内。最新文書の引用先 **1,421件、範囲無効0件** と全module生成を確認した。これは全文の意味が正しいという判定ではない。
 
 ## 選定と実行条件
 
@@ -32,12 +32,15 @@ Laya 初回は 45 分で中止した。1 module 失敗・2 task 中止を成功�
 
 - **設計理由:** 主要な構成・trust boundary・明示方針を優先し、局所定数の羅列と推論による禁止を減らした。明示理由と推測を区別する。
 - **根拠:** API key の browser 保存と provider への認証送信を混同した m3e の説明、Host / Origin / token を盗聴対策とした Jev の説明を修正した。Node 最小版と CI 使用版、観測単位と実行単位の上限を区別する入力指示も追加した（[ソース照合](semantic-review-20261005.md)）。
+- **Jev §9の再確認:** 最新snapshotに複写された初回quality@3の「250候補/run」は、quality@5の限定再生成で削除された。1/1、323.8秒、API相当推計$0.004909（cap$0.03）。60/120の具体値・250DOM候補/観測とscroll/wait追加の説明は入力不足で残らず、POST同時実行数の文言にも範囲の曖昧さがある。原文・失敗履歴を保持し、訂正と説明省略を区別する（[履歴・source照合](jev-quality-correction-20261006.md)）。
 - **未解決の問い:** DOCS と cited CLAIMS を質問統合へ渡し、既にコードに答えがある navigation question と module 分割への質問を減らした。最終の m3e 15 問・Jev 8 問・Laya 15 問は `quality.audit.json` の本文と重複検査に記録する。
 - **主要フロー:** entry seed が内部候補を全て隠す問題、同 module の別 file へ進めない問題、長い file の先頭だけを本文入力にする問題を共有入力処理で修正・実検証した。import 関係を実 call と断定しない。JevのGETの一般化、LOCK/終了cleanupの混同、履歴と再観測の順序を訂正した。既存stepsの短要約から全keepして訂正されなかったrunも保持し、未ロックstepsだけをsourceから同idで再記述する共有指示へ直した。human lockのkeep/suggestionは維持する。
 
 ## 検証が証明する範囲
 
 [quality.audit.json](quality.audit.json) は最新 snapshot の引用先 file / range と全 module ページの状態を検査し、過去の失敗・費用を `runHistory` に保持する。引用先が存在することは文の意味が正しいことを証明しない。L1 の identifier 検査は識別子を含まない文を vacuous とするため、L1 100% だけを意味の正確さとして報告しない。
+
+JevのlatestSnapshotは `jev-quality-final`。§9だけを今回更新し、§3のflows@5/@7と§10のdecisions@6を引き継いだ文書である。最新run名は全節を同じ版で生成したことを意味しない（[節ごとのprovenance](jev-quality-final/provenance.json)）。
 
 [native.audit.json](native.audit.json) は private raw recording から allowlist の metadata だけを書き出す。危険な tools の event は観測せず、終了時と 5 秒後の native 子プロセスは 0。Laya 中止 call の未完了 terminal も残す。記録外の provider 内部動作や実請求を保証する監査ではない。
 

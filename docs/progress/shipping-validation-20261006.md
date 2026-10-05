@@ -1,6 +1,12 @@
 # 更新版の出荷物確認（2026-10-06 JST）
 
-## 最新: Mapアクセシビリティ修正後
+## 最新: 品質説明の数値範囲修正後
+
+実build sourceは `7f774191172bb3017a571ebea6cae5eea91291f1`、productionの変更は `8f7176c` のquality prompt/versionだけ。README・検証/意思決定資料は未コミットだったが、production sourceとlocksはコミット済み。all-target build成功、Mac70,548,978B / Linux89,572,832B / Windows94,348,288Bは全95MB hard内。Mac SHA `1e170b95c33275db828901a297995b7111487df8ea4a02e744701d1b82328910`。Mac自己検査全6項目とcompiled asset hard gateも成功。起動表示中央値48.39ms / limit50 / target20 WARN。[build/SHA/起動](shipping-binaries-quality-scope-20261006.json)、[自己検査](shipping-selftest-quality-scope-20261006.json)、[assets](shipping-assets-quality-scope-20261006.json)。Linux/Windowsの85MB target WARNとnative未実行は維持する。
+
+packaging manifest・initial renderer・web manifestの3SHAは以下のMap版実測と一致した。初期UIの配信物は不変だが、binary SHAは異なる。F7/F15は実行経路が変わらないprompt修正のため再測定せず、以下の元source/binaryの記録として保持する。新binaryの実測値へ付け替えない。
+
+## 前版: Mapアクセシビリティ修正後
 
 実build sourceは `fdf71b9be2e77217830eff1ce0764203b1543273`（production runtime `e229e4ef770366430c38a6afb39ae4ca596b53b3`、差分なし）。all-target build成功、Mac70,548,978B / Linux89,572,832B / Windows94,348,288Bは全95,000,000B hard内。Mac SHA `60fb1c0d9be1b1579a491839d0513157d3f7d16388d815bf2ff33dcd68f0e94d`。Linux/Windowsのnative実行は未実施、85MB target WARNを保持。[build/SHA](shipping-binaries-map-group-20261006.json)。Mac compiled自己検査の全6項目（pinned9、web166、6言語parse、ELK、Shiki、SQLite）が成功。[自己検査](shipping-selftest-map-group-20261006.json)。
 

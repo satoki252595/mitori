@@ -5,7 +5,7 @@
 
 ## ★ 現在の状態（残タスク全件と最近のOSS検証）
 
-作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。統合前`origin/main`は`815957fd01fb4856b5ae8d3aa2091edd1ddd263f`。[PR #5](https://github.com/satoki252595/mitori/pull/5)の第4回CIはhead `6d10eed`とremoteが一致し、3browser 344pass/14skip/0fail・暗号化共有2pass/37assert・Ubuntu check68.53秒/limit70.40秒が成功した。ただしUbuntu unit4failとa11y起動8failで全体failure。後続source `e229e4e`で実UI資産の準備・共有Map SVGのrole・CIテストの録画/Go cache/TMPDIRを修正し、失敗単位の検証とMac全check3.90秒が成功した。全CI・merge・branch整理は未完。[実CI経緯](progress/pr5-ci-20261005.md)。以前の4 remブランチの統合・整理は完了済み。最新sourceのcompiled出荷物を更新し、次の全CIの成功とhead一致を確認してからmergeする。
+作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。統合前`origin/main`は`815957fd01fb4856b5ae8d3aa2091edd1ddd263f`。[PR #5](https://github.com/satoki252595/mitori/pull/5)の第5回CIはhead `ddf748c`とremoteが一致し、Macの3browser 344pass/14skip/0fail・暗号化共有2pass/37assert・a11y8passが成功した。Ubuntuは全7checkの内容・20project意味検査が成功したが、wall43.57秒/limit42.95秒で時間gateが失敗しunit以降は未到達。source `e229e4e`の第4回失敗単位の修正・局所成功は保持し、最新全CI・merge・branch整理は未完。[実CI経緯](progress/pr5-ci-20261005.md)。以前の4 remブランチの統合・整理は完了済み。最新compiled出荷物は更新済み。型検査の実行条件を確認し、全CIの成功とhead一致を確認してからmergeする。
 
 ### ★.1 実装・単位検証済み
 
@@ -15,7 +15,7 @@
 - floorplanはdefault offのfeature flagで実装。8 corpusのactor保持 / determinism、fallback25%、40room algorithm約1.4–1.5msを確認。[floorplan証跡](progress/floorplan-20261005.json)。初回worker起動時間とは区別した。
 - 未計測7benchを5UI＋2agent residentとして測定。[UI計測](progress/ui-bench-20261005/README.md)。scanSummary中央値1,413.6msは1,000ms target超過だが2,000ms limit内のWARN。他の対象予算はgreen。Muse終了5秒後は0 process / 0MBで、Claude常駐cacheを測ったとは扱わない。
 - AC接続・前後負荷guardを維持して静かな基準機を校正。2026-10-05T03:01:28Z、5試行best316.23ms。[基準機記録](progress/reference-machine-20261005.md)。以前の補正結果を新係数で遡って成功へ変えていない。
-- Nix管理のself-hosted Mac runnerは `mitori-reference-mac`、label `mitori-reference` で online。ProcessTypeをInteractiveへ変更後、第4回の3browser全suite344pass/14skipとshared viewerが成功。a11yは未ビルドshellで検査前に失敗し、後続の起動修正後にReader/probe6pass、共有SVG role修正後に残るMap axe2pass・違反0。全CIの成功は未完。
+- Nix管理のself-hosted Mac runnerは `mitori-reference-mac`、label `mitori-reference` で online。第5回CIの3browser全suite344pass/14skip、shared viewer2pass、a11y8passが成功。第4回のa11y起動8failと局所Map違反2件は後続修正で解消。Ubuntuの時間gateが失敗したため全CIの成功は未完。
 - WindowsはNix/ZigのJob Object helper、SHA検証・配布assets、path対応、manual native CIを用意。Nix crossbuildは成功し、native実行は未実施。[Windows報告](progress/windows-job-20261005.md)。unverified helper/profileを安全機能付きと表示しない。
 - 暗号化共有はAES-GCM・署名付きsnapshot・R2/D1 quota・期限・コメントとCLIを実装。Miniflare/D1とChromium/Firefox/WebKit、保存file://viewerを確認、Worker dryrun15.41KiBraw/5.30KiBgz。[共有報告](progress/cloudflare-share-2026-10-05.md)。remote resource作成 / deploy / Paid化はしていない。
 
@@ -24,19 +24,21 @@
 - 最近作成されstarの多い公開OSS3件をGitHub APIで選定しSHA固定した。m3e-canvas (8,692 stars)、jev-ultrafast (21,997)、Laya (30,713)。Trending順位やstar増加量を測ったとは言わない。[選定・費用・結果](progress/oss-quality-2026-10-05/README.md)。
 - Muse `muse-spark-1.3-contributor` / `max`、shell/write/web toolsなしのnative lean profile。上流依存 / script / アプリを実行せず、mitoriの解析と生成を試した。初回m3e13/13、Jev11/11。Layaは45分で18/21まで、失敗1＋中止2を保持した。
 - Layaの45文字slugを40文字上限で拒むvalidatorの不整合を修正。失敗moduleと必要な節だけ再開し4/4、全13module page generatedを確認した。初回一括21/21とは報告しない。
-- 設計判断・問いを修正して該当節だけ実Muse再検証した。key保存と送信、Host/Originと盗聴、最低版とCI版の混同を修正した。JevのGET handlerとLOCK/atexitの役割、history追加がobserveより先であること、Layaの公開既定値を最新生成で訂正した。m3eの条件付き変更先とJevの一部手順には説明の省略が残る。1,425引用先の無効0は意味の正しさの保証ではない。
-- API相当推計累計は現在$0.482213、総cap$1。m3eのfresh standardは13/13・1704.0秒。本文bytesと設定単価の推計で、実請求・hidden reasoning tokenではない。private config / raw recordingsはGitに入れない。native84callsの安全監査で違反0、初回Layaの未完1を履歴に保持した。Laya途中runのcap超過$0.000095も保持し、最終spending guardを修正した。
+- 設計判断・問いを修正して該当節だけ実Muse再検証した。key保存と送信、Host/Originと盗聴、最低版とCI版の混同を修正した。JevのGET handlerとLOCK/atexitの役割、history追加がobserveより先であること、Layaの公開既定値を最新生成で訂正した。m3eの条件付き変更先とJevの一部手順には説明の省略が残る。1,421引用先の無効0は意味の正しさの保証ではない。
+- API相当推計累計は現在$0.487122、総cap$1。m3eのfresh standardは13/13・1704.0秒。本文bytesと設定単価の推計で、実請求・hidden reasoning tokenではない。private config / raw recordingsはGitに入れない。native85callsの安全監査で違反0、初回Layaの未完1を履歴に保持した。Laya途中runのcap超過$0.000095も保持し、最終spending guardを修正した。
+
+- 追加照合でJev旧§9の「250候補/run」誤文を発見。qualityへ数値の適用範囲の指示を加え@5で§9だけ再生成、1/1・323.8秒・推計$0.004909/cap$0.03。誤文は削除されたが、上限の具体数は入力に不足し説明省略、POSTの共有LOCKを全HTTPへ広げない補足も保存。全文semantic保証とは扱わない。[修正と限界](progress/oss-quality-2026-10-05/jev-quality-correction-20261006.md)。
 
 ### ★.3 完了前に残ること
 
-1. **全CIとGit整理:** e229e4eの失敗単位・Mac全checkは成功。最新headをpushして全CIを確認し、greenかつhead一致後にmerge・不要branch削除を行う。第4回6d10eedの全体failureは保持する。
+1. **全CIとGit整理:** 第5回ddf748cのMac全段は成功。Ubuntuは全7内容成功だが43.57秒/limit42.95秒で時間gate失敗。後続5ca80a1でtestkit全barrelによる重複型検査を回避し、cold2CPU Linux全7/20semantic/0cachedが16.25秒、Mac全7が4.06秒で成功。型検査と上限は維持し、次CIを確認してgreenかつhead一致後にmerge・不要branch削除を行う。以前の失敗履歴は保持する。
 2. **Windows native:** 今回限りの公式Bun依存に対するNix例外は回答待ち。crossbuild成功をnative Job Object/配布実行成功へ丸めない。
 3. **Cloudflare公開:** 専用R2/D1作成＋Worker deployの具体的な承認待ち。実装・Miniflare・3browserは検証済み、remote/Paid化は未実施。
-4. **Safari実機/実IME:** 第4回CI後のCUA再確認でもMacロック中。Firefox/WebKitとsynthetic IMEの成功は実Safari/IMEの代わりにしない。
+4. **Safari実機/実IME:** 第5回CI後のCUA再確認でもMacロック中。Firefox/WebKitとsynthetic IMEの成功は実Safari/IMEの代わりにしない。
 
-最新compiled出荷物はfdf71b9（production e229e4e）、Mac SHA60fb1c0d…、all-target全95MB hard内・Mac自己検査成功。初期JS gzip相当44,355B（43.3KiB）/実br40,066B、served SHA一致・provider0。AC/quiet/factor1.000573のphysical footprint empty48.1571MB・loaded156.5953MB、palette指定median30.5ms/round p9531.2msはhard内、target WARNを保持。CLI起動表示中央値44.91ms/limit50。advisory asset targetの未達も保持。[最新出荷物と旧測定](progress/shipping-validation-20261006.md)。
+最新compiled出荷物は7f77419（production品質promptの修正8f7176c）、Mac SHA1e170b95…、all-target全95MB hard内・Mac自己検査成功。compiled asset hard gateと起動表示中央値48.39ms/limit50が成功、target20 WARN。UIのmanifest/renderer/web manifest 3SHAは前版と一致。前版fdf71b9/e229e4eの初期JS gzip相当44,355B・実br40,066Bと、AC/quiet/factor1.000573のphysical footprint48.1571/156.5953MB、palette指定median30.5ms/round p9531.2msは元binaryの実測として保持し、新binaryへ付け替えない。advisory asset targetの未達も保持。[最新出荷物と旧測定](progress/shipping-validation-20261006.md)。
 
-3OSSの実Muse/source照合は完了。説明省略と未取得のexact provider usageは限界として記録し、1,425引用先の無効0を全文semantic passとは扱わない。F11の同Claude-v5推計比0.476356はtarget内、保守的byte比1.1142のred・後続全prompt fresh未測定も保持。[品質証跡](progress/oss-quality-2026-10-05/README.md)。未完を「残なし」と報告しない。
+3OSSの実Muse/source照合は完了。説明省略と未取得のexact provider usageは限界として記録し、1,421引用先の無効0を全文semantic passとは扱わない。F11の同Claude-v5推計比0.476356はtarget内、保守的byte比1.1142のred・後続全prompt fresh未測定も保持。[品質証跡](progress/oss-quality-2026-10-05/README.md)。未完を「残なし」と報告しない。
 
 ---
 

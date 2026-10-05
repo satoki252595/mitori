@@ -1,8 +1,8 @@
 # 最終統合の検証（2026-10-05、進行中）
 
-対象は `codex/complete-backlog` の残タスク実装。2026-10-06 JST現在、第4回6d10eedでは3browser344pass/14skip・暗号化共有2pass/37assert・Ubuntu全checkが成功したが、unit4failとa11y起動8failで全体failure。後続sourcee229e4eの修正後はMap35unit/149assert、a11y6pass＋残るMap2pass、INT08 25pass/221assert、CI cassette8pass/31assert、custom TMPDIR3file16pass/75assert、Mac全check3.90sが成功。最新全CI・mergeは未完。[全CIと失敗単位の記録](pr5-ci-20261005.md)。
+対象は `codex/complete-backlog` の残タスク実装。2026-10-06 JST現在、第5回ddf748cで3browser344pass/14skip・暗号化共有2pass/37assert・a11y8passが成功。Ubuntuは全7check内容・全20project意味検査が成功したが43.57秒/limit42.95秒で時間gate失敗し、unit以降未到達。第4回失敗単位のsourcee229e4eによる局所修正成功は保持し、最新全CI・mergeは未完。[全CIと失敗単位の記録](pr5-ci-20261005.md)。
 
-fdf71b9（production e229e4e）のall-target build・Mac自己検査・asset hard budget・compiled UIは成功。初期JS44,355B gzip相当、F7 footprint48.1571/156.5953MB、F15指定中央値30.5ms・round p9531.2ms、起動44.91msは既存hard内。soft target未達を保持し、旧測定へ改善率を付けない。[最新出荷物](shipping-validation-20261006.md)。Windows native / Cloudflare公開 / Safari実機・実IMEは承認またはMac解除待ち。
+7f77419（production品質promptの修正8f7176c）のall-target build・Mac自己検査・compiled asset hard budgetは成功、起動48.39ms/limit50/target20 WARN。UIのmanifest/renderer/web manifest 3SHAは前版と一致。前版fdf71b9/e229e4eの初期JS44,355B gzip相当、F7 footprint48.1571/156.5953MB、F15指定中央値30.5ms・round p9531.2msを元binaryの記録として保持し、最新binaryへ付け替えない。soft target未達も保持。[最新出荷物](shipping-validation-20261006.md)。Windows native / Cloudflare公開 / Safari実機・実IMEは承認またはMac解除待ち。
 
 ## 以前のCI・出荷物の履歴
 

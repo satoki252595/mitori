@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-05T17:52:32.014Z",
+  "sourceCommit": "7f774191172bb3017a571ebea6cae5eea91291f1",
+  "productionRuntimeCommit": "8f7176ca5f07b950383495b6d8ae6ceaa34e6f61",
+  "sourceWorkingTreeChanged": true,
+  "changedScope": "README and validation/decision evidence only; production source and prompt/lock files are committed.",
+  "build": "scripts/nd bun scripts/build-bin.ts --target all",
+  "buildExitCode": 0,
+  "buildLog": {
+    "name": "mitori-quality-scope-shipping-build-20261006.log",
+    "sha256": "070fdd2753d6f6c0e577dc91f33d918e51cf35d2027e16b4708869a2bf696c83"
+  },
+  "hardLimitBytes": 95000000,
+  "targetBytes": 85000000,
+  "records": [
+    {
+      "path": "dist/mitori-darwin-arm64",
+      "bytes": 70548978,
+      "sha256": "1e170b95c33275db828901a297995b7111487df8ea4a02e744701d1b82328910",
+      "executed": true
+    },
+    {
+      "path": "dist/mitori-linux-x64",
+      "bytes": 89572832,
+      "sha256": "dc5e29ec330ab0d14b03cdf9ba6558efab671721b063623a70c1dc3ddfbdd1b8",
+      "executed": false
+    },
+    {
+      "path": "dist/mitori-windows-x64.exe",
+      "bytes": 94348288,
+      "sha256": "c110ea89170e7e4e361688ed25b18b9ed7ba2a138d00b0be658b96cc11383f5b",
+      "executed": false
+    }
+  ],
+  "selftest": {
+    "command": "scripts/nd ./dist/mitori-darwin-arm64 _selftest --json --elk-runs 5",
+    "exitCode": 0,
+    "file": "shipping-selftest-quality-scope-20261006.json"
+  },
+  "hostStartup": {
+    "command": "scripts/nd bun bench/asset/size.ts --compiled --json docs/progress/shipping-assets-quality-scope-20261006.json",
+    "exitCode": 0,
+    "medianDisplayedMs": 48.39,
+    "targetMs": 20,
+    "limitMs": 50,
+    "log": {
+      "name": "mitori-quality-scope-assets-20261006.log",
+      "sha256": "31dc809b520a1505e392b30fe062d9cb4df9397daad3959c56d8258c105ee241"
+    },
+    "scope": "Rounded console median only; asset JSON does not contain startup samples."
+  },
+  "uiSeals": {
+    "manifest": {
+      "path": "dist/.build/manifest.json",
+      "bytes": 1309,
+      "sha256": "d857142adf22e1963184233c9190c832e7aff1b326e1c03dc872c66100dd5064",
+      "unchangedFromMapGroupMeasurement": true
+    },
+    "renderer": {
+      "path": "dist/.build/initial/initial.js",
+      "bytes": 799044,
+      "sha256": "670f9b48b4426196178e93dce6552a3c0826e8954285b3d0429fabd002747a96",
+      "unchangedFromMapGroupMeasurement": true
+    },
+    "webManifest": {
+      "path": "dist/.build/web.json",
+      "bytes": 38681,
+      "sha256": "848a16d40892337426a3e79073b041006f474660e52a4064c882a03ce3de2897",
+      "unchangedFromMapGroupMeasurement": true
+    }
+  },
+  "previous": "shipping-binaries-map-group-20261006.json",
+  "unchangedHotpathPerformance": {
+    "file": "shipping-performance-map-group-20261006.json",
+    "sourceCommit": "fdf71b9be2e77217830eff1ce0764203b1543273",
+    "productionRuntimeCommit": "e229e4ef770366430c38a6afb39ae4ca596b53b3",
+    "scope": "Prior binary measurement retained. Only the quality prompt/version changed in product source; F7/F15 were not rerun or relabelled as this binary."
+  }
+}
