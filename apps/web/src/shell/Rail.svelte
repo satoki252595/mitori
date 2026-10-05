@@ -8,9 +8,9 @@ import { type Snippet, untrack } from "svelte";
 import { readingMinutes, subtreeStats, tocState } from "../reader/outline.ts";
 import { useStores } from "../stores/app.svelte.ts";
 import { fmtInt, fmtTokensImpl, fmtUsdImpl } from "./fmt.ts";
-import Icon from "./Icon.svelte";
 import { hasKey } from "./i18n.ts";
 import { t } from "./index.ts";
+import { replaceChrome } from "./native.ts";
 import { markAfterPaint } from "./perf.ts";
 import { choosePath, nextPathAfter, pathName, pathProgress, plannedPath, readMapOf, selectedPath } from "./reading.ts";
 
@@ -155,142 +155,121 @@ function pickPath(id: string) {
 }
 
 const covered = $derived(manifest?.coverage ?? null);
+// Native markup, as for the map SVG: user text is escaped once, and actions are delegated on one host.
+const escapeHtml = (value: string | number) => String(value).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+let content: HTMLDivElement | undefined = $state();
+function railHtml(): string {
+  const e = escapeHtml;
+  const link = (id: SectionId) => (ws ? HREFS.doc(ws, id) : "#");
+  const title = (id: SectionId) => `<b>&sect;${e(ix?.numbers.get(id) ?? "")} <span data-user-content>${e(ix?.nodes.get(id)?.title ?? "")}</span></b>`;
+  let card: string;
+  if (path && prog) {
+    card = `<svg viewBox="0 0 34 34" aria-hidden="true"><circle class="trk" cx="17" cy="17" r="14"/><circle class="bar${prog.done ? " done" : ""}" cx="17" cy="17" r="14" stroke-dasharray="87.96" stroke-dashoffset="${87.96 * (1 - ring)}"/></svg><div class="path-h"><button type="button" class="path-t" data-act="path" aria-haspopup="true" aria-expanded="${stopsOpen}" aria-controls="path-stops"><span class="pt-name" data-user-content>${e(pathTitle)}</span>${prog.done ? `<span class="done-badge">${e(t("rail.pathDoneBadge"))}</span>` : `<span class="mono cnt">${prog.read}<span class="sl">/</span>${prog.total}</span>`}<span class="chev"><svg class="i" width="12" height="12" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 6l4 4 4-4"/></svg></span></button><div class="path-s">${e(prog.done ? t("rail.pathDone", { min: prog.totalMin }) : t("rail.pathLeft", { min: prog.leftMin }))}</div></div>`;
+    if (stopsOpen) {
+      card += `<div class="stops" id="path-stops"><ol aria-label="${e(t("rail.pathStops"))}">${prog.stops.map((stop) => `<li><a href="${e(link(stop.section))}" data-act="stop" class="${stop.read ? "read" : ""}"><span class="sm" aria-hidden="true">${stop.read ? "&#x2713;" : ""}</span><span class="sn mono">&sect;${e(ix?.numbers.get(stop.section) ?? "")}</span><span class="sttl" data-user-content>${e(ix?.nodes.get(stop.section)?.title ?? "")}</span><span class="smin mono">${stop.min}${e(t("fmt.minShort"))}</span>${stop.read ? `<span class="sr-only">${e(t("rail.stopRead"))}</span>` : ""}</a></li>`).join("")}</ol>`;
+      if ((outline?.readingPaths.length ?? 0) > 1)
+        card += `<p class="others-h" id="path-others">${e(t("rail.pathPick"))}</p><ul class="others" aria-labelledby="path-others">${(outline?.readingPaths ?? []).map((p) => `<li><button type="button" data-act="course" data-id="${e(p.id)}" class="${p.id === path?.id ? "cur" : ""}" aria-pressed="${p.id === path?.id}"><span class="sm" aria-hidden="true">${p.id === path?.id ? "&#x2713;" : ""}</span><span class="sttl" data-user-content>${e(nameOf(p))}</span><span class="smin mono">${p.steps.length}</span></button></li>`).join("")}</ul>`;
+      card += "</div>";
+    }
+  } else {
+    card = `<svg viewBox="0 0 34 34" aria-hidden="true"><circle class="trk" cx="17" cy="17" r="14"/></svg><div class="path-h"><div class="path-t${planned ? "" : " muted"}">${e(t("rail.pathDefault"))}${planned ? ` <span class="mono cnt">0<span class="sl">/</span>${planned.steps}</span>` : ""}</div><div class="path-s">${planned ? e(t("rail.pathLeft", { min: planned.minutes })) : outline ? e(t("rail.pathAfterGen")) : "&mdash;"}</div></div>`;
+  }
+  let next: string;
+  if (path && prog?.done && nextPath)
+    next = `<button type="button" class="path-next as-link" data-act="next">${e(t("rail.next"))} <b data-user-content>${e(nameOf(nextPath))}</b></button>`;
+  else if (path && prog?.next && ws) next = `<a class="path-next" href="${e(link(prog.next))}">${e(t("rail.next"))} ${title(prog.next)}</a>`;
+  else if (planned && ws) next = `<a class="path-next" href="${e(link(planned.first))}">${e(t("rail.next"))} ${title(planned.first)}</a>`;
+  else next = `<span class="path-next muted">${e(t("rail.next"))} &mdash;</span>`;
+  const toc = ix
+    ? rows
+        .map(
+          (r) =>
+            `<li${r.depth > 0 ? ' class="sub"' : ""}><a href="${e(link(r.id))}" data-toc="${e(r.id)}" data-page="${e(r.page)}" data-state="${r.state}"${curPage === r.id ? ' aria-current="page"' : ""}${readMap[r.id] ? ' class="read"' : ""}><span class="n mono">${e(r.num)}</span><span class="ttl" data-user-content>${e(r.title)}</span><span class="st${r.state === "generating" ? " gen" : ""}">${r.threads > 0 ? `<span class="tb" aria-label="${e(t("toc.threads", { n: r.threads }))}">&#x25CF;${r.threads}</span>` : ""}${r.state === "stale" ? `<span class="warn" aria-label="${e(t("toc.state.stale"))}">&#x26A0;&#xFE0E;</span>` : ""}${e(r.meta)}<span class="sr-only">${e(t(`toc.state.${r.state}`))}</span></span></a>${r.id === "s6" && (ix.nodes.get("s6")?.children.length ?? 0) > 0 ? `<button type="button" class="mods" data-act="mods" aria-expanded="${openMods}" aria-label="${e(t("toc.modules"))}">${openMods ? "−" : "+"}</button>` : ""}</li>`,
+        )
+        .join("")
+    : Array(14).fill('<li><span class="skel row-skel"></span></li>').join("");
+  const meta = manifest?.generatedAt
+    ? e(
+        t("rail.genMeta", {
+          tok: fmtTokensImpl(manifest.usageTotals.in + manifest.usageTotals.cacheRead + manifest.usageTotals.cacheWrite + manifest.usageTotals.out),
+          usd: fmtUsdImpl(manifest.usageTotals.apiUsd, "gen"),
+        }),
+      )
+    : outline
+      ? e(t("rail.notGenerated"))
+      : '<span aria-hidden="true">&mdash;</span>';
+  return `<section class="path card" aria-label="${e(t("rail.path"))}">${card}<div class="path-f">${next}</div></section><nav class="toc-wrap" aria-label="${e(t("toc.label"))}"><h2 class="rail-label">${e(t("toc.label"))}</h2><ul class="toc"${ix ? "" : ' aria-busy="true"'}>${toc}</ul></nav><footer class="rail-foot"><div>${meta}</div><div>${covered ? e(t("rail.coverage", { inc: fmtInt(covered.filesIncluded, s.prefs.lang), all: fmtInt(covered.filesTotal, s.prefs.lang) })) : "&nbsp;"}</div><div class="mono">${e(t(s.workspace.status?.info.docCommitted ? "rail.committed" : "rail.optIn"))}</div></footer>`;
+}
+const initialHtml = untrack(() => railHtml());
+let rendered = "";
+$effect(() => {
+  const html = railHtml();
+  const host = content;
+  if (!host || rendered === html) return;
+  untrack(() => {
+    const active = document.activeElement as HTMLElement | null;
+    const inside = active && host.contains(active);
+    const href = inside ? active.getAttribute("href") : null;
+    const attr = inside
+      ? active.dataset.toc
+        ? ["data-toc", active.dataset.toc]
+        : href
+          ? ["href", href]
+          : active.dataset.id
+            ? ["data-id", active.dataset.id]
+            : active.dataset.act
+              ? ["data-act", active.dataset.act]
+              : null
+      : null;
+    const scroll = tocWrap?.scrollTop ?? 0;
+    replaceChrome(host, html);
+    rendered = html;
+    pathEl = host.querySelector<HTMLElement>(".path") ?? undefined;
+    tocWrap = host.querySelector<HTMLElement>(".toc-wrap") ?? undefined;
+    if (tocWrap) tocWrap.scrollTop = scroll;
+    if (attr) host.querySelector<HTMLElement>(`[${attr[0]}="${CSS.escape(attr[1] ?? "")}"]`)?.focus({ preventScroll: true });
+  });
+});
+function click(e: MouseEvent) {
+  const button = (e.target as Element).closest<HTMLElement>("[data-act]");
+  if (button) {
+    switch (button.dataset.act) {
+      case "path":
+        stopsOpen = !stopsOpen;
+        break;
+      case "course":
+        if (button.dataset.id) pickCourse(button.dataset.id);
+        break;
+      case "next":
+        if (nextPath) startPath(nextPath);
+        break;
+      case "mods":
+        openMods = !openMods;
+        break;
+      case "stop":
+        s.layers.close("path-stops");
+        break;
+    }
+  }
+  const a = (e.target as Element).closest<HTMLElement>("a[data-toc]");
+  if (a?.dataset.toc) void onToc(e, a.dataset.toc as SectionId, a.dataset.state ?? "");
+}
+function hover(e: PointerEvent) {
+  const a = (e.target as Element).closest<HTMLElement>("a[data-page]");
+  if (a?.dataset.page && !a.contains(e.relatedTarget as Node | null)) s.doc.prefetch(a.dataset.page as SectionId);
+}
 </script>
 
 <aside class="rail" data-mode={mode} data-open={s.ui.railOpen ? "" : undefined} aria-label={t("rail.label")} data-chrome>
   {@render top?.()}
 
-  <!-- fixed-height card in every state (outline arriving never moves the TOC: CLS 0) -->
-  <section class="path card" aria-label={t("rail.path")} bind:this={pathEl}>
-    {#if path && prog}
-      <svg viewBox="0 0 34 34" aria-hidden="true"
-        ><circle class="trk" cx="17" cy="17" r="14" /><circle class="bar" class:done={prog.done} cx="17" cy="17" r="14" stroke-dasharray="87.96" stroke-dashoffset={87.96 * (1 - ring)} /></svg
-      >
-      <div class="path-h">
-        <!-- 「約13分コース 0/4 ▾」 must fit the 248 px rail whole: the count is `n/m` (ux.md §4.3.8), the chevron 12 px -->
-        <button type="button" class="path-t" aria-haspopup="true" aria-expanded={stopsOpen} aria-controls="path-stops" onclick={() => (stopsOpen = !stopsOpen)}>
-          <span class="pt-name" data-user-content>{pathTitle}</span>
-          {#if prog.done}<span class="done-badge">{t("rail.pathDoneBadge")}</span>{:else}<span class="mono cnt">{prog.read}<span class="sl">/</span>{prog.total}</span>{/if}
-          <span class="chev"><Icon name="down" size={12} /></span>
-        </button>
-        <div class="path-s">{prog.done ? t("rail.pathDone", { min: prog.totalMin }) : t("rail.pathLeft", { min: prog.leftMin })}</div>
-      </div>
-      {#if stopsOpen}
-        <div class="stops" id="path-stops">
-          <ol aria-label={t("rail.pathStops")}>
-            {#each prog.stops as st (st.section)}
-              <li>
-                <a href={ws ? HREFS.doc(ws, st.section) : "#"} class:read={st.read} onclick={() => s.layers.close("path-stops")}>
-                  <span class="sm" aria-hidden="true">{#if st.read}&#x2713;{/if}</span>
-                  <span class="sn mono">&sect;{ix?.numbers.get(st.section)}</span>
-                  <span class="sttl" data-user-content>{ix?.nodes.get(st.section)?.title ?? ""}</span>
-                  <span class="smin mono">{st.min}{t("fmt.minShort")}</span>
-                  {#if st.read}<span class="sr-only">{t("rail.stopRead")}</span>{/if}
-                </a>
-              </li>
-            {/each}
-          </ol>
-          {#if (outline?.readingPaths.length ?? 0) > 1}
-            <!-- the other courses (ux.md §4.3.2: the ▾ menu chooses 5 分 / 30 分 / レビュアー / PM / SRE / repo 定義) -->
-            <p class="others-h" id="path-others">{t("rail.pathPick")}</p>
-            <ul class="others" aria-labelledby="path-others">
-              {#each outline?.readingPaths ?? [] as p (p.id)}
-                <li>
-                  <button type="button" class:cur={p.id === path.id} aria-pressed={p.id === path.id} onclick={() => pickCourse(p.id)}>
-                    <span class="sm" aria-hidden="true">{#if p.id === path.id}&#x2713;{/if}</span>
-                    <span class="sttl" data-user-content>{nameOf(p)}</span>
-                    <span class="smin mono">{p.steps.length}</span>
-                  </button>
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        </div>
-      {/if}
-    {:else if planned}
-      <svg viewBox="0 0 34 34" aria-hidden="true"><circle class="trk" cx="17" cy="17" r="14" /></svg>
-      <div class="path-h">
-        <div class="path-t">{t("rail.pathDefault")} <span class="mono cnt">0<span class="sl">/</span>{planned.steps}</span></div>
-        <div class="path-s">{t("rail.pathLeft", { min: planned.minutes })}</div>
-      </div>
-    {:else}
-      <svg viewBox="0 0 34 34" aria-hidden="true"><circle class="trk" cx="17" cy="17" r="14" /></svg>
-      <div class="path-h">
-        <div class="path-t muted">{t("rail.pathDefault")}</div>
-        <div class="path-s">{#if outline}{t("rail.pathAfterGen")}{:else}&mdash;{/if}</div>
-      </div>
-    {/if}
-    <div class="path-f">
-      {#if path && prog?.done && nextPath}
-        <button type="button" class="path-next as-link" onclick={() => nextPath && startPath(nextPath)}>{t("rail.next")} <b data-user-content>{nameOf(nextPath)}</b></button>
-      {:else if path && prog?.next && ws}
-        <a class="path-next" href={HREFS.doc(ws, prog.next)}>{t("rail.next")} <b>&sect;{ix?.numbers.get(prog.next)} <span data-user-content>{ix?.nodes.get(prog.next)?.title ?? ""}</span></b></a>
-      {:else if planned && ws}
-        <a class="path-next" href={HREFS.doc(ws, planned.first)}>{t("rail.next")} <b>&sect;{ix?.numbers.get(planned.first)} <span data-user-content>{ix?.nodes.get(planned.first)?.title ?? ""}</span></b></a>
-      {:else}
-        <span class="path-next muted">{t("rail.next")} &mdash;</span>
-      {/if}
-    </div>
-  </section>
-
-  <nav class="toc-wrap" aria-label={t("toc.label")} bind:this={tocWrap}>
-    <h2 class="rail-label">{t("toc.label")}</h2>
-    {#if !ix}
-      <ul class="toc" aria-busy="true">
-        {#each Array(14) as _, i (i)}<li><span class="skel row-skel"></span></li>{/each}
-      </ul>
-    {:else}
-      <ul class="toc">
-        {#each rows as r (r.id)}
-          <li class:sub={r.depth > 0}>
-            <a
-              href={ws ? HREFS.doc(ws, r.id) : "#"}
-              data-toc={r.id}
-              data-state={r.state}
-              aria-current={curPage === r.id ? "page" : undefined}
-              class:read={!!readMap[r.id]}
-              onclick={(e) => onToc(e, r.id, r.state)}
-              onpointerenter={() => s.doc.prefetch(r.page)}
-            >
-              <span class="n mono">{r.num}</span>
-              <span class="ttl" data-user-content>{r.title}</span>
-              <span class="st" class:gen={r.state === "generating"}>
-                {#if r.threads > 0}<span class="tb" aria-label={t("toc.threads", { n: r.threads })}>&#x25CF;{r.threads}</span>{/if}
-                {#if r.state === "stale"}<span class="warn" aria-label={t("toc.state.stale")}>&#x26A0;&#xFE0E;</span>{/if}
-                {r.meta}
-                <span class="sr-only">{t(`toc.state.${r.state}`)}</span>
-              </span>
-            </a>
-            {#if r.id === "s6" && (ix.nodes.get("s6")?.children.length ?? 0) > 0}
-              <button type="button" class="mods" aria-expanded={openMods} aria-label={t("toc.modules")} onclick={() => (openMods = !openMods)}>{openMods ? "−" : "+"}</button>
-            {/if}
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  </nav>
-
-  <footer class="rail-foot">
-    {#if manifest?.generatedAt}
-      <div>
-        {t("rail.genMeta", {
-          tok: fmtTokensImpl(manifest.usageTotals.in + manifest.usageTotals.cacheRead + manifest.usageTotals.cacheWrite + manifest.usageTotals.out),
-          usd: fmtUsdImpl(manifest.usageTotals.apiUsd, "gen"),
-        })}
-      </div>
-    {:else if outline}
-      <div>{t("rail.notGenerated")}</div>
-    {:else}
-      <!-- NC-16: while the outline is on its way, nothing claims the doc is not generated -->
-      <div aria-hidden="true">&mdash;</div>
-    {/if}
-    <div>{covered ? t("rail.coverage", { inc: fmtInt(covered.filesIncluded, s.prefs.lang), all: fmtInt(covered.filesTotal, s.prefs.lang) }) : "\u00a0"}</div>
-    <div class="mono">{s.workspace.status?.info.docCommitted ? t("rail.committed") : t("rail.optIn")}</div>
-  </footer>
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (one delegated host) -->
+  <div class="rail-content" bind:this={content} onclick={click} onpointerover={hover}>{@html initialHtml}</div>
 </aside>
 
 <style>
-  .path {
+.rail-content {display: contents;}
+:global(.rail .path) {
     display: grid;
     grid-template-columns: 34px minmax(0, 1fr);
     grid-template-rows: 40px 30px;
@@ -300,32 +279,25 @@ const covered = $derived(manifest?.coverage ?? null);
     flex: none;
     height: 104px;
     box-sizing: border-box;
-  }
-  .path svg {
+  }:global(.rail .path svg) {
     width: 34px;
     height: 34px;
     transform: rotate(-90deg);
-  }
-  .trk {
+  }:global(.rail .trk) {
     stroke: var(--rule);
     fill: none;
     stroke-width: 3;
-  }
-  .bar {
+  }:global(.rail .bar) {
     stroke: var(--ink);
     fill: none;
     stroke-width: 3;
     stroke-linecap: round;
     transition: stroke-dashoffset 0.5s var(--ease-out);
-  }
-  .path-h {
+  }:global(.rail .path-h) {
     min-width: 0;
-  }
-  .path {
+  }:global(.rail .path) {
     position: relative;
-  }
-  /* the course name opens its stops (a popover over the TOC: the card keeps its 104 px, CLS 0) */
-  button.path-t {
+  }:global(.rail button.path-t) {
     display: block;
     width: 100%;
     padding: 0;
@@ -337,52 +309,41 @@ const covered = $derived(manifest?.coverage ?? null);
     font-size: var(--fs-ui);
     font-weight: var(--fw-strong);
     color: var(--ink);
-  }
-  button.path-t {
+  }:global(.rail button.path-t) {
     display: flex;
     align-items: baseline;
     gap: 5px;
     min-width: 0;
-  }
-  /* `0/4` (ux.md §4.3.8 `n/7`): a hair of room around the slash, not a mono space each side */
-  .cnt .sl {
+  }:global(.rail .cnt .sl) {
     margin: 0 1px;
-  }
-  .pt-name {
+  }:global(.rail .pt-name) {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  button.path-t .mono,
-  .done-badge,
-  .chev {
+  }:global(.rail button.path-t .mono),
+:global(.rail .done-badge),
+:global(.rail .chev) {
     flex: none;
-  }
-  .done-badge {
+  }:global(.rail .done-badge) {
     font-size: var(--fs-meta);
     font-weight: var(--fw-regular);
     color: var(--c-ok);
-  }
-  button.path-t:hover .chev {
+  }:global(.rail button.path-t:hover .chev) {
     color: var(--ink);
-  }
-  .chev {
+  }:global(.rail .chev) {
     align-self: center;
     display: inline-flex;
     color: var(--muted);
-  }
-  .chev :global(svg) {
+  }:global(.rail .chev svg) {
     width: 12px;
     height: 12px;
     stroke: currentColor;
     fill: none;
     stroke-width: 1.6;
-  }
-  .bar.done {
+  }:global(.rail .bar.done) {
     stroke: var(--c-ok);
-  }
-  .stops {
+  }:global(.rail .stops) {
     position: absolute;
     left: 0;
     right: 0;
@@ -395,15 +356,13 @@ const covered = $derived(manifest?.coverage ?? null);
     border: 1px solid var(--rule);
     border-radius: var(--r-card);
     box-shadow: var(--shadow-pop);
-  }
-  .stops ol,
-  .stops ul {
+  }:global(.rail .stops ol),
+:global(.rail .stops ul) {
     list-style: none;
     margin: 0;
     padding: 0;
-  }
-  .stops a,
-  .others button {
+  }:global(.rail .stops a),
+:global(.rail .others button) {
     display: grid;
     grid-template-columns: 14px 34px minmax(0, 1fr) auto;
     gap: 4px;
@@ -418,43 +377,34 @@ const covered = $derived(manifest?.coverage ?? null);
     font: inherit;
     font-size: var(--fs-ui-s);
     color: var(--text);
-  }
-  .others button {
+  }:global(.rail .others button) {
     grid-template-columns: 14px minmax(0, 1fr) auto;
-  }
-  .others button.cur {
+  }:global(.rail .others button.cur) {
     font-weight: var(--fw-strong);
     color: var(--ink);
-  }
-  .stops a:hover,
-  .others button:hover,
-  .others button:focus-visible {
+  }:global(.rail .stops a:hover),
+:global(.rail .others button:hover),
+:global(.rail .others button:focus-visible) {
     background: var(--hover);
-  }
-  .others-h {
+  }:global(.rail .others-h) {
     margin: 6px 8px 2px;
     padding-top: 8px;
     border-top: 1px solid var(--rule-soft);
     font-size: var(--fs-meta);
     color: var(--muted);
-  }
-  .stops a.read {
+  }:global(.rail .stops a.read) {
     color: var(--muted);
-  }
-  .sm {
+  }:global(.rail .sm) {
     color: var(--c-ok);
-  }
-  .sn,
-  .smin {
+  }:global(.rail .sn),
+:global(.rail .smin) {
     font-size: var(--fs-meta);
     color: var(--muted);
-  }
-  .sttl {
+  }:global(.rail .sttl) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  .as-link {
+  }:global(.rail .as-link) {
     padding: 0;
     border: 0;
     background: none;
@@ -462,8 +412,7 @@ const covered = $derived(manifest?.coverage ?? null);
     cursor: pointer;
     font: inherit;
     font-size: var(--fs-label);
-  }
-  .path-t {
+  }:global(.rail .path-t) {
     font-size: var(--fs-ui);
     font-weight: var(--fw-strong);
     color: var(--ink);
@@ -471,24 +420,20 @@ const covered = $derived(manifest?.coverage ?? null);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  .path-t .mono {
+  }:global(.rail .path-t .mono) {
     font-weight: var(--fw-regular);
     color: var(--muted);
     font-size: var(--fs-label);
-  }
-  .muted {
+  }:global(.rail .muted) {
     color: var(--muted);
-  }
-  .path-s {
+  }:global(.rail .path-s) {
     font-size: var(--fs-label);
     color: var(--muted);
     line-height: 1.4;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  .path-f {
+  }:global(.rail .path-f) {
     grid-column: 1 / -1;
     display: flex;
     align-items: center;
@@ -497,8 +442,7 @@ const covered = $derived(manifest?.coverage ?? null);
     border-top: 1px solid var(--rule-soft);
     padding-top: 6px;
     min-width: 0;
-  }
-  .path-next {
+  }:global(.rail .path-next) {
     flex: 1 1 0;
     min-width: 0;
     font-size: var(--fs-label);
@@ -506,13 +450,10 @@ const covered = $derived(manifest?.coverage ?? null);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  .path-next b {
+  }:global(.rail .path-next b) {
     font-weight: var(--fw-strong);
     color: var(--text);
-  }
-  /* the TOC scrolls inside the rail: its row count arriving never moves the card or the footer */
-  .toc-wrap {
+  }:global(.rail .toc-wrap) {
     flex: 1 1 0;
     min-height: 96px;
     overflow-y: auto;
@@ -520,18 +461,15 @@ const covered = $derived(manifest?.coverage ?? null);
     scrollbar-width: thin;
     margin-left: -10px;
     padding-left: 10px;
-  }
-  .toc {
+  }:global(.rail .toc) {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-  }
-  .toc li {
+  }:global(.rail .toc li) {
     position: relative;
-  }
-  .toc a {
+  }:global(.rail .toc a) {
     display: grid;
     grid-template-columns: 30px minmax(0, 1fr) auto;
     align-items: baseline;
@@ -543,39 +481,30 @@ const covered = $derived(manifest?.coverage ?? null);
     line-height: 1.45;
     min-height: 28px;
     position: relative;
-  }
-  .toc a:hover {
+  }:global(.rail .toc a:hover) {
     background: var(--hover);
     color: var(--ink);
-  }
-  .toc .n {
+  }:global(.rail .toc .n) {
     position: relative;
     font-size: var(--fs-meta);
     color: var(--muted);
-  }
-  .toc .ttl {
+  }:global(.rail .toc .ttl) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  .toc .st {
+  }:global(.rail .toc .st) {
     font-size: var(--fs-meta);
     color: var(--muted);
     white-space: nowrap;
     font-family: var(--font-mono);
-  }
-  .toc .tb {
+  }:global(.rail .toc .tb) {
     margin-right: 6px;
     color: var(--muted);
-  }
-  .toc .st.gen {
+  }:global(.rail .toc .st.gen) {
     color: var(--c-run);
-  }
-  .toc .warn {
+  }:global(.rail .toc .warn) {
     color: var(--c-warn);
-  }
-  /* read dot sits in the padding: marking a chapter read never moves its number */
-  .toc a.read .n::before {
+  }:global(.rail .toc a.read .n::before) {
     content: "";
     position: absolute;
     left: -7px;
@@ -585,13 +514,11 @@ const covered = $derived(manifest?.coverage ?? null);
     margin-top: -3px;
     border-radius: 50%;
     background: var(--muted);
-  }
-  .toc a[aria-current="page"] {
+  }:global(.rail .toc a[aria-current="page"]) {
     color: var(--ink);
     font-weight: var(--fw-strong);
     background: var(--hover);
-  }
-  .toc a[aria-current="page"]::before {
+  }:global(.rail .toc a[aria-current="page"]::before) {
     content: "";
     position: absolute;
     left: -10px;
@@ -600,12 +527,10 @@ const covered = $derived(manifest?.coverage ?? null);
     width: 2px;
     border-radius: 2px;
     background: var(--accent);
-  }
-  .toc li.sub a {
+  }:global(.rail .toc li.sub a) {
     padding-left: 22px;
     font-size: var(--fs-ui-s);
-  }
-  .mods {
+  }:global(.rail .mods) {
     position: absolute;
     right: -6px;
     top: 2px;
@@ -614,23 +539,17 @@ const covered = $derived(manifest?.coverage ?? null);
     border-radius: var(--r-btn);
     color: var(--muted);
     font-family: var(--font-mono);
-  }
-  .mods:hover {
+  }:global(.rail .mods:hover) {
     background: var(--hover);
-  }
-  .toc a .st {
+  }:global(.rail .toc a .st) {
     padding-right: 0;
-  }
-  /* §6 carries the ± button at the right edge: its state text stops before it */
-  .toc li:has(.mods) a .st {
+  }:global(.rail .toc li:has(.mods) a .st) {
     padding-right: 18px;
-  }
-  .row-skel {
+  }:global(.rail .row-skel) {
     display: block;
     height: 18px;
     margin: 5px 8px;
-  }
-  .rail-foot {
+  }:global(.rail .rail-foot) {
     margin-top: auto;
     flex: none;
     min-height: calc(3 * 1.7em + 10px);

@@ -4,7 +4,19 @@
  * keys dropped, claims as {@link GenClaimDraft}[] with the RAW cites — the Verifier repairs/stamps them).
  * State (new refs, accounted ids, flows, module lines, accepted aspects) changes only for valid lines.
  */
-import type { Audience, BlockAspect, BlockId, BlockKind, CheckError, Depth, DocLang, ModuleId, SectionId, StopReason } from "@mitori/core";
+import {
+  type Audience,
+  type BlockAspect,
+  type BlockId,
+  type BlockKind,
+  type CheckError,
+  type Depth,
+  type DocLang,
+  type ModuleId,
+  type SectionId,
+  SLUG_RE,
+  type StopReason,
+} from "@mitori/core";
 import { ASPECT_DEFAULTS, type RawCite, SECTION_ASPECTS } from "@mitori/doc";
 import {
   type CoverageReport,
@@ -24,7 +36,7 @@ import { BLOCK_ASPECTS, kindsOf } from "./aspects.ts";
 import { isObject, parseCiteObject, parseClaims, short } from "./claims.ts";
 import { validateDiagram } from "./diagram.ts";
 import { headingProblem, inlineProblems, isGfmTable, mdLength } from "./mdrules.ts";
-import { codeRanges, markersInCode, normalizeMarkers, placeMarkers, scanMarkers, stripMarkers, tightenFullWidth } from "./mdscan.ts";
+import { codeRanges, markersInCode, normalizeMarkers, placeMarkers, scanMarkers, stripMarkers, tightenFullWidth, uncitedCodeEnds } from "./mdscan.ts";
 
 /** A cite that cannot be accepted as written. */
 interface CiteProblem {
@@ -52,7 +64,13 @@ const BLOCK_ID_RE = /^b_[0-9a-hjkmnp-tv-z]{8}$/;
 const NEW_REF_RE = /^new:[1-9][0-9]{0,2}$/;
 const MODULE_RE = /^md_[0-9a-hjkmnp-tv-z]{8}$/;
 const FLOW_KEY_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
-const SECTION_RE = /^(?:s1[0-3]|s[0-9]|appendix)(?:\/[a-z0-9][a-z0-9-]{0,39})?$/;
+const SECTION_RE = /^(?:s1[0-3]|s[0-9]|appendix)(?:\/([^/]+))?$/;
+
+/** Module section slugs share the doc/indexer limit (48 chars), including accepted-line retry replay. */
+function isSection(raw: string): boolean {
+  const match = SECTION_RE.exec(raw);
+  return match !== null && (match[1] === undefined || SLUG_RE.test(match[1]));
+}
 const YOMI_RE = /^[ぁ-ゖー]{1,40}$/;
 const CLAIM_ID_RE = /^cl_[0-9a-hjkmnp-tv-z]{8}$/;
 const RAW_Q_RE = /^q[0-9]{1,3}$/;
@@ -303,7 +321,11 @@ export class GenLineValidator implements LineValidator {
     // patch lines without "claims" (doc.translate / doc.simplify) keep the block's claims: markers [[1]]..[[n]] once each
     if (mdOk && patch && o.claims === undefined && existing) this.inheritedMarkers(mdNorm, existing.claims, c);
     else if (mdOk) {
-      if (parsed.problems.length === 0) ({ md: mdNorm, claims } = this.repairMarkers(mdNorm, claims, c));
+      if (parsed.problems.length === 0) {
+        const inferUncited =
+          !patch && kind !== "learn" && kind !== "recap" && kind !== "diagram" && kind !== "table" && !(aspect === "deepdive" && ctx.prompt === "gen.module");
+        ({ md: mdNorm, claims } = this.repairMarkers(mdNorm, claims, c, inferUncited));
+      }
       this.markers(mdNorm, claims, c);
     }
     claims = claims.map((cl) => this.claimCites(cl, c));
@@ -393,18 +415,17 @@ export class GenLineValidator implements LineValidator {
 
   private normalizeSection(raw: string): SectionId | null {
     const ctx = this.ctx;
-    const allowed = (s: string) =>
-      SECTION_RE.test(s) && (ctx.sections.includes(s as SectionId) || (this.flowsEnabled && /^s3\/[a-z0-9][a-z0-9-]{0,31}$/.test(s)));
+    const allowed = (s: string) => isSection(s) && (ctx.sections.includes(s as SectionId) || (this.flowsEnabled && /^s3\/[a-z0-9][a-z0-9-]{0,31}$/.test(s)));
     if (allowed(raw)) return raw as SectionId;
     const n = raw.trim().toLowerCase().replace(/_/g, "-");
     if (allowed(n)) return n as SectionId;
     if (!n.includes("/")) {
-      for (const s of ctx.sections) if (s.includes("/") && s.slice(s.indexOf("/") + 1) === n) return s;
+      for (const s of ctx.sections) if (allowed(s) && s.includes("/") && s.slice(s.indexOf("/") + 1) === n) return s;
       if (this.flowsEnabled && this.flowKeys.includes(n)) return `s3/${n}`;
       return null;
     }
     // a task section with the aspect (or any sub-path) appended: `s10/decision`, `s6/app/interface` [real run 2026-10-04]
-    const prefix = [...ctx.sections].sort((a, b) => b.length - a.length).find((s) => n.startsWith(`${s}/`));
+    const prefix = [...ctx.sections].sort((a, b) => b.length - a.length).find((s) => allowed(s) && n.startsWith(`${s}/`));
     if (prefix && !(this.flowsEnabled && prefix === "s3")) return prefix;
     return null;
   }
@@ -510,9 +531,10 @@ export class GenLineValidator implements LineValidator {
    * W10 before V14: an orphan marker (a marker whose claim is missing) becomes an inferred claim — the sentence was
    * meant as a claim and has no proof, which is exactly what "inferred" shows; a block that has claims but no
    * marker at all gets one marker per sentence / list item when they are equally many ({@link placeMarkers}).
-   * Anything else is left to V14 (retried). Only for lines whose claims parsed cleanly.
+   * Code-naming sentences without markers get inferred claims, never their neighbour's cites. Anything ambiguous is
+   * left to V14 (retried). Only for lines whose claims parsed cleanly; editor rewrites retain their original claims.
    */
-  private repairMarkers(md: string, claims: GenClaimDraft[], c: LineCheck): { md: string; claims: GenClaimDraft[] } {
+  private repairMarkers(md: string, claims: GenClaimDraft[], c: LineCheck, inferUncited: boolean): { md: string; claims: GenClaimDraft[] } {
     const markers = scanMarkers(md);
     const claimNs = new Set(claims.map((cl) => cl.n));
     let out = claims;
@@ -533,6 +555,24 @@ export class GenLineValidator implements LineValidator {
       if (orphans.length > 0 && orphans.length + claims.length <= GEN_LIMITS.claimsPerBlock) {
         out = [...claims, ...orphans.map((n): GenClaimDraft => ({ n, kind: "fact", cites: [] }))].sort((a, b) => a.n - b.n);
         repaired = true;
+      }
+    }
+    const placed = scanMarkers(outMd);
+    const used = new Set(placed.map((m) => m.n));
+    if (inferUncited && used.size === placed.length && out.length === placed.length && out.every((cl) => used.has(cl.n))) {
+      const ends = uncitedCodeEnds(outMd);
+      if (out.length + ends.length > GEN_LIMITS.claimsPerBlock)
+        c.err("V14", "/md", `at most ${GEN_LIMITS.claimsPerBlock} separately marked claims`, "unmarked code sentences exceed claim limit");
+      else {
+        for (const at of ends.reverse()) {
+          let n = 1;
+          while (used.has(n)) n++;
+          used.add(n);
+          outMd = `${outMd.slice(0, at)}[[${n}]]${outMd.slice(at)}`;
+          out = [...out, { n, kind: "fact", cites: [] }];
+          repaired = true;
+        }
+        out.sort((a, b) => a.n - b.n);
       }
     }
     if (repaired) c.warn("W10");
@@ -708,7 +748,7 @@ export class GenLineValidator implements LineValidator {
       c.err("V03", "/text", `text string 1..${GEN_LIMITS.questionChars}`, text);
     let section: SectionId | undefined;
     const merged = typeof o.section === "string" ? o.section.trim().toLowerCase().replace(/_/g, "-") : "";
-    if (this.ctx.prompt === "gen.questions" && SECTION_RE.test(merged)) {
+    if (this.ctx.prompt === "gen.questions" && isSection(merged)) {
       // the consolidated list keeps "the section of the most specific source" (§5.6.10): any section, not only s13
       // [real run 2026-10-04: crit's consolidation was rejected whole (V05) and resent from the start]
       section = merged as SectionId;

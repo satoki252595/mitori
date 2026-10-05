@@ -2,19 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { I18N_RULES } from "../contract.ts";
-import { literalKeys, pickCatalog, SHARED_KEYS, SHARED_PREFIXES } from "./catalog.ts";
+import { literalKeys, pickCatalog, SHARED_KEYS, SHARED_NAMESPACES, SHARED_PREFIXES } from "./catalog.ts";
 
 const WEB = join(import.meta.dir, "../..");
 const SRC = join(WEB, "src");
 type Cat = Record<string, string>;
 const load = (path: string): Cat => JSON.parse(readFileSync(path, "utf8")) as Cat;
-const shared = (lang: "ja" | "en"): Cat =>
-  Object.assign(
-    {},
-    ...readdirSync(join(WEB, "i18n"))
-      .filter((f) => f.endsWith(`.${lang}.json`))
-      .map((f) => load(join(WEB, "i18n", f))),
-  );
+const shared = (lang: "ja" | "en"): Cat => Object.assign({}, ...SHARED_NAMESPACES.map((ns) => load(join(WEB, "i18n", `${ns}.${lang}.json`))));
 const picked = (lang: "ja" | "en") => pickCatalog(shared(lang), load(join(SRC, "viewer", `export.${lang}.json`)));
 
 /** Everything that renders text in the export: the viewer's own files and the app's components it reuses. */
@@ -89,6 +83,9 @@ describe("EXP-U-04 viewer catalog", () => {
       expect(Object.keys(cat).length).toBeLessThan(260);
       // nothing from the loop UI, review, inbox, settings or generation
       expect(Object.keys(cat).filter((k) => /^(composer|jobs|inbox|review|threads|trust|settings|gen|proposals)\./.test(k))).toEqual([]);
+      expect(
+        Object.keys(cat).filter((k) => /^cite\.(verify|unverify)|^palette\.group\.(ask|thread|panel|recent|suggest|top)$|^ctx\.about\.pin$/.test(k)),
+      ).toEqual([]);
     }
     expect(SHARED_KEYS.length).toBeGreaterThan(30);
     expect(SHARED_PREFIXES.length).toBeGreaterThan(5);

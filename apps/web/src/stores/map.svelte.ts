@@ -3,7 +3,7 @@
  * reactive re-render per frame); only the derived zoom stage is reactive.
  */
 import type { ApiClient } from "@mitori/client";
-import { type MapView, MitoriError, type MitoriErrorData, type SectionId, type WorkspaceKey } from "@mitori/core";
+import { type MapView, MitoriError, type MitoriErrorData, type SectionId, type UiLang, type WorkspaceKey } from "@mitori/core";
 import type { MapCamera, MapStore, ZoomStage } from "../contract.ts";
 
 export class MapState implements MapStore {
@@ -16,12 +16,16 @@ export class MapState implements MapStore {
   error = $state.raw<MitoriErrorData | null>(null);
   private readonly api: ApiClient;
   private readonly ws: () => WorkspaceKey | null;
+  private readonly lang: () => UiLang;
+  #loadedLang: UiLang | null = null;
   #loadedFor: WorkspaceKey | null = null;
+  #epoch = 0;
   #throttle: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(api: ApiClient, ws: () => WorkspaceKey | null) {
+  constructor(api: ApiClient, ws: () => WorkspaceKey | null, lang: () => UiLang = () => "ja") {
     this.api = api;
     this.ws = ws;
+    this.lang = lang;
   }
 
   /**
@@ -34,16 +38,23 @@ export class MapState implements MapStore {
 
   async load(force = false): Promise<void> {
     const ws = this.ws();
-    if (!ws || (!force && this.#loadedFor === ws && this.view)) return;
+    const lang = this.lang();
+    if (!ws || (!force && this.#loadedFor === ws && this.#loadedLang === lang && this.view)) return;
+    const epoch = ++this.#epoch;
     this.#loadedFor = ws;
+    this.#loadedLang = lang;
     try {
-      const v = await this.api.call("GET /ws/:ws/map", { params: { ws } });
-      if (this.ws() === ws) {
+      const v = await this.api.call("GET /ws/:ws/map", { params: { ws }, query: { svg: true, lang } });
+      if (!v.plan || v.svg === undefined) {
+        const { legacyPresentation } = await import("../map/legacy.ts");
+        Object.assign(v, legacyPresentation(v, ws, lang));
+      }
+      if (epoch === this.#epoch && this.ws() === ws && this.lang() === lang) {
         this.view = v;
         this.error = null;
       }
     } catch (err) {
-      if (this.ws() === ws) this.error = MitoriError.from(err).toData();
+      if (epoch === this.#epoch && this.ws() === ws && this.lang() === lang) this.error = MitoriError.from(err).toData();
     }
   }
 
@@ -57,9 +68,11 @@ export class MapState implements MapStore {
   }
 
   reset(): void {
+    this.#epoch++;
     this.view = null;
     this.selected = null;
     this.flow = null;
     this.#loadedFor = null;
+    this.#loadedLang = null;
   }
 }

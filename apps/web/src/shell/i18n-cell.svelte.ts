@@ -21,7 +21,7 @@ export function installReactiveCatalog(): void {
   installCell(new Cell());
 }
 
-const CHUNKS: Record<UiLang, Record<Part, () => Promise<{ default: Cat }>>> = {
+const CHUNKS: Record<UiLang, Record<Part, () => Promise<{ default: Promise<Cat> }>>> = {
   ja: {
     base: () => import("./i18n-ja.ts"),
     loop: () => import("./i18n-ja-loop.ts"),

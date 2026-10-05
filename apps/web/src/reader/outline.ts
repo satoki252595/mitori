@@ -27,6 +27,9 @@ export interface SectionStats {
   inferred: number;
   stale: number;
   unsupported: number;
+  /** Actual non-heading provenance, independent of the section's scheduling state. */
+  authored: number;
+  static: number;
 }
 
 export function indexOutline(o: DocOutline): OutlineIndex {
@@ -55,14 +58,18 @@ export function indexOutline(o: DocOutline): OutlineIndex {
   for (const r of roots) walk(r, r === "appendix" ? "A" : r.replace(/^s/, ""), null);
   const blockSection = new Map<BlockId, SectionId>();
   const stats = new Map<SectionId, SectionStats>();
-  for (const [id, sec, , , verdict, , fresh] of o.blocks) {
+  for (const [id, sec, , kind, verdict, , fresh, origin] of o.blocks) {
     blockSection.set(id, sec);
     let st = stats.get(sec);
     if (!st) {
-      st = { blocks: 0, verified: 0, inferred: 0, stale: 0, unsupported: 0 };
+      st = { blocks: 0, verified: 0, inferred: 0, stale: 0, unsupported: 0, authored: 0, static: 0 };
       stats.set(sec, st);
     }
     st.blocks++;
+    if (kind !== "heading") {
+      if (origin === "ai" || origin === "human") st.authored++;
+      else if (origin === "static") st.static++;
+    }
     countVerdict(st, verdict, fresh);
   }
   return { nodes, parent, roots, numbers, order, pageOf, pages, blockSection, stats };
@@ -77,7 +84,7 @@ function countVerdict(st: SectionStats, v: Verdict | null, fresh: Freshness): vo
 
 /** Stats of a section and all its descendants. */
 export function subtreeStats(ix: OutlineIndex, id: SectionId): SectionStats {
-  const acc: SectionStats = { blocks: 0, verified: 0, inferred: 0, stale: 0, unsupported: 0 };
+  const acc: SectionStats = { blocks: 0, verified: 0, inferred: 0, stale: 0, unsupported: 0, authored: 0, static: 0 };
   const visit = (s: SectionId) => {
     const st = ix.stats.get(s);
     if (st) {
@@ -86,6 +93,8 @@ export function subtreeStats(ix: OutlineIndex, id: SectionId): SectionStats {
       acc.inferred += st.inferred;
       acc.stale += st.stale;
       acc.unsupported += st.unsupported;
+      acc.authored += st.authored;
+      acc.static += st.static;
     }
     for (const c of ix.nodes.get(s)?.children ?? []) visit(c);
   };
@@ -104,7 +113,7 @@ export function tocState(n: SectionNode, stats: SectionStats | undefined): TocSt
     case "pending":
       return "pending";
     case "static_only":
-      return "static";
+      return stats && (stats.authored > 0 || (stats.blocks > 0 && stats.static === 0)) ? "generated" : "static";
     default:
       return "generated";
   }

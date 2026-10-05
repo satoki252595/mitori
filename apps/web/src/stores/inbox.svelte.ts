@@ -3,7 +3,7 @@
  * its actions are WP-10b's.
  */
 import type { ApiClient } from "@mitori/client";
-import type { InboxItem, WorkspaceKey } from "@mitori/core";
+import type { Cursor, InboxItem, Page, WorkspaceKey } from "@mitori/core";
 import type { InboxStore, InboxView } from "../contract.ts";
 
 export class InboxState implements InboxStore {
@@ -14,6 +14,7 @@ export class InboxState implements InboxStore {
   loaded = $state(false);
   private readonly api: ApiClient;
   private readonly ws: () => WorkspaceKey | null;
+  #load = 0;
 
   constructor(api: ApiClient, ws: () => WorkspaceKey | null) {
     this.api = api;
@@ -29,17 +30,29 @@ export class InboxState implements InboxStore {
   async load(): Promise<void> {
     const ws = this.ws();
     if (!ws) return;
+    const load = ++this.#load;
     try {
-      const page = await this.api.call("GET /ws/:ws/inbox", { params: { ws }, query: { limit: 200 } });
-      if (this.ws() === ws) this.items = page.items;
+      const items = new Map<string, InboxItem>();
+      const seen = new Set<Cursor>();
+      let cursor: Cursor | null = null;
+      do {
+        const page: Page<InboxItem> = await this.api.call("GET /ws/:ws/inbox", { params: { ws }, query: { limit: 200, ...(cursor ? { cursor } : {}) } });
+        if (this.ws() !== ws || this.#load !== load) return;
+        for (const item of page.items) items.set(`${item.kind}:${item.id}`, item);
+        cursor = page.next;
+        if (cursor && seen.has(cursor)) throw new Error("repeated inbox cursor");
+        if (cursor) seen.add(cursor);
+      } while (cursor);
+      this.items = [...items.values()];
     } catch {
       /* badge stays hidden */
     } finally {
-      this.loaded = true;
+      if (this.ws() === ws && this.#load === load) this.loaded = true;
     }
   }
 
   reset(): void {
+    this.#load++;
     this.items = [];
     this.loaded = false;
   }

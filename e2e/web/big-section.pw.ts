@@ -8,7 +8,7 @@
 
 import type { DocOutline } from "@mitori/core";
 import { expect, test } from "@playwright/test";
-import { configure, emit, WS, waitMark } from "./support/helpers.ts";
+import { chromiumMetric, configure, emit, WS, waitMark } from "./support/helpers.ts";
 
 const N = Number(process.env.MITORI_BIG_BLOCKS ?? 10_000);
 
@@ -33,12 +33,14 @@ test("@wp10a F6 a far anchor has HTML at first paint and idle fetches omit the r
   await expect(paragraph).toHaveAttribute("data-fresh", "stale");
 });
 
-test(`@wp10a F6/F7 ${N}-block section: DOM bounded, heap measured, ⌘K full text over it`, async ({ page }, info) => {
+test(`@wp10a F6/F7 ${N}-block section: DOM bounded, heap measured, ⌘K full text over it`, async ({ page, browserName }, info) => {
   test.setTimeout(180_000);
   await configure({ generated: true, bigBlocks: N });
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send("HeapProfiler.enable");
+  const measureHeap = chromiumMetric(browserName, info, "HeapProfiler measurements and heap ceiling");
+  const cdp = measureHeap ? await page.context().newCDPSession(page) : null;
+  await cdp?.send("HeapProfiler.enable");
   const heap = async () => {
+    if (!cdp) return null;
     await cdp.send("HeapProfiler.collectGarbage");
     const u = (await cdp.send("Runtime.getHeapUsage")) as { usedSize: number; totalSize: number };
     return Math.round(u.usedSize / 1e5) / 10; // MB
@@ -83,5 +85,6 @@ test(`@wp10a F6/F7 ${N}-block section: DOM bounded, heap measured, ⌘K full tex
   info.annotations.push({ type: "big-section", description: JSON.stringify(m) });
   expect(maxNodes).toBeLessThanOrEqual(15_000);
   // ≈ 2 KB of HTML per mock block: the section alone is ~20 MB of strings; the ceiling only catches a leak (×2)
-  expect(heapIndexed).toBeLessThan(heap0 + N * 0.006 + 80);
+  if (heapIndexed !== null && heap0 !== null) expect(heapIndexed).toBeLessThan(heap0 + N * 0.006 + 80);
+  await cdp?.detach();
 });

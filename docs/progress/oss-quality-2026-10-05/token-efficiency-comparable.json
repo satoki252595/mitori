@@ -1,0 +1,170 @@
+{
+  "v": "mitori.oss-token-comparable/1",
+  "run": "gr_xzcqec3v",
+  "source": {
+    "sha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+    "indexDigest": "093c4511769c4384"
+  },
+  "counter": {
+    "version": "mitori.claude-v5-raw@1",
+    "tokenizer": "claude-v5",
+    "serializedKind": "code",
+    "calibration": "none",
+    "implementationSha256": "f1df4e7023806ca2c6bd14936741c1cf3c0ffd5c4bea0c31dc4ee28076a90427"
+  },
+  "calls": 13,
+  "byteInputs": 692453,
+  "serializedTokenEstimate": 296051,
+  "filteredTokens": 621491,
+  "estimateRatio": 0.47635605342635695,
+  "target": 0.5,
+  "limit": 0.6,
+  "estimated": true,
+  "providerExact": "unmeasured",
+  "originalByteRatio": 1.1141802536159011,
+  "proof": [
+    {
+      "recording": 1,
+      "run": "gr_xzcqec3v",
+      "task": "gt_c9fm923pe1",
+      "usageRecord": "us_fgjjraxktvpg",
+      "prompt": "gen.module",
+      "inputSha256": "47c4d426c8e4f724cfb0e188621cca50d7423b047aac34eeaf4ff3d053b5d7e2",
+      "utf8Bytes": 89218,
+      "tokens": 38487,
+      "verified": true
+    },
+    {
+      "recording": 2,
+      "run": "gr_xzcqec3v",
+      "task": "gt_b329zdyy62",
+      "usageRecord": "us_138aawybqy1v",
+      "prompt": "gen.overview",
+      "inputSha256": "cf229e82eea70232c76cd4291f578e52e22c7eb645c5a30046df93500ef65150",
+      "utf8Bytes": 40192,
+      "tokens": 17328,
+      "verified": true
+    },
+    {
+      "recording": 3,
+      "run": "gr_xzcqec3v",
+      "task": "gt_x5w75jzs4x",
+      "usageRecord": "us_kpqe6rvkdr6c",
+      "prompt": "gen.module",
+      "inputSha256": "a7a618240056c9abd318b2f2b83e354240e3913d3f68d0d50da9aff4ccdecc0c",
+      "utf8Bytes": 60255,
+      "tokens": 25932,
+      "verified": true
+    },
+    {
+      "recording": 4,
+      "run": "gr_xzcqec3v",
+      "task": "gt_qwtbmsrng5",
+      "usageRecord": "us_gtzq9grx5ksn",
+      "prompt": "gen.module",
+      "inputSha256": "92b997a7b1873eec0397bea0ab6eb0f9400f755ae634889f0e92e420c59f591f",
+      "utf8Bytes": 54396,
+      "tokens": 23416,
+      "verified": true
+    },
+    {
+      "recording": 5,
+      "run": "gr_xzcqec3v",
+      "task": "gt_3hrcx30k74",
+      "usageRecord": "us_64mmp9z65ecz",
+      "prompt": "gen.module",
+      "inputSha256": "2b308a2b56bdf7804d5fe86511553b0ebbd32b36845902efa90245abad6fc4e9",
+      "utf8Bytes": 58468,
+      "tokens": 25213,
+      "verified": true
+    },
+    {
+      "recording": 6,
+      "run": "gr_xzcqec3v",
+      "task": "gt_kh2s29abxv",
+      "usageRecord": "us_yv19crcrgnnv",
+      "prompt": "gen.module",
+      "inputSha256": "f26b6d28aae31964dffe9b484619715bed697ea8168c18d7b8fdd4f72def54fc",
+      "utf8Bytes": 58439,
+      "tokens": 25183,
+      "verified": true
+    },
+    {
+      "recording": 7,
+      "run": "gr_xzcqec3v",
+      "task": "gt_9yr4p2rcsn",
+      "usageRecord": "us_ysj7dke47f4v",
+      "prompt": "gen.quality",
+      "inputSha256": "77d93dab6b49315b65563ec87f274755de55f8f892fe346e8039bdddd6310053",
+      "utf8Bytes": 48425,
+      "tokens": 20764,
+      "verified": true
+    },
+    {
+      "recording": 8,
+      "run": "gr_xzcqec3v",
+      "task": "gt_6m3we5m1x3",
+      "usageRecord": "us_dzn6vssv0sk3",
+      "prompt": "gen.risks",
+      "inputSha256": "e3de64ba6b3511b5f090a397a438317b3b9e64965dd5ff67b3e5f1bfdca9083f",
+      "utf8Bytes": 34837,
+      "tokens": 14840,
+      "verified": true
+    },
+    {
+      "recording": 9,
+      "run": "gr_xzcqec3v",
+      "task": "gt_csrqggge02",
+      "usageRecord": "us_9qhe6yhh8ag2",
+      "prompt": "gen.overview",
+      "inputSha256": "6bd9ff2f802d9d902f8bf8729bfe7f616fba96adff00356cfc715e9d9c586dda",
+      "utf8Bytes": 48388,
+      "tokens": 20447,
+      "verified": true
+    },
+    {
+      "recording": 10,
+      "run": "gr_xzcqec3v",
+      "task": "gt_e5zszcqf1x",
+      "usageRecord": "us_rmaq2nbvqp8y",
+      "prompt": "gen.flows",
+      "inputSha256": "ce629bc7188c80834f233a64655021239b62ed757600c3d6b77f1c636002a12b",
+      "utf8Bytes": 63272,
+      "tokens": 27027,
+      "verified": true
+    },
+    {
+      "recording": 11,
+      "run": "gr_xzcqec3v",
+      "task": "gt_sh66a1sv4s",
+      "usageRecord": "us_9ymkwhmd1zfq",
+      "prompt": "gen.decisions",
+      "inputSha256": "9acc147fef646ae8e7adbd15968cc35c2db47eeb0354bd8ffe134b977020fe13",
+      "utf8Bytes": 56903,
+      "tokens": 24271,
+      "verified": true
+    },
+    {
+      "recording": 12,
+      "run": "gr_xzcqec3v",
+      "task": "gt_vber5dprb1",
+      "usageRecord": "us_jmwa98wj137t",
+      "prompt": "gen.glossary",
+      "inputSha256": "25df93737877144b5268527803b9907b716837727e5d130e1f00e5b747a3015f",
+      "utf8Bytes": 34085,
+      "tokens": 14402,
+      "verified": true
+    },
+    {
+      "recording": 13,
+      "run": "gr_xzcqec3v",
+      "task": "gt_3ypse7nzgn",
+      "usageRecord": "us_3rn8d83ttm1y",
+      "prompt": "gen.questions",
+      "inputSha256": "50958fac021c1fb7eace6950304fd3cd75b9860b69b9530a60344cecf8855b4c",
+      "utf8Bytes": 45575,
+      "tokens": 18741,
+      "verified": true
+    }
+  ]
+}

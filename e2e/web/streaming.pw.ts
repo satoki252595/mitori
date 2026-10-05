@@ -5,7 +5,7 @@
  * reservation (the page shows placeholders only).
  */
 import { expect, type Page, test } from "@playwright/test";
-import { BASE, configure, installCls, WS, waitMark } from "./support/helpers.ts";
+import { BASE, chromiumMetric, configure, installCls, WS, waitMark } from "./support/helpers.ts";
 
 const post = (path: string, body: unknown) =>
   fetch(`${BASE}${path}`, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } });
@@ -21,8 +21,9 @@ test("@wp10a no active run: a pending section shows placeholders, no 生成中 r
   await expect(page.locator(".blk.ph-wrap").first()).toBeVisible();
 });
 
-test("@wp10a streaming: blocks and the partial fill the reserved region; the content below never moves (CLS 0)", async ({ page }) => {
-  await installCls(page);
+test("@wp10a streaming: blocks and the partial fill the reserved region; the content below never moves (CLS 0)", async ({ page, browserName }, info) => {
+  const measureCLS = chromiumMetric(browserName, info, "streaming layout-shift");
+  if (measureCLS) await installCls(page);
   await configure({ generated: false });
   await page.setViewportSize({ width: 1440, height: 2400 });
   await page.goto(`/w/${WS}/doc/s1`);
@@ -35,7 +36,8 @@ test("@wp10a streaming: blocks and the partial fill the reserved region; the con
   expect((await region.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(2400);
   await page.waitForTimeout(200);
   const top0 = await pagerTop(page);
-  const cls0 = await clsNow(page);
+  expect(top0).not.toBeNull();
+  const cls0 = measureCLS ? await clsNow(page) : null;
   for (let i = 0; i < 4; i++) {
     await post("/__mock/stream", { section: "s1", ord: 20 + i, partial: "デーモンは準備が整うまで、セッションに依存する" });
     await page.waitForTimeout(60);
@@ -44,16 +46,18 @@ test("@wp10a streaming: blocks and the partial fill the reserved region; the con
   }
   await expect(page.locator(`.blk[data-b]`, { hasText: "" }).last()).toBeVisible();
   expect(await pagerTop(page)).toBe(top0);
-  const delta = (await clsNow(page)) - cls0;
-  console.log(`[cls] streaming 4 blocks: ${delta}`);
-  expect(delta).toBeLessThanOrEqual(0.001);
+  if (cls0 !== null) {
+    const delta = (await clsNow(page)) - cls0;
+    console.log(`[cls] streaming 4 blocks: ${delta}`);
+    expect(delta).toBeLessThanOrEqual(0.001);
+  }
   // done while the region is on screen: the reservation is held, nothing moves
   await post("/__mock/section", { section: "s1", state: "generated" });
   await post("/__mock/gen", { state: "done" });
   await page.waitForTimeout(300);
   expect(await pagerTop(page)).toBe(top0);
   await expect(page.locator(".stream-note:not(.held)")).toHaveCount(0);
-  expect((await clsNow(page)) - cls0).toBeLessThanOrEqual(0.001);
+  if (cls0 !== null) expect((await clsNow(page)) - cls0).toBeLessThanOrEqual(0.001);
   // still on screen: held (only a navigation or scrolling it out of view lets it go)
   await expect(page.locator('.sec-body.mstream[data-section="s1"]')).toHaveCount(1);
 });

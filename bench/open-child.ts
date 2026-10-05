@@ -4,14 +4,14 @@
 // Prints one JSON line: { open, scan, timings } — open = S0–S4 + the static (0-token) doc, scan = the indexer's own
 // S0–S4 total (`scan.done`), ms. A release build, as shipped: the dev / test build's slow-write-slot assertion (50 ms)
 // is a development check, and on a loaded bench machine it aborted the open instead of timing it.
-// Usage: bun bench/open-child.ts <root> <home>
+// Usage: bun bench/open-child.ts <root> <home> [--partition]
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { API_PREFIX, type WorkspaceKey, type WorkspaceStatus, type WorkspaceSummary } from "@mitori/core";
+import { API_PREFIX, type RepoSnapshot, type WorkspaceKey, type WorkspaceStatus, type WorkspaceSummary } from "@mitori/core";
 import { startServerDaemon } from "../apps/cli/src/daemon/server.ts";
 import type { WorkspaceDomain } from "../packages/server/src/wiring/workspace.ts";
 
-const [root, home] = process.argv.slice(2);
+const [root, home, probe] = process.argv.slice(2);
 if (!root || !home) {
   console.error("usage: bun bench/open-child.ts <root> <home>");
   process.exit(2);
@@ -42,7 +42,23 @@ try {
   await domain?.staticReady();
   const open = performance.now() - t0;
   const t = domain?.indexer.lastTimings() ?? null;
-  console.log(JSON.stringify({ open: Math.round(open * 10) / 10, scan: t ? Math.round(t.total * 10) / 10 : null, timings: t }));
+  let partition: { source: RepoSnapshot; modules: string[]; plan: string[] } | undefined;
+  if (probe === "--partition") {
+    if (!domain) throw new Error("opened workspace has no domain");
+    await domain.doc.flush({ force: true });
+    const source = domain.indexer.snapshot();
+    if (!source) throw new Error("opened workspace has no source snapshot");
+    const est = await domain.gen.estimate({ effort: "complete" });
+    partition = {
+      source,
+      modules: domain.indexer
+        .modules()
+        .map((m) => `${m.id} ${m.slug} ${m.parent ?? "-"} ${[...m.paths].sort().join(",")}`)
+        .sort(),
+      plan: est.stages.map((s) => `${s.stage} tasks=${s.tasks} in=${s.inTokens}`),
+    };
+  }
+  console.log(JSON.stringify({ open: Math.round(open * 10) / 10, scan: t ? Math.round(t.total * 10) / 10 : null, timings: t, partition }));
 } finally {
   await d.stop("bench");
 }

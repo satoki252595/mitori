@@ -3,9 +3,12 @@
   segments so changing numbers never shift their neighbours (CLS 0). Billing wording per UXP-09.
 -->
 <script lang="ts">
+import { untrack } from "svelte";
 import { useStores } from "../stores/app.svelte.ts";
 import { fmtTokensImpl, fmtUsdImpl } from "./fmt.ts";
 import { t } from "./index.ts";
+import { replaceChrome } from "./native.ts";
+import { markAfterPaint } from "./perf.ts";
 
 const s = useStores();
 const conn = $derived(s.session.connection);
@@ -30,72 +33,59 @@ $effect(() => {
   return () => clearTimeout(h);
 });
 const ready = $derived(timedOut || (s.session.daemon !== null && s.session.today !== null && (!s.workspace.key || s.workspace.status !== null)));
+$effect(() => {
+  if (ready && scan) markAfterPaint("mitori:scan:summary", { ws: ws ?? "", files: scan.files });
+});
+
+let host: HTMLElement | undefined = $state();
+const esc = (v: string | number) => String(v).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+function html(): string {
+  if (!ready) return "";
+  const e = esc;
+  const sep = (cls = "", warn = false) => `<span class="sb-sep ${cls}${warn ? " warn" : ""}" aria-hidden="true"></span>`;
+  const index = scan
+    ? t("statusbar.index", { files: scan.files.toLocaleString(), ms: Math.round(scan.ms) })
+    : s.workspace.scan
+      ? t("statusbar.scanning", { done: s.workspace.scan.done, total: s.workspace.scan.total })
+      : t("statusbar.indexNone");
+  return `<span class="w-daemon" aria-label="${e(t(`statusbar.conn.${conn.kind}`))}"><span class="live-dot" data-s="${conn.kind}" aria-hidden="true"></span>${e(t("statusbar.daemon", { endpoint }))}</span>${sep()}<button type="button" class="w-index" data-act="index" aria-label="${e(t("statusbar.indexAria"))}">${e(index)}</button>${sep("w-jobs-sep")}<span class="w-jobs">${e(t("statusbar.jobs", { running: chip.running, queued: s.review.queued, c: sched ? (sched.effective < sched.concurrency ? `${sched.effective}/${sched.concurrency}` : String(sched.concurrency)) : "–" }))}</span>${sep("w-today-sep")}<span class="w-today">${e(today ? t(todayKey, { tok: fmtTokensImpl(today.in + today.cacheRead + today.cacheWrite + today.out), usd: fmtUsdImpl(today.apiUsd, "day") }) : t("statusbar.todayNone"))}</span>${win?.fiveHour ? `${sep("w-win-sep", overage)}<span class="w-win${overage ? " warn" : ""}">${e(overage ? t("statusbar.windowOverage", { p: Math.round(win.fiveHour.utilization * 100) }) : t("statusbar.window", { p: Math.round(win.fiveHour.utilization * 100), q: win.sevenDay ? Math.round(win.sevenDay.utilization * 100) : "–" }))}</span>` : ""}${sep("w-engine-sep")}<span class="w-engine">${e(engine ? t("statusbar.engine", { engine: engine.engine, auth: t(`statusbar.auth.${engine.auth}`) }) : t("statusbar.engineNone"))}</span><span class="grow"></span>${pending ? `<span class="w-pending" aria-live="polite">${e(pending)} &hellip;</span>` : ""}<button type="button" class="w-help" data-act="help">${e(t("statusbar.help"))}</button>`;
+}
+const initialHtml = untrack(() => html());
+let last = "";
+$effect(() => {
+  const next = html();
+  const el = host;
+  if (!el || next === last) return;
+  untrack(() => {
+    replaceChrome(el, next);
+    last = next;
+  });
+});
+function click(ev: MouseEvent) {
+  const act = (ev.target as Element).closest<HTMLElement>("[data-act]")?.dataset.act;
+  if (act === "help") s.ui.helpOpen = true;
+  else if (act === "index" && ws) void s.router.go({ name: "gen", ws });
+}
 </script>
 
-<footer class="status" data-chrome aria-label={t("statusbar.label")}>
-{#if ready}
-  <span class="w-daemon" aria-label={t(`statusbar.conn.${conn.kind}`)}
-    ><span class="live-dot" data-s={conn.kind} aria-hidden="true"></span>{t("statusbar.daemon", { endpoint })}</span
-  >
-  <span class="sb-sep" aria-hidden="true"></span>
-  <button type="button" class="w-index" onclick={() => ws && void s.router.go({ name: "gen", ws })} aria-label={t("statusbar.indexAria")}>
-    {#if scan}{t("statusbar.index", { files: scan.files.toLocaleString(), ms: Math.round(scan.ms) })}{:else if s.workspace.scan}{t("statusbar.scanning", { done: s.workspace.scan.done, total: s.workspace.scan.total })}{:else}{t("statusbar.indexNone")}{/if}
-  </button>
-  <span class="sb-sep w-jobs-sep" aria-hidden="true"></span>
-  <span class="w-jobs"
-    >{t("statusbar.jobs", {
-      running: chip.running,
-      queued: s.review.queued,
-      c: sched ? (sched.effective < sched.concurrency ? `${sched.effective}/${sched.concurrency}` : String(sched.concurrency)) : "–",
-    })}</span
-  >
-  <span class="sb-sep w-today-sep" aria-hidden="true"></span>
-  <span class="w-today"
-    >{today
-      ? t(todayKey, { tok: fmtTokensImpl(today.in + today.cacheRead + today.cacheWrite + today.out), usd: fmtUsdImpl(today.apiUsd, "day") })
-      : t("statusbar.todayNone")}</span
-  >
-  {#if win?.fiveHour}
-    <span class="sb-sep w-win-sep" class:warn={overage} aria-hidden="true"></span>
-    <span class="w-win" class:warn={overage}
-      >{overage
-        ? t("statusbar.windowOverage", { p: Math.round(win.fiveHour.utilization * 100) })
-        : t("statusbar.window", { p: Math.round(win.fiveHour.utilization * 100), q: win.sevenDay ? Math.round(win.sevenDay.utilization * 100) : "–" })}</span
-    >
-  {/if}
-  <span class="sb-sep w-engine-sep" aria-hidden="true"></span>
-  <span class="w-engine">{engine ? t("statusbar.engine", { engine: engine.engine, auth: t(`statusbar.auth.${engine.auth}`) }) : t("statusbar.engineNone")}</span>
-  <span class="grow"></span>
-  {#if pending}<span class="w-pending" aria-live="polite">{pending} &hellip;</span>{/if}
-  <button type="button" class="w-help" onclick={() => (s.ui.helpOpen = true)}>{t("statusbar.help")}</button>
-{/if}
-</footer>
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions (native controls delegate clicks) -->
+<footer class="status" data-chrome aria-label={t("statusbar.label")} bind:this={host} onclick={click}>{@html initialHtml}</footer>
 
-<style>
-  /* minimum widths sized for typical values: changing numbers do not move the next segment */
-  .w-daemon {
+<style>:global(.status .w-daemon) {
     min-width: 200px;
-  }
-  .w-index {
+  }:global(.status .w-index) {
     min-width: 220px;
-  }
-  .w-jobs {
+  }:global(.status .w-jobs) {
     min-width: 226px;
-  }
-  .w-today {
+  }:global(.status .w-today) {
     min-width: 300px;
-  }
-  .w-win {
+  }:global(.status .w-win) {
     min-width: 136px;
-  }
-  .w-engine {
+  }:global(.status .w-engine) {
     min-width: 190px;
-  }
-  .w-help {
+  }:global(.status .w-help) {
     color: var(--muted);
-  }
-  /* the sequence hint overlays the free space left of help: it never pushes a segment */
-  .w-pending {
+  }:global(.status .w-pending) {
     position: absolute;
     right: 130px;
     top: 0;
@@ -103,46 +93,30 @@ const ready = $derived(timedOut || (s.session.daemon !== null && s.session.today
     background: var(--paper-2);
     color: var(--ink);
   }
-  /*
-   * Fixed segment widths sum to 1,422 px with every segment; segments drop in a fixed order as the bar narrows
-   * (engine → 5h window unless it warns → jobs → today) so the bar never overflows (AC-U-W01) and a segment never
-   * moves while its numbers change (CLS 0).
-   */
-  @container status (max-width: 1423px) {
-    .w-engine,
-    .w-engine-sep {
+
+  @container status (max-width: 1423px) {:global(.status .w-engine),
+:global(.status .w-engine-sep) {
       display: none;
     }
   }
-  @container status (max-width: 1231px) {
-    .w-win:not(.warn),
-    .w-win-sep:not(.warn) {
+  @container status (max-width: 1231px) {:global(.status .w-win:not(.warn)),
+:global(.status .w-win-sep:not(.warn)) {
       display: none;
     }
   }
-  @container status (max-width: 1095px) {
-    .w-jobs,
-    .w-jobs-sep {
+  @container status (max-width: 1095px) {:global(.status .w-jobs),
+:global(.status .w-jobs-sep) {
       display: none;
     }
   }
-  @container status (max-width: 867px) {
-    .w-today,
-    .w-today-sep {
+  @container status (max-width: 867px) {:global(.status .w-today),
+:global(.status .w-today-sep) {
       display: none;
     }
   }
-  /*
-   * NC-14 English: the same segments are wider (「jobs 0 running · 0 queued · C=3」, 「today 21.4k tok · API-equiv.
-   * $0.14 (not billed)」, 「? Shortcuts」) — the Japanese thresholds let 「? Shortcuts」 run off the right edge at
-   * 1440 px. English thresholds, for English text of typical values (jobs ≤ 244, today ≤ 364, engine ≤ 200 px:
-   * 1,480 px with every segment): below that the engine (the last segment) gives up its tail first
-   * (「claude-cli · subscri…」) and goes at 1423 like the Japanese one. The slots themselves stay the Japanese ones:
-   * wider slots would move the segments on the ja → en switch (AC-U81 counts that shift).
-   */
-  @container status (max-width: 1479px) {
-    :global(:root[lang="en"]) .w-engine {
-      /* a block (not the bar's inline-flex) so the text itself gets the ellipsis */
+
+  @container status (max-width: 1479px) {:global(:root[lang="en"] .status .w-engine) {
+
       display: block;
       flex: 0 1 auto;
       min-width: 0;
@@ -151,22 +125,20 @@ const ready = $derived(timedOut || (s.session.daemon !== null && s.session.today
       text-overflow: ellipsis;
     }
   }
-  @container status (max-width: 1278px) {
-    :global(:root[lang="en"]) .w-win:not(.warn),
-    :global(:root[lang="en"]) .w-win-sep:not(.warn) {
+  @container status (max-width: 1278px) {:global(:root[lang="en"] .status .w-win:not(.warn)),
+:global(:root[lang="en"] .status .w-win-sep:not(.warn)) {
       display: none;
     }
   }
-  @container status (max-width: 1141px) {
-    :global(:root[lang="en"]) .w-jobs,
-    :global(:root[lang="en"]) .w-jobs-sep {
+  @container status (max-width: 1141px) {:global(:root[lang="en"] .status .w-jobs),
+:global(:root[lang="en"] .status .w-jobs-sep) {
       display: none;
     }
   }
-  @container status (max-width: 896px) {
-    :global(:root[lang="en"]) .w-today,
-    :global(:root[lang="en"]) .w-today-sep {
+  @container status (max-width: 896px) {:global(:root[lang="en"] .status .w-today),
+:global(:root[lang="en"] .status .w-today-sep) {
       display: none;
     }
   }
+
 </style>

@@ -56,6 +56,30 @@ svg.plan .zlabels {
   pointer-events: none;
 }
 
+svg.plan .doors {
+  pointer-events: none;
+}
+svg.plan .door-gap {
+  fill: none;
+  stroke: var(--plan-floor);
+  stroke-width: 5;
+  vector-effect: non-scaling-stroke;
+}
+svg.plan .door {
+  fill: none;
+  stroke: var(--plan-wall);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+svg.plan.floor .zlabels {
+  opacity: 0.55;
+}
+svg.plan.floor .zn {
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 4;
+}
+
 /* zone names sit in the zone's own header strip (layout: 30 units above the first row of rooms) */
 svg.plan .zn {
   font-size: 11px;

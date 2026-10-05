@@ -238,17 +238,20 @@ export function createGitReader(opts: GitReaderOptions): PlatformGitReader {
       return splitZ(r.stdout).map(nfc);
     },
     async log({ limit, sinceDays }) {
-      if (limit <= 0 || (await isShallow()) || (await verify("HEAD^{commit}")) === null) return [];
-      const args = ["log", "--no-merges", "--no-renames", "-z", "--name-only", "--format=%x1e%H%x1f%cI%x1f%s", `-n${Math.floor(limit)}`];
+      if (limit <= 0 || (await verify("HEAD^{commit}")) === null) return [];
+      const shallow = await isShallow();
+      const args = ["log", "--no-merges", "--no-renames", "-z", "--name-only", "--format=%x1e%H%x1f%cI%x1f%s%x1f%P", `-n${Math.floor(limit)}`];
       if (sinceDays !== undefined) args.push(`--since=${Math.max(0, Math.floor(sinceDays))}.days.ago`);
       const r = await run([...args, "HEAD", "--"]);
       const out: { sha: GitOid; date: Iso8601; subject: string; paths: RepoPath[] }[] = [];
+      let cur: (typeof out)[number] | null = null;
       for (const f of splitZ(r.stdout)) {
         if (f.startsWith("\x1e")) {
-          const [sha, date, subject] = f.slice(1).split("\x1f");
-          out.push({ sha: sha as string, date: new Date(date as string).toISOString(), subject: subject ?? "", paths: [] });
+          const [sha, date, subject, parents] = f.slice(1).split("\x1f");
+          // Git presents a shallow boundary as a root; its full tree is not a real changed-path set.
+          cur = shallow && !parents ? null : { sha: sha as string, date: new Date(date as string).toISOString(), subject: subject ?? "", paths: [] };
+          if (cur) out.push(cur);
         } else {
-          const cur = out[out.length - 1];
           const p = f.startsWith("\n") ? f.slice(1) : f;
           if (cur && p !== "") cur.paths.push(nfc(p));
         }

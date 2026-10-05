@@ -5,6 +5,8 @@
 import { type HardwareInfo, PARSE_POOL, type ParseWorkerEnv, type ParseWorkerHandler, type ParseWorkerInit } from "../contract.ts";
 import { createWorkerHandler } from "./worker.ts";
 
+export { withPrecompiled } from "./wasm.ts";
+
 /** Create the Worker-side handler (pure; uses only `env`). */
 export function createParseWorker(env: ParseWorkerEnv, init: ParseWorkerInit): Promise<ParseWorkerHandler> {
   return createWorkerHandler(env, init);

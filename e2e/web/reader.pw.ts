@@ -4,7 +4,7 @@
  * the reader root ≤ 10, one shared gutter (AC-U32), boot CLS ≤ 0.001 (AC-U03).
  */
 import { expect, test } from "@playwright/test";
-import { cls, configure, emit, installCls, mockLog, now, p95, WS, waitMark } from "./support/helpers.ts";
+import { chromiumMetric, cls, configure, emit, installCls, mockLog, now, p95, WS, waitMark } from "./support/helpers.ts";
 
 test("@wp10a 1,000-block Reader: DOM ≤ 5k nodes, j/k reaches far blocks, one gutter", async ({ page }) => {
   await configure({ bigBlocks: 1000 });
@@ -30,7 +30,8 @@ test("@wp10a 1,000-block Reader: DOM ≤ 5k nodes, j/k reaches far blocks, one g
   await expect(page.locator(".blk.focus")).toHaveCount(1);
 });
 
-test("@wp10a reader level switch ≤ 50 ms, no fetch, position kept (AC-J20)", async ({ page }) => {
+test("@wp10a reader level switch ≤ 50 ms, no fetch, position kept (AC-J20)", async ({ page, browserName }, info) => {
+  const timing = chromiumMetric(browserName, info, "reader level ≤ 50ms");
   await configure({});
   await page.goto(`/w/${WS}/doc/s3`);
   await waitMark(page, "mitori:section:rendered");
@@ -58,7 +59,7 @@ test("@wp10a reader level switch ≤ 50 ms, no fetch, position kept (AC-J20)", a
     if (a && b !== null) expect(Math.abs(b - a.top), `${k} keeps the anchor block`).toBeLessThanOrEqual(4);
   }
   console.log(`[level] ${times.map((x) => x.toFixed(1)).join(", ")} ms`);
-  expect(p95(times)).toBeLessThanOrEqual(50);
+  if (timing) expect(p95(times)).toBeLessThanOrEqual(50);
   expect((await mockLog()).length - before).toBe(0);
   // READER_LEVEL_RULES: newcomer hides L3 and inline cites; expert shows long cites
   await page.keyboard.press("-");
@@ -73,7 +74,8 @@ test("@wp10a reader level switch ≤ 50 ms, no fetch, position kept (AC-J20)", a
   await expect(page.locator(".blk .mcite .cl").first()).toBeVisible();
 });
 
-test("@wp10a section transitions p95 ≤ 100 ms (TOC clicks)", async ({ page }) => {
+test("@wp10a section transitions p95 ≤ 100 ms (TOC clicks)", async ({ page, browserName }, info) => {
+  const timing = chromiumMetric(browserName, info, "section transitions ≤ 100ms");
   await configure({});
   await page.goto(`/w/${WS}/doc/s0`);
   await waitMark(page, "mitori:section:rendered");
@@ -89,10 +91,11 @@ test("@wp10a section transitions p95 ≤ 100 ms (TOC clicks)", async ({ page }) 
     times.push(t1 - t0);
   }
   console.log(`[section] ${times.map((x) => x.toFixed(0)).join(", ")} ms`);
-  expect(p95(times)).toBeLessThanOrEqual(100);
+  if (timing) expect(p95(times)).toBeLessThanOrEqual(100);
 });
 
-test("@wp10a reader root listeners ≤ 10 and CLS 0 at boot", async ({ page }) => {
+test("@wp10a reader root listeners ≤ 10 and CLS 0 at boot", async ({ page, browserName }) => {
+  test.skip(browserName !== "chromium", "Reader listener probe requires CDP and CLS requires layout-shift PerformanceObserver.");
   await installCls(page);
   await configure({});
   await page.goto(`/w/${WS}/doc/s3`);
@@ -126,7 +129,8 @@ for (const [w, h] of [
   [1440, 900],
   [1280, 800],
 ] as const) {
-  test(`@wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (${w}×${h})`, async ({ page }) => {
+  test(`@wp10a AC-U03 CLS ≤ 0.001 from boot to mitori:map:painted (${w}×${h})`, async ({ page, browserName }) => {
+    test.skip(browserName !== "chromium", "CLS requires layout-shift PerformanceObserver.");
     await page.setViewportSize({ width: w, height: h });
     await installCls(page);
     await configure({ generated: false });
@@ -140,9 +144,13 @@ for (const [w, h] of [
   });
 }
 
-test("@wp10a AC-U03 a returning browser draws the project chip as last shown: no reserved width, CLS ≤ 0.001 (1280×800)", async ({ page }) => {
+test("@wp10a AC-U03 a returning browser draws the project chip as last shown: no reserved width, CLS ≤ 0.001 (1280×800)", async ({
+  page,
+  browserName,
+}, info) => {
+  const measureCLS = chromiumMetric(browserName, info, "returning browser CLS");
   await page.setViewportSize({ width: 1280, height: 800 });
-  await installCls(page);
+  if (measureCLS) await installCls(page);
   await configure({ generated: false });
   await page.goto(`/w/${WS}`);
   await waitMark(page, "mitori:map:painted");
@@ -154,9 +162,11 @@ test("@wp10a AC-U03 a returning browser draws the project chip as last shown: no
   await waitMark(page, "mitori:map:painted");
   await page.waitForTimeout(1500);
   await expect(page.locator(".hdr .proj.reserve")).toHaveCount(0);
-  const v = await cls(page);
-  console.log(`[cls] map second boot 1280×800 ${v}`);
-  expect(v).toBeLessThanOrEqual(0.001);
+  if (measureCLS) {
+    const v = await cls(page);
+    console.log(`[cls] map second boot 1280×800 ${v}`);
+    expect(v).toBeLessThanOrEqual(0.001);
+  }
 });
 
 test("@wp10a TOC thread badges (ux.md §4.3.2-3): an open thread on a §3.1 block counts on §3.1 and its chapter §3; resolved ones do not", async ({ page }) => {

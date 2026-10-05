@@ -94,7 +94,7 @@ export const INDEXER_FORMAT = {
   /** Skeleton rendering version (spec §7.1). Part of `idx_skeleton` keys via the extractor version. */
   skeleton: 1,
   /** Repo pack format tag (first line of the pack). */
-  pack: "mitori.repopack/1",
+  pack: "mitori.repopack/2",
   /** indexDigest framing prefix (spec §2.2). */
   digest: "mitori.idx/1",
 } as const;
@@ -470,14 +470,14 @@ export const REPO_PACK_BUDGET = {
   target: 10_000,
   tolerance: 0.15,
   cap: 12_000,
-  /** First line (`# mitori.repopack/1 …`); counted in `module_tree`. */
+  /** First line (`# mitori.repopack/2 …`); counted in `module_tree`. */
   header: 60,
   moduleTree: 1_500,
   facts: 2_900,
   glossarySeed: 400,
   existingDocs: 800,
   /** Max lines per facts subsection. */
-  lines: { entry: 6, routes: 40, cli: 30, env: 40, schema: 20, schemaFields: 12, scripts: 15, deps: 30, terms: 40, docs: 6, docHeadings: 8, modules: 60 },
+  lines: { entry: 6, routes: 40, cli: 30, env: 40, schema: 20, schemaFields: 12, outbound: 40, scripts: 15, deps: 30, terms: 40, docs: 6, docHeadings: 8, modules: 60 },
   /** Max characters of one value before `…`. */
   valueMaxChars: 160,
 } as const;
@@ -982,7 +982,7 @@ export type RepoPackPart = "repo_map" | "module_tree" | "facts" | "glossary_seed
 
 /** Repo context pack (S4): the shared, cacheable prefix for every LLM call (~10k tokens). */
 export interface RepoPack {
-  /** Deterministic text (`mitori.repopack/1` tagged lines; byte-identical per packKey ⇒ prompt cache hits). */
+  /** Deterministic text (`mitori.repopack/2` tagged lines; byte-identical per packKey ⇒ prompt cache hits). */
   text: string;
   /** Estimated tokens. */
   tokens: number;
@@ -1044,9 +1044,9 @@ export interface FlowSeed {
   line: LineNo;
   /** Handler symbol when known. */
   handler?: SymbolKey;
-  /** Module path (BFS, ≤ 6 hops). */
+  /** Modules encountered by the path, in order without duplicates (≤ 6 file hops). */
   modules: ModuleId[];
-  /** One file per module along the path (call-reference chain where resolvable). */
+  /** Files along the call-reference path; multiple files may belong to the same module. */
   files: RepoPath[];
 }
 

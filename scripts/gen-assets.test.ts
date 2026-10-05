@@ -58,12 +58,32 @@ describe("SKEL-U-11 embed table and compile flags", () => {
       { "elk.worker": "dist/.build/pinned/elk.worker.br" },
       { "/index.html": { raw: "dist/.build/web/index.html", br: "dist/.build/web/index.html.br", immutable: false } },
       { parse: "apps/cli/src/build/workers/parse.ts" },
+      { path: "node_modules/.cache/mitori-windows-job/windows-job-x64.exe", sha256: "a".repeat(64), bytes: 59392 },
     );
     expect(src).toContain('import a7 from "../../dist/.build/pinned/elk.worker.br" with { type: "file" };');
     expect(src).toContain('from "../../node_modules/x/grammar.go.wasm" with { type: "file" }');
-    expect(src).toContain('"/index.html": { raw: a9, br: a10, immutable: false }');
-    expect(src).toContain('parse: standalone ? "/$bunfs/root/apps/cli/src/build/workers/parse.js" : new URL("../../apps/cli/src/build/workers/parse.ts"');
+    expect(src).toContain('"/index.html": { raw: a9, br: a9, immutable: false }');
+    expect(src).toContain('process.platform === "win32" ? "B:/~BUN/root/" : "/$bunfs/root/"');
+    expect(src).toContain('parse: standalone ? embeddedRoot + "apps/cli/src/build/workers/parse.js" : new URL("../../apps/cli/src/build/workers/parse.ts"');
     expect(src).toContain(`lock: ${JSON.stringify(fullLock().assets)}`);
+    expect(src).toContain('from "../../node_modules/.cache/mitori-windows-job/windows-job-x64.exe" with { type: "file" };');
+    expect(src).toContain(`windowsJobLauncher: { path: a10, sha256: "${"a".repeat(64)}", bytes: 59392 }`);
+  });
+
+  test("the embedded table keeps gzip and plain fallbacks but imports shared Brotli only once", () => {
+    const src = tableSource(
+      { version: 1, assets: [] },
+      {},
+      {
+        "/assets/app.js": { raw: "web/app.js", br: "web/app.js.br", gz: "web/app.js.gz", immutable: true },
+        "/favicon.ico": { raw: "web/favicon.ico", immutable: false },
+      },
+      {},
+    );
+    expect(src).toContain('"/assets/app.js": { raw: a0, br: a0, gz: a1, immutable: true }');
+    expect(src.match(/from "\.\.\/\.\.\/web\/app\.js\.br"/g)).toHaveLength(1);
+    expect(src).not.toContain('from "../../web/app.js"');
+    expect(src).toContain('"/favicon.ico": { raw: a2, immutable: false }');
   });
 
   test("compiled binaries never autoload .env / bunfig.toml from the cwd", () => {

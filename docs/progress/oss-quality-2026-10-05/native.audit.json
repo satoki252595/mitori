@@ -1,0 +1,2791 @@
+[
+  {
+    "sample": "jev-branches-verified",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 66,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "002.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 371,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "jev-decisions-verified",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 201,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "jev-flow-module-final",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 217,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "002.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 162,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "jev-order-rewrite",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 202,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "jev-order-verified",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 34,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "jev-questions-final",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 174,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "002.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 46,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "jev-ultrafast",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 276,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "002.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 141,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "003.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 146,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "004.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 185,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "005.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 173,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "006.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 186,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "007.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 199,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "008.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 91,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "009.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 179,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "010.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 69,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "011.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 79,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "jev-verified-final",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 56,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "002.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 385,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "laya",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 341,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "002.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 123,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "003.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 356,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "004.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 218,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "005.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 350,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "006.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 198,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "007.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 207,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "008.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 255,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "009.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 330,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "010.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 146,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "011.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 141,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "012.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 263,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "013.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 240,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "014.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 15,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "015.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 193,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "016.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 145,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "017.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 152,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "018.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 355,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "019.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 177,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "020.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 6
+        },
+        "exit": 130,
+        "profileSafe": true,
+        "completed": false
+      },
+      {
+        "recording": "021.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 251,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "laya-boundary-verified",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 57,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "laya-flow-quality-final",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 248,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "002.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 145,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "laya-resumed",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 67,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "002.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 250,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "003.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 44,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "004.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 85,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "laya-security-final",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 291,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "m3e-canvas",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 301,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "002.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 132,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "003.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 326,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "004.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 213,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "005.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 229,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "006.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 224,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "007.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 226,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "008.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 116,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "009.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 153,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "010.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 108,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "011.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 146,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "012.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 78,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "013.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 133,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "m3e-decisions-final",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 164,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "m3e-decisions-refined",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 150,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "m3e-decisions-security",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 156,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "m3e-decisions-verified",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 161,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "m3e-flow-module-final",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 145,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "002.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 261,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "m3e-questions-final",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 80,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  },
+  {
+    "sample": "m3e-token-pass1-final",
+    "calls": [
+      {
+        "recording": "001.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 313,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "002.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 109,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "003.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 379,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "004.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 299,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "005.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 213,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "006.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 230,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "007.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 146,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "008.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 95,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "009.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 133,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "010.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 340,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "011.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 152,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "012.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 181,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      },
+      {
+        "recording": "013.json",
+        "models": [
+          "muse-spark-1.3-contributor"
+        ],
+        "terminal": [
+          "completed"
+        ],
+        "requiredFlags": [
+          "--disable-shell",
+          "--disable-write",
+          "--disable-web-tools",
+          "--no-foreign-personal-context",
+          "--no-session-log"
+        ],
+        "requestedEffort": "max",
+        "kinds": {
+          "command_accepted": 1,
+          "session_run_linked": 1,
+          "run_model_configured": 1,
+          "workspace_branch_observed": 1,
+          "turn_input_user": 1,
+          "run_started": 1,
+          "task_stream_linked": 1,
+          "task_lifecycle": 8,
+          "run_output_delta": 81,
+          "run_terminal": 1
+        },
+        "exit": 0,
+        "profileSafe": true,
+        "completed": true
+      }
+    ]
+  }
+]

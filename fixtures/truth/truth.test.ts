@@ -213,5 +213,10 @@ test("every fixture directory has a truth file (except generated names)", () => 
   const dirs = readdirSync(join(import.meta.dir, "../repos"), { withFileTypes: true })
     .filter((d) => d.isDirectory())
     .map((d) => d.name);
-  for (const d of dirs) expect([d, NAMES.includes(d as FixtureName)]).toEqual([d, true]);
+  for (const d of dirs) {
+    if (d.startsWith("gen-")) {
+      const spec = readSpec(d.replace(/^gen-/, "gen:") as FixtureName);
+      expect([d, spec.generate.length > 0, spec.history.length]).toEqual([d, true, 1]);
+    } else expect([d, NAMES.includes(d as FixtureName)]).toEqual([d, true]);
+  }
 });

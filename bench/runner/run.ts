@@ -49,7 +49,12 @@ export interface RunReport {
 export async function runBench(opts: RunOptions = {}): Promise<RunReport> {
   const root = opts.root ?? RUNNER_ROOT;
   const log = opts.log ?? (() => {});
-  const found = select(await discover(root), { suites: opts.suites ?? [], ids: opts.ids ?? [], exact: opts.exact ?? false });
+  const found = select(await discover(root), {
+    suites: opts.suites ?? [],
+    ids: opts.ids ?? [],
+    exact: opts.exact ?? false,
+    live: process.env.MITORI_LIVE === "1",
+  });
   // --no-wait still records (and gates on) the load it starts under; it only skips the waiting
   const quiet = await waitForQuiet(opts.wait === false ? { retries: 0 } : {});
   const f =
@@ -152,7 +157,12 @@ async function main(argv: readonly string[]): Promise<number> {
   }
 
   const suites = values.suite?.split(",").filter(Boolean);
-  const found = select(await discover(root), { suites: suites ?? [], ids: values.id ?? [], exact: values.exact ?? false });
+  const found = select(await discover(root), {
+    suites: suites ?? [],
+    ids: values.id ?? [],
+    exact: values.exact ?? false,
+    live: process.env.MITORI_LIVE === "1",
+  });
   if (values.list) {
     const rows = found.map(({ def, file }) => ({
       id: def.id,

@@ -1,12 +1,12 @@
 /** S1 map pure parts (ux.md §4.2.3, UXP-15): camera maths, zoom stages, LOD, plan model + SVG, engine problems. */
 import { describe, expect, test } from "bun:test";
 import type { EngineStatus, MapView } from "@mitori/core";
+import { buildPlanModel, hydratePlan, MAP_SVG_LABELS, mapSvgPresentation, planData, renderPlanSvg } from "@mitori/core";
 import { ROOM_LOD, UI_THRESHOLDS } from "../contract.ts";
 import { cameraForK, centreOn, fitCamera, K_MAX, K_MIN, lerpCamera, lodClass, STAGE_K, stageOf, stepStageK, zoomAt } from "./camera.ts";
 import { engineProblem, fixSteps, policyAcknowledged } from "./engine.ts";
 import { generatedTokens, heroAreas, heroMeta, oneSentence } from "./hero.ts";
 import {
-  buildPlanModel,
   FLOW_BULGE,
   fitText,
   flowGeometry,
@@ -16,7 +16,6 @@ import {
   type RoomModel,
   renderFlow,
   renderPins,
-  renderPlanSvg,
   roomLabels,
   textPx,
 } from "./render.ts";
@@ -129,6 +128,24 @@ function view(): MapView {
 }
 
 describe("plan model + SVG (AC-J06 / AC-U75)", () => {
+  test("server presentation round trips JSON without losing roving order, links or localized escaped captions", async () => {
+    const v = view();
+    const model = buildPlanModel(v);
+    const restored = hydratePlan(JSON.parse(JSON.stringify(planData(model))));
+    expect(restored.rooms).toEqual(model.rooms);
+    expect([...restored.links]).toEqual([...model.links]);
+    expect([...restored.byId.keys()]).toEqual([...model.byId.keys()]);
+    for (const lang of ["ja", "en"] as const) {
+      const catalog = await Bun.file(new URL(`../../i18n/map.${lang}.json`, import.meta.url)).json();
+      expect(MAP_SVG_LABELS[lang]).toEqual({ title: catalog["map.aria.plan"], room: catalog["map.aria.room"], files: catalog["map.room.files"] });
+      const svg = mapSvgPresentation(v, "ws_000000000000", lang, model);
+      expect(svg).toContain(`aria-label="${MAP_SVG_LABELS[lang].title}"`);
+      expect(svg).toContain("&#60;core&#62; &#38; co");
+      expect(svg).toContain('href="/w/ws_000000000000?room=md_a"');
+      expect(svg).not.toContain("<core>");
+      expect(svg.match(/tabindex="0"/g)).toHaveLength(1);
+    }
+  });
   test("rooms in roving order (zone, then rows), paths and overlays", () => {
     const m = buildPlanModel(view());
     expect(m.rooms.map((r) => r.id)).toEqual(["md_a", "md_b", "md_c", "ext"]);

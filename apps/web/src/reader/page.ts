@@ -59,6 +59,19 @@ export interface PageModel {
   total: number;
 }
 
+/** NC-19: a model tag describes this page's actual AI text, never a global manifest model. */
+export function pageProvenance(parts: readonly Pick<PagePart, "blocks">[]) {
+  const content = parts.flatMap((p) => p.blocks).filter((b) => b.kind !== "heading" && b.status !== "placeholder");
+  return {
+    staticOnly: content.length > 0 && content.every((b) => b.origin === "static" && (!b.htmlLang || b.htmlLang === b.lang)),
+    models: [
+      ...new Set(content.filter((b) => b.origin === "ai" && b.gen && (!b.htmlLang || b.htmlLang === b.lang)).map((b) => b.gen?.servedBy ?? b.gen?.model)),
+    ]
+      .filter((m): m is string => !!m)
+      .sort(),
+  };
+}
+
 export function sectionsToFetch(ix: OutlineIndex, page: SectionId, have: (id: SectionId) => SectionView | undefined): SectionId[] {
   const pv = have(page);
   const out: SectionId[] = [];

@@ -6,12 +6,13 @@
 -->
 <script lang="ts">
 import type { BlockId, BlockView, GlossaryId, ReaderLevel, SectionId } from "@mitori/core";
-import { onMount, untrack } from "svelte";
+import { onMount, type Snippet, untrack } from "svelte";
 import { type StreamingSection, UI_THRESHOLDS } from "../contract.ts";
-import { reservePx } from "../gen/progress.ts";
+import { reservePx } from "../gen/state.ts";
 import { t } from "../shell/index.ts";
 import { decorateBlock } from "./decorate.ts";
 import { l3Runs, type PageModel } from "./page.ts";
+import type { WindowRange } from "./virtual.ts";
 import { estimateBlockPx, sum, visibleWindows } from "./virtual.ts";
 
 let {
@@ -33,6 +34,10 @@ let {
   mutate = (apply: () => void) => apply(),
   codeHref = () => null,
   onread,
+  native: initialNative = false,
+  nativeProposals,
+  initialWindow = { first: 0, last: 2 },
+  initialReservations = new Map(),
 }: {
   page: PageModel;
   level: ReaderLevel;
@@ -61,7 +66,15 @@ let {
    * §4.3.8, NC-15 — arriving at a chapter is not reading it). Markers of windows mounted later are observed as they mount.
    */
   onread?: (section: SectionId) => void;
+  /** Canonical SSR windows retained in inert templates for the small initial controller. */
+  native?: boolean;
+  nativeProposals?: Snippet<[BlockView]> | undefined;
+  initialWindow?: WindowRange | undefined;
+  initialReservations?: ReadonlyMap<SectionId, number> | undefined;
 } = $props();
+
+// Inert windows belong to canonical SSR. The enhanced Reader and offline viewer mount live windows.
+const native = import.meta.env.SSR && untrack(() => initialNative);
 
 let root: HTMLDivElement | undefined = $state();
 
@@ -73,13 +86,14 @@ function isStreaming(p: import("./page.ts").PagePart): boolean {
 }
 /** H_est of a section (`SectionNode.est.outTokens`; never shrinks while streaming). */
 function reserveOf(p: import("./page.ts").PagePart): number {
-  return Math.max(streaming.get(p.node.id)?.reservedPx ?? 0, reservePx(p.node.est?.outTokens, docLang));
+  return Math.max(streaming.get(p.node.id)?.reservedPx ?? 0, reservePx(p.node.est?.outTokens, docLang), initialReserve.get(p.node.id) ?? 0);
 }
 /**
  * A finished section keeps its reserved height while the region is on screen and lets it go once it is not
  * (above the viewport through the scroll compensation, below it unseen): the reader never sees text jump.
  */
-let held = $state.raw<ReadonlySet<SectionId>>(new Set());
+const initialReserve = untrack(() => initialReservations);
+let held = $state.raw<ReadonlySet<SectionId>>(new Set(initialReserve.keys()));
 let wasStreaming = new Set<SectionId>();
 const streamIds = $derived(new Set(page.parts.filter(isStreaming).map((p) => p.node.id)));
 $effect(() => {
@@ -155,8 +169,16 @@ const windows = $derived.by(() => {
   return out;
 });
 let heights = $state.raw<number[]>([]);
-let range = $state({ first: 0, last: 2 });
+let range = $state(untrack(() => initialWindow));
 const measured = new Map<number, number>();
+// Effects do not run in SSR; the first response still needs the real estimated spacer heights.
+const windowHeights = $derived(
+  import.meta.env.SSR
+    ? windows.map((w) =>
+        rows.slice(w.from, w.to).reduce((n, r) => n + (r.k === "blk" ? estimateBlockPx(r.b.readingSec) : r.k === "head" ? 140 : r.k === "end" ? 1 : 40), 0),
+      )
+    : heights,
+);
 
 $effect(() => {
   const ws = windows;
@@ -372,6 +394,7 @@ onMount(() => {
     {#if r.b.html === ""}
       <div class="blk" data-b={r.b.id} data-depth={r.b.depth} data-kind={r.b.kind} tabindex="-1" aria-busy="true" style:min-height="{estimateBlockPx(r.b.readingSec)}px">
         <div class="skel" style:height="{estimateBlockPx(r.b.readingSec)}px" aria-hidden="true"></div>
+        {#if import.meta.env.SSR && native}{@render nativeProposals?.(r.b)}{/if}
       </div>
     {:else if r.b.status === "placeholder"}
       <div class="blk ph-wrap" data-b={r.b.id} data-depth={r.b.depth} data-kind={r.b.kind} data-ln={r.b.mdLine} tabindex="-1">
@@ -379,6 +402,7 @@ onMount(() => {
           <div>{@html r.b.html}</div>
           <button type="button" class="btn btn-sec btn-s" data-ph={r.b.section}>{t("reader.placeholder.generate")}</button>
         </div>
+        {#if import.meta.env.SSR && native}{@render nativeProposals?.(r.b)}{/if}
       </div>
     {:else}
       <div
@@ -395,6 +419,7 @@ onMount(() => {
         use:deco={r.b}
       >
         {@html r.b.html}
+        {#if import.meta.env.SSR && native}{@render nativeProposals?.(r.b)}{/if}
       </div>
     {/if}
   {:else if r.k === "end"}
@@ -402,11 +427,12 @@ onMount(() => {
   {:else if r.k === "stream"}
     <!-- the open block: plain text + caret at the end of the reserved region -->
     {@const st = streaming.get(r.section)}
-    {#if st?.partial}<p class="partial">{st.partial}<span class="caret" aria-hidden="true"></span></p>{/if}
+    {#if import.meta.env.SSR}{#if native}<span data-reader-partial={r.section} hidden></span>{/if}{/if}
+    {#if st?.partial}<p class="partial" data-section={r.section}>{st.partial}<span class="caret" aria-hidden="true"></span></p>{/if}
   {/if}
 {/snippet}
 
-<div class="reader-root prose" bind:this={root}>
+<div class="reader-root prose" bind:this={root} data-reader-heights={native && virtual ? JSON.stringify(windowHeights) : undefined} data-window-first={native && virtual ? range.first : undefined} data-window-last={native && virtual ? range.last : undefined}>
   {#if !virtual}
     {#each page.parts as p, pi (p.node.id)}
       {@const rs = partRows[pi] ?? []}
@@ -425,14 +451,23 @@ onMount(() => {
       </section>
     {/each}
   {:else}
-    {@const lead = sum(heights, 0, range.first)}
-    {@const tail = sum(heights, range.last + 1, heights.length)}
-    {#if lead > 0}<div class="bwin-sp" style:height="{lead}px" aria-hidden="true"></div>{/if}
+    {@const lead = sum(windowHeights, 0, range.first)}
+    {@const tail = sum(windowHeights, range.last + 1, windowHeights.length)}
+    {#if native || lead > 0}<div class="bwin-sp" data-reader-spacer={native ? "lead" : undefined} style:height="{lead}px" aria-hidden="true"></div>{/if}
     {#each windows.slice(range.first, range.last + 1) as w, j (range.first + j)}
-      <div class="bwin" use:measure={range.first + j}>
+      <div class="bwin" data-window={native ? range.first + j : undefined} use:measure={range.first + j}>
         {#each rows.slice(w.from, w.to) as r (r.key)}{@render rowView(r)}{/each}
       </div>
     {/each}
-    {#if tail > 0}<div class="bwin-sp" style:height="{tail}px" aria-hidden="true"></div>{/if}
+    {#if native || tail > 0}<div class="bwin-sp" data-reader-spacer={native ? "tail" : undefined} style:height="{tail}px" aria-hidden="true"></div>{/if}
+    {#if native}
+      {#each windows as w, i (i)}
+        {#if i < range.first || i > range.last}
+          <template data-reader-window={i}>
+            {#each rows.slice(w.from, w.to) as r (r.key)}{@render rowView(r)}{/each}
+          </template>
+        {/if}
+      {/each}
+    {/if}
   {/if}
 </div>

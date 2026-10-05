@@ -93,9 +93,9 @@ const ja = {
     head: ["型", "種類", "定義", "フィールド", "持っている型", "使うファイル"],
   },
   outbound: {
-    title: "外とのやり取り（HTTP・RPC・SDK・DB・子プロセス）",
+    title: "外とのやり取り（HTTP・RPC・SDK・DB・子プロセス・書き込み）",
     head: ["種類", "相手", "経由", "場所"],
-    channel: { http: "HTTP", rpc: "RPC", sdk: "外部サービス（SDK）", db: "データベース", subprocess: "子プロセス" },
+    channel: { http: "HTTP", rpc: "RPC", sdk: "外部サービス（SDK）", db: "データベース", subprocess: "子プロセス", write_sink: "ファイルへの書き込み" },
     none: "外への呼び出しは見つかりませんでした（HTTP・SDK / DB クライアント・RPC・子プロセスの起動を探しました）。",
     more: (n: number) => `ほか ${n} 件`,
     moreRows: (rows: number, sites: number) => `ほか ${rows} 行（${sites} か所）は表に載せていません`,
@@ -236,9 +236,9 @@ const en: typeof ja = {
     head: ["Type", "Kind", "Defined in", "Fields", "Holds", "Used by files"],
   },
   outbound: {
-    title: "Talking to the outside (HTTP · RPC · SDK · DB · subprocesses)",
+    title: "Talking to the outside (HTTP · RPC · SDK · DB · subprocesses · writes)",
     head: ["Kind", "Target", "Via", "Where"],
-    channel: { http: "HTTP", rpc: "RPC", sdk: "External service (SDK)", db: "Database", subprocess: "Subprocess" },
+    channel: { http: "HTTP", rpc: "RPC", sdk: "External service (SDK)", db: "Database", subprocess: "Subprocess", write_sink: "File write" },
     none: "No outbound call was found (looked for HTTP, SDK / DB clients, RPC and subprocesses).",
     more: (n: number) => `+${n} more`,
     moreRows: (rows: number, sites: number) => `${rows} more rows (${sites} places) are not in the table`,

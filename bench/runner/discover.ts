@@ -45,6 +45,7 @@ export interface Selection {
   ids?: readonly string[];
   /** Match ids literally (no prefix matching). */
   exact?: boolean;
+  live?: boolean;
 }
 
 export function select(all: readonly FoundBench[], sel: Selection): FoundBench[] {
@@ -53,5 +54,5 @@ export function select(all: readonly FoundBench[], sel: Selection): FoundBench[]
     if (s !== "all" && !(SUITES as readonly string[]).includes(s)) throw new Error(`unknown suite "${s}" (${SUITES.join(", ")}, all)`);
   // an explicit id may name a synthetic case without also naming its suite
   const inSuite = (s: BenchSuite) => (named ? (named.includes("all") ? s !== "synthetic" : named.includes(s)) : sel.ids?.length ? true : s !== "synthetic");
-  return all.filter((b) => inSuite(b.def.suite) && (!sel.ids?.length || sel.ids.some((p) => matchesId(b.def.id, p, sel.exact))));
+  return all.filter((b) => (!b.def.live || sel.live) && inSuite(b.def.suite) && (!sel.ids?.length || sel.ids.some((p) => matchesId(b.def.id, p, sel.exact))));
 }

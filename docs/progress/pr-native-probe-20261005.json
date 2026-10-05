@@ -1,0 +1,41 @@
+{
+  "repo": "satoki252595/mitori",
+  "readOnlyGitHubAuthAndBase": true,
+  "localOriginBase": "815957fd01fb4856b5ae8d3aa2091edd1ddd263f",
+  "sideRepoOnly": true,
+  "reviewedDelta": [
+    "docs/progress/pr-publication-probe.md"
+  ],
+  "userMetadataUnchanged": true,
+  "recordedPushAndPr": 2,
+  "externalPublication": true,
+  "url": "https://github.com/satoki252595/mitori/pull/3",
+  "branch": "mitori/j_prprobe0001-local-probe-29e7eb88",
+  "remoteVerifiedAt": "2026-10-05T03:32:41.801Z",
+  "remoteFiles": [
+    {
+      "path": "docs/progress/pr-publication-probe.md",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "ADDED"
+    }
+  ],
+  "remoteCommit": "760ecdaec30214c3c8e49a837bca696d1bd39470",
+  "remoteAuthors": [
+    {
+      "email": "mitori@localhost",
+      "id": "",
+      "login": "",
+      "name": "mitori"
+    },
+    {
+      "email": "noreply@openai.com",
+      "id": "U_kgDOD-0LXg",
+      "login": "codex",
+      "name": "Codex"
+    }
+  ],
+  "closed": true,
+  "remoteBranchDeleted": true,
+  "validationScope": "real product GitSafety export; web gate/acceptance was separately covered by integration tests; no live web acceptance is claimed"
+}

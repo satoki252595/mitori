@@ -1,0 +1,735 @@
+{
+  "checkedAt": "2026-10-05T12:33:17.814Z",
+  "results": [
+    {
+      "repo": "lnkiai/m3e-canvas",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "latestSnapshot": "m3e-token-pass1-final",
+      "run": "done",
+      "progress": {
+        "total": 13,
+        "done": 13,
+        "failed": 0,
+        "blocks": 175
+      },
+      "runHistory": [
+        {
+          "snapshot": "m3e-canvas",
+          "state": "done",
+          "progress": {
+            "total": 13,
+            "done": 13,
+            "failed": 0,
+            "blocks": 165
+          },
+          "apiEquivalentUsd": 0.074616
+        },
+        {
+          "snapshot": "m3e-decisions-refined",
+          "state": "done",
+          "progress": {
+            "total": 1,
+            "done": 1,
+            "failed": 0,
+            "blocks": 8
+          },
+          "apiEquivalentUsd": 0.006786
+        },
+        {
+          "snapshot": "m3e-decisions-final",
+          "state": "done",
+          "progress": {
+            "total": 1,
+            "done": 1,
+            "failed": 0,
+            "blocks": 8
+          },
+          "apiEquivalentUsd": 0.0070189999999999975
+        },
+        {
+          "snapshot": "m3e-questions-final",
+          "state": "done",
+          "progress": {
+            "total": 1,
+            "done": 1,
+            "failed": 0,
+            "blocks": 12
+          },
+          "apiEquivalentUsd": 0.004963999999999996
+        },
+        {
+          "snapshot": "m3e-decisions-security",
+          "state": "done",
+          "progress": {
+            "total": 1,
+            "done": 1,
+            "failed": 0,
+            "blocks": 8
+          },
+          "apiEquivalentUsd": 0.007010000000000002
+        },
+        {
+          "snapshot": "m3e-decisions-verified",
+          "state": "done",
+          "progress": {
+            "total": 1,
+            "done": 1,
+            "failed": 0,
+            "blocks": 8
+          },
+          "apiEquivalentUsd": 0.0070220000000000005
+        },
+        {
+          "snapshot": "m3e-flow-module-final",
+          "state": "done",
+          "progress": {
+            "total": 2,
+            "done": 2,
+            "failed": 0,
+            "blocks": 16
+          },
+          "apiEquivalentUsd": 0.014408000000000004
+        },
+        {
+          "snapshot": "m3e-token-pass1-final",
+          "state": "done",
+          "progress": {
+            "total": 13,
+            "done": 13,
+            "failed": 0,
+            "blocks": 175
+          },
+          "apiEquivalentUsd": 0.083313
+        }
+      ],
+      "apiEquivalentUsd": 0.205138,
+      "generationMs": 1704025.831333,
+      "nativeChildren": {
+        "max": 2,
+        "atEnd": 0,
+        "after5s": 0
+      },
+      "moduleCoverage": [
+        {
+          "section": "s6/lib-tokens",
+          "state": "generated",
+          "aspects": [
+            "data",
+            "deepdive",
+            "dependencies",
+            "errors",
+            "flow",
+            "interface",
+            "invariants",
+            "learn",
+            "pitfalls",
+            "recap",
+            "responsibility",
+            "tests"
+          ]
+        },
+        {
+          "section": "s6/lib-prompt",
+          "state": "generated",
+          "aspects": [
+            "concurrency",
+            "config",
+            "data",
+            "deepdive",
+            "dependencies",
+            "errors",
+            "flow",
+            "interface",
+            "invariants",
+            "learn",
+            "pitfalls",
+            "recap",
+            "responsibility",
+            "tests"
+          ]
+        },
+        {
+          "section": "s6/components-m3node",
+          "state": "generated",
+          "aspects": [
+            "data",
+            "dependencies",
+            "flow",
+            "interface",
+            "invariants",
+            "learn",
+            "performance",
+            "pitfalls",
+            "recap",
+            "responsibility",
+            "tests"
+          ]
+        },
+        {
+          "section": "s6/app",
+          "state": "generated",
+          "aspects": [
+            "config",
+            "data",
+            "dependencies",
+            "interface",
+            "learn",
+            "pitfalls",
+            "recap",
+            "responsibility",
+            "tests"
+          ]
+        },
+        {
+          "section": "s6/components-ui",
+          "state": "generated",
+          "aspects": [
+            "config",
+            "data",
+            "dependencies",
+            "flow",
+            "interface",
+            "learn",
+            "pitfalls",
+            "recap",
+            "responsibility"
+          ]
+        }
+      ],
+      "docFiles": 20,
+      "sourceLinks": 405,
+      "invalidCites": [],
+      "inferredLabels": 26,
+      "awkwardTermCounts": {
+        "卓上版": 0,
+        "携帯面": 0,
+        "HTTP 誤差": 0,
+        "保存書類": 0,
+        "業者": 0
+      },
+      "questions": [
+        "- **プロンプトと多言語化**：ローカルの `baseUrl` では API キーなしを許すのは意図した仕様か。",
+        "- **編集画面と保存共有**：共有リンクから画像と履歴を除く理由は容量か秘匿かのどちらか。",
+        "- **設計判断**：サーバーなし構成を長期の制約とする意図はあるか。",
+        "- **部品定義と整形基盤**：`fabOpen` と `menuUp` を `Symbol` で持つのは永続化や共有から外すためか。",
+        "- **非機能**：言語切替で undo 履歴まで翻訳し直すのは意図的か。",
+        "- **編集画面と保存共有**：`Editor` を SSR なしで読むのに種 ID を決定的にする理由は何か。",
+        "- **プロンプトと多言語化**：`DEFAULT_PROMPT_OPTIONS` を `deliverable` のみに絞る理由は何か。",
+        "- **設計判断**：UI とプロンプトを日本語、英語、中国語、韓国語の 4 言語に絞った理由は何か。",
+        "- **部品描画とモバイル編集**：`M3Static` で `textField` と `select` をクリップ対象から外すのは意図した仕様か。",
+        "- **部品定義と整形基盤**：`isWideRail` が `railModal` のみで広レールとみなすのは意図した振る舞いか。",
+        "- **部品編集パネル群**：`IconPicker` の取得が失敗したときの表示はどれが意図したものか。",
+        "- **部品編集パネル群**：`readImage` が上限超の画像をどう扱うのが意図したものか。",
+        "- **非機能**：`getShapes` の単一キャッシュに破棄条件を設けないのは意図的か。",
+        "- **プロンプトと多言語化**：韓国語の文言を `UI` と分け `KO` に置く構成を続ける意図はあるか。",
+        "- **部品描画とモバイル編集**：`LoadingAnimator` の 1 形状 650ms は Material の規定値か、独自調整か。"
+      ],
+      "duplicateQuestions": 0
+    },
+    {
+      "repo": "browser-use/jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "latestSnapshot": "jev-order-rewrite",
+      "run": "done",
+      "progress": {
+        "total": 1,
+        "done": 1,
+        "failed": 0,
+        "blocks": 4
+      },
+      "runHistory": [
+        {
+          "snapshot": "jev-ultrafast",
+          "state": "done",
+          "progress": {
+            "total": 11,
+            "done": 11,
+            "failed": 0,
+            "blocks": 125
+          },
+          "apiEquivalentUsd": 0.032056
+        },
+        {
+          "snapshot": "jev-questions-final",
+          "state": "done",
+          "progress": {
+            "total": 2,
+            "done": 2,
+            "failed": 0,
+            "blocks": 12
+          },
+          "apiEquivalentUsd": 0.007059999999999997
+        },
+        {
+          "snapshot": "jev-decisions-verified",
+          "state": "done",
+          "progress": {
+            "total": 1,
+            "done": 1,
+            "failed": 0,
+            "blocks": 8
+          },
+          "apiEquivalentUsd": 0.004250000000000004
+        },
+        {
+          "snapshot": "jev-flow-module-final",
+          "state": "done",
+          "progress": {
+            "total": 2,
+            "done": 2,
+            "failed": 0,
+            "blocks": 18
+          },
+          "apiEquivalentUsd": 0.009342999999999997
+        },
+        {
+          "snapshot": "jev-verified-final",
+          "state": "done",
+          "progress": {
+            "total": 2,
+            "done": 2,
+            "failed": 0,
+            "blocks": 13
+          },
+          "apiEquivalentUsd": 0.009773999999999998
+        },
+        {
+          "snapshot": "jev-branches-verified",
+          "state": "done",
+          "progress": {
+            "total": 2,
+            "done": 2,
+            "failed": 0,
+            "blocks": 14
+          },
+          "apiEquivalentUsd": 0.009957
+        },
+        {
+          "snapshot": "jev-order-verified",
+          "state": "done",
+          "progress": {
+            "total": 1,
+            "done": 1,
+            "failed": 0,
+            "blocks": 0
+          },
+          "apiEquivalentUsd": 0.005116
+        },
+        {
+          "snapshot": "jev-order-rewrite",
+          "state": "done",
+          "progress": {
+            "total": 1,
+            "done": 1,
+            "failed": 0,
+            "blocks": 4
+          },
+          "apiEquivalentUsd": 0.006018
+        }
+      ],
+      "apiEquivalentUsd": 0.083574,
+      "generationMs": 171362.42962500002,
+      "nativeChildren": {
+        "max": 1,
+        "atEnd": 0,
+        "after5s": 0
+      },
+      "moduleCoverage": [
+        {
+          "section": "s6/jev-ultrafast",
+          "state": "generated",
+          "aspects": [
+            "concurrency",
+            "config",
+            "deepdive",
+            "dependencies",
+            "errors",
+            "interface",
+            "invariants",
+            "learn",
+            "performance",
+            "pitfalls",
+            "recap",
+            "responsibility",
+            "tests"
+          ]
+        },
+        {
+          "section": "s6/jev-ultrafast-static",
+          "state": "generated",
+          "aspects": [
+            "deepdive",
+            "dependencies",
+            "interface",
+            "learn",
+            "pitfalls",
+            "recap",
+            "responsibility"
+          ]
+        },
+        {
+          "section": "s6/scripts",
+          "state": "generated",
+          "aspects": [
+            "concurrency",
+            "config",
+            "data",
+            "dependencies",
+            "errors",
+            "flow",
+            "interface",
+            "learn",
+            "pitfalls",
+            "recap",
+            "responsibility"
+          ]
+        }
+      ],
+      "docFiles": 18,
+      "sourceLinks": 257,
+      "invalidCites": [],
+      "inferredLabels": 13,
+      "awkwardTermCounts": {
+        "卓上版": 0,
+        "携帯面": 0,
+        "HTTP 誤差": 0,
+        "保存書類": 0,
+        "業者": 0
+      },
+      "questions": [
+        "- **観測駆動エージェント**：`snapshot.js` の `safe` が外す `password` 等は仕様として操作対象外か。",
+        "- **検証用脚本集**：`verify` の通過条件はどの仕様に基づくのか。",
+        "- **検証用脚本集**：計測時の源固定はどの手順で残すのか。",
+        "- **検証用脚本集**：描画の字体が macOS 固定なのは意図した限定か。",
+        "- **これは何か・誰のためか・なぜあるか**：入力は自然言語の `goal` 1 件か、順序付き 5 件のような複数件か、どちらが意図した仕様か。",
+        "- **観測駆動エージェント**：`LOCK` は `ThreadingHTTPServer` 上の `AGENT` 共有に対する直列化の意図か、残存した未使用物か。",
+        "- **設計判断**：実行上限の 60 操作と 120 決定要求と 250 候補という値を決めた根拠は何か。",
+        "- **リスクと負債**：`jev_ultrafast/static` と `scripts` のどの振る舞いに試験による確認が必要か。"
+      ],
+      "duplicateQuestions": 0
+    },
+    {
+      "repo": "NandhaKishorM/laya",
+      "sourceSha": "8a6e1328cce2460a0e5aa348ad465bb1b5821cd2",
+      "latestSnapshot": "laya-boundary-verified",
+      "run": "done",
+      "progress": {
+        "total": 1,
+        "done": 1,
+        "failed": 0,
+        "blocks": 1
+      },
+      "runHistory": [
+        {
+          "snapshot": "laya",
+          "state": "cancelled",
+          "progress": {
+            "total": 21,
+            "done": 18,
+            "failed": 1,
+            "blocks": 302
+          },
+          "apiEquivalentUsd": 0.141444
+        },
+        {
+          "snapshot": "laya-resumed",
+          "state": "done",
+          "progress": {
+            "total": 4,
+            "done": 4,
+            "failed": 0,
+            "blocks": 28
+          },
+          "apiEquivalentUsd": 0.023751000000000022
+        },
+        {
+          "snapshot": "laya-flow-quality-final",
+          "state": "done",
+          "progress": {
+            "total": 2,
+            "done": 2,
+            "failed": 0,
+            "blocks": 11
+          },
+          "apiEquivalentUsd": 0.01488399999999998
+        },
+        {
+          "snapshot": "laya-security-final",
+          "state": "done",
+          "progress": {
+            "total": 1,
+            "done": 1,
+            "failed": 0,
+            "blocks": 6
+          },
+          "apiEquivalentUsd": 0.007345000000000018
+        },
+        {
+          "snapshot": "laya-boundary-verified",
+          "state": "done",
+          "progress": {
+            "total": 1,
+            "done": 1,
+            "failed": 0,
+            "blocks": 1
+          },
+          "apiEquivalentUsd": 0.006076999999999999
+        }
+      ],
+      "apiEquivalentUsd": 0.193501,
+      "generationMs": 179984.81641600002,
+      "nativeChildren": {
+        "max": 1,
+        "atEnd": 0,
+        "after5s": 0
+      },
+      "moduleCoverage": [
+        {
+          "section": "s6/laya",
+          "state": "generated",
+          "aspects": [
+            "interactions",
+            "interface",
+            "invariants",
+            "learn",
+            "recap",
+            "responsibility",
+            "structure"
+          ]
+        },
+        {
+          "section": "s6/laya-router",
+          "state": "generated",
+          "aspects": [
+            "concurrency",
+            "config",
+            "data",
+            "deepdive",
+            "dependencies",
+            "errors",
+            "flow",
+            "interface",
+            "invariants",
+            "learn",
+            "performance",
+            "pitfalls",
+            "recap",
+            "responsibility",
+            "tests"
+          ]
+        },
+        {
+          "section": "s6/laya-agent",
+          "state": "generated",
+          "aspects": [
+            "concurrency",
+            "config",
+            "data",
+            "deepdive",
+            "dependencies",
+            "errors",
+            "flow",
+            "interface",
+            "invariants",
+            "learn",
+            "performance",
+            "pitfalls",
+            "recap",
+            "responsibility",
+            "tests"
+          ]
+        },
+        {
+          "section": "s6/laya-integrations",
+          "state": "generated",
+          "aspects": [
+            "concurrency",
+            "data",
+            "dependencies",
+            "errors",
+            "flow",
+            "interface",
+            "learn",
+            "pitfalls",
+            "recap",
+            "responsibility"
+          ]
+        },
+        {
+          "section": "s6/laya-research-eval-notebooks",
+          "state": "generated",
+          "aspects": [
+            "concurrency",
+            "config",
+            "data",
+            "deepdive",
+            "dependencies",
+            "errors",
+            "flow",
+            "interface",
+            "invariants",
+            "learn",
+            "performance",
+            "pitfalls",
+            "recap",
+            "responsibility",
+            "tests"
+          ]
+        },
+        {
+          "section": "s6/laya-dotnet-tools-research-scripts",
+          "state": "generated",
+          "aspects": [
+            "config",
+            "data",
+            "dependencies",
+            "flow",
+            "interface",
+            "learn",
+            "pitfalls",
+            "recap",
+            "responsibility",
+            "tests"
+          ]
+        },
+        {
+          "section": "s6/research-scripts-laya-java-scripts",
+          "state": "generated",
+          "aspects": [
+            "config",
+            "data",
+            "dependencies",
+            "interface",
+            "learn",
+            "pitfalls",
+            "recap",
+            "responsibility",
+            "tests"
+          ]
+        },
+        {
+          "section": "s6/benchmarks-results-compile-defaults",
+          "state": "generated",
+          "aspects": [
+            "config",
+            "interface",
+            "learn",
+            "performance",
+            "pitfalls",
+            "recap",
+            "responsibility",
+            "tests"
+          ]
+        },
+        {
+          "section": "s6/laya-ts",
+          "state": "generated",
+          "aspects": [
+            "concurrency",
+            "config",
+            "data",
+            "deepdive",
+            "dependencies",
+            "errors",
+            "flow",
+            "interface",
+            "invariants",
+            "learn",
+            "performance",
+            "pitfalls",
+            "recap",
+            "responsibility",
+            "tests"
+          ]
+        },
+        {
+          "section": "s6/examples",
+          "state": "generated",
+          "aspects": [
+            "data",
+            "dependencies",
+            "errors",
+            "flow",
+            "interface",
+            "learn",
+            "pitfalls",
+            "recap",
+            "responsibility"
+          ]
+        },
+        {
+          "section": "s6/com-convaiinnovations-laya",
+          "state": "generated",
+          "aspects": [
+            "config",
+            "dependencies",
+            "flow",
+            "interface",
+            "learn",
+            "recap",
+            "responsibility"
+          ]
+        },
+        {
+          "section": "s6/examples-laya-dotnet-samples-laya-ts-examples",
+          "state": "generated",
+          "aspects": [
+            "config",
+            "data",
+            "deepdive",
+            "dependencies",
+            "flow",
+            "interface",
+            "learn",
+            "performance",
+            "pitfalls",
+            "recap",
+            "responsibility"
+          ]
+        },
+        {
+          "section": "s6/laya-dotnet-laya",
+          "state": "generated",
+          "aspects": [
+            "config",
+            "dependencies",
+            "flow",
+            "invariants",
+            "learn",
+            "recap",
+            "responsibility"
+          ]
+        }
+      ],
+      "docFiles": 28,
+      "sourceLinks": 763,
+      "invalidCites": [],
+      "inferredLabels": 50,
+      "awkwardTermCounts": {
+        "卓上版": 0,
+        "携帯面": 0,
+        "HTTP 誤差": 0,
+        "保存書類": 0,
+        "業者": 0
+      },
+      "questions": [
+        "- **型付き判定基盤**：`Router` と `Agent` の相互依存は意図した構成か、循環解消の予定があるか。",
+        "- **選定と予測公開**：常駐の追い出し順は LRU を意図しているか。",
+        "- **外部連携アダプター**：`_gate_confidence` が信頼度欠落時に完全信頼へ倒すのは意図した仕様か。",
+        "- **型付き判定基盤**：`predict` と `system_one` の別名関係は互換維持のためか、使い分けの意図があるか。",
+        "- **TypeScript 推論基盤**：明示言語と推測器が衝突した場合の優先順位はどれが正しいか。",
+        "- **推論エージェント**：`_TOKENIZERS` の共有に上限や破棄を設けないのは意図的か。",
+        "- **動作例とデモサーバ**：`predict_batch` の一括失敗時の個別再試行は仕様として保証されるのか。",
+        "- **外部連携アダプター**：リモートと HTTP 経路でフックを拒否するのは転送不能な処理を防ぐためか、安全上の理由か。",
+        "- **推論エージェント**：空質問の短絡時にフックを発火させないのは意図的か。",
+        "- **TypeScript 推論基盤**：空質問の短絡時に使用量を無報告とする扱いは意図通りか。",
+        "- **.NET 推論エンジン**：想定するホスト寿命とスレッド安全性はどうであるべきか。",
+        "- **TypeScript 推論基盤**：既定の検査値を無効化してよい運用条件は何か。",
+        "- **.NET 推論エンジン**：v1 で移植対象外の機能は何か、意図的な除外か未着手か。",
+        "- **JVM 推論と回答生成**：多言語チェックポイントが `<bos>` を分類トークンに再利用するのは意図した仕様か。",
+        "- **判定基盤と評価群**：大量評価で一部が失敗した際、`evaluate` の既定どおり中断すべきか、継続して集計すべきか。"
+      ],
+      "duplicateQuestions": 0
+    }
+  ]
+}

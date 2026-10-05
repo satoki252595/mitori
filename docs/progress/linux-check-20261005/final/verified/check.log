@@ -1,0 +1,1733 @@
+$ bun scripts/check.ts --verbose
+✓ tsc             16.00 s
+    typecheck: declarations 4.90 s
+    typecheck: 20 semantic checks, 3 parallel, 0 failure(s), 10.99 s
+✓ biome           0.59 s
+    Checked 1510 files in 430ms. No fixes applied.
+    Found 108 warnings.
+    Found 2 infos.
+    packages/server/src/wiring/doc-deep.test.ts:372:49 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━
+    
+      i Template literals are preferred over string concatenation.
+      
+        370 │     const end = L.length;
+        371 │     for (const t of ["small geometry helpers", "flood fill", "public API"]) {
+      > 372 │       L.push("// " + "-".repeat(77), `// ${t}`, "// " + "-".repeat(77));
+            │                                                 ^^^^^^^^^^^^^^^^^^^^^^
+        373 │       L.push(...Array.from({ length: 360 }, () => "// filler"));
+        374 │     }
+      
+      i Unsafe fix: Use a template literal.
+      
+        370 370 │       const end = L.length;
+        371 371 │       for (const t of ["small geometry helpers", "flood fill", "public API"]) {
+        372     │ - ······L.push("//·"·+·"-".repeat(77),·`//·${t}`,·"//·"·+·"-".repeat(77));
+            372 │ + ······L.push("//·"·+·"-".repeat(77),·`//·${t}`,·`//·${"-".repeat(77)}`);
+        373 373 │         L.push(...Array.from({ length: 360 }, () => "// filler"));
+        374 374 │       }
+      
+    
+    packages/server/src/wiring/doc-deep.test.ts:372:14 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━
+    
+      i Template literals are preferred over string concatenation.
+      
+        370 │     const end = L.length;
+        371 │     for (const t of ["small geometry helpers", "flood fill", "public API"]) {
+      > 372 │       L.push("// " + "-".repeat(77), `// ${t}`, "// " + "-".repeat(77));
+            │              ^^^^^^^^^^^^^^^^^^^^^^
+        373 │       L.push(...Array.from({ length: 360 }, () => "// filler"));
+        374 │     }
+      
+      i Unsafe fix: Use a template literal.
+      
+        370 370 │       const end = L.length;
+        371 371 │       for (const t of ["small geometry helpers", "flood fill", "public API"]) {
+        372     │ - ······L.push("//·"·+·"-".repeat(77),·`//·${t}`,·"//·"·+·"-".repeat(77));
+            372 │ + ······L.push(`//·${"-".repeat(77)}`,·`//·${t}`,·"//·"·+·"-".repeat(77));
+        373 373 │         L.push(...Array.from({ length: 360 }, () => "// filler"));
+        374 374 │       }
+      
+    
+    apps/cli/src/build/assets.test.ts:77:40 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        75 │       const web = await loadWebAssets(t);
+        76 │       expect(web.get("/index.html")).toEqual({ raw, br, gz, immutable: false });
+      > 77 │       expect(new Uint8Array(gunzipSync(web.get("/index.html")!.gz!))).toEqual(raw);
+           │                                        ^^^^^^^^^^^^^^^^^^^^^^^
+        78 │       expect(web.get("/assets/plain.txt")).toEqual({ raw, immutable: true });
+        79 │       const dev = await loadWebAssets({
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        75 75 │         const web = await loadWebAssets(t);
+        76 76 │         expect(web.get("/index.html")).toEqual({ raw, br, gz, immutable: false });
+        77    │ - ······expect(new·Uint8Array(gunzipSync(web.get("/index.html")!.gz!))).toEqual(raw);
+           77 │ + ······expect(new·Uint8Array(gunzipSync(web.get("/index.html")?.gz!))).toEqual(raw);
+        78 78 │         expect(web.get("/assets/plain.txt")).toEqual({ raw, immutable: true });
+        79 79 │         const dev = await loadWebAssets({
+      
+    
+    apps/cli/src/build/assets.test.ts:77:40 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        75 │       const web = await loadWebAssets(t);
+        76 │       expect(web.get("/index.html")).toEqual({ raw, br, gz, immutable: false });
+      > 77 │       expect(new Uint8Array(gunzipSync(web.get("/index.html")!.gz!))).toEqual(raw);
+           │                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        78 │       expect(web.get("/assets/plain.txt")).toEqual({ raw, immutable: true });
+        79 │       const dev = await loadWebAssets({
+      
+    
+    apps/web/src/initial/main.ts:577:27 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        575 │   if (proposal && el.matches("button.ok,button.no")) {
+        576 │     e.preventDefault();
+      > 577 │     const id = CSS.escape(proposal.dataset.proposal!);
+            │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+        578 │     void enhance({ selector: `[data-proposal="${id}"] .pp button.${el.matches(".ok") ? "ok" : "no"}` });
+        579 │     return;
+      
+    
+    apps/web/src/initial/main.ts:751:47 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        749 │             citeEnd: (n) => t("reader.citeEnd", { n }),
+        750 │             verifyLabel: t("reader.checkClaim"),
+      > 751 │             codeHref: (p, a, b) => HREFS.code(snapshot!.status.info.key, p as never, a as never, b as never),
+            │                                               ^^^^^^^^^
+        752 │           });
+        753 │       }
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        749 749 │               citeEnd: (n) => t("reader.citeEnd", { n }),
+        750 750 │               verifyLabel: t("reader.checkClaim"),
+        751     │ - ············codeHref:·(p,·a,·b)·=>·HREFS.code(snapshot!.status.info.key,·p·as·never,·a·as·never,·b·as·never),
+            751 │ + ············codeHref:·(p,·a,·b)·=>·HREFS.code(snapshot?.status.info.key,·p·as·never,·a·as·never,·b·as·never),
+        752 752 │             });
+        753 753 │         }
+      
+    
+    apps/web/src/initial/main.ts:30:14 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        28 │ import { getItem, readCookies, STORAGE_KEYS, setItem, writeCookie } from "../shell/storage.ts";
+        29 │ 
+      > 30 │ const root = document.getElementById("app")!;
+           │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        31 │ let snapshot: InitialUiSnapshot | null = null;
+        32 │ let settingsVersion = 0;
+      
+    
+    apps/web/src/initial/main.ts:95:14 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        93 │           }),
+        94 │         );
+      > 95 │       return loadedCss.get(url)!;
+           │              ^^^^^^^^^^^^^^^^^^^
+        96 │     }),
+        97 │   );
+      
+    
+    apps/web/src/initial/main.ts:174:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        172 │     document.documentElement.style.setProperty(`--t-verdict-${verdict}`, JSON.stringify(t(`verdict.${verdict}`)));
+        173 │   if (route.name === "doc") {
+      > 174 │     const main = root.querySelector<HTMLElement>("main")!;
+            │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        175 │     const page = buildPage(ix, ix.pageOf.get(route.section) ?? route.section, (id) => snapshot!.sections.find((s) => s.section.id === id));
+        176 │     reader = mountNativeReader({
+      
+    
+    apps/web/src/initial/main.ts:175:87 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        173 │   if (route.name === "doc") {
+        174 │     const main = root.querySelector<HTMLElement>("main")!;
+      > 175 │     const page = buildPage(ix, ix.pageOf.get(route.section) ?? route.section, (id) => snapshot!.sections.find((s) => s.section.id === id));
+            │                                                                                       ^^^^^^^^^
+        176 │     reader = mountNativeReader({
+        177 │       root: main,
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        173 173 │     if (route.name === "doc") {
+        174 174 │       const main = root.querySelector<HTMLElement>("main")!;
+        175     │ - ····const·page·=·buildPage(ix,·ix.pageOf.get(route.section)·??·route.section,·(id)·=>·snapshot!.sections.find((s)·=>·s.section.id·===·id));
+            175 │ + ····const·page·=·buildPage(ix,·ix.pageOf.get(route.section)·??·route.section,·(id)·=>·snapshot?.sections.find((s)·=>·s.section.id·===·id));
+        176 176 │       reader = mountNativeReader({
+        177 177 │         root: main,
+      
+    
+    apps/web/src/initial/main.ts:228:31 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        226 │   } else if (snapshot.map?.plan && snapshot.map.svg) {
+        227 │     const map = snapshot.map;
+      > 228 │     const model = hydratePlan(map.plan!);
+            │                               ^^^^^^^^^
+        229 │     const host = root.querySelector<HTMLElement>(".stage-host")!;
+        230 │     plan = new PlanController(
+      
+    
+    apps/web/src/initial/main.ts:229:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        227 │     const map = snapshot.map;
+        228 │     const model = hydratePlan(map.plan!);
+      > 229 │     const host = root.querySelector<HTMLElement>(".stage-host")!;
+            │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        230 │     plan = new PlanController(
+        231 │       host,
+      
+    
+    apps/web/src/initial/main.ts:290:7 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        288 │       },
+        289 │       map.diagram.kind === "floorplan" && !map.fallback,
+      > 290 │       map.svg!,
+            │       ^^^^^^^^
+        291 │     );
+        292 │     if (camera) plan.restoreCamera(camera);
+      
+    
+    apps/web/src/initial/main.ts:663:38 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        661 │       if (def.id === "map.fit") return plan.fit();
+        662 │       if (def.id === "map.flow") {
+      > 663 │         const section = indexOutline(snapshot!.outline).nodes.get("s3")?.children[Number(/^(?:Digit|Numpad)(\d)$/.exec(e.code)?.[1] ?? 0) - 1] as
+            │                                      ^^^^^^^^^
+        664 │           | SectionId
+        665 │           | undefined;
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        661 661 │         if (def.id === "map.fit") return plan.fit();
+        662 662 │         if (def.id === "map.flow") {
+        663     │ - ········const·section·=·indexOutline(snapshot!.outline).nodes.get("s3")?.children[Number(/^(?:Digit|Numpad)(\d)$/.exec(e.code)?.[1]·??·0)·-·1]·as
+            663 │ + ········const·section·=·indexOutline(snapshot?.outline).nodes.get("s3")?.children[Number(/^(?:Digit|Numpad)(\d)$/.exec(e.code)?.[1]·??·0)·-·1]·as
+        664 664 │             | SectionId
+        665 665 │             | undefined;
+      
+    
+    apps/web/src/map/FloorPlan.svelte:57:17 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        55 │   const c = new PlanController(
+        56 │     host,
+      > 57 │     hydratePlan(view.plan!),
+           │                 ^^^^^^^^^^
+        58 │     text,
+        59 │     descId,
+      
+    
+    apps/web/src/map/FloorPlan.svelte:62:5 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        60 │     { onselect, onopen, onstage, onhover, onzoom: (k) => onzoom?.(k) },
+        61 │     view.diagram.kind === "floorplan" && !view.fallback,
+      > 62 │     view.svg!,
+           │     ^^^^^^^^^
+        63 │   );
+        64 │   if (initialCamera) c.restoreCamera(initialCamera);
+      
+    
+    apps/web/src/map/FloorPlan.svelte:81:24 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        79 │   if (!c || v === lastView) return;
+        80 │   lastView = v;
+      > 81 │   c.render(hydratePlan(v.plan!), text, descId, v.svg!);
+           │                        ^^^^^^^
+        82 │ });
+        83 │ $effect(() => {
+      
+    
+    apps/web/src/map/FloorPlan.svelte:81:48 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        79 │   if (!c || v === lastView) return;
+        80 │   lastView = v;
+      > 81 │   c.render(hydratePlan(v.plan!), text, descId, v.svg!);
+           │                                                ^^^^^^
+        82 │ });
+        83 │ $effect(() => {
+      
+    
+    apps/web/src/map/plan.css:84:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 2, 1)
+      
+        83 │ /* zone names sit in the zone's own header strip (layout: 30 units above the first row of rooms) */
+      > 84 │ svg.plan .zn {
+           │ ^^^^^^^^^^^^
+        85 │   font-size: 11px;
+        86 │   font-weight: var(--fw-strong);
+      
+      i This selector specificity is (0, 3, 1)
+      
+        75 │   opacity: 0.55;
+        76 │ }
+      > 77 │ svg.plan.floor .zn {
+           │ ^^^^^^^^^^^^^^^^^^
+        78 │   paint-order: stroke;
+        79 │   stroke: var(--paper);
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/reader/native.ts:285:118 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        283 │     if (!alive) return false;
+        284 │     if (id === "read.next" || id === "read.prev") {
+      > 285 │       const b = stepBlock(page.order, focused, id === "read.next" ? 1 : -1, (b) => forced.has(b) || blockVisibleImpl(blocks.get(b)!, level) !== "hidden");
+            │                                                                                                                      ^^^^^^^^^^^^^^
+        286 │       if (b) focus(b, true);
+        287 │       return true;
+      
+    
+    apps/web/src/reader/native.ts:493:21 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        491 │       const anchor = captureAnchor(root);
+        492 │       for (const b of next) {
+      > 493 │         const old = blocks.get(b.id)!;
+            │                     ^^^^^^^^^^^^^^^^^
+        494 │         if (old.html !== "" || b.html === "") continue;
+        495 │         for (const alias of aliases.get(b.id) ?? [])
+      
+    
+    apps/web/src/reader/native.ts:130:11 lint/complexity/useOptionalChain  FIXABLE  ━━━━━━━━━━━━━━━━━━━━
+    
+      ! Change to an optional chain.
+      
+        128 │     for (const el of root.querySelectorAll<HTMLElement>("[data-read]")) {
+        129 │       const part = page.parts.find((p) => p.node.id === el.dataset.read);
+      > 130 │       if (part && part.blocks.every((b) => b.html !== "")) readIo?.observe(el);
+            │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        131 │     }
+        132 │   }
+      
+      i Unsafe fix: Change to an optional chain.
+      
+        128 128 │       for (const el of root.querySelectorAll<HTMLElement>("[data-read]")) {
+        129 129 │         const part = page.parts.find((p) => p.node.id === el.dataset.read);
+        130     │ - ······if·(part·&&·part.blocks.every((b)·=>·b.html·!==·""))·readIo?.observe(el);
+            130 │ + ······if·(part?.blocks.every((b)·=>·b.html·!==·""))·readIo?.observe(el);
+        131 131 │       }
+        132 132 │     }
+      
+    
+    apps/web/src/shell/cookie.test.ts:56:20 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! The comma operator is disallowed.
+      
+        54 │     const src = parseUiCookieFields.toString();
+        55 │     // biome-ignore lint/security/noGlobalEval: reconstructing the inlined copy is the point of the test
+      > 56 │     const copy = (0, eval)(`(${src})`) as typeof parseUiCookieFields;
+           │                    ^
+        57 │     expect(copy(enc({ v: 1, lv: "e", th: "d" }))).toEqual({ lv: "e", th: "d" });
+        58 │     expect(copy("garbage")).toEqual({});
+      
+      i Its use is often confusing and obscures side effects.
+      
+    
+    apps/web/src/shell/lint/rules.test.ts:112:22 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        110 │     ];
+        111 │     for (const [file, source] of reviewed) {
+      > 112 │       expect(one(id, file!, source!)).toEqual([]);
+            │                      ^^^^^
+        113 │       expect(one(id, file!, `${source}\nunsafe.innerHTML = userInput;`)).toHaveLength(1);
+        114 │       expect(one(id, file!, "{@html userInput}")).toHaveLength(1);
+      
+    
+    apps/web/src/shell/lint/rules.test.ts:112:29 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        110 │     ];
+        111 │     for (const [file, source] of reviewed) {
+      > 112 │       expect(one(id, file!, source!)).toEqual([]);
+            │                             ^^^^^^^
+        113 │       expect(one(id, file!, `${source}\nunsafe.innerHTML = userInput;`)).toHaveLength(1);
+        114 │       expect(one(id, file!, "{@html userInput}")).toHaveLength(1);
+      
+    
+    apps/web/src/shell/lint/rules.test.ts:113:22 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        111 │     for (const [file, source] of reviewed) {
+        112 │       expect(one(id, file!, source!)).toEqual([]);
+      > 113 │       expect(one(id, file!, `${source}\nunsafe.innerHTML = userInput;`)).toHaveLength(1);
+            │                      ^^^^^
+        114 │       expect(one(id, file!, "{@html userInput}")).toHaveLength(1);
+        115 │       expect(one(id, "src/x/Other.svelte", source!).length).toBeGreaterThan(0);
+      
+    
+    apps/web/src/shell/lint/rules.test.ts:114:22 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        112 │       expect(one(id, file!, source!)).toEqual([]);
+        113 │       expect(one(id, file!, `${source}\nunsafe.innerHTML = userInput;`)).toHaveLength(1);
+      > 114 │       expect(one(id, file!, "{@html userInput}")).toHaveLength(1);
+            │                      ^^^^^
+        115 │       expect(one(id, "src/x/Other.svelte", source!).length).toBeGreaterThan(0);
+        116 │     }
+      
+    
+    apps/web/src/shell/lint/rules.test.ts:115:44 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        113 │       expect(one(id, file!, `${source}\nunsafe.innerHTML = userInput;`)).toHaveLength(1);
+        114 │       expect(one(id, file!, "{@html userInput}")).toHaveLength(1);
+      > 115 │       expect(one(id, "src/x/Other.svelte", source!).length).toBeGreaterThan(0);
+            │                                            ^^^^^^^
+        116 │     }
+        117 │     expect(one(id, "src/reader/native.ts", "el.innerHTML = old.html + userInput;")).toHaveLength(1);
+      
+    
+    apps/web/src/shell/styles/base.css:341:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 0)
+      
+        339 │ }
+        340 │ 
+      > 341 │ .search {
+            │ ^^^^^^^
+        342 │   display: flex;
+        343 │   align-items: center;
+      
+      i This selector specificity is (0, 3, 0)
+      
+        259 │ }
+        260 │ 
+      > 261 │ .hdr[data-tight="2"] .search {
+            │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        262 │   width: auto;
+        263 │   padding: 0 8px;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/base.css:360:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 1)
+      
+        358 │ }
+        359 │ 
+      > 360 │ .search span {
+            │ ^^^^^^^^^^^^
+        361 │   flex: 1;
+        362 │   text-align: left;
+      
+      i This selector specificity is (0, 3, 1)
+      
+        256 │ .hdr[data-tight="2"] .brand-en,
+      > 257 │ .hdr[data-tight="2"] .search span {
+            │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        258 │   display: none;
+        259 │ }
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/base.css:480:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 0)
+      
+        478 │ }
+        479 │ 
+      > 480 │ .rail {
+            │ ^^^^^
+        481 │   position: sticky;
+        482 │   top: var(--hdr);
+      
+      i This selector specificity is (0, 2, 0)
+      
+        464 │ /* explicit tracks: a drawer rail (position: fixed) leaves its 0 px track empty instead of shifting main into it */
+      > 465 │ .body > .rail {
+            │ ^^^^^^^^^^^^^
+        466 │   grid-column: 1;
+        467 │   grid-row: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/base.css:523:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 0, 1)
+      
+        521 │ }
+        522 │ 
+      > 523 │ main {
+            │ ^^^^
+        524 │   min-width: 0;
+        525 │ }
+      
+      i This selector specificity is (0, 1, 1)
+      
+        468 │ }
+        469 │ 
+      > 470 │ .body > main {
+            │ ^^^^^^^^^^^^
+        471 │   grid-column: 2;
+        472 │   grid-row: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/base.css:913:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 1)
+      
+        911 │ }
+        912 │ 
+      > 913 │ .stopped h2 {
+            │ ^^^^^^^^^^^
+        914 │   font-family: var(--font-serif);
+        915 │   font-weight: var(--fw-strong);
+      
+      i This selector specificity is (0, 1, 2)
+      
+        799 │ }
+        800 │ 
+      > 801 │ dialog.dlg h2 {
+            │ ^^^^^^^^^^^^^
+        802 │   font-family: var(--font-serif);
+        803 │   font-size: var(--fs-title);
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/diagram.css:69:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 1)
+      
+        67 │   font-family: var(--font-mono);
+        68 │ }
+      > 69 │ .dg-edge path {
+           │ ^^^^^^^^^^^^^
+        70 │   fill: none;
+        71 │   stroke: var(--muted);
+      
+      i This selector specificity is (0, 3, 1)
+      
+        23 │   font-family: var(--font-ui);
+        24 │ }
+      > 25 │ .dg[data-dense] .dg-edge path {
+           │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        26 │   stroke-opacity: 0.3;
+        27 │   stroke-width: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/diagram.css:74:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 2, 1)
+      
+        72 │   stroke-width: 1.4;
+        73 │ }
+      > 74 │ .dg-edge[data-kind="event"] path {
+           │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        75 │   stroke-dasharray: 5 4;
+        76 │ }
+      
+      i This selector specificity is (0, 3, 1)
+      
+        23 │   font-family: var(--font-ui);
+        24 │ }
+      > 25 │ .dg[data-dense] .dg-edge path {
+           │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        26 │   stroke-opacity: 0.3;
+        27 │   stroke-width: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/diagram.css:77:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 0)
+      
+        75 │   stroke-dasharray: 5 4;
+        76 │ }
+      > 77 │ .dg-el {
+           │ ^^^^^^
+        78 │   font-size: 11px;
+        79 │   fill: var(--text);
+      
+      i This selector specificity is (0, 3, 0)
+      
+        27 │   stroke-width: 1;
+        28 │ }
+      > 29 │ .dg[data-dense] .dg-el {
+           │ ^^^^^^^^^^^^^^^^^^^^^^
+        30 │   display: none;
+        31 │ }
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/prose.css:521:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 3, 1)
+      
+        519 │ }
+        520 │ 
+      > 521 │ .blk[data-kind="pitfall"] .mb::before {
+            │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        522 │   display: none;
+        523 │ }
+      
+      i This selector specificity is (0, 3, 2)
+      
+        347 │ .blk:hover > .mb::before,
+      > 348 │ html.show-cites .blk > .mb::before,
+            │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        349 │ html[data-level="expert"] .blk > .mb::before {
+        350 │   opacity: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/viewer/viewer.css:96:19 lint/complexity/noImportantStyles  FIXABLE  ━━━━━━━━━━━━━━━━━━━
+    
+      ! Avoid the use of the !important style.
+      
+        94 │   .vband,
+        95 │   .pager {
+      > 96 │     display: none !important;
+           │                   ^^^^^^^^^^
+        97 │   }
+        98 │   .body {
+      
+      i This style reverses the cascade logic, and precedence is reversed. This could lead to having styles with higher specificity being overridden by styles with lower specificity.
+      
+      i Unsafe fix: Remove the style.
+      
+        96 │ ····display:·none·!important;
+           │                  ----------- 
+    
+    e2e/export/export.spec.ts:463:12 lint/complexity/useOptionalChain  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Change to an optional chain.
+      
+        461 │     expect(await noSideScroll(page)).toBe(true);
+        462 │     const box = await svg.boundingBox();
+      > 463 │     expect(box && box.width).toBeGreaterThan(500);
+            │            ^^^^^^^^^^^^^^^^
+        464 │     await page.close();
+        465 │   });
+      
+      i Unsafe fix: Change to an optional chain.
+      
+        461 461 │       expect(await noSideScroll(page)).toBe(true);
+        462 462 │       const box = await svg.boundingBox();
+        463     │ - ····expect(box·&&·box.width).toBeGreaterThan(500);
+            463 │ + ····expect(box?.width).toBeGreaterThan(500);
+        464 464 │       await page.close();
+        465 465 │     });
+      
+    
+    e2e/export/support/prepare.ts:84:42 lint/suspicious/noTemplateCurlyInString ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Unexpected template string placeholder.
+      
+        82 │       `const password = "${PLANTED.password}";`,
+        83 │       "export function legacyHeaders(): Record<string, string> {",
+      > 84 │       "  return { authorization: `Bearer ${GITHUB_TOKEN}`, password };",
+           │                                          ^^^^^^^^^^^^^^^
+        85 │       "}",
+        86 │       "",
+      
+      i Turn the string into a template string.
+      
+    
+    e2e/loop/shoot.tmp.mjs:7:7 lint/correctness/noUnusedVariables  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! This variable step is unused.
+      
+        5 │ const OUT = process.env.OUT ?? "/private/tmp/claude-501/-Users-satoki252595-work-20261002-aiAgentTool/99463a6e-6928-41bd-851e-ed1a1028dc52/scratchpad/shots";
+        6 │ const WS = "ws_cr1t00000000";
+      > 7 │ const step = process.argv[2] ?? "all";
+          │       ^^^^
+        8 │ 
+        9 │ const post = (p, b) => fetch(`${BASE}${p}`, { method: "POST", body: JSON.stringify(b), headers: { "content-type": "application/json" } });
+      
+      i Unused variables are often the result of typos, incomplete refactors, or other sources of bugs.
+      
+      i Unsafe fix: If this is intentional, prepend step with an underscore.
+      
+         5  5 │   const OUT = process.env.OUT ?? "/private/tmp/claude-501/-Users-satoki252595-work-20261002-aiAgentTool/99463a6e-6928-41bd-851e-ed1a1028dc52/scratchpad/shots";
+         6  6 │   const WS = "ws_cr1t00000000";
+         7    │ - const·step·=·process.argv[2]·??·"all";
+            7 │ + const·_step·=·process.argv[2]·??·"all";
+         8  8 │   
+         9  9 │   const post = (p, b) => fetch(`${BASE}${p}`, { method: "POST", body: JSON.stringify(b), headers: { "content-type": "application/json" } });
+      
+    
+    e2e/loop/shoot.tmp.mjs:26:7 lint/correctness/noUnusedVariables  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! This variable box is unused.
+      
+        24 │ const target = page.locator('.reader-root .blk[data-kind="prose"] .mc').filter({ hasText: "1回だけ再試行する" }).first();
+        25 │ await target.scrollIntoViewIfNeeded();
+      > 26 │ const box = await target.evaluate((el) => {
+           │       ^^^
+        27 │   const t = [...el.childNodes].find((n) => n.nodeType === 3 && n.textContent.includes("1回だけ"));
+        28 │   const r = document.createRange();
+      
+      i Unused variables are often the result of typos, incomplete refactors, or other sources of bugs.
+      
+      i Unsafe fix: If this is intentional, prepend box with an underscore.
+      
+        24 24 │   const target = page.locator('.reader-root .blk[data-kind="prose"] .mc').filter({ hasText: "1回だけ再試行する" }).first();
+        25 25 │   await target.scrollIntoViewIfNeeded();
+        26    │ - const·box·=·await·target.evaluate((el)·=>·{
+           26 │ + const·_box·=·await·target.evaluate((el)·=>·{
+        27 27 │     const t = [...el.childNodes].find((n) => n.nodeType === 3 && n.textContent.includes("1回だけ"));
+        28 28 │     const r = document.createRange();
+      
+    
+    e2e/web/native-controller.pw.ts:50:22 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        48 │       const original = anchorFromRange(selection)!;
+        49 │       const restored = rangeOf(main.querySelector(".mb")!, original.start, original.end)!;
+      > 50 │       const result = anchorFromRange(restored)!;
+           │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+        51 │       return { exact: restored.toString(), quote: result.quote, segment: restored.commonAncestorContainer.parentElement?.closest("td")?.textContent };
+        52 │     });
+      
+    
+    e2e/web/native-controller.pw.ts:375:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        373 │     const path = "/__native_reader_controller.js";
+        374 │     const { mountNativeReader } = await import(path);
+      > 375 │     const main = document.querySelector<HTMLElement>("main")!;
+            │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        376 │     const html =
+        377 │       '<div class="mb"><p><abbr class="mterm" data-term="gl_00000000" tabindex="0">term</abbr><a class="mcite" data-cite="a.ts:1-1" href="#">cite</a></p></div>';
+      
+    
+    e2e/web/native-controller.pw.ts:42:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        40 │     const path = "/__native_anchor_controller.js";
+        41 │     const { anchorFromRange, rangeOf } = await import(path);
+      > 42 │     const main = document.querySelector<HTMLElement>("main")!;
+           │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        43 │     return ["", " \n<a class=mcite>excluded cite</a>"].map((between) => {
+        44 │       main.innerHTML = `<div class="blk" data-b="b_0"><div class="mb"><table><tr><td>config.go:20</td>${between}<td><code>TSUNDOKU_API_TOKEN</code></td><td>other cell</td></tr></table></div></div>`;
+      
+    
+    e2e/web/native-controller.pw.ts:45:20 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        43 │     return ["", " \n<a class=mcite>excluded cite</a>"].map((between) => {
+        44 │       main.innerHTML = `<div class="blk" data-b="b_0"><div class="mb"><table><tr><td>config.go:20</td>${between}<td><code>TSUNDOKU_API_TOKEN</code></td><td>other cell</td></tr></table></div></div>`;
+      > 45 │       const cell = main.querySelector("code")!;
+           │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        46 │       const selection = document.createRange();
+        47 │       selection.selectNodeContents(cell);
+      
+    
+    e2e/web/native-controller.pw.ts:48:24 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        46 │       const selection = document.createRange();
+        47 │       selection.selectNodeContents(cell);
+      > 48 │       const original = anchorFromRange(selection)!;
+           │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        49 │       const restored = rangeOf(main.querySelector(".mb")!, original.start, original.end)!;
+        50 │       const result = anchorFromRange(restored)!;
+      
+    
+    e2e/web/native-controller.pw.ts:49:24 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        47 │       selection.selectNodeContents(cell);
+        48 │       const original = anchorFromRange(selection)!;
+      > 49 │       const restored = rangeOf(main.querySelector(".mb")!, original.start, original.end)!;
+           │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        50 │       const result = anchorFromRange(restored)!;
+        51 │       return { exact: restored.toString(), quote: result.quote, segment: restored.commonAncestorContainer.parentElement?.closest("td")?.textContent };
+      
+    
+    e2e/web/native-controller.pw.ts:49:32 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        47 │       selection.selectNodeContents(cell);
+        48 │       const original = anchorFromRange(selection)!;
+      > 49 │       const restored = rangeOf(main.querySelector(".mb")!, original.start, original.end)!;
+           │                                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+        50 │       const result = anchorFromRange(restored)!;
+        51 │       return { exact: restored.toString(), quote: result.quote, segment: restored.commonAncestorContainer.parentElement?.closest("td")?.textContent };
+      
+    
+    e2e/web/native-controller.pw.ts:62:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        60 │     const path = "/__native_reader_controller.js";
+        61 │     const { mountNativeReader } = await import(path);
+      > 62 │     const main = document.querySelector<HTMLElement>("main")!;
+           │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        63 │     const blocks = Array.from({ length: 1000 }, (_, n) => ({
+        64 │       id: `b_${n}`,
+      
+    
+    e2e/web/native-controller.pw.ts:106:5 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        104 │     const skipped = reader.capture().focused;
+        105 │     reader.action("read.prev");
+      > 106 │     main.querySelector<HTMLButtonElement>(".more-chip")!.click();
+            │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        107 │     reader.action("read.next");
+        108 │     const revealed = reader.capture().focused;
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        104 104 │       const skipped = reader.capture().focused;
+        105 105 │       reader.action("read.prev");
+        106     │ - ····main.querySelector<HTMLButtonElement>(".more-chip")!.click();
+            106 │ + ····main.querySelector<HTMLButtonElement>(".more-chip")?.click();
+        107 107 │       reader.action("read.next");
+        108 108 │       const revealed = reader.capture().focused;
+      
+    
+    e2e/web/native-controller.pw.ts:131:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        129 │     const path = "/__native_reader_controller.js";
+        130 │     const { mountNativeReader, restoreNativeSelection } = await import(path);
+      > 131 │     const main = document.querySelector<HTMLElement>("main")!;
+            │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        132 │     const html =
+        133 │       '<div class="reader-root"><div class="blk" data-b="b_0" tabindex="-1"><div class="mb"><p>Cafe\u0301 東京 owns this <a class="mcite" data-cite="a.ts:1-1">excluded cite</a><button data-mx>excluded UI</button></p></div></div></div>';
+      
+    
+    e2e/web/native-controller.pw.ts:164:18 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        162 │       },
+        163 │     });
+      > 164 │     const text = main.querySelector("p")!.firstChild!;
+            │                  ^^^^^^^^^^^^^^^^^^^^^^^^
+        165 │     const range = document.createRange();
+        166 │     range.setStart(text, 0);
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        162 162 │         },
+        163 163 │       });
+        164     │ - ····const·text·=·main.querySelector("p")!.firstChild!;
+            164 │ + ····const·text·=·main.querySelector("p")?.firstChild!;
+        165 165 │       const range = document.createRange();
+        166 166 │       range.setStart(text, 0);
+      
+    
+    e2e/web/native-controller.pw.ts:164:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        162 │       },
+        163 │     });
+      > 164 │     const text = main.querySelector("p")!.firstChild!;
+            │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        165 │     const range = document.createRange();
+        166 │     range.setStart(text, 0);
+      
+    
+    e2e/web/native-controller.pw.ts:168:5 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        166 │     range.setStart(text, 0);
+        167 │     range.setEnd(text, 8);
+      > 168 │     document.getSelection()!.removeAllRanges();
+            │     ^^^^^^^^^^^^^^^^^^^^^^^^
+        169 │     document.getSelection()!.addRange(range);
+        170 │     old.action("act.explain", new KeyboardEvent("keydown", { key: "e", code: "KeyE" }));
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        166 166 │       range.setStart(text, 0);
+        167 167 │       range.setEnd(text, 8);
+        168     │ - ····document.getSelection()!.removeAllRanges();
+            168 │ + ····document.getSelection()?.removeAllRanges();
+        169 169 │       document.getSelection()!.addRange(range);
+        170 170 │       old.action("act.explain", new KeyboardEvent("keydown", { key: "e", code: "KeyE" }));
+      
+    
+    e2e/web/native-controller.pw.ts:169:5 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        167 │     range.setEnd(text, 8);
+        168 │     document.getSelection()!.removeAllRanges();
+      > 169 │     document.getSelection()!.addRange(range);
+            │     ^^^^^^^^^^^^^^^^^^^^^^^^
+        170 │     old.action("act.explain", new KeyboardEvent("keydown", { key: "e", code: "KeyE" }));
+        171 │     const saved = requests[0];
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        167 167 │       range.setEnd(text, 8);
+        168 168 │       document.getSelection()!.removeAllRanges();
+        169     │ - ····document.getSelection()!.addRange(range);
+            169 │ + ····document.getSelection()?.addRange(range);
+        170 170 │       old.action("act.explain", new KeyboardEvent("keydown", { key: "e", code: "KeyE" }));
+        171 171 │       const saved = requests[0];
+      
+    
+    e2e/web/native-controller.pw.ts:196:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        194 │     const path = "/__native_reader_controller.js";
+        195 │     const { mountNativeReader } = await import(path);
+      > 196 │     const main = document.querySelector<HTMLElement>("main")!;
+            │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        197 │     const empty = {
+        198 │       id: "b_0",
+      
+    
+    e2e/web/native-controller.pw.ts:282:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        280 │     const path = "/__native_reader_controller.js";
+        281 │     const { mountNativeReader } = await import(path);
+      > 282 │     const main = document.querySelector<HTMLElement>("main")!;
+            │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        283 │     const block = {
+        284 │       id: "b_0",
+      
+    
+    e2e/web/native-controller.pw.ts:307:20 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        305 │     };
+        306 │     main.innerHTML = `<div class="reader-root">${body}</div>`;
+      > 307 │     const stream = main.querySelector<HTMLElement>(".sec-body")!;
+            │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        308 │     stream.classList.add("mstream");
+        309 │     stream.style.setProperty("--reserve", "400px");
+      
+    
+    e2e/web/native-controller.pw.ts:316:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        314 │     const actions: unknown[] = [];
+        315 │     const reader = mountNativeReader({ ...options, initial: state, enhance: (action: unknown) => actions.push(action) });
+      > 316 │     const next = main.querySelector<HTMLElement>(".sec-body")!;
+            │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        317 │     const held = next.classList.contains("mstream") && next.getBoundingClientRect().height >= 400;
+        318 │     window.scrollTo(0, 600);
+      
+    
+    e2e/web/native-controller.pw.ts:321:5 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        319 │     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        320 │     const released = !next.classList.contains("mstream") && next.style.getPropertyValue("--reserve") === "";
+      > 321 │     main.querySelector(".blk")!.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+            │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        322 │     reader.destroy();
+        323 │     await new Promise((resolve) => setTimeout(resolve, 160));
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        319 319 │       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        320 320 │       const released = !next.classList.contains("mstream") && next.style.getPropertyValue("--reserve") === "";
+        321     │ - ····main.querySelector(".blk")!.dispatchEvent(new·PointerEvent("pointerover",·{·bubbles:·true·}));
+            321 │ + ····main.querySelector(".blk")?.dispatchEvent(new·PointerEvent("pointerover",·{·bubbles:·true·}));
+        322 322 │       reader.destroy();
+        323 323 │       await new Promise((resolve) => setTimeout(resolve, 160));
+      
+    
+    e2e/web/native-controller.pw.ts:333:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        331 │     const path = "/__native_reader_controller.js";
+        332 │     const { mountNativeReader } = await import(path);
+      > 333 │     const main = document.querySelector<HTMLElement>("main")!;
+            │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        334 │     const node = { id: "s3", state: "partial", est: { outTokens: 3000 } };
+        335 │     const markup = '<div class="reader-root"><div class="sec-body" data-section="s3"><span data-reader-partial="s3" hidden></span></div></div>';
+      
+    
+    e2e/web/native-controller.pw.ts:349:22 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        347 │     const exact = main.querySelector("p.partial")?.textContent;
+        348 │     const onlyCaret = main.querySelector("p.partial")?.children.length === 1 && main.querySelector("p.partial img") === null;
+      > 349 │     const reserved = main.querySelector<HTMLElement>(".sec-body")!.style.getPropertyValue("--reserve");
+            │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        350 │     const state = old.capture();
+        351 │     old.destroy();
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        347 347 │       const exact = main.querySelector("p.partial")?.textContent;
+        348 348 │       const onlyCaret = main.querySelector("p.partial")?.children.length === 1 && main.querySelector("p.partial img") === null;
+        349     │ - ····const·reserved·=·main.querySelector<HTMLElement>(".sec-body")!.style.getPropertyValue("--reserve");
+            349 │ + ····const·reserved·=·main.querySelector<HTMLElement>(".sec-body")?.style.getPropertyValue("--reserve");
+        350 350 │       const state = old.capture();
+        351 351 │       old.destroy();
+      
+    
+    e2e/web/native-reader.pw.ts:71:20 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        69 │     .first()
+        70 │     .evaluate((p) => {
+      > 71 │       const text = p.firstChild!;
+           │                    ^^^^^^^^^^^^^
+        72 │       const range = document.createRange();
+        73 │       range.setStart(text, 0);
+      
+    
+    e2e/web/native-reader.pw.ts:74:39 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        72 │       const range = document.createRange();
+        73 │       range.setStart(text, 0);
+      > 74 │       range.setEnd(text, Math.min(14, text.textContent!.length));
+           │                                       ^^^^^^^^^^^^^^^^^
+        75 │       const selection = document.getSelection()!;
+        76 │       selection.removeAllRanges();
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+         72  72 │         const range = document.createRange();
+         73  73 │         range.setStart(text, 0);
+         74     │ - ······range.setEnd(text,·Math.min(14,·text.textContent!.length));
+             74 │ + ······range.setEnd(text,·Math.min(14,·text.textContent?.length));
+         75  75 │         const selection = document.getSelection()!;
+         76  76 │         selection.removeAllRanges();
+      
+    
+    e2e/web/native-reader.pw.ts:75:25 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        73 │       range.setStart(text, 0);
+        74 │       range.setEnd(text, Math.min(14, text.textContent!.length));
+      > 75 │       const selection = document.getSelection()!;
+           │                         ^^^^^^^^^^^^^^^^^^^^^^^^
+        76 │       selection.removeAllRanges();
+        77 │       selection.addRange(range);
+      
+    
+    e2e/web/native-reader.pw.ts:78:69 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        76 │       selection.removeAllRanges();
+        77 │       selection.addRange(range);
+      > 78 │       return { quote: selection.toString().normalize("NFC"), block: p.closest<HTMLElement>(".blk")!.dataset.b! };
+           │                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        79 │     });
+        80 │   await page.keyboard.press("e");
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+         76  76 │         selection.removeAllRanges();
+         77  77 │         selection.addRange(range);
+         78     │ - ······return·{·quote:·selection.toString().normalize("NFC"),·block:·p.closest<HTMLElement>(".blk")!.dataset.b!·};
+             78 │ + ······return·{·quote:·selection.toString().normalize("NFC"),·block:·p.closest<HTMLElement>(".blk")?.dataset.b!·};
+         79  79 │       });
+         80  80 │     await page.keyboard.press("e");
+      
+    
+    e2e/web/native-reader.pw.ts:78:69 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        76 │       selection.removeAllRanges();
+        77 │       selection.addRange(range);
+      > 78 │       return { quote: selection.toString().normalize("NFC"), block: p.closest<HTMLElement>(".blk")!.dataset.b! };
+           │                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        79 │     });
+        80 │   await page.keyboard.press("e");
+      
+    
+    e2e/web/native-reader.pw.ts:122:7 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        120 │       const range = document.createRange();
+        121 │       range.selectNodeContents(p);
+      > 122 │       document.getSelection()!.removeAllRanges();
+            │       ^^^^^^^^^^^^^^^^^^^^^^^^
+        123 │       document.getSelection()!.addRange(range);
+        124 │     });
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        120 120 │         const range = document.createRange();
+        121 121 │         range.selectNodeContents(p);
+        122     │ - ······document.getSelection()!.removeAllRanges();
+            122 │ + ······document.getSelection()?.removeAllRanges();
+        123 123 │         document.getSelection()!.addRange(range);
+        124 124 │       });
+      
+    
+    e2e/web/native-reader.pw.ts:123:7 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        121 │       range.selectNodeContents(p);
+        122 │       document.getSelection()!.removeAllRanges();
+      > 123 │       document.getSelection()!.addRange(range);
+            │       ^^^^^^^^^^^^^^^^^^^^^^^^
+        124 │     });
+        125 │   await page.keyboard.press("e");
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        121 121 │         range.selectNodeContents(p);
+        122 122 │         document.getSelection()!.removeAllRanges();
+        123     │ - ······document.getSelection()!.addRange(range);
+            123 │ + ······document.getSelection()?.addRange(range);
+        124 124 │       });
+        125 125 │     await page.keyboard.press("e");
+      
+    
+    e2e/web/native-reader.pw.ts:27:15 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        25 │   await expect(page.locator("html")).toHaveAttribute("data-level", "standard");
+        26 │   const section = (await (await fetch(`${BASE}/api/v1/ws/${WS}/doc/sections/s6%2Fbig`)).json()) as { blocks: { id: string }[] };
+      > 27 │   const far = section.blocks[850]!.id;
+           │               ^^^^^^^^^^^^^^^^^^^^
+        28 │   const initialResponse = page.waitForResponse((response) => new URL(response.url()).pathname === `/api/v1/ws/${WS}/ui`);
+        29 │   await page.goto(`/w/${WS}/doc/s6/big#${far}`);
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+         25  25 │     await expect(page.locator("html")).toHaveAttribute("data-level", "standard");
+         26  26 │     const section = (await (await fetch(`${BASE}/api/v1/ws/${WS}/doc/sections/s6%2Fbig`)).json()) as { blocks: { id: string }[] };
+         27     │ - ··const·far·=·section.blocks[850]!.id;
+             27 │ + ··const·far·=·section.blocks[850]?.id;
+         28  28 │     const initialResponse = page.waitForResponse((response) => new URL(response.url()).pathname === `/api/v1/ws/${WS}/ui`);
+         29  29 │     await page.goto(`/w/${WS}/doc/s6/big#${far}`);
+      
+    
+    e2e/web/native-reader.pw.ts:21:70 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        19 │   await page.keyboard.press("j");
+        20 │   await page.keyboard.press("k");
+      > 21 │   await expect(page.locator(".blk.focus")).toHaveAttribute("data-b", first!);
+           │                                                                      ^^^^^^
+        22 │   await page.keyboard.press("-");
+        23 │   await expect(page.locator("html")).toHaveAttribute("data-level", "newcomer");
+      
+    
+    eval/tokens.test.ts:75:5 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        73 │   test("estimated native usage remains estimated, and the original limit still rejects excess", () => {
+        74 │     const value = report();
+      > 75 │     value.records[0]!.usageEstimated = true;
+           │     ^^^^^^^^^^^^^^^^^
+        76 │     value.tokenBaseline.filteredTokens = 1000;
+        77 │     const o = offlineTokens([{ label: "generic", value }]);
+      
+    
+    eval/tokens.test.ts:123:29 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        121 │   test("stable task ids do not import usage from a previous or later run", () => {
+        122 │     const value = report();
+      > 123 │     value.records.push({ ...value.records[0]!, id: "u_previous", at: "2026-10-05T09:59:59.000Z", usage: { in: 9000, cacheWrite: 0, cacheRead: 0 } });
+            │                             ^^^^^^^^^^^^^^^^^
+        124 │     value.records.push({ ...value.records[0]!, id: "u_later", at: "2026-10-05T10:01:01.000Z", usage: { in: 9000, cacheWrite: 0, cacheRead: 0 } });
+        125 │     expect(tokenEfficiency(value, "same-target")).toMatchObject({ status: "measured", pass1In: 1200, inputFiltered: 0.48 });
+      
+    
+    eval/tokens.test.ts:124:29 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        122 │     const value = report();
+        123 │     value.records.push({ ...value.records[0]!, id: "u_previous", at: "2026-10-05T09:59:59.000Z", usage: { in: 9000, cacheWrite: 0, cacheRead: 0 } });
+      > 124 │     value.records.push({ ...value.records[0]!, id: "u_later", at: "2026-10-05T10:01:01.000Z", usage: { in: 9000, cacheWrite: 0, cacheRead: 0 } });
+            │                             ^^^^^^^^^^^^^^^^^
+        125 │     expect(tokenEfficiency(value, "same-target")).toMatchObject({ status: "measured", pass1In: 1200, inputFiltered: 0.48 });
+        126 │   });
+      
+    
+    eval/tokens.test.ts:158:23 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        156 │     tokenEfficiency: [expect.objectContaining({ sha: sourceSha, indexDigest, denominator: "estimated" })],
+        157 │   });
+      > 158 │   expect(readFileSync(o.paths!.md, "utf8")).toContain("推計（分母を含む）");
+            │                       ^^^^^^^^
+        159 │   expect(JSON.parse(readFileSync(o.paths!.json, "utf8")).engine).toBe("offline");
+        160 │ });
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        156 156 │       tokenEfficiency: [expect.objectContaining({ sha: sourceSha, indexDigest, denominator: "estimated" })],
+        157 157 │     });
+        158     │ - ··expect(readFileSync(o.paths!.md,·"utf8")).toContain("推計（分母を含む）");
+            158 │ + ··expect(readFileSync(o.paths?.md,·"utf8")).toContain("推計（分母を含む）");
+        159 159 │     expect(JSON.parse(readFileSync(o.paths!.json, "utf8")).engine).toBe("offline");
+        160 160 │   });
+      
+    
+    eval/tokens.test.ts:159:34 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        157 │   });
+        158 │   expect(readFileSync(o.paths!.md, "utf8")).toContain("推計（分母を含む）");
+      > 159 │   expect(JSON.parse(readFileSync(o.paths!.json, "utf8")).engine).toBe("offline");
+            │                                  ^^^^^^^^
+        160 │ });
+        161 │ 
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        157 157 │     });
+        158 158 │     expect(readFileSync(o.paths!.md, "utf8")).toContain("推計（分母を含む）");
+        159     │ - ··expect(JSON.parse(readFileSync(o.paths!.json,·"utf8")).engine).toBe("offline");
+            159 │ + ··expect(JSON.parse(readFileSync(o.paths?.json,·"utf8")).engine).toBe("offline");
+        160 160 │   });
+        161 161 │   
+      
+    
+    packages/agent/src/adapters/codex-engine.test.ts:91:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        89 │   expect(res.usage).toMatchObject({ in: 80, cacheRead: 20, out: 10, thinking: 2, apiUsd: 0.000102 });
+        90 │   expect(res.usageEstimated).toBe(false);
+      > 91 │   const native = x.spawner.calls.find((s) => s.argv[0] === "exec")!;
+           │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        92 │   expect(native.command).toBe("/opt/native/codex");
+        93 │   expect(native.cwd).toBe("/side/wt");
+      
+    
+    packages/agent/src/adapters/codex-engine.test.ts:204:21 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        202 │   b.fs.files.set("/home/u/.codex/auth.json", new TextEncoder().encode(auth));
+        203 │   b.fs.files.set("/home/u/.codex/config.toml", new TextEncoder().encode(maliciousConfig));
+      > 204 │   const res = await b.engines["codex-cli"]!.run(r, new AbortController().signal).result;
+            │                     ^^^^^^^^^^^^^^^^^^^^^^^
+        205 │   expect(res.stop).toBe("end");
+        206 │   expect(observedConfig).toBe("");
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        202 202 │     b.fs.files.set("/home/u/.codex/auth.json", new TextEncoder().encode(auth));
+        203 203 │     b.fs.files.set("/home/u/.codex/config.toml", new TextEncoder().encode(maliciousConfig));
+        204     │ - ··const·res·=·await·b.engines["codex-cli"]!.run(r,·new·AbortController().signal).result;
+            204 │ + ··const·res·=·await·b.engines["codex-cli"]?.run(r,·new·AbortController().signal).result;
+        205 205 │     expect(res.stop).toBe("end");
+        206 206 │     expect(observedConfig).toBe("");
+      
+    
+    packages/agent/src/adapters/codex-engine.test.ts:212:26 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        210 │   expect(new TextDecoder().decode(b.fs.files.get("/home/u/.codex/auth.json"))).toBe(auth);
+        211 │   b.fs.files.set("/home/u/.codex/auth.json", new TextEncoder().encode(JSON.stringify({ auth_mode: "apikey", OPENAI_API_KEY: "not-a-real-key" })));
+      > 212 │   const rejected = await b.engines["codex-cli"]!.run(r, new AbortController().signal).result;
+            │                          ^^^^^^^^^^^^^^^^^^^^^^^
+        213 │   expect(rejected.error?.code).toBe("E_AGENT_AUTH_SOURCE");
+        214 │   expect(spawner.calls.filter((s) => s.argv[0] === "exec")).toHaveLength(1);
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        210 210 │     expect(new TextDecoder().decode(b.fs.files.get("/home/u/.codex/auth.json"))).toBe(auth);
+        211 211 │     b.fs.files.set("/home/u/.codex/auth.json", new TextEncoder().encode(JSON.stringify({ auth_mode: "apikey", OPENAI_API_KEY: "not-a-real-key" })));
+        212     │ - ··const·rejected·=·await·b.engines["codex-cli"]!.run(r,·new·AbortController().signal).result;
+            212 │ + ··const·rejected·=·await·b.engines["codex-cli"]?.run(r,·new·AbortController().signal).result;
+        213 213 │     expect(rejected.error?.code).toBe("E_AGENT_AUTH_SOURCE");
+        214 214 │     expect(spawner.calls.filter((s) => s.argv[0] === "exec")).toHaveLength(1);
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:264:44 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        262 │                 if (!Number.isSafeInteger(u[key]) || (u[key] ?? -1) < 0) throw new MitoriError("E_AGENT_PROTOCOL", "Codex terminal usage is invalid");
+        263 │               if (u.cached_input_tokens! > u.input_tokens!) throw new MitoriError("E_AGENT_PROTOCOL", "Codex cached input exceeds total input");
+      > 264 │               usage.in = u.input_tokens! - u.cached_input_tokens!;
+            │                                            ^^^^^^^^^^^^^^^^^^^^^^
+        265 │               usage.cacheRead = u.cached_input_tokens!;
+        266 │               usage.out = u.output_tokens!;
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:266:27 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        264 │               usage.in = u.input_tokens! - u.cached_input_tokens!;
+        265 │               usage.cacheRead = u.cached_input_tokens!;
+      > 266 │               usage.out = u.output_tokens!;
+            │                           ^^^^^^^^^^^^^^^^
+        267 │               usage.thinking = u.reasoning_output_tokens ?? 0;
+        268 │               terminal = true;
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:207:36 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        205 │         const stderr: string[] = [];
+        206 │         const errPump = (async () => {
+      > 207 │           for await (const line of child!.stderr) {
+            │                                    ^^^^^^
+        208 │             stderr.push(secrets.redact(line).text.slice(0, 1000));
+        209 │             if (stderr.length > 8) stderr.shift();
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        205 205 │           const stderr: string[] = [];
+        206 206 │           const errPump = (async () => {
+        207     │ - ··········for·await·(const·line·of·child!.stderr)·{
+            207 │ + ··········for·await·(const·line·of·child?.stderr)·{
+        208 208 │               stderr.push(secrets.redact(line).text.slice(0, 1000));
+        209 209 │               if (stderr.length > 8) stderr.shift();
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:263:19 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        261 │               for (const key of ["input_tokens", "cached_input_tokens", "output_tokens"])
+        262 │                 if (!Number.isSafeInteger(u[key]) || (u[key] ?? -1) < 0) throw new MitoriError("E_AGENT_PROTOCOL", "Codex terminal usage is invalid");
+      > 263 │               if (u.cached_input_tokens! > u.input_tokens!) throw new MitoriError("E_AGENT_PROTOCOL", "Codex cached input exceeds total input");
+            │                   ^^^^^^^^^^^^^^^^^^^^^^
+        264 │               usage.in = u.input_tokens! - u.cached_input_tokens!;
+        265 │               usage.cacheRead = u.cached_input_tokens!;
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:263:44 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        261 │               for (const key of ["input_tokens", "cached_input_tokens", "output_tokens"])
+        262 │                 if (!Number.isSafeInteger(u[key]) || (u[key] ?? -1) < 0) throw new MitoriError("E_AGENT_PROTOCOL", "Codex terminal usage is invalid");
+      > 263 │               if (u.cached_input_tokens! > u.input_tokens!) throw new MitoriError("E_AGENT_PROTOCOL", "Codex cached input exceeds total input");
+            │                                            ^^^^^^^^^^^^^^^
+        264 │               usage.in = u.input_tokens! - u.cached_input_tokens!;
+        265 │               usage.cacheRead = u.cached_input_tokens!;
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:264:26 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        262 │                 if (!Number.isSafeInteger(u[key]) || (u[key] ?? -1) < 0) throw new MitoriError("E_AGENT_PROTOCOL", "Codex terminal usage is invalid");
+        263 │               if (u.cached_input_tokens! > u.input_tokens!) throw new MitoriError("E_AGENT_PROTOCOL", "Codex cached input exceeds total input");
+      > 264 │               usage.in = u.input_tokens! - u.cached_input_tokens!;
+            │                          ^^^^^^^^^^^^^^^
+        265 │               usage.cacheRead = u.cached_input_tokens!;
+        266 │               usage.out = u.output_tokens!;
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:265:33 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        263 │               if (u.cached_input_tokens! > u.input_tokens!) throw new MitoriError("E_AGENT_PROTOCOL", "Codex cached input exceeds total input");
+        264 │               usage.in = u.input_tokens! - u.cached_input_tokens!;
+      > 265 │               usage.cacheRead = u.cached_input_tokens!;
+            │                                 ^^^^^^^^^^^^^^^^^^^^^^
+        266 │               usage.out = u.output_tokens!;
+        267 │               usage.thinking = u.reasoning_output_tokens ?? 0;
+      
+    
+    packages/core/src/map-model.ts:100:29 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+         98 │       [e.to, e.from],
+         99 │     ]) {
+      > 100 │       const set = links.get(a!) ?? new Set<string>();
+            │                             ^^
+        101 │       set.add(b!);
+        102 │       links.set(a!, set);
+      
+    
+    packages/core/src/map-model.ts:101:15 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+         99 │     ]) {
+        100 │       const set = links.get(a!) ?? new Set<string>();
+      > 101 │       set.add(b!);
+            │               ^^
+        102 │       links.set(a!, set);
+        103 │     }
+      
+    
+    packages/core/src/map-model.ts:102:17 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        100 │       const set = links.get(a!) ?? new Set<string>();
+        101 │       set.add(b!);
+      > 102 │       links.set(a!, set);
+            │                 ^^
+        103 │     }
+        104 │   return { ...data, byId: new Map(data.rooms.map((r) => [r.id, r])), links };
+      
+    
+    packages/loop/src/git/accept.ts:224:9 lint/complexity/useOptionalChain  FIXABLE  ━━━━━━━━━━━━━━━━━━━
+    
+      ! Change to an optional chain.
+      
+        222 │     await this.g.ready();
+        223 │     const row = this.journal.get(ck);
+      > 224 │     if (!row || row.state !== "done") throw new MitoriError("E_NOT_FOUND", `checkpoint ${ck} not found`, { params: { checkpoint: ck } });
+            │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        225 │     if (row.undoneAt) throw new MitoriError("E_PRECONDITION", `checkpoint ${ck} was already undone`, { params: { checkpoint: ck } });
+        226 │     await this.requireObjects(row);
+      
+      i Unsafe fix: Change to an optional chain.
+      
+        222 222 │       await this.g.ready();
+        223 223 │       const row = this.journal.get(ck);
+        224     │ - ····if·(!row·||·row.state·!==·"done")·throw·new·MitoriError("E_NOT_FOUND",·`checkpoint·${ck}·not·found`,·{·params:·{·checkpoint:·ck·}·});
+            224 │ + ····if·(row?.state·!==·"done")·throw·new·MitoriError("E_NOT_FOUND",·`checkpoint·${ck}·not·found`,·{·params:·{·checkpoint:·ck·}·});
+        225 225 │       if (row.undoneAt) throw new MitoriError("E_PRECONDITION", `checkpoint ${ck} was already undone`, { params: { checkpoint: ck } });
+        226 226 │       await this.requireObjects(row);
+      
+    
+    packages/loop/src/git/pull-request.int.test.ts:55:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        53 │     const r = await git.createPullRequest(job, req);
+        54 │     expect(r.url).toBe("https://github.com/example/fixture/pull/1");
+      > 55 │     const push = calls.find((c) => c.argv.includes("push"))!;
+           │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        56 │     expect(push.env.GIT_DIR).toBe(git.ws.sideDir);
+        57 │     expect(push.env.GIT_CONFIG_GLOBAL).toBe("/dev/null");
+      
+    
+    packages/loop/src/git/pull-request.int.test.ts:58:20 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        56 │     expect(push.env.GIT_DIR).toBe(git.ws.sideDir);
+        57 │     expect(push.env.GIT_CONFIG_GLOBAL).toBe("/dev/null");
+      > 58 │     const commit = push.argv.at(-1)!.split(":")[0]!;
+           │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        59 │     expect((await git.ws.lsTree(commit)).map((e) => e.path)).not.toContain("unrelated.txt");
+        60 │     expect((await git.ws.rawDiff(parent, commit)).map((e) => e.path)).toEqual(["README.md"]);
+      
+    
+    packages/loop/src/git/pull-request.int.test.ts:58:20 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        56 │     expect(push.env.GIT_DIR).toBe(git.ws.sideDir);
+        57 │     expect(push.env.GIT_CONFIG_GLOBAL).toBe("/dev/null");
+      > 58 │     const commit = push.argv.at(-1)!.split(":")[0]!;
+           │                    ^^^^^^^^^^^^^^^^^
+        59 │     expect((await git.ws.lsTree(commit)).map((e) => e.path)).not.toContain("unrelated.txt");
+        60 │     expect((await git.ws.rawDiff(parent, commit)).map((e) => e.path)).toEqual(["README.md"]);
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        56 56 │       expect(push.env.GIT_DIR).toBe(git.ws.sideDir);
+        57 57 │       expect(push.env.GIT_CONFIG_GLOBAL).toBe("/dev/null");
+        58    │ - ····const·commit·=·push.argv.at(-1)!.split(":")[0]!;
+           58 │ + ····const·commit·=·push.argv.at(-1)?.split(":")[0]!;
+        59 59 │       expect((await git.ws.lsTree(commit)).map((e) => e.path)).not.toContain("unrelated.txt");
+        60 60 │       expect((await git.ws.rawDiff(parent, commit)).map((e) => e.path)).toEqual(["README.md"]);
+      
+    
+    packages/server/src/wiring/doc-operations.ts:42:108 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        40 │     if (!opts.lang) throw new MitoriError("E_INVALID_INPUT", "lang is required");
+        41 │     const x = await env.domain(ctx);
+      > 42 │     return execute(x, opts.confirm, () => x.gen.translate(target as Parameters<typeof x.gen.translate>[0], opts.lang!, { confirm: false }));
+           │                                                                                                            ^^^^^^^^^^
+        43 │   };
+        44 │   return {
+      
+    
+    packages/server/src/wiring/loop-routes.ts:106:7 lint/complexity/useOptionalChain  FIXABLE  ━━━━━━━━━━
+    
+      ! Change to an optional chain.
+      
+        104 │ async function roundChanges(x: WorkspaceDomain, deny: Glob[], n: number): Promise<RoundChanges | null> {
+        105 │   const scope = x.loop.review.roundScope(n);
+      > 106 │   if (!scope || scope.mode !== "pull") return null;
+            │       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        107 │   const c = await x.loop.git.roundChanges(n, deny);
+        108 │   if (!c) return null;
+      
+      i Unsafe fix: Change to an optional chain.
+      
+        104 104 │   async function roundChanges(x: WorkspaceDomain, deny: Glob[], n: number): Promise<RoundChanges | null> {
+        105 105 │     const scope = x.loop.review.roundScope(n);
+        106     │ - ··if·(!scope·||·scope.mode·!==·"pull")·return·null;
+            106 │ + ··if·(scope?.mode·!==·"pull")·return·null;
+        107 107 │     const c = await x.loop.git.roundChanges(n, deny);
+        108 108 │     if (!c) return null;
+      
+    
+    packages/server/src/wiring/loop-routes.ts:315:11 lint/complexity/useOptionalChain  FIXABLE  ━━━━━━━━━━
+    
+      ! Change to an optional chain.
+      
+        313 │       const n = roundNo(ctx);
+        314 │       const scope = x.loop.review.roundScope(n);
+      > 315 │       if (!scope || scope.mode !== "pull") throw notFound("pull round", String(n));
+            │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        316 │       const res = await x.loop.git.undoRound(n, rt.settings().denyGlobs);
+        317 │       return { checkpoint: res.checkpoint, files: res.files.map((f) => f.path) };
+      
+      i Unsafe fix: Change to an optional chain.
+      
+        313 313 │         const n = roundNo(ctx);
+        314 314 │         const scope = x.loop.review.roundScope(n);
+        315     │ - ······if·(!scope·||·scope.mode·!==·"pull")·throw·notFound("pull·round",·String(n));
+            315 │ + ······if·(scope?.mode·!==·"pull")·throw·notFound("pull·round",·String(n));
+        316 316 │         const res = await x.loop.git.undoRound(n, rt.settings().denyGlobs);
+        317 317 │         return { checkpoint: res.checkpoint, files: res.files.map((f) => f.path) };
+      
+    
+    scripts/lib/budgets.test.ts:70:39 lint/suspicious/noTemplateCurlyInString ━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Unexpected template string placeholder.
+      
+        68 │       "e2e/perf/a.spec.ts": `expectWithinBudget("ui.shellPaint", r.shellPaint);`,
+        69 │       "e2e/perf/b.spec.ts": `// mentions ui.shellPaint only in prose`,
+      > 70 │       "eval/run.ts": "const id = `gen.${name}`;",
+           │                                       ^^^^^^^
+        71 │     };
+        72 │     const has = (p: string) => p in files;
+      
+      i Turn the string into a template string.
+      
+    
+    test/int/doc-operations.test.ts:32:13 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        30 │     await int.json("POST", `/ws/${ws}/gen/runs`, { estimateId: ge.id, confirm: true });
+        31 │     await x.gen.idle();
+      > 32 │     block = Object.values(x.doc.index().blocks).find((b) => b.kind === "prose")!.id;
+           │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        33 │     const before = x.doc.block(block)!;
+        34 │     const api = async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+         30  30 │       await int.json("POST", `/ws/${ws}/gen/runs`, { estimateId: ge.id, confirm: true });
+         31  31 │       await x.gen.idle();
+         32     │ - ····block·=·Object.values(x.doc.index().blocks).find((b)·=>·b.kind·===·"prose")!.id;
+             32 │ + ····block·=·Object.values(x.doc.index().blocks).find((b)·=>·b.kind·===·"prose")?.id;
+         33  33 │       const before = x.doc.block(block)!;
+         34  34 │       const api = async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+      
+    
+    test/int/doc-operations.test.ts:33:20 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        31 │     await x.gen.idle();
+        32 │     block = Object.values(x.doc.index().blocks).find((b) => b.kind === "prose")!.id;
+      > 33 │     const before = x.doc.block(block)!;
+           │                    ^^^^^^^^^^^^^^^^^^^
+        34 │     const api = async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+        35 │       const r = await web.req(method, `/ws/${ws}${path}`, body);
+      
+    
+    test/int/doc-operations.test.ts:59:12 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        57 │     expect(job?.writeScope).toEqual([]);
+        58 │     expect(job?.proposals).toHaveLength(1);
+      > 59 │     expect(x.doc.block(block)!.hash).toBe(before.hash);
+           │            ^^^^^^^^^^^^^^^^^^^
+        60 │     const proposal = x.doc.proposals().find((p) => p.id === job!.proposals[0])!;
+        61 │     expect(proposal).toMatchObject({ state: "pending", block, baseHash: before.hash, source: { kind: "job", id: created.id } });
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+         57  57 │       expect(job?.writeScope).toEqual([]);
+         58  58 │       expect(job?.proposals).toHaveLength(1);
+         59     │ - ····expect(x.doc.block(block)!.hash).toBe(before.hash);
+             59 │ + ····expect(x.doc.block(block)?.hash).toBe(before.hash);
+         60  60 │       const proposal = x.doc.proposals().find((p) => p.id === job!.proposals[0])!;
+         61  61 │       expect(proposal).toMatchObject({ state: "pending", block, baseHash: before.hash, source: { kind: "job", id: created.id } });
+      
+    
+    test/int/doc-operations.test.ts:60:22 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        58 │     expect(job?.proposals).toHaveLength(1);
+        59 │     expect(x.doc.block(block)!.hash).toBe(before.hash);
+      > 60 │     const proposal = x.doc.proposals().find((p) => p.id === job!.proposals[0])!;
+           │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        61 │     expect(proposal).toMatchObject({ state: "pending", block, baseHash: before.hash, source: { kind: "job", id: created.id } });
+        62 │     const accepted = await api<BlockView>("POST", `/doc/proposals/${proposal.id}/accept`, {});
+      
+    
+    test/int/doc-operations.test.ts:60:61 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        58 │     expect(job?.proposals).toHaveLength(1);
+        59 │     expect(x.doc.block(block)!.hash).toBe(before.hash);
+      > 60 │     const proposal = x.doc.proposals().find((p) => p.id === job!.proposals[0])!;
+           │                                                             ^^^^
+        61 │     expect(proposal).toMatchObject({ state: "pending", block, baseHash: before.hash, source: { kind: "job", id: created.id } });
+        62 │     const accepted = await api<BlockView>("POST", `/doc/proposals/${proposal.id}/accept`, {});
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+         58  58 │       expect(job?.proposals).toHaveLength(1);
+         59  59 │       expect(x.doc.block(block)!.hash).toBe(before.hash);
+         60     │ - ····const·proposal·=·x.doc.proposals().find((p)·=>·p.id·===·job!.proposals[0])!;
+             60 │ + ····const·proposal·=·x.doc.proposals().find((p)·=>·p.id·===·job?.proposals[0])!;
+         61  61 │       expect(proposal).toMatchObject({ state: "pending", block, baseHash: before.hash, source: { kind: "job", id: created.id } });
+         62  62 │       const accepted = await api<BlockView>("POST", `/doc/proposals/${proposal.id}/accept`, {});
+      
+    
+    test/int/doc-operations.test.ts:64:17 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        62 │     const accepted = await api<BlockView>("POST", `/doc/proposals/${proposal.id}/accept`, {});
+        63 │     expect(accepted.hash).not.toBe(before.hash);
+      > 64 │     const old = x.doc.history(block).find((h) => h.hash === before.hash)!;
+           │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        65 │     const stale = await web.req("POST", `/ws/${ws}/doc/blocks/${block}/revert`, { rev: old.rev, baseHash: before.hash });
+        66 │     expect(stale.status).toBe(409);
+      
+    
+    test/int/doc-operations.test.ts:85:17 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        83 │       block,
+        84 │       section: before.section,
+      > 85 │       baseHash: x.doc.block(block)!.hash,
+           │                 ^^^^^^^^^^^^^^^^^^^
+        86 │       md: "確認用の保存済みの簡潔な説明です。",
+        87 │       source: { kind: "simplify", id: "gr_cached01" },
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+         83  83 │         block,
+         84  84 │         section: before.section,
+         85     │ - ······baseHash:·x.doc.block(block)!.hash,
+             85 │ + ······baseHash:·x.doc.block(block)?.hash,
+         86  86 │         md: "確認用の保存済みの簡潔な説明です。",
+         87  87 │         source: { kind: "simplify", id: "gr_cached01" },
+      
+    
+    test/int/shots/live.ts:171:25 lint/suspicious/noExplicitAny ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Unexpected any. Specify a different type.
+      
+        170 │ // ------------------------------------------------------------------------------------------- helpers
+      > 171 │ type J = Record<string, any>;
+            │                         ^^^
+        172 │ let spent = 0;
+        173 │ /** The API-equivalent $ of every job so far; aborts above the cap. */
+      
+      i any disables many type checking rules. Its use should be avoided.
+      
+    
+    test/int/shots/ux.ts:38:25 lint/suspicious/noExplicitAny ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Unexpected any. Specify a different type.
+      
+        36 │   if (!ok) throw new Error(`check failed: ${what}`);
+        37 │ };
+      > 38 │ type J = Record<string, any>;
+           │                         ^^^
+        39 │ 
+        40 │ let skew = 0;
+      
+      i any disables many type checking rules. Its use should be avoided.
+✓ boundaries      1.47 s
+    check-boundaries: ok
+✓ cr-ledger       0.08 s
+    check-cr-ledger (1237 files): ok
+✓ budgets         0.01 s
+    check-budgets: ok (10 file(s))
+✓ contract-index  0.97 s
+    contract-index: ok
+✓ svelte-check    5.94 s
+    svelte-check found 0 errors and 0 warnings
+check: ok in 16.00 s
+check: wall time over the 15 s target

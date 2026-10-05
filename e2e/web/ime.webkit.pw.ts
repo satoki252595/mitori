@@ -1,5 +1,5 @@
 /**
- * @wp10a IME guard on WebKit (ux.md §8.6 I2 / I3 / I8 / I12, M3 gate "IME e2e chromium + webkit"). WebKit has no
+ * @wp10a IME guard DOM replay on Firefox / WebKit (ux.md §8.6 I2 / I3 / I8 / I12). Neither engine has trusted
  * IME automation, so the Safari event orders are replayed as DOM events in the page — the registry (one capture
  * listener on window) and `isComposing` handle them exactly like native ones:
  *   I2  compositionend → keydown Enter keyCode 229            ⇒ nothing runs
@@ -21,7 +21,7 @@ async function keydown(page: Page, init: { key: string; code: string; keyCode: n
   }, init);
 }
 
-test("@wp10a IME (webkit): keyCode 229 on the page fires nothing and shows the hint once (I8)", async ({ page }) => {
+test("@wp10a IME (DOM replay): keyCode 229 on the page fires nothing and shows the hint once (I8)", async ({ page }) => {
   await configure({});
   await page.goto(`/w/${WS}/doc/s3`);
   await waitMark(page, "mitori:section:rendered");
@@ -34,7 +34,7 @@ test("@wp10a IME (webkit): keyCode 229 on the page fires nothing and shows the h
   await expect(page.locator(".blk.focus")).toHaveCount(1);
 });
 
-test("@wp10a IME (webkit): Safari orders in ⌘K — compositionend + Enter (229 or 13, same task) do nothing; the next Enter opens (I2, I3, I12)", async ({
+test("@wp10a IME (DOM replay): Safari orders in ⌘K — compositionend + Enter (229 or 13, same task) do nothing; the next Enter opens (I2, I3, I12)", async ({
   page,
 }) => {
   await configure({});

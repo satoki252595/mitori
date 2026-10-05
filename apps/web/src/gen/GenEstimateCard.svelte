@@ -9,6 +9,7 @@
 -->
 <script lang="ts">
 import type { Effort, EngineId, EngineStatus, GenEstimate, ReasoningEffort, ScanSummaryView, SubscriptionWindow } from "@mitori/core";
+import { untrack } from "svelte";
 import { fmtHm, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
 import { hasKey } from "../shell/i18n.ts";
 import { t } from "../shell/index.ts";
@@ -45,6 +46,7 @@ let {
   onack,
   oncopy,
   onsettings,
+  initialClock = null,
 }: {
   estimates: Partial<Record<Effort, GenEstimate>>;
   effort: Effort;
@@ -65,6 +67,7 @@ let {
   oncopy: (text: string) => void;
   /** 「変更」 of a first-run pin (settings page). */
   onsettings?: () => void;
+  initialClock?: VisibleClock | null;
 } = $props();
 
 let overageOk = $state(false);
@@ -84,7 +87,7 @@ const sessionCmd = $derived(`mitori gen --prep --effort ${effort}`);
 
 // disclosure visibility (≥ 1 s in view before a click may acknowledge it)
 let disclosure: HTMLElement | undefined = $state();
-const clock = new VisibleClock();
+const clock = untrack(() => initialClock ?? new VisibleClock());
 let nudge = $state(false);
 $effect(() => {
   if (!disclosure || policyAcked) return;

@@ -5,6 +5,7 @@
  */
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig, minifySync, type Plugin } from "vite";
+import { DEFAULT_KEYMAP } from "./src/contract.ts";
 import { parseUiCookieFields } from "./src/shell/cookie.ts";
 import { bootHead, type HeadChunks } from "./src/shell/head.ts";
 
@@ -65,10 +66,71 @@ function headPlugin(): Plugin {
   };
 }
 
+/** Ship the immutable keyboard table as data, generated from the authoritative const (no duplicate file).
+ * The module awaits it before boot, so the first visible screen already has every shortcut. */
+function keymapDataPlugin(): Plugin {
+  let ssr = false;
+  return {
+    name: "mitori-keymap-data",
+    apply: "build",
+    enforce: "pre",
+    configResolved(config) {
+      ssr = !!config.build.ssr;
+    },
+    transform(code, id) {
+      if (ssr) return;
+      if (!id.replaceAll("\\", "/").endsWith("/src/shell/keys.ts")) return;
+      const binding = "export const DEFAULT_DEFS: readonly ShortcutDef[] = DEFAULT_KEYMAP;";
+      if (!code.includes(binding)) throw new Error("keyboard table source changed; update its data transform");
+      const ref = this.emitFile({ type: "asset", name: "keymap.json", source: JSON.stringify(DEFAULT_KEYMAP) });
+      return code
+        .replace("DEFAULT_KEYMAP, ", "")
+        .replace(
+          binding,
+          `export const DEFAULT_DEFS: readonly ShortcutDef[] = await fetch(import.meta.ROLLUP_FILE_URL_${ref}).then((r) => { if (!r.ok) throw new Error("keyboard table: " + r.status); return r.json(); });`,
+        );
+    },
+  };
+}
+
+/** CSS of canonical server-rendered components. No JavaScript preloads for the enhanced app. */
+function initialStylesPlugin(): Plugin {
+  return {
+    name: "mitori-initial-styles",
+    apply: "build",
+    generateBundle(_opts, bundle) {
+      const base = new Set<string>();
+      const map = new Set<string>();
+      const doc = new Set<string>();
+      for (const out of Object.values(bundle)) {
+        if (out.type !== "chunk") continue;
+        const ids = Object.keys(out.modules).join("\n").replaceAll("\\", "/");
+        const css = (out as typeof out & { viteMetadata?: { importedCss: Set<string> } }).viteMetadata?.importedCss ?? [];
+        const add = (target: Set<string>) => {
+          for (const file of css) target.add(`/${file}`);
+        };
+        if (/\/src\/shell\/(?:Shell|Header|Rail|StatusBar|Rich)\.svelte|\/styles\/(?:tokens|base|prose|diagram|levels)\.css/.test(ids)) add(base);
+        if (/\/src\/map\/(?:MapPage|FloorPlan|RoomCard|SidePanel)\.svelte|\/src\/gen\/(?:EngineCard|GenEstimateCard|GenProgress)\.svelte/.test(ids)) add(map);
+        if (
+          /\/src\/reader\/(?:ReaderPage|BlockHost|ContextColumn|Minimap|Welcome)\.svelte|\/src\/(?:proposals\/ProposalBlock|threads\/ServerHtml)\.svelte/.test(
+            ids,
+          )
+        )
+          add(doc);
+      }
+      this.emitFile({
+        type: "asset",
+        fileName: "initial-css.json",
+        source: JSON.stringify({ map: [...new Set([...base, ...map])], doc: [...new Set([...base, ...doc])] }),
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   root: import.meta.dirname,
   base: "/",
-  plugins: [svelte({ compilerOptions: { runes: true } }), headPlugin()],
+  plugins: [svelte({ compilerOptions: { runes: true } }), headPlugin(), keymapDataPlugin(), initialStylesPlugin()],
   define: {
     __MITORI_VERSION__: JSON.stringify("dev"),
     __MITORI_TEST__: JSON.stringify(mode === "test"),
@@ -81,23 +143,15 @@ export default defineConfig(({ mode }) => ({
     modulePreload: { polyfill: false },
     reportCompressedSize: false,
     cssCodeSplit: true,
+    // Small language files remain JSON assets too; do not inline executable data URLs into the catalog loader.
+    assetsInlineLimit: (path) => (path.endsWith(".json") ? false : undefined),
     rolldownOptions: {
+      treeshake: { moduleSideEffects: [{ test: /node_modules\/svelte\/src\/internal\/client\/dom\/elements\/custom-element\.js$/, sideEffects: false }] },
       output: {
         // the HTML entry is only the bootstrap; runtime + shell + stores form the `entry` chunk below
         entryFileNames: "assets/boot-[hash].js",
         chunkFileNames: (c) => `assets/${chunkName(c.facadeModuleId, c.name)}-[hash].js`,
         assetFileNames: "assets/[name]-[hash][extname]",
-        codeSplitting: {
-          groups: [
-            {
-              name: "entry",
-              test: (id: string) =>
-                /[\\/](node_modules[\\/](svelte|esm-env|clsx)|apps[\\/]web[\\/]src[\\/](shell|stores|contract\.ts))[\\/.]/.test(id) &&
-                !/[\\/]shell[\\/](?:(?:i18n-(?:ja|en)(?:-[a-z]+)?|main|help-guide)\.ts|(?:Launcher|HelpOverlay)\.svelte)$/.test(id),
-              priority: 10,
-            },
-          ],
-        },
       },
     },
   },

@@ -26,8 +26,9 @@ export default defineConfig({
   },
   projects: [
     { name: "chromium", testIgnore: /\.webkit\.pw\.ts$/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
-    // the M3 gate "IME e2e chromium + webkit": Safari's event orders replayed in WebKit (ime.webkit.pw.ts)
-    { name: "webkit", testMatch: /\.webkit\.pw\.ts$/, use: { ...devices["Desktop Safari"], viewport: { width: 1440, height: 900 } } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"], viewport: { width: 1440, height: 900 } } },
+    // All engines run the functional suite; CDP-only measurements explicitly skip outside Chromium.
+    { name: "webkit", use: { ...devices["Desktop Safari"], viewport: { width: 1440, height: 900 } } },
   ],
   webServer: {
     command: `bun support/mock-server.ts ${PORT}`,

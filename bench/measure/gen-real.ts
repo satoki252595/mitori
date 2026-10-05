@@ -16,10 +16,14 @@ import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
   API_PREFIX,
+  type DaemonStatus,
   type EngineStatus,
+  type FileEntry,
   type GenEstimate,
   type GenRun,
   type GenRunDetail,
+  INCLUDED_CLASSES,
+  type RepoSnapshot,
   type SseEvent,
   type SubscriptionWindow,
   type UsageSummary,
@@ -103,7 +107,11 @@ const call = async <T>(method: string, path: string, body?: unknown): Promise<T>
   return (await res.json()) as T;
 };
 type Handle = typeof d.handle & {
-  domain(ws: WorkspaceKey): { doc: { flush(o?: { force?: boolean }): Promise<void> }; staticReady(): Promise<void> } | null;
+  domain(ws: WorkspaceKey): {
+    indexer: { snapshot(): RepoSnapshot | null; files(): readonly FileEntry[] };
+    doc: { flush(o?: { force?: boolean }): Promise<void> };
+    staticReady(): Promise<void>;
+  } | null;
 };
 const handle = d.handle as Handle;
 
@@ -147,6 +155,23 @@ log(`opened ${repo} as ${ws} in ${openMs.toFixed(0)} ms (daemon start → ready 
 
 // 3. estimate
 // `--scope s3,s9`: only those sections (+ their hard deps without content), e.g. to re-run one prompt after a fix
+const indexer = handle.domain(ws)?.indexer;
+const sourceSnapshot = indexer?.snapshot();
+const tokenBaseline =
+  indexer && sourceSnapshot
+    ? {
+        v: "mitori.token-baseline/1",
+        sha: sourceSnapshot.commit,
+        indexDigest: sourceSnapshot.indexDigest,
+        tokenizer: "claude-v5",
+        estimated: true,
+        includedClasses: [...INCLUDED_CLASSES],
+        filteredTokens: indexer
+          .files()
+          .filter((f) => (INCLUDED_CLASSES as readonly string[]).includes(f.class))
+          .reduce((sum, f) => sum + f.tokensEst, 0),
+      }
+    : null;
 const scope = a.scope ? a.scope.split(",").filter(Boolean) : [];
 const est = await call<GenEstimate>("POST", `/ws/${ws}/gen/estimate`, { effort: a.effort, engine, ...(scope.length > 0 ? { scope } : {}) });
 const estIn = est.inTokens + est.cacheReadTokens + est.cacheWriteTokens;
@@ -167,6 +192,8 @@ const report: Record<string, unknown> = {
   otherClaudeProcesses: otherClaude,
   openMs,
   estimate: est,
+  sourceSnapshot: sourceSnapshot ? { sha: sourceSnapshot.commit, indexDigest: sourceSnapshot.indexDigest } : null,
+  tokenBaseline,
 };
 const writeReport = () => {
   if (!a.out) return;
@@ -258,6 +285,21 @@ const runMs = performance.now() - tRun;
 const childrenAtEnd = children();
 await Bun.sleep(5000);
 const childrenAfter5s = children();
+const idleStatus = await call<DaemonStatus>("GET", "/daemon");
+const childIds = Bun.spawnSync(["pgrep", "-P", String(process.pid)])
+  .stdout.toString()
+  .trim()
+  .split("\n")
+  .filter(Boolean);
+const childRssKb =
+  childIds.length === 0
+    ? 0
+    : Bun.spawnSync(["ps", "-o", "rss=", "-p", childIds.join(",")])
+        .stdout.toString()
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .reduce((sum, n) => sum + Number(n), 0);
 log(`engine child processes: max ${childMax} during the run, ${childrenAtEnd} at the end, ${childrenAfter5s} 5 s later`);
 const detail = await call<GenRunDetail>("GET", `/ws/${ws}/gen/runs/${run.id}`);
 log(
@@ -276,8 +318,16 @@ Object.assign(report, {
   firstPartialMs,
   firstBlockMs,
   childProcesses: { max: childMax, atEnd: childrenAtEnd, after5s: childrenAfter5s },
+  residentSample: {
+    at: new Date().toISOString(),
+    engine,
+    phase: "idle-after-real-generation",
+    scheduler: idleStatus.scheduler.resident,
+    native: { procs: childIds.length, rssMb: childRssKb / 1024 },
+  },
   cancelReason,
   spentUsd: after.totals.apiUsd - before.totals.apiUsd,
+  spendingGuard: { capUsd: maxUsd, exceeded: after.totals.apiUsd - before.totals.apiUsd > maxUsd },
   window: { before: windowBefore, after: after.window ?? lastWindow ?? handle.scheduler.window() ?? null, observed: windows },
   aggregate: agg,
   tasks,
@@ -296,4 +346,5 @@ if (a.serve) {
   await Bun.sleep(Number(a.serve) * 1000);
 }
 sse.close();
-await stop(cancelReason || detail.run.state !== "done" || detail.run.progress.failed > 0 ? 5 : 0);
+// A final completion event can precede the next usage poll; preserve the done result but fail an over-cap probe.
+await stop(cancelReason || detail.run.state !== "done" || detail.run.progress.failed > 0 || after.totals.apiUsd - before.totals.apiUsd > maxUsd ? 5 : 0);

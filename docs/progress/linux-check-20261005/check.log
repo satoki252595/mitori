@@ -1,0 +1,1021 @@
+$ bun scripts/check.ts
+✓ tsc             15.12 s
+✗ biome           0.51 s
+    Checked 1469 files in 364ms. No fixes applied.
+    Found 9 errors.
+    Found 43 warnings.
+    Found 2 infos.
+    packages/server/src/wiring/doc-deep.test.ts:372:49 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━
+    
+      i Template literals are preferred over string concatenation.
+      
+        370 │     const end = L.length;
+        371 │     for (const t of ["small geometry helpers", "flood fill", "public API"]) {
+      > 372 │       L.push("// " + "-".repeat(77), `// ${t}`, "// " + "-".repeat(77));
+            │                                                 ^^^^^^^^^^^^^^^^^^^^^^
+        373 │       L.push(...Array.from({ length: 360 }, () => "// filler"));
+        374 │     }
+      
+      i Unsafe fix: Use a template literal.
+      
+        370 370 │       const end = L.length;
+        371 371 │       for (const t of ["small geometry helpers", "flood fill", "public API"]) {
+        372     │ - ······L.push("//·"·+·"-".repeat(77),·`//·${t}`,·"//·"·+·"-".repeat(77));
+            372 │ + ······L.push("//·"·+·"-".repeat(77),·`//·${t}`,·`//·${"-".repeat(77)}`);
+        373 373 │         L.push(...Array.from({ length: 360 }, () => "// filler"));
+        374 374 │       }
+      
+    
+    packages/server/src/wiring/doc-deep.test.ts:372:14 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━
+    
+      i Template literals are preferred over string concatenation.
+      
+        370 │     const end = L.length;
+        371 │     for (const t of ["small geometry helpers", "flood fill", "public API"]) {
+      > 372 │       L.push("// " + "-".repeat(77), `// ${t}`, "// " + "-".repeat(77));
+            │              ^^^^^^^^^^^^^^^^^^^^^^
+        373 │       L.push(...Array.from({ length: 360 }, () => "// filler"));
+        374 │     }
+      
+      i Unsafe fix: Use a template literal.
+      
+        370 370 │       const end = L.length;
+        371 371 │       for (const t of ["small geometry helpers", "flood fill", "public API"]) {
+        372     │ - ······L.push("//·"·+·"-".repeat(77),·`//·${t}`,·"//·"·+·"-".repeat(77));
+            372 │ + ······L.push(`//·${"-".repeat(77)}`,·`//·${t}`,·"//·"·+·"-".repeat(77));
+        373 373 │         L.push(...Array.from({ length: 360 }, () => "// filler"));
+        374 374 │       }
+      
+    
+    apps/web/src/map/plan.css:84:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 2, 1)
+      
+        83 │ /* zone names sit in the zone's own header strip (layout: 30 units above the first row of rooms) */
+      > 84 │ svg.plan .zn {
+           │ ^^^^^^^^^^^^
+        85 │   font-size: 11px;
+        86 │   font-weight: var(--fw-strong);
+      
+      i This selector specificity is (0, 3, 1)
+      
+        75 │   opacity: 0.55;
+        76 │ }
+      > 77 │ svg.plan.floor .zn {
+           │ ^^^^^^^^^^^^^^^^^^
+        78 │   paint-order: stroke;
+        79 │   stroke: var(--paper);
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/cookie.test.ts:56:20 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! The comma operator is disallowed.
+      
+        54 │     const src = parseUiCookieFields.toString();
+        55 │     // biome-ignore lint/security/noGlobalEval: reconstructing the inlined copy is the point of the test
+      > 56 │     const copy = (0, eval)(`(${src})`) as typeof parseUiCookieFields;
+           │                    ^
+        57 │     expect(copy(enc({ v: 1, lv: "e", th: "d" }))).toEqual({ lv: "e", th: "d" });
+        58 │     expect(copy("garbage")).toEqual({});
+      
+      i Its use is often confusing and obscures side effects.
+      
+    
+    apps/web/src/shell/styles/base.css:341:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 0)
+      
+        339 │ }
+        340 │ 
+      > 341 │ .search {
+            │ ^^^^^^^
+        342 │   display: flex;
+        343 │   align-items: center;
+      
+      i This selector specificity is (0, 3, 0)
+      
+        259 │ }
+        260 │ 
+      > 261 │ .hdr[data-tight="2"] .search {
+            │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        262 │   width: auto;
+        263 │   padding: 0 8px;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/base.css:360:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 1)
+      
+        358 │ }
+        359 │ 
+      > 360 │ .search span {
+            │ ^^^^^^^^^^^^
+        361 │   flex: 1;
+        362 │   text-align: left;
+      
+      i This selector specificity is (0, 3, 1)
+      
+        256 │ .hdr[data-tight="2"] .brand-en,
+      > 257 │ .hdr[data-tight="2"] .search span {
+            │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        258 │   display: none;
+        259 │ }
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/base.css:480:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 0)
+      
+        478 │ }
+        479 │ 
+      > 480 │ .rail {
+            │ ^^^^^
+        481 │   position: sticky;
+        482 │   top: var(--hdr);
+      
+      i This selector specificity is (0, 2, 0)
+      
+        464 │ /* explicit tracks: a drawer rail (position: fixed) leaves its 0 px track empty instead of shifting main into it */
+      > 465 │ .body > .rail {
+            │ ^^^^^^^^^^^^^
+        466 │   grid-column: 1;
+        467 │   grid-row: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/base.css:523:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 0, 1)
+      
+        521 │ }
+        522 │ 
+      > 523 │ main {
+            │ ^^^^
+        524 │   min-width: 0;
+        525 │ }
+      
+      i This selector specificity is (0, 1, 1)
+      
+        468 │ }
+        469 │ 
+      > 470 │ .body > main {
+            │ ^^^^^^^^^^^^
+        471 │   grid-column: 2;
+        472 │   grid-row: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/base.css:913:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 1)
+      
+        911 │ }
+        912 │ 
+      > 913 │ .stopped h2 {
+            │ ^^^^^^^^^^^
+        914 │   font-family: var(--font-serif);
+        915 │   font-weight: var(--fw-strong);
+      
+      i This selector specificity is (0, 1, 2)
+      
+        799 │ }
+        800 │ 
+      > 801 │ dialog.dlg h2 {
+            │ ^^^^^^^^^^^^^
+        802 │   font-family: var(--font-serif);
+        803 │   font-size: var(--fs-title);
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/diagram.css:74:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 2, 1)
+      
+        72 │   stroke-width: 1.4;
+        73 │ }
+      > 74 │ .dg-edge[data-kind="event"] path {
+           │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        75 │   stroke-dasharray: 5 4;
+        76 │ }
+      
+      i This selector specificity is (0, 3, 1)
+      
+        23 │   font-family: var(--font-ui);
+        24 │ }
+      > 25 │ .dg[data-dense] .dg-edge path {
+           │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        26 │   stroke-opacity: 0.3;
+        27 │   stroke-width: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/diagram.css:77:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 0)
+      
+        75 │   stroke-dasharray: 5 4;
+        76 │ }
+      > 77 │ .dg-el {
+           │ ^^^^^^
+        78 │   font-size: 11px;
+        79 │   fill: var(--text);
+      
+      i This selector specificity is (0, 3, 0)
+      
+        27 │   stroke-width: 1;
+        28 │ }
+      > 29 │ .dg[data-dense] .dg-el {
+           │ ^^^^^^^^^^^^^^^^^^^^^^
+        30 │   display: none;
+        31 │ }
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/diagram.css:69:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 1, 1)
+      
+        67 │   font-family: var(--font-mono);
+        68 │ }
+      > 69 │ .dg-edge path {
+           │ ^^^^^^^^^^^^^
+        70 │   fill: none;
+        71 │   stroke: var(--muted);
+      
+      i This selector specificity is (0, 3, 1)
+      
+        23 │   font-family: var(--font-ui);
+        24 │ }
+      > 25 │ .dg[data-dense] .dg-edge path {
+           │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        26 │   stroke-opacity: 0.3;
+        27 │   stroke-width: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/shell/styles/prose.css:521:1 lint/style/noDescendingSpecificity ━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Descending specificity selector found. This selector specificity is (0, 3, 1)
+      
+        519 │ }
+        520 │ 
+      > 521 │ .blk[data-kind="pitfall"] .mb::before {
+            │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        522 │   display: none;
+        523 │ }
+      
+      i This selector specificity is (0, 3, 2)
+      
+        347 │ .blk:hover > .mb::before,
+      > 348 │ html.show-cites .blk > .mb::before,
+            │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        349 │ html[data-level="expert"] .blk > .mb::before {
+        350 │   opacity: 1;
+      
+      i Descending specificity selector may not be applied. Consider rearranging the order of the selectors. See MDN web docs for more details.
+      
+    
+    apps/web/src/viewer/viewer.css:96:19 lint/complexity/noImportantStyles  FIXABLE  ━━━━━━━━━━━━━━━━━━━
+    
+      ! Avoid the use of the !important style.
+      
+        94 │   .vband,
+        95 │   .pager {
+      > 96 │     display: none !important;
+           │                   ^^^^^^^^^^
+        97 │   }
+        98 │   .body {
+      
+      i This style reverses the cascade logic, and precedence is reversed. This could lead to having styles with higher specificity being overridden by styles with lower specificity.
+      
+      i Unsafe fix: Remove the style.
+      
+        96 │ ····display:·none·!important;
+           │                  ----------- 
+    
+    e2e/export/export.spec.ts:463:12 lint/complexity/useOptionalChain  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Change to an optional chain.
+      
+        461 │     expect(await noSideScroll(page)).toBe(true);
+        462 │     const box = await svg.boundingBox();
+      > 463 │     expect(box && box.width).toBeGreaterThan(500);
+            │            ^^^^^^^^^^^^^^^^
+        464 │     await page.close();
+        465 │   });
+      
+      i Unsafe fix: Change to an optional chain.
+      
+        461 461 │       expect(await noSideScroll(page)).toBe(true);
+        462 462 │       const box = await svg.boundingBox();
+        463     │ - ····expect(box·&&·box.width).toBeGreaterThan(500);
+            463 │ + ····expect(box?.width).toBeGreaterThan(500);
+        464 464 │       await page.close();
+        465 465 │     });
+      
+    
+    e2e/export/support/prepare.ts:84:42 lint/suspicious/noTemplateCurlyInString ━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Unexpected template string placeholder.
+      
+        82 │       `const password = "${PLANTED.password}";`,
+        83 │       "export function legacyHeaders(): Record<string, string> {",
+      > 84 │       "  return { authorization: `Bearer ${GITHUB_TOKEN}`, password };",
+           │                                          ^^^^^^^^^^^^^^^
+        85 │       "}",
+        86 │       "",
+      
+      i Turn the string into a template string.
+      
+    
+    e2e/loop/shoot.tmp.mjs:7:7 lint/correctness/noUnusedVariables  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! This variable step is unused.
+      
+        5 │ const OUT = process.env.OUT ?? "/private/tmp/claude-501/-Users-satoki252595-work-20261002-aiAgentTool/99463a6e-6928-41bd-851e-ed1a1028dc52/scratchpad/shots";
+        6 │ const WS = "ws_cr1t00000000";
+      > 7 │ const step = process.argv[2] ?? "all";
+          │       ^^^^
+        8 │ 
+        9 │ const post = (p, b) => fetch(`${BASE}${p}`, { method: "POST", body: JSON.stringify(b), headers: { "content-type": "application/json" } });
+      
+      i Unused variables are often the result of typos, incomplete refactors, or other sources of bugs.
+      
+      i Unsafe fix: If this is intentional, prepend step with an underscore.
+      
+         5  5 │   const OUT = process.env.OUT ?? "/private/tmp/claude-501/-Users-satoki252595-work-20261002-aiAgentTool/99463a6e-6928-41bd-851e-ed1a1028dc52/scratchpad/shots";
+         6  6 │   const WS = "ws_cr1t00000000";
+         7    │ - const·step·=·process.argv[2]·??·"all";
+            7 │ + const·_step·=·process.argv[2]·??·"all";
+         8  8 │   
+         9  9 │   const post = (p, b) => fetch(`${BASE}${p}`, { method: "POST", body: JSON.stringify(b), headers: { "content-type": "application/json" } });
+      
+    
+    e2e/loop/shoot.tmp.mjs:26:7 lint/correctness/noUnusedVariables  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! This variable box is unused.
+      
+        24 │ const target = page.locator('.reader-root .blk[data-kind="prose"] .mc').filter({ hasText: "1回だけ再試行する" }).first();
+        25 │ await target.scrollIntoViewIfNeeded();
+      > 26 │ const box = await target.evaluate((el) => {
+           │       ^^^
+        27 │   const t = [...el.childNodes].find((n) => n.nodeType === 3 && n.textContent.includes("1回だけ"));
+        28 │   const r = document.createRange();
+      
+      i Unused variables are often the result of typos, incomplete refactors, or other sources of bugs.
+      
+      i Unsafe fix: If this is intentional, prepend box with an underscore.
+      
+        24 24 │   const target = page.locator('.reader-root .blk[data-kind="prose"] .mc').filter({ hasText: "1回だけ再試行する" }).first();
+        25 25 │   await target.scrollIntoViewIfNeeded();
+        26    │ - const·box·=·await·target.evaluate((el)·=>·{
+           26 │ + const·_box·=·await·target.evaluate((el)·=>·{
+        27 27 │     const t = [...el.childNodes].find((n) => n.nodeType === 3 && n.textContent.includes("1回だけ"));
+        28 28 │     const r = document.createRange();
+      
+    
+    packages/agent/src/adapters/codex-engine.test.ts:91:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        89 │   expect(res.usage).toMatchObject({ in: 80, cacheRead: 20, out: 10, thinking: 2, apiUsd: 0.000102 });
+        90 │   expect(res.usageEstimated).toBe(false);
+      > 91 │   const native = x.spawner.calls.find((s) => s.argv[0] === "exec")!;
+           │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        92 │   expect(native.command).toBe("/opt/native/codex");
+        93 │   expect(native.cwd).toBe("/side/wt");
+      
+    
+    packages/agent/src/adapters/codex-engine.test.ts:192:21 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        190 │   b.fs.files.set("/home/u/.codex/auth.json", new TextEncoder().encode(auth));
+        191 │   b.fs.files.set("/home/u/.codex/config.toml", new TextEncoder().encode(maliciousConfig));
+      > 192 │   const res = await b.engines["codex-cli"]!.run(r, new AbortController().signal).result;
+            │                     ^^^^^^^^^^^^^^^^^^^^^^^
+        193 │   expect(res.stop).toBe("end");
+        194 │   expect(observedConfig).toBe("");
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        190 190 │     b.fs.files.set("/home/u/.codex/auth.json", new TextEncoder().encode(auth));
+        191 191 │     b.fs.files.set("/home/u/.codex/config.toml", new TextEncoder().encode(maliciousConfig));
+        192     │ - ··const·res·=·await·b.engines["codex-cli"]!.run(r,·new·AbortController().signal).result;
+            192 │ + ··const·res·=·await·b.engines["codex-cli"]?.run(r,·new·AbortController().signal).result;
+        193 193 │     expect(res.stop).toBe("end");
+        194 194 │     expect(observedConfig).toBe("");
+      
+    
+    packages/agent/src/adapters/codex-engine.test.ts:200:26 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        198 │   expect(new TextDecoder().decode(b.fs.files.get("/home/u/.codex/auth.json"))).toBe(auth);
+        199 │   b.fs.files.set("/home/u/.codex/auth.json", new TextEncoder().encode(JSON.stringify({ auth_mode: "apikey", OPENAI_API_KEY: "not-a-real-key" })));
+      > 200 │   const rejected = await b.engines["codex-cli"]!.run(r, new AbortController().signal).result;
+            │                          ^^^^^^^^^^^^^^^^^^^^^^^
+        201 │   expect(rejected.error?.code).toBe("E_AGENT_AUTH_SOURCE");
+        202 │   expect(spawner.calls.filter((s) => s.argv[0] === "exec")).toHaveLength(1);
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        198 198 │     expect(new TextDecoder().decode(b.fs.files.get("/home/u/.codex/auth.json"))).toBe(auth);
+        199 199 │     b.fs.files.set("/home/u/.codex/auth.json", new TextEncoder().encode(JSON.stringify({ auth_mode: "apikey", OPENAI_API_KEY: "not-a-real-key" })));
+        200     │ - ··const·rejected·=·await·b.engines["codex-cli"]!.run(r,·new·AbortController().signal).result;
+            200 │ + ··const·rejected·=·await·b.engines["codex-cli"]?.run(r,·new·AbortController().signal).result;
+        201 201 │     expect(rejected.error?.code).toBe("E_AGENT_AUTH_SOURCE");
+        202 202 │     expect(spawner.calls.filter((s) => s.argv[0] === "exec")).toHaveLength(1);
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:208:36 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        206 │         const stderr: string[] = [];
+        207 │         const errPump = (async () => {
+      > 208 │           for await (const line of child!.stderr) {
+            │                                    ^^^^^^
+        209 │             stderr.push(secrets.redact(line).text.slice(0, 1000));
+        210 │             if (stderr.length > 8) stderr.shift();
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        206 206 │           const stderr: string[] = [];
+        207 207 │           const errPump = (async () => {
+        208     │ - ··········for·await·(const·line·of·child!.stderr)·{
+            208 │ + ··········for·await·(const·line·of·child?.stderr)·{
+        209 209 │               stderr.push(secrets.redact(line).text.slice(0, 1000));
+        210 210 │               if (stderr.length > 8) stderr.shift();
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:265:26 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        263 │                 if (!Number.isSafeInteger(u[key]) || (u[key] ?? -1) < 0) throw new MitoriError("E_AGENT_PROTOCOL", "Codex terminal usage is invalid");
+        264 │               if (u.cached_input_tokens! > u.input_tokens!) throw new MitoriError("E_AGENT_PROTOCOL", "Codex cached input exceeds total input");
+      > 265 │               usage.in = u.input_tokens! - u.cached_input_tokens!;
+            │                          ^^^^^^^^^^^^^^^
+        266 │               usage.cacheRead = u.cached_input_tokens!;
+        267 │               usage.out = u.output_tokens!;
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:265:44 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        263 │                 if (!Number.isSafeInteger(u[key]) || (u[key] ?? -1) < 0) throw new MitoriError("E_AGENT_PROTOCOL", "Codex terminal usage is invalid");
+        264 │               if (u.cached_input_tokens! > u.input_tokens!) throw new MitoriError("E_AGENT_PROTOCOL", "Codex cached input exceeds total input");
+      > 265 │               usage.in = u.input_tokens! - u.cached_input_tokens!;
+            │                                            ^^^^^^^^^^^^^^^^^^^^^^
+        266 │               usage.cacheRead = u.cached_input_tokens!;
+        267 │               usage.out = u.output_tokens!;
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:266:33 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        264 │               if (u.cached_input_tokens! > u.input_tokens!) throw new MitoriError("E_AGENT_PROTOCOL", "Codex cached input exceeds total input");
+        265 │               usage.in = u.input_tokens! - u.cached_input_tokens!;
+      > 266 │               usage.cacheRead = u.cached_input_tokens!;
+            │                                 ^^^^^^^^^^^^^^^^^^^^^^
+        267 │               usage.out = u.output_tokens!;
+        268 │               usage.thinking = u.reasoning_output_tokens ?? 0;
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:267:27 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        265 │               usage.in = u.input_tokens! - u.cached_input_tokens!;
+        266 │               usage.cacheRead = u.cached_input_tokens!;
+      > 267 │               usage.out = u.output_tokens!;
+            │                           ^^^^^^^^^^^^^^^^
+        268 │               usage.thinking = u.reasoning_output_tokens ?? 0;
+        269 │               terminal = true;
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:264:19 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        262 │               for (const key of ["input_tokens", "cached_input_tokens", "output_tokens"])
+        263 │                 if (!Number.isSafeInteger(u[key]) || (u[key] ?? -1) < 0) throw new MitoriError("E_AGENT_PROTOCOL", "Codex terminal usage is invalid");
+      > 264 │               if (u.cached_input_tokens! > u.input_tokens!) throw new MitoriError("E_AGENT_PROTOCOL", "Codex cached input exceeds total input");
+            │                   ^^^^^^^^^^^^^^^^^^^^^^
+        265 │               usage.in = u.input_tokens! - u.cached_input_tokens!;
+        266 │               usage.cacheRead = u.cached_input_tokens!;
+      
+    
+    packages/agent/src/adapters/codex-engine.ts:264:44 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        262 │               for (const key of ["input_tokens", "cached_input_tokens", "output_tokens"])
+        263 │                 if (!Number.isSafeInteger(u[key]) || (u[key] ?? -1) < 0) throw new MitoriError("E_AGENT_PROTOCOL", "Codex terminal usage is invalid");
+      > 264 │               if (u.cached_input_tokens! > u.input_tokens!) throw new MitoriError("E_AGENT_PROTOCOL", "Codex cached input exceeds total input");
+            │                                            ^^^^^^^^^^^^^^^
+        265 │               usage.in = u.input_tokens! - u.cached_input_tokens!;
+        266 │               usage.cacheRead = u.cached_input_tokens!;
+      
+    
+    packages/loop/src/git/accept.ts:224:9 lint/complexity/useOptionalChain  FIXABLE  ━━━━━━━━━━━━━━━━━━━
+    
+      ! Change to an optional chain.
+      
+        222 │     await this.g.ready();
+        223 │     const row = this.journal.get(ck);
+      > 224 │     if (!row || row.state !== "done") throw new MitoriError("E_NOT_FOUND", `checkpoint ${ck} not found`, { params: { checkpoint: ck } });
+            │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        225 │     if (row.undoneAt) throw new MitoriError("E_PRECONDITION", `checkpoint ${ck} was already undone`, { params: { checkpoint: ck } });
+        226 │     await this.requireObjects(row);
+      
+      i Unsafe fix: Change to an optional chain.
+      
+        222 222 │       await this.g.ready();
+        223 223 │       const row = this.journal.get(ck);
+        224     │ - ····if·(!row·||·row.state·!==·"done")·throw·new·MitoriError("E_NOT_FOUND",·`checkpoint·${ck}·not·found`,·{·params:·{·checkpoint:·ck·}·});
+            224 │ + ····if·(row?.state·!==·"done")·throw·new·MitoriError("E_NOT_FOUND",·`checkpoint·${ck}·not·found`,·{·params:·{·checkpoint:·ck·}·});
+        225 225 │       if (row.undoneAt) throw new MitoriError("E_PRECONDITION", `checkpoint ${ck} was already undone`, { params: { checkpoint: ck } });
+        226 226 │       await this.requireObjects(row);
+      
+    
+    packages/loop/src/git/pull-request.int.test.ts:55:18 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        53 │     const r = await git.createPullRequest(job, req);
+        54 │     expect(r.url).toBe("https://github.com/example/fixture/pull/1");
+      > 55 │     const push = calls.find((c) => c.argv.includes("push"))!;
+           │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        56 │     expect(push.env.GIT_DIR).toBe(git.ws.sideDir);
+        57 │     expect(push.env.GIT_CONFIG_GLOBAL).toBe("/dev/null");
+      
+    
+    packages/loop/src/git/pull-request.int.test.ts:58:20 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        56 │     expect(push.env.GIT_DIR).toBe(git.ws.sideDir);
+        57 │     expect(push.env.GIT_CONFIG_GLOBAL).toBe("/dev/null");
+      > 58 │     const commit = push.argv.at(-1)!.split(":")[0]!;
+           │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        59 │     expect((await git.ws.lsTree(commit)).map((e) => e.path)).not.toContain("unrelated.txt");
+        60 │     expect((await git.ws.rawDiff(parent, commit)).map((e) => e.path)).toEqual(["README.md"]);
+      
+    
+    packages/loop/src/git/pull-request.int.test.ts:58:20 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        56 │     expect(push.env.GIT_DIR).toBe(git.ws.sideDir);
+        57 │     expect(push.env.GIT_CONFIG_GLOBAL).toBe("/dev/null");
+      > 58 │     const commit = push.argv.at(-1)!.split(":")[0]!;
+           │                    ^^^^^^^^^^^^^^^^^
+        59 │     expect((await git.ws.lsTree(commit)).map((e) => e.path)).not.toContain("unrelated.txt");
+        60 │     expect((await git.ws.rawDiff(parent, commit)).map((e) => e.path)).toEqual(["README.md"]);
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+        56 56 │       expect(push.env.GIT_DIR).toBe(git.ws.sideDir);
+        57 57 │       expect(push.env.GIT_CONFIG_GLOBAL).toBe("/dev/null");
+        58    │ - ····const·commit·=·push.argv.at(-1)!.split(":")[0]!;
+           58 │ + ····const·commit·=·push.argv.at(-1)?.split(":")[0]!;
+        59 59 │       expect((await git.ws.lsTree(commit)).map((e) => e.path)).not.toContain("unrelated.txt");
+        60 60 │       expect((await git.ws.rawDiff(parent, commit)).map((e) => e.path)).toEqual(["README.md"]);
+      
+    
+    packages/server/src/wiring/doc-operations.ts:42:108 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        40 │     if (!opts.lang) throw new MitoriError("E_INVALID_INPUT", "lang is required");
+        41 │     const x = await env.domain(ctx);
+      > 42 │     return execute(x, opts.confirm, () => x.gen.translate(target as Parameters<typeof x.gen.translate>[0], opts.lang!, { confirm: false }));
+           │                                                                                                            ^^^^^^^^^^
+        43 │   };
+        44 │   return {
+      
+    
+    packages/server/src/wiring/loop-routes.ts:106:7 lint/complexity/useOptionalChain  FIXABLE  ━━━━━━━━━━
+    
+      ! Change to an optional chain.
+      
+        104 │ async function roundChanges(x: WorkspaceDomain, deny: Glob[], n: number): Promise<RoundChanges | null> {
+        105 │   const scope = x.loop.review.roundScope(n);
+      > 106 │   if (!scope || scope.mode !== "pull") return null;
+            │       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        107 │   const c = await x.loop.git.roundChanges(n, deny);
+        108 │   if (!c) return null;
+      
+      i Unsafe fix: Change to an optional chain.
+      
+        104 104 │   async function roundChanges(x: WorkspaceDomain, deny: Glob[], n: number): Promise<RoundChanges | null> {
+        105 105 │     const scope = x.loop.review.roundScope(n);
+        106     │ - ··if·(!scope·||·scope.mode·!==·"pull")·return·null;
+            106 │ + ··if·(scope?.mode·!==·"pull")·return·null;
+        107 107 │     const c = await x.loop.git.roundChanges(n, deny);
+        108 108 │     if (!c) return null;
+      
+    
+    packages/server/src/wiring/loop-routes.ts:315:11 lint/complexity/useOptionalChain  FIXABLE  ━━━━━━━━━━
+    
+      ! Change to an optional chain.
+      
+        313 │       const n = roundNo(ctx);
+        314 │       const scope = x.loop.review.roundScope(n);
+      > 315 │       if (!scope || scope.mode !== "pull") throw notFound("pull round", String(n));
+            │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        316 │       const res = await x.loop.git.undoRound(n, rt.settings().denyGlobs);
+        317 │       return { checkpoint: res.checkpoint, files: res.files.map((f) => f.path) };
+      
+      i Unsafe fix: Change to an optional chain.
+      
+        313 313 │         const n = roundNo(ctx);
+        314 314 │         const scope = x.loop.review.roundScope(n);
+        315     │ - ······if·(!scope·||·scope.mode·!==·"pull")·throw·notFound("pull·round",·String(n));
+            315 │ + ······if·(scope?.mode·!==·"pull")·throw·notFound("pull·round",·String(n));
+        316 316 │         const res = await x.loop.git.undoRound(n, rt.settings().denyGlobs);
+        317 317 │         return { checkpoint: res.checkpoint, files: res.files.map((f) => f.path) };
+      
+    
+    scripts/lib/budgets.test.ts:70:39 lint/suspicious/noTemplateCurlyInString ━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Unexpected template string placeholder.
+      
+        68 │       "e2e/perf/a.spec.ts": `expectWithinBudget("ui.shellPaint", r.shellPaint);`,
+        69 │       "e2e/perf/b.spec.ts": `// mentions ui.shellPaint only in prose`,
+      > 70 │       "eval/run.ts": "const id = `gen.${name}`;",
+           │                                       ^^^^^^^
+        71 │     };
+        72 │     const has = (p: string) => p in files;
+      
+      i Turn the string into a template string.
+      
+    
+    test/int/doc-operations.test.ts:33:20 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        31 │     await x.gen.idle();
+        32 │     block = Object.values(x.doc.index().blocks).find((b) => b.kind === "prose")!.id;
+      > 33 │     const before = x.doc.block(block)!;
+           │                    ^^^^^^^^^^^^^^^^^^^
+        34 │     const api = async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+        35 │       const r = await web.req(method, `/ws/${ws}${path}`, body);
+      
+    
+    test/int/doc-operations.test.ts:32:13 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        30 │     await int.json("POST", `/ws/${ws}/gen/runs`, { estimateId: ge.id, confirm: true });
+        31 │     await x.gen.idle();
+      > 32 │     block = Object.values(x.doc.index().blocks).find((b) => b.kind === "prose")!.id;
+           │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        33 │     const before = x.doc.block(block)!;
+        34 │     const api = async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+         30  30 │       await int.json("POST", `/ws/${ws}/gen/runs`, { estimateId: ge.id, confirm: true });
+         31  31 │       await x.gen.idle();
+         32     │ - ····block·=·Object.values(x.doc.index().blocks).find((b)·=>·b.kind·===·"prose")!.id;
+             32 │ + ····block·=·Object.values(x.doc.index().blocks).find((b)·=>·b.kind·===·"prose")?.id;
+         33  33 │       const before = x.doc.block(block)!;
+         34  34 │       const api = async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+      
+    
+    test/int/doc-operations.test.ts:59:12 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        57 │     expect(job?.writeScope).toEqual([]);
+        58 │     expect(job?.proposals).toHaveLength(1);
+      > 59 │     expect(x.doc.block(block)!.hash).toBe(before.hash);
+           │            ^^^^^^^^^^^^^^^^^^^
+        60 │     const proposal = x.doc.proposals().find((p) => p.id === job!.proposals[0])!;
+        61 │     expect(proposal).toMatchObject({ state: "pending", block, baseHash: before.hash, source: { kind: "job", id: created.id } });
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+         57  57 │       expect(job?.writeScope).toEqual([]);
+         58  58 │       expect(job?.proposals).toHaveLength(1);
+         59     │ - ····expect(x.doc.block(block)!.hash).toBe(before.hash);
+             59 │ + ····expect(x.doc.block(block)?.hash).toBe(before.hash);
+         60  60 │       const proposal = x.doc.proposals().find((p) => p.id === job!.proposals[0])!;
+         61  61 │       expect(proposal).toMatchObject({ state: "pending", block, baseHash: before.hash, source: { kind: "job", id: created.id } });
+      
+    
+    test/int/doc-operations.test.ts:60:22 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        58 │     expect(job?.proposals).toHaveLength(1);
+        59 │     expect(x.doc.block(block)!.hash).toBe(before.hash);
+      > 60 │     const proposal = x.doc.proposals().find((p) => p.id === job!.proposals[0])!;
+           │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        61 │     expect(proposal).toMatchObject({ state: "pending", block, baseHash: before.hash, source: { kind: "job", id: created.id } });
+        62 │     const accepted = await api<BlockView>("POST", `/doc/proposals/${proposal.id}/accept`, {});
+      
+    
+    test/int/doc-operations.test.ts:60:61 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        58 │     expect(job?.proposals).toHaveLength(1);
+        59 │     expect(x.doc.block(block)!.hash).toBe(before.hash);
+      > 60 │     const proposal = x.doc.proposals().find((p) => p.id === job!.proposals[0])!;
+           │                                                             ^^^^
+        61 │     expect(proposal).toMatchObject({ state: "pending", block, baseHash: before.hash, source: { kind: "job", id: created.id } });
+        62 │     const accepted = await api<BlockView>("POST", `/doc/proposals/${proposal.id}/accept`, {});
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+         58  58 │       expect(job?.proposals).toHaveLength(1);
+         59  59 │       expect(x.doc.block(block)!.hash).toBe(before.hash);
+         60     │ - ····const·proposal·=·x.doc.proposals().find((p)·=>·p.id·===·job!.proposals[0])!;
+             60 │ + ····const·proposal·=·x.doc.proposals().find((p)·=>·p.id·===·job?.proposals[0])!;
+         61  61 │       expect(proposal).toMatchObject({ state: "pending", block, baseHash: before.hash, source: { kind: "job", id: created.id } });
+         62  62 │       const accepted = await api<BlockView>("POST", `/doc/proposals/${proposal.id}/accept`, {});
+      
+    
+    test/int/doc-operations.test.ts:64:17 lint/style/noNonNullAssertion ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        62 │     const accepted = await api<BlockView>("POST", `/doc/proposals/${proposal.id}/accept`, {});
+        63 │     expect(accepted.hash).not.toBe(before.hash);
+      > 64 │     const old = x.doc.history(block).find((h) => h.hash === before.hash)!;
+           │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        65 │     const stale = await web.req("POST", `/ws/${ws}/doc/blocks/${block}/revert`, { rev: old.rev, baseHash: before.hash });
+        66 │     expect(stale.status).toBe(409);
+      
+    
+    test/int/doc-operations.test.ts:85:17 lint/style/noNonNullAssertion  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Forbidden non-null assertion.
+      
+        83 │       block,
+        84 │       section: before.section,
+      > 85 │       baseHash: x.doc.block(block)!.hash,
+           │                 ^^^^^^^^^^^^^^^^^^^
+        86 │       md: "確認用の保存済みの簡潔な説明です。",
+        87 │       source: { kind: "simplify", id: "gr_cached01" },
+      
+      i Unsafe fix: Replace with optional chain operator ?. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator
+      
+         83  83 │         block,
+         84  84 │         section: before.section,
+         85     │ - ······baseHash:·x.doc.block(block)!.hash,
+             85 │ + ······baseHash:·x.doc.block(block)?.hash,
+         86  86 │         md: "確認用の保存済みの簡潔な説明です。",
+         87  87 │         source: { kind: "simplify", id: "gr_cached01" },
+      
+    
+    test/int/shots/live.ts:171:25 lint/suspicious/noExplicitAny ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Unexpected any. Specify a different type.
+      
+        170 │ // ------------------------------------------------------------------------------------------- helpers
+      > 171 │ type J = Record<string, any>;
+            │                         ^^^
+        172 │ let spent = 0;
+        173 │ /** The API-equivalent $ of every job so far; aborts above the cap. */
+      
+      i any disables many type checking rules. Its use should be avoided.
+      
+    
+    test/int/shots/ux.ts:38:25 lint/suspicious/noExplicitAny ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      ! Unexpected any. Specify a different type.
+      
+        36 │   if (!ok) throw new Error(`check failed: ${what}`);
+        37 │ };
+      > 38 │ type J = Record<string, any>;
+           │                         ^^^
+        39 │ 
+        40 │ let skew = 0;
+      
+      i any disables many type checking rules. Its use should be avoided.
+      
+    
+    apps/web/src/shell/Header.svelte format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      × File content differs from formatting output
+      
+         20  20 │   const chip = $derived(s.review.chip);
+         21  21 │   let JobChip = $state.raw<typeof import("./JobChip.svelte").default | null>(null);
+         22     │ - $effect(()·=>·{·if·(chip.running·+·chip.locked·>·0·&&·!JobChip)·void·import("./JobChip.svelte").then((m)·=>·(JobChip·=·m.default));·});
+             22 │ + $effect(()·=>·{
+             23 │ + ··if·(chip.running·+·chip.locked·>·0·&&·!JobChip)·void·import("./JobChip.svelte").then((m)·=>·(JobChip·=·m.default));
+             24 │ + });
+         23  25 │   const inboxN = $derived(s.inbox.mineCount);
+         24  26 │   const tag = $derived(status?.profile?.head?.tag ?? null);
+      
+    
+    apps/web/src/shell/Shell.svelte format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      × File content differs from formatting output
+      
+        422 422 │   let Toasts = $state.raw<typeof import("./Toasts.svelte").default | null>(null);
+        423 423 │   let Stopped = $state.raw<typeof import("./StoppedOverlay.svelte").default | null>(null);
+        424     │ - const·bannerKey·=·$derived(conn.kind·===·"auth_expired"·?·"banner.authExpired"·:·conn.kind·===·"version_mismatch"·?·"banner.version"·:·conn.kind·===·"retrying"·?·"banner.retrying"·:·s.session.window?.billing·===·"overage"·?·"banner.overage"·:·s.gen.run?.paused?.reason·===·"yield_5h"·?·"banner.yield"·:·null);
+        425     │ - $effect(()·=>·{·if·(bannerKey·&&·!Banner)·void·import("./Banner.svelte").then((m)·=>·(Banner·=·m.default));·});
+        426     │ - $effect(()·=>·{·if·(s.bottom.toasts.length·&&·!Toasts)·void·import("./Toasts.svelte").then((m)·=>·(Toasts·=·m.default));·});
+        427     │ - $effect(()·=>·{·if·(conn.kind·===·"stopped"·&&·!Stopped)·void·import("./StoppedOverlay.svelte").then((m)·=>·(Stopped·=·m.default));·});
+        428     │ - const·pendingBanner·=·$derived(bannerKey·?·t(bannerKey,·conn.kind·===·"version_mismatch"·?·{·web:·conn.web,·daemon:·conn.daemon·}·:·conn.kind·===·"retrying"·?·{·s:·Math.max(1,·Math.round(conn.nextInMs·/·1000))·}·:·{·at:·"–"·}).replace(/<\/?(?:b|kbd|code)>/g,·"")·:·"");
+            424 │ + const·bannerKey·=·$derived(
+            425 │ + ··conn.kind·===·"auth_expired"
+            426 │ + ····?·"banner.authExpired"
+            427 │ + ····:·conn.kind·===·"version_mismatch"
+            428 │ + ······?·"banner.version"
+            429 │ + ······:·conn.kind·===·"retrying"
+            430 │ + ········?·"banner.retrying"
+            431 │ + ········:·s.session.window?.billing·===·"overage"
+            432 │ + ··········?·"banner.overage"
+            433 │ + ··········:·s.gen.run?.paused?.reason·===·"yield_5h"
+            434 │ + ············?·"banner.yield"
+            435 │ + ············:·null,
+            436 │ + );
+            437 │ + $effect(()·=>·{
+            438 │ + ··if·(bannerKey·&&·!Banner)·void·import("./Banner.svelte").then((m)·=>·(Banner·=·m.default));
+            439 │ + });
+            440 │ + $effect(()·=>·{
+            441 │ + ··if·(s.bottom.toasts.length·&&·!Toasts)·void·import("./Toasts.svelte").then((m)·=>·(Toasts·=·m.default));
+            442 │ + });
+            443 │ + $effect(()·=>·{
+            444 │ + ··if·(conn.kind·===·"stopped"·&&·!Stopped)·void·import("./StoppedOverlay.svelte").then((m)·=>·(Stopped·=·m.default));
+            445 │ + });
+            446 │ + const·pendingBanner·=·$derived(
+            447 │ + ··bannerKey
+            448 │ + ····?·t(
+            449 │ + ········bannerKey,
+            450 │ + ········conn.kind·===·"version_mismatch"
+            451 │ + ··········?·{·web:·conn.web,·daemon:·conn.daemon·}
+            452 │ + ··········:·conn.kind·===·"retrying"
+            453 │ + ············?·{·s:·Math.max(1,·Math.round(conn.nextInMs·/·1000))·}
+            454 │ + ············:·{·at:·"–"·},
+            455 │ + ······).replace(/<\/?(?:b|kbd|code)>/g,·"")
+            456 │ + ····:·"",
+            457 │ + );
+        429 458 │   
+        430 459 │   // live regions (ux.md §11.2): the connection coming back (the loss itself is the retrying banner, role=alert)
+      
+    
+    apps/web/src/shell/StoppedOverlay.svelte:6:1 assist/source/organizeImports  FIXABLE  ━━━━━━━━━━━━━━━
+    
+      × This statement must be preceded by a blank line. Add a newline before this statement.
+      
+        4 │ import { t } from "./index.ts";
+        5 │ import Rich from "./Rich.svelte";
+      > 6 │ const s = useStores();
+          │ ^^^^^^^^^^^^^^^^^^^^^^
+        7 │ const conn = $derived(s.session.connection);
+        8 │ </script>
+      
+      i Safe fix: Organize imports and exports (Biome)
+      
+        3 3 │   import { t } from "./index.ts";
+        4 4 │   import Rich from "./Rich.svelte";
+          5 │ + 
+        5 6 │   const s = useStores();
+        6 7 │   const conn = $derived(s.session.connection);
+      
+    
+    apps/web/vite.config.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      × File content differs from formatting output
+      
+         97  97 │                 test: (id: string) =>
+         98  98 │                   /[\\/](node_modules[\\/](svelte|esm-env|clsx)|apps[\\/]web[\\/]src[\\/](shell|stores|contract\.ts))[\\/.]/.test(id) &&
+         99     │ - ················!/[\\/]shell[\\/](?:(?:i18n-(?:ja|en)(?:-[a-z]+)?|main|help-guide)\.ts|(?:Launcher|HelpOverlay|Banner|Toasts|JobChip|StoppedOverlay|Rich)\.svelte)$/.test(id),
+             99 │ + ················!/[\\/]shell[\\/](?:(?:i18n-(?:ja|en)(?:-[a-z]+)?|main|help-guide)\.ts|(?:Launcher|HelpOverlay|Banner|Toasts|JobChip|StoppedOverlay|Rich)\.svelte)$/.test(
+            100 │ + ··················id,
+            101 │ + ················),
+        100 102 │                 priority: 10,
+        101 103 │               },
+      
+    
+    bench/budgets/agent.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      × File content differs from formatting output
+      
+          9   9 │         "unit": "tokens",
+         10  10 │         "dir": "max",
+         11     │ - ······"gates":·[
+         12     │ - ········"contract"
+         13     │ - ······],
+             11 │ + ······"gates":·["contract"],
+         14  12 │         "owner": "agent",
+         15  13 │         "measure": "bench/contract/run.ts#overhead-lean",
+        ······· │ 
+         24  22 │         "unit": "tokens",
+         25  23 │         "dir": "max",
+         26     │ - ······"gates":·[
+         27     │ - ········"contract"
+         28     │ - ······],
+             24 │ + ······"gates":·["contract"],
+         29  25 │         "owner": "agent",
+         30  26 │         "measure": "bench/contract/run.ts#overhead-tools",
+        ······· │ 
+         39  35 │         "unit": "count",
+         40  36 │         "dir": "max",
+         41     │ - ······"gates":·[
+         42     │ - ········"contract"
+         43     │ - ······],
+             37 │ + ······"gates":·["contract"],
+         44  38 │         "owner": "agent",
+         45  39 │         "measure": "bench/contract/run.ts#inherited-context",
+        ······· │ 
+         54  48 │         "unit": "ms",
+         55  49 │         "dir": "max",
+         56     │ - ······"gates":·[
+         57     │ - ········"absolute"
+         58     │ - ······],
+             50 │ + ······"gates":·["absolute"],
+         59  51 │         "owner": "agent",
+         60  52 │         "measure": "bench/agent.bench.ts#first-phase:warm",
+        ······· │ 
+         69  61 │         "unit": "ms",
+         70  62 │         "dir": "max",
+         71     │ - ······"gates":·[
+         72     │ - ········"contract"
+         73     │ - ······],
+             63 │ + ······"gates":·["contract"],
+         74  64 │         "owner": "agent",
+         75  65 │         "measure": "bench/contract/run.ts#first-phase-cold",
+        ······· │ 
+         84  74 │         "unit": "ms",
+         85  75 │         "dir": "max",
+         86     │ - ······"gates":·[
+         87     │ - ········"absolute"
+         88     │ - ······],
+             76 │ + ······"gates":·["absolute"],
+         89  77 │         "owner": "agent",
+         90  78 │         "measure": "bench/agent.bench.ts#interactive-wait",
+        ······· │ 
+         99  87 │         "unit": "count",
+        100  88 │         "dir": "max",
+        101     │ - ······"gates":·[
+        102     │ - ········"structural"
+        103     │ - ······],
+             89 │ + ······"gates":·["structural"],
+        104  90 │         "owner": "agent",
+        105  91 │         "measure": "bench/agent-live.bench.ts#resident-procs",
+        ······· │ 
+        114 100 │         "unit": "MB",
+        115 101 │         "dir": "max",
+        116     │ - ······"gates":·[
+        117     │ - ········"absolute"
+        118     │ - ······],
+            102 │ + ······"gates":·["absolute"],
+        119 103 │         "owner": "agent",
+        120 104 │         "measure": "bench/agent-live.bench.ts#resident-rss",
+      
+    
+    bench/measure/oss-quality.ts:2:1 assist/source/organizeImports  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      × Sort the imported names.
+      
+        1 │ // Offline evidence only: source existence and ranges do not establish that a sentence is true.
+      > 2 │ import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+          │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        3 │ import { join, relative, resolve } from "node:path";
+        4 │ 
+      
+      i Safe fix: Organize imports and exports (Biome)
+      
+         1  1 │   // Offline evidence only: source existence and ranges do not establish that a sentence is true.
+         2    │ - import·{·existsSync,·readFileSync,·readdirSync,·writeFileSync·}·from·"node:fs";
+            2 │ + import·{·existsSync,·readdirSync,·readFileSync,·writeFileSync·}·from·"node:fs";
+         3  3 │   import { join, relative, resolve } from "node:path";
+         4  4 │   
+      
+    
+    ci ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+      × Some errors were emitted while running checks.
+✓ boundaries      1.38 s
+✓ cr-ledger       0.15 s
+✓ budgets         0.02 s
+✗ contract-index  0.98 s
+    contract-index: docs/design/briefs/INDEX.md is stale — run `bun run contract:index` and review the public-surface diff
+✓ svelte-check    4.86 s
+check: 2 step(s) failed in 15.12 s
+check: wall time over the 15 s target
+error: script "check" exited with code 1

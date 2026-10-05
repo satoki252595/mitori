@@ -213,11 +213,11 @@ function createAgentBridgeFor(spawner: Parameters<typeof createAgentBridge>[0]["
 }
 
 describe("createAgentBridge (B7)", () => {
-  test("returns the scheduler and every engine id (session/codex-cli null until their WPs)", () => {
+  test("returns the scheduler and every engine id (session has no native process)", () => {
     const b = createAgentBridgeFor({ spawn: () => Promise.reject() as never });
     expect(Object.keys(b.engines).sort()).toEqual(["anthropic-api", "claude-cli", "codex-cli", "generic", "session"]);
     expect(b.engines.session).toBeNull();
-    expect(b.engines["codex-cli"]).toBeNull();
+    expect(b.engines["codex-cli"]?.id).toBe("codex-cli");
     expect(b.scheduler.status().concurrency).toBe(3);
   });
 

@@ -3,12 +3,12 @@
 // (`GitSafetyHandle`): the accept outcome with its overlap hunks, commits in the user's repository with trailers,
 // SEC-18 attribute checks, and the per-job worktree / link bookkeeping.
 import type { AcceptReq, CheckpointId, FileDiff, GitOid, Glob, JobId, RepoPath, SecretScanner, SqlDb, WriteQueue } from "@mitori/core";
-import { MitoriError } from "@mitori/core";
 import type { GitSafety, ScopeReport } from "../contract.ts";
 import { dependencyLinks } from "../gates/deps.ts";
 import { AcceptEngine, type AcceptOutcome, type CommitRequest } from "./accept.ts";
 import { gc } from "./gc.ts";
 import { checkpointOf, Journal } from "./journal.ts";
+import { createPullRequest, type PullRequestInput } from "./pull-request.ts";
 import { markRound, roundChanges, undoRound } from "./rounds.ts";
 import { checkScope } from "./scope.ts";
 import { type GitDeps, GitWorkspace } from "./side.ts";
@@ -18,6 +18,8 @@ import { commitHead, createWorktree, linkDependencies, removeWorktree, restoreWo
 
 /** Ports of {@link createGitSafety}. */
 export interface GitSafetyDeps extends GitDeps {
+  /** Trusted GitHub CLI resolved by the server on SAFE_PATH. */
+  gh?: string;
   /** Workspace DB (`job_checkpoints`). */
   db: SqlDb;
   /** Workspace write queue. */
@@ -30,6 +32,7 @@ export interface GitSafetyDeps extends GitDeps {
 
 /** The contract surface plus what the job runner needs. */
 export interface GitSafetyHandle extends GitSafety {
+  createPullRequest(job: JobId, req: PullRequestInput): Promise<{ url: string; branch: string }>;
   /** The side repo context. */
   readonly ws: GitWorkspace;
   /** The journal. */
@@ -122,10 +125,7 @@ export function createGitSafety(deps: GitSafetyDeps): GitSafetyHandle {
     undo: (ck: CheckpointId, force) => engine.undo(ck, force),
     exportPatch: (job, sel) => engine.exportPatch(job, sel, defaultMessage(job), deps.secrets),
     exportPatchWith: (job, sel, req) => engine.exportPatch(job, sel, req, deps.secrets),
-    async createPullRequest(job) {
-      // GitHub PRs are an explicit user action of WP-08c (spec §7.13, SEC-04)
-      throw new MitoriError("E_UNSUPPORTED", "pull requests arrive with WP-08c", { params: { job, what: "git.createPullRequest" } });
-    },
+    createPullRequest: (job, req) => createPullRequest(ws, deps, job, req),
     gc: (activeJobs) => gc(ws, journal, activeJobs, { now: deps.clock.now() }),
     recoverAccept: (ck) => engine.recover(ck),
     commitPaths: (paths, req, added) => engine.commitPaths(paths, req, added),

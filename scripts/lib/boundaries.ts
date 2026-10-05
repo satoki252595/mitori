@@ -145,7 +145,7 @@ export function checkSource(info: FileInfo, text: string): Violation[] {
   const ioOk = info.test || (own !== null && IO_OK.has(own));
   // The browser app has no injected Clock/Random ports (UI timers, idempotency keys); it is exempt from the
   // determinism rules but still may not write files or spawn (it cannot anyway).
-  const entropyOk = ioOk || own === "@mitori/web";
+  const entropyOk = ioOk || own === "@mitori/web" || own === "@mitori/share";
   const fsBindings = new Set<string>();
   const procBindings = new Set<string>();
 

@@ -250,7 +250,7 @@ const HTML_TAG_RE = /<\/?[A-Za-z][^>\n]*>|<!--|<![A-Za-z]|<\?/u;
 const HEADING_RE = /^ {0,3}#{1,6}(?:\s|$)/mu;
 
 /** Reasons an engine-written block must be refused: raw HTML (also ID comments), headings in a non-heading block. Code is data, not markup. */
-function markdownProblems(md: string, headingBlock: boolean): string[] {
+export function markdownProblems(md: string, headingBlock: boolean): string[] {
   const visible = md
     .replace(/^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:\n {0,3}\1[`~]*[ \t]*(?=\n|(?![\s\S]))|(?![\s\S]))/gmu, "")
     .replace(/(`+)[^`\n]*?\1/gu, "");

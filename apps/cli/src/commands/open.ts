@@ -10,6 +10,7 @@ import { openInBrowser } from "./browser.ts";
 import { helpLang } from "./help.ts";
 import { type Io, usage } from "./io.ts";
 import { connect, connectWorkspace, type Session } from "./session.ts";
+import { docDirOf } from "./workspace.ts";
 
 const DOC_RE = /^doc_[0-9a-z]{12}$/;
 const BLOCK_RE = /^b_[0-9a-z]{8}$/;
@@ -32,6 +33,18 @@ export async function afterOpen(io: Io, s: Session, ws: WorkspaceKey, open: bool
   io.err(`mitori: open ${nonce.url}\n`);
   if (open) await openInBrowser(io, s, ws, to);
   const ja = helpLang(io.env) === "ja";
+  try {
+    const { info } = await s.api.call("GET /ws/:ws", { params: { ws } });
+    const kind = info.kind === "remote-readonly" ? "read-only" : info.kind;
+    const dir = JSON.stringify(docDirOf(info));
+    io.err(
+      ja
+        ? `mitori: 設計書（${kind}）の保存先: ${dir}（commit は opt-in${info.docCommitted ? "・設定済み" : ""}）\n`
+        : `mitori: design doc (${kind}): ${dir} (commit is opt-in${info.docCommitted ? "; enabled" : ""})\n`,
+    );
+  } catch {
+    // An older daemon may not expose workspace status; opening still succeeds.
+  }
   try {
     const never: string[] = [];
     for (const v of await s.api.call("GET /integrations", { params: {}, query: { ws } }))

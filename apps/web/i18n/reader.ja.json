@@ -137,5 +137,18 @@
   "reader.genPausedBudget": "生成の予算の80%に達したため一時停止しています。この節はまだ書かれていません",
   "reader.genResume": "再開する",
   "reader.translateAsk": "AIに日本語で説明してもらう",
-  "reader.translateAskBody": "この節の内容を日本語で説明してください（要点と、出てくる名前の役割）"
+  "reader.translateAskBody": "この節の内容を日本語で説明してください（要点と、出てくる名前の役割）",
+  "reader.act.simplify": "この段落の簡略化を提案する",
+  "reader.act.translate": "この段落を翻訳する",
+  "reader.translate": "この節の訳を表示する",
+  "reader.translationShown": "訳を表示中（原文は保持されています）",
+  "reader.showOriginal": "原文に戻す",
+  "reader.op.confirm": "{op}を開始しますか？\nモデル: {model}\n推定{tokens}トークン、API換算額 約${usd}（実際の請求はエンジンの課金方式によります）",
+  "reader.op.proposal": "簡略化の提案を準備します。確認して採用するまで本文は変わりません",
+  "reader.op.translating": "翻訳を準備しています。完了すると訳を表示します",
+  "reader.op.translationFailed": "翻訳に失敗しました。原文を表示しています",
+  "reader.op.failed": "文書操作に失敗しました: {error}",
+  "history.revert": "この版に戻す",
+  "history.revertConfirm": "この段落をR{rev}の本文に戻しますか？現在の本文も履歴に残り、再び戻せます",
+  "history.reverted": "段落をR{rev}の本文に戻しました"
 }

@@ -289,7 +289,7 @@ export function createFakeIndexer(repo: FakeRepo, hasher: Hasher): FakeIndexer {
       const modLines = modules.map((m) => `> ${m.id} ${m.slug} files=${m.paths.length} rank=${m.rank.toFixed(2)}`);
       const fl = factsWithBlob().map((f) => `> ${f.kind === "route" ? `R ${f.method} ${f.pattern}` : f.kind} ${f.path}:${f.line}`);
       const fileList = [...texts.keys()].sort().map((p) => `> F ${p} lines=${lineArr(texts.get(p) ?? "").length}`);
-      const text = ["# mitori.repopack/1", "=== MODULES", ...modLines, "=== FACTS", ...fl, "=== FILES", ...fileList].join("\n");
+      const text = ["# mitori.repopack/2", "=== MODULES", ...modLines, "=== FACTS", ...fl, "=== FILES", ...fileList].join("\n");
       return { text, tokens: tokens(text), indexDigest: digest, key: hasher.xxh3(`pack:${text}`), parts: [], redactions: 0 };
     },
     moduleSeeds: () => [],

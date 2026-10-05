@@ -442,9 +442,11 @@ export function loopHandlers(env: LoopRouteEnv): RouteHandlers {
       return x.loop.jobs.commit(ctx.params.job, typeof message === "string" ? message : undefined);
     },
     "POST /ws/:ws/jobs/:job/pr": async (ctx) => {
+      if (ctx.auth.client !== "web") throw new MitoriError("E_FORBIDDEN", "PR creation requires a human web session (SEC-04)");
       const x = await d(ctx);
       const req = body<{ title?: unknown; body?: unknown; draft?: unknown }>(ctx);
       if (typeof req.title !== "string" || typeof req.body !== "string") throw invalid("title", "title and body are required");
+      if (req.draft !== undefined && typeof req.draft !== "boolean") throw invalid("draft", "draft must be a boolean");
       return x.loop.jobs.pullRequest(ctx.params.job, { title: req.title, body: req.body, draft: req.draft !== false });
     },
     "POST /ws/:ws/prompt": async (ctx) => (await d(ctx)).extras.bundles.copyPrompt(body(ctx)),

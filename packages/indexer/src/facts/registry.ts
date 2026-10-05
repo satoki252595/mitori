@@ -193,7 +193,7 @@ export const FACT_DETECTORS: readonly FactDetector[] = [
     (input) => (asTree(input.tree) || !TODO_WORD.test(input.text) ? [] : todos(input)),
   ),
   // NC-10 §8: HTTP / SDK / DB clients / RPC / subprocesses of the code (imports gate every rule) [CR rdoc-1]
-  detector("outbound.calls@1", ["outbound"], [...GO, ...JS, "python", "rust"], (f) => f.class === "source" && OUTBOUND_LANGS.has(f.lang), outboundCalls),
+  detector("outbound.calls@2", ["outbound"], [...GO, ...JS, "python", "rust"], (f) => f.class === "source" && OUTBOUND_LANGS.has(f.lang), outboundCalls),
   detector("test.go@1", ["test"], GO, lang("go"), goTests),
   detector("test.js@1", ["test"], JS, js, jsTests),
   detector("test.python@1", ["test"], ["python"], lang("python"), pyTests),

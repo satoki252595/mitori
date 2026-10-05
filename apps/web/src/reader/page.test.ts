@@ -9,7 +9,7 @@ import { UI_THRESHOLDS } from "../contract.ts";
 import { codeWindow, editorUrl, invalidateCode, loadCode, parseCite } from "./code.ts";
 import { columnKinds, factCite } from "./decorate.ts";
 import { indexOutline, pageSections, readingMinutes, subtreeStats, tocState } from "./outline.ts";
-import { buildPage, genNoteOf, isTitleBlock, l3Runs, sectionsToFetch, stepBlock } from "./page.ts";
+import { buildPage, genNoteOf, isTitleBlock, l3Runs, pageProvenance, sectionsToFetch, stepBlock } from "./page.ts";
 import { estimateBlockPx, visibleWindows, windowOf } from "./virtual.ts";
 
 const node = (id: string, file: string, children: string[] = [], state = "generated"): SectionNode =>
@@ -53,7 +53,7 @@ describe("outline index", () => {
   });
 
   test("verdict / freshness counters roll up; TOC state glyphs", () => {
-    expect(subtreeStats(ix, "s3" as never)).toEqual({ blocks: 3, verified: 1, inferred: 1, stale: 1, unsupported: 0 });
+    expect(subtreeStats(ix, "s3" as never)).toEqual({ blocks: 3, verified: 1, inferred: 1, stale: 1, unsupported: 0, authored: 0, static: 0 });
     expect(tocState(ix.nodes.get("s3" as never) as SectionNode, subtreeStats(ix, "s3" as never))).toBe("stale");
     expect(tocState(ix.nodes.get("s6" as never) as SectionNode, undefined)).toBe("pending");
     expect(tocState(ix.nodes.get("appendix" as never) as SectionNode, undefined)).toBe("static");
@@ -81,6 +81,19 @@ describe("outline index", () => {
     expect(sectionsToFetch(ix, "s3" as never, (id) => one.get(id))).toEqual([]);
     expect(buildPage(ix, "s3" as never, (id) => one.get(id)).order).toEqual(["b_1", "b_2"]);
   });
+});
+
+test("NC-19: static headers do not borrow a global model; AI descendants defeat a static parent tag", () => {
+  const staticBlock = { ...blk("b_static", "s6", 0), origin: "static" } as BlockView;
+  const aiBlock = { ...blk("b_ai", "s6/a", 1), origin: "ai", gen: { model: "generic:requested", servedBy: "actual" } } as unknown as BlockView;
+  expect(pageProvenance([{ blocks: [staticBlock] }])).toEqual({ staticOnly: true, models: [] });
+  expect(pageProvenance([{ blocks: [{ ...staticBlock, lang: "ja", htmlLang: "en" }] }])).toEqual({ staticOnly: false, models: [] });
+  expect(pageProvenance([{ blocks: [staticBlock] }, { blocks: [aiBlock] }])).toEqual({ staticOnly: false, models: ["actual"] });
+  const o = outline();
+  o.sections = [node("s6", "doc/06.md", ["s6/a"], "static_only"), node("s6/a", "doc/a.md")];
+  o.blocks = [["b_ai", "s6/a", "L1", "prose", "inferred", 0, "fresh", "ai"]] as DocOutline["blocks"];
+  const ix = indexOutline(o);
+  expect(tocState(o.sections[0] as SectionNode, subtreeStats(ix, "s6" as never))).toBe("generated");
 });
 
 describe("j / k and L3 runs", () => {

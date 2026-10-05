@@ -3,7 +3,7 @@
 import { ROOT } from "./lib/repo.ts";
 
 const STEPS: [name: string, argv: string[]][] = [
-  ["tsc -b", ["tsc", "-b", "--pretty", "false"]],
+  ["tsc", ["bun", "scripts/typecheck.ts"]],
   ["biome", ["biome", "ci", "--colors=off", "."]],
   ["boundaries", ["bun", "scripts/check-boundaries.ts"]],
   ["cr-ledger", ["bun", "scripts/check-cr-ledger.ts"]],

@@ -1,0 +1,43 @@
+{
+  "v": "mitori.linux-cold-check/1",
+  "date": "2026-10-05",
+  "arch": "arm64",
+  "filesystem": "native-container",
+  "sourceTree": "fce997ad2dcc61cbd13ee8c5001f6ebfdeaa15ed",
+  "evidenceDirectory": "facts-verified",
+  "sourceChange": "facts:painted mark condition and mktemp failure guard",
+  "freshSourceExport": true,
+  "frozenInstall": true,
+  "declarationCacheCleared": true,
+  "semanticCacheCleared": true,
+  "osPageCacheCleared": false,
+  "semanticProjects": 20,
+  "semanticParallelism": 3,
+  "semanticFailures": 0,
+  "declarationSeconds": 3.94,
+  "semanticSeconds": 10.53,
+  "wallSeconds": 14.59,
+  "exitCode": 0,
+  "targetSeconds": 15,
+  "targetPassed": true,
+  "hardLimitSeconds": 30,
+  "hardLimitPassed": true,
+  "steps": {
+    "tsc": { "seconds": 14.59, "exitCode": 0 },
+    "biome": { "seconds": 0.55, "exitCode": 0 },
+    "boundaries": { "seconds": 1.19, "exitCode": 0 },
+    "crLedger": { "seconds": 0.09, "exitCode": 0 },
+    "budgets": { "seconds": 0.01, "exitCode": 0 },
+    "contractIndex": { "seconds": 0.88, "exitCode": 0 },
+    "svelteCheck": { "seconds": 4.72, "exitCode": 0, "errors": 0, "warnings": 0 }
+  },
+  "history": [
+    { "case": "mac-bind-export", "wallSeconds": 167.20, "exitCode": 1, "reason": "hard-time-limit" },
+    { "case": "native-first", "wallSeconds": 22.15, "exitCode": 1, "reason": "one-cli-test-type-error" },
+    { "case": "native-verified", "sourceTree": "8ae8ccc8c8309d2625902feda1dc73185a3462e9", "wallSeconds": 16.00, "exitCode": 0, "targetPassed": false, "hardLimitPassed": true }
+  ],
+  "comparisonSourceIdentical": false,
+  "extraLlmCalls": 0,
+  "wholeUnitRun": false,
+  "productionBuildRun": false
+}

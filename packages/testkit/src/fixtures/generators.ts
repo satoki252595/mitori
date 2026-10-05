@@ -54,6 +54,13 @@ function tsLines(bytes: number, seed: number): string {
   return `${out}//${".".repeat(rest - 3)}\n`;
 }
 
+/** Numbered comment lines, 15 bytes each: 300,000 bytes is exactly 20,000 source lines. */
+function tsNumberedLines(bytes: number): string {
+  if (bytes % 15 !== 0 || bytes / 15 > 999_999)
+    throw new MitoriError("E_INVALID_INPUT", "ts-numbered-lines needs a multiple of 15 bytes (at most 999,999 lines)");
+  return Array.from({ length: bytes / 15 }, (_, i) => `// line ${String(i + 1).padStart(6, "0")}\n`).join("");
+}
+
 /** One line of statements ending in LF, exactly `bytes` long (a "minified bundle"). */
 function minifiedLine(bytes: number, seed: number): string {
   const rand = prng(seed);
@@ -97,6 +104,7 @@ function mdLongBlock(bytes: number, seed: number): string {
 const REGISTRY: Record<string, (bytes: number, seed: number) => string | Uint8Array> = {
   "isbn-json": isbnJson,
   "ts-lines": tsLines,
+  "ts-numbered-lines": tsNumberedLines,
   "minified-line": minifiedLine,
   "nul-blob": nulBlob,
   "md-long-block": mdLongBlock,

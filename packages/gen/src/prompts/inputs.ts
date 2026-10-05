@@ -8,7 +8,7 @@
  */
 import type { Block, BlockId, ClaimKind, DocLang, Fact, GitOid, LineNo, ModuleId, ModuleInfo, RepoPath, SectionId, Xxh3 } from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
-import type { Indexer } from "@mitori/indexer";
+import type { FlowSeed, Indexer } from "@mitori/indexer";
 import { DATA_BUDGETS, type DataLabel, type GenPlan, type GenQuestionLine, type PlannedTask, type TaskInputs } from "../contract.ts";
 import { codeSpans, plainText } from "../line/mdscan.ts";
 import { fileChunks, filesChunkOf, filesInput, isFilesMode } from "./files.ts";
@@ -71,6 +71,7 @@ const CLAIM_KINDS: Partial<Record<PlannedTask["prompt"], readonly ClaimKind[]>> 
   "gen.quality": ["performance", "security", "invariant", "edge_case"],
   "gen.decisions": ["architecture"],
   "gen.risks": ["risk", "edge_case"],
+  "gen.questions": ["architecture", "behavior", "edge_case", "invariant", "security", "fact"],
 };
 
 const SECURITY_DEP_RE = /auth|jwt|jose|crypt|argon|oauth|session|csrf|helmet|cors|tls|ssl|passport|secret|sanitiz|xss/i;
@@ -116,6 +117,9 @@ class Budget {
     private readonly tokens: (t: string) => number,
     private readonly what: string,
   ) {}
+  get remaining(): number {
+    return Math.max(0, this.limit - this.used);
+  }
   /** Add one item (a group of lines); false when it did not fit. */
   add(item: readonly string[]): boolean {
     const t = this.tokens(item.join("\n"));
@@ -209,17 +213,8 @@ class Gatherer {
         return { MODULES: this.labels() };
       case "gen.flows": {
         const seeds = genFlowSeeds(ix);
-        // seeds that start at the same handler return the same slice: show it once [verifier 2026-10-04: m3e's three
-        // derived seeds all start at `Editor`, whose first 80 lines filled BODIES three times]
-        const shown = new Set<string>();
-        const bodies = seeds
-          .flatMap((s) => ix.flowBodies(s, Math.floor((this.budgets.BODIES ?? 12000) / Math.max(1, seeds.length)), "claude-v5"))
-          .filter((b) => {
-            const key = `${b.path}\u0000${b.blob}\u0000${b.start}\u0000${b.end}`;
-            if (shown.has(key)) return false;
-            shown.add(key);
-            return true;
-          });
+        // The shared body builder deduplicates callers before the one unchanged total budget is applied.
+        const bodies = this.flowSlices(seeds);
         return {
           SEEDS: seeds.map((s) => `> seed${s.k} ${s.kind} ${s.label} ${s.path}:${s.line} path: ${s.modules.join(" > ")}`),
           BODIES: this.bodies(bodies, "BODIES"),
@@ -249,27 +244,31 @@ class Gatherer {
       case "gen.quality":
         return {
           CLAIMS: this.claimLines(CLAIM_KINDS["gen.quality"] ?? []),
-          BODIES: this.bodies(this.fanInBodies(5), "BODIES"),
+          BODIES: this.bodies(this.qualityBodies(), "BODIES"),
           FACTS: this.qualityFacts(),
           EXISTING: this.existing(["s9"]),
         };
       case "gen.decisions":
         return {
-          DOCS: await this.docs("DOCS", null, undefined, (f) => f.role !== "readme" && f.role !== "other"),
+          DOCS: await this.docs("DOCS", null, undefined, (f) => f.role !== "other"),
           COMMENTS: this.comments(),
           CLAIMS: this.claimLines(CLAIM_KINDS["gen.decisions"] ?? []),
           EXISTING: this.existing(["s10"]),
         };
       case "gen.risks":
         return {
-          TODOS: this.todos(),
+          TODOS: await this.todos(),
           UNTESTED: this.untested(),
           LARGE: this.large(),
           CLAIMS: this.claimLines(CLAIM_KINDS["gen.risks"] ?? []),
           EXISTING: this.existing(["s11"]),
         };
       case "gen.questions":
-        return { RAW: this.raw() };
+        return {
+          RAW: this.raw(),
+          DOCS: await this.docs("DOCS", null),
+          CLAIMS: this.claimLines(CLAIM_KINDS["gen.questions"] ?? []),
+        };
       case "gen.deepdive":
         return isFilesMode(t.mode) ? await this.fileNotes() : await this.deepdive();
       case "doc.sync": {
@@ -336,7 +335,43 @@ class Gatherer {
     return b.done();
   }
 
-  /** BODIES of gen.quality: hot bodies of the 5 leaf modules with the most incoming dependencies. */
+  /** Entry defaults and route guards before hot bodies; the shared BODIES budget stays unchanged. */
+  private qualityBodies(): ReturnType<Indexer["flowBodies"]> {
+    const ix = this.env.indexer;
+    const seeds = genFlowSeeds(ix);
+    const routes = seeds.filter((s) => s.kind === "route");
+    const routeFiles = new Set(routes.map((s) => s.files[0] ?? s.path));
+    const mains: FlowSeed[] = [];
+    const entries = [...ix.facts("entry", "main")].sort((a, b) => {
+      const path = (f: typeof a) => (f.kind === "entry" && ix.file(f.label) ? f.label : f.path);
+      return Number(routeFiles.has(path(b))) - Number(routeFiles.has(path(a)));
+    });
+    for (const f of entries) {
+      if (f.kind !== "entry" || f.entry !== "main") continue;
+      const path = ix.file(f.label) ? f.label : f.path;
+      const module = ix.moduleOf(path);
+      const main = ix.symbols(path).find((s) => s.name === "main" && (s.kind === "function" || s.kind === "method"));
+      if (!main || !module || mains.some((s) => s.handler === main.key)) continue;
+      mains.push({ k: mains.length + 1, kind: "entry", label: main.qualname, path, line: main.start, handler: main.key, files: [path], modules: [module] });
+      if (mains.length >= 8) break;
+    }
+    const primary = routeFiles.size > 0 ? mains.filter((s) => routeFiles.has(s.path)) : mains;
+    return this.flowSlices(primary)
+      .concat(this.flowSlices(routes.length > 0 ? routes : seeds))
+      .concat(this.flowSlices(mains.filter((s) => !primary.includes(s))))
+      .concat(this.fanInBodies(5));
+  }
+
+  /** Interleave actual branch slices: one large core file must not consume the budget before another branch. */
+  private flowSlices(seeds: readonly FlowSeed[]): ReturnType<Indexer["flowBodies"]> {
+    const branches = seeds.map((s) => ({ s, bodies: this.env.indexer.flowBodies(s, this.budgets.BODIES ?? 12000, "claude-v5") }));
+    // Complete the downstream call branches before spending the remaining budget on a boot / static shell.
+    return [branches.filter((b) => b.s.files.length > 1), branches.filter((b) => b.s.files.length <= 1)].flatMap((group) =>
+      Array.from({ length: Math.max(0, ...group.map((b) => b.bodies.length)) }, (_, i) => group.flatMap((b) => (b.bodies[i] ? [b.bodies[i]] : []))).flat(),
+    );
+  }
+
+  /** Hot bodies of the 5 leaf modules with the most incoming dependencies. */
   private fanInBodies(n: number): ReturnType<Indexer["hotBodies"]> {
     const ix = this.env.indexer;
     const leaves = ix
@@ -371,10 +406,17 @@ class Gatherer {
     return b.done();
   }
 
-  /** TODOS (§5.2). */
-  private todos(): string[] {
+  /** TODOS (§5.2), with adjacent lines so a continued comment keeps its actual state and meaning. */
+  private async todos(): Promise<string[]> {
     const b = this.budget("TODOS", "todo items");
-    for (const f of this.env.indexer.facts("todo")) if (f.kind === "todo") b.add([`> ${f.marker} ${f.path}:${f.line} ${f.text}`]);
+    const ix = this.env.indexer;
+    for (const f of ix.facts("todo")) {
+      if (f.kind !== "todo") continue;
+      const file = ix.file(f.path);
+      if (!file || file.excluded || file.lines === 0) continue;
+      const s = await ix.read(f.path, { start: Math.max(1, f.line - 2), end: Math.min(file.lines, f.line + 2) }, { numbered: true });
+      if (b.add([`> ${f.marker} ${f.path}:${f.line} ${f.text}`, `=== ${s.path} · lines ${s.start}-${s.end}`, ...s.text.split("\n")])) this.see(s.path, s.blob);
+    }
     return b.done();
   }
 
@@ -566,10 +608,29 @@ class Gatherer {
 
   private bodies(slices: readonly { path: RepoPath; blob: GitOid; start: number; end: number; text: string }[], label: DataLabel): string[] {
     const b = this.budget(label, "bodies");
+    const seen = new Set<string>();
+    const shown = new Map<string, Set<number>>();
     for (const s of slices) {
+      const key = `${s.path}\u0000${s.blob}\u0000${s.start}\u0000${s.end}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const file = `${s.path}\u0000${s.blob}`;
+      const lines = shown.get(file) ?? new Set<number>();
+      const text = s.text.split("\n").filter((l) => {
+        const n = /^(\d+)\|/.exec(l);
+        return !n || !lines.has(Number(n[1]));
+      });
+      if (!text.some((l) => /^\d+\|/.test(l))) continue;
       const q = this.env.indexer.enclosingSymbol(s.path, s.start, s.end)?.qualname;
       const head = `=== ${s.path}${q ? ` · ${q}` : ""} · lines ${s.start}-${s.end}`;
-      if (b.add([head, ...s.text.split("\n")])) this.see(s.path, s.blob);
+      if (b.add([head, ...text])) {
+        for (const l of text) {
+          const n = /^(\d+)\|/.exec(l);
+          if (n) lines.add(Number(n[1]));
+        }
+        shown.set(file, lines);
+        this.see(s.path, s.blob);
+      }
     }
     return b.done();
   }
@@ -590,11 +651,18 @@ class Gatherer {
         if (keep && !keep(d)) return false;
         if (!dirs) return true;
         const dir = d.path.includes("/") ? d.path.slice(0, d.path.lastIndexOf("/")) : ".";
-        return dirs.has(dir);
+        return dirs.has(dir) || ((d.role === "readme" || d.role === "contributing") && (dir === "." || [...dirs].some((p) => p.startsWith(`${dir}/`))));
       })
       .sort((a, c) => {
-        const ra = a.kind === "existing_doc" && a.role === "readme" ? 0 : 1;
-        const rc = c.kind === "existing_doc" && c.role === "readme" ? 0 : 1;
+        const order =
+          this.task.prompt === "gen.decisions"
+            ? ["architecture", "adr", "agents", "claude", "contributing", "readme", "other"]
+            : m
+              ? ["contributing", "readme"]
+              : ["readme"];
+        const rank = (d: Fact) => (d.kind === "existing_doc" && order.includes(d.role) ? order.indexOf(d.role) : order.length);
+        const ra = rank(a);
+        const rc = rank(c);
         return ra - rc || (a.path < c.path ? -1 : 1);
       });
     for (const d of chosen) {
@@ -602,8 +670,14 @@ class Gatherer {
       const entry = ix.file(d.path);
       if (!entry || entry.excluded || entry.lines === 0) continue; // deny globs / secrets never reach a prompt
       const lines = entry.lines;
-      const slice = await ix.read(d.path, { start: 1, end: Math.min(lines, isReadme ? 40 : 20) }, { numbered: true });
-      if (b.add([`=== ${d.path} · lines ${slice.start}-${slice.end}`, ...slice.text.split("\n")])) this.see(d.path, slice.blob);
+      const limit = this.task.prompt === "gen.decisions" || (m && d.kind === "existing_doc" && d.role === "contributing") ? 80 : isReadme ? 40 : 20;
+      const slice = await ix.read(d.path, { start: 1, end: Math.min(lines, limit) }, { numbered: true });
+      const excerpt = slice.text.split("\n");
+      const header = () => `=== ${d.path} · lines ${slice.start}-${slice.start + excerpt.length - 1}`;
+      // Longer contributor guidance must not disappear as one oversized item. Keep the numbered prefix that
+      // actually fits, including its change checklist after setup, within the original document budget.
+      while (excerpt.length > 0 && this.env.tokens([header(), ...excerpt].join("\n")) > b.remaining) excerpt.pop();
+      if (excerpt.length > 0 && b.add([header(), ...excerpt])) this.see(d.path, slice.blob);
     }
     return b.done();
   }
@@ -633,8 +707,7 @@ class Gatherer {
 
   private summary(blk: Block): string {
     const text = plainText(this.env.doc.markerForm(blk.id) ?? blk.md);
-    const first = text.split(/(?<=[。．！？.!?])\s*/)[0] ?? text;
-    return first.slice(0, 80);
+    return text.slice(0, 80);
   }
 
   /** CHANGES: stale claims with their old lines (not citable) and the new range ±3 (citable). */

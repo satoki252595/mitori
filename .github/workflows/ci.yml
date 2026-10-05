@@ -7,6 +7,12 @@ name: ci
 on:
   pull_request:
   workflow_dispatch:
+    inputs:
+      windows_nix_exception_approved:
+        description: "Explicit user approval for this run's Windows-only official Bun installation"
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
@@ -16,6 +22,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  windows:
+    # The existing ci workflow can dispatch this branch's reusable workflow before it reaches main.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_nix_exception_approved }}
+    uses: ./.github/workflows/windows.yml
+    with:
+      nix_exception_approved: true
+
   pr:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -40,3 +53,31 @@ jobs:
 
       - name: Binary smoke (linux-x64)
         run: nix develop .#ci --command bash -c 'bun run build:bin && ./dist/mitori-linux-x64 --version'
+
+  browsers:
+    # Internal PRs only: a fork cannot execute code on the user's Mac.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: [self-hosted, macOS, ARM64, mitori-reference]
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: scripts/nd bun install --frozen-lockfile
+      - run: scripts/nd bunx playwright install chromium firefox webkit
+      - name: Reader, map, large sections and IME in real browsers
+        run: scripts/nd bunx playwright test -c e2e/web/playwright.config.ts --project chromium --project firefox --project webkit
+      - name: Encrypted shared viewer in Chromium, Firefox and WebKit
+        run: MITORI_BROWSER_SHARE=1 scripts/nd bun test e2e/share/share.int.test.ts
+      - name: Accessibility
+        run: scripts/nd bun run e2e --grep @a11y
+      - name: Keep browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: browsers-${{ github.sha }}
+          path: test-results/
+          retention-days: 30

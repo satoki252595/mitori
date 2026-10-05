@@ -29,7 +29,7 @@ export const METERED_MONTHLY_CAP_USD = 6;
 export const PENDING_SUITES: Readonly<Record<RealSuite, string>> = {
   cite: "M2: citation L0/L1 recheck over a generated document (needs WP-06 output)",
   patch: "M3: patch fixtures with hidden tests (needs the loop and a live engine)",
-  tokens: "M2/M3: token-efficiency report (needs generation runs and the ledger)",
+  tokens: "Live token-efficiency suite is pending; --gen-report reads captured gen-real baselines offline without an engine",
   quiz: "out of scope this session (SC-13)",
 };
 

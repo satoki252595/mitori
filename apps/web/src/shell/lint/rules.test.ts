@@ -98,6 +98,27 @@ describe("WEB-U-012 rule self-tests", () => {
     expect(one("mitori/no-console-log", "src/x/a.ts", "console.log(1); console.error(2)")).toHaveLength(1);
   });
 
+  test("native HTML approval is confined to the reviewed expression and source", () => {
+    const id = "mitori/trusted-html";
+    const reviewed = [
+      ["src/shell/Header.svelte", '{@html initialHtml[0] ?? ""}'],
+      ["src/shell/Rail.svelte", "{@html initialHtml}"],
+      ["src/shell/StatusBar.svelte", "{@html initialHtml}"],
+      ["src/map/FloorPlan.svelte", "{@html initialSvg}"],
+      ["src/shell/native.ts", "template.innerHTML = html; old.innerHTML = next.innerHTML;"],
+      ["src/reader/native.ts", "prose.innerHTML = old.html; el.innerHTML = old.html;"],
+    ];
+    for (const [file, source] of reviewed) {
+      expect(one(id, file!, source!)).toEqual([]);
+      expect(one(id, file!, `${source}\nunsafe.innerHTML = userInput;`)).toHaveLength(1);
+      expect(one(id, file!, "{@html userInput}")).toHaveLength(1);
+      expect(one(id, "src/x/Other.svelte", source!).length).toBeGreaterThan(0);
+    }
+    expect(one(id, "src/reader/native.ts", "el.innerHTML = old.html + userInput;")).toHaveLength(1);
+    expect(one(id, "src/shell/Header.svelte", '{@html initialHtml[0] ?? "" + userInput}')).toHaveLength(1);
+    expect(one(id, "src/shell/native.ts", 'template.insertAdjacentHTML("beforeend", html);')).toHaveLength(1);
+  });
+
   test("stripComments keeps line numbers and URLs in strings", () => {
     const s = stripComments('a\n/* x\ny */\nconst u = "http://x"; // c');
     expect(s.split("\n")).toHaveLength(4);

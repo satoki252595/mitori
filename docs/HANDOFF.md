@@ -1,11 +1,46 @@
-# mitori 引き継ぎ資料（2026-10-05 push・整理済み）
+# mitori 引き継ぎ資料（2026-10-05 残タスク対応中）
 
 > **現在の入口は §★。以下の「履歴★」と §0 / §0a / §0b は以前の記録。**
 > 利用者の続行指示に加え、今回の Linux 既存 Docker ハーネス例外と、任意 LLM 対応・Muse Contributor / max の選択を反映した。
 
-## ★ 現在の状態
+## ★ 現在の状態（残タスク全件と最近のOSS検証）
 
-### ★.1 統合と実装
+作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。`origin/main` は `815957fd01fb4856b5ae8d3aa2091edd1ddd263f`。今回の実装は `codex/complete-backlog` の作業中で、**まだコミット・push・統合していない**。以前の4 remブランチの統合・整理は完了済み。
+
+### ★.1 実装・単位検証済み
+
+- web の文書戻す / ブロック・節翻訳 / やさしく表示、docpatch/1、人の採用・Undo、side repo だけからGitHub PRを作る経路、Codex native lean agent を実装した。[backend報告](progress/remaining-backend-20261005.md)。Codex は Mac の検証済み binary と apply_patch だけ。可視 step 上限と費用推計同意であり、provider の hidden token / USD hard cap を保証する仕様ではない。
+- 実 GitHub の product export helper から own repo に一時 draft [PR #3](https://github.com/satoki252595/mitori/pull/3) を作り、1 file / 3 additions と local Git metadata不変を確認後、close / remote branch削除した。[実送信証跡](progress/pr-native-probe-20261005.md)。web側のhuman/gate条件は別int検証と区別している。
+- 引用と推論・provenance、outbound入力、shallowで利用可能な履歴、pinの後始末を修正。[gen/indexer報告](progress/remaining-gen-indexer-20261005.md)。moduleのDOCS/flow入力、共有summary、既存flowの同ID更新も、OSS理解確認で見つけた不足に合わせて修正した。
+- floorplanはdefault offのfeature flagで実装。8 corpusのactor保持 / determinism、fallback25%、40room algorithm約1.4–1.5msを確認。[floorplan証跡](progress/floorplan-20261005.json)。初回worker起動時間とは区別した。
+- 未計測7benchを5UI＋2agent residentとして測定。[UI計測](progress/ui-bench-20261005/README.md)。scanSummary中央値1,413.6msは1,000ms target超過だが2,000ms limit内のWARN。他の対象予算はgreen。Muse終了5秒後は0 process / 0MBで、Claude常駐cacheを測ったとは扱わない。
+- AC接続・前後負荷guardを維持して静かな基準機を校正。2026-10-05T03:01:28Z、5試行best316.23ms。[基準機記録](progress/reference-machine-20261005.md)。以前の補正結果を新係数で遡って成功へ変えていない。
+- Nix管理のself-hosted Mac runnerは `mitori-reference-mac`、label `mitori-reference` で online。内部PRの3browser / shared viewer / a11y CIを用意した。今回のbranchでの実CIは最終コミット後に実行する。
+- WindowsはNix/ZigのJob Object helper、SHA検証・配布assets、path対応、manual native CIを用意。Nix crossbuildは成功し、native実行は未実施。[Windows報告](progress/windows-job-20261005.md)。unverified helper/profileを安全機能付きと表示しない。
+- 暗号化共有はAES-GCM・署名付きsnapshot・R2/D1 quota・期限・コメントとCLIを実装。Miniflare/D1とChromium/Firefox/WebKit、保存file://viewerを確認、Worker dryrun15.41KiBraw/5.30KiBgz。[共有報告](progress/cloudflare-share-2026-10-05.md)。remote resource作成 / deploy / Paid化はしていない。
+
+### ★.2 実 Muse のOSS品質確認
+
+- 最近作成されstarの多い公開OSS3件をGitHub APIで選定しSHA固定した。m3e-canvas (8,692 stars)、jev-ultrafast (21,997)、Laya (30,713)。Trending順位やstar増加量を測ったとは言わない。[選定・費用・結果](progress/oss-quality-2026-10-05/README.md)。
+- Muse `muse-spark-1.3-contributor` / `max`、shell/write/web toolsなしのnative lean profile。上流依存 / script / アプリを実行せず、mitoriの解析と生成を試した。初回m3e13/13、Jev11/11。Layaは45分で18/21まで、失敗1＋中止2を保持した。
+- Layaの45文字slugを40文字上限で拒むvalidatorの不整合を修正。失敗moduleと必要な節だけ再開し4/4、全13module page generatedを確認した。初回一括21/21とは報告しない。
+- 設計判断・問いを修正して該当節だけ実Muse再検証した。key保存と送信、Host/Originと盗聴、最低版とCI版の混同を修正した。JevのGET handlerとLOCK/atexitの役割、history追加がobserveより先であること、Layaの公開既定値を最新生成で訂正した。m3eの条件付き変更先とJevの一部手順には説明の省略が残る。1,425引用先の無効0は意味の正しさの保証ではない。
+- API相当推計累計は現在$0.482213、総cap$1。m3eのfresh standardは13/13・1704.0秒。本文bytesと設定単価の推計で、実請求・hidden reasoning tokenではない。private config / raw recordingsはGitに入れない。native84callsの安全監査で違反0、初回Layaの未完1を履歴に保持した。Laya途中runのcap超過$0.000095も保持し、最終spending guardを修正した。
+
+### ★.3 完了前に残ること
+
+1. 初期JSはfacts paint mark修正後の通常S1で43,792 bytes（42.8KiB）、hard60KiB gateを成功。cold proposalの既存Svelteと同じ表示・CSS・28px control、人の文書採用、引用範囲をreal UXで確認した。最終shipping実daemonのstatic Map/ReaderもJS実br39,567B / gzip相当43,798B、HTML/JSON/document込みencoded total83,535 / 77,565B、served SHA一致・provider0を確認。生成済みmockと静的fixtureの違いと以前の結果は証跡に明記。
+2. 生成の改善と3OSSのsource照合は完了。m3eの条件付き変更先、Jevのchoose内部・過去履歴の保持理由・PRESS_KEY全手順などの説明省略は限界として記録した。識別子検査L1のvacuousを意味の正しさと同一視しない。
+3. 最終Mac checkは梱包修正後7.02秒exit0（20project意味型検査含む）、失敗19int filesは88pass/733assert、renderer17pass/144assert。Windows95.89MB超過はraw/br重複埋込みを省いて94.35MBへ修正し全target95MB以内。Mac compiled自己検査は成功。facts mark修正後のLinux native filesystemで全cold check14.59秒/exit0、両type cache空・全20意味検査、15秒target・30秒limitを達成。以前の失敗と16秒の成功も保持。PR実CIは未完。
+4. **回答待ち:** 今回限りのWindows native CI Nix例外、専用Cloudflare resource作成＋deployの承認。Macは最終確認前に再ロックしてnative Safariは解除待ち。WebKitをSafari実機・実IME検証の代わりとして報告しない。
+5. 最終証跡更新、coauthor付きcommit、push・PR・green後merge・不要branch削除。利用者の公開意向は今回も有効。未完を残なしとは報告しない。
+6. F7/F15は最終shipping版で計測済み。Mac physical footprintはempty48.25MB（limit50内・target30超過WARN）、loaded146.58MB（target150内）、React peak886.86MB（limit1000内・target700超過WARN）。real crit palette中央値32.1ms / round p95 32.4ms（元limit33内・target16超過WARN）。resident値やmock workerの別計測と区別する。[最終計測](progress/shipping-performance-20261005.json)。F11は13callの完全入力とrun/task/hashを照合し、同Claude-v5推計296051 / 621491 =0.476356でtarget0.5以内を確認。費用管理の保守的byte比1.1142は元red reportを維持し、provider exactは未測定。[同counterの証拠](progress/oss-quality-2026-10-05/token-efficiency-comparable.md)。
+
+---
+
+## 前回★ 初回push・整理時の状態（履歴）
+
+### 前回★.1 統合と実装
 
 - `rem/bench` → `rem/safety` → `rem/doc` → `rem/ui` は **main へ統合済み・push済み**。merge commit は `8abe718` / `4c8f463` / `f393f17` / `84fa9c7`。各統合後の check は成功。CR 台帳の追記は両方保持し、INT-06 の両方の検証を残した。2026-10-05に利用者の指示で未pushの90コミットを反映し、統合済みlocal78本・remote16本を削除した。両側のbranchはmainのみ。詳細と削除ref/SHAは `docs/progress/git-publication-2026-10-05.md` / `.json`。
 - 続行の実装は `8cdae9c`、scoped生成の問いの復元は `49c1575`、リスク生成のTODO状態保持は `28388df`、スレッド由来の決定の文言は `848c4d4` に保存した。検証・生成例・引き継ぎは別の資料コミットで保存する。
@@ -13,7 +48,7 @@
 - F6 / CR ui-3 は実装済み。大きな節は anchor 周囲の HTML を先に取得し、残りを idle で補充する。section JSON は br/gzip に対応。SSE の更新・削除・freshness、全文検索、既読 marker との整合を保つ。
 - UI の非同期設定保存・全文検索の stale reply、freshness の DOM 更新、Git 2.43 の promisor missing object 処理、crit cold-open ベンチの重複 id を修正した。
 
-### ★.2 任意 LLM / 今回の Muse
+### 前回★.2 任意 LLM / 今回の Muse
 
 - 既存 generic CLI にモデル・reasoning・明示単価・出力 protocol・生成 deadline を接続した。説明、構造化 patch/findings、設計書生成で使う。任意 CLI の agent tools は未対応。設定境界と制限は `docs/design/adr/0015-configurable-llm.md`。
 - 今回は **`generic:muse-spark-1.3-contributor` / `max`**。既存 Muse native binary を使い、新しい依存は追加していない。Claude の OAuth は今回の検証に不要。
@@ -23,7 +58,7 @@
 - 実修復ターンも成功: go-vet 失敗 → attempt2 → 3ゲート成功、最後は reject して元の bytes を維持した。記録値 $0.001284（usage 推計）。Muse の各起動は認証だけをコピーした0700/0600の一時 profile と空 toolset を使い、終了時に削除する。tool/hook/reminder/MCP は観測0。generic の追加 context は同じWRITE範囲・current head・既存30行hintを用い、1 job で1回まで。証跡 `docs/progress/repair-muse/measurements.json`。
 - critは継続分を合わせ**24/24完了**。scoped集約の42問欠落を修正し、リスク節と問いだけを再生成した。最後は43RAWから15問、内部retry0%、壁時計再開8.3%、L1 99.6%、27calls、実行時間合計3,458.4秒。USD0.182344推計、初回120秒失敗分を含めUSD0.212474。45分一括完走は未達。最終文書・合成方法・原記録の入口は `docs/progress/gen-muse-final/README.md`。
 
-### ★.3 検証と次の入口
+### 前回★.3 検証と次の入口
 
 - 最終 `scripts/nd bun run check` は10.63秒、`build:bin` は成功。全 unit の初回3失敗は各単位の再検証で解消。focused Chromium 32件中30件成功、残りCLSを修正しCLS/size4件成功。詳細は `docs/progress/continuation.md`。
 - UI / F6 の検証: `docs/progress/continuation-ui.md`。初期 JS は地図約87.4 / Reader約91.3 KB gz、**60 KB は未達**。CLSは1280/1440幅で0。初回に必要な shell/store 境界の再設計が残る。
@@ -32,7 +67,7 @@
 - 実 LLM の再実行コマンド、cap、観測上の制限: `docs/progress/continuation-live.md`。一時設定と生の provider 記録は `/tmp` のみに置き、認証情報を Git へ保存しない。
 - 作業追跡: [Issue #1](https://github.com/satoki252595/mitori/issues/1)。原コンセプトと運用上の安全・費用制約は以下の履歴★.4、repo の `AGENTS.md`、ADR-0013 / ADR-0015 を維持する。
 
-### ★.4 残り
+### 前回★.4 残り
 
 1. 生成品質の残り: 設計判断の細部偏重、識別子列挙/反復、TODO周辺文脈、未出典文など。実測で問いの欠落・TODO意味逆転・決定の曖昧表示を修正したが、全件解消ではない。具体例は `docs/progress/continuation-quality.md`。実修復の37行の独自error/整数formatにも簡潔さの改善余地がある。
 2. 初期 JS 60 KB、静かな基準機での bench 記録、未計測7件、self-hosted runner、Linux cold check の30秒上限。

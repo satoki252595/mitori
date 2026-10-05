@@ -347,7 +347,13 @@ export function laterStages(view: IndexView): LaterStages {
       }
     };
     await load(handlerFiles(s));
-    await load(textFiles(s, next));
+    // Source-confirmed flows can continue inside a module. Warm their next calls before ranking the final seeds;
+    // each pass keeps the same 64-file flow cap, and the existing walk ends after six hops.
+    for (let hop = 0; hop < 6; hop++) {
+      const before = next.size;
+      await load(textFiles(s, new Map(next)));
+      if (next.size === before) break;
+    }
     texts = next;
     textBlobs = nextBlobs;
   }

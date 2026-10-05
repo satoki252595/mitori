@@ -11,6 +11,7 @@ import {
   type CitePeek,
   type Claim,
   type DiagramIR,
+  type DiagramLayout,
   type DocLang,
   type DocOutline,
   type FileContent,
@@ -38,7 +39,7 @@ import {
 import { type BlockRenderer, blockDiagramIr, type DiagramLayouter, type DocStore, type HighlightReq, regionLabel, withDiagramSvg } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
 import { fileRegions, REGION_MIN_LINES } from "./doc-regions.ts";
-import { containerDiagram } from "./static-input.ts";
+import { containerDiagram, floorplanDiagram } from "./static-input.ts";
 
 const VERDICT_ORDER: readonly Verdict[] = ["stale", "unsupported", "inferred", "cited", "verified", "human-verified"];
 const ESC: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -143,6 +144,8 @@ export interface ViewCtx {
   lines: MdLines;
   /** Diagram layouts (cached by IR digest): the Reader draws diagram blocks as SVG, like the export (NC-03). */
   layouter?: Pick<DiagramLayouter, "layout">;
+  /** WP-18 remains opt-in; the callback reads current settings for each map request. */
+  floorplan?: () => boolean;
   /** Thread counters of a block (open, non-draft total). */
   threads(block: BlockId): { open: number; total: number };
 }
@@ -264,7 +267,7 @@ export function docOutline(doc: DocStore, outlineRev: number, openThreads: numbe
       if (!b) continue;
       if (b.freshness === "stale") stale++;
       const claims = b.claims.map((cid) => idx.claims[cid]).filter((x): x is Claim => x !== undefined);
-      blocks.push([b.id, b.section, b.depth, b.kind, worstVerdict(claims), b.ord, b.freshness]);
+      blocks.push([b.id, b.section, b.depth, b.kind, worstVerdict(claims), b.ord, b.freshness, b.origin]);
     }
   const claims = Object.values(idx.claims);
   return {
@@ -302,11 +305,27 @@ export function mapDiagram(doc: DocStore, indexer: Indexer): DiagramIR | null {
   return ir ? { ...ir, id: "dg_map00000" as DiagramIR["id"] } : null;
 }
 
+const previousFloors = new WeakMap<ViewCtx, DiagramLayout>();
 /** `GET /ws/:ws/map`. Churn needs `GitReader.log` (gen §17 C5), so it is reported unavailable. */
 export async function mapView(c: ViewCtx, indexer: Indexer, layouter: DiagramLayouter, comments: (module: string) => number): Promise<MapView> {
-  const diagram = mapDiagram(c.doc, indexer);
+  let diagram = mapDiagram(c.doc, indexer);
   if (diagram === null) throw new MitoriError("E_NOT_READY", "the map needs a finished scan", { retryable: true });
-  const layout = await layouter.layout(diagram);
+  let layout = await layouter.layout(diagram);
+  let quality: MapView["quality"];
+  let fallback: MapView["fallback"];
+  if (c.floorplan?.()) {
+    const input = await floorplanDiagram(indexer, c.doc);
+    if (input) {
+      const floor = { ...input, id: diagram.id };
+      const candidate = await layouter.layoutFloorplan(floor, previousFloors.get(c) ?? null);
+      previousFloors.set(c, candidate.layout);
+      quality = candidate.quality;
+      if (quality.labelFit >= 0.7 && quality.doorRatio >= 0.45 && quality.rooms <= 40 && quality.layoutMs <= 30) {
+        diagram = floor;
+        layout = candidate.layout;
+      } else fallback = "container";
+    }
+  }
   const freshness: Record<string, Freshness> = {};
   const commentsBy: Record<string, number> = {};
   const idx = c.doc.index();
@@ -353,6 +372,8 @@ export async function mapView(c: ViewCtx, indexer: Indexer, layouter: DiagramLay
   return {
     diagram,
     layout,
+    ...(quality ? { quality } : {}),
+    ...(fallback ? { fallback } : {}),
     overlays: { comments: commentsBy, working: {}, churn: {}, churnUnavailable: true, freshness },
     modules,
     quick,

@@ -1,0 +1,28 @@
+# 10. 設計判断 <!-- b_8cdevade -->
+
+> [!IMPORTANT]
+> **利用者のプロセスと機材で完結し、ホストサービスや外部 API に依存しない**（[AGENTS.md:9](../../AGENTS.md#L9)）。ホストバックエンドを要する機能は本体ではなく分離した統合に置く（[AGENTS.md:9](../../AGENTS.md#L9)）。外部依存を持ち込むと利用者環境だけでは動作しなくなるためである（推測）。本体に外部呼び出しを追加する変更は方針の見直しが必要になり、通常は別統合での実現を検討する（[AGENTS.md:9](../../AGENTS.md#L9)）。 <!-- b_tdp4snm3 -->
+
+> [!IMPORTANT]
+> **単一フォワードパスで型付き判定を返す非自己回帰の判定機構とする**（[README.md:8](../../README.md#L8)、[README.md:6-7](../../laya-java/README.md#L6-L7)）。1 回の推論で 100 以上の言語の判定を 33 ms で返す速度を狙うためである（[README.md:8](../../README.md#L8)）。質問形式や推論経路を変える際は単一パスで完結する前提への影響を確認する（推測）。 <!-- b_w70n3r0k -->
+
+> [!IMPORTANT]
+> **言語とスクリプトの検出に基づき `Router` が要求ごとにチェックポイントを選ぶ**（[README.md:74](../../README.md#L74)）。非英語文は `laya-multilingual` に送る（[README.md:74](../../README.md#L74)）。未知の Latin 文字言語は英語用に置くと安全でないため、非英語文字率で判定する（[router.py:1035-1039](../../laya/router.py#L1035-L1039)）。言語コードの扱いを変える際は `und` などの判定不能域の振る舞いへの影響を確認する（[router.py:170-174](../../laya/router.py#L170-L174)）。 <!-- b_29wdf9de -->
+
+> [!IMPORTANT]
+> **公開 API の変更時は `tests/test_hooks_api.py` を同一プルリクエストで更新する**（[AGENTS.md:10](../../AGENTS.md#L10)）。同スイートが API 契約であるためである（[AGENTS.md:10](../../AGENTS.md#L10)）。更新のない公開 API 変更は方針に反するため、変更時は同スイートを見直す（[AGENTS.md:10](../../AGENTS.md#L10)）。 <!-- b_9hzb3hfc -->
+
+> [!IMPORTANT]
+> **評価や検証を本体の推論経路から分離し、本体パッケージの依存を軽く保つ**（[README.md:27-28](../../research/eval/README.md#L27-L28)）。本体の推論経路に組み込まないことで依存増加を避けるためである（[README.md:27-28](../../research/eval/README.md#L27-L28)）。サーバー経路や ONNX 経路は任意導入とし、必要なものだけを入れる（[CONTRIBUTING.md:32-33](../../CONTRIBUTING.md#L32-L33)、[CONTRIBUTING.md:44-45](../../CONTRIBUTING.md#L44-L45)）。 <!-- b_q3zgvz4k -->
+
+> [!IMPORTANT]
+> **サーバー経路と ONNX 経路は必須にせず任意の `extras` とする**（[CONTRIBUTING.md:32-33](../../CONTRIBUTING.md#L32-L33)、[CONTRIBUTING.md:44-45](../../CONTRIBUTING.md#L44-L45)）。`serve` と `fast` と `onnx` と `langchain` と `langgraph` は `pyproject.toml` で宣言し、変更に必要なものだけを導入する（[CONTRIBUTING.md:32-33](../../CONTRIBUTING.md#L32-L33)）。`tests/test_serve.py` と `tests/test_onnx.py` は対応する `extras` が無い環境ではスキップする（[CONTRIBUTING.md:44-45](../../CONTRIBUTING.md#L44-L45)）。重い依存を伴う追加は本体の必須依存ではなく任意導入側を検討し、必須化する場合は導入負荷の見直しが要る（推測）。 <!-- b_rtsb1eq6 -->
+
+> [!IMPORTANT]
+> **呼び出し元データを信用せず、`lang` の記録と処理量に上限を設ける**（[router.py:275-278](../../laya/router.py#L275-L278)）。正確な `str` は表示前に 32 文字に切り詰め、それ以外は定数として扱う（[router.py:277-281](../../laya/router.py#L277-L281)）。`lang` を受け取れる入口にだけ渡し、`TypeError` での再試行で全走査を繰り返さない（[router.py:266-270](../../laya/router.py#L266-L270)）。外部入力を扱う変更では記録出力と再実行の有無を確認する（推測）。 <!-- b_smabg2np -->
+
+> [!IMPORTANT]
+> **導入時に TensorFlow 由来の読み込みを避け、固有クラッシュを防ぐ**（[\_\_init\_\_.py:9-13](../../laya/__init__.py#L9-L13)）。`transformers` を直接導入せず、必要名を遅延して先に無効化を行う（[\_\_init\_\_.py:19-21](../../laya/__init__.py#L19-L21)）。初回導入時に可否を決めるため、通常経路で先に実行する必要があるためである（[\_\_init\_\_.py:19-21](../../laya/__init__.py#L19-L21)）。導入直後の処理や依存を追加する際は先頭配置の維持を確認する（[\_\_init\_\_.py:19-20](../../laya/__init__.py#L19-L20)）。 <!-- b_ad951jzj -->
+
+- スレッドから記録した決定はまだありません。スレッドの結論を「決定として残す」と、ここに並びます。
+<!-- b_6tej1cnp -->

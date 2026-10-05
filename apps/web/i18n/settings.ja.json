@@ -56,5 +56,8 @@
   "settings.providerInvalid": "保存できません。モデルID・実行ファイルと引数のJSON配列・料金・接続状態を確認してください。",
   "settings.providerSetup": "実行ファイルの登録は端末で確認します。下のコマンドを実行した後、もう一度保存してください。",
   "settings.copySetup": "登録コマンドをコピー",
-  "settings.timeout": "生成1回の待ち時間上限（秒、空欄は120秒）"
+  "settings.timeout": "生成1回の待ち時間上限（秒、空欄は120秒）",
+  "settings.map": "構造図",
+  "settings.floorplan": "間取り図を使う",
+  "settings.floorplanNote": "LOCに応じた部屋とimportに対応する扉を表示します。読みやすさの条件を満たさない構成は依存図で表示します"
 }

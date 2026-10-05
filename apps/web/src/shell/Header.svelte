@@ -9,9 +9,8 @@ import { HREFS } from "@mitori/core";
 import { flushSync, untrack } from "svelte";
 import { currentLayout, setReaderLevel, useStores } from "../stores/app.svelte.ts";
 import { fmtTokensImpl, fmtUsdImpl } from "./fmt.ts";
-import Icon from "./Icon.svelte";
 import { t } from "./index.ts";
-import JobChip from "./JobChip.svelte";
+import { replaceChrome } from "./native.ts";
 import { getItem, getJson, STORAGE_KEYS, setJson } from "./storage.ts";
 
 const s = useStores();
@@ -19,6 +18,10 @@ const route = $derived(s.router.route);
 const ws = $derived("ws" in route ? route.ws : null);
 const status = $derived(s.workspace.status);
 const chip = $derived(s.review.chip);
+let JobChip = $state.raw<typeof import("./JobChip.svelte").default | null>(null);
+$effect(() => {
+  if (chip.running + chip.locked > 0 && !JobChip) void import("./JobChip.svelte").then((m) => (JobChip = m.default));
+});
 const inboxN = $derived(s.inbox.mineCount);
 const tag = $derived(status?.profile?.head?.tag ?? null);
 
@@ -144,99 +147,136 @@ const crumbs = $derived.by(() => {
   }
   return out;
 });
-</script>
-
-<header class="hdr" data-chrome bind:this={hdrEl} data-tight={tight || undefined}>
-  <div class="hdr-l">
-    <button type="button" class="icon-btn menu-btn" class:show={drawer} class:in-review={current === "review"} aria-label={t("header.menu")} aria-expanded={drawer ? s.ui.railOpen : undefined} onclick={() => (s.ui.railOpen = !s.ui.railOpen)}><Icon name="menu" /></button>
-    <a class="brand" href="/" aria-label={t("header.home")}>
-      <span class="brand-ja" data-brand>{t("brand.name")}</span><span class="brand-en">{t("brand.latin")}</span>
-    </a>
-    {#if ws}
-      <span class="hdr-sep" aria-hidden="true"></span>
-      <button type="button" class="proj" class:reserve aria-haspopup="true" aria-expanded={wsMenu} onclick={toggleWsMenu}>
-        <span class="proj-name" data-user-content>{projName}</span>
-        <span class="proj-meta">{projHead}{#if projTag}<span class="tag"> &middot; <span data-user-content>{projTag}</span></span>{/if}</span>
-        {#if status?.info.kind === "shadow"}<span class="kind-badge" title={t("header.shadowTip")}>{t("header.shadow")}</span>{/if}
-        {#if status?.info.kind === "remote-readonly"}<span class="kind-badge">{t("header.readonly")}</span>{/if}
-      </button>
-    {/if}
-  </div>
-
-  <div class="hdr-m">
-    {#if ws}
-      <nav class="tabs" aria-label={t("nav.label")} bind:this={tabsEl}>
-        <a class="tab" href={HREFS.map(ws)} aria-current={current === "map" ? "page" : undefined}><span>{t("nav.map")}</span></a>
-        <a class="tab" href={docHref()} aria-current={current === "doc" ? "page" : undefined}><span>{t("nav.doc")}</span></a>
-        <a class="tab" href={`/w/${ws}/inbox`} aria-current={current === "inbox" ? "page" : undefined}
-          ><span>{t("nav.inbox")}</span><span class="tab-count" data-zero={inboxN === 0 ? "" : undefined} aria-label={t("a11y.count", { n: inboxN })}>{inboxN}</span></a
-        >
-        <a class="tab" href={`/w/${ws}/review`} aria-current={current === "review" ? "page" : undefined}
-          ><span>{t("nav.review")}</span><span class="tab-count prop" data-zero={chip.ready === 0 ? "" : undefined} aria-label={t("a11y.count", { n: chip.ready })}>&#x25C6;{chip.ready}</span></a
-        >
-      </nav>
-    {/if}
-  </div>
-
-  <div class="hdr-r">
-    <ol class="crumbs" aria-label={t("header.crumbs")}>
-      {#if crumbs.length > 1}
-        <li>{t("nav.map")}</li>
-        {#each crumbs as c, i (i)}<li data-user-content>{c}</li>{/each}
-      {/if}
-    </ol>
-    <button type="button" class="search" aria-label={t("header.searchAria")} onclick={() => s.palette.show()}>
-      <Icon name="search" /><span>{t("header.search")}</span><kbd>{s.keys.hint("palette.open")}</kbd>
-    </button>
-    <div class="seg level" role="radiogroup" aria-label={t("level.label")}>
-      {#each LEVELS as l (l)}
-        <label class:on={s.doc.level === l}
-          ><input type="radio" name="mitori-level" value={l} checked={s.doc.level === l} onchange={() => setReaderLevel(s, l)} /><span>{t(`level.${l}`)}</span></label
-        >
-      {/each}
-    </div>
-    <!-- ready jobs are the レビュー tab's count; the chip says what is still working (no ◆ twice in one header) -->
-    <JobChip running={chip.running} locked={chip.locked} ready={0} />
-    <!-- reserved box: the usage arriving never moves the tabs -->
-    <p class="usage mono">
-      {#if today}<span class="u1">{t("header.usage.today", { usd: fmtUsdImpl(today.apiUsd, "day"), tok: fmtTokensImpl(today.in + today.cacheRead + today.cacheWrite + today.out) })}</span>{/if}
-      {#if fiveH}<span class="u2">{t("header.usage.window", { p: Math.round(fiveH.utilization * 100) })}</span>{/if}
-    </p>
-    <button type="button" class="icon-btn theme-btn" aria-label={t(`header.theme.${themeNext}`)} title={t(`header.theme.${themeNext}`)} onclick={() => s.prefs.setTheme(themeNext)}><Icon name="theme" /></button>
-    <button type="button" class="lang-btn" lang={s.prefs.lang === "ja" ? "en" : "ja"} aria-label={t("header.langSwitch")} onclick={() => s.prefs.setLang(s.prefs.lang === "ja" ? "en" : "ja")}>{s.prefs.lang === "ja" ? "EN" : "JA"}</button>
-    <button type="button" class="icon-btn" aria-label={t("header.help")} title={t("header.help")} onclick={() => (s.ui.helpOpen = true)}><Icon name="help" /></button>
-  </div>
-
-  {#if wsMenu}
-    <div class="pop ws-menu" role="menu" aria-label={t("header.wsMenu")}>
-      {#each s.session.workspaces.slice(0, 8) as w (w.info.key)}
-        <a role="menuitem" href={HREFS.map(w.info.key)} onclick={() => s.layers.close("ws-menu", { restoreFocus: false })}>
-          <span data-user-content>{w.info.name}</span><span class="mono">{w.info.root}</span>
-        </a>
-      {/each}
-      <a role="menuitem" class="all" href="/" onclick={() => s.layers.close("ws-menu", { restoreFocus: false })}>{t("header.allWorkspaces")}</a>
-    </div>
-  {/if}
-</header>
-
-<style>
-  .menu-btn.show {
-    display: grid;
+const esc = (value: string | number) => String(value).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const icon = (d: string) => `<svg class="i" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="${d}"/></svg>`;
+let left: HTMLDivElement | undefined = $state();
+let middle: HTMLDivElement | undefined = $state();
+let before: HTMLDivElement | undefined = $state();
+let after: HTMLDivElement | undefined = $state();
+let menu: HTMLDivElement | undefined = $state();
+function parts(): string[] {
+  const e = esc;
+  const btn = (act: string, label: string, d: string, cls = "icon-btn") =>
+    `<button type="button" class="${cls}" data-act="${act}" aria-label="${e(label)}" title="${e(label)}">${icon(d)}</button>`;
+  return [
+    `<button type="button" class="icon-btn menu-btn${drawer ? " show" : ""}${current === "review" ? " in-review" : ""}" data-act="rail" aria-label="${e(t("header.menu"))}"${drawer ? ` aria-expanded="${s.ui.railOpen}"` : ""}>${icon("M2.5 4.5h11M2.5 8h11M2.5 11.5h11")}</button><a class="brand" href="/" aria-label="${e(t("header.home"))}"><span class="brand-ja" data-brand>${e(t("brand.name"))}</span><span class="brand-en">${e(t("brand.latin"))}</span></a>${ws ? `<span class="hdr-sep" aria-hidden="true"></span><button type="button" class="proj${reserve ? " reserve" : ""}" data-act="ws" aria-haspopup="true" aria-expanded="${wsMenu}"><span class="proj-name" data-user-content>${e(projName)}</span><span class="proj-meta">${e(projHead)}${projTag ? `<span class="tag"> &middot; <span data-user-content>${e(projTag)}</span></span>` : ""}</span>${status?.info.kind === "shadow" ? `<span class="kind-badge" title="${e(t("header.shadowTip"))}">${e(t("header.shadow"))}</span>` : status?.info.kind === "remote-readonly" ? `<span class="kind-badge">${e(t("header.readonly"))}</span>` : ""}</button>` : ""}`,
+    ws
+      ? `<nav class="tabs" aria-label="${e(t("nav.label"))}">${[
+          ["map", HREFS.map(ws), ""],
+          ["doc", docHref(), ""],
+          [
+            "inbox",
+            `/w/${ws}/inbox`,
+            `<span class="tab-count"${inboxN === 0 ? ' data-zero=""' : ""} aria-label="${e(t("a11y.count", { n: inboxN }))}">${inboxN}</span>`,
+          ],
+          [
+            "review",
+            `/w/${ws}/review`,
+            `<span class="tab-count prop"${chip.ready === 0 ? ' data-zero=""' : ""} aria-label="${e(t("a11y.count", { n: chip.ready }))}">&#x25C6;${chip.ready}</span>`,
+          ],
+        ]
+          .map(
+            ([name, href, count]) =>
+              `<a class="tab" href="${e(href ?? "#")}"${current === name ? ' aria-current="page"' : ""}><span>${e(t(`nav.${name}`))}</span>${count}</a>`,
+          )
+          .join("")}</nav>`
+      : "",
+    `<ol class="crumbs" aria-label="${e(t("header.crumbs"))}">${crumbs.length > 1 ? `<li>${e(t("nav.map"))}</li>${crumbs.map((c) => `<li data-user-content>${e(c)}</li>`).join("")}` : ""}</ol><button type="button" class="search" data-act="search" aria-label="${e(t("header.searchAria"))}">${icon("M7 12.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11ZM11 11l3.5 3.5")}<span>${e(t("header.search"))}</span><kbd>${e(s.keys.hint("palette.open"))}</kbd></button><div class="seg level" role="radiogroup" aria-label="${e(t("level.label"))}">${LEVELS.map((l) => `<label${s.doc.level === l ? ' class="on"' : ""}><input type="radio" name="mitori-level" value="${l}"${s.doc.level === l ? " checked" : ""}/><span>${e(t(`level.${l}`))}</span></label>`).join("")}</div>`,
+    `<p class="usage mono">${today ? `<span class="u1">${e(t("header.usage.today", { usd: fmtUsdImpl(today.apiUsd, "day"), tok: fmtTokensImpl(today.in + today.cacheRead + today.cacheWrite + today.out) }))}</span>` : ""}${fiveH ? `<span class="u2">${e(t("header.usage.window", { p: Math.round(fiveH.utilization * 100) }))}</span>` : ""}</p>${btn("theme", t(`header.theme.${themeNext}`), "M8 1.5a6.5 6.5 0 1 0 0 13ZM8 1.5a6.5 6.5 0 0 1 0 13", "icon-btn theme-btn")}<button type="button" class="lang-btn" data-act="lang" lang="${s.prefs.lang === "ja" ? "en" : "ja"}" aria-label="${e(t("header.langSwitch"))}">${s.prefs.lang === "ja" ? "EN" : "JA"}</button>${btn("help", t("header.help"), "M8 14.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13ZM6.2 6.2a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4M8 11.6v.1")}`,
+    wsMenu
+      ? `<div class="pop ws-menu" role="menu" aria-label="${e(t("header.wsMenu"))}">${s.session.workspaces
+          .slice(0, 8)
+          .map(
+            (w) =>
+              `<a role="menuitem" data-act="pick" href="${e(HREFS.map(w.info.key))}"><span data-user-content>${e(w.info.name)}</span><span class="mono">${e(w.info.root)}</span></a>`,
+          )
+          .join("")}<a role="menuitem" class="all" href="/" data-act="pick">${e(t("header.allWorkspaces"))}</a></div>`
+      : "",
+  ];
+}
+const initialHtml = untrack(() => parts());
+const last = ["", "", "", "", ""];
+$effect(() => {
+  const html = parts();
+  const hosts = [left, middle, before, after, menu];
+  untrack(() => {
+    for (let i = 0; i < hosts.length; i++) {
+      const host = hosts[i],
+        next = html[i];
+      if (!host || next === undefined || last[i] === next) continue;
+      const active = document.activeElement as HTMLElement | null;
+      const inside = active && host.contains(active);
+      const href = inside ? active.getAttribute("href") : null;
+      const attr = inside
+        ? active.dataset.act
+          ? ["data-act", active.dataset.act]
+          : href
+            ? ["href", href]
+            : active instanceof HTMLInputElement
+              ? ["value", active.value]
+              : null
+        : null;
+      replaceChrome(host, next);
+      last[i] = next;
+      if (attr) host.querySelector<HTMLElement>(`[${attr[0]}="${CSS.escape(attr[1] ?? "")}"]`)?.focus({ preventScroll: true });
+    }
+    tabsEl = middle?.querySelector<HTMLElement>(".tabs") ?? undefined;
+    requestAnimationFrame(fit);
+  });
+});
+function click(e: MouseEvent) {
+  const target = (e.target as Element).closest<HTMLElement>("[data-act]");
+  switch (target?.dataset.act) {
+    case "rail":
+      s.ui.railOpen = !s.ui.railOpen;
+      break;
+    case "ws":
+      toggleWsMenu();
+      break;
+    case "pick":
+      s.layers.close("ws-menu", { restoreFocus: false });
+      break;
+    case "search":
+      s.palette.show();
+      break;
+    case "theme":
+      s.prefs.setTheme(themeNext);
+      break;
+    case "lang":
+      s.prefs.setLang(s.prefs.lang === "ja" ? "en" : "ja");
+      break;
+    case "help":
+      s.ui.helpOpen = true;
+      break;
   }
-  @media (min-width: 1024px) {
-    .menu-btn.show.in-review {
+}
+function change(e: Event) {
+  const target = e.target;
+  if (target instanceof HTMLInputElement && target.name === "mitori-level") setReaderLevel(s, target.value as ReaderLevel);
+}
+</script>
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (delegated native controls) -->
+<header class="hdr" data-chrome bind:this={hdrEl} data-tight={tight || undefined} onclick={click} onchange={change}>
+<div class="hdr-l" bind:this={left}>{@html initialHtml[0] ?? ""}</div>
+<div class="hdr-m" bind:this={middle}>{@html initialHtml[1] ?? ""}</div>
+<div class="hdr-r"><div class="native" bind:this={before}>{@html initialHtml[2] ?? ""}</div>{#if JobChip}<JobChip running={chip.running} locked={chip.locked} ready={0}/>{/if}<div class="native" bind:this={after}>{@html initialHtml[3] ?? ""}</div></div>
+<div class="native" bind:this={menu}>{@html initialHtml[4] ?? ""}</div>
+</header>
+<style>
+.native {display:contents;}
+:global(.hdr .menu-btn.show) {
+    display: grid;
+  }@media (min-width: 1024px) {:global(.hdr .menu-btn.show.in-review) {
       display: none;
     }
-  }
-  .hdr-m {
+  }:global(.hdr .hdr-m) {
     display: flex;
     align-items: stretch;
     gap: 14px;
     min-width: 0;
     height: 100%;
-  }
-  .crumbs {
-    /* takes only free space: never widens the column (no shift when crumbs arrive) */
+  }:global(.hdr .crumbs) {
+
     flex: 1 1 0;
     width: 0;
     display: flex;
@@ -250,82 +290,65 @@ const crumbs = $derived.by(() => {
     color: var(--muted);
     overflow: hidden;
     white-space: nowrap;
-  }
-  .crumbs li {
+  }:global(.hdr .crumbs li) {
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-  .crumbs li + li::before {
+  }:global(.hdr .crumbs li + li::before) {
     content: "\203A";
     margin-right: 6px;
     color: var(--rule-2);
-  }
-  .ws-menu {
+  }:global(.hdr .ws-menu) {
     top: calc(var(--hdr) - 6px);
     left: 150px;
     width: 360px;
     padding: 6px;
     display: flex;
     flex-direction: column;
-  }
-  .ws-menu a {
+  }:global(.hdr .ws-menu a) {
     display: flex;
     flex-direction: column;
     padding: 8px 10px;
     border-radius: var(--r-btn);
     font-size: var(--fs-ui);
     color: var(--ink);
-  }
-  .ws-menu a:hover,
-  .ws-menu a:focus-visible {
+  }:global(.hdr .ws-menu a:hover),
+:global(.hdr .ws-menu a:focus-visible) {
     background: var(--hover);
-  }
-  .ws-menu .mono {
+  }:global(.hdr .ws-menu .mono) {
     font-size: var(--fs-meta);
     color: var(--muted);
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-  .ws-menu .all {
+  }:global(.hdr .ws-menu .all) {
     border-top: 1px solid var(--rule-soft);
     margin-top: 4px;
     color: var(--muted);
-  }
-  .usage {
+  }:global(.hdr .usage) {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     justify-content: center;
-    /* the slot of a usual day's line (「今日$0.00 · 0 tok」): today's numbers arriving after the first paint do not
-       move the tabs (AC-U03); a bigger day widens it once. 「Today …」 is narrower, and English tabs need the room */
+
     min-width: 11.5em;
     margin: 0 2px 0 4px;
     line-height: 1.25;
     white-space: nowrap;
-  }
-  :global(:root[lang="en"]) .usage {
+  }:global(:root[lang="en"] .hdr .usage) {
     min-width: 10.5em;
-  }
-  .u1 {
+  }:global(.hdr .u1) {
     font-size: var(--fs-label);
     color: var(--text);
-  }
-  .u2 {
+  }:global(.hdr .u2) {
     font-size: var(--fs-meta);
     color: var(--muted);
-  }
-  .tag {
+  }:global(.hdr .tag) {
     color: var(--muted);
-  }
-  /* the usage block needs the full 1440 header; the status bar always has the same numbers */
-  @media (max-width: 1399px) {
-    .usage {
+  }@media (max-width: 1399px) {:global(.hdr .usage) {
+      display: none;
+    }
+  }@media (max-width: 1280px) {:global(.hdr .crumbs) {
       display: none;
     }
   }
-  @media (max-width: 1280px) {
-    .crumbs {
-      display: none;
-    }
-  }
+
 </style>

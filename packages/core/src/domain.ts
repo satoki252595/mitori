@@ -378,7 +378,7 @@ export const INCLUDED_CLASSES = [
  *   or `mitori review`; mitori never spawns anything.
  * - `anthropic-api`: Messages API with the user's API key (opt-in; caching breakpoints, Batch,
  *   count_tokens, structured outputs).
- * - `codex-cli`: `codex exec` adapter (after MVP).
+ * - `codex-cli`: isolated `codex exec`, native apply_patch only in agent mode.
  * - `generic`: global-config `cmd` reading the prompt on stdin, reply on stdout (no usage data).
  */
 export type EngineId = "claude-cli" | "session" | "anthropic-api" | "codex-cli" | "generic";
@@ -960,7 +960,7 @@ export interface OutboundFact extends FactBase {
   /** Discriminator. */
   kind: "outbound";
   /** What goes out. */
-  channel: "http" | "rpc" | "sdk" | "db" | "subprocess";
+  channel: "http" | "rpc" | "sdk" | "db" | "subprocess" | "write_sink";
   /** The API / library used (`fetch`, `net/http`, `requests`, `child_process`, `os/exec`, `@aws-sdk/client-s3`). */
   via: string;
   /** Literal target when the call names one (`https://api.github.com`, `/api/books`, `git`). */
@@ -1632,6 +1632,8 @@ export interface DiagramNode {
   shape?: "box" | "store" | "actor" | "external" | "queue" | "note";
   /** Importance in [0,1] (size/weight hint). */
   weight?: number;
+  /** Static source LOC for floorplan room area; distinct from importance. */
+  loc?: number;
 }
 
 /** Diagram edge. */
@@ -1648,6 +1650,8 @@ export interface DiagramEdge {
   label?: string;
   /** Message order for `sequence` diagrams (1-based). */
   seq?: number;
+  /** Static import count for floorplan adjacency. */
+  weight?: number;
 }
 
 /** Diagram group (compound node / C4 boundary). */
@@ -1658,6 +1662,8 @@ export interface DiagramGroup {
   label: string;
   /** Parent group. */
   parent?: string;
+  /** Deterministic static floorplan classification. */
+  zone?: FloorZone;
 }
 
 /** Diagram intermediate representation (LLM or analyzer output; persisted in `doc.index.json`). */
@@ -1704,6 +1710,8 @@ export interface DiagramLayout {
     w: number;
     /** Height. */
     h: number;
+    /** Source LOC at layout time, used to preserve floorplan order on small changes. */
+    loc?: number;
   }[];
   /** Edge polylines. */
   edges: {
@@ -3071,7 +3079,7 @@ export interface EngineSettings {
     /** Hard monthly cap in USD (required when enabled). */
     monthlyCapUsd: number;
   };
-  /** codex-cli (after MVP). */
+  /** codex-cli: isolated native apply_patch only; no shell or repository configuration. */
   "codex-cli": {
     /** Enabled. */
     enabled: boolean;
@@ -3079,6 +3087,12 @@ export interface EngineSettings {
     binary: string;
     /** Default model slug. */
     model: string;
+    /** Explicit API-equivalent prices; absent refuses before calling the native engine. */
+    pricing?: { inPerMTok: number; outPerMTok: number; cacheReadPerMTok: number };
+    /** Explicit consent to this estimated per-turn ceiling. Native thinking/hidden failed-tool rounds cannot be hard-capped. */
+    maxEstimatedSpendUsd?: number;
+    /** Visible native file-change calls per turn (1–8, default 2); failed attempts are not exposed by CLI JSONL. */
+    maxPatchSteps?: number;
   };
   /** generic agent_cmd. */
   generic: {
@@ -3188,6 +3202,8 @@ export interface SchedulerSettings {
 
 /** UI preferences. */
 export interface UiSettings {
+  /** Optional stretch layout, off unless explicitly enabled. */
+  map?: { floorplan: boolean };
   /** UI language. */
   lang: UiLang;
   /** Theme. */
@@ -3894,7 +3910,7 @@ export interface Timers {
 export interface HardwareInfo {
   /** `os.availableParallelism()`. */
   cores: number;
-  /** Performance cores (macOS `hw.perflevel0.logicalcpu`), `null` when unknown. */
+  /** Logical cores in the OS's highest-performance tier (macOS `hw.perflevel0.logicalcpu`), `null` when unknown. */
   perfCores: number | null;
 }
 
@@ -4252,7 +4268,7 @@ export const PACKAGE_DEPS = {
   "@mitori/loop": ["@mitori/core", "@mitori/platform", "@mitori/indexer", "@mitori/doc", "@mitori/anchor", "@mitori/agent"],
   "@mitori/server": ["@mitori/core", "@mitori/platform", "@mitori/indexer", "@mitori/doc", "@mitori/anchor", "@mitori/agent", "@mitori/gen", "@mitori/loop"],
   "@mitori/client": ["@mitori/core"],
-  "@mitori/cli": ["@mitori/core", "@mitori/platform", "@mitori/client", "@mitori/server"],
+  "@mitori/cli": ["@mitori/core", "@mitori/platform", "@mitori/client", "@mitori/server", "@mitori/share"],
   "@mitori/web": ["@mitori/core", "@mitori/client"],
   "@mitori/share": ["@mitori/core"],
   "@mitori/testkit": ["@mitori/core", "@mitori/platform", "@mitori/indexer", "@mitori/doc", "@mitori/anchor", "@mitori/agent", "@mitori/gen", "@mitori/loop", "@mitori/server", "@mitori/client", "@mitori/cli"],

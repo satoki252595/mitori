@@ -1,0 +1,13 @@
+{
+  "v": "mitori.windows-job/1",
+  "platform": "windows-x64",
+  "path": "node_modules/.cache/mitori-windows-job/windows-job-x64.exe",
+  "sha256": "a12f7a76f62beabb3d3fd762ebab3f3ff09e0ed5b28330d8fcf96f8007928a04",
+  "bytes": 59392,
+  "sourceSha256": "e0fc8adb7c3ca2784398064d5840615423a1572f95c1c05d45d5c8aaa9a822e4",
+  "buildSha256": "9054a83cf4e57282443dbca147843c85b4404bdeee846aef7a289b77886f315e",
+  "compiler": {
+    "name": "zig",
+    "version": "0.16.0"
+  }
+}

@@ -911,3 +911,9 @@ html.show-cites .blk[data-origin="ai"] :is(p, li) > code {
   text-decoration: underline dotted var(--faint);
   text-underline-offset: 3px;
 }
+/* Pending native replacements retain canonical text for anchors; the existing proposal diff is shown in its place. */
+.blk:has(> .native-proposal[data-replace]) > .mb,
+.blk:has(> .native-proposal[data-replace]) > .ph,
+.blk:has(> .native-proposal[data-replace]) > .skel {
+  display: none;
+}

@@ -13,6 +13,7 @@ import type { BundleBuilder, CapturedAnchor, createLoop } from "@mitori/loop";
 
 /** Ports `LoopDeps` has no member for (read structurally by `createLoop`). */
 export interface LoopDepsExt {
+  gh?: string;
   fs: FsReader;
   env: { PATH?: string | undefined; HOME?: string | undefined };
 }

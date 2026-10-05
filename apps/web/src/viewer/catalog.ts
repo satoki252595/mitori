@@ -5,6 +5,9 @@
  * Pure: the unit test (`catalog.test.ts`) runs the same function over the real files.
  */
 
+/** Only these namespaces contain the shared Reader/Map/Palette chrome used by the offline viewer. */
+export const SHARED_NAMESPACES = ["shell", "map", "reader", "palette"] as const;
+
 /** Exact keys of the shared catalogs. */
 export const SHARED_KEYS: readonly string[] = [
   "brand.name",
@@ -12,12 +15,10 @@ export const SHARED_KEYS: readonly string[] = [
   "nav.label",
   "nav.map",
   "nav.doc",
-  "header.search",
   "header.searchAria",
   "header.help",
   "header.langSwitch",
   "header.menu",
-  "header.crumbs",
   "rail.label",
   "rail.path",
   "rail.next",
@@ -37,7 +38,29 @@ export const SHARED_KEYS: readonly string[] = [
   "reader.meta.inferred",
   "reader.meta.stale",
   "reader.meta.static",
-  "reader.loadError",
+  "cite.editor",
+  "cite.exact",
+  "cite.peekLabel",
+  "cite.pin",
+  "cite.search",
+  "cite.stale",
+  "toc.label",
+  "toc.modules",
+  "toc.static",
+  "palette.group.section",
+  "palette.group.term",
+  "palette.group.room",
+  "palette.group.symbol",
+  "palette.group.action",
+  "ctx.about.blocks",
+  "ctx.about.cites",
+  "ctx.about.claims",
+  "ctx.about.files",
+  "ctx.about.more",
+  "ctx.about.read",
+  "ctx.about.static",
+  "ctx.about.title",
+  "ctx.about.trust",
   "map.stage",
   "map.plan.counts",
   "map.plan.title",
@@ -48,12 +71,9 @@ export const SHARED_KEYS: readonly string[] = [
   "palette.open",
   "palette.via",
   "palette.match",
-  "palette.empty",
   "help.close",
   "a11y.skip",
-  "a11y.count",
   "fmt.minShort",
-  "fmt.aboutMin",
   "palette.action.goMap",
   "palette.action.goMap.alias",
   "palette.action.goDoc",
@@ -82,17 +102,15 @@ export const SHARED_KEYS: readonly string[] = [
 
 /** Key families used with a computed suffix (`t(\`level.${l}\`)`). */
 export const SHARED_PREFIXES: readonly string[] = [
-  "cite.",
+  "cite.check.",
   "claim.title.",
-  "toc.",
+  "toc.state.",
   "level.",
   "map.room.",
   "map.zoom.",
   "map.aria.",
-  "palette.group.",
   "palette.announce.",
   "term.",
-  "ctx.about.",
   "header.theme.",
 ];
 

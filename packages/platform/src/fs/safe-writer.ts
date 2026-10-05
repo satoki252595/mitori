@@ -5,7 +5,7 @@
 // right before rename (a symlink target is refused), (6) rename, fsync the directory.
 import { constants, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import { open, rename, unlink } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { isAbsolute, join, relative, sep } from "node:path";
 import { MitoriError, type Random, type SafeWriteKind, type SafeWriter } from "@mitori/core";
 import { cryptoRandom } from "../random/index.ts";
 import { checkRel } from "./rules.ts";
@@ -31,7 +31,10 @@ const symlinkErr = (path: string, root: string) =>
 const outsideErr = (path: string, root: string, why: string) =>
   new MitoriError("E_PATH_OUTSIDE", `path resolves outside its root: ${relative(root, path) || "."} (${why})`, { params: { reason: why } });
 
-const isUnder = (p: string, root: string) => p === root || p.startsWith(root.endsWith("/") ? root : `${root}/`);
+const isUnder = (p: string, root: string) => {
+  const rel = relative(root, p);
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+};
 
 function lstatOrNull(p: string) {
   try {
@@ -44,7 +47,7 @@ function lstatOrNull(p: string) {
 
 /** `rootReal` must be absolute and be its own realpath (a root reached through a symlink is refused). */
 function checkRoot(rootReal: string): void {
-  if (!rootReal.startsWith("/")) throw new MitoriError("E_INVALID_INPUT", "SafeWriter root must be absolute");
+  if (!isAbsolute(rootReal)) throw new MitoriError("E_INVALID_INPUT", "SafeWriter root must be absolute");
   let real: string;
   try {
     real = realpathSync(rootReal);
@@ -81,6 +84,8 @@ function walkDirs(root: string, dirs: readonly string[], create: boolean, dirMod
 }
 
 async function fsyncDir(dir: string): Promise<void> {
+  // Windows does not support opening a directory for fsync. The file is synced before the atomic rename.
+  if (process.platform === "win32") return;
   const fh = await open(dir, constants.O_RDONLY);
   try {
     await fh.sync();
@@ -143,7 +148,7 @@ export function createSafeWriter(opts: SafeWriterOptions = {}): SafeWriter {
       throw symlinkErr(link, root);
     }
     if (!isUnder(real, root) || real === root) throw outsideErr(link, root, "symlink-target");
-    return writeAt(root, relative(root, real), bytes, "accept", hop + 1);
+    return writeAt(root, relative(root, real).split(sep).join("/"), bytes, "accept", hop + 1);
   }
 
   return {

@@ -128,6 +128,18 @@ describe("IDX-AT-44 hot bodies and moduleContext (spec §7.2–7.3)", () => {
     expect(ctx.tokens.total).toBe(ctx.tokens.skeleton + ctx.tokens.hot + ctx.tokens.tests + ctx.tokens.facts + ctx.tokens.neighbors);
     expect(moduleContext(s, id, info, { budget: 4000 }, io).key).toBe(ctx.key);
     expect(moduleContext(s, id, info, { budget: 4000, hotBudget: 0 }, io).hot).toEqual([]);
+    s.facts.facts.push({
+      kind: "outbound",
+      detector: "outbound.calls@2",
+      path: "a/x.go",
+      line: 14,
+      blob: "a".repeat(40),
+      channel: "subprocess",
+      via: "os/exec",
+      target: "git",
+    });
+    s.facts.scopes.push("main");
+    expect(moduleContext(s, id, info, { budget: 4000 }, io).facts).toContain("> O subprocess os/exec git a/x.go:14");
   });
 
   test("IDX-AT-49 rationale comments: ±2 lines around the comment, numbered as in the source", () => {

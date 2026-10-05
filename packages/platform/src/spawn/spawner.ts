@@ -1,15 +1,19 @@
 // Spawner over Bun.spawn: argv only (never a shell), the child's env is exactly the given map (PATH forced to
-// SAFE_PATH when configured), optional process group (setsid), stdout/stderr pumped eagerly into line channels.
+// SAFE_PATH when configured), optional process group (POSIX setsid / Windows Job Object), stdout/stderr pumped eagerly into line channels.
 import { constants } from "node:os";
+import { isAbsolute } from "node:path";
 import { MitoriError } from "@mitori/core";
 import { realTimers, type Timers } from "../clock/timers.ts";
 import { LineChannel, pump } from "./lines.ts";
 import { type ChildHandle, type KillSignal, type Spawner, type SpawnSpec, STDERR_KEEP_LINES } from "./types.ts";
+import { type WindowsJobLauncher, windowsJobExecutable } from "./windows-job.ts";
 
 /** Options of {@link createSpawner}. */
 export interface SpawnerOptions {
   /** SAFE_PATH ({@link resolveSafePath}); when set, every child's PATH is exactly this value [SEC-10]. */
   safePath?: string;
+  /** Verified native Job Object asset; required for Windows processGroup, never a shell/taskkill fallback. */
+  windowsJobLauncher?: WindowsJobLauncher;
 }
 
 /** Signal escalation policy: send `signal`, wait `graceMs` for exit, then SIGKILL. */
@@ -22,7 +26,8 @@ export interface KillPolicy {
 
 /**
  * Engines get SIGINT → 8 s → SIGKILL (SIGTERM loses the `result` line; agent `SIGINT_GRACE_MS`); gates and git get
- * SIGTERM → 2 s → SIGKILL (testing spec PLAT-I-005, CONS-14).
+ * SIGTERM → 2 s → SIGKILL (testing spec PLAT-I-005, CONS-14). Windows group signals immediately close the native job;
+ * cooperative POSIX interrupts and a terminal usage line cannot be guaranteed there.
  */
 export const KILL_POLICY = {
   engine: { signal: "SIGINT", graceMs: 8_000 },
@@ -36,7 +41,7 @@ function exitCodeOf(proc: { exitCode: number | null; signalCode: string | null }
 
 /** Resolve a bare command name through the CHILD's PATH (never the daemon's cwd or PATH). */
 function resolveCommand(command: string, path: string | undefined): string {
-  if (command.includes("/")) return command;
+  if (isAbsolute(command) || command.includes("/")) return command;
   const found = Bun.which(command, { PATH: path ?? "" });
   if (!found) throw new MitoriError("E_NOT_FOUND", `command not found on PATH: ${command}`, { params: { command } });
   return found;
@@ -50,15 +55,18 @@ export function createSpawner(opts: SpawnerOptions = {}): Spawner {
       if (opts.safePath !== undefined) env.PATH = opts.safePath;
       const pipeIn = spec.stdin.length > 0 || spec.keepStdinOpen;
       const command = resolveCommand(spec.command, env.PATH);
+      const windowsGroup = process.platform === "win32" && spec.processGroup;
+      const launcher = windowsGroup ? windowsJobExecutable(opts.windowsJobLauncher) : null;
+      if (windowsGroup && !isAbsolute(command)) throw new MitoriError("E_INVALID_INPUT", "Windows job child requires an absolute executable");
       let proc: ReturnType<typeof Bun.spawn<"pipe" | "ignore", "pipe", "pipe">>;
       try {
-        proc = Bun.spawn([command, ...spec.argv], {
+        proc = Bun.spawn(launcher ? [launcher, command, ...spec.argv] : [command, ...spec.argv], {
           cwd: spec.cwd,
           env,
           stdin: pipeIn ? "pipe" : "ignore",
           stdout: "pipe",
           stderr: "pipe",
-          detached: spec.processGroup,
+          detached: !windowsGroup && spec.processGroup,
         });
       } catch (cause) {
         const code = (cause as { code?: string }).code ?? "?";
@@ -104,7 +112,10 @@ export function createSpawner(opts: SpawnerOptions = {}): Spawner {
         kill(signal) {
           try {
             // the group outlives its leader: grandchildren still get the signal after the leader exited
-            if (spec.processGroup) process.kill(-proc.pid, signal);
+            // Windows has no cooperative POSIX SIGINT here. Terminating the wrapper closes its private job handle.
+            if (windowsGroup) {
+              if (!done) proc.kill("SIGKILL");
+            } else if (spec.processGroup) process.kill(-proc.pid, signal);
             else if (!done) proc.kill(signal);
           } catch {
             // ESRCH: already gone

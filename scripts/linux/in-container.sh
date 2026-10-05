@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# Runs inside the mitori-linux image (scripts/linux-ci.sh). /src = scratch export of the working tree, /out = results.
+# Runs inside the mitori-linux image (scripts/linux-ci.sh). /src = exported source, /out = results.
 # STEPS (comma separated): install, check, unit, bin, watch, sandbox. Every step logs to /out/<step>.log; a summary
 # line per step goes to /out/summary.txt. The script continues after a failing step and exits non-zero at the end.
 set -uo pipefail
-cd /src
+# Compile on Linux's own filesystem: Mac bind-mount metadata latency is not a native cold-check measurement.
+WORK="$(mktemp -d /tmp/mitori-linux-work.XXXXXX)" || exit 1
+trap 'rm -rf "$WORK"' EXIT
+cp -a /src/. "$WORK/" || exit 1
+cd "$WORK"
 STEPS="${STEPS:-install,check,unit,bin,watch,sandbox}"
 ARCH="${ARCH:-$(uname -m)}"
 SUMMARY=/out/summary.txt
@@ -28,10 +32,12 @@ step() {
   echo "bun $(bun --version) · node $(node --version) · $(go version) · $(git --version) · $(bwrap --version)"
   echo "nproc $(nproc) · loadavg $(cut -d' ' -f1-3 /proc/loadavg) · seccomp ${SECCOMP:-?}"
   echo "inotify max_user_watches $(cat /proc/sys/fs/inotify/max_user_watches 2>/dev/null || echo ?)"
+  echo "workdir filesystem: native container; full exported source copied before frozen install"
 } | tee /out/env.txt
 
 # a one-commit repository of the exported tree (scripts list files through git; tests build fixtures with git)
 git init -q && git add -A && git -c commit.gpgsign=false commit -qm "linux-ci snapshot" || { echo "git snapshot failed"; exit 1; }
+git rev-parse HEAD^{tree} > /out/source-tree.txt
 
 if has install; then
   if ! step install bun install --frozen-lockfile; then
@@ -45,11 +51,15 @@ if has install; then
       npm_config_build_from_source= node "$(dirname "$(node -p "require.resolve('node-gyp-build/package.json')")")/bin.js"
       echo "exit $?"
     } > /out/install-diag.log 2>&1
-    cd /src
+    cd "$WORK"
     step install-ignore-scripts bun install --frozen-lockfile --ignore-scripts
   fi
 fi
-has check && step check bun run check
+if has check; then
+  rm -rf node_modules/.cache/tsc node_modules/.cache/tsc-semantic || exit 1
+  printf '{"filesystem":"native-container","declarationCacheAbsent":true,"semanticCacheAbsent":true,"hardLimitSeconds":30}\n' > /out/check-cold.json
+  step check bun run check --verbose
+fi
 if has unit; then
   # the whole bun test suite (unit + golden + int; e2e specs are Playwright's, not bun's)
   step unit bun test

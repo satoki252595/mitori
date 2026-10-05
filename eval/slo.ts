@@ -18,6 +18,10 @@ export interface SloEntry {
   bound?: number;
   /** Not a product measurement (the harness' own check). */
   synthetic?: boolean;
+  /** An estimated product measurement (distinct from a synthetic harness check). */
+  estimated?: boolean;
+  /** Report / corpus label when the same budget is applied to several inputs. */
+  context?: string;
 }
 
 export interface SloSpec {

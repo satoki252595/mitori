@@ -79,7 +79,7 @@ const RECHECK_CODES: ReadonlySet<ErrorCode> = new Set(["E_AGENT_AUTH", "E_AGENT_
 /** Tools `system/init` must report for a request (I11 b). */
 export function expectedTools(req: Pick<EngineRequest, "mode" | "jsonSchema" | "newFiles">): string[] {
   const tools: string[] = req.mode === "agent" ? ["Read", "Edit", "Glob", "Grep", ...((req.newFiles?.length ?? 0) > 0 ? ["Write"] : [])] : [];
-  const schema = req.mode === "findings" || req.mode === "patch" || req.mode === "agent" || (req.mode === "generate" && req.jsonSchema !== undefined);
+  const schema = req.mode === "findings" || req.mode === "patch" || req.mode === "agent" || req.jsonSchema !== undefined;
   if (schema) tools.push("StructuredOutput");
   return tools;
 }

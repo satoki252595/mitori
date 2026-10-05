@@ -151,17 +151,18 @@ export function rangeOf(mb: Element, start: number, end: number): Range | null {
   const w = walkBlock(mb);
   const n = normalize(w.raw);
   const doc = mb.ownerDocument;
-  // first raw position whose normalized offset reaches `pos`
-  const toPoint = (pos: number): { node: Text; offset: number } | null => {
+  // Adjacent cells can share a normalized boundary. Start belongs to the following node; end to the preceding one.
+  const toPoint = (pos: number, edge: "start" | "end"): { node: Text; offset: number } | null => {
     for (const { node, at } of w.nodes) {
-      if ((n.map[at + node.data.length] ?? -1) < pos) continue;
+      const last = n.map[at + node.data.length] ?? -1;
+      if (last < pos || (edge === "start" && last === pos)) continue;
       for (let k = 0; k <= node.data.length; k++) if ((n.map[at + k] ?? -1) >= pos) return { node, offset: k };
     }
     const last = w.nodes[w.nodes.length - 1];
     return last ? { node: last.node, offset: last.node.data.length } : null;
   };
-  const a = toPoint(start);
-  const z = toPoint(end);
+  const a = toPoint(start, "start");
+  const z = toPoint(end, "end");
   if (!a || !z) return null;
   const r = doc.createRange();
   r.setStart(a.node, a.offset);

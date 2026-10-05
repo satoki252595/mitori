@@ -1,0 +1,14 @@
+{
+  "v": "mitori.fixture/1",
+  "name": "gen-doc-1000",
+  "git": true,
+  "objectFormat": "sha1",
+  "branch": "main",
+  "history": [{ "message": "init: large Reader benchmark", "tree": "." }],
+  "generate": [
+    { "path": "src/large.ts", "generator": "ts-numbered-lines", "bytes": 300000 },
+    { "path": "README.md", "generator": "text", "text": "# Reader benchmark\n\nThe real daemon seeds 1,000 document blocks, 20 sections and 500 Inbox threads before measurements.\n" }
+  ],
+  "symlinks": [],
+  "dirty": []
+}

@@ -1473,6 +1473,7 @@ export const UI_PERF_MARKS = [
   "mitori:shell:painted",
   "mitori:map:painted",
   "mitori:toc:painted",
+  "mitori:scan:summary",
   "mitori:facts:painted",
   "mitori:block:first",
   "mitori:section:rendered",

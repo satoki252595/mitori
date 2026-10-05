@@ -21,7 +21,7 @@ import type {
 } from "@mitori/core";
 import { SvelteMap } from "svelte/reactivity";
 import { type DocViewStore, type StreamingSection, UI_THRESHOLDS } from "../contract.ts";
-import { reservePx } from "../gen/progress.ts";
+import { reservePx } from "../gen/state.ts";
 import { indexOutline, type OutlineIndex } from "../reader/outline.ts";
 
 export class DocState implements DocViewStore {
@@ -35,6 +35,7 @@ export class DocState implements DocViewStore {
   #inflight = new Map<SectionId, Promise<SectionView>>();
   #hydrating = new Set<SectionId>();
   #epoch = 0;
+  #chosenLang: DocLang | null = null;
   #proposals = new SvelteMap<ProposalId, DocProposalView>();
   /** Blocks whose `data-fresh` changed since render (written by the Reader on the DOM). */
   freshness = new SvelteMap<BlockId, Freshness>();
@@ -51,8 +52,17 @@ export class DocState implements DocViewStore {
     this.ws = ws;
   }
 
+  /** Canonical server DTOs used by the progressive initial render and its enhanced hand-off. */
+  seed(outline: DocOutline, sections: readonly SectionView[]): void {
+    this.outline = outline;
+    this.index = indexOutline(outline);
+    this.lang = outline.manifest.primaryLang;
+    for (const section of sections) this.#sections.set(section.section.id, section);
+  }
+
   reset(): void {
     this.#epoch++;
+    this.#chosenLang = null;
     this.#outlineP = null;
     this.outline = null;
     this.index = null;
@@ -88,7 +98,7 @@ export class DocState implements DocViewStore {
       this.mutate(() => {
         this.outline = o;
         this.index = indexOutline(o);
-        this.lang = o.manifest.primaryLang;
+        this.lang = this.#chosenLang ?? o.manifest.primaryLang;
         this.outlineError = false;
         for (const id of [...this.streaming.keys()]) {
           const st = this.index.nodes.get(id)?.state;
@@ -212,6 +222,16 @@ export class DocState implements DocViewStore {
     this.level = level;
   }
 
+  /** Switch only the reading view; primary text, block hashes and revisions remain unchanged. */
+  setLanguage(lang: DocLang): void {
+    this.#chosenLang = lang;
+    this.lang = lang;
+    this.#epoch++;
+    this.#sections.clear();
+    this.#inflight.clear();
+    this.#hydrating.clear();
+  }
+
   proposals(block: BlockId): readonly DocProposalView[] {
     const out: DocProposalView[] = [];
     for (const p of this.#proposals.values()) if (p.block === block && p.state === "pending") out.push(p);
@@ -259,6 +279,8 @@ export class DocState implements DocViewStore {
     if (cur?.partial) this.streaming.set(b.section, { ...cur, partial: "" });
     if (!h) return;
     const [id, v] = h;
+    // SSE carries primary HTML. Keep its latest metadata/hash, then fetch the selected secondary display.
+    if (b.lang && this.lang !== b.lang && b.htmlLang !== this.lang) b = { ...b, html: "" };
     const i = v.blocks.findIndex((x) => x.id === b.id);
     let blocks: BlockView[];
     if (i >= 0) blocks = v.blocks.with(i, b);
@@ -276,6 +298,8 @@ export class DocState implements DocViewStore {
       blocks.splice(at, 0, b);
     }
     this.mutate(() => this.#sections.set(id, { ...v, blocks }));
+    const ws = this.ws();
+    if (ws && b.html === "") this.#hydrate(id, ws, this.#epoch);
   }
 
   removeBlock(block: BlockId, section: SectionId): void {

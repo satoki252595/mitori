@@ -23,6 +23,7 @@ import { createJobRunner, type JobRunnerHandle } from "./runner.ts";
  * the `LoopDeps` object (docs/design/cr-requests/loop-wiring.md #1); absent ⇒ the production defaults below.
  */
 interface LoopDepsExt {
+  gh?: string;
   /** Read-only fs (index copy, untracked scan, working-tree bytes, gate binaries). */
   fs?: FsReader;
   /** PATH (SAFE_PATH) and HOME (the user's global git config) of git and gate children. */
@@ -77,6 +78,7 @@ export function createLoop(deps: LoopDeps): Loop & LoopLifecycle {
     write: deps.write,
     secrets: deps.secrets,
     deny: () => deps.settings().denyGlobs,
+    ...(ext.gh ? { gh: ext.gh } : {}),
   });
 
   const gates = createGateRunner({

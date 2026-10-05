@@ -3,17 +3,9 @@
   column (chapter head, BlockHost, pager) │ context column. Keys of the `read` scope live here.
 -->
 <script lang="ts">
-import {
-  type BlockHistoryEntry,
-  type BlockId,
-  type CitePeek as CitePeekData,
-  HREFS,
-  type LineNo,
-  MitoriError,
-  type RepoPath,
-  type SectionId,
-} from "@mitori/core";
-import { flushSync, onMount, untrack } from "svelte";
+import { type BlockId, type BlockView, HREFS, type LineNo, MitoriError, type RepoPath, type SectionId } from "@mitori/core";
+import { flushSync, onMount, type Snippet, tick, untrack } from "svelte";
+import { UI_THRESHOLDS } from "../contract.ts";
 import { copyText } from "../shell/clipboard.ts";
 import { loadExtensions, type UiExtension, whenExtensions } from "../shell/ext.ts";
 import { welcomeKey } from "../shell/firstrun.ts";
@@ -27,25 +19,87 @@ import { getItem, STORAGE_KEYS, setItem } from "../shell/storage.ts";
 import { currentLayout, setReaderLevel, useStores } from "../stores/app.svelte.ts";
 import BlockHost from "./BlockHost.svelte";
 import ContextColumn from "./ContextColumn.svelte";
-import { editorUrl, factPeek, parseCite } from "./code.ts";
+import { parseCite } from "./code.ts";
 import { applyLevel } from "./decorate.ts";
 import { paintFind } from "./find.ts";
-import Gutter from "./Gutter.svelte";
 import { blockVisibleImpl, permalinkTextImpl, stepLevel } from "./levels.ts";
 import Minimap from "./Minimap.svelte";
+import type { NativeReaderAction } from "./native.ts";
+import { initialReaderWindow, type NativeReaderState } from "./native-state.ts";
 import { readingMinutes, subtreeStats } from "./outline.ts";
-import { buildPage, genNoteOf, type PagePart, sectionsToFetch, stepBlock } from "./page.ts";
+import { buildPage, genNoteOf, type PagePart, pageProvenance, sectionsToFetch, stepBlock } from "./page.ts";
 import { reviewAnchor } from "./review-anchor.ts";
 import { type Anchor, captureAnchor, restoreAnchor } from "./scroll-anchor.ts";
 import Welcome from "./Welcome.svelte";
 
 const s = useStores();
-// peek / term card / claim popover: a lazy chunk, fetched when idle after the first section paint (or on demand)
-let pop = $state.raw<typeof import("./pop.ts") | null>(null);
-let popLoading: Promise<unknown> | null = null;
-function loadPop(): void {
-  popLoading ??= import("./pop.ts").then((m) => (pop = m));
+let {
+  native = false,
+  initialReader,
+  nativeProposals,
+}: { native?: boolean; initialReader?: NativeReaderState; nativeProposals?: Snippet<[BlockView]> } = $props();
+// Popovers and document operations are loaded on their first action; selection capture stays synchronous here.
+let Tools = $state.raw<typeof import("./ReaderTools.svelte").default | null>(null);
+type ReaderTools = import("./ReaderTools.svelte").default;
+let tools: ReaderTools | undefined = $state();
+let toolsLoading: Promise<void> | null = null;
+let toolRequest = 0;
+function withTools(action: (tools: ReaderTools) => void, popover = false) {
+  if (tools) return action(tools);
+  const request = ++toolRequest;
+  const workspace = ws;
+  const pg = page;
+  if (popover) s.layers.open("popover", "reader-tools-loading", () => toolRequest++);
+  toolsLoading ??= import("./ReaderTools.svelte")
+    .then(async (m) => {
+      Tools = m.default;
+      await tick();
+    })
+    .catch((err) => {
+      toolsLoading = null;
+      s.layers.drop("reader-tools-loading");
+      s.bottom.toast({ id: "reader.tools.failed", kind: "error", key: "reader.op.failed", params: { error: errorText(MitoriError.from(err).toData()) } });
+    });
+  void toolsLoading.then(() => {
+    if (request === toolRequest && workspace === ws && pg === page && tools) {
+      s.layers.drop("reader-tools-loading");
+      action(tools);
+    }
+  });
 }
+function closePops(keep: "peek" | "term" | "claim" | "history" | null) {
+  toolRequest++;
+  s.layers.drop("reader-tools-loading");
+  tools?.closePops(keep);
+}
+function onCite(e: Parameters<ReaderTools["onCite"]>[0]) {
+  if (e.via === "leave" && !tools) {
+    closePops(null);
+    return;
+  }
+  withTools((tools) => tools.onCite(e), true);
+}
+function openTerm(e: Parameters<ReaderTools["openTerm"]>[0]) {
+  withTools((tools) => tools.openTerm(e), true);
+}
+function closeTerm() {
+  toolRequest++;
+  s.layers.drop("reader-tools-loading");
+  tools?.closeTerm();
+}
+function openClaim(e: Parameters<ReaderTools["openClaim"]>[0]) {
+  withTools((tools) => tools.openClaim(e), true);
+}
+function openHistory(block: BlockId, anchorEl: HTMLElement) {
+  withTools((tools) => tools.openHistory(block, anchorEl), true);
+}
+function simplify(block: BlockId) {
+  withTools((tools) => void tools.simplify(block));
+}
+function translate(target: { section: SectionId } | { block: BlockId }) {
+  withTools((tools) => void tools.translate(target));
+}
+
 const route = $derived(s.router.route);
 const ws = $derived("ws" in route ? route.ws : null);
 const ix = $derived(s.doc.index);
@@ -54,8 +108,15 @@ const layout = $derived(currentLayout(s));
 let ext = $state.raw<UiExtension | null>(null);
 let host: BlockHost | undefined = $state();
 let main: HTMLElement | undefined = $state();
-let focused = $state<BlockId | null>(null);
-let forced = $state.raw<ReadonlySet<BlockId>>(new Set());
+const initialFocus = untrack(() => {
+  const r = s.router.route;
+  return initialReader?.ws === ws && r.name === "doc" && initialReader.page === (ix?.pageOf.get(r.section) ?? r.section) ? initialReader : undefined;
+});
+const initialReservations = new Map(
+  (initialFocus?.reservations ?? []).filter((r) => Number.isFinite(r.height) && r.height > 0).map((r) => [r.section, r.height] as const),
+);
+let focused = $state<BlockId | null>(untrack(() => initialFocus?.focused ?? (s.router.route.name === "doc" ? (s.router.route.block ?? null) : null)));
+let forced = $state.raw<ReadonlySet<BlockId>>(new Set(untrack(() => initialFocus?.forced ?? (focused ? [focused] : []))));
 let loadError = $state<string | null>(null);
 let reviewSection = $state<SectionId | null>(null);
 /** EX-09: the block the reviewed job is anchored on (or its first doc proposal's): the left body opens THERE. */
@@ -102,6 +163,7 @@ $effect(() => {
 $effect(() => {
   const pg = page;
   const index = ix;
+  void s.doc.lang;
   const anchor = route.name === "doc" ? route.block : (reviewBlock ?? undefined);
   if (!pg || !index) return;
   untrack(() => {
@@ -117,6 +179,7 @@ $effect(() => {
 // first paint after a navigation: mark, focus, scroll (hash / sub-section / restored), announce. Keyed by the
 // router's navigation counter, so j / k (which only replace the URL's block hash) never re-run it.
 let paintedFor: string | null = null;
+let initialRestored = false;
 $effect(() => {
   if (!loaded || !model) return;
   const key = `${model.page}|${s.router.nav}`;
@@ -127,10 +190,17 @@ $effect(() => {
     requestAnimationFrame(() => {
       mark("mitori:section:rendered", { id: model.page });
       s.router.painted();
-      if (!pop) (globalThis.requestIdleCallback ?? ((f: () => void) => setTimeout(f, 200)))(() => loadPop());
     });
     const restored = s.router.restored;
-    if (restored) {
+    const initialArrival = !initialRestored && initialReader?.page === model.page && initialReader.ws === ws;
+    if (initialArrival && initialReader) {
+      initialRestored = true;
+      const initial = initialReader;
+      if (initial.focused) focusBlock(initial.focused, false);
+      window.scrollTo(0, initial.scrollY);
+      if (main) restoreAnchor(main, initial.anchor, model.order);
+      // The initial entry restores the normalized selection after this first flush, before action replay.
+    } else if (restored) {
       window.scrollTo(0, restored.scrollY);
       if (restored.focusBlock) focusBlock(restored.focusBlock as BlockId, false);
     } else if (r.name === "doc" && r.block) {
@@ -157,7 +227,7 @@ $effect(() => {
       main?.querySelector(`.blk[data-b="${CSS.escape(b)}"]`)?.scrollIntoView({ block: "center" });
     } else window.scrollTo(0, 0);
     // the page heading gets focus (§2.3-5) unless the link targeted a block, which then keeps it
-    if (s.router.focusMain && !restored && !(r.name === "doc" && r.block) && r.name !== "review")
+    if (s.router.focusMain && !initialArrival && !restored && !(r.name === "doc" && r.block) && r.name !== "review")
       (main?.querySelector("h1") as HTMLElement | null)?.focus({ preventScroll: true });
     const n = ix?.nodes.get(model.page);
     if (n) s.ui.announce(t("reader.announce.page", { num: ix?.numbers.get(model.page) ?? "", title: n.title }));
@@ -198,9 +268,60 @@ onMount(() => {
   };
   window.addEventListener("mitori:composer:open", onComposer);
   window.addEventListener("mitori:block-history", onHistory);
+  const onNative = (event: Event) => {
+    const { action, state } = (event as CustomEvent<{ action: NativeReaderAction; state: NativeReaderState }>).detail;
+    if (state.page !== page || state.ws !== ws || !main) return;
+    const byBlock = (block: BlockId | null) => (block ? main?.querySelector<HTMLElement>(`.blk[data-b="${CSS.escape(block)}"]`) : main);
+    if (action.kind === "compose") {
+      const run = () =>
+        compose(action.intent as "note" | "question" | "change", action.block, action.claim, { timeStamp: action.trigger ?? performance.now() });
+      if (state.selection) {
+        const nav = s.router.nav;
+        void import("./native.ts").then(({ restoreNativeSelection }) => {
+          if (main && nav === s.router.nav && ws === state.ws && page === state.page && restoreNativeSelection(main, state.selection)) run();
+        });
+      } else run();
+    } else if (action.kind === "selection") {
+      const nav = s.router.nav;
+      void loadExtensions(s).then(async () => {
+        await tick();
+        const { restoreNativeSelection } = await import("./native.ts");
+        if (main && nav === s.router.nav && state.page === page && state.ws === ws && restoreNativeSelection(main, state.selection))
+          document.dispatchEvent(new Event("selectionchange"));
+      });
+    } else if (action.kind === "cite") {
+      const anchorEl = byBlock(action.block)?.querySelector<HTMLElement>(`a[data-cite="${CSS.escape(action.cite)}"]`);
+      if (anchorEl) {
+        if (action.via === "focus") anchorEl.focus({ preventScroll: true });
+        onCite({ ...action, anchorEl });
+      }
+    } else if (action.kind === "pin") {
+      const anchorEl = byBlock(action.block)?.querySelector<HTMLElement>(`a[data-cite="${CSS.escape(action.cite)}"]`);
+      if (anchorEl && (anchorEl.dataset.blob ?? "") === action.blob) {
+        anchorEl.focus({ preventScroll: true });
+        pinPeek();
+      }
+    } else if (action.kind === "term") {
+      const anchorEl = byBlock(action.block)?.querySelector<HTMLElement>(`[data-term="${CSS.escape(action.term)}"]`);
+      if (anchorEl) {
+        if (action.via === "focus") anchorEl.focus({ preventScroll: true });
+        openTerm({ term: action.term, anchorEl });
+      }
+    } else if (action.kind === "claim") {
+      const blk = byBlock(action.block);
+      const anchorEl = action.claim ? blk?.querySelector<HTMLElement>(`.mc[data-claim="${CSS.escape(action.claim)}"]`) : blk;
+      if (anchorEl) openClaim({ block: action.block, claim: action.claim, anchorEl });
+    } else if (action.kind === "gutter") {
+      const el = byBlock(action.block);
+      if (el) placeGutter(action.block, el);
+    } else if (action.kind === "placeholder") void onPlaceholder(action.section);
+  };
+  window.addEventListener("mitori:native-reader", onNative);
   return () => {
+    closePops(null);
     window.removeEventListener("mitori:composer:open", onComposer);
     window.removeEventListener("mitori:block-history", onHistory);
+    window.removeEventListener("mitori:native-reader", onNative);
     s.doc.mutate = (apply) => apply();
     s.doc.levelTransition = null;
     s.router.focusedBlock = null;
@@ -250,9 +371,9 @@ onMount(() => {
     k.on("peek.openEditor", () => openEditor()),
     k.on("read.claimNext", () => claimCursor(1)),
     k.on("read.claimPrev", () => claimCursor(-1)),
-    k.on("act.comment", () => compose("note")),
-    k.on("act.explain", () => compose("question")),
-    k.on("act.fix", () => compose("change")),
+    k.on("act.comment", (e) => compose("note", focused, null, e)),
+    k.on("act.explain", (e) => compose("question", focused, null, e)),
+    k.on("act.fix", (e) => compose("change", focused, null, e)),
     k.on("review.open", () => {
       const job = s.review.oldestReady();
       if (job && ws) void s.router.go({ name: "review", ws, job });
@@ -303,7 +424,30 @@ function claimCursor(dir: 1 | -1) {
 }
 
 // Composer hand-off (WP-10b listens): anchor = focused block / claim cursor / selection
-function compose(intent: "note" | "question" | "change", block: BlockId | null = focused, claim: string | null = null) {
+function compose(intent: "note" | "question" | "change", block: BlockId | null = focused, claim: string | null = null, key?: Pick<KeyboardEvent, "timeStamp">) {
+  const selection = key ? document.getSelection() : null;
+  const range = selection && !selection.isCollapsed && selection.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+  if (range && main?.contains(range.startContainer)) {
+    // Keep the first selection key while the loop chunk loads; the toolbar may not be listening yet.
+    const workspace = ws;
+    const pg = page;
+    void Promise.all([loadExtensions(s), import("../threads/dom-anchor.ts"), import("../composer/targets.ts"), import("../threads/loop.svelte.ts")]).then(
+      ([, { anchorFromRange }, { targetOf }, { loopOf }]) => {
+        if (ws !== workspace || page !== pg || !range.startContainer.isConnected) return;
+        const loop = loopOf(s);
+        // An already-mounted selection toolbar answers the same key first.
+        if (Date.now() - loop.selectionClaim < 250) return;
+        const anchor = anchorFromRange(range);
+        const target = anchor && targetOf(s, anchor);
+        if (!target) return;
+        loop.selectionClaim = Date.now();
+        closePops(null);
+        void loop.openComposer(target, intent, key?.timeStamp, anchor.range);
+      },
+      () => s.bottom.toast({ id: "hint.loopPending", kind: "info", key: "hint.loopPending" }),
+    );
+    return;
+  }
   if (!block) {
     // one hint per session, shared with the keyboard path (Shell `unmet`, UXP-35)
     if (!getItem("session", STORAGE_KEYS.hint("noTarget"))) {
@@ -329,89 +473,6 @@ function compose(intent: "note" | "question" | "change", block: BlockId | null =
   );
 }
 
-// ---------------------------------------------------------------- cite peek / term card / claim popover
-let peek = $state.raw<{ data: CitePeekData; anchorEl: HTMLElement; claimEl: HTMLElement | null; pinned: boolean } | null>(null);
-let peekHover = false;
-let peekTimer: ReturnType<typeof setTimeout> | null = null;
-const peekCache = new Map<string, Promise<CitePeekData>>();
-// a static fact's peek is the CURRENT file window: an accept / Undo (SSE index.changed) makes it old (EX-08)
-$effect(() => {
-  const ch = s.workspace.changed;
-  if (!ch) return;
-  untrack(() => {
-    for (const key of [...peekCache.keys()]) if (key.endsWith("@") && ch.paths.some((p) => key.startsWith(`${p}:`))) peekCache.delete(key);
-  });
-});
-const peeked = new Set<string>();
-
-function fetchPeek(cite: string, blob: string): Promise<CitePeekData> | null {
-  const c = parseCite(cite);
-  if (!c || !ws) return null;
-  const key = `${cite}@${blob}`;
-  let p = peekCache.get(key);
-  if (!p) {
-    // a static fact cite has no claim (no blob): the current file range, highlighted, stands in for the peek
-    p = blob
-      ? s.api.call("GET /ws/:ws/cite", { params: { ws }, query: { path: c.path, start: c.start, end: c.end, blob, ctx: 3 } })
-      : s.api
-          .call("GET /ws/:ws/files/content", { params: { ws }, query: { path: c.path, start: Math.max(1, c.start - 3), end: c.end + 3, html: "1" } })
-          .then((f) => factPeek(f, c));
-    p.catch(() => peekCache.delete(key));
-    peekCache.set(key, p);
-    if (peekCache.size > 100) peekCache.delete(peekCache.keys().next().value as string);
-  }
-  return p;
-}
-
-function closePeekSoon() {
-  if (peekTimer) clearTimeout(peekTimer);
-  peekTimer = setTimeout(() => {
-    if (!peekHover && !peek?.pinned) closePeek();
-  }, 160);
-}
-function closePeek() {
-  peek = null;
-  s.layers.drop("peek");
-  main?.querySelector("a.mcite.on")?.classList.remove("on");
-}
-
-function onCite(e: { cite: string; blob: string; anchorEl: HTMLElement; via: "hover" | "focus" | "click" | "leave" }) {
-  if (e.via === "leave") {
-    closePeekSoon();
-    closeTermSoon();
-    return;
-  }
-  loadPop();
-  if (peekTimer) clearTimeout(peekTimer);
-  const p = fetchPeek(e.cite, e.blob);
-  if (!p) return;
-  const claimEl = e.anchorEl.closest(".mc") as HTMLElement | null;
-  p.then(
-    (data) => {
-      closePops("peek");
-      main?.querySelector("a.mcite.on")?.classList.remove("on");
-      e.anchorEl.classList.add("on");
-      peek = { data, anchorEl: e.anchorEl, claimEl, pinned: e.via === "click" };
-      if (claimEl?.dataset.claim) peeked.add(claimEl.dataset.claim);
-      s.layers.open("popover", "peek", () => closePeek());
-    },
-    () => {},
-  );
-}
-
-const peekChecks = $derived.by(() => {
-  const id = peek?.claimEl?.dataset.claim;
-  if (!id || !model) return null;
-  for (const p of model.parts) for (const b of p.blocks) for (const c of b.claimViews) if (c.id === id) return c.checks;
-  return null;
-});
-const peekPrecision = $derived.by(() => {
-  const id = peek?.claimEl?.dataset.claim;
-  if (!id || !model) return "exact" as const;
-  for (const p of model.parts) for (const b of p.blocks) for (const c of b.claimViews) if (c.id === id) return c.cites[0]?.precision ?? "exact";
-  return "exact" as const;
-});
-
 /** `o` again / Escape in code mode: back to the previous mode, and the permalink no longer carries ctx / pin. */
 function leaveCode() {
   s.ctx.back();
@@ -436,146 +497,36 @@ function pinPeek() {
     else leaveCode();
     return;
   }
-  const chip = (peek?.anchorEl ?? (document.activeElement as HTMLElement | null)?.closest?.("a.mcite, a.fcite")) as HTMLElement | null | undefined;
-  const cite = chip?.dataset.cite;
-  const c = cite ? parseCite(cite) : null;
+  if (tools) return tools.pinPeek();
+  const chip = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>("a.mcite, a.fcite");
+  const c = chip?.dataset.cite ? parseCite(chip.dataset.cite) : null;
   if (!c) return;
   const blob = chip?.dataset.blob;
-  closePeek();
-  s.ctx.set("code", { pin: { path: c.path, start: c.start, end: c.end, ...(blob ? { blob } : {}) } });
-  if (route.name === "doc") s.router.replaceUrl({ ...route, ctx: "code", pin: { path: c.path, start: c.start, end: c.end } });
+  closePops(null);
+  s.ctx.set("code", { pin: { ...c, ...(blob ? { blob } : {}) } });
+  if (route.name === "doc") s.router.replaceUrl({ ...route, ctx: "code", pin: c });
 }
-
 function openEditor() {
-  const d = peek?.data;
-  const editor = s.prefs.editor;
-  const root = s.workspace.status?.info.root;
-  if (!d || !root || editor === "none") {
-    if (ws) void s.router.go({ name: "wsSettings", ws });
-    return;
-  }
-  location.href = editorUrl(editor, root, d.path, d.start);
+  if (tools) tools.openEditor();
+  else if (ws) void s.router.go({ name: "wsSettings", ws });
 }
-
-let term = $state.raw<{ id: string; anchorEl: HTMLElement } | null>(null);
-let termHover = false;
-const termEntry = $derived.by(() => {
-  if (!term || !model) return null;
-  for (const p of model.parts) {
-    const v = s.doc.section(p.node.id);
-    const e = v?.terms?.find((x) => x.id === term?.id);
-    if (e) return e;
-  }
-  return null;
-});
-
-let claim = $state.raw<{ block: BlockId; claim: string | null; anchorEl: HTMLElement } | null>(null);
-let history = $state.raw<{ block: BlockId; anchorEl: HTMLElement; entries: readonly BlockHistoryEntry[] | null; error: string | null } | null>(null);
-let verifying = $state(false);
-
-function closeTerm() {
-  term = null;
-  s.layers.drop("term");
-}
-function closeTermSoon() {
-  setTimeout(() => {
-    if (!termHover) closeTerm();
-  }, 160);
-}
-function closeHistory() {
-  history = null;
-  s.layers.drop("history");
-}
-
-/**
- * ONE reader popover at a time (NC-17): opening the peek, a term card, a claim check or the block history closes
- * the others, and each is a layer, so Escape closes whichever is open. The Composer opening closes them all.
- */
-function closePops(keep: "peek" | "term" | "claim" | "history" | null) {
-  if (keep !== "peek" && peek) closePeek();
-  if (keep !== "term" && term) closeTerm();
-  if (keep !== "claim" && claim) {
-    claim = null;
-    s.layers.drop("claim");
-  }
-  if (keep !== "history" && history) closeHistory();
-}
-
-function openTerm(e: { term: string; anchorEl: HTMLElement }) {
-  loadPop();
-  closePops("term");
-  term = { id: e.term, anchorEl: e.anchorEl };
-  s.layers.open("popover", "term", () => (term = null));
-}
-
-function openClaim(e: { block: BlockId; claim: string | null; anchorEl: HTMLElement }) {
-  closePops("claim");
-  claim = e;
-  s.layers.open("popover", "claim", () => (claim = null));
-}
-
-/** The block history popover (EX-10): `GET /doc/blocks/:block/history`, newest first. */
-function openHistory(block: BlockId, anchorEl: HTMLElement) {
-  if (!ws) return;
-  loadPop();
-  closePops("history");
-  history = { block, anchorEl, entries: null, error: null };
-  s.layers.open("popover", "history", () => (history = null));
-  s.api.call("GET /ws/:ws/doc/blocks/:block/history", { params: { ws, block } }).then(
-    (entries) => {
-      if (history?.block === block) history = { ...history, entries };
-    },
-    (err) => {
-      if (history?.block === block) history = { ...history, error: errorText(MitoriError.from(err).toData()) };
-    },
-  );
-}
-
-const blockViewOf = (id: BlockId) => model?.parts.flatMap((p) => p.blocks).find((b) => b.id === id) ?? null;
-
-/**
- * The human check of a paragraph (`POST /doc/blocks/:block/verify`): the server marks EVERY claim of the block
- * human-verified (✓✓, kept across regenerations) or takes it back. Optimistic for ✓✓ (rolled back on failure).
- */
-async function verifyBlock(block: BlockId, verified: boolean) {
-  if (!ws || verifying) return;
-  verifying = true;
-  const els = verified ? [...(main?.querySelectorAll<HTMLElement>(`.blk[data-b="${CSS.escape(block)}"] .mc[data-claim]`) ?? [])] : [];
-  const prev = els.map((el) => el.dataset.verdict);
-  for (const el of els) el.dataset.verdict = "human-verified";
-  try {
-    const v = await s.api.call("POST /ws/:ws/doc/blocks/:block/verify", { params: { ws, block }, body: { verified } });
-    s.doc.upsertBlock(v);
-    s.ui.announce(t(verified ? "history.announce.verified" : "history.announce.unverified"));
-  } catch (err) {
-    els.forEach((el, i) => {
-      if (prev[i]) el.dataset.verdict = prev[i];
-    });
-    s.bottom.toast({ id: "verify.failed", kind: "error", key: "toast.verifyFailed", params: { error: errorText(MitoriError.from(err).toData()) } });
-  } finally {
-    verifying = false;
-  }
-}
-
-async function verify() {
-  const c = claim;
-  if (!c) return;
-  claim = null;
-  s.layers.drop("claim");
-  await verifyBlock(c.block, true);
-}
-
-/** The peek's ✓✓: the cited claim's paragraph (EX-10 — every claim can be checked, not only the inferred ones). */
-const peekBlock = $derived((peek?.anchorEl.closest(".blk") as HTMLElement | null)?.dataset.b as BlockId | undefined);
-const peekBlockView = $derived(peekBlock ? blockViewOf(peekBlock) : null);
 
 // ---------------------------------------------------------------- shared gutter
+let Gutter = $state.raw<typeof import("./Gutter.svelte").default | null>(null);
+let gutterLoading: Promise<void> | null = null;
 let gutter = $state<{ block: BlockId | null; top: number; left: number }>({ block: null, top: 0, left: 0 });
 let gutterHover = false;
 let gutterTimer: ReturnType<typeof setTimeout> | null = null;
 let docCol: HTMLElement | undefined = $state();
 function placeGutter(b: BlockId, el: HTMLElement) {
   if (!docCol) return;
+  gutterLoading ??= import("./Gutter.svelte")
+    .then((m) => {
+      Gutter = m.default;
+    })
+    .catch(() => {
+      gutterLoading = null;
+    });
   const r = el.getBoundingClientRect();
   const c = docCol.getBoundingClientRect();
   // left gutter column; the ✓ pseudo-element keeps the top 28 px
@@ -663,6 +614,7 @@ const next = $derived.by(() => {
 });
 const uiLang = $derived(s.prefs.lang);
 const docLang = $derived(s.doc.lang);
+const primaryLang = $derived(s.doc.outline?.manifest.primaryLang ?? docLang);
 const notGenerated = $derived(!s.doc.outline?.manifest.generatedAt);
 const reviewPanel = $derived(ext?.reviewPanel ?? null);
 
@@ -696,27 +648,11 @@ const about = $derived.by(() => {
     verified: st.verified,
     inferred: st.inferred,
     stale: st.stale,
-    staticOnly: model.parts.every((p) => p.node.state === "static_only"),
+    staticOnly: pageProvenance(model.parts).staticOnly,
     files: citedFiles,
   };
 });
 const marginView = $derived(ext?.margin ?? null);
-
-// ---------------------------------------------------------------- NC-14 the doc is in another language than the UI
-/**
- * The translation entry point that works today: the AI explains the section in the UI's language (an Explain draft on
- * the section's first paragraph, the question typed in, nothing sent until the user presses send). The section /
- * block translate routes are not wired on the daemon (501), so no 「訳を表示」 promises what cannot run.
- */
-function askInUiLang(p: PagePart) {
-  const b = p.blocks.find((x) => x.kind !== "heading" && x.status !== "placeholder");
-  if (!b) return;
-  host?.ensureMounted(b.id);
-  focused = b.id;
-  void loadExtensions(s).then(() =>
-    window.dispatchEvent(new CustomEvent("mitori:compose", { detail: { block: b.id, claim: null, intent: "question", body: t("reader.translateAskBody") } })),
-  );
-}
 
 // ---------------------------------------------------------------- §0 welcome: the 5-minute course (NC-08 / NC-13)
 let welcomeClosed = $state(false);
@@ -747,12 +683,13 @@ function startCourse() {
 
 {#snippet head(p: PagePart)}
   {@const st = ix ? subtreeStats(ix, p.node.id) : null}
+  {@const provenance = pageProvenance(model?.parts ?? [p])}
   {#if p.top}
     <header class="sec-head" data-chrome>
       <!-- UI ≠ doc language: the note shares the § row (fixed height) so switching the UI language moves nothing -->
       <p class="sec-num">
-        &sect;{p.num}{#if uiLang !== docLang}<span class="lang-note">{t("reader.translateBand")}</span
-          ><button type="button" class="lang-ask" onclick={() => askInUiLang(p)}>{t("reader.translateAsk")}</button>{/if}
+        &sect;{p.num}{#if uiLang !== primaryLang}<span class="lang-note">{t(docLang === primaryLang ? "reader.translateBand" : "reader.translationShown")}</span
+          ><button type="button" class="lang-ask" disabled={(tools?.operationBusy() ?? false)} onclick={() => docLang !== primaryLang ? s.doc.setLanguage(primaryLang) : void translate({ section: p.node.id })}>{t(docLang !== primaryLang ? "reader.showOriginal" : "reader.translate")}</button>{/if}
       </p>
       <h1 tabindex="-1" data-user-content>{p.node.title}</h1>
       <p class="sec-meta">
@@ -760,9 +697,9 @@ function startCourse() {
         {#if st && st.verified > 0}<span class="sep" aria-hidden="true">&middot;</span><span>{t("reader.meta.verified", { n: st.verified })}</span>{/if}
         {#if st && st.inferred > 0}<span class="sep" aria-hidden="true">&middot;</span><span class="guess">{t("reader.meta.inferred", { n: st.inferred })}</span>{/if}
         {#if st && st.stale > 0}<span class="sep" aria-hidden="true">&middot;</span><span class="stale">{t("reader.meta.stale", { n: st.stale })}</span>{/if}
-        {#if p.node.state === "static_only"}<span class="sep" aria-hidden="true">&middot;</span><span class="static-tag">{t("reader.meta.static")}</span>{/if}
+        {#if provenance.staticOnly}<span class="sep" aria-hidden="true">&middot;</span><span class="static-tag">{t("reader.meta.static")}</span>{/if}
         {#if s.workspace.head7}<span class="sep" aria-hidden="true">&middot;</span><span class="mono">{s.workspace.head7}</span>{/if}
-        {#if s.doc.outline?.manifest.models[0]}<span class="sep" aria-hidden="true">&middot;</span><span class="mono">{s.doc.outline.manifest.models[0]}</span>{/if}
+        {#each provenance.models as model (model)}<span class="sep" aria-hidden="true">&middot;</span><span class="mono">{model}</span>{/each}
       </p>
     </header>
     {#if p.node.id === "s0" && welcome && ws}
@@ -813,11 +750,13 @@ function startCourse() {
           <button type="button" class="btn btn-sec btn-s" onclick={() => page && s.doc.load(page).catch(() => {})}>{t("app.retry")}</button>
         </div>
       {:else if model && loaded}
-        <Gutter
+        {#if Gutter}<Gutter
           block={gutter.block}
           top={gutter.top}
           left={gutter.left}
           onaction={(a, el) => {
+            if (a === "simplify") { if (gutter.block) void simplify(gutter.block); return; }
+            if (a === "translate") { if (gutter.block) void translate({ block: gutter.block }); return; }
             if (a === "history") {
               if (gutter.block && el) openHistory(gutter.block, el);
               return;
@@ -826,7 +765,8 @@ function startCourse() {
           }}
           onenter={() => (gutterHover = true)}
           onleave={() => (gutterHover = false)}
-        />
+          canTranslate={uiLang !== primaryLang}
+        />{/if}
         <BlockHost
           bind:this={host}
           page={model}
@@ -834,6 +774,10 @@ function startCourse() {
           streaming={s.doc.streaming}
           {focused}
           {forced}
+          {native}
+          {nativeProposals}
+          initialWindow={initialFocus?.window ?? initialReaderWindow(model.order, focused, UI_THRESHOLDS.blockWindow)}
+          {initialReservations}
           {head}
           oncite={onCite}
           onterm={(e) => (e ? openTerm(e) : closeTerm())}
@@ -882,81 +826,7 @@ function startCourse() {
   />
 </div>
 
-{#if peek && pop}
-  {@const CitePeek = pop.CitePeek}
-  <CitePeek
-    data={peek.data}
-    checks={peekChecks}
-    precision={peekPrecision}
-    anchorEl={peek.anchorEl}
-    onpin={pinPeek}
-    oneditor={openEditor}
-    onenter={() => (peekHover = true)}
-    onleave={() => {
-      peekHover = false;
-      closePeekSoon();
-    }}
-  >
-    {#snippet extra()}
-      {#if pop && peekBlockView && peekBlockView.claims.length > 0}
-        {@const PeekVerify = pop.PeekVerify}
-        <PeekVerify
-          verified={peekBlockView.lock === "human-verified"}
-          n={peekBlockView.claims.length}
-          busy={verifying}
-          onverify={(next) => peekBlock && void verifyBlock(peekBlock, next)}
-        />
-      {/if}
-    {/snippet}
-  </CitePeek>
-{/if}
-{#if term && termEntry && ws && pop}
-  {@const TermCard = pop.TermCard}
-  <TermCard
-    entry={termEntry}
-    anchorEl={term.anchorEl}
-    href={HREFS.doc(ws, "s12")}
-    onenter={() => (termHover = true)}
-    onleave={() => {
-      termHover = false;
-      closeTermSoon();
-    }}
-  />
-{/if}
-{#if history && pop}
-  {@const BlockHistory = pop.BlockHistory}
-  {@const hb = blockViewOf(history.block)}
-  <BlockHistory
-    entries={history.entries}
-    error={history.error}
-    anchorEl={history.anchorEl}
-    lang={s.prefs.lang}
-    verified={hb?.lock === "human-verified"}
-    verifiedBy={hb?.verifiedBy ?? null}
-    claims={hb?.claims.length ?? 0}
-    busy={verifying}
-    onverify={(next) => history && void verifyBlock(history.block, next)}
-    onclose={() => s.layers.close("history")}
-  />
-{/if}
-{#if claim && pop}
-  {@const ClaimPopover = pop.ClaimPopover}
-  <ClaimPopover
-    verdict={(claim.anchorEl.closest(".mc") as HTMLElement | null)?.dataset.verdict ?? "inferred"}
-    anchorEl={claim.anchorEl}
-    canVerify={level === "expert" || (claim.claim !== null && peeked.has(claim.claim))}
-    onverify={verify}
-    onask={() => {
-      if (claim) compose("question", claim.block, claim.claim);
-      s.layers.close("claim");
-    }}
-    onexpert={() => {
-      if (claim) compose("note", claim.block, claim.claim);
-      s.layers.close("claim");
-    }}
-    onclose={() => s.layers.close("claim")}
-  />
-{/if}
+{#if Tools}<Tools bind:this={tools} {model} {main} {ws} {level} oncompose={compose} onleaveCode={leaveCode} />{/if}
 
 <style>
   .reader-body {

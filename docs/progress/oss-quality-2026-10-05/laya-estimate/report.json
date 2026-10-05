@@ -1,0 +1,128 @@
+{
+ "v": "mitori.gen-real/1",
+ "repo": "/Users/satoki252595/work/20261002_aiAgentTool/node_modules/.cache/mitori-oss-quality-20261005/laya",
+ "ws": "ws_avwb7b702wcv",
+ "effort": "standard",
+ "build": "release",
+ "engine": {
+  "id": "generic",
+  "plan": "generic:8f60d84a1ee89fb4",
+  "billing": "unknown",
+  "pin": null
+ },
+ "models": {
+  "answer": "generic:muse-spark-1.3-contributor",
+  "patch": "generic:muse-spark-1.3-contributor",
+  "agent": "generic:muse-spark-1.3-contributor",
+  "genModule": "generic:muse-spark-1.3-contributor",
+  "genOverview": "generic:muse-spark-1.3-contributor",
+  "genLeaf": "generic:muse-spark-1.3-contributor",
+  "judge": "generic:muse-spark-1.3-contributor",
+  "rewrite": "generic:muse-spark-1.3-contributor",
+  "escalate": "generic:muse-spark-1.3-contributor"
+ },
+ "reasoning": {
+  "answer": "max",
+  "patch": "max",
+  "agent": "max",
+  "gen": "max",
+  "genOverview": "max"
+ },
+ "pricing": {
+  "inPerMTok": 0.1,
+  "outPerMTok": 0.2,
+  "cacheReadPerMTok": 0.002
+ },
+ "otherClaudeProcesses": 2,
+ "openMs": 935.921083,
+ "estimate": {
+  "id": "es_vqjvc0e6bz",
+  "engine": "generic",
+  "model": "generic:muse-spark-1.3-contributor",
+  "inTokens": 591204,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "outTokens": 37155,
+  "apiUsd": 0.066554,
+  "seconds": {
+   "p50": 259,
+   "p90": 349
+  },
+  "concurrency": 2,
+  "windowDeltaPct": null,
+  "billing": "unknown",
+  "confidencePct": 25,
+  "calibrationN": 0,
+  "band": "gt200k",
+  "items": [
+   {
+    "key": "repo_pack",
+    "kind": "repo_pack",
+    "label": "repo pack",
+    "tokens": 9937,
+    "cached": false,
+    "removable": false
+   },
+   {
+    "key": "fixed",
+    "kind": "fixed",
+    "label": "gen.system",
+    "tokens": 1550,
+    "cached": false,
+    "removable": false
+   },
+   {
+    "key": "module",
+    "kind": "module",
+    "label": "module inputs",
+    "tokens": 159951,
+    "cached": false,
+    "removable": false
+   },
+   {
+    "key": "output",
+    "kind": "output",
+    "label": "output",
+    "tokens": 37155,
+    "cached": false,
+    "removable": false
+   }
+  ],
+  "requiresConfirm": true,
+  "confirmReasons": [
+   "generation_run",
+   "over_token_threshold"
+  ],
+  "expiresAt": "2026-10-05T01:28:49.809Z",
+  "effort": "standard",
+  "stages": [
+   {
+    "stage": "S6o",
+    "tasks": 8,
+    "inTokens": 176043,
+    "outTokens": 13651,
+    "apiUsd": 0.020335,
+    "seconds": 96
+   },
+   {
+    "stage": "S5",
+    "tasks": 12,
+    "inTokens": 393154,
+    "outTokens": 21869,
+    "apiUsd": 0.043692,
+    "seconds": 151.4
+   },
+   {
+    "stage": "S6",
+    "tasks": 1,
+    "inTokens": 22007,
+    "outTokens": 1635,
+    "apiUsd": 0.002527,
+    "seconds": 22.6
+   }
+  ],
+  "criticalPathSeconds": 109.9,
+  "alternatives": [],
+  "dataPolicyKey": "gen.generic"
+ }
+}

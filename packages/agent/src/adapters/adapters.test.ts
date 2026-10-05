@@ -78,47 +78,49 @@ describe("generic / codex spawn builders and JSON extraction (spec §6.10–6.11
     expect(() => buildGenericSpawn(req(), { enabled: true, argv: ["my-agent"] }, { emptyCwd: EMPTY }, {})).toThrow(/absolute/);
   });
 
-  test("codex: CODEX_ARGV_TEMPLATE substituted; no --output-schema without a schema; no agent mode", () => {
-    const paths = { codexBinary: "/opt/codex", schemaFile: "/h/run/schema/patch.json", lastMessageFile: "/h/jobs/j_1/last.json", emptyCwd: EMPTY };
+  test("codex: isolated tool-free text and precise apply_patch-only agent profiles", () => {
+    const paths = {
+      codexBinary: "/opt/codex-native",
+      schemaFile: "/h/run/schema/patch.json",
+      lastMessageFile: "/h/run/codex/last.json",
+      emptyCwd: EMPTY,
+      configRoot: "/h/run/codex",
+      modelCatalogFile: "/h/run/catalog.json",
+      systemPromptFile: "/h/run/system.txt",
+    };
     const s = buildCodexSpawn(req({ model: "codex:gpt-5-codex", effort: "low" }), { enabled: true, binary: "codex", model: "gpt-5" }, paths, {
       HOME: "/h",
       OPENAI_API_KEY: "k",
     });
-    expect(s.argv).toEqual([
-      "exec",
-      "--json",
-      "--ephemeral",
-      "--ignore-user-config",
-      "--ignore-rules",
-      "--skip-git-repo-check",
-      "-s",
-      "read-only",
-      "-C",
-      EMPTY,
-      "-m",
-      "gpt-5-codex",
-      "-c",
-      'approval_policy="never"',
-      "-c",
-      'model_reasoning_effort="low"',
-      "-c",
-      "project_doc_max_bytes=0",
-      "--disable",
-      "plugins",
-      "--disable",
-      "hooks",
-      "--output-schema",
-      "/h/run/schema/patch.json",
-      "-o",
-      "/h/jobs/j_1/last.json",
-      "-",
-    ]);
+    expect(s.argv).toContain("--ignore-user-config");
+    expect(s.argv).toContain("--ignore-rules");
+    expect(s.argv).toContain("--strict-config");
+    expect(s.argv).not.toContain("-s");
+    expect(s.argv).toContain("features.shell_tool=false");
+    expect(s.argv).toContain("permissions.mitori.network.enabled=false");
+    expect(s.argv.find((a) => a.startsWith("permissions.mitori.filesystem="))).toBe(
+      `permissions.mitori.filesystem={":minimal"="read","/opt/codex-native"="read","${EMPTY}"="read"}`,
+    );
+    expect(s.env.HOME).toBe(paths.configRoot);
+    expect(s.env.CODEX_HOME).toBe(paths.configRoot);
     expect(s.env.OPENAI_API_KEY).toBeUndefined();
-    expect(s.stdin.startsWith(req().system)).toBe(true);
+    expect(s.stdin).toBe(req().prompt);
     expect(buildCodexSpawn(req(), { enabled: true, binary: "codex", model: "gpt-5" }, { ...paths, schemaFile: null }, {}).argv).not.toContain(
       "--output-schema",
     );
-    expect(() => buildCodexSpawn(req({ mode: "agent" }), { enabled: true, binary: "codex", model: "gpt-5" }, paths, {})).toThrow(/agent/);
+    const agent = buildCodexSpawn(
+      req({ mode: "agent", cwd: "/side/wt", tools: "read_edit", writeScope: ["src/a.ts" as never] }),
+      { enabled: true, binary: "codex", model: "gpt-5" },
+      paths,
+      {},
+    );
+    expect(agent.cwd).toBe("/side/wt");
+    expect(agent.argv.find((a) => a.startsWith("permissions.mitori.filesystem="))).toBe(
+      'permissions.mitori.filesystem={":minimal"="read","/opt/codex-native"="read","/side/wt"="read","/side/wt/src/a.ts"="write"}',
+    );
+    expect(() => buildCodexSpawn(req({ mode: "agent" }), { enabled: true, binary: "codex", model: "gpt-5" }, paths, {})).toThrow(/scope/);
+    const { configRoot: _root, ...missingIsolation } = paths;
+    expect(() => buildCodexSpawn(req(), { enabled: true, binary: "codex", model: "gpt-5" }, missingIsolation, {})).toThrow(/isolated/);
   });
 
   test("generic substitutes literal argv without a shell, cold retries include every prompt block, Muse stays lean", () => {

@@ -48,18 +48,19 @@ export function createPinStore(db: SqlDb, write: WriteQueue, clock: Clock, metri
   // Texts whose write is still queued: readers see them at once, so callers need not wait for the write queue (a row
   // whose write failed stays here for the life of the process).
   const pending = new Map<GitOid, Uint8Array>();
-  const saveRows = (rows: readonly { blob: GitOid; bytes: Uint8Array }[]): Promise<void> => {
-    if (rows.length === 0) return Promise.resolve();
+  const saveRows = async (rows: readonly { blob: GitOid; bytes: Uint8Array }[]): Promise<void> => {
+    if (rows.length === 0) return;
     for (const r of rows) pending.set(r.blob, r.bytes);
-    return write("idx.pin.save", () => {
+    await write("idx.pin.save", () => {
       const now = clock.now();
       db.tx(() => {
         for (const r of rows) upsert(r.blob, r.bytes, now);
       });
-      for (const r of rows) if (pending.get(r.blob) === r.bytes) pending.delete(r.blob);
       metrics.inc("idx.blob.pinned", rows.length);
       metrics.inc("idx.sql.writes");
     });
+    // The workspace writer may still roll back after fn returns; only committed writes may leave pending.
+    for (const r of rows) if (pending.get(r.blob) === r.bytes) pending.delete(r.blob);
   };
   return {
     save: (blob, bytes) => saveRows([{ blob, bytes }]),

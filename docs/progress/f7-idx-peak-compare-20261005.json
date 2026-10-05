@@ -1,0 +1,257 @@
+{
+  "date": "2026-10-05T04:18:07.901Z",
+  "repo": "react",
+  "commit": "7c6ac13e19fef500b7f669a16bbd01ecc95965ca",
+  "sample": "process.memoryUsage().rss every10ms, scan() wall ms",
+  "warmup": 1,
+  "runs": 3,
+  "before": [
+    {
+      "run": 1,
+      "load": 7.5439453125,
+      "ms": 1466.720459,
+      "timings": {
+        "s0": 122.134541,
+        "workersStart": 14.183290999999997,
+        "s1": 968.0650410000001,
+        "s2": 94.69579099999987,
+        "s3": 209.87808399999994,
+        "s4": 63.600832999999966,
+        "total": 1465.180291,
+        "persist": 1110.486917,
+        "fts": null,
+        "filesParsed": 2847,
+        "cacheHits": 0,
+        "workers": 8,
+        "readMs": 132.0920290000011,
+        "parseMs": 2622.6546449999983,
+        "queryMs": 2643.1046230000034,
+        "degraded": 30
+      },
+      "rssPeakMB": 1130.03125,
+      "files": 7252,
+      "included": 2845
+    },
+    {
+      "run": 2,
+      "load": 8.220703125,
+      "ms": 1470.111167,
+      "timings": {
+        "s0": 120.205208,
+        "workersStart": 13.453000000000003,
+        "s1": 971.5405420000001,
+        "s2": 97.47366599999987,
+        "s3": 211.4413750000001,
+        "s4": 61.36345799999981,
+        "total": 1468.627583,
+        "persist": 622.4057090000001,
+        "fts": null,
+        "filesParsed": 2847,
+        "cacheHits": 0,
+        "workers": 8,
+        "readMs": 152.15876500000098,
+        "parseMs": 2687.7303670000024,
+        "queryMs": 2653.8316009999953,
+        "degraded": 30
+      },
+      "rssPeakMB": 1115.53125,
+      "files": 7252,
+      "included": 2845
+    },
+    {
+      "run": 3,
+      "load": 8.12255859375,
+      "ms": 1464.197667,
+      "timings": {
+        "s0": 123.241542,
+        "workersStart": 13.179291999999975,
+        "s1": 966.416709,
+        "s2": 94.60620800000015,
+        "s3": 210.671333,
+        "s4": 60.90766600000006,
+        "total": 1462.675583,
+        "persist": 621.3971669999999,
+        "fts": null,
+        "filesParsed": 2847,
+        "cacheHits": 0,
+        "workers": 8,
+        "readMs": 144.40511400000128,
+        "parseMs": 2671.4643959999994,
+        "queryMs": 2615.614355000001,
+        "degraded": 30
+      },
+      "rssPeakMB": 1125.671875,
+      "files": 7252,
+      "included": 2845
+    }
+  ],
+  "after": [
+    {
+      "run": 1,
+      "load": 7.5439453125,
+      "ms": 1450.0324170000001,
+      "timings": {
+        "s0": 123.545667,
+        "workersStart": 11.71674999999999,
+        "s1": 955.3728340000001,
+        "s2": 99.307458,
+        "s3": 204.58445800000004,
+        "s4": 58.969082999999955,
+        "total": 1448.3709999999999,
+        "persist": 611.6388749999999,
+        "fts": null,
+        "filesParsed": 2847,
+        "cacheHits": 0,
+        "workers": 6,
+        "readMs": 132.87652400000223,
+        "parseMs": 2147.6238589999957,
+        "queryMs": 1897.5118730000008,
+        "degraded": 30
+      },
+      "rssPeakMB": 919.5,
+      "files": 7252,
+      "included": 2845
+    },
+    {
+      "run": 2,
+      "load": 8.220703125,
+      "ms": 1481.416375,
+      "timings": {
+        "s0": 119.79537499999999,
+        "workersStart": 9.410792000000015,
+        "s1": 955.340334,
+        "s2": 111.78550000000018,
+        "s3": 215.959875,
+        "s4": 61.842124999999896,
+        "total": 1479.5911669999998,
+        "persist": 748.1695420000001,
+        "fts": null,
+        "filesParsed": 2847,
+        "cacheHits": 0,
+        "workers": 6,
+        "readMs": 124.40270699999897,
+        "parseMs": 2152.1084130000017,
+        "queryMs": 1896.4968429999942,
+        "degraded": 30
+      },
+      "rssPeakMB": 907.1875,
+      "files": 7252,
+      "included": 2845
+    },
+    {
+      "run": 3,
+      "load": 8.12255859375,
+      "ms": 1458.112541,
+      "timings": {
+        "s0": 121.48649999999999,
+        "workersStart": 10.237083000000013,
+        "s1": 973.1030420000001,
+        "s2": 95.16466700000001,
+        "s3": 201.3241660000001,
+        "s4": 57.01241600000003,
+        "total": 1456.5428749999999,
+        "persist": 623.0819589999999,
+        "fts": null,
+        "filesParsed": 2847,
+        "cacheHits": 0,
+        "workers": 6,
+        "readMs": 131.50701500000403,
+        "parseMs": 2198.9650900000033,
+        "queryMs": 1928.5297530000007,
+        "degraded": 30
+      },
+      "rssPeakMB": 906.546875,
+      "files": 7252,
+      "included": 2845
+    }
+  ],
+  "composition": {
+    "before": {
+      "compiledWasm": false,
+      "perfCores": null
+    },
+    "after": {
+      "compiledWasm": true,
+      "hardware": {
+        "cores": 18,
+        "perfCores": 6
+      }
+    }
+  },
+  "summary": {
+    "before": {
+      "peak": {
+        "id": "idx.rss.peak",
+        "unit": "MB",
+        "values": [
+          1130.03125,
+          1115.53125,
+          1125.671875
+        ],
+        "median": 1125.671875,
+        "p95": 1130.03125,
+        "cv": 0.006620369738995384
+      },
+      "wall": {
+        "id": "idx.s04.cold.react",
+        "unit": "ms",
+        "values": [
+          1466.720459,
+          1470.111167,
+          1464.197667
+        ],
+        "median": 1466.720459,
+        "p95": 1470.111167,
+        "cv": 0.002022717447609123
+      },
+      "peakGate": {
+        "id": "idx.rss.peak",
+        "level": "red",
+        "value": 1125.671875,
+        "target": 700,
+        "limit": 1000,
+        "unit": "MB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true
+      }
+    },
+    "after": {
+      "peak": {
+        "id": "idx.rss.peak",
+        "unit": "MB",
+        "values": [
+          919.5,
+          907.1875,
+          906.546875
+        ],
+        "median": 907.1875,
+        "p95": 919.5,
+        "cv": 0.008013130510032369
+      },
+      "wall": {
+        "id": "idx.s04.cold.react",
+        "unit": "ms",
+        "values": [
+          1450.0324170000001,
+          1481.416375,
+          1458.112541
+        ],
+        "median": 1458.112541,
+        "p95": 1481.416375,
+        "cv": 0.011137164531905365
+      },
+      "peakGate": {
+        "id": "idx.rss.peak",
+        "level": "yellow",
+        "value": 907.1875,
+        "target": 700,
+        "limit": 1000,
+        "unit": "MB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true
+      }
+    }
+  }
+}

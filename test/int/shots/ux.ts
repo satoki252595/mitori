@@ -72,6 +72,12 @@ const scheme = opt("--scheme", "light") === "dark" ? "dark" : "light";
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: scheme });
 // a returning browser: a first visit reads at 「初めて」 with the 5-minute course (NC-08), which this drive is not about
 await ctx.addInitScript(() => {
+  const metrics = window as unknown as { __uxCls: number };
+  metrics.__uxCls = 0;
+  new PerformanceObserver((list) => {
+    for (const entry of list.getEntries() as (PerformanceEntry & { value: number; hadRecentInput: boolean })[])
+      if (!entry.hadRecentInput) metrics.__uxCls += entry.value;
+  }).observe({ type: "layout-shift", buffered: true });
   try {
     localStorage.setItem("mitori:firstRun", "2026-10-01");
   } catch {
@@ -226,10 +232,10 @@ try {
 
   // ---------------------------------------------------------------- B. Fix on a heading: the hint, no 412
   await page.goto(new URL(`/w/${ws}/doc/s10`, page.url()).href);
-  await page.locator(".blk .mb", { hasText: "まだ決定はありません" }).first().waitFor();
+  await page.locator(".blk .mb", { hasText: "スレッドから記録した決定はまだありません。" }).first().waitFor();
   await sleep(500);
   const r1 = sinceReq();
-  await select(".reader-root .blk .mb", "まだ決定はありません");
+  await select(".reader-root .blk .mb", "スレッドから記録した決定はまだありません。");
   await page.keyboard.press("f");
   await composer().waitFor();
   await composer().locator(".tg-none").waitFor({ timeout: 5000 });
@@ -328,8 +334,37 @@ try {
   await jobUntil(retryId, ["ready"]);
   // the code is taken through the API here (the Review flow was A); the sentence's rewrite stays for the prose ✓
   await api("POST", `/jobs/${retryId}/accept`, { accept: "all", acceptUnverified: true });
+  const beforeReload = sinceReq();
   await page.reload();
   await page.locator(".pp", { hasText: "MaxRetries" }).first().waitFor({ timeout: 8000 });
+  const initialProposalStyle = await page
+    .locator(".pp")
+    .first()
+    .evaluate((el) => {
+      const style = getComputedStyle(el);
+      const buttons = [...el.querySelectorAll(".acts button")].map((button) => {
+        const { width, height } = button.getBoundingClientRect();
+        return { width, height };
+      });
+      return { padding: style.padding, background: style.backgroundColor, shadow: style.boxShadow, buttons };
+    });
+  steps.initialProposalStyle = initialProposalStyle;
+  check(initialProposalStyle.padding === "12px 18px 14px", "the pending proposal already has its canonical initial CSS padding");
+  check(
+    initialProposalStyle.background !== "rgba(0, 0, 0, 0)" && initialProposalStyle.shadow !== "none",
+    "the initial proposal retains its suggestion surface",
+  );
+  check(
+    initialProposalStyle.buttons.length === 2 && initialProposalStyle.buttons.every(({ width, height }) => width >= 28 && height >= 28),
+    "initial human decision controls retain their canonical hit area",
+  );
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  steps.initialProposalCls = await page.evaluate(() => (window as unknown as { __uxCls: number }).__uxCls);
+  check(steps.initialProposalCls === 0, "the styled initial pending proposal has zero layout shift");
+  check(
+    !reqsSince(beforeReload).some((r) => /\/assets\/(main|loop|ProposalLayer|ReaderTools)-[^/]+\.js/.test(r)),
+    "the pending proposal is already visible in canonical initial prose while the editing modules stay cold",
+  );
   await sleep(600);
   await shot("ux-10-proposal-standalone");
   await page.locator(".pp button.ok").first().click();

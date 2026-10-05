@@ -1,5 +1,5 @@
 /** Shared helpers of the WP-10a Playwright specs. */
-import type { Page } from "@playwright/test";
+import type { Page, TestInfo } from "@playwright/test";
 
 export const WS = "ws_cr1t00000000";
 export const BASE = `http://127.0.0.1:${process.env.MOCK_PORT ?? 4318}`;
@@ -50,9 +50,17 @@ export function p95(xs: number[]): number {
   return s[Math.min(s.length - 1, Math.ceil(s.length * 0.95) - 1)] ?? 0;
 }
 
+/** The reference time budgets and Chromium-only probes are not baseline measurements for another engine. */
+export function chromiumMetric(browserName: string, info: TestInfo, metric: string): boolean {
+  if (browserName === "chromium") return true;
+  info.annotations.push({ type: "skip-metric", description: `${metric}: Chromium only (${browserName})` });
+  return false;
+}
+
 /** Cumulative layout shift observed so far (buffered), excluding shifts right after input. */
 export async function installCls(page: Page): Promise<void> {
   await page.addInitScript(() => {
+    if (!PerformanceObserver.supportedEntryTypes.includes("layout-shift")) throw new Error("layout-shift PerformanceObserver unavailable");
     (window as unknown as { __cls: number }).__cls = 0;
     (window as unknown as { __clsSources: unknown[] }).__clsSources = [];
     new PerformanceObserver((list) => {

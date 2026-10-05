@@ -96,3 +96,54 @@ test("anchor HTML arrives first, idle windows preserve SSE upserts/removals/fres
     globalThis.requestIdleCallback = oldIdle;
   }
 });
+
+test("secondary display drops a late primary fetch and refreshes primary SSE HTML in the selected language", async () => {
+  const id = "s1" as SectionId;
+  const block = {
+    id: "b_00000000",
+    section: id,
+    ord: 0,
+    hash: "0".repeat(16),
+    lang: "ja",
+    htmlLang: "ja",
+    html: "primary",
+    freshness: "fresh",
+  } as unknown as BlockView;
+  let finish!: (v: SectionView) => void;
+  const langs: string[] = [];
+  const api = {
+    call: (_key: string, opts: { query: { lang: string } }) => {
+      langs.push(opts.query.lang);
+      return new Promise<SectionView>((resolve) => (finish = resolve));
+    },
+  } as unknown as ApiClient;
+  const idle: IdleRequestCallback[] = [];
+  const previousIdle = globalThis.requestIdleCallback;
+  globalThis.requestIdleCallback = (cb) => {
+    idle.push(cb);
+    return idle.length;
+  };
+  const doc = new DocState(api, () => "ws_000000000000" as WorkspaceKey);
+  const view = (b: BlockView) => ({ section: { id }, blocks: [b] }) as SectionView;
+  try {
+    const old = doc.load(id);
+    doc.setLanguage("en");
+    finish(view(block));
+    await old;
+    expect(doc.section(id)).toBeUndefined();
+    const next = doc.load(id);
+    finish(view({ ...block, htmlLang: "en", html: "secondary" }));
+    await next;
+    doc.upsertBlock({ ...block, hash: "1".repeat(16) as BlockView["hash"], html: "new primary" });
+    expect(doc.section(id)?.blocks[0]?.html).toBe("");
+    idle.shift()?.({ didTimeout: false, timeRemaining: () => 10 });
+    await Promise.resolve();
+    finish(view({ ...block, hash: "1".repeat(16) as BlockView["hash"], htmlLang: "en", html: "new secondary" }));
+    await Bun.sleep(0);
+    expect(doc.section(id)?.blocks[0]?.html).toBe("new secondary");
+    expect(langs).toEqual(["ja", "en", "en"]);
+  } finally {
+    doc.reset();
+    globalThis.requestIdleCallback = previousIdle;
+  }
+});

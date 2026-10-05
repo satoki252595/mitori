@@ -4,6 +4,7 @@ import ELK from "elkjs/lib/elk-api.js";
 import { DOC_MIGRATIONS } from "../store/index.ts";
 import { hasher, inlinePool, memDb, silentLog } from "../test/helpers.ts";
 import { elkLayout, irToElk, sequenceLayout } from "./elk.ts";
+import { floorplanLayout, floorplanQuality } from "./floorplan.ts";
 import { createDiagramLayouter } from "./index.ts";
 import { ROOM_BOX, ROOMS_ENGINE, roomsLayout, roomWidth } from "./rooms.ts";
 
@@ -106,9 +107,32 @@ describe("DOC-G-013 layouts", () => {
     await l1.layout({ ...ir(), title: "changed" });
     expect(calls).toBe(2);
   });
-  test("floor plan layout is WP-18", async () => {
-    const l = createDiagramLayouter({ elk: inlinePool(() => ({}) as DiagramLayout), db: memDb(DOC_MIGRATIONS), hasher, log: silentLog });
-    await expect(l.layoutFloorplan(ir({ kind: "floorplan" }), null)).rejects.toMatchObject({ code: "E_UNSUPPORTED" });
+  test("floor plan layout uses source LOC and shared-wall import doors without ELK", async () => {
+    const l = createDiagramLayouter({
+      elk: inlinePool((req: { ir: DiagramIR; prev: DiagramLayout | null }) => {
+        const layout = floorplanLayout(req.ir, "h", req.prev);
+        return { layout, quality: floorplanQuality(req.ir, layout, 0) };
+      }),
+      db: memDb(DOC_MIGRATIONS),
+      hasher,
+      log: silentLog,
+    });
+    const floor = ir({
+      kind: "floorplan",
+      nodes: [
+        { id: "a", label: "API", loc: 100 },
+        { id: "b", label: "Store", loc: 400 },
+      ],
+      edges: [{ id: "e", from: "a", to: "b", kind: "imports", weight: 3 }],
+      groups: [],
+    });
+    const { layout: a, quality } = await l.layoutFloorplan(floor, null);
+    expect(a.engine).toBe("mitori-floorplan@1");
+    expect(a.doors).toHaveLength(1);
+    expect(a.nodes.map((n) => n.loc)).toEqual([100, 400]);
+    expect(quality.doorRatio).toBe(1);
+    expect((await l.layoutFloorplan(floor, null)).layout).toEqual(a);
+    expect((await l.layoutFloorplan(floor, a)).layout).toEqual(a);
   });
 });
 

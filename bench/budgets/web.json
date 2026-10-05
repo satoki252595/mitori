@@ -25,8 +25,7 @@
       "owner": "web",
       "measure": "e2e/perf/scan-summary.spec.ts#E2E-01:scanSummary",
       "scale": "machine",
-      "provisional": false,
-      "unmeasured": "the web shell marks no moment for \"scan summary shown\" (PERF_MARKS has no mitori:scan:summary); needs that mark from the web track, then a case in e2e/perf/lib/ui.ts (docs/progress/rem-bench.md)"
+      "provisional": false
     },
     {
       "id": "ui.firstUseful.100k",
@@ -130,8 +129,7 @@
       "owner": "web",
       "measure": "e2e/perf/input-render.spec.ts#ui-input-render-1000",
       "scale": "machine",
-      "provisional": false,
-      "unmeasured": "needs a 1,000-block doc fixture on the real daemon (gen:doc-1000) and CPU throttling; see docs/progress/rem-bench.md"
+      "provisional": false
     },
     {
       "id": "ui.cls.boot",
@@ -209,8 +207,7 @@
       "owner": "web",
       "measure": "e2e/perf/dom.spec.ts#ui-dom-max",
       "scale": "none",
-      "provisional": false,
-      "unmeasured": "needs the max-state fixtures (all 20 sections + Deep Dive / Inbox 500 / Review 5,000 lines); see docs/progress/rem-bench.md"
+      "provisional": false
     },
     {
       "id": "ui.codeLines.mounted",
@@ -223,8 +220,7 @@
       "owner": "web",
       "measure": "e2e/perf/dom.spec.ts#ui-code-lines-mounted",
       "scale": "none",
-      "provisional": false,
-      "unmeasured": "needs gen:large-file (20k-line file) opened in the code view; see docs/progress/rem-bench.md"
+      "provisional": false
     },
     {
       "id": "ui.reviewDiff5000.dom",
@@ -237,8 +233,7 @@
       "owner": "web",
       "measure": "e2e/perf/dom.spec.ts#ui-review-diff-5000",
       "scale": "none",
-      "provisional": false,
-      "unmeasured": "needs a 5,000-line diff job (scenario engine) open in Review; see docs/progress/rem-bench.md"
+      "provisional": false
     },
     {
       "id": "ui.floorplan.nodes",

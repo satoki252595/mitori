@@ -1,0 +1,37 @@
+{
+  "v": "mitori.bench-result/1",
+  "sha": "815957fd01fb4856b5ae8d3aa2091edd1ddd263f",
+  "machine": {
+    "cpu": "Apple M5 Max",
+    "cores": 18,
+    "ramGb": 128,
+    "os": "Darwin 27.0.0",
+    "bun": "1.4.2",
+    "node": "22.23.3",
+    "chrome": "153.0.8010.12",
+    "loadavg": 8.17626953125,
+    "noisy": false,
+    "waited": 2,
+    "power": "ac"
+  },
+  "factor": 0.9947119077359573,
+  "factorSource": "measured",
+  "startedAt": "2026-10-05T13:14:48.784Z",
+  "results": [
+    {
+      "id": "ui.palette",
+      "unit": "ms",
+      "values": [],
+      "median": 0,
+      "p95": 0,
+      "cv": 0,
+      "suite": "ui",
+      "mode": "inproc",
+      "budgetStat": "median",
+      "repo": "crit",
+      "error": "marks not reached in 30000 ms: mitori:facts:painted",
+      "loadavg": 8.17626953125
+    }
+  ],
+  "counters": []
+}

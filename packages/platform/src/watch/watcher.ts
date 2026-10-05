@@ -5,7 +5,7 @@
 // A directory renamed away or moved out of the tree arrives as ONE `delete <dir>` (the OS names only the directory
 // and the watcher never listed the files it held); the files under a directory that appears are enumerated as adds.
 import { existsSync, type FSWatcher, lstatSync, readdirSync, readFileSync, watch } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { type Clock, type Glob, MitoriError, type RepoPath } from "@mitori/core";
 import { systemClock } from "../clock/index.ts";
 import { realTimers, type TimerId, type Timers } from "../clock/timers.ts";
@@ -85,7 +85,8 @@ export function createFsWatcher(opts: FsWatcherOptions = {}): FsWatcher {
       const globs = wopts.ignore.map((g) => new Bun.Glob(g));
       const ignored = (rel: string) => globs.some((g) => g.match(rel) || g.match(`${rel}/`));
       const gitDir = wopts.gitDir;
-      const gitRel = gitDir && (gitDir === root || gitDir.startsWith(`${root}/`)) ? relative(root, gitDir) : null;
+      const gitPath = gitDir ? relative(root, gitDir) : null;
+      const gitRel = gitPath !== null && gitPath !== ".." && !gitPath.startsWith(`..${sep}`) && !isAbsolute(gitPath) ? gitPath.split(sep).join("/") : null;
       const startedMs = Date.now(); // compared with file timestamps: always the wall clock
       /** Paths reported (or proven echo) as existing since the watch started. */
       const known = new Set<string>();
@@ -117,7 +118,7 @@ export function createFsWatcher(opts: FsWatcherOptions = {}): FsWatcher {
           schedule();
           return;
         }
-        const rel = nfc(String(name));
+        const rel = nfc(String(name).split(sep).join("/"));
         if (gitRel !== null && (rel === gitRel || rel.startsWith(`${gitRel}/`))) return onGitEvent(rel.slice(gitRel.length + 1));
         if (rel === "" || rel.split("/").includes(".git") || TEMP.test(rel) || ignored(rel)) return;
         const p = pending.get(rel);
@@ -220,14 +221,15 @@ export function createFsWatcher(opts: FsWatcherOptions = {}): FsWatcher {
       // a git dir outside the tree (linked worktree, shadow repo): watch it separately for index/HEAD/refs
       if (gitDir && gitRel === null)
         open(gitDir, (_t, name) => {
-          if (!stopped && name !== null) onGitEvent(nfc(String(name)));
+          if (!stopped && name !== null) onGitEvent(nfc(String(name).split(sep).join("/")));
         });
       // a linked worktree keeps its branch refs in the main repository's common dir (`<gitDir>/commondir`):
       // `reset --soft` / `update-ref` there move HEAD without touching the worktree's index
       const common = gitDir ? commonDirOf(gitDir) : null;
-      if (common && common !== root && !common.startsWith(`${root}/`) && existsSync(join(common, "refs"))) {
+      const commonPath = common ? relative(root, common) : "";
+      if (common && (commonPath === ".." || commonPath.startsWith(`..${sep}`) || isAbsolute(commonPath)) && existsSync(join(common, "refs"))) {
         open(join(common, "refs"), (_t, name) => {
-          if (!stopped && name !== null) onGitEvent(`refs/${nfc(String(name))}`);
+          if (!stopped && name !== null) onGitEvent(`refs/${nfc(String(name).split(sep).join("/"))}`);
         });
         open(
           common,

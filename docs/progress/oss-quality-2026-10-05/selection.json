@@ -1,0 +1,38 @@
+{
+  "method": "GitHub API: created 2026-09-01..2026-10-05, >=200 stars, non-archived; choose two smaller TS/Python repositories plus a larger multilingual architecture",
+  "samples": [
+    {
+      "repo": "lnkiai/m3e-canvas",
+      "sha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "root": "/Users/satoki252595/work/20261002_aiAgentTool/node_modules/.cache/mitori-oss-quality-20261005/m3e-canvas",
+      "observedAt": "2026-10-05T01:17:37.581Z",
+      "stars": 8692,
+      "createdAt": "2026-09-02T04:36:34Z",
+      "pushedAt": "2026-10-03T14:15:41Z",
+      "url": "https://github.com/lnkiai/m3e-canvas",
+      "license": "MIT"
+    },
+    {
+      "repo": "browser-use/jev-ultrafast",
+      "sha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "root": "/Users/satoki252595/work/20261002_aiAgentTool/node_modules/.cache/mitori-oss-quality-20261005/jev-ultrafast",
+      "observedAt": "2026-10-05T01:17:39.408Z",
+      "stars": 21997,
+      "createdAt": "2026-09-16T21:30:12Z",
+      "pushedAt": "2026-09-30T01:24:38Z",
+      "url": "https://github.com/browser-use/jev-ultrafast",
+      "license": "MIT"
+    },
+    {
+      "repo": "NandhaKishorM/laya",
+      "sha": "8a6e1328cce2460a0e5aa348ad465bb1b5821cd2",
+      "root": "/Users/satoki252595/work/20261002_aiAgentTool/node_modules/.cache/mitori-oss-quality-20261005/laya",
+      "observedAt": "2026-10-05T01:17:41.838Z",
+      "stars": 30713,
+      "createdAt": "2026-09-18T04:46:33Z",
+      "pushedAt": "2026-10-04T18:51:33Z",
+      "url": "https://github.com/NandhaKishorM/laya",
+      "license": "Apache-2.0"
+    }
+  ]
+}

@@ -31,7 +31,12 @@ const WRITES: ReadonlySet<LoopPromptId> = new Set(["loop.patch", "loop.agent"]);
  */
 export function loopSystemPrompt(id: LoopPromptId, ctx: { cwd: string; deny: readonly Glob[] }): string {
   const lines = [LOOP_PROMPTS[id].text.replaceAll("{cwd}", ctx.cwd), denyLine(ctx.deny)];
-  if (WRITES.has(id)) lines.push("ACCEPT", ...acceptFixedBullets().map((b) => `- ${b}`));
+  if (WRITES.has(id))
+    lines.push(
+      "ACCEPT",
+      ...acceptFixedBullets().map((b) => `- ${b}`),
+      "Use the language standard library or an existing repository helper when it solves the failure. Prefer the smallest edit that preserves the requested behaviour, including a necessary import within WRITE. Do not replace standard error/formatting facilities with new wrapper types, manual conversions or parallel helpers just to avoid adding an import.",
+    );
   return `${lines.join("\n")}\n`;
 }
 

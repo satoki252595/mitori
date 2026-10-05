@@ -89,7 +89,7 @@ export function createStores(api: ApiClient, sse: SseClient, makeWorker: () => W
     session: new SessionState(api),
     workspace,
     doc,
-    map: new MapState(api, wsKey),
+    map: new MapState(api, wsKey, () => prefs.lang),
     review: new ReviewState(api, wsKey),
     gen: new GenState(api, wsKey),
     inbox: new InboxState(api, wsKey),

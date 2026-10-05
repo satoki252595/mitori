@@ -104,7 +104,7 @@ export function assembleArgv(req: EngineRequest, settings: EngineSettings["claud
     }
   };
   const argv = [...CLAUDE_ARGV.common, ...CLAUDE_ARGV[req.mode]].flatMap(subst);
-  if (req.mode === "generate" && schema !== null) argv.push("--json-schema", schema);
+  if ((req.mode === "generate" || req.mode === "answer") && schema !== null) argv.push("--json-schema", schema);
   return argv;
 }
 

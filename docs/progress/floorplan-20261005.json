@@ -1,0 +1,154 @@
+{
+  "source": "eight fresh offline scans of pinned corpus; fixture IR is committed",
+  "viewport": {
+    "width": 1000,
+    "height": 625,
+    "padding": 24
+  },
+  "labelLOD": {
+    "widthAbove": 150,
+    "heightAbove": 84
+  },
+  "zoneAspect": 0.7,
+  "roomAspect": 1.8,
+  "fallbacks": 2,
+  "denominator": 8,
+  "rows": [
+    {
+      "name": "flask",
+      "quality": {
+        "labelFit": 1,
+        "doorRatio": 1,
+        "rooms": 3,
+        "layoutMs": 0.732292000000001
+      },
+      "fallback": false,
+      "rpcMs": 33.503333,
+      "deterministic": true,
+      "actors": 4,
+      "allActorsRetained": true
+    },
+    {
+      "name": "ripgrep",
+      "quality": {
+        "labelFit": 0.875,
+        "doorRatio": 0.4583333333333333,
+        "rooms": 8,
+        "layoutMs": 0.6574999999999989
+      },
+      "fallback": false,
+      "rpcMs": 1.3951659999999961,
+      "deterministic": true,
+      "actors": 13,
+      "allActorsRetained": true
+    },
+    {
+      "name": "hono",
+      "quality": {
+        "labelFit": 1,
+        "doorRatio": 0.7333333333333333,
+        "rooms": 5,
+        "layoutMs": 0.19599999999999795
+      },
+      "fallback": false,
+      "rpcMs": 0.5772909999999953,
+      "deterministic": true,
+      "actors": 3,
+      "allActorsRetained": true
+    },
+    {
+      "name": "excalidraw",
+      "quality": {
+        "labelFit": 0.8846153846153846,
+        "doorRatio": 0.28205128205128205,
+        "rooms": 26,
+        "layoutMs": 0.8896660000000054
+      },
+      "fallback": true,
+      "rpcMs": 2.0044169999999966,
+      "deterministic": true,
+      "actors": 30,
+      "allActorsRetained": true
+    },
+    {
+      "name": "fastapi",
+      "quality": {
+        "labelFit": 1,
+        "doorRatio": 0.5909090909090909,
+        "rooms": 8,
+        "layoutMs": 0.20949999999999847
+      },
+      "fallback": false,
+      "rpcMs": 0.5929169999999999,
+      "deterministic": true,
+      "actors": 5,
+      "allActorsRetained": true
+    },
+    {
+      "name": "react",
+      "quality": {
+        "labelFit": 0.08108108108108109,
+        "doorRatio": 0.3333333333333333,
+        "rooms": 37,
+        "layoutMs": 0.34191700000000225
+      },
+      "fallback": true,
+      "rpcMs": 1.2579580000000021,
+      "deterministic": true,
+      "actors": 33,
+      "allActorsRetained": true
+    },
+    {
+      "name": "crit",
+      "quality": {
+        "labelFit": 0.7857142857142857,
+        "doorRatio": 0.5952380952380952,
+        "rooms": 14,
+        "layoutMs": 0.27837500000000404
+      },
+      "fallback": false,
+      "rpcMs": 1.1571659999999966,
+      "deterministic": true,
+      "actors": 51,
+      "allActorsRetained": true
+    },
+    {
+      "name": "m3e-canvas",
+      "quality": {
+        "labelFit": 1,
+        "doorRatio": 0.7333333333333333,
+        "rooms": 5,
+        "layoutMs": 0.06199999999999761
+      },
+      "fallback": false,
+      "rpcMs": 0.3374159999999975,
+      "deterministic": true,
+      "actors": 3,
+      "allActorsRetained": true
+    }
+  ],
+  "synthetic40": [
+    {
+      "labelFit": 0.3,
+      "doorRatio": 0.6666666666666666,
+      "rooms": 40,
+      "layoutMs": 1.4813339999999968,
+      "rpcMs": 1.6587080000000043
+    },
+    {
+      "labelFit": 0.3,
+      "doorRatio": 0.6666666666666666,
+      "rooms": 40,
+      "layoutMs": 1.448208000000001,
+      "rpcMs": 1.5760000000000005
+    },
+    {
+      "labelFit": 0.3,
+      "doorRatio": 0.6666666666666666,
+      "rooms": 40,
+      "layoutMs": 1.4122920000000008,
+      "rpcMs": 1.5641250000000042
+    }
+  ],
+  "llmCalls": 0
+}

@@ -5,15 +5,17 @@
   the container-width layout (UXP-03).
 -->
 <script lang="ts">
-import type { FileContent, JobId, LineNo, RepoPath, SectionId } from "@mitori/core";
-import { MitoriError } from "@mitori/core";
+import type { JobId, LineNo, RepoPath, SectionId } from "@mitori/core";
 import { type Component, untrack } from "svelte";
-import { errorText, t } from "../shell/index.ts";
+import { t } from "../shell/index.ts";
 import { markAfterPaint } from "../shell/perf.ts";
 import Rich from "../shell/Rich.svelte";
 import { useStores } from "../stores/app.svelte.ts";
-import CodePane from "./CodePane.svelte";
-import { codeWindow, invalidateCode, loadCode } from "./code.ts";
+
+let CodeColumn = $state.raw<typeof import("./ContextCode.svelte").default | null>(null);
+let codeLoading: Promise<unknown> | null = null;
+
+import { invalidateCode } from "./code.ts";
 
 let {
   placement,
@@ -55,80 +57,32 @@ function pin(f: { path: RepoPath; start: LineNo; end: LineNo }) {
 
 const s = useStores();
 const mode = $derived(s.ctx.mode);
-const target = $derived(s.ctx.pin ?? spy);
-let content = $state.raw<FileContent | null>(null);
-let error = $state<string | null>(null);
-
+// The margin's source list does not need the code viewer until a cite is pinned or code mode is opened.
 $effect(() => {
-  const m = mode;
-  markAfterPaint("mitori:ctx:mode", { mode: m });
+  if (mode === "code") codeLoading ??= import("./ContextCode.svelte").then((m) => (CodeColumn = m.default));
 });
 
-// EX-08: an accepted Fix or its Undo changes files under the open range (SSE index.changed): the pane re-reads the
-// current file at once, so it never shows a version that is gone (and never marks lines of another version)
+$effect(() => {
+  markAfterPaint("mitori:ctx:mode", { mode });
+});
+
+// Cached windows must be invalidated even while the code column is closed.
 let rev = $state(0);
 $effect(() => {
   const ch = s.workspace.changed;
   const ws = s.workspace.key;
   if (!ch || !ws) return;
   untrack(() => {
-    const tg = target;
-    if (invalidateCode(ws, ch.paths) && tg && ch.paths.includes(tg.path)) rev++;
+    const target = s.ctx.pin ?? spy;
+    if (invalidateCode(ws, ch.paths) && target && ch.paths.includes(target.path)) rev++;
   });
 });
-
-$effect(() => {
-  const tg = target;
-  const ws = s.workspace.key;
-  void rev;
-  if (mode !== "code" || !tg || !ws) return;
-  const w = codeWindow(tg.start, tg.end);
-  error = null;
-  loadCode(s.api, ws, tg.path, w.start, w.end).then(
-    (c) => {
-      if (target === tg) content = c;
-    },
-    (err) => (error = errorText(MitoriError.from(err).toData())),
-  );
-});
-
-// drag the column edge (pointer only; the keyboard path is the range input below — WCAG 2.5.7)
-let dragX: number | null = null;
-function down(e: PointerEvent) {
-  dragX = e.clientX;
-  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-}
-function move(e: PointerEvent) {
-  if (dragX === null) return;
-  const d = dragX - e.clientX;
-  if (Math.abs(d) >= 4) {
-    onwidth(width + d);
-    dragX = e.clientX;
-  }
-}
-function up() {
-  dragX = null;
-}
 </script>
 
-<aside class="ctx" data-mode={mode} data-place={placement} style:width={placement === "column" ? `${width}px` : undefined} aria-label={t(`ctx.${mode}`)}>
+<!-- The grid owns column width, including its transition; an immediate fixed width overflows the moving track. -->
+<aside class="ctx" data-mode={mode} data-place={placement} aria-label={t(`ctx.${mode}`)}>
   {#if mode === "code"}
-    {#if placement === "column"}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="grip" onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up}></div>
-    {/if}
-    <div class="code-wrap">
-      {#if target}
-        <CodePane {content} range={{ start: target.start, end: target.end }} badge={s.ctx.pin ? "pinned" : "exact"} {error} citedBlob={target.blob ?? null} />
-      {:else}
-        <p class="empty">{t("ctx.codeEmpty")}</p>
-      {/if}
-      {#if placement === "column"}
-        <label class="wctl"
-          ><span>{t("ctx.width")}</span><input type="range" min="420" max="900" step="24" value={width} aria-valuetext={`${width}px`} oninput={(e) => onwidth(Number(e.currentTarget.value))} /></label
-        >
-      {/if}
-    </div>
+    {#if CodeColumn}<CodeColumn {placement} {width} {spy} {rev} {onwidth} />{:else}<p class="empty">{t("ctx.codeEmpty")}</p>{/if}
   {:else if mode === "review"}
     {#if review && s.ctx.job}
       {@const Review = review}
@@ -225,40 +179,7 @@ function up() {
   .ctx[data-place="sheet"][data-mode="margin"] {
     display: none;
   }
-  .code-wrap {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-  .grip {
-    position: absolute;
-    left: -4px;
-    top: 0;
-    bottom: 0;
-    width: 8px;
-    cursor: col-resize;
-    z-index: var(--z-sticky);
-  }
-  .wctl {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    padding: 4px 12px;
-    border-top: 1px solid var(--rule);
-    font-size: var(--fs-label);
-    color: var(--muted);
-    background: var(--paper);
-  }
-  .wctl input {
-    flex: 1;
-    accent-color: var(--accent);
-  }
-  .empty {
-    padding: 24px 22px;
-    color: var(--muted);
-    font-size: var(--fs-ui);
-    margin: 0;
-  }
+  .empty { padding: 24px 22px; color: var(--muted); font-size: var(--fs-ui); margin: 0; }
   .margin-host {
     display: contents;
   }

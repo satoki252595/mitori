@@ -649,7 +649,7 @@ function s8(c: Ctx): StaticSpec[] {
   ];
 }
 
-const CHANNELS = ["http", "rpc", "sdk", "db", "subprocess"] as const;
+const CHANNELS = ["http", "rpc", "sdk", "db", "subprocess", "write_sink"] as const;
 /** Rows of the outbound table (grouped by kind × target × library), and locations shown per row. */
 const OUTBOUND_ROWS = 30;
 const OUTBOUND_SITES = 3;

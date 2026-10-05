@@ -1,8 +1,11 @@
+import { fetchCatalog } from "./i18n-fetch.ts";
+
 /** `i18n-en-loop` chunk: the review loop's strings (i18n-ns.ts `loop`), merged by `ensureNs("loop")` before the loop UI mounts. */
-const parts = import.meta.glob<Record<string, string>>("../../i18n/{composer,jobs,review,inbox,threads,trust,proposals}.en.json", {
+const parts = import.meta.glob<string>("../../i18n/{composer,jobs,review,inbox,threads,trust,proposals}.en.json", {
   eager: true,
+  query: "?url",
   import: "default",
 });
 
-const catalog: Record<string, string> = Object.assign({}, ...Object.values(parts));
+const catalog = fetchCatalog(Object.values(parts));
 export default catalog;

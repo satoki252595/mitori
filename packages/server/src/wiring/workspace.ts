@@ -5,6 +5,7 @@
  * digest → `palette.changed`, and `doc.block.upsert` for blocks gen / humans wrote (the store has no renderer).
  */
 
+import { isAbsolute, join } from "node:path";
 import type { AgentScheduler, UsageLedger } from "@mitori/agent";
 import type { AnchorContext, AnchorEngine } from "@mitori/anchor";
 import {
@@ -72,7 +73,10 @@ export interface Shared {
   /** The agent bridge (created right after the daemon started). */
   agent(): { scheduler: AgentScheduler; ledger: UsageLedger };
   highlighter: WorkerPool<HighlightReq, string>;
-  elk: WorkerPool<{ ir: DiagramIR; kind: "layered" | "floorplan"; prev: DiagramLayout | null }, DiagramLayout>;
+  elk: WorkerPool<
+    { ir: DiagramIR; kind: "layered" | "floorplan"; prev: DiagramLayout | null },
+    DiagramLayout | Awaited<ReturnType<DiagramLayouter["layoutFloorplan"]>>
+  >;
   /** SafeWriter that creates a missing doc root. */
   safeWrite: SafeWriter;
   hardware: HardwareInfo;
@@ -127,7 +131,7 @@ const REANCHOR_STATES: ThreadState[] = ["open", "queued", "running", "needs_inpu
 /** Job states with a pipeline in flight. */
 const ACTIVE_JOB_STATES: JobState[] = ["queued", "waiting_lock", "preparing", "running", "gating", "repairing"];
 
-const docDirAbs = (info: WorkspaceInfo) => (info.docDir.startsWith("/") ? info.docDir : `${info.root.replace(/\/+$/, "")}/${info.docDir}`);
+const docDirAbs = (info: WorkspaceInfo) => (isAbsolute(info.docDir) ? info.docDir : join(info.root, info.docDir));
 
 /** `inner` with some methods replaced; every other member is forwarded (bound to `inner`, class instances too). */
 function override<T extends object>(inner: T, over: Partial<T>): T {
@@ -276,6 +280,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
   const pendingUpserts = new Set<BlockId>();
   let upsertScheduled = false;
   const view: ViewCtx = {
+    floorplan: () => base.settings().global.ui.map?.floorplan ?? false,
     ws: info.key,
     get doc() {
       return doc;
@@ -404,6 +409,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     // CR-PENDING(loop-wiring) #1: ports LoopDeps has no member for
     fs: deps.fs,
     env: { PATH: deps.safePath, HOME: deps.userHome },
+    ...(deps.gh ? { gh: deps.gh } : {}),
   };
   const loopImpl = createLoop(loopDeps);
   const extras = loopExtras(loopImpl);
@@ -647,7 +653,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
   }
 
   /* ---- watcher ---------------------------------------------------------------------------------------------- */
-  const docPrefix = info.docDir.startsWith("/") ? null : `${info.docDir.replace(/\/+$/, "")}/`;
+  const docPrefix = isAbsolute(info.docDir) ? null : `${info.docDir.replace(/[\\/]+$/, "").replace(/\\/g, "/")}/`;
   const docIgnored = (rel: string) => DOC_WATCH_IGNORE.some((g) => rel.startsWith(g.replace(/\*\*$/, "")));
   let chain: Promise<void> = Promise.resolve();
   let stopWatch: (() => void) | null = null;

@@ -20,7 +20,7 @@ import {
   type Viewport,
   zoomAt,
 } from "./camera.ts";
-import { type FlowStep, fitText, LABEL_FONT, type PlanModel, type PlanText, renderFlow, renderPins, renderPlanSvg, roomLabels, textPx } from "./render.ts";
+import { type FlowStep, fitText, LABEL_FONT, type PlanModel, type PlanText, renderFlow, renderPins, roomLabels, textPx } from "./render.ts";
 
 /** Text nodes of one room / zone whose content the label fitting rewrites (looked up once per render). */
 interface RoomTexts {
@@ -64,6 +64,10 @@ export class PlanController {
   #pins: SVGGElement | null = null;
   #flows: SVGGElement | null = null;
   #flow: readonly FlowStep[] | null = null;
+  #classes = new Map<string, boolean>();
+  #generating: ReadonlySet<string> = new Set();
+  #done: ReadonlySet<string> = new Set();
+  #pinCounts: Readonly<Record<string, number>> = {};
   #rooms = new Map<string, SVGElement>();
   #texts = new Map<string, RoomTexts>();
   #zoneTexts: ZoneTexts[] = [];
@@ -80,22 +84,23 @@ export class PlanController {
   #hoverTimer: ReturnType<typeof setTimeout> | null = null;
   #cb: PlanCallbacks;
   #offs: (() => void)[] = [];
-  readonly allowZ3: boolean;
+  allowZ3: boolean;
 
-  constructor(host: HTMLElement, model: PlanModel, text: PlanText, descId: string, cb: PlanCallbacks, allowZ3: boolean) {
+  constructor(host: HTMLElement, model: PlanModel, text: PlanText, descId: string, cb: PlanCallbacks, allowZ3: boolean, svg: string) {
     this.host = host;
     this.model = model;
     this.#cb = cb;
     this.#text = text;
     this.allowZ3 = allowZ3;
-    this.render(model, text, descId);
+    this.render(model, text, descId, svg);
     this.#listen();
   }
 
-  render(model: PlanModel, text: PlanText, descId: string): void {
+  render(model: PlanModel, text: PlanText, _descId: string, svg: string): void {
     this.model = model;
+    this.allowZ3 = model.doors !== undefined;
     this.#text = text;
-    this.host.innerHTML = renderPlanSvg(model, text, descId);
+    this.host.innerHTML = svg;
     this.#svg = this.host.querySelector("svg.plan");
     this.#g = this.host.querySelector("g.cam");
     this.#pins = this.host.querySelector("g.pins");
@@ -122,14 +127,17 @@ export class PlanController {
     }));
     this.resize();
     if (this.#selected) this.select(this.#selected, false);
-    if (this.#flow) this.setFlow(this.#flow);
+    this.setFlow(this.#flow);
+    for (const [name, on] of this.#classes) this.setClass(name, on);
+    this.setRoomStates(this.#generating, this.#done);
+    this.setPins(this.#pinCounts);
   }
 
   /** Viewport changed (ResizeObserver): refit unless the user moved the camera. */
   resize(): void {
     const r = this.host.getBoundingClientRect();
     this.#vp = { w: Math.max(1, r.width), h: Math.max(1, r.height) };
-    const fit = fitCamera(this.model.width, this.model.height, this.#vp, 24, FIT_MAX_S);
+    const fit = fitCamera(this.model.building?.w ?? this.model.width, this.model.building?.h ?? this.model.height, this.#vp, 24, FIT_MAX_S);
     this.#sFit = fit.s;
     if (!this.#moved) this.cam = fit;
     this.#apply(true);
@@ -137,6 +145,13 @@ export class PlanController {
 
   get k(): number {
     return this.cam.s / this.#sFit;
+  }
+
+  /** The progressive UI keeps the camera when the enhanced controls are first mounted. */
+  restoreCamera(camera: MapCamera): void {
+    this.cam = { ...camera };
+    this.#moved = true;
+    this.#apply(true);
   }
 
   #apply(lodNow: boolean): void {
@@ -242,7 +257,7 @@ export class PlanController {
 
   fit(): void {
     this.#moved = false;
-    this.moveTo(fitCamera(this.model.width, this.model.height, this.#vp, 24, FIT_MAX_S), false);
+    this.moveTo(fitCamera(this.model.building?.w ?? this.model.width, this.model.building?.h ?? this.model.height, this.#vp, 24, FIT_MAX_S), false);
   }
 
   stepZoom(dir: 1 | -1): void {
@@ -293,11 +308,14 @@ export class PlanController {
   }
 
   setClass(name: string, on: boolean): void {
+    this.#classes.set(name, on);
     this.#svg?.classList.toggle(name, on);
   }
 
   /** Generation rings / ✓ by diagram node id. */
   setRoomStates(generating: ReadonlySet<string>, done: ReadonlySet<string>): void {
+    this.#generating = generating;
+    this.#done = done;
     for (const [id, el] of this.#rooms) {
       el.classList.toggle("gen", generating.has(id));
       el.classList.toggle("done", done.has(id) && !generating.has(id));
@@ -312,6 +330,7 @@ export class PlanController {
   }
 
   setPins(counts: Readonly<Record<string, number>>): void {
+    this.#pinCounts = counts;
     if (this.#pins) this.#pins.innerHTML = renderPins(this.model, counts);
   }
 

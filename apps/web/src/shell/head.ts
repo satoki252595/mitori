@@ -14,7 +14,7 @@ export interface HeadChunks {
   reader: string;
 }
 
-export function bootHead(d: Document, parse: (raw: string | null) => UiCookieFields, chunks: HeadChunks): void {
+export function bootHead(d: Document, parse: (raw: string | null) => UiCookieFields, _chunks: HeadChunks): void {
   const h = d.documentElement;
   let lg: "ja" | "en" = "ja";
   try {
@@ -33,16 +33,7 @@ export function bootHead(d: Document, parse: (raw: string | null) => UiCookieFie
     const p = location.pathname;
     const view = /^\/w\/[^/]+\/?$/.test(p) ? "map" : /^\/w\/[^/]+\/(doc|code|review)\//.test(p) ? "doc" : p === "/" ? "launcher" : "other";
     h.dataset.boot = view;
-    const pre = [lg === "ja" ? chunks.ja : chunks.en];
-    if (view === "map") pre.push(chunks.map);
-    if (view === "doc") pre.push(chunks.reader);
-    for (const href of pre) {
-      if (!href) continue;
-      const l = d.createElement("link");
-      l.rel = "modulepreload";
-      l.href = href;
-      d.head.appendChild(l);
-    }
+    // Canonical initial markup is rendered by the daemon; route modules load on their first enhanced action.
   } catch (_e) {
     /* preload is an optimisation */
   }

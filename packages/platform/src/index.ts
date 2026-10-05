@@ -6,6 +6,7 @@
 export * from "./clock/index.ts";
 export * from "./fs/index.ts";
 export * from "./git/index.ts";
+export * from "./hardware/index.ts";
 export * from "./hash/index.ts";
 export * from "./lock/index.ts";
 export * from "./log/index.ts";

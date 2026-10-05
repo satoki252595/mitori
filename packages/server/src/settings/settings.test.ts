@@ -13,6 +13,28 @@ const info: WorkspaceInfo = { key: WS, root: "/repo", kind: "git", name: "repo",
 const code = (e: unknown) => (e instanceof MitoriError ? e.code : String(e));
 
 describe("settings defaults and schema", () => {
+  test("Codex pricing and estimated-spend consent are explicit execution settings, with a visible patch-step cap", () => {
+    const configured = {
+      engines: {
+        "codex-cli": {
+          enabled: true,
+          binary: "codex",
+          model: "gpt-5-codex",
+          pricing: { inPerMTok: 1, outPerMTok: 2, cacheReadPerMTok: 0.1 },
+          maxEstimatedSpendUsd: 0.1,
+          maxPatchSteps: 2,
+        },
+      },
+    };
+    const parsed = parseGlobalSettings(JSON.stringify(configured));
+    expect(parsed.engines["codex-cli"]).toEqual(configured.engines["codex-cli"]);
+    expect(checkSettingsPatch(configured, DEFAULT_GLOBAL_SETTINGS).ok).toBe(false);
+    configured.engines["codex-cli"].maxPatchSteps = 9;
+    expect(code(tryParse(JSON.stringify(configured)))).toBe("E_CFG_INVALID");
+    configured.engines["codex-cli"].maxPatchSteps = 2;
+    configured.engines["codex-cli"].pricing.outPerMTok = -1;
+    expect(code(tryParse(JSON.stringify(configured)))).toBe("E_CFG_INVALID");
+  });
   test("generic generation accepts a configured protocol, model, effort and prices; invalid prices are rejected", () => {
     const configured = {
       defaultGenEngine: "generic",

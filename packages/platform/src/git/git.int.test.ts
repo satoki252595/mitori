@@ -160,7 +160,7 @@ describe("PLAT-I-008 GitReader (normal repo)", () => {
     expect(await r.isShallow()).toBe(false);
   });
 
-  test("shallow clone: isShallow, empty log, revCount null", async () => {
+  test("shallow clone: log uses available parents, excludes the boundary, and revCount stays null", async () => {
     const src = makeRepo({ "a.txt": "1" });
     put(src, { "a.txt": "2" });
     git(src, ["commit", "-q", "-am", "two"]);
@@ -172,6 +172,12 @@ describe("PLAT-I-008 GitReader (normal repo)", () => {
     const head = (await r.head()) as string;
     expect(await r.revCount(head, head)).toBeNull();
     expect((await r.lsFiles()).map((f) => f.path)).toEqual(["a.txt"]);
+    put(dst, { "a.txt": "3", "b.txt": "b" });
+    git(dst, ["add", "."]);
+    git(dst, ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-q", "-m", "three"]);
+    const log = await r.log({ limit: 10 });
+    expect(log.map((entry) => entry.subject)).toEqual(["three"]);
+    expect(log[0]?.paths.sort()).toEqual(["a.txt", "b.txt"]);
   });
 
   test("shallow detection in a linked worktree of a shallow clone (the `shallow` file is in the common dir)", async () => {

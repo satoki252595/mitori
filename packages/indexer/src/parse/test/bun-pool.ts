@@ -1,10 +1,10 @@
 // Test / bench WorkerPool over Bun Workers (the production pool is @mitori/platform's): pull-based dispatch — a
 // request waits in FIFO order until a Worker is free. The wasm is compiled once per pool factory and every Worker
-// instantiates the same modules (what CR-PENDING(perf) asks the CLI factory to do); `MITORI_WASM_SHARE=0` sends bytes
-// only, as production does today. `MITORI_POOL_TRACE=1` logs spawn / ready / batch timings.
+// instantiates the same modules as the production pool factory; `MITORI_WASM_SHARE=0` sends bytes
+// only for byte-loader comparisons. `MITORI_POOL_TRACE=1` logs spawn / ready / batch timings.
 import type { WorkerPool } from "@mitori/core";
 import type { ParseBatchRequest, ParseBatchResponse, ParseWorkerInit } from "../../contract.ts";
-import type { PrecompiledWasm } from "../wasm.ts";
+import { withPrecompiled } from "../wasm.ts";
 
 const TRACE = process.env.MITORI_POOL_TRACE === "1";
 const T0 = performance.now();
@@ -24,12 +24,7 @@ interface Slot {
 const ENTRY = new URL("./worker-entry.ts", import.meta.url).href;
 
 /** The init plus modules compiled once on this thread (structured clone shares them with every Worker). */
-export function withPrecompiled(init: ParseWorkerInit): ParseWorkerInit {
-  const grammars: PrecompiledWasm["grammars"] = {};
-  for (const [g, b] of Object.entries(init.grammars)) grammars[g as keyof typeof grammars] = new WebAssembly.Module(b as BufferSource);
-  const compiled: PrecompiledWasm = { runtime: new WebAssembly.Module(init.runtime as BufferSource), grammars };
-  return { ...init, compiled } as ParseWorkerInit;
-}
+export { withPrecompiled };
 
 export function bunWorkerPool(base: ParseWorkerInit, opts: { precompile?: boolean } = {}): (n: number) => WorkerPool<ParseBatchRequest, ParseBatchResponse> {
   const init = (opts.precompile ?? process.env.MITORI_WASM_SHARE !== "0") ? withPrecompiled(base) : base;

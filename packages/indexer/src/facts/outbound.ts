@@ -1,17 +1,19 @@
 /**
- * `outbound.calls@1` (NC-10, §8 「外とのやり取り」) [CR rdoc-1]: where the code talks to the outside world — HTTP
- * requests, SDK / database clients being created, RPC dials, subprocesses — for TS / JS, Go, Python and Rust. A call
+ * `outbound.calls@2` (NC-10, §8 「外とのやり取り」) [CR rdoc-1]: where the code talks to the outside world — HTTP
+ * requests, SDK / database clients being created, RPC dials, subprocesses and literal write sinks — for TS / JS, Go, Python and Rust. A call
  * counts only when the library is imported (a local `fetch(transport, …)` in Rust or `clap::Command::new` is not
  * one) and the name is code (the tree says identifier, not string or comment). Arguments are never captured; the
  * target is a literal only: an http(s) origin (no path, no query) or a relative API path, or a command name.
  */
+import type { OutboundFact } from "@mitori/core";
 import type { FactCandidate, FactExtractInput } from "../contract.ts";
 import { candidate } from "./candidate.ts";
-import { type Node, stringValue, type Tree } from "./tsq.ts";
+import { ancestor, type Node, stringValue, type Tree } from "./tsq.ts";
 
-type Channel = "http" | "rpc" | "sdk" | "db" | "subprocess";
+type Channel = OutboundFact["channel"];
 /** `spec`: a generic rule's import (`new XxxClient(`); the link drops it when the import resolves into the repo. */
-type Hit = { at: number; channel: Channel; via: string; target?: "url" | "cmd"; spec?: string };
+type Target = "url" | "cmd" | "path" | "sql";
+type Hit = { at: number; channel: Channel; via: string; target?: Target; spec?: string; writeMode?: boolean };
 
 const IDENT = new Set(["identifier", "property_identifier", "field_identifier", "type_identifier", "package_identifier", "shorthand_property_identifier"]);
 const CALLS = new Set(["call_expression", "call", "new_expression", "macro_invocation"]);
@@ -46,8 +48,20 @@ export function cmdTarget(s: string): string | null {
 }
 
 /** The literal target of a call: the first URL-like string among its first three arguments, or the command name. */
-function targetOf(call: Node | null, kind: "url" | "cmd"): string | null {
+function targetOf(call: Node | null, kind: Target): string | null {
   const args = call?.childForFieldName("arguments")?.namedChildren.filter((a): a is Node => a !== null && a.type !== "comment") ?? [];
+  if (kind === "path") {
+    const v = stringValue(args[0]);
+    return v !== null && v.length > 0 && v.length <= 240 && !/\p{Cc}/u.test(v) ? v : null;
+  }
+  if (kind === "sql") {
+    for (const a of args.slice(0, 3)) {
+      const v = stringValue(a);
+      const op = v === null ? null : /^\s*(INSERT|UPDATE|DELETE|REPLACE|UPSERT|MERGE|CREATE|ALTER|DROP|TRUNCATE)\b/i.exec(v);
+      if (op) return (op[1] as string).toUpperCase();
+    }
+    return null;
+  }
   const lit = (n: Node | undefined): string | null => {
     if (!n) return null;
     if (n.type === "array" || n.type === "list" || n.type === "array_expression" || n.type === "macro_invocation")
@@ -97,7 +111,7 @@ const JS_HTTP_LIBS: Readonly<Record<string, string>> = {
 };
 /** One pass over the text decides whether a file can hold a call at all (most components and utilities cannot). */
 const JS_PRECHECK =
-  /\bfetch\s*\(|["'](axios|ky|got|ofetch|superagent|undici|socket\.io-client|(node:)?https?|(node:)?child_process|execa)["']|XMLHttpRequest|WebSocket|EventSource|Bun\.spawn|Deno\.Command|Client\s*\(|["'](pg|postgres|mysql2?|sqlite3|better-sqlite3|bun:sqlite|mongodb|mongoose|redis|ioredis|knex|typeorm|sequelize|kysely|stripe|openai|twilio|resend|nodemailer|googleapis|octokit|algoliasearch|replicate|amqplib|kafkajs|drizzle-orm|aws-sdk|firebase|firebase-admin|discord\.js|cohere-ai|posthog-node)["'/]|["']@(prisma|libsql|upstash|neondatabase|planetscale|aws-sdk|anthropic-ai|supabase|google-cloud|google|octokit|slack|sendgrid|sentry|linear|elastic|notionhq|mistralai|vercel|grpc|connectrpc|bufbuild)\//;
+  /\bfetch\s*\(|["'](axios|ky|got|ofetch|superagent|undici|socket\.io-client|(node:)?https?|(node:)?child_process|(node:)?fs(?:\/promises)?|execa)["']|XMLHttpRequest|WebSocket|EventSource|Bun\.spawn|Deno\.Command|Client\s*\(|["'](pg|postgres|mysql2?|sqlite3|better-sqlite3|bun:sqlite|mongodb|mongoose|redis|ioredis|knex|typeorm|sequelize|kysely|stripe|openai|twilio|resend|nodemailer|googleapis|octokit|algoliasearch|replicate|amqplib|kafkajs|drizzle-orm|aws-sdk|firebase|firebase-admin|discord\.js|cohere-ai|posthog-node)["'/]|["']@(prisma|libsql|upstash|neondatabase|planetscale|aws-sdk|anthropic-ai|supabase|google-cloud|google|octokit|slack|sendgrid|sentry|linear|elastic|notionhq|mistralai|vercel|grpc|connectrpc|bufbuild)\//;
 const isExternal = (spec: string) => !/^(\.|\/|@\/|~\/|#|node:|bun$|bun:test$)/.test(spec);
 
 /** Local bindings of a JS module: named / default imports (`ImportRecord.names`), `* as x`, `const x = require("m")`. */
@@ -164,6 +178,13 @@ function jsHits(input: FactExtractInput): Hit[] {
       via: "node:http",
       target: "url",
     }));
+  for (const [name, spec] of binds) {
+    if (!/^(node:)?fs(\/promises)?$/.test(spec)) continue;
+    const fn = /^(writeFile|writeFileSync|appendFile|appendFileSync|createWriteStream)$/.test(name)
+      ? esc(name)
+      : `${esc(name)}(?:\\.promises)?\\.(?:writeFile|writeFileSync|appendFile|appendFileSync|createWriteStream)`;
+    scan(new RegExp(`(?<![\\w$.])${fn}\\s*\\(`, "g"), (m) => ({ at: m.index ?? 0, channel: "write_sink", via: spec, target: "path" }));
+  }
   scan(/\bnew\s+(XMLHttpRequest|WebSocket|EventSource)\b/g, (m) => ({
     at: (m.index ?? 0) + m[0].indexOf(m[1] as string),
     channel: "http",
@@ -220,6 +241,8 @@ const GO_CALLS: readonly [RegExp, RegExp, Channel][] = [
   [/^github\.com\/go-resty\/resty(\/v\d+)?$/, /^New$/, "http"],
   [/^os\/exec$/, /^(Command|CommandContext)$/, "subprocess"],
   [/^syscall$/, /^(Exec|ForkExec)$/, "subprocess"],
+  [/^os$/, /^(WriteFile|Create)$/, "write_sink"],
+  [/^io\/ioutil$/, /^WriteFile$/, "write_sink"],
   [/^database\/sql$/, /^(Open|OpenDB)$/, "db"],
   [/^github\.com\/jmoiron\/sqlx$/, /^(Connect|Open|MustConnect|MustOpen)$/, "db"],
   [/^github\.com\/jackc\/pgx(\/v\d+)?$/, /^(Connect|ConnectConfig)$/, "db"],
@@ -259,7 +282,13 @@ function goHits(input: FactExtractInput): Hit[] {
         at: m.index ?? 0,
         channel,
         via: imp.spec,
-        ...(channel === "http" ? { target: "url" as const } : channel === "subprocess" ? { target: "cmd" as const } : {}),
+        ...(channel === "http"
+          ? { target: "url" as const }
+          : channel === "subprocess"
+            ? { target: "cmd" as const }
+            : channel === "write_sink"
+              ? { target: "path" as const }
+              : {}),
         ...(rule ? {} : { spec: imp.spec }),
       });
     }
@@ -312,8 +341,11 @@ function pyBindings(text: string): Map<string, { module: string; name: string | 
 
 function pyHits(input: FactExtractInput): Hit[] {
   const binds = pyBindings(input.text);
-  if (binds.size === 0) return [];
   const out: Hit[] = [];
+  // Built-in open has no import. A shadowed name is not evidence of a filesystem write.
+  if (!binds.has("open") && !/\b(?:def|class|for|as)\s+open\b|\bopen\s*=|\b(?:def\s+\w+\(|lambda\s+)[^\n):]*\bopen\b/.test(input.text))
+    for (const m of input.text.matchAll(/(?<![\w.])open\s*\(/g))
+      out.push({ at: m.index ?? 0, channel: "write_sink", via: "builtins.open", target: "path", writeMode: true });
   const hit = (module: string, fn: string, at: number) => {
     const rule = PY_CALLS.find(([mod, fns]) => mod.test(module) && fns.test(fn));
     if (rule)
@@ -379,7 +411,7 @@ function rustHits(input: FactExtractInput): Hit[] {
   const text = input.text;
   const out: Hit[] = [];
   const uses = (re: RegExp) => re.test(text);
-  const scan = (re: RegExp, channel: Channel, via: string, target?: "url" | "cmd") => {
+  const scan = (re: RegExp, channel: Channel, via: string, target?: Target) => {
     for (const m of text.matchAll(re)) out.push({ at: m.index ?? 0, channel, via, ...(target ? { target } : {}) });
   };
   scan(/\breqwest::(?:blocking::)?(?:get|Client::new|Client::builder|ClientBuilder::new)\s*\(/g, "http", "reqwest", "url");
@@ -395,6 +427,38 @@ function rustHits(input: FactExtractInput): Hit[] {
   scan(/\b(?:tokio_)?postgres::(?:Client::)?connect\s*\(/g, "db", "postgres");
   scan(/\bmongodb::Client::with_uri_str\s*\(/g, "db", "mongodb");
   scan(/\btonic::transport::(?:Channel|Endpoint)::from_(?:static|shared)\s*\(/g, "rpc", "tonic");
+  scan(/\b(?:std|tokio)::fs::write\s*\(/g, "write_sink", "std::fs", "path");
+  if (uses(/\buse\s+std::(?:fs\s*;|\{[^}]*\bfs\b)/)) scan(/(?<![\w:])fs::write\s*\(/g, "write_sink", "std::fs", "path");
+  if (uses(/\buse\s+std::fs::(?:write\s*;|\{[^}]*\bwrite\b)/)) scan(/(?<![\w:])write\s*\(/g, "write_sink", "std::fs", "path");
+  return out;
+}
+
+/** Literal write SQL on a client bound directly from a known DB factory; no query text or values enter facts. */
+function dbWriteHits(input: FactExtractInput, tree: Tree, hits: readonly Hit[]): Hit[] {
+  const clients = new Map<string, { via: string; scope: Node }>();
+  for (const h of hits) {
+    if (h.channel !== "db" || !isCode(tree, h.at)) continue;
+    const call = callAt(tree, h.at);
+    const decl = call ? ancestor(call, ["variable_declarator", "short_var_declaration", "assignment", "let_declaration"], 8) : null;
+    const left = decl?.childForFieldName("name") ?? decl?.childForFieldName("left") ?? decl?.childForFieldName("pattern");
+    const name = left?.type === "expression_list" ? left.namedChildren[0]?.text : left?.text;
+    if (decl && name && /^[A-Za-z_$][\w$]*$/.test(name))
+      clients.set(name, { via: h.via, scope: ancestor(decl, ["statement_block", "block"], 8) ?? tree.rootNode });
+  }
+  const out: Hit[] = [];
+  for (const m of input.text.matchAll(/(?<![\w.])([A-Za-z_$][\w$]*)\.(?:query|execute|exec|run|Exec|ExecContext|Query|QueryContext)\s*\(/g)) {
+    const client = clients.get(m[1] as string);
+    const call = callAt(tree, m.index ?? 0);
+    if (!client || !call || !isCode(tree, m.index ?? 0) || targetOf(call, "sql") === null) continue;
+    // A local connection in another function / block is not this receiver.
+    let n: Node | null = call;
+    while (n && n.id !== client.scope.id) {
+      const params = n.childForFieldName("parameters");
+      if (params && new RegExp(`\\b${esc(m[1] as string)}\\b`).test(params.text)) break;
+      n = n.parent;
+    }
+    if (n?.id === client.scope.id) out.push({ at: m.index ?? 0, channel: "db", via: client.via, target: "sql" });
+  }
   return out;
 }
 
@@ -414,6 +478,7 @@ export function outboundCalls(input: FactExtractInput, tree: Tree): FactCandidat
           : lang === "typescript" || lang === "tsx" || lang === "javascript" || lang === "jsx"
             ? jsHits(input)
             : [];
+  hits.push(...dbWriteHits(input, tree, hits));
   const out: FactCandidate[] = [];
   const seen = new Set<string>();
   for (const h of hits) {
@@ -421,13 +486,20 @@ export function outboundCalls(input: FactExtractInput, tree: Tree): FactCandidat
     const nameAt = h.at + (/^new\s+/.exec(input.text.slice(h.at, h.at + 8))?.[0].length ?? 0);
     if (!isCode(tree, nameAt)) continue;
     const call = h.target ? callAt(tree, nameAt) : null;
+    if (h.writeMode) {
+      const args = call?.childForFieldName("arguments")?.namedChildren ?? [];
+      const modeArg = args.find((a) => a?.type === "keyword_argument" && a.childForFieldName("name")?.text === "mode");
+      const mode = stringValue(modeArg?.childForFieldName("value") ?? args[1]);
+      if (mode === null || !/^[wax][bt+]*$/.test(mode)) continue;
+    }
     const target = h.target ? targetOf(call, h.target) : null;
+    if (h.channel === "write_sink" && target === null) continue;
     const line = tree.rootNode.descendantForIndex(nameAt)?.startPosition.row ?? 0;
-    const key = `${line}\u0000${h.channel}\u0000${h.via}`;
+    const key = `${line}\u0000${h.channel}\u0000${h.via}\u0000${h.target === "sql" ? target : ""}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(
-      candidate("outbound.calls@1", "outbound", input, line + 1, {
+      candidate("outbound.calls@2", "outbound", input, line + 1, {
         channel: h.channel,
         via: h.via,
         ...(target !== null ? { target } : {}),

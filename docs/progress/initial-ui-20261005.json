@@ -1,0 +1,678 @@
+{
+  "date": "2026-10-05",
+  "fixture": true,
+  "viewport": "1440x900",
+  "scope": "Completed navigation/resource response bodies through the useful mark; live SSE bytes are not represented by ResourceTiming until closed.",
+  "source": "Default canonical production Vite client+SSR build. Mock JSON uses gzip; real daemon is recorded separately.",
+  "records": [
+    {
+      "name": "S1-generated",
+      "at": 87.5,
+      "document": {
+        "encoded": 1520,
+        "decoded": 3681,
+        "transfer": 1820
+      },
+      "js": 43763,
+      "css": 19241,
+      "data": 60030,
+      "encodedTotal": 124554,
+      "transferTotal": 134754,
+      "rows": [
+        {
+          "url": "/assets/boot-CS2Ng7Rk.js",
+          "encoded": 7436,
+          "decoded": 18466,
+          "transfer": 7736
+        },
+        {
+          "url": "/assets/src-CIaV-dS-.js",
+          "encoded": 7055,
+          "decoded": 18746,
+          "transfer": 7355
+        },
+        {
+          "url": "/assets/i18n-nTD9Qz4Q.js",
+          "encoded": 2322,
+          "decoded": 5059,
+          "transfer": 2622
+        },
+        {
+          "url": "/assets/shell-BYC95Yxr.js",
+          "encoded": 2119,
+          "decoded": 4605,
+          "transfer": 2419
+        },
+        {
+          "url": "/assets/clients-DXdNoQKy.js",
+          "encoded": 3261,
+          "decoded": 6981,
+          "transfer": 3561
+        },
+        {
+          "url": "/assets/visibility-jMp-Z3kW.js",
+          "encoded": 159,
+          "decoded": 247,
+          "transfer": 459
+        },
+        {
+          "url": "/assets/decorate-DDiRByF6.js",
+          "encoded": 1727,
+          "decoded": 3788,
+          "transfer": 2027
+        },
+        {
+          "url": "/assets/plan-dom-CWyHdjml.js",
+          "encoded": 3321,
+          "decoded": 8433,
+          "transfer": 3621
+        },
+        {
+          "url": "/assets/outline-NRFFquok.js",
+          "encoded": 1092,
+          "decoded": 2381,
+          "transfer": 1392
+        },
+        {
+          "url": "/assets/perf-CmriWRdL.js",
+          "encoded": 349,
+          "decoded": 563,
+          "transfer": 649
+        },
+        {
+          "url": "/assets/virtual-CikFQlUN.js",
+          "encoded": 1418,
+          "decoded": 2998,
+          "transfer": 1718
+        },
+        {
+          "url": "/assets/levels-CzfTl5uu.js",
+          "encoded": 424,
+          "decoded": 684,
+          "transfer": 724
+        },
+        {
+          "url": "/assets/native-CQkreT9R.js",
+          "encoded": 4308,
+          "decoded": 11881,
+          "transfer": 4608
+        },
+        {
+          "url": "/assets/dom-anchor-DbcUOA8W.js",
+          "encoded": 1960,
+          "decoded": 4420,
+          "transfer": 2260
+        },
+        {
+          "url": "/assets/clients-7hO7tisj.css",
+          "encoded": 10907,
+          "decoded": 42572,
+          "transfer": 11207
+        },
+        {
+          "url": "/assets/firstrun-Cffd1ZOf.js",
+          "encoded": 156,
+          "decoded": 174,
+          "transfer": 456
+        },
+        {
+          "url": "/assets/router-DDK1jBwG.js",
+          "encoded": 4587,
+          "decoded": 11290,
+          "transfer": 4887
+        },
+        {
+          "url": "/assets/preload-helper-Di4PVeSe.js",
+          "encoded": 811,
+          "decoded": 1531,
+          "transfer": 1111
+        },
+        {
+          "url": "/assets/reading-Ev8gIKQA.js",
+          "encoded": 882,
+          "decoded": 1837,
+          "transfer": 1182
+        },
+        {
+          "url": "/assets/keymap-BgDOoc2F.json",
+          "encoded": 4980,
+          "decoded": 4980,
+          "transfer": 5280
+        },
+        {
+          "url": "/initial-css.json",
+          "encoded": 355,
+          "decoded": 355,
+          "transfer": 655
+        },
+        {
+          "url": "/api/v1/settings",
+          "encoded": 2020,
+          "decoded": 2020,
+          "transfer": 2320
+        },
+        {
+          "url": "/api/v1/ws/ws_cr1t00000000/ui",
+          "encoded": 18022,
+          "decoded": 99552,
+          "transfer": 18322
+        },
+        {
+          "url": "/assets/i18n-ja-DKiKiZi7.js",
+          "encoded": 213,
+          "decoded": 348,
+          "transfer": 513
+        },
+        {
+          "url": "/assets/catalog-CEciZ-C_.js",
+          "encoded": 163,
+          "decoded": 190,
+          "transfer": 463
+        },
+        {
+          "url": "/assets/Rail-DGsyjrMG.css",
+          "encoded": 1461,
+          "decoded": 5296,
+          "transfer": 1761
+        },
+        {
+          "url": "/assets/main-B2mLh2tS.css",
+          "encoded": 901,
+          "decoded": 2800,
+          "transfer": 1201
+        },
+        {
+          "url": "/assets/MapPage-Bdo7lYYx.css",
+          "encoded": 3353,
+          "decoded": 14222,
+          "transfer": 3653
+        },
+        {
+          "url": "/assets/side-Bx-7t9r-.css",
+          "encoded": 2619,
+          "decoded": 13301,
+          "transfer": 2919
+        },
+        {
+          "url": "/assets/map.ja-BA1GnC6c.json",
+          "encoded": 5286,
+          "decoded": 5286,
+          "transfer": 5586
+        },
+        {
+          "url": "/assets/reader.ja-BNwMYj6m.json",
+          "encoded": 9239,
+          "decoded": 9239,
+          "transfer": 9539
+        },
+        {
+          "url": "/assets/settings.ja-BuGUexIb.json",
+          "encoded": 4534,
+          "decoded": 4534,
+          "transfer": 4834
+        },
+        {
+          "url": "/assets/shell.ja-RTBNV1sy.json",
+          "encoded": 15594,
+          "decoded": 15594,
+          "transfer": 15894
+        }
+      ],
+      "initialUi": {
+        "rawBytes": 99552,
+        "htmlBytes": 32442,
+        "effortTemplates": 0,
+        "blocks": 7,
+        "encoding": "gzip"
+      }
+    },
+    {
+      "name": "S1-estimates",
+      "at": 59.39999997615814,
+      "document": {
+        "encoded": 1520,
+        "decoded": 3681,
+        "transfer": 1820
+      },
+      "js": 43763,
+      "css": 19241,
+      "data": 60633,
+      "encodedTotal": 125157,
+      "transferTotal": 135357,
+      "rows": [
+        {
+          "url": "/assets/boot-CS2Ng7Rk.js",
+          "encoded": 7436,
+          "decoded": 18466,
+          "transfer": 7736
+        },
+        {
+          "url": "/assets/src-CIaV-dS-.js",
+          "encoded": 7055,
+          "decoded": 18746,
+          "transfer": 7355
+        },
+        {
+          "url": "/assets/i18n-nTD9Qz4Q.js",
+          "encoded": 2322,
+          "decoded": 5059,
+          "transfer": 2622
+        },
+        {
+          "url": "/assets/shell-BYC95Yxr.js",
+          "encoded": 2119,
+          "decoded": 4605,
+          "transfer": 2419
+        },
+        {
+          "url": "/assets/clients-DXdNoQKy.js",
+          "encoded": 3261,
+          "decoded": 6981,
+          "transfer": 3561
+        },
+        {
+          "url": "/assets/visibility-jMp-Z3kW.js",
+          "encoded": 159,
+          "decoded": 247,
+          "transfer": 459
+        },
+        {
+          "url": "/assets/plan-dom-CWyHdjml.js",
+          "encoded": 3321,
+          "decoded": 8433,
+          "transfer": 3621
+        },
+        {
+          "url": "/assets/decorate-DDiRByF6.js",
+          "encoded": 1727,
+          "decoded": 3788,
+          "transfer": 2027
+        },
+        {
+          "url": "/assets/outline-NRFFquok.js",
+          "encoded": 1092,
+          "decoded": 2381,
+          "transfer": 1392
+        },
+        {
+          "url": "/assets/perf-CmriWRdL.js",
+          "encoded": 349,
+          "decoded": 563,
+          "transfer": 649
+        },
+        {
+          "url": "/assets/virtual-CikFQlUN.js",
+          "encoded": 1418,
+          "decoded": 2998,
+          "transfer": 1718
+        },
+        {
+          "url": "/assets/clients-7hO7tisj.css",
+          "encoded": 10907,
+          "decoded": 42572,
+          "transfer": 11207
+        },
+        {
+          "url": "/assets/dom-anchor-DbcUOA8W.js",
+          "encoded": 1960,
+          "decoded": 4420,
+          "transfer": 2260
+        },
+        {
+          "url": "/assets/levels-CzfTl5uu.js",
+          "encoded": 424,
+          "decoded": 684,
+          "transfer": 724
+        },
+        {
+          "url": "/assets/firstrun-Cffd1ZOf.js",
+          "encoded": 156,
+          "decoded": 174,
+          "transfer": 456
+        },
+        {
+          "url": "/assets/reading-Ev8gIKQA.js",
+          "encoded": 882,
+          "decoded": 1837,
+          "transfer": 1182
+        },
+        {
+          "url": "/assets/preload-helper-Di4PVeSe.js",
+          "encoded": 811,
+          "decoded": 1531,
+          "transfer": 1111
+        },
+        {
+          "url": "/assets/native-CQkreT9R.js",
+          "encoded": 4308,
+          "decoded": 11881,
+          "transfer": 4608
+        },
+        {
+          "url": "/assets/router-DDK1jBwG.js",
+          "encoded": 4587,
+          "decoded": 11290,
+          "transfer": 4887
+        },
+        {
+          "url": "/assets/keymap-BgDOoc2F.json",
+          "encoded": 4980,
+          "decoded": 4980,
+          "transfer": 5280
+        },
+        {
+          "url": "/initial-css.json",
+          "encoded": 355,
+          "decoded": 355,
+          "transfer": 655
+        },
+        {
+          "url": "/api/v1/settings",
+          "encoded": 2020,
+          "decoded": 2020,
+          "transfer": 2320
+        },
+        {
+          "url": "/api/v1/ws/ws_cr1t00000000/ui",
+          "encoded": 18625,
+          "decoded": 114817,
+          "transfer": 18925
+        },
+        {
+          "url": "/assets/i18n-ja-DKiKiZi7.js",
+          "encoded": 213,
+          "decoded": 348,
+          "transfer": 513
+        },
+        {
+          "url": "/assets/catalog-CEciZ-C_.js",
+          "encoded": 163,
+          "decoded": 190,
+          "transfer": 463
+        },
+        {
+          "url": "/assets/Rail-DGsyjrMG.css",
+          "encoded": 1461,
+          "decoded": 5296,
+          "transfer": 1761
+        },
+        {
+          "url": "/assets/main-B2mLh2tS.css",
+          "encoded": 901,
+          "decoded": 2800,
+          "transfer": 1201
+        },
+        {
+          "url": "/assets/MapPage-Bdo7lYYx.css",
+          "encoded": 3353,
+          "decoded": 14222,
+          "transfer": 3653
+        },
+        {
+          "url": "/assets/side-Bx-7t9r-.css",
+          "encoded": 2619,
+          "decoded": 13301,
+          "transfer": 2919
+        },
+        {
+          "url": "/assets/map.ja-BA1GnC6c.json",
+          "encoded": 5286,
+          "decoded": 5286,
+          "transfer": 5586
+        },
+        {
+          "url": "/assets/reader.ja-BNwMYj6m.json",
+          "encoded": 9239,
+          "decoded": 9239,
+          "transfer": 9539
+        },
+        {
+          "url": "/assets/settings.ja-BuGUexIb.json",
+          "encoded": 4534,
+          "decoded": 4534,
+          "transfer": 4834
+        },
+        {
+          "url": "/assets/shell.ja-RTBNV1sy.json",
+          "encoded": 15594,
+          "decoded": 15594,
+          "transfer": 15894
+        }
+      ],
+      "initialUi": {
+        "rawBytes": 114817,
+        "htmlBytes": 52695,
+        "effortTemplates": 3,
+        "blocks": 0,
+        "encoding": "gzip"
+      }
+    },
+    {
+      "name": "S2-reader",
+      "at": 50.40000003576279,
+      "document": {
+        "encoded": 1520,
+        "decoded": 3681,
+        "transfer": 1820
+      },
+      "js": 43763,
+      "css": 15707,
+      "data": 56050,
+      "encodedTotal": 117040,
+      "transferTotal": 127540,
+      "rows": [
+        {
+          "url": "/assets/boot-CS2Ng7Rk.js",
+          "encoded": 7436,
+          "decoded": 18466,
+          "transfer": 7736
+        },
+        {
+          "url": "/assets/src-CIaV-dS-.js",
+          "encoded": 7055,
+          "decoded": 18746,
+          "transfer": 7355
+        },
+        {
+          "url": "/assets/i18n-nTD9Qz4Q.js",
+          "encoded": 2322,
+          "decoded": 5059,
+          "transfer": 2622
+        },
+        {
+          "url": "/assets/shell-BYC95Yxr.js",
+          "encoded": 2119,
+          "decoded": 4605,
+          "transfer": 2419
+        },
+        {
+          "url": "/assets/clients-DXdNoQKy.js",
+          "encoded": 3261,
+          "decoded": 6981,
+          "transfer": 3561
+        },
+        {
+          "url": "/assets/visibility-jMp-Z3kW.js",
+          "encoded": 159,
+          "decoded": 247,
+          "transfer": 459
+        },
+        {
+          "url": "/assets/plan-dom-CWyHdjml.js",
+          "encoded": 3321,
+          "decoded": 8433,
+          "transfer": 3621
+        },
+        {
+          "url": "/assets/decorate-DDiRByF6.js",
+          "encoded": 1727,
+          "decoded": 3788,
+          "transfer": 2027
+        },
+        {
+          "url": "/assets/outline-NRFFquok.js",
+          "encoded": 1092,
+          "decoded": 2381,
+          "transfer": 1392
+        },
+        {
+          "url": "/assets/perf-CmriWRdL.js",
+          "encoded": 349,
+          "decoded": 563,
+          "transfer": 649
+        },
+        {
+          "url": "/assets/virtual-CikFQlUN.js",
+          "encoded": 1418,
+          "decoded": 2998,
+          "transfer": 1718
+        },
+        {
+          "url": "/assets/dom-anchor-DbcUOA8W.js",
+          "encoded": 1960,
+          "decoded": 4420,
+          "transfer": 2260
+        },
+        {
+          "url": "/assets/levels-CzfTl5uu.js",
+          "encoded": 424,
+          "decoded": 684,
+          "transfer": 724
+        },
+        {
+          "url": "/assets/native-CQkreT9R.js",
+          "encoded": 4308,
+          "decoded": 11881,
+          "transfer": 4608
+        },
+        {
+          "url": "/assets/firstrun-Cffd1ZOf.js",
+          "encoded": 156,
+          "decoded": 174,
+          "transfer": 456
+        },
+        {
+          "url": "/assets/router-DDK1jBwG.js",
+          "encoded": 4587,
+          "decoded": 11290,
+          "transfer": 4887
+        },
+        {
+          "url": "/assets/clients-7hO7tisj.css",
+          "encoded": 10907,
+          "decoded": 42572,
+          "transfer": 11207
+        },
+        {
+          "url": "/assets/reading-Ev8gIKQA.js",
+          "encoded": 882,
+          "decoded": 1837,
+          "transfer": 1182
+        },
+        {
+          "url": "/assets/preload-helper-Di4PVeSe.js",
+          "encoded": 811,
+          "decoded": 1531,
+          "transfer": 1111
+        },
+        {
+          "url": "/assets/keymap-BgDOoc2F.json",
+          "encoded": 4980,
+          "decoded": 4980,
+          "transfer": 5280
+        },
+        {
+          "url": "/initial-css.json",
+          "encoded": 355,
+          "decoded": 355,
+          "transfer": 655
+        },
+        {
+          "url": "/api/v1/settings",
+          "encoded": 2020,
+          "decoded": 2020,
+          "transfer": 2320
+        },
+        {
+          "url": "/api/v1/ws/ws_cr1t00000000/ui",
+          "encoded": 14042,
+          "decoded": 100879,
+          "transfer": 14342
+        },
+        {
+          "url": "/assets/i18n-ja-DKiKiZi7.js",
+          "encoded": 213,
+          "decoded": 348,
+          "transfer": 513
+        },
+        {
+          "url": "/assets/catalog-CEciZ-C_.js",
+          "encoded": 163,
+          "decoded": 190,
+          "transfer": 463
+        },
+        {
+          "url": "/assets/Rail-DGsyjrMG.css",
+          "encoded": 1461,
+          "decoded": 5296,
+          "transfer": 1761
+        },
+        {
+          "url": "/assets/main-B2mLh2tS.css",
+          "encoded": 901,
+          "decoded": 2800,
+          "transfer": 1201
+        },
+        {
+          "url": "/assets/ProposalLayer-BmA8nLmO.css",
+          "encoded": 762,
+          "decoded": 2285,
+          "transfer": 1062
+        },
+        {
+          "url": "/assets/ReaderPage-z4AfZkJQ.css",
+          "encoded": 1320,
+          "decoded": 4611,
+          "transfer": 1620
+        },
+        {
+          "url": "/assets/ServerHtml-CwH8QaPx.css",
+          "encoded": 356,
+          "decoded": 863,
+          "transfer": 656
+        },
+        {
+          "url": "/assets/map.ja-BA1GnC6c.json",
+          "encoded": 5286,
+          "decoded": 5286,
+          "transfer": 5586
+        },
+        {
+          "url": "/assets/reader.ja-BNwMYj6m.json",
+          "encoded": 9239,
+          "decoded": 9239,
+          "transfer": 9539
+        },
+        {
+          "url": "/assets/settings.ja-BuGUexIb.json",
+          "encoded": 4534,
+          "decoded": 4534,
+          "transfer": 4834
+        },
+        {
+          "url": "/assets/shell.ja-RTBNV1sy.json",
+          "encoded": 15594,
+          "decoded": 15594,
+          "transfer": 15894
+        }
+      ],
+      "initialUi": {
+        "rawBytes": 100879,
+        "htmlBytes": 31717,
+        "effortTemplates": 0,
+        "blocks": 27,
+        "encoding": "gzip"
+      }
+    }
+  ]
+}

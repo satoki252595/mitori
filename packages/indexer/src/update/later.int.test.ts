@@ -33,7 +33,7 @@ describe("WP-INT later stages behind the facade", () => {
       }
       expect(idx.graph("module").nodes.length).toBeGreaterThan(0);
       expect(idx.paletteItems().some((i) => i.k === "m")).toBe(true);
-      expect(idx.repoPack({ tokenizer: "claude-v5" }).text.startsWith("=== mitori.repopack/1")).toBe(true);
+      expect(idx.repoPack({ tokenizer: "claude-v5" }).text.startsWith("=== mitori.repopack/2")).toBe(true);
       expect(idx.search("config", ["file", "symbol"], 10).length).toBeGreaterThan(0);
     } finally {
       await idx.close();

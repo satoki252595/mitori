@@ -10,6 +10,7 @@ import type {
   EngineStatus,
   FsReader,
   Hasher,
+  InitialUiRenderer,
   Iso8601,
   Logger,
   Metrics,
@@ -95,6 +96,7 @@ export interface DaemonOptions {
   /** Port when `srv_ports` has none (default 0 = OS). */
   port?: number;
   assets: Assets;
+  uiRenderer?: InitialUiRenderer;
   /** Domain route adapters (WP-INT). */
   handlers?: RouteHandlers;
   domain?: DomainProviders;
@@ -268,7 +270,12 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
       waiters,
       domain: o.domain ?? {},
     };
-    const app = createHttpApp({ services, assets: o.assets, ...(o.handlers ? { handlers: o.handlers } : {}) });
+    const app = createHttpApp({
+      services,
+      assets: o.assets,
+      ...(o.handlers ? { handlers: o.handlers } : {}),
+      ...(o.uiRenderer ? { uiRenderer: o.uiRenderer } : {}),
+    });
 
     const serve = o.serve ?? bunServe;
     const prev = stateDb.get<{ port: number }>("SELECT port FROM srv_ports WHERE id = 1")?.port ?? o.port ?? 0;

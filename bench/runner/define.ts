@@ -32,6 +32,8 @@ export interface BenchDef<S = void> {
   mode: BenchMode;
   /** Unit of the samples (default `ms`). Must match the budget's unit. */
   unit?: Samples["unit"];
+  /** Requires an explicitly authorized real engine artifact; excluded from routine runs. */
+  live?: boolean;
   /** Corpus or fixture name; the runner resolves it to a path (see repos.ts). */
   repo?: string;
   runs?: number;

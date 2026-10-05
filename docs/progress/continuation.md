@@ -1,5 +1,7 @@
 # 引き継ぎ続行（2026-10-04）
 
+> この検証は履歴として保持する。以後の残タスク対応・新しい依存・検証結果・未完は [HANDOFF §★](../HANDOFF.md) と [2026-10-05の一覧](backlog-2026-10-05.md) を参照する。
+
 追跡: [Issue #1](https://github.com/satoki252595/mitori/issues/1)。既存 `satoki252595/mitori` と既存の専用フォルダを再利用した。nix devShell の `scripts/nd` を使い、プロジェクトの依存 manifest / lockfile は変更していない。Linux に限る既存 Docker / apt ハーネスは今回の利用者の例外許可による。native rebuild 用の make / g++ と同梱 node-gyp の接続はその image 内だけに追加した。
 
 ## 統合
