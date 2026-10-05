@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { expectGolden } from "@mitori/testkit/golden";
 import { compareGolden, firstDifference, GOLDEN_DIR } from "./compare.ts";
-import { expectGolden } from "./index.ts";
 
 // scratch goldens live under a directory that no fixture uses and is removed afterwards
 const SCRATCH = "_testkit-selftest";

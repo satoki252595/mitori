@@ -1,6 +1,6 @@
 // WP-INT: the real facade with WP-03's stages wired in (later.ts) answers S2–S4 on the fixture repos.
 import { afterAll, describe, expect, test } from "bun:test";
-import { buildFixture, type FixtureRepo } from "@mitori/testkit";
+import { buildFixture, type FixtureRepo } from "@mitori/testkit/fixtures";
 import { bunWorkerPool } from "../parse/test/bun-pool.ts";
 import { workerInit } from "../parse/test/env.ts";
 import { createIndexer } from "./index.ts";

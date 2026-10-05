@@ -10,6 +10,8 @@ import { build } from "./build.ts";
 import { score } from "./score.ts";
 import { readTruth } from "./truth.ts";
 
+export type { FixtureName, FixtureRepo, FixtureTruth, TruthFact, TruthScore } from "../contract.ts";
+
 export function buildFixture(name: FixtureName, opts?: { step?: number | "dirty"; into?: string }): Promise<FixtureRepo> {
   return build(name, opts);
 }

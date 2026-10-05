@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { expectGolden } from "@mitori/testkit";
+import { expectGolden } from "@mitori/testkit/golden";
 import { AWS, block, checks, cite, GH, opts, PASS, REQ, STRIPE, setup } from "./export.fixture.ts";
 import { sha256Hex, utf8 } from "./sha256.ts";
 

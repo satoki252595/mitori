@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { createSecretScanner, type FactKind, REDACTION_TOKEN } from "@mitori/core";
-import { buildFixture, type FixtureName, type FixtureRepo, type FixtureTruth, loadTruth, scoreIndex, type TruthFact } from "@mitori/testkit";
+import { buildFixture, type FixtureName, type FixtureRepo, type FixtureTruth, loadTruth, scoreIndex, type TruthFact } from "@mitori/testkit/fixtures";
 import { resolveImports } from "../resolve/stage.ts";
 import { input, sf } from "../resolve/test/stage-files.ts";
 import { classify, loadGrammars, loadRepo, parseStageFile } from "../structure/test/corpus.ts";
