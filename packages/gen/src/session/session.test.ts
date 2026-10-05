@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import type { GenTaskId, PrepInfo, PromptVersion } from "@mitori/core";
+import { describe, expect, spyOn, test } from "bun:test";
+import type { GenTaskId, ModelId, PrepInfo, PrepReq, PromptVersion } from "@mitori/core";
 import { GEN_PROMPTS, PREP_README_LINES, type PrepTaskEntry } from "../contract.ts";
 import { ApplySink } from "../orchestrator/apply.ts";
 import { validRouter } from "../test/fake-engine.ts";
@@ -144,6 +144,44 @@ describe("GEN-U-051 ingest checks: fingerprint, expiry, drift", () => {
 });
 
 describe("GEN-U-052 / GEN-U-053 / GEN-U-054 same validator, partial ingest, server-stamped provenance", () => {
+  test("omitted session models remain neutral after fresh/switched setup and cached replay preserves declared provenance", async () => {
+    const cases: { prior: ModelId; declared?: ModelId; expected: ModelId }[] = [
+      { prior: "claude-sonnet-5-5", expected: "generic:session" },
+      { prior: "generic:grok-4.7", expected: "generic:session" },
+      { prior: "generic:grok-4.7", declared: "codex:gpt-test", expected: "codex:gpt-test" },
+      { prior: "claude-sonnet-5-5", declared: "generic:actual-local", expected: "generic:actual-local" },
+    ];
+    for (const { prior, declared, expected } of cases) {
+      const settings = testSettings();
+      settings.global.models.genModule = prior;
+      const h = makeHarness({ settings });
+      const options: PrepReq = { effort: "standard", scope: ["s6/session"] };
+      const packet = await h.gen.session.prep(options);
+      answer(h, packet);
+      expect(
+        (await h.gen.session.ingest({ prep: packet.id, fingerprint: packet.fingerprint, partial: false, ...(declared ? { model: declared } : {}) })).ok,
+      ).toBe(true);
+      const stamped = () =>
+        h.doc
+          .section("s6/session")
+          ?.blocks.filter((b) => b.origin === "ai")
+          .map((b) => b.gen?.model);
+      expect(stamped()).toEqual([expected, expected]);
+      const apply = spyOn(h.doc, "applyGenerated");
+      const replayModels = () => apply.mock.calls.flatMap(([blocks]) => blocks.map((block) => block.gen.model));
+      if (prior === "generic:grok-4.7" && declared === undefined) h.db.run("UPDATE gen_outputs SET model = ?", ["legacy-unknown"]);
+      await expect(h.gen.session.prep(options)).rejects.toMatchObject({ code: "E_PRECONDITION" });
+      expect(replayModels()).toEqual([expected, expected]);
+      expect(stamped()).toEqual([expected, expected]);
+      if (prior === "generic:grok-4.7" && declared === undefined) continue; // Unknown legacy source is neutral on the session path.
+      apply.mockClear();
+      await h.gen.start((await h.gen.estimate(options)).id);
+      await h.gen.idle();
+      expect(h.engine.calls).toHaveLength(0);
+      expect(replayModels()).toEqual([expected, expected]);
+      expect(stamped()).toEqual([expected, expected]);
+    }
+  });
   test("an invalid line blocks a strict ingest; partial applies the valid tasks; missing outputs are listed", async () => {
     const h = makeHarness();
     const info = await h.gen.session.prep({ effort: "standard" });
@@ -167,7 +205,7 @@ describe("GEN-U-052 / GEN-U-053 / GEN-U-054 same validator, partial ingest, serv
     expect(blk?.gen).toMatchObject({ engine: "session", model: "claude-opus-5-5", promptVer: v("gen.module"), indexDigest: h.indexer.snapshot()?.indexDigest });
   });
 
-  test("models that are not Claude / codex are stamped generic:session; LLM-written provenance keys are ignored", async () => {
+  test("unrecognized raw model ids are stamped generic:session; LLM-written provenance keys are ignored", async () => {
     const h = makeHarness();
     const info = await h.gen.session.prep({ effort: "standard" });
     answer(h, info, (_t, lines) => lines.map((l) => l.replace('{"t":"block",', '{"t":"block","model":"gpt-9","engine":"x",')));

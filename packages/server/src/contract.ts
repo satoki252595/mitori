@@ -565,6 +565,8 @@ export const HTTP_PIPELINE = [
 
 /** Everything `createServer` needs (production: platform adapters; tests: fakes from `@mitori/<pkg>/testing`). */
 export interface ServerDeps {
+  /** Actual self invocation for browser setup commands (source or standalone); contains no credentials. */
+  launcher?: { command: string; args: string[] };
   /** `~/.mitori` (or `MITORI_HOME`). */
   home: string;
   /** mitori semver (`HealthRes.version`, registry, `hello.version`, `DocManifest.generator.mitoriVersion`) [CR m1-4]. */

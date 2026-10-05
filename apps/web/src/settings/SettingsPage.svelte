@@ -10,7 +10,7 @@ import { copyText } from "../shell/clipboard.ts";
 import { t } from "../shell/index.ts";
 import { markAfterPaint } from "../shell/perf.ts";
 import { setReaderLevel, useStores } from "../stores/app.svelte.ts";
-import { genericProviderCommand, genericProviderPatch, MUSE_ARGS } from "./provider.ts";
+import { genericProviderCommand, genericProviderPatch, MUSE_ARGS, providerSetupCommand, SETUP_PROVIDERS, type SetupProvider } from "./provider.ts";
 
 const s = useStores();
 onMount(() => {
@@ -24,7 +24,9 @@ let provider = $state<GenEngineId>("claude-cli");
 let model = $state("");
 let argv = $state("[]");
 let reasoning = $state<ReasoningEffort>("high");
-let protocol = $state<"text" | "muse-jsonl">("text");
+let protocol = $state<"text" | "muse-jsonl" | "openai-chat">("text");
+let baseUrl = $state("");
+let keyEnv = $state("");
 let inputPrice = $state<number | undefined>();
 let outputPrice = $state<number | undefined>();
 let cachePrice = $state<number | undefined>();
@@ -34,6 +36,36 @@ let saving = $state(false);
 let saved = $state(false);
 let providerError = $state(false);
 let setupCommand = $state("");
+let simpleProvider = $state<SetupProvider>("claude");
+let simpleModel = $state("");
+let simpleBaseUrl = $state("");
+let simpleKeyEnv = $state("");
+let simpleInputPrice = $state<number | undefined>();
+let simpleOutputPrice = $state<number | undefined>();
+let setupRepo = $state("");
+let guidedCommand = $state("");
+let guidedError = $state(false);
+let reloading = $state(false);
+const setupExternal = $derived(["codex", "cursor", "antigravity"].includes(simpleProvider));
+const setupHttp = $derived(["grok", "ollama", "lmstudio", "openai"].includes(simpleProvider));
+const setupLocalApi = $derived(/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?\/v1\/?$/u.test(simpleBaseUrl));
+const setupPrices = $derived(
+  simpleProvider === "openai" ||
+    (simpleProvider === "muse" && !!simpleModel.trim() && simpleModel.trim() !== "muse-spark-1.3-contributor") ||
+    (simpleProvider === "grok" && !!simpleModel.trim() && simpleModel.trim() !== "grok-4.7") ||
+    (["ollama", "lmstudio"].includes(simpleProvider) && (!setupLocalApi || /(?:[:-]cloud)$/i.test(simpleModel.trim()))),
+);
+const PROVIDER_NAMES: Record<SetupProvider, string> = {
+  claude: "Claude Code",
+  muse: "Muse",
+  grok: "Grok",
+  ollama: "Ollama",
+  lmstudio: "LM Studio",
+  openai: "",
+  codex: "Codex",
+  cursor: "Cursor",
+  antigravity: "Antigravity",
+};
 let savingFloorplan = $state(false);
 async function setFloorplan(enabled: boolean) {
   if (savingFloorplan) return;
@@ -55,12 +87,82 @@ $effect(() => {
   argv = JSON.stringify(cfg.engines.generic.argv);
   reasoning = cfg.reasoning.gen;
   protocol = cfg.engines.generic.protocol ?? "text";
+  baseUrl = cfg.engines.generic.api?.baseUrl ?? "";
+  keyEnv = cfg.engines.generic.api?.keyEnv ?? "";
   inputPrice = cfg.engines.generic.pricing?.inPerMTok;
   outputPrice = cfg.engines.generic.pricing?.outPerMTok;
   cachePrice = cfg.engines.generic.pricing?.cacheReadPerMTok;
   timeoutSeconds = cfg.engines.generic.turnMs === undefined ? undefined : cfg.engines.generic.turnMs / 1000;
+  if (model.includes("muse-")) chooseSetup("muse");
+  else if (model.includes("grok-")) chooseSetup("grok");
+  else if (protocol === "openai-chat") chooseSetup(baseUrl.includes(":11434/") ? "ollama" : baseUrl.includes(":1234/") ? "lmstudio" : "openai");
+  if (provider === "generic") {
+    simpleModel = model.replace(/^generic:/, "");
+    if (protocol === "openai-chat") {
+      simpleBaseUrl = baseUrl;
+      simpleKeyEnv = keyEnv;
+      simpleInputPrice = inputPrice;
+      simpleOutputPrice = outputPrice;
+    }
+  }
   initialized = true;
 });
+
+function chooseSetup(value: SetupProvider) {
+  simpleProvider = value;
+  simpleModel = value === "muse" ? "muse-spark-1.3-contributor" : value === "grok" ? "grok-4.7" : "";
+  simpleBaseUrl =
+    value === "grok"
+      ? "https://api.x.ai/v1"
+      : value === "ollama"
+        ? "http://127.0.0.1:11434/v1"
+        : value === "lmstudio"
+          ? "http://127.0.0.1:1234/v1"
+          : value === "openai"
+            ? "https://api.openai.com/v1"
+            : "";
+  simpleKeyEnv = value === "grok" ? "XAI_API_KEY" : value === "openai" ? "OPENAI_API_KEY" : "";
+  simpleInputPrice = undefined;
+  simpleOutputPrice = undefined;
+  guidedCommand = "";
+  guidedError = false;
+}
+
+function createSetup(e: SubmitEvent) {
+  e.preventDefault();
+  guidedError = false;
+  guidedCommand = "";
+  try {
+    guidedCommand = providerSetupCommand(
+      {
+        provider: simpleProvider,
+        model: simpleModel,
+        repo: setupRepo || s.workspace.status?.info.root,
+        baseUrl: simpleBaseUrl,
+        keyEnv: simpleKeyEnv,
+        inputPrice: simpleInputPrice,
+        outputPrice: simpleOutputPrice,
+      },
+      s.session.settings?.launcher,
+    );
+  } catch {
+    guidedError = true;
+  }
+}
+
+async function reloadProvider() {
+  if (reloading) return;
+  reloading = true;
+  try {
+    const [settings] = await Promise.all([s.session.loadSettings(), s.session.loadEngines()]);
+    initialized = false;
+    s.gen.estimates.clear();
+    s.gen.sectionEstimates.clear();
+    if (settings) await s.gen.setEngine(settings.settings.defaultGenEngine);
+  } finally {
+    reloading = false;
+  }
+}
 
 function musePreset() {
   const configured = s.session.settings?.settings.engines.generic.argv[0];
@@ -91,6 +193,8 @@ async function saveProvider(e: SubmitEvent) {
             argv,
             reasoning,
             protocol,
+            baseUrl,
+            keyEnv,
             pricing: { inPerMTok: inputPrice ?? NaN, outPerMTok: outputPrice ?? NaN, cacheReadPerMTok: cachePrice ?? NaN },
             ...(timeoutSeconds === undefined ? {} : { turnMs: timeoutSeconds * 1000 }),
           })
@@ -104,12 +208,13 @@ async function saveProvider(e: SubmitEvent) {
         current.enabled !== next.enabled ||
         JSON.stringify(current.argv) !== JSON.stringify(next.argv) ||
         (current.protocol ?? "text") !== next.protocol ||
+        (next.protocol === "openai-chat" && (current.api?.baseUrl !== next.api?.baseUrl || current.api?.keyEnv !== next.api?.keyEnv)) ||
         current.turnMs !== next.turnMs ||
         current.pricing?.inPerMTok !== next.pricing?.inPerMTok ||
         current.pricing?.outPerMTok !== next.pricing?.outPerMTok ||
         current.pricing?.cacheReadPerMTok !== next.pricing?.cacheReadPerMTok
       ) {
-        setupCommand = genericProviderCommand(patch);
+        setupCommand = genericProviderCommand(patch, s.session.settings?.launcher);
         return;
       }
       delete patch.engines;
@@ -189,6 +294,42 @@ async function saveProvider(e: SubmitEvent) {
 
   <section>
     <h2>{t("settings.engines")}</h2>
+    <form onsubmit={createSetup} oninput={() => { guidedCommand = ""; guidedError = false; }}>
+      <p class="note">{t("settings.quickSetupLead")}</p>
+      <label class="row"><span>{t("settings.quickProvider")}</span><select value={simpleProvider} onchange={(e) => chooseSetup(e.currentTarget.value as SetupProvider)}>
+        {#each SETUP_PROVIDERS as name (name)}<option value={name}>{name === "openai" ? t("settings.openaiCompatible") : PROVIDER_NAMES[name]}</option>{/each}
+      </select></label>
+      {#if setupExternal}
+        <p class="note">{t("settings.externalSetup")}</p>
+        <label class="row"><span>{t("settings.setupRepo")}</span><input class="mono" bind:value={setupRepo} required={!s.workspace.status?.info.root} placeholder={s.workspace.status?.info.root ?? "/path/to/repository"} /></label>
+      {:else}
+        <label class="row"><span>{t(["ollama", "lmstudio", "openai"].includes(simpleProvider) ? "settings.quickModel" : "settings.quickModelOptional")}</span><input class="mono" bind:value={simpleModel} required={["ollama", "lmstudio", "openai"].includes(simpleProvider)} placeholder={simpleProvider === "claude" ? "claude-sonnet-5-5" : simpleProvider === "muse" ? "muse-spark-1.3-contributor" : simpleProvider === "grok" ? "grok-4.7" : "model-name"} /></label>
+        {#if setupHttp}
+          <label class="row"><span>{t("settings.apiUrl")}</span><input class="mono" type="url" required bind:value={simpleBaseUrl} /></label>
+          {#if simpleProvider === "grok" || simpleProvider === "openai" || !setupLocalApi}
+            <label class="row"><span>{t("settings.keyEnv")}</span><input class="mono" required={!setupLocalApi} bind:value={simpleKeyEnv} /></label>
+            <p class="note">{t("settings.keyEnvHint")}</p>
+          {/if}
+        {/if}
+          {#if setupPrices}
+            <p class="note">{t("settings.pricingHint")}</p>
+            <label class="row"><span>{t("settings.priceInput")}</span><input type="number" min="0" step="any" required bind:value={simpleInputPrice} /></label>
+            <label class="row"><span>{t("settings.priceOutput")}</span><input type="number" min="0" step="any" required bind:value={simpleOutputPrice} /></label>
+          {/if}
+        {#if simpleProvider === "muse"}<p class="note">{t("settings.museContributor")}</p>{/if}
+      {/if}
+      <button type="submit" class="btn btn-pri btn-s">{t("settings.createSetup")}</button>
+      {#if guidedError}<p class="bad" role="alert">{t("settings.setupInvalid")}</p>{/if}
+      {#if guidedCommand}
+        <p class="note">{t("settings.quickSetupSteps")}</p>
+        {#if !s.session.settings?.launcher}<p class="note">{t("settings.quickSetupCwd")}</p>{/if}
+        <pre class="mono">{guidedCommand}</pre>
+        <button type="button" class="btn btn-sec btn-s" onclick={() => copyText(guidedCommand, s, "copy.command")}>{t("settings.copySetup")}</button>
+      {/if}
+      <button type="button" class="btn btn-sec btn-s" disabled={reloading} onclick={reloadProvider}>{t(reloading ? "app.loading" : "settings.reloadSettings")}</button>
+    </form>
+    <details>
+      <summary>{t("settings.advancedProvider")}</summary>
     <form onsubmit={saveProvider} oninput={() => (saved = false)}>
       <label class="row"><span>{t("settings.provider")}</span><select bind:value={provider} disabled={!initialized}>
         {#each ["claude-cli", "anthropic-api", "session", "generic"] as engine (engine)}<option value={engine}>{engine}</option>{/each}
@@ -197,9 +338,15 @@ async function saveProvider(e: SubmitEvent) {
       {#if provider === "generic"}
         <label class="row"><span>{t("settings.model")}</span><input class="mono" required bind:value={model} placeholder="generic:model-id" /></label>
         <label class="row"><span>{t("settings.reasoning")}</span><select bind:value={reasoning}>{#each ["low", "medium", "high", "xhigh", "max"] as level (level)}<option value={level}>{level}</option>{/each}</select></label>
-        <label class="row argv"><span>{t("settings.argv")}</span><textarea class="mono" required bind:value={argv} rows="5" spellcheck="false"></textarea></label>
-        <p class="note">{t("settings.argvHint")}</p>
-        <label class="row"><span>{t("settings.protocol")}</span><select bind:value={protocol}><option value="text">text</option><option value="muse-jsonl">Muse JSONL</option></select></label>
+        <label class="row"><span>{t("settings.protocol")}</span><select bind:value={protocol}><option value="text">text</option><option value="muse-jsonl">Muse JSONL</option><option value="openai-chat">OpenAI API</option></select></label>
+        {#if protocol === "openai-chat"}
+          <label class="row"><span>{t("settings.apiUrl")}</span><input class="mono" type="url" required bind:value={baseUrl} /></label>
+          <label class="row"><span>{t("settings.keyEnv")}</span><input class="mono" bind:value={keyEnv} /></label>
+          <p class="note">{t("settings.keyEnvHint")}</p>
+        {:else}
+          <label class="row argv"><span>{t("settings.argv")}</span><textarea class="mono" required bind:value={argv} rows="5" spellcheck="false"></textarea></label>
+          <p class="note">{t("settings.argvHint")}</p>
+        {/if}
         <p class="note">{t("settings.pricingHint")}</p>
         <label class="row"><span>{t("settings.timeout")}</span><input type="number" min="1" max="3600" step="1" bind:value={timeoutSeconds} /></label>
         <label class="row"><span>{t("settings.priceInput")}</span><input type="number" min="0" step="any" required bind:value={inputPrice} /></label>
@@ -210,12 +357,14 @@ async function saveProvider(e: SubmitEvent) {
       <button type="submit" class="btn btn-pri btn-s" disabled={!initialized || saving}>{t(saving ? "settings.providerSaving" : "settings.providerSave")}</button>
       {#if setupCommand}
         <p class="note">{t("settings.providerSetup")}</p>
+        {#if !s.session.settings?.launcher}<p class="note">{t("settings.quickSetupCwd")}</p>{/if}
         <pre class="mono">{setupCommand}</pre>
         <button type="button" class="btn btn-sec btn-s" onclick={() => copyText(setupCommand, s, "copy.command")}>{t("settings.copySetup")}</button>
       {/if}
       {#if providerError}<p class="bad" role="alert">{t("settings.providerInvalid")}</p>{/if}
       {#if saved}<p class="note" role="status">{t("settings.providerSaved")}</p>{/if}
     </form>
+    </details>
     {#each s.session.engines ?? [] as e (e.engine)}
       <div class="eng card">
         <b class="mono">{e.engine}</b>
@@ -277,6 +426,8 @@ async function saveProvider(e: SubmitEvent) {
   .argv { align-items: start; }
   textarea { width: 70%; resize: vertical; }
   form { margin-bottom: 20px; }
+  summary { cursor: pointer; padding: 12px 0; }
+  pre { overflow-x: auto; padding: 12px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r-input); }
   .note {
     color: var(--muted);
     font-size: var(--fs-ui);

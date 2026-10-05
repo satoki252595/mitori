@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { genericProviderCommand, genericProviderPatch, MUSE_ARGS } from "./provider.ts";
+import { genericProviderCommand, genericProviderPatch, MUSE_ARGS, providerSetupCommand } from "./provider.ts";
 
 const input = {
   model: "generic:muse-spark-1.3-contributor" as const,
@@ -27,10 +27,64 @@ test("generic provider rejects shell strings, empty argv, invalid model ids and 
 
 test("execution setup command preserves quotes and shell expansions literally", () => {
   const patch = genericProviderPatch({ ...input, argv: JSON.stringify(["/nix/store/muse-bin", "it's `literal` $(literal)"]) });
-  const r = Bun.spawnSync(["/bin/sh", "-c", `mitori() { printf '%s' "$4"; }\n${genericProviderCommand(patch)}`]);
+  const r = Bun.spawnSync(["/bin/sh", "-c", `bun() { printf '%s' "$7"; }\n${genericProviderCommand(patch)}`]);
   expect(r.exitCode).toBe(0);
   expect(r.stderr.toString()).toBe("");
   expect(JSON.parse(r.stdout.toString())).toEqual(patch.engines?.generic);
+});
+
+test("guided setup quotes repository paths literally and requires the local model and API prices", () => {
+  const repo = "/tmp/it's `literal` $(literal)";
+  const command = providerSetupCommand({ provider: "cursor", repo });
+  const r = Bun.spawnSync(["/bin/sh", "-c", `bun() { printf '%s' "$7"; }\n${command}`]);
+  expect(r.exitCode).toBe(0);
+  expect(r.stderr.toString()).toBe("");
+  expect(r.stdout.toString()).toBe(repo);
+  expect(() => providerSetupCommand({ provider: "ollama" })).toThrow();
+  expect(() => providerSetupCommand({ provider: "ollama", model: "qwen3:cloud" })).toThrow();
+  expect(() => providerSetupCommand({ provider: "ollama", model: "qwen3:cloud", inputPrice: 0, outputPrice: 0 })).toThrow();
+  expect(() => providerSetupCommand({ provider: "openai", model: "my-model", baseUrl: "https://api.example.com/v1", keyEnv: "API_KEY" })).toThrow();
+  expect(providerSetupCommand({ provider: "ollama", model: "qwen3:8b" })).toContain("'http://127.0.0.1:11434/v1'");
+  expect(providerSetupCommand({ provider: "ollama", model: "qwen3:cloud", inputPrice: 1, outputPrice: 2 })).toContain("--in-price '1' --out-price '2'");
+  const absolute = providerSetupCommand({ provider: "cursor", repo }, { command: "bun", args: ["/clone with spaces/scripts/start.ts"] });
+  const exact = Bun.spawnSync(["/bin/sh", "-c", `bun() { printf '%s\\0' "$@"; }\n${absolute}`]);
+  expect(exact.exitCode).toBe(0);
+  expect(exact.stdout.toString().split("\0").slice(0, -1)).toEqual(["/clone with spaces/scripts/start.ts", "setup", "cursor", "--repo", repo]);
+});
+
+test("API settings keep keys in named environment variables, disable argv, and reject unsafe endpoints", () => {
+  const patch = genericProviderPatch({
+    ...input,
+    model: "generic:local-model",
+    protocol: "openai-chat",
+    baseUrl: "http://127.0.0.1:1234/v1",
+    argv: "not JSON",
+    pricing: { inPerMTok: 0, outPerMTok: 0, cacheReadPerMTok: 0 },
+  });
+  expect(patch.engines?.generic?.argv).toEqual([]);
+  expect(patch.engines?.generic?.api).toEqual({ baseUrl: "http://127.0.0.1:1234/v1" });
+  expect(() =>
+    genericProviderPatch({
+      ...input,
+      model: "generic:qwen3-cloud",
+      protocol: "openai-chat",
+      baseUrl: "http://localhost:11434/v1",
+      pricing: { inPerMTok: 0, outPerMTok: 0, cacheReadPerMTok: 0 },
+    }),
+  ).toThrow();
+  for (const baseUrl of [
+    "http://api.example.com/v1",
+    "http://127.1/v1",
+    "http://2130706433/v1",
+    "https://secret@api.example.com/v1",
+    "https://api.example.com/v1?api_key=secret",
+    "https://api.example.com/not-v1",
+  ])
+    expect(() => genericProviderPatch({ ...input, protocol: "openai-chat", baseUrl, keyEnv: "API_KEY" })).toThrow();
+  expect(() => genericProviderPatch({ ...input, protocol: "openai-chat", baseUrl: "https://api.example.com/v1", keyEnv: "secret-token-value" })).toThrow();
+  expect(
+    genericProviderPatch({ ...input, protocol: "openai-chat", baseUrl: "https://api.example.com/v1", keyEnv: "API_KEY" }).engines?.generic?.api?.keyEnv,
+  ).toBe("API_KEY");
 });
 
 test("blank timeout writes the explicit default so CLI deep merge replaces the previous override", () => {

@@ -29,7 +29,10 @@ import type { TimerHandle, Timers } from "../util/timers.ts";
 import { buildAnthropicRequest } from "./index.ts";
 import { sseEvents } from "./sse.ts";
 
-export type FetchLike = (url: string, init: { method: string; headers: Record<string, string>; body: string; signal: AbortSignal }) => Promise<Response>;
+export type FetchLike = (
+  url: string,
+  init: { method: string; headers: Record<string, string>; body: string; signal: AbortSignal; redirect?: RequestRedirect },
+) => Promise<Response>;
 
 export interface AnthropicEngineDeps {
   settings: () => GlobalSettings;

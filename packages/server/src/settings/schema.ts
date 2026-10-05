@@ -116,11 +116,15 @@ const engines = obj<EngineSettings>({
     {
       enabled: bool,
       argv: arr(str, 64),
-      protocol: oneOf("text", "muse-jsonl"),
+      protocol: oneOf("text", "muse-jsonl", "openai-chat"),
+      api: obj<NonNullable<EngineSettings["generic"]["api"]>>(
+        { baseUrl: { t: "str", max: 2048 }, keyEnv: { t: "str", pattern: /^[A-Za-z_][A-Za-z0-9_]{0,127}$/ } },
+        ["keyEnv"],
+      ),
       pricing: obj<NonNullable<EngineSettings["generic"]["pricing"]>>({ inPerMTok: num(0), outPerMTok: num(0), cacheReadPerMTok: num(0) }),
       turnMs: int(1_000, 3_600_000),
     },
-    ["protocol", "pricing", "turnMs"],
+    ["protocol", "api", "pricing", "turnMs"],
   ),
 });
 

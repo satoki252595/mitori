@@ -16,6 +16,7 @@ import type {
   GenTaskState,
   GitOid,
   MitoriErrorData,
+  ModelId,
   PrepId,
   Random,
   RepoPath,
@@ -23,10 +24,13 @@ import type {
   Usage,
   Xxh3,
 } from "@mitori/core";
+import { PRICING } from "@mitori/core";
 import type { GenPlan, LineVerdict, NewBlockRef, PlannedTask } from "../contract.ts";
 
 /** A cached, validated task output (§3.8). */
 export interface StoredOutput {
+  /** Valid stored provenance; absent for older/unknown ids. Writers pass the authoritative model separately. */
+  model?: ModelId;
   /** Normalized NDJSON lines (accepted lines of all attempts, in order). */
   lines: string[];
   /** `new:n` → assigned block id. */
@@ -378,8 +382,11 @@ export class GenStore {
   }
 
   getOutput(cacheKey: Xxh3): StoredOutput | null {
-    const r = this.db.get<{ lines: string; id_map: string }>("SELECT lines, id_map FROM gen_outputs WHERE cache_key = ?", [cacheKey]);
-    return r ? { lines: parse(r.lines, []), idMap: parse(r.id_map, {}) } : null;
+    const r = this.db.get<{ lines: string; id_map: string; model: unknown }>("SELECT lines, id_map, model FROM gen_outputs WHERE cache_key = ?", [cacheKey]);
+    if (!r) return null;
+    const out: StoredOutput = { lines: parse(r.lines, []), idMap: parse(r.id_map, {}) };
+    if (typeof r.model === "string" && (Object.hasOwn(PRICING, r.model) || /^(?:codex|generic):[^\s]{1,100}$/.test(r.model))) out.model = r.model as ModelId;
+    return out;
   }
 
   touchOutput(cacheKey: Xxh3): void {

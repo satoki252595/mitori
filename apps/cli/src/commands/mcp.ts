@@ -4,20 +4,33 @@
  * cwd. Calls carry `x-mitori-client: mcp/<ver>` and `x-mitori-agent: <clientInfo.name as [a-z0-9-]>`. A daemon that
  * restarted (new token) is re-discovered once per failing call.
  */
+import { statSync } from "node:fs";
+import { resolve } from "node:path";
 import type { ApiClient } from "@mitori/client";
 import { MitoriError, type WorkspaceKey } from "@mitori/core";
+import { parse } from "./args.ts";
 import { apiOf, ensureDaemon } from "./daemon-client.ts";
 import { type Io, usage } from "./io.ts";
 import { agentLabelOfClient } from "./loop-contract.ts";
 import { createMcpSession } from "./mcp/protocol.ts";
 import { runTool, type ToolEnv } from "./mcp/tools.ts";
 import { homeOf } from "./session.ts";
-import { openWorkspace } from "./workspace.ts";
+import { openWorkspace, real } from "./workspace.ts";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export async function run(io: Io): Promise<number> {
-  if (io.argv.length > 0) throw usage(`mitori mcp takes no arguments (got ${io.argv[0]})`, "mitori mcp --help");
+  const { values, positionals } = parse(io.argv, { repo: { type: "string" } }, "mcp");
+  if (positionals.length > 0) throw usage("mitori mcp accepts only --repo <path>", "mitori mcp --help");
+  if (values.repo !== undefined) {
+    const cwd = real(resolve(io.cwd, values.repo));
+    try {
+      if (!values.repo.trim() || !statSync(cwd).isDirectory()) throw new Error("not a directory");
+    } catch {
+      throw usage("--repo must name an existing directory", "mitori mcp --help");
+    }
+    io = { ...io, cwd };
+  }
   let bound: Promise<{ api: ApiClient; ws: WorkspaceKey }> | null = null;
   const connect = async (client: string) => {
     const d = await ensureDaemon(io, homeOf(io));

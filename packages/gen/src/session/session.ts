@@ -10,7 +10,6 @@ import {
   type BlockId,
   type CheckError,
   type CheckReport,
-  type ClaudeModelId,
   type FsReader,
   type GenRun,
   type GenRunId,
@@ -164,14 +163,15 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
         row.task.cacheKey = rendered.cacheKey;
         const hit = store.getOutput(rendered.cacheKey);
         if (hit && replayable(hit.lines, d.doc)) {
+          const model = sessionModel(hit.model);
           const sink = new ApplySink(
             { doc: d.doc, write: d.write, verifier: svc.verifier, log: d.log },
-            { ...lineCtx(row, run, digest, row.plan.model, rendered.ctx.existing.size), replay: true },
+            { ...lineCtx(row, run, digest, model, rendered.ctx.existing.size), replay: true },
             hit.idMap,
           );
           for (const l of hit.lines) sink.accept(JSON.parse(l) as GenLine);
           await sink.finish();
-          await afterLines(d, row.plan, sink, lineCtx(row, run, digest, row.plan.model, rendered.ctx.existing.size));
+          await afterLines(d, row.plan, sink, lineCtx(row, run, digest, model, rendered.ctx.existing.size));
           row.task.state = "cached";
           row.task.blocks = sink.written;
           await d.write("gen.task", () => store.putTask(row));
@@ -302,9 +302,8 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
     return { text: new TextDecoder().decode(await fs.read(path)) };
   }
 
-  const sessionModel = (m: ModelId | undefined): ModelId => {
-    if (m === undefined) return d.settings().global.models.genModule;
-    if (m in PRICING || m.startsWith("codex:")) return m as ClaudeModelId;
+  const sessionModel = (m: unknown): ModelId => {
+    if (typeof m === "string" && (Object.hasOwn(PRICING, m) || /^(?:codex|generic):[^\s]{1,100}$/.test(m))) return m as ModelId;
     return "generic:session";
   };
 

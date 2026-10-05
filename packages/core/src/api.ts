@@ -1431,7 +1431,7 @@ export interface IngestReq {
   fingerprint: Sha256;
   /** Accept partial output (remaining tasks stay pending). */
   partial: boolean;
-  /** Model the session agent ran (`--model`, full id; default: `models.genModule`) — stamped into BlockGenInfo [CR gen-C7]. */
+  /** Human-declared model the session agent ran (`--model`, full id; omitted/unknown: `generic:session`) — stamped into BlockGenInfo [CR gen-C7]. */
   model?: ModelId;
 }
 
@@ -1546,6 +1546,8 @@ export interface TrustRequest {
 
 /** Global settings view. */
 export interface SettingsView {
+  /** Read-only actual daemon invocation for copied commands; not persisted or editable settings. */
+  launcher?: { command: string; args: string[] };
   /** Settings. */
   settings: GlobalSettings;
   /** Absolute path of the config file. */

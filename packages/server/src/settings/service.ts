@@ -112,6 +112,7 @@ export function checkOverrides(o: unknown, rule: DocDirRule): WorkspaceOverrides
 }
 
 export async function createSettingsService(opts: {
+  launcher?: { command: string; args: string[] };
   home: string;
   fs: FsReader;
   safeWrite: SafeWriter;
@@ -176,7 +177,7 @@ export async function createSettingsService(opts: {
 
   await load();
 
-  const view = (): SettingsView => ({ settings, path, version });
+  const view = (): SettingsView => ({ settings, path, version, ...(opts.launcher ? { launcher: opts.launcher } : {}) });
 
   return {
     path,
@@ -217,7 +218,14 @@ export async function createSettingsService(opts: {
         const patch = patchAt(p, body.value);
         const partial = validate(patch, GLOBAL_SPEC, { partial: true });
         if (partial.length > 0) throw invalid(partial);
-        await commit(deepMerge(settings, patch), "global", null);
+        const next = deepMerge(settings, patch);
+        // A provider registration replaces its connection. A local provider must not inherit a previous cloud key.
+        if (p === "engines.generic.api") next.engines.generic.api = body.value as NonNullable<GlobalSettings["engines"]["generic"]["api"]>;
+        else if (p === "engines.generic" && isPlainObject(body.value)) {
+          if (Object.hasOwn(body.value, "api")) next.engines.generic.api = body.value.api as NonNullable<GlobalSettings["engines"]["generic"]["api"]>;
+          else if (body.value.protocol !== undefined && body.value.protocol !== "openai-chat") delete next.engines.generic.api;
+        }
+        await commit(next, "global", null);
         return view();
       }),
     patchWorkspace: (ws, body) =>

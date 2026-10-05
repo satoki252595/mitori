@@ -2,10 +2,12 @@
   Engine state card (ux.md R1 §2.2, UXP-15, AC-U-EN): when the generation engine is not installed, not logged in
   or lost a capability, the estimate card's start button is replaced by this card — the UI never sends a request
   that would come back 424. It lists the exact steps that fix the state (each command copyable), re-probes on
-  request, and always offers the session path (`/mitori:gen`).
+  request, and always offers provider-neutral session instructions.
 -->
 <script lang="ts">
-import type { EngineStatus } from "@mitori/core";
+import type { Effort, EngineStatus } from "@mitori/core";
+import { sessionMode } from "../gen/estimate.ts";
+import type { LauncherCommand } from "../settings/provider.ts";
 import { t } from "../shell/index.ts";
 import { type EngineProblem, fixSteps } from "./engine.ts";
 
@@ -15,9 +17,20 @@ let {
   effort,
   oncopy,
   onrecheck,
-}: { status: EngineStatus; problem: EngineProblem; effort: string; oncopy: (s: string) => void; onrecheck: () => void | Promise<void> } = $props();
+  repo,
+  launcher,
+}: {
+  status: EngineStatus;
+  problem: EngineProblem;
+  effort: Effort;
+  oncopy: (s: string) => void;
+  onrecheck: () => void | Promise<void>;
+  repo?: string | undefined;
+  launcher?: LauncherCommand | undefined;
+} = $props();
 
 const steps = $derived(fixSteps(problem, status.engine));
+const session = $derived(sessionMode(effort, { repo, launcher }));
 let checking = $state(false);
 async function recheck() {
   checking = true;
@@ -49,7 +62,7 @@ async function recheck() {
   <p class="note">{t("engine.pathHint")}</p>
   <div class="alt">
     <p>{t("engine.altSession")}</p>
-    <button type="button" class="cmd mono" onclick={() => oncopy(`/mitori:gen ${effort}`)}>/mitori:gen {effort}<span class="cp" aria-hidden="true">&#x2398;</span></button>
+    <button type="button" class="cmd mono" onclick={() => oncopy(session.copy)}>{session.raw}<span class="cp" aria-hidden="true">&#x2398;</span></button>
   </div>
 </section>
 

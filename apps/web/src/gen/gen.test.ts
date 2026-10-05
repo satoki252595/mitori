@@ -12,6 +12,7 @@ import {
   figures,
   isRange,
   narrowerEffort,
+  sessionMode,
   startMode,
   tileFigures,
   tokRange,
@@ -113,11 +114,38 @@ describe("AC-G-W01 5h window line + default tile (UXP-08)", () => {
 });
 
 describe("start modes (§4.2.4-7/8, UXP-11)", () => {
-  test("session copies /mitori:gen <effort>; overage needs the ack; window_risk splits into four", () => {
-    expect(startMode(est(), "session", false)).toEqual({ kind: "session", copy: "/mitori:gen standard", raw: "mitori gen --prep --effort standard" });
+  test("session copies provider-neutral prep/ingest instructions; overage and window guards remain", () => {
+    useCatalog("ja");
+    const session = startMode(est(), "session", false);
+    expect(session.kind).toBe("session");
+    if (session.kind !== "session") throw new Error("expected session mode");
+    expect(session.raw).toBe("bun run start -- gen --prep --effort 'standard'");
+    expect(session.copy).toContain("mitoriをcloneしたフォルダ");
+    expect(session.copy).toContain("out/*.ndjson");
+    expect(session.copy).toContain("gen --ingest PREP_ID");
+    expect(session.copy).toContain("gen --prep --continue PREP_ID");
+    expect(session.copy).not.toContain("/mitori:gen");
     expect(startMode(est({ confirmReasons: ["billing_overage"] }), "claude-cli", false)).toEqual({ kind: "overage", acknowledged: false });
     expect(startMode(est({ confirmReasons: ["window_risk"] }), "claude-cli", false)).toEqual({ kind: "windowRisk" });
     expect(startMode(est(), "claude-cli", false)).toEqual({ kind: "start" });
+  });
+
+  test("session commands reuse the absolute launcher and quote the actual repository path", () => {
+    const repo = "/repo/it's $(literal)";
+    const session = sessionMode("overview", { repo, launcher: { command: "bun", args: ["/clone with spaces/scripts/start.ts"] } });
+    const proc = Bun.spawnSync(["/bin/sh", "-c", `bun() { printf '%s\\0' "$@"; }\n${session.raw}`]);
+    expect(proc.exitCode).toBe(0);
+    expect(proc.stderr.toString()).toBe("");
+    expect(proc.stdout.toString().split("\0").slice(0, -1)).toEqual([
+      "/clone with spaces/scripts/start.ts",
+      "gen",
+      "--prep",
+      "--effort",
+      "overview",
+      "--repo",
+      repo,
+    ]);
+    expect(session.copy).not.toContain("mitoriをcloneしたフォルダ");
   });
 
   test("「範囲を絞る」 steps to the next smaller effort", () => {

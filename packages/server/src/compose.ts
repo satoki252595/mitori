@@ -134,6 +134,7 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
     log: deps.log,
   });
   const started = await startDaemon({
+    ...(deps.launcher ? { launcher: deps.launcher } : {}),
     home,
     userHome: deps.userHome,
     version: deps.version,

@@ -13,6 +13,17 @@ const info: WorkspaceInfo = { key: WS, root: "/repo", kind: "git", name: "repo",
 const code = (e: unknown) => (e instanceof MitoriError ? e.code : String(e));
 
 describe("settings defaults and schema", () => {
+  test("OpenAI-compatible API configuration persists only endpoint/key variable and remains CLI-only", () => {
+    const generic = { enabled: true, argv: [], protocol: "openai-chat" as const, api: { baseUrl: "https://api.x.ai/v1", keyEnv: "XAI_API_KEY" } };
+    expect(parseGlobalSettings(JSON.stringify({ engines: { generic } })).engines.generic).toEqual(generic);
+    expect(checkSettingsPatch({ engines: { generic: { api: generic.api } } }, DEFAULT_GLOBAL_SETTINGS).ok).toBe(false);
+    expect(() =>
+      parseGlobalSettings(JSON.stringify({ engines: { generic: { ...generic, api: { baseUrl: "http://localhost:11434/v1", key: "secret" } } } })),
+    ).toThrow();
+    expect(() =>
+      parseGlobalSettings(JSON.stringify({ engines: { generic: { ...generic, api: { baseUrl: "http://localhost:11434/v1", keyEnv: "INVALID-NAME" } } } })),
+    ).toThrow();
+  });
   test("Codex pricing and estimated-spend consent are explicit execution settings, with a visible patch-step cap", () => {
     const configured = {
       engines: {
@@ -202,7 +213,14 @@ describe("SRV-I-027 settings service", () => {
   async function svc() {
     const home = tempDir();
     const published: SseEventPayload[] = [];
-    const s = await createSettingsService({ home, fs: fsReader, safeWrite: fsSafeWriter(), publish: (p) => void published.push(p), log: silentLogger });
+    const s = await createSettingsService({
+      home,
+      launcher: { command: "/opt/bun", args: ["/apps/mitori/scripts/start.ts"] },
+      fs: fsReader,
+      safeWrite: fsSafeWriter(),
+      publish: (p) => void published.push(p),
+      log: silentLogger,
+    });
     return { home, s, published };
   }
 
@@ -211,6 +229,7 @@ describe("SRV-I-027 settings service", () => {
     try {
       const v = s.view();
       expect(v.settings).toEqual(DEFAULT_GLOBAL_SETTINGS);
+      expect(v.launcher).toEqual({ command: "/opt/bun", args: ["/apps/mitori/scripts/start.ts"] });
       expect(await s.patch({ version: v.version, patch: { engines: { "claude-cli": { binary: "/tmp/x" } } } }).then(() => "ok", code)).toBe("E_FORBIDDEN_KEY");
       expect(await s.patch({ version: v.version + 7, patch: { ui: { theme: "dark" } } }).then(() => "ok", code)).toBe("E_CONFLICT");
       expect(await s.patch({ version: v.version, patch: { ui: { nope: 1 } } }).then(() => "ok", code)).toBe("E_CFG_INVALID");
@@ -237,6 +256,31 @@ describe("SRV-I-027 settings service", () => {
       expect((await s.patchExec({ path: "engines.claude-cli.binary", value: "/opt/claude", confirm: true })).settings.engines["claude-cli"].binary).toBe(
         "/opt/claude",
       );
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("provider registration replaces API endpoint/key atomically and switching to CLI removes API metadata", async () => {
+    const { home, s } = await svc();
+    try {
+      const grok = { enabled: true, argv: [], protocol: "openai-chat", api: { baseUrl: "https://api.x.ai/v1", keyEnv: "XAI_API_KEY" } };
+      await s.patchExec({ path: "engines.generic", value: grok, confirm: true });
+      await s.patchExec({ path: "engines.generic", value: { ...grok, api: { baseUrl: "http://localhost:11434/v1" } }, confirm: true });
+      expect(s.current().engines.generic.api).toEqual({ baseUrl: "http://localhost:11434/v1" });
+      await s.patchExec({ path: "engines.generic", value: grok, confirm: true });
+      await s.patchExec({ path: "engines.generic.api", value: { baseUrl: "http://localhost:1234/v1" }, confirm: true });
+      expect(s.current().engines.generic.api).toEqual({ baseUrl: "http://localhost:1234/v1" });
+      const version = s.view().version;
+      expect(await s.patchExec({ path: "engines.generic.api", value: {}, confirm: true }).then(() => "ok", code)).toBe("E_CFG_INVALID");
+      expect(s.view().version).toBe(version);
+      expect(s.current().engines.generic.api).toEqual({ baseUrl: "http://localhost:1234/v1" });
+      await s.patchExec({ path: "engines.generic", value: { turnMs: 600_000 }, confirm: true });
+      expect(s.current().engines.generic.api).toEqual({ baseUrl: "http://localhost:1234/v1" });
+      await s.patchExec({ path: "engines.generic", value: { enabled: true, argv: ["/opt/muse"], protocol: "muse-jsonl" }, confirm: true });
+      expect(s.current().engines.generic.api).toBeUndefined();
+      expect(parseGlobalSettings(serializeGlobalSettings(s.current())).engines.generic.api).toBeUndefined();
+      expect(s.current().engines.generic.turnMs).toBe(600_000);
     } finally {
       removeDir(home);
     }

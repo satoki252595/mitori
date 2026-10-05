@@ -3094,14 +3094,16 @@ export interface EngineSettings {
     /** Visible native file-change calls per turn (1–8, default 2); failed attempts are not exposed by CLI JSONL. */
     maxPatchSteps?: number;
   };
-  /** generic agent_cmd. */
+  /** Generic text-only CLI or OpenAI-compatible Chat Completions. */
   generic: {
     /** Enabled. */
     enabled: boolean;
-    /** argv; prompt is written to stdin. */
+    /** argv; prompt is written to stdin. Empty for openai-chat. */
     argv: string[];
     /** stdout protocol; omitted = plain text. */
-    protocol?: "text" | "muse-jsonl";
+    protocol?: "text" | "muse-jsonl" | "openai-chat";
+    /** `/v1` base URL; HTTPS remotely, literal loopback HTTP locally. Keys stay in the named environment variable. */
+    api?: { baseUrl: string; keyEnv?: string };
     /** Explicit prices per million tokens; zero is permitted for local models. */
     pricing?: { inPerMTok: number; outPerMTok: number; cacheReadPerMTok: number };
     /** Hard timeout of a generation turn in milliseconds, when provider reasoning exceeds the default. */

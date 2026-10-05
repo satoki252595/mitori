@@ -1,84 +1,124 @@
 # mitori
 
-> 見取り図 — リポジトリ全体を「見て取れる」設計書に変換し、人間と AI エージェントが同じ設計書の上でレビュー・修正指示・議論を行うためのツール。
+> 見取り図 — リポジトリ全体を「見て取れる」設計書に変換し、人間と AI が同じ設計書の上でレビュー・修正指示・議論を行うためのツール。
 
-**pre-alpha — 2026-10-06更新。** リポジトリ解析、文書生成、レビュー、修正提案とUndoを実装・検証しています。未確認の環境と品質上の限界は下記に記載しています。
+**pre-alpha / 2026-10-06更新。** cloneして手元のリポジトリを開くローカルアプリです。ブラウザで使います。通常利用に**Nix・Cloudflare・データベースサーバーは不要**です。
 
-本体はcloneしてローカルで起動するツールです。ブラウザからローカルのリポジトリを扱います。**Cloudflareへのデプロイは不要です。** AI生成には設定したLLMを使用するため、通信・認証・利用料金はそのプロバイダーに依存します。
+## まず使う
 
-## できること
-
-- リポジトリを解析し、見取り図と出典付きの設計文書を生成・閲覧する。
-- 文書やコードの箇所にコメントし、説明・修正提案を受け取る。
-- 範囲を限定したコード変更をテスト・lint・型検査で確認し、人が採用する。適用は未コミットで、Undoできる。
-- 文書の翻訳・やさしい説明・修正提案を確認して適用し、元に戻す。
-- 文書をHTMLとして書き出す。暗号化したURL共有は任意のCloudflare機能で、現在は未デプロイ。
-
-AIのコード変更はアンカーと対象範囲を確認し、side repoで検証します。対象リポジトリのGit refs/objectsには書き込みません。詳細は[side repoの設計](docs/design/adr/0012-git-side-repo.md)を参照してください。
-
-## ローカルで起動する
-
-必要な環境はGit、Nix（`nix-command` / `flakes`有効）、Bash 4以上です。Bunや解析・検証用のツールチェーンは、プロジェクトの`flake.nix` / `flake.lock`で管理します。
+手元の**Bun 1.4.2以上とGit**を使います。LLM・対象言語のテストやlintも、普段使っているツールをPATHから利用します。
 
 ```sh
 git clone https://github.com/satoki252595/mitori.git
 cd mitori
+bun install --frozen-lockfile
+bun run start -- /absolute/path/to/your/repository
 ```
 
-現在のGitHubリポジトリはprivateのため、cloneにはアクセス権が必要です。macOS標準のBash 3.2しかない場合は、プロジェクトが固定したNix入力からBashを起動してから続けてください。
+初回とソース更新後だけ画面を自動ビルドし、ローカルURLを表示してブラウザを開きます。以降はビルド結果を再利用します。ブラウザを開かない場合は`--no-open`を付けます。起動を止めるには別のターミナルで`bun run start -- stop`を実行します。
+
+リポジトリは現在privateのため、cloneにはアクセス権が必要です。`bun run start`はmitoriのフォルダで実行してください。配布用バイナリは直接実行でき、Bunも不要です（[対応環境](#対応環境と確認状況)）。
+
+## 普段のLLMを使う
+
+ブラウザの**設定 → エンジン → 使うAI**で使っているものを選び、**接続コマンドを作る**を押します。表示されたコマンドをターミナルで実行し、内容を確認して保存したら、画面の**設定を再読み込み**を押します。JSONの編集は不要です。コマンドは起動中のmitoriの絶対パスを使うため、ターミナルの現在位置に依存しません。
+
+ターミナルから直接設定する場合も、次の短いコマンドを使えます。設定コマンドはインストール・モデルのダウンロード・LLMへの推論要求を行いません。
+
+| 普段使っているもの | 設定コマンド（mitoriフォルダで実行） | 利用方法 |
+| --- | --- | --- |
+| Claude Code | `bun run start -- setup claude` | ログイン済みの`claude`を利用。画面から生成・説明・修正提案 |
+| Muse | `bun run start -- setup muse` | 認証済みnative binaryを検出。既定は`muse-spark-1.3-contributor` / `max` |
+| Grok | `bun run start -- setup grok` | xAI APIへ直接接続。`XAI_API_KEY`が必要 |
+| Ollama | `bun run start -- setup ollama --model qwen3:8b` | 起動済みのOllamaと取得済みローカルモデルを利用 |
+| LM Studio | `bun run start -- setup lmstudio --model MODEL_ID` | 起動済みローカルサーバーを利用。画面のモデルIDを指定 |
+| Codex | `bun run start -- setup codex --repo /absolute/path/to/your/repository` | 普段のCodexセッションからMCP・文書生成の準備/取り込みで利用 |
+| Cursor | `bun run start -- setup cursor --repo /absolute/path/to/your/repository` | 普段のCursorからMCP・文書生成の準備/取り込みで利用 |
+| Antigravity | `bun run start -- setup antigravity --repo /absolute/path/to/your/repository` | 普段のAntigravityからMCP・文書生成の準備/取り込みで利用 |
+
+`qwen3:8b`は例です。`ollama list`などで手元のモデルを確認し、その名前を指定してください。Ollamaのcloudモデルはローカル無料扱いにせず、単価を指定します。LM Studioの既定接続先は`http://localhost:1234/v1`、Ollamaは`http://localhost:11434/v1`です。
+
+**Grokを使う場合**は、起動前にターミナルの環境変数`XAI_API_KEY`を設定してください。Grokのチャット契約とxAI APIの認証・料金は別です。キーを後から設定した場合は、既存daemonを停止して同じターミナルから起動し直します。キー自体を設定画面・設定JSON・Gitへ保存しません。[xAIの公式認証手順](https://docs.x.ai/developers/quickstart)を参照してください。
+
+**Codex・Cursor・Antigravityを使う場合**は、設定コマンドが表示するMCP登録手順を1回実行します。既存のMCP設定は残してください。AIには次のように依頼できます。
+
+> mitoriのレビューを取得し、変更案はmitori_submit_patchで提出してください。対象ソースを直接変更せず、人の確認を待ってください。
+
+初回の文書生成は、画面の**生成手順をコピー**で表示する手順を、そのAIへ渡します。mitoriが作る準備パケットのREADMEに従って文書を生成・取り込みます。モデルは普段のツール側で選びます。外部セッションのツール・hookはそのツールの設定に従うため、mitoriの自動LLM起動とは区別しています。
+
+<details>
+<summary>別モデル・独自API・細かな設定</summary>
+
+Museのモデルを指定する例:
 
 ```sh
-nix shell --inputs-from . nixpkgs#bash -c bash
+bun run start -- setup muse --model muse-spark-1.3-contributor --effort max
 ```
+
+PATHで見つからないCLIは`--binary /absolute/path/to/binary`を指定します。Museは自動更新ランチャーではなくnative binaryを使います。
+
+OpenAI互換APIも追加SDKなしで利用できます。`MODEL_ID`、URL、キーの環境変数名、確認した単価（USD/百万token）を指定してください。
+
+```sh
+bun run start -- setup openai --model MODEL_ID \
+  --base-url https://your-provider.example/v1 --key-env YOUR_API_KEY \
+  --in-price 2 --out-price 6
+```
+
+別のGrokモデルにも`--model`と`--in-price` / `--out-price`を指定します。Grok既定の`grok-4.7`は2026-10-06の公式価格を確認した設定値（input $2 / output $6）です。実請求額の保証ではありません。[モデル・価格の確認記録](docs/research/llm-onboarding-20261006.md)。
+
+HTTP連携は無ツールのChat Completionsを使用します。`--effort`はHTTPへ送信せず、Museなど対応CLIで使います。任意CLIのJSON argv・単価・タイムアウトは画面の「詳細設定（独自CLI・API）」にあります。保存前の確認だけなら`setup … --print`、選択肢は`bun run start -- setup --help`で確認できます。
+
+</details>
+
+## できることと変更の扱い
+
+- リポジトリを解析し、見取り図と出典付きの設計文書を生成・閲覧する。
+- 文書やコードの箇所にコメントし、説明・修正提案を受け取る。
+- 文書の翻訳・やさしい説明・修正を確認して適用し、Undoする。
+- 文書をHTMLとして書き出す。暗号化URL共有は任意のCloudflare機能で、現在は未デプロイ。
+
+mitori内のAI変更はアンカーと対象範囲を確認し、side repoでテスト・lint・型検査を行います。人が採用して初めて未コミットの変更を適用し、Undoできます。対象リポジトリのGit refs/objectsへは書きません。[side repoの設計](docs/design/adr/0012-git-side-repo.md)。
+
+自動起動するLLMはlean環境を使い、対象リポジトリの設定・hook・ツールを継承しません。生成前には送信内容・費用見積りを確認します。ローカルLLMの品質や構造化応答の能力はモデルごとに異なり、変更は同じ検証と人の確認を通ります。
+
+## 利用技術
+
+| 用途 | 技術 |
+| --- | --- |
+| 本体・ローカルHTTP/SSEサーバー | TypeScript、Bun |
+| ブラウザ画面 | Svelte 5、Vite 8、CodeMirror 6 |
+| データ保存 | SQLite（Bun内蔵。別サーバー不要） |
+| コード解析 | Tree-sitter / WebAssembly |
+| 見取り図 | SVG、ELKレイアウト |
+| リポジトリ・変更検証 | 手元のGit、対象言語のテスト・lint・型検査ツール |
+| LLM | 既存CLI、OpenAI互換HTTP API、外部セッションのMCP/Pull |
+| 開発環境・回帰検証 | Nix、Biome、TypeScript、Bun test、Playwright |
+
+## 対応環境と確認状況
+
+| 環境 | 状況 |
+| --- | --- |
+| macOS Apple Silicon | バイナリ起動・実Muse修正/Undoを検証済み。Bun直接起動も確認 |
+| Linux x64 | バイナリビルド・バージョン表示と既存CIを検証済み。今回のBun起動導線のLinux実行は未確認 |
+| Windows x64 | クロスビルド済み。Windows上の実行確認は未完了。通常Bun起動は現時点で対象外 |
+
+バイナリは`bun run build:bin`で実行環境向けに作ります。macOSは`dist/mitori-darwin-arm64`、Linuxは`dist/mitori-linux-x64`を直接実行できます。現在のコンパイル対象は上記3種類です。
+
+今回の設定導線・APIは無課金のmock/loopbackと必要範囲の回帰で検証しました。[今回の検証記録](docs/progress/onboarding-20261006.md)。Grok・Ollama・LM Studio・各外部アプリでの実LLM推論は今回実施していません。Museの既存実検証はADR記載のnative版が対象で、更新版へ証跡を引き継ぎません。[LLM起動条件](docs/design/adr/0015-configurable-llm.md)。
+
+既存の3 OSS（m3e-canvas、jev-ultrafast、Laya）では実Muse生成とソース照合を行いました。無効な引用先は1,421件中0件でしたが、説明の省略・曖昧さは残ります。[品質検証](docs/progress/oss-quality-2026-10-05/README.md)。Chromium・Firefox・WebKitは既存CIで検証済みですが、実Safari・日本語IMEは未確認です。一部の性能目標にも警告が残っています。
+
+リポジトリはprivateで、ルートLICENSEは未設定です。一般公開・OSS配布の準備は別途必要です。
+
+## 開発する場合
+
+開発・検証の依存管理は引き続き`flake.nix` / `flake.lock`を使います。利用者の通常起動とは別の手順です。
 
 ```sh
 scripts/nd bun install --frozen-lockfile
-scripts/nd bun run build:bin
-
-# macOS Apple Silicon
-scripts/nd ./dist/mitori-darwin-arm64 /absolute/path/to/repository
-
-# Linux x64
-# scripts/nd ./dist/mitori-linux-x64 /absolute/path/to/repository
-```
-
-`build:bin`は実行環境向けのバイナリを作ります。起動するとローカルURLを表示し、ブラウザを開きます。自動で開かない場合は起動コマンドに`--no-open`を付けます。対象パスを省略すると現在のディレクトリを開きます。
-
-| 環境 | 現在の確認状況 |
-| --- | --- |
-| macOS Apple Silicon | ネイティブビルド・起動・実LLM修正/Undoを検証済み |
-| Linux x64 | ネイティブビルド・バージョン表示・check/unit/goldenをCIで検証済み |
-| Windows x64 | クロスビルド済み。Windows上での実行確認は未完了 |
-
-現在のコンパイル対象は上記3種類です。ブラウザはChromium・Firefox・WebKitで検証していますが、実Safariと実際の日本語IME入力は未確認です。
-
-## LLMを設定する
-
-設定画面でプロバイダー・モデル・推論強度を選びます。汎用CLI連携では実行コマンド、出力protocol、単価、タイムアウトを登録できます。任意のLLMを接続する場合は、そのLLMを呼び出すCLIが必要です。
-
-汎用CLIの実行設定は、画面が提示する登録コマンドをローカルのターミナルで実行してから、設定画面で再確認・保存します。実行設定は利用者のグローバル設定で管理し、対象リポジトリから継承しません。
-
-今回の実検証には**Muse `muse-spark-1.3-contributor` / `max`**を使いました。Museプリセットには、認証済みnative binaryのパスと`muse-jsonl` protocolを使用します。LLMは対象リポジトリの設定・hook・ツールを継承しないlean環境で起動します。
-
-汎用CLIは生成・回答・構造化した変更提案に対応します。任意CLIのエージェントツール実行には対応していません。CodexのエージェントモードはMacで検証済みで、未検証のOSでは起動を拒否します。設定・起動条件は[ADR-0015](docs/design/adr/0015-configurable-llm.md)、実LLMの検証手順は[検証記録](docs/progress/continuation-live.md)を参照してください。
-
-## 開発・検証
-
-```sh
 scripts/nd bun run check
 scripts/nd bun test
-scripts/nd bun run golden
 ```
 
-[PR #5の最終CI](https://github.com/satoki252595/mitori/actions/runs/37355410161)は成功しました。Ubuntuのcheck全7段階、unit 2,944件、golden 109件が成功し、Macのブラウザ検証は344件成功・14件skip、アクセシビリティ検証は8件成功です。性能計測には目標値超過の警告が残っています。[CIの詳細と失敗履歴](docs/progress/pr5-ci-20261005.md)を保存しています。
-
-GitHubの3つのOSS（m3e-canvas、jev-ultrafast、Laya）で実Muse生成とソース照合を行い、誤記を修正しました。1,421件の引用先に無効な参照はありませんでしたが、説明の省略・曖昧さは残り、全文の意味的な正しさを保証するものではありません。[品質検証の結果](docs/progress/oss-quality-2026-10-05/README.md)を参照してください。
-
-## 現在の制約と資料
-
-- Windows上の実行、実Safari・日本語IMEの検証が残っています。
-- 初期JSの60KB目標は達成しています。一部の起動時間・メモリ・操作時間などは目標値を超えています。[出荷ビルドの測定](docs/progress/shipping-validation-20261006.md)に測定条件と制約を記録しています。
-- Cloudflare共有は任意です。利用する場合にだけ、承認後にデプロイします。
-- リポジトリはprivateで、ルートLICENSEは未設定です。一般公開・OSS配布の準備は別途必要です。
-
-最新の引き継ぎは[HANDOFFの冒頭 §★](docs/HANDOFF.md)、残課題は[タスク台帳](docs/progress/backlog-2026-10-05.md)を参照してください。設計は[docs/design](docs/design/)、作業規約は[AGENTS.md](AGENTS.md)と[CLAUDE.md](CLAUDE.md)にあります。
+最新の引き継ぎは[HANDOFFの冒頭 §★](docs/HANDOFF.md)、残課題は[タスク台帳](docs/progress/backlog-2026-10-05.md)、作業規約は[AGENTS.md](AGENTS.md)と[CLAUDE.md](CLAUDE.md)を参照してください。

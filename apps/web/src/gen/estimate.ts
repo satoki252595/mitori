@@ -5,6 +5,7 @@
  */
 import { CALIBRATION, type Effort, type EngineId, type GenEstimate } from "@mitori/core";
 import { NUMBER_FORMAT } from "../contract.ts";
+import { type LauncherCommand, launcherPrefix, shellQuote } from "../settings/provider.ts";
 import { fmtDurationImpl, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
 import { tImpl } from "../shell/i18n.ts";
 
@@ -160,8 +161,28 @@ export type StartMode =
   | { kind: "windowRisk" }
   | { kind: "session"; copy: string; raw: string };
 
-export function startMode(e: Pick<GenEstimate, "confirmReasons" | "effort">, engine: EngineId, overageAcked: boolean): StartMode {
-  if (engine === "session") return { kind: "session", copy: `/mitori:gen ${e.effort}`, raw: `mitori gen --prep --effort ${e.effort}` };
+export function sessionMode(
+  effort: Effort,
+  opts: { repo?: string | undefined; launcher?: LauncherCommand | undefined } = {},
+): Extract<StartMode, { kind: "session" }> {
+  const prefix = launcherPrefix(opts.launcher);
+  const scope = opts.repo ? ` --repo ${shellQuote(opts.repo)}` : "";
+  const raw = `${prefix} gen --prep --effort ${shellQuote(effort)}${scope}`;
+  const copy = `${opts.launcher ? "" : `${tImpl("gen.session.cwd")}\n`}${tImpl("gen.session.prompt", {
+    prep: raw,
+    ingest: `${prefix} gen --ingest PREP_ID${scope}`,
+    next: `${prefix} gen --prep --continue PREP_ID --effort ${shellQuote(effort)}${scope}`,
+  })}`;
+  return { kind: "session", copy, raw };
+}
+
+export function startMode(
+  e: Pick<GenEstimate, "confirmReasons" | "effort">,
+  engine: EngineId,
+  overageAcked: boolean,
+  session: { repo?: string | undefined; launcher?: LauncherCommand | undefined } = {},
+): StartMode {
+  if (engine === "session") return sessionMode(e.effort, session);
   if (e.confirmReasons.includes("billing_overage")) return { kind: "overage", acknowledged: overageAcked };
   if (e.confirmReasons.includes("window_risk")) return { kind: "windowRisk" };
   return { kind: "start" };

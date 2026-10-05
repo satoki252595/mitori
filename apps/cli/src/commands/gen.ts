@@ -7,7 +7,8 @@
  * - `gen --ingest <pr> [--partial] [--model <id>]` — reads `<dir>/fingerprint` (the agent never handles it) and takes in
  *   `out/*.ndjson`; exit 0 all valid / 1 errors (fix, re-run) / 3 expired packet or fingerprint mismatch.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
+import { resolve } from "node:path";
 import type { Effort, GenEstimate, IngestReport, ModelId, PrepId, SectionId } from "@mitori/core";
 import { MitoriError } from "@mitori/core";
 import { oneOf, parse } from "./args.ts";
@@ -16,7 +17,7 @@ import { helpLang } from "./help.ts";
 import { CliExit, type Io, usage } from "./io.ts";
 import { PULL_EXIT } from "./loop-contract.ts";
 import { connectWorkspace, requireTty } from "./session.ts";
-import { docDirOf, whenReady } from "./workspace.ts";
+import { docDirOf, real, whenReady } from "./workspace.ts";
 
 const EFFORTS = ["overview", "standard", "complete"] as const;
 const PREP_RE = /^pr_[0-9a-z]{8}$/;
@@ -46,15 +47,17 @@ export function estimateText(e: GenEstimate, lang: "ja" | "en"): string {
   const tokens = k(e.inTokens + e.cacheReadTokens + e.cacheWriteTokens + e.outTokens);
   const min = Math.max(1, Math.round(e.seconds.p50 / 60));
   const billed = e.billing === "metered-api" || e.billing === "overage";
-  if (lang === "ja")
-    return `見積り: ${e.effort} · 約 ${tokens} token · API 換算 $${e.apiUsd.toFixed(2)}${billed ? "（課金されます）" : "（サブスクの枠内）"} · 約 ${min} 分 · ${e.engine}\n`;
-  return `estimate: ${e.effort} · ≈${tokens} tokens · API-equivalent $${e.apiUsd.toFixed(2)}${billed ? " (billed)" : " (within the subscription)"} · ≈${min} min · ${e.engine}\n`;
+  const jaBilling = e.billing === "unknown" ? "（課金形態はプロバイダーによります）" : billed ? "（課金されます）" : "（サブスクの枠内）";
+  const enBilling = e.billing === "unknown" ? " (billing depends on the provider)" : billed ? " (billed)" : " (within the subscription)";
+  if (lang === "ja") return `見積り: ${e.effort} · 約 ${tokens} token · API 換算 $${e.apiUsd.toFixed(2)}${jaBilling} · 約 ${min} 分 · ${e.engine}\n`;
+  return `estimate: ${e.effort} · ≈${tokens} tokens · API-equivalent $${e.apiUsd.toFixed(2)}${enBilling} · ≈${min} min · ${e.engine}\n`;
 }
 
 export async function run(io: Io): Promise<number> {
   const { values, positionals } = parse(
     io.argv,
     {
+      repo: { type: "string" },
       prep: { type: "boolean" },
       ingest: { type: "string" },
       continue: { type: "string" },
@@ -66,6 +69,15 @@ export async function run(io: Io): Promise<number> {
     "gen",
   );
   if (positionals.length > 0) throw usage(`unexpected argument ${positionals[0]}`, "mitori gen --help");
+  if (values.repo !== undefined) {
+    const cwd = real(resolve(io.cwd, values.repo));
+    try {
+      if (!values.repo.trim() || !statSync(cwd).isDirectory()) throw new Error("not a directory");
+    } catch {
+      throw usage("--repo must name an existing directory");
+    }
+    io = { ...io, cwd };
+  }
   const effort: Effort = oneOf(values.effort, EFFORTS, "effort", "gen") ?? "standard";
   const scope = (values.scope ?? []) as SectionId[];
 

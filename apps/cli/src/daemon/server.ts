@@ -29,6 +29,7 @@ import { createServer, type ServerDeps, type ServerHandle, withPrecompiled } fro
 import { type AssetTable, assetTable, GRAMMAR_LANGS, loadInitialUiRenderer, loadWebAssets, pinnedScriptUrl, readPinned } from "../build/assets.ts";
 import { materializeWindowsJob } from "../build/windows-job.ts";
 import { viewerBundle } from "../commands/export-assets.ts";
+import { selfCommand } from "../commands/process-io.ts";
 import { createElkPool } from "./elk.ts";
 
 export interface ServerDaemonOptions {
@@ -102,7 +103,9 @@ export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerD
   // remote-readonly clones (`mitori <github-url>`) need `gh` on SAFE_PATH; without it GitHub targets are refused
   const gh = Bun.which("gh", { PATH: safePath });
   const windowsJobLauncher = process.platform === "win32" ? await materializeWindowsJob(o.home, safeWrite, t) : undefined;
+  const [launcherCommand, ...launcherArgs] = selfCommand();
   const deps: ServerDeps = {
+    launcher: { command: launcherCommand, args: launcherArgs },
     home: o.home,
     version: o.version,
     pid: process.pid,
