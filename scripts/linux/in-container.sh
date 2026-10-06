@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs inside the mitori-linux image (scripts/linux-ci.sh). /src = exported source, /out = results.
-# STEPS (comma separated): install, check, unit, bin, watch, sandbox. Every step logs to /out/<step>.log; a summary
+# STEPS (comma separated): install, check, unit, bin, watch, sandbox, onboarding. Every step logs to /out/<step>.log; a summary
 # line per step goes to /out/summary.txt. The script continues after a failing step and exits non-zero at the end.
 set -uo pipefail
 # Compile on Linux's own filesystem: Mac bind-mount metadata latency is not a native cold-check measurement.
@@ -14,6 +14,12 @@ SUMMARY=/out/summary.txt
 : > "$SUMMARY"
 failed=0
 has() { case ",$STEPS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
+if [ -n "${UNIT_FILE:-}" ]; then
+  UNIT_PATH="$(realpath -- "$UNIT_FILE")" || exit 2
+  case "$UNIT_PATH" in "$WORK"/*) ;; *) echo "unit-file must be inside the exported source" >&2; exit 2 ;; esac
+  [ -f "$UNIT_PATH" ] || { echo "unit-file does not exist" >&2; exit 2; }
+  has unit || { echo "unit-file requires the unit step" >&2; exit 2; }
+fi
 step() {
   local name="$1"; shift
   local t0=$SECONDS
@@ -61,8 +67,8 @@ if has check; then
   step check bun run check --verbose
 fi
 if has unit; then
-  # the whole bun test suite (unit + golden + int; e2e specs are Playwright's, not bun's)
-  step unit bun test
+  # Whole bun test suite by default; an explicit file reruns only that failed unit.
+  if [ -n "${UNIT_FILE:-}" ]; then step unit bun test "$UNIT_PATH"; else step unit bun test; fi
   grep -E "^\s*[0-9]+ (pass|fail|skip|todo)|^Ran " /out/unit.log | tee -a "$SUMMARY"
   grep -E "^\(fail\)" /out/unit.log > /out/unit-failures.txt || true
 fi
@@ -85,6 +91,7 @@ if has watch; then
   step watch-int bun test packages/platform/src/watch
 fi
 has sandbox && step sandbox bun scripts/linux/sandbox-check.ts --out "/out/sandbox-${SECCOMP:-unknown}.json"
+has onboarding && step onboarding bun scripts/linux/onboarding-check.ts --out /out/onboarding.json
 
 echo "---- summary"; cat "$SUMMARY"
 exit $failed

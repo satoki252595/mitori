@@ -2,7 +2,12 @@ import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { assetsReady, sourceFingerprint } from "./start.ts";
+import { assetsReady, sourceFingerprint, supportedBun } from "./start.ts";
+
+test("startup rejects Bun versions incompatible with the frozen lockfile and compares numeric version parts", () => {
+  for (const version of ["1.3.13", "1.4.1", "not a version"]) expect(supportedBun(version)).toBe(false);
+  for (const version of ["1.4.2", "1.4.3", "1.10.0", "2.0.0"]) expect(supportedBun(version)).toBe(true);
+});
 
 test("startup refreshes changed/deleted source and missing output, and reuses intact production assets", () => {
   const root = mkdtempSync(join(tmpdir(), "mitori-start-"));

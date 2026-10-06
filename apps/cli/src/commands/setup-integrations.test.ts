@@ -25,21 +25,28 @@ test("printed source MCP configuration initializes from a foreign cwd with an ex
   }
 });
 
-test("Codex TOML and registration command preserve paths containing shell syntax", async () => {
+test("native registration commands and Codex TOML preserve paths containing shell syntax", async () => {
   const command = "/opt/my app/it's $(printf BAD)";
   const workspace = "/repo/a b; echo 'hi'";
   const text = integrationSetup("codex", { command, args: [], workspace });
   const toml = text.slice(text.indexOf("[mcp_servers.mitori]"), text.indexOf("\n\nCodex に依頼"));
   const parsed = Bun.TOML.parse(toml) as { mcp_servers: { mitori: { command: string; args: string[] } } };
   expect(parsed.mcp_servers.mitori).toEqual({ command, args: ["mcp", "--repo", workspace] });
-  const words =
-    text
-      .split("\n")
-      .find((line) => line.startsWith("codex mcp add mitori -- "))
-      ?.slice("codex mcp add mitori -- ".length) ?? "";
-  const child = Bun.spawn(["/bin/sh", "-c", `set -- ${words}; printf '%s\\0' "$@"`], { stdout: "pipe", stderr: "pipe" });
-  const [stdout, stderr, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
-  expect(code).toBe(0);
-  expect(stderr).toBe("");
-  expect(stdout.split("\0").slice(0, -1)).toEqual([command, "mcp", "--repo", workspace]);
+  for (const [target, cli] of [
+    ["codex", "codex"],
+    ["antigravity", "agy"],
+  ] as const) {
+    const setup = integrationSetup(target, { command, args: [], workspace });
+    const prefix = `${cli} mcp add mitori -- `;
+    const words =
+      setup
+        .split("\n")
+        .find((line) => line.startsWith(prefix))
+        ?.slice(prefix.length) ?? "";
+    const child = Bun.spawn(["/bin/sh", "-c", `set -- ${words}; printf '%s\\0' "$@"`], { stdout: "pipe", stderr: "pipe" });
+    const [stdout, stderr, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
+    expect(code).toBe(0);
+    expect(stderr).toBe("");
+    expect(stdout.split("\0").slice(0, -1)).toEqual([command, "mcp", "--repo", workspace]);
+  }
 });

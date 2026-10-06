@@ -3,10 +3,27 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import pkg from "../package.json";
 import { listFiles, ROOT } from "./lib/repo.ts";
 
 const STAMP = "dist/.build/start.sha256";
 const MANIFEST = "dist/.build/web.json";
+export const MIN_BUN_VERSION = pkg.packageManager.slice("bun@".length);
+
+/** Reject an old PATH-selected runtime before it builds assets or starts a daemon. */
+export function supportedBun(version: string): boolean {
+  if (!/^\d+\.\d+\.\d+(?:[-+].+)?$/.test(version)) return false;
+  const actual = version.split(/[.+-]/).slice(0, 3).map(Number);
+  const minimum = MIN_BUN_VERSION.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    const part = actual[i] ?? 0;
+    const bound = minimum[i] ?? 0;
+    if (part !== bound) return part > bound;
+  }
+  return true;
+}
+
+const shellQuote = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`;
 
 /** Content-based invalidation also catches deleted files and edits with preserved timestamps. */
 export function sourceFingerprint(root: string, files: readonly string[], runtime = Bun.version): string {
@@ -29,7 +46,7 @@ export function assetsReady(root: string, fingerprint: string): boolean {
 async function prepareAssets(): Promise<void> {
   if (!Bun.which("git")) throw new Error("Git was not found on PATH. Use your existing Git installation, then run this command again.");
   if (!existsSync(join(ROOT, "node_modules/vite/package.json")))
-    throw new Error("Dependencies are missing. Run `bun install --frozen-lockfile` in the mitori folder first.");
+    throw new Error(`Dependencies are missing. Run \`${shellQuote(process.execPath)} install --frozen-lockfile\` in the mitori folder first.`);
   // Reuse the release supply-chain check even when the web bundle is cached.
   const { genAssets } = await import("./gen-assets.ts");
   await genAssets({ verifyOnly: true, log: () => {} });
@@ -45,6 +62,13 @@ async function prepareAssets(): Promise<void> {
 }
 
 export async function start(argv: readonly string[]): Promise<number> {
+  if (!supportedBun(Bun.version)) {
+    process.stderr.write(
+      `mitori: Bun ${MIN_BUN_VERSION} or newer is required; selected ${Bun.version} at ${process.execPath}.\n` +
+        "Run `scripts/nd bun run start -- ...` with the project Nix environment, or invoke an existing newer Bun by its absolute path.\n",
+    );
+    return 1;
+  }
   const args = argv[0] === "--" ? argv.slice(1) : argv;
   if (!["--version", "-v", "version", "--help", "-h", "help"].includes(args[0] ?? "")) {
     try {

@@ -1,11 +1,15 @@
-# mitori 引き継ぎ資料（2026-10-06 ローカル起動・主要LLMの簡単設定、外部条件は未確認）
+# mitori 引き継ぎ資料（2026-10-07 起動手順・LLM別検証、認証待ちあり）
 
 > **現在の入口は §★。以下の「履歴★」と §0 / §0a / §0b は以前の記録。**
 > 利用者の続行指示に加え、今回の Linux 既存 Docker ハーネス例外と、任意 LLM 対応・Muse Contributor / max の選択を反映した。
 
 ## ★ 現在の状態（残タスク全件と最近のOSS検証）
 
-最新の利用者指示はAPIキー必須を避け、本人の公式ログインと対応サブスクを優先すること。[Issue #8](https://github.com/satoki252595/mitori/issues/8)で設定画面の認証ボタン、browser-only固定ログイン入口、TTYで確認する`auth`、Grok Buildのsession既定/API明示選択を追加した。Ollamaローカルは認証不要、Cloudだけ公式signin。Antigravityは認証専用コマンド未確認のため公式手順を案内する。Museは保存APIキーの優先を避けるため確認後に公式logout→loginする。認証・課金推論の実行は利用者操作に任せ、dispatchと成功を区別する。[認証仕様の確認](research/subscription-login-20261006.md)。
+最新の作業は[Issue #11](https://github.com/satoki252595/mitori/issues/11)。貼付ログのdirenv blocked / Bun lockfile / Nix store upgrade失敗を確認し、絶対パスの新Bunでもpackage start内で旧PATH Bunへ戻る原因を`npm_execpath`で修正した。Nix・既存Bun 1.4.2のclean clone→frozen install→初回UI build→scan/HTTP/停止を確認。8providerの設定プレビューとMCP共通通信、既存Linux arm64 Dockerの内部導線も確認し、READMEへ復旧手順と結果を反映した。Dockerは利用者の選択によりLinux検証用とし、公式LLMの認証・推論用にはしない。[検証記録](progress/startup-matrix-20261007/README.md)。
+
+実ExplainはMuse native 1.4.3 Contributor / maxと、既存Ollama `qwen3-coder-next:latest`でNix/通常ローカルとも成功。各回答の引用1件は有効で意味もfixtureと一致。Muse API相当推計合計$0.000554/cap$0.10で、課金先・サブスク枠は未確認。`qwen3:4b`は600tokenをthinkingに消費して本文が空、`/no_think`でも解消しなかった。失敗を保持し万能対応と報告しない。Codex/Cursor/Grokは公式native CLI＋隔離設定で両Bun経路からMCP接続し8ツールを取得したが、実生成は未確認。Antigravityは設定読込だけで接続未確認。Claudeは公式ログイン待ち、LM Studioはモデル読み込み/サーバー開始待ち。外部4ツールの本人設定への登録・実生成も未確認。[残る利用者操作](progress/startup-matrix-20261007/README.md#利用者の協力が必要な確認)。
+
+2026-10-06の認証対応はAPIキー必須を避け、本人の公式ログインと対応サブスクを優先すること。[Issue #8](https://github.com/satoki252595/mitori/issues/8)で設定画面の認証ボタン、browser-only固定ログイン入口、TTYで確認する`auth`、Grok Buildのsession既定/API明示選択を追加した。Ollamaローカルは認証不要、Cloudだけ公式signin。Antigravityは認証専用コマンド未確認のため公式手順を案内する。Museは保存APIキーの優先を避けるため確認後に公式logout→loginする。ログイン実行は利用者操作に任せ、dispatchと成功を区別する。[認証仕様の確認](research/subscription-login-20261006.md)。
 
 前回の追加は[Issue #6](https://github.com/satoki252595/mitori/issues/6)のローカル起動と主要LLM設定。通常利用は既存Bun/Gitで`bun run start -- <repo>`、Nixは開発・検証に維持する。Claude Code / Muse / Grok / Ollama / LM Studio / Codex / Cursor / Antigravityの簡単設定を用意し、外部セッションはMCPとprep/ingestを案内する。[README](../README.md)、[実装・検証記録](progress/onboarding-20261006.md)、[公式仕様の確認](research/llm-onboarding-20261006.md)。新providerの実推論は実施せず、既存Muse実検証と今回のmock/loopback成功を区別する。
 

@@ -21,5 +21,9 @@ export function integrationSetup(
   const config = JSON.stringify({ mcpServers: { mitori: server } }, null, 2);
   const reload =
     target === "cursor" ? "Cursor の Customize / MCP で mitori を有効にするか再読み込み" : "Antigravity の Manage MCP Servers または CLI の /mcp で再読み込み";
-  return `${location} の mcpServers に mitori を追加してください。既存のサーバー設定は残してください。\n\n${config}\n\n${reload}してください。\nAI に依頼：${prompt}\n${generation}`;
+  const register =
+    target === "antigravity"
+      ? `公式 CLI がある場合は次を実行してください（POSIX shell）。\n\nagy mcp add mitori -- ${[invocation.command, ...args].map(quoted).join(" ")}\n\nアプリの設定ファイルへ追加する場合：\n`
+      : "";
+  return `${register}${location} の mcpServers に mitori を追加してください。既存のサーバー設定は残してください。\n\n${config}\n\n${reload}してください。\nAI に依頼：${prompt}\n${generation}`;
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # linux-ci — run mitori's checks in an Ubuntu 24.04 container (OrbStack / Docker), repeatably.
 #
-#   scripts/linux-ci.sh [--arch arm64|amd64] [--steps install,check,unit,bin,watch,sandbox] [--corpus] [--keep]
-#                       [--out <dir>] [--seccomp default|unconfined|masked-proc] [--ref <git ref>]
+#   scripts/linux-ci.sh [--arch arm64|amd64] [--steps install,check,unit,bin,watch,sandbox,onboarding] [--corpus] [--keep]
+#                       [--out <dir>] [--seccomp default|unconfined|masked-proc] [--ref <git ref>] [--unit-file <path>]
 #
 # - The image is scripts/linux/Dockerfile (bun / node / go pinned to flake.nix's versions, python3 + rust from apt,
 #   bubblewrap). It is built once per arch and cached by Docker.
@@ -21,6 +21,8 @@
 #   but keeps the runtime's masked /proc (a typical devcontainer): bwrap makes its namespaces but cannot mount a new
 #   /proc, so the probe must answer "none" there too (cr-requests/bench.md #1).
 # - Output (logs, results JSON) goes to --out (default: <scratch>/out), printed at the end.
+# - onboarding checks setup previews, MCP stdio and container-internal loopback UI; it does not install/authenticate
+#   LLMs, call models, publish a browser port or mount the user's credentials.
 # - Docker credentials: only public images are pulled. When the user's docker config uses a credential store
 #   (osxkeychain), a headless run can hang on the keychain; a scratch DOCKER_CONFIG without credsStore is used unless
 #   MITORI_DOCKER_CONFIG=keep.
@@ -33,6 +35,7 @@ KEEP=0
 OUT=""
 SECCOMP="unconfined"
 REF=""
+UNIT_FILE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --arch) ARCH="$2"; shift 2 ;;
@@ -42,6 +45,7 @@ while [ $# -gt 0 ]; do
     --out) OUT="$2"; shift 2 ;;
     --seccomp) SECCOMP="$2"; shift 2 ;;
     --ref) REF="$2"; shift 2 ;;
+    --unit-file) [ -n "${2:-}" ] || { echo "linux-ci: --unit-file needs a file path" >&2; exit 2; }; UNIT_FILE="$2"; shift 2 ;;
     -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
     *) echo "linux-ci: unknown argument $1" >&2; exit 2 ;;
   esac
@@ -101,7 +105,7 @@ set +e
 docker run --rm --platform "linux/$ARCH" ${SEC[@]+"${SEC[@]}"} \
   -v "$WORK/src:/src:ro" -v "$OUT:/out" ${CORPUS_MOUNT[@]+"${CORPUS_MOUNT[@]}"} \
   -v "mitori-linux-bun-cache-$ARCH:/home/mitori/.bun/install/cache" \
-  -e "STEPS=$STEPS" -e "ARCH=$ARCH" -e "SECCOMP=$SECCOMP" \
+  -e "STEPS=$STEPS" -e "ARCH=$ARCH" -e "SECCOMP=$SECCOMP" -e "UNIT_FILE=$UNIT_FILE" \
   "$IMAGE" bash /src/scripts/linux/in-container.sh
 code=$?
 set -e
