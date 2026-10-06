@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs inside the mitori-linux image (scripts/linux-ci.sh). /src = exported source, /out = results.
-# STEPS (comma separated): install, check, unit, bin, watch, sandbox. Every step logs to /out/<step>.log; a summary
+# STEPS (comma separated): install, check, unit, bin, watch, sandbox, onboarding. Every step logs to /out/<step>.log; a summary
 # line per step goes to /out/summary.txt. The script continues after a failing step and exits non-zero at the end.
 set -uo pipefail
 # Compile on Linux's own filesystem: Mac bind-mount metadata latency is not a native cold-check measurement.
@@ -85,6 +85,7 @@ if has watch; then
   step watch-int bun test packages/platform/src/watch
 fi
 has sandbox && step sandbox bun scripts/linux/sandbox-check.ts --out "/out/sandbox-${SECCOMP:-unknown}.json"
+has onboarding && step onboarding bun scripts/linux/onboarding-check.ts --out /out/onboarding.json
 
 echo "---- summary"; cat "$SUMMARY"
 exit $failed

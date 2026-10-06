@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # linux-ci — run mitori's checks in an Ubuntu 24.04 container (OrbStack / Docker), repeatably.
 #
-#   scripts/linux-ci.sh [--arch arm64|amd64] [--steps install,check,unit,bin,watch,sandbox] [--corpus] [--keep]
+#   scripts/linux-ci.sh [--arch arm64|amd64] [--steps install,check,unit,bin,watch,sandbox,onboarding] [--corpus] [--keep]
 #                       [--out <dir>] [--seccomp default|unconfined|masked-proc] [--ref <git ref>]
 #
 # - The image is scripts/linux/Dockerfile (bun / node / go pinned to flake.nix's versions, python3 + rust from apt,
@@ -21,6 +21,8 @@
 #   but keeps the runtime's masked /proc (a typical devcontainer): bwrap makes its namespaces but cannot mount a new
 #   /proc, so the probe must answer "none" there too (cr-requests/bench.md #1).
 # - Output (logs, results JSON) goes to --out (default: <scratch>/out), printed at the end.
+# - onboarding checks setup previews, MCP stdio and container-internal loopback UI; it does not install/authenticate
+#   LLMs, call models, publish a browser port or mount the user's credentials.
 # - Docker credentials: only public images are pulled. When the user's docker config uses a credential store
 #   (osxkeychain), a headless run can hang on the keychain; a scratch DOCKER_CONFIG without credsStore is used unless
 #   MITORI_DOCKER_CONFIG=keep.

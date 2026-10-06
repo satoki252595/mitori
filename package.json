@@ -13,7 +13,7 @@
     "fixtures"
   ],
   "scripts": {
-    "start": "bun scripts/start.ts",
+    "start": "\"$npm_execpath\" scripts/start.ts",
     "check": "bun scripts/check.ts",
     "typecheck": "tsc -b",
     "lint": "biome check .",
