@@ -1,0 +1,174 @@
+{
+  "onboarding": {
+    "platform": "linux-arm64",
+    "bun": "1.4.2",
+    "providerCalls": 0,
+    "credentialsMounted": false,
+    "previews": [
+      {
+        "provider": "claude",
+        "result": "missing-cli",
+        "exit": 2,
+        "ok": true
+      },
+      {
+        "provider": "muse",
+        "result": "missing-cli",
+        "exit": 2,
+        "ok": true
+      },
+      {
+        "provider": "codex",
+        "result": "preview-only",
+        "exit": 0,
+        "ok": true
+      },
+      {
+        "provider": "cursor",
+        "result": "preview-only",
+        "exit": 0,
+        "ok": true
+      },
+      {
+        "provider": "antigravity",
+        "result": "preview-only",
+        "exit": 0,
+        "ok": true
+      },
+      {
+        "provider": "grok",
+        "result": "preview-only",
+        "exit": 0,
+        "ok": true
+      },
+      {
+        "provider": "grok-api",
+        "result": "preview-only",
+        "exit": 0,
+        "ok": true
+      },
+      {
+        "provider": "ollama",
+        "result": "preview-only",
+        "exit": 0,
+        "ok": true
+      },
+      {
+        "provider": "lmstudio",
+        "result": "preview-only",
+        "exit": 0,
+        "ok": true
+      },
+      {
+        "provider": "openai",
+        "result": "preview-only",
+        "exit": 0,
+        "ok": true
+      }
+    ],
+    "mcp": [
+      {
+        "client": "codex",
+        "result": "stdio-handshake",
+        "tools": 8,
+        "ok": true
+      },
+      {
+        "client": "cursor",
+        "result": "stdio-handshake",
+        "tools": 8,
+        "ok": true
+      },
+      {
+        "client": "antigravity",
+        "result": "stdio-handshake",
+        "tools": 8,
+        "ok": true
+      },
+      {
+        "client": "grok",
+        "result": "stdio-handshake",
+        "tools": 8,
+        "ok": true
+      }
+    ],
+    "http": {
+      "result": "container-internal-only",
+      "health": true,
+      "ui": true,
+      "stopped": true
+    },
+    "ok": true,
+    "error": "",
+    "mcpCommonProtocolOnly": true,
+    "nativeClientsConnected": false
+  },
+  "sandbox": {
+    "platform": "linux-arm64",
+    "kind": "bwrap",
+    "seccomp": "unconfined",
+    "checks": [
+      {
+        "name": "loopback listen + connect (go test with httptest)",
+        "want": "ok",
+        "got": "ok",
+        "pass": true
+      },
+      {
+        "name": "outbound TCP to 1.1.1.1:443",
+        "want": "denied",
+        "got": "denied",
+        "pass": true
+      },
+      {
+        "name": "DNS + HTTPS to example.com",
+        "want": "denied",
+        "got": "denied",
+        "pass": true
+      },
+      {
+        "name": "write inside the tree",
+        "want": "ok",
+        "got": "ok",
+        "pass": true
+      },
+      {
+        "name": "write the job TMPDIR",
+        "want": "ok",
+        "got": "ok",
+        "pass": true
+      },
+      {
+        "name": "write the user's HOME",
+        "want": "denied",
+        "got": "denied",
+        "pass": true
+      },
+      {
+        "name": "write the tree's .git",
+        "want": "denied",
+        "got": "denied",
+        "pass": true
+      },
+      {
+        "name": "read ~/.ssh",
+        "want": "denied",
+        "got": "denied",
+        "pass": true
+      },
+      {
+        "name": "read ~/.mitori",
+        "want": "denied",
+        "got": "denied",
+        "pass": true
+      },
+      {
+        "name": "the tree write reached the host",
+        "want": "ok",
+        "got": "ok",
+        "pass": true
+      }
+    ],
+    "ok": true
+  }
+}

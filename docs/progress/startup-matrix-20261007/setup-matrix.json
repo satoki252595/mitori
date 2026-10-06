@@ -1,0 +1,129 @@
+{
+  "verifiedDateJst": "2026-10-07",
+  "runs": [
+    {
+      "route": "nix",
+      "bun": "1.4.2",
+      "modelCalls": 0,
+      "previews": [
+        {
+          "provider": "claude",
+          "exit": 0,
+          "engine": "claude-cli",
+          "ok": true
+        },
+        {
+          "provider": "muse",
+          "exit": 0,
+          "engine": "generic",
+          "ok": true
+        },
+        {
+          "provider": "codex",
+          "exit": 0,
+          "engine": "session",
+          "ok": true
+        },
+        {
+          "provider": "cursor",
+          "exit": 0,
+          "engine": "session",
+          "ok": true
+        },
+        {
+          "provider": "antigravity",
+          "exit": 0,
+          "engine": "session",
+          "ok": true
+        },
+        {
+          "provider": "grok",
+          "exit": 0,
+          "engine": "session",
+          "ok": true
+        },
+        {
+          "provider": "ollama",
+          "exit": 0,
+          "engine": "generic",
+          "ok": true
+        },
+        {
+          "provider": "lmstudio",
+          "exit": 0,
+          "engine": "generic",
+          "ok": true
+        }
+      ],
+      "mcp": {
+        "commonProtocolOnly": true,
+        "tools": 8,
+        "ok": true
+      },
+      "savedSettings": false,
+      "ok": true
+    },
+    {
+      "route": "local",
+      "bun": "1.4.2",
+      "modelCalls": 0,
+      "previews": [
+        {
+          "provider": "claude",
+          "exit": 0,
+          "engine": "claude-cli",
+          "ok": true
+        },
+        {
+          "provider": "muse",
+          "exit": 0,
+          "engine": "generic",
+          "ok": true
+        },
+        {
+          "provider": "codex",
+          "exit": 0,
+          "engine": "session",
+          "ok": true
+        },
+        {
+          "provider": "cursor",
+          "exit": 0,
+          "engine": "session",
+          "ok": true
+        },
+        {
+          "provider": "antigravity",
+          "exit": 0,
+          "engine": "session",
+          "ok": true
+        },
+        {
+          "provider": "grok",
+          "exit": 0,
+          "engine": "session",
+          "ok": true
+        },
+        {
+          "provider": "ollama",
+          "exit": 0,
+          "engine": "generic",
+          "ok": true
+        },
+        {
+          "provider": "lmstudio",
+          "exit": 0,
+          "engine": "generic",
+          "ok": true
+        }
+      ],
+      "mcp": {
+        "commonProtocolOnly": true,
+        "tools": 8,
+        "ok": true
+      },
+      "savedSettings": false,
+      "ok": true
+    }
+  ]
+}

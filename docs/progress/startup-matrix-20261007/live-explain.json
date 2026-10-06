@@ -1,0 +1,589 @@
+{
+  "verifiedDateJst": "2026-10-07",
+  "museApiEquivalentEstimateCapUsd": 0.1,
+  "museBillingAccountVerified": false,
+  "museUsageIsEstimated": true,
+  "ollamaCloudCalls": 0,
+  "runs": [
+    {
+      "provider": "muse",
+      "route": "muse-nix",
+      "bunVersion": "1.4.2",
+      "model": "muse-spark-1.3-contributor",
+      "maxUsd": 0.05,
+      "promptSoftSwitch": null,
+      "outputCap": 600,
+      "turnMs": 120000,
+      "fixture": "go-small",
+      "createdAt": "2026-10-06T15:22:29.982Z",
+      "openMs": 175,
+      "estimate": {
+        "apiUsd": 0.000223,
+        "inTokens": 1025,
+        "outTokens": 600,
+        "route": {
+          "mode": "answer",
+          "reason": "intent_question",
+          "model": "generic:muse-spark-1.3-contributor",
+          "effort": "max",
+          "tools": "none",
+          "contract": "answer/1",
+          "requiresConfirm": false,
+          "anchoredLines": 3,
+          "files": 0
+        }
+      },
+      "runMs": 8879,
+      "job": {
+        "state": "done",
+        "attempt": 1,
+        "usage": {
+          "in": 2554,
+          "cacheWrite": 0,
+          "cacheWrite1h": 0,
+          "cacheRead": 0,
+          "out": 120,
+          "apiUsd": 0.000279,
+          "pricingVer": "generic-configured-estimated@1"
+        },
+        "timings": {
+          "modelMs": 8832,
+          "wallMs": 8840
+        }
+      },
+      "answer": {
+        "present": true,
+        "chars": 70,
+        "citations": 1,
+        "validCitations": 1,
+        "invalidCitations": 0
+      },
+      "sourceUnchanged": true,
+      "passed": true,
+      "cleanup": {
+        "daemonStopped": true,
+        "fixtureDeleted": true,
+        "homeDeleted": true
+      },
+      "applicationRequests": 1,
+      "observedHttpModelCalls": null,
+      "normalizedStartEvents": 0,
+      "nativeProcessCountVerified": false,
+      "semanticReview": "matches source"
+    },
+    {
+      "provider": "muse",
+      "route": "muse-local",
+      "bunVersion": "1.4.2",
+      "model": "muse-spark-1.3-contributor",
+      "maxUsd": 0.05,
+      "promptSoftSwitch": null,
+      "outputCap": 600,
+      "turnMs": 120000,
+      "fixture": "go-small",
+      "createdAt": "2026-10-06T15:23:52.925Z",
+      "openMs": 175,
+      "estimate": {
+        "apiUsd": 0.000223,
+        "inTokens": 1025,
+        "outTokens": 600,
+        "route": {
+          "mode": "answer",
+          "reason": "intent_question",
+          "model": "generic:muse-spark-1.3-contributor",
+          "effort": "max",
+          "tools": "none",
+          "contract": "answer/1",
+          "requiresConfirm": false,
+          "anchoredLines": 3,
+          "files": 0
+        }
+      },
+      "runMs": 5300,
+      "job": {
+        "state": "done",
+        "attempt": 1,
+        "usage": {
+          "in": 2556,
+          "cacheWrite": 0,
+          "cacheWrite1h": 0,
+          "cacheRead": 0,
+          "out": 95,
+          "apiUsd": 0.000275,
+          "pricingVer": "generic-configured-estimated@1"
+        },
+        "timings": {
+          "modelMs": 5291,
+          "wallMs": 5297
+        }
+      },
+      "answer": {
+        "present": true,
+        "chars": 53,
+        "citations": 1,
+        "validCitations": 1,
+        "invalidCitations": 0
+      },
+      "sourceUnchanged": true,
+      "passed": true,
+      "cleanup": {
+        "daemonStopped": true,
+        "fixtureDeleted": true,
+        "homeDeleted": true
+      },
+      "applicationRequests": 1,
+      "observedHttpModelCalls": null,
+      "normalizedStartEvents": 0,
+      "nativeProcessCountVerified": false,
+      "semanticReview": "matches source"
+    },
+    {
+      "provider": "ollama",
+      "route": "nix",
+      "bunVersion": "1.4.2",
+      "model": "qwen3:4b",
+      "maxUsd": 0.01,
+      "outputCap": 600,
+      "turnMs": 90000,
+      "fixture": "go-small",
+      "createdAt": "2026-10-06T15:17:11.301Z",
+      "openMs": 169,
+      "estimate": {
+        "apiUsd": 0,
+        "inTokens": 1025,
+        "outTokens": 600,
+        "route": {
+          "mode": "answer",
+          "reason": "intent_question",
+          "model": "generic:qwen3:4b",
+          "effort": "high",
+          "tools": "none",
+          "contract": "answer/1",
+          "requiresConfirm": false,
+          "anchoredLines": 3,
+          "files": 0
+        }
+      },
+      "runMs": 9653,
+      "job": {
+        "state": "failed",
+        "attempt": 1,
+        "usage": {
+          "in": 772,
+          "cacheWrite": 0,
+          "cacheWrite1h": 0,
+          "cacheRead": 0,
+          "out": 600,
+          "apiUsd": 0,
+          "pricingVer": "generic-configured-reported@1"
+        },
+        "failure": {
+          "code": "E_BUDGET_EXCEEDED",
+          "message": "the engine stopped: budget",
+          "actions": [
+            "retry",
+            "other_engine",
+            "copy_prompt"
+          ]
+        },
+        "timings": {
+          "modelMs": 9568,
+          "wallMs": 9571
+        }
+      },
+      "answer": {
+        "present": false,
+        "chars": 0,
+        "citations": 0,
+        "validCitations": 0,
+        "invalidCitations": 0
+      },
+      "sourceUnchanged": true,
+      "localResponse": {
+        "chars": 0,
+        "finishReason": "length",
+        "servedModel": "qwen3:4b"
+      },
+      "passed": false,
+      "cleanup": {
+        "daemonStopped": true,
+        "fixtureDeleted": true,
+        "homeDeleted": true
+      },
+      "applicationRequests": 1,
+      "observedHttpModelCalls": 1,
+      "semanticReview": "no answer to review"
+    },
+    {
+      "provider": "ollama",
+      "route": "local",
+      "bunVersion": "1.4.2",
+      "model": "qwen3:4b",
+      "maxUsd": 0.01,
+      "outputCap": 600,
+      "turnMs": 90000,
+      "fixture": "go-small",
+      "createdAt": "2026-10-06T15:18:16.545Z",
+      "openMs": 169,
+      "estimate": {
+        "apiUsd": 0,
+        "inTokens": 1025,
+        "outTokens": 600,
+        "route": {
+          "mode": "answer",
+          "reason": "intent_question",
+          "model": "generic:qwen3:4b",
+          "effort": "high",
+          "tools": "none",
+          "contract": "answer/1",
+          "requiresConfirm": false,
+          "anchoredLines": 3,
+          "files": 0
+        }
+      },
+      "runMs": 4499,
+      "job": {
+        "state": "failed",
+        "attempt": 1,
+        "usage": {
+          "in": 676,
+          "cacheWrite": 0,
+          "cacheWrite1h": 0,
+          "cacheRead": 60,
+          "out": 600,
+          "apiUsd": 0,
+          "pricingVer": "generic-configured-reported@1"
+        },
+        "failure": {
+          "code": "E_BUDGET_EXCEEDED",
+          "message": "the engine stopped: budget",
+          "actions": [
+            "retry",
+            "other_engine",
+            "copy_prompt"
+          ]
+        },
+        "timings": {
+          "modelMs": 4462,
+          "wallMs": 4469
+        }
+      },
+      "answer": {
+        "present": false,
+        "chars": 0,
+        "citations": 0,
+        "validCitations": 0,
+        "invalidCitations": 0
+      },
+      "sourceUnchanged": true,
+      "localResponse": {
+        "chars": 0,
+        "finishReason": "length",
+        "servedModel": "qwen3:4b"
+      },
+      "passed": false,
+      "cleanup": {
+        "daemonStopped": true,
+        "fixtureDeleted": true,
+        "homeDeleted": true
+      },
+      "applicationRequests": 1,
+      "observedHttpModelCalls": 1,
+      "semanticReview": "no answer to review"
+    },
+    {
+      "provider": "ollama",
+      "route": "nix-no-think",
+      "bunVersion": "1.4.2",
+      "model": "qwen3:4b",
+      "maxUsd": 0.01,
+      "promptSoftSwitch": "/no_think",
+      "outputCap": 600,
+      "turnMs": 90000,
+      "fixture": "go-small",
+      "createdAt": "2026-10-06T15:21:31.855Z",
+      "openMs": 170,
+      "estimate": {
+        "apiUsd": 0,
+        "inTokens": 1034,
+        "outTokens": 600,
+        "route": {
+          "mode": "answer",
+          "reason": "intent_question",
+          "model": "generic:qwen3:4b",
+          "effort": "high",
+          "tools": "none",
+          "contract": "answer/1",
+          "requiresConfirm": false,
+          "anchoredLines": 3,
+          "files": 0
+        }
+      },
+      "runMs": 4592,
+      "job": {
+        "state": "failed",
+        "attempt": 1,
+        "usage": {
+          "in": 674,
+          "cacheWrite": 0,
+          "cacheWrite1h": 0,
+          "cacheRead": 67,
+          "out": 600,
+          "apiUsd": 0,
+          "pricingVer": "generic-configured-reported@1"
+        },
+        "failure": {
+          "code": "E_BUDGET_EXCEEDED",
+          "message": "the engine stopped: budget",
+          "actions": [
+            "retry",
+            "other_engine",
+            "copy_prompt"
+          ]
+        },
+        "timings": {
+          "modelMs": 4557,
+          "wallMs": 4561
+        }
+      },
+      "answer": {
+        "present": false,
+        "chars": 0,
+        "citations": 0,
+        "validCitations": 0,
+        "invalidCitations": 0
+      },
+      "sourceUnchanged": true,
+      "localResponse": {
+        "chars": 0,
+        "finishReason": "length",
+        "servedModel": "qwen3:4b"
+      },
+      "passed": false,
+      "cleanup": {
+        "daemonStopped": true,
+        "fixtureDeleted": true,
+        "homeDeleted": true
+      },
+      "applicationRequests": 1,
+      "observedHttpModelCalls": 1,
+      "semanticReview": "no answer to review"
+    },
+    {
+      "provider": "ollama",
+      "route": "local-no-think",
+      "bunVersion": "1.4.2",
+      "model": "qwen3:4b",
+      "maxUsd": 0.01,
+      "promptSoftSwitch": "/no_think",
+      "outputCap": 600,
+      "turnMs": 90000,
+      "fixture": "go-small",
+      "createdAt": "2026-10-06T15:22:22.768Z",
+      "openMs": 184,
+      "estimate": {
+        "apiUsd": 0,
+        "inTokens": 1034,
+        "outTokens": 600,
+        "route": {
+          "mode": "answer",
+          "reason": "intent_question",
+          "model": "generic:qwen3:4b",
+          "effort": "high",
+          "tools": "none",
+          "contract": "answer/1",
+          "requiresConfirm": false,
+          "anchoredLines": 3,
+          "files": 0
+        }
+      },
+      "runMs": 4586,
+      "job": {
+        "state": "failed",
+        "attempt": 1,
+        "usage": {
+          "in": 673,
+          "cacheWrite": 0,
+          "cacheWrite1h": 0,
+          "cacheRead": 67,
+          "out": 600,
+          "apiUsd": 0,
+          "pricingVer": "generic-configured-reported@1"
+        },
+        "failure": {
+          "code": "E_BUDGET_EXCEEDED",
+          "message": "the engine stopped: budget",
+          "actions": [
+            "retry",
+            "other_engine",
+            "copy_prompt"
+          ]
+        },
+        "timings": {
+          "modelMs": 4519,
+          "wallMs": 4524
+        }
+      },
+      "answer": {
+        "present": false,
+        "chars": 0,
+        "citations": 0,
+        "validCitations": 0,
+        "invalidCitations": 0
+      },
+      "sourceUnchanged": true,
+      "localResponse": {
+        "chars": 0,
+        "finishReason": "length",
+        "servedModel": "qwen3:4b"
+      },
+      "passed": false,
+      "cleanup": {
+        "daemonStopped": true,
+        "fixtureDeleted": true,
+        "homeDeleted": true
+      },
+      "applicationRequests": 1,
+      "observedHttpModelCalls": 1,
+      "semanticReview": "no answer to review"
+    },
+    {
+      "provider": "ollama",
+      "route": "nix-coder",
+      "bunVersion": "1.4.2",
+      "model": "qwen3-coder-next:latest",
+      "maxUsd": 0.01,
+      "promptSoftSwitch": null,
+      "outputCap": 600,
+      "turnMs": 90000,
+      "fixture": "go-small",
+      "createdAt": "2026-10-06T15:25:12.781Z",
+      "openMs": 173,
+      "estimate": {
+        "apiUsd": 0,
+        "inTokens": 1025,
+        "outTokens": 600,
+        "route": {
+          "mode": "answer",
+          "reason": "intent_question",
+          "model": "generic:qwen3-coder-next:latest",
+          "effort": "high",
+          "tools": "none",
+          "contract": "answer/1",
+          "requiresConfirm": false,
+          "anchoredLines": 3,
+          "files": 0
+        }
+      },
+      "runMs": 13049,
+      "job": {
+        "state": "done",
+        "attempt": 1,
+        "usage": {
+          "in": 735,
+          "cacheWrite": 0,
+          "cacheWrite1h": 0,
+          "cacheRead": 0,
+          "out": 50,
+          "apiUsd": 0,
+          "pricingVer": "generic-configured-reported@1"
+        },
+        "timings": {
+          "modelMs": 13018,
+          "wallMs": 13024
+        }
+      },
+      "answer": {
+        "present": true,
+        "chars": 95,
+        "citations": 1,
+        "validCitations": 1,
+        "invalidCitations": 0
+      },
+      "sourceUnchanged": true,
+      "localResponse": {
+        "chars": 95,
+        "finishReason": "stop",
+        "servedModel": "qwen3-coder-next:latest"
+      },
+      "passed": true,
+      "cleanup": {
+        "daemonStopped": true,
+        "fixtureDeleted": true,
+        "homeDeleted": true
+      },
+      "applicationRequests": 1,
+      "observedHttpModelCalls": 1,
+      "semanticReview": "matches source"
+    },
+    {
+      "provider": "ollama",
+      "route": "local-coder",
+      "bunVersion": "1.4.2",
+      "model": "qwen3-coder-next:latest",
+      "maxUsd": 0.01,
+      "promptSoftSwitch": null,
+      "outputCap": 600,
+      "turnMs": 90000,
+      "fixture": "go-small",
+      "createdAt": "2026-10-06T15:25:50.162Z",
+      "openMs": 173,
+      "estimate": {
+        "apiUsd": 0,
+        "inTokens": 1025,
+        "outTokens": 600,
+        "route": {
+          "mode": "answer",
+          "reason": "intent_question",
+          "model": "generic:qwen3-coder-next:latest",
+          "effort": "high",
+          "tools": "none",
+          "contract": "answer/1",
+          "requiresConfirm": false,
+          "anchoredLines": 3,
+          "files": 0
+        }
+      },
+      "runMs": 932,
+      "job": {
+        "state": "done",
+        "attempt": 1,
+        "usage": {
+          "in": 731,
+          "cacheWrite": 0,
+          "cacheWrite1h": 0,
+          "cacheRead": 0,
+          "out": 40,
+          "apiUsd": 0,
+          "pricingVer": "generic-configured-reported@1"
+        },
+        "timings": {
+          "modelMs": 926,
+          "wallMs": 929
+        }
+      },
+      "answer": {
+        "present": true,
+        "chars": 82,
+        "citations": 1,
+        "validCitations": 1,
+        "invalidCitations": 0
+      },
+      "sourceUnchanged": true,
+      "localResponse": {
+        "chars": 82,
+        "finishReason": "stop",
+        "servedModel": "qwen3-coder-next:latest"
+      },
+      "passed": true,
+      "cleanup": {
+        "daemonStopped": true,
+        "fixtureDeleted": true,
+        "homeDeleted": true
+      },
+      "applicationRequests": 1,
+      "observedHttpModelCalls": 1,
+      "semanticReview": "matches source"
+    }
+  ]
+}

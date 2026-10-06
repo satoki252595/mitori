@@ -1,0 +1,299 @@
+{
+  "v": "mitori.native-mcp-verification/1",
+  "verifiedOn": "2026-10-07",
+  "scope": "Installed official native clients discovering mitori tools; no model inference or tool invocation",
+  "checks": [
+    {
+      "provider": "codex",
+      "nativeVersion": "0.160.0",
+      "runtimeRoute": "nix",
+      "bunVersion": "1.4.2",
+      "invokedMode": "app-server --stdio; initialize + mcpServerStatus/list (no thread/turn)",
+      "client": "codex-mcp-client",
+      "trueHandshake": true,
+      "initializeObserved": true,
+      "toolsListObserved": true,
+      "toolsCount": 8,
+      "toolNames": [
+        "mitori_status",
+        "mitori_list_threads",
+        "mitori_get_bundle",
+        "mitori_get_doc",
+        "mitori_find_symbol",
+        "mitori_reply",
+        "mitori_submit_patch",
+        "mitori_propose_resolution"
+      ],
+      "exit": 0,
+      "result": "native-handshake-and-tools-passed",
+      "modelCalls": 0,
+      "isolatedSettings": true,
+      "actualAuthUsed": false
+    },
+    {
+      "provider": "cursor",
+      "nativeVersion": "2026.10.01-e373342",
+      "runtimeRoute": "nix",
+      "bunVersion": "1.4.2",
+      "invokedMode": "--workspace <isolated-repo> mcp list-tools mitori",
+      "client": "Cursor",
+      "trueHandshake": true,
+      "initializeObserved": true,
+      "toolsListObserved": true,
+      "toolsCount": 8,
+      "toolNames": [
+        "mitori_status",
+        "mitori_list_threads",
+        "mitori_get_bundle",
+        "mitori_get_doc",
+        "mitori_find_symbol",
+        "mitori_reply",
+        "mitori_submit_patch",
+        "mitori_propose_resolution"
+      ],
+      "exit": 0,
+      "result": "native-handshake-and-tools-passed",
+      "modelCalls": 0,
+      "isolatedSettings": true,
+      "actualAuthUsed": false
+    },
+    {
+      "provider": "grok",
+      "nativeVersion": "1.0.46",
+      "runtimeRoute": "nix",
+      "bunVersion": "1.4.2",
+      "invokedMode": "--cwd <isolated-repo> --leader-socket <isolated-socket> mcp doctor mitori --json",
+      "client": "grok-shell-mitori",
+      "trueHandshake": true,
+      "initializeObserved": true,
+      "toolsListObserved": true,
+      "toolsCount": 8,
+      "toolNames": [
+        "mitori_status",
+        "mitori_list_threads",
+        "mitori_get_bundle",
+        "mitori_get_doc",
+        "mitori_find_symbol",
+        "mitori_reply",
+        "mitori_submit_patch",
+        "mitori_propose_resolution"
+      ],
+      "exit": 0,
+      "result": "native-handshake-and-tools-passed",
+      "modelCalls": 0,
+      "isolatedSettings": true,
+      "actualAuthUsed": false
+    },
+    {
+      "provider": "antigravity",
+      "nativeVersion": "1.3.0",
+      "runtimeRoute": "nix",
+      "bunVersion": "1.4.2",
+      "invokedMode": "mcp list (configuration only)",
+      "client": null,
+      "trueHandshake": false,
+      "initializeObserved": false,
+      "toolsListObserved": false,
+      "toolsCount": 0,
+      "toolNames": [],
+      "exit": 0,
+      "result": "configuration-listed; handshake not available in this CLI subcommand",
+      "modelCalls": 0,
+      "isolatedSettings": true,
+      "actualAuthUsed": false
+    },
+    {
+      "provider": "codex",
+      "nativeVersion": "0.160.0",
+      "runtimeRoute": "ordinary",
+      "bunVersion": "1.4.2",
+      "invokedMode": "app-server --stdio; initialize + mcpServerStatus/list (no thread/turn)",
+      "client": "codex-mcp-client",
+      "trueHandshake": true,
+      "initializeObserved": true,
+      "toolsListObserved": true,
+      "toolsCount": 8,
+      "toolNames": [
+        "mitori_status",
+        "mitori_list_threads",
+        "mitori_get_bundle",
+        "mitori_get_doc",
+        "mitori_find_symbol",
+        "mitori_reply",
+        "mitori_submit_patch",
+        "mitori_propose_resolution"
+      ],
+      "exit": 0,
+      "result": "native-handshake-and-tools-passed",
+      "modelCalls": 0,
+      "isolatedSettings": true,
+      "actualAuthUsed": false
+    },
+    {
+      "provider": "cursor",
+      "nativeVersion": "2026.10.01-e373342",
+      "runtimeRoute": "ordinary",
+      "bunVersion": "1.4.2",
+      "invokedMode": "--workspace <isolated-repo> mcp list-tools mitori",
+      "client": "Cursor",
+      "trueHandshake": true,
+      "initializeObserved": true,
+      "toolsListObserved": true,
+      "toolsCount": 8,
+      "toolNames": [
+        "mitori_status",
+        "mitori_list_threads",
+        "mitori_get_bundle",
+        "mitori_get_doc",
+        "mitori_find_symbol",
+        "mitori_reply",
+        "mitori_submit_patch",
+        "mitori_propose_resolution"
+      ],
+      "exit": 0,
+      "result": "native-handshake-and-tools-passed",
+      "modelCalls": 0,
+      "isolatedSettings": true,
+      "actualAuthUsed": false
+    },
+    {
+      "provider": "grok",
+      "nativeVersion": "1.0.46",
+      "runtimeRoute": "ordinary",
+      "bunVersion": "1.4.2",
+      "invokedMode": "--cwd <isolated-repo> --leader-socket <isolated-socket> mcp doctor mitori --json",
+      "client": "grok-shell-mitori",
+      "trueHandshake": true,
+      "initializeObserved": true,
+      "toolsListObserved": true,
+      "toolsCount": 8,
+      "toolNames": [
+        "mitori_status",
+        "mitori_list_threads",
+        "mitori_get_bundle",
+        "mitori_get_doc",
+        "mitori_find_symbol",
+        "mitori_reply",
+        "mitori_submit_patch",
+        "mitori_propose_resolution"
+      ],
+      "exit": 0,
+      "result": "native-handshake-and-tools-passed",
+      "modelCalls": 0,
+      "isolatedSettings": true,
+      "actualAuthUsed": false
+    },
+    {
+      "provider": "antigravity",
+      "nativeVersion": "1.3.0",
+      "runtimeRoute": "ordinary",
+      "bunVersion": "1.4.2",
+      "invokedMode": "mcp list (configuration only)",
+      "client": null,
+      "trueHandshake": false,
+      "initializeObserved": false,
+      "toolsListObserved": false,
+      "toolsCount": 0,
+      "toolNames": [],
+      "exit": 0,
+      "result": "configuration-listed; handshake not available in this CLI subcommand",
+      "modelCalls": 0,
+      "isolatedSettings": true,
+      "actualAuthUsed": false
+    }
+  ],
+  "portableSetup": {
+    "sourceServer": {
+      "command": "<absolute existing Bun >=1.4.2>",
+      "args": [
+        "<absolute mitori checkout>/scripts/start.ts",
+        "mcp",
+        "--repo",
+        "<absolute target repo>"
+      ]
+    },
+    "cursor": {
+      "configFile": ".cursor/mcp.json or ~/.cursor/mcp.json",
+      "config": {
+        "mcpServers": {
+          "mitori": {
+            "type": "stdio",
+            "command": "<absolute Bun>",
+            "args": [
+              "<absolute mitori>/scripts/start.ts",
+              "mcp",
+              "--repo",
+              "<absolute target repo>"
+            ]
+          }
+        }
+      },
+      "verify": "cursor-agent --workspace <absolute target repo> mcp list-tools mitori"
+    },
+    "grok": {
+      "register": "grok mcp add mitori -- <absolute Bun> <absolute mitori>/scripts/start.ts mcp --repo <absolute target repo>",
+      "verify": "grok --cwd <absolute target repo> mcp doctor mitori --json"
+    },
+    "codex": {
+      "register": "codex mcp add mitori -- <absolute Bun> <absolute mitori>/scripts/start.ts mcp --repo <absolute target repo>",
+      "configOnlyVerify": "codex mcp get mitori",
+      "noInferenceProtocol": {
+        "command": "codex app-server --stdio",
+        "requests": [
+          {
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "clientInfo": {
+                "name": "mitori_native_mcp_probe",
+                "version": "0.0.0"
+              }
+            }
+          },
+          {
+            "method": "initialized"
+          },
+          {
+            "id": 2,
+            "method": "mcpServerStatus/list",
+            "params": {
+              "serverName": "mitori"
+            }
+          }
+        ]
+      }
+    },
+    "antigravity": {
+      "configFile": "~/.gemini/config/mcp_config.json or .agents/mcp_config.json",
+      "config": {
+        "mcpServers": {
+          "mitori": {
+            "command": "<absolute Bun>",
+            "args": [
+              "<absolute mitori>/scripts/start.ts",
+              "mcp",
+              "--repo",
+              "<absolute target repo>"
+            ]
+          }
+        }
+      },
+      "configOnlyVerify": "agy mcp list",
+      "requiredHumanAction": "Open official app Manage MCP Servers or CLI /mcp, reload mitori, and confirm available tools; model/session generation remains unverified",
+      "register": "agy mcp add mitori -- <absolute Bun> <absolute mitori>/scripts/start.ts mcp --repo <absolute target repo>",
+      "registrationVerifiedOnTemporarySettings": true,
+      "registrationIncludedSpaceInTargetPath": true
+    }
+  },
+  "limitations": [
+    "No real account credential used or inspected; native MCP discovery does not prove account/model entitlement or generation.",
+    "Antigravity list only confirmed isolated configuration parsing; no handshake/tools-list command was exposed by installed help.",
+    "Codex also issued resources/list and resources/templates/list, which mitori does not implement; tools discovery returned all eight with no toolsError."
+  ],
+  "cleanup": {
+    "isolatedHomesDeleted": true,
+    "isolatedWorkspacesDeleted": true,
+    "mitoriDaemonStarted": false,
+    "ownedMcpChildPidsStillAlive": []
+  }
+}
