@@ -186,4 +186,6 @@ scripts/nd bash scripts/linux-ci.sh --arch arm64 \
 
 `onboarding`は設定プレビュー、MCP共通通信、コンテナ内部のHTTP画面と停止を確認し、推論要求は送りません。Docker/OrbStackが起動済みである必要があります。イメージの依存構築は既存のapt・直接取得を含み、今回の検証に限って許可された例外です。開発の依存管理はNixを維持します。
 
+失敗したテストだけをLinuxで再確認する場合は、`--steps install,unit --unit-file scripts/start.int.test.ts`のようにファイルを指定できます。指定しない`unit`は全テストを実行します。
+
 最新の引き継ぎは[HANDOFFの冒頭 §★](docs/HANDOFF.md)、残課題は[タスク台帳](docs/progress/backlog-2026-10-05.md)、作業規約は[AGENTS.md](AGENTS.md)と[CLAUDE.md](CLAUDE.md)を参照してください。

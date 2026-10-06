@@ -27,4 +27,4 @@ test("an absolute Bun run start preserves its runtime in setup launch commands w
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
+}, 60_000); // A clean checkout also builds production UI assets; the default 5s is too short on Linux CI.

@@ -92,6 +92,18 @@ mitori daemonは127.0.0.1へbindしHostも検証するため、`docker -p`だけ
 - 初回の設定検証用helperがGrokのPOSIX quoteをJSON quoteとして比較して失敗した。製品の出力は正しく、helperのassertだけを直して該当matrixを再実行した。
 - Docker helperの初回は同期spawnに非対応の`detached`指定が型検査で失敗した。非同期spawnとprocess group cleanupへ直し、失敗した型検査とDocker onboardingだけを再実行した。
 
+[PR #12](https://github.com/satoki252595/mitori/pull/12)の[初回CI](https://github.com/satoki252595/mitori/actions/runs/37490234719)（head `a0a98d6`）はLinux unit 2,991成功 / 134skip / 4todo / 1失敗。追加したstartup intがcold UI build中にBun testの既定5秒で停止され、exitCode nullとなった。別Bun選択のassertは通っているが、この初回を起動成功とは扱わない。fixtures/golden/size/Linux binaryは未実行。ブラウザ側は350成功 / 14skip、共有2成功、a11y8成功。
+
+startup intに初回buildを含む60秒の明示上限を付けた。Macでは失敗した1fileのみ再実行し1成功 / 5 assertions（2.31秒）。Bunの選択やMCP出力のassertは維持する。既存Dockerハーネスへ`--unit-file`を追加し、指定時はexport内の実ファイルだけを実行する（未指定は従来の全unit）。
+
+```sh
+scripts/nd bash scripts/linux-ci.sh --arch arm64 --steps install,unit \
+  --unit-file scripts/start.int.test.ts --seccomp default \
+  --out /tmp/mitori-linux-startup
+```
+
+このLinux再検証はfresh export→frozen install→cold UI buildで1file / 1test / 5 assertions成功、2.758秒、LLM0、認証mountなし。[結果](linux-startup-retest.json)。OrbStackの18CPUは元Ubuntu CIと負荷条件が異なり、5秒超えを同条件再現したとは報告しない。最終CIの結果はPRとIssue #11に記録する。
+
 ## 利用者の協力が必要な確認
 
 1. Claude Codeの公式ログイン（`claude auth login`または画面の公式ログインボタン）。認証完了だけを知らせてもらい、キー等は受け取らない。

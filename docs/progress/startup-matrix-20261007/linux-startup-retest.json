@@ -1,0 +1,22 @@
+{
+  "verifiedDateJst": "2026-10-07",
+  "baseCommit": "a0a98d65b4c9ecd70312b87a54c3f4a926de5c70",
+  "exportedSourceTree": "76f63fb502bc3ec09615366cb436130b88b4f4ab",
+  "platform": "linux-arm64",
+  "environment": "Ubuntu 24.04.5 / OrbStack / Bun 1.4.2 / 18 logical CPUs",
+  "command": "scripts/nd bash scripts/linux-ci.sh --arch arm64 --steps install,unit --unit-file scripts/start.int.test.ts --seccomp default --out /tmp/mitori-pr12-startup-linux-20261007",
+  "sourceAndDependencies": "fresh exported source, frozen install, no copied node_modules or ignored dist assets",
+  "installExit": 0,
+  "unitExit": 0,
+  "testFiles": 1,
+  "testsPassed": 1,
+  "testsFailed": 0,
+  "assertions": 5,
+  "testMilliseconds": 2758.49,
+  "testTimeoutMilliseconds": 60000,
+  "llmCalls": 0,
+  "credentialsMounted": false,
+  "containerRemoved": true,
+  "originalCiFailure": "The default 5000ms test deadline killed the startup child; no independent runtime error was recorded.",
+  "ciRetestRequired": true
+}

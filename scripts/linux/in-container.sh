@@ -14,6 +14,12 @@ SUMMARY=/out/summary.txt
 : > "$SUMMARY"
 failed=0
 has() { case ",$STEPS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
+if [ -n "${UNIT_FILE:-}" ]; then
+  UNIT_PATH="$(realpath -- "$UNIT_FILE")" || exit 2
+  case "$UNIT_PATH" in "$WORK"/*) ;; *) echo "unit-file must be inside the exported source" >&2; exit 2 ;; esac
+  [ -f "$UNIT_PATH" ] || { echo "unit-file does not exist" >&2; exit 2; }
+  has unit || { echo "unit-file requires the unit step" >&2; exit 2; }
+fi
 step() {
   local name="$1"; shift
   local t0=$SECONDS
@@ -61,8 +67,8 @@ if has check; then
   step check bun run check --verbose
 fi
 if has unit; then
-  # the whole bun test suite (unit + golden + int; e2e specs are Playwright's, not bun's)
-  step unit bun test
+  # Whole bun test suite by default; an explicit file reruns only that failed unit.
+  if [ -n "${UNIT_FILE:-}" ]; then step unit bun test "$UNIT_PATH"; else step unit bun test; fi
   grep -E "^\s*[0-9]+ (pass|fail|skip|todo)|^Ran " /out/unit.log | tee -a "$SUMMARY"
   grep -E "^\(fail\)" /out/unit.log > /out/unit-failures.txt || true
 fi
