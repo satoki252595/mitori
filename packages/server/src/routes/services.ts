@@ -12,6 +12,8 @@ import type {
   Iso8601,
   Logger,
   Metrics,
+  ProviderAuthId,
+  ProviderLoginRes,
   Random,
   SchedulerStatus,
   SectionId,
@@ -65,6 +67,7 @@ export interface DomainProviders {
 }
 
 export interface ServerServices {
+  providerLogin?: (provider: ProviderAuthId) => Promise<ProviderLoginRes>;
   info: DaemonInfo;
   control: DaemonControl;
   clock: Clock;

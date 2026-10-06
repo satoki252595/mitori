@@ -7,6 +7,8 @@ import { MitoriError } from "@mitori/core";
 import { createSpawner, cryptoRandom, systemClock } from "@mitori/platform";
 import type { Io } from "./io.ts";
 
+export { type AuthSpawn, spawnOfficialLogin } from "@mitori/platform";
+
 /** argv that runs this mitori again: the compiled binary itself, or `bun <main.ts>` from a source checkout. */
 export function selfCommand(): [string, ...string[]] {
   return Bun.isStandaloneExecutable ? [process.execPath] : [process.execPath, Bun.main];

@@ -21,7 +21,14 @@ bun run start -- /absolute/path/to/your/repository
 
 ## 普段のLLMを使う
 
-ブラウザの**設定 → エンジン → 使うAI**で使っているものを選び、**接続コマンドを作る**を押します。表示されたコマンドをターミナルで実行し、内容を確認して保存したら、画面の**設定を再読み込み**を押します。JSONの編集は不要です。コマンドは起動中のmitoriの絶対パスを使うため、ターミナルの現在位置に依存しません。
+1. ブラウザの**設定 → エンジン → 使うAI**で普段のツールを選びます。
+2. 未ログインなら**公式○○にログイン**を押します。ターミナルで実行ファイルを確認し、公式のブラウザ認証を完了します。ログイン済みなら省略できます。
+3. **接続コマンドを作る**を押し、表示されたコマンドを端末で実行して設定を保存します。
+4. **設定を再読み込み**を押します。
+
+**APIキーは必須ではありません。** Claude Code・Codex・Muse・Cursor・Grok Buildは本人の公式ツールへのログインを使い、対応する契約の利用枠で動かします。Antigravityは公式アプリまたは本人のCLIでサインインする手順を案内します。mitori独自のOAuthや認証情報の入力はありません。ログインボタンはmacOS/Linuxの手元のターミナルを開き、開けない環境ではコピーするコマンドを表示します。JSON編集は不要で、コマンドはターミナルの現在位置に依存しません。
+
+契約には利用上限があります。**枠内だけで使う場合は、提供元の超過課金・自動補充を無効にして、枠を使い切ったらリセットを待ってください。** mitoriは追加購入やAPI課金への自動切り替えを行いません。Museのログイン操作は、端末での確認後、優先される保存APIキーを公式`logout`で解除してからブラウザで`login`します。ログインを省略する場合も、公式ツールでアカウント認証を確認してください。ログイン開始を成功とは扱わず、ログイン情報は公式ツールの保管先へ保存します。ブラウザやmitoriの設定JSONへ渡しません。[提供元ごとの認証・利用枠の確認](docs/research/subscription-login-20261006.md)。
 
 ターミナルから直接設定する場合も、次の短いコマンドを使えます。設定コマンドはインストール・モデルのダウンロード・LLMへの推論要求を行いません。
 
@@ -29,18 +36,18 @@ bun run start -- /absolute/path/to/your/repository
 | --- | --- | --- |
 | Claude Code | `bun run start -- setup claude` | ログイン済みの`claude`を利用。画面から生成・説明・修正提案 |
 | Muse | `bun run start -- setup muse` | 認証済みnative binaryを検出。既定は`muse-spark-1.3-contributor` / `max` |
-| Grok | `bun run start -- setup grok` | xAI APIへ直接接続。`XAI_API_KEY`が必要 |
+| Grok Build | `bun run start -- setup grok --repo /absolute/path/to/your/repository` | 公式Buildにアカウントログイン。既存の利用枠でMCP・準備/取り込みを利用 |
 | Ollama | `bun run start -- setup ollama --model qwen3:8b` | 起動済みのOllamaと取得済みローカルモデルを利用 |
 | LM Studio | `bun run start -- setup lmstudio --model MODEL_ID` | 起動済みローカルサーバーを利用。画面のモデルIDを指定 |
 | Codex | `bun run start -- setup codex --repo /absolute/path/to/your/repository` | 普段のCodexセッションからMCP・文書生成の準備/取り込みで利用 |
 | Cursor | `bun run start -- setup cursor --repo /absolute/path/to/your/repository` | 普段のCursorからMCP・文書生成の準備/取り込みで利用 |
 | Antigravity | `bun run start -- setup antigravity --repo /absolute/path/to/your/repository` | 普段のAntigravityからMCP・文書生成の準備/取り込みで利用 |
 
-`qwen3:8b`は例です。`ollama list`などで手元のモデルを確認し、その名前を指定してください。Ollamaのcloudモデルはローカル無料扱いにせず、単価を指定します。LM Studioの既定接続先は`http://localhost:1234/v1`、Ollamaは`http://localhost:11434/v1`です。
+`qwen3:8b`は例です。`ollama list`などで手元のモデルを確認し、その名前を指定してください。**Ollamaはアプリ・CLIでも使え、ローカルモデルはログインもAPIキーも不要**です。mitoriは起動済みのローカルHTTPサーバーへ接続します。これは有料クラウドAPIの契約を必要とするものではありません。LM Studioの既定接続先は`http://localhost:1234/v1`、Ollamaは`http://localhost:11434/v1`です。
 
-**Grokを使う場合**は、起動前にターミナルの環境変数`XAI_API_KEY`を設定してください。Grokのチャット契約とxAI APIの認証・料金は別です。キーを後から設定した場合は、既存daemonを停止して同じターミナルから起動し直します。キー自体を設定画面・設定JSON・Gitへ保存しません。[xAIの公式認証手順](https://docs.x.ai/developers/quickstart)を参照してください。
+**Ollamaクラウドを使う場合だけ**は、画面の公式ログインボタン、または`bun run start -- auth ollama`で`ollama signin`へ進みます。ローカルサーバー経由で公式認証を使い、クラウドの契約枠・クレジットを消費します。cloudモデルはローカル無料扱いにせず、設定に確認した単価を指定してください。直接`ollama.com`へ接続するAPIキー方式とは別です。[Ollamaの公式認証](https://docs.ollama.com/api/authentication)。
 
-**Codex・Cursor・Antigravityを使う場合**は、設定コマンドが表示するMCP登録手順を1回実行します。既存のMCP設定は残してください。AIには次のように依頼できます。
+**Codex・Cursor・Antigravity・Grok Buildを使う場合**は、設定コマンドが表示するMCP登録手順を1回実行します。既存のMCP設定は残してください。AIには次のように依頼できます。
 
 > mitoriのレビューを取得し、変更案はmitori_submit_patchで提出してください。対象ソースを直接変更せず、人の確認を待ってください。
 
@@ -57,6 +64,10 @@ bun run start -- setup muse --model muse-spark-1.3-contributor --effort max
 
 PATHで見つからないCLIは`--binary /absolute/path/to/binary`を指定します。Museは自動更新ランチャーではなくnative binaryを使います。
 
+公式ログインだけを端末から行う場合は`bun run start -- auth claude`などを使います（`muse`・`codex`・`cursor`・`grok`・`ollama`も選べます）。実行ファイルのパスとSHAを確認してから公式ツールへ渡し、モデルは呼び出しません。Antigravityは認証専用コマンドが未確認のため、公式アプリの手順を表示します。
+
+GrokをAPIで使いたい場合だけ、画面で**APIキーで接続する**を選ぶか、`bun run start -- setup grok --api`を実行します。起動前に`XAI_API_KEY`を環境変数へ設定してください。キーを後から設定した場合はdaemonを停止し、その端末から再起動します。キー自体を設定画面・設定JSON・Gitへ保存しません。APIキーの請求先と枠は公式設定で確認してください。
+
 OpenAI互換APIも追加SDKなしで利用できます。`MODEL_ID`、URL、キーの環境変数名、確認した単価（USD/百万token）を指定してください。
 
 ```sh
@@ -65,7 +76,7 @@ bun run start -- setup openai --model MODEL_ID \
   --in-price 2 --out-price 6
 ```
 
-別のGrokモデルにも`--model`と`--in-price` / `--out-price`を指定します。Grok既定の`grok-4.7`は2026-10-06の公式価格を確認した設定値（input $2 / output $6）です。実請求額の保証ではありません。[モデル・価格の確認記録](docs/research/llm-onboarding-20261006.md)。
+別のGrok APIモデルは`setup grok --api --model …`と`--in-price` / `--out-price`を指定します。API経路の既定`grok-4.7`は2026-10-06の公式価格を確認した設定値（input $2 / output $6）です。実請求額の保証ではありません。[モデル・価格の確認記録](docs/research/llm-onboarding-20261006.md)。
 
 HTTP連携は無ツールのChat Completionsを使用します。`--effort`はHTTPへ送信せず、Museなど対応CLIで使います。任意CLIのJSON argv・単価・タイムアウトは画面の「詳細設定（独自CLI・API）」にあります。保存前の確認だけなら`setup … --print`、選択肢は`bun run start -- setup --help`で確認できます。
 

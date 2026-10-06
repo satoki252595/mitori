@@ -5,7 +5,9 @@
 
 ## ★ 現在の状態（残タスク全件と最近のOSS検証）
 
-最新の追加は[Issue #6](https://github.com/satoki252595/mitori/issues/6)のローカル起動と主要LLM設定。通常利用は既存Bun/Gitで`bun run start -- <repo>`、Nixは開発・検証に維持する。Claude Code / Muse / Grok / Ollama / LM Studio / Codex / Cursor / Antigravityの簡単設定を用意し、外部セッションはMCPとprep/ingestを案内する。[README](../README.md)、[実装・検証記録](progress/onboarding-20261006.md)、[公式仕様の確認](research/llm-onboarding-20261006.md)。新providerの実推論は実施せず、既存Muse実検証と今回のmock/loopback成功を区別する。
+最新の利用者指示はAPIキー必須を避け、本人の公式ログインと対応サブスクを優先すること。[Issue #8](https://github.com/satoki252595/mitori/issues/8)で設定画面の認証ボタン、browser-only固定ログイン入口、TTYで確認する`auth`、Grok Buildのsession既定/API明示選択を追加した。Ollamaローカルは認証不要、Cloudだけ公式signin。Antigravityは認証専用コマンド未確認のため公式手順を案内する。Museは保存APIキーの優先を避けるため確認後に公式logout→loginする。認証・課金推論の実行は利用者操作に任せ、dispatchと成功を区別する。[認証仕様の確認](research/subscription-login-20261006.md)。
+
+前回の追加は[Issue #6](https://github.com/satoki252595/mitori/issues/6)のローカル起動と主要LLM設定。通常利用は既存Bun/Gitで`bun run start -- <repo>`、Nixは開発・検証に維持する。Claude Code / Muse / Grok / Ollama / LM Studio / Codex / Cursor / Antigravityの簡単設定を用意し、外部セッションはMCPとprep/ingestを案内する。[README](../README.md)、[実装・検証記録](progress/onboarding-20261006.md)、[公式仕様の確認](research/llm-onboarding-20261006.md)。新providerの実推論は実施せず、既存Muse実検証と今回のmock/loopback成功を区別する。
 
 作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。第7回CI（head `a663a459`、実merge checkout `24a342e8`）は全体success。Ubuntu全7check/20semantic/0cached/0errors・unit2944pass/134skip/4todo/0fail・fixture全12・golden109pass/4skip・size・Linux binary smoke、Mac web344pass/14skip・共有2pass/37assert・a11y8passが成功した。Windowsは未承認skip。 [PR #5](https://github.com/satoki252595/mitori/pull/5)は2026-10-06 JSTにmainへmerge済み（`09610433865b444372aeee1e4a00d628b5702c4c`）、作業branchはlocal/remoteとも削除した。merge treeは成功CIのtreeと一致し、golden専用commitを含む履歴を保持した。[CI経緯](progress/pr5-ci-20261005.md)、[統合・削除照合](progress/pr5-publication-20261006.json)。以前の4 remブランチも統合・整理済み。
 

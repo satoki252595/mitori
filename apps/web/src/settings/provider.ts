@@ -1,4 +1,4 @@
-import type { DeepPartial, GlobalSettings, ReasoningEffort } from "@mitori/core";
+import { type DeepPartial, type GlobalSettings, PROVIDER_AUTH_IDS, type ProviderAuthId, type ReasoningEffort } from "@mitori/core";
 
 /** Generation's existing minimum turn deadline; an explicit value resets a previously saved override. */
 const DEFAULT_TURN_MS = 120_000;
@@ -15,6 +15,11 @@ export function launcherPrefix(launcher?: LauncherCommand | undefined): string {
 }
 
 export { shellQuote };
+
+export function providerAuthCommand(provider: ProviderAuthId, launcher?: LauncherCommand | undefined): string {
+  if (!PROVIDER_AUTH_IDS.includes(provider)) throw new Error("settings.providerInvalid");
+  return `${launcherPrefix(launcher)} auth ${provider}`;
+}
 
 /** The existing CLI owns execution settings; single quotes keep JSON argv literal in a POSIX shell. */
 export function genericProviderCommand(patch: DeepPartial<GlobalSettings>, launcher?: LauncherCommand | undefined): string {
@@ -46,6 +51,7 @@ function apiSettings(baseUrl: string, keyEnv: string | undefined): { baseUrl: st
 export function providerSetupCommand(
   input: {
     provider: SetupProvider;
+    api?: boolean;
     model?: string;
     repo?: string | undefined;
     baseUrl?: string;
@@ -62,10 +68,11 @@ export function providerSetupCommand(
   };
   const model = input.model?.trim();
   if (model && (/\s/u.test(model) || [...model].some((c) => c.charCodeAt(0) < 32))) throw new Error("settings.providerInvalid");
-  if (["codex", "cursor", "antigravity"].includes(input.provider)) {
+  if (["codex", "cursor", "antigravity"].includes(input.provider) || (input.provider === "grok" && !input.api)) {
     if (!input.repo?.trim() || [...input.repo].some((c) => c.charCodeAt(0) < 32)) throw new Error("settings.providerInvalid");
     add("--repo", input.repo.trim());
   } else {
+    if (input.provider === "grok") args.push("--api");
     let remoteApi = false;
     if (["ollama", "lmstudio", "openai"].includes(input.provider) && !model) throw new Error("settings.providerInvalid");
     if (model) add("--model", model);

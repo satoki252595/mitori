@@ -246,5 +246,6 @@
   "rail.pathDone": "Finished · {min} min in all",
   "rail.pathStops": "Stops",
   "rail.stopRead": "read",
-  "rail.pathDoneBadge": "✓ done"
+  "rail.pathDoneBadge": "✓ done",
+  "statusbar.auth.local": "local connection (no API key)"
 }

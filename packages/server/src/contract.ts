@@ -51,6 +51,8 @@ import type {
   Metrics,
   Migration,
   PackageName,
+  ProviderAuthId,
+  ProviderLoginRes,
   Random,
   RepoPath,
   RouteKey,
@@ -440,6 +442,7 @@ export const ROUTE_OWNERS = {
   "GET /settings": "server",
   "PATCH /settings": "server",
   "PATCH /settings/exec": "server",
+  "POST /settings/provider-login": "server",
   "GET /usage/summary": "agent",
   "GET /usage/records": "agent",
   "GET /workspaces": "server",
@@ -567,6 +570,8 @@ export const HTTP_PIPELINE = [
 export interface ServerDeps {
   /** Actual self invocation for browser setup commands (source or standalone); contains no credentials. */
   launcher?: { command: string; args: string[] };
+  /** Open only the fixed `mitori auth <provider>` in a visible OS terminal. */
+  providerLogin?: (provider: ProviderAuthId) => Promise<ProviderLoginRes>;
   /** `~/.mitori` (or `MITORI_HOME`). */
   home: string;
   /** mitori semver (`HealthRes.version`, registry, `hello.version`, `DocManifest.generator.mitoriVersion`) [CR m1-4]. */

@@ -123,22 +123,42 @@ mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in
     ja: `mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> [options]
   既存のLLMを設定し、TTYで1回確認して保存します。インストール・モデル呼出しは行いません。
   --model ID                     ローカル/任意APIのモデル（Grok既定grok-4.7、Muse既定contributor）
-  --repo /absolute/repo          Codex/Cursor/Antigravityの外部セッションとMCP対象
+  --repo /absolute/repo          Codex/Cursor/Antigravity/Grokの外部セッションとMCP対象
+  --api                         Grokで外部セッションの代わりに有料APIを選択
   --binary /absolute/path        Claude/Museの実行ファイル（Museはnative binary）
   --base-url URL --key-env NAME  OpenAI互換APIのURLとキーの環境変数名（キー自体は保存しない）
   --in-price N --out-price N     任意remoteモデルのUSD/百万token単価
   --effort low|medium|high|xhigh|max  Museの推論強度（既定max、HTTPへは送らない）
   --print                        設定・連携手順の表示だけ（保存・接続しない）
+  例: mitori setup grok --repo /absolute/repo（既存セッション） / mitori setup grok --api（XAI_API_KEY）
 `,
     en: `mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> [options]
   Configure an existing provider after one terminal confirmation. No installs or model calls.
   --model ID                     Required for local/custom APIs; Grok defaults to grok-4.7, Muse to contributor
-  --repo /absolute/repo          External Codex/Cursor/Antigravity session and MCP workspace
+  --repo /absolute/repo          External Codex/Cursor/Antigravity/Grok session and MCP workspace
+  --api                         Select metered Grok API instead of an existing external session
   --binary /absolute/path        Claude/Muse executable (Muse: native binary)
   --base-url URL --key-env NAME  OpenAI-compatible URL and credential environment variable name
   --in-price N --out-price N     Custom remote model prices in USD per million tokens
   --effort low|medium|high|xhigh|max  Muse reasoning effort (default max; HTTP does not send effort)
   --print                        Preview settings/instructions without saving or connecting
+  Examples: mitori setup grok --repo /absolute/repo (existing session) / mitori setup grok --api (XAI_API_KEY)
+`,
+  },
+  auth: {
+    ja: `mitori auth <claude|muse|codex|cursor|antigravity|grok|ollama> [--binary /absolute/path]
+  人のTTYで実行ファイルとSHA-256を確認し、公式のログイン専用コマンドを開始します。
+  認証情報は公式ツールが管理します。インストール・モデル呼出し・mitoriの設定変更は行いません。
+  Cursorはcursor-agent、Muse/Grokはnative binaryを使用。Antigravityは公式アプリでサインインしてください。
+  Museは確認後にlogout → login。既存のサインインと保存済みAPIキーを解除してアカウント認証へ切り替えます。
+  Ollamaのローカルモデルは認証不要。signinはクラウド用で、利用枠・クレジットを消費します。
+`,
+    en: `mitori auth <claude|muse|codex|cursor|antigravity|grok|ollama> [--binary /absolute/path]
+  Review the executable and SHA-256 on a human TTY, then start the official login-only command.
+  Credentials stay with the official tool. No installs, model calls, or mitori configuration changes.
+  Uses cursor-agent for Cursor and native Muse/Grok binaries. Sign into Antigravity in its official app.
+  Muse uses logout then login after confirmation, clearing saved sign-in/API keys to switch to account authentication.
+  Local Ollama models need no authentication; cloud usage consumes Ollama allowances or credits.
 `,
   },
   config: {

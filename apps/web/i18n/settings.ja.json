@@ -75,5 +75,15 @@
   "settings.reloadSettings": "設定を再読み込み",
   "settings.advancedProvider": "詳細設定（独自CLI・API）",
   "settings.setupInvalid": "モデル名、接続先、環境変数の名前、料金、対象リポジトリを確認してください。",
-  "settings.quickSetupCwd": "起動元を取得できないため、mitoriをcloneしたフォルダの端末で実行してください。"
+  "settings.quickSetupCwd": "起動元を取得できないため、mitoriをcloneしたフォルダの端末で実行してください。",
+  "settings.useApi": "APIキーで接続する（料金と利用枠を別途確認）",
+  "settings.officialSignIn": "公式{provider}にログイン",
+  "settings.subscriptionLogin": "公式ツールに本人がログインします。対応する契約の利用枠・設定が適用されます。mitoriにはAPIキーやログイン情報を入力しません。超過課金の設定は公式ツールで確認してください。",
+  "settings.ollamaLogin": "ローカルモデルはログイン不要です。このボタンはOllamaクラウド用です。クラウドでは契約の利用枠・クレジットを消費します。",
+  "settings.antigravityLogin": "Antigravityの公式アプリ、または手元のCLIでサインインしてください。自動クレジット超過利用を止めるには、公式設定のAI Credit OveragesでNeverを選びます。",
+  "settings.officialLoginGuide": "公式ログイン手順を開く",
+  "settings.loginOpened": "認証用のターミナルを開きました。実行ファイルを確認して公式ログインを完了してください。認証情報は公式ツールが保持します。完了後、設定を再読み込みしてください。",
+  "settings.loginFallback": "ターミナルを開けませんでした。次のコマンドを手元のターミナルで実行してください。",
+  "settings.copyLogin": "ログインコマンドをコピー",
+  "settings.museSubscription": "保存済みAPIキーがブラウザ認証より優先されるため、このログイン操作は端末での確認後、公式Museの既存認証を解除してブラウザで再認証します。利用枠・超過設定は公式ツールで確認してください。"
 }

@@ -31,6 +31,7 @@ import { materializeWindowsJob } from "../build/windows-job.ts";
 import { viewerBundle } from "../commands/export-assets.ts";
 import { selfCommand } from "../commands/process-io.ts";
 import { createElkPool } from "./elk.ts";
+import { createProviderLoginOpener } from "./provider-login.ts";
 
 export interface ServerDaemonOptions {
   /** `~/.mitori` (created 0700 by the caller). */
@@ -147,6 +148,14 @@ export async function startServerDaemon(o: ServerDaemonOptions): Promise<ServerD
     mitoriBin: mitoriBinary(process.env.PATH ?? ""),
     ...o.overrides,
   };
+  deps.providerLogin ??= createProviderLoginOpener({
+    launcher: { command: launcherCommand, args: launcherArgs },
+    home: o.home,
+    userHome,
+    safePath,
+    env: process.env,
+    spawner: deps.spawner,
+  });
   let handle: ServerHandle;
   try {
     handle = await createServer(deps);

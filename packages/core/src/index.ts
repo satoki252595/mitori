@@ -15,6 +15,7 @@ export * from "./map-plan.ts";
 export * from "./map-svg.ts";
 export * from "./paths.ts";
 export * from "./pricing.ts";
+export * from "./provider-auth.ts";
 export * from "./secrets.ts";
 export * from "./transitions.ts";
 export * from "./verdict.ts";
