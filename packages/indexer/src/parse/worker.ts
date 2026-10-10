@@ -18,7 +18,7 @@ import {
   type SymbolDetail,
 } from "../contract.ts";
 import { contentRule } from "../inventory/content.ts";
-import { CX_QUERIES, ERROR_QUERY, TEST_QUERIES } from "../lang/aux.ts";
+import { CX_QUERIES, ERROR_QUERY, TEST_QUERIES } from "../lang/auxiliary.ts";
 import { grammarFor, langOfPath, needsShebang, shebangLang } from "../lang/detect.ts";
 import { TAGS_QUERIES } from "../lang/queries.ts";
 import { extractorVersion } from "../lang/versions.ts";

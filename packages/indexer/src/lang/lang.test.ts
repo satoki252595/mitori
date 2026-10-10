@@ -6,7 +6,7 @@ import { Language, Query } from "web-tree-sitter";
 import { CAPTURE_NAMES, type GrammarId } from "../contract.ts";
 import { env, REPO_ROOT, workerInit, xxh3 } from "../parse/test/env.ts";
 import { createWorkerHandler } from "../parse/worker.ts";
-import { CX_QUERIES, ERROR_QUERY, TEST_QUERIES } from "./aux.ts";
+import { CX_QUERIES, ERROR_QUERY, TEST_QUERIES } from "./auxiliary.ts";
 import { dialectOf, grammarFor, hasFlowPragma, langOfPath, needsShebang, shebangLang } from "./detect.ts";
 import { TAGS_QUERIES } from "./queries.ts";
 import { isTestFile } from "./testfile.ts";

@@ -330,7 +330,7 @@ unit 層の禁止事項（Biome 自前ルール + `scripts/check-boundaries.ts -
 | `huge/oversize.ts`（2 MiB + 1 B、generator）/ `huge/just-under.ts`（2 MiB − 1 B） | oversize ・ source | 2 MiB 境界。just-under の parse が 1 s 以内 |
 | `.env`、`.env.local`、`.env.example`、`secrets/server.pem`、`id_rsa`、`.npmrc` | secret / secret | 中身を一切読まない（IDX-U-004 が read 呼び出し 0 を検査）。例外は `.env.example`（`ENV_TEMPLATE_GLOBS`）を env 検出器がキー名だけ読むこと（CR m0-12） |
 | `link-inside -> src/a.ts` / `link-outside -> /etc/hosts` / `link-loop -> link-loop` / `link-up -> ../outside` | source（解決先として）/ 除外（repo 外） | repo 外へ解決する symlink を読まない・ループで止まらない |
-| `enc/bom.ts`（UTF-8 BOM）、`enc/crlf.py`（CRLF）、`enc/latin1.txt`（不正 UTF-8）、`enc/nfd-ファイル.md`（NFD 名）、`enc/日本語パス/設定.ts`、`enc/space in name.go`、`enc/#hash?.ts` | source（latin1 は generic・行数のみ） | 行番号が BOM・CRLF でずれない、RepoPath は NFC、URL・glob 特殊文字の扱い |
+| `enc/bom.ts`（UTF-8 BOM）、`enc/crlf.py`（CRLF）、`enc/latin1.txt`（不正 UTF-8）、`enc/nfd-ファイル.md`（NFD 名）、`enc/日本語パス/設定.ts`、`enc/space in name.go`、`enc/#hash%3F.ts` | source（latin1 は generic・行数のみ） | 行番号が BOM・CRLF でずれない、RepoPath は NFC、URL・glob 特殊文字の扱い |
 | `deep/a/b/c/d/e/f/g/h/i/j/k.ts` | source | 深い path |
 | `empty.ts`（0 B）、`only-comments.py` | source（loc 0） | |
 | `broken/syntax-error.ts` | source（`ParseResponse.errors > 0`、symbol は部分木から取る） | parse エラーで落ちない |

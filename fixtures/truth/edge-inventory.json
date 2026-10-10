@@ -18,7 +18,7 @@
     { "path": "dup/a/util.ts", "class": "source", "lang": "typescript" },
     { "path": "dup/b/util.ts", "class": "source", "lang": "typescript" },
     { "path": "empty.ts", "class": "source", "lang": "typescript" },
-    { "path": "enc/#hash?.ts", "class": "source", "lang": "typescript" },
+    { "path": "enc/#hash%3F.ts", "class": "source", "lang": "typescript" },
     { "path": "enc/bom.ts", "class": "source", "lang": "typescript" },
     { "path": "enc/crlf.py", "class": "source", "lang": "python" },
     { "path": "enc/latin1.txt", "class": "source", "lang": "generic" },
