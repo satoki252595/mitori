@@ -1,0 +1,124 @@
+{
+  "format": "mitori.windows-nix-verification/1",
+  "date": "2026-10-11",
+  "status": "implementation and Mac runtime proof complete; native Windows CI pending",
+  "method": "Reuse the existing Nix-crossbuilt mitori-windows-x64.exe as the full Bun CLI with BUN_BE_BUN=1 for frozen install and unchanged native source-test cases.",
+  "source": {
+    "url": "https://bun.sh/docs/bundler/executables#act-as-the-bun-cli",
+    "checkedDate": "2026-10-11",
+    "section": "Act as the Bun CLI"
+  },
+  "preserved": {
+    "nativeCases": 4,
+    "assetGuardCase": true,
+    "verifiedExtractionCase": true,
+    "literalUtf16Argv": true,
+    "exactEnvironment": true,
+    "stdio": true,
+    "leaderExitCode": true,
+    "positiveControl": true,
+    "leaderExitKillsDescendants": true,
+    "cancelSignals": [
+      "SIGINT",
+      "SIGTERM",
+      "SIGKILL"
+    ],
+    "detachedGrandchildren": true,
+    "compiledBinarySelftest": true
+  },
+  "changes": {
+    "separateWindowsBunDownloadRemoved": true,
+    "globalPathMutationRemoved": true,
+    "newDependencies": 0,
+    "newExecutables": 0,
+    "workflowStartInput": "verify_windows",
+    "childRuntimeFlag": "BUN_BE_BUN",
+    "environmentPassThrough": "Explicitly allowlist only the runtime flag in child and descendant fixture environments."
+  },
+  "localEvidence": {
+    "environment": {
+      "platform": "darwin/arm64",
+      "bun": "1.4.2",
+      "managedBy": "project flake via scripts/nd"
+    },
+    "standaloneRuntime": {
+      "compileFlags": [
+        "--compile",
+        "--no-compile-autoload-dotenv",
+        "--no-compile-autoload-bunfig"
+      ],
+      "proof": [
+        "bun:test runner",
+        "bunfig test preload",
+        "literal eval argv including empty/non-ASCII/backslash/quote arguments",
+        "exact child environment"
+      ],
+      "pass": 1,
+      "fail": 0,
+      "assertions": 4,
+      "secondsPrinted": 0.036,
+      "logSha256": "0a2558e8ecee150872202211e89fcdace77518e7a9e56699f8e1875012edb5f9"
+    },
+    "actualSourceTestsThroughStandalone": {
+      "files": [
+        "packages/platform/src/spawn/windows-job.test.ts",
+        "apps/cli/src/build/windows-job.test.ts",
+        "scripts/build-windows-job.test.ts"
+      ],
+      "pass": 3,
+      "windowsOnlySkip": 4,
+      "fail": 0,
+      "assertions": 13,
+      "secondsPrinted": 0.029,
+      "logSha256": "91e1a459c14fd9882acae314cca7e344814f4613df730c46fd6e1dd7fa0662f1"
+    },
+    "directSourceTests": {
+      "pass": 3,
+      "windowsOnlySkip": 4,
+      "fail": 0,
+      "assertions": 13,
+      "secondsPrinted": 0.028
+    },
+    "typecheck": {
+      "command": "scripts/nd tsc -b packages/platform --pretty false",
+      "exitCode": 0
+    },
+    "workflowYaml": {
+      "parser": "Bun.YAML.parse",
+      "assertions": 8,
+      "success": true
+    },
+    "biome": true,
+    "diffCheck": true
+  },
+  "sourceHashes": {
+    ".github/workflows/ci.yml": "6b4df46d22b0f12128d653e30ee18ead2de30ce88e458db045186c798e2d9229",
+    ".github/workflows/windows.yml": "dc01f10deec56a5d9f7f58bd2a4c371c5a851567c02e93dc5c64145809c26a19",
+    "packages/platform/src/spawn/windows-job.test.ts": "f98147b589db43baef79823757f74e29c632af0fbd5a8458473c9aa9ab99b0d7"
+  },
+  "nativeWindows": {
+    "status": "pending",
+    "runner": "windows-2025",
+    "expectedSourceTests": {
+      "pass": 6,
+      "skip": 0,
+      "fail": 0
+    },
+    "expectedSelftestChecks": [
+      "integrity",
+      "web",
+      "parse",
+      "elk",
+      "shiki",
+      "sqlite"
+    ],
+    "evidenceArtifacts": [
+      "windows-native-tests.log",
+      "windows-selftest.json"
+    ]
+  },
+  "limitations": [
+    "Mac standalone runtime proof does not prove Windows Job Object behavior.",
+    "Windows source cases and embedded binary selftest require a successful native workflow run before completion can be claimed."
+  ]
+}

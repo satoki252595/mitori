@@ -8,8 +8,8 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      windows_nix_exception_approved:
-        description: "Explicit user approval for this run's Windows-only official Bun installation"
+      verify_windows:
+        description: "Run native Windows verification with the Nix-built executable"
         type: boolean
         required: true
         default: false
@@ -24,10 +24,10 @@ concurrency:
 jobs:
   windows:
     # The existing ci workflow can dispatch this branch's reusable workflow before it reaches main.
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_nix_exception_approved }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_windows }}
     uses: ./.github/workflows/windows.yml
     with:
-      nix_exception_approved: true
+      verify_windows: true
 
   pr:
     runs-on: ubuntu-24.04

@@ -31,7 +31,13 @@ function fixture() {
   const path = realpathSync(process.env.MITORI_WINDOWS_JOB_LAUNCHER ?? resolve("node_modules/.cache/mitori-windows-job/windows-job-x64.exe"));
   const spawner = createSpawner({ windowsJobLauncher: { path, sha256: hash(readFileSync(path)) } });
   const cwd = realpathSync(tempDir());
-  const env = { PATH: process.env.PATH ?? "", SystemRoot: process.env.SystemRoot ?? "C:\\Windows", MITORI_ONLY: "scoped fixture" };
+  const env = {
+    PATH: process.env.PATH ?? "",
+    SystemRoot: process.env.SystemRoot ?? "C:\\Windows",
+    MITORI_ONLY: "scoped fixture",
+    // The Nix-built standalone binary can serve as Bun; this child has an exact allowlisted environment.
+    ...(process.env.BUN_BE_BUN === "1" ? { BUN_BE_BUN: "1" } : {}),
+  };
   const spec = (script: string, args: string[] = [], extra: Partial<SpawnSpec> = {}): SpawnSpec => ({
     command: process.execPath,
     argv: ["-e", script, "--", ...args],
@@ -65,7 +71,7 @@ native("native Job Object preserves literal UTF-16 argv, exact environment, stdi
 
 const descendant = (marker: string) => `await Bun.sleep(500);await Bun.write(${JSON.stringify(marker)},"escaped");`;
 const leader = (marker: string, exit: boolean) =>
-  `Bun.spawn([process.execPath,"-e",${JSON.stringify(descendant(marker))}],{stdin:"ignore",stdout:"ignore",stderr:"ignore",detached:true,env:{PATH:process.env.PATH,SystemRoot:process.env.SystemRoot}});console.log("ready");${exit ? "process.exit(0)" : "await Bun.sleep(10000)"};`;
+  `Bun.spawn([process.execPath,"-e",${JSON.stringify(descendant(marker))}],{stdin:"ignore",stdout:"ignore",stderr:"ignore",detached:true,env:{PATH:process.env.PATH,SystemRoot:process.env.SystemRoot,BUN_BE_BUN:process.env.BUN_BE_BUN}});console.log("ready");${exit ? "process.exit(0)" : "await Bun.sleep(10000)"};`;
 
 native("descendant fixture can write after its ungrouped leader exits (positive control)", async () => {
   const x = fixture(),
