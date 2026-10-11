@@ -22,6 +22,16 @@ export function promptIdOf(plan: Pick<JobPlan, "mode">): LoopPromptId {
   return plan.mode === "patch" ? "loop.patch" : plan.mode === "agent" ? "loop.agent" : plan.mode === "findings" ? "loop.findings" : "loop.answer";
 }
 
+/** The exact profile recorded by the bridge, shared by planning and dispatch. */
+export function profileOf(plan: Pick<JobPlan, "mode" | "route">): Pick<ScheduledRequest, "engine" | "mode" | "model" | "promptVer"> {
+  return {
+    engine: plan.route.engine,
+    mode: plan.mode === "patch" ? "patch" : plan.mode === "agent" ? "agent" : plan.mode === "findings" ? "findings" : "answer",
+    model: plan.route.decision.model,
+    promptVer: plan.route.decision.contract === "docpatch/1" ? "loop.docpatch@1" : LOOP_PROMPTS[promptIdOf(plan)].version,
+  };
+}
+
 const SCHEMAS: Partial<Record<LoopPromptId, object>> = {
   "loop.patch": PATCH_V1_ENGINE_SCHEMA,
   "loop.findings": FINDINGS_V1_ENGINE_SCHEMA,
@@ -61,21 +71,18 @@ export function engineRequest(
   const system = inlineSchema ? `${baseSystem}\n\nReply with one JSON object matching this schema:\n${JSON.stringify(inlineSchema)}` : baseSystem;
   const sendsSchema = schema !== undefined && !generic;
   const req: ScheduledRequest = {
+    ...profileOf(plan),
     ref: job,
-    mode: plan.mode === "patch" ? "patch" : plan.mode === "agent" ? "agent" : plan.mode === "findings" ? "findings" : "answer",
     cwd: ctx.cwd,
-    model: plan.route.decision.model,
     effort: plan.route.decision.effort,
     tools: plan.route.decision.tools,
     writeScope: plan.mode === "agent" ? plan.scope.writeScope : [],
     system,
-    promptVer: docpatch ? "loop.docpatch@1" : LOOP_PROMPTS[id].version,
     prompt: ctx.prompt ?? plan.bundle.text,
     contract: plan.route.decision.contract,
     keepAlive,
     persistSession: plan.route.engine === "claude-cli" && ctx.persistSessions,
     budget: { usd: plan.budget.usd, inTokens: firstTurnInTokens(plan, system, sendsSchema ? schema : undefined), outTokens: plan.budget.out, ms: TURN_MS[id] },
-    engine: plan.route.engine,
     lane: "interactive",
     ws: ctx.ws as ScheduledRequest["ws"],
     scope: { kind: "job", id: job },

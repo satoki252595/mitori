@@ -35,6 +35,7 @@
 import type {
   AgentScheduler,
   Spawner,
+  UsageLedger,
 } from "@mitori/agent";
 import type {
   AnchorEngine,
@@ -1263,6 +1264,8 @@ export interface LoopDeps {
   anchors: AnchorEngine;
   /** Shared scheduler. */
   scheduler: AgentScheduler;
+  /** Read measured first-call overhead by the bridge's exact profile key; no samples means default estimates. */
+  fixedOverhead?: UsageLedger["fixedOverhead"];
   /** Spawner (git, gates, gh). */
   spawner: Spawner;
   /** Settings. */
