@@ -1,8 +1,8 @@
 # 残課題の続行・検証記録（2026-10-11）
 
-今回の変更と測定をまとめる。[PR #13](https://github.com/satoki252595/mitori/pull/13)へpush済み。実装head23645fdのUbuntu・Windows CIは成功。Macは資料追加head6af11b8の後続で既定guardを通過し、369pass / 14skip / 5fail。位置保持と操作時間を修正・再検証中で、マージ・不要ブランチ削除は未実施。[CI記録](ci.md)。過去の失敗を後の成功値で置き換えず、各資料に前後の証拠を残した。
+今回の変更と測定をまとめる。[PR #13](https://github.com/satoki252595/mitori/pull/13)へpush済み。修正後head98c59a6のUbuntu CIは成功、Windows対象はhead23645fdで成功。Macの同head再実行は較正が既存範囲外でbrowser開始前に停止した。旧head6af11b8の369pass / 14skip / 5failは履歴であり、読書位置修正後の正式suite合格とは扱わない。マージ・不要ブランチ削除は未実施。[CI記録](ci.md)。過去の失敗を後の成功値で置き換えず、各資料に前後の証拠を残した。
 
-開発・検証はプロジェクトのNixと `scripts/nd`。通常利用は既存Bun / Git / LLMを使える方針を維持する。Dockerは利用者が許可した既存Linux検証ハーネスだけ。今回の実LLMはCodexで、Claudeは使用していない。Cloudflareへのデプロイはcloneしてローカル利用するための必須条件に含めない。
+開発・検証はプロジェクトのNixと `scripts/nd`。通常利用は既存Bun / Git / LLMを使える方針を維持する。Dockerは利用者が許可した既存Linux検証ハーネスだけ。今回の実LLMはCodexと取得済みLM Studioで、Claudeは使用していない。Cloudflareへのデプロイはcloneしてローカル利用するための必須条件に含めない。
 
 ## 現在の判定
 
@@ -10,6 +10,7 @@
 |---|---|---|---|
 | Codexでの実生成 | Jevの対象2節とm3eの対象moduleをNix経由で生成。修正後はterminal usage / exit 0を取得 | 引用窓のL1 failが残る。全文・全OSSの再生成成功は主張しない | [quality.md](quality.md) |
 | Codex Explain / Nix・通常ローカル | go-smallで各1 application jobがdone、各引用1件有効、元source不変、後始末成功 | API相当合計$0.007274。課金先・サブスク枠は未確認 | [codex-explain.json](codex-explain.json) |
+| LM Studio Explain / Nix・通常ローカル | 取得済みQwen GGUFで各1 HTTP推論がdone、各引用1件有効、source不変、追加費用$0。専用モデル解除・既存server維持を確認 | 短いExplainのみ。CLI指定4096と実load報告262144の不一致は未解決 | [lmstudio-explain.md](lmstudio-explain.md) |
 | Codex並列生成の予算予約 | shared preflightで送信直前に合算判定。途中本文・usage保持と同額resumeを対象37tests / 224 assertionsで確認 | API換算の推計上限。hidden reasoningを含む実請求の厳密capではない | [codex-budget.md](codex-budget.md) |
 | Linux cold check | testkitの既存home subpathへimportを絞り、全20semantic診断を維持。ARM同条件ABBAは4回ともhard limit内 | soft targetは未達、統合headのUbuntu x64 CIでの確認は別 | [cold-home.md](cold-home.md) |
 | Go7k cold scan | Goの同一Node.type再取得を減らす変更を採用。quiet / reference条件のABBAで2,232.14→1,994.58ms、全行hash・coverage・診断一致 | **1,500ms上限は未達**。既存正式5回caseの合格とは扱わない | [採用変更](idx-type-local.md)、[先行不採用](idx-cold.md)、[正式後続](idx-formal.json) |
@@ -39,11 +40,11 @@ WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別�
 
 ## 次の確認
 
-1. Ubuntu・Windowsの実装head CIは成功。Macは実suite369pass / 14skip / 5fail。位置保持と操作時間の失敗を修正・再検証し、成功後にマージ・不要ブランチ削除する。[CI記録](ci.md)。
+1. 修正後head98c59a6のUbuntu CIは成功。Macは較正範囲外で正式suite開始前に停止。quiet / reference条件で再確認し、成功後にマージ・不要ブランチ削除する。[CI記録](ci.md)。
 2. 本人による実IME確認と、quiet基準機での時間予算を確認する。Chrome通常操作と最終compiled測定は完了。
 3. Go7kは約10.64%短縮したが1,500ms上限は未達。Jev / m3eは引用用import入力と共通verdictを修正し、追加実生成2回の費用承認待ち。Windowsの今回対象は最終CIで完了した。
 
-利用者の本人操作待ちは実IME確認。任意providerを使う場合はその本人認証、LM Studioを使う場合はモデル読込・サーバー開始が別途必要。Codexは今回ログイン済みで、認証待ちではない。Claudeのログインを今回の続行条件にしない。Safari実機とCloudflare公開は今回の必須条件から外れている。
+利用者の本人操作待ちは実IME確認。任意providerを使う場合はその本人認証が必要。LM Studioは既存モデルの読込と実回答を今回確認し、検証後に専用モデルだけ解除した。利用時は本人のモデルを読み込む。Codexは今回ログイン済みで、認証待ちではない。Claudeのログインを今回の続行条件にしない。Safari実機とCloudflare公開は今回の必須条件から外れている。
 
 ## 最終統合の追記
 

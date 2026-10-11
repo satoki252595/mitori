@@ -1,0 +1,199 @@
+{
+  "format": "mitori.lmstudio-explain-verification/1",
+  "date": "2026-10-11",
+  "sourceHead": "98c59a60866e094c90aa84fd53ef4e79c7e4d884",
+  "model": {
+    "key": "qwen/qwen3.8-27b",
+    "identifier": "mitori-verify-20261011",
+    "format": "gguf",
+    "downloadGB": 17.74,
+    "existingDownload": true,
+    "runtime": "llama.cpp-mac-arm64-apple-metal-advsimd@2.55.0",
+    "reasoningDefault": "xhigh",
+    "requestedContextLength": 4096,
+    "cliReportedContextLength": 262144,
+    "restInstanceContextLength": 262144,
+    "contextMismatchCause": "unverified; 4096 cannot be claimed to have taken effect"
+  },
+  "guards": {
+    "endpoint": "http://localhost:1234/v1",
+    "nonLoopbackHttpBlocked": true,
+    "outputTokens": 600,
+    "turnMs": 90000,
+    "applicationJobsPerRoute": 1,
+    "actualHttpCallsPerRoute": 1,
+    "repairMaxAttempts": 0,
+    "concurrency": 1,
+    "apiKey": false,
+    "downloads": 0,
+    "installations": 0,
+    "feeUsd": 0
+  },
+  "runs": {
+    "nix": {
+      "rawReportSha256": "4ad1885bbf720820bc6da9c5cad7b80d5a2ae5bfe0b74d7ebdf76a02dac1865f",
+      "provider": "lmstudio",
+      "route": "nix",
+      "runtime": "/nix/store/r3r97834m65jnxck0556h2s1i63fmhsx-bun-1.4.2/bin/bun",
+      "bunVersion": "1.4.2",
+      "model": "mitori-verify-20261011",
+      "outputCap": 600,
+      "turnMs": 90000,
+      "fixture": "go-small",
+      "createdAt": "2026-10-11T07:16:26.623Z",
+      "openMs": 180,
+      "estimate": {
+        "apiUsd": 0,
+        "inTokens": 1025,
+        "outTokens": 600,
+        "route": {
+          "mode": "answer",
+          "reason": "intent_question",
+          "model": "generic:mitori-verify-20261011",
+          "effort": "high",
+          "tools": "none",
+          "contract": "answer/1",
+          "requiresConfirm": false,
+          "anchoredLines": 3,
+          "files": 0
+        }
+      },
+      "runMs": 11244,
+      "job": {
+        "state": "done",
+        "attempt": 1,
+        "usage": {
+          "in": 766,
+          "cacheWrite": 0,
+          "cacheWrite1h": 0,
+          "cacheRead": 0,
+          "out": 213,
+          "apiUsd": 0,
+          "pricingVer": "generic-configured-reported@1"
+        },
+        "timings": {
+          "modelMs": 11145,
+          "wallMs": 11150
+        }
+      },
+      "answer": {
+        "present": true,
+        "chars": 98,
+        "citations": 1,
+        "validCitations": 1,
+        "invalidCitations": 0
+      },
+      "sourceUnchanged": true,
+      "llmCalls": 1,
+      "localResponse": {
+        "chars": 98,
+        "finishReason": "stop",
+        "servedModel": "mitori-verify-20261011"
+      },
+      "passed": true,
+      "cleanup": {
+        "daemonStopped": true,
+        "fixtureDeleted": true,
+        "homeDeleted": true
+      },
+      "semanticReview": "ISBN hyphens and spaces are removed and letters are uppercased; one valid source citation at internal/meta/fetch.go:40-42"
+    },
+    "local": {
+      "rawReportSha256": "04860b43ad628f5979baacfa2ed69ec7b6cf75fb21a904321ef5fb25f63db605",
+      "provider": "lmstudio",
+      "route": "local",
+      "runtime": "/Users/satoki252595/.bun/bin/bun",
+      "bunVersion": "1.4.2",
+      "model": "mitori-verify-20261011",
+      "outputCap": 600,
+      "turnMs": 90000,
+      "fixture": "go-small",
+      "createdAt": "2026-10-11T07:16:51.780Z",
+      "openMs": 196,
+      "estimate": {
+        "apiUsd": 0,
+        "inTokens": 1025,
+        "outTokens": 600,
+        "route": {
+          "mode": "answer",
+          "reason": "intent_question",
+          "model": "generic:mitori-verify-20261011",
+          "effort": "high",
+          "tools": "none",
+          "contract": "answer/1",
+          "requiresConfirm": false,
+          "anchoredLines": 3,
+          "files": 0
+        }
+      },
+      "runMs": 12127,
+      "job": {
+        "state": "done",
+        "attempt": 1,
+        "usage": {
+          "in": 767,
+          "cacheWrite": 0,
+          "cacheWrite1h": 0,
+          "cacheRead": 0,
+          "out": 266,
+          "apiUsd": 0,
+          "pricingVer": "generic-configured-reported@1"
+        },
+        "timings": {
+          "modelMs": 12089,
+          "wallMs": 12094
+        }
+      },
+      "answer": {
+        "present": true,
+        "chars": 90,
+        "citations": 1,
+        "validCitations": 1,
+        "invalidCitations": 0
+      },
+      "sourceUnchanged": true,
+      "llmCalls": 1,
+      "localResponse": {
+        "chars": 90,
+        "finishReason": "stop",
+        "servedModel": "mitori-verify-20261011"
+      },
+      "passed": true,
+      "cleanup": {
+        "daemonStopped": true,
+        "fixtureDeleted": true,
+        "homeDeleted": true
+      },
+      "semanticReview": "ISBN hyphens and spaces are removed and letters are uppercased; one valid source citation at internal/meta/fetch.go:40-42"
+    }
+  },
+  "cleanup": {
+    "rawReportSha256": "80a72246df7abf1b885d2256c351287c5a9f7d03e75b0e094b2d591d46bc77c3",
+    "date": "2026-10-11",
+    "identifier": "mitori-verify-20261011",
+    "unloadInvoked": true,
+    "unloadExitCode": 0,
+    "psExitCode": 0,
+    "serverStatusExitCode": 0,
+    "dedicatedModelAbsent": true,
+    "serverRunning": true,
+    "port": 1234,
+    "loadedModelCount": 0,
+    "otherModelCountBefore": 0,
+    "otherModelCountAfter": 0,
+    "otherModelsPreserved": true,
+    "serverStopInvoked": false,
+    "otherModelUnloadInvoked": false,
+    "interventionBaselineRestored": true,
+    "owned": {
+      "modelLoaded": false,
+      "serverStarted": false
+    }
+  },
+  "limitations": [
+    "Short go-small Explain only; repository-wide generation, structured patches, and large contexts are not verified.",
+    "Requested CLI context length differs from reported loaded configuration; these successful requests do not establish that the flag worked.",
+    "Server was already running immediately before intervention and was preserved; its earlier stopped-to-running transition has an unknown actor.",
+    "Local pricing is configured as zero and there is no paid remote inference; hardware and electricity are not measured."
+  ]
+}

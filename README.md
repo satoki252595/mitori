@@ -148,7 +148,7 @@ mitori内のAI変更はアンカーと対象範囲を確認し、side repoでテ
 
 | 環境 | 状況 |
 | --- | --- |
-| macOS Apple Silicon | Nix・通常Bun 1.4.2の起動、実Codex/Muse/Ollamaの短いExplainを確認。Chrome実操作・CodexのOSS文書生成も確認 |
+| macOS Apple Silicon | Nix・通常Bun 1.4.2の起動、実Codex/Muse/Ollama/LM Studioの短いExplainを確認。Chrome実操作・CodexのOSS文書生成も確認 |
 | Linux arm64 / Docker | frozen install、コンテナ内部の画面・設定プレビュー・MCP共通通信を確認。実LLM・ホストブラウザ接続は対象外 |
 | Linux x64 | バイナリビルド・バージョン表示と既存CIを検証済み。今回のDocker起動確認はarm64 |
 | Windows x64 | Nixクロスビルドと実Windows CI成功。native 7テスト、配布バイナリ内6チェック成功。通常Bun起動は現時点で対象外 |
@@ -162,11 +162,13 @@ mitori内のAI変更はアンカーと対象範囲を確認し、side repoでテ
 | Muse | 両方の設定プレビュー・実回答成功 | native 1.4.3、Contributor / max。現在の認証の課金先・サブスク枠は未確認 |
 | Ollama | 両方の設定プレビュー・実回答成功 | `qwen3-coder-next:latest`の短いExplainのみ。`qwen3:4b`は上記の失敗あり |
 | Claude Code | 両方の設定プレビュー成功 | CLIあり・ログアウト中。公式ログイン後の実回答は未確認 |
-| LM Studio | 両方の設定プレビュー成功 | アプリあり・ローカルサーバー未起動。モデル読み込みと開始後の実回答は未確認 |
+| LM Studio | 両方の設定プレビュー・実回答成功 | 取得済みGGUFで本文・引用を確認。有効引用各1件、不正0件、ローカル費用$0 |
 | Codex | 両方の設定プレビュー・MCP接続・実回答成功 | native 0.160.0 / gpt-6.1-sol。NixでJev/m3eの文書生成とソース照合も確認。請求額・契約残量は未確認 |
 | Cursor | 両方の設定プレビュー・公式CLIのMCP接続成功 | 隔離した設定で8ツールを取得。実セッションの文書生成は未確認 |
 | Grok Build | 両方の設定プレビュー・公式CLIのMCP接続成功 | 隔離した設定で8ツールを取得。公式ログイン状態・実生成は未確認 |
 | Antigravity | 両方の設定プレビュー・公式CLIの設定読込成功 | 公式ログイン状態・アプリでのMCP接続・実生成は未確認 |
+
+LM Studioの確認は取得済みGGUF `qwen/qwen3.8-27b`によるNix・通常ローカルの短いExplainまでで、本格的な文書生成は未検証です。[実検証記録](docs/progress/remaining-20261011/lmstudio-explain.md)。
 
 Codex・Cursor・GrokのMCP接続試験では、本物のCLIで初期化と8ツールの取得を確認しました。この接続試験では本人の設定・認証を変更せず、LLM要求も送っていません。Codex nativeの実回答・文書生成は別途確認しています。AntigravityのCLI設定一覧は接続確認にならないため、公式アプリの**Manage MCP Servers**でmitoriを再読み込みし、ツール表示を確認してください。DockerではClaude/Muse CLI未導入を正しく表示し、他の設定プレビューとMCP共通通信を確認しました。DockerでLLM認証・推論は行いません。[起動・LLM別の検証記録](docs/progress/startup-matrix-20261007/README.md)、[前回のmock・UI回帰](docs/progress/onboarding-20261006.md)、[LLM起動条件](docs/design/adr/0015-configurable-llm.md)。
 

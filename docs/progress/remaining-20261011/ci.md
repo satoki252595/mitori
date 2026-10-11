@@ -23,3 +23,11 @@ Macはload11.3823、既定の2回待機後もNOISYで、browser suite開始前�
 既存Chromium時間試験3件の限定診断は3pass / 4.8秒。card31〜47ms、open21〜33ms、level1.5〜12.1ms、TOC32〜49ms。ただしload11.99でreference条件外なので、正式CI成功へ読み替えない。levelのinput→rAF予約は1〜3ms、rAF待ちは0〜10.7ms、TOCは予約19〜24ms / rAF待ち12〜24.6ms。CIで見えた100ms成分はここでは再現せず、原因をcompositorと断定していない。統合headの元のCI gateで再確認する。
 
 引用入力・Go Node.type・読書位置の修正を含む統合checkは全7step成功（4.18秒、warm）。配布Mac binaryのSHA-256は `8d1f22762b6b56d9eae7181e61a144b1d8e607f1ff84808b9d9673d51387deb7`、embedded selftest6checks成功（1,075ms）。[strict assets](reader-fix-assets.json)全項目成功、初期JS54.697KB gzip / target60KB。正式CIの代わりには扱わない。
+
+## 修正後head98c59a6
+
+[CI run38119108193](https://github.com/satoki252595/mitori/actions/runs/38119108193)のUbuntuは成功。check全7項目63.04秒 / hard limit68.30秒、全20semantic builds / 0cached / 0errors。unit3,022pass / 134skip / 4todo / 0fail（121,956 assertions）、golden109pass / 4skip / 0fail（1,028 assertions）、fixtures verify・size・Linux binary build / versionが成功した。soft target34.15秒は未達のまま。
+
+Mac初回job114409967855はload9.7925でNOISY。失敗したMac jobだけ再実行した[job114412318444](https://github.com/satoki252595/mitori/actions/runs/38119108193/job/114412318444)はload8.4741 / quiet / ACだがfactor2.308816が既存0.9–1.1範囲外で、browser suite開始前に停止した。Ubuntuを再実行せず、上限・較正・基準機referenceは変更していない。旧headの5失敗は履歴として保持し、修正後の正式Mac suite成功とは扱わない。PR #13は未マージ。
+
+3回目も失敗したMac jobだけ再実行。[job114416752978](https://github.com/satoki252595/mitori/actions/runs/38119108193/job/114416752978)はload8.9409 / quiet / AC、factor1.899867が範囲外でbrowser開始前に停止した。dispatch直前のroot側はload8.5039 / factor1.084268だったが、別時点の測定なのでCIの合格や遅延原因の証明にしない。共有viewer / a11yの後続stepも未実行、Ubuntuの成功は保持した。
