@@ -78,30 +78,17 @@ const offKeys = keys.attach(window, {
   holdAlt: (on) => document.documentElement.classList.toggle("show-cites", on),
 });
 
+const catalogs = import.meta.glob<Record<string, string>>("../../i18n/{shell,map,reader}.{ja,en}.json", { eager: true, import: "default" });
 async function catalog(lang: "ja" | "en") {
-  const m = lang === "ja" ? await import("../shell/i18n-ja.ts") : await import("../shell/i18n-en.ts");
-  setCatalog(lang, await m.default);
-}
-const styles = fetch("/initial-css.json").then((r) => (r.ok ? (r.json() as Promise<Record<"map" | "doc", string[]>>) : { map: [], doc: [] }));
-const loadedCss = new Map<string, Promise<void>>();
-async function loadStyles(view: "map" | "doc") {
-  await Promise.all(
-    (await styles)[view].map((url) => {
-      if (!loadedCss.has(url))
-        loadedCss.set(
-          url,
-          new Promise<void>((resolve, reject) => {
-            if (document.querySelector(`link[rel=stylesheet][href="${CSS.escape(url)}"]`)) return resolve();
-            const link = document.createElement("link");
-            link.rel = "stylesheet";
-            link.href = url;
-            link.onload = () => resolve();
-            link.onerror = () => reject(new Error("initial stylesheet unavailable"));
-            document.head.append(link);
-          }),
-        );
-      return loadedCss.get(url)!;
-    }),
+  // Native map/Reader need only these namespaces. Settings and feature catalogs arrive with enhancement.
+  setCatalog(
+    lang,
+    Object.assign(
+      {},
+      ...Object.entries(catalogs)
+        .filter(([path]) => path.endsWith(`.${lang}.json`))
+        .map(([, data]) => data),
+    ),
   );
 }
 function persistUi() {
@@ -142,31 +129,37 @@ function viewKey(url: string) {
   return route.name;
 }
 
-async function loadView(initialReader?: NativeReaderState): Promise<void> {
+async function loadView(initialReader?: NativeReaderState, initial?: Partial<InitialUiState> & { firstRun?: boolean }): Promise<void> {
   const route = parseRoute(nativeUrl());
   if (route.name !== "map" && route.name !== "doc") return void (await enhance());
   const epoch = ++requestEpoch;
   const revision = uiRevision;
   const ui = {
-    ...state,
+    ...(initial ?? state),
     url: nativeUrl(),
     width: document.documentElement.clientWidth,
-    read: readMapOf(route.ws, state.course ?? "_any"),
+    read: readMapOf(route.ws, (initial ?? state).course ?? "_any"),
     welcomeDismissed: !!getItem("local", welcomeKey(route.ws)),
     mac: keys.mac,
   };
   const view = await clients.api.call("GET /ws/:ws/ui", { params: { ws: route.ws }, query: { url: ui.url, width: ui.width, ui: JSON.stringify(ui) } });
   if (enhanced || epoch !== requestEpoch || nativeUrl() !== ui.url) return;
-  await Promise.all([catalog(view.snapshot.ui.lang), loadStyles(route.name)]);
+  await catalog(view.snapshot.ui.lang);
   if (enhanced || epoch !== requestEpoch || nativeUrl() !== ui.url) return;
   if (revision !== uiRevision) {
     view.snapshot.ui.level = state.level;
     if (state.effort) view.snapshot.ui.effort = state.effort;
   }
   const camera = plan ? { ...plan.cam } : null;
+  // A same-page refresh must preserve reading done while its server view was loading.
+  if (initialReader) {
+    const live = reader?.capture();
+    if (live?.page === initialReader.page && live.ws === initialReader.ws) initialReader = live;
+  }
   disconnectView();
   stopDisclosure();
   snapshot = view.snapshot;
+  settingsVersion = snapshot.settings.version;
   state = snapshot.ui;
   persistUi();
   root.innerHTML = view.html;
@@ -839,39 +832,30 @@ async function boot() {
     await enhance();
     return;
   }
-  const settings = await clients.api.call("GET /settings", { params: {} });
-  settingsVersion = settings.version;
   const fields = parseUiCookieFields(cookieValue(readCookies()));
-  const ui = settings.settings.ui;
-  const level = firstRunLevel({ cookieHasLevel: fields.lv !== undefined, seen: getItem("local", FIRST_RUN_KEY) !== null, current: ui.readerLevel });
-  if (level)
-    void clients.api.call("PATCH /settings", {
-      params: {},
-      body: { version: snapshot?.settings.version ?? settingsVersion, patch: { ui: { readerLevel: level } } },
-    });
-  setItem("local", FIRST_RUN_KEY, new Date().toISOString().slice(0, 10));
-  state = {
-    url: nativeUrl(),
-    width: document.documentElement.clientWidth,
-    level: level ?? ui.readerLevel,
-    lang: ui.lang,
-    theme: ui.theme,
+  const seen = getItem("local", FIRST_RUN_KEY) !== null;
+  // The canonical view already includes current settings. Let its renderer apply those defaults in one request.
+  const initial = {
+    firstRun: fields.lv === undefined && !seen,
     railCollapsed: fields.rc === 1,
     codeWidth: fields.cw ?? null,
     course: getItem("session", STORAGE_KEYS.path(route.ws)),
-    read: readMapOf(route.ws, "_any"),
-    welcomeDismissed: !!getItem("local", welcomeKey(route.ws)),
-    mac: keys.mac,
     ...(fields.ef ? { effort: EFFORT_OF_CODE[fields.ef] } : {}),
   };
   try {
-    await loadView();
+    await loadView(undefined, initial);
+    const settings = snapshot?.settings;
+    if (settings) {
+      const level = firstRunLevel({ cookieHasLevel: fields.lv !== undefined, seen, current: settings.settings.ui.readerLevel });
+      if (level) void clients.api.call("PATCH /settings", { params: {}, body: { version: settings.version, patch: { ui: { readerLevel: level } } } });
+      setItem("local", FIRST_RUN_KEY, new Date().toISOString().slice(0, 10));
+    }
   } catch (err) {
     if (err instanceof MitoriError && err.code === "E_UNSUPPORTED") {
       await enhance();
       return;
     }
-    await catalog(state.lang);
+    await catalog(state?.lang ?? fields.lg ?? "ja");
     const main = document.createElement("main");
     main.id = "main";
     main.setAttribute("role", "alert");

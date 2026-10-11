@@ -3,7 +3,7 @@
 // blob × extractor caches. javascript/jsx also hash the tsx query: Flow files switch grammar (IDX-D5).
 import type { ExtractorVersion, SourceLang, Xxh3 } from "@mitori/core";
 import { GRAMMARS, type GrammarId, INDEXER_FORMAT, LANG_GRAMMAR } from "../contract.ts";
-import { auxQueryText } from "./aux.ts";
+import { auxQueryText } from "./auxiliary.ts";
 import { TAGS_QUERIES } from "./queries.ts";
 
 /** Version of the generic line-based extractor (spec §3.8); bump when its rules change. */

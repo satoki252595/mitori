@@ -1,7 +1,16 @@
 // Engine calls of loop jobs (spec §6.2 / §8): the scheduled request of a plan (the bridge enforces the CLI
 // invariants), the parking of patch processes for revise / invalid-output continuations, and folding a turn's
 // normalized events into the job's event log.
-import { type EngineResult, type EngineRun, type EngineSession, LOOP_PROMPTS, type LoopPromptId, type ScheduledRequest, WARM_POOL } from "@mitori/agent";
+import {
+  codexPreflight,
+  type EngineResult,
+  type EngineRun,
+  type EngineSession,
+  LOOP_PROMPTS,
+  type LoopPromptId,
+  type ScheduledRequest,
+  WARM_POOL,
+} from "@mitori/agent";
 import type { JobEvent, JobId, Usage } from "@mitori/core";
 import { AGENT_V1_ENGINE_SCHEMA, FINDINGS_V1_ENGINE_SCHEMA, PATCH_V1_ENGINE_SCHEMA } from "../contract.ts";
 import { DOCPATCH_SCHEMA } from "../contracts/docpatch.ts";
@@ -73,6 +82,10 @@ export function engineRequest(
     estimate: { in: plan.estimate.inTokens, out: plan.estimate.outTokens },
   };
   if (sendsSchema) req.jsonSchema = schema;
+  if (plan.route.engine === "codex-cli" && plan.mode !== "agent") {
+    // Input admission must use the native adapter's byte bound, rather than Claude's token allowance.
+    req.budget.inTokens = codexPreflight({ ...req, outTokens: req.budget.outTokens }, { inPerMTok: 0, outPerMTok: 0, cacheReadPerMTok: 0 }).inTokens;
+  }
   if (plan.scope.newFiles.length > 0 && plan.mode === "agent") req.newFiles = plan.scope.newFiles;
   return req;
 }

@@ -1,9 +1,16 @@
 /**
- * Lazy part of S1 (chunk `gen`, loaded right after the map chunk mounts): the generation card states, the room
- * card and the text view. None of them is needed for the first paint (the card column shows a same-size skeleton
- * meanwhile), so the map chunk stays the plan + page shell.
+ * Lazy generation card shell. Optional room/dialog/progress/error views load only when their state is shown.
+ * The server supplies these parts synchronously for canonical initial markup.
  */
 
-export { default as RoomCard } from "./RoomCard.svelte";
 export { default as SidePanel } from "./SidePanel.svelte";
-export { default as TextViewDialog } from "./TextViewDialog.svelte";
+
+export interface MapSide {
+  SidePanel: typeof import("./SidePanel.svelte").default;
+  RoomCard?: typeof import("./RoomCard.svelte").default | undefined;
+  TextViewDialog?: typeof import("./TextViewDialog.svelte").default | undefined;
+  GenProgress?: typeof import("../gen/GenProgress.svelte").default | undefined;
+  EngineCard?: typeof import("./EngineCard.svelte").default | undefined;
+  GenBreakdown?: typeof import("../gen/GenBreakdown.svelte").default | undefined;
+  GenDoneCard?: typeof import("../gen/GenDoneCard.svelte").default | undefined;
+}

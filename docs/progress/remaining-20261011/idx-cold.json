@@ -1,0 +1,2069 @@
+{
+  "schema": "mitori.remaining.idx-cold/1",
+  "checkedAt": "2026-10-11",
+  "status": "unresolved; no indexer/server production changes adopted",
+  "objective": {
+    "case": "idx.s01.cold.7kfiles",
+    "targetMs": 1200,
+    "limitMs": 1500,
+    "scale": "machine",
+    "budgetsChanged": false
+  },
+  "source": {
+    "sha256": "18782d181f2b0684fb5697e40e86175a85d2b97c7c0f98dff66ec9a9a57156c8",
+    "files": 3918,
+    "baseCommit": "efd9c1d1a9dba256f5a18bde551abc1d7841ce8e",
+    "frozenAt": "2026-10-10T23:50:48.202Z",
+    "dependencies": "Existing project Nix runtime; external node_modules symlinked read-only by convention; workspace package symlinks target the frozen export.",
+    "rawDirectory": "/tmp/mitori-idx-cold-20261011",
+    "restoredFiles": [
+      {
+        "path": "packages/indexer/src/parse/batch.ts",
+        "shared": "05fbdb1ca63c477cc577963d075c9dbf6adcfcbf2c2f2f54358b19dc4f71e3fd",
+        "frozen": "05fbdb1ca63c477cc577963d075c9dbf6adcfcbf2c2f2f54358b19dc4f71e3fd"
+      },
+      {
+        "path": "packages/server/src/workers/protocol.ts",
+        "shared": "cae07519dabcd5b9df6cdb99d9fdc5b86a8d0967c93cee3007dc433854e94905",
+        "frozen": "cae07519dabcd5b9df6cdb99d9fdc5b86a8d0967c93cee3007dc433854e94905"
+      }
+    ],
+    "driverSha256": "3db7efb2ea9c6995a086868ec18c16fd4e0bd8f34fcb1e3ebb41dd1337098a1c",
+    "windowsSafeRenamesIncluded": true
+  },
+  "corpus": {
+    "name": "gostd",
+    "url": "https://github.com/golang/go",
+    "commit": "862c888e612ac346c7c4d99c9392bdfd265f33b0",
+    "tag": "go1.27.1",
+    "tree": "cdb027640162ada52eac600797bff595a5767479",
+    "depth": 1,
+    "subdir": "src",
+    "exclude": [
+      "testdata"
+    ],
+    "contentHash": "f21c254a8a653ec14936cd32ed622e0bc059991af174edf0952f62c4a9c14a2a",
+    "role": "7k files / 100MB class (*.7kfiles); a plain directory with no .git, opened through the shadow path; resolved on the first online fetch"
+  },
+  "corpusObserved": {
+    "contentHash": "f21c254a8a653ec14936cd32ed622e0bc059991af174edf0952f62c4a9c14a2a",
+    "files": 7687,
+    "included": 6009,
+    "parseCandidates": 6539
+  },
+  "environment": {
+    "runtime": "project Nix via scripts/nd; no new dependency",
+    "cpu": "Apple M5 Max",
+    "cores": 18,
+    "ramGiB": 128,
+    "os": "Darwin 27.0.0",
+    "bun": "1.4.2",
+    "node": "22.23.3",
+    "power": "ac",
+    "load": "ABBA run-specific loadavg retained below; above existing quiet threshold of 9 in these samples",
+    "sandbox": {
+      "observedError": "sysctl: sysctl fmt -1 1024 1: Operation not permitted",
+      "hardware": {
+        "cores": 18,
+        "perfCores": null
+      },
+      "parseWorkers": 8
+    },
+    "normal": {
+      "route": "require_escalated after observed sandbox denial",
+      "hardware": {
+        "cores": 18,
+        "perfCores": 6
+      },
+      "parseWorkers": 6
+    }
+  },
+  "diagnostics": {
+    "canonicalMainProfile": {
+      "ms": 1977.629958,
+      "timings": {
+        "s0": 255.55116600000002,
+        "workersStart": 17.50883299999998,
+        "s1": 1716.787958,
+        "s2": 0,
+        "s3": 0,
+        "s4": 0,
+        "total": 1974.7698330000003,
+        "persist": 2970.714834,
+        "fts": null,
+        "filesParsed": 6539,
+        "cacheHits": 0,
+        "workers": 8,
+        "readMs": 1099.4663600000029,
+        "parseMs": 5307.7737389999975,
+        "queryMs": 3729.967764000001,
+        "degraded": 2
+      },
+      "rssPeakMB": 1104.28125,
+      "files": 7687,
+      "included": 6009,
+      "counters": {
+        "idx.files.hashed": 6539,
+        "idx.parse.calls": 5907,
+        "idx.sql.writes": 36
+      },
+      "loadavg": [
+        12.93017578125,
+        12.51708984375,
+        13.3359375
+      ],
+      "availableParallelism": 18,
+      "fingerprint": {
+        "blobs": {
+          "rows": 6490,
+          "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+        },
+        "symbols": {
+          "rows": 133602,
+          "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+        },
+        "skeleton": {
+          "rows": 11997,
+          "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+        }
+      }
+    },
+    "inlineProfile": {
+      "ms": 8898.022417,
+      "timings": {
+        "s0": 114.143417,
+        "workersStart": 0.042541999999997415,
+        "s1": 8778.022667000001,
+        "s2": 0,
+        "s3": 0,
+        "s4": 0,
+        "total": 8895.273459,
+        "persist": null,
+        "fts": null,
+        "filesParsed": 6539,
+        "cacheHits": 0,
+        "workers": 1,
+        "readMs": 268.38384299998137,
+        "parseMs": 4436.216472999967,
+        "queryMs": 2866.1442980000575,
+        "degraded": 2
+      },
+      "files": 7687,
+      "included": 6009,
+      "stats": {
+        "parses": 5311,
+        "deletes": 5311,
+        "files": 6540,
+        "bytes": 66022726
+      }
+    },
+    "mainPostProbe": {
+      "ms": 1720.353916,
+      "timings": {
+        "s0": 116.82637499999998,
+        "workersStart": 16.996708000000012,
+        "s1": 1598.789875,
+        "s2": 0,
+        "s3": 0,
+        "s4": 0,
+        "total": 1717.6770000000001,
+        "persist": 2544.9325,
+        "fts": null,
+        "filesParsed": 6539,
+        "cacheHits": 0,
+        "workers": 8,
+        "readMs": 354.49971600000396,
+        "parseMs": 5269.277193000002,
+        "queryMs": 3625.119867000004,
+        "degraded": 2
+      },
+      "rssPeakMB": 1092,
+      "files": 7687,
+      "included": 6009,
+      "counters": {
+        "idx.files.hashed": 6539,
+        "idx.parse.calls": 5907,
+        "idx.sql.writes": 36
+      },
+      "loadavg": [
+        11.60498046875,
+        12.1455078125,
+        13.13623046875
+      ],
+      "availableParallelism": 18,
+      "fingerprint": {
+        "blobs": {
+          "rows": 6490,
+          "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+        },
+        "symbols": {
+          "rows": 133602,
+          "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+        },
+        "skeleton": {
+          "rows": 11997,
+          "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+        }
+      },
+      "postCalls": [
+        {
+          "start": 240.830708,
+          "ms": 1.8602920000000154,
+          "init": true,
+          "items": 0,
+          "bytes": 0
+        },
+        {
+          "start": 242.767333,
+          "ms": 2.133708999999982,
+          "init": true,
+          "items": 0,
+          "bytes": 0
+        },
+        {
+          "start": 244.971333,
+          "ms": 1.2741250000000264,
+          "init": true,
+          "items": 0,
+          "bytes": 0
+        },
+        {
+          "start": 246.285875,
+          "ms": 1.7146669999999915,
+          "init": true,
+          "items": 0,
+          "bytes": 0
+        },
+        {
+          "start": 248.057583,
+          "ms": 2.183917000000008,
+          "init": true,
+          "items": 0,
+          "bytes": 0
+        },
+        {
+          "start": 250.31,
+          "ms": 2.8748329999999953,
+          "init": true,
+          "items": 0,
+          "bytes": 0
+        },
+        {
+          "start": 253.272042,
+          "ms": 2.60583299999999,
+          "init": true,
+          "items": 0,
+          "bytes": 0
+        },
+        {
+          "start": 255.952458,
+          "ms": 1.3846249999999998,
+          "init": true,
+          "items": 0,
+          "bytes": 0
+        },
+        {
+          "start": 261.1205,
+          "ms": 0.03145799999998644,
+          "init": false,
+          "items": 2,
+          "bytes": 1580105
+        },
+        {
+          "start": 261.184542,
+          "ms": 0.00874999999996362,
+          "init": false,
+          "items": 3,
+          "bytes": 1433538
+        },
+        {
+          "start": 261.199958,
+          "ms": 0.006666999999993095,
+          "init": false,
+          "items": 3,
+          "bytes": 1094522
+        },
+        {
+          "start": 261.209542,
+          "ms": 0.008874999999989086,
+          "init": false,
+          "items": 4,
+          "bytes": 1328360
+        },
+        {
+          "start": 261.220708,
+          "ms": 0.0060839999999871,
+          "init": false,
+          "items": 4,
+          "bytes": 1138347
+        },
+        {
+          "start": 261.22825,
+          "ms": 0.007666999999969448,
+          "init": false,
+          "items": 5,
+          "bytes": 1259083
+        },
+        {
+          "start": 261.2375,
+          "ms": 0.007542000000000826,
+          "init": false,
+          "items": 5,
+          "bytes": 1120895
+        },
+        {
+          "start": 261.253,
+          "ms": 0.007875000000012733,
+          "init": false,
+          "items": 6,
+          "bytes": 1093868
+        },
+        {
+          "start": 273.093667,
+          "ms": 0.027958000000012362,
+          "init": false,
+          "items": 7,
+          "bytes": 1071445
+        },
+        {
+          "start": 273.175792,
+          "ms": 0.018250000000023192,
+          "init": false,
+          "items": 8,
+          "bytes": 1037358
+        },
+        {
+          "start": 274.477917,
+          "ms": 0.025791000000026543,
+          "init": false,
+          "items": 10,
+          "bytes": 1130505
+        },
+        {
+          "start": 399.751333,
+          "ms": 0.031208999999989828,
+          "init": false,
+          "items": 11,
+          "bytes": 1118541
+        },
+        {
+          "start": 415.468,
+          "ms": 0.02945799999997689,
+          "init": false,
+          "items": 12,
+          "bytes": 1109001
+        },
+        {
+          "start": 421.570833,
+          "ms": 0.03620899999998528,
+          "init": false,
+          "items": 13,
+          "bytes": 1084706
+        },
+        {
+          "start": 456.778875,
+          "ms": 0.034374999999954525,
+          "init": false,
+          "items": 14,
+          "bytes": 1051549
+        },
+        {
+          "start": 478.894167,
+          "ms": 0.033666000000039276,
+          "init": false,
+          "items": 15,
+          "bytes": 1054008
+        },
+        {
+          "start": 507.643375,
+          "ms": 0.05358300000000327,
+          "init": false,
+          "items": 16,
+          "bytes": 1078519
+        },
+        {
+          "start": 530.715542,
+          "ms": 0.039874999999938154,
+          "init": false,
+          "items": 17,
+          "bytes": 1079352
+        },
+        {
+          "start": 537.520042,
+          "ms": 0.04062499999997726,
+          "init": false,
+          "items": 18,
+          "bytes": 1063442
+        },
+        {
+          "start": 567.2395,
+          "ms": 0.05487499999992451,
+          "init": false,
+          "items": 19,
+          "bytes": 1056051
+        },
+        {
+          "start": 607.08975,
+          "ms": 0.046749999999974534,
+          "init": false,
+          "items": 20,
+          "bytes": 1048219
+        },
+        {
+          "start": 609.976958,
+          "ms": 0.03520900000000893,
+          "init": false,
+          "items": 22,
+          "bytes": 1078345
+        },
+        {
+          "start": 628.795917,
+          "ms": 0.04304100000001654,
+          "init": false,
+          "items": 23,
+          "bytes": 1065707
+        },
+        {
+          "start": 636.605708,
+          "ms": 0.04774999999995089,
+          "init": false,
+          "items": 24,
+          "bytes": 1043299
+        },
+        {
+          "start": 646.526875,
+          "ms": 0.0439169999999649,
+          "init": false,
+          "items": 26,
+          "bytes": 1069250
+        },
+        {
+          "start": 679.046,
+          "ms": 0.05487499999992451,
+          "init": false,
+          "items": 27,
+          "bytes": 1050426
+        },
+        {
+          "start": 708.554292,
+          "ms": 0.08024999999997817,
+          "init": false,
+          "items": 29,
+          "bytes": 1060037
+        },
+        {
+          "start": 739.799333,
+          "ms": 0.0661249999999427,
+          "init": false,
+          "items": 30,
+          "bytes": 1044467
+        },
+        {
+          "start": 741.428375,
+          "ms": 0.06033300000001418,
+          "init": false,
+          "items": 32,
+          "bytes": 1048519
+        },
+        {
+          "start": 760.74925,
+          "ms": 0.05941700000005312,
+          "init": false,
+          "items": 34,
+          "bytes": 1059652
+        },
+        {
+          "start": 774.901167,
+          "ms": 0.0881249999999909,
+          "init": false,
+          "items": 36,
+          "bytes": 1056692
+        },
+        {
+          "start": 792.88375,
+          "ms": 0.06850000000008549,
+          "init": false,
+          "items": 38,
+          "bytes": 1046721
+        },
+        {
+          "start": 793.935333,
+          "ms": 0.062958999999978,
+          "init": false,
+          "items": 40,
+          "bytes": 1051491
+        },
+        {
+          "start": 824.474667,
+          "ms": 0.07270800000003419,
+          "init": false,
+          "items": 42,
+          "bytes": 1048368
+        },
+        {
+          "start": 872.206458,
+          "ms": 0.07279200000004948,
+          "init": false,
+          "items": 45,
+          "bytes": 1049390
+        },
+        {
+          "start": 909.416542,
+          "ms": 0.07341599999995196,
+          "init": false,
+          "items": 47,
+          "bytes": 1034351
+        },
+        {
+          "start": 913.181792,
+          "ms": 0.10149999999998727,
+          "init": false,
+          "items": 51,
+          "bytes": 1043553
+        },
+        {
+          "start": 928.708292,
+          "ms": 0.6687079999999241,
+          "init": false,
+          "items": 54,
+          "bytes": 1045976
+        },
+        {
+          "start": 956.3435,
+          "ms": 0.09637500000008004,
+          "init": false,
+          "items": 57,
+          "bytes": 1049405
+        },
+        {
+          "start": 975.638542,
+          "ms": 0.327666000000022,
+          "init": false,
+          "items": 60,
+          "bytes": 1044045
+        },
+        {
+          "start": 994.552958,
+          "ms": 0.12800000000004275,
+          "init": false,
+          "items": 64,
+          "bytes": 1041232
+        },
+        {
+          "start": 1031.890833,
+          "ms": 0.08929200000011406,
+          "init": false,
+          "items": 64,
+          "bytes": 966059
+        },
+        {
+          "start": 1071.41525,
+          "ms": 0.09362499999997453,
+          "init": false,
+          "items": 64,
+          "bytes": 908128
+        },
+        {
+          "start": 1126.026833,
+          "ms": 0.10166700000013407,
+          "init": false,
+          "items": 64,
+          "bytes": 864372
+        },
+        {
+          "start": 1127.520167,
+          "ms": 0.1049160000000029,
+          "init": false,
+          "items": 64,
+          "bytes": 816510
+        },
+        {
+          "start": 1140.354833,
+          "ms": 0.08920899999998255,
+          "init": false,
+          "items": 64,
+          "bytes": 770587
+        },
+        {
+          "start": 1169.958542,
+          "ms": 0.1101659999999356,
+          "init": false,
+          "items": 64,
+          "bytes": 733622
+        },
+        {
+          "start": 1172.421458,
+          "ms": 0.11104199999999764,
+          "init": false,
+          "items": 64,
+          "bytes": 696566
+        },
+        {
+          "start": 1176.739208,
+          "ms": 0.08537500000011278,
+          "init": false,
+          "items": 64,
+          "bytes": 662749
+        },
+        {
+          "start": 1205.824083,
+          "ms": 0.10054200000013225,
+          "init": false,
+          "items": 64,
+          "bytes": 635859
+        },
+        {
+          "start": 1247.761042,
+          "ms": 0.1224579999998241,
+          "init": false,
+          "items": 64,
+          "bytes": 607114
+        },
+        {
+          "start": 1302.467167,
+          "ms": 0.13425000000006548,
+          "init": false,
+          "items": 64,
+          "bytes": 580242
+        },
+        {
+          "start": 1311.155292,
+          "ms": 0.09487500000000182,
+          "init": false,
+          "items": 64,
+          "bytes": 555445
+        },
+        {
+          "start": 1315.133625,
+          "ms": 0.10020800000006602,
+          "init": false,
+          "items": 64,
+          "bytes": 532191
+        },
+        {
+          "start": 1319.817042,
+          "ms": 0.1353750000000673,
+          "init": false,
+          "items": 64,
+          "bytes": 513204
+        },
+        {
+          "start": 1320.967875,
+          "ms": 0.10500000000001819,
+          "init": false,
+          "items": 64,
+          "bytes": 493066
+        },
+        {
+          "start": 1322.201958,
+          "ms": 0.10304199999995944,
+          "init": false,
+          "items": 64,
+          "bytes": 470206
+        },
+        {
+          "start": 1363.63175,
+          "ms": 0.10833299999990231,
+          "init": false,
+          "items": 64,
+          "bytes": 445884
+        },
+        {
+          "start": 1388.987042,
+          "ms": 0.09474999999997635,
+          "init": false,
+          "items": 64,
+          "bytes": 426351
+        },
+        {
+          "start": 1420.915875,
+          "ms": 0.09991700000000492,
+          "init": false,
+          "items": 64,
+          "bytes": 407529
+        },
+        {
+          "start": 1451.881042,
+          "ms": 0.09329099999990831,
+          "init": false,
+          "items": 64,
+          "bytes": 388905
+        },
+        {
+          "start": 1464.728875,
+          "ms": 0.12895800000001145,
+          "init": false,
+          "items": 64,
+          "bytes": 372902
+        },
+        {
+          "start": 1468.576333,
+          "ms": 0.11020899999994072,
+          "init": false,
+          "items": 64,
+          "bytes": 357391
+        },
+        {
+          "start": 1469.563625,
+          "ms": 0.10533299999997325,
+          "init": false,
+          "items": 64,
+          "bytes": 340851
+        },
+        {
+          "start": 1470.865833,
+          "ms": 0.09912499999995816,
+          "init": false,
+          "items": 64,
+          "bytes": 326547
+        },
+        {
+          "start": 1477.770917,
+          "ms": 0.11062500000002728,
+          "init": false,
+          "items": 64,
+          "bytes": 314909
+        },
+        {
+          "start": 1492.370625,
+          "ms": 0.08937500000001819,
+          "init": false,
+          "items": 64,
+          "bytes": 302281
+        },
+        {
+          "start": 1509.231625,
+          "ms": 0.12883300000021336,
+          "init": false,
+          "items": 64,
+          "bytes": 289739
+        },
+        {
+          "start": 1562.210417,
+          "ms": 0.10679099999993014,
+          "init": false,
+          "items": 64,
+          "bytes": 278440
+        },
+        {
+          "start": 1570.590667,
+          "ms": 0.18558299999995143,
+          "init": false,
+          "items": 64,
+          "bytes": 268427
+        },
+        {
+          "start": 1574.952333,
+          "ms": 0.23195899999996072,
+          "init": false,
+          "items": 64,
+          "bytes": 259136
+        },
+        {
+          "start": 1576.159875,
+          "ms": 0.1904580000000351,
+          "init": false,
+          "items": 64,
+          "bytes": 249112
+        },
+        {
+          "start": 1586.242708,
+          "ms": 0.1383339999999862,
+          "init": false,
+          "items": 64,
+          "bytes": 239890
+        },
+        {
+          "start": 1590.3905,
+          "ms": 0.10820800000010422,
+          "init": false,
+          "items": 64,
+          "bytes": 231393
+        },
+        {
+          "start": 1591.257208,
+          "ms": 0.11337499999990541,
+          "init": false,
+          "items": 64,
+          "bytes": 223351
+        },
+        {
+          "start": 1592.178917,
+          "ms": 0.09850000000005821,
+          "init": false,
+          "items": 64,
+          "bytes": 216006
+        },
+        {
+          "start": 1636.447333,
+          "ms": 0.10983399999986432,
+          "init": false,
+          "items": 64,
+          "bytes": 207461
+        },
+        {
+          "start": 1642.527583,
+          "ms": 0.1124170000000504,
+          "init": false,
+          "items": 64,
+          "bytes": 199544
+        },
+        {
+          "start": 1643.72375,
+          "ms": 0.09091699999999037,
+          "init": false,
+          "items": 64,
+          "bytes": 192699
+        },
+        {
+          "start": 1645.324958,
+          "ms": 0.12520900000004076,
+          "init": false,
+          "items": 64,
+          "bytes": 185349
+        },
+        {
+          "start": 1646.029167,
+          "ms": 0.07141599999999926,
+          "init": false,
+          "items": 64,
+          "bytes": 179587
+        },
+        {
+          "start": 1647.838875,
+          "ms": 0.1277500000001055,
+          "init": false,
+          "items": 64,
+          "bytes": 171829
+        },
+        {
+          "start": 1648.797792,
+          "ms": 0.0889159999999265,
+          "init": false,
+          "items": 64,
+          "bytes": 163616
+        },
+        {
+          "start": 1649.466875,
+          "ms": 0.08233299999983501,
+          "init": false,
+          "items": 64,
+          "bytes": 155668
+        },
+        {
+          "start": 1680.878833,
+          "ms": 0.12012499999991633,
+          "init": false,
+          "items": 64,
+          "bytes": 149529
+        },
+        {
+          "start": 1687.9975,
+          "ms": 0.09500000000002728,
+          "init": false,
+          "items": 64,
+          "bytes": 143400
+        },
+        {
+          "start": 1688.470625,
+          "ms": 0.07679200000006858,
+          "init": false,
+          "items": 64,
+          "bytes": 137692
+        },
+        {
+          "start": 1692.827625,
+          "ms": 0.08441700000003038,
+          "init": false,
+          "items": 64,
+          "bytes": 131773
+        },
+        {
+          "start": 1693.45075,
+          "ms": 0.07716699999991761,
+          "init": false,
+          "items": 64,
+          "bytes": 125109
+        },
+        {
+          "start": 1693.959625,
+          "ms": 0.07600000000002183,
+          "init": false,
+          "items": 64,
+          "bytes": 119636
+        },
+        {
+          "start": 1694.397458,
+          "ms": 0.07833400000004076,
+          "init": false,
+          "items": 64,
+          "bytes": 115009
+        },
+        {
+          "start": 1695.6995,
+          "ms": 0.08970799999997325,
+          "init": false,
+          "items": 64,
+          "bytes": 110366
+        },
+        {
+          "start": 1723.638,
+          "ms": 0.10133300000006784,
+          "init": false,
+          "items": 64,
+          "bytes": 104971
+        },
+        {
+          "start": 1727.386625,
+          "ms": 0.10449999999991633,
+          "init": false,
+          "items": 64,
+          "bytes": 99714
+        },
+        {
+          "start": 1730.065667,
+          "ms": 0.09841599999981554,
+          "init": false,
+          "items": 64,
+          "bytes": 95371
+        },
+        {
+          "start": 1731.688167,
+          "ms": 0.08816600000000108,
+          "init": false,
+          "items": 64,
+          "bytes": 90404
+        },
+        {
+          "start": 1739.21075,
+          "ms": 0.1140419999999267,
+          "init": false,
+          "items": 64,
+          "bytes": 85565
+        },
+        {
+          "start": 1740.133792,
+          "ms": 0.11104099999988648,
+          "init": false,
+          "items": 64,
+          "bytes": 81582
+        },
+        {
+          "start": 1740.628292,
+          "ms": 0.10974999999984902,
+          "init": false,
+          "items": 64,
+          "bytes": 77678
+        },
+        {
+          "start": 1746.518417,
+          "ms": 0.10058299999991505,
+          "init": false,
+          "items": 64,
+          "bytes": 73666
+        },
+        {
+          "start": 1752.696667,
+          "ms": 0.11599999999998545,
+          "init": false,
+          "items": 64,
+          "bytes": 70477
+        },
+        {
+          "start": 1754.778542,
+          "ms": 0.12324999999987085,
+          "init": false,
+          "items": 64,
+          "bytes": 67196
+        },
+        {
+          "start": 1757.167458,
+          "ms": 0.11045899999999165,
+          "init": false,
+          "items": 64,
+          "bytes": 63616
+        },
+        {
+          "start": 1758.864708,
+          "ms": 0.1974169999998594,
+          "init": false,
+          "items": 64,
+          "bytes": 59866
+        },
+        {
+          "start": 1762.254167,
+          "ms": 0.08895800000004783,
+          "init": false,
+          "items": 64,
+          "bytes": 56836
+        },
+        {
+          "start": 1763.448792,
+          "ms": 0.11200000000008004,
+          "init": false,
+          "items": 64,
+          "bytes": 54004
+        },
+        {
+          "start": 1764.676417,
+          "ms": 0.10129100000017388,
+          "init": false,
+          "items": 64,
+          "bytes": 51089
+        },
+        {
+          "start": 1770.63175,
+          "ms": 0.09929199999987759,
+          "init": false,
+          "items": 64,
+          "bytes": 48487
+        },
+        {
+          "start": 1772.064917,
+          "ms": 0.09958300000016607,
+          "init": false,
+          "items": 64,
+          "bytes": 45948
+        },
+        {
+          "start": 1772.572,
+          "ms": 0.12450000000012551,
+          "init": false,
+          "items": 64,
+          "bytes": 43456
+        },
+        {
+          "start": 1774.254958,
+          "ms": 0.08529199999998127,
+          "init": false,
+          "items": 64,
+          "bytes": 41370
+        },
+        {
+          "start": 1774.79275,
+          "ms": 0.08591699999988123,
+          "init": false,
+          "items": 64,
+          "bytes": 39362
+        },
+        {
+          "start": 1776.558833,
+          "ms": 0.07129199999985758,
+          "init": false,
+          "items": 64,
+          "bytes": 37335
+        },
+        {
+          "start": 1778.286542,
+          "ms": 0.08620799999994233,
+          "init": false,
+          "items": 64,
+          "bytes": 35170
+        },
+        {
+          "start": 1779.840083,
+          "ms": 0.07741699999996854,
+          "init": false,
+          "items": 64,
+          "bytes": 32991
+        },
+        {
+          "start": 1785.735167,
+          "ms": 0.12604099999998652,
+          "init": false,
+          "items": 64,
+          "bytes": 30789
+        },
+        {
+          "start": 1786.505208,
+          "ms": 0.1172919999999067,
+          "init": false,
+          "items": 64,
+          "bytes": 29176
+        },
+        {
+          "start": 1786.852458,
+          "ms": 0.10933399999998983,
+          "init": false,
+          "items": 64,
+          "bytes": 27839
+        },
+        {
+          "start": 1787.322583,
+          "ms": 0.07575000000019827,
+          "init": false,
+          "items": 64,
+          "bytes": 25877
+        },
+        {
+          "start": 1788.637333,
+          "ms": 0.13404200000013589,
+          "init": false,
+          "items": 64,
+          "bytes": 24188
+        },
+        {
+          "start": 1789.541958,
+          "ms": 0.07741699999996854,
+          "init": false,
+          "items": 64,
+          "bytes": 22810
+        },
+        {
+          "start": 1789.808333,
+          "ms": 0.0753340000001117,
+          "init": false,
+          "items": 64,
+          "bytes": 21084
+        },
+        {
+          "start": 1794.420375,
+          "ms": 0.09699999999997999,
+          "init": false,
+          "items": 64,
+          "bytes": 19702
+        },
+        {
+          "start": 1794.614958,
+          "ms": 0.07162500000004002,
+          "init": false,
+          "items": 64,
+          "bytes": 18668
+        },
+        {
+          "start": 1795.57525,
+          "ms": 0.11387500000000728,
+          "init": false,
+          "items": 64,
+          "bytes": 17210
+        },
+        {
+          "start": 1795.925,
+          "ms": 0.0810830000000351,
+          "init": false,
+          "items": 64,
+          "bytes": 15220
+        },
+        {
+          "start": 1796.717583,
+          "ms": 0.08779199999980847,
+          "init": false,
+          "items": 64,
+          "bytes": 12823
+        },
+        {
+          "start": 1797.417875,
+          "ms": 0.06391699999994671,
+          "init": false,
+          "items": 42,
+          "bytes": 5615
+        }
+      ]
+    },
+    "workerProbe": {
+      "ms": 1772.923708,
+      "timings": {
+        "s0": 118.470708,
+        "workersStart": 19.334292000000005,
+        "s1": 1649.212,
+        "s2": 0,
+        "s3": 0,
+        "s4": 0,
+        "total": 1770.3993750000002,
+        "persist": 2526.0565420000003,
+        "fts": null,
+        "filesParsed": 6539,
+        "cacheHits": 0,
+        "workers": 8,
+        "readMs": 336.85066499999596,
+        "parseMs": 5262.343248999996,
+        "queryMs": 3603.914444999994,
+        "degraded": 2
+      },
+      "rssPeakMB": 1116.296875,
+      "files": 7687,
+      "included": 6009,
+      "counters": {
+        "idx.files.hashed": 6539,
+        "idx.parse.calls": 5907,
+        "idx.sql.writes": 36
+      },
+      "loadavg": [
+        9.84130859375,
+        11.5625,
+        12.85107421875
+      ],
+      "availableParallelism": 18,
+      "fingerprint": {
+        "blobs": {
+          "rows": 6490,
+          "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+        },
+        "symbols": {
+          "rows": 133602,
+          "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+        },
+        "skeleton": {
+          "rows": 11997,
+          "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+        }
+      }
+    },
+    "workerLogSample": [
+      {
+        "id": 1,
+        "start": 24.124667,
+        "handle": 6.158583,
+        "post": 0.023792000000000257,
+        "after": 1.3668329999999997
+      },
+      {
+        "id": 2,
+        "start": 23.546083,
+        "handle": 4.366292000000001,
+        "post": 0.01695799999999892,
+        "after": 2.783792000000002
+      }
+    ],
+    "wasmExports": {
+      "file": "node_modules/web-tree-sitter/web-tree-sitter.wasm",
+      "exports": [
+        {
+          "name": "ts_parser_delete",
+          "index": 144
+        },
+        {
+          "name": "ts_parser_reset",
+          "index": 40
+        },
+        {
+          "name": "ts_parser_set_language",
+          "index": 143
+        },
+        {
+          "name": "ts_parser_set_included_ranges",
+          "index": 58
+        },
+        {
+          "name": "ts_query_new",
+          "index": 141
+        },
+        {
+          "name": "ts_query_delete",
+          "index": 74
+        },
+        {
+          "name": "ts_query_copy",
+          "index": 140
+        },
+        {
+          "name": "ts_query_pattern_count",
+          "index": 139
+        },
+        {
+          "name": "ts_query_capture_count",
+          "index": 138
+        },
+        {
+          "name": "ts_query_string_count",
+          "index": 137
+        },
+        {
+          "name": "ts_query_capture_name_for_id",
+          "index": 136
+        },
+        {
+          "name": "ts_query_capture_quantifier_for_id",
+          "index": 135
+        },
+        {
+          "name": "ts_query_string_value_for_id",
+          "index": 134
+        },
+        {
+          "name": "ts_query_predicates_for_pattern",
+          "index": 133
+        },
+        {
+          "name": "ts_query_start_byte_for_pattern",
+          "index": 132
+        },
+        {
+          "name": "ts_query_end_byte_for_pattern",
+          "index": 131
+        },
+        {
+          "name": "ts_query_is_pattern_rooted",
+          "index": 130
+        },
+        {
+          "name": "ts_query_is_pattern_non_local",
+          "index": 129
+        },
+        {
+          "name": "ts_query_is_pattern_guaranteed_at_step",
+          "index": 287
+        },
+        {
+          "name": "ts_query_disable_capture",
+          "index": 286
+        },
+        {
+          "name": "ts_query_disable_pattern",
+          "index": 285
+        },
+        {
+          "name": "ts_parser_new_wasm",
+          "index": 273
+        },
+        {
+          "name": "ts_parser_enable_logger_wasm",
+          "index": 272
+        },
+        {
+          "name": "ts_parser_parse_wasm",
+          "index": 270
+        },
+        {
+          "name": "ts_parser_included_ranges_wasm",
+          "index": 267
+        },
+        {
+          "name": "ts_node_parse_state_wasm",
+          "index": 188
+        },
+        {
+          "name": "ts_node_next_parse_state_wasm",
+          "index": 187
+        },
+        {
+          "name": "ts_query_matches_wasm",
+          "index": 186
+        },
+        {
+          "name": "ts_query_captures_wasm",
+          "index": 184
+        }
+      ]
+    },
+    "interpretation": {
+      "parseWasm": {
+        "functionIndex": 270,
+        "name": "ts_parser_parse_wasm",
+        "inlineTotalMs": 4460,
+        "inlineTotalPercent": 45.7
+      },
+      "queryMatches": {
+        "inlineTotalMs": 1690,
+        "inlineTotalPercent": 17.3
+      },
+      "progressCallback": {
+        "inlineTotalMs": 16.5
+      },
+      "workerDirectSumsMs": {
+        "handle": 10817.844083,
+        "resultPost": 367.445835,
+        "fullGcAfter": 1246.217671
+      },
+      "mainBatchPost": {
+        "requests": 128,
+        "totalMs": 11.975751,
+        "maxMs": 0.669
+      },
+      "limits": [
+        "CPU profiles cover the full process including initialization, persistence and fingerprinting; native postMessage sampled attribution is not direct call latency.",
+        "Inline profile uses one handler and no production Worker/clone/GC; it is diagnostic only.",
+        "Worker instrumentation changes scheduling slightly and was restored after measuring."
+      ]
+    }
+  },
+  "comparisons": [
+    {
+      "id": "batch256-w8",
+      "design": "ABBA, same frozen source except one batch cap, new Bun process and fresh indexer home per run, existing pinned corpus",
+      "baseline": {
+        "msMedian": 1765.8463335000001,
+        "rssMedianMB": 1112.703125
+      },
+      "candidate": {
+        "msMedian": 2004.868729,
+        "rssMedianMB": 997.375
+      },
+      "wallChangePercent": 13.535854789031676,
+      "rssChangePercent": -10.364680606069122,
+      "runs": [
+        {
+          "variant": "baseline",
+          "ms": 1767.8774580000002,
+          "timings": {
+            "s0": 119.92550000000001,
+            "workersStart": 18.340375000000023,
+            "s1": 1643.463417,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1765.6091660000002,
+            "persist": 2658.8185839999996,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 1049.0913479999979,
+            "parseMs": 5071.948779999994,
+            "queryMs": 3524.0146780000114,
+            "degraded": 2
+          },
+          "rssPeakMB": 1110.59375,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            13.7509765625,
+            12.91845703125,
+            13.1875
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        },
+        {
+          "variant": "candidate",
+          "ms": 1998.301083,
+          "timings": {
+            "s0": 125.85858300000001,
+            "workersStart": 17.58129200000002,
+            "s1": 1867.315417,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1995.916875,
+            "persist": 2661.2869169999994,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 331.6082060000055,
+            "parseMs": 5350.216852,
+            "queryMs": 3716.8310090000077,
+            "degraded": 2
+          },
+          "rssPeakMB": 996.515625,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            13.8173828125,
+            12.9677734375,
+            13.2021484375
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        },
+        {
+          "variant": "candidate",
+          "ms": 2011.436375,
+          "timings": {
+            "s0": 124.88679200000001,
+            "workersStart": 17.765541999999982,
+            "s1": 1875.8107920000002,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 2006.341,
+            "persist": 2546.0602499999995,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 345.5582209999916,
+            "parseMs": 5444.632525999999,
+            "queryMs": 3779.503403999994,
+            "degraded": 2
+          },
+          "rssPeakMB": 998.234375,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            13.75146484375,
+            12.96826171875,
+            13.20068359375
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        },
+        {
+          "variant": "baseline",
+          "ms": 1763.8152089999999,
+          "timings": {
+            "s0": 111.57837500000001,
+            "workersStart": 16.638457999999986,
+            "s1": 1647.162291,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1761.055958,
+            "persist": 2455.385709,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 344.8779679999842,
+            "parseMs": 5341.989891999989,
+            "queryMs": 3628.0176259999944,
+            "degraded": 2
+          },
+          "rssPeakMB": 1114.8125,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            13.61083984375,
+            12.9521484375,
+            13.193359375
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "release-result-w8",
+      "design": "ABBA, same frozen source except released worker result, new Bun process and fresh indexer home per run, existing pinned corpus",
+      "baseline": {
+        "msMedian": 1605.7464795,
+        "rssMedianMB": 1120.3671875
+      },
+      "candidate": {
+        "msMedian": 1596.244937,
+        "rssMedianMB": 1103.65625
+      },
+      "wallChangePercent": -0.5917212101227087,
+      "rssChangePercent": -1.491558989449604,
+      "runs": [
+        {
+          "variant": "baseline",
+          "ms": 1632.580709,
+          "timings": {
+            "s0": 114.77216700000001,
+            "workersStart": 16.907916999999998,
+            "s1": 1512.935,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1630.106375,
+            "persist": 2559.348459,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 328.3771829999986,
+            "parseMs": 5051.172113000008,
+            "queryMs": 3459.586429999994,
+            "degraded": 2
+          },
+          "rssPeakMB": 1121.421875,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            11.58349609375,
+            12.568359375,
+            13.033203125
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        },
+        {
+          "variant": "candidate",
+          "ms": 1582.385833,
+          "timings": {
+            "s0": 111.625833,
+            "workersStart": 16.600416999999993,
+            "s1": 1465.165917,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1579.261916,
+            "persist": 2376.4778749999996,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 295.6481670000007,
+            "parseMs": 4923.961213999995,
+            "queryMs": 3291.564584000005,
+            "degraded": 2
+          },
+          "rssPeakMB": 1091.375,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            11.37646484375,
+            12.5087890625,
+            13.00927734375
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        },
+        {
+          "variant": "candidate",
+          "ms": 1610.104041,
+          "timings": {
+            "s0": 116.52112499999998,
+            "workersStart": 15.518666000000024,
+            "s1": 1488.918209,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1607.627459,
+            "persist": 2346.755084,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 299.1195120000087,
+            "parseMs": 5001.50906199999,
+            "queryMs": 3310.0582499999973,
+            "degraded": 2
+          },
+          "rssPeakMB": 1115.9375,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            11.10595703125,
+            12.43359375,
+            12.9794921875
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        },
+        {
+          "variant": "baseline",
+          "ms": 1578.91225,
+          "timings": {
+            "s0": 113.147125,
+            "workersStart": 15.951833999999991,
+            "s1": 1461.242125,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1576.5593330000002,
+            "persist": 2392.560458,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 319.4612699999831,
+            "parseMs": 4991.965310999999,
+            "queryMs": 3332.145690999999,
+            "degraded": 2
+          },
+          "rssPeakMB": 1119.3125,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            10.93701171875,
+            12.37646484375,
+            12.9560546875
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "release-result-w6",
+      "design": "ABBA, same frozen source except released worker result, new Bun process and fresh indexer home per run, existing pinned corpus",
+      "baseline": {
+        "msMedian": 2270.979354,
+        "rssMedianMB": 1005.3671875
+      },
+      "candidate": {
+        "msMedian": 2159.040271,
+        "rssMedianMB": 1008.9765625
+      },
+      "wallChangePercent": -4.929110553243731,
+      "rssChangePercent": 0.3590106226736278,
+      "runs": [
+        {
+          "variant": "baseline",
+          "ms": 2259.196333,
+          "timings": {
+            "s0": 101.77587500000001,
+            "workersStart": 11.607,
+            "s1": 2153.3606250000003,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 2257.159708,
+            "persist": 2471.251791,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 6,
+            "readMs": 1015.9193860000055,
+            "parseMs": 4846.16040500001,
+            "queryMs": 3332.3369110000094,
+            "degraded": 2
+          },
+          "rssPeakMB": 980.140625,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            11.880859375,
+            12.46630859375,
+            12.9599609375
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        },
+        {
+          "variant": "candidate",
+          "ms": 2159.64925,
+          "timings": {
+            "s0": 101.314666,
+            "workersStart": 11.927458999999999,
+            "s1": 2054.130041,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 2157.46925,
+            "persist": 2458.999917,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 6,
+            "readMs": 278.937118000016,
+            "parseMs": 4906.729517000004,
+            "queryMs": 3262.436663000004,
+            "degraded": 2
+          },
+          "rssPeakMB": 1028.046875,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            11.81005859375,
+            12.44189453125,
+            12.9482421875
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        },
+        {
+          "variant": "candidate",
+          "ms": 2158.431292,
+          "timings": {
+            "s0": 109.31270800000001,
+            "workersStart": 13.111000000000018,
+            "s1": 2044.6730420000001,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 2156.163333,
+            "persist": 2474.6460420000003,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 6,
+            "readMs": 315.8324090000092,
+            "parseMs": 4952.401426000006,
+            "queryMs": 3295.2721019999913,
+            "degraded": 2
+          },
+          "rssPeakMB": 989.90625,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            11.7333984375,
+            12.40869140625,
+            12.9306640625
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        },
+        {
+          "variant": "baseline",
+          "ms": 2282.7623750000002,
+          "timings": {
+            "s0": 109.59979100000001,
+            "workersStart": 14.566457999999983,
+            "s1": 2169.086417,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 2280.7401250000003,
+            "persist": 2467.327333,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 6,
+            "readMs": 322.5916089999989,
+            "parseMs": 5154.826219999986,
+            "queryMs": 3500.3394610000096,
+            "degraded": 2
+          },
+          "rssPeakMB": 1030.59375,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            11.43408203125,
+            12.33544921875,
+            12.9013671875
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "decision": {
+    "batch256": "rejected: wall time +13.54%; unchanged fingerprints and lower RSS do not offset regression",
+    "releaseResult": "not adopted: W8 improvement only ~0.59%, W6 ~4.93%, two runs per variant under load; below goal is not established",
+    "outputIdentity": "Every comparison preserved exact ordered SQL rows in idx_blobs (excluding parse_ms/last_used), idx_symbols and idx_skeleton; no query, extractor version, diagnostics, timeout, GC cadence or Worker-sizing constants changed."
+  },
+  "limitations": [
+    "Fixed ABBA with two runs per variant; OS page cache is not dropped.",
+    "Fresh Bun process and empty home are the canonical cold-index conditions; they do not mean cold OS disk cache.",
+    "No calibration factor was measured for these raw diagnostic comparisons. The existing absolute gate remains unchanged and no green absolute result is claimed.",
+    "All run loads exceeded the existing quiet threshold, so hard-budget compliance needs the unmodified standard runner on a quiet reference machine.",
+    "Normal Mac W6 and sandbox W8 are separate comparisons and must not be combined into one before/after result."
+  ],
+  "next": "Run the unchanged standard bench case on a quiet reference machine. Any deeper parser/query candidate must preserve exact rows and diagnostics, then pass same-condition comparison; do not substitute W8 fallback or relax the 1500ms limit.",
+  "validation": {
+    "runIdentity": "12 runs: exact output/counters/files/parsed/degraded identity",
+    "restoration": "Shared and frozen SHA-256 equal for both candidate files",
+    "jsonAndWhitespace": "passed",
+    "diffCheck": "passed",
+    "biome": {
+      "exit": 1,
+      "processed": 0,
+      "reason": "Existing configuration ignores docs; not a successful formatter run"
+    },
+    "productionRegressionTests": "not run: no production code adopted"
+  },
+  "formalFollowup": {
+    "evidence": "idx-formal.json",
+    "status": "unresolved; one formal invocation completed but measured factor/load are outside reference conditions and median exceeds both raw and scaled limits",
+    "sha": "3f401b31a0298fa398537f8bc079cc0d9991ff40",
+    "startedAt": "2026-10-11T05:01:32.665Z",
+    "factor": 1.9029292845039472,
+    "noisy": true,
+    "loadavg": 16.5478515625,
+    "medianMs": 3872.3302089999997,
+    "p95Ms": 4776.409041999999,
+    "rssMeasuredMedianMiB": 985.140625,
+    "repeated": false,
+    "candidateAdopted": false
+  }
+}

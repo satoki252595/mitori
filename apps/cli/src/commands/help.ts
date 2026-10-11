@@ -125,7 +125,8 @@ mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in
   --model ID                     ローカル/任意APIのモデル（Grok既定grok-4.7、Muse既定contributor）
   --repo /absolute/repo          Codex/Cursor/Antigravity/Grokの外部セッションとMCP対象
   --api                         Grokで外部セッションの代わりに有料APIを選択
-  --binary /absolute/path        Claude/Museの実行ファイル（Museはnative binary）
+  --native --max-estimated-usd N Codexのサブスク認証で直接実行（推計上限、厳密な費用上限ではない）
+  --binary /absolute/path        Claude/Muse/Codex nativeの実行ファイル
   --base-url URL --key-env NAME  OpenAI互換APIのURLとキーの環境変数名（キー自体は保存しない）
   --in-price N --out-price N     任意remoteモデルのUSD/百万token単価
   --effort low|medium|high|xhigh|max  Museの推論強度（既定max、HTTPへは送らない）
@@ -137,7 +138,8 @@ mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in
   --model ID                     Required for local/custom APIs; Grok defaults to grok-4.7, Muse to contributor
   --repo /absolute/repo          External Codex/Cursor/Antigravity/Grok session and MCP workspace
   --api                         Select metered Grok API instead of an existing external session
-  --binary /absolute/path        Claude/Muse executable (Muse: native binary)
+  --native --max-estimated-usd N Run Codex directly with subscription auth (estimated, not hard spending cap)
+  --binary /absolute/path        Claude/Muse/Codex native executable
   --base-url URL --key-env NAME  OpenAI-compatible URL and credential environment variable name
   --in-price N --out-price N     Custom remote model prices in USD per million tokens
   --effort low|medium|high|xhigh|max  Muse reasoning effort (default max; HTTP does not send effort)

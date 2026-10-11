@@ -51,6 +51,17 @@ describe("#9 first-turn input limit", () => {
       expect(req.persistSession).toBe(false);
     }
   });
+
+  test("Codex admits its exact conservative byte bound for a Japanese bundle and schema", () => {
+    const p = plan("patch", 1000);
+    p.route.engine = "codex-cli";
+    p.route.decision.model = "codex:gpt-6.1-sol";
+    p.bundle.text = "日本語の根拠".repeat(500);
+    const req = engineRequest(p, "j_1" as JobId, ctx([]));
+    expect(req.budget.inTokens).toBe(bytes(req.system) + bytes(req.prompt) + bytes(JSON.stringify(PATCH_V1_ENGINE_SCHEMA)) + 2048);
+    expect(req.budget.usd).toBe(p.budget.usd);
+    expect(req.keepAlive).toBe(false);
+  });
 });
 
 describe("F10 fixed reads in the estimate", () => {

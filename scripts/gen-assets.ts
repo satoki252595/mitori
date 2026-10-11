@@ -150,7 +150,7 @@ export async function buildInitialUi(outDir: string): Promise<void> {
     },
   });
 }
-/** Keep a variant only when it saves at least 5 %. */
+/** Precompress a file when at least one encoding saves 5 %. */
 const worthIt = (raw: Uint8Array, packed: Uint8Array) => packed.length < raw.length * 0.95;
 
 /** Write `.br` / `.gz` next to every compressible file under `dir`; returns the URL map (repo-relative paths). */
@@ -166,11 +166,9 @@ export function precompress(dir: string): Record<string, WebEntry> {
       const raw = readFileSync(file);
       const br = brotliCompressSync(raw, { params: { [constants.BROTLI_PARAM_QUALITY]: 11, [constants.BROTLI_PARAM_SIZE_HINT]: raw.length } });
       const gz = gzipSync(raw, { level: 9 });
-      if (worthIt(raw, br)) {
+      if (worthIt(raw, br) || worthIt(raw, gz)) {
         writeFileSync(`${file}.br`, br);
         entry.br = `${entry.raw}.br`;
-      }
-      if (worthIt(raw, gz)) {
         writeFileSync(`${file}.gz`, gz);
         entry.gz = `${entry.raw}.gz`;
       }

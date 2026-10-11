@@ -6,7 +6,7 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSecretScanner, type GateSpec, type JobId } from "@mitori/core";
 import { createFsReader, createSafeWriter, createSpawner, detectGateSandbox, systemClock } from "@mitori/platform";
-import { createTestHome, type TestHome } from "@mitori/testkit";
+import { createTestHome, type TestHome } from "@mitori/testkit/home";
 import { runOnCopies } from "./copies.ts";
 import { createGateRunner, gateEnv } from "./runner.ts";
 import { HIDDEN_SOCKET_DIRS } from "./sandbox.ts";

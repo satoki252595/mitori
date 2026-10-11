@@ -1,0 +1,75 @@
+{
+  "checkedAt": "2026-10-11",
+  "sourceHead": "06ed15f",
+  "workingTree": true,
+  "command": "scripts/nd bun run bench --suite ui --list --json",
+  "caseCount": 24,
+  "cases": [
+    "ui.card.optimistic",
+    "ui.cls.boot",
+    "ui.cls.gen",
+    "ui.cls.gen.start",
+    "ui.codeLines.mounted",
+    "ui.dom.max",
+    "ui.dom.typical",
+    "ui.firstUseful.100k",
+    "ui.floorplan.nodes",
+    "ui.heap.10k",
+    "ui.inp",
+    "ui.inp.p75",
+    "ui.inputRender.1000",
+    "ui.level",
+    "ui.listeners.reader",
+    "ui.palette",
+    "ui.palette.worker",
+    "ui.readerOpen",
+    "ui.reviewDiff5000.dom",
+    "ui.scanSummary",
+    "ui.section",
+    "ui.shellPaint",
+    "ui.shortcut",
+    "ui.staleBadge"
+  ],
+  "discoveryRegression": {
+    "command": "scripts/nd bun test bench/runner/runner.test.ts --test-name-pattern 'discovery and selection'",
+    "pass": 7,
+    "fail": 0,
+    "assertions": 21
+  },
+  "playwrightConfig": {
+    "command": "MITORI_MACHINE_FACTOR=1 scripts/nd bun run e2e --project perf --list",
+    "exitCode": 0,
+    "tests": 13,
+    "files": 6,
+    "measurement": false
+  },
+  "oldIssues": {
+    "selectionAndNode": {
+      "issue": 4,
+      "run": "https://github.com/satoki252595/mitori/actions/runs/37232772858",
+      "cause": "The runner checkout was nested under node_modules/.cache/mitori-runner. Absolute-path discovery discarded all cases and Node refused TypeScript config loading below node_modules.",
+      "currentRunnerRoot": ".mitori/cache/github-runner",
+      "currentDiscovery": "Exclude node_modules relative to bench, not the checkout ancestors.",
+      "remaining": "Node perf 13 cases and compiled Chromium a11y 8 cases passed; timing remains conditional on reference-machine policy."
+    },
+    "ui": {
+      "issue": 10,
+      "run": "https://github.com/satoki252595/mitori/actions/runs/37388556801",
+      "timeouts": [
+        "ui.card.optimistic",
+        "ui.staleBadge",
+        "ui.codeLines.mounted",
+        "ui.dom.max",
+        "ui.inputRender.1000",
+        "ui.reviewDiff5000.dom"
+      ],
+      "readerOpenRequests": 36,
+      "readerOpenLimit": 6,
+      "shellPaintMedianMs": 983.9,
+      "shellPaintLimitMs": 500,
+      "indexCold7kMedianMs": 1880,
+      "indexCold7kLimitMs": 1500
+    }
+  },
+  "llmCalls": 0
+}

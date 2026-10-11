@@ -52,6 +52,8 @@ export function providerSetupCommand(
   input: {
     provider: SetupProvider;
     api?: boolean;
+    native?: boolean;
+    maxEstimatedUsd?: number | undefined;
     model?: string;
     repo?: string | undefined;
     baseUrl?: string;
@@ -62,16 +64,23 @@ export function providerSetupCommand(
   launcher?: LauncherCommand | undefined,
 ): string {
   if (!SETUP_PROVIDERS.includes(input.provider)) throw new Error("settings.providerInvalid");
+  if (input.native && input.provider !== "codex") throw new Error("settings.providerInvalid");
   const args: string[] = [];
   const add = (flag: string, value: string) => {
     args.push(flag, shellQuote(value));
   };
   const model = input.model?.trim();
   if (model && (/\s/u.test(model) || [...model].some((c) => c.charCodeAt(0) < 32))) throw new Error("settings.providerInvalid");
-  if (["codex", "cursor", "antigravity"].includes(input.provider) || (input.provider === "grok" && !input.api)) {
+  if ((["codex", "cursor", "antigravity"].includes(input.provider) && !input.native) || (input.provider === "grok" && !input.api)) {
     if (!input.repo?.trim() || [...input.repo].some((c) => c.charCodeAt(0) < 32)) throw new Error("settings.providerInvalid");
     add("--repo", input.repo.trim());
   } else {
+    if (input.native) {
+      if (input.maxEstimatedUsd === undefined || !Number.isFinite(input.maxEstimatedUsd) || input.maxEstimatedUsd <= 0)
+        throw new Error("settings.providerInvalid");
+      args.push("--native");
+      add("--max-estimated-usd", String(input.maxEstimatedUsd));
+    }
     if (input.provider === "grok") args.push("--api");
     let remoteApi = false;
     if (["ollama", "lmstudio", "openai"].includes(input.provider) && !model) throw new Error("settings.providerInvalid");
@@ -90,6 +99,7 @@ export function providerSetupCommand(
     const cloud = ["ollama", "lmstudio"].includes(input.provider) && /(?:[:-]cloud)$/i.test(model ?? "");
     const needsPrices =
       input.provider === "openai" ||
+      (input.provider === "codex" && !!model && model !== "gpt-6.1-sol") ||
       (input.provider === "muse" && !!model && model !== "muse-spark-1.3-contributor") ||
       (input.provider === "grok" && !!model && model !== "grok-4.7") ||
       (["ollama", "lmstudio"].includes(input.provider) && remoteApi) ||

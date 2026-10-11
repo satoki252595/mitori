@@ -14,7 +14,11 @@ export interface FoundBench {
 /** All cases of the tree at `root`, ordered by file then export order. Duplicate ids are an error. */
 export async function discover(root: string): Promise<FoundBench[]> {
   if (!existsSync(join(root, "bench"))) return [];
-  const files = [...new Glob("**/*.bench.ts").scanSync({ cwd: join(root, "bench"), absolute: true })].filter((f) => !f.includes("/node_modules/")).sort();
+  const bench = join(root, "bench");
+  const files = [...new Glob("**/*.bench.ts").scanSync({ cwd: bench })]
+    .filter((f) => !f.split(/[\\/]/).includes("node_modules"))
+    .map((f) => join(bench, f))
+    .sort();
   const found: FoundBench[] = [];
   const seen = new Map<string, string>();
   for (const file of files) {

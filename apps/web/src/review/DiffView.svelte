@@ -75,7 +75,7 @@ async function mountCm(list: readonly FileDiff[], split: boolean) {
     const [{ EditorView, lineNumbers }, { EditorState }, merge] = await Promise.all([
       import("@codemirror/view"),
       import("@codemirror/state"),
-      import("@codemirror/merge"),
+      import("./merge.ts"),
     ]);
     for (const v of views) v.destroy();
     views = [];

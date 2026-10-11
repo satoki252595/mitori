@@ -45,6 +45,8 @@ const glid = (n: number) => id("gl_", n, 8) as `gl_${string}`;
 
 export interface FixtureOptions {
   generated: boolean;
+  /** A cold scan completes when the outline's staticReady gate opens. */
+  coldScan?: boolean;
   /** Blocks on the big module page s6/big (0 = no big page). */
   bigBlocks: number;
   engine: "ok" | "notInstalled" | "notLoggedIn" | "capabilityLost";

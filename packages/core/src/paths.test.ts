@@ -4,7 +4,7 @@ import { parseRepoPath, repoPath } from "./paths.ts";
 
 describe("CORE-U-008 RepoPath validation", () => {
   test("accepts normal repo-relative paths", () => {
-    for (const p of ["a", "src/index.ts", ".github/workflows/ci.yml", "a b/c.md", "設計/図.md", ".env"])
+    for (const p of ["a", "src/index.ts", ".github/workflows/ci.yml", "a b/c.md", "設計/図.md", ".env", "enc/#hash?.ts", "enc/#hash%3F.ts"])
       expect(parseRepoPath(p)).toEqual({ ok: true, value: p });
   });
 

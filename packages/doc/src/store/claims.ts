@@ -1,21 +1,11 @@
 // Claim bookkeeping for the store: verdicts, marker canonicalization, link-group ↔ claim matching (§10.3).
-import type { BlockLock, Cite, Claim, ClaimChecks, Iso8601, Verdict } from "@mitori/core";
+import { type BlockLock, type Cite, type Claim, type ClaimChecks, computeVerdict, type Iso8601, type Verdict } from "@mitori/core";
 import { markerPositions, normalizeMarkers } from "../codec/cite.ts";
 import type { CiteLinkGroup } from "../contract.ts";
 
-/**
- * Verdict of a claim [UXP-06] (core `Verdict` doc wins over gen §7.2): human-verified > stale (L2) > unsupported
- * (L0 false, L3 U, or L1 fail without L3 S) > inferred (no cite, L3 P) > cited (L1 vacuous) > verified.
- */
+/** Use the same verdict truth table as generation [CR m1-17, UXP-06]. */
 export function verdictOf(checks: ClaimChecks, cites: readonly Cite[], lock: BlockLock | undefined): Verdict {
-  if (lock === "human-verified") return "human-verified";
-  if (cites.length > 0 && !checks.l2) return "stale";
-  if (!checks.l0 || checks.l3 === "U") return "unsupported";
-  if (cites.length === 0) return "inferred";
-  if (checks.l1 === "fail" && checks.l3 !== "S") return "unsupported";
-  if (checks.l3 === "P") return "inferred";
-  if (checks.l1 === "vacuous") return "cited";
-  return "verified";
+  return computeVerdict({ checks, cites: cites.length, anyStale: false, ...(lock ? { lock } : {}) });
 }
 
 /** Checks of a cite parsed from Markdown that has not been stamped yet (re-stamped right after). */

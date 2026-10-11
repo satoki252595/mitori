@@ -1,0 +1,123 @@
+{
+  "checkedAt": "2026-10-11",
+  "workingTree": true,
+  "binary": "compiled",
+  "stats": {
+    "startTime": "2026-10-10T23:49:27.219Z",
+    "duration": 14912.106,
+    "expected": 4,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cases": [
+    {
+      "title": "cold open of crit: shell, first useful screen, boot CLS, DOM",
+      "file": "perf/first-use.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4217
+        }
+      ],
+      "annotations": [
+        {
+          "type": "measure",
+          "description": "{\"shellPaint\":282.5,\"firstUseful\":3469.5,\"dom\":757,\"mapNodes\":425,\"cls\":0}"
+        },
+        {
+          "type": "budget-warning",
+          "description": "ui.firstUseful.100k = 3469.5 ms is over its target 3000 (limit 5000)"
+        }
+      ]
+    },
+    {
+      "title": "Reader open: requests, DOM and event listeners",
+      "file": "perf/reader.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 894
+        }
+      ],
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/perf/reader.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "measure",
+          "description": "{\"rendered\":42.2998046875,\"dom\":2058,\"requests\":6}"
+        },
+        {
+          "type": "counter",
+          "description": "ui.fetch.readerOpen = 6: /w/WS/doc/s8 /assets/boot-BxpKEnWT.js /assets/rolldown-runtime-DK3Fl9T5.js /assets/initial-CxGPntV5.css /api/v1/ws/WS/ui /api/v1/events"
+        },
+        {
+          "type": "measure",
+          "description": "listeners {\"total\":8,\"root\":8,\"elements\":1,\"types\":{\"toggle\":1,\"click\":1,\"pointerover\":1,\"pointerout\":1,\"focusin\":1,\"focusout\":1,\"pointerup\":1,\"pointerdown\":1}}"
+        }
+      ]
+    },
+    {
+      "title": "section transitions through the TOC",
+      "file": "perf/reader.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 466
+        }
+      ],
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/perf/reader.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "measure",
+          "description": "[56.200000047683716,31.700000047683716,31,31.199999928474426,31.100000023841858,30.700000047683716]"
+        },
+        {
+          "type": "measure",
+          "description": "{\"sectionActions\":[{\"clickToPaint\":56.200000047683716,\"actionToPaint\":87.39999997615814,\"actionability\":31.199999928474426},{\"clickToPaint\":31.700000047683716,\"actionToPaint\":44.10000002384186,\"actionability\":12.399999976158142},{\"clickToPaint\":31,\"actionToPaint\":58.299999952316284,\"actionability\":27.299999952316284},{\"clickToPaint\":31.199999928474426,\"actionToPaint\":69.29999995231628,\"actionability\":38.10000002384186},{\"clickToPaint\":31.100000023841858,\"actionToPaint\":56.5,\"actionability\":25.399999976158142},{\"clickToPaint\":30.700000047683716,\"actionToPaint\":50.700000047683716,\"actionability\":20}]}"
+        }
+      ]
+    },
+    {
+      "title": "CLI spawn to painted scan summary on crit",
+      "file": "perf/scan-summary.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3676
+        }
+      ],
+      "annotations": [
+        {
+          "type": "measure",
+          "description": "{\"scanSummary\":3312.10009765625}"
+        },
+        {
+          "type": "budget-warning",
+          "description": "ui.scanSummary = 3312.10009765625 ms is over its limit 2000 — reported only: the machine factor was not measured (run through `bun run e2e`)"
+        }
+      ]
+    }
+  ]
+}

@@ -47,7 +47,7 @@ export function modelOf(
   let effort: ReasoningEffort | null = modeEffort !== undefined ? modeEffort : spec.effort;
   if (key === "genOverview") effort = s.global.reasoning.genOverview;
   else if (key === "genModule") effort = s.global.reasoning.gen;
-  if (engine === "generic") effort = key === "genOverview" ? s.global.reasoning.genOverview : s.global.reasoning.gen;
+  if (engine === "generic" || engine === "codex-cli") effort = key === "genOverview" ? s.global.reasoning.genOverview : s.global.reasoning.gen;
   if (engine === "anthropic-api" && model === "claude-haiku-4-5") effort = null;
   return { model, effort };
 }

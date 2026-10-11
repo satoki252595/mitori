@@ -8,7 +8,8 @@ import { join } from "node:path";
 import { createSecretScanner, DEFAULT_DENY_GLOBS, type Glob, type Sha256, type WorkspaceInfo, type WriteQueue } from "@mitori/core";
 import { createFsReader, createGitReader, createHasher, createSafeWriter, createSpawner, systemClock } from "@mitori/platform";
 import { createTestLogger, memDb } from "@mitori/platform/testing";
-import { buildFixture, createTestHome, type FixtureName, type FixtureRepo, type TestHome } from "@mitori/testkit";
+import { buildFixture, type FixtureName, type FixtureRepo } from "@mitori/testkit/fixtures";
+import { createTestHome, type TestHome } from "@mitori/testkit/home";
 import { LOOP_MIGRATIONS } from "../../review/index.ts";
 import { createGitSafety, type GitSafetyDeps, type GitSafetyHandle } from "../safety.ts";
 

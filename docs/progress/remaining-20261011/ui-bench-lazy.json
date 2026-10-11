@@ -1,0 +1,76 @@
+{
+  "checkedAt": "2026-10-11",
+  "workingTree": true,
+  "newDependencies": false,
+  "llmCalls": 0,
+  "mockBrowser": {
+    "initial": {
+      "command": "MOCK_PORT=44318 scripts/nd node node_modules/@playwright/test/cli.js test e2e/web/first-run.pw.ts e2e/web/initial-ui.pw.ts e2e/web/palette.pw.ts e2e/web/gen-card.pw.ts e2e/web/map.pw.ts -c e2e/web/playwright.config.ts --project=chromium",
+      "passed": 32,
+      "failed": 4,
+      "cause": "Optional components that were visible in native markup were missing during the first enhanced click replay."
+    },
+    "failedOnly": {
+      "command": "MOCK_PORT=44318 scripts/nd node node_modules/@playwright/test/cli.js test e2e/web/gen-card.pw.ts e2e/web/map.pw.ts -c e2e/web/playwright.config.ts --project=chromium --grep 'engine card instead|S1 flows:'",
+      "passed": 4,
+      "failed": 0
+    },
+    "finalGen": {
+      "command": "MOCK_PORT=44318 scripts/nd node node_modules/@playwright/test/cli.js test e2e/web/gen-card.pw.ts -c e2e/web/playwright.config.ts --project=chromium --grep 'generated summary|closed breakdown|acknowledged engine'",
+      "passed": 2,
+      "failed": 1,
+      "cause": "The new test used .reader, but the existing Reader main is .doc. Navigation had succeeded."
+    },
+    "failedOnlyGen": {
+      "command": "MOCK_PORT=44318 scripts/nd node node_modules/@playwright/test/cli.js test e2e/web/gen-card.pw.ts -c e2e/web/playwright.config.ts --project=chromium --grep 'generated summary'",
+      "passed": 1,
+      "failed": 0,
+      "assertion": "First native generated-summary button opens a Reader URL and renders an actual .blk[data-b] block."
+    },
+    "lazyAssertions": [
+      "Empty palette does not request action registry or prose index.",
+      "Action query loads action registry but not prose index.",
+      "Ordinary prose query loads the index and returns text results.",
+      "Closed gen breakdown does not load its optional component; first open loads one GenBreakdown asset and renders engine alternatives and rows."
+    ]
+  },
+  "precompression": {
+    "command": "scripts/nd bun test scripts/gen-assets.test.ts --test-name-pattern precompression",
+    "passed": 1,
+    "failed": 0,
+    "assertions": 9,
+    "regression": "A short facade for which Brotli saves >=5% but gzip does not still has both stored variants; a one-byte asset remains raw."
+  },
+  "reviewDiff5000": {
+    "command": "MITORI_E2E_BINARY=compiled scripts/nd node node_modules/@playwright/test/cli.js test e2e/perf/dom.spec.ts -c e2e/harness/playwright.config.ts --project=perf --workers=1 --grep 'ui-review-diff-5000'",
+    "passed": 1,
+    "failed": 0,
+    "durationMs": 3400
+  },
+  "webTypes": {
+    "command": "scripts/nd bunx tsc -b apps/web --pretty false",
+    "exitCode": 0
+  },
+  "svelte": {
+    "command": "scripts/nd bunx svelte-check --workspace apps/web --tsconfig ./tsconfig.json --fail-on-warnings",
+    "errors": 0,
+    "warnings": 0
+  },
+  "biome": {
+    "files": 31,
+    "exitCode": 0,
+    "errors": 0,
+    "warnings": 9,
+    "note": "Existing noNonNullAssertion warnings in initial/main.ts; no unsafe autofixes applied."
+  },
+  "build": {
+    "command": "scripts/nd bun run scripts/build-bin.ts",
+    "binary": "dist/mitori-darwin-arm64",
+    "exitCode": 0
+  },
+  "remaining": [
+    "Reference-machine timing verification.",
+    "scanSummary final observed 3312.1ms exceeds 2000ms; direct Playwright run without a machine factor reports timing only.",
+    "Old idx.s01.cold.7kfiles remains under investigation by the cold/indexer owner."
+  ]
+}

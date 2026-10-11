@@ -6,10 +6,27 @@ import { MitoriError } from "@mitori/core";
 import { cleanupTempDirs, tempDir } from "../test/tmp.ts";
 import { createSpawner, runToExit } from "./spawner.ts";
 import type { SpawnSpec } from "./types.ts";
-import { windowsJobExecutable } from "./windows-job.ts";
+import { windowsJobArgv, windowsJobExecutable } from "./windows-job.ts";
 
 afterAll(cleanupTempDirs);
 const hash = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
+
+test("Job Object environment protocol carries exact names without values and refuses ambiguous names", () => {
+  const argv = ["", "--", "日本語", 'a"b', "a\\"];
+  expect(windowsJobArgv("C:\\Program Files\\engine.exe", argv, { TOKEN: "secret-must-stay-out-of-argv", PATH: "C:\\bin", EMPTY: "" })).toEqual([
+    "--env-count",
+    "3",
+    "TOKEN",
+    "PATH",
+    "EMPTY",
+    "--",
+    "C:\\Program Files\\engine.exe",
+    ...argv,
+  ]);
+  expect(windowsJobArgv("C:\\engine.exe", [], {})).toEqual(["--env-count", "0", "--", "C:\\engine.exe"]);
+  for (const env of [{ "": "x" }, { "A=B": "x" }, { "A\0B": "x" }, { PATH: "a", Path: "b" }])
+    expect(() => windowsJobArgv("C:\\engine.exe", [], env)).toThrow(MitoriError);
+});
 
 test("Job Object asset refuses missing, modified and symlink executables before any spawn", () => {
   const root = realpathSync(tempDir()),
@@ -31,7 +48,15 @@ function fixture() {
   const path = realpathSync(process.env.MITORI_WINDOWS_JOB_LAUNCHER ?? resolve("node_modules/.cache/mitori-windows-job/windows-job-x64.exe"));
   const spawner = createSpawner({ windowsJobLauncher: { path, sha256: hash(readFileSync(path)) } });
   const cwd = realpathSync(tempDir());
-  const env = { PATH: process.env.PATH ?? "", SystemRoot: process.env.SystemRoot ?? "C:\\Windows", MITORI_ONLY: "scoped fixture" };
+  const env = {
+    PATH: process.env.PATH ?? "",
+    SystemRoot: process.env.SystemRoot ?? "C:\\Windows",
+    MITORI_ONLY: "scoped fixture",
+    MITORI_EMPTY: "",
+    MITORI_日本語: "値=✓\n次",
+    // The Nix-built standalone binary can serve as Bun; this child has an exact allowlisted environment.
+    ...(process.env.BUN_BE_BUN === "1" ? { BUN_BE_BUN: "1" } : {}),
+  };
   const spec = (script: string, args: string[] = [], extra: Partial<SpawnSpec> = {}): SpawnSpec => ({
     command: process.execPath,
     argv: ["-e", script, "--", ...args],
@@ -65,7 +90,7 @@ native("native Job Object preserves literal UTF-16 argv, exact environment, stdi
 
 const descendant = (marker: string) => `await Bun.sleep(500);await Bun.write(${JSON.stringify(marker)},"escaped");`;
 const leader = (marker: string, exit: boolean) =>
-  `Bun.spawn([process.execPath,"-e",${JSON.stringify(descendant(marker))}],{stdin:"ignore",stdout:"ignore",stderr:"ignore",detached:true,env:{PATH:process.env.PATH,SystemRoot:process.env.SystemRoot}});console.log("ready");${exit ? "process.exit(0)" : "await Bun.sleep(10000)"};`;
+  `Bun.spawn([process.execPath,"-e",${JSON.stringify(descendant(marker))}],{stdin:"ignore",stdout:"ignore",stderr:"ignore",detached:true,env:{PATH:process.env.PATH,SystemRoot:process.env.SystemRoot,BUN_BE_BUN:process.env.BUN_BE_BUN}});console.log("ready");${exit ? "process.exit(0)" : "await Bun.sleep(10000)"};`;
 
 native("descendant fixture can write after its ungrouped leader exits (positive control)", async () => {
   const x = fixture(),

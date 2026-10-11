@@ -1,0 +1,159 @@
+{
+  "checkedAt": "2026-10-11",
+  "workingTree": true,
+  "binary": "compiled",
+  "stats": {
+    "startTime": "2026-10-10T23:48:34.375Z",
+    "duration": 9011.25,
+    "expected": 8,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cases": [
+    {
+      "title": "@a11y axe: S1 map (light)",
+      "file": "a11y/axe.spec.ts",
+      "project": "chromium",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1640
+        }
+      ],
+      "annotations": [
+        {
+          "type": "axe",
+          "description": "[]"
+        }
+      ]
+    },
+    {
+      "title": "@a11y axe: S2 Reader (light)",
+      "file": "a11y/axe.spec.ts",
+      "project": "chromium",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 885
+        }
+      ],
+      "annotations": [
+        {
+          "type": "axe",
+          "description": "[]"
+        }
+      ]
+    },
+    {
+      "title": "@a11y axe: S1 map (dark)",
+      "file": "a11y/axe.spec.ts",
+      "project": "chromium",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 980
+        }
+      ],
+      "annotations": [
+        {
+          "type": "axe",
+          "description": "[]"
+        }
+      ]
+    },
+    {
+      "title": "@a11y axe: S2 Reader (dark)",
+      "file": "a11y/axe.spec.ts",
+      "project": "chromium",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 884
+        }
+      ],
+      "annotations": [
+        {
+          "type": "axe",
+          "description": "[]"
+        }
+      ]
+    },
+    {
+      "title": "@a11y probes: S1 map (light)",
+      "file": "a11y/probe.spec.ts",
+      "project": "chromium",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 993
+        }
+      ],
+      "annotations": [
+        {
+          "type": "probe",
+          "description": "{\"contrast\":0,\"smallText\":[],\"smallTargets\":[]}"
+        }
+      ]
+    },
+    {
+      "title": "@a11y probes: S2 Reader (light)",
+      "file": "a11y/probe.spec.ts",
+      "project": "chromium",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 971
+        }
+      ],
+      "annotations": [
+        {
+          "type": "probe",
+          "description": "{\"contrast\":0,\"smallText\":[],\"smallTargets\":[]}"
+        }
+      ]
+    },
+    {
+      "title": "@a11y probes: S1 map (dark)",
+      "file": "a11y/probe.spec.ts",
+      "project": "chromium",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1053
+        }
+      ],
+      "annotations": [
+        {
+          "type": "probe",
+          "description": "{\"contrast\":0,\"smallText\":[],\"smallTargets\":[]}"
+        }
+      ]
+    },
+    {
+      "title": "@a11y probes: S2 Reader (dark)",
+      "file": "a11y/probe.spec.ts",
+      "project": "chromium",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 881
+        }
+      ],
+      "annotations": [
+        {
+          "type": "probe",
+          "description": "{\"contrast\":0,\"smallText\":[],\"smallTargets\":[]}"
+        }
+      ]
+    }
+  ]
+}

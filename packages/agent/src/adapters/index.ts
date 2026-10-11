@@ -8,6 +8,8 @@ import { type AnthropicApiRequest, CLAUDE_MODE_DEFAULTS, CODEX_ARGV_TEMPLATE, ty
 import { anthropicRequest } from "./anthropic-request.ts";
 import { CODEX_DISABLED_FEATURES, codexFilesystem } from "./codex-policy.ts";
 
+export { codexPreflight } from "./codex-policy.ts";
+
 /** Codex native apply_patch-only agent, or a tool-free text turn. All settings are isolated and fixed. */
 export function buildCodexSpawn(
   req: EngineRequest,

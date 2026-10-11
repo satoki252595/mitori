@@ -8,6 +8,7 @@ export const BASE = `http://127.0.0.1:${process.env.MOCK_PORT ?? 4318}`;
 
 export interface MockOptions {
   generated?: boolean;
+  coldScan?: boolean;
   bigBlocks?: number;
   engine?: "ok" | "notInstalled" | "notLoggedIn" | "capabilityLost";
   billing?: "subscription-window" | "metered-api" | "overage" | "unknown";

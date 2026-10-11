@@ -5,6 +5,7 @@
  * coverage decides `done` / `failed` (failed only when a required aspect is missing, ADR-0011 R1).
  * A refusal fails the task without retry; a transport error is re-dispatched once.
  */
+import { CLAUDE_MODE_DEFAULTS } from "@mitori/agent";
 import type {
   BlockAspect,
   BlockId,
@@ -25,6 +26,7 @@ import type {
   WriteQueue,
   Xxh3,
 } from "@mitori/core";
+import { toErrorData } from "@mitori/core";
 import type { DocStore, NewBlockRef } from "@mitori/doc";
 import {
   type CoverageReport,
@@ -105,8 +107,8 @@ export interface RunCtx {
 
 /** Outcome of one task. */
 export interface ExecResult {
-  /** Terminal state. */
-  state: "done" | "cached" | "failed" | "skipped";
+  /** Result state (pending when the first call could not be admitted). */
+  state: "done" | "cached" | "failed" | "skipped" | "pending";
   /** Summed usage of the engine calls (null when none). */
   usage: Usage | null;
   /** Engine calls made. */
@@ -133,6 +135,8 @@ export interface ExecHooks {
   cacheKey(key: string): void;
   /** The live call (for cancel). */
   call(run: GenCallRun | null): void;
+  /** Reserve a turn before dispatch, including this task's already consumed usage. False pauses before spawn. */
+  admit?(call: GenCall, accruedUsd: number): boolean;
   /** Blocks committed so far (persisted for crash recovery, §3.7). */
   blocks?(ids: readonly BlockId[]): void;
 }
@@ -189,7 +193,12 @@ export function buildCall(
     fanoutKey: rendered.fanoutKey,
     estimate: { in: rendered.tokens.prefix + (cli ? p.cliOverheadTokens : 0) + rendered.tokens.tail, out: o + th },
     budgetUsd: Math.max(0.05, 3 * task.estimate.apiUsd),
-    timeoutMs: run.engine.id === "generic" && run.turnMs !== undefined ? run.turnMs : Math.max(120_000, 4 * task.estimate.seconds * 1000),
+    timeoutMs:
+      run.engine.id === "codex-cli"
+        ? CLAUDE_MODE_DEFAULTS.generate.turnMs
+        : run.engine.id === "generic" && run.turnMs !== undefined
+          ? run.turnMs
+          : Math.max(120_000, 4 * task.estimate.seconds * 1000),
     attempt,
     ttl: cli ? p.cliCacheTtl.default : (run.runSeconds ?? task.estimate.seconds) > p.ttl1hAboveSec ? "1h" : "5m",
   };
@@ -383,18 +392,47 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   const sink = sinkOf(applyCtx, {}, (ids) => hooks.blocks?.(ids));
   let usage: Usage | null = null;
   let calls = 0;
+  let admissionError: MitoriErrorData | undefined;
   const turns: Turn[] = [];
   const measured = (r: ExecResult, dropped: number): ExecResult => ({
     ...r,
     created: [...sink.created],
     metrics: metricsOf(task, run.engine.id, r, turns, sink, dropped),
   });
-  const start = async (call: GenCall): Promise<GenCallRun> => {
+  const start = async (call: GenCall): Promise<GenCallRun | null> => {
+    if (signal.aborted || run.cancelled()) {
+      admissionError = { code: "E_CANCELLED", message: "stopped before the call", retryable: true };
+      return null;
+    }
+    try {
+      if (hooks.admit && !hooks.admit(call, usage?.apiUsd ?? 0)) return null;
+    } catch (err) {
+      admissionError = toErrorData(err);
+      return null;
+    }
     calls++;
     env.metrics.inc("gen.engine.calls");
     const r = run.engine.run(call, signal);
     hooks.call(r);
     return r;
+  };
+  const unadmitted = async (): Promise<ExecResult> => {
+    await sink.finish();
+    hooks.call(null);
+    const failed = calls > 0 || admissionError !== undefined;
+    return measured(
+      {
+        state: failed ? "failed" : "pending",
+        usage,
+        calls,
+        attempts: turns.at(-1)?.attempt ?? 0,
+        blocks: sink.written,
+        ...(failed
+          ? { error: admissionError ?? { code: "E_BUDGET_EXCEEDED", message: "generation turn exceeds the remaining run budget", retryable: false } }
+          : {}),
+      },
+      turns.at(-1)?.rejected.length ?? 0,
+    );
   };
 
   // a pause (or cancel) that arrived while the input was gathered: settle without calling the engine (CR m1-11)
@@ -411,6 +449,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   // attempt 1 (with one transport re-dispatch)
   const call = buildCall(run, task, rendered, 1, row.lane, null, env.prompts);
   let callRun = await start(call);
+  if (callRun === null) return unadmitted();
   let validator = createLineValidator(rendered.ctx);
   let out = await consume(env, callRun, (r, n) => validator.validate(r, n), sink, rendered.ctx);
   turns.push({ ...out, attempt: 1 });
@@ -419,6 +458,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   if (out.result.stop === "error" && out.verdicts.length === 0 && !run.cancelled() && !signal.aborted && !FATAL.has(out.result.error?.code ?? "E_AGENT_EXIT")) {
     await callRun.close();
     callRun = await start(call);
+    if (callRun === null) return unadmitted();
     validator = createLineValidator(rendered.ctx);
     out = await consume(env, callRun, (r, n) => validator.validate(r, n), sink, rendered.ctx);
     turns.push({ ...out, attempt: 1 });
@@ -472,6 +512,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
         run2 = await start(buildCall(run, task, rendered, 2, row.lane, null, env.prompts));
       }
     }
+    if (run2 === null) return unadmitted();
     hooks.state("running");
     const out2 = await consume(env, run2, (r, n) => validator2.validate(r, n), sink, rendered.ctx);
     turns.push({ ...out2, attempt: 2 });
@@ -535,7 +576,7 @@ function terminalFailure(r: GenCallResult, run: RunCtx): MitoriErrorData | null 
       retryable: false,
       params: { category: r.refusal?.category ?? "unknown" },
     };
-  if (r.stop === "error") {
+  if (r.stop === "error" || (run.engine.id === "codex-cli" && r.stop === "budget" && r.error?.code === "E_BUDGET_EXCEEDED")) {
     const code = r.error?.code ?? "E_AGENT_EXIT";
     return { code, message: r.error?.message ?? "engine error", retryable: r.error?.retryable ?? false };
   }

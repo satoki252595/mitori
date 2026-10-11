@@ -1,0 +1,144 @@
+{
+  "nix": {
+    "format": "mitori.codex-explain-verification/1",
+    "date": "2026-10-11",
+    "status": "passed",
+    "applicationJobs": 1,
+    "usageSource": "provider terminal-reported tokens",
+    "billing": "unknown; API-equivalent estimate is not an invoice or subscription eligibility proof",
+    "rawReportSha256": "1135cbc7a8bddd5986ee84f973626b05fb218dfc163715b2a4efd98599fb0e1c",
+    "evidence": {
+      "provider": "codex",
+      "route": "nix",
+      "runtime": "/nix/store/r3r97834m65jnxck0556h2s1i63fmhsx-bun-1.4.2/bin/bun",
+      "bunVersion": "1.4.2",
+      "model": "gpt-6.1-sol",
+      "maxUsd": 0.05,
+      "outputCap": 600,
+      "turnMs": 120000,
+      "fixture": "go-small",
+      "createdAt": "2026-10-10T23:22:59.739Z",
+      "openMs": 279,
+      "estimate": {
+        "apiUsd": 0.00805,
+        "inTokens": 1025,
+        "outTokens": 600,
+        "route": {
+          "mode": "answer",
+          "reason": "intent_question",
+          "model": "codex:gpt-6.1-sol",
+          "effort": "low",
+          "tools": "none",
+          "contract": "answer/1",
+          "requiresConfirm": false,
+          "anchoredLines": 3,
+          "files": 0
+        }
+      },
+      "runMs": 5012,
+      "job": {
+        "state": "done",
+        "attempt": 1,
+        "usage": {
+          "in": 1582,
+          "cacheWrite": 0,
+          "cacheWrite1h": 0,
+          "cacheRead": 0,
+          "out": 47,
+          "apiUsd": 0.003634,
+          "pricingVer": "2026-09-25",
+          "thinking": 0
+        },
+        "timings": {
+          "modelMs": 4756,
+          "wallMs": 4905
+        }
+      },
+      "answer": {
+        "present": true,
+        "chars": 84,
+        "citations": 1,
+        "validCitations": 1,
+        "invalidCitations": 0
+      },
+      "sourceUnchanged": true,
+      "passed": true,
+      "cleanup": {
+        "daemonStopped": true,
+        "fixtureDeleted": true,
+        "homeDeleted": true
+      }
+    },
+    "limitations": [
+      "The old harness LLM counter was incorrect and is omitted.",
+      "One successful application job does not by itself prove the number of native/model retries.",
+      "Normal local Bun Explain is being verified separately; it is not included in this Nix result."
+    ]
+  },
+  "local": {
+    "provider": "codex",
+    "route": "local",
+    "runtime": "/Users/satoki252595/.bun/bin/bun",
+    "bunVersion": "1.4.2",
+    "model": "gpt-6.1-sol",
+    "maxUsd": 0.05,
+    "outputCap": 600,
+    "turnMs": 120000,
+    "fixture": "go-small",
+    "createdAt": "2026-10-11T04:45:24.790Z",
+    "openMs": 280,
+    "estimate": {
+      "apiUsd": 0.00805,
+      "inTokens": 1025,
+      "outTokens": 600,
+      "route": {
+        "mode": "answer",
+        "reason": "intent_question",
+        "model": "codex:gpt-6.1-sol",
+        "effort": "low",
+        "tools": "none",
+        "contract": "answer/1",
+        "requiresConfirm": false,
+        "anchoredLines": 3,
+        "files": 0
+      }
+    },
+    "runMs": 4334,
+    "job": {
+      "state": "done",
+      "attempt": 1,
+      "usage": {
+        "in": 1585,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 0,
+        "out": 47,
+        "apiUsd": 0.00364,
+        "pricingVer": "2026-09-25",
+        "thinking": 0
+      },
+      "timings": {
+        "modelMs": 4107,
+        "wallMs": 4252
+      }
+    },
+    "answer": {
+      "present": true,
+      "chars": 84,
+      "citations": 1,
+      "validCitations": 1,
+      "invalidCitations": 0
+    },
+    "sourceUnchanged": true,
+    "applicationJobs": 1,
+    "passed": true,
+    "cleanup": {
+      "daemonStopped": true,
+      "fixtureDeleted": true,
+      "homeDeleted": true
+    }
+  },
+  "totalApiEquivalentUsd": 0.007274,
+  "billing": "unknown",
+  "note": "Two application jobs; model usage is terminal-reported. Each answer has one valid source citation; both sources and temporary cleanup were verified."
+}

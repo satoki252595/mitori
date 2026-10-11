@@ -102,6 +102,36 @@ describe("GEN-U-030 stamp: blob, smallest enclosing symbol and snippet come from
 });
 
 describe("GEN-U-031 L1: identifiers within the cited range ±2", () => {
+  test("named dependency claims can cite original imports; a distant call alone does not prove the other file", async () => {
+    const repo = sampleRepo();
+    const path = "lib/tokens.ts";
+    // Original statements from the pinned m3e source; bindings must not be inferred from a skeleton's import list.
+    repo.files[path] = [
+      'import type { CSSProperties } from "react";',
+      'import { FAB_MENU_TABS, KIND_TEXT, Lang, NAV_TABS, SPLIT_MENU_TABS, TAB_LABELS, getLang, t, SELECT_OPTIONS } from "./i18n";',
+      'import { Contrast, isLightColor, schemeFromSeed } from "./color";',
+      ...Array.from({ length: 26 }, () => ""),
+      "export function makeItem() { return KIND_TEXT[getLang()]; }",
+      "export function paletteOf() { return schemeFromSeed(); }",
+    ].join("\n");
+    repo.symbols[path] = [
+      { name: "makeItem", qualname: "makeItem", kind: "function", start: 30, end: 30, exported: true },
+      { name: "paletteOf", qualname: "paletteOf", kind: "function", start: 31, end: 31, exported: true },
+    ];
+    const indexer = createFakeIndexer(repo, hasher);
+    const v = createVerifier({ indexer, anchors: fakeAnchors(hasher), hasher, clock: testClock() });
+    for (const [identifiers, line, callLine] of [
+      [["lib/i18n.ts", "getLang", "KIND_TEXT"], 2, 30],
+      [["lib/color.ts", "schemeFromSeed"], 3, 31],
+    ] as const) {
+      expect((await v.stamp([{ path, start: callLine, end: callLine }], span([...identifiers]))).checks.l1).toBe("fail");
+      const r = await v.stamp([{ path, start: line, end: line }], span([...identifiers]));
+      expect(r.checks).toMatchObject({ l0: true, l0Raw: true, l1: "pass", l2: true });
+      expect(r.checks.repaired).toBeUndefined();
+      expect(r.cites[0]).toMatchObject({ path, start: line, end: line, precision: "exact" });
+    }
+  });
+
   test("pass, fail, token fallback, vacuous ⇒ cited", async () => {
     const { v, metrics } = setup();
     expect((await v.stamp([{ path: "src/session/store.ts", start: 17, end: 19 }], span(["items.set()", "put"]))).checks.l1).toBe("pass");

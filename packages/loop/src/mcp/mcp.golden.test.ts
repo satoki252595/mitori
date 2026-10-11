@@ -4,7 +4,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import { estimateTokensRaw } from "@mitori/indexer";
-import { expectGolden } from "@mitori/testkit";
+import { expectGolden } from "@mitori/testkit/golden";
 import { MCP_INSTRUCTIONS, MCP_LIMITS, MCP_TOOLS } from "../contract.ts";
 import { mcpToolsList, mcpToolsListJson } from "./tools.ts";
 

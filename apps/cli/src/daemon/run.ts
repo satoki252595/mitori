@@ -48,7 +48,7 @@ async function announce(home: string, ws: WorkspaceKey, version: string, open: b
   if (daemon) await afterOpen(io, { home, daemon, api: apiOf(io, daemon) }, ws, open);
 }
 
-/** Open `target` in-process and report on stderr once the zero-token doc is there. */
+/** Open `target`, announce its shell immediately, then report once the zero-token doc is there. */
 async function openWorkspace(d: ServerDaemon, home: string, target: string, force: boolean, version: string, open: boolean): Promise<void> {
   const t0 = performance.now();
   let stopped = false;
@@ -56,6 +56,8 @@ async function openWorkspace(d: ServerDaemon, home: string, target: string, forc
     stopped = true;
   });
   const rt = await d.handle.workspaces.open(target, { force });
+  // The initial /ui request waits for staticReady; the shell can paint while the index is still being built.
+  await announce(home, rt.info.key, version, open).catch(() => undefined);
   while (!stopped && (rt.state === "loading" || rt.state === "scanning")) await new Promise((r) => setTimeout(r, 10));
   if (stopped) return;
   const ms = performance.now() - t0;
@@ -66,7 +68,6 @@ async function openWorkspace(d: ServerDaemon, home: string, target: string, forc
   const files = rt.indexer.files().length;
   const modules = rt.indexer.modules().length;
   process.stderr.write(`mitori: ${rt.info.name}: ${files} files, ${modules} modules (S0–S4 + static doc in ${Math.round(ms)} ms)\n`);
-  await announce(home, rt.info.key, version, open).catch(() => undefined);
 }
 
 /** The home already has a live daemon: verify it, apply the version rule, open the workspace there. */

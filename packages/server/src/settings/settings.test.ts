@@ -26,6 +26,7 @@ describe("settings defaults and schema", () => {
   });
   test("Codex pricing and estimated-spend consent are explicit execution settings, with a visible patch-step cap", () => {
     const configured = {
+      defaultGenEngine: "codex-cli",
       engines: {
         "codex-cli": {
           enabled: true,
@@ -38,6 +39,7 @@ describe("settings defaults and schema", () => {
       },
     };
     const parsed = parseGlobalSettings(JSON.stringify(configured));
+    expect(parsed.defaultGenEngine).toBe("codex-cli");
     expect(parsed.engines["codex-cli"]).toEqual(configured.engines["codex-cli"]);
     expect(checkSettingsPatch(configured, DEFAULT_GLOBAL_SETTINGS).ok).toBe(false);
     configured.engines["codex-cli"].maxPatchSteps = 9;

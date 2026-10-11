@@ -23,6 +23,7 @@ import FloorPlan from "./FloorPlan.svelte";
 import { generatedTokens, heroAreas, heroMeta, LANG_NAMES, ledeOf, oneSentence } from "./hero.ts";
 import type { PlanController } from "./plan-dom.ts";
 import { hydratePlan, type PlanText, type RoomModel } from "./render.ts";
+import type { MapSide } from "./side.ts";
 
 let {
   initialSide = null,
@@ -30,7 +31,7 @@ let {
   native = false,
   initialDisclosureClock = null,
 }: {
-  initialSide?: typeof import("./side.ts") | null;
+  initialSide?: MapSide | null;
   initialCamera?: import("../contract.ts").MapCamera | null;
   native?: boolean;
   initialDisclosureClock?: import("../gen/visibility.ts").VisibleClock | null;
@@ -38,7 +39,9 @@ let {
 const s = useStores();
 // the card states, room card and text view arrive in the lazy `gen` chunk once the plan has painted (F5: not
 // first-paint; the card column holds a same-size skeleton meanwhile)
-let side = $state.raw<typeof import("./side.ts") | null>(untrack(() => initialSide));
+let side = $state.raw<MapSide | null>(untrack(() => initialSide));
+let RoomCard = $state.raw(untrack(() => initialSide?.RoomCard ?? null));
+let TextViewDialog = $state.raw(untrack(() => initialSide?.TextViewDialog ?? null));
 onMount(() => afterMark(["mitori:map:painted"], () => void Promise.all([import("./side.ts"), ensureNs("gen")]).then(([m]) => (side = m)), 800));
 const route = $derived(s.router.route);
 const ws = $derived(route.name === "map" ? route.ws : null);
@@ -71,6 +74,12 @@ const genRooms = $derived(new Set([...targets.generating].map((m) => nodeOfModul
 const doneRooms = $derived(new Set([...targets.done].map((m) => nodeOfModule.get(m) ?? m)));
 const pins = $derived(s.review.pinsByNode());
 const selected = $derived(s.map.selected ? (model?.byId.get(s.map.selected) ?? null) : null);
+$effect(() => {
+  if (selected && !RoomCard) void import("./RoomCard.svelte").then((m) => (RoomCard = m.default));
+});
+$effect(() => {
+  if (s.ui.textViewOpen && !TextViewDialog) void import("./TextViewDialog.svelte").then((m) => (TextViewDialog = m.default));
+});
 // the floating room card takes the half of the stage the selected room is NOT in
 let stageEl: HTMLDivElement | undefined = $state();
 let cardLeft = $state(false);
@@ -417,7 +426,7 @@ const planCounts = $derived(
       <aside class="side" aria-label={t("map.right")} aria-busy={!rightReady || undefined}>
         {#if rightReady && side}
           {@const SidePanel = side.SidePanel}
-          <SidePanel {breakdown} {fiveName} onread={readFiveMinutes} initialClock={initialDisclosureClock} />
+          <SidePanel {breakdown} {fiveName} onread={readFiveMinutes} initialClock={initialDisclosureClock} initialProgress={side.GenProgress} initialEngineCard={side.EngineCard} initialBreakdown={side.GenBreakdown} initialDoneCard={side.GenDoneCard} />
         {:else}
           <div class="card side-skel" aria-hidden="true"></div>
         {/if}
@@ -481,9 +490,8 @@ const planCounts = $derived(
           <div class="stage-skel" aria-busy="true"><span>{t("app.loading")}</span></div>
         {/if}
 
-        {#if selected && side}
+        {#if selected && RoomCard}
           {@const sec = sectionOf(selected)}
-          {@const RoomCard = side.RoomCard}
           <div class="room-float" class:left={cardLeft}>
             <RoomCard
               title={selected.zoneLabel ? `${selected.zoneLabel} › ${selected.label}` : selected.label}
@@ -563,15 +571,14 @@ const planCounts = $derived(
   </main>
 </div>
 
-{#if s.ui.textViewOpen && model && side}
-  {@const TextViewDialog = side.TextViewDialog}
+{#if s.ui.textViewOpen && model && TextViewDialog}
   <TextViewDialog {model} onclose={closeTextView} />
 {/if}
 
 {#if native && !generated && side}
   {@const SidePanel = side.SidePanel}
   {#each ["overview", "standard", "complete"] as effort}
-    <template data-native-effort={effort}><SidePanel breakdown={expert} {fiveName} onread={readFiveMinutes} effortOverride={effort as import('@mitori/core').Effort} /></template>
+    <template data-native-effort={effort}><SidePanel breakdown={expert} {fiveName} onread={readFiveMinutes} effortOverride={effort as import('@mitori/core').Effort} initialProgress={side.GenProgress} initialEngineCard={side.EngineCard} initialBreakdown={side.GenBreakdown} initialDoneCard={side.GenDoneCard} /></template>
   {/each}
 {/if}
 

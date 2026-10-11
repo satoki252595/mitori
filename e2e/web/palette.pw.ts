@@ -135,3 +135,24 @@ test("@wp10a palette actions: >次に読む opens the first unread step of the r
   await waitMark(page, "mitori:section:rendered", t0);
   await expect(page).toHaveURL(new RegExp(`/w/${WS}/doc/s0$`));
 });
+
+test("empty/action palettes defer the prose index, then a prose query still finds document text", async ({ page }, info) => {
+  await configure({});
+  await page.goto(`/w/${WS}/doc/s3`);
+  await waitMark(page, "mitori:section:rendered");
+  const assets: string[] = [];
+  page.on("request", (r) => {
+    const file = new URL(r.url()).pathname.split("/").at(-1) ?? "";
+    if (/^(?:actions|doctext\.svelte)-.*\.js$/.test(file)) assets.push(file);
+  });
+  const input = await openPalette(page);
+  expect(assets).toEqual([]);
+  await input.fill(">次に読む");
+  await expect(page.locator(".pal-it").first()).toContainText("次に読む");
+  expect(assets.some((file) => file.startsWith("actions-"))).toBe(true);
+  expect(assets.some((file) => file.startsWith("doctext.svelte-"))).toBe(false);
+  await input.fill("セッション");
+  await expect(page.locator(".pal-it.txt").first()).toBeVisible();
+  expect(assets.some((file) => file.startsWith("doctext.svelte-"))).toBe(true);
+  info.annotations.push({ type: "lazy-assets", description: JSON.stringify(assets) });
+});

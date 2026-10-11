@@ -56,15 +56,20 @@ let guidedCommand = $state("");
 let guidedError = $state(false);
 let reloading = $state(false);
 let useApi = $state(false);
+let useCodexNative = $state(true);
+let codexMaxUsd = $state<number | undefined>(1);
 let signingIn = $state(false);
 let loginResult = $state<"opened" | "fallback" | "">("");
-const setupExternal = $derived(["codex", "cursor", "antigravity"].includes(simpleProvider) || (simpleProvider === "grok" && !useApi));
+const setupExternal = $derived(
+  ["cursor", "antigravity"].includes(simpleProvider) || (simpleProvider === "codex" && !useCodexNative) || (simpleProvider === "grok" && !useApi),
+);
 const setupHttp = $derived(["ollama", "lmstudio", "openai"].includes(simpleProvider) || (simpleProvider === "grok" && useApi));
 const authProvider = $derived(PROVIDER_AUTH_IDS.includes(simpleProvider as ProviderAuthId) ? (simpleProvider as ProviderAuthId) : null);
 const authCommand = $derived(authProvider ? providerAuthCommand(authProvider, s.session.settings?.launcher) : "");
 const setupLocalApi = $derived(/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?\/v1\/?$/u.test(simpleBaseUrl));
 const setupPrices = $derived(
   simpleProvider === "openai" ||
+    (simpleProvider === "codex" && useCodexNative && !!simpleModel.trim() && simpleModel.trim() !== "gpt-6.1-sol") ||
     (simpleProvider === "muse" && !!simpleModel.trim() && simpleModel.trim() !== "muse-spark-1.3-contributor") ||
     (simpleProvider === "grok" && useApi && !!simpleModel.trim() && simpleModel.trim() !== "grok-4.7") ||
     (["ollama", "lmstudio"].includes(simpleProvider) && (!setupLocalApi || /(?:[:-]cloud)$/i.test(simpleModel.trim()))),
@@ -119,6 +124,10 @@ $effect(() => {
       simpleInputPrice = inputPrice;
       simpleOutputPrice = outputPrice;
     }
+  } else if (provider === "codex-cli") {
+    chooseSetup("codex");
+    simpleModel = cfg.engines["codex-cli"].model;
+    codexMaxUsd = cfg.engines["codex-cli"].maxEstimatedSpendUsd;
   }
   initialized = true;
 });
@@ -126,8 +135,9 @@ $effect(() => {
 function chooseSetup(value: SetupProvider) {
   simpleProvider = value;
   useApi = false;
+  useCodexNative = true;
   loginResult = "";
-  simpleModel = value === "muse" ? "muse-spark-1.3-contributor" : value === "grok" ? "grok-4.7" : "";
+  simpleModel = value === "muse" ? "muse-spark-1.3-contributor" : value === "grok" ? "grok-4.7" : value === "codex" ? "gpt-6.1-sol" : "";
   simpleBaseUrl =
     value === "grok"
       ? "https://api.x.ai/v1"
@@ -169,6 +179,8 @@ function createSetup(e: SubmitEvent) {
       {
         provider: simpleProvider,
         api: useApi,
+        native: simpleProvider === "codex" && useCodexNative,
+        maxEstimatedUsd: codexMaxUsd,
         model: simpleModel,
         repo: setupRepo || s.workspace.status?.info.root,
         baseUrl: simpleBaseUrl,
@@ -214,7 +226,7 @@ function musePreset() {
 
 async function saveProvider(e: SubmitEvent) {
   e.preventDefault();
-  if (saving || !initialized) return;
+  if (saving || !initialized || provider === "codex-cli") return;
   saving = true;
   saved = false;
   providerError = false;
@@ -335,6 +347,13 @@ async function saveProvider(e: SubmitEvent) {
       {#if simpleProvider === "grok"}
         <label class="row check"><input type="checkbox" bind:checked={useApi} /><span>{t("settings.useApi")}</span></label>
       {/if}
+      {#if simpleProvider === "codex"}
+        <label class="row check"><input type="checkbox" bind:checked={useCodexNative} /><span>{t("settings.codexNative")}</span></label>
+        {#if useCodexNative}
+          <label class="row"><span>{t("settings.codexMaxUsd")}</span><input type="number" min="0.001" step="any" required bind:value={codexMaxUsd} /></label>
+          <p class="note">{t("settings.codexEstimateHint")}</p>
+        {/if}
+      {/if}
       {#if authProvider && !(simpleProvider === "grok" && useApi)}
         {#if simpleProvider === "antigravity"}
           <p class="note">{t("settings.antigravityLogin")}</p>
@@ -384,6 +403,7 @@ async function saveProvider(e: SubmitEvent) {
       <summary>{t("settings.advancedProvider")}</summary>
     <form onsubmit={saveProvider} oninput={() => (saved = false)}>
       <label class="row"><span>{t("settings.provider")}</span><select bind:value={provider} disabled={!initialized}>
+        {#if provider === "codex-cli"}<option value="codex-cli" disabled>codex-cli</option>{/if}
         {#each ["claude-cli", "anthropic-api", "session", "generic"] as engine (engine)}<option value={engine}>{engine}</option>{/each}
       </select></label>
       <button type="button" class="btn btn-sec btn-s" disabled={!initialized} onclick={musePreset}>{t("settings.musePreset")}</button>
@@ -406,7 +426,8 @@ async function saveProvider(e: SubmitEvent) {
         <label class="row"><span>{t("settings.priceCache")}</span><input type="number" min="0" step="any" required bind:value={cachePrice} /></label>
         {#if model === "generic:muse-spark-1.3-contributor"}<p class="note">{t("settings.museContributor")} <a href="https://dev.meta.ai/docs/pricing-rate-limits" target="_blank" rel="noopener noreferrer">{t("settings.providerPolicy")}</a></p>{/if}
       {/if}
-      <button type="submit" class="btn btn-pri btn-s" disabled={!initialized || saving}>{t(saving ? "settings.providerSaving" : "settings.providerSave")}</button>
+      {#if provider === "codex-cli"}<p class="note">{t("settings.codexGuidedHint")}</p>{/if}
+      <button type="submit" class="btn btn-pri btn-s" disabled={!initialized || saving || provider === "codex-cli"}>{t(saving ? "settings.providerSaving" : "settings.providerSave")}</button>
       {#if setupCommand}
         <p class="note">{t("settings.providerSetup")}</p>
         {#if !s.session.settings?.launcher}<p class="note">{t("settings.quickSetupCwd")}</p>{/if}

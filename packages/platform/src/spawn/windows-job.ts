@@ -9,6 +9,18 @@ export interface WindowsJobLauncher {
   sha256: string;
 }
 
+/** Send only environment names to the launcher: values stay in its environment, never in argv. */
+export function windowsJobArgv(command: string, argv: readonly string[], env: Readonly<Record<string, string>>): string[] {
+  const names = Object.keys(env);
+  const seen = new Set<string>();
+  for (const name of names) {
+    const key = name.toUpperCase();
+    if (!name || /[=\0]/u.test(name) || seen.has(key)) throw new MitoriError("E_INVALID_INPUT", "Windows job environment names must be valid and unique");
+    seen.add(key);
+  }
+  return ["--env-count", String(names.length), ...names, "--", command, ...argv];
+}
+
 /** Validate at each use as for pinned engines; fail closed if the immutable private asset was replaced. */
 export function windowsJobExecutable(asset: WindowsJobLauncher | undefined): string {
   if (!asset || !isAbsolute(asset.path) || !/^[a-f0-9]{64}$/u.test(asset.sha256))

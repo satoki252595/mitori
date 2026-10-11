@@ -1,17 +1,17 @@
-# Manual native Windows verification only; the Nix exception needs explicit user approval.
+# Manual native Windows verification; the Nix-built executable supplies the Bun runtime too.
 name: windows-native
 
 on:
   workflow_call:
     inputs:
-      nix_exception_approved:
-        description: "Explicit user approval for this run's Windows-only official Bun installation"
+      verify_windows:
+        description: "Run native Windows verification with the Nix-built executable"
         type: boolean
         required: true
   workflow_dispatch:
     inputs:
-      nix_exception_approved:
-        description: "Explicit user approval for this Windows-only official Bun installation"
+      verify_windows:
+        description: "Run native Windows verification with the Nix-built executable"
         type: boolean
         required: true
         default: false
@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   crossbuild:
-    if: ${{ inputs.nix_exception_approved }}
+    if: ${{ inputs.verify_windows }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -54,21 +54,18 @@ jobs:
         with:
           name: windows-native-${{ github.sha }}
           path: .native-artifact
-      - name: Exact official Bun 1.4.2 (approved Windows Nix exception)
+      - name: Native source tests with the Nix-built Bun runtime
         shell: pwsh
         run: |
-          $archive = Join-Path $env:RUNNER_TEMP 'bun-windows-x64.zip'
-          Invoke-WebRequest 'https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-windows-x64.zip' -OutFile $archive
-          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'ce4c17497b2f29712a99d3d53f028de28cd42e3bacb8589599e7f000e49b6405') { throw 'Bun archive integrity mismatch' }
-          $runtime = Join-Path $env:RUNNER_TEMP 'mitori-bun'
-          Expand-Archive $archive $runtime
-          (Join-Path $runtime 'bun-windows-x64') | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
-      - run: bun install --frozen-lockfile
-      - name: Native Job Object containment and verified extraction
-        shell: pwsh
-        run: |
+          # Bun's standalone executable exposes its full CLI without another installation.
+          $runtime = (Resolve-Path '.native-artifact/dist/mitori-windows-x64.exe').Path
+          $env:BUN_BE_BUN = '1'
+          & $runtime --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $runtime install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:MITORI_WINDOWS_JOB_LAUNCHER = (Resolve-Path '.native-artifact/node_modules/.cache/mitori-windows-job/windows-job-x64.exe').Path
-          bun test packages/platform/src/spawn/windows-job.test.ts apps/cli/src/build/windows-job.test.ts
+          & $runtime test packages/platform/src/spawn/windows-job.test.ts apps/cli/src/build/windows-job.test.ts 2>&1 | Tee-Object -FilePath windows-native-tests.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Compiled Windows binary and embedded Workers
         shell: pwsh
@@ -82,5 +79,7 @@ jobs:
         if: always()
         with:
           name: windows-evidence-${{ github.sha }}
-          path: windows-selftest.json
+          path: |
+            windows-native-tests.log
+            windows-selftest.json
           retention-days: 30

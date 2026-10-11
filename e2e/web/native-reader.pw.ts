@@ -1,6 +1,6 @@
 /** Canonical SSR + native Reader + full editor hand-off, using the same production asset snapshot. */
 import { expect, test } from "@playwright/test";
-import { BASE, configure, WS, waitMark } from "./support/helpers.ts";
+import { BASE, configure, emit, WS, waitMark } from "./support/helpers.ts";
 
 test("native canonical Reader keeps tools cold through j/k, level, far hash and TOC", async ({ page }) => {
   await configure({ bigBlocks: 1000 });
@@ -46,6 +46,36 @@ test("native canonical Reader keeps tools cold through j/k, level, far hash and 
   await expect(page.locator(".reader-root .blk").first()).toBeVisible();
   expect(scripts.filter((url) => /\/(main|ReaderTools|Composer|loop)-[^/]+\.js$/.test(url))).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+test("native refresh preserves reading position changed while its server view is pending", async ({ page }) => {
+  await configure({ bigBlocks: 1000 });
+  await page.goto(`/w/${WS}/doc/s6/big`);
+  await waitMark(page, "mitori:section:rendered");
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requested = false;
+  await page.route(`**/api/v1/ws/${WS}/ui?*`, async (route) => {
+    requested = true;
+    await held;
+    await route.continue();
+  });
+  try {
+    await emit({ type: "doc.outline", outlineRev: 2 });
+    await expect.poll(() => requested).toBe(true);
+    const id = await page.locator(".reader-root .blk").nth(40).getAttribute("data-b");
+    const anchor = page.locator(`.blk[data-b="${id}"]`);
+    await anchor.evaluate((el) => el.scrollIntoView({ block: "start" }));
+    const before = (await anchor.boundingBox())!.y;
+    const after = await page.evaluate(() => performance.now());
+    release();
+    await waitMark(page, "mitori:section:rendered", after);
+    expect(Math.abs((await anchor.boundingBox())!.y - before)).toBeLessThanOrEqual(4);
+  } finally {
+    release();
+  }
 });
 
 test("native first selection e survives a pending full chunk and opens the exact Composer quote", async ({ page }) => {

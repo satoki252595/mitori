@@ -55,6 +55,275 @@ describe("gen.system rendering and pinning (§5.4, PT-05)", () => {
 });
 
 describe("unit prompt rendering (§5.1-3/4/5, §5.6)", () => {
+  test("module input preserves named imports and multiline aliases as citable source within the existing core budget", async () => {
+    const repo = sampleRepo();
+    const path = "src/http/server.ts";
+    repo.files[path] = [
+      "import {",
+      "  getLang,",
+      "  KIND_TEXT as initialText,",
+      '} from "./i18n";',
+      'import { schemeFromSeed as makeScheme } from "./color";',
+      "",
+      "export function handleLogin() {",
+      "  return initialText[getLang()] + makeScheme();",
+      "}",
+    ].join("\n");
+    repo.symbols[path] = [{ name: "handleLogin", qualname: "handleLogin", kind: "function", start: 7, end: 9, exported: true }];
+    const { env, indexer, renderer } = setup(repo);
+    const context = indexer.moduleContext(M_HTTP, { tokenizer: "claude-v5", budget: 28000, tier: "sig" });
+    indexer.moduleContext = () => ({ ...context, hot: [], tokens: { ...context.tokens, hot: 0, total: 26000 } });
+    indexer.imports = (p) =>
+      p === path
+        ? [
+            { from: path, spec: "./i18n", line: 4, kind: "static", names: ["getLang", "KIND_TEXT"], to: [] },
+            { from: path, spec: "./color", line: 5, kind: "static", names: ["schemeFromSeed"], to: [] },
+          ]
+        : [];
+    indexer.flowBodies = () => [];
+    indexer.hotBodies = () => [];
+    env.tokens = (text) => text.length;
+    expect(context.skeleton.text).not.toContain("KIND_TEXT");
+    const task = moduleTask(M_HTTP, "http");
+    const gathered = await gatherInputs(task, env);
+    const body = gathered.inputs.BODIES?.join("\n") ?? "";
+    for (const line of repo.files[path]
+      .split("\n")
+      .slice(0, 5)
+      .map((l, i) => `${i + 1}|${l}`))
+      expect(body).toContain(line);
+    expect(body.match(/schemeFromSeed/g)).toHaveLength(1);
+    expect(26000 + body.length).toBeLessThanOrEqual(28000);
+    expect(gathered.blobs.get(path)).toBe(indexer.currentBlob(path) ?? undefined);
+    const rendered = renderer.render(task, gathered.inputs, { lang: "ja", workdir: SANDBOX });
+    expect(rendered.ctx.citable.allows(path, 1, 4)).toBe(true);
+    expect(rendered.ctx.citable.allows(path, 5, 5)).toBe(true);
+    expect(rendered.userBytes).not.toContain('import { makeScheme } from "./color"');
+  });
+
+  test("adjacent bounded import slices keep the next multiline binding before its indexed specifier", async () => {
+    const repo = sampleRepo();
+    const path = "src/http/server.ts";
+    const lines = [
+      'import { first } from "./first";',
+      ...Array<string>(37).fill(""),
+      "import {",
+      "  getLang,",
+      "  KIND_TEXT as initialText,",
+      '} from "./i18n";',
+      "",
+      "export function handleLogin() {}",
+    ];
+    repo.files[path] = lines.join("\n");
+    repo.symbols[path] = [{ name: "handleLogin", qualname: "handleLogin", kind: "function", start: 44, end: 44, exported: true }];
+    const { env, indexer, renderer } = setup(repo);
+    indexer.imports = (p) =>
+      p === path
+        ? [
+            { from: path, spec: "./first", line: 1, kind: "static", names: ["first"], to: [] },
+            { from: path, spec: "./i18n", line: 42, kind: "static", names: ["getLang", "KIND_TEXT"], to: [] },
+          ]
+        : [];
+    indexer.flowBodies = () => [];
+    indexer.hotBodies = () => [];
+    const reads: [number, number][] = [];
+    const read = indexer.read.bind(indexer);
+    indexer.read = (p, range, options) => {
+      if (p === path && range) reads.push([range.start, range.end]);
+      return read(p, range, options);
+    };
+    const task = moduleTask(M_HTTP, "http");
+    const gathered = await gatherInputs(task, env);
+    const body = gathered.inputs.BODIES?.join("\n") ?? "";
+    for (let i = 38; i < 42; i++) expect(body).toContain(`${i + 1}|${lines[i]}`);
+    expect(body.match(/KIND_TEXT as initialText/g)).toHaveLength(1);
+    expect(reads.filter(([start, end]) => start <= 42 && end >= 42)).toContainEqual([3, 42]);
+    const rendered = renderer.render(task, gathered.inputs, { lang: "ja", workdir: SANDBOX });
+    expect(rendered.ctx.citable.allows(path, 39, 42)).toBe(true);
+  });
+
+  test("module imports respect source exclusion and leave the same fixed budget when large imports do not fit", async () => {
+    const repo = sampleRepo();
+    const http = repo.modules.find((m) => m.id === M_HTTP);
+    if (!http) throw new Error("HTTP fixture missing");
+    const secret = "src/http/secret.ts";
+    repo.files[secret] = 'import { hidden } from "./hidden";';
+    repo.symbols[secret] = [];
+    repo.excluded = { [secret]: "secret" };
+    http.paths.push(secret);
+    repo.files["src/http/server.ts"] = `import { ${"largeBinding,".repeat(1000)} } from "./large";\nexport function handleLogin() {}`;
+    repo.symbols["src/http/server.ts"] = [{ name: "handleLogin", qualname: "handleLogin", kind: "function", start: 2, end: 2, exported: true }];
+    const { env, indexer } = setup(repo);
+    const context = indexer.moduleContext(M_HTTP, { tokenizer: "claude-v5", budget: 28000 });
+    indexer.moduleContext = () => ({
+      ...context,
+      skeleton: { ...context.skeleton, files: context.skeleton.files.filter((p) => p !== secret) },
+      hot: [],
+      tokens: { ...context.tokens, hot: 0, total: 27900 },
+    });
+    indexer.imports = (p) => {
+      expect(p).not.toBe(secret);
+      return [{ from: p, spec: "./large", line: 1, kind: "static", names: ["largeBinding"], to: [] }];
+    };
+    indexer.flowBodies = () => [];
+    indexer.hotBodies = () => [];
+    env.tokens = (text) => text.length;
+    const gathered = await gatherInputs(moduleTask(M_HTTP, "http"), env);
+    const body = gathered.inputs.BODIES?.join("\n") ?? "";
+    expect(body).not.toContain("hidden");
+    expect(body).not.toContain("largeBinding");
+    expect(gathered.blobs.has(secret)).toBe(false);
+    expect(27900 + body.length).toBeLessThanOrEqual(28000);
+  });
+
+  test("module rejoining split callable excerpts retains the write before a fallible observation", async () => {
+    const repo = sampleRepo();
+    repo.files["src/http/server.ts"] =
+      "export function handleLogin() {\n  execute();\n  history.push({ executed: true });\n  const page = observe();\n  return page;\n}";
+    repo.symbols["src/http/server.ts"] = [{ name: "handleLogin", qualname: "handleLogin", kind: "function", start: 1, end: 6, exported: true }];
+    const { env, indexer } = setup(repo);
+    const head = await indexer.read("src/http/server.ts", { start: 1, end: 2 }, { numbered: true });
+    const tail = await indexer.read("src/http/server.ts", { start: 5, end: 6 }, { numbered: true });
+    const whole = await indexer.read("src/http/server.ts", { start: 1, end: 6 }, { numbered: true });
+    indexer.flowBodies = () => [head, tail];
+    indexer.hotBodies = () => [whole];
+    const body = (await gatherInputs(moduleTask(M_HTTP, "http"), env)).inputs.BODIES?.join("\n") ?? "";
+    expect(body).toContain("3|  history.push({ executed: true });");
+    expect(body).toContain("4|  const page = observe();");
+    expect(body.indexOf("history.push")).toBeLessThan(body.indexOf("const page = observe"));
+    expect(body.match(/history\.push/g)).toHaveLength(1);
+  });
+
+  test("module bodies use actual room in the 28k core frame and retain executable tails before unrelated hot code", async () => {
+    const repo = sampleRepo();
+    const http = repo.modules.find((m) => m.id === M_HTTP);
+    if (!http) throw new Error("HTTP fixture missing");
+    repo.files["src/http/snapshot.js"] =
+      "function visible() { return true; }\nconst actions = observedNodes();\nactions.splice(250);\nactions.push(waitAction());";
+    repo.symbols["src/http/snapshot.js"] = [{ name: "visible", qualname: "visible", kind: "function", start: 1, end: 1, exported: false }];
+    repo.files["src/http/execute.ts"] = "export function execute(action) { dispatch(action.kind); }";
+    repo.symbols["src/http/execute.ts"] = [{ name: "execute", qualname: "execute", kind: "function", start: 1, end: 1, exported: true }];
+    repo.files["src/http/noisy.ts"] = `export function unrelated() { /* ${"irrelevant".repeat(3000)} */ }`;
+    repo.symbols["src/http/noisy.ts"] = [{ name: "unrelated", qualname: "unrelated", kind: "function", start: 1, end: 1, exported: true }];
+    http.paths.push("src/http/snapshot.js", "src/http/execute.ts", "src/http/noisy.ts");
+    const { env, indexer } = setup(repo);
+    const context = indexer.moduleContext(M_HTTP, { tokenizer: "claude-v5", budget: 28000 });
+    const calls: number[] = [];
+    indexer.moduleContext = (_id, opts) => {
+      expect(opts.hotBudget).toBe(0);
+      return { ...context, hot: [], tokens: { ...context.tokens, hot: 0, total: 26000 } };
+    };
+    const execute = await indexer.read("src/http/execute.ts", { start: 1, end: 1 }, { numbered: true });
+    const noisy = await indexer.read("src/http/noisy.ts", { start: 1, end: 1 }, { numbered: true });
+    indexer.flowBodies = () => [execute];
+    indexer.hotBodies = (_id, budget) => {
+      calls.push(budget);
+      return [noisy, execute];
+    };
+    env.tokens = (text) => text.length;
+    const body = (await gatherInputs(moduleTask(M_HTTP, "http"), env)).inputs.BODIES?.join("\n") ?? "";
+    expect(body).toContain("actions.splice(250)");
+    expect(body).toContain("actions.push(waitAction())");
+    expect(body).toContain("dispatch(action.kind)");
+    expect(body).not.toContain("irrelevant");
+    expect(body.length).toBeLessThanOrEqual(2000 + 40);
+    expect(calls).toEqual([28000]);
+  });
+
+  test("module short guards retain adjacent default helpers inside the unchanged core budget", async () => {
+    const repo = sampleRepo();
+    const http = repo.modules.find((m) => m.id === M_HTTP);
+    if (!http) throw new Error("HTTP fixture missing");
+    repo.files["src/http/frame.ts"] = [
+      "export const dimensions = (f) => ({ width: f.width ?? 390, height: f.height ?? 844 });",
+      "",
+      "export const isCompact = (f) => {",
+      "  const { width, height } = dimensions(f);",
+      "  return width === 390 && height === 844;",
+      "};",
+    ].join("\n");
+    repo.symbols["src/http/frame.ts"] = [
+      { name: "dimensions", qualname: "dimensions", kind: "function", start: 1, end: 1, exported: true },
+      { name: "isCompact", qualname: "isCompact", kind: "function", start: 3, end: 6, exported: true },
+    ];
+    repo.files["src/http/broad.ts"] = `export function broad() { /* ${"unrelated".repeat(3000)} */ }`;
+    repo.symbols["src/http/broad.ts"] = [{ name: "broad", qualname: "broad", kind: "function", start: 1, end: 1, exported: true }];
+    http.paths.push("src/http/frame.ts", "src/http/broad.ts");
+    const { env, indexer } = setup(repo);
+    const context = indexer.moduleContext(M_HTTP, { tokenizer: "claude-v5", budget: 28000 });
+    indexer.moduleContext = () => ({ ...context, hot: [], tokens: { ...context.tokens, hot: 0, total: 26000 } });
+    indexer.flowBodies = () => [];
+    const broad = await indexer.read("src/http/broad.ts", { start: 1, end: 1 }, { numbered: true });
+    const guard = await indexer.read("src/http/frame.ts", { start: 3, end: 6 }, { numbered: true });
+    indexer.hotBodies = () => [broad, guard];
+    env.tokens = (text) => text.length;
+    const gathered = await gatherInputs(moduleTask(M_HTTP, "http"), env);
+    const body = gathered.inputs.BODIES?.join("\n") ?? "";
+    expect(body).toContain("f.width ?? 390");
+    expect(body).toContain("f.height ?? 844");
+    expect(body).toContain("dimensions(f)");
+    expect(body.match(/export const dimensions/g)).toHaveLength(1);
+    expect(body).not.toContain("unrelated");
+    expect(26000 + body.length).toBeLessThanOrEqual(28000);
+    expect(gathered.blobs.get("src/http/frame.ts")).toBe(indexer.currentBlob("src/http/frame.ts") ?? undefined);
+  });
+
+  test("module regeneration retains every conditional checklist point and the human lock identity", async () => {
+    const repo = sampleRepo();
+    repo.files["CONTRIBUTING.md"] =
+      "# Add a kind\nUpdate Kind, KIND_SPEC and KIND_ORDER.\nIf needed, update sizeOf, baseRadii and iconSlotsOf.\nUpdate M3Node and, when applicable, MEASURED / NO_BOX.\nUpdate itemJa/itemEn/itemZh/itemKo plus STYLE_NOTES.\nAdd Inspector for special editing and Preview tap when tappable.\nRun the renderer checks.";
+    repo.facts.push({ kind: "existing_doc", detector: "doc.test@1", path: "CONTRIBUTING.md", line: 1, role: "contributing", title: "Add a kind" });
+    const { env, renderer } = setup(repo);
+    const human = env.doc.section("s6/http")?.blocks[0];
+    if (!human) throw new Error("module fixture missing");
+    human.origin = "human";
+    human.kind = "pitfall";
+    human.aspect = "pitfalls";
+    human.md = "Human verified wording remains exactly as written.";
+    env.doc.lock(human.id, "human-verified");
+    const before = human.md;
+    const task = moduleTask(M_HTTP, "http");
+    const r = renderer.render(task, (await gatherInputs(task, env)).inputs, { lang: "ja", workdir: SANDBOX });
+    expect(r.ctx.existing.get(human.id)?.lock).toBeDefined();
+    expect(r.userBytes).toContain("lock=human");
+    for (const point of ["baseRadii", "iconSlotsOf", "NO_BOX", "itemKo", "Inspector", "when tappable", "renderer checks"]) expect(r.userBytes).toContain(point);
+    expect(r.userBytes).toContain("preserve every concrete change point, its condition and verification step");
+    expect(r.userBytes).toContain("Keep human-locked blocks under the regeneration keep/suggestion rule");
+    expect(human.md).toBe(before);
+  });
+
+  test("quality retains caps outside callable bodies, before numeric noise, without admitting excluded source", async () => {
+    const repo = sampleRepo();
+    const http = repo.modules.find((m) => m.id === M_HTTP);
+    if (!http) throw new Error("sample HTTP module missing");
+    repo.files["src/http/a-noisy.ts"] = Array.from(
+      { length: 25 },
+      (_, i) => `if (items.length > ${i}) record("${"ordinary comparison ".repeat(5)}");\n\n\n\n\n\n`,
+    ).join("");
+    repo.files["src/http/questions.ts"] = "export const MAX_STEPS = 60;\n";
+    repo.files["src/http/snapshot.js"] = [
+      "const actions = observedNodes();",
+      "actions.splice(250);",
+      "actions.push(scrollAction());",
+      "actions.push(waitAction());",
+    ].join("\n");
+    repo.files["src/http/secret.ts"] = "export const MAX_SECRET = 777;\n";
+    repo.excluded = { "src/http/secret.ts": "secret" };
+    http.paths.push("src/http/a-noisy.ts", "src/http/questions.ts", "src/http/snapshot.js", "src/http/secret.ts");
+    const { env } = setup(repo);
+    const gathered = await gatherInputs(plannedTask("gen.quality", { kind: "section", id: "s9" }, ["s9"]), env);
+    const body = (gathered.inputs.BODIES ?? []).join("\n");
+    expect(body).toContain("1|export const MAX_STEPS = 60;");
+    expect(body).toContain("2|actions.splice(250);");
+    expect(body).toContain("3|actions.push(scrollAction());");
+    expect(body).toContain("4|actions.push(waitAction());");
+    expect(body).not.toContain("MAX_SECRET");
+    expect(env.tokens(body)).toBeLessThanOrEqual(6000);
+    expect(gathered.blobs.has("src/http/questions.ts")).toBe(true);
+    expect(gathered.blobs.has("src/http/snapshot.js")).toBe(true);
+    expect(gathered.blobs.has("src/http/secret.ts")).toBe(false);
+  });
+
   test("entry branches and synchronization versus cleanup stay distinct in the generation instructions", async () => {
     const repo = sampleRepo();
     repo.files["src/http/server.ts"] = [

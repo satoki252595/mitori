@@ -1,0 +1,325 @@
+{
+  "checkedAt": "2026-10-11",
+  "workingTree": true,
+  "binary": "compiled",
+  "stats": {
+    "startTime": "2026-10-10T23:18:46.333Z",
+    "duration": 60536.353,
+    "expected": 13,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cases": [
+    {
+      "title": "ui-dom-max: 20 sections, open Deep Dive, Inbox 500, ready Review 5,000",
+      "file": "perf/dom.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4506
+        }
+      ],
+      "annotations": [
+        {
+          "type": "measure",
+          "description": "{\"max\":10368,\"states\":{\"section:s0\":288,\"section:s1\":273,\"section:s2\":289,\"section:s3\":326,\"section:s3/bench-16\":329,\"section:s3/bench-17\":329,\"section:s3/bench-18\":329,\"section:s3/bench-19\":329,\"section:s4\":282,\"section:s5\":296,\"section:s6\":281,\"section:s6/src-large\":294,\"section:s7\":585,\"section:s8\":282,\"section:s9\":273,\"section:s10\":279,\"section:s11\":294,\"section:s12\":273,\"section:s13\":273,\"section:appendix\":273,\"deepDive\":329,\"inbox500\":7707,\"review5000\":10368},\"sections\":20,\"inboxThreads\":500,\"diffLines\":5003}"
+        }
+      ]
+    },
+    {
+      "title": "ui-code-lines-mounted: scroll windows in a real 20,000-line file",
+      "file": "perf/dom.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1575
+        }
+      ],
+      "annotations": [
+        {
+          "type": "measure",
+          "description": "{\"max\":361,\"samples\":[181,181,181,361,361,361,361,361,361,361,361,361,181,181,181],\"totalLines\":20000}"
+        }
+      ]
+    },
+    {
+      "title": "ui-review-diff-5000: ready diff before human accept",
+      "file": "perf/dom.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2738
+        }
+      ],
+      "annotations": [
+        {
+          "type": "measure",
+          "description": "{\"max\":10368,\"samples\":[10366,10366,10368,10368,10368],\"diffLines\":5003}"
+        }
+      ]
+    },
+    {
+      "title": "cold open of crit: shell, first useful screen, boot CLS, DOM",
+      "file": "perf/first-use.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4163
+        }
+      ],
+      "annotations": [
+        {
+          "type": "measure",
+          "description": "{\"shellPaint\":1981.800048828125,\"firstUseful\":3415.199951171875,\"dom\":757,\"mapNodes\":425,\"cls\":0}"
+        },
+        {
+          "type": "budget-warning",
+          "description": "ui.shellPaint = 1981.800048828125 ms is over its limit 589.0522679596698 — reported only: not the reference machine (factor 1.18)"
+        }
+      ]
+    },
+    {
+      "title": "ui.heap.10k: react open in the Reader, palette index loaded",
+      "file": "perf/heap.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 12592
+        }
+      ],
+      "annotations": [
+        {
+          "type": "measure",
+          "description": "heap 17.6 MB (main 11.7, workers 6.0)"
+        }
+      ]
+    },
+    {
+      "title": "ui-input-render-1000: real Reader focus paints with 4× CPU throttle",
+      "file": "perf/input-render.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4710
+        }
+      ],
+      "annotations": [
+        {
+          "type": "measure",
+          "description": "{\"p95\":23.100000023841858,\"ms\":[15.600000023841858,14.399999976158142,9.699999928474426,21.399999976158142,11,20.299999952316284,9.5,23.299999952316284,10.699999928474426,23.100000023841858,10.299999952316284,19.699999928474426,10.600000023841858,11.300000071525574,10.199999928474426,10.399999976158142,23.100000023841858,15.100000023841858,11.300000071525574,15.5,15,11.200000047683716,18.5,20.5,11.099999904632568,20.5,15.300000071525574,10.399999976158142,19.600000023841858,18.800000071525574],\"blocks\":1000,\"cpuRate\":4}"
+        },
+        {
+          "type": "budget-warning",
+          "description": "ui.inputRender.1000 = 23.100000023841858 ms is over its target 19.67434574985297 (limit 58.90522679596698)"
+        }
+      ]
+    },
+    {
+      "title": "Reader open: requests, DOM and event listeners",
+      "file": "perf/reader.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1585
+        }
+      ],
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/perf/reader.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "measure",
+          "description": "{\"rendered\":739.89990234375,\"dom\":2058,\"requests\":6}"
+        },
+        {
+          "type": "counter",
+          "description": "ui.fetch.readerOpen = 6: /w/WS/doc/s8 /assets/boot-Bmr3UEzr.js /assets/rolldown-runtime-DK3Fl9T5.js /assets/initial-BihfxJzR.css /api/v1/ws/WS/ui /api/v1/events"
+        },
+        {
+          "type": "measure",
+          "description": "listeners {\"total\":8,\"root\":8,\"elements\":1,\"types\":{\"toggle\":1,\"click\":1,\"pointerover\":1,\"pointerout\":1,\"focusin\":1,\"focusout\":1,\"pointerup\":1,\"pointerdown\":1}}"
+        }
+      ]
+    },
+    {
+      "title": "reader level switch: latency, no request",
+      "file": "perf/reader.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1401
+        }
+      ],
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/perf/reader.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "measure",
+          "description": "{\"ms\":[6,5.700000047683716,17.299999952316284,18.09999990463257,6.400000095367432,12,10.5,17.700000047683716,5.600000023841858,18.699999928474426,7.600000023841858,15.300000071525574],\"requests\":0,\"urls\":[]}"
+        }
+      ]
+    },
+    {
+      "title": "⌘K: per-key results",
+      "file": "perf/reader.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 674
+        }
+      ],
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/perf/reader.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "measure",
+          "description": "[16.300000071525574,21,21.799999952316284,24.899999976158142,21.399999976158142,26]"
+        },
+        {
+          "type": "budget-warning",
+          "description": "ui.palette = 26 ms is over its target 18.849672574709434 (limit 38.877449685338206)"
+        }
+      ]
+    },
+    {
+      "title": "j / k shortcuts",
+      "file": "perf/reader.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 186
+        }
+      ],
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/perf/reader.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "measure",
+          "description": "[6,7.599999904632568,5.600000023841858,5.600000023841858,4.899999976158142,5.200000047683716,4.899999976158142,4.899999976158142,4.900000095367432,5.5]"
+        }
+      ]
+    },
+    {
+      "title": "section transitions through the TOC",
+      "file": "perf/reader.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 12435
+        }
+      ],
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/perf/reader.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "measure",
+          "description": "[1521.2000000476837,1934.3999999761581,973.1000000238419,1884.1000000238419,977]"
+        },
+        {
+          "type": "budget-warning",
+          "description": "ui.section = 1934.3999999761581 ms is over its limit 176.71568038790093 — reported only: not the reference machine (factor 1.18)"
+        }
+      ]
+    },
+    {
+      "title": "INP-equivalent of the mixed scenario",
+      "file": "perf/reader.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 6848
+        }
+      ],
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/perf/reader.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "measure",
+          "description": "[{\"count\":37,\"reported\":18,\"p75\":16,\"p98\":24},{\"count\":37,\"reported\":13,\"p75\":16,\"p98\":24},{\"count\":37,\"reported\":13,\"p75\":16,\"p98\":24}]"
+        }
+      ]
+    },
+    {
+      "title": "CLI spawn to painted scan summary on crit",
+      "file": "perf/scan-summary.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2973
+        }
+      ],
+      "annotations": [
+        {
+          "type": "measure",
+          "description": "{\"scanSummary\":2638.699951171875}"
+        },
+        {
+          "type": "budget-warning",
+          "description": "ui.scanSummary = 2638.699951171875 ms is over its limit 2356.2090718386794 — reported only: not the reference machine (factor 1.18)"
+        }
+      ]
+    }
+  ]
+}

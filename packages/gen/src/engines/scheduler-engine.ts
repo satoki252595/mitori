@@ -5,14 +5,15 @@
  * The orchestrator falls back to it when `GenDeps.engines` lacks an engine (CR m1-1: internal, not a public factory).
  */
 import type { AgentScheduler, EngineResult, EngineRun, EngineSession } from "@mitori/agent";
-import { type Cancel, type JobEvent, MitoriError, type WorkspaceKey } from "@mitori/core";
+import { type Cancel, type EngineSettings, type GenEngineId, type JobEvent, MitoriError, type WorkspaceKey } from "@mitori/core";
 import type { GenCall, GenCallResult, GenCallRun, GenEngine, GenEngineCaps } from "../contract.ts";
 import { toScheduledRequest } from "./index.ts";
 
-const CAPS: Readonly<Record<"claude-cli" | "anthropic-api" | "generic", GenEngineCaps>> = {
+const CAPS: Readonly<Record<Exclude<GenEngineId, "session">, GenEngineCaps>> = {
   "claude-cli": { streaming: true, batch: false, countTokens: false, structuredOutputs: true, serverFallback: false, explicitCache: false },
   "anthropic-api": { streaming: true, batch: true, countTokens: true, structuredOutputs: true, serverFallback: true, explicitCache: true },
   generic: { streaming: true, batch: false, countTokens: false, structuredOutputs: false, serverFallback: false, explicitCache: false },
+  "codex-cli": { streaming: true, batch: false, countTokens: false, structuredOutputs: true, serverFallback: false, explicitCache: false },
 };
 
 /** Wrap one scheduler turn as a GenCallRun. */
@@ -98,17 +99,17 @@ function wrap(run: EngineRun, onContinue: ((retry: string, signal: Cancel, sessi
 
 /** Factory. */
 export function createSchedulerEngine(
-  id: "claude-cli" | "anthropic-api" | "generic",
+  id: Exclude<GenEngineId, "session">,
   scheduler: AgentScheduler,
-  ctx: { ws: WorkspaceKey; sandboxCwd: string },
+  ctx: { ws: WorkspaceKey; sandboxCwd: string; codex?: EngineSettings["codex-cli"] },
 ): GenEngine {
   return {
     id,
     caps: CAPS[id],
     run(call: GenCall, signal: Cancel): GenCallRun {
-      const req = toScheduledRequest(call, { ws: ctx.ws, sandboxCwd: ctx.sandboxCwd, engine: id });
+      const req = toScheduledRequest(call, { ...ctx, engine: id });
       const run = scheduler.submit(req, signal);
-      if (id === "generic") return wrap(run, null);
+      if (id === "generic" || id === "codex-cli") return wrap(run, null);
       return wrap(run, (retry, sig, session) =>
         scheduler.continueSession(
           session,

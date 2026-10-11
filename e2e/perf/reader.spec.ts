@@ -72,9 +72,14 @@ test.describe("Reader interactions (perf)", () => {
   });
 
   test("section transitions through the TOC", async ({ browserName: _b }, info) => {
+    // A focused run must measure Reader TOC links rather than the map's header link.
+    if (!new URL(o.page.url()).pathname.includes("/doc/")) await readerOpen(o, await biggestSection(o));
     const ms = await sectionNav(o.page);
     info.annotations.push({ type: "measure", description: JSON.stringify(ms) });
+    const actions = await o.page.evaluate(() => performance.getEntriesByName("mitori:bench:section-result", "mark").map((m) => (m as PerformanceMark).detail));
+    info.annotations.push({ type: "measure", description: JSON.stringify({ sectionActions: actions }) });
     expect(ms.length).toBeGreaterThan(0);
+    expect(ms.every((value) => Number.isFinite(value) && value >= 0)).toBe(true);
     expectWithinBudget("ui.section", p95(ms));
   });
 

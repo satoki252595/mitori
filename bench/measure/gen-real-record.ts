@@ -2,6 +2,7 @@
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Spawner } from "@mitori/agent";
+import { MitoriError } from "@mitori/core";
 import { createSpawner, resolveSafePath } from "@mitori/platform";
 
 /** One recorded engine process. `env` keeps injected Claude/Muse gates; `envKeys` lists all keys, never credentials. */
@@ -26,15 +27,17 @@ export interface RecordedProcess {
  * stdout lines with receive times) into `<dir>/<n>.json` for prompt analysis. Saved after each turn's `result` and at
  * exit. Never committed: prompts carry repository code.
  */
-export function recordingSpawner(dir: string, inner?: Spawner): Spawner {
+export function recordingSpawner(dir: string, inner?: Spawner, maxCalls = Number.POSITIVE_INFINITY): Spawner {
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   chmodSync(dir, 0o700);
   const real = inner ?? createSpawner({ safePath: resolveSafePath(process.env.PATH ?? "", { workspaceRoots: [], startCwd: process.cwd() }) });
   let n = 0;
   return {
     spawn(spec) {
+      const record = spec.argv.includes("stream-json") || spec.argv.includes("--json");
+      if (record && n >= maxCalls) throw new MitoriError("E_BUDGET_EXCEEDED", "live probe native call limit reached before spawn");
       const child = real.spawn(spec);
-      if (!spec.argv.includes("stream-json") && !spec.argv.includes("--json")) return child;
+      if (!record) return child;
       const id = String(++n).padStart(3, "0");
       const t = performance.now();
       const rec: RecordedProcess = {

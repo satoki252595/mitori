@@ -35,6 +35,8 @@ const MUSE_ARGS = [
 export interface SetupInput {
   provider: Provider;
   api?: boolean;
+  native?: boolean;
+  maxEstimatedUsd?: number;
   binary?: string;
   model?: string;
   baseUrl?: string;
@@ -50,6 +52,27 @@ function models(model: ModelId): GlobalSettings["models"] {
 /** Explicit prices for known presets; custom remote models cannot silently inherit another model's rates. */
 export function setupPatch(input: SetupInput): DeepPartial<GlobalSettings> {
   const { provider } = input;
+  if (input.native && provider !== "codex") throw usage("--native is supported for Codex only");
+  if (provider === "codex" && input.native) {
+    const model = input.model ?? "gpt-6.1-sol";
+    const maxEstimatedSpendUsd = input.maxEstimatedUsd;
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,91}$/.test(model)) throw usage("invalid Codex model id");
+    if (maxEstimatedSpendUsd === undefined || !Number.isFinite(maxEstimatedSpendUsd) || maxEstimatedSpendUsd <= 0)
+      throw usage("Codex native needs --max-estimated-usd N; native reasoning has no hard spending cap");
+    // Standard API-equivalent prices, verified 2026-10-11; subscription billing is provider-owned.
+    const pricing = input.pricing ?? (model === "gpt-6.1-sol" ? { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 } : undefined);
+    if (!pricing || !Object.values(pricing).every((n) => Number.isFinite(n) && n >= 0) || (pricing.inPerMTok === 0 && pricing.outPerMTok === 0))
+      throw usage("custom Codex models need nonzero --in-price and --out-price");
+    const effort = input.effort ?? "high";
+    return {
+      defaultEngine: "codex-cli",
+      defaultGenEngine: "codex-cli",
+      ui: { defaultExecPath: "push" },
+      engines: { "codex-cli": { enabled: true, binary: input.binary ?? "codex", model, pricing, maxEstimatedSpendUsd } },
+      models: models(`codex:${model}`),
+      reasoning: { answer: effort, patch: effort, agent: effort, gen: effort, genOverview: effort },
+    };
+  }
   if (SESSION_PROVIDERS.has(provider) && !input.api)
     return { defaultEngine: "session", defaultGenEngine: "session", engines: { session: { enabled: true } }, ui: { defaultExecPath: "copy" } };
   if (provider === "claude") {

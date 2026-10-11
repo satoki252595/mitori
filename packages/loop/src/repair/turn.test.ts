@@ -99,6 +99,36 @@ const request = (p: { prompt?: string; promptBlocks?: string[]; resume?: string 
 /** A patch-mode request whose own input limit is the old 4k default (jobs/engine.ts). */
 const plainLike = (p: { prompt?: string; promptBlocks?: string[]; resume?: string }) =>
   withPrompt({ mode: "patch", prompt: "orig", budget: { usd: 1, inTokens: 4000, outTokens: 1, ms: 1 }, persistSession: false } as ScheduledRequest, p, 0.05);
+
+test("Codex cold repair admits replacement prompt blocks without increasing the remaining spend", () => {
+  const req = withPrompt(
+    {
+      engine: "codex-cli",
+      model: "codex:gpt-6.1-sol",
+      mode: "patch",
+      ref: "j_t" as JobId,
+      cwd: "/wt",
+      effort: "low",
+      tools: "none",
+      writeScope: [],
+      system: "system",
+      promptVer: "loop.patch@1",
+      prompt: "original",
+      contract: "patch/1",
+      keepAlive: false,
+      persistSession: false,
+      lane: "interactive",
+      ws: "ws_test" as ScheduledRequest["ws"],
+      scope: { kind: "job", id: "j_t" },
+      estimate: { in: 1, out: 1500 },
+      budget: { usd: 1, inTokens: 1, outTokens: 1500, ms: 180000 },
+    },
+    { promptBlocks: ["根拠".repeat(1000), "修復".repeat(1000)] },
+    0.03,
+  );
+  expect(req.budget.inTokens).toBe(new TextEncoder().encode(`${req.system}${req.promptBlocks?.join("\n\n")}{}`).length + 2048);
+  expect(req.budget.usd).toBe(0.03);
+});
 const id = "j_t" as JobId;
 const input = (core: RunnerCore, s: EngineSession | null) => ({
   core,

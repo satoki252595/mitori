@@ -9,7 +9,7 @@ import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "n
 import { dirname, join, relative } from "node:path";
 import { estimateTokensRaw } from "@mitori/indexer";
 import { createHasher } from "@mitori/platform";
-import { expectGolden } from "@mitori/testkit";
+import { expectGolden } from "@mitori/testkit/golden";
 import { INTEGRATION_TEMPLATES } from "../contract.ts";
 import { renderSkill } from "./index.ts";
 import { fileSpecs, renderTemplate, type TemplateId } from "./templates.ts";

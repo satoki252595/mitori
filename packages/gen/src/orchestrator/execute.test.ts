@@ -36,6 +36,11 @@ const ctx = (engine: GenEngine["id"], runSeconds?: number): RunCtx =>
 const prompts = {} as PromptRenderer;
 
 describe("GenCall per engine (§8.2 / §8.3)", () => {
+  test("Codex uses the native generation deadline independently of the uncalibrated Claude timing formula", () => {
+    expect(buildCall(ctx("codex-cli"), { ...task, model: "codex:gpt-6.1-sol", effort: "high" }, rendered, 1, "background", null, prompts).timeoutMs).toBe(
+      600_000,
+    );
+  });
   test("generic uses its configured reasoning deadline without changing Claude timeouts", () => {
     const c = { ...ctx("generic"), turnMs: 600_000 };
     expect(buildCall(c, task, rendered, 1, "background", null, prompts).timeoutMs).toBe(600_000);

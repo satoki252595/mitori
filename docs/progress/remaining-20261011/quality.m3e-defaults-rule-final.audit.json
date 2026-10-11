@@ -1,0 +1,204 @@
+{
+  "v": "mitori.quality-native-probe/1",
+  "date": "2026-10-11",
+  "sourceSnapshot": {
+    "sha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+    "indexDigest": "093c4511769c4384"
+  },
+  "engine": {
+    "id": "codex-cli",
+    "version": "codex-cli 0.160.0",
+    "billing": "unknown",
+    "pin": null
+  },
+  "models": {
+    "answer": "codex:gpt-6.1-sol",
+    "patch": "codex:gpt-6.1-sol",
+    "agent": "codex:gpt-6.1-sol",
+    "genModule": "codex:gpt-6.1-sol",
+    "genOverview": "codex:gpt-6.1-sol",
+    "genLeaf": "codex:gpt-6.1-sol",
+    "judge": "codex:gpt-6.1-sol",
+    "rewrite": "codex:gpt-6.1-sol",
+    "escalate": "codex:gpt-6.1-sol"
+  },
+  "reasoning": {
+    "answer": "high",
+    "patch": "high",
+    "agent": "high",
+    "gen": "high",
+    "genOverview": "high"
+  },
+  "pricing": {
+    "inPerMTok": 2,
+    "outPerMTok": 10,
+    "cacheReadPerMTok": 0.1
+  },
+  "scope": [
+    "s6/lib-tokens"
+  ],
+  "estimate": {
+    "id": "es_b9cbtt6wy6",
+    "engine": "codex-cli",
+    "model": "codex:gpt-6.1-sol",
+    "inTokens": 57375,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "outTokens": 2577,
+    "apiUsd": 0.140517,
+    "seconds": {
+      "p50": 32,
+      "p90": 43
+    },
+    "concurrency": 1,
+    "windowDeltaPct": null,
+    "billing": "unknown",
+    "confidencePct": 25,
+    "calibrationN": 0,
+    "band": "50k_200k",
+    "items": [
+      {
+        "key": "repo_pack",
+        "kind": "repo_pack",
+        "label": "repo pack",
+        "tokens": 9801,
+        "cached": false,
+        "removable": false
+      },
+      {
+        "key": "fixed",
+        "kind": "fixed",
+        "label": "gen.system",
+        "tokens": 1550,
+        "cached": false,
+        "removable": false
+      },
+      {
+        "key": "module",
+        "kind": "module",
+        "label": "module inputs",
+        "tokens": 32238,
+        "cached": false,
+        "removable": false
+      },
+      {
+        "key": "output",
+        "kind": "output",
+        "label": "output",
+        "tokens": 2577,
+        "cached": false,
+        "removable": false
+      }
+    ],
+    "requiresConfirm": true,
+    "confirmReasons": [
+      "generation_run"
+    ],
+    "expiresAt": "2026-10-11T00:08:57.295Z",
+    "effort": "standard",
+    "stages": [
+      {
+        "stage": "S5",
+        "tasks": 1,
+        "inTokens": 57375,
+        "outTokens": 2577,
+        "apiUsd": 0.140517,
+        "seconds": 31.9
+      }
+    ],
+    "criticalPathSeconds": 31.9,
+    "alternatives": [],
+    "dataPolicyKey": "gen.codex-cli"
+  },
+  "promptVersions": {
+    "gen.module": "gen.module@11"
+  },
+  "run": {
+    "state": "done",
+    "progress": {
+      "total": 1,
+      "done": 1,
+      "failed": 0,
+      "blocks": 12
+    }
+  },
+  "apiEquivalentUsd": 0.110336,
+  "usageEstimatedCalls": 0,
+  "providerInvoice": null,
+  "spendingGuard": {
+    "capUsd": 0.8,
+    "exceeded": false
+  },
+  "cancelReason": null,
+  "childProcesses": {
+    "max": 1,
+    "atEnd": 0,
+    "after5s": 0
+  },
+  "calls": [
+    {
+      "recording": "001.json",
+      "model": "gpt-6.1-sol",
+      "effortHigh": true,
+      "ignoredUserConfig": true,
+      "ignoredRules": true,
+      "networkDisabled": true,
+      "ephemeral": true,
+      "eventKinds": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed:agent_message": 1,
+        "turn.completed": 1
+      },
+      "outputBytes": 8190,
+      "terminalUsage": [
+        {
+          "input_tokens": 32788,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 4476,
+          "reasoning_output_tokens": 1879
+        }
+      ],
+      "exit": 0,
+      "exitMs": 91347
+    }
+  ],
+  "tasks": [
+    {
+      "prompt": "gen.module",
+      "state": "done",
+      "attempt": 1,
+      "metrics": {
+        "prompt": "gen.module",
+        "model": "codex:gpt-6.1-sol",
+        "engine": "codex-cli",
+        "attempt": 1,
+        "inEst": 43589,
+        "outEst": 2364,
+        "in": 32788,
+        "cacheWrite": 0,
+        "cacheRead": 0,
+        "out": 4476,
+        "thinking": 1879,
+        "lines": 17,
+        "valid1": 17,
+        "valid": 17,
+        "dropped": 0,
+        "rules": {},
+        "l0raw": 38,
+        "l1": {
+          "pass": 28,
+          "fail": 2,
+          "vacuous": 8
+        },
+        "repaired": 0,
+        "markerOk": 14,
+        "blockLines": 14,
+        "durationMs": 91347,
+        "stop": "end"
+      },
+      "error": null
+    }
+  ]
+}

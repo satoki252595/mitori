@@ -1,0 +1,250 @@
+{
+  "firstUse": {
+    "shellPaint": 230.5,
+    "firstUseful": 3274.800048828125,
+    "dom": 757,
+    "mapNodes": 425,
+    "cls": 0
+  },
+  "reader": {
+    "rendered": 47.10009765625,
+    "dom": 2058,
+    "requests": 6,
+    "urls": [
+      "/w/WS/doc/s8",
+      "/assets/boot-BxpKEnWT.js",
+      "/assets/rolldown-runtime-DK3Fl9T5.js",
+      "/assets/initial-CxGPntV5.css",
+      "/api/v1/ws/WS/ui",
+      "/api/v1/events"
+    ]
+  },
+  "api": [
+    {
+      "path": "/settings",
+      "ms": 1.1269579999998314
+    },
+    {
+      "path": "/engines",
+      "ms": 1466.1207089999998
+    },
+    {
+      "path": "/ws/WS",
+      "ms": 1.4431670000003578
+    },
+    {
+      "path": "/ws/WS/doc",
+      "ms": 0.7920000000003711
+    },
+    {
+      "path": "/ws/WS/threads?limit=200",
+      "ms": 0.5002080000003843
+    },
+    {
+      "path": "/ws/WS/jobs?limit=200",
+      "ms": 0.3453330000002097
+    },
+    {
+      "path": "/ws/WS/inbox?limit=200",
+      "ms": 0.25470899999982066
+    },
+    {
+      "path": "/ws/WS/doc/proposals?state=pending",
+      "ms": 0.25354200000037963
+    }
+  ],
+  "nativeSections": [
+    65.19999992847443,
+    31.699999928474426,
+    32.10000002384186
+  ],
+  "nativeResources": [
+    {
+      "path": "/api/v1/ws/WS/ui",
+      "start": 2353.2999999523163,
+      "response": 2358.899999976158,
+      "end": 2359.100000023842,
+      "duration": 5.800000071525574,
+      "transfer": 11068
+    },
+    {
+      "path": "/api/v1/ws/WS/ui",
+      "start": 2451.100000023842,
+      "response": 2459.2999999523163,
+      "end": 2459.600000023842,
+      "duration": 8.5,
+      "transfer": 10631
+    },
+    {
+      "path": "/api/v1/ws/WS/ui",
+      "start": 2517.2000000476837,
+      "response": 2523.600000023842,
+      "end": 2523.899999976158,
+      "duration": 6.699999928474426,
+      "transfer": 11964
+    },
+    {
+      "path": "/api/v1/ws/WS/ui",
+      "start": 2532.100000023842,
+      "response": 2536.899999976158,
+      "end": 2537.399999976158,
+      "duration": 5.299999952316284,
+      "transfer": 11964
+    }
+  ],
+  "enhancedSections": [
+    31.899999976158142,
+    32,
+    16.100000023841858
+  ],
+  "enhancedResources": [
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s6%2Finternal-7",
+      "start": 2985.100000023842,
+      "response": 2986.7999999523163,
+      "end": 2987,
+      "duration": 1.899999976158142,
+      "transfer": 6016
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s6%2Fcmd-crit",
+      "start": 2985.2999999523163,
+      "response": 2987.2000000476837,
+      "end": 2987.399999976158,
+      "duration": 2.100000023841858,
+      "transfer": 5642
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s6%2Fweb-6",
+      "start": 2985.7000000476837,
+      "response": 2988,
+      "end": 2988.100000023842,
+      "duration": 2.399999976158142,
+      "transfer": 2544
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s6%2Fweb",
+      "start": 2986.399999976158,
+      "response": 2988.5,
+      "end": 2988.5,
+      "duration": 2.100000023841858,
+      "transfer": 4661
+    },
+    {
+      "path": "/api/v1/ws/WS/map",
+      "start": 3000.100000023842,
+      "response": 3002.5,
+      "end": 3002.7999999523163,
+      "duration": 2.6999999284744263,
+      "transfer": 60236
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s6%2Fweb-2",
+      "start": 3000.5,
+      "response": 3003.899999976158,
+      "end": 3004.100000023842,
+      "duration": 3.600000023841858,
+      "transfer": 8154
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s6%2Fweb-4",
+      "start": 3000.600000023842,
+      "response": 3004.399999976158,
+      "end": 3004.5,
+      "duration": 3.899999976158142,
+      "transfer": 5182
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s7",
+      "start": 3000.7000000476837,
+      "response": 3006.7999999523163,
+      "end": 3007,
+      "duration": 6.299999952316284,
+      "transfer": 2720
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s6%2Fweb-3",
+      "start": 3000.7000000476837,
+      "response": 3007.2999999523163,
+      "end": 3007.399999976158,
+      "duration": 6.699999928474426,
+      "transfer": 5591
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s8",
+      "start": 3004.7000000476837,
+      "response": 3007.7999999523163,
+      "end": 3008,
+      "duration": 3.299999952316284,
+      "transfer": 4072
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s9",
+      "start": 3005,
+      "response": 3007.100000023842,
+      "end": 3007.2000000476837,
+      "duration": 2.200000047683716,
+      "transfer": 1712
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s10",
+      "start": 3007.399999976158,
+      "response": 3008.899999976158,
+      "end": 3009.100000023842,
+      "duration": 1.7000000476837158,
+      "transfer": 2413
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s11",
+      "start": 3007.7999999523163,
+      "response": 3009.399999976158,
+      "end": 3009.600000023842,
+      "duration": 1.8000000715255737,
+      "transfer": 3734
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s12",
+      "start": 3008.100000023842,
+      "response": 3010.2000000476837,
+      "end": 3010.2999999523163,
+      "duration": 2.1999999284744263,
+      "transfer": 1722
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s13",
+      "start": 3008.5,
+      "response": 3010.2999999523163,
+      "end": 3010.5,
+      "duration": 2,
+      "transfer": 1763
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/appendix",
+      "start": 3009.399999976158,
+      "response": 3010.7999999523163,
+      "end": 3010.899999976158,
+      "duration": 1.5,
+      "transfer": 2337
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s0",
+      "start": 3017.5,
+      "response": 3018.7000000476837,
+      "end": 3018.899999976158,
+      "duration": 1.399999976158142,
+      "transfer": 3234
+    },
+    {
+      "path": "/api/v1/ws/WS/doc/sections/s1",
+      "start": 3083.600000023842,
+      "response": 3084.7999999523163,
+      "end": 3085,
+      "duration": 1.399999976158142,
+      "transfer": 1817
+    }
+  ],
+  "checkedAt": "2026-10-11",
+  "binary": "compiled",
+  "workingTree": true,
+  "measurementNote": "Single diagnostic sample, not a reference-machine budget verdict. Native and enhanced transitions use .toc links. GET /engines is a diagnostic live probe outside measured Reader navigation."
+}

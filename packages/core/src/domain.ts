@@ -383,8 +383,8 @@ export const INCLUDED_CLASSES = [
  */
 export type EngineId = "claude-cli" | "session" | "anthropic-api" | "codex-cli" | "generic";
 
-/** Engines that can run generation (`codex-cli` has no generation adapter) [CONS-28]. */
-export type GenEngineId = Extract<EngineId, "claude-cli" | "anthropic-api" | "session" | "generic">;
+/** Engines that can run generation [CONS-28]. */
+export type GenEngineId = EngineId;
 
 /** Full Claude model ids only — aliases (`sonnet`, `opus`) are forbidden everywhere. */
 export type ClaudeModelId = "claude-opus-5-5" | "claude-sonnet-5-5" | "claude-haiku-4-5";

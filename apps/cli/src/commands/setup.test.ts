@@ -65,6 +65,35 @@ test("setup preview and non-TTY refusal cause no daemon/model/config changes; co
   expect((daemon.calls("PATCH /settings")[0]?.body as { patch: object } | undefined)?.patch).not.toHaveProperty("engines");
 });
 
+test("Codex native setup needs spend consent, routes all roles, and previews without probing or connecting", async () => {
+  expect(() => setupPatch({ provider: "codex", native: true })).toThrow("--max-estimated-usd");
+  expect(() => setupPatch({ provider: "codex", native: true, maxEstimatedUsd: Infinity })).toThrow("--max-estimated-usd");
+  expect(() => setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 0.1, model: "custom" })).toThrow("--in-price");
+  const patch = setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 0.1 });
+  expect(patch).toMatchObject({
+    defaultEngine: "codex-cli",
+    defaultGenEngine: "codex-cli",
+    models: { answer: "codex:gpt-6.1-sol", genLeaf: "codex:gpt-6.1-sol" },
+    engines: { "codex-cli": { pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 }, maxEstimatedSpendUsd: 0.1 } },
+  });
+  const d = await startFakeDaemon();
+  daemon = d;
+  const binary = join(d.dir, "codex");
+  const calls = join(d.dir, "version-calls.json");
+  writeFileSync(binary, `#!${process.execPath}\nawait Bun.write(${JSON.stringify(calls)}, "called");\nconsole.log("codex-cli 0.160.0");\n`, { mode: 0o700 });
+  const argv = ["codex", "--native", "--max-estimated-usd", "0.1", "--binary", binary];
+  const preview = testIo({ argv: [...argv, "--print"], home: d.home, cwd: d.repo });
+  expect(await runCommand("setup", preview)).toBe(0);
+  expect(JSON.parse(preview.stdout)).toMatchObject(setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 0.1, binary: realpathSync(binary) }));
+  expect(existsSync(calls)).toBe(false);
+  expect(d.seen).toHaveLength(0);
+  d.route("PATCH /settings/exec", () => ({ settings: {}, path: "", version: 2 }));
+  d.route("PATCH /settings", () => ({ settings: {}, path: "", version: 3 }));
+  expect(await runCommand("setup", testIo({ argv, home: d.home, cwd: d.repo, tty: true, answer: true }))).toBe(0);
+  expect(d.calls("PATCH /settings/exec")[0]?.body).toMatchObject({ path: "pins.codex", confirm: true, value: { version: "codex-cli 0.160.0", by: "user" } });
+  expect(d.calls("PATCH /settings/exec")[1]?.body).toMatchObject({ path: "engines.codex-cli", confirm: true });
+});
+
 test("unknown provider billing is never presented as included in a subscription", () => {
   const estimate = {
     billing: "unknown",

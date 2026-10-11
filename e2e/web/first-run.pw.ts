@@ -43,4 +43,28 @@ test.describe("first visit", () => {
     await expect(steps.nth(1)).toContainText("文を選んで");
     await expect(page.locator("dialog.help .meta")).toContainText("費用の目安");
   });
+
+  test("first visit keeps configured preferences; later navigation reads current settings in the canonical view", async ({ page, request }) => {
+    await configure({ generated: true });
+    const save = async (ui: Record<string, string>) => {
+      const settings = await (await request.get("/api/v1/settings")).json();
+      const response = await request.patch("/api/v1/settings", { data: { version: settings.version, patch: { ui } } });
+      expect(response.ok()).toBe(true);
+    };
+    await save({ readerLevel: "expert", lang: "en" });
+    const settingsReads: string[] = [];
+    page.on("request", (r) => {
+      if (r.method() === "GET" && new URL(r.url()).pathname === "/api/v1/settings") settingsReads.push(r.url());
+    });
+    await page.goto(`/w/${WS}/doc/s0`);
+    await waitMark(page, "mitori:section:rendered");
+    await expect(page.locator("html")).toHaveAttribute("data-level", "expert");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await save({ readerLevel: "newcomer", lang: "ja" });
+    await page.goto(`/w/${WS}/doc/s1`);
+    await waitMark(page, "mitori:section:rendered");
+    await expect(page.locator("html")).toHaveAttribute("data-level", "newcomer");
+    await expect(page.locator("html")).toHaveAttribute("lang", "ja");
+    expect(settingsReads).toEqual([]);
+  });
 });

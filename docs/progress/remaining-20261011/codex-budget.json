@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-11",
+  "kind": "codex-generation-run-budget-admission",
+  "actualLlmCalls": 0,
+  "nativeSpawns": 0,
+  "gitMutations": 0,
+  "source": [
+    "packages/gen/src/orchestrator/runner.ts",
+    "packages/gen/src/orchestrator/execute.ts",
+    "packages/gen/src/orchestrator/codex-budget.test.ts"
+  ],
+  "productionPath": ["gen.start", "Runner", "createSchedulerEngine", "toScheduledRequest", "scheduler.submit"],
+  "admission": {
+    "usesSameLaunchConfigAsAdapter": true,
+    "sharedScheduledPreflight": true,
+    "gatheringCodexReservationUsd": 0,
+    "reservationIncludes": ["completedRunUsage", "otherInFlightReservations", "ownAccruedUsage", "nextNativeTurnBudget"],
+    "increasedRunCap": false,
+    "increasedTurnConsent": false,
+    "initialRunBudgetRefusal": "pending-and-budget-paused-before-spawn",
+    "retryRunBudgetRefusal": "failed-E_BUDGET_EXCEEDED-retain-partial-and-usage-budget-pause",
+    "cancelCheckedBeforeAdmission": true
+  },
+  "independentTwoTaskTrace": {
+    "scope": ["s6/session", "s6/auth"],
+    "effort": "standard",
+    "model": "codex:gpt-6.1-sol",
+    "pricingPerMTok": { "input": 2, "output": 10, "cacheRead": 0.1 },
+    "turnConsentUsd": 1,
+    "estimateUsd": 0.04311,
+    "oldTaskReservationsUsd": [0.017876, 0.017622],
+    "runCapUsd": 0.15,
+    "stopThresholdUsd": 0.12,
+    "usageUsd": 0,
+    "before": { "submittedBudgetsUsd": [0.101586, 0.1011], "sumUsd": 0.202686, "state": "running", "runningTasks": 2 },
+    "after": { "submittedBudgetsUsd": [0.101586], "sumUsd": 0.101586, "state": "paused", "runningTasks": 1 },
+    "afterExitCode": 0,
+    "afterDurationMs": 52.8,
+    "nativeSpawned": false,
+    "cleanup": "cancel-and-idle",
+    "independentSourceReviewFindings": 0
+  },
+  "independentThreeTaskTrace": {
+    "scope": ["s6/session", "s6/auth", "s6/http"],
+    "backgroundSlots": 3,
+    "estimateUsd": 0.064676,
+    "oldTaskReservationsUsd": [0.017876, 0.017622, 0.017756],
+    "runCapUsd": 0.15,
+    "stopThresholdUsd": 0.12,
+    "first": { "submittedBudgetUsd": 0.101586, "pendingTasks": 2, "state": "paused" },
+    "resumeAtSameCap": { "mockTerminalUsageUsd": 0.001, "nextSubmittedBudgetUsd": 0.1011, "pendingTasks": 1, "state": "paused" },
+    "nativeSpawned": false
+  },
+  "tests": {
+    "runnerFallbackBudgetFile": { "passed": 6, "assertions": 49, "failed": 0 },
+    "existingOrchestratorAndControlFiles": { "passed": 31, "failed": 0 },
+    "targetedTotal": { "passed": 37, "assertions": 224, "failedAfterTargetedRerun": 0 },
+    "fixtureOnlyFailureRepaired": "Removed unnecessary cancel before closing an already idle test database; reran only the failing test file.",
+    "coverage": ["native-reservation-sum", "initial-no-spawn", "resume-after-available-budget-change", "three-gathering-tasks-same-cap-progress", "own-accrued-plus-other-inflight", "cold-repair-refusal", "transport-resend-refusal", "partial-retention", "usage-counted-once", "cache-not-written-on-refusal", "existing-pause-cancel-recover", "authoritative-native-budget-failure"],
+    "genTypecheck": "pass",
+    "biomeChangedFiles": "pass"
+  },
+  "limitations": ["Amounts are fixture reservations and simulated usage, not provider billing.", "Conservative preflight and reported usage guards do not impose a hard cap on hidden native thinking.", "Full unit suite and final integration checks are delegated to root/CI."]
+}

@@ -281,23 +281,50 @@ export async function shortcutKeys(page: Page, n = 10): Promise<number[]> {
 
 /** Section transitions through the Reader's own TOC links: click → `mitori:section:rendered` (ui.section). */
 export async function sectionNav(page: Page, n = 6): Promise<number[]> {
-  const links = page.locator('a[href*="/doc/s"]');
+  const links = page.locator('.toc a[href*="/doc/s"]');
   const count = Math.min(n, await links.count());
   const ms: number[] = [];
   for (let i = 0; i < count; i++) {
     const link = links.nth(i % Math.max(1, count));
     if (!(await link.isVisible())) continue;
-    const before = await page.evaluate(() => ({ now: performance.now(), n: performance.getEntriesByName("mitori:section:rendered", "mark").length }));
+    const before = await page.evaluate(() => {
+      // Playwright may scroll and wait for actionability before dispatching the click. The budget starts at user input.
+      window.addEventListener("click", (e) => performance.mark("mitori:bench:section-click", { detail: { trigger: e.timeStamp } }), {
+        capture: true,
+        once: true,
+      });
+      return { n: performance.getEntriesByName("mitori:section:rendered", "mark").length, now: performance.now() };
+    });
     await link.click();
+    const trigger = await page.evaluate(() => {
+      const click = performance.getEntriesByName("mitori:bench:section-click", "mark").at(-1) as PerformanceMark | undefined;
+      if (typeof click?.detail?.trigger !== "number") throw new Error("section budget must start at an actual click");
+      return click.detail.trigger as number;
+    });
     const h = await page
-      .waitForFunction((k) => performance.getEntriesByName("mitori:section:rendered", "mark").length > k, before.n, { timeout: 5_000, polling: 8 })
+      .waitForFunction(
+        ([count, at]) =>
+          performance
+            .getEntriesByName("mitori:section:rendered", "mark")
+            .slice(count)
+            .find((m) => m.startTime >= at)?.startTime,
+        [before.n, trigger] as const,
+        { timeout: 5_000, polling: 8 },
+      )
       .catch(() => null);
     if (!h) continue; // the link was the current section: no render
-    const at = await page.evaluate(() => {
-      const all = performance.getEntriesByName("mitori:section:rendered", "mark");
-      return all[all.length - 1]?.startTime ?? 0;
-    });
-    ms.push(at - before.now);
+    const rendered = (await h.jsonValue()) as number;
+    const latency = await page.evaluate(
+      ({ started, trigger, rendered }) => {
+        const ms = rendered - trigger;
+        performance.mark("mitori:bench:section-result", {
+          detail: { clickToPaint: ms, actionToPaint: rendered - started, actionability: trigger - started },
+        });
+        return ms;
+      },
+      { started: before.now, trigger, rendered },
+    );
+    ms.push(latency);
   }
   return ms;
 }

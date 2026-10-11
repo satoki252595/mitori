@@ -1,0 +1,1123 @@
+{
+  "date": "2026-10-11",
+  "scope": "Final working-tree host build including Settings guided native Codex and initial scan status race fix",
+  "binary": {
+    "path": "dist/mitori-darwin-arm64",
+    "bytes": 70565490,
+    "sha256": "67d632fa1c4fb061bb4d9630f2f5efd2d7e5f53ff08b803f7977d5a9a1e33459"
+  },
+  "llmCalls": 0,
+  "build": {
+    "exitCode": 0,
+    "webFiles": 137
+  },
+  "typecheck": {
+    "web": "pass",
+    "svelteErrors": 0,
+    "svelteWarnings": 0
+  },
+  "biome": {
+    "files": 8,
+    "exitCode": 0
+  },
+  "providerUnit": {
+    "pass": 6,
+    "fail": 0,
+    "assertions": 50
+  },
+  "settingsBrowser": {
+    "codexGuided": {
+      "pass": 1,
+      "fail": 0,
+      "durationMs": 1100,
+      "caseDurationMs": 414
+    },
+    "initialSummaryAndReader": {
+      "pass": 2,
+      "fail": 0,
+      "caseDurationMs": [
+        341,
+        21
+      ]
+    },
+    "harnessCorrections": [
+      "First Codex case used stale apps/web/dist; corrected to shipping dist/.build/web and reran only the failed case",
+      "Playwright toBeDisabled did not classify the disabled option; verified native option.disabled property instead"
+    ]
+  },
+  "assets": {
+    "v": "mitori.asset-size/1",
+    "url": "http://127.0.0.1:PORT/",
+    "metrics": [
+      {
+        "id": "asset.js.initial.gz",
+        "value": 54.639,
+        "unit": "KB",
+        "detail": "2 files requested by the shell (static; br 47.9 KB). Route-specific initial JS is measured by the e2e harness"
+      },
+      {
+        "id": "asset.css.gz",
+        "value": 18.1,
+        "unit": "KB",
+        "detail": "1 stylesheets (br 15.8 KB)"
+      },
+      {
+        "id": "asset.font",
+        "value": 0,
+        "unit": "B",
+        "detail": "no font response"
+      },
+      {
+        "id": "asset.chunk.Banner",
+        "value": 1.177,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.CodePane",
+        "value": 1.142,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.CodeView",
+        "value": 1.893,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.Composer",
+        "value": 11.333,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.ContextCode",
+        "value": 1.09,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.EngineCard",
+        "value": 1.192,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.ExportDialog",
+        "value": 2.671,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.FinishDialog",
+        "value": 2.377,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.GenBreakdown",
+        "value": 1.203,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.GenDoneCard",
+        "value": 0.647,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.GenProgress",
+        "value": 2.556,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.Gutter",
+        "value": 0.905,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.Icon",
+        "value": 0.852,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.InboxPage",
+        "value": 7.674,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.JobChip",
+        "value": 1.292,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.MapPage",
+        "value": 8.645,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.Margin",
+        "value": 10.153,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.ProposalLayer",
+        "value": 2.466,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.PullRoundChanges",
+        "value": 1.16,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.Rail",
+        "value": 3.815,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.ReaderPage",
+        "value": 15.24,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.ReaderTools",
+        "value": 7.472,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.ReviewPanel",
+        "value": 9.117,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.Rich",
+        "value": 0.513,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.RoomCard",
+        "value": 1.167,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.ServerHtml",
+        "value": 0.358,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.StoppedOverlay",
+        "value": 0.602,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.TextViewDialog",
+        "value": 1.564,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.Toasts",
+        "value": 1.117,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.TrustBody",
+        "value": 0.563,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.TrustDialog",
+        "value": 0.683,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.actions",
+        "value": 1.791,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.app.svelte",
+        "value": 10.405,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.ask",
+        "value": 0.379,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.boot",
+        "value": 54.485,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.catalog",
+        "value": 0.163,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.clipboard",
+        "value": 0.189,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.cm6",
+        "value": 91.666,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.code",
+        "value": 0.77,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.controller",
+        "value": 0.771,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.doctext.svelte",
+        "value": 3.195,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.efforts",
+        "value": 0.056,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.engine",
+        "value": 0.489,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.ext",
+        "value": 19.172,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.gen",
+        "value": 6.89,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.help",
+        "value": 1.988,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.hero",
+        "value": 1.158,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.i18n-en",
+        "value": 2.674,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.i18n-en-gen",
+        "value": 0.153,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.i18n-en-help",
+        "value": 0.155,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.i18n-en-loop",
+        "value": 0.268,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.i18n-en-palette",
+        "value": 0.158,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.i18n-ja",
+        "value": 3.403,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.i18n-ja-gen",
+        "value": 0.152,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.i18n-ja-help",
+        "value": 0.153,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.i18n-ja-loop",
+        "value": 0.271,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.i18n-ja-palette",
+        "value": 0.157,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.launcher",
+        "value": 2.237,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.legacy",
+        "value": 0.154,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.loop",
+        "value": 6.3,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.loop.svelte",
+        "value": 13.327,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.main",
+        "value": 13.72,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.map",
+        "value": 0.058,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.merge",
+        "value": 9.611,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.operation",
+        "value": 0.142,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.palette",
+        "value": 4.516,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.palette-worker",
+        "value": 3.07,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.provider",
+        "value": 1.807,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.reader",
+        "value": 0.064,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.rolldown-runtime",
+        "value": 0.154,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.settings",
+        "value": 6.945,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.targets",
+        "value": 0.524,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.threads",
+        "value": 1.575,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.view",
+        "value": 0.755,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.viewer",
+        "value": 59.808,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.chunk.cm6merge",
+        "value": 101.277,
+        "unit": "KB",
+        "detail": "cm6 + merge, gzip"
+      },
+      {
+        "id": "asset.viewer.js",
+        "value": 59.808,
+        "unit": "KB",
+        "detail": "gzip"
+      },
+      {
+        "id": "asset.precompressed",
+        "value": 100,
+        "unit": "pct",
+        "detail": "132 files"
+      }
+    ],
+    "verdicts": [
+      {
+        "id": "asset.js.initial.gz",
+        "level": "green",
+        "value": 54.639,
+        "target": 60,
+        "limit": 150,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "2 files requested by the shell (static; br 47.9 KB). Route-specific initial JS is measured by the e2e harness",
+        "hard": false
+      },
+      {
+        "id": "asset.css.gz",
+        "level": "yellow",
+        "value": 18.1,
+        "target": 15,
+        "limit": 25,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "1 stylesheets (br 15.8 KB)",
+        "hard": false
+      },
+      {
+        "id": "asset.font",
+        "level": "green",
+        "value": 0,
+        "target": 0,
+        "limit": 0,
+        "unit": "B",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "no font response",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.cm6",
+        "level": "green",
+        "value": 91.666,
+        "target": 125,
+        "limit": 143.75,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.gen",
+        "level": "yellow",
+        "value": 6.89,
+        "target": 6,
+        "limit": 6.9,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.help",
+        "level": "green",
+        "value": 1.988,
+        "target": 3,
+        "limit": 3.45,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.i18n-en",
+        "level": "green",
+        "value": 2.674,
+        "target": 8,
+        "limit": 9.2,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.i18n-ja",
+        "level": "green",
+        "value": 3.403,
+        "target": 9,
+        "limit": 10.35,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.launcher",
+        "level": "green",
+        "value": 2.237,
+        "target": 4,
+        "limit": 4.6,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.loop",
+        "level": "green",
+        "value": 6.3,
+        "target": 12,
+        "limit": 13.8,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.map",
+        "level": "green",
+        "value": 0.058,
+        "target": 9,
+        "limit": 10.35,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.merge",
+        "level": "green",
+        "value": 9.611,
+        "target": 10,
+        "limit": 11.5,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.palette",
+        "level": "yellow",
+        "value": 4.516,
+        "target": 4,
+        "limit": 4.6,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.palette-worker",
+        "level": "green",
+        "value": 3.07,
+        "target": 6,
+        "limit": 6.9,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.reader",
+        "level": "green",
+        "value": 0.064,
+        "target": 12,
+        "limit": 13.8,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.settings",
+        "level": "green",
+        "value": 6.945,
+        "target": 8,
+        "limit": 9.2,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.chunk.cm6merge",
+        "level": "green",
+        "value": 101.277,
+        "target": 135,
+        "limit": 155,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "cm6 + merge, gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.viewer.js",
+        "level": "green",
+        "value": 59.808,
+        "target": 60,
+        "limit": 70,
+        "unit": "KB",
+        "dir": "max",
+        "scaled": false,
+        "gating": true,
+        "detail": "gzip",
+        "hard": false
+      },
+      {
+        "id": "asset.precompressed",
+        "level": "green",
+        "value": 100,
+        "target": 100,
+        "limit": 100,
+        "unit": "pct",
+        "dir": "min",
+        "scaled": false,
+        "gating": true,
+        "detail": "132 files",
+        "hard": false
+      }
+    ],
+    "ok": true
+  },
+  "perf": {
+    "machineFactorPrinted": 1.12,
+    "factorSource": "measured by canonical e2e/harness/run.ts via testkit.machineFactor",
+    "timeVerdict": "report-only: factor outside the 0.9-1.1 reference range",
+    "report": {
+      "checkedAt": "2026-10-11",
+      "workingTree": true,
+      "binary": "compiled",
+      "stats": {
+        "startTime": "2026-10-11T01:18:42.864Z",
+        "duration": 10952.898,
+        "expected": 4,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "cases": [
+        {
+          "title": "cold open of crit: shell, first useful screen, boot CLS, DOM",
+          "file": "perf/first-use.spec.ts",
+          "project": "perf",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 2960
+            }
+          ],
+          "annotations": [
+            {
+              "type": "measure",
+              "description": "{\"shellPaint\":274,\"firstUseful\":2027.89990234375,\"dom\":757,\"mapNodes\":425,\"cls\":0}"
+            }
+          ]
+        },
+        {
+          "title": "Reader open: requests, DOM and event listeners",
+          "file": "perf/reader.spec.ts",
+          "project": "perf",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 895
+            }
+          ],
+          "annotations": [
+            {
+              "type": "serial",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/perf/reader.spec.ts",
+                "line": 0,
+                "column": 0
+              }
+            },
+            {
+              "type": "measure",
+              "description": "{\"rendered\":50.2001953125,\"dom\":2058,\"requests\":6}"
+            },
+            {
+              "type": "counter",
+              "description": "ui.fetch.readerOpen = 6: /w/WS/doc/s8 /assets/boot-BTIj5zYu.js /assets/rolldown-runtime-DK3Fl9T5.js /assets/initial-CxGPntV5.css /api/v1/ws/WS/ui /api/v1/events"
+            },
+            {
+              "type": "measure",
+              "description": "listeners {\"total\":8,\"root\":8,\"elements\":1,\"types\":{\"toggle\":1,\"click\":1,\"pointerover\":1,\"pointerout\":1,\"focusin\":1,\"focusout\":1,\"pointerup\":1,\"pointerdown\":1}}"
+            }
+          ]
+        },
+        {
+          "title": "section transitions through the TOC",
+          "file": "perf/reader.spec.ts",
+          "project": "perf",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 551
+            }
+          ],
+          "annotations": [
+            {
+              "type": "serial",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/perf/reader.spec.ts",
+                "line": 0,
+                "column": 0
+              }
+            },
+            {
+              "type": "measure",
+              "description": "[85,35.700000047683716,30.699999928474426,31,30.899999976158142,-71.70000004768372]"
+            },
+            {
+              "type": "measure",
+              "description": "{\"sectionActions\":[{\"clickToPaint\":85,\"actionToPaint\":119.79999995231628,\"actionability\":34.799999952316284},{\"clickToPaint\":35.700000047683716,\"actionToPaint\":52.60000002384186,\"actionability\":16.899999976158142},{\"clickToPaint\":30.699999928474426,\"actionToPaint\":52.299999952316284,\"actionability\":21.600000023841858},{\"clickToPaint\":31,\"actionToPaint\":51.39999997615814,\"actionability\":20.399999976158142},{\"clickToPaint\":30.899999976158142,\"actionToPaint\":58.5,\"actionability\":27.600000023841858},{\"clickToPaint\":-71.70000004768372,\"actionToPaint\":36.09999990463257,\"actionability\":107.79999995231628}]}"
+            }
+          ]
+        },
+        {
+          "title": "CLI spawn to painted scan summary on crit",
+          "file": "perf/scan-summary.spec.ts",
+          "project": "perf",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 2140
+            }
+          ],
+          "annotations": [
+            {
+              "type": "measure",
+              "description": "{\"scanSummary\":1771.5}"
+            },
+            {
+              "type": "budget-warning",
+              "description": "ui.scanSummary = 1771.5 ms is over its target 1119.8414754057305 (limit 2239.682950811461)"
+            }
+          ]
+        }
+      ]
+    },
+    "tocNote": "One original TOC sample was negative because a refresh painted during Playwright actionability, before actual click. Those original TOC numbers are invalid; the corrected rerun below is authoritative."
+  },
+  "tocCorrected": {
+    "machineFactorPrinted": 1.11,
+    "report": {
+      "checkedAt": "2026-10-11",
+      "workingTree": true,
+      "binary": "compiled",
+      "stats": {
+        "startTime": "2026-10-11T01:20:06.933Z",
+        "duration": 4391.388,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "cases": [
+        {
+          "title": "section transitions through the TOC",
+          "file": "perf/reader.spec.ts",
+          "project": "perf",
+          "status": "expected",
+          "results": [
+            {
+              "status": "passed",
+              "durationMs": 1497
+            }
+          ],
+          "annotations": [
+            {
+              "type": "serial",
+              "location": {
+                "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/perf/reader.spec.ts",
+                "line": 0,
+                "column": 0
+              }
+            },
+            {
+              "type": "measure",
+              "description": "[82.5,31,64.5,38.89999997615814,31.100000023841858,27.700000047683716]"
+            },
+            {
+              "type": "measure",
+              "description": "{\"sectionActions\":[{\"clickToPaint\":82.5,\"actionToPaint\":114.80000007152557,\"actionability\":32.300000071525574},{\"clickToPaint\":31,\"actionToPaint\":52.300000071525574,\"actionability\":21.300000071525574},{\"clickToPaint\":64.5,\"actionToPaint\":89.89999997615814,\"actionability\":25.399999976158142},{\"clickToPaint\":38.89999997615814,\"actionToPaint\":63,\"actionability\":24.100000023841858},{\"clickToPaint\":31.100000023841858,\"actionToPaint\":47.60000002384186,\"actionability\":16.5},{\"clickToPaint\":27.700000047683716,\"actionToPaint\":137.20000004768372,\"actionability\":109.5}]}"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "a11y": {
+    "checkedAt": "2026-10-11",
+    "workingTree": true,
+    "binary": "compiled",
+    "stats": {
+      "startTime": "2026-10-11T01:19:04.638Z",
+      "duration": 8035.023999999999,
+      "expected": 8,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "cases": [
+      {
+        "title": "@a11y axe: S1 map (light)",
+        "file": "a11y/axe.spec.ts",
+        "project": "chromium",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "durationMs": 993
+          }
+        ],
+        "annotations": [
+          {
+            "type": "axe",
+            "description": "[]"
+          }
+        ]
+      },
+      {
+        "title": "@a11y axe: S2 Reader (light)",
+        "file": "a11y/axe.spec.ts",
+        "project": "chromium",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "durationMs": 844
+          }
+        ],
+        "annotations": [
+          {
+            "type": "axe",
+            "description": "[]"
+          }
+        ]
+      },
+      {
+        "title": "@a11y axe: S1 map (dark)",
+        "file": "a11y/axe.spec.ts",
+        "project": "chromium",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "durationMs": 943
+          }
+        ],
+        "annotations": [
+          {
+            "type": "axe",
+            "description": "[]"
+          }
+        ]
+      },
+      {
+        "title": "@a11y axe: S2 Reader (dark)",
+        "file": "a11y/axe.spec.ts",
+        "project": "chromium",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "durationMs": 853
+          }
+        ],
+        "annotations": [
+          {
+            "type": "axe",
+            "description": "[]"
+          }
+        ]
+      },
+      {
+        "title": "@a11y probes: S1 map (light)",
+        "file": "a11y/probe.spec.ts",
+        "project": "chromium",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "durationMs": 991
+          }
+        ],
+        "annotations": [
+          {
+            "type": "probe",
+            "description": "{\"contrast\":0,\"smallText\":[],\"smallTargets\":[]}"
+          }
+        ]
+      },
+      {
+        "title": "@a11y probes: S2 Reader (light)",
+        "file": "a11y/probe.spec.ts",
+        "project": "chromium",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "durationMs": 889
+          }
+        ],
+        "annotations": [
+          {
+            "type": "probe",
+            "description": "{\"contrast\":0,\"smallText\":[],\"smallTargets\":[]}"
+          }
+        ]
+      },
+      {
+        "title": "@a11y probes: S1 map (dark)",
+        "file": "a11y/probe.spec.ts",
+        "project": "chromium",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "durationMs": 980
+          }
+        ],
+        "annotations": [
+          {
+            "type": "probe",
+            "description": "{\"contrast\":0,\"smallText\":[],\"smallTargets\":[]}"
+          }
+        ]
+      },
+      {
+        "title": "@a11y probes: S2 Reader (dark)",
+        "file": "a11y/probe.spec.ts",
+        "project": "chromium",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "durationMs": 871
+          }
+        ],
+        "annotations": [
+          {
+            "type": "probe",
+            "description": "{\"contrast\":0,\"smallText\":[],\"smallTargets\":[]}"
+          }
+        ]
+      }
+    ]
+  },
+  "limits": "No reference or budget was changed. Raw scanSummary 1771.5ms is below the original 2000ms limit; this single calibrated run is outside reference tolerance and is not a formal reference-machine time verdict."
+}

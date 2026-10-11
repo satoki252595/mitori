@@ -17,6 +17,69 @@ async function runToEnd(h: ReturnType<typeof makeHarness>, effort: "overview" | 
 const taskStates = (r: ReturnType<ReturnType<typeof makeHarness>["gen"]["run"]>) => r?.tasks.map((t) => t.state) ?? [];
 
 describe("end-to-end standard run over scripted engines", () => {
+  test("Codex generates using its configured model and prices without Claude cache or subscription-window estimates", async () => {
+    const s = testSettings();
+    s.global.defaultGenEngine = "codex-cli";
+    s.global.engines["codex-cli"] = {
+      enabled: true,
+      binary: "codex",
+      model: "gpt-6.1-sol",
+      pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+      maxEstimatedSpendUsd: 1,
+    };
+    for (const k of Object.keys(s.global.models) as (keyof typeof s.global.models)[]) s.global.models[k] = "codex:gpt-6.1-sol";
+    s.global.reasoning.gen = s.global.reasoning.genOverview = "high";
+    const h = makeHarness({ settings: s, router: (call, turn) => ({ ...validRouter(call, turn), apiUsd: 0.001 }) });
+    h.deps.engines["codex-cli"] = { ...h.engine, id: "codex-cli" };
+    const { est, run } = await runToEnd(h);
+    expect(run?.run.state).toBe("done");
+    expect(run?.run.progress.failed).toBe(0);
+    expect(est.engine).toBe("codex-cli");
+    expect(est.apiUsd).toBeGreaterThan(0);
+    expect(est.cacheReadTokens + est.cacheWriteTokens).toBe(0);
+    expect(est.alternatives).toEqual([]);
+    expect(est.windowDeltaRange).toBeUndefined();
+    expect(est.billing).toBe("unknown");
+    expect(h.engine.calls.every((c) => c.call.model === "codex:gpt-6.1-sol" && c.call.effort === "high")).toBe(true);
+  });
+  test("Codex authoritative budget refusal fails even complete coverage, keeps valid blocks and usage, and is neither retried nor cached", async () => {
+    const s = testSettings();
+    s.global.defaultGenEngine = "codex-cli";
+    s.global.engines["codex-cli"] = {
+      enabled: true,
+      binary: "codex",
+      model: "gpt-6.1-sol",
+      pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+      maxEstimatedSpendUsd: 1,
+    };
+    for (const k of Object.keys(s.global.models) as (keyof typeof s.global.models)[]) s.global.models[k] = "codex:gpt-6.1-sol";
+    const h = makeHarness({
+      settings: s,
+      router: (call, turn) => ({
+        ...validRouter(call, turn),
+        apiUsd: 0.001,
+        stop: "budget",
+        error: { code: "E_BUDGET_EXCEEDED", message: "Codex reported usage exceeds the confirmed estimate", retryable: false },
+      }),
+    });
+    h.deps.engines["codex-cli"] = { ...h.engine, id: "codex-cli" };
+    const est = await h.gen.estimate({ effort: "standard", scope: ["s6/session"] });
+    const run = await h.gen.start(est.id);
+    await h.gen.idle();
+    const result = h.gen.run(run.id);
+    expect(result?.tasks).toHaveLength(1);
+    expect(result?.tasks[0]).toMatchObject({ state: "failed", attempt: 1, error: { code: "E_BUDGET_EXCEEDED", retryable: false } });
+    expect(result?.run.progress).toMatchObject({ done: 0, failed: 1, blocks: 2 });
+    expect(result?.run.usage.apiUsd).toBe(0.001);
+    expect(
+      h.doc
+        .section("s6/session")
+        ?.blocks.filter((b) => b.origin === "ai")
+        .map((b) => b.aspect),
+    ).toEqual(["responsibility", "interface"]);
+    expect(h.engine.calls).toHaveLength(1);
+    expect(h.db.get<{ n: number }>("SELECT COUNT(*) AS n FROM gen_outputs")?.n).toBe(0);
+  });
   test("a configured arbitrary model runs generation with its selected effort and explicit prices", async () => {
     const s = testSettings();
     s.global.defaultGenEngine = "generic";

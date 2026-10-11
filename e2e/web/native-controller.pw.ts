@@ -326,6 +326,34 @@ test("stream reservation survives refresh until offscreen; destroy cancels pendi
   expect(result).toEqual({ held: true, released: true, actions: [] });
 });
 
+test("scroll anchor skips an unpainted subsection whose stale child rectangle overlaps the viewport", async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const path = "/__native_reader_controller.js";
+    const { mountNativeReader } = await import(path);
+    const main = document.querySelector<HTMLElement>("main")!;
+    const block = (id: string) => ({ id, html: `<div class="mb"><p>${id}</p></div>`, kind: "paragraph", depth: "L1", freshness: "fresh", claimViews: [] });
+    const hidden = block("b_skipped");
+    const visible = block("b_visible");
+    main.innerHTML =
+      '<div class="reader-root"><div style="height:2400px"></div><section style="content-visibility:auto;contain-intrinsic-size:auto 900px"><div class="blk" data-b="b_skipped" style="margin-top:1000px">Skipped text</div></section><section id="next"><div class="blk" data-b="b_visible">Visible text</div><div style="height:1800px"></div></section></div>';
+    const reader = mountNativeReader({
+      root: main,
+      page: { page: "s3", parts: [{ node: { id: "s3" }, blocks: [hidden, visible] }], order: [hidden.id, visible.id], total: 2 },
+      ws: "ws_0123456789ab",
+      level: "standard",
+      text: { citeEnd: String, verifyLabel: "Check" },
+      enhance() {},
+    });
+    main.querySelector("#next")!.scrollIntoView({ block: "start" });
+    const skipped = main.querySelector<HTMLElement>('[data-b="b_skipped"]')!;
+    const state = reader.capture();
+    const result = { skipped: !skipped.checkVisibility({ contentVisibilityAuto: true }), anchor: state.anchor?.id };
+    reader.destroy();
+    return result;
+  });
+  expect(result).toEqual({ skipped: true, anchor: "b_visible" });
+});
+
 test("partial text stays plain and survives same-page refresh; confirmed text clears it", async ({ page }) => {
   const result = await page.evaluate(async () => {
     const path = "/__native_reader_controller.js";

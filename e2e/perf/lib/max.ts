@@ -60,6 +60,8 @@ export async function openMax(browser: Browser, codeOnly = false): Promise<MaxOp
     const page = await context.newPage();
     await page.addInitScript(INIT_OBSERVERS);
     await page.goto(seed.url);
+    // load fires before the async nonce exchange. Do not interrupt login with the first measured navigation.
+    await page.waitForFunction(() => performance.getEntriesByName("mitori:section:rendered", "mark").length > 0);
     return {
       origin: seed.origin,
       ws: seed.ws,

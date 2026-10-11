@@ -97,6 +97,41 @@ test("@wp10a guided setup gives local and external commands without saving brows
   await expect(page.locator("details")).not.toHaveAttribute("open");
 });
 
+test("@wp10a Codex guided setup defaults to bounded native execution and retains the external MCP choice", async ({ page }) => {
+  await configure({});
+  const view = structuredClone(settings(DEFAULTS));
+  await page.route("**/api/v1/settings", async (route) => {
+    if (route.request().method() === "GET") await route.fulfill({ json: view });
+    else await route.continue();
+  });
+  await page.goto(`/w/${WS}/settings`);
+  await waitMark(page, "mitori:section:rendered");
+  await page.getByRole("combobox", { name: "使うAI", exact: true }).selectOption("codex");
+  const native = page.getByLabel("mitoriの画面から直接実行する");
+  await expect(native).toBeChecked();
+  await expect(page.getByLabel("モデル名（任意）", { exact: true })).toHaveValue("gpt-6.1-sol");
+  await expect(page.getByLabel("1ターンのAPI換算推計上限（USD）")).toHaveValue("1");
+  await page.getByRole("button", { name: "接続コマンドを作る" }).click();
+  await expect(page.locator("form pre").first()).toContainText("setup codex --native --max-estimated-usd '1' --model 'gpt-6.1-sol'");
+  await native.uncheck();
+  await page.getByLabel("対象リポジトリのパス").fill("/repo/example");
+  await page.getByRole("button", { name: "接続コマンドを作る" }).click();
+  await expect(page.locator("form pre").first()).toContainText("setup codex --repo '/repo/example'");
+  await expect(page.locator("form pre").first()).not.toContainText("--native");
+  await page.getByText("詳細設定（独自CLI・API）", { exact: true }).click();
+  const advanced = page.getByRole("combobox", { name: "生成の既定エンジン", exact: true });
+  await expect(advanced.locator('option[value="codex-cli"]')).toHaveCount(0);
+  view.settings.defaultGenEngine = "codex-cli";
+  view.settings.engines["codex-cli"].enabled = true;
+  view.settings.engines["codex-cli"].maxEstimatedSpendUsd = 1;
+  await page.getByRole("button", { name: "設定を再読み込み", exact: true }).click();
+  await expect(advanced).toHaveValue("codex-cli");
+  await expect(advanced.locator('option[value="codex-cli"]')).toHaveJSProperty("disabled", true);
+  await expect(page.getByText("Codexのモデルと実行設定は、上の「使うAI」でCodexを選び、接続コマンドから設定してください。", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "エンジン設定を保存", exact: true })).toBeDisabled();
+  expect((await mockLog()).filter((r) => r.method === "PATCH")).toHaveLength(0);
+});
+
 test("@wp10a settings: editor (⇧O target) and single-key switch are saved in one debounced PATCH", async ({ page }) => {
   await configure({});
   await page.goto(`/w/${WS}/settings`);

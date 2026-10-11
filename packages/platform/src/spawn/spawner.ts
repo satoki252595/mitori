@@ -6,7 +6,7 @@ import { MitoriError } from "@mitori/core";
 import { realTimers, type Timers } from "../clock/timers.ts";
 import { LineChannel, pump } from "./lines.ts";
 import { type ChildHandle, type KillSignal, type Spawner, type SpawnSpec, STDERR_KEEP_LINES } from "./types.ts";
-import { type WindowsJobLauncher, windowsJobExecutable } from "./windows-job.ts";
+import { type WindowsJobLauncher, windowsJobArgv, windowsJobExecutable } from "./windows-job.ts";
 
 /** Options of {@link createSpawner}. */
 export interface SpawnerOptions {
@@ -58,9 +58,10 @@ export function createSpawner(opts: SpawnerOptions = {}): Spawner {
       const windowsGroup = process.platform === "win32" && spec.processGroup;
       const launcher = windowsGroup ? windowsJobExecutable(opts.windowsJobLauncher) : null;
       if (windowsGroup && !isAbsolute(command)) throw new MitoriError("E_INVALID_INPUT", "Windows job child requires an absolute executable");
+      const argv = launcher ? [launcher, ...windowsJobArgv(command, spec.argv, env)] : [command, ...spec.argv];
       let proc: ReturnType<typeof Bun.spawn<"pipe" | "ignore", "pipe", "pipe">>;
       try {
-        proc = Bun.spawn(launcher ? [launcher, command, ...spec.argv] : [command, ...spec.argv], {
+        proc = Bun.spawn(argv, {
           cwd: spec.cwd,
           env,
           stdin: pipeIn ? "pipe" : "ignore",

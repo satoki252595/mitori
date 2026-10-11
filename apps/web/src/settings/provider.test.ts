@@ -53,6 +53,12 @@ test("guided setup quotes repository paths literally and requires the local mode
   expect(providerSetupCommand({ provider: "grok", repo })).toContain("--repo");
   expect(providerSetupCommand({ provider: "grok", repo })).not.toContain("--key-env");
   expect(providerSetupCommand({ provider: "grok", api: true })).toContain("--api");
+  expect(providerSetupCommand({ provider: "codex", native: true, maxEstimatedUsd: 1, model: "gpt-6.1-sol" })).toContain(
+    "setup codex --native --max-estimated-usd '1' --model 'gpt-6.1-sol'",
+  );
+  expect(() => providerSetupCommand({ provider: "codex", native: true })).toThrow();
+  expect(() => providerSetupCommand({ provider: "codex", native: true, maxEstimatedUsd: Infinity })).toThrow();
+  expect(() => providerSetupCommand({ provider: "codex", native: true, maxEstimatedUsd: 1, model: "custom" })).toThrow();
   expect(providerAuthCommand("muse", { command: "/path with space/bun", args: ["/clone/scripts/start.ts"] })).toBe(
     "'/path with space/bun' '/clone/scripts/start.ts' auth muse",
   );

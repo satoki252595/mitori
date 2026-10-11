@@ -1,8 +1,24 @@
-import { MitoriError, parseRepoPath } from "@mitori/core";
+import { type EngineSettings, MitoriError, parseRepoPath, priceUsage } from "@mitori/core";
 import type { EngineRequest } from "../contract.ts";
 
 /** Profile verified with the native binary and a local Responses server (no paid model). */
 export const CODEX_VERSION = "0.160.0";
+
+/** Shared conservative estimate; native thinking has no hard token cap. Every tool step re-sends the context. */
+export function codexPreflight(
+  req: Pick<EngineRequest, "model" | "system" | "prompt" | "promptBlocks" | "jsonSchema"> & { outTokens: number; maxCalls?: number },
+  pricing: NonNullable<EngineSettings["codex-cli"]["pricing"]>,
+): { inTokens: number; usd: number } {
+  const bytes = (text: string) => new TextEncoder().encode(text).length;
+  const inTokens = bytes(req.system) + bytes((req.promptBlocks ?? [req.prompt]).join("\n\n")) + bytes(JSON.stringify(req.jsonSchema ?? {})) + 2048;
+  const usd = priceUsage(
+    req.model,
+    { in: (inTokens + req.outTokens) * ((req.maxCalls ?? 0) + 1), out: req.outTokens, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0 },
+    false,
+    pricing,
+  );
+  return { inTokens, usd };
+}
 export const CODEX_DISABLED_FEATURES = [
   "shell_tool",
   "unified_exec",

@@ -7,11 +7,11 @@ import { type Io, usage } from "./io.ts";
 import { selfCommand } from "./process-io.ts";
 import { connect, requireTty } from "./session.ts";
 import { integrationSetup } from "./setup-integrations.ts";
-import { prepareClaudePin } from "./setup-pin.ts";
+import { prepareProviderPin } from "./setup-pin.ts";
 import { PROVIDERS, type Provider, SESSION_PROVIDERS, setupPatch } from "./setup-presets.ts";
 
 export function binaryOf(provider: Provider, explicit?: string): string | undefined {
-  if (provider !== "claude" && provider !== "muse") return undefined;
+  if (provider !== "claude" && provider !== "muse" && provider !== "codex") return undefined;
   const found = explicit ? resolve(explicit) : Bun.which(provider);
   if (!found) throw usage(`${provider} is not on PATH; use --binary /absolute/path or install/login with its official instructions`);
   let binary = realpathSync(found);
@@ -39,6 +39,8 @@ export async function run(io: Io): Promise<number> {
       repo: { type: "string" },
       print: { type: "boolean" },
       api: { type: "boolean" },
+      native: { type: "boolean" },
+      "max-estimated-usd": { type: "string" },
     },
     "setup",
   );
@@ -47,6 +49,8 @@ export async function run(io: Io): Promise<number> {
   const preview = values.print === true;
   if (!preview) requireTty(io, "mitori setup");
   if (values.api && provider !== "grok") throw usage("--api is only needed to select Grok API instead of its official Build session");
+  if (values.native && provider !== "codex") throw usage("--native is supported for Codex only");
+  if (values["max-estimated-usd"] !== undefined && !values.native) throw usage("--max-estimated-usd requires Codex --native");
   if (
     provider === "grok" &&
     !values.api &&
@@ -55,11 +59,13 @@ export async function run(io: Io): Promise<number> {
     throw usage("Grok Build uses its own model and subscription; add --api for explicit API settings");
   if (values["key-env"] && !/^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(values["key-env"])) throw usage("--key-env names an environment variable, not a key");
   if ((values["in-price"] === undefined) !== (values["out-price"] === undefined)) throw usage("provide both --in-price and --out-price");
-  const binary = binaryOf(provider, values.binary);
+  const binary = provider === "codex" && !values.native ? undefined : binaryOf(provider, values.binary);
   const effort = oneOf(values.effort, ["low", "medium", "high", "xhigh", "max"] as const, "effort", "setup");
   const patch = setupPatch({
     provider,
     api: values.api === true,
+    native: values.native === true,
+    ...(values["max-estimated-usd"] !== undefined ? { maxEstimatedUsd: Number(values["max-estimated-usd"]) } : {}),
     ...(binary ? { binary } : {}),
     ...(values.model ? { model: values.model } : {}),
     ...(values["base-url"] ? { baseUrl: values["base-url"] } : {}),
@@ -69,9 +75,12 @@ export async function run(io: Io): Promise<number> {
       ? { pricing: { inPerMTok: Number(values["in-price"]), outPerMTok: Number(values["out-price"]), cacheReadPerMTok: Number(values["in-price"]) } }
       : {}),
   });
-  if (provider === "claude" && !preview && binary) patch.pins = { claude: await prepareClaudePin(binary, io) };
+  if (!preview && binary) {
+    if (provider === "claude") patch.pins = { claude: await prepareProviderPin(binary, io, "Claude") };
+    if (provider === "codex" && values.native) patch.pins = { codex: await prepareProviderPin(binary, io, "Codex") };
+  }
   let instructions = "";
-  if (SESSION_PROVIDERS.has(provider) && !values.api) {
+  if (SESSION_PROVIDERS.has(provider) && !values.api && !values.native) {
     if (!values.repo) throw usage("external sessions need --repo /absolute/path/to/your/repository");
     const workspace = realpathSync(resolve(io.cwd, values.repo));
     if (!statSync(workspace).isDirectory()) throw usage("--repo must name a directory");
@@ -85,7 +94,8 @@ export async function run(io: Io): Promise<number> {
   }
   if (!(await io.confirm("このLLM設定を保存しますか？ / Save this provider?"))) return 1;
   const s = await connect(io);
-  if (patch.pins?.claude) await s.api.call("PATCH /settings/exec", { params: {}, body: { path: "pins.claude", value: patch.pins.claude, confirm: true } });
+  for (const [key, value] of Object.entries(patch.pins ?? {}))
+    await s.api.call("PATCH /settings/exec", { params: {}, body: { path: `pins.${key}`, value, confirm: true } });
   for (const [key, value] of Object.entries(patch.engines ?? {}))
     await s.api.call("PATCH /settings/exec", { params: {}, body: { path: `engines.${key}`, value, confirm: true } });
   const regular: DeepPartial<GlobalSettings> = { ...patch };
@@ -97,6 +107,8 @@ export async function run(io: Io): Promise<number> {
   if (provider === "grok" && values.api)
     io.out("GrokにはXAI_API_KEY（または指定した環境変数）が必要です。既存daemonは環境を引き継ぎません。キーを設定したターミナルから再起動してください。\n");
   if (provider === "muse") io.out("Museの認証とlean起動条件を確認してください。新しいnativeバージョンは実検証記録と区別してください。\n");
+  if (provider === "codex" && values.native)
+    io.out("Codexのサブスク認証を使います。表示額はAPI換算の推計で、native reasoningの厳密な費用上限ではありません。\n");
   if (instructions) io.out(instructions);
   return 0;
 }

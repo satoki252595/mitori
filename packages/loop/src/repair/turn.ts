@@ -5,7 +5,7 @@
 // A path is skipped when it cannot work, and a path that fails BEFORE the engine produced anything (the parked
 // process is gone, a resume the CLI refuses) falls through at once — never a wait for the turn timeout. A turn that
 // did run (and was billed) is never repeated on another path.
-import type { EngineResult, EngineRun, EngineSession, ScheduledRequest } from "@mitori/agent";
+import { codexPreflight, type EngineResult, type EngineRun, type EngineSession, type ScheduledRequest } from "@mitori/agent";
 import type { JobId } from "@mitori/core";
 import type { RunnerCore } from "../jobs/core.ts";
 import { addUsage, consume, engineRequest } from "../jobs/engine.ts";
@@ -164,6 +164,11 @@ export function withPrompt(req: ScheduledRequest, p: { prompt?: string; promptBl
   if (p.resume !== undefined) {
     out.resume = p.resume;
     out.persistSession = true;
+  }
+  if (out.engine === "codex-cli") {
+    // Price admission stays in the native adapter; recompute its input bound after replacing the prompt.
+    const input = codexPreflight({ ...out, outTokens: out.budget.outTokens }, { inPerMTok: 0, outPerMTok: 0, cacheReadPerMTok: 0 }).inTokens;
+    out.budget.inTokens = Math.max(out.budget.inTokens, input);
   }
   return out;
 }

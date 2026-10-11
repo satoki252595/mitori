@@ -1,0 +1,146 @@
+{
+  "v": "mitori.quality-citation-review/1",
+  "date": "2026-10-11",
+  "claims": [
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "claim": "cl_01fj1k7v",
+      "block": "b_qqg7ma4c",
+      "quote": "Agentがブラウザ層とモデル層を呼び出す実行経路では、通信の往復と待機が時間を使うため、往復回数の削減を高速化の軸としている",
+      "kind": "performance",
+      "verdict": "inferred",
+      "checks": {
+        "checkedAt": "2026-10-10T23:43:36.428Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "fail",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/agent.py",
+          "start": 7,
+          "end": 9,
+          "blob": "726d880bd95ca946106220a44c05a488a4f1da82"
+        },
+        {
+          "path": "docs/design.md",
+          "start": 5,
+          "end": 5,
+          "blob": "52f93a5c3dbc03df194f71308ee5c34f19dbdff5"
+        }
+      ],
+      "sourceReview": "Agent is declared at agent.py:12. The cited imports at 7–9 identify its Browser/model collaborators but omit the class identifier, so L1 fails. design.md:5 explicitly avoids serial operation/target requests; treating this as a latency objective remains an inference, not measured performance.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "claim": "cl_570j1f0g",
+      "block": "b_tg5qknw5",
+      "quote": "言語別の初期テキストはlib/i18n.tsのgetLangとKIND_TEXTに依存し、配色生成にはlib/color.tsのschemeFromSeedを使う",
+      "kind": "architecture",
+      "verdict": "inferred",
+      "checks": {
+        "checkedAt": "2026-10-10T23:53:01.046Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "fail",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 2383,
+          "end": 2389,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        },
+        {
+          "path": "lib/tokens.ts",
+          "start": 538,
+          "end": 546,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "tokens.ts:2–3 imports getLang/KIND_TEXT from ./i18n and schemeFromSeed from ./color; the cited makeItem/paletteOf lines call these helpers. The dependency meaning matches source, but the quote names other file paths absent from the cited call windows, so L1 fails. Import/definition citations would be stronger.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_dy9rfht6",
+      "block": "b_tg5qknw5",
+      "quote": "初期テキストはlib/i18n.tsのgetLangとKIND_TEXTを参照する",
+      "kind": "architecture",
+      "verdict": "inferred",
+      "checks": {
+        "checkedAt": "2026-10-11T00:00:28.522Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "fail",
+        "l2": true
+      },
+      "cites": [
+        {
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8",
+          "end": 2393,
+          "path": "lib/tokens.ts",
+          "start": 2383
+        }
+      ],
+      "sourceReview": "tokens.ts:2–3 imports getLang/KIND_TEXT from ./i18n and schemeFromSeed from ./color. The cited makeItem/paletteOf lines use the named helpers; dependency meaning matches source, but the other file path is absent from the cited call window. No semantic falsehood was found in this source review; the citation window remains weak and L1 stays fail.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_mf4n2sqc",
+      "block": "b_tg5qknw5",
+      "quote": "配色生成にはlib/color.tsのschemeFromSeedを使う",
+      "kind": "architecture",
+      "verdict": "inferred",
+      "checks": {
+        "checkedAt": "2026-10-11T00:00:28.522Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "fail",
+        "l2": true
+      },
+      "cites": [
+        {
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8",
+          "end": 546,
+          "path": "lib/tokens.ts",
+          "start": 538
+        }
+      ],
+      "sourceReview": "tokens.ts:2–3 imports getLang/KIND_TEXT from ./i18n and schemeFromSeed from ./color. The cited makeItem/paletteOf lines use the named helpers; dependency meaning matches source, but the other file path is absent from the cited call window. No semantic falsehood was found in this source review; the citation window remains weak and L1 stays fail.",
+      "markdownExportShowsInferenceWarning": false
+    }
+  ],
+  "defaultingClaim": {
+    "checks": {
+      "checkedAt": "2026-10-11T00:00:28.527Z",
+      "l0": true,
+      "l0Raw": true,
+      "l1": "pass",
+      "l2": true
+    },
+    "cites": [
+      {
+        "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8",
+        "end": 2150,
+        "path": "lib/tokens.ts",
+        "precision": "exact",
+        "snippet": "a6d29aff3382f984",
+        "start": 2147
+      }
+    ],
+    "id": "cl_ffvsv65g",
+    "quote": "isPhoneFrameは未指定の幅・高さをPHONE_W・PHONE_Hで補い、両方がその値と一致する場合だけ真を返す",
+    "verdict": "verified"
+  }
+}

@@ -11,23 +11,10 @@
 import type { Effort, EngineId, EngineStatus, GenEstimate, ReasoningEffort, ScanSummaryView, SubscriptionWindow } from "@mitori/core";
 import { untrack } from "svelte";
 import type { LauncherCommand } from "../settings/provider.ts";
-import { authDisplayKind, fmtHm, fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
+import { authDisplayKind, fmtHm, fmtUsdImpl } from "../shell/fmt.ts";
 import { hasKey } from "../shell/i18n.ts";
 import { t } from "../shell/index.ts";
-import {
-  billingLine,
-  detailLine,
-  EFFORTS,
-  estimateValidity,
-  figures,
-  moduleChapters,
-  narrowerEffort,
-  sessionMode,
-  stageRows,
-  startMode,
-  tileFigures,
-  windowLine,
-} from "./estimate.ts";
+import { billingLine, detailLine, EFFORTS, figures, moduleChapters, narrowerEffort, sessionMode, startMode, tileFigures, windowLine } from "./estimate.ts";
 import { VisibleClock } from "./visibility.ts";
 
 let {
@@ -51,6 +38,7 @@ let {
   initialClock = null,
   repo,
   launcher,
+  initialBreakdown = null,
 }: {
   estimates: Partial<Record<Effort, GenEstimate>>;
   effort: Effort;
@@ -74,6 +62,7 @@ let {
   initialClock?: VisibleClock | null;
   repo?: string | undefined;
   launcher?: LauncherCommand | undefined;
+  initialBreakdown?: typeof import("./GenBreakdown.svelte").default | null | undefined;
 } = $props();
 
 let overageOk = $state(false);
@@ -132,7 +121,13 @@ async function start(opts: { notBefore?: string } = {}) {
 }
 
 const windowText = $derived(est ? windowLine(est, util, engineStatus?.plan ?? null, t) : "");
-const validity = $derived(est ? estimateValidity(est, Date.now()) : null);
+let Breakdown = $state.raw(untrack(() => initialBreakdown));
+const loadBreakdown = () => {
+  if (!Breakdown) void import("./GenBreakdown.svelte").then((m) => (Breakdown = m.default));
+};
+$effect(() => {
+  if (breakdownOpen) loadBreakdown();
+});
 const resetAt = $derived(win?.fiveHour?.resetsAt ?? null);
 /** 「範囲を絞る」 on the card = the next smaller effort (its estimate is already fetched; switching costs 0 requests). */
 const narrower = $derived(narrowerEffort(effort));
@@ -211,9 +206,7 @@ const scopeText = $derived(est ? t(`gen.card.scope.${effort}`, { n: moduleChapte
   {/if}
   {#if mode?.kind === "session"}
     <ol class="steps">
-      <li>{t("gen.session.step1")}</li>
-      <li>{t("gen.session.step2")}</li>
-      <li>{t("gen.session.step3")}</li>
+      {#each [1, 2, 3] as step}<li>{t(`gen.session.step${step}`)}</li>{/each}
     </ol>
   {/if}
 
@@ -243,28 +236,9 @@ const scopeText = $derived(est ? t(`gen.card.scope.${effort}`, { n: moduleChapte
   </ul>
 
   {#if est}
-    <details class="brk" open={breakdownOpen}>
+    <details class="brk" open={breakdownOpen} ontoggle={(e) => e.currentTarget.open && loadBreakdown()}>
       <summary>{t("gen.card.breakdown")}</summary>
-      <table>
-        <thead><tr><th scope="col">{t("gen.card.colStage")}</th><th scope="col" class="num">{t("gen.card.colIo")}</th><th scope="col" class="num">$</th><th scope="col" class="num">{t("gen.card.colTime")}</th></tr></thead>
-        <tbody>
-          {#each stageRows(est) as r (r.stage)}
-            <tr><td>{t(`gen.stage.${r.stage}`)}{#if r.critical}*{/if} &middot; {r.tasks}</td><td class="mono num">{r.io}</td><td class="mono num">{r.usd}</td><td class="mono num">{r.time}</td></tr>
-          {/each}
-        </tbody>
-      </table>
-      <p class="note">{t("gen.card.critical")}</p>
-      <fieldset class="eng">
-        <legend>{t("gen.card.engineLabel")}</legend>
-        {#each est.alternatives as alt (alt.engine)}
-          <label
-            ><input type="radio" name="mitori-engine" value={alt.engine} checked={alt.engine === engine} onchange={() => onengine(alt.engine)} />
-            <span class="mono">{alt.engine}</span>
-            <span>{t("gen.card.alt", { c: alt.concurrency, usd: fmtUsdImpl(alt.apiUsd, "gen") })}{#if alt.sessionTokens}{t("gen.card.altSession", { k: fmtTokensImpl(alt.sessionTokens) })}{/if}{#if alt.uncalibrated}{t("gen.card.uncalibrated")}{/if}</span>
-          </label>
-        {/each}
-      </fieldset>
-      {#if validity}<p class="note mono">{t("gen.card.validity", { id: est.id.slice(3, 11), min: validity.minutes })}</p>{/if}
+      {#if Breakdown}<Breakdown {est} {engine} {onengine} />{/if}
     </details>
   {/if}
 </section>
@@ -551,51 +525,6 @@ const scopeText = $derived(est ? t(`gen.card.scope.${effort}`, { n: moduleChapte
     min-height: 32px;
     display: flex;
     align-items: center;
-  }
-  .brk table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 4px 0;
-  }
-  .brk th {
-    text-align: left;
-    font-weight: var(--fw-regular);
-    color: var(--muted);
-    border-bottom: 1px solid var(--rule);
-    padding: 4px 4px 4px 0;
-    white-space: nowrap;
-  }
-  .brk td {
-    padding: 4px 4px 4px 0;
-    border-bottom: 1px solid var(--rule-soft);
-  }
-  .brk .num {
-    text-align: right;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-  }
-  .note {
-    color: var(--muted);
-    margin: 4px 0;
-  }
-  .eng {
-    border: 0;
-    margin: 8px 0 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .eng legend {
-    color: var(--muted);
-    padding: 0;
-    margin-bottom: 4px;
-  }
-  .eng label {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    min-height: 24px;
   }
   @media (prefers-reduced-motion: reduce) {
     .spin {

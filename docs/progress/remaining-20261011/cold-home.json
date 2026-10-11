@@ -1,0 +1,770 @@
+{
+  "format": "mitori.cold-home-leaf-investigation/1",
+  "date": "2026-10-11",
+  "baseCommit": "efd9c1d1a9dba256f5a18bde551abc1d7841ce8e",
+  "status": "minimal existing-module import change adopted; ARM ABBA and target regressions passed; Ubuntu x64 Actions performance pending",
+  "candidate": "Expose the existing testkit/home module as a named test-only subpath; six loop test/helper callers use home, fixtures and golden leaves. Existing public names, types and helper implementations remain unchanged.",
+  "preserved": {
+    "builder": "TypeScript createSolutionBuilder",
+    "noCheck": false,
+    "stopBuildOnErrors": false,
+    "jsDocParsingMode": "ParseForTypeErrors",
+    "projects": 20,
+    "testsRemainInProjects": true,
+    "declarationEmit": true,
+    "checkedCacheBoundary": true,
+    "referenceTargetSeconds": 15,
+    "referenceLimitSeconds": 30,
+    "calibrationUnchanged": true
+  },
+  "trace": {
+    "method": "Private root driver preserves canonical checked solution settings; starts/stops built-in TypeScript traces only around indexer, doc and loop programs. No diagnostic filters.",
+    "summary": {
+      "code": 2,
+      "errors": 1,
+      "built": 20,
+      "elapsedMs": 18549.4387,
+      "projects": [
+        {
+          "project": "packages/core/tsconfig.json",
+          "elapsedMs": 1080.329233,
+          "traced": false
+        },
+        {
+          "project": "packages/platform/tsconfig.json",
+          "elapsedMs": 532.7482480000001,
+          "traced": false
+        },
+        {
+          "project": "packages/indexer/tsconfig.json",
+          "elapsedMs": 3386.448507,
+          "traced": true
+        },
+        {
+          "project": "packages/doc/tsconfig.json",
+          "elapsedMs": 2118.420352,
+          "traced": true
+        },
+        {
+          "project": "packages/anchor/tsconfig.json",
+          "elapsedMs": 239.84204200000022,
+          "traced": false
+        },
+        {
+          "project": "packages/agent/tsconfig.json",
+          "elapsedMs": 553.4607210000004,
+          "traced": false
+        },
+        {
+          "project": "packages/gen/tsconfig.json",
+          "elapsedMs": 865.8428109999995,
+          "traced": false
+        },
+        {
+          "project": "packages/loop/tsconfig.json",
+          "elapsedMs": 3623.885037,
+          "traced": true
+        },
+        {
+          "project": "packages/server/tsconfig.json",
+          "elapsedMs": 1096.3673080000008,
+          "traced": false
+        },
+        {
+          "project": "packages/client/tsconfig.json",
+          "elapsedMs": 138.2997319999995,
+          "traced": false
+        },
+        {
+          "project": "apps/share/tsconfig.json",
+          "elapsedMs": 59.19298600000002,
+          "traced": false
+        },
+        {
+          "project": "apps/cli/tsconfig.json",
+          "elapsedMs": 521.9478229999986,
+          "traced": false
+        },
+        {
+          "project": "packages/testkit/tsconfig.json",
+          "elapsedMs": 256.41732800000136,
+          "traced": false
+        },
+        {
+          "project": "apps/web/tsconfig.json",
+          "elapsedMs": 1305.4466220000013,
+          "traced": false
+        },
+        {
+          "project": "scripts/tsconfig.json",
+          "elapsedMs": 396.9348200000004,
+          "traced": false
+        },
+        {
+          "project": "fixtures/tsconfig.json",
+          "elapsedMs": 58.42831599999954,
+          "traced": false
+        },
+        {
+          "project": "test/tsconfig.json",
+          "elapsedMs": 443.90724899999987,
+          "traced": false
+        },
+        {
+          "project": "e2e/tsconfig.json",
+          "elapsedMs": 721.8161760000003,
+          "traced": false
+        },
+        {
+          "project": "bench/tsconfig.json",
+          "elapsedMs": 947.5677770000002,
+          "traced": false
+        },
+        {
+          "project": "eval/tsconfig.json",
+          "elapsedMs": 166.9361170000011,
+          "traced": false
+        }
+      ]
+    },
+    "limitation": "Trace run includes one in-progress renderer.test.ts:98 TS2345, fixed by its owner before ABBA. Twenty semantic builds completed; this trace is diagnostic evidence, not a successful full check.",
+    "observations": [
+      {
+        "project": "packages/indexer/tsconfig.json",
+        "largestCheckedFiles": [
+          {
+            "path": "packages/indexer/src/facts/facts.test.ts",
+            "ms": 66.07710199999995
+          },
+          {
+            "path": "packages/indexer/src/parse/extract.ts",
+            "ms": 54.75171500000032
+          },
+          {
+            "path": "packages/indexer/src/structure/stage.ts",
+            "ms": 49.63831599999964
+          },
+          {
+            "path": "packages/indexer/src/inventory/enumerate.ts",
+            "ms": 46.49213399999961
+          },
+          {
+            "path": "packages/indexer/src/facts/outbound.ts",
+            "ms": 43.211743999999946
+          },
+          {
+            "path": "packages/indexer/src/parse/worker.ts",
+            "ms": 42.422491000000385
+          }
+        ],
+        "largestRelations": [
+          {
+            "ms": 1.540714999999851,
+            "path": "packages/testkit/src/contract.ts",
+            "source": "\"res\""
+          },
+          {
+            "ms": 1.5296729999999517,
+            "path": "packages/indexer/src/facts/config-tool.ts",
+            "source": "Array",
+            "target": "Array"
+          }
+        ]
+      },
+      {
+        "project": "packages/doc/tsconfig.json",
+        "largestCheckedFiles": [
+          {
+            "path": "packages/doc/src/store/store.ts",
+            "ms": 72.46963200000022
+          },
+          {
+            "path": "packages/doc/src/store/static.ts",
+            "ms": 48.90343699999992
+          },
+          {
+            "path": "packages/doc/src/store/apply.ts",
+            "ms": 39.12509999999963
+          },
+          {
+            "path": "packages/doc/src/export/payload.ts",
+            "ms": 38.26826300000027
+          },
+          {
+            "path": "packages/doc/src/store/store.test.ts",
+            "ms": 24.626656999999657
+          },
+          {
+            "path": "packages/doc/src/store/reload.test.ts",
+            "ms": 18.11966899999976
+          }
+        ],
+        "largestRelations": [
+          {
+            "ms": 19.891384999999776,
+            "path": "packages/doc/src/store/store.ts",
+            "source": "Store",
+            "target": "DocStore"
+          },
+          {
+            "ms": 13.726688999999315,
+            "path": "packages/doc/src/store/store.ts",
+            "source": "editBlock",
+            "target": "editBlock"
+          }
+        ]
+      },
+      {
+        "project": "packages/loop/tsconfig.json",
+        "largestCheckedFiles": [
+          {
+            "path": "packages/gen/src/orchestrator/runner.ts",
+            "ms": 97.34149799999967
+          },
+          {
+            "path": "packages/gen/src/orchestrator/apply.ts",
+            "ms": 52.9597899999991
+          },
+          {
+            "path": "packages/gen/src/orchestrator/execute.ts",
+            "ms": 43.09028600000031
+          },
+          {
+            "path": "packages/loop/src/gates/runner.int.test.ts",
+            "ms": 42.990618000000715
+          },
+          {
+            "path": "packages/loop/src/review/engine.ts",
+            "ms": 40.05485400000028
+          },
+          {
+            "path": "packages/gen/src/prompts/inputs.ts",
+            "ms": 37.30234200000018
+          }
+        ],
+        "largestRelations": [
+          {
+            "ms": 20.248887000001968,
+            "path": "packages/loop/src/gates/runner.int.test.ts",
+            "source": "serve",
+            "target": "__type"
+          },
+          {
+            "ms": 19.54784200000018,
+            "path": "packages/loop/src/gates/runner.int.test.ts",
+            "source": "Server",
+            "target": "Server"
+          }
+        ]
+      }
+    ],
+    "logSha256": "717a91fbdd7d0a6fc2b2fad7ef3afea4123db9e31ac490d360b8aa5718dc5d46"
+  },
+  "timing": {
+    "command": "scripts/nd scripts/linux-ci.sh --arch arm64 --steps install,unit --unit-file cold-home-comparison.test.ts --seccomp default --out /tmp/mitori-cold-home-abba-20261011",
+    "order": "ABBA",
+    "driverSha256": "f9bf38c339e9783edcc39140e974d3c8da4451d89bb0ca829beddc9ed68bc73f",
+    "results": [
+      {
+        "name": "1-baseline",
+        "code": 0,
+        "logSha256": "93672933a6ee62ab1022a55342313ca7bb4ea621f57e229e99f937c2490cc4c3",
+        "wallSeconds": 27.52,
+        "calibration": {
+          "factor": 1.198,
+          "targetSeconds": 17.98,
+          "limitSeconds": 35.95
+        },
+        "semantic": {
+          "projects": 20,
+          "builds": 20,
+          "cached": 0,
+          "errors": 0,
+          "seconds": 27.39
+        },
+        "steps": [
+          {
+            "name": "tsc",
+            "success": true,
+            "seconds": 27.52
+          },
+          {
+            "name": "svelte-check",
+            "success": true,
+            "seconds": 12.19
+          },
+          {
+            "name": "biome",
+            "success": true,
+            "seconds": 4.78
+          },
+          {
+            "name": "boundaries",
+            "success": true,
+            "seconds": 3.1
+          },
+          {
+            "name": "cr-ledger",
+            "success": true,
+            "seconds": 0.11
+          },
+          {
+            "name": "budgets",
+            "success": true,
+            "seconds": 0.02
+          },
+          {
+            "name": "contract-index",
+            "success": true,
+            "seconds": 2.75
+          }
+        ]
+      },
+      {
+        "name": "2-candidate",
+        "code": 0,
+        "logSha256": "0c69db52439c906362e9af349c12a9cdba36ef0e715ac1c439e55673db03efc6",
+        "wallSeconds": 25.44,
+        "calibration": {
+          "factor": 1.317,
+          "targetSeconds": 19.76,
+          "limitSeconds": 39.52
+        },
+        "semantic": {
+          "projects": 20,
+          "builds": 20,
+          "cached": 0,
+          "errors": 0,
+          "seconds": 25.29
+        },
+        "steps": [
+          {
+            "name": "tsc",
+            "success": true,
+            "seconds": 25.44
+          },
+          {
+            "name": "svelte-check",
+            "success": true,
+            "seconds": 12.97
+          },
+          {
+            "name": "biome",
+            "success": true,
+            "seconds": 4.61
+          },
+          {
+            "name": "boundaries",
+            "success": true,
+            "seconds": 2.81
+          },
+          {
+            "name": "cr-ledger",
+            "success": true,
+            "seconds": 0.1
+          },
+          {
+            "name": "budgets",
+            "success": true,
+            "seconds": 0.01
+          },
+          {
+            "name": "contract-index",
+            "success": true,
+            "seconds": 1.99
+          }
+        ]
+      },
+      {
+        "name": "3-candidate",
+        "code": 0,
+        "logSha256": "e61f76e937bb9dfd93f3eceb2ce08d5e9b29bebb7ae16affd330ee6a368788ea",
+        "wallSeconds": 28.73,
+        "calibration": {
+          "factor": 1.291,
+          "targetSeconds": 19.36,
+          "limitSeconds": 38.73
+        },
+        "semantic": {
+          "projects": 20,
+          "builds": 20,
+          "cached": 0,
+          "errors": 0,
+          "seconds": 28.58
+        },
+        "steps": [
+          {
+            "name": "tsc",
+            "success": true,
+            "seconds": 28.73
+          },
+          {
+            "name": "svelte-check",
+            "success": true,
+            "seconds": 13.89
+          },
+          {
+            "name": "biome",
+            "success": true,
+            "seconds": 5.42
+          },
+          {
+            "name": "boundaries",
+            "success": true,
+            "seconds": 3.28
+          },
+          {
+            "name": "cr-ledger",
+            "success": true,
+            "seconds": 0.13
+          },
+          {
+            "name": "budgets",
+            "success": true,
+            "seconds": 0.02
+          },
+          {
+            "name": "contract-index",
+            "success": true,
+            "seconds": 2.62
+          }
+        ]
+      },
+      {
+        "name": "4-baseline",
+        "code": 0,
+        "logSha256": "a43d426e3ad0a492f7c7b8e88daa6e88b6793004e0a8a53f166229cb298672fc",
+        "wallSeconds": 29.2,
+        "calibration": {
+          "factor": 1.24,
+          "targetSeconds": 18.6,
+          "limitSeconds": 37.2
+        },
+        "semantic": {
+          "projects": 20,
+          "builds": 20,
+          "cached": 0,
+          "errors": 0,
+          "seconds": 29.06
+        },
+        "steps": [
+          {
+            "name": "tsc",
+            "success": true,
+            "seconds": 29.2
+          },
+          {
+            "name": "svelte-check",
+            "success": true,
+            "seconds": 13.4
+          },
+          {
+            "name": "biome",
+            "success": true,
+            "seconds": 5.07
+          },
+          {
+            "name": "boundaries",
+            "success": true,
+            "seconds": 3.54
+          },
+          {
+            "name": "cr-ledger",
+            "success": true,
+            "seconds": 0.12
+          },
+          {
+            "name": "budgets",
+            "success": true,
+            "seconds": 0.02
+          },
+          {
+            "name": "contract-index",
+            "success": true,
+            "seconds": 2.07
+          }
+        ]
+      }
+    ],
+    "medianWallSeconds": {
+      "baseline": 28.36,
+      "candidate": 27.085,
+      "changePercent": -4.495768688293367
+    },
+    "medianFactorNormalizedWallSeconds": {
+      "baseline": 23.26000323119177,
+      "candidate": 20.785347658310826,
+      "changePercent": -10.639102446737503
+    },
+    "preflight": {
+      "changed": 0,
+      "unchanged": 1535,
+      "matches": 0,
+      "duration": 342309383,
+      "errors": 0,
+      "warnings": 107,
+      "infos": 2,
+      "skipped": 0,
+      "suggestedFixesSkipped": 0,
+      "diagnosticsNotPrinted": 0,
+      "scannerDuration": 3924189
+    },
+    "commonFormatting": [
+      {
+        "path": "apps/cli/src/commands/setup.test.ts",
+        "beforeSha256": "ed520aa929fbc5b1618e3af6e0c8e2f8e3ff97fe916ace60e683f10f5c477ba5",
+        "afterSha256": "b047d5d091a268aa712f2bd36ae5c8f1020b6331613ecff807471f5e3d50b48a"
+      },
+      {
+        "path": "packages/loop/src/jobs/engine.ts",
+        "beforeSha256": "000d6f9d99227cdd42543784ca1c637ea62ff81bba5326f1fd50ac8ede89d650",
+        "afterSha256": "af68c29db39239198911b46b600eb4ba4a48cdb3e0c67c8e98fb869fed9bb4cb"
+      }
+    ],
+    "additionalFormatting": [],
+    "publicIndex": "Frozen source public index refreshed once before both variants; unchanged candidate public names.",
+    "sourceExportTreeSha1": "2687808ef962b64c83aa82298a13c69ad0b08906"
+  },
+  "sourceChanges": [
+    {
+      "path": "packages/testkit/package.json",
+      "beforeSha256": "a99a6a889949165d2473a7e0a5ed2fb43cfa025cd0aac22de138ab8be3660f02",
+      "afterSha256": "322dc3f60058aa319cef23c06e8720625e525b9da6e2e0ecc65772b82e6eebe9"
+    },
+    {
+      "path": "packages/testkit/src/home/index.ts",
+      "beforeSha256": "ac5548e50ff0a80009497f31be9e37fa366918ae4fb04abeff49067bc6d8a888",
+      "afterSha256": "e68945d25de3eaae3e9b4e1db2561646ec968094154ef3c978525d7a36710c92"
+    },
+    {
+      "path": "scripts/lib/boundaries.ts",
+      "beforeSha256": "2346cd171cea9376583376f177e70650ec4cbe1655293ae5e4f3d902ea7e909f",
+      "afterSha256": "59154f1a5d2bff6b23f898a7781c3b67fe09be7e7ae2a57b4974c676602b5382"
+    },
+    {
+      "path": "scripts/lib/boundaries.test.ts",
+      "beforeSha256": "54800847cf2265e2dc810cdeba9f1be8aeecaedd547714933a1f84a53d2fdf9f",
+      "afterSha256": "68c93849ecd84f0c13848f65f96a38b0c4408b3151b1b68baf0911a94ba56497"
+    },
+    {
+      "path": "packages/loop/src/mcp/mcp.golden.test.ts",
+      "beforeSha256": "2f6a2113f3c4cb1034d9b5b26d19e470941b181a30a4490ab8ec9f8e806773eb",
+      "afterSha256": "0607629898d3bed809d5930cd81306281ffa97cc07f945137dacbc88a03d072a"
+    },
+    {
+      "path": "packages/loop/src/install/install.golden.test.ts",
+      "beforeSha256": "c092297ac0e3e5454dfde103aa1531b3a4447a78ddad8d337fccd6b532259096",
+      "afterSha256": "f527c956ac20d634aeab530e8e750141aeaec3a37f5e6dbbab980be973aeddec"
+    },
+    {
+      "path": "packages/loop/src/gates/runner.int.test.ts",
+      "beforeSha256": "e90d97cc07e4c43b7108e6ff6196ee0195f8c9d8dd2dba0480bd5ca6555fec79",
+      "afterSha256": "204c5b48d78013e1e8228ed70bfc48082bb2bfd527764b5ebcc95d8f714ce22a"
+    },
+    {
+      "path": "packages/loop/src/gates/binaries.test.ts",
+      "beforeSha256": "1fe4cdda5192dd8a7ea8dde52b5f8d5eeb981bb96ee1438cdab373afa4e66cd5",
+      "afterSha256": "efbb4c69c788f7b9423d8735d1ab78a1a98a61ff511d5c9020281b13a885068e"
+    },
+    {
+      "path": "packages/loop/src/gates/deps.test.ts",
+      "beforeSha256": "9a6a235a1cdfb564ba25b50e71f808be5d1757c73ca58a56f1d085c0d35afce9",
+      "afterSha256": "cd8dae2ede9cd73ceed076f03fad977c8df09d7d295b30bb6a2520f601cc07d7"
+    },
+    {
+      "path": "packages/loop/src/git/test/world.ts",
+      "beforeSha256": "51eeaeea4ab9822377690dc554c65ee572b393f62390be6fb62f3dc813bdddca",
+      "afterSha256": "3672fcc0ac010fd90b4aec198a7d17500719192b8a3b23e1a730bbbdba648ce9"
+    }
+  ],
+  "earlierUnsuccessfulRuns": [
+    {
+      "directory": "mitori-cold-home-20261011",
+      "phase": "first baseline",
+      "reason": "in-progress setup.test.ts formatting mismatch",
+      "wallSeconds": 32.15,
+      "typeErrors": 0,
+      "allSevenPassed": false
+    },
+    {
+      "directory": "mitori-cold-home-clean-20261011",
+      "phase": "first baseline",
+      "reason": "Biome failed with one error; error location absent in original reporter",
+      "wallSeconds": 28.1,
+      "typeErrors": 0,
+      "allSevenPassed": false
+    },
+    {
+      "directory": "mitori-cold-home-preflight-20261011",
+      "phase": "Biome preflight, no cold check",
+      "reason": "in-progress gen/orchestrator/execute.test.ts formatting mismatch"
+    }
+  ],
+  "environment": {
+    "platform": "linux/arm64",
+    "os": "Ubuntu 24.04.5 LTS",
+    "bun": "1.4.2",
+    "node": "22.23.3",
+    "cpuAffinity": "0,1",
+    "availableParallelism": 2,
+    "outerParallelism": 18,
+    "cpuQuotaApplied": false,
+    "filesystem": "native container filesystem",
+    "diskCachesDeletedBeforeEachRun": [
+      "node_modules/.cache/tsc",
+      "node_modules/.cache/tsc-semantic"
+    ],
+    "osPageCacheCleared": false,
+    "modelCalls": 0,
+    "credentialMounts": 0
+  },
+  "limitations": [
+    "Two runs per variant; fixed ABBA order; no statistical performance guarantee.",
+    "ARM container success cannot establish Ubuntu x64 Actions performance.",
+    "Both variants use the same frozen export including unrelated in-progress source; formatting and public-index refresh are common to both.",
+    "Earlier rejected fixture-layout candidate and failed baselines remain separately recorded.",
+    "All runs exceed the calibrated soft target, while all remain below the unchanged hard failure limit. This change does not establish the 15-second reference target."
+  ],
+  "sourceGraph": {
+    "method": "Two isolated TypeScript createProgram graphs use exact before/after source overlays and identical project references. Public root names are checked in a separate public-entry Program.",
+    "before": {
+      "loopRootFiles": 147,
+      "workspaceSourceFiles": 226,
+      "genSources": 50,
+      "testkitPublicNames": 71
+    },
+    "after": {
+      "loopRootFiles": 147,
+      "workspaceSourceFiles": 161,
+      "genSources": 0,
+      "testkitPublicNames": 71
+    },
+    "loopRootsUnchanged": true,
+    "testkitPublicNamesUnchanged": true,
+    "addedSources": [],
+    "removedSources": [
+      "packages/gen/src/contract.ts",
+      "packages/gen/src/engines/index.ts",
+      "packages/gen/src/engines/scheduler-engine.ts",
+      "packages/gen/src/incremental/index.ts",
+      "packages/gen/src/incremental/rules.ts",
+      "packages/gen/src/incremental/s9.ts",
+      "packages/gen/src/incremental/state.ts",
+      "packages/gen/src/index.ts",
+      "packages/gen/src/line/aspects.ts",
+      "packages/gen/src/line/assembler.ts",
+      "packages/gen/src/line/claims.ts",
+      "packages/gen/src/line/diagram.ts",
+      "packages/gen/src/line/index.ts",
+      "packages/gen/src/line/mdrules.ts",
+      "packages/gen/src/line/mdscan.ts",
+      "packages/gen/src/line/retry.ts",
+      "packages/gen/src/line/validator.ts",
+      "packages/gen/src/ondemand/answer.ts",
+      "packages/gen/src/ondemand/index.ts",
+      "packages/gen/src/ondemand/ondemand.ts",
+      "packages/gen/src/ondemand/plan.ts",
+      "packages/gen/src/orchestrator/apply.ts",
+      "packages/gen/src/orchestrator/execute.ts",
+      "packages/gen/src/orchestrator/gen.ts",
+      "packages/gen/src/orchestrator/index.ts",
+      "packages/gen/src/orchestrator/migrations.ts",
+      "packages/gen/src/orchestrator/questions.ts",
+      "packages/gen/src/orchestrator/runner.ts",
+      "packages/gen/src/orchestrator/store.ts",
+      "packages/gen/src/planner/estimator.ts",
+      "packages/gen/src/planner/index.ts",
+      "packages/gen/src/planner/params.ts",
+      "packages/gen/src/planner/planner.ts",
+      "packages/gen/src/prompts/context.ts",
+      "packages/gen/src/prompts/fence.ts",
+      "packages/gen/src/prompts/files.ts",
+      "packages/gen/src/prompts/index.ts",
+      "packages/gen/src/prompts/inputs.ts",
+      "packages/gen/src/prompts/renderer.ts",
+      "packages/gen/src/prompts/seeds.ts",
+      "packages/gen/src/prompts/templates.ts",
+      "packages/gen/src/session/index.ts",
+      "packages/gen/src/session/packet.ts",
+      "packages/gen/src/session/session.ts",
+      "packages/gen/src/translate/index.ts",
+      "packages/gen/src/translate/select.ts",
+      "packages/gen/src/translate/sink.ts",
+      "packages/gen/src/verify/index.ts",
+      "packages/gen/src/verify/l1.ts",
+      "packages/gen/src/verify/verifier.ts",
+      "packages/testkit/src/browser/ime.ts",
+      "packages/testkit/src/browser/index.ts",
+      "packages/testkit/src/browser/observers.ts",
+      "packages/testkit/src/browser/page.ts",
+      "packages/testkit/src/browser/served.ts",
+      "packages/testkit/src/browser/ui.ts",
+      "packages/testkit/src/cassette/index.ts",
+      "packages/testkit/src/index.ts",
+      "packages/testkit/src/perf/budgets.ts",
+      "packages/testkit/src/perf/calib.ts",
+      "packages/testkit/src/perf/index.ts",
+      "packages/testkit/src/perf/stats.ts",
+      "packages/testkit/src/ports/index.ts",
+      "packages/testkit/src/server/daemon.ts",
+      "packages/testkit/src/server/index.ts"
+    ],
+    "rootFilesSha256": "dd01f35cb71cdcedb52502585abd06cae3655ab261006de09d17f8ecb2b639f4",
+    "publicNamesSha256": "2cfcc7137aeca5a6a076973e89f56520145cb075d518e6d2d661643087bb165b",
+    "rootEntrySha256": "01f21abc90c63361d8aa375e80cb8e0d57444b4be8bec82b7b61d7be9ad6c837",
+    "rawReportSha256": "d43752d41c0716a8f3439446f142e306e0394eaf02263bd398d1a20fd9b016c8",
+    "typeShape": "Home implementation and original TestHome declaration in contract.ts are byte-unchanged; home/index.ts re-exports that same type. Existing public root exports are unchanged."
+  },
+  "regression": {
+    "command": "scripts/nd bun test scripts/lib/boundaries.test.ts scripts/typecheck.int.test.ts packages/testkit/src/home packages/loop/src/gates/binaries.test.ts packages/loop/src/gates/deps.test.ts packages/loop/src/gates/runner.int.test.ts packages/loop/src/git/git.int.test.ts packages/loop/src/git/pull-request.int.test.ts packages/loop/src/mcp/mcp.golden.test.ts packages/loop/src/install/install.golden.test.ts",
+    "initial": {
+      "exitCode": 1,
+      "passed": 63,
+      "skipped": 3,
+      "failed": 6,
+      "assertions": 363,
+      "seconds": 18.02,
+      "logSha256": "066858eed30eaa0b720dc02360f9712e76b906b642c954e90f47bbff63d7ec51",
+      "failure": "Codex sandbox denies nested macOS sandbox-exec (sandbox_apply: Operation not permitted) and loopback listening."
+    },
+    "failedUnitRetry": {
+      "command": "scripts/nd bun test packages/loop/src/gates/runner.int.test.ts",
+      "sandboxPermissions": "require_escalated",
+      "exitCode": 0,
+      "passed": 8,
+      "skipped": 3,
+      "failed": 0,
+      "assertions": 42,
+      "seconds": 12.71,
+      "logSha256": "7210fcd627ca44cc62f2f22dc685bd72ecd637989c80d5531b6c48c7579b3268"
+    },
+    "uniqueOutcome": {
+      "passed": 69,
+      "skipped": 3,
+      "failed": 0,
+      "files": 11,
+      "skipReason": "Three Linux bwrap cases are platform-gated on macOS. Existing macOS isolation/credential/loopback/Go httptest cases all passed in the retry."
+    },
+    "typecheck": {
+      "command": "scripts/nd tsc -b packages/loop --pretty false",
+      "exitCode": 0,
+      "diagnostics": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "biome": {
+      "files": 10,
+      "exitCode": 0,
+      "logSha256": "0d92cf9b80b57481fe9cb8fd52a46a7a8a668f4a63bd726b25064beb7d78d5f7"
+    },
+    "diffCheck": {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    "sharedPublicIndex": {
+      "command": "scripts/nd bun scripts/contract-index.ts --check",
+      "exitCode": 1,
+      "reason": "Shared checkout public index is stale from unrelated in-progress public changes. Candidate preserves 71 public names; both frozen ABBA variants refresh the index once before checks. Integrator must refresh INDEX.md after all owners finish.",
+      "logSha256": "d5ae229d6163f7a326bba76bfe03758216db443487f2b138ede224badef5cd83"
+    }
+  }
+}
