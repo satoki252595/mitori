@@ -3,10 +3,11 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 import { canonicalJson, type ModuleId } from "@mitori/core";
 import { harness, staticInputFromTruth } from "../test/harness.ts";
-import { hasher, spySafeWriter } from "../test/helpers.ts";
+import { hasher, nodeFs, spySafeWriter } from "../test/helpers.ts";
+import { resolveDocDir } from "./paths.ts";
 
 const tmp: string[] = [];
 afterAll(() => {
@@ -33,6 +34,34 @@ function treeDigest(root: string): string {
 const inside = (abs: string, root: string) => abs.startsWith(`${root}/`);
 
 describe("RT-25 … RT-29 doc writes stay inside the doc directory", () => {
+  test("native doc paths keep relative containment and accept server-chosen absolute shadow paths", () => {
+    const root = dir("mitori-doc-native-");
+    const ws = harness({ root }).ws;
+    expect(resolveDocDir(ws, nodeFs).rootReal).toBe(join(root, ".mitori"));
+    for (const docDir of [".", "", "..", "../outside", "docs/../nested", "docs\\nested", "docs\0nested", join(`${root}-sibling`, ".mitori")])
+      expect(() => resolveDocDir({ ...ws, docDir }, nodeFs)).toThrow(expect.objectContaining({ code: "E_PATH_OUTSIDE" }));
+    const outside = dir("mitori-doc-shadow-");
+    const docDir = join(outside, "nested", "doc");
+    expect(resolveDocDir({ ...ws, kind: "shadow", docDir }, nodeFs).rootReal).toBe(docDir);
+    if (sep === "\\") {
+      for (const docDir of ["C:foo", "docs:stream", "\\foo", "/foo", join(outside, "doc:stream")]) {
+        for (const kind of ["git", "shadow"] as const)
+          expect(() => resolveDocDir({ ...ws, kind, docDir }, nodeFs)).toThrow(expect.objectContaining({ code: "E_PATH_OUTSIDE" }));
+      }
+      // A differently cased spelling of the same Windows root is still the forbidden repository root.
+      expect(() => resolveDocDir({ ...ws, kind: "shadow", docDir: root.toUpperCase() }, nodeFs)).toThrow(expect.objectContaining({ code: "E_PATH_OUTSIDE" }));
+    }
+  });
+
+  test("a missing doc directory beneath a symlink ancestor is refused", () => {
+    const root = dir("mitori-doc-ancestor-");
+    const outside = dir("mitori-doc-ancestor-out-");
+    mkdirSync(join(root, "docs"));
+    symlinkSync(outside, join(root, "docs", "linked"));
+    const ws = harness({ root, docDir: "docs/linked/missing" }).ws;
+    expect(() => resolveDocDir(ws, nodeFs)).toThrow(expect.objectContaining({ code: "E_PATH_SYMLINK" }));
+  });
+
   test("RT-25 a committed `.mitori` symlink to another directory: no write, load reports E_PATH_SYMLINK", async () => {
     const root = dir("mitori-rt25-");
     const outside = dir("mitori-rt25-home-");

@@ -24,7 +24,10 @@ describe("check-boundaries (WP-00a acceptance)", () => {
     expect(check("packages/indexer/src/x.test.ts", 'import { test } from "bun:test"; await Bun.file("a").text();')).toEqual([]);
   });
 
-  test("writeFile in @mitori/doc fails (and node:* there at all)", () => {
+  test("doc may use native lexical paths; filesystem and other runtime APIs still fail", () => {
+    expect(check("packages/doc/src/x.ts", 'import { dirname, join, relative } from "node:path";')).toEqual([]);
+    expect(check("packages/indexer/src/x.ts", 'import { join } from "node:path";')).toEqual(["runtime-api@1"]);
+    expect(check("packages/doc/src/x.ts", 'import { homedir } from "node:os";')).toEqual(["runtime-api@1"]);
     expect(check("packages/doc/src/x.ts", 'import { writeFile } from "node:fs/promises";\nawait writeFile("a", "b");')).toEqual([
       "runtime-api@1",
       "direct-io@1",

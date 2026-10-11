@@ -180,7 +180,10 @@ export function checkSource(info: FileInfo, text: string): Violation[] {
     }
     const isBun = spec === "bun" || spec.startsWith("bun:");
     const isNode = spec.startsWith("node:") || NODE_BUILTINS.has(spec);
-    if ((isBun || isNode) && !runtimeOk && !typeOnly) at(node, "runtime-api", `"${spec}" is only allowed in platform/server/cli (domain code takes ports)`);
+    // ADR-0010 R3: doc roots use native lexical path operations, with filesystem access still behind FsReader.
+    const docPath = own === "@mitori/doc" && spec === "node:path";
+    if ((isBun || isNode) && !runtimeOk && !typeOnly && !docPath)
+      at(node, "runtime-api", `"${spec}" is only allowed in platform/server/cli (domain code takes ports)`);
   };
 
   const recordBindings = (decl: ts.ImportDeclaration, spec: string) => {

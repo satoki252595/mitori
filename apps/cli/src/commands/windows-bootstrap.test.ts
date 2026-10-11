@@ -63,7 +63,7 @@ async function cleanup(f: Fixture) {
   rmSync(f.dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 }
 
-async function fixture(run: (f: Fixture) => Promise<void>) {
+async function fixture(run: (f: Fixture) => Promise<void>, gitRepo = true) {
   const dir = mkdtempSync(join(tmpdir(), "mitori-win-bootstrap-"));
   const repo = join(dir, "repo");
   const home = join(dir, "state");
@@ -95,10 +95,12 @@ async function fixture(run: (f: Fixture) => Promise<void>) {
   // In particular, never forward the test runner's BUN_BE_BUN or MITORI_WINDOWS_JOB_LAUNCHER.
   const f = { dir, repo, home, binary, env };
   try {
-    const git = ["-c", `core.hooksPath=${hooks}`, "-c", "commit.gpgsign=false", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid"];
-    await command(f, "git", [...git, "-c", "init.templateDir=", "init", "--quiet"]);
-    await command(f, "git", [...git, "add", "."]);
-    await command(f, "git", [...git, "commit", "--quiet", "-m", "fixture"]);
+    if (gitRepo) {
+      const git = ["-c", `core.hooksPath=${hooks}`, "-c", "commit.gpgsign=false", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid"];
+      await command(f, "git", [...git, "-c", "init.templateDir=", "init", "--quiet"]);
+      await command(f, "git", [...git, "add", "."]);
+      await command(f, "git", [...git, "commit", "--quiet", "-m", "fixture"]);
+    }
     await run(f);
   } finally {
     await cleanup(f);
@@ -112,15 +114,17 @@ function expectHtml(path: string) {
 }
 
 describe.skipIf(process.platform !== "win32")("compiled Windows client bootstrap (no LLM)", () => {
-  test("cold export starts its own daemon, writes HTML, and removes its registry", async () => {
-    await fixture(async (f) => {
-      expect(existsSync(join(f.home, "daemon.json"))).toBe(false);
-      const out = join(f.repo, "own.html");
-      expect((await command(f, f.binary, ["export", "--html", "--no-code", "-o", out])).trim().length).toBeGreaterThan(0);
-      expectHtml(out);
-      expect(existsSync(join(f.home, "daemon.json"))).toBe(false);
-    });
-  }, 120_000);
+  for (const gitRepo of [true, false]) {
+    test(`cold ${gitRepo ? "Git" : "shadow"} export starts its own daemon, writes HTML, and removes its registry`, async () => {
+      await fixture(async (f) => {
+        expect(existsSync(join(f.home, "daemon.json"))).toBe(false);
+        const out = join(f.repo, "own.html");
+        expect((await command(f, f.binary, ["export", "--html", "--no-code", "-o", out])).trim().length).toBeGreaterThan(0);
+        expectHtml(out);
+        expect(existsSync(join(f.home, "daemon.json"))).toBe(false);
+      }, gitRepo);
+    }, 120_000);
+  }
 
   test("scan's daemon survives the CLI exit, is reused by export, and stops explicitly", async () => {
     await fixture(async (f) => {

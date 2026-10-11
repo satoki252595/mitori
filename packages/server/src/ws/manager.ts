@@ -4,6 +4,7 @@
  * idle unload after `DAEMON.workspaceUnloadMs`, and `registered(toplevel)` for the hook path, which never opens or
  * scans anything [SEC-21, UXP-32]. The domain parts themselves are built by the composition root (`assemble`).
  */
+import { basename, isAbsolute } from "node:path";
 import type { Spawner } from "@mitori/agent";
 import {
   type Clock,
@@ -209,7 +210,7 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
       );
     });
 
-  const repoConfigPath = (info: WorkspaceInfo, docDir: string) => (docDir.startsWith("/") ? `${docDir}/config.json` : `${info.root}/${docDir}/config.json`);
+  const repoConfigPath = (info: WorkspaceInfo, docDir: string) => (isAbsolute(docDir) ? `${docDir}/config.json` : `${info.root}/${docDir}/config.json`);
 
   const readRepoConfig = async (info: WorkspaceInfo, docDir: string): Promise<unknown> => {
     const path = repoConfigPath(info, docDir);
@@ -462,14 +463,14 @@ export function createWorkspaceManager(deps: WorkspaceManagerDeps): WorkspaceMan
           }),
         );
       }
-      if (!target.startsWith("/")) throw new MitoriError("E_INVALID_INPUT", "path must be absolute", { params: { field: "target" } });
+      if (!isAbsolute(target)) throw new MitoriError("E_INVALID_INPUT", "path must be absolute", { params: { field: "target" } });
       const real = fs.realpath(target);
       if (real === null || !fs.stat(real)?.isDir) throw new MitoriError("E_INVALID_INPUT", "no such directory", { params: { field: "target" } });
       if (!opts.force) checkProject(real, deps.userHome, fs);
       const ws = workspaceKey(deps.hasher, real);
       const existing = entries.get(ws)?.info;
       const isGit = fs.stat(`${real}/.git`) !== null;
-      const name = real.split("/").filter(Boolean).at(-1) ?? real;
+      const name = basename(real) || real;
       return get(
         await register({
           key: ws,

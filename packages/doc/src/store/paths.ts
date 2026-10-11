@@ -1,5 +1,6 @@
 // docDir resolution and the doc file layout [SEC-01, SEC-02, ADR-0014]. Persisted `file` fields and slugs from
 // the sidecar / repo settings are never trusted as paths: files are recomputed from DOC_TEMPLATE + SLUG_RE.
+import { dirname, isAbsolute, join, parse, relative, sep } from "node:path";
 import { DOC_TEMPLATE, type FsReader, MitoriError, type SectionId, SLUG_RE, type TopSectionId, type WorkspaceInfo } from "@mitori/core";
 
 /** Where the doc lives. `rootReal` is the SafeWriter root (kind `doc`). */
@@ -7,9 +8,6 @@ export interface DocDir {
   /** Absolute docDir (realpath when it exists). */
   rootReal: string;
 }
-
-const segs = (p: string): string[] => p.split("/").filter((s) => s !== "" && s !== ".");
-const join = (...parts: string[]): string => `/${parts.flatMap(segs).join("/")}`;
 
 /**
  * Validate and resolve the workspace docDir. git / remote-readonly: repo-relative, inside the root, never the
@@ -19,17 +17,26 @@ const join = (...parts: string[]): string => `/${parts.flatMap(segs).join("/")}`
  */
 export function resolveDocDir(ws: WorkspaceInfo, fs: FsReader | undefined): DocDir {
   const raw = ws.docDir;
-  const abs = raw.startsWith("/") ? raw : join(ws.root, raw);
+  const absolute = isAbsolute(raw);
+  if (sep === "\\") {
+    const drive = /^[A-Za-z]:/.test(raw);
+    if ((absolute && parse(raw).root.length === 1) || (!absolute && drive) || raw.slice(drive ? 2 : 0).includes(":"))
+      throw new MitoriError("E_PATH_OUTSIDE", "docDir must not use a drive-relative path, unspecified drive or alternate stream");
+  }
+  // Only server-chosen absolute shadow paths may contain native Windows separators.
+  if (raw.includes("\0") || raw.split(/[\\/]/).includes("..") || (raw.includes("\\") && (sep !== "\\" || ws.kind !== "shadow" || !absolute)))
+    throw new MitoriError("E_PATH_OUTSIDE", "docDir must not contain '..', NUL or repo-relative backslashes");
+  const abs = absolute ? join(raw) : join(ws.root, raw);
   const root = join(ws.root);
-  if (raw.includes("\0") || raw.includes("\\") || raw.split("/").includes(".."))
-    throw new MitoriError("E_PATH_OUTSIDE", "docDir must not contain '..', '\\' or NUL");
-  if (abs === root) throw new MitoriError("E_PATH_OUTSIDE", "the repository root cannot be the doc directory");
-  const inside = abs.startsWith(`${root}/`);
+  if (!isAbsolute(root)) throw new MitoriError("E_PATH_OUTSIDE", "the repository root must be absolute");
+  const rel = relative(root, abs);
+  if (rel === "") throw new MitoriError("E_PATH_OUTSIDE", "the repository root cannot be the doc directory");
+  const inside = rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
   if (ws.kind !== "shadow" && !inside) throw new MitoriError("E_PATH_OUTSIDE", "docDir must be inside the working tree", { params: { docDir: raw } });
   if (!fs) return { rootReal: abs };
   // no symlink anywhere: the deepest existing ancestor (or docDir itself) must be its own realpath
   let probe = abs;
-  while (fs.stat(probe) === null && probe.lastIndexOf("/") > 0) probe = probe.slice(0, probe.lastIndexOf("/"));
+  while (fs.stat(probe) === null && dirname(probe) !== probe) probe = dirname(probe);
   const st = fs.stat(probe);
   if (st?.isSymlink || (st && fs.realpath(probe) !== probe))
     throw new MitoriError("E_PATH_SYMLINK", "docDir or one of its parents is a symbolic link", { params: { path: probe } });

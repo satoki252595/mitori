@@ -31,3 +31,7 @@
 ## 改訂 R2（2026-10-06、CR test-7）
 
 - test codeからは既存helperだけを公開する `@mitori/testkit/fixtures` / `@mitori/testkit/golden` も使用できる。全barrel経由の不要な型検査を避けるための完全一致2subpathに限り、productionからのtestkit importとその他のdeep importは禁止を維持する。
+
+## 改訂 R3（2026-10-11、Windows doc root）
+
+- `@mitori/doc` だけは `node:path` の字句的なパス操作を使用できる。Windows の drive・UNC・区切り文字・包含判定を独自実装せず、絶対パスである workspace/doc root に標準ライブラリを使うための限定例外。ファイルの読み取りは `FsReader`、書き込みは `SafeWriter` に限定し、その他の Bun/Node API とドメイン間の依存制約は維持する。境界テストは、この例外と `node:fs` / `node:os` の拒否を検査する。

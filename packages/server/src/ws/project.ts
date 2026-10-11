@@ -2,6 +2,7 @@
  * Workspace identity and the open guards: key derivation, GitHub target parsing [SEC-14] and the
  * "is this a project?" check that keeps `mitori ~` from indexing a home directory [UXP-23].
  */
+import { isAbsolute, join, parse, relative, sep } from "node:path";
 import { base32, type FsReader, type Hasher, MitoriError, type WorkspaceKey } from "@mitori/core";
 
 /** `ws_` + base32(sha256(realpath(root) or remote URL))[:12]. */
@@ -48,21 +49,25 @@ export function parseGithubTarget(target: string): GithubTarget | null {
 const MARKERS = ["package.json", "go.mod", "pyproject.toml", "Cargo.toml", "Makefile", ".git"];
 
 /**
- * `E_WS_NOT_PROJECT` for `$HOME`, `/`, `/Users`, `~/Desktop|Documents|Downloads`, anything under `~/Library`, and
+ * `E_WS_NOT_PROJECT` for `$HOME`, filesystem roots, root-level `Users|home`, `~/Desktop|Documents|Downloads`, anything under `~/Library`, and
  * directories without a project marker at depth 1 (`*.sln`, `src/`, `README*` count too) [UXP-23].
  */
 export function checkProject(real: string, home: string, fs: FsReader): void {
-  const h = home.replace(/\/+$/, "");
+  const root = parse(real).root;
+  const same = (a: string, b: string) => relative(a, b) === "";
   const reject = (why: string) =>
     new MitoriError("E_WS_NOT_PROJECT", `${real} does not look like a project (${why})`, {
       params: { path: real, why },
       hint: "open a repository directory, or pass --force",
     });
-  if (real === "/" || real === "/Users" || real === "/home" || real === h) throw reject("system or home directory");
-  if (["Desktop", "Documents", "Downloads"].some((d) => real === `${h}/${d}`)) throw reject("personal folder");
-  if (real === `${h}/Library` || real.startsWith(`${h}/Library/`)) throw reject("system library");
+  if ((root && [root, join(root, "Users"), join(root, "home")].some((p) => same(real, p))) || same(real, home)) throw reject("system or home directory");
+  if (["Desktop", "Documents", "Downloads"].some((d) => same(real, join(home, d)))) throw reject("personal folder");
+  const fromLibrary = relative(join(home, "Library"), real);
+  if (fromLibrary === "" || (fromLibrary !== ".." && !fromLibrary.startsWith(`..${sep}`) && !isAbsolute(fromLibrary))) throw reject("system library");
   const names = fs.readdir(real);
   if (names === null) throw new MitoriError("E_INVALID_INPUT", "not a directory", { params: { field: "target" } });
-  const marker = names.some((n) => MARKERS.includes(n) || n.endsWith(".sln") || /^readme/i.test(n) || (n === "src" && fs.stat(`${real}/src`)?.isDir === true));
+  const marker = names.some(
+    (n) => MARKERS.includes(n) || n.endsWith(".sln") || /^readme/i.test(n) || (n === "src" && fs.stat(join(real, "src"))?.isDir === true),
+  );
   if (!marker) throw reject("no project marker");
 }

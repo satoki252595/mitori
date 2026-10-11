@@ -558,7 +558,29 @@
         "Copied compiled scan daemon survives parent exit; export preserves it and explicit stop removes it"
       ],
       "runtime": "Existing Nix-built Windows EXE with BUN_BE_BUN=1 only in the test runner",
-      "separateWindowsBunDownload": false
+      "separateWindowsBunDownload": false,
+      "history": [
+        {
+          "url": "https://github.com/satoki252595/mitori/actions/runs/38147674750",
+          "headSha": "eaa02650e947eec427dcd58f65b52b609ff6d45e",
+          "crossbuildJob": 114494342765,
+          "nativeJob": 114494814305,
+          "crossbuild": "success",
+          "native": "failure",
+          "runner": "windows-2025",
+          "sourceTests": {
+            "files": 3,
+            "pass": 9,
+            "fail": 2,
+            "skip": 0,
+            "assertions": 52,
+            "secondsPrinted": 9.87
+          },
+          "passed": "All nine native asset/environment/process-lifetime cases, including both exact-env modes and single-child cancellation",
+          "failed": "Both new compiled client cases: E_INVALID_INPUT path must be absolute. Server workspace registration used a POSIX-only prefix check.",
+          "compiledSelftest": "Not reached after the failed source-test step."
+        }
+      ]
     },
     "sources": [
       {
@@ -570,6 +592,36 @@
     "llmRequests": 0,
     "authenticationOperations": 0,
     "additionalLlmFeeUsd": 0,
-    "history": "Previous processGroup=true successes and the historical false-path limitation above are preserved; they do not verify this follow-up."
+    "history": "Previous processGroup=true successes and the historical false-path limitation above are preserved; they do not verify this follow-up.",
+    "nativePathFollowup": {
+      "status": "implemented; native rerun pending",
+      "scope": [
+        "Native absolute workspace paths and names",
+        "Native project/home/drive/UNC boundary guards",
+        "Native doc-root containment, ancestor and identity checks",
+        "Shadow and nested doc-root creation through SafeWriter"
+      ],
+      "validation": "Repository-relative backslashes, traversal, root aliases, Windows drive-relative/unspecified-drive paths and alternate streams remain refused; exact realpath checks are retained.",
+      "local": {
+        "targetedTests": {
+          "pass": 52,
+          "fail": 0,
+          "windowsOnlySkip": 4,
+          "assertions": 259,
+          "secondsPrinted": 0.928
+        },
+        "check": {
+          "steps": 7,
+          "exit": 0,
+          "secondsPrinted": 6.68
+        }
+      },
+      "architecture": "ADR-0010 R3 permits only lexical node:path operations in doc; FsReader/SafeWriter remain the I/O ports.",
+      "nativeCasesAdded": [
+        "Copied compiled cold shadow export",
+        "Windows native project guard",
+        "Native doc-root containment and ambiguous path rejection"
+      ]
+    }
   }
 }
