@@ -24,3 +24,5 @@
 通常Macはquiet / AC、start load7.4243、全run load7.42〜8.08、終了7.9971。較正はbefore1.010186 / after1.076654で、いずれも既存reference範囲内だった。4runともfiles7,687 / included6,009 / filesParsed6,539 / cacheHits0 / 6Worker / degraded2、hash6,539 / parse5,907 / SQL writes36が一致した。
 
 時間依存列を除く `idx_blobs`6,490行、`idx_symbols`133,602行、`idx_skeleton`11,997行の順序付き全行hashも全4runで一致し、先行比較のhashとも一致した。速度とRSSを下げた小さな変更として採用するが、候補2runとも1,500msを超えている。過去の不採用batch / 参照解除案との比較を混ぜず、上限やWorker規則は維持する。
+
+後続の小候補は `bodyOf` / `initializerStart` に既知のGo種類を渡して再取得を避けるもの。抽出回帰23pass / 63assertionsは成功したが、同条件ABBAの開始前guardがload8.7476 / quiet / AC・factor1.103875で既存0.9–1.1範囲外だった。scanは0回で性能未計測、候補は未採用。現在の採用結果1,994.58msと1,500ms未達の判定は変わらない。

@@ -279,12 +279,28 @@
           "power": "ac",
           "factor": 2.3088158812537003,
           "reason": "outside existing 0.9-1.1 reference calibration range"
+        },
+        {
+          "job": 114416752978,
+          "loadAverage": 8.94091796875,
+          "noisy": false,
+          "waited": 2,
+          "power": "ac",
+          "factor": 1.899866506147403,
+          "reason": "outside existing 0.9-1.1 reference calibration range"
         }
       ],
       "testsStarted": false,
       "ubuntuRerun": false,
       "thresholdsChanged": false,
-      "referenceChanged": false
+      "referenceChanged": false,
+      "dispatchPreflight": {
+        "loadAverage": 8.50390625,
+        "noisy": false,
+        "power": "ac",
+        "factor": 1.0842684264954963,
+        "note": "Root-side preflight only; not the later CI measurement or proof of the cause of its slower calibration."
+      }
     },
     "merge": "pending successful reference-condition Mac CI"
   }

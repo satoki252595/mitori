@@ -10,6 +10,8 @@
 
 この変更はverified Job Objectを使う `processGroup:true` の経路を対象とする。`processGroup:false` は既存の直接Bun.spawnの経路で、Windows標準環境変数を補う挙動が残る。POSIX経路は変更していない。
 
+後続の静的caller確認では、自動LLMのClaude / Codex / generic（Museを含む）はすべて `scrubEnv` と `processGroup:true` を使い、warm / cold / continuation・gen / loop・detectにも迂回はなかった。falseは固定 `--version` と明示plugin導入のみ、公式認証は別の人確認済み経路、HTTP engineは子processなし。この制限による自動LLMのlean起動違反は見つからず、追加変更は不要と判断した。これは静的確認であり、Windows上の実LLM互換性を実証するものではない。
+
 既存の `scripts/nd nix develop .#windowsCross --command bun scripts/build-windows-job.ts` でZig 0.16.0のcrossbuildを実施し、`-Wall -Wextra -Werror` を含む既存flagsで成功した。最初はsandboxが既存Nix cache DBの書込みを拒否したため、正規escalationで同じコマンドを再実行した。新依存、Windows Bunの直接ダウンロード、グローバルinstallは追加していない。
 
 MacのNix Bunで、native asset / extraction / build record / spawnerの対象4ファイルは19成功・Windows限定4skip・0失敗、59 assertions。platform型検査は診断0、対象3 TypeScriptファイルのBiomeとdiff checkは成功した。CのcrossbuildとMacテストはWindows native成功の代用にはならない。

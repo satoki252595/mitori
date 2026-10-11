@@ -5,7 +5,7 @@
 
 ## ★ 現在の状態（2026-10-11、実装・検証・未達の区別）
 
-利用者の残タスク続行指示に従い、Codexの正式生成経路、OSSの説明省略、UIの初回表示とasset、Linux cold check、Windows native検証を進めた。[PR #13](https://github.com/satoki252595/mitori/pull/13)へpush済み。修正後head98c59a6のUbuntu CIは成功（unit3,022pass / 0fail、golden109pass / 0fail）、Windows対象もhead23645fdで成功した。Macの同head再実行はfactor2.309が既存範囲外でbrowser開始前に停止。旧head6af11b8の369pass / 14skip / 5failは履歴であり、読書位置修正後の正式suite成功とは扱わない。マージ・不要ブランチ削除は未実施。[CIの前後](progress/remaining-20261011/ci.md)。詳細と各JSONの入口は [remaining-20261011/README.md](progress/remaining-20261011/README.md)。ルートREADMEも更新済み。
+利用者の残タスク続行指示に従い、Codexの正式生成経路、OSSの説明省略、UIの初回表示とasset、Linux cold check、Windows native検証を進めた。[PR #13](https://github.com/satoki252595/mitori/pull/13)へpush済み。修正後head98c59a6のUbuntu CIは成功（unit3,022pass / 0fail、golden109pass / 0fail）、Windows対象もhead23645fdで成功した。Macの同head再実行は較正が既存範囲外でbrowser開始前に停止。旧head6af11b8の369pass / 14skip / 5failは履歴であり、読書位置修正後の正式suite成功とは扱わない。マージ・不要ブランチ削除は未実施。[CIの前後](progress/remaining-20261011/ci.md)。詳細と各JSONの入口は [remaining-20261011/README.md](progress/remaining-20261011/README.md)。ルートREADMEも更新済み。
 
 ### ★.1 実装と確認できたこと
 
@@ -23,7 +23,7 @@
 1. **実IMEとUI時間予算:** Chrome通常操作・確定済み日本語検索・native / MCP設定は確認済み。実IMEの `Input.imeSetComposition` は操作許可で拒否されたため、迂回せず本人の変換確定Enter / 次のEnter確認を依頼中。[Chrome記録](progress/remaining-20261011/chrome.md)。scanSummary3,312.1 / limit2,000msの旧未達は保持し、status競合修正後の最終compiledは1,771.5ms。ただしfactor1.12でreport-onlyのため正式基準機合格へ読み替えない。[最終UI記録](progress/remaining-20261011/ui-bench-release.md)。Safari実機は利用者がChrome代替を選択したため今回の必須外。
 2. **Go7k cold 1,500ms:** parser / query / GCの先行候補と正式caseのNOISY / report-only失敗は保持した。[原因と不採用証拠](progress/remaining-20261011/idx-cold.md)、[正式後続](progress/remaining-20261011/idx-formal.json)。後続ではGoの同一Node.type再取得を減らす最小変更を採用。quiet / AC、較正before1.010 / after1.077の同条件ABBAで中央値2,232.14→1,994.58ms（10.64%短縮）、抽出3表の全行hash・coverage・診断・6Workerが一致した。1,500msは未達で、上限やWorker規則は変えていない。[採用の根拠](progress/remaining-20261011/idx-type-local.md)。
 3. **引用窓:** 保存済みm3e最新版はL1が28pass / 2fail / 8vacuous、Jev品質節は22pass / 1fail / 2vacuous。[source照合](progress/remaining-20261011/quality.citation-review.json)。m3e依存文のimport原文を入力へ補い、複数行importのspecifier行からもbindingsを保持する。既存28k枠・除外・元行・blob・citableと既定値helperをofflineで確認、検証器は緩めていない。文書の再検証もcoreの共通verdictへ統一した。修正後の追加実生成2回はAPI換算保守$0.416844 / 今回推計cap$0.50で本人の費用承認待ち。保存済み出力の全引用pass・全文semantic保証とは扱わない。
-4. **Mac browser CIと統合:** Ubuntu x64は修正後head98c59a6で成功。全20semantic builds・0cached・0errors、unit・fixtures・golden・size・Linux binaryを確認。soft targetは未達。旧headの読書位置保持失敗は最小修正と3browser限定回帰で成功したが、同headのMac再CIはload8.4741 / factor2.308816で既定範囲外、browser開始前に停止した。quiet / reference条件の正式CI成功後にPRをマージ・不要ブランチ削除する。[CI記録](progress/remaining-20261011/ci.md)。Windows対象は上の最終CIで完了した。
+4. **Mac browser CIと統合:** Ubuntu x64は修正後head98c59a6で成功。全20semantic builds・0cached・0errors、unit・fixtures・golden・size・Linux binaryを確認。soft targetは未達。旧headの読書位置保持失敗は最小修正と3browser限定回帰で成功したが、直近の同head Mac再CIはload8.9409 / factor1.899867で既定範囲外、browser開始前に停止した。quiet / reference条件の正式CI成功後にPRをマージ・不要ブランチ削除する。[CI記録](progress/remaining-20261011/ci.md)。Windows対象は上の最終CIで完了した。
 
 ### ★.3 利用方針・外部操作・守ること
 

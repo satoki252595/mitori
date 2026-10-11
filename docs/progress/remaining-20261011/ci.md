@@ -29,3 +29,5 @@ Macはload11.3823、既定の2回待機後もNOISYで、browser suite開始前�
 [CI run38119108193](https://github.com/satoki252595/mitori/actions/runs/38119108193)のUbuntuは成功。check全7項目63.04秒 / hard limit68.30秒、全20semantic builds / 0cached / 0errors。unit3,022pass / 134skip / 4todo / 0fail（121,956 assertions）、golden109pass / 4skip / 0fail（1,028 assertions）、fixtures verify・size・Linux binary build / versionが成功した。soft target34.15秒は未達のまま。
 
 Mac初回job114409967855はload9.7925でNOISY。失敗したMac jobだけ再実行した[job114412318444](https://github.com/satoki252595/mitori/actions/runs/38119108193/job/114412318444)はload8.4741 / quiet / ACだがfactor2.308816が既存0.9–1.1範囲外で、browser suite開始前に停止した。Ubuntuを再実行せず、上限・較正・基準機referenceは変更していない。旧headの5失敗は履歴として保持し、修正後の正式Mac suite成功とは扱わない。PR #13は未マージ。
+
+3回目も失敗したMac jobだけ再実行。[job114416752978](https://github.com/satoki252595/mitori/actions/runs/38119108193/job/114416752978)はload8.9409 / quiet / AC、factor1.899867が範囲外でbrowser開始前に停止した。dispatch直前のroot側はload8.5039 / factor1.084268だったが、別時点の測定なのでCIの合格や遅延原因の証明にしない。共有viewer / a11yの後続stepも未実行、Ubuntuの成功は保持した。

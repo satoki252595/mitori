@@ -1,6 +1,6 @@
 # 残課題の続行・検証記録（2026-10-11）
 
-今回の変更と測定をまとめる。[PR #13](https://github.com/satoki252595/mitori/pull/13)へpush済み。修正後head98c59a6のUbuntu CIは成功、Windows対象はhead23645fdで成功。Macの同head再実行は較正factor2.309が既存範囲外でbrowser開始前に停止した。旧head6af11b8の369pass / 14skip / 5failは履歴であり、読書位置修正後の正式suite合格とは扱わない。マージ・不要ブランチ削除は未実施。[CI記録](ci.md)。過去の失敗を後の成功値で置き換えず、各資料に前後の証拠を残した。
+今回の変更と測定をまとめる。[PR #13](https://github.com/satoki252595/mitori/pull/13)へpush済み。修正後head98c59a6のUbuntu CIは成功、Windows対象はhead23645fdで成功。Macの同head再実行は較正が既存範囲外でbrowser開始前に停止した。旧head6af11b8の369pass / 14skip / 5failは履歴であり、読書位置修正後の正式suite合格とは扱わない。マージ・不要ブランチ削除は未実施。[CI記録](ci.md)。過去の失敗を後の成功値で置き換えず、各資料に前後の証拠を残した。
 
 開発・検証はプロジェクトのNixと `scripts/nd`。通常利用は既存Bun / Git / LLMを使える方針を維持する。Dockerは利用者が許可した既存Linux検証ハーネスだけ。今回の実LLMはCodexと取得済みLM Studioで、Claudeは使用していない。Cloudflareへのデプロイはcloneしてローカル利用するための必須条件に含めない。
 
