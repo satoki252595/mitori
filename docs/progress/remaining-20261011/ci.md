@@ -88,3 +88,9 @@ Mac job114498794909はload9.33154296875 / NOISY / AC、待機2回後も既存qui
 Mac job114504937824はquiet / AC・load8.770020、factor1.101552で既存±10%を外れ、browser開始前に停止した。browser0、共有・a11yはskip。attempt2のjob114506190375は同じ開始・終了日時とログの持ち越しで、Macの再実行成功とは扱わない。
 
 通常merge `b8f2dca5667e181e709233d77115376aede063c6` をmainへ反映。merge treeと検証source treeはともに `071e3263b75c4b9e72d5036fdf831162f1e3e272`。作業branchをlocal / remoteから削除した。Go正式1,500ms、最新Mac全suite、実IME、費用確認待ちの追加生成、外部4クライアントの実生成は残る。詳細・private原ログのhashは[ci.json](ci.json)のpr16。
+
+## 統合後mainの独立したMac確認（2026-10-12 JST）
+
+main `35d897d7badc470e9825ac6ed0dd8f0c64ef293d` で、既存の共有試験をChromium / Firefox / WebKit付きで実行し、2pass / 0fail・37 assertions（4.79秒）を確認した。既存a11yもChromium・1 Workerで8pass / 0fail / 0retry（12.69秒）。明暗のmap / Reader計4画面でaxe違反0、contrast・smallText・smallTargetsも0だった。依存の追加、実LLM要求、remote deploymentは0。
+
+正式計測の事前確認は15:55:36 UTCに既定2回待機後もload9.209473 / NOISY / ACだった。較正・Go正式scan・全browser CIの再実行は行っていない。今回の独立した共有 / a11y成功と、PR #16のCIで両stepがskipだった履歴は区別する。全browser CIとGo1,500msは未確認・未達を維持する。許可項目だけの結果とprivate原ログのhashは[ci.json](ci.json)の `localMainVerification20261012`。

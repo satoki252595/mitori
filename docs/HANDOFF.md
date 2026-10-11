@@ -11,6 +11,8 @@
 
 ### ★.1 実装と確認できたこと
 
+- **統合後Macの独立確認:** main35d897dで共有2pass / 37 assertions（Chromium / Firefox / WebKit）とa11y8pass / 違反0が成功。既定待機後もload9.209473 / NOISY / ACのためGo正式計測と全browser CIは追加していない。全browser CI未確認は維持する。[結果](progress/remaining-20261011/ci.md)。
+
 - **本人環境のMCP接続:** 通常HOME・実フォルダでCodex / Cursor / Grok / Antigravityの4クライアント各8ツールを確認。Grokの表示コマンドを`--cwd` / `--scope project`付きへ修正し、引用符等を含むパスの引数回帰も成功。Antigravityはproject設定が表示されなかったため、共通設定をバックアップしてmitoriだけ追加し、本体2.12.2の公式Refresh後に`8 tools enabled`を確認した。Codexの初回隔離用override失敗は保存し、子プロセスだけの`--disable plugins`と既存user MCP4項目の無効化でmitoriだけ有効と確認後、app-serverのinitialize / statusで8ツールを取得（exit0、206.033ms）。保存済み設定・認証はこの再確認で変更していない。認証操作・LLM要求・MCPツール実行0、追加LLM費用$0。4外部セッションからの文書生成は未実行。Grok修正の対象8tests / 85assertionsと全7check成功（5.04秒）も保持する。[実測と制約](progress/startup-matrix-20261007/README.md)。
 
 - **Mac後続CI:** PR #14の失敗したMacだけをattempt2 / 3で再実行。quiet / ACでもfactor1.172012 / 1.195410が既存±10%を外れ、browser開始前に停止。前回成功した通常端末起動でも解消せず、共有viewer / a11yも未実行。Ubuntu成功を維持し、元のrunner常駐起動を復元済み。Mac全suite未確認を保持する。[経緯](progress/remaining-20261011/ci.md)。

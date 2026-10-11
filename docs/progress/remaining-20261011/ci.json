@@ -1005,5 +1005,100 @@
       "Codex two-OSS rerun fee approval",
       "four external clients actual generation"
     ]
+  },
+  "localMainVerification20261012": {
+    "source": "35d897d7badc470e9825ac6ed0dd8f0c64ef293d",
+    "tree": "2c95fffa3077c569cd6581b0520752e4c602064e",
+    "kind": "Independent local Mac checks; not a successful full browser CI run",
+    "share": {
+      "command": "MITORI_BROWSER_SHARE=1 scripts/nd bun test e2e/share/share.int.test.ts",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "pass": 2,
+      "fail": 0,
+      "assertions": 37,
+      "seconds": 4.79,
+      "remoteDeployment": false
+    },
+    "a11y": {
+      "command": "scripts/nd bun run e2e --grep @a11y --workers=1",
+      "engine": "chromium",
+      "stats": {
+        "startTime": "2026-10-11T15:53:31.995Z",
+        "duration": 12690.32,
+        "expected": 8,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "axe": {
+        "screens": 4,
+        "violations": 0
+      },
+      "probe": {
+        "screens": 4,
+        "contrast": 0,
+        "smallText": 0,
+        "smallTargets": 0
+      }
+    },
+    "formalReadiness": {
+      "at": "2026-10-11T15:55:36.070Z",
+      "sha": "35d897d7badc470e9825ac6ed0dd8f0c64ef293d",
+      "quiet": {
+        "loadavg": 9.20947265625,
+        "noisy": true,
+        "waited": 2
+      },
+      "machine": {
+        "cpu": "Apple M5 Max",
+        "cores": 18,
+        "ramGb": 128,
+        "os": "Darwin 27.0.0",
+        "bun": "1.4.2",
+        "node": "22.23.3",
+        "chrome": "153.0.8010.12",
+        "loadavg": 9.20947265625,
+        "noisy": true,
+        "waited": 2,
+        "power": "ac"
+      },
+      "calibration": null,
+      "referenceTotalMs": 316.22954300000004,
+      "factor": null,
+      "ready": false
+    },
+    "formalGoScans": 0,
+    "browserFullSuiteRerun": false,
+    "llmCalls": 0,
+    "additionalSoftwareInstalled": 0,
+    "artifacts": {
+      "share.log": {
+        "bytes": 329,
+        "sha256": "3880511b9f766679f028367d1cab7cff82b2090db7eb0304625d1da44bbf94ce"
+      },
+      "a11y.log": {
+        "bytes": 1428,
+        "sha256": "0e323028e24f866358452e04dcbec32a2b49ce8006920ae8853e87d8fa817cad"
+      },
+      "a11y-report.json": {
+        "bytes": 15477,
+        "sha256": "0e5c85f4ff5ec98c92a6e69d728f07c19ecfeaa690a49c7646d9ae73fefd4855"
+      },
+      "preflight.json": {
+        "bytes": 543,
+        "sha256": "dcc83999e73b517e7982fe29f090605bd24d84d81bf2c4fa1806cb58df35bd00"
+      }
+    },
+    "remaining": [
+      "Go hard1500 formal gate",
+      "latest Mac full browser CI",
+      "human native Japanese IME",
+      "Codex two-OSS rerun fee approval",
+      "four external clients actual generation"
+    ]
   }
 }

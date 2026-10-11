@@ -23,7 +23,7 @@
 | F10の実績較正 | 既存ledgerをexact profileで見積りへ接続。対象40pass、保守floor・USD cap・confidence25維持 | 既存EMAは保持。実精度・実請求の保証なし | [較正の確認](ledger-calibration.md) |
 | F14のCLI案内・終了処理 | 既存help接続、自身が起動したdaemonだけ終了対象。後接続・作業中は同期idle guardで維持。対象回帰・統合check成功 | 起動者のPID同一性を証明できない環境では停止しない | [終了処理の確認](cli-lifecycle.md) |
 | UI / assets / a11y | 読書位置修正後のcompiledはstrict asset全項目pass・初期JS54.697KB gzip。最新正式scanSummaryはquiet / AC・3run / warmup1で中央値1,615.700ms、hard limit2,000ms合格 | target1,000msはWARN。旧1,771.5ms / factor1.12のreport-onlyは履歴として保持 | [最新assets](reader-fix-assets.json)、[先行UI記録](ui-bench-release.md) |
-| Mac正式CI | head98c59a6 / attempt6はquiet / AC・factor1.017953727365694でbrowser380pass / 14skip / 0fail、共有2pass / 0fail、a11y8pass | 後続PR #14 / #15 / #16はNOISY / 較正guard停止で全suite未確認。先行foreground成功と実子priority差の観測は保持し、厳密なQoSや根因は未確定。元のサービスは復元済み | [CI記録](ci.md) |
+| Mac正式CI | head98c59a6 / attempt6はbrowser380pass / 14skip / 0fail、共有2pass、a11y8pass。統合後main35d897dでも独立した共有2pass / 37 assertionsとa11y8pass / 違反0を確認 | 後続PR #14 / #15 / #16の全browser CIはNOISY / 較正guard停止で未確認。独立した共有 / a11yの成功へ置き換えない。元のrunnerサービスは復元済み | [CI記録](ci.md) |
 | Windows | head89f228eaのNix crossbuildと実Windowsで選択14pass / 109 assertions。Git / shadowのcold export永続化・所有daemon後始末、scan親終了後の存続・export再利用・明示stop、製品`--version`とembedded / standalone selftest6checksが成功 | 対象経路の検証。Windowsの一般全経路・実LLM互換性を意味しない。先行head23645fdの7passも履歴に保持 | [最新Windows CI](https://github.com/satoki252595/mitori/actions/runs/38149209280)、[windows-nix.md](windows-nix.md)、[windows-env.md](windows-env.md) |
 | 実ブラウザ操作 | 実Chromeの初回map、確定日本語検索、Codex native/MCP切替と配布binaryの接続commandを確認。続行時はnative Chrome操作も許可され、最新binaryの無料デモを本人確認用に準備 | nativeキー入力もASCIIのままで実IME変換は未確認。本人操作結果待ち。Safari実機はChrome代替の選択により必須外 | [chrome.md](chrome.md) |
 
