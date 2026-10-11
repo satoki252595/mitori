@@ -76,7 +76,7 @@ export function realIo(argv: string[], version: string): Io {
     spawnDaemon(home) {
       const [command, ...pre] = selfCommand();
       // own session (setsid): the daemon outlives this CLI; `--detached` keeps it off the closed pipes
-      spawner.spawn({
+      return spawner.spawn({
         command,
         argv: [...pre, "_serve", "--detached"],
         env: childEnv(),

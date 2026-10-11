@@ -27,8 +27,8 @@ export interface Io {
   isTTY: boolean;
   /** Ask a yes/no question on the terminal (only called when {@link isTTY}). */
   confirm(question: string): Promise<boolean>;
-  /** Start `mitori _serve` detached (the daemon writes its own registry). */
-  spawnDaemon(home: string): void;
+  /** Start `mitori _serve` detached; its handle proves whether this call won the daemon lock. */
+  spawnDaemon(home: string): { pid: number; exited: Promise<number> } | undefined;
   /** Open a URL in the user's browser. */
   openUrl(url: string): Promise<void>;
   clock: Clock;

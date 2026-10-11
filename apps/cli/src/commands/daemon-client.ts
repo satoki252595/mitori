@@ -15,6 +15,8 @@ export interface Daemon {
   origin: string;
   registry: DaemonRegistry;
   health: HealthRes;
+  /** This call's child is still alive and owns the verified registry (not another concurrent starter). */
+  startedHere?: true;
 }
 
 /** Start/stop waits (MCP `daemonStartMs` 5 s; stop = server `DAEMON.drainMs` 10 s + flush). */
@@ -105,10 +107,11 @@ async function waitFor<T>(io: Io, ms: number, probe: () => Promise<T | null> | T
  * Stop `d` and wait until it is gone: its process exited, or it removed its registry — the last step of its shutdown
  * (a daemon whose parent has not reaped it yet still answers `kill(pid, 0)`).
  */
-export async function stopDaemon(io: Io, d: Daemon, reason: string, home: string): Promise<boolean> {
+export async function stopDaemon(io: Io, d: Daemon, reason: string, home: string, opts: { onlyIfIdle?: boolean } = {}): Promise<boolean> {
   try {
-    await apiOf(io, d).call("POST /daemon/shutdown", { params: {}, body: { reason } });
+    await apiOf(io, d).call("POST /daemon/shutdown", { params: {}, body: { reason, ...opts } });
   } catch {
+    if (opts.onlyIfIdle) return false;
     // already going away
   }
   const gone = () => !pidAlive(d.registry.pid) || readRegistry(home)?.pid !== d.registry.pid;
@@ -127,17 +130,20 @@ async function idle(io: Io, d: Daemon): Promise<boolean> {
 /**
  * The daemon, started headless when there is none (single writer: write commands go through it). A daemon of
  * another version is restarted when idle, used with a warning when busy with the same API version, and refused
- * (`E_VERSION_MISMATCH`) when busy with another API version.
+ * (`E_VERSION_MISMATCH`) when busy with another API version. `restart: false` preserves existing daemons.
  */
-export async function ensureDaemon(io: Io, home: string): Promise<Daemon> {
+export async function ensureDaemon(io: Io, home: string, opts: { restart?: boolean } = {}): Promise<Daemon> {
   const found = await findDaemon(io, home);
   if (found && registryExposed(home))
     io.err(`mitori: warning: ${home}/daemon.json is readable by other users (it holds the daemon token); run \`mitori stop\` and start again\n`);
   if (found) {
     if (found.health.version === io.version) return found;
-    const action = versionAction({ version: io.version, apiVersion: API_VERSION }, { ...found.health, idle: await idle(io, found) });
+    const action = versionAction(
+      { version: io.version, apiVersion: API_VERSION },
+      { ...found.health, idle: opts.restart !== false && (await idle(io, found)) },
+    );
     if (action === "use") {
-      io.err(`mitori: warning: the running daemon is v${found.health.version} (this CLI is v${io.version}); it is busy, so it stays\n`);
+      io.err(`mitori: warning: the running daemon is v${found.health.version} (this CLI is v${io.version}); it stays\n`);
       return found;
     }
     if (action === "error")
@@ -146,8 +152,12 @@ export async function ensureDaemon(io: Io, home: string): Promise<Daemon> {
       });
     if (!(await stopDaemon(io, found, "version", home))) throw new MitoriError("E_CONFLICT", `the v${found.health.version} daemon did not stop`);
   }
-  io.spawnDaemon(home);
+  const child = io.spawnDaemon(home);
+  let exited = false;
+  void child?.exited.then(() => {
+    exited = true;
+  });
   const d = await waitFor(io, DAEMON_WAIT.startMs, () => findDaemon(io, home, 500));
   if (!d) throw new MitoriError("E_NOT_READY", "the mitori daemon did not start", { hint: `see ${home}/logs` });
-  return d;
+  return child?.pid === d.registry.pid && !exited ? { ...d, startedHere: true } : d;
 }

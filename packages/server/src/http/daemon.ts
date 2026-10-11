@@ -249,11 +249,16 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
     const stopped = new Promise<string>((r) => {
       resolveStopped = r;
     });
+    const busy = () => hub.connections() > 0 || workspaces.busy() || waiters.count() > 0 || (o.busy?.() ?? false);
     const services: ServerServices = {
       ...(o.providerLogin ? { providerLogin: o.providerLogin } : {}),
       info: { version: o.version, pid: o.pid, startedAt, build: o.build, home: o.home, port: () => port },
       control: {
-        shutdown: (reason) => void daemon.stop(reason),
+        shutdown: (reason, _force, onlyIfIdle) => {
+          if (onlyIfIdle && busy()) return false;
+          void daemon.stop(reason);
+          return true;
+        },
         shuttingDown: () => shuttingDown,
         scheduler: o.scheduler ?? defaultScheduler,
         engines: o.engines ?? (() => []),
@@ -316,7 +321,7 @@ export async function startDaemon(o: DaemonOptions): Promise<DaemonStart> {
       timers,
       ...(o.idleExitMs !== undefined ? { idleMs: o.idleExitMs } : {}),
       ...(o.idlePollMs !== undefined ? { pollMs: o.idlePollMs } : {}),
-      busy: () => hub.connections() > 0 || workspaces.busy() || waiters.count() > 0 || (o.busy?.() ?? false),
+      busy,
       onIdle: () => void daemon.stop("idle"),
     });
     hub.onConnectionsChanged(() => idle.poke());

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { runCommand } from "./index.ts";
-import { type FakeDaemon, startFakeDaemon, testIo } from "./test/fake-daemon.ts";
+import { ApiFail, type FakeDaemon, startFakeDaemon, testIo } from "./test/fake-daemon.ts";
 
 let d: FakeDaemon;
 beforeEach(async () => {
@@ -52,5 +52,101 @@ describe("WP13-CLI-01 export -o", () => {
     mkdirSync(join(d.repo, "docs"));
     expect(await runCommand("export", io(["--html", "-o", "docs/design.html"]))).toBe(0);
     expect(readFileSync(join(d.repo, "docs", "design.html"), "utf8")).toContain("<title>doc</title>");
+  });
+
+  test.each(["success", "workspace", "export", "output"] as const)("the daemon started only for export stops after %s", async (failure) => {
+    d.registry(null);
+    const t = io(failure === "output" ? ["--html", "-o", "missing/"] : ["--html"]);
+    t.spawnDaemon = (home) => {
+      t.spawned.push(home);
+      d.registry();
+      return { pid: process.pid, exited: new Promise<number>(() => {}) };
+    };
+    d.route("POST /daemon/shutdown", () => {
+      d.registry(null);
+      return { ok: true };
+    });
+    if (failure === "workspace")
+      d.route("POST /workspaces", () => {
+        throw new ApiFail(404, "E_NOT_FOUND");
+      });
+    if (failure === "export")
+      d.route("POST /ws/:ws/export", () => {
+        throw new ApiFail(501, "E_UNSUPPORTED");
+      });
+    expect(await runCommand("export", t)).toBe(failure === "success" ? 0 : 1);
+    expect(t.spawned).toEqual([d.home]);
+    expect(d.calls("POST /daemon/shutdown").map((c) => c.body)).toEqual([{ reason: "export", onlyIfIdle: true }]);
+  });
+
+  test.each([
+    ["busy", false],
+    ["busy", true],
+    ["unreachable", false],
+    ["unreachable", true],
+  ] as const)("cleanup %s preserves the export result (failed=%p)", async (mode, failed) => {
+    d.registry(null);
+    const t = io(["--html"]);
+    t.spawnDaemon = (home) => {
+      t.spawned.push(home);
+      d.registry();
+      return { pid: process.pid, exited: new Promise<number>(() => {}) };
+    };
+    let rejected = false;
+    let clockReadsAfterRefusal = 0;
+    const now = t.clock.now;
+    t.clock.now = () => {
+      if (rejected) clockReadsAfterRefusal++;
+      return now();
+    };
+    d.route("POST /daemon/shutdown", () => {
+      rejected = true;
+      throw new ApiFail(409, "E_CONFLICT");
+    });
+    if (mode === "unreachable")
+      t.fetch = (async (input, init) => {
+        if (String(input).endsWith("/daemon/shutdown")) {
+          rejected = true;
+          throw new TypeError("daemon unreachable");
+        }
+        return fetch(input, init);
+      }) as typeof fetch;
+    if (failed)
+      d.route("POST /ws/:ws/export", () => {
+        throw new ApiFail(501, "E_UNSUPPORTED");
+      });
+    expect(await runCommand("export", t)).toBe(failed ? 1 : 0);
+    if (failed) expect(t.stderr).toContain("E_UNSUPPORTED");
+    else expect(t.stdout).toContain("repo.mitori.html");
+    expect(rejected).toBe(true);
+    expect(clockReadsAfterRefusal).toBe(0);
+    expect(existsSync(join(d.home, "daemon.json"))).toBe(true);
+    expect(d.calls("POST /daemon/shutdown").map((c) => c.body)).toEqual(mode === "busy" ? [{ reason: "export", onlyIfIdle: true }] : []);
+  });
+
+  test("an existing daemon stays running after success and failure, including another idle version", async () => {
+    d.route("GET /daemon", () => ({ scheduler: { running: 0, queued: 0 } }));
+    for (const argv of [["--html"], ["--html", "-o", "missing/"]]) {
+      const t = io(argv);
+      t.version = "next";
+      expect(await runCommand("export", t)).toBe(argv.length === 1 ? 0 : 1);
+      expect(t.spawned).toEqual([]);
+    }
+    expect(d.calls("POST /daemon/shutdown")).toEqual([]);
+  });
+
+  test.each(["other PID", "exited child"] as const)("a competing daemon is kept when discovery finds %s", async (winner) => {
+    d.registry(null);
+    const t = io(["--html"]);
+    t.spawnDaemon = (home) => {
+      t.spawned.push(home);
+      d.registry();
+      return {
+        pid: winner === "other PID" ? process.pid + 1 : process.pid,
+        exited: winner === "exited child" ? Promise.resolve(0) : new Promise<number>(() => {}),
+      };
+    };
+    expect(await runCommand("export", t)).toBe(0);
+    expect(d.calls("POST /daemon/shutdown")).toEqual([]);
   });
 });

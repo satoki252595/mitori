@@ -122,7 +122,9 @@ export function serverHandlers(s: ServerServices): RouteHandlers {
     "POST /daemon/shutdown": ({ body }) => {
       const b = isPlainObject(body) ? body : {};
       if (b.reason !== undefined && typeof b.reason !== "string") throw invalid("reason", "reason must be a string");
-      s.control.shutdown(typeof b.reason === "string" ? b.reason.slice(0, 200) : "requested", b.force === true);
+      if (b.onlyIfIdle !== undefined && typeof b.onlyIfIdle !== "boolean") throw invalid("onlyIfIdle", "onlyIfIdle must be a boolean");
+      if (!s.control.shutdown(typeof b.reason === "string" ? b.reason.slice(0, 200) : "requested", b.force === true, b.onlyIfIdle === true))
+        throw new MitoriError("E_CONFLICT", "the daemon is in use");
       return ok;
     },
     "POST /auth/nonce": ({ body }) => {

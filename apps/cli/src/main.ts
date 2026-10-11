@@ -7,11 +7,10 @@ import pkg from "../package.json" with { type: "json" };
 
 const API_VERSION = 1;
 
-const USAGE = `usage: mitori [<path>] [--no-open]    open a repository (walking skeleton: foreground daemon, prints the URL)
-       mitori --version
-       mitori _serve [--port <n>]       daemon only
-       mitori _selftest [--json]        check the embedded assets, Workers and runtime
-`;
+async function usage(): Promise<string> {
+  const { helpLang, overview } = await import("./commands/help.ts");
+  return overview(helpLang(process.env));
+}
 
 export function versionLine(): string {
   return `mitori ${pkg.version} (api ${API_VERSION})`;
@@ -28,7 +27,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     case "--help":
     case "-h":
     case "help":
-      process.stderr.write(`${versionLine()}\n${USAGE}`);
+      process.stderr.write(`${versionLine()}\n${await usage()}`);
       return 0;
     case "_serve":
       return (await import("./daemon/run.ts")).runDaemon("serve", argv.slice(1), pkg.version);
@@ -37,7 +36,7 @@ export async function main(argv: readonly string[]): Promise<number> {
   }
   if (cmd === "" || !cmd.startsWith("-") || cmd === "--no-open" || cmd === "--force")
     return (await import("./daemon/run.ts")).runDaemon("open", argv, pkg.version);
-  process.stderr.write(`mitori: unknown option ${cmd}\n${USAGE}`);
+  process.stderr.write(`mitori: unknown option ${cmd}\n${await usage()}`);
   return 2;
 }
 
