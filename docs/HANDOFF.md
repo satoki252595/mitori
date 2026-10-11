@@ -5,9 +5,11 @@
 
 ## ★ 現在の状態（2026-10-12 JST、実装・検証・未達の区別）
 
+[PR #17](https://github.com/satoki252595/mitori/pull/17)を通常merge `0f223015e4a742413fc1419f5ace7115ffcff9c4` でmainへ統合した。source `27d8bd4` の[CI](https://github.com/satoki252595/mitori/actions/runs/38155349977)はUbuntu・Macとも成功。Macはquiet / AC・factor0.992146でbrowser380pass / 14skip / 0fail、共有2pass / 37 assertions、a11y8pass。Escape試験の固定時間待機を既存camera安定判定へ置き換え、入力・精度・時間上限は維持した。source・CI checkout・mergeのtree一致と元runnerサービスの復元を確認。Mac全suite待ちは解消し、以下の残件はGo正式1,500ms・実IME本人確認・引用再生成の費用承認・外部4クライアントでの実生成の4件。[現行CIと旧失敗](progress/remaining-20261011/ci.md)。
+
 利用者の残タスク続行指示に従い、Codexの正式生成経路、OSSの説明省略、UIの初回表示とasset、Linux cold check、Windows native検証を進めた。修正後head98c59a6のUbuntu CIは成功（unit3,022pass / 0fail、golden109pass / 0fail）、Windows対象もhead23645fdで成功した。Mac attempt6も既存guardを通過し、browser380pass / 14skip / 0fail、共有2pass、a11y8passが成功。[PR #13](https://github.com/satoki252595/mitori/pull/13)は2026-10-11T11:16:43Zに通常merge `df014912ee7e31ac62c4ca50c846d396aeec9dff` でmainへ統合し、資料branchもローカルmainへ通常merge `bdcebaf` で取り込んだ。統合時main `bdcebaf` はoriginへpush済みで、実装・資料の両作業branchをlocal / remoteから削除した。旧headの5失敗と後続guard停止は履歴へ保持した。[CIの前後](progress/remaining-20261011/ci.md)。詳細と各JSONの入口は [remaining-20261011/README.md](progress/remaining-20261011/README.md)。
 
-最新の[PR #16](https://github.com/satoki252595/mitori/pull/16)も通常merge `b8f2dca` でmainへ統合・push済み、作業branchはlocal / remoteから削除した。Super 6 + Performance 12の検出へ更新し、既存最大8 Workerを適用する。Go ABBAは中央値19.45%短縮・全3表一致、React RSSは中央値986.688MiB / 上限1000以内・目標700にWARN。対象13testsと全7check、source `0ac54f0` のUbuntu unit3,047pass / golden109pass / 0failが成功した。Macはfactor1.101552でguard停止、Go正式1,500msと本人操作・費用確認待ちの残件は維持する。[性能tierの証跡](progress/remaining-20261011/idx-performance-tiers.md)。
+先行する[PR #16](https://github.com/satoki252595/mitori/pull/16)も通常merge `b8f2dca` でmainへ統合・push済み、作業branchはlocal / remoteから削除した。Super 6 + Performance 12の検出へ更新し、既存最大8 Workerを適用する。Go ABBAは中央値19.45%短縮・全3表一致、React RSSは中央値986.688MiB / 上限1000以内・目標700にWARN。対象13testsと全7check、source `0ac54f0` のUbuntu unit3,047pass / golden109pass / 0failが成功した。Mac初回はfactor1.101552でguard停止、Go正式1,500msと本人操作・費用確認待ちの残件は維持する。[性能tierの証跡](progress/remaining-20261011/idx-performance-tiers.md)。
 
 ### ★.1 実装と確認できたこと
 
@@ -46,8 +48,6 @@
 3. **引用窓:** 保存済みm3e最新版はL1が28pass / 2fail / 8vacuous、Jev品質節は22pass / 1fail / 2vacuous。[source照合](progress/remaining-20261011/quality.citation-review.json)。m3e依存文のimport原文を入力へ補い、複数行importのspecifier行からもbindingsを保持する。既存28k枠・除外・元行・blob・citableと既定値helperをofflineで確認、検証器は緩めていない。文書の再検証もcoreの共通verdictへ統一した。修正後の追加実生成2回はAPI換算保守$0.416844 / 見積枠$0.50で本人の費用承認待ち。ChatGPT認証とAPIキー未設定を確認したが、`credits.hasCredits:true` のため有料credit消費がない保証はできず、$0.50も実請求の上限ではない。今回の統合作業でnative呼出は0。保存済み出力の全引用pass・全文semantic保証とは扱わない。
 
 4. **外部4providerでの文書生成:** Codex / Cursor / Grokは本人project設定、Antigravity本体2.12.2は共通設定で各8ツールの接続を確認済み。4外部セッションからの文書生成・取り込みは未実行で、既存のCodex native生成とは区別する。Codexの初回隔離設定の失敗と、Antigravityのproject設定が読み込まれない版の制約は保存する。接続結果から本人認証や生成成功を推定しない。[provider別記録](progress/startup-matrix-20261007/README.md)。
-
-5. **Mac全suite:** PR #16の後続job114512014975はquiet / AC・factor1.087611で開始し、browser376pass / 14skip / 4fail。Chromium時間予算3件とFirefoxのEscape倍率比較が失敗し、共有・a11yは後続skip。Escapeは固定450ms待機を既存のcamera安定判定へ置き換え、元の上限・精度を保った対象8件と全7checkが成功した。全suiteの修正後成功は未確認。PR #13の成功やmainの独立共有・a11y成功へ付け替えない。[失敗と限定確認](progress/remaining-20261011/ci.md)。
 
 後続の初回parse準備修正も、開始factor1.083876に対し終了factor1.124994で基準外だった。正式caseの後続試行も事前factor1.130491でguard停止、scan0回。機能修正と全行hash一致を確認したが、Go7kの正式未達を上書きしない。[guardの記録](progress/remaining-20261011/idx-prewarm.json)。
 

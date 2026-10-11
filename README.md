@@ -150,7 +150,7 @@ mitori内のAI変更はアンカーと対象範囲を確認し、side repoでテ
 
 | 環境 | 状況 |
 | --- | --- |
-| macOS Apple Silicon | Nix・通常Bun 1.4.2の起動、実Codex/Muse/Ollama/LM Studioの短いExplain、Chrome実操作・CodexのOSS文書生成を確認。最新PR #15のMac全suiteは負荷guard停止で未確認 |
+| macOS Apple Silicon | Nix・通常Bun 1.4.2の起動、実Codex/Muse/Ollama/LM Studioの短いExplain、Chrome実操作・CodexのOSS文書生成を確認。PR #17の全browser380件・共有2件・a11y8件が成功。[CI記録](docs/progress/remaining-20261011/ci.md) |
 | Linux arm64 / Docker | frozen install、コンテナ内部の画面・設定プレビュー・MCP共通通信を確認。実LLM・ホストブラウザ接続は対象外 |
 | Linux x64 | バイナリビルド・バージョン表示と既存CIを検証済み。今回のDocker起動確認はarm64 |
 | Windows x64 | head89f228eaでNixクロスビルド・native対象14テスト・配布内6チェック成功。Git / shadowの自動起動・HTML保存・後始末、既存daemon再利用を確認。通常Bun起動・実LLM互換性は対象外 |

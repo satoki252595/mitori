@@ -1341,5 +1341,248 @@
     },
     "remaining": "A new full Mac browser/share/a11y CI success after the test synchronization fix is still unverified at this record.",
     "sanitization": "Only allowlisted results, artifact basenames and SHA-256 digests are added; raw log and instrumentation bodies, absolute personal paths and authentication data are omitted. Historical JSON values are unchanged."
+  },
+  "pr17": {
+    "pullRequest": "https://github.com/satoki252595/mitori/pull/17",
+    "sourceHead": "27d8bd4f02a6c0cfa64cbf65116ab1d156ccaa8e",
+    "sourceAndCheckoutTree": "c355509846dbd7a592f6eff802a74e5773070cf0",
+    "run": {
+      "id": 38155349977,
+      "url": "https://github.com/satoki252595/mitori/actions/runs/38155349977"
+    },
+    "mac": {
+      "jobId": 114517080181,
+      "url": "https://github.com/satoki252595/mitori/actions/runs/38155349977/job/114517080181",
+      "conclusion": "success",
+      "checkoutSha": "89631077708309aa26e07417aa49665a3df0b11b",
+      "machineAtGuard": {
+        "cpu": "Apple M5 Max",
+        "cores": 18,
+        "ramGb": 128,
+        "os": "Darwin 27.0.0",
+        "bun": "1.4.2",
+        "node": "22.23.3",
+        "chrome": "153.0.8010.12",
+        "loadavg": 5.74951171875,
+        "noisy": false,
+        "waited": 0,
+        "power": "ac"
+      },
+      "calibrationAtGuard": {
+        "factor": 0.9921457306726087,
+        "source": "measured"
+      },
+      "guardPassed": true,
+      "browser": {
+        "pass": 380,
+        "skip": 14,
+        "fail": 0,
+        "minutes": 4.3
+      },
+      "share": {
+        "pass": 2,
+        "fail": 0,
+        "assertions": 37,
+        "seconds": 2.57
+      },
+      "a11y": {
+        "pass": 8,
+        "fail": 0,
+        "seconds": 7.2
+      },
+      "log": {
+        "bytes": 114180,
+        "sha256": "fd5d1ca5f7945bff16d06ed303b3ccccebad867848973b235e40f664c8725541"
+      },
+      "runner": {
+        "mode": "temporary foreground",
+        "sameRunnerRoot": true,
+        "samePinnedNix": true,
+        "settingsChanged": false
+      },
+      "limitsChanged": false,
+      "referenceChanged": false,
+      "inputsChanged": false,
+      "marksChanged": false
+    },
+    "ubuntuAtMacCompletion": {
+      "status": "running",
+      "successClaimed": false
+    },
+    "runnerRestorationAtMacCompletion": {
+      "foregroundStopped": true,
+      "originalPlistBootstrapped": true,
+      "launchAgentState": "running",
+      "pid": 11808,
+      "finalOnlineVerification": "pending"
+    },
+    "runnerRestorationVerified": {
+      "originalLaunchAgentState": "running",
+      "pid": 11808,
+      "githubRunnerId": 21,
+      "githubRunnerStatus": "online",
+      "busy": false
+    },
+    "recordScope": "Mac browser, share and a11y completed successfully. Ubuntu was still running when this Mac-only record was written; overall CI success is not yet claimed.",
+    "sanitization": "Only allowlisted results and raw-log size/SHA-256 are retained; raw log bodies, personal paths and authentication data are omitted.",
+    "ubuntu": {
+      "jobId": 114517080017,
+      "url": "https://github.com/satoki252595/mitori/actions/runs/38155349977/job/114517080017",
+      "conclusion": "success",
+      "check": {
+        "allSevenStepsPassed": true,
+        "wallSeconds": 60.03,
+        "reportedFactor": 2.159,
+        "reportedTargetSeconds": 32.38,
+        "reportedLimitSeconds": 64.76,
+        "softTargetMet": false,
+        "availableParallelism": 2,
+        "concurrentSteps": 2,
+        "stepsSeconds": {
+          "tsc": 60.03,
+          "svelte-check": 30.38,
+          "biome": 13.19,
+          "boundaries": 6.37,
+          "cr-ledger": 0.4,
+          "budgets": 0.04,
+          "contract-index": 4.83
+        },
+        "projects": 20,
+        "semanticBuilds": 20,
+        "cached": 0,
+        "errors": 0,
+        "semanticSeconds": 59.3
+      },
+      "unit": {
+        "pass": 3047,
+        "skip": 140,
+        "todo": 4,
+        "fail": 0,
+        "assertions": 122117,
+        "snapshots": 1,
+        "tests": 3191,
+        "files": 357,
+        "seconds": 362.65
+      },
+      "golden": {
+        "pass": 109,
+        "skip": 4,
+        "fail": 0,
+        "assertions": 1028,
+        "tests": 113,
+        "files": 11,
+        "seconds": 5.74
+      },
+      "fixturesVerify": {
+        "passed": true,
+        "count": 12,
+        "fixtures": [
+          {
+            "name": "doc-roundtrip",
+            "commits": 1
+          },
+          {
+            "name": "edge-inventory",
+            "commits": 1
+          },
+          {
+            "name": "gen-doc-1000",
+            "commits": 1
+          },
+          {
+            "name": "gen-large-file",
+            "commits": 1
+          },
+          {
+            "name": "go-small",
+            "commits": 3
+          },
+          {
+            "name": "injection",
+            "commits": 1
+          },
+          {
+            "name": "mixed",
+            "commits": 1
+          },
+          {
+            "name": "nongit",
+            "commits": 0
+          },
+          {
+            "name": "py-small",
+            "commits": 1
+          },
+          {
+            "name": "rust-small",
+            "commits": 1
+          },
+          {
+            "name": "secrets",
+            "commits": 1
+          },
+          {
+            "name": "ts-small",
+            "commits": 1
+          }
+        ]
+      },
+      "size": {
+        "commandPassed": true,
+        "reportedInitialJsGzipKb": 54.7,
+        "reportedCssGzipKb": 18.1,
+        "webFontBytes": 0,
+        "precompressedPercent": 100,
+        "binary": {
+          "reportedMb": 89.6,
+          "targetMb": 85,
+          "limitMb": 95,
+          "verdict": "WARN; within hard limit"
+        },
+        "assetSoftWarnings": [
+          "CSS 18.10 KB > target15 KB, below limit25 KB",
+          "gen 6.886 KB > target6 KB, below limit6.9 KB",
+          "palette 4.520 KB > target4 KB, below limit4.6 KB"
+        ]
+      },
+      "binaryStartup": {
+        "medianMs": 96.92,
+        "targetMs": 20,
+        "limitMs": 50,
+        "reportedFactor": 2.119,
+        "gating": false,
+        "verdict": "over limit; report-only on this non-reference machine, not a formal startup pass"
+      },
+      "linuxBinary": {
+        "buildPassed": true,
+        "compileMs": 1444,
+        "version": "mitori 0.0.0 (api 1)"
+      },
+      "log": {
+        "bytes": 682358,
+        "sha256": "55a1031bae75d2521435b58fdfec1f05dd4c34228c1696963d2a2dd496ae52a6"
+      }
+    },
+    "finalCiVerification": {
+      "workflowConclusion": "success",
+      "apiVerified": true,
+      "requiredJobs": {
+        "pr": "success",
+        "browsers": "success"
+      },
+      "allRequiredJobsPassed": true,
+      "note": "The earlier Ubuntu-running/Mac-only record is preserved as history; the final run conclusion is success."
+    },
+    "merge": {
+      "sha": "0f223015e4a742413fc1419f5ace7115ffcff9c4",
+      "method": "merge",
+      "mergedAt": "2026-10-11T16:34:35Z",
+      "sourceAndCiCheckoutAndMergeTree": "c355509846dbd7a592f6eff802a74e5773070cf0",
+      "treeEqualityVerified": true,
+      "branch": "codex/browser-ci-followup-20261012",
+      "branchAncestryVerified": true,
+      "localAndRemoteBranchDeleted": true
+    }
+
   }
 }

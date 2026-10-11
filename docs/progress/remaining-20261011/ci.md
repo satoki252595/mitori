@@ -113,3 +113,27 @@ Firefoxの試験は固定450ms sleepでアニメーション完了を仮定し�
 修正後のChromium対象4件（AC-J07・Escape・level・TOC）は、開始load8.8037109375 / quiet / AC / 待機1、factor1.0176377670064807で既存guardを通過し、4pass / 0fail・40.7秒・exit0。Firefox / WebKit各2件（AC-J07の機能assertion・Escape）は開始load8.68798828125 / quiet / AC / 待機0、factor1.0301351509084022で通過し、合計4pass / 0fail・13.0秒・exit0だった。後者の試験中host loadサンプルは9.19 / 9.98で、終了後較正は取得していない。Firefox / WebKitの成功をChromium限定の時間予算合格へ読み替えない。
 
 **ローカル対象8件の成功は全CI成功ではない。** この追記時点では、修正後の全Mac browser / share / a11y CI成功は未確認。ChromiumのCI時間超過も解決済みとは扱わず、同じ入力・mark・上限とNix runnerで全gateを再確認する。原CIログは116,220 bytes、SHA-256 `064ac952f54713243557895e56d354f7e7ad766e76587a750812d39d75b622c6`。追加の許可項目・対象ログのhashは[ci.json](ci.json)の`pr16MacFollowUp20261012`へadd-onlyで保存した。rawログ本文・instrumentation本文・個人path・認証情報は追加していない。
+
+## PR #17 Mac全suite成功（2026-10-12 JST、Ubuntuは確認待ち）
+
+[PR #17](https://github.com/satoki252595/mitori/pull/17)のsource `27d8bd4f02a6c0cfa64cbf65116ab1d156ccaa8e`、[run38155349977 / Mac job114517080181](https://github.com/satoki252595/mitori/actions/runs/38155349977/job/114517080181)は成功した。実checkoutは`89631077708309aa26e07417aa49665a3df0b11b`。開始load5.74951171875 / quiet / AC / 待機0、measured factor0.9921457306726087で元のguardを通過した。
+
+結果は**browser380pass / 14skip / 0fail（4.3分）、共有viewer2pass / 0fail・37 assertions（2.57秒）、a11y8pass / 0fail（7.2秒）**で、3stepすべてを実行した。失敗したChromiumの元の時間試験とFirefoxのEscapeもこの全suiteで成功している。時間予算・reference・試験入力・markは変更していない。過去の4失敗とローカル8件の成功は履歴として保持し、今回の成功と区別する。Chromiumの先行遅延の恒久原因を特定したとは扱わない。
+
+CIは同じRUNNER_ROOT・固定Nixの一時foreground runnerで実行した。終了後にCtrl-Cで一時runnerを止め、元のplistをbootstrapし、LaunchAgentはrunning / PID11808へ復元した。この記録時点では最終online確認とUbuntu jobはまだ確認待ちで、**全CI成功とはまだ扱わない**。
+
+原Macログは114,180 bytes、SHA-256 `fd5d1ca5f7945bff16d06ed303b3ccccebad867848973b235e40f664c8725541`を照合した。許可項目だけを[ci.json](ci.json)の`pr17`へadd-onlyで保存し、既存JSONのキーと値は保持した。rawログ本文・個人path・認証情報は追加していない。
+
+後続照合では、sourceと上記PR merge checkoutのtreeが`c355509846dbd7a592f6eff802a74e5773070cf0`で一致した。元LaunchAgentはPID11808 / running、GitHub runner21はonline / busy:falseまで確認し、元の常駐runnerへの復元は完了した。Ubuntuの結果は引き続き確認待ち。
+
+## PR #17 全CI成功とmain統合
+
+[Ubuntu job114517080017](https://github.com/satoki252595/mitori/actions/runs/38155349977/job/114517080017)も成功し、APIで[run38155349977](https://github.com/satoki252595/mitori/actions/runs/38155349977)全体のsuccessを確認した。上の「Ubuntu確認待ち」はMac完了時点の履歴で、最終状態ではUbuntu / Macの両必須jobが成功している。
+
+UbuntuはNixの全7checkを60.03秒 / hard limit64.76秒（表示factor2.159）で通過。全20projectのsemantic builds20 / cached0 / errors0・59.30秒を維持した。soft target32.38秒は未達のまま。unit3,047pass / 140skip / 4todo / 0fail・122,117 assertions・1 snapshot（357files、362.65秒）、golden109pass / 4skip / 0fail・1,028 assertions（11files、5.74秒）、fixtures12件verify、size、Linux binary build / versionが成功した。
+
+初期JSは表示54.70KB gzip、CSS18.10KB gzip、web font0、precompressed100%。binary89.6MBはhard95MB内・target85MB WARNで、CSS・gen・paletteのsoft target WARNも保持する。startup中央値96.92msはlimit50msを超えたが、factor2.119の非reference機でreport-only / 非gateだった。CI job成功を正式startup合格へ読み替えない。standalone compileは1,444ms、`mitori 0.0.0 (api 1)`を確認した。
+
+PR #17は2026-10-11T16:34:35Z（JST 2026-10-12）に通常merge `0f223015e4a742413fc1419f5ace7115ffcff9c4` でmainへ統合した。source `27d8bd4`・CI checkout `89631077`・merge commitのtreeは`c355509846dbd7a592f6eff802a74e5773070cf0`で一致。作業branch `codex/browser-ci-followup-20261012` はmainへの祖先性を確認してlocal / remoteから削除した。Mac全suiteの残件は今回の実成功で解消し、旧失敗の履歴は保持する。
+
+原Ubuntuログは682,358 bytes、SHA-256 `55a1031bae75d2521435b58fdfec1f05dd4c34228c1696963d2a2dd496ae52a6`を照合した。最終CI・Ubuntu実数・通常merge・branch削除を[ci.json](ci.json)の`pr17`へadd-onlyで追記し、Mac-only時点を含む既存の値は保持した。rawログ本文・個人path・認証情報は追加していない。

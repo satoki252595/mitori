@@ -23,7 +23,7 @@
 | F10の実績較正 | 既存ledgerをexact profileで見積りへ接続。対象40pass、保守floor・USD cap・confidence25維持 | 既存EMAは保持。実精度・実請求の保証なし | [較正の確認](ledger-calibration.md) |
 | F14のCLI案内・終了処理 | 既存help接続、自身が起動したdaemonだけ終了対象。後接続・作業中は同期idle guardで維持。対象回帰・統合check成功 | 起動者のPID同一性を証明できない環境では停止しない | [終了処理の確認](cli-lifecycle.md) |
 | UI / assets / a11y | 読書位置修正後のcompiledはstrict asset全項目pass・初期JS54.697KB gzip。最新正式scanSummaryはquiet / AC・3run / warmup1で中央値1,615.700ms、hard limit2,000ms合格 | target1,000msはWARN。旧1,771.5ms / factor1.12のreport-onlyは履歴として保持 | [最新assets](reader-fix-assets.json)、[先行UI記録](ui-bench-release.md) |
-| Mac正式CI | head98c59a6 / attempt6はbrowser380pass / 14skip / 0fail、共有2pass、a11y8pass。統合後main35d897dでも独立した共有2pass / 37 assertionsとa11y8pass / 違反0を確認 | 後続PR #14 / #15 / #16の全browser CIはNOISY / 較正guard停止で未確認。独立した共有 / a11yの成功へ置き換えない。元のrunnerサービスは復元済み | [CI記録](ci.md) |
+| Mac正式CI | PR #17 / source27d8bd4はquiet / AC・factor0.992146でbrowser380pass / 14skip / 0fail、共有2pass / 37 assertions、a11y8pass。Ubuntuも成功 | 旧PR #16の376pass / 4failと限定8passを履歴に保持。source・CI checkout・merge tree一致、元runnerサービス復元済み。実IME本人確認とは区別する | [CI記録](ci.md) |
 | Windows | head89f228eaのNix crossbuildと実Windowsで選択14pass / 109 assertions。Git / shadowのcold export永続化・所有daemon後始末、scan親終了後の存続・export再利用・明示stop、製品`--version`とembedded / standalone selftest6checksが成功 | 対象経路の検証。Windowsの一般全経路・実LLM互換性を意味しない。先行head23645fdの7passも履歴に保持 | [最新Windows CI](https://github.com/satoki252595/mitori/actions/runs/38149209280)、[windows-nix.md](windows-nix.md)、[windows-env.md](windows-env.md) |
 | 実ブラウザ操作 | 実Chromeの初回map、確定日本語検索、Codex native/MCP切替と配布binaryの接続commandを確認。続行時はnative Chrome操作も許可され、最新binaryの無料デモを本人確認用に準備 | nativeキー入力もASCIIのままで実IME変換は未確認。本人操作結果待ち。Safari実機はChrome代替の選択により必須外 | [chrome.md](chrome.md) |
 
@@ -75,15 +75,16 @@ WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別�
 
 旧監査の再照合で見つけたF10の実績較正とF14のCLI help・export終了処理はPR #14でmainへ通常統合した。初回全unitで見つけた再確認条件の回帰も修正し、既存fixture不変で修正前失敗・修正後成功とUbuntu全体成功を確認した。
 
-1. 本人による実Chrome日本語IMEの変換確定Enter / 次のEnterを確認する。compiled scanSummaryの正式検証はhard limit合格で完了し、target WARNは保持する。
-2. Go7kの最新8Worker正式中央値1,694.155083msはhard limit1,500msに対してFAIL。旧6Worker正式値1,980.096958ms、helper候補0.214%差の未採用、setLanguage省略候補の推計約0.296msの未採用は履歴として保持する。Jev / m3eは引用用import入力と共通verdictを修正し、追加実生成2回の費用承認待ち。有料creditを使わない保証はできず、API換算$0.50も実請求の上限ではない。
-3. PR #16の後続Mac job114512014975はquiet / AC・factor1.087611で実行し376pass / 14skip / 4fail。Escapeの固定時間待機を既存camera安定判定へ置き換え、対象8件と全7checkは成功した。Chromium時間予算3件を含む修正後全suiteは再確認待ち。旧guard停止とPR #13成功を別履歴として保持する。
+1. 本人による実Chrome日本語IMEの変換確定Enter / 次のEnterを確認する。利用者は後日確認すると回答済み。compiled scanSummaryの正式検証はhard limit合格で完了し、target WARNは保持する。
+2. Go7kの最新8Worker正式中央値1,694.155083msはhard limit1,500msに対してFAIL。旧6Worker正式値1,980.096958ms、helper候補0.214%差の未採用、setLanguage省略候補の推計約0.296msの未採用は履歴として保持する。
+3. Jev / m3eは引用用import入力と共通verdictを修正し、追加実生成2回の費用承認待ち。有料creditを使わない保証はできず、API換算$0.50も実請求の上限ではない。
 4. 外部4クライアントの本人環境MCP接続は各8ツールで確認済み。4外部セッションからの文書生成・取り込みは未実行で、Codex native生成と区別して残す。
 
 利用者の対応待ちは実IME確認と追加実生成2回の費用承認。任意providerを使う場合はその本人認証が必要。LM Studioは既存モデルの読込と実回答を今回確認し、検証後に専用モデルだけ解除した。利用時は本人のモデルを読み込む。Codexは今回ログイン済みで、認証待ちではない。Claudeのログインを今回の続行条件にしない。Safari実機とCloudflare公開は今回の必須条件から外れている。
 
 ## 最終統合の追記
 
+- [PR #17](https://github.com/satoki252595/mitori/pull/17)を通常merge `0f223015` でmainへ統合。source27d8bd4の[run38155349977](https://github.com/satoki252595/mitori/actions/runs/38155349977)はUbuntu・Macとも成功。browser380pass / 14skip / 0fail、共有2pass、a11y8passで、最新全suite待ちは解消した。source・CI checkout・mergeのtree一致、元runnerサービス復元済み。[履歴と正式値](ci.md)。
 - 旧source `bdcebaf` の正式時間測定を履歴として保持。Go7kの旧6Workerはquiet / AC・factor1.037243 / warmup1＋5runで中央値1,980.096958ms、hard limit1,500ms未達だった。compiled scanSummaryは同binary SHA `8d1f2276…`、quiet / AC・factor1.029337 / after1.086773 / warmup1＋3runで中央値1,615.700ms、hard limit2,000ms合格・target1,000ms WARN。先行のreport-only結果は上書きしない。
 - Mac attempt6 / job114455888859はload6.19384765625・quiet / AC・待機0、factor1.017953727365694で既存guardを通過。browser380pass / 14skip / 0fail（4.5分）、共有2pass / 0fail、a11y8pass（7.9秒）の3stepすべてが成功した。同じNix固定runnerのforeground較正Bunはps PRI31、LaunchAgent配下では4だったが、厳密なQoSや根因は未確定。上限・referenceは変更せず、検証後は元の同じplistでサービスを復元した。旧失敗とguard停止も保持する。[CI記録](ci.md)。
 - 先行Go候補とは別に、同一Node.typeのWASM再取得を減らす最小変更を後続で採用した。quiet / AC・較正before1.010 / after1.077のABBAで中央値2,232.14→1,994.58ms（10.64%短縮）、抽出3表の全行hash、coverage、診断、6Workerが一致。1,500ms目標は未達。[比較の全結果](idx-type-local.md)。
