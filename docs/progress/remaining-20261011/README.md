@@ -18,7 +18,7 @@
 | Codex並列生成の予算予約 | shared preflightで送信直前に合算判定。途中本文・usage保持と同額resumeを対象37tests / 224 assertionsで確認 | API換算の推計上限。hidden reasoningを含む実請求の厳密capではない | [codex-budget.md](codex-budget.md) |
 | 本人環境の外部MCP | Codex / Cursor / Grokはproject設定、Antigravity 2.12.2は共通設定で各8ツールの接続を確認。Codexは子プロセスだけのplugin無効化と既存4設定の無効化で再確認。LLM要求・MCPツール実行・追加LLM費用0 | 初回Codex override失敗とAntigravityのproject設定の制約を保存。4外部セッションからの文書生成は未実行 | [実設定の確認](../startup-matrix-20261007/README.md) |
 | Linux cold check | testkitの既存home subpathへimportを絞り、全20semantic診断を維持。ARM同条件ABBAは4回ともhard limit内 | soft targetは未達、統合headのUbuntu x64 CIでの確認は別 | [cold-home.md](cold-home.md) |
-| Go7k cold scan | Node.type再取得削減に加え、Super / Performance全tierの検出を修正。新旧ABBAは19.45%短縮・全3表hashとcounters一致。React RSS中央値986.688MiBは上限1000以内 | **hard limit1,500msは未達**。修正前の最新正式値は1,980.096958ms。新8Workerの正式時間は未確認。GoのRSS増加とReactの目標700MiB WARNを保持 | [全性能tier](idx-performance-tiers.md)、[先行採用](idx-type-local.md)、[正式測定](idx-formal.json) |
+| Go7k cold scan | Node.type再取得削減に加え、Super / Performance全tierの検出を修正。新旧ABBAは19.45%短縮・全3表hashとcounters一致。新8Workerの正式caseは前後quiet / AC・reference内、warmup1 / measured5で中央値1,694.155083ms、p951,806.187875ms | **hard limit1,500msはFAIL（exit1）**。旧6Worker正式値1,980.096958msは履歴として保持。GoのRSS増加とReact中央値986.688MiB / 上限1000以内 / 目標700MiB WARNも保持 | [全性能tierと最新正式測定](idx-performance-tiers.md)、[先行採用](idx-type-local.md)、[先行正式測定](idx-formal.json) |
 | 初回parse準備 | lazy poolのsize0でprewarmが送られない原因を1行修正。回帰6pass / 20assertions、ABBAで3表の全行hash・coverage・counters一致 | 終了較正factor1.124994が基準外。後続正式試行も事前factor1.130491でscan0回。全体速度の改善・hard limit合格は未証明 | [原因と比較](idx-prewarm.md) |
 | F10の実績較正 | 既存ledgerをexact profileで見積りへ接続。対象40pass、保守floor・USD cap・confidence25維持 | 既存EMAは保持。実精度・実請求の保証なし | [較正の確認](ledger-calibration.md) |
 | F14のCLI案内・終了処理 | 既存help接続、自身が起動したdaemonだけ終了対象。後接続・作業中は同期idle guardで維持。対象回帰・統合check成功 | 起動者のPID同一性を証明できない環境では停止しない | [終了処理の確認](cli-lifecycle.md) |
@@ -45,7 +45,9 @@ Linux cold checkではloopのtestkit root importを既存home / fixtures / golde
 
 Go7kでは凍結した同一source・新process / 空homeで12runを比較し、blobs6,490行 / symbols133,602行 / skeleton11,997行が全行一致した。256KiB batchは速度13.54%悪化で不採用。GC前の参照解除はsandbox8Workerで0.59%、通常Mac6Workerで4.93%短縮したが未採用。sandbox内のsysctl拒否がWorker数を変える差も記録した。先行比較は既存quiet閾値を超え、較正未計測なのでabsolute gate成功とは扱わない。後続の既存正式caseは通常Mac / Nixで既定warmup1＋measured5を1 invocation実行し、中央値3,872.33ms / p954,776.41ms。待機後もload16.55、factor1.902929でreport-only、scaled limit2,854.39msにも超過。全6childのcoverage・6Worker・cache0を維持し、RSS中央値985.14MiB。当時は追加測定・候補適用をせず未解決として残した。[先行正式case](idx-formal.json)。
 
-最新の正式 `idx.s01.cold.7kfiles` はsource `bdcebaf1aa97525bc86722cbf4f4cbf508bfa083`、warmup1 / measured5、quiet / AC、factor1.037243379882442で中央値1,980.096958ms。hard limit1,500msは未達。上のNOISY / report-only測定と採用ABBAはそれぞれ履歴として保持する。
+旧6Workerの正式 `idx.s01.cold.7kfiles` はsource `bdcebaf1aa97525bc86722cbf4f4cbf508bfa083`、warmup1 / measured5、quiet / AC、factor1.037243379882442で中央値1,980.096958ms。hard limit1,500msは未達だった。上のNOISY / report-only測定と採用ABBAもそれぞれ履歴として保持する。
+
+最新8Workerの正式caseはsource `a8cadad800a0b71265c5ccff5a90fcde3b01164c`、warmup1 / measured5、開始前load6.701172 / quiet / AC・factor1.0033811104106738、終了後load8.081055 / quiet / AC・factor1.0870683419986469。中央値1,694.155083ms / p951,806.187875msで、hard limit1,500msはFAIL・exit1だった。全6childで8Worker / cacheHits0 / filesParsed6,539 / degraded2 / files7,687 / included6,009。前後reference内の正式結果であり、較正未計測の採用ABBAと分ける。[正式結果とsanitized証跡](idx-performance-tiers.md)。
 
 後続helper候補のABBAもquiet / reference内（before1.078238 / after1.073405）で完了。baseline中央値1,853.212792msに対し候補1,849.252792ms（0.214%）で、3表の全行hash・counters・coverage・6Workerは一致したが、速度の採用根拠はなく未採用とした。
 
@@ -74,15 +76,15 @@ WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別�
 旧監査の再照合で見つけたF10の実績較正とF14のCLI help・export終了処理はPR #14でmainへ通常統合した。初回全unitで見つけた再確認条件の回帰も修正し、既存fixture不変で修正前失敗・修正後成功とUbuntu全体成功を確認した。
 
 1. 本人による実Chrome日本語IMEの変換確定Enter / 次のEnterを確認する。compiled scanSummaryの正式検証はhard limit合格で完了し、target WARNは保持する。
-2. Go7kの最新正式中央値1,980.096958msはhard limit1,500ms未達。後続helper候補も0.214%差で未採用、setLanguage省略候補も推計約0.296msの小差で不採用。Jev / m3eは引用用import入力と共通verdictを修正し、追加実生成2回の費用承認待ち。有料creditを使わない保証はできず、API換算$0.50も実請求の上限ではない。
-3. 最新PR #16のMac全suiteはquiet / reference条件が整ってから再確認する。head0ac54f0はfactor1.101552でguard停止し、PR #13の成功へ付け替えない。
+2. Go7kの最新8Worker正式中央値1,694.155083msはhard limit1,500msに対してFAIL。旧6Worker正式値1,980.096958ms、helper候補0.214%差の未採用、setLanguage省略候補の推計約0.296msの未採用は履歴として保持する。Jev / m3eは引用用import入力と共通verdictを修正し、追加実生成2回の費用承認待ち。有料creditを使わない保証はできず、API換算$0.50も実請求の上限ではない。
+3. PR #16の後続Mac job114512014975はquiet / AC・factor1.087611で実行し376pass / 14skip / 4fail。Escapeの固定時間待機を既存camera安定判定へ置き換え、対象8件と全7checkは成功した。Chromium時間予算3件を含む修正後全suiteは再確認待ち。旧guard停止とPR #13成功を別履歴として保持する。
 4. 外部4クライアントの本人環境MCP接続は各8ツールで確認済み。4外部セッションからの文書生成・取り込みは未実行で、Codex native生成と区別して残す。
 
 利用者の対応待ちは実IME確認と追加実生成2回の費用承認。任意providerを使う場合はその本人認証が必要。LM Studioは既存モデルの読込と実回答を今回確認し、検証後に専用モデルだけ解除した。利用時は本人のモデルを読み込む。Codexは今回ログイン済みで、認証待ちではない。Claudeのログインを今回の続行条件にしない。Safari実機とCloudflare公開は今回の必須条件から外れている。
 
 ## 最終統合の追記
 
-- source `bdcebaf` で正式時間測定を再確認。Go7kはquiet / AC・factor1.037243 / warmup1＋5runで中央値1,980.096958ms、hard limit1,500ms未達。compiled scanSummaryは同binary SHA `8d1f2276…`、quiet / AC・factor1.029337 / after1.086773 / warmup1＋3runで中央値1,615.700ms、hard limit2,000ms合格・target1,000ms WARN。先行のreport-only結果は上書きしない。
+- 旧source `bdcebaf` の正式時間測定を履歴として保持。Go7kの旧6Workerはquiet / AC・factor1.037243 / warmup1＋5runで中央値1,980.096958ms、hard limit1,500ms未達だった。compiled scanSummaryは同binary SHA `8d1f2276…`、quiet / AC・factor1.029337 / after1.086773 / warmup1＋3runで中央値1,615.700ms、hard limit2,000ms合格・target1,000ms WARN。先行のreport-only結果は上書きしない。
 - Mac attempt6 / job114455888859はload6.19384765625・quiet / AC・待機0、factor1.017953727365694で既存guardを通過。browser380pass / 14skip / 0fail（4.5分）、共有2pass / 0fail、a11y8pass（7.9秒）の3stepすべてが成功した。同じNix固定runnerのforeground較正Bunはps PRI31、LaunchAgent配下では4だったが、厳密なQoSや根因は未確定。上限・referenceは変更せず、検証後は元の同じplistでサービスを復元した。旧失敗とguard停止も保持する。[CI記録](ci.md)。
 - 先行Go候補とは別に、同一Node.typeのWASM再取得を減らす最小変更を後続で採用した。quiet / AC・較正before1.010 / after1.077のABBAで中央値2,232.14→1,994.58ms（10.64%短縮）、抽出3表の全行hash、coverage、診断、6Workerが一致。1,500ms目標は未達。[比較の全結果](idx-type-local.md)。
 - 通常の既存Bun 1.4.2でもCodex Explainが1 job / attempt1で成功。API相当$0.003640、引用1件有効、source非変更、停止と一時データ削除を確認。Nixと合計$0.007274、課金先・請求額は不明。[両経路の証跡](codex-explain.json)。

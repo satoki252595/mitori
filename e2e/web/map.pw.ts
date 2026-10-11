@@ -2,8 +2,31 @@
  * @wp10a S1 見取り図 (JUDGEMENT AC-J01 / J02 / J06 / J07; ux.md §4.2): first useful screen at 0 tok, label sizes and
  * clipping at every zoom stage, room selection ≤ 100 ms and room → Reader p95 ≤ 100 ms.
  */
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { chromiumMetric, configure, inputToMark, mockLog, now, p95, WS, waitMark } from "./support/helpers.ts";
+
+/** Observe the camera's last changing frame after 120 ms of stable transforms; optionally relative to input. */
+function waitForCameraSettled(page: Page, start = 0): Promise<number> {
+  return page.evaluate(
+    (start) =>
+      new Promise<number>((resolve) => {
+        const g = document.querySelector("g.cam") as SVGGElement;
+        let last = g.getAttribute("transform");
+        let stableAt = performance.now();
+        const tick = () => {
+          const cur = g.getAttribute("transform");
+          if (cur !== last) {
+            last = cur;
+            stableAt = performance.now();
+          }
+          if (performance.now() - stableAt > 120) resolve(stableAt - start);
+          else requestAnimationFrame(tick);
+        };
+        tick();
+      }),
+    start,
+  );
+}
 
 /*
  * AC-J01 on the editorial layout (ux.md R1 §2.2, prototype `01-first-run-map`, which replaced the strip + full-height
@@ -103,25 +126,7 @@ test("@wp10a AC-J07 room click → card ≤ 100 ms; Enter → Reader section p95
   const t2 = await now(page);
   await page.keyboard.press("=");
   await page.waitForFunction(() => document.querySelector("svg.plan")?.getAttribute("data-z") !== null);
-  const done = await page.evaluate(
-    (start) =>
-      new Promise<number>((resolve) => {
-        const g = document.querySelector("g.cam") as SVGGElement;
-        let last = g.getAttribute("transform");
-        let stableAt = performance.now();
-        const tick = () => {
-          const cur = g.getAttribute("transform");
-          if (cur !== last) {
-            last = cur;
-            stableAt = performance.now();
-          }
-          if (performance.now() - stableAt > 120) resolve(stableAt - start);
-          else requestAnimationFrame(tick);
-        };
-        tick();
-      }),
-    t2,
-  );
+  const done = await waitForCameraSettled(page, t2);
   if (timing) expect(done).toBeLessThanOrEqual(340);
 });
 
@@ -157,7 +162,7 @@ test("@wp10a S1 Escape: clears the selection first, then zooms out one stage at 
   await waitMark(page, "mitori:map:painted");
   const scale = () =>
     page.evaluate(() => Number(/scale\(([\d.]+)\)/.exec(document.querySelector("svg.plan g.cam")?.getAttribute("transform") ?? "")?.[1] ?? 0));
-  const settle = () => page.waitForTimeout(450);
+  const settle = () => waitForCameraSettled(page);
   const fit = await scale();
   await page.locator(".room").first().focus();
   await page.keyboard.press("=");

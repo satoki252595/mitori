@@ -94,3 +94,22 @@ Mac job114504937824はquiet / AC・load8.770020、factor1.101552で既存±10%�
 main `35d897d7badc470e9825ac6ed0dd8f0c64ef293d` で、既存の共有試験をChromium / Firefox / WebKit付きで実行し、2pass / 0fail・37 assertions（4.79秒）を確認した。既存a11yもChromium・1 Workerで8pass / 0fail / 0retry（12.69秒）。明暗のmap / Reader計4画面でaxe違反0、contrast・smallText・smallTargetsも0だった。依存の追加、実LLM要求、remote deploymentは0。
 
 正式計測の事前確認は15:55:36 UTCに既定2回待機後もload9.209473 / NOISY / ACだった。較正・Go正式scan・全browser CIの再実行は行っていない。今回の独立した共有 / a11y成功と、PR #16のCIで両stepがskipだった履歴は区別する。全browser CIとGo1,500msは未確認・未達を維持する。許可項目だけの結果とprivate原ログのhashは[ci.json](ci.json)の `localMainVerification20261012`。
+
+## PR #16 Mac再実行の4失敗と限定回帰（2026-10-12 JST）
+
+同[run38151228742のMac job114512014975](https://github.com/satoki252595/mitori/actions/runs/38151228742/job/114512014975)は、source `0ac54f071d2693ea212a19c168e19104436e6870`、checkout `b5975863d724f05af4f8a00081d0538e9f6cdb5d`。load8.56298828125 / quiet / AC / 待機0、measured factor1.0876105399172018で既存guardを通過し、browserは376pass / 14skip / 4fail（6.9分）だった。共有viewer / a11yはstep skipped。Ubuntu job114512016123は旧job114506189385の成功を持ち越したもので、Ubuntuを再実行していない。
+
+| engine / 元の試験位置 | 失敗値 | 維持する条件 |
+|---|---|---|
+| Chromium / map.pw.ts:77 room card | 最大229.3ms | ≤100ms |
+| Chromium / reader.pw.ts:36 level switch | p95106.6ms | ≤50ms |
+| Chromium / reader.pw.ts:77 TOC | p95227.8ms | ≤100ms |
+| Firefox / map.pw.ts:152 Escape | scale 2.22094 → 2.22525 | 選択解除だけでは変わらない、precision3 |
+
+Firefoxの試験は固定450ms sleepでアニメーション完了を仮定していた。`map.pw.ts`内に既にあったAC-J07の「rAF上でtransformが120ms不変」の完了観測をファイル内helperへ抽出し、Escapeのsettleにも共有した。製品source・入力・performance mark・共有の`inputToMark` helperは変更せず、AC-J07のtrigger `t2`・camera予算340ms・Escapeの3桁一致を維持した。固定sleepや許容差を増やしていない。固定sleepが最終frameを観測しないことは確認できるが、Firefoxのスケジューリング要因までは確定していない。
+
+ローカルの初回baselineはload10.097168 / NOISY / AC / 待機2で開始guardに止まり、browser試験0件・exit1。private phase診断は3pass（7.3秒）だったが、較正付き正式検証ではない。rAF待ち86 samplesは0〜29.2ms、UI fetch20 samplesは2.4〜4.8ms、観測LongTaskは0。計時用helperの一時instrumentationは元とbyte一致で復元した。CIの大きな時間超過はここでは再現せず、通常起動との差や原因は未確定で、compositor / rAFが原因だったとは断定しない。
+
+修正後のChromium対象4件（AC-J07・Escape・level・TOC）は、開始load8.8037109375 / quiet / AC / 待機1、factor1.0176377670064807で既存guardを通過し、4pass / 0fail・40.7秒・exit0。Firefox / WebKit各2件（AC-J07の機能assertion・Escape）は開始load8.68798828125 / quiet / AC / 待機0、factor1.0301351509084022で通過し、合計4pass / 0fail・13.0秒・exit0だった。後者の試験中host loadサンプルは9.19 / 9.98で、終了後較正は取得していない。Firefox / WebKitの成功をChromium限定の時間予算合格へ読み替えない。
+
+**ローカル対象8件の成功は全CI成功ではない。** この追記時点では、修正後の全Mac browser / share / a11y CI成功は未確認。ChromiumのCI時間超過も解決済みとは扱わず、同じ入力・mark・上限とNix runnerで全gateを再確認する。原CIログは116,220 bytes、SHA-256 `064ac952f54713243557895e56d354f7e7ad766e76587a750812d39d75b622c6`。追加の許可項目・対象ログのhashは[ci.json](ci.json)の`pr16MacFollowUp20261012`へadd-onlyで保存した。rawログ本文・instrumentation本文・個人path・認証情報は追加していない。
