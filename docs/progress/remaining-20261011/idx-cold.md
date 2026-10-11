@@ -79,13 +79,13 @@ scripts/nd bun --preload /tmp/mitori-idx-formal-capture-20261011.ts bench/runner
 
 scan wallは2,278.814ms、S1は2,040.788ms、pool全体は2,006.829ms。Worker間の累計phaseはread1,032.597 / hash39.361 / parse5,113.592 / query3,488.723 / extract808.860msだった。以前省略していたhash + extractは6Worker平均141.370msで、全5phase平均は1,747.189ms。pool wallとの差259.640msにはqueue・GC・転送・未計時の処理等が含まれ、純粋な終端待ちとは解釈しない。最後に完了したbatchのphase合計は12.129msで、enqueueから応答までの30.954msとは区別する。大きな終端stragglerを示す証拠は得られなかった。
 
-loadavgは7.5625 / 8.2959 / 9.1880。較正未測定・計時追加ありの1回診断で、速度比較や正式合格には使わない。最新正式中央値1,980.097ms・上限1,500ms未達を保持する。新依存・製品変更・LLM呼出・追加費用は0。
+loadavgは7.5625 / 8.2959 / 9.1880。較正未測定・計時追加ありの1回診断で、速度比較や正式合格には使わない。この診断時点の正式中央値1,980.097ms・上限1,500ms未達を履歴として保持する。新依存・製品変更・LLM呼出・追加費用は0。
 
 同一languageの `setLanguage` 再設定省略も不採用。main由来 `63e23b0`・Nix / Bun 1.4.2で、既存WASM / Go languageへのAPI呼出だけをprivate probeで1回確認した。warmup各1,000後の各8,000回は通常0.381750ms / language-property guard0.016916msで、6,490ファイルへ直列換算しても差0.295972ms。不足480.096958msに対して小さすぎるため製品変更・再計測は行わない。これは実scan・正式試験ではなく、1,500ms未達を維持する。source HEAD・probe / WASM hash・条件は同JSONの `setLanguageProbe20261011`。新依存・LLM呼出・追加費用0。
 
 ## 追加screening（2026-10-12 JST、main 349d241）
 
-最新の正式値は [idx-performance-tiers.json](idx-performance-tiers.json) の `formalVerification20261012`：quiet / AC・factor1.003381、8Worker・中央値**1,694.155ms**。上限1,500msは引き続き**FAIL**、不足194.155ms。以下2案は製品へ採用していない。過去の6Worker測定とは区別する。
+このscreening時点の正式値は [idx-performance-tiers.json](idx-performance-tiers.json) の `formalVerification20261012`：quiet / AC・factor1.003381、8Worker・中央値**1,694.155ms**。上限1,500msは**FAIL**、不足194.155msだった。以下2案は製品へ採用していない。後続の正式値は次節に記録する。
 
 - `endIndex`の重複getterをlocalへ置き換える案は、小さな固定ASTだけでscreeningした。各267,204回のgetterは7.846 / 2.883ms、localは0.421 / 0.369ms、checksumは全回一致。回数はsymbol数×2という仮定で、実scanのcall数や厳密な上限ではない。JIT差もあり、数msの差から全体の改善は証明できないため見送った。
 - pinned runtime / Go WASMをBinaryen132の`-O3 -g`（既存命令に必要なbulk-memory-opt / nontrapping-float-to-intを許可）でprivate生成した。sorted import / export形状と`dylink.0`は一致。6言語×byte / shared×元 / 候補の24 loader sampleは、全ParseItemResultが一致しerrors0。全corpus互換性の証明ではない。
