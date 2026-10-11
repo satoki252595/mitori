@@ -113,3 +113,11 @@ reference条件が戻ったため、上記WASM -O3候補も同じGo全体で1 AB
 `compileGlobs([])`は空Set検索とbasename切り出しを行うため、即falseを返す案を確認した。既存Go corpusを読み取り専用で再帰列挙した7,762ファイルに各3照合、各variantを100反復・事前warmup後ABBAで診断した。1列挙相当の元matcherは0.622598 / 0.606442ms、即falseは0.031283 / 0.031364msで、全回match0だった。列挙は本番の7,687件と同じではなく、これはmatcherだけの単thread診断で、S0全体・正式scan・較正付きの測定ではない。
 
 照合だけの差は約0.58msで、不足54.114msを解消する根拠はない。製品変更・全体再計測は行わず、最新正式FAILを維持する。追加LLM・依存・費用0。
+
+## 保存準備と所有権の確認（main f357bee）
+
+`storeSymbols`の全callerと保存先を独立reviewした。parentなしsymbolのobject-restコピーを省く案は、WorkerPool契約にresponseの所有権移譲・以後不変の保証がなく、保持されたresponseの変更がParsed cache・背景保存へ波及し得るため不採用。batch到着時の逐次applyも、失敗・cancel時に部分適用を残すため採用しない。現行のコピーと全lane成功後適用を維持する。
+
+qualname→ord Mapだけを最初のparent付きsymbolまで作らない案は、安全性とは別に効果量を診断した。先行ABBAの保存済みDBをreadonlyで開き、133,602symbol / 5,193content groupの名前・ord・parent有無だけを使用。parentを持つgroupは2,460、parentなしgroupのsymbolは26,270件だった。Map構築だけの単thread・warmup後ABBA各20反復では、1 corpus相当で元1.960300 / 1.934956ms、lazy1.614079 / 1.518198ms。平均差0.381490msで、scan全体・較正付き・正式gateの測定ではない。コピーやparent解決を省略した上限評価でもなく、Map構築だけの診断と区別する。
+
+不足54.114msの解消を裏づけないため、製品変更・全体再試行は行わない。private `result.json` SHA-256は `12803862f1a746d7467e01db064179b3e591e414aa9b4d0b026b843451bbd27f`。GCの既存cadenceと同期full GC、抽出結果、所有権、予算を維持し、正式FAILは未解決。追加LLM・依存・費用0。
