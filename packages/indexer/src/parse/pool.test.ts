@@ -54,6 +54,35 @@ const items = (n: number, size = 70_000): ParseItemExt[] =>
     scope: "main",
   }));
 
+test("cold prewarm starts the planned workers in a lazy pool", async () => {
+  for (const n of [6, 0]) {
+    const f = fakePool();
+    const pool = new ParsePool(
+      (size) => {
+        const p = f.factory(size);
+        let started = 0;
+        return {
+          ...p,
+          size: () => started,
+          run(req, signal) {
+            started = Math.min(size, started + 1);
+            return p.run(req, signal);
+          },
+        };
+      },
+      () => performance.now(),
+    );
+    try {
+      pool.prewarm(n, [{ lang: "go", grammar: "go", profile: "full" }]);
+      expect(f.log.sizes).toEqual([Math.max(1, n)]);
+      expect(f.log.requests).toBe(Math.max(1, n));
+      expect(pool.size()).toBe(Math.max(1, n));
+    } finally {
+      await pool.close();
+    }
+  }
+});
+
 describe("IDX-AT-55 idle shrink", () => {
   test("an update() outside a scan re-arms the idle clock: the warm Worker goes away without an SSE client", async () => {
     const f = fakePool();

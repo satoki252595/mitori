@@ -1,0 +1,268 @@
+{
+  "format": "mitori.idx-prewarm-local/1",
+  "date": "2026-10-11T11:39:08.651Z",
+  "source": {
+    "baseCommit": "d507d1e122902d461afedce3a9e8703fff7c67a4",
+    "files": 3949,
+    "sha256": "de4de148f5b0204b727c0d354963fe112048110e1492d6c9b81ed3f9cac1da3d",
+    "frozenAt": "2026-10-11T11:37:23.838Z",
+    "dependencies": "Existing project Nix runtime and dependencies; workspace package links point to this frozen export."
+  },
+  "baselineSha256": "54d066a39b78eb34262ea68b4d26f2194da08b9c57b98d70cdaf573b707ce7e6",
+  "candidateSha256": "92ac0a5754b7a7dc4d56d86c51dcf3d8cffbf2ab73d9514b01f948cdff67205c",
+  "machine": {
+    "cpu": "Apple M5 Max",
+    "cores": 18,
+    "ramGb": 128,
+    "os": "Darwin 27.0.0",
+    "bun": "1.4.2",
+    "node": "22.23.3",
+    "chrome": "153.0.8010.12",
+    "loadavg": 8.2333984375,
+    "noisy": false,
+    "waited": 0,
+    "power": "ac"
+  },
+  "factorBefore": {
+    "factor": 1.08387551570411,
+    "source": "measured"
+  },
+  "factorAfter": {
+    "factor": 1.124994381059457,
+    "source": "measured"
+  },
+  "loadAfter": [
+    10.2080078125,
+    8.30126953125,
+    7.71435546875
+  ],
+  "allRowsEqual": true,
+  "countersEqual": true,
+  "runs": [
+    {
+      "variant": "baseline",
+      "ms": 2073.345833,
+      "timings": {
+        "s0": 115.218542,
+        "workersStart": 9.779917000000012,
+        "s1": 1953.344,
+        "s2": 0,
+        "s3": 0,
+        "s4": 0,
+        "total": 2070.865875,
+        "persist": 2696.4221660000003,
+        "fts": null,
+        "filesParsed": 6539,
+        "cacheHits": 0,
+        "workers": 6,
+        "readMs": 612.8153600000014,
+        "parseMs": 5013.232881999988,
+        "queryMs": 3370.037185000002,
+        "degraded": 2
+      },
+      "rssPeakMB": 944.859375,
+      "files": 7687,
+      "included": 6009,
+      "counters": {
+        "idx.files.hashed": 6539,
+        "idx.parse.calls": 5907,
+        "idx.sql.writes": 36
+      },
+      "loadavg": [
+        8.2333984375,
+        7.7587890625,
+        7.5087890625
+      ],
+      "availableParallelism": 18,
+      "fingerprint": {
+        "blobs": {
+          "rows": 6490,
+          "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+        },
+        "symbols": {
+          "rows": 133602,
+          "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+        },
+        "skeleton": {
+          "rows": 11997,
+          "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "ms": 2066.555583,
+      "timings": {
+        "s0": 138.304083,
+        "workersStart": 0.03475000000003092,
+        "s1": 1922.806375,
+        "s2": 0,
+        "s3": 0,
+        "s4": 0,
+        "total": 2063.889708,
+        "persist": 2855.496708,
+        "fts": null,
+        "filesParsed": 6539,
+        "cacheHits": 0,
+        "workers": 6,
+        "readMs": 388.37000700000834,
+        "parseMs": 5061.119625999999,
+        "queryMs": 3454.4526229999938,
+        "degraded": 2
+      },
+      "rssPeakMB": 944.375,
+      "files": 7687,
+      "included": 6009,
+      "counters": {
+        "idx.files.hashed": 6539,
+        "idx.parse.calls": 5907,
+        "idx.sql.writes": 36
+      },
+      "loadavg": [
+        8.85498046875,
+        7.8955078125,
+        7.55810546875
+      ],
+      "availableParallelism": 18,
+      "fingerprint": {
+        "blobs": {
+          "rows": 6490,
+          "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+        },
+        "symbols": {
+          "rows": 133602,
+          "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+        },
+        "skeleton": {
+          "rows": 11997,
+          "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+        }
+      }
+    },
+    {
+      "variant": "candidate",
+      "ms": 2343.2495,
+      "timings": {
+        "s0": 161.29470899999998,
+        "workersStart": 0.043166999999982636,
+        "s1": 2176.5589170000003,
+        "s2": 0,
+        "s3": 0,
+        "s4": 0,
+        "total": 2340.624375,
+        "persist": 2715.6839999999997,
+        "fts": null,
+        "filesParsed": 6539,
+        "cacheHits": 0,
+        "workers": 6,
+        "readMs": 375.05502600000875,
+        "parseMs": 5649.989903999988,
+        "queryMs": 3858.035843999997,
+        "degraded": 2
+      },
+      "rssPeakMB": 900.984375,
+      "files": 7687,
+      "included": 6009,
+      "counters": {
+        "idx.files.hashed": 6539,
+        "idx.parse.calls": 5907,
+        "idx.sql.writes": 36
+      },
+      "loadavg": [
+        9.47900390625,
+        8.0625,
+        7.62109375
+      ],
+      "availableParallelism": 18,
+      "fingerprint": {
+        "blobs": {
+          "rows": 6490,
+          "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+        },
+        "symbols": {
+          "rows": 133602,
+          "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+        },
+        "skeleton": {
+          "rows": 11997,
+          "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+        }
+      }
+    },
+    {
+      "variant": "baseline",
+      "ms": 2591.996209,
+      "timings": {
+        "s0": 113.690584,
+        "workersStart": 10.956125000000014,
+        "s1": 2473.42475,
+        "s2": 0,
+        "s3": 0,
+        "s4": 0,
+        "total": 2589.3414169999996,
+        "persist": 3161.6163330000004,
+        "fts": null,
+        "filesParsed": 6539,
+        "cacheHits": 0,
+        "workers": 6,
+        "readMs": 373.38431600000604,
+        "parseMs": 6192.894587999995,
+        "queryMs": 4336.98799000002,
+        "degraded": 2
+      },
+      "rssPeakMB": 974.4375,
+      "files": 7687,
+      "included": 6009,
+      "counters": {
+        "idx.files.hashed": 6539,
+        "idx.parse.calls": 5907,
+        "idx.sql.writes": 36
+      },
+      "loadavg": [
+        9.9208984375,
+        8.17724609375,
+        7.6640625
+      ],
+      "availableParallelism": 18,
+      "fingerprint": {
+        "blobs": {
+          "rows": 6490,
+          "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+        },
+        "symbols": {
+          "rows": 133602,
+          "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+        },
+        "skeleton": {
+          "rows": 11997,
+          "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+        }
+      }
+    }
+  ],
+  "change": "Dispatch one warm request per planned worker, rather than reading the still-zero size of a lazy pool. The existing worker count, warm items, GC, budgets and parser behavior are unchanged.",
+  "validation": {
+    "regressionFailedBeforeFix": true,
+    "before": "Expected 6 warm requests, received 0",
+    "after": {
+      "file": "packages/indexer/src/parse/pool.test.ts",
+      "pass": 6,
+      "fail": 0,
+      "assertions": 20
+    },
+    "biome": {
+      "files": 2,
+      "pass": true
+    },
+    "noLlmCalls": true
+  },
+  "timeVerdict": {
+    "formal": false,
+    "reason": "After-run measured factor 1.124994381059457 exceeds the unchanged 0.9-1.1 reference range; load also rose above 9. Overall speedup and the 1500 ms hard-limit pass are not established.",
+    "prewarmBehavior": "The S1 worker-start wait fell from 9.779917/10.956125 ms to 0.034750/0.043167 ms; startup was moved into S0, not removed from the cold scan."
+  },
+  "evidence": {
+    "rawAbbaSha256": "8552941cee2c6be1ca254ce466aab630631e1dc550efb1920584a8150a6f10e4",
+    "controllerSha256": "71b4d539c1ead492a471d60b767b984f0ea7ccf1c792128394041bb025822c72"
+  }
+}
