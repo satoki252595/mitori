@@ -538,6 +538,177 @@
         "version": "mitori 0.0.0 (api 1)",
         "selftest": "not repeated; prior results retain their source hashes"
       }
+    },
+    "macFollowUp20261011": {
+      "checkedAt": "2026-10-11T13:16:54.248Z",
+      "attempts": [
+        {
+          "schema": "mitori.ci-mac.guard/1",
+          "runId": 38138661011,
+          "attempt": 2,
+          "jobId": 114478129026,
+          "headSha": "b74d4fad143ab17be6cb412da675156d399d0ebb",
+          "status": "completed",
+          "conclusion": "failure",
+          "startedAt": "2026-10-11T13:11:26Z",
+          "completedAt": "2026-10-11T13:11:46Z",
+          "runner": {
+            "id": 21,
+            "name": "mitori-reference-mac"
+          },
+          "machine": {
+            "cpu": "Apple M5 Max",
+            "cores": 18,
+            "ramGb": 128,
+            "os": "Darwin 27.0.0",
+            "bun": "1.4.2",
+            "node": "22.23.3",
+            "chrome": "153.0.8010.12",
+            "loadavg": 7.50439453125,
+            "noisy": false,
+            "waited": 0,
+            "power": "ac"
+          },
+          "calibration": {
+            "factor": 1.1720115156982653,
+            "source": "measured"
+          },
+          "guard": {
+            "loadLimit": 9,
+            "quietAndAcPassed": true,
+            "referenceTolerance": 0.1,
+            "referenceCalibrationPassed": false,
+            "failure": "globalSetup reference calibration outside tolerance"
+          },
+          "browser": {
+            "status": "not started; globalSetup failed",
+            "executedTests": 0,
+            "passed": null,
+            "failed": null,
+            "skipped": null
+          },
+          "share": {
+            "status": "job step skipped",
+            "executedTests": 0,
+            "passed": null,
+            "failed": null,
+            "skipped": null
+          },
+          "a11y": {
+            "status": "job step skipped",
+            "executedTests": 0,
+            "passed": null,
+            "failed": null,
+            "skipped": null
+          },
+          "ubuntu": {
+            "status": "inherited success; not rerun",
+            "originalStartedAt": "2026-10-11T12:16:52Z",
+            "originalCompletedAt": "2026-10-11T12:24:59Z"
+          },
+          "rawLog": {
+            "path": "/tmp/mitori-pr14-mac-attempt2-114478129026.raw.log",
+            "sha256": "27da783e57b4dc0d6bea11f16b43f0a4069f8207d4cc13967be9861da23c9cfc"
+          },
+          "allowlistedLog": "/tmp/mitori-pr14-mac-attempt2-114478129026.allowlisted.log",
+          "lines": [
+            "2026-10-11T13:11:39.3610520Z web CI machine: {\"cpu\":\"Apple M5 Max\",\"cores\":18,\"ramGb\":128,\"os\":\"Darwin 27.0.0\",\"bun\":\"1.4.2\",\"node\":\"22.23.3\",\"chrome\":\"153.0.8010.12\",\"loadavg\":7.50439453125,\"noisy\":false,\"waited\":0,\"power\":\"ac\"}",
+            "2026-10-11T13:11:40.9036820Z web CI calibration: {\"factor\":1.1720115156982653,\"source\":\"measured\"}",
+            "2026-10-11T13:11:40.9040560Z error: web CI requires measured reference calibration within 10%; timing verification is pending"
+          ]
+        },
+        {
+          "schema": "mitori.ci-mac.guard/1",
+          "runId": 38138661011,
+          "attempt": 3,
+          "jobId": 114478593964,
+          "headSha": "b74d4fad143ab17be6cb412da675156d399d0ebb",
+          "status": "completed",
+          "conclusion": "failure",
+          "startedAt": "2026-10-11T13:13:53Z",
+          "completedAt": "2026-10-11T13:14:12Z",
+          "runner": {
+            "id": 21,
+            "name": "mitori-reference-mac"
+          },
+          "machine": {
+            "cpu": "Apple M5 Max",
+            "cores": 18,
+            "ramGb": 128,
+            "os": "Darwin 27.0.0",
+            "bun": "1.4.2",
+            "node": "22.23.3",
+            "chrome": "153.0.8010.12",
+            "loadavg": 8.7978515625,
+            "noisy": false,
+            "waited": 0,
+            "power": "ac"
+          },
+          "calibration": {
+            "factor": 1.1954098735170988,
+            "source": "measured"
+          },
+          "guard": {
+            "loadLimit": 9,
+            "quietAndAcPassed": true,
+            "referenceTolerance": 0.1,
+            "referenceCalibrationPassed": false,
+            "failure": "globalSetup reference calibration outside tolerance"
+          },
+          "browser": {
+            "status": "not started; globalSetup failed",
+            "executedTests": 0,
+            "passed": null,
+            "failed": null,
+            "skipped": null
+          },
+          "share": {
+            "status": "job step skipped",
+            "executedTests": 0,
+            "passed": null,
+            "failed": null,
+            "skipped": null
+          },
+          "a11y": {
+            "status": "job step skipped",
+            "executedTests": 0,
+            "passed": null,
+            "failed": null,
+            "skipped": null
+          },
+          "ubuntu": {
+            "status": "inherited success; not rerun",
+            "originalStartedAt": "2026-10-11T12:16:52Z",
+            "originalCompletedAt": "2026-10-11T12:24:59Z"
+          },
+          "rawLog": {
+            "path": "/tmp/mitori-pr14-mac-attempt3-114478593964.raw.log",
+            "sha256": "707b153964d0fd8a0fe828e4aef0607980b9138e665a512f042f2a6da8487d52"
+          },
+          "allowlistedLog": "/tmp/mitori-pr14-mac-attempt3-114478593964.allowlisted.log",
+          "lines": [
+            "2026-10-11T13:14:05.7596380Z web CI machine: {\"cpu\":\"Apple M5 Max\",\"cores\":18,\"ramGb\":128,\"os\":\"Darwin 27.0.0\",\"bun\":\"1.4.2\",\"node\":\"22.23.3\",\"chrome\":\"153.0.8010.12\",\"loadavg\":8.7978515625,\"noisy\":false,\"waited\":0,\"power\":\"ac\"}",
+            "2026-10-11T13:14:07.3011990Z web CI calibration: {\"factor\":1.1954098735170988,\"source\":\"measured\"}",
+            "2026-10-11T13:14:07.3017450Z error: web CI requires measured reference calibration within 10%; timing verification is pending"
+          ],
+          "environmentChange": "Parent started the same Nix Runner.Listener from a foreground shell instead of the idle LaunchAgent; original plist unchanged; restoration handled by parent"
+        }
+      ],
+      "ubuntuRerun": false,
+      "productChanged": false,
+      "limitsChanged": false,
+      "referenceChanged": false,
+      "additionalLlmCalls": 0,
+      "additionalCostUsd": 0,
+      "runnerRestored": {
+        "label": "io.mitori.reference-runner",
+        "plistUnchanged": true,
+        "state": "running",
+        "pid": 35761,
+        "apiStatus": "online",
+        "busy": false
+      },
+      "decision": "Both quiet/AC runs stopped before browser tests due to measured reference factor outside unchanged tolerance. Foreground launch alone did not resolve it; Mac suite remains unverified."
     }
   }
 }

@@ -2382,5 +2382,164 @@
       },
       "decision": "Same three-table hashes/counters/coverage, but NOISY and both factors out of reference. Candidate query CPU/RSS were not lower, and its 2.18-2.20s lies within the baseline 2.13-2.45s range. No production edit."
     }
+  },
+  "extractionPhases20261011": {
+    "sourceSha": "85aabcf1c6df55bf2377c9bf96fa9c53a57f3cab",
+    "diagnosticOnly": true,
+    "productionUnchanged": true,
+    "additionalLlmCalls": 0,
+    "additionalCostUsd": 0,
+    "formalGate": false,
+    "limitations": [
+      "Instrumented per-worker cumulative elapsed samples; not exact CPU time or scan wall components.",
+      "Different instrumentation/load and no reference calibration: the two scan wall values are not a before/after comparison.",
+      "newDef is nested within capturesAndNewDefs.",
+      "Query-detail source instrumentation metadata was inherited from the first scan; only the separately captured library hashes identify that private dependency patch."
+    ],
+    "phaseScan": {
+      "instrumentation": {
+        "extractBaseline": "6a4b395430744e45a6182de7a5d13631697370af8df5e4c16f134b266d2fd9be",
+        "extractProfile": "af736992a9e81a0e98b608b9a41243ad8e7a720df7e14b7d9e3ff88b233a42bc",
+        "workerBaseline": "d6ac6eecbf57f5155ae9903ad23464df5a2014d3a9fbc911584e24b0faf9288f",
+        "workerProfile": "1aa0f7aa74863ee5f5da7f4a0b0a03ad0f56ccb17cbe99cf96fbfa179531ff07"
+      },
+      "result": {
+        "ms": 2479.7995840000003,
+        "timings": {
+          "s0": 269.939125,
+          "workersStart": 0.03804200000001856,
+          "s1": 2205.243,
+          "s2": 0,
+          "s3": 0,
+          "s4": 0,
+          "total": 2477.407791,
+          "persist": 3008.7246250000003,
+          "fts": null,
+          "filesParsed": 6539,
+          "cacheHits": 0,
+          "workers": 6,
+          "readMs": 1126.659720000005,
+          "parseMs": 5507.135298000006,
+          "queryMs": 3825.4176249999914,
+          "degraded": 2
+        },
+        "rssPeakMB": 934.765625,
+        "files": 7687,
+        "included": 6009,
+        "counters": {
+          "idx.files.hashed": 6539,
+          "idx.parse.calls": 5907,
+          "idx.sql.writes": 36
+        },
+        "loadavg": [
+          14.07958984375,
+          17.119140625,
+          14.796875
+        ],
+        "availableParallelism": 18,
+        "fingerprint": {
+          "blobs": {
+            "rows": 6490,
+            "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+          },
+          "symbols": {
+            "rows": 133602,
+            "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+          },
+          "skeleton": {
+            "rows": 11997,
+            "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+          }
+        }
+      },
+      "profile": {
+        "files": 5316,
+        "batches": 130,
+        "phases": {
+          "queryMatches": 2131.401836999998,
+          "capturesAndNewDefs": 382.03032500000245,
+          "orderParentsReceivers": 53.34017299999732,
+          "complexityAndSpans": 41.249322000008306,
+          "metadata": 42.48070999999254,
+          "docs": 194.1775840000023,
+          "tests": 22.999723999989328,
+          "errors": 27.725426000006337,
+          "symbols": 334.0799199999951,
+          "imports": 52.38045900000179,
+          "refs": 261.6954729999916,
+          "commentLines": 150.94781200002126,
+          "packageDocs": 28.524178999985907,
+          "newDef": 207.890481000004
+        }
+      }
+    },
+    "queryDetailScan": {
+      "date": "2026-10-11T13:04:50.877Z",
+      "libraryBaselineSha256": "7c49e3c1d87e24e0bb4c2def909d17154dfde281f5f8280225450090bb4b8110",
+      "libraryProfileSha256": "1c7b23c06a17ef82c9fd084afc187a7fe489bea9e2718b3753346091b6ec65f7",
+      "result": {
+        "ms": 1998.3106249999998,
+        "timings": {
+          "s0": 130.443042,
+          "workersStart": 0.04258399999997664,
+          "s1": 1863.0162500000001,
+          "s2": 0,
+          "s3": 0,
+          "s4": 0,
+          "total": 1995.705792,
+          "persist": 2493.1242089999996,
+          "fts": null,
+          "filesParsed": 6539,
+          "cacheHits": 0,
+          "workers": 6,
+          "readMs": 313.03350900000606,
+          "parseMs": 4934.948647000004,
+          "queryMs": 3360.090811000001,
+          "degraded": 2
+        },
+        "rssPeakMB": 934.625,
+        "files": 7687,
+        "included": 6009,
+        "counters": {
+          "idx.files.hashed": 6539,
+          "idx.parse.calls": 5907,
+          "idx.sql.writes": 36
+        },
+        "loadavg": [
+          7.85546875,
+          10.8388671875,
+          12.52099609375
+        ],
+        "availableParallelism": 18,
+        "fingerprint": {
+          "blobs": {
+            "rows": 6490,
+            "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+          },
+          "symbols": {
+            "rows": 133602,
+            "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+          },
+          "skeleton": {
+            "rows": 11997,
+            "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+          }
+        }
+      },
+      "profile": {
+        "batches": 130,
+        "query": {
+          "wasmMs": 1892.1820569999993,
+          "unmarshalMs": 190.55690000000214,
+          "calls": 5585,
+          "rawMatches": 1612733,
+          "keptMatches": 1610107
+        }
+      }
+    },
+    "allRowsEqual": true,
+    "nativeShareOfQueryMatches": 0.9085065848701067,
+    "decision": "Native WASM execution dominates query.matches; no production optimization is adopted from this diagnostic. Existing formal median 1980.096958ms remains above the unchanged 1500ms hard limit.",
+    "privateEvidence": "/private/tmp/mitori-idx-go-phases-20261011.7a9DCy"
   }
 }

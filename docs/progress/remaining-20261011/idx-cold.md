@@ -64,3 +64,11 @@ scripts/nd bun --preload /tmp/mitori-idx-formal-capture-20261011.ts bench/runner
 - 正常Goのrefsを同じquery結果から先にfoldして保持期間を短くする2pass案は、凍結source・fresh process / 空home・6WorkerでABBAを実施。3表の全行hash、coverage、診断、countersは一致し、対象extract / workerも33pass・100assertions。baseline2,450.030 / 2,131.280ms、候補2,180.880 / 2,196.621ms、中央値の差は4.45%。候補値はbaselineの範囲内で、query CPUとRSSも低下していない。前後ともNOISY、factor1.157972 / 1.120645で基準外のため速度改善は未証明。
 
 候補のためにGo専用経路・generatorを製品へ増やす根拠は得られなかった。予算・対象・抽出仕様・Worker数は維持し、最新正式1,500ms未達を保持する。全値は同JSONの `additionalCandidates20261011`。追加LLM・依存・費用0。
+
+## 抽出phaseの追加診断（main 85aabcf、12:58〜13:05 UTC）
+
+同headの凍結コピーだけに計時を追加し、既存corpusをfresh process / 空home・通常6Workerで2回走査した。共有sourceと共有node_modulesは変更していない。両回とも3表の全行hash・coverage・counters・degraded2が一致した。
+
+1回目の抽出phase合計では `query.matches` が2,131.402ms、定義capture382.030ms、symbol構築334.080ms、refs261.695ms、docs194.178msだった。`newDef` 207.890msは定義captureの内数であり、重複加算しない。2回目は既存pinned web-tree-sitterのprivateコピーだけを計時し、queryのWASM処理1,892.182ms・JS復元190.557ms（5,585calls / raw1,612,733matches）と分かった。query内の約91%はWASM側で、JSのmatch保持期間だけを減らす案では大幅短縮を裏づけられない。
+
+これらはWorker間の累積計時で、scan wallや正確なCPU時間ではない。wallは2,479.800 / 1,998.311msだが、計時追加・異なる負荷・較正未確認の診断であり、before / after比較や正式合格には使わない。最新正式中央値1,980.097ms・上限1,500ms未達を保持する。新依存・製品変更・LLM呼出・追加費用は0。機械可読値は同JSONの `extractionPhases20261011`、private driver / rawは `/private/tmp/mitori-idx-go-phases-20261011.7a9DCy/`。

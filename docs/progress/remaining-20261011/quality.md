@@ -104,3 +104,9 @@ doc store の重複した判定表も既存 CR m1-17 に従い core `computeVerd
 この Mac の追加費用なしの再現入口は `scripts/nd bun /private/tmp/mitori-quality-imports-offline-20261011.ts`（m3e）、`scripts/nd bun /private/tmp/mitori-quality-imports-jev-offline-20261011.ts`（Jev quality）、`scripts/nd bun /private/tmp/mitori-quality-imports-jev-module-offline-20261011.ts`（Jev module の保持確認）。既存の固定 source と保存 index が必要で、実入力は private temporary JSON へ保存し Git には入れない。対象回帰は上記の repo 内 test files で再実行できる。
 
 承認後の実検証用には `/private/tmp/mitori-quality-citation-prepare-20261011.ts` で新規 home / out / raw を 0700、既存の隔離 Codex 設定だけを引き継ぐ config と plan を 0600 で準備済み。実行入口 `/private/tmp/mitori-quality-citation-rerun-20261011-Goiu63/plan.json` に既存 `bench/measure/gen-real.ts` の未実行コマンドを保存した。`--scope s6/lib-tokens` / `s9`、`--engine codex-cli`、concurrency 1、timeout 10 分、`--max-native-calls 1`、各 run guard $0.35 / $0.15（計 $0.50）、turn consent $1 とする。native 呼出は 0 のまま。call cap 用の `--record` は raw prompt / argv / env を含み得るため private temporary directory にのみ保持し、Git へ残すのは allowlist 化した検証結果だけにする。
+
+## サブスク枠だけでの追加検証可否（2026-10-11）
+
+追加費用を除く包括承認に従い、既存Codex CLI helpと公式仕様を読み取り確認した。[公式料金説明](https://learn.chatgpt.com/docs/pricing#what-are-tokens-and-credits)では契約内の利用枠とAPI価格は別で、契約内の枠を超えると利用可能なクレジットで続行できる。[公式設定一覧](https://learn.chatgpt.com/docs/config-file/config-reference)とhelpから、今回のCLI実行だけを契約内の枠に限定する設定は確認できなかった。設定が絶対に存在しないという断定ではない。
+
+したがってChatGPT認証だけを根拠に追加費用0とは扱わず、追加2回は既存の費用確認を待つ。本人の課金・設定は変更せず、追加native呼出0を維持する。API換算$0.50は実請求の上限ではない。

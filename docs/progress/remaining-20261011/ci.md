@@ -57,3 +57,11 @@ PR #13は2026-10-11T11:16:43Zに通常mergeでmainへ統合した（`df014912ee7
 ブラウザ側コードと試験の差分はなく、変更したCLI・見積り・初回解析の対象回帰、Ubuntu全体と実配布binaryの確認を根拠に、2026-10-11T12:28:11Zに通常merge `6d892ea8be7976d4095eb2bfe8c1bbf8e346f545` でmainへ統合した。新headのMac全suiteは未確認のまま残す。merge treeと検証head b74d4faのtreeは `8cf402397678f1cc33c849820b0b6dd2cb30c90f` で一致。golden変更なし、専用commitの履歴を維持。作業branch `codex/fix-lazy-parse-prewarm-20261011` はmainへの祖先性を確認してlocal / remoteから削除した。
 
 一時runnerはAPIでbusy:falseを確認して終了し、元の同じplistからLaunchAgentを復元、running / online / busy:falseを確認した。plist・reference・guardは変更していない。統合mainでMac binaryを再buildし、`--version` 成功、SHA-256 `d0a6c5a2d2aa809e549fcdb4eea43dde997d33c3a2a19623dc77a79b56965a56`。前段のselftest・help・export検証をこの再buildの実行結果へ付け替えない。実LLM追加0・新依存0・追加費用0。
+
+## PR #14 Macのみの後続再実行（13:11〜13:16 UTC）
+
+負荷6.703 / AC・専用runner online / busy:falseを確認後、同runの失敗したMac jobだけを再実行した。[attempt2 / job114478129026](https://github.com/satoki252595/mitori/actions/runs/38138661011/job/114478129026)はload7.504 / quiet / AC / 待機0を通ったが、measured factor1.172012で既存±10%の較正guardに止まった。
+
+前回成功した起動条件を再確認するため、空き状態の同じNix runnerだけを通常端末から一時起動した。[attempt3 / job114478593964](https://github.com/satoki252595/mitori/actions/runs/38138661011/job/114478593964)もload8.798 / quiet / AC / 待機0は通過、factor1.195410で同じguard停止だった。常駐起動の変更だけでは今回解消していない。両回ともglobalSetupで止まり、browserテスト0件実行、共有viewer / a11yはstep skipped。未実行を0failの成功へ変えない。Ubuntuは元の成功を継承し、再実行していない。
+
+対象headはb74d4faで、通常merge6d892eaとtree一致、その後のmain85aabcfまで製品差分は0。reference・上限・試験・plistは変更せず、追加LLM・依存・費用0。終了後に一時runnerを終了し、元plistからLaunchAgentを復元、PID35761のrunningとAPI online / busy:falseを確認した。Mac全suite未確認を保持し、今回の追加再実行はここで終了する。両回の許可項目・raw hashは [ci.json](ci.json) の `pr14.macFollowUp20261011`。

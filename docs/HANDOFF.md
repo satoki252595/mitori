@@ -9,6 +9,10 @@
 
 ### ★.1 実装と確認できたこと
 
+- **Mac後続CI:** PR #14の失敗したMacだけをattempt2 / 3で再実行。quiet / ACでもfactor1.172012 / 1.195410が既存±10%を外れ、browser開始前に停止。前回成功した通常端末起動でも解消せず、共有viewer / a11yも未実行。Ubuntu成功を維持し、元のrunner常駐起動を復元済み。Mac全suite未確認を保持する。[経緯](progress/remaining-20261011/ci.md)。
+
+- **追加の原因診断:** main85aabcfのprivateコピーでGo抽出phaseを計時。query処理の約91%がWASM側で、JSの保持期間短縮だけでは大幅改善を裏づけられなかった。2回とも抽出3表の全行hash・coverage・診断・countersは一致、製品変更・追加LLM・追加費用0。較正未確認の診断なので正式1,500ms未達は維持する。[詳細](progress/remaining-20261011/idx-cold.md)。CLI helpと公式設定一覧から契約枠だけに限定するCodex設定は確認できず、追加2生成は既存の費用確認待ちを保持。[確認した公式仕様](progress/remaining-20261011/quality.md)。
+
 - **追加検証:** main ecf20d0でGo refs2pass候補の対象33testsと抽出3表の全行hash一致を確認したが、NOISY・較正基準外で速度差4.45%、query CPU / RSS低下もなく不採用。CJK早期終了もhelperだけの小差で不採用。正式1,500ms未達を維持する。[判断](progress/remaining-20261011/idx-cold.md)。native Chrome操作は続行時に許可されたがOS IME変換は再現できず、最新配布binary・全LLM無効・上限0の本人確認用デモを準備した。[Chromeの現在と履歴](progress/remaining-20261011/chrome.md)。
 
 - **後続統合:** [PR #14](https://github.com/satoki252595/mitori/pull/14)を2026-10-11T12:28:11Zに通常merge `6d892ea8be7976d4095eb2bfe8c1bbf8e346f545` でmainへ反映した。下記prewarm・F10・F14・export事前検証と再確認条件の修正を含む。修正head b74d4faのUbuntuはunit3,042pass / 0fail、golden109pass / 0fail、check・fixtures・size・Linux binary成功。Macの同headは負荷guard停止で未確認（★.2.5）。merge treeと検証headのtree一致を確認し、作業branchをlocal / remoteから削除。元のrunnerサービスも復元した。[CI記録](progress/remaining-20261011/ci.md)。

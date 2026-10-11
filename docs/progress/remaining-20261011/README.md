@@ -48,6 +48,10 @@ Go7kでは凍結した同一source・新process / 空homeで12runを比較し、
 
 main ecf20d0で追加のCJK早期終了とGo refs2pass候補も確認した。前者は全corpusのhelper CPU約31msだけの差。後者は対象33tests成功・3表全行hash一致だが、baseline範囲内の4.45%差でquery CPU / RSS低下なし、前後ともNOISY・較正基準外だった。両方不採用、最新正式1,500ms未達を保持する。[追加候補の判断](idx-cold.md)。
 
+main85aabcfのprivateコピーでは抽出phaseを追加計時し、query処理の約91%がWASM側と確認した。2回とも3表全行hash・coverage・診断・countersは一致したが、較正未確認の計時付き診断で、正式速度やbefore / after比較には使わない。大幅短縮を裏づける安全なquery削減案は得られず、製品は変更していない。[phase診断](idx-cold.md)。契約枠だけを使うCodex設定も公式一覧とCLI helpからは確認できず、追加実生成2回は既存の費用確認を待つ。[公式仕様の確認](quality.md)。
+
+PR #14のMacだけを再実行した後続attempt2 / 3はquiet / ACだったが、factor1.172012 / 1.195410で較正guard停止。前回成功した通常端末起動でも解消しなかった。browser・共有viewer・a11yは未実行、Ubuntuは再実行せず成功を継承。元のrunner常駐起動を復元済みで、Mac全suite未確認を維持する。[後続CI](ci.md)。
+
 UIは初回nonce競合、仮想化アンカー、節移動でのengine再検出、初回statusの先取り競合、lazy chunkとprecompressionを修正した。strictの上限・件数・診断は維持し、先行compiledはgen6.890 / limit6.900KB、palette4.516 / 4.600KBと余裕が小さい項目も残す。Readerの実click→paintはnative65.2 / 31.7 / 32.1ms、enhanced31.9 / 32.0 / 16.1ms。修正前のscanSummary3,312.1 / limit2,000msと、先行compiledの1,771.5msを保持する。後者はfactor1.12でreport-onlyのため正式基準機合格へ読み替えない。[先行UI記録](ui-bench-release.md)。
 
 最新のcompiled `ui.scanSummary` 正式測定は同source `bdcebaf1aa97525bc86722cbf4f4cbf508bfa083`、binary SHA-256 `8d1f22762b6b56d9eae7181e61a144b1d8e607f1ff84808b9d9673d51387deb7`。quiet / AC、factor1.0293374645265196 / after1.0867728003515473、warmup1 / measured3で測定値は1,767.800048828125 / 1,615.7001953125 / 1,577.099853515625ms、中央値1,615.7001953125ms。hard limit2,000msは合格、target1,000msはWARN。compiled scanSummaryの正式検証待ちは解消し、先行1,771.5msのreport-only結果も履歴として保持する。
