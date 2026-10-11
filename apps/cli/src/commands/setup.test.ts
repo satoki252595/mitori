@@ -50,7 +50,8 @@ test("setup preview and non-TTY refusal cause no daemon/model/config changes; co
   const subscription = make({ argv: ["grok", "--repo", d.repo, "--print"] });
   expect(await runCommand("setup", subscription)).toBe(0);
   expect(subscription.stdout).toContain('"defaultGenEngine": "session"');
-  expect(subscription.stdout).toContain("mcp add mitori --");
+  expect(subscription.stdout).toContain("grok --cwd '");
+  expect(subscription.stdout).toContain("mcp add mitori --scope project --");
   expect(subscription.stdout).not.toContain("XAI_API_KEY");
   expect(await runCommand("setup", make({ argv: ["grok", "--model", "grok-4.7", "--print"] }))).toBe(2);
   expect(await runCommand("setup", make({ tty: false }))).toBe(2);

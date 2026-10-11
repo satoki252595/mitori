@@ -72,3 +72,11 @@ scripts/nd bun --preload /tmp/mitori-idx-formal-capture-20261011.ts bench/runner
 1回目の抽出phase合計では `query.matches` が2,131.402ms、定義capture382.030ms、symbol構築334.080ms、refs261.695ms、docs194.178msだった。`newDef` 207.890msは定義captureの内数であり、重複加算しない。2回目は既存pinned web-tree-sitterのprivateコピーだけを計時し、queryのWASM処理1,892.182ms・JS復元190.557ms（5,585calls / raw1,612,733matches）と分かった。query内の約91%はWASM側で、JSのmatch保持期間だけを減らす案では大幅短縮を裏づけられない。
 
 これらはWorker間の累積計時で、scan wallや正確なCPU時間ではない。wallは2,479.800 / 1,998.311msだが、計時追加・異なる負荷・較正未確認の診断であり、before / after比較や正式合格には使わない。最新正式中央値1,980.097ms・上限1,500ms未達を保持する。新依存・製品変更・LLM呼出・追加費用は0。機械可読値は同JSONの `extractionPhases20261011`、private driver / rawは `/private/tmp/mitori-idx-go-phases-20261011.7a9DCy/`。
+
+## pool全phaseの追加診断（main a791b77、13:25 UTC）
+
+同headのcleanな凍結コピーで、private `parse/pool.ts`だけに計時を追加し、既存driverを1回実行した。Nix / Bun 1.4.2、fresh process / 空index home、通常6Worker・128batch。共有source・node_modules、GC周期・batch上限・timeout・予算は変更していない。3表の全行hash・coverage・countersが一致し、degraded2 / cacheHits0を維持した。source・計時差分・driverのhashと主要値は [idx-cold.json](idx-cold.json) の `poolPhases20261011`。
+
+scan wallは2,278.814ms、S1は2,040.788ms、pool全体は2,006.829ms。Worker間の累計phaseはread1,032.597 / hash39.361 / parse5,113.592 / query3,488.723 / extract808.860msだった。以前省略していたhash + extractは6Worker平均141.370msで、全5phase平均は1,747.189ms。pool wallとの差259.640msにはqueue・GC・転送・未計時の処理等が含まれ、純粋な終端待ちとは解釈しない。最後に完了したbatchのphase合計は12.129msで、enqueueから応答までの30.954msとは区別する。大きな終端stragglerを示す証拠は得られなかった。
+
+loadavgは7.5625 / 8.2959 / 9.1880。較正未測定・計時追加ありの1回診断で、速度比較や正式合格には使わない。最新正式中央値1,980.097ms・上限1,500ms未達を保持する。新依存・製品変更・LLM呼出・追加費用は0。

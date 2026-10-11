@@ -1,5 +1,7 @@
 # 起動・LLM別の検証（2026-10-07 JST）
 
+> 2026-10-07の履歴を保持しています。本人環境の最新接続結果は末尾の「本人の実設定での追加確認（2026-10-11）」、Codex / LM Studioの後続実生成と現在の残課題は[2026-10-11の一覧](../remaining-20261011/README.md)を参照してください。Claudeのログインは現在の続行条件ではありません。
+
 作業: [Issue #11](https://github.com/satoki252595/mitori/issues/11)。利用者の貼付ログを再現し、Nix・既存Bun・既存DockerハーネスでREADMEの手順を確認した。利用者はDockerをLinux検証用とする方針を選択した。全LLMの実推論完了とは報告しない。
 
 ## 修正した原因
@@ -119,3 +121,30 @@ scripts/nd bash scripts/linux-ci.sh --arch arm64 --steps install,unit \
 - [Qwen3公式説明](https://qwenlm.github.io/blog/qwen3/): `/no_think`はpromptのsoft switchとして説明される。本環境では実際の回避に成功しなかったため、READMEに成功例として採用しない。
 
 提供元の認証手順とサブスク条件は[前回の公式調査](../../research/subscription-login-20261006.md)を参照する。Windows native、実Safari/IME、一般公開/ライセンス、既存性能課題はこの起動確認の対象外。
+
+## 本人の実設定での追加確認（2026-10-11）
+
+上記は2026-10-07の隔離設定による記録。今回、このプロジェクトだけに4クライアントのMCP設定を作成し、本人の通常HOMEと実フォルダで接続確認を試みた。その後の共通設定の追加を含め、現在はCursor・Grok・Antigravity本体で各8ツールを確認済み。Codexは登録が有効だが接続は未確認。4経路とも外部セッションからの生成は今回実施していない。共通起動は既存の`<repo>/scripts/nd bun <repo>/scripts/start.ts mcp --repo <repo>`。初回資源の準備とソース更新後のキャッシュ更新を通し、最終的に`assetsReady=true`を確認した。ソフトの導入、認証操作、LLM要求、MCPツール実行は0、追加LLM費用は$0。
+
+`.codex/config.toml`、`.cursor/mcp.json`、`.grok/config.toml`、`.agents/mcp_config.json`は元々存在せず、0600で作成した。初回のproject登録では既存の共通MCP設定を変えず、ローカルのGit除外へ4ファイルを追加した。元の除外内容を保持し、Undo用の私有バックアップを作成。個人パス、raw設定、認証情報はこの記録へ保存しない。
+
+まずproject設定だけを追加した時点の結果は以下の通り。Antigravityの後続確認は表の後に別記する。
+
+| クライアント | 実設定での結果 | 残る確認 |
+| --- | --- | --- |
+| Codex 0.160.0 | プロジェクトの既存trustを保ち、`mcp list --json`でmitori有効を確認 | 他の7連携を子プロセスだけで無効化する検証用overrideが`invalid transport`で拒否。全table overrideも8連携へmergeされたため起動せず、実設定のtool inventoryは未確認 |
+| Cursor 2026.10.01-e373342 | 公式`mcp enable mitori`後、実`list-tools`で8ツール、exit 0 | この外部セッションからの生成は今回実施していない |
+| Grok 1.0.50 | 公式project登録・対象フォルダのtrust後、実`doctor`で8ツール、4/4 checks成功、exit 0 | この外部セッションからの生成は今回実施していない |
+| Antigravity CLI 1.3.3 | project JSON作成後も通常cwdと公式UIで作成したproject ID指定の両一覧が「設定サーバーなし」、exit 0 | 実クライアントがproject設定を読む経路とツール表示 |
+| Antigravity IDE 2.5.5 | 実フォルダを開き、Manage MCP ServersのRefresh完了後も`No MCP servers installed` | project設定の読み込み経路を確認する |
+| Antigravity 2.12.2 | 実フォルダに結び付くprojectを選択し、Settings → Customizations → Installed MCP Serversで公式Refreshを1回実施しても`No MCP servers installed` | 別アプリのIDE 2.5.5と区別し、project設定の読み込み経路を確認する |
+
+Cursorの承認はプロジェクトのパスと完全なサーバー設定のhashに結び付き、名前だけの共通承認ではない。既存承認を全て残して1件だけ追加し、disabled設定は不変。Grokは`--trust --cwd <repo> mcp doctor mitori --json`で対象フォルダだけをtrustし、他フォルダの判断は保持した。repo内のhook/pluginは存在せず、doctorによる接続確認だけを実施した。いずれも認証ファイルは変更していない。
+
+Antigravityはproject JSONが読み込まれない実測を踏まえ、利用者の通常設定の包括承認内で、公式共通設定`~/.gemini/config/mcp_config.json`へmitoriの1件だけを追加した。元は0 bytes、mode 0644。正確な元bytesを私有バックアップへ保存し、既存設定の意味とmodeを保つatomic mergeを実施した。登録先をhelpで確定できない`agy mcp add`は使わず、公式に記載されたファイルだけを変更した。他の既知のCodex・Cursor・Grok設定とGrok trustのhashは不変で、認証・trustも変更していない。
+
+追加後の通常`agy mcp list`はexit 0でmitoriを表示した。続けてAntigravity本体2.12.2の公式UIでRefreshを1回実施し、完了後にmitori表示、toggle有効、`8 tools enabled`をrootが確認した。これを本体の接続成功として記録する。一覧だけから接続成功とは判断していない。IDE 2.5.5は共通設定の追加後に再確認しておらず、初回の表示なしという記録を保持する。初期失敗と共通設定後の成功は[追加証跡](native-mcp.json)の別項目に保存した。
+
+Codexの失敗は検証用の一時overrideの検証エラーであり、通常の本人設定が壊れているとは判断しない。Antigravityも、設定が見えないことをログイン不足と推定しない。今回の登録作業を本人しか行えない残作業とは扱わず、実際に確認できた範囲を[追加証跡](native-mcp.json)へ分けて保存した。
+
+最終の案内修正後もsetup対象2ファイルが8成功 / 85 assertions、7つの`check`が全て成功（5.04秒）。この追加確認のために全テストやCIは再実行していない。公式のproject設定仕様は[Codex](https://learn.chatgpt.com/docs/extend/mcp#connect-codex-to-an-mcp-server)、[Cursor](https://cursor.com/docs/mcp#configuration-locations)、[Antigravity](https://antigravity.google/docs/mcp#global-and-workspace-server-configs)を2026-10-11に確認した。提供元の仕様とインストール済みアプリの実際の読み込み結果は区別する。

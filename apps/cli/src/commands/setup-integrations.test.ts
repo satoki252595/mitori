@@ -35,9 +35,10 @@ test("native registration commands and Codex TOML preserve paths containing shel
   for (const [target, cli] of [
     ["codex", "codex"],
     ["antigravity", "agy"],
+    ["grok", "grok"],
   ] as const) {
     const setup = integrationSetup(target, { command, args: [], workspace });
-    const prefix = `${cli} mcp add mitori -- `;
+    const prefix = target === "grok" ? `${cli} ` : `${cli} mcp add mitori -- `;
     const words =
       setup
         .split("\n")
@@ -47,6 +48,12 @@ test("native registration commands and Codex TOML preserve paths containing shel
     const [stdout, stderr, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
     expect(code).toBe(0);
     expect(stderr).toBe("");
-    expect(stdout.split("\0").slice(0, -1)).toEqual([command, "mcp", "--repo", workspace]);
+    expect(stdout.split("\0").slice(0, -1)).toEqual([
+      ...(target === "grok" ? ["--cwd", workspace, "mcp", "add", "mitori", "--scope", "project", "--"] : []),
+      command,
+      "mcp",
+      "--repo",
+      workspace,
+    ]);
   }
 });

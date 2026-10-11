@@ -6,7 +6,7 @@
 
 ## 現在の判定
 
-後続の[PR #14](https://github.com/satoki252595/mitori/pull/14)も2026-10-11T12:28:11Zに通常merge `6d892ea8be7976d4095eb2bfe8c1bbf8e346f545` でmainへ反映した。prewarm・F10・F14・export事前検証と再確認条件の修正を含む。Ubuntuは修正head b74d4faでunit3,042pass / 0fail、golden109pass / 0fail、全20semantic / 0cached / 0errors、fixtures・size・Linux binary成功。Macは同headではNOISYで開始前guard停止、browser・共有viewer・a11y未確認。ブラウザ側差分はなく、対象回帰・Ubuntu全体・配布binary確認を根拠に統合した。merge treeと検証headのtreeは一致し、作業branchをlocal / remoteから削除、元のrunnerサービスを復元した。[CIの全経緯](ci.md)。
+後続の[PR #14](https://github.com/satoki252595/mitori/pull/14)も2026-10-11T12:28:11Zに通常merge `6d892ea8be7976d4095eb2bfe8c1bbf8e346f545` でmainへ反映した。prewarm・F10・F14・export事前検証と再確認条件の修正を含む。Ubuntuは修正head b74d4faでunit3,042pass / 0fail、golden109pass / 0fail、全20semantic / 0cached / 0errors、fixtures・size・Linux binary成功。Macは初回NOISY停止後、同headのattempt2 / 3もquiet / AC・factor1.172012 / 1.195410で較正guard停止、browser・共有viewer・a11y未確認。通常端末起動でも解消しなかった。対象回帰・Ubuntu全体・配布binary確認を根拠に統合した。merge treeと検証headのtreeは一致し、作業branchをlocal / remoteから削除、元のrunnerサービスを復元した。[CIの全経緯](ci.md)。
 
 | 項目 | 確認できたこと | 残る確認・限界 | 証拠 |
 |---|---|---|---|
@@ -14,6 +14,7 @@
 | Codex Explain / Nix・通常ローカル | go-smallで各1 application jobがdone、各引用1件有効、元source不変、後始末成功 | API相当合計$0.007274。課金先・サブスク枠は未確認 | [codex-explain.json](codex-explain.json) |
 | LM Studio Explain / Nix・通常ローカル | 取得済みQwen GGUFで各1 HTTP推論がdone、各引用1件有効、source不変、追加費用$0。専用モデル解除・既存server維持を確認 | 短いExplainのみ。CLI指定4096と実load報告262144の不一致は未解決 | [lmstudio-explain.md](lmstudio-explain.md) |
 | Codex並列生成の予算予約 | shared preflightで送信直前に合算判定。途中本文・usage保持と同額resumeを対象37tests / 224 assertionsで確認 | API換算の推計上限。hidden reasoningを含む実請求の厳密capではない | [codex-budget.md](codex-budget.md) |
+| 本人環境の外部MCP | Cursor / Grokはproject設定で各8ツール、Antigravity 2.12.2は共通設定で8ツールの接続を確認。Grok表示コマンドの登録範囲も修正 | Codexの隔離用overrideが拒否され接続未確認。Antigravityのproject設定が読み込まれない版の制約を保持。4ツールからの追加生成は未実行 | [実設定の確認](../startup-matrix-20261007/README.md) |
 | Linux cold check | testkitの既存home subpathへimportを絞り、全20semantic診断を維持。ARM同条件ABBAは4回ともhard limit内 | soft targetは未達、統合headのUbuntu x64 CIでの確認は別 | [cold-home.md](cold-home.md) |
 | Go7k cold scan | Goの同一Node.type再取得を減らす変更を採用。最新正式5run / warmup1はquiet / AC・factor1.037243379882442で中央値1,980.096958ms | **hard limit1,500msは未達**。先行ABBAの10.64%短縮・全行hash一致も保持 | [採用変更](idx-type-local.md)、[先行不採用](idx-cold.md)、[正式測定の前後](idx-formal.json) |
 | 初回parse準備 | lazy poolのsize0でprewarmが送られない原因を1行修正。回帰6pass / 20assertions、ABBAで3表の全行hash・coverage・counters一致 | 終了較正factor1.124994が基準外。後続正式試行も事前factor1.130491でscan0回。全体速度の改善・hard limit合格は未証明 | [原因と比較](idx-prewarm.md) |

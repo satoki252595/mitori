@@ -85,7 +85,9 @@ Ollamaの動作・回答品質はモデルとメモリ容量に依存します�
 
 **外部セッションのCodex・Cursor・Antigravity・Grok Buildを使う場合**は、設定コマンドが表示するMCP登録手順を1回実行します。既存のMCP設定は残してください。AIには次のように依頼できます。
 
-Codex・Grok・Antigravityの公式CLIがある場合は、表示された`mcp add mitori -- …`の1コマンドで登録できます。Cursorの現行CLIは追加コマンドがないため、表示された設定を`.cursor/mcp.json`または`~/.cursor/mcp.json`の`mcpServers`へ追加します。既存ファイル全体を置き換えず、`mitori`の項目を追加してください。
+Grokは表示コマンドの`--cwd`と`--scope project`で、対象repoの`.grok/config.toml`へ登録します。Codexの`mcp add`は共通設定への登録です。対象repoだけで使う場合は、表示されたTOMLをそのrepoの`.codex/config.toml`へ追加します（Codexで信頼済みのprojectのみ読込）。Cursorは`.cursor/mcp.json`へ表示されたJSONを追加します。Antigravityは**Manage MCP Servers / Open MCP Config**で開く`~/.gemini/config/mcp_config.json`へ追加します。`.agents/mcp_config.json`は対応版向けで、今回のAntigravity 2.12.2 / IDE 2.5.5では読み込みを確認できませんでした。AntigravityのCLI登録もproject限定を保証していません。既存ファイル全体を置き換えず、`mitori`の項目を追加してください。
+
+2026-10-11の本人環境では、Cursor・Grokと、共通設定を使うAntigravity 2.12.2で各8ツールの接続を確認しました。Codexはproject登録が有効ですが、他の連携を隔離する検証用設定が拒否され、接続確認は未完了です。この4ツールからの文書生成は今回追加実行していません。[設定先と実クライアントでの確認](docs/progress/startup-matrix-20261007/README.md)。
 
 > mitoriのレビューを取得し、変更案はmitori_submit_patchで提出してください。対象ソースを直接変更せず、人の確認を待ってください。
 

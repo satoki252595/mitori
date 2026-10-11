@@ -2541,5 +2541,112 @@
     "nativeShareOfQueryMatches": 0.9085065848701067,
     "decision": "Native WASM execution dominates query.matches; no production optimization is adopted from this diagnostic. Existing formal median 1980.096958ms remains above the unchanged 1500ms hard limit.",
     "privateEvidence": "/private/tmp/mitori-idx-go-phases-20261011.7a9DCy"
+  },
+  "poolPhases20261011": {
+    "diagnosticOnly": true,
+    "formalGate": false,
+    "source": {
+      "sourceSha": "a791b7753d6bcaf75bad17e179a1f6c627966c1e",
+      "createdAt": "2026-10-11T13:25:45Z",
+      "trackedFiles": 3954,
+      "sourceArchiveSha256": "b48fdeb9cd022e4db4cbc26d52afb3fbd3f840c766b6ff163cc71a2466611a12",
+      "sourceTreeSha256": "4dc895fde957fc58d907fb1bc58f090716ae1ebc86c92dd69f134f365e19aeba",
+      "instrumentedFile": "packages/indexer/src/parse/pool.ts",
+      "poolBaselineSha256": "92ac0a5754b7a7dc4d56d86c51dcf3d8cffbf2ab73d9514b01f948cdff67205c",
+      "poolDiagnosticSha256": "1f68e37eae7afebdf7671d3ae98231122f35d2d7d050b8425b298fc7c8a0f652",
+      "driverSha256": "3db7efb2ea9c6995a086868ec18c16fd4e0bd8f34fcb1e3ebb41dd1337098a1c"
+    },
+    "conditions": {
+      "runs": 1,
+      "runtime": "project Nix / Bun 1.4.2",
+      "freshProcess": true,
+      "emptyIndexerHome": true,
+      "shadow": true,
+      "until": "S1",
+      "workers": 6,
+      "batches": 128,
+      "loadavg": [
+        7.5625,
+        8.2958984375,
+        9.18798828125
+      ],
+      "calibrationMeasured": false,
+      "workspaceLinksTargetFreeze": true,
+      "sharedSourceUnchanged": true,
+      "sharedNodeModulesUnchanged": true,
+      "modelCalls": 0,
+      "additionalCostUsd": 0
+    },
+    "instrumentation": "Private parse/pool.ts only: one aggregate after all responses, plus per-batch response timings and enqueue-to-response round trip; existing 3-table ordered-row hash driver. No parsing, query, coverage, GC cadence, Worker sizing, batch caps, timeout or budget changes.",
+    "result": {
+      "scanMs": 2278.8135,
+      "s1Ms": 2040.787709,
+      "wholePoolMs": 2006.828958,
+      "workersStartMs": 0.037208000000021,
+      "rssPeakMiB": 923.9375,
+      "files": 7687,
+      "included": 6009,
+      "filesParsed": 6539,
+      "cacheHits": 0,
+      "degraded": 2,
+      "counters": {
+        "idx.files.hashed": 6539,
+        "idx.parse.calls": 5907,
+        "idx.sql.writes": 36
+      },
+      "fingerprint": {
+        "blobs": {
+          "rows": 6490,
+          "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+        },
+        "symbols": {
+          "rows": 133602,
+          "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+        },
+        "skeleton": {
+          "rows": 11997,
+          "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+        }
+      }
+    },
+    "cumulativePhasesMs": {
+      "read": 1032.597219999992,
+      "hash": 39.36076400000201,
+      "parse": 5113.591953000003,
+      "query": 3488.722937999992,
+      "extract": 808.8604210000027
+    },
+    "analysis": {
+      "cumulativeMs": 10483.13329599999,
+      "cumulativeMeanPerWorkerMs": 1747.1888826666652,
+      "readParseQueryMeanPerWorkerMs": 1605.8186851666644,
+      "omittedHashExtractMeanPerWorkerMs": 141.37019750000078,
+      "poolWallMinusMeanAllPhasesMs": 259.64007533333483
+    },
+    "lastCompletedBatch": {
+      "ordinal": 122,
+      "count": 64,
+      "bytes": 19280,
+      "startMs": 1975.8547910000002,
+      "roundTripMs": 30.953791999999794,
+      "endMs": 2006.808583,
+      "cumulativeMs": 12.128959999994095
+    },
+    "checks": {
+      "fullThreeTableRowsAndHashesEqual": true,
+      "countersEqual": true,
+      "coverageEqual": true,
+      "degradedTwo": true,
+      "workersSix": true,
+      "freshColdCandidates": true,
+      "sharedPoolUnchanged": true
+    },
+    "limits": [
+      "Phase times are cumulative wall samples across Workers, not exact CPU time. Dividing by six gives a mean, not critical-path attribution.",
+      "Round trip starts before enqueue and includes queue wait, prior Worker GC, processing and transfer; its 30.953792ms is distinct from the last batch phase sum of 12.128960ms.",
+      "The 259.640075ms difference between whole pool wall and mean summed phases includes queue/GC/transfer and uninstrumented work; it is not a pure terminal straggler.",
+      "One instrumented scan without calibration cannot establish improvement or a formal pass."
+    ],
+    "decision": "No production optimization adopted. Existing formal median 1980.096958ms remains above the unchanged 1500ms hard limit; this one diagnostic does not replace that result."
   }
 }

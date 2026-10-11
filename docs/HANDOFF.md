@@ -9,6 +9,8 @@
 
 ### ★.1 実装と確認できたこと
 
+- **本人環境のMCP接続:** 通常HOME・実フォルダでCursor / Grokは各8ツールを確認。Grokの表示コマンドを`--cwd` / `--scope project`付きへ修正し、引用符等を含むパスの引数回帰も成功。Antigravityはproject設定が表示されなかったため、共通設定をバックアップしてmitoriだけ追加し、本体2.12.2の公式Refresh後に`8 tools enabled`を確認した。案内へ共通設定と対応版の制約を反映。Codexはproject登録有効だが隔離用overrideが拒否され接続未確認。認証・LLM要求・MCPツール実行0、追加LLM費用$0。対象8tests / 85assertionsと全7check成功（5.04秒）。[実測と制約](progress/startup-matrix-20261007/README.md)。
+
 - **Mac後続CI:** PR #14の失敗したMacだけをattempt2 / 3で再実行。quiet / ACでもfactor1.172012 / 1.195410が既存±10%を外れ、browser開始前に停止。前回成功した通常端末起動でも解消せず、共有viewer / a11yも未実行。Ubuntu成功を維持し、元のrunner常駐起動を復元済み。Mac全suite未確認を保持する。[経緯](progress/remaining-20261011/ci.md)。
 
 - **追加の原因診断:** main85aabcfのprivateコピーでGo抽出phaseを計時。query処理の約91%がWASM側で、JSの保持期間短縮だけでは大幅改善を裏づけられなかった。2回とも抽出3表の全行hash・coverage・診断・countersは一致、製品変更・追加LLM・追加費用0。較正未確認の診断なので正式1,500ms未達は維持する。[詳細](progress/remaining-20261011/idx-cold.md)。CLI helpと公式設定一覧から契約枠だけに限定するCodex設定は確認できず、追加2生成は既存の費用確認待ちを保持。[確認した公式仕様](progress/remaining-20261011/quality.md)。
@@ -36,9 +38,9 @@
 2. **Go7k cold 1,500ms:** parser / query / GCの先行候補と正式caseのNOISY / report-only失敗は保持した。[原因と不採用証拠](progress/remaining-20261011/idx-cold.md)、[正式後続](progress/remaining-20261011/idx-formal.json)。Goの同一Node.type再取得を減らす変更は同条件ABBAで中央値2,232.14→1,994.58ms（10.64%短縮）、全行hash・coverage・診断・6Worker一致を確認して採用した。[採用の根拠](progress/remaining-20261011/idx-type-local.md)。最新の正式 `idx.s01.cold.7kfiles` はwarmup1 / measured5、quiet / AC、factor1.037243379882442で中央値1,980.096958ms。hard limit1,500msは未達で、上限やWorker規則は変えていない。後続helper候補のquiet / reference内ABBAも中央値1,853.212792→1,849.252792ms（0.214%）に留まり、3表hash・counters・coverage・6Workerは一致したが採用根拠がなく未採用。
 3. **引用窓:** 保存済みm3e最新版はL1が28pass / 2fail / 8vacuous、Jev品質節は22pass / 1fail / 2vacuous。[source照合](progress/remaining-20261011/quality.citation-review.json)。m3e依存文のimport原文を入力へ補い、複数行importのspecifier行からもbindingsを保持する。既存28k枠・除外・元行・blob・citableと既定値helperをofflineで確認、検証器は緩めていない。文書の再検証もcoreの共通verdictへ統一した。修正後の追加実生成2回はAPI換算保守$0.416844 / 見積枠$0.50で本人の費用承認待ち。ChatGPT認証とAPIキー未設定を確認したが、`credits.hasCredits:true` のため有料credit消費がない保証はできず、$0.50も実請求の上限ではない。今回の統合作業でnative呼出は0。保存済み出力の全引用pass・全文semantic保証とは扱わない。
 
-4. **外部provider本人環境:** Codex・Muse・Ollama・LM Studioの記録とは別に、Antigravityの実接続、Grokの本人ログイン・生成、外部ツール4種での本人設定登録後の文書生成は未確認。公式本人認証やアプリ側の再読込が必要で、設定や認証を勝手に変更しない。[provider別記録](progress/startup-matrix-20261007/README.md)。
+4. **外部provider本人環境:** Cursor / Grokはproject設定で各8ツール、Antigravity本体2.12.2は共通設定で8ツールの接続を確認済み。Codexはproject登録有効だが、他の連携を隔離する検証用overrideが拒否され接続未確認。Antigravityのproject設定が読み込まれない版の制約も保持する。4ツールからの文書生成は今回未実行。接続表示の欠如を認証不足とは推定しない。[provider別記録](progress/startup-matrix-20261007/README.md)。
 
-5. **PR #14のMac全suite:** 同headのload9.688965 / NOISY / ACで開始前guard停止、browser・共有viewer・a11yは未実行。ブラウザ側コードと試験の差分はないが、PR #13の成功をこのheadの成功には流用しない。Ubuntu全体・対象回帰・配布binaryの確認を根拠に通常mergeし、Macの再確認はquiet / reference条件が整ってから実施する。guard・時間上限・referenceは維持。[初回失敗と修正後](progress/remaining-20261011/ci.md)。
+5. **PR #14のMac全suite:** 初回NOISY停止後、同headのattempt2 / 3はquiet / ACでもfactor1.172012 / 1.195410で較正guard停止。通常端末起動でも解消せず、browser・共有viewer・a11yは未実行。PR #13の成功をこのheadの成功には流用しない。Ubuntu全体・対象回帰・配布binaryの確認を根拠に通常mergeし、Macの再確認はreference条件が整ってから実施する。元のrunner常駐起動を復元済み。guard・時間上限・referenceは維持。[初回失敗と後続](progress/remaining-20261011/ci.md)。
 
 後続の初回parse準備修正も、開始factor1.083876に対し終了factor1.124994で基準外だった。正式caseの後続試行も事前factor1.130491でguard停止、scan0回。機能修正と全行hash一致を確認したが、Go7kの正式未達を上書きしない。[guardの記録](progress/remaining-20261011/idx-prewarm.json)。
 
