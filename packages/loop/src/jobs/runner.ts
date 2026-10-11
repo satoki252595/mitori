@@ -100,10 +100,17 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
     if (known && fresh) return known;
     const p = await freshPlan(req);
     if (known) {
-      const before = known.estimate.inTokens + known.estimate.cacheReadTokens + known.estimate.cacheWriteTokens + known.estimate.outTokens;
-      const after = p.estimate.inTokens + p.estimate.cacheReadTokens + p.estimate.cacheWriteTokens + p.estimate.outTokens;
-      if (Math.abs(after - before) > before * DRIFT || (p.estimate.requiresConfirm && req.confirm !== true))
-        throw new MitoriError("E_CONFLICT", "the estimate changed; confirm the new one", { params: { estimateId: p.id, tokens: after } });
+      const before = known.estimate.inTokens + known.estimate.outTokens;
+      const after = p.estimate.inTokens + p.estimate.outTokens;
+      const beforeTotal = before + known.estimate.cacheReadTokens + known.estimate.cacheWriteTokens;
+      const afterTotal = after + p.estimate.cacheReadTokens + p.estimate.cacheWriteTokens;
+      // Fixed cache reads must not dilute the original input/output drift; cache growth also needs confirmation.
+      if (
+        Math.abs(after - before) > before * DRIFT ||
+        Math.abs(afterTotal - beforeTotal) > beforeTotal * DRIFT ||
+        (p.estimate.requiresConfirm && req.confirm !== true)
+      )
+        throw new MitoriError("E_CONFLICT", "the estimate changed; confirm the new one", { params: { estimateId: p.id, tokens: afterTotal } });
     }
     return p;
   }
