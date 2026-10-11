@@ -174,6 +174,34 @@ class Gatherer {
         for (const p of ctx.skeleton.files) this.see(p);
         // Leave room for the shared budget's separators and omitted marker inside the existing 28k frame.
         const bodyBudget = Math.min(12000, Math.max(0, 28000 - ctx.tokens.total - 40));
+        const imports: ReturnType<Indexer["flowBodies"]> = [];
+        for (const p of this.leafPaths(m)) {
+          const f = ix.file(p);
+          if (!f || f.excluded || f.class !== "source") continue;
+          // Skeleton headers keep specifiers but omit the names/aliases that connect a call to its dependency.
+          // Read the original statements, without reconstructing bindings from the index's shortened names.
+          let covered = 0;
+          for (const imp of ix
+            .imports(p)
+            .filter((i) => i.names.length > 0 && i.kind !== "dynamic")
+            .sort((a, b) => a.line - b.line)) {
+            if (imp.line <= covered) continue;
+            // The indexed line is the source specifier; multiline bindings can precede it.
+            const start = Math.max(1, imp.line - 39);
+            if (["typescript", "tsx", "javascript", "jsx"].includes(f.lang)) {
+              const slice = await ix.read(p, { start, end: imp.line }, { numbered: true });
+              const lines = slice.text.split("\n");
+              const first = lines.findLastIndex((l) => /^\d+\|\s*(?:import|export)\b/.test(l));
+              // Keep source text, not reconstructed aliases; absent a visible start, retain the bounded context.
+              imports.push({ ...slice, start: slice.start + Math.max(0, first), text: lines.slice(Math.max(0, first)).join("\n") });
+              covered = imp.line;
+              continue;
+            }
+            const next = ix.symbols(p).find((s) => s.start > imp.line)?.start ?? f.lines + 1;
+            covered = Math.min(f.lines, next - 1, start + 39);
+            imports.push(await ix.read(p, { start, end: covered }, { numbered: true }));
+          }
+        }
         const seeds = genFlowSeeds(ix).filter((s) => s.modules.includes(m.id));
         const flows = this.flowSlices(seeds, bodyBudget).filter((s) => ix.moduleOf(s.path) === m.id);
         const handlers = new Set(seeds.map((s) => s.handler));
@@ -207,6 +235,7 @@ class Gatherer {
           SKELETON: ctx.skeleton.text.split("\n"),
           BODIES: this.bodies(
             [
+              ...imports,
               ...scripts,
               // Keep entry boundaries, then the inner selection/validation/dispatch before broad callers.
               ...flows.filter(entry),

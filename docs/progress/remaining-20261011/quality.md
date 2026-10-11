@@ -88,3 +88,19 @@ human lock は入力上の同一性に加え、既存 apply の locked update→
 Codex が authoritative usage で `E_BUDGET_EXCEEDED` / stop=budget を返した場合、coverage が完成していても task を failed にする。すでに検証して適用した本文と usage は保持し、repair と output cache を行わない。通常の他 engine の truncation 処理は既存経路を維持する。完全な 2 aspect と end 行を返した scripted Codex の回帰で、failed / 2 blocks 保持 / usage 保持 / 1 call / cache 0 を確認した。orchestrator / execute / bench call-cap の 3 files は 23 tests / 116 assertions pass。
 
 さらに本番の Runner → fallback scheduler で、保守 native 額に対する run の並列予約が小さな旧 plan 推計のままになる問題を修正した。送信前に共有 preflight で native 予約・発生済み usage を合算し、初回不足は pending / resume、retry 不足は failed / partial 保持とする。実 LLM 追加 0、独立 trace と新規 6 tests / 49 assertions、既存 31 tests が pass。[run 予算の再現・修正・検証](codex-budget.md)、[機械可読証跡](codex-budget.json)。
+
+## 引用入力と判定の追加修正（実再生成なし）
+
+保存済み入力では m3e の skeleton header が `./i18n` / `./color` を示す一方、名前付き import の原文 `tokens.ts:2–3` が無かった。module の共有 BODIES に、index が持つ named import の元の番号付き source を追加した。aliases を合成せず、既存 `Indexer.read` の redaction / blob 経路を使う。index の import 行は statement 冒頭ではなく source specifier の行なので、最大 39 行前までを読み、TS/JS は見えている直前の `import` / `export` 行から specifier までに絞る。1 slice 最大 40 行、既存の core 28k / BODIES 最大 12k と除外規則を維持する。複数行 import と、先行 slice の境界をまたぐ次の import にも回帰を追加した。
+
+固定済み source と保存 index のコピーを使い、ソケット・追加 parsing・LLM なしで実 `gatherInputs` → renderer →共有 preflight を確認した。m3e は core 16,972 + BODIES 10,942 = 27,914 tokens。import 2–3 行が実際に citable で、既存 anchor / verifier でも両候補の L0 / L1 / L2 が pass した。`frameSizeOf` の既定寸法補完と `isPhoneFrame` の比較、`makeItem`、`linkUrlOf` を保持し、CONTRIBUTING の DOCS は修正前と同一だった。Jev module も history 121 行 → `browser.observe` 142 行 → `page_changed` 145 行を保持する。途中の probe が `function frameSizeOf` を探して arrow 宣言を見落としたが、実原文 `export const frameSizeOf` を照合して誤検出を訂正した。
+
+Jev quality の `Agent` 宣言 12 行は修正前から入力にある。7–9 行を選んだ引用窓はモデルの選択であり、今回の共通入力修正で直ったとはしない。保存済み本文を変更せず、最新出力の L1 fail 3 件をそのまま保持する。新しい原文候補をモデルが選ぶかは未再生成・未確認。renderer / verifier の対象 2 files は 40 tests / 287 assertions、gen 型検査と変更 4 files の Biome が pass。[入力・有効な引用候補・予算の証跡](quality.imports-static.json)。
+
+doc store の重複した判定表も既存 CR m1-17 に従い core `computeVerdict` へ統一した。再 stamp、setVerified / unlock、setClaimChecks、load、apply、edit の caller を確認し、L1 fail → inferred、human lock → human-verified、unlock → inferred、vacuous + L3 S → verified の回帰を追加した。store / reload / gen verifier の 3 files は 61 tests / 449 assertions、doc 変更 2 files の Biome が pass。これは保存・再検証時の判定統一であり、引用窓の実生成改善とは別である。Markdown の本文・cite link と `doc.index.json` の verdict metadata を分ける既存 codec 契約を変更せず、golden と検証器も変更していない。
+
+追加の任意検証を各 1 native call・repair なしで行う場合、現行 `gpt-6.1-sol` / high の byte preflight は m3e module input 107,278 / output 予約 7,200 / $0.286556、Jev quality input 41,144 / output 予約 4,800 / $0.130288、合計 $0.416844 API-equivalent。品質検証の既計 $0.792490 と合わせると $1.209334、品質の総枠 $2 からの残りは $0.790666（別の Explain 呼出は含まない）。これは請求実測ではなく、native thinking に厳密な token cap もない。追加実呼出は実施しておらず、既存 consent / run guard と利用者の確認を前提とする。
+
+この Mac の追加費用なしの再現入口は `scripts/nd bun /private/tmp/mitori-quality-imports-offline-20261011.ts`（m3e）、`scripts/nd bun /private/tmp/mitori-quality-imports-jev-offline-20261011.ts`（Jev quality）、`scripts/nd bun /private/tmp/mitori-quality-imports-jev-module-offline-20261011.ts`（Jev module の保持確認）。既存の固定 source と保存 index が必要で、実入力は private temporary JSON へ保存し Git には入れない。対象回帰は上記の repo 内 test files で再実行できる。
+
+承認後の実検証用には `/private/tmp/mitori-quality-citation-prepare-20261011.ts` で新規 home / out / raw を 0700、既存の隔離 Codex 設定だけを引き継ぐ config と plan を 0600 で準備済み。実行入口 `/private/tmp/mitori-quality-citation-rerun-20261011-Goiu63/plan.json` に既存 `bench/measure/gen-real.ts` の未実行コマンドを保存した。`--scope s6/lib-tokens` / `s9`、`--engine codex-cli`、concurrency 1、timeout 10 分、`--max-native-calls 1`、各 run guard $0.35 / $0.15（計 $0.50）、turn consent $1 とする。native 呼出は 0 のまま。call cap 用の `--record` は raw prompt / argv / env を含み得るため private temporary directory にのみ保持し、Git へ残すのは allowlist 化した検証結果だけにする。

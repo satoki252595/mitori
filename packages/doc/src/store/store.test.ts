@@ -427,6 +427,23 @@ describe("DOC-U-018 flush cadence and DOC-U-030 cite moves", () => {
 });
 
 describe("verification, freshness, decisions, glossary, flows, translations", () => {
+  test("rechecking and unlocking keep the shared claim verdict", () => {
+    const h = seeded();
+    const [id] = h.store.applyGenerated(
+      [block({ md: "`Agent`を呼ぶ[[1]]。", claims: [{ n: 1, kind: "behavior", quote: "", cites: [cite("a.ts", 1, 1)], checks, verdict: "verified" }] })],
+      opts,
+    ).written as BlockId[];
+    const claim = h.store.claims(id as BlockId)[0];
+    if (!claim) throw new Error("expected generated claim");
+    h.store.setClaimChecks([{ id: claim.id, checks: { ...checks, l1: "fail" } }]);
+    expect(h.store.claims(id as BlockId)[0]?.verdict).toBe("inferred");
+    h.store.setVerified(id as BlockId, true, "Satoki <s@example.com>");
+    expect(h.store.claims(id as BlockId)[0]?.verdict).toBe("human-verified");
+    h.store.setVerified(id as BlockId, false, "Satoki <s@example.com>");
+    expect(h.store.claims(id as BlockId)[0]?.verdict).toBe("inferred");
+    h.store.setClaimChecks([{ id: claim.id, checks: { ...checks, l1: "vacuous", l3: "S" } }]);
+    expect(h.store.claims(id as BlockId)[0]?.verdict).toBe("verified");
+  });
   test("setVerified marks claims human-verified with the git user, and back", () => {
     const h = seeded();
     const [id] = h.store.applyGenerated(

@@ -217,7 +217,7 @@ export function createFakeIndexer(repo: FakeRepo, hasher: Hasher): FakeIndexer {
     },
     symbolRange: no("symbolRange"),
     findSymbols: no("findSymbols"),
-    imports: no("imports"),
+    imports: () => [],
     dependents: no("dependents"),
     modules: () => modules,
     module: (id) => moduleById.get(id) ?? null,

@@ -1,0 +1,308 @@
+{
+  "v": "mitori.quality-imports-static/1",
+  "date": "2026-10-11",
+  "status": "software-input-fix-verified-no-model-regeneration",
+  "liveLlmCalls": 0,
+  "priorQualityNativeCalls": 7,
+  "priorQualityApiEquivalentUsd": 0.79249,
+  "scope": "Current pinned sources -> copied cached index -> real gatherInputs -> renderer -> shared codexPreflight; no socket, no new parsing, no Git mutation, no saved output editing.",
+  "implementation": {
+    "files": [
+      "packages/gen/src/prompts/inputs.ts",
+      "packages/gen/src/prompts/renderer.test.ts",
+      "packages/gen/src/test/fake-indexer.ts",
+      "packages/gen/src/verify/verifier.test.ts"
+    ],
+    "unchanged": {
+      "moduleCoreTokens": 28000,
+      "moduleBodyMaxTokens": 12000,
+      "promptVersions": [
+        "gen.module@11",
+        "gen.quality@6"
+      ],
+      "verifier": true,
+      "markdownGrammar": true,
+      "goldens": true
+    },
+    "rules": [
+      "Read original named import bindings through Indexer.read(numbered=true), retaining redaction, line numbers and blob.",
+      "ImportRecord.line points to the source specifier; inspect at most the preceding 39 lines. For TS/JS, use the nearest visible original import/export line and stop at the specifier. If the start is outside the window, retain only bounded source context.",
+      "Each import slice is at most 40 lines; existing shared BODIES item budgeting and source exclusion are unchanged. No alias or binding statement is reconstructed."
+    ]
+  },
+  "m3e": {
+    "source": {
+      "sha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "path": "lib/tokens.ts",
+      "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+    },
+    "prompt": {
+      "id": "gen.module",
+      "version": "gen.module@11",
+      "tier": "sig"
+    },
+    "cachedFiles": 87,
+    "parseCalls": 0,
+    "budget": {
+      "coreTokens": 16972,
+      "bodyTokens": 10942,
+      "bodyCap": 10988,
+      "fixedCoreCap": 28000,
+      "maxBodyCap": 12000
+    },
+    "corePlusJoinedBodyTokens": 27914,
+    "importOriginals": [
+      "2|import { FAB_MENU_TABS, KIND_TEXT, Lang, NAV_TABS, SPLIT_MENU_TABS, TAB_LABELS, getLang, t, SELECT_OPTIONS } from \"./i18n\";",
+      "3|import { Contrast, isLightColor, schemeFromSeed } from \"./color\";"
+    ],
+    "citable": {
+      "i18n": true,
+      "color": true
+    },
+    "candidateChecks": [
+      {
+        "identifiers": [
+          "lib/i18n.ts",
+          "getLang",
+          "KIND_TEXT"
+        ],
+        "rawCite": {
+          "path": "lib/tokens.ts",
+          "start": 2,
+          "end": 2
+        },
+        "checks": {
+          "l0": true,
+          "l0Raw": true,
+          "l1": "pass",
+          "l2": true,
+          "checkedAt": "2026-10-11T06:31:59.662Z"
+        },
+        "cites": [
+          {
+            "path": "lib/tokens.ts",
+            "start": 2,
+            "end": 2,
+            "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8",
+            "snippet": "5a6e22ccdc7aed8d",
+            "precision": "exact"
+          }
+        ]
+      },
+      {
+        "identifiers": [
+          "lib/color.ts",
+          "schemeFromSeed"
+        ],
+        "rawCite": {
+          "path": "lib/tokens.ts",
+          "start": 3,
+          "end": 3
+        },
+        "checks": {
+          "l0": true,
+          "l0Raw": true,
+          "l1": "pass",
+          "l2": true,
+          "checkedAt": "2026-10-11T06:31:59.663Z"
+        },
+        "cites": [
+          {
+            "path": "lib/tokens.ts",
+            "start": 3,
+            "end": 3,
+            "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8",
+            "snippet": "ba2a7f182ce388e5",
+            "precision": "exact"
+          }
+        ]
+      }
+    ],
+    "docsUnchanged": true,
+    "docsCoverage": {
+      "CONTRIBUTING": true,
+      "Kind": true,
+      "KIND_SPEC": true,
+      "KIND_ORDER": true,
+      "sizeOf": true,
+      "baseRadii": true,
+      "iconSlotsOf": true,
+      "KIND_TEXT": true,
+      "M3Node": true,
+      "MEASURED": true,
+      "NO_BOX": true,
+      "itemKo": true,
+      "STYLE_NOTES": true,
+      "Inspector": true,
+      "Preview": true
+    },
+    "retained": {
+      "frameSizeOf": true,
+      "isPhoneFrame": true,
+      "defaultCompare": true,
+      "makeItem": true,
+      "linkUrlOf": true
+    },
+    "existingBlocks": 14,
+    "humanLockedBlocks": 0
+  },
+  "jev": {
+    "source": {
+      "sha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "path": "jev_ultrafast/agent.py",
+      "blob": "726d880bd95ca946106220a44c05a488a4f1da82"
+    },
+    "qualityPrompt": {
+      "id": "gen.quality",
+      "version": "gen.quality@6",
+      "tier": "doc"
+    },
+    "cachedFiles": 33,
+    "parseCalls": 0,
+    "qualityInputContainsAgentDeclaration": true,
+    "moduleRetention": {
+      "prompt": {
+        "id": "gen.module",
+        "version": "gen.module@11",
+        "tier": "doc"
+      },
+      "parseCalls": 0,
+      "agentCommand": true,
+      "historyAt121": true,
+      "observeAt142": true,
+      "pageChangedAt145": true,
+      "ordered": true
+    }
+  },
+  "optionalRerunEstimate": {
+    "model": "gpt-6.1-sol",
+    "effort": "high",
+    "pricingUsdPerMillion": {
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.1
+    },
+    "method": "shared codexPreflight: UTF-8 input bytes + 2048, output reservation; API-equivalent estimate, not subscription invoice",
+    "nativeCalls": 2,
+    "maxNativeCallsPerRun": 1,
+    "automaticRetry": false,
+    "m3e": {
+      "prompt": "gen.module",
+      "version": "gen.module@11",
+      "inTokens": 107278,
+      "outTokens": 7200,
+      "usd": 0.286556
+    },
+    "jev": {
+      "prompt": "gen.quality",
+      "version": "gen.quality@6",
+      "inTokens": 41144,
+      "outTokens": 4800,
+      "usd": 0.130288
+    },
+    "sumUsd": 0.416844,
+    "priorPlusEstimateUsd": 1.209334,
+    "qualityTotalFrameUsd": 2,
+    "remainingAfterEstimateUsd": 0.790666,
+    "otherExplainCallsIncluded": false,
+    "consent": "No further model call performed. Root must obtain user approval for the additional paid validation. Native thinking has no strict hard token cap; existing consent and run guards remain required.",
+    "proposedTotalRunGuardUsd": 0.5,
+    "priorPlusProposedRunGuardUsd": 1.29249
+  },
+  "tests": {
+    "renderer": {
+      "command": "scripts/nd bun test packages/gen/src/prompts/renderer.test.ts",
+      "pass": 25,
+      "assertions": 207
+    },
+    "verifier": {
+      "command": "scripts/nd bun test packages/gen/src/verify/verifier.test.ts",
+      "pass": 15,
+      "assertions": 80
+    },
+    "totalPass": 40,
+    "totalAssertions": 287,
+    "genTypecheck": "scripts/nd bunx --no-install tsc -b packages/gen: pass",
+    "biome": "4 changed gen files: pass"
+  },
+  "docVerdictFix": {
+    "owner": "root",
+    "file": "packages/doc/src/store/claims.ts",
+    "contract": "CR m1-17 / canonical core computeVerdict",
+    "change": "Replace duplicated stale truth table with computeVerdict for restamp, setVerified/unlock, setClaimChecks, load, apply and edit.",
+    "regression": [
+      "L1 fail -> inferred",
+      "human lock -> human-verified",
+      "unlock -> inferred",
+      "vacuous plus L3 S -> verified"
+    ],
+    "reportedValidation": {
+      "files": [
+        "packages/doc/src/store/store.test.ts",
+        "packages/doc/src/store/reload.test.ts",
+        "packages/gen/src/verify/verifier.test.ts"
+      ],
+      "pass": 61,
+      "assertions": 449,
+      "biomeFiles": 2
+    },
+    "modelRegeneration": false
+  },
+  "limitations": [
+    "Saved latest outputs retain three L1 failures: one Jev Agent citation window and two m3e dependency windows. They were not manually patched.",
+    "The m3e input now includes demonstrably valid candidates; model selection has not been rerun.",
+    "Jev Agent:12 was already in the quality input. Citing import lines7-9 rather than the declaration is model citation selection, not a common missing-input bug.",
+    "Performance/latency explanation remains an inference; a successful identifier check does not measure latency.",
+    "Saved OSS documents contain zero human-locked blocks; human-lock retention is covered by existing fixtures, not a live locked OSS output.",
+    "Markdown intentionally encodes cite links/body while verdict metadata lives in doc.index.json; adding an inferred suffix would require a separate codec/roundtrip contract change. No grammar or verifier weakening was made."
+  ],
+  "payloads": [
+    {
+      "kind": "m3e-gen.module",
+      "temporaryPath": "/private/tmp/mitori-quality-imports-current-inputs-20261011.json",
+      "sha256": "66c2b0a279b09ee1fec8aa110b90fd29d008eb583b53bcd17bdfbf2875d4740c",
+      "committed": false,
+      "containsAuthArgvEnv": false
+    },
+    {
+      "kind": "jev-gen.quality",
+      "temporaryPath": "/private/tmp/mitori-quality-imports-jev-current-inputs-20261011.json",
+      "sha256": "00d5a4f13e382ddf8d24d199c5a8c5440adf345c8acaf7dfd91f5eb16e8bc7e0",
+      "committed": false,
+      "containsAuthArgvEnv": false
+    },
+    {
+      "kind": "jev-gen.module-retention-only",
+      "temporaryPath": "/private/tmp/mitori-quality-imports-jev-module-current-inputs-20261011.json",
+      "sha256": "4b98ebddea4dbc6c42e08dddd9dc4f5d0f86edfa8158f715258edd9e3800cafb",
+      "committed": false,
+      "containsAuthArgvEnv": false
+    }
+  ],
+  "reproduction": {
+    "requiresExistingPinnedSourceAndCachedIndex": true,
+    "offlineCommands": [
+      "scripts/nd bun /private/tmp/mitori-quality-imports-offline-20261011.ts",
+      "scripts/nd bun /private/tmp/mitori-quality-imports-jev-offline-20261011.ts",
+      "scripts/nd bun /private/tmp/mitori-quality-imports-jev-module-offline-20261011.ts"
+    ],
+    "prepareOnlyCommand": "scripts/nd bun /private/tmp/mitori-quality-citation-prepare-20261011.ts",
+    "preparedPrivatePlan": "/private/tmp/mitori-quality-citation-rerun-20261011-Goiu63/plan.json",
+    "preparedNativeCalls": 0,
+    "preparedLimits": {
+      "m3eRunUsd": 0.35,
+      "jevRunUsd": 0.15,
+      "totalUsd": 0.5,
+      "maxNativeCallsEach": 1,
+      "concurrency": 1,
+      "timeoutMinutes": 10,
+      "turnConsentUsd": 1
+    },
+    "configSource": "Previous isolated Codex configuration only; no source repository config/hooks/tools inherited.",
+    "permissions": {
+      "baseAndRawDirectories": "0700",
+      "configAndPlan": "0600"
+    },
+    "rawRecordingPolicy": "Required by existing --max-native-calls recorder; keep in private temporary directories, never commit raw prompt/argv/env/auth."
+  }
+}

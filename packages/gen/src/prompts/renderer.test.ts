@@ -55,6 +55,127 @@ describe("gen.system rendering and pinning (§5.4, PT-05)", () => {
 });
 
 describe("unit prompt rendering (§5.1-3/4/5, §5.6)", () => {
+  test("module input preserves named imports and multiline aliases as citable source within the existing core budget", async () => {
+    const repo = sampleRepo();
+    const path = "src/http/server.ts";
+    repo.files[path] = [
+      "import {",
+      "  getLang,",
+      "  KIND_TEXT as initialText,",
+      '} from "./i18n";',
+      'import { schemeFromSeed as makeScheme } from "./color";',
+      "",
+      "export function handleLogin() {",
+      "  return initialText[getLang()] + makeScheme();",
+      "}",
+    ].join("\n");
+    repo.symbols[path] = [{ name: "handleLogin", qualname: "handleLogin", kind: "function", start: 7, end: 9, exported: true }];
+    const { env, indexer, renderer } = setup(repo);
+    const context = indexer.moduleContext(M_HTTP, { tokenizer: "claude-v5", budget: 28000, tier: "sig" });
+    indexer.moduleContext = () => ({ ...context, hot: [], tokens: { ...context.tokens, hot: 0, total: 26000 } });
+    indexer.imports = (p) =>
+      p === path
+        ? [
+            { from: path, spec: "./i18n", line: 4, kind: "static", names: ["getLang", "KIND_TEXT"], to: [] },
+            { from: path, spec: "./color", line: 5, kind: "static", names: ["schemeFromSeed"], to: [] },
+          ]
+        : [];
+    indexer.flowBodies = () => [];
+    indexer.hotBodies = () => [];
+    env.tokens = (text) => text.length;
+    expect(context.skeleton.text).not.toContain("KIND_TEXT");
+    const task = moduleTask(M_HTTP, "http");
+    const gathered = await gatherInputs(task, env);
+    const body = gathered.inputs.BODIES?.join("\n") ?? "";
+    for (const line of repo.files[path]
+      .split("\n")
+      .slice(0, 5)
+      .map((l, i) => `${i + 1}|${l}`))
+      expect(body).toContain(line);
+    expect(body.match(/schemeFromSeed/g)).toHaveLength(1);
+    expect(26000 + body.length).toBeLessThanOrEqual(28000);
+    expect(gathered.blobs.get(path)).toBe(indexer.currentBlob(path) ?? undefined);
+    const rendered = renderer.render(task, gathered.inputs, { lang: "ja", workdir: SANDBOX });
+    expect(rendered.ctx.citable.allows(path, 1, 4)).toBe(true);
+    expect(rendered.ctx.citable.allows(path, 5, 5)).toBe(true);
+    expect(rendered.userBytes).not.toContain('import { makeScheme } from "./color"');
+  });
+
+  test("adjacent bounded import slices keep the next multiline binding before its indexed specifier", async () => {
+    const repo = sampleRepo();
+    const path = "src/http/server.ts";
+    const lines = [
+      'import { first } from "./first";',
+      ...Array<string>(37).fill(""),
+      "import {",
+      "  getLang,",
+      "  KIND_TEXT as initialText,",
+      '} from "./i18n";',
+      "",
+      "export function handleLogin() {}",
+    ];
+    repo.files[path] = lines.join("\n");
+    repo.symbols[path] = [{ name: "handleLogin", qualname: "handleLogin", kind: "function", start: 44, end: 44, exported: true }];
+    const { env, indexer, renderer } = setup(repo);
+    indexer.imports = (p) =>
+      p === path
+        ? [
+            { from: path, spec: "./first", line: 1, kind: "static", names: ["first"], to: [] },
+            { from: path, spec: "./i18n", line: 42, kind: "static", names: ["getLang", "KIND_TEXT"], to: [] },
+          ]
+        : [];
+    indexer.flowBodies = () => [];
+    indexer.hotBodies = () => [];
+    const reads: [number, number][] = [];
+    const read = indexer.read.bind(indexer);
+    indexer.read = (p, range, options) => {
+      if (p === path && range) reads.push([range.start, range.end]);
+      return read(p, range, options);
+    };
+    const task = moduleTask(M_HTTP, "http");
+    const gathered = await gatherInputs(task, env);
+    const body = gathered.inputs.BODIES?.join("\n") ?? "";
+    for (let i = 38; i < 42; i++) expect(body).toContain(`${i + 1}|${lines[i]}`);
+    expect(body.match(/KIND_TEXT as initialText/g)).toHaveLength(1);
+    expect(reads.filter(([start, end]) => start <= 42 && end >= 42)).toContainEqual([3, 42]);
+    const rendered = renderer.render(task, gathered.inputs, { lang: "ja", workdir: SANDBOX });
+    expect(rendered.ctx.citable.allows(path, 39, 42)).toBe(true);
+  });
+
+  test("module imports respect source exclusion and leave the same fixed budget when large imports do not fit", async () => {
+    const repo = sampleRepo();
+    const http = repo.modules.find((m) => m.id === M_HTTP);
+    if (!http) throw new Error("HTTP fixture missing");
+    const secret = "src/http/secret.ts";
+    repo.files[secret] = 'import { hidden } from "./hidden";';
+    repo.symbols[secret] = [];
+    repo.excluded = { [secret]: "secret" };
+    http.paths.push(secret);
+    repo.files["src/http/server.ts"] = `import { ${"largeBinding,".repeat(1000)} } from "./large";\nexport function handleLogin() {}`;
+    repo.symbols["src/http/server.ts"] = [{ name: "handleLogin", qualname: "handleLogin", kind: "function", start: 2, end: 2, exported: true }];
+    const { env, indexer } = setup(repo);
+    const context = indexer.moduleContext(M_HTTP, { tokenizer: "claude-v5", budget: 28000 });
+    indexer.moduleContext = () => ({
+      ...context,
+      skeleton: { ...context.skeleton, files: context.skeleton.files.filter((p) => p !== secret) },
+      hot: [],
+      tokens: { ...context.tokens, hot: 0, total: 27900 },
+    });
+    indexer.imports = (p) => {
+      expect(p).not.toBe(secret);
+      return [{ from: p, spec: "./large", line: 1, kind: "static", names: ["largeBinding"], to: [] }];
+    };
+    indexer.flowBodies = () => [];
+    indexer.hotBodies = () => [];
+    env.tokens = (text) => text.length;
+    const gathered = await gatherInputs(moduleTask(M_HTTP, "http"), env);
+    const body = gathered.inputs.BODIES?.join("\n") ?? "";
+    expect(body).not.toContain("hidden");
+    expect(body).not.toContain("largeBinding");
+    expect(gathered.blobs.has(secret)).toBe(false);
+    expect(27900 + body.length).toBeLessThanOrEqual(28000);
+  });
+
   test("module rejoining split callable excerpts retains the write before a fallible observation", async () => {
     const repo = sampleRepo();
     repo.files["src/http/server.ts"] =
