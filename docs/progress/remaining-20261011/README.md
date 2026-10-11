@@ -6,9 +6,11 @@
 
 ## 現在の判定
 
+最新の[PR #17](https://github.com/satoki252595/mitori/pull/17)はmainへ統合済みで、Ubuntu・Macの全CIが成功した。Mac全suite待ちは解消済み。残る4件は下の「次の確認」を参照する。以下のPR #14 / #15の停止・未確認は当時の履歴として保持する。
+
 後続の[PR #14](https://github.com/satoki252595/mitori/pull/14)も2026-10-11T12:28:11Zに通常merge `6d892ea8be7976d4095eb2bfe8c1bbf8e346f545` でmainへ反映した。prewarm・F10・F14・export事前検証と再確認条件の修正を含む。Ubuntuは修正head b74d4faでunit3,042pass / 0fail、golden109pass / 0fail、全20semantic / 0cached / 0errors、fixtures・size・Linux binary成功。Macは初回NOISY停止後、同headのattempt2 / 3もquiet / AC・factor1.172012 / 1.195410で較正guard停止、browser・共有viewer・a11y未確認。通常端末起動でも解消しなかった。対象回帰・Ubuntu全体・配布binary確認を根拠に統合した。merge treeと検証headのtreeは一致し、作業branchをlocal / remoteから削除、元のrunnerサービスを復元した。[CIの全経緯](ci.md)。
 
-2026-10-12 JST時点では[PR #15](https://github.com/satoki252595/mitori/pull/15)は通常merge `e34178c` でmainへ統合済み。source `89f228ea300dd1dd4211b32488042993a75e3235` のWindows後続検証と最新headのUbuntu CIが成功した。Mac全suiteの未確認と他の未達は維持する。
+PR #15統合時点では[PR #15](https://github.com/satoki252595/mitori/pull/15)は通常merge `e34178c` でmainへ統合済み。source `89f228ea300dd1dd4211b32488042993a75e3235` のWindows後続検証と最新headのUbuntu CIが成功した。この時点ではMac全suite未確認だったが、後続PR #17で解消済み。他の未達は下の「次の確認」に残す。
 
 | 項目 | 確認できたこと | 残る確認・限界 | 証拠 |
 |---|---|---|---|
@@ -61,7 +63,7 @@ head63e23b0の単独API診断では同じ言語へのsetLanguage呼出しと省�
 
 main85aabcfのprivateコピーでは抽出phaseを追加計時し、query処理の約91%がWASM側と確認した。2回とも3表全行hash・coverage・診断・countersは一致したが、較正未確認の計時付き診断で、正式速度やbefore / after比較には使わない。大幅短縮を裏づける安全なquery削減案は得られず、製品は変更していない。[phase診断](idx-cold.md)。契約枠だけを使うCodex設定も公式一覧とCLI helpからは確認できず、追加実生成2回は既存の費用確認を待つ。[公式仕様の確認](quality.md)。
 
-PR #14のMacだけを再実行した後続attempt2 / 3はquiet / ACだったが、factor1.172012 / 1.195410で較正guard停止。前回成功した通常端末起動でも解消しなかった。browser・共有viewer・a11yは未実行、Ubuntuは再実行せず成功を継承。元のrunner常駐起動を復元済みで、Mac全suite未確認を維持する。[後続CI](ci.md)。
+PR #14のMacだけを再実行した後続attempt2 / 3はquiet / ACだったが、factor1.172012 / 1.195410で較正guard停止。前回成功した通常端末起動でも解消しなかった。browser・共有viewer・a11yは未実行、Ubuntuは再実行せず成功を継承。元のrunner常駐起動を復元済みで、このheadのMac全suite未確認を履歴に保持する。後続PR #17の全suite成功は末尾の「最終統合の追記」を参照する。[後続CI](ci.md)。
 
 UIは初回nonce競合、仮想化アンカー、節移動でのengine再検出、初回statusの先取り競合、lazy chunkとprecompressionを修正した。strictの上限・件数・診断は維持し、先行compiledはgen6.890 / limit6.900KB、palette4.516 / 4.600KBと余裕が小さい項目も残す。Readerの実click→paintはnative65.2 / 31.7 / 32.1ms、enhanced31.9 / 32.0 / 16.1ms。修正前のscanSummary3,312.1 / limit2,000msと、先行compiledの1,771.5msを保持する。後者はfactor1.12でreport-onlyのため正式基準機合格へ読み替えない。[先行UI記録](ui-bench-release.md)。
 
