@@ -2065,5 +2065,322 @@
     "rssMeasuredMedianMiB": 985.140625,
     "repeated": false,
     "candidateAdopted": false
+  },
+  "additionalCandidates20261011": {
+    "status": "not adopted; existing formal hard-limit failure retained",
+    "cjk": {
+      "date": "2026-10-11T12:36:14.352Z",
+      "diagnosticOnly": true,
+      "note": "pure helper only; no scan or formal gate claim; current machine is not required to be quiet",
+      "source": "packages/indexer/src/tokens/index.ts",
+      "sourceSha256": "7c9135ed1dda0b72829ca49fb7b704b20454334873d0c8c7442be37bbbf68a6f",
+      "files": 6817,
+      "utf16Units": 88311633,
+      "lowOnlyFiles": 6707,
+      "checkedAllBmpUnits": true,
+      "before": [
+        11.353515625,
+        11.47802734375,
+        10.984375
+      ],
+      "after": [
+        11.353515625,
+        11.47802734375,
+        10.984375
+      ],
+      "runs": [
+        {
+          "kind": "baseline",
+          "ms": 58.884750000000054,
+          "sum": 2970
+        },
+        {
+          "kind": "candidate",
+          "ms": 27.41712500000017,
+          "sum": 2970
+        },
+        {
+          "kind": "candidate",
+          "ms": 27.842333000000053,
+          "sum": 2970
+        },
+        {
+          "kind": "baseline",
+          "ms": 58.20125000000007,
+          "sum": 2970
+        }
+      ],
+      "decision": "Pure-helper diagnostic only; roughly 31ms total CPU saving across all Go strings is too small to establish scan improvement. No production edit."
+    },
+    "goRefs": {
+      "format": "mitori.idx-go-ref-fold/1",
+      "date": "2026-10-11T12:48:40.391Z",
+      "source": {
+        "sourceSha": "ecf20d0c4dd2db7723657c827cfcfb4f6006ff97",
+        "files": 3954,
+        "sha256": "ee9f8365f813622bf4eb5de052e9d7dd061a759abdcc6dd40e4dbede0d4ad064",
+        "baselineSha256": "6a4b395430744e45a6182de7a5d13631697370af8df5e4c16f134b266d2fd9be",
+        "candidateSha256": "62f9341e3d86bf58fe69e8c0076e4e69cb33627c79f5b7cff8f04f24aeae05ad",
+        "dependencies": "Existing project Nix runtime; external dependency links reused; workspace package links point to this frozen tree.",
+        "frozenAt": "2026-10-11T12:47:29.439Z"
+      },
+      "before": {
+        "machine": {
+          "cpu": "Apple M5 Max",
+          "cores": 18,
+          "ramGb": 128,
+          "os": "Darwin 27.0.0",
+          "bun": "1.4.2",
+          "node": "22.23.3",
+          "chrome": "153.0.8010.12",
+          "loadavg": 10.50927734375,
+          "noisy": true,
+          "waited": 0,
+          "power": "ac"
+        },
+        "factor": {
+          "factor": 1.1579717426970444,
+          "source": "measured"
+        }
+      },
+      "after": {
+        "machine": {
+          "cpu": "Apple M5 Max",
+          "cores": 18,
+          "ramGb": 128,
+          "os": "Darwin 27.0.0",
+          "bun": "1.4.2",
+          "node": "22.23.3",
+          "chrome": "153.0.8010.12",
+          "loadavg": 11.0517578125,
+          "noisy": true,
+          "waited": 0,
+          "power": "ac"
+        },
+        "factor": {
+          "factor": 1.1206446894179014,
+          "source": "measured"
+        }
+      },
+      "referenceValid": false,
+      "allRowsEqual": true,
+      "countersEqual": true,
+      "baselineMedianMs": 2290.6546874999995,
+      "candidateMedianMs": 2188.7507914999997,
+      "percentFaster": 4.448679958445279,
+      "runs": [
+        {
+          "variant": "baseline",
+          "ms": 2450.0297499999997,
+          "timings": {
+            "s0": 296.120542,
+            "workersStart": 0.04416700000001583,
+            "s1": 2148.249,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 2446.820917,
+            "persist": 2842.933125,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 6,
+            "readMs": 1092.853875000003,
+            "parseMs": 5323.062918000003,
+            "queryMs": 3662.6169350000096,
+            "degraded": 2
+          },
+          "rssPeakMB": 910.578125,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            10.50927734375,
+            12.962890625,
+            12.35205078125
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        },
+        {
+          "variant": "candidate",
+          "ms": 2180.880083,
+          "timings": {
+            "s0": 161.46724999999998,
+            "workersStart": 0.0438750000000141,
+            "s1": 2013.460583,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 2177.7034169999997,
+            "persist": 2707.7696659999997,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 6,
+            "readMs": 348.6528709999998,
+            "parseMs": 5250.004014999993,
+            "queryMs": 3646.1916560000027,
+            "degraded": 2
+          },
+          "rssPeakMB": 935.40625,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            11.35302734375,
+            13.0625,
+            12.39404296875
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        },
+        {
+          "variant": "candidate",
+          "ms": 2196.6214999999997,
+          "timings": {
+            "s0": 143.54629199999997,
+            "workersStart": 0.03804200000001856,
+            "s1": 2047.882125,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 2193.776334,
+            "persist": 2786.3917910000005,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 6,
+            "readMs": 335.4921889999983,
+            "parseMs": 5386.31452500002,
+            "queryMs": 3730.1444410000095,
+            "degraded": 2
+          },
+          "rssPeakMB": 953.6875,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            11.48486328125,
+            13.06103515625,
+            12.3974609375
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        },
+        {
+          "variant": "baseline",
+          "ms": 2131.2796249999997,
+          "timings": {
+            "s0": 148.29275,
+            "workersStart": 0.04025000000001455,
+            "s1": 1977.887208,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 2128.935666,
+            "persist": 2615.9495409999995,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 6,
+            "readMs": 324.96773100000064,
+            "parseMs": 5308.622797999995,
+            "queryMs": 3615.983155999997,
+            "degraded": 2
+          },
+          "rssPeakMB": 934.171875,
+          "files": 7687,
+          "included": 6009,
+          "counters": {
+            "idx.files.hashed": 6539,
+            "idx.parse.calls": 5907,
+            "idx.sql.writes": 36
+          },
+          "loadavg": [
+            11.23046875,
+            12.95849609375,
+            12.369140625
+          ],
+          "availableParallelism": 18,
+          "fingerprint": {
+            "blobs": {
+              "rows": 6490,
+              "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+            },
+            "symbols": {
+              "rows": 133602,
+              "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+            },
+            "skeleton": {
+              "rows": 11997,
+              "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+            }
+          }
+        }
+      ],
+      "targetedTests": {
+        "files": [
+          "packages/indexer/src/parse/extract.test.ts",
+          "packages/indexer/src/parse/worker.test.ts"
+        ],
+        "pass": 33,
+        "fail": 0,
+        "assertions": 100,
+        "ms": 910
+      },
+      "decision": "Same three-table hashes/counters/coverage, but NOISY and both factors out of reference. Candidate query CPU/RSS were not lower, and its 2.18-2.20s lies within the baseline 2.13-2.45s range. No production edit."
+    }
   }
 }

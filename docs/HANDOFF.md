@@ -9,6 +9,8 @@
 
 ### ★.1 実装と確認できたこと
 
+- **追加検証:** main ecf20d0でGo refs2pass候補の対象33testsと抽出3表の全行hash一致を確認したが、NOISY・較正基準外で速度差4.45%、query CPU / RSS低下もなく不採用。CJK早期終了もhelperだけの小差で不採用。正式1,500ms未達を維持する。[判断](progress/remaining-20261011/idx-cold.md)。native Chrome操作は続行時に許可されたがOS IME変換は再現できず、最新配布binary・全LLM無効・上限0の本人確認用デモを準備した。[Chromeの現在と履歴](progress/remaining-20261011/chrome.md)。
+
 - **後続統合:** [PR #14](https://github.com/satoki252595/mitori/pull/14)を2026-10-11T12:28:11Zに通常merge `6d892ea8be7976d4095eb2bfe8c1bbf8e346f545` でmainへ反映した。下記prewarm・F10・F14・export事前検証と再確認条件の修正を含む。修正head b74d4faのUbuntuはunit3,042pass / 0fail、golden109pass / 0fail、check・fixtures・size・Linux binary成功。Macの同headは負荷guard停止で未確認（★.2.5）。merge treeと検証headのtree一致を確認し、作業branchをlocal / remoteから削除。元のrunnerサービスも復元した。[CI記録](progress/remaining-20261011/ci.md)。
 
 - **初回parse準備:** lazy poolのfactory直後はWorker数0だったため、既存prewarmが1件も送信されていなかった。起動予定数で準備を送る1行を修正し、旧実装で失敗する回帰を確認。対象6tests / 20assertions成功。ABBAは抽出3表の全行hash・coverage・counters一致、S1のWorker起動待ちは約10msから0.04msになったが、終了較正が基準外なので全体の速度改善・1,500ms合格は主張しない。[原因と比較](progress/remaining-20261011/idx-prewarm.md)。

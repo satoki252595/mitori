@@ -22,7 +22,7 @@
 | UI / assets / a11y | 読書位置修正後のcompiledはstrict asset全項目pass・初期JS54.697KB gzip。最新正式scanSummaryはquiet / AC・3run / warmup1で中央値1,615.700ms、hard limit2,000ms合格 | target1,000msはWARN。旧1,771.5ms / factor1.12のreport-onlyは履歴として保持 | [最新assets](reader-fix-assets.json)、[先行UI記録](ui-bench-release.md) |
 | Mac正式CI | head98c59a6 / attempt6はquiet / AC・factor1.017953727365694でbrowser380pass / 14skip / 0fail、共有2pass / 0fail、a11y8pass | 同じNix固定runnerのforeground実行で成功。LaunchAgent配下との実子priority差は観測したが、厳密なQoSや根因は未確定。元のサービスは復元済み | [CI記録](ci.md) |
 | Windows | head23645fdのNix crossbuildと実Windowsのsource tests7pass / 0skip / 0fail（33assert / 4.20s）、製品`--version`とembedded selftest6checksすべて成功 | verified Job Object経路の対象検証。非group直接Bun.spawnには標準環境変数の補充が残る | [最新Windows CI](https://github.com/satoki252595/mitori/actions/runs/38115528185)、[windows-nix.md](windows-nix.md)、[windows-env.md](windows-env.md) |
-| 実ブラウザ操作 | 実Chromeの初回map、確定日本語検索、Codex native/MCP切替と配布binaryの接続commandを確認 | CDPの実IME送信が操作許可で拒否され、本人確認待ち。Safari実機はChrome代替の選択により必須外 | [chrome.md](chrome.md) |
+| 実ブラウザ操作 | 実Chromeの初回map、確定日本語検索、Codex native/MCP切替と配布binaryの接続commandを確認。続行時はnative Chrome操作も許可され、最新binaryの無料デモを本人確認用に準備 | nativeキー入力もASCIIのままで実IME変換は未確認。本人操作結果待ち。Safari実機はChrome代替の選択により必須外 | [chrome.md](chrome.md) |
 
 ## Codexの実生成とExplain
 
@@ -45,6 +45,8 @@ Go7kでは凍結した同一source・新process / 空homeで12runを比較し、
 最新の正式 `idx.s01.cold.7kfiles` はsource `bdcebaf1aa97525bc86722cbf4f4cbf508bfa083`、warmup1 / measured5、quiet / AC、factor1.037243379882442で中央値1,980.096958ms。hard limit1,500msは未達。上のNOISY / report-only測定と採用ABBAはそれぞれ履歴として保持する。
 
 後続helper候補のABBAもquiet / reference内（before1.078238 / after1.073405）で完了。baseline中央値1,853.212792msに対し候補1,849.252792ms（0.214%）で、3表の全行hash・counters・coverage・6Workerは一致したが、速度の採用根拠はなく未採用とした。
+
+main ecf20d0で追加のCJK早期終了とGo refs2pass候補も確認した。前者は全corpusのhelper CPU約31msだけの差。後者は対象33tests成功・3表全行hash一致だが、baseline範囲内の4.45%差でquery CPU / RSS低下なし、前後ともNOISY・較正基準外だった。両方不採用、最新正式1,500ms未達を保持する。[追加候補の判断](idx-cold.md)。
 
 UIは初回nonce競合、仮想化アンカー、節移動でのengine再検出、初回statusの先取り競合、lazy chunkとprecompressionを修正した。strictの上限・件数・診断は維持し、先行compiledはgen6.890 / limit6.900KB、palette4.516 / 4.600KBと余裕が小さい項目も残す。Readerの実click→paintはnative65.2 / 31.7 / 32.1ms、enhanced31.9 / 32.0 / 16.1ms。修正前のscanSummary3,312.1 / limit2,000msと、先行compiledの1,771.5msを保持する。後者はfactor1.12でreport-onlyのため正式基準機合格へ読み替えない。[先行UI記録](ui-bench-release.md)。
 

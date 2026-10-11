@@ -55,3 +55,12 @@ scripts/nd bun --preload /tmp/mitori-idx-formal-capture-20261011.ts bench/runner
 引き続きquiet / reference条件を満たした値は未取得で、1,500ms上限は未解決。さらなるparse / query改善案には、今回と同じ全行一致・診断維持と同条件比較が必要。Worker増加、fallback条件の採用、1,500ms上限や較正規則の緩和で代替しない。
 
 各run、環境、失敗、profileの限界は [idx-cold.json](idx-cold.json)。一時driver・raw log・不採用候補は `/tmp/mitori-idx-cold-20261011/` に保持した。新依存、モデル呼び出し、継続費用はない。
+
+## 追加候補の確認（main ecf20d0、12:36〜12:49 UTC）
+
+最新の正式未達値は [idx-formal.json](idx-formal.json) のquiet / AC・中央値1,980.097msであり、上の先行NOISY値とは区別する。追加2案も製品へ採用していない。
+
+- CJK判定のASCII早期終了は、固定Go corpusの6,817ファイル・88,311,633 UTF-16単位を使った純粋helper診断だけを実施。全BMP単位と境界例は元実装と一致し、ABBAはbaseline58.885 / 58.201ms、候補27.417 / 27.842msだった。合計CPU約31msの削減だけでは6Worker scan全体の改善根拠にならない。
+- 正常Goのrefsを同じquery結果から先にfoldして保持期間を短くする2pass案は、凍結source・fresh process / 空home・6WorkerでABBAを実施。3表の全行hash、coverage、診断、countersは一致し、対象extract / workerも33pass・100assertions。baseline2,450.030 / 2,131.280ms、候補2,180.880 / 2,196.621ms、中央値の差は4.45%。候補値はbaselineの範囲内で、query CPUとRSSも低下していない。前後ともNOISY、factor1.157972 / 1.120645で基準外のため速度改善は未証明。
+
+候補のためにGo専用経路・generatorを製品へ増やす根拠は得られなかった。予算・対象・抽出仕様・Worker数は維持し、最新正式1,500ms未達を保持する。全値は同JSONの `additionalCandidates20261011`。追加LLM・依存・費用0。
