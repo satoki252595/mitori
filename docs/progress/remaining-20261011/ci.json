@@ -450,6 +450,94 @@
     "llmCalls": 0,
     "additionalCost": 0,
     "limitsChanged": false,
-    "referenceChanged": false
+    "referenceChanged": false,
+    "corrected": {
+      "head": "b74d4fad143ab17be6cb412da675156d399d0ebb",
+      "run": 38138661011,
+      "initialConclusion": "failure",
+      "ubuntu": {
+        "job": 114467729984,
+        "conclusion": "success",
+        "check": {
+          "pass": true,
+          "seconds": 46.8,
+          "semanticBuilds": 20,
+          "cached": 0,
+          "errors": 0,
+          "factorDisplayed": 1.736,
+          "hardLimitSecondsDisplayed": 52.07,
+          "softTargetExceeded": true
+        },
+        "unit": {
+          "pass": 3042,
+          "skip": 134,
+          "todo": 4,
+          "fail": 0,
+          "assertions": 122068,
+          "seconds": 315.52
+        },
+        "fixtures": {
+          "verified": 12
+        },
+        "golden": {
+          "pass": 109,
+          "skip": 4,
+          "fail": 0,
+          "assertions": 1028,
+          "seconds": 4.8
+        },
+        "size": {
+          "pass": true,
+          "binaryMbDisplayed": 89.6,
+          "targetMb": 85,
+          "hardLimitMb": 95
+        },
+        "binarySmoke": "linux-x64 build and version passed",
+        "binaryStartup": {
+          "medianMs": 73.83,
+          "factorDisplayed": 1.69,
+          "gating": false,
+          "overLimit": true
+        },
+        "logSha256": "7463f920b0db36edd6b2034927db8ec76d13353e5ffd54b4946a22e390890b25"
+      },
+      "mac": {
+        "initialJob": 114467730095,
+        "loadavg": 9.68896484375,
+        "noisy": true,
+        "waited": 2,
+        "power": "ac",
+        "factor": null,
+        "status": "quiet guard stopped before browser tests",
+        "sharedViewer": "skipped",
+        "a11y": "skipped",
+        "logSha256": "a8c35ce5beeac40ae71629cac985490a03b2e78781d61abea1a40d6cf50d4c7a"
+      }
+    },
+    "publication": {
+      "mergedAt": "2026-10-11T12:28:11Z",
+      "mergeCommit": "6d892ea8be7976d4095eb2bfe8c1bbf8e346f545",
+      "mergeMethod": "merge",
+      "tree": "8cf402397678f1cc33c849820b0b6dd2cb30c90f",
+      "sameTreeAsVerifiedHead": true,
+      "browserSourceAndTestDiff": false,
+      "latestMacSuite": "pending: quiet guard stopped before tests",
+      "branch": "codex/fix-lazy-parse-prewarm-20261011",
+      "localBranchDeleted": true,
+      "remoteBranchDeleted": true,
+      "originalLaunchAgentRestored": true,
+      "plistChanged": false,
+      "runner": {
+        "online": true,
+        "busy": false
+      },
+      "macBinary": {
+        "source": "6d892ea8be7976d4095eb2bfe8c1bbf8e346f545",
+        "sha256": "d0a6c5a2d2aa809e549fcdb4eea43dde997d33c3a2a19623dc77a79b56965a56",
+        "build": "pass",
+        "version": "mitori 0.0.0 (api 1)",
+        "selftest": "not repeated; prior results retain their source hashes"
+      }
+    }
   }
 }

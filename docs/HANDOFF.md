@@ -9,8 +9,10 @@
 
 ### ★.1 実装と確認できたこと
 
+- **後続統合:** [PR #14](https://github.com/satoki252595/mitori/pull/14)を2026-10-11T12:28:11Zに通常merge `6d892ea8be7976d4095eb2bfe8c1bbf8e346f545` でmainへ反映した。下記prewarm・F10・F14・export事前検証と再確認条件の修正を含む。修正head b74d4faのUbuntuはunit3,042pass / 0fail、golden109pass / 0fail、check・fixtures・size・Linux binary成功。Macの同headは負荷guard停止で未確認（★.2.5）。merge treeと検証headのtree一致を確認し、作業branchをlocal / remoteから削除。元のrunnerサービスも復元した。[CI記録](progress/remaining-20261011/ci.md)。
+
 - **初回parse準備:** lazy poolのfactory直後はWorker数0だったため、既存prewarmが1件も送信されていなかった。起動予定数で準備を送る1行を修正し、旧実装で失敗する回帰を確認。対象6tests / 20assertions成功。ABBAは抽出3表の全行hash・coverage・counters一致、S1のWorker起動待ちは約10msから0.04msになったが、終了較正が基準外なので全体の速度改善・1,500ms合格は主張しない。[原因と比較](progress/remaining-20261011/idx-prewarm.md)。
-- **F10 / F14:** 旧監査に残っていた実績較正・全体help・export終了処理を後続branchで修正。較正はexact profileの実測超過だけを足し、保守floor・USD cap・confidence25を維持する。対象40tests成功。[較正の確認](progress/remaining-20261011/ledger-calibration.md)。helpは既存の日本語・英語案内を再利用。exportは自身のchildと証明できるdaemonだけを終了対象にし、後接続や作業中なら同期idle guardで維持する。終了拒否や通信失敗でも結果・元エラーを保持。CLI対象とserver shutdown対象が成功し、統合check全7stepも成功（5.76秒、warm）。[終了処理の確認](progress/remaining-20261011/cli-lifecycle.md)。後続branchのCI・main統合は別途記録する。
+- **F10 / F14:** 旧監査に残っていた実績較正・全体help・export終了処理を後続branchで修正。較正はexact profileの実測超過だけを足し、保守floor・USD cap・confidence25を維持する。対象40tests成功。[較正の確認](progress/remaining-20261011/ledger-calibration.md)。helpは既存の日本語・英語案内を再利用。exportは自身のchildと証明できるdaemonだけを終了対象にし、後接続や作業中なら同期idle guardで維持する。終了拒否や通信失敗でも結果・元エラーを保持。CLI対象とserver shutdown対象が成功し、統合check全7stepも成功（5.76秒、warm）。[終了処理の確認](progress/remaining-20261011/cli-lifecycle.md)。main統合・Ubuntu成功・Mac未確認は上の後続統合とCI記録を参照する。
 - **export入力の事前検証:** 配布binaryで無効保存先によるscan中のdaemon残存を発見し、言語・保存先検証を接続前へ移した。追加3回帰の旧実装失敗と修正後spawn0を確認、最終export18pass / 70assertions。修正後binaryでも正常書き出しと無効保存先の両経路でregistry無しを確認。最終sourceの統合check全7stepも成功（4.12秒、warm）。[失敗と修正後](progress/remaining-20261011/cli-lifecycle.json)。
 - **Codex実生成:** `codex-cli` / `gpt-6.1-sol` / highを正式に配線し、Nix経由でJevの対象2節とm3eの対象moduleを実生成した。対象OSSの設定・hook・toolを継承しないlean profileを維持。Jevのhistory → observe → page_changed、60操作 / 120 prediction decision requests / scroll・wait追加前の250 DOM candidates、m3eの条件付き変更先・4言語・検証3コマンド・省略寸法の既定値補完を本文へ回復した。[品質記録](progress/remaining-20261011/quality.md)。
 - **Codex Explain / Nix・通常ローカル:** go-smallで各1 application jobがattempt1 / done、各引用1件有効、元source不変、後始末成功。Nixはterminal reported input1,582 / output47、API-equivalent $0.003634、run5.012秒。既存ローカルBun 1.4.2はinput1,585 / output47、$0.003640、run4.334秒。各cap$0.05、合計$0.007274。誤った旧LLM呼出数カウンタは採用していない。[両経路の安全な証跡](progress/remaining-20261011/codex-explain.json)。Codexは認証待ちではない。
@@ -29,6 +31,8 @@
 3. **引用窓:** 保存済みm3e最新版はL1が28pass / 2fail / 8vacuous、Jev品質節は22pass / 1fail / 2vacuous。[source照合](progress/remaining-20261011/quality.citation-review.json)。m3e依存文のimport原文を入力へ補い、複数行importのspecifier行からもbindingsを保持する。既存28k枠・除外・元行・blob・citableと既定値helperをofflineで確認、検証器は緩めていない。文書の再検証もcoreの共通verdictへ統一した。修正後の追加実生成2回はAPI換算保守$0.416844 / 見積枠$0.50で本人の費用承認待ち。ChatGPT認証とAPIキー未設定を確認したが、`credits.hasCredits:true` のため有料credit消費がない保証はできず、$0.50も実請求の上限ではない。今回の統合作業でnative呼出は0。保存済み出力の全引用pass・全文semantic保証とは扱わない。
 
 4. **外部provider本人環境:** Codex・Muse・Ollama・LM Studioの記録とは別に、Antigravityの実接続、Grokの本人ログイン・生成、外部ツール4種での本人設定登録後の文書生成は未確認。公式本人認証やアプリ側の再読込が必要で、設定や認証を勝手に変更しない。[provider別記録](progress/startup-matrix-20261007/README.md)。
+
+5. **PR #14のMac全suite:** 同headのload9.688965 / NOISY / ACで開始前guard停止、browser・共有viewer・a11yは未実行。ブラウザ側コードと試験の差分はないが、PR #13の成功をこのheadの成功には流用しない。Ubuntu全体・対象回帰・配布binaryの確認を根拠に通常mergeし、Macの再確認はquiet / reference条件が整ってから実施する。guard・時間上限・referenceは維持。[初回失敗と修正後](progress/remaining-20261011/ci.md)。
 
 後続の初回parse準備修正も、開始factor1.083876に対し終了factor1.124994で基準外だった。正式caseの後続試行も事前factor1.130491でguard停止、scan0回。機能修正と全行hash一致を確認したが、Go7kの正式未達を上書きしない。[guardの記録](progress/remaining-20261011/idx-prewarm.json)。
 

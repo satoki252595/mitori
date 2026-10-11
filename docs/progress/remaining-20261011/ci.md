@@ -47,3 +47,13 @@ PR #13は2026-10-11T11:16:43Zに通常mergeでmainへ統合した（`df014912ee7
 [run38137725740](https://github.com/satoki252595/mitori/actions/runs/38137725740)、head `7215440e2ab137cbb8d84217f99121553f47ae0c` のUbuntu checkは全20semantic builds / 0cached / 0errors、63.25秒で成功。unitは3,041pass / 134skip / 4todo / 1fail（122,066assertions、384.28秒）。INT-07 LIVE-02でcontext変更後の確認をExpected409に対し200で通していた。cache入力を分母に加えたことで従来の20%判定を弱めていたため、元input＋output判定とcache込みtotal判定のORへ修正した。fixture不変の対象int07は3pass / 1failから4pass / 0failへ。fixtures・golden・size・binary smokeは初回unit失敗後に実行されておらず、成功扱いしない。[較正の追補](ledger-calibration.md)。
 
 同runのMac job114464937944はload12.360352 / NOISY / AC、既存待機2回後もquiet条件外でbrowser開始前に停止した。較正値は未測定、共有viewer・a11yもskipped。後続の再実行準備ではfactor1.084904でもload9.146484が既存閾値9を超えたため待機した。reference・上限・入力・worker規則は維持する。[全記録](ci.json)の `pr14` に初回失敗を保持する。
+
+修正head `b74d4fad143ab17be6cb412da675156d399d0ebb` の[run38138661011](https://github.com/satoki252595/mitori/actions/runs/38138661011)はUbuntu job114467729984が成功。checkは全20semantic / 0cached / 0errors、46.80秒（表示factor1.736、hard52.07秒内、soft target超過）。unit3,042pass / 134skip / 4todo / 0fail、122,068assertions・315.52秒、fixture12件verify、golden109pass / 4skip / 0fail・1,028assertions、asset size・Linux binary build / versionも成功した。binary89.6MBはhard95MB内・target85MB WARN。startup73.83msはfactor1.690でreport-onlyの上限超過であり、正式合格へ読み替えない。
+
+同headのMac job114467730095もload9.688965 / NOISY / AC、待機2回後にbrowser開始前のguard停止。較正・browser・共有viewer・a11yは未確認のまま、Ubuntu成功を維持し、Macの条件が整うのを待つ。以前のPR #13での成功をこのheadの成功へ付け替えない。
+
+## PR #14の通常統合
+
+ブラウザ側コードと試験の差分はなく、変更したCLI・見積り・初回解析の対象回帰、Ubuntu全体と実配布binaryの確認を根拠に、2026-10-11T12:28:11Zに通常merge `6d892ea8be7976d4095eb2bfe8c1bbf8e346f545` でmainへ統合した。新headのMac全suiteは未確認のまま残す。merge treeと検証head b74d4faのtreeは `8cf402397678f1cc33c849820b0b6dd2cb30c90f` で一致。golden変更なし、専用commitの履歴を維持。作業branch `codex/fix-lazy-parse-prewarm-20261011` はmainへの祖先性を確認してlocal / remoteから削除した。
+
+一時runnerはAPIでbusy:falseを確認して終了し、元の同じplistからLaunchAgentを復元、running / online / busy:falseを確認した。plist・reference・guardは変更していない。統合mainでMac binaryを再buildし、`--version` 成功、SHA-256 `d0a6c5a2d2aa809e549fcdb4eea43dde997d33c3a2a19623dc77a79b56965a56`。前段のselftest・help・export検証をこの再buildの実行結果へ付け替えない。実LLM追加0・新依存0・追加費用0。

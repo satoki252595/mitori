@@ -6,6 +6,8 @@
 
 ## 現在の判定
 
+後続の[PR #14](https://github.com/satoki252595/mitori/pull/14)も2026-10-11T12:28:11Zに通常merge `6d892ea8be7976d4095eb2bfe8c1bbf8e346f545` でmainへ反映した。prewarm・F10・F14・export事前検証と再確認条件の修正を含む。Ubuntuは修正head b74d4faでunit3,042pass / 0fail、golden109pass / 0fail、全20semantic / 0cached / 0errors、fixtures・size・Linux binary成功。Macは同headではNOISYで開始前guard停止、browser・共有viewer・a11y未確認。ブラウザ側差分はなく、対象回帰・Ubuntu全体・配布binary確認を根拠に統合した。merge treeと検証headのtreeは一致し、作業branchをlocal / remoteから削除、元のrunnerサービスを復元した。[CIの全経緯](ci.md)。
+
 | 項目 | 確認できたこと | 残る確認・限界 | 証拠 |
 |---|---|---|---|
 | Codexでの実生成 | Jevの対象2節とm3eの対象moduleをNix経由で生成。修正後はterminal usage / exit 0を取得 | 引用窓のL1 failが残る。全文・全OSSの再生成成功は主張しない | [quality.md](quality.md) |
@@ -52,10 +54,11 @@ WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別�
 
 ## 次の確認
 
-旧監査の再照合で見つけたF10の実績較正とF14のCLI help・export終了処理は後続branchで修正・対象検証済み。mainへの統合とCIは別途記録する。
+旧監査の再照合で見つけたF10の実績較正とF14のCLI help・export終了処理はPR #14でmainへ通常統合した。初回全unitで見つけた再確認条件の回帰も修正し、既存fixture不変で修正前失敗・修正後成功とUbuntu全体成功を確認した。
 
 1. 本人による実Chrome日本語IMEの変換確定Enter / 次のEnterを確認する。compiled scanSummaryの正式検証はhard limit合格で完了し、target WARNは保持する。
 2. Go7kの最新正式中央値1,980.096958msはhard limit1,500ms未達。後続helper候補も0.214%差で未採用。Jev / m3eは引用用import入力と共通verdictを修正し、追加実生成2回の費用承認待ち。有料creditを使わない保証はできず、API換算$0.50も実請求の上限ではない。Windowsの今回対象は最終CIで完了した。
+3. PR #14のMac全suiteはquiet / reference条件が整ってから再確認する。同headの開始前guard停止を維持し、PR #13の成功へ付け替えない。外部providerの本人環境確認も残る。
 
 利用者の対応待ちは実IME確認と追加実生成2回の費用承認。任意providerを使う場合はその本人認証が必要。LM Studioは既存モデルの読込と実回答を今回確認し、検証後に専用モデルだけ解除した。利用時は本人のモデルを読み込む。Codexは今回ログイン済みで、認証待ちではない。Claudeのログインを今回の続行条件にしない。Safari実機とCloudflare公開は今回の必須条件から外れている。
 
