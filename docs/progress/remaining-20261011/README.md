@@ -1,6 +1,6 @@
 # 残課題の続行・検証記録（2026-10-11）
 
-今回の変更と測定をまとめる。統合checkの各stepは最終成功し、Windowsの対象CIも成功した。統合headのUbuntu CI・最終公開状態は統合担当が追記する。過去の失敗を後の成功値で置き換えず、各資料に前後の証拠を残した。
+今回の変更と測定をまとめる。[PR #13](https://github.com/satoki252595/mitori/pull/13)へpush済み。実装head23645fdのUbuntu・Windows CIは成功。Macのbrowser CIは高負荷guardで開始前に停止し、マージ・不要ブランチ削除は未実施。[CI記録](ci.md)。過去の失敗を後の成功値で置き換えず、各資料に前後の証拠を残した。
 
 開発・検証はプロジェクトのNixと `scripts/nd`。通常利用は既存Bun / Git / LLMを使える方針を維持する。Dockerは利用者が許可した既存Linux検証ハーネスだけ。今回の実LLMはCodexで、Claudeは使用していない。Cloudflareへのデプロイはcloneしてローカル利用するための必須条件に含めない。
 
@@ -14,7 +14,7 @@
 | Linux cold check | testkitの既存home subpathへimportを絞り、全20semantic診断を維持。ARM同条件ABBAは4回ともhard limit内 | soft targetは未達、統合headのUbuntu x64 CIでの確認は別 | [cold-home.md](cold-home.md) |
 | Go7k cold scan | parser / query / GCへ原因を絞り、候補12runで抽出結果3表が全行一致。既存正式caseも1 invocation実行 | **1,500ms上限は未達**。後続中央値3872.33ms、factor1.902929 / NOISYでreport-only。候補未採用 | [idx-cold.md](idx-cold.md)、[正式後続](idx-formal.json) |
 | UI / assets / a11y | 最終compiledのstrict asset全項目pass、初期JS54.639KB gzip、Reader6 requests、a11y8pass / 違反0 | scanSummary1771.5 / limit2000ms、factor1.12のためreport-only | [最終UI記録](ui-bench-release.md)、[経緯](ui-bench.md) |
-| Windows | Nix crossbuildと実Windowsのsource tests7pass / 0skip / 0fail、製品`--version`とembedded selftest6checksすべて成功 | verified Job Object経路の対象検証。非group直接Bun.spawnには標準環境変数の補充が残る | [最終CI](https://github.com/satoki252595/mitori/actions/runs/38112767631)、[windows-nix.md](windows-nix.md)、[windows-env.md](windows-env.md) |
+| Windows | head23645fdのNix crossbuildと実Windowsのsource tests7pass / 0skip / 0fail（33assert / 4.20s）、製品`--version`とembedded selftest6checksすべて成功 | verified Job Object経路の対象検証。非group直接Bun.spawnには標準環境変数の補充が残る | [最新Windows CI](https://github.com/satoki252595/mitori/actions/runs/38115528185)、[windows-nix.md](windows-nix.md)、[windows-env.md](windows-env.md) |
 | 実ブラウザ操作 | 実Chromeの初回map、確定日本語検索、Codex native/MCP切替と配布binaryの接続commandを確認 | CDPの実IME送信が操作許可で拒否され、本人確認待ち。Safari実機はChrome代替の選択により必須外 | [chrome.md](chrome.md) |
 
 ## Codexの実生成とExplain
@@ -35,11 +35,11 @@ Go7kでは凍結した同一source・新process / 空homeで12runを比較し、
 
 UIは初回nonce競合、仮想化アンカー、節移動でのengine再検出、初回statusの先取り競合、lazy chunkとprecompressionを修正した。strictの上限・件数・診断は維持し、最終compiledはgen6.890 / limit6.900KB、palette4.516 / 4.600KBと余裕が小さい項目も残す。Readerの実click→paintはnative65.2 / 31.7 / 32.1ms、enhanced31.9 / 32.0 / 16.1ms。修正前のscanSummary3,312.1 / limit2,000msは保持し、最終compiledは1,771.5ms。ただしfactor1.12でreport-onlyのため正式基準機合格へ読み替えない。[最終UI記録](ui-bench-release.md)。
 
-WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別ダウンロードを廃止した。[初回native run](https://github.com/satoki252595/mitori/actions/runs/38096491256)は5pass / 1fail。exact environmentだけが失敗し、引数 / stdio / 終了コードと子孫停止は成功した。環境「名」だけを渡すプロトコルで、Job Object経由の子へ明示した変数だけを渡す修正を実装した。既存native4ケースを維持し、portable protocol test1件と空値・非ASCII環境を追加。Nix crossbuild、Mac対象19pass / Windows限定4skip、platform型検査・整形は成功。[最終CI](https://github.com/satoki252595/mitori/actions/runs/38112767631)は `525260d354233147d18232073a7a3ae17ad94b38` でcrossbuild / nativeとも成功し、実Windowsのsource tests7pass / 0skip / 0fail・33 assertions・4.38秒、製品`--version`とembedded `_selftest` 6checksすべて成功した。Windowsの非group直接Bun.spawn経路には標準環境変数の補充が残る。
+WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別ダウンロードを廃止した。[初回native run](https://github.com/satoki252595/mitori/actions/runs/38096491256)は5pass / 1fail。exact environmentだけが失敗し、引数 / stdio / 終了コードと子孫停止は成功した。環境「名」だけを渡すプロトコルで、Job Object経由の子へ明示した変数だけを渡す修正を実装した。既存native4ケースを維持し、portable protocol test1件と空値・非ASCII環境を追加。Nix crossbuild、Mac対象19pass / Windows限定4skip、platform型検査・整形は成功。[前回CI](https://github.com/satoki252595/mitori/actions/runs/38112767631)は525260dで7pass / 0skip / 0fail・33 assertions・4.38秒、selftest6checks成功。[最新Windows CI](https://github.com/satoki252595/mitori/actions/runs/38115528185)は `23645fdc7100e02e5f6b63bbbde2b33c59b1c79f` でcrossbuild / nativeとも成功し、同じ7pass / 0skip / 0fail・33 assertions・4.20秒、製品`--version`とembedded `_selftest` 6checks成功・2,606.378msだった。製品EXE SHA-256は `3e1d25c49fbb36b5974a4ec6036a3d9bc8ebcb81cc21d8d078b85143cf189e04`、API / 実ログ / artifactを照合済み。Windowsの非group直接Bun.spawn経路には標準環境変数の補充が残る。PR全体のCI結果は別途確認する。
 
 ## 次の確認
 
-1. 統合checkの各stepは最終成功。統合担当がUbuntu head CI・最終公開状態を追記する。
+1. Ubuntu・Windowsの実装head CIは成功。Macをアイドルにできたらbrowser CIの失敗jobを再実行し、成功後にマージ・不要ブランチ削除する。[CI記録](ci.md)。
 2. 本人による実IME確認と、quiet基準機での時間予算を確認する。Chrome通常操作と最終compiled測定は完了。
 3. Go7kの1,500ms上限と、Jev / m3eの引用窓の不足は未解決として追跡する。Windowsの今回対象は最終CIで完了した。
 
@@ -50,5 +50,5 @@ WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別�
 - 通常の既存Bun 1.4.2でもCodex Explainが1 job / attempt1で成功。API相当$0.003640、引用1件有効、source非変更、停止と一時データ削除を確認。Nixと合計$0.007274、課金先・請求額は不明。[両経路の証跡](codex-explain.json)。
 - 最終compiled UIは初期JS54.639KB gzip、CSS18.100KB、strict asset全項目成功。scanSummary1771.5ms / limit2000ms、Reader6requests。時間はfactor1.12でreport-only、正式reference合格とは扱わない。a11y8成功・違反0。[最終UI記録](ui-bench-release.md)。
 - 実Chromeで初回map、確定済み日本語検索、Codex native/MCP切替と配布binaryの接続commandを確認。実IME変換は操作許可が拒否されたため本人確認待ち。[Chrome記録](chrome.md)。
-- 統合checkは初回tscだけtest fixtureの不足で失敗。fixtureを直しtscのみ再実行成功。費用予約の最終修正後にも全7stepが4.35秒で成功した（warm）。Ubuntu head CIは別途記録する。
+- 統合checkは初回tscだけtest fixtureの不足で失敗。fixtureを直しtscのみ再実行成功。費用予約の最終修正後にも全7stepが4.35秒で成功した（warm）。Ubuntu実装head CIも再実行で成功し、全20semantic builds・0cached・0errors、unit3,017pass / 134skip / 4todo / 0fail、golden109pass / 4skip / 0fail、fixtures verify・size・Linux binary buildとversion成功。[CI記録](ci.md)。
 - 費用予約修正後のMac配布binaryを再build。SHA-256 `6ce44b0863bc1f805329d437dd3565d8249aea2086d54125c6895138f6415da7`、70,565,490 bytes。embedded selftest全6checks成功（1,049ms）、[strict assets](final-assets.json)成功で初期JS54.639KB gzipを維持。Chrome・時間計測の先行binaryのSHAと混同しない。

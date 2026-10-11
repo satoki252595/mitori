@@ -5,7 +5,7 @@
 
 ## ★ 現在の状態（2026-10-11、実装・検証・未達の区別）
 
-利用者の残タスク続行指示に従い、Codexの正式生成経路、OSSの説明省略、UIの初回表示とasset、Linux cold check、Windows native検証を進めた。統合checkは失敗したtscのfixtureを修正して再実行成功、他6stepと追加CR ledger / contract-indexも成功した。Windowsの対象native CIとChrome通常操作は確認済み。統合headのUbuntu CIと最終公開状態は統合担当が後追い追記する。詳細と各JSONの入口は [remaining-20261011/README.md](progress/remaining-20261011/README.md)。ルートREADMEは統合担当が更新する。
+利用者の残タスク続行指示に従い、Codexの正式生成経路、OSSの説明省略、UIの初回表示とasset、Linux cold check、Windows native検証を進めた。[PR #13](https://github.com/satoki252595/mitori/pull/13)へpush済み。実装head23645fdのUbuntu CIは再実行で成功（unit3,017pass / 0fail、golden109pass / 0fail）、Windows CIも成功した。Macのbrowser CIは高負荷guardで試験開始前に停止し、本人へアイドル化を依頼中。マージ・不要ブランチ削除は未実施。[CIの前後](progress/remaining-20261011/ci.md)。詳細と各JSONの入口は [remaining-20261011/README.md](progress/remaining-20261011/README.md)。ルートREADMEも更新済み。
 
 ### ★.1 実装と確認できたこと
 
@@ -15,20 +15,20 @@
 - **並列生成の費用予約:** Codexの送信直前に共有preflightの額を予約し、並列・再試行の使用済み額を合算する。初回の予算不足はpendingとして同じ上限で再開でき、再試行の不足は有効な途中本文とusageを保持して停止する。対象37tests / 224 assertionsとgen型検査が成功、独立再現も一致。実LLM追加0。[前後の再現と回帰](progress/remaining-20261011/codex-budget.md)。最終統合checkも全7step成功（4.35秒、warm）。
 - **UI:** 初回nonce競合、仮想化アンカー、節移動のlive engine再検出、初回status先取り、lazy chunksとprecompressionを修正。最終compiledのstrict assetは元の上限で全項目pass、初期JS54.639KB gzip、Reader6 requests、a11y8pass / 違反0。scanSummaryは1,771.5 / limit2,000msだがfactor1.12のためreport-only。gen6.890 / limit6.900KBなど余裕の小さい項目も記録した。[最終UI記録](progress/remaining-20261011/ui-bench-release.md)、[経緯](progress/remaining-20261011/ui-bench.md)。実Chromeの初回map、確定済み日本語検索、Codex native / MCP切替と配布binaryの接続commandを確認。[Chrome記録](progress/remaining-20261011/chrome.md)。
 - **Linux cold check:** testkitの既存home / fixtures / goldenへimportを絞り、loopで早期に読むworkspace sourceを226→161、genを50→0へ減らした。全20projectの意味検査・診断・較正・checked/noCheck境界を維持。ARM / 2CPUのcold ABBAは4回とも20semantic builds・0cached・0errors・全7項目成功、wall中央値4.50%短縮。対象回帰69pass / Linux限定3skip / 0fail。[採用した変更](progress/remaining-20261011/cold-home.md)、[不採用の先行fixture案](progress/remaining-20261011/cold-check.md)。
-- **Windows:** Nix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別ダウンロードを廃止。初回native CIの5pass / 1failを保存し、環境「名」だけのプロトコルでJob Object経由の厳密な環境受渡しを修正。[最終CI](https://github.com/satoki252595/mitori/actions/runs/38112767631)（`525260d354233147d18232073a7a3ae17ad94b38`）はNix crossbuild / Windows nativeとも成功し、source tests7pass / 0skip / 0fail・33 assertions・4.38秒。既存native4ケースを維持して実Windowsで成功し、製品`--version`とembedded `_selftest` の6checksもすべて成功。[Nix方式](progress/remaining-20261011/windows-nix.md)、[環境修正](progress/remaining-20261011/windows-env.md)。Windowsの非group直接Bun.spawn経路には標準環境変数の補充が残る。
+- **Windows:** Nix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別ダウンロードを廃止。初回native CIの5pass / 1failと前回525260d成功を保存。[最新Windows CI](https://github.com/satoki252595/mitori/actions/runs/38115528185)（`23645fdc7100e02e5f6b63bbbde2b33c59b1c79f`）はNix crossbuild / Windows nativeとも成功し、source tests7pass / 0skip / 0fail・33 assertions・4.20秒。既存native4ケースを維持して実Windowsで成功し、製品`--version`とembedded `_selftest` の6checksもすべて成功・2,606.378ms。製品EXE SHA-256は `3e1d25c49fbb36b5974a4ec6036a3d9bc8ebcb81cc21d8d078b85143cf189e04`、API / 実ログ / artifactを照合済み。[Nix方式](progress/remaining-20261011/windows-nix.md)、[環境修正](progress/remaining-20261011/windows-env.md)。Windowsの非group直接Bun.spawn経路には標準環境変数の補充が残る。PR全体のCI結果とは区別する。
 
 ### ★.2 未解決・再確認待ち
 
 1. **実IMEとUI時間予算:** Chrome通常操作・確定済み日本語検索・native / MCP設定は確認済み。実IMEの `Input.imeSetComposition` は操作許可で拒否されたため、迂回せず本人の変換確定Enter / 次のEnter確認を依頼中。[Chrome記録](progress/remaining-20261011/chrome.md)。scanSummary3,312.1 / limit2,000msの旧未達は保持し、status競合修正後の最終compiledは1,771.5ms。ただしfactor1.12でreport-onlyのため正式基準機合格へ読み替えない。[最終UI記録](progress/remaining-20261011/ui-bench-release.md)。Safari実機は利用者がChrome代替を選択したため今回の必須外。
 2. **Go7k cold 1,500ms:** parser / query / GCへ原因を絞り、同じsource・新process / 空homeで候補12runの抽出3表を全行照合した。256KiB batchは13.54%悪化で不採用。GC前の参照解除も安定した目標達成を実証できず未採用。通常Mac / Nixの既存正式caseを既定warmup1＋measured5で1 invocation実行したが、中央値3,872.33ms、待機後もload16.55 / factor1.902929でreport-only。全6childのcoverage・6Worker・cache0を維持し、RSS中央値985.14MiB。上限・較正・診断・Worker規則は変えず、追加測定・候補適用なしで未解決のまま。[原因と不採用証拠](progress/remaining-20261011/idx-cold.md)、[正式後続](progress/remaining-20261011/idx-formal.json)。
 3. **引用窓:** m3e最新版はL1が28pass / 2fail / 8vacuous、Jev品質節は22pass / 1fail / 2vacuous。残る依存文・hotpathsの意味はsource照合で一致するが、別ファイル名や識別子の引用窓が弱い。全文semantic保証・全引用passとは扱わない。[照合](progress/remaining-20261011/quality.citation-review.json)。m3eの既定値補完という対象claim自体はL0 / L1 / L2 pass。
-4. **統合headの最終検証:** Linux ARMのcold hard limit成功は、soft targetやUbuntu x64 Actionsの達成証明とは別。統合checkの各stepは最終成功し、Ubuntu head CIと最終公開状態は統合担当が追記する。Windowsの今回対象は上の最終CIで完了した。
+4. **Mac browser CIと統合:** 実装head23645fdのUbuntu x64 CIはcheck43.74秒 / hard limit49.79秒、全20semantic builds・0cached・0errors、unit・fixtures・golden・size・Linux binaryが成功。soft target24.89秒は未達。Macはload11.3823、既定2回待機後もNOISYでbrowser suiteが開始していない。本人のアイドル化後に失敗したjobを再実行し、成功後にPRをマージ・不要ブランチ削除する。[CI記録](progress/remaining-20261011/ci.md)。Windows対象は上の最終CIで完了した。
 
 ### ★.3 利用方針・外部操作・守ること
 
 本体はcloneしてローカル利用する。通常利用にNixを必須とせず、既存Bun / Git / LLMを使える。開発・検証は `scripts/nd` とproject Nix、Docker例外は許可済みの既存Linuxハーネスだけ。Cloudflareの共有公開・Paid化は任意で、ローカル利用の必須残タスクには含めない。
 
-利用者の本人操作待ちは上の実IME確認。任意providerを使う場合はその本人認証、LM Studioを使う場合はモデル読込・サーバー開始が別途必要。CodexログインやClaudeログインを今回の待ち条件にしない。AIの変更はアンカー済み・範囲限定・ゲート済み・人の確認・未コミット適用・Undo可、side repo、lean起動を維持する。月1,000円以上の継続費用増とCloudflare deploy / Paid化は事前承認。生prompt / auth / env / nonceはGitへ保存しない。
+利用者の本人操作待ちは上の実IME確認と基準機のアイドル化。任意providerを使う場合はその本人認証、LM Studioを使う場合はモデル読込・サーバー開始が別途必要。CodexログインやClaudeログインを今回の待ち条件にしない。AIの変更はアンカー済み・範囲限定・ゲート済み・人の確認・未コミット適用・Undo可、side repo、lean起動を維持する。通常の修正・検証・Git操作は2026-10-11に包括承認済み。ローカルへの直接ソフトインストールと追加費用が発生する操作、Cloudflare deploy / Paid化は事前確認する。生prompt / auth / env / nonceはGitへ保存しない。
 
 ---
 

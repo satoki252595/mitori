@@ -1,0 +1,52 @@
+{
+  "format": "mitori.remaining-ci/1",
+  "date": "2026-10-11",
+  "head": "23645fdc7100e02e5f6b63bbbde2b33c59b1c79f",
+  "pullRequest": "https://github.com/satoki252595/mitori/pull/13",
+  "run": "https://github.com/satoki252595/mitori/actions/runs/38115347695",
+  "ubuntu": {
+    "attempt1": {
+      "job": 114399035212,
+      "conclusion": "failure",
+      "reason": "check wall time exceeded its calibrated hard limit; all semantic diagnostics succeeded",
+      "factor": 2.416,
+      "limitSeconds": 72.49,
+      "semanticBuilds": 20,
+      "cachedBuilds": 0,
+      "errors": 0,
+      "typecheckSeconds": 72.94
+    },
+    "attempt2": {
+      "job": 114399821863,
+      "conclusion": "success",
+      "factor": 1.660,
+      "checkSeconds": 43.74,
+      "targetSeconds": 24.89,
+      "limitSeconds": 49.79,
+      "semanticBuilds": 20,
+      "cachedBuilds": 0,
+      "errors": 0,
+      "unit": { "pass": 3017, "skip": 134, "todo": 4, "fail": 0, "assertions": 121920 },
+      "golden": { "pass": 109, "skip": 4, "fail": 0, "assertions": 1028 },
+      "fixturesVerify": "success",
+      "size": "success",
+      "linuxBinaryBuild": "success",
+      "linuxBinaryVersion": "mitori 0.0.0 (api 1)"
+    }
+  },
+  "macBrowsers": {
+    "job": 114399035365,
+    "conclusion": "failure",
+    "stage": "reference guard before browser tests",
+    "loadAverage": 11.38232421875,
+    "waited": 2,
+    "power": "ac",
+    "reason": "reference Mac remained noisy; browser CI has not executed on this head"
+  },
+  "windows": {
+    "run": "https://github.com/satoki252595/mitori/actions/runs/38115528185",
+    "conclusion": "success",
+    "evidence": ["windows-nix.json", "windows-env.json"]
+  },
+  "merge": "pending quiet Mac browser verification"
+}

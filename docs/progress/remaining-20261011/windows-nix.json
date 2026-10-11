@@ -1,7 +1,7 @@
 {
   "format": "mitori.windows-nix-verification/1",
   "date": "2026-10-11",
-  "status": "verified on native windows-2025 using only the existing Nix-built standalone Bun runtime",
+  "status": "verified on native windows-2025 at latest recorded head; previous successful and failed runs are retained separately",
   "method": "Reuse the existing Nix-crossbuilt mitori-windows-x64.exe as the full Bun CLI with BUN_BE_BUN=1 for frozen install and unchanged native source-test cases.",
   "source": {
     "url": "https://bun.sh/docs/bundler/executables#act-as-the-bun-cli",
@@ -98,35 +98,21 @@
   },
   "nativeWindows": {
     "status": "success",
+    "url": "https://github.com/satoki252595/mitori/actions/runs/38115528185",
+    "headSha": "23645fdc7100e02e5f6b63bbbde2b33c59b1c79f",
+    "attempt": 1,
+    "crossbuildJob": 114399556609,
+    "crossbuildConclusion": "success",
+    "nativeJob": 114400007117,
+    "nativeJobUrl": "https://github.com/satoki252595/mitori/actions/runs/38115528185/job/114400007117",
+    "nativeConclusion": "success",
+    "completedAt": "2026-10-11T05:44:20Z",
     "runner": "windows-2025",
-    "expectedSourceTests": {
-      "pass": 7,
-      "skip": 0,
-      "fail": 0
-    },
-    "expectedSelftestChecks": [
-      "integrity",
-      "web",
-      "parse",
-      "elk",
-      "shiki",
-      "sqlite"
-    ],
-    "evidenceArtifacts": [
-      "windows-native-tests.log",
-      "windows-selftest.json"
-    ],
-    "followup": "windows-env.json",
-    "url": "https://github.com/satoki252595/mitori/actions/runs/38112767631",
-    "headSha": "525260d354233147d18232073a7a3ae17ad94b38",
-    "crossbuildJob": 114391585364,
-    "nativeJob": 114392030222,
-    "completedAt": "2026-10-11T04:52:40Z",
     "runtime": {
       "source": "Existing Nix-crossbuilt standalone EXE reused with BUN_BE_BUN=1 in source-test step only",
       "bunVersion": "1.4.2",
       "frozenInstallPackages": 280,
-      "frozenInstallSecondsPrinted": 20.05,
+      "frozenInstallSecondsPrinted": 43.2,
       "separateWindowsBunDownload": false
     },
     "sourceTests": {
@@ -135,36 +121,36 @@
       "skip": 0,
       "fail": 0,
       "assertions": 33,
-      "secondsPrinted": 4.38,
-      "skipEvidence": "All 7 tests in the 7-test total passed; no skipped cases in the native log.",
+      "secondsPrinted": 4.2,
+      "skipEvidence": "All 7 tests in the 7-test total passed; no skipped cases in the native artifact or job log.",
       "cases": [
         {
           "name": "native launcher extraction binds exact bytes and refuses corrupted bytes and symlink cache paths",
-          "msPrinted": 80.68
+          "msPrinted": 30.5
         },
         {
           "name": "Job Object environment protocol carries exact names without values and refuses ambiguous names",
-          "msPrinted": 0.45
+          "msPrinted": 0.35
         },
         {
           "name": "Job Object asset refuses missing, modified and symlink executables before any spawn",
-          "msPrinted": 4.33
+          "msPrinted": 2.83
         },
         {
           "name": "native Job Object preserves literal UTF-16 argv, exact environment, stdio and leader exit code",
-          "msPrinted": 148
+          "msPrinted": 112.16
         },
         {
           "name": "descendant fixture can write after its ungrouped leader exits (positive control)",
-          "msPrinted": 775.42
+          "msPrinted": 785.94
         },
         {
           "name": "leader exit closes the job and kills detached descendants before they can write",
-          "msPrinted": 815.09
+          "msPrinted": 792.03
         },
         {
           "name": "every cancellation signal hard-stops the job including independently detached grandchildren",
-          "msPrinted": 2423.61
+          "msPrinted": 2354.18
         }
       ]
     },
@@ -180,25 +166,25 @@
       "version": "0.0.0",
       "source": "embedded",
       "standalone": true,
-      "totalMs": 4507.7945,
+      "totalMs": 2606.378,
       "checks": {
         "integrity": {
           "ok": true,
           "files": 9,
           "bytes": 7320426,
           "mismatched": [],
-          "ms": 42.5668
+          "ms": 27.06479999999999
         },
         "web": {
           "ok": true,
-          "files": 167,
-          "precompressed": 150,
-          "immutable": 164,
-          "ms": 0.4819999999999993
+          "files": 137,
+          "precompressed": 134,
+          "immutable": 135,
+          "ms": 0.3920999999999992
         },
         "parse": {
           "ok": true,
-          "initMs": 41.4056,
+          "initMs": 24.324299999999997,
           "langs": [
             "typescript",
             "tsx",
@@ -208,23 +194,23 @@
             "rust"
           ],
           "wrong": [],
-          "ms": 83.61620000000002
+          "ms": 48.63319999999999
         },
         "elk": {
           "ok": true,
           "nodes": 300,
           "edges": 459,
-          "bootMs": 1096.0179,
-          "firstMs": 1672.8182,
+          "bootMs": 297.23889999999994,
+          "firstMs": 989.3984,
           "warmMs": [
-            781.2907999999998
+            580.8014000000001
           ],
-          "warmMedianMs": 781.2907999999998,
-          "ms": 3553.6832000000004
+          "warmMedianMs": 580.8014000000001,
+          "ms": 1869.4906999999998
         },
         "shiki": {
           "ok": true,
-          "initMs": 81.47979999999998,
+          "initMs": 88.68020000000001,
           "langs": [
             "typescript",
             "tsx",
@@ -241,32 +227,235 @@
             "sql"
           ],
           "missing": [],
-          "highlight100ColdMs": 605.2135,
-          "highlight100WarmMs": 54.03510000000006,
-          "ms": 822.8305
+          "highlight100ColdMs": 494.1015,
+          "highlight100WarmMs": 31.928999999999974,
+          "ms": 657.3606
         },
         "sqlite": {
           "ok": true,
           "applied": 2,
           "reapplied": 0,
-          "ms": 4.406500000000051
+          "ms": 3.273400000000038
         }
       }
     },
+    "executable": {
+      "pathInArtifact": "dist/mitori-windows-x64.exe",
+      "bytes": 94430208,
+      "sha256": "3e1d25c49fbb36b5974a4ec6036a3d9bc8ebcb81cc21d8d078b85143cf189e04",
+      "evidence": "Computed from the downloaded, digest-verified CI artifact; not executed on this Mac"
+    },
+    "nativeLauncher": {
+      "v": "mitori.windows-job/1",
+      "platform": "windows-x64",
+      "path": "node_modules/.cache/mitori-windows-job/windows-job-x64.exe",
+      "sha256": "ab791a37e55b5e0c682dfa13189295d645940c9e2a129211f2027e37839d4df2",
+      "bytes": 60416,
+      "sourceSha256": "a510a6ccbfef0d025b00ae005903a29305f8719ed0d737e550ade1ad1fd4f75d",
+      "buildSha256": "9054a83cf4e57282443dbca147843c85b4404bdeee846aef7a289b77886f315e",
+      "compiler": {
+        "name": "zig",
+        "version": "0.16.0"
+      }
+    },
     "evidence": {
-      "artifactUrl": "https://github.com/satoki252595/mitori/actions/runs/38112767631/artifacts/11692446328",
-      "artifactName": "windows-evidence-525260d354233147d18232073a7a3ae17ad94b38",
+      "artifactUrl": "https://github.com/satoki252595/mitori/actions/runs/38115528185/artifacts/11692704229",
+      "artifactName": "windows-evidence-23645fdc7100e02e5f6b63bbbde2b33c59b1c79f",
       "artifactFiles": [
         "windows-native-tests.log",
         "windows-selftest.json"
       ],
-      "nativeJobLogSha256": "b8dfdf6f104f05faa9307478f7afd53f1d6665455d0d11c1c9d76850ca134908",
-      "safety": "Only safe result summaries and the selftest JSON are persisted; the full job log and environment values are not copied into the repository."
-    }
+      "artifactZipSha256": "defb7c6132042c1fb77be08237c135a5c435e29cb451be3ccd5b83b20270909f",
+      "artifactZipBytes": 1287,
+      "artifactExpiresAt": "2026-11-10T05:44:15Z",
+      "productArtifactUrl": "https://github.com/satoki252595/mitori/actions/runs/38115528185/artifacts/11693273084",
+      "productArtifactZipSha256": "78e1676511a1c7ebd4ca6b4f7784796888fa7f89dd4da2369331a4bdb3dd14ea",
+      "productArtifactZipBytes": 44000307,
+      "productArtifactExpiresAt": "2026-10-18T05:43:00Z",
+      "nativeJobLogSha256": "8b88e21f11a32de0de5725622917da16d1c6c2343c349088575841b99c20b376",
+      "crossbuildJobLogSha256": "97fc9751f9b9da2cbd196b025eaf1bbb746f6b9c48392eb1421a09599ffe2f8b",
+      "nativeTestArtifactFileSha256": "a534fc1ca3b564b6b483ef12052fcff66192f1f1a9db53f35fe302d2e36c9b00",
+      "selftestArtifactFileSha256": "fa04127b3354d7ec68934c98637494d3791a9953bc2a8ef8b97aaf0fb2810f08",
+      "artifactsMatchApiDigestAndSize": true,
+      "selftestArtifactMatchesNativeJobLog": true,
+      "safety": "Only safe result summaries, selftest JSON and content hashes are persisted. Full job logs, credentials and environment values remain outside the repository. Downloaded EXEs were only hashed, never executed locally."
+    },
+    "followup": "windows-env.json"
   },
   "limitations": [
     "Mac standalone runtime proof does not prove Windows Job Object behavior.",
     "The recorded windows-2025 native source cases and embedded selftest passed; a full Windows-version or end-user setup matrix was not run."
   ],
-  "sourceHashesNote": "Historical source hashes from the initial runtime-reuse proof; the final native run is pinned separately by headSha."
+  "sourceHashesNote": "Historical source hashes from the initial runtime-reuse proof; the final native run is pinned separately by headSha.",
+  "nativeWindowsHistory": [
+    {
+      "status": "success",
+      "runner": "windows-2025",
+      "expectedSourceTests": {
+        "pass": 7,
+        "skip": 0,
+        "fail": 0
+      },
+      "expectedSelftestChecks": [
+        "integrity",
+        "web",
+        "parse",
+        "elk",
+        "shiki",
+        "sqlite"
+      ],
+      "evidenceArtifacts": [
+        "windows-native-tests.log",
+        "windows-selftest.json"
+      ],
+      "followup": "windows-env.json",
+      "url": "https://github.com/satoki252595/mitori/actions/runs/38112767631",
+      "headSha": "525260d354233147d18232073a7a3ae17ad94b38",
+      "crossbuildJob": 114391585364,
+      "nativeJob": 114392030222,
+      "completedAt": "2026-10-11T04:52:40Z",
+      "runtime": {
+        "source": "Existing Nix-crossbuilt standalone EXE reused with BUN_BE_BUN=1 in source-test step only",
+        "bunVersion": "1.4.2",
+        "frozenInstallPackages": 280,
+        "frozenInstallSecondsPrinted": 20.05,
+        "separateWindowsBunDownload": false
+      },
+      "sourceTests": {
+        "files": 2,
+        "pass": 7,
+        "skip": 0,
+        "fail": 0,
+        "assertions": 33,
+        "secondsPrinted": 4.38,
+        "skipEvidence": "All 7 tests in the 7-test total passed; no skipped cases in the native log.",
+        "cases": [
+          {
+            "name": "native launcher extraction binds exact bytes and refuses corrupted bytes and symlink cache paths",
+            "msPrinted": 80.68
+          },
+          {
+            "name": "Job Object environment protocol carries exact names without values and refuses ambiguous names",
+            "msPrinted": 0.45
+          },
+          {
+            "name": "Job Object asset refuses missing, modified and symlink executables before any spawn",
+            "msPrinted": 4.33
+          },
+          {
+            "name": "native Job Object preserves literal UTF-16 argv, exact environment, stdio and leader exit code",
+            "msPrinted": 148
+          },
+          {
+            "name": "descendant fixture can write after its ungrouped leader exits (positive control)",
+            "msPrinted": 775.42
+          },
+          {
+            "name": "leader exit closes the job and kills detached descendants before they can write",
+            "msPrinted": 815.09
+          },
+          {
+            "name": "every cancellation signal hard-stops the job including independently detached grandchildren",
+            "msPrinted": 2423.61
+          }
+        ]
+      },
+      "productVersion": {
+        "exit": 0,
+        "stdout": "mitori 0.0.0 (api 1)",
+        "bunCliMode": false
+      },
+      "compiledSelftest": {
+        "exit": 0,
+        "command": "mitori-windows-x64.exe _selftest --json --elk-runs 1",
+        "ok": true,
+        "version": "0.0.0",
+        "source": "embedded",
+        "standalone": true,
+        "totalMs": 4507.7945,
+        "checks": {
+          "integrity": {
+            "ok": true,
+            "files": 9,
+            "bytes": 7320426,
+            "mismatched": [],
+            "ms": 42.5668
+          },
+          "web": {
+            "ok": true,
+            "files": 167,
+            "precompressed": 150,
+            "immutable": 164,
+            "ms": 0.4819999999999993
+          },
+          "parse": {
+            "ok": true,
+            "initMs": 41.4056,
+            "langs": [
+              "typescript",
+              "tsx",
+              "javascript",
+              "python",
+              "go",
+              "rust"
+            ],
+            "wrong": [],
+            "ms": 83.61620000000002
+          },
+          "elk": {
+            "ok": true,
+            "nodes": 300,
+            "edges": 459,
+            "bootMs": 1096.0179,
+            "firstMs": 1672.8182,
+            "warmMs": [
+              781.2907999999998
+            ],
+            "warmMedianMs": 781.2907999999998,
+            "ms": 3553.6832000000004
+          },
+          "shiki": {
+            "ok": true,
+            "initMs": 81.47979999999998,
+            "langs": [
+              "typescript",
+              "tsx",
+              "javascript",
+              "jsx",
+              "python",
+              "go",
+              "rust",
+              "json",
+              "yaml",
+              "toml",
+              "markdown",
+              "shellscript",
+              "sql"
+            ],
+            "missing": [],
+            "highlight100ColdMs": 605.2135,
+            "highlight100WarmMs": 54.03510000000006,
+            "ms": 822.8305
+          },
+          "sqlite": {
+            "ok": true,
+            "applied": 2,
+            "reapplied": 0,
+            "ms": 4.406500000000051
+          }
+        }
+      },
+      "evidence": {
+        "artifactUrl": "https://github.com/satoki252595/mitori/actions/runs/38112767631/artifacts/11692446328",
+        "artifactName": "windows-evidence-525260d354233147d18232073a7a3ae17ad94b38",
+        "artifactFiles": [
+          "windows-native-tests.log",
+          "windows-selftest.json"
+        ],
+        "nativeJobLogSha256": "b8dfdf6f104f05faa9307478f7afd53f1d6665455d0d11c1c9d76850ca134908",
+        "safety": "Only safe result summaries and the selftest JSON are persisted; the full job log and environment values are not copied into the repository."
+      }
+    }
+  ],
+  "latestVerifiedHead": "23645fdc7100e02e5f6b63bbbde2b33c59b1c79f"
 }
