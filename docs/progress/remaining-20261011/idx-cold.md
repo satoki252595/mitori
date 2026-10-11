@@ -107,3 +107,9 @@ loadavgは7.5625 / 8.2959 / 9.1880。較正未測定・計時追加ありの1回
 reference条件が戻ったため、上記WASM -O3候補も同じGo全体で1 ABBAだけ実行できた。元1,455.436 / 1,515.840ms、候補1,458.731 / 1,497.880ms、中央値1,485.638→1,478.305ms（0.494%差）。3表全行hash・coverage・counters・degraded2は全回一致し、先行の「全corpus hash未取得」はこの後続で確認できた。ただしafter factor**1.147960**は基準外で、candidateのquery累積時間も減っていない。小差から再現する改善・正式合格は主張できず**不採用**を維持する。派生WASM・恒久依存・asset lock変更0。
 
 値・driver / raw hash・各候補の判断は [idx-cold.json](idx-cold.json) の `fullScanFollowup20261012`。hashは各比較内で同じ直列化を使い、初期driverと直列化が異なるidx_blobs digestは横断比較しない。追加LLM・追加費用0。製品の変更を残さず、最新正式hard未達を保持する。
+
+## 空globのS0確認（main 5925579）
+
+`compileGlobs([])`は空Set検索とbasename切り出しを行うため、即falseを返す案を確認した。既存Go corpusを読み取り専用で再帰列挙した7,762ファイルに各3照合、各variantを100反復・事前warmup後ABBAで診断した。1列挙相当の元matcherは0.622598 / 0.606442ms、即falseは0.031283 / 0.031364msで、全回match0だった。列挙は本番の7,687件と同じではなく、これはmatcherだけの単thread診断で、S0全体・正式scan・較正付きの測定ではない。
+
+照合だけの差は約0.58msで、不足54.114msを解消する根拠はない。製品変更・全体再計測は行わず、最新正式FAILを維持する。追加LLM・依存・費用0。
