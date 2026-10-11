@@ -15,6 +15,8 @@ export function captureAnchor(root: ParentNode): Anchor | null {
   const blocks = root.querySelectorAll<HTMLElement>(".blk[data-b]");
   let fallback: Anchor | null = null;
   for (const el of blocks) {
+    // Skipped content-visibility sections can retain stale child rectangles inside the viewport.
+    if (el.checkVisibility?.({ contentVisibilityAuto: true }) === false) continue;
     const r = el.getBoundingClientRect();
     if (r.height === 0) continue;
     if (r.bottom > HEADER) return { id: el.dataset.b ?? "", top: r.top };

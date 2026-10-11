@@ -151,6 +151,11 @@ async function loadView(initialReader?: NativeReaderState, initial?: Partial<Ini
     if (state.effort) view.snapshot.ui.effort = state.effort;
   }
   const camera = plan ? { ...plan.cam } : null;
+  // A same-page refresh must preserve reading done while its server view was loading.
+  if (initialReader) {
+    const live = reader?.capture();
+    if (live?.page === initialReader.page && live.ws === initialReader.ws) initialReader = live;
+  }
   disconnectView();
   stopDisclosure();
   snapshot = view.snapshot;
