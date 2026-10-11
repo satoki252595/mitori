@@ -7,6 +7,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:f
 import { availableParallelism, cpus, homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import type { MetricName } from "@mitori/core";
+import { hardwareInfo } from "@mitori/platform";
 import type { Indexer } from "../../contract.ts";
 import { bunWorkerPool } from "../../parse/test/bun-pool.ts";
 import { corpusDir } from "../../parse/test/corpus.ts";
@@ -38,11 +39,7 @@ interface FullResult extends ColdResult {
   updateMs?: number[];
 }
 
-const perfCores = (() => {
-  const r = Bun.spawnSync(["sysctl", "-n", "hw.perflevel0.logicalcpu"]);
-  const n = Number(new TextDecoder().decode(r.stdout).trim());
-  return Number.isFinite(n) && n > 0 ? n : null;
-})();
+const perfCores = hardwareInfo().perfCores;
 /** `MITORI_BENCH_PERF_CORES=<n>` overrides the perfCores fed to poolSize (Worker sweeps for O-IDX-1). */
 const perfCoresUsed = process.env.MITORI_BENCH_PERF_CORES ? Number(process.env.MITORI_BENCH_PERF_CORES) : perfCores;
 
