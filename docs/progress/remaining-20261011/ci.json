@@ -227,7 +227,7 @@
       }
     }
   },
-  "merge": "pending successful reference-condition Mac CI",
+  "merge": "merged via PR #13, merge commit df014912ee7e31ac62c4ca50c846d396aeec9dff (2026-10-11T11:16:43Z)",
   "latestFollowUp": {
     "head": "98c59a60866e094c90aa84fd53ef4e79c7e4d884",
     "run": "https://github.com/satoki252595/mitori/actions/runs/38119108193",
@@ -260,8 +260,8 @@
       "linuxBinaryVersion": "mitori 0.0.0 (api 1)"
     },
     "macBrowsers": {
-      "conclusion": "failure",
-      "stage": "reference guard before browser tests",
+      "conclusion": "success",
+      "stage": "browser, encrypted share and accessibility steps completed",
       "attempts": [
         {
           "job": 114409967855,
@@ -288,9 +288,51 @@
           "power": "ac",
           "factor": 1.899866506147403,
           "reason": "outside existing 0.9-1.1 reference calibration range"
+        },
+        {
+          "job": 114453234549,
+          "loadAverage": 5.734375,
+          "noisy": false,
+          "waited": 0,
+          "power": "ac",
+          "factor": 2.2260196195521176,
+          "reason": "outside existing 0.9-1.1 reference calibration range"
+        },
+        {
+          "job": 114454979138,
+          "loadAverage": 7.4228515625,
+          "noisy": false,
+          "waited": 0,
+          "power": "ac",
+          "factor": 2.0719581345377343,
+          "reason": "outside existing 0.9-1.1 reference calibration range"
+        },
+        {
+          "job": 114455888859,
+          "conclusion": "success",
+          "loadAverage": 6.19384765625,
+          "noisy": false,
+          "waited": 0,
+          "power": "ac",
+          "factor": 1.017953727365694,
+          "browser": {
+            "pass": 380,
+            "skip": 14,
+            "fail": 0,
+            "minutes": 4.5
+          },
+          "encryptedShare": {
+            "pass": 2,
+            "fail": 0
+          },
+          "accessibility": {
+            "pass": 8,
+            "fail": 0,
+            "seconds": 7.9
+          }
         }
       ],
-      "testsStarted": false,
+      "testsStarted": true,
       "ubuntuRerun": false,
       "thresholdsChanged": false,
       "referenceChanged": false,
@@ -300,8 +342,45 @@
         "power": "ac",
         "factor": 1.0842684264954963,
         "note": "Root-side preflight only; not the later CI measurement or proof of the cause of its slower calibration."
+      },
+      "runnerSchedulingDiagnostic": {
+        "samePinnedRunner": true,
+        "sameSource": true,
+        "sameInstalledPlist": true,
+        "installedAndLoadedProcessType": "Interactive",
+        "launchAgent": {
+          "calibrationChildPid": 44460,
+          "nice": 0,
+          "psPriority": 4,
+          "taskPriority": 31,
+          "darwinBackground": 0,
+          "getpriorityErrno": 0,
+          "factor": 2.0719581345377343
+        },
+        "foreground": {
+          "calibrationChildPid": 54820,
+          "nice": 0,
+          "psPriority": 31,
+          "taskPriority": 31,
+          "darwinBackground": 0,
+          "getpriorityErrno": 0,
+          "factor": 1.017953727365694
+        },
+        "monitor": {
+          "intervalSeconds": 0.5,
+          "fields": "comm, PID/start identity, PPID, nice, scheduling priority, public libproc policy and flags; no argv or environment",
+          "stoppedAfterFirstChromiumSeconds": 3.7
+        },
+        "machTaskNameRead": "denied with KERN_FAILURE(5); no alternative access attempted",
+        "samePlistRestart": "did not restore the observed priority",
+        "mitigation": "temporarily run the same Nix runner in the normal terminal context for reference verification",
+        "permanentLaunchAgentCause": "unresolved; the effective QoS class and causal mechanism were not obtained",
+        "originalLaunchAgentRestored": true,
+        "plistChanged": false,
+        "thresholdsChanged": false,
+        "referenceChanged": false
       }
     },
-    "merge": "pending successful reference-condition Mac CI"
+    "merge": "merged via PR #13, merge commit df014912ee7e31ac62c4ca50c846d396aeec9dff (2026-10-11T11:16:43Z)"
   }
 }

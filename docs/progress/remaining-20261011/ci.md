@@ -31,3 +31,13 @@ Macはload11.3823、既定の2回待機後もNOISYで、browser suite開始前�
 Mac初回job114409967855はload9.7925でNOISY。失敗したMac jobだけ再実行した[job114412318444](https://github.com/satoki252595/mitori/actions/runs/38119108193/job/114412318444)はload8.4741 / quiet / ACだがfactor2.308816が既存0.9–1.1範囲外で、browser suite開始前に停止した。Ubuntuを再実行せず、上限・較正・基準機referenceは変更していない。旧headの5失敗は履歴として保持し、修正後の正式Mac suite成功とは扱わない。PR #13は未マージ。
 
 3回目も失敗したMac jobだけ再実行。[job114416752978](https://github.com/satoki252595/mitori/actions/runs/38119108193/job/114416752978)はload8.9409 / quiet / AC、factor1.899867が範囲外でbrowser開始前に停止した。dispatch直前のroot側はload8.5039 / factor1.084268だったが、別時点の測定なのでCIの合格や遅延原因の証明にしない。共有viewer / a11yの後続stepも未実行、Ubuntuの成功は保持した。
+
+## 同一headのMac CI成功と統合
+
+4回目はload5.7344 / factor2.226020、5回目はload7.4229 / factor2.071958で、quiet / ACでも較正範囲外だった。通常端末では同じCI checkout・Nix・Bun・較正コードでfactor約1.01となり、CIフラグを付けても差は再現しなかった。
+
+本人の専用runnerだけを観察すると、LaunchAgent配下の実較正BunはNI0 / ps PRI4 / task priority31 / Darwin BG0。同じplistでの再起動後もListenerはPRI4だった。同じNixのrunnerを通常端末から一時起動すると実較正BunはPRI31となった。厳密なQoS classは取得できず、Machの読み取り拒否を迂回していない。常駐経路の恒久原因を確定したとは扱わない。監視は最初のChromium起動から約3.7秒後に停止し、その後は別の重い検証を併走させていない。
+
+[6回目job114455888859](https://github.com/satoki252595/mitori/actions/runs/38119108193/job/114455888859)は **load6.1938 / quiet / AC / factor1.017954** で既存guardを通過し、**browser380pass / 14skip / 0fail（4.5分）、共有viewer2pass / 0fail、a11y8pass（7.9秒）**。元の時間予算3件と読書位置保持も成功した。Ubuntuの成功を維持し、基準reference・判定範囲・試験入力・上限は変更していない。検証後は一時runnerを終了し、元のplistから常駐起動を復元した。
+
+PR #13は2026-10-11T11:16:43Zに通常mergeでmainへ統合した（`df014912ee7e31ac62c4ca50c846d396aeec9dff`）。golden専用commitを保持している。後続の[compiled scanSummary正式計測](ui-bench-release.md)は中央値1,615.700msで元のhard limit2,000msを満たした（soft target1,000msはWARN）。[Go正式5回計測](idx-formal.json)は中央値1,980.097msでhard limit1,500ms未達。実IMEの本人確認と費用承認待ちの引用再生成も残る。

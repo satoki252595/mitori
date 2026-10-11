@@ -38,3 +38,9 @@ compiled perf の対象 4 件は 11.0 s で成功。shell **274 ms**、firstUsef
 TOC の最初の測定に負値 1 件があった。Playwright の actionability 待ち中に別の refresh が描画し、click より前の mark を拾った計測競合だった。その値は採用せず、実 click timestamp 以降の最初の mark を待つようハーネスを修正した。action 開始 → paint / actionability も引き続き annotation に残す。TOC 1 件だけ再実行し、**82.5 / 31.0 / 64.5 / 38.9 / 31.1 / 27.7 ms**（全 6 操作、有限・非負）で成功。factor 1.11、report-only。製品の再 build は不要なハーネス変更である。
 
 compiled a11y は map/Reader × light/dark の axe/probes **8 pass / 8.0 s**、違反 0。詳細・以前の無効 TOC 値・最新の有効な再実行を `ui-bench-release.json` に保存した。nonce/token は保存せず workspace ID は `WS` に置き換えた。
+
+## 最終compiledの正式scanSummary計測
+
+読書位置修正後の同じ配布binary（SHA-256 `8d1f22762b6b56d9eae7181e61a144b1d8e607f1ff84808b9d9673d51387deb7`）を、main `bdcebaf1aa97525bc86722cbf4f4cbf508bfa083` で正式計測した。`MITORI_E2E_BINARY=compiled scripts/nd bun bench/runner/run.ts --id ui.scanSummary --exact --absolute --out <output>`、既定のwarmup1回を除外し3回測定。実daemon・fresh home・固定crit・起動済みChromiumでCLI起動からsummaryの描画までを測る。LLM呼出0、上限・reference・試験入力は変更していない。
+
+quiet / AC、load7.58251953125、実測factor **1.0293374645265196**（後続 **1.0867728003515473**、両方既存0.9–1.1内）。値は **1,767.800 / 1,615.700 / 1,577.100ms**、中央値 **1,615.700ms**、p95 1,767.800ms、CV0.060974。元のhard limit **2,000msを正式に満たしexit0**、soft target **1,000msはWARN**。上のfactor1.12の先行report-only測定とは別の有効な結果として `ui-bench-release.json` の `currentFollowUp` に保存した。実Chromeの日本語IME本人確認と、他のsoft targetの達成を保証する結果ではない。

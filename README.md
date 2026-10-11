@@ -75,7 +75,7 @@ scripts/nd bun run start -- /absolute/path/to/your/repository
 bun run start -- setup codex --native --max-estimated-usd 1
 ```
 
-既定は`gpt-6.1-sol` / `high`です。実行ファイルと設定を確認して保存し、画面を再読み込みします。未ログインなら画面のCodexログインボタン、または`bun run start -- auth codex`から公式ログインへ進めます。検証済みCLIは`0.160.0`で、別版は安全設定の確認が済むまで拒否します。`--max-estimated-usd 1`は1ターンのAPI換算推計への同意額です。実行はサブスク認証を使い、契約の利用枠・制限に従います。CLIの非公開の推論量まで厳密に金額制限するものではありません。[実測・公式単価・制限](docs/progress/remaining-20261011/quality.md)。普段のCodexセッションからMCPで使う場合は`bun run start -- setup codex --repo /absolute/path/to/your/repository`を使います。画面でも「直接実行する」のチェックを外して選べます。
+既定は`gpt-6.1-sol` / `high`です。実行ファイルと設定を確認して保存し、画面を再読み込みします。未ログインなら画面のCodexログインボタン、または`bun run start -- auth codex`から公式ログインへ進めます。検証済みCLIは`0.160.0`で、別版は安全設定の確認が済むまで拒否します。`--max-estimated-usd 1`は1ターンのAPI換算推計への同意額です。実行はサブスク認証を使い、契約の利用枠・制限に従います。購入済みの追加クレジットがある場合、その消費をmitori側では禁止できません（[公式の利用枠・クレジット説明](https://learn.chatgpt.com/docs/pricing)、2026-10-11確認）。CLIの非公開の推論量まで厳密に金額制限するものではありません。[実測・公式単価・制限](docs/progress/remaining-20261011/quality.md)。普段のCodexセッションからMCPで使う場合は`bun run start -- setup codex --repo /absolute/path/to/your/repository`を使います。画面でも「直接実行する」のチェックを外して選べます。
 
 `MODEL_ID`は置き換える値です。**Ollama**はアプリを起動（または既存CLIで`ollama serve`）し、`ollama list`で取得済みモデル名を確認して指定します。ローカルモデルはログインもAPIキーも不要です。**LM Studio**はアプリでモデルを読み込み、Developer画面でローカルサーバーを開始し、表示されたモデルIDを指定します。`lms` CLIは必須ではありません。設定コマンドはサーバーの起動やモデルの取得を代行しません。mitoriは起動済みのローカルHTTPサーバーへ接続します。これは有料クラウドAPIの契約を必要とするものではありません。LM Studioの既定接続先は`http://localhost:1234/v1`、Ollamaは`http://localhost:11434/v1`です。
 

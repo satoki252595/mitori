@@ -274,5 +274,116 @@
       ],
       "reason": "Stopped before any scan; calibration outside existing reference range"
     }
+  },
+  "helperAbbaFollowUp": {
+    "date": "2026-10-11T11:28:27.195Z",
+    "design": "ABBA; same frozen source except Go helper type reuse; fresh process and home; OS page cache unchanged",
+    "frozenSourceSha256": "5cb4f3b598e3c26eb4cf2abf783890a629148b68ffaa9eb21fdb7654f0f2f929",
+    "baseline": "Adopted Go local-type change 89d9dd3; no helper type-reuse change",
+    "baselineSha256": "6a4b395430744e45a6182de7a5d13631697370af8df5e4c16f134b266d2fd9be",
+    "candidateSha256": "c7f3cea5e2360059f5df1c51522225134a2aafc820c9514c89185045032b1fbc",
+    "adopted": false,
+    "decision": "Candidate median is only 3.96 ms (about 0.21%) lower, with overlapping samples; no supported improvement or 1500 ms limit pass. Keep the adopted baseline.",
+    "precedingStoppedAttempt": {
+      "loadavg": 7.69580078125,
+      "power": "ac",
+      "noisy": false,
+      "factor": 1.1010531738965326,
+      "factorSource": "measured",
+      "allowedRange": [0.9, 1.1],
+      "performanceRuns": 0,
+      "reason": "Stopped before scan because calibration exceeded the unchanged reference range"
+    },
+    "machine": {
+      "cpu": "Apple M5 Max",
+      "cores": 18,
+      "ramGb": 128,
+      "os": "Darwin 27.0.0",
+      "bun": "1.4.2",
+      "node": "22.23.3",
+      "chrome": "153.0.8010.12",
+      "loadavg": 6.85205078125,
+      "noisy": false,
+      "waited": 0,
+      "power": "ac"
+    },
+    "referenceConditions": {
+      "valid": true,
+      "noisyThreshold": 9,
+      "factorRange": [0.9, 1.1],
+      "factorBefore": 1.0782383921669212,
+      "factorAfter": 1.0734052732068737,
+      "factorSource": "measured",
+      "loadAfter": [8.05859375, 7.595703125, 7.37451171875],
+      "budgetsChanged": false,
+      "referenceChanged": false,
+      "workerRuleChanged": false
+    },
+    "runs": [
+      {
+        "variant": "baseline",
+        "ms": 1830.4705,
+        "rssPeakMiB": 944.90625,
+        "loadavg": [6.94384765625, 7.38330078125, 7.296875]
+      },
+      {
+        "variant": "candidate",
+        "ms": 1884.6845,
+        "rssPeakMiB": 921.609375,
+        "loadavg": [6.7880859375, 7.34326171875, 7.283203125]
+      },
+      {
+        "variant": "candidate",
+        "ms": 1813.821083,
+        "rssPeakMiB": 931.828125,
+        "loadavg": [7.365234375, 7.45361328125, 7.322265625]
+      },
+      {
+        "variant": "baseline",
+        "ms": 1875.955083,
+        "rssPeakMiB": 886.96875,
+        "loadavg": [7.255859375, 7.42919921875, 7.314453125]
+      }
+    ],
+    "baselineMedianMs": 1853.2127915,
+    "candidateMedianMs": 1849.2527915,
+    "candidateMinusBaselineMs": -3.96,
+    "coverageIdenticalAcrossRuns": true,
+    "coverage": {
+      "files": 7687,
+      "included": 6009,
+      "filesParsed": 6539,
+      "cacheHits": 0,
+      "workers": 6,
+      "degraded": 2,
+      "availableParallelism": 18
+    },
+    "countersEqual": true,
+    "counters": {
+      "idx.files.hashed": 6539,
+      "idx.parse.calls": 5907,
+      "idx.sql.writes": 36
+    },
+    "allRowsEqual": true,
+    "fingerprint": {
+      "blobs": {
+        "rows": 6490,
+        "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+      },
+      "symbols": {
+        "rows": 133602,
+        "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+      },
+      "skeleton": {
+        "rows": 11997,
+        "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+      }
+    },
+    "evidenceSha256": "24a7b79e6cec89f5a57c347991c8359f2959a9a6f167d19f97877e34b4c75e27",
+    "limitations": [
+      "Two samples per variant support this local ABBA decision only; this is not the formal five-run case.",
+      "All four samples exceed the unchanged 1500 ms limit; no limit pass is claimed.",
+      "The candidate was measured only in the frozen comparison tree and remains unadopted."
+    ]
   }
 }

@@ -1119,5 +1119,108 @@
       }
     ]
   },
-  "limits": "No reference or budget was changed. Raw scanSummary 1771.5ms is below the original 2000ms limit; this single calibrated run is outside reference tolerance and is not a formal reference-machine time verdict."
+  "limits": "No reference or budget was changed. Raw scanSummary 1771.5ms is below the original 2000ms limit; this single calibrated run is outside reference tolerance and is not a formal reference-machine time verdict.",
+  "currentFollowUp": {
+    "date": "2026-10-11",
+    "sourceCommit": "bdcebaf1aa97525bc86722cbf4f4cbf508bfa083",
+    "binary": {
+      "path": "dist/mitori-darwin-arm64",
+      "sha256": "8d1f22762b6b56d9eae7181e61a144b1d8e607f1ff84808b9d9673d51387deb7"
+    },
+    "command": "MITORI_E2E_BINARY=compiled scripts/nd bun bench/runner/run.ts --id ui.scanSummary --exact --absolute --out <output>",
+    "exitCode": 0,
+    "llmCalls": 0,
+    "discardedWarmup": 1,
+    "measuredRuns": 3,
+    "protocol": "Existing process-mode case: real compiled daemon, fresh home, fixed crit corpus, warm Chromium; CLI spawn to painted scan summary.",
+    "benchmark": {
+      "v": "mitori.bench-result/1",
+      "sha": "bdcebaf1aa97525bc86722cbf4f4cbf508bfa083",
+      "machine": {
+        "cpu": "Apple M5 Max",
+        "cores": 18,
+        "ramGb": 128,
+        "os": "Darwin 27.0.0",
+        "bun": "1.4.2",
+        "node": "22.23.3",
+        "chrome": "153.0.8010.12",
+        "loadavg": 7.58251953125,
+        "noisy": false,
+        "waited": 0,
+        "power": "ac"
+      },
+      "factor": 1.0293374645265196,
+      "factorSource": "measured",
+      "startedAt": "2026-10-11T11:21:39.401Z",
+      "results": [
+        {
+          "id": "ui.scanSummary",
+          "unit": "ms",
+          "values": [
+            1767.800048828125,
+            1615.7001953125,
+            1577.099853515625
+          ],
+          "median": 1615.7001953125,
+          "p95": 1767.800048828125,
+          "cv": 0.06097390238249765,
+          "suite": "ui",
+          "mode": "process",
+          "budgetStat": "median",
+          "repo": "crit",
+          "loadavg": 7.58251953125
+        }
+      ],
+      "counters": []
+    },
+    "after": {
+      "machine": {
+        "cpu": "Apple M5 Max",
+        "cores": 18,
+        "ramGb": 128,
+        "os": "Darwin 27.0.0",
+        "bun": "1.4.2",
+        "node": "22.23.3",
+        "chrome": "153.0.8010.12",
+        "loadavg": 7.19970703125,
+        "noisy": false,
+        "waited": 0,
+        "power": "ac"
+      },
+      "factor": {
+        "factor": 1.0867728003515473,
+        "source": "measured"
+      }
+    },
+    "verdict": {
+      "statistic": "median",
+      "target": 1000,
+      "limit": 2000,
+      "unit": "ms",
+      "level": "yellow",
+      "hardPass": true,
+      "targetPass": false,
+      "gating": true
+    },
+    "guards": {
+      "factorRange": [
+        0.9,
+        1.1
+      ],
+      "factorOverride": false,
+      "budgetsChanged": false,
+      "referenceChanged": false,
+      "inputChanged": false
+    },
+    "evidence": {
+      "resultSha256": "11ed20dbd6ba2800e6548d0eccc483094bef03ce9efe8b7776f697bb49f68d08",
+      "logSha256": "6d46125edccc5463a060a517901ee1cc80467cd57955b4dd6c4aa9733ec5cd75",
+      "afterSha256": "0db4fd06ea8fa29b21568409fa7fdd346ed29347346b7c0f4524bfab774af898"
+    },
+    "limitations": [
+      "The 1000 ms soft target remains unmet.",
+      "This result closes the compiled scanSummary hard-limit verification only; it is not an actual OS IME test or a pass for every UI soft target.",
+      "Earlier report-only and invalid TOC measurements remain above as history."
+    ]
+  }
 }

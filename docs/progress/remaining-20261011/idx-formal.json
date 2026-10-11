@@ -321,5 +321,136 @@
     "All original children retained corpus coverage, zero cache hits, 6 workers and 2 degraded files. Full extraction-table hashes were not collected by this existing formal case; the prior ABBA table equality remains separate evidence.",
     "The case is fresh-process/empty-home cold; the discarded warmup warms OS page cache. No disk-cache cold claim is made.",
     "The result is from the recorded commit plus the shared integration tree; no candidate production change was applied and no repeated formal measurement was attempted."
-  ]
+  ],
+  "currentFollowUp": {
+    "date": "2026-10-11T11:17:43.779Z",
+    "status": "failed under valid quiet AC reference conditions; 1500 ms hard limit unmet",
+    "sourceSha": "bdcebaf1aa97525bc86722cbf4f4cbf508bfa083",
+    "extractSha256": "6a4b395430744e45a6182de7a5d13631697370af8df5e4c16f134b266d2fd9be",
+    "referenceSha256": "ba99655e6e75b56b827c314267492f8695e2aeae713ca4669aec5f7fa14f56f0",
+    "corpus": {
+      "name": "gostd",
+      "commit": "862c888e612ac346c7c4d99c9392bdfd265f33b0",
+      "contentHash": "f21c254a8a653ec14936cd32ed622e0bc059991af174edf0952f62c4a9c14a2a",
+      "strictVerification": "1 ok, 0 failed"
+    },
+    "command": "scripts/nd bun --preload \"$mitori_idx_out/capture.ts\" bench/runner/run.ts --id idx.s01.cold.7kfiles --exact --absolute --runs 5 --warmup 1 --out \"$mitori_idx_out/result.json\"",
+    "commandPreparation": "Use a fresh output directory and a copy of the existing observer preload with its destination replaced; preserve the historical result and captures.",
+    "exitCode": 1,
+    "machine": {
+      "cpu": "Apple M5 Max",
+      "cores": 18,
+      "ramGb": 128,
+      "os": "Darwin 27.0.0",
+      "bun": "1.4.2",
+      "node": "22.23.3",
+      "chrome": "153.0.8010.12",
+      "power": "ac",
+      "loadavg": 7.27392578125,
+      "caseLoadavg": 7.27392578125,
+      "noisy": false,
+      "waited": 0
+    },
+    "referenceConditions": {
+      "valid": true,
+      "noisyThreshold": 9,
+      "factorRange": [0.9, 1.1],
+      "factorSource": "measured",
+      "preflight": {
+        "factor": 1.0128962176060825,
+        "loadavg": 7.7080078125,
+        "power": "ac",
+        "noisy": false
+      },
+      "formalFactor": 1.037243379882442,
+      "afterCompanion": {
+        "factor": 1.011367530578887,
+        "loadavg": 7.96533203125,
+        "power": "ac",
+        "noisy": false
+      },
+      "factorOverride": false,
+      "budgetsChanged": false,
+      "referenceChanged": false,
+      "workerRuleChanged": false
+    },
+    "result": {
+      "id": "idx.s01.cold.7kfiles",
+      "unit": "ms",
+      "discardedWarmup": 1,
+      "measuredRuns": 5,
+      "values": [1846.623084, 1973.5242079999998, 2082.850375, 2032.9652910000002, 1980.0969579999999],
+      "median": 1980.0969579999999,
+      "p95": 2082.850375,
+      "cv": 0.044506401224396204,
+      "target": 1200,
+      "limit": 1500,
+      "level": "red",
+      "gating": true,
+      "pass": false
+    },
+    "capture": {
+      "method": "Parent stdout tee of original ColdResult after scan timing; no child or production source modification",
+      "children": 6,
+      "captureErrors": [],
+      "warmupMs": 1820.942125,
+      "coverageIdenticalAcrossChildren": true,
+      "files": 7687,
+      "included": 6009,
+      "filesParsed": 6539,
+      "cacheHits": 0,
+      "workers": 6,
+      "degraded": 2,
+      "measuredRssPeakMiB": [912.3125, 940.9375, 980.421875, 945.78125, 946.4375],
+      "measuredRssPeakMedianMiB": 945.78125,
+      "formalCounters": [],
+      "formalExtractionTablesRehashed": false
+    },
+    "companion": {
+      "method": "Separate fresh-process, empty-home S0-S1 shadow scan of the same current source and pinned corpus; ordered extraction-table hashes are collected after scan timing.",
+      "exitCode": 0,
+      "includedInFormalSamples": false,
+      "ms": 2040.2800410000002,
+      "files": 7687,
+      "included": 6009,
+      "filesParsed": 6539,
+      "cacheHits": 0,
+      "workers": 6,
+      "degraded": 2,
+      "counters": {
+        "idx.files.hashed": 6539,
+        "idx.parse.calls": 5907,
+        "idx.sql.writes": 36
+      },
+      "fingerprint": {
+        "blobs": {
+          "rows": 6490,
+          "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+        },
+        "symbols": {
+          "rows": 133602,
+          "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+        },
+        "skeleton": {
+          "rows": 11997,
+          "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+        }
+      },
+      "comparison": "All three ordered extraction-table hashes, row counts and counters match all four prior ABBA runs in idx-type-local.json.",
+      "allRowsEqual": true,
+      "countersEqual": true
+    },
+    "evidence": {
+      "resultSha256": "25c021b5b9c7051965cbd1986619919922951cabd93ac88275c16020d00aec7d",
+      "companionSha256": "0b3e4ddeaaa8c95819341a9d725d9f3cb8512378db57d500caa77533402d1aa4",
+      "logSha256": "b09b7b11a826534288d65bafb28f4a611b09fb8c5934c67eda1c1ba3582d27e4",
+      "preloadSha256": "fdc608f5818945e80aaa0fd4f166b978dc8de35e0c5d5a6be4a9adf5ac9efa00"
+    },
+    "limitations": [
+      "This valid formal invocation fails the unchanged 1500 ms median limit; it is not a performance pass.",
+      "The original formal children do not emit full extraction-table hashes or metric counters; companion equality is separate evidence.",
+      "Cold means a fresh process and empty home, with OS page cache warmed by the discarded run; no disk-cache cold claim is made.",
+      "The Go helper type-reuse candidate remains unadopted and is not part of this result."
+    ]
+  }
 }
