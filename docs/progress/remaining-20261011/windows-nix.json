@@ -1,7 +1,7 @@
 {
   "format": "mitori.windows-nix-verification/1",
   "date": "2026-10-11",
-  "status": "implementation and Mac runtime proof complete; native Windows CI pending",
+  "status": "First native run failed strict environment assertion; see windows-env.json; fix pending native rerun",
   "method": "Reuse the existing Nix-crossbuilt mitori-windows-x64.exe as the full Bun CLI with BUN_BE_BUN=1 for frozen install and unchanged native source-test cases.",
   "source": {
     "url": "https://bun.sh/docs/bundler/executables#act-as-the-bun-cli",
@@ -97,10 +97,10 @@
     "packages/platform/src/spawn/windows-job.test.ts": "f98147b589db43baef79823757f74e29c632af0fbd5a8458473c9aa9ab99b0d7"
   },
   "nativeWindows": {
-    "status": "pending",
+    "status": "First native run: 5 pass / 1 fail; fix pending rerun",
     "runner": "windows-2025",
     "expectedSourceTests": {
-      "pass": 6,
+      "pass": 7,
       "skip": 0,
       "fail": 0
     },
@@ -115,7 +115,8 @@
     "evidenceArtifacts": [
       "windows-native-tests.log",
       "windows-selftest.json"
-    ]
+    ],
+    "followup": "windows-env.json"
   },
   "limitations": [
     "Mac standalone runtime proof does not prove Windows Job Object behavior.",

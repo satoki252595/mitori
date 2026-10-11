@@ -16,4 +16,6 @@ scripts/nd gh workflow run ci.yml --repo satoki252595/mitori --ref <検証対象
 
 Windowsのsource test工程だけで `BUN_BE_BUN=1` を設定する。別工程の製品 `--version`・`_selftest` は通常のentrypointを実行する。Windowsでのsource testログとselftest JSONをActions artifactへ保存する。
 
-**残る確認:** 実際の `windows-2025` runnerでsource testsが6成功・0 skip・0失敗となり、compiled binaryのembedded asset / Worker / SQLite selftestも成功すること。CIを実行するまではWindows検証完了とは扱わない。数値とローカル確認ログのハッシュは [windows-nix.json](windows-nix.json)。
+**初回native実行:** [run 38096491256](https://github.com/satoki252595/mitori/actions/runs/38096491256) は5成功・1失敗。BunがWindows標準環境変数を補ったため、exact environmentだけが失敗した。既存のnative4ケースと厳密比較を維持してランチャーを修正し、環境名プロトコルの検証を1件追加した。詳細は [windows-env.md](windows-env.md) / [windows-env.json](windows-env.json)。
+
+**残る確認:** 実際の `windows-2025` runnerでsource testsが7成功・0 skip・0失敗となり、compiled binaryのembedded asset / Worker / SQLite selftestも成功すること。再実行が成功するまではWindows検証完了とは扱わない。最初のruntime差替え時の数値とローカル確認ログのハッシュは [windows-nix.json](windows-nix.json) に履歴として残している。

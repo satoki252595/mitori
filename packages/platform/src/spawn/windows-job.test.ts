@@ -6,10 +6,27 @@ import { MitoriError } from "@mitori/core";
 import { cleanupTempDirs, tempDir } from "../test/tmp.ts";
 import { createSpawner, runToExit } from "./spawner.ts";
 import type { SpawnSpec } from "./types.ts";
-import { windowsJobExecutable } from "./windows-job.ts";
+import { windowsJobArgv, windowsJobExecutable } from "./windows-job.ts";
 
 afterAll(cleanupTempDirs);
 const hash = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
+
+test("Job Object environment protocol carries exact names without values and refuses ambiguous names", () => {
+  const argv = ["", "--", "日本語", 'a"b', "a\\"];
+  expect(windowsJobArgv("C:\\Program Files\\engine.exe", argv, { TOKEN: "secret-must-stay-out-of-argv", PATH: "C:\\bin", EMPTY: "" })).toEqual([
+    "--env-count",
+    "3",
+    "TOKEN",
+    "PATH",
+    "EMPTY",
+    "--",
+    "C:\\Program Files\\engine.exe",
+    ...argv,
+  ]);
+  expect(windowsJobArgv("C:\\engine.exe", [], {})).toEqual(["--env-count", "0", "--", "C:\\engine.exe"]);
+  for (const env of [{ "": "x" }, { "A=B": "x" }, { "A\0B": "x" }, { PATH: "a", Path: "b" }])
+    expect(() => windowsJobArgv("C:\\engine.exe", [], env)).toThrow(MitoriError);
+});
 
 test("Job Object asset refuses missing, modified and symlink executables before any spawn", () => {
   const root = realpathSync(tempDir()),
@@ -35,6 +52,8 @@ function fixture() {
     PATH: process.env.PATH ?? "",
     SystemRoot: process.env.SystemRoot ?? "C:\\Windows",
     MITORI_ONLY: "scoped fixture",
+    MITORI_EMPTY: "",
+    MITORI_日本語: "値=✓\n次",
     // The Nix-built standalone binary can serve as Bun; this child has an exact allowlisted environment.
     ...(process.env.BUN_BE_BUN === "1" ? { BUN_BE_BUN: "1" } : {}),
   };

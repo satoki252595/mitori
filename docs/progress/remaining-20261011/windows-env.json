@@ -1,0 +1,159 @@
+{
+  "format": "mitori.windows-env-verification/1",
+  "date": "2026-10-11",
+  "status": "fix implemented and Nix-crossbuilt; native rerun pending",
+  "failedRun": {
+    "url": "https://github.com/satoki252595/mitori/actions/runs/38096491256",
+    "job": 114343799001,
+    "headSha": "b6b61f2291a7fe29345a98bb4d1f9f12655f610e",
+    "runner": "windows-2025",
+    "sourceTests": {
+      "files": 2,
+      "pass": 5,
+      "fail": 1,
+      "skip": 0,
+      "assertions": 26,
+      "secondsPrinted": 4.35
+    },
+    "failedCase": "native Job Object preserves literal UTF-16 argv, exact environment, stdio and leader exit code",
+    "failure": "Unexpected Windows default environment names appeared in process.env; the assertion requiring exact equality was retained.",
+    "unexpectedNames": [
+      "HOMEDRIVE",
+      "HOMEPATH",
+      "LOGONSERVER",
+      "SYSTEMDRIVE",
+      "TEMP",
+      "USERDOMAIN",
+      "USERNAME",
+      "USERPROFILE",
+      "WINDIR"
+    ],
+    "passedNativeCases": [
+      "descendant fixture can write after its ungrouped leader exits (positive control)",
+      "leader exit closes the job and kills detached descendants before they can write",
+      "every cancellation signal hard-stops the job including independently detached grandchildren"
+    ],
+    "compiledSelftest": "Not reached because source-test step failed."
+  },
+  "sources": [
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/procthread/changing-environment-variables",
+      "checkedDate": "2026-10-11",
+      "decision": "Build an explicit double-NUL Unicode environment block; sort names case-insensitively in Unicode ordinal order independent of locale."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-getenvironmentvariablew",
+      "checkedDate": "2026-10-11",
+      "decision": "Direct environment-block filtering preserves empty values without confusing an empty value with a missing variable."
+    }
+  ],
+  "fix": {
+    "files": [
+      "packages/platform/native/windows-job.c",
+      "packages/platform/src/spawn/spawner.ts",
+      "packages/platform/src/spawn/windows-job.ts",
+      "packages/platform/src/spawn/windows-job.test.ts"
+    ],
+    "scope": "Verified Job Object launcher (Windows processGroup=true)",
+    "protocol": "--env-count <N> <N environment names> -- <absolute executable> <literal argv...>",
+    "values": "Values remain in the launcher environment; no secret values are added to command argv.",
+    "native": "Filter GetEnvironmentStringsW through the explicit name list, preserve exact name casing and values, sort with CompareStringOrdinal, reject duplicate/invalid/missing names, pass explicit Unicode block to CreateProcessW.",
+    "bounds": "Count must fit argc; child command retains the existing 32768 UTF-16-unit bound; environment buffer is allocated from the actual inherited block size and does not introduce a new aggregate environment cap.",
+    "preserved": [
+      "Atomic PROC_THREAD_ATTRIBUTE_JOB_LIST before child starts",
+      "JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE",
+      "No breakaway flags",
+      "Only three standard handles inherited",
+      "Every cancellation signal remains a hard stop",
+      "UTF-16 command quoting and literal argv",
+      "Exact environment equality assertion"
+    ],
+    "newCoverage": "Portable names-only/no-values protocol and invalid/ambiguous names; empty and non-ASCII name/value added to the existing native exact-env case.",
+    "newDependencies": 0,
+    "workflowChanged": false
+  },
+  "local": {
+    "runtime": {
+      "managedBy": "existing Nix flake via scripts/nd",
+      "bun": "1.4.2",
+      "platform": "darwin/arm64"
+    },
+    "crossbuild": {
+      "command": "scripts/nd nix develop .#windowsCross --command bun scripts/build-windows-job.ts",
+      "exit": 0,
+      "flags": [
+        "-std=c11",
+        "-Os",
+        "-s",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-municode"
+      ],
+      "record": {
+        "v": "mitori.windows-job/1",
+        "platform": "windows-x64",
+        "path": "node_modules/.cache/mitori-windows-job/windows-job-x64.exe",
+        "sha256": "ab791a37e55b5e0c682dfa13189295d645940c9e2a129211f2027e37839d4df2",
+        "bytes": 60416,
+        "sourceSha256": "a510a6ccbfef0d025b00ae005903a29305f8719ed0d737e550ade1ad1fd4f75d",
+        "buildSha256": "9054a83cf4e57282443dbca147843c85b4404bdeee846aef7a289b77886f315e",
+        "compiler": {
+          "name": "zig",
+          "version": "0.16.0"
+        }
+      },
+      "initialSandboxFailure": "Nix fetcher-cache SQLite database was read-only; retried through require_escalated, succeeded."
+    },
+    "tests": {
+      "command": "scripts/nd bun test packages/platform/src/spawn/windows-job.test.ts apps/cli/src/build/windows-job.test.ts scripts/build-windows-job.test.ts packages/platform/src/spawn/spawn.test.ts",
+      "pass": 19,
+      "windowsOnlySkip": 4,
+      "fail": 0,
+      "assertions": 59,
+      "secondsPrinted": 0.512,
+      "logSha256": "9d99f055ad29914debbbfe438e855ec28e3a1c2ec73c0a90fee40559ce3f1cf8"
+    },
+    "typecheck": {
+      "command": "scripts/nd bunx --no-install tsc -b packages/platform",
+      "exit": 0,
+      "diagnostics": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "biome": {
+      "files": 3,
+      "exit": 0,
+      "initialFormatMismatch": "New Unicode identifier property was quoted; formatter applied its canonical unquoted form."
+    },
+    "diffCheck": true
+  },
+  "nativeRerun": {
+    "status": "pending parent commit/push/dispatch",
+    "runtime": "Nix-crossbuilt standalone EXE with BUN_BE_BUN=1, no Windows Bun download",
+    "expectedSourceTests": {
+      "files": 2,
+      "pass": 7,
+      "skip": 0,
+      "fail": 0
+    },
+    "expectedSelftestChecks": [
+      "integrity",
+      "web",
+      "parse",
+      "elk",
+      "shiki",
+      "sqlite"
+    ]
+  },
+  "limitations": [
+    "A successful Nix crossbuild and Mac tests do not prove native Windows behavior; a green windows-2025 rerun is required.",
+    "Windows processGroup=false still uses the existing direct Bun.spawn route; Windows default-variable supplementation there is outside this Job Object fix.",
+    "The full failed CI log was read, but only variable names and safe result summaries are persisted here."
+  ],
+  "sourceHashes": {
+    "packages/platform/native/windows-job.c": "a510a6ccbfef0d025b00ae005903a29305f8719ed0d737e550ade1ad1fd4f75d",
+    "packages/platform/src/spawn/spawner.ts": "ced35aafbb467700b69efaf294de7ed0419de7560a537f9532502b25f4d7f8ea",
+    "packages/platform/src/spawn/windows-job.ts": "e324d4b2f8524643bb0de5d65e9cc16f0ae3d6bcac263776bba2ea3722796f3b",
+    "packages/platform/src/spawn/windows-job.test.ts": "6bdea640b99616be541acebb01b35c239fa58eaef559098a55b2613a56894ce3"
+  }
+}
