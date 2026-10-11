@@ -579,6 +579,30 @@
           "passed": "All nine native asset/environment/process-lifetime cases, including both exact-env modes and single-child cancellation",
           "failed": "Both new compiled client cases: E_INVALID_INPUT path must be absolute. Server workspace registration used a POSIX-only prefix check.",
           "compiledSelftest": "Not reached after the failed source-test step."
+        },
+        {
+          "url": "https://github.com/satoki252595/mitori/actions/runs/38148784079",
+          "headSha": "d16e4166ae1a36d31de6cf842f5d867b34bc2a01",
+          "crossbuildJob": 114497644908,
+          "nativeJob": 114498116386,
+          "crossbuild": "success",
+          "native": "failure",
+          "runner": "windows-2025",
+          "sourceTests": {
+            "files": 3,
+            "pass": 10,
+            "fail": 2,
+            "skip": 0,
+            "assertions": 67,
+            "secondsPrinted": 12.19
+          },
+          "passed": "All nine native asset/environment/lifetime cases and compiled scan daemon survival/reuse/stop",
+          "failed": "Both cold exports failed in fixture rmSync with EPERM after registry removal. Cleanup masked any prior failure; async bounded retry and primary-error preservation added for the next run.",
+          "notReached": [
+            "Native project/doc boundary filters",
+            "Compiled selftest"
+          ],
+          "evidenceArtifact": "https://github.com/satoki252595/mitori/actions/runs/38148784079/artifacts/11706565720"
         }
       ]
     },

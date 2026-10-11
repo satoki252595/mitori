@@ -1,6 +1,6 @@
 /** Native Windows: the distributed CLI starts its embedded daemon, owns cold-export cleanup, and preserves an existing daemon. */
 import { describe, expect, test } from "bun:test";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { probeDaemon } from "@mitori/client";
@@ -60,7 +60,17 @@ async function cleanup(f: Fixture) {
   }
   const left = readRegistry(f.home);
   if (left && pidAlive(left.pid)) throw new Error("Windows bootstrap fixture still has a live daemon");
-  rmSync(f.dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+  // Registry removal precedes process exit; Windows can briefly keep the copied EXE / cwd open.
+  const until = Date.now() + 5000;
+  for (;;) {
+    try {
+      rmSync(f.dir, { recursive: true, force: true });
+      break;
+    } catch (err) {
+      if (!["EPERM", "EBUSY", "ENOTEMPTY"].includes((err as { code?: string }).code ?? "") || Date.now() >= until) throw err;
+      await Bun.sleep(50);
+    }
+  }
 }
 
 async function fixture(run: (f: Fixture) => Promise<void>, gitRepo = true) {
@@ -94,6 +104,7 @@ async function fixture(run: (f: Fixture) => Promise<void>, gitRepo = true) {
   }
   // In particular, never forward the test runner's BUN_BE_BUN or MITORI_WINDOWS_JOB_LAUNCHER.
   const f = { dir, repo, home, binary, env };
+  let failed = false;
   try {
     if (gitRepo) {
       const git = ["-c", `core.hooksPath=${hooks}`, "-c", "commit.gpgsign=false", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid"];
@@ -102,8 +113,16 @@ async function fixture(run: (f: Fixture) => Promise<void>, gitRepo = true) {
       await command(f, "git", [...git, "commit", "--quiet", "-m", "fixture"]);
     }
     await run(f);
+  } catch (err) {
+    failed = true;
+    try {
+      await cleanup(f);
+    } catch (cleanupError) {
+      throw new AggregateError([err, cleanupError], "Windows bootstrap and fixture cleanup failed");
+    }
+    throw err;
   } finally {
-    await cleanup(f);
+    if (!failed) await cleanup(f);
   }
 }
 
@@ -122,6 +141,11 @@ describe.skipIf(process.platform !== "win32")("compiled Windows client bootstrap
         expect((await command(f, f.binary, ["export", "--html", "--no-code", "-o", out])).trim().length).toBeGreaterThan(0);
         expectHtml(out);
         expect(existsSync(join(f.home, "daemon.json"))).toBe(false);
+        const workspaces = readdirSync(join(f.home, "repos"));
+        expect(workspaces).toHaveLength(1);
+        const docRoot = gitRepo ? join(f.repo, ".mitori") : join(f.home, "repos", workspaces[0] as string, "doc");
+        expect(existsSync(join(docRoot, "doc.index.json"))).toBe(true);
+        expect(existsSync(join(f.repo, ".mitori"))).toBe(gitRepo);
       }, gitRepo);
     }, 120_000);
   }
