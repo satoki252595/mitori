@@ -19,15 +19,26 @@
     "attempt2": {
       "job": 114399821863,
       "conclusion": "success",
-      "factor": 1.660,
+      "factor": 1.66,
       "checkSeconds": 43.74,
       "targetSeconds": 24.89,
       "limitSeconds": 49.79,
       "semanticBuilds": 20,
       "cachedBuilds": 0,
       "errors": 0,
-      "unit": { "pass": 3017, "skip": 134, "todo": 4, "fail": 0, "assertions": 121920 },
-      "golden": { "pass": 109, "skip": 4, "fail": 0, "assertions": 1028 },
+      "unit": {
+        "pass": 3017,
+        "skip": 134,
+        "todo": 4,
+        "fail": 0,
+        "assertions": 121920
+      },
+      "golden": {
+        "pass": 109,
+        "skip": 4,
+        "fail": 0,
+        "assertions": 1028
+      },
       "fixturesVerify": "success",
       "size": "success",
       "linuxBinaryBuild": "success",
@@ -46,7 +57,175 @@
   "windows": {
     "run": "https://github.com/satoki252595/mitori/actions/runs/38115528185",
     "conclusion": "success",
-    "evidence": ["windows-nix.json", "windows-env.json"]
+    "evidence": [
+      "windows-nix.json",
+      "windows-env.json"
+    ]
   },
-  "merge": "pending quiet Mac browser verification"
+  "followUp": {
+    "head": "6af11b8c27394435e860132cf87179c4198356a9",
+    "run": "https://github.com/satoki252595/mitori/actions/runs/38116332962",
+    "ubuntu": "success",
+    "macBrowsers": {
+      "initialGuard": {
+        "job": 114401842314,
+        "loadAverage": 10.0302734375,
+        "reason": "noisy"
+      },
+      "secondGuard": {
+        "job": 114404325461,
+        "loadAverage": 7.7890625,
+        "factor": 1.1075954880028394,
+        "reason": "outside existing reference calibration range"
+      },
+      "executed": {
+        "job": 114404755569,
+        "conclusion": "failure",
+        "loadAverage": 8.42138671875,
+        "noisy": false,
+        "waited": 0,
+        "power": "ac",
+        "factor": 1.0532511347303184,
+        "pass": 369,
+        "skip": 14,
+        "fail": 5,
+        "minutes": 8.8,
+        "failures": [
+          {
+            "project": "chromium",
+            "case": "map room card",
+            "actualMs": 226.60000002384186,
+            "limitMs": 100
+          },
+          {
+            "project": "chromium",
+            "case": "reader level switch",
+            "p95Ms": 107.89999997615814,
+            "limitMs": 50
+          },
+          {
+            "project": "chromium",
+            "case": "reader TOC transition",
+            "p95Ms": 242.40000009536743,
+            "limitMs": 100
+          },
+          {
+            "project": "chromium",
+            "case": "finished streaming reservation release",
+            "positionDeltaPx": 1546.625,
+            "limitPx": 4
+          },
+          {
+            "project": "webkit",
+            "case": "finished streaming reservation release",
+            "positionDeltaPx": 1546.625,
+            "limitPx": 4
+          }
+        ],
+        "encryptedShare": "not run",
+        "accessibility": "not run"
+      }
+    },
+    "localFixValidation": {
+      "productionLinesAdded": 7,
+      "originalStreaming": {
+        "pass": 9,
+        "fail": 0,
+        "engines": [
+          "chromium",
+          "firefox",
+          "webkit"
+        ],
+        "cls": 0
+      },
+      "pendingRefreshRegression": {
+        "pass": 3,
+        "fail": 0,
+        "oldPositionDeltaPx": 4497,
+        "limitPx": 4,
+        "seconds": 4.6
+      },
+      "skippedSectionRegression": {
+        "pass": 3,
+        "fail": 0,
+        "oldAnchor": "b_skipped",
+        "expectedAnchor": "b_visible",
+        "seconds": 3.8
+      },
+      "webTypecheck": "success",
+      "e2eTypecheck": "success",
+      "biome": "success",
+      "diagnosticsRestored": true,
+      "existingChromiumTiming": {
+        "pass": 3,
+        "fail": 0,
+        "seconds": 4.8,
+        "loadAverage": 11.99,
+        "gating": false,
+        "cardRangeMs": [
+          31,
+          47
+        ],
+        "openRangeMs": [
+          21,
+          33
+        ],
+        "levelRangeMs": [
+          1.5,
+          12.1
+        ],
+        "tocRangeMs": [
+          32,
+          49
+        ]
+      },
+      "blankFrameBaseline": {
+        "loadAverage": 11.03,
+        "visible": true,
+        "chromium": {
+          "medianMs": 16.7,
+          "p95Ms": 16.7
+        },
+        "firefox": {
+          "medianMs": 8.34,
+          "p95Ms": 9.16
+        },
+        "webkit": {
+          "medianMs": 17,
+          "p95Ms": 17
+        }
+      },
+      "checkVisibilitySource": "https://drafts.csswg.org/cssom-view/#dom-element-checkvisibility",
+      "checkedAt": "2026-10-11",
+      "finalBuild": {
+        "sourceHead": "48ee530",
+        "check": {
+          "steps": 7,
+          "fail": 0,
+          "warmSeconds": 4.18
+        },
+        "binary": {
+          "platform": "darwin-arm64",
+          "sha256": "8d1f22762b6b56d9eae7181e61a144b1d8e607f1ff84808b9d9673d51387deb7",
+          "bytes": 70565490
+        },
+        "selftest": {
+          "checks": 6,
+          "fail": 0,
+          "ms": 1075
+        },
+        "assets": {
+          "file": "reader-fix-assets.json",
+          "strict": "success",
+          "initialJsGzipKB": 54.697,
+          "initialTargetKB": 60,
+          "genKB": 6.886,
+          "genLimitKB": 6.9,
+          "paletteKB": 4.52,
+          "paletteLimitKB": 4.6
+        }
+      }
+    }
+  },
+  "merge": "pending browser regression fixes and successful verification"
 }

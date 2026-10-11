@@ -1,6 +1,6 @@
 # 残課題の続行・検証記録（2026-10-11）
 
-今回の変更と測定をまとめる。[PR #13](https://github.com/satoki252595/mitori/pull/13)へpush済み。実装head23645fdのUbuntu・Windows CIは成功。Macのbrowser CIは高負荷guardで開始前に停止し、マージ・不要ブランチ削除は未実施。[CI記録](ci.md)。過去の失敗を後の成功値で置き換えず、各資料に前後の証拠を残した。
+今回の変更と測定をまとめる。[PR #13](https://github.com/satoki252595/mitori/pull/13)へpush済み。実装head23645fdのUbuntu・Windows CIは成功。Macは資料追加head6af11b8の後続で既定guardを通過し、369pass / 14skip / 5fail。位置保持と操作時間を修正・再検証中で、マージ・不要ブランチ削除は未実施。[CI記録](ci.md)。過去の失敗を後の成功値で置き換えず、各資料に前後の証拠を残した。
 
 開発・検証はプロジェクトのNixと `scripts/nd`。通常利用は既存Bun / Git / LLMを使える方針を維持する。Dockerは利用者が許可した既存Linux検証ハーネスだけ。今回の実LLMはCodexで、Claudeは使用していない。Cloudflareへのデプロイはcloneしてローカル利用するための必須条件に含めない。
 
@@ -12,8 +12,8 @@
 | Codex Explain / Nix・通常ローカル | go-smallで各1 application jobがdone、各引用1件有効、元source不変、後始末成功 | API相当合計$0.007274。課金先・サブスク枠は未確認 | [codex-explain.json](codex-explain.json) |
 | Codex並列生成の予算予約 | shared preflightで送信直前に合算判定。途中本文・usage保持と同額resumeを対象37tests / 224 assertionsで確認 | API換算の推計上限。hidden reasoningを含む実請求の厳密capではない | [codex-budget.md](codex-budget.md) |
 | Linux cold check | testkitの既存home subpathへimportを絞り、全20semantic診断を維持。ARM同条件ABBAは4回ともhard limit内 | soft targetは未達、統合headのUbuntu x64 CIでの確認は別 | [cold-home.md](cold-home.md) |
-| Go7k cold scan | parser / query / GCへ原因を絞り、候補12runで抽出結果3表が全行一致。既存正式caseも1 invocation実行 | **1,500ms上限は未達**。後続中央値3872.33ms、factor1.902929 / NOISYでreport-only。候補未採用 | [idx-cold.md](idx-cold.md)、[正式後続](idx-formal.json) |
-| UI / assets / a11y | 最終compiledのstrict asset全項目pass、初期JS54.639KB gzip、Reader6 requests、a11y8pass / 違反0 | scanSummary1771.5 / limit2000ms、factor1.12のためreport-only | [最終UI記録](ui-bench-release.md)、[経緯](ui-bench.md) |
+| Go7k cold scan | Goの同一Node.type再取得を減らす変更を採用。quiet / reference条件のABBAで2,232.14→1,994.58ms、全行hash・coverage・診断一致 | **1,500ms上限は未達**。既存正式5回caseの合格とは扱わない | [採用変更](idx-type-local.md)、[先行不採用](idx-cold.md)、[正式後続](idx-formal.json) |
+| UI / assets / a11y | 読書位置修正後のcompiledもstrict asset全項目pass、初期JS54.697KB gzip。先行測定はReader6 requests、a11y8pass / 違反0 | scanSummary1771.5 / limit2000ms、factor1.12のためreport-only | [最新assets](reader-fix-assets.json)、[先行UI記録](ui-bench-release.md) |
 | Windows | head23645fdのNix crossbuildと実Windowsのsource tests7pass / 0skip / 0fail（33assert / 4.20s）、製品`--version`とembedded selftest6checksすべて成功 | verified Job Object経路の対象検証。非group直接Bun.spawnには標準環境変数の補充が残る | [最新Windows CI](https://github.com/satoki252595/mitori/actions/runs/38115528185)、[windows-nix.md](windows-nix.md)、[windows-env.md](windows-env.md) |
 | 実ブラウザ操作 | 実Chromeの初回map、確定日本語検索、Codex native/MCP切替と配布binaryの接続commandを確認 | CDPの実IME送信が操作許可で拒否され、本人確認待ち。Safari実機はChrome代替の選択により必須外 | [chrome.md](chrome.md) |
 
@@ -39,16 +39,18 @@ WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別�
 
 ## 次の確認
 
-1. Ubuntu・Windowsの実装head CIは成功。Macをアイドルにできたらbrowser CIの失敗jobを再実行し、成功後にマージ・不要ブランチ削除する。[CI記録](ci.md)。
+1. Ubuntu・Windowsの実装head CIは成功。Macは実suite369pass / 14skip / 5fail。位置保持と操作時間の失敗を修正・再検証し、成功後にマージ・不要ブランチ削除する。[CI記録](ci.md)。
 2. 本人による実IME確認と、quiet基準機での時間予算を確認する。Chrome通常操作と最終compiled測定は完了。
-3. Go7kの1,500ms上限と、Jev / m3eの引用窓の不足は未解決として追跡する。Windowsの今回対象は最終CIで完了した。
+3. Go7kは約10.64%短縮したが1,500ms上限は未達。Jev / m3eは引用用import入力と共通verdictを修正し、追加実生成2回の費用承認待ち。Windowsの今回対象は最終CIで完了した。
 
 利用者の本人操作待ちは実IME確認。任意providerを使う場合はその本人認証、LM Studioを使う場合はモデル読込・サーバー開始が別途必要。Codexは今回ログイン済みで、認証待ちではない。Claudeのログインを今回の続行条件にしない。Safari実機とCloudflare公開は今回の必須条件から外れている。
 
 ## 最終統合の追記
 
+- 先行Go候補とは別に、同一Node.typeのWASM再取得を減らす最小変更を後続で採用した。quiet / AC・較正before1.010 / after1.077のABBAで中央値2,232.14→1,994.58ms（10.64%短縮）、抽出3表の全行hash、coverage、診断、6Workerが一致。1,500ms目標は未達。[比較の全結果](idx-type-local.md)。
 - 通常の既存Bun 1.4.2でもCodex Explainが1 job / attempt1で成功。API相当$0.003640、引用1件有効、source非変更、停止と一時データ削除を確認。Nixと合計$0.007274、課金先・請求額は不明。[両経路の証跡](codex-explain.json)。
 - 最終compiled UIは初期JS54.639KB gzip、CSS18.100KB、strict asset全項目成功。scanSummary1771.5ms / limit2000ms、Reader6requests。時間はfactor1.12でreport-only、正式reference合格とは扱わない。a11y8成功・違反0。[最終UI記録](ui-bench-release.md)。
 - 実Chromeで初回map、確定済み日本語検索、Codex native/MCP切替と配布binaryの接続commandを確認。実IME変換は操作許可が拒否されたため本人確認待ち。[Chrome記録](chrome.md)。
 - 統合checkは初回tscだけtest fixtureの不足で失敗。fixtureを直しtscのみ再実行成功。費用予約の最終修正後にも全7stepが4.35秒で成功した（warm）。Ubuntu実装head CIも再実行で成功し、全20semantic builds・0cached・0errors、unit3,017pass / 134skip / 4todo / 0fail、golden109pass / 4skip / 0fail、fixtures verify・size・Linux binary buildとversion成功。[CI記録](ci.md)。
 - 費用予約修正後のMac配布binaryを再build。SHA-256 `6ce44b0863bc1f805329d437dd3565d8249aea2086d54125c6895138f6415da7`、70,565,490 bytes。embedded selftest全6checks成功（1,049ms）、[strict assets](final-assets.json)成功で初期JS54.639KB gzipを維持。Chrome・時間計測の先行binaryのSHAと混同しない。
+- 引用入力・Go Node.type・読書位置の修正後にも統合check全7step成功（4.18秒、warm）。再buildしたMac binaryのSHA-256は `8d1f22762b6b56d9eae7181e61a144b1d8e607f1ff84808b9d9673d51387deb7`、embedded selftest全6checks成功（1,075ms）。[strict assets](reader-fix-assets.json)も全項目成功、初期JS54.697KB、gen6.886 / limit6.900KB、palette4.520 / limit4.600KB。
