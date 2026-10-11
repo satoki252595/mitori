@@ -87,7 +87,7 @@ Ollamaの動作・回答品質はモデルとメモリ容量に依存します�
 
 Grokは表示コマンドの`--cwd`と`--scope project`で、対象repoの`.grok/config.toml`へ登録します。Codexの`mcp add`は共通設定への登録です。対象repoだけで使う場合は、表示されたTOMLをそのrepoの`.codex/config.toml`へ追加します（Codexで信頼済みのprojectのみ読込）。Cursorは`.cursor/mcp.json`へ表示されたJSONを追加します。Antigravityは**Manage MCP Servers / Open MCP Config**で開く`~/.gemini/config/mcp_config.json`へ追加します。`.agents/mcp_config.json`は対応版向けで、今回のAntigravity 2.12.2 / IDE 2.5.5では読み込みを確認できませんでした。AntigravityのCLI登録もproject限定を保証していません。既存ファイル全体を置き換えず、`mitori`の項目を追加してください。
 
-2026-10-11の本人環境では、Cursor・Grokと、共通設定を使うAntigravity 2.12.2で各8ツールの接続を確認しました。Codexはproject登録が有効ですが、他の連携を隔離する検証用設定が拒否され、接続確認は未完了です。この4ツールからの文書生成は今回追加実行していません。[設定先と実クライアントでの確認](docs/progress/startup-matrix-20261007/README.md)。
+2026-10-11の本人環境では、Codex・Cursor・Grokと、共通設定を使うAntigravity 2.12.2で各8ツールの接続を確認しました。Codexは初回の隔離設定の失敗を保存し、検証用の子プロセスだけで他の連携を無効にして再確認しました。この接続確認でLLM要求・MCPツール実行・追加LLM費用は0です。**この4クライアントからの文書生成は未実行**です。[設定先と実クライアントでの確認](docs/progress/startup-matrix-20261007/README.md)。
 
 > mitoriのレビューを取得し、変更案はmitori_submit_patchで提出してください。対象ソースを直接変更せず、人の確認を待ってください。
 
@@ -150,10 +150,10 @@ mitori内のAI変更はアンカーと対象範囲を確認し、side repoでテ
 
 | 環境 | 状況 |
 | --- | --- |
-| macOS Apple Silicon | Nix・通常Bun 1.4.2の起動、実Codex/Muse/Ollama/LM Studioの短いExplainを確認。Chrome実操作・CodexのOSS文書生成も確認 |
+| macOS Apple Silicon | Nix・通常Bun 1.4.2の起動、実Codex/Muse/Ollama/LM Studioの短いExplain、Chrome実操作・CodexのOSS文書生成を確認。後続PR #14のMac全suiteは較正guard停止で未確認 |
 | Linux arm64 / Docker | frozen install、コンテナ内部の画面・設定プレビュー・MCP共通通信を確認。実LLM・ホストブラウザ接続は対象外 |
 | Linux x64 | バイナリビルド・バージョン表示と既存CIを検証済み。今回のDocker起動確認はarm64 |
-| Windows x64 | Nixクロスビルドと実Windows CI成功。native 7テスト、配布バイナリ内6チェック成功。通常Bun起動は現時点で対象外 |
+| Windows x64 | head23645fdのNixクロスビルド・native 7テスト・配布内6チェック成功。全子プロセスの環境とCLI起動・終了処理の後続修正は検証中。通常Bun起動は現時点で対象外 |
 
 バイナリは`bun run build:bin`で実行環境向けに作ります。macOSは`dist/mitori-darwin-arm64`、Linuxは`dist/mitori-linux-x64`を直接実行できます。現在のコンパイル対象は上記3種類です。
 
@@ -165,16 +165,16 @@ mitori内のAI変更はアンカーと対象範囲を確認し、side repoでテ
 | Ollama | 両方の設定プレビュー・実回答成功 | `qwen3-coder-next:latest`の短いExplainのみ。`qwen3:4b`は上記の失敗あり |
 | Claude Code | 両方の設定プレビュー成功 | CLIあり・ログアウト中。公式ログイン後の実回答は未確認 |
 | LM Studio | 両方の設定プレビュー・実回答成功 | 取得済みGGUFで本文・引用を確認。有効引用各1件、不正0件、ローカル費用$0 |
-| Codex | 両方の設定プレビュー・MCP接続・実回答成功 | native 0.160.0 / gpt-6.1-sol。NixでJev/m3eの文書生成とソース照合も確認。請求額・契約残量は未確認 |
-| Cursor | 両方の設定プレビュー・公式CLIのMCP接続成功 | 隔離した設定で8ツールを取得。実セッションの文書生成は未確認 |
-| Grok Build | 両方の設定プレビュー・公式CLIのMCP接続成功 | 隔離した設定で8ツールを取得。公式ログイン状態・実生成は未確認 |
-| Antigravity | 両方の設定プレビュー・公式CLIの設定読込成功 | 公式ログイン状態・アプリでのMCP接続・実生成は未確認 |
+| Codex | 両方の設定プレビュー・MCP接続・実回答成功 | native 0.160.0 / gpt-6.1-solでJev/m3e生成・ソース照合を確認。本人projectのMCPも8ツール確認。外部MCPセッションからの生成、請求額・契約残量は未確認 |
+| Cursor | 両方の設定プレビュー・公式CLIのMCP接続成功 | 本人project設定で8ツールを確認。外部セッションからの文書生成は未実行 |
+| Grok Build | 両方の設定プレビュー・公式CLIのMCP接続成功 | 本人project設定で8ツールを確認。公式ログイン状態は未確認、外部セッションからの文書生成は未実行 |
+| Antigravity | 両方の設定プレビュー・公式アプリのMCP接続成功 | 本体2.12.2の共通設定で8ツールを確認。project設定の制約は上記参照。公式ログイン状態は未確認、外部セッションからの文書生成は未実行 |
 
 LM Studioの確認は取得済みGGUF `qwen/qwen3.8-27b`によるNix・通常ローカルの短いExplainまでで、本格的な文書生成は未検証です。[実検証記録](docs/progress/remaining-20261011/lmstudio-explain.md)。
 
-Codex・Cursor・GrokのMCP接続試験では、本物のCLIで初期化と8ツールの取得を確認しました。この接続試験では本人の設定・認証を変更せず、LLM要求も送っていません。Codex nativeの実回答・文書生成は別途確認しています。AntigravityのCLI設定一覧は接続確認にならないため、公式アプリの**Manage MCP Servers**でmitoriを再読み込みし、ツール表示を確認してください。DockerではClaude/Muse CLI未導入を正しく表示し、他の設定プレビューとMCP共通通信を確認しました。DockerでLLM認証・推論は行いません。[起動・LLM別の検証記録](docs/progress/startup-matrix-20261007/README.md)、[前回のmock・UI回帰](docs/progress/onboarding-20261006.md)、[LLM起動条件](docs/design/adr/0015-configurable-llm.md)。
+先行する隔離設定のCLI試験に加え、本人環境でも4クライアントのMCP接続を確認しました。既存設定を保ってmitoriを登録し、Codexは検証用の子プロセスだけで他の連携を無効にして初期化・8ツール取得、Antigravityは公式アプリのRefresh後の8ツール表示を確認しています。接続確認で認証操作・LLM要求・MCPツール実行は行っていません。Codex nativeの実回答・文書生成は別途確認した結果です。初回の接続失敗も検証記録に残しています。DockerではClaude/Muse CLI未導入を正しく表示し、他の設定プレビューとMCP共通通信を確認しました。DockerでLLM認証・推論は行いません。[起動・LLM別の検証記録](docs/progress/startup-matrix-20261007/README.md)、[前回のmock・UI回帰](docs/progress/onboarding-20261006.md)、[LLM起動条件](docs/design/adr/0015-configurable-llm.md)。
 
-既存の3 OSS（m3e-canvas、jev-ultrafast、Laya）では実Muse生成とソース照合を行いました。無効な引用先は1,421件中0件でしたが、説明の省略・曖昧さは残ります。[以前の品質検証](docs/progress/oss-quality-2026-10-05/README.md)。追加のCodex検証ではJevの処理順序と上限値、m3eの変更先・4言語・省略寸法の補完を確認しました。弱い引用窓は残して記録しています。[最新の検証一覧](docs/progress/remaining-20261011/README.md)。Chromium・Firefox・WebKitは既存CIで、実Chromeは設定と確定済み日本語検索を確認。実IME変換は本人確認待ち、実Safariは今回の必須外です。Go7kスキャンなど一部の性能目標は未達です。
+既存の3 OSS（m3e-canvas、jev-ultrafast、Laya）では実Muse生成とソース照合を行いました。無効な引用先は1,421件中0件でしたが、説明の省略・曖昧さは残ります。[以前の品質検証](docs/progress/oss-quality-2026-10-05/README.md)。追加のCodex検証ではJevの処理順序と上限値、m3eの変更先・4言語・省略寸法の補完を確認しました。弱い引用窓は残して記録しています。[最新の検証一覧](docs/progress/remaining-20261011/README.md)。Chromium・Firefox・WebKitは既存CIで、実Chromeは設定と確定済み日本語検索を確認。実IME変換は本人確認待ち、実Safariは今回の必須外です。Go7kスキャンの最新正式中央値は1,980.097msで、hard limit1,500ms未達です。言語設定の重複を避ける追加候補は、単独API診断の推計差が約0.296msに留まり不採用としました。[性能の未達と不採用記録](docs/progress/remaining-20261011/idx-cold.md)。
 
 リポジトリはprivateで、ルートLICENSEは未設定です。一般公開・OSS配布の準備は別途必要です。
 
