@@ -413,9 +413,10 @@ export const cardOptimistic = defineBench<Loop>({
     await page.keyboard.press("e");
     await page.waitForFunction(() => document.activeElement?.tagName === "TEXTAREA", undefined, { timeout: 5_000 });
     await page.keyboard.type(`この環境変数はどこで読まれますか？ (${++s.n})`, { delay: 5 });
-    // untimed: the estimate is in (`≈1.2k in · ≈600 out · $0.007 · 約4–8秒`), and the data-policy notice has been on
-    // screen ≥ 1 s (the first send to an engine is the user's consent; an earlier ⌘⏎ only nudges, by design)
-    await page.waitForFunction(() => /≈[\d.,]+k? in/.test(document.body.innerText), undefined, { timeout: 15_000, polling: 50 });
+    // Newcomer shows a cost line, not token counts. Wait for its actual send control and visible policy notice.
+    await page.locator(".composer .send:enabled").waitFor({ timeout: 15_000 });
+    const notice = page.locator(".composer .disc");
+    if (await notice.count()) await notice.scrollIntoViewIfNeeded();
     await page.waitForTimeout(1_200);
     const before = await page.evaluate(() => performance.getEntriesByName("mitori:card:optimistic", "mark").length);
     await page.keyboard.press("ControlOrMeta+Enter");
@@ -496,11 +497,10 @@ export const staleBadge = defineBench<Loop & { original: string; used: Set<strin
     }
     if (!block) throw new Error("go-small's static doc has no block left to cite from");
     const { page } = s;
-    if (!page.url().endsWith(`/doc/${block.section}`)) {
-      await page.goto(page.url().replace(/\/doc\/[^/?#]+.*$/, `/doc/${block.section}`));
-      await page.waitForFunction(() => performance.getEntriesByName("mitori:section:rendered", "mark").length > 0, undefined, { timeout: 30_000 });
-    }
-    await page.locator(`[data-b="${block.id}"] .mc[data-verdict]`).first().waitFor({ timeout: 10_000 }); // the human claim is on screen
+    // A cited block may be outside the virtual window. Its real hash mounts and reveals the measured block.
+    await page.goto(`${s.int.origin}/w/${s.ws}/doc/${block.section}#${block.id}`);
+    await page.waitForFunction(() => performance.getEntriesByName("mitori:section:rendered", "mark").length > 0, undefined, { timeout: 30_000 });
+    await page.locator(`[data-b="${block.id}"] .mc[data-verdict]`).first().waitFor({ timeout: 10_000 });
     // the badge: the claim's verdict or the block's freshness turning "stale" in the DOM (either rendering counts)
     await page.evaluate((id) => {
       const w = window as unknown as { __staleAt: number | null };

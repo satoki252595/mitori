@@ -2,7 +2,7 @@
 
 > 見取り図 — リポジトリ全体を「見て取れる」設計書に変換し、人間と AI が同じ設計書の上でレビュー・修正指示・議論を行うためのツール。
 
-**pre-alpha / 2026-10-07更新。** cloneして手元のリポジトリを開くローカルアプリです。ブラウザで使います。通常利用に**Nix・Docker・Cloudflare・データベースサーバーは不要**です。
+**pre-alpha / 2026-10-11更新。** cloneして手元のリポジトリを開くローカルアプリです。ブラウザで使います。通常利用に**Nix・Docker・Cloudflare・データベースサーバーは不要**です。
 
 ## まず使う
 
@@ -65,9 +65,17 @@ scripts/nd bun run start -- /absolute/path/to/your/repository
 | Grok Build | `bun run start -- setup grok --repo /absolute/path/to/your/repository` | 公式Buildにアカウントログイン。既存の利用枠でMCP・準備/取り込みを利用 |
 | Ollama | `bun run start -- setup ollama --model MODEL_ID` | 起動済みのOllamaと取得済みローカルモデルを利用 |
 | LM Studio | `bun run start -- setup lmstudio --model MODEL_ID` | 起動済みローカルサーバーを利用。画面のモデルIDを指定 |
-| Codex | `bun run start -- setup codex --repo /absolute/path/to/your/repository` | 普段のCodexセッションからMCP・文書生成の準備/取り込みで利用 |
+| Codex | `bun run start -- setup codex --native --max-estimated-usd 1` | 公式CLIのサブスク認証で画面から生成・説明・修正提案 |
 | Cursor | `bun run start -- setup cursor --repo /absolute/path/to/your/repository` | 普段のCursorからMCP・文書生成の準備/取り込みで利用 |
 | Antigravity | `bun run start -- setup antigravity --repo /absolute/path/to/your/repository` | 普段のAntigravityからMCP・文書生成の準備/取り込みで利用 |
+
+**Codexで画面から直接生成・説明・修正する場合**は、ログイン済みの公式Codex CLIを使い、次の1コマンドで設定できます。ClaudeのログインやAPIキーは不要です。
+
+```sh
+bun run start -- setup codex --native --max-estimated-usd 1
+```
+
+既定は`gpt-6.1-sol` / `high`です。実行ファイルと設定を確認して保存し、画面を再読み込みします。未ログインなら画面のCodexログインボタン、または`bun run start -- auth codex`から公式ログインへ進めます。検証済みCLIは`0.160.0`で、別版は安全設定の確認が済むまで拒否します。`--max-estimated-usd 1`は1ターンのAPI換算推計への同意額です。実行はサブスク認証を使い、契約の利用枠・制限に従います。CLIの非公開の推論量まで厳密に金額制限するものではありません。[実測・公式単価・制限](docs/progress/remaining-20261011/quality.md)。普段のCodexセッションからMCPで使う場合は`bun run start -- setup codex --repo /absolute/path/to/your/repository`を使います。画面でも「直接実行する」のチェックを外して選べます。
 
 `MODEL_ID`は置き換える値です。**Ollama**はアプリを起動（または既存CLIで`ollama serve`）し、`ollama list`で取得済みモデル名を確認して指定します。ローカルモデルはログインもAPIキーも不要です。**LM Studio**はアプリでモデルを読み込み、Developer画面でローカルサーバーを開始し、表示されたモデルIDを指定します。`lms` CLIは必須ではありません。設定コマンドはサーバーの起動やモデルの取得を代行しません。mitoriは起動済みのローカルHTTPサーバーへ接続します。これは有料クラウドAPIの契約を必要とするものではありません。LM Studioの既定接続先は`http://localhost:1234/v1`、Ollamaは`http://localhost:11434/v1`です。
 
@@ -75,7 +83,7 @@ Ollamaの動作・回答品質はモデルとメモリ容量に依存します�
 
 **Ollamaクラウドを使う場合だけ**は、画面の公式ログインボタン、または`bun run start -- auth ollama`で`ollama signin`へ進みます。ローカルサーバー経由で公式認証を使い、クラウドの契約枠・クレジットを消費します。cloudモデルはローカル無料扱いにせず、設定に確認した単価を指定してください。直接`ollama.com`へ接続するAPIキー方式とは別です。[Ollamaの公式認証](https://docs.ollama.com/api/authentication)。
 
-**Codex・Cursor・Antigravity・Grok Buildを使う場合**は、設定コマンドが表示するMCP登録手順を1回実行します。既存のMCP設定は残してください。AIには次のように依頼できます。
+**外部セッションのCodex・Cursor・Antigravity・Grok Buildを使う場合**は、設定コマンドが表示するMCP登録手順を1回実行します。既存のMCP設定は残してください。AIには次のように依頼できます。
 
 Codex・Grok・Antigravityの公式CLIがある場合は、表示された`mcp add mitori -- …`の1コマンドで登録できます。Cursorの現行CLIは追加コマンドがないため、表示された設定を`.cursor/mcp.json`または`~/.cursor/mcp.json`の`mcpServers`へ追加します。既存ファイル全体を置き換えず、`mitori`の項目を追加してください。
 
@@ -140,14 +148,14 @@ mitori内のAI変更はアンカーと対象範囲を確認し、side repoでテ
 
 | 環境 | 状況 |
 | --- | --- |
-| macOS Apple Silicon | Nix・通常Bun 1.4.2の起動、実Muse/Ollamaの短いExplainを確認。既存版の実Muse修正/Undoは別記録 |
+| macOS Apple Silicon | Nix・通常Bun 1.4.2の起動、実Codex/Muse/Ollamaの短いExplainを確認。Chrome実操作・CodexのOSS文書生成も確認 |
 | Linux arm64 / Docker | frozen install、コンテナ内部の画面・設定プレビュー・MCP共通通信を確認。実LLM・ホストブラウザ接続は対象外 |
 | Linux x64 | バイナリビルド・バージョン表示と既存CIを検証済み。今回のDocker起動確認はarm64 |
-| Windows x64 | クロスビルド済み。Windows上の実行確認は未完了。通常Bun起動は現時点で対象外 |
+| Windows x64 | Nixクロスビルドと実Windows CI成功。native 7テスト、配布バイナリ内6チェック成功。通常Bun起動は現時点で対象外 |
 
 バイナリは`bun run build:bin`で実行環境向けに作ります。macOSは`dist/mitori-darwin-arm64`、Linuxは`dist/mitori-linux-x64`を直接実行できます。現在のコンパイル対象は上記3種類です。
 
-2026-10-07の確認状況です。**設定プレビュー**は設定を書かない`setup … --print`、**実回答**はmitoriの実Explain APIで本文と引用先を確認した結果です。
+2026-10-11の確認状況です。**設定プレビュー**は設定を書かない`setup … --print`、**実回答**はmitoriの実Explain APIで本文と引用先を確認した結果です。
 
 | LLM | Nix / 通常ローカル | 実利用の確認状況 |
 | --- | --- | --- |
@@ -155,13 +163,14 @@ mitori内のAI変更はアンカーと対象範囲を確認し、side repoでテ
 | Ollama | 両方の設定プレビュー・実回答成功 | `qwen3-coder-next:latest`の短いExplainのみ。`qwen3:4b`は上記の失敗あり |
 | Claude Code | 両方の設定プレビュー成功 | CLIあり・ログアウト中。公式ログイン後の実回答は未確認 |
 | LM Studio | 両方の設定プレビュー成功 | アプリあり・ローカルサーバー未起動。モデル読み込みと開始後の実回答は未確認 |
-| Codex / Cursor | 両方の設定プレビュー・公式CLIのMCP接続成功 | 公式ログイン済み。隔離した設定で8ツールを取得。実セッションの文書生成は未確認 |
+| Codex | 両方の設定プレビュー・MCP接続・実回答成功 | native 0.160.0 / gpt-6.1-sol。NixでJev/m3eの文書生成とソース照合も確認。請求額・契約残量は未確認 |
+| Cursor | 両方の設定プレビュー・公式CLIのMCP接続成功 | 隔離した設定で8ツールを取得。実セッションの文書生成は未確認 |
 | Grok Build | 両方の設定プレビュー・公式CLIのMCP接続成功 | 隔離した設定で8ツールを取得。公式ログイン状態・実生成は未確認 |
 | Antigravity | 両方の設定プレビュー・公式CLIの設定読込成功 | 公式ログイン状態・アプリでのMCP接続・実生成は未確認 |
 
-Codex・Cursor・Grokは本物のCLIで初期化と8ツールの取得を確認しました。本人の設定・認証は変更せず、LLM要求は送っていません。AntigravityのCLI設定一覧は接続確認にならないため、公式アプリの**Manage MCP Servers**でmitoriを再読み込みし、ツール表示を確認してください。DockerではClaude/Muse CLI未導入を正しく表示し、他の設定プレビューとMCP共通通信を確認しました。DockerでLLM認証・推論は行いません。[起動・LLM別の検証記録](docs/progress/startup-matrix-20261007/README.md)、[前回のmock・UI回帰](docs/progress/onboarding-20261006.md)、[LLM起動条件](docs/design/adr/0015-configurable-llm.md)。
+Codex・Cursor・GrokのMCP接続試験では、本物のCLIで初期化と8ツールの取得を確認しました。この接続試験では本人の設定・認証を変更せず、LLM要求も送っていません。Codex nativeの実回答・文書生成は別途確認しています。AntigravityのCLI設定一覧は接続確認にならないため、公式アプリの**Manage MCP Servers**でmitoriを再読み込みし、ツール表示を確認してください。DockerではClaude/Muse CLI未導入を正しく表示し、他の設定プレビューとMCP共通通信を確認しました。DockerでLLM認証・推論は行いません。[起動・LLM別の検証記録](docs/progress/startup-matrix-20261007/README.md)、[前回のmock・UI回帰](docs/progress/onboarding-20261006.md)、[LLM起動条件](docs/design/adr/0015-configurable-llm.md)。
 
-既存の3 OSS（m3e-canvas、jev-ultrafast、Laya）では実Muse生成とソース照合を行いました。無効な引用先は1,421件中0件でしたが、説明の省略・曖昧さは残ります。[品質検証](docs/progress/oss-quality-2026-10-05/README.md)。Chromium・Firefox・WebKitは既存CIで検証済みですが、実Safari・日本語IMEは未確認です。一部の性能目標にも警告が残っています。
+既存の3 OSS（m3e-canvas、jev-ultrafast、Laya）では実Muse生成とソース照合を行いました。無効な引用先は1,421件中0件でしたが、説明の省略・曖昧さは残ります。[以前の品質検証](docs/progress/oss-quality-2026-10-05/README.md)。追加のCodex検証ではJevの処理順序と上限値、m3eの変更先・4言語・省略寸法の補完を確認しました。弱い引用窓は残して記録しています。[最新の検証一覧](docs/progress/remaining-20261011/README.md)。Chromium・Firefox・WebKitは既存CIで、実Chromeは設定と確定済み日本語検索を確認。実IME変換は本人確認待ち、実Safariは今回の必須外です。Go7kスキャンなど一部の性能目標は未達です。
 
 リポジトリはprivateで、ルートLICENSEは未設定です。一般公開・OSS配布の準備は別途必要です。
 

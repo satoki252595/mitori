@@ -1,0 +1,347 @@
+{
+  "date": "2026-10-11",
+  "scope": "Initial canonical SSR status race and live /engines critical path; source daemon + compiled SSR diagnostic, no browser timing baseline",
+  "llmCalls": 0,
+  "samplesPerVariant": 1,
+  "before": {
+    "mode": "source daemon + existing compiled SSR, one diagnostic, no browser/no LLM",
+    "events": [
+      {
+        "name": "daemon.start",
+        "start": 0.1,
+        "end": 49.6
+      },
+      {
+        "name": "workspace.open",
+        "start": 49.6,
+        "end": 88.6
+      },
+      {
+        "name": "probe claude --version",
+        "start": 65.5,
+        "end": 75.1,
+        "exit": 0
+      },
+      {
+        "name": "probe claude auth status",
+        "start": 78.3,
+        "end": 1118.8,
+        "exit": 1
+      },
+      {
+        "name": "probe claude --help",
+        "start": 78.6,
+        "end": 144.2,
+        "exit": 0
+      },
+      {
+        "name": "static.ready after open",
+        "start": 88.6,
+        "end": 1164.8
+      },
+      {
+        "name": "http.initial",
+        "start": 88.6,
+        "end": 1721
+      },
+      {
+        "name": "initial.render",
+        "start": 90.4,
+        "end": 1718.3
+      },
+      {
+        "name": "read /settings",
+        "start": 91,
+        "end": 91.3
+      },
+      {
+        "name": "read /ws/WS",
+        "start": 91.5,
+        "end": 95.2
+      },
+      {
+        "name": "read /daemon",
+        "start": 91.6,
+        "end": 95.2
+      },
+      {
+        "name": "read /usage/summary?range=today",
+        "start": 91.6,
+        "end": 95.2
+      },
+      {
+        "name": "read /ws/WS/threads?limit=200",
+        "start": 91.6,
+        "end": 95.2
+      },
+      {
+        "name": "read /ws/WS/doc",
+        "start": 91.6,
+        "end": 1170.1
+      },
+      {
+        "name": "read /engines",
+        "start": 91.6,
+        "end": 1263.3
+      },
+      {
+        "name": "read /ws/WS/jobs?limit=200",
+        "start": 91.7,
+        "end": 95.2
+      },
+      {
+        "name": "read /ws/WS/inbox?limit=200",
+        "start": 91.7,
+        "end": 95.2
+      },
+      {
+        "name": "read /ws/WS/doc/proposals?state=pending",
+        "start": 91.7,
+        "end": 95.2
+      },
+      {
+        "name": "read /ws/WS/map?svg=true&lang=ja",
+        "start": 1263.4,
+        "end": 1269.4
+      },
+      {
+        "name": "estimate overview claude-cli",
+        "start": 1269.7,
+        "end": 1422.6
+      },
+      {
+        "name": "estimate standard claude-cli",
+        "start": 1269.9,
+        "end": 1709.1
+      },
+      {
+        "name": "estimate complete claude-cli",
+        "start": 1269.9,
+        "end": 1712.7
+      }
+    ],
+    "httpStatus": 200,
+    "state": "scanning",
+    "engines": [
+      {
+        "engine": "claude-cli",
+        "installed": true,
+        "auth": "none",
+        "problems": [
+          "E_AGENT_AUTH"
+        ]
+      },
+      {
+        "engine": "anthropic-api",
+        "installed": false,
+        "auth": "none",
+        "problems": [
+          "E_AGENT_NOT_INSTALLED",
+          "E_AGENT_AUTH",
+          "E_CFG_INVALID"
+        ]
+      },
+      {
+        "engine": "generic",
+        "installed": false,
+        "auth": "unknown",
+        "problems": [
+          "E_AGENT_NOT_INSTALLED",
+          "E_CFG_INVALID"
+        ]
+      },
+      {
+        "engine": "codex-cli",
+        "installed": false,
+        "auth": "none",
+        "problems": [
+          "E_AGENT_NOT_INSTALLED"
+        ]
+      }
+    ],
+    "totalMs": 1814
+  },
+  "after": {
+    "mode": "source daemon + existing compiled SSR, one diagnostic, no browser/no LLM",
+    "events": [
+      {
+        "name": "daemon.start",
+        "start": 0.1,
+        "end": 47
+      },
+      {
+        "name": "workspace.open",
+        "start": 47,
+        "end": 81.7
+      },
+      {
+        "name": "probe claude --version",
+        "start": 60.5,
+        "end": 68.7,
+        "exit": 0
+      },
+      {
+        "name": "probe claude auth status",
+        "start": 71.6,
+        "end": 1037.6,
+        "exit": 1
+      },
+      {
+        "name": "probe claude --help",
+        "start": 71.9,
+        "end": 131.6,
+        "exit": 0
+      },
+      {
+        "name": "static.ready after open",
+        "start": 81.7,
+        "end": 1031.7
+      },
+      {
+        "name": "http.initial",
+        "start": 81.7,
+        "end": 1558.2
+      },
+      {
+        "name": "initial.render",
+        "start": 83.3,
+        "end": 1555.4
+      },
+      {
+        "name": "read /settings",
+        "start": 83.9,
+        "end": 84.1
+      },
+      {
+        "name": "read /daemon",
+        "start": 84.4,
+        "end": 87.6
+      },
+      {
+        "name": "read /usage/summary?range=today",
+        "start": 84.4,
+        "end": 87.6
+      },
+      {
+        "name": "read /ws/WS/doc",
+        "start": 84.4,
+        "end": 1037.5
+      },
+      {
+        "name": "read /engines",
+        "start": 84.4,
+        "end": 1145.8
+      },
+      {
+        "name": "read /ws/WS/threads?limit=200",
+        "start": 84.5,
+        "end": 87.7
+      },
+      {
+        "name": "read /ws/WS/jobs?limit=200",
+        "start": 84.5,
+        "end": 87.7
+      },
+      {
+        "name": "read /ws/WS/inbox?limit=200",
+        "start": 84.5,
+        "end": 87.7
+      },
+      {
+        "name": "read /ws/WS/doc/proposals?state=pending",
+        "start": 84.5,
+        "end": 87.7
+      },
+      {
+        "name": "read /ws/WS",
+        "start": 1145.8,
+        "end": 1146.7
+      },
+      {
+        "name": "read /ws/WS/map?svg=true&lang=ja",
+        "start": 1146.7,
+        "end": 1151.9
+      },
+      {
+        "name": "estimate overview claude-cli",
+        "start": 1152.3,
+        "end": 1296.2
+      },
+      {
+        "name": "estimate standard claude-cli",
+        "start": 1152.5,
+        "end": 1547.2
+      },
+      {
+        "name": "estimate complete claude-cli",
+        "start": 1152.5,
+        "end": 1550.2
+      }
+    ],
+    "httpStatus": 200,
+    "state": "ready",
+    "scanFiles": 1219,
+    "engines": [
+      {
+        "engine": "claude-cli",
+        "installed": true,
+        "auth": "none",
+        "problems": [
+          "E_AGENT_AUTH"
+        ]
+      },
+      {
+        "engine": "anthropic-api",
+        "installed": false,
+        "auth": "none",
+        "problems": [
+          "E_AGENT_NOT_INSTALLED",
+          "E_AGENT_AUTH",
+          "E_CFG_INVALID"
+        ]
+      },
+      {
+        "engine": "generic",
+        "installed": false,
+        "auth": "unknown",
+        "problems": [
+          "E_AGENT_NOT_INSTALLED",
+          "E_CFG_INVALID"
+        ]
+      },
+      {
+        "engine": "codex-cli",
+        "installed": false,
+        "auth": "none",
+        "problems": [
+          "E_AGENT_NOT_INSTALLED"
+        ]
+      }
+    ],
+    "totalMs": 1645
+  },
+  "regression": {
+    "oldSsr": {
+      "case": "first cold map paints completed scan summary without a second UI request",
+      "result": "failed",
+      "reason": "mitori:scan:summary absent, wait timed out at 10000ms"
+    },
+    "fixedSsr": {
+      "cases": 2,
+      "pass": 2,
+      "fail": 0,
+      "durationMs": 714,
+      "firstColdMapMs": 218,
+      "readerNoLiveDetectionMs": 23
+    },
+    "ssrBuild": {
+      "result": "pass",
+      "durationMs": 939
+    },
+    "biome": {
+      "files": 5,
+      "exitCode": 0
+    }
+  },
+  "limits": "Source daemon HTTP phases exclude CLI module startup and browser painting; single diagnostic is not the calibrated ui.scanSummary verdict. Root final compiled build/perf must retest."
+}

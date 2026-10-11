@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { appendFileSync, mkdirSync, readFileSync, realpathSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createFsReader } from "@mitori/platform";
-import { createTestHome, type TestHome } from "@mitori/testkit";
+import { createTestHome, type TestHome } from "@mitori/testkit/home";
 import { dependencyFingerprint, dependencyLinks } from "./deps.ts";
 
 let home: TestHome;

@@ -30,6 +30,29 @@ declare const __MITORI_TEST__: boolean;
 /** Upper bound for waiting on `GET /settings` when the cookie carries no language (local daemon: a few ms). */
 const SETTINGS_WAIT_MS = 400;
 
+/** Keep controls already visible in the native map available for the first replayed click. */
+async function mapSide(): Promise<import("../map/side.ts").MapSide> {
+  const visible = (selector: string) => document.querySelector(selector) !== null;
+  const [side, room, text, progress, engine, breakdown, done] = await Promise.all([
+    import("../map/side.ts"),
+    visible(".room-card") ? import("../map/RoomCard.svelte") : null,
+    visible(".tv[open]") ? import("../map/TextViewDialog.svelte") : null,
+    visible(".prog") ? import("../gen/GenProgress.svelte") : null,
+    visible('[data-testid="engine-card"]') ? import("../map/EngineCard.svelte") : null,
+    visible(".brk[open]") ? import("../gen/GenBreakdown.svelte") : null,
+    visible(".done") ? import("../gen/GenDoneCard.svelte") : null,
+  ]);
+  return {
+    ...side,
+    RoomCard: room?.default,
+    TextViewDialog: text?.default,
+    GenProgress: progress?.default,
+    EngineCard: engine?.default,
+    GenBreakdown: breakdown?.default,
+    GenDoneCard: done?.default,
+  };
+}
+
 export async function boot(
   initial?: {
     snapshot: InitialUiSnapshot;
@@ -55,7 +78,7 @@ export async function boot(
     const isMap = parseRoute(initial.snapshot.ui.url).name === "map";
     const [{ default: View }, side] = await Promise.all([
       isMap ? import("../map/MapPage.svelte") : import("../reader/ReaderPage.svelte"),
-      isMap ? Promise.all([import("../map/side.ts"), import("./i18n-cell.svelte.ts").then((m) => m.ensureNs("gen"))]).then(([m]) => m) : Promise.resolve(null),
+      isMap ? Promise.all([mapSide(), import("./i18n-cell.svelte.ts").then((m) => m.ensureNs("gen"))]).then(([m]) => m) : Promise.resolve(null),
     ]);
     const target = document.getElementById("app");
     if (!target || beforeMount?.() === false) return null;

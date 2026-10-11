@@ -50,6 +50,7 @@ const { values: a } = parseArgs({
     serve: { type: "string" },
     "timeout-min": { type: "string", default: "40" },
     record: { type: "string" },
+    "max-native-calls": { type: "string" },
     scope: { type: "string" },
     engine: { type: "string", default: "claude-cli" },
     config: { type: "string" },
@@ -58,8 +59,9 @@ const { values: a } = parseArgs({
 
 if (!a.repo) throw new Error("--repo <dir> is required");
 const repo = resolve(a.repo);
-const engine = a.engine as "claude-cli" | "anthropic-api" | "generic";
-if (!["claude-cli", "anthropic-api", "generic"].includes(engine)) throw new Error("--engine must be claude-cli, anthropic-api or generic");
+const engine = a.engine as "claude-cli" | "anthropic-api" | "codex-cli" | "generic";
+if (!["claude-cli", "anthropic-api", "codex-cli", "generic"].includes(engine))
+  throw new Error("--engine must be claude-cli, anthropic-api, codex-cli or generic");
 const live = a.run === true;
 const maxUsd = a["max-usd"] === undefined ? Number.NaN : Number(a["max-usd"]);
 if (live && (process.env.MITORI_LIVE !== "1" || !(maxUsd > 0))) {
@@ -67,6 +69,9 @@ if (live && (process.env.MITORI_LIVE !== "1" || !(maxUsd > 0))) {
   process.exit(2);
 }
 const concurrency = Number(a.concurrency);
+const maxNativeCalls = a["max-native-calls"] === undefined ? undefined : Number(a["max-native-calls"]);
+if (maxNativeCalls !== undefined && (!a.record || !Number.isSafeInteger(maxNativeCalls) || maxNativeCalls < 1))
+  throw new Error("--max-native-calls requires --record and a positive integer");
 const home = a.home ? resolve(a.home) : mkdtempSync(join(tmpdir(), "mitori-genreal-"));
 mkdirSync(home, { recursive: true });
 const configPath = join(home, "config.json");
@@ -94,7 +99,7 @@ const d = await startServerDaemon({
   // Measure the shipped runtime. Test builds deliberately roll back any write slot over 50 ms,
   // including a synchronous static-doc write delayed by other work on this machine.
   build: "release",
-  overrides: a.record ? { spawner: recordingSpawner(resolve(a.record)) } : {},
+  overrides: a.record ? { spawner: recordingSpawner(resolve(a.record), undefined, maxNativeCalls) } : {},
 });
 const origin = d.url.replace(/\/$/, "");
 const call = async <T>(method: string, path: string, body?: unknown): Promise<T> => {
@@ -133,7 +138,7 @@ for (let i = 0; i < 200 && !status; i++) {
 log(
   `engine ${engine}: installed=${status?.installed} auth=${status?.auth} billing=${status?.billing} plan=${status?.plan} version=${status?.version} pin=${status?.pin?.by ?? "-"} problems=${JSON.stringify(status?.problems ?? [])}`,
 );
-if (live && (!status?.installed || (engine === "claude-cli" && status.auth !== "subscription") || status.problems.length > 0)) {
+if (live && (!status?.installed || ((engine === "claude-cli" || engine === "codex-cli") && status.auth !== "subscription") || status.problems.length > 0)) {
   log(`${engine} is not ready: refusing to run`);
   await stop(3);
 }
@@ -188,7 +193,7 @@ const report: Record<string, unknown> = {
   engine: { id: engine, version: status?.version, plan: status?.plan, billing: status?.billing, pin: status?.pin?.by ?? null },
   models: prev.models,
   reasoning: prev.reasoning,
-  pricing: engine === "generic" ? prev.engines.generic.pricing : undefined,
+  pricing: engine === "generic" || engine === "codex-cli" ? prev.engines[engine].pricing : undefined,
   otherClaudeProcesses: otherClaude,
   openMs,
   estimate: est,

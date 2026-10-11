@@ -1,0 +1,97 @@
+{
+  "checkedAt": "2026-10-11",
+  "workingTree": true,
+  "binary": "compiled",
+  "stats": {
+    "startTime": "2026-10-10T23:29:18.204Z",
+    "duration": 23310.566000000003,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cases": [
+    {
+      "title": "cold open of crit: shell, first useful screen, boot CLS, DOM",
+      "file": "perf/first-use.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 5134
+        }
+      ],
+      "annotations": [
+        {
+          "type": "measure",
+          "description": "{\"shellPaint\":1078.199951171875,\"firstUseful\":4226.400146484375,\"dom\":757,\"mapNodes\":425,\"cls\":0}"
+        },
+        {
+          "type": "budget-warning",
+          "description": "ui.shellPaint = 1078.199951171875 ms is over its limit 582.761081560302 — reported only: not the reference machine (factor 1.17)"
+        },
+        {
+          "type": "budget-warning",
+          "description": "ui.firstUseful.100k = 4226.400146484375 ms is over its target 3496.5664893618123 (limit 5827.6108156030205)"
+        }
+      ]
+    },
+    {
+      "title": "section transitions through the TOC",
+      "file": "perf/reader.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 8413
+        }
+      ],
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/Users/satoki252595/work/20261002_aiAgentTool/e2e/perf/reader.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "measure",
+          "description": "[1071,2016.8000000715256,1015.1999999284744,1018.7999999523163,2047.3999999761581,1013.2999999523163]"
+        },
+        {
+          "type": "measure",
+          "description": "{\"sectionActions\":[{\"clickToPaint\":1071,\"actionToPaint\":1090.1000000238419,\"actionability\":19.100000023841858},{\"clickToPaint\":2016.8000000715256,\"actionToPaint\":2022.8000000715256,\"actionability\":6},{\"clickToPaint\":1015.1999999284744,\"actionToPaint\":1042.1000000238419,\"actionability\":26.90000009536743},{\"clickToPaint\":1018.7999999523163,\"actionToPaint\":1037.3999999761581,\"actionability\":18.600000023841858},{\"clickToPaint\":2047.3999999761581,\"actionToPaint\":2066.5,\"actionability\":19.100000023841858},{\"clickToPaint\":1013.2999999523163,\"actionToPaint\":1035.6999999284744,\"actionability\":22.399999976158142}]}"
+        },
+        {
+          "type": "budget-warning",
+          "description": "ui.section = 2047.3999999761581 ms is over its limit 174.8283244680906 — reported only: not the reference machine (factor 1.17)"
+        }
+      ]
+    },
+    {
+      "title": "CLI spawn to painted scan summary on crit",
+      "file": "perf/scan-summary.spec.ts",
+      "project": "perf",
+      "status": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4245
+        }
+      ],
+      "annotations": [
+        {
+          "type": "measure",
+          "description": "{\"scanSummary\":3850.099853515625}"
+        },
+        {
+          "type": "budget-warning",
+          "description": "ui.scanSummary = 3850.099853515625 ms is over its limit 2331.044326241208 — reported only: not the reference machine (factor 1.17)"
+        }
+      ]
+    }
+  ]
+}

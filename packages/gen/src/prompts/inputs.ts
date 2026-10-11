@@ -9,7 +9,7 @@
 import type { Block, BlockId, ClaimKind, DocLang, Fact, GitOid, LineNo, ModuleId, ModuleInfo, RepoPath, SectionId, Xxh3 } from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
 import type { FlowSeed, Indexer } from "@mitori/indexer";
-import { DATA_BUDGETS, type DataLabel, type GenPlan, type GenQuestionLine, type PlannedTask, type TaskInputs } from "../contract.ts";
+import { DATA_BUDGETS, type DataLabel, GEN_LIMITS, type GenPlan, type GenQuestionLine, type PlannedTask, type TaskInputs } from "../contract.ts";
 import { codeSpans, plainText } from "../line/mdscan.ts";
 import { fileChunks, filesChunkOf, filesInput, isFilesMode } from "./files.ts";
 import { genFlowSeeds } from "./seeds.ts";
@@ -170,13 +170,54 @@ class Gatherer {
     switch (t.prompt) {
       case "gen.module": {
         const m = this.module();
-        const ctx = ix.moduleContext(m.id, { tokenizer: "claude-v5", budget: 28000, tier: this.tier(m.id) });
+        const ctx = ix.moduleContext(m.id, { tokenizer: "claude-v5", budget: 28000, hotBudget: 0, tier: this.tier(m.id) });
         for (const p of ctx.skeleton.files) this.see(p);
+        // Leave room for the shared budget's separators and omitted marker inside the existing 28k frame.
+        const bodyBudget = Math.min(12000, Math.max(0, 28000 - ctx.tokens.total - 40));
+        const seeds = genFlowSeeds(ix).filter((s) => s.modules.includes(m.id));
+        const flows = this.flowSlices(seeds, bodyBudget).filter((s) => ix.moduleOf(s.path) === m.id);
+        const handlers = new Set(seeds.map((s) => s.handler));
+        const entry = (s: (typeof flows)[number]) => handlers.has(ix.enclosingSymbol(s.path, s.start, s.end)?.key);
+        const hot = ix.hotBodies(m.id, 28000, "claude-v5");
+        // Rejoin split callable excerpts before budgeting: otherwise the middle can hide a state write before observation.
+        const complete = hot.filter((h) => flows.filter((f) => h.path === f.path && h.start <= f.start && f.end <= h.end).length > 1);
+        // A short guard can delegate its defaults to an adjacent helper; keep that context before broad hot bodies.
+        const helpers = await Promise.all(
+          hot
+            .filter((h) => h.end - h.start < 12)
+            .map((h) =>
+              ix.read(
+                h.path,
+                { start: Math.max(1, h.start - GEN_LIMITS.l1ContextLines), end: Math.min(ix.file(h.path)?.lines ?? h.end, h.end + GEN_LIMITS.l1ContextLines) },
+                { numbered: true },
+              ),
+            ),
+        );
+        const scripts: ReturnType<Indexer["flowBodies"]> = [];
+        for (const p of this.leafPaths(m)) {
+          const f = ix.file(p);
+          if (!f || f.excluded || f.class !== "source" || f.lines > 200) continue;
+          // Small executable scripts can continue after their last named helper (an IIFE is not a symbol).
+          const start = Math.max(0, ...ix.symbols(p).map((s) => s.end)) + 1;
+          if (start <= f.lines) scripts.push(await ix.read(p, { start, end: f.lines }, { numbered: true }));
+        }
         return {
           MODULE: this.moduleHeader(m),
           DEPS: this.deps(m),
           SKELETON: ctx.skeleton.text.split("\n"),
-          BODIES: this.bodies(ctx.hot, "BODIES"),
+          BODIES: this.bodies(
+            [
+              ...scripts,
+              // Keep entry boundaries, then the inner selection/validation/dispatch before broad callers.
+              ...flows.filter(entry),
+              ...complete,
+              ...flows.filter((s) => !entry(s)).reverse(),
+              ...helpers,
+              ...hot,
+            ],
+            "BODIES",
+            bodyBudget,
+          ),
           TESTS: testsWithLocations(ctx.tests, ix.facts()),
           FACTS: ctx.facts.split("\n").filter((l) => l.trim() !== ""),
           DOCS: await this.docs("DOCS", m),
@@ -244,7 +285,7 @@ class Gatherer {
       case "gen.quality":
         return {
           CLAIMS: this.claimLines(CLAIM_KINDS["gen.quality"] ?? []),
-          BODIES: this.bodies(this.qualityBodies(), "BODIES"),
+          BODIES: this.bodies([...(await this.qualityBounds()), ...this.qualityBodies()], "BODIES"),
           FACTS: this.qualityFacts(),
           EXISTING: this.existing(["s9"]),
         };
@@ -335,6 +376,42 @@ class Gatherer {
     return b.done();
   }
 
+  /** Bounds may live outside callable bodies (constants and dynamically loaded scripts). */
+  private async qualityBounds(): Promise<ReturnType<Indexer["flowBodies"]>> {
+    const ix = this.env.indexer;
+    const modules = new Set(genFlowSeeds(ix).flatMap((s) => s.modules));
+    const budget = this.budget("BODIES", "bound excerpts", Math.floor((this.budgets.BODIES ?? 6000) / 3));
+    const out: ReturnType<Indexer["flowBodies"]> = [];
+    const candidates: { slice: ReturnType<Indexer["flowBodies"]>[number]; named: boolean }[] = [];
+    const named = /\b(?:MAX|MIN|LIMIT|TIMEOUT|QUOTA|CAP)(?:_[A-Z0-9]+)+\b|\b(?:slice|splice|take|limit)\s*\([^)]*\d/;
+    for (const f of [...ix.files()].sort((a, b) => (a.path < b.path ? -1 : 1))) {
+      if (f.excluded || f.class !== "source" || !f.module || !modules.has(f.module)) continue;
+      const source = await ix.read(f.path, { start: 1, end: f.lines }, { numbered: true });
+      const lines = source.text.split("\n");
+      const ranges: [number, number][] = [];
+      lines.forEach((line, i) => {
+        const code = line.replace(/^\d+\|/, "");
+        if (!named.test(code) && !/(?:>=|<=|>|<)\s*\d/.test(code)) return;
+        const range: [number, number] = [Math.max(0, i - 2), Math.min(lines.length - 1, i + 2)];
+        const last = ranges.at(-1);
+        if (last && range[0] <= last[1] + 1) last[1] = range[1];
+        else ranges.push(range);
+      });
+      for (const [a, b] of ranges) {
+        const text = lines.slice(a, b + 1).join("\n");
+        const start = Number(/^(\d+)\|/.exec(lines[a] ?? "")?.[1]);
+        const end = Number(/^(\d+)\|/.exec(lines[b] ?? "")?.[1]);
+        if (!Number.isInteger(start) || !Number.isInteger(end)) continue;
+        candidates.push({ slice: { ...source, start, end, text, tokens: this.env.tokens(text) }, named: named.test(text) });
+      }
+    }
+    // Named caps and collection truncation precede generic numeric comparisons, regardless of file order.
+    for (const { slice } of candidates.sort((a, b) => Number(b.named) - Number(a.named))) {
+      if (budget.add([`=== ${slice.path} · lines ${slice.start}-${slice.end}`, slice.text])) out.push(slice);
+    }
+    return out;
+  }
+
   /** Entry defaults and route guards before hot bodies; the shared BODIES budget stays unchanged. */
   private qualityBodies(): ReturnType<Indexer["flowBodies"]> {
     const ix = this.env.indexer;
@@ -363,8 +440,8 @@ class Gatherer {
   }
 
   /** Interleave actual branch slices: one large core file must not consume the budget before another branch. */
-  private flowSlices(seeds: readonly FlowSeed[]): ReturnType<Indexer["flowBodies"]> {
-    const branches = seeds.map((s) => ({ s, bodies: this.env.indexer.flowBodies(s, this.budgets.BODIES ?? 12000, "claude-v5") }));
+  private flowSlices(seeds: readonly FlowSeed[], budget = this.budgets.BODIES ?? 12000): ReturnType<Indexer["flowBodies"]> {
+    const branches = seeds.map((s) => ({ s, bodies: this.env.indexer.flowBodies(s, budget, "claude-v5") }));
     // Complete the downstream call branches before spending the remaining budget on a boot / static shell.
     return [branches.filter((b) => b.s.files.length > 1), branches.filter((b) => b.s.files.length <= 1)].flatMap((group) =>
       Array.from({ length: Math.max(0, ...group.map((b) => b.bodies.length)) }, (_, i) => group.flatMap((b) => (b.bodies[i] ? [b.bodies[i]] : []))).flat(),
@@ -606,8 +683,8 @@ class Gatherer {
     return b.done();
   }
 
-  private bodies(slices: readonly { path: RepoPath; blob: GitOid; start: number; end: number; text: string }[], label: DataLabel): string[] {
-    const b = this.budget(label, "bodies");
+  private bodies(slices: readonly { path: RepoPath; blob: GitOid; start: number; end: number; text: string }[], label: DataLabel, limit?: number): string[] {
+    const b = this.budget(label, "bodies", limit);
     const seen = new Set<string>();
     const shown = new Map<string, Set<number>>();
     for (const s of slices) {

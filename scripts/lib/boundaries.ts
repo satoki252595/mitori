@@ -154,7 +154,7 @@ export function checkSource(info: FileInfo, text: string): Violation[] {
     if (target) {
       if (target.pkg === "@mitori/testkit" && !info.test) at(node, "testing-import", "production code may not import @mitori/testkit");
       if (target.sub !== null) {
-        const testkitHelper = target.pkg === "@mitori/testkit" && (target.sub === "fixtures" || target.sub === "golden");
+        const testkitHelper = target.pkg === "@mitori/testkit" && (target.sub === "fixtures" || target.sub === "golden" || target.sub === "home");
         if (target.sub !== "testing" && !testkitHelper) at(node, "deep-import", `deep import "${spec}": import from the package index only`);
         else if (!info.test) at(node, "testing-import", `production code may not import "${spec}" (test-only subpath)`);
       }

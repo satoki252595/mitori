@@ -33,7 +33,12 @@ test("native facts mark observes the rendered canonical map tiles and stays abse
 test("initial renderer rejects malformed state; initial estimates remain dry and their identities survive first use", async ({ page, request }) => {
   await configure({ generated: false });
   const url = `/w/${WS}`;
-  for (const query of [{ width: "0" }, { width: "1440", ui: "{" }, { ui: JSON.stringify({ read: { "../x": "today" } }) }]) {
+  for (const query of [
+    { width: "0" },
+    { width: "1440", ui: "{" },
+    { ui: JSON.stringify({ read: { "../x": "today" } }) },
+    { ui: JSON.stringify({ firstRun: "yes" }) },
+  ]) {
     const response = await request.get(`/api/v1/ws/${WS}/ui`, { params: { url, ...query } });
     expect(response.status()).toBe(400);
     expect((await response.json()).error.code).toBe("E_INVALID_INPUT");
@@ -47,6 +52,37 @@ test("initial renderer rejects malformed state; initial estimates remain dry and
   await expect(page.locator(".est .sum .lead")).toBeVisible();
   expect((await mockLog()).filter((r) => r.path.endsWith("/gen/estimate")).length).toBe(3);
   expect((await mockLog()).filter((r) => /\/(gen\/runs|jobs)$/.test(r.path) && r.method === "POST")).toEqual([]);
+});
+
+test("canonical state accepts read progress for the appendix", async ({ request }) => {
+  await configure({ generated: true });
+  const response = await request.get(`/api/v1/ws/${WS}/ui`, {
+    params: { url: `/w/${WS}/doc/s0`, ui: JSON.stringify({ read: { appendix: "2026-10-11" } }) },
+  });
+  expect(response.status()).toBe(200);
+});
+
+test("the first cold map paints the completed scan summary without a second UI request", async ({ page }) => {
+  await configure({ generated: false, coldScan: true, engine: "notLoggedIn" });
+  const requests: string[] = [];
+  page.on("request", (r) => {
+    if (new URL(r.url()).pathname === `/api/v1/ws/${WS}/ui`) requests.push(r.url());
+  });
+  await page.goto(`/w/${WS}`);
+  await waitMark(page, "mitori:scan:summary");
+  await expect(page.locator(".facts .grid")).toBeVisible();
+  expect(requests).toHaveLength(1);
+});
+
+test("Reader uses daemon engine status without rerunning login probes; map still detects live", async ({ request }) => {
+  await configure({ generated: true, engine: "notLoggedIn" });
+  const reader = await request.get(`/api/v1/ws/${WS}/ui`, { params: { url: `/w/${WS}/doc/s0` } });
+  expect(reader.status()).toBe(200);
+  expect((await reader.json()).snapshot.engines[0].auth).toBe("none");
+  expect(await (await request.get("/__mock/initial-reads")).json()).not.toContain("/engines");
+  const map = await request.get(`/api/v1/ws/${WS}/ui`, { params: { url: `/w/${WS}` } });
+  expect(map.status()).toBe(200);
+  expect(await (await request.get("/__mock/initial-reads")).json()).toContain("/engines");
 });
 
 test("visible disclosure time survives first-use enhancement without implicit acknowledgement", async ({ page }) => {

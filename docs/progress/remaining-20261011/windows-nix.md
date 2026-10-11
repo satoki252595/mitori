@@ -18,4 +18,6 @@ Windowsのsource test工程だけで `BUN_BE_BUN=1` を設定する。別工程�
 
 **初回native実行:** [run 38096491256](https://github.com/satoki252595/mitori/actions/runs/38096491256) は5成功・1失敗。BunがWindows標準環境変数を補ったため、exact environmentだけが失敗した。既存のnative4ケースと厳密比較を維持してランチャーを修正し、環境名プロトコルの検証を1件追加した。詳細は [windows-env.md](windows-env.md) / [windows-env.json](windows-env.json)。
 
-**残る確認:** 実際の `windows-2025` runnerでsource testsが7成功・0 skip・0失敗となり、compiled binaryのembedded asset / Worker / SQLite selftestも成功すること。再実行が成功するまではWindows検証完了とは扱わない。最初のruntime差替え時の数値とローカル確認ログのハッシュは [windows-nix.json](windows-nix.json) に履歴として残している。
+**最終native実行:** [run 38112767631](https://github.com/satoki252595/mitori/actions/runs/38112767631)（`525260d354233147d18232073a7a3ae17ad94b38`）はNix crossbuildと `windows-2025` native jobの両方が成功した。Nix-built Bun 1.4.2でfrozen installを実行し、source testsは**7成功・0 skip・0失敗**、2ファイル・33 assertions・4.38秒。既存native4ケースすべてが成功し、環境の厳密比較も維持した。
+
+製品の通常entrypointでは `--version` が `mitori 0.0.0 (api 1)` を返し、`_selftest` は `source: embedded` / `standalone: true`、**integrity / web / parse / elk / shiki / sqliteの6 checksすべて成功**、計4,507.7945msだった。[native job](https://github.com/satoki252595/mitori/actions/runs/38112767631/job/114392030222)と[証跡artifact](https://github.com/satoki252595/mitori/actions/runs/38112767631/artifacts/11692446328)を保存した。初回の失敗とMacでの確認値は [windows-nix.json](windows-nix.json) / [windows-env.json](windows-env.json) に履歴として残している。今回のWindows対象検証は完了したが、全Windows版・全利用経路の保証ではない。

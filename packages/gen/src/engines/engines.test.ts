@@ -33,6 +33,32 @@ const call = (over: Partial<GenCall> = {}): GenCall => ({
 const ctx = { ws: "ws_testtesttest" as const, sandboxCwd: "/home/u/.mitori/run/empty" };
 
 describe("toScheduledRequest (§8.2 / §8.3)", () => {
+  test("Codex cold retries match the native byte preflight and refuse an insufficient consent before dispatch", () => {
+    const codex = {
+      enabled: true,
+      binary: "codex",
+      model: "gpt-6.1-sol",
+      pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+      maxEstimatedSpendUsd: 1,
+    };
+    const c = call({
+      model: "codex:gpt-6.1-sol",
+      estimate: { in: 1, out: 1 },
+      budgetUsd: 0.01,
+      attempt: 2,
+      layout: { ...call().layout, shared: "共有", retry: "訂正" },
+    });
+    const req = toScheduledRequest(c, { ...ctx, engine: "codex-cli", codex });
+    const bytes = (s: string) => new TextEncoder().encode(s).length;
+    const input = bytes(req.system) + bytes((req.promptBlocks ?? []).join("\n\n")) + bytes("{}") + 2048;
+    expect(req.budget.inTokens).toBe(input);
+    expect(req.budget.usd).toBeCloseTo(((input + c.maxOutTokens) * 2 + c.maxOutTokens * 10) / 1e6, 6);
+    expect(req).toMatchObject({ tools: "none", writeScope: [], keepAlive: false, persistSession: false });
+    expect(req.apiLayout).toBeUndefined();
+    expect(req.promptBlocks).toEqual(["共有\nUNIT", "訂正"]);
+    expect(() => toScheduledRequest(c, { ...ctx, engine: "codex-cli" })).toThrow("explicit pricing");
+    expect(() => toScheduledRequest(c, { ...ctx, engine: "codex-cli", codex: { ...codex, maxEstimatedSpendUsd: 0.01 } })).toThrow("estimated spend consent");
+  });
   test("claude-cli: generate mode, system file = system + newline + pack, prompt = unit, no tools, parked, no persistence", () => {
     const r = toScheduledRequest(call(), { ...ctx, engine: "claude-cli" });
     expect(r).toEqual({
@@ -107,6 +133,32 @@ function fakeRun(
 }
 
 describe("scheduler-backed GenEngine", () => {
+  test("Codex has no parked continuation even when a scheduler exposes one", async () => {
+    const submitted: ScheduledRequest[] = [];
+    const session: EngineSession = { id: "s1", parked: () => true, continue: () => unsupported("x"), close: async () => undefined };
+    const scheduler = {
+      submit: (req: ScheduledRequest) => {
+        submitted.push(req);
+        return fakeRun(["text"], {}, {}, session);
+      },
+      continueSession: () => unsupported("Codex continuation"),
+    } as unknown as AgentScheduler;
+    const engine = createSchedulerEngine("codex-cli", scheduler, {
+      ...ctx,
+      codex: {
+        enabled: true,
+        binary: "codex",
+        model: "gpt-6.1-sol",
+        pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+        maxEstimatedSpendUsd: 1,
+      },
+    });
+    const run = engine.run(call({ model: "codex:gpt-6.1-sol" }), new AbortController().signal);
+    await run.result;
+    expect(submitted[0]?.keepAlive).toBe(false);
+    expect(run.continueWith).toBeUndefined();
+    expect(engine.caps.explicitCache).toBe(false);
+  });
   test("text deltas are passed through unthrottled; refusal / continuations / window come from the result", async () => {
     const submitted: ScheduledRequest[] = [];
     const scheduler = {

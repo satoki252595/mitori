@@ -66,7 +66,7 @@ export function withRetry(t: PlannedTask, e: TaskEstimate, engine: EngineId, pri
   const pr = price(t.model, prices);
   const reply = e.out + e.thinking;
   const read = e.uncached + e.cacheWrite + e.cacheRead;
-  const cold = engine === "generic";
+  const cold = engine === "generic" || engine === "codex-cli";
   const usd = (read * (cold ? pr.inPerMTok : pr.cacheReadPerMTok) + reply * pr.cacheWrite5mPerMTok + P.retryCost * reply * pr.outPerMTok) / 1e6;
   return {
     ...e,
@@ -115,12 +115,13 @@ export function createEstimator(
     const tail = t.estimate.tail;
     const o = t.estimate.out > 0 ? t.estimate.out : outTarget(t.prompt, t.mode, tail);
     const th = thinkingOf(t.model, t.effort, o, engine);
-    const prices = engine === "generic" ? deps.settings().global.engines.generic.pricing : undefined;
-    if (engine === "generic" && !(t.model in PRICING) && !prices)
-      throw new MitoriError("E_CFG_INVALID", "engines.generic.pricing is required for a model without known prices");
+    const cold = engine === "generic" || engine === "codex-cli";
+    const prices = cold ? deps.settings().global.engines[engine].pricing : undefined;
+    if (cold && !(t.model in PRICING) && !prices)
+      throw new MitoriError("E_CFG_INVALID", `engines.${engine}.pricing is required for a model without known prices`);
     const pr = price(t.model, prices);
     const tau = (P.tailCacheWriteShare as Readonly<Record<string, number>>)[engine] ?? 0;
-    const w = warmPrefix && engine !== "generic" ? 0 : 1;
+    const w = warmPrefix && !cold ? 0 : 1;
     const pw = pr.cacheWrite5mPerMTok;
     const usd = (w * p * pw + (1 - w) * p * pr.cacheReadPerMTok + tau * tail * pw + (1 - tau) * tail * pr.inPerMTok + (o + th) * pr.outPerMTok) / 1e6;
     const sigma = engine === "session" ? 0 : startupOf(engine);
@@ -129,9 +130,9 @@ export function createEstimator(
       tail,
       out: o,
       thinking: th,
-      cacheWrite: engine === "generic" ? 0 : Math.round(w * p + tau * tail),
-      cacheRead: engine === "generic" ? 0 : Math.round((1 - w) * p),
-      uncached: Math.round(engine === "generic" ? p + tail : (1 - tau) * tail),
+      cacheWrite: cold ? 0 : Math.round(w * p + tau * tail),
+      cacheRead: cold ? 0 : Math.round((1 - w) * p),
+      uncached: Math.round(cold ? p + tail : (1 - tau) * tail),
       apiUsd: round6(usd),
       seconds: Math.round((sigma + ttftOf(t.model, t.effort, engine) + (o + th) / speedOf(t.model)) * 10) / 10,
     };
@@ -163,7 +164,7 @@ export function createEstimator(
         t,
         calibrated(t, task(t, engine, warm[i] ?? false), engine),
         engine,
-        engine === "generic" ? deps.settings().global.engines.generic.pricing : undefined,
+        engine === "generic" || engine === "codex-cli" ? deps.settings().global.engines[engine].pricing : undefined,
       ),
     }));
   }
@@ -280,12 +281,13 @@ export function createEstimator(
         seconds: sim.byStage.find((b) => b.stage === stage)?.seconds ?? 0,
       };
     });
-    const sessionItems = engine === "generic" ? [] : durations(plan, "session");
+    const cold = engine === "generic" || engine === "codex-cli";
+    const sessionItems = cold ? [] : durations(plan, "session");
     const sessionSeconds = sessionItems.reduce((n, x) => n + (x.t.cached ? 0 : x.e.seconds + P.startupSec.session), 0);
     const batches = sessionBatches(sessionItems);
     const alternatives: GenEstimate["alternatives"] = [];
-    if (engine !== "session" && engine !== "generic") alternatives.push(alternative(plan, "claude-cli", concurrency));
-    if (engine !== "generic")
+    if (engine !== "session" && !cold) alternatives.push(alternative(plan, "claude-cli", concurrency));
+    if (!cold)
       alternatives.push({
         engine: "session",
         concurrency: 1,
@@ -295,14 +297,13 @@ export function createEstimator(
         batches: batches.length,
         uncalibrated: true,
       });
-    if (s.global.engines["anthropic-api"].enabled && engine !== "anthropic-api" && engine !== "generic")
-      alternatives.push(alternative(plan, "anthropic-api", concurrency));
+    if (s.global.engines["anthropic-api"].enabled && engine !== "anthropic-api" && !cold) alternatives.push(alternative(plan, "anthropic-api", concurrency));
     if (engine === "anthropic-api") alternatives.unshift(alternative(plan, "anthropic-api", concurrency));
 
     const window = deps.window();
     const kappa = deps.ledger.windowFactor();
     const prior = WINDOW_PRIORS[(deps.plan?.() ?? "unknown") as keyof typeof WINDOW_PRIORS] ?? WINDOW_PRIORS.unknown;
-    const windowed = engine !== "anthropic-api" && engine !== "generic";
+    const windowed = engine !== "anthropic-api" && !cold;
     const calibrated = kappa.kappa !== null && kappa.n >= P.kappaMinN;
     const windowDeltaPct = windowed && window?.fiveHour && calibrated ? Math.round(100 * (kappa.kappa as number) * usd * 10) / 10 : null;
     const range = windowed && !calibrated ? { low: Math.round(prior.low * usd * 10) / 10, high: Math.round(prior.high * usd * 10) / 10 } : undefined;
@@ -321,7 +322,7 @@ export function createEstimator(
       cal.n < CALIBRATION.pointEstimateN
         ? P.confidenceInitPct
         : Math.min(P.confidenceClampPct[1], Math.max(P.confidenceClampPct[0], Math.round(cal.accuracyPct)));
-    const billing = engine === "anthropic-api" ? "metered-api" : engine === "generic" ? "unknown" : (window?.billing ?? "unknown");
+    const billing = engine === "anthropic-api" ? "metered-api" : cold ? "unknown" : (window?.billing ?? "unknown");
     const packTokens = items.find((x) => x.e.prefix > 0)?.e.prefix ?? 0;
     const est: GenEstimate = {
       id: deps.ids.next("estimate") as GenEstimate["id"],
@@ -345,10 +346,10 @@ export function createEstimator(
           kind: "repo_pack",
           label: "repo pack",
           tokens: Math.max(0, packTokens - P.systemTokens),
-          cached: engine !== "generic",
+          cached: !cold,
           removable: false,
         },
-        { key: "fixed", kind: "fixed", label: "gen.system", tokens: P.systemTokens, cached: engine !== "generic", removable: false },
+        { key: "fixed", kind: "fixed", label: "gen.system", tokens: P.systemTokens, cached: !cold, removable: false },
         {
           key: "module",
           kind: "module",

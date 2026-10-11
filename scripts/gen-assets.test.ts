@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { brotliDecompressSync } from "node:zlib";
+import { brotliCompressSync, brotliDecompressSync, constants, gzipSync } from "node:zlib";
 import { compileArgs } from "./build-bin.ts";
 import { type AssetLock, LOCK, precompress, REQUIRED_IDS, sha256Hex, tableSource, verifyLock } from "./gen-assets.ts";
 import { ROOT } from "./lib/repo.ts";
@@ -96,16 +96,22 @@ describe("SKEL-U-11 embed table and compile flags", () => {
 });
 
 describe("SKEL-U-12 precompression", () => {
-  test("br/gz written only when they save ≥ 5 %; hashed /assets are immutable", () => {
+  test("both encodings exist when either saves ≥ 5 %; hashed /assets are immutable", () => {
     mkdirSync(join(ROOT, "dist"), { recursive: true });
     const dir = mkdtempSync(join(ROOT, "dist/.precompress-test-"));
     try {
       mkdirSync(join(dir, "assets"));
       writeFileSync(join(dir, "index.html"), `<!doctype html>${"<p>mitori</p>".repeat(200)}`);
       writeFileSync(join(dir, "assets/app-1a2b.js"), "x");
+      const facade = 'import e from"./ReaderPage-CJPWYKq1.js";export{e as ReaderPage};';
+      const raw = Buffer.from(facade);
+      expect(brotliCompressSync(raw, { params: { [constants.BROTLI_PARAM_QUALITY]: 11 } }).length).toBeLessThan(raw.length * 0.95);
+      expect(gzipSync(raw, { level: 9 }).length).toBeGreaterThanOrEqual(raw.length * 0.95);
+      writeFileSync(join(dir, "assets/facade-123.js"), facade);
       writeFileSync(join(dir, "assets/logo.png"), new Uint8Array(512));
       const web = precompress(dir);
-      expect(Object.keys(web)).toEqual(["/assets/app-1a2b.js", "/assets/logo.png", "/index.html"]);
+      expect(Object.keys(web)).toEqual(["/assets/app-1a2b.js", "/assets/facade-123.js", "/assets/logo.png", "/index.html"]);
+      expect(web["/assets/facade-123.js"]?.br && web["/assets/facade-123.js"]?.gz).toBeTruthy();
       expect(web["/index.html"]?.br && web["/index.html"]?.gz).toBeTruthy();
       expect(web["/index.html"]?.immutable).toBe(false);
       expect(brotliDecompressSync(readFileSync(join(ROOT, web["/index.html"]?.br ?? ""))).toString()).toContain("<p>mitori</p>");

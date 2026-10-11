@@ -607,7 +607,7 @@ export interface GenPromptSpec {
 export const GEN_PROMPTS = {
   "gen.module": {
     id: "gen.module",
-    version: "gen.module@7",
+    version: "gen.module@11",
     system: "gen.system",
     stage: "S5",
     data: ["MODULE", "DEPS", "SKELETON", "BODIES", "TESTS", "FACTS", "DOCS", "EXISTING", "CHANGES"],
@@ -676,7 +676,7 @@ export const GEN_PROMPTS = {
   },
   "gen.quality": {
     id: "gen.quality",
-    version: "gen.quality@5",
+    version: "gen.quality@6",
     system: "gen.system",
     stage: "S6o",
     data: ["CLAIMS", "BODIES", "FACTS", "EXISTING"],
@@ -1231,7 +1231,7 @@ export interface GenCall {
   estimate: { in: number; out: number };
   /** Backstop budget passed as `--max-budget-usd` (max(0.05, 3 × estimate)). */
   budgetUsd: number;
-  /** Hard timeout: generic provider's configured turnMs, else max(120 s, 4 × estimated seconds). */
+  /** Hard timeout: Codex native generation default (600 s), generic configured turnMs, else max(120 s, 4 × estimated seconds). */
   timeoutMs: number;
   /** JSON Schema (small tasks only, D14). */
   jsonSchema?: object;

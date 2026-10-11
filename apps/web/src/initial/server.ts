@@ -5,9 +5,9 @@ import { render } from "svelte/server";
 import { UI_THRESHOLDS } from "../contract.ts";
 import { EFFORTS } from "../gen/efforts.ts";
 import MapPage from "../map/MapPage.svelte";
-import * as initialSide from "../map/side.ts";
+import * as initialSide from "../map/side.server.ts";
 import { indexOutline, pageSections } from "../reader/outline.ts";
-import { welcomeKey } from "../shell/firstrun.ts";
+import { firstRunLevel, welcomeKey } from "../shell/firstrun.ts";
 import { setCatalog } from "../shell/i18n.ts";
 import { parseRoute } from "../shell/router.ts";
 import Shell from "../shell/Shell.svelte";
@@ -35,15 +35,16 @@ function state(query: URLSearchParams, defaults: InitialUiSnapshot["settings"]):
   if (!Number.isInteger(width) || width < 320 || width > 8192) invalid("width");
   const raw = query.get("ui") ?? "{}";
   if (raw.length > 16_384) invalid("ui");
-  let given: Partial<InitialUiState>;
+  let given: Partial<InitialUiState> & { firstRun?: boolean };
   try {
     given = JSON.parse(raw);
   } catch {
     invalid("ui");
   }
   if (!given || Array.isArray(given) || typeof given !== "object") invalid("ui");
+  if (given.firstRun !== undefined && typeof given.firstRun !== "boolean") invalid("firstRun");
   const d = defaults.settings.ui;
-  const level = given.level ?? d.readerLevel;
+  const level = given.level ?? firstRunLevel({ cookieHasLevel: false, seen: !given.firstRun, current: d.readerLevel }) ?? d.readerLevel;
   const lang = given.lang ?? d.lang;
   const theme = given.theme ?? d.theme;
   if (!["newcomer", "standard", "expert"].includes(level)) invalid("level");
@@ -53,7 +54,8 @@ function state(query: URLSearchParams, defaults: InitialUiSnapshot["settings"]):
   if (codeWidth !== null && (!Number.isInteger(codeWidth) || codeWidth < 420 || codeWidth > 900)) invalid("codeWidth");
   const read = given.read ?? {};
   if (!read || typeof read !== "object" || Array.isArray(read) || Object.keys(read).length > 512) invalid("read");
-  for (const [id, at] of Object.entries(read)) if (!/^s\d+(?:\/[a-zA-Z0-9_.-]+)*$/.test(id) || typeof at !== "string" || at.length > 40) invalid("read");
+  for (const [id, at] of Object.entries(read))
+    if (!/^(?:s(?:[0-9]|1[0-3])|appendix)(?:\/[a-zA-Z0-9_.-]+)*$/.test(id) || typeof at !== "string" || at.length > 40) invalid("read");
   const course = given.course ?? null;
   if (course !== null && (typeof course !== "string" || !/^[a-z0-9_-]{1,64}$/.test(course))) invalid("course");
   if (given.railCollapsed !== undefined && typeof given.railCollapsed !== "boolean") invalid("railCollapsed");
@@ -92,12 +94,12 @@ export const renderInitialUi: InitialUiRenderer = async (query, get, estimate) =
   const route = parseRoute(ui.url);
   if (route.name !== "map" && route.name !== "doc") invalid("url");
   const ws = route.ws;
-  const [status, outline, daemon, usage, engines, threads, jobs, inbox, proposals] = await Promise.all([
-    api.call("GET /ws/:ws", { params: { ws } }),
+  const [outline, daemon, usage, liveEngines, threads, jobs, inbox, proposals] = await Promise.all([
     api.call("GET /ws/:ws/doc", { params: { ws } }),
     api.call("GET /daemon", { params: {} }).catch(() => null),
     api.call("GET /usage/summary", { params: {}, query: { range: "today" } }).catch(() => null),
-    api.call("GET /engines", { params: {} }).catch(() => []),
+    // Reading never waits for login/version subprocesses. Generation and explicit Recheck still detect live.
+    route.name === "map" ? api.call("GET /engines", { params: {} }).catch(() => []) : Promise.resolve(null),
     api
       .call("GET /ws/:ws/threads", { params: { ws }, query: { limit: 200 } })
       .then((p) => p.items)
@@ -112,6 +114,9 @@ export const renderInitialUi: InitialUiRenderer = async (query, get, estimate) =
       .catch(() => []),
     api.call("GET /ws/:ws/doc/proposals", { params: { ws }, query: { state: "pending" } }).catch(() => []),
   ]);
+  // The outline waits for the cold scan/static doc. Read status afterwards so this finished view carries its summary.
+  const status = await api.call("GET /ws/:ws", { params: { ws } });
+  const engines = liveEngines ?? daemon?.engines ?? [];
   const snapshot: InitialUiSnapshot = { ui, settings, status, outline, daemon, usage, engines, threads, jobs, inbox, proposals, map: null, sections: [] };
   if (route.name === "map") {
     snapshot.map = await api.call("GET /ws/:ws/map", { params: { ws }, query: { svg: true, lang: ui.lang } });

@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHasher } from "@mitori/platform";
-import { prepareClaudePin } from "./setup-pin.ts";
+import { prepareProviderPin } from "./setup-pin.ts";
 import { testIo } from "./test/fake-daemon.ts";
 
 const dirs: string[] = [];
@@ -23,7 +23,7 @@ test("Claude setup pins the reviewed file and version without repo cwd, auth, or
   const { binary, io } = fake(`
 if (JSON.stringify(process.argv.slice(2)) !== '["--version"]' || process.cwd() !== "/" || process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_CODE_OAUTH_TOKEN) process.exit(1);
 console.log("2.1.288 (Claude Code)");`);
-  const pin = await prepareClaudePin(binary, io);
+  const pin = await prepareProviderPin(binary, io, "Claude");
   expect(pin).toMatchObject({ path: binary, realpath: realpathSync(binary), version: "2.1.288 (Claude Code)", by: "user" });
   expect(pin.sha256).toBe(createHasher().sha256(readFileSync(binary)));
   expect(Date.parse(pin.pinnedAt)).not.toBeNaN();
@@ -32,15 +32,15 @@ console.log("2.1.288 (Claude Code)");`);
 
 test("Claude setup rejects replacement during the version probe and bounded-output failures", async () => {
   const replacement = fake(`await Bun.write(process.argv[1], "replacement"); console.log("2.1.288 (Claude Code)");`);
-  await expect(prepareClaudePin(replacement.binary, replacement.io)).rejects.toThrow("changed during verification");
+  await expect(prepareProviderPin(replacement.binary, replacement.io, "Claude")).rejects.toThrow("changed during verification");
   const large = fake(`process.stdout.write("x".repeat(8192));`);
-  await expect(prepareClaudePin(large.binary, large.io)).rejects.toThrow("too much output");
+  await expect(prepareProviderPin(large.binary, large.io, "Claude")).rejects.toThrow("too much output");
   const failed = fake(`console.error("sensitive account details"); process.exit(1);`);
-  await expect(prepareClaudePin(failed.binary, failed.io)).rejects.toThrow("claude --version failed");
+  await expect(prepareProviderPin(failed.binary, failed.io, "Claude")).rejects.toThrow("Claude --version failed");
   expect(failed.io.stdout + failed.io.stderr).not.toContain("sensitive account details");
 });
 
 test("Claude setup terminates a hanging version probe", async () => {
   const { binary, io } = fake("setInterval(() => {}, 1000);");
-  await expect(prepareClaudePin(binary, io)).rejects.toThrow("timed out");
+  await expect(prepareProviderPin(binary, io, "Claude")).rejects.toThrow("timed out");
 }, 10_000);

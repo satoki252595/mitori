@@ -17,7 +17,7 @@ import { firstRunPin, isBareName, resolveOnSafePath, untrustedOnFirstUse } from 
 import { type ChildHandle, type Engine, type EngineRequest, type EngineRun, SIGINT_GRACE_MS, type Spawner } from "../contract.ts";
 import { RESULT_META, RelayRun, zeroUsage } from "../util/run.ts";
 import type { Timers } from "../util/timers.ts";
-import { CODEX_VERSION, codexCatalog } from "./codex-policy.ts";
+import { CODEX_VERSION, codexCatalog, codexPreflight } from "./codex-policy.ts";
 import { buildCodexSpawn, extractJsonFromText } from "./index.ts";
 
 interface CodexDeps {
@@ -84,7 +84,7 @@ export function createCodexEngine(deps: CodexDeps): Engine {
     }
     return {
       engine: "codex-cli",
-      installed: !!bin && problems.length === 0,
+      installed: !!bin && problems.every((p) => p.code === "E_AGENT_AUTH"),
       auth,
       capabilities: problems.length ? [] : ["apply_patch", "precise-filesystem", "json-schema"],
       billing: "unknown",
@@ -114,20 +114,14 @@ export function createCodexEngine(deps: CodexDeps): Engine {
         const maxCalls = req.mode === "agent" ? (settings.maxPatchSteps ?? 2) : 0;
         if (!Number.isInteger(maxCalls) || maxCalls < (req.mode === "agent" ? 1 : 0) || maxCalls > 8)
           throw new MitoriError("E_CFG_INVALID", "Codex maxPatchSteps must be 1–8");
-        const prompt = (req.promptBlocks ?? [req.prompt]).join("\n\n");
-        const input = bytes(req.system) + bytes(prompt) + bytes(JSON.stringify(req.jsonSchema ?? {})) + 2048;
-        // Every native tool step re-sends the context. One byte/token is deliberately conservative.
-        const ceiling = priceUsage(
-          req.model,
-          { in: (input + req.budget.outTokens) * (maxCalls + 1), out: req.budget.outTokens, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0 },
-          false,
-          settings.pricing,
-        );
-        if (input > req.budget.inTokens || ceiling > req.budget.usd)
+        const preflight = codexPreflight({ ...req, outTokens: req.budget.outTokens, maxCalls }, settings.pricing);
+        const input = preflight.inTokens;
+        if (preflight.inTokens > req.budget.inTokens || preflight.usd > req.budget.usd)
           throw new MitoriError("E_BUDGET_EXCEEDED", "Codex conservative preflight exceeds the confirmed turn budget");
         if (!deps.fs) throw new MitoriError("E_PRECONDITION", "Codex filesystem ports are not wired");
         const status = await detect();
-        if (!status.installed) throw new MitoriError(status.problems[0]?.code ?? "E_AGENT_CAPABILITY", status.problems[0]?.message ?? "Codex unavailable");
+        if (!status.installed || status.problems.length > 0)
+          throw new MitoriError(status.problems[0]?.code ?? "E_AGENT_CAPABILITY", status.problems[0]?.message ?? "Codex unavailable");
         const pin = deps.settings().pins.codex ?? tofu;
         if (!pin) throw new MitoriError("E_AGENT_CAPABILITY", "Codex binary is not pinned");
         const cwd = req.mode === "agent" ? deps.fs.realpath(req.cwd) : await deps.sandbox.ensureEmptyCwd();
@@ -270,7 +264,9 @@ export function createCodexEngine(deps: CodexDeps): Engine {
               throw new MitoriError("E_AGENT_EXIT", secrets.redact(record.error?.message ?? "Codex failed").text);
             else if (!["thread.started", "turn.started", "item.updated"].includes(record.type ?? ""))
               throw new MitoriError("E_AGENT_PROTOCOL", "unknown Codex JSONL event");
-            if (observedBytes >= req.budget.outTokens || input * (calls + 1) > req.budget.inTokens)
+            // A tool-free agent_message is already complete. Bytes are not tokens: keep its following terminal usage.
+            // Agent-mode step metering remains conservative while further tool calls can still be made.
+            if ((req.mode === "agent" && observedBytes >= req.budget.outTokens) || input * (calls + 1) > req.budget.inTokens)
               interrupt("budget", new MitoriError("E_BUDGET_EXCEEDED", "Codex conservative input/output meter reached budget"));
           }
         } catch (err) {

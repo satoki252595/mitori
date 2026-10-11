@@ -15,6 +15,13 @@ const s = useStores();
 const ws = $derived(s.workspace.key);
 let runs = $state.raw<GenRun[]>([]);
 const cov = $derived(s.doc.outline?.manifest.coverage ?? null);
+const runCells = (r: GenRun) => [
+  r.startedAt ? fmtDateTime(r.startedAt, s.prefs.lang) : "–",
+  t(`gen.effort.${r.effort}`),
+  r.engine,
+  `${fmtTokensImpl(r.usage.in + r.usage.cacheRead + r.usage.cacheWrite)} / ${fmtTokensImpl(r.usage.out)}`,
+  fmtUsdImpl(r.usage.apiUsd, "gen"),
+];
 const stale = $derived.by(() => {
   const ix = s.doc.index;
   if (!ix) return [];
@@ -47,9 +54,7 @@ onMount(() => {
   <h2>{t("genPage.runs")}</h2>
   {#each runs as r (r.id)}
     <p class="row mono">
-      <span>{r.startedAt ? fmtDateTime(r.startedAt, s.prefs.lang) : "–"}</span><span>{t(`gen.effort.${r.effort}`)}</span><span>{r.engine}</span><span
-        >{fmtTokensImpl(r.usage.in + r.usage.cacheRead + r.usage.cacheWrite)} / {fmtTokensImpl(r.usage.out)}</span
-      ><span>{fmtUsdImpl(r.usage.apiUsd, "gen")}</span>
+      {#each runCells(r) as cell}<span>{cell}</span>{/each}
     </p>
   {:else}
     <p class="note">{t("genPage.noRuns")}</p>

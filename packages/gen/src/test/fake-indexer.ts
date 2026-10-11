@@ -256,7 +256,14 @@ export function createFakeIndexer(repo: FakeRepo, hasher: Hasher): FakeIndexer {
       if (target.kind === "file") return skeletonOf([target.path], tier, target.path);
       return skeletonOf([...texts.keys()].sort(), "l0", "repo");
     },
-    hotBodies: () => [],
+    hotBodies: (id, budget) => {
+      let used = 0;
+      return ix.moduleContext(id, { tokenizer: "claude-v5", budget }).hot.filter((s) => {
+        if (used + s.tokens > budget) return false;
+        used += s.tokens;
+        return true;
+      });
+    },
     moduleContext: (id, opts): ModuleContext => {
       const m = moduleById.get(id);
       if (!m) throw new Error(`no module ${id}`);

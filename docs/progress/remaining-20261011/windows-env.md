@@ -14,4 +14,6 @@
 
 MacのNix Bunで、native asset / extraction / build record / spawnerの対象4ファイルは19成功・Windows限定4skip・0失敗、59 assertions。platform型検査は診断0、対象3 TypeScriptファイルのBiomeとdiff checkは成功した。CのcrossbuildとMacテストはWindows native成功の代用にはならない。
 
-統合担当がcommit / push / dispatchし、Windows source testsの**7成功・0skip・0失敗**とcompiled `_selftest` の6 checksを確認する必要がある。Nix-built EXEを `BUN_BE_BUN=1` で使う検証方式は維持した。数値、コマンド、生成PEとソースのSHA-256は [windows-env.json](windows-env.json)。
+**最終再CIは成功した。** [run 38112767631](https://github.com/satoki252595/mitori/actions/runs/38112767631)（`525260d354233147d18232073a7a3ae17ad94b38`）のNix crossbuildと `windows-2025` native jobが成功。source testsは**7成功・0skip・0失敗**、2ファイル・33 assertions・4.38秒だった。literal UTF-16 argv・空値/非ASCIIを含むexact environment・stdio・終了コード、正の対照、leader終了時と全signalでの独立detach子孫停止を実Windowsで確認した。
+
+別工程の製品 `--version` は `mitori 0.0.0 (api 1)`、compiled `_selftest` は `source: embedded` / `standalone: true` で**integrity / web / parse / elk / shiki / sqliteの6 checksすべて成功**、計4,507.7945ms。[native job](https://github.com/satoki252595/mitori/actions/runs/38112767631/job/114392030222) / [証跡artifact](https://github.com/satoki252595/mitori/actions/runs/38112767631/artifacts/11692446328)。Nix-built EXEを `BUN_BE_BUN=1` で使う検証方式を維持し、Windows Bunの別ダウンロードは行っていない。初回失敗、最終成功、コマンド、生成PEとソースのSHA-256は [windows-env.json](windows-env.json)。

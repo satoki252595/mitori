@@ -5,7 +5,6 @@
  */
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig, minifySync, type Plugin } from "vite";
-import { DEFAULT_KEYMAP } from "./src/contract.ts";
 import { parseUiCookieFields } from "./src/shell/cookie.ts";
 import { bootHead, type HeadChunks } from "./src/shell/head.ts";
 
@@ -66,39 +65,18 @@ function headPlugin(): Plugin {
   };
 }
 
-/** Ship the immutable keyboard table as data, generated from the authoritative const (no duplicate file).
- * The module awaits it before boot, so the first visible screen already has every shortcut. */
-function keymapDataPlugin(): Plugin {
-  let ssr = false;
-  return {
-    name: "mitori-keymap-data",
-    apply: "build",
-    enforce: "pre",
-    configResolved(config) {
-      ssr = !!config.build.ssr;
-    },
-    transform(code, id) {
-      if (ssr) return;
-      if (!id.replaceAll("\\", "/").endsWith("/src/shell/keys.ts")) return;
-      const binding = "export const DEFAULT_DEFS: readonly ShortcutDef[] = DEFAULT_KEYMAP;";
-      if (!code.includes(binding)) throw new Error("keyboard table source changed; update its data transform");
-      const ref = this.emitFile({ type: "asset", name: "keymap.json", source: JSON.stringify(DEFAULT_KEYMAP) });
-      return code
-        .replace("DEFAULT_KEYMAP, ", "")
-        .replace(
-          binding,
-          `export const DEFAULT_DEFS: readonly ShortcutDef[] = await fetch(import.meta.ROLLUP_FILE_URL_${ref}).then((r) => { if (!r.ok) throw new Error("keyboard table: " + r.status); return r.json(); });`,
-        );
-    },
-  };
-}
-
-/** CSS of canonical server-rendered components. No JavaScript preloads for the enhanced app. */
+/** One immutable stylesheet for both canonical initial views; enhanced feature CSS stays lazy. */
 function initialStylesPlugin(): Plugin {
+  let initialCss = "";
+  let ssr = false;
   return {
     name: "mitori-initial-styles",
     apply: "build",
+    configResolved(config) {
+      ssr = Boolean(config.build.ssr);
+    },
     generateBundle(_opts, bundle) {
+      if (ssr) return;
       const base = new Set<string>();
       const map = new Set<string>();
       const doc = new Set<string>();
@@ -110,7 +88,12 @@ function initialStylesPlugin(): Plugin {
           for (const file of css) target.add(`/${file}`);
         };
         if (/\/src\/shell\/(?:Shell|Header|Rail|StatusBar|Rich)\.svelte|\/styles\/(?:tokens|base|prose|diagram|levels)\.css/.test(ids)) add(base);
-        if (/\/src\/map\/(?:MapPage|FloorPlan|RoomCard|SidePanel)\.svelte|\/src\/gen\/(?:EngineCard|GenEstimateCard|GenProgress)\.svelte/.test(ids)) add(map);
+        if (
+          /\/src\/map\/(?:MapPage|FloorPlan|RoomCard|SidePanel|EngineCard)\.svelte|\/src\/gen\/(?:GenEstimateCard|GenBreakdown|GenProgress|GenDoneCard)\.svelte/.test(
+            ids,
+          )
+        )
+          add(map);
         if (
           /\/src\/reader\/(?:ReaderPage|BlockHost|ContextColumn|Minimap|Welcome)\.svelte|\/src\/(?:proposals\/ProposalBlock|threads\/ServerHtml)\.svelte/.test(
             ids,
@@ -118,11 +101,28 @@ function initialStylesPlugin(): Plugin {
         )
           add(doc);
       }
-      this.emitFile({
-        type: "asset",
-        fileName: "initial-css.json",
-        source: JSON.stringify({ map: [...new Set([...base, ...map])], doc: [...new Set([...base, ...doc])] }),
-      });
+      const files = [...new Set([...base, ...map, ...doc])];
+      if (files.length)
+        initialCss = this.getFileName(
+          this.emitFile({
+            type: "asset",
+            name: "initial.css",
+            source: files
+              .map((file) => {
+                const asset = bundle[file.slice(1)];
+                if (asset?.type !== "asset") throw new Error(`missing initial stylesheet ${file}`);
+                return typeof asset.source === "string" ? asset.source : new TextDecoder().decode(asset.source);
+              })
+              .join("\n"),
+          }),
+        );
+    },
+    transformIndexHtml: {
+      order: "post",
+      handler(html) {
+        if (!initialCss) throw new Error("initial stylesheet was not generated");
+        return html.replace(/<link\b[^>]*rel="stylesheet"[^>]*>/g, "").replace("</head>", `<link rel="stylesheet" href="/${initialCss}"></head>`);
+      },
     },
   };
 }
@@ -130,7 +130,7 @@ function initialStylesPlugin(): Plugin {
 export default defineConfig(({ mode }) => ({
   root: import.meta.dirname,
   base: "/",
-  plugins: [svelte({ compilerOptions: { runes: true } }), headPlugin(), keymapDataPlugin(), initialStylesPlugin()],
+  plugins: [svelte({ compilerOptions: { runes: true } }), headPlugin(), initialStylesPlugin()],
   define: {
     __MITORI_VERSION__: JSON.stringify("dev"),
     __MITORI_TEST__: JSON.stringify(mode === "test"),
@@ -148,6 +148,14 @@ export default defineConfig(({ mode }) => ({
     rolldownOptions: {
       treeshake: { moduleSideEffects: [{ test: /node_modules\/svelte\/src\/internal\/client\/dom\/elements\/custom-element\.js$/, sideEffects: false }] },
       output: {
+        // Keep the entry's static dependencies together; enhanced views remain lazy.
+        codeSplitting: {
+          groups: [
+            { name: "initial", tags: ["$initial"], priority: 20 },
+            // Shared editor/language machinery belongs to cm6; merge contains only the diff implementation.
+            { name: "cm6", test: /node_modules[\\/](?:@codemirror[\\/](?!merge[\\/])|@lezer[\\/]|style-mod[\\/]|w3c-keyname[\\/])/, priority: 10 },
+          ],
+        },
         // the HTML entry is only the bootstrap; runtime + shell + stores form the `entry` chunk below
         entryFileNames: "assets/boot-[hash].js",
         chunkFileNames: (c) => `assets/${chunkName(c.facadeModuleId, c.name)}-[hash].js`,

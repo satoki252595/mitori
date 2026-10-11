@@ -14,6 +14,35 @@ async function openMap(page: Page, o: MockOptions) {
 
 const posts = async (path: RegExp, method = "POST") => (await mockLog()).filter((r) => r.method === method && path.test(r.path));
 
+test("generated summary preserves its read button through the first enhancement", async ({ page }) => {
+  await openMap(page, { generated: true });
+  const done = page.locator(".done");
+  await expect(done).toBeVisible();
+  await expect(done).toContainText("tok");
+  await done.getByRole("button").click();
+  await expect(page).toHaveURL(new RegExp(`/w/${WS}/doc/`));
+  await expect(page.locator(".blk[data-b]").first()).toBeVisible();
+});
+
+test("enhanced generation card loads its closed breakdown only when opened", async ({ page }, info) => {
+  await openMap(page, { policyAcked: true });
+  await page.keyboard.press("ControlOrMeta+k");
+  await expect(page.locator(".pal input")).toBeFocused();
+  await page.keyboard.press("Escape");
+  const assets: string[] = [];
+  page.on("request", (r) => {
+    const file = new URL(r.url()).pathname.split("/").at(-1) ?? "";
+    if (/^GenBreakdown-.*\.js$/.test(file)) assets.push(file);
+  });
+  await expect(page.locator("details.brk")).not.toHaveAttribute("open", "");
+  await expect(page.locator(".brk .eng")).toHaveCount(0);
+  await page.locator(".brk summary").click();
+  await expect(page.locator(".brk .eng")).toBeVisible();
+  await expect(page.locator(".brk table tbody tr")).not.toHaveCount(0);
+  expect(assets).toHaveLength(1);
+  info.annotations.push({ type: "lazy-assets", description: JSON.stringify(assets) });
+});
+
 test("@wp10a AC-U-DP disclosure above the main line; a click before it was visible 1 s does nothing; the next one acks + starts", async ({ page }) => {
   await openMap(page, { policyAcked: false });
   const disc = page.getByTestId("disclosure");

@@ -30,6 +30,7 @@ import {
   type Usage,
 } from "@mitori/core";
 import { GEN_ESTIMATE_PARAMS, type GenDeps, type GenEngine, type GenPlan, type GenStartOptions, type PlannedTask } from "../contract.ts";
+import { toScheduledRequest } from "../engines/index.ts";
 import { createSchedulerEngine } from "../engines/scheduler-engine.ts";
 import { compareTasks, groupOf } from "../planner/params.ts";
 import { CitableBuilder } from "../prompts/context.ts";
@@ -89,12 +90,14 @@ export function runTaskId(deps: Pick<GenDeps, "hasher">, run: GenRunId, planId: 
 }
 
 /** Engine adapter for an engine id. */
-export function engineFor(deps: GenDeps, id: EngineId): GenEngine {
-  if (id !== "claude-cli" && id !== "anthropic-api" && id !== "generic")
+export function engineFor(deps: GenDeps, id: EngineId, s = deps.settings()): GenEngine {
+  if (id !== "claude-cli" && id !== "anthropic-api" && id !== "generic" && id !== "codex-cli")
     throw new MitoriError("E_INVALID_INPUT", `engine ${id} cannot run a push generation`, { params: { engine: id } });
-  const s = deps.settings();
   if (!s.global.engines[id].enabled) throw new MitoriError("E_AGENT_NOT_INSTALLED", `engine ${id} is not enabled`, { params: { engine: id } });
-  return deps.engines[id] ?? createSchedulerEngine(id, deps.scheduler, { ws: deps.ws.key, sandboxCwd: deps.sandboxCwd });
+  return (
+    deps.engines[id] ??
+    createSchedulerEngine(id, deps.scheduler, { ws: deps.ws.key, sandboxCwd: deps.sandboxCwd, ...(id === "codex-cli" ? { codex: s.global.engines[id] } : {}) })
+  );
 }
 
 /** Runner (the push part of the orchestrator). */
@@ -532,16 +535,22 @@ export class Runner {
     const live = this.live as Live;
     if (live.idle.settled) live.idle = deferred();
     const abort = new AbortController();
-    const slot: { abort: AbortController; call: { stop(r: "user"): void } | null; estUsd: number } = { abort, call: null, estUsd: row.plan.estimate.apiUsd };
+    const slot: { abort: AbortController; call: { stop(r: "user"): void } | null; estUsd: number } = {
+      abort,
+      call: null,
+      // Native reservations are calculated atomically after gathering, before every submission.
+      estUsd: live.run.engine === "codex-cli" ? 0 : row.plan.estimate.apiUsd,
+    };
     live.running.set(row.task.id, slot);
     row.task.state = "running";
     row.task.attempt = Math.max(1, row.task.attempt);
     this.emitTask(row);
     void this.deps.write("gen.task", () => this.svc.store.putTask(row));
     const env = this.execEnv();
+    const settings = this.s();
     let engine: GenEngine;
     try {
-      engine = engineFor(this.deps, live.run.engine);
+      engine = engineFor(this.deps, live.run.engine, settings);
     } catch (err) {
       void this.complete(row, { state: "failed", usage: null, calls: 0, attempts: 0, blocks: [], error: toErrorData(err), fatal: true });
       return;
@@ -562,6 +571,27 @@ export class Runner {
       },
       call: (c) => {
         slot.call = c;
+      },
+      admit: (call, accruedUsd) => {
+        if (engine.id !== "codex-cli") return true;
+        const next = toScheduledRequest(call, {
+          ws: this.deps.ws.key,
+          sandboxCwd: this.deps.sandboxCwd,
+          engine: "codex-cli",
+          codex: settings.global.engines["codex-cli"],
+        }).budget.usd;
+        const others = [...live.running.values()].reduce((n, x) => n + (x === slot ? 0 : x.estUsd), 0);
+        const limit = this.s().global.limits.stopAtBudgetFraction * this.cap();
+        if (live.run.paused?.reason === "budget" || live.run.usage.apiUsd + others + accruedUsd + next > limit) {
+          slot.estUsd = accruedUsd;
+          live.run.state = "paused";
+          live.run.paused = { reason: "budget" };
+          void this.persistRun();
+          this.emitRun();
+          return false;
+        }
+        slot.estUsd = accruedUsd + next;
+        return true;
       },
       blocks: (ids) => {
         row.task.blocks = [...new Set([...row.task.blocks, ...ids])];

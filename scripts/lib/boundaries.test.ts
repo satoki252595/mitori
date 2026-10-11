@@ -81,7 +81,7 @@ describe("check-boundaries (WP-00a acceptance)", () => {
   });
 
   test("only the named testkit helper subpaths are public in test code", () => {
-    for (const subpath of ["fixtures", "golden"]) {
+    for (const subpath of ["fixtures", "golden", "home"]) {
       const text = `import { helper } from "@mitori/testkit/${subpath}";`;
       expect(check("packages/doc/src/x.test.ts", text)).toEqual([]);
       expect(check("packages/doc/src/x.ts", text)).toContain("testing-import@1");

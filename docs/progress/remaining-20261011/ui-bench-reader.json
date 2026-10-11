@@ -1,0 +1,23 @@
+{
+  "firstUse": {
+    "shellPaint": 1492.699951171875,
+    "firstUseful": 2840.199951171875,
+    "dom": 757,
+    "mapNodes": 425,
+    "cls": 0
+  },
+  "reader": {
+    "rendered": 833.699951171875,
+    "dom": 2058,
+    "requests": 6,
+    "urls": [
+      "/w/WS/doc/s8",
+      "/assets/boot-DV0kDKk7.js",
+      "/assets/rolldown-runtime-DK3Fl9T5.js",
+      "/assets/initial-BihfxJzR.css",
+      "/api/v1/ws/WS/ui",
+      "/api/v1/events"
+    ]
+  },
+  "errors": []
+}

@@ -1,7 +1,7 @@
 {
   "format": "mitori.windows-nix-verification/1",
   "date": "2026-10-11",
-  "status": "First native run failed strict environment assertion; see windows-env.json; fix pending native rerun",
+  "status": "verified on native windows-2025 using only the existing Nix-built standalone Bun runtime",
   "method": "Reuse the existing Nix-crossbuilt mitori-windows-x64.exe as the full Bun CLI with BUN_BE_BUN=1 for frozen install and unchanged native source-test cases.",
   "source": {
     "url": "https://bun.sh/docs/bundler/executables#act-as-the-bun-cli",
@@ -97,7 +97,7 @@
     "packages/platform/src/spawn/windows-job.test.ts": "f98147b589db43baef79823757f74e29c632af0fbd5a8458473c9aa9ab99b0d7"
   },
   "nativeWindows": {
-    "status": "First native run: 5 pass / 1 fail; fix pending rerun",
+    "status": "success",
     "runner": "windows-2025",
     "expectedSourceTests": {
       "pass": 7,
@@ -116,10 +116,157 @@
       "windows-native-tests.log",
       "windows-selftest.json"
     ],
-    "followup": "windows-env.json"
+    "followup": "windows-env.json",
+    "url": "https://github.com/satoki252595/mitori/actions/runs/38112767631",
+    "headSha": "525260d354233147d18232073a7a3ae17ad94b38",
+    "crossbuildJob": 114391585364,
+    "nativeJob": 114392030222,
+    "completedAt": "2026-10-11T04:52:40Z",
+    "runtime": {
+      "source": "Existing Nix-crossbuilt standalone EXE reused with BUN_BE_BUN=1 in source-test step only",
+      "bunVersion": "1.4.2",
+      "frozenInstallPackages": 280,
+      "frozenInstallSecondsPrinted": 20.05,
+      "separateWindowsBunDownload": false
+    },
+    "sourceTests": {
+      "files": 2,
+      "pass": 7,
+      "skip": 0,
+      "fail": 0,
+      "assertions": 33,
+      "secondsPrinted": 4.38,
+      "skipEvidence": "All 7 tests in the 7-test total passed; no skipped cases in the native log.",
+      "cases": [
+        {
+          "name": "native launcher extraction binds exact bytes and refuses corrupted bytes and symlink cache paths",
+          "msPrinted": 80.68
+        },
+        {
+          "name": "Job Object environment protocol carries exact names without values and refuses ambiguous names",
+          "msPrinted": 0.45
+        },
+        {
+          "name": "Job Object asset refuses missing, modified and symlink executables before any spawn",
+          "msPrinted": 4.33
+        },
+        {
+          "name": "native Job Object preserves literal UTF-16 argv, exact environment, stdio and leader exit code",
+          "msPrinted": 148
+        },
+        {
+          "name": "descendant fixture can write after its ungrouped leader exits (positive control)",
+          "msPrinted": 775.42
+        },
+        {
+          "name": "leader exit closes the job and kills detached descendants before they can write",
+          "msPrinted": 815.09
+        },
+        {
+          "name": "every cancellation signal hard-stops the job including independently detached grandchildren",
+          "msPrinted": 2423.61
+        }
+      ]
+    },
+    "productVersion": {
+      "exit": 0,
+      "stdout": "mitori 0.0.0 (api 1)",
+      "bunCliMode": false
+    },
+    "compiledSelftest": {
+      "exit": 0,
+      "command": "mitori-windows-x64.exe _selftest --json --elk-runs 1",
+      "ok": true,
+      "version": "0.0.0",
+      "source": "embedded",
+      "standalone": true,
+      "totalMs": 4507.7945,
+      "checks": {
+        "integrity": {
+          "ok": true,
+          "files": 9,
+          "bytes": 7320426,
+          "mismatched": [],
+          "ms": 42.5668
+        },
+        "web": {
+          "ok": true,
+          "files": 167,
+          "precompressed": 150,
+          "immutable": 164,
+          "ms": 0.4819999999999993
+        },
+        "parse": {
+          "ok": true,
+          "initMs": 41.4056,
+          "langs": [
+            "typescript",
+            "tsx",
+            "javascript",
+            "python",
+            "go",
+            "rust"
+          ],
+          "wrong": [],
+          "ms": 83.61620000000002
+        },
+        "elk": {
+          "ok": true,
+          "nodes": 300,
+          "edges": 459,
+          "bootMs": 1096.0179,
+          "firstMs": 1672.8182,
+          "warmMs": [
+            781.2907999999998
+          ],
+          "warmMedianMs": 781.2907999999998,
+          "ms": 3553.6832000000004
+        },
+        "shiki": {
+          "ok": true,
+          "initMs": 81.47979999999998,
+          "langs": [
+            "typescript",
+            "tsx",
+            "javascript",
+            "jsx",
+            "python",
+            "go",
+            "rust",
+            "json",
+            "yaml",
+            "toml",
+            "markdown",
+            "shellscript",
+            "sql"
+          ],
+          "missing": [],
+          "highlight100ColdMs": 605.2135,
+          "highlight100WarmMs": 54.03510000000006,
+          "ms": 822.8305
+        },
+        "sqlite": {
+          "ok": true,
+          "applied": 2,
+          "reapplied": 0,
+          "ms": 4.406500000000051
+        }
+      }
+    },
+    "evidence": {
+      "artifactUrl": "https://github.com/satoki252595/mitori/actions/runs/38112767631/artifacts/11692446328",
+      "artifactName": "windows-evidence-525260d354233147d18232073a7a3ae17ad94b38",
+      "artifactFiles": [
+        "windows-native-tests.log",
+        "windows-selftest.json"
+      ],
+      "nativeJobLogSha256": "b8dfdf6f104f05faa9307478f7afd53f1d6665455d0d11c1c9d76850ca134908",
+      "safety": "Only safe result summaries and the selftest JSON are persisted; the full job log and environment values are not copied into the repository."
+    }
   },
   "limitations": [
     "Mac standalone runtime proof does not prove Windows Job Object behavior.",
-    "Windows source cases and embedded binary selftest require a successful native workflow run before completion can be claimed."
-  ]
+    "The recorded windows-2025 native source cases and embedded selftest passed; a full Windows-version or end-user setup matrix was not run."
+  ],
+  "sourceHashesNote": "Historical source hashes from the initial runtime-reuse proof; the final native run is pinned separately by headSha."
 }

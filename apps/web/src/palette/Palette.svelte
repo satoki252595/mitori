@@ -6,21 +6,24 @@
 -->
 <script lang="ts" module>
 import type { Stores } from "../stores/app.svelte.ts";
-import { DocText } from "./doctext.svelte.ts";
+import type { DocText } from "./doctext.svelte.ts";
 
-const texts = new WeakMap<object, DocText>();
+const texts = new WeakMap<object, Promise<DocText>>();
 /** One text index per store root, kept across palette openings (built once, patched by SSE). */
-function docTextOf(s: Stores): DocText {
+function docTextOf(s: Stores): Promise<DocText> {
   let d = texts.get(s);
   if (!d) {
-    d = new DocText({
-      ws: () => s.workspace.key,
-      outline: () => s.doc.outline,
-      index: () => s.doc.index,
-      cached: (id) => s.doc.section(id),
-      load: (ws, id) => s.api.call("GET /ws/:ws/doc/sections/:section", { params: { ws, section: id }, query: { lang: s.doc.lang } }),
-      onBlock: (fn) => s.doc.onBlock(fn),
-    });
+    d = import("./doctext.svelte.ts").then(
+      ({ DocText }) =>
+        new DocText({
+          ws: () => s.workspace.key,
+          outline: () => s.doc.outline,
+          index: () => s.doc.index,
+          cached: (id) => s.doc.section(id),
+          load: (ws, id) => s.api.call("GET /ws/:ws/doc/sections/:section", { params: { ws, section: id }, query: { lang: s.doc.lang } }),
+          onBlock: (fn) => s.doc.onBlock(fn),
+        }),
+    );
     texts.set(s, d);
   }
   return d;
@@ -35,8 +38,6 @@ import { hasKey } from "../shell/i18n.ts";
 import { t } from "../shell/index.ts";
 import { choosePath, courseName, NEWCOMER_PATH, readMapOf } from "../shell/reading.ts";
 import { useStores } from "../stores/app.svelte.ts";
-import { actionItems, runAction } from "./actions.ts";
-import { askAi } from "./ask.ts";
 
 const s = useStores();
 const p = s.palette;
@@ -61,18 +62,21 @@ type Row = {
 };
 
 // ---------------------------------------------------------------- full text (NC-09): the doc's own words, indexed lazily
-const docText = docTextOf(s);
+let docText = $state.raw<DocText | null>(null);
 const ws = $derived(s.workspace.key);
 $effect(() => {
-  // first open, and again when the outline changes while the palette is open
+  // Empty/prefix palettes need only the existing worker. Load and fetch prose only for a prose query.
+  const q = p.query.trim();
   void s.doc.outline?.outlineRev;
-  void docText.ensure();
+  if (!q || /^[>@#:]/.test(q)) return;
+  if (docText) void docText.ensure();
+  else void docTextOf(s).then((index) => (docText = index));
 });
 // a big document waits for a typing pause; a small one answers on every keystroke (the worker groups never wait)
 let textQ = $state("");
 $effect(() => {
   const q = p.query;
-  if (docText.entries().length < 3000) {
+  if ((docText?.entries().length ?? 0) < 3000) {
     textQ = q;
     return;
   }
@@ -80,10 +84,10 @@ $effect(() => {
   return () => clearTimeout(h);
 });
 const text = $derived.by(() => {
-  void docText.version;
+  void docText?.version;
   const q = textQ.trim();
   // a prefix mode (`>` actions, `@` symbols, `#` sections, `:` files) is an explicit filter: no prose there
-  if (!q || /^[>@#:]/.test(q)) return { hits: [], total: 0 };
+  if (!docText || !q || /^[>@#:]/.test(q)) return { hits: [], total: 0 };
   return docText.search(q, p.scope === "doc" ? 20 : 4);
 });
 // 「AI に聞く」 is for questions: not in a prefix mode (`>` actions, `@` symbols, `#` sections, `:` files), and only once the
@@ -119,7 +123,7 @@ function askRow(): Row {
       : t("palette.askSub"),
     href: "",
     group: "ask",
-    go: () => void askAi(s, q, hit ? { section: hit.section, block: hit.block } : null),
+    go: () => void import("./ask.ts").then(({ askAi }) => askAi(s, q, hit ? { section: hit.section, block: hit.block } : null)),
   };
 }
 
@@ -198,9 +202,13 @@ $effect(() => {
   return () => clearTimeout(h);
 });
 
-// action labels follow the UI language (t reads the reactive catalog): re-sent to the worker on a switch
+// Suggestions need no operation registry. Load it on the first query, preserving language updates thereafter.
+let actions = $state.raw<typeof import("./actions.ts") | null>(null);
+const needsActions = $derived(!!p.query.trim());
 $effect(() => {
-  p.setActions(actionItems(t, s));
+  if (!needsActions) return;
+  if (actions) p.setActions(actions.actionItems(t, s));
+  else void import("./actions.ts").then((m) => (actions = m));
 });
 
 onMount(() => {
@@ -254,7 +262,7 @@ function run(i: number) {
   }
   if (r.group !== "recent") p.remember({ id: r.id, label: r.label, href: r.href, group: r.group as "term" });
   close();
-  if (r.group === "action" || (!r.href && r.id.startsWith("action."))) runAction(r.id, s);
+  if (r.group === "action" || (!r.href && r.id.startsWith("action."))) actions?.runAction(r.id, s);
   else if (r.href) void s.router.go(s.router.parse(r.href));
 }
 
@@ -319,7 +327,7 @@ const icon = (g: string) => (g === "term" ? t("palette.icon.term") : (ICON[g] ??
     </ul>
     <div class="pal-foot">
       <span data-ms={p.ms}
-        >{t("palette.foot", { n: p.total + text.total, ms: p.ms })}{#if docText.status === "building"}<span class="idx"> · {t("palette.textIndexing", { done: docText.done, total: docText.total })}</span>{/if}</span
+        >{t("palette.foot", { n: p.total + text.total, ms: p.ms })}{#if docText?.status === "building"}<span class="idx"> · {t("palette.textIndexing", { done: docText.done, total: docText.total })}</span>{/if}</span
       >
       <span class="keys"><kbd>&uarr;</kbd><kbd>&darr;</kbd> {t("palette.move")} <kbd>&#x23CE;</kbd> {t("palette.open")} <kbd>{s.keys.hint("palette.actions")}</kbd> {t("palette.actions")} <kbd>Esc</kbd></span>
     </div>

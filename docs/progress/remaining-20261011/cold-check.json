@@ -1,0 +1,337 @@
+{
+  "format": "mitori.cold-check-investigation/1",
+  "date": "2026-10-11",
+  "baseCommit": "06ed15f3b01ddc9a2247bc80d7d26d6fc7552ee1",
+  "status": "rejected; no production checker or testkit changes retained",
+  "candidate": "Keep fixture helpers independent of the agent implementation by moving identical fixture declarations and format constants into fixture-only modules; original public names remain re-exported.",
+  "preserved": {
+    "builder": "TypeScript createSolutionBuilder",
+    "noCheck": false,
+    "stopBuildOnErrors": false,
+    "jsDocParsingMode": "ParseForTypeErrors",
+    "projects": 20,
+    "testsRemainInProjects": true,
+    "declarationEmit": true,
+    "checkedCacheBoundary": true,
+    "referenceTargetSeconds": 15,
+    "referenceLimitSeconds": 30,
+    "calibrationUnchanged": true
+  },
+  "structural": {
+    "method": "TypeScript createProgram for indexer config, no type diagnostics requested; ts.createPrinter(removeComments) compares six moved declarations.",
+    "indexerProgramFiles": {
+      "before": 495,
+      "after": 461
+    },
+    "agentSourceFiles": {
+      "before": 35,
+      "after": 0
+    },
+    "movedDeclarations": [
+      "TEST_FORMATS",
+      "FixtureName",
+      "FixtureRepo",
+      "TruthFact",
+      "FixtureTruth",
+      "TruthScore"
+    ],
+    "identicalDeclarations": true,
+    "publicExportTotalsUnchanged": true,
+    "limitation": "Single-project source graph proves removed early agent imports; it does not establish full solution timing or repeated-AST totals."
+  },
+  "regression": {
+    "command": "scripts/nd bun test scripts/typecheck.int.test.ts scripts/lib/boundaries.test.ts packages/testkit/src/fixtures/build.int.test.ts packages/testkit/src/fixtures/score.test.ts packages/indexer/src/structure/fixtures.test.ts packages/indexer/src/facts/facts.test.ts packages/indexer/src/update/later.int.test.ts packages/doc/src/export/export-golden.test.ts",
+    "pass": 74,
+    "todo": 4,
+    "fail": 0,
+    "assertions": 415,
+    "secondsPrinted": 4.87,
+    "boundaries": true,
+    "biome": true,
+    "contractIndex": true
+  },
+  "timing": {
+    "command": "scripts/nd scripts/linux-ci.sh --arch arm64 --steps install,unit --unit-file cold-comparison.test.ts --seccomp default --out /tmp/mitori-cold-fixture-20261011",
+    "driver": "Temporary Bun test applied baseline/candidate source snapshots, deleted only node_modules/.cache/tsc and tsc-semantic before each child, then taskset -c 0,1 bun run check --verbose with GITHUB_ACTIONS=true. Driver/source snapshots were removed after the comparison.",
+    "order": "ABBA",
+    "results": [
+      {
+        "name": "baseline",
+        "filename": "1-baseline.log",
+        "exitCode": 0,
+        "elapsedMs": 23041.737315,
+        "wallSeconds": 21.53,
+        "calibration": {
+          "factor": 1.161,
+          "targetSeconds": 17.42,
+          "limitSeconds": 34.84
+        },
+        "semantic": {
+          "projects": 20,
+          "builds": 20,
+          "cached": 0,
+          "errors": 0,
+          "seconds": 21.41
+        },
+        "steps": [
+          {
+            "name": "tsc",
+            "success": true,
+            "seconds": 21.53
+          },
+          {
+            "name": "svelte-check",
+            "success": true,
+            "seconds": 10.71
+          },
+          {
+            "name": "biome",
+            "success": true,
+            "seconds": 3.94
+          },
+          {
+            "name": "boundaries",
+            "success": true,
+            "seconds": 2.5
+          },
+          {
+            "name": "cr-ledger",
+            "success": true,
+            "seconds": 0.1
+          },
+          {
+            "name": "budgets",
+            "success": true,
+            "seconds": 0.02
+          },
+          {
+            "name": "contract-index",
+            "success": true,
+            "seconds": 1.91
+          }
+        ],
+        "logSha256": "e465cc2eb0e5e475fdab380193cdbdae88541081755a0a4e083dae5e3a06264b"
+      },
+      {
+        "name": "candidate",
+        "filename": "2-candidate.log",
+        "exitCode": 0,
+        "elapsedMs": 27950.226306,
+        "wallSeconds": 26.36,
+        "calibration": {
+          "factor": 1.239,
+          "targetSeconds": 18.58,
+          "limitSeconds": 37.16
+        },
+        "semantic": {
+          "projects": 20,
+          "builds": 20,
+          "cached": 0,
+          "errors": 0,
+          "seconds": 26.23
+        },
+        "steps": [
+          {
+            "name": "tsc",
+            "success": true,
+            "seconds": 26.36
+          },
+          {
+            "name": "svelte-check",
+            "success": true,
+            "seconds": 13.12
+          },
+          {
+            "name": "biome",
+            "success": true,
+            "seconds": 4.96
+          },
+          {
+            "name": "boundaries",
+            "success": true,
+            "seconds": 3.01
+          },
+          {
+            "name": "cr-ledger",
+            "success": true,
+            "seconds": 0.1
+          },
+          {
+            "name": "budgets",
+            "success": true,
+            "seconds": 0.01
+          },
+          {
+            "name": "contract-index",
+            "success": true,
+            "seconds": 2.27
+          }
+        ],
+        "logSha256": "fa806cf5f74674cec2a9b27edaa3bcb3ad276448ac33a4f3a16eddd6f94d3f03"
+      },
+      {
+        "name": "candidate",
+        "filename": "3-candidate.log",
+        "exitCode": 0,
+        "elapsedMs": 22542.745077000007,
+        "wallSeconds": 21.17,
+        "calibration": {
+          "factor": 1.054,
+          "targetSeconds": 15.81,
+          "limitSeconds": 31.62
+        },
+        "semantic": {
+          "projects": 20,
+          "builds": 20,
+          "cached": 0,
+          "errors": 0,
+          "seconds": 21.03
+        },
+        "steps": [
+          {
+            "name": "tsc",
+            "success": true,
+            "seconds": 21.17
+          },
+          {
+            "name": "svelte-check",
+            "success": true,
+            "seconds": 10.36
+          },
+          {
+            "name": "biome",
+            "success": true,
+            "seconds": 3.79
+          },
+          {
+            "name": "boundaries",
+            "success": true,
+            "seconds": 2.1
+          },
+          {
+            "name": "cr-ledger",
+            "success": true,
+            "seconds": 0.08
+          },
+          {
+            "name": "budgets",
+            "success": true,
+            "seconds": 0.02
+          },
+          {
+            "name": "contract-index",
+            "success": true,
+            "seconds": 1.68
+          }
+        ],
+        "logSha256": "aeec24a8aed14b3f1d2d867b54ad869bbd3c5580ed49862edbf5b1c49badcb84"
+      },
+      {
+        "name": "baseline",
+        "filename": "4-baseline.log",
+        "exitCode": 0,
+        "elapsedMs": 24868.31031500001,
+        "wallSeconds": 23.32,
+        "calibration": {
+          "factor": 1.197,
+          "targetSeconds": 17.96,
+          "limitSeconds": 35.91
+        },
+        "semantic": {
+          "projects": 20,
+          "builds": 20,
+          "cached": 0,
+          "errors": 0,
+          "seconds": 23.18
+        },
+        "steps": [
+          {
+            "name": "tsc",
+            "success": true,
+            "seconds": 23.32
+          },
+          {
+            "name": "svelte-check",
+            "success": true,
+            "seconds": 12.13
+          },
+          {
+            "name": "biome",
+            "success": true,
+            "seconds": 4.13
+          },
+          {
+            "name": "boundaries",
+            "success": true,
+            "seconds": 2.42
+          },
+          {
+            "name": "cr-ledger",
+            "success": true,
+            "seconds": 0.09
+          },
+          {
+            "name": "budgets",
+            "success": true,
+            "seconds": 0.03
+          },
+          {
+            "name": "contract-index",
+            "success": true,
+            "seconds": 1.83
+          }
+        ],
+        "logSha256": "9f2e2d2ac0c6dde4a36e666cdd568e232294081ffb4370cc1500e38bca4e411f"
+      }
+    ],
+    "medianWallSeconds": {
+      "baseline": 22.425,
+      "candidate": 23.765,
+      "changePercent": 5.97547380156076
+    },
+    "medianFactorNormalizedWallSeconds": {
+      "baseline": 19.01319837060351,
+      "candidate": 20.680305473747726,
+      "changePercent": 8.768157101446672
+    },
+    "harness": {
+      "exitCode": 0,
+      "testsPass": 1,
+      "testsFail": 0,
+      "assertions": 29,
+      "secondsPrinted": 98.46
+    }
+  },
+  "limitations": [
+    "Native ARM container timing will not prove Ubuntu x64 CI performance.",
+    "No checker scheduling, cache, diagnosis coverage, or time budget changes are proposed.",
+    "Two runs per variant, fixed ABBA order, OS page cache was not cleared; this is a small controlled comparison, not a statistical performance guarantee.",
+    "The slow candidate run also slowed Svelte/Biome/boundaries, so its wall-time increase cannot be attributed solely to fixture layout.",
+    "All four ARM cold checks passed; the previous Ubuntu x64 Actions speed failure is not resolved by these ARM results."
+  ],
+  "environment": {
+    "platform": "linux/arm64",
+    "image": "mitori-linux:arm64",
+    "os": "Ubuntu 24.04.5 LTS",
+    "bun": "1.4.2",
+    "node": "22.23.3",
+    "cpuAffinity": "0,1",
+    "availableParallelism": 2,
+    "outerParallelism": 18,
+    "cpuQuotaApplied": false,
+    "filesystem": "native container filesystem",
+    "install": "bun install --frozen-lockfile, exit0",
+    "pageCacheCleared": false,
+    "modelCalls": 0,
+    "credentialMounts": 0
+  },
+  "source": {
+    "exportTreeSha1": "81147cfd775003b350cf30ca7ec40f9797983c3b",
+    "candidateSourceSha256": "151ece05b6448211fafdb494f37061dd539868fc687f54d113f39d9878dffd34",
+    "baselineSourceSha256": "1f5879340e630802e018dba660a0f85143440b4674f5c7356202a12e3653be8d",
+    "checkerSha256": "8b598b3ad508402c68badb0c03b2ea56cf28d0eb0177e5680b23a66b93242862",
+    "schedulerSha256": "2dfe9defdf33bccdd8c1be7086ffc83ee56d6cf9a7405966f8f8d152246ff9d6",
+    "scope": "Both sides used one frozen working-tree export, including unrelated in-progress bench/gen edits. Only fixture contract/helper modules and their generated public index changed between cases."
+  },
+  "conclusion": "Early agent-source imports dropped from 35 to 0, but full-check median wall time increased by about 6%, and factor-normalized median increased by about 9%. No timing benefit is established; reject the candidate and preserve the original implementation, diagnostics, caches, calibration and limits."
+}

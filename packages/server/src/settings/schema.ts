@@ -57,7 +57,7 @@ function partialObj<T>(fields: { [K in keyof T]-?: Spec }): Spec {
 
 const MODEL: Spec = { t: "str", pattern: /^(claude-opus-5-5|claude-sonnet-5-5|claude-haiku-4-5|codex:[^\s]{1,100}|generic:[^\s]{1,100})$/ };
 const ENGINE = oneOf("claude-cli", "session", "anthropic-api", "codex-cli", "generic");
-const GEN_ENGINE = oneOf("claude-cli", "anthropic-api", "session", "generic");
+const GEN_ENGINE = oneOf("claude-cli", "anthropic-api", "session", "codex-cli", "generic");
 const EFFORT = oneOf("overview", "standard", "complete");
 const LANG = oneOf("ja", "en");
 const READER = oneOf("newcomer", "standard", "expert");

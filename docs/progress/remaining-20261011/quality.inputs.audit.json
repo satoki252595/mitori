@@ -1,0 +1,170 @@
+{
+  "v": "mitori.quality-input-audit/1",
+  "date": "2026-10-11",
+  "llmCalls": 0,
+  "tokenNotes": "bodyJoinedTokens includes separators/omitted marker; bodyItemBudgetTokens caps source items. Module core + joined body remains within the existing 28000-token frame.",
+  "projects": [
+    {
+      "project": "jev-ultrafast",
+      "source": {
+        "sha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+        "indexDigest": "29bdbb49700e9fcf"
+      },
+      "tasks": [
+        {
+          "prompt": "gen.module",
+          "version": "gen.module@11",
+          "section": [
+            "s6/jev-ultrafast"
+          ],
+          "preflight": {
+            "inTokens": 57753,
+            "usd": 0.187506
+          },
+          "coreTokens": {
+            "skeleton": 1350,
+            "hot": 0,
+            "tests": 445,
+            "facts": 203,
+            "neighbors": 10,
+            "total": 2008
+          },
+          "coverage": {
+            "snapshot": true,
+            "max60": false,
+            "prediction120": true,
+            "history60": true,
+            "historyRecord": true,
+            "observation": true,
+            "pageChanged": true,
+            "mapping": true,
+            "choose": true,
+            "selectedHead": true,
+            "validation": true,
+            "executor": true,
+            "dispatch": true,
+            "post": true,
+            "get": true,
+            "contribution": false,
+            "baseRadii": false,
+            "iconSlots": false,
+            "NO_BOX": false,
+            "Inspector": false,
+            "itemKo": false,
+            "linkUrlOf": false,
+            "isPhoneFrame": false,
+            "frameSizeOf": false
+          },
+          "bodyJoinedTokens": 11996,
+          "bodyItemBudgetTokens": 12000,
+          "moduleCoreFrameTokens": 28000
+        },
+        {
+          "prompt": "gen.quality",
+          "version": "gen.quality@6",
+          "section": [
+            "s9"
+          ],
+          "preflight": {
+            "inTokens": 41153,
+            "usd": 0.130306
+          },
+          "coreTokens": {
+            "skeleton": 1350,
+            "hot": 0,
+            "tests": 445,
+            "facts": 203,
+            "neighbors": 10,
+            "total": 2008
+          },
+          "coverage": {
+            "snapshot": true,
+            "max60": true,
+            "prediction120": true,
+            "history60": true,
+            "historyRecord": false,
+            "observation": true,
+            "pageChanged": false,
+            "mapping": true,
+            "choose": false,
+            "selectedHead": false,
+            "validation": false,
+            "executor": false,
+            "dispatch": false,
+            "post": true,
+            "get": true,
+            "contribution": false,
+            "baseRadii": false,
+            "iconSlots": false,
+            "NO_BOX": false,
+            "Inspector": false,
+            "itemKo": false,
+            "linkUrlOf": false,
+            "isPhoneFrame": false,
+            "frameSizeOf": false
+          },
+          "bodyJoinedTokens": 6007,
+          "bodyItemBudgetTokens": 6000,
+          "moduleCoreFrameTokens": null
+        }
+      ]
+    },
+    {
+      "project": "m3e-token-pass1",
+      "source": {
+        "sha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+        "indexDigest": "093c4511769c4384"
+      },
+      "tasks": [
+        {
+          "prompt": "gen.module",
+          "version": "gen.module@11",
+          "section": [
+            "s6/lib-tokens"
+          ],
+          "preflight": {
+            "inTokens": 107477,
+            "usd": 0.286954
+          },
+          "coreTokens": {
+            "skeleton": 15774,
+            "hot": 0,
+            "tests": 1116,
+            "facts": 0,
+            "neighbors": 82,
+            "total": 16972
+          },
+          "coverage": {
+            "snapshot": false,
+            "max60": false,
+            "prediction120": false,
+            "history60": false,
+            "historyRecord": false,
+            "observation": false,
+            "pageChanged": false,
+            "mapping": false,
+            "choose": false,
+            "selectedHead": false,
+            "validation": false,
+            "executor": false,
+            "dispatch": false,
+            "post": false,
+            "get": false,
+            "contribution": true,
+            "baseRadii": true,
+            "iconSlots": true,
+            "NO_BOX": true,
+            "Inspector": true,
+            "itemKo": true,
+            "linkUrlOf": true,
+            "isPhoneFrame": true,
+            "frameSizeOf": true
+          },
+          "bodyJoinedTokens": 10990,
+          "bodyItemBudgetTokens": 10988,
+          "moduleCoreFrameTokens": 28000
+        }
+      ]
+    }
+  ]
+}

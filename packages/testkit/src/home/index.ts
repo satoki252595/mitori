@@ -7,6 +7,8 @@ import { createHome } from "./home.ts";
 import { seeded } from "./random.ts";
 import { collecting } from "./sink.ts";
 
+export type { TestHome } from "../contract.ts";
+
 /** Isolated `MITORI_HOME` (0700) + the env to spawn mitori / git with (see `testEnv`). Removed by `cleanup()`. */
 export function createTestHome(opts?: { keep?: boolean }): Promise<TestHome> {
   return createHome(opts);

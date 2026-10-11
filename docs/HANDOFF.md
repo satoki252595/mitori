@@ -1,9 +1,40 @@
-# mitori 引き継ぎ資料（2026-10-07 起動手順・LLM別検証、認証待ちあり）
+# mitori 引き継ぎ資料（2026-10-11 残課題の続行・Codex実検証）
 
-> **現在の入口は §★。以下の「履歴★」と §0 / §0a / §0b は以前の記録。**
-> 利用者の続行指示に加え、今回の Linux 既存 Docker ハーネス例外と、任意 LLM 対応・Muse Contributor / max の選択を反映した。
+> **現在の入口は直下の §★ と [2026-10-11の検証一覧](progress/remaining-20261011/README.md)。以下の「2026-10-07履歴★」「前回★」「履歴★」と §0 / §0a / §0b は以前の記録。**
+> 今回の実LLMはCodex。Claudeは使用していない。過去の認証待ち・未統合・失敗の記述は、当時の履歴として残す。
 
-## ★ 現在の状態（残タスク全件と最近のOSS検証）
+## ★ 現在の状態（2026-10-11、実装・検証・未達の区別）
+
+利用者の残タスク続行指示に従い、Codexの正式生成経路、OSSの説明省略、UIの初回表示とasset、Linux cold check、Windows native検証を進めた。統合checkは失敗したtscのfixtureを修正して再実行成功、他6stepと追加CR ledger / contract-indexも成功した。Windowsの対象native CIとChrome通常操作は確認済み。統合headのUbuntu CIと最終公開状態は統合担当が後追い追記する。詳細と各JSONの入口は [remaining-20261011/README.md](progress/remaining-20261011/README.md)。ルートREADMEは統合担当が更新する。
+
+### ★.1 実装と確認できたこと
+
+- **Codex実生成:** `codex-cli` / `gpt-6.1-sol` / highを正式に配線し、Nix経由でJevの対象2節とm3eの対象moduleを実生成した。対象OSSの設定・hook・toolを継承しないlean profileを維持。Jevのhistory → observe → page_changed、60操作 / 120 prediction decision requests / scroll・wait追加前の250 DOM candidates、m3eの条件付き変更先・4言語・検証3コマンド・省略寸法の既定値補完を本文へ回復した。[品質記録](progress/remaining-20261011/quality.md)。
+- **Codex Explain / Nix・通常ローカル:** go-smallで各1 application jobがattempt1 / done、各引用1件有効、元source不変、後始末成功。Nixはterminal reported input1,582 / output47、API-equivalent $0.003634、run5.012秒。既存ローカルBun 1.4.2はinput1,585 / output47、$0.003640、run4.334秒。各cap$0.05、合計$0.007274。誤った旧LLM呼出数カウンタは採用していない。[両経路の安全な証跡](progress/remaining-20261011/codex-explain.json)。Codexは認証待ちではない。
+- **生成の停止と費用:** 完成した日本語出力のbyte数をtoken上限と比較していたCodex tool-free経路を修正し、terminal usageを受け取る。reported token / USD、stdout、timeout、agent modeのguardは維持。予算拒否をcoverage完成だけで成功扱いしない回帰も追加した。生成検証累計は初回停止分を含みAPI-equivalent $0.792490（native7calls、terminal usage5calls / 推計2calls）、総枠$2内。上のExplain費用は別計上。請求額・サブスク枠の保証ではない。
+- **並列生成の費用予約:** Codexの送信直前に共有preflightの額を予約し、並列・再試行の使用済み額を合算する。初回の予算不足はpendingとして同じ上限で再開でき、再試行の不足は有効な途中本文とusageを保持して停止する。対象37tests / 224 assertionsとgen型検査が成功、独立再現も一致。実LLM追加0。[前後の再現と回帰](progress/remaining-20261011/codex-budget.md)。最終統合checkも全7step成功（4.35秒、warm）。
+- **UI:** 初回nonce競合、仮想化アンカー、節移動のlive engine再検出、初回status先取り、lazy chunksとprecompressionを修正。最終compiledのstrict assetは元の上限で全項目pass、初期JS54.639KB gzip、Reader6 requests、a11y8pass / 違反0。scanSummaryは1,771.5 / limit2,000msだがfactor1.12のためreport-only。gen6.890 / limit6.900KBなど余裕の小さい項目も記録した。[最終UI記録](progress/remaining-20261011/ui-bench-release.md)、[経緯](progress/remaining-20261011/ui-bench.md)。実Chromeの初回map、確定済み日本語検索、Codex native / MCP切替と配布binaryの接続commandを確認。[Chrome記録](progress/remaining-20261011/chrome.md)。
+- **Linux cold check:** testkitの既存home / fixtures / goldenへimportを絞り、loopで早期に読むworkspace sourceを226→161、genを50→0へ減らした。全20projectの意味検査・診断・較正・checked/noCheck境界を維持。ARM / 2CPUのcold ABBAは4回とも20semantic builds・0cached・0errors・全7項目成功、wall中央値4.50%短縮。対象回帰69pass / Linux限定3skip / 0fail。[採用した変更](progress/remaining-20261011/cold-home.md)、[不採用の先行fixture案](progress/remaining-20261011/cold-check.md)。
+- **Windows:** Nix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別ダウンロードを廃止。初回native CIの5pass / 1failを保存し、環境「名」だけのプロトコルでJob Object経由の厳密な環境受渡しを修正。[最終CI](https://github.com/satoki252595/mitori/actions/runs/38112767631)（`525260d354233147d18232073a7a3ae17ad94b38`）はNix crossbuild / Windows nativeとも成功し、source tests7pass / 0skip / 0fail・33 assertions・4.38秒。既存native4ケースを維持して実Windowsで成功し、製品`--version`とembedded `_selftest` の6checksもすべて成功。[Nix方式](progress/remaining-20261011/windows-nix.md)、[環境修正](progress/remaining-20261011/windows-env.md)。Windowsの非group直接Bun.spawn経路には標準環境変数の補充が残る。
+
+### ★.2 未解決・再確認待ち
+
+1. **実IMEとUI時間予算:** Chrome通常操作・確定済み日本語検索・native / MCP設定は確認済み。実IMEの `Input.imeSetComposition` は操作許可で拒否されたため、迂回せず本人の変換確定Enter / 次のEnter確認を依頼中。[Chrome記録](progress/remaining-20261011/chrome.md)。scanSummary3,312.1 / limit2,000msの旧未達は保持し、status競合修正後の最終compiledは1,771.5ms。ただしfactor1.12でreport-onlyのため正式基準機合格へ読み替えない。[最終UI記録](progress/remaining-20261011/ui-bench-release.md)。Safari実機は利用者がChrome代替を選択したため今回の必須外。
+2. **Go7k cold 1,500ms:** parser / query / GCへ原因を絞り、同じsource・新process / 空homeで候補12runの抽出3表を全行照合した。256KiB batchは13.54%悪化で不採用。GC前の参照解除も安定した目標達成を実証できず未採用。通常Mac / Nixの既存正式caseを既定warmup1＋measured5で1 invocation実行したが、中央値3,872.33ms、待機後もload16.55 / factor1.902929でreport-only。全6childのcoverage・6Worker・cache0を維持し、RSS中央値985.14MiB。上限・較正・診断・Worker規則は変えず、追加測定・候補適用なしで未解決のまま。[原因と不採用証拠](progress/remaining-20261011/idx-cold.md)、[正式後続](progress/remaining-20261011/idx-formal.json)。
+3. **引用窓:** m3e最新版はL1が28pass / 2fail / 8vacuous、Jev品質節は22pass / 1fail / 2vacuous。残る依存文・hotpathsの意味はsource照合で一致するが、別ファイル名や識別子の引用窓が弱い。全文semantic保証・全引用passとは扱わない。[照合](progress/remaining-20261011/quality.citation-review.json)。m3eの既定値補完という対象claim自体はL0 / L1 / L2 pass。
+4. **統合headの最終検証:** Linux ARMのcold hard limit成功は、soft targetやUbuntu x64 Actionsの達成証明とは別。統合checkの各stepは最終成功し、Ubuntu head CIと最終公開状態は統合担当が追記する。Windowsの今回対象は上の最終CIで完了した。
+
+### ★.3 利用方針・外部操作・守ること
+
+本体はcloneしてローカル利用する。通常利用にNixを必須とせず、既存Bun / Git / LLMを使える。開発・検証は `scripts/nd` とproject Nix、Docker例外は許可済みの既存Linuxハーネスだけ。Cloudflareの共有公開・Paid化は任意で、ローカル利用の必須残タスクには含めない。
+
+利用者の本人操作待ちは上の実IME確認。任意providerを使う場合はその本人認証、LM Studioを使う場合はモデル読込・サーバー開始が別途必要。CodexログインやClaudeログインを今回の待ち条件にしない。AIの変更はアンカー済み・範囲限定・ゲート済み・人の確認・未コミット適用・Undo可、side repo、lean起動を維持する。月1,000円以上の継続費用増とCloudflare deploy / Paid化は事前承認。生prompt / auth / env / nonceはGitへ保存しない。
+
+---
+
+## 2026-10-07履歴★ 起動手順・LLM別検証時の状態
+
+以下は2026-10-07時点の記録。認証待ち・Windows未実行など、現在の状態は上の§★を優先する。
 
 最新の作業は[Issue #11](https://github.com/satoki252595/mitori/issues/11)。貼付ログのdirenv blocked / Bun lockfile / Nix store upgrade失敗を確認し、絶対パスの新Bunでもpackage start内で旧PATH Bunへ戻る原因を`npm_execpath`で修正した。Nix・既存Bun 1.4.2のclean clone→frozen install→初回UI build→scan/HTTP/停止を確認。8providerの設定プレビューとMCP共通通信、既存Linux arm64 Dockerの内部導線も確認し、READMEへ復旧手順と結果を反映した。Dockerは利用者の選択によりLinux検証用とし、公式LLMの認証・推論用にはしない。[検証記録](progress/startup-matrix-20261007/README.md)。
 
@@ -15,7 +46,7 @@
 
 作業追跡は [Issue #2](https://github.com/satoki252595/mitori/issues/2)、一覧は [backlog-2026-10-05.md](progress/backlog-2026-10-05.md)。第7回CI（head `a663a459`、実merge checkout `24a342e8`）は全体success。Ubuntu全7check/20semantic/0cached/0errors・unit2944pass/134skip/4todo/0fail・fixture全12・golden109pass/4skip・size・Linux binary smoke、Mac web344pass/14skip・共有2pass/37assert・a11y8passが成功した。Windowsは未承認skip。 [PR #5](https://github.com/satoki252595/mitori/pull/5)は2026-10-06 JSTにmainへmerge済み（`09610433865b444372aeee1e4a00d628b5702c4c`）、作業branchはlocal/remoteとも削除した。merge treeは成功CIのtreeと一致し、golden専用commitを含む履歴を保持した。[CI経緯](progress/pr5-ci-20261005.md)、[統合・削除照合](progress/pr5-publication-20261006.json)。以前の4 remブランチも統合・整理済み。
 
-### ★.1 実装・単位検証済み
+### 2026-10-07履歴★.1 実装・単位検証済み
 
 - web の文書戻す / ブロック・節翻訳 / やさしく表示、docpatch/1、人の採用・Undo、side repo だけからGitHub PRを作る経路、Codex native lean agent を実装した。[backend報告](progress/remaining-backend-20261005.md)。Codex は Mac の検証済み binary と apply_patch だけ。可視 step 上限と費用推計同意であり、provider の hidden token / USD hard cap を保証する仕様ではない。
 - 実 GitHub の product export helper から own repo に一時 draft [PR #3](https://github.com/satoki252595/mitori/pull/3) を作り、1 file / 3 additions と local Git metadata不変を確認後、close / remote branch削除した。[実送信証跡](progress/pr-native-probe-20261005.md)。web側のhuman/gate条件は別int検証と区別している。
@@ -27,7 +58,7 @@
 - WindowsはNix/ZigのJob Object helper、SHA検証・配布assets、path対応、manual native CIを用意。Nix crossbuildは成功し、native実行は未実施。[Windows報告](progress/windows-job-20261005.md)。unverified helper/profileを安全機能付きと表示しない。
 - 暗号化共有はAES-GCM・署名付きsnapshot・R2/D1 quota・期限・コメントとCLIを実装。Miniflare/D1とChromium/Firefox/WebKit、保存file://viewerを確認、Worker dryrun15.41KiBraw/5.30KiBgz。[共有報告](progress/cloudflare-share-2026-10-05.md)。remote resource作成 / deploy / Paid化はしていない。
 
-### ★.2 実 Muse のOSS品質確認
+### 2026-10-07履歴★.2 実 Muse のOSS品質確認
 
 - 最近作成されstarの多い公開OSS3件をGitHub APIで選定しSHA固定した。m3e-canvas (8,692 stars)、jev-ultrafast (21,997)、Laya (30,713)。Trending順位やstar増加量を測ったとは言わない。[選定・費用・結果](progress/oss-quality-2026-10-05/README.md)。
 - Muse `muse-spark-1.3-contributor` / `max`、shell/write/web toolsなしのnative lean profile。上流依存 / script / アプリを実行せず、mitoriの解析と生成を試した。初回m3e13/13、Jev11/11。Layaは45分で18/21まで、失敗1＋中止2を保持した。
@@ -37,7 +68,7 @@
 
 - 追加照合でJev旧§9の「250候補/run」誤文を発見。qualityへ数値の適用範囲の指示を加え@5で§9だけ再生成、1/1・323.8秒・推計$0.004909/cap$0.03。誤文は削除されたが、上限の具体数は入力に不足し説明省略、POSTの共有LOCKを全HTTPへ広げない補足も保存。全文semantic保証とは扱わない。[修正と限界](progress/oss-quality-2026-10-05/jev-quality-correction-20261006.md)。
 
-### ★.3 残る外部条件
+### 2026-10-07履歴★.3 残る外部条件
 
 2026-10-06の利用者確認: 本体はcloneしてローカル利用する想定。Cloudflare公開は必須の残タスクから除外する。URL共有を利用する場合だけ、別途承認してデプロイする。
 

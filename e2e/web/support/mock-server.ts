@@ -34,8 +34,10 @@ function renderer() {
 }
 
 let opts: FixtureOptions = { ...DEFAULTS };
+let scanPending = false;
 let doc = docFixture(opts);
 let log: { method: string; path: string; body?: unknown; at: number }[] = [];
+let initialReads: string[] = [];
 let seq = 100;
 let estSeq = 0;
 let currentGen: GenRun | null = null;
@@ -54,8 +56,10 @@ const gz = new Map<string, Uint8Array>();
 
 function configure(o: Partial<FixtureOptions>) {
   opts = { ...DEFAULTS, ...o };
+  scanPending = !!opts.coldScan;
   doc = docFixture(opts);
   log = [];
+  initialReads = [];
   acked = opts.policyAcked;
   savedLevel = null;
   savedLang = null;
@@ -65,7 +69,11 @@ function configure(o: Partial<FixtureOptions>) {
   threads.clear();
 }
 
-const currentStatus = () => ({ ...workspaceStatus(opts), gen: currentGen });
+const currentStatus = () => ({
+  ...workspaceStatus(opts),
+  ...(scanPending ? { state: "scanning", scan: { state: "running", done: 0, total: 125 } } : {}),
+  gen: currentGen,
+});
 
 function withSaved<T extends { settings: { ui: { readerLevel: string; lang: string } } }>(v: T): T {
   const ui = { ...v.settings.ui, ...(savedLevel ? { readerLevel: savedLevel } : {}), ...(savedLang ? { lang: savedLang } : {}) };
@@ -120,6 +128,7 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
         url.searchParams,
         async (path) => {
           if (!path.startsWith("/") || path.startsWith("//") || path.includes("/ui")) throw new Error("invalid initial mock read");
+          initialReads.push(path);
           const response = await api(new Request(`http://127.0.0.1:${PORT}/api/v1${path}`), new URL(`http://127.0.0.1:${PORT}/api/v1${path}`), undefined);
           if (!response.ok) throw new Error(`initial mock read: ${response.status}`);
           return response.json();
@@ -241,7 +250,10 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
     const plan = buildPlanModel(view);
     return json({ ...view, plan: planData(plan), svg: mapSvgPresentation(view, WS, url.searchParams.get("lang") === "en" ? "en" : "ja", plan) });
   }
-  if (m === "GET" && rest === "/doc") return json(doc.outline);
+  if (m === "GET" && rest === "/doc") {
+    scanPending = false;
+    return json(doc.outline);
+  }
   if (m === "GET" && rest.startsWith("/doc/sections/")) {
     const sec = decodeURIComponent(rest.slice("/doc/sections/".length)) as SectionId;
     const v = doc.sections.get(sec);
@@ -467,6 +479,7 @@ Bun.serve({
       return json({ ok: true, tabs: streams.size });
     }
     if (url.pathname === "/__mock/log") return json(log);
+    if (url.pathname === "/__mock/initial-reads") return json(initialReads);
     // streaming (ux.md §4.3.9): a run, block upserts / partials, a section's state flip + doc.outline
     if (url.pathname === "/__mock/gen") {
       const b = body as { state: "running" | "done" };

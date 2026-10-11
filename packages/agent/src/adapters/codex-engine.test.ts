@@ -29,7 +29,7 @@ const file = (id = "i1", path = "/side/wt/a.txt") => ({
 const message = { type: "item.completed", item: { id: "answer", type: "agent_message", text: '{"summary":"fixed"}' } };
 const terminal = { type: "turn.completed", usage: { input_tokens: 100, cached_input_tokens: 20, output_tokens: 10, reasoning_output_tokens: 2 } };
 
-function setup(records: object[] = [file(), message, terminal]) {
+function setup(records: object[] = [file(), message, terminal], auth: "subscription" | "none" = "subscription") {
   const settings = testSettings({
     engines: {
       "codex-cli": {
@@ -72,7 +72,7 @@ function setup(records: object[] = [file(), message, terminal]) {
     sandbox: { ensureEmptyCwd: async () => "/isolated/empty", systemPromptFile: async (text) => `/isolated/sp/${testHasher.sha256(text)}` },
     prepareConfig: async () => ({
       root: "/isolated/codex",
-      auth: "subscription",
+      auth,
       cleanup: async () => {
         cleans++;
       },
@@ -95,6 +95,44 @@ test("Codex native realpath, precise writes and authoritative cached usage feed 
   expect(native.env.OPENAI_API_KEY).toBeUndefined();
   expect(native.argv).toContain("features.shell_tool=false");
   expect(native.argv).toContain("permissions.mitori.network.enabled=false");
+});
+
+test("Codex stays installed when subscription login is missing, but never executes a model turn", async () => {
+  const x = setup(undefined, "none");
+  const status = await x.engine.detect();
+  expect(status).toMatchObject({ installed: true, auth: "none", capabilities: [] });
+  expect(status.problems.map((p) => p.code)).toEqual(["E_AGENT_AUTH"]);
+  const res = await x.engine.run(r, new AbortController().signal).result;
+  expect(res.error?.code).toBe("E_AGENT_AUTH");
+  expect(x.spawner.calls.every((s) => s.argv[0] === "--version")).toBe(true);
+  expect(x.cleans()).toBe(2);
+});
+
+test("Codex tool-free Japanese output keeps terminal token usage when completed bytes exceed the token count", async () => {
+  const text = "日本語".repeat(600);
+  for (const mode of ["answer", "generate"] as const) {
+    const x = setup([
+      { type: "item.completed", item: { id: "answer", type: "agent_message", text } },
+      { type: "turn.completed", usage: { input_tokens: 100, cached_input_tokens: 20, output_tokens: 1200 } },
+    ]);
+    const { jsonSchema: _schema, ...request } = r;
+    const res = await x.engine.run({ ...request, mode, tools: "none", writeScope: [] }, new AbortController().signal).result;
+    expect(new TextEncoder().encode(text).length).toBeGreaterThan(request.budget.outTokens);
+    expect(res.stop).toBe("end");
+    expect(res.usageEstimated).toBe(false);
+    expect(res.usage.out).toBe(1200);
+    expect(res.text).toBe(text);
+    expect(x.spawner.children.at(-1)?.signals ?? []).not.toContain("SIGINT");
+  }
+});
+
+test("Codex tool-free output still rejects authoritative token usage above the confirmed budget", async () => {
+  const x = setup([message, { type: "turn.completed", usage: { input_tokens: 100, cached_input_tokens: 20, output_tokens: 2001 } }]);
+  const res = await x.engine.run({ ...r, mode: "generate", tools: "none", writeScope: [] }, new AbortController().signal).result;
+  expect(res.stop).toBe("budget");
+  expect(res.error?.code).toBe("E_BUDGET_EXCEEDED");
+  expect(res.usageEstimated).toBe(false);
+  expect(res.usage.out).toBe(2001);
 });
 
 test("Codex unknown prices and absent spend consent refuse before any native spawn", async () => {

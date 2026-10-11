@@ -5,7 +5,7 @@ import { chmodSync, mkdirSync, realpathSync, symlinkSync, writeFileSync } from "
 import { join } from "node:path";
 import type { FileEntry, GateSpec } from "@mitori/core";
 import { createFsReader, createHasher } from "@mitori/platform";
-import { createTestHome, type TestHome } from "@mitori/testkit";
+import { createTestHome, type TestHome } from "@mitori/testkit/home";
 import { binaryInfos, localBinaryCandidates } from "./binaries.ts";
 import { type DetectInput, detectFormatGates } from "./detect.ts";
 

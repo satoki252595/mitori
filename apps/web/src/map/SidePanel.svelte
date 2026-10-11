@@ -1,19 +1,15 @@
 <script lang="ts">
-import { type Effort, type EngineId } from "@mitori/core";
+import { type Effort, type EngineId, type GenEstimate } from "@mitori/core";
 import { untrack } from "svelte";
-import { defaultEffort, isRange } from "../gen/estimate.ts";
+import { defaultEffort, EFFORTS, isRange } from "../gen/estimate.ts";
 import GenEstimateCard from "../gen/GenEstimateCard.svelte";
-import GenProgress from "../gen/GenProgress.svelte";
 import { isActive } from "../gen/state.ts";
 import { copyText } from "../shell/clipboard.ts";
-import { fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
 import { hasKey } from "../shell/i18n.ts";
 import { errorText, t } from "../shell/index.ts";
 import { mark } from "../shell/perf.ts";
 import { useStores } from "../stores/app.svelte.ts";
-import EngineCard from "./EngineCard.svelte";
 import { engineProblem, policyAcknowledged } from "./engine.ts";
-import { generatedTokens } from "./hero.ts";
 
 let {
   breakdown,
@@ -21,12 +17,20 @@ let {
   onread,
   initialClock = null,
   effortOverride = null,
+  initialProgress = null,
+  initialEngineCard = null,
+  initialBreakdown = null,
+  initialDoneCard = null,
 }: {
   breakdown: boolean;
   fiveName: string;
   onread: () => void;
   initialClock?: import("../gen/visibility.ts").VisibleClock | null;
   effortOverride?: Effort | null;
+  initialProgress?: typeof import("../gen/GenProgress.svelte").default | null | undefined;
+  initialEngineCard?: typeof import("./EngineCard.svelte").default | null | undefined;
+  initialBreakdown?: typeof import("../gen/GenBreakdown.svelte").default | null | undefined;
+  initialDoneCard?: typeof import("../gen/GenDoneCard.svelte").default | null | undefined;
 } = $props();
 const s = useStores();
 const effort = $derived(effortOverride ?? s.gen.effort);
@@ -37,16 +41,23 @@ const totals = $derived(s.doc.outline?.manifest.usageTotals ?? null);
 const stale = $derived(s.doc.outline?.counts.stale ?? 0);
 const run = $derived(s.gen.run);
 const active = $derived(isActive(run));
-let tail = $state<string | null>(null);
 const engineStatus = $derived(s.session.engine(s.gen.engine));
 const enginesLoaded = $derived(s.session.engines !== null);
 const problem = $derived(engineProblem(engineStatus));
-const policyAcked = $derived(policyAcknowledged(s.gen.engine, engineStatus, s.session.settings?.settings.privacy.dataPolicyAck[s.gen.engine]));
-const estimates = $derived.by(() => {
-  const out: Partial<Record<Effort, ReturnType<typeof s.gen.current>>> = {};
-  for (const e of ["overview", "standard", "complete"] as const) out[e] = s.gen.estimates.get(s.gen.key(e));
-  return out as Partial<Record<Effort, NonNullable<ReturnType<typeof s.gen.current>>>>;
+let GenProgress = $state.raw(untrack(() => initialProgress));
+let EngineCard = $state.raw(untrack(() => initialEngineCard));
+let GenDoneCard = $state.raw(untrack(() => initialDoneCard));
+$effect(() => {
+  if (active && !GenProgress) void import("../gen/GenProgress.svelte").then((m) => (GenProgress = m.default));
 });
+$effect(() => {
+  if (problem && !EngineCard) void import("./EngineCard.svelte").then((m) => (EngineCard = m.default));
+});
+$effect(() => {
+  if (generated && !s.gen.estimates.size && totals && !GenDoneCard) void import("../gen/GenDoneCard.svelte").then((m) => (GenDoneCard = m.default));
+});
+const policyAcked = $derived(policyAcknowledged(s.gen.engine, engineStatus, s.session.settings?.settings.privacy.dataPolicyAck[s.gen.engine]));
+const estimates = $derived(Object.fromEntries(EFFORTS.map((e) => [e, s.gen.estimates.get(s.gen.key(e))])) as Partial<Record<Effort, GenEstimate>>);
 
 // default effort (cookie → uncalibrated pro ⇒ overview → workspace → global), until the user picks one
 $effect(() => {
@@ -64,11 +75,10 @@ $effect(() => {
 });
 
 // tail line = the latest running task
-$effect(() => {
-  const running = s.gen.tasks.filter((x) => x.state === "running");
-  const last = running[running.length - 1];
+const tail = $derived.by(() => {
+  const last = s.gen.tasks.findLast((x) => x.state === "running");
   // gen strings arrive with the side chunk (i18n-ns.ts `gen`): until then the tail is the task id alone
-  tail = last ? (hasKey(`gen.stage.${last.stage}`) ? `${t(`gen.stage.${last.stage}`)} · ${last.target.id}` : last.target.id) : null;
+  return last ? (hasKey(`gen.stage.${last.stage}`) ? `${t(`gen.stage.${last.stage}`)} · ${last.target.id}` : last.target.id) : null;
 });
 
 async function start(opts: { notBefore?: string }) {
@@ -93,24 +103,16 @@ function setEffort(e: Effort) {
 }
 </script>
           {#if active && run}
-            <GenProgress {run} tasks={s.gen.tasks} {tail} oncontrol={(a) => s.gen.control(a)} />
+            {#if GenProgress}<GenProgress {run} tasks={s.gen.tasks} {tail} oncontrol={(a) => s.gen.control(a)} />{:else}<div class="card stage-skel" aria-busy="true">{t("app.loading")}</div>{/if}
           {:else if generated && !s.gen.estimates.size && totals}
-            <section class="done card" aria-labelledby="done-t" data-chrome>
-              <h2 id="done-t">{t("gen.card.doneTitle")}</h2>
-              <div class="done-main">
-                <p>
-                  <b>{t("map.generated", generatedTokens(totals, fmtTokensImpl, (u) => fmtUsdImpl(u, "gen")))}</b>
-                  {#if stale > 0}<span class="stale">{t("map.staleChapters", { n: stale })}</span>{/if}
-                </p>
-                {#if ws}<button type="button" class="btn btn-pri" onclick={onread}>{t("map.read5", { name: fiveName })}</button>{/if}
-              </div>
-            </section>
+            {#if GenDoneCard}<GenDoneCard {totals} {stale} {fiveName} onread={ws ? onread : undefined} />{:else}<div class="card stage-skel" aria-busy="true">{t("app.loading")}</div>{/if}
           {:else if problem && engineStatus}
-            <EngineCard status={engineStatus} {problem} {effort} repo={s.workspace.status?.info.root} launcher={s.session.settings?.launcher} oncopy={(c) => copyText(c, s, "copy.command")} onrecheck={() => s.session.loadEngines()} />
+            {#if EngineCard}<EngineCard status={engineStatus} {problem} {effort} repo={s.workspace.status?.info.root} launcher={s.session.settings?.launcher} oncopy={(c) => copyText(c, s, "copy.command")} onrecheck={() => s.session.loadEngines()} />{:else}<div class="card stage-skel" aria-busy="true">{t("app.loading")}</div>{/if}
           {:else}
             <GenEstimateCard
               {estimates}
               {initialClock}
+              {initialBreakdown}
               repo={s.workspace.status?.info.root}
               launcher={s.session.settings?.launcher}
               {effort}
@@ -134,33 +136,6 @@ function setEffort(e: Effort) {
           {#if s.gen.error}<p class="gen-err" role="alert">{errorText(s.gen.error)}</p>{/if}
 
 <style>
-  .done {
-    padding: 18px 20px 16px;
-    box-shadow: var(--shadow-soft);
-  }
-  .done h2 {
-    font-family: var(--font-serif);
-    font-size: var(--fs-lead);
-    font-weight: var(--fw-strong);
-    color: var(--ink);
-    margin: 0 0 12px;
-  }
-  .done-main {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    font-size: var(--fs-ui);
-  }
-  .done-main p {
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  .stale {
-    color: var(--c-warn);
-    font-size: var(--fs-label);
-  }
   .gen-err {
     color: var(--c-bad);
     margin: 0;

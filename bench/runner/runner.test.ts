@@ -74,6 +74,17 @@ describe("BENCH-U-11 discovery and selection", () => {
     expect(await discover(tmp())).toEqual([]);
   });
 
+  test("a checkout below node_modules still finds its own cases", async () => {
+    const root = join(tmp(), "node_modules/.cache/runner/_work/mitori/mitori");
+    mkdirSync(join(root, "bench/node_modules/vendor"), { recursive: true });
+    const def = JSON.stringify(join(import.meta.dir, "define.ts"));
+    const file = (id: string) =>
+      `import { defineBench } from ${def};\nexport const bench = defineBench({ id: "${id}", suite: "ui", mode: "inproc", run: () => 1 });\n`;
+    writeFileSync(join(root, "bench/ui.bench.ts"), file("ui.root"));
+    writeFileSync(join(root, "bench/node_modules/vendor/ignored.bench.ts"), file("ui.vendor"));
+    expect((await discover(root)).map((f) => f.def.id)).toEqual(["ui.root"]);
+  });
+
   test("id patterns: exact, prefix on a dot boundary, glob; --exact turns the prefix off", () => {
     expect(matchesId("idx.s01.cold.100kloc", "idx.s01")).toBe(true);
     expect(matchesId("idx.s010", "idx.s01")).toBe(false);

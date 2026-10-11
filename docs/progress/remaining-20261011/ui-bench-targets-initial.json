@@ -1,0 +1,110 @@
+{
+  "v": "mitori.bench-result/1",
+  "sha": "06ed15f3b01ddc9a2247bc80d7d26d6fc7552ee1",
+  "machine": {
+    "cpu": "Apple M5 Max",
+    "cores": 18,
+    "ramGb": 128,
+    "os": "Darwin 27.0.0",
+    "bun": "1.4.2",
+    "node": "22.23.3",
+    "chrome": "153.0.8010.12",
+    "loadavg": 10.943359375,
+    "noisy": true,
+    "waited": 0,
+    "power": "ac"
+  },
+  "factor": 1.1260194781991009,
+  "factorSource": "measured",
+  "startedAt": "2026-10-10T23:11:43.305Z",
+  "results": [
+    {
+      "id": "ui.card.optimistic",
+      "unit": "ms",
+      "values": [
+        31.700000047683716,
+        12.200000047683716,
+        29.600000023841858
+      ],
+      "median": 29.600000023841858,
+      "p95": 31.700000047683716,
+      "cv": 0.43688725069006,
+      "suite": "ui",
+      "mode": "inproc",
+      "budgetStat": "median",
+      "loadavg": 10.54736328125
+    },
+    {
+      "id": "ui.codeLines.mounted",
+      "unit": "count",
+      "values": [
+        361,
+        361,
+        361
+      ],
+      "median": 361,
+      "p95": 361,
+      "cv": 0,
+      "suite": "ui",
+      "mode": "process",
+      "budgetStat": "median",
+      "loadavg": 10.34326171875
+    },
+    {
+      "id": "ui.dom.max",
+      "unit": "count",
+      "values": [],
+      "median": 0,
+      "p95": 0,
+      "cv": 0,
+      "suite": "ui",
+      "mode": "process",
+      "budgetStat": "median",
+      "error": "waitForFunction: Timeout 30000ms exceeded.",
+      "loadavg": 10.7958984375
+    },
+    {
+      "id": "ui.inputRender.1000",
+      "unit": "ms",
+      "values": [],
+      "median": 0,
+      "p95": 0,
+      "cv": 0,
+      "suite": "ui",
+      "mode": "process",
+      "budgetStat": "median",
+      "error": "waitForFunction: Timeout 30000ms exceeded.",
+      "loadavg": 10.9091796875
+    },
+    {
+      "id": "ui.reviewDiff5000.dom",
+      "unit": "count",
+      "values": [],
+      "median": 0,
+      "p95": 0,
+      "cv": 0,
+      "suite": "ui",
+      "mode": "process",
+      "budgetStat": "median",
+      "error": "waitForFunction: Timeout 30000ms exceeded.",
+      "loadavg": 10.9091796875
+    },
+    {
+      "id": "ui.staleBadge",
+      "unit": "ms",
+      "values": [
+        30,
+        48,
+        23
+      ],
+      "median": 30,
+      "p95": 48,
+      "cv": 0.3830800420228338,
+      "suite": "ui",
+      "mode": "inproc",
+      "budgetStat": "median",
+      "loadavg": 10.9091796875
+    }
+  ],
+  "counters": []
+}
