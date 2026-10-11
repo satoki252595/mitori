@@ -79,3 +79,12 @@ Mac job114498794909はload9.33154296875 / NOISY / AC、待機2回後も既存qui
 ## PR #15の通常統合
 
 2026-10-11T15:06:09Z（JST 2026-10-12）に通常merge `e34178c40dd954e0d6ecb53f8cae51c96e2a032d` でmainへ統合した。検証head89f228eとmerge commitのtreeは`08855f95c6f68b12dc882e40819130d6eb30558f`で一致。Ubuntu全体・Windows native・Macの変更単位の回帰を根拠とし、Mac全browser suiteは未確認のまま残す。golden変更なし、専用commitの履歴を維持。作業branch `codex/windows-exact-env-20261011` はmainへの祖先性を確認し、local / remoteから削除した。後続のcommitは検証結果を反映する資料だけで、実LLM要求・新規依存は0。
+## PR #16 — macOS性能tier（2026-10-12 JST）
+
+[PR #16](https://github.com/satoki252595/mitori/pull/16)のsource `0ac54f071d2693ea212a19c168e19104436e6870` を[run38151228742](https://github.com/satoki252595/mitori/actions/runs/38151228742)で確認した。初回Ubuntuは全7check / 全20semantic・0cached・0errorsを通過したが、wall44.35秒が較正後上限43.30秒を超え、unit以降は未実行。失敗したUbuntu jobだけを再実行した。
+
+再実行job114506189385は成功。check64.74秒 / 上限67.79秒、全20semantic・0cached・0errors。unit3,047pass / 140skip / 4todo / 0fail・122,117 assertions、golden109pass / 4skip / 0fail・1,028 assertions、fixtures verify・size・Linux binary build / versionが成功した。
+
+Mac job114504937824はquiet / AC・load8.770020、factor1.101552で既存±10%を外れ、browser開始前に停止した。browser0、共有・a11yはskip。attempt2のjob114506190375は同じ開始・終了日時とログの持ち越しで、Macの再実行成功とは扱わない。
+
+通常merge `b8f2dca5667e181e709233d77115376aede063c6` をmainへ反映。merge treeと検証source treeはともに `071e3263b75c4b9e72d5036fdf831162f1e3e272`。作業branchをlocal / remoteから削除した。Go正式1,500ms、最新Mac全suite、実IME、費用確認待ちの追加生成、外部4クライアントの実生成は残る。詳細・private原ログのhashは[ci.json](ci.json)のpr16。

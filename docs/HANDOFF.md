@@ -7,6 +7,8 @@
 
 利用者の残タスク続行指示に従い、Codexの正式生成経路、OSSの説明省略、UIの初回表示とasset、Linux cold check、Windows native検証を進めた。修正後head98c59a6のUbuntu CIは成功（unit3,022pass / 0fail、golden109pass / 0fail）、Windows対象もhead23645fdで成功した。Mac attempt6も既存guardを通過し、browser380pass / 14skip / 0fail、共有2pass、a11y8passが成功。[PR #13](https://github.com/satoki252595/mitori/pull/13)は2026-10-11T11:16:43Zに通常merge `df014912ee7e31ac62c4ca50c846d396aeec9dff` でmainへ統合し、資料branchもローカルmainへ通常merge `bdcebaf` で取り込んだ。統合時main `bdcebaf` はoriginへpush済みで、実装・資料の両作業branchをlocal / remoteから削除した。旧headの5失敗と後続guard停止は履歴へ保持した。[CIの前後](progress/remaining-20261011/ci.md)。詳細と各JSONの入口は [remaining-20261011/README.md](progress/remaining-20261011/README.md)。
 
+最新の[PR #16](https://github.com/satoki252595/mitori/pull/16)も通常merge `b8f2dca` でmainへ統合・push済み、作業branchはlocal / remoteから削除した。Super 6 + Performance 12の検出へ更新し、既存最大8 Workerを適用する。Go ABBAは中央値19.45%短縮・全3表一致、React RSSは中央値986.688MiB / 上限1000以内・目標700にWARN。対象13testsと全7check、source `0ac54f0` のUbuntu unit3,047pass / golden109pass / 0failが成功した。Macはfactor1.101552でguard停止、Go正式1,500msと本人操作・費用確認待ちの残件は維持する。[性能tierの証跡](progress/remaining-20261011/idx-performance-tiers.md)。
+
 ### ★.1 実装と確認できたこと
 
 - **本人環境のMCP接続:** 通常HOME・実フォルダでCodex / Cursor / Grok / Antigravityの4クライアント各8ツールを確認。Grokの表示コマンドを`--cwd` / `--scope project`付きへ修正し、引用符等を含むパスの引数回帰も成功。Antigravityはproject設定が表示されなかったため、共通設定をバックアップしてmitoriだけ追加し、本体2.12.2の公式Refresh後に`8 tools enabled`を確認した。Codexの初回隔離用override失敗は保存し、子プロセスだけの`--disable plugins`と既存user MCP4項目の無効化でmitoriだけ有効と確認後、app-serverのinitialize / statusで8ツールを取得（exit0、206.033ms）。保存済み設定・認証はこの再確認で変更していない。認証操作・LLM要求・MCPツール実行0、追加LLM費用$0。4外部セッションからの文書生成は未実行。Grok修正の対象8tests / 85assertionsと全7check成功（5.04秒）も保持する。[実測と制約](progress/startup-matrix-20261007/README.md)。

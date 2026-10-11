@@ -289,5 +289,37 @@
       "checked": "2026-10-12 JST"
     }
   ],
-  "finalHardwareSha256": "c047e00472937638dff3476ee32c7f09d8c09a9c6f9ed30c8ec940a710fa1ea0"
+  "finalHardwareSha256": "c047e00472937638dff3476ee32c7f09d8c09a9c6f9ed30c8ec940a710fa1ea0",
+  "integration": {
+    "pullRequest": "https://github.com/satoki252595/mitori/pull/16",
+    "sourceHead": "0ac54f071d2693ea212a19c168e19104436e6870",
+    "merge": "b8f2dca5667e181e709233d77115376aede063c6",
+    "sourceAndMergeTree": "071e3263b75c4b9e72d5036fdf831162f1e3e272",
+    "branchDeletedLocalAndRemote": true,
+    "ubuntuUnitPass": 3047,
+    "ubuntuGoldenPass": 109
+  },
+  "postMergePreflight": {
+    "at": "2026-10-11T15:43:08.149Z",
+    "quiet": {
+      "loadavg": 9.9150390625,
+      "noisy": true,
+      "waited": 0
+    },
+    "machine": {
+      "cpu": "Apple M5 Max",
+      "cores": 18,
+      "ramGb": 128,
+      "os": "Darwin 27.0.0",
+      "bun": "1.4.2",
+      "node": "22.23.3",
+      "chrome": "153.0.8010.12",
+      "loadavg": 9.9150390625,
+      "noisy": true,
+      "waited": 0,
+      "power": "ac"
+    },
+    "factor": null,
+    "additionalFormalScanInvocations": 0
+  }
 }

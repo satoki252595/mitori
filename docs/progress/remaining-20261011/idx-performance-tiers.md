@@ -16,3 +16,5 @@ Go固定corpusをfresh process / 空home / shadow / S0–S1でABBA比較した�
 RSSの正式対象はReactで、既存caseをwarmup1 / measured3で確認した。値は986.688 / 992.453 / 971.609 MiB、中央値986.688、上限1000以内・目標700に対してWARN。quiet / AC、factor1.190383で、メモリ上限は係数で拡大しない。GoのRSS増加も上表の通り保持する。
 
 対象回帰は13pass / 0fail / 60 assertions。統合checkは全7項目成功（10.75秒）。正式Go hard limitの未達、Mac全suite、実IME、追加生成の費用確認、外部4クライアントでの実生成は残る。
+
+[PR #16](https://github.com/satoki252595/mitori/pull/16)を通常merge `b8f2dca` でmainへ統合・pushし、作業branchをlocal / remoteから削除した。Ubuntu unit3,047pass / golden109pass / 0fail、全20semantic・0cached・0errorsとLinux binaryが成功。Macはfactor1.101552で開始前停止。統合後15:43 UTCの事前確認はload9.915039 / NOISY / ACで較正未実行、追加正式scan0回だった。

@@ -904,5 +904,106 @@
       "additionalLlmRequests": 0,
       "dependencyAdditions": 0
     }
+  },
+  "pr16": {
+    "pullRequest": "https://github.com/satoki252595/mitori/pull/16",
+    "sourceHead": "0ac54f071d2693ea212a19c168e19104436e6870",
+    "run": {
+      "id": 38151228742,
+      "url": "https://github.com/satoki252595/mitori/actions/runs/38151228742"
+    },
+    "ubuntu": {
+      "first": {
+        "jobId": 114504937715,
+        "status": "failure",
+        "check": {
+          "allSevenStepsPassed": true,
+          "wallSeconds": 44.35,
+          "reportedFactor": 1.443,
+          "reportedLimitSeconds": 43.3,
+          "semanticBuilds": 20,
+          "cached": 0,
+          "errors": 0,
+          "semanticSeconds": 43.76
+        },
+        "unitAndLater": "not run",
+        "log": {
+          "bytes": 69775,
+          "sha256": "4d8a26b2c980f431d9870d0b77f4bf1f88e38ddd6d744b8f225c490942d34894"
+        }
+      },
+      "rerun": {
+        "jobId": 114506189385,
+        "status": "success",
+        "scope": "only failed Ubuntu job",
+        "check": {
+          "allSevenStepsPassed": true,
+          "wallSeconds": 64.74,
+          "reportedFactor": 2.26,
+          "reportedLimitSeconds": 67.79,
+          "semanticBuilds": 20,
+          "cached": 0,
+          "errors": 0,
+          "semanticSeconds": 63.92
+        },
+        "unit": {
+          "pass": 3047,
+          "skip": 140,
+          "todo": 4,
+          "fail": 0,
+          "assertions": 122117,
+          "snapshots": 1,
+          "files": 357,
+          "seconds": 369.19
+        },
+        "golden": {
+          "pass": 109,
+          "skip": 4,
+          "fail": 0,
+          "assertions": 1028,
+          "seconds": 6.34
+        },
+        "fixturesVerify": true,
+        "size": true,
+        "linuxBinaryBuild": true,
+        "version": "mitori 0.0.0 (api 1)",
+        "log": {
+          "bytes": 682369,
+          "sha256": "e859903637487bbeb160a3f986230d0a0311e27b7c0c44795325f459a8a33163"
+        }
+      }
+    },
+    "mac": {
+      "executionJobId": 114504937824,
+      "carriedForwardJobId": 114506190375,
+      "note": "The attempt2 snapshot repeats the original Mac log and original started_at/completed_at; Mac was not rerun.",
+      "status": "guard-stop before tests",
+      "loadavg": 8.77001953125,
+      "noisy": false,
+      "power": "ac",
+      "factor": 1.1015521532091639,
+      "factorSource": "measured",
+      "browserTestsExecuted": 0,
+      "share": "skipped",
+      "a11y": "skipped",
+      "log": {
+        "bytes": 25587,
+        "sha256": "7de1d2fd34e8919eb9fa8ec5226d44c11cda17e27fac13a4540f1b384e5a1a74"
+      }
+    },
+    "merge": {
+      "sha": "b8f2dca5667e181e709233d77115376aede063c6",
+      "method": "merge",
+      "verifiedSourceTree": "071e3263b75c4b9e72d5036fdf831162f1e3e272",
+      "mergeTree": "071e3263b75c4b9e72d5036fdf831162f1e3e272",
+      "localAndRemoteBranchDeleted": true
+    },
+    "remaining": [
+      "Go hard1500 formal gate",
+      "latest Mac browser/share/a11y suite",
+      "human native Japanese IME",
+      "Codex two-OSS rerun fee approval",
+      "four external clients actual generation"
+    ]
   }
 }

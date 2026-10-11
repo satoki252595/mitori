@@ -18,12 +18,12 @@
 | Codex並列生成の予算予約 | shared preflightで送信直前に合算判定。途中本文・usage保持と同額resumeを対象37tests / 224 assertionsで確認 | API換算の推計上限。hidden reasoningを含む実請求の厳密capではない | [codex-budget.md](codex-budget.md) |
 | 本人環境の外部MCP | Codex / Cursor / Grokはproject設定、Antigravity 2.12.2は共通設定で各8ツールの接続を確認。Codexは子プロセスだけのplugin無効化と既存4設定の無効化で再確認。LLM要求・MCPツール実行・追加LLM費用0 | 初回Codex override失敗とAntigravityのproject設定の制約を保存。4外部セッションからの文書生成は未実行 | [実設定の確認](../startup-matrix-20261007/README.md) |
 | Linux cold check | testkitの既存home subpathへimportを絞り、全20semantic診断を維持。ARM同条件ABBAは4回ともhard limit内 | soft targetは未達、統合headのUbuntu x64 CIでの確認は別 | [cold-home.md](cold-home.md) |
-| Go7k cold scan | Goの同一Node.type再取得を減らす変更を採用。最新正式5run / warmup1はquiet / AC・factor1.037243379882442で中央値1,980.096958ms | **hard limit1,500msは未達**。先行ABBAの10.64%短縮・全行hash一致も保持。setLanguage省略候補は単独診断の推計差が約0.296msで不採用 | [採用変更](idx-type-local.md)、[先行不採用](idx-cold.md)、[正式測定の前後](idx-formal.json) |
+| Go7k cold scan | Node.type再取得削減に加え、Super / Performance全tierの検出を修正。新旧ABBAは19.45%短縮・全3表hashとcounters一致。React RSS中央値986.688MiBは上限1000以内 | **hard limit1,500msは未達**。修正前の最新正式値は1,980.096958ms。新8Workerの正式時間は未確認。GoのRSS増加とReactの目標700MiB WARNを保持 | [全性能tier](idx-performance-tiers.md)、[先行採用](idx-type-local.md)、[正式測定](idx-formal.json) |
 | 初回parse準備 | lazy poolのsize0でprewarmが送られない原因を1行修正。回帰6pass / 20assertions、ABBAで3表の全行hash・coverage・counters一致 | 終了較正factor1.124994が基準外。後続正式試行も事前factor1.130491でscan0回。全体速度の改善・hard limit合格は未証明 | [原因と比較](idx-prewarm.md) |
 | F10の実績較正 | 既存ledgerをexact profileで見積りへ接続。対象40pass、保守floor・USD cap・confidence25維持 | 既存EMAは保持。実精度・実請求の保証なし | [較正の確認](ledger-calibration.md) |
 | F14のCLI案内・終了処理 | 既存help接続、自身が起動したdaemonだけ終了対象。後接続・作業中は同期idle guardで維持。対象回帰・統合check成功 | 起動者のPID同一性を証明できない環境では停止しない | [終了処理の確認](cli-lifecycle.md) |
 | UI / assets / a11y | 読書位置修正後のcompiledはstrict asset全項目pass・初期JS54.697KB gzip。最新正式scanSummaryはquiet / AC・3run / warmup1で中央値1,615.700ms、hard limit2,000ms合格 | target1,000msはWARN。旧1,771.5ms / factor1.12のreport-onlyは履歴として保持 | [最新assets](reader-fix-assets.json)、[先行UI記録](ui-bench-release.md) |
-| Mac正式CI | head98c59a6 / attempt6はquiet / AC・factor1.017953727365694でbrowser380pass / 14skip / 0fail、共有2pass / 0fail、a11y8pass | 後続PR #14 / #15はNOISY / 較正guard停止で全suite未確認。先行foreground成功と実子priority差の観測は保持し、厳密なQoSや根因は未確定。元のサービスは復元済み | [CI記録](ci.md) |
+| Mac正式CI | head98c59a6 / attempt6はquiet / AC・factor1.017953727365694でbrowser380pass / 14skip / 0fail、共有2pass / 0fail、a11y8pass | 後続PR #14 / #15 / #16はNOISY / 較正guard停止で全suite未確認。先行foreground成功と実子priority差の観測は保持し、厳密なQoSや根因は未確定。元のサービスは復元済み | [CI記録](ci.md) |
 | Windows | head89f228eaのNix crossbuildと実Windowsで選択14pass / 109 assertions。Git / shadowのcold export永続化・所有daemon後始末、scan親終了後の存続・export再利用・明示stop、製品`--version`とembedded / standalone selftest6checksが成功 | 対象経路の検証。Windowsの一般全経路・実LLM互換性を意味しない。先行head23645fdの7passも履歴に保持 | [最新Windows CI](https://github.com/satoki252595/mitori/actions/runs/38149209280)、[windows-nix.md](windows-nix.md)、[windows-env.md](windows-env.md) |
 | 実ブラウザ操作 | 実Chromeの初回map、確定日本語検索、Codex native/MCP切替と配布binaryの接続commandを確認。続行時はnative Chrome操作も許可され、最新binaryの無料デモを本人確認用に準備 | nativeキー入力もASCIIのままで実IME変換は未確認。本人操作結果待ち。Safari実機はChrome代替の選択により必須外 | [chrome.md](chrome.md) |
 
@@ -65,13 +65,17 @@ WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別�
 
 全子プロセスの明示環境とCLI起動・終了処理の修正後、source `89f228ea300dd1dd4211b32488042993a75e3235` の[run38149209280](https://github.com/satoki252595/mitori/actions/runs/38149209280)はNix crossbuild job114498898080 / Windows native job114499464069とも成功した。native3ファイルは12pass / 0fail・73 assertions・18.26秒。Git / shadowのcold exportはHTMLと正しい保存先のdoc.index.jsonを永続化し、自身のregistryを削除した。shadowでは対象repoに.mitoriを作らない。scan親CLI終了後のdaemon存続、exportによる同一daemon再利用、明示stopも成功した。別filterのWindows project guardは1pass / 15 assertions、doc pathsは1pass / 21 assertionsで、合計選択14pass / 109 assertions。製品`--version`とembedded / standalone `_selftest` の6checksもすべて成功、total4,784.7962msだった。実ログは2026-10-11T15:00 UTC台（2026-10-12 JST）。Windowsの一般全経路・実LLM互換性まで確認したとは扱わない。
 
+## PR #16の追加統合
+
+性能tierの修正を通常merge `b8f2dca` でmainへ統合・pushし、作業branchをlocal / remoteから削除した。source `0ac54f0` のUbuntuは再実行でunit3,047pass / 0fail・golden109pass / 0fail、全20semantic・0cached・0errors、fixtures・size・Linux binary成功。Macはfactor1.101552で開始前停止。Go ABBAの改善と正式未達は分けて保持する。[性能比較](idx-performance-tiers.md)、[CI](ci.md)。
+
 ## 次の確認
 
 旧監査の再照合で見つけたF10の実績較正とF14のCLI help・export終了処理はPR #14でmainへ通常統合した。初回全unitで見つけた再確認条件の回帰も修正し、既存fixture不変で修正前失敗・修正後成功とUbuntu全体成功を確認した。
 
 1. 本人による実Chrome日本語IMEの変換確定Enter / 次のEnterを確認する。compiled scanSummaryの正式検証はhard limit合格で完了し、target WARNは保持する。
 2. Go7kの最新正式中央値1,980.096958msはhard limit1,500ms未達。後続helper候補も0.214%差で未採用、setLanguage省略候補も推計約0.296msの小差で不採用。Jev / m3eは引用用import入力と共通verdictを修正し、追加実生成2回の費用承認待ち。有料creditを使わない保証はできず、API換算$0.50も実請求の上限ではない。
-3. 最新PR #15のMac全suiteはquiet / reference条件が整ってから再確認する。head89f228eも開始前NOISY guard停止で、PR #13の成功へ付け替えない。
+3. 最新PR #16のMac全suiteはquiet / reference条件が整ってから再確認する。head0ac54f0はfactor1.101552でguard停止し、PR #13の成功へ付け替えない。
 4. 外部4クライアントの本人環境MCP接続は各8ツールで確認済み。4外部セッションからの文書生成・取り込みは未実行で、Codex native生成と区別して残す。
 
 利用者の対応待ちは実IME確認と追加実生成2回の費用承認。任意providerを使う場合はその本人認証が必要。LM Studioは既存モデルの読込と実回答を今回確認し、検証後に専用モデルだけ解除した。利用時は本人のモデルを読み込む。Codexは今回ログイン済みで、認証待ちではない。Claudeのログインを今回の続行条件にしない。Safari実機とCloudflare公開は今回の必須条件から外れている。
