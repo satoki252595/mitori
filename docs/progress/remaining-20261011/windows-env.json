@@ -1,7 +1,7 @@
 {
   "format": "mitori.windows-env-verification/1",
   "date": "2026-10-11",
-  "status": "verified on native windows-2025 at latest recorded head; previous successful and failed runs are retained separately",
+  "status": "Native follow-up verified at latestVerifiedHead; previous group-only evidence remains in nativeRerun and history",
   "failedRun": {
     "url": "https://github.com/satoki252595/mitori/actions/runs/38096491256",
     "job": 114343799001,
@@ -314,7 +314,7 @@
   },
   "limitations": [
     "The selected windows-2025 native cases and compiled selftest passed for the recorded commit; this is not a claim covering every Windows version or every usage path.",
-    "Windows processGroup=false still uses the existing direct Bun.spawn route; Windows default-variable supplementation there is outside this Job Object fix.",
+    "At the historical nativeRerun head 23645fdc, processGroup=false still used direct Bun.spawn. The native-verified singleProcessAndBootstrap20261011 follow-up supersedes that limitation.",
     "The full failed CI log was read, but only variable names and safe result summaries are persisted here."
   ],
   "sourceHashes": {
@@ -493,9 +493,9 @@
       }
     }
   ],
-  "latestVerifiedHead": "23645fdc7100e02e5f6b63bbbde2b33c59b1c79f",
+  "latestVerifiedHead": "89f228ea300dd1dd4211b32488042993a75e3235",
   "singleProcessAndBootstrap20261011": {
-    "status": "implemented; native verification pending",
+    "status": "verified on native windows-2025",
     "baseline": "63e23b0193e6e9eac44d3d085c83a137b035a7eb",
     "scope": "Every Windows Spawner child, including processGroup=false; compiled CLI client daemon bootstrap and ownership",
     "nativeProtocol": "Optional --single-process keeps descendants outside the leader job; explicit names-only environment protocol is unchanged.",
@@ -550,7 +550,7 @@
       }
     },
     "nativeVerification": {
-      "status": "pending",
+      "status": "success",
       "cases": [
         "Both group modes preserve literal argv, exact env, stdio and exit code",
         "Single-process cancellation kills only its leader; group cancellation still kills descendants",
@@ -604,7 +604,137 @@
           ],
           "evidenceArtifact": "https://github.com/satoki252595/mitori/actions/runs/38148784079/artifacts/11706565720"
         }
-      ]
+      ],
+      "url": "https://github.com/satoki252595/mitori/actions/runs/38149209280",
+      "headSha": "89f228ea300dd1dd4211b32488042993a75e3235",
+      "attempt": 1,
+      "crossbuildJob": 114498898080,
+      "nativeJob": 114499464069,
+      "runner": "windows-2025",
+      "sourceTests": {
+        "files": 3,
+        "pass": 12,
+        "fail": 0,
+        "skip": 0,
+        "assertions": 73,
+        "secondsPrinted": 18.26
+      },
+      "projectGuard": {
+        "selection": "UXP-23: Windows",
+        "pass": 1,
+        "fail": 0,
+        "assertions": 15
+      },
+      "docPaths": {
+        "selection": "native doc paths",
+        "pass": 1,
+        "fail": 0,
+        "assertions": 21
+      },
+      "totalSelected": {
+        "pass": 14,
+        "fail": 0,
+        "assertions": 109
+      },
+      "productVersion": "mitori 0.0.0 (api 1)",
+      "compiledSelftest": {
+        "ok": true,
+        "version": "0.0.0",
+        "source": "embedded",
+        "standalone": true,
+        "totalMs": 4784.7962,
+        "checks": {
+          "integrity": {
+            "ok": true,
+            "files": 9,
+            "bytes": 7320426,
+            "mismatched": [],
+            "ms": 37.459599999999995
+          },
+          "web": {
+            "ok": true,
+            "files": 137,
+            "precompressed": 134,
+            "immutable": 135,
+            "ms": 0.49860000000001037
+          },
+          "parse": {
+            "ok": true,
+            "initMs": 36.730900000000005,
+            "langs": [
+              "typescript",
+              "tsx",
+              "javascript",
+              "python",
+              "go",
+              "rust"
+            ],
+            "wrong": [],
+            "ms": 74.68500000000003
+          },
+          "elk": {
+            "ok": true,
+            "nodes": 300,
+            "edges": 459,
+            "bootMs": 525.1234999999999,
+            "firstMs": 1846.2948,
+            "warmMs": [
+              1135.8028
+            ],
+            "warmMedianMs": 1135.8028,
+            "ms": 3511.031
+          },
+          "shiki": {
+            "ok": true,
+            "initMs": 131.2298,
+            "langs": [
+              "typescript",
+              "tsx",
+              "javascript",
+              "jsx",
+              "python",
+              "go",
+              "rust",
+              "json",
+              "yaml",
+              "toml",
+              "markdown",
+              "shellscript",
+              "sql"
+            ],
+            "missing": [],
+            "highlight100ColdMs": 886.8673000000001,
+            "highlight100WarmMs": 45.7179000000001,
+            "ms": 1154.0479999999998
+          },
+          "sqlite": {
+            "ok": true,
+            "applied": 2,
+            "reapplied": 0,
+            "ms": 6.814100000000508
+          }
+        }
+      },
+      "evidence": {
+        "artifactUrl": "https://github.com/satoki252595/mitori/actions/runs/38149209280/artifacts/11706116314",
+        "artifactApiDigest": "sha256:bc858cbb6149917eb69a4acdd0103c8c41cf8f75ad83c0b2fb23edd0dbb4a501",
+        "artifactApiBytes": 1746,
+        "artifactExpiresAt": "2026-11-10T15:00:49Z",
+        "nativeJobLogSha256": "a8bafdc862ff4854c534b053b5bfd0e0b28b67caa570610ab717a4367c7154a4",
+        "nativeJobLogBytes": 33534,
+        "productArtifactUrl": "https://github.com/satoki252595/mitori/actions/runs/38149209280/artifacts/11706605700",
+        "productArtifactApiDigest": "sha256:315e0bfe8fa510ddc16609f04f3e613f0d214b086275310be97a428189e15d1e",
+        "productArtifactApiBytes": 44001840,
+        "productArtifactExpiresAt": "2026-10-18T14:59:03Z",
+        "productArtifactDownloadedLocally": false,
+        "safety": "Only safe summaries, selftest JSON and hashes are persisted. Full logs and executable contents are not committed.",
+        "artifactZipSha256": "bc858cbb6149917eb69a4acdd0103c8c41cf8f75ad83c0b2fb23edd0dbb4a501",
+        "artifactZipBytes": 1746,
+        "artifactMatchesApiDigestAndSize": true,
+        "selftestArtifactMatchesNativeJobLog": true,
+        "selftestArtifactFileSha256": "bf67600a8de8c0da95dc8ee409fc74d4852eecdf4cc5a42870aeb017c54a04c6",
+        "nativeTestsArtifactFileSha256": "3c75fc11e3f7504f0a9c475b51eda59daa0fadabb9ad48c9132815843fe7a402"
+      }
     },
     "sources": [
       {
@@ -618,7 +748,7 @@
     "additionalLlmFeeUsd": 0,
     "history": "Previous processGroup=true successes and the historical false-path limitation above are preserved; they do not verify this follow-up.",
     "nativePathFollowup": {
-      "status": "implemented; native rerun pending",
+      "status": "verified by compiled Git/shadow exports and filtered native boundary tests",
       "scope": [
         "Native absolute workspace paths and names",
         "Native project/home/drive/UNC boundary guards",

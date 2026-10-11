@@ -8,6 +8,8 @@
 
 後続の[PR #14](https://github.com/satoki252595/mitori/pull/14)も2026-10-11T12:28:11Zに通常merge `6d892ea8be7976d4095eb2bfe8c1bbf8e346f545` でmainへ反映した。prewarm・F10・F14・export事前検証と再確認条件の修正を含む。Ubuntuは修正head b74d4faでunit3,042pass / 0fail、golden109pass / 0fail、全20semantic / 0cached / 0errors、fixtures・size・Linux binary成功。Macは初回NOISY停止後、同headのattempt2 / 3もquiet / AC・factor1.172012 / 1.195410で較正guard停止、browser・共有viewer・a11y未確認。通常端末起動でも解消しなかった。対象回帰・Ubuntu全体・配布binary確認を根拠に統合した。merge treeと検証headのtreeは一致し、作業branchをlocal / remoteから削除、元のrunnerサービスを復元した。[CIの全経緯](ci.md)。
 
+2026-10-12 JST時点では[PR #15](https://github.com/satoki252595/mitori/pull/15)は通常merge `e34178c` でmainへ統合済み。source `89f228ea300dd1dd4211b32488042993a75e3235` のWindows後続検証と最新headのUbuntu CIが成功した。Mac全suiteの未確認と他の未達は維持する。
+
 | 項目 | 確認できたこと | 残る確認・限界 | 証拠 |
 |---|---|---|---|
 | Codexでの実生成 | Jevの対象2節とm3eの対象moduleをNix経由で生成。修正後はterminal usage / exit 0を取得 | 引用窓のL1 failが残る。全文・全OSSの再生成成功は主張しない | [quality.md](quality.md) |
@@ -21,8 +23,8 @@
 | F10の実績較正 | 既存ledgerをexact profileで見積りへ接続。対象40pass、保守floor・USD cap・confidence25維持 | 既存EMAは保持。実精度・実請求の保証なし | [較正の確認](ledger-calibration.md) |
 | F14のCLI案内・終了処理 | 既存help接続、自身が起動したdaemonだけ終了対象。後接続・作業中は同期idle guardで維持。対象回帰・統合check成功 | 起動者のPID同一性を証明できない環境では停止しない | [終了処理の確認](cli-lifecycle.md) |
 | UI / assets / a11y | 読書位置修正後のcompiledはstrict asset全項目pass・初期JS54.697KB gzip。最新正式scanSummaryはquiet / AC・3run / warmup1で中央値1,615.700ms、hard limit2,000ms合格 | target1,000msはWARN。旧1,771.5ms / factor1.12のreport-onlyは履歴として保持 | [最新assets](reader-fix-assets.json)、[先行UI記録](ui-bench-release.md) |
-| Mac正式CI | head98c59a6 / attempt6はquiet / AC・factor1.017953727365694でbrowser380pass / 14skip / 0fail、共有2pass / 0fail、a11y8pass | 後続PR #14はNOISY / 較正guard停止で全suite未確認。先行foreground成功と実子priority差の観測は保持し、厳密なQoSや根因は未確定。元のサービスは復元済み | [CI記録](ci.md) |
-| Windows | head23645fdのNix crossbuildと実Windowsのsource tests7pass / 0skip / 0fail（33assert / 4.20s）、製品`--version`とembedded selftest6checksすべて成功 | verified Job Object経路の対象検証。全子プロセスの明示環境とCLI起動・終了処理の後続修正は検証中。後続source / 配布CLIの成功は未確認 | [最新Windows CI](https://github.com/satoki252595/mitori/actions/runs/38115528185)、[windows-nix.md](windows-nix.md)、[windows-env.md](windows-env.md) |
+| Mac正式CI | head98c59a6 / attempt6はquiet / AC・factor1.017953727365694でbrowser380pass / 14skip / 0fail、共有2pass / 0fail、a11y8pass | 後続PR #14 / #15はNOISY / 較正guard停止で全suite未確認。先行foreground成功と実子priority差の観測は保持し、厳密なQoSや根因は未確定。元のサービスは復元済み | [CI記録](ci.md) |
+| Windows | head89f228eaのNix crossbuildと実Windowsで選択14pass / 109 assertions。Git / shadowのcold export永続化・所有daemon後始末、scan親終了後の存続・export再利用・明示stop、製品`--version`とembedded / standalone selftest6checksが成功 | 対象経路の検証。Windowsの一般全経路・実LLM互換性を意味しない。先行head23645fdの7passも履歴に保持 | [最新Windows CI](https://github.com/satoki252595/mitori/actions/runs/38149209280)、[windows-nix.md](windows-nix.md)、[windows-env.md](windows-env.md) |
 | 実ブラウザ操作 | 実Chromeの初回map、確定日本語検索、Codex native/MCP切替と配布binaryの接続commandを確認。続行時はnative Chrome操作も許可され、最新binaryの無料デモを本人確認用に準備 | nativeキー入力もASCIIのままで実IME変換は未確認。本人操作結果待ち。Safari実機はChrome代替の選択により必須外 | [chrome.md](chrome.md) |
 
 ## Codexの実生成とExplain
@@ -59,7 +61,9 @@ UIは初回nonce競合、仮想化アンカー、節移動でのengine再検出�
 
 最新のcompiled `ui.scanSummary` 正式測定は同source `bdcebaf1aa97525bc86722cbf4f4cbf508bfa083`、binary SHA-256 `8d1f22762b6b56d9eae7181e61a144b1d8e607f1ff84808b9d9673d51387deb7`。quiet / AC、factor1.0293374645265196 / after1.0867728003515473、warmup1 / measured3で測定値は1,767.800048828125 / 1,615.7001953125 / 1,577.099853515625ms、中央値1,615.7001953125ms。hard limit2,000msは合格、target1,000msはWARN。compiled scanSummaryの正式検証待ちは解消し、先行1,771.5msのreport-only結果も履歴として保持する。
 
-WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別ダウンロードを廃止した。[初回native run](https://github.com/satoki252595/mitori/actions/runs/38096491256)は5pass / 1fail。exact environmentだけが失敗し、引数 / stdio / 終了コードと子孫停止は成功した。環境「名」だけを渡すプロトコルで、Job Object経由の子へ明示した変数だけを渡す修正を実装した。既存native4ケースを維持し、portable protocol test1件と空値・非ASCII環境を追加。Nix crossbuild、Mac対象19pass / Windows限定4skip、platform型検査・整形は成功。[前回CI](https://github.com/satoki252595/mitori/actions/runs/38112767631)は525260dで7pass / 0skip / 0fail・33 assertions・4.38秒、selftest6checks成功。[最新Windows CI](https://github.com/satoki252595/mitori/actions/runs/38115528185)は `23645fdc7100e02e5f6b63bbbde2b33c59b1c79f` でcrossbuild / nativeとも成功し、同じ7pass / 0skip / 0fail・33 assertions・4.20秒、製品`--version`とembedded `_selftest` 6checks成功・2,606.378msだった。製品EXE SHA-256は `3e1d25c49fbb36b5974a4ec6036a3d9bc8ebcb81cc21d8d078b85143cf189e04`、API / 実ログ / artifactを照合済み。後続では全子プロセスの明示環境とCLI起動・終了処理を修正・検証中。verified asset準備、実daemon PIDの起動者証明、親CLI終了後の存続とexport後始末は後続source / 配布CLIでの確認が必要で、上のhead23645fdの成功を流用しない。
+WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別ダウンロードを廃止した。[初回native run](https://github.com/satoki252595/mitori/actions/runs/38096491256)は5pass / 1fail。exact environmentだけが失敗し、引数 / stdio / 終了コードと子孫停止は成功した。環境「名」だけを渡すプロトコルで、Job Object経由の子へ明示した変数だけを渡す修正を実装した。既存native4ケースを維持し、portable protocol test1件と空値・非ASCII環境を追加。Nix crossbuild、Mac対象19pass / Windows限定4skip、platform型検査・整形は成功。[前回CI](https://github.com/satoki252595/mitori/actions/runs/38112767631)は525260dで7pass / 0skip / 0fail・33 assertions・4.38秒、selftest6checks成功。[先行Windows CI](https://github.com/satoki252595/mitori/actions/runs/38115528185)は `23645fdc7100e02e5f6b63bbbde2b33c59b1c79f` でcrossbuild / nativeとも成功し、同じ7pass / 0skip / 0fail・33 assertions・4.20秒、製品`--version`とembedded `_selftest` 6checks成功・2,606.378msだった。製品EXE SHA-256は `3e1d25c49fbb36b5974a4ec6036a3d9bc8ebcb81cc21d8d078b85143cf189e04`、API / 実ログ / artifactを照合済み。このheadの成功は先行検証として保持し、後続変更の結果へ流用しない。
+
+全子プロセスの明示環境とCLI起動・終了処理の修正後、source `89f228ea300dd1dd4211b32488042993a75e3235` の[run38149209280](https://github.com/satoki252595/mitori/actions/runs/38149209280)はNix crossbuild job114498898080 / Windows native job114499464069とも成功した。native3ファイルは12pass / 0fail・73 assertions・18.26秒。Git / shadowのcold exportはHTMLと正しい保存先のdoc.index.jsonを永続化し、自身のregistryを削除した。shadowでは対象repoに.mitoriを作らない。scan親CLI終了後のdaemon存続、exportによる同一daemon再利用、明示stopも成功した。別filterのWindows project guardは1pass / 15 assertions、doc pathsは1pass / 21 assertionsで、合計選択14pass / 109 assertions。製品`--version`とembedded / standalone `_selftest` の6checksもすべて成功、total4,784.7962msだった。実ログは2026-10-11T15:00 UTC台（2026-10-12 JST）。Windowsの一般全経路・実LLM互換性まで確認したとは扱わない。
 
 ## 次の確認
 
@@ -67,9 +71,8 @@ WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別�
 
 1. 本人による実Chrome日本語IMEの変換確定Enter / 次のEnterを確認する。compiled scanSummaryの正式検証はhard limit合格で完了し、target WARNは保持する。
 2. Go7kの最新正式中央値1,980.096958msはhard limit1,500ms未達。後続helper候補も0.214%差で未採用、setLanguage省略候補も推計約0.296msの小差で不採用。Jev / m3eは引用用import入力と共通verdictを修正し、追加実生成2回の費用承認待ち。有料creditを使わない保証はできず、API換算$0.50も実請求の上限ではない。
-3. PR #14のMac全suiteはquiet / reference条件が整ってから再確認する。同headの開始前guard停止を維持し、PR #13の成功へ付け替えない。
+3. 最新PR #15のMac全suiteはquiet / reference条件が整ってから再確認する。head89f228eも開始前NOISY guard停止で、PR #13の成功へ付け替えない。
 4. 外部4クライアントの本人環境MCP接続は各8ツールで確認済み。4外部セッションからの文書生成・取り込みは未実行で、Codex native生成と区別して残す。
-5. Windowsはhead23645fdの対象検証が成功。後続の全子プロセスの明示環境とCLI起動・終了処理は修正・検証中で、後続native / 配布CLI確認は未完了。
 
 利用者の対応待ちは実IME確認と追加実生成2回の費用承認。任意providerを使う場合はその本人認証が必要。LM Studioは既存モデルの読込と実回答を今回確認し、検証後に専用モデルだけ解除した。利用時は本人のモデルを読み込む。Codexは今回ログイン済みで、認証待ちではない。Claudeのログインを今回の続行条件にしない。Safari実機とCloudflare公開は今回の必須条件から外れている。
 

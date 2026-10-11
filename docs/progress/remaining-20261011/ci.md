@@ -65,3 +65,17 @@ PR #13は2026-10-11T11:16:43Zに通常mergeでmainへ統合した（`df014912ee7
 前回成功した起動条件を再確認するため、空き状態の同じNix runnerだけを通常端末から一時起動した。[attempt3 / job114478593964](https://github.com/satoki252595/mitori/actions/runs/38138661011/job/114478593964)もload8.798 / quiet / AC / 待機0は通過、factor1.195410で同じguard停止だった。常駐起動の変更だけでは今回解消していない。両回ともglobalSetupで止まり、browserテスト0件実行、共有viewer / a11yはstep skipped。未実行を0failの成功へ変えない。Ubuntuは元の成功を継承し、再実行していない。
 
 対象headはb74d4faで、通常merge6d892eaとtree一致、その後のmain85aabcfまで製品差分は0。reference・上限・試験・plistは変更せず、追加LLM・依存・費用0。終了後に一時runnerを終了し、元plistからLaunchAgentを復元、PID35761のrunningとAPI online / busy:falseを確認した。Mac全suite未確認を保持し、今回の追加再実行はここで終了する。両回の許可項目・raw hashは [ci.json](ci.json) の `pr14.macFollowUp20261011`。
+
+## PR #15のCI履歴
+
+[PR #15](https://github.com/satoki252595/mitori/pull/15)、head `eaa02650e947eec427dcd58f65b52b609ff6d45e` の[run38147671086](https://github.com/satoki252595/mitori/actions/runs/38147671086)は、Ubuntu job114494328364が成功。check全7step60.34秒 / hard66.56秒（factor2.219）、全20semantic / 0cached / 0errors・59.23秒。unit3,044pass / 138skip / 4todo / 0fail・122,086assertions、golden109pass / 4skip / 0fail・1,028assertions、fixtures verify・size・Linux binaryも成功。Mac job114494328645はload8.28662109375 / quiet / AC / 待機1、factor1.1259891742625705で較正guard停止。browser試験は0件実行、共有viewer / a11yはstep skippedだった。
+
+head `d16e4166ae1a36d31de6cf842f5d867b34bc2a01` の[run38148770466](https://github.com/satoki252595/mitori/actions/runs/38148770466)は、Ubuntu job114497601700で全20semantic / 0cached / 0errors・52.12秒、check内部の全7stepが成功した。ただし全体wall52.74秒がhard limit52.05秒（factor1.735）を超え、jobは失敗。unit以降は未実行で、意味検査の成功を時間gate成功へ読み替えない。Mac job114497601470もload7.22314453125 / quiet / AC / 待機0、factor1.4945246055015173で較正guard停止。browser試験0件、共有viewer / a11yはstep skippedだった。
+
+新head `89f228ea300dd1dd4211b32488042993a75e3235` の[run38149175316](https://github.com/satoki252595/mitori/actions/runs/38149175316)はUbuntu job114498795140成功。check全7step48.72秒 / hard51.82秒（factor1.727）、全20semantic / 0cached / 0errors・48.07秒。unit3,046pass / 140skip / 4todo / 0fail・122,105assertions・320.12秒、golden109pass / 4skip / 0fail・1,028assertions、fixtures verify・size・Linux binaryも成功した。同headの[Windows native確認](windows-env.md)も選択14件とselftest6checksすべて成功。
+
+Mac job114498794909はload9.33154296875 / NOISY / AC、待機2回後も既存quiet条件外で較正前に停止。browser0件実行、共有viewer / a11yもskipped。後続の通常端末preflightもload11.5322265625 / NOISY / ACだったため、較正やMac再実行を追加していない。先行headの成功・失敗を後続headへ付け替えず、reference・上限・入力・runner設定は維持する。[機械可読の追記](ci.json)の `pr15` を参照。
+
+## PR #15の通常統合
+
+2026-10-11T15:06:09Z（JST 2026-10-12）に通常merge `e34178c40dd954e0d6ecb53f8cae51c96e2a032d` でmainへ統合した。検証head89f228eとmerge commitのtreeは`08855f95c6f68b12dc882e40819130d6eb30558f`で一致。Ubuntu全体・Windows native・Macの変更単位の回帰を根拠とし、Mac全browser suiteは未確認のまま残す。golden変更なし、専用commitの履歴を維持。作業branch `codex/windows-exact-env-20261011` はmainへの祖先性を確認し、local / remoteから削除した。後続のcommitは検証結果を反映する資料だけで、実LLM要求・新規依存は0。

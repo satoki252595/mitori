@@ -150,12 +150,14 @@ mitori内のAI変更はアンカーと対象範囲を確認し、side repoでテ
 
 | 環境 | 状況 |
 | --- | --- |
-| macOS Apple Silicon | Nix・通常Bun 1.4.2の起動、実Codex/Muse/Ollama/LM Studioの短いExplain、Chrome実操作・CodexのOSS文書生成を確認。後続PR #14のMac全suiteは較正guard停止で未確認 |
+| macOS Apple Silicon | Nix・通常Bun 1.4.2の起動、実Codex/Muse/Ollama/LM Studioの短いExplain、Chrome実操作・CodexのOSS文書生成を確認。最新PR #15のMac全suiteは負荷guard停止で未確認 |
 | Linux arm64 / Docker | frozen install、コンテナ内部の画面・設定プレビュー・MCP共通通信を確認。実LLM・ホストブラウザ接続は対象外 |
 | Linux x64 | バイナリビルド・バージョン表示と既存CIを検証済み。今回のDocker起動確認はarm64 |
-| Windows x64 | head23645fdのNixクロスビルド・native 7テスト・配布内6チェック成功。全子プロセスの環境とCLI起動・終了処理の後続修正は検証中。通常Bun起動は現時点で対象外 |
+| Windows x64 | head89f228eaでNixクロスビルド・native対象14テスト・配布内6チェック成功。Git / shadowの自動起動・HTML保存・後始末、既存daemon再利用を確認。通常Bun起動・実LLM互換性は対象外 |
 
 バイナリは`bun run build:bin`で実行環境向けに作ります。macOSは`dist/mitori-darwin-arm64`、Linuxは`dist/mitori-linux-x64`を直接実行できます。現在のコンパイル対象は上記3種類です。
+
+Windowsの後続確認は2026-10-12 JST（実ログは2026-10-11 UTC）の[実Windows CI](https://github.com/satoki252595/mitori/actions/runs/38149209280)で成功しました。選択した14テスト・109 assertionsと製品のバージョン表示・自己診断6項目の結果で、Windowsの全操作や各LLMでの実生成を確認したものではありません。変更を含む[PR #15](https://github.com/satoki252595/mitori/pull/15)は通常merge `e34178c` でmainへ統合し、対象headのUbuntu CIも成功しました。
 
 2026-10-11の確認状況です。**設定プレビュー**は設定を書かない`setup … --print`、**実回答**はmitoriの実Explain APIで本文と引用先を確認した結果です。
 

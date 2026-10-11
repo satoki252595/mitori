@@ -710,5 +710,199 @@
       },
       "decision": "Both quiet/AC runs stopped before browser tests due to measured reference factor outside unchanged tolerance. Foreground launch alone did not resolve it; Mac suite remains unverified."
     }
+  },
+  "pr15": {
+    "pullRequest": "https://github.com/satoki252595/mitori/pull/15",
+    "runs": [
+      {
+        "head": "eaa02650e947eec427dcd58f65b52b609ff6d45e",
+        "runId": 38147671086,
+        "run": "https://github.com/satoki252595/mitori/actions/runs/38147671086",
+        "ubuntu": {
+          "job": 114494328364,
+          "conclusion": "success",
+          "steps": {
+            "check": "success",
+            "unit": "success",
+            "fixturesVerify": "success",
+            "golden": "success",
+            "size": "success",
+            "linuxBinary": "success"
+          },
+          "evidenceScope": "Full completed job log and step conclusions confirmed.",
+          "check": {
+            "successfulSteps": 7,
+            "semanticBuilds": 20,
+            "cachedBuilds": 0,
+            "errors": 0,
+            "semanticSeconds": 59.23,
+            "wallSeconds": 60.34,
+            "hardLimitSeconds": 66.56,
+            "factor": 2.219
+          },
+          "unit": {
+            "pass": 3044,
+            "skip": 138,
+            "todo": 4,
+            "fail": 0,
+            "assertions": 122086,
+            "snapshots": 1
+          },
+          "golden": {
+            "pass": 109,
+            "skip": 4,
+            "fail": 0,
+            "assertions": 1028
+          },
+          "rawLog": {
+            "path": "/private/tmp/mitori-pr15-114494328364.log",
+            "bytes": 681107,
+            "sha256": "8266be35c60f3288bf0ce8f0751ce9a7caa03a0c196bff6452cfd054cd53cac9"
+          }
+        },
+        "mac": {
+          "job": 114494328645,
+          "conclusion": "failure",
+          "loadAverage": 8.28662109375,
+          "noisy": false,
+          "power": "ac",
+          "waited": 1,
+          "factor": 1.1259891742625705,
+          "stage": "reference calibration guard before browser tests",
+          "browserExecutedTests": 0,
+          "share": "job step skipped",
+          "a11y": "job step skipped",
+          "rawLog": {
+            "path": "/private/tmp/mitori-pr15-114494328645.log",
+            "bytes": 25587,
+            "sha256": "81a9d8b456bbe6e7754e33c7047998b51bedf4c2a63bf653543b4b16298b3b08"
+          }
+        }
+      },
+      {
+        "head": "d16e4166ae1a36d31de6cf842f5d867b34bc2a01",
+        "runId": 38148770466,
+        "run": "https://github.com/satoki252595/mitori/actions/runs/38148770466",
+        "ubuntu": {
+          "job": 114497601700,
+          "conclusion": "failure",
+          "check": {
+            "successfulSteps": 7,
+            "semanticBuilds": 20,
+            "cachedBuilds": 0,
+            "errors": 0,
+            "semanticSeconds": 52.12,
+            "wallSeconds": 52.74,
+            "hardLimitSeconds": 52.05,
+            "factor": 1.735,
+            "timingGate": "failure"
+          },
+          "laterSteps": "Unit and subsequent steps did not run after the check wall-time failure.",
+          "rawLog": {
+            "path": "/private/tmp/mitori-pr15-114497601700.log",
+            "bytes": 50497,
+            "sha256": "2c2b555f9312280b1b99c50b3700048d40eee9fb460a1348819021ecff19b6f8"
+          }
+        },
+        "mac": {
+          "job": 114497601470,
+          "conclusion": "failure",
+          "loadAverage": 7.22314453125,
+          "noisy": false,
+          "power": "ac",
+          "waited": 0,
+          "factor": 1.4945246055015173,
+          "stage": "reference calibration guard before browser tests",
+          "browserExecutedTests": 0,
+          "share": "job step skipped",
+          "a11y": "job step skipped",
+          "rawLog": {
+            "path": "/private/tmp/mitori-pr15-114497601470.log",
+            "bytes": 26052,
+            "sha256": "7edc18a9d17f37ed2c9cb551b06a1d318a4a4f54da42aee14732361d24d92b08"
+          }
+        }
+      },
+      {
+        "head": "89f228ea300dd1dd4211b32488042993a75e3235",
+        "runId": 38149175316,
+        "run": "https://github.com/satoki252595/mitori/actions/runs/38149175316",
+        "status": "completed",
+        "mac": {
+          "job": 114498794909,
+          "conclusion": "failure",
+          "loadAverage": 9.33154296875,
+          "noisy": true,
+          "power": "ac",
+          "waited": 2,
+          "factor": null,
+          "stage": "quiet reference guard before calibration/browser tests",
+          "browserExecutedTests": 0,
+          "share": "job step skipped",
+          "a11y": "job step skipped",
+          "rawLog": {
+            "path": "/private/tmp/mitori-pr15-114498794909.log",
+            "bytes": 25903,
+            "sha256": "dd52460a43eb9867f4218f9b3ba8ac9c1a233379ce1e02d0119e0a24ab5a5912"
+          }
+        },
+        "ubuntu": {
+          "job": 114498795140,
+          "conclusion": "success",
+          "check": {
+            "successfulSteps": 7,
+            "semanticBuilds": 20,
+            "cachedBuilds": 0,
+            "errors": 0,
+            "semanticSeconds": 48.07,
+            "wallSeconds": 48.72,
+            "hardLimitSeconds": 51.82,
+            "factor": 1.727
+          },
+          "unit": {
+            "pass": 3046,
+            "skip": 140,
+            "todo": 4,
+            "fail": 0,
+            "assertions": 122105,
+            "snapshots": 1,
+            "files": 357,
+            "secondsPrinted": 320.12
+          },
+          "golden": {
+            "pass": 109,
+            "skip": 4,
+            "fail": 0,
+            "assertions": 1028,
+            "secondsPrinted": 5.34
+          },
+          "fixturesVerify": "success",
+          "size": "success",
+          "linuxBinary": "success",
+          "rawLog": {
+            "path": "/private/tmp/mitori-pr15-114498795140.log",
+            "bytes": 661109,
+            "sha256": "d73d33995a1b45b06bcd6acbe4d4f282ae372bcbcdfe7f636016960004f0a007"
+          }
+        }
+      }
+    ],
+    "decision": "Latest source head 89f228e passed Ubuntu full CI and separate Windows native verification. All three Mac runs stopped before browser tests; this full-suite confirmation remains pending. Reference, limits, input and runner configuration unchanged.",
+    "merge": {
+      "sha": "e34178c40dd954e0d6ecb53f8cae51c96e2a032d",
+      "mergedAt": "2026-10-11T15:06:09Z",
+      "method": "merge",
+      "verifiedHead": "89f228ea300dd1dd4211b32488042993a75e3235",
+      "mergeTree": "08855f95c6f68b12dc882e40819130d6eb30558f",
+      "verifiedHeadTree": "08855f95c6f68b12dc882e40819130d6eb30558f",
+      "treeEqual": true,
+      "workBranch": "codex/windows-exact-env-20261011",
+      "localBranchDeleted": true,
+      "remoteBranchDeleted": true,
+      "macFullSuite": "pending; not treated as successful",
+      "goldenChanged": false,
+      "additionalLlmRequests": 0,
+      "dependencyAdditions": 0
+    }
   }
 }
