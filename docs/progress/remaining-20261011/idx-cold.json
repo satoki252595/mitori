@@ -2672,5 +2672,303 @@
     "additionalLlmCalls": 0,
     "additionalCostUsd": 0,
     "decision": "Rejected without product changes or further measurements: even charging the full serial extrapolation to scan wall saves only about 0.296ms versus the missing 480.097ms. This one API microprobe is not a scan improvement or formal result; the 1500ms hard limit remains unmet."
+  },
+  "screening20261012": {
+    "at": "2026-10-11T17:02:15.219Z",
+    "sourceSha": "349d2416ddccb0bbd1727a21623eba6f2285cc8d",
+    "productionChangesAdopted": false,
+    "formalGate": false,
+    "additionalLlmCalls": 0,
+    "additionalCostUsd": 0,
+    "latestFormal": {
+      "evidence": "idx-performance-tiers.json#formalVerification20261012",
+      "sourceSha": "a8cadad800a0b71265c5ccff5a90fcde3b01164c",
+      "medianMs": 1694.155083,
+      "hardLimitMs": 1500,
+      "verdict": "FAIL",
+      "shortfallMs": 194.1550830000001
+    },
+    "endIndex": {
+      "diagnosticOnly": true,
+      "actualScan": false,
+      "probeSha256": "82d12821d01e13346416580ae961aa007afd40b420a0ce8c49243b1a456e65ab",
+      "rawResultSha256": "c7d9d76886dc71e04b073c6770849fdc006056c29be11b443165c56ca70b9ec5",
+      "symbolsUsedForScreening": 133602,
+      "assumedAccessesPerSymbol": 2,
+      "iterationsPerLoop": 267204,
+      "nodes": 7,
+      "sourceTextSha256": "fc0754f1d1b9b181d43a5a395d5cfd492f8f69b39ae7086712210d4b1c72c5ee",
+      "loadavg": [
+        8.2490234375,
+        8.2490234375
+      ],
+      "runs": [
+        {
+          "mode": "getter",
+          "count": 267204,
+          "ms": 7.846417000000002,
+          "checksum": 19353204
+        },
+        {
+          "mode": "local",
+          "count": 267204,
+          "ms": 0.42095799999999883,
+          "checksum": 19353204
+        },
+        {
+          "mode": "local",
+          "count": 267204,
+          "ms": 0.3694160000000011,
+          "checksum": 19353204
+        },
+        {
+          "mode": "getter",
+          "count": 267204,
+          "ms": 2.883499999999998,
+          "checksum": 19353204
+        }
+      ],
+      "limitations": [
+        "Access count is a screening heuristic, not a measured call count or rigorous corpus upper bound.",
+        "One tiny fixed AST and JIT tier-up variance; no scan, exact SQL identity or formal performance result."
+      ],
+      "decision": "Not adopted: isolated getter savings do not establish a material cold-scan improvement."
+    },
+    "wasmOpt": {
+      "tool": {
+        "name": "Binaryen wasm-opt",
+        "version": 132,
+        "provisioning": "Ephemeral nix shell using project-pinned nixpkgs; no global installation or flake/lock change.",
+        "flags": [
+          "--enable-bulk-memory-opt",
+          "--enable-nontrapping-float-to-int",
+          "-O3",
+          "-g"
+        ]
+      },
+      "assets": [
+        {
+          "id": "treesitter.runtime",
+          "original": {
+            "bytes": 209613,
+            "sha256": "c03bccdc3b448a32848f5ae327e209c982bbb0840d43eec8bc2d5759544a1ed3"
+          },
+          "candidate": {
+            "bytes": 209386,
+            "sha256": "2c0b3b74f43d95e700db2b178b15268f74d977ad11c2c1c40e47e7c048c6fafd"
+          },
+          "sortedImportExportShapesEqual": true,
+          "dylinkSectionHashes": [
+            "d406c86e5ecee0df6bd1fb4c43343d292863a0a52b8017d32ed3a3484df41ca5"
+          ]
+        },
+        {
+          "id": "grammar.go",
+          "original": {
+            "bytes": 217182,
+            "sha256": "9504573f352b20be7f2f1911754d710622aedc15afff16d5ed8fb5645681aee7"
+          },
+          "candidate": {
+            "bytes": 217064,
+            "sha256": "74debb11dc3a1970068246ccef59946478d381ae783ade053d256c07ca6cf070"
+          },
+          "sortedImportExportShapesEqual": true,
+          "dylinkSectionHashes": [
+            "b88a9c22a91347cbbefc1fc96eae0ee3fa7409153ab2fc4a739c68cd71de9df7"
+          ]
+        }
+      ],
+      "loaderSmoke": {
+        "languages": [
+          "typescript",
+          "tsx",
+          "javascript",
+          "python",
+          "go",
+          "rust"
+        ],
+        "loading": [
+          "bytes",
+          "shared precompiled"
+        ],
+        "variants": [
+          "baseline",
+          "candidate"
+        ],
+        "samples": 24,
+        "completeResultsEqual": true,
+        "errors": 0,
+        "limitations": "Small loader samples; not full corpus or language regression suites."
+      },
+      "wholeScanAttempts": [
+        {
+          "attempt": 1,
+          "loadavg": 7.935546875,
+          "noisy": false,
+          "power": "ac",
+          "factor": {
+            "factor": 1.1048863578188837,
+            "source": "measured"
+          },
+          "guardValid": false,
+          "scans": 0
+        },
+        {
+          "attempt": 2,
+          "loadavg": 6.9501953125,
+          "noisy": false,
+          "power": "ac",
+          "factor": {
+            "factor": 1.2027573812102685,
+            "source": "measured"
+          },
+          "guardValid": false,
+          "scans": 0
+        }
+      ],
+      "fullParseScreen": {
+        "diagnosticOnly": true,
+        "actualScan": false,
+        "formalGate": false,
+        "design": "Fresh-process ABBA; four fixed Go files read from memory through env.readFile, source omitted to prevent LRU incremental parsing, one first pass plus eight repeated full parses/extractions per process; output hashing outside measured interval; input and all ParseItemResult hashes and stats identical; parses equal deletes after every request.",
+        "inputs": [
+          {
+            "path": "go/parser/parser.go",
+            "bytes": 74811,
+            "sha256": "8cdd62681def6a016c69df417ffd8120eaeab5a4e62ede28b350f47b7381604d"
+          },
+          {
+            "path": "go/scanner/scanner.go",
+            "bytes": 26306,
+            "sha256": "74c70571b540912e5e236fc1220752e92a1b94e15840f665a6b348cbc4bfaa90"
+          },
+          {
+            "path": "net/http/server.go",
+            "bytes": 139414,
+            "sha256": "8a46dd48f65aba824366170f8f335417af263fc60b7b4e04ef2a4bba4a21253d"
+          },
+          {
+            "path": "runtime/proc.go",
+            "bytes": 243217,
+            "sha256": "40d15ce858cf058cff92606001a29ee1689db88c121a2f0c283163a0d64a7375"
+          }
+        ],
+        "runs": [
+          {
+            "variant": "baseline",
+            "loadavg": [
+              11.25146484375,
+              11.25146484375
+            ],
+            "stats": {
+              "parses": 36,
+              "deletes": 36,
+              "files": 36,
+              "bytes": 4353732
+            },
+            "firstPassMs": 101.03316699999999,
+            "meanRepeatedMs": 60.554989874999976,
+            "resultSha256": "f8bee238977dcd2a1c33d8705a33ac813f4371beaaee6a7959e806e5e1dde131"
+          },
+          {
+            "variant": "candidate",
+            "loadavg": [
+              11.25146484375,
+              11.25146484375
+            ],
+            "stats": {
+              "parses": 36,
+              "deletes": 36,
+              "files": 36,
+              "bytes": 4353732
+            },
+            "firstPassMs": 93.784708,
+            "meanRepeatedMs": 59.69637512499999,
+            "resultSha256": "f8bee238977dcd2a1c33d8705a33ac813f4371beaaee6a7959e806e5e1dde131"
+          },
+          {
+            "variant": "candidate",
+            "loadavg": [
+              11.25146484375,
+              11.25146484375
+            ],
+            "stats": {
+              "parses": 36,
+              "deletes": 36,
+              "files": 36,
+              "bytes": 4353732
+            },
+            "firstPassMs": 95.682625,
+            "meanRepeatedMs": 59.74322937500002,
+            "resultSha256": "f8bee238977dcd2a1c33d8705a33ac813f4371beaaee6a7959e806e5e1dde131"
+          },
+          {
+            "variant": "baseline",
+            "loadavg": [
+              11.25146484375,
+              11.25146484375
+            ],
+            "stats": {
+              "parses": 36,
+              "deletes": 36,
+              "files": 36,
+              "bytes": 4353732
+            },
+            "firstPassMs": 93.38041700000002,
+            "meanRepeatedMs": 62.663625,
+            "resultSha256": "f8bee238977dcd2a1c33d8705a33ac813f4371beaaee6a7959e806e5e1dde131"
+          }
+        ],
+        "baselineMeanRepeatedMs": 61.609307437499986,
+        "candidateMeanRepeatedMs": 59.71980225,
+        "improvementPercent": 3.066915156312717,
+        "processCpu": {
+          "baselineMeanMs": 76.97075,
+          "candidateMeanMs": 74.31693750000001
+        },
+        "phases": {
+          "parse": {
+            "baselineMeanMs": 33.834492312499975,
+            "candidateMeanMs": 32.66513825000001
+          },
+          "query": {
+            "baselineMeanMs": 23.58911749999998,
+            "candidateMeanMs": 22.942132812500002
+          },
+          "extract": {
+            "baselineMeanMs": 0.9369320625000324,
+            "candidateMeanMs": 0.8959743125000053
+          }
+        },
+        "inputHashesEqual": true,
+        "resultHashesEqual": true,
+        "statsEqual": true,
+        "limitations": [
+          "Four selected full-profile source files only; no corpus coverage or SQL identity claim.",
+          "Reference environment guard failed twice; these diagnostic timings are not a cold-index performance result or formal gate.",
+          "Repeated inputs and warmed parser/query differ from the canonical cold scan.",
+          "Phase times are elapsed wall time; process CPU includes handler and any runtime/background work, not pure WASM CPU.",
+          "phase.query surrounds all extract(), not query.matches alone or pure WASM CPU.",
+          "Direct single-thread handler omits Worker transfer, SQL and production reply-after-256KiB explicit GC.",
+          "Initial source-supplied incremental/update attempt is preserved privately and excluded from these full-parse numbers."
+        ]
+      },
+      "allCorpusSqlFingerprintsVerified": false,
+      "decision": "Not adopted: the roughly 3% selected-input elapsed difference under load does not establish a reproducible full-scan improvement or the missing 194ms. No derived WASM, new permanent dependency or asset-lock changes added."
+    },
+    "rawDirectory": "/private/tmp/mitori-wasm-opt-probe-20261012.3QoA9w",
+    "rawSha256": {
+      "loader.ts": "ef91cfea0d8e78ac900326b17eceee31edb048e4cf6876f7a9293d285b43b17a",
+      "child.ts": "04fd0b44770ea7bfd66e862860ce06bf1ed184c03cef63903d2912e6e7c2227f",
+      "run.ts": "ca01e6427117e19767000dad4141d6350b9c25dd9d2c626c980b1c16eeca3846",
+      "cpu-child.ts": "b54920a548713e4951f938f1e2f3ce1b035e80367e202a18253f5a5bffbf23fa",
+      "cpu-run.ts": "a1ba02ffb97fb7e817511b172318a6f42b843d934953f1b6058d5c6f5725597a",
+      "cpu-result.json": "6d42d479516c21b71cc6b74aff524dd956f497ba5463a71e2ad02bb34332305a",
+      "before-attempt1.json": "98719b4b0c367c52e01dc78e06277ad55d86fa6f7b71f78d0e7bafb0d9791e0d",
+      "before-attempt2.json": "97a68fcd190c129b2534595901d7c823480fd87d6f799aa8d2d0b13a770face3",
+      "run-attempt1.log": "a0d03429c5d5e8a020a528dc7d005d519dcd0879bac6abfb9d4a8635e0d2994a",
+      "run-attempt2.log": "c94b387e7f5dd475f305a21d670ea7753b7ca9a1702ec4caef8135bdf03f96db",
+      "corpus-verify.log": "9afb7b4e928341d48b77d6a4658dca972ff385fbd7ada428d910c6cabff9829c"
+    }
   }
 }

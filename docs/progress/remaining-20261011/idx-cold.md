@@ -82,3 +82,18 @@ scan wallは2,278.814ms、S1は2,040.788ms、pool全体は2,006.829ms。Worker�
 loadavgは7.5625 / 8.2959 / 9.1880。較正未測定・計時追加ありの1回診断で、速度比較や正式合格には使わない。最新正式中央値1,980.097ms・上限1,500ms未達を保持する。新依存・製品変更・LLM呼出・追加費用は0。
 
 同一languageの `setLanguage` 再設定省略も不採用。main由来 `63e23b0`・Nix / Bun 1.4.2で、既存WASM / Go languageへのAPI呼出だけをprivate probeで1回確認した。warmup各1,000後の各8,000回は通常0.381750ms / language-property guard0.016916msで、6,490ファイルへ直列換算しても差0.295972ms。不足480.096958msに対して小さすぎるため製品変更・再計測は行わない。これは実scan・正式試験ではなく、1,500ms未達を維持する。source HEAD・probe / WASM hash・条件は同JSONの `setLanguageProbe20261011`。新依存・LLM呼出・追加費用0。
+
+## 追加screening（2026-10-12 JST、main 349d241）
+
+最新の正式値は [idx-performance-tiers.json](idx-performance-tiers.json) の `formalVerification20261012`：quiet / AC・factor1.003381、8Worker・中央値**1,694.155ms**。上限1,500msは引き続き**FAIL**、不足194.155ms。以下2案は製品へ採用していない。過去の6Worker測定とは区別する。
+
+- `endIndex`の重複getterをlocalへ置き換える案は、小さな固定ASTだけでscreeningした。各267,204回のgetterは7.846 / 2.883ms、localは0.421 / 0.369ms、checksumは全回一致。回数はsymbol数×2という仮定で、実scanのcall数や厳密な上限ではない。JIT差もあり、数msの差から全体の改善は証明できないため見送った。
+- pinned runtime / Go WASMをBinaryen132の`-O3 -g`（既存命令に必要なbulk-memory-opt / nontrapping-float-to-intを許可）でprivate生成した。sorted import / export形状と`dylink.0`は一致。6言語×byte / shared×元 / 候補の24 loader sampleは、全ParseItemResultが一致しerrors0。全corpus互換性の証明ではない。
+
+既存のquiet / AC / factor0.9〜1.1 guardを維持した全体ABBAは、較正1.104886 / 1.202757で**2回とも開始前に停止（scan0）**。条件を緩めた再実行は行っていない。
+
+候補を採用する根拠があるか調べるため、固定Go4ファイルだけをメモリから読むhandler直呼びをfresh process ABBAで実行した。sourceを渡さず、毎回parse数とdelete数の一致（各process36件）をassertし、LRU incremental parseを防いだ。各process初回1回＋反復8回、入力・全ParseItemResult hash・statsは一致。反復の平均経過時間は元61.609 / 候補59.720ms（**3.07%**差）、process CPU平均は76.971 / 74.317msだった。load11.251はquiet閾値9を超えている。
+
+これは選択4入力・単threadの診断で、cold scan、Worker転送、SQL、本番の返信後256KiB明示GCを含まない。phaseのparse / queryは経過時間、queryは`extract()`全体であり、WASM単体のCPU時間ではない。process CPUはhandler以外のruntime / background処理も含む。初回のsource付きincremental経路の結果はprivateに保持し、この比較から除外した。全corpusの3表hashも未取得なので、正式性能・互換性の合格とは扱わない。
+
+全体で再現する改善や不足194msの解消を裏づける結果ではないため、派生WASM配布・恒久依存・asset lock変更は追加しない。Binaryenはproject-pinned nixpkgsの一時Nix環境で使用し、直接install・flake変更・追加LLM・追加費用は0。値・hash・guard・制限は [idx-cold.json](idx-cold.json) の `screening20261012`。正式1,500ms未達を保持する。
