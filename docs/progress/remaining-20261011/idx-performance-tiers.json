@@ -321,5 +321,304 @@
     },
     "factor": null,
     "additionalFormalScanInvocations": 0
+  },
+  "formalVerification20261012": {
+    "sourceSha": "a8cadad800a0b71265c5ccff5a90fcde3b01164c",
+    "case": "idx.s01.cold.7kfiles",
+    "formal": true,
+    "warmup": 1,
+    "measured": 5,
+    "hardLimitMs": 1500,
+    "targetMs": 1200,
+    "verdict": "FAIL",
+    "runnerExitCode": 1,
+    "result": {
+      "v": "mitori.bench-result/1",
+      "sha": "a8cadad800a0b71265c5ccff5a90fcde3b01164c",
+      "machine": {
+        "cpu": "Apple M5 Max",
+        "cores": 18,
+        "ramGb": 128,
+        "os": "Darwin 27.0.0",
+        "bun": "1.4.2",
+        "node": "22.23.3",
+        "chrome": "153.0.8010.12",
+        "loadavg": 6.701171875,
+        "noisy": false,
+        "waited": 0,
+        "power": "ac"
+      },
+      "factor": 1.0033811104106738,
+      "factorSource": "measured",
+      "startedAt": "2026-10-11T15:59:33.784Z",
+      "results": [
+        {
+          "id": "idx.s01.cold.7kfiles",
+          "unit": "ms",
+          "values": [
+            1623.153416,
+            1763.8713750000002,
+            1694.155083,
+            1661.989375,
+            1806.187875
+          ],
+          "median": 1694.155083,
+          "p95": 1806.187875,
+          "cv": 0.0436210930197726,
+          "suite": "idx",
+          "mode": "process",
+          "budgetStat": "median",
+          "repo": "gostd",
+          "loadavg": 6.701171875
+        }
+      ],
+      "counters": []
+    },
+    "after": {
+      "at": "2026-10-11T16:00:00.792Z",
+      "quiet": {
+        "loadavg": 8.0810546875,
+        "noisy": false,
+        "waited": 0
+      },
+      "machine": {
+        "cpu": "Apple M5 Max",
+        "cores": 18,
+        "ramGb": 128,
+        "os": "Darwin 27.0.0",
+        "bun": "1.4.2",
+        "node": "22.23.3",
+        "chrome": "153.0.8010.12",
+        "loadavg": 8.0810546875,
+        "noisy": false,
+        "waited": 0,
+        "power": "ac"
+      },
+      "calibration": {
+        "parts": {
+          "xxh3": 63.13650000000001,
+          "sqlite": 67.967375,
+          "json": 27.760791999999924,
+          "plainJs": 184.8984579999999
+        },
+        "totalMs": 343.76312499999983
+      },
+      "factor": 1.0870683419986469,
+      "ready": true
+    },
+    "capture": {
+      "children": 6,
+      "captureErrors": [],
+      "method": "Parent stdout tee of original ColdResult after scan timing; no child or production source modification"
+    },
+    "children": [
+      {
+        "index": 1,
+        "role": "warmup",
+        "result": {
+          "ms": 1742.554709,
+          "timings": {
+            "s0": 121.132625,
+            "workersStart": 0.04145800000000577,
+            "s1": 1611.1945420000002,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1737.9009159999998,
+            "persist": 2245.797958,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 338.559073999991,
+            "parseMs": 5238.799456000004,
+            "queryMs": 3585.0119680000043,
+            "degraded": 2
+          },
+          "rssPeakMB": 1145.3125,
+          "files": 7687,
+          "included": 6009
+        }
+      },
+      {
+        "index": 2,
+        "role": "measured",
+        "result": {
+          "ms": 1623.153416,
+          "timings": {
+            "s0": 117.77733299999998,
+            "workersStart": 0.034000000000020236,
+            "s1": 1498.899625,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1620.54175,
+            "persist": 2201.946375,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 293.46822799999285,
+            "parseMs": 4982.124570000016,
+            "queryMs": 3338.718405999999,
+            "degraded": 2
+          },
+          "rssPeakMB": 1094.390625,
+          "files": 7687,
+          "included": 6009
+        }
+      },
+      {
+        "index": 3,
+        "role": "measured",
+        "result": {
+          "ms": 1763.8713750000002,
+          "timings": {
+            "s0": 125.13579099999998,
+            "workersStart": 0.04070899999999256,
+            "s1": 1631.223875,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1760.8294999999998,
+            "persist": 2587.784584,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 371.65838800000347,
+            "parseMs": 5301.385309999991,
+            "queryMs": 3621.646174999996,
+            "degraded": 2
+          },
+          "rssPeakMB": 1100.671875,
+          "files": 7687,
+          "included": 6009
+        }
+      },
+      {
+        "index": 4,
+        "role": "measured",
+        "result": {
+          "ms": 1694.155083,
+          "timings": {
+            "s0": 134.233208,
+            "workersStart": 0.0534590000000037,
+            "s1": 1554.667208,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1691.5218750000001,
+            "persist": 2335.74075,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 324.8935650000013,
+            "parseMs": 5274.443690999999,
+            "queryMs": 3524.058853999998,
+            "degraded": 2
+          },
+          "rssPeakMB": 1129.140625,
+          "files": 7687,
+          "included": 6009
+        }
+      },
+      {
+        "index": 5,
+        "role": "measured",
+        "result": {
+          "ms": 1661.989375,
+          "timings": {
+            "s0": 127.74966699999999,
+            "workersStart": 0.03608299999999076,
+            "s1": 1529.819792,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1659.758709,
+            "persist": 2421.411833,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 330.5916990000045,
+            "parseMs": 5292.11935200001,
+            "queryMs": 3551.2188780000033,
+            "degraded": 2
+          },
+          "rssPeakMB": 1110.3125,
+          "files": 7687,
+          "included": 6009
+        }
+      },
+      {
+        "index": 6,
+        "role": "measured",
+        "result": {
+          "ms": 1806.187875,
+          "timings": {
+            "s0": 139.72470800000002,
+            "workersStart": 0.056500000000028194,
+            "s1": 1660.728458,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1803.238292,
+            "persist": 2524.5759999999996,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 311.4950349999799,
+            "parseMs": 5415.69794599999,
+            "queryMs": 3645.136736999997,
+            "degraded": 2
+          },
+          "rssPeakMB": 1153.75,
+          "files": 7687,
+          "included": 6009
+        }
+      }
+    ],
+    "coverage": {
+      "allChildrenMatch": true,
+      "workers": 8,
+      "cacheHits": 0,
+      "filesParsed": 6539,
+      "degraded": 2,
+      "files": 7687,
+      "included": 6009
+    },
+    "corpusVerification": {
+      "corpus": "gostd@862c888e612a",
+      "contentHashPrefix": "f21c254a8a65",
+      "ok": 1,
+      "failed": 0
+    },
+    "rawSha256": {
+      "result.json": "98902ad2756221b7eac369e022d52bee6c7dc6bd97969d9c3e0362a7d5570a8b",
+      "after.json": "b8860048ff6d88ea22abc820b6b550a6e610c51684c63dbe46962e4bc662c105",
+      "capture.json": "3e389df2ea39679c781887cd054636f6070eca9dc81fae2aa3b1f2459818a18e",
+      "child-1.json": "f3e448fae49e831a4321b9fa051cd6a5fe2774022dc10f1ac27386c890d20fdc",
+      "child-2.json": "45dfc8d7d94c1d484f4aef4c83fef1633330947737104b90c931a56a26e2f60d",
+      "child-3.json": "9a41e03b4f239884070c73347d978fc9fed02535342ba07dcabb7f4969baa4fd",
+      "child-4.json": "9c727eaed94b2b521672c94a782151193fdff412529c3391ef791e2f49db2260",
+      "child-5.json": "57cafe11b29e57af49c14c3b43b888a1ff45f7e77da630ca091e344d1429a4bf",
+      "child-6.json": "640bb9bd7b16a80ab64b178df8312efbdf896e3dde5cb1e52ebae0192c538cd4",
+      "run.log": "3c4f20e2a15ec0088610f80260c49cb8e5dea1d8ce7af032359b3347c68bb914",
+      "corpus-verify.log": "9afb7b4e928341d48b77d6a4658dca972ff385fbd7ada428d910c6cabff9829c",
+      "capture.ts": "521768f5c65633fa3b3ad54eb215ceaadd87643c535bc04798ba969fe0ab0c1a",
+      "runner-exit-code.txt": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    "notes": [
+      "Before and after calibration were measured with quiet load and AC power; the unchanged 1500 ms hard limit failed.",
+      "Child 1 is the discarded warmup; children 2 through 6 are the measured values in result order.",
+      "Capture tees the original parent stdout after child scan timing; child and production source are not modified.",
+      "The formal children preserve counts and diagnostics; full-row fingerprints were verified by the earlier ABBA, not recaptured by this formal invocation.",
+      "Go child RSS values are informational; the formal RSS budget case is react.",
+      "Raw log and capture-script bodies, absolute local paths and environment values are omitted; only artifact basenames and SHA-256 digests are retained.",
+      "Earlier six-worker formal measurements and all existing JSON keys remain historical evidence."
+    ]
   }
 }

@@ -1100,5 +1100,246 @@
       "Codex two-OSS rerun fee approval",
       "four external clients actual generation"
     ]
+  },
+  "pr16MacFollowUp20261012": {
+    "run": {
+      "id": 38151228742,
+      "url": "https://github.com/satoki252595/mitori/actions/runs/38151228742"
+    },
+    "sourceHead": "0ac54f071d2693ea212a19c168e19104436e6870",
+    "checkoutSha": "b5975863d724f05af4f8a00081d0538e9f6cdb5d",
+    "mac": {
+      "jobId": 114512014975,
+      "url": "https://github.com/satoki252595/mitori/actions/runs/38151228742/job/114512014975",
+      "status": "failure after guard passed",
+      "guardPassed": true,
+      "loadavgAtGuard": 8.56298828125,
+      "noisyAtGuard": false,
+      "waitedAtGuard": 0,
+      "powerAtGuard": "ac",
+      "factor": 1.0876105399172018,
+      "factorSource": "measured",
+      "browser": {
+        "pass": 376,
+        "skip": 14,
+        "fail": 4,
+        "minutes": 6.9
+      },
+      "share": "skipped",
+      "a11y": "skipped",
+      "failures": [
+        {
+          "engine": "chromium",
+          "file": "e2e/web/map.pw.ts",
+          "lineAtCi": 77,
+          "metric": "room card maximum",
+          "receivedMs": 229.29999995231628,
+          "limitMs": 100
+        },
+        {
+          "engine": "chromium",
+          "file": "e2e/web/reader.pw.ts",
+          "lineAtCi": 36,
+          "metric": "reader level switch p95",
+          "receivedMs": 106.59999990463257,
+          "limitMs": 50
+        },
+        {
+          "engine": "chromium",
+          "file": "e2e/web/reader.pw.ts",
+          "lineAtCi": 77,
+          "metric": "TOC transition p95",
+          "receivedMs": 227.80000007152557,
+          "limitMs": 100
+        },
+        {
+          "engine": "firefox",
+          "file": "e2e/web/map.pw.ts",
+          "lineAtCi": 152,
+          "metric": "first Escape preserves selected-room zoom",
+          "expectedScale": 2.22094,
+          "receivedScale": 2.22525,
+          "precision": 3
+        }
+      ],
+      "log": {
+        "bytes": 116220,
+        "sha256": "064ac952f54713243557895e56d354f7e7ad766e76587a750812d39d75b622c6"
+      }
+    },
+    "ubuntu": {
+      "carriedForwardJobId": 114512016123,
+      "originalSuccessfulJobId": 114506189385,
+      "status": "success carried forward",
+      "rerunExecuted": false
+    },
+    "sourceCorrection": {
+      "file": "e2e/web/map.pw.ts",
+      "change": "Extract the existing AC-J07 rAF transform-stability wait into a file-local helper; replace the Escape test fixed 450 ms sleep with the same 120 ms stable-transform observation.",
+      "productionSourceChanged": false,
+      "sharedInputToPaintHelperChanged": false,
+      "inputsChanged": false,
+      "marksChanged": false,
+      "limitsChanged": false,
+      "cameraBudgetMs": 340,
+      "stableTransformMs": 120,
+      "escapePrecision": 3,
+      "currentFileSha256": "0c06edef788b243227bfe463d1093def478d9c1e0d0f61159ec9e7a5d2f29d1e",
+      "diagnosis": "A fixed sleep does not observe the final camera frame. Upward scale drift is consistent with reading before the animation settles; the Firefox scheduling cause is not proven."
+    },
+    "localFollowUp": {
+      "baseline": {
+        "exitCode": 1,
+        "fullBrowserCiSuccess": false,
+        "machineAtGuard": {
+          "cpu": "Apple M5 Max",
+          "cores": 18,
+          "ramGb": 128,
+          "os": "Darwin 27.0.0",
+          "bun": "1.4.2",
+          "node": "22.23.3",
+          "chrome": "153.0.8010.12",
+          "loadavg": 10.09716796875,
+          "noisy": true,
+          "waited": 2,
+          "power": "ac"
+        },
+        "calibrationAtGuard": null,
+        "browserTestsExecuted": 0,
+        "status": "guard-stop before tests"
+      },
+      "privatePhaseDiagnostic": {
+        "formal": false,
+        "referenceCalibrationRecorded": false,
+        "pass": 3,
+        "fail": 0,
+        "seconds": 7.3,
+        "exitCode": 0,
+        "events": 26,
+        "rafWaitMs": {
+          "samples": 86,
+          "min": 0,
+          "max": 29.200000047683716
+        },
+        "uiFetchMs": {
+          "samples": 20,
+          "min": 2.399999976158142,
+          "max": 4.799999952316284
+        },
+        "longTaskSamples": 0,
+        "temporaryInstrumentationRestored": true,
+        "interpretation": "The diagnostic did not reproduce CI timing delays. Differences from the normal launch remain unexplained; no compositor or rAF root cause is established."
+      },
+      "chromiumFixedGuarded": {
+        "exitCode": 0,
+        "fullBrowserCiSuccess": false,
+        "machineAtGuard": {
+          "cpu": "Apple M5 Max",
+          "cores": 18,
+          "ramGb": 128,
+          "os": "Darwin 27.0.0",
+          "bun": "1.4.2",
+          "node": "22.23.3",
+          "chrome": "153.0.8010.12",
+          "loadavg": 8.8037109375,
+          "noisy": false,
+          "waited": 1,
+          "power": "ac"
+        },
+        "calibrationAtGuard": {
+          "factor": 1.0176377670064807,
+          "source": "measured"
+        },
+        "passCount": 4,
+        "failCount": 0,
+        "seconds": 40.7,
+        "tests": [
+          "AC-J07 room/card/section/camera",
+          "S1 Escape stages",
+          "AC-J20 reader level",
+          "TOC section transitions"
+        ]
+      },
+      "firefoxWebkitFixedGuarded": {
+        "exitCode": 0,
+        "fullBrowserCiSuccess": false,
+        "machineAtGuard": {
+          "cpu": "Apple M5 Max",
+          "cores": 18,
+          "ramGb": 128,
+          "os": "Darwin 27.0.0",
+          "bun": "1.4.2",
+          "node": "22.23.3",
+          "chrome": "153.0.8010.12",
+          "loadavg": 8.68798828125,
+          "noisy": false,
+          "waited": 0,
+          "power": "ac"
+        },
+        "calibrationAtGuard": {
+          "factor": 1.0301351509084022,
+          "source": "measured"
+        },
+        "passCount": 4,
+        "failCount": 0,
+        "seconds": 13.0,
+        "engines": [
+          "firefox",
+          "webkit"
+        ],
+        "testsPerEngine": [
+          "AC-J07 functional assertions",
+          "S1 Escape stages"
+        ],
+        "chromiumOnlyTimeBudgetsClaimed": false,
+        "sampledHostLoadsDuringTests": [
+          9.19,
+          9.98
+        ]
+      },
+      "totalTargetedPass": 8,
+      "fullBrowserCiSuccess": false,
+      "afterCalibrationRecorded": false,
+      "artifacts": {
+        "chromium-baseline.log": {
+          "bytes": 2955,
+          "sha256": "63b2fd60d66d946e9119ea91e7f4a9244cbb78ad160569f10506b94a8caad759"
+        },
+        "chromium-baseline.exit": {
+          "bytes": 2,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        },
+        "chromium-phase-diagnostic.log": {
+          "bytes": 11551,
+          "sha256": "70e01b32b3f24ff0537ad42b48be83cb79cdd23809cad14a7b9584fdaf487d49"
+        },
+        "chromium-phase-diagnostic.exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "chromium-fixed-guarded.log": {
+          "bytes": 3917,
+          "sha256": "46fc73af145360d4147e29e6a0a519b0936bb848dfac450fa531f56e04672129"
+        },
+        "chromium-fixed-guarded.exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "firefox-webkit-fixed-guarded.log": {
+          "bytes": 3586,
+          "sha256": "3ac5ffbfd9300d024a0d177debe4f7a2ebfae24e9f037cc4c5a046e25ca8b54a"
+        },
+        "firefox-webkit-fixed-guarded.exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "helpers.original.ts": {
+          "bytes": 5190,
+          "sha256": "b9def8d2efbb50700cd8738efbefe35ef6df64d3864561fb36763b3bb9f08bd3"
+        }
+      }
+    },
+    "remaining": "A new full Mac browser/share/a11y CI success after the test synchronization fix is still unverified at this record.",
+    "sanitization": "Only allowlisted results, artifact basenames and SHA-256 digests are added; raw log and instrumentation bodies, absolute personal paths and authentication data are omitted. Historical JSON values are unchanged."
   }
 }
