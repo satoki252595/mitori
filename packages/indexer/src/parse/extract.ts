@@ -426,22 +426,24 @@ function newDef(inp: ExtractInput, cap: string, node: Node, nameNode: Node, slic
   let defNode = node;
   let rangeNode = node;
   let sigPrefix = "";
-  if (g === "go" && (node.type === "type_spec" || node.type === "type_alias" || node.type === "const_spec" || node.type === "var_spec")) {
+  // Node.type crosses into WASM on every access; the tree is immutable throughout extraction.
+  const goType = g === "go" ? node.type : "";
+  if (goType === "type_spec" || goType === "type_alias" || goType === "const_spec" || goType === "var_spec") {
     const parent = node.parent;
     if (parent !== null) {
-      const list = parent.type.endsWith("_list") ? parent.parent : parent;
-      const family = node.type === "type_alias" || node.type === "type_spec" ? "type" : node.type;
+      const parentType = parent.type;
+      const family = goType === "type_alias" || goType === "type_spec" ? "type" : goType;
       const sameKind = memo(
         kids,
         parent,
         family,
-        () => parent.namedChildren.filter((c) => c.type === node.type || (family === "type" && (c.type === "type_spec" || c.type === "type_alias"))).length,
+        () => parent.namedChildren.filter((c) => c.type === goType || (family === "type" && (c.type === "type_spec" || c.type === "type_alias"))).length,
       );
-      if (parent.type.endsWith("_declaration") && sameKind === 1) {
+      if (parentType.endsWith("_declaration") && sameKind === 1) {
         defNode = parent;
         rangeNode = parent;
       } else {
-        const kw = (list ?? parent).type.replace("_declaration", "");
+        const kw = (parentType.endsWith("_list") ? (parent.parent?.type ?? parentType) : parentType).replace("_declaration", "");
         sigPrefix = `${kw} `;
       }
     }
