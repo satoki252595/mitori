@@ -9,6 +9,9 @@
 
 ### ★.1 実装と確認できたこと
 
+- **初回parse準備:** lazy poolのfactory直後はWorker数0だったため、既存prewarmが1件も送信されていなかった。起動予定数で準備を送る1行を修正し、旧実装で失敗する回帰を確認。対象6tests / 20assertions成功。ABBAは抽出3表の全行hash・coverage・counters一致、S1のWorker起動待ちは約10msから0.04msになったが、終了較正が基準外なので全体の速度改善・1,500ms合格は主張しない。[原因と比較](progress/remaining-20261011/idx-prewarm.md)。
+- **F10 / F14:** 旧監査に残っていた実績較正・全体help・export終了処理を後続branchで修正。較正はexact profileの実測超過だけを足し、保守floor・USD cap・confidence25を維持する。対象40tests成功。[較正の確認](progress/remaining-20261011/ledger-calibration.md)。helpは既存の日本語・英語案内を再利用。exportは自身のchildと証明できるdaemonだけを終了対象にし、後接続や作業中なら同期idle guardで維持する。終了拒否や通信失敗でも結果・元エラーを保持。CLI対象とserver shutdown対象が成功し、統合check全7stepも成功（5.76秒、warm）。[終了処理の確認](progress/remaining-20261011/cli-lifecycle.md)。後続branchのCI・main統合は別途記録する。
+- **export入力の事前検証:** 配布binaryで無効保存先によるscan中のdaemon残存を発見し、言語・保存先検証を接続前へ移した。追加3回帰の旧実装失敗と修正後spawn0を確認、最終export18pass / 70assertions。修正後binaryでも正常書き出しと無効保存先の両経路でregistry無しを確認。最終sourceの統合check全7stepも成功（4.12秒、warm）。[失敗と修正後](progress/remaining-20261011/cli-lifecycle.json)。
 - **Codex実生成:** `codex-cli` / `gpt-6.1-sol` / highを正式に配線し、Nix経由でJevの対象2節とm3eの対象moduleを実生成した。対象OSSの設定・hook・toolを継承しないlean profileを維持。Jevのhistory → observe → page_changed、60操作 / 120 prediction decision requests / scroll・wait追加前の250 DOM candidates、m3eの条件付き変更先・4言語・検証3コマンド・省略寸法の既定値補完を本文へ回復した。[品質記録](progress/remaining-20261011/quality.md)。
 - **Codex Explain / Nix・通常ローカル:** go-smallで各1 application jobがattempt1 / done、各引用1件有効、元source不変、後始末成功。Nixはterminal reported input1,582 / output47、API-equivalent $0.003634、run5.012秒。既存ローカルBun 1.4.2はinput1,585 / output47、$0.003640、run4.334秒。各cap$0.05、合計$0.007274。誤った旧LLM呼出数カウンタは採用していない。[両経路の安全な証跡](progress/remaining-20261011/codex-explain.json)。Codexは認証待ちではない。
 - **LM Studio Explain / Nix・通常ローカル:** 取得済みQwen GGUFで各1 HTTP推論がattempt1 / done、各引用1件有効、元source不変、追加費用$0。専用モデルだけunloadし既存serverを維持した。短いExplainのみで、CLI指定4096とload報告262144の不一致は原因未確定。[両経路の証跡](progress/remaining-20261011/lmstudio-explain.md)。
@@ -24,6 +27,10 @@
 1. **実IME:** Chrome通常操作・確定済み日本語検索・native / MCP設定は確認済み。実IMEの `Input.imeSetComposition` は操作許可で拒否されたため、迂回せず本人の変換確定Enter / 次のEnter確認を依頼中。[Chrome記録](progress/remaining-20261011/chrome.md)。compiled scanSummaryの正式hard limit検証は上の後続測定で完了。旧3,312.1ms未達と1,771.5ms / factor1.12のreport-onlyは履歴として保持し、後続結果へ付け替えない。Safari実機は利用者がChrome代替を選択したため今回の必須外。
 2. **Go7k cold 1,500ms:** parser / query / GCの先行候補と正式caseのNOISY / report-only失敗は保持した。[原因と不採用証拠](progress/remaining-20261011/idx-cold.md)、[正式後続](progress/remaining-20261011/idx-formal.json)。Goの同一Node.type再取得を減らす変更は同条件ABBAで中央値2,232.14→1,994.58ms（10.64%短縮）、全行hash・coverage・診断・6Worker一致を確認して採用した。[採用の根拠](progress/remaining-20261011/idx-type-local.md)。最新の正式 `idx.s01.cold.7kfiles` はwarmup1 / measured5、quiet / AC、factor1.037243379882442で中央値1,980.096958ms。hard limit1,500msは未達で、上限やWorker規則は変えていない。後続helper候補のquiet / reference内ABBAも中央値1,853.212792→1,849.252792ms（0.214%）に留まり、3表hash・counters・coverage・6Workerは一致したが採用根拠がなく未採用。
 3. **引用窓:** 保存済みm3e最新版はL1が28pass / 2fail / 8vacuous、Jev品質節は22pass / 1fail / 2vacuous。[source照合](progress/remaining-20261011/quality.citation-review.json)。m3e依存文のimport原文を入力へ補い、複数行importのspecifier行からもbindingsを保持する。既存28k枠・除外・元行・blob・citableと既定値helperをofflineで確認、検証器は緩めていない。文書の再検証もcoreの共通verdictへ統一した。修正後の追加実生成2回はAPI換算保守$0.416844 / 見積枠$0.50で本人の費用承認待ち。ChatGPT認証とAPIキー未設定を確認したが、`credits.hasCredits:true` のため有料credit消費がない保証はできず、$0.50も実請求の上限ではない。今回の統合作業でnative呼出は0。保存済み出力の全引用pass・全文semantic保証とは扱わない。
+
+4. **外部provider本人環境:** Codex・Muse・Ollama・LM Studioの記録とは別に、Antigravityの実接続、Grokの本人ログイン・生成、外部ツール4種での本人設定登録後の文書生成は未確認。公式本人認証やアプリ側の再読込が必要で、設定や認証を勝手に変更しない。[provider別記録](progress/startup-matrix-20261007/README.md)。
+
+後続の初回parse準備修正も、開始factor1.083876に対し終了factor1.124994で基準外だった。正式caseの後続試行も事前factor1.130491でguard停止、scan0回。機能修正と全行hash一致を確認したが、Go7kの正式未達を上書きしない。[guardの記録](progress/remaining-20261011/idx-prewarm.json)。
 
 ### ★.3 利用方針・外部操作・守ること
 

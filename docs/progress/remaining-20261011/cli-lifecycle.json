@@ -1,0 +1,159 @@
+{
+  "format": "mitori.cli-lifecycle-smoke/1",
+  "sourceSha": "df7927732c857845c34cabf99714bbdf9fbb5a23",
+  "initial": {
+    "date": "2026-10-11T11:56:15.969Z",
+    "binarySha256": "f83eeb0f7a34969266c3940d909caf2565b9f4cdb781dab5b78fb7efe6545eea",
+    "selftest": {
+      "code": 0,
+      "result": {
+        "ok": true,
+        "version": "0.0.0",
+        "source": "embedded",
+        "standalone": true,
+        "totalMs": 1042.504917,
+        "checks": {
+          "integrity": {
+            "ok": true,
+            "files": 9,
+            "bytes": 7320426,
+            "mismatched": [],
+            "ms": 17.248542
+          },
+          "web": {
+            "ok": true,
+            "files": 137,
+            "precompressed": 134,
+            "immutable": 135,
+            "ms": 0.17241700000001003
+          },
+          "parse": {
+            "ok": true,
+            "initMs": 11.90125,
+            "langs": [
+              "typescript",
+              "tsx",
+              "javascript",
+              "python",
+              "go",
+              "rust"
+            ],
+            "wrong": [],
+            "ms": 25.156582999999998
+          },
+          "elk": {
+            "ok": true,
+            "nodes": 300,
+            "edges": 459,
+            "bootMs": 90.50483400000002,
+            "firstMs": 208.338417,
+            "warmMs": [
+              138.81529200000006,
+              129.31008299999996,
+              119.03724999999997,
+              112.962042,
+              108.69937500000003
+            ],
+            "warmMedianMs": 119.03724999999997,
+            "ms": 908.5798749999999
+          },
+          "shiki": {
+            "ok": true,
+            "initMs": 14.700042000000002,
+            "langs": [
+              "typescript",
+              "tsx",
+              "javascript",
+              "jsx",
+              "python",
+              "go",
+              "rust",
+              "json",
+              "yaml",
+              "toml",
+              "markdown",
+              "shellscript",
+              "sql"
+            ],
+            "missing": [],
+            "highlight100ColdMs": 54.631833,
+            "highlight100WarmMs": 9.651499999999999,
+            "ms": 87.98504200000002
+          },
+          "sqlite": {
+            "ok": true,
+            "applied": 2,
+            "reapplied": 0,
+            "ms": 3.2952909999999065
+          }
+        }
+      }
+    },
+    "helps": [
+      {
+        "lang": "ja_JP.UTF-8",
+        "code": 0,
+        "includesExport": true,
+        "includesSetup": true
+      },
+      {
+        "lang": "en_US.UTF-8",
+        "code": 0,
+        "includesExport": true,
+        "includesSetup": true
+      }
+    ],
+    "exports": [
+      {
+        "mode": "success",
+        "code": 0,
+        "outputExists": true,
+        "registryRemoved": true
+      },
+      {
+        "mode": "missing-directory",
+        "code": 1,
+        "outputExists": false,
+        "registryRemoved": false
+      }
+    ],
+    "llmCalls": 0,
+    "newDependencies": 0,
+    "additionalCost": 0,
+    "status": "one unexpected failure: missing output directory left the export-started daemon scanning"
+  },
+  "ownedTestDaemonCleanup": {
+    "pid": 42607,
+    "command": "mitori stop against the private test home only",
+    "exitCode": 0
+  },
+  "evidence": {
+    "initialSummarySha256": "b8bfb90eb32086e8b1d3c32e1118e10fb25cd130d7f717488e99153c1d4a0abe",
+    "fixedSummarySha256": "96d7377e724835d430a9402a7ae6f622302bd21ea03e4a439d95726c4df1413f"
+  },
+  "fixedFollowUp": {
+    "date": "2026-10-11T11:59:21.052Z",
+    "binarySha256": "e13368f9bca5a9b99d48010e714a36c737aa41c797de0772f2301d0a937de801",
+    "selftest": null,
+    "helps": [],
+    "exports": [
+      {
+        "mode": "success",
+        "code": 0,
+        "outputExists": true,
+        "registryRemoved": true
+      },
+      {
+        "mode": "missing-directory",
+        "code": 1,
+        "outputExists": false,
+        "registryRemoved": true
+      }
+    ],
+    "llmCalls": 0,
+    "newDependencies": 0,
+    "additionalCost": 0,
+    "status": "success and invalid-output paths have no daemon registry left; valid export writes HTML",
+    "sourceSha": "7326573114eb917ce70ece41df773f1e6cebb337"
+  }
+}

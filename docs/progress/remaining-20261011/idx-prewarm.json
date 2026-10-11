@@ -264,5 +264,38 @@
   "evidence": {
     "rawAbbaSha256": "8552941cee2c6be1ca254ce466aab630631e1dc550efb1920584a8150a6f10e4",
     "controllerSha256": "71b4d539c1ead492a471d60b767b984f0ea7ccf1c792128394041bb025822c72"
+  },
+  "formalGuardFollowUp": {
+    "date": "2026-10-11T11:54:50.750Z",
+    "sourceSha": "df7927732c857845c34cabf99714bbdf9fbb5a23",
+    "status": "guard stopped before scan",
+    "preflight": {
+      "machine": {
+        "cpu": "Apple M5 Max",
+        "cores": 18,
+        "ramGb": 128,
+        "os": "Darwin 27.0.0",
+        "bun": "1.4.2",
+        "node": "22.23.3",
+        "chrome": "153.0.8010.12",
+        "loadavg": 7.78759765625,
+        "noisy": false,
+        "waited": 0,
+        "power": "ac"
+      },
+      "factor": {
+        "factor": 1.1304906512166066,
+        "source": "measured"
+      },
+      "valid": false
+    },
+    "scanCount": 0,
+    "command": "scripts/nd bun /private/tmp/mitori-idx-prewarm-formal-20261011.ts",
+    "rawSha256": "886289cdfd77088a3f55223b9b232b2382b3711b7a2438466b170c314dd9f5a0",
+    "limitsChanged": false,
+    "referenceChanged": false,
+    "workerRuleChanged": false,
+    "llmCalls": 0,
+    "additionalCost": 0
   }
 }

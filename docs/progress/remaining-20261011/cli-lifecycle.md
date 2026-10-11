@@ -14,3 +14,11 @@ exportは自身が実際に起動したchildが存命で、検証済みhealth / 
 - CLI型検査、対象Biome、diff checkが成功。統合 `scripts/nd bun run check` は全7step成功（5.76秒、warm）。
 
 childとdaemon PIDの同一性を証明できない環境では終了しない。起動確認に失敗して所有を証明できない場合も強制終了せず、既存のidle終了処理に任せる。Goldenの変更はない。
+
+## 配布binaryで見つけた追加修正
+
+先行binary `f83eeb0f…` では実export成功後の終了を確認したが、存在しない保存先ではworkspace scan中にfinallyへ入り、idle guardが自身のscanを使用中と判断してdaemonを残した。この失敗を保持し、当該private test homeのdaemonだけを停止した。既知の言語と保存先directoryの検証を接続前へ移し、起動後の保存失敗回帰はsymlink拒否に変更して維持した。
+
+追加回帰3件は旧実装で起動ありの失敗を確認し、修正後はspawn0・workspace POST0・registry無し。最終export対象は18pass / 70assertions、CLI型検査・対象Biome成功。再buildしたbinary `e13368f9bca5a9b99d48010e714a36c737aa41c797de0772f2301d0a937de801` でも、成功時code0 / HTMLあり / registry削除、無効保存先code1 / HTML無し / registry無しを実確認した。先行binaryでは日本語・英語helpとembedded selftest6checksも成功（1,042.505ms）。変更後はexportの2経路だけ再検証し、実LLM呼出0。[失敗と修正後の証跡](cli-lifecycle.json)。
+
+最終sourceでも統合 `scripts/nd bun run check` 全7stepが成功（4.12秒、warm）。

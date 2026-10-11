@@ -65,10 +65,10 @@
 | F5〜F7 | nonfunc | medium | 見送り | 初期 JS の分割、大きな節の分割配信、メモリ |
 | F8 | nonfunc | medium | 見送り | pull 経路の範囲チェックと Undo |
 | F9 | nonfunc | medium | 見送り | formatter の信頼 hash に実体を含めること |
-| F10 | nonfunc | medium | 見送り | 見積りに lean の固定分を足すこと |
+| F10 | nonfunc | medium | 修正（2026-10-11追補） | 既存固定分に加えexact profileのledger実測超過を反映。保守floorを維持、対象40pass。[確認](remaining-20261011/ledger-calibration.md) |
 | F11・F12・F15 | nonfunc | low | 見送り | — |
 | F13 | nonfunc | low | 修正 | `state.sqlite`・`-wal`・`-shm` を 0600 にした。`platform/sqlite/perm.test.ts` |
-| F14 | nonfunc | low | 一部 | 連携の通知を 1 行にした（`open.test.ts`）。`--help` と、export が起こした daemon を止めるのは残り |
+| F14 | nonfunc | low | 修正（2026-10-11追補） | 連携通知に加え既存全体helpを接続。export自身のdaemonだけをidle時に終了し、既存・後接続中は維持。[確認](remaining-20261011/cli-lifecycle.md) |
 | F16 | nonfunc | low | 一部 | EX-01 の `members` により、2 回目以降の open では分割が完全に復元される。`.mitori/` が無い最初の open の揺れは残り |
 
 ## 監査の外で見つけて直したもの
