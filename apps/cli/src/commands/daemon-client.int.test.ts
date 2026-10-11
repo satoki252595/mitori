@@ -37,6 +37,22 @@ describe("CLI-I-002 daemon discovery", () => {
     expect(found.registry.port).toBe(d.port);
   });
 
+  test("native startup and health discovery share the same five-second deadline", async () => {
+    const d = await fake();
+    d.registry(null);
+    const t = testIo({ argv: [], home: d.home, cwd: d.repo });
+    const start = t.clock.now();
+    let now = start;
+    t.clock.now = () => now;
+    t.spawnDaemon = async (_home, deadline) => {
+      expect(deadline).toBe(start + 5000);
+      d.registry();
+      now = deadline;
+    };
+    await expect(ensureDaemon(t, d.home)).rejects.toMatchObject({ code: "E_NOT_READY" });
+    expect(d.seen).toEqual([]);
+  }, 1000);
+
   test("SEC-06 a squatter on the port (wrong proof) never sees the token and counts as no daemon", async () => {
     const squatter = await fake({ healthToken: "not-the-token" });
     expect(await findDaemon(testIo({ argv: [], home: squatter.home, cwd: squatter.repo }), squatter.home)).toBeNull();

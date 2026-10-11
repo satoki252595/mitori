@@ -71,7 +71,7 @@ describe("WP13-CLI-01 export -o", () => {
     d.registry(null);
     if (failure === "output") symlinkSync("repo.mitori.html", join(d.repo, "linked.html"));
     const t = io(failure === "output" ? ["--html", "-o", "linked.html"] : ["--html"]);
-    t.spawnDaemon = (home) => {
+    t.spawnDaemon = async (home) => {
       t.spawned.push(home);
       d.registry();
       return { pid: process.pid, exited: new Promise<number>(() => {}) };
@@ -101,7 +101,7 @@ describe("WP13-CLI-01 export -o", () => {
   ] as const)("cleanup %s preserves the export result (failed=%p)", async (mode, failed) => {
     d.registry(null);
     const t = io(["--html"]);
-    t.spawnDaemon = (home) => {
+    t.spawnDaemon = async (home) => {
       t.spawned.push(home);
       d.registry();
       return { pid: process.pid, exited: new Promise<number>(() => {}) };
@@ -152,7 +152,7 @@ describe("WP13-CLI-01 export -o", () => {
   test.each(["other PID", "exited child"] as const)("a competing daemon is kept when discovery finds %s", async (winner) => {
     d.registry(null);
     const t = io(["--html"]);
-    t.spawnDaemon = (home) => {
+    t.spawnDaemon = async (home) => {
       t.spawned.push(home);
       d.registry();
       return {

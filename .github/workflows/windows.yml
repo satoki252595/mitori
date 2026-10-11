@@ -65,7 +65,8 @@ jobs:
           & $runtime install --frozen-lockfile
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:MITORI_WINDOWS_JOB_LAUNCHER = (Resolve-Path '.native-artifact/node_modules/.cache/mitori-windows-job/windows-job-x64.exe').Path
-          & $runtime test packages/platform/src/spawn/windows-job.test.ts apps/cli/src/build/windows-job.test.ts 2>&1 | Tee-Object -FilePath windows-native-tests.log
+          $env:MITORI_BIN = $runtime
+          & $runtime test packages/platform/src/spawn/windows-job.test.ts apps/cli/src/build/windows-job.test.ts apps/cli/src/commands/windows-bootstrap.test.ts 2>&1 | Tee-Object -FilePath windows-native-tests.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Compiled Windows binary and embedded Workers
         shell: pwsh

@@ -9,8 +9,8 @@
  *   doc), then opens the browser through a one-time login URL unless `--no-open`, `ui.openBrowser = false` or a tab is
  *   already connected [UXP-01]. With a daemon running (lock held → `E_CONFLICT`): verify it (health proof, SEC-06),
  *   apply the version rule, open the workspace there, print its URL and exit.
- * - `mitori _serve --detached`: the headless daemon the client commands start; it never writes to stdio (the parent
- *   exits and closes the pipes) and exits 0 quietly when another daemon won the race for the lock (CR m1-5).
+ * - `mitori _serve --detached`: the headless daemon the client commands start; it keeps stdio quiet after an optional
+ *   private startup PID notification, and exits 0 quietly when another daemon won the lock (CR m1-5).
  *
  * The module graph of the daemon (`./server.ts` → `@mitori/server`) is imported only on the daemon paths, so client
  * commands start in milliseconds.
@@ -110,6 +110,7 @@ export async function runDaemon(mode: "open" | "serve", argv: readonly string[],
   }
   const { values, positionals } = parsed;
   const detached = mode === "serve" && values.detached === true;
+  if (values["startup-ack"] && !detached) return fail("--startup-ack is for _serve --detached");
   const port = Number(values.port ?? process.env.MITORI_PORT ?? 0);
   if (!Number.isInteger(port) || port < 0 || port > 65535) return fail(`invalid port ${values.port ?? process.env.MITORI_PORT}`);
   if (mode === "open" && values.detached) return fail("--detached is for _serve");
@@ -148,6 +149,7 @@ export async function runDaemon(mode: "open" | "serve", argv: readonly string[],
   });
   // stdout carries the URL only (testing spec RQ-CLI-1: scripts, CI and eval read it)
   if (!detached) process.stdout.write(`${d.url}\n`);
+  else if (values["startup-ack"]) process.stdout.write(`mitori-daemon-pid ${process.pid}\n`);
   if (target !== null) {
     const t = target;
     void openWorkspace(d, home, t, values.force === true, version, open).catch((err: unknown) => {
@@ -166,6 +168,12 @@ function parse(argv: readonly string[]) {
     args: [...argv],
     allowPositionals: true,
     strict: true,
-    options: { "no-open": { type: "boolean" }, force: { type: "boolean" }, port: { type: "string" }, detached: { type: "boolean" } },
+    options: {
+      "no-open": { type: "boolean" },
+      force: { type: "boolean" },
+      port: { type: "string" },
+      detached: { type: "boolean" },
+      "startup-ack": { type: "boolean" },
+    },
   });
 }

@@ -6,7 +6,8 @@
  */
 import type { IntegrationStatusView } from "@mitori/core";
 import { MitoriError } from "@mitori/core";
-import { createSpawner } from "@mitori/platform";
+import { createSafeWriter, createSpawner } from "@mitori/platform";
+import { materializeWindowsJob } from "../build/windows-job.ts";
 import { oneOf, parse } from "./args.ts";
 import { helpLang } from "./help.ts";
 import { type Io, usage } from "./io.ts";
@@ -88,8 +89,11 @@ export async function run(io: Io): Promise<number> {
     io.out(`${lang === "ja" ? "次に実行" : "next"}:\n${next.map((c) => `  ${c}\n`).join("")}`);
     return 0;
   }
-  const spawner = createSpawner();
-  for (const cmd of next.filter((c) => c.startsWith("claude plugin "))) {
+  const commands = next.filter((c) => c.startsWith("claude plugin "));
+  if (commands.length === 0) return 0;
+  const windowsJobLauncher = process.platform === "win32" ? await materializeWindowsJob(s.home, createSafeWriter()) : undefined;
+  const spawner = createSpawner(windowsJobLauncher ? { windowsJobLauncher } : {});
+  for (const cmd of commands) {
     const [command, ...argv] = cmd.replace("~/", `${io.env.HOME ?? ""}/`).split(" ") as [string, ...string[]];
     const child = spawner.spawn({
       command,

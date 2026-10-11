@@ -1,5 +1,5 @@
 /* argv-only Windows launcher. The child is assigned to the job before its first instruction;
- * closing our non-inherited job handle always kills every descendant, including after the leader exits.
+ * group mode contains every descendant, while explicit single-process mode controls only the leader.
  * Build only via the repository Nix windowsCross shell. No shell, DLL/plugin loading, or user config. */
 #ifndef UNICODE
 #define UNICODE 1
@@ -109,14 +109,17 @@ invalid:
 }
 
 int wmain(int argc, wchar_t **argv) {
+    int option = 1;
+    BOOL process_group = TRUE;
+    if (argc > 1 && wcscmp(argv[1], L"--single-process") == 0) { process_group = FALSE; option++; }
     int count = 0;
-    if (argc < 5 || wcscmp(argv[1], L"--env-count") != 0 || !argv[2][0]) goto invalid_arguments;
-    for (const wchar_t *p = argv[2]; *p; p++) {
+    if (argc < option + 4 || wcscmp(argv[option], L"--env-count") != 0 || !argv[option + 1][0]) goto invalid_arguments;
+    for (const wchar_t *p = argv[option + 1]; *p; p++) {
         if (*p < L'0' || *p > L'9' || count > argc) goto invalid_arguments;
         count = count * 10 + (*p - L'0');
     }
-    int first = count + 4;
-    if (count > argc - 5 || wcscmp(argv[first - 1], L"--") != 0 || wcslen(argv[first]) < 3 || !absolute(argv[first])) {
+    int first = count + option + 3;
+    if (count > argc - option - 4 || wcscmp(argv[first - 1], L"--") != 0 || wcslen(argv[first]) < 3 || !absolute(argv[first])) {
 invalid_arguments:
         fprintf(stderr, "mitori windows job: explicit environment names, an absolute executable and literal argv are required\n");
         return 125;
@@ -132,6 +135,8 @@ invalid_arguments:
     if (!job) { int code = failure("CreateJobObjectW"); HeapFree(GetProcessHeap(), 0, line); return code; }
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limit = {0};
     limit.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    /* processGroup=false still needs exact env and reliable leader kill, but must not contain descendants. */
+    if (!process_group) limit.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK;
     if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limit, sizeof(limit))) {
         int code = failure("job limit"); CloseHandle(job); HeapFree(GetProcessHeap(), 0, line); return code;
     }
@@ -162,7 +167,7 @@ invalid_arguments:
         !UpdateProcThreadAttribute(attrs, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST, &job, sizeof(job), NULL, NULL)) {
         status = failure("atomic job/handle attributes (Windows 10+ required)"); goto cleanup;
     }
-    env = child_environment(count, argv + 3);
+    env = child_environment(count, argv + option + 2);
     if (!env) { status = failure("child environment"); goto cleanup; }
     STARTUPINFOEXW start = {0};
     start.StartupInfo.cb = sizeof(start);
@@ -185,7 +190,7 @@ invalid_arguments:
         else status = (int)code;
     }
     CloseHandle(child.hProcess);
-    /* No BREAKAWAY_OK or SILENT_BREAKAWAY_OK: nested process groups cannot escape this job. */
+    /* Group mode never permits breakaway; single-process mode deliberately leaves descendants outside this job. */
 cleanup:
     if (env) HeapFree(GetProcessHeap(), 0, env);
     if (attrs) { DeleteProcThreadAttributeList(attrs); HeapFree(GetProcessHeap(), 0, attrs); }

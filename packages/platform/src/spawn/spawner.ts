@@ -12,7 +12,7 @@ import { type WindowsJobLauncher, windowsJobArgv, windowsJobExecutable } from ".
 export interface SpawnerOptions {
   /** SAFE_PATH ({@link resolveSafePath}); when set, every child's PATH is exactly this value [SEC-10]. */
   safePath?: string;
-  /** Verified native Job Object asset; required for Windows processGroup, never a shell/taskkill fallback. */
+  /** Verified native asset; required for every Windows child to preserve its exact environment. */
   windowsJobLauncher?: WindowsJobLauncher;
 }
 
@@ -55,10 +55,10 @@ export function createSpawner(opts: SpawnerOptions = {}): Spawner {
       if (opts.safePath !== undefined) env.PATH = opts.safePath;
       const pipeIn = spec.stdin.length > 0 || spec.keepStdinOpen;
       const command = resolveCommand(spec.command, env.PATH);
-      const windowsGroup = process.platform === "win32" && spec.processGroup;
-      const launcher = windowsGroup ? windowsJobExecutable(opts.windowsJobLauncher) : null;
-      if (windowsGroup && !isAbsolute(command)) throw new MitoriError("E_INVALID_INPUT", "Windows job child requires an absolute executable");
-      const argv = launcher ? [launcher, ...windowsJobArgv(command, spec.argv, env)] : [command, ...spec.argv];
+      const windows = process.platform === "win32";
+      const launcher = windows ? windowsJobExecutable(opts.windowsJobLauncher) : null;
+      if (windows && !isAbsolute(command)) throw new MitoriError("E_INVALID_INPUT", "Windows launcher child requires an absolute executable");
+      const argv = launcher ? [launcher, ...windowsJobArgv(command, spec.argv, env, spec.processGroup)] : [command, ...spec.argv];
       let proc: ReturnType<typeof Bun.spawn<"pipe" | "ignore", "pipe", "pipe">>;
       try {
         proc = Bun.spawn(argv, {
@@ -67,7 +67,7 @@ export function createSpawner(opts: SpawnerOptions = {}): Spawner {
           stdin: pipeIn ? "pipe" : "ignore",
           stdout: "pipe",
           stderr: "pipe",
-          detached: !windowsGroup && spec.processGroup,
+          detached: spec.processGroup,
         });
       } catch (cause) {
         const code = (cause as { code?: string }).code ?? "?";
@@ -113,8 +113,8 @@ export function createSpawner(opts: SpawnerOptions = {}): Spawner {
         kill(signal) {
           try {
             // the group outlives its leader: grandchildren still get the signal after the leader exited
-            // Windows has no cooperative POSIX SIGINT here. Terminating the wrapper closes its private job handle.
-            if (windowsGroup) {
+            // Windows wrapper exit closes its private job: the leader alone, or the full group as requested.
+            if (windows) {
               if (!done) proc.kill("SIGKILL");
             } else if (spec.processGroup) process.kill(-proc.pid, signal);
             else if (!done) proc.kill(signal);

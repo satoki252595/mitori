@@ -23,3 +23,11 @@ MacのNix Bunで、native asset / extraction / build record / spawnerの対象4�
 **最新headの再確認:** [run 38115528185](https://github.com/satoki252595/mitori/actions/runs/38115528185)（`23645fdc7100e02e5f6b63bbbde2b33c59b1c79f`）もNix crossbuild / Windows nativeとも成功した。[native job 114400007117](https://github.com/satoki252595/mitori/actions/runs/38115528185/job/114400007117)のcheckout SHAとAPIのhead SHAが一致し、source testsは**7成功・0skip・0失敗**、2ファイル・33 assertions・**4.20秒**。`--version` は同じ `mitori 0.0.0 (api 1)`、embedded / standalone `_selftest` は同じ**6 checksすべて成功**、計**2,606.378ms**だった。前回525260dの時間値は上に残し、最新runへ付け替えていない。
 
 [最新の証跡artifact](https://github.com/satoki252595/mitori/actions/runs/38115528185/artifacts/11692704229)のselftest JSONはnative実ログと一致し、ダウンロードした2 artifactsのZIP digest / sizeもGitHub APIと一致した。[製品artifact](https://github.com/satoki252595/mitori/actions/runs/38115528185/artifacts/11693273084)内のEXEは94,430,208 bytes、SHA-256 `3e1d25c49fbb36b5974a4ec6036a3d9bc8ebcb81cc21d8d078b85143cf189e04`。native launcherは60,416 bytes / `ab791a37e55b5e0c682dfa13189295d645940c9e2a129211f2027e37839d4df2`で実crossbuildログと一致した。EXEはMacでは実行せず、hashだけを取得した。初回失敗・前回成功・最新成功を [windows-env.json](windows-env.json) に分けて保存した。これはWindows対象の結果であり、PR全体のCI完了を意味しない。
+
+## 後続修正：非groupの環境とCLI自動起動
+
+上の非group経路の制限も修正対象にした。Windowsの全Spawner起動にverified native assetを必須とし、`processGroup:false`だけ`--single-process`を付ける。明示した環境名だけを渡す既存protocolを共用し、単独起動はleaderだけ、group起動は子孫まで停止する。[Job Objectの仕様](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects)に従い、SILENT_BREAKAWAY_OKは単独起動に限定する。group側のbreakaway禁止、原子的JOB_LIST、stdio、literal引数とstrict equalityは維持した。
+
+CLIの自動daemon起動にはasset準備が無く、native wrapperのPIDを実daemonのPIDとして比較する別の不具合もあった。assetを必要時だけ展開し、親CLI終了後もwrapperを維持する。lockを取ったdaemonだけが専用pipeへ実PIDを一度通知し、既存のregistry / HMAC healthとのPID一致と子未終了を所有証明に使う。敗者・不正通知・期限切れでは所有を付与しない。準備・通知・health待ちは既存の5秒期限を共有する。固定version probeと明示plugin実行にも同じassetを配線した。
+
+MacのNix環境ではplatform対象19pass / Windows限定6skip / 0fail、CLI所有権・期限28pass / 0fail、installer・discovery36pass / 0fail（discoveryは重複）、version probe3pass / 0fail。最終全7checkは4.50秒で成功。配布EXEを外部asset無しの一時フォルダへコピーするWindows限定2ケースを追加し、cold export後のregistry削除、scanの親終了後の存続、既存daemonのexport再利用と明示停止を確認する。Macではこの2件はskipで、後続native実行はまだ未確認。実LLM・認証操作・追加LLM費用は0。現在の結果は [windows-env.json](windows-env.json) の `singleProcessAndBootstrap20261011` を参照。

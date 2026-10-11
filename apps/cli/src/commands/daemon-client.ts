@@ -152,12 +152,16 @@ export async function ensureDaemon(io: Io, home: string, opts: { restart?: boole
       });
     if (!(await stopDaemon(io, found, "version", home))) throw new MitoriError("E_CONFLICT", `the v${found.health.version} daemon did not stop`);
   }
-  const child = io.spawnDaemon(home);
+  const deadline = io.clock.now() + DAEMON_WAIT.startMs;
+  const child = await io.spawnDaemon(home, deadline);
   let exited = false;
   void child?.exited.then(() => {
     exited = true;
   });
-  const d = await waitFor(io, DAEMON_WAIT.startMs, () => findDaemon(io, home, 500));
+  const d = await waitFor(io, Math.max(0, deadline - io.clock.now()), () => {
+    const remaining = deadline - io.clock.now();
+    return remaining > 0 ? findDaemon(io, home, Math.min(500, remaining)) : null;
+  });
   if (!d) throw new MitoriError("E_NOT_READY", "the mitori daemon did not start", { hint: `see ${home}/logs` });
   return child?.pid === d.registry.pid && !exited ? { ...d, startedHere: true } : d;
 }
