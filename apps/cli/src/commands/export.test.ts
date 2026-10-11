@@ -3,7 +3,7 @@
  * is covered in commands.test.ts and against the real daemon in e2e/export/export.int.test.ts.
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { runCommand } from "./index.ts";
 import { ApiFail, type FakeDaemon, startFakeDaemon, testIo } from "./test/fake-daemon.ts";
@@ -54,9 +54,23 @@ describe("WP13-CLI-01 export -o", () => {
     expect(readFileSync(join(d.repo, "docs", "design.html"), "utf8")).toContain("<title>doc</title>");
   });
 
+  test.each([
+    [["--html", "-o", "missing/export.html"], 1],
+    [["--html", "-o", "missing/"], 1],
+    [["--html", "--lang", "fr"], 2],
+  ] as const)("invalid input %p is rejected before starting a daemon", async (argv, code) => {
+    d.registry(null);
+    const t = testIo({ argv: [...argv], home: d.home, cwd: d.repo, onSpawn: () => d.registry() });
+    expect(await runCommand("export", t)).toBe(code);
+    expect(t.spawned).toEqual([]);
+    expect(d.calls("POST /workspaces")).toEqual([]);
+    expect(existsSync(join(d.home, "daemon.json"))).toBe(false);
+  });
+
   test.each(["success", "workspace", "export", "output"] as const)("the daemon started only for export stops after %s", async (failure) => {
     d.registry(null);
-    const t = io(failure === "output" ? ["--html", "-o", "missing/"] : ["--html"]);
+    if (failure === "output") symlinkSync("repo.mitori.html", join(d.repo, "linked.html"));
+    const t = io(failure === "output" ? ["--html", "-o", "linked.html"] : ["--html"]);
     t.spawnDaemon = (home) => {
       t.spawned.push(home);
       d.registry();
