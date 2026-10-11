@@ -15,7 +15,7 @@ import { createGitSafety, type GitSafetyHandle } from "../git/safety.ts";
 import { createReviewEngine } from "../review/engine.ts";
 import { deriveWriteScope } from "../router/index.ts";
 import { captureAnchor, captureSync } from "./capture.ts";
-import { scopeCtx } from "./plan.ts";
+import { type PlanDeps, scopeCtx } from "./plan.ts";
 import { createJobRunner, type JobRunnerHandle } from "./runner.ts";
 
 /**
@@ -159,6 +159,8 @@ export function createLoop(deps: LoopDeps): Loop & LoopLifecycle {
     bundles,
     settings: deps.settings,
     engines: deps.engines,
+    fixedOverhead: (profile: Parameters<NonNullable<PlanDeps["fixedOverhead"]>>[0]) =>
+      deps.fixedOverhead?.(deps.hasher.xxh3(`${profile.engine}\n${profile.mode}\n${profile.model}\n${profile.promptVer}`)) ?? null,
     random: deps.random,
     clock: deps.clock,
     unwritable: (paths: readonly RepoPath[]) => git.unwritable(paths, (p) => deps.indexer.currentBlob(p)),

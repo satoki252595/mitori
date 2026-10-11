@@ -23,6 +23,7 @@ import { runAgent, runAgentConsentRepair, runAgentRevision } from "../agent/run.
 import type { JobRunner } from "../contract.ts";
 import { externalPatch } from "../external/patch.ts";
 import { ACTIVE, type JobRunnerDeps, RunnerCore, Stop } from "./core.ts";
+import { profileOf } from "./engine.ts";
 import { consentRetry, runAnswer, runConsentRepair, runPatch, runRevision } from "./pipeline.ts";
 import { type JobPlan, jobEstimate, type PlanDeps, planJob, withThreadContext } from "./plan.ts";
 import { accept, commit, commitRequest, reject, runGates, undo } from "./review-ops.ts";
@@ -101,8 +102,15 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
     if (known) {
       const before = known.estimate.inTokens + known.estimate.outTokens;
       const after = p.estimate.inTokens + p.estimate.outTokens;
-      if (Math.abs(after - before) > before * DRIFT || (p.estimate.requiresConfirm && req.confirm !== true))
-        throw new MitoriError("E_CONFLICT", "the estimate changed; confirm the new one", { params: { estimateId: p.id, tokens: after } });
+      const beforeTotal = before + known.estimate.cacheReadTokens + known.estimate.cacheWriteTokens;
+      const afterTotal = after + p.estimate.cacheReadTokens + p.estimate.cacheWriteTokens;
+      // Fixed cache reads must not dilute the original input/output drift; cache growth also needs confirmation.
+      if (
+        Math.abs(after - before) > before * DRIFT ||
+        Math.abs(afterTotal - beforeTotal) > beforeTotal * DRIFT ||
+        (p.estimate.requiresConfirm && req.confirm !== true)
+      )
+        throw new MitoriError("E_CONFLICT", "the estimate changed; confirm the new one", { params: { estimateId: p.id, tokens: afterTotal } });
     }
     return p;
   }
@@ -163,14 +171,7 @@ export function createJobRunner(deps: JobRunnerDeps, plan: Omit<PlanDeps, "revie
 
   /** The write scope a job of `p` locks and is post-checked against (answers write nothing). */
   const writesOf = (p: JobPlan) => (p.mode === "patch" || p.mode === "agent" ? p.scope.writeScope : []);
-  const promptVerOf = (p: JobPlan) =>
-    (p.mode === "patch"
-      ? "loop.patch@1"
-      : p.mode === "agent"
-        ? "loop.agent@1"
-        : p.mode === "findings"
-          ? "loop.findings@1"
-          : "loop.answer@1") as Job["promptVer"];
+  const promptVerOf = (p: JobPlan) => profileOf(p).promptVer;
 
   function newRecord(p: JobPlan, attempt = 1): JobRecord {
     const j: Job = {

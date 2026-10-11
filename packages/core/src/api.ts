@@ -1760,7 +1760,7 @@ export interface ApiRoutes {
   // --- daemon / global -------------------------------------------------------
   "GET /health": Route<Empty, { challenge?: string }, undefined, HealthRes>;
   "GET /daemon": Route<Empty, Empty, undefined, DaemonStatus>;
-  "POST /daemon/shutdown": Route<Empty, Empty, { reason?: string; force?: boolean }, Ok>;
+  "POST /daemon/shutdown": Route<Empty, Empty, { reason?: string; force?: boolean; onlyIfIdle?: boolean }, Ok>;
   "POST /auth/nonce": Route<Empty, Empty, { to?: string }, NonceRes>;
   "POST /auth/exchange": Route<Empty, Empty, AuthExchangeReq, AuthExchangeRes>;
   "POST /auth/logout": Route<Empty, Empty, undefined, Ok>;

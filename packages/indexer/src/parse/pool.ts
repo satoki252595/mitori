@@ -64,7 +64,7 @@ export class ParsePool {
       scope: "main",
       skipContentRules: true,
     }));
-    for (let i = 0; i < pool.size(); i++) void pool.run({ id: this.nextId++, items }).catch(() => undefined);
+    for (let i = 0; i < Math.max(1, n); i++) void pool.run({ id: this.nextId++, items }).catch(() => undefined);
   }
 
   /**

@@ -14,6 +14,9 @@
 | Codex並列生成の予算予約 | shared preflightで送信直前に合算判定。途中本文・usage保持と同額resumeを対象37tests / 224 assertionsで確認 | API換算の推計上限。hidden reasoningを含む実請求の厳密capではない | [codex-budget.md](codex-budget.md) |
 | Linux cold check | testkitの既存home subpathへimportを絞り、全20semantic診断を維持。ARM同条件ABBAは4回ともhard limit内 | soft targetは未達、統合headのUbuntu x64 CIでの確認は別 | [cold-home.md](cold-home.md) |
 | Go7k cold scan | Goの同一Node.type再取得を減らす変更を採用。最新正式5run / warmup1はquiet / AC・factor1.037243379882442で中央値1,980.096958ms | **hard limit1,500msは未達**。先行ABBAの10.64%短縮・全行hash一致も保持 | [採用変更](idx-type-local.md)、[先行不採用](idx-cold.md)、[正式測定の前後](idx-formal.json) |
+| 初回parse準備 | lazy poolのsize0でprewarmが送られない原因を1行修正。回帰6pass / 20assertions、ABBAで3表の全行hash・coverage・counters一致 | 終了較正factor1.124994が基準外。後続正式試行も事前factor1.130491でscan0回。全体速度の改善・hard limit合格は未証明 | [原因と比較](idx-prewarm.md) |
+| F10の実績較正 | 既存ledgerをexact profileで見積りへ接続。対象40pass、保守floor・USD cap・confidence25維持 | 既存EMAは保持。実精度・実請求の保証なし | [較正の確認](ledger-calibration.md) |
+| F14のCLI案内・終了処理 | 既存help接続、自身が起動したdaemonだけ終了対象。後接続・作業中は同期idle guardで維持。対象回帰・統合check成功 | 起動者のPID同一性を証明できない環境では停止しない | [終了処理の確認](cli-lifecycle.md) |
 | UI / assets / a11y | 読書位置修正後のcompiledはstrict asset全項目pass・初期JS54.697KB gzip。最新正式scanSummaryはquiet / AC・3run / warmup1で中央値1,615.700ms、hard limit2,000ms合格 | target1,000msはWARN。旧1,771.5ms / factor1.12のreport-onlyは履歴として保持 | [最新assets](reader-fix-assets.json)、[先行UI記録](ui-bench-release.md) |
 | Mac正式CI | head98c59a6 / attempt6はquiet / AC・factor1.017953727365694でbrowser380pass / 14skip / 0fail、共有2pass / 0fail、a11y8pass | 同じNix固定runnerのforeground実行で成功。LaunchAgent配下との実子priority差は観測したが、厳密なQoSや根因は未確定。元のサービスは復元済み | [CI記録](ci.md) |
 | Windows | head23645fdのNix crossbuildと実Windowsのsource tests7pass / 0skip / 0fail（33assert / 4.20s）、製品`--version`とembedded selftest6checksすべて成功 | verified Job Object経路の対象検証。非group直接Bun.spawnには標準環境変数の補充が残る | [最新Windows CI](https://github.com/satoki252595/mitori/actions/runs/38115528185)、[windows-nix.md](windows-nix.md)、[windows-env.md](windows-env.md) |
@@ -48,6 +51,8 @@ UIは初回nonce競合、仮想化アンカー、節移動でのengine再検出�
 WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別ダウンロードを廃止した。[初回native run](https://github.com/satoki252595/mitori/actions/runs/38096491256)は5pass / 1fail。exact environmentだけが失敗し、引数 / stdio / 終了コードと子孫停止は成功した。環境「名」だけを渡すプロトコルで、Job Object経由の子へ明示した変数だけを渡す修正を実装した。既存native4ケースを維持し、portable protocol test1件と空値・非ASCII環境を追加。Nix crossbuild、Mac対象19pass / Windows限定4skip、platform型検査・整形は成功。[前回CI](https://github.com/satoki252595/mitori/actions/runs/38112767631)は525260dで7pass / 0skip / 0fail・33 assertions・4.38秒、selftest6checks成功。[最新Windows CI](https://github.com/satoki252595/mitori/actions/runs/38115528185)は `23645fdc7100e02e5f6b63bbbde2b33c59b1c79f` でcrossbuild / nativeとも成功し、同じ7pass / 0skip / 0fail・33 assertions・4.20秒、製品`--version`とembedded `_selftest` 6checks成功・2,606.378msだった。製品EXE SHA-256は `3e1d25c49fbb36b5974a4ec6036a3d9bc8ebcb81cc21d8d078b85143cf189e04`、API / 実ログ / artifactを照合済み。Windowsの非group直接Bun.spawn経路には標準環境変数の補充が残る。PR全体のCI結果は別途確認する。
 
 ## 次の確認
+
+旧監査の再照合で見つけたF10の実績較正とF14のCLI help・export終了処理は後続branchで修正・対象検証済み。mainへの統合とCIは別途記録する。
 
 1. 本人による実Chrome日本語IMEの変換確定Enter / 次のEnterを確認する。compiled scanSummaryの正式検証はhard limit合格で完了し、target WARNは保持する。
 2. Go7kの最新正式中央値1,980.096958msはhard limit1,500ms未達。後続helper候補も0.214%差で未採用。Jev / m3eは引用用import入力と共通verdictを修正し、追加実生成2回の費用承認待ち。有料creditを使わない保証はできず、API換算$0.50も実請求の上限ではない。Windowsの今回対象は最終CIで完了した。

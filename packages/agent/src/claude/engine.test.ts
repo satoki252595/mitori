@@ -326,6 +326,7 @@ describe("claude-cli engine over a scripted CLI", () => {
     expect(r.stop).toBe("error");
     expect(r.error?.code).toBe("E_AGENT_TIMEOUT");
     expect(r.usageEstimated).toBe(true);
+    expect(b.ledger.fixedOverhead(testHasher.xxh3("claude-cli\nanswer\nclaude-sonnet-5-5\nloop.answer@1"))).toBeNull();
     expect(b.ledger.rows).toHaveLength(1);
   });
 
@@ -419,6 +420,17 @@ describe("claude-cli engine over a scripted CLI", () => {
     expect(o?.n).toBe(1);
     expect(o?.tokens).toBeGreaterThan(2950);
     expect(o?.tokens).toBeLessThanOrEqual(3000);
+  });
+
+  test("resumed conversation input never becomes a fixed-overhead sample", async () => {
+    const b = createTestBridge({
+      spawner: createFakeSpawner().script(isClaude, cassetteScript(synth.text("ok", { usage: { input_tokens: 3000, output_tokens: 40 } }))),
+      settings: { engines: { "claude-cli": { persistSessions: true } } },
+    });
+    const r = await b.scheduler.submit(req("answer", { resume: "0f8fad5b-d9cb-469f-a165-70867728950e", persistSession: true }), ctl()).result;
+    expect(r.stop).toBe("end");
+    expect(r.usageEstimated).toBe(false);
+    expect(b.ledger.fixedOverhead(testHasher.xxh3("claude-cli\nanswer\nclaude-sonnet-5-5\nloop.answer@1"))).toBeNull();
   });
 
   test("AGT-U-027 detect: version/auth/help probes; missing binary pin, API-key auth and --bare default are problems", async () => {

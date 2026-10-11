@@ -1,7 +1,7 @@
 // Job planning (spec §3 + §4 + §8 intro): threads → write scope → patch-bundle size → router decision → final bundle →
 // estimate. Deterministic and token-free; the plan is remembered by estimate id so `create` reuses it (≤ 100 ms).
 
-import { agentPathsOk } from "@mitori/agent";
+import { agentPathsOk, type ScheduledRequest, type UsageLedger } from "@mitori/agent";
 import {
   type BlockId,
   type BlockKind,
@@ -38,6 +38,7 @@ import { mergeContexts, writeRemovals } from "../review/context.ts";
 import { deriveWriteScope, route } from "../router/index.ts";
 import { touchingClaims } from "../router/ranges.ts";
 import type { ScopeCtx, ScopeResult } from "../router/scope.ts";
+import { profileOf } from "./engine.ts";
 
 /** A planned job. */
 export interface JobPlan {
@@ -75,6 +76,8 @@ export interface PlanDeps {
   bundles: BundleBuilder;
   settings: () => EffectiveSettings;
   engines: () => EngineStatus[];
+  /** Exact-profile measured overhead only; absent samples keep the conservative defaults. */
+  fixedOverhead?: (profile: Pick<ScheduledRequest, "engine" | "mode" | "model" | "promptVer">) => ReturnType<UsageLedger["fixedOverhead"]>;
   random: Random;
   clock: Clock;
   /** SEC-18 unwritable paths among `paths`. */
@@ -98,8 +101,8 @@ const ESTIMATE_TTL_MS = 10 * 60_000;
  * F10: the engine's OWN fixed input per call, on top of mitori's system prompt + schema (the bundle's `fixed` item):
  * the CLI's lean system prompt and tool definitions, read from the prompt cache. From the ledger (nonfunc audit §1.5):
  * Explain 1,249 → 1,958 input tokens, patch 2,039 → 3,281 and ≈2k → 3,386 — 0.7k (answer) and ≈1.25k (patch) every
- * time. The agent's 4.5k `fixed` item already counts its tool definitions. [仮, CT-08 bounds; per-profile
- * calibration (`UsageLedger.fixedOverhead`) is not wired into loop.]
+ * time. The agent's 4.5k `fixed` item already counts its tool definitions. [仮, CT-08 bounds]. Exact-profile ledger
+ * samples count ALL fixed input, so only their excess over the bundle's fixed item + this floor is added.
  */
 export const ENGINE_FIXED_EXTRA: Partial<Record<EngineId, Partial<Record<BundleMode, number>>>> = {
   "claude-cli": { answer: 700, findings: 1250, patch: 1250 },
@@ -111,9 +114,16 @@ export const ENGINE_FIXED_EXTRA: Partial<Record<EngineId, Partial<Record<BundleM
 export const AGENT_EXPECTED_CALLS = 4;
 
 /** F10: what a job's calls read besides the bundle — the engine's fixed part (first call) and the agent's further round-trips. */
-export function cachedReads(engine: EngineId, mode: BundleMode, bundleTokens: number): { extra: number; cacheReadTokens: number } {
-  const extra = ENGINE_FIXED_EXTRA[engine]?.[mode] ?? 0;
-  return { extra, cacheReadTokens: extra + (mode === "agent" ? (bundleTokens + extra) * (AGENT_EXPECTED_CALLS - 1) : 0) };
+export function cachedReads(
+  engine: EngineId,
+  mode: BundleMode,
+  bundleTokens: number,
+  fixed = 0,
+  sample: ReturnType<UsageLedger["fixedOverhead"]> = null,
+): { extra: number; cacheReadTokens: number; calibrationN: number } {
+  const measured = sample && Number.isFinite(sample.tokens) && sample.tokens > 0 && Number.isSafeInteger(sample.n) && sample.n > 0 ? sample : null;
+  const extra = Math.max(ENGINE_FIXED_EXTRA[engine]?.[mode] ?? 0, measured ? Math.ceil(measured.tokens - fixed) : 0);
+  return { extra, cacheReadTokens: extra + (mode === "agent" ? (bundleTokens + extra) * (AGENT_EXPECTED_CALLS - 1) : 0), calibrationN: measured?.n ?? 0 };
 }
 
 /** Engines' capabilities the router needs. */
@@ -281,7 +291,9 @@ export async function planJob(deps: PlanDeps, req: JobReq, opts: PlanOptions = {
   // 3. estimate — the bundle (fresh input) plus what every call also reads from the cache (F10): the engine's own fixed
   // part, and for agent mode the context re-sent by each further tool round-trip
   const inTokens = sum(bundle);
-  const { extra, cacheReadTokens } = cachedReads(outcome.engine, mode, inTokens);
+  const sample = mode === "pull" || mode === "copy" ? null : (deps.fixedOverhead?.(profileOf({ mode, route: outcome })) ?? null);
+  const fixed = bundle.items.filter((item) => item.kind === "fixed").reduce((tokens, item) => tokens + item.tokens, 0);
+  const { extra, cacheReadTokens, calibrationN } = cachedReads(outcome.engine, mode, inTokens, fixed, sample);
   const outTokens = OUT_CAP[mode];
   const apiUsd = price(outcome.decision.model, inTokens, outTokens, cacheReadTokens, providerPrices(outcome.engine, s.global.engines));
   const total = inTokens + cacheReadTokens + outTokens;
@@ -307,7 +319,7 @@ export async function planJob(deps: PlanDeps, req: JobReq, opts: PlanOptions = {
     windowDeltaPct: null,
     billing: status?.billing ?? "unknown",
     confidencePct: 25,
-    calibrationN: 0,
+    calibrationN,
     band: tokenBand(total),
     items: bundle.items,
     requiresConfirm: reasons.length > 0,

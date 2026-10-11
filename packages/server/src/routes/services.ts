@@ -44,8 +44,8 @@ export interface DaemonInfo {
 
 /** Lifecycle hooks and global status the daemon owns. */
 export interface DaemonControl {
-  /** Begin the graceful stop (the HTTP response goes out first). */
-  shutdown(reason: string, force: boolean): void;
+  /** Begin the graceful stop; `onlyIfIdle` refuses atomically when another client or work is active. */
+  shutdown(reason: string, force: boolean, onlyIfIdle?: boolean): boolean;
   shuttingDown(): boolean;
   scheduler(): SchedulerStatus;
   engines(): EngineStatus[];

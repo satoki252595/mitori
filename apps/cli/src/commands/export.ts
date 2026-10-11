@@ -5,15 +5,16 @@
  * (atomic, no symlink target).
  */
 import { realpathSync, statSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import type { DocLang, ReaderLevel } from "@mitori/core";
 import { MitoriError } from "@mitori/core";
 import { createSafeWriter } from "@mitori/platform";
 import { oneOf, parse } from "./args.ts";
+import { readRegistry, stopDaemon } from "./daemon-client.ts";
 import { helpLang } from "./help.ts";
 import { type Io, usage } from "./io.ts";
-import { connectWorkspace } from "./session.ts";
-import { whenReady } from "./workspace.ts";
+import { connect } from "./session.ts";
+import { openWorkspace, whenReady } from "./workspace.ts";
 
 const isDir = (p: string): boolean => {
   try {
@@ -39,39 +40,51 @@ export async function run(io: Io): Promise<number> {
   );
   if (values.html !== true || positionals.length > 0) throw usage("usage: mitori export --html [-o <file|dir>] [--no-code]", "mitori export --help");
   const level: ReaderLevel = oneOf(values.level, ["newcomer", "standard", "expert"] as const, "level", "export") ?? "standard";
-  const s = await connectWorkspace(io);
-  const lang: DocLang = oneOf(values.lang, ["ja", "en"] as const, "lang", "export") ?? s.ws.doc.lang ?? "ja";
-  const name = `${s.ws.info.name.replace(/[^A-Za-z0-9._-]+/g, "-")}.mitori.html`;
-  // `-o some/dir` (an existing directory, or a path ending in `/`) means "put the file in there under its usual name"
+  const requestedLang = oneOf(values.lang, ["ja", "en"] as const, "lang", "export");
+  // Validate CLI-only input before starting a workspace scan (which itself keeps the daemon busy).
   const asked = values.out === undefined ? null : resolve(io.cwd, values.out);
-  const out = asked === null ? resolve(io.cwd, name) : /[/\\]$/.test(values.out ?? "") || isDir(asked) ? join(asked, name) : asked;
+  const inDir = asked !== null && (/[/\\]$/.test(values.out ?? "") || isDir(asked));
+  const outputDir = asked === null ? io.cwd : inDir ? asked : dirname(asked);
   let dir: string;
   try {
-    dir = realpathSync(dirname(out));
+    dir = realpathSync(outputDir);
+    if (!isDir(dir)) throw new Error("not a directory");
   } catch {
-    throw new MitoriError("E_NOT_FOUND", `no such directory: ${dirname(out)}`);
+    throw new MitoriError("E_NOT_FOUND", `no such directory: ${outputDir}`);
   }
-  const res = await whenReady(io, () =>
-    s.api.call("POST /ws/:ws/export", {
-      params: { ws: s.ws.info.key },
-      body: {
-        format: "html",
-        level,
-        lang,
-        includeDecisions: values.decisions === true,
-        excerpts: values["no-excerpts"] !== true && values["no-code"] !== true,
-      },
-    }),
-  );
-  // `accept` = any relative path under the root: here the one file the user named, in a directory they chose
-  await createSafeWriter().write(dir, basename(out), res.html, "accept");
-  const kb = Math.max(1, Math.round(res.bytes / 1024));
-  const ex = res.codeExcerpts;
-  io.out(`${dir}/${basename(out)}\n`);
-  io.err(
-    helpLang(io.env) === "ja"
-      ? `書き出しました: ${kb} KB · sha256 ${res.sha256.slice(0, 12)} · 伏せ字 ${res.redactions} 件 · コード抜粋 ${ex.count} 件（${ex.files} ファイル）\n`
-      : `exported: ${kb} KB · sha256 ${res.sha256.slice(0, 12)} · ${res.redactions} redaction(s) · ${ex.count} code excerpt(s) from ${ex.files} file(s)\n`,
-  );
-  return 0;
+  const s = await connect(io, { restart: false });
+  try {
+    const ws = await openWorkspace(io, s.api);
+    const lang: DocLang = requestedLang ?? ws.doc.lang ?? "ja";
+    const name = `${ws.info.name.replace(/[^A-Za-z0-9._-]+/g, "-")}.mitori.html`;
+    // `-o some/dir` (an existing directory, or a path ending in `/`) means "put the file in there under its usual name"
+    const file = asked === null || inDir ? name : basename(asked);
+    const res = await whenReady(io, () =>
+      s.api.call("POST /ws/:ws/export", {
+        params: { ws: ws.info.key },
+        body: {
+          format: "html",
+          level,
+          lang,
+          includeDecisions: values.decisions === true,
+          excerpts: values["no-excerpts"] !== true && values["no-code"] !== true,
+        },
+      }),
+    );
+    // `accept` = any relative path under the root: here the one file the user named, in a directory they chose
+    await createSafeWriter().write(dir, file, res.html, "accept");
+    const kb = Math.max(1, Math.round(res.bytes / 1024));
+    const ex = res.codeExcerpts;
+    io.out(`${dir}/${file}\n`);
+    io.err(
+      helpLang(io.env) === "ja"
+        ? `書き出しました: ${kb} KB · sha256 ${res.sha256.slice(0, 12)} · 伏せ字 ${res.redactions} 件 · コード抜粋 ${ex.count} 件（${ex.files} ファイル）\n`
+        : `exported: ${kb} KB · sha256 ${res.sha256.slice(0, 12)} · ${res.redactions} redaction(s) · ${ex.count} code excerpt(s) from ${ex.files} file(s)\n`,
+    );
+    return 0;
+  } finally {
+    const current = readRegistry(s.home);
+    if (s.daemon.startedHere && current?.pid === s.daemon.registry.pid && current.token === s.daemon.registry.token)
+      await stopDaemon(io, s.daemon, "export", s.home, { onlyIfIdle: true });
+  }
 }

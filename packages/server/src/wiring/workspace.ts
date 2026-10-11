@@ -388,6 +388,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
     doc,
     anchors: sh.anchors,
     scheduler,
+    fixedOverhead: (profileKey) => ledger.fixedOverhead(profileKey),
     spawner: deps.spawner,
     settings: base.settings,
     trust(item, hash) {

@@ -23,6 +23,7 @@ import { createClaudeCliEngine } from "../claude/engine.ts";
 import { type BridgeFs, createSandboxStore, EMPTY_REL } from "../claude/fsports.ts";
 import type { AgentScheduler, Engine, EngineResult, ScheduledRequest, Spawner, UsageLedger } from "../contract.ts";
 import type { UsageLedgerImpl } from "../ledger/ledger.ts";
+import { baseModelId } from "../normalize/result.ts";
 import { createAgentScheduler } from "../scheduler/scheduler.ts";
 import { RESULT_META } from "../util/run.ts";
 import { timersFor } from "../util/timers.ts";
@@ -250,7 +251,8 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     typeof ledger.recordOverhead === "function"
       ? (req: ScheduledRequest, res: EngineResult): void => {
           const meta = RESULT_META.get(res);
-          if (!meta || res.usageEstimated || res.stop !== "end" || !(req.model in PRICING)) return;
+          if (!meta || req.resume || res.usageEstimated || res.stop !== "end" || !(req.model in PRICING)) return;
+          if (meta.servedBy && baseModelId(meta.servedBy) !== req.model) return;
           // the fixed overhead is in the FIRST call of a turn; an agent turn's result sums every tool round-trip
           const first = meta.firstCallIn ?? (req.mode === "agent" ? null : res.usage.in + res.usage.cacheWrite + res.usage.cacheRead);
           if (first === null) return;

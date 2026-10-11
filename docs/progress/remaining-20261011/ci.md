@@ -41,3 +41,9 @@ Mac初回job114409967855はload9.7925でNOISY。失敗したMac jobだけ再実�
 [6回目job114455888859](https://github.com/satoki252595/mitori/actions/runs/38119108193/job/114455888859)は **load6.1938 / quiet / AC / factor1.017954** で既存guardを通過し、**browser380pass / 14skip / 0fail（4.5分）、共有viewer2pass / 0fail、a11y8pass（7.9秒）**。元の時間予算3件と読書位置保持も成功した。Ubuntuの成功を維持し、基準reference・判定範囲・試験入力・上限は変更していない。検証後は一時runnerを終了し、元のplistから常駐起動を復元した。
 
 PR #13は2026-10-11T11:16:43Zに通常mergeでmainへ統合した（`df014912ee7e31ac62c4ca50c846d396aeec9dff`）。golden専用commitを保持している。後続の[compiled scanSummary正式計測](ui-bench-release.md)は中央値1,615.700msで元のhard limit2,000msを満たした（soft target1,000msはWARN）。[Go正式5回計測](idx-formal.json)は中央値1,980.097msでhard limit1,500ms未達。実IMEの本人確認と費用承認待ちの引用再生成も残る。
+
+## PR #14 初回CIと確認条件の修正
+
+[run38137725740](https://github.com/satoki252595/mitori/actions/runs/38137725740)、head `7215440e2ab137cbb8d84217f99121553f47ae0c` のUbuntu checkは全20semantic builds / 0cached / 0errors、63.25秒で成功。unitは3,041pass / 134skip / 4todo / 1fail（122,066assertions、384.28秒）。INT-07 LIVE-02でcontext変更後の確認をExpected409に対し200で通していた。cache入力を分母に加えたことで従来の20%判定を弱めていたため、元input＋output判定とcache込みtotal判定のORへ修正した。fixture不変の対象int07は3pass / 1failから4pass / 0failへ。fixtures・golden・size・binary smokeは初回unit失敗後に実行されておらず、成功扱いしない。[較正の追補](ledger-calibration.md)。
+
+同runのMac job114464937944はload12.360352 / NOISY / AC、既存待機2回後もquiet条件外でbrowser開始前に停止した。較正値は未測定、共有viewer・a11yもskipped。後続の再実行準備ではfactor1.084904でもload9.146484が既存閾値9を超えたため待機した。reference・上限・入力・worker規則は維持する。[全記録](ci.json)の `pr14` に初回失敗を保持する。

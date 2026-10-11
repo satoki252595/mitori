@@ -248,6 +248,29 @@ describe("server spec §6.7 config.json edited by hand", () => {
 });
 
 describe("SRV-I-024 shutdown", () => {
+  test("export onlyIfIdle preserves a later browser connection, then stops once it disconnects", async () => {
+    const h = await startHarness();
+    try {
+      const tab = await h.browser();
+      const sse = await openSse(h.origin, `Mitori-Session ${tab.token}`);
+      await sse.until((es) => es.some((e) => e.type === "hello"));
+      const refused = await h.cli("POST", "/daemon/shutdown", { reason: "export", onlyIfIdle: true });
+      expect(refused.status).toBe(409);
+      expect(((await refused.json()) as { error: { code: string } }).error.code).toBe("E_CONFLICT");
+      expect(h.daemon.services.control.shuttingDown()).toBe(false);
+      expect(existsSync(`${h.home}/daemon.json`)).toBe(true);
+      expect(sse.events.some((e) => e.type === "server.shutdown")).toBe(false);
+      await tab.req("POST", "/auth/logout", {});
+      await sse.closed;
+      expect(h.daemon.services.hub.connections()).toBe(0);
+      expect((await h.cli("POST", "/daemon/shutdown", { reason: "export", onlyIfIdle: true })).status).toBe(200);
+      expect(await h.daemon.stopped).toBe("export");
+      expect(existsSync(`${h.home}/daemon.json`)).toBe(false);
+    } finally {
+      await h.close();
+    }
+  });
+
   test("POST /daemon/shutdown: server.shutdown on SSE, waiters then drain, mutations refused meanwhile, files removed", async () => {
     const order: string[] = [];
     let release: () => void = () => undefined;

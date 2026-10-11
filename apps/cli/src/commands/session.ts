@@ -24,9 +24,9 @@ export function homeOf(io: Io): string {
 }
 
 /** The daemon (started when `start`, the default) and an API client. */
-export async function connect(io: Io, opts: { kind?: ClientKind; agent?: string; waiter?: string; start?: boolean } = {}): Promise<Session> {
+export async function connect(io: Io, opts: { kind?: ClientKind; agent?: string; waiter?: string; start?: boolean; restart?: boolean } = {}): Promise<Session> {
   const home = homeOf(io);
-  const daemon = opts.start === false ? await findDaemon(io, home) : await ensureDaemon(io, home);
+  const daemon = opts.start === false ? await findDaemon(io, home) : await ensureDaemon(io, home, opts);
   if (!daemon) throw new MitoriError("E_NOT_READY", "no mitori daemon is running", { hint: "run `mitori` in the repository first" });
   const api = apiOf(io, daemon, {
     ...(opts.kind ? { kind: opts.kind } : {}),

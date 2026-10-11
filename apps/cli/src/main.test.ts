@@ -7,6 +7,23 @@ describe("CLI-U-000 mitori entry", () => {
     expect(versionLine()).toBe(`mitori ${pkg.version} (api 1)`);
   });
 
+  test("main help lists the public commands in the selected language", () => {
+    for (const [lang, heading] of [
+      ["ja", "使い方:"],
+      ["en", "usage:"],
+    ] as const) {
+      const r = Bun.spawnSync(["bun", `${import.meta.dir}/main.ts`, "--help"], {
+        env: { ...process.env, MITORI_LANG: lang },
+        stderr: "pipe",
+      });
+      expect(r.exitCode).toBe(0);
+      const help = r.stderr.toString();
+      expect(help).toContain(heading);
+      for (const command of ["setup", "auth", "review", "gen", "export", "stop"]) expect(help).toContain(`mitori ${command}`);
+      expect(help).not.toContain("walking skeleton");
+    }
+  });
+
   test("the entry runs as a script; usage errors exit 2", () => {
     const run = (...args: string[]) => Bun.spawnSync(["bun", `${import.meta.dir}/main.ts`, ...args], { stderr: "pipe" });
     const r = run("--version");
