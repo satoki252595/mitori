@@ -1,16 +1,17 @@
 # mitori 引き継ぎ資料（2026-10-11 残課題の続行・Codex実検証）
 
 > **現在の入口は直下の §★ と [2026-10-11の検証一覧](progress/remaining-20261011/README.md)。以下の「2026-10-07履歴★」「前回★」「履歴★」と §0 / §0a / §0b は以前の記録。**
-> 今回の実LLMはCodex。Claudeは使用していない。過去の認証待ち・未統合・失敗の記述は、当時の履歴として残す。
+> 今回の実LLMはCodexと取得済みLM Studio。Claudeは使用していない。過去の認証待ち・未統合・失敗の記述は、当時の履歴として残す。
 
 ## ★ 現在の状態（2026-10-11、実装・検証・未達の区別）
 
-利用者の残タスク続行指示に従い、Codexの正式生成経路、OSSの説明省略、UIの初回表示とasset、Linux cold check、Windows native検証を進めた。[PR #13](https://github.com/satoki252595/mitori/pull/13)へpush済み。実装head23645fdのUbuntu CIは再実行で成功（unit3,017pass / 0fail、golden109pass / 0fail）、Windows CIも成功した。Macはhead6af11b8の後続で既定guardを通過し、browser suite369pass / 14skip / 5fail。失敗した読書位置保持と操作時間を修正・再検証中で、マージ・不要ブランチ削除は未実施。[CIの前後](progress/remaining-20261011/ci.md)。詳細と各JSONの入口は [remaining-20261011/README.md](progress/remaining-20261011/README.md)。ルートREADMEも更新済み。
+利用者の残タスク続行指示に従い、Codexの正式生成経路、OSSの説明省略、UIの初回表示とasset、Linux cold check、Windows native検証を進めた。[PR #13](https://github.com/satoki252595/mitori/pull/13)へpush済み。修正後head98c59a6のUbuntu CIは成功（unit3,022pass / 0fail、golden109pass / 0fail）、Windows対象もhead23645fdで成功した。Macの同head再実行はfactor2.309が既存範囲外でbrowser開始前に停止。旧head6af11b8の369pass / 14skip / 5failは履歴であり、読書位置修正後の正式suite成功とは扱わない。マージ・不要ブランチ削除は未実施。[CIの前後](progress/remaining-20261011/ci.md)。詳細と各JSONの入口は [remaining-20261011/README.md](progress/remaining-20261011/README.md)。ルートREADMEも更新済み。
 
 ### ★.1 実装と確認できたこと
 
 - **Codex実生成:** `codex-cli` / `gpt-6.1-sol` / highを正式に配線し、Nix経由でJevの対象2節とm3eの対象moduleを実生成した。対象OSSの設定・hook・toolを継承しないlean profileを維持。Jevのhistory → observe → page_changed、60操作 / 120 prediction decision requests / scroll・wait追加前の250 DOM candidates、m3eの条件付き変更先・4言語・検証3コマンド・省略寸法の既定値補完を本文へ回復した。[品質記録](progress/remaining-20261011/quality.md)。
 - **Codex Explain / Nix・通常ローカル:** go-smallで各1 application jobがattempt1 / done、各引用1件有効、元source不変、後始末成功。Nixはterminal reported input1,582 / output47、API-equivalent $0.003634、run5.012秒。既存ローカルBun 1.4.2はinput1,585 / output47、$0.003640、run4.334秒。各cap$0.05、合計$0.007274。誤った旧LLM呼出数カウンタは採用していない。[両経路の安全な証跡](progress/remaining-20261011/codex-explain.json)。Codexは認証待ちではない。
+- **LM Studio Explain / Nix・通常ローカル:** 取得済みQwen GGUFで各1 HTTP推論がattempt1 / done、各引用1件有効、元source不変、追加費用$0。専用モデルだけunloadし既存serverを維持した。短いExplainのみで、CLI指定4096とload報告262144の不一致は原因未確定。[両経路の証跡](progress/remaining-20261011/lmstudio-explain.md)。
 - **生成の停止と費用:** 完成した日本語出力のbyte数をtoken上限と比較していたCodex tool-free経路を修正し、terminal usageを受け取る。reported token / USD、stdout、timeout、agent modeのguardは維持。予算拒否をcoverage完成だけで成功扱いしない回帰も追加した。生成検証累計は初回停止分を含みAPI-equivalent $0.792490（native7calls、terminal usage5calls / 推計2calls）、総枠$2内。上のExplain費用は別計上。請求額・サブスク枠の保証ではない。
 - **並列生成の費用予約:** Codexの送信直前に共有preflightの額を予約し、並列・再試行の使用済み額を合算する。初回の予算不足はpendingとして同じ上限で再開でき、再試行の不足は有効な途中本文とusageを保持して停止する。対象37tests / 224 assertionsとgen型検査が成功、独立再現も一致。実LLM追加0。[前後の再現と回帰](progress/remaining-20261011/codex-budget.md)。最終統合checkも全7step成功（4.35秒、warm）。
 - **UI:** 初回nonce競合、仮想化アンカー、節移動のlive engine再検出、初回status先取り、lazy chunksとprecompressionを修正。読書位置修正後のcompiledもstrict asset全項目pass、初期JS54.697KB gzip、embedded selftest6checks成功。[最新assets](progress/remaining-20261011/reader-fix-assets.json)。先行測定のReader6 requests、a11y8pass / 違反0、scanSummary1,771.5 / limit2,000msはfactor1.12でreport-only。[先行UI記録](progress/remaining-20261011/ui-bench-release.md)、[経緯](progress/remaining-20261011/ui-bench.md)。実Chromeの初回map、確定済み日本語検索、Codex native / MCP切替と配布binaryの接続commandを確認。[Chrome記録](progress/remaining-20261011/chrome.md)。
@@ -22,7 +23,7 @@
 1. **実IMEとUI時間予算:** Chrome通常操作・確定済み日本語検索・native / MCP設定は確認済み。実IMEの `Input.imeSetComposition` は操作許可で拒否されたため、迂回せず本人の変換確定Enter / 次のEnter確認を依頼中。[Chrome記録](progress/remaining-20261011/chrome.md)。scanSummary3,312.1 / limit2,000msの旧未達は保持し、status競合修正後の最終compiledは1,771.5ms。ただしfactor1.12でreport-onlyのため正式基準機合格へ読み替えない。[最終UI記録](progress/remaining-20261011/ui-bench-release.md)。Safari実機は利用者がChrome代替を選択したため今回の必須外。
 2. **Go7k cold 1,500ms:** parser / query / GCの先行候補と正式caseのNOISY / report-only失敗は保持した。[原因と不採用証拠](progress/remaining-20261011/idx-cold.md)、[正式後続](progress/remaining-20261011/idx-formal.json)。後続ではGoの同一Node.type再取得を減らす最小変更を採用。quiet / AC、較正before1.010 / after1.077の同条件ABBAで中央値2,232.14→1,994.58ms（10.64%短縮）、抽出3表の全行hash・coverage・診断・6Workerが一致した。1,500msは未達で、上限やWorker規則は変えていない。[採用の根拠](progress/remaining-20261011/idx-type-local.md)。
 3. **引用窓:** 保存済みm3e最新版はL1が28pass / 2fail / 8vacuous、Jev品質節は22pass / 1fail / 2vacuous。[source照合](progress/remaining-20261011/quality.citation-review.json)。m3e依存文のimport原文を入力へ補い、複数行importのspecifier行からもbindingsを保持する。既存28k枠・除外・元行・blob・citableと既定値helperをofflineで確認、検証器は緩めていない。文書の再検証もcoreの共通verdictへ統一した。修正後の追加実生成2回はAPI換算保守$0.416844 / 今回推計cap$0.50で本人の費用承認待ち。保存済み出力の全引用pass・全文semantic保証とは扱わない。
-4. **Mac browser CIと統合:** Ubuntu x64は実装head23645fdと資料追加head6af11b8で成功。全20semantic builds・0cached・0errors、unit・fixtures・golden・size・Linux binaryを確認。soft targetは未達。Macのhead6af11b8後続はload8.4214 / factor1.053251で既定guard通過、369pass / 14skip / 5fail。Chromium操作時間3件、Chromium/WebKit読書位置保持2件を修正・限定再検証し、成功後にPRをマージ・不要ブランチ削除する。[CI記録](progress/remaining-20261011/ci.md)。Windows対象は上の最終CIで完了した。
+4. **Mac browser CIと統合:** Ubuntu x64は修正後head98c59a6で成功。全20semantic builds・0cached・0errors、unit・fixtures・golden・size・Linux binaryを確認。soft targetは未達。旧headの読書位置保持失敗は最小修正と3browser限定回帰で成功したが、同headのMac再CIはload8.4741 / factor2.308816で既定範囲外、browser開始前に停止した。quiet / reference条件の正式CI成功後にPRをマージ・不要ブランチ削除する。[CI記録](progress/remaining-20261011/ci.md)。Windows対象は上の最終CIで完了した。
 
 ### ★.3 利用方針・外部操作・守ること
 

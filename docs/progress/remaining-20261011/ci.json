@@ -227,5 +227,65 @@
       }
     }
   },
-  "merge": "pending browser regression fixes and successful verification"
+  "merge": "pending successful reference-condition Mac CI",
+  "latestFollowUp": {
+    "head": "98c59a60866e094c90aa84fd53ef4e79c7e4d884",
+    "run": "https://github.com/satoki252595/mitori/actions/runs/38119108193",
+    "ubuntu": {
+      "job": 114409967648,
+      "conclusion": "success",
+      "checkSeconds": 63.04,
+      "factor": 2.277,
+      "targetSeconds": 34.15,
+      "limitSeconds": 68.3,
+      "semanticBuilds": 20,
+      "cachedBuilds": 0,
+      "errors": 0,
+      "unit": {
+        "pass": 3022,
+        "skip": 134,
+        "todo": 4,
+        "fail": 0,
+        "assertions": 121956
+      },
+      "golden": {
+        "pass": 109,
+        "skip": 4,
+        "fail": 0,
+        "assertions": 1028
+      },
+      "fixturesVerify": "success",
+      "size": "success",
+      "linuxBinaryBuild": "success",
+      "linuxBinaryVersion": "mitori 0.0.0 (api 1)"
+    },
+    "macBrowsers": {
+      "conclusion": "failure",
+      "stage": "reference guard before browser tests",
+      "attempts": [
+        {
+          "job": 114409967855,
+          "loadAverage": 9.79248046875,
+          "noisy": true,
+          "waited": 2,
+          "power": "ac",
+          "reason": "noisy"
+        },
+        {
+          "job": 114412318444,
+          "loadAverage": 8.47412109375,
+          "noisy": false,
+          "waited": 2,
+          "power": "ac",
+          "factor": 2.3088158812537003,
+          "reason": "outside existing 0.9-1.1 reference calibration range"
+        }
+      ],
+      "testsStarted": false,
+      "ubuntuRerun": false,
+      "thresholdsChanged": false,
+      "referenceChanged": false
+    },
+    "merge": "pending successful reference-condition Mac CI"
+  }
 }
