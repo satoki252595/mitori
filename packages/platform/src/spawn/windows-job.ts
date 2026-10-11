@@ -9,8 +9,8 @@ export interface WindowsJobLauncher {
   sha256: string;
 }
 
-/** Send only environment names to the launcher: values stay in its environment, never in argv. */
-export function windowsJobArgv(command: string, argv: readonly string[], env: Readonly<Record<string, string>>): string[] {
+/** Values stay in the environment, never argv; single-process mode keeps descendants outside the leader's job. */
+export function windowsJobArgv(command: string, argv: readonly string[], env: Readonly<Record<string, string>>, processGroup = true): string[] {
   const names = Object.keys(env);
   const seen = new Set<string>();
   for (const name of names) {
@@ -18,13 +18,13 @@ export function windowsJobArgv(command: string, argv: readonly string[], env: Re
     if (!name || /[=\0]/u.test(name) || seen.has(key)) throw new MitoriError("E_INVALID_INPUT", "Windows job environment names must be valid and unique");
     seen.add(key);
   }
-  return ["--env-count", String(names.length), ...names, "--", command, ...argv];
+  return [...(processGroup ? [] : ["--single-process"]), "--env-count", String(names.length), ...names, "--", command, ...argv];
 }
 
 /** Validate at each use as for pinned engines; fail closed if the immutable private asset was replaced. */
 export function windowsJobExecutable(asset: WindowsJobLauncher | undefined): string {
   if (!asset || !isAbsolute(asset.path) || !/^[a-f0-9]{64}$/u.test(asset.sha256))
-    throw new MitoriError("E_UNSUPPORTED", "Windows process groups require the verified native Job Object launcher");
+    throw new MitoriError("E_UNSUPPORTED", "Windows children require the verified native Job Object launcher");
   try {
     const path = realpathSync(asset.path);
     if (path !== resolve(asset.path)) throw new MitoriError("E_PATH_SYMLINK", "Windows Job Object launcher must have a canonical non-symlink path");

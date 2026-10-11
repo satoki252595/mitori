@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { join, parse } from "node:path";
 import { MitoriError, type SseEventPayload, type WorkspaceKey } from "@mitori/core";
 import { SERVER_STATE_MIGRATIONS, SERVER_WORKSPACE_MIGRATIONS } from "../http/schema.ts";
 import {
@@ -198,8 +199,38 @@ describe("SRV-I-022 WorkspaceManager", () => {
     expect(await code(s.m.open(empty, { force: true }))).toBe("ok");
     for (const marker of ["go.mod", "Cargo.toml", "pyproject.toml", "Makefile", "README.md", "App.sln", "src/main.ts", ".git/HEAD"])
       expect(() => checkProject(s.project(`m-${marker.replace(/[/.]/g, "_")}`, { [marker]: "x" }), s.user, fsReader)).not.toThrow();
-    for (const p of ["/", "/Users", `${s.user}/Desktop`, `${s.user}/Documents`, `${s.user}/Downloads`, `${s.user}/Library/Caches/x`])
+    const root = parse(s.user).root;
+    for (const p of [
+      root,
+      join(root, "Users"),
+      join(root, "home"),
+      s.user,
+      ...["Desktop", "Documents", "Downloads", "Library", "Library/Caches/x"].map((d) => join(s.user, d)),
+    ])
       expect(() => checkProject(p, s.user, { ...fsReader, readdir: () => ["package.json"] })).toThrow("does not look like a project");
+    for (const p of [join(s.user, "Library-project"), join(s.user, "Desktop", "app")])
+      expect(() => checkProject(p, s.user, { ...fsReader, readdir: () => ["package.json"] })).not.toThrow();
+  });
+
+  test.skipIf(process.platform !== "win32")("UXP-23: Windows drive/UNC roots and native home boundaries stay guarded", () => {
+    const home = "C:\\Users\\Alice\\";
+    const marked = { ...fsReader, readdir: () => ["package.json"] };
+    for (const p of [
+      "C:\\",
+      "D:\\",
+      "\\\\server\\share\\",
+      "c:/users",
+      "C:\\home",
+      "c:/users/alice",
+      "C:/Users/Alice/DESKTOP",
+      "c:\\users\\alice\\Documents",
+      "C:/Users/Alice/Downloads/",
+      "C:/Users/Alice/LIBRARY",
+      "c:\\users\\alice\\Library\\Caches\\x",
+    ])
+      expect(() => checkProject(p, home, marked)).toThrow("does not look like a project");
+    for (const p of ["C:\\Users\\Alice\\Library-project", "C:\\Users\\Alice\\Desktop\\app", "D:\\Library\\app", "\\\\server\\share\\app"])
+      expect(() => checkProject(p, home, marked)).not.toThrow();
   });
 
   test("git repos get kind git and docDir .mitori; repo trust items are requested on load", async () => {

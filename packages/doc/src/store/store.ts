@@ -1,6 +1,7 @@
 // The DocStore: one per workspace, single writer. Synchronous mutators run inside the caller's write slot;
 // `editBlock` stamps outside the queue and enters it itself; `load` may run inside a slot (file reads only);
 // `flush` never enters the queue (internal serialization) so it can be reserved from inside a slot.
+import { join } from "node:path";
 import {
   type Block,
   type BlockId,
@@ -121,12 +122,15 @@ class Store implements DocStore {
     // nothing is read through a symlink inside docDir either (`doc/` → elsewhere would import foreign files)
     const io: LoadIo = {
       async read(rel) {
-        const abs = `${root}/${rel}`;
+        const abs = join(root, rel);
         const st = fs.stat(abs);
         if (!st?.isFile || st.isSymlink || (rel.includes("/") && fs.realpath(abs) !== abs)) return null;
         return dec.decode(await fs.read(abs));
       },
-      list: (rel) => (fs.realpath(`${root}/${rel}`) === `${root}/${rel}` ? (fs.readdir(`${root}/${rel}`) ?? []) : []),
+      list(rel) {
+        const abs = join(root, rel);
+        return fs.realpath(abs) === abs ? (fs.readdir(abs) ?? []) : [];
+      },
     };
     const changed = (rel: string, text: string | null) => text !== null && text !== this.flusher.written.get(rel);
     let only: Set<string> | null = null;

@@ -17,7 +17,7 @@ export interface SpawnSpec {
   keepStdinOpen: boolean;
   /** Hard timeout of the first turn (enforced by the caller: engine bridge / {@link runToExit}). */
   timeoutMs: number;
-  /** Start the child in its own process group (signals reach its children). */
+  /** Signals reach descendants when true; false stops only the child and lets its descendants survive. */
   processGroup: boolean;
 }
 

@@ -4,6 +4,7 @@
  * anchor engine → renderer/layouter pools → WorkspaceManager.assemble (per workspace: indexer → doc → gen → loop,
  * wiring/workspace.ts) → HTTP (domain route adapters, wiring/routes.ts).
  */
+import { isAbsolute, relative, sep } from "node:path";
 import { createAgentBridge, createUsageLedger, type Engine } from "@mitori/agent";
 import { createAnchorEngine } from "@mitori/anchor";
 import {
@@ -103,7 +104,11 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
     elk,
     safeWrite: docRootWriter(deps.safeWrite, deps.fs, {
       home,
-      repo: (p) => roots().find((r) => p === r || p.startsWith(`${r}/`)) ?? null,
+      repo: (p) =>
+        roots().find((r) => {
+          const rel = relative(r, p);
+          return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+        }) ?? null,
     }),
     hardware: deps.hardware,
     sandboxCwd: `${home}/run/empty`,

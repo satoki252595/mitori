@@ -80,3 +80,5 @@ scripts/nd bun --preload /tmp/mitori-idx-formal-capture-20261011.ts bench/runner
 scan wallは2,278.814ms、S1は2,040.788ms、pool全体は2,006.829ms。Worker間の累計phaseはread1,032.597 / hash39.361 / parse5,113.592 / query3,488.723 / extract808.860msだった。以前省略していたhash + extractは6Worker平均141.370msで、全5phase平均は1,747.189ms。pool wallとの差259.640msにはqueue・GC・転送・未計時の処理等が含まれ、純粋な終端待ちとは解釈しない。最後に完了したbatchのphase合計は12.129msで、enqueueから応答までの30.954msとは区別する。大きな終端stragglerを示す証拠は得られなかった。
 
 loadavgは7.5625 / 8.2959 / 9.1880。較正未測定・計時追加ありの1回診断で、速度比較や正式合格には使わない。最新正式中央値1,980.097ms・上限1,500ms未達を保持する。新依存・製品変更・LLM呼出・追加費用は0。
+
+同一languageの `setLanguage` 再設定省略も不採用。main由来 `63e23b0`・Nix / Bun 1.4.2で、既存WASM / Go languageへのAPI呼出だけをprivate probeで1回確認した。warmup各1,000後の各8,000回は通常0.381750ms / language-property guard0.016916msで、6,490ファイルへ直列換算しても差0.295972ms。不足480.096958msに対して小さすぎるため製品変更・再計測は行わない。これは実scan・正式試験ではなく、1,500ms未達を維持する。source HEAD・probe / WASM hash・条件は同JSONの `setLanguageProbe20261011`。新依存・LLM呼出・追加費用0。

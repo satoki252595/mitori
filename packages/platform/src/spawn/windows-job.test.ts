@@ -24,6 +24,7 @@ test("Job Object environment protocol carries exact names without values and ref
     ...argv,
   ]);
   expect(windowsJobArgv("C:\\engine.exe", [], {})).toEqual(["--env-count", "0", "--", "C:\\engine.exe"]);
+  expect(windowsJobArgv("C:\\engine.exe", [], { EMPTY: "" }, false)).toEqual(["--single-process", "--env-count", "1", "EMPTY", "--", "C:\\engine.exe"]);
   for (const env of [{ "": "x" }, { "A=B": "x" }, { "A\0B": "x" }, { PATH: "a", Path: "b" }])
     expect(() => windowsJobArgv("C:\\engine.exe", [], env)).toThrow(MitoriError);
 });
@@ -71,31 +72,37 @@ function fixture() {
   return { spawner, cwd, env, spec };
 }
 
-native("native Job Object preserves literal UTF-16 argv, exact environment, stdio and leader exit code", async () => {
-  const x = fixture();
-  const args = ["", "日本語", "a\\", 'a"b', '\\"', "*", "?.exe", "a; $(echo unwanted)", "C:\\Program Files\\trailing\\"];
-  const argv = await runToExit(x.spawner, x.spec("console.log(JSON.stringify(process.argv.slice(1)))", args));
-  expect(argv.code).toBe(0);
-  expect(JSON.parse(argv.stdout[0] ?? "null")).toEqual(args);
-  const input = "最初の行\nsecond line\n";
-  const stdio = await runToExit(
-    x.spawner,
-    x.spec('const text=await Bun.stdin.text();process.stdout.write(text);console.error("stderr only");process.exit(7)', [], { stdin: input }),
+for (const processGroup of [true, false])
+  native(
+    `native ${processGroup ? "Job Object" : "single-child launcher"} preserves literal UTF-16 argv, exact environment, stdio and leader exit code`,
+    async () => {
+      const x = fixture();
+      const args = ["", "日本語", "a\\", 'a"b', '\\"', "*", "?.exe", "a; $(echo unwanted)", "C:\\Program Files\\trailing\\"];
+      const argv = await runToExit(x.spawner, x.spec("console.log(JSON.stringify(process.argv.slice(1)))", args, { processGroup }));
+      expect(argv.code).toBe(0);
+      expect(JSON.parse(argv.stdout[0] ?? "null")).toEqual(args);
+      const input = "最初の行\nsecond line\n";
+      const stdio = await runToExit(
+        x.spawner,
+        x.spec('const text=await Bun.stdin.text();process.stdout.write(text);console.error("stderr only");process.exit(7)', [], { stdin: input, processGroup }),
+      );
+      expect(stdio).toMatchObject({ code: 7, stdout: ["最初の行", "second line"], stderr: ["stderr only"], timedOut: false });
+      const env = await runToExit(x.spawner, x.spec("console.log(JSON.stringify(process.env))", [], { processGroup }));
+      expect(JSON.parse(env.stdout[0] ?? "null")).toEqual(x.env);
+      expect(() => createSpawner().spawn(x.spec("console.log('must not start')", [], { processGroup }))).toThrow(MitoriError);
+    },
   );
-  expect(stdio).toMatchObject({ code: 7, stdout: ["最初の行", "second line"], stderr: ["stderr only"], timedOut: false });
-  const env = await runToExit(x.spawner, x.spec("console.log(JSON.stringify(process.env))"));
-  expect(JSON.parse(env.stdout[0] ?? "null")).toEqual(x.env);
-  expect(() => createSpawner().spawn(x.spec("console.log('must not start')"))).toThrow(MitoriError);
-});
 
 const descendant = (marker: string) => `await Bun.sleep(500);await Bun.write(${JSON.stringify(marker)},"escaped");`;
-const leader = (marker: string, exit: boolean) =>
-  `Bun.spawn([process.execPath,"-e",${JSON.stringify(descendant(marker))}],{stdin:"ignore",stdout:"ignore",stderr:"ignore",detached:true,env:{PATH:process.env.PATH,SystemRoot:process.env.SystemRoot,BUN_BE_BUN:process.env.BUN_BE_BUN}});console.log("ready");${exit ? "process.exit(0)" : "await Bun.sleep(10000)"};`;
+const leader = (marker: string, exit: boolean, leaderMarker?: string) => {
+  const whileAlive = leaderMarker ? `await Bun.sleep(500);await Bun.write(${JSON.stringify(leaderMarker)},"leader survived");` : "";
+  return `Bun.spawn([process.execPath,"-e",${JSON.stringify(descendant(marker))}],{stdin:"ignore",stdout:"ignore",stderr:"ignore",detached:true,env:{PATH:process.env.PATH,SystemRoot:process.env.SystemRoot,BUN_BE_BUN:process.env.BUN_BE_BUN}});console.log("ready");${exit ? "process.exit(0)" : `${whileAlive}await Bun.sleep(10000)`};`;
+};
 
 native("descendant fixture can write after its ungrouped leader exits (positive control)", async () => {
   const x = fixture(),
     marker = join(x.cwd, "positive-control.txt");
-  const result = await runToExit(createSpawner(), x.spec(leader(marker, true), [], { processGroup: false }));
+  const result = await runToExit(x.spawner, x.spec(leader(marker, true), [], { processGroup: false }));
   expect(result.code).toBe(0);
   await Bun.sleep(750);
   expect(existsSync(marker)).toBe(true);
@@ -127,5 +134,26 @@ native("every cancellation signal hard-stops the job including independently det
     expect(await child.exited).not.toBe(0);
     await Bun.sleep(750);
     expect(existsSync(marker)).toBe(false);
+  }
+});
+
+native("single-child cancellation stops the leader while independently detached grandchildren survive", async () => {
+  for (const signal of ["SIGINT", "SIGTERM", "SIGKILL"] as const) {
+    const x = fixture(),
+      marker = join(x.cwd, `${signal}-descendant.txt`),
+      leaderMarker = join(x.cwd, `${signal}-leader.txt`);
+    const child = x.spawner.spawn(x.spec(leader(marker, false, leaderMarker), [], { processGroup: false }));
+    let ready = false;
+    for await (const line of child.stdout)
+      if (line === "ready") {
+        ready = true;
+        break;
+      }
+    expect(ready).toBe(true);
+    child.kill(signal);
+    expect(await child.exited).not.toBe(0);
+    await Bun.sleep(750);
+    expect(existsSync(leaderMarker)).toBe(false);
+    expect(existsSync(marker)).toBe(true);
   }
 });

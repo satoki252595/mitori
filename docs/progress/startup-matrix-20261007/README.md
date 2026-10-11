@@ -124,7 +124,7 @@ scripts/nd bash scripts/linux-ci.sh --arch arm64 --steps install,unit \
 
 ## 本人の実設定での追加確認（2026-10-11）
 
-上記は2026-10-07の隔離設定による記録。今回、このプロジェクトだけに4クライアントのMCP設定を作成し、本人の通常HOMEと実フォルダで接続確認を試みた。その後の共通設定の追加を含め、現在はCursor・Grok・Antigravity本体で各8ツールを確認済み。Codexは登録が有効だが接続は未確認。4経路とも外部セッションからの生成は今回実施していない。共通起動は既存の`<repo>/scripts/nd bun <repo>/scripts/start.ts mcp --repo <repo>`。初回資源の準備とソース更新後のキャッシュ更新を通し、最終的に`assetsReady=true`を確認した。ソフトの導入、認証操作、LLM要求、MCPツール実行は0、追加LLM費用は$0。
+上記は2026-10-07の隔離設定による記録。今回、このプロジェクトだけに4クライアントのMCP設定を作成し、本人の通常HOMEと実フォルダで接続確認を試みた。その後の共通設定の追加と検証用の一時設定の修正を含め、現在はCodex・Cursor・Grok・Antigravity本体で各8ツールを確認済み。4経路とも外部セッションからの生成は今回実施していない。共通起動は既存の`<repo>/scripts/nd bun <repo>/scripts/start.ts mcp --repo <repo>`。初回資源の準備とソース更新後のキャッシュ更新を通し、最終的に`assetsReady=true`を確認した。ソフトの導入、認証操作、LLM要求、MCPツール実行は0、追加LLM費用は$0。
 
 `.codex/config.toml`、`.cursor/mcp.json`、`.grok/config.toml`、`.agents/mcp_config.json`は元々存在せず、0600で作成した。初回のproject登録では既存の共通MCP設定を変えず、ローカルのGit除外へ4ファイルを追加した。元の除外内容を保持し、Undo用の私有バックアップを作成。個人パス、raw設定、認証情報はこの記録へ保存しない。
 
@@ -146,5 +146,9 @@ Antigravityはproject JSONが読み込まれない実測を踏まえ、利用者
 追加後の通常`agy mcp list`はexit 0でmitoriを表示した。続けてAntigravity本体2.12.2の公式UIでRefreshを1回実施し、完了後にmitori表示、toggle有効、`8 tools enabled`をrootが確認した。これを本体の接続成功として記録する。一覧だけから接続成功とは判断していない。IDE 2.5.5は共通設定の追加後に再確認しておらず、初回の表示なしという記録を保持する。初期失敗と共通設定後の成功は[追加証跡](native-mcp.json)の別項目に保存した。
 
 Codexの失敗は検証用の一時overrideの検証エラーであり、通常の本人設定が壊れているとは判断しない。Antigravityも、設定が見えないことをログイン不足と推定しない。今回の登録作業を本人しか行えない残作業とは扱わず、実際に確認できた範囲を[追加証跡](native-mcp.json)へ分けて保存した。
+
+Codexの後続確認では、インストール済み0.160.0と一致する[公式source](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/config/src/mcp_types.rs#L553)から原因を特定した。実一覧の8件はuser設定4件・projectのmitori1件・plugin由来3件の合成で、plugin名へ`enabled=false`だけを置くと、transportを持たない設定が作られ、enabledの判定より先に拒否される。全tableのoverrideも再帰mergeのため他の設定を消さない。
+
+修正は確認用の子プロセスだけに公式`--disable plugins`を指定し、元から存在するuser設定4件だけを無効化する方法とした。設定一覧のguardで5件中mitoriだけが有効、他の有効件数0を確かめてから、1回だけ`app-server --stdio`のinitialize → mitoriの`mcpServerStatus/list`を実行。exit 0、8ツール、toolsErrorなし、約206msだった。thread/turnは作成しておらず、保存済みの共通・project設定のhashは不変。確認用Codexの子プロセスを終了し、rootが開いているAntigravityの接続は保った。この成功も初期失敗を置き換えず、[追加証跡](native-mcp.json)の別項目へ記録した。
 
 最終の案内修正後もsetup対象2ファイルが8成功 / 85 assertions、7つの`check`が全て成功（5.04秒）。この追加確認のために全テストやCIは再実行していない。公式のproject設定仕様は[Codex](https://learn.chatgpt.com/docs/extend/mcp#connect-codex-to-an-mcp-server)、[Cursor](https://cursor.com/docs/mcp#configuration-locations)、[Antigravity](https://antigravity.google/docs/mcp#global-and-workspace-server-configs)を2026-10-11に確認した。提供元の仕様とインストール済みアプリの実際の読み込み結果は区別する。

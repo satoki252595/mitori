@@ -2648,5 +2648,29 @@
       "One instrumented scan without calibration cannot establish improvement or a formal pass."
     ],
     "decision": "No production optimization adopted. Existing formal median 1980.096958ms remains above the unchanged 1500ms hard limit; this one diagnostic does not replace that result."
+  },
+  "setLanguageProbe20261011": {
+    "sourceHead": "63e23b0193e6e9eac44d3d085c83a137b035a7eb",
+    "probeSha256": "102d353effa4b47f877b8af8a5b49ac69fa3058401cf9478bbe3c44a8ab7285b",
+    "runtime": "project Nix / Bun 1.4.2; web-tree-sitter 0.27.0 / Go 0.25.0",
+    "runtimeSha256": "c03bccdc3b448a32848f5ae327e209c982bbb0840d43eec8bc2d5759544a1ed3",
+    "goSha256": "9504573f352b20be7f2f1911754d710622aedc15afff16d5ed8fb5645681aee7",
+    "operation": "After loading the installed WASM and Go language, repeat parser.setLanguage(language) versus if (parser.language !== language) parser.setLanguage(language).",
+    "runs": 1,
+    "warmupPerLoop": 1000,
+    "measuredPerLoop": 8000,
+    "setLanguageCallsIncludingInitialAndWarmup": 9001,
+    "baselineMs": 0.38175000000000026,
+    "guardMs": 0.016915999999998377,
+    "serialExtrapolationFiles": 6490,
+    "serialExtrapolatedDeltaMs": 0.29597158250000155,
+    "missingFormalTargetMs": 480.096958,
+    "diagnosticOnly": true,
+    "actualScan": false,
+    "formalGate": false,
+    "sourceAndDependenciesUnchanged": true,
+    "additionalLlmCalls": 0,
+    "additionalCostUsd": 0,
+    "decision": "Rejected without product changes or further measurements: even charging the full serial extrapolation to scan wall saves only about 0.296ms versus the missing 480.097ms. This one API microprobe is not a scan improvement or formal result; the 1500ms hard limit remains unmet."
   }
 }

@@ -4,7 +4,7 @@
  * calibration.
  */
 import { readFileSync } from "node:fs";
-import { dirname, relative } from "node:path";
+import { dirname, isAbsolute, relative, sep } from "node:path";
 import { type FsReader, type Iso8601, MitoriError, type SafeWriteKind, type SafeWriter } from "@mitori/core";
 import type { IndexerCalibration } from "@mitori/indexer";
 import { acquireLock, runToExit } from "@mitori/platform";
@@ -64,11 +64,13 @@ export function docRootWriter(inner: SafeWriter, fs: FsReader, roots: { home: st
   const ensure = async (root: string) => {
     if (fs.stat(root)?.isDir) return;
     let anc = dirname(root);
-    while (anc !== "/" && !fs.stat(anc)?.isDir) anc = dirname(anc);
+    while (dirname(anc) !== anc && !fs.stat(anc)?.isDir) anc = dirname(anc);
     const real = fs.realpath(anc) ?? anc;
-    const kind: SafeWriteKind = real === roots.home || real.startsWith(`${roots.home}/`) ? "home" : "accept";
+    const homeRel = relative(roots.home, real);
+    const underHome = homeRel === "" || (homeRel !== ".." && !homeRel.startsWith(`..${sep}`) && !isAbsolute(homeRel));
+    const kind: SafeWriteKind = underHome ? "home" : "accept";
     if (kind === "accept" && roots.repo(real) === null) throw new MitoriError("E_PATH_OUTSIDE", "doc root outside the workspace", { params: { root } });
-    const marker = `${relative(anc, root)}/.mitori-mkdir`;
+    const marker = `${relative(anc, root).split(sep).join("/")}/.mitori-mkdir`;
     await inner.write(real, marker, "", kind);
     await inner.remove(real, marker, kind);
   };

@@ -2,8 +2,10 @@
 import { readFileSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, parse } from "node:path";
 import type { BinaryPin } from "@mitori/core";
-import { createHasher, createSpawner } from "@mitori/platform";
+import { createHasher, createSafeWriter, createSpawner } from "@mitori/platform";
+import { materializeWindowsJob } from "../build/windows-job.ts";
 import { type Io, usage } from "./io.ts";
+import { homeOf } from "./session.ts";
 
 const VERSION_TIMEOUT_MS = 5_000;
 const VERSION_MAX_BYTES = 4_096;
@@ -17,7 +19,8 @@ export async function prepareProviderPin(binary: string, io: Io, provider: "Clau
   // --version needs no credentials. The filesystem root avoids target repository configuration.
   const env: Record<string, string> = { PATH: process.platform === "win32" ? (io.env.PATH ?? "") : "/usr/bin:/bin" };
   for (const name of ["HOME", "USERPROFILE", "SYSTEMROOT", "TEMP", "TMP"]) if (io.env[name] !== undefined) env[name] = io.env[name];
-  const proc = createSpawner().spawn({
+  const windowsJobLauncher = process.platform === "win32" ? await materializeWindowsJob(homeOf(io), createSafeWriter()) : undefined;
+  const proc = createSpawner(windowsJobLauncher ? { windowsJobLauncher } : {}).spawn({
     command: realpath,
     argv: ["--version"],
     cwd: parse(realpath).root,

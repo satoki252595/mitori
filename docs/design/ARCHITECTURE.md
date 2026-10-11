@@ -12,7 +12,7 @@
 
 1. **単一バイナリ + ユーザー単位の常駐 daemon**。`mitori` は Bun 1.4 の `--compile` バイナリ（UI 同梱）。CLI は daemon（`mitori _serve`、127.0.0.1 のみ）を起動・接続する。daemon は複数ワークスペース（repo）を抱え、**ワークスペースごとに単一 writer** の書き込みキュー、加えて `state.sqlite` 用の **daemon 全体で 1 つの `stateWrite`** を持つ（CONS-03）。CLI・MCP shim・hook も daemon API 経由で書く。ファイルの書き込みはすべて `SafeWriter`（ADR-0014）。
 2. **0 token で最初の画面**。Indexer（web-tree-sitter WASM の Worker pool）が S0〜S4 を 1 秒前後で終え、見取り図・目次・facts 表を出す。LLM はその後に、見積り → 1 クリックで動く。
-3. **13 パッケージ / 3 アプリ、依存は DAG で機械検査**。`core`（型と純データ）→ `platform`（Bun/Node 依存はここだけ）→ ドメイン（`indexer` / `doc` / `anchor` / `agent`）→ オーケストレーション（`gen` と `loop`。**互いに import しない**）→ `server`（composition root）→ `cli`。`web` は `core` と `client` だけ。
+3. **13 パッケージ / 3 アプリ、依存は DAG で機械検査**。`core`（型と純データ）→ `platform`（Bun/Node 依存。doc の字句的 `node:path` だけ ADR-0010 R3 の例外）→ ドメイン（`indexer` / `doc` / `anchor` / `agent`）→ オーケストレーション（`gen` と `loop`。**互いに import しない**）→ `server`（composition root）→ `cli`。`web` は `core` と `client` だけ。
 4. **永続化は 3 層**。repo 内 `.mitori/`（Markdown 正本 + `doc.index.json`、既定は自己 ignore、`mitori init` で commit opt-in）、`~/.mitori/repos/<ws>/index.sqlite`（索引・キャッシュ・スレッド・ジョブ）、`~/.mitori/state.sqlite`（使用量台帳・信頼・較正。全 repo 共通）。
 5. **Agent Bridge の不変条件は契約データとして固定**（`CLAUDE_CLI_INVARIANTS` I1〜I14）。project 設定遮断、prompt は stdin、system prompt は file、`--no-session-persistence`、env の allowlist（+ mitori が注入する `ENV_INJECT`）、完全 model ID。実 CLI に対する契約テストは maintainer 機 / self-hosted の schedule で回す。
 6. **費用は「見積り → 上限 → 実績」**。全 LLM 呼び出しは `AgentScheduler`（全 repo 共通、既定並列 3、5h 枠 80% で background を譲る）を通り、終了時に 1 行だけ台帳へ記録される。主単位は API 換算 $、5h 枠 % は副表示。
