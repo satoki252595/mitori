@@ -60,7 +60,8 @@ mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> 
   --model ID                     ローカル/任意APIのモデル（Grok既定grok-4.7、Muse既定contributor）
   --repo /absolute/repo          Codex/Cursor/Antigravity/Grokの外部セッションとMCP対象
   --api                         Grokで外部セッションの代わりに有料APIを選択
-  --binary /absolute/path        Claude/Museの実行ファイル（Museはnative binary）
+  --native --max-estimated-usd N Codexのサブスク認証で直接実行（推計上限、厳密な費用上限ではない）
+  --binary /absolute/path        Claude/Muse/Codex nativeの実行ファイル
   --base-url URL --key-env NAME  OpenAI互換APIのURLとキーの環境変数名（キー自体は保存しない）
   --in-price N --out-price N     任意remoteモデルのUSD/百万token単価
   --effort low|medium|high|xhigh|max  Museの推論強度（既定max、HTTPへは送らない）

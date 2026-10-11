@@ -60,7 +60,8 @@ mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> 
   --model ID                     Required for local/custom APIs; Grok defaults to grok-4.7, Muse to contributor
   --repo /absolute/repo          External Codex/Cursor/Antigravity/Grok session and MCP workspace
   --api                         Select metered Grok API instead of an existing external session
-  --binary /absolute/path        Claude/Muse executable (Muse: native binary)
+  --native --max-estimated-usd N Run Codex directly with subscription auth (estimated, not hard spending cap)
+  --binary /absolute/path        Claude/Muse/Codex native executable
   --base-url URL --key-env NAME  OpenAI-compatible URL and credential environment variable name
   --in-price N --out-price N     Custom remote model prices in USD per million tokens
   --effort low|medium|high|xhigh|max  Muse reasoning effort (default max; HTTP does not send effort)
