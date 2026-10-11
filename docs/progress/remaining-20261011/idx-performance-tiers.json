@@ -620,5 +620,331 @@
       "Raw log and capture-script bodies, absolute local paths and environment values are omitted; only artifact basenames and SHA-256 digests are retained.",
       "Earlier six-worker formal measurements and all existing JSON keys remain historical evidence."
     ]
+  },
+  "formalFollowup20261012": {
+    "sourceSha": "4adaff272ed17d54430542c860be93f736f51705",
+    "formal": true,
+    "case": "idx.s01.cold.7kfiles",
+    "warmup": 1,
+    "measured": 5,
+    "hardLimitMs": 1500,
+    "targetMs": 1200,
+    "verdict": "FAIL",
+    "runnerExitCode": 1,
+    "shortfallMs": 54.11412500000006,
+    "before": {
+      "at": "2026-10-11T17:16:16.413Z",
+      "machine": {
+        "cpu": "Apple M5 Max",
+        "cores": 18,
+        "ramGb": 128,
+        "os": "Darwin 27.0.0",
+        "bun": "1.4.2",
+        "node": "22.23.3",
+        "chrome": "153.0.8010.12",
+        "loadavg": 5.49560546875,
+        "noisy": false,
+        "waited": 0,
+        "power": "ac"
+      },
+      "load": {
+        "loadavg": 5.49560546875,
+        "noisy": false,
+        "waited": 0
+      },
+      "factor": {
+        "factor": 1.0875082914059049,
+        "source": "measured"
+      },
+      "valid": true
+    },
+    "result": {
+      "v": "mitori.bench-result/1",
+      "sha": "4adaff272ed17d54430542c860be93f736f51705",
+      "machine": {
+        "cpu": "Apple M5 Max",
+        "cores": 18,
+        "ramGb": 128,
+        "os": "Darwin 27.0.0",
+        "bun": "1.4.2",
+        "node": "22.23.3",
+        "chrome": "153.0.8010.12",
+        "loadavg": 5.53564453125,
+        "noisy": false,
+        "waited": 0,
+        "power": "ac"
+      },
+      "factor": 1.0581903190493493,
+      "factorSource": "measured",
+      "startedAt": "2026-10-11T17:16:18.076Z",
+      "results": [
+        {
+          "id": "idx.s01.cold.7kfiles",
+          "unit": "ms",
+          "values": [
+            1481.528083,
+            1545.480417,
+            1616.6321659999999,
+            1558.3663749999998,
+            1554.114125
+          ],
+          "median": 1554.114125,
+          "p95": 1616.6321659999999,
+          "cv": 0.030963615549927017,
+          "suite": "idx",
+          "mode": "process",
+          "budgetStat": "median",
+          "repo": "gostd",
+          "loadavg": 5.53564453125
+        }
+      ],
+      "counters": []
+    },
+    "after": {
+      "at": "2026-10-11T17:16:44.709Z",
+      "machine": {
+        "cpu": "Apple M5 Max",
+        "cores": 18,
+        "ramGb": 128,
+        "os": "Darwin 27.0.0",
+        "bun": "1.4.2",
+        "node": "22.23.3",
+        "chrome": "153.0.8010.12",
+        "loadavg": 7.3955078125,
+        "noisy": false,
+        "waited": 0,
+        "power": "ac"
+      },
+      "load": {
+        "loadavg": 7.3955078125,
+        "noisy": false,
+        "waited": 0
+      },
+      "factor": {
+        "factor": 1.0669607203650795,
+        "source": "measured"
+      },
+      "valid": true
+    },
+    "gateVerdict": {
+      "id": "idx.s01.cold.7kfiles",
+      "level": "red",
+      "value": 1554.114125,
+      "target": 1200,
+      "limit": 1500,
+      "unit": "ms",
+      "dir": "max",
+      "scaled": false,
+      "gating": true
+    },
+    "capture": {
+      "children": 6,
+      "captureErrors": [],
+      "method": "Parent stdout tee of original ColdResult after scan timing; no child or production source modification"
+    },
+    "children": [
+      {
+        "index": 1,
+        "role": "warmup",
+        "result": {
+          "ms": 1477.8547919999999,
+          "timings": {
+            "s0": 116.966375,
+            "workersStart": 0.03200000000001069,
+            "s1": 1346.290458,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1473.9490839999999,
+            "persist": 2259.275458,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 219.71828200000368,
+            "parseMs": 4642.337239000006,
+            "queryMs": 3033.679805000001,
+            "degraded": 2
+          },
+          "rssPeakMB": 1103.84375,
+          "files": 7687,
+          "included": 6009
+        }
+      },
+      {
+        "index": 2,
+        "role": "measured",
+        "result": {
+          "ms": 1481.528083,
+          "timings": {
+            "s0": 118.975416,
+            "workersStart": 0.03379200000000537,
+            "s1": 1356.743375,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1478.690208,
+            "persist": 2416.4705839999997,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 250.0938829999991,
+            "parseMs": 4677.604758000014,
+            "queryMs": 3051.909668999998,
+            "degraded": 2
+          },
+          "rssPeakMB": 1117.34375,
+          "files": 7687,
+          "included": 6009
+        }
+      },
+      {
+        "index": 3,
+        "role": "measured",
+        "result": {
+          "ms": 1545.480417,
+          "timings": {
+            "s0": 125.683333,
+            "workersStart": 0.05124999999998181,
+            "s1": 1414.786584,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1542.960708,
+            "persist": 2849.495,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 283.0312049999882,
+            "parseMs": 4837.663251999996,
+            "queryMs": 3224.2633309999937,
+            "degraded": 2
+          },
+          "rssPeakMB": 1133.3125,
+          "files": 7687,
+          "included": 6009
+        }
+      },
+      {
+        "index": 4,
+        "role": "measured",
+        "result": {
+          "ms": 1616.6321659999999,
+          "timings": {
+            "s0": 125.58133299999999,
+            "workersStart": 0.03691700000001674,
+            "s1": 1486.3008750000001,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1614.204458,
+            "persist": 2818.890583,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 334.54633499999113,
+            "parseMs": 4884.682779999996,
+            "queryMs": 3247.5809220000037,
+            "degraded": 2
+          },
+          "rssPeakMB": 1150.59375,
+          "files": 7687,
+          "included": 6009
+        }
+      },
+      {
+        "index": 5,
+        "role": "measured",
+        "result": {
+          "ms": 1558.3663749999998,
+          "timings": {
+            "s0": 119.092041,
+            "workersStart": 0.03941600000001699,
+            "s1": 1433.455458,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1556.004,
+            "persist": 2515.5275840000004,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 284.42213600000133,
+            "parseMs": 4830.629976000004,
+            "queryMs": 3195.366054999993,
+            "degraded": 2
+          },
+          "rssPeakMB": 1101.96875,
+          "files": 7687,
+          "included": 6009
+        }
+      },
+      {
+        "index": 6,
+        "role": "measured",
+        "result": {
+          "ms": 1554.114125,
+          "timings": {
+            "s0": 121.97375,
+            "workersStart": 0.03350000000000364,
+            "s1": 1428.098375,
+            "s2": 0,
+            "s3": 0,
+            "s4": 0,
+            "total": 1552.088792,
+            "persist": 2241.8268749999997,
+            "fts": null,
+            "filesParsed": 6539,
+            "cacheHits": 0,
+            "workers": 8,
+            "readMs": 261.573261999993,
+            "parseMs": 4857.193695999993,
+            "queryMs": 3199.5459380000016,
+            "degraded": 2
+          },
+          "rssPeakMB": 1133.65625,
+          "files": 7687,
+          "included": 6009
+        }
+      }
+    ],
+    "coverage": {
+      "allChildrenMatch": true,
+      "workers": 8,
+      "cacheHits": 0,
+      "filesParsed": 6539,
+      "degraded": 2,
+      "files": 7687,
+      "included": 6009
+    },
+    "productCodeUnchangedSince": "a8cadad800a0b71265c5ccff5a90fcde3b01164c",
+    "rawSha256": {
+      "before.json": "096f3e2c7ded410c9c6538fa02745222e0fda1f1da836b58006006a5e02db1a4",
+      "result.json": "b098069233810b639d14d547d1ff53d66494e9698e4655f6689561630123ca77",
+      "after.json": "7d9265b84d8bc018696a8ffe45ed26108acc36fed3e65514d51ed9503b0b0447",
+      "capture.json": "3e389df2ea39679c781887cd054636f6070eca9dc81fae2aa3b1f2459818a18e",
+      "capture.ts": "f2b9a6cf43a841be804312db0e0989e48cff49480e389796414bdc30db76d5b9",
+      "runner-exit-code.txt": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "run.log": "dd084ba1f61cc4e9c7ce8f0562fd59700eea96eba7a3d31dbd663bf941f97f4f",
+      "corpus-verify.log": "9afb7b4e928341d48b77d6a4658dca972ff385fbd7ada428d910c6cabff9829c",
+      "child-1.json": "0f4359b36691d071051c7ed2a746136af8ecad306147ee3ae9d41999da6a573c",
+      "child-2.json": "54928bf3ba658d11936a67d6496301382833f2da29fd264a7432d099f3e19f19",
+      "child-3.json": "0acf43852781db54790da4688250a43fd363f8c0a2702007d2b897d94ccad4cc",
+      "child-4.json": "8e56043e4d6c66e84357714345f3b95960b8042ffc288f29a601366f7929714b",
+      "child-5.json": "47e5ee2f2d436b5535e8a008563a573aeda2c7abf2626f3a51b45f883e3a54f4",
+      "child-6.json": "7c7beb17f2987f28c310ca165f5b96aa9620503026d157adf5cd1dda013bd0e9"
+    },
+    "notes": [
+      "Previous formal 1694.155083ms is retained in formalVerification20261012.",
+      "Product code is unchanged; timing difference between separate invocations is not a product optimization claim.",
+      "Same standard runner, automatic calibration, discarded warmup1 and measured5; no budget/reference/Worker/timeout/GC changes.",
+      "Parent stdout tee observes original child results after measurement; no child instrumentation.",
+      "Formal children verify counts and diagnostics; whole-row SQL hashes belong to separate ABBA evidence.",
+      "Only whitelisted numeric metadata and basename SHA-256 values are retained; raw bodies and private local paths omitted."
+    ]
   }
 }

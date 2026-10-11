@@ -97,3 +97,13 @@ loadavgは7.5625 / 8.2959 / 9.1880。較正未測定・計時追加ありの1回
 これは選択4入力・単threadの診断で、cold scan、Worker転送、SQL、本番の返信後256KiB明示GCを含まない。phaseのparse / queryは経過時間、queryは`extract()`全体であり、WASM単体のCPU時間ではない。process CPUはhandler以外のruntime / background処理も含む。初回のsource付きincremental経路の結果はprivateに保持し、この比較から除外した。全corpusの3表hashも未取得なので、正式性能・互換性の合格とは扱わない。
 
 全体で再現する改善や不足194msの解消を裏づける結果ではないため、派生WASM配布・恒久依存・asset lock変更は追加しない。Binaryenはproject-pinned nixpkgsの一時Nix環境で使用し、直接install・flake変更・追加LLM・追加費用は0。値・hash・guard・制限は [idx-cold.json](idx-cold.json) の `screening20261012`。正式1,500ms未達を保持する。
+
+## 全体ABBAによる後続確認（2026-10-12 JST、main 4adaff2）
+
+解析Workerのroot importを既存parse/index.tsへの公開entryに絞る案も確認した。依存入力は127→61（workspace120→54）、8Workerの起動診断は平均38.363→32.581ms、出力hash一致。ただし起動はS0と重なる。全Go ABBAでは前後quiet / AC・factor1.076753 / 1.079409、元1,473.451 / 1,483.238ms、候補1,453.795 / 1,529.364msで、中央値1,478.345→1,491.580ms（候補0.895%遅い）。3表全行hash・counters・coverageは一致したが、scan速度・peak RSSの改善は確認できず**不採用**。候補の公開entry・境界例外・テストは復元し、未pushの作業branchを削除した。候補だけの境界回帰は12pass / 73assertionsだった。
+
+このbaselineが上限付近まで下がったという新しい証拠から、clean mainで既存正式caseを1 invocation実施した。最新正式中央値は**1,554.114125ms**で、hard1,500msに対して**FAIL / exit1**、不足54.114125ms。前後quiet / AC・reference範囲内で、元の製品コードと予算を維持した。前回1,694.155083msとの時間差を製品改善とは主張しない。[正式値と制限](idx-performance-tiers.md)。
+
+reference条件が戻ったため、上記WASM -O3候補も同じGo全体で1 ABBAだけ実行できた。元1,455.436 / 1,515.840ms、候補1,458.731 / 1,497.880ms、中央値1,485.638→1,478.305ms（0.494%差）。3表全行hash・coverage・counters・degraded2は全回一致し、先行の「全corpus hash未取得」はこの後続で確認できた。ただしafter factor**1.147960**は基準外で、candidateのquery累積時間も減っていない。小差から再現する改善・正式合格は主張できず**不採用**を維持する。派生WASM・恒久依存・asset lock変更0。
+
+値・driver / raw hash・各候補の判断は [idx-cold.json](idx-cold.json) の `fullScanFollowup20261012`。hashは各比較内で同じ直列化を使い、初期driverと直列化が異なるidx_blobs digestは横断比較しない。追加LLM・追加費用0。製品の変更を残さず、最新正式hard未達を保持する。

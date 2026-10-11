@@ -18,7 +18,7 @@
 | Codex並列生成の予算予約 | shared preflightで送信直前に合算判定。途中本文・usage保持と同額resumeを対象37tests / 224 assertionsで確認 | API換算の推計上限。hidden reasoningを含む実請求の厳密capではない | [codex-budget.md](codex-budget.md) |
 | 本人環境の外部MCP | Codex / Cursor / Grokはproject設定、Antigravity 2.12.2は共通設定で各8ツールの接続を確認。Codexは子プロセスだけのplugin無効化と既存4設定の無効化で再確認。LLM要求・MCPツール実行・追加LLM費用0 | 初回Codex override失敗とAntigravityのproject設定の制約を保存。4外部セッションからの文書生成は未実行 | [実設定の確認](../startup-matrix-20261007/README.md) |
 | Linux cold check | testkitの既存home subpathへimportを絞り、全20semantic診断を維持。ARM同条件ABBAは4回ともhard limit内 | soft targetは未達、統合headのUbuntu x64 CIでの確認は別 | [cold-home.md](cold-home.md) |
-| Go7k cold scan | Node.type再取得削減に加え、Super / Performance全tierの検出を修正。新旧ABBAは19.45%短縮・全3表hashとcounters一致。新8Workerの正式caseは前後quiet / AC・reference内、warmup1 / measured5で中央値1,694.155083ms、p951,806.187875ms | **hard limit1,500msはFAIL（exit1）**。旧6Worker正式値1,980.096958msは履歴として保持。GoのRSS増加とReact中央値986.688MiB / 上限1000以内 / 目標700MiB WARNも保持 | [全性能tierと最新正式測定](idx-performance-tiers.md)、[先行採用](idx-type-local.md)、[先行正式測定](idx-formal.json) |
+| Go7k cold scan | Node.type再取得削減に加え、Super / Performance全tierの検出を修正。新旧ABBAは19.45%短縮・全3表hashとcounters一致。最新clean main4adaff2 / 8Workerの正式caseは前後quiet / AC・reference内、warmup1 / measured5で中央値1,554.114125ms、p951,616.632166ms | **hard limit1,500msはFAIL（exit1）**。前回8Worker正式値1,694.155083msと旧6Worker正式値1,980.096958msは履歴として保持。同一製品で環境が異なる今回の差を製品改善とは扱わない。GoのRSS増加とReact中央値986.688MiB / 上限1000以内 / 目標700MiB WARNも保持 | [全性能tierと最新正式測定](idx-performance-tiers.md)、[先行採用](idx-type-local.md)、[先行正式測定](idx-formal.json) |
 | 初回parse準備 | lazy poolのsize0でprewarmが送られない原因を1行修正。回帰6pass / 20assertions、ABBAで3表の全行hash・coverage・counters一致 | 終了較正factor1.124994が基準外。後続正式試行も事前factor1.130491でscan0回。全体速度の改善・hard limit合格は未証明 | [原因と比較](idx-prewarm.md) |
 | F10の実績較正 | 既存ledgerをexact profileで見積りへ接続。対象40pass、保守floor・USD cap・confidence25維持 | 既存EMAは保持。実精度・実請求の保証なし | [較正の確認](ledger-calibration.md) |
 | F14のCLI案内・終了処理 | 既存help接続、自身が起動したdaemonだけ終了対象。後接続・作業中は同期idle guardで維持。対象回帰・統合check成功 | 起動者のPID同一性を証明できない環境では停止しない | [終了処理の確認](cli-lifecycle.md) |
@@ -47,7 +47,11 @@ Go7kでは凍結した同一source・新process / 空homeで12runを比較し、
 
 旧6Workerの正式 `idx.s01.cold.7kfiles` はsource `bdcebaf1aa97525bc86722cbf4f4cbf508bfa083`、warmup1 / measured5、quiet / AC、factor1.037243379882442で中央値1,980.096958ms。hard limit1,500msは未達だった。上のNOISY / report-only測定と採用ABBAもそれぞれ履歴として保持する。
 
-最新8Workerの正式caseはsource `a8cadad800a0b71265c5ccff5a90fcde3b01164c`、warmup1 / measured5、開始前load6.701172 / quiet / AC・factor1.0033811104106738、終了後load8.081055 / quiet / AC・factor1.0870683419986469。中央値1,694.155083ms / p951,806.187875msで、hard limit1,500msはFAIL・exit1だった。全6childで8Worker / cacheHits0 / filesParsed6,539 / degraded2 / files7,687 / included6,009。前後reference内の正式結果であり、較正未計測の採用ABBAと分ける。[正式結果とsanitized証跡](idx-performance-tiers.md)。
+先行8Workerの正式caseはsource `a8cadad800a0b71265c5ccff5a90fcde3b01164c`、warmup1 / measured5、開始前load6.701172 / quiet / AC・factor1.0033811104106738、終了後load8.081055 / quiet / AC・factor1.0870683419986469。中央値1,694.155083ms / p951,806.187875msで、hard limit1,500msはFAIL・exit1だった。全6childで8Worker / cacheHits0 / filesParsed6,539 / degraded2 / files7,687 / included6,009。前後reference内の正式結果であり、較正未計測の採用ABBAと分ける。[正式結果とsanitized証跡](idx-performance-tiers.md)。
+
+最新の正式caseはclean main `4adaff272ed17d54430542c860be93f736f51705`、warmup1 / measured5、開始load5.535645 / quiet / AC・factor1.0581903190493493、before1.0875082914059049 / after1.0669607203650795もquiet / AC・reference内。中央値1,554.114125ms / p951,616.632166ms / CV0.0309636で、hard limit1,500msはFAIL・exit1だった。全6childで8Worker / cacheHits0 / filesParsed6,539 / degraded2 / files7,687 / included6,009が一致し、captureErrorsは0。同一製品で環境が異なるため、先行1,694.155083msとの差を製品改善とは扱わない。[最新正式証跡](idx-performance-tiers.md)。
+
+lean parse-entry候補はfull ABBAで0.9%遅く不採用とし、製品ファイルをすべて復元・作業branch削除済み。WASM候補のfull ABBAも完了し、中央値1,485.637958→1,478.305375ms（0.494%差）、3表hash・counters・coverageは一致した。ただしbefore factor1.087322に対しafter1.147960は基準外で、不採用を維持する。候補比較で正式結果を上書きしない。[比較と判断](idx-cold.md)、[最新正式証跡](idx-performance-tiers.md)。
 
 後続helper候補のABBAもquiet / reference内（before1.078238 / after1.073405）で完了。baseline中央値1,853.212792msに対し候補1,849.252792ms（0.214%）で、3表の全行hash・counters・coverage・6Workerは一致したが、速度の採用根拠はなく未採用とした。
 
@@ -76,7 +80,7 @@ WindowsはNix-built EXEを `BUN_BE_BUN=1` で再利用し、Windows用Bunの別�
 旧監査の再照合で見つけたF10の実績較正とF14のCLI help・export終了処理はPR #14でmainへ通常統合した。初回全unitで見つけた再確認条件の回帰も修正し、既存fixture不変で修正前失敗・修正後成功とUbuntu全体成功を確認した。
 
 1. 本人による実Chrome日本語IMEの変換確定Enter / 次のEnterを確認する。利用者は後日確認すると回答済み。compiled scanSummaryの正式検証はhard limit合格で完了し、target WARNは保持する。
-2. Go7kの最新8Worker正式中央値1,694.155083msはhard limit1,500msに対してFAIL。旧6Worker正式値1,980.096958ms、helper候補0.214%差の未採用、setLanguage省略候補の推計約0.296msの未採用は履歴として保持する。
+2. Go7kの最新8Worker正式中央値1,554.114125msはhard limit1,500msに対してFAIL。前回8Worker正式値1,694.155083ms・旧6Worker正式値1,980.096958msと、helper候補0.214%差・setLanguage省略候補の推計約0.296ms・lean parse-entry候補full ABBA0.9%悪化の未採用は履歴として保持する。[最新正式証跡](idx-performance-tiers.md)。
 3. Jev / m3eは引用用import入力と共通verdictを修正し、追加実生成2回の費用承認待ち。有料creditを使わない保証はできず、API換算$0.50も実請求の上限ではない。
 4. 外部4クライアントの本人環境MCP接続は各8ツールで確認済み。4外部セッションからの文書生成・取り込みは未実行で、Codex native生成と区別して残す。
 

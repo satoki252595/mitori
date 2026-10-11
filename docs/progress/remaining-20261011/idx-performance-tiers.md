@@ -36,3 +36,11 @@ source `a8cadad800a0b71265c5ccff5a90fcde3b01164c` の既存正式case `idx.s01.c
 warmupを含む全6子プロセスで8 Worker / cacheHits0 / filesParsed6,539 / degraded2 / files7,687 / included6,009が一致した。固定corpusの検証は1 ok / 0 failed。親stdoutから計時後の元のColdResultを取得し、子プロセスや製品sourceを変更していない。全3表の全行fingerprints一致は先行ABBAの証拠であり、今回の正式invocationで再取得したものではない。GoのRSSは参考値のままで、正式RSS caseのReactと混同しない。
 
 [JSON証跡](idx-performance-tiers.json)の`formalVerification20261012`へ結果・終了後較正・capture方式・全6子結果・13資料のSHA-256を追記した。以前のJSONキーと値は保持し、raw log本文・capture script本文・絶対ローカルpath・環境変数値は保存していない。Go hard limit1,500msの残課題は継続する。
+
+## 同日後続の正式計測（main 4adaff2、17:16 UTC）
+
+新しい候補のABBAでbaselineも上限付近まで下がったため、候補をすべて復元したclean main `4adaff272ed17d54430542c860be93f736f51705`で、既存正式caseを1 invocationだけ実行した。前回`a8cadad`以来、packages / apps / scripts / flakeの製品差分は0。前回の1,694.155083msは履歴として保持し、別条件の時間差を製品の速度改善とは扱わない。
+
+事前quiet / AC・factor1.087508、runner自身の自動factor**1.058190319** / load5.535645、終了後quiet / AC・factor**1.066960720**でreference範囲内。既定warmup1＋measured5、fresh process / 空home、8Worker / shadow / S0–S1、予算・reference・GC・timeoutを維持した。計測値は1,481.528083 / 1,545.480417 / 1,616.632166 / 1,558.366375 / 1,554.114125ms、中央値**1,554.114125ms** / p95 **1,616.632166ms** / CV0.030964。既存判定は**FAIL・gating:true・exit1**、raw hard limit1,500msに対して不足**54.114125ms**。測定の選別や追加再試行はしていない。
+
+全6childでfiles7,687 / included6,009 / filesParsed6,539 / cacheHits0 / 8Worker / degraded2が一致。captureは計時後の元child JSONをparentでteeし、子や製品コードは変更しない。全行SQL hashは別の候補ABBAと区別する。全値・gate・capture・basename hashは [idx-performance-tiers.json](idx-performance-tiers.json) の `formalFollowup20261012`。追加LLM・依存・費用0。
