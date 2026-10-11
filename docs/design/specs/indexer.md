@@ -279,7 +279,9 @@ git -C <clone> fetch --depth 1 --no-tags origin <ref>   →  git -C <clone> chec
 
 ### 3.1 Worker pool の本数と寿命
 
-- 本数: `W = clamp(ceil(parseMB / 0.75), 1, min(8, max(1, cores − 2), perfCores))` [仮]。`parseMB` は **cache miss で実際に parse するバイト数**（warm で数ファイルなら W = 1）。`cores = os.availableParallelism()`、`perfCores` は macOS の `sysctl hw.perflevel0.logicalcpu`（取れない OS では 8）を platform が渡す。
+- 本数: `W = clamp(ceil(parseMB / 0.75), 1, min(8, max(1, cores − 2), perfCores ?? 8))` [仮]。`parseMB` は **cache miss で実際に parse するバイト数**（warm で数ファイルなら W = 1）。`cores = os.availableParallelism()`。最大 8 本・2 cores の予約・0.75 MB 係数は従来実装から変更しない。
+- `perfCores` は platform が渡す、macOS の既知の全 `Super` / `Performance` tier の logical core 合計とする（CR perf-tier-1、2026-10-12）。`Efficiency` は除外する。`hw.nperflevels` を読み、全 level の `.name` / `.logicalcpu` を一括取得して、件数・既知の名前・正の整数・全 tier 合計が `cores` 以下であることを検証する。未知・欠落・不正なら従来の `hw.perflevel0.logicalcpu`、さらに失敗なら `null`（pool の既定値 8）へ戻す。同期 sysctl の全呼出しは共通の 1 秒 deadline 内で行う。
+- 2026-10-12 JST の実機確認は `hw.nperflevels=2`、level0 `Super` 6、level1 `Performance` 12、合計 18 logical cores、Efficiency 0。Apple の [M5 Pro / M5 Max 発表（2026-03-03、2026-10-12 JST 確認）](https://www.apple.com/uk/newsroom/2026/03/apple-debuts-m5-pro-and-m5-max-to-supercharge-the-most-demanding-pro-workflows/) の 6 super + 12 performance cores と整合する。最高性能 tier の 6 だけを数える旧定義は残りの性能 tier を除いていた。
 - 計測（`proto/s1bench.mjs`、parse + 本書の tags query + 結果の構造化 clone、IDX-D3 のバッチ規則）[実測]:
 
 | repo | parse 対象 | W=1 | W=2 | W=4 | W=6 | W=8 | 式の W | peak RSS（W=1 → 測った最大の W） |
@@ -293,7 +295,8 @@ git -C <clone> fetch --depth 1 --no-tags origin <ref>   →  git -C <clone> chec
 | excalidraw | 700 本 8.0MB | — | — | 337 | 313 | 417² | 6 | 386 → 453 MB（W=4 → 6） |
 | react | 2,423 本 22.6MB | — | — | 788² | 666 | 660 | 6 | 590 → 690 MB（W=6 → 8） |
 
-  （値は S0a〜S1 の wall。² は 64 本固定バッチ版の値。）この Mac では P-core 6 本を超えると E-core に乗って Σparse 時間が伸び、wall が縮まない。**上限を `perfCores` で切る**のはこのため。Worker 1 本あたり +60〜70 MB。
+  （値は S0a〜S1 の wall。² は 64 本固定バッチ版の値。）旧計測記録では「この Mac では P-core 6 本を超えると E-core に乗って Σparse 時間が伸び、wall が縮まない」と解釈し、**上限を `perfCores` で切る**根拠とした。表と解釈は履歴として残すが、現在の基準機は Super 6 + Performance 12 / Efficiency 0 なので、この E-core の説明を現在の機械や他機種へ一般化しない。Worker 1 本あたり +60〜70 MB も旧計測値。
+- CR perf-tier-1 の Go 比較（較正未計測、正式 gate ではない）: 6 workers の baseline 2,268.274 / 2,038.615 ms に対し、8 workers の candidate は 1,725.018 / 1,744.146 ms。各組の中央値で約19.4%短縮し、全3表の fingerprints・counters・files は一致した。RSS は 913 / 927 → 1,083 / 1,137 MiB に増えた（Go の参考値。RSS の正式 case は react）。改善比較だけを示し、正式 hard 1,500 ms の未達は継続する。
 - 起動: Worker spawn + `Parser.init` = 11〜15 ms。grammar は Worker 内で**最初にその言語のファイルが来たとき** load（`Language.load` 0.4〜1.6 ms）+ query compile（TS 21.6 ms / TSX 19.7 / Python 10.3 / JS 9.2 / Rust 6.5 / Go 1.4）[実測 `proto/loadtime.mjs`]。
 - 寿命: scan 後は 1 本だけ残して他を terminate。残った 1 本（**warm Worker**）は全 MVP grammar と query を compile 済みの状態で、workspace に SSE client がいる間は保持する（`Indexer.setActive(true)`）。client が 0 になって 60 s で 0 本にする（idle RSS 寄与 0）。cold の 1 本起動は ≈ 15 ms + 該当言語の compile ≤ 22 ms。
 - 再生成: 1 本の Worker が累計 50,000 ファイルまたは 512 MiB を parse したら次のバッチ境界で入れ替える [仮]（WASM の線形メモリは縮まないため。測り方: §11.2 の RSS 曲線で 10 回連続 scan の peak が単調増加しないこと）。

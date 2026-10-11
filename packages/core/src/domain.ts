@@ -3912,7 +3912,7 @@ export interface Timers {
 export interface HardwareInfo {
   /** `os.availableParallelism()`. */
   cores: number;
-  /** Logical cores in the OS's highest-performance tier (macOS `hw.perflevel0.logicalcpu`), `null` when unknown. */
+  /** Logical cores in macOS Super / Performance tiers; level0 fallback when tier names are unknown, `null` if unavailable [CR perf-tier-1]. */
   perfCores: number | null;
 }
 

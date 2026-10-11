@@ -176,6 +176,7 @@ describe("IDX-D2 / IDX-D3 pool sizing and batches", () => {
     expect(poolSize(0, { cores: 18, perfCores: 6 })).toBe(1);
     expect(poolSize(1.3 * MiB, { cores: 18, perfCores: 6 })).toBe(2);
     expect(poolSize(6.2 * MiB, { cores: 18, perfCores: 6 })).toBe(6);
+    expect(poolSize(100 * MiB, { cores: 18, perfCores: 18 })).toBe(8);
     expect(poolSize(100 * MiB, { cores: 18, perfCores: null })).toBe(8);
     expect(poolSize(100 * MiB, { cores: 4, perfCores: null })).toBe(2);
     expect(poolSize(100 * MiB, { cores: 2, perfCores: null })).toBe(1);

@@ -1,0 +1,293 @@
+{
+  "v": 1,
+  "at": "2026-10-11T15:21:28.720Z",
+  "baseSha": "eef67242ac6b7451f52158df34c24656cfb5ff98",
+  "hardware": {
+    "cores": 18,
+    "levels": [
+      {
+        "name": "Super",
+        "logicalcpu": 6
+      },
+      {
+        "name": "Performance",
+        "logicalcpu": 12
+      }
+    ],
+    "baselinePerfCores": 6,
+    "candidatePerfCores": 18,
+    "maxWorkers": 8,
+    "reserveCores": 2,
+    "mbPerWorker": 0.75
+  },
+  "comparison": {
+    "order": [
+      "baseline",
+      "candidate",
+      "candidate",
+      "baseline"
+    ],
+    "freshProcessAndEmptyHome": true,
+    "shadow": true,
+    "until": "S1",
+    "calibration": null,
+    "formal": false,
+    "baselineMedianMs": 2153.444667,
+    "candidateMedianMs": 1734.5818955,
+    "improvementPercent": 19.450825828904392,
+    "resultEquality": true,
+    "runs": [
+      {
+        "variant": "baseline",
+        "ms": 2268.274084,
+        "timings": {
+          "s0": 165.23241599999997,
+          "workersStart": 0.04995800000000372,
+          "s1": 2098.137459,
+          "s2": 0,
+          "s3": 0,
+          "s4": 0,
+          "total": 2265.7895409999996,
+          "persist": 2544.653625,
+          "fts": null,
+          "filesParsed": 6539,
+          "cacheHits": 0,
+          "workers": 6,
+          "readMs": 1209.399670000007,
+          "parseMs": 5166.399394000011,
+          "queryMs": 3534.1137679999993,
+          "degraded": 2
+        },
+        "rssPeakMiB": 913.109375,
+        "files": 7687,
+        "included": 6009,
+        "counters": {
+          "idx.files.hashed": 6539,
+          "idx.parse.calls": 5907,
+          "idx.sql.writes": 36
+        },
+        "loadavg": [
+          6.92529296875,
+          7.60009765625,
+          8.52587890625
+        ],
+        "fingerprint": {
+          "blobs": {
+            "rows": 6490,
+            "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+          },
+          "symbols": {
+            "rows": 133602,
+            "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+          },
+          "skeleton": {
+            "rows": 11997,
+            "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+          }
+        }
+      },
+      {
+        "variant": "candidate",
+        "ms": 1725.0175829999998,
+        "timings": {
+          "s0": 136.36016700000002,
+          "workersStart": 0.0449169999999981,
+          "s1": 1583.56125,
+          "s2": 0,
+          "s3": 0,
+          "s4": 0,
+          "total": 1722.2195419999998,
+          "persist": 2497.231041,
+          "fts": null,
+          "filesParsed": 6539,
+          "cacheHits": 0,
+          "workers": 8,
+          "readMs": 326.2443129999961,
+          "parseMs": 5153.901795999995,
+          "queryMs": 3489.9941809999987,
+          "degraded": 2
+        },
+        "rssPeakMiB": 1083.4375,
+        "files": 7687,
+        "included": 6009,
+        "counters": {
+          "idx.files.hashed": 6539,
+          "idx.parse.calls": 5907,
+          "idx.sql.writes": 36
+        },
+        "loadavg": [
+          7.8203125,
+          7.77587890625,
+          8.5771484375
+        ],
+        "fingerprint": {
+          "blobs": {
+            "rows": 6490,
+            "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+          },
+          "symbols": {
+            "rows": 133602,
+            "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+          },
+          "skeleton": {
+            "rows": 11997,
+            "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+          }
+        }
+      },
+      {
+        "variant": "candidate",
+        "ms": 1744.1462080000001,
+        "timings": {
+          "s0": 136.96645900000001,
+          "workersStart": 0.04250000000001819,
+          "s1": 1602.0349999999999,
+          "s2": 0,
+          "s3": 0,
+          "s4": 0,
+          "total": 1741.53225,
+          "persist": 2369.524459,
+          "fts": null,
+          "filesParsed": 6539,
+          "cacheHits": 0,
+          "workers": 8,
+          "readMs": 299.49604999999696,
+          "parseMs": 5099.066496000001,
+          "queryMs": 3441.6713789999912,
+          "degraded": 2
+        },
+        "rssPeakMiB": 1136.765625,
+        "files": 7687,
+        "included": 6009,
+        "counters": {
+          "idx.files.hashed": 6539,
+          "idx.parse.calls": 5907,
+          "idx.sql.writes": 36
+        },
+        "loadavg": [
+          7.99462890625,
+          7.8125,
+          8.58544921875
+        ],
+        "fingerprint": {
+          "blobs": {
+            "rows": 6490,
+            "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+          },
+          "symbols": {
+            "rows": 133602,
+            "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+          },
+          "skeleton": {
+            "rows": 11997,
+            "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+          }
+        }
+      },
+      {
+        "variant": "baseline",
+        "ms": 2038.61525,
+        "timings": {
+          "s0": 127.78800000000001,
+          "workersStart": 0.036958000000026914,
+          "s1": 1906.125916,
+          "s2": 0,
+          "s3": 0,
+          "s4": 0,
+          "total": 2036.2697090000001,
+          "persist": 2426.657167,
+          "fts": null,
+          "filesParsed": 6539,
+          "cacheHits": 0,
+          "workers": 6,
+          "readMs": 311.5775110000099,
+          "parseMs": 5087.601651999991,
+          "queryMs": 3443.8096680000126,
+          "degraded": 2
+        },
+        "rssPeakMiB": 927.09375,
+        "files": 7687,
+        "included": 6009,
+        "counters": {
+          "idx.files.hashed": 6539,
+          "idx.parse.calls": 5907,
+          "idx.sql.writes": 36
+        },
+        "loadavg": [
+          7.51416015625,
+          7.7158203125,
+          8.54638671875
+        ],
+        "fingerprint": {
+          "blobs": {
+            "rows": 6490,
+            "sha256": "32bb8499b50e176ceb3b17150d544e7911511a34b3b3378360394e9dfc133907"
+          },
+          "symbols": {
+            "rows": 133602,
+            "sha256": "f34b4c5102b245c785f1d6e02bcc04a22aff8545440bc1c9100d83f069497145"
+          },
+          "skeleton": {
+            "rows": 11997,
+            "sha256": "b950738db0b42945aab5d5411558d363301c60d1bc8bae3da15fd22a7dee1fd5"
+          }
+        }
+      }
+    ],
+    "sourceNote": "ABBA used the same tier aggregation before the shared sysctl deadline refinement. Hardware lookup finishes before scan timing; exact compared hardware-file digest was not captured. Final source is covered by the targeted tests."
+  },
+  "reactRss": {
+    "id": "idx.rss.peak",
+    "warmup": 1,
+    "measured": 3,
+    "factor": 1.1903825348791022,
+    "factorSource": "measured",
+    "machine": {
+      "cpu": "Apple M5 Max",
+      "cores": 18,
+      "ramGb": 128,
+      "os": "Darwin 27.0.0",
+      "bun": "1.4.2",
+      "node": "22.23.3",
+      "chrome": "153.0.8010.12",
+      "loadavg": 6.71044921875,
+      "noisy": false,
+      "waited": 0,
+      "power": "ac"
+    },
+    "result": {
+      "id": "idx.rss.peak",
+      "unit": "MB",
+      "values": [
+        986.6875,
+        992.453125,
+        971.609375
+      ],
+      "median": 986.6875,
+      "p95": 992.453125,
+      "cv": 0.010942651031067691,
+      "suite": "idx",
+      "mode": "process",
+      "budgetStat": "median",
+      "repo": "react",
+      "loadavg": 6.71044921875
+    },
+    "hardLimitMiB": 1000,
+    "targetMiB": 700,
+    "verdict": "WARN: median below hard limit, above target; memory is not scaled by factor"
+  },
+  "targetedTests": {
+    "pass": 13,
+    "fail": 0,
+    "assertions": 60
+  },
+  "formalGoHardLimitMs": 1500,
+  "formalGoVerdict": "unresolved; comparison is not a formal gate",
+  "sources": [
+    {
+      "url": "https://www.apple.com/uk/newsroom/2026/03/apple-debuts-m5-pro-and-m5-max-to-supercharge-the-most-demanding-pro-workflows/",
+      "checked": "2026-10-12 JST"
+    }
+  ],
+  "finalHardwareSha256": "c047e00472937638dff3476ee32c7f09d8c09a9c6f9ed30c8ec940a710fa1ea0"
+}
