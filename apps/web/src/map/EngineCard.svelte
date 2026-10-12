@@ -8,8 +8,9 @@
 import type { Effort, EngineStatus } from "@mitori/core";
 import { sessionMode } from "../gen/estimate.ts";
 import type { LauncherCommand } from "../settings/provider.ts";
+import { providerSetupCommand } from "../settings/provider.ts";
 import { t } from "../shell/index.ts";
-import { type EngineProblem, fixSteps } from "./engine.ts";
+import { type EngineProblem, fixSteps, museUpdated } from "./engine.ts";
 
 let {
   status,
@@ -29,7 +30,7 @@ let {
   launcher?: LauncherCommand | undefined;
 } = $props();
 
-const steps = $derived(fixSteps(problem, status.engine));
+const steps = $derived(fixSteps(problem, status.engine, museUpdated(status) ? { museSetup: providerSetupCommand({ provider: "muse" }, launcher) } : {}));
 const session = $derived(sessionMode(effort, { repo, launcher }));
 let checking = $state(false);
 async function recheck() {

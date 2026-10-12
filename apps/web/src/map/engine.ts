@@ -22,8 +22,14 @@ export interface FixStep {
   cmd?: string;
 }
 
+/** Muse's launcher deletes the versioned native binary the saved argv names; re-running setup pins the new one. */
+export function museUpdated(s: Pick<EngineStatus, "engine" | "installed" | "path" | "problems"> | null): boolean {
+  return !!s && s.engine === "generic" && !s.installed && /\/muse-bin-[^/]+$/.test(s.path ?? "") && s.problems.some((p) => p.code === "E_AGENT_NOT_INSTALLED");
+}
+
 /** The exact steps of the engine card, in order; the last one is always the re-probe. */
-export function fixSteps(p: EngineProblem, engine: EngineId = "claude-cli"): FixStep[] {
+export function fixSteps(p: EngineProblem, engine: EngineId = "claude-cli", opts: { museSetup?: string } = {}): FixStep[] {
+  if (opts.museSetup) return [{ key: "museSetup", cmd: opts.museSetup }, { key: "recheck" }];
   if (engine !== "claude-cli")
     return [...(p === "notInstalled" && engine !== "anthropic-api" ? [{ key: "installNix" }] : []), { key: "providerSetup" }, { key: "recheck" }];
   switch (p) {

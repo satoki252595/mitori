@@ -1,14 +1,14 @@
 {
-  "engine.altSession": "自分のClaude Codeセッションで生成することもできます。",
+  "engine.altSession": "普段のAIのセッション（Codex・Cursor・Claude Codeなど）にこの手順を貼り付けて生成することもできます。",
   "engine.capabilityLost.body": "このバージョン（{version}）では生成に必要な機能が使えません。更新してから再検出してください。",
   "engine.capabilityLost.title": "必要な機能が使えません",
   "engine.checking": "確認中…",
   "engine.copy": "コピー",
-  "engine.notInstalled.body": "選択中の{engine}を利用できません。nix環境と提供元の認証設定を確認してから再検出してください。",
+  "engine.notInstalled.body": "選択中の{engine}が見つかりません。普段の方法でインストール・ログインし、mitoriの設定で接続してから再検出してください。",
   "engine.notInstalled.title": "見つかりません",
   "engine.notLoggedIn.body": "選択中の{engine}の認証が確認できません。提供元の手順で認証してから再検出してください。",
   "engine.notLoggedIn.title": "ログインしていません",
-  "engine.pathHint": "別の場所にあるCLIを使う場合は、nix環境または設定のエンジンで実行ファイルを指定します。",
+  "engine.pathHint": "別の場所にあるCLIを使う場合は、設定のエンジンで実行ファイルを指定します。",
   "engine.recheck": "再検出",
   "engine.step.install": "Claude Code CLIをインストールする",
   "engine.step.login": "ターミナルで起動し、/loginでサインインする",
@@ -92,6 +92,7 @@
   "map.zoom.out": "縮小（-）",
   "map.zoom.stages": "ズーム段",
   "map.context.outside": "外とのやり取り: {names}",
-  "engine.step.installNix": "プロジェクトのnix設定でCLIを用意・更新する（パッケージ名は提供元で確認）",
+  "engine.step.installNix": "提供元の公式手順でCLIをインストール・更新する",
+  "engine.step.museSetup": "Museが自動更新され、登録済みの実行ファイルがなくなりました。端末で次を実行し、新しい版を登録する",
   "engine.step.providerSetup": "選択した提供元のインストール・認証手順と、設定の実行ファイルを確認する"
 }

@@ -4,7 +4,7 @@ import type { EngineStatus, MapView } from "@mitori/core";
 import { buildPlanModel, hydratePlan, MAP_SVG_LABELS, mapSvgPresentation, planData, renderPlanSvg } from "@mitori/core";
 import { ROOM_LOD, UI_THRESHOLDS } from "../contract.ts";
 import { cameraForK, centreOn, fitCamera, K_MAX, K_MIN, lerpCamera, lodClass, STAGE_K, stageOf, stepStageK, zoomAt } from "./camera.ts";
-import { engineProblem, fixSteps, policyAcknowledged } from "./engine.ts";
+import { engineProblem, fixSteps, museUpdated, policyAcknowledged } from "./engine.ts";
 import { generatedTokens, heroAreas, heroMeta, oneSentence } from "./hero.ts";
 import {
   FLOW_BULGE,
@@ -352,6 +352,25 @@ describe("AC-U-EN engine card: exact steps, the last one re-probes", () => {
         expect(steps.every((s) => s.cmd === undefined)).toBe(true);
         expect(steps.at(-1)?.key).toBe("recheck");
       }
+  });
+  test("a Muse self-update that removed the configured binary gets the one setup command, not install guidance", () => {
+    const gone: EngineStatus = {
+      engine: "generic",
+      installed: false,
+      path: "/Users/u/.local/bin/muse-bin-1.4.3-R5018.1",
+      auth: "unknown",
+      capabilities: [],
+      billing: "unknown",
+      problems: [{ code: "E_AGENT_NOT_INSTALLED", message: "gone" }],
+      checkedAt: "2026-10-12T00:00:00Z" as never,
+    };
+    expect(museUpdated(gone)).toBe(true);
+    expect(museUpdated({ ...gone, path: "/usr/local/bin/my-llm" })).toBe(false);
+    expect(museUpdated({ ...gone, installed: true, problems: [] })).toBe(false);
+    expect(fixSteps("notInstalled", "generic", { museSetup: "bun run start -- setup muse" })).toEqual([
+      { key: "museSetup", cmd: "bun run start -- setup muse" },
+      { key: "recheck" },
+    ]);
   });
 });
 

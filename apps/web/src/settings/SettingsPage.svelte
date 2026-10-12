@@ -6,6 +6,7 @@
 <script lang="ts">
 import { type GenEngineId, PROVIDER_AUTH_IDS, type ProviderAuthId, type ReaderLevel, type ReasoningEffort } from "@mitori/core";
 import { onMount } from "svelte";
+import { museUpdated } from "../map/engine.ts";
 import { copyText } from "../shell/clipboard.ts";
 import { authDisplayKind } from "../shell/fmt.ts";
 import { t } from "../shell/index.ts";
@@ -459,7 +460,7 @@ async function saveProvider(e: SubmitEvent) {
     {#each s.session.engines ?? [] as e (e.engine)}
       {@const active = e.engine === activeEngine}
       {@const relevant = active || e.installed || e.path !== undefined}
-      {@const museGone = e.engine === "generic" && !e.installed && /\/muse-bin-[^/]+$/.test(e.path ?? "") && e.problems.some((p) => p.code === "E_AGENT_NOT_INSTALLED")}
+      {@const museGone = museUpdated(e)}
       <div class="eng card" class:idle={!relevant}>
         <b class="mono">{e.engine}</b>
         {#if active}<span class="active">{t("settings.engineActive")}</span>{/if}
