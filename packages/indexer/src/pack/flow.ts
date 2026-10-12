@@ -447,6 +447,13 @@ export function handlerReach(
 export function infraRoute(r: Pick<RouteFact, "pattern" | "handler">): boolean {
   const p = r.pattern.toLowerCase();
   if (/(^|\/)(health|healthz|livez|readyz|ready|ping|version|metrics|status|favicon\.ico|robots\.txt|debug|pprof)(\/|$)/.test(p)) return true;
+  // a product site's legal / icon pages are not what the app does (text-to-cad's docs app: privacy, terms, icon)
+  if (
+    /(^|\/)(privacy|privacy-policy|terms|terms-of-service|terms-of-use|tos|legal|cookies?|cookie-policy|imprint|icons?|apple-icon|opengraph-image|twitter-image|sitemap|manifest)(\/|$)/.test(
+      p,
+    )
+  )
+    return true;
   if (/(^|\/)(static|assets|public|dist)(\/|$)|\.(js|mjs|css|map|png|jpe?g|gif|svg|ico|woff2?|ttf|html?|txt|json)$/.test(p)) return true;
   if (r.handler === undefined) return true;
   const name =
@@ -642,6 +649,14 @@ const ROUTE_SHARE = 0.75;
  * whose file walk repeats an earlier one's is dropped. Routes take at most ¾ of the seeds while CLI commands or
  * entries exist.
  */
+/**
+ * Entries of a project's own website, docs or demos come after the product's (rea: all 8 seeds were the landing
+ * page's calculator / dino animations; text-to-cad: its docs app's privacy, terms and icon pages). They still seed
+ * a repository that has nothing else.
+ */
+const ASIDE_PATH_RE = /(^|\/)(website|site|docs?|documentation|examples?|demos?|showcase|landing|marketing|tests?|__tests__|spec|e2e|fixtures?)\//;
+const aside = (file: string) => (ASIDE_PATH_RE.test(file) ? 1 : 0);
+
 export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, src?: FlowSources): FlowSeed[] {
   const rank = (p: RepoPath) => st.fileRank.get(p) ?? 0;
   type Cand = {
@@ -653,6 +668,8 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
     handler?: SymbolKey;
     order: number;
     tier: number;
+    /** 1 for a website / docs / demo / test-area file: after every product candidate, routes included. */
+    aside: number;
     score: number;
     weight: number;
     size: number;
@@ -688,13 +705,27 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         ...(r.handler ? { handler: r.handler } : {}),
         order: 0,
         tier: infraRoute(r) ? 1 : 0,
+        aside: aside(file),
         score: 0,
         weight: 0,
         size: r.handler ? bodyOf(r.handler) : 0,
         reach: src && r.handler && start !== undefined ? handlerReach(r.handler, start, st, src, linesOf) : null,
       });
     } else if (f.kind === "cli")
-      cands.push({ kind: "cli", label: f.command, path: f.path, line: f.line, file: f.path, order: 1, tier: 0, score: 0, weight: 0, size: 0, reach: null });
+      cands.push({
+        kind: "cli",
+        label: f.command,
+        path: f.path,
+        line: f.line,
+        file: f.path,
+        order: 1,
+        tier: 0,
+        aside: aside(f.path),
+        score: 0,
+        weight: 0,
+        size: 0,
+        reach: null,
+      });
     else if (f.kind === "entry") {
       const file = f.entry === "main" && st.moduleOf.has(f.label) ? f.label : f.path;
       const symbols = src?.files.get(file)?.symbols ?? [];
@@ -710,6 +741,7 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         order: 2,
         // `go run gen.go` style generators are labelled by their file: after the program's own mains
         tier: f.entry === "main" && /\.[A-Za-z0-9]+$/.test(f.label) ? 1 : 0,
+        aside: aside(file),
         score: 0,
         weight: 0,
         size: 0,
@@ -719,7 +751,7 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
       // callables of its entry file as candidates too; their names/locations are evidence, not inferred HTTP routes.
       if (src)
         for (const s of symbols) {
-          if (!CALLABLE.has(s.kind) || s.kind === "class" || s.key === handler?.key || s.name.startsWith("_")) continue;
+          if (!CALLABLE.has(s.kind) || s.kind === "class" || s.key === handler?.key || s.qualname.split(".").some((n) => n.startsWith("_"))) continue;
           const start = st.moduleOf.get(file);
           if (start === undefined) continue;
           const reach = handlerReach(s.key, start, st, src, linesOf, true);
@@ -732,7 +764,9 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
             file,
             handler: s.key,
             order: 2,
-            tier: 0,
+            // a callable of a generator / site entry file stays behind the program's own entries
+            tier: f.entry === "main" && /\.[A-Za-z0-9]+$/.test(f.label) ? 1 : 0,
+            aside: aside(file),
             score: 0,
             weight: 0,
             size: s.end - s.start + 1,
@@ -760,6 +794,7 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
   }
   cands.sort(
     (a, b) =>
+      a.aside - b.aside ||
       a.order - b.order ||
       a.tier - b.tier ||
       b.score - a.score ||

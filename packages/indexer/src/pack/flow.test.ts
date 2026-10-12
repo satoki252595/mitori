@@ -316,6 +316,9 @@ describe("gen #4c flow seeds follow the handler, not the router file", () => {
     expect(infraRoute({ pattern: "/live", handler: "a.go#Server.serveIndexHTML" as never })).toBe(true);
     expect(infraRoute({ pattern: "/api/comments" })).toBe(true); // no handler: nothing to walk from
     expect(infraRoute({ pattern: "/api/comments", handler: "a.go#Server.handleReviewComments" as never })).toBe(false);
+    // a product site's legal / icon pages (text-to-cad's docs app, 2026-10-12)
+    for (const pattern of ["/privacy-policy", "/terms-of-service", "/icon", "/legal/cookies"])
+      expect(infraRoute({ pattern, handler: "app/page.tsx#Page" as never })).toBe(true);
     const files = new Map<RepoPath, StageFile>([
       ["web/embed.go", sf("web/embed.go", { lang: "go", symbols: [{ name: "Assets", kind: "var" }] })],
       ["scripts/bench.py", sf("scripts/bench.py", { lang: "python", scope: "tooling", symbols: [{ name: "main" }] })],
@@ -409,4 +412,24 @@ describe("IDX-U module stats (gen I3)", () => {
         expect(s?.files).toBe(kids.reduce((n, m) => n + m.paths.length, 0));
       }
     });
+});
+
+describe("the product's flows come before its website, docs, demos and tests", () => {
+  test("a landing page's demo scripts and a docs app's routes follow the product entry (rea / text-to-cad, 2026-10-12)", async () => {
+    const { p, sources } = await callRepo({
+      "tool/cli.py":
+        "from .core import analyze\ndef run(path):\n    return analyze(path)\ndef _private_helper():\n    return analyze('x')\ndef main():\n    print(run('a'))\nif __name__ == '__main__':\n    main()\n",
+      "tool/core.py": "def analyze(path):\n    return len(path)\n",
+      "website/assets/demo.py":
+        "from .anim import frame\ndef play():\n    return frame(1) + frame(2)\ndef main():\n    print(play())\nif __name__ == '__main__':\n    main()\n",
+      "website/assets/anim.py": "def frame(n):\n    return n * 2\n",
+    });
+    const seeds = flowSeeds(p.structure, p.facts, 8, sources);
+    const first = seeds.findIndex((s) => s.files.some((f) => f.startsWith("website/")));
+    const product = seeds.findIndex((s) => s.files.includes("tool/core.py" as RepoPath));
+    expect(product).toBeGreaterThanOrEqual(0);
+    if (first >= 0) expect(product).toBeLessThan(first);
+    // a private helper of an entry file is never a flow of its own
+    expect(seeds.some((s) => s.label.includes("_private_helper"))).toBe(false);
+  });
 });
