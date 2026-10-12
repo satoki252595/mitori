@@ -798,8 +798,7 @@ class Gatherer {
   /** Cited files of a flow section (its blocks' claim cites): the flow's source files. */
   private flowCites(section: SectionId): RepoPath[] {
     const out: RepoPath[] = [];
-    for (const blk of this.env.doc.section(section)?.blocks ?? [])
-      for (const c of this.env.doc.claims(blk.id)) for (const cite of c.cites) out.push(cite.path);
+    for (const blk of this.env.doc.section(section)?.blocks ?? []) for (const c of this.env.doc.claims(blk.id)) for (const cite of c.cites) out.push(cite.path);
     return out;
   }
 

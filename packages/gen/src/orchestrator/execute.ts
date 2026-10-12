@@ -653,9 +653,7 @@ async function proposeStaleFlows(
   // a stale flow stays proposed until a person decides: never stack a second proposal for the same block, and
   // never re-propose a deletion the person already rejected
   const decided = new Set(
-    env.doc
-      .proposals()
-      .flatMap((p) => (p.op === "delete" && p.block && (p.state === "pending" || p.state === "rejected") ? [p.block] : [])),
+    env.doc.proposals().flatMap((p) => (p.op === "delete" && p.block && (p.state === "pending" || p.state === "rejected") ? [p.block] : [])),
   );
   for (const s of env.doc.sections()) {
     if (!s.id.startsWith("s3/") || keys.has(s.id.slice(3))) continue;
