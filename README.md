@@ -33,7 +33,9 @@ scripts/nd bun run start -- /absolute/path/to/your/repository
 
 `direnv: … .envrc is blocked`は自動環境読み込みの許可待ちです。上の`scripts/nd`なら許可せず起動できます。direnvを使いたい場合だけ、`cat .envrc`で内容（`use flake`）を確認してから`direnv allow`を実行してください。
 
-`Unknown lockfile version`が出た場合は`bun --version`と`command -v bun`を確認します。このlockfileにはBun 1.4.2以上が必要です。古いNix profileのBun 1.3.13がPATHで優先されていた実例があります。lockfileを削除せず、上のプロジェクトNixか、手元にある新しいBunを明示します。例えば既存の`~/.bun/bin/bun`が1.4.2以上なら：
+Bunが古くても`bun run start`は新しいBun（`$BUN_INSTALL`・`~/.bun`・PATH上の他のBun・プロジェクトのNixの順）を探し、同じ引数で起動し直します。切り替えた旨を1行で知らせます。実機のBun 1.3.13で`bun run start -- --version`の成功を確認済みです。
+
+自動切替できない場合だけ、手動で新しいBunを明示します。lockfileを削除しません。例えば既存の`~/.bun/bin/bun`が1.4.2以上なら：
 
 ```sh
 ~/.bun/bin/bun --version
@@ -71,7 +73,7 @@ scripts/nd bun run start -- /absolute/path/to/your/repository
 
 **Museは自動更新で実行ファイルの版が変わります。** 更新後に画面が「Museが自動更新され、登録済みの実行ファイルがなくなりました」と表示したら、表示されたコマンド（`bun run start -- setup muse`）を端末でもう一度実行してください。
 
-**普段のAIのセッションで生成する場合**（Cursor・Antigravity・Grok Build・Codexなど）は、画面の**生成手順をコピー**を押し、そのAIに貼り付けます。AIが準備パケットを読み、生成した文書をmitoriへ取り込みます。対象のソースやGitは変更しません。生成後のレビュー対応は、AIに次のように依頼できます。
+**普段のAIのセッションで生成する場合**（Cursor・Antigravity・Muse・Grok Build・Codexなど）は、画面の**生成手順をコピー**を押し、そのAIに貼り付けます。AIが準備パケットを読み、生成した文書をmitoriへ取り込みます。対象のソースやGitは変更しません。生成後のレビュー対応は、AIに次のように依頼できます。
 
 > mitoriのレビューを取得し、変更案はmitori_submit_patchで提出してください。対象ソースを直接変更せず、人の確認を待ってください。
 
@@ -124,7 +126,7 @@ HTTP連携は無ツールのChat Completionsを使用します。`--effort`はHT
 | [rea](https://github.com/morluto/rea)（TypeScript、2,962ファイル）· Muse high | 約45分（並列2〜3） | 約$0.66 |
 | [gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view)（JavaScript、1,803ファイル）· Muse high | 約44分 | 約$0.54 |
 | [text-to-cad](https://github.com/earthtojake/text-to-cad)（Python、2,932ファイル）· Muse high | 約44分 | 約$0.64 |
-| 小さなGoサービス（20ファイル）· 普段のCursor / Antigravityのセッション | 約8〜19分 | 各ツールの契約枠 |
+| 小さなGoサービス（20ファイル）· 普段のCursor / Antigravity / Museのセッション | 約8〜19分 | 各ツールの契約枠 |
 
 API換算はサブスク利用時の請求額ではなく、比較用の推計です。思考の強さを上げるほど時間がかかります。生成中もページは開いたまま読めます。
 
