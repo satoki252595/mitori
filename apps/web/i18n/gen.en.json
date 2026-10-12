@@ -107,5 +107,6 @@
   "policy.museContributor": "Recipient: Meta (Muse Spark 1.3 Contributor) · {files} files ({excluded} excluded) · secrets masked · Prompts and completions are eligible for Meta model training",
   "gen.session.cwd": "Run the following commands from a terminal in your mitori clone.",
   "gen.session.prompt": "Generate the repository design documents. Do not change its source or Git commits; write only the preparation packet out/*.ndjson files.\n1. Run:\n{prep}\n2. Read the README named by the printed readme field, complete its tasks and write results to out/*.ndjson.\n3. Replace PREP_ID with the printed id, then ingest:\n{ingest}\n4. Fix errors and ingest again. If a next phase is printed, replace PREP_ID with its id and repeat preparation, generation and ingestion:\n{next}",
-  "gen.card.auth.local": "local connection (no API key)"
+  "gen.card.auth.local": "local connection (no API key)",
+  "gen.card.byteUpper": " (byte-based upper estimate)"
 }

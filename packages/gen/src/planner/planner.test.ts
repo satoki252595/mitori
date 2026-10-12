@@ -7,7 +7,7 @@ import { createFakeIndexer } from "../test/fake-indexer.ts";
 import { testClock, testHasher, testIds } from "../test/ports.ts";
 import { type FakeRepo, M_AUTH, M_CLI, M_CORE, M_HTTP, M_SESSION, sampleRepo } from "../test/repo.ts";
 import { testSettings } from "../test/settings.ts";
-import { createEstimator, withRetry } from "./estimator.ts";
+import { createEstimator, isByteUpperProtocol, toByteUpper, withRetry } from "./estimator.ts";
 import { speedOf, ttftOf } from "./params.ts";
 import { createPlanner } from "./planner.ts";
 
@@ -334,6 +334,105 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
     const cached = { ...plan, tasks: plan.tasks.map((t) => ({ ...t, cached: true })) };
     const e = estimator.estimate(cached, "claude-cli", 3);
     expect([e.apiUsd, e.inTokens, e.outTokens]).toEqual([0, 0, 0]);
+  });
+});
+
+describe("generic byte-upper estimates (usage-less engines record UTF-8 bytes as tokens)", () => {
+  const genericSettings = (protocol: "text" | "muse-jsonl" | "openai-chat" | undefined) => {
+    const s = testSettings();
+    s.global.engines.generic = {
+      enabled: true,
+      argv: ["/usr/local/bin/muse"],
+      ...(protocol === undefined ? {} : { protocol }),
+      pricing: { inPerMTok: 0.1, outPerMTok: 0.2, cacheReadPerMTok: 0.002 },
+    };
+    return s;
+  };
+
+  /** Same raw task as GEN-G-002 (prefix 11550, tail 14100, Sonnet low ⇒ O = 1746, Θ = 237). */
+  const rawTask = (): PlannedTask => ({
+    id: "gt_0000000001",
+    stage: "S5",
+    prompt: "gen.module",
+    target: { kind: "module", id: M_SESSION },
+    sections: ["s6/session"],
+    deps: [],
+    softDeps: [],
+    model: "claude-sonnet-5-5",
+    effort: "low",
+    lane: "background",
+    topoOrder: 0,
+    rank: 0.9,
+    cacheKey: null,
+    cached: false,
+    estimate: { prefix: 11550, tail: 14100, out: 0, thinking: 0, cacheWrite: 0, cacheRead: 0, uncached: 0, apiUsd: 0, seconds: 0 },
+    phase: 1,
+  });
+
+  test("muse-jsonl converts token figures to expected UTF-8 bytes; time stays token-based", () => {
+    const { estimator } = setup(sampleRepo(), genericSettings("muse-jsonl"));
+    const e = toByteUpper(rawTask(), estimator.task(rawTask(), "generic", false), undefined);
+    // input (code-estimated) × 2.3 chars/token × 1 byte/char; output (Japanese markdown) × 1.25 × 3 bytes/char
+    expect(e.prefix).toBe(Math.round(11550 * 2.3));
+    expect(e.tail).toBe(Math.round(14100 * 2.3));
+    expect(e.out).toBe(Math.round(1746 * 3.75));
+    expect(e.thinking).toBe(Math.round(237 * 3.75));
+    expect(e.cacheWrite).toBe(0);
+    expect(e.cacheRead).toBe(0);
+    expect(e.uncached).toBe(Math.round(11550 * 2.3) + Math.round(14100 * 2.3));
+    const usd = (Math.round(11550 * 2.3) * 2.5 + Math.round(14100 * 2.3) * 2 + (Math.round(1746 * 3.75) + Math.round(237 * 3.75)) * 10) / 1e6;
+    expect(e.apiUsd).toBeCloseTo(usd, 6);
+    // seconds are unchanged (σ + ttft + token out / speed)
+    expect(e.seconds).toBeCloseTo(1.0 + 1.0 + (1746 + 237) / 135, 1);
+  });
+
+  test("openai-chat (usage is reported) stays token-based", () => {
+    const { estimator } = setup(sampleRepo(), genericSettings("openai-chat"));
+    const e = estimator.task(rawTask(), "generic", false);
+    expect(e).toMatchObject({ prefix: 11550, tail: 14100, out: 1746, thinking: 237, cacheWrite: 0, cacheRead: 0, uncached: 25650 });
+    expect(e.apiUsd).toBeCloseTo((11550 * 2.5 + 14100 * 2 + 1983 * 10) / 1e6, 6);
+  });
+
+  test("default protocol (text) is byte-upper; the plan estimate is larger than claude-cli with identical seconds", () => {
+    // token-based reference on the same plan (openai-chat reports usage, so it never byte-scales)
+    const { planner, estimator: http } = setup(sampleRepo(), genericSettings("openai-chat"));
+    const plan = planner.plan({ effort: "standard" });
+    const tok = http.estimate(plan, "generic", 3);
+    const cli = http.estimate(plan, "claude-cli", 3);
+    const totalIn = (e: typeof tok) => e.inTokens + e.cacheWriteTokens + e.cacheReadTokens;
+    for (const protocol of ["text", "muse-jsonl", undefined] as const) {
+      const { estimator } = setup(sampleRepo(), genericSettings(protocol));
+      const g = estimator.estimate(plan, "generic", 3);
+      // input scales ×2.3, but the expected line-retry re-reads input and rewrites output (×3.75), so the plan
+      // input ratio lands between the two factors; output (and its retry) is uniformly ×3.75
+      const inRatio = totalIn(g) / totalIn(tok);
+      expect(inRatio).toBeGreaterThan(2.29);
+      expect(inRatio).toBeLessThan(3.76);
+      expect(g.outTokens / tok.outTokens).toBeCloseTo(3.75, 1);
+      expect(g.apiUsd).toBeGreaterThan(tok.apiUsd);
+      expect(totalIn(g)).toBeGreaterThan(totalIn(cli));
+      expect(g.apiUsd).toBeGreaterThan(cli.apiUsd);
+      expect(g.seconds).toEqual(tok.seconds);
+      expect(g.seconds).toEqual(cli.seconds);
+    }
+  });
+
+  test("openai-chat plan figures stay token-based (no byte scaling, no cli overhead)", () => {
+    const { planner, estimator } = setup(sampleRepo(), genericSettings("openai-chat"));
+    const plan = planner.plan({ effort: "standard" });
+    const g = estimator.estimate(plan, "generic", 3);
+    const c = estimator.estimate(plan, "claude-cli", 3);
+    const totalIn = (e: typeof g) => e.inTokens + e.cacheWriteTokens + e.cacheReadTokens;
+    expect(totalIn(g)).toBeLessThan(totalIn(c));
+    expect(g.outTokens / c.outTokens).toBe(1);
+    expect(g.seconds).toEqual(c.seconds);
+  });
+
+  test("only text / muse-jsonl generic protocols are byte-upper", () => {
+    expect(isByteUpperProtocol("text")).toBe(true);
+    expect(isByteUpperProtocol("muse-jsonl")).toBe(true);
+    expect(isByteUpperProtocol(undefined)).toBe(true);
+    expect(isByteUpperProtocol("openai-chat")).toBe(false);
   });
 });
 
