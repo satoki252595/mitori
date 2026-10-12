@@ -25,6 +25,9 @@ const ja = {
   env: ["名前", "既定値", "読む場所"],
   entries: ["入口", "種類", "場所"],
   captions: { scripts: "スクリプト", env: "環境変数", entries: "入口" },
+  moreRows: (n: number) => `ほか ${n} 件は下の「続き」（「詳しい」表示で開く）。`,
+  continued: (title: string, n: number) => `${title}（続き・${n} 件）`,
+  moreInS8: (n: number) => `よく読まれる順に表示。ほか ${n} 件を含む全件は「8. 外部インターフェース」の環境変数の表。`,
   reasons: {
     binary: "バイナリ",
     data_large: "大きなデータ",
@@ -169,6 +172,9 @@ const en: typeof ja = {
   env: ["Name", "Default", "Read at"],
   entries: ["Entry", "Kind", "Location"],
   captions: { scripts: "Scripts", env: "Environment variables", entries: "Entry points" },
+  moreRows: (n: number) => `${n} more in the continuation below (open with the expert level).`,
+  continued: (title: string, n: number) => `${title} (continued, ${n})`,
+  moreInS8: (n: number) => `Most-read first. All of them, including ${n} more, are in the environment table of 8. Interfaces.`,
   reasons: {
     binary: "binary",
     data_large: "large data",

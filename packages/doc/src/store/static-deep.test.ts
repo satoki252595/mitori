@@ -195,3 +195,48 @@ describe("NC-10 static §7 / §8 and the module page's change guide and region o
     expect(regionLabel({ kind: "render", start: 1 as LineNo, end: 2 as LineNo, depth: 1, names: [] }, "en")).toBe("Render (JSX)");
   });
 });
+
+describe("§4 動かしてみる stays readable in a monorepo", () => {
+  test("long script / env tables show 12 rows; scripts continue in an L3 block, env points to §8's full table", () => {
+    const base = staticInputFromTruth("go-small");
+    const script = (i: number): Fact =>
+      ({
+        kind: "script",
+        detector: "scripts@1",
+        path: `pkg${i}/package.json`,
+        line: 7,
+        blob: "",
+        name: `dev${String(i).padStart(2, "0")}`,
+        command: "vite dev",
+        purpose: "run",
+      }) as Fact;
+    const env = (name: string, path: string, line: number): Fact => ({ kind: "env", detector: "env@1", path, line, blob: "", name, hasDefault: false }) as Fact;
+    const envs = Array.from({ length: 20 }, (_, i) => env(`APP_VAR_${String(i).padStart(2, "0")}`, "src/config.py", 10 + i));
+    // read in three places: listed first although its name sorts last
+    envs.push(env("ZZ_MOST_READ", "a.py", 1), env("ZZ_MOST_READ", "b.py", 2), env("ZZ_MOST_READ", "c.py", 3));
+    const h = harness();
+    h.store.applyStatic({ ...base, facts: [...base.facts, ...Array.from({ length: 30 }, (_, i) => script(i)), ...envs] });
+    const s4 = blocksOf(h, "s4");
+    const scripts = s4.find((b) => b.slot === "s4:scripts");
+    const more = s4.find((b) => b.slot === "s4:scripts:more");
+    const total = base.facts.filter((f) => f.kind === "script").length + 30;
+    expect(scripts?.md.match(/^\| \w+ \| `/gm)?.length).toBe(12);
+    expect(scripts?.md).toContain(`ほか ${total - 12} 件`);
+    expect(more).toMatchObject({ depth: "L3" });
+    expect(more?.md.match(/^\| \w+ \| `/gm)?.length).toBe(total - 12);
+    const e = s4.find((b) => b.slot === "s4:env")?.md ?? "";
+    expect(e.match(/^\| `/gm)?.length).toBe(12);
+    expect(e.indexOf("ZZ_MOST_READ")).toBeLessThan(e.indexOf("APP_VAR_00"));
+    expect(e).toContain("8. 外部インターフェース");
+    expect(s4.some((b) => b.slot === "s4:env:more")).toBe(false);
+    // §8 keeps the complete reference
+    const names = new Set([...base.facts, ...envs].filter((f) => f.kind === "env").map((f) => (f as Fact & { name: string }).name));
+    expect(
+      (
+        blocksOf(h, "s8")
+          .find((b) => b.slot === "s8:env")
+          ?.md.match(/^\| `/gm) ?? []
+      ).length,
+    ).toBe(names.size);
+  });
+});

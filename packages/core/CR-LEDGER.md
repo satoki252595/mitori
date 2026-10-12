@@ -409,3 +409,9 @@
 | CR loop-overhead-1 | 利用者（残タスク全て、F10較正） | accepted-modified | loop `LoopDeps.fixedOverhead?`、server workspace wiring、job profile / estimate | 既存ledgerのexact engine/mode/model/prompt版の実測lookupだけを注入。既存bundle固定分とengine固定分を二重加算せず、実測超過分だけを加える。未測定・別profile・推計usage・resumeは保守既定値を維持し、confidenceを実測なしに改善しない。実LLM・実費の保証は追加しない |
 | CR export-daemon-1 | 利用者（残タスク全て、F14） | accepted-modified | `POST /daemon/shutdown` optional `onlyIfIdle`、CLI export の起動者限定 cleanup | export 自身の存命 child PID と検証済み registry が一致した daemon のみ finally で停止を要求。既存 daemon は版違いでも再起動しない。後接続の SSE・workspace 処理・waiter・bridge 作業は既存 idle busy 判定をサーバー側で同期確認し、使用中なら E_CONFLICT で維持する。明示 stop は従来通り。拒否時は待機せず書き出し結果・元エラーを保持 |
 | CR perf-tier-1 | 利用者（残タスク全て、Go cold 1,500 ms） | accepted-modified | core `HardwareInfo.perfCores`、platform `hardwareInfo()`、既存 S0–S1 bench の共有 helper（2026-10-12） | CR m1-116 の最高性能 tier（level0）だけという定義を、既知の全 `Super` / `Performance` tier の logical core 合計へ変更し、`Efficiency` は除外する。`hw.nperflevels` と全 tier の name / logicalcpu を検証し、未知・欠落・不正なら旧 level0、さらに失敗なら null。同期 sysctl は全呼出し共通の 1 秒 deadline。既存 cap 8 / cores−2 / 0.75 MB 係数・Worker 寿命・GC・parse timeout・予算は不変。実機は Super 6 + Performance 12 = 18（Efficiency 0）。較正未計測の Go ABBA は約19.4%短縮、正式 hard 1,500 ms は未達のまま。出典・比較値・RSS の制限は `docs/design/cr-requests/remaining-20261011.md` |
+
+## 18. 利用者目線の確認で見つかった不具合（2026-10-12）
+
+| id | requester | 決定 | 適用先 | 理由・備考 |
+|---|---|---|---|---|
+| CR doc-qs-1 | 利用者（トレンドOSSでの品質・UI確認） | accepted | doc `STATIC_SLOTS` に `s4:scripts:more` / `s4:entries:more`、static §4 | monorepo の「動かしてみる」が全スクリプト・全環境変数・全入口を無制限に列挙し（text-to-cad で624行）、3つの手順が埋もれた。各表は12行まで、残りは L3 の続きブロック（初めて=非表示・標準=折り畳み）。環境変数は §8 に全件表があるため続きを作らず §8 を案内し、よく読まれる順に並べる。§8 の全件表は不変 |
