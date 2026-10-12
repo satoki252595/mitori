@@ -1,9 +1,49 @@
-# mitori 引き継ぎ資料（2026-10-11 残課題の続行・Codex実検証）
+# mitori 引き継ぎ資料（2026-10-12 作業位置・残課題・再開手順）
 
-> **現在の入口は直下の §★ と [2026-10-11の検証一覧](progress/remaining-20261011/README.md)。以下の「2026-10-07履歴★」「前回★」「履歴★」と §0 / §0a / §0b は以前の記録。**
+> **次の担当者はまず §★.0 の再開位置を読む。詳細は §★.1〜3 と [検証一覧](progress/remaining-20261011/README.md)。以下の「2026-10-07履歴★」「前回★」「履歴★」と §0 / §0a / §0b は以前の記録。**
 > 今回の実LLMはCodexと取得済みLM Studio。Claudeは使用していない。過去の認証待ち・未統合・失敗の記述は、当時の履歴として残す。
 
 ## ★ 現在の状態（2026-10-12 JST、実装・検証・未達の区別）
+
+### ★.0 今回の引き継ぎ・次の再開位置
+
+**全体タスクは未完。** 依頼は「残タスクを対応し、最近注目されたOSSで品質を確認し、mainへ統合・pushすること」。現在は残件の検証段階で、全体の継続目標は対応待ち（`blocked`）。今回の依頼は作業位置の記録と引き継ぎ資料の作成であり、追加の実LLM・性能計測は実行していない。
+
+**保存開始時の確定状態**
+
+- リポジトリ: [satoki252595/mitori](https://github.com/satoki252595/mitori)（private）。既存フォルダ: `/Users/satoki252595/work/20261002_aiAgentTool`。
+- `main = origin/main = 4607d5fa0d29a0db5abbf43556ebf8c4dcac3f16`、作業ツリーclean。local / remoteのbranchはmainだけ。未統合branch・作業途中の製品差分はない。この引き継ぎ追記は同SHAの後続資料コミットになる。
+- 最後の製品統合は [PR #17](https://github.com/satoki252595/mitori/pull/17)、通常merge `0f223015e4a742413fc1419f5ace7115ffcff9c4`。以降はREADME・検証報告など資料のみで、製品コード・依存・promptの変更はない。
+- [PR #17のCI](https://github.com/satoki252595/mitori/actions/runs/38155349977)は成功。Ubuntu unit3,047pass / golden109pass / 0fail、Mac browser380pass / 14skip / 0fail・共有2pass・a11y8pass。Windowsはこのrunではskipで、[別のnative検証](https://github.com/satoki252595/mitori/actions/runs/38149209280)の選択14tests / 109assertionsと製品6selfchecksが成功。全Windows経路の保証ではない。
+- 作業追跡: [全体 Issue #2](https://github.com/satoki252595/mitori/issues/2)、[起動・LLM手順 Issue #11](https://github.com/satoki252595/mitori/issues/11)はいずれもopen。引き継ぎ時のprocess確認では対象bench / gen-real jobはなし。runner・本人確認デモの現在の稼働は再確認していない。
+
+**全体のうち完了済みの範囲**
+
+旧rem4branchの統合・push・整理、safety APIのweb配線、大きな節の段階配信、初期JS60KB目標（最新54.697KB gzip）、旧未計測7benchと基準機記録、Linux cold checkのhard gate、Nix方式のWindows対象検証は完了。ローカル / Nix起動と主要LLM設定をREADMEへ反映し、DockerはLinux検証用とした。Museで公開OSS3件、CodexでJev / m3eの対象節を実生成してsource照合し、Codex・LM StudioのExplainをNix / 通常ローカルの両経路で確認した。修正内容と適用範囲は下の §★.1 および各報告を正本とする。
+
+**今引き継ぐ残件と、次に必要なこと**
+
+| 残件 | 現在の結果 | 再開条件・次の一手 | 詳細・正本 |
+|---|---|---|---|
+| Go7k cold scan | clean main `4adaff2` の正式中央値 **1,554.114125ms / 上限1,500ms、FAIL**。不足54.114125ms | 新しい改善根拠を得てから同条件ABBAで抽出3表・coverage・countersを照合し、採用後に正式caseを測る。既存guard・上限・Worker規則は維持 | [正式結果](progress/remaining-20261011/idx-performance-tiers.md)、[JSON](progress/remaining-20261011/idx-performance-tiers.json)の `formalFollowup20261012` |
+| Chrome実IME | 通常操作・確定済み日本語検索は成功。OSの実変換確認は未実施 | 本人は「後で確認する」と回答済み。`せってい` → `設定` への変換確定Enterで検索欄が残り、次のEnterで設定が開くか確認する。再依頼を繰り返さない | [本人確認の準備・制約](progress/remaining-20261011/chrome.md) |
+| 引用の追加2生成 | 入力修正・offline確認済み。保存済みm3e L1は28pass / 2fail / 8vacuous、Jev品質節は22pass / 1fail / 2vacuous。修正後の追加native呼出 **0** | **費用の明示承認待ち**。承認後にCodexでm3e `s6/lib-tokens` / Jev `s9` を各1call、並列1・timeout各10分・自動retry / repairなしで生成し、共通verdictとsourceを再照合する | [品質・準備済み実行条件](progress/remaining-20261011/quality.md)、[保存済み引用監査](progress/remaining-20261011/quality.citation-review.json) |
+| 外部4クライアントの実利用 | Codex / Cursor / Grok / Antigravity本体2.12.2でMCP各8tools接続済み。**外部セッションからの文書生成・取り込みは未実施** | 各クライアントで本人認証・課金範囲を確認し、必要な費用承認後に生成→取り込み→引用と意味の確認まで行う。native Codexの成功で代替しない | [provider別結果](progress/startup-matrix-20261007/README.md) |
+
+追加2生成のAPI換算保守見積りは計 **$0.416844**、run guardはm3e $0.35 / Jev $0.15の計 **$0.50**、`--max-native-calls 1`ずつ。これは**実請求の上限ではない**。ChatGPT認証・APIキー未設定だけでは有料creditの消費がない保証にならないため、既存の費用確認に回答が来るまで実行しない。今回の引き継ぎを承認の代わりにしない。Claudeは使わず、Codexの再ログインを現在の待ち条件に追加しない。
+
+**直近の性能候補はすべて不採用・復元済み**
+
+lean Worker entryはfull ABBAで約0.9%遅く、WASM最適化は差0.494%かつ終了較正factor1.147960で基準外。空glob短絡はmatcherだけで約0.58ms、lazy MapはMap構築だけで約0.381msの差に留まった。symbolコピー省略は所有権の保証がなく不採用。候補コード・生成WASM・依存追加は残っていない。[判断と証跡](progress/remaining-20261011/idx-cold.md)。測定条件の異なる旧正式値1,694ms / 1,980msとの差を製品改善と報告せず、根拠のない同一計測の繰り返しも行わない。
+
+**次の担当者の再開手順**
+
+1. `AGENTS.md`、この §★.0、各残件のリンク先を読む。`git status --short --branch` と `git log -1` で引き継ぎ後のmain / 差分を確認し、[Issue #2](https://github.com/satoki252595/mitori/issues/2) / [#11](https://github.com/satoki252595/mitori/issues/11)と利用者の新しい回答を照合する。古い履歴のClaudeログイン待ち・rem未統合・Mac CI未確認へ戻らない。
+2. 未回答の費用確認と本人IME確認を保留する。実行planとデモはprivate temporary directory / daemonに依存するため、再開時に必要なfileの存在と本人用serverの稼働を確認する。消えていれば報告書の条件から再準備し、生prompt・auth・env・nonceをGitへ保存しない。無関係のdaemon / runnerを止めない。
+3. Goの続行は [idx-cold.md](progress/remaining-20261011/idx-cold.md) の不採用理由を確認してから新しい仮説を絞る。正式入口は `scripts/nd bun bench/runner/run.ts --id idx.s01.cold.7kfiles --exact --absolute --out <新規の一時result.json>`。既定warmup1 / measured5、fresh process / 空home / shadow、quiet / AC・前後reference内を維持する。候補ABBAと正式gateの結果は分けて記録する。
+4. 変更に必要な単位だけ検証し、残件の結果を正本とIssueへ反映する。並列は最大3〜4体、重いローカル検証は同時実行しない。通常の修正・commit・push・通常merge・不要branch整理は包括承認済み。commitへ `Co-Authored-By: Codex <noreply@openai.com>` を付ける。
+
+**今回の完了と混同しない制約**: Antigravity IDE 2.5.5は共通設定後の再接続未確認。LM Studioは短いExplainのみで、context指定4096 / load報告262144の差は未解明。全文semantic・全provider / 全Windows経路・OSS全般での人の編集保護を保証していない。F11の最新promptでのfresh測定・exact provider usageも未完。UI scanSummary target1,000ms、RSS等のsoft WARNは保持する。GitHubはprivate・ルートLICENSE未設定。一般公開やCloudflare deployは別途判断で、cloneによるローカル利用の必須残タスクへ追加しない。
 
 [PR #17](https://github.com/satoki252595/mitori/pull/17)を通常merge `0f223015e4a742413fc1419f5ace7115ffcff9c4` でmainへ統合した。source `27d8bd4` の[CI](https://github.com/satoki252595/mitori/actions/runs/38155349977)はUbuntu・Macとも成功。Macはquiet / AC・factor0.992146でbrowser380pass / 14skip / 0fail、共有2pass / 37 assertions、a11y8pass。Escape試験の固定時間待機を既存camera安定判定へ置き換え、入力・精度・時間上限は維持した。source・CI checkout・mergeのtree一致と元runnerサービスの復元を確認。Mac全suite待ちは解消し、以下の残件はGo正式1,500ms・実IME本人確認・引用再生成の費用承認・外部4クライアントでの実生成の4件。[現行CIと旧失敗](progress/remaining-20261011/ci.md)。
 
