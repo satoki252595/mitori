@@ -607,7 +607,16 @@ describe("gen.flows BODIES (§5.6.3)", () => {
             audience: ["dev"],
             lang: "ja",
             md: `${"1. Existing entry summary. ".repeat(5)}\n6. Observe then record history.`,
-            claims: [],
+            claims: [
+              {
+                n: 1,
+                kind: "behavior",
+                quote: "Observe then record history",
+                cites: [{ path: "src/http/server.ts", start: 5, end: 14, blob: "b", snippet: "s", precision: "exact" }],
+                checks: { l0: true, l1: "pass", l2: true, checkedAt: "2026-10-03T00:00:00.000Z" },
+                verdict: "cited",
+              },
+            ],
             gen: { model: "claude-sonnet-5-5", engine: "claude-cli", stage: "S6o", promptVer: "gen.flows@6", indexDigest: "0" },
           },
         ],
