@@ -101,7 +101,10 @@ for (const [billing, text, tone, status] of [
       // billing_overage: the start button needs the explicit acknowledgement checkbox first
       const go = page.locator(".est .go");
       await expect(go).toHaveAttribute("aria-disabled", "true");
-      await go.click({ force: true });
+      // The native click replays through the shell hand-off; landing mid-swap the button has no size, so retry it.
+      await expect(async () => {
+        await go.click({ force: true, timeout: 2_000 });
+      }).toPass();
       expect(await posts(/\/gen\/runs$/)).toEqual([]);
       await page.locator(".est .ovg input").check();
       await expect(go).toHaveAttribute("aria-disabled", "false");

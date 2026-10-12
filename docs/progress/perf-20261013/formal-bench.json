@@ -1,0 +1,73 @@
+{
+  "v": "mitori.bench-result/1",
+  "sha": "17154793809dda42475243a4f6e5ebbe191d9268",
+  "runs": [
+    {
+      "startedAt": "2026-10-12T19:39:05.648Z",
+      "machine": {
+        "cpu": "Apple M5 Max",
+        "cores": 18,
+        "ramGb": 128,
+        "os": "Darwin 27.0.0",
+        "bun": "1.4.2",
+        "node": "22.23.3",
+        "chrome": "153.0.8010.12",
+        "loadavg": 6.07470703125,
+        "noisy": false,
+        "waited": 0,
+        "power": "ac"
+      },
+      "factor": 0.9932664956607165,
+      "factorSource": "measured",
+      "results": [
+        {
+          "id": "idx.s01.cold.7kfiles",
+          "unit": "ms",
+          "values": [1403.9115, 1395.140667, 1459.5812919999998, 1449.375583, 1485.5910000000001],
+          "median": 1449.375583,
+          "p95": 1485.5910000000001,
+          "cv": 0.026595592054996935,
+          "suite": "idx",
+          "mode": "process",
+          "budgetStat": "median",
+          "repo": "gostd",
+          "loadavg": 6.07470703125
+        }
+      ]
+    },
+    {
+      "startedAt": "2026-10-12T19:39:32.817Z",
+      "machine": {
+        "cpu": "Apple M5 Max",
+        "cores": 18,
+        "ramGb": 128,
+        "os": "Darwin 27.0.0",
+        "bun": "1.4.2",
+        "node": "22.23.3",
+        "chrome": "153.0.8010.12",
+        "loadavg": 7.6259765625,
+        "noisy": false,
+        "waited": 0,
+        "power": "ac"
+      },
+      "factor": 1.049148102522477,
+      "factorSource": "measured",
+      "results": [
+        {
+          "id": "idx.rss.peak",
+          "unit": "MB",
+          "values": [794.625, 792.234375, 761.734375],
+          "median": 792.234375,
+          "p95": 794.625,
+          "cv": 0.023424606280174808,
+          "suite": "idx",
+          "mode": "process",
+          "budgetStat": "median",
+          "repo": "react",
+          "loadavg": 7.6259765625
+        }
+      ]
+    }
+  ],
+  "counters": []
+}

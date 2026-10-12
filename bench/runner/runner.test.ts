@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os, { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,7 +9,7 @@ import { type AnyBench, defineBench, isBenchDef } from "./define.ts";
 import { discover, matchesId, select } from "./discover.ts";
 import { executeCase } from "./execute.ts";
 import { gateResult } from "./gate.ts";
-import { keepAwake, NOISY_RATIO, parsePower, QUIET_WAIT_MS, waitForQuiet } from "./machine.ts";
+import { backgroundPriority, keepAwake, NOISY_RATIO, parseBackgroundPriority, parsePower, QUIET_WAIT_MS, recordReference, waitForQuiet } from "./machine.ts";
 import type { BenchResultEntry, BenchResultFile } from "./result.ts";
 import { runBench } from "./run.ts";
 import { toSamples } from "./stats.ts";
@@ -411,5 +412,49 @@ describe("BENCH-U-15 runBench on the synthetic suite", () => {
     const r = await runBench({ ids: ["synthetic.spin"], wait: false, runs: 3, warmup: 0 });
     expect(r.file.results[0]?.median ?? 0).toBeGreaterThanOrEqual(20);
     expect(r.file.results[0]?.median ?? 0).toBeLessThan(30);
+  });
+});
+
+describe("BENCH-U-16 macOS background priority", () => {
+  test("darwinbg is `ps -o pri=` 4 (padded, as ps prints it); anything else is foreground", () => {
+    expect(parseBackgroundPriority("       4\n")).toBe(true);
+    for (const out of ["      31\n", "", "  -\n"]) expect(parseBackgroundPriority(out)).toBe(false);
+  });
+
+  test("null off darwin and when ps is unavailable; the pid reaches the ps args", () => {
+    expect(backgroundPriority({ platform: "linux", run: () => ({ status: 0, stdout: "4" }) })).toBeNull();
+    expect(backgroundPriority({ platform: "darwin", run: () => ({ status: 1, stdout: "" }) })).toBeNull();
+    expect(
+      backgroundPriority({
+        platform: "darwin",
+        run: () => {
+          throw new Error("ps not found");
+        },
+      }),
+    ).toBeNull();
+    const seen: string[][] = [];
+    expect(backgroundPriority({ platform: "darwin", pid: 4242, run: (args) => (void seen.push(args), { status: 0, stdout: "31\n" }) })).toBe(false);
+    expect(seen).toEqual([["-o", "pri=", "-p", "4242"]]);
+    expect(backgroundPriority({ platform: "darwin", run: () => ({ status: 0, stdout: "4\n" }) })).toBe(true);
+  });
+
+  test("recordReference refuses at background priority without touching the recorded file", () => {
+    const root = tmp();
+    expect(() => recordReference(root, 5, { background: () => true })).toThrow("background priority");
+    expect(existsSync(join(root, "bench/runner/reference.json"))).toBe(false);
+  });
+
+  // A sandboxed shell cannot exec ps/taskpolicy, so this only runs where probing works (a real Mac, not Ubuntu CI).
+  const canProbeLive = process.platform === "darwin" && existsSync("/usr/sbin/taskpolicy") && backgroundPriority() !== null;
+  if (process.platform === "darwin" && !canProbeLive)
+    console.warn("BENCH-U-16: the live taskpolicy check is skipped — ps or taskpolicy is unavailable in this shell");
+  test.skipIf(!canProbeLive)("a taskpolicy -b child reads background, a plain child does not", () => {
+    const probe = `import { backgroundPriority } from ${JSON.stringify(join(import.meta.dir, "machine.ts"))}; console.log(JSON.stringify(backgroundPriority()));`;
+    const plain = spawnSync(process.execPath, ["-e", probe], { encoding: "utf8", timeout: 60_000 });
+    expect(plain.status).toBe(0);
+    expect(JSON.parse(plain.stdout.trim())).toBe(false);
+    const bg = spawnSync("taskpolicy", ["-b", process.execPath, "-e", probe], { encoding: "utf8", timeout: 60_000 });
+    expect(bg.status).toBe(0);
+    expect(JSON.parse(bg.stdout.trim())).toBe(true);
   });
 });

@@ -43,6 +43,35 @@ export function parsePower(pmset: string): "ac" | "battery" | null {
   return null;
 }
 
+/**
+ * Whether this process runs at macOS background priority (darwinbg): `ps -o pri=` reports 4 instead of the usual
+ * 31, and on Apple Silicon the process is confined to the efficiency cores (a calibration then measures ≈2×).
+ * Null off darwin and when `ps` is unavailable. The result-file shape (`MachineInfo`, `mitori.bench-result/1`)
+ * is unchanged on purpose: this is a pre-run gate, not a recorded dimension.
+ */
+export function parseBackgroundPriority(psOut: string): boolean {
+  return psOut.trim() === "4";
+}
+
+export interface BackgroundPriorityOptions {
+  /** Test seam. */
+  platform?: NodeJS.Platform;
+  pid?: number;
+  run?: (args: string[]) => { status: number | null; stdout: unknown };
+}
+
+export function backgroundPriority(opts: BackgroundPriorityOptions = {}): boolean | null {
+  if ((opts.platform ?? process.platform) !== "darwin") return null;
+  try {
+    const args = ["-o", "pri=", "-p", String(opts.pid ?? process.pid)];
+    const r = opts.run ? opts.run(args) : spawnSync("ps", args, { encoding: "utf8" });
+    if (r.status !== 0) return null;
+    return parseBackgroundPriority(String(r.stdout ?? ""));
+  } catch {
+    return null;
+  }
+}
+
 function powerSource(): MachineInfo["power"] {
   if (process.platform !== "darwin") return null;
   const r = spawnSync("pmset", ["-g", "batt"], { encoding: "utf8" });
@@ -157,8 +186,15 @@ export function measureFactor(root: string): { factor: number; source: "measured
   return { factor: Math.min(5, Math.max(0.5, here.totalMs / ref.calib.totalMs)), source: "measured" };
 }
 
-/** Record this machine as the reference: the best of `n` calibrations (an idle machine is the one we want to describe). */
-export function recordReference(root: string, n = 5): Reference {
+/**
+ * Record this machine as the reference: the best of `n` calibrations (an idle machine is the one we want to describe).
+ * Refuses on macOS background priority: recording a slow reference would skew every later calibration.
+ */
+export function recordReference(root: string, n = 5, hooks: { background?: () => boolean | null } = {}): Reference {
+  if ((hooks.background ?? backgroundPriority)() === true)
+    throw new Error(
+      "record-reference refused: this process runs at macOS background priority (efficiency cores only); re-register the runner service before recording a reference",
+    );
   const threshold = os.cpus().length * NOISY_RATIO;
   if ((os.loadavg()[0] ?? 0) > threshold || powerSource() === "battery") throw new Error("record-reference requires a quiet machine on AC power");
   let best: { parts: Record<string, number>; totalMs: number } | null = null;
