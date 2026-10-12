@@ -81,3 +81,29 @@ describe("GEN-S9-R early cutoff rules (§11.3)", () => {
     ]);
   });
 });
+
+describe("WP-19 prompt version bumps never regenerate by themselves (§11.3)", () => {
+  test("a version bump alone suggests nothing: unchanged code and fresh claims ⇒ no suggestion on any unit", () => {
+    // evaluate() takes no prompt version input: opening, showing or exporting an existing doc
+    // after a gen.module / gen.parent bump must not mark its pages stale or queue a regen.
+    const b = base({ iface: { md_a0000001: "i1", md_a0000002: "i2" } as Record<ModuleId, string> });
+    expect(
+      run(
+        [
+          unit("s6/a", [blk("aaaaaaa1", 4, 0)], leaf("md_a0000001", "i1")),
+          unit("s6/b", [blk("bbbbbbb1", 4, 0)], leaf("md_a0000002", "i2")),
+          unit("s3", [blk("fffffff1", 2, 0)]),
+          unit("s9", [blk("qqqqqqq1", 5, 0)]),
+        ],
+        b,
+      ),
+    ).toEqual([]);
+  });
+
+  test("a code change regenerates only the changed module: untouched modules are not rebuilt for the version gap", () => {
+    const b = base({ iface: { md_a0000001: "i1", md_a0000002: "i2" } as Record<ModuleId, string> });
+    expect(
+      run([unit("s6/a", [blk("aaaaaaa1", 4, 0)], leaf("md_a0000001", "i9")), unit("s6/b", [blk("bbbbbbb1", 4, 0)], leaf("md_a0000002", "i2"))], b),
+    ).toEqual(["R1 regen s6/a gen.module []"]);
+  });
+});

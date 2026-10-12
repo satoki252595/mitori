@@ -1,8 +1,8 @@
 // NC-10 §7 主要な型 / §8 外とのやり取り・秘密情報らしい環境変数, and the module page's 「変更の手引き」 and
 // 「大きなファイルの中身」: what applyStatic writes from `StaticGuide` and the `outbound` facts (0 tokens).
 import { describe, expect, test } from "bun:test";
-import type { Fact, LineNo, RepoPath, SectionId } from "@mitori/core";
-import type { FileRegion, StaticDocInput } from "../contract.ts";
+import type { BlockId, Fact, LineNo, RepoPath, SectionId } from "@mitori/core";
+import type { FileRegion, GeneratedBlock, StaticDocInput } from "../contract.ts";
 import { harness, staticInputFromTruth } from "../test/harness.ts";
 import { regionLabel } from "./static.ts";
 
@@ -156,7 +156,9 @@ describe("NC-10 static §7 / §8 and the module page's change guide and region o
     const entry = h.store.index().modules.find((m) => m.id === a.id);
     const blocks = blocksOf(h, entry?.section as string);
     const slots = blocks.map((x) => x.slot);
-    expect(slots.slice(0, 4)).toEqual([`m:${a.id}:h`, `m:${a.id}:facts`, `m:${a.id}:change`, `m:${a.id}:regions`]);
+    expect(slots.slice(0, 3)).toEqual([`m:${a.id}:h`, `m:${a.id}:facts`, `m:${a.id}:change`]);
+    // WP-19: the large-file regions sit at the end of the page (after the body text), not before it
+    expect(slots.at(-1)).toBe(`m:${a.id}:regions`);
     const change = blocks[2]?.md ?? "";
     const bSlug = h.store.index().modules.find((m) => m.id === b.id)?.slug;
     expect(change).toContain(`- 影響が及ぶ先（このモジュールを使う）: [`);
@@ -167,7 +169,7 @@ describe("NC-10 static §7 / §8 and the module page's change guide and region o
     expect(change).toContain("- 一緒に変わりやすいファイル（直近 120 commit）: `internal/server/server.go` 4 回");
     expect(change).toContain("ハブ（多くから使われ、多くを使う）");
     expect(change).toContain("（1,800 行）");
-    const regions = blocks[3]?.md ?? "";
+    const regions = blocks.find((x) => x.slot === `m:${a.id}:regions`)?.md ?? "";
     expect(regions).toContain(`- \`${a.paths[0]}\`（1,800 行）`);
     expect(regions).toContain(`  - \`${a.paths[0]}:50-1790\` Editor（関数）`);
     expect(regions).toContain(`    - \`${a.paths[0]}:51-120\` 状態（useState 14・useRef 6）: \`view\`・\`mode\``);
@@ -176,6 +178,32 @@ describe("NC-10 static §7 / §8 and the module page's change guide and region o
     expect(other).toContain("- テスト: 見つかりませんでした");
     expect(other).toContain("履歴を読めません");
     expect(other).toContain("テストが無い");
+  });
+
+  test("WP-19: with body text on the page, the large-file regions sit after it (not before the learn block)", () => {
+    const inp = input();
+    const h = harness();
+    h.store.applyStatic(inp);
+    const [a] = inp.modules as [(typeof inp.modules)[0]];
+    const section = h.store.index().modules.find((m) => m.id === a.id)?.section as SectionId;
+    const gen = { model: "claude-sonnet-5-5", engine: "claude-cli", stage: "S5", promptVer: "gen.module@1", indexDigest: "0".repeat(16) } as const;
+    const recap: GeneratedBlock = {
+      id: null,
+      section,
+      aspect: "recap",
+      kind: "recap",
+      depth: "L1",
+      audience: ["newcomer", "dev"],
+      lang: "ja",
+      md: "まとめ。",
+      claims: [],
+      gen,
+    };
+    h.store.applyGenerated([recap], { mode: "write", deletes: [] as BlockId[], source: { kind: "regen", id: "gr_00000001" }, reason: "test", listed: 0 });
+    const order = blocksOf(h, section).map((x) => x.slot ?? x.aspect);
+    expect(order).toContain(`m:${a.id}:regions`);
+    expect(order).toContain("recap");
+    expect(order.indexOf(`m:${a.id}:regions`)).toBeGreaterThan(order.indexOf("recap"));
   });
 
   test("a second applyStatic with the same input changes nothing (deterministic, idempotent)", () => {

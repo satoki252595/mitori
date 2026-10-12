@@ -323,8 +323,9 @@ const SLOT_RANK: Record<string, number> = {
   "m:facts": RANK.pre,
   "m:diagram": RANK.pre2,
   // 変更の手引き / large-file regions of a module page [CR rdoc-2]
+  // (WP-19: regions sits after the body text, before the questions)
   "m:change": RANK.pre2 + 5,
-  "m:regions": RANK.pre2 + 6,
+  "m:regions": RANK.post,
   // NC-10: key types (+ their drawing) before the DB schema, outbound calls and secret names in §8
   "s7:types": RANK.pre - 4,
   "s7:types-map": RANK.pre - 3,
