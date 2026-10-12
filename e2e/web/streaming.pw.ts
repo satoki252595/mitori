@@ -5,7 +5,7 @@
  * reservation (the page shows placeholders only).
  */
 import { expect, type Page, test } from "@playwright/test";
-import { BASE, chromiumMetric, configure, installCls, WS, waitMark } from "./support/helpers.ts";
+import { BASE, chromiumMetric, configure, emit, installCls, mockLog, WS, waitMark } from "./support/helpers.ts";
 
 const post = (path: string, body: unknown) =>
   fetch(`${BASE}${path}`, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } });
@@ -60,6 +60,55 @@ test("@wp10a streaming: blocks and the partial fill the reserved region; the con
   if (cls0 !== null) expect((await clsNow(page)) - cls0).toBeLessThanOrEqual(0.001);
   // still on screen: held (only a navigation or scrolling it out of view lets it go)
   await expect(page.locator('.sec-body.mstream[data-section="s1"]')).toHaveCount(1);
+});
+
+test("@wp5 generating Reader: partials and task/usage/job events never refetch /ui; confirmed blocks land throttled (~2 s)", async ({ page }) => {
+  await configure({ generated: false });
+  await page.goto(`/w/${WS}/doc/s1`);
+  await waitMark(page, "mitori:section:rendered");
+  await post("/__mock/gen", { state: "running" });
+  await expect(page.locator('.sec-body.mstream[data-section="s1"]')).toBeVisible();
+  // let the run's own view (and the first-visit read tick) land before counting
+  await page.waitForTimeout(500);
+  const uiReads = async () => (await mockLog()).filter((r) => r.method === "GET" && /\/ui\?/.test(r.path)).length;
+  const before = await uiReads();
+  // partials and task/usage/job events alone never refetch
+  for (let i = 0; i < 3; i++) {
+    await post("/__mock/stream", { section: "s1", ord: 40 + i, partial: "途中経過のテキスト" });
+    await page.waitForTimeout(60);
+    await emit({
+      type: "gen.task",
+      task: { id: `gt_wp5000${i}`, stage: "S5", target: { kind: "module", id: "md_wp5" }, state: "running", priority: 0, attempt: 1, blocks: [] },
+    });
+    await emit({
+      type: "usage.updated",
+      today: { calls: 5, in: 19000, cacheWrite: 1000, cacheRead: 2000, out: 500, apiUsd: 0.15 },
+    });
+    await emit({
+      type: "job.upsert",
+      job: { id: "j_0000000001", ws: WS, kind: "fix", state: "running", threads: [], createdAt: "2026-10-03T00:00:00Z" },
+    });
+    await page.waitForTimeout(150);
+  }
+  expect(await uiReads()).toBe(before);
+  // a burst of confirmed blocks is throttled to ~one fetch per 2 s window, and the blocks still land mid-run
+  // (placeholders carry .ph-wrap and skeletons aria-busy; confirmed blocks carry neither)
+  const done = page.locator(".blk[data-b]:not(.ph-wrap):not([aria-busy])");
+  const have = await done.count();
+  const burst = await uiReads();
+  for (let i = 0; i < 4; i++) {
+    await post("/__mock/stream", { section: "s1", ord: 40 + i });
+    await page.waitForTimeout(150);
+  }
+  // ~0.6 s of upserts: at most one throttled fetch so far
+  expect(await uiReads()).toBeLessThanOrEqual(burst + 1);
+  // confirmed blocks land within ~2 s of the last change
+  await expect(done).toHaveCount(have + 4, { timeout: 8000 });
+  expect(await uiReads()).toBeLessThanOrEqual(burst + 2);
+  // the section flip and the run end still land
+  await post("/__mock/section", { section: "s1", state: "generated" });
+  await post("/__mock/gen", { state: "done" });
+  await expect(page.locator(".stream-note:not(.held)")).toHaveCount(0, { timeout: 8000 });
 });
 
 test("@wp10a streaming: a finished section held on screen lets its reservation go once scrolled out of view; the reading position stays", async ({ page }) => {
