@@ -231,28 +231,54 @@ function s2(c: Ctx): StaticSpec[] {
 
 const PURPOSE_ORDER = ["run", "test", "build", "lint", "format", "typecheck", "other"] as const;
 
-function envTable(c: Ctx, env: EnvFact[]): string {
+/** Env rows by name (§8, the full reference); `byUse` puts the names read in the most places first (§4). */
+function envRows(c: Ctx, env: EnvFact[], byUse = false): string[][] {
   const byName = new Map<string, EnvFact[]>();
   for (const e of env) byName.set(e.name, [...(byName.get(e.name) ?? []), e]);
-  const rows = [...byName.entries()]
-    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+  return [...byName.entries()]
+    .sort((a, b) => (byUse ? b[1].length - a[1].length : 0) || (a[0] < b[0] ? -1 : 1))
     .map(([name, fs]) => [code(name), fs.some((f) => f.hasDefault) ? c.l.yes : c.l.no, fs.map(loc).join(" ")]);
+}
+
+function envTable(c: Ctx, env: EnvFact[]): string {
+  const rows = envRows(c, env);
   return rows.length === 0 ? `- ${c.l.none}` : table(c.l.env, rows);
+}
+
+/** Rows a §4 table shows at every reader level; the rest is one L3 block (hidden for 初めて, folded for 標準). */
+export const QUICKSTART_ROWS = 12;
+
+/**
+ * A captioned §4 table. A monorepo can list hundreds of scripts, env names or entry points (text-to-cad: 624 lines),
+ * which buried the three steps of 「動かしてみる」; the full list stays in the doc as the `:more` block.
+ */
+function cappedTable(
+  c: Ctx,
+  slot: string,
+  title: string,
+  head: readonly string[],
+  rows: string[][],
+  rank: number,
+  elsewhere?: (n: number) => string,
+): StaticSpec[] {
+  const caption = (t: string, md: string) => `**${t}**\n${md}`;
+  if (rows.length === 0) return [facts("s4", slot, caption(title, `- ${c.l.none}`), rank)];
+  if (rows.length <= QUICKSTART_ROWS) return [facts("s4", slot, caption(title, table(head, rows)), rank)];
+  const rest = rows.length - QUICKSTART_ROWS;
+  const top = table(head, rows.slice(0, QUICKSTART_ROWS));
+  // already listed in full elsewhere (§8's env table): point there instead of repeating it
+  if (elsewhere) return [facts("s4", slot, caption(title, `${top}\n\n${elsewhere(rest)}`), rank)];
+  return [
+    facts("s4", slot, caption(title, `${top}\n\n${c.l.moreRows(rest)}`), rank),
+    facts("s4", `${slot}:more`, caption(c.l.continued(title, rest), table(head, rows.slice(QUICKSTART_ROWS))), rank + 1, "L3"),
+  ];
 }
 
 function s4(c: Ctx): StaticSpec[] {
   const scripts = ofKind(c.input.facts, "script").sort(
     (a: ScriptFact, b: ScriptFact) => PURPOSE_ORDER.indexOf(a.purpose) - PURPOSE_ORDER.indexOf(b.purpose) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
   );
-  const caption = (t: string, md: string) => `**${t}**\n${md}`;
   // NC-06: no 「状態 未実行」 column (nothing records runs), each table under its caption
-  const scriptsMd =
-    scripts.length === 0
-      ? `- ${c.l.none}`
-      : table(
-          c.l.scripts,
-          scripts.map((s) => [s.purpose, code(s.name), code(s.command), loc(s)]),
-        );
   const g = c.input.guide;
   // a framework's page is the entry a reader opens; a `start` script is in the scripts table already
   const entries = ofKind(c.input.facts, "entry")
@@ -262,14 +288,20 @@ function s4(c: Ctx): StaticSpec[] {
     ...(g?.framework ? [[inline(g.framework.label), "page", code(g.framework.path)]] : []),
     ...entries.map((e) => [inline(e.label), e.entry, loc(e)]),
   ];
-  const entriesMd = entryRows.length === 0 ? `- ${c.l.none}` : table(c.l.entries, entryRows);
   const out: StaticSpec[] = [];
   const steps = stepsMd(c);
   if (steps) out.push(facts("s4", "s4:steps", steps, RANK.post - 1, "L0", ["newcomer", "dev"]));
   out.push(
-    facts("s4", "s4:scripts", caption(c.l.captions.scripts, scriptsMd), RANK.post),
-    facts("s4", "s4:env", caption(c.l.captions.env, envTable(c, ofKind(c.input.facts, "env"))), RANK.post2),
-    facts("s4", "s4:entries", caption(c.l.captions.entries, entriesMd), RANK.post3),
+    ...cappedTable(
+      c,
+      "s4:scripts",
+      c.l.captions.scripts,
+      c.l.scripts,
+      scripts.map((s) => [s.purpose, code(s.name), code(s.command), loc(s)]),
+      RANK.post,
+    ),
+    ...cappedTable(c, "s4:env", c.l.captions.env, c.l.env, envRows(c, ofKind(c.input.facts, "env"), true), RANK.post2, c.l.moreInS8),
+    ...cappedTable(c, "s4:entries", c.l.captions.entries, c.l.entries, entryRows, RANK.post3),
   );
   return out;
 }

@@ -130,7 +130,11 @@ function setEffort(e: Effort) {
               onstart={start}
               onack={ack}
               oncopy={(c) => copyText(c, s, "copy.command")}
-              onsettings={() => ws && void s.router.go({ name: "wsSettings", ws })}
+              onsettings={() => {
+                if (!ws) return;
+                s.ui.focusEngines = true;
+                void s.router.go({ name: "wsSettings", ws });
+              }}
             />
           {/if}
           {#if s.gen.error}<p class="gen-err" role="alert">{errorText(s.gen.error)}</p>{/if}

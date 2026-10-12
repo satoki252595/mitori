@@ -2,7 +2,7 @@
 
 > 見取り図 — リポジトリ全体を「見て取れる」設計書に変換し、人間と AI が同じ設計書の上でレビュー・修正指示・議論を行うためのツール。
 
-**pre-alpha / 2026-10-11更新。** cloneして手元のリポジトリを開くローカルアプリです。ブラウザで使います。通常利用に**Nix・Docker・Cloudflare・データベースサーバーは不要**です。
+**pre-alpha / 2026-10-12更新。** cloneして手元のリポジトリを開くローカルアプリです。ブラウザで使います。通常利用に**Nix・Docker・Cloudflare・データベースサーバーは不要**です。
 
 ## まず使う
 
@@ -47,51 +47,44 @@ scripts/nd bun run start -- /absolute/path/to/your/repository
 
 ## 普段のLLMを使う
 
-1. ブラウザの**設定 → エンジン → 使うAI**で普段のツールを選びます。
-2. 未ログインなら**公式○○にログイン**を押します。ターミナルで実行ファイルを確認し、公式のブラウザ認証を完了します。ログイン済みなら省略できます。
+1. ブラウザの**設定 → エンジン → 使うAI**で普段のツールを選びます（Muse・Codexは「思考の強さ」も選べます）。
+2. 未ログインなら**公式○○にログイン**を押し、公式のブラウザ認証を完了します。ログイン済みなら省略できます。
 3. **接続コマンドを作る**を押し、表示されたコマンドを端末で実行して設定を保存します。
-4. **設定を再読み込み**を押します。
+4. **設定を再読み込み**を押します。設定画面の一覧で、使用中のエンジンに「使用中」と表示されます。
 
-**APIキーは必須ではありません。** Claude Code・Codex・Muse・Cursor・Grok Buildは本人の公式ツールへのログイン経路を利用できます。課金先・契約の利用枠は公式ツールで確認してください。今回のMuse実回答試験では課金先・サブスク枠までは確認していません。Antigravityは公式アプリまたは本人のCLIでサインインする手順を案内します。mitori独自のOAuthや認証情報の入力はありません。ログインボタンはmacOS/Linuxの手元のターミナルを開き、開けない環境ではコピーするコマンドを表示します。mitoriのLLM設定はJSON編集不要で、接続コマンドはターミナルの現在位置に依存しません。
+**APIキーは必須ではありません。** Claude Code・Codex・Muse・Cursor・Grok Build・Antigravityは本人の公式ツールのログインを使います。mitori独自のOAuthや認証情報の入力はなく、ログイン情報は公式ツールの保管先に保存されます。課金先・契約の利用枠は公式ツールで確認してください。
 
-契約には利用上限があります。**枠内だけで使う場合は、提供元の超過課金・自動補充を無効にして、枠を使い切ったらリセットを待ってください。** mitoriは追加購入やAPI課金への自動切り替えを行いません。Museのログイン操作は、端末での確認後、優先される保存APIキーを公式`logout`で解除してからブラウザで`login`します。ログインを省略する場合も、公式ツールでアカウント認証を確認してください。ログイン開始を成功とは扱わず、ログイン情報は公式ツールの保管先へ保存します。ブラウザやmitoriの設定JSONへ渡しません。[提供元ごとの認証・利用枠の確認](docs/research/subscription-login-20261006.md)。
+契約には利用上限があります。**枠内だけで使う場合は、提供元の超過課金・自動補充を無効にし、枠を使い切ったらリセットを待ってください。** mitoriは追加購入やAPI課金への自動切り替えを行いません。Codexが利用上限に達した場合は、提供元のメッセージ（例:「usage limit … try again at …」）を表示して生成を止めます。
 
-ターミナルから直接設定する場合も、次の短いコマンドを使えます。設定コマンドはインストール・モデルのダウンロード・LLMへの推論要求を行いません。
+ターミナルから直接設定する場合は次のコマンドを使います。設定コマンドはインストール・モデルのダウンロード・推論要求を行いません。
 
-| 普段使っているもの | 設定コマンド（mitoriフォルダで実行） | 利用方法 |
+| 普段使っているもの | 設定コマンド（mitoriフォルダで実行） | 使い方 |
 | --- | --- | --- |
-| Claude Code | `bun run start -- setup claude` | ログイン済みの`claude`を利用。画面から生成・説明・修正提案 |
-| Muse | `bun run start -- setup muse` | 認証済みnative binaryを検出。既定は`muse-spark-1.3-contributor` / `max` |
-| Grok Build | `bun run start -- setup grok --repo /absolute/path/to/your/repository` | 公式Buildにアカウントログイン。既存の利用枠でMCP・準備/取り込みを利用 |
-| Ollama | `bun run start -- setup ollama --model MODEL_ID` | 起動済みのOllamaと取得済みローカルモデルを利用 |
-| LM Studio | `bun run start -- setup lmstudio --model MODEL_ID` | 起動済みローカルサーバーを利用。画面のモデルIDを指定 |
-| Codex | `bun run start -- setup codex --native --max-estimated-usd 1` | 公式CLIのサブスク認証で画面から生成・説明・修正提案 |
-| Cursor | `bun run start -- setup cursor --repo /absolute/path/to/your/repository` | 普段のCursorからMCP・文書生成の準備/取り込みで利用 |
-| Antigravity | `bun run start -- setup antigravity --repo /absolute/path/to/your/repository` | 普段のAntigravityからMCP・文書生成の準備/取り込みで利用 |
+| Claude Code | `bun run start -- setup claude` | 画面から生成・説明・修正提案 |
+| Muse | `bun run start -- setup muse --effort high` | 画面から生成・説明・修正提案。`--effort`省略時は`max` |
+| Codex | `bun run start -- setup codex --native --max-estimated-usd 1` | 画面から生成・説明・修正提案 |
+| Ollama | `bun run start -- setup ollama --model MODEL_ID` | 起動済みのOllamaとローカルモデル |
+| LM Studio | `bun run start -- setup lmstudio --model MODEL_ID` | 起動済みのローカルサーバー |
+| Cursor | `bun run start -- setup cursor --repo /absolute/path/to/your/repository` | 普段のCursorのセッションで生成（MCP・準備/取り込み） |
+| Antigravity | `bun run start -- setup antigravity --repo /absolute/path/to/your/repository` | 普段のAntigravityのセッションで生成 |
+| Grok Build | `bun run start -- setup grok --repo /absolute/path/to/your/repository` | 普段のGrok Buildのセッションで生成 |
 
-**Codexで画面から直接生成・説明・修正する場合**は、ログイン済みの公式Codex CLIを使い、次の1コマンドで設定できます。ClaudeのログインやAPIキーは不要です。
+**Museは自動更新で実行ファイルの版が変わります。** 更新後に画面が「Museが自動更新され、登録済みの実行ファイルがなくなりました」と表示したら、表示されたコマンド（`bun run start -- setup muse`）を端末でもう一度実行してください。
 
-```sh
-bun run start -- setup codex --native --max-estimated-usd 1
-```
-
-既定は`gpt-6.1-sol` / `high`です。実行ファイルと設定を確認して保存し、画面を再読み込みします。未ログインなら画面のCodexログインボタン、または`bun run start -- auth codex`から公式ログインへ進めます。検証済みCLIは`0.160.0`で、別版は安全設定の確認が済むまで拒否します。`--max-estimated-usd 1`は1ターンのAPI換算推計への同意額です。実行はサブスク認証を使い、契約の利用枠・制限に従います。購入済みの追加クレジットがある場合、その消費をmitori側では禁止できません（[公式の利用枠・クレジット説明](https://learn.chatgpt.com/docs/pricing)、2026-10-11確認）。CLIの非公開の推論量まで厳密に金額制限するものではありません。[実測・公式単価・制限](docs/progress/remaining-20261011/quality.md)。普段のCodexセッションからMCPで使う場合は`bun run start -- setup codex --repo /absolute/path/to/your/repository`を使います。画面でも「直接実行する」のチェックを外して選べます。
-
-`MODEL_ID`は置き換える値です。**Ollama**はアプリを起動（または既存CLIで`ollama serve`）し、`ollama list`で取得済みモデル名を確認して指定します。ローカルモデルはログインもAPIキーも不要です。**LM Studio**はアプリでモデルを読み込み、Developer画面でローカルサーバーを開始し、表示されたモデルIDを指定します。`lms` CLIは必須ではありません。設定コマンドはサーバーの起動やモデルの取得を代行しません。mitoriは起動済みのローカルHTTPサーバーへ接続します。これは有料クラウドAPIの契約を必要とするものではありません。LM Studioの既定接続先は`http://localhost:1234/v1`、Ollamaは`http://localhost:11434/v1`です。
-
-Ollamaの動作・回答品質はモデルとメモリ容量に依存します。今回の128GiB Macでは、取得済み`qwen3-coder-next:latest`（約51.7GB）で短い説明と出典を確認しました。小型の`qwen3:4b`は出力600token上限をthinkingに使い切り、本文が空になりました。`/no_think`を加えても同じ結果でした。設定が保存できたことと、実回答が成功したことを区別してください。[モデルごとの結果](docs/progress/startup-matrix-20261007/README.md)。
-
-**Ollamaクラウドを使う場合だけ**は、画面の公式ログインボタン、または`bun run start -- auth ollama`で`ollama signin`へ進みます。ローカルサーバー経由で公式認証を使い、クラウドの契約枠・クレジットを消費します。cloudモデルはローカル無料扱いにせず、設定に確認した単価を指定してください。直接`ollama.com`へ接続するAPIキー方式とは別です。[Ollamaの公式認証](https://docs.ollama.com/api/authentication)。
-
-**外部セッションのCodex・Cursor・Antigravity・Grok Buildを使う場合**は、設定コマンドが表示するMCP登録手順を1回実行します。既存のMCP設定は残してください。AIには次のように依頼できます。
-
-Grokは表示コマンドの`--cwd`と`--scope project`で、対象repoの`.grok/config.toml`へ登録します。Codexの`mcp add`は共通設定への登録です。対象repoだけで使う場合は、表示されたTOMLをそのrepoの`.codex/config.toml`へ追加します（Codexで信頼済みのprojectのみ読込）。Cursorは`.cursor/mcp.json`へ表示されたJSONを追加します。Antigravityは**Manage MCP Servers / Open MCP Config**で開く`~/.gemini/config/mcp_config.json`へ追加します。`.agents/mcp_config.json`は対応版向けで、今回のAntigravity 2.12.2 / IDE 2.5.5では読み込みを確認できませんでした。AntigravityのCLI登録もproject限定を保証していません。既存ファイル全体を置き換えず、`mitori`の項目を追加してください。
-
-2026-10-11の本人環境では、Codex・Cursor・Grokと、共通設定を使うAntigravity 2.12.2で各8ツールの接続を確認しました。Codexは初回の隔離設定の失敗を保存し、検証用の子プロセスだけで他の連携を無効にして再確認しました。この接続確認でLLM要求・MCPツール実行・追加LLM費用は0です。**この4クライアントからの文書生成は未実行**です。[設定先と実クライアントでの確認](docs/progress/startup-matrix-20261007/README.md)。
+**普段のAIのセッションで生成する場合**（Cursor・Antigravity・Grok Build・Codexなど）は、画面の**生成手順をコピー**を押し、そのAIに貼り付けます。AIが準備パケットを読み、生成した文書をmitoriへ取り込みます。対象のソースやGitは変更しません。生成後のレビュー対応は、AIに次のように依頼できます。
 
 > mitoriのレビューを取得し、変更案はmitori_submit_patchで提出してください。対象ソースを直接変更せず、人の確認を待ってください。
 
-初回の文書生成は、画面の**生成手順をコピー**で表示する手順を、そのAIへ渡します。mitoriが作る準備パケットのREADMEに従って文書を生成・取り込みます。モデルは普段のツール側で選びます。外部セッションのツール・hookはそのツールの設定に従うため、mitoriの自動LLM起動とは区別しています。
+<details>
+<summary>Codex・Ollama・LM Studio・外部セッションの補足</summary>
+
+**Codex（画面から直接）**: 既定は`gpt-6.1-sol` / `high`です。検証済みCLIは`0.160.0`で、別版は安全設定の確認が済むまで拒否します。`--max-estimated-usd 1`は1ターンのAPI換算推計への同意額で、実行はサブスク認証と契約の利用枠に従います。購入済みの追加クレジットがある場合、その消費をmitori側では禁止できません（[公式の利用枠・クレジット説明](https://learn.chatgpt.com/docs/pricing)）。普段のCodexセッションからMCPで使う場合は`setup codex --repo …`を使います。
+
+**Ollama / LM Studio**: `MODEL_ID`は置き換える値です。Ollamaは`ollama list`で取得済みモデル名を、LM Studioはアプリでモデルを読み込みDeveloper画面でサーバーを開始して表示されたIDを指定します。ローカルモデルはログインもAPIキーも不要で、品質はモデルとメモリ容量に依存します。既定の接続先はOllama `http://localhost:11434/v1`、LM Studio `http://localhost:1234/v1`です。Ollamaクラウドを使う場合だけ`bun run start -- auth ollama`で公式サインインし、確認した単価を指定してください。
+
+**外部セッションのMCP登録**: 設定コマンドが表示する手順を1回実行します。既存のMCP設定は残し、`mitori`の項目だけ追加してください。Grokは対象repoの`.grok/config.toml`、Cursorは`.cursor/mcp.json`、Codexは共通設定（対象repoだけなら`.codex/config.toml`）、Antigravityは**Manage MCP Servers / Open MCP Config**で開く`~/.gemini/config/mcp_config.json`に登録します。
+
+</details>
 
 <details>
 <summary>別モデル・独自API・細かな設定</summary>
@@ -122,6 +115,21 @@ HTTP連携は無ツールのChat Completionsを使用します。`--effort`はHT
 
 </details>
 
+## 生成にかかる時間と費用の目安
+
+画面の見積りは生成前に表示されます。2026-10-12に実際に測った例です（Apple M5 Max、各3,000ファイル前後のOSS、標準の範囲＝§0〜§13と主要モジュール）。
+
+| 例 | かかった時間 | API換算の推計 |
+| --- | --- | --- |
+| [rea](https://github.com/morluto/rea)（TypeScript、2,962ファイル）· Muse high | 約45分（並列2〜3） | 約$0.66 |
+| [gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view)（JavaScript、1,803ファイル）· Muse high | 約44分 | 約$0.54 |
+| [text-to-cad](https://github.com/earthtojake/text-to-cad)（Python、2,932ファイル）· Muse high | 約44分 | 約$0.64 |
+| 小さなGoサービス（20ファイル）· 普段のCursor / Antigravityのセッション | 約8〜19分 | 各ツールの契約枠 |
+
+API換算はサブスク利用時の請求額ではなく、比較用の推計です。思考の強さを上げるほど時間がかかります。生成中もページは開いたまま読めます。
+
+[検証状況の詳細](docs/progress/verification-status.md)・[トレンドOSSでの品質確認](docs/progress/trend-quality-20261012/README.md)
+
 ## できることと変更の扱い
 
 - リポジトリを解析し、見取り図と出典付きの設計文書を生成・閲覧する。
@@ -146,43 +154,15 @@ mitori内のAI変更はアンカーと対象範囲を確認し、side repoでテ
 | LLM | 既存CLI、OpenAI互換HTTP API、外部セッションのMCP/Pull |
 | 開発環境・回帰検証 | Nix、Biome、TypeScript、Bun test、Playwright |
 
-## 対応環境と確認状況
+## 対応環境
 
 | 環境 | 状況 |
 | --- | --- |
-| macOS Apple Silicon | Nix・通常Bun 1.4.2の起動、実Codex/Muse/Ollama/LM Studioの短いExplain、Chrome実操作・CodexのOSS文書生成を確認。PR #17の全browser380件・共有2件・a11y8件が成功。[CI記録](docs/progress/remaining-20261011/ci.md) |
-| Linux arm64 / Docker | frozen install、コンテナ内部の画面・設定プレビュー・MCP共通通信を確認。実LLM・ホストブラウザ接続は対象外 |
-| Linux x64 | バイナリビルド・バージョン表示と既存CIを検証済み。今回のDocker起動確認はarm64 |
-| Windows x64 | head89f228eaでNixクロスビルド・native対象14テスト・配布内6チェック成功。Git / shadowの自動起動・HTML保存・後始末、既存daemon再利用を確認。通常Bun起動・実LLM互換性は対象外 |
+| macOS Apple Silicon | 主な開発・検証環境。Chrome・Firefox・WebKitの自動テストと実Chromeで確認 |
+| Linux x64 / arm64 | 配布バイナリとCI、Dockerでの起動を確認 |
+| Windows x64 | 配布バイナリの自己診断と選択した操作をCIで確認（全操作・各LLMでの生成は未確認） |
 
-バイナリは`bun run build:bin`で実行環境向けに作ります。macOSは`dist/mitori-darwin-arm64`、Linuxは`dist/mitori-linux-x64`を直接実行できます。現在のコンパイル対象は上記3種類です。
-
-Windowsの後続確認は2026-10-12 JST（実ログは2026-10-11 UTC）の[実Windows CI](https://github.com/satoki252595/mitori/actions/runs/38149209280)で成功しました。選択した14テスト・109 assertionsと製品のバージョン表示・自己診断6項目の結果で、Windowsの全操作や各LLMでの実生成を確認したものではありません。変更を含む[PR #15](https://github.com/satoki252595/mitori/pull/15)は通常merge `e34178c` でmainへ統合し、対象headのUbuntu CIも成功しました。
-
-2026-10-11の確認状況です。**設定プレビュー**は設定を書かない`setup … --print`、**実回答**はmitoriの実Explain APIで本文と引用先を確認した結果です。
-
-| LLM | Nix / 通常ローカル | 実利用の確認状況 |
-| --- | --- | --- |
-| Muse | 両方の設定プレビュー・実回答成功 | native 1.4.3、Contributor / max。現在の認証の課金先・サブスク枠は未確認 |
-| Ollama | 両方の設定プレビュー・実回答成功 | `qwen3-coder-next:latest`の短いExplainのみ。`qwen3:4b`は上記の失敗あり |
-| Claude Code | 両方の設定プレビュー成功 | CLIあり・ログアウト中。公式ログイン後の実回答は未確認 |
-| LM Studio | 両方の設定プレビュー・実回答成功 | 取得済みGGUFで本文・引用を確認。有効引用各1件、不正0件、ローカル費用$0 |
-| Codex | 両方の設定プレビュー・MCP接続・実回答成功 | native 0.160.0 / gpt-6.1-solでJev/m3e生成・ソース照合を確認。本人projectのMCPも8ツール確認。外部MCPセッションからの生成、請求額・契約残量は未確認 |
-| Cursor | 両方の設定プレビュー・公式CLIのMCP接続成功 | 本人project設定で8ツールを確認。外部セッションからの文書生成は未実行 |
-| Grok Build | 両方の設定プレビュー・公式CLIのMCP接続成功 | 本人project設定で8ツールを確認。公式ログイン状態は未確認、外部セッションからの文書生成は未実行 |
-| Antigravity | 両方の設定プレビュー・公式アプリのMCP接続成功 | 本体2.12.2の共通設定で8ツールを確認。project設定の制約は上記参照。公式ログイン状態は未確認、外部セッションからの文書生成は未実行 |
-
-LM Studioの確認は取得済みGGUF `qwen/qwen3.8-27b`によるNix・通常ローカルの短いExplainまでで、本格的な文書生成は未検証です。[実検証記録](docs/progress/remaining-20261011/lmstudio-explain.md)。
-
-先行する隔離設定のCLI試験に加え、本人環境でも4クライアントのMCP接続を確認しました。既存設定を保ってmitoriを登録し、Codexは検証用の子プロセスだけで他の連携を無効にして初期化・8ツール取得、Antigravityは公式アプリのRefresh後の8ツール表示を確認しています。接続確認で認証操作・LLM要求・MCPツール実行は行っていません。Codex nativeの実回答・文書生成は別途確認した結果です。初回の接続失敗も検証記録に残しています。DockerではClaude/Muse CLI未導入を正しく表示し、他の設定プレビューとMCP共通通信を確認しました。DockerでLLM認証・推論は行いません。[起動・LLM別の検証記録](docs/progress/startup-matrix-20261007/README.md)、[前回のmock・UI回帰](docs/progress/onboarding-20261006.md)、[LLM起動条件](docs/design/adr/0015-configurable-llm.md)。
-
-既存の3 OSS（m3e-canvas、jev-ultrafast、Laya）では実Muse生成とソース照合を行いました。無効な引用先は1,421件中0件でしたが、説明の省略・曖昧さは残ります。[以前の品質検証](docs/progress/oss-quality-2026-10-05/README.md)。追加のCodex検証ではJevの処理順序と上限値、m3eの変更先・4言語・省略寸法の補完を確認しました。弱い引用窓は残して記録しています。[最新の検証一覧](docs/progress/remaining-20261011/README.md)。
-
-Chromium・Firefox・WebKitは既存CIで、実Chromeは設定と確定済み日本語検索を確認。実IME変換は本人の後日確認待ち、実Safariは今回の必須外です。
-
-Go7kスキャンの最新正式中央値は1,554.114ms（8 Worker）で、上限1,500msは未達です。追加の最適化候補は改善を確認できず採用していません。[正式時間・メモリの結果](docs/progress/remaining-20261011/idx-performance-tiers.md)、[候補の比較と判断](docs/progress/remaining-20261011/idx-cold.md)。
-
-リポジトリはprivateで、ルートLICENSEは未設定です。一般公開・OSS配布の準備は別途必要です。
+バイナリは`bun run build:bin`で作れます（macOS `dist/mitori-darwin-arm64`、Linux `dist/mitori-linux-x64`）。リポジトリはprivateで、ルートLICENSEは未設定です。各環境・各LLMの確認の詳細は[検証状況](docs/progress/verification-status.md)にあります。
 
 ## 開発する場合
 
@@ -207,4 +187,4 @@ scripts/nd bash scripts/linux-ci.sh --arch arm64 \
 
 失敗したテストだけをLinuxで再確認する場合は、`--steps install,unit --unit-file scripts/start.int.test.ts`のようにファイルを指定できます。指定しない`unit`は全テストを実行します。
 
-最新の引き継ぎは[HANDOFFの冒頭 §★](docs/HANDOFF.md)、残課題は[タスク台帳](docs/progress/backlog-2026-10-05.md)、作業規約は[AGENTS.md](AGENTS.md)と[CLAUDE.md](CLAUDE.md)を参照してください。
+最新の引き継ぎと残課題は[HANDOFF](docs/HANDOFF.md)、作業規約は[AGENTS.md](AGENTS.md)と[CLAUDE.md](CLAUDE.md)を参照してください。

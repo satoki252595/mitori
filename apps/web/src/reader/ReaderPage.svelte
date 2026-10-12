@@ -625,6 +625,22 @@ const reviewPanel = $derived(ext?.reviewPanel ?? null);
 
 // ---------------------------------------------------------------- 「この節について」 (empty margin): stats + cited files
 let citedFiles = $state.raw<{ path: RepoPath; n: number; start: LineNo; end: LineNo }[]>([]);
+/**
+ * The claims' own cites, available before any effect runs: the server-rendered first view showed 「出典 0」 for a
+ * page full of cite chips. The DOM count below replaces it once the page is live (it also counts static fact cites).
+ */
+const claimFiles = $derived.by(() => {
+  const by = new Map<string, { path: RepoPath; n: number; start: LineNo; end: LineNo }>();
+  for (const part of model?.parts ?? [])
+    for (const b of part.blocks)
+      for (const c of b.claimViews ?? [])
+        for (const x of c.cites) {
+          const cur = by.get(x.path);
+          if (cur) cur.n++;
+          else by.set(x.path, { path: x.path, n: 1, start: x.start, end: x.end });
+        }
+  return [...by.values()].sort((a, b) => b.n - a.n || (a.path < b.path ? -1 : 1));
+});
 $effect(() => {
   if (!loaded || !main || !model) return;
   void model.page;
@@ -654,7 +670,7 @@ const about = $derived.by(() => {
     inferred: st.inferred,
     stale: st.stale,
     staticOnly: pageProvenance(model.parts).staticOnly,
-    files: citedFiles,
+    files: citedFiles.length > 0 ? citedFiles : claimFiles,
   };
 });
 const marginView = $derived(ext?.margin ?? null);

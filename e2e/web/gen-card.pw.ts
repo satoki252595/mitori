@@ -4,7 +4,7 @@
  * (AC-G-W01), engine problem cards (AC-U-EN).
  */
 import { expect, type Page, test } from "@playwright/test";
-import { configure, type MockOptions, mockLog, WS, waitMark } from "./support/helpers.ts";
+import { BASE, configure, type MockOptions, mockLog, WS, waitMark } from "./support/helpers.ts";
 
 async function openMap(page: Page, o: MockOptions) {
   await configure({ generated: false, ...o });
@@ -174,3 +174,33 @@ for (const [engine, title] of [
     await expect.poll(async () => (await posts(/\/engines$/, "GET")).length).toBe(n + 1);
   });
 }
+
+test("a page opened mid-run shows the run's finished tasks per stage and streamed events never refetch the whole view", async ({ page }) => {
+  await configure({ generated: false });
+  const task = (id: string, stage: string, state: string) => ({
+    id,
+    stage,
+    target: { kind: "module", id: `md_${id}` },
+    state,
+    priority: 0,
+    attempt: 1,
+    blocks: [],
+  });
+  const tasks = [task("gt_a", "S5", "done"), task("gt_b", "S5", "done"), task("gt_c", "S5", "running"), task("gt_d", "S6o", "pending")];
+  await fetch(`${BASE}/__mock/gen`, { method: "POST", body: JSON.stringify({ state: "running", tasks }), headers: { "content-type": "application/json" } });
+  await page.goto(`/w/${WS}`);
+  await waitMark(page, "mitori:map:painted");
+  // the snapshot alone has no task list; the live view hydrates it once (2 of the 10 planned module chapters)
+  await expect(page.locator(".prog .stages li", { hasText: "モジュール章" })).toContainText("2 / 10");
+  const uiReads = async () => (await mockLog()).filter((r) => r.method === "GET" && /\/ui\?/.test(r.path)).length;
+  const before = await uiReads();
+  for (let i = 0; i < 4; i++) {
+    await fetch(`${BASE}/__mock/stream`, {
+      method: "POST",
+      body: JSON.stringify({ section: "s1", ord: 30 + i }),
+      headers: { "content-type": "application/json" },
+    });
+    await page.waitForTimeout(150);
+  }
+  expect(await uiReads()).toBe(before);
+});

@@ -34,7 +34,12 @@ const box = $derived(view ? `0 0 ${view.layout.width} ${view.layout.height}` : "
 {:else}
   <!-- the thumbnail's box is held while the map view loads (it is fetched after the section paints): the path card
        and the TOC below it never move (reader boot CLS, AC-U03) -->
-  <div class="mini held" aria-hidden="true" data-chrome></div>
+  <!-- the lightweight first view never loads the map view: the held box is a plain link to the map, not an empty frame -->
+  {#if ws}
+    <a class="mini held" href={HREFS.map(ws)} data-chrome><span>{t("reader.minimapOpen")}</span></a>
+  {:else}
+    <div class="mini held" aria-hidden="true" data-chrome></div>
+  {/if}
 {/if}
 
 <style>
@@ -51,6 +56,11 @@ const box = $derived(view ? `0 0 ${view.layout.width} ${view.layout.height}` : "
   .mini.held {
     border-style: dashed;
     border-color: var(--rule-soft);
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+    font-size: var(--fs-ui);
+    text-decoration: none;
   }
   a.mini:hover {
     border-color: var(--rule-2);

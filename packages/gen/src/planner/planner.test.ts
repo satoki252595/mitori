@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { canonicalJson, type ModuleId } from "@mitori/core";
+import { canonicalJson, type ModelId, type ModuleId } from "@mitori/core";
 import { GEN_ESTIMATE_PARAMS, type GenPlan, type PlannedTask } from "../contract.ts";
 import { fakeLedger } from "../test/fake-agent.ts";
 import { createFakeDocStore } from "../test/fake-doc.ts";
@@ -8,6 +8,7 @@ import { testClock, testHasher, testIds } from "../test/ports.ts";
 import { type FakeRepo, M_AUTH, M_CLI, M_CORE, M_HTTP, M_SESSION, sampleRepo } from "../test/repo.ts";
 import { testSettings } from "../test/settings.ts";
 import { createEstimator, withRetry } from "./estimator.ts";
+import { speedOf, ttftOf } from "./params.ts";
 import { createPlanner } from "./planner.ts";
 
 const hasher = testHasher();
@@ -334,4 +335,14 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
     const e = estimator.estimate(cached, "claude-cli", 3);
     expect([e.apiUsd, e.inTokens, e.outTokens]).toEqual([0, 0, 0]);
   });
+});
+
+test("non-Claude engines estimate time from measured end-to-end speed: reasoning efforts are slower than light ones", () => {
+  const muse = "generic:muse-spark-1.3-contributor" as ModelId;
+  // a 2.5k-token module chapter at high effort ≈ 1 s start + 10 s + 62.5 s (measured median 86 s, 2026-10-12)
+  expect(ttftOf(muse, "high", "generic") + 2500 / speedOf(muse, "high")).toBeCloseTo(72.5, 1);
+  expect(speedOf(muse, "low")).toBeGreaterThan(speedOf(muse, "medium"));
+  expect(speedOf(muse, "medium")).toBeGreaterThan(speedOf(muse, "max"));
+  // Claude keeps its own measured table
+  expect(speedOf("claude-sonnet-5-5", "high")).toBe(135);
 });

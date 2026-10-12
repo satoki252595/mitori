@@ -114,6 +114,10 @@ test("@wp10a the empty margin (「この節について」) stays once the loop 
   await page.goto(`/w/${WS}/doc/s3`);
   await waitMark(page, "mitori:section:rendered");
   await expect(page.locator(".ctx .margin-empty .about")).toBeVisible();
+  // the first (native) view: the cited files come from the claims, and the map slot is a link, not an empty frame
+  const cites = page.locator(".ctx .margin-empty .about dt", { hasText: "出典" }).locator("xpath=following-sibling::dd");
+  expect(Number(await cites.textContent())).toBeGreaterThan(0);
+  await expect(page.locator(".rail .mini")).toHaveAttribute("href", /\/w\//);
   // A real help action loads the editing extension; its empty margin must preserve the native about card.
   await page.keyboard.press("?");
   await expect(page.locator("dialog.help")).toBeVisible();

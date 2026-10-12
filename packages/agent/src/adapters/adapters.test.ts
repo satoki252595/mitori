@@ -441,6 +441,7 @@ describe("generic engine over a scripted process", () => {
     });
     const b = createTestBridge({ spawner, settings: { engines: settings.engines } });
     b.fs.files.set("/home/u/.config/muse/auth.json", auth);
+    b.fs.files.set("/opt/muse", new Uint8Array([0x7f]));
     const r = req({
       engine: "generic",
       model: "generic:muse-spark-1.3-contributor",
@@ -496,6 +497,13 @@ describe("generic engine over a scripted process", () => {
     expect(unsafeAuth.error?.code).toBe("E_CFG_INVALID");
     expect(spawner.calls).toHaveLength(4);
     expect([...b.fs.files.keys()].filter((p) => p.startsWith(`${b.home}/run/muse/`))).toEqual([]);
+    // a Muse self-update deletes the configured versioned binary: say so instead of reporting it installed
+    b.fs.fs.stat = stat;
+    b.fs.files.delete("/opt/muse");
+    const updated = await b.engines.generic?.detect();
+    expect(updated?.installed).toBe(false);
+    expect(updated?.problems.map((p) => p.code)).toEqual(["E_AGENT_NOT_INSTALLED"]);
+    expect(updated?.problems[0]?.message).toContain("setup muse");
   });
 
   test("Muse cleanup failure is reported before success and retains the completed call's usage", async () => {

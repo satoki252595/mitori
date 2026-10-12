@@ -346,6 +346,8 @@ describe("AC-45 phases: the next phase sees the previous phase's output", () => 
     const runId = h.db.get<{ run: string }>("SELECT run FROM gen_prep WHERE id = ?", [p3.id])?.run as `gr_${string}`;
     expect(h.gen.run(runId)?.run.state).toBe("done");
     expect(h.gen.run(runId)?.run.usage.calls).toBe(0);
+    // the doc written by the person's own AI is stamped like a push run: the map no longer says 「未生成」
+    expect(h.doc.manifest()).toMatchObject({ effort: "standard", generatedAt: "2026-10-03T00:00:00.000Z" });
     await expect(h.gen.session.prep({ effort: "standard", continueFrom: p1.id })).rejects.toMatchObject({ code: "E_PRECONDITION" });
   });
 

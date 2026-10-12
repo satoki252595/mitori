@@ -8,7 +8,7 @@
 - AI の変更はアンカー済み・範囲限定・ゲート済み・人の確認・未コミットで適用・Undo 可能を維持する。ユーザーの repo の refs/objects には書かず、side repo を使う。
 - LLM は lean 起動する。対象 repo の設定・hook・ツールを継承しない。Muse は native binary と `muse-jsonl` protocol の検証済み起動条件を使う（ADR-0015）。
 - 通常の修正・検証・コミット・push・マージ・不要ブランチ整理は利用者が包括承認済み（2026-10-11）。ローカルへの直接ソフトインストールと追加費用が発生する操作は事前確認する。Cloudflare のデプロイ・Paid 化も事前承認。実 LLM の検証には見積もりと上限を付ける。
-- コミットには `Co-Authored-By: Codex <noreply@openai.com>` を付ける。push は利用者の意向がある場合のみ。
+- コミットには作業したエージェントの `Co-Authored-By` 行を付ける（Codex なら `Codex <noreply@openai.com>`、Claude Code なら Claude の行）。push は上記の包括承認の範囲で行う。
 - 並列は最大 3〜4 体。変更に必要な単位で検証し、失敗した単位のみ再実行する。
 
 利用者の共通指示にある `@RTK.md` は、このリポジトリ・祖先・共通指示フォルダで見つからなかった。未確認の内容は推測しない。

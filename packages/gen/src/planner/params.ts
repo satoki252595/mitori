@@ -109,17 +109,24 @@ export function thinkingOf(model: ModelId, effort: ReasoningEffort | null, out: 
   return Math.round(ab[0] + ab[1] * out);
 }
 
+/**
+ * Other providers report no token timing, and their reasoning is not in `thinking`, so time is derived from what was
+ * measured end to end (2026-10-12: Muse Spark high median 86 s per module chapter over 68 tasks, Codex high 92 s for
+ * 4.5k output tokens): high efforts ≈ 40 tok/s after ≈ 10 s, lighter efforts proportionally faster.
+ */
+const reasoningHeavy = (effort: ReasoningEffort | null) => effort === "high" || effort === "xhigh" || effort === "max";
+
 /** Time to first token (s). */
 export function ttftOf(model: ModelId, effort: ReasoningEffort | null, engine: EngineId): number {
-  if (!isClaude(model)) return 4;
+  if (!isClaude(model)) return reasoningHeavy(effort) ? 10 : 5;
   if (engine === "anthropic-api" && model === "claude-haiku-4-5") return GEN_ESTIMATE_PARAMS.apiHaikuTtftSec;
   const table = GEN_ESTIMATE_PARAMS.ttftSec[model] as Partial<Record<ReasoningEffort, number>>;
   return (effort ? table[effort] : undefined) ?? Object.values(table)[0] ?? 4;
 }
 
 /** Output tokens/s. */
-export function speedOf(model: ModelId): number {
-  if (!isClaude(model)) return 100;
+export function speedOf(model: ModelId, effort: ReasoningEffort | null = null): number {
+  if (!isClaude(model)) return reasoningHeavy(effort) ? 40 : effort === "medium" ? 60 : 80;
   return GEN_ESTIMATE_PARAMS.outTokPerSec[model] ?? PRICING[model].outTokPerSec;
 }
 

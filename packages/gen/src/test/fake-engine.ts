@@ -19,7 +19,11 @@ export interface ScriptReply {
   /** CLI-internal continuations. */
   continuations?: number;
   /** Error details. */
-  error?: { code: "E_AGENT_EXIT" | "E_AGENT_AUTH_SOURCE" | "E_AGENT_TIMEOUT" | "E_BUDGET_EXCEEDED"; message: string; retryable: boolean };
+  error?: {
+    code: "E_AGENT_EXIT" | "E_AGENT_AUTH_SOURCE" | "E_AGENT_TIMEOUT" | "E_AGENT_RATE_LIMIT" | "E_BUDGET_EXCEEDED";
+    message: string;
+    retryable: boolean;
+  };
   /** Stream the first chunk (or the first `hangAfterLines` complete lines), then wait until stopped. */
   hang?: boolean;
   /** With `hang`: complete lines streamed before hanging. */

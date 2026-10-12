@@ -106,3 +106,10 @@ test("blank timeout writes the explicit default so CLI deep merge replaces the p
   expect(genericProviderCommand(patch)).toContain('"turnMs":120000');
   expect(genericProviderPatch({ ...input, turnMs: 600_000 }).engines?.generic?.turnMs).toBe(600_000);
 });
+
+test("guided setup passes the chosen reasoning effort only to presets whose CLI takes one", () => {
+  expect(providerSetupCommand({ provider: "muse", effort: "high" })).toBe("bun run start -- setup muse --effort 'high'");
+  expect(providerSetupCommand({ provider: "codex", native: true, maxEstimatedUsd: 1, effort: "xhigh" })).toContain("--effort 'xhigh'");
+  expect(providerSetupCommand({ provider: "ollama", model: "qwen3", effort: "high" })).not.toContain("--effort");
+  expect(() => providerSetupCommand({ provider: "muse", effort: "ultra" as never })).toThrow();
+});

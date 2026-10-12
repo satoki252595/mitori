@@ -348,6 +348,11 @@ async function loadView(initialReader?: NativeReaderState, initial?: Partial<Ini
   const usageWindow = snapshot.usage?.window;
   if ((usageWindow?.billing === "overage" || usageWindow?.overage?.active) && !getItem("session", STORAGE_KEYS.hint("overage")) && !enhancementModule)
     void enhance();
+  // The map's progress card of a live generation needs the run's tasks, which the snapshot does not carry (every stage
+  // read 0 / n) and every streamed block refetched the whole view: the full view hydrates them once and applies SSE
+  // deltas. The Reader keeps its native streaming (reserved regions and partials, CLS 0).
+  const run = snapshot.status.gen;
+  if (route.name === "map" && (run?.state === "running" || run?.state === "paused") && !enhancementModule) void enhance();
 }
 
 function observeDisclosure() {
