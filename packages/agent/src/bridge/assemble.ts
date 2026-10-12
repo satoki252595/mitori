@@ -121,6 +121,7 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     emptyCwd: `${home}/${EMPTY_REL}`,
     ensureEmptyCwd: () => sandbox.ensureEmptyCwd(),
     systemPromptFile: (text) => sandbox.systemPromptFile(text),
+    ...(ports ? { binaryExists: (path: string) => ports.fs.stat(path)?.isFile === true } : {}),
     prepareMuseConfig: async () => {
       if (!ports) throw new MitoriError("E_PRECONDITION", "Muse config storage is not wired");
       const sourceRoot = deps.env.XDG_CONFIG_HOME ?? (deps.env.HOME ? `${deps.env.HOME}/.config` : null);

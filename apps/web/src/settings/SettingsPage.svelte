@@ -12,6 +12,7 @@ import { t } from "../shell/index.ts";
 import { markAfterPaint } from "../shell/perf.ts";
 import { setReaderLevel, useStores } from "../stores/app.svelte.ts";
 import {
+  EFFORTS,
   genericProviderCommand,
   genericProviderPatch,
   MUSE_ARGS,
@@ -22,9 +23,14 @@ import {
 } from "./provider.ts";
 
 const s = useStores();
+let enginesSection = $state<HTMLElement>();
 onMount(() => {
   void s.session.loadEngines();
   void s.session.loadSettings({ reuse: true });
+  if (s.ui.focusEngines) {
+    s.ui.focusEngines = false;
+    enginesSection?.scrollIntoView({ block: "start" });
+  }
   markAfterPaint("mitori:section:rendered", { id: "settings" });
   s.router.painted();
 });
@@ -51,6 +57,7 @@ let simpleBaseUrl = $state("");
 let simpleKeyEnv = $state("");
 let simpleInputPrice = $state<number | undefined>();
 let simpleOutputPrice = $state<number | undefined>();
+let simpleEffort = $state<ReasoningEffort>("high");
 let setupRepo = $state("");
 let guidedCommand = $state("");
 let guidedError = $state(false);
@@ -63,6 +70,10 @@ let loginResult = $state<"opened" | "fallback" | "">("");
 const setupExternal = $derived(
   ["cursor", "antigravity"].includes(simpleProvider) || (simpleProvider === "codex" && !useCodexNative) || (simpleProvider === "grok" && !useApi),
 );
+const setupEffort = $derived(simpleProvider === "muse" || (simpleProvider === "codex" && useCodexNative));
+/** The engine generation uses now; other engines' missing logins are not problems for this person. */
+const activeEngine = $derived(s.session.settings?.settings.defaultGenEngine);
+const museSetup = $derived(providerSetupCommand({ provider: "muse" }, s.session.settings?.launcher));
 const setupHttp = $derived(["ollama", "lmstudio", "openai"].includes(simpleProvider) || (simpleProvider === "grok" && useApi));
 const authProvider = $derived(PROVIDER_AUTH_IDS.includes(simpleProvider as ProviderAuthId) ? (simpleProvider as ProviderAuthId) : null);
 const authCommand = $derived(authProvider ? providerAuthCommand(authProvider, s.session.settings?.launcher) : "");
@@ -117,6 +128,7 @@ $effect(() => {
     else if (model.includes("grok-")) chooseSetup("grok");
     else if (protocol === "openai-chat") chooseSetup(baseUrl.includes(":11434/") ? "ollama" : baseUrl.includes(":1234/") ? "lmstudio" : "openai");
     simpleModel = model.replace(/^generic:/, "");
+    simpleEffort = cfg.reasoning.gen;
     if (protocol === "openai-chat") {
       if (simpleProvider === "grok") useApi = true;
       simpleBaseUrl = baseUrl;
@@ -127,6 +139,7 @@ $effect(() => {
   } else if (provider === "codex-cli") {
     chooseSetup("codex");
     simpleModel = cfg.engines["codex-cli"].model;
+    simpleEffort = cfg.reasoning.gen;
     codexMaxUsd = cfg.engines["codex-cli"].maxEstimatedSpendUsd;
   }
   initialized = true;
@@ -138,6 +151,7 @@ function chooseSetup(value: SetupProvider) {
   useCodexNative = true;
   loginResult = "";
   simpleModel = value === "muse" ? "muse-spark-1.3-contributor" : value === "grok" ? "grok-4.7" : value === "codex" ? "gpt-6.1-sol" : "";
+  simpleEffort = value === "muse" ? "max" : "high";
   simpleBaseUrl =
     value === "grok"
       ? "https://api.x.ai/v1"
@@ -187,6 +201,7 @@ function createSetup(e: SubmitEvent) {
         keyEnv: simpleKeyEnv,
         inputPrice: simpleInputPrice,
         outputPrice: simpleOutputPrice,
+        ...(setupEffort ? { effort: simpleEffort } : {}),
       },
       s.session.settings?.launcher,
     );
@@ -337,7 +352,7 @@ async function saveProvider(e: SubmitEvent) {
     </section>
   {/if}
 
-  <section>
+  <section id="engines" bind:this={enginesSection}>
     <h2>{t("settings.engines")}</h2>
     <form onsubmit={createSetup} oninput={() => { guidedCommand = ""; guidedError = false; }}>
       <p class="note">{t("settings.quickSetupLead")}</p>
@@ -387,6 +402,9 @@ async function saveProvider(e: SubmitEvent) {
             <label class="row"><span>{t("settings.priceInput")}</span><input type="number" min="0" step="any" required bind:value={simpleInputPrice} /></label>
             <label class="row"><span>{t("settings.priceOutput")}</span><input type="number" min="0" step="any" required bind:value={simpleOutputPrice} /></label>
           {/if}
+        {#if setupEffort}
+          <label class="row"><span>{t("settings.quickEffort")}</span><select bind:value={simpleEffort}>{#each EFFORTS as level (level)}<option value={level}>{level}</option>{/each}</select></label>
+        {/if}
         {#if simpleProvider === "muse"}<p class="note">{t("settings.museSubscription")} <a href="https://dev.meta.ai/docs/muse-code/auth" target="_blank" rel="noopener noreferrer">{t("settings.officialLoginGuide")}</a></p><p class="note">{t("settings.museContributor")}</p>{/if}
       {/if}
       <button type="submit" class="btn btn-pri btn-s">{t("settings.createSetup")}</button>
@@ -439,11 +457,22 @@ async function saveProvider(e: SubmitEvent) {
     </form>
     </details>
     {#each s.session.engines ?? [] as e (e.engine)}
-      <div class="eng card">
+      {@const active = e.engine === activeEngine}
+      {@const relevant = active || e.installed || e.path !== undefined}
+      {@const museGone = e.engine === "generic" && !e.installed && /\/muse-bin-[^/]+$/.test(e.path ?? "") && e.problems.some((p) => p.code === "E_AGENT_NOT_INSTALLED")}
+      <div class="eng card" class:idle={!relevant}>
         <b class="mono">{e.engine}</b>
-        <span>{e.installed ? t("settings.installed", { version: e.version ?? "" }) : t("settings.notInstalled")}</span>
-        <span>{t(`statusbar.auth.${authDisplayKind(e)}`)}</span>
-        {#each e.problems as p (p.code)}<span class="bad">{t(`error.${p.code}`)}</span>{/each}
+        {#if active}<span class="active">{t("settings.engineActive")}</span>{/if}
+        <span>{e.installed ? (e.version ? t("settings.installed", { version: e.version }) : t("settings.installedPlain")) : t(relevant ? "settings.notInstalled" : "settings.notConfigured")}</span>
+        {#if relevant}
+          <span>{t(`statusbar.auth.${authDisplayKind(e)}`)}</span>
+          {#each e.problems as p (p.code)}<span class="bad">{t(`error.${p.code}`)}</span>{/each}
+        {/if}
+        {#if museGone}
+          <p class="note fix">{t("settings.museUpdated")}</p>
+          <pre class="mono">{museSetup}</pre>
+          <button type="button" class="btn btn-sec btn-s" onclick={() => copyText(museSetup, s, "copy.command")}>{t("settings.copySetup")}</button>
+        {/if}
       </div>
     {:else}
       <p class="note">{t("app.loading")}</p>
@@ -515,5 +544,16 @@ async function saveProvider(e: SubmitEvent) {
   }
   .bad {
     color: var(--c-bad);
+  }
+  .eng.idle {
+    color: var(--muted);
+  }
+  .active {
+    font-weight: var(--fw-strong);
+  }
+  .eng .fix,
+  .eng pre {
+    flex-basis: 100%;
+    margin: 0;
   }
 </style>

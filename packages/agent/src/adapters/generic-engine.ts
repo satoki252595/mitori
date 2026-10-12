@@ -27,6 +27,8 @@ export interface GenericEngineDeps {
   /** The existing content-addressed SafeWriter store (only used by argv's {promptFile}). */
   systemPromptFile?: (text: string) => Promise<string>;
   policyPlan?: () => string;
+  /** Whether the configured CLI still exists (Muse's self-update deletes the previous versioned native binary). */
+  binaryExists?: (path: string) => boolean;
   /** Fail closed when user-local ordinary hooks/MCP/extension config would bypass the text-only profile. */
   validateMuseConfig?: () => Promise<void>;
   /** Private per-call text-only settings and a credential copy; cleanup runs after the child exits. */
@@ -62,6 +64,14 @@ export function createGenericEngine(deps: GenericEngineDeps): Engine {
         problems.push({ code: e.code, message: e.message });
       }
     } else if (!c.argv[0]?.startsWith("/")) problems.push({ code: "E_CFG_INVALID", message: "engines.generic.argv[0] must be an absolute path" });
+    else if (c.enabled && deps.binaryExists && !deps.binaryExists(c.argv[0]))
+      problems.push({
+        code: "E_AGENT_NOT_INSTALLED",
+        message:
+          c.protocol === "muse-jsonl"
+            ? "the configured Muse native binary is gone (a Muse update replaces it); run `mitori setup muse` again"
+            : "the configured CLI binary was not found",
+      });
     if (c.enabled && c.protocol === "muse-jsonl") {
       try {
         assertMuseTextOnlyArgv(c.argv.slice(1));

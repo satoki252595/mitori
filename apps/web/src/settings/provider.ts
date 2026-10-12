@@ -26,6 +26,8 @@ export function genericProviderCommand(patch: DeepPartial<GlobalSettings>, launc
   return `${launcherPrefix(launcher)} config set engines.generic ${shellQuote(JSON.stringify(patch.engines?.generic))}`;
 }
 
+/** Efforts the setup CLI accepts (`mitori setup --effort`). */
+export const EFFORTS: readonly ReasoningEffort[] = ["low", "medium", "high", "xhigh", "max"];
 export const SETUP_PROVIDERS = ["claude", "muse", "grok", "ollama", "lmstudio", "openai", "codex", "cursor", "antigravity"] as const;
 export type SetupProvider = (typeof SETUP_PROVIDERS)[number];
 
@@ -60,6 +62,8 @@ export function providerSetupCommand(
     keyEnv?: string;
     inputPrice?: number | undefined;
     outputPrice?: number | undefined;
+    /** Reasoning effort for providers whose CLI preset takes one (Muse, native Codex). */
+    effort?: ReasoningEffort | undefined;
   },
   launcher?: LauncherCommand | undefined,
 ): string {
@@ -85,6 +89,10 @@ export function providerSetupCommand(
     let remoteApi = false;
     if (["ollama", "lmstudio", "openai"].includes(input.provider) && !model) throw new Error("settings.providerInvalid");
     if (model) add("--model", model);
+    if (input.effort && (input.provider === "muse" || input.native)) {
+      if (!EFFORTS.includes(input.effort)) throw new Error("settings.providerInvalid");
+      add("--effort", input.effort);
+    }
     if (["grok", "ollama", "lmstudio", "openai"].includes(input.provider)) {
       const baseUrl =
         input.baseUrl?.trim() ||
