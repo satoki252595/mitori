@@ -228,6 +228,11 @@ export async function runScan(core: Core, opts: ScanOptions): Promise<ScanSummar
     timings.queryMs = run.ms.query;
     timings.filesParsed = items.length;
     for (const r of recOf) if (r.note === "parse_timeout" || r.note === "parse_error" || r.note === "degraded") timings.degraded++;
+    // S2–S4 (`core.stages.scan`) and persist (`schedulePersist` → SQLite + fs) never touch the parse pool — only
+    // S1 here, `runUpdate`, and `symbolsAt` use it, and those regrow via `ensure()` on demand — so shrink to one
+    // warm Worker right after S1 (not at the end of the scan): S2–S4 then run while the extra Workers go away, and
+    // the warm one keeps a later update/symbolsAt from paying a spawn wait.
+    void core.pool.settle();
   }
   aborted();
 
@@ -256,6 +261,7 @@ export async function runScan(core: Core, opts: ScanOptions): Promise<ScanSummar
   core.timings = timings;
   const summary = summarize(core, timings, later, en.truncated);
   deps.events.emit({ type: "scan.done", summary });
+  // Safety net for S1-skipped scans (`until: "S0"` leaves prewarmed Workers up): a no-op when S1 already settled.
   void core.pool.settle();
   // A no-change rescan has nothing to write (warm counter idx.warm.sqlWrites = 0 without the per-row comparison).
   if (en.unchanged && items.length === 0 && core.snap.indexDigest === core.dbDigest) {
