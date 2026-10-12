@@ -45,7 +45,9 @@
 
 2026-10-13 の公開準備（利用者が一般公開を承認。実装は Muse、方針と重要な判断はオーケストレーター）。
 
-- **公開の形**: ライセンスは MIT（`Copyright (c) 2026 satoki252595`）。履歴全体の秘密情報の点検は済み（gitleaks、597 commit に本物なし）。同梱依存の一覧は `THIRD_PARTY_NOTICES.md`（`bun run notices` が作る）。外部の fork PR のワークフローはすべて承認制にし、`browsers` ジョブは保守者の基準 Mac でのみ動く。
+- **公開の形**: ライセンスは MIT（`Copyright (c) 2026 satoki252595`）。履歴全体の秘密情報の点検は済み（gitleaks、597 commit に本物なし）。同梱依存の一覧は `THIRD_PARTY_NOTICES.md`（`bun run notices` が作る）。外部の fork PR のワークフローはすべて承認制にし、`browsers` ジョブは保守者の基準 Mac でのみ動く。非公開の脆弱性報告を有効にする。公開への切り替えは 2026-10-13。
+
+2026-10-13 後半はモジュール章の読みやすさを直した（`gen.module@12`・`gen.parent@4`。呼び出す側の目的の1文＋入口6項目まで、データは作り手と読み手。過去分は作り直さない。実生成2章で L0 100 %・L1 96.4 %。詳細は [module-readability.md](progress/trend-quality-20261012/module-readability.md)）。Muse の設定は利用者の操作で完了（`bun run start -- setup muse --effort high` を実行し、既定エンジンと全用途モデルと思考 high を保存。古い daemon は新しいソースの daemon へ自動で入れ替わった）。
 
 ## 3. 残っていること
 
@@ -53,8 +55,6 @@
 |---|---|---|
 | Mac の3ブラウザ CI の再実行 | 最終 head はホストで確認済み。PR #20 も事前チェックで停止 | 利用者の Mac が空いている時（ゲーム・iCloud 同期の負荷がない時）に再実行 |
 | HTML 書き出しのビューアー JS | 59,553 B（関門 60,000 B、余裕 447 B）。残りはすべて使用中のコード | 大きく増える変更の前に、予算の見直しか分割を検討 |
-| モジュール章の読みやすさ | 『公開インターフェース』『データ構造』が識別子の列挙に寄り、初見者には硬い（trend-quality の所感） | 生成の指示文の変更が必要。保存済みの生成結果がすべて作り直しになり費用がかかるため、利用者の判断待ち |
-| Muse の設定の更新（利用者の操作） | PR #20 で `setup` の保存と古い daemon の入れ替えを修正。利用者の `~/.mitori/config.json` は実行ファイルのパスだけ更新済み | 端末で `bun run start -- setup muse --effort high` を1回実行（古い daemon は自動で入れ替わる） |
 | Go 7k の正式時間 | 中央値 1,492 ms（p95 1,528、上限まで 8 ms。iCloud 同期で load 3〜6） | 静かな時に `muse/wp16` を ABBA で判断し、正式に再測定 |
 | React RSS の目標 700 MB | 774.1 MB で WARN（上限 1,000 MB は解消） | 静かな時に `muse/wp16` を ABBA で判断し、正式に再測定 |
 
