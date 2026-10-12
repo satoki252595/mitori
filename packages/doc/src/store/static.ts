@@ -431,7 +431,7 @@ function modulePage(c: Ctx, p: ModulePageSpec): StaticSpec[] {
   const guide = c.input.guide?.change?.[m.id];
   if (guide) out.push(facts(section, `m:${m.id}:change`, changeMd(c, guide), RANK.pre2 + 5, "L2", ["dev", "reviewer"]));
   const big = m.paths.filter((path) => c.input.guide?.regions?.[path] !== undefined).sort();
-  if (big.length > 0) out.push(facts(section, `m:${m.id}:regions`, regionsMd(c, big), RANK.pre2 + 6, "L2", ["dev"]));
+  if (big.length > 0) out.push(facts(section, `m:${m.id}:regions`, regionsMd(c, big), RANK.post, "L2", ["dev"]));
   return out;
 }
 
