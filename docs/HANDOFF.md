@@ -1,6 +1,6 @@
 # mitori 引き継ぎ（現在の状態）
 
-> 最終更新 2026-10-12 JST。これより前の詳しい経緯・測定・判断は [HANDOFF-history.md](HANDOFF-history.md) にそのまま残してある。ここには「今どうなっているか」と「次に何をするか」だけを書く。
+> 最終更新 2026-10-13 JST。これより前の詳しい経緯・測定・判断は [HANDOFF-history.md](HANDOFF-history.md) にそのまま残してある。ここには「今どうなっているか」と「次に何をするか」だけを書く。
 
 ## 1. mitori とは
 
@@ -24,7 +24,7 @@
 
 - **古い Bun での起動**: PATH 先頭の Nix 由来 Bun 1.3.13 で `bun run start` が「Bun 1.4.2 or newer is required」で止まっていた。`scripts/start.ts` が新しい Bun を探して同じ引数で起動し直す（1行で知らせる）。実機の Bun 1.3.13 で `bun run start -- --version` が成功。
 - **実 IME は確認済みとして閉じる**: W3C UI Events（`isComposing`・keyCode 229・順序）と MDN の推奨ガードに照らし、`apps/web/src/shell/ime.ts`・keys-controller・パレット・Composer とテスト（`e2e/web/ime.pw.ts`、`ime.webkit.pw.ts`）が全項目を満たす。Safari の逆順序は対応済み。利用者の指示（公式マニュアルに照らして問題なければ OK）による。
-- **Codex 部分の Muse への置き換え**: 引用の追加2生成を Muse（high）で実施。m3e `s6/lib-tokens` は主張44・L1 一致37・不一致0・判定不能7、Jev `s9` は主張22・一致17・不一致2・判定不能3。API 換算の推計 $0.023 と $0.005。原文との突き合わせ（[citation-review-muse.md](progress/trend-quality-20261012/citation-review-muse.md)）で内容の誤りは0件。外部セッションからの生成も Muse で完走（coverage 100 %、`git status` クリーン）。外部セッションの実生成は Antigravity・Cursor・Muse の3つで確認。Grok Build は残高切れ（402）のまま。
+- **Codex 部分の Muse への置き換え**: 引用の追加2生成を Muse（high）で実施。m3e `s6/lib-tokens` は主張44・L1 一致37・不一致0・判定不能7、Jev `s9` は主張22・一致17・不一致2・判定不能3。API 換算の推計 $0.023 と $0.005。原文との突き合わせ（[citation-review-muse.md](progress/trend-quality-20261012/citation-review-muse.md)）で内容の誤りは0件。外部セッションからの生成も Muse で完走（coverage 100 %、`git status` クリーン）。この時点の外部セッションの実生成は Antigravity・Cursor・Muse の3つで確認。Grok Build は当時、残高切れ（402）のまま（下の追加分で解消し完走）。
 - **修正（すべて回帰テスト付き。e2e はホストで実行）**: 差分再生成で古い「主要な流れ」が残る問題（prompt 本文と `prompts.lock.json` は不変）／HTML 書き出しの gzip 圧縮（rea 10.6→1.81 MB、gods-eye-view 10.1→1.72 MB、text-to-cad 12.4→2.02 MB、展開後の内容は一致。対応は Chrome 80+ / Firefox 113+ / Safari 16.4+。ビューアー JS 60,000 B（予算ちょうど））／生成中の `/ui` 全体再取得（表示に関係ないイベントでは取り直さず、確定ブロックの反映は約2秒に1回へ間引く）／使用量を返さないエンジンの見積り（記録と同じバイト換算で出し「（バイト換算の上限推計）」と表示。実測で記録/見積り 2.02 倍 → 見積り/記録 1.20 倍）／React 規模のピークメモリ（S1 完了直後に解析 Worker を待機1本へ縮める。`idx.rss.peak` 中央値 786.4 MB。Go 7k は同時刻で中央値 1,487 ms。証跡は [formal-bench-after-pool-shrink.json](progress/trend-quality-20261012/formal-bench-after-pool-shrink.json)）。
 
 2026-10-12 夜の追加分（実装は Muse high、方針と判断はオーケストレーター）。
@@ -34,18 +34,26 @@
 - **書き出しの使えない操作の除去**: 引用ポップアップの「横に固定」「エディタで開く」と、未生成の節の「生成」ボタンは、書き出しでは以前から CSS で非表示だったが、DOM には残っていた。書き出しでは描画しないようにし、未生成の節は「未生成」と静的に表示する。アプリ本体は変えていない（e2e で両方を確認）。
 - **Jev のホットパスの引用は閉じる**: 検証器が「不一致」と正しく判定し、画面にもそう出ているため、製品の不具合ではなくモデルが引用範囲を選ぶ精度の問題であり、検証器は緩めない。
 
+2026-10-12 深夜〜10-13 の追加分（実装は Muse high、方針と判断はオーケストレーター。2件の修正は PR #20 で統合）。
+
+- **`mitori setup` の保存が必ず止まる不具合**（`7de8638`）: `setup` は engines・pins を cli 専用の `PATCH /settings/exec` で書いたあと、残り（既定のエンジン・モデル・思考の強さ）を web 専用の `PATCH /settings` で書いていたため、どの provider でも `E_FORBIDDEN` で途中まで保存されて止まっていた（利用者の実機で発生、実行ファイルのパスだけ更新）。`PATCH /settings` を cli にも開いた（`EXEC_SETTING_KEYS` の拒否は不変、mcp は拒否のまま。CR setup-save-1）。CLI が呼ぶ全 route が cli を受け付けることを静的テストで確認。途中で失敗したら何が保存済みかを表示。
+- **コードを更新しても古い daemon が使われ続ける不具合**（`404dd54`）: 版が常に `0.0.0` で、`git pull` 後も前に起動した古い daemon に接続し続けた。版を `0.0.0+<build>`（ソースのハッシュ12桁。`scripts/start.ts` が環境変数 `MITORI_BUILD` で渡し、`build:bin` はバイナリに埋め込む）にした。空いている別ビルドの daemon は、それより後に起動した CLI だけが入れ替える（長く動く古い CLI が新しい daemon を巻き戻さない）。使用中なら1行の案内付きで使い続ける。一時 home で、古いバイナリの daemon が新しいビルドへ入れ替わることを確認。
+- **Grok Build の外部セッション生成**（`grok` 1.0.50）: 2026-10-12 23:27〜23:48 に go-small のコピーで3フェーズ（準備→生成→取り込み、フェーズ2で見取り図のキャプションと流れ5本、用語7語）を完走。約21分（手番の上限 40 で一度止まり、同じセッションを続けて完了）。対象 repo の `git status` はクリーン。抜き取りで照合した引用は原文と一致。1か所、`flag.ExitOnError` のフラグ解析失敗を「エラーを返す」と書いていた（実際はプロセスが終了する）。これで外部セッションの実生成は Antigravity・Cursor・Muse・Grok Build の4つで確認。残高切れ（402）は解消していた。
+- **正式測定**（2026-10-12 23:25、`bdff6af`、iCloud 同期で load 3〜6）: `idx.s01.cold.7kfiles` 中央値 1,492 ms（p95 1,528、上限 1,500、目標 1,200）、`idx.rss.peak` 中央値 774.1 MB（p95 797.2、上限 1,000、目標 700）。
+- **性能の候補（未統合）**: ブランチ `muse/wp16`（`fa437b5`）。S1 の解析結果をバッチ完了ごとに適用し、S1 後の直列ループ（Go 53 ms・React 18 ms）を除く。load 10〜15 の ABBA では効果を確かめられず（Go 中央値 2,697 → 3,065 ms、React RSS 775.5 → 786.7 MB、いずれもぶれの範囲内）、方針どおり統合していない。試して捨てたもの（S1 末尾の縮退・Worker 減数・full GC 半減）と生データはブランチ `muse/wp16` の `docs/progress/wp16.json` にある。
+- **Mac の3ブラウザ CI**: PR #20 でも静かな機械の事前チェック（load 12.9、利用者のゲームと最低優先度のベンチ）で停止。ホストで書き出し e2e（Chrome）31/31・引用ポップアップ 4/4 を確認して統合した。
+
 ## 3. 残っていること
 
 | 残件 | 状態 | 次の一手 |
 |---|---|---|
-| Grok Build の外部セッション生成 | 利用残高切れ（402）のまま | 残高追加後に Antigravity / Cursor / Muse と同じ手順で確認 |
-| Mac の3ブラウザ CI の再実行 | 最終 head はホストで確認済み | 利用者の Mac が空いている時（ゲーム・iCloud 同期の負荷がない時）に再実行 |
+| Mac の3ブラウザ CI の再実行 | 最終 head はホストで確認済み。PR #20 も事前チェックで停止 | 利用者の Mac が空いている時（ゲーム・iCloud 同期の負荷がない時）に再実行 |
 | 一般公開の判断 | private・LICENSE 未設定 | 公開範囲とライセンスの判断（利用者） |
 | HTML 書き出しのビューアー JS | 59,553 B（関門 60,000 B、余裕 447 B）。残りはすべて使用中のコード | 大きく増える変更の前に、予算の見直しか分割を検討 |
 | モジュール章の読みやすさ | 『公開インターフェース』『データ構造』が識別子の列挙に寄り、初見者には硬い（trend-quality の所感） | 生成の指示文の変更が必要。保存済みの生成結果がすべて作り直しになり費用がかかるため、利用者の判断待ち |
-| Muse の設定の更新（利用者の操作） | `~/.mitori/config.json` が自動更新で消えた `muse-bin-1.4.3` を指したまま | 端末で `bun run start -- setup muse --effort high` を1回実行 |
-| Go 7k の正式時間 | 中央値 1,487 ms で上限まで 13 ms。ゲーム・iCloud 同期が動く負荷下の測定 | 利用者の Mac が空いている時（ゲーム・iCloud 同期の負荷がない時）に再測定 |
-| React RSS の目標 700 MB | 現在 786 MB で WARN（上限 1,000 MB は解消） | 利用者の Mac が空いている時（ゲーム・iCloud 同期の負荷がない時）に再測定し、引き続き削減を検討 |
+| Muse の設定の更新（利用者の操作） | PR #20 で `setup` の保存と古い daemon の入れ替えを修正。利用者の `~/.mitori/config.json` は実行ファイルのパスだけ更新済み | 端末で `bun run start -- setup muse --effort high` を1回実行（古い daemon は自動で入れ替わる） |
+| Go 7k の正式時間 | 中央値 1,492 ms（p95 1,528、上限まで 8 ms。iCloud 同期で load 3〜6） | 静かな時に `muse/wp16` を ABBA で判断し、正式に再測定 |
+| React RSS の目標 700 MB | 774.1 MB で WARN（上限 1,000 MB は解消） | 静かな時に `muse/wp16` を ABBA で判断し、正式に再測定 |
 
 ## 4. 再開手順
 
