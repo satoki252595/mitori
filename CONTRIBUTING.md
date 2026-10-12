@@ -25,3 +25,5 @@ scripts/nd bun test
 
 保守者は承認の前に、`.github/`・`scripts/`・`package.json` の scripts の変更を必ず読む。
 fork PR は workflow ファイル自体を書き換えられるためである。
+
+`browsers` ジョブの校正が約2倍で止まるときは runner が macOS のバックグラウンド優先度（`ps -o pri=` が `4`）になっていないか疑い、`scripts/nd bun scripts/install-runner-service.ts` で LaunchAgent を登録し直す（`launchctl kickstart -k` では直らない）。

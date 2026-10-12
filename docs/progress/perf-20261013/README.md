@@ -26,3 +26,11 @@ main（`1715479`）での測定。生データは [abba-wp16.json](abba-wp16.jso
 ## Mac の 3ブラウザ e2e（ホスト、CI の `browsers` ジョブと同じ手順）
 
 2026-10-13 04:40〜04:46、main `1715479`。`e2e/web` を chromium・firefox・webkit で 386 件成功・失敗 0・省略 14（firefox と webkit の各7件。CLS・初期 JS の大きさ・IME の keyCode 229 の検査は Chromium 専用。WebKit の IME は `ime.webkit.pw.ts` が別にある）、5.3 分。共有の結合テスト（`MITORI_BROWSER_SHARE=1`）2件成功、`@a11y` 8件成功。
+
+## CI の `browsers` ジョブが止まっていた原因
+
+2026-10-12 18:43 JST 以降、`browsers` ジョブの校正は毎回 1.97〜2.20 倍で失敗していた（load 5.5〜8.9 でも。それ以前は 0.96〜1.09 倍）。原因は runner のプロセスが macOS のバックグラウンド優先度（darwinbg、`ps -o pri=` が `4`。通常は `31`）で動いていたことで、Apple Silicon では高効率コアだけで動く。ホストで同じ校正を `taskpolicy -b` で動かすと 1.977〜2.04 倍、通常では 1.135 倍となり、CI の値と一致した。plist は `ProcessType = Interactive` なのに darwinbg になっており、`launchctl kickstart -k` での再起動では直らず（資源のまとまりが引き継がれる）、`launchctl bootout` → `launchctl bootstrap` の登録し直しで `pri 31` に戻った。何が darwinbg にしたかは特定できていない（ゲームモード中に起きた可能性があるが推測のため断定しない）。
+
+対策として、校正の前にバックグラウンド優先度を検出して止める検査（`bench/runner/machine.ts` の `backgroundPriority`、`e2e/web/support/global-setup.ts`）と、基準の誤記録を防ぐ `recordReference` の拒否を入れた。`scripts/install-runner-service.ts` は `bootstrap` の失敗時に短い間隔で再試行する（直後の `bootstrap` は `Bootstrap failed: 5` で失敗することがあるため）。
+
+登録し直した後の再実行（2026-10-13 05:06〜05:11 JST、PR #22）では校正 0.978 倍で通過し、`e2e/web` は 384 件成功・2 件失敗・14 件省略。残った2件は `e2e/web/gen-card.pw.ts:91` の overage の場合（firefox と webkit）で、104 行の強制クリックが本体への入れ替わりの瞬間に当たり `Element is not visible` となったもの。同意前のクリックで POST が無いことの検査が目的で製品の不具合ではないため、テスト側を再試行する形に直した。

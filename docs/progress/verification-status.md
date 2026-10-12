@@ -71,5 +71,5 @@ PR #20 で2件の修正を統合した。`mitori setup` は engines・pins を c
 
 ## 2026-10-13 早朝の追加分
 
-性能の候補 `muse/wp16` は 8巡の ABBA（負荷 5.3〜8.3）で速くならず（Go −19.6 ms・React −2.0 ms、信頼区間は0を跨ぐ）、React RSS が +19.8 MB 悪化したため統合しない。正式測定（`1715479`）は `idx.s01.cold.7kfiles` 中央値 1,449 ms・`idx.rss.peak` 中央値 792.2 MB（いずれも上限内・目標は WARN）。Mac のホストで3ブラウザ e2e（`e2e/web`、chromium・firefox・webkit）が 386 件成功・失敗 0・省略 14、共有の結合テスト2件・`@a11y` 8件も成功。詳細は [perf-20261013](perf-20261013/README.md)。
+性能の候補 `muse/wp16` は 8巡の ABBA（負荷 5.3〜8.3）で速くならず（Go −19.6 ms・React −2.0 ms、信頼区間は0を跨ぐ）、React RSS が +19.8 MB 悪化したため統合しない。正式測定（`1715479`）は `idx.s01.cold.7kfiles` 中央値 1,449 ms・`idx.rss.peak` 中央値 792.2 MB（いずれも上限内・目標は WARN）。Mac のホストで3ブラウザ e2e（`e2e/web`、chromium・firefox・webkit）が 386 件成功・失敗 0・省略 14、共有の結合テスト2件・`@a11y` 8件も成功。詳細は [perf-20261013](perf-20261013/README.md)。CI の `browsers` ジョブが止まっていた原因は runner の macOS バックグラウンド優先度（高効率コアのみ、校正が約2倍）で、LaunchAgent の登録し直しで復旧した。再実行は校正 0.978 倍で通過し、残った2件（overage の強制クリックが本体への入れ替わりの瞬間に当たったもの）はテスト側を再試行に直した。
 

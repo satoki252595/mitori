@@ -27,7 +27,9 @@ export default function globalSetup(): void {
       const { isReferenceMachine } = await import(${JSON.stringify(resolve(web, "../../bench/runner/verdict.ts"))});
       const quiet = await m.waitForQuiet();
       const machine = m.machineInfo(root, quiet);
-      console.log('web CI machine:', JSON.stringify(machine));
+      const bg = m.backgroundPriority();
+      console.log('web CI machine:', JSON.stringify({ ...machine, backgroundPriority: bg }));
+      if (bg === true) throw new Error('web CI runner runs at macOS background priority (efficiency cores only, calibration ~2x); re-register the LaunchAgent: scripts/nd bun scripts/install-runner-service.ts (launchctl kickstart -k does not fix it)');
       if (quiet.noisy || machine.power !== 'ac') throw new Error('web CI requires a quiet reference Mac on AC power; timing verification is pending');
       const factor = m.measureFactor(root);
       console.log('web CI calibration:', JSON.stringify(factor));
