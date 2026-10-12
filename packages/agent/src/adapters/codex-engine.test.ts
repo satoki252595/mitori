@@ -251,3 +251,31 @@ test("Codex bridge copies only subscription auth, ignores foreign hooks/config a
   expect(rejected.error?.code).toBe("E_AGENT_AUTH_SOURCE");
   expect(spawner.calls.filter((s) => s.argv[0] === "exec")).toHaveLength(1);
 });
+
+test("Codex plan quota refusal keeps the provider's reset text, meters nothing and is not reported as a mitori budget stop", async () => {
+  const quota = {
+    type: "error",
+    message: "You’ve hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Oct 18th, 2026 12:58 PM.",
+  };
+  const x = setup([{ type: "thread.started", thread_id: "t" }, { type: "turn.started" }, quota]);
+  const res = await x.engine.run(r, new AbortController().signal).result;
+  expect(res.stop).toBe("error");
+  expect(res.error?.code).toBe("E_AGENT_RATE_LIMIT");
+  expect(res.error?.retryable).toBe(false);
+  expect(res.error?.message).toContain("try again at Oct 18th");
+  expect(res.usage).toMatchObject({ in: 0, out: 0, apiUsd: 0 });
+  expect(x.cleans()).toBeGreaterThan(0);
+});
+
+test("Codex failure after the turn ran stays an error and keeps the conservative meter", async () => {
+  const x = setup([
+    { type: "item.completed", item: { id: "r", type: "reasoning", text: "thinking" } },
+    { type: "turn.failed", error: { message: "stream disconnected" } },
+  ]);
+  const res = await x.engine.run(r, new AbortController().signal).result;
+  expect(res.stop).toBe("error");
+  expect(res.error?.code).toBe("E_AGENT_EXIT");
+  expect(res.error?.message).toBe("stream disconnected");
+  expect(res.usageEstimated).toBe(true);
+  expect(res.usage.apiUsd).toBeGreaterThan(0);
+});

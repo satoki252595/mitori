@@ -142,6 +142,9 @@ export interface ExecHooks {
 }
 
 const FATAL: ReadonlySet<ErrorCode> = new Set(["E_AGENT_AUTH_SOURCE", "E_AGENT_NOT_INSTALLED", "E_AGENT_AUTH"]);
+/** A plan quota that resets later (not a transient 429) ends the run like a missing login: every later task would hit it. */
+const fatal = (e: { code: ErrorCode; retryable?: boolean } | undefined): boolean =>
+  !!e && (FATAL.has(e.code) || (e.code === "E_AGENT_RATE_LIMIT" && e.retryable === false));
 
 /** Sum two usages. */
 export function addUsage(a: Usage | null, b: Usage): Usage {
@@ -455,7 +458,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   turns.push({ ...out, attempt: 1 });
   usage = addUsage(usage, out.result.usage);
   // §8.2: a transport failure without output is re-dispatched once; auth / installation errors fail the run at once
-  if (out.result.stop === "error" && out.verdicts.length === 0 && !run.cancelled() && !signal.aborted && !FATAL.has(out.result.error?.code ?? "E_AGENT_EXIT")) {
+  if (out.result.stop === "error" && out.verdicts.length === 0 && !run.cancelled() && !signal.aborted && !fatal(out.result.error)) {
     await callRun.close();
     callRun = await start(call);
     if (callRun === null) return unadmitted();
@@ -472,7 +475,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
     await sink.finish();
     hooks.call(null);
     return measured(
-      { state: "failed", usage, calls, attempts: 1, blocks: sink.written, error: failure, ...(FATAL.has(failure.code) ? { fatal: true } : {}) },
+      { state: "failed", usage, calls, attempts: 1, blocks: sink.written, error: failure, ...(fatal(failure) ? { fatal: true } : {}) },
       out.rejected.length,
     );
   }

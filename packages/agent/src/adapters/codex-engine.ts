@@ -20,6 +20,9 @@ import type { Timers } from "../util/timers.ts";
 import { CODEX_VERSION, codexCatalog, codexPreflight } from "./codex-policy.ts";
 import { buildCodexSpawn, extractJsonFromText } from "./index.ts";
 
+/** Provider plan / rate refusals ("You've hit your usage limit … try again at …"). */
+const QUOTA_RE = /usage limit|rate[ _-]?limit|\b429\b|quota/i;
+
 interface CodexDeps {
   spawner: Spawner;
   settings(): GlobalSettings;
@@ -204,6 +207,7 @@ export function createCodexEngine(deps: CodexDeps): Engine {
           }
         })().catch(() => {});
         const ids = new Set<string>();
+        let ran = false;
         try {
           for await (const line of child.stdout) {
             readBytes += bytes(line);
@@ -216,8 +220,10 @@ export function createCodexEngine(deps: CodexDeps): Engine {
               item?: { id?: string; type?: string; text?: string; status?: string; changes?: { path?: string; kind?: string }[] };
               usage?: Record<string, number>;
               error?: { message?: string };
+              message?: string;
             };
             const item = record.item;
+            if (record.type?.startsWith("item.")) ran = true;
             if (record.type === "item.started" || record.type === "item.completed") {
               if (!item?.type) throw new MitoriError("E_AGENT_PROTOCOL", "Codex item lacks type");
               if (item.type === "file_change") {
@@ -260,9 +266,12 @@ export function createCodexEngine(deps: CodexDeps): Engine {
               usage.out = u.output_tokens!;
               usage.thinking = u.reasoning_output_tokens ?? 0;
               terminal = true;
-            } else if (record.type === "turn.failed" || record.type === "error")
-              throw new MitoriError("E_AGENT_EXIT", secrets.redact(record.error?.message ?? "Codex failed").text);
-            else if (!["thread.started", "turn.started", "item.updated"].includes(record.type ?? ""))
+            } else if (record.type === "turn.failed" || record.type === "error") {
+              // `error` records carry the text at the top level. A plan quota names its reset time, so keep the provider's
+              // words: the person can only wait or change plan, and a mitori budget error would point them elsewhere.
+              const message = secrets.redact(record.error?.message ?? record.message ?? "Codex failed").text;
+              throw new MitoriError(QUOTA_RE.test(message) ? "E_AGENT_RATE_LIMIT" : "E_AGENT_EXIT", message);
+            } else if (!["thread.started", "turn.started", "item.updated"].includes(record.type ?? ""))
               throw new MitoriError("E_AGENT_PROTOCOL", "unknown Codex JSONL event");
             // A tool-free agent_message is already complete. Bytes are not tokens: keep its following terminal usage.
             // Agent-mode step metering remains conservative while further tool calls can still be made.
@@ -277,7 +286,9 @@ export function createCodexEngine(deps: CodexDeps): Engine {
         deps.timers.clear(turn);
         if (kill !== null) deps.timers.clear(kill);
         signal.removeEventListener("abort", onAbort);
-        if (!terminal) {
+        // A quota refusal before any item never ran the turn: nothing was processed, so nothing is metered.
+        const refused = (failure as MitoriError | null)?.code === "E_AGENT_RATE_LIMIT" && !ran;
+        if (!terminal && !refused) {
           usage.in = input * (calls + 1);
           usage.out = observedBytes;
         }
@@ -287,7 +298,11 @@ export function createCodexEngine(deps: CodexDeps): Engine {
           false,
           settings.pricing,
         );
-        if (usage.in + usage.cacheRead > req.budget.inTokens || usage.out > req.budget.outTokens || usage.apiUsd > req.budget.usd) {
+        // The meter judges a turn that ran; an earlier error/timeout/cancel stays the reported cause (usage is still recorded).
+        if (
+          (stop === null || stop === "budget") &&
+          (usage.in + usage.cacheRead > req.budget.inTokens || usage.out > req.budget.outTokens || usage.apiUsd > req.budget.usd)
+        ) {
           stop = "budget";
           failure = new MitoriError("E_BUDGET_EXCEEDED", "Codex reported usage exceeds the confirmed estimate; native thinking is not hard-capped");
         }

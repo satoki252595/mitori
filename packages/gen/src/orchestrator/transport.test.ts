@@ -45,6 +45,29 @@ describe("§8.2 transport errors, auth, parked-process close, κ samples", () =>
     expect(h2.gen.run(run2.id)?.run.concurrency).toBe(run2.concurrency);
   });
 
+  test("a plan quota that resets later fails the run with the provider's words; a transient 429 is still re-dispatched", async () => {
+    const message = "You’ve hit your usage limit. Try again at Oct 18th, 2026 12:58 PM.";
+    const quota = (call: GenCall, t: Turn): ScriptReply =>
+      call.spec.id === "gen.overview" ? { lines: [], stop: "error", error: { code: "E_AGENT_RATE_LIMIT", message, retryable: false } } : validRouter(call, t);
+    const h = makeHarness({ router: quota });
+    const run = await h.gen.start((await h.gen.estimate({ effort: "standard" })).id);
+    await h.gen.idle();
+    expect(h.gen.run(run.id)?.run.state).toBe("failed");
+    expect(h.engine.calls.filter((c) => c.call.spec.id === "gen.overview").length).toBe(1);
+    const failed = h.gen.run(run.id)?.tasks.find((t) => t.state === "failed");
+    expect(failed?.error).toMatchObject({ code: "E_AGENT_RATE_LIMIT", message });
+
+    let transient = 1;
+    const brief = (call: GenCall, t: Turn): ScriptReply =>
+      isSession(call) && transient-- > 0
+        ? { lines: [], stop: "error", error: { code: "E_AGENT_RATE_LIMIT", message: "429", retryable: true } }
+        : validRouter(call, t);
+    const h2 = makeHarness({ router: brief });
+    const run2 = await h2.gen.start((await h2.gen.estimate({ effort: "standard" })).id);
+    await h2.gen.idle();
+    expect(h2.gen.run(run2.id)?.tasks.find((t) => t.target.id === M_SESSION)?.state).toBe("done");
+  });
+
   test("a parked process is closed right after validation when no retry is needed (AC-09)", async () => {
     const h = makeHarness();
     await h.gen.start((await h.gen.estimate({ effort: "standard" })).id);
