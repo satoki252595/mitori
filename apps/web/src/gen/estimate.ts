@@ -17,6 +17,15 @@ export function totalTokens(e: Pick<GenEstimate, "inTokens" | "cacheReadTokens" 
   return e.inTokens + e.cacheReadTokens + e.cacheWriteTokens + e.outTokens;
 }
 
+/**
+ * Usage-less generic engines (`text` / `muse-jsonl`, unset included) estimate in UTF-8 bytes as an upper bound —
+ * the run records bytes as tokens. `openai-chat` reports usage, so its estimates stay token-based, as do all
+ * other engines. Mirrors the estimator's protocol check (`isByteUpperProtocol`).
+ */
+export function isByteUpperEstimate(engine: EngineId, protocol?: "text" | "muse-jsonl" | "openai-chat"): boolean {
+  return engine === "generic" && (protocol ?? "text") !== "openai-chat";
+}
+
 /** Calibration below `CALIBRATION.pointEstimateN` samples ⇒ ranges instead of single values (UXP-30). */
 export function isRange(e: Pick<GenEstimate, "calibrationN">): boolean {
   return e.calibrationN < CALIBRATION.pointEstimateN;

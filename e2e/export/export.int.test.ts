@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import type { ExportRes, SessionId, WorkspaceKey } from "@mitori/core";
 import { buildFixture, type FixtureRepo } from "@mitori/testkit";
 import { runCommand } from "../../apps/cli/src/commands/index.ts";
@@ -48,6 +49,13 @@ afterAll(async () => {
 
 const body = { format: "html", level: "standard", lang: "ja", includeDecisions: false, excerpts: true };
 
+/** The export payload's JSON, decoded the way the viewer decodes it (plain JSON or gzip+base64). */
+const payloadJson = (html: string): string => {
+  const tag = /<script type="application\/json" id="mitori-export"([^>]*)>([\s\S]*?)<\/script>/.exec(html);
+  const embedded = tag?.[2] ?? "";
+  return (tag?.[1] ?? "").includes('data-encoding="gzip+base64"') ? gunzipSync(Buffer.from(embedded, "base64")).toString("utf8") : embedded;
+};
+
 describe("EXP-I-01 POST /ws/:ws/export", () => {
   test("returns the document, its size and hash, the redactions and the excerpts; no planted secret survives", async () => {
     const res = await int.json<ExportRes>("POST", `/ws/${ws}/export`, body);
@@ -57,8 +65,14 @@ describe("EXP-I-01 POST /ws/:ws/export", () => {
     expect(res.redactions).toBeGreaterThanOrEqual(3);
     expect(res.codeExcerpts.count).toBeGreaterThanOrEqual(2);
     expect(res.codeExcerpts.files).toBeGreaterThanOrEqual(1);
-    for (const v of Object.values(PLANTED)) expect(res.html.includes(v), v.slice(0, 8)).toBe(false);
-    expect(res.html).toContain("«redacted:secret»");
+    // the payload is compressed: no planted secret survives in the raw file or in the decoded document,
+    // and the redaction token is asserted on the decoded document
+    const expanded = payloadJson(res.html);
+    for (const v of Object.values(PLANTED)) {
+      expect(res.html.includes(v), `raw ${v.slice(0, 8)}`).toBe(false);
+      expect(expanded.includes(v), `payload ${v.slice(0, 8)}`).toBe(false);
+    }
+    expect(expanded).toContain("«redacted:secret»");
   });
 
   test("the file is the viewer: one CSP, two scripts, the viewer's hash in the policy, the payload parses back", async () => {
@@ -69,8 +83,10 @@ describe("EXP-I-01 POST /ws/:ws/export", () => {
     const b64 = new Bun.CryptoHasher("sha256").update(script).digest("base64");
     expect(csp).toContain(`script-src &#39;sha256-${b64}&#39;`);
     expect(csp).toContain("default-src &#39;none&#39;");
-    const json = /<script type="application\/json" id="mitori-export">([\s\S]*?)<\/script>/.exec(res.html)?.[1] ?? "";
-    expect(json).not.toMatch(/[<>&]/);
+    const tag = /<script type="application\/json" id="mitori-export"([^>]*)>([\s\S]*?)<\/script>/.exec(res.html);
+    const embedded = tag?.[2] ?? "";
+    expect(embedded).not.toMatch(/[<>&]/);
+    const json = (tag?.[1] ?? "").includes('data-encoding="gzip+base64"') ? gunzipSync(Buffer.from(embedded, "base64")).toString("utf8") : embedded;
     const payload = JSON.parse(json) as { format: string; level: string; meta: { redactions: number }; sections: unknown[] };
     expect(payload.format).toBe("mitori.export/1");
     expect(payload.meta.redactions).toBe(res.redactions);
@@ -83,6 +99,12 @@ describe("EXP-I-01 POST /ws/:ws/export", () => {
     expect(bare.codeExcerpts).toEqual({ count: 0, files: 0 });
     expect(bare.bytes).toBeLessThan(full.bytes);
     expect(bare.html).not.toContain("export const AWS_ACCESS_KEY_ID");
+    // the decoded document carries the intent: the full export has peeks, the bare one has none and is smaller
+    const fullJson = payloadJson(full.html);
+    const bareJson = payloadJson(bare.html);
+    expect(Object.keys((JSON.parse(fullJson) as { cites: Record<string, unknown> }).cites).length).toBeGreaterThan(0);
+    expect(Object.keys((JSON.parse(bareJson) as { cites: Record<string, unknown> }).cites)).toEqual([]);
+    expect(bareJson.length).toBeLessThan(fullJson.length);
   });
 
   test("the body is validated: a wrong level, language, flag or format is a 400, not a guess", async () => {

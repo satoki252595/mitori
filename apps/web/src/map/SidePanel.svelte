@@ -117,6 +117,7 @@ function setEffort(e: Effort) {
               launcher={s.session.settings?.launcher}
               {effort}
               engine={s.gen.engine}
+              genericProtocol={s.session.settings?.settings.engines.generic.protocol ?? "text"}
               reasoning={s.session.settings?.settings.reasoning[effort === "overview" ? "genOverview" : "gen"]}
               window={s.session.window ?? engineStatus?.window ?? null}
               {policyAcked}

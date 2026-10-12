@@ -7,6 +7,16 @@ import { hexToBase64, sha256Hex, utf8 } from "./sha256.ts";
 
 const escAttr = (s: string): string => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
+/** How the payload sits in the `<script id="mitori-export">` element: plain JSON or gzipped + base64. */
+export type PayloadEncoding = "json" | "gzip+base64";
+
+/** Bytes → base64 in chunks (`String.fromCharCode(...bytes)` would blow the stack on a multi-MB payload). */
+export function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
 /**
  * JSON for a `<script type="application/json">`: `< > &` U+2028 U+2029 become `\uXXXX` (still valid JSON, identical
  * after `JSON.parse`), so the text can never contain `</script`, `<!--` or a line terminator that ends a script.
@@ -44,20 +54,27 @@ export interface PageParts {
   css: string;
   js: string;
   jsSha256: string;
-  /** Already `jsonForScript`-escaped. */
+  /** Plain JSON: already `jsonForScript`-escaped. `gzip+base64`: base64 text (its alphabet cannot break a script). */
   json: string;
+  encoding: PayloadEncoding;
 }
 
 /** The document. The viewer script is inlined byte for byte (its hash is in the CSP), after the data. */
 export function renderPage(p: PageParts): string {
   const noscript = p.lang === "ja" ? "このファイルの表示には JavaScript が必要です。" : "This file needs JavaScript to display.";
+  // gzip needs a modern browser: the message for the ones without it lives here (not in the viewer JS budget)
+  const oldBrowser =
+    p.lang === "ja"
+      ? `<div class="viewer-error" id="oldbrowser" hidden><h1>このブラウザでは開けません</h1><p>圧縮された書き出しのため、Chrome 80・Firefox 113・Safari 16.4 以降で開いてください。</p></div>`
+      : `<div class="viewer-error" id="oldbrowser" hidden><h1>This browser cannot open this file</h1><p>This export is compressed; it needs Chrome 80+, Firefox 113+ or Safari 16.4+.</p></div>`;
+  const data = p.encoding === "json" ? "" : ` data-encoding="${p.encoding}"`;
   return (
     `<!doctype html>\n<html lang="${p.lang}" data-level="${p.level}">\n<head>\n<meta charset="utf-8">\n` +
     `<meta http-equiv="Content-Security-Policy" content="${escAttr(exportCsp(p.jsSha256))}">\n` +
     `<meta name="viewport" content="width=device-width, initial-scale=1">\n<meta name="color-scheme" content="light dark">\n` +
     `<meta name="referrer" content="no-referrer">\n<meta name="generator" content="mitori export">\n` +
     `<title>${escAttr(p.title)}</title>\n<link rel="icon" href="${ICON}">\n<style>${p.css}</style>\n</head>\n<body>\n` +
-    `<div id="app"></div>\n<noscript><p style="padding:24px;font:14px/1.6 system-ui,sans-serif">${noscript}</p></noscript>\n` +
-    `<script type="application/json" id="mitori-export">${p.json}</script>\n<script>${p.js}</script>\n</body>\n</html>\n`
+    `<div id="app"></div>\n<noscript><p style="padding:24px;font:14px/1.6 system-ui,sans-serif">${noscript}</p></noscript>\n${oldBrowser}\n` +
+    `<script type="application/json" id="mitori-export"${data}>${p.json}</script>\n<script>${p.js}</script>\n</body>\n</html>\n`
   );
 }

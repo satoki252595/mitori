@@ -285,15 +285,22 @@ class Gatherer {
         const seeds = genFlowSeeds(ix);
         // The shared body builder deduplicates callers before the one unchanged total budget is applied.
         const bodies = this.flowSlices(seeds);
+        // A flow whose cited files meet no current seed walk file lost its entry (a website / docs / demo page
+        // dropped from SEEDS): listing it would teach the model to keep it, so it stays out of EXISTING_FLOWS /
+        // EXISTING. Its blocks are proposed for deletion after apply instead of being silently kept.
+        const seedFiles = new Set<RepoPath>(seeds.flatMap((s) => s.files));
+        const live = this.env.doc
+          .sections()
+          .filter((s) => s.id.startsWith("s3/"))
+          .map((s) => s.id)
+          .filter((id) => this.flowCites(id).some((p) => seedFiles.has(p)));
+        const liveTitles = new Set(live);
         return {
           SEEDS: seeds.map((s) => `> seed${s.k} ${s.kind} ${s.label} ${s.path}:${s.line} path: ${s.modules.join(" > ")}`),
           BODIES: this.bodies(bodies, "BODIES"),
           MODULES: this.generated(false, "MODULES", 60),
-          EXISTING_FLOWS: this.env.doc
-            .sections()
-            .filter((s) => s.id.startsWith("s3/"))
-            .map((s) => `> ${s.id.slice(3)} "${s.title}"`),
-          EXISTING: this.existing(["s3", ...this.env.doc.sections().flatMap((s) => (s.id.startsWith("s3/") ? [s.id] : []))]),
+          EXISTING_FLOWS: this.env.doc.sections().flatMap((s) => (liveTitles.has(s.id) ? [`> ${s.id.slice(3)} "${s.title}"`] : [])),
+          EXISTING: this.existing(["s3", ...live]),
         };
       }
       case "gen.glossary": {
@@ -786,6 +793,13 @@ class Gatherer {
       if (excerpt.length > 0 && b.add([header(), ...excerpt])) this.see(d.path, slice.blob);
     }
     return b.done();
+  }
+
+  /** Cited files of a flow section (its blocks' claim cites): the flow's source files. */
+  private flowCites(section: SectionId): RepoPath[] {
+    const out: RepoPath[] = [];
+    for (const blk of this.env.doc.section(section)?.blocks ?? []) for (const c of this.env.doc.claims(blk.id)) for (const cite of c.cites) out.push(cite.path);
+    return out;
   }
 
   /** EXISTING (§5.2): AI / human blocks of the target sections (static blocks are never listed). */

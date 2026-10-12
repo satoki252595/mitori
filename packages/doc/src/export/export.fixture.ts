@@ -14,7 +14,7 @@ import type { DiagramLayouter, GeneratedBlock } from "../contract.ts";
 import { createBlockRenderer } from "../render/index.ts";
 import { DOC_MIGRATIONS } from "../store/index.ts";
 import { harness, staticInputFromTruth } from "../test/harness.ts";
-import { hasher, inlinePool, memDb, silentLog } from "../test/helpers.ts";
+import { hasher, inlinePool, memDb, silentLog, testGunzip, testGzip } from "../test/helpers.ts";
 import { createHtmlExporter, type ExportSource } from "./index.ts";
 import { sha256Hex, utf8 } from "./sha256.ts";
 
@@ -96,7 +96,7 @@ export function viewer(js = "document.title='ok';") {
   return { js, css: ".x{color:red}", jsSha256: sha256Hex(utf8(js)) };
 }
 
-export function setup(over: { js?: string } = {}) {
+export function setup(over: { js?: string; gzip?: ((data: Uint8Array) => Uint8Array) | null } = {}) {
   const h = harness();
   h.store.applyStatic(staticInputFromTruth("secrets"));
   const db = memDb(DOC_MIGRATIONS);
@@ -120,13 +120,17 @@ export function setup(over: { js?: string } = {}) {
       secrets: createSecretScanner(),
       viewerAssets: assets,
       clock: h.clock,
+      ...(over.gzip === null ? {} : { gzip: over.gzip ?? testGzip }),
       ...(src ? { source: src } : {}),
     });
   return { h, renderer, exporter };
 }
 
-/** The payload of an exported file, read the way the viewer does. */
+/** The payload of an exported file, read the way the viewer does (plain JSON or gzip+base64). */
 export function payloadOf(html: string) {
-  const m = /<script type="application\/json" id="mitori-export">([\s\S]*?)<\/script>/.exec(html);
-  return JSON.parse(m?.[1] ?? "null") as import("./payload.ts").ExportPayload;
+  const m = /<script type="application\/json" id="mitori-export"([^>]*)>([\s\S]*?)<\/script>/.exec(html);
+  const attrs = m?.[1] ?? "";
+  const body = m?.[2] ?? "null";
+  const json = attrs.includes('data-encoding="gzip+base64"') ? new TextDecoder().decode(testGunzip(Buffer.from(body, "base64"))) : body;
+  return JSON.parse(json) as import("./payload.ts").ExportPayload;
 }

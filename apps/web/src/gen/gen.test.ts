@@ -5,11 +5,13 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { GenEstimate, GenTaskView } from "@mitori/core";
 import { useCatalog } from "../shell/__tests__/catalog.ts";
+import { tImpl } from "../shell/i18n.ts";
 import {
   billingLine,
   defaultEffort,
   estimateValidity,
   figures,
+  isByteUpperEstimate,
   isRange,
   narrowerEffort,
   sessionMode,
@@ -262,5 +264,24 @@ describe("prototype 01c-generating stage list", () => {
     expect(rows[0]?.used).toBe(300);
     expect(rows[2]?.planned).toBe(550);
     expect(runShare({ progress: { total: 4, done: 1, failed: 1, blocks: 0 } })).toBe(0.5);
+  });
+});
+
+describe("byte-upper note (usage-less generic engines estimate in UTF-8 bytes)", () => {
+  test("text / muse-jsonl (or unset) generic estimates are byte-upper; usage-reporting engines are not", () => {
+    expect(isByteUpperEstimate("generic", "text")).toBe(true);
+    expect(isByteUpperEstimate("generic", "muse-jsonl")).toBe(true);
+    expect(isByteUpperEstimate("generic", undefined)).toBe(true);
+    expect(isByteUpperEstimate("generic", "openai-chat")).toBe(false);
+    for (const engine of ["claude-cli", "session", "anthropic-api", "codex-cli"] as const) {
+      expect(isByteUpperEstimate(engine, undefined)).toBe(false);
+    }
+  });
+
+  test("the byte-upper key exists in the ja and en catalogs", () => {
+    useCatalog("ja");
+    expect(tImpl("gen.card.byteUpper")).toContain("バイト換算");
+    useCatalog("en");
+    expect(tImpl("gen.card.byteUpper")).toContain("byte");
   });
 });

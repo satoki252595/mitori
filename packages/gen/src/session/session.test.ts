@@ -393,3 +393,56 @@ describe("AC-45 phases: the next phase sees the previous phase's output", () => 
     await expect(h.gen.session.prep({ effort: "standard", continueFrom: p1.id })).rejects.toMatchObject({ code: "E_PRECONDITION" });
   });
 });
+
+describe("WP2 --scope s3 regen drops a stale demo flow as proposals, not silence", () => {
+  test("a flow citing no current seed file leaves EXISTING out and is proposed for deletion, never removed", async () => {
+    const h = makeHarness();
+    h.doc.upsertFlowSection("demo", "デモ", 0);
+    h.doc.applyGenerated(
+      [
+        {
+          id: null,
+          section: "s3/demo",
+          aspect: "steps",
+          kind: "list",
+          depth: "L2",
+          audience: ["dev"],
+          lang: "ja",
+          md: "1. デモを開く[[1]]",
+          claims: [
+            {
+              n: 1,
+              kind: "behavior",
+              quote: "デモを開く",
+              cites: [{ path: "docs/demo/page.md", start: 1, end: 3, blob: "b", snippet: "s", precision: "exact" }],
+              checks: { l0: true, l1: "pass", l2: true, checkedAt: "2026-10-03T00:00:00.000Z" },
+              verdict: "cited",
+            },
+          ],
+          gen: { model: "claude-sonnet-5-5", engine: "claude-cli", stage: "S6o", promptVer: "gen.flows@7", indexDigest: "0" },
+        },
+      ],
+      { mode: "write", deletes: [], source: { kind: "regen", id: "previous" }, reason: "", listed: 0 },
+    );
+    const stale = (h.doc.section("s3/demo")?.blocks ?? []).map((b) => b.id);
+    expect(stale.length).toBe(1);
+    let flowsInput = "";
+    let p: PrepInfo | null = await h.gen.session.prep({ effort: "standard", scope: ["s3"] });
+    while (p) {
+      for (const t of tasksOf(h, p)) {
+        if (t.prompt === v("gen.flows")) flowsInput += file(h, p, t.input) ?? "";
+      }
+      answer(h, p);
+      const r = await h.gen.session.ingest({ prep: p.id, fingerprint: p.fingerprint, partial: false });
+      expect(r.ok).toBe(true);
+      p = r.next ? await h.gen.session.prep({ effort: "standard", continueFrom: p.id }) : null;
+    }
+    expect(flowsInput).not.toBe("");
+    // the stale demo flow is not offered to the model anymore…
+    expect(flowsInput).not.toContain("demo");
+    // …and it is not silently kept: its blocks stay, each with a pending delete proposal
+    expect(stale.every((id) => h.doc.block(id) !== null)).toBe(true);
+    const pending = h.doc.proposals({ state: "pending" });
+    expect(stale.every((id) => pending.some((x) => x.op === "delete" && x.block === id))).toBe(true);
+  });
+});

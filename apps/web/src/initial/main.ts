@@ -159,6 +159,8 @@ async function loadView(initialReader?: NativeReaderState, initial?: Partial<Ini
   disconnectView();
   stopDisclosure();
   snapshot = view.snapshot;
+  liveGenState = snapshot.status.gen?.state ?? null;
+  lastUiFetchAt = Date.now();
   settingsVersion = snapshot.settings.version;
   state = snapshot.ui;
   persistUi();
@@ -763,12 +765,41 @@ for (const def of keys.defs())
     void enhance({ key: e });
   });
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-const refresh = () => {
-  if (enhanced || refreshTimer) return;
+/** A run state newer than the loaded view (`gen.run` arrives before its view does). */
+let liveGenState: string | null = null;
+/** The last full view that landed; the run throttle counts from it. */
+let lastUiFetchAt = 0;
+/**
+ * Reader-page refreshes this event never needs: a dedicated handler below patches it on the live DOM
+ * (`doc.freshness` / `doc.claims` patch their attributes), or the native Reader shows nothing of it
+ * (no task list, no status-bar totals, no review entities). `doc.block.upsert` is not in here: its handler
+ * below clears the open partial and takes the run throttle, so confirmed blocks land within ~2 s.
+ */
+const DOC_REFRESH_SKIP = new Set(["doc.freshness", "doc.claims", "gen.task", "usage.updated", "job.upsert"]);
+/** While a run is active at most one full reload lands per window; the last change always does (trailing edge). */
+const RUN_REFRESH_MIN_MS = 2000;
+const REFRESH_DEBOUNCE_MS = 100;
+function genActive(): boolean {
+  const state = liveGenState ?? snapshot?.status.gen?.state;
+  return state === "running" || state === "paused";
+}
+function scheduleRefresh(delay: number) {
+  if (enhanced) return;
+  if (refreshTimer) clearTimeout(refreshTimer);
   refreshTimer = setTimeout(() => {
     refreshTimer = null;
     void loadView(reader?.capture());
-  }, 100);
+  }, delay);
+}
+const refresh = (type?: string) => {
+  if (enhanced) return;
+  if (type && parseRoute(nativeUrl()).name === "doc" && DOC_REFRESH_SKIP.has(type)) return;
+  if (!genActive()) {
+    if (!refreshTimer) scheduleRefresh(REFRESH_DEBOUNCE_MS);
+    return;
+  }
+  const wait = lastUiFetchAt + RUN_REFRESH_MIN_MS - Date.now();
+  scheduleRefresh(wait <= 0 ? REFRESH_DEBOUNCE_MS : wait);
 };
 const sseOffs = [
   "resync",
@@ -778,20 +809,26 @@ const sseOffs = [
   "index.changed",
   "map.updated",
   "doc.outline",
-  "doc.block.upsert",
   "doc.block.removed",
   "doc.proposal.upsert",
   "doc.proposal.removed",
   "doc.freshness",
   "doc.claims",
-  "gen.run",
   "gen.task",
   "thread.upsert",
   "thread.removed",
   "job.upsert",
   "engines.updated",
   "usage.updated",
-].map((type) => clients.sse.on(type as never, refresh));
+].map((type) => clients.sse.on(type as never, () => refresh(type)));
+sseOffs.push(
+  clients.sse.on("gen.run", (event) => {
+    liveGenState = event.run.state;
+    // The run is over: a throttled view still waiting must land now, then reads go back to normal.
+    if (!genActive()) scheduleRefresh(REFRESH_DEBOUNCE_MS);
+    else refresh("gen.run");
+  }),
+);
 sseOffs.push(
   clients.sse.on("doc.block.partial", (event) => {
     reader?.partial(event.section, event.text);
@@ -800,6 +837,7 @@ sseOffs.push(
 sseOffs.push(
   clients.sse.on("doc.block.upsert", (event) => {
     reader?.partial(event.block.section, "");
+    refresh("doc.block.upsert");
   }),
 );
 sseOffs.push(
