@@ -41,6 +41,7 @@ let initialReads: string[] = [];
 let seq = 100;
 let estSeq = 0;
 let currentGen: GenRun | null = null;
+let currentTasks: unknown[] = [];
 const threads = new Map<string, ThreadSummary>();
 let settingsVersion = 3;
 let acked = opts.policyAcked;
@@ -66,6 +67,7 @@ function configure(o: Partial<FixtureOptions>) {
   fileRev = 0;
   estSeq = 0;
   currentGen = null;
+  currentTasks = [];
   threads.clear();
 }
 
@@ -420,6 +422,7 @@ async function api(req: Request, url: URL, body: unknown): Promise<Response> {
   }
   if (m === "POST" && rest === "/gen/prioritize") return json({ ok: true });
   if (m === "POST" && /^\/gen\/runs\/[^/]+\/control$/.test(rest)) return json({ ok: true });
+  if (m === "GET" && currentGen && rest === `/gen/runs/${currentGen.id}`) return json({ run: currentGen, tasks: currentTasks });
   if (m === "GET" && rest.startsWith("/gen/runs")) return json({ items: [], next: null });
   return err("E_NOT_FOUND", 404);
 }
@@ -482,7 +485,8 @@ Bun.serve({
     if (url.pathname === "/__mock/initial-reads") return json(initialReads);
     // streaming (ux.md §4.3.9): a run, block upserts / partials, a section's state flip + doc.outline
     if (url.pathname === "/__mock/gen") {
-      const b = body as { state: "running" | "done" };
+      const b = body as { state: "running" | "done"; tasks?: unknown[] };
+      if (b.tasks) currentTasks = b.tasks;
       const e = estimate(opts, "standard", "claude-cli", 0);
       const run = {
         id: "gr_run00000",

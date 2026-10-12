@@ -348,6 +348,10 @@ async function loadView(initialReader?: NativeReaderState, initial?: Partial<Ini
   const usageWindow = snapshot.usage?.window;
   if ((usageWindow?.billing === "overage" || usageWindow?.overage?.active) && !getItem("session", STORAGE_KEYS.hint("overage")) && !enhancementModule)
     void enhance();
+  // A live generation is watched, not read: the snapshot carries no task list (every stage would read 0 / n) and each
+  // streamed block would refetch the whole view. The full view hydrates the tasks once and then applies SSE deltas.
+  const run = snapshot.status.gen;
+  if ((run?.state === "running" || run?.state === "paused") && !enhancementModule) void enhance();
 }
 
 function observeDisclosure() {
