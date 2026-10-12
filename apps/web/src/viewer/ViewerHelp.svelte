@@ -4,12 +4,13 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { t } from "../shell/index.ts";
+import { isMacPlatform } from "./keys.ts";
 import { useViewer } from "./state.svelte.ts";
 
 const v = useViewer();
 let panel: HTMLDivElement | undefined = $state();
 let opener: HTMLElement | null = null;
-const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const mac = typeof navigator !== "undefined" && isMacPlatform(navigator);
 const rows: [string[], string][] = [
   [[mac ? "⌘K" : "Ctrl K", "/"], t("export.help.search")],
   [["j", "k"], t("export.help.blocks")],

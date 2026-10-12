@@ -151,5 +151,6 @@
   "reader.op.failed": "Document operation failed: {error}",
   "history.revert": "Restore this revision",
   "history.revertConfirm": "Restore this paragraph to R{rev}? The current text stays in history and can be restored again",
-  "history.reverted": "Restored paragraph text from R{rev}"
+  "history.reverted": "Restored paragraph text from R{rev}",
+  "reader.placeholder.pending": "Not generated"
 }

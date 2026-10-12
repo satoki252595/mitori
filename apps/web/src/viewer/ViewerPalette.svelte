@@ -8,12 +8,12 @@
 import { onMount, tick } from "svelte";
 import type { PaletteActionItem } from "../contract.ts";
 import { buildIndex, runQuery } from "../palette/search.ts";
-import Icon from "../shell/Icon.svelte";
 import { isComposingImpl } from "../shell/ime.ts";
 import { t } from "../shell/index.ts";
 import { routeOfHref } from "./route.ts";
 import { useViewer } from "./state.svelte.ts";
 import { buildTextIndex, searchText, type TextEntry } from "./textsearch.ts";
+import Icon from "./ViewerIcon.svelte";
 
 const v = useViewer();
 let input: HTMLInputElement | undefined = $state();

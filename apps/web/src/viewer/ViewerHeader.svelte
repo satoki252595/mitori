@@ -3,21 +3,21 @@
   The classes are the app header's (shell/styles/base.css); there is no workspace menu, usage, job chip or Inbox.
 -->
 <script lang="ts">
-import type { ReaderLevel } from "@mitori/core";
-import Icon from "../shell/Icon.svelte";
 import { t } from "../shell/index.ts";
+import { isMacPlatform } from "./keys.ts";
 import { formatHash } from "./route.ts";
-import { useViewer } from "./state.svelte.ts";
+import { READER_LEVELS, useViewer } from "./state.svelte.ts";
+import Icon from "./ViewerIcon.svelte";
 
 /** The rail is a drawer (the window is too narrow for it inline): the menu button opens it — at any width, so the
  * 1,100–1,231 px windows where the doc's three columns do not fit but the header is still wide keep their TOC. */
 let { drawer }: { drawer: boolean } = $props();
 const v = useViewer();
-const LEVELS: ReaderLevel[] = ["newcomer", "standard", "expert"];
+const LEVELS = READER_LEVELS;
 const themeNext = $derived(v.theme === "system" ? "light" : v.theme === "light" ? "dark" : "system");
 const head = $derived(v.payload.meta.head?.slice(0, 7) ?? "");
 const title = $derived(v.payload.outline.manifest.title);
-const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const mac = typeof navigator !== "undefined" && isMacPlatform(navigator);
 </script>
 
 <header class="hdr" data-chrome>

@@ -347,6 +347,8 @@ test.describe("@export reading", () => {
     await chip.hover();
     const peek = page.locator(".pop.peek");
     await expect(peek).toBeVisible();
+    // read-only (WP-13b): the peek carries no pin / editor buttons
+    await expect(peek.locator("button")).toHaveCount(0);
     const lines = peek.locator(".peek-code [data-line]");
     expect(await lines.count()).toBeGreaterThanOrEqual(4);
     expect(await peek.locator(".peek-code [data-line].hi").count()).toBeGreaterThanOrEqual(1);
@@ -386,6 +388,24 @@ test.describe("@export reading", () => {
     await page.keyboard.press("Escape");
     await expect(peek).toHaveCount(0);
     expect((await collect(page, watch)).network).toEqual([]);
+    await page.close();
+  });
+
+  test("@export no dead generate button: an ungenerated section never renders button[data-ph]; a pending block shows a static note", async ({ context }) => {
+    const { page } = await openExport(context, RICH, "#/s3");
+    for (let step = 0; step < 3; step++) {
+      await expect(page.locator(".blk").first()).toBeVisible();
+      await expect(page.locator("button[data-ph]")).toHaveCount(0);
+      const wraps = page.locator(".blk.ph-wrap");
+      for (let i = 0, n = await wraps.count(); i < n; i++) {
+        await expect(wraps.nth(i).locator("button")).toHaveCount(0);
+        await expect(wraps.nth(i).locator(".static-tag")).toContainText("未生成");
+      }
+      if ((await page.locator("nav.pager a").count()) === 0) break;
+      const before = page.url();
+      await page.locator("nav.pager a").click();
+      await expect.poll(async () => page.url()).not.toBe(before);
+    }
     await page.close();
   });
 
