@@ -3,11 +3,11 @@
   Same markup and styling as shell/Rail.svelte; the data is the payload and the links are hash routes.
 -->
 <script lang="ts">
-import type { ReaderLevel, SectionId, UiLang } from "@mitori/core";
+import type { SectionId, UiLang } from "@mitori/core";
 import { readingMinutes, subtreeStats, tocState } from "../reader/outline.ts";
 import { t } from "../shell/index.ts";
 import { formatHash } from "./route.ts";
-import { type Theme, useViewer } from "./state.svelte.ts";
+import { READER_LEVELS, type Theme, useViewer } from "./state.svelte.ts";
 
 let { mode }: { mode: "inline" | "drawer" } = $props();
 const v = useViewer();
@@ -83,7 +83,7 @@ const counts = outline.counts;
 
 // below 1024 px the header has no room for the level / theme / language switches (base.css): the drawer carries them,
 // so a reader on a phone or a tablet can still pick 初めて (there is no ⌘K on a touch screen)
-const LEVELS: readonly ReaderLevel[] = ["newcomer", "standard", "expert"];
+const LEVELS = READER_LEVELS;
 const THEMES: readonly Theme[] = ["system", "light", "dark"];
 const LANGS: readonly { id: UiLang; label: string }[] = [
   { id: "ja", label: "日本語" },

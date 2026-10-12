@@ -48,7 +48,8 @@ let {
   onterm: (e: { term: GlossaryId; anchorEl: HTMLElement } | null) => void;
   onclaim: (e: { block: BlockId; claim: string | null; anchorEl: HTMLElement }) => void;
   onhoverblock: (b: BlockId | null, el: HTMLElement | null) => void;
-  onplaceholder: (section: SectionId) => void;
+  /** Omitted by the export viewer: a pending section then shows a static note instead of a generate button. */
+  onplaceholder?: (section: SectionId) => void;
   onmore: (ids: BlockId[]) => void;
   head: import("svelte").Snippet<[import("./page.ts").PagePart]>;
   /** A generation run is active (pending / partial sections then wait for blocks; otherwise they are placeholders). */
@@ -362,7 +363,7 @@ onMount(() => {
       return;
     }
     const ph = tg.closest?.("button[data-ph]") as HTMLElement | null;
-    if (ph) onplaceholder(ph.dataset.ph as SectionId);
+    if (ph) onplaceholder?.(ph.dataset.ph as SectionId);
   };
   const toggle = () => {
     /* <details> open/close changes heights: margin re-layout hook point (WP-10b) */
@@ -400,7 +401,11 @@ onMount(() => {
       <div class="blk ph-wrap" data-b={r.b.id} data-depth={r.b.depth} data-kind={r.b.kind} data-ln={r.b.mdLine} tabindex="-1">
         <div class="ph">
           <div>{@html r.b.html}</div>
-          <button type="button" class="btn btn-sec btn-s" data-ph={r.b.section}>{t("reader.placeholder.generate")}</button>
+          {#if onplaceholder}
+            <button type="button" class="btn btn-sec btn-s" data-ph={r.b.section}>{t("reader.placeholder.generate")}</button>
+          {:else}
+            <span class="static-tag">{t("reader.placeholder.pending")}</span>
+          {/if}
         </div>
         {#if import.meta.env.SSR && native}{@render nativeProposals?.(r.b)}{/if}
       </div>

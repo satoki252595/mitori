@@ -42,6 +42,9 @@ test("@wp10a CitePeek: numbered lines (gutter), no blank rows between them; the 
   await page.locator(".blk a.mcite").first().focus();
   const peek = page.locator(".pop.peek");
   await expect(peek).toBeVisible();
+  // the app keeps both footer actions (WP-13b: only the export drops them)
+  await expect(peek.locator("button", { hasText: "横に固定" })).toBeVisible();
+  await expect(peek.locator("button", { hasText: "エディタで開く" })).toBeVisible();
   const m = await peek.evaluate((el) => {
     const lines = [...el.querySelectorAll<HTMLElement>("[data-line]")];
     const first = lines[0] as HTMLElement;

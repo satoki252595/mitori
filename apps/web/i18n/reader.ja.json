@@ -151,5 +151,6 @@
   "reader.op.failed": "文書操作に失敗しました: {error}",
   "history.revert": "この版に戻す",
   "history.revertConfirm": "この段落をR{rev}の本文に戻しますか？現在の本文も履歴に残り、再び戻せます",
-  "history.reverted": "段落をR{rev}の本文に戻しました"
+  "history.reverted": "段落をR{rev}の本文に戻しました",
+  "reader.placeholder.pending": "未生成"
 }

@@ -287,7 +287,6 @@ const next = $derived.by(() => {
         onterm={(e) => (term = e ? { id: e.term, anchorEl: e.anchorEl } : null)}
         onclaim={(e) => (note = { verdict: (e.anchorEl.closest(".mc") as HTMLElement | null)?.dataset.verdict ?? "inferred", anchorEl: e.anchorEl })}
         onhoverblock={() => {}}
-        onplaceholder={() => {}}
         onmore={(ids) => (forced = new Set([...forced, ...ids]))}
         onread={(sec) => v.markRead(sec)}
         generating={false}
@@ -313,8 +312,6 @@ const next = $derived.by(() => {
       checks={peekClaim?.checks ?? null}
       precision={peekClaim?.cites[0]?.precision ?? "exact"}
       anchorEl={peek.anchorEl}
-      onpin={() => {}}
-      oneditor={() => {}}
       onenter={() => (peekHover = true)}
       onleave={() => {
         peekHover = false;

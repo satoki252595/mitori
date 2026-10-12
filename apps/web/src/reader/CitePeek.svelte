@@ -3,7 +3,8 @@
   560 px, ≤ 26 body lines with the cited range marked, header path:a–b · symbol · precision · blob7, footer with
   the per-check verdicts (L0 / L1 / L2, UXP-06) and `o` pin / ⇧O editor. Does not take focus (role tooltip-like),
   stays open while the pointer travels into it (WCAG 1.4.13). In the app (not the export) the footer also carries the
-  paragraph's human check (EX-10, `PeekVerify` through the `extra` snippet).
+  paragraph's human check (EX-10, `PeekVerify` through the `extra` snippet). The export passes neither `onpin` nor
+  `oneditor`, so the footer shows no buttons there.
 -->
 <script lang="ts">
 import type { CitePeek as CitePeekData, ClaimChecks } from "@mitori/core";
@@ -26,8 +27,10 @@ let {
   checks: Pick<ClaimChecks, "l0" | "l1" | "l2"> | null;
   precision: "exact" | "search";
   anchorEl: HTMLElement;
-  onpin: () => void;
-  oneditor: () => void;
+  /** Shown only when given (the export viewer omits both: pinning and the editor need the app). */
+  onpin?: () => void;
+  /** Shown only when given (the export viewer omits both: pinning and the editor need the app). */
+  oneditor?: () => void;
   onenter: () => void;
   onleave: () => void;
   /** Footer actions before pin / editor (the app's paragraph check; the export has none). */
@@ -91,8 +94,8 @@ const l1Text = $derived(
     {:else}<span></span>{/if}
     <span class="keys">
       {@render extra?.()}
-      <button type="button" onclick={onpin}><kbd>o</kbd> {t("cite.pin")}</button>
-      <button type="button" onclick={oneditor}><kbd>&#x21E7;O</kbd> {t("cite.editor")}</button>
+      {#if onpin}<button type="button" onclick={onpin}><kbd>o</kbd> {t("cite.pin")}</button>{/if}
+      {#if oneditor}<button type="button" onclick={oneditor}><kbd>&#x21E7;O</kbd> {t("cite.editor")}</button>{/if}
     </span>
   </div>
 </div>
