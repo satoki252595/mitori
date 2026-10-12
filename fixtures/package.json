@@ -2,6 +2,7 @@
   "name": "@mitori/fixtures",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Fixture repos, ground truth, golden outputs, agent-stream recordings (data only).",
   "type": "module"
 }

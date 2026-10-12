@@ -2,6 +2,7 @@
   "name": "mitori-monorepo",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "packageManager": "bun@1.4.2",
   "workspaces": [
@@ -33,6 +34,7 @@
     "size": "bun scripts/run-owned.ts apps/cli/src/build/size.ts:WP-11a bench/asset/size.ts:WP-12",
     "contract:index": "bun scripts/contract-index.ts",
     "briefs": "bun scripts/gen-briefs.ts",
+    "notices": "bun scripts/third-party-notices.ts",
     "ci:pr": "bun run check && bun run test && bun run fixtures:build --verify && bun run golden && bun run size"
   },
   "devDependencies": {

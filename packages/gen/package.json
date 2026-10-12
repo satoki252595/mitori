@@ -2,6 +2,7 @@
   "name": "@mitori/gen",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Generation S5-S9: planner, prompts, gen.block/1 validation, verifier, orchestrator, session engine.",
   "type": "module",
   "exports": {

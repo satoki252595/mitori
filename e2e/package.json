@@ -2,6 +2,7 @@
   "name": "@mitori/e2e",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Playwright end-to-end, IME, a11y and demo-script suites.",
   "type": "module",
   "dependencies": {

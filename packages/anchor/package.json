@@ -2,6 +2,7 @@
   "name": "@mitori/anchor",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Shared anchor engine for claims and comments (identity -> symbol -> Myers -> TextQuote -> outdated).",
   "type": "module",
   "exports": {

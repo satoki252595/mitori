@@ -2,6 +2,7 @@
   "name": "@mitori/indexer",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "S0-S4: inventory, parse, facts, structure, skeleton, repo pack, search, incremental update.",
   "type": "module",
   "exports": {
