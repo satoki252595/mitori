@@ -80,6 +80,7 @@
   "reader.meta.static": "□ static · 0 tok",
   "reader.meta.verified": "{n} verified",
   "reader.minimap": "Show on the floor plan",
+  "reader.minimapOpen": "Open the map",
   "reader.more": "More detail ({n})",
   "reader.next": "Next",
   "reader.notGenerated": "This design doc has not been generated yet",

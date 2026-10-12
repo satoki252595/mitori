@@ -80,6 +80,7 @@
   "reader.meta.static": "□ 静的 · 0 tok",
   "reader.meta.verified": "確認済{n}",
   "reader.minimap": "間取り図で見る",
+  "reader.minimapOpen": "見取り図を開く",
   "reader.more": "詳しく（{n}）",
   "reader.next": "次へ",
   "reader.notGenerated": "この設計書はまだ生成されていません",
