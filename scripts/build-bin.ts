@@ -4,13 +4,14 @@
 // then `bun build --compile` of the generated entry plus every Worker entrypoint.
 import { spawnSync } from "node:child_process";
 import { genAssets } from "./gen-assets.ts";
+import { sourceBuildId } from "./lib/build-id.ts";
 import { ROOT } from "./lib/repo.ts";
 
 export const TARGETS = ["darwin-arm64", "linux-x64", "windows-x64"] as const;
 export type Target = (typeof TARGETS)[number];
 
-/** `bun build` argv for one target. */
-export function compileArgs(entry: string, workers: readonly string[], target: Target, outfile: string): string[] {
+/** `bun build` argv for one target. `buildId` bakes the source build id (`0.0.0+<build>`) into the binary. */
+export function compileArgs(entry: string, workers: readonly string[], target: Target, outfile: string, opts: { buildId?: string } = {}): string[] {
   return [
     "build",
     entry,
@@ -23,6 +24,8 @@ export function compileArgs(entry: string, workers: readonly string[], target: T
     `--root=${ROOT}`,
     "--define",
     "globalThis.__MITORI_TEST__=false",
+    // the same sources embed the same id, so a rebuilt binary counts as another version in the handshake
+    ...(opts.buildId === undefined ? [] : ["--define", `globalThis.__MITORI_BUILD__=${JSON.stringify(opts.buildId)}`]),
     // a compiled Bun binary otherwise loads .env and bunfig.toml (incl. `preload` scripts!) from the cwd — and
     // mitori runs inside untrusted repositories (BUILD-NOTES §4)
     "--no-compile-autoload-dotenv",
@@ -50,9 +53,11 @@ if (import.meta.main) {
     process.exit(1);
   }
   if (!gen) process.exit(1);
+  const buildId = sourceBuildId(Bun.version);
+  console.log(`build:bin: source build id ${buildId}`);
   for (const t of wanted as Target[]) {
     const out = `dist/mitori-${t}${t.startsWith("windows-") ? ".exe" : ""}`;
-    const r = spawnSync("bun", compileArgs(gen.entry, gen.workers, t, out), { cwd: ROOT, stdio: "inherit" });
+    const r = spawnSync("bun", compileArgs(gen.entry, gen.workers, t, out, { buildId }), { cwd: ROOT, stdio: "inherit" });
     if (r.status !== 0) process.exit(r.status ?? 1);
     console.log(`build:bin: ${out}`);
   }

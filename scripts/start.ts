@@ -1,11 +1,11 @@
 // End-user startup: existing Bun + Git, production assets built once and refreshed after source changes.
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 import pkg from "../package.json";
-import { listFiles, ROOT } from "./lib/repo.ts";
+import { BUILD_ENV, buildFileList, hashSources, sourceBuildId } from "./lib/build-id.ts";
+import { ROOT } from "./lib/repo.ts";
 
 const STAMP = "dist/.build/start.sha256";
 const MANIFEST = "dist/.build/web.json";
@@ -135,9 +135,22 @@ export function attemptBunRollover(argv: readonly string[], hooks: BunRolloverHo
 
 /** Content-based invalidation also catches deleted files and edits with preserved timestamps. */
 export function sourceFingerprint(root: string, files: readonly string[], runtime = Bun.version): string {
-  const hash = createHash("sha256").update(runtime);
-  for (const file of [...files].sort()) hash.update(`\0${file}\0`).update(readFileSync(join(root, file)));
-  return hash.digest("hex");
+  return hashSources(root, files, runtime);
+}
+
+/**
+ * The build id for this working tree (`0.0.0+<build>`'s suffix), exported to the CLI through `BUILD_ENV`
+ * so the daemon version handshake notices rebuilt sources. Never throws: without sources (no git) the CLI
+ * keeps plain `0.0.0`. Exported for tests.
+ */
+export function exportBuildId(root = ROOT, files: readonly string[] = buildFileList(), runtime: string = Bun.version): string | undefined {
+  try {
+    const id = sourceBuildId(runtime, root, files);
+    process.env[BUILD_ENV] = id;
+    return id;
+  } catch {
+    return undefined;
+  }
 }
 
 /** A successful stamp alone is insufficient: an interrupted cleanup can remove an output. */
@@ -158,9 +171,7 @@ async function prepareAssets(): Promise<void> {
   // Reuse the release supply-chain check even when the web bundle is cached.
   const { genAssets } = await import("./gen-assets.ts");
   await genAssets({ verifyOnly: true, log: () => {} });
-  const files = listFiles("apps", "packages", "scripts/gen-assets.ts", "scripts/start.ts", "package.json", "bun.lock", "bunfig.toml", "tsconfig*.json").filter(
-    (p) => !/\.(test|spec)\.[^.]+$|\/(test|tests|__tests__)\//.test(p),
-  );
+  const files = buildFileList();
   const fingerprint = sourceFingerprint(ROOT, files);
   if (assetsReady(ROOT, fingerprint)) return;
   process.stderr.write("mitori: preparing the browser UI (first run or updated source)…\n");
@@ -180,6 +191,9 @@ export async function start(argv: readonly string[], hooks: BunRolloverHooks = {
     return 1;
   }
   const args = argv[0] === "--" ? argv.slice(1) : argv;
+  // The build id travels in-process to the CLI (and on to `_serve` children through the env);
+  // `--version` shows it too, without building assets.
+  exportBuildId();
   if (!["--version", "-v", "version", "--help", "-h", "help"].includes(args[0] ?? "")) {
     try {
       await prepareAssets();
