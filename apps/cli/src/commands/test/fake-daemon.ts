@@ -8,7 +8,7 @@ import { createHmac } from "node:crypto";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { API_PREFIX, type DaemonRegistry, type ErrorCode, type WorkspaceSummary } from "@mitori/core";
+import { API_PREFIX, type DaemonRegistry, type ErrorCode, ROUTE_META, type WorkspaceSummary } from "@mitori/core";
 import type { Io } from "../io.ts";
 
 export const TOKEN = "tok_0123456789abcdefghijklmnopqrstuvwxyzABCDEFG";
@@ -133,6 +133,18 @@ export async function startFakeDaemon(
       seen.push({ method: req.method, path, query: url.searchParams, headers: req.headers, body });
       if (req.headers.get("authorization") !== `Bearer ${token}`)
         return Response.json({ error: { code: "E_AUTH_REQUIRED", message: "auth", retryable: false } }, { status: 401 });
+      // Same gate as the real daemon (`ROUTE_META.clients` ⇒ 403 E_FORBIDDEN): CLI regressions must fail here
+      // when production code calls a route that does not accept cli clients [CR setup-save-1].
+      const declared = req.headers.get("x-mitori-client")?.split("/", 1)[0] ?? null;
+      const kinds = ["web", "cli", "mcp", "hook"] as const;
+      const client = declared !== null && (kinds as readonly string[]).includes(declared) && declared !== "web" ? declared : "cli";
+      for (const [key, meta] of Object.entries(ROUTE_META)) {
+        const [method, pattern] = key.split(" ") as [string, string];
+        if (method !== req.method || match(pattern, path) === null) continue;
+        if ("clients" in meta && meta.clients && !(meta.clients as readonly string[]).includes(client))
+          return Response.json({ error: { code: "E_FORBIDDEN", message: `${key} is not available to ${client} clients`, retryable: false } }, { status: 403 });
+        break;
+      }
       for (const [key, h] of routes) {
         const [method, pattern] = key.split(" ") as [string, string];
         if (method !== req.method) continue;

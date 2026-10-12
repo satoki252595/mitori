@@ -29,7 +29,7 @@ export interface SettingsService {
   readonly path: string;
   current(): GlobalSettings;
   view(): SettingsView;
-  /** `PATCH /settings` (web): EXEC_SETTING_KEYS ⇒ `E_FORBIDDEN_KEY` (limit decreases allowed). */
+  /** `PATCH /settings` (web, cli): EXEC_SETTING_KEYS ⇒ `E_FORBIDDEN_KEY` (limit decreases allowed). */
   patch(body: unknown): Promise<SettingsView>;
   /** `PATCH /settings/exec` (cli, TTY-confirmed): only paths under EXEC_SETTING_KEYS. */
   patchExec(body: unknown): Promise<SettingsView>;

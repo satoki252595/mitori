@@ -91,15 +91,44 @@ describe("SRV-I-002 client kinds", () => {
         h.req("POST", `/ws/${ws}/threads/th_00000000/transition`, { bearer: h.token, body: {}, headers: { "x-mitori-client": "web/1" } }),
         "bearer claiming web",
       ],
-      [h.cli("PATCH", "/settings", { version: 1, patch: {} }), "cli → PATCH /settings"],
       [session.req("PATCH", "/settings/exec", { path: "limits.jobMaxUsd", value: 1, confirm: true }), "web → PATCH /settings/exec"],
       [session.req("POST", "/auth/nonce", {}), "web → nonce"],
+      [h.req("PATCH", "/settings", { bearer: h.token, body: { version: 1, patch: {} }, headers: { "x-mitori-client": "mcp/1" } }), "mcp → PATCH /settings"],
     ];
     for (const [p, label] of cases) {
       const res = await p;
       expect([label, res.status]).toEqual([label, 403]);
       expect(await errCode(res)).toBe("E_FORBIDDEN");
     }
+  });
+
+  test("CR setup-save-1: cli → PATCH /settings succeeds; exec paths stay E_FORBIDDEN_KEY", async () => {
+    const before = (await (await h.cli("GET", "/settings")).json()) as { version: number };
+    const ok = await h.cli("PATCH", "/settings", { version: before.version, patch: { defaultEngine: "generic" } });
+    expect(ok.status).toBe(200);
+    const exec = await h.cli("PATCH", "/settings", { version: (await ok.json()).version, patch: { engines: { generic: { enabled: true } } } });
+    expect(exec.status).toBe(403);
+    expect(await errCode(exec)).toBe("E_FORBIDDEN_KEY");
+  });
+
+  test("CR setup-save-1: the full `setup muse` write sequence persists through the cli gate", async () => {
+    const start = (await (await h.cli("GET", "/settings")).json()) as { version: number };
+    const exec = await h.cli("PATCH", "/settings/exec", {
+      path: "engines.generic",
+      value: { enabled: true, argv: [], protocol: "openai-chat", pricing: { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 2 }, turnMs: 600_000 },
+      confirm: true,
+    });
+    expect(exec.status).toBe(200);
+    const patch = {
+      defaultEngine: "generic",
+      defaultGenEngine: "generic",
+      models: { answer: "generic:grok-4.7", patch: "generic:grok-4.7" },
+      reasoning: { answer: "high", patch: "high", agent: "high", gen: "high", genOverview: "high" },
+    };
+    const saved = await h.cli("PATCH", "/settings", { version: ((await exec.json()) as { version: number }).version, patch });
+    expect([start.version, saved.status]).toEqual([start.version, 200]);
+    const view = (await (await h.cli("GET", "/settings")).json()) as { settings: Record<string, unknown> };
+    expect(view.settings).toMatchObject({ ...patch, engines: { generic: { enabled: true } } });
   });
 });
 

@@ -1565,7 +1565,7 @@ export interface SettingsView {
 /** Deep partial helper for settings patches. */
 export type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
 
-/** Patch global settings (web only). Any path in core `EXEC_SETTING_KEYS` ⇒ `E_FORBIDDEN_KEY` [SEC-06]. */
+/** Patch global settings (web, cli). Any path in core `EXEC_SETTING_KEYS` ⇒ `E_FORBIDDEN_KEY` [SEC-06]. */
 export interface PatchSettingsReq {
   /** Expected version. */
   version: number;
@@ -1928,7 +1928,7 @@ export const ROUTE_META = {
   "POST /engines/:engine/probe": { auth: "required", kind: "json", mutates: true },
   "POST /engines/:engine/repin": { auth: "required", kind: "json", clients: ["web"], mutates: true },
   "GET /settings": { auth: "required", kind: "json", mutates: false },
-  "PATCH /settings": { auth: "required", kind: "json", clients: ["web"], mutates: true },
+  "PATCH /settings": { auth: "required", kind: "json", clients: ["web", "cli"], mutates: true },
   "PATCH /settings/exec": { auth: "required", kind: "json", clients: ["cli"], mutates: true },
   "POST /settings/provider-login": { auth: "required", kind: "json", clients: ["web"], mutates: true, maxBody: 256 },
   "GET /usage/summary": { auth: "required", kind: "json", mutates: false },
