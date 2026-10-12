@@ -69,8 +69,8 @@ GitHub Trending（2026-10-12 取得、daily / weekly）から、mitori の対応
 
 | クライアント | 結果 |
 |---|---|
-| Antigravity（`agy` 1.3.3） | 3フェーズの準備→生成→取り込みを完走（coverage 100 %、対象repo無変更）。出典を原文と照合して一致 |
-| Cursor（`cursor-agent` 2026.10.01） | 3フェーズを完走（接続の再試行あり、約17分）、coverage 100 %、対象repo無変更 |
+| Antigravity（`agy` 1.3.3） | 3フェーズの準備→生成→取り込みを完走（約8分、coverage 100 %、対象repo無変更）。出典を原文と照合して一致 |
+| Cursor（`cursor-agent` 2026.10.01） | 3フェーズを完走（接続の再試行あり、約19分）、coverage 100 %、対象repo無変更 |
 | Grok Build（1.0.50） | 「Grok Build usage balance exhausted」（402）。利用残高の追加購入はしていない |
 | Codex（0.160.0） | 「usage limit … try again at Oct 18th, 2026 12:58 PM」。引用の追加2生成もこの理由で未実施 |
 

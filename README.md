@@ -124,7 +124,7 @@ HTTP連携は無ツールのChat Completionsを使用します。`--effort`はHT
 | [rea](https://github.com/morluto/rea)（TypeScript、2,962ファイル）· Muse high | 約45分（並列2〜3） | 約$0.66 |
 | [gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view)（JavaScript、1,803ファイル）· Muse high | 約44分 | 約$0.54 |
 | [text-to-cad](https://github.com/earthtojake/text-to-cad)（Python、2,932ファイル）· Muse high | 約44分 | 約$0.64 |
-| 小さなGoサービス（20ファイル）· 普段のCursor / Antigravityのセッション | 数分〜約17分 | 各ツールの契約枠 |
+| 小さなGoサービス（20ファイル）· 普段のCursor / Antigravityのセッション | 約8〜19分 | 各ツールの契約枠 |
 
 API換算はサブスク利用時の請求額ではなく、比較用の推計です。思考の強さを上げるほど時間がかかります。生成中もページは開いたまま読めます。
 
