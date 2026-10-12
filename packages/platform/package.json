@@ -2,6 +2,7 @@
   "name": "@mitori/platform",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "The only package that touches Bun/Node APIs: sqlite, hash, spawn, workers, watcher, safe writes, git.",
   "type": "module",
   "exports": {

@@ -44,7 +44,7 @@ Chromium・Firefox・WebKitは既存CIで、実Chromeは設定と確定済み日
 
 Go7kスキャンの最新正式中央値は1,554.114ms（8 Worker）で、上限1,500msは未達です。追加の最適化候補は改善を確認できず採用していません。[正式時間・メモリの結果](docs/progress/remaining-20261011/idx-performance-tiers.md)、[候補の比較と判断](docs/progress/remaining-20261011/idx-cold.md)。
 
-リポジトリはprivateで、ルートLICENSEは未設定です。一般公開・OSS配布の準備は別途必要です。
+リポジトリは公開（MIT、ルートの LICENSE）である。同梱する依存は [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) に載せる。
 
 ## 2026-10-12 の追加結果
 

@@ -2,6 +2,7 @@
   "name": "@mitori/cli",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "The mitori CLI and single binary (bun build --compile).",
   "type": "module",
   "exports": {

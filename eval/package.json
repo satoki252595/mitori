@@ -2,6 +2,7 @@
   "name": "@mitori/eval",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Generation / citation / patch evaluation harness (WP-12).",
   "type": "module",
   "dependencies": {

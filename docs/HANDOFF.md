@@ -6,7 +6,7 @@
 
 リポジトリを一度だけ省トークンで読み、出典付きの日本語設計書（見取り図＋本文）をローカルのブラウザ画面に出す。人が設計書の箇所にコメントすると、本人の AI（Claude Code / Codex / Muse / Cursor など）がその位置に紐づけて説明・修正提案し、人が確認して未コミットで適用・Undo できる。clone してローカルで使う（Nix・Docker・Cloudflare は通常利用に不要）。
 
-- リポジトリ: `satoki252595/mitori`（private、ルート LICENSE 未設定）
+- リポジトリ: `satoki252595/mitori`（公開、MIT）
 - 使い方: [README](../README.md)、作業規約: [AGENTS.md](../AGENTS.md) / [CLAUDE.md](../CLAUDE.md)
 - 検証状況の詳細: [verification-status.md](progress/verification-status.md)
 
@@ -43,12 +43,15 @@
 - **性能の候補（未統合）**: ブランチ `muse/wp16`（`fa437b5`）。S1 の解析結果をバッチ完了ごとに適用し、S1 後の直列ループ（Go 53 ms・React 18 ms）を除く。load 10〜15 の ABBA では効果を確かめられず（Go 中央値 2,697 → 3,065 ms、React RSS 775.5 → 786.7 MB、いずれもぶれの範囲内）、方針どおり統合していない。試して捨てたもの（S1 末尾の縮退・Worker 減数・full GC 半減）と生データはブランチ `muse/wp16` の `docs/progress/wp16.json` にある。
 - **Mac の3ブラウザ CI**: PR #20 でも静かな機械の事前チェック（load 12.9、利用者のゲームと最低優先度のベンチ）で停止。ホストで書き出し e2e（Chrome）31/31・引用ポップアップ 4/4 を確認して統合した。
 
+2026-10-13 の公開準備（利用者が一般公開を承認。実装は Muse、方針と重要な判断はオーケストレーター）。
+
+- **公開の形**: ライセンスは MIT（`Copyright (c) 2026 satoki252595`）。履歴全体の秘密情報の点検は済み（gitleaks、597 commit に本物なし）。同梱依存の一覧は `THIRD_PARTY_NOTICES.md`（`bun run notices` が作る）。外部の fork PR のワークフローはすべて承認制にし、`browsers` ジョブは保守者の基準 Mac でのみ動く。
+
 ## 3. 残っていること
 
 | 残件 | 状態 | 次の一手 |
 |---|---|---|
 | Mac の3ブラウザ CI の再実行 | 最終 head はホストで確認済み。PR #20 も事前チェックで停止 | 利用者の Mac が空いている時（ゲーム・iCloud 同期の負荷がない時）に再実行 |
-| 一般公開の判断 | private・LICENSE 未設定 | 公開範囲とライセンスの判断（利用者） |
 | HTML 書き出しのビューアー JS | 59,553 B（関門 60,000 B、余裕 447 B）。残りはすべて使用中のコード | 大きく増える変更の前に、予算の見直しか分割を検討 |
 | モジュール章の読みやすさ | 『公開インターフェース』『データ構造』が識別子の列挙に寄り、初見者には硬い（trend-quality の所感） | 生成の指示文の変更が必要。保存済みの生成結果がすべて作り直しになり費用がかかるため、利用者の判断待ち |
 | Muse の設定の更新（利用者の操作） | PR #20 で `setup` の保存と古い daemon の入れ替えを修正。利用者の `~/.mitori/config.json` は実行ファイルのパスだけ更新済み | 端末で `bun run start -- setup muse --effort high` を1回実行（古い daemon は自動で入れ替わる） |

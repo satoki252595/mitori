@@ -2,6 +2,7 @@
   "name": "@mitori/testkit",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Test-only kit (fixtures, truth, golden, cassettes, server/daemon harness, perf, e2e helpers). Never imported by production code.",
   "type": "module",
   "exports": {
