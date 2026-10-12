@@ -33,4 +33,4 @@ main（`1715479`）での測定。生データは [abba-wp16.json](abba-wp16.jso
 
 対策として、校正の前にバックグラウンド優先度を検出して止める検査（`bench/runner/machine.ts` の `backgroundPriority`、`e2e/web/support/global-setup.ts`）と、基準の誤記録を防ぐ `recordReference` の拒否を入れた。`scripts/install-runner-service.ts` は `bootstrap` の失敗時に短い間隔で再試行する（直後の `bootstrap` は `Bootstrap failed: 5` で失敗することがあるため）。
 
-登録し直した後の再実行（2026-10-13 05:06〜05:11 JST、PR #22）では校正 0.978 倍で通過し、`e2e/web` は 384 件成功・2 件失敗・14 件省略。残った2件は `e2e/web/gen-card.pw.ts:91` の overage の場合（firefox と webkit）で、104 行の強制クリックが本体への入れ替わりの瞬間に当たり `Element is not visible` となったもの。同意前のクリックで POST が無いことの検査が目的で製品の不具合ではないため、テスト側を再試行する形に直した。
+登録し直した後の再実行（2026-10-13 05:06〜05:11 JST、PR #22）では校正 0.978 倍で通過し、`e2e/web` は 384 件成功・2 件失敗・14 件省略。残った2件は `e2e/web/gen-card.pw.ts:91` の overage の場合（firefox と webkit）で、104 行の強制クリックが本体への入れ替わりの瞬間に当たり `Element is not visible` となったもの。同意前のクリックで POST が無いことの検査が目的で製品の不具合ではないため、テスト側を再試行する形に直した。PR #22 の CI（`1140ed7`）では `browsers` ジョブが成功した（`e2e/web` 386 件成功・失敗 0、校正 0.985 倍）。

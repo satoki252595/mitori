@@ -49,13 +49,12 @@
 
 2026-10-13 後半はモジュール章の読みやすさを直した（`gen.module@12`・`gen.parent@4`。呼び出す側の目的の1文＋入口6項目まで、データは作り手と読み手。過去分は作り直さない。実生成2章で L0 100 %・L1 96.4 %。詳細は [module-readability.md](progress/trend-quality-20261012/module-readability.md)）。Muse の設定は利用者の操作で完了（`bun run start -- setup muse --effort high` を実行し、既定エンジンと全用途モデルと思考 high を保存。古い daemon は新しいソースの daemon へ自動で入れ替わった）。
 
-2026-10-13 早朝は性能の候補 `muse/wp16` を ABBA（8巡）で測り、統合しないと判断した（Go −19.6 ms・React −2.0 ms で差なし、React RSS +19.8 MB で悪化）。正式測定は Go 7k 1,449 ms・React RSS 792.2 MB（いずれも WARN）。Mac の3ブラウザ e2e は 386 件成功・失敗 0。CI の `browsers` ジョブが止まっていた原因は runner の macOS バックグラウンド優先度（高効率コアのみ、校正が約2倍）で、LaunchAgent の登録し直しで復旧し、校正前の検出と基準の誤記録防止を入れた。詳細は [perf-20261013](progress/perf-20261013/README.md)。
+2026-10-13 早朝は性能の候補 `muse/wp16` を ABBA（8巡）で測り、統合しないと判断した（Go −19.6 ms・React −2.0 ms で差なし、React RSS +19.8 MB で悪化）。正式測定は Go 7k 1,449 ms・React RSS 792.2 MB（いずれも WARN）。Mac の3ブラウザ e2e は 386 件成功・失敗 0。CI の `browsers` ジョブが止まっていた原因は runner の macOS バックグラウンド優先度（高効率コアのみ、校正が約2倍）で、LaunchAgent の登録し直しで復旧し、校正前の検出と基準の誤記録防止を入れた。詳細は [perf-20261013](progress/perf-20261013/README.md)。PR #22 の CI（`1140ed7`）では `browsers` ジョブが成功した（`e2e/web` 386 件成功・失敗 0、校正 0.985 倍）。
 
 ## 3. 残っていること
 
 | 残件 | 状態 | 次の一手 |
 |---|---|---|
-| Mac の3ブラウザ CI の再実行 | ホストで3ブラウザ全件成功（2026-10-13、386件、失敗0）。GitHub の `browsers` ジョブは runner が macOS バックグラウンド優先度（校正が約2倍）で止まっていたが LaunchAgent の登録し直しで復旧し、再実行は校正 0.978 倍で通過（残り2件はテスト側の入れ替わりの瞬間の強制クリックで修正済み） | この資料の PR の `browsers` ジョブの結果を見る |
 | HTML 書き出しのビューアー JS | 59,553 B（関門 60,000 B、余裕 447 B）。残りはすべて使用中のコード | 大きく増える変更の前に、予算の見直しか分割を検討 |
 | Go 7k の正式時間 | 中央値 1,449 ms（p95 1,486、上限内）・目標 1,200 ms は WARN | 目標 1,200 ms への新しい案は未着手（`muse/wp16` は効果なしで不採用） |
 | React RSS の目標 700 MB | 792.2 MB で WARN（上限 1,000 MB 内。ABBA の main 側 16回の中央値は 774.8 MB） | ピークがどの段（S1 の解析 Worker か、S3 のグラフか）で出るかを測ってから案を決める |
