@@ -87,6 +87,9 @@ const git = (root: string, ...a: string[]) => {
   return r.stdout.toString();
 };
 
+/** User-tree status ignoring mitori's own design-note folder (`.mitori/` is untracked by design, never committed). */
+const statusPorcelain = (root: string): string => git(root, "status", "--porcelain", "--", ".", ":(exclude).mitori");
+
 /** Time warp (ms): a trust decision needs a browser session older than 60 s [SEC-19]; the real run simply waits. */
 let skew = 0;
 const clock = { now: () => Date.now() + skew, iso: () => new Date(Date.now() + skew).toISOString() };
@@ -330,7 +333,7 @@ try {
     objects: git(base, "count-objects", "-v"),
   });
   const before = userState();
-  const status0 = git(base, "status", "--porcelain").trim();
+  const status0 = statusPorcelain(base).trim();
   check(status0 === "", `the scratch repo starts clean, got:\n${status0}`);
 
   // (a) first screen
@@ -590,7 +593,7 @@ try {
   await shot(page, "16-accepted");
   const changed = readFileSync(file);
   check(!changed.equals(original), "accept changed the working tree");
-  const status = git(base, "status", "--porcelain");
+  const status = statusPorcelain(base);
   const after = userState();
   steps.afterAccept = { status: status.trim(), diffStat: git(base, "diff", "--stat").trim() };
   check(status.trim() === ` M ${TARGET_FILE}`.trim() || status === ` M ${TARGET_FILE}\n`, `only ${TARGET_FILE} is modified (uncommitted), got:\n${status}`);
@@ -608,7 +611,7 @@ try {
   await page.waitForTimeout(600);
   await shot(page, "17-undone");
   check(readFileSync(file).equals(original), "undo restored the original bytes");
-  check(git(base, "status", "--porcelain").trim() === "", "the working tree is clean after undo");
+  check(statusPorcelain(base).trim() === "", "the working tree is clean after undo");
   const final = userState();
   for (const k of ["head", "refs", "stash", "worktrees", "objects"] as const)
     check(final[k] === before[k], `the user's repository is untouched (${k}) after undo`);
