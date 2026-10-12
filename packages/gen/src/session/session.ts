@@ -59,6 +59,17 @@ const OUT_RE = /\/tmp\/prep\/(pr_[0-9a-hjkmnp-tv-z]{8})\/out\/(gt_[0-9a-hjkmnp-t
 /** Factory. */
 export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader | null): SessionEngine {
   const d = svc.deps;
+  /**
+   * A finished session run stamps the doc like the push runner's final slot (CR m1-50): usage accumulates; effort,
+   * snapshot and `generatedAt` move only for a whole-doc user run. Without it a doc written by the person's own AI
+   * stayed 「未生成」 on the map and the card offered to generate it again.
+   */
+  const stampDone = (run: GenRun): void => {
+    const full = run.trigger === "user" && run.scope.length === 0 && run.state === "done";
+    const m = d.doc.manifest();
+    const current = { commit: d.indexer.snapshot()?.commit ?? null, indexDigest: run.pinned?.snapshot ?? d.indexer.snapshot()?.indexDigest ?? "" };
+    d.doc.stampRun({ effort: full ? run.effort : (m?.effort ?? run.effort), snapshot: full || !m ? current : m.snapshot, usage: run.usage, full });
+  };
   const store = svc.store;
   const docDirAbs = () => (d.ws.docDir.startsWith("/") ? d.ws.docDir : `${d.ws.root}/${d.ws.docDir}`);
   const dirOf = (id: PrepId) => `${docDirAbs()}/tmp/prep/${id}`;
@@ -187,7 +198,10 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
       run.state = "done";
       run.finishedAt = new Date(d.clock.now()).toISOString();
       run.progress = progressOf(rows);
-      await d.write("gen.prep.run", () => store.updateRun(run));
+      await d.write("gen.prep.run", () => {
+        store.updateRun(run);
+        stampDone(run);
+      });
       d.events.emit({ type: "gen.run", run });
     }
     throw new MitoriError("E_PRECONDITION", "nothing left to prepare: every task of this run is finished", { params: { run: run.id } });
@@ -431,7 +445,10 @@ export function createSessionEngine(svc: Services, runner: Runner, fs: FsReader 
         run.finishedAt = new Date(d.clock.now()).toISOString();
       }
       run.progress = progressOf(rows);
-      await d.write("gen.ingest.run", () => store.updateRun(run));
+      await d.write("gen.ingest.run", () => {
+        store.updateRun(run);
+        if (run.state === "done") stampDone(run);
+      });
       d.events.emit({ type: "gen.run", run });
       const nextPhase = rows.filter((r) => r.plan.phase >= prep.phase && r.task.state === "pending").map((r) => r.plan.phase);
       return {
