@@ -1,0 +1,2063 @@
+{
+  "v": "mitori.quality-citation-review/1",
+  "date": "2026-10-12",
+  "generator": {
+    "engine": "generic",
+    "model": "generic:muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "scopes": [
+      "s6/lib-tokens",
+      "s9"
+    ],
+    "autoL1": {
+      "s6/lib-tokens": {
+        "pass": 37,
+        "fail": 0,
+        "vacuous": 7,
+        "claims": 44
+      },
+      "s9": {
+        "pass": 17,
+        "fail": 2,
+        "vacuous": 3,
+        "claims": 22
+      }
+    },
+    "autoL1Recomputed": "recomputed per claim with the packages/gen/src/verify/l1.ts rule (identifiers, +-2 lines, scope+dirname, W08 relocate); tallies match report.json exactly",
+    "manualScale": "supports=引用範囲が主張を直接支える / partial=記号は正しいが窓が薄く主張の全体は示さない（内容自体は原文と一致） / unsupported=引用が主張を支えない / reasonable-inference=引用なし・推測明示で内容は妥当"
+  },
+  "claims": [
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_fj1mdtj1",
+      "block": "b_54ymq7g7",
+      "quote": "。 - `TYPESAFE_API_KEY` と `TEXT_MODEL_API_KEY` はサーバー側の環境変数から取得する",
+      "kind": "security",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "docs/design.md",
+          "start": 31,
+          "end": 31,
+          "blob": "52f93a5c3dbc03df194f71308ee5c34f19dbdff5"
+        },
+        {
+          "path": "jev_ultrafast/model.py",
+          "start": 119,
+          "end": 119,
+          "blob": "d31174749e1451dbbd2a05f255f6f87fe296b122"
+        },
+        {
+          "path": "jev_ultrafast/model.py",
+          "start": 161,
+          "end": 161,
+          "blob": "d31174749e1451dbbd2a05f255f6f87fe296b122"
+        }
+      ],
+      "sourceReview": "model.py:119 reads TYPESAFE_API_KEY and :161 reads TEXT_MODEL_API_KEY from the environment; design.md:31 keeps credentials server-side. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_h2az76r6",
+      "block": "b_54ymq7g7",
+      "quote": "。 - `do_GET` は `Host` を検査するがトークン認証を行わず、`__TOKEN__` を `TOKEN` に置換して返す",
+      "kind": "security",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/demo.py",
+          "start": 81,
+          "end": 102,
+          "blob": "98715264550d87b53297906fc7a923e0b1cdda63"
+        }
+      ],
+      "sourceReview": "demo.py:81-102 checks Host, performs no token check, and replaces __TOKEN__ with TOKEN (101). Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_qde8c1cb",
+      "block": "b_54ymq7g7",
+      "quote": "。 - `do_POST` は `Host` と `X-Demo-Token` の一致を必須とし、`Origin` は欠落時は通過し存在時のみ検査する",
+      "kind": "security",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/demo.py",
+          "start": 104,
+          "end": 110,
+          "blob": "98715264550d87b53297906fc7a923e0b1cdda63"
+        }
+      ],
+      "sourceReview": "demo.py:104-110 requires Host + X-Demo-Token match and passes a missing Origin (None in the allowlist). Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_wb7am5k1",
+      "block": "b_54ymq7g7",
+      "quote": "`main` は既定で `127.0.0.1` にバインドし、待受け境界は loopback である",
+      "kind": "security",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/demo.py",
+          "start": 131,
+          "end": 134,
+          "blob": "98715264550d87b53297906fc7a923e0b1cdda63"
+        }
+      ],
+      "sourceReview": "demo.py:131-134 binds 127.0.0.1. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_amqn6np7",
+      "block": "b_pzvvjk4d",
+      "quote": "。 - `response_state` は `snapshot` に `text_model` と `max_steps` を加えて返す",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/demo.py",
+          "start": 32,
+          "end": 36,
+          "blob": "98715264550d87b53297906fc7a923e0b1cdda63"
+        }
+      ],
+      "sourceReview": "demo.py:32-36 adds text_model and max_steps to the snapshot. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_stapb3v7",
+      "block": "b_pzvvjk4d",
+      "quote": "。 - `record_dir` と `screenshots` が記録用のスイッチであり、`Agent` と `command` の `reset` で設定される",
+      "kind": "behavior",
+      "verdict": "inferred",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "fail",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/demo.py",
+          "start": 54,
+          "end": 61,
+          "blob": "98715264550d87b53297906fc7a923e0b1cdda63"
+        },
+        {
+          "path": "jev_ultrafast/agent.py",
+          "start": 12,
+          "end": 35,
+          "blob": "726d880bd95ca946106220a44c05a488a4f1da82"
+        }
+      ],
+      "sourceReview": "NEW auto L1 fail (recomputed): windows demo.py:54-61 + agent.py:12-35 show the record_dir/screenshots mechanism but lack the words command/reset. Content is true (reset passes record; __init__ stores both); citing demo.py:44-61 would include both identifiers.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_tcwnv1nh",
+      "block": "b_pzvvjk4d",
+      "quote": "`snapshot` は内部の `browser` を除外し、`action_space` による `elements` を加えて公開する",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/agent.py",
+          "start": 46,
+          "end": 50,
+          "blob": "726d880bd95ca946106220a44c05a488a4f1da82"
+        }
+      ],
+      "sourceReview": "agent.py:46-50 excludes browser and adds action_space elements. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_01fj1k7v",
+      "block": "b_qqg7ma4c",
+      "quote": "`Agent` から `Browser` とモデル層への往復が実行経路であり、往復回数の削減が高速化の軸である",
+      "kind": "performance",
+      "verdict": "inferred",
+      "manual": "unsupported",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "fail",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/agent.py",
+          "start": 7,
+          "end": 9,
+          "blob": "726d880bd95ca946106220a44c05a488a4f1da82"
+        },
+        {
+          "path": "docs/design.md",
+          "start": 5,
+          "end": 5,
+          "blob": "52f93a5c3dbc03df194f71308ee5c34f19dbdff5"
+        }
+      ],
+      "sourceReview": "SAME failure as the Codex review: agent.py:7-9 names the Browser/model collaborators but not the Agent identifier (auto L1 fail recomputed); design.md:5 states avoiding serial calls, and round-trip reduction as the speedup axis remains inference. NOT resolved; verdict inferred.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_73rgxh27",
+      "block": "b_qqg7ma4c",
+      "quote": "。 - モデル層の通信は HTTP/2 対応の共通 `CLIENT` を使う",
+      "kind": "performance",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/model.py",
+          "start": 12,
+          "end": 12,
+          "blob": "d31174749e1451dbbd2a05f255f6f87fe296b122"
+        },
+        {
+          "path": "jev_ultrafast/model.py",
+          "start": 18,
+          "end": 18,
+          "blob": "d31174749e1451dbbd2a05f255f6f87fe296b122"
+        }
+      ],
+      "sourceReview": "model.py:12 is the shared HTTP/2 CLIENT; :18 uses it for POST. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_wk1f2jyc",
+      "block": "b_qqg7ma4c",
+      "quote": "。 - `observe` は読み取り専用の待機と可視性確認を含み、ページの準備待ちが所要時間に入る",
+      "kind": "performance",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/browser.py",
+          "start": 44,
+          "end": 63,
+          "blob": "38e3aced572de1da2959c86b6240a6e4b13f05c4"
+        }
+      ],
+      "sourceReview": "browser.py:44-63 shows the read-only comment (47) and the visibility/readiness wait logic. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_5385avgd",
+      "block": "b_rfcf3htd",
+      "quote": "`Agent` の `pending_text` がモデル生成済みの入力文面を保持し、生成用コンテキストが一致する停滞再試行では `field_text` への再リクエストを省く",
+      "kind": "performance",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/agent.py",
+          "start": 109,
+          "end": 115,
+          "blob": "726d880bd95ca946106220a44c05a488a4f1da82"
+        }
+      ],
+      "sourceReview": "agent.py:109-115 is exactly the pending_text context-match cache and the field_text skip. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_rs8yg7y3",
+      "block": "b_rfcf3htd",
+      "quote": "。再利用は入力全体が同一の場合に限り、成功した変更操作を越えて持ち越さない",
+      "kind": "invariant",
+      "verdict": "cited",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "vacuous",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "docs/design.md",
+          "start": 9,
+          "end": 9,
+          "blob": "52f93a5c3dbc03df194f71308ee5c34f19dbdff5"
+        }
+      ],
+      "sourceReview": "design.md:9 verbatim: reuse only while the entire helper input is identical, discarded after a successful mutation. Auto L1 vacuous (no identifiers).",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_1gjsmcv9",
+      "block": "b_wckfphrd",
+      "quote": "。 - `StalePage` は `tick` で回復し、`decision` を破棄して `ready` に戻し再観測する",
+      "kind": "edge_case",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/agent.py",
+          "start": 52,
+          "end": 64,
+          "blob": "726d880bd95ca946106220a44c05a488a4f1da82"
+        }
+      ],
+      "sourceReview": "agent.py:52-64: tick catches StalePage, drops decision, returns to ready, re-observes. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_61rgcncc",
+      "block": "b_wckfphrd",
+      "quote": "ブラウザ変更は再送せず、実行完了の記録を次の観測より先に行う。中断時点で変更イベントが発火済みの場合があるためである",
+      "kind": "edge_case",
+      "verdict": "cited",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "vacuous",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "docs/design.md",
+          "start": 19,
+          "end": 19,
+          "blob": "52f93a5c3dbc03df194f71308ee5c34f19dbdff5"
+        }
+      ],
+      "sourceReview": "design.md:19 verbatim: no transport retry, completion logged before next observation, change event may already have fired. Auto L1 vacuous (no identifiers).",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_fb986p6s",
+      "block": "b_wckfphrd",
+      "quote": "。 - `do_POST` は `ValueError` 等を 400 に変換し、それ以外は 500 として自動再試行せずリセットで回復する",
+      "kind": "edge_case",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/demo.py",
+          "start": 120,
+          "end": 125,
+          "blob": "98715264550d87b53297906fc7a923e0b1cdda63"
+        }
+      ],
+      "sourceReview": "demo.py:120-125 maps ValueError/RuntimeError/TimeoutError to 400, everything else to 500 with no automatic retry / reset to recover. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_50sn1fyg",
+      "block": "b_yxhdrj1m",
+      "quote": "。 - DOM 観測の `text` は 1 観測当たり 6000 文字、`actions` は通常候補 250 件に `scroll_down` 等を加える",
+      "kind": "invariant",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/snapshot.js",
+          "start": 82,
+          "end": 92,
+          "blob": "cf748375d1b824e0444429018003dc2829dfa408"
+        },
+        {
+          "path": "jev_ultrafast/snapshot.js",
+          "start": 99,
+          "end": 104,
+          "blob": "cf748375d1b824e0444429018003dc2829dfa408"
+        }
+      ],
+      "sourceReview": "snapshot.js:82-92 (6000-char text cap) and 99-104 (250-candidate splice plus scroll_down/scroll_up/wait additions). Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_6y9dge38",
+      "block": "b_yxhdrj1m",
+      "quote": "。 - `observe` 内の取得し直しは 1 呼び出し当たり最大 10 回、間隔 0.02 秒である",
+      "kind": "invariant",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/browser.py",
+          "start": 77,
+          "end": 85,
+          "blob": "38e3aced572de1da2959c86b6240a6e4b13f05c4"
+        }
+      ],
+      "sourceReview": "browser.py:77-85 is exactly range(10) with 0.02s sleeps. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_86rqjjhw",
+      "block": "b_yxhdrj1m",
+      "quote": "。 - `do_POST` の実行は `LOCK` で直列化し、競合は待機せず 409 を返す",
+      "kind": "invariant",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/demo.py",
+          "start": 111,
+          "end": 118,
+          "blob": "98715264550d87b53297906fc7a923e0b1cdda63"
+        },
+        {
+          "path": "jev_ultrafast/demo.py",
+          "start": 124,
+          "end": 125,
+          "blob": "98715264550d87b53297906fc7a923e0b1cdda63"
+        }
+      ],
+      "sourceReview": "demo.py:111-118 (non-blocking LOCK acquire, 409 on conflict) plus 124-125 (release). Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_ce8khf8c",
+      "block": "b_yxhdrj1m",
+      "quote": "。 - 決定要求の予算は 1 実行当たり 120 回である",
+      "kind": "invariant",
+      "verdict": "cited",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "vacuous",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/agent.py",
+          "start": 65,
+          "end": 76,
+          "blob": "726d880bd95ca946106220a44c05a488a4f1da82"
+        },
+        {
+          "path": "jev_ultrafast/questions.py",
+          "start": 26,
+          "end": 26,
+          "blob": "649e2dbc52fc31832c60d38419d1d34366846922"
+        }
+      ],
+      "sourceReview": "agent.py:75 (decisions >= MAX_STEPS*2 -> budget error) plus questions.py:26 (= 60, hence 120 decision requests). Direct support. Auto L1 vacuous (no identifiers).",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_czs5pcsy",
+      "block": "b_yxhdrj1m",
+      "quote": "。 - 操作予算は 1 実行当たり 60 操作で、上限後の進行は `blocked` になる",
+      "kind": "invariant",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/agent.py",
+          "start": 100,
+          "end": 104,
+          "blob": "726d880bd95ca946106220a44c05a488a4f1da82"
+        },
+        {
+          "path": "jev_ultrafast/questions.py",
+          "start": 26,
+          "end": 26,
+          "blob": "649e2dbc52fc31832c60d38419d1d34366846922"
+        }
+      ],
+      "sourceReview": "agent.py:100-104 (history >= MAX_STEPS -> blocked) plus questions.py:26 (MAX_STEPS = 60). Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_sx04aaqh",
+      "block": "b_yxhdrj1m",
+      "quote": "`goal` は `reset` ごとに前後空白除去後 1〜2000 文字である",
+      "kind": "invariant",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/demo.py",
+          "start": 44,
+          "end": 61,
+          "blob": "98715264550d87b53297906fc7a923e0b1cdda63"
+        }
+      ],
+      "sourceReview": "demo.py:44-61: reset branch strips goal (50) and rejects empty/over-2000 (51-52). Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "jev-ultrafast",
+      "sourceSha": "1231850a0bf1a0c0341fe408ef1668dbbfdfac46",
+      "promptVersion": "gen.quality@6",
+      "claim": "cl_ta6xrwt6",
+      "block": "b_yxhdrj1m",
+      "quote": "。 - `do_POST` の本文は 1 リクエスト当たり 0 バイト超 8192 バイト未満である",
+      "kind": "invariant",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "jev_ultrafast/demo.py",
+          "start": 114,
+          "end": 116,
+          "blob": "98715264550d87b53297906fc7a923e0b1cdda63"
+        }
+      ],
+      "sourceReview": "demo.py:114-116 is exactly the 0 < length < 8192 check. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_4yn14687",
+      "block": "b_68e0r1ga",
+      "quote": "。 - `Frame` は識別子と名前と座標を持ち幅と高さと背景などを任意に持つ",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 2117,
+          "end": 2133,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Frame head 2117-2133 shows id/name/x/y plus optional w/h/bg/note; covers the claim.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_h7pbb33f",
+      "block": "b_68e0r1ga",
+      "quote": "。 - `Doc` は群と枠と配色鍵を持ち題名と概要と主題などを任意に持つ",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 2340,
+          "end": 2352,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Window ends at brief:2352; theme (主題) at 2357 is outside. Remainder verified against the wider type body.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_nx803dh2",
+      "block": "b_68e0r1ga",
+      "quote": "。 - `Kind` は箱から日付・時刻選択までの部品種別を列挙する",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 581,
+          "end": 590,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Window shows the first 9 of ~35 Kind members; the datePicker/timePicker tail is verified wider.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_v48mye2d",
+      "block": "b_68e0r1ga",
+      "quote": "`Item` は識別子と種別と表示内容を持ち種別固有の属性を任意に足す",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 1626,
+          "end": 1633,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Window 1626-1633 shows id/kind/label/icon and the start of the optionals; the kind-specific optional tail is confirmed in the wider type body.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_w3kdw8fr",
+      "block": "b_68e0r1ga",
+      "quote": "。 - `Palette` は種色と主・副・表層・誤差の色面を並べた配色表である",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 216,
+          "end": 226,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Window ends at secondary:226; surface/error roles follow wider. Seed/primary/secondary are in the window; full table verified wider.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_ww2b5d86",
+      "block": "b_68e0r1ga",
+      "quote": "。 - `Group` は座標と配置軸と部品列を持ち自由配置では `pos` に部品別の相対座標を持つ",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 2317,
+          "end": 2327,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Full Group type 2317-2327 including axis/items/free/pos. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_4brt7hr2",
+      "block": "b_7x0h09xf",
+      "quote": "。 - 部品は薄板 token のみで描き暗転と配色を壊さない",
+      "kind": "fact",
+      "verdict": "cited",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "vacuous",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "CONTRIBUTING.md",
+          "start": 57,
+          "end": 58,
+          "blob": "6adfe0bd646de200e39e801700c5585eca787c48"
+        }
+      ],
+      "sourceReview": "CONTRIBUTING:57-58 (parts drawn from palette tokens only; correct in dark mode and every scheme). The 薄板-token wording is an odd rendering but the meaning matches. Auto L1 vacuous (no identifiers).",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_avt8cgqq",
+      "block": "b_7x0h09xf",
+      "quote": "。 - prompt 文は `lib/prompt.ts` の品目文と `STYLE_NOTES` に4言語分足す",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "CONTRIBUTING.md",
+          "start": 48,
+          "end": 48,
+          "blob": "6adfe0bd646de200e39e801700c5585eca787c48"
+        }
+      ],
+      "sourceReview": "CONTRIBUTING:48 is exactly the item-sentence + STYLE_NOTES per-language rule (prompt.ts has itemJa/itemZh/itemKo/itemEn and STYLE_NOTES at 1148). Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_j5zp1jfk",
+      "block": "b_7x0h09xf",
+      "quote": "描画は `components/M3Node.tsx` に足し測定が要るなら `MEASURED` に足す",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "CONTRIBUTING.md",
+          "start": 47,
+          "end": 47,
+          "blob": "6adfe0bd646de200e39e801700c5585eca787c48"
+        },
+        {
+          "path": "lib/tokens.ts",
+          "start": 2431,
+          "end": 2433,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "CONTRIBUTING:47 (M3Node + MEASURED/NO_BOX) plus the MEASURED list at 2431-2433. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_thxnh8y4",
+      "block": "b_7x0h09xf",
+      "quote": "。 - 特殊な編集が要るなら `components/Inspector.tsx` に足す",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "CONTRIBUTING.md",
+          "start": 49,
+          "end": 49,
+          "blob": "6adfe0bd646de200e39e801700c5585eca787c48"
+        }
+      ],
+      "sourceReview": "CONTRIBUTING:49 names the special-editor rule for Inspector.tsx. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_xgc1na4q",
+      "block": "b_7x0h09xf",
+      "quote": "。 - 変更理由と確認手順と見た目の写しを書く",
+      "kind": "fact",
+      "verdict": "cited",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "vacuous",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "CONTRIBUTING.md",
+          "start": 66,
+          "end": 67,
+          "blob": "6adfe0bd646de200e39e801700c5585eca787c48"
+        }
+      ],
+      "sourceReview": "CONTRIBUTING:66-67 (PR template: what changed, why, how checked; screenshots for visuals). Direct support. Auto L1 vacuous (no identifiers).",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_xpc75w7q",
+      "block": "b_7x0h09xf",
+      "quote": "。 - 触って動くなら `components/Preview.tsx` の触対象に足し `TAPPABLE` と整合させる",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "CONTRIBUTING.md",
+          "start": 49,
+          "end": 49,
+          "blob": "6adfe0bd646de200e39e801700c5585eca787c48"
+        },
+        {
+          "path": "lib/tokens.ts",
+          "start": 1965,
+          "end": 1965,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "CONTRIBUTING:49 (tap targets in Preview when tappable) plus the TAPPABLE list at 1965, which Preview.tsx:369 uses. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_8gazgnjt",
+      "block": "b_8x9qf8b0",
+      "quote": "。`schemeFromSeed` と `tidyFrame` と `Preview` が配色生成と整列とタップ走査を担う",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/color.ts",
+          "start": 131,
+          "end": 131,
+          "blob": "d3166d14a671ee1d4098433561afa6b1a0f9358b"
+        },
+        {
+          "path": "lib/tidy.ts",
+          "start": 388,
+          "end": 388,
+          "blob": "cb96b65f8b7af354e0fec9992f5a593bbbc506a3"
+        },
+        {
+          "path": "components/Preview.tsx",
+          "start": 1021,
+          "end": 1022,
+          "blob": "f2c14cde0c3754c02d921f8e32234d3d96dfdfda"
+        }
+      ],
+      "sourceReview": "Three exact one-line declarations (schemeFromSeed color.ts:131, tidyFrame tidy.ts:388, Preview 1021-1022). Symbol identity is exact; the roles (配色生成/整列/タップ走査) are read from names, not shown in the windows.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_b93k0vxe",
+      "block": "b_8x9qf8b0",
+      "quote": "部品の種類・寸法・角丸・主題と配色、配置の整えと試し打ちの土台である",
+      "kind": "architecture",
+      "verdict": "inferred",
+      "manual": "reasonable-inference",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "vacuous",
+        "l2": true
+      },
+      "cites": [],
+      "sourceReview": "No cites (auto L1 vacuous); sentence is explicitly marked （推測）. As a module summary it is consistent with the rest of the section; no checkable falsehood.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_hw3a4kjx",
+      "block": "b_8x9qf8b0",
+      "quote": "。個々の部品描画や部品編集や prompt 文生成は担わず、`components/M3Node.tsx` と `components/Inspector.tsx` と `lib/prompt.ts` が担う",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "CONTRIBUTING.md",
+          "start": 33,
+          "end": 36,
+          "blob": "6adfe0bd646de200e39e801700c5585eca787c48"
+        }
+      ],
+      "sourceReview": "CONTRIBUTING.md:33-36 is exactly the responsibility table: drawing -> M3Node.tsx, editing -> Inspector.tsx, prompt text -> prompt.ts, tap preview -> Preview.tsx. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_kew6x3h2",
+      "block": "b_8x9qf8b0",
+      "quote": "。`KIND_SPEC` と `sizeOf` と `baseRadii` が種別ごとの既定値と寸法・角丸を決める",
+      "kind": "architecture",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 924,
+          "end": 924,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        },
+        {
+          "path": "lib/tokens.ts",
+          "start": 2448,
+          "end": 2450,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        },
+        {
+          "path": "lib/tokens.ts",
+          "start": 2530,
+          "end": 2532,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Cites are the exact declarations (KIND_SPEC:924; sizeOf head 2448-2450 showing the KIND_SPEC/defSize lookup; baseRadii head 2530-2532). Windows identify the three symbols but show little of the decides-defaults/dimensions/radii behavior. No semantic falsehood; bodies confirm.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_hs843ezr",
+      "block": "b_armj0y3a",
+      "quote": "。釦の寸法検査は M3 既定値の保持、間値の混合、範囲内への収め、描画箱と角丸と最小幅への反映を確かめる",
+      "kind": "fact",
+      "verdict": "cited",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "vacuous",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/button.test.ts",
+          "start": 46,
+          "end": 46,
+          "blob": "46430f3b18f49e82d78bcea5064085ff5d5f96ec"
+        },
+        {
+          "path": "lib/button.test.ts",
+          "start": 53,
+          "end": 53,
+          "blob": "46430f3b18f49e82d78bcea5064085ff5d5f96ec"
+        },
+        {
+          "path": "lib/button.test.ts",
+          "start": 60,
+          "end": 60,
+          "blob": "46430f3b18f49e82d78bcea5064085ff5d5f96ec"
+        },
+        {
+          "path": "lib/button.test.ts",
+          "start": 67,
+          "end": 67,
+          "blob": "46430f3b18f49e82d78bcea5064085ff5d5f96ec"
+        }
+      ],
+      "sourceReview": "Four it() titles state exactly the claimed button-size behaviors. Auto L1 vacuous (no identifiers); export renders plain cite links.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_rrxycz9t",
+      "block": "b_armj0y3a",
+      "quote": "。連結を開く検査は素の host を https と読み、追随不能な宛先に何も渡さないことを確かめる",
+      "kind": "fact",
+      "verdict": "cited",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "vacuous",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/button.test.ts",
+          "start": 80,
+          "end": 80,
+          "blob": "46430f3b18f49e82d78bcea5064085ff5d5f96ec"
+        },
+        {
+          "path": "lib/button.test.ts",
+          "start": 86,
+          "end": 86,
+          "blob": "46430f3b18f49e82d78bcea5064085ff5d5f96ec"
+        }
+      ],
+      "sourceReview": "Two it() titles state exactly the claimed link behaviors. Auto L1 vacuous (no identifiers); export renders plain cite links.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_yfqjrye1",
+      "block": "b_armj0y3a",
+      "quote": "試し打ちの検査は非活性画面の不活性と副作用抑止、活性時の焦点と鍵盤処理、退出時の焦点据え置きを確かめる",
+      "kind": "fact",
+      "verdict": "cited",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "vacuous",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "components/Preview.test.tsx",
+          "start": 101,
+          "end": 101,
+          "blob": "7c59e81d1866855bb7ce66e4ddf250e73220b82b"
+        },
+        {
+          "path": "components/Preview.test.tsx",
+          "start": 130,
+          "end": 130,
+          "blob": "7c59e81d1866855bb7ce66e4ddf250e73220b82b"
+        },
+        {
+          "path": "components/Preview.test.tsx",
+          "start": 142,
+          "end": 142,
+          "blob": "7c59e81d1866855bb7ce66e4ddf250e73220b82b"
+        }
+      ],
+      "sourceReview": "Three it() titles state exactly the claimed behaviors (inert peek, focus+keyboard, exit without focus reclaim). Auto L1 vacuous (no identifiers); markdown export still renders plain cite links.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_ena5mjbp",
+      "block": "b_nstpp0mf",
+      "quote": "。 - 初期文言は `lib/i18n.ts` の `KIND_TEXT` に4言語分必ず足す",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "CONTRIBUTING.md",
+          "start": 46,
+          "end": 46,
+          "blob": "6adfe0bd646de200e39e801700c5585eca787c48"
+        },
+        {
+          "path": "lib/tokens.ts",
+          "start": 2383,
+          "end": 2386,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "CONTRIBUTING:46 requires KIND_TEXT in four languages; 2383-2386 shows makeItem reading KIND_TEXT[getLang()]. i18n.ts holds ja/en/zh/ko tables (578ff).",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_kr1bk4t1",
+      "block": "b_nstpp0mf",
+      "quote": "。 - 寸法が変わるなら `sizeOf` を必ず合わせる",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "CONTRIBUTING.md",
+          "start": 45,
+          "end": 45,
+          "blob": "6adfe0bd646de200e39e801700c5585eca787c48"
+        },
+        {
+          "path": "lib/tokens.ts",
+          "start": 2448,
+          "end": 2448,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "CONTRIBUTING:45 names sizeOf as conditional; tokens.ts:2448 is its declaration. Rule plus target both cited.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_nr67pxx6",
+      "block": "b_nstpp0mf",
+      "quote": "。 - 角丸が変わるなら `baseRadii` を必ず合わせる",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "CONTRIBUTING.md",
+          "start": 45,
+          "end": 45,
+          "blob": "6adfe0bd646de200e39e801700c5585eca787c48"
+        },
+        {
+          "path": "lib/tokens.ts",
+          "start": 2530,
+          "end": 2530,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "CONTRIBUTING:45 names baseRadii as conditional; tokens.ts:2530 is its declaration. Rule plus target both cited.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_q0d5zbep",
+      "block": "b_nstpp0mf",
+      "quote": "。 - 図像欄があるなら `iconSlotsOf` と `setIconSlot` を必ず合わせる",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "CONTRIBUTING.md",
+          "start": 45,
+          "end": 45,
+          "blob": "6adfe0bd646de200e39e801700c5585eca787c48"
+        },
+        {
+          "path": "lib/tokens.ts",
+          "start": 2722,
+          "end": 2730,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "CONTRIBUTING:45 names iconSlotsOf; the cited code window shows the setIconSlot body (2722-2730) but not the iconSlotsOf declaration.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_ygn6zndw",
+      "block": "b_nstpp0mf",
+      "quote": "。 - 提出前は `typecheck` と `test` と `build` で確かめる",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "CONTRIBUTING.md",
+          "start": 65,
+          "end": 65,
+          "blob": "6adfe0bd646de200e39e801700c5585eca787c48"
+        }
+      ],
+      "sourceReview": "CONTRIBUTING:65 is exactly the typecheck/test/build verification step. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_zvfhyetw",
+      "block": "b_nstpp0mf",
+      "quote": "新種別では `Kind` と `KIND_SPEC` と `KIND_ORDER` を必ず足す",
+      "kind": "fact",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 581,
+          "end": 582,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        },
+        {
+          "path": "lib/tokens.ts",
+          "start": 924,
+          "end": 924,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        },
+        {
+          "path": "lib/tokens.ts",
+          "start": 1582,
+          "end": 1582,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Three declaration lines identify Kind/KIND_SPEC/KIND_ORDER; the must-add obligation itself comes from CONTRIBUTING:45, which is not cited on this claim.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_63kb65sk",
+      "block": "b_rp1z8wr8",
+      "quote": "`chipHeightOf` は未指定の `size2` を `CHIP_H_MIN` で補い丸めてから `CHIP_H_MIN` から `CHIP_H_MAX` に収める",
+      "kind": "invariant",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 1759,
+          "end": 1759,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Line 1759 is exactly the claimed clamp/round/default expression. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_br40k0va",
+      "block": "b_rp1z8wr8",
+      "quote": "。 - `paletteOf` は主題なしや明・標準時に基底配色を返し他は同一種色から作り直す",
+      "kind": "invariant",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 538,
+          "end": 546,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Lines 538-546 show the no-theme/light-standard early return and the same-seed schemeFromSeed rebuild. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_hvthm034",
+      "block": "b_rp1z8wr8",
+      "quote": "。 - `buttonHeightOf` は `iconButton` では `size` を他では `size2` を `H` で補い `BUTTON_H_MIN` から `BUTTON_H_MAX` に収める",
+      "kind": "invariant",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 1756,
+          "end": 1757,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Lines 1756-1757 show the iconButton->size / else->size2 selection, H default, and BUTTON_H_MIN..MAX clamp. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_vbx6dgq9",
+      "block": "b_rp1z8wr8",
+      "quote": "。 - `isPhoneFrame` は欠けた `w` と `h` を `PHONE_W` と `PHONE_H` で補ってから電話枠か比べる",
+      "kind": "invariant",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 2147,
+          "end": 2151,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Lines 2147-2151 include the frameSizeOf PHONE_W/PHONE_H defaulting plus the comparison — the Codex @10/@11 fix point, now stated explicitly in the sentence. Previous defaulting gap resolved.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_5jdjv6gb",
+      "block": "b_tg5qknw5",
+      "quote": "文言と既定値は `lib/i18n.ts` の `getLang` と `KIND_TEXT` に、配色計算は `lib/color.ts` の `schemeFromSeed` に頼る",
+      "kind": "architecture",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 2,
+          "end": 3,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "KEY FIX vs Codex review: tokens.ts:2-3 holds the named imports getLang/KIND_TEXT from ./i18n and schemeFromSeed from ./color — the import source the old review found missing. Auto L1 passes. Previous L1 fail resolved.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_8f5fcvaz",
+      "block": "b_tg5qknw5",
+      "quote": "。描画部品では `M3Node` の `Icon` と `ui` の `IconBtn`、`rail` の `updateRail` を組み合わせる",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "components/Preview.tsx",
+          "start": 70,
+          "end": 75,
+          "blob": "f2c14cde0c3754c02d921f8e32234d3d96dfdfda"
+        }
+      ],
+      "sourceReview": "Preview.tsx:70-75 shows the imports (Icon/M3Node, IconBtn, updateRail). Combined usage is confirmed wider (updateRail called at 767ff) but not inside the cited window.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_naay7c0b",
+      "block": "b_tg5qknw5",
+      "quote": "。`app` の `Editor`、`components` の検査や部品台、`lib` の prompt 側から使われる",
+      "kind": "architecture",
+      "verdict": "inferred",
+      "manual": "reasonable-inference",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "vacuous",
+        "l2": true
+      },
+      "cites": [],
+      "sourceReview": "No cites (auto L1 vacuous); marked （推測）. Plausible hub description; reverse dependencies were not checked in this review.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_6vbd1gh1",
+      "block": "b_vzxhy5d5",
+      "quote": "1. `makeItem` で種別から初期部品を作る",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 2383,
+          "end": 2392,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "makeItem body 2383-2392. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_ehe6cxea",
+      "block": "b_vzxhy5d5",
+      "quote": "。 2. `sizeOf` で `widths` と種別規則から幅と高さを求める",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 2448,
+          "end": 2450,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Signature (it, widths) plus KIND_SPEC/defSize lookup in window; the kind-rule switch computation is outside.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_mmyr4nn0",
+      "block": "b_vzxhy5d5",
+      "quote": "。 3. `layoutOf` で群の軸に沿い `GAP` を挟んで並べ自由配置では `pos` を足す",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 2210,
+          "end": 2222,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Loop 2210-2222 shows axis layout, GAP spacing (2221), and free-placement pos offsets (2216). Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_nvwrnqaf",
+      "block": "b_vzxhy5d5",
+      "quote": "。 4. `explodeGroup` で自由配置を接続列に割り `tidyFrame` で枠内を整える",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 2245,
+          "end": 2247,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        },
+        {
+          "path": "lib/tidy.ts",
+          "start": 388,
+          "end": 388,
+          "blob": "cb96b65f8b7af354e0fec9992f5a593bbbc506a3"
+        }
+      ],
+      "sourceReview": "explodeGroup head 2245-2247 shows free-group layout/sort; the connectSpecOf column assignment (2255) and tidyFrame body are outside the cited windows.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_t9ay07tc",
+      "block": "b_vzxhy5d5",
+      "quote": "。 5. `Preview` でタップ走査に載せる",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "components/Preview.tsx",
+          "start": 1021,
+          "end": 1028,
+          "blob": "f2c14cde0c3754c02d921f8e32234d3d96dfdfda"
+        }
+      ],
+      "sourceReview": "Preview function head 1021-1028 only; tap-scan behavior is not shown in the window.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_1r2rr5bq",
+      "block": "b_z3zy9pdm",
+      "quote": "。 - `sizeOf` は種別別の規則で幅と高さを計算する",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 2448,
+          "end": 2451,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Head 2448-2451 shows the widths parameter and the KIND_SPEC/defSize lookup; the kind-rule switch body is outside the window.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_5actzcxz",
+      "block": "b_z3zy9pdm",
+      "quote": "。 - `Preview` と `ColorPanel` と `SizeHandles` は試し打ちと配色編集と把手描画の入口である",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "components/Preview.tsx",
+          "start": 1021,
+          "end": 1022,
+          "blob": "f2c14cde0c3754c02d921f8e32234d3d96dfdfda"
+        },
+        {
+          "path": "components/ColorPanel.tsx",
+          "start": 168,
+          "end": 175,
+          "blob": "8129558ef830cc05fba5942d17811cedb8fcc2d9"
+        },
+        {
+          "path": "components/SizeHandles.tsx",
+          "start": 26,
+          "end": 33,
+          "blob": "f3328c30319693d0d45103ee64afcdfbad2986c1"
+        }
+      ],
+      "sourceReview": "Three entry heads. ColorPanel/SizeHandles props (paletteKey/onPalette; round/sides/box) suggest the roles; the Preview head alone does not show tap-preview behavior.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_66f8x9d5",
+      "block": "b_z3zy9pdm",
+      "quote": "。 - `tidyFrame` と `pullInto` と `bodyRect` は枠内の整列と枠内への収めと本体矩形を求める",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tidy.ts",
+          "start": 199,
+          "end": 199,
+          "blob": "cb96b65f8b7af354e0fec9992f5a593bbbc506a3"
+        },
+        {
+          "path": "lib/tidy.ts",
+          "start": 368,
+          "end": 368,
+          "blob": "cb96b65f8b7af354e0fec9992f5a593bbbc506a3"
+        },
+        {
+          "path": "lib/tidy.ts",
+          "start": 388,
+          "end": 388,
+          "blob": "cb96b65f8b7af354e0fec9992f5a593bbbc506a3"
+        }
+      ],
+      "sourceReview": "Three declaration lines with role-suggestive signatures. Bodies and doc comments confirm the alignment/containment/body-rect roles against the wider source.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_g623421v",
+      "block": "b_z3zy9pdm",
+      "quote": "。 - `schemeFromSeed` と `paletteOf` は種色から配色を作り文書の主題で選び直す",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/color.ts",
+          "start": 131,
+          "end": 131,
+          "blob": "d3166d14a671ee1d4098433561afa6b1a0f9358b"
+        },
+        {
+          "path": "lib/tokens.ts",
+          "start": 538,
+          "end": 540,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "schemeFromSeed decl (color.ts:131) + paletteOf head 538-540 (theme conditional start). The schemeFromSeed rebuild at 542/546 is outside the cited window; the wider body confirms the re-pick behavior.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_qwcg3dkh",
+      "block": "b_z3zy9pdm",
+      "quote": "`KIND_SPEC` は種別ごとの既定寸法と対応属性と接続仕様を引く辞書である",
+      "kind": "architecture",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 924,
+          "end": 924,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Single declaration line KIND_SPEC:924. The dict nature and contents (defaults/attrs/connection spec) need the KindSpec type (891-923) and body; verified true against the wider source.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_t20jcypw",
+      "block": "b_z3zy9pdm",
+      "quote": "。 - `baseRadii` は種別別の規則で四隅の角丸を計算する",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "partial",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 2530,
+          "end": 2535,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "Head 2530-2535 shows the lookup and the first (button) case; the full four-corner computation is outside the window.",
+      "markdownExportShowsInferenceWarning": false
+    },
+    {
+      "project": "m3e-token-pass1",
+      "sourceSha": "039ec311acc33dd0c76a54cbc16af4fc8ab9b491",
+      "promptVersion": "gen.module@11",
+      "claim": "cl_zxjwfqkf",
+      "block": "b_z3zy9pdm",
+      "quote": "。 - `makeItem` は新しい識別子と初期属性を持つ部品を生成する",
+      "kind": "behavior",
+      "verdict": "verified",
+      "manual": "supports",
+      "checks": {
+        "checkedAt": "2026-10-12T12:00:00.000Z",
+        "l0": true,
+        "l0Raw": true,
+        "l1": "pass",
+        "l2": true
+      },
+      "cites": [
+        {
+          "path": "lib/tokens.ts",
+          "start": 2383,
+          "end": 2392,
+          "blob": "114dfb3c79a0321d913ed2ef8932d6de6e1684d8"
+        }
+      ],
+      "sourceReview": "makeItem body 2383-2392 shows KIND_SPEC lookup, KIND_TEXT[getLang()], uid(), and initial label/icon/variant. Direct support.",
+      "markdownExportShowsInferenceWarning": false
+    }
+  ]
+}
