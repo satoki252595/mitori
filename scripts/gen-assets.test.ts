@@ -104,6 +104,14 @@ describe("SKEL-U-11 embed table and compile flags", () => {
     );
     expect(args.slice(1, 3)).toEqual(["dist/.build/entry.ts", "w.ts"]);
   });
+
+  test("the source build id is baked into the binary, and omitted without one", () => {
+    const withId = compileArgs("dist/.build/entry.ts", ["w.ts"], "linux-x64", "dist/mitori-linux-x64", { buildId: "abc12345def0" });
+    const i = withId.indexOf("--define", withId.indexOf("globalThis.__MITORI_TEST__=false"));
+    expect(withId.slice(i, i + 2)).toEqual(["--define", 'globalThis.__MITORI_BUILD__="abc12345def0"']);
+    const without = compileArgs("dist/.build/entry.ts", ["w.ts"], "linux-x64", "dist/mitori-linux-x64");
+    expect(without.some((a) => a.includes("__MITORI_BUILD__"))).toBe(false);
+  });
 });
 
 describe("WP12 staged publish", () => {

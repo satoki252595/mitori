@@ -93,6 +93,17 @@ export function versionAction(
   return cli.apiVersion === daemon.apiVersion ? "use" : "error";
 }
 
+/**
+ * A stale-CLI guard: a CLI that started before the daemon (e.g. a long-running `mcp` from before `git pull`)
+ * must not roll a newer idle daemon back to its own older code. Only a CLI started strictly after the daemon
+ * may restart it; anything unparseable (or missing) counts as "not after", i.e. warn and use.
+ */
+export function cliMayRestart(cliStartedAt: string | undefined, daemonStartedAt: string | undefined): boolean {
+  const cli = cliStartedAt === undefined ? NaN : Date.parse(cliStartedAt);
+  const daemon = daemonStartedAt === undefined ? NaN : Date.parse(daemonStartedAt);
+  return Number.isFinite(cli) && Number.isFinite(daemon) && cli > daemon;
+}
+
 async function waitFor<T>(io: Io, ms: number, probe: () => Promise<T | null> | T | null): Promise<T | null> {
   const until = io.clock.now() + ms;
   for (;;) {
@@ -129,7 +140,8 @@ async function idle(io: Io, d: Daemon): Promise<boolean> {
 
 /**
  * The daemon, started headless when there is none (single writer: write commands go through it). A daemon of
- * another version is restarted when idle, used with a warning when busy with the same API version, and refused
+ * another version is restarted when idle — but only by a CLI started after it, so a stale CLI never rolls a
+ * newer daemon back —, used with a warning when busy with the same API version, and refused
  * (`E_VERSION_MISMATCH`) when busy with another API version. `restart: false` preserves existing daemons.
  */
 export async function ensureDaemon(io: Io, home: string, opts: { restart?: boolean } = {}): Promise<Daemon> {
@@ -138,12 +150,16 @@ export async function ensureDaemon(io: Io, home: string, opts: { restart?: boole
     io.err(`mitori: warning: ${home}/daemon.json is readable by other users (it holds the daemon token); run \`mitori stop\` and start again\n`);
   if (found) {
     if (found.health.version === io.version) return found;
+    // a CLI older than the daemon keeps it (warn and use); the idle probe runs only for a newer CLI
+    const newer = cliMayRestart(io.startedAt, found.health.startedAt ?? found.registry.startedAt);
     const action = versionAction(
       { version: io.version, apiVersion: API_VERSION },
-      { ...found.health, idle: opts.restart !== false && (await idle(io, found)) },
+      { ...found.health, idle: newer && opts.restart !== false && (await idle(io, found)) },
     );
     if (action === "use") {
-      io.err(`mitori: warning: the running daemon is v${found.health.version} (this CLI is v${io.version}); it stays\n`);
+      io.err(
+        `mitori: warning: the running daemon is v${found.health.version} (this CLI is v${io.version}); it stays — run \`bun run start -- stop\` then the same command for the new code\n`,
+      );
       return found;
     }
     if (action === "error")

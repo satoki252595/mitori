@@ -8,7 +8,7 @@ import { createHmac } from "node:crypto";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { API_PREFIX, type DaemonRegistry, type ErrorCode, type WorkspaceSummary } from "@mitori/core";
+import { API_PREFIX, type DaemonRegistry, type ErrorCode, ROUTE_META, type WorkspaceSummary } from "@mitori/core";
 import type { Io } from "../io.ts";
 
 export const TOKEN = "tok_0123456789abcdefghijklmnopqrstuvwxyzABCDEFG";
@@ -84,7 +84,7 @@ export function summary(root: string, extra: Partial<WorkspaceSummary["info"]> =
 }
 
 export async function startFakeDaemon(
-  opts: { version?: string; apiVersion?: number; token?: string; healthToken?: string; pid?: number } = {},
+  opts: { version?: string; apiVersion?: number; token?: string; healthToken?: string; pid?: number; startedAt?: string } = {},
 ): Promise<FakeDaemon> {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "mitori-cli-")));
   const home = join(dir, "home");
@@ -97,6 +97,7 @@ export async function startFakeDaemon(
   const routes = new Map<string, Handler>();
   const version = opts.version ?? VERSION;
   const pid = opts.pid ?? process.pid;
+  const startedAt = opts.startedAt ?? "2026-10-04T00:00:00.000Z";
 
   routes.set("GET /workspaces", () => [summary(repo)]);
   routes.set("POST /workspaces", () => summary(repo));
@@ -123,7 +124,7 @@ export async function startFakeDaemon(
           version,
           apiVersion: opts.apiVersion ?? 1,
           pid,
-          startedAt: "2026-10-04T00:00:00.000Z",
+          startedAt,
           build: "test",
           ...(c ? { proof: hmac(opts.healthToken ?? token, c) } : {}),
         });
@@ -133,6 +134,18 @@ export async function startFakeDaemon(
       seen.push({ method: req.method, path, query: url.searchParams, headers: req.headers, body });
       if (req.headers.get("authorization") !== `Bearer ${token}`)
         return Response.json({ error: { code: "E_AUTH_REQUIRED", message: "auth", retryable: false } }, { status: 401 });
+      // Same gate as the real daemon (`ROUTE_META.clients` ⇒ 403 E_FORBIDDEN): CLI regressions must fail here
+      // when production code calls a route that does not accept cli clients [CR setup-save-1].
+      const declared = req.headers.get("x-mitori-client")?.split("/", 1)[0] ?? null;
+      const kinds = ["web", "cli", "mcp", "hook"] as const;
+      const client = declared !== null && (kinds as readonly string[]).includes(declared) && declared !== "web" ? declared : "cli";
+      for (const [key, meta] of Object.entries(ROUTE_META)) {
+        const [method, pattern] = key.split(" ") as [string, string];
+        if (method !== req.method || match(pattern, path) === null) continue;
+        if ("clients" in meta && meta.clients && !(meta.clients as readonly string[]).includes(client))
+          return Response.json({ error: { code: "E_FORBIDDEN", message: `${key} is not available to ${client} clients`, retryable: false } }, { status: 403 });
+        break;
+      }
       for (const [key, h] of routes) {
         const [method, pattern] = key.split(" ") as [string, string];
         if (method !== req.method) continue;
@@ -154,7 +167,7 @@ export async function startFakeDaemon(
   const writeRegistry = (patch: Partial<DaemonRegistry> | null = {}) => {
     const p = join(home, "daemon.json");
     if (patch === null) return rmSync(p, { force: true });
-    const reg: DaemonRegistry = { pid, port, token, version, apiVersion: 1, startedAt: "2026-10-04T00:00:00.000Z", ...patch };
+    const reg: DaemonRegistry = { pid, port, token, version, apiVersion: 1, startedAt, ...patch };
     writeFileSync(p, JSON.stringify(reg), { mode: 0o600 });
   };
   writeRegistry();
@@ -203,11 +216,14 @@ export function testIo(o: {
   stdin?: string;
   tty?: boolean;
   answer?: boolean;
+  startedAt?: string;
   onSpawn?: () => void;
 }): TestIo {
+  const now = () => performance.timeOrigin + performance.now();
   const io: TestIo = {
     argv: o.argv,
     version: VERSION,
+    startedAt: o.startedAt ?? new Date(now()).toISOString(),
     env: { MITORI_HOME: o.home, LANG: "C.UTF-8", PATH: process.env.PATH, ...o.env },
     cwd: o.cwd,
     stdout: "",
@@ -240,7 +256,7 @@ export function testIo(o: {
     async openUrl(url) {
       io.opened.push(url);
     },
-    clock: { now: () => performance.timeOrigin + performance.now(), iso: () => new Date(performance.timeOrigin + performance.now()).toISOString() },
+    clock: { now, iso: () => new Date(now()).toISOString() },
     random: {
       bytes(n) {
         const b = new Uint8Array(n);

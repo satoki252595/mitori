@@ -11,6 +11,8 @@ export interface Io {
   argv: string[];
   /** mitori version (`x-mitori-client: cli/<version>`, registry handshake). */
   version: string;
+  /** This CLI process's start time (ISO): only a CLI started after the daemon may restart a stale idle one. */
+  startedAt: string;
   env: Readonly<Record<string, string | undefined>>;
   /** Working directory (absolute). */
   cwd: string;

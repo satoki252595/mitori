@@ -113,3 +113,64 @@ describe("CLI-I-003 version handshake (server spec §1.2)", () => {
     expect(u.stderr).toMatch(/^error E_VERSION_MISMATCH: /);
   });
 });
+
+describe("CLI-I-003b stale daemons across rebuilds (same 0.0.0, different build ids)", () => {
+  const OLD_STARTED = "2026-10-04T00:00:00.000Z";
+  const NEW_STARTED = "2026-10-05T00:00:00.000Z";
+
+  test("① different build, idle daemon, newer CLI ⇒ restart", async () => {
+    const child = Bun.spawn(["sleep", "30"]);
+    const old = await fake({ version: "0.0.0+aaaaaaaaaaaaaaaa", pid: child.pid, startedAt: OLD_STARTED });
+    old.route("GET /daemon", () => ({ scheduler: { running: 0, queued: 0 } }));
+    old.route("POST /daemon/shutdown", () => {
+      child.kill();
+      return { ok: true };
+    });
+    const fresh = await fake({ version: "0.0.0+bbbbbbbbbbbb", startedAt: NEW_STARTED });
+    const reg = await Bun.file(`${fresh.home}/daemon.json`).text();
+    const t = testIo({ argv: [], home: old.home, cwd: old.repo, startedAt: NEW_STARTED });
+    t.version = "0.0.0+bbbbbbbbbbbb";
+    t.spawnDaemon = (home) => {
+      t.spawned.push(home);
+      setTimeout(() => void Bun.write(`${home}/daemon.json`, reg), 10);
+    };
+    const d = await ensureDaemon(t, old.home);
+    expect(old.calls("POST /daemon/shutdown").map((c) => c.body)).toEqual([{ reason: "version" }]);
+    expect(t.spawned).toEqual([old.home]);
+    expect(d.health.version).toBe("0.0.0+bbbbbbbbbbbb");
+  });
+
+  test("② different build, busy daemon ⇒ warn and use (never stop; one line tells how to refresh)", async () => {
+    const busy = await fake({ version: "0.0.0+aaaaaaaaaaaaaaaa", startedAt: OLD_STARTED });
+    busy.route("GET /daemon", () => ({ scheduler: { running: 1, queued: 0 } }));
+    const t = testIo({ argv: [], home: busy.home, cwd: busy.repo, startedAt: NEW_STARTED });
+    t.version = "0.0.0+bbbbbbbbbbbb";
+    expect((await ensureDaemon(t, busy.home)).health.version).toBe("0.0.0+aaaaaaaaaaaaaaaa");
+    expect(t.stderr).toContain("the running daemon is v0.0.0+aaaaaaaaaaaaaaaa (this CLI is v0.0.0+bbbbbbbbbbbb)");
+    expect(t.stderr).toContain("bun run start -- stop");
+    expect(t.stderr.trim().split("\n")).toHaveLength(1);
+    expect(busy.calls("POST /daemon/shutdown")).toEqual([]);
+    expect(t.spawned).toEqual([]);
+  });
+
+  test("③ idle daemon, but the CLI is older ⇒ no restart, no idle probe, warn and use", async () => {
+    const newer = await fake({ version: "0.0.0+bbbbbbbbbbbb", startedAt: NEW_STARTED });
+    newer.route("GET /daemon", () => ({ scheduler: { running: 0, queued: 0 } }));
+    const t = testIo({ argv: [], home: newer.home, cwd: newer.repo, startedAt: OLD_STARTED });
+    t.version = "0.0.0+aaaaaaaaaaaaaaaa";
+    expect((await ensureDaemon(t, newer.home)).health.version).toBe("0.0.0+bbbbbbbbbbbb");
+    expect(t.stderr).toContain("bun run start -- stop");
+    expect(newer.calls("GET /daemon")).toEqual([]);
+    expect(newer.calls("POST /daemon/shutdown")).toEqual([]);
+    expect(t.spawned).toEqual([]);
+  });
+
+  test("④ no build ids on either side (0.0.0) ⇒ used as before", async () => {
+    const d = await fake({ version: "0.0.0" });
+    const t = testIo({ argv: [], home: d.home, cwd: d.repo });
+    t.version = "0.0.0";
+    expect((await ensureDaemon(t, d.home)).health.version).toBe("0.0.0");
+    expect(t.stderr).toBe("");
+    expect(t.spawned).toEqual([]);
+  });
+});
