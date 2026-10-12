@@ -2,8 +2,19 @@ import { expect, test } from "bun:test";
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
+import { BUILD_ENV } from "./lib/build-id.ts";
 import { ROOT } from "./lib/repo.ts";
-import { assetsReady, attemptBunRollover, BUN_ROLLOVER_GUARD, listBunCandidates, rolloverNotice, sourceFingerprint, start, supportedBun } from "./start.ts";
+import {
+  assetsReady,
+  attemptBunRollover,
+  BUN_ROLLOVER_GUARD,
+  exportBuildId,
+  listBunCandidates,
+  rolloverNotice,
+  sourceFingerprint,
+  start,
+  supportedBun,
+} from "./start.ts";
 
 test("startup rejects Bun versions incompatible with the frozen lockfile and compares numeric version parts", () => {
   for (const version of ["1.3.13", "1.4.1", "not a version"]) expect(supportedBun(version)).toBe(false);
@@ -37,7 +48,26 @@ test("startup refreshes changed/deleted source and missing output, and reuses in
 test("the ordinary Bun start command accepts --version without building assets or calling an LLM", () => {
   const proc = Bun.spawnSync([process.execPath, "run", "start", "--", "--version"], { stdout: "pipe", stderr: "pipe" });
   expect(proc.exitCode).toBe(0);
-  expect(new TextDecoder().decode(proc.stdout)).toBe("mitori 0.0.0 (api 1)\n");
+  expect(new TextDecoder().decode(proc.stdout)).toMatch(/^mitori 0\.0\.0(\+[0-9a-f]{12})? \(api 1\)\n$/);
+});
+
+test("start passes the source build id to its children through the env", async () => {
+  const root = mkdtempSync(join(tmpdir(), "mitori-start-bid-"));
+  const saved = process.env[BUILD_ENV];
+  try {
+    writeFileSync(join(root, "a.ts"), "one");
+    const first = exportBuildId(root, ["a.ts"], "runtime-1");
+    expect(first).toMatch(/^[0-9a-f]{12}$/);
+    expect(process.env[BUILD_ENV]).toBe(first);
+    const { cliVersion } = await import("../apps/cli/src/main.ts");
+    expect(cliVersion()).toBe(`0.0.0+${first}`);
+    writeFileSync(join(root, "a.ts"), "two");
+    expect(exportBuildId(root, ["a.ts"], "runtime-1")).not.toBe(first);
+  } finally {
+    if (saved === undefined) delete process.env[BUILD_ENV];
+    else process.env[BUILD_ENV] = saved;
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("rollover lists $BUN_INSTALL, ~/.bun, then PATH buns without duplicates or self", () => {

@@ -94,15 +94,26 @@ export async function run(io: Io): Promise<number> {
   }
   if (!(await io.confirm("このLLM設定を保存しますか？ / Save this provider?"))) return 1;
   const s = await connect(io);
-  for (const [key, value] of Object.entries(patch.pins ?? {}))
-    await s.api.call("PATCH /settings/exec", { params: {}, body: { path: `pins.${key}`, value, confirm: true } });
-  for (const [key, value] of Object.entries(patch.engines ?? {}))
-    await s.api.call("PATCH /settings/exec", { params: {}, body: { path: `engines.${key}`, value, confirm: true } });
-  const regular: DeepPartial<GlobalSettings> = { ...patch };
-  delete regular.engines;
-  delete regular.pins;
-  const current = await s.api.call("GET /settings", { params: {} });
-  await s.api.call("PATCH /settings", { params: {}, body: { version: current.version, patch: regular } });
+  let execSaved = false;
+  try {
+    for (const [key, value] of Object.entries(patch.pins ?? {}))
+      await s.api.call("PATCH /settings/exec", { params: {}, body: { path: `pins.${key}`, value, confirm: true } });
+    for (const [key, value] of Object.entries(patch.engines ?? {}))
+      await s.api.call("PATCH /settings/exec", { params: {}, body: { path: `engines.${key}`, value, confirm: true } });
+    execSaved = true;
+    const regular: DeepPartial<GlobalSettings> = { ...patch };
+    delete regular.engines;
+    delete regular.pins;
+    const current = await s.api.call("GET /settings", { params: {} });
+    await s.api.call("PATCH /settings", { params: {}, body: { version: current.version, patch: regular } });
+  } catch (e) {
+    io.err(
+      execSaved
+        ? "エンジンの実行ファイルは保存済みですが、モデルの割り当ては未保存です。同じコマンドを再実行すれば揃います。\n"
+        : "設定の保存が途中で止まりました。同じコマンドを再実行すれば続きから揃います。\n",
+    );
+    throw e;
+  }
   io.out("保存しました。ブラウザの設定を再読み込みしてください。モデルの呼び出しは行っていません。\n");
   if (provider === "grok" && values.api)
     io.out("GrokにはXAI_API_KEY（または指定した環境変数）が必要です。既存daemonは環境を引き継ぎません。キーを設定したターミナルから再起動してください。\n");

@@ -1,9 +1,20 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { brotliCompressSync, brotliDecompressSync, constants, gzipSync } from "node:zlib";
 import { compileArgs } from "./build-bin.ts";
-import { type AssetLock, LOCK, precompress, REQUIRED_IDS, sha256Hex, tableSource, verifyLock } from "./gen-assets.ts";
+import {
+  type AssetLock,
+  LOCK,
+  pidAlive,
+  precompress,
+  publishStagedBuild,
+  REQUIRED_IDS,
+  reapStaleBuildDirs,
+  sha256Hex,
+  tableSource,
+  verifyLock,
+} from "./gen-assets.ts";
 import { ROOT } from "./lib/repo.ts";
 
 const bytes = new TextEncoder().encode("wasm-bytes");
@@ -92,6 +103,86 @@ describe("SKEL-U-11 embed table and compile flags", () => {
       expect.arrayContaining(["--compile", "--minify", "--target=bun-linux-x64", "--no-compile-autoload-dotenv", "--no-compile-autoload-bunfig"]),
     );
     expect(args.slice(1, 3)).toEqual(["dist/.build/entry.ts", "w.ts"]);
+  });
+
+  test("the source build id is baked into the binary, and omitted without one", () => {
+    const withId = compileArgs("dist/.build/entry.ts", ["w.ts"], "linux-x64", "dist/mitori-linux-x64", { buildId: "abc12345def0" });
+    const i = withId.indexOf("--define", withId.indexOf("globalThis.__MITORI_TEST__=false"));
+    expect(withId.slice(i, i + 2)).toEqual(["--define", 'globalThis.__MITORI_BUILD__="abc12345def0"']);
+    const without = compileArgs("dist/.build/entry.ts", ["w.ts"], "linux-x64", "dist/mitori-linux-x64");
+    expect(without.some((a) => a.includes("__MITORI_BUILD__"))).toBe(false);
+  });
+});
+
+describe("WP12 staged publish", () => {
+  const scratch = (tag: string) => `dist/.wp12-unit-${process.pid}-${tag}`; // two levels deep, like dist/.build
+  const sweep = (out: string) => {
+    rmSync(join(ROOT, out), { recursive: true, force: true });
+    for (const n of ["tmp", "prev"])
+      for (const suffix of ["", "-0", "-1", "-99"]) rmSync(join(ROOT, `${out}.${n}-${process.pid}${suffix}`), { recursive: true, force: true });
+  };
+
+  test("publish swaps a complete stage into place and leaves no sidecars", () => {
+    const out = scratch("pub");
+    sweep(out);
+    try {
+      const stage = `${out}.tmp-${process.pid}-0`;
+      mkdirSync(join(ROOT, stage, "web/assets"), { recursive: true });
+      writeFileSync(join(ROOT, stage, "web/index.html"), "v1");
+      publishStagedBuild(out, stage, 0);
+      expect(readFileSync(join(ROOT, out, "web/index.html"), "utf8")).toBe("v1");
+      const stage2 = `${out}.tmp-${process.pid}-1`;
+      mkdirSync(join(ROOT, stage2), { recursive: true });
+      writeFileSync(join(ROOT, stage2, "web.json"), "v2");
+      publishStagedBuild(out, stage2, 1);
+      expect(readFileSync(join(ROOT, out, "web.json"), "utf8")).toBe("v2");
+      expect(existsSync(join(ROOT, `${out}.prev-${process.pid}-1`))).toBe(false);
+      expect(existsSync(join(ROOT, stage2))).toBe(false);
+    } finally {
+      sweep(out);
+    }
+  });
+
+  test("reap removes only dead-pid sidecars and restores a parked tree when out is missing", () => {
+    const dead = Bun.spawnSync(["true"]).pid;
+    expect(pidAlive(dead)).toBe(false);
+    expect(pidAlive(process.pid)).toBe(true);
+    const out = scratch("reap");
+    sweep(out);
+    try {
+      mkdirSync(join(ROOT, out), { recursive: true });
+      writeFileSync(join(ROOT, out, "keep"), "live-tree");
+      const deadTmp = `${out}.tmp-${dead}-0`;
+      const deadPrev = `${out}.prev-${dead}-0`;
+      const liveTmp = `${out}.tmp-${process.pid}-99`;
+      mkdirSync(join(ROOT, deadTmp), { recursive: true });
+      mkdirSync(join(ROOT, deadPrev), { recursive: true });
+      mkdirSync(join(ROOT, liveTmp), { recursive: true });
+      writeFileSync(join(ROOT, liveTmp, "sentinel"), "do-not-touch");
+      const r = reapStaleBuildDirs(out);
+      expect(existsSync(join(ROOT, deadTmp))).toBe(false);
+      expect(existsSync(join(ROOT, deadPrev))).toBe(false);
+      expect(readFileSync(join(ROOT, liveTmp, "sentinel"), "utf8")).toBe("do-not-touch");
+      expect(readFileSync(join(ROOT, out, "keep"), "utf8")).toBe("live-tree");
+      expect(r.restored).toBeNull();
+      // a kill between parking and swapping leaves the last good tree aside: it comes back
+      const out2 = scratch("restore");
+      sweep(out2);
+      try {
+        const parked = `${out2}.prev-${dead}-0`;
+        mkdirSync(join(ROOT, parked), { recursive: true });
+        writeFileSync(join(ROOT, parked, "web.json"), "last-good");
+        const r2 = reapStaleBuildDirs(out2);
+        expect(readFileSync(join(ROOT, out2, "web.json"), "utf8")).toBe("last-good");
+        expect(r2.restored).toBe(`${out2}.prev-${dead}-0`);
+        expect(existsSync(join(ROOT, parked))).toBe(false);
+      } finally {
+        sweep(out2);
+      }
+    } finally {
+      sweep(out);
+      rmSync(join(ROOT, `${out}.tmp-${process.pid}-99`), { recursive: true, force: true });
+    }
   });
 });
 

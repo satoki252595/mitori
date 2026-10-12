@@ -89,6 +89,7 @@ export function realIo(argv: string[], version: string): Io {
   return {
     argv,
     version,
+    startedAt: systemClock.iso(),
     env: process.env,
     cwd: process.cwd(),
     out: (t) => void process.stdout.write(t),

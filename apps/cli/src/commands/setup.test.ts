@@ -6,7 +6,7 @@ import { createHasher } from "@mitori/platform";
 import { estimateText } from "./gen.ts";
 import { runCommand } from "./index.ts";
 import { setupPatch } from "./setup-presets.ts";
-import { type FakeDaemon, startFakeDaemon, testIo } from "./test/fake-daemon.ts";
+import { ApiFail, type FakeDaemon, startFakeDaemon, testIo } from "./test/fake-daemon.ts";
 
 let daemon: FakeDaemon | undefined;
 afterEach(async () => {
@@ -149,6 +149,85 @@ test("confirmed Claude setup reviews a stable pin, saves pin and executable thro
   expect(regular).not.toHaveProperty("pins");
   expect(regular).not.toHaveProperty("engines");
   expect(regular).toMatchObject({ defaultEngine: "claude-cli", models: { patch: "claude-sonnet-5-5" } });
+});
+
+test("CR setup-save-1: `setup muse` saves engines, defaults, models and reasoning, and re-runs cleanly", async () => {
+  const d = await startFakeDaemon();
+  daemon = d;
+  const binary = join(d.dir, "muse-bin-v1");
+  writeFileSync(binary, `#!${process.execPath}\nconsole.log("muse 1.0");\n`, { mode: 0o700 });
+  const store: { settings: Record<string, unknown>; version: number } = { settings: {}, version: 1 };
+  const setPath = (root: Record<string, unknown>, path: string, value: unknown) => {
+    const segs = path.split(".");
+    let node = root;
+    for (const seg of segs.slice(0, -1)) {
+      const next = node[seg];
+      if (typeof next !== "object" || next === null) node[seg] = {};
+      node = node[seg] as Record<string, unknown>;
+    }
+    node[segs.at(-1) as string] = value;
+  };
+  const merge = (root: Record<string, unknown>, patch: Record<string, unknown>) => {
+    for (const [key, value] of Object.entries(patch)) {
+      if (typeof value === "object" && value !== null && typeof root[key] === "object" && root[key] !== null)
+        merge(root[key] as Record<string, unknown>, value as Record<string, unknown>);
+      else root[key] = value;
+    }
+  };
+  d.route("GET /settings", () => ({ settings: store.settings, path: `${d.home}/config.json`, version: store.version }));
+  d.route("PATCH /settings/exec", (c) => {
+    const body = c.body as { path: string; value: unknown };
+    setPath(store.settings, body.path, body.value);
+    store.version += 1;
+    return { settings: store.settings, path: `${d.home}/config.json`, version: store.version };
+  });
+  d.route("PATCH /settings", (c) => {
+    const body = c.body as { version: number; patch: Record<string, unknown> };
+    if (body.version !== store.version) throw new ApiFail(409, "E_CONFLICT");
+    merge(store.settings, body.patch);
+    store.version += 1;
+    return { settings: store.settings, path: `${d.home}/config.json`, version: store.version };
+  });
+  const argv = ["muse", "--binary", binary, "--effort", "high"];
+  const first = testIo({ argv, home: d.home, cwd: d.repo, tty: true, answer: true });
+  expect(await runCommand("setup", first)).toBe(0);
+  expect(store.settings).toHaveProperty("engines.generic");
+  expect(store.settings).toMatchObject({
+    defaultEngine: "generic",
+    defaultGenEngine: "generic",
+    models: { patch: "generic:muse-spark-1.3-contributor" },
+    reasoning: { gen: "high" },
+  });
+  const snapshot = JSON.stringify(store.settings);
+  const second = testIo({ argv, home: d.home, cwd: d.repo, tty: true, answer: true });
+  expect(await runCommand("setup", second)).toBe(0);
+  expect(JSON.stringify(store.settings)).toBe(snapshot);
+});
+
+test("CR setup-save-1: a failed save says what is stored and the same command completes it", async () => {
+  const d = await startFakeDaemon();
+  daemon = d;
+  const binary = join(d.dir, "muse-bin-v1");
+  writeFileSync(binary, `#!${process.execPath}\nconsole.log("muse 1.0");\n`, { mode: 0o700 });
+  let execSaved = false;
+  d.route("GET /settings", () => ({ settings: {}, path: `${d.home}/config.json`, version: 1 }));
+  d.route("PATCH /settings/exec", () => {
+    execSaved = true;
+    return { settings: {}, path: "", version: 2 };
+  });
+  d.route("PATCH /settings", () => {
+    throw new ApiFail(500, "E_INTERNAL", "boom");
+  });
+  const argv = ["muse", "--binary", binary, "--effort", "high"];
+  const failed = testIo({ argv, home: d.home, cwd: d.repo, tty: true, answer: true });
+  expect(await runCommand("setup", failed)).toBe(1);
+  expect(execSaved).toBe(true);
+  expect(failed.stderr).toContain("エンジンの実行ファイルは保存済みですが、モデルの割り当ては未保存です。同じコマンドを再実行すれば揃います。");
+  expect(failed.stderr.indexOf("エンジンの実行ファイルは保存済み")).toBeLessThan(failed.stderr.indexOf("error E_INTERNAL"));
+  d.route("PATCH /settings", () => ({ settings: {}, path: "", version: 3 }));
+  const retry = testIo({ argv, home: d.home, cwd: d.repo, tty: true, answer: true });
+  expect(await runCommand("setup", retry)).toBe(0);
+  expect(d.calls("PATCH /settings")).toHaveLength(2);
 });
 
 test("external generation prep binds --repo when invoked from the mitori checkout", async () => {

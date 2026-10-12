@@ -41,8 +41,8 @@ class Cell implements CatalogCell {
   cat = $state.raw<Readonly<Record<string, string>>>({});
 }
 
-const LEVELS: readonly ReaderLevel[] = ["newcomer", "standard", "expert"];
-const isLevel = (x: unknown): x is ReaderLevel => LEVELS.includes(x as ReaderLevel);
+export const READER_LEVELS: readonly ReaderLevel[] = ["newcomer", "standard", "expert"];
+const isLevel = (x: unknown): x is ReaderLevel => READER_LEVELS.includes(x as ReaderLevel);
 
 export class ViewerState {
   readonly payload: ViewerPayload;
