@@ -76,7 +76,7 @@ export function withRetry(t: PlannedTask, e: TaskEstimate, engine: EngineId, pri
     out: Math.round(e.out + r * P.retryCost * e.out),
     thinking: Math.round(e.thinking + r * P.retryCost * e.thinking),
     apiUsd: round6(e.apiUsd + r * usd),
-    seconds: Math.round((e.seconds + r * (ttftOf(t.model, t.effort, engine) + (P.retryCost * reply) / speedOf(t.model))) * 10) / 10,
+    seconds: Math.round((e.seconds + r * (ttftOf(t.model, t.effort, engine) + (P.retryCost * reply) / speedOf(t.model, t.effort))) * 10) / 10,
   };
 }
 
@@ -134,7 +134,7 @@ export function createEstimator(
       cacheRead: cold ? 0 : Math.round((1 - w) * p),
       uncached: Math.round(cold ? p + tail : (1 - tau) * tail),
       apiUsd: round6(usd),
-      seconds: Math.round((sigma + ttftOf(t.model, t.effort, engine) + (o + th) / speedOf(t.model)) * 10) / 10,
+      seconds: Math.round((sigma + ttftOf(t.model, t.effort, engine) + (o + th) / speedOf(t.model, t.effort)) * 10) / 10,
     };
   }
 
@@ -142,7 +142,7 @@ export function createEstimator(
   function calibrated(t: PlannedTask, e: TaskEstimate, engine: EngineId): TaskEstimate {
     const f = calibrationFactor(t, engine).factor;
     if (f === 1) return e;
-    const outSec = (e.out + e.thinking) / speedOf(t.model);
+    const outSec = (e.out + e.thinking) / speedOf(t.model, t.effort);
     return {
       ...e,
       out: Math.round(f * e.out),
@@ -212,7 +212,7 @@ export function createEstimator(
     const cp = new Map<string, number>();
     for (const { t, e } of items) cp.set(t.id, e.seconds + Math.max(0, ...t.deps.map((d) => cp.get(d) ?? 0)));
     const first = items.find((x) => !x.t.cached && (x.t.stage === "S6o" || x.t.stage === "S5" || x.t.stage === "S6"));
-    const firstBlockSec = first ? (start.get(first.t.id) ?? 0) + firstToken(first.t) + 150 / speedOf(first.t.model) : 0;
+    const firstBlockSec = first ? (start.get(first.t.id) ?? 0) + firstToken(first.t) + 150 / speedOf(first.t.model, first.t.effort) : 0;
     const stages: GenStage[] = [];
     for (const { t } of items) if (!stages.includes(t.stage)) stages.push(t.stage);
     const byStage = stages.map((stage) => {
