@@ -68,10 +68,26 @@ test("@wp5 generating Reader: partials and task/usage/job events never refetch /
   await waitMark(page, "mitori:section:rendered");
   await post("/__mock/gen", { state: "running" });
   await expect(page.locator('.sec-body.mstream[data-section="s1"]')).toBeVisible();
-  // let the run's own view (and the first-visit read tick) land before counting
-  await page.waitForTimeout(500);
   const uiReads = async () => (await mockLog()).filter((r) => r.method === "GET" && /\/ui\?/.test(r.path)).length;
-  const before = await uiReads();
+  // The run start refetches /ui throttled (~2 s), so under load it can land after a fixed
+  // sleep. Wait until the /ui count stops changing before taking the baseline (no long sleep).
+  const waitForUiSettled = async (stableMs = 2500, timeoutMs = 15000, pollMs = 250) => {
+    let last = await uiReads();
+    let settledSince = Date.now();
+    const start = settledSince;
+    for (;;) {
+      await page.waitForTimeout(pollMs);
+      const cur = await uiReads();
+      const at = Date.now();
+      if (cur !== last) {
+        last = cur;
+        settledSince = at;
+      }
+      if (at - settledSince >= stableMs) return last;
+      if (at - start >= timeoutMs) return last;
+    }
+  };
+  const before = await waitForUiSettled();
   // partials and task/usage/job events alone never refetch
   for (let i = 0; i < 3; i++) {
     await post("/__mock/stream", { section: "s1", ord: 40 + i, partial: "途中経過のテキスト" });
@@ -95,7 +111,7 @@ test("@wp5 generating Reader: partials and task/usage/job events never refetch /
   // (placeholders carry .ph-wrap and skeletons aria-busy; confirmed blocks carry neither)
   const done = page.locator(".blk[data-b]:not(.ph-wrap):not([aria-busy])");
   const have = await done.count();
-  const burst = await uiReads();
+  const burst = await waitForUiSettled();
   for (let i = 0; i < 4; i++) {
     await post("/__mock/stream", { section: "s1", ord: 40 + i });
     await page.waitForTimeout(150);
