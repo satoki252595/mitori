@@ -1,0 +1,635 @@
+{
+  "what": "ABBA of muse/wp16 (B, fa437b5) against main (A, 1715479) — cold Go 7k S0–S1 (--shadow, as idx.s01.cold.7kfiles) and cold React S0–S4 (as idx.rss.peak)",
+  "when": {
+    "start": "2026-10-12T19:13:43.146Z",
+    "end": "2026-10-12T19:38:30.064Z"
+  },
+  "machine": "Apple M5 Max, 18 cores, 128 GB, AC power, bun 1.4.2",
+  "method": "bench/runners/idx-cold.ts of each tree in a fresh process with an empty home; page cache warmed by one discarded run per tree; 8 rounds of A,B,B,A per repository; before each sample wait for 1-min load < 7.5 and the other processes' CPU < 480 % for 3 checks. Paired difference = mean(B) - mean(A) inside each round; 95 % CI by bootstrap (5000 resamples).",
+  "load": {
+    "min": 5.3,
+    "max": 8.3,
+    "note": "one Orca Python process, iCloud sync and Spotlight kept about 4 cores busy"
+  },
+  "summary": {
+    "go.ms": {
+      "aMedian": 1468,
+      "bMedian": 1428.3,
+      "pairedMeanDiffBminusA": -19.6,
+      "ci95": [
+        -56.7,
+        14.5
+      ],
+      "roundsBbetter": "4/8"
+    },
+    "go.rssPeakMB": {
+      "aMedian": 1141.6,
+      "bMedian": 1153,
+      "pairedMeanDiffBminusA": 8.1,
+      "ci95": [
+        -5.4,
+        21.5
+      ],
+      "roundsBbetter": "2/8"
+    },
+    "react.ms": {
+      "aMedian": 1193.1,
+      "bMedian": 1207.2,
+      "pairedMeanDiffBminusA": -2,
+      "ci95": [
+        -33,
+        29.4
+      ],
+      "roundsBbetter": "3/8"
+    },
+    "react.rssPeakMB": {
+      "aMedian": 774.8,
+      "bMedian": 794.4,
+      "pairedMeanDiffBminusA": 19.8,
+      "ci95": [
+        12.9,
+        27.9
+      ],
+      "roundsBbetter": "0/8"
+    }
+  },
+  "verdict": "No speed gain (Go -19.6 ms, CI crosses 0; React -2.0 ms) and React peak RSS +19.8 MB (B higher in 8/8 rounds). Not merged.",
+  "samples": [
+    {
+      "repo": "go",
+      "round": 0,
+      "tree": "A",
+      "ms": 1490.3,
+      "rssPeakMB": 1153.1,
+      "loadBefore": 6.6,
+      "loadAfter": 6.6
+    },
+    {
+      "repo": "go",
+      "round": 0,
+      "tree": "B",
+      "ms": 1744.5,
+      "rssPeakMB": 1148.7,
+      "loadBefore": 6.6,
+      "loadAfter": 7.3
+    },
+    {
+      "repo": "go",
+      "round": 0,
+      "tree": "B",
+      "ms": 1493.5,
+      "rssPeakMB": 1113,
+      "loadBefore": 6.4,
+      "loadAfter": 6.6
+    },
+    {
+      "repo": "go",
+      "round": 0,
+      "tree": "A",
+      "ms": 1683.3,
+      "rssPeakMB": 1165.1,
+      "loadBefore": 6.6,
+      "loadAfter": 7.3
+    },
+    {
+      "repo": "go",
+      "round": 1,
+      "tree": "A",
+      "ms": 1721.6,
+      "rssPeakMB": 1158.1,
+      "loadBefore": 7,
+      "loadAfter": 7.1
+    },
+    {
+      "repo": "go",
+      "round": 1,
+      "tree": "B",
+      "ms": 1517,
+      "rssPeakMB": 1130.7,
+      "loadBefore": 7.4,
+      "loadAfter": 7.7
+    },
+    {
+      "repo": "go",
+      "round": 1,
+      "tree": "B",
+      "ms": 1429,
+      "rssPeakMB": 1159.2,
+      "loadBefore": 7.1,
+      "loadAfter": 6.8
+    },
+    {
+      "repo": "go",
+      "round": 1,
+      "tree": "A",
+      "ms": 1436.6,
+      "rssPeakMB": 1116.7,
+      "loadBefore": 6.8,
+      "loadAfter": 7.1
+    },
+    {
+      "repo": "go",
+      "round": 2,
+      "tree": "A",
+      "ms": 1416.9,
+      "rssPeakMB": 1115.6,
+      "loadBefore": 6.9,
+      "loadAfter": 6.8
+    },
+    {
+      "repo": "go",
+      "round": 2,
+      "tree": "B",
+      "ms": 1369.1,
+      "rssPeakMB": 1169,
+      "loadBefore": 6.4,
+      "loadAfter": 6.4
+    },
+    {
+      "repo": "go",
+      "round": 2,
+      "tree": "B",
+      "ms": 1606.3,
+      "rssPeakMB": 1174.7,
+      "loadBefore": 6.7,
+      "loadAfter": 6.6
+    },
+    {
+      "repo": "go",
+      "round": 2,
+      "tree": "A",
+      "ms": 1504.5,
+      "rssPeakMB": 1137.2,
+      "loadBefore": 6.1,
+      "loadAfter": 6.2
+    },
+    {
+      "repo": "go",
+      "round": 3,
+      "tree": "A",
+      "ms": 1438.5,
+      "rssPeakMB": 1133.1,
+      "loadBefore": 6,
+      "loadAfter": 5.9
+    },
+    {
+      "repo": "go",
+      "round": 3,
+      "tree": "B",
+      "ms": 1415.4,
+      "rssPeakMB": 1157.3,
+      "loadBefore": 5.9,
+      "loadAfter": 6.5
+    },
+    {
+      "repo": "go",
+      "round": 3,
+      "tree": "B",
+      "ms": 1388.4,
+      "rssPeakMB": 1144.6,
+      "loadBefore": 6.4,
+      "loadAfter": 6.2
+    },
+    {
+      "repo": "go",
+      "round": 3,
+      "tree": "A",
+      "ms": 1479.8,
+      "rssPeakMB": 1136.7,
+      "loadBefore": 5.9,
+      "loadAfter": 6
+    },
+    {
+      "repo": "go",
+      "round": 4,
+      "tree": "A",
+      "ms": 1481.6,
+      "rssPeakMB": 1130.2,
+      "loadBefore": 5.9,
+      "loadAfter": 5.9
+    },
+    {
+      "repo": "go",
+      "round": 4,
+      "tree": "B",
+      "ms": 1434.2,
+      "rssPeakMB": 1121.1,
+      "loadBefore": 6.1,
+      "loadAfter": 7.3
+    },
+    {
+      "repo": "go",
+      "round": 4,
+      "tree": "B",
+      "ms": 1626,
+      "rssPeakMB": 1165.4,
+      "loadBefore": 7,
+      "loadAfter": 7
+    },
+    {
+      "repo": "go",
+      "round": 4,
+      "tree": "A",
+      "ms": 1473.6,
+      "rssPeakMB": 1133.8,
+      "loadBefore": 7,
+      "loadAfter": 8.3
+    },
+    {
+      "repo": "go",
+      "round": 5,
+      "tree": "A",
+      "ms": 1469.3,
+      "rssPeakMB": 1146.1,
+      "loadBefore": 7.1,
+      "loadAfter": 8.2
+    },
+    {
+      "repo": "go",
+      "round": 5,
+      "tree": "B",
+      "ms": 1372.2,
+      "rssPeakMB": 1139.3,
+      "loadBefore": 7.3,
+      "loadAfter": 7.2
+    },
+    {
+      "repo": "go",
+      "round": 5,
+      "tree": "B",
+      "ms": 1405.9,
+      "rssPeakMB": 1140,
+      "loadBefore": 6.9,
+      "loadAfter": 6.6
+    },
+    {
+      "repo": "go",
+      "round": 5,
+      "tree": "A",
+      "ms": 1436.9,
+      "rssPeakMB": 1150.8,
+      "loadBefore": 6.5,
+      "loadAfter": 6.5
+    },
+    {
+      "repo": "go",
+      "round": 6,
+      "tree": "A",
+      "ms": 1460.1,
+      "rssPeakMB": 1134.7,
+      "loadBefore": 6.7,
+      "loadAfter": 6.8
+    },
+    {
+      "repo": "go",
+      "round": 6,
+      "tree": "B",
+      "ms": 1410.6,
+      "rssPeakMB": 1158.7,
+      "loadBefore": 6.9,
+      "loadAfter": 6.9
+    },
+    {
+      "repo": "go",
+      "round": 6,
+      "tree": "B",
+      "ms": 1427.7,
+      "rssPeakMB": 1147.5,
+      "loadBefore": 6.5,
+      "loadAfter": 7.2
+    },
+    {
+      "repo": "go",
+      "round": 6,
+      "tree": "A",
+      "ms": 1466.7,
+      "rssPeakMB": 1158.4,
+      "loadBefore": 6.9,
+      "loadAfter": 7.3
+    },
+    {
+      "repo": "go",
+      "round": 7,
+      "tree": "A",
+      "ms": 1451.5,
+      "rssPeakMB": 1157.6,
+      "loadBefore": 6.9,
+      "loadAfter": 7.4
+    },
+    {
+      "repo": "go",
+      "round": 7,
+      "tree": "B",
+      "ms": 1414.6,
+      "rssPeakMB": 1169.1,
+      "loadBefore": 7,
+      "loadAfter": 6.6
+    },
+    {
+      "repo": "go",
+      "round": 7,
+      "tree": "B",
+      "ms": 1456.4,
+      "rssPeakMB": 1174.8,
+      "loadBefore": 6.6,
+      "loadAfter": 7.2
+    },
+    {
+      "repo": "go",
+      "round": 7,
+      "tree": "A",
+      "ms": 1413.8,
+      "rssPeakMB": 1156.4,
+      "loadBefore": 7.2,
+      "loadAfter": 7.6
+    },
+    {
+      "repo": "react",
+      "round": 0,
+      "tree": "A",
+      "ms": 1365,
+      "rssPeakMB": 759.8,
+      "loadBefore": 6.6,
+      "loadAfter": 6.6
+    },
+    {
+      "repo": "react",
+      "round": 0,
+      "tree": "B",
+      "ms": 1207.3,
+      "rssPeakMB": 802.4,
+      "loadBefore": 6.6,
+      "loadAfter": 6.6
+    },
+    {
+      "repo": "react",
+      "round": 0,
+      "tree": "B",
+      "ms": 1223.2,
+      "rssPeakMB": 813.4,
+      "loadBefore": 6.4,
+      "loadAfter": 6.2
+    },
+    {
+      "repo": "react",
+      "round": 0,
+      "tree": "A",
+      "ms": 1220.5,
+      "rssPeakMB": 774.5,
+      "loadBefore": 6.2,
+      "loadAfter": 6.4
+    },
+    {
+      "repo": "react",
+      "round": 1,
+      "tree": "A",
+      "ms": 1383,
+      "rssPeakMB": 790.9,
+      "loadBefore": 7.1,
+      "loadAfter": 7.1
+    },
+    {
+      "repo": "react",
+      "round": 1,
+      "tree": "B",
+      "ms": 1282,
+      "rssPeakMB": 786.5,
+      "loadBefore": 7.2,
+      "loadAfter": 7.2
+    },
+    {
+      "repo": "react",
+      "round": 1,
+      "tree": "B",
+      "ms": 1207.1,
+      "rssPeakMB": 810.7,
+      "loadBefore": 7.1,
+      "loadAfter": 7.1
+    },
+    {
+      "repo": "react",
+      "round": 1,
+      "tree": "A",
+      "ms": 1212.6,
+      "rssPeakMB": 771.9,
+      "loadBefore": 6.8,
+      "loadAfter": 7.1
+    },
+    {
+      "repo": "react",
+      "round": 2,
+      "tree": "A",
+      "ms": 1218.6,
+      "rssPeakMB": 778.2,
+      "loadBefore": 6.5,
+      "loadAfter": 6.3
+    },
+    {
+      "repo": "react",
+      "round": 2,
+      "tree": "B",
+      "ms": 1274.4,
+      "rssPeakMB": 801.8,
+      "loadBefore": 6.3,
+      "loadAfter": 6.2
+    },
+    {
+      "repo": "react",
+      "round": 2,
+      "tree": "B",
+      "ms": 1196.2,
+      "rssPeakMB": 772.7,
+      "loadBefore": 6,
+      "loadAfter": 6.2
+    },
+    {
+      "repo": "react",
+      "round": 2,
+      "tree": "A",
+      "ms": 1161.6,
+      "rssPeakMB": 769.5,
+      "loadBefore": 5.8,
+      "loadAfter": 5.8
+    },
+    {
+      "repo": "react",
+      "round": 3,
+      "tree": "A",
+      "ms": 1236.5,
+      "rssPeakMB": 778.2,
+      "loadBefore": 5.9,
+      "loadAfter": 5.9
+    },
+    {
+      "repo": "react",
+      "round": 3,
+      "tree": "B",
+      "ms": 1172.1,
+      "rssPeakMB": 794.5,
+      "loadBefore": 5.8,
+      "loadAfter": 5.8
+    },
+    {
+      "repo": "react",
+      "round": 3,
+      "tree": "B",
+      "ms": 1167.3,
+      "rssPeakMB": 786.4,
+      "loadBefore": 6,
+      "loadAfter": 6
+    },
+    {
+      "repo": "react",
+      "round": 3,
+      "tree": "A",
+      "ms": 1170.4,
+      "rssPeakMB": 783.8,
+      "loadBefore": 6.1,
+      "loadAfter": 6.1
+    },
+    {
+      "repo": "react",
+      "round": 4,
+      "tree": "A",
+      "ms": 1175.8,
+      "rssPeakMB": 782,
+      "loadBefore": 6,
+      "loadAfter": 6
+    },
+    {
+      "repo": "react",
+      "round": 4,
+      "tree": "B",
+      "ms": 1173.6,
+      "rssPeakMB": 779.8,
+      "loadBefore": 5.6,
+      "loadAfter": 5.3
+    },
+    {
+      "repo": "react",
+      "round": 4,
+      "tree": "B",
+      "ms": 1237.4,
+      "rssPeakMB": 818.2,
+      "loadBefore": 5.3,
+      "loadAfter": 6.7
+    },
+    {
+      "repo": "react",
+      "round": 4,
+      "tree": "A",
+      "ms": 1185.9,
+      "rssPeakMB": 784.6,
+      "loadBefore": 6.9,
+      "loadAfter": 6.9
+    },
+    {
+      "repo": "react",
+      "round": 5,
+      "tree": "A",
+      "ms": 1183.2,
+      "rssPeakMB": 771.1,
+      "loadBefore": 6.8,
+      "loadAfter": 6.5
+    },
+    {
+      "repo": "react",
+      "round": 5,
+      "tree": "B",
+      "ms": 1167,
+      "rssPeakMB": 776.9,
+      "loadBefore": 6.5,
+      "loadAfter": 7.3
+    },
+    {
+      "repo": "react",
+      "round": 5,
+      "tree": "B",
+      "ms": 1189.5,
+      "rssPeakMB": 798.7,
+      "loadBefore": 6.9,
+      "loadAfter": 6.9
+    },
+    {
+      "repo": "react",
+      "round": 5,
+      "tree": "A",
+      "ms": 1153.5,
+      "rssPeakMB": 761.6,
+      "loadBefore": 6.6,
+      "loadAfter": 6.6
+    },
+    {
+      "repo": "react",
+      "round": 6,
+      "tree": "A",
+      "ms": 1164.5,
+      "rssPeakMB": 775,
+      "loadBefore": 6.3,
+      "loadAfter": 6.2
+    },
+    {
+      "repo": "react",
+      "round": 6,
+      "tree": "B",
+      "ms": 1264.5,
+      "rssPeakMB": 785.8,
+      "loadBefore": 6.2,
+      "loadAfter": 7.1
+    },
+    {
+      "repo": "react",
+      "round": 6,
+      "tree": "B",
+      "ms": 1218.7,
+      "rssPeakMB": 794.2,
+      "loadBefore": 7.2,
+      "loadAfter": 7.2
+    },
+    {
+      "repo": "react",
+      "round": 6,
+      "tree": "A",
+      "ms": 1189.7,
+      "rssPeakMB": 790.8,
+      "loadBefore": 6.8,
+      "loadAfter": 7
+    },
+    {
+      "repo": "react",
+      "round": 7,
+      "tree": "A",
+      "ms": 1196.4,
+      "rssPeakMB": 764.9,
+      "loadBefore": 6.6,
+      "loadAfter": 6.6
+    },
+    {
+      "repo": "react",
+      "round": 7,
+      "tree": "B",
+      "ms": 1240.9,
+      "rssPeakMB": 814.1,
+      "loadBefore": 6.6,
+      "loadAfter": 6.6
+    },
+    {
+      "repo": "react",
+      "round": 7,
+      "tree": "B",
+      "ms": 1197.5,
+      "rssPeakMB": 791.5,
+      "loadBefore": 6.3,
+      "loadAfter": 6.3
+    },
+    {
+      "repo": "react",
+      "round": 7,
+      "tree": "A",
+      "ms": 1234.1,
+      "rssPeakMB": 773.4,
+      "loadBefore": 6.3,
+      "loadAfter": 7.4
+    }
+  ]
+}
