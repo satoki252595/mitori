@@ -270,5 +270,37 @@
   "limitMs": 1500,
   "targetMs": 1200,
   "status": "pass limit / warn target"
+ },
+ "rssFormalSameSession": {
+  "id": "idx.rss.peak",
+  "limitMB": 1000,
+  "targetMB": 700,
+  "runs": [
+   {
+    "variant": "B (adopted)",
+    "values": [
+     1000.75,
+     1005.875,
+     1040.1875
+    ],
+    "median": 1005.875,
+    "factor": 1.0689731003405964,
+    "noisy": false,
+    "power": "ac"
+   },
+   {
+    "variant": "A (previous full GC every 256 KiB)",
+    "values": [
+     1019.5625,
+     998.625,
+     1019.625
+    ],
+    "median": 1019.5625,
+    "factor": 1.071485253355977,
+    "noisy": false,
+    "power": "ac"
+   }
+  ],
+  "note": "Both policies exceed the 1,000 MB limit in this session; the adopted policy is lower. Earlier formal median with A was 986.688 MB (2026-10-12, before). Pre-existing borderline since 8 Workers; not caused by this change."
  }
 }
