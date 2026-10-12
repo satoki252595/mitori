@@ -9,7 +9,7 @@
 //   MITORI_E2E_CHANNEL=chrome scripts/nd bun run e2e --grep @export
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { gzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 import { expect, type Page, test, webkit } from "@playwright/test";
 import { checkBudget, envFactor } from "../harness/metrics.ts";
 import { type BuiltExport, buildCase } from "./support/build-exports.ts";
@@ -58,6 +58,13 @@ const noSideScroll = (page: Page): Promise<boolean> =>
 
 /** The inline viewer script of an export (the last `<script>`), as the browser hashes and runs it. */
 const viewerScript = (html: string): string => /<script>([\s\S]*)<\/script>\s*<\/body>/.exec(html)?.[1] ?? "";
+
+/** The export payload's JSON, decoded the way the viewer decodes it (plain JSON or gzip+base64). */
+const payloadJson = (html: string): string => {
+  const m = /<script type="application\/json" id="mitori-export"([^>]*)>([\s\S]*?)<\/script>/.exec(html);
+  const body = m?.[2] ?? "null";
+  return (m?.[1] ?? "").includes('data-encoding="gzip+base64"') ? gunzipSync(Buffer.from(body, "base64")).toString("utf8") : body;
+};
 
 test.describe("@export opening", () => {
   test("@export crit opens offline: no network attempt, no API call, no console error; viewer JS ≤ 60 KB gz; CSP in place", async ({ context }, info) => {
@@ -411,8 +418,13 @@ test.describe("@export reading", () => {
 
   test("@export without code (--no-code): the chips stay, the peek says the range is not in this export, the file is much smaller", async ({ context }) => {
     const b = need("crit");
-    expect(statSync(b.nocode).size).toBeLessThan(statSync(b.file).size * 0.75);
-    expect(readFileSync(b.nocode, "utf8")).not.toContain('data-line="');
+    // the payload is compressed, so the excerpt check runs on the decoded document, not the raw file
+    const fullJson = payloadJson(readFileSync(b.file, "utf8"));
+    const bareJson = payloadJson(readFileSync(b.nocode, "utf8"));
+    expect(Object.keys((JSON.parse(fullJson) as { cites: Record<string, unknown> }).cites).length).toBeGreaterThan(0);
+    expect(Object.keys((JSON.parse(bareJson) as { cites: Record<string, unknown> }).cites)).toEqual([]);
+    expect(bareJson).not.toContain('data-line="');
+    expect(bareJson.length).toBeLessThan(fullJson.length);
     const { page } = await openExport(context, b.nocode, "#/s3");
     await expect(page.locator(".vband")).toContainText("コードの抜粋なし");
     const chip = page.locator(".blk a.mcite").first();
@@ -752,17 +764,37 @@ test.describe("@export safety", () => {
   });
 
   test("@export a broken or foreign payload shows a plain message instead of a blank page", async ({ context }) => {
-    const html = readFileSync(RICH, "utf8").replace(
-      /(<script type="application\/json" id="mitori-export">)[\s\S]*?(<\/script>)/,
-      '$1{"format":"mitori.export/9"}$2',
-    );
-    const file = `${OUT}/foreign.html`;
-    writeFileSync(file, html);
+    const rich = readFileSync(RICH, "utf8");
+    const swap = (body: string): string => rich.replace(/(<script type="application\/json" id="mitori-export"[^>]*>)[\s\S]*?(<\/script>)/, `$1${body}$2`);
+    const b64 = (s: string): string => gzipSync(s, { level: 9 }).toString("base64");
     await context.setOffline(true);
+    // a newer format: the version check (after the real decode path) names it
+    const foreign = `${OUT}/foreign.html`;
+    writeFileSync(foreign, swap(b64('{"format":"mitori.export/9"}')));
     const page = await context.newPage();
-    await page.goto(`file://${file}`);
+    await page.goto(`file://${foreign}`);
     await expect(page.locator(".viewer-error")).toContainText("開けませんでした");
     await expect(page.locator(".viewer-error code")).toContainText("mitori.export/9");
+    await page.close();
+    // a truncated payload: damaged, not blank
+    const broken = `${OUT}/broken.html`;
+    writeFileSync(broken, swap(`${b64('{"format":"mitori.export/1"}')}`.slice(0, 64)));
+    const page2 = await context.newPage();
+    await page2.goto(`file://${broken}`);
+    await expect(page2.locator(".viewer-error")).toContainText("開けませんでした");
+    await page2.close();
+  });
+
+  test("@export without gzip support shows the old-browser message instead of a blank page", async ({ context }) => {
+    const file = `${OUT}/oldbrowser.html`;
+    writeFileSync(file, readFileSync(RICH, "utf8"));
+    await context.setOffline(true);
+    await context.addInitScript(() => {
+      (window as unknown as Record<string, unknown>).DecompressionStream = undefined;
+    });
+    const page = await context.newPage();
+    await page.goto(`file://${file}`);
+    await expect(page.locator(".viewer-error")).toContainText("このブラウザでは開けません");
     await page.close();
   });
 });

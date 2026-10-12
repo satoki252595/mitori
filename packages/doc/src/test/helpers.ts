@@ -3,6 +3,7 @@
 import { Database } from "bun:sqlite";
 import { lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { gunzipSync, gzipSync } from "node:zlib";
 import {
   type Clock,
   type EventSink,
@@ -23,6 +24,10 @@ import {
   type WriteQueue,
 } from "@mitori/core";
 import type { GenIdSource } from "../contract.ts";
+
+/** Gzip round trip for export tests (the test zone may use runtime APIs; production takes ports). */
+export const testGzip = (data: Uint8Array): Uint8Array => gzipSync(data);
+export const testGunzip = (data: Uint8Array): Uint8Array => gunzipSync(data);
 
 export const hasher: Hasher = {
   xxh3: (d) => Bun.hash.xxHash3(d).toString(16).padStart(16, "0"),

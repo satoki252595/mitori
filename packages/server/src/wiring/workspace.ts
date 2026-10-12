@@ -6,6 +6,7 @@
  */
 
 import { isAbsolute, join } from "node:path";
+import { gzipSync } from "node:zlib";
 import type { AgentScheduler, UsageLedger } from "@mitori/agent";
 import type { AnchorContext, AnchorEngine } from "@mitori/anchor";
 import {
@@ -778,6 +779,7 @@ export function assembleWorkspace(sh: Shared, base: WorkspaceBase): { parts: Wor
       viewerAssets: deps.viewerAssets,
       clock: deps.clock,
       source: exportSource(rawIndexer, view.lines),
+      gzip: (data) => gzipSync(data),
     }),
     view,
     scan: () => scan,

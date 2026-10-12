@@ -142,9 +142,12 @@ describe("WP13-U-06 secrets", () => {
     );
     const res = await exporter().export(REQ);
     for (const secret of [AWS, GH, STRIPE, PASS]) expect(res.html).not.toContain(secret);
-    expect(res.html).toContain("«redacted:secret»");
     expect(res.redactions).toBeGreaterThanOrEqual(5);
     const p = payloadOf(res.html);
+    // the payload is compressed, so the token is asserted on the decoded document, not the raw file
+    const decoded = p.sections.flatMap((s) => s.blocks.map((b) => b.html)).join("");
+    for (const secret of [AWS, GH, STRIPE, PASS]) expect(decoded).not.toContain(secret);
+    expect(decoded).toContain("«redacted:secret»");
     expect(p.meta.redactions).toBe(res.redactions);
     // the cited line of src/config.ts is in a peek, redacted, and the file's other lines are intact
     const peek = Object.values(p.cites).find((c) => c.path === "src/config.ts");
