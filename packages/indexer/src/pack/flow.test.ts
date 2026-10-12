@@ -428,7 +428,8 @@ describe("the product's flows come before its website, docs, demos and tests", (
     const first = seeds.findIndex((s) => s.files.some((f) => f.startsWith("website/")));
     const product = seeds.findIndex((s) => s.files.includes("tool/core.py" as RepoPath));
     expect(product).toBeGreaterThanOrEqual(0);
-    if (first >= 0) expect(product).toBeLessThan(first);
+    // the product has an entry of its own: the website demo is not offered at all
+    expect(first).toBe(-1);
     // a private helper of an entry file is never a flow of its own
     expect(seeds.some((s) => s.label.includes("_private_helper"))).toBe(false);
   });

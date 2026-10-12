@@ -805,6 +805,9 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
       a.line - b.line ||
       byStr(a.label, b.label),
   );
+  // with any product candidate, website / docs / demo / test ones are not offered at all: the prompt picks the flows
+  // to write among the seeds, and kept them when they filled the remaining slots (text-to-cad, 2026-10-12)
+  if (cands.some((c) => c.aside === 0)) cands.splice(0, cands.length, ...cands.filter((c) => c.aside === 0));
   const walked: { c: Cand; modules: ModuleId[]; files: RepoPath[] }[] = [];
   const seen = new Set<string>();
   const others = cands.filter((c) => c.kind !== "route").length;
