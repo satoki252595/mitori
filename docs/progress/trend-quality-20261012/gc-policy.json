@@ -1,0 +1,274 @@
+{
+ "v": "mitori.gc-policy-abba/1",
+ "date": "2026-10-12",
+ "sourceBase": "091b976",
+ "change": "parse worker: eden GC every 256 KiB, full GC every 8th (2 MiB) instead of a full GC every 256 KiB",
+ "abba": [
+  {
+   "case": "go",
+   "variant": "A",
+   "load1": 6.3,
+   "ms": 1443.2,
+   "rssPeakMB": 1111.0,
+   "s0": 119.1,
+   "s1": 1315.9,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "B",
+   "load1": 6.03,
+   "ms": 1430.5,
+   "rssPeakMB": 1153.9,
+   "s0": 117.7,
+   "s1": 1308.4,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "B",
+   "load1": 6.03,
+   "ms": 1450.3,
+   "rssPeakMB": 1165.4,
+   "s0": 122.3,
+   "s1": 1322.8,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "A",
+   "load1": 6.22,
+   "ms": 1506.4,
+   "rssPeakMB": 1116.3,
+   "s0": 119.0,
+   "s1": 1383.1,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "A",
+   "load1": 6.84,
+   "ms": 1502.3,
+   "rssPeakMB": 1110.5,
+   "s0": 122.4,
+   "s1": 1372.4,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "B",
+   "load1": 6.85,
+   "ms": 1432.2,
+   "rssPeakMB": 1106.3,
+   "s0": 122.4,
+   "s1": 1305.4,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "B",
+   "load1": 6.86,
+   "ms": 1450.0,
+   "rssPeakMB": 1167.2,
+   "s0": 116.8,
+   "s1": 1328.8,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "A",
+   "load1": 6.63,
+   "ms": 1546.1,
+   "rssPeakMB": 1100.5,
+   "s0": 132.3,
+   "s1": 1406.7,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "react",
+   "variant": "A",
+   "load1": 6.34,
+   "ms": 1275.7,
+   "rssPeakMB": 1039.9,
+   "included": 2845
+  },
+  {
+   "case": "react",
+   "variant": "B",
+   "load1": 6.34,
+   "ms": 1295.3,
+   "rssPeakMB": 1018.4,
+   "included": 2845
+  },
+  {
+   "case": "react",
+   "variant": "B",
+   "load1": 7.11,
+   "ms": 1291.4,
+   "rssPeakMB": 1013.5,
+   "included": 2845
+  },
+  {
+   "case": "react",
+   "variant": "A",
+   "load1": 7.11,
+   "ms": 1252.0,
+   "rssPeakMB": 1014.9,
+   "included": 2845
+  },
+  {
+   "case": "go",
+   "variant": "A",
+   "load1": 6.33,
+   "ms": 1505.9,
+   "rssPeakMB": 1097.8,
+   "s0": 118.8,
+   "s1": 1382.2,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "B",
+   "load1": 5.98,
+   "ms": 1461.8,
+   "rssPeakMB": 1144.7,
+   "s0": 120.3,
+   "s1": 1336.9,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "B",
+   "load1": 6.22,
+   "ms": 1453.5,
+   "rssPeakMB": 1152.3,
+   "s0": 119.7,
+   "s1": 1328.3,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "A",
+   "load1": 5.88,
+   "ms": 1512.6,
+   "rssPeakMB": 1096.4,
+   "s0": 118.0,
+   "s1": 1385.7,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "A",
+   "load1": 5.88,
+   "ms": 1545.2,
+   "rssPeakMB": 1126.5,
+   "s0": 118.4,
+   "s1": 1422.1,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "B",
+   "load1": 6.45,
+   "ms": 1486.0,
+   "rssPeakMB": 1174.9,
+   "s0": 118.8,
+   "s1": 1362.2,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "B",
+   "load1": 7.3,
+   "ms": 1475.1,
+   "rssPeakMB": 1171.3,
+   "s0": 121.1,
+   "s1": 1348.0,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "go",
+   "variant": "A",
+   "load1": 7.91,
+   "ms": 1534.3,
+   "rssPeakMB": 1125.8,
+   "s0": 116.9,
+   "s1": 1395.4,
+   "filesParsed": 6539,
+   "workers": 8
+  },
+  {
+   "case": "react",
+   "variant": "A",
+   "load1": 7.6,
+   "ms": 1285.0,
+   "rssPeakMB": 984.6,
+   "included": 2845
+  },
+  {
+   "case": "react",
+   "variant": "B",
+   "load1": 7.6,
+   "ms": 1292.8,
+   "rssPeakMB": 1027.4,
+   "included": 2845
+  },
+  {
+   "case": "react",
+   "variant": "B",
+   "load1": 7.31,
+   "ms": 1314.6,
+   "rssPeakMB": 995.7,
+   "included": 2845
+  },
+  {
+   "case": "react",
+   "variant": "A",
+   "load1": 7.31,
+   "ms": 1328.3,
+   "rssPeakMB": 1034.9,
+   "included": 2845
+  }
+ ],
+ "formal": {
+  "id": "idx.s01.cold.7kfiles",
+  "values": [
+   1405.012792,
+   1444.1695,
+   1452.789792,
+   1430.858667,
+   1431.506625
+  ],
+  "median": 1431.506625,
+  "p95": 1452.789792,
+  "cv": 0.012612550217357639,
+  "factor": 1.0722970307679316,
+  "factorSource": "measured",
+  "machine": {
+   "cpu": "Apple M5 Max",
+   "cores": 18,
+   "bun": "1.4.2",
+   "loadavg": 8.60546875,
+   "noisy": false,
+   "power": "ac"
+  },
+  "limitMs": 1500,
+  "targetMs": 1200,
+  "status": "pass limit / warn target"
+ }
+}
