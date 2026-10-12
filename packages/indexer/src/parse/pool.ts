@@ -70,8 +70,17 @@ export class ParsePool {
   /**
    * Parse items on `workers` Workers; results come back in input order. Batches are pulled (at most two per Worker in
    * flight, so a Worker never waits for the main thread), and `signal` is checked between batches.
+   * With `onItem` every result is handed over as its batch completes (while the Workers parse the rest) and
+   * `results` stays empty: the caller applies everything in the callback and must not read `results` afterwards.
+   * Without it results are collected and come back in input order.
    */
-  async run(items: readonly ParseItemExt[], workers: number, signal?: AbortSignal, onBatch?: (done: number, total: number) => void): Promise<PoolRun> {
+  async run(
+    items: readonly ParseItemExt[],
+    workers: number,
+    signal?: AbortSignal,
+    onBatch?: (done: number, total: number) => void,
+    onItem?: (item: ParseItemExt, result: ParseResultExt, at: number) => void,
+  ): Promise<PoolRun> {
     const ms = { read: 0, hash: 0, parse: 0, query: 0, extract: 0 };
     if (items.length === 0) return { results: [], ms, workers: this.size(), startMs: 0 };
     const t0 = this.now();
@@ -91,7 +100,14 @@ export class ParsePool {
           if (signal?.aborted) throw new MitoriError("E_CANCELLED", "scan cancelled");
           const b = batches[next++] as ParseItemExt[];
           const res = await pool.run({ id: this.nextId++, items: b }, signal);
-          for (let i = 0; i < b.length; i++) results[index.get(b[i] as ParseItemExt) as number] = res.items[i] as ParseResultExt;
+          if (onItem === undefined) {
+            for (let i = 0; i < b.length; i++) results[index.get(b[i] as ParseItemExt) as number] = res.items[i] as ParseResultExt;
+          } else {
+            for (let i = 0; i < b.length; i++) {
+              const item = b[i] as ParseItemExt;
+              onItem(item, res.items[i] as ParseResultExt, index.get(item) as number);
+            }
+          }
           ms.read += res.ms.read;
           ms.hash += res.ms.hash;
           ms.parse += res.ms.parse;

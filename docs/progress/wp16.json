@@ -1,0 +1,48 @@
+{
+ "v": "mitori.wp16/1",
+ "date": "2026-10-13",
+ "sourceBase": "bdff6af",
+ "machine": { "cpu": "Apple M5 Max", "cores": 18, "bun": "1.4.2", "load": "10-15 (iCloud + sibling agents; harness gate wants <= 9)" },
+ "goals": { "reactRssMedianMB": "<= 740 (target 700, limit 1000)", "go7kMedianMs": "<= 1450 (target 1200, limit 1500)" },
+ "breakdown": {
+  "reactFull": "peak 779-801 MB AT S1 end; heap 48-53 MB there (heap peak 123-148 later in S2-S4); footprint ~540; S0 end ~400 (8 prewarmed workers); S2-S4 does not exceed the S1 peak",
+  "goS1": "heap ~106-127 MB at peak; apply loop measured 53 ms (React 18 ms); parseBytes React 25,287,795 / Go 66,022,726 / crit 7,530,327 (880 files)",
+  "workerSlopeReact": "caps 1/2/4/6/8 -> rss 397/469/620/681/781 MB (~40-50 MB per worker at the top end)",
+  "conclusion": "peak = S1-end: 8 live workers (native/WASM, sticky Darwin RSS) + main accumulation; main heap is not the driver"
+ },
+ "tried": [
+  {
+   "name": "S1 tail-shrink (drop idle workers as batches drain)",
+   "result": "DROP: peak 770-774 vs 779-801 (nil; freed pages stay RSS-resident on Darwin) + regressed timings.workers reporting",
+   "kept": false
+  },
+  {
+   "name": "fewer workers via pool sizing",
+   "result": "NOT IMPLEMENTED: React (2847 files/25 MB) vs crit (880/7.5 MB, S0-S1 405 ms vs limit 500) vs Go (6539/66 MB) cannot be split by any monotone sizing; crit would breach idx.s01.cold.100kloc",
+   "kept": false
+  },
+  {
+   "name": "streaming S1 apply (pool onItem; apply each batch while workers parse the rest)",
+   "result": "KEEP: eliminates the measured 53 ms (Go) / 18 ms (React) exposed serial apply; React contention-normalized residual -27 ms (theory -18); ABBA wall/RSS within noise, content identical 20/20 runs, check+362 unit+113 golden green",
+   "kept": true
+  },
+  {
+   "name": "worker FULL_EVERY 8 -> 16 (halve full GCs)",
+   "result": "REVERTED: React RSS +22.4 MB median (4/5 pairs, matches +16 MB theory) — wrong direction for the 740 goal; Go time confounded but theory only ~-50 ms",
+   "kept": false
+  }
+ ],
+ "abba": {
+  "note": "A=HEAD bdff6af, B=streaming, C=streaming+GC16. idx-cold runner, fresh home per run. load 10-15 throughout (noisy).",
+  "goAB_ms": { "A": [2981, 2314, 2185, 3019, 2697], "B": [3365, 2352, 3065, 3335, 2743], "medianA": 2697, "medianB": 3065, "verdict": "confounded by machine drift (S0 of untouched code differs; worker-sum ratios show contention)" },
+  "reactAB": {
+   "ms": { "A": [1366, 1778, 1840, 1956, 2045], "B": [1840, 2063, 1856, 1788, 2046], "medianA": 1840, "medianB": 1856 },
+   "rss": { "A": [772.4, 781.7, 766.2, 778.1, 775.5], "B": [786.7, 802.1, 770.7, 780.4, 788.0], "medianA": 775.5, "medianB": 786.7 },
+   "residualS1minusWorkerSums8": { "medianA": 239, "medianB": 212 },
+   "verdict": "wall/RSS within noise; contention-normalized residual -27 ms matches eliminated serial"
+  },
+  "reactBC_rss": { "B": [745.3, 763.1, 801.2, 755.1, 772.4], "C": [785.5, 782.6, 785.3, 804.2, 789.5], "medianB": 763.1, "medianC": 785.5, "verdict": "C +22.4 MB, credible harm -> reverted" },
+  "goBC_ms": { "B": [2893, 2936], "C": [2346, 2439], "verdict": "2+2 only, mostly drift; not claimed" }
+ },
+ "recommend": "re-measure formal idx.rss.peak + idx.s01.cold.7kfiles on a quiet host; next leads if still short: quiet-machine GC tradeoff re-check, S0 enumerate cost (Go s0 150-340 under load)"
+}

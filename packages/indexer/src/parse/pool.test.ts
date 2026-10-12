@@ -157,4 +157,21 @@ describe("spec §1.3 cancellation between batches", () => {
     expect(r.results.map((x) => x.path)).toEqual(work.map((w) => w.path));
     await pool.close();
   });
+
+  test("onItem streams every result with its input position and leaves results empty", async () => {
+    const f = fakePool();
+    const pool = new ParsePool(f.factory, () => performance.now());
+    const work = items(50).map((it, i) => ({ ...it, size: 1_000 + ((i * 7919) % 50_000) }));
+    const seen: { path: string; at: number }[] = [];
+    const r = await pool.run(work, 3, undefined, undefined, (item, result, at) => {
+      seen.push({ path: item.path, at });
+      expect(result.path).toBe(item.path);
+      expect(work[at]?.path).toBe(item.path);
+    });
+    expect(r.results).toEqual([]);
+    expect(seen).toHaveLength(work.length);
+    expect(seen.map((s) => s.at).sort((a, b) => a - b)).toEqual(work.map((_, i) => i));
+    expect(new Set(seen.map((s) => s.path)).size).toBe(work.length);
+    await pool.close();
+  });
 });

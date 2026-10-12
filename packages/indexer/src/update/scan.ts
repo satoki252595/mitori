@@ -218,8 +218,17 @@ export async function runScan(core: Core, opts: ScanOptions): Promise<ScanSummar
     const parseBytes = items.reduce((s, i) => s + i.size, 0);
     const w = poolSize(parseBytes, deps.hardware);
     emit("S1", 0, items.length);
-    const run = await core.pool.run(items, w, opts.signal, (done, total) => emit("S1", done, total));
-    for (let i = 0; i < items.length; i++) applyResult(core, recOf[i] as FileRec, run.results[i] as ParseResultExt, items[i] as ParseItemExt);
+    // Each batch is applied while the Workers parse the rest (the main thread is otherwise idle during S1); the
+    // post-run serial apply used to sit fully exposed on the scan's wall time.
+    const run = await core.pool.run(
+      items,
+      w,
+      opts.signal,
+      (done, total) => emit("S1", done, total),
+      (item, result, at) => {
+        applyResult(core, recOf[at] as FileRec, result, item);
+      },
+    );
     timings.s1 = mono(core) - tS1;
     timings.workersStart = run.startMs;
     timings.workers = run.workers;
