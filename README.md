@@ -18,7 +18,7 @@ bun run start -- /absolute/path/to/your/repository
 
 初回とソース更新後だけ画面を自動ビルドし、ローカルURLを表示してブラウザを開きます。以降はビルド結果を再利用します。ブラウザを開かない場合は`--no-open`を付けます。起動を止めるには別のターミナルで`bun run start -- stop`を実行します。
 
-リポジトリは現在privateのため、cloneにはアクセス権が必要です。`bun run start`はmitoriのフォルダで実行してください。配布用バイナリは直接実行でき、Bunも不要です（[対応環境](#対応環境と確認状況)）。
+リポジトリは公開しており、誰でもcloneできます（ライセンスはMIT）。`bun run start`はmitoriのフォルダで実行してください。配布用バイナリは直接実行でき、Bunも不要です（[対応環境](#対応環境と確認状況)）。
 
 **Nixを普段使っている場合**は、同じclone後に次を使います。direnvの許可は不要です。以下のLLM設定・停止コマンドも`bun`の前に`scripts/nd`を付けます。
 
@@ -164,7 +164,11 @@ mitori内のAI変更はアンカーと対象範囲を確認し、side repoでテ
 | Linux x64 / arm64 | 配布バイナリとCI、Dockerでの起動を確認 |
 | Windows x64 | 配布バイナリの自己診断と選択した操作をCIで確認（全操作・各LLMでの生成は未確認） |
 
-バイナリは`bun run build:bin`で作れます（macOS `dist/mitori-darwin-arm64`、Linux `dist/mitori-linux-x64`）。リポジトリはprivateで、ルートLICENSEは未設定です。各環境・各LLMの確認の詳細は[検証状況](docs/progress/verification-status.md)にあります。
+バイナリは`bun run build:bin`で作れます（macOS `dist/mitori-darwin-arm64`、Linux `dist/mitori-linux-x64`）。ライセンスはMIT（[ライセンス](#ライセンス)）です。各環境・各LLMの確認の詳細は[検証状況](docs/progress/verification-status.md)にあります。
+
+## ライセンス
+
+MIT（[LICENSE](LICENSE)）です。配布バイナリと画面に同梱される依存とそのライセンスは[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)にあります。開発に参加する場合は[CONTRIBUTING.md](CONTRIBUTING.md)、脆弱性の報告は[SECURITY.md](SECURITY.md)を読んでください。
 
 ## 開発する場合
 

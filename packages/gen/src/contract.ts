@@ -607,7 +607,7 @@ export interface GenPromptSpec {
 export const GEN_PROMPTS = {
   "gen.module": {
     id: "gen.module",
-    version: "gen.module@11",
+    version: "gen.module@12",
     system: "gen.system",
     stage: "S5",
     data: ["MODULE", "DEPS", "SKELETON", "BODIES", "TESTS", "FACTS", "DOCS", "EXISTING", "CHANGES"],
@@ -620,7 +620,7 @@ export const GEN_PROMPTS = {
   },
   "gen.parent": {
     id: "gen.parent",
-    version: "gen.parent@3",
+    version: "gen.parent@4",
     system: "gen.system",
     stage: "S6",
     data: ["MODULE", "CHILDREN", "EDGES", "SKELETON", "DOCS", "EXISTING"],

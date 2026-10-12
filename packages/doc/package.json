@@ -2,6 +2,7 @@
   "name": "@mitori/doc",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Markdown <-> blocks, doc.index.json, history, proposals, rendering, diagram layout, static sections, export.",
   "type": "module",
   "exports": {

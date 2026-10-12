@@ -2,6 +2,7 @@
   "name": "@mitori/server",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Daemon: HTTP/SSE, auth, workspace manager, write queues, domain wiring, composition root.",
   "type": "module",
   "exports": {

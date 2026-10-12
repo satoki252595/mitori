@@ -2,6 +2,7 @@
   "name": "@mitori/client",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Typed fetch + SSE client shared by web, cli and mcp.",
   "type": "module",
   "exports": {

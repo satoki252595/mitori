@@ -2,6 +2,7 @@
   "name": "@mitori/core",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Types, pure data and pure helpers shared by every package (isomorphic, zero runtime deps).",
   "type": "module",
   "exports": {
