@@ -1,4 +1,4 @@
-// `bun scripts/gen-assets.ts [--lock <file>] [--verify-only] [--update-lock]` (owner: WP-11a; build:bin runs it).
+// `bun scripts/gen-assets.ts [--lock <file>] [--verify-only] [--update-lock] [--out <dir>]` (owner: WP-11a; build:bin runs it).
 // 1. Verifies every pinned file (wasm, grammars, ELK worker) against apps/cli/src/build/assets.lock.json — a sha256 /
 //    size / package-version mismatch fails the build (SEC-16) — and brotli-packs it for embedding (7.3 MB → 0.9 MB;
 //    the packed bytes are cached by sha256 in node_modules/.cache/mitori-assets/).
@@ -7,8 +7,8 @@
 // 3. Writes dist/.build/: pinned/ (*.br), web/ (dist + .br/.gz), web.json (source-checkout fallback), assets.gen.ts
 //    (the `import … with { type: "file" }` table), entry.ts (the compile entry) and manifest.json (for `bun run size`).
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { brotliCompress, brotliCompressSync, brotliDecompressSync, constants, gzipSync } from "node:zlib";
 import type { UserConfigExport } from "vite";
@@ -108,9 +108,9 @@ const BR_MAX = (size: number) => ({
   params: { [constants.BROTLI_PARAM_QUALITY]: 11, [constants.BROTLI_PARAM_LGWIN]: 24, [constants.BROTLI_PARAM_SIZE_HINT]: size },
 });
 
-/** Brotli-pack every pinned file into `<OUT>/pinned/`; returns id → repo-relative packed path. */
-export async function packPinned(lock: AssetLock): Promise<Record<string, string>> {
-  mkdirSync(join(ROOT, OUT, "pinned"), { recursive: true });
+/** Brotli-pack every pinned file into `<dest>/` (default `<OUT>/pinned/`); returns id → repo-relative packed path. */
+export async function packPinned(lock: AssetLock, dest = join(ROOT, OUT, "pinned"), recordBase = OUT): Promise<Record<string, string>> {
+  mkdirSync(dest, { recursive: true });
   mkdirSync(join(ROOT, PACK_CACHE), { recursive: true });
   const entries = await Promise.all(
     lock.assets.map(async (a) => {
@@ -123,8 +123,8 @@ export async function packPinned(lock: AssetLock): Promise<Record<string, string
         packed = await brotliAsync(raw, BR_MAX(raw.length));
         writeFileSync(cached, packed);
       }
-      const rel = `${OUT}/pinned/${a.id}.br`; // ids are unique (verifyLock)
-      writeFileSync(join(ROOT, rel), packed);
+      const rel = `${recordBase}/pinned/${a.id}.br`; // ids are unique (verifyLock)
+      writeFileSync(join(dest, `${a.id}.br`), packed);
       return [a.id, rel] as const;
     }),
   );
@@ -318,8 +318,85 @@ export interface Manifest {
 
 const sizeOf = (rel: string | undefined) => (rel ? readFileSync(join(ROOT, rel)).length : 0);
 
+/** Staging/publish sidecars live next to the out dir: `<out>.tmp-<pid>-<seq>` (build in progress), `<out>.prev-<pid>-<seq>` (parked tree). */
+const sidecarPid = (name: string, base: string, kind: "tmp" | "prev"): number | null => {
+  const rest = name.startsWith(`${base}.${kind}-`) ? name.slice(base.length + kind.length + 2) : null;
+  if (rest === null) return null;
+  const pid = Number(rest.split("-")[0]);
+  return Number.isInteger(pid) && pid > 0 ? pid : null;
+};
+
+/** Conservative liveness: only ESRCH means dead; EPERM/EINVAL (or no signal permission) count as alive. */
+export function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException)?.code !== "ESRCH";
+  }
+}
+
+export interface Reaped {
+  removed: string[];
+  restored: string | null;
+}
+
+/**
+ * Clear sidecars no live builder owns (crashed runs) and restore the newest parked
+ * tree when the out dir itself is missing. Live builders' dirs are never touched:
+ * an unparseable pid or an inconclusive liveness check counts as alive.
+ */
+export function reapStaleBuildDirs(outRel: string): Reaped {
+  const removed: string[] = [];
+  let restored: string | null = null;
+  const parent = join(ROOT, dirname(outRel));
+  if (!existsSync(parent)) return { removed, restored };
+  const base = basename(outRel);
+  const deadPrevs: string[] = [];
+  for (const name of readdirSync(parent)) {
+    const kind: "tmp" | "prev" | null = name.startsWith(`${base}.tmp-`) ? "tmp" : name.startsWith(`${base}.prev-`) ? "prev" : null;
+    if (kind === null) continue;
+    const pid = sidecarPid(name, base, kind);
+    if (pid === null || pidAlive(pid)) continue;
+    if (kind === "tmp") {
+      rmSync(join(parent, name), { recursive: true, force: true });
+      removed.push(join(dirname(outRel), name));
+    } else deadPrevs.push(name);
+  }
+  const outAbs = join(ROOT, outRel);
+  if (!existsSync(outAbs) && deadPrevs.length > 0) {
+    // a kill between parking and swapping leaves the last good tree aside: put it back
+    deadPrevs.sort((a, b) => statSync(join(parent, b)).mtimeMs - statSync(join(parent, a)).mtimeMs);
+    const newest = deadPrevs.shift() as string;
+    renameSync(join(parent, newest), outAbs);
+    restored = join(dirname(outRel), newest);
+  }
+  for (const name of deadPrevs) {
+    rmSync(join(parent, name), { recursive: true, force: true });
+    removed.push(join(dirname(outRel), name));
+  }
+  return { removed, restored };
+}
+
+/**
+ * Publish a fully built stage dir as the out dir: the old tree is parked aside and the
+ * stage renamed over it, so concurrent readers only ever see a complete tree (or, for an
+ * instant between the two renames, none — which every reader already tolerates).
+ */
+export function publishStagedBuild(outRel: string, stageRel: string, seq: number): void {
+  const prevRel = `${outRel}.prev-${process.pid}-${seq}`;
+  const prevAbs = join(ROOT, prevRel);
+  rmSync(prevAbs, { recursive: true, force: true });
+  const outAbs = join(ROOT, outRel);
+  if (existsSync(outAbs)) renameSync(outAbs, prevAbs);
+  renameSync(join(ROOT, stageRel), outAbs);
+  rmSync(prevAbs, { recursive: true, force: true });
+}
+
+let nextSeq = 0;
+
 export async function genAssets(
-  opts: { lock?: string; verifyOnly?: boolean; windowsJobLauncher?: boolean; log?: (s: string) => void } = {},
+  opts: { lock?: string; verifyOnly?: boolean; windowsJobLauncher?: boolean; log?: (s: string) => void; out?: string } = {},
 ): Promise<GenResult | null> {
   const log = opts.log ?? ((s: string) => console.log(s));
   const lockPath = opts.lock ?? LOCK;
@@ -342,51 +419,72 @@ export async function genAssets(
   // from `build:bin`, so a test process holding the earlier dist/.build/web.json read files that were gone (ENOENT).
   process.env.NODE_ENV = "production";
 
-  const out = join(ROOT, OUT);
-  rmSync(out, { recursive: true, force: true });
-  mkdirSync(out, { recursive: true });
-  const webDir = join(out, "web");
+  // Concurrent builders (a second `bun run start`, build:bin under tests) share this out
+  // dir: each builds in a private stage and publishes atomically, so no build reads or
+  // deletes another build's half-written tree (WP12: ENOENT on web/assets/*). `out` is a
+  // repo-relative dir exactly two levels deep (the generated entry addresses it with `../../`).
+  const outRel = opts.out ?? OUT;
+  if (outRel.split("/").length !== 2) throw new Error(`gen-assets out dir must be two levels deep like ${OUT}: ${outRel}`);
+  const seq = nextSeq++;
+  const stageRel = `${outRel}.tmp-${process.pid}-${seq}`;
+  const stageAbs = join(ROOT, stageRel);
+  reapStaleBuildDirs(outRel);
+  rmSync(stageAbs, { recursive: true, force: true });
+  mkdirSync(stageAbs, { recursive: true });
+  const webDir = join(stageAbs, "web");
   const t0 = performance.now();
-  const [pinned, source] = await Promise.all([
-    packPinned(lock),
+  const [pinnedStage, source] = await Promise.all([
+    packPinned(lock, join(stageAbs, "pinned"), stageRel),
     // the viewer lands INSIDE the web dist, so it is built after the web build has emptied and filled it
     buildWeb(webDir).then(async (src) => {
       if (src === "apps/web") await buildViewer(webDir);
       return src;
     }),
   ]);
-  const web = precompress(webDir);
-  if (source === "apps/web") await buildInitialUi(join(out, "initial"));
-  const sum = (k: "raw" | "br" | "gz") => Object.values(web).reduce((n, e) => n + sizeOf(e[k]), 0);
+  const webStage = precompress(webDir);
+  if (source === "apps/web") await buildInitialUi(join(stageAbs, "initial"));
+  const sum = (k: "raw" | "br" | "gz") => Object.values(webStage).reduce((n, e) => n + sizeOf(e[k]), 0);
   const manifest: Manifest = {
-    ...(source === "apps/web" ? { initialUi: { bytes: readFileSync(join(out, "initial/initial.js")).length } } : {}),
+    ...(source === "apps/web" ? { initialUi: { bytes: readFileSync(join(stageAbs, "initial/initial.js")).length } } : {}),
     web: {
       source,
-      files: Object.keys(web).length,
+      files: Object.keys(webStage).length,
       rawBytes: sum("raw"),
       brBytes: sum("br"),
       gzBytes: sum("gz"),
-      embeddedBytes: [...new Set(Object.values(web).flatMap((e) => [e.br ?? e.raw, ...(e.gz ? [e.gz] : [])]))].reduce((n, path) => n + sizeOf(path), 0),
+      embeddedBytes: [...new Set(Object.values(webStage).flatMap((e) => [e.br ?? e.raw, ...(e.gz ? [e.gz] : [])]))].reduce((n, path) => n + sizeOf(path), 0),
     },
-    assets: lock.assets.map((a) => ({ id: a.id, bytes: a.bytes, packedBytes: sizeOf(pinned[a.id]) })),
+    assets: lock.assets.map((a) => ({ id: a.id, bytes: a.bytes, packedBytes: sizeOf(pinnedStage[a.id]) })),
     workers: { ...WORKERS },
   };
-  writeFileSync(join(out, "web.json"), `${JSON.stringify(web, null, 2)}\n`);
-  writeFileSync(join(out, "assets.gen.ts"), tableSource(lock, pinned, web, WORKERS, windowsJobLauncher, source === "apps/web"));
-  if (windowsJobLauncher) writeFileSync(join(out, "windows-job.json"), `${JSON.stringify(windowsJobLauncher, null, 2)}\n`);
-  writeFileSync(join(out, "entry.ts"), ENTRY_SOURCE);
-  writeFileSync(join(out, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  // records name the final out dir; the files land there with the atomic publish below
+  const rebase = (rel: string) => (rel === stageRel ? outRel : rel.startsWith(`${stageRel}/`) ? outRel + rel.slice(stageRel.length) : rel);
+  const pinned = Object.fromEntries(Object.entries(pinnedStage).map(([id, rel]) => [id, rebase(rel)]));
+  const web = Object.fromEntries(
+    Object.entries(webStage).map(([url, e]) => [
+      url,
+      // key order matches precompress (raw, immutable, br, gz): web.json stays byte-identical
+      { raw: rebase(e.raw), immutable: e.immutable, ...(e.br ? { br: rebase(e.br) } : {}), ...(e.gz ? { gz: rebase(e.gz) } : {}) },
+    ]),
+  );
+  writeFileSync(join(stageAbs, "web.json"), `${JSON.stringify(web, null, 2)}\n`);
+  writeFileSync(join(stageAbs, "assets.gen.ts"), tableSource(lock, pinned, web, WORKERS, windowsJobLauncher, source === "apps/web"));
+  if (windowsJobLauncher) writeFileSync(join(stageAbs, "windows-job.json"), `${JSON.stringify(windowsJobLauncher, null, 2)}\n`);
+  writeFileSync(join(stageAbs, "entry.ts"), ENTRY_SOURCE);
+  writeFileSync(join(stageAbs, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  publishStagedBuild(outRel, stageRel, seq);
   const packedBytes = manifest.assets.reduce((n, a) => n + a.packedBytes, 0);
   log(`gen-assets: pinned files packed ${(lock.assets.reduce((n, a) => n + a.bytes, 0) / 1e6).toFixed(1)} MB → ${(packedBytes / 1e6).toFixed(2)} MB`);
   log(
     `gen-assets: web from ${source}: ${manifest.web.files} files, ${(manifest.web.rawBytes / 1024).toFixed(1)} KiB raw / ${(manifest.web.brBytes / 1024).toFixed(1)} KiB br / ${(manifest.web.embeddedBytes / 1024).toFixed(1)} KiB embedded (${(performance.now() - t0).toFixed(0)} ms)`,
   );
-  return { entry: `${OUT}/entry.ts`, workers: Object.values(WORKERS), web: source, manifest };
+  return { entry: `${outRel}/entry.ts`, workers: Object.values(WORKERS), web: source, manifest };
 }
 
 if (import.meta.main) {
   const argv = process.argv.slice(2);
   const lockArg = argv.includes("--lock") ? argv[argv.indexOf("--lock") + 1] : undefined;
+  const outArg = argv.includes("--out") ? argv[argv.indexOf("--out") + 1] : undefined;
   if (argv.includes("--update-lock")) {
     const path = lockArg ?? LOCK;
     const lock = JSON.parse(readFileSync(resolve(ROOT, path), "utf8")) as AssetLock;
@@ -394,7 +492,7 @@ if (import.meta.main) {
     console.log(`gen-assets: re-pinned ${path} — review the diff before committing`);
   } else {
     try {
-      await genAssets({ ...(lockArg ? { lock: lockArg } : {}), verifyOnly: argv.includes("--verify-only") });
+      await genAssets({ ...(lockArg ? { lock: lockArg } : {}), ...(outArg ? { out: outArg } : {}), verifyOnly: argv.includes("--verify-only") });
     } catch (err) {
       console.error(err instanceof Error ? err.message : err);
       process.exit(1);
