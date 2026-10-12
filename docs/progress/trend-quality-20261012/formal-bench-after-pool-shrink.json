@@ -1,0 +1,61 @@
+{
+ "v": "mitori.formal-bench/1",
+ "date": "2026-10-12",
+ "branch": "muse/integration (after the S1 pool shrink)",
+ "note": "League of Legends and iCloud sync were running on this Mac during both runs (load ~7.8).",
+ "rss": {
+  "id": "idx.rss.peak",
+  "unit": "MB",
+  "values": [
+   783.578125,
+   788.6875,
+   786.359375
+  ],
+  "median": 786.359375,
+  "p95": 788.6875,
+  "cv": 0.003253633906803331,
+  "limit": 1000,
+  "target": 700,
+  "factor": 1.0862117680130858,
+  "machine": {
+   "cpu": "Apple M5 Max",
+   "cores": 18,
+   "bun": "1.4.2",
+   "loadavg": 7.7919921875,
+   "noisy": false,
+   "power": "ac"
+  }
+ },
+ "go7k": {
+  "id": "idx.s01.cold.7kfiles",
+  "unit": "ms",
+  "values": [
+   1503.1732499999998,
+   1482.2378749999998,
+   1490.03925,
+   1463.7616249999999,
+   1486.983584
+  ],
+  "median": 1486.983584,
+  "p95": 1503.1732499999998,
+  "cv": 0.009628359942264004,
+  "limit": 1500,
+  "target": 1200,
+  "factor": 1.0906318167749431,
+  "machine": {
+   "cpu": "Apple M5 Max",
+   "cores": 18,
+   "bun": "1.4.2",
+   "loadavg": 7.8564453125,
+   "noisy": false,
+   "power": "ac"
+  }
+ },
+ "before": {
+  "rssMedianMB": {
+   "sameSessionOldGc": 1019.5625,
+   "sameSessionNewGc": 1005.875
+  },
+  "go7kMedianMs": 1431.506625
+ }
+}
