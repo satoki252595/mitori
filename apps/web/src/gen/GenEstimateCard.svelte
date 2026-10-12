@@ -14,7 +14,19 @@ import type { LauncherCommand } from "../settings/provider.ts";
 import { authDisplayKind, fmtHm, fmtUsdImpl } from "../shell/fmt.ts";
 import { hasKey } from "../shell/i18n.ts";
 import { t } from "../shell/index.ts";
-import { billingLine, detailLine, EFFORTS, figures, moduleChapters, narrowerEffort, sessionMode, startMode, tileFigures, windowLine } from "./estimate.ts";
+import {
+  billingLine,
+  detailLine,
+  EFFORTS,
+  figures,
+  isByteUpperEstimate,
+  moduleChapters,
+  narrowerEffort,
+  sessionMode,
+  startMode,
+  tileFigures,
+  windowLine,
+} from "./estimate.ts";
 import { VisibleClock } from "./visibility.ts";
 
 let {
@@ -38,6 +50,7 @@ let {
   initialClock = null,
   repo,
   launcher,
+  genericProtocol = "text",
   initialBreakdown = null,
 }: {
   estimates: Partial<Record<Effort, GenEstimate>>;
@@ -62,6 +75,8 @@ let {
   initialClock?: VisibleClock | null;
   repo?: string | undefined;
   launcher?: LauncherCommand | undefined;
+  /** Generic stdout protocol (usage-less `text` / `muse-jsonl` estimates are byte-upper); other engines ignore it. */
+  genericProtocol?: "text" | "muse-jsonl" | "openai-chat";
   initialBreakdown?: typeof import("./GenBreakdown.svelte").default | null | undefined;
 } = $props();
 
@@ -70,6 +85,7 @@ const est = $derived(estimates[effort] ?? null);
 const main = $derived(est ? figures(est, true) : null);
 const bill = $derived(est && main ? billingLine(est, main.usd, t) : null);
 const mode = $derived(est ? startMode(est, engine, overageOk, { repo, launcher }) : null);
+const byteUpper = $derived(isByteUpperEstimate(engine, genericProtocol));
 const util = $derived(win?.fiveHour?.utilization ?? null);
 const policyKey = $derived.by(() => {
   if (engine === "generic" && est?.model.includes("muse-spark-1.3-contributor")) return "policy.museContributor";
@@ -168,7 +184,7 @@ const scopeText = $derived(est ? t(`gen.card.scope.${effort}`, { n: moduleChapte
   <div class="main">
     {#if est && main && mode && !detecting}
       <p class="sum">
-        <span class="lead">{t("gen.card.mainLine", { effort: t(`gen.effort.${effort}`), tokens: main.tokens, usd: main.usd, time: main.time })}{#if main.range}<span class="unc">{t("gen.card.uncalibrated")}</span>{/if}</span>
+        <span class="lead">{t("gen.card.mainLine", { effort: t(`gen.effort.${effort}`), tokens: main.tokens, usd: main.usd, time: main.time })}{#if main.range}<span class="unc">{t("gen.card.uncalibrated")}</span>{/if}{#if byteUpper}<span class="unc">{t("gen.card.byteUpper")}</span>{/if}</span>
         {#if bill}<span class="bill" data-tone={bill.tone}>{bill.text}</span>{/if}
       </p>
       {#if mode.kind === "session"}

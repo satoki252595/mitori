@@ -8,6 +8,7 @@
 import type { UsageLedger } from "@mitori/agent";
 import {
   CALIBRATION,
+  CHARS_PER_TOKEN,
   type ClaudeModelId,
   type Clock,
   type ConfirmReason,
@@ -78,6 +79,42 @@ export function withRetry(t: PlannedTask, e: TaskEstimate, engine: EngineId, pri
     apiUsd: round6(e.apiUsd + r * usd),
     seconds: Math.round((e.seconds + r * (ttftOf(t.model, t.effort, engine) + (P.retryCost * reply) / speedOf(t.model, t.effort))) * 10) / 10,
   };
+}
+
+/**
+ * Byte-upper basis for usage-less generic engines (`text` / `muse-jsonl`): they report no token counts, so the
+ * run records UTF-8 bytes as tokens (`generic-engine.ts`, conservative by design). The pre-run estimate uses the
+ * same basis by converting its token figures to expected UTF-8 bytes with the tables it already uses — input was
+ * estimated as code tokens (ASCII-dominant, 1 byte/char), output is Japanese markdown (CJK, 3 bytes/char in
+ * UTF-8). Upper-leaning on purpose (the card labels it バイト換算の上限推計): on the measured Muse run
+ * (`docs/progress/gen-muse/report.json`) recorded/estimated was 1.93 in / 2.92 out, both below these factors.
+ * `openai-chat` reports usage, and Claude / Codex / session / API engines keep token figures.
+ */
+const BYTE_PER_TOKEN_IN = CHARS_PER_TOKEN["claude-v5"].code;
+const BYTE_PER_TOKEN_OUT = CHARS_PER_TOKEN["claude-v5"].markdown_ja * 3;
+
+/** True for the generic protocols that report no usage (`text`, unset, `muse-jsonl`). */
+export function isByteUpperProtocol(protocol: EngineSettings["generic"]["protocol"]): boolean {
+  return (protocol ?? "text") !== "openai-chat";
+}
+
+/**
+ * Token-based raw figures → byte-upper figures for a usage-less generic engine. Same splits and $ as `task()`
+ * for a cold engine (generic never caches, so no cache classes; `τ` mirrors the same table); `seconds` passes through because
+ * wall time still follows tokens. Kept out of `task()` so stored estimates stay token-based and idempotent —
+ * the planner, `precomputeKeys` and `durations()` all re-derive from stored figures, which a conversion inside
+ * `task()` would scale twice. The ledger never feeds these back (`usageEstimated` calls skip calibration).
+ */
+export function toByteUpper(t: PlannedTask, e: TaskEstimate, prices?: EngineSettings["generic"]["pricing"]): TaskEstimate {
+  const prefix = Math.round(e.prefix * BYTE_PER_TOKEN_IN);
+  const tail = Math.round(e.tail * BYTE_PER_TOKEN_IN);
+  const out = Math.round(e.out * BYTE_PER_TOKEN_OUT);
+  const thinking = Math.round(e.thinking * BYTE_PER_TOKEN_OUT);
+  const pr = price(t.model, prices);
+  const tau = (P.tailCacheWriteShare as Readonly<Record<string, number>>).generic ?? 0;
+  const usd =
+    (prefix * pr.cacheWrite5mPerMTok + tau * tail * pr.cacheWrite5mPerMTok + (1 - tau) * tail * pr.inPerMTok + (out + thinking) * pr.outPerMTok) / 1e6;
+  return { prefix, tail, out, thinking, cacheWrite: 0, cacheRead: 0, uncached: prefix + tail, apiUsd: round6(usd), seconds: e.seconds };
 }
 
 /** Lead of a fan-out group (first in plan order); followers read the cached prefix. */
@@ -158,15 +195,16 @@ export function createEstimator(
   /** Expected per-task figures in plan order for `engine` (calibrated, with the expected retry). */
   function durations(plan: GenPlan, engine: EngineId): { t: PlannedTask; e: TaskEstimate }[] {
     const warm = warmFlags(plan.tasks);
-    return plan.tasks.map((t, i) => ({
-      t,
-      e: withRetry(
-        t,
-        calibrated(t, task(t, engine, warm[i] ?? false), engine),
-        engine,
-        engine === "generic" || engine === "codex-cli" ? deps.settings().global.engines[engine].pricing : undefined,
-      ),
-    }));
+    const byte = engine === "generic" && isByteUpperProtocol(deps.settings().global.engines.generic.protocol);
+    const prices = engine === "generic" || engine === "codex-cli" ? deps.settings().global.engines[engine].pricing : undefined;
+    return plan.tasks.map((t, i) => {
+      const raw = task(t, engine, warm[i] ?? false);
+      if (!byte) return { t, e: withRetry(t, calibrated(t, raw, engine), engine, prices) };
+      // Counts and $ ride the byte figures (the retry re-reads byte-counted input); wall time still follows
+      // tokens, so seconds come from the token-based retry.
+      const e = withRetry(t, calibrated(t, toByteUpper(t, raw, prices), engine), engine, prices);
+      return { t, e: { ...e, seconds: withRetry(t, calibrated(t, raw, engine), engine, prices).seconds } };
+    });
   }
 
   function simulateWith(items: readonly { t: PlannedTask; e: TaskEstimate }[], engine: EngineId, slots: number): ScheduleSimulation {
