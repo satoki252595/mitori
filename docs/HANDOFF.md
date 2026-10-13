@@ -51,6 +51,8 @@
 
 2026-10-13 早朝は性能の候補 `muse/wp16` を ABBA（8巡）で測り、統合しないと判断した（Go −19.6 ms・React −2.0 ms で差なし、React RSS +19.8 MB で悪化）。正式測定は Go 7k 1,449 ms・React RSS 792.2 MB（いずれも WARN）。Mac の3ブラウザ e2e は 386 件成功・失敗 0。CI の `browsers` ジョブが止まっていた原因は runner の macOS バックグラウンド優先度（高効率コアのみ、校正が約2倍）で、LaunchAgent の登録し直しで復旧し、校正前の検出と基準の誤記録防止を入れた。詳細は [perf-20261013](progress/perf-20261013/README.md)。PR #22 の CI（`1140ed7`）では `browsers` ジョブが成功した（`e2e/web` 386 件成功・失敗 0、校正 0.985 倍）。統合済みの作業ブランチはすべて削除し、不採用の `muse/wp16` はタグ `archive/muse-wp16` に残した。
 
+2026-10-13 の追加分（WP26: `bun run start` が依存も自動で入れる）。利用者が README どおり `bun install --frozen-lockfile` を実行し、Nix プロファイルの古い Bun 1.3.13 で `Unknown lockfile version` になった（`bun.lock` は Bun 1.4.2 以上でないと読めない）。`bun install` は Bun 自身が lockfile を読むため mitori 側では割り込めず、別手順にしている限り古い Bun の利用者は必ず止まる。`scripts/start.ts` が 1.4.2 以上の Bun を選んだ後に、印（`node_modules/.mitori-deps` に書く `bun.lock` の sha256）が無い・違う・`vite` が無いときだけ `<選ばれた Bun> install --frozen-lockfile` を自動実行するようにし、README の「まず使う」と Nix 手順のコードブロックから別の `bun install` を外した（開発用の `scripts/nd bun install --frozen-lockfile` は CI と同じ手順なので残す）。install 直後は Bun のモジュール解決が起動時の古い状態を使うため、同じ Bun・同じ引数で新しいプロセスに起動し直してから続け、再起動の印に `MITORI_DEPS_REEXEC` を付ける。
+
 ## 3. 残っていること
 
 | 残件 | 状態 | 次の一手 |

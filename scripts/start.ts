@@ -1,6 +1,7 @@
 // End-user startup: existing Bun + Git, production assets built once and refreshed after source changes.
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 import pkg from "../package.json";
@@ -28,6 +29,8 @@ const shellQuote = (value: string): string => `'${value.replaceAll("'", "'\\''")
 
 /** Set in a rolled-over child so an outdated replacement cannot re-exec forever. */
 export const BUN_ROLLOVER_GUARD = "MITORI_BUN_REEXEC";
+/** Set in a child re-executed after a dependency install so it cannot install and re-exec forever. */
+export const DEPS_REEXEC_GUARD = "MITORI_DEPS_REEXEC";
 /** `--version` probes fail fast: a missing binary errors at once, a live one answers in milliseconds. */
 const BUN_PROBE_TIMEOUT_MS = 5000;
 
@@ -62,6 +65,7 @@ export interface BunRolloverHooks {
   nixFound?: boolean;
   probe?: (command: string, args: readonly string[]) => string | undefined;
   runChild?: (command: string, args: readonly string[], env: Record<string, string>) => number;
+  spawnInstall?: (command: string, args: readonly string[], cwd: string) => number;
   onNotice?: (line: string) => void;
 }
 
@@ -164,10 +168,86 @@ export function assetsReady(root: string, fingerprint: string): boolean {
   }
 }
 
-async function prepareAssets(): Promise<void> {
+/** Stamp file holding the sha256 of `bun.lock` from the last successful dependency install. */
+export const DEPS_STAMP = "node_modules/.mitori-deps";
+
+/** sha256 of `bun.lock`, or undefined when it cannot be read. Pure. */
+export function lockHash(root: string): string | undefined {
+  try {
+    return createHash("sha256")
+      .update(readFileSync(join(root, "bun.lock")))
+      .digest("hex");
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Whether dependencies are installed and current. Under a frozen lockfile every dependency change
+ * also changes `bun.lock`, so comparing its sha256 against the install stamp is sufficient; the
+ * `vite` presence check keeps a partially deleted `node_modules` from looking ready.
+ */
+export function depsReady(root: string): boolean {
+  try {
+    if (!existsSync(join(root, "node_modules/vite/package.json"))) return false;
+    const hash = lockHash(root);
+    if (hash === undefined) return false;
+    return readFileSync(join(root, DEPS_STAMP), "utf8") === hash;
+  } catch {
+    return false;
+  }
+}
+
+/** Runs `<selected Bun> install --frozen-lockfile` in `cwd` with the UI-build stdio. Throws when the spawn itself fails. */
+function spawnInstall(command: string, args: readonly string[], cwd: string): number {
+  const child = spawnSync(command, [...args], { cwd, stdio: ["inherit", 2, 2] });
+  if (child.error) throw child.error;
+  return child.status ?? 1;
+}
+
+const manualInstall = (bun: string): string => `Run \`${shellQuote(bun)} install --frozen-lockfile\` in the mitori folder by hand, then retry.`;
+
+/**
+ * Installs dependencies with the already-selected Bun when the stamp is missing, stale, or `vite`
+ * is gone. A no-op when current (one `bun.lock` read plus one hash). Writes the stamp only on
+ * success, then re-executes `scripts/start.ts` under the same Bun with the same arguments in a
+ * fresh process: this process resolved modules before `node_modules` existed, so continuing
+ * in-process would keep missing the just-installed dependencies. Returns the child's exit code,
+ * or undefined when dependencies were already current. A child carrying `DEPS_REEXEC_GUARD` never
+ * installs again and instead reports the manual command. Exported for tests; the install and the
+ * child stay injectable through hooks.
+ */
+export function ensureDependencies(root: string = ROOT, argv: readonly string[] = [], hooks: BunRolloverHooks = {}): number | undefined {
+  if (depsReady(root)) return undefined;
+  const bun = hooks.execPath ?? process.execPath;
+  const env = hooks.env ?? process.env;
+  if (env[DEPS_REEXEC_GUARD]) throw new Error(`Dependencies are still missing after the automatic install. ${manualInstall(bun)}`);
+  const notify = hooks.onNotice ?? ((line) => process.stderr.write(line));
+  const spawn = hooks.spawnInstall ?? spawnInstall;
+  notify("mitori: installing dependencies (first run or updated bun.lock)…\n");
+  let status: number;
+  try {
+    status = spawn(bun, ["install", "--frozen-lockfile"], root);
+  } catch (error) {
+    throw new Error(`Dependency install failed (${error instanceof Error ? error.message : error}). ${manualInstall(bun)}`);
+  }
+  if (status !== 0) throw new Error(`Dependency install failed (exit ${status}). ${manualInstall(bun)}`);
+  const hash = lockHash(root);
+  if (hash === undefined) throw new Error(`Dependency install finished but bun.lock is still unreadable. ${manualInstall(bun)}`);
+  mkdirSync(join(root, "node_modules"), { recursive: true });
+  writeFileSync(join(root, DEPS_STAMP), hash);
+  const run = hooks.runChild ?? runChild;
+  const startScript = hooks.startScript ?? join(ROOT, "scripts/start.ts");
+  const next: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) if (value !== undefined) next[key] = value;
+  next[DEPS_REEXEC_GUARD] = "1";
+  return run(bun, [startScript, ...argv], next);
+}
+
+async function prepareAssets(argv: readonly string[], hooks: BunRolloverHooks = {}): Promise<number | undefined> {
   if (!Bun.which("git")) throw new Error("Git was not found on PATH. Use your existing Git installation, then run this command again.");
-  if (!existsSync(join(ROOT, "node_modules/vite/package.json")))
-    throw new Error(`Dependencies are missing. Run \`${shellQuote(process.execPath)} install --frozen-lockfile\` in the mitori folder first.`);
+  const reexecuted = ensureDependencies(ROOT, argv, hooks);
+  if (reexecuted !== undefined) return reexecuted;
   // Reuse the release supply-chain check even when the web bundle is cached.
   const { genAssets } = await import("./gen-assets.ts");
   await genAssets({ verifyOnly: true, log: () => {} });
@@ -178,6 +258,7 @@ async function prepareAssets(): Promise<void> {
   const built = spawnSync(process.execPath, [join(ROOT, "scripts/gen-assets.ts")], { cwd: ROOT, stdio: ["inherit", 2, 2] });
   if (built.status !== 0) throw new Error(`Browser UI build failed (${built.status ?? built.error?.message ?? "signal"}). Fix the error above and retry.`);
   writeFileSync(join(ROOT, STAMP), fingerprint);
+  return undefined;
 }
 
 export async function start(argv: readonly string[], hooks: BunRolloverHooks = {}): Promise<number> {
@@ -196,7 +277,8 @@ export async function start(argv: readonly string[], hooks: BunRolloverHooks = {
   exportBuildId();
   if (!["--version", "-v", "version", "--help", "-h", "help"].includes(args[0] ?? "")) {
     try {
-      await prepareAssets();
+      const reexecuted = await prepareAssets(args, hooks);
+      if (reexecuted !== undefined) return reexecuted;
     } catch (error) {
       process.stderr.write(`mitori: ${error instanceof Error ? error.message : error}\n`);
       return 1;

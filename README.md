@@ -11,12 +11,11 @@
 ```sh
 git clone https://github.com/satoki252595/mitori.git
 cd mitori
-bun --version # 1.4.2以上を確認
-bun install --frozen-lockfile
+bun --version # 1.4.2未満でも、他に新しいBunが入っていれば自動で切り替える
 bun run start -- /absolute/path/to/your/repository
 ```
 
-初回とソース更新後だけ画面を自動ビルドし、ローカルURLを表示してブラウザを開きます。以降はビルド結果を再利用します。ブラウザを開かない場合は`--no-open`を付けます。起動を止めるには別のターミナルで`bun run start -- stop`を実行します。
+初回と`git pull`で依存が変わった後は、`bun run start`が新しいBunで依存も自動で入れます。初回とソース更新後だけ画面を自動ビルドし、ローカルURLを表示してブラウザを開きます。以降はビルド結果を再利用します。ブラウザを開かない場合は`--no-open`を付けます。起動を止めるには別のターミナルで`bun run start -- stop`を実行します。
 
 リポジトリは公開しており、誰でもcloneできます（ライセンスはMIT）。`bun run start`はmitoriのフォルダで実行してください。配布用バイナリは直接実行でき、Bunも不要です（[対応環境](#対応環境と確認状況)）。
 
@@ -24,16 +23,17 @@ bun run start -- /absolute/path/to/your/repository
 
 ```sh
 scripts/nd bun --version
-scripts/nd bun install --frozen-lockfile
 scripts/nd bun run start -- /absolute/path/to/your/repository
 ```
 
 <details>
-<summary>起動できない場合：direnv blocked・古いBun・bun upgradeのEACCES</summary>
+<summary>起動できない場合：direnv blocked・古いBun・Unknown lockfile version・bun upgradeのEACCES</summary>
 
 `direnv: … .envrc is blocked`は自動環境読み込みの許可待ちです。上の`scripts/nd`なら許可せず起動できます。direnvを使いたい場合だけ、`cat .envrc`で内容（`use flake`）を確認してから`direnv allow`を実行してください。
 
 Bunが古くても`bun run start`は新しいBun（`$BUN_INSTALL`・`~/.bun`・PATH上の他のBun・プロジェクトのNixの順）を探し、同じ引数で起動し直します。切り替えた旨を1行で知らせます。実機のBun 1.3.13で`bun run start -- --version`の成功を確認済みです。
+
+`error: Unknown lockfile version`（`warn: Ignoring lockfile`を伴う）は、`bun install`を古いBun（1.4.2未満）で直接実行したときの表示で、ファイルは変わりません。`bun run start`を使うか、下のように新しいBunを絶対パスで指定します。
 
 自動切替できない場合だけ、手動で新しいBunを明示します。lockfileを削除しません。例えば既存の`~/.bun/bin/bun`が1.4.2以上なら：
 
