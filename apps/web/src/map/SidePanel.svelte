@@ -9,7 +9,7 @@ import { hasKey } from "../shell/i18n.ts";
 import { errorText, t } from "../shell/index.ts";
 import { mark } from "../shell/perf.ts";
 import { useStores } from "../stores/app.svelte.ts";
-import { engineProblem, policyAcknowledged } from "./engine.ts";
+import { engineProblem, policyAcknowledged, type SetupContext } from "./engine.ts";
 
 let {
   breakdown,
@@ -57,6 +57,24 @@ $effect(() => {
   if (generated && !s.gen.estimates.size && totals && !GenDoneCard) void import("../gen/GenDoneCard.svelte").then((m) => (GenDoneCard = m.default));
 });
 const policyAcked = $derived(policyAcknowledged(s.gen.engine, engineStatus, s.session.settings?.settings.privacy.dataPolicyAck[s.gen.engine]));
+/** Previous selections the re-setup command keeps (settings); absent when unknown. */
+const setupCtx = $derived.by((): SetupContext => {
+  const cfg = s.session.settings?.settings;
+  if (!engineStatus) return {};
+  if (engineStatus.engine === "generic") {
+    const model = cfg?.models.genModule.startsWith("generic:") ? cfg.models.genModule.slice("generic:".length) : undefined;
+    return { ...(model ? { model } : {}), ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}) };
+  }
+  if (engineStatus.engine === "codex-cli") {
+    const codex = cfg?.engines["codex-cli"];
+    return {
+      ...(codex?.model ? { model: codex.model } : {}),
+      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
+      ...(codex?.maxEstimatedSpendUsd ? { codexMaxUsd: codex.maxEstimatedSpendUsd } : {}),
+    };
+  }
+  return {};
+});
 const estimates = $derived(Object.fromEntries(EFFORTS.map((e) => [e, s.gen.estimates.get(s.gen.key(e))])) as Partial<Record<Effort, GenEstimate>>);
 
 // default effort (cookie → uncalibrated pro ⇒ overview → workspace → global), until the user picks one
@@ -107,7 +125,7 @@ function setEffort(e: Effort) {
           {:else if generated && !s.gen.estimates.size && totals}
             {#if GenDoneCard}<GenDoneCard {totals} {stale} {fiveName} onread={ws ? onread : undefined} />{:else}<div class="card stage-skel" aria-busy="true">{t("app.loading")}</div>{/if}
           {:else if problem && engineStatus}
-            {#if EngineCard}<EngineCard status={engineStatus} {problem} {effort} repo={s.workspace.status?.info.root} launcher={s.session.settings?.launcher} oncopy={(c) => copyText(c, s, "copy.command")} onrecheck={() => s.session.loadEngines()} />{:else}<div class="card stage-skel" aria-busy="true">{t("app.loading")}</div>{/if}
+            {#if EngineCard}<EngineCard status={engineStatus} {problem} {effort} repo={s.workspace.status?.info.root} launcher={s.session.settings?.launcher} setup={setupCtx} oncopy={(c) => copyText(c, s, "copy.command")} onrecheck={() => s.session.loadEngines()} />{:else}<div class="card stage-skel" aria-busy="true">{t("app.loading")}</div>{/if}
           {:else}
             <GenEstimateCard
               {estimates}

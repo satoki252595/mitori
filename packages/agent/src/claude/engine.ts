@@ -28,9 +28,10 @@ import {
   WARM_POOL,
   type WarmProfile,
 } from "../contract.ts";
+import { type FileId, type FollowIo, type FollowPorts, followPinUpdate, sameFileId } from "../follow.ts";
 import { RelayRun } from "../util/run.ts";
 import type { TimerHandle, Timers } from "../util/timers.ts";
-import { probeClaude } from "./detect.ts";
+import { probeClaude, runProbe } from "./detect.ts";
 import { scrubEnv } from "./env.ts";
 import { EMPTY_REL, type SandboxStore } from "./fsports.ts";
 import { buildClaudeSpawn } from "./index.ts";
@@ -58,6 +59,12 @@ export interface ClaudeEngineDeps {
   fs: FsReader | null;
   /** Persists a first-run pin (composition root → settings `pins.claude`) [CR m1-65]; failures are logged. */
   pin?: (pin: BinaryPin) => Promise<void>;
+  /**
+   * Vendor-update auto-follow (WP28): POSIX ownership + file identity for the re-check, one streamed hash,
+   * and workspace roots for the SEC-10 path check. Absent ⇒ a changed binary keeps reporting
+   * `E_ENGINE_BINARY_CHANGED` (spec §B).
+   */
+  follow?: FollowPorts;
 }
 
 /** The claude-cli engine plus bridge-internal views. */
@@ -112,6 +119,10 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
   let detecting: Promise<EngineStatus> | null = null;
   /** Trust-on-first-use pin of this daemon (until the composition root persists it into settings) [CR m1-65]. */
   let tofu: BinaryPin | null = null;
+  /** Latest vendor-update follow of this daemon (shown as 「旧版→新版」; lost on restart, the log keeps it). */
+  let lastFollow: { from: string; to: string; at: string } | null = null;
+  /** Last follow attempt that failed: the same candidate is not re-probed (WP28b; lost on restart). */
+  let failedFollow: { path: string; id: FileId } | null = null;
 
   const procDeps: ProcDeps = {
     spawner: deps.spawner,
@@ -132,7 +143,9 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
     const b = cs().binary;
     if (pin) {
       if (b.startsWith("/") && b !== pin.path && b !== pin.realpath)
-        throw new MitoriError("E_ENGINE_BINARY_CHANGED", "the configured Claude executable does not match its pin; confirm it with mitori setup claude");
+        throw new MitoriError("E_ENGINE_BINARY_CHANGED", "the configured Claude executable does not match its pin; confirm it with mitori setup claude", {
+          hint: "run `mitori setup claude` again to register the current binary",
+        });
       return { path: pin.path, realpath: pin.realpath, version: pin.version };
     }
     return b.startsWith("/") ? { path: b, realpath: b, version: status?.s.version ?? "" } : null;
@@ -221,7 +234,21 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
     const settings = cs();
     if (!settings.enabled) throw new MitoriError("E_AGENT_NOT_INSTALLED", "claude-cli is disabled in settings");
     // a run before the first detect() finished still gets the first-run pin [CR m1-65]
-    const bin = binary() ?? (await detect().then(binary));
+    let bin = binary() ?? (await detect().then(binary));
+    // A vendor update between detects leaves a deleted realpath behind: refresh (detect follows it) before
+    // spawn — only when auto-follow is wired, otherwise detect could not change anything anyway.
+    if (bin && deps.fs && deps.follow) {
+      let resolved: string | null = null;
+      try {
+        resolved = deps.fs.realpath(bin.path);
+      } catch {
+        resolved = null;
+      }
+      if (resolved !== bin.realpath) {
+        status = null;
+        bin = await detect().then(binary);
+      }
+    }
     if (!bin) throw new MitoriError("E_AGENT_NOT_INSTALLED", "claude binary is not pinned and was not found on PATH");
     const systemPromptFile = await deps.sandbox.systemPromptFile(req.system);
     if (req.mode !== "agent") await deps.sandbox.ensureEmptyCwd();
@@ -334,6 +361,92 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
     return s;
   };
 
+  /**
+   * Follow a vendor update of the pinned binary (WP28 §A): the saved `pin.path` re-resolved, SEC-10 path +
+   * POSIX ownership re-checked, `--version` re-verified like `setup-pin`, and the `--help` capability gate
+   * re-probed with the candidate pin. Persists the new pin and returns the re-probed status, or `null` when
+   * any check fails (the caller keeps the `E_ENGINE_BINARY_CHANGED` status; §B).
+   */
+  const tryFollow = async (pin: BinaryPin, probe: (bin: string | null, pin: BinaryPin | undefined) => Promise<EngineStatus>): Promise<EngineStatus | null> => {
+    if (!deps.follow || !deps.fs) return null;
+    const fs = deps.fs;
+    const follow = deps.follow;
+    // A failed candidate is not re-probed while its path and identity are unchanged (WP28b).
+    const resolved = fs.realpath(pin.path);
+    if (!resolved || resolved === pin.realpath) return null;
+    const id = follow.fileId(resolved);
+    if (id && failedFollow && failedFollow.path === resolved && sameFileId(failedFollow.id, id)) return null;
+    const io: FollowIo = {
+      realpath: (p) => fs.realpath(p),
+      statIsFile: (p) => fs.stat(p)?.isFile === true,
+      readText: async (p) => {
+        try {
+          return new TextDecoder().decode(await fs.read(p));
+        } catch {
+          return null;
+        }
+      },
+      fileId: (p) => follow.fileId(p),
+      sha256File: (p) => follow.sha256File(p),
+      ownership: (p) => follow.ownership(p),
+      runVersion: async (candidate) => {
+        const r = await runProbe(deps.spawner, deps.timers, {
+          command: candidate,
+          argv: ["--version"],
+          env: scrubEnv(childEnv(), cs().envPassthrough),
+          cwd: emptyCwd,
+        });
+        if (r.code !== 0 || new TextEncoder().encode(r.out).byteLength > 4096) return null;
+        return r.out.split("\n")[0]?.trim() ?? null;
+      },
+      euid: follow.euid,
+      platform: follow.platform,
+      workspaceRoots: follow.workspaceRoots(),
+      tmpdir: deps.env.TMPDIR,
+    };
+    const candidate = await followPinUpdate(pin, io);
+    if (!candidate) {
+      const now = follow.fileId(resolved);
+      failedFollow = now ? { path: resolved, id: now } : null;
+      return null;
+    }
+    failedFollow = null;
+    const now = deps.clock.iso();
+    const candidatePin: BinaryPin = {
+      path: pin.path,
+      realpath: candidate.realpath,
+      sha256: candidate.sha256,
+      version: candidate.version,
+      pinnedAt: now,
+      by: "auto-update",
+      previousVersion: pin.version,
+    };
+    // The capability gate runs against the new binary (no version mismatch with the candidate pin).
+    const check = await probe(pin.path, candidatePin);
+    if (check.problems.some((p) => p.code === "E_AGENT_CAPABILITY" || p.code === "E_ENGINE_BINARY_CHANGED")) return null;
+    if (deps.pin) {
+      try {
+        await deps.pin(candidatePin);
+      } catch {
+        return null;
+      }
+    }
+    if (!deps.settings().pins.claude) tofu = candidatePin;
+    lastFollow = { from: pin.version, to: candidate.version, at: now };
+    deps.log.info("agent.claude.auto_follow", { from: pin.version, to: candidate.version, path: pin.path });
+    check.pin = candidatePin;
+    check.followed = lastFollow;
+    return check;
+  };
+
+  /** Latest auto-follow notice: this daemon's memory first, else the persisted pin's `previousVersion`. */
+  const followedOf = (s: EngineStatus): { from: string; to: string; at: string } | undefined => {
+    if (lastFollow) return lastFollow;
+    const pin = s.pin;
+    if (pin?.by === "auto-update" && pin.previousVersion) return { from: pin.previousVersion, to: pin.version, at: pin.pinnedAt };
+    return undefined;
+  };
+
   const detect = async (): Promise<EngineStatus> => {
     const now = deps.clock.now();
     if (status && status.launch === launchIdentity() && status.s.problems.length === 0 && now - status.at < DETECT_TTL_MS) return status.s;
@@ -364,9 +477,17 @@ export function createClaudeCliEngine(deps: ClaudeEngineDeps): ClaudeCliEngine {
           s = await probe(null, undefined);
           s.problems = [{ code: e.code, message: e.message }];
         }
+        // Vendor auto-update (WP28): the approved entry (`pin.path`) now resolves to a new binary. Follow it
+        // only after the SEC-10 / `--version` / capability re-checks; any failure keeps `s` unchanged (§B).
+        if (initialPin && s.version && s.version !== initialPin.version && s.problems.some((p) => p.code === "E_ENGINE_BINARY_CHANGED")) {
+          const next = await tryFollow(initialPin, probe);
+          if (next) s = next;
+        }
         if (!cs().enabled) s.problems.unshift({ code: "E_AGENT_NOT_INSTALLED", message: "claude-cli is disabled in settings" });
         // ANTHROPIC_BASE_URL reaches the CLI only via envPassthrough; the engine card says "via proxy" (spec §6.4)
         if (cs().envPassthrough.includes("ANTHROPIC_BASE_URL") && typeof deps.env.ANTHROPIC_BASE_URL === "string") s.capabilities.push("via-proxy");
+        const followed = followedOf(s);
+        if (followed) s.followed = followed;
         status = { s, at: deps.clock.now(), launch: JSON.stringify([initialSettings, initialPin ?? s.pin ?? null]) };
         return s;
       } finally {

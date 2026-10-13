@@ -94,5 +94,9 @@
   "map.context.outside": "Outside: {names}",
   "engine.step.installNix": "Install or update the CLI with the provider's official instructions",
   "engine.step.museSetup": "Muse updated itself and the registered binary is gone. Run this in a terminal to register the new version",
-  "engine.step.providerSetup": "Check the selected provider installation and authentication instructions, and the configured executable"
+  "engine.step.providerSetup": "Check the selected provider installation and authentication instructions, and the configured executable",
+  "engine.followed": "Switched to the new version automatically ({from} → {to})",
+  "engine.binaryChanged.body": "The executable was updated from {from} to {to}, but it did not pass mitori's safety checks, so it was not switched automatically. Re-register it with the steps below.",
+  "engine.step.providerSetupCmd": "Run this in a terminal to check and register the new version",
+  "engine.step.codexVersion": "mitori supports Codex {version}. Re-running setup will not fix this; updating mitori (git pull) may support the new version"
 }

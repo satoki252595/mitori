@@ -4,7 +4,17 @@ import type { EngineStatus, MapView } from "@mitori/core";
 import { buildPlanModel, hydratePlan, MAP_SVG_LABELS, mapSvgPresentation, planData, renderPlanSvg } from "@mitori/core";
 import { ROOM_LOD, UI_THRESHOLDS } from "../contract.ts";
 import { cameraForK, centreOn, fitCamera, K_MAX, K_MIN, lerpCamera, lodClass, STAGE_K, stageOf, stepStageK, zoomAt } from "./camera.ts";
-import { engineProblem, fixSteps, museUpdated, policyAcknowledged } from "./engine.ts";
+import {
+  changedVersions,
+  claudeBinaryChanged,
+  codexBinaryChanged,
+  codexVerifiedVersion,
+  engineProblem,
+  fixSteps,
+  museUpdated,
+  policyAcknowledged,
+  setupCommandFor,
+} from "./engine.ts";
 import { generatedTokens, heroAreas, heroMeta, oneSentence } from "./hero.ts";
 import {
   FLOW_BULGE,
@@ -371,6 +381,82 @@ describe("AC-U-EN engine card: exact steps, the last one re-probes", () => {
       { key: "museSetup", cmd: "bun run start -- setup muse" },
       { key: "recheck" },
     ]);
+  });
+});
+
+describe("WP28 vendor-update follow display (spec §B)", () => {
+  const claudeChanged: EngineStatus = {
+    engine: "claude-cli",
+    installed: true,
+    version: "2.1.200 (Claude Code)",
+    path: "/home/u/.local/bin/claude",
+    auth: "subscription",
+    capabilities: [],
+    billing: "unknown",
+    problems: [{ code: "E_ENGINE_BINARY_CHANGED", message: "claude changed from 2.1.100 to 2.1.200" }],
+    pin: {
+      path: "/home/u/.local/bin/claude",
+      realpath: "/home/u/.local/share/claude/versions/2.1.100",
+      sha256: "0".repeat(64),
+      version: "2.1.100 (Claude Code)",
+      pinnedAt: "2026-10-01T00:00:00.000Z" as never,
+      by: "user",
+    },
+    checkedAt: "2026-10-13T00:00:00Z" as never,
+  };
+  const codexUnverified: EngineStatus = {
+    engine: "codex-cli",
+    installed: false,
+    version: "codex-cli 9.999.9",
+    path: "/home/u/.local/bin/codex",
+    auth: "none",
+    capabilities: [],
+    billing: "unknown",
+    problems: [{ code: "E_AGENT_CAPABILITY", message: "Codex apply_patch profile requires verified version 0.160.0" }],
+    checkedAt: "2026-10-13T00:00:00Z" as never,
+  };
+  test("Claude binary change is detected and gets the setup command, not Nix install guidance", () => {
+    expect(claudeBinaryChanged(claudeChanged)).toBe(true);
+    expect(claudeBinaryChanged({ engine: "claude-cli", problems: [{ code: "E_AGENT_AUTH", message: "x" }] })).toBe(false);
+    // capability loss no longer suggests installing via Nix (that never fixed a changed binary)
+    expect(fixSteps("capabilityLost").some((s) => s.key === "installNix")).toBe(false);
+    expect(fixSteps("capabilityLost", "claude-cli", { setupCmd: "mitori setup claude" })).toEqual([
+      { key: "providerSetupCmd", cmd: "mitori setup claude" },
+      { key: "recheck" },
+    ]);
+  });
+  test("Codex unverified version shows the version notice; the setup command is still copyable", () => {
+    expect(codexVerifiedVersion(codexUnverified)).toBe("0.160.0");
+    expect(codexVerifiedVersion(claudeChanged)).toBeNull();
+    expect(codexBinaryChanged(codexUnverified)).toBe(false);
+    expect(fixSteps("capabilityLost", "codex-cli", { setupCmd: "mitori setup codex --native", codexVersion: "0.160.0" })[0]).toEqual({
+      key: "codexVersion",
+      params: { version: "0.160.0" },
+    });
+    expect(fixSteps("capabilityLost", "codex-cli", { codexVersion: "0.160.0" })).toEqual([
+      { key: "codexVersion", params: { version: "0.160.0" } },
+      { key: "providerSetup" },
+      { key: "recheck" },
+    ]);
+  });
+  test("old → new versions come from the status (pin, else the Muse path)", () => {
+    expect(changedVersions(claudeChanged)).toEqual({ from: "2.1.100 (Claude Code)", to: "2.1.200 (Claude Code)" });
+    expect(changedVersions({ version: "9.999.9", path: "/b/muse-bin-1.4.7", pin: undefined })).toEqual({ from: "1.4.7", to: "9.999.9" });
+    expect(changedVersions({ version: "1.4.7", path: "/b/muse-bin-1.4.7", pin: undefined })).toBeNull();
+    expect(changedVersions({ version: undefined, path: "/b/muse-bin-1.4.7", pin: undefined })).toBeNull();
+  });
+  test("setupCommandFor keeps previous selections (Muse effort/model, Codex budget)", () => {
+    const muse = setupCommandFor("generic", { model: "muse-spark-1.3-contributor", effort: "max" });
+    expect(muse).toContain("setup muse");
+    expect(muse).toContain("--effort");
+    expect(muse).toContain("max");
+    expect(setupCommandFor("claude-cli", {})).toContain("setup claude");
+    const codex = setupCommandFor("codex-cli", { model: "gpt-6.1-sol", effort: "high", codexMaxUsd: 1 });
+    expect(codex).toContain("setup codex");
+    expect(codex).toContain("--native");
+    expect(codex).toContain("--max-estimated-usd");
+    expect(setupCommandFor("codex-cli", {})).toBeNull();
+    expect(setupCommandFor("session", {})).toBeNull();
   });
 });
 

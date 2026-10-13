@@ -7,6 +7,7 @@ import {
   type FsReader,
   type GlobalSettings,
   type Hasher,
+  type Logger,
   MitoriError,
   priceUsage,
 } from "@mitori/core";
@@ -15,6 +16,7 @@ import { scrubEnv } from "../claude/env.ts";
 import type { SandboxStore } from "../claude/fsports.ts";
 import { firstRunPin, isBareName, resolveOnSafePath, untrustedOnFirstUse } from "../claude/resolve.ts";
 import { type ChildHandle, type Engine, type EngineRequest, type EngineRun, SIGINT_GRACE_MS, type Spawner } from "../contract.ts";
+import { type FileId, type FollowIo, type FollowPorts, followPinUpdate, sameFileId } from "../follow.ts";
 import { RESULT_META, RelayRun, zeroUsage } from "../util/run.ts";
 import type { Timers } from "../util/timers.ts";
 import { CODEX_VERSION, codexCatalog, codexPreflight } from "./codex-policy.ts";
@@ -35,6 +37,14 @@ interface CodexDeps {
   sandbox: SandboxStore;
   prepareConfig(): Promise<{ root: string; auth: "subscription" | "none"; cleanup(): Promise<void> }>;
   pin?(pin: BinaryPin): Promise<void>;
+  /**
+   * Vendor-update auto-follow (WP28): POSIX ownership + file identity for the re-check, one streamed hash,
+   * and workspace roots for the SEC-10 path check. Absent ⇒ a changed binary keeps reporting
+   * `E_AGENT_CAPABILITY` (spec §B).
+   */
+  follow?: FollowPorts;
+  /** Daemon log for the one auto-follow line (absent in unit tests). */
+  log?: Logger;
 }
 
 const enc = new TextEncoder();
@@ -43,8 +53,82 @@ const bytes = (text: string) => enc.encode(text).length;
 /** No native shell/Read/MCP; native apply_patch is OS-scoped, then ordinary loop review/gates apply. */
 export function createCodexEngine(deps: CodexDeps): Engine {
   let tofu: BinaryPin | undefined;
+  /** Latest vendor-update follow of this daemon (shown as 「旧版→新版」; lost on restart, the log keeps it). */
+  let lastFollow: { from: string; to: string; at: string } | null = null;
+  /** Last follow attempt that failed: the same candidate is not re-probed (WP28b; lost on restart). */
+  let failedFollow: { path: string; id: FileId } | null = null;
   const secrets = createSecretScanner();
   const cfg = () => deps.settings().engines["codex-cli"];
+  /**
+   * Follow a vendor update of the pinned binary (WP28 §A): the saved `pin.path` re-resolved, SEC-10 path +
+   * POSIX ownership re-checked, `--version` re-verified like `setup-pin`, and the version must still be the
+   * mitori-verified `CODEX_VERSION` (that policy never changes). Persists the new pin and returns it with the
+   * follow notice, or `null` when any check fails (the caller keeps the `E_AGENT_CAPABILITY` status; §B).
+   */
+  const tryFollow = async (pin: BinaryPin): Promise<{ pin: BinaryPin; followed: { from: string; to: string; at: string } } | null> => {
+    if (!deps.follow || !deps.fs) return null;
+    const fs = deps.fs;
+    const follow = deps.follow;
+    // A failed candidate is not re-probed while its path and identity are unchanged (WP28b).
+    const resolved = fs.realpath(pin.path);
+    if (!resolved || resolved === pin.realpath) return null;
+    const id = follow.fileId(resolved);
+    if (id && failedFollow && failedFollow.path === resolved && sameFileId(failedFollow.id, id)) return null;
+    const io: FollowIo = {
+      realpath: (p) => fs.realpath(p),
+      statIsFile: (p) => fs.stat(p)?.isFile === true,
+      readText: async (p) => {
+        try {
+          return new TextDecoder().decode(await fs.read(p));
+        } catch {
+          return null;
+        }
+      },
+      fileId: (p) => follow.fileId(p),
+      sha256File: (p) => follow.sha256File(p),
+      ownership: (p) => follow.ownership(p),
+      runVersion: async (candidate) => {
+        const env = scrubEnv({ ...deps.env, PATH: deps.safePath }, []);
+        const r = await runProbe(deps.spawner, deps.timers, { command: candidate, argv: ["--version"], env, cwd: "/" });
+        if (r.code !== 0 || new TextEncoder().encode(r.out).byteLength > 4096) return null;
+        return r.out.split("\n")[0]?.trim() ?? null;
+      },
+      euid: follow.euid,
+      platform: follow.platform,
+      workspaceRoots: follow.workspaceRoots(),
+      tmpdir: deps.env.TMPDIR,
+    };
+    const candidate = await followPinUpdate(pin, io);
+    if (!candidate) {
+      const now = follow.fileId(resolved);
+      failedFollow = now ? { path: resolved, id: now } : null;
+      return null;
+    }
+    failedFollow = null;
+    if (!new RegExp(`^codex(?:-cli)? ${CODEX_VERSION.replaceAll(".", "\\.")}$`).test(candidate.version)) return null;
+    const now = deps.clock.iso();
+    const next: BinaryPin = {
+      path: pin.path,
+      realpath: candidate.realpath,
+      sha256: candidate.sha256,
+      version: candidate.version,
+      pinnedAt: now,
+      by: "auto-update",
+      previousVersion: pin.version,
+    };
+    if (deps.pin) {
+      try {
+        await deps.pin(next);
+      } catch {
+        return null;
+      }
+    }
+    if (!deps.settings().pins.codex) tofu = next;
+    const followed = { from: pin.version, to: candidate.version, at: now };
+    lastFollow = followed;
+    deps.log?.info("agent.codex.auto_follow", { from: pin.version, to: candidate.version, path: pin.path });
+    return { pin: next, followed };
+  };
   const detect = async (): Promise<EngineStatus> => {
     const problems: EngineStatus["problems"] = [];
     let bin: BinaryPin | undefined = deps.settings().pins.codex ?? tofu;
@@ -57,13 +141,27 @@ export function createCodexEngine(deps: CodexDeps): Engine {
         throw new MitoriError("E_CFG_INVALID", "Codex requires explicit estimated spend consent; native thinking has no hard token cap");
       if (!deps.fs) throw new MitoriError("E_PRECONDITION", "Codex filesystem ports are not wired");
       const name = cfg().binary;
-      const found = bin ?? (isBareName(name) ? resolveOnSafePath(deps.fs, deps.safePath, name) : { path: name, realpath: deps.fs.realpath(name) ?? "" });
+      let found = bin ?? (isBareName(name) ? resolveOnSafePath(deps.fs, deps.safePath, name) : { path: name, realpath: deps.fs.realpath(name) ?? "" });
+      // A vendor update moves the approved entry's target (the old file is gone): resolve it before the check.
+      if (bin) {
+        const resolved = deps.fs.realpath(bin.path);
+        if (resolved) found = { path: bin.path, realpath: resolved };
+      }
       if (!found?.realpath.startsWith("/") || !deps.fs.stat(found.realpath)?.isFile)
         throw new MitoriError("E_AGENT_NOT_INSTALLED", "Codex native binary was not found on SAFE_PATH");
       if (!bin && untrustedOnFirstUse(found, deps.env.TMPDIR))
         throw new MitoriError("E_AGENT_CAPABILITY", "Codex binary in a temporary directory needs explicit repinning");
-      if (bin && (deps.fs.realpath(bin.path) !== bin.realpath || deps.hasher.sha256(await deps.fs.read(bin.realpath)) !== bin.sha256))
-        throw new MitoriError("E_AGENT_CAPABILITY", "Codex binary changed; repin after human review");
+      if (bin && (deps.fs.realpath(bin.path) !== bin.realpath || deps.hasher.sha256(await deps.fs.read(bin.realpath)) !== bin.sha256)) {
+        // Vendor auto-update (WP28): follow the approved entry when every re-check passes; an unverified
+        // version or any other failure keeps the human-review error (that policy never changes; §B).
+        const next = await tryFollow(bin);
+        if (!next)
+          throw new MitoriError("E_AGENT_CAPABILITY", "Codex binary changed; repin after human review", {
+            hint: "re-register it with the setup command on the engine card (`mitori setup codex --native --max-estimated-usd <usd>`); an unverified version needs a mitori update (`git pull`)",
+          });
+        bin = next.pin;
+        found = bin;
+      }
       const isolated = await deps.prepareConfig();
       try {
         auth = isolated.auth;
@@ -71,7 +169,9 @@ export function createCodexEngine(deps: CodexDeps): Engine {
         const probe = await runProbe(deps.spawner, deps.timers, { command: found.realpath, argv: ["--version"], env, cwd: isolated.root });
         version = probe.out.trim();
         if (probe.code !== 0 || !new RegExp(`^codex(?:-cli)? ${CODEX_VERSION.replaceAll(".", "\\.")}$`).test(version))
-          throw new MitoriError("E_AGENT_CAPABILITY", `Codex apply_patch profile requires verified version ${CODEX_VERSION}`);
+          throw new MitoriError("E_AGENT_CAPABILITY", `Codex apply_patch profile requires verified version ${CODEX_VERSION}`, {
+            hint: `mitori supports Codex CLI ${CODEX_VERSION}; a newer mitori (\`git pull\`) may support the installed version`,
+          });
         if (!bin) {
           bin = await firstRunPin(deps.fs, deps.hasher, found, version, deps.clock.iso());
           tofu = bin;
@@ -85,7 +185,7 @@ export function createCodexEngine(deps: CodexDeps): Engine {
       const e = MitoriError.from(err);
       problems.push({ code: e.code, message: e.message });
     }
-    return {
+    const out: EngineStatus = {
       engine: "codex-cli",
       installed: !!bin && problems.every((p) => p.code === "E_AGENT_AUTH"),
       auth,
@@ -95,6 +195,13 @@ export function createCodexEngine(deps: CodexDeps): Engine {
       checkedAt: deps.clock.iso(),
       ...(bin ? { path: bin.path, version } : {}),
     };
+    // Latest auto-follow notice: this daemon's memory first, else the persisted pin's `previousVersion`.
+    const followed = lastFollow ?? (bin?.by === "auto-update" && bin.previousVersion ? { from: bin.previousVersion, to: bin.version, at: bin.pinnedAt } : null);
+    if (followed) {
+      out.followed = followed;
+      if (bin) out.pin = bin;
+    }
+    return out;
   };
 
   const run = (req: EngineRequest, signal: Cancel): EngineRun => {

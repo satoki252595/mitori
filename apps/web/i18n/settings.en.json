@@ -94,5 +94,8 @@
   "settings.themeSystem": "Follow the system",
   "settings.timeout": "Generation turn timeout (seconds; blank = 120 seconds)",
   "settings.title": "Settings",
-  "settings.useApi": "Connect with an API key (check its pricing and allowance)"
+  "settings.useApi": "Connect with an API key (check its pricing and allowance)",
+  "settings.claudeChanged": "Claude Code updated and no longer matches the registered binary. Run this in a terminal to register the new version.",
+  "settings.codexChanged": "The Codex binary changed. Run this in a terminal to verify and register the new version.",
+  "settings.codexVersion": "mitori supports Codex {version}. Re-running setup will not fix this; updating mitori (git pull) may support the new version"
 }

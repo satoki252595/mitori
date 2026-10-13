@@ -94,5 +94,9 @@
   "map.context.outside": "外とのやり取り: {names}",
   "engine.step.installNix": "提供元の公式手順でCLIをインストール・更新する",
   "engine.step.museSetup": "Museが自動更新され、登録済みの実行ファイルがなくなりました。端末で次を実行し、新しい版を登録する",
-  "engine.step.providerSetup": "選択した提供元のインストール・認証手順と、設定の実行ファイルを確認する"
+  "engine.step.providerSetup": "選択した提供元のインストール・認証手順と、設定の実行ファイルを確認する",
+  "engine.followed": "新しい版に自動で切り替えました（{from} → {to}）",
+  "engine.binaryChanged.body": "実行ファイルが{from}から{to}に更新されましたが、mitoriの安全確認を通らなかったため自動では切り替えていません。下の手順で登録し直してください。",
+  "engine.step.providerSetupCmd": "端末で次のコマンドを実行し、新しい版を確認して登録する",
+  "engine.step.codexVersion": "mitoriで確認済みのCodexは{version}です。setupをやり直しても直りません。mitoriを更新（git pull）すると新しい版に対応している場合があります"
 }

@@ -20,6 +20,7 @@ import type {
 } from "@mitori/core";
 import type { FetchLike } from "../adapters/anthropic-engine.ts";
 import type { AgentScheduler, Engine, Spawner, UsageLedger } from "../contract.ts";
+import type { FollowPorts } from "../follow.ts";
 import { LEDGER_MIGRATIONS } from "../ledger/migrations.ts";
 import { assembleBridge } from "./assemble.ts";
 
@@ -68,6 +69,14 @@ export function createAgentBridge(deps: {
    * pins `claude` on SAFE_PATH for this daemon's lifetime, so the engine card is usable on a fresh install.
    */
   pin?: (engine: EngineId, pin: BinaryPin) => Promise<void>;
+  /**
+   * Vendor-update auto-follow (WP28): POSIX ownership + file identity for the re-check, one streamed hash,
+   * and workspace roots for the SEC-10 path check. Absent ⇒ changed binaries keep reporting
+   * `E_ENGINE_BINARY_CHANGED` / gone-binary (spec §B).
+   */
+  follow?: FollowPorts;
+  /** Persist a followed Muse binary into `engines.generic.argv[0]` (daemon-internal; web PATCH stays closed). */
+  saveGenericBinary?: (path: string) => Promise<void>;
 }): { scheduler: AgentScheduler; engines: Record<EngineId, Engine | null> } {
   return assembleBridge(deps);
 }

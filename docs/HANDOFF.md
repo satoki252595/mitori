@@ -55,6 +55,8 @@
 
 2026-10-13 の追加分（WP27: 毎晩の性能測定の廃止）。`.github/workflows/bench.yml`（毎晩 03:00 JST、全項目の head vs `HEAD~1` 比較）は 2026-10-05 以降 80 分超で 90 分の時間切れが続き結果が一度も出ず、その間 Mac の runner を占有して PR の `browsers` ジョブを待たせていたため、利用者の判断でこの監視は不要として `.github/workflows/bench.yml` を削除した。手元の測定道具（`bun run bench`・`bench:compare`・`bench/runner/run.ts`・`bench/budgets*`・`check` の budgets 検査）と `ci.yml` の `browsers` ジョブは残し、正式な絶対値の測定は静かな Mac で手で行う（例: `scripts/nd bun bench/runner/run.ts --id <id> --exact --absolute --out <json>`）。
 
+2026-10-13 の追加分（WP28: 各社 CLI の更新への自動追従。利用者の要望「各社のアップデートに自動対応。もしくは検知して再度手順を実行できる仕様に」）。Claude（保存済み `pin.path` の symlink の先）・Muse（保存済み `argv[0]` と同じディレクトリの `.muse-version` が示す `muse-bin-<ver>`）・Codex（同じく `pin.path` の先、ただし版が確認済みの `0.160.0` のときだけ）の入れ替わりを、detect 時・生成の開始前・起動時に、SEC-10 の置き場所の検査、持ち主・権限（POSIX、Windows は追従しない）、`--version` の再確認（前後で `fileId` と realpath が同じ）、各エンジンの安全確認（Claude の capability・Codex の版・Muse の text-only と設定）を通したときだけ自動で追従する。保存は Claude・Codex が `BinaryPin`（`by: "auto-update"`・`previousVersion`）、Muse は `engines.generic.argv[0]` だけ（残りの argv は不変）。daemon のログに1行、画面に「新しい版に自動で切り替えました（旧版 → 新版）」（`EngineStatus.followed`）。実行ファイルは丸ごと読まず、sha256 は Claude・Codex で1回だけ流し読み（Muse は取らない）。失敗した候補は覚えて、変わるまで確かめ直さない。追従できないときは地図のエンジンカードと設定画面に理由とコピーできる `setup …`（前のモデル・思考の強さ・予算を引き継ぐ。Codex の未確認版は `git pull` の案内）、CLI の失敗時と `doctor` に同じ1行。これまで配線されていなかった初回 pin の保存（CR m1-65）も composition root でつないだので、Claude の初回 pin も設定に残る。契約は任意フィールドの追加だけ（CR wp28-1）。確認: agent・server・cli・web・core の単体テスト（1,003件中 999 成功・4 省略・失敗0。doctor が一部の設定で止まる不具合はレビューで修正）、ホストの `e2e/web`（gen-card・settings・map、3ブラウザ 84 件成功）、一時の `MITORI_HOME` に実際の設定を写した実機確認（`muse-bin-1.4.6-R6000.1` が無い状態から daemon が `muse-bin-1.4.7-R6101.1` へ自動で切り替え、argv の残り 23 項目は不変、ログ `agent.generic.auto_follow`）。
+
 ## 3. 残っていること
 
 | 残件 | 状態 | 次の一手 |

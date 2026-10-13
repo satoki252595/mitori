@@ -22,6 +22,7 @@ import { createGenericEngine } from "../adapters/generic-engine.ts";
 import { createClaudeCliEngine } from "../claude/engine.ts";
 import { type BridgeFs, createSandboxStore, EMPTY_REL } from "../claude/fsports.ts";
 import type { AgentScheduler, Engine, EngineResult, ScheduledRequest, Spawner, UsageLedger } from "../contract.ts";
+import type { FollowPorts } from "../follow.ts";
 import type { UsageLedgerImpl } from "../ledger/ledger.ts";
 import { baseModelId } from "../normalize/result.ts";
 import { createAgentScheduler } from "../scheduler/scheduler.ts";
@@ -34,6 +35,14 @@ export interface BridgeExtraDeps extends BridgeFs {
   fetch: FetchLike;
   /** Persist a first-run binary pin into settings `pins` [CR m1-65]. Absent ⇒ the pin lives for this daemon only. */
   pin: (engine: EngineId, pin: BinaryPin) => Promise<void>;
+  /**
+   * Vendor-update auto-follow (WP28): POSIX ownership + file identity for the re-check, one streamed hash,
+   * and workspace roots for the SEC-10 path check. Absent ⇒ changed binaries keep reporting
+   * `E_ENGINE_BINARY_CHANGED` / gone-binary (spec §B).
+   */
+  follow?: FollowPorts;
+  /** Persist a followed Muse binary into `engines.generic.argv[0]` (daemon-internal; web PATCH stays closed). */
+  saveGenericBinary?: (path: string) => Promise<void>;
 }
 
 export interface BridgeDeps {
@@ -103,6 +112,7 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     window: () => scheduler?.window() ?? null,
     fs: ports?.fs ?? null,
     ...(deps.pin ? { pin: (p: BinaryPin) => deps.pin?.("claude-cli", p) ?? Promise.resolve() } : {}),
+    ...(deps.follow ? { follow: deps.follow } : {}),
   });
   const anthropic = createAnthropicApiEngine({
     settings: deps.settings,
@@ -121,7 +131,9 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     emptyCwd: `${home}/${EMPTY_REL}`,
     ensureEmptyCwd: () => sandbox.ensureEmptyCwd(),
     systemPromptFile: (text) => sandbox.systemPromptFile(text),
-    ...(ports ? { binaryExists: (path: string) => ports.fs.stat(path)?.isFile === true } : {}),
+    ...(ports ? { binaryExists: (path: string) => ports.fs.stat(path)?.isFile === true, fs: ports.fs } : {}),
+    ...(deps.follow ? { follow: deps.follow } : {}),
+    ...(deps.saveGenericBinary ? { saveBinary: deps.saveGenericBinary } : {}),
     prepareMuseConfig: async () => {
       if (!ports) throw new MitoriError("E_PRECONDITION", "Muse config storage is not wired");
       const sourceRoot = deps.env.XDG_CONFIG_HOME ?? (deps.env.HOME ? `${deps.env.HOME}/.config` : null);
@@ -190,6 +202,8 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     fs: ports?.fs ?? null,
     sandbox,
     ...(deps.pin ? { pin: (p: BinaryPin) => deps.pin?.("codex-cli", p) ?? Promise.resolve() } : {}),
+    ...(deps.follow ? { follow: deps.follow } : {}),
+    log: deps.log,
     prepareConfig: async () => {
       if (!ports) throw new MitoriError("E_PRECONDITION", "Codex config storage is not wired");
       const sourceRoot = deps.env.CODEX_HOME ?? (deps.env.HOME ? `${deps.env.HOME}/.codex` : null);

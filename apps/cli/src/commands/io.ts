@@ -68,6 +68,7 @@ const HINTS: Partial<Record<ErrorCode, string>> = {
   E_TTY_REQUIRED: "run it yourself in a terminal (agents cannot confirm it)",
   E_UNSUPPORTED: "this mitori daemon does not serve it yet",
   E_NOT_READY: "the workspace is still loading; try again in a moment",
+  E_ENGINE_BINARY_CHANGED: "the engine binary changed after a vendor update: run `mitori setup claude` again to register it",
 };
 
 /** Exit code + stderr text of an error that escaped a command (usage errors 2, everything else 1). */

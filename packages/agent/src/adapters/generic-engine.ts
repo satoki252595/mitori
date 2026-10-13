@@ -9,7 +9,9 @@ import {
   MitoriError,
   priceUsage,
 } from "@mitori/core";
+import { runProbe } from "../claude/detect.ts";
 import { type ChildHandle, type Engine, type EngineRequest, type EngineResult, type EngineRun, SIGINT_GRACE_MS, type Spawner } from "../contract.ts";
+import { type FileId, type FollowIo, type FollowPorts, followMuseUpdate, museCandidateFor, sameFileId } from "../follow.ts";
 import { RESULT_META, RelayRun, zeroUsage } from "../util/run.ts";
 import type { Timers } from "../util/timers.ts";
 import type { FetchLike } from "./anthropic-engine.ts";
@@ -29,6 +31,16 @@ export interface GenericEngineDeps {
   policyPlan?: () => string;
   /** Whether the configured CLI still exists (Muse's self-update deletes the previous versioned native binary). */
   binaryExists?: (path: string) => boolean;
+  /** Read the Muse `.muse-version` marker / candidate binary (null ⇒ no auto-follow; only `binaryExists` applies). */
+  fs?: { read: (abs: string) => Promise<Uint8Array>; stat: (abs: string) => { isFile: boolean } | null; realpath: (abs: string) => string | null } | null;
+  /**
+   * Vendor-update auto-follow (WP28): POSIX ownership + file identity for the re-check and workspace roots
+   * for the SEC-10 path check (Muse has no pin, so no hash is taken). Absent ⇒ a gone binary keeps
+   * reporting `E_AGENT_NOT_INSTALLED` (spec §B).
+   */
+  follow?: FollowPorts;
+  /** Persist a followed Muse binary (composition root → `engines.generic.argv[0]`, daemon-internal). */
+  saveBinary?: (path: string) => Promise<void>;
   /** Fail closed when user-local ordinary hooks/MCP/extension config would bypass the text-only profile. */
   validateMuseConfig?: () => Promise<void>;
   /** Private per-call text-only settings and a credential copy; cleanup runs after the child exits. */
@@ -46,9 +58,116 @@ const STDOUT_MAX = 1024 * 1024;
 export function createGenericEngine(deps: GenericEngineDeps): Engine {
   const cfg = () => deps.settings().engines.generic;
   const secrets = createSecretScanner();
+  /** Latest vendor-update follow of this daemon (Muse has no pin; shown as 「旧版→新版」, lost on restart). */
+  let lastFollow: { from: string; to: string; at: string } | null = null;
+  /** Last follow attempt that failed: the same marker + candidate is not re-probed (WP28b; lost on restart). */
+  let failedFollow: { path: string; id: FileId; marker: string } | null = null;
+
+  /**
+   * Follow a Muse self-update (WP28 §A): the `.muse-version` marker in the same directory as the saved
+   * `argv[0]` names the successor (`binaryOf` rule); only `argv[0]` changes, the rest of argv (model,
+   * effort, …) is preserved. SEC-10 path + POSIX ownership re-checked, `--version` re-verified like
+   * `setup-pin`, and the Muse text-only argv + config gates must still pass. Returns the followed status,
+   * or `null` when there is no successor or any check fails (the caller keeps the gone-binary status; §B).
+   */
+  const tryFollowMuse = async (argv0: string): Promise<EngineStatus | null> => {
+    if (!deps.follow || !deps.fs || !deps.saveBinary) return null;
+    const fs = deps.fs;
+    const follow = deps.follow;
+    // A failed marker + candidate is not re-probed while both are unchanged (WP28b).
+    const dir = argv0.slice(0, argv0.lastIndexOf("/")) || "/";
+    const markerPath = `${dir.replace(/\/+$/, "")}/.muse-version`;
+    let marker: string | null = null;
+    try {
+      marker = new TextDecoder().decode(await fs.read(markerPath));
+    } catch {
+      return null;
+    }
+    const candidatePath = museCandidateFor(dir, marker, argv0);
+    if (!candidatePath) return null;
+    const id = follow.fileId(candidatePath);
+    if (id && failedFollow && failedFollow.path === candidatePath && failedFollow.marker === marker && sameFileId(failedFollow.id, id)) return null;
+    const io: FollowIo = {
+      realpath: (p) => fs.realpath(p),
+      statIsFile: (p) => fs.stat(p)?.isFile === true,
+      readText: async (p) => {
+        try {
+          return new TextDecoder().decode(await fs.read(p));
+        } catch {
+          return null;
+        }
+      },
+      fileId: (p) => follow.fileId(p),
+      sha256File: (p) => follow.sha256File(p),
+      ownership: (p) => follow.ownership(p),
+      runVersion: async (candidate) => {
+        const env: Record<string, string> = { PATH: deps.safePath };
+        if (typeof deps.env.HOME === "string") env.HOME = deps.env.HOME;
+        const r = await runProbe(deps.spawner, deps.timers, { command: candidate, argv: ["--version"], env, cwd: deps.emptyCwd });
+        if (r.code !== 0 || new TextEncoder().encode(r.out).byteLength > 4096) return null;
+        return r.out.split("\n")[0]?.trim() ?? null;
+      },
+      euid: follow.euid,
+      platform: follow.platform,
+      workspaceRoots: follow.workspaceRoots(),
+      tmpdir: typeof deps.env.TMPDIR === "string" ? deps.env.TMPDIR : undefined,
+    };
+    const rememberFailed = () => {
+      const now = follow.fileId(candidatePath);
+      failedFollow = now ? { path: candidatePath, id: now, marker } : null;
+    };
+    const candidate = await followMuseUpdate(argv0, io);
+    if (!candidate) {
+      rememberFailed();
+      return null;
+    }
+    // Engine safety gate: the text-only profile and the user-config isolation must still hold.
+    try {
+      assertMuseTextOnlyArgv(cfg().argv.slice(1));
+      if (!deps.validateMuseConfig) {
+        rememberFailed();
+        return null;
+      }
+      await deps.validateMuseConfig();
+    } catch {
+      rememberFailed();
+      return null;
+    }
+    try {
+      await deps.saveBinary(candidate.path);
+    } catch {
+      rememberFailed();
+      return null;
+    }
+    failedFollow = null;
+    // `from`/`to` are both the `muse-bin-<ver>` `<ver>` (the `.muse-version` text), never the `--version` line.
+    const from = /\/muse-bin-([^/]+)$/.exec(argv0)?.[1] ?? lastFollow?.to ?? "";
+    const at = deps.clock.iso();
+    lastFollow = { from, to: candidate.version, at };
+    deps.log.info("agent.generic.auto_follow", { from, to: candidate.version, path: candidate.path });
+    const s: EngineStatus = {
+      engine: "generic",
+      installed: true,
+      auth: "unknown",
+      capabilities: [],
+      billing: "unknown",
+      problems: [],
+      checkedAt: at,
+      path: candidate.path,
+      version: candidate.version,
+      followed: lastFollow,
+    };
+    if (deps.policyPlan) s.plan = deps.policyPlan();
+    return s;
+  };
 
   const detect = async (): Promise<EngineStatus> => {
     const c = cfg();
+    // Vendor auto-update (WP28): try the marker successor before reporting the binary as gone.
+    if (c.enabled && c.protocol === "muse-jsonl" && c.argv[0]?.startsWith("/") && deps.binaryExists && !deps.binaryExists(c.argv[0])) {
+      const next = await tryFollowMuse(c.argv[0]);
+      if (next) return next;
+    }
     const problems: EngineStatus["problems"] = [];
     if (!c.enabled) problems.push({ code: "E_AGENT_NOT_INSTALLED", message: "the generic engine is disabled" });
     let apiAuth: EngineStatus["auth"] = "unknown";
@@ -93,13 +212,14 @@ export function createGenericEngine(deps: GenericEngineDeps): Engine {
     };
     if (c.protocol !== "openai-chat" && c.argv[0]) s.path = c.argv[0];
     if (deps.policyPlan) s.plan = deps.policyPlan();
+    if (lastFollow) s.followed = lastFollow;
     return s;
   };
 
   const run = (req: EngineRequest, signal: Cancel): EngineRun => {
     if (cfg().protocol === "openai-chat") return runGenericApi(deps, req, signal);
     const outer = new RelayRun(deps.clock);
-    const settings = cfg();
+    let settings = cfg();
     const textRequest = {
       ...req,
       system: `Text-only request: do not call tools, read/write files, run commands, delegate, or start reminders. Use only the supplied context and return the requested text/JSON directly. Paths identify proposed edits; do not access them.\n\n${req.system}`,
@@ -119,6 +239,18 @@ export function createGenericEngine(deps: GenericEngineDeps): Engine {
       try {
         try {
           if (!settings.enabled) throw new MitoriError("E_AGENT_NOT_INSTALLED", "the generic engine is disabled");
+          // A Muse update between detects leaves a deleted binary behind: refresh (detect follows it) first —
+          // only when auto-follow is wired, otherwise detect could not change anything anyway.
+          if (
+            deps.follow &&
+            settings.protocol === "muse-jsonl" &&
+            settings.argv[0]?.startsWith("/") &&
+            deps.binaryExists &&
+            !deps.binaryExists(settings.argv[0])
+          ) {
+            await detect().catch(() => null);
+            settings = cfg();
+          }
           await deps.ensureEmptyCwd();
           const paths: { emptyCwd: string; promptFile?: string; museHooksFile?: string; museConfigRoot?: string } = { emptyCwd: deps.emptyCwd };
           if (settings.protocol === "muse-jsonl") {

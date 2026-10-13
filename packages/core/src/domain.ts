@@ -3336,9 +3336,16 @@ export interface BinaryPin {
   /**
    * Who pinned it: `first-run` = resolved on SAFE_PATH at the first daemon start with no pin (trust on first use,
    * shown on the engine card as 「初回に固定」 with a re-pin action); absent / `user` = confirmed by the human
-   * (`POST /engines/:engine/repin`) [CR m1-65].
+   * (`POST /engines/:engine/repin`); `auto-update` = the daemon followed a vendor update through the approved
+   * entry (the saved `pin.path` symlink or the Muse `.muse-version` marker) after re-checking SEC-10,
+   * `--version` and the engine capability gate [CR wp28-1].
    */
-  by?: "first-run" | "user";
+  by?: "first-run" | "user" | "auto-update";
+  /**
+   * Previous `--version` line before an `auto-update` follow (shown as 「旧版→新版」 on the engine card).
+   * Set only when `by` is `"auto-update"`.
+   */
+  previousVersion?: string;
 }
 
 /** Per-workspace overrides stored in the GLOBAL config. */

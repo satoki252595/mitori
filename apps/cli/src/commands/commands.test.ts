@@ -313,4 +313,55 @@ describe("usage / stop / doctor", () => {
     expect(none.spawned).toEqual([]);
     expect(await runCommand("doctor", io(["--calibrate"]))).toBe(1);
   });
+
+  test("WP28 doctor: engines the daemon could not follow print the same one-line re-setup command", async () => {
+    d.route("GET /daemon", () => ({
+      version: "9.9.9",
+      pid: process.pid,
+      port: d.port,
+      uptimeSec: 120,
+      workspaces: [WS],
+      scheduler: {},
+      engines: [
+        {
+          engine: "claude-cli",
+          installed: true,
+          version: "2.1.200 (Claude Code)",
+          path: "/home/u/.local/bin/claude",
+          auth: "subscription",
+          capabilities: [],
+          billing: "unknown",
+          problems: [{ code: "E_ENGINE_BINARY_CHANGED", message: "claude changed from 2.1.100 to 2.1.200" }],
+          checkedAt: "",
+        },
+        {
+          engine: "codex-cli",
+          installed: false,
+          version: "codex-cli 9.999.9",
+          auth: "none",
+          capabilities: [],
+          billing: "unknown",
+          problems: [{ code: "E_AGENT_CAPABILITY", message: "Codex apply_patch profile requires verified version 0.160.0" }],
+          checkedAt: "",
+        },
+      ],
+      rssMb: 40,
+    }));
+    d.route("GET /settings", () => ({
+      settings: {
+        defaultEngine: "claude-cli",
+        defaultGenEngine: "codex-cli",
+        models: { genModule: "claude-sonnet-5-5" },
+        reasoning: { gen: "low" },
+        engines: { "codex-cli": { model: "gpt-6.1-sol", maxEstimatedSpendUsd: 1 } },
+      },
+      version: 1,
+    }));
+    d.route("GET /integrations", () => []);
+    const t = io([]);
+    expect(await runCommand("doctor", t)).toBe(1);
+    expect(t.stdout).toContain("`mitori setup claude`");
+    expect(t.stdout).toContain("0.160.0");
+    expect(t.stdout).toContain("git pull");
+  });
 });
