@@ -4,6 +4,7 @@
  * anchor engine → renderer/layouter pools → WorkspaceManager.assemble (per workspace: indexer → doc → gen → loop,
  * wiring/workspace.ts) → HTTP (domain route adapters, wiring/routes.ts).
  */
+import { statSync } from "node:fs";
 import { isAbsolute, relative, sep } from "node:path";
 import { createAgentBridge, createUsageLedger, type Engine } from "@mitori/agent";
 import { createAnchorEngine } from "@mitori/anchor";
@@ -24,6 +25,7 @@ import { INVENTORY_SETS } from "@mitori/indexer";
 import { createInstaller, type Installer } from "@mitori/loop";
 import { runMigrations } from "@mitori/platform";
 import { MIGRATION_ORDER, type ServerDeps, type ServerHandle } from "./contract.ts";
+import { followFileId, sha256File } from "./follow-files.ts";
 import { startDaemon } from "./http/daemon.ts";
 import { realTimers, type Timers } from "./http/timers.ts";
 import { migrationsFor } from "./wiring/index.ts";
@@ -277,6 +279,9 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
 
   // agent bridge: the ledger writes through the daemon's single state writer [CONS-03]
   const ledger = createUsageLedger({ db: svc.state.db, stateWrite: svc.state.stateWrite, random: deps.random, clock: deps.clock, log: deps.log });
+  // Vendor-update auto-follow (WP28): POSIX ownership for the re-check; daemon-internal persistence goes
+  // through `patchExec` (the web `PATCH /settings` EXEC restriction stays closed).
+  const euid = typeof process.geteuid === "function" ? process.geteuid() : typeof process.getuid === "function" ? process.getuid() : -1;
   const agent = createAgentBridge({
     stateWrite: svc.state.stateWrite,
     random: deps.random,
@@ -293,6 +298,32 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
     env: deps.env,
     // CR-PENDING(WP-INT): cr-requests/WP-05.md #2 — SafeWriter / FsReader for system-prompt files and the sandbox.
     ...({ safeWrite: deps.safeWrite, fs: deps.fs } as object),
+    pin: async (engine, pin) => {
+      const key = engine === "claude-cli" ? "pins.claude" : engine === "codex-cli" ? "pins.codex" : null;
+      if (!key) return;
+      await svc.settings.patchExec({ path: key, value: pin, confirm: true });
+    },
+    follow: {
+      workspaceRoots: () => roots(),
+      ownership: (candidate) => {
+        try {
+          const st = statSync(candidate);
+          if (!st.isFile()) return null;
+          return { uid: st.uid, mode: st.mode };
+        } catch {
+          return null;
+        }
+      },
+      // WP28b: identity via `stat`, and the pin hash via a stream — never the whole binary in memory.
+      fileId: (candidate) => followFileId(candidate),
+      sha256File: (candidate) => sha256File(candidate),
+      euid,
+      platform: process.platform,
+    },
+    saveGenericBinary: async (path) => {
+      const argv = svc.settings.current().engines.generic.argv;
+      await svc.settings.patchExec({ path: "engines.generic.argv", value: [path, ...argv.slice(1)], confirm: true });
+    },
   });
   bridge = { ...agent, ledger };
   agentReady();

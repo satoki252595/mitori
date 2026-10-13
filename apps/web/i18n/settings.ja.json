@@ -94,5 +94,8 @@
   "settings.themeSystem": "システムに合わせる",
   "settings.timeout": "生成1回の待ち時間上限（秒、空欄は120秒）",
   "settings.title": "設定",
-  "settings.useApi": "APIキーで接続する（料金と利用枠を別途確認）"
+  "settings.useApi": "APIキーで接続する（料金と利用枠を別途確認）",
+  "settings.claudeChanged": "Claude Codeが更新され、登録済みの実行ファイルと変わりました。端末で次のコマンドを実行し、新しい版を登録してください。",
+  "settings.codexChanged": "Codexの実行ファイルが変わりました。端末で次のコマンドを実行し、新しい版を確認してから登録してください。",
+  "settings.codexVersion": "mitoriで確認済みのCodexは{version}です。setupをやり直しても直りません。mitoriを更新（git pull）すると新しい版に対応している場合があります"
 }

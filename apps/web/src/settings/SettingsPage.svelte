@@ -4,9 +4,9 @@
   a stretch item (☆).
 -->
 <script lang="ts">
-import { type GenEngineId, PROVIDER_AUTH_IDS, type ProviderAuthId, type ReaderLevel, type ReasoningEffort } from "@mitori/core";
+import { type EngineId, type GenEngineId, PROVIDER_AUTH_IDS, type ProviderAuthId, type ReaderLevel, type ReasoningEffort } from "@mitori/core";
 import { onMount } from "svelte";
-import { museUpdated } from "../map/engine.ts";
+import { claudeBinaryChanged, codexBinaryChanged, codexVerifiedVersion, museUpdated, type SetupContext, setupCommandFor } from "../map/engine.ts";
 import { copyText } from "../shell/clipboard.ts";
 import { authDisplayKind } from "../shell/fmt.ts";
 import { t } from "../shell/index.ts";
@@ -74,7 +74,26 @@ const setupExternal = $derived(
 const setupEffort = $derived(simpleProvider === "muse" || (simpleProvider === "codex" && useCodexNative));
 /** The engine generation uses now; other engines' missing logins are not problems for this person. */
 const activeEngine = $derived(s.session.settings?.settings.defaultGenEngine);
-const museSetup = $derived(providerSetupCommand({ provider: "muse" }, s.session.settings?.launcher));
+/** Previous selections the re-setup command keeps (loaded settings); absent when unknown. */
+function setupCtxFor(engine: EngineId): SetupContext {
+  const cfg = s.session.settings?.settings;
+  if (engine === "generic") {
+    const model = cfg?.models.genModule.startsWith("generic:") ? cfg.models.genModule.slice("generic:".length) : undefined;
+    return { ...(model ? { model } : {}), ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}) };
+  }
+  if (engine === "codex-cli") {
+    const codex = cfg?.engines["codex-cli"];
+    return {
+      ...(codex?.model ? { model: codex.model } : {}),
+      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
+      ...(codex?.maxEstimatedSpendUsd ? { codexMaxUsd: codex.maxEstimatedSpendUsd } : {}),
+    };
+  }
+  return {};
+}
+const museSetup = $derived(setupCommandFor("generic", setupCtxFor("generic"), s.session.settings?.launcher) ?? "");
+const claudeSetup = $derived(setupCommandFor("claude-cli", {}, s.session.settings?.launcher) ?? "");
+const codexSetup = $derived(setupCommandFor("codex-cli", setupCtxFor("codex-cli"), s.session.settings?.launcher) ?? "");
 const setupHttp = $derived(["ollama", "lmstudio", "openai"].includes(simpleProvider) || (simpleProvider === "grok" && useApi));
 const authProvider = $derived(PROVIDER_AUTH_IDS.includes(simpleProvider as ProviderAuthId) ? (simpleProvider as ProviderAuthId) : null);
 const authCommand = $derived(authProvider ? providerAuthCommand(authProvider, s.session.settings?.launcher) : "");
@@ -461,6 +480,9 @@ async function saveProvider(e: SubmitEvent) {
       {@const active = e.engine === activeEngine}
       {@const relevant = active || e.installed || e.path !== undefined}
       {@const museGone = museUpdated(e)}
+      {@const claudeGone = claudeBinaryChanged(e)}
+      {@const codexGone = codexBinaryChanged(e)}
+      {@const codexVersion = codexVerifiedVersion(e)}
       <div class="eng card" class:idle={!relevant}>
         <b class="mono">{e.engine}</b>
         {#if active}<span class="active">{t("settings.engineActive")}</span>{/if}
@@ -469,10 +491,26 @@ async function saveProvider(e: SubmitEvent) {
           <span>{t(`statusbar.auth.${authDisplayKind(e)}`)}</span>
           {#each e.problems as p (p.code)}<span class="bad">{t(`error.${p.code}`)}</span>{/each}
         {/if}
+        {#if e.followed}
+          <p class="note">{t("engine.followed", { from: e.followed.from, to: e.followed.to })}</p>
+        {/if}
         {#if museGone}
           <p class="note fix">{t("settings.museUpdated")}</p>
           <pre class="mono">{museSetup}</pre>
           <button type="button" class="btn btn-sec btn-s" onclick={() => copyText(museSetup, s, "copy.command")}>{t("settings.copySetup")}</button>
+        {/if}
+        {#if claudeGone && claudeSetup}
+          <p class="note fix">{t("settings.claudeChanged")}</p>
+          <pre class="mono">{claudeSetup}</pre>
+          <button type="button" class="btn btn-sec btn-s" onclick={() => copyText(claudeSetup, s, "copy.command")}>{t("settings.copySetup")}</button>
+        {/if}
+        {#if codexGone && codexSetup}
+          <p class="note fix">{t("settings.codexChanged")}</p>
+          <pre class="mono">{codexSetup}</pre>
+          <button type="button" class="btn btn-sec btn-s" onclick={() => copyText(codexSetup, s, "copy.command")}>{t("settings.copySetup")}</button>
+        {/if}
+        {#if codexVersion}
+          <p class="note fix">{t("settings.codexVersion", { version: codexVersion })}</p>
         {/if}
       </div>
     {:else}

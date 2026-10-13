@@ -7,6 +7,7 @@
 import { type IntegrationStatusView, MitoriError } from "@mitori/core";
 import { parse } from "./args.ts";
 import { apiOf, findDaemon, readRegistry, registryExposed } from "./daemon-client.ts";
+import { engineUpdateHint } from "./engine-hint.ts";
 import { helpLang } from "./help.ts";
 import { type Io, usage } from "./io.ts";
 import { homeOf } from "./session.ts";
@@ -53,6 +54,17 @@ export async function run(io: Io): Promise<number> {
   // only the engines mitori is set to use count as problems; the others are listed for information
   const settings = await api.call("GET /settings", { params: {} }).catch(() => null);
   const used = new Set([settings?.settings.defaultEngine, settings?.settings.defaultGenEngine].filter(Boolean));
+  const gs = settings?.settings;
+  // a partial or older settings answer must not stop the engine listing: every field is optional here
+  const genModuleSetting = gs?.models?.genModule;
+  const genModule = genModuleSetting?.startsWith("generic:") ? genModuleSetting.slice("generic:".length) : undefined;
+  const codex = gs?.engines?.["codex-cli"];
+  const hintCtx = {
+    ...(gs?.reasoning?.gen ? { museEffort: gs.reasoning.gen } : {}),
+    ...(genModule ? { museModel: genModule } : {}),
+    ...(codex?.model ? { codexModel: codex.model } : {}),
+    ...(codex?.maxEstimatedSpendUsd ? { codexMaxUsd: codex.maxEstimatedSpendUsd } : {}),
+  };
   for (const e of st.engines) {
     const problem = e.problems[0];
     const fine = e.installed && !problem;
@@ -60,6 +72,16 @@ export async function run(io: Io): Promise<number> {
       fine || (!used.has(e.engine) && settings !== null ? "info" : false),
       `${e.engine}: ${e.installed ? `${e.version ?? "?"} · ${e.auth}${e.plan ? ` · ${e.plan}` : ""}` : ja ? "見つかりません" : "not found"}${problem ? ` — ${problem.code}: ${problem.message}` : ""}`,
     );
+    // A vendor update the daemon could not follow: the same one-line re-setup command as failing commands print.
+    if (used.has(e.engine) || settings === null) {
+      const hint = engineUpdateHint(
+        { engine: e.engine, problems: e.problems, ...(e.path ? { path: e.path } : {}), ...(e.version ? { version: e.version } : {}) },
+        hintCtx,
+        ja ? "ja" : "en",
+        "mitori",
+      );
+      if (hint) line("info", hint);
+    }
   }
   let views: IntegrationStatusView[] = [];
   try {

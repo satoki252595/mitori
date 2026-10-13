@@ -8,9 +8,18 @@
 import type { Effort, EngineStatus } from "@mitori/core";
 import { sessionMode } from "../gen/estimate.ts";
 import type { LauncherCommand } from "../settings/provider.ts";
-import { providerSetupCommand } from "../settings/provider.ts";
 import { t } from "../shell/index.ts";
-import { type EngineProblem, fixSteps, museUpdated } from "./engine.ts";
+import {
+  changedVersions,
+  claudeBinaryChanged,
+  codexBinaryChanged,
+  codexVerifiedVersion,
+  type EngineProblem,
+  fixSteps,
+  museUpdated,
+  type SetupContext,
+  setupCommandFor,
+} from "./engine.ts";
 
 let {
   status,
@@ -20,6 +29,7 @@ let {
   onrecheck,
   repo,
   launcher,
+  setup,
 }: {
   status: EngineStatus;
   problem: EngineProblem;
@@ -28,9 +38,20 @@ let {
   onrecheck: () => void | Promise<void>;
   repo?: string | undefined;
   launcher?: LauncherCommand | undefined;
+  setup?: SetupContext | undefined;
 } = $props();
 
-const steps = $derived(fixSteps(problem, status.engine, museUpdated(status) ? { museSetup: providerSetupCommand({ provider: "muse" }, launcher) } : {}));
+const setupCmd = $derived(setupCommandFor(status.engine, setup ?? {}, launcher));
+const codexVersion = $derived(codexVerifiedVersion(status));
+const stepOpts = $derived(
+  museUpdated(status)
+    ? { museSetup: setupCmd ?? "" }
+    : claudeBinaryChanged(status) || codexBinaryChanged(status) || codexVersion
+      ? { ...(setupCmd ? { setupCmd } : {}), ...(codexVersion ? { codexVersion } : {}) }
+      : {},
+);
+const steps = $derived(fixSteps(problem, status.engine, stepOpts));
+const changed = $derived(changedVersions(status));
 const session = $derived(sessionMode(effort, { repo, launcher }));
 let checking = $state(false);
 async function recheck() {
@@ -46,12 +67,19 @@ async function recheck() {
 <section class="eng card" aria-labelledby="eng-t" data-testid="engine-card" data-problem={problem} data-chrome>
   <h2 id="eng-t">{t("gen.card.title")}</h2>
   <p class="state"><span class="w" aria-hidden="true">&#x26A0;&#xFE0E;</span><span class="mono">{status.engine}</span> &middot; {t(`engine.${problem}.title`)}</p>
-  <p class="desc">{t(`engine.${problem}.body`, { version: status.version ?? "–", engine: status.engine })}</p>
+  {#if changed}
+    <p class="desc">{t("engine.binaryChanged.body", { engine: status.engine, from: changed.from, to: changed.to })}</p>
+  {:else}
+    <p class="desc">{t(`engine.${problem}.body`, { version: status.version ?? "–", engine: status.engine })}</p>
+  {/if}
+  {#if status.followed}
+    <p class="desc ok">{t("engine.followed", { from: status.followed.from, to: status.followed.to })}</p>
+  {/if}
   <ol class="steps">
     {#each steps as st, i (i)}
       <li>
         <span class="no mono" aria-hidden="true">{i + 1}</span>
-        <span class="what">{t(`engine.step.${st.key}`)}</span>
+        <span class="what">{t(`engine.step.${st.key}`, st.params)}</span>
         {#if st.cmd}
           <button type="button" class="cmd mono" title={t("engine.copy")} onclick={() => oncopy(st.cmd ?? "")}>{st.cmd}<span class="cp" aria-hidden="true">&#x2398;</span></button>
         {:else if st.key === "recheck"}
@@ -94,6 +122,9 @@ async function recheck() {
     color: var(--text);
     font-size: var(--fs-ui);
     line-height: 1.7;
+  }
+  .desc.ok {
+    color: var(--ink);
   }
   .steps {
     list-style: none;

@@ -66,6 +66,7 @@ import {
 import { createFakeSpawner, type ScriptedChild, type ScriptLine, scriptedChild } from "./fakes/child.ts";
 import { createFakeClock, type FakeClock } from "./fakes/clock.ts";
 import { testSettings } from "./fakes/settings.ts";
+import type { FileId } from "./follow.ts";
 import { createUsageLedger, type UsageLedgerImpl } from "./ledger/ledger.ts";
 import { Channel } from "./util/channel.ts";
 import { timersFor } from "./util/timers.ts";
@@ -685,6 +686,8 @@ export interface TestBridge {
   events: ReturnType<typeof collectingSink<import("@mitori/core").SseEventPayload>>;
   metrics: ReturnType<typeof countingMetrics>;
   home: string;
+  /** Follow-port call record (WP28b): every `fileId` / `sha256File` candidate, in order. */
+  followSpy: { readonly fileIdCalls: readonly string[]; readonly sha256Calls: readonly string[] };
 }
 
 /** The real bridge over fakes: memory fs/ledger, fake clock (virtual timers), the given spawner. */
@@ -697,6 +700,17 @@ export function createTestBridge(opts: {
   fetch?: FetchLike;
   /** The composition root's pin persistence (first-run pins) [CR m1-65]. */
   pin?: (engine: EngineId, pin: import("@mitori/core").BinaryPin) => Promise<void>;
+  /** Vendor-update auto-follow ports (WP28); absent ⇒ changed binaries are not followed (spec §B). */
+  follow?: {
+    workspaceRoots?: () => readonly string[];
+    ownership?: (candidate: string) => { uid: number; mode: number } | null;
+    fileId?: (candidate: string) => FileId | null;
+    sha256File?: (candidate: string) => Promise<string | null>;
+    euid?: number;
+    platform?: string;
+  };
+  /** Persist a followed Muse binary (defaults to rewriting the test settings' `engines.generic.argv[0]`). */
+  saveGenericBinary?: (path: string) => Promise<void>;
 }): TestBridge {
   const clock = opts.clock ?? createFakeClock();
   const fs = memFs();
@@ -726,8 +740,45 @@ export function createTestBridge(opts: {
   };
   if (opts.fetch) extra.fetch = opts.fetch;
   if (opts.pin) extra.pin = opts.pin;
+  const fileIdCalls: string[] = [];
+  const sha256Calls: string[] = [];
+  if (opts.follow) {
+    const fileIdFallback = (candidate: string): FileId | null => {
+      const st = fs.fs.stat(candidate);
+      if (!st?.isFile) return null;
+      return { dev: 0, ino: Number(st.ino), size: st.size, mtimeMs: Number(st.mtimeNs) / 1_000_000 };
+    };
+    const sha256Fallback = async (candidate: string): Promise<string | null> => {
+      try {
+        return testHasher.sha256(await fs.fs.read(candidate));
+      } catch {
+        return null;
+      }
+    };
+    const fileId = opts.follow.fileId ?? fileIdFallback;
+    const sha256File = opts.follow.sha256File ?? sha256Fallback;
+    extra.follow = {
+      workspaceRoots: opts.follow.workspaceRoots ?? (() => []),
+      ownership: opts.follow.ownership ?? (() => ({ uid: 1000, mode: 0o755 })),
+      fileId: (candidate) => {
+        fileIdCalls.push(candidate);
+        return fileId(candidate);
+      },
+      sha256File: (candidate) => {
+        sha256Calls.push(candidate);
+        return sha256File(candidate);
+      },
+      euid: opts.follow.euid ?? 1000,
+      platform: opts.follow.platform ?? "linux",
+    };
+  }
+  extra.saveGenericBinary =
+    opts.saveGenericBinary ??
+    (async (path: string) => {
+      settings.engines.generic.argv = [path, ...settings.engines.generic.argv.slice(1)];
+    });
   const { scheduler, engines } = assembleBridge(extra);
-  return { scheduler, engines, ledger, fs, clock, log, events, metrics, home };
+  return { scheduler, engines, ledger, fs, clock, log, events, metrics, home, followSpy: { fileIdCalls, sha256Calls } };
 }
 
 /** Lines of a recording in `fixtures/agent-streams/` (raw stream-json). */

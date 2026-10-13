@@ -292,6 +292,11 @@ export interface EngineStatus {
   problems: { code: ErrorCode; message: string }[];
   /** Pinned binary (SEC-10); shown on the engine card. */
   pin?: BinaryPin;
+  /**
+   * Latest automatic vendor-update follow for this engine (`{from,to,at}` for the 「旧版→新版」 notice)
+   * [CR wp28-1]. Muse has no pin, so the daemon keeps its last follow here (lost on restart; the log keeps it).
+   */
+  followed?: { from: string; to: string; at: Iso8601 };
   /** Data-handling disclosure key for this engine × plan (UXP-04). */
   dataPolicyKey?: string;
   /** Last probe time. */

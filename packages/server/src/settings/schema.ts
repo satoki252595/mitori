@@ -176,8 +176,16 @@ const privacy = obj<PrivacySettings>({
   keepRawStreams: bool,
 });
 const pin = obj<BinaryPin>(
-  { path: str, realpath: str, sha256: { t: "str", pattern: /^[0-9a-f]{64}$/ }, version: { t: "str", max: 256 }, pinnedAt: ISO, by: oneOf("first-run", "user") },
-  ["by"], // CR m1-65
+  {
+    path: str,
+    realpath: str,
+    sha256: { t: "str", pattern: /^[0-9a-f]{64}$/ },
+    version: { t: "str", max: 256 },
+    pinnedAt: ISO,
+    by: oneOf("first-run", "user", "auto-update"),
+    previousVersion: { t: "str", max: 256 },
+  },
+  ["by", "previousVersion"], // CR m1-65, CR wp28-1
 );
 
 /** `WorkspaceOverrides` (every key optional). */
