@@ -14,7 +14,7 @@
 | 本文 | 変更（ID） |
 |---|---|
 | §1.1 / §1.3 ツール | workspace の `typescript` は 6.0.3（TS 7 は svelte-check と同居できない、SC-08）。`check:web` = `svelte-check`（WP-00a CI で version と .svelte 1 ファイルの型検査） |
-| §1.7 CI | PR は ubuntu 1 job ≤ 10 分（check・unit・golden・変更範囲の int・asset bytes）。e2e-pr は `apps/web/**` 変更時のみ chromium。perf・nightly・bench・full e2e・契約テストは self-hosted Mac の schedule / workflow_dispatch（pull_request では起動しない、専用 OS ユーザー）。`devShells.ci`（slim）と nix store cache。ci-usage 警告は 60%（SC-10・SEC-15）。`bunx tsc@…` などの実行時取得は禁止し devDependencies + lockfile（SEC-16） |
+| §1.7 CI | PR は ubuntu 1 job ≤ 10 分（check・unit・golden・変更範囲の int・asset bytes）。e2e-pr は `apps/web/**` 変更時のみ chromium。perf・nightly・bench・full e2e・契約テストは self-hosted Mac の schedule / workflow_dispatch（pull_request では起動しない、専用 OS ユーザー）。`devShells.ci`（slim）と nix store cache。ci-usage 警告は 60%（SC-10・SEC-15）。`bunx tsc@…` などの実行時取得は禁止し devDependencies + lockfile（SEC-16）。2026-10-13 に利用者の判断で定期実行の性能測定（`bench.yml`）を廃止し、絶対値は reference 機で手で測る |
 | §3.3〜3.5 cassette | gen/loop の unit・int は **scenario cassette**（router 名で選択、promptHash のずれは警告のみ）を既定。exact-key cassette は nightly の self-hosted「prompt drift」suite だけ。indexer の出力形式は WP-02 の 2 週目末に凍結し、以後は版 bump + `cassette:rerecord` ticket（SC-09） |
 | §3-1 乱数 | core `Random` port と `newId` が入った（CR test-1）。`seededRandom` は `Random` を実装する |
 | §4.6 UI 単体 | 純 TS のロジック（keys/registry、ime、sse/reducers、marginLayout、render.ts、fmt、predict）は `bun test`。component の振る舞いは Playwright（`e2e/component/`、Vite dev build + mock API）。happy-dom・bun-plugin-svelte は採用しない（SC-18） |
@@ -159,8 +159,8 @@ unit 層の禁止事項（Biome 自前ルール + `scripts/check-boundaries.ts -
 | `int` | PR | ubuntu | `fixtures:build --verify`（SHA 一致検査）→ `test:int` | ≤ 6 min |
 | `e2e-pr` | PR | ubuntu | `build:test` → chromium の `@pr` spec | ≤ 8 min |
 | `perf-rel` | PR（`packages/**`・`apps/**`・`bench/**` 変更時） | ubuntu | head と merge-base を同一ランナーで交互実行（§6.7）+ `assets:check` | ≤ 12 min |
-| `nightly` | 毎日 03:00 JST | ubuntu | e2e 全 project（chromium・webkit・tablet）、`bun test --randomize`、`--rerun-each=3`（新規テスト）、coverage、mutation smoke（§10 AC-15）、fast-check の乱数 seed 実行 | ≤ 40 min |
-| `bench-abs` | nightly + マイルストーン前 | **self-hosted**（maintainer の macOS arm64） | 絶対値 SLO（§6.8）、Go stdlib・react を含む全 corpus | ≤ 30 min |
+| `nightly`（未実装: workflow なし） | 毎日 03:00 JST | ubuntu | e2e 全 project（chromium・webkit・tablet）、`bun test --randomize`、`--rerun-each=3`（新規テスト）、coverage、mutation smoke（§10 AC-15）、fast-check の乱数 seed 実行 | ≤ 40 min |
+| `bench-abs` | 手動（マイルストーン前など。定期実行は 2026-10-13 に廃止） | **self-hosted**（maintainer の macOS arm64） | 絶対値 SLO（§6.8）、Go stdlib・react を含む全 corpus | ≤ 30 min |
 | `contract` | 毎週月曜 03:00 JST・`workflow_dispatch`・`claude --version` 変化時 | self-hosted（サブスク認証済み） | §8 | ≤ 5 min・≤ $0.15 |
 | `live` | 週次・dispatch | self-hosted | §3.7 | ≤ 3 min・≤ $0.10 |
 | `eval` | dispatch のみ | self-hosted | §7 | tier ごと |
@@ -1119,7 +1119,7 @@ base に bench case が無い（新規追加）→ 相対判定を skip して�
 - calib workload（`bench/calib.bench.ts`、約 1 s）: xxh3 で 64 MiB × 4、wasm tree-sitter で gen:large-file の `src/huge.ts` を 5 回 parse、SQLite へ 10 万行 insert（1 tx）、10MB の JSON parse/stringify。`machineFactor = Σ runner / Σ reference` を [0.5, 5] に clamp。
 - reference 機（|factor − 1| ≤ 0.1）での判定: limit 超 = red（fail）、target 超 = yellow（警告）、それ以外 green。
 - それ以外の機械: target・limit に factor を掛けて**報告だけ**する（fail しない）。ただし構造・asset・counter・token の検査は機械に依存しないので常にゲートする。
-- 出口条件の「全 SLO green」（§9.4）は、reference 機の直近 nightly の絶対値、直近の eval report、直近の契約テストの 3 つで判定する。
+- 出口条件の「全 SLO green」（§9.4）は、reference 機での直近の正式測定（手動）の絶対値、直近の eval report、直近の契約テストの 3 つで判定する。
 
 ---
 
@@ -1444,7 +1444,7 @@ repo ごとに次を計算する（standard は 5 repo、full は 8 repo）。
 マイルストーン（と release）は次の**全部**を満たしたときに閉じる。
 
 1. **2 回連続の dry round**: dry = 8 次元すべてで、S0〜S2 の**新規確定** finding が 0 件の round。
-2. **全 SLO が green**: §6.8 の判定（reference 機の直近 nightly の絶対値・直近の eval report・直近の契約テスト）で、budgets.json の当該マイルストーンに関係する全 ID が target 以内（`dir:"min"` は以上）。yellow を受け入れるには budgets.json の target を変える PR（ADR と architect の承認）が要り、それによって green にする。相対ゲートの regression が 0 件。
+2. **全 SLO が green**: §6.8 の判定（reference 機での直近の正式測定（手動）の絶対値・直近の eval report・直近の契約テスト）で、budgets.json の当該マイルストーンに関係する全 ID が target 以内（`dir:"min"` は以上）。yellow を受け入れるには budgets.json の target を変える PR（ADR と architect の承認）が要り、それによって green にする。相対ゲートの regression が 0 件。
 3. 全 suite が緑: unit・golden・int・e2e（chromium と webkit）・直近 7 日以内の契約テスト・マイルストーンの eval tier（M1: P0 計測 §7.6、M2: standard、M3: full、M4: standard、M5: quick + E2E-11）。
 4. 未解決の S0・S1 が 0、延期した S2 が 5 件以下で全件に担当と期限がある。
 5. 1 マイルストーンの round は 6 回まで。6 回で収束しなければ lead に残存リスクの受け入れ文書を出して判断を仰ぐ。

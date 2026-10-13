@@ -53,6 +53,8 @@
 
 2026-10-13 の追加分（WP26: `bun run start` が依存も自動で入れる）。利用者が README どおり `bun install --frozen-lockfile` を実行し、Nix プロファイルの古い Bun 1.3.13 で `Unknown lockfile version` になった（`bun.lock` は Bun 1.4.2 以上でないと読めない）。`bun install` は Bun 自身が lockfile を読むため mitori 側では割り込めず、別手順にしている限り古い Bun の利用者は必ず止まる。`scripts/start.ts` が 1.4.2 以上の Bun を選んだ後に、印（`node_modules/.mitori-deps` に書く `bun.lock` の sha256）が無い・違う・`vite` が無いときだけ `<選ばれた Bun> install --frozen-lockfile` を自動実行するようにし、README の「まず使う」と Nix 手順のコードブロックから別の `bun install` を外した（開発用の `scripts/nd bun install --frozen-lockfile` は CI と同じ手順なので残す）。install 直後は Bun のモジュール解決が起動時の古い状態を使うため、同じ Bun・同じ引数で新しいプロセスに起動し直してから続け、再起動の印に `MITORI_DEPS_REEXEC` を付ける。
 
+2026-10-13 の追加分（WP27: 毎晩の性能測定の廃止）。`.github/workflows/bench.yml`（毎晩 03:00 JST、全項目の head vs `HEAD~1` 比較）は 2026-10-05 以降 80 分超で 90 分の時間切れが続き結果が一度も出ず、その間 Mac の runner を占有して PR の `browsers` ジョブを待たせていたため、利用者の判断でこの監視は不要として `.github/workflows/bench.yml` を削除した。手元の測定道具（`bun run bench`・`bench:compare`・`bench/runner/run.ts`・`bench/budgets*`・`check` の budgets 検査）と `ci.yml` の `browsers` ジョブは残し、正式な絶対値の測定は静かな Mac で手で行う（例: `scripts/nd bun bench/runner/run.ts --id <id> --exact --absolute --out <json>`）。
+
 ## 3. 残っていること
 
 | 残件 | 状態 | 次の一手 |

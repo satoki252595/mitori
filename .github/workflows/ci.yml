@@ -1,6 +1,7 @@
 # PR gate (MILESTONES WP-00a 成果物 7 / §9): one GitHub-hosted ubuntu job, ≤ 10 min, `bun run ci:pr`.
 # Triggers are pull_request and workflow_dispatch only (no push: keep Actions minutes for PRs).
-# nightly / bench / contract run on the self-hosted Mac via schedule or dispatch in their own files (WP-12, WP-05).
+# No scheduled workflows remain: absolute perf numbers are measured by hand on the reference Mac
+# (bench/runner/run.ts --absolute). Only the `browsers` job below uses the self-hosted Mac.
 # Actions are pinned to commit SHAs; the token is read-only.
 name: ci
 
