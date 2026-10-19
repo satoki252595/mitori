@@ -931,12 +931,12 @@ export interface DependencyFact extends FactBase {
   dev: boolean;
 }
 
-/** An existing human doc used as a prior (README, CLAUDE.md, AGENTS.md, ADRs). */
+/** An existing human doc used as a prior (README, CLAUDE.md, AGENTS.md, ADRs, agent skills / commands). */
 export interface ExistingDocFact extends FactBase {
   /** Discriminator. */
   kind: "existing_doc";
-  /** Doc role. */
-  role: "readme" | "agents" | "claude" | "adr" | "contributing" | "architecture" | "other";
+  /** Doc role (`skill` / `command` / `agent` are agent-instruction docs, readable as untrusted docs [CR wp30-1]). */
+  role: "readme" | "agents" | "claude" | "adr" | "contributing" | "architecture" | "skill" | "command" | "agent" | "other";
   /** Title (first heading). */
   title: string;
 }
@@ -1432,6 +1432,11 @@ export interface DocManifest {
   coverage: Coverage;
   /** Cumulative generation usage (API-equivalent). */
   usageTotals: UsageTotals;
+  /**
+   * True once any stamped run reported byte-based usage (an engine that returns no token counts): the appendix
+   * then labels the totals as an estimate. Monotonic (estimates stay inside the totals) [CR wp30-4].
+   */
+  usageEstimated?: boolean;
   /** Last full generation time (only changes on generation, never on load/save). */
   generatedAt: Iso8601 | null;
 }
@@ -3575,6 +3580,33 @@ export const DEFAULT_DENY_GLOBS = [
   ".cursor/**",
   ".mitori/**",
 ] as const satisfies readonly Glob[];
+
+/**
+ * Agent-instruction directories whose TEXT documents are readable as untrusted docs [CR wp30-1]. They stay in
+ * DEFAULT_DENY_GLOBS: agents never write there and write-side matchers keep refusing them. The read side
+ * (indexer R01) lets the text extensions below through so skills / commands / agents read like a README.
+ */
+export const AGENT_DOC_DIRS = [".claude", ".codex", ".agents", ".cursor"] as const satisfies readonly string[];
+
+/** Text extensions readable under {@link AGENT_DOC_DIRS} (lowercase, with the leading dot). */
+export const AGENT_DOC_TEXT_EXTS = [".md", ".mdc", ".markdown", ".txt"] as const satisfies readonly string[];
+
+/**
+ * Read-side exception globs for agent-instruction docs (picomatch `{ dot: true }`, same as the deny matchers).
+ * Informational: the hot path uses {@link isAgentDocReadable} (no glob library in core); matchers that need a
+ * glob list can use this. It never weakens the write side (DEFAULT_DENY_GLOBS is unchanged).
+ */
+export const AGENT_DOC_READ_GLOBS = AGENT_DOC_DIRS.flatMap((d) => AGENT_DOC_TEXT_EXTS.map((e) => `${d}/**/*${e}`)) as unknown as readonly Glob[];
+
+/** True for a text document under an agent-instruction directory (readable as an untrusted doc) [CR wp30-1]. */
+export function isAgentDocReadable(path: string): boolean {
+  const lower = path.toLowerCase();
+  const dot = lower.lastIndexOf(".");
+  if (dot < 0) return false;
+  if (!(AGENT_DOC_TEXT_EXTS as readonly string[]).includes(lower.slice(dot))) return false;
+  const segs = lower.split("/");
+  return segs.some((s, i) => i < segs.length - 1 && (AGENT_DOC_DIRS as readonly string[]).includes(s));
+}
 
 /**
  * Sensitive (not denied) files: an agent MAY edit them, but a job touching any of them — and every

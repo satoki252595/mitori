@@ -25,10 +25,37 @@ describe("IDX-AT-01 path rules R00–R20 (first match wins)", () => {
     expect(cls(".github/workflows/ci.yml")).toEqual(["ignored", "deny_glob", "R01.deny"]);
     expect(cls(".claude/settings.json")).toEqual(["ignored", "deny_glob", "R01.deny"]);
     expect(cls(".mitori/doc/a.md")).toEqual(["ignored", "deny_glob", "R01.deny"]);
+    // WP30-A: agent-instruction text docs read as docs (R17); settings / hooks / scripts under them stay denied
+    expect(cls(".claude/skills/scrape/SKILL.md")).toEqual(["docs", "-", "R17.docs"]);
+    expect(cls(".claude/commands/scrape.md")).toEqual(["docs", "-", "R17.docs"]);
+    expect(cls(".agents/skills/apply/SKILL.md")).toEqual(["docs", "-", "R17.docs"]);
+    expect(cls(".codex/skills/x/SKILL.md")).toEqual(["docs", "-", "R17.docs"]);
+    expect(cls(".cursor/rules/sync.mdc")).toEqual(["docs", "-", "R17.docs"]);
+    expect(cls(".claude/hooks/notify.sh")).toEqual(["ignored", "deny_glob", "R01.deny"]);
+    expect(cls(".claude/mcp.json")).toEqual(["ignored", "deny_glob", "R01.deny"]);
+    expect(cls(".agents/config.toml")).toEqual(["ignored", "deny_glob", "R01.deny"]);
     // R04 alone (deny list without the secret globs): the spec's SECRET_NAME_RE still catches it
     expect(classifyByPath({ path: "conf/app.keystore", size: 1, mode: "100644", attrs: {}, settings: { denyGlobs: [], include: [], exclude: [] } }).rule).toBe(
       "R04.secret_name",
     );
+  });
+  test("IDX-AT-01 WP30b: user deny wins over the agent-doc read exception", () => {
+    const base = [...DEFAULT_DENY_GLOBS];
+    const at = (path: string, denyGlobs: string[], userDenyGlobs: string[] = []) => {
+      const r = classifyByPath({ path, size: 100, mode: "100644", attrs: {}, settings: { denyGlobs, include: [], exclude: [], userDenyGlobs } });
+      return [r.class, r.excluded ?? "-", r.rule] as const;
+    };
+    // defaults only: agent-instruction text docs read as docs
+    expect(at(".claude/skills/x/SKILL.md", base)).toEqual(["docs", "-", "R17.docs"]);
+    // global.security.denyGlobs [".claude/**"]: merged set equals the defaults, but the user glob still denies
+    expect(at(".claude/skills/x/SKILL.md", base, [".claude/**"])).toEqual(["ignored", "deny_glob", "R01.deny"]);
+    // repo denyGlobs [".agents/skills/private/**"]: only that subtree denies, other skills stay docs
+    const repo = [...base, ".agents/skills/private/**"];
+    expect(at(".agents/skills/private/SECRET.md", repo, [".agents/skills/private/**"])).toEqual(["ignored", "deny_glob", "R01.deny"]);
+    expect(at(".agents/skills/other/SKILL.md", repo, [".agents/skills/private/**"])).toEqual(["docs", "-", "R17.docs"]);
+    // non-text agent files stay denied with and without user globs
+    expect(at(".claude/settings.json", base)).toEqual(["ignored", "deny_glob", "R01.deny"]);
+    expect(at(".claude/settings.json", base, [".claude/**"])).toEqual(["ignored", "deny_glob", "R01.deny"]);
   });
   test("R02 user exclude / R03 include", () => {
     const s = { ...settings, exclude: ["legacy/**"], include: ["legacy/keep.ts", "vendor/ours/**"] };

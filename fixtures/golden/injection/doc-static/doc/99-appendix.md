@@ -7,6 +7,6 @@
 - モデル: 未生成
 - prompt 版: 未生成
 - 使用量: in 0 · cache 0 · out 0
-- coverage: 18/25
+- coverage: 19/25
 - 生成の深さ: 未生成
 <!-- b_jakp1rng -->

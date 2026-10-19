@@ -56,8 +56,9 @@ export function settingsOf(s: EffectiveSettings): { compiled: CompiledSettings; 
   const include = [...(s.repo.include ?? []), ...(s.overrides.include ?? [])];
   const exclude = [...(s.repo.exclude ?? []), ...(s.overrides.exclude ?? [])];
   const deny = [...s.denyGlobs];
+  const userDeny = [...s.global.security.denyGlobs, ...(s.repo.denyGlobs ?? [])];
   return {
-    compiled: compileSettings({ denyGlobs: deny, include, exclude }),
+    compiled: compileSettings({ denyGlobs: deny, include, exclude, userDenyGlobs: userDeny }),
     key: JSON.stringify([deny, include, exclude]),
     secretScan: s.global.security.secretScan,
   };

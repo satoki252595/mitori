@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { DEFAULT_DENY_GLOBS } from "@mitori/core";
 import { blobOf, fakeAnchors, hasher } from "../bundle/test/fake-anchor.ts";
 import type { ApplyEditsInput } from "../contract.ts";
 import { applyEditsToText } from "./index.ts";
@@ -233,6 +234,12 @@ describe("AC-L25 applyEditsToText — atomicity and refusals", () => {
   test("a deny glob reaches into dot-directories", () => {
     const r = run(base, [good], { deny: [".github/workflows/**"], path: ".github/workflows/ci.yml" });
     expect(r.problems[0]?.code).toBe("E_DENY_GLOB");
+  });
+  test("WP30-A: edits to readable agent docs are refused (write side unchanged)", () => {
+    for (const path of [".claude/skills/scrape/SKILL.md", ".agents/skills/apply/SKILL.md"]) {
+      const r = run(base, [{ ...good, path }], { deny: [...DEFAULT_DENY_GLOBS], path, scope: [path] });
+      expect(r.problems[0]?.code).toBe("E_DENY_GLOB");
+    }
   });
   test("an edit whose base is a different blob than the one shown is refused", () => {
     const r = run(base, [{ ...good, base: "deadbee" }]);

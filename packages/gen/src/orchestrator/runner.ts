@@ -75,6 +75,8 @@ interface Live {
   unsubscribe: (() => void) | null;
   pinnedBlobs: GitOid[];
   idle: Deferred;
+  /** True once any finished task reported byte-based usage (appendix labels the totals) [CR wp30-4]. */
+  usageEstimated: boolean;
   /** 5h window reset time at run start (κ samples are taken only when it did not change, §9.4). */
   resetsAtStart?: string;
   /** Background slots the run was started with (`C − reserveInteractive` of the request); 429 slow-down only lowers it. */
@@ -210,7 +212,19 @@ export class Runner {
       for (const r of rows.values()) this.svc.store.putTask(r);
     });
     const idle = deferred();
-    this.live = { run, plan, pack, rows, running: new Map(), boost: 0, unsubscribe: null, pinnedBlobs: [...blobs.values()], idle, slotsCap: run.concurrency };
+    this.live = {
+      run,
+      plan,
+      pack,
+      rows,
+      running: new Map(),
+      boost: 0,
+      unsubscribe: null,
+      pinnedBlobs: [...blobs.values()],
+      idle,
+      slotsCap: run.concurrency,
+      usageEstimated: false,
+    };
     const resetsAt = deps.scheduler.window()?.fiveHour?.resetsAt;
     if (resetsAt) this.live.resetsAtStart = resetsAt;
     this.live.unsubscribe = deps.scheduler.subscribe((st) => this.onScheduler(st));
@@ -308,6 +322,7 @@ export class Runner {
       pinnedBlobs: [...stored.packBlobs.values()],
       idle,
       slotsCap: Math.max(1, run.estimate.concurrency ?? run.concurrency),
+      usageEstimated: false,
     };
     this.live.unsubscribe = this.deps.scheduler.subscribe((st) => this.onScheduler(st));
     this.refreshProgress();
@@ -518,6 +533,7 @@ export class Runner {
         snapshot: full || !m ? current : m.snapshot,
         usage: run.usage,
         full,
+        usageEstimated: live.usageEstimated,
       });
     });
   }
@@ -607,6 +623,7 @@ export class Runner {
     res: {
       state: GenTask["state"];
       usage: Usage | null;
+      usageEstimated?: boolean;
       calls: number;
       blocks: BlockId[];
       created?: BlockId[];
@@ -648,6 +665,7 @@ export class Runner {
     row.task.state = res.state;
     row.task.blocks = [...new Set([...row.task.blocks, ...res.blocks])];
     if (res.attempts > 0) row.task.attempt = res.attempts;
+    if (res.usageEstimated) live.usageEstimated = true;
     if (res.usage) {
       row.task.usage = addUsage(row.task.usage ?? null, res.usage);
       const u = live.run.usage;

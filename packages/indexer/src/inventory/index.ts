@@ -19,7 +19,7 @@ export function classifyByPath(input: {
   size: number;
   mode: string;
   attrs: { vendored?: boolean; generated?: boolean; documentation?: boolean };
-  settings: Pick<EffectiveSettings, "denyGlobs"> & { include: string[]; exclude: string[] };
+  settings: Pick<EffectiveSettings, "denyGlobs"> & { include: string[]; exclude: string[]; userDenyGlobs?: readonly string[] };
 }): {
   class: FileClass;
   excluded?: IndexerExcludeReason;

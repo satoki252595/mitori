@@ -68,6 +68,7 @@ function wrap(run: EngineRun, onContinue: ((retry: string, signal: Cancel, sessi
       auth: r.auth,
     };
     const ev = resultEvent as Extract<JobEvent, { t: "result" }> | null;
+    if (r.usageEstimated) out.usageEstimated = true;
     if (ev?.continuations) out.continuations = ev.continuations;
     if (r.window) out.window = r.window;
     if (r.ttftMs !== undefined) out.ttftMs = r.ttftMs;

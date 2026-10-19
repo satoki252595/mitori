@@ -188,7 +188,7 @@ git -C <clone> fetch --depth 1 --no-tags origin <ref>   →  git -C <clone> chec
 | # | id | 条件 | class | excluded | 読む |
 |---|---|---|---|---|---|
 | R00 | `special` | mode `160000`（submodule）・`120000`（symlink）・入れ子 repo（`--others` の末尾 `/`）・読めない | `ignored` | `special`¹ | × |
-| R01 | `deny` | `EffectiveSettings.denyGlobs`（`DEFAULT_DENY_GLOBS` ∪ global ∪ repo）に一致 | R04 の名前にも一致すれば `secret`、それ以外 `ignored` | `secret` / `deny_glob` | × |
+| R01 | `deny` | `EffectiveSettings.denyGlobs`（`DEFAULT_DENY_GLOBS` ∪ global ∪ repo）に一致。ただし core `isAgentDocReadable()` が真（agent 指示 4 dir 配下の `.md`・`.mdc`・`.markdown`・`.txt`）で R04 の名前でなければ例外として読み進める（CR wp30-1） | R04 の名前にも一致すれば `secret`、それ以外 `ignored` | `secret` / `deny_glob` | ×（例外は R17 へ） |
 | R02 | `user_exclude` | workspace override / repo の `exclude` glob に一致（`include` に一致するものは除く） | `ignored` | `user_exclude` | × |
 | R03 | `include` | repo / workspace の `include` glob に一致 → **R08〜R13 と R15 を飛ばして** R16 以降で class を決める（R00〜R07 は飛ばさない: 2 MiB 超は include でも読まない） | — | — | — |
 | R04 | `secret_name` | `SECRET_NAME_RE`（下記） | `secret` | `secret` | × |
@@ -262,14 +262,14 @@ git -C <clone> fetch --depth 1 --no-tags origin <ref>   →  git -C <clone> chec
 
 | repo | files | MB | 主な除外 | `tokensNaive` | source+config token | 比 |
 |---|---:|---:|---|---:|---:|---:|
-| crit | 1,219 | 15.3 | binary 299、deny 14（`.claude/rules/*`）、fixture 13、minified 3（`*.min.js`）、oversize 1（`web/mermaid.min.js` 3.4MB）、lockfile 5 | 5.04M | 1.27M | 0.25 |
+| crit | 1,219 | 15.3 | binary 299、deny 14（`.claude/rules/*`。WP30 適用前の計測。適用後はテキスト 5 件が docs へ移る）、fixture 13、minified 3（`*.min.js`）、oversize 1（`web/mermaid.min.js` 3.4MB）、lockfile 5 | 5.04M | 1.27M | 0.25 |
 | m3e-canvas | 108 | 9.6 | binary 16、minified 1（`public/material-symbols.json`）、deny 2 | 1.47M | 0.52M | 0.35 |
 | hono | 583 | 4.8 | fixture 4、lockfile 7、deny 6 | 1.63M | 0.41M | 0.25 |
 | flask | 236 | 1.8 | secret 1（`tests/test_apps/.env`）、generated 1（uv の `requirements.txt`）、deny 5 | 0.74M | 0.17M | 0.23 |
 | ripgrep | 237 | 3.1 | data_large 7（benchsuite の csv）、symlink 1、lockfile 2 | 1.39M | 0.89M | 0.64 |
 | fastapi | 3,181 | 33.3 | binary 244、docs 1,706（翻訳含む）、deny 20 | 6.99M | 0.58M | 0.08 |
 | excalidraw | 1,308 | 53.9 | binary 299（woff2 等）、secret 4（`.env.*`）、minified 5（base64 wasm を含む `.ts`）、fixture 26 | 6.83M | 2.82M | 0.41 |
-| react | 7,252 | 38.8 | fixture 4,184（`fixtures/`・`__tests__/fixtures/`）、generated 70（`*.map`）、lockfile 48、deny 35（`.claude/**`） | 18.57M | 6.14M | 0.33 |
+| react | 7,252 | 38.8 | fixture 4,184（`fixtures/`・`__tests__/fixtures/`）、generated 70（`*.map`）、lockfile 48、deny 35（`.claude/**`。WP30 適用前の計測。適用後はテキストが docs へ移る） | 18.57M | 6.14M | 0.33 |
 
 - 04 §2.2 の crit（source 1.29M）・m3e（0.50M）と ±4% で一致。path 規則だけの S0a は 7k files で ≤ 30 ms、内容規則込みで全ファイルを同期読込した試作は react で 405 ms（本番は Worker で parse と同じ読込に融合するので S0 単独のコストにはならない）。
 
@@ -788,7 +788,7 @@ import で解決できない結び付き（Go の同一 package、Python の動�
 
 ### 5.6 既存ドキュメントと TODO
 
-- role: `README*` → readme、`AGENTS.md` → agents、`CLAUDE.md` → claude（どのディレクトリでも）、`docs/adr/**`・`docs/decisions/**`・`adr/**`・`doc/adr/**` → adr、`CONTRIBUTING*` → contributing、`ARCHITECTURE*`・`docs/architecture*`・`DESIGN*` → architecture、他の docs → other。title = 最初の ATX / setext 見出し、無ければファイル名。`.claude/**` 配下（`CLAUDE.md` の派生 rule 群）は deny glob なので**読まない**。
+- role: `README*` → readme、`AGENTS.md` → agents、`CLAUDE.md` → claude（どのディレクトリでも）、`docs/adr/**`・`docs/decisions/**`・`adr/**`・`doc/adr/**` → adr、`CONTRIBUTING*` → contributing、`ARCHITECTURE*`・`docs/architecture*`・`DESIGN*` → architecture、agent 指示 dir（`.claude/`・`.codex/`・`.agents/`・`.cursor/`）配下の `*/skills/**` → skill・`*/commands/**` → command・その他のテキスト文書 → agent、他の docs → other。title = 最初の ATX / setext 見出し、無ければファイル名。agent 指示 dir 配下はテキスト文書（`.md`・`.mdc`・`.markdown`・`.txt`）だけを untrusted な docs（R17）として**読む**（読み取り例外 `AGENT_DOC_READ_GLOBS`、CR wp30-1）。`settings*.json`・`hooks/**`・`mcp.json`・`*.toml`・スクリプト類・非テキストは従来どおり読み取りも deny。書き込み側の deny（`DEFAULT_DENY_GLOBS`）は不変。
 - 見出しの一覧（≤ 30 / doc）は `idx_doc_headings` に持ち、repo pack の DOCS と検索に使う。
 
 ### 5.7 精度の目標と測り方
@@ -1156,7 +1156,7 @@ gen が claude-cli の `--system-prompt-file`（プロセスをまたいで共�
 - **決定性の規則**: 時刻・乱数・絶対 path・pid を含めない。数値は固定小数（rank は 2 桁）。集合は必ず §7.4 の順序で並べる。JSON を埋め込まない。同じ `packKey` で 2 回作ってバイト一致すること、mtime だけ変えた再 scan でもバイト一致すること、を golden test で検査する（IDX-AT-43）。
 - **cache key**: repo pack = `packKey`。module 入力 = `ModuleContext.key`。ファイル単位の skeleton 断片 = `blob × extractor × tier`（`idx_skeleton`）。module / repo の skeleton は断片の連結なので、断片 cache が当たれば ≤ 5 ms で組める。
 - **secret scan**: `read()`・`skeleton()`・`hotBodies()`・`moduleContext()`・`repoPack()` の出力は、`settings.global.security.secretScan` が true（既定）なら `SecretScanner`（ポート。CR-6）を通し、一致を `«redacted:secret»` に置き換え、件数を `redactions` に入れる。**行数は変えない**（行番号と citation がずれないように、行の中だけを置換する）。
-- **deny glob のファイル**は skeleton にも pack にも入らない（S0 で除外済み。`read()` も `E_DENY_GLOB` を返す）。
+- **deny glob のファイル**は skeleton にも pack にも入らない（S0 で除外済み。`read()` も `E_DENY_GLOB` を返す）。読み取り例外の agent 文書（CR wp30-1）は docs として通常のファイルと同等に読める。
 - DATA fence（`UNTRUSTED_FENCE`）で包むのは gen / loop の責任。fence の nonce を呼び出しごとの乱数にすると cache が壊れるが、gen spec §5.1-4 が「workspace の秘密 salt + 内容から導く nonce」に決めたので、同じ `packKey` の pack は同じ fence バイトになる（§13 O-IDX-9 は解決済み）。
 
 ### 7.6 token 推定と較正
@@ -1187,7 +1187,7 @@ f ← clamp(f, 0.5, 2.0);  n ← n + 1
 ### 7.7 `read()` と `CodeSlice`
 
 - `currentText(path)`: 現在の内容の生テキスト（secret scan なし。daemon の外に出さない anchor engine 用。`AnchorContext.currentText`）。`blobText(blob)` も同じく生テキストで、object が無ければ null（shallow clone で古い blob が無い場合など。anchor の cascade は S3 を飛ばす）。
-- `read(path, range?, {blob?, numbered?})`: 現在の blob（または指定 blob。`git cat-file` 経由）から 1 起点・両端含む範囲を返す。`numbered` なら各行 `N|<原文>`。2 MiB を超える範囲は `E_PAYLOAD_TOO_LARGE`。deny glob は `E_DENY_GLOB`、除外ファイル（binary 等）は `E_UNSUPPORTED`。
+- `read(path, range?, {blob?, numbered?})`: 現在の blob（または指定 blob。`git cat-file` 経由）から 1 起点・両端含む範囲を返す。`numbered` なら各行 `N|<原文>`。2 MiB を超える範囲は `E_PAYLOAD_TOO_LARGE`。deny glob は `E_DENY_GLOB`（読み取り例外の agent 文書を除く、CR wp30-1）、除外ファイル（binary 等）は `E_UNSUPPORTED`。
 - `tokens` は `code` kind の推定。`redactions` は §7.5。
 
 ### 7.8 gen への追加の供給（gen spec §17.3 の依頼 I3〜I5）
@@ -1453,7 +1453,7 @@ CREATE VIRTUAL TABLE idx_search USING fts5(kind UNINDEXED, id UNINDEXED, label, 
 | # | 試験 | 合格条件 |
 |---|---|---|
 | IDX-AT-01 | 分類の golden（`fixtures/inventory/` の 1 ファイル 1 規則の合成 repo、R00〜R20 の境界値を含む: 2,097,152 / 2,097,153 byte、avg 300 / 301、50 KiB ちょうど、NUL を 8,000 byte 目 / 8,001 byte 目に置いたもの） | 全ファイルの `(class, excluded, rule)` が期待値と一致 |
-| IDX-AT-02 | コーパスの除外 | crit の `web/mermaid.min.js` が oversize、`web/*.min.js` が minified、`cmd/crit/integration_hashes_gen.go` が generated、`.claude/**` が deny。ripgrep の `crates/core/flags/complete/zsh.rs` は generated に**ならない**。excalidraw の `harfbuzz-wasm.ts` は minified か generated。react の `fixtures/**` が fixture |
+| IDX-AT-02 | コーパスの除外 | crit の `web/mermaid.min.js` が oversize、`web/*.min.js` が minified、`cmd/crit/integration_hashes_gen.go` が generated、`.claude/settings.json` が deny で `.claude/rules/*.md` は docs（CR wp30-1 で変更。テキスト文書だけ読み取り例外）。ripgrep の `crates/core/flags/complete/zsh.rs` は generated に**ならない**。excalidraw の `harfbuzz-wasm.ts` は minified か generated。react の `fixtures/**` が fixture |
 | IDX-AT-03 | `tokensFiltered / tokensNaive` | crit 0.25 ± 0.05、m3e 0.35 ± 0.05（04 §2.2 と整合） |
 | IDX-AT-04 | 秘密を読まない | deny / secret の path に対して fs の `read` が 1 回も呼ばれない（fs ポートのフェイクで計数） |
 | IDX-AT-05 | shadow | git 管理外の fixture ディレクトリ（`.gitignore` と入れ子 repo を含む）を開き、ユーザーのディレクトリに新しいファイルが 0、`.gitignore` 対象と `DEFAULT_SHADOW_EXCLUDES` が列挙されない、入れ子 repo が `special` |

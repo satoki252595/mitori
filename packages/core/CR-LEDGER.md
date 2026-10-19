@@ -418,6 +418,16 @@
 | CR flow-aside-1 | 利用者（トレンドOSSでの品質確認） | accepted | indexer `flowSeeds` の順位（内部の候補順のみ。`FlowSeed` 型は不変） | 「3. 主要な流れ」の候補が、rea では8件すべてランディングページの電卓・恐竜ジャンプのデモ関数、text-to-cad では文書サイトのプライバシーポリシー・利用規約・アイコンのページになり、製品の流れが書かれなかった。website/docs/examples/demo/tests 配下の候補は route を含むすべての製品候補の後へ回し（他に無ければ従来どおり使う）、法務・アイコン系ページを infra route に加え、入口ファイル内の関数は親の入口の順位を継承し、`_` で始まる修飾名を除く。golden 113 件・indexer/gen 623 件は不変 |
 | CR setup-save-1 | 利用者（`setup` 保存の実機確認） | accepted | core `ROUTE_META["PATCH /settings"].clients` に `cli` を追加（`["web", "cli"]`）、CLI `setup` の途中保存表示 | `setup` は `engines`・`pins` を cli 専用の `PATCH /settings/exec` で書いたあと残りを `PATCH /settings` で書くが、後者は web 専用で cli は 403 `E_FORBIDDEN` になり、どの provider でも保存が途中で止まった。cli（bearer）はより強い exec 経路を既に使えるため `PATCH /settings` を cli に開き、`EXEC_SETTING_KEYS` 配下の `E_FORBIDDEN_KEY` 検査は不変。mcp・bearer で web を名乗るものは引き続き拒否。失敗時はどこまで保存されたかと再実行で揃う旨を1〜2行で表示し、巻き戻しは作らない |
 
+## 20. トレンド OSS 実行での所見（2026-10-20、WP30）
+
+| id | requester | 決定 | 適用先 | 理由・備考 |
+|---|---|---|---|---|
+| CR wp30-1 | 利用者（トレンド OSS での生成確認） | accepted | core `AGENT_DOC_DIRS`・`AGENT_DOC_TEXT_EXTS`・`AGENT_DOC_READ_GLOBS`・`isAgentDocReadable()`（追加）、core `ExistingDocFact.role` に `"skill" \| "command" \| "agent"`。`DEFAULT_DENY_GLOBS` は不変 | agent 指示 dir のテキスト文書だけ読み取り可の untrusted 文書に（indexer R01→R17）。書き込み側は全経路が生 deny のまま（scope・apply・snapshot の照合は無変更、テストで固定）。secret・§7.5 は従来どおり |
+| CR wp30-2 | 利用者（トレンド OSS での生成確認） | accepted | indexer `flowSeeds` の候補順のみ（`FlowSeed` 型は不変。CR flow-aside-1 と同じ扱い） | slash command・skill 入口（SKILL.md のみ、参照ページは除く）を kind `entry` の seed に。commands tier 1、skills・agents tier 2、製品 entry は常に先頭。prompt 本文は不変 |
+| CR wp30-3 | 利用者（トレンド OSS での生成確認） | accepted | server `profile.ts` の判定共有（`manifestLicense`・`licenseFallbackLine`・`licenseFromHeads` を追加、`detectLicense` は委譲）。戻り値の形は不変 | Elastic-2.0・BUSL-1.1・SSPL-1.0 を追加、LGPL・BSD の表記ゆれを profile 側に統一、manifest fallback に Cargo.toml・pyproject.toml、不明時は LICENSE 先頭行。§0 と地図が一致 |
+| CR wp30-4 | 利用者（トレンド OSS での生成確認） | accepted | core `DocManifest.usageEstimated?`、doc `stampRun` 引数・gen `GenCallResult`・`ExecResult` の `usageEstimated?`（いずれも追加・任意）、doc i18n `meta.estimated` | `stampRun` で `ap:meta` を即時再描画（commit なし・使用量 0・未生成の残存を修正）。バイト換算の使用量は推計注記つきで単調に残す |
+| CR wp30-5 | 利用者（トレンド OSS での生成確認） | accepted | gen overview 入力と repo pack の抜粋順（深さ→パス）。prompt 本文は不変 | `.cursor-plugin/README.md` がルート README より先に予算を食う問題を修正。ルート README の冒頭が必ず入る |
+
 ## 19. 各社 CLI 更新への自動追従（2026-10-13、WP28）
 
 | id | requester | 決定 | 適用先 | 理由・備考 |

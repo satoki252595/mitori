@@ -1249,6 +1249,8 @@ export interface GenCallResult {
   text: string;
   /** Authoritative usage (terminal `result` only). */
   usage: Usage;
+  /** True when `usage` is byte-based (the engine returned no token counts) [CR wp30-4]. */
+  usageEstimated?: boolean;
   /** Refusal details. */
   refusal: { category: string | null } | null;
   /** Model that actually answered when different (refusal fallback). */

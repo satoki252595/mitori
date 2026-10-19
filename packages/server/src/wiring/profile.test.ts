@@ -1,7 +1,8 @@
 /** NC-02: the first screen says what the repository is (README lede, toolchain, license, remote) — 0 tokens. */
 import { describe, expect, test } from "bun:test";
 import type { FileEntry, RepoPath } from "@mitori/core";
-import { areasOf, parseRemote, readmeLede, repoProfile, spdxOf, toolchainOf } from "./profile.ts";
+import { areasOf, licenseFallbackLine, licenseFromHeads, manifestLicense, parseRemote, readmeLede, repoProfile, spdxOf, toolchainOf } from "./profile.ts";
+import { detectLicense } from "./static-input.ts";
 
 describe("NC-02 repository profile", () => {
   test("README lede skips the heading, badges, HTML and image lines; keeps the first prose paragraph verbatim-ish", () => {
@@ -82,5 +83,66 @@ describe("NC-02 repository profile", () => {
       ["tests", "", 300],
     ]);
     expect(areasOf([])).toEqual([]);
+  });
+});
+
+describe("WP30-C one license decision for the map and §0", () => {
+  test("Elastic-2.0, BUSL-1.1 and SSPL-1.0 are recognized", () => {
+    expect(spdxOf("Elastic License 2.0\n\nCopyright (c) 2026")).toBe("Elastic-2.0");
+    expect(spdxOf("Business Source License 1.1\n\nLicensor: X")).toBe("BUSL-1.1");
+    expect(spdxOf("Server Side Public License, Version 1, October 2018")).toBe("SSPL-1.0");
+    expect(spdxOf("GNU LESSER GENERAL PUBLIC LICENSE\nVersion 3")).toBe("LGPL-3.0");
+    expect(spdxOf("Redistribution and use in source and binary forms")).toBe("BSD-2-Clause");
+  });
+
+  test("manifest fallbacks: package.json, Cargo.toml and pyproject.toml", () => {
+    expect(manifestLicense("package.json", '{"license":"Elastic-2.0"}')).toBe("Elastic-2.0");
+    expect(manifestLicense("package.json", '{"license":"MIT OR Apache-2.0"}')).toBe("MIT OR Apache-2.0");
+    expect(manifestLicense("package.json", "not json")).toBeNull();
+    expect(manifestLicense("Cargo.toml", '[package]\nname = "x"\nlicense = "MIT"\n')).toBe("MIT");
+    expect(manifestLicense("pyproject.toml", '[project]\nlicense = "GPL-3.0"\n')).toBe("GPL-3.0");
+    expect(manifestLicense("pyproject.toml", '[project]\nlicense = { text = "Custom License v9" }\n')).toBe("Custom License v9");
+    expect(manifestLicense("other.txt", 'license = "MIT"')).toBeNull();
+  });
+
+  test("unknown text falls back to the first non-empty line (≤ 60 chars, no markdown)", () => {
+    expect(licenseFallbackLine("\n\n# My Custom License v9\n\nbody\n")).toBe("My Custom License v9");
+    expect(licenseFallbackLine(`**${"x".repeat(100)}**\n`)).toBe("x".repeat(60));
+    expect(licenseFallbackLine("\n   \n")).toBeNull();
+  });
+
+  test("§0 (detectLicense) and the map (repoProfile) agree: context-mode's Elastic case", async () => {
+    const texts: Record<string, string> = {
+      LICENSE: "Elastic License 2.0\n\nCopyright (c) 2026 Context Mode\n",
+      "package.json": '{"name":"context-mode","license":"Elastic-2.0"}',
+    };
+    const s0 = await detectLicense(
+      { root: "/r" } as never,
+      { files: () => Object.keys(texts).map((path) => ({ path })) } as never,
+      { readHead: async (abs: string) => new TextEncoder().encode(texts[abs.slice(3)] ?? "") } as never,
+    );
+    expect(s0).toBe("Elastic-2.0");
+    const f = (path: string) => ({ path }) as unknown as FileEntry;
+    const p = await repoProfile({
+      info: { root: "/r" } as never,
+      files: () => [f("LICENSE"), f("package.json")],
+      read: async (path) => texts[path] ?? null,
+      git: { head: async () => null as never },
+    });
+    expect(p.license).toEqual({ spdx: "Elastic-2.0", path: "LICENSE" });
+    expect(p.license?.spdx).toBe(s0 ?? undefined);
+  });
+
+  test("package.json-only and first-line fallbacks agree on both paths", async () => {
+    const only = [{ path: "package.json", text: '{"license":"BUSL-1.1"}' }];
+    expect(licenseFromHeads([], only)).toEqual({ spdx: "BUSL-1.1", path: "package.json" });
+    const unknown = [{ path: "LICENSE", text: "\n# Acme License 2026\n\nterms\n" }];
+    expect(licenseFromHeads(unknown, [])?.spdx).toBe("Acme License 2026");
+    const s0 = await detectLicense(
+      { root: "/r" } as never,
+      { files: () => [{ path: "LICENSE" }] } as never,
+      { readHead: async () => new TextEncoder().encode("\n# Acme License 2026\n\nterms\n") } as never,
+    );
+    expect(s0).toBe("Acme License 2026");
   });
 });

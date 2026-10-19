@@ -171,6 +171,16 @@ function metaSpec(core: StoreCore): StaticSpec[] {
 }
 
 /**
+ * Redraw `ap:meta` from the current manifest. `stampRun` calls it: without this the appendix kept the
+ * pre-run manifest (commit なし · usage 0 · 未生成) after the run stamped the real values [CR wp30-4].
+ */
+export function refreshMeta(core: StoreCore): void {
+  if (!core.st.manifest) return;
+  const res = emptyResult();
+  for (const spec of metaSpec(core)) upsertStatic(core, spec, res);
+}
+
+/**
  * Manifest `models` / `generator.prompts` = what produced the current AI blocks (their `gen` stamps). The rest of the
  * run stamp (effort, usage, snapshot, generatedAt) is the generation run's — CR-PENDING(WP-04): no DocStore method yet.
  * With `written`, the whole doc is scanned only when one of those blocks brings a stamp the manifest lacks (a 10k-block

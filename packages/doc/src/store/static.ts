@@ -843,7 +843,7 @@ export function metaList(m: DocManifest, l: Labels): string {
     `- ${l.meta.commit}: ${m.snapshot.commit ? code(m.snapshot.commit.slice(0, 12)) : l.badges.noCommit}`,
     `- ${l.meta.models}: ${m.models.length === 0 ? l.meta.none : m.models.join(", ")}`,
     `- ${l.meta.prompts}: ${prompts || l.meta.none}`,
-    `- ${l.meta.tokens}: in ${u.in} · cache ${u.cacheRead} · out ${u.out}`,
+    `- ${l.meta.tokens}: in ${u.in} · cache ${u.cacheRead} · out ${u.out}${m.usageEstimated ? l.meta.estimated : ""}`,
     `- ${l.meta.coverage}: ${m.coverage.filesIncluded}/${m.coverage.filesTotal}`,
     `- ${l.meta.effort}: ${m.effort ?? l.meta.none}`,
   ].join("\n");

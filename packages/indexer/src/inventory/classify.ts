@@ -1,5 +1,5 @@
 // S0 path-phase rules (indexer spec §2.3, first match wins). Content rules R11–R13 run in the Worker (content.ts).
-import type { FileClass, RepoPath, SourceLang } from "@mitori/core";
+import { DEFAULT_DENY_GLOBS, type FileClass, isAgentDocReadable, type RepoPath, type SourceLang } from "@mitori/core";
 import { type FileScope, type GrammarId, INVENTORY_LIMITS, type IndexerExcludeReason, type InventoryRuleId, LANG_GRAMMAR } from "../contract.ts";
 import { basename, extOf, langOfPath } from "../lang/detect.ts";
 import { isTestFile } from "../lang/testfile.ts";
@@ -38,7 +38,13 @@ export interface PathRuleInput {
   size: number;
   mode: string;
   attrs: LinguistAttrs;
-  settings: { denyGlobs: readonly string[]; include: readonly string[]; exclude: readonly string[] };
+  settings: {
+    denyGlobs: readonly string[];
+    include: readonly string[];
+    exclude: readonly string[];
+    /** User/repo-originated deny globs (provenance lost by the merged denyGlobs dedup) [CR wp30b-1]. */
+    userDenyGlobs?: readonly string[];
+  };
 }
 
 /** Result of the path phase (`classifyByPath`). */
@@ -55,12 +61,17 @@ export interface PathClass {
 /** Compiled glob lists of one settings value (memoized by content). */
 export interface CompiledSettings {
   deny: GlobMatcher;
+  /** Deny globs beyond the defaults (user/repo/docDir origin): the agent-doc read exception never covers these. */
+  denyCustom: GlobMatcher;
   include: GlobMatcher;
   exclude: GlobMatcher;
 }
 
+const DEFAULT_DENY_SET: ReadonlySet<string> = new Set<string>(DEFAULT_DENY_GLOBS);
+
 export function compileSettings(s: PathRuleInput["settings"]): CompiledSettings {
-  return { deny: globMatcher(s.denyGlobs), include: globMatcher(s.include), exclude: globMatcher(s.exclude) };
+  const custom = [...s.denyGlobs.filter((g) => !DEFAULT_DENY_SET.has(g)), ...(s.userDenyGlobs ?? [])];
+  return { deny: globMatcher(s.denyGlobs), denyCustom: globMatcher(custom), include: globMatcher(s.include), exclude: globMatcher(s.exclude) };
 }
 
 const INCLUDED_NEEDS_CONTENT: ReadonlySet<FileClass> = new Set(["source", "test", "docs", "config"]);
@@ -100,13 +111,21 @@ export function classifyPathWith(input: Omit<PathRuleInput, "settings">, setting
   };
 
   if (mode === "160000" || mode === "120000" || path.endsWith("/")) return out("ignored", "R00.special", "special");
-  if (settings.deny.test(path)) return isSecretPath(path) ? out("secret", "R01.deny", "secret") : out("ignored", "R01.deny", "deny_glob");
+  // [CR wp30-1] agent-instruction text docs (.claude/.codex/.agents/.cursor + .md/.mdc/.markdown/.txt) read as
+  // untrusted docs (fall through to R17); secrets and everything else under those dirs stay denied. The write side
+  // (router scope, patch apply, snapshot) matches DEFAULT_DENY_GLOBS directly and is unaffected.
+  // [CR wp30b-1] the exception covers default-deny matches only: a user/repo/docDir deny glob (denyCustom) still
+  // denies agent docs (userDenyGlobs keeps provenance when the glob duplicates a default).
+  if (settings.deny.test(path) && !(isAgentDocReadable(path) && !isSecretPath(path) && !settings.denyCustom.test(path)))
+    return isSecretPath(path) ? out("secret", "R01.deny", "secret") : out("ignored", "R01.deny", "deny_glob");
   const included = settings.include.test(path);
   if (!included && settings.exclude.test(path)) return out("ignored", "R02.user_exclude", "user_exclude");
   if (isSecretPath(path)) return out("secret", "R04.secret_name", "secret");
   if (LOCKFILES.has(b)) return out("lockfile", "R05.lockfile", "lockfile");
   if (BINARY_EXTS.has(ext)) return out("binary", "R06.binary_ext", "binary");
   if (size > INVENTORY_LIMITS.oversizeBytes) return out("oversize", "R07.oversize", "oversize");
+  // [CR wp30-1] agent-instruction text docs (.md/.mdc/.markdown/.txt, which are not all docExts) read as docs.
+  if (isAgentDocReadable(path)) return out("docs", "R17.docs");
   if (!included) {
     if (attrs.vendored === true || (attrs.vendored !== false && anyDir(dirs, VENDOR_SEGMENTS))) return out("vendored", "R08.vendored", "vendored");
     if (attrs.generated === true || (attrs.generated !== false && (anyDir(dirs, GENERATED_SEGMENTS) || GENERATED_NAME_RE.test(b))))

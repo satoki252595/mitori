@@ -434,3 +434,44 @@ describe("the product's flows come before its website, docs, demos and tests", (
     expect(seeds.some((s) => s.label.includes("_private_helper"))).toBe(false);
   });
 });
+
+describe("WP30-B agent docs seed flows", () => {
+  test("commands and skills seed entries after product entries; product-only ranking is unchanged", () => {
+    const files = [
+      sf("src/main.ts", { symbols: [{ name: "main" }] }),
+      sf("src/work.ts", { symbols: [{ name: "work" }] }),
+      sf(".claude/commands/scrape.md", { class: "docs" }),
+      sf(".claude/skills/apply/SKILL.md", { class: "docs" }),
+    ];
+    const texts = {
+      ".claude/commands/scrape.md": "# Scrape\n\nRun the scraper.\n",
+      ".claude/skills/apply/SKILL.md": "# Apply\n\nApply for jobs.\n",
+    };
+    const p = runPipeline(input(files, texts));
+    const st = p.structure;
+    const entry = {
+      kind: "entry",
+      detector: "entry.test@1",
+      path: "src/main.ts",
+      line: 1,
+      blob: "b0",
+      entry: "main",
+      label: "src/main",
+    } as const;
+    const docs = [
+      { kind: "existing_doc", detector: "doc.existing@1", path: ".claude/commands/scrape.md", line: 1, blob: "b0", role: "command", title: "Scrape" },
+      { kind: "existing_doc", detector: "doc.existing@1", path: ".claude/skills/apply/SKILL.md", line: 1, blob: "b0", role: "skill", title: "Apply" },
+      { kind: "existing_doc", detector: "doc.existing@1", path: ".claude/skills/apply/refs.md", line: 1, blob: "b0", role: "skill", title: "Refs" },
+    ] as const;
+    const withDocs = { ...p.facts, facts: [...p.facts.facts, entry, ...docs], scopes: [...p.facts.scopes, "main", "main", "main", "main"] as never };
+    const seeds = flowSeeds(st, withDocs);
+    expect(seeds.map((s) => [s.kind, s.label, s.path])).toEqual([
+      ["entry", "src/main", "src/main.ts"],
+      ["entry", "/scrape", ".claude/commands/scrape.md"],
+      ["entry", "apply", ".claude/skills/apply/SKILL.md"],
+    ]);
+    // without the agent docs the product ranking is exactly the old one
+    const bare = { ...p.facts, facts: [...p.facts.facts, entry], scopes: [...p.facts.scopes, "main"] as never };
+    expect(flowSeeds(st, bare).map((s) => s.label)).toEqual(["src/main"]);
+  });
+});

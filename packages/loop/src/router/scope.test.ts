@@ -199,6 +199,16 @@ describe("AC-L20 deriveWriteScope — deny globs and unwritable files", () => {
       expect(r.ok === false && r.error.code).toBe("E_DENY_GLOB");
     }
   });
+  test("WP30-A: readable agent docs are still never written (write side unchanged)", () => {
+    // A change anchored only on a readable skill doc is refused, and a whole-file chip for it adds no scope.
+    for (const p of [".claude/skills/scrape/SKILL.md", ".agents/skills/apply/SKILL.md", ".claude/commands/scrape.md"]) {
+      const world: World = { files: { [p]: {}, "src/a.ts": {} }, deny: [...DEFAULT_DENY_GLOBS] };
+      const r = derive([thread({ anchor: codeAnchor(p, 1, 3) })], world);
+      expect(r.ok === false && r.error.code).toBe("E_DENY_GLOB");
+      const chip = derive([thread({ anchor: codeAnchor("src/a.ts", 1, 3) })], world, "patch", [{ path: p, start: 0, end: 0 }]);
+      expect(val(chip).writeScope).toEqual(["src/a.ts"]);
+    }
+  });
   test.each(["binary", "special", "oversize"] as ExcludeReason[])("%s files cannot be read or written: dropped", (excluded) => {
     const r = derive([thread({ anchor: codeAnchor("src/a.ts", 1, 3) })], { files: { "src/a.ts": { excluded } } });
     expect(val(r)).toEqual({ writeScope: [], newFiles: [], anchoredLines: 0, ranges: [] });

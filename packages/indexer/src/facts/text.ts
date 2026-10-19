@@ -531,11 +531,15 @@ export function sqlSchema(input: In): FactCandidate[] {
 
 /* ------------------------------------------------------------------ doc.existing@1 */
 
-export function docRole(path: string): "readme" | "agents" | "claude" | "adr" | "contributing" | "architecture" | "other" {
+export function docRole(path: string): "readme" | "agents" | "claude" | "adr" | "contributing" | "architecture" | "skill" | "command" | "agent" | "other" {
   const b = baseOf(path);
   if (/^readme(\.|$)/i.test(b)) return "readme";
   if (b === "AGENTS.md") return "agents";
   if (b === "CLAUDE.md") return "claude";
+  // [CR wp30-1] agent-instruction docs: skills, slash commands, then any other text doc under the four dirs.
+  if (/\/skills\//i.test(path) || /^skills\//i.test(path)) return "skill";
+  if (/\/commands\//i.test(path) || /^commands\//i.test(path)) return "command";
+  if (/(^|\/)(\.claude|\.codex|\.agents|\.cursor)\//i.test(path)) return "agent";
   if (/(^|\/)(docs\/adr|docs\/decisions|adr|doc\/adr)\//i.test(path)) return "adr";
   if (/^contributing(\.|$)/i.test(b)) return "contributing";
   if (/^(architecture|design)(\.|$)/i.test(b) || /(^|\/)docs\/architecture/i.test(path)) return "architecture";
@@ -573,7 +577,8 @@ export function docTitle(path: string, text: string): string {
 }
 
 export function existingDoc(input: In): FactCandidate[] {
-  if (input.file.path.startsWith(".claude/") || input.file.path.includes("/.claude/")) return [];
+  // [CR wp30-1] readable agent-instruction docs (.claude/.codex/.agents/.cursor text) get facts like a README;
+  // classification (R01) already denies everything else under those dirs, so no path check is needed here.
   const role = docRole(input.file.path);
   return [candidate("doc.existing@1", "existing_doc", input, firstHeadingLine(input.text), { role, title: docTitle(input.file.path, input.text) })];
 }

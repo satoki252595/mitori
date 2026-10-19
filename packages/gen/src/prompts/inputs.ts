@@ -769,14 +769,18 @@ class Gatherer {
       .sort((a, c) => {
         const order =
           this.task.prompt === "gen.decisions"
-            ? ["architecture", "adr", "agents", "claude", "contributing", "readme", "other"]
+            ? ["architecture", "adr", "agents", "claude", "contributing", "readme", "skill", "command", "agent", "other"]
             : m
               ? ["contributing", "readme"]
               : ["readme"];
         const rank = (d: Fact) => (d.kind === "existing_doc" && order.includes(d.role) ? order.indexOf(d.role) : order.length);
         const ra = rank(a);
         const rc = rank(c);
-        return ra - rc || (a.path < c.path ? -1 : 1);
+        // [CR wp30-5] the root README first: `.` sorts before letters, so a nested README (`.cursor-plugin/…`)
+        // used to starve the root one out of the shared excerpt budget.
+        const da = a.path.split("/").length;
+        const dc = c.path.split("/").length;
+        return ra - rc || da - dc || (a.path < c.path ? -1 : a.path > c.path ? 1 : 0);
       });
     for (const d of chosen) {
       const isReadme = d.kind === "existing_doc" && d.role === "readme";

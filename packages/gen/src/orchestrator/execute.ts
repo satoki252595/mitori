@@ -111,6 +111,8 @@ export interface ExecResult {
   state: "done" | "cached" | "failed" | "skipped" | "pending";
   /** Summed usage of the engine calls (null when none). */
   usage: Usage | null;
+  /** True when any turn's usage is byte-based (the engine returned no token counts) [CR wp30-4]. */
+  usageEstimated?: boolean;
   /** Engine calls made. */
   calls: number;
   /** Attempts made (≤ 2). */
@@ -399,6 +401,7 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   const turns: Turn[] = [];
   const measured = (r: ExecResult, dropped: number): ExecResult => ({
     ...r,
+    ...(turns.some((t) => t.result.usageEstimated === true) ? { usageEstimated: true as const } : {}),
     created: [...sink.created],
     metrics: metricsOf(task, run.engine.id, r, turns, sink, dropped),
   });
