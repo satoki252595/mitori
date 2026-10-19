@@ -176,6 +176,47 @@ export function pyClick(input: FactExtractInput, tree: Tree): FactCandidate[] {
   return out;
 }
 
+/**
+ * MCP tool registrations: `@mcp.tool()` / `@mcp.tool("name")` / `@app.tool()` on a function (FastMCP idiom). The
+ * tool name is the explicit argument when one is given, else the function name; the handler is the function itself.
+ * Bare `@mcp.tool` (no call) counts too. Gated on an `mcp` / `fastmcp` import like the other detectors.
+ */
+export function pyMcpTools(input: FactExtractInput, tree: Tree): FactCandidate[] {
+  if (input.file.scope === "test" || !/\.\s*tool\b/.test(input.text)) return [];
+  if (!importsAny(input, "mcp") && !importsAny(input, "fastmcp")) return [];
+  const ev: FactEvidence[] = [];
+  if (importsAny(input, "mcp")) ev.push("import:mcp");
+  if (importsAny(input, "fastmcp")) ev.push("import:fastmcp");
+  const out: FactCandidate[] = [];
+  for (const def of tree.rootNode.descendantsOfType("decorated_definition")) {
+    if (!def) continue;
+    const fn = def.childForFieldName("definition");
+    if (fn?.type !== "function_definition") continue;
+    const fnName = fn.childForFieldName("name")?.text ?? "";
+    if (fnName === "") continue;
+    for (const d of def.namedChildren) {
+      if (d?.type !== "decorator") continue;
+      const call = d.namedChildren.find((x) => x?.type === "call");
+      const f = call?.childForFieldName("function") ?? d.namedChildren.find((x) => x?.type === "attribute");
+      if (f?.type !== "attribute" || f.childForFieldName("attribute")?.text !== "tool") continue;
+      const recv = f.childForFieldName("object")?.text ?? "";
+      const args = call?.childForFieldName("arguments");
+      const positional = (args?.namedChildren ?? []).filter((a): a is Node => a !== null && a.type !== "comment");
+      const explicit = stringValue(positional.find((a) => a.type === "string")) ?? stringValue(kwarg(args ?? undefined, "name"));
+      const name = explicit ?? fnName;
+      if (name === "") continue;
+      out.push(
+        candidate("route.mcp@1", "route", input, lineOf(d), { method: "TOOL", pattern: name, framework: "mcp", handler: fnName, handlers: [fnName] }, [
+          ...ev,
+          `recv:${recv}`,
+        ]),
+      );
+      break;
+    }
+  }
+  return out;
+}
+
 export function pyEntry(input: FactExtractInput, tree: Tree): FactCandidate[] {
   if (input.file.scope === "test") return [];
   const out: FactCandidate[] = [];

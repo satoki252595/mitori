@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import type { DocLang, SectionId } from "@mitori/core";
+import type { DocLang, RepoPath, SectionId, SymbolEntry, SymbolKey } from "@mitori/core";
+import { DATA_BUDGETS } from "../contract.ts";
 import { createFakeDocStore } from "../test/fake-doc.ts";
 import { createFakeIndexer } from "../test/fake-indexer.ts";
 import { testHasher, testIds } from "../test/ports.ts";
-import { sampleRepo } from "../test/repo.ts";
+import { M_CORE, sampleRepo } from "../test/repo.ts";
 import { plannedTask } from "../test/tasks.ts";
-import { gatherInputs } from "./inputs.ts";
+import { childSymbols, gatherInputs, summarizePromptInput } from "./inputs.ts";
 
 const hasher = testHasher();
 
@@ -81,6 +82,137 @@ describe("WP30-E the root README leads the overview DOCS", () => {
     expect(root).toBeGreaterThanOrEqual(0);
     expect(nested).toBeGreaterThanOrEqual(0);
     expect(root).toBeLessThan(nested);
+  });
+});
+
+describe("WP32 gen.parent CHILDREN lists citable definition ranges of each child's public symbols", () => {
+  test("names a sentence may mention carry exact path:start-end ranges (40-line clipped), within budget", async () => {
+    const { env } = setup();
+    const task = plannedTask("gen.parent", { kind: "parent", id: M_CORE as string }, ["s6/core" as SectionId]);
+    const inputs = (await gatherInputs(task, env)).inputs;
+    const children = (inputs.CHILDREN ?? []).join("\n");
+    // representative exported callables of both children, each with its definition range (types stay in SKELETON)
+    expect(children).toContain(">   symbols: Store.get src/session/store.ts:10-15, Store.put src/session/store.ts:17-19");
+    expect(children).toContain(">   symbols: login src/auth/login.ts:3-7");
+    // private helpers are not nameable from the parent page
+    expect(children).not.toMatch(/ now src\//);
+    // every emitted range repeats exactly (the validator allows only exact repeats of `> ` locations)
+    for (const m of children.matchAll(/>\s{3}symbols: (.*)/g))
+      for (const part of (m[1] as string).split(", ")) {
+        expect(part).toMatch(/^(\S+) (\S+):(\d+)-(\d+)$/);
+        const [, , , a, b] = /^(\S+) (\S+):(\d+)-(\d+)$/.exec(part) as unknown as [string, string, string, string, string];
+        expect(Number(b) - Number(a)).toBeLessThanOrEqual(39);
+      }
+    // the section stays within its token budget
+    const tokens = (t: string) => Math.ceil(t.length / 2.3);
+    expect(tokens((inputs.CHILDREN ?? []).join("\n"))).toBeLessThanOrEqual(DATA_BUDGETS["gen.parent"].CHILDREN ?? 4000);
+  });
+});
+
+describe("WP32 childSymbols orders one symbols line per file", () => {
+  test("module functions, then handlers (even unexported), then other methods; ~-stripped, 40-clipped", () => {
+    const sym = (
+      path: string,
+      name: string,
+      start: number,
+      end: number,
+      kind: SymbolEntry["kind"] = "function",
+      over: Partial<SymbolEntry> = {},
+    ): SymbolEntry =>
+      ({
+        key: `${path}#${name}` as SymbolKey,
+        path: path as RepoPath,
+        kind,
+        name,
+        qualname: name,
+        start,
+        end,
+        exported: true,
+        ...over,
+      }) as unknown as SymbolEntry;
+    const table: Record<string, SymbolEntry[]> = {
+      "b/mod.rs": [sym("b/mod.rs", "build_api", 142, 144), sym("b/mod.rs", "long_helper", 10, 200)],
+      "a/srv.rs": [
+        sym("a/srv.rs", "setup", 5, 8),
+        { ...sym("a/srv.rs", "tool_run", 50, 60), exported: false },
+        sym("a/srv.rs", "T", 60, 90, "struct"),
+        { ...sym("a/srv.rs", "m", 70, 75, "method"), key: "a/srv.rs#T~2.m" as SymbolKey, qualname: "T~2.m", parent: "a/srv.rs#T" as SymbolKey },
+        { ...sym("a/srv.rs", "n", 80, 85, "method"), key: "a/srv.rs#T~2.n" as SymbolKey, qualname: "T~2.n", parent: "a/srv.rs#T" as SymbolKey },
+      ],
+      "c/types.rs": [sym("c/types.rs", "Thing", 2, 9, "struct")],
+      "c/priv.rs": [sym("c/priv.rs", "secret_fn", 3, 6, "function", { exported: false })],
+    };
+    const symbols = (p: RepoPath) => table[p] ?? [];
+    // tool_run is a route handler although not exported; T.m outranks the plain method T.n
+    const lines = childSymbols(symbols, ["a/srv.rs", "b/mod.rs", "c/priv.rs", "c/types.rs"] as RepoPath[], new Set(["a/srv.rs#tool_run", "a/srv.rs#T~2.m"]));
+    expect(lines).toEqual([
+      ">   symbols: setup a/srv.rs:5-8, tool_run a/srv.rs:50-60, T.m a/srv.rs:70-75, T.n a/srv.rs:80-85",
+      ">   symbols: long_helper b/mod.rs:10-49, build_api b/mod.rs:142-144",
+    ]);
+    // the per-file cap keeps each file's head (two symbols per file here)
+    expect(childSymbols(symbols, ["a/srv.rs", "b/mod.rs"] as RepoPath[], new Set(["a/srv.rs#tool_run", "a/srv.rs#T~2.m"]), 2)).toEqual([
+      ">   symbols: setup a/srv.rs:5-8, tool_run a/srv.rs:50-60",
+      ">   symbols: long_helper b/mod.rs:10-49, build_api b/mod.rs:142-144",
+    ]);
+  });
+});
+
+describe("WP32c gen.flows BODIES quotes command docs before code bodies", () => {
+  test("WP32c-3 doc seeds take a fair BODIES share and come before code seeds", async () => {
+    const { env, indexer } = setup();
+    const calls: { label: string; budget: number }[] = [];
+    const docSeed = {
+      k: 1,
+      kind: "entry",
+      label: "/apply",
+      path: ".claude/commands/apply.md",
+      line: 1,
+      modules: [],
+      files: [".claude/commands/apply.md"],
+    } as const;
+    const codeSeed = {
+      k: 2,
+      kind: "entry",
+      label: "main",
+      path: "src/main.ts",
+      line: 1,
+      modules: ["md_a0000004"],
+      files: ["src/main.ts"],
+    } as const;
+    indexer.flowSeeds = () => [docSeed, codeSeed] as never;
+    indexer.flowBodies = ((seed: { label: string; files: string[]; path: string }, budget: number) => {
+      calls.push({ label: seed.label, budget });
+      const path = seed.files[0] ?? seed.path;
+      return [{ path, blob: "b", start: 1, end: 1, text: `1|${seed.label}`, numbered: true as const, tokens: 8, redactions: 0 }];
+    }) as never;
+    const task = plannedTask("gen.flows", { kind: "section", id: "s3" }, ["s3"]);
+    const bodies = (await gatherInputs(task, env)).inputs.BODIES?.join("\n") ?? "";
+    expect(bodies).toContain("=== .claude/commands/apply.md");
+    expect(bodies).toContain("=== src/main.ts");
+    expect(bodies.indexOf("=== .claude/commands/apply.md")).toBeLessThan(bodies.indexOf("=== src/main.ts"));
+    expect(calls.find((c) => c.label === "/apply")?.budget).toBe(Math.floor(DATA_BUDGETS["gen.flows"].BODIES / 2));
+  });
+});
+
+describe("WP32e prompt-input summary", () => {
+  test("WP32e-1 slots report lines, tokens, heading groups and unheaded lines", () => {
+    const out = summarizePromptInput(
+      {
+        SEEDS: ["> seed1 entry /apply .claude/commands/apply.md:1 path: "],
+        BODIES: ["=== a.ts · lines 1-2", "1|x", "2|y", "=== b.ts · lines 5-5", "5|z"],
+      },
+      (t) => t.length,
+    );
+    const seeds = out.find((s) => s.slot === "SEEDS") as (typeof out)[number];
+    expect(seeds.lines).toBe(1);
+    expect(seeds.groups).toEqual([{ head: null, lines: 1 }]);
+    const bodies = out.find((s) => s.slot === "BODIES") as (typeof out)[number];
+    expect(bodies.lines).toBe(5);
+    expect(bodies.tokens).toBe("=== a.ts · lines 1-2\n1|x\n2|y\n=== b.ts · lines 5-5\n5|z".length);
+    expect(bodies.groups).toEqual([
+      { head: "=== a.ts · lines 1-2", lines: 3 },
+      { head: "=== b.ts · lines 5-5", lines: 2 },
+    ]);
   });
 });
 

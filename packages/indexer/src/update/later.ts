@@ -20,7 +20,7 @@ import type {
 import { type FactsResult, linkFacts } from "../facts/stage.ts";
 import { extractorSetVersion } from "../lang/versions.ts";
 import { moduleSummary } from "../pack/describe.ts";
-import { type FlowSources, flowBodies, flowSeeds, moduleStats } from "../pack/flow.ts";
+import { docScriptRefs, type FlowSources, flowBodies, flowRefPath, flowSeeds, moduleStats } from "../pack/flow.ts";
 import {
   hotBodies,
   hotFiles,
@@ -309,12 +309,25 @@ export function laterStages(view: IndexView): LaterStages {
     const want = hotFiles(s.pack, HOT_TEXT_TOKENS);
     for (const p of handlerFiles(s)) want.add(p);
     let flow = 0;
-    for (const seed of seedsOf(s, 8, from))
+    for (const seed of seedsOf(s, 8, from)) {
       for (const p of [seed.path, ...seed.files]) {
         if (flow >= FLOW_TEXT_FILES) break;
         if (!want.has(p)) flow++;
         want.add(p);
       }
+      // [CR wp32c-1] a doc seed quotes the bundled scripts it mentions: warm those texts too (the doc text arrives
+      // on an earlier hop, so a later hop resolves its refs; the same 64-file flow cap applies).
+      if (seed.modules.length > 0) continue;
+      const doc = seed.files[0] ?? seed.path;
+      if (s.byPath.get(doc)?.class !== "docs") continue;
+      const t = from.get(doc);
+      if (t === undefined) continue;
+      for (const p of docScriptRefs(doc, t, (q) => s.byPath.has(q))) {
+        if (flow >= FLOW_TEXT_FILES) break;
+        if (!want.has(p)) flow++;
+        want.add(p);
+      }
+    }
     for (const p of rationaleFiles(s.pack, rationaleOf, RATIONALE_LIMIT)) want.add(p);
     return want;
   }
@@ -346,7 +359,9 @@ export function laterStages(view: IndexView): LaterStages {
         }
       }
     };
-    await load(handlerFiles(s));
+    // [WP32b] the reference doc ranks the instruction-doc seeds: warm it before the first `seedsOf`.
+    const ref = flowRefPath(s.facts);
+    await load(ref === null ? handlerFiles(s) : [ref, ...handlerFiles(s)]);
     // Source-confirmed flows can continue inside a module. Warm their next calls before ranking the final seeds;
     // each pass keeps the same 64-file flow cap, and the existing walk ends after six hops.
     for (let hop = 0; hop < 6; hop++) {

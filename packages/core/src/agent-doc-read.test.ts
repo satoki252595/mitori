@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import picomatch from "picomatch";
-import { AGENT_DOC_READ_GLOBS, DEFAULT_DENY_GLOBS, isAgentDocReadable } from "./domain.ts";
+import { AGENT_DOC_READ_GLOBS, DEFAULT_DENY_GLOBS, isAgentDocReadable, isAgentSkillBundledReadable } from "./domain.ts";
 
 // The read-side exception (write deny is unchanged): text docs under the four agent-instruction directories.
 const readMatcher = picomatch([...AGENT_DOC_READ_GLOBS], { dot: true });
@@ -55,5 +55,38 @@ describe("WP30-A isAgentDocReadable", () => {
   test("the write side is unchanged: DEFAULT_DENY_GLOBS still matches the readable docs", () => {
     for (const p of [".claude/skills/scrape/SKILL.md", ".agents/skills/apply/SKILL.md", ".codex/commands.md", ".cursor/notes.txt"])
       expect(denyMatcher(p)).toBe(true);
+  });
+});
+
+describe("WP32d isAgentSkillBundledReadable", () => {
+  test("bundled non-doc files under <agent>/skills/<name> are readable", () => {
+    for (const p of [
+      ".claude/skills/x/cli/src/a.ts",
+      ".agents/skills/jobbank-search/cli/src/cli.ts",
+      ".codex/skills/x/run.py",
+      ".cursor/skills/x/helper.sh",
+      ".agents/skills/x/package.json",
+    ])
+      expect(isAgentSkillBundledReadable(p)).toBe(true);
+  });
+
+  test("hooks, settings, mcp configs, toml and doc files stay out", () => {
+    for (const p of [
+      ".claude/skills/x/hooks/notify.sh",
+      ".claude/skills/x/settings.json",
+      ".claude/skills/x/settings.local.json",
+      ".claude/skills/x/mcp.json",
+      ".claude/skills/x/.mcp.json",
+      ".agents/skills/x/.cargo/config.toml",
+      ".agents/skills/x/pyproject.toml",
+      ".claude/skills/x/SKILL.md",
+      ".agents/skills/x/README.md",
+    ])
+      expect(isAgentSkillBundledReadable(p)).toBe(false);
+  });
+
+  test("outside <agent>/skills the bundled exception never applies", () => {
+    for (const p of ["skills/x/cli/src/a.ts", ".claude/commands/a.ts", "src/a.ts", ".claude/skills/x", ".agents/skills"])
+      expect(isAgentSkillBundledReadable(p)).toBe(false);
   });
 });

@@ -9,12 +9,12 @@ import picomatch from "picomatch";
 import type { FactCandidate, FactDetector, FactExtractInput, GrammarId } from "../contract.ts";
 import { baseOf } from "../resolve/files.ts";
 import { goCobra, goEntry, goEnv, goRegistry, goRoutes, goTestMain, goTests } from "./go.ts";
-import { jsCommander, jsEnv, jsRegistry, jsRoutes, jsTests } from "./js.ts";
+import { jsCommander, jsEnv, jsMcpTools, jsRegistry, jsRoutes, jsTests } from "./js.ts";
 import { linkByDetector } from "./link.ts";
 import { nextRouteFile, nextRoutes } from "./next.ts";
 import { outboundCalls } from "./outbound.ts";
-import { pyClick, pyEntry, pyEnv, pyRoutes, pyTests } from "./py.ts";
-import { rustClap, rustEntry, rustEnv, rustTests } from "./rust.ts";
+import { pyClick, pyEntry, pyEnv, pyMcpTools, pyRoutes, pyTests } from "./py.ts";
+import { rustActixRoutes, rustAxumRoutes, rustClap, rustEntry, rustEnv, rustMcpTools, rustTests } from "./rust.ts";
 import {
   cargoManifest,
   compose,
@@ -160,6 +160,16 @@ export const FACT_DETECTORS: readonly FactDetector[] = [
   ),
   detector("route.fastapi@1", ["route"], ["python"], lang("python"), (i, t) => pyRoutes(i, t, "fastapi")),
   detector("route.flask@1", ["route"], ["python"], lang("python"), (i, t) => pyRoutes(i, t, "flask")),
+  detector("route.axum@1", ["route"], ["rust"], lang("rust"), rustAxumRoutes),
+  detector("route.actix@1", ["route"], ["rust"], lang("rust"), rustActixRoutes),
+  // MCP tool registrations, every language into one detector (the fact keeps kind `route`, framework `mcp`)
+  detector(
+    "route.mcp@1",
+    ["route"],
+    [...JS, "python", "rust"],
+    (f) => js(f) || f.lang === "python" || f.lang === "rust",
+    (i, t) => (i.file.lang === "python" ? pyMcpTools(i, t) : i.file.lang === "rust" ? rustMcpTools(i, t) : jsMcpTools(i, t)),
+  ),
   detector(
     "cli.registry@1",
     ["cli"],

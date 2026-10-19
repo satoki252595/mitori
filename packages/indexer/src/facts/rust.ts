@@ -136,6 +136,190 @@ export function rustClap(input: FactExtractInput, tree: Tree): FactCandidate[] {
   return out;
 }
 
+/** `use axum::…` / `use rmcp::…` / `use actix_web::…` (specifiers use `::` separators). */
+function importsCrate(input: FactExtractInput, name: string): boolean {
+  return input.imports.some((i) => i.spec === name || i.spec.startsWith(`${name}::`));
+}
+
+const AXUM_METHODS = new Set(["get", "post", "put", "delete", "patch", "head", "options", "trace", "any"]);
+const ACTIX_METHODS = new Set(["get", "post", "put", "delete", "patch", "head", "options"]);
+
+/** Last segment of a handler path (`s.handleX`, `crate::routes::logo` → the name `symbolAt` can stamp). */
+function handlerName(n: Node | null | undefined): string | null {
+  if (!n) return null;
+  if (n.type === "identifier") return n.text;
+  if (n.type === "field_expression") return n.childForFieldName("field")?.text ?? null;
+  if (n.type === "scoped_identifier") return n.childForFieldName("name")?.text ?? null;
+  return null;
+}
+
+function callArgs(call: Node): Node[] {
+  return (call.childForFieldName("arguments")?.namedChildren ?? []).filter((x): x is Node => x !== null);
+}
+
+/**
+ * axum routes: `.route("/p", get(h))` (incl. chained `get(a).post(b)`) and `.nest("/prefix", router)`. A nest prefix
+ * is an entry prefix, not a full route: it is recorded with method `ANY` so the seeds can start there. Gated on an
+ * `axum` import like the other detectors.
+ */
+export function rustAxumRoutes(input: FactExtractInput, tree: Tree): FactCandidate[] {
+  if (input.file.scope === "test" || !/\.(route|nest)\s*\(/.test(input.text) || !importsCrate(input, "axum")) return [];
+  const out: FactCandidate[] = [];
+  const push = (line: number, method: string, pattern: string, handler?: string) =>
+    out.push(
+      candidate("route.axum@1", "route", input, line, { method, pattern, framework: "axum", ...(handler ? { handler, handlers: [handler] } : {}) }, [
+        "import:axum",
+      ]),
+    );
+  /** Method calls of a `get(h).post(i)` chain, innermost first. */
+  const chain = (n: Node | null | undefined, found: { method: string; handler: string | null }[]): void => {
+    if (n?.type !== "call_expression") return;
+    const fn = n.childForFieldName("function");
+    const args = callArgs(n);
+    if (fn?.type === "identifier" && AXUM_METHODS.has(fn.text)) found.push({ method: fn.text.toUpperCase(), handler: handlerName(args[0]) });
+    else if (fn?.type === "scoped_identifier" && AXUM_METHODS.has(fn.childForFieldName("name")?.text ?? "")) {
+      found.push({ method: (fn.childForFieldName("name")?.text ?? "any").toUpperCase(), handler: handlerName(args[0]) });
+    } else if (fn?.type === "field_expression" && AXUM_METHODS.has(fn.childForFieldName("field")?.text ?? "")) {
+      found.push({ method: (fn.childForFieldName("field")?.text ?? "any").toUpperCase(), handler: handlerName(args[0]) });
+      chain(fn.childForFieldName("value"), found);
+    }
+  };
+  for (const call of tree.rootNode.descendantsOfType("call_expression")) {
+    if (!call) continue;
+    const fn = call.childForFieldName("function");
+    if (fn?.type !== "field_expression") continue;
+    const kind = fn.childForFieldName("field")?.text;
+    if (kind !== "route" && kind !== "nest") continue;
+    const args = callArgs(call);
+    const pattern = stringValue(args[0]);
+    if (pattern === null || !pattern.startsWith("/")) continue;
+    const line = args[0] ? lineOf(args[0] as Node) : lineOf(call);
+    if (kind === "nest") {
+      push(line, "ANY", pattern, handlerName(args[1]) ?? undefined);
+      continue;
+    }
+    const found: { method: string; handler: string | null }[] = [];
+    chain(args[1], found);
+    for (const m of found) push(line, m.method, pattern, m.handler ?? undefined);
+  }
+  return out;
+}
+
+/** Attribute items directly preceding `node` as nodes (line numbers for the defining attribute). */
+function attrNodesBefore(node: Node): Node[] {
+  const out: Node[] = [];
+  for (
+    let s = node.previousNamedSibling;
+    s && (s.type === "attribute_item" || s.type === "line_comment" || s.type === "block_comment");
+    s = s.previousNamedSibling
+  )
+    if (s.type === "attribute_item") out.push(s);
+  return out;
+}
+
+/**
+ * actix-web routes: `#[get("/p")]` et al (incl. `#[route("/p", method = "GET", …)]`) on functions and
+ * `web::resource("/p").route(web::get().to(h))` chains (`App::new().route(…)` has the same shape). A resource
+ * without a method call is `ANY`. Gated on an `actix_web` import.
+ */
+export function rustActixRoutes(input: FactExtractInput, tree: Tree): FactCandidate[] {
+  if (input.file.scope === "test" || !/#\[(get|post|put|delete|patch|head|options|route)\b|web::resource\s*\(/.test(input.text)) return [];
+  if (!importsCrate(input, "actix_web")) return [];
+  const out: FactCandidate[] = [];
+  const push = (line: number, method: string, pattern: string, handler?: string) =>
+    out.push(
+      candidate("route.actix@1", "route", input, line, { method, pattern, framework: "actix", ...(handler ? { handler, handlers: [handler] } : {}) }, [
+        "import:actix-web",
+      ]),
+    );
+  for (const fn of tree.rootNode.descendantsOfType("function_item")) {
+    if (!fn) continue;
+    const name = fn.childForFieldName("name")?.text;
+    if (!name) continue;
+    for (const a of attrNodesBefore(fn)) {
+      let m = /^#\[(get|post|put|delete|patch|head|options)\("([^"]+)"\)]/.exec(a.text);
+      if (m && (m[2] as string).startsWith("/")) {
+        push(lineOf(a), (m[1] as string).toUpperCase(), m[2] as string, name);
+        continue;
+      }
+      m = /^#\[route\("([^"]+)"(.*)\)]$/.exec(a.text);
+      if (m && (m[1] as string).startsWith("/")) {
+        const methods = [...(m[2] as string).matchAll(/method\s*=\s*"([A-Za-z]+)"/g)].map((x) => (x[1] as string).toUpperCase());
+        for (const method of methods.length > 0 ? methods : ["ANY"]) push(lineOf(a), method, m[1] as string, name);
+      }
+    }
+  }
+  for (const call of tree.rootNode.descendantsOfType("call_expression")) {
+    if (!call) continue;
+    const fn = call.childForFieldName("function");
+    const args = callArgs(call);
+    if (fn?.type === "scoped_identifier" && fn.childForFieldName("path")?.text === "web" && fn.childForFieldName("name")?.text === "resource") {
+      // a resource chained into `.route(…)` is covered by that call; a bare one is an entry prefix
+      if (call.parent?.type === "field_expression") continue;
+      const pattern = stringValue(args[0]);
+      if (pattern?.startsWith("/")) push(lineOf(args[0] as Node), "ANY", pattern);
+      continue;
+    }
+    if (fn?.type !== "field_expression" || fn.childForFieldName("field")?.text !== "route") continue;
+    // the pattern is the first argument (`App::new().route(…)`) or sits on the `web::resource(…)` the call is
+    // chained onto (through further `.route` calls)
+    const direct = args[0] !== undefined && (stringValue(args[0]) ?? "").startsWith("/") ? args[0] : null;
+    const res = direct ?? resourcePattern(fn.childForFieldName("value"));
+    const pattern = res ? (stringValue(res) as string) : null;
+    if (pattern === null) continue;
+    const line = lineOf(direct ?? call);
+    const to = direct ? args[1] : args[0];
+    const toFn = to?.type === "call_expression" ? to.childForFieldName("function") : null;
+    const inner = toFn?.type === "field_expression" && toFn.childForFieldName("field")?.text === "to" ? toFn.childForFieldName("value") : null;
+    const web = inner?.type === "call_expression" ? inner.childForFieldName("function") : null;
+    const webName = web?.type === "scoped_identifier" && web.childForFieldName("path")?.text === "web" ? web.childForFieldName("name")?.text : null;
+    if (webName && ACTIX_METHODS.has(webName)) push(line, webName.toUpperCase(), pattern, handlerName(callArgs(to as Node)[0]) ?? undefined);
+    else push(line, "ANY", pattern);
+  }
+  return out;
+}
+
+/**
+ * Pattern of the `web::resource("…")` a `.route(…)` call is chained onto, through further `.route` calls
+ * (`resource("/p").route(A).route(B)`: the outer call's receiver is the inner `.route` call).
+ */
+function resourcePattern(n: Node | null | undefined): Node | null {
+  if (n?.type !== "call_expression") return null;
+  const fn = n.childForFieldName("function");
+  if (fn?.type === "scoped_identifier" && fn.childForFieldName("path")?.text === "web" && fn.childForFieldName("name")?.text === "resource") {
+    const p = callArgs(n)[0];
+    return p !== undefined && (stringValue(p) ?? "").startsWith("/") ? p : null;
+  }
+  if (fn?.type === "field_expression") return resourcePattern(fn.childForFieldName("value"));
+  return null;
+}
+
+/**
+ * MCP tool registrations (rmcp): `#[tool(…)]` on a function. The tool name is `name = "…"` when given, else the
+ * function name; the handler is the function itself. `#[tool_router]` / `#[tool_handler]` mark the router, not a
+ * tool, and stay out. Gated on an `rmcp` import.
+ */
+export function rustMcpTools(input: FactExtractInput, tree: Tree): FactCandidate[] {
+  if (input.file.scope === "test" || !/#\[tool[([]/.test(input.text) || !importsCrate(input, "rmcp")) return [];
+  const out: FactCandidate[] = [];
+  for (const fn of tree.rootNode.descendantsOfType("function_item")) {
+    if (!fn) continue;
+    const name = fn.childForFieldName("name")?.text;
+    if (!name) continue;
+    for (const a of attrNodesBefore(fn)) {
+      if (!/^#\[tool[([]/.test(a.text)) continue;
+      const explicit = /name\s*=\s*"([^"]+)"/.exec(a.text)?.[1];
+      out.push(
+        candidate("route.mcp@1", "route", input, lineOf(fn), { method: "TOOL", pattern: explicit ?? name, framework: "mcp", handler: name, handlers: [name] }, [
+          "import:rmcp",
+        ]),
+      );
+      break;
+    }
+  }
+  return out;
+}
+
 export function rustEntry(input: FactExtractInput, tree: Tree): FactCandidate[] {
   if (input.file.scope === "test" || !/\bfn\s+main\s*\(/.test(input.text)) return [];
   return capsFor(tree, RUST.entry)

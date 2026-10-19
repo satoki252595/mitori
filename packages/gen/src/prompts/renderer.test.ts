@@ -365,10 +365,10 @@ describe("unit prompt rendering (§5.1-3/4/5, §5.6)", () => {
     expect(flows.userBytes).toContain("distinguish command execution from state reads and static responses");
   });
 
-  test("WP-19 module readability: reader-first interface and data rules, plain-terms style (gen.module@12, gen.parent@4)", async () => {
+  test("WP-19 module readability: reader-first interface and data rules, plain-terms style (gen.module@12, gen.parent@5)", async () => {
     const { renderer, env } = setup();
     expect(renderer.version("gen.module")).toBe("gen.module@12");
-    expect(renderer.version("gen.parent")).toBe("gen.parent@4");
+    expect(renderer.version("gen.parent")).toBe("gen.parent@5");
     const task = moduleTask(M_SESSION, "session");
     const r = renderer.render(task, (await gatherInputs(task, env)).inputs, { lang: "ja", workdir: SANDBOX });
     expect(r.userBytes).toContain("first one sentence saying what a caller comes to this module to achieve");

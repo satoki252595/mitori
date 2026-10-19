@@ -58,6 +58,14 @@ export const JS = {
     "js.commander",
     `(call_expression function: (member_expression property: (property_identifier) @cli.call) arguments: (arguments . (string) @cli.arg) (#eq? @cli.call "command")) @cli.cmd`,
   ),
+  mcp: q(
+    "js.mcp",
+    `
+(call_expression
+  function: (member_expression object: (_) @mcp.recv property: (property_identifier) @mcp.method)
+  arguments: (arguments . (string) @mcp.name)
+  (#match? @mcp.method "^(tool|registerTool)$")) @mcp`,
+  ),
 };
 
 export const PY = {
