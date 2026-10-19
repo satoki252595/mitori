@@ -40,7 +40,7 @@ const byStr = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const B = REPO_PACK_BUDGET;
 const LANG_ORDER: SourceLang[] = ["typescript", "tsx", "javascript", "jsx", "python", "go", "rust", "java", "csharp", "php", "generic"];
 const PURPOSE_ORDER = ["build", "run", "test", "lint", "format", "typecheck", "other"];
-const ROLE_ORDER = ["readme", "agents", "claude", "architecture", "adr", "contributing", "other"];
+const ROLE_ORDER = ["readme", "skill", "command", "agent", "agents", "claude", "architecture", "adr", "contributing", "other"];
 const TYPE_KINDS = new Set(["class", "interface", "type", "struct", "enum", "trait"]);
 
 /** packKey = xxh3(indexDigest, extractor set, settings digest, pack format, + the options that change the text). */
@@ -451,7 +451,8 @@ function termSection(all: readonly StageFile[]): Section {
 function docSection(facts: readonly Fact[], files: ReadonlyMap<RepoPath, StageFile>): Section {
   const docs = facts
     .flatMap((f) => (f.kind === "existing_doc" ? [f] : []))
-    .sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role) || byStr(a.path, b.path));
+    // [CR wp30-5] the root README first (same rule as the gen overview input).
+    .sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role) || a.path.split("/").length - b.path.split("/").length || byStr(a.path, b.path));
   const items = docs.slice(0, B.lines.docs).map((d) => {
     const heads = (files.get(d.path)?.headings ?? [])
       .filter((h) => h.level >= 2 && h.level <= 3)

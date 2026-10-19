@@ -57,6 +57,33 @@ function seedFlow(doc: ReturnType<typeof setup>["doc"], section: SectionId, path
   );
 }
 
+describe("WP30-E the root README leads the overview DOCS", () => {
+  test("root README excerpt comes before a nested README (`.` used to sort first and starve it)", async () => {
+    const repo = sampleRepo();
+    const indexer = createFakeIndexer(repo, hasher);
+    const ids = testIds();
+    const doc = createFakeDocStore({ hasher, ids, repo });
+    const env = {
+      indexer,
+      doc,
+      lang: "ja" as DocLang,
+      tokens: (t: string) => Math.ceil(t.length / 2.3),
+      plan: { eager: [], tasks: [] },
+    };
+    indexer.setFile(".cursor-plugin/README.md", "# Plugin\n\nPlugin helper docs for the cursor extension.\n");
+    repo.facts.push({ kind: "existing_doc", detector: "doc.test@1", path: ".cursor-plugin/README.md", line: 1, role: "readme", title: "Plugin" });
+    const task = plannedTask("gen.overview", { kind: "section", id: "s0" }, ["s0", "s1", "s2"]);
+    const inputs = (await gatherInputs(task, env)).inputs;
+    const docs = (inputs.DOCS ?? []).join("\n");
+    expect(docs).toContain("Tsundoku keeps a reading list");
+    const root = docs.indexOf("=== README.md");
+    const nested = docs.indexOf("=== .cursor-plugin/README.md");
+    expect(root).toBeGreaterThanOrEqual(0);
+    expect(nested).toBeGreaterThanOrEqual(0);
+    expect(root).toBeLessThan(nested);
+  });
+});
+
 describe("WP2 gen.flows EXISTING keeps only flows cited from current seed files", () => {
   test("a flow citing a seed walk file stays; a docs/demo flow citing nothing current is dropped", async () => {
     const { doc, env } = setup();

@@ -3,7 +3,7 @@
   "fixture": "injection",
   "files": [
     { "path": ".claude/settings.json", "class": "ignored", "excluded": "deny_glob", "lang": "generic" },
-    { "path": ".cursor/rules/x.mdc", "class": "ignored", "excluded": "deny_glob", "lang": "generic" },
+    { "path": ".cursor/rules/x.mdc", "class": "docs", "lang": "generic" },
     { "path": ".env", "class": "secret", "excluded": "secret", "lang": "generic" },
     { "path": ".gitattributes", "class": "config", "lang": "generic" },
     { "path": ".husky/pre-commit", "class": "ignored", "excluded": "deny_glob", "lang": "generic" },
@@ -43,7 +43,8 @@
     { "kind": "existing_doc", "path": "README.md", "line": 1, "key": "readme", "attrs": { "title": "tsundoku-payments" } },
     { "kind": "existing_doc", "path": "AGENTS.md", "line": 1, "key": "agents", "attrs": { "title": "AGENTS.md" } },
     { "kind": "existing_doc", "path": "CLAUDE.md", "line": 1, "key": "claude", "attrs": { "title": "CLAUDE.md" } },
-    { "kind": "existing_doc", "path": "docs/design-note.md", "key": "other", "stretch": true }
+    { "kind": "existing_doc", "path": "docs/design-note.md", "key": "other", "stretch": true },
+    { "kind": "existing_doc", "path": ".cursor/rules/x.mdc", "key": "agent", "stretch": true }
   ],
   "forbiddenFacts": [{ "kind": "env", "path": ".env", "key": "TSUNDOKU_API_TOKEN" }],
   "symbols": [

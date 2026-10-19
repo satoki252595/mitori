@@ -553,6 +553,30 @@ describe("AiMarkdownValidator (V13)", () => {
   });
 });
 
+describe("WP30-D stampRun redraws ap:meta and labels byte-based usage", () => {
+  const usage = { calls: 3, in: 1000, cacheWrite: 200, cacheRead: 300, out: 400, apiUsd: 0.125 };
+  const appendixMd = (h: ReturnType<typeof seeded>): string => (h.store.section("appendix" as SectionId)?.blocks ?? []).map((b) => b.md).join("\n");
+  test("the appendix shows the stamped commit, usage, effort and the estimate note without another apply", () => {
+    const h = seeded();
+    const before = appendixMd(h);
+    expect(before).toContain("なし");
+    h.store.stampRun({ effort: "standard", snapshot: { commit: "a".repeat(40), indexDigest: "1".repeat(16) }, usage, full: true, usageEstimated: true });
+    const after = appendixMd(h);
+    expect(after).toContain("a".repeat(12));
+    expect(after).toContain("in 1000 · cache 300 · out 400（バイト換算の推計）");
+    expect(after).toContain("- 生成の深さ: standard");
+    expect(h.store.manifest()?.usageEstimated).toBe(true);
+  });
+  test("real token counts stay unlabeled; a later estimated run labels the accumulated totals", () => {
+    const h = seeded();
+    h.store.stampRun({ effort: "standard", snapshot: { commit: "a".repeat(40), indexDigest: "1".repeat(16) }, usage, full: true });
+    expect(appendixMd(h)).not.toContain("バイト換算");
+    expect(h.store.manifest()?.usageEstimated ?? false).toBe(false);
+    h.store.stampRun({ effort: "standard", snapshot: { commit: "b".repeat(40), indexDigest: "2".repeat(16) }, usage, full: false, usageEstimated: true });
+    expect(appendixMd(h)).toContain("バイト換算の推計");
+  });
+});
+
 describe("CR m1-50 stampRun", () => {
   const usage = { calls: 3, in: 1000, cacheWrite: 200, cacheRead: 300, out: 400, apiUsd: 0.125 };
   test("a full run sets effort, snapshot and generatedAt and accumulates usage", () => {

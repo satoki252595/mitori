@@ -35,7 +35,11 @@ describe("IDX-AT-02 corpus exclusions", () => {
       expect(f("cmd/crit/integration_hashes_gen.go")?.excluded).toBe("generated");
       const claude = idx.files({ includeExcluded: true }).filter((x) => x.path.startsWith(".claude/"));
       expect(claude.length).toBeGreaterThan(0);
-      for (const x of claude) expect([x.path, x.excluded]).toEqual([x.path, "deny_glob"]);
+      // WP30-A: agent-instruction text docs (.claude/rules/*.md) read as docs; settings.json stays denied.
+      for (const x of claude) {
+        if (x.path === ".claude/settings.json") expect([x.path, x.excluded]).toEqual([x.path, "deny_glob"]);
+        else expect(x.excluded).toBeUndefined();
+      }
     },
     30_000,
   );

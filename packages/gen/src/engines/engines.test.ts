@@ -215,6 +215,15 @@ describe("scheduler-backed GenEngine", () => {
     expect(run.continueWith).toBeUndefined();
   });
 
+  test("WP30-D byte-based engine usage reaches the call result as usageEstimated", async () => {
+    const at = (estimated: boolean) => {
+      const scheduler = { submit: () => fakeRun(["a"], { usageEstimated: estimated }), continueSession: () => unsupported("x") } as unknown as AgentScheduler;
+      return createSchedulerEngine("generic", scheduler, ctx).run(call(), new AbortController().signal).result;
+    };
+    expect((await at(true)).usageEstimated).toBe(true);
+    expect((await at(false)).usageEstimated).toBeUndefined();
+  });
+
   test("GEN-U-060 the session attached AFTER submit (queued job, async spawn) is closed and continued — not lost", async () => {
     // dogfood 2026-10-04: the real scheduler's run gets `session` only when the engine spawned the process; a session
     // read at wrap time was undefined, so every generate process stayed parked until its TTL and every retry was cold

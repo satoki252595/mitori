@@ -767,9 +767,10 @@ export interface DocStore {
   /**
    * Stamp the manifest at the end of a generation run (gen §10.8 / AC-29) [CR m1-50]: adds `usage` to
    * `usageTotals`, sets `effort` and `snapshot`, and `generatedAt` only when `full` (trigger `user`, whole doc, run
-   * `done`). Called by gen's orchestrator inside the run's final write slot.
+   * `done`). Called by gen's orchestrator inside the run's final write slot. The `ap:meta` block is redrawn from
+   * the stamped manifest at once, and `usageEstimated` (byte-based engine usage) sticks to the manifest [CR wp30-4].
    */
-  stampRun(run: { effort: Effort; snapshot: DocManifest["snapshot"]; usage: UsageTotals; full: boolean }): DocManifest;
+  stampRun(run: { effort: Effort; snapshot: DocManifest["snapshot"]; usage: UsageTotals; full: boolean; usageEstimated?: boolean }): DocManifest;
 }
 
 /**

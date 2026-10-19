@@ -12,14 +12,13 @@
   },
   {
     "blob": "f77230279fccb95c27429e18efec81a81afea098",
-    "class": "ignored",
-    "excluded": "deny_glob",
+    "class": "docs",
     "lang": "generic",
-    "lines": 0,
-    "loc": 0,
+    "lines": 6,
+    "loc": 5,
     "path": ".cursor/rules/x.mdc",
     "size": 172,
-    "tokensEst": 75
+    "tokensEst": 60
   },
   {
     "blob": "e4916bfabd88e70ad6b5100414a0e223a1b6e23c",

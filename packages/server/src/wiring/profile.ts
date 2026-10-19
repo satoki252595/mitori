@@ -21,11 +21,72 @@ const LICENSES: [RegExp, string][] = [
   [/Redistribution and use in source and binary forms/i, "BSD-2-Clause"],
   [/The Unlicense|unlicense\.org/i, "Unlicense"],
   [/ISC License/i, "ISC"],
+  [/Elastic License\s+2\.0/i, "Elastic-2.0"],
+  [/Business Source License\s+1\.1/i, "BUSL-1.1"],
+  [/Server Side Public License/i, "SSPL-1.0"],
 ];
 
 /** SPDX id of a license text (first KiB is enough), or null. */
 export function spdxOf(text: string): string | null {
   for (const [re, id] of LICENSES) if (re.test(text)) return id;
+  return null;
+}
+
+/** A manifest's declared license value (SPDX id or expression), or null. */
+const SPDX_VALUE_RE = /^[A-Za-z0-9.+\-_/() ]{2,60}$/;
+
+/** License declared by a root manifest (`package.json`, `Cargo.toml`, `pyproject.toml`) [CR wp30-3]. */
+export function manifestLicense(path: string, text: string): string | null {
+  const base = path.split("/").pop() ?? path;
+  const ok = (v: unknown): string | null => (typeof v === "string" && SPDX_VALUE_RE.test(v.trim()) ? v.trim() : null);
+  if (base === "package.json") {
+    try {
+      return ok((JSON.parse(text) as { license?: unknown }).license);
+    } catch {
+      return null;
+    }
+  }
+  if (base === "Cargo.toml") return ok(/^\s*license\s*=\s*["']([^"']+)["']/m.exec(text)?.[1]);
+  if (base === "pyproject.toml")
+    return ok(/^license\s*=\s*["']([^"']+)["']/m.exec(text)?.[1]) ?? ok(/license\s*=\s*\{[^}]*?text\s*=\s*["']([^"']+)["']/.exec(text)?.[1]);
+  return null;
+}
+
+/** First non-empty LICENSE line (≤ 60 chars, markdown stripped) when no rule matches [CR wp30-3]. */
+export function licenseFallbackLine(text: string): string | null {
+  for (const raw of text.split(/\r?\n/)) {
+    let l = raw.trim();
+    if (!l) continue;
+    l = l
+      .replace(/^(#{1,6}\s+|>+\s*)/, "")
+      .replace(/[*_`~]+/g, "")
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .trim();
+    if (!l) continue;
+    return l.slice(0, 60);
+  }
+  return null;
+}
+
+/**
+ * One license decision from LICENSE/COPYING heads + root manifest texts. The map (`repoProfile`) and §0
+ * (`detectLicense`) share it, so the two displays always agree [CR wp30-3].
+ */
+export function licenseFromHeads(heads: { path: string; text: string }[], manifests: { path: string; text: string }[]): { spdx: string; path: string } | null {
+  for (const h of heads) {
+    const spdx = spdxOf(h.text.slice(0, 4096));
+    if (spdx) return { spdx, path: h.path };
+  }
+  const order = (p: string): number => (p === "package.json" ? 0 : p === "Cargo.toml" ? 1 : 2);
+  for (const m of [...manifests].sort((a, b) => order(a.path) - order(b.path))) {
+    const spdx = manifestLicense(m.path, m.text);
+    if (spdx) return { spdx, path: m.path };
+  }
+  const first = heads[0];
+  if (first) {
+    const line = licenseFallbackLine(first.text);
+    if (line) return { spdx: line, path: first.path };
+  }
   return null;
 }
 
@@ -245,21 +306,19 @@ export async function repoProfile(d: ProfileDeps): Promise<RepoProfile> {
   })();
 
   const licenseP = (async () => {
+    const heads: { path: string; text: string }[] = [];
     for (const f of root.filter((x) => LICENSE_RE.test(x.path)).sort((a, b) => (a.path < b.path ? -1 : 1))) {
       const text = await d.read(f.path);
-      const spdx = text ? spdxOf(text.slice(0, 4096)) : null;
-      if (spdx) return { spdx, path: f.path };
+      if (text) heads.push({ path: f.path, text });
     }
-    const pkg = root.find((x) => x.path === "package.json");
-    if (pkg) {
-      try {
-        const l = (JSON.parse((await d.read(pkg.path)) ?? "{}") as { license?: unknown }).license;
-        if (typeof l === "string" && /^[A-Za-z0-9.+-]{2,40}$/.test(l)) return { spdx: l, path: pkg.path };
-      } catch {
-        // not JSON
-      }
+    const manifests: { path: string; text: string }[] = [];
+    for (const name of ["package.json", "Cargo.toml", "pyproject.toml"]) {
+      const f = root.find((x) => x.path === name);
+      if (!f) continue;
+      const text = await d.read(f.path);
+      if (text) manifests.push({ path: f.path, text });
     }
-    return null;
+    return licenseFromHeads(heads, manifests);
   })();
 
   const toolchainP = (async (): Promise<RepoProfile["toolchain"]> => {

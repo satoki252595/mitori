@@ -26,7 +26,7 @@ import { claimSpans } from "../codec/spans.ts";
 import type { ClaimSpan, DocLoadReport, DocStore } from "../contract.ts";
 import { finishBody, planBody } from "../render/body.ts";
 import { htmlText } from "../render/text.ts";
-import { applyGenerated, applyStatic, ensureManifest, propose, refreshDerived, removeSection } from "./apply.ts";
+import { applyGenerated, applyStatic, ensureManifest, propose, refreshDerived, refreshMeta, removeSection } from "./apply.ts";
 import { canonicalMarkers, matchGroups, rawCite, sameRanges, verdictOf } from "./claims.ts";
 import { type BlockRec, StoreCore, type StoreDeps } from "./core.ts";
 import { acceptProposal, cleanMd, snapshot, undoAccept } from "./edit.ts";
@@ -336,10 +336,13 @@ class Store implements DocStore {
         out: u.out + run.usage.out,
         apiUsd: Math.round((u.apiUsd + run.usage.apiUsd) * 1e6) / 1e6,
       },
+      // byte-based estimates stay inside the totals: once set, the appendix keeps labelling them [CR wp30-4]
+      ...(m.usageEstimated || run.usageEstimated ? { usageEstimated: true as const } : {}),
       generatedAt: run.full ? this.core.deps.clock.iso() : m.generatedAt,
     };
     this.st.manifest = next;
     this.st.manifestTick = this.st.tick();
+    refreshMeta(this.core);
     this.core.schedule();
     return next;
   }

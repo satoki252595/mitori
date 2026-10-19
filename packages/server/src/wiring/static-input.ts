@@ -19,36 +19,33 @@ import type {
 } from "@mitori/core";
 import type { DocStore, StaticDocInput } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
+import { licenseFromHeads } from "./profile.ts";
 
-const LICENSES: [RegExp, string][] = [
-  [/\bMIT License\b|Permission is hereby granted, free of charge/i, "MIT"],
-  [/Apache License,?\s+Version 2\.0/i, "Apache-2.0"],
-  [/GNU AFFERO GENERAL PUBLIC LICENSE/i, "AGPL-3.0"],
-  [/GNU LESSER GENERAL PUBLIC LICENSE/i, "LGPL"],
-  [/GNU GENERAL PUBLIC LICENSE\s+Version 3/i, "GPL-3.0"],
-  [/GNU GENERAL PUBLIC LICENSE\s+Version 2/i, "GPL-2.0"],
-  [/Mozilla Public License,?\s+(v\.|version)\s*2\.0/i, "MPL-2.0"],
-  [/Redistribution and use in source and binary forms/i, "BSD"],
-  [/The Unlicense|unlicense\.org/i, "Unlicense"],
-  [/ISC License/i, "ISC"],
-];
-
-/** License name from `LICENSE*` / `COPYING*` at the root (first 4 KiB), null when unknown. */
+/**
+ * License name for §0, from the same decision as the map (`licenseFromHeads`): LICENSE* / COPYING* at the root
+ * (first 4 KiB), then the root manifests, then the LICENSE's first non-empty line [CR wp30-3].
+ */
 export async function detectLicense(info: WorkspaceInfo, indexer: Indexer, fs: FsReader): Promise<string | null> {
-  const cand = indexer
-    .files({ includeExcluded: true })
-    .map((f) => f.path)
-    .filter((p) => /^(LICEN[CS]E|COPYING)(\.[a-z]+)?$/i.test(p))
-    .sort();
-  for (const p of cand) {
+  const paths = indexer.files({ includeExcluded: true }).map((f) => f.path);
+  const head = async (p: string): Promise<string | null> => {
     try {
-      const head = new TextDecoder().decode(await fs.readHead(`${info.root}/${p}`, 4096));
-      for (const [re, name] of LICENSES) if (re.test(head)) return name;
+      return new TextDecoder().decode(await fs.readHead(`${info.root}/${p}`, 4096));
     } catch {
-      // unreadable: try the next one
+      return null; // unreadable: try the next one
     }
+  };
+  const heads: { path: string; text: string }[] = [];
+  for (const p of paths.filter((p) => /^(LICEN[CS]E|COPYING)(\.[a-z]+)?$/i.test(p)).sort()) {
+    const text = await head(p);
+    if (text) heads.push({ path: p, text });
   }
-  return null;
+  const manifests: { path: string; text: string }[] = [];
+  for (const name of ["package.json", "Cargo.toml", "pyproject.toml"]) {
+    if (!paths.includes(name)) continue;
+    const text = await head(name);
+    if (text) manifests.push({ path: name, text });
+  }
+  return licenseFromHeads(heads, manifests)?.spdx ?? null;
 }
 
 /** Common directory prefix of a module's member paths ("" when none). */

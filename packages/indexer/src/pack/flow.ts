@@ -656,6 +656,8 @@ const ROUTE_SHARE = 0.75;
  */
 const ASIDE_PATH_RE = /(^|\/)(website|site|docs?|documentation|examples?|demos?|showcase|landing|marketing|tests?|__tests__|spec|e2e|fixtures?)\//;
 const aside = (file: string) => (ASIDE_PATH_RE.test(file) ? 1 : 0);
+// A skill's own entry (a SKILL.md directly under a skills/ directory); reference pages beside it are not entries.
+const isSkillEntry = (path: string) => /(^|\/)skills\/[^/]+\/SKILL\.md$/i.test(path);
 
 export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, src?: FlowSources): FlowSeed[] {
   const rank = (p: RepoPath) => st.fileRank.get(p) ?? 0;
@@ -666,6 +668,8 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
     line: number;
     file: RepoPath;
     handler?: SymbolKey;
+    /** Instruction-doc seed (no module, single-file walk). */
+    doc?: boolean;
     order: number;
     tier: number;
     /** 1 for a website / docs / demo / test-area file: after every product candidate, routes included. */
@@ -773,6 +777,28 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
             reach,
           });
         }
+    } else if (f.kind === "existing_doc" && (f.role === "command" || f.role === "agent" || isSkillEntry(f.path))) {
+      // [CR wp30-2] user-invoked instruction docs seed flows like entries: slash commands first, then skill
+      // entries (SKILL.md only; reference pages beside them enter through doc excerpts, not seeds), then agents.
+      // Tier 1+ keeps every product entry ahead of them; single-file walk (no handler).
+      const base = f.path.slice(f.path.lastIndexOf("/") + 1).replace(/\.[A-Za-z0-9]+$/, "");
+      // A skill is known by its directory (SKILL.md's first line is usually frontmatter, not a heading).
+      const skill = f.path.slice(0, f.path.lastIndexOf("/")).split("/").pop() ?? base;
+      cands.push({
+        kind: "entry",
+        label: f.role === "command" ? `/${base}` : isSkillEntry(f.path) ? skill : f.title,
+        path: f.path,
+        line: f.line,
+        file: f.path,
+        doc: true,
+        order: 2,
+        tier: f.role === "command" ? 1 : 2,
+        aside: aside(f.path),
+        score: 0,
+        weight: 0,
+        size: 0,
+        reach: null,
+      });
     }
   });
   // a file many endpoints call into is the app's core; a handler scores what of it it uses
@@ -822,7 +848,16 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
       const hm = hopModule(c);
       if (newHopOnly && (hm === undefined || hops.has(hm))) continue;
       const start = st.moduleOf.get(c.file) ?? st.moduleOf.get(c.path);
-      if (start === undefined) continue;
+      if (start === undefined) {
+        // [CR wp30-2] instruction docs belong to no module: a single-file seed (no walk), or nothing.
+        if (c.doc !== true) continue;
+        const key = `${c.kind}\u0000${c.file}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        walked.push({ c, modules: [], files: [c.file] });
+        n++;
+        continue;
+      }
       const first = st.graph.index.has(c.file) ? c.file : (st.modules.find((m) => m.id === start)?.paths[0] ?? c.file);
       const { modules, files } = src
         ? ((c.handler ? sourceWalks(first, c.handler, st, src)[0] : undefined) ?? { modules: [start], files: [first] })
