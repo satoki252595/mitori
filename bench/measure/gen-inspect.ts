@@ -13,9 +13,17 @@ import { API_PREFIX, type GenEstimate, type WorkspaceKey, type WorkspaceStatus, 
 import type { Indexer } from "@mitori/indexer";
 import { startServerDaemon } from "../../apps/cli/src/daemon/server.ts";
 import { fileChunks } from "../../packages/gen/src/prompts/files.ts";
+import { childSymbols } from "../../packages/gen/src/prompts/inputs.ts";
 import { derivedSeeds, genFlowSeeds } from "../../packages/gen/src/prompts/seeds.ts";
 
-const { values: a } = parseArgs({ options: { repo: { type: "string" }, home: { type: "string" }, concurrency: { type: "string", default: "3" } } });
+const { values: a } = parseArgs({
+  options: {
+    repo: { type: "string" },
+    home: { type: "string" },
+    concurrency: { type: "string", default: "3" },
+    "parent-symbols": { type: "boolean", default: false },
+  },
+});
 if (!a.repo) throw new Error("--repo <dir> is required");
 const home = a.home ? resolve(a.home) : mkdtempSync(join(tmpdir(), "mitori-inspect-"));
 mkdirSync(home, { recursive: true });
@@ -65,6 +73,31 @@ try {
           .join(", ") || "none"
       })`,
     );
+  if (a["parent-symbols"]) {
+    // gen.parent CHILDREN `symbols:` lines per parent module (the citable definition ranges WP32 adds)
+    const leafPaths = (id: string): string[] => {
+      const m = ix.modules().find((x) => x.id === id);
+      if (!m) return [];
+      return m.children.length === 0 ? [...m.paths] : m.children.flatMap(leafPaths);
+    };
+    let symTok = 0;
+    for (const m of ix.modules().filter((x) => x.children.length > 0)) {
+      console.log(`parent ${m.slug} (${m.children.length} children):`);
+      for (const c of m.children) {
+        const child = ix.modules().find((x) => x.id === c);
+        const leaf = leafPaths(c);
+        const files = new Set(leaf);
+        const handlers = new Set(
+          ix.facts("route").flatMap((f) => (f.kind === "route" && f.handler && files.has(f.handler.slice(0, f.handler.indexOf("#"))) ? [f.handler] : [])),
+        );
+        const lines = child ? childSymbols((p) => ix.symbols(p), leaf, handlers) : [];
+        const text = lines.length > 0 ? lines.join(", ") : "(no public symbols)";
+        symTok += Math.ceil(text.length / 4);
+        console.log(`  ${child?.slug ?? c}: ${text}`);
+      }
+    }
+    console.log(`parent symbols: ≈${symTok} tok over all parents`);
+  }
   const leaves = ix.modules().filter((m) => m.children.length === 0);
   let tasks = 0;
   let tokens = 0;

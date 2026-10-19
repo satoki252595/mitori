@@ -654,10 +654,19 @@ const ROUTE_SHARE = 0.75;
  * page's calculator / dino animations; text-to-cad: its docs app's privacy, terms and icon pages). They still seed
  * a repository that has nothing else.
  */
-const ASIDE_PATH_RE = /(^|\/)(website|site|docs?|documentation|examples?|demos?|showcase|landing|marketing|tests?|__tests__|spec|e2e|fixtures?)\//;
+const ASIDE_PATH_RE =
+  /(^|\/)(website|site|docs?|documentation|examples?|demos?|showcase|landing|marketing|tests?|__tests__|spec|e2e|fixtures?|evals?|bench(es)?)\//;
 const aside = (file: string) => (ASIDE_PATH_RE.test(file) ? 1 : 0);
 // A skill's own entry (a SKILL.md directly under a skills/ directory); reference pages beside it are not entries.
 const isSkillEntry = (path: string) => /(^|\/)skills\/[^/]+\/SKILL\.md$/i.test(path);
+
+/**
+ * Seeds one cli / entry file may contribute: a small helper binary (its main, its command table, same-file
+ * callables) must not fill the seeds by itself — a main plus its command table plus one same-file callable stay
+ * legitimate. Routes of one router file are unaffected (gen #4c: each handler of one router file is a flow of its
+ * own).
+ */
+const PER_FILE_SEEDS = 3;
 
 export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, src?: FlowSources): FlowSeed[] {
   const rank = (p: RepoPath) => st.fileRank.get(p) ?? 0;
@@ -818,24 +827,36 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
     }
     c.score = n > 0 ? c.weight / n : 0;
   }
-  cands.sort(
-    (a, b) =>
-      a.aside - b.aside ||
-      a.order - b.order ||
-      a.tier - b.tier ||
+  // CLI surface per binary (first command word): the product's own command dwarfs a helper's few subcommands
+  const progOf = (c: { label: string }) => c.label.split(" ", 1)[0] ?? "";
+  const progSize = new Map<string, number>();
+  for (const c of cands) if (c.kind === "cli") progSize.set(progOf(c), (progSize.get(progOf(c)) ?? 0) + 1);
+  cands.sort((a, b) => {
+    const base = a.aside - b.aside || a.order - b.order || a.tier - b.tier;
+    if (base !== 0) return base;
+    // the product's command comes before a helper binary's: it offers the interface a newcomer meets, and file
+    // PageRank already ranks its implementation above a helper's
+    if (a.kind === "cli") {
+      const r = (progSize.get(progOf(b)) ?? 0) - (progSize.get(progOf(a)) ?? 0);
+      if (r !== 0) return r;
+    }
+    return (
       b.score - a.score ||
       b.weight - a.weight ||
       b.size - a.size ||
       rank(b.file) - rank(a.file) ||
       byStr(a.path, b.path) ||
       a.line - b.line ||
-      byStr(a.label, b.label),
-  );
+      byStr(a.label, b.label)
+    );
+  });
   // with any product candidate, website / docs / demo / test ones are not offered at all: the prompt picks the flows
   // to write among the seeds, and kept them when they filled the remaining slots (text-to-cad, 2026-10-12)
   if (cands.some((c) => c.aside === 0)) cands.splice(0, cands.length, ...cands.filter((c) => c.aside === 0));
   const walked: { c: Cand; modules: ModuleId[]; files: RepoPath[] }[] = [];
   const seen = new Set<string>();
+  const perFile = new Map<RepoPath, number>();
+  const takenProg = new Set<string>();
   const others = cands.filter((c) => c.kind !== "route").length;
   const routeCap = others > 0 ? Math.max(1, Math.ceil(limit * ROUTE_SHARE)) : limit;
   // first-hop modules already covered (the first pass takes one route per part of the app)
@@ -866,7 +887,12 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
       // file walk decides (with text the handlers of one router file walk where their own calls go)
       const key = c.handler && src ? `${c.kind}\u0000${c.handler}` : `${c.kind}\u0000${src ? files.join(",") : modules.join(",")}`;
       if (seen.has(key)) continue;
+      if (c.kind !== "route" && (perFile.get(c.file) ?? 0) >= PER_FILE_SEEDS) continue;
+      // one binary's command takes one seed: a helper's subcommands must not crowd out the product's command
+      if (c.kind === "cli" && takenProg.has(progOf(c))) continue;
       seen.add(key);
+      if (c.kind !== "route") perFile.set(c.file, (perFile.get(c.file) ?? 0) + 1);
+      if (c.kind === "cli") takenProg.add(progOf(c));
       if (hm !== undefined) hops.add(hm);
       walked.push({ c, modules, files });
       n++;

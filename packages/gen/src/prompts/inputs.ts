@@ -6,7 +6,22 @@
  * Each section is budgeted per `DATA_BUDGETS`; dropped items leave one `> omitted: <n> <what>` line. The
  * blobs of every file whose `N|` lines are shown are recorded for stamping at the task snapshot (PT-05).
  */
-import type { Block, BlockId, ClaimKind, DocLang, Fact, GitOid, LineNo, ModuleId, ModuleInfo, RepoPath, SectionId, Xxh3 } from "@mitori/core";
+import type {
+  Block,
+  BlockId,
+  ClaimKind,
+  DocLang,
+  Fact,
+  GitOid,
+  LineNo,
+  ModuleId,
+  ModuleInfo,
+  RepoPath,
+  SectionId,
+  SymbolEntry,
+  SymbolKind,
+  Xxh3,
+} from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
 import type { FlowSeed, Indexer } from "@mitori/indexer";
 import { DATA_BUDGETS, type DataLabel, GEN_LIMITS, type GenPlan, type GenQuestionLine, type PlannedTask, type TaskInputs } from "../contract.ts";
@@ -97,6 +112,84 @@ function codeSpanNames(md: string): string[] {
   return out;
 }
 const sectionOf = (m: ModuleInfo): SectionId => `s6/${m.slug}`;
+
+/** Definition kinds a parent page may name: the callable interface (a claim naming a function cites its body). */
+const PARENT_SYMBOL_KINDS: ReadonlySet<SymbolKind> = new Set(["function", "method", "constructor"]);
+
+/**
+ * Representative public symbols per file (a small file's whole interface fits; a big file keeps its head — every
+ * file stays citable. The CHILDREN budget bounds the section: pages come first, so a tight budget drops file groups,
+ * never page lines).
+ */
+export const PARENT_SYMBOLS_PER_FILE = 16;
+
+/** A symbol key (`path#qualname`) reduced to its defining file and plain name (`~2` impl suffixes stripped). */
+function keyFileName(key: string): [string, string] {
+  const hash = key.indexOf("#");
+  const file = hash < 0 ? key : key.slice(0, hash);
+  const name = (hash < 0 ? key : key.slice(hash + 1)).replace(/~\d+/g, "").split(".").pop() ?? "";
+  return [file, name];
+}
+
+/**
+ * Citable definition ranges of a child module's public callables, one `>   symbols: …` line per file:
+ * `qualname path:start-end`. These are the names the parent page may mention, each with the exact range a claim
+ * about it repeats. A file's top comment (the module doc) only proves what the file as a whole is for, so a
+ * sentence naming a symbol that cites it is ungrounded — the parent input therefore names the symbols explicitly.
+ * Module-level functions come first (what a parent page names most: builders, guards, queries), then route
+ * handlers (the called interface, even when not exported — framework-dispatched private functions), then other
+ * methods; types stay covered by the SKELETON signatures. Ranges are clipped to 40 lines (a claim cites at most 4
+ * ranges of at most 40 lines); the signature proving the name is always inside. At most `maxPerFile` symbols per
+ * file; a group that no longer fits the CHILDREN budget is dropped as a whole. Deterministic.
+ */
+export function childSymbols(
+  symbols: (path: RepoPath) => readonly SymbolEntry[],
+  paths: readonly RepoPath[],
+  handlers: ReadonlySet<string> = new Set(),
+  maxPerFile = PARENT_SYMBOLS_PER_FILE,
+): string[] {
+  const byKey = new Map<string, boolean>();
+  for (const p of paths) for (const s of symbols(p)) byKey.set(s.key, s.exported);
+  const handled = new Set<string>();
+  for (const h of handlers) {
+    const [file, name] = keyFileName(h);
+    if (name !== "" && paths.includes(file as RepoPath)) handled.add(`${file}\0${name}`);
+  }
+  const isHandled = (s: SymbolEntry) => handled.has(`${s.path}\0${s.name}`);
+  const named = paths.flatMap((p) =>
+    symbols(p).filter(
+      (s) =>
+        s.name !== "" &&
+        PARENT_SYMBOL_KINDS.has(s.kind) &&
+        (s.parent === undefined || byKey.get(s.parent) === true || isHandled(s)) &&
+        (s.exported || isHandled(s)),
+    ),
+  );
+  const tier = (s: SymbolEntry) => (s.parent === undefined && s.kind === "function" ? 0 : isHandled(s) ? 1 : 2);
+  const byFile = new Map<RepoPath, SymbolEntry[]>();
+  for (const s of named) {
+    const list = byFile.get(s.path) ?? [];
+    list.push(s);
+    byFile.set(s.path, list);
+  }
+  const files = [...byFile.keys()].sort((a, b) => {
+    const rank = (p: RepoPath) => Math.min(...(byFile.get(p) ?? []).map(tier));
+    return rank(a) - rank(b) || (a < b ? -1 : 1);
+  });
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const f of files) {
+    const group: string[] = [];
+    for (const s of (byFile.get(f) ?? []).sort((a, b) => tier(a) - tier(b) || a.start - b.start).slice(0, Math.max(0, maxPerFile))) {
+      const qual = s.qualname.replace(/~\d+/g, "");
+      if (seen.has(qual)) continue;
+      seen.add(qual);
+      group.push(`${qual} ${s.path}:${s.start}-${Math.min(s.end, s.start + 39)}`);
+    }
+    if (group.length > 0) out.push(`>   symbols: ${group.join(", ")}`);
+  }
+  return out;
+}
 
 /** Modules that get no page in this plan and therefore need a label, in rank order. */
 export function labelModules(indexer: Indexer, plan: Pick<GenPlan, "eager" | "tasks">): ModuleInfo[] {
@@ -906,6 +999,17 @@ class Gatherer {
       const page = this.pageLines(k, true);
       if (page) b.add(page);
       else b.add([`> ${k.id} "${k.name}" — (not generated) files: ${ix.moduleStats(k.id)?.files ?? k.paths.length} loc: ${k.loc}`]);
+    }
+    // symbols after the pages: a tight budget drops file groups (never the page lines carrying today's cites)
+    for (const k of kids) {
+      const leaf = this.leafPaths(k);
+      const files = new Set(leaf);
+      const handlers = new Set(
+        ix
+          .facts("route")
+          .flatMap((f) => (f.kind === "route" && f.handler && files.has(f.handler.slice(0, f.handler.indexOf("#")) as RepoPath) ? [f.handler] : [])),
+      );
+      for (const line of childSymbols((p) => ix.symbols(p), leaf, handlers)) b.add([line]);
     }
     return b.done();
   }

@@ -117,6 +117,7 @@ export const UNIT_TEMPLATES: Readonly<Partial<Record<GenPromptId, string>>> = {
     "  invariants (list, L3): rules that hold across the children.",
     "  recap (kind recap, L1): one or two sentences.",
     "- Cite N| lines in SKELETON or DOCS, or repeat a cite listed in CHILDREN exactly.",
+    "- When a sentence names a function, type or other symbol, cite the definition range listed for it under `symbols:` in CHILDREN. Cite a file's top comment only for what the file as a whole is for, never for a symbol it does not name.",
     "- Also write one module line for {{module_id}} (name at most {{name_max}} characters, summary at most {{summary_max}} characters) and up to 2 question lines. The name says in {{lang_name}} what the group does; the label in MODULE is a provisional name made from directories, not a model to copy.",
     "- Aim for about {{target_chars}} characters of md in total.",
     "OUTPUT: gen.block/1 lines; mitori files every block under {{section}}.",

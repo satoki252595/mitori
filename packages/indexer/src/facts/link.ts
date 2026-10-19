@@ -64,6 +64,24 @@ export function linkByDetector(id: string, all: readonly FactCandidate[], ctx: F
     case "route.fastapi@1":
     case "route.flask@1":
       return routes(mine, ctx);
+    case "route.axum@1":
+      return routes(
+        mine.filter((c) => c.evidence.includes("import:axum")),
+        ctx,
+      );
+    case "route.actix@1":
+      return routes(
+        mine.filter((c) => c.evidence.includes("import:actix-web")),
+        ctx,
+      );
+    case "route.mcp@1":
+      // one of the MCP SDKs must be imported (a bare `.tool(` / `#[tool]` / `@x.tool` is not a tool registration)
+      return routes(
+        mine.filter((c) =>
+          c.evidence.some((e) => e === "import:@modelcontextprotocol/sdk" || e === "import:mcp" || e === "import:fastmcp" || e === "import:rmcp"),
+        ),
+        ctx,
+      );
     case "route.next-app@1":
     case "route.next-pages@1":
       // the router directory sits at a Next package's root: `<pkg>/(src/)app`, `next` in that package's manifest

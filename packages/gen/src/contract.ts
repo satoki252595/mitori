@@ -620,7 +620,7 @@ export const GEN_PROMPTS = {
   },
   "gen.parent": {
     id: "gen.parent",
-    version: "gen.parent@4",
+    version: "gen.parent@5",
     system: "gen.system",
     stage: "S6",
     data: ["MODULE", "CHILDREN", "EDGES", "SKELETON", "DOCS", "EXISTING"],

@@ -475,3 +475,71 @@ describe("WP30-B agent docs seed flows", () => {
     expect(flowSeeds(st, bare).map((s) => s.label)).toEqual(["src/main"]);
   });
 });
+
+describe("WP32 evals / bench areas stay out of the seeds while the product has entries", () => {
+  test("entries under evals/, benches/ and bench/ are not offered; alone they still seed", async () => {
+    const { p, sources } = await callRepo({
+      "tool/cli.py":
+        "from .core import analyze\ndef run(path):\n    return analyze(path)\ndef main():\n    print(run('a'))\nif __name__ == '__main__':\n    main()\n",
+      "tool/core.py": "def analyze(path):\n    return len(path)\n",
+      "evals/run.py": "def main():\n    print('eval')\nif __name__ == '__main__':\n    main()\n",
+      "benches/speed.py": "def main():\n    print('bench')\nif __name__ == '__main__':\n    main()\n",
+      "bench/manual.py": "def main():\n    print('manual')\nif __name__ == '__main__':\n    main()\n",
+    });
+    const seeds = flowSeeds(p.structure, p.facts, 8, sources);
+    expect(seeds.length).toBeGreaterThan(0);
+    for (const s of seeds) for (const f of s.files) expect(f).not.toMatch(/(^|\/)(evals?|bench(es)?)\//);
+    // without any product entry, the evals entry still seeds (like website / docs / demos do)
+    const alone = await callRepo({
+      "evals/run.py": "def main():\n    print('eval')\nif __name__ == '__main__':\n    main()\n",
+    });
+    expect(flowSeeds(alone.p.structure, alone.p.facts, 8, alone.sources).length).toBeGreaterThan(0);
+  });
+
+  test("one small binary contributes at most 3 cli / entry seeds; routes of one file are unaffected", async () => {
+    const lib = "def work(n):\n    return n\n";
+    const helpers = [0, 1, 2, 3].map((i) => `def helper${i}():\n    return work(${i})\n`).join("");
+    const { p, sources } = await callRepo({
+      "bin/main.py": `from lib import work\n${helpers}def main():\n    print(helper0())\nif __name__ == '__main__':\n    main()\n`,
+      "lib.py": lib,
+    });
+    const seeds = flowSeeds(p.structure, p.facts, 8, sources);
+    const fromMain = seeds.filter((s) => s.files.includes("bin/main.py" as RepoPath));
+    // entry + 4 same-file callables collapse to 3; the shared lib is still covered
+    expect(fromMain.length).toBeLessThanOrEqual(3);
+    expect(seeds.some((s) => s.files.includes("lib.py" as RepoPath))).toBe(true);
+    // deterministic
+    expect(flowSeeds(p.structure, p.facts, 8, sources)).toEqual(seeds);
+  });
+
+  test("the product's command (rich CLI surface) comes before a helper binary's, one seed per binary", async () => {
+    const clap = (prog: string, variants: string) =>
+      [
+        "use clap::{Parser, Subcommand};",
+        "#[derive(Parser)]",
+        `#[command(name = "${prog}")]`,
+        "struct Cli {",
+        "    #[command(subcommand)]",
+        "    command: Command,",
+        "}",
+        "#[derive(Subcommand)]",
+        "enum Command {",
+        ...variants.split("\n"),
+        "}",
+        "",
+      ].join("\n");
+    const { p, sources } = await callRepo({
+      // sorts first by path, but offers a single subcommand
+      "a-poor.rs": clap("apoor", "    Run {\n        #[arg(long)]\n        what: String,\n    },"),
+      // the product's command: four subcommands from one file collapse to one seed, ahead of the helper
+      "z-rich.rs": clap(
+        "zrich",
+        "    Serve {\n        #[arg(long)]\n        port: Option<u16>,\n    },\n    Import {\n        #[arg(long)]\n        dry_run: bool,\n    },\n    Export {\n        #[arg(long)]\n        format: String,\n    },\n    Sync {\n        #[arg(long)]\n        force: bool,\n    },",
+      ),
+    });
+    const seeds = flowSeeds(p.structure, p.facts, 8, sources);
+    expect(seeds.map((s) => s.label)).toEqual(["zrich serve", "apoor run"]);
+    // deterministic
+    expect(flowSeeds(p.structure, p.facts, 8, sources)).toEqual(seeds);
+  });
+});
