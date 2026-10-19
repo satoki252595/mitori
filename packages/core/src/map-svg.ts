@@ -20,7 +20,8 @@ function chipsSvg(r: RoomModel): string {
   return r.chips
     .map((c, i) => {
       const w = textPx(chipText(c), LABEL_FONT.mono) + ROOM_TEXT.chipPad * 2;
-      const out = `<g class="chip" data-i="${i}"><rect x="${n2(x)}" y="${ROOM_TEXT.chipY}" width="${n2(w)}" height="${ROOM_TEXT.chipH}" rx="3"/><text x="${n2(x + ROOM_TEXT.chipPad)}" y="${ROOM_TEXT.chipY + 12.5}">${esc(c.name)} <tspan class="cs">${esc(c.size)}</tspan></text></g>`;
+      // `<title>` names the chip for hover tooltips and screen readers (always the full path; WP31)
+      const out = `<g class="chip" data-i="${i}"><title>${esc(c.path)}</title><rect x="${n2(x)}" y="${ROOM_TEXT.chipY}" width="${n2(w)}" height="${ROOM_TEXT.chipH}" rx="3"/><text x="${n2(x + ROOM_TEXT.chipPad)}" y="${ROOM_TEXT.chipY + 12.5}">${esc(c.name)} <tspan class="cs">${esc(c.size)}</tspan></text></g>`;
       x += w + ROOM_TEXT.chipGap;
       return out;
     })

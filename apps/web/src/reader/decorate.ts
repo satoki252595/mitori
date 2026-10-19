@@ -6,7 +6,7 @@
  * `path:line` code cells become cite chips (`a.fcite`, peeked through `GET /files/content`) — attributes and
  * wrappers only, so the block's text (ANCHOR_TEXT_RULES) stays exactly the server's.
  */
-import type { BlockView, ReaderLevel } from "@mitori/core";
+import { type BlockView, displayPaths, type ReaderLevel } from "@mitori/core";
 
 export interface DecorateText {
   citeEnd: (n: number) => string;
@@ -148,22 +148,38 @@ export function decorateTable(table: HTMLTableElement, codeHref: ((path: string,
     });
   }
   if (!codeHref) return;
+  const pending: { code: HTMLElement; text: string; c: { path: string; start: number; end: number }; href: string }[] = [];
   for (const code of table.querySelectorAll<HTMLElement>("td > code:only-child")) {
     const text = code.textContent ?? "";
     const c = factCite(text);
     const href = c ? codeHref(c.path, c.start, c.end) : null;
     if (!c || !href) continue;
+    pending.push({ code, text, c, href });
+  }
+  if (pending.length === 0) return;
+  // one table is one context: same-named files show their shortest distinguishing parent (WP31)
+  const shorts = displayPaths(pending.map((p) => p.c.path));
+  pending.forEach(({ code, text, c, href }, i) => {
+    const base = c.path.slice(c.path.lastIndexOf("/") + 1);
+    const short = shorts[i] as string;
+    const full = `${c.path}:${c.start}-${c.end}`;
     const a = document.createElement("a");
     a.className = "fcite";
     a.href = href;
-    a.dataset.cite = `${c.path}:${c.start}-${c.end}`;
+    a.dataset.cite = full;
     a.dataset.blob = "";
+    // hover and screen readers always get the full path (WP31)
+    a.title = full;
+    a.setAttribute("aria-label", full);
     // the directory is its own span the reader level may hide (the text content stays the same)
     const slash = c.path.lastIndexOf("/");
     if (slash > 0) {
       const dir = document.createElement("span");
       dir.className = "cd";
-      dir.textContent = text.slice(0, slash + 1);
+      // an ambiguous chip names its distinguishing directory even below expert level (whose CSS hides `.cd`)
+      const prefix = short === base ? null : short.slice(0, short.length - base.length);
+      dir.textContent = prefix ?? text.slice(0, slash + 1);
+      if (prefix !== null) dir.style.display = "inline";
       code.textContent = text.slice(slash + 1);
       code.prepend(dir);
     }
@@ -171,5 +187,5 @@ export function decorateTable(table: HTMLTableElement, codeHref: ((path: string,
     code.replaceWith(a);
     a.appendChild(code);
     if (td) td.dataset.cite = "";
-  }
+  });
 }
