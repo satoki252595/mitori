@@ -77,3 +77,9 @@ PR #20 で2件の修正を統合した。`mitori setup` は engines・pins を c
 
 毎晩の性能測定（`.github/workflows/bench.yml`）は 2026-10-05 以降 90 分の時間切れが続き結果が一度も出なかったため、利用者の判断で廃止しファイルを削除した。手元の測定道具と `ci.yml` の `browsers` ジョブは残し、正式な絶対値の測定は reference 機で手で行う。
 
+## 2026-10-20 の追加結果
+
+- **トレンドOSS 3件の実生成（Muse high、範囲 standard）**: ai-memory（Rust、61/0、実時間 1,952 秒、L1 89.0 %）・ai-job-search（Python、10/0、275 秒、L1 94.5 %）・context-mode（TypeScript、16/0、419 秒、L1 95.8 %）。出典の存在 100 %。修正後の確認では ai-memory L1 95.6 %（gen.parent 70.3 → 100 %、gen.module 89.9 → 95.1 %）、ai-job-search L1 99.1 %（読んだファイル 102 → 252、除外 175 → 25）、context-mode L1 93.5 %。実生成の合計は API換算の推計で約 $1.9。詳細は [trend-quality-20261020](trend-quality-20261020/README.md)。
+- **#26〜#30 の CI 状態**: #27・#29・#30 はマージ済み。#26・#28 は browsers 待ち（Mac が静かなときに再実行してマージ）。browsers ジョブの chromium の速さのテスト4件（地図の部屋カード ≤100 ms、本文の段階切替 ≤50 ms、節の移動 ≤100 ms、streaming の位置 ≤4 px）は Mac の負荷 5〜12 の下で main でも落ちる（負荷が下がった時の再実行で判断）。
+- **WP29 の性能（React 規模のメモリ）**: react（2,847 ファイル）の cold scan で、開始前 100 MB → S0（Worker 8本起動）430 MB → S1 783 MB → S2〜S4 ほぼ横ばい。ピークは S1 の Worker ごとの WASM メモリ（8本で約 320 MB）で決まる。Worker 数と速さは W=8（764〜797 MB・1,156〜1,200 ms）、W=6（692〜700 MB・1,279〜1,348 ms）、W=4（641〜701 MB・1,622〜1,773 ms）。Go 7k（上限 1,500 ms、現在 1,449）を悪化させずに 700 MB に届く手は無い。
+

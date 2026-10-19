@@ -1,6 +1,6 @@
 # mitori 引き継ぎ（現在の状態）
 
-> 最終更新 2026-10-13 JST。これより前の詳しい経緯・測定・判断は [HANDOFF-history.md](HANDOFF-history.md) にそのまま残してある。ここには「今どうなっているか」と「次に何をするか」だけを書く。
+> 最終更新 2026-10-20 JST。これより前の詳しい経緯・測定・判断は [HANDOFF-history.md](HANDOFF-history.md) にそのまま残してある。ここには「今どうなっているか」と「次に何をするか」だけを書く。
 
 ## 1. mitori とは
 
@@ -57,13 +57,18 @@
 
 2026-10-13 の追加分（WP28: 各社 CLI の更新への自動追従。利用者の要望「各社のアップデートに自動対応。もしくは検知して再度手順を実行できる仕様に」）。Claude（保存済み `pin.path` の symlink の先）・Muse（保存済み `argv[0]` と同じディレクトリの `.muse-version` が示す `muse-bin-<ver>`）・Codex（同じく `pin.path` の先、ただし版が確認済みの `0.160.0` のときだけ）の入れ替わりを、detect 時・生成の開始前・起動時に、SEC-10 の置き場所の検査、持ち主・権限（POSIX、Windows は追従しない）、`--version` の再確認（前後で `fileId` と realpath が同じ）、各エンジンの安全確認（Claude の capability・Codex の版・Muse の text-only と設定）を通したときだけ自動で追従する。保存は Claude・Codex が `BinaryPin`（`by: "auto-update"`・`previousVersion`）、Muse は `engines.generic.argv[0]` だけ（残りの argv は不変）。daemon のログに1行、画面に「新しい版に自動で切り替えました（旧版 → 新版）」（`EngineStatus.followed`）。実行ファイルは丸ごと読まず、sha256 は Claude・Codex で1回だけ流し読み（Muse は取らない）。失敗した候補は覚えて、変わるまで確かめ直さない。追従できないときは地図のエンジンカードと設定画面に理由とコピーできる `setup …`（前のモデル・思考の強さ・予算を引き継ぐ。Codex の未確認版は `git pull` の案内）、CLI の失敗時と `doctor` に同じ1行。これまで配線されていなかった初回 pin の保存（CR m1-65）も composition root でつないだので、Claude の初回 pin も設定に残る。契約は任意フィールドの追加だけ（CR wp28-1）。確認: agent・server・cli・web・core の単体テスト（1,003件中 999 成功・4 省略・失敗0。doctor が一部の設定で止まる不具合はレビューで修正）、ホストの `e2e/web`（gen-card・settings・map、3ブラウザ 84 件成功）、一時の `MITORI_HOME` に実際の設定を写した実機確認（`muse-bin-1.4.6-R6000.1` が無い状態から daemon が `muse-bin-1.4.7-R6101.1` へ自動で切り替え、argv の残り 23 項目は不変、ログ `agent.generic.auto_follow`）。
 
+2026-10-20 の追加分（WP29〜35: トレンドOSS 3件の実生成と記録、#26〜#30）。2026-10-20 の GitHub Trending から言語が分かれる3件（ai-memory・ai-job-search・context-mode、Rust を初めて含む）で Muse（muse-spark-1.3-contributor・high、範囲 standard）を実生成した。詳細は [trend-quality-20261020](progress/trend-quality-20261020/README.md)。AI 用ディレクトリの読み取り・ライセンス判定・付録の描き直し（#27）、間取り図の同名表示（#26）、Rust の流れ検出・親モジュールの引用・文書 seed の公平な取り分（#28）を直した。PR #25 の自動追従を実地で確認した（1.4.6-R6000.1 → 1.4.10-R6427.1）。WP29 の結論は、React 規模の RSS ピークは S1 の Worker ごとの WASM メモリで決まり、Go 7k を悪化させずに 700 MB に届く手は無い。runner の起動失敗を LaunchAgent の /nix 待ちで直し（#29）、テストの実行順の失敗を後始末で直した（#30）。Muse の作業場所は `~/Library/Caches/mitori-muse-wt` にした。
+
 ## 3. 残っていること
 
 | 残件 | 状態 | 次の一手 |
 |---|---|---|
 | HTML 書き出しのビューアー JS | 59,553 B（関門 60,000 B、余裕 447 B）。残りはすべて使用中のコード | 大きく増える変更の前に、予算の見直しか分割を検討 |
 | Go 7k の正式時間 | 中央値 1,449 ms（p95 1,486、上限内）・目標 1,200 ms は WARN | 目標 1,200 ms への新しい案は未着手（`muse/wp16` は効果なしで不採用） |
-| React RSS の目標 700 MB | 792.2 MB で WARN（上限 1,000 MB 内。ABBA の main 側 16回の中央値は 774.8 MB） | ピークがどの段（S1 の解析 Worker か、S3 のグラフか）で出るかを測ってから案を決める |
+| React RSS の目標 700 MB | 792.2 MB で WARN（上限 1,000 MB 内。ABBA の main 側 16回の中央値は 774.8 MB） | WP29 で測定済み。ピークは S1 の Worker ごとの WASM メモリ（8本で約 320 MB）で決まる。Go 7k（上限 1,500 ms、現在 1,449）を悪化させずに 700 MB に届く手は無い。目標値の見直しか Worker 数の方針を決める |
+| browsers ジョブの速さのテスト | chromium の4件（地図の部屋カード ≤100 ms、本文の段階切替 ≤50 ms、節の移動 ≤100 ms、streaming の位置 ≤4 px）が Mac の負荷 5〜12 の下で main でも落ちる | 負荷が下がった時の再実行で判断する |
+| #26・#28 | browsers 待ち | Mac が静かなときに browsers を再実行してマージする |
+| context-mode の §0 の出典 | 主な出典が `.cursor-plugin/README.md`（10 回、ルート README 3 回）のまま | 内容は同じ製品の説明で誤りではない。対応は未定 |
 
 ## 4. 再開手順
 
@@ -71,6 +76,7 @@
 2. 開発コマンドはすべて `scripts/nd` 経由（[CLAUDE.md](../CLAUDE.md) の表）。関門は `scripts/nd bun run check`、単体は `scripts/nd bun test <path>`、web e2e は `MITORI_E2E_CHANNEL=chrome scripts/nd bunx playwright test -c e2e/web/playwright.config.ts --project=chromium`。
 3. 実 LLM を使う検証は、見積りと上限（`--max-usd`）を付けて `bench/measure/gen-real.ts` で行う。費用が月1,000円を超えそうな操作・Cloudflare の deploy / Paid 化・ソフトの直接インストールは事前に確認する。
 4. 秘密情報（auth・env・生 prompt・nonce）は Git に入れない。一時ファイルは `/private/tmp` か作業用ディレクトリに置く。
+5. Muse の作業場所は `~/Library/Caches/mitori-muse-wt`（`/private/tmp` は再起動で消える、`~/.cache` は biome の対象が変わり check が落ちる）。
 
 ## 5. 守ること（設計の約束）
 
