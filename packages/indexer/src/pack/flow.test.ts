@@ -543,3 +543,87 @@ describe("WP32 evals / bench areas stay out of the seeds while the product has e
     expect(flowSeeds(p.structure, p.facts, 8, sources)).toEqual(seeds);
   });
 });
+
+describe("WP32b instruction-doc seeds: README mentions and per-label dedup", () => {
+  test("WP32b-1 same-tier commands rank by root README mentions, ties by path", () => {
+    const files = [
+      sf("src/main.ts", { symbols: [{ name: "main" }] }),
+      sf("README.md", { class: "docs" }),
+      sf(".claude/commands/apply.md", { class: "docs" }),
+      sf(".claude/commands/interview.md", { class: "docs" }),
+      sf(".claude/commands/scrape.md", { class: "docs" }),
+    ];
+    const texts: Record<string, string> = {
+      "src/main.ts": "export function main() {}\n",
+      "README.md": "# Jobs\n\nUse /scrape then /scrape again, then /apply.\n",
+      ".claude/commands/apply.md": "# Apply\n",
+      ".claude/commands/interview.md": "# Interview\n",
+      ".claude/commands/scrape.md": "# Scrape\n",
+    };
+    const p = runPipeline(input(files, texts));
+    const st = p.structure;
+    const entry = { kind: "entry", detector: "entry.test@1", path: "src/main.ts", line: 1, blob: "b0", entry: "main", label: "src/main" } as const;
+    const docs = [
+      { kind: "existing_doc", detector: "doc.existing@1", path: "README.md", line: 1, blob: "b0", role: "readme", title: "Jobs" },
+      { kind: "existing_doc", detector: "doc.existing@1", path: ".claude/commands/apply.md", line: 1, blob: "b0", role: "command", title: "Apply" },
+      {
+        kind: "existing_doc",
+        detector: "doc.existing@1",
+        path: ".claude/commands/interview.md",
+        line: 1,
+        blob: "b0",
+        role: "command",
+        title: "Interview",
+      },
+      { kind: "existing_doc", detector: "doc.existing@1", path: ".claude/commands/scrape.md", line: 1, blob: "b0", role: "command", title: "Scrape" },
+    ] as const;
+    const withDocs = {
+      ...p.facts,
+      facts: [...p.facts.facts, entry, ...docs],
+      scopes: [...p.facts.scopes, "main", "main", "main", "main", "main"] as never,
+    };
+    const src = { files: new Map<RepoPath, StageFile>(), text: (x: RepoPath) => texts[x] ?? null };
+    // /scrape ×2, /apply ×1, /interview ×0 in the README; file order would put /scrape last
+    expect(flowSeeds(st, withDocs, 8, src).map((s) => s.label)).toEqual(["src/main", "/scrape", "/apply", "/interview"]);
+  });
+
+  test("WP32b-2 one seed per skill name: off-configs first, then shorter path, then path order", () => {
+    const files = [
+      sf("src/main.ts", { symbols: [{ name: "main" }] }),
+      sf("skills/context-mode/SKILL.md", { class: "docs" }),
+      sf("configs/antigravity-cli/skills/context-mode/SKILL.md", { class: "docs" }),
+      sf("configs/copilot-cli/skills/context-mode/SKILL.md", { class: "docs" }),
+      sf(".claude/skills/context-mode-ops/SKILL.md", { class: "docs" }),
+      sf("skills/dup/SKILL.md", { class: "docs" }),
+      sf("other/skills/dup/SKILL.md", { class: "docs" }),
+      sf("configs/b/skills/cfg/SKILL.md", { class: "docs" }),
+      sf("configs/a/skills/cfg/SKILL.md", { class: "docs" }),
+    ];
+    const texts: Record<string, string> = { "src/main.ts": "export function main() {}\n", "README.md": "# T\n" };
+    const p = runPipeline(input(files, texts));
+    const st = p.structure;
+    const entry = { kind: "entry", detector: "entry.test@1", path: "src/main.ts", line: 1, blob: "b0", entry: "main", label: "src/main" } as const;
+    const skill = (path: RepoPath) => ({ kind: "existing_doc", detector: "doc.existing@1", path, line: 1, blob: "b0", role: "skill", title: "S" }) as const;
+    const docs = [
+      skill("skills/context-mode/SKILL.md"),
+      skill("configs/antigravity-cli/skills/context-mode/SKILL.md"),
+      skill("configs/copilot-cli/skills/context-mode/SKILL.md"),
+      skill(".claude/skills/context-mode-ops/SKILL.md"),
+      skill("skills/dup/SKILL.md"),
+      skill("other/skills/dup/SKILL.md"),
+      skill("configs/b/skills/cfg/SKILL.md"),
+      skill("configs/a/skills/cfg/SKILL.md"),
+    ] as const;
+    const withDocs = {
+      ...p.facts,
+      facts: [...p.facts.facts, entry, ...docs],
+      scopes: [...p.facts.scopes, "main", ...docs.map(() => "main")] as never,
+    };
+    const seeds = flowSeeds(st, withDocs);
+    expect(seeds.map((s) => s.label)).toEqual(["src/main", "context-mode-ops", "cfg", "context-mode", "dup"]);
+    const byLabel = new Map(seeds.map((s) => [s.label, s.path]));
+    expect(byLabel.get("context-mode")).toBe("skills/context-mode/SKILL.md");
+    expect(byLabel.get("dup")).toBe("skills/dup/SKILL.md");
+    expect(byLabel.get("cfg")).toBe("configs/a/skills/cfg/SKILL.md");
+  });
+});

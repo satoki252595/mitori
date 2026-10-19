@@ -20,7 +20,7 @@ import type {
 import { type FactsResult, linkFacts } from "../facts/stage.ts";
 import { extractorSetVersion } from "../lang/versions.ts";
 import { moduleSummary } from "../pack/describe.ts";
-import { type FlowSources, flowBodies, flowSeeds, moduleStats } from "../pack/flow.ts";
+import { type FlowSources, flowBodies, flowRefPath, flowSeeds, moduleStats } from "../pack/flow.ts";
 import {
   hotBodies,
   hotFiles,
@@ -346,7 +346,9 @@ export function laterStages(view: IndexView): LaterStages {
         }
       }
     };
-    await load(handlerFiles(s));
+    // [WP32b] the reference doc ranks the instruction-doc seeds: warm it before the first `seedsOf`.
+    const ref = flowRefPath(s.facts);
+    await load(ref === null ? handlerFiles(s) : [ref, ...handlerFiles(s)]);
     // Source-confirmed flows can continue inside a module. Warm their next calls before ranking the final seeds;
     // each pass keeps the same 64-file flow cap, and the existing walk ends after six hops.
     for (let hop = 0; hop < 6; hop++) {

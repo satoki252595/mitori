@@ -661,6 +661,38 @@ const aside = (file: string) => (ASIDE_PATH_RE.test(file) ? 1 : 0);
 const isSkillEntry = (path: string) => /(^|\/)skills\/[^/]+\/SKILL\.md$/i.test(path);
 
 /**
+ * [WP32b] the reference doc naming the flows: the root README, else the root CLAUDE.md / AGENTS.md. Found through
+ * `existing_doc` facts; the body comes from the warmed texts (`FlowSources.text`), capped at the first 64 KiB.
+ */
+export function flowRefPath(facts: FactsResult): RepoPath | null {
+  const docs = facts.facts.filter((f) => f.kind === "existing_doc");
+  const roots = docs.filter((d) => !d.path.includes("/") && /^readme(\.|$)/i.test(d.path)).sort((a, b) => byStr(a.path, b.path));
+  const first = roots[0];
+  if (first) return first.path;
+  for (const base of ["CLAUDE.md", "AGENTS.md"]) {
+    const hit = docs.find((d) => d.path === base);
+    if (hit) return hit.path;
+  }
+  return null;
+}
+
+/** Non-overlapping occurrences of `needle` in `hay` (both already cased alike; empty needle never occurs). */
+function countMentions(hay: string, needle: string): number {
+  if (needle === "") return 0;
+  let n = 0;
+  let at = 0;
+  for (;;) {
+    const i = hay.indexOf(needle, at);
+    if (i < 0) return n;
+    n++;
+    at = i + needle.length;
+  }
+}
+
+/** A per-tool vendored copy (`configs/<tool>/…`); the canonical skill / command lives outside it. */
+const vendoredDoc = (path: string) => (/(^|\/)configs\//.test(path) ? 1 : 0);
+
+/**
  * Seeds one cli / entry file may contribute: a small helper binary (its main, its command table, same-file
  * callables) must not fill the seeds by itself — a main plus its command table plus one same-file callable stay
  * legitimate. Routes of one router file are unaffected (gen #4c: each handler of one router file is a flow of its
@@ -683,6 +715,8 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
     tier: number;
     /** 1 for a website / docs / demo / test-area file: after every product candidate, routes included. */
     aside: number;
+    /** [WP32b] root README mentions of an instruction-doc label (0 for product code). */
+    mentions: number;
     score: number;
     weight: number;
     size: number;
@@ -719,6 +753,7 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         order: 0,
         tier: infraRoute(r) ? 1 : 0,
         aside: aside(file),
+        mentions: 0,
         score: 0,
         weight: 0,
         size: r.handler ? bodyOf(r.handler) : 0,
@@ -734,6 +769,7 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         order: 1,
         tier: 0,
         aside: aside(f.path),
+        mentions: 0,
         score: 0,
         weight: 0,
         size: 0,
@@ -755,6 +791,7 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         // `go run gen.go` style generators are labelled by their file: after the program's own mains
         tier: f.entry === "main" && /\.[A-Za-z0-9]+$/.test(f.label) ? 1 : 0,
         aside: aside(file),
+        mentions: 0,
         score: 0,
         weight: 0,
         size: 0,
@@ -780,6 +817,7 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
             // a callable of a generator / site entry file stays behind the program's own entries
             tier: f.entry === "main" && /\.[A-Za-z0-9]+$/.test(f.label) ? 1 : 0,
             aside: aside(file),
+            mentions: 0,
             score: 0,
             weight: 0,
             size: s.end - s.start + 1,
@@ -803,6 +841,7 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         order: 2,
         tier: f.role === "command" ? 1 : 2,
         aside: aside(f.path),
+        mentions: 0,
         score: 0,
         weight: 0,
         size: 0,
@@ -810,6 +849,31 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
       });
     }
   });
+  // [WP32b] one seed per instruction-doc label: repos copy a skill per tool (`configs/<tool>/skills/<name>`).
+  // The canonical copy wins (off `configs/`), then the shorter path, then path order. Product seeds are untouched.
+  {
+    const best = new Map<string, Cand>();
+    for (const c of cands) {
+      if (!c.doc) continue;
+      const prev = best.get(c.label);
+      if (prev === undefined) best.set(c.label, c);
+      else {
+        const rank = vendoredDoc(c.path) - vendoredDoc(prev.path) || c.path.length - prev.path.length || byStr(c.path, prev.path);
+        if (rank < 0) best.set(c.label, c);
+      }
+    }
+    for (let i = cands.length - 1; i >= 0; i--) {
+      const c = cands[i] as Cand;
+      if (c.doc && best.get(c.label) !== c) cands.splice(i, 1);
+    }
+  }
+  // [WP32b] same-tier instruction docs rank by reference-doc mentions (`/scrape`, the skill name), ties by path.
+  {
+    const ref = flowRefPath(facts);
+    const raw = ref === null ? undefined : src?.text(ref);
+    const body = raw === undefined || raw === null ? undefined : raw.slice(0, 65_536).toLowerCase();
+    if (body !== undefined) for (const c of cands) if (c.doc) c.mentions = countMentions(body, c.label.toLowerCase());
+  }
   // a file many endpoints call into is the app's core; a handler scores what of it it uses
   const pop = new Map<RepoPath, number>();
   const handlers = new Set<string>();
@@ -834,6 +898,8 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
   cands.sort((a, b) => {
     const base = a.aside - b.aside || a.order - b.order || a.tier - b.tier;
     if (base !== 0) return base;
+    // [WP32b] instruction docs of one tier follow the reference doc, ties by path; product code is untouched.
+    if (a.doc && b.doc) return b.mentions - a.mentions || byStr(a.path, b.path);
     // the product's command comes before a helper binary's: it offers the interface a newcomer meets, and file
     // PageRank already ranks its implementation above a helper's
     if (a.kind === "cli") {
