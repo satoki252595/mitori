@@ -1,19 +1,28 @@
 // Serve-time fill of claim placeholders (PT-07, CONS-23): span `<span class="mc" data-claim data-verdict>` and cite
 // chips `<a class="mcite" data-cite data-blob href=HREFS.code(…)>` from the CURRENT claims. Newcomer level puts
 // chips at the end of the paragraph / list item / cell (`READER_LEVEL_RULES.newcomer.cites = paragraph_end`).
-import { type Claim, HREFS, HTML_CONTRACT, READER_LEVEL_RULES, type ReaderLevel, type WorkspaceKey } from "@mitori/core";
+import { type Claim, displayPaths, HREFS, HTML_CONTRACT, READER_LEVEL_RULES, type ReaderLevel, type WorkspaceKey } from "@mitori/core";
 import { escapeHtml } from "./mdit.ts";
 
 const TOKEN_RE = /(\d+)|(\d+)|<\/(?:p|li|td|th|h[1-6])>/g;
 
-function chips(c: Claim, ws: WorkspaceKey): string {
+/** Short labels of every cited path in the block, so same-named files tell apart (WP31). */
+function shortLabels(claims: readonly Claim[]): Map<string, string> {
+  const paths = claims.flatMap((c) => c.cites.map((ct) => ct.path));
+  const labels = displayPaths(paths);
+  return new Map(paths.map((p, i) => [p, labels[i] as string]));
+}
+
+function chips(c: Claim, ws: WorkspaceKey, short: Map<string, string>): string {
   let out = "";
   for (const ct of c.cites) {
-    const base = ct.path.slice(ct.path.lastIndexOf("/") + 1);
     const range = ct.start === ct.end ? `${ct.start}` : `${ct.start}-${ct.end}`;
+    // the short label tells same-named files apart; hover and screen readers always get the full path (WP31)
+    const full = `${ct.path}:${ct.start}-${ct.end}`;
     out +=
-      `<a class="${HTML_CONTRACT.cite.cls}" data-cite="${escapeHtml(`${ct.path}:${ct.start}-${ct.end}`)}" data-blob="${escapeHtml(ct.blob)}"` +
-      ` href="${escapeHtml(HREFS.code(ws, ct.path, ct.start, ct.end))}"><span class="cs">${escapeHtml(`${base}:${ct.start}`)}</span>` +
+      `<a class="${HTML_CONTRACT.cite.cls}" data-cite="${escapeHtml(full)}" data-blob="${escapeHtml(ct.blob)}"` +
+      ` href="${escapeHtml(HREFS.code(ws, ct.path, ct.start, ct.end))}" title="${escapeHtml(full)}" aria-label="${escapeHtml(full)}">` +
+      `<span class="cs">${escapeHtml(`${short.get(ct.path) ?? ct.path}:${ct.start}`)}</span>` +
       `<span class="cl">${escapeHtml(`${ct.path}:${range}`)}</span></a>`;
   }
   return out;
@@ -23,6 +32,7 @@ function chips(c: Claim, ws: WorkspaceKey): string {
 export function spliceBody(body: string, claims: readonly Claim[], ws: WorkspaceKey, level: ReaderLevel): string {
   if (!body.includes("") && !body.includes("")) return body;
   const atEnd = READER_LEVEL_RULES[level].cites === "paragraph_end";
+  const short = shortLabels(claims);
   let pending = "";
   const open = new Set<number>();
   const out = body.replace(TOKEN_RE, (all, s?: string, e?: string) => {
@@ -37,8 +47,8 @@ export function spliceBody(body: string, claims: readonly Claim[], ws: Workspace
       const c = claims[k - 1];
       const close = open.delete(k) ? "</span>" : "";
       if (!c) return close;
-      if (!atEnd) return close + chips(c, ws);
-      pending += chips(c, ws);
+      if (!atEnd) return close + chips(c, ws, short);
+      pending += chips(c, ws, short);
       return close;
     }
     if (pending === "") return all;

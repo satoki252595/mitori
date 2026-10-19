@@ -5,6 +5,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import type { BlockView, DocOutline, SectionNode, SectionView } from "@mitori/core";
+import { displayPaths } from "@mitori/core";
 import { UI_THRESHOLDS } from "../contract.ts";
 import { codeWindow, editorUrl, invalidateCode, loadCode, parseCite } from "./code.ts";
 import { columnKinds, factCite } from "./decorate.ts";
@@ -203,6 +204,14 @@ describe("M1 §5-7 comfortable tables: short / numeric columns and fact cites", 
     expect(factCite("Makefile:87")).toEqual({ path: "Makefile", start: 87, end: 87 });
     expect(factCite("package.json:5-9")).toEqual({ path: "package.json", start: 5, end: 9 });
     for (const x of ["localhost:8080", "example.com:443", "ANY", "server.go", "a.go:0", "x.go:9-3"]) expect(factCite(x)).toBeNull();
+  });
+  test("WP31: one table's fact cites tell same-named files apart (labels the chips show)", () => {
+    // the contract decorateTable relies on: ambiguous chips name their shortest distinguishing parent
+    expect(displayPaths(["src/adapters/a/index.ts", "src/adapters/b/index.ts", "src/adapters/a/util.ts"])).toEqual(["a/index.ts", "b/index.ts", "util.ts"]);
+  });
+  test("WP31: a lone rootlike fact cite shows its parent; root files keep the bare name", () => {
+    expect(displayPaths([".cursor-plugin/README.md"])).toEqual([".cursor-plugin/README.md"]);
+    expect(displayPaths(["Makefile"])).toEqual(["Makefile"]);
   });
 });
 

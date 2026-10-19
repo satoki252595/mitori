@@ -2,6 +2,7 @@
 import type { MapView } from "./api.ts";
 import type { BlockId, DiagramNode, ModuleInfo } from "./domain.ts";
 import type { EdgeModel, PlanModel, RoomModel, ZoneModel } from "./map-model.ts";
+import { displayPaths } from "./paths.ts";
 
 const fmtLocShort = (n: number) =>
   n >= 1000
@@ -30,8 +31,6 @@ function leaves(mod: Mod, byId: Map<string, Mod>): Mod[] {
   });
 }
 
-const baseName = (p: string) => p.slice(p.lastIndexOf("/") + 1);
-
 export function buildPlanModel(view: MapView): PlanModel {
   const nodes = new Map<string, DiagramNode>(view.diagram.nodes.map((n) => [n.id, n]));
   const groups = new Map(view.diagram.groups.map((g) => [g.id, g]));
@@ -49,6 +48,8 @@ export function buildPlanModel(view: MapView): PlanModel {
     const ls = mod ? leaves(mod, mods) : [];
     const paths = ls.flatMap((m) => m.paths);
     const top = ls.flatMap((m) => m.topFiles ?? []).sort((a, b) => b.loc - a.loc || (a.path < b.path ? -1 : 1));
+    const best = top.slice(0, 3);
+    const chipNames = displayPaths(best.map((f) => f.path));
     const zone = n.group ?? null;
     rooms.push({
       id: n.id,
@@ -71,7 +72,8 @@ export function buildPlanModel(view: MapView): PlanModel {
       topSymbols: top.flatMap((f) => f.symbols).slice(0, 3),
       summary: (mod as { summary?: string } | undefined)?.summary ?? null,
       change: (mod as { change?: BlockId } | undefined)?.change ?? null,
-      chips: top.slice(0, 3).map((f) => ({ name: baseName(f.path), size: fmtLocShort(f.loc) })),
+      // largest files as chips; same-named files show their shortest distinguishing parent (WP31)
+      chips: best.map((f, i) => ({ name: chipNames[i] as string, size: fmtLocShort(f.loc), path: f.path })),
     });
   }
   for (const z of zones) z.loc = rooms.reduce((a, r) => a + (r.zone === z.id ? r.loc : 0), 0);
