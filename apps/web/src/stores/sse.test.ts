@@ -4,11 +4,17 @@
  * a hand-written fake of it hid LIVE-01: the store-side check used to call `noteRev` (= "this rev came from a
  * response"), so the second state of an entity inside ONE rev never reached the store.
  */
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { createSseClient, type EntityKey, type SseClient } from "@mitori/client";
 import type { SseEvent, WorkspaceKey } from "@mitori/core";
+import { setSettingsLang } from "../shell/i18n.ts";
 import type { Stores } from "./app.svelte.ts";
 import { acceptProgress, acceptUpsert, wireSse } from "./sse.ts";
+
+// the settings.updated tests drive applySettings, which leaves i18n's settingsLang set in this process
+afterEach(() => {
+  setSettingsLang(null);
+});
 
 const WS = "ws_cccccccccccc" as WorkspaceKey;
 const enc = new TextEncoder();

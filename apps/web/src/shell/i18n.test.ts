@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { detectUiLangImpl, errorTextImpl, interpolate, setCatalog, setDebugErrors, setMissingKeyReporter, tImpl } from "./i18n.ts";
+import { detectUiLangImpl, errorTextImpl, interpolate, setCatalog, setDebugErrors, setMissingKeyReporter, setSettingsLang, tImpl } from "./i18n.ts";
 import { isComposingImpl, isImeProcessKey, noteCompositionEnd } from "./ime.ts";
 import { errorKey, isComposing, t } from "./index.ts";
 import { parseRich, richPlain, richTags } from "./rich.ts";
@@ -7,6 +7,7 @@ import { parseRich, richPlain, richTags } from "./rich.ts";
 afterEach(() => {
   setMissingKeyReporter(null);
   setDebugErrors(false);
+  setSettingsLang(null);
 });
 
 describe("WEB-U-025 t(): placeholders, plurals, missing keys", () => {
@@ -35,11 +36,33 @@ describe("WEB-U-025 t(): placeholders, plurals, missing keys", () => {
     expect(errorTextImpl({ code: "E_TIMEOUT", message: "m", retryable: true })).toBe("internal (m)");
   });
 
-  test("detectUiLang order: cookie → settings → navigator → ja", () => {
+  test("WEB-U-025 detectUiLang order: cookie → settings → navigator → ja", () => {
+    // another file (stores/sse.test.ts via applySettings) may leave settingsLang set in this process
+    setSettingsLang(null);
     expect(detectUiLangImpl("en", { language: "ja-JP" })).toBe("en");
+    setSettingsLang("en");
+    expect(detectUiLangImpl(null, { language: "ja-JP" })).toBe("en");
+    setSettingsLang(null);
     expect(detectUiLangImpl(null, { language: "ja-JP" })).toBe("ja");
     expect(detectUiLangImpl(null, { language: "de-DE" })).toBe("en");
-    expect(detectUiLangImpl(null, { language: "" })).toBe(detectUiLangImpl(null, null) === "en" ? "en" : "ja");
+    expect(detectUiLangImpl(null, { language: "" })).toBe("ja");
+  });
+
+  test("WEB-U-025 detectUiLang reads the global navigator only when nav is omitted", () => {
+    const g = globalThis as unknown as Record<string, unknown>;
+    const saved = g.navigator;
+    try {
+      setSettingsLang(null);
+      g.navigator = { language: "de-DE" };
+      expect(detectUiLangImpl(null, null)).toBe("en");
+      g.navigator = { language: "ja-JP" };
+      expect(detectUiLangImpl(null, null)).toBe("ja");
+      g.navigator = {};
+      expect(detectUiLangImpl(null, null)).toBe("ja");
+    } finally {
+      g.navigator = saved;
+      setSettingsLang(null);
+    }
   });
 });
 
