@@ -38,13 +38,31 @@ export async function bootstrapWithRetry(
   );
 }
 
+export const NIX_BIN = "/nix/var/nix/profiles/default/bin/nix";
+/** How long the wrapper waits for the /nix volume after a reboot (10 minutes). */
+export const NIX_WAIT_SECONDS = 600;
+/** Poll interval while waiting for the /nix volume. */
+export const NIX_WAIT_INTERVAL_SECONDS = 2;
+
+/**
+ * Wrapper run via `/bin/sh -c`. Right after a reboot /nix may not be mounted yet,
+ * which makes launchd fail the spawn itself (no retry). /bin/sh always exists so
+ * the spawn succeeds; the script polls for the nix binary and execs into it, or
+ * exits nonzero so KeepAlive + ThrottleInterval retries it.
+ */
+export function runnerShellScript(): string {
+  const tries = NIX_WAIT_SECONDS / NIX_WAIT_INTERVAL_SECONDS;
+  const q = `"${NIX_BIN}"`;
+  return `i=0; while [ "$i" -lt ${tries} ]; do if [ -x ${q} ]; then break; fi; sleep ${NIX_WAIT_INTERVAL_SECONDS}; i=$((i+1)); done; [ -x ${q} ] || exit 1; exec ${q} develop ".#runner" --command "Runner.Listener" "run"`;
+}
+
 export function plistXml(project: string, runnerRoot: string): string {
   const xmlEscape = (s: string) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>${label}</string>
-<key>ProgramArguments</key><array><string>/nix/var/nix/profiles/default/bin/nix</string><string>develop</string><string>.#runner</string><string>--command</string><string>Runner.Listener</string><string>run</string></array>
+<key>ProgramArguments</key><array><string>/bin/sh</string><string>-c</string><string>${xmlEscape(runnerShellScript())}</string></array>
 <key>WorkingDirectory</key><string>${xmlEscape(project)}</string>
 <key>EnvironmentVariables</key><dict><key>RUNNER_ROOT</key><string>${xmlEscape(runnerRoot)}</string><key>PATH</key><string>/nix/var/nix/profiles/default/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
 <key>ProcessType</key><string>Interactive</string>

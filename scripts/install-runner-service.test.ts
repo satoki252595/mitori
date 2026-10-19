@@ -42,3 +42,35 @@ test("the plist still declares the interactive reference runner (content unchang
   expect(xml).toContain(`<string>${label}</string>`);
   expect(xml).toContain("<key>ProcessType</key><string>Interactive</string>");
 });
+
+test("WP33 waits for the /nix volume via /bin/sh before exec", () => {
+  const xml = plistXml("/proj", "/proj/.mitori/cache/github-runner");
+  const nix = "/nix/var/nix/profiles/default/bin/nix";
+  expect(xml).toContain("<key>ProgramArguments</key><array><string>/bin/sh</string><string>-c</string>");
+  expect(xml).not.toContain(`<key>ProgramArguments</key><array><string>${nix}</string>`);
+  expect(xml).toContain(`[ -x "${nix}" ]`);
+  expect(xml).toContain("sleep 2");
+  expect(xml).toContain("300");
+  expect(xml).toContain("exit 1");
+  expect(xml).toContain(`exec "${nix}" develop`);
+  expect(xml).toContain("Runner.Listener");
+});
+
+test("WP33 keeps the existing plist keys unchanged", () => {
+  const xml = plistXml("/proj", "/proj/.mitori/cache/github-runner");
+  expect(xml).toContain("<key>WorkingDirectory</key><string>/proj</string>");
+  expect(xml).toContain("<key>RUNNER_ROOT</key><string>/proj/.mitori/cache/github-runner</string>");
+  expect(xml).toContain("<key>PATH</key><string>/nix/var/nix/profiles/default/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>");
+  expect(xml).toContain("<key>ProcessType</key><string>Interactive</string>");
+  expect(xml).toContain("<key>RunAtLoad</key><true/>");
+  expect(xml).toContain("<key>KeepAlive</key><true/>");
+  expect(xml).toContain("<key>ThrottleInterval</key><integer>60</integer>");
+  expect(xml).toContain("<key>StandardOutPath</key><string>/proj/.mitori/cache/github-runner/service.log</string>");
+  expect(xml).toContain("<key>StandardErrorPath</key><string>/proj/.mitori/cache/github-runner/service-error.log</string>");
+});
+
+test("WP33 survives spaces in paths without breaking the shell string", () => {
+  const xml = plistXml("/proj with space", "/proj with space/.mitori/cache/github-runner");
+  expect(xml).toContain("<key>WorkingDirectory</key><string>/proj with space</string>");
+  expect(xml).toContain(`exec "/nix/var/nix/profiles/default/bin/nix" develop`);
+});
