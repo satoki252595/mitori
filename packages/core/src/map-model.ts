@@ -20,10 +20,15 @@ const fmtLocShort = (n: number) =>
     : String(n);
 
 export interface RoomChip {
-  /** File name (basename). */
+  /**
+   * File name as shown: the basename, or the shortest parent prefix that tells same-named files apart inside
+   * this room (`a/index.ts`; WP31, computed in `buildPlanModel`).
+   */
   name: string;
   /** Size text (`3.5k`). */
   size: string;
+  /** Full repo-relative path (hover `<title>` and the screen-reader label; never shown in full). */
+  path: string;
 }
 
 export interface RoomModel {

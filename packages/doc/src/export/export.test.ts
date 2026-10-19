@@ -95,6 +95,30 @@ describe("WP13-U-04 the document", () => {
   });
 });
 
+describe("WP31 same-named cites in the exported HTML", () => {
+  test("chips show their shortest parent; the full path stays on the chip", async () => {
+    const { h, exporter } = setup();
+    h.store.applyGenerated(
+      [
+        block({
+          md: "甲[[1]]乙[[2]]。",
+          claims: [
+            { n: 1, kind: "behavior", quote: "甲", cites: [cite("src/adapters/a/index.ts", 3, 9)], checks, verdict: "verified" },
+            { n: 2, kind: "behavior", quote: "乙", cites: [cite("src/adapters/b/index.ts", 5, 5)], checks, verdict: "verified" },
+          ],
+        }),
+      ],
+      opts,
+    );
+    const res = await exporter().export(REQ);
+    const p = payloadOf(res.html);
+    const html = p.sections.flatMap((s) => s.blocks.map((b) => b.html)).join("");
+    expect(html).toContain('<span class="cs">a/index.ts:3</span>');
+    expect(html).toContain('<span class="cs">b/index.ts:5</span>');
+    expect(html).toContain('title="src/adapters/a/index.ts:3-9" aria-label="src/adapters/a/index.ts:3-9"');
+  });
+});
+
 describe("WP13-U-05 `</script>` in content", () => {
   test("in block text, a title, a glossary entry and a diagram label the page keeps exactly its two scripts", async () => {
     const { h, exporter } = setup();
