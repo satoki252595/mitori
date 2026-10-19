@@ -650,7 +650,7 @@ export const GEN_PROMPTS = {
   },
   "gen.flows": {
     id: "gen.flows",
-    version: "gen.flows@7",
+    version: "gen.flows@8",
     system: "gen.system",
     stage: "S6o",
     data: ["SEEDS", "BODIES", "MODULES", "EXISTING_FLOWS", "EXISTING"],

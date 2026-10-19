@@ -6,7 +6,7 @@ import { createFakeIndexer } from "../test/fake-indexer.ts";
 import { testHasher, testIds } from "../test/ports.ts";
 import { M_CORE, sampleRepo } from "../test/repo.ts";
 import { plannedTask } from "../test/tasks.ts";
-import { childSymbols, gatherInputs } from "./inputs.ts";
+import { childSymbols, gatherInputs, summarizePromptInput } from "./inputs.ts";
 
 const hasher = testHasher();
 
@@ -153,6 +153,65 @@ describe("WP32 childSymbols orders one symbols line per file", () => {
     expect(childSymbols(symbols, ["a/srv.rs", "b/mod.rs"] as RepoPath[], new Set(["a/srv.rs#tool_run", "a/srv.rs#T~2.m"]), 2)).toEqual([
       ">   symbols: setup a/srv.rs:5-8, tool_run a/srv.rs:50-60",
       ">   symbols: long_helper b/mod.rs:10-49, build_api b/mod.rs:142-144",
+    ]);
+  });
+});
+
+describe("WP32c gen.flows BODIES quotes command docs before code bodies", () => {
+  test("WP32c-3 doc seeds take a fair BODIES share and come before code seeds", async () => {
+    const { env, indexer } = setup();
+    const calls: { label: string; budget: number }[] = [];
+    const docSeed = {
+      k: 1,
+      kind: "entry",
+      label: "/apply",
+      path: ".claude/commands/apply.md",
+      line: 1,
+      modules: [],
+      files: [".claude/commands/apply.md"],
+    } as const;
+    const codeSeed = {
+      k: 2,
+      kind: "entry",
+      label: "main",
+      path: "src/main.ts",
+      line: 1,
+      modules: ["md_a0000004"],
+      files: ["src/main.ts"],
+    } as const;
+    indexer.flowSeeds = () => [docSeed, codeSeed] as never;
+    indexer.flowBodies = ((seed: { label: string; files: string[]; path: string }, budget: number) => {
+      calls.push({ label: seed.label, budget });
+      const path = seed.files[0] ?? seed.path;
+      return [{ path, blob: "b", start: 1, end: 1, text: `1|${seed.label}`, numbered: true as const, tokens: 8, redactions: 0 }];
+    }) as never;
+    const task = plannedTask("gen.flows", { kind: "section", id: "s3" }, ["s3"]);
+    const bodies = (await gatherInputs(task, env)).inputs.BODIES?.join("\n") ?? "";
+    expect(bodies).toContain("=== .claude/commands/apply.md");
+    expect(bodies).toContain("=== src/main.ts");
+    expect(bodies.indexOf("=== .claude/commands/apply.md")).toBeLessThan(bodies.indexOf("=== src/main.ts"));
+    expect(calls.find((c) => c.label === "/apply")?.budget).toBe(Math.floor(DATA_BUDGETS["gen.flows"].BODIES / 2));
+  });
+});
+
+describe("WP32e prompt-input summary", () => {
+  test("WP32e-1 slots report lines, tokens, heading groups and unheaded lines", () => {
+    const out = summarizePromptInput(
+      {
+        SEEDS: ["> seed1 entry /apply .claude/commands/apply.md:1 path: "],
+        BODIES: ["=== a.ts · lines 1-2", "1|x", "2|y", "=== b.ts · lines 5-5", "5|z"],
+      },
+      (t) => t.length,
+    );
+    const seeds = out.find((s) => s.slot === "SEEDS") as (typeof out)[number];
+    expect(seeds.lines).toBe(1);
+    expect(seeds.groups).toEqual([{ head: null, lines: 1 }]);
+    const bodies = out.find((s) => s.slot === "BODIES") as (typeof out)[number];
+    expect(bodies.lines).toBe(5);
+    expect(bodies.tokens).toBe("=== a.ts · lines 1-2\n1|x\n2|y\n=== b.ts · lines 5-5\n5|z".length);
+    expect(bodies.groups).toEqual([
+      { head: "=== a.ts · lines 1-2", lines: 3 },
+      { head: "=== b.ts · lines 5-5", lines: 2 },
     ]);
   });
 });

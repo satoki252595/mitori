@@ -236,7 +236,7 @@ describe("AC-L25 applyEditsToText — atomicity and refusals", () => {
     expect(r.problems[0]?.code).toBe("E_DENY_GLOB");
   });
   test("WP30-A: edits to readable agent docs are refused (write side unchanged)", () => {
-    for (const path of [".claude/skills/scrape/SKILL.md", ".agents/skills/apply/SKILL.md"]) {
+    for (const path of [".claude/skills/scrape/SKILL.md", ".agents/skills/apply/SKILL.md", ".agents/skills/x/cli/src/a.ts"]) {
       const r = run(base, [{ ...good, path }], { deny: [...DEFAULT_DENY_GLOBS], path, scope: [path] });
       expect(r.problems[0]?.code).toBe("E_DENY_GLOB");
     }

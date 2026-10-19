@@ -538,12 +538,150 @@ function flowTargets(seed: FlowSeed, files: ReadonlyMap<RepoPath, StageFile>, te
   return out;
 }
 
+/** Lines of a doc seed shown before anything else (its head names the command / skill). */
+const DOC_HEAD_LINES = 40;
+/** Headings that introduce a procedure (a command / skill doc's fixed steps live under one of these). */
+const DOC_PROCEDURE_RE =
+  /手順|使い方|やり方|procedure|steps?|how[\s-]?to|usage|guide|tutorial|getting[\s-]?started|walkthrough|workflow|クイックスタート|はじめに/i;
+/** A numbered step (`1. …`, `2) …`). */
+const DOC_STEP_RE = /^\s*\d+[.)]\s+\S/;
+/** A Markdown heading (`## …`). */
+const DOC_HEADING_RE = /^(#{1,6})\s+(.*?)\s*$/;
+/** Script extensions a doc may point at (bundled helpers of a command / skill). */
+const DOC_SCRIPT_EXTS: ReadonlySet<string> = new Set(["py", "ts", "tsx", "js", "jsx", "mjs", "cjs", "mts", "cts", "go", "rs", "rb", "sh", "bash"]);
+/** A doc seed quotes at most this many bundled script files, this many entry functions each. */
+const DOC_SCRIPT_FILES = 2;
+const DOC_SCRIPT_FUNCS = 3;
+const DOC_CALLABLE: ReadonlySet<string> = new Set(["function", "method", "constructor"]);
+
+function docDirOf(path: string): string {
+  const i = path.lastIndexOf("/");
+  return i < 0 ? "" : path.slice(0, i);
+}
+
+/** Collapse `.` / `..` segments of a `/`-joined repo path (never escapes above the root). */
+function normalizeRepoPath(path: string): string {
+  const out: string[] = [];
+  for (const seg of path.split("/")) {
+    if (seg === "" || seg === ".") continue;
+    if (seg === "..") out.pop();
+    else out.push(seg);
+  }
+  return out.join("/");
+}
+
+/**
+ * Bundled scripts a doc mentions, in mention order (a command / skill doc names the helper it runs: `bun run
+ * cli/run.py …`, backticked or bare). Each mention resolves doc-dir-relative first, then repo-root-relative, so a
+ * root-relative mention from a nested doc still resolves; `tools/` scripts count like any other scope. At most
+ * {@link DOC_SCRIPT_FILES} existing files.
+ */
+export function docScriptRefs(doc: RepoPath, text: string, exists: (p: RepoPath) => boolean): RepoPath[] {
+  const dir = docDirOf(doc);
+  const out: RepoPath[] = [];
+  const seen = new Set<string>();
+  const push = (p: string) => {
+    const n = normalizeRepoPath(p);
+    if (n === "" || n === doc || seen.has(n)) return;
+    seen.add(n);
+    if (exists(n as RepoPath)) out.push(n as RepoPath);
+  };
+  for (const raw of text.split(/\s+/)) {
+    const t = raw
+      .replace(/^['"`([{<]+/, "")
+      .replace(/['"`)\]}>.,;:!?…—–-]+$/, "")
+      .replace(/^\.\//, "");
+    if (!t.includes("/") || t.includes("://") || t.startsWith("/")) continue;
+    const base = t.slice(t.lastIndexOf("/") + 1);
+    const dot = base.lastIndexOf(".");
+    if (dot < 0 || !DOC_SCRIPT_EXTS.has(base.slice(dot + 1).toLowerCase())) continue;
+    if (dir !== "") push(`${dir}/${t}`);
+    push(t);
+  }
+  return out.slice(0, DOC_SCRIPT_FILES);
+}
+
+/**
+ * Bodies of a doc seed (a command / skill doc: no modules, `class === "docs"`): the doc itself as line-ranged slices —
+ * head, procedure sections (a procedure heading or numbered steps), the rest — then the entry functions (`main`
+ * first) of the bundled scripts it mentions. Packed through `packSlices`, so budget, numbering and secret scanning
+ * follow the existing rules; code seeds never reach here.
+ */
+function docFlowBodies(seed: FlowSeed, files: ReadonlyMap<RepoPath, StageFile>, budgetTokens: number, io: SliceIo): CodeSlice[] {
+  const path = seed.files[0] ?? seed.path;
+  const text = io.text(path);
+  if (text === null) return [];
+  const lines = text.split("\n");
+  const n = lines.length;
+  const blob = files.get(path)?.blob ?? "";
+  const ranges: { path: RepoPath; blob: string; start: number; end: number }[] = [];
+  const covered = new Array<boolean>(n + 1).fill(false);
+  // push the uncovered runs of [start, end], then mark the whole range covered (a later section never repeats lines)
+  const cover = (start: number, end: number) => {
+    const s = Math.max(1, start);
+    const e = Math.min(n, end);
+    let run: number | null = null;
+    for (let l = s; l <= e; l++) {
+      if (!covered[l]) run = run ?? l;
+      else if (run !== null) {
+        ranges.push({ path, blob, start: run, end: l - 1 });
+        run = null;
+      }
+    }
+    if (run !== null) ranges.push({ path, blob, start: run, end: e });
+    for (let l = s; l <= e; l++) covered[l] = true;
+  };
+  if (n > 0) cover(1, Math.min(DOC_HEAD_LINES, n));
+  const headings: { line: number; level: number; text: string }[] = [];
+  lines.forEach((l, i) => {
+    const m = DOC_HEADING_RE.exec(l);
+    if (m) headings.push({ line: i + 1, level: (m[1] as string).length, text: m[2] as string });
+  });
+  const proc: [number, number][] = [];
+  headings.forEach((h, i) => {
+    let end = n;
+    for (let j = i + 1; j < headings.length; j++) {
+      const next = headings[j] as { line: number; level: number };
+      if (next.level <= h.level) {
+        end = next.line - 1;
+        break;
+      }
+    }
+    const steps = lines.slice(h.line, end).filter((l) => DOC_STEP_RE.test(l)).length;
+    if (DOC_PROCEDURE_RE.test(h.text) || steps >= 2) proc.push([h.line, end]);
+  });
+  // numbered steps with no heading (a bare run of two or more)
+  let run: number | null = null;
+  for (let l = 1; l <= n + 1; l++) {
+    if (l <= n && DOC_STEP_RE.test(lines[l - 1] as string)) run = run ?? l;
+    else {
+      if (run !== null && l - run >= 2) proc.push([run, l - 1]);
+      run = null;
+    }
+  }
+  for (const [s, e] of proc.sort((a, b) => a[0] - b[0])) cover(s, e);
+  if (n > 0) cover(1, n);
+  for (const p of docScriptRefs(path, text, (q) => files.has(q))) {
+    const f = files.get(p);
+    if (!f) continue;
+    const syms = f.symbols.filter((s) => DOC_CALLABLE.has(s.kind));
+    const mains = syms.filter((s) => s.name === "main");
+    const rest = syms.filter((s) => s.name !== "main").sort((a, b) => a.start - b.start);
+    for (const s of [...mains, ...rest].slice(0, DOC_SCRIPT_FUNCS)) ranges.push({ path: p, blob: s.blob, start: s.start, end: s.end });
+  }
+  return packSlices(ranges, budgetTokens, io);
+}
+
 /**
  * `flowBodies(seed, budget)` (gen I4, spec §7.8): the flow's bodies packed in order with the hot-body slice rules
  * (§7.3): numbered `start..end`, bodies over 200 lines keep their first 80 lines + `⋮`, a slice that does not fit is
  * skipped and 3 skips in a row stop, adjacent / overlapping slices of a file are merged.
  */
 export function flowBodies(seed: FlowSeed, files: ReadonlyMap<RepoPath, StageFile>, budgetTokens: number, io: SliceIo): CodeSlice[] {
+  // [CR wp32c-1] a doc seed quotes its own lines, not code bodies; code seeds (even module-less synthetic ones)
+  // keep the old path.
+  const first = seed.files[0] ?? seed.path;
+  if (seed.modules.length === 0 && files.get(first)?.class === "docs") return docFlowBodies(seed, files, budgetTokens, io);
   const targets = flowTargets(seed, files, io.text);
   const ranges: { path: RepoPath; blob: string; start: number; end: number }[] = [];
   for (const s of targets) {
@@ -660,6 +798,21 @@ const aside = (file: string) => (ASIDE_PATH_RE.test(file) ? 1 : 0);
 // A skill's own entry (a SKILL.md directly under a skills/ directory); reference pages beside it are not entries.
 const isSkillEntry = (path: string) => /(^|\/)skills\/[^/]+\/SKILL\.md$/i.test(path);
 
+/** Agent-instruction directories (core `AGENT_DOC_DIRS`, mirrored: this file imports types only). */
+const AGENT_SKILL_DIRS: ReadonlySet<string> = new Set([".claude", ".codex", ".agents", ".cursor"]);
+
+/**
+ * Skill directory prefix (`<dirs>/<agent>/skills/<name>`) of skill-bundled code, else null. A bare `skills/`
+ * tree outside the agent-instruction directories (context-mode's root `skills/`) is not one.
+ */
+function skillCodeDir(path: string): string | null {
+  const segs = path.split("/");
+  for (let i = 0; i + 3 < segs.length; i++) {
+    if (AGENT_SKILL_DIRS.has(segs[i] as string) && segs[i + 1] === "skills") return segs.slice(0, i + 3).join("/");
+  }
+  return null;
+}
+
 /**
  * [WP32b] the reference doc naming the flows: the root README, else the root CLAUDE.md / AGENTS.md. Found through
  * `existing_doc` facts; the body comes from the warmed texts (`FlowSources.text`), capped at the first 64 KiB.
@@ -713,6 +866,8 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
     doc?: boolean;
     order: number;
     tier: number;
+    /** Skill-bundled code directory (`skillCodeDir`), else null. */
+    skill: string | null;
     /** 1 for a website / docs / demo / test-area file: after every product candidate, routes included. */
     aside: number;
     /** [WP32b] root README mentions of an instruction-doc label (0 for product code). */
@@ -743,6 +898,7 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
       const r = f as RouteFact;
       const file = r.handler ? r.handler.slice(0, r.handler.indexOf("#")) : r.path;
       const start = st.moduleOf.get(file) ?? st.moduleOf.get(r.path);
+      const skill = skillCodeDir(file);
       cands.push({
         kind: "route",
         label: `${r.method} ${r.pattern}`,
@@ -751,7 +907,9 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         file,
         ...(r.handler ? { handler: r.handler } : {}),
         order: 0,
-        tier: infraRoute(r) ? 1 : 0,
+        // [WP32f] skill-bundled code seeds at the skill tier, behind every product candidate
+        tier: skill !== null ? 2 : infraRoute(r) ? 1 : 0,
+        skill,
         aside: aside(file),
         mentions: 0,
         score: 0,
@@ -759,7 +917,9 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         size: r.handler ? bodyOf(r.handler) : 0,
         reach: src && r.handler && start !== undefined ? handlerReach(r.handler, start, st, src, linesOf) : null,
       });
-    } else if (f.kind === "cli")
+    } else if (f.kind === "cli") {
+      // [WP32f] skill-bundled code seeds at the skill tier, behind every product candidate
+      const cliSkill = skillCodeDir(f.path);
       cands.push({
         kind: "cli",
         label: f.command,
@@ -767,7 +927,8 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         line: f.line,
         file: f.path,
         order: 1,
-        tier: 0,
+        tier: cliSkill !== null ? 2 : 0,
+        skill: cliSkill,
         aside: aside(f.path),
         mentions: 0,
         score: 0,
@@ -775,8 +936,10 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         size: 0,
         reach: null,
       });
-    else if (f.kind === "entry") {
+    } else if (f.kind === "entry") {
       const file = f.entry === "main" && st.moduleOf.has(f.label) ? f.label : f.path;
+      // [WP32f] skill-bundled code seeds at the skill tier, behind every product candidate
+      const entrySkill = skillCodeDir(file);
       const symbols = src?.files.get(file)?.symbols ?? [];
       const handler =
         symbols.find((s) => s.name === "main" && CALLABLE.has(s.kind)) ?? symbols.find((s) => CALLABLE.has(s.kind) && s.start <= f.line && f.line <= s.end);
@@ -789,7 +952,8 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         ...(handler ? { handler: handler.key } : {}),
         order: 2,
         // `go run gen.go` style generators are labelled by their file: after the program's own mains
-        tier: f.entry === "main" && /\.[A-Za-z0-9]+$/.test(f.label) ? 1 : 0,
+        tier: entrySkill !== null ? 2 : f.entry === "main" && /\.[A-Za-z0-9]+$/.test(f.label) ? 1 : 0,
+        skill: entrySkill,
         aside: aside(file),
         mentions: 0,
         score: 0,
@@ -799,7 +963,10 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
       });
       // A server main registers callbacks but does not execute the product's operation itself. Keep the actual
       // callables of its entry file as candidates too; their names/locations are evidence, not inferred HTTP routes.
-      if (src)
+      // [WP32f] a manifest-redirected file (entry.node@1's bin/main target: a CLI dispatcher, not a server main)
+      // never expands: its small helpers (an argument-rejecting guard) used to crowd out the product and command
+      // seeds. Entries defined in their own file keep the expansion.
+      if (src && f.detector !== "entry.node@1")
         for (const s of symbols) {
           if (!CALLABLE.has(s.kind) || s.kind === "class" || s.key === handler?.key || s.qualname.split(".").some((n) => n.startsWith("_"))) continue;
           const start = st.moduleOf.get(file);
@@ -815,7 +982,8 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
             handler: s.key,
             order: 2,
             // a callable of a generator / site entry file stays behind the program's own entries
-            tier: f.entry === "main" && /\.[A-Za-z0-9]+$/.test(f.label) ? 1 : 0,
+            tier: entrySkill !== null ? 2 : f.entry === "main" && /\.[A-Za-z0-9]+$/.test(f.label) ? 1 : 0,
+            skill: entrySkill,
             aside: aside(file),
             mentions: 0,
             score: 0,
@@ -840,6 +1008,7 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
         doc: true,
         order: 2,
         tier: f.role === "command" ? 1 : 2,
+        skill: null,
         aside: aside(f.path),
         mentions: 0,
         score: 0,
@@ -865,6 +1034,29 @@ export function flowSeeds(st: StructureResult, facts: FactsResult, limit = 8, sr
     for (let i = cands.length - 1; i >= 0; i--) {
       const c = cands[i] as Cand;
       if (c.doc && best.get(c.label) !== c) cands.splice(i, 1);
+    }
+  }
+  // [WP32f] a skill's bundled code stays one seed: its SKILL.md doc seed already carries the bundled CLI in its
+  // BODIES, so code candidates of that skill drop out; without one, a single code entry (entry, else cli, else
+  // route) remains. Outside the agent-instruction `skills/` trees nothing is capped.
+  {
+    const docSkills = new Set<string>();
+    for (const c of cands) if (c.doc === true && c.file.endsWith("/SKILL.md")) docSkills.add(c.file.slice(0, -"/SKILL.md".length));
+    const rankSkill = (c: Cand) => (c.kind === "entry" ? 0 : c.kind === "cli" ? 1 : 2);
+    const kept = new Map<string, Cand>();
+    for (let i = cands.length - 1; i >= 0; i--) {
+      const c = cands[i] as Cand;
+      if (c.skill === null) continue;
+      if (docSkills.has(c.skill)) {
+        cands.splice(i, 1);
+        continue;
+      }
+      const prev = kept.get(c.skill);
+      if (prev === undefined) kept.set(c.skill, c);
+      else if ((rankSkill(c) - rankSkill(prev) || byStr(c.path, prev.path) || c.line - prev.line) < 0) {
+        kept.set(c.skill, c);
+        cands.splice(cands.indexOf(prev), 1);
+      } else cands.splice(i, 1);
     }
   }
   // [WP32b] same-tier instruction docs rank by reference-doc mentions (`/scrape`, the skill name), ties by path.

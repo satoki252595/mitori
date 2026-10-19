@@ -34,6 +34,50 @@ export function notePath(md: string): string | null {
   return codeSpans(md)[0]?.trim() ?? null;
 }
 
+/** One `===` group (or the unheaded lines) of a gathered DATA slot. */
+export interface PromptInputGroup {
+  /** The `=== <path> · …` heading, null for lines under no heading (e.g. SEEDS `> seed…`). */
+  head: string | null;
+  /** Lines in the group (the heading line itself counts). */
+  lines: number;
+}
+
+/** Per-slot size of gathered prompt inputs (what `--prompt-input` prints). */
+export interface PromptInputSummary {
+  /** DATA slot. */
+  slot: string;
+  /** Lines in the slot. */
+  lines: number;
+  /** Tokens of the slot. */
+  tokens: number;
+  /** Heading groups in order. */
+  groups: PromptInputGroup[];
+}
+
+/**
+ * Summarize gathered prompt inputs per slot: line / token counts, each `=== <path> · …` heading with its line
+ * count, and the lines under no heading. Pure over the gathered lines (LLM-free prompt-input inspection).
+ */
+export function summarizePromptInput(inputs: TaskInputs, tokens: (text: string) => number): PromptInputSummary[] {
+  return Object.entries(inputs).map(([slot, lines]) => {
+    const ls = lines ?? [];
+    const groups: PromptInputGroup[] = [];
+    let cur: PromptInputGroup | null = null;
+    for (const l of ls) {
+      if (l.startsWith("=== ")) {
+        cur = { head: l, lines: 0 };
+        groups.push(cur);
+      }
+      if (cur === null) {
+        cur = { head: null, lines: 0 };
+        groups.push(cur);
+      }
+      cur.lines++;
+    }
+    return { slot, lines: ls.length, tokens: tokens(ls.join("\n")), groups };
+  });
+}
+
 /** A glossary candidate collected from the run's module pages. */
 export interface TermCandidate {
   /** Term. */
@@ -568,13 +612,22 @@ class Gatherer {
       .concat(this.fanInBodies(5));
   }
 
-  /** Interleave actual branch slices: one large core file must not consume the budget before another branch. */
+  /**
+   * Interleave actual branch slices: one large core file must not consume the budget before another branch. Doc
+   * seeds (command / skill docs, `modules.length === 0`) quote their own lines first, each within a fair share of
+   * the budget — otherwise the code seeds spend the shared budget first and the command bodies end up empty.
+   */
   private flowSlices(seeds: readonly FlowSeed[], budget = this.budgets.BODIES ?? 12000): ReturnType<Indexer["flowBodies"]> {
-    const branches = seeds.map((s) => ({ s, bodies: this.env.indexer.flowBodies(s, budget, "claude-v5") }));
+    const docs = seeds.filter((s) => s.modules.length === 0);
+    const code = seeds.filter((s) => s.modules.length > 0);
+    // [CR wp32c-1] without doc seeds the branches below are exactly the old ones: same order, same bytes.
+    const quoted = docs.flatMap((s) => this.env.indexer.flowBodies(s, Math.floor(budget / Math.max(1, seeds.length)), "claude-v5"));
+    const branches = code.map((s) => ({ s, bodies: this.env.indexer.flowBodies(s, budget, "claude-v5") }));
     // Complete the downstream call branches before spending the remaining budget on a boot / static shell.
-    return [branches.filter((b) => b.s.files.length > 1), branches.filter((b) => b.s.files.length <= 1)].flatMap((group) =>
+    const interleaved = [branches.filter((b) => b.s.files.length > 1), branches.filter((b) => b.s.files.length <= 1)].flatMap((group) =>
       Array.from({ length: Math.max(0, ...group.map((b) => b.bodies.length)) }, (_, i) => group.flatMap((b) => (b.bodies[i] ? [b.bodies[i]] : []))).flat(),
     );
+    return [...quoted, ...interleaved];
   }
 
   /** Hot bodies of the 5 leaf modules with the most incoming dependencies. */

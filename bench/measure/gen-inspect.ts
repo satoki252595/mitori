@@ -10,10 +10,11 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { API_PREFIX, type GenEstimate, type WorkspaceKey, type WorkspaceStatus, type WorkspaceSummary } from "@mitori/core";
+import type { DocStore } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
 import { startServerDaemon } from "../../apps/cli/src/daemon/server.ts";
 import { fileChunks } from "../../packages/gen/src/prompts/files.ts";
-import { childSymbols } from "../../packages/gen/src/prompts/inputs.ts";
+import { childSymbols, gatherInputs, summarizePromptInput } from "../../packages/gen/src/prompts/inputs.ts";
 import { derivedSeeds, genFlowSeeds } from "../../packages/gen/src/prompts/seeds.ts";
 
 const { values: a } = parseArgs({
@@ -22,6 +23,8 @@ const { values: a } = parseArgs({
     home: { type: "string" },
     concurrency: { type: "string", default: "3" },
     "parent-symbols": { type: "boolean", default: false },
+    "prompt-input": { type: "string" },
+    module: { type: "string" },
   },
 });
 if (!a.repo) throw new Error("--repo <dir> is required");
@@ -58,10 +61,46 @@ try {
     if (st.state === "error") throw new Error(`open failed: ${JSON.stringify(st.lastError)}`);
     await Bun.sleep(20);
   }
-  const dom = (d.handle as unknown as { domain(ws: WorkspaceKey): { indexer: Indexer; staticReady(): Promise<void> } | null }).domain(ws);
+  const dom = (d.handle as unknown as { domain(ws: WorkspaceKey): { indexer: Indexer; doc: DocStore; staticReady(): Promise<void> } | null }).domain(ws);
   if (!dom) throw new Error("no workspace domain");
   await dom.staticReady();
   const ix = dom.indexer;
+  if (a["prompt-input"]) {
+    // run gatherInputs without an LLM (like --parent-symbols): per-slot lines/tokens, each `===` heading with its
+    // line count, and the lines under no heading (SEEDS `> seed…`)
+    const prompt = a["prompt-input"];
+    const sectionOf: Record<string, string> = {
+      "gen.flows": "s3",
+      "gen.datamodel": "s7",
+      "gen.quality": "s9",
+      "gen.decisions": "s10",
+      "gen.risks": "s11",
+      "gen.glossary": "s12",
+      "gen.questions": "s13",
+      "gen.overview": "s2",
+      "gen.labels": "s6",
+    };
+    const section = sectionOf[prompt];
+    if (!section && !a.module) throw new Error(`--prompt-input ${prompt} needs --module <id> (gen.module, gen.parent, gen.deepdive, doc.*)`);
+    const target = a.module ? { kind: "module", id: a.module } : { kind: "section", id: section };
+    const task = {
+      id: "gt_inspect",
+      stage: "S6o",
+      prompt,
+      target,
+      sections: a.module ? [`s6/${a.module}`] : [section],
+      deps: [],
+      softDeps: [],
+      phase: 1,
+    };
+    const tokens = (t: string) => ix.estimateTokens(t, "code", "claude-v5");
+    const env = { indexer: ix, doc: dom.doc, lang: "ja", tokens, plan: { eager: [], tasks: [] } };
+    const gathered = await gatherInputs(task as never, env as never);
+    for (const s of summarizePromptInput(gathered.inputs, tokens)) {
+      console.log(`${prompt} ${s.slot}: ${s.lines} lines, ${s.tokens} tok`);
+      for (const g of s.groups) console.log(`  ${g.head ?? "(no heading)"}: ${g.lines} lines`);
+    }
+  }
   const own = ix.flowSeeds(8);
   console.log(`index flow seeds: ${own.length}`);
   for (const s of genFlowSeeds(ix)) console.log(`  seed${s.k} ${s.kind} ${s.label} ${s.path}:${s.line} files: ${s.files.join(" > ")}`);
