@@ -123,6 +123,8 @@ export function setupPatch(input: SetupInput): DeepPartial<GlobalSettings> {
       engines: {
         "claude-cli": { enabled: true, binary: input.binary ?? "claude", inheritUserSettings: false, envPassthrough: [], warmPool: 0, persistSessions: false },
       },
+      // --effort omitted ⇒ reasoning untouched (current defaults stay; WP36b)
+      ...(input.effort ? { reasoning: { answer: input.effort, patch: input.effort, agent: input.effort, gen: input.effort, genOverview: input.effort } } : {}),
     };
   }
   const local = provider === "ollama" || provider === "lmstudio";

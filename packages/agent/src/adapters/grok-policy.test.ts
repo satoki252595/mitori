@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { EngineRequest } from "../contract.ts";
-import { buildGrokSpawn, emptyGrokTurn, GROK_DENIED_TOOLS, grokFoldLine } from "./grok-policy.ts";
+import { buildGrokSpawn, emptyGrokTurn, GROK_DENIED_TOOLS, GROK_REQUIRED_FLAGS, grokCapabilityOk, grokFoldLine } from "./grok-policy.ts";
 
 const req = (o: Partial<EngineRequest> = {}): EngineRequest => ({
   ref: "j_grok",
@@ -29,15 +29,15 @@ const paths = {
 
 const settings = { enabled: true, binary: "grok", model: "grok-4.7" };
 
-describe("WP36-C grok spawn builder (single-turn text-only)", () => {
-  test("prompt file + streaming-json + model + effort + one turn + no tools + empty cwd + verbatim + isolated leader", () => {
+describe("WP36b-3 grok spawn builder (single-turn text-only, plain json)", () => {
+  test("prompt file + json + model + effort + one turn + no tools + empty cwd + verbatim + isolated leader", () => {
     const s = buildGrokSpawn(req(), settings, paths, { HOME: "/home/u", PATH: "/usr/bin" });
     expect(s.command).toBe("/opt/native/grok");
     expect(s.argv).toEqual([
       "--prompt-file",
       "/isolated/sp/prompt.txt",
       "--output-format",
-      "streaming-json",
+      "json",
       "-m",
       "grok-4.7",
       "--reasoning-effort",
@@ -47,6 +47,8 @@ describe("WP36-C grok spawn builder (single-turn text-only)", () => {
       "--no-subagents",
       "--no-plan",
       "--disable-web-search",
+      "--tools",
+      "",
       "--disallowed-tools",
       GROK_DENIED_TOOLS.join(","),
       "--cwd",
@@ -82,9 +84,9 @@ describe("WP36-C grok spawn builder (single-turn text-only)", () => {
     expect(GROK_DENIED_TOOLS as readonly string[]).not.toContain("--always-approve");
   });
 
-  test("XAI_API_KEY passes through for headless CI auth; other secrets do not", () => {
+  test("XAI_API_KEY never reaches the child (metered API would replace the subscription); others neither", () => {
     const s = buildGrokSpawn(req(), settings, paths, { HOME: "/h", XAI_API_KEY: "xai-test", OPENAI_API_KEY: "no", ANTHROPIC_API_KEY: "no" });
-    expect(s.env.XAI_API_KEY).toBe("xai-test");
+    expect(s.env.XAI_API_KEY).toBeUndefined();
     expect(s.env.OPENAI_API_KEY).toBeUndefined();
     expect(s.env.ANTHROPIC_API_KEY).toBeUndefined();
   });
@@ -155,5 +157,32 @@ describe("WP36-C grok streaming-json fold", () => {
     expect(t.text).toBe("done");
     expect(t.ended).toBe(true);
     expect(t.usage).toBeNull();
+  });
+
+  test("WP36b-3 the single json object carries usage, turn count and cost", () => {
+    const t = grokFoldLine(
+      emptyGrokTurn(),
+      line({
+        text: "OK",
+        stopReason: "end_turn",
+        usage: { input_tokens: 17943, cache_read_input_tokens: 8832, cache_creation_input_tokens: 0, output_tokens: 25, reasoning_tokens: 24 },
+        num_turns: 1,
+        total_cost_usd: 0.040452,
+        modelUsage: {},
+      }),
+    );
+    expect(t.text).toBe("OK");
+    expect(t.ended).toBe(true);
+    expect(t.stopReason).toBe("end_turn");
+    expect(t.usage).toEqual({ in: 17943 - 8832, cacheRead: 8832, cacheWrite: 0, out: 25, thinking: 24 });
+    expect(t.turns).toBe(1);
+    expect(t.reportedUsd).toBeCloseTo(0.040452, 9);
+  });
+
+  test("WP36b-3 grokCapabilityOk requires every spawned flag", () => {
+    const help = [...GROK_REQUIRED_FLAGS, "-m, --model"].join("\n");
+    expect(grokCapabilityOk(help)).toBe(true);
+    expect(grokCapabilityOk(help.replace("--leader-socket", ""))).toBe(false);
+    expect(grokCapabilityOk(GROK_REQUIRED_FLAGS.join("\n"))).toBe(false);
   });
 });

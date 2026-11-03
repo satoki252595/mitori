@@ -57,6 +57,14 @@ Codex は `-c model_reasoning_effort=<e>`（従来の argv）に加え、生成�
 - 実行ファイルを更新した際、企業管理設定が加わった際は同じ canary と usage 検証を再実施する。echo は LLM の実生成品質・費用を検証しない。
 - 回帰確認: `scripts/nd bun test packages/agent/src/adapters/adapters.test.ts`。
 
+## 2026-11-03 追記: thinking 予算と実行全体上限（WP36b）
+
+実測（ai-job-search・11タスク、オーケストレーターがホストで実生成）: effort high の呼び出しは thinking 4〜7k tokenを報告するのに、見積もりと出力上限は本文の長さだけだった。Claude CLI は thinking が `CLAUDE_CODE_MAX_OUTPUT_TOKENS`（= GenCall.maxOutTokens）を使い切って本文が出ず `E_GEN_COVERAGE_LOW`、Codex は thinking 込みの実績が見積もり超過で `E_BUDGET_EXCEEDED` となり、返ってきた結果（費用支払い済み）を捨てていた。
+
+- native thinking は hard cap できない（本 ADR の前提は維持）。代わりの方針: タスク単位の見積もり超過を理由に返ってきた結果を捨てない。結果は採用し、超過分を ledger（実績 usage + 見積もりの行は既存の形）と run の report（`gen_tasks.metrics.overrunUsd`）に記録する。守るのは利用者が確認した実行全体の上限で、次のタスクを始める前に「使った額 + 実行中タスクの予約額 + 次の見積もり ≤ 上限」を確かめ、超えるなら新しいタスクを始めず run を `budget` で止める（実行中のものは終わらせて採用する）。1タスクが自分の見積もりの 4 倍を超えたら以降のタスクを止める（暴走の歯止め、そのタスク自身は採用）。codex-cli の admit フック（native preflight による精密な事前予約）は残し、pump 側の粗い見積もりチェックは他 engine のみにする。価格不明の Codex モデルは起動前に拒否のまま。
+- 見積もりと上限には effort ごとの thinking 予算を1呼び出しごとに入れる（low 1,024 / medium 4,096 / high 8,192 / xhigh 16,384 / max 32,768、`THINKING_BUDGET_TOKENS`）。ledger の EMA は入力 token しか校正しないため thinking 予算は固定のままで、既存の校正には載せない。Claude CLI の上限（`CLAUDE_CODE_MAX_OUTPUT_TOKENS` を決める箇所。thinking を別に上限指定する環境変数・flag は CLI 側になく、mitori の argv にも `--effort` 以外はない）は「本文の上限 + thinking 予算」とし、本文の分を必ず残す。
+- Grok CLI（grok 1.0.70、ホスト実測の訂正）: `--tools ""` は受け付けられる（WP36 の「空指定では外せない」は旧版の内蔵文書の記述）ので argv に足し、denylist も残す。`--output-format json`（1つの JSON）を第一にし、`text` を本文、`usage` の input/cache_read/cache_creation/output/reasoning を usage に（reasoning は thinking）、`stopReason` は `end_turn` を正常・それ以外を打ち切り（budget 扱いで coverage retry へ）、`num_turns > 1` は失敗とする。`total_cost_usd` は ledger の参考値（`reportedUsd`、表示は mitori 単価のまま）。1呼び出しごとの固定入力 ≈ 18k〜25k token に対し見積もりに固定 20,000 token（`GROK_FIXED_INPUT_TOKENS`）を足す。`XAI_API_KEY` は子プロセスに渡さない（従量 API 課金に切り替わるおそれ。API 利用は `setup grok --api` の HTTP 経路）。pin 追従は Claude と同じく保存した `pin.path` の再解決で、`--version` と `grok --help` の能力確認（渡す flag が全部あること）を通ったときだけ追従する。
+
 ## Sources
 
 2026-10-04 に [Muse Code Configuration and context](https://dev.meta.ai/docs/muse-code/configuration)（headless flags、user settings、managed config）と [Muse Code Developer Docs: Hooks](https://meta-models.github.io/muse-code-sdk/next/guides/extend/hooks/)（managed/user hook は project trust を要しない）を確認。[Extending Muse Code](https://meta-models.github.io/muse-code-sdk/next/guides/extend/) は MCP の旧表記も設定で受け付けると記載する。環境 gate と管理 hook override の効き方は公開仕様ではなく上記バージョンのローカル実測による。

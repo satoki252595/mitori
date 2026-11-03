@@ -126,13 +126,14 @@ test("Codex tool-free Japanese output keeps terminal token usage when completed 
   }
 });
 
-test("Codex tool-free output still rejects authoritative token usage above the confirmed budget", async () => {
+test("WP36b-2 a completed turn above the confirmed estimate is adopted, not discarded", async () => {
   const x = setup([message, { type: "turn.completed", usage: { input_tokens: 100, cached_input_tokens: 20, output_tokens: 2001 } }]);
   const res = await x.engine.run({ ...r, mode: "generate", tools: "none", writeScope: [] }, new AbortController().signal).result;
-  expect(res.stop).toBe("budget");
-  expect(res.error?.code).toBe("E_BUDGET_EXCEEDED");
+  expect(res.stop).toBe("end");
+  expect(res.error).toBeUndefined();
   expect(res.usageEstimated).toBe(false);
   expect(res.usage.out).toBe(2001);
+  expect(res.text).toBe('{"summary":"fixed"}');
 });
 
 test("WP36-B per-model prices apply to the requested model, others fall back to pricing", async () => {

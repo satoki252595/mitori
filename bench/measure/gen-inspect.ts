@@ -25,8 +25,12 @@ const { values: a } = parseArgs({
     "parent-symbols": { type: "boolean", default: false },
     "prompt-input": { type: "string" },
     module: { type: "string" },
+    engine: { type: "string" },
   },
 });
+const engine = a.engine ?? "claude-cli";
+if (!["claude-cli", "anthropic-api", "codex-cli", "grok-cli", "generic", "session"].includes(engine))
+  throw new Error("--engine must be claude-cli, anthropic-api, codex-cli, grok-cli, generic or session");
 if (!a.repo) throw new Error("--repo <dir> is required");
 const home = a.home ? resolve(a.home) : mkdtempSync(join(tmpdir(), "mitori-inspect-"));
 mkdirSync(home, { recursive: true });
@@ -149,7 +153,7 @@ try {
   console.log(`complete S8: ${tasks} tasks, ${tokens} FILES tokens over ${leaves.length} leaves`);
   // the estimate of every effort tier (free: plans and prices, no engine call)
   for (const effort of ["overview", "standard", "complete"] as const) {
-    const est = await call<GenEstimate>("POST", `/ws/${ws}/gen/estimate`, { effort });
+    const est = await call<GenEstimate>("POST", `/ws/${ws}/gen/estimate`, { effort, engine });
     const stages = est.stages.map((s) => `${s.stage} ${s.tasks}`).join(", ");
     console.log(
       `estimate ${effort}: $${est.apiUsd.toFixed(2)}, in ${est.inTokens + est.cacheReadTokens + est.cacheWriteTokens}, out ${est.outTokens}, ${est.seconds.p50}s p50 at C=${est.concurrency} — ${stages}`,

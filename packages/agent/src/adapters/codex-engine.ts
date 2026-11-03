@@ -403,10 +403,13 @@ export function createCodexEngine(deps: CodexDeps): Engine {
         }
         usage.apiUsd = priceUsage(req.model, { in: usage.in, out: usage.out, cacheRead: usage.cacheRead, cacheWrite5m: 0, cacheWrite1h: 0 }, false, pricing);
         // The meter judges a turn that ran; an earlier error/timeout/cancel stays the reported cause (usage is still recorded).
-        if (
-          (stop === null || stop === "budget") &&
-          (usage.in + usage.cacheRead > req.budget.inTokens || usage.out > req.budget.outTokens || usage.apiUsd > req.budget.usd)
-        ) {
+        // WP36b: a turn that RAN TO COMPLETION keeps its result even when native thinking pushed reported usage
+        // past the confirmed estimate (paid results are adopted, never discarded); the run-level cap, not the
+        // per-task estimate, is what stops a run. Interrupt-driven budget stops keep their failure below.
+        const overEstimate = usage.in + usage.cacheRead > req.budget.inTokens || usage.out > req.budget.outTokens || usage.apiUsd > req.budget.usd;
+        if (stop === null && terminal && text !== "" && overEstimate) {
+          // adopted: `stop` stays "end"; the reported actuals ride the usage into the ledger and the run report.
+        } else if ((stop === null || stop === "budget") && overEstimate) {
           stop = "budget";
           failure = new MitoriError("E_BUDGET_EXCEEDED", "Codex reported usage exceeds the confirmed estimate; native thinking is not hard-capped");
         }

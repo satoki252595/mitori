@@ -1,5 +1,14 @@
 /** Per-prompt model / effort / output-target / timing rules (gen spec §3.4, §5.3, §9.2–§9.5). Pure. */
-import { type ClaudeModelId, type EffectiveSettings, type EngineId, type GenStage, type ModelId, PRICING, type ReasoningEffort } from "@mitori/core";
+import {
+  type ClaudeModelId,
+  type EffectiveSettings,
+  type EngineId,
+  type GenStage,
+  type ModelId,
+  PRICING,
+  type ReasoningEffort,
+  THINKING_BUDGET_TOKENS,
+} from "@mitori/core";
 import { GEN_ESTIMATE_PARAMS, GEN_PROMPTS, type GenModelKey, type GenPromptId, type PlannedTask } from "../contract.ts";
 import { baseMode, isFilesMode } from "../prompts/files.ts";
 
@@ -99,6 +108,11 @@ export function outTarget(prompt: GenPromptId, mode: string | undefined, tail: n
 }
 
 const isClaude = (m: ModelId): m is ClaudeModelId => m in PRICING;
+
+/** Fixed thinking budget of one call (WP36b): 0 when effort is omitted (e.g. Haiku on the API). */
+export function thinkingBudget(effort: ReasoningEffort | null): number {
+  return effort === null ? 0 : THINKING_BUDGET_TOKENS[effort];
+}
 
 /** Thinking tokens Θ = a + b·O (Haiku on the API: none). */
 export function thinkingOf(model: ModelId, effort: ReasoningEffort | null, out: number, engine: EngineId): number {

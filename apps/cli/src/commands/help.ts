@@ -130,7 +130,7 @@ mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in
   --binary /absolute/path        Claude/Muse/Codex/Grok CLIの実行ファイル
   --base-url URL --key-env NAME  OpenAI互換APIのURLとキーの環境変数名（キー自体は保存しない）
   --in-price N --out-price N     任意remoteモデルのUSD/百万token単価
-  --effort low|medium|high|xhigh|max  Museの推論強度（既定max、HTTPへは送らない）
+  --effort low|medium|high|xhigh|max  Muse・Claudeの推論強度（Muse既定max、Claudeは省略時そのまま。HTTPへは送らない）
   --print                        設定・連携手順の表示だけ（保存・接続しない）
   例: mitori setup grok --repo /absolute/repo（既存セッション） / mitori setup grok --api（XAI_API_KEY）
 `,
@@ -144,7 +144,7 @@ mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in
   --binary /absolute/path        Claude/Muse/Codex/Grok CLI native executable
   --base-url URL --key-env NAME  OpenAI-compatible URL and credential environment variable name
   --in-price N --out-price N     Custom remote model prices in USD per million tokens
-  --effort low|medium|high|xhigh|max  Muse reasoning effort (default max; HTTP does not send effort)
+  --effort low|medium|high|xhigh|max  Muse/Claude reasoning effort (Muse default max, Claude unchanged when omitted; HTTP does not send effort)
   --print                        Preview settings/instructions without saving or connecting
   Examples: mitori setup grok --repo /absolute/repo (existing session) / mitori setup grok --api (XAI_API_KEY)
 `,

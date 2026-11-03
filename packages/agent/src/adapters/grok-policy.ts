@@ -3,11 +3,39 @@ import { scrubEnv } from "../claude/env.ts";
 import { CLAUDE_MODE_DEFAULTS, type EngineRequest, type SpawnSpec } from "../contract.ts";
 
 /**
+ * Every flag `buildGrokSpawn` passes (the follow capability gate checks `grok --help` for all of them).
+ * `-m` is the short form of the model flag; the gate accepts either spelling.
+ */
+export const GROK_REQUIRED_FLAGS = [
+  "--prompt-file",
+  "--output-format",
+  "--reasoning-effort",
+  "--max-turns",
+  "--no-subagents",
+  "--no-plan",
+  "--disable-web-search",
+  "--tools",
+  "--disallowed-tools",
+  "--cwd",
+  "--verbatim",
+  "--leader-socket",
+  "--json-schema",
+] as const;
+
+/** True when `grok --help` documents every flag mitori passes (plus `-m` / `--model` for the model). */
+export function grokCapabilityOk(help: string): boolean {
+  if (!GROK_REQUIRED_FLAGS.every((f) => help.includes(f))) return false;
+  return help.includes("--model") || /(?:^|\s)-m[\s,=:]/m.test(help);
+}
+
+/**
  * Built-in tools removed from every grok turn (`--disallowed-tools`, comma-separated).
  * Shell-route ids first (`run_terminal_cmd`, `task`, …), then the display-name spellings the model
  * is shown (`run_terminal_command`, `spawn_subagent`, …), then daemon-route names (`StrReplace`,
  * `CallMcpTool`, …) so a renamed route still loses the tool. Unknown entries only warn on stderr
  * and remove nothing, so over-enumeration is safe.
+ * `--tools ""` (accepted since the 1.0.70 host measurement, WP36b) empties the toolset first; the
+ * denylist stays as a second bar so a renamed built-in cannot slip back in.
  */
 export const GROK_DENIED_TOOLS = [
   "read_file",
@@ -67,34 +95,65 @@ export const GROK_DENIED_TOOLS = [
 /** "You are not authenticated." (and siblings) without ever calling an LLM. */
 export const GROK_UNAUTHENTICATED_RE = /not authenticated|not logged in|no auth|sign in/i;
 
-/** One folded `streaming-json` turn. */
+/** One folded grok turn (`--output-format json`; `streaming-json` events stay tolerated). */
 export interface GrokTurn {
   /** Accumulated `text` deltas. */
   text: string;
-  /** Terminal usage when the stream carried it (else the caller byte-estimates). */
+  /** Terminal usage when the output carried it (else the caller byte-estimates). */
   usage: { in: number; cacheRead: number; cacheWrite: number; out: number; thinking: number } | null;
   /** First tool event seen (`<type>:<name>`), if the turn executed a tool. */
   toolCall: string | null;
   /** Error object carried by the stream, if any. */
   streamError: string | null;
-  /** True once the `end` event arrived. */
+  /** True once the terminal record arrived (`end` event or the single json object). */
   ended: boolean;
-  /** `end.stopReason` (e.g. `end_turn`). */
+  /** Terminal `stopReason` (e.g. `end_turn`). */
   stopReason: string | null;
+  /** Terminal `num_turns` (null when the output did not carry it). */
+  turns: number | null;
+  /** Terminal `total_cost_usd` (null when absent; ledger reference only, never the displayed price). */
+  reportedUsd: number | null;
 }
 
 /** Empty fold state. */
-export const emptyGrokTurn = (): GrokTurn => ({ text: "", usage: null, toolCall: null, streamError: null, ended: false, stopReason: null });
+export const emptyGrokTurn = (): GrokTurn => ({
+  text: "",
+  usage: null,
+  toolCall: null,
+  streamError: null,
+  ended: false,
+  stopReason: null,
+  turns: null,
+  reportedUsd: null,
+});
 
 const safeInt = (v: unknown): number | null => (Number.isSafeInteger(v) && (v as number) >= 0 ? (v as number) : null);
 
+/** Token usage carried by a `usage` event or the single json object (null when absent). */
+function grokUsageOf(raw: unknown): GrokTurn["usage"] {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const u = raw as Record<string, unknown>;
+  const input = safeInt(u.input_tokens);
+  const output = safeInt(u.output_tokens);
+  if (input === null || output === null) throw new MitoriError("E_AGENT_PROTOCOL", "grok usage event is invalid");
+  const cached = safeInt(u.cache_read_input_tokens) ?? 0;
+  if (cached > input) throw new MitoriError("E_AGENT_PROTOCOL", "grok cached input exceeds total input");
+  return {
+    in: input - cached,
+    cacheRead: cached,
+    cacheWrite: safeInt(u.cache_creation_input_tokens) ?? 0,
+    out: output,
+    thinking: safeInt(u.reasoning_tokens) ?? 0,
+  };
+}
+
 /**
- * Fold one `streaming-json` stdout line into the turn. `text` deltas accumulate, the `end`
- * event carries terminal usage, and ANY tool event (`tool_call`, `tool_use`, …) is recorded —
- * the caller fails the turn when `toolCall` is set. Unknown non-tool events are ignored so a
- * newer CLI cannot break the parser; non-JSON stdout lines are a protocol violation (headless
- * logs go to stderr). A bare `{text, stopReason}` object (plain `--output-format json`) is
- * accepted as a terminal turn without usage.
+ * Fold one grok stdout line into the turn. `text` deltas accumulate, the terminal record carries
+ * usage, and ANY tool event (`tool_call`, `tool_use`, …) is recorded — the caller fails the turn
+ * when `toolCall` is set. Unknown non-tool events are ignored so a newer CLI cannot break the
+ * parser; non-JSON stdout lines are a protocol violation (headless logs go to stderr).
+ * `--output-format json` emits one `{text, stopReason, usage, num_turns, total_cost_usd, …}` object;
+ * `streaming-json` events stay accepted line by line.
  */
 export function grokFoldLine(state: GrokTurn, line: string): GrokTurn {
   if (!line.trim()) return state;
@@ -108,13 +167,18 @@ export function grokFoldLine(state: GrokTurn, line: string): GrokTurn {
   }
   const type = typeof obj.type === "string" ? obj.type : null;
   if (type === null) {
-    // Plain `--output-format json`: one `{text, stopReason, sessionId, requestId}` object.
+    // Plain `--output-format json`: one terminal object with text, usage, turn count and cost.
     if (typeof obj.text === "string") {
+      const turns = safeInt(obj.num_turns);
+      const cost = obj.total_cost_usd;
       return {
         ...state,
         text: state.text + (obj.text as string),
         ended: true,
         stopReason: typeof obj.stopReason === "string" ? (obj.stopReason as string) : "end_turn",
+        usage: grokUsageOf(obj.usage) ?? state.usage,
+        turns: turns ?? state.turns,
+        reportedUsd: typeof cost === "number" && cost >= 0 && Number.isFinite(cost) ? cost : state.reportedUsd,
       };
     }
     throw new MitoriError("E_AGENT_PROTOCOL", "grok stdout line has no type");
@@ -122,22 +186,7 @@ export function grokFoldLine(state: GrokTurn, line: string): GrokTurn {
   if (type === "text" && typeof obj.data === "string") return { ...state, text: state.text + (obj.data as string) };
   if (type === "thought" || type === "progress" || type === "system" || type === "session") return state;
   if (type === "usage" && obj.usage && typeof obj.usage === "object") {
-    const u = obj.usage as Record<string, unknown>;
-    const input = safeInt(u.input_tokens);
-    const output = safeInt(u.output_tokens);
-    if (input === null || output === null) throw new MitoriError("E_AGENT_PROTOCOL", "grok usage event is invalid");
-    const cached = safeInt(u.cache_read_input_tokens) ?? 0;
-    if (cached > input) throw new MitoriError("E_AGENT_PROTOCOL", "grok cached input exceeds total input");
-    return {
-      ...state,
-      usage: {
-        in: input - cached,
-        cacheRead: cached,
-        cacheWrite: safeInt(u.cache_creation_input_tokens) ?? 0,
-        out: output,
-        thinking: safeInt(u.reasoning_tokens) ?? 0,
-      },
-    };
+    return { ...state, usage: grokUsageOf(obj.usage) };
   }
   if (type === "end") {
     let next: GrokTurn = { ...state, ended: true, stopReason: typeof obj.stopReason === "string" ? (obj.stopReason as string) : null };
@@ -191,11 +240,11 @@ export interface GrokSpawnPaths {
 }
 
 /**
- * Single-turn text-only `grok` spawn: `--prompt-file` (stdin empty), `streaming-json` output,
+ * Single-turn text-only `grok` spawn: `--prompt-file` (stdin empty), single-object `json` output,
  * `-m`, `--reasoning-effort`, `--max-turns 1`, `--no-subagents`, `--no-plan`, `--disable-web-search`,
- * every built-in tool denied, `--cwd` the empty sandbox, `--verbatim`, and the leader socket inside
- * the isolated root (no `--always-approve`, no permission-mode bypass). Never `--resume`/`-c`:
- * each turn starts fresh and the isolated root is deleted afterwards.
+ * `--tools ""` plus every built-in tool denied, `--cwd` the empty sandbox, `--verbatim`, and the
+ * leader socket inside the isolated root (no `--always-approve`, no permission-mode bypass).
+ * Never `--resume`/`-c`: each turn starts fresh and the isolated root is deleted afterwards.
  */
 export function buildGrokSpawn(
   req: EngineRequest,
@@ -215,7 +264,7 @@ export function buildGrokSpawn(
     "--prompt-file",
     paths.promptFile,
     "--output-format",
-    "streaming-json",
+    "json",
     "-m",
     model,
     "--reasoning-effort",
@@ -225,6 +274,8 @@ export function buildGrokSpawn(
     "--no-subagents",
     "--no-plan",
     "--disable-web-search",
+    "--tools",
+    "",
     "--disallowed-tools",
     GROK_DENIED_TOOLS.join(","),
     "--cwd",
@@ -238,8 +289,8 @@ export function buildGrokSpawn(
   // The isolated home carries the auth copy; the real HOME (hooks, MCP, memory, rules) is unreachable.
   env.HOME = paths.configRoot;
   env.GROK_HOME = paths.configRoot;
-  // Documented headless CI auth stays available; the key itself is never stored by mitori.
-  if (typeof parentEnv.XAI_API_KEY === "string" && parentEnv.XAI_API_KEY) env.XAI_API_KEY = parentEnv.XAI_API_KEY;
+  // XAI_API_KEY is never passed: it would switch the turn from the login subscription to metered API
+  // billing. API users take the HTTP path (`setup grok --api`) instead.
   return {
     command: paths.grokBinary,
     argv,

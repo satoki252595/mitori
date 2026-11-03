@@ -61,7 +61,19 @@ describe("GenCall per engine (§8.2 / §8.3)", () => {
     expect(c.maxOutTokens).toBe(Math.max(2000, Math.ceil(1.5 * (1500 + 225))));
     expect(c.budgetUsd).toBe(Math.max(0.05, 3 * 0.04));
     expect(c.timeoutMs).toBe(120_000);
-    expect(c.estimate).toEqual({ in: 11000 + 450 + 9000, out: 1725 });
+    // WP36b: the call estimate carries the effort thinking budget (low: +1,024)
+    expect(c.estimate).toEqual({ in: 11000 + 450 + 9000, out: 1725 + 1024 });
+  });
+});
+
+describe("WP36b-1 thinking budget rides the output cap", () => {
+  test("effort high gen.module keeps body + 8,192 for thinking", () => {
+    const c = buildCall(ctx("claude-cli"), { ...task, effort: "high" }, rendered, 1, "background", null, prompts);
+    expect(c.maxOutTokens).toBeGreaterThanOrEqual(1500 + 8192);
+  });
+  test("effort low stays at the old formula (body + 1,024 fits inside it)", () => {
+    const c = buildCall(ctx("claude-cli"), task, rendered, 1, "background", null, prompts);
+    expect(c.maxOutTokens).toBe(Math.max(2000, Math.ceil(1.5 * (1500 + 225))));
   });
 });
 

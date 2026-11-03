@@ -17,6 +17,7 @@ import {
   type EngineSettings,
   type GenEstimate,
   type GenStage,
+  GROK_FIXED_INPUT_TOKENS,
   MitoriError,
   type ModelId,
   PRICING,
@@ -26,7 +27,7 @@ import {
 } from "@mitori/core";
 import type { GenIdSource } from "@mitori/doc";
 import { GEN_ESTIMATE_PARAMS, type GenEstimator, type GenPlan, type PlannedTask, type ScheduleSimulation, type TaskEstimate } from "../contract.ts";
-import { groupOf, outTarget, speedOf, startupOf, thinkingOf, ttftOf } from "./params.ts";
+import { groupOf, outTarget, speedOf, startupOf, thinkingBudget, thinkingOf, ttftOf } from "./params.ts";
 
 /** Ports of the estimator. */
 export interface EstimatorDeps {
@@ -141,8 +142,9 @@ export function createEstimator(
   /**
    * RAW (uncalibrated) per-task figures, idempotent over its own output: `prefix` = system + pack (the claude-cli
    * fixed overhead ε is counted in the cache tokens), `tail` = user message, `out` = visible target O (a
-   * prefilled `out` > 0 — labels / glossary counts — is kept), `thinking` = Θ(O). Calibration is applied by
-   * `estimate()` when totals are formed; the raw figures are what the ledger's EMA compares against (CONS-24).
+   * prefilled `out` > 0 — labels / glossary counts — is kept), `thinking` = Θ(O) + the fixed effort budget
+   * (WP36b; wall time still follows Θ(O) only). Calibration is applied by `estimate()` when totals are formed;
+   * the raw figures are what the ledger's EMA compares against (CONS-24).
    */
   function task(t: PlannedTask, engine: EngineId, warmPrefix: boolean): TaskEstimate {
     const zero: TaskEstimate = { prefix: 0, tail: 0, out: 0, thinking: 0, cacheWrite: 0, cacheRead: 0, uncached: 0, apiUsd: 0, seconds: 0 };
@@ -152,6 +154,7 @@ export function createEstimator(
     const tail = t.estimate.tail;
     const o = t.estimate.out > 0 ? t.estimate.out : outTarget(t.prompt, t.mode, tail);
     const th = thinkingOf(t.model, t.effort, o, engine);
+    const tb = thinkingBudget(t.effort);
     const cold = engine === "generic" || engine === "codex-cli";
     const prices = cold ? deps.settings().global.engines[engine].pricing : undefined;
     if (cold && !(t.model in PRICING) && !prices)
@@ -160,16 +163,26 @@ export function createEstimator(
     const tau = (P.tailCacheWriteShare as Readonly<Record<string, number>>)[engine] ?? 0;
     const w = warmPrefix && !cold ? 0 : 1;
     const pw = pr.cacheWrite5mPerMTok;
-    const usd = (w * p * pw + (1 - w) * p * pr.cacheReadPerMTok + tau * tail * pw + (1 - tau) * tail * pr.inPerMTok + (o + th) * pr.outPerMTok) / 1e6;
+    // grok-cli reports ≈ 20k fixed input tokens per call (subscription session overhead); priced at the
+    // fallback input rate (grok models have no PRICING entry, same basis as the rest of this row).
+    const grokIn = engine === "grok-cli" ? GROK_FIXED_INPUT_TOKENS : 0;
+    const usd =
+      (w * p * pw +
+        (1 - w) * p * pr.cacheReadPerMTok +
+        tau * tail * pw +
+        (1 - tau) * tail * pr.inPerMTok +
+        grokIn * pr.inPerMTok +
+        (o + th + tb) * pr.outPerMTok) /
+      1e6;
     const sigma = engine === "session" ? 0 : startupOf(engine);
     return {
       prefix,
       tail,
       out: o,
-      thinking: th,
+      thinking: th + tb,
       cacheWrite: cold ? 0 : Math.round(w * p + tau * tail),
       cacheRead: cold ? 0 : Math.round((1 - w) * p),
-      uncached: Math.round(cold ? p + tail : (1 - tau) * tail),
+      uncached: Math.round((cold ? p + tail : (1 - tau) * tail) + grokIn),
       apiUsd: round6(usd),
       seconds: Math.round((sigma + ttftOf(t.model, t.effort, engine) + (o + th) / speedOf(t.model, t.effort)) * 10) / 10,
     };

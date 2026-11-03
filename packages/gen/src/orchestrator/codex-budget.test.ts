@@ -105,7 +105,8 @@ test("Codex native budgets are reserved together before scheduler submission; a 
 test("three Codex tasks gathering together do not reserve unsent estimates or prevent progress at the same run cap", async () => {
   const { h, settings, submitted } = fixture();
   const estimate = await h.gen.estimate({ effort: "standard", scope: ["s6/session", "s6/auth", "s6/http"], concurrency: 4 });
-  settings.global.limits.genRunMaxUsd = 0.15;
+  // WP36b: the cap is tuned to estimates that include the thinking budget (native preflight ≈ $0.115/turn)
+  settings.global.limits.genRunMaxUsd = 0.2;
   const run = await h.gen.start(estimate.id);
   expect(run.concurrency).toBe(3);
   await tick();
@@ -117,9 +118,9 @@ test("three Codex tasks gathering together do not reserve unsent estimates or pr
   expect(h.gen.run(run.id)?.run.usage).toMatchObject({ calls: 1, apiUsd: 0.01 });
   await h.gen.control(run.id, "resume");
   await tick();
-  expect(settings.global.limits.genRunMaxUsd).toBe(0.15);
+  expect(settings.global.limits.genRunMaxUsd).toBe(0.2);
   expect(submitted).toHaveLength(2);
-  expect(0.01 + (submitted[1]?.request.budget.usd ?? 0)).toBeLessThanOrEqual(0.12);
+  expect(0.01 + (submitted[1]?.request.budget.usd ?? 0)).toBeLessThanOrEqual(0.16);
   expect(h.gen.run(run.id)?.tasks.filter((t) => t.state === "pending")).toHaveLength(1);
   expect(h.gen.run(run.id)?.run.paused?.reason).toBe("budget");
   submitted[1]?.finish();

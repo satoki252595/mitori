@@ -263,6 +263,8 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     hasher: deps.hasher,
     fs: ports?.fs ?? null,
     sandbox,
+    ...(deps.pin ? { pin: (p: BinaryPin) => deps.pin?.("grok-cli", p) ?? Promise.resolve() } : {}),
+    ...(deps.follow ? { follow: deps.follow } : {}),
     log: deps.log,
     prepareConfig: async () => {
       if (!ports) throw new MitoriError("E_PRECONDITION", "Grok config storage is not wired");
@@ -278,11 +280,13 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
         // An empty user config: no hooks, MCP, plugins, memory, rules or agents reach the turn.
         await ports.safeWrite.write(home, `${rel}/config.toml`, "", "home");
         const bytes = await authBytes(`${sourceRoot}/auth.json`);
-        let auth: "subscription" | "api-key" | "none" = "none";
+        // Subscription login only: XAI_API_KEY must not flip the turn to metered API billing
+        // (WP36b; API users take the HTTP path via `setup grok --api`).
+        let auth: "subscription" | "none" = "none";
         if (bytes) {
           auth = "subscription";
           await ports.safeWrite.write(home, `${rel}/auth.json`, bytes, "home");
-        } else if (typeof deps.env.XAI_API_KEY === "string" && deps.env.XAI_API_KEY) auth = "api-key";
+        }
         return { root, auth, cleanup };
       } catch (err) {
         await cleanup();

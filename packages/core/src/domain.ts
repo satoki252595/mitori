@@ -401,6 +401,24 @@ export type ModelId = ClaudeModelId | `codex:${string}` | `grok:${string}` | `ge
 /** Reasoning effort passed to the engine (`--effort` / `output_config.effort`). */
 export type ReasoningEffort = "low" | "medium" | "high" | "xhigh" | "max";
 
+/**
+ * Fixed thinking budget per effort (tokens, added once per engine call on top of the Θ(O) model).
+ * Measured 2026-11-03 (ai-job-search, 11 tasks): effort high reports 4–7k thinking per call while the
+ * Θ(O) model only predicts a few hundred, so the estimate and the output cap under-reserve and paid turns
+ * are discarded. The ledger EMA only calibrates input tokens, so this budget stays fixed (WP36b).
+ */
+export const THINKING_BUDGET_TOKENS = { low: 1024, medium: 4096, high: 8192, xhigh: 16384, max: 32768 } as const satisfies Record<
+  ReasoningEffort,
+  number
+>;
+
+/**
+ * Fixed grok-cli input overhead per call (tokens). Even an "OK"-only turn reports ≈ 18k input tokens
+ * (subscription session + tool definitions the text-only flags cannot remove); 20k is the measured floor
+ * (grok 1.0.70, 2026-11-03, WP36b).
+ */
+export const GROK_FIXED_INPUT_TOKENS = 20_000;
+
 /** Generation effort tiers (D13 default `standard`). Scope formulas live in gen. */
 export type Effort = "overview" | "standard" | "complete";
 

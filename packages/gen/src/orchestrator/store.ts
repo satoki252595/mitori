@@ -75,6 +75,8 @@ export interface TaskMetrics {
   out: number;
   /** Thinking. */
   thinking: number;
+  /** API-equivalent USD above the task estimate (WP36b; set only on reported usage that exceeds it). */
+  overrunUsd?: number;
   /** Non-empty reply lines (all attempts). */
   lines: number;
   /** Lines valid on arrival (attempt 1 only: `gen.line.valid1`). */

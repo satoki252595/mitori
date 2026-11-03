@@ -74,6 +74,13 @@ test("WP36-A Claude setup accepts haiku-5-5 and fable-5-1, still rejects aliases
   expect(() => setupPatch({ provider: "claude", model: "sonnet" })).toThrow("unsupported Claude model id");
 });
 
+test("WP36b-4 Claude setup writes reasoning only when --effort is given", () => {
+  expect(setupPatch({ provider: "claude" })).not.toHaveProperty("reasoning");
+  expect(setupPatch({ provider: "claude", effort: "high" })).toMatchObject({
+    reasoning: { answer: "high", patch: "high", agent: "high", gen: "high", genOverview: "high" },
+  });
+});
+
 test("WP36-B Codex native setup carries 5.6 default prices per model", () => {
   const terra = setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 0.5, model: "gpt-5.6-terra" });
   expect(terra.engines?.["codex-cli"]?.pricing).toEqual({ inPerMTok: 2, outPerMTok: 12, cacheReadPerMTok: 0.2 });

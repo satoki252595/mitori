@@ -65,7 +65,7 @@ mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> 
   --binary /absolute/path        Claude/Muse/Codex/Grok CLI native executable
   --base-url URL --key-env NAME  OpenAI-compatible URL and credential environment variable name
   --in-price N --out-price N     Custom remote model prices in USD per million tokens
-  --effort low|medium|high|xhigh|max  Muse reasoning effort (default max; HTTP does not send effort)
+  --effort low|medium|high|xhigh|max  Muse/Claude reasoning effort (Muse default max, Claude unchanged when omitted; HTTP does not send effort)
   --print                        Preview settings/instructions without saving or connecting
   Examples: mitori setup grok --repo /absolute/repo (existing session) / mitori setup grok --api (XAI_API_KEY)
 

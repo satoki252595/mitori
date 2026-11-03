@@ -47,7 +47,7 @@ import {
 } from "../contract.ts";
 import { createAssembler } from "../line/assembler.ts";
 import { createLineValidator, planRetry } from "../line/index.ts";
-import { maxOutOf, outTarget, thinkingOf } from "../planner/params.ts";
+import { maxOutOf, outTarget, thinkingBudget, thinkingOf } from "../planner/params.ts";
 import { type GatherEnv, gatherInputs } from "../prompts/inputs.ts";
 import { translateTarget } from "../prompts/renderer.ts";
 import { genFlowSeeds } from "../prompts/seeds.ts";
@@ -184,6 +184,10 @@ export function buildCall(
   const p = GEN_ESTIMATE_PARAMS;
   const o = task.estimate.out > 0 ? task.estimate.out : outTarget(task.prompt, task.mode, rendered.tokens.tail);
   const th = thinkingOf(task.model, task.effort, o, run.engine.id);
+  // WP36b: the fixed effort thinking budget rides every call — the claude-cli cap is body + budget
+  // (CLAUDE_CODE_MAX_OUTPUT_TOKENS covers thinking too; the CLI offers no separate thinking cap),
+  // other engines meter/preflight against spec maxOut + budget.
+  const tb = thinkingBudget(task.effort);
   const cli = run.engine.id === "claude-cli";
   const version = promptVersion(prompts, task.prompt);
   const call: GenCall = {
@@ -193,10 +197,10 @@ export function buildCall(
     model: task.model as ModelId,
     effort: task.effort ?? "low",
     layout: { ...rendered.layout, retry: layoutRetry },
-    maxOutTokens: cli ? Math.max(p.cliMaxOutput.min, Math.ceil(p.cliMaxOutput.factor * (o + th))) : maxOutOf(task.prompt, task.mode),
+    maxOutTokens: cli ? Math.max(p.cliMaxOutput.min, Math.ceil(p.cliMaxOutput.factor * (o + th)), o + tb) : maxOutOf(task.prompt, task.mode) + tb,
     lane,
     fanoutKey: rendered.fanoutKey,
-    estimate: { in: rendered.tokens.prefix + (cli ? p.cliOverheadTokens : 0) + rendered.tokens.tail, out: o + th },
+    estimate: { in: rendered.tokens.prefix + (cli ? p.cliOverheadTokens : 0) + rendered.tokens.tail, out: o + th + tb },
     budgetUsd: Math.max(0.05, 3 * task.estimate.apiUsd),
     timeoutMs:
       run.engine.id === "codex-cli"
@@ -335,6 +339,12 @@ function metricsOf(task: PlannedTask, engine: string, res: ExecResult, turns: re
     stop: turns.at(-1)?.result.stop ?? "end",
   };
   if (first?.result.ttftMs !== undefined) m.ttftMs = first.result.ttftMs;
+  // WP36b: a reported spend above the task estimate is adopted, never discarded; the excess is recorded here
+  // (byte-based estimates are excluded — their units do not match the token estimate).
+  if (u && !res.usageEstimated && task.estimate.apiUsd > 0) {
+    const overrun = Math.round((u.apiUsd - task.estimate.apiUsd) * 1e6) / 1e6;
+    if (overrun > 0) m.overrunUsd = overrun;
+  }
   return m;
 }
 

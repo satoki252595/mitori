@@ -1,4 +1,5 @@
 import {
+  type BinaryPin,
   type Cancel,
   type Clock,
   createSecretScanner,
@@ -16,9 +17,10 @@ import { scrubEnv } from "../claude/env.ts";
 import type { SandboxStore } from "../claude/fsports.ts";
 import { isBareName, resolveOnSafePath } from "../claude/resolve.ts";
 import { type ChildHandle, type Engine, type EngineRequest, type EngineRun, SIGINT_GRACE_MS, type Spawner } from "../contract.ts";
+import { type FileId, type FollowIo, type FollowPorts, followPinUpdate, sameFileId } from "../follow.ts";
 import { RESULT_META, RelayRun, zeroUsage } from "../util/run.ts";
 import type { Timers } from "../util/timers.ts";
-import { buildGrokSpawn, emptyGrokTurn, GROK_UNAUTHENTICATED_RE, grokFoldLine, grokPricing } from "./grok-policy.ts";
+import { buildGrokSpawn, emptyGrokTurn, GROK_UNAUTHENTICATED_RE, grokCapabilityOk, grokFoldLine, grokPricing } from "./grok-policy.ts";
 import { extractJsonFromText } from "./index.ts";
 
 interface GrokDeps {
@@ -31,7 +33,14 @@ interface GrokDeps {
   hasher: Hasher;
   fs: FsReader | null;
   sandbox: SandboxStore;
-  prepareConfig(): Promise<{ root: string; auth: "subscription" | "api-key" | "none"; cleanup(): Promise<void> }>;
+  prepareConfig(): Promise<{ root: string; auth: "subscription" | "none"; cleanup(): Promise<void> }>;
+  pin?(pin: BinaryPin): Promise<void>;
+  /**
+   * Vendor-update auto-follow (WP28, WP36b): POSIX ownership + file identity for the re-check, one streamed hash,
+   * and workspace roots for the SEC-10 path check. Absent ⇒ a changed binary keeps reporting
+   * `E_AGENT_CAPABILITY` (spec §B).
+   */
+  follow?: FollowPorts;
   /** Daemon log (absent in unit tests). */
   log?: Logger;
 }
@@ -46,6 +55,86 @@ const LOGIN_HINT = "Grok is not logged in; run `grok login` in a terminal, then 
 export function createGrokEngine(deps: GrokDeps): Engine {
   const cfg = () => deps.settings().engines["grok-cli"];
   const secrets = createSecretScanner();
+  /** Trust-on-first-use pin of this daemon (until the composition root persists it into settings). */
+  let tofu: BinaryPin | undefined;
+  /** Latest vendor-update follow of this daemon (shown as 「旧版→新版」; lost on restart, the log keeps it). */
+  let lastFollow: { from: string; to: string; at: string } | null = null;
+  /** Last follow attempt that failed: the same candidate is not re-probed (WP28b; lost on restart). */
+  let failedFollow: { path: string; id: FileId } | null = null;
+
+  /**
+   * Follow a vendor update of the pinned binary (WP28 §A, WP36b): the saved `pin.path` re-resolved, SEC-10
+   * path + POSIX ownership re-checked, `--version` re-verified like `setup-pin`, and the `--help`
+   * capability gate (every flag mitori passes) re-probed. Persists the new pin and returns it with the
+   * follow notice, or `null` when any check fails (the caller keeps the `E_AGENT_CAPABILITY` status; §B).
+   */
+  const tryFollow = async (pin: BinaryPin): Promise<{ pin: BinaryPin; followed: { from: string; to: string; at: string } } | null> => {
+    if (!deps.follow || !deps.fs) return null;
+    const fs = deps.fs;
+    const follow = deps.follow;
+    // A failed candidate is not re-probed while its path and identity are unchanged (WP28b).
+    const resolved = fs.realpath(pin.path);
+    if (!resolved || resolved === pin.realpath) return null;
+    const id = follow.fileId(resolved);
+    if (id && failedFollow && failedFollow.path === resolved && sameFileId(failedFollow.id, id)) return null;
+    const probeEnv = scrubEnv({ ...deps.env, PATH: deps.safePath }, []);
+    const io: FollowIo = {
+      realpath: (p) => fs.realpath(p),
+      statIsFile: (p) => fs.stat(p)?.isFile === true,
+      readText: async (p) => {
+        try {
+          return new TextDecoder().decode(await fs.read(p));
+        } catch {
+          return null;
+        }
+      },
+      fileId: (p) => follow.fileId(p),
+      sha256File: (p) => follow.sha256File(p),
+      ownership: (p) => follow.ownership(p),
+      runVersion: async (candidate) => {
+        const r = await runProbe(deps.spawner, deps.timers, { command: candidate, argv: ["--version"], env: probeEnv, cwd: "/" });
+        if (r.code !== 0 || new TextEncoder().encode(r.out).byteLength > 4096) return null;
+        return r.out.split("\n")[0]?.trim() ?? null;
+      },
+      euid: follow.euid,
+      platform: follow.platform,
+      workspaceRoots: follow.workspaceRoots(),
+      tmpdir: deps.env.TMPDIR,
+    };
+    const fail = (candidatePath: string | null) => {
+      const now = candidatePath ? follow.fileId(candidatePath) : null;
+      failedFollow = now && candidatePath ? { path: candidatePath, id: now } : null;
+      return null;
+    };
+    const candidate = await followPinUpdate(pin, io);
+    if (!candidate) return fail(resolved);
+    // The engine capability gate runs against the new binary: every flag mitori passes must be documented.
+    const help = await runProbe(deps.spawner, deps.timers, { command: candidate.realpath, argv: ["--help"], env: probeEnv, cwd: "/" });
+    if (help.code !== 0 || new TextEncoder().encode(help.out).byteLength > 65536 || !grokCapabilityOk(help.out)) return fail(candidate.realpath);
+    failedFollow = null;
+    const now = deps.clock.iso();
+    const next: BinaryPin = {
+      path: pin.path,
+      realpath: candidate.realpath,
+      sha256: candidate.sha256,
+      version: candidate.version,
+      pinnedAt: now,
+      by: "auto-update",
+      previousVersion: pin.version,
+    };
+    if (deps.pin) {
+      try {
+        await deps.pin(next);
+      } catch {
+        return null;
+      }
+    }
+    if (!deps.settings().pins.grok) tofu = next;
+    const followed = { from: pin.version, to: candidate.version, at: now };
+    lastFollow = followed;
+    deps.log?.info("agent.grok.auto_follow", { from: pin.version, to: candidate.version, path: pin.path });
+    return { pin: next, followed };
+  };
 
   const resolveBinary = (): string | null => {
     if (!deps.fs) return null;
@@ -60,12 +149,36 @@ export function createGrokEngine(deps: GrokDeps): Engine {
     let version = "";
     let path: string | undefined;
     let auth: EngineStatus["auth"] = "none";
+    let pin = deps.settings().pins.grok ?? tofu;
+    let followed: { from: string; to: string; at: string } | null = null;
     try {
       if (!cfg().enabled) throw new MitoriError("E_AGENT_NOT_INSTALLED", "Grok CLI is disabled");
       if (!deps.fs) throw new MitoriError("E_PRECONDITION", "Grok filesystem ports are not wired");
-      const bin = resolveBinary();
+      const fs = deps.fs;
+      if (pin) {
+        // The approved entry (`setup grok --cli` pin): re-resolve `pin.path`, never the bare name.
+        path = pin.path;
+        const resolved = fs.realpath(pin.path);
+        if (!resolved?.startsWith("/") || !fs.stat(resolved)?.isFile)
+          throw new MitoriError("E_AGENT_NOT_INSTALLED", "Grok native binary was not found on SAFE_PATH");
+        if (resolved !== pin.realpath || deps.hasher.sha256(await fs.read(resolved)) !== pin.sha256) {
+          // Vendor auto-update (WP28): follow the approved entry when every re-check passes; an unverified
+          // version or a missing capability keeps the human-review error (that policy never changes; §B).
+          const next = await tryFollow(pin);
+          if (!next)
+            throw new MitoriError("E_AGENT_CAPABILITY", "Grok binary changed; repin after human review", {
+              hint: "re-register it with the setup command on the engine card (`mitori setup grok --cli`)",
+            });
+          pin = next.pin;
+          followed = next.followed;
+        }
+      } else {
+        const bin = resolveBinary();
+        if (!bin) throw new MitoriError("E_AGENT_NOT_INSTALLED", "Grok native binary was not found on SAFE_PATH");
+        path = cfg().binary;
+      }
+      const bin = pin?.realpath ?? resolveBinary();
       if (!bin) throw new MitoriError("E_AGENT_NOT_INSTALLED", "Grok native binary was not found on SAFE_PATH");
-      path = cfg().binary;
       // Probes run under the isolated root too, so even `--version` never touches the user's `~/.grok`.
       const isolated = await deps.prepareConfig();
       try {
@@ -84,7 +197,7 @@ export function createGrokEngine(deps: GrokDeps): Engine {
       const e = MitoriError.from(err);
       problems.push({ code: e.code, message: e.message });
     }
-    return {
+    const out: EngineStatus = {
       engine: "grok-cli",
       installed: !!path && problems.every((p) => p.code === "E_AGENT_AUTH"),
       auth,
@@ -94,6 +207,11 @@ export function createGrokEngine(deps: GrokDeps): Engine {
       checkedAt: deps.clock.iso(),
       ...(path ? { path, version } : {}),
     };
+    if (pin && problems.length === 0) out.pin = pin;
+    const notice =
+      followed ?? lastFollow ?? (pin?.by === "auto-update" && pin.previousVersion ? { from: pin.previousVersion, to: pin.version, at: pin.pinnedAt } : null);
+    if (notice) out.followed = notice;
+    return out;
   };
 
   const run = (req: EngineRequest, signal: Cancel): EngineRun => {
@@ -117,7 +235,8 @@ export function createGrokEngine(deps: GrokDeps): Engine {
         const status = await detect();
         if (!status.installed || status.problems.length > 0)
           throw new MitoriError(status.problems[0]?.code ?? "E_AGENT_CAPABILITY", status.problems[0]?.message ?? "Grok unavailable");
-        const bin = resolveBinary();
+        // The detect-validated pin when one is in effect (possibly just followed), else the SAFE_PATH entry.
+        const bin = status.pin?.realpath ?? resolveBinary();
         if (!bin) throw new MitoriError("E_AGENT_CAPABILITY", "Grok binary was not found on SAFE_PATH");
         prepared = await deps.prepareConfig();
         if (prepared.auth === "none") throw new MitoriError("E_AGENT_AUTH", LOGIN_HINT);
@@ -205,6 +324,8 @@ export function createGrokEngine(deps: GrokDeps): Engine {
           usage.cacheWrite = folded.usage.cacheWrite;
           usage.out = folded.usage.out;
           if (folded.usage.thinking) usage.thinking = folded.usage.thinking;
+          // The CLI's own cost for cross-checking only; displayed prices stay mitori-computed.
+          if (folded.reportedUsd !== null) usage.reportedUsd = folded.reportedUsd;
         } else {
           // No usage event: byte-count estimate like generic (hidden thinking is not visible).
           usage.in = bytes(promptText);
@@ -248,6 +369,13 @@ export function createGrokEngine(deps: GrokDeps): Engine {
         } else if (folded.streamError !== null) {
           res.stop = "error";
           res.error = { code: "E_AGENT_EXIT", message: folded.streamError, retryable: true, stderrTail: tail() };
+        } else if (folded.turns !== null && folded.turns > 1) {
+          res.stop = "error";
+          res.error = { code: "E_AGENT_PROTOCOL", message: `grok ran ${folded.turns} turns despite --max-turns 1`, retryable: false };
+        } else if (folded.stopReason !== null && folded.stopReason !== "end_turn") {
+          // Truncated (`max_tokens`, …): the budget stop keeps text + usage for the coverage retry.
+          res.stop = "budget";
+          res.error = { code: "E_BUDGET_EXCEEDED", message: `grok stopped at ${folded.stopReason}`, retryable: false };
         } else if (!folded.ended) {
           res.stop = "error";
           res.error = {

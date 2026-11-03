@@ -59,9 +59,9 @@ const { values: a } = parseArgs({
 
 if (!a.repo) throw new Error("--repo <dir> is required");
 const repo = resolve(a.repo);
-const engine = a.engine as "claude-cli" | "anthropic-api" | "codex-cli" | "generic";
-if (!["claude-cli", "anthropic-api", "codex-cli", "generic"].includes(engine))
-  throw new Error("--engine must be claude-cli, anthropic-api, codex-cli or generic");
+const engine = a.engine as "claude-cli" | "anthropic-api" | "codex-cli" | "grok-cli" | "generic";
+if (!["claude-cli", "anthropic-api", "codex-cli", "grok-cli", "generic"].includes(engine))
+  throw new Error("--engine must be claude-cli, anthropic-api, codex-cli, grok-cli or generic");
 const live = a.run === true;
 const maxUsd = a["max-usd"] === undefined ? Number.NaN : Number(a["max-usd"]);
 if (live && (process.env.MITORI_LIVE !== "1" || !(maxUsd > 0))) {
@@ -138,7 +138,12 @@ for (let i = 0; i < 200 && !status; i++) {
 log(
   `engine ${engine}: installed=${status?.installed} auth=${status?.auth} billing=${status?.billing} plan=${status?.plan} version=${status?.version} pin=${status?.pin?.by ?? "-"} problems=${JSON.stringify(status?.problems ?? [])}`,
 );
-if (live && (!status?.installed || ((engine === "claude-cli" || engine === "codex-cli") && status.auth !== "subscription") || status.problems.length > 0)) {
+if (
+  live &&
+  (!status?.installed ||
+    ((engine === "claude-cli" || engine === "codex-cli" || engine === "grok-cli") && status.auth !== "subscription") ||
+    status.problems.length > 0)
+) {
   log(`${engine} is not ready: refusing to run`);
   await stop(3);
 }
