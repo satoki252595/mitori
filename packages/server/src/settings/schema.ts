@@ -3,6 +3,7 @@
  * typed against the core shapes (`fields` must name every key of the type), so a contract change that adds a
  * settings key fails `tsc` here until the schema follows.
  */
+
 import type {
   BinaryPin,
   DataPolicyAck,
@@ -20,6 +21,7 @@ import type {
   UiSettings,
   WorkspaceOverrides,
 } from "@mitori/core";
+import { CLAUDE_MODEL_IDS } from "@mitori/core";
 
 /** Keys that would reach prototypes through plain assignment (settings files are untrusted input). */
 export const UNSAFE_KEYS: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
@@ -55,9 +57,9 @@ function partialObj<T>(fields: { [K in keyof T]-?: Spec }): Spec {
   return { t: "obj", fields: fields as Record<string, Spec>, optional: Object.keys(fields) };
 }
 
-const MODEL: Spec = { t: "str", pattern: /^(claude-opus-5-5|claude-sonnet-5-5|claude-haiku-4-5|codex:[^\s]{1,100}|generic:[^\s]{1,100})$/ };
-const ENGINE = oneOf("claude-cli", "session", "anthropic-api", "codex-cli", "generic");
-const GEN_ENGINE = oneOf("claude-cli", "anthropic-api", "session", "codex-cli", "generic");
+const MODEL: Spec = { t: "str", pattern: new RegExp(`^(${CLAUDE_MODEL_IDS.join("|")}|codex:[^\\s]{1,100}|grok:[^\\s]{1,100}|generic:[^\\s]{1,100})$`) };
+const ENGINE = oneOf("claude-cli", "session", "anthropic-api", "codex-cli", "grok-cli", "generic");
+const GEN_ENGINE = oneOf("claude-cli", "anthropic-api", "session", "codex-cli", "grok-cli", "generic");
 const EFFORT = oneOf("overview", "standard", "complete");
 const LANG = oneOf("ja", "en");
 const READER = oneOf("newcomer", "standard", "expert");
@@ -107,10 +109,28 @@ const engines = obj<EngineSettings>({
       binary: str,
       model: { t: "str", max: 128 },
       pricing: obj<NonNullable<EngineSettings["codex-cli"]["pricing"]>>({ inPerMTok: num(0), outPerMTok: num(0), cacheReadPerMTok: num(0) }),
+      pricingByModel: map(
+        obj<NonNullable<EngineSettings["codex-cli"]["pricing"]>>({ inPerMTok: num(0), outPerMTok: num(0), cacheReadPerMTok: num(0) }),
+        /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/,
+      ),
       maxEstimatedSpendUsd: num(0),
       maxPatchSteps: int(1, 8),
     },
-    ["pricing", "maxEstimatedSpendUsd", "maxPatchSteps"],
+    ["pricing", "pricingByModel", "maxEstimatedSpendUsd", "maxPatchSteps"],
+  ),
+  "grok-cli": obj<EngineSettings["grok-cli"]>(
+    {
+      enabled: bool,
+      binary: str,
+      model: { t: "str", max: 128 },
+      pricing: obj<NonNullable<EngineSettings["grok-cli"]["pricing"]>>({ inPerMTok: num(0), outPerMTok: num(0), cacheReadPerMTok: num(0) }),
+      pricingByModel: map(
+        obj<NonNullable<EngineSettings["grok-cli"]["pricing"]>>({ inPerMTok: num(0), outPerMTok: num(0), cacheReadPerMTok: num(0) }),
+        /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/,
+      ),
+      turnMs: int(1_000, 3_600_000),
+    },
+    ["pricing", "pricingByModel", "turnMs"],
   ),
   generic: obj<EngineSettings["generic"]>(
     {
@@ -171,7 +191,7 @@ const review = obj<ReviewSettings>({ autoResolveOnAccept: bool, autoAcceptDocUpd
 const security = obj<SecuritySettings>({ denyGlobs: arr(GLOB), secretScan: bool, allowNonLoopback: bool, gateSandbox: oneOf("auto", "require", "off") });
 const ack = obj<DataPolicyAck>({ at: ISO, shownAt: ISO, plan: { t: "str", max: 64 } });
 const privacy = obj<PrivacySettings>({
-  dataPolicyAck: map(ack, /^(claude-cli|session|anthropic-api|codex-cli|generic)$/),
+  dataPolicyAck: map(ack, /^(claude-cli|session|anthropic-api|codex-cli|grok-cli|generic)$/),
   logContent: bool,
   keepRawStreams: bool,
 });
@@ -212,7 +232,7 @@ export const GLOBAL_SPEC: Spec = obj<GlobalSettings>({
   engines,
   models,
   reasoning: obj<GlobalSettings["reasoning"]>({ answer: REASONING, patch: REASONING, agent: REASONING, gen: REASONING, genOverview: REASONING }),
-  pins: map(pin, /^(claude|git|gh|codex)$/),
+  pins: map(pin, /^(claude|git|gh|codex|grok)$/),
   limits,
   scheduler,
   review,

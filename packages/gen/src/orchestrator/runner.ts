@@ -93,7 +93,7 @@ export function runTaskId(deps: Pick<GenDeps, "hasher">, run: GenRunId, planId: 
 
 /** Engine adapter for an engine id. */
 export function engineFor(deps: GenDeps, id: EngineId, s = deps.settings()): GenEngine {
-  if (id !== "claude-cli" && id !== "anthropic-api" && id !== "generic" && id !== "codex-cli")
+  if (id !== "claude-cli" && id !== "anthropic-api" && id !== "generic" && id !== "codex-cli" && id !== "grok-cli")
     throw new MitoriError("E_INVALID_INPUT", `engine ${id} cannot run a push generation`, { params: { engine: id } });
   if (!s.global.engines[id].enabled) throw new MitoriError("E_AGENT_NOT_INSTALLED", `engine ${id} is not enabled`, { params: { engine: id } });
   return (
@@ -463,18 +463,31 @@ export class Runner {
     const run = live.run;
     const dispatchable = (r: TaskRow) => run.state === "running" || (run.state === "paused" && run.paused?.reason === "yield_5h" && r.lane === "doc");
     const limit = this.s().global.limits.stopAtBudgetFraction * this.cap();
-    const overBudget = () => run.usage.apiUsd + [...live.running.values()].reduce((n, x) => n + x.estUsd, 0) >= limit;
+    const spent = () => run.usage.apiUsd + [...live.running.values()].reduce((n, x) => n + x.estUsd, 0);
+    const overBudget = () => spent() >= limit;
+    // WP36b: the run-level cap guards dispatch — before starting the next task, spent + running
+    // reservations + the next estimate must stay within it. Running turns always finish and are adopted.
+    // The first task of a fresh run is exempt (the start gate already confirmed the run estimate).
+    // codex-cli is exempt: its admit hook already gates on the precise native preflight (same inequality,
+    // finer numbers); a coarse plan-estimate check here would block launches the hook allows.
+    const coarseGuard = live.run.engine !== "codex-cli";
+    let capped = false;
     while (live.running.size < run.concurrency && !overBudget() && run.state !== "cancelled") {
       const ready = [...live.rows.values()].filter(
         (r) => r.task.state === "pending" && dispatchable(r) && r.plan.deps.every((d) => TERMINAL.has(live.rows.get(d)?.task.state ?? "done")),
       );
       if (ready.length === 0) break;
       ready.sort((a, b) => compareTasks({ ...a.plan, boost: a.boost }, { ...b.plan, boost: b.boost }));
-      this.launch(ready[0] as TaskRow);
+      const next = ready[0] as TaskRow;
+      if (coarseGuard && (live.running.size > 0 || run.usage.apiUsd > 0) && spent() + (next.plan.estimate.apiUsd ?? 0) > limit) {
+        capped = true;
+        break;
+      }
+      this.launch(next);
     }
     if (live.running.size > 0) return;
     const pending = [...live.rows.values()].filter((r) => !TERMINAL.has(r.task.state));
-    if (run.state === "running" && pending.length > 0 && overBudget()) {
+    if (run.state === "running" && pending.length > 0 && (overBudget() || capped)) {
       run.state = "paused";
       run.paused = { reason: "budget" };
       void this.persistRun();
@@ -572,8 +585,14 @@ export class Runner {
       return;
     }
     const ctx: RunCtx = { id: live.run.id, trigger: live.run.trigger, engine, gather: this.gatherEnv(live), cancelled: () => live.run.state === "cancelled" };
-    const turnMs = this.s().global.engines.generic.turnMs;
-    if (engine.id === "generic" && turnMs !== undefined) ctx.turnMs = turnMs;
+    if (engine.id === "generic") {
+      const turnMs = this.s().global.engines.generic.turnMs;
+      if (turnMs !== undefined) ctx.turnMs = turnMs;
+    } else if (engine.id === "grok-cli") {
+      // WP36h: caps the 3×-estimate grok timeout (buildCall defaults to the 1,200 s grok turn cap).
+      const turnMs = this.s().global.engines["grok-cli"].turnMs;
+      if (turnMs !== undefined) ctx.turnMs = turnMs;
+    }
     if (live.run.pinned) ctx.packSnapshot = live.run.pinned.snapshot;
     if (live.run.estimate?.seconds) ctx.runSeconds = live.run.estimate.seconds.p50;
     executeTask(env, ctx, row, abort.signal, {
@@ -677,6 +696,13 @@ export class Runner {
         out: u.out + res.usage.out,
         apiUsd: Math.round((u.apiUsd + res.usage.apiUsd) * 1e6) / 1e6,
       };
+    }
+    // WP36b: a task that spent 4× its own estimate stops later tasks (runaway guard); the task's own
+    // result is adopted. Byte-based estimates are excluded (their units do not match the token estimate).
+    const taskEstUsd = row.plan.estimate.apiUsd ?? 0;
+    if (live.run.state === "running" && res.usage && !res.usageEstimated && taskEstUsd > 0 && res.usage.apiUsd > 4 * taskEstUsd) {
+      live.run.state = "paused";
+      live.run.paused = { reason: "budget" };
     }
     if (res.error) row.task.error = res.error;
     else delete row.task.error;

@@ -20,6 +20,22 @@ describe("§8.2 transport errors, auth, parked-process close, κ samples", () =>
     expect(h.gen.run(run.id)?.tasks.find((t) => t.target.id === M_SESSION)?.state).toBe("done");
   });
 
+  test("WP36d-4 a non-retryable launch-settings failure is not re-dispatched", async () => {
+    const router = (call: GenCall, t: Turn): ScriptReply =>
+      isSession(call)
+        ? {
+            lines: [],
+            stop: "error",
+            error: { code: "E_AGENT_CAPABILITY", message: "grok 1.0.70 could not create a session; update mitori", retryable: false },
+          }
+        : validRouter(call, t);
+    const h = makeHarness({ router });
+    const run = await h.gen.start((await h.gen.estimate({ effort: "standard" })).id);
+    await h.gen.idle();
+    expect(h.engine.calls.filter((c) => isSession(c.call)).length).toBe(1);
+    expect(h.gen.run(run.id)?.tasks.find((t) => t.target.id === M_SESSION)?.error?.code).toBe("E_AGENT_CAPABILITY");
+  });
+
   test("a second transport failure fails the task with the engine's code; an auth-source error fails the run", async () => {
     const router = (call: GenCall, t: Turn): ScriptReply =>
       isSession(call) ? { lines: [], stop: "error", error: { code: "E_AGENT_EXIT", message: "exit 2", retryable: true } } : validRouter(call, t);
@@ -76,7 +92,8 @@ describe("§8.2 transport errors, auth, parked-process close, κ samples", () =>
   });
 
   test("a finished run records a κ sample when the 5h window was observed and did not reset", async () => {
-    const h = makeHarness({ router: (c, t) => ({ ...validRouter(c, t), apiUsd: 0.1 }) });
+    // Flat per-call rate below the 4× runaway guard of the smallest task (glossary ≈ $0.023; WP36b).
+    const h = makeHarness({ router: (c, t) => ({ ...validRouter(c, t), apiUsd: 0.08 }) });
     const w = (u: number) => ({
       fiveHour: { utilization: u, resetsAt: "2026-10-03T05:00:00.000Z" },
       billing: "subscription-window" as const,
@@ -87,7 +104,7 @@ describe("§8.2 transport errors, auth, parked-process close, κ samples", () =>
     await h.gen.start((await h.gen.estimate({ effort: "standard" })).id);
     h.scheduler.push({ window: w(0.25) });
     await h.gen.idle();
-    expect(h.ledger.samples).toEqual([{ utilizationBefore: 0.2, utilizationAfter: 0.25, apiUsd: 1.2, resetsAtUnchanged: true }]);
+    expect(h.ledger.samples).toEqual([{ utilizationBefore: 0.2, utilizationAfter: 0.25, apiUsd: 0.96, resetsAtUnchanged: true }]);
     expect(h.log.lines.filter((l) => l.msg === "gen.task").length).toBe(13);
   });
 });

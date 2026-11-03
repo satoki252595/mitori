@@ -38,8 +38,8 @@ describe("WEB-U-028 prediction", () => {
     const p = predict({ chips: chips(), body: "あ".repeat(100), intent: "change", outTokens: 1200, model: "claude-sonnet-5-5" });
     expect(p.tokensIn).toBe(1800 + 200 + 700 + 100 + 600 + 80);
     expect(p.tokensOut).toBe(1200);
-    // (1680 × 2 + 1800 × 0.2 + 1200 × 10) / 1e6
-    expect(p.usd).toBeCloseTo((1680 * 2 + 1800 * 0.2 + 1200 * 10) / 1e6, 6);
+    // (1680 × 2 + 1800 × 0.1 + 1200 × 10) / 1e6 (Sonnet cache read 0.10/MTok, WP36-A)
+    expect(p.usd).toBeCloseTo((1680 * 2 + 1800 * 0.1 + 1200 * 10) / 1e6, 6);
   });
 
   test("Muse predictions charge all input, distinguish unknown prices, and preserve explicit zero prices", () => {

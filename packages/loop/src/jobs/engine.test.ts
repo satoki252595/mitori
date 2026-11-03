@@ -67,6 +67,65 @@ describe("#9 first-turn input limit", () => {
   });
 });
 
+describe("WP36c-2 grok-cli answer", () => {
+  const grokSettings = () => {
+    const w = world({ files: { "src/a.ts": "export const a = 1;\n" } });
+    const s = w.deps.settings();
+    return {
+      w,
+      settings: () => ({
+        ...s,
+        global: {
+          ...s.global,
+          defaultEngine: "grok-cli" as const,
+          models: { ...s.global.models, answer: "grok:grok-4.7" as const },
+          engines: {
+            ...(s.global.engines ?? {}),
+            "grok-cli": {
+              enabled: true,
+              binary: "grok",
+              model: "grok-4.7",
+              pricing: { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 2 },
+            },
+          },
+        },
+      }),
+    };
+  };
+
+  test("an explain question stays on grok-cli with a priced estimate, and the request dispatches text-only", async () => {
+    const { w, settings } = grokSettings();
+    const t = thread({
+      intent: "question",
+      ask: "What does a mean?",
+      anchor: { primary: "code", code: { path: "src/a.ts", start: 1, end: 1, blob: "0".repeat(40), snippet: "0".repeat(16) } },
+    });
+    const deps = {
+      ...w.deps,
+      settings,
+      indexer: { ...w.deps.indexer, snapshot: () => null },
+      review: { get: () => t },
+      bundles: createBundleBuilder({ ...w.deps, settings }),
+      engines: () => [],
+      clock: { now: () => Date.parse("2026-10-11T00:00:00Z"), iso: () => "2026-10-11T00:00:00Z" },
+      unwritable: async () => [],
+      gates: async () => [],
+      history: () => [],
+    } as unknown as PlanDeps;
+    const planned = await planJob(deps, { kind: "explain" as const, threads: [t.id], engine: "grok-cli" as const });
+    expect(planned.route.engine).toBe("grok-cli");
+    expect(planned.mode).toBe("answer");
+    expect(planned.route.decision.model).toBe("grok:grok-4.7");
+    expect(planned.estimate.apiUsd).toBeGreaterThan(0);
+    const req = engineRequest(planned, "j_1" as JobId, ctx([]));
+    expect(req.engine).toBe("grok-cli");
+    expect(req.tools).toBe("none");
+    expect(req.keepAlive).toBe(false);
+    expect(req.persistSession).toBe(false);
+    expect(req.jsonSchema).toBeUndefined();
+  });
+});
+
 describe("F10 fixed reads in the estimate", () => {
   test("claude-cli adds its own fixed part per call (answer 0.7k, patch 1.25k) as cache reads", () => {
     expect(cachedReads("claude-cli", "answer", 1249)).toEqual({ extra: 700, cacheReadTokens: 700, calibrationN: 0 });

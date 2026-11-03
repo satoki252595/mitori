@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import type { WorkspaceKey } from "@mitori/core";
 import type { EngineRequest, ScheduledRequest } from "../contract.ts";
-import { createFakeSpawner, createTestBridge, testSettings } from "../testing.ts";
-import { buildAnthropicRequest, buildCodexSpawn, buildGenericSpawn, extractJsonFromText } from "./index.ts";
+import { SIGINT_GRACE_MS } from "../contract.ts";
+import { createFakeClock, createFakeSpawner, createTestBridge, testSettings } from "../testing.ts";
+import { buildAnthropicRequest, buildCodexSpawn, buildGenericSpawn, codexCatalog, codexPricing, extractJsonFromText } from "./index.ts";
 
 const EMPTY = "/home/u/.mitori/run/empty";
 const SCHEMA = { type: "object", properties: { summary: { type: "string" } }, required: ["summary"] };
@@ -160,6 +161,41 @@ describe("generic / codex spawn builders and JSON extraction (spec §6.10–6.11
         {},
       ),
     ).toThrow(/sandbox policy/);
+  });
+
+  test("WP36-B codex carries the request effort via -c and the model catalog", () => {
+    const paths = {
+      codexBinary: "/opt/codex-native",
+      schemaFile: null as string | null,
+      lastMessageFile: "/h/run/codex/last.json",
+      emptyCwd: EMPTY,
+      configRoot: "/h/run/codex",
+      modelCatalogFile: "/h/run/catalog.json",
+      systemPromptFile: "/h/run/system.txt",
+    };
+    for (const effort of ["low", "medium", "high", "xhigh", "max"] as const) {
+      const s = buildCodexSpawn(req({ model: "codex:gpt-5-codex", effort }), { enabled: true, binary: "codex", model: "gpt-5" }, paths, {});
+      expect(s.argv).toContain(`model_reasoning_effort="${effort}"`);
+      const catalog = JSON.parse(codexCatalog("gpt-5-codex", false, effort)) as {
+        models: { slug: string; default_reasoning_level: string; supported_reasoning_levels: { effort: string }[] }[];
+      };
+      expect(catalog.models[0]?.slug).toBe("gpt-5-codex");
+      expect(catalog.models[0]?.default_reasoning_level).toBe(effort);
+      expect(catalog.models[0]?.supported_reasoning_levels.map((l) => l.effort)).toEqual(["low", "medium", "high", "xhigh", "max"]);
+    }
+  });
+
+  test("WP36-B codexPricing prefers the per-model entry, then the engine pricing", () => {
+    const base = { inPerMTok: 1, outPerMTok: 2, cacheReadPerMTok: 0.1 };
+    const terra = { inPerMTok: 2, outPerMTok: 12, cacheReadPerMTok: 0.2 };
+    expect(
+      codexPricing({ enabled: true, binary: "codex", model: "gpt-5.6-terra", pricing: base, pricingByModel: { "gpt-5.6-terra": terra } }, "gpt-5.6-terra"),
+    ).toEqual(terra);
+    expect(
+      codexPricing({ enabled: true, binary: "codex", model: "gpt-5.6-terra", pricing: base, pricingByModel: { "gpt-5.6-terra": terra } }, "other"),
+    ).toEqual(base);
+    expect(codexPricing({ enabled: true, binary: "codex", model: "x", pricingByModel: { "gpt-5.6-terra": terra } }, "gpt-5.6-terra")).toEqual(terra);
+    expect(codexPricing({ enabled: true, binary: "codex", model: "x" }, "x")).toBeUndefined();
   });
 
   test("extractJsonFromText: last ```json fence, else the whole stdout; errors are E_AGENT_PROTOCOL", () => {
@@ -347,6 +383,25 @@ describe("engines never leave a run unresolved", () => {
     expect(e.error?.code).toBe("E_AGENT_EXIT");
     expect(e.error?.stderrTail?.length).toBe(2);
     expect(JSON.stringify(e.error?.stderrTail)).not.toContain("ghp_0123456789abcdefghij");
+  });
+
+  test("WP36h-4 generic cancels a hanging turn with SIGINT then SIGKILL, leaving no child behind", async () => {
+    const clock = createFakeClock();
+    const spawner = createFakeSpawner().script(() => true, { hang: true });
+    const settings = testSettings({ engines: { generic: { enabled: true, argv: ["/usr/local/bin/agent"] } } });
+    const b = createTestBridge({ spawner, clock, settings: { engines: settings.engines } });
+    const ctl = new AbortController();
+    const run = b.scheduler.submit(req({ engine: "generic", mode: "answer", prompt: "HANG" }), ctl.signal);
+    await Bun.sleep(5);
+    const child = spawner.children.at(-1)!;
+    expect(child.spec.processGroup).toBe(true);
+    ctl.abort();
+    await Bun.sleep(1);
+    expect(child.signals).toEqual(["SIGINT"]);
+    clock.advance(SIGINT_GRACE_MS + 1);
+    const res = await run.result;
+    expect(res.stop).toBe("cancelled");
+    expect(child.signals).toEqual(["SIGINT", "SIGKILL"]);
   });
 });
 

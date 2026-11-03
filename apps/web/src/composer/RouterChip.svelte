@@ -4,7 +4,7 @@
   thread only (the server router still validates). The title explains what each mode may touch.
 -->
 <script lang="ts">
-import type { ClaudeModelId, ExecMode } from "@mitori/core";
+import { CLAUDE_MODEL_IDS, type ClaudeModelId, type ExecMode } from "@mitori/core";
 import { t } from "../shell/index.ts";
 import { useStores } from "../stores/app.svelte.ts";
 
@@ -33,7 +33,7 @@ let {
 const s = useStores();
 let open = $state(false);
 const MODES: ExecMode[] = ["answer", "patch", "agent"];
-const MODELS: ClaudeModelId[] = ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-4-5"];
+const MODELS: readonly ClaudeModelId[] = CLAUDE_MODEL_IDS;
 
 const label = $derived.by(() => {
   if (mode === "answer") return `answer · ${model}`;

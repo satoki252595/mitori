@@ -49,6 +49,19 @@ describe("GenCall per engine (§8.2 / §8.3)", () => {
     expect(buildCall(c, task, rendered, 1, "background", null, prompts).timeoutMs).toBe(600_000);
     expect(buildCall(ctx("claude-cli"), task, rendered, 1, "background", null, prompts).timeoutMs).toBe(120_000);
   });
+  test("WP36h-6 grok uses 3x the estimate, floored at 900 s and capped at the 1,200 s turnMs", () => {
+    const grok = { ...task, model: "grok:grok-4.7", effort: "high" } as unknown as PlannedTask;
+    // 3 × 20 s = 60 s < 900 s floor (a low call alone runs ~355 s, WP36h)
+    expect(buildCall(ctx("grok-cli"), grok, rendered, 1, "background", null, prompts).timeoutMs).toBe(900_000);
+    // 3 × 300 s = 900 s = the floor
+    const long = { ...grok, estimate: { ...grok.estimate, seconds: 300 } } as unknown as PlannedTask;
+    expect(buildCall(ctx("grok-cli"), long, rendered, 1, "background", null, prompts).timeoutMs).toBe(900_000);
+    // 3 × 500 s = 1500 s > 1,200 s default cap
+    const longer = { ...grok, estimate: { ...grok.estimate, seconds: 500 } } as unknown as PlannedTask;
+    expect(buildCall(ctx("grok-cli"), longer, rendered, 1, "background", null, prompts).timeoutMs).toBe(1_200_000);
+    // a configured turnMs caps below the default
+    expect(buildCall({ ...ctx("grok-cli"), turnMs: 1_000_000 }, longer, rendered, 1, "background", null, prompts).timeoutMs).toBe(1_000_000);
+  });
   test("anthropic-api writes the prefix with the 1h TTL only when the RUN is expected to take > 4 min", () => {
     expect(buildCall(ctx("anthropic-api", 300), task, rendered, 1, "background", null, prompts).ttl).toBe("1h");
     expect(buildCall(ctx("anthropic-api", 100), task, rendered, 1, "background", null, prompts).ttl).toBe("5m");
@@ -61,7 +74,19 @@ describe("GenCall per engine (§8.2 / §8.3)", () => {
     expect(c.maxOutTokens).toBe(Math.max(2000, Math.ceil(1.5 * (1500 + 225))));
     expect(c.budgetUsd).toBe(Math.max(0.05, 3 * 0.04));
     expect(c.timeoutMs).toBe(120_000);
-    expect(c.estimate).toEqual({ in: 11000 + 450 + 9000, out: 1725 });
+    // WP36b: the call estimate carries the effort thinking budget (low: +1,024)
+    expect(c.estimate).toEqual({ in: 11000 + 450 + 9000, out: 1725 + 1024 });
+  });
+});
+
+describe("WP36b-1 thinking budget rides the output cap", () => {
+  test("effort high gen.module keeps body + 8,192 for thinking", () => {
+    const c = buildCall(ctx("claude-cli"), { ...task, effort: "high" }, rendered, 1, "background", null, prompts);
+    expect(c.maxOutTokens).toBeGreaterThanOrEqual(1500 + 8192);
+  });
+  test("effort low stays at the old formula (body + 1,024 fits inside it)", () => {
+    const c = buildCall(ctx("claude-cli"), task, rendered, 1, "background", null, prompts);
+    expect(c.maxOutTokens).toBe(Math.max(2000, Math.ceil(1.5 * (1500 + 225))));
   });
 });
 

@@ -47,7 +47,7 @@ import {
 } from "../contract.ts";
 import { createAssembler } from "../line/assembler.ts";
 import { createLineValidator, planRetry } from "../line/index.ts";
-import { maxOutOf, outTarget, thinkingOf } from "../planner/params.ts";
+import { GROK_DEFAULT_TURN_MS, grokTimeoutMs, maxOutOf, outTarget, thinkingBudget, thinkingOf } from "../planner/params.ts";
 import { type GatherEnv, gatherInputs } from "../prompts/inputs.ts";
 import { translateTarget } from "../prompts/renderer.ts";
 import { genFlowSeeds } from "../prompts/seeds.ts";
@@ -101,7 +101,7 @@ export interface RunCtx {
   packSnapshot?: Xxh3;
   /** Estimated run duration p50 (s): anthropic-api writes BP1/BP2 with the 1h TTL above `ttl1hAboveSec` (§8.3). */
   runSeconds?: number;
-  /** Provider-specific generation turn deadline (generic settings), still bounded by server schema. */
+  /** Provider-specific generation turn deadline (generic/grok-cli settings), still bounded by server schema. */
   turnMs?: number;
 }
 
@@ -184,6 +184,10 @@ export function buildCall(
   const p = GEN_ESTIMATE_PARAMS;
   const o = task.estimate.out > 0 ? task.estimate.out : outTarget(task.prompt, task.mode, rendered.tokens.tail);
   const th = thinkingOf(task.model, task.effort, o, run.engine.id);
+  // WP36b: the fixed effort thinking budget rides every call — the claude-cli cap is body + budget
+  // (CLAUDE_CODE_MAX_OUTPUT_TOKENS covers thinking too; the CLI offers no separate thinking cap),
+  // other engines meter/preflight against spec maxOut + budget.
+  const tb = thinkingBudget(task.effort, run.engine.id);
   const cli = run.engine.id === "claude-cli";
   const version = promptVersion(prompts, task.prompt);
   const call: GenCall = {
@@ -193,17 +197,19 @@ export function buildCall(
     model: task.model as ModelId,
     effort: task.effort ?? "low",
     layout: { ...rendered.layout, retry: layoutRetry },
-    maxOutTokens: cli ? Math.max(p.cliMaxOutput.min, Math.ceil(p.cliMaxOutput.factor * (o + th))) : maxOutOf(task.prompt, task.mode),
+    maxOutTokens: cli ? Math.max(p.cliMaxOutput.min, Math.ceil(p.cliMaxOutput.factor * (o + th)), o + tb) : maxOutOf(task.prompt, task.mode) + tb,
     lane,
     fanoutKey: rendered.fanoutKey,
-    estimate: { in: rendered.tokens.prefix + (cli ? p.cliOverheadTokens : 0) + rendered.tokens.tail, out: o + th },
+    estimate: { in: rendered.tokens.prefix + (cli ? p.cliOverheadTokens : 0) + rendered.tokens.tail, out: o + th + tb },
     budgetUsd: Math.max(0.05, 3 * task.estimate.apiUsd),
     timeoutMs:
       run.engine.id === "codex-cli"
         ? CLAUDE_MODE_DEFAULTS.generate.turnMs
-        : run.engine.id === "generic" && run.turnMs !== undefined
-          ? run.turnMs
-          : Math.max(120_000, 4 * task.estimate.seconds * 1000),
+        : run.engine.id === "grok-cli"
+          ? grokTimeoutMs(task.estimate.seconds, run.turnMs ?? GROK_DEFAULT_TURN_MS)
+          : run.engine.id === "generic" && run.turnMs !== undefined
+            ? run.turnMs
+            : Math.max(120_000, 4 * task.estimate.seconds * 1000),
     attempt,
     ttl: cli ? p.cliCacheTtl.default : (run.runSeconds ?? task.estimate.seconds) > p.ttl1hAboveSec ? "1h" : "5m",
   };
@@ -335,6 +341,12 @@ function metricsOf(task: PlannedTask, engine: string, res: ExecResult, turns: re
     stop: turns.at(-1)?.result.stop ?? "end",
   };
   if (first?.result.ttftMs !== undefined) m.ttftMs = first.result.ttftMs;
+  // WP36b: a reported spend above the task estimate is adopted, never discarded; the excess is recorded here
+  // (byte-based estimates are excluded — their units do not match the token estimate).
+  if (u && !res.usageEstimated && task.estimate.apiUsd > 0) {
+    const overrun = Math.round((u.apiUsd - task.estimate.apiUsd) * 1e6) / 1e6;
+    if (overrun > 0) m.overrunUsd = overrun;
+  }
   return m;
 }
 
@@ -460,8 +472,16 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   let out = await consume(env, callRun, (r, n) => validator.validate(r, n), sink, rendered.ctx);
   turns.push({ ...out, attempt: 1 });
   usage = addUsage(usage, out.result.usage);
-  // §8.2: a transport failure without output is re-dispatched once; auth / installation errors fail the run at once
-  if (out.result.stop === "error" && out.verdicts.length === 0 && !run.cancelled() && !signal.aborted && !fatal(out.result.error)) {
+  // §8.2: a retryable transport failure without output is re-dispatched once; auth / installation
+  // errors and non-retryable settings failures (identical on every call) fail at once
+  if (
+    out.result.stop === "error" &&
+    out.verdicts.length === 0 &&
+    !run.cancelled() &&
+    !signal.aborted &&
+    !fatal(out.result.error) &&
+    out.result.error?.retryable !== false
+  ) {
     await callRun.close();
     callRun = await start(call);
     if (callRun === null) return unadmitted();

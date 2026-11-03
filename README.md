@@ -94,7 +94,7 @@ Bunが古くても`bun run start`は新しいBun（`$BUN_INSTALL`・`~/.bun`・P
 
 | 普段使っているもの | 設定コマンド（mitoriフォルダで実行） | 使い方 |
 | --- | --- | --- |
-| Claude Code | `bun run start -- setup claude` | 画面から生成・説明・修正提案 |
+| Claude Code | `bun run start -- setup claude [--model claude-sonnet-5-5]` | 画面から生成・説明・修正提案（`claude-sonnet-5-5`・`claude-opus-5-5`・`claude-haiku-5-5`・`claude-haiku-4-5`・`claude-fable-5-1`）。`--effort`省略時は`high` |
 | Muse | `bun run start -- setup muse --effort high` | 画面から生成・説明・修正提案。`--effort`省略時は`max` |
 | Codex | `bun run start -- setup codex --native --max-estimated-usd 1` | 画面から生成・説明・修正提案 |
 | Ollama | `bun run start -- setup ollama --model MODEL_ID` | 起動済みのOllamaとローカルモデル |
@@ -102,6 +102,7 @@ Bunが古くても`bun run start`は新しいBun（`$BUN_INSTALL`・`~/.bun`・P
 | Cursor | `bun run start -- setup cursor --repo /absolute/path/to/your/repository` | 普段のCursorのセッションで生成（MCP・準備/取り込み） |
 | Antigravity | `bun run start -- setup antigravity --repo /absolute/path/to/your/repository` | 普段のAntigravityのセッションで生成 |
 | Grok Build | `bun run start -- setup grok --repo /absolute/path/to/your/repository` | 普段のGrok Buildのセッションで生成 |
+| Grok Build CLI | `bun run start -- setup grok --cli [--model grok-4.7-build-fast]` | 画面から単発テキスト生成（agent/patch・ツール実行なし）。`--effort`省略時は`low`（medium以上は1タスク10分超えあり） |
 
 **Claude Code・Museの自動更新にはmitoriが自動で追従します。** 各社のツールが新しい版に入れ替わると、mitoriは同じ場所（`setup`で登録した場所）から新しい版を見つけ、実行ファイルの置き場所・持ち主・版・安全設定を確かめ直してから切り替え、画面に「新しい版に自動で切り替えました（旧版 → 新版）」と表示します。モデルや思考の強さなどの設定はそのまま残ります。確かめられなかったときは自動では切り替えず、地図のエンジンカードと設定画面に理由とコピーできるコマンド（`bun run start -- setup …`、前の設定を引き継ぎ）を示し、生成の失敗時と`bun run start -- doctor`にも同じ1行を出します。表示されたコマンドを端末で実行すると直ります。Codexはmitoriで確認済みの版（`0.160.0`）だけを使うため、別の版に更新された場合は自動では切り替えません。setupのやり直しでは直らないので、mitoriを更新（`git pull`）してください。
 
@@ -112,7 +113,7 @@ Bunが古くても`bun run start`は新しいBun（`$BUN_INSTALL`・`~/.bun`・P
 <details>
 <summary>Codex・Ollama・LM Studio・外部セッションの補足</summary>
 
-**Codex（画面から直接）**: 既定は`gpt-6.1-sol` / `high`です。検証済みCLIは`0.160.0`で、別版は安全設定の確認が済むまで拒否します。`--max-estimated-usd 1`は1ターンのAPI換算推計への同意額で、実行はサブスク認証と契約の利用枠に従います。購入済みの追加クレジットがある場合、その消費をmitori側では禁止できません（[公式の利用枠・クレジット説明](https://learn.chatgpt.com/docs/pricing)）。普段のCodexセッションからMCPで使う場合は`setup codex --repo …`を使います。
+**Codex（画面から直接）**: 既定は`gpt-6.1-sol` / `high`です。検証済みCLIは`0.160.0`で、別版は安全設定の確認が済むまで拒否します。`gpt-5.6-terra`（input $2 / output $12）・`gpt-5.6-luna`（input $0.20 / output $1.20、2026-07-30改定の公式価格）の既定単価を持ち、要求の思考の強さ（`reasoning.*`）を`-c model_reasoning_effort`とモデルカタログの両方で渡します。`gpt-6-luna`は公式価格が無いため単価指定が必要です。`--max-estimated-usd 1`は1ターンのAPI換算推計への同意額で、実行はサブスク認証と契約の利用枠に従います。購入済みの追加クレジットがある場合、その消費をmitori側では禁止できません（[公式の利用枠・クレジット説明](https://learn.chatgpt.com/docs/pricing)）。普段のCodexセッションからMCPで使う場合は`setup codex --repo …`を使います。
 
 **Ollama / LM Studio**: `MODEL_ID`は置き換える値です。Ollamaは`ollama list`で取得済みモデル名を、LM Studioはアプリでモデルを読み込みDeveloper画面でサーバーを開始して表示されたIDを指定します。ローカルモデルはログインもAPIキーも不要で、品質はモデルとメモリ容量に依存します。既定の接続先はOllama `http://localhost:11434/v1`、LM Studio `http://localhost:1234/v1`です。Ollamaクラウドを使う場合だけ`bun run start -- auth ollama`で公式サインインし、確認した単価を指定してください。
 
@@ -144,6 +145,8 @@ bun run start -- setup openai --model MODEL_ID \
 ```
 
 別のGrok APIモデルは`setup grok --api --model …`と`--in-price` / `--out-price`を指定します。API経路の既定`grok-4.7`は2026-10-06の公式価格を確認した設定値（input $2 / output $6）です。実請求額の保証ではありません。[モデル・価格の確認記録](docs/research/llm-onboarding-20261006.md)。
+
+Grok Build CLI経路の既定単価はgrokの報告額からの逆算で、公式表ではありません。`grok-4.7-build-fast`（既定）はinput $4 / output $12 / cache read $1、`grok-4.7`はinput $2 / output $6 / cache read $0.5（いずれもUSD/百万token、2026-11-03のホスト実測から逆算）。
 
 HTTP連携は無ツールのChat Completionsを使用します。`--effort`はHTTPへ送信せず、Museなど対応CLIで使います。任意CLIのJSON argv・単価・タイムアウトは画面の「詳細設定（独自CLI・API）」にあります。保存前の確認だけなら`setup … --print`、選択肢は`bun run start -- setup --help`で確認できます。
 

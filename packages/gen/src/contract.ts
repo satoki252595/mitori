@@ -1047,11 +1047,13 @@ export const GEN_ESTIMATE_PARAMS = {
   retryCost: 0.3,
   /** Batch prefix cache hit rate [仮: docs 30–98%]. */
   batchPrefixHit: 0.6,
-  /** Thinking = a + b·out per model × effort [仮; Haiku low measured on a tiny task]. */
+  /** Thinking = a + b·out per model × effort [仮; Haiku low measured on a tiny task; fable/haiku-5-5 provisional by class]. */
   thinking: {
     "claude-sonnet-5-5": { low: [150, 0.05], medium: [400, 0.15] },
     "claude-opus-5-5": { medium: [800, 0.3], high: [1500, 0.5] },
     "claude-haiku-4-5": { low: [500, 0.3] },
+    "claude-haiku-5-5": { low: [500, 0.3] },
+    "claude-fable-5-1": { medium: [800, 0.3], high: [1500, 0.5] },
   },
   /** Haiku on the API runs without thinking. */
   apiHaikuThinking: false,
@@ -1065,6 +1067,8 @@ export const GEN_ESTIMATE_PARAMS = {
     "claude-sonnet-5-5": { low: 1.0, medium: 2.0 },
     "claude-opus-5-5": { medium: 2.0, high: 4.0 },
     "claude-haiku-4-5": { low: 4.9 },
+    "claude-haiku-5-5": { low: 4.9 },
+    "claude-fable-5-1": { medium: 2.0, high: 4.0 },
   },
   /** Output tokens/s measured on claude-cli (2026-10-04), preferred over the price table's `outTokPerSec`. */
   outTokPerSec: { "claude-sonnet-5-5": 135, "claude-opus-5-5": 140 } as Partial<Record<ClaudeModelId, number>>,

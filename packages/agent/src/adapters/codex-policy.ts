@@ -4,6 +4,11 @@ import type { EngineRequest } from "../contract.ts";
 /** Profile verified with the native binary and a local Responses server (no paid model). */
 export const CODEX_VERSION = "0.160.0";
 
+/** API-equivalent prices for one Codex model slug: per-model entry first, then the engine `pricing`. */
+export function codexPricing(settings: EngineSettings["codex-cli"], modelSlug: string): NonNullable<EngineSettings["codex-cli"]["pricing"]> | undefined {
+  return settings.pricingByModel?.[modelSlug] ?? settings.pricing;
+}
+
 /** Shared conservative estimate; native thinking has no hard token cap. Every tool step re-sends the context. */
 export function codexPreflight(
   req: Pick<EngineRequest, "model" | "system" | "prompt" | "promptBlocks" | "jsonSchema"> & { outTokens: number; maxCalls?: number },
@@ -43,8 +48,13 @@ export const CODEX_DISABLED_FEATURES = [
   "skill_search",
 ] as const;
 
-/** Trusted metadata controls the native tool inventory; model server metadata cannot add tools. */
-export function codexCatalog(model: string, agent: boolean): string {
+/**
+ * Trusted metadata controls the native tool inventory; model server metadata cannot add tools.
+ * `effort` is the request's reasoning effort: the catalog's `default_reasoning_level` carries it
+ * alongside `-c model_reasoning_effort` (both verified paths of `codex exec`; `codex exec --help`
+ * offers no `--effort` flag, and the verified 0.160.0 profile uses `-c` overrides).
+ */
+export function codexCatalog(model: string, agent: boolean, effort: EngineRequest["effort"]): string {
   return JSON.stringify({
     models: [
       {
@@ -53,7 +63,7 @@ export function codexCatalog(model: string, agent: boolean): string {
         description: "mitori isolated engine",
         priority: 1,
         visibility: "list",
-        default_reasoning_level: "low",
+        default_reasoning_level: effort,
         supported_reasoning_levels: ["low", "medium", "high", "xhigh", "max"].map((effort) => ({ effort, description: effort })),
         shell_type: "disabled",
         apply_patch_tool_type: agent ? "freeform" : null,

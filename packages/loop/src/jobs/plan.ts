@@ -133,6 +133,7 @@ const ENGINE_CAPS: Record<EngineId, { tools: boolean; jsonSchema: boolean }> = {
   "anthropic-api": { tools: false, jsonSchema: true },
   generic: { tools: false, jsonSchema: false },
   session: { tools: false, jsonSchema: false },
+  "grok-cli": { tools: false, jsonSchema: true },
 };
 
 /** A router / scope error as a MitoriError (`params.actions` stays comma-separated, CR m1-86 b). */
@@ -344,12 +345,18 @@ export async function planJob(deps: PlanDeps, req: JobReq, opts: PlanOptions = {
 }
 
 function providerPrices(engine: EngineId, settings: EngineSettings): EngineSettings["generic"]["pricing"] {
-  return engine === "generic" ? settings.generic.pricing : engine === "codex-cli" ? settings["codex-cli"].pricing : undefined;
+  return engine === "generic"
+    ? settings.generic.pricing
+    : engine === "codex-cli"
+      ? settings["codex-cli"].pricing
+      : engine === "grok-cli"
+        ? settings["grok-cli"].pricing
+        : undefined;
 }
 
 /** List price of a call; configurable providers refuse unknown prices. */
 function price(model: ModelId, inTok: number, outTok: number, cacheRead = 0, prices?: EngineSettings["generic"]["pricing"]): number {
-  if (!(model in PRICING) && !model.startsWith("generic:") && !model.startsWith("codex:")) return 0;
+  if (!(model in PRICING) && !model.startsWith("generic:") && !model.startsWith("codex:") && !model.startsWith("grok:")) return 0;
   return priceUsage(model, { in: inTok, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead, out: outTok }, false, prices);
 }
 

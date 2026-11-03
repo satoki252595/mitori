@@ -381,19 +381,43 @@ export const INCLUDED_CLASSES = [
  * - `codex-cli`: isolated `codex exec`, native apply_patch only in agent mode.
  * - `generic`: global-config `cmd` reading the prompt on stdin, reply on stdout (no usage data).
  */
-export type EngineId = "claude-cli" | "session" | "anthropic-api" | "codex-cli" | "generic";
+export type EngineId = "claude-cli" | "session" | "anthropic-api" | "codex-cli" | "grok-cli" | "generic";
 
 /** Engines that can run generation [CONS-28]. */
 export type GenEngineId = EngineId;
 
-/** Full Claude model ids only — aliases (`sonnet`, `opus`) are forbidden everywhere. */
-export type ClaudeModelId = "claude-opus-5-5" | "claude-sonnet-5-5" | "claude-haiku-4-5";
+/**
+ * Full Claude model ids only — aliases (`sonnet`, `opus`) are forbidden everywhere.
+ * The single list is {@link CLAUDE_MODEL_IDS}; every allowlist and regex derives from it.
+ */
+export type ClaudeModelId = "claude-fable-5-1" | "claude-opus-5-5" | "claude-sonnet-5-5" | "claude-haiku-5-5" | "claude-haiku-4-5";
+
+/** Every Claude model id, cheapest first (the one place the list lives). */
+export const CLAUDE_MODEL_IDS = ["claude-haiku-5-5", "claude-haiku-4-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1"] as const satisfies readonly ClaudeModelId[];
 
 /** Any model reference. Non-Claude models are namespaced by engine. */
-export type ModelId = ClaudeModelId | `codex:${string}` | `generic:${string}`;
+export type ModelId = ClaudeModelId | `codex:${string}` | `grok:${string}` | `generic:${string}`;
 
 /** Reasoning effort passed to the engine (`--effort` / `output_config.effort`). */
 export type ReasoningEffort = "low" | "medium" | "high" | "xhigh" | "max";
+
+/**
+ * Fixed thinking budget per effort (tokens, added once per engine call on top of the Θ(O) model).
+ * Measured 2026-11-03 (ai-job-search, 11 tasks): effort high reports 4–7k thinking per call while the
+ * Θ(O) model only predicts a few hundred, so the estimate and the output cap under-reserve and paid turns
+ * are discarded. The ledger EMA only calibrates input tokens, so this budget stays fixed (WP36b).
+ */
+export const THINKING_BUDGET_TOKENS = { low: 1024, medium: 4096, high: 8192, xhigh: 16384, max: 32768 } as const satisfies Record<
+  ReasoningEffort,
+  number
+>;
+
+/**
+ * Fixed grok-cli input overhead per call (tokens). With the toolset emptied (`--tools ""` plus the
+ * exact 22 + plan-pair denylist), an "OK"-only turn reports 661 uncached input tokens + 3,200 cache
+ * read ≈ 3,900 (grok 1.0.70, host-measured 2026-11-03, WP36e); 4,000 covers it including the cache.
+ */
+export const GROK_FIXED_INPUT_TOKENS = 4_000;
 
 /** Generation effort tiers (D13 default `standard`). Scope formulas live in gen. */
 export type Effort = "overview" | "standard" | "complete";
@@ -437,13 +461,39 @@ export interface ModelPrice {
   tokenizer: TokenizerId;
   /** Output tokens/second used for wall-time estimates (calibrated at runtime). */
   outTokPerSec: number;
+  /**
+   * Second price tier above `overInTokens` input tokens of one request
+   * (uncached + cache read + cache write). When the request input exceeds the
+   * threshold, the whole request is priced with `price` (all five items).
+   */
+  longContext?: {
+    /** Input-token threshold (exclusive): the upper tier applies above this. */
+    overInTokens: number;
+    /** Full five-item price of the upper tier. */
+    price: { inPerMTok: number; cacheWrite5mPerMTok: number; cacheWrite1hPerMTok: number; cacheReadPerMTok: number; outPerMTok: number };
+  };
 }
 
 /** Version stamp recorded with every computed `apiUsd`. Bump when {@link PRICING} changes. */
-export const PRICING_VERSION = "2026-09-25" as const;
+export const PRICING_VERSION = "2026-11-03" as const;
 
-/** List prices (Anthropic first-party API). Source: claude-api skill cache 2026-09-25. */
+/**
+ * List prices (Anthropic first-party API).
+ * Source: https://platform.claude.com/docs/en/about-claude/pricing (checked 2026-11-03).
+ * `outTokPerSec` of fable (50) and haiku-5-5 (150) are provisional, calibrated at runtime.
+ */
 export const PRICING = {
+  "claude-fable-5-1": {
+    inPerMTok: 10,
+    cacheWrite5mPerMTok: 12.5,
+    cacheWrite1hPerMTok: 20,
+    cacheReadPerMTok: 0.25,
+    outPerMTok: 50,
+    batchMultiplier: 0.5,
+    minCachePrefixTokens: 512,
+    tokenizer: "claude-v5",
+    outTokPerSec: 50,
+  },
   "claude-opus-5-5": {
     inPerMTok: 4,
     cacheWrite5mPerMTok: 5,
@@ -459,12 +509,27 @@ export const PRICING = {
     inPerMTok: 2,
     cacheWrite5mPerMTok: 2.5,
     cacheWrite1hPerMTok: 4,
-    cacheReadPerMTok: 0.2,
+    cacheReadPerMTok: 0.1,
     outPerMTok: 10,
     batchMultiplier: 0.5,
     minCachePrefixTokens: 512,
     tokenizer: "claude-v5",
     outTokPerSec: 125,
+  },
+  "claude-haiku-5-5": {
+    inPerMTok: 0.1,
+    cacheWrite5mPerMTok: 0.125,
+    cacheWrite1hPerMTok: 0.2,
+    cacheReadPerMTok: 0.01,
+    outPerMTok: 0.5,
+    batchMultiplier: 0.5,
+    minCachePrefixTokens: 512,
+    tokenizer: "claude-v5",
+    outTokPerSec: 150,
+    longContext: {
+      overInTokens: 100_000,
+      price: { inPerMTok: 0.5, cacheWrite5mPerMTok: 0.625, cacheWrite1hPerMTok: 1, cacheReadPerMTok: 0.05, outPerMTok: 2.5 },
+    },
   },
   "claude-haiku-4-5": {
     inPerMTok: 1,
@@ -3094,10 +3159,27 @@ export interface EngineSettings {
     model: string;
     /** Explicit API-equivalent prices; absent refuses before calling the native engine. */
     pricing?: { inPerMTok: number; outPerMTok: number; cacheReadPerMTok: number };
+    /** Per-model explicit API-equivalent prices (key = model slug); unknown models use `pricing`. */
+    pricingByModel?: Record<string, { inPerMTok: number; outPerMTok: number; cacheReadPerMTok: number }>;
     /** Explicit consent to this estimated per-turn ceiling. Native thinking/hidden failed-tool rounds cannot be hard-capped. */
     maxEstimatedSpendUsd?: number;
     /** Visible native file-change calls per turn (1–8, default 2); failed attempts are not exposed by CLI JSONL. */
     maxPatchSteps?: number;
+  };
+  /** grok-cli: isolated single-turn text generation via the Grok Build CLI; no agent/patch modes, no tools. */
+  "grok-cli": {
+    /** Enabled (default false). */
+    enabled: boolean;
+    /** Binary path or command name resolved on PATH (`grok`). */
+    binary: string;
+    /** Default model id (e.g. `grok-4.7`). */
+    model: string;
+    /** Explicit API-equivalent prices; absent reserves the caller's USD cap like generic. */
+    pricing?: { inPerMTok: number; outPerMTok: number; cacheReadPerMTok: number };
+    /** Per-model explicit API-equivalent prices (key = model id); unknown models use `pricing`. */
+    pricingByModel?: Record<string, { inPerMTok: number; outPerMTok: number; cacheReadPerMTok: number }>;
+    /** Hard timeout of a generation turn in milliseconds (default per mode). */
+    turnMs?: number;
   };
   /** Generic text-only CLI or OpenAI-compatible Chat Completions. */
   generic: {
@@ -3311,7 +3393,7 @@ export interface GlobalSettings {
    * Binaries resolved once and pinned (path, realpath, sha256, version); a change ⇒ `E_ENGINE_BINARY_CHANGED`
    * until re-confirmed on the engine card [SEC-10]. Written only by the daemon after a human confirmation.
    */
-  pins: Partial<Record<"claude" | "git" | "gh" | "codex", BinaryPin>>;
+  pins: Partial<Record<"claude" | "git" | "gh" | "codex" | "grok", BinaryPin>>;
   /** Limits. */
   limits: Limits;
   /** Scheduler. */

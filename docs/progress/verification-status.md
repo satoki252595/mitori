@@ -32,6 +32,7 @@ Windowsの後続確認は2026-10-12 JST（実ログは2026-10-11 UTC）の[実Wi
 | Codex | 両方の設定プレビュー・MCP接続・実回答成功 | native 0.160.0 / gpt-6.1-solでJev/m3e生成・ソース照合を確認。本人projectのMCPも8ツール確認。外部MCPセッションからの生成、請求額・契約残量は未確認 |
 | Cursor | 両方の設定プレビュー・公式CLIのMCP接続成功 | 本人project設定で8ツールを確認。外部セッションからの文書生成は未実行 |
 | Grok Build | 両方の設定プレビュー・公式CLIのMCP接続成功 | 本人project設定で8ツールを確認。公式ログイン状態は未確認、外部セッションからの文書生成は未実行 |
+| Grok Build CLI | 設定プレビューのみ（`setup grok --cli`） | fakeの子プロセスとcassetteだけで検証、実行は未確認（作業時は未ログイン）。単発テキスト生成のみでagent/patch・ツール実行なし |
 | Antigravity | 両方の設定プレビュー・公式アプリのMCP接続成功 | 本体2.12.2の共通設定で8ツールを確認。project設定の制約は上記参照。公式ログイン状態は未確認、外部セッションからの文書生成は未実行 |
 
 LM Studioの確認は取得済みGGUF `qwen/qwen3.8-27b`によるNix・通常ローカルの短いExplainまでで、本格的な文書生成は未検証です。[実検証記録](docs/progress/remaining-20261011/lmstudio-explain.md)。

@@ -2,7 +2,7 @@
  * @mitori/gen — `engines/` (owner: WP-06). Everything exported here is public (re-exported by `src/index.ts`):
  * export only contract names; keep helpers in sibling files.
  */
-import { codexPreflight, type ScheduledRequest } from "@mitori/agent";
+import { codexPreflight, codexPricing, type ScheduledRequest } from "@mitori/agent";
 import { type EngineSettings, type GenEngineId, MitoriError, type WorkspaceKey } from "@mitori/core";
 import type { GenCall } from "../contract.ts";
 
@@ -48,10 +48,11 @@ export function toScheduledRequest(
   if (call.jsonSchema) req.jsonSchema = call.jsonSchema;
   if (ctx.engine === "codex-cli") {
     const cfg = ctx.codex;
-    if (!cfg?.pricing || !(cfg.maxEstimatedSpendUsd && Number.isFinite(cfg.maxEstimatedSpendUsd)))
+    const pricing = cfg ? codexPricing(cfg, req.model.startsWith("codex:") ? req.model.slice("codex:".length) : cfg.model) : undefined;
+    if (!pricing || !(cfg?.maxEstimatedSpendUsd && Number.isFinite(cfg.maxEstimatedSpendUsd)))
       throw new MitoriError("E_CFG_INVALID", "Codex generation needs explicit pricing and estimated spend consent");
     // Match the native adapter's one-byte/token preflight, including a cold retry's complete prompt.
-    const preflight = codexPreflight({ ...req, outTokens: call.maxOutTokens }, cfg.pricing);
+    const preflight = codexPreflight({ ...req, outTokens: call.maxOutTokens }, pricing);
     req.budget.inTokens = preflight.inTokens;
     req.budget.usd = Math.max(call.budgetUsd, preflight.usd);
     if (req.budget.usd > cfg.maxEstimatedSpendUsd)

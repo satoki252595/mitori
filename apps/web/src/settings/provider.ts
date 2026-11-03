@@ -31,6 +31,24 @@ export const EFFORTS: readonly ReasoningEffort[] = ["low", "medium", "high", "xh
 export const SETUP_PROVIDERS = ["claude", "muse", "grok", "ollama", "lmstudio", "openai", "codex", "cursor", "antigravity"] as const;
 export type SetupProvider = (typeof SETUP_PROVIDERS)[number];
 
+/**
+ * Engines the advanced details select offers directly. The CLI engines stay guided-only: their
+ * models and execution settings are set through the guided commands above, never PATCHed here.
+ */
+export const ADVANCED_ENGINES = ["claude-cli", "anthropic-api", "session", "generic"] as const;
+
+/**
+ * Keep the guided Grok model on its mode's default when toggling API/CLI: the API preset bills
+ * grok-4.7 while the CLI runs grok-4.7-build-fast, and sending the CLI default with --api needs
+ * explicit prices so the command builder rejects it. A custom model is left alone.
+ */
+export function syncGrokGuidedModel(current: string, opts: { api: boolean; cli: boolean }): string {
+  const model = current.trim();
+  if (opts.api && !opts.cli && model === "grok-4.7-build-fast") return "grok-4.7";
+  if (opts.cli && !opts.api && model === "grok-4.7") return "grok-4.7-build-fast";
+  return current;
+}
+
 /** Keep endpoint validation aligned with the API adapter, before generating any executable command. */
 function apiSettings(baseUrl: string, keyEnv: string | undefined): { baseUrl: string; keyEnv?: string } {
   const url = new URL(baseUrl);
@@ -55,6 +73,8 @@ export function providerSetupCommand(
     provider: SetupProvider;
     api?: boolean;
     native?: boolean;
+    /** Grok Build CLI engine instead of the session (`setup grok --cli`). */
+    cli?: boolean;
     maxEstimatedUsd?: number | undefined;
     model?: string;
     repo?: string | undefined;
@@ -62,20 +82,22 @@ export function providerSetupCommand(
     keyEnv?: string;
     inputPrice?: number | undefined;
     outputPrice?: number | undefined;
-    /** Reasoning effort for providers whose CLI preset takes one (Muse, native Codex). */
+    /** Reasoning effort for providers whose CLI preset takes one (Muse, native Codex, Grok CLI). */
     effort?: ReasoningEffort | undefined;
   },
   launcher?: LauncherCommand | undefined,
 ): string {
   if (!SETUP_PROVIDERS.includes(input.provider)) throw new Error("settings.providerInvalid");
   if (input.native && input.provider !== "codex") throw new Error("settings.providerInvalid");
+  if (input.cli && input.provider !== "grok") throw new Error("settings.providerInvalid");
+  if (input.cli && input.api) throw new Error("settings.providerInvalid");
   const args: string[] = [];
   const add = (flag: string, value: string) => {
     args.push(flag, shellQuote(value));
   };
   const model = input.model?.trim();
   if (model && (/\s/u.test(model) || [...model].some((c) => c.charCodeAt(0) < 32))) throw new Error("settings.providerInvalid");
-  if ((["codex", "cursor", "antigravity"].includes(input.provider) && !input.native) || (input.provider === "grok" && !input.api)) {
+  if ((["codex", "cursor", "antigravity"].includes(input.provider) && !input.native) || (input.provider === "grok" && !input.api && !input.cli)) {
     if (!input.repo?.trim() || [...input.repo].some((c) => c.charCodeAt(0) < 32)) throw new Error("settings.providerInvalid");
     add("--repo", input.repo.trim());
   } else {
@@ -85,15 +107,16 @@ export function providerSetupCommand(
       args.push("--native");
       add("--max-estimated-usd", String(input.maxEstimatedUsd));
     }
-    if (input.provider === "grok") args.push("--api");
+    if (input.provider === "grok" && input.cli) args.push("--cli");
+    else if (input.provider === "grok") args.push("--api");
     let remoteApi = false;
     if (["ollama", "lmstudio", "openai"].includes(input.provider) && !model) throw new Error("settings.providerInvalid");
     if (model) add("--model", model);
-    if (input.effort && (input.provider === "muse" || input.native)) {
+    if (input.effort && (input.provider === "muse" || input.native || (input.provider === "grok" && input.cli))) {
       if (!EFFORTS.includes(input.effort)) throw new Error("settings.providerInvalid");
       add("--effort", input.effort);
     }
-    if (["grok", "ollama", "lmstudio", "openai"].includes(input.provider)) {
+    if (["grok", "ollama", "lmstudio", "openai"].includes(input.provider) && !(input.provider === "grok" && input.cli)) {
       const baseUrl =
         input.baseUrl?.trim() ||
         ({ grok: "https://api.x.ai/v1", ollama: "http://127.0.0.1:11434/v1", lmstudio: "http://127.0.0.1:1234/v1" } as Record<string, string>)[input.provider];
@@ -109,7 +132,7 @@ export function providerSetupCommand(
       input.provider === "openai" ||
       (input.provider === "codex" && !!model && model !== "gpt-6.1-sol") ||
       (input.provider === "muse" && !!model && model !== "muse-spark-1.3-contributor") ||
-      (input.provider === "grok" && !!model && model !== "grok-4.7") ||
+      (input.provider === "grok" && !!model && (input.cli ? model !== "grok-4.7" && model !== "grok-4.7-build-fast" : model !== "grok-4.7")) ||
       (["ollama", "lmstudio"].includes(input.provider) && remoteApi) ||
       cloud;
     if (needsPrices || input.inputPrice !== undefined || input.outputPrice !== undefined) {

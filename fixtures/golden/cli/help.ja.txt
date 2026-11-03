@@ -57,14 +57,15 @@ mitori config set <path> <value>
 ## setup
 mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> [options]
   既存のLLMを設定し、TTYで1回確認して保存します。インストール・モデル呼出しは行いません。
-  --model ID                     ローカル/任意APIのモデル（Grok既定grok-4.7、Muse既定contributor）
+  --model ID                     ローカル/任意APIのモデル（Grok既定grok-4.7-build-fast、Muse既定contributor）
   --repo /absolute/repo          Codex/Cursor/Antigravity/Grokの外部セッションとMCP対象
   --api                         Grokで外部セッションの代わりに有料APIを選択
+  --cli [--model grok-4.7-build-fast]  Grokで外部セッションの代わりにBuild CLIを選択（単発テキスト生成のみ）
   --native --max-estimated-usd N Codexのサブスク認証で直接実行（推計上限、厳密な費用上限ではない）
-  --binary /absolute/path        Claude/Muse/Codex nativeの実行ファイル
+  --binary /absolute/path        Claude/Muse/Codex/Grok CLIの実行ファイル
   --base-url URL --key-env NAME  OpenAI互換APIのURLとキーの環境変数名（キー自体は保存しない）
   --in-price N --out-price N     任意remoteモデルのUSD/百万token単価
-  --effort low|medium|high|xhigh|max  Museの推論強度（既定max、HTTPへは送らない）
+  --effort low|medium|high|xhigh|max  Muse・Claude・Grok CLIの推論強度（Muse既定max、Claude既定high、Grok CLI既定low。medium以上は1タスク10分超えあり。HTTPへは送らない）
   --print                        設定・連携手順の表示だけ（保存・接続しない）
   例: mitori setup grok --repo /absolute/repo（既存セッション） / mitori setup grok --api（XAI_API_KEY）
 

@@ -387,6 +387,12 @@ describe("AC-U-EN engine card: exact steps, the last one re-probes", () => {
         expect(steps.at(-1)?.key).toBe("recheck");
       }
   });
+  test("WP36-D grok-cli notLoggedIn guides to `grok login`; its setup command selects the CLI", () => {
+    expect(fixSteps("notLoggedIn", "grok-cli")).toEqual([{ key: "login", cmd: "grok login" }, { key: "recheck" }]);
+    expect(fixSteps("capabilityLost", "grok-cli").at(-1)?.key).toBe("recheck");
+    expect(setupCommandFor("grok-cli", { model: "grok-4.7", effort: "high" })).toContain("setup grok --cli");
+    expect(setupCommandFor("grok-cli", { model: "grok-4.7", effort: "high" })).toContain("--model 'grok-4.7'");
+  });
   test("a Muse self-update that removed the configured binary gets the one setup command, not install guidance", () => {
     const gone: EngineStatus = {
       engine: "generic",

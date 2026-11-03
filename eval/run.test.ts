@@ -3,6 +3,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { PRICING_VERSION } from "@mitori/core";
 import { TEST_FORMATS } from "@mitori/testkit";
 import { EvalRefusal } from "./budget.ts";
 import { createFakeEvalEngine } from "./engine.ts";
@@ -56,11 +57,11 @@ describe("EVAL-AT-01 --suite smoke on the fake engine", () => {
 });
 
 describe("EVAL-U-30 runEval", () => {
-  test("the report carries versions, git, budget and the ledger-backed spend", async () => {
+  test("EVAL-U-30 the report carries versions, git, budget and the ledger-backed spend", async () => {
     const out = tmp();
     const o = await runEval({ suite: "smoke", out, now: () => new Date("2026-10-03T12:00:00Z") });
     expect(o.exit).toBe(0);
-    expect(o.report.versions.pricing).toBe("2026-09-25");
+    expect(o.report.versions.pricing).toBe(PRICING_VERSION);
     expect(o.report.startedAt).toBe("2026-10-03T12:00:00.000Z");
     expect(o.report.git.sha).toMatch(/^[0-9a-f]{40}$/);
     expect(Object.keys(o.report.suites)).toEqual(["smoke"]);

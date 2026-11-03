@@ -221,9 +221,11 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
     const P = 11550 + 450; // system + pack + ε_cli
     const O = Math.round(Math.min(3500, 900 + 0.06 * 14100)); // 1746
     const th = Math.round(150 + 0.05 * O);
-    const usd = (w: 0 | 1) => (w * P * 2.5 + (1 - w) * P * 0.2 + 14100 * 2.5 + (O + th) * 10) / 1e6;
+    const tb = 1024; // THINKING_BUDGET_TOKENS.low, added once per call (WP36b)
+    // Sonnet cache read is 0.10/MTok (PRICING 2026-11-03, WP36-A correction from 0.2).
+    const usd = (w: 0 | 1) => (w * P * 2.5 + (1 - w) * P * 0.1 + 14100 * 2.5 + (O + th + tb) * 10) / 1e6;
     const cold = estimator.task({ ...t, estimate: { ...t.estimate } }, "claude-cli", false);
-    expect(cold).toMatchObject({ prefix: 11550, tail: 14100, out: O, thinking: th, cacheWrite: P + 14100, cacheRead: 0, uncached: 0 });
+    expect(cold).toMatchObject({ prefix: 11550, tail: 14100, out: O, thinking: th + tb, cacheWrite: P + 14100, cacheRead: 0, uncached: 0 });
     expect(cold.apiUsd).toBeCloseTo(usd(1), 6);
     expect(cold.seconds).toBeCloseTo(1.0 + 1.0 + (O + th) / 135, 1);
     const warm = estimator.task({ ...t, estimate: { ...t.estimate } }, "claude-cli", true);
@@ -236,8 +238,9 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
     const k = GEN_ESTIMATE_PARAMS.retryCost;
     const e = withRetry(t, warm, "claude-cli");
     const read = 14100 + P;
-    expect(e).toMatchObject({ cacheRead: Math.round(P + r * read), cacheWrite: Math.round(14100 + r * (O + th)), out: Math.round(O + r * k * O) });
-    expect(e.apiUsd).toBeCloseTo(usd(0) + (r * (read * 0.2 + (O + th) * 2.5 + k * (O + th) * 10)) / 1e6, 6);
+    const reply = O + th + tb;
+    expect(e).toMatchObject({ cacheRead: Math.round(P + r * read), cacheWrite: Math.round(14100 + r * reply), out: Math.round(O + r * k * O) });
+    expect(e.apiUsd).toBeCloseTo(usd(0) + (r * (read * 0.1 + reply * 2.5 + k * reply * 10)) / 1e6, 6);
     expect(withRetry(t, warm, "session")).toBe(warm);
   });
 
@@ -337,6 +340,58 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
   });
 });
 
+describe("WP36b-1 thinking budget in estimates", () => {
+  const moduleTask = (model: ModelId, effort: "low" | "medium" | "high"): PlannedTask => ({
+    id: "gt_0000000001",
+    stage: "S5",
+    prompt: "gen.module",
+    target: { kind: "module", id: M_SESSION },
+    sections: ["s6/session"],
+    deps: [],
+    softDeps: [],
+    model,
+    effort,
+    lane: "background",
+    topoOrder: 0,
+    rank: 0.9,
+    cacheKey: null,
+    cached: false,
+    estimate: { prefix: 11550, tail: 14100, out: 0, thinking: 0, cacheWrite: 0, cacheRead: 0, uncached: 0, apiUsd: 0, seconds: 0 },
+    phase: 1,
+  });
+
+  test("effort high adds 8,192 thinking once per call on top of Θ(O)", () => {
+    const { estimator } = setup();
+    // Opus high Θ = 1500 + 0.5·1746 = 2373; wall time still follows Θ only
+    const e = estimator.task(moduleTask("claude-opus-5-5", "high"), "claude-cli", false);
+    expect(e.thinking).toBe(2373 + 8192);
+    expect(e.seconds).toBeCloseTo(1.0 + 4.0 + (1746 + 2373) / 140, 1);
+  });
+
+  test("WP36h-6 grok-cli thinking budget follows the measured reasoning (low 12,000, medium/high 64,000)", () => {
+    const { estimator } = setup();
+    const low = estimator.task(moduleTask("grok:grok-4.7-build-fast", "low"), "grok-cli", false);
+    expect(low.uncached).toBe(14100 + 4000);
+    // host-measured low reports 10,749 reasoning tokens per call (ai-job-search, 2026-11-03)
+    expect(low.thinking).toBe(12000);
+    const medium = estimator.task(moduleTask("grok:grok-4.7-build-fast", "medium"), "grok-cli", false);
+    expect(medium.thinking).toBe(64000);
+    const high = estimator.task(moduleTask("grok:grok-4.7", "high"), "grok-cli", false);
+    // host-measured high reports 64,045 reasoning tokens per call (ai-job-search, 2026-11-03)
+    expect(high.thinking).toBe(64000);
+    // Claude keeps the WP36b budget
+    expect(estimator.task(moduleTask("claude-opus-5-5", "high"), "claude-cli", false).thinking).toBe(2373 + 8192);
+  });
+
+  test("WP36f-3 grok-cli estimates wall time at 50 output tok/s", () => {
+    const { estimator } = setup();
+    const e = estimator.task(moduleTask("grok:grok-4.7", "high"), "grok-cli", false);
+    // startup 1.0 + ttft 10 + visible output 1,746 / 50 (thinking budget rides the cap, not the clock)
+    expect(e.seconds).toBeCloseTo(1.0 + 10 + 1746 / 50, 1);
+    expect(speedOf("grok:grok-4.7", "high", "grok-cli")).toBe(50);
+  });
+});
+
 describe("generic byte-upper estimates (usage-less engines record UTF-8 bytes as tokens)", () => {
   const genericSettings = (protocol: "text" | "muse-jsonl" | "openai-chat" | undefined) => {
     const s = testSettings();
@@ -349,7 +404,7 @@ describe("generic byte-upper estimates (usage-less engines record UTF-8 bytes as
     return s;
   };
 
-  /** Same raw task as GEN-G-002 (prefix 11550, tail 14100, Sonnet low ⇒ O = 1746, Θ = 237). */
+  /** Same raw task as GEN-G-002 (prefix 11550, tail 14100, Sonnet low ⇒ O = 1746, Θ = 237 + 1,024 budget). */
   const rawTask = (): PlannedTask => ({
     id: "gt_0000000001",
     stage: "S5",
@@ -376,11 +431,12 @@ describe("generic byte-upper estimates (usage-less engines record UTF-8 bytes as
     expect(e.prefix).toBe(Math.round(11550 * 2.3));
     expect(e.tail).toBe(Math.round(14100 * 2.3));
     expect(e.out).toBe(Math.round(1746 * 3.75));
-    expect(e.thinking).toBe(Math.round(237 * 3.75));
+    expect(e.thinking).toBe(Math.round(1261 * 3.75)); // Θ 237 + low budget 1,024 (WP36b)
     expect(e.cacheWrite).toBe(0);
     expect(e.cacheRead).toBe(0);
     expect(e.uncached).toBe(Math.round(11550 * 2.3) + Math.round(14100 * 2.3));
-    const usd = (Math.round(11550 * 2.3) * 2.5 + Math.round(14100 * 2.3) * 2 + (Math.round(1746 * 3.75) + Math.round(237 * 3.75)) * 10) / 1e6;
+    const usd =
+      Math.round(((Math.round(11550 * 2.3) * 2.5 + Math.round(14100 * 2.3) * 2 + (Math.round(1746 * 3.75) + Math.round(1261 * 3.75)) * 10) / 1e6) * 1e6) / 1e6;
     expect(e.apiUsd).toBeCloseTo(usd, 6);
     // seconds are unchanged (σ + ttft + token out / speed)
     expect(e.seconds).toBeCloseTo(1.0 + 1.0 + (1746 + 237) / 135, 1);
@@ -389,8 +445,8 @@ describe("generic byte-upper estimates (usage-less engines record UTF-8 bytes as
   test("openai-chat (usage is reported) stays token-based", () => {
     const { estimator } = setup(sampleRepo(), genericSettings("openai-chat"));
     const e = estimator.task(rawTask(), "generic", false);
-    expect(e).toMatchObject({ prefix: 11550, tail: 14100, out: 1746, thinking: 237, cacheWrite: 0, cacheRead: 0, uncached: 25650 });
-    expect(e.apiUsd).toBeCloseTo((11550 * 2.5 + 14100 * 2 + 1983 * 10) / 1e6, 6);
+    expect(e).toMatchObject({ prefix: 11550, tail: 14100, out: 1746, thinking: 1261, cacheWrite: 0, cacheRead: 0, uncached: 25650 });
+    expect(e.apiUsd).toBeCloseTo((11550 * 2.5 + 14100 * 2 + 3007 * 10) / 1e6, 6);
   });
 
   test("default protocol (text) is byte-upper; the plan estimate is larger than claude-cli with identical seconds", () => {

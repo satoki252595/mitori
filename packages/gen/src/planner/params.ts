@@ -1,5 +1,14 @@
 /** Per-prompt model / effort / output-target / timing rules (gen spec §3.4, §5.3, §9.2–§9.5). Pure. */
-import { type ClaudeModelId, type EffectiveSettings, type EngineId, type GenStage, type ModelId, PRICING, type ReasoningEffort } from "@mitori/core";
+import {
+  type ClaudeModelId,
+  type EffectiveSettings,
+  type EngineId,
+  type GenStage,
+  type ModelId,
+  PRICING,
+  type ReasoningEffort,
+  THINKING_BUDGET_TOKENS,
+} from "@mitori/core";
 import { GEN_ESTIMATE_PARAMS, GEN_PROMPTS, type GenModelKey, type GenPromptId, type PlannedTask } from "../contract.ts";
 import { baseMode, isFilesMode } from "../prompts/files.ts";
 
@@ -47,7 +56,8 @@ export function modelOf(
   let effort: ReasoningEffort | null = modeEffort !== undefined ? modeEffort : spec.effort;
   if (key === "genOverview") effort = s.global.reasoning.genOverview;
   else if (key === "genModule") effort = s.global.reasoning.gen;
-  if (engine === "generic" || engine === "codex-cli") effort = key === "genOverview" ? s.global.reasoning.genOverview : s.global.reasoning.gen;
+  if (engine === "generic" || engine === "codex-cli" || engine === "grok-cli")
+    effort = key === "genOverview" ? s.global.reasoning.genOverview : s.global.reasoning.gen;
   if (engine === "anthropic-api" && model === "claude-haiku-4-5") effort = null;
   return { model, effort };
 }
@@ -100,6 +110,21 @@ export function outTarget(prompt: GenPromptId, mode: string | undefined, tail: n
 
 const isClaude = (m: ModelId): m is ClaudeModelId => m in PRICING;
 
+/**
+ * Fixed thinking budget of one call (WP36b): 0 when effort is omitted (e.g. Haiku on the API).
+ * Grok rewrites the whole body inside its reasoning on rule-heavy prompts (host-measured
+ * 2026-11-03, WP36h): low 10,749 / medium — (20 min, unfinished) / high 64,045 reasoning
+ * tokens, so grok-cli reserves low 12,000 / medium 64,000 / high 64,000; xhigh/max keep WP36b.
+ */
+export function thinkingBudget(effort: ReasoningEffort | null, engine?: EngineId): number {
+  if (effort === null) return 0;
+  if (engine === "grok-cli") {
+    if (effort === "low") return 12_000;
+    if (effort === "medium" || effort === "high") return 64_000;
+  }
+  return THINKING_BUDGET_TOKENS[effort];
+}
+
 /** Thinking tokens Θ = a + b·O (Haiku on the API: none). */
 export function thinkingOf(model: ModelId, effort: ReasoningEffort | null, out: number, engine: EngineId): number {
   if (!isClaude(model) || effort === null) return 0;
@@ -124,8 +149,27 @@ export function ttftOf(model: ModelId, effort: ReasoningEffort | null, engine: E
   return (effort ? table[effort] : undefined) ?? Object.values(table)[0] ?? 4;
 }
 
+/**
+ * Grok output speed (tokens/s) for estimates and timeouts (WP36f): host-measured ≈ 60 tok/s
+ * (5,167 output tokens in 86 s on the WP36f backend-tools-off probe); planning stays at 50.
+ */
+export const GROK_OUTPUT_TOKENS_PER_SEC = 50;
+
+/** Default grok-cli turn cap (ms): low takes ~120 s, high ~570 s on the measured calls (WP36h). */
+export const GROK_DEFAULT_TURN_MS = 1_200_000;
+
+/**
+ * One grok call's timeout: 3× the estimate, at least 900 s (a low call alone runs ~355 s,
+ * WP36h), at most the turn cap (the caller passes the settings `turnMs`,
+ * defaulting to `GROK_DEFAULT_TURN_MS`).
+ */
+export function grokTimeoutMs(estimateSeconds: number, turnCapMs: number): number {
+  return Math.min(turnCapMs, Math.max(900_000, 3 * estimateSeconds * 1000));
+}
+
 /** Output tokens/s. */
-export function speedOf(model: ModelId, effort: ReasoningEffort | null = null): number {
+export function speedOf(model: ModelId, effort: ReasoningEffort | null = null, engine?: EngineId): number {
+  if (engine === "grok-cli") return GROK_OUTPUT_TOKENS_PER_SEC;
   if (!isClaude(model)) return reasoningHeavy(effort) ? 40 : effort === "medium" ? 60 : 80;
   return GEN_ESTIMATE_PARAMS.outTokPerSec[model] ?? PRICING[model].outTokPerSec;
 }

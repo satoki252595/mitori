@@ -87,6 +87,52 @@ describe("settings defaults and schema", () => {
     expect(code(tryParse('{"workspaces":{"bad-key":{}}}'))).toBe("E_CFG_INVALID");
     expect(code(tryParse('{"models":{"answer":"sonnet"}}'))).toBe("E_CFG_INVALID"); // aliases are forbidden
   });
+  test("WP36-A/D role models accept the new Claude ids and grok:/codex: names; grok-cli settings validate", () => {
+    const configured = {
+      defaultEngine: "grok-cli",
+      defaultGenEngine: "grok-cli",
+      engines: {
+        "grok-cli": {
+          enabled: true,
+          binary: "grok",
+          model: "grok-4.7",
+          pricing: { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 2 },
+          pricingByModel: { "grok-4.6": { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 2 } },
+          turnMs: 600_000,
+        },
+        "codex-cli": {
+          enabled: true,
+          binary: "codex",
+          model: "gpt-5.6-terra",
+          pricingByModel: { "gpt-5.6-terra": { inPerMTok: 2, outPerMTok: 12, cacheReadPerMTok: 0.2 } },
+        },
+      },
+      models: {
+        answer: "claude-haiku-5-5",
+        patch: "claude-fable-5-1",
+        agent: "codex:gpt-5.6-terra",
+        genModule: "grok:grok-4.7",
+        genOverview: "claude-opus-5-5",
+        genLeaf: "claude-haiku-4-5",
+        judge: "claude-sonnet-5-5",
+        rewrite: "grok:grok-4.7",
+        escalate: "codex:gpt-5.6-luna",
+      },
+      privacy: { dataPolicyAck: { "grok-cli": { at: "2026-11-03T00:00:00.000Z", shownAt: "2026-11-03T00:00:00.000Z", plan: "pro" } } },
+    };
+    const parsed = parseGlobalSettings(JSON.stringify(configured));
+    expect(parsed.models.answer).toBe("claude-haiku-5-5");
+    expect(parsed.models.genModule).toBe("grok:grok-4.7");
+    expect(parsed.engines["grok-cli"]).toEqual(configured.engines["grok-cli"]);
+    // adding one engine keeps the stored siblings (deep merge)
+    const merged = deepMerge(DEFAULT_GLOBAL_SETTINGS, { engines: { "grok-cli": configured.engines["grok-cli"] } });
+    expect(merged.engines["claude-cli"]).toEqual(DEFAULT_GLOBAL_SETTINGS.engines["claude-cli"]);
+    expect(merged.engines["codex-cli"]).toEqual(DEFAULT_GLOBAL_SETTINGS.engines["codex-cli"]);
+    expect(merged.engines["grok-cli"].model).toBe("grok-4.7");
+    expect(DEFAULT_GLOBAL_SETTINGS.engines["grok-cli"].turnMs).toBe(1_200_000); // WP36h-6
+    expect(validate(merged, GLOBAL_SPEC)).toEqual([]);
+    expect(code(tryParse('{"models":{"answer":"claude-fable-5"}}'))).toBe("E_CFG_INVALID"); // short ids stay forbidden
+  });
 });
 
 function tryParse(text: string): unknown {

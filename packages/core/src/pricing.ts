@@ -1,4 +1,4 @@
-import { type ClaudeModelId, type EngineSettings, type ModelId, PRICING, type TokenBand } from "./domain.ts";
+import { type EngineSettings, type ModelId, type ModelPrice, PRICING, type TokenBand } from "./domain.ts";
 import { MitoriError } from "./errors.ts";
 
 /**
@@ -12,9 +12,13 @@ export function priceUsage(
   batch: boolean,
   prices?: EngineSettings["generic"]["pricing"],
 ): number {
+  const listed = (PRICING as Partial<Record<string, ModelPrice>>)[model];
+  // Two-tier models (haiku-5-5): one request whose input (uncached + cache read + cache write)
+  // exceeds the threshold is priced wholly on the upper tier.
   const p =
-    (PRICING as Partial<Record<string, (typeof PRICING)[ClaudeModelId]>>)[model] ??
-    (prices ? { ...prices, cacheWrite5mPerMTok: prices.inPerMTok, cacheWrite1hPerMTok: prices.inPerMTok, batchMultiplier: 1 } : undefined);
+    listed?.longContext && t.in + t.cacheRead + t.cacheWrite5m + t.cacheWrite1h > listed.longContext.overInTokens
+      ? { ...listed, ...listed.longContext.price }
+      : (listed ?? (prices ? { ...prices, cacheWrite5mPerMTok: prices.inPerMTok, cacheWrite1hPerMTok: prices.inPerMTok, batchMultiplier: 1 } : undefined));
   if (!p) throw new MitoriError("E_INVALID_INPUT", `priceUsage: unpriced model ${model}`, { params: { model } });
   for (const [k, n] of Object.entries(t)) {
     if (!Number.isFinite(n) || n < 0) throw new MitoriError("E_INVALID_INPUT", `priceUsage: ${k} must be a non-negative count`, { params: { field: k } });

@@ -239,7 +239,7 @@ describe("AC-L20 route — engine capability", () => {
     expect(e.code).toBe("E_AGENT_CAPABILITY");
     expect(actions(e)).toEqual(["copy_prompt", "other_engine"]);
   });
-  test.each(["anthropic-api", "codex-cli", "generic"] as EngineId[])("patch and answer keep %s", (id) => {
+  test.each(["anthropic-api", "codex-cli", "generic", "grok-cli"] as EngineId[])("patch and answer keep %s", (id) => {
     const engine = { id, tools: false, jsonSchema: id !== "generic", claudeCliAvailable: false };
     expect(ok(base({ engine })).engine).toBe(id);
     expect(ok(base({ intents: ["question"], engine })).engine).toBe(id);

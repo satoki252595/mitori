@@ -26,6 +26,7 @@ export function testSettings(over: { global?: Partial<GlobalSettings>; docLang?:
       session: { enabled: true },
       "anthropic-api": { enabled: false, keySource: "env", envVar: "ANTHROPIC_API_KEY", useBatch: false, monthlyCapUsd: 0 },
       "codex-cli": { enabled: false, binary: "codex", model: "gpt" },
+      "grok-cli": { enabled: false, binary: "grok", model: "" },
       generic: { enabled: false, argv: [] },
     },
     models: {
