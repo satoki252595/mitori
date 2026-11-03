@@ -1,6 +1,6 @@
 # mitori 引き継ぎ（現在の状態）
 
-> 最終更新 2026-10-20 JST。これより前の詳しい経緯・測定・判断は [HANDOFF-history.md](HANDOFF-history.md) にそのまま残してある。ここには「今どうなっているか」と「次に何をするか」だけを書く。
+> 最終更新 2026-11-04 JST。これより前の詳しい経緯・測定・判断は [HANDOFF-history.md](HANDOFF-history.md) にそのまま残してある。ここには「今どうなっているか」と「次に何をするか」だけを書く。
 
 ## 1. mitori とは
 
@@ -59,23 +59,38 @@
 
 2026-10-20 の追加分（WP29〜35: トレンドOSS 3件の実生成と記録、#26〜#30）。2026-10-20 の GitHub Trending から言語が分かれる3件（ai-memory・ai-job-search・context-mode、Rust を初めて含む）で Muse（muse-spark-1.3-contributor・high、範囲 standard）を実生成した。詳細は [trend-quality-20261020](progress/trend-quality-20261020/README.md)。AI 用ディレクトリの読み取り・ライセンス判定・付録の描き直し（#27）、間取り図の同名表示（#26）、Rust の流れ検出・親モジュールの引用・文書 seed の公平な取り分（#28）を直した。PR #25 の自動追従を実地で確認した（1.4.6-R6000.1 → 1.4.10-R6427.1）。WP29 の結論は、React 規模の RSS ピークは S1 の Worker ごとの WASM メモリで決まり、Go 7k を悪化させずに 700 MB に届く手は無い。runner の起動失敗を LaunchAgent の /nix 待ちで直し（#29）、テストの実行順の失敗を後始末で直した（#30）。Muse の作業場所は `~/Library/Caches/mitori-muse-wt` にした。
 
+2026-11-03〜04 の追加分（WP38: Orca の LLM 対応の配布と記録、#26・#28・#32・#33・#34）。利用者の依頼「他の人に配る上で足りないものやこの orca で使っている LLM を利用できるようにして欲しい。設計は orca、実装やテストは muse で実行」に対応した。詳細は [orca-llms-20261103](progress/orca-llms-20261103/README.md)。Orca 1.4.230 の `agent-model-catalog.json` の agent は claude・codex・grok。opencode は Mac に無く対象外。設計はオーケストレーター（Claude）、実装・テストは Muse（muse-spark-1.3-contributor）。
+
+- **#26**: 同じ名前のファイルの区別。ビューアー JS は rebase 後 60,058 B で予算超過 → 59,447 B。
+- **#28**: MCP ツール・Rust ルートを入口に。
+- **#32**: v0.1.0 の配布の仕組み。tag `v*` で 4 OS のアーカイブ・SHA256SUMS・build provenance・Release の下書き。workflow_dispatch は試運転。
+- **#33**: ホストと同じ target のバイナリが Nix の loader を参照していた問題。CI で作った linux-x64 が Nix の外で `cannot execute: required file not found`。公式 Bun runtime を sha256 固定で使い、`/nix/store` 参照を build で拒否。
+- **#34**: Orca の LLM 対応。Claude に `claude-haiku-5-5`・`claude-fable-5-1`、価格を 2026-11-03 の公式表に（Sonnet 5.5 の cache read 0.2→0.10 の誤りを修正、Haiku 5.5 は入力 100k 超で上の段）。Codex に effort を渡す、モデルごとの価格。effort ごとの thinking 予算を見積りと出力上限に入れる。見積り超過で結果を捨てず、実行全体の確認済み上限で止める。Grok Build CLI の engine（`grok-cli`、`grok:<model>`）。`setup claude` の既定 effort は high。
+- **配布の試運転**（release.yml の workflow_dispatch）: build・4 つの verify（ubuntu-24.04 x64、ubuntu-24.04-arm、macos-15、windows-2025 で `--version` と `doctor`）がすべて成功。tag はまだ作っていない（公開は人の判断）。macOS バイナリは未署名・未公証（Apple Developer Program が年 $99 で承認が要る）。
+- **実生成**（ai-job-search、11 タスク、concurrency 2）: Muse high（比較）11/11・L1 99.1 %・4.1 分、Claude Sonnet 5.5 low（旧 setup 既定）11/11・L1 84.2 %・1.7 分、Sonnet 5.5 high 7/11（thinking が出力上限を使い切り本文なし、`E_GEN_COVERAGE_LOW`）→ 11/11・L1 95.2 %・7.0 分、Codex gpt-5.6-luna high 3/11（見積り超過で結果を破棄、`E_BUDGET_EXCEEDED`）→ 11/11・L1 85.5 %・9.5 分、Grok grok-4.7-build-fast low 11/11・L1 95.9 %・12.7 分・報告額 $2.85。L1 は主張と出典の一致（vacuous を除く）。
+- **Grok で分かったこと**（grok 1.0.70）: `enter_plan_mode` だけを外すとセッションが作れない。`--tools ""` と旧 denylist では `write` など 22 個の組み込みツールが残り、モデルがファイルを書こうとした（許可待ちで止まり実害なし）。X 検索はサーバー側のツールで、オプションでは消えず、repo 名が X 検索に送られた（1 回）。隔離 `config.toml` の `features.backend_tools = false` で止まる。grok-4.7 は推論が長い（gen.module 1 件: low 355 秒、medium は 20 分でも本文 0 字。build-fast low は 117 秒）。`max_completion_tokens` は推論を止めない。キャンセル時に子プロセスが取り残された（修正済み）。既定は build-fast・low、timeout 最低 900 秒。価格は報告額からの逆算（build-fast in 4 / out 12、grok-4.7 in 2 / out 6）。
+- **費用**（API 換算）: Grok は実験を含めて約 $10。Claude と Codex はサブスク枠。
+
 ## 3. 残っていること
 
 | 残件 | 状態 | 次の一手 |
 |---|---|---|
-| HTML 書き出しのビューアー JS | 59,553 B（関門 60,000 B、余裕 447 B）。残りはすべて使用中のコード | 大きく増える変更の前に、予算の見直しか分割を検討 |
-| Go 7k の正式時間 | 中央値 1,449 ms（p95 1,486、上限内）・目標 1,200 ms は WARN | 目標 1,200 ms への新しい案は未着手（`muse/wp16` は効果なしで不採用） |
-| React RSS の目標 700 MB | 792.2 MB で WARN（上限 1,000 MB 内。ABBA の main 側 16回の中央値は 774.8 MB） | WP29 で測定済み。ピークは S1 の Worker ごとの WASM メモリ（8本で約 320 MB）で決まる。Go 7k（上限 1,500 ms、現在 1,449）を悪化させずに 700 MB に届く手は無い。目標値の見直しか Worker 数の方針を決める |
-| browsers ジョブの速さのテスト | chromium の4件（地図の部屋カード ≤100 ms、本文の段階切替 ≤50 ms、節の移動 ≤100 ms、streaming の位置 ≤4 px）が Mac の負荷 5〜12 の下で main でも落ちる | 負荷が下がった時の再実行で判断する |
-| #26・#28 | browsers 待ち | Mac が静かなときに browsers を再実行してマージする |
+| HTML 書き出しのビューアー JS | 59,447 B（関門 60,000 B、余裕 553 B、#26 で統合済み）。残りはすべて使用中のコード | 大きく増える変更の前に、予算の見直しか分割を検討 |
+| Go 7k の正式時間 | 中央値 1,449 ms（p95 1,486、上限内）・目標 1,200 ms は WARN（前回から変わらず） | 目標 1,200 ms への新しい案は未着手（`muse/wp16` は効果なしで不採用） |
+| React RSS の目標 700 MB | 792.2 MB で WARN（上限 1,000 MB 内。ABBA の main 側 16回の中央値は 774.8 MB、前回から変わらず） | WP29 で測定済み。ピークは S1 の Worker ごとの WASM メモリ（8本で約 320 MB）で決まる。Go 7k（上限 1,500 ms、現在 1,449）を悪化させずに 700 MB に届く手は無い。目標値の見直しか Worker 数の方針を決める |
+| browsers ジョブの速さのテスト | chromium の4件（地図の部屋カード ≤100 ms、本文の段階切替 ≤50 ms、節の移動 ≤100 ms、streaming の位置 ≤4 px）が Mac の負荷 5〜12 の下で main でも落ちる。2026-11-03〜04 は利用者の別作業の負荷で事前校正が 1.12〜1.15 になり、数回止まった（コードの失敗ではない） | 負荷が下がった時の再実行で判断する |
+| 使う LLM の登録 | #34 で対応済み。`setup` は人の端末でのみ動く | 利用者が端末で `mitori setup claude`・`setup codex --native …`・`setup grok --cli` を実行して使う LLM を登録する |
 | context-mode の §0 の出典 | 主な出典が `.cursor-plugin/README.md`（10 回、ルート README 3 回）のまま | 内容は同じ製品の説明で誤りではない。対応は未定 |
-| リリース | 仕組みあり・初回 tag 未作成（公開は人の判断）。`0.1.0`、4アーカイブ＋SHA256SUMS＋provenance、下書き Release を人が解除 | 初回 tag `v0.1.0` の作成・push と下書きの公開は人が行う |
+| リリース | 試運転は成功（build・4 verify）。tag 未作成（公開は人の判断）。`0.1.0`、4アーカイブ＋SHA256SUMS＋provenance、下書き Release を人が解除 | 初回 tag `v0.1.0` の作成・push と下書きの公開は人が行う |
+| macOS の署名・公証 | 未署名・未公証（Apple Developer Program が年 $99 で承認が要る） | 有料、承認待ち。人が判断する |
+| 実 IME の確認 | W3C・MDN 照合と自動テストは対応済み。実機の操作確認は利用者待ち | 利用者が確認する |
+| Grok の loop（Explain 回答）経路の timeout | engine に依らない固定値のまま | 対応は未定 |
 
 ## 4. 再開手順
 
 1. `git status --short --branch` と `git log -3 --oneline` で main と差分を確認する。
 2. 開発コマンドはすべて `scripts/nd` 経由（[CLAUDE.md](../CLAUDE.md) の表）。関門は `scripts/nd bun run check`、単体は `scripts/nd bun test <path>`、web e2e は `MITORI_E2E_CHANNEL=chrome scripts/nd bunx playwright test -c e2e/web/playwright.config.ts --project=chromium`。
-3. 実 LLM を使う検証は、見積りと上限（`--max-usd`）を付けて `bench/measure/gen-real.ts` で行う。費用が月1,000円を超えそうな操作・Cloudflare の deploy / Paid 化・ソフトの直接インストールは事前に確認する。
+3. 実 LLM を使う検証は、見積りと上限（`--max-usd`）を付けて `bench/measure/gen-real.ts` で行う。費用が月1,000円を超えそうな操作・Cloudflare の deploy / Paid 化・ソフトの直接インストールは事前に確認する。`mitori setup …` は人の端末でのみ動く。tag `v0.1.0` の作成・公開、macOS の署名・公証も人の判断。
 4. 秘密情報（auth・env・生 prompt・nonce）は Git に入れない。一時ファイルは `/private/tmp` か作業用ディレクトリに置く。
 5. Muse の作業場所は `~/Library/Caches/mitori-muse-wt`（`/private/tmp` は再起動で消える、`~/.cache` は biome の対象が変わり check が落ちる）。
 
