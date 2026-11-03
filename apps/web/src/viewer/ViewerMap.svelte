@@ -136,9 +136,7 @@ const sectionOf = (r: RoomModel): SectionId | null => r.section;
                 threads={0}
                 section={sec}
                 sectionLabel={sec ? (ix.numbers.get(sec) ?? "") : ""}
-                genTokens={null}
                 onread={() => open(room.id)}
-                ongenerate={() => {}}
               />
             </div>
           {/if}

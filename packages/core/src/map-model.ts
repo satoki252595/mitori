@@ -11,7 +11,8 @@
 import type { MapView } from "./api.ts";
 import type { BlockId, ModuleId, SectionId } from "./domain.ts";
 
-const fmtLocShort = (n: number) =>
+/** Short LOC text (`3.5k`); shared with `buildPlanModel`'s chips so the two never drift. */
+export const fmtLocShort = (n: number) =>
   n >= 1000
     ? `${(n / 1000)
         .toFixed(1)
@@ -20,10 +21,15 @@ const fmtLocShort = (n: number) =>
     : String(n);
 
 export interface RoomChip {
-  /** File name (basename). */
+  /**
+   * File name as shown: the basename, or the shortest parent prefix that tells same-named files apart inside
+   * this room (`a/index.ts`; WP31, computed in `buildPlanModel`).
+   */
   name: string;
   /** Size text (`3.5k`). */
   size: string;
+  /** Full repo-relative path (hover `<title>` and the screen-reader label; never shown in full). */
+  path: string;
 }
 
 export interface RoomModel {

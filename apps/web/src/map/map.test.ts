@@ -169,6 +169,30 @@ describe("plan model + SVG (AC-J06 / AC-U75)", () => {
     expect([...(m.links.get("md_c") ?? [])]).toEqual(["md_a"]);
   });
 
+  test("WP31: same-named representative files show their shortest parent; each chip carries its full path", () => {
+    const v = view();
+    v.modules = v.modules.map((m) =>
+      m.id === "md_a"
+        ? {
+            ...m,
+            topFiles: [
+              { path: "src/adapters/alpha/index.ts", loc: 546, symbols: [] },
+              { path: "src/adapters/beta/index.ts", loc: 537, symbols: [] },
+              { path: "src/adapters/alpha/util.ts", loc: 120, symbols: [] },
+            ],
+          }
+        : m,
+    );
+    const m = buildPlanModel(v);
+    const chips = m.byId.get("md_a")?.chips ?? [];
+    expect(chips.map((c) => c.name)).toEqual(["alpha/index.ts", "beta/index.ts", "util.ts"]);
+    expect(chips.map((c) => c.path)).toEqual(["src/adapters/alpha/index.ts", "src/adapters/beta/index.ts", "src/adapters/alpha/util.ts"]);
+    const svg = renderPlanSvg(m, { title: "map", roomHref: (r) => `/w/x?room=${r.id}`, roomLabel: (r) => r.label, files: (n) => `${n} files` }, "desc");
+    expect(svg).toContain("alpha/index.ts <tspan");
+    expect(svg).toContain("<title>src/adapters/alpha/index.ts</title>");
+    expect(svg).toContain("<title>src/adapters/beta/index.ts</title>");
+  });
+
   test("one SVG: escaped labels, rooms as focusable links (one tab stop), zone labels in a clipped top layer", () => {
     const m = buildPlanModel(view());
     const svg = renderPlanSvg(m, { title: "map", roomHref: (r) => `/w/x?room=${r.id}`, roomLabel: (r) => r.label, files: (n) => `${n} files` }, "desc");
@@ -284,8 +308,8 @@ describe("labels never clip (M1 §5-1): every part is whole, shortened with …,
     loc: 14_000,
     files: 12,
     chips: [
-      { name: "session.go", size: "3.1k" },
-      { name: "watch.go", size: "2.3k" },
+      { name: "session.go", size: "3.1k", path: "internal/session/session.go" },
+      { name: "watch.go", size: "2.3k", path: "internal/session/watch.go" },
     ],
   };
 
