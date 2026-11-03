@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { API_PREFIX, type GenEstimate, type WorkspaceKey, type WorkspaceStatus, type WorkspaceSummary } from "@mitori/core";
+import { API_PREFIX, ENGINE_IDS, type GenEstimate, type WorkspaceKey, type WorkspaceStatus, type WorkspaceSummary } from "@mitori/core";
 import type { DocStore } from "@mitori/doc";
 import type { Indexer } from "@mitori/indexer";
 import { startServerDaemon } from "../../apps/cli/src/daemon/server.ts";
@@ -28,9 +28,9 @@ const { values: a } = parseArgs({
     engine: { type: "string" },
   },
 });
+// estimates need no spawn: every core engine id is allowed (derived so a new engine needs no edit).
 const engine = a.engine ?? "claude-cli";
-if (!["claude-cli", "anthropic-api", "codex-cli", "grok-cli", "generic", "session"].includes(engine))
-  throw new Error("--engine must be claude-cli, anthropic-api, codex-cli, grok-cli, generic or session");
+if (!(ENGINE_IDS as readonly string[]).includes(engine)) throw new Error(`--engine must be ${ENGINE_IDS.join(", ")}`);
 if (!a.repo) throw new Error("--repo <dir> is required");
 const home = a.home ? resolve(a.home) : mkdtempSync(join(tmpdir(), "mitori-inspect-"));
 mkdirSync(home, { recursive: true });

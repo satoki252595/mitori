@@ -21,7 +21,7 @@ import type {
   UiSettings,
   WorkspaceOverrides,
 } from "@mitori/core";
-import { CLAUDE_MODEL_IDS } from "@mitori/core";
+import { CLAUDE_MODEL_IDS, ENGINE_IDS } from "@mitori/core";
 
 /** Keys that would reach prototypes through plain assignment (settings files are untrusted input). */
 export const UNSAFE_KEYS: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
@@ -207,8 +207,10 @@ const scheduler = obj<SchedulerSettings>({
 const review = obj<ReviewSettings>({ autoResolveOnAccept: bool, autoAcceptDocUpdates: bool, autoCommit: bool, commitTrailers: bool });
 const security = obj<SecuritySettings>({ denyGlobs: arr(GLOB), secretScan: bool, allowNonLoopback: bool, gateSandbox: oneOf("auto", "require", "off") });
 const ack = obj<DataPolicyAck>({ at: ISO, shownAt: ISO, plan: { t: "str", max: 64 } });
+/** `dataPolicyAck` keys are engine ids (built from the core list so new engines need no second edit). */
+const ENGINE_KEY = new RegExp(`^(${ENGINE_IDS.map((id) => id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`);
 const privacy = obj<PrivacySettings>({
-  dataPolicyAck: map(ack, /^(claude-cli|session|anthropic-api|codex-cli|grok-cli|generic)$/),
+  dataPolicyAck: map(ack, ENGINE_KEY),
   logContent: bool,
   keepRawStreams: bool,
 });

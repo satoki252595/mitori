@@ -77,7 +77,8 @@ interface Job {
 }
 
 const LANES: readonly Lane[] = ["interactive", "doc", "background"];
-const SUBSCRIPTION_ENGINES: ReadonlySet<EngineId> = new Set(["claude-cli", "codex-cli", "grok-cli"]);
+/** Subscription-billed CLI engines: the narrow concurrency cap applies (spec §6.8, SEC-15). */
+export const SUBSCRIPTION_ENGINES: ReadonlySet<EngineId> = new Set(["claude-cli", "codex-cli", "grok-cli", "antigravity-cli"]);
 /** Recover one concurrency step per 5 minutes without a rate limit (spec §6.8). */
 const RECOVER_MS = 300_000;
 /** A fan-out leader without `message_start` for this long lets the next request lead (PT-18). */

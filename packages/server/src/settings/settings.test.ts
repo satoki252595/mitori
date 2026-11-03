@@ -3,6 +3,7 @@ import { writeFileSync } from "node:fs";
 import {
   DEFAULT_DENY_GLOBS,
   type DeepPartial,
+  ENGINE_IDS,
   type GlobalSettings,
   MitoriError,
   type SseEventPayload,
@@ -169,6 +170,14 @@ describe("settings defaults and schema", () => {
     expect(validate(parsed, GLOBAL_SPEC)).toEqual([]);
     expect(code(tryParse('{"pins":{"agy":{}}}'))).toBe("E_CFG_INVALID");
     expect(code(tryParse('{"pins":{"unknown":{}}}'))).toBe("E_CFG_INVALID");
+  });
+  test("WP40d-1 dataPolicyAck accepts every engine id including antigravity-cli", () => {
+    const ack = { at: "2026-11-04T00:00:00.000Z", shownAt: "2026-11-04T00:00:00.000Z", plan: "pro" };
+    const dataPolicyAck = Object.fromEntries(ENGINE_IDS.map((id) => [id, ack]));
+    const parsed = parseGlobalSettings(JSON.stringify({ privacy: { dataPolicyAck } }));
+    expect(new Set(Object.keys(parsed.privacy.dataPolicyAck))).toEqual(new Set(ENGINE_IDS));
+    expect(validate(parsed, GLOBAL_SPEC)).toEqual([]);
+    expect(code(tryParse('{"privacy":{"dataPolicyAck":{"unknown":{}}}}'))).toBe("E_CFG_INVALID");
   });
 });
 

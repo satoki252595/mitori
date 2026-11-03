@@ -16,7 +16,15 @@ import {
   type ReasoningEffort,
 } from "@mitori/core";
 import { onMount } from "svelte";
-import { claudeBinaryChanged, codexBinaryChanged, codexVerifiedVersion, museUpdated, type SetupContext, setupCommandFor } from "../map/engine.ts";
+import {
+  claudeBinaryChanged,
+  codexBinaryChanged,
+  codexVerifiedVersion,
+  museUpdated,
+  type SetupContext,
+  setupCommandFor,
+  setupContextFor,
+} from "../map/engine.ts";
 import { copyText } from "../shell/clipboard.ts";
 import { authDisplayKind } from "../shell/fmt.ts";
 import { t } from "../shell/index.ts";
@@ -133,34 +141,7 @@ const answerEffortChoices = $derived(switchEntry(answerSwitchModel) ? [...(switc
 const activeEngine = $derived(s.session.settings?.settings.defaultGenEngine);
 /** Previous selections the re-setup command keeps (loaded settings); absent when unknown. */
 function setupCtxFor(engine: EngineId): SetupContext {
-  const cfg = s.session.settings?.settings;
-  if (engine === "generic") {
-    const model = cfg?.models.genModule.startsWith("generic:") ? cfg.models.genModule.slice("generic:".length) : undefined;
-    return { ...(model ? { model } : {}), ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}) };
-  }
-  if (engine === "codex-cli") {
-    const codex = cfg?.engines["codex-cli"];
-    return {
-      ...(codex?.model ? { model: codex.model } : {}),
-      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
-      ...(codex?.maxEstimatedSpendUsd ? { codexMaxUsd: codex.maxEstimatedSpendUsd } : {}),
-    };
-  }
-  if (engine === "grok-cli") {
-    const grok = cfg?.engines["grok-cli"];
-    return {
-      ...(grok?.model ? { model: grok.model } : {}),
-      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
-    };
-  }
-  if (engine === "antigravity-cli") {
-    const agy = cfg?.engines["antigravity-cli"];
-    return {
-      ...(agy?.model ? { model: agy.model } : {}),
-      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
-    };
-  }
-  return {};
+  return setupContextFor(engine, s.session.settings?.settings);
 }
 const museSetup = $derived(setupCommandFor("generic", setupCtxFor("generic"), s.session.settings?.launcher) ?? "");
 const claudeSetup = $derived(setupCommandFor("claude-cli", {}, s.session.settings?.launcher) ?? "");

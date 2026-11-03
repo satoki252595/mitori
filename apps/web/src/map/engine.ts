@@ -1,5 +1,5 @@
 /** Generation-engine usability for S1 (UXP-15, AC-U-EN). Pure. */
-import type { BinaryPin, DataPolicyAck, EngineId, EngineStatus, ReasoningEffort } from "@mitori/core";
+import type { BinaryPin, DataPolicyAck, EngineId, EngineStatus, GlobalSettings, ReasoningEffort } from "@mitori/core";
 import { type LauncherCommand, providerSetupCommand } from "../settings/provider.ts";
 
 export type EngineProblem = "notInstalled" | "notLoggedIn" | "capabilityLost";
@@ -57,6 +57,33 @@ export interface SetupContext {
   effort?: ReasoningEffort | undefined;
   codexMaxUsd?: number | undefined;
   repo?: string | undefined;
+}
+
+/**
+ * Previous selections the re-setup command keeps (from loaded settings); absent when unknown.
+ * Shared by the map engine card and the settings page so a new engine needs one edit (WP40c).
+ */
+export function setupContextFor(engine: EngineId, cfg: GlobalSettings | undefined): SetupContext {
+  if (engine === "generic") {
+    const model = cfg?.models.genModule.startsWith("generic:") ? cfg.models.genModule.slice("generic:".length) : undefined;
+    return { ...(model ? { model } : {}), ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}) };
+  }
+  if (engine === "codex-cli") {
+    const codex = cfg?.engines["codex-cli"];
+    return {
+      ...(codex?.model ? { model: codex.model } : {}),
+      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
+      ...(codex?.maxEstimatedSpendUsd ? { codexMaxUsd: codex.maxEstimatedSpendUsd } : {}),
+    };
+  }
+  if (engine === "grok-cli" || engine === "antigravity-cli") {
+    const sub = cfg?.engines[engine];
+    return {
+      ...(sub?.model ? { model: sub.model } : {}),
+      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
+    };
+  }
+  return {};
 }
 
 /**

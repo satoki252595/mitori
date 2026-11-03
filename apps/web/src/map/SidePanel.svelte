@@ -9,7 +9,7 @@ import { hasKey } from "../shell/i18n.ts";
 import { errorText, t } from "../shell/index.ts";
 import { mark } from "../shell/perf.ts";
 import { useStores } from "../stores/app.svelte.ts";
-import { engineProblem, policyAcknowledged, type SetupContext } from "./engine.ts";
+import { engineProblem, policyAcknowledged, type SetupContext, setupContextFor } from "./engine.ts";
 
 let {
   breakdown,
@@ -59,28 +59,8 @@ $effect(() => {
 const policyAcked = $derived(policyAcknowledged(s.gen.engine, engineStatus, s.session.settings?.settings.privacy.dataPolicyAck[s.gen.engine]));
 /** Previous selections the re-setup command keeps (settings); absent when unknown. */
 const setupCtx = $derived.by((): SetupContext => {
-  const cfg = s.session.settings?.settings;
   if (!engineStatus) return {};
-  if (engineStatus.engine === "generic") {
-    const model = cfg?.models.genModule.startsWith("generic:") ? cfg.models.genModule.slice("generic:".length) : undefined;
-    return { ...(model ? { model } : {}), ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}) };
-  }
-  if (engineStatus.engine === "codex-cli") {
-    const codex = cfg?.engines["codex-cli"];
-    return {
-      ...(codex?.model ? { model: codex.model } : {}),
-      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
-      ...(codex?.maxEstimatedSpendUsd ? { codexMaxUsd: codex.maxEstimatedSpendUsd } : {}),
-    };
-  }
-  if (engineStatus.engine === "grok-cli") {
-    const grok = cfg?.engines["grok-cli"];
-    return {
-      ...(grok?.model ? { model: grok.model } : {}),
-      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
-    };
-  }
-  return {};
+  return setupContextFor(engineStatus.engine, s.session.settings?.settings);
 });
 const estimates = $derived(Object.fromEntries(EFFORTS.map((e) => [e, s.gen.estimates.get(s.gen.key(e))])) as Partial<Record<Effort, GenEstimate>>);
 

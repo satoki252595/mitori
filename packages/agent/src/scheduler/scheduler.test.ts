@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { type EngineId, type JobEvent, PRICING_VERSION, type SubscriptionWindow, type WorkspaceKey, type Xxh3 } from "@mitori/core";
+import { ENGINE_IDS, type EngineId, type JobEvent, PRICING_VERSION, type SubscriptionWindow, type WorkspaceKey, type Xxh3 } from "@mitori/core";
 import type { Engine, EngineRequest, EngineResult, EngineRun, Lane, ScheduledRequest } from "../contract.ts";
 import { collectingSink, countingMetrics, createFakeClock, createTestLogger, type FakeClock, memLedger, seededRandom, testSettings } from "../testing.ts";
 import { Channel, deferred } from "../util/channel.ts";
 import { timersFor } from "../util/timers.ts";
-import { createAgentScheduler } from "./scheduler.ts";
+import { createAgentScheduler, SUBSCRIPTION_ENGINES } from "./scheduler.ts";
 
 interface Live {
   req: EngineRequest;
@@ -113,6 +113,37 @@ describe("AgentScheduler (spec §6.8, PT-04, PT-18, SEC-15, CONS-28)", () => {
     for (let i = 0; i < 10; i++) api.s.submit(reqOf("doc", "anthropic-api"), new AbortController().signal);
     await flush();
     expect(api.claude.active()).toBe(8);
+  });
+
+  test("WP40c-2 antigravity-cli shares the subscription cap (3) at concurrency 8, like grok-cli", async () => {
+    const clock = createFakeClock();
+    const settings = testSettings({
+      scheduler: { concurrency: 8, reserveInteractive: 0, interactiveBurst: 1, subscriptionMaxConcurrency: 3 },
+    });
+    const agy = manualEngine("antigravity-cli", clock);
+    const s = createAgentScheduler({
+      engines: () => ({ "antigravity-cli": agy }),
+      settings: () => settings,
+      ledger: memLedger(clock),
+      clock,
+      timers: timersFor(clock),
+      random: seededRandom(7),
+      log: createTestLogger(),
+      metrics: countingMetrics(),
+      events: collectingSink<import("@mitori/core").SseEventPayload>(),
+      residents: () => ({ procs: 0, rssMb: 0 }),
+    });
+    for (let i = 0; i < 8; i++) s.submit(reqOf("doc", "antigravity-cli"), new AbortController().signal);
+    await flush();
+    expect(agy.active()).toBe(3);
+  });
+
+  test("WP40c-3 SUBSCRIPTION_ENGINES covers every CLI engine; only session/API/generic stay outside", async () => {
+    expect([...SUBSCRIPTION_ENGINES].sort()).toEqual(["antigravity-cli", "claude-cli", "codex-cli", "grok-cli"]);
+    for (const e of ENGINE_IDS) {
+      if ((["session", "anthropic-api", "generic"] as readonly string[]).includes(e)) expect(SUBSCRIPTION_ENGINES.has(e)).toBe(false);
+      else expect(SUBSCRIPTION_ENGINES.has(e as EngineId)).toBe(true);
+    }
   });
 
   test("AGT-U-030 with 3 background turns running, interactive starts within 50 ms (burst), even at C = 3 / reserve 0", async () => {

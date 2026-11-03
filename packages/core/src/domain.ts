@@ -383,6 +383,17 @@ export const INCLUDED_CLASSES = [
  */
 export type EngineId = "claude-cli" | "session" | "anthropic-api" | "codex-cli" | "grok-cli" | "antigravity-cli" | "generic";
 
+/** Every engine id, in the union order (bench allowlists and UIs derive from this; keep in sync). */
+export const ENGINE_IDS = [
+  "claude-cli",
+  "session",
+  "anthropic-api",
+  "codex-cli",
+  "grok-cli",
+  "antigravity-cli",
+  "generic",
+] as const satisfies readonly EngineId[];
+
 /** Engines that can run generation [CONS-28]. */
 export type GenEngineId = EngineId;
 
