@@ -3609,6 +3609,24 @@ export function isAgentDocReadable(path: string): boolean {
 }
 
 /**
+ * True for a skill-bundled non-doc file (`<agent>/skills/<name>/…`, [CR wp32d-1]): it flows into the normal
+ * classification (source / config / test …) instead of the agent-dir deny. Docs stay on {@link isAgentDocReadable};
+ * hook scripts, settings / MCP configs and TOML stay denied, as does anything outside a skill directory.
+ */
+export function isAgentSkillBundledReadable(path: string): boolean {
+  if (isAgentDocReadable(path)) return false;
+  const segs = path.toLowerCase().split("/");
+  const at = segs.findIndex((s, i) => i + 3 < segs.length && (AGENT_DOC_DIRS as readonly string[]).includes(s) && segs[i + 1] === "skills");
+  if (at < 0) return false;
+  if (segs.slice(at + 2, -1).includes("hooks")) return false;
+  const base = segs[segs.length - 1] as string;
+  if (/^settings.*\.json$/.test(base) || base === "mcp.json" || base === ".mcp.json") return false;
+  const dot = base.lastIndexOf(".");
+  if (dot >= 0 && base.slice(dot) === ".toml") return false;
+  return true;
+}
+
+/**
  * Sensitive (not denied) files: an agent MAY edit them, but a job touching any of them — and every
  * agent-mode job — gets no one-key accept: the ReadyCard has no 採用 button, ⌥⌘⏎ accept-all is disabled and
  * each file needs an explicit hunk decision in Review [SEC-12].

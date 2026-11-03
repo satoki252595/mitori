@@ -109,6 +109,40 @@ function jsRouteCandidates(input: FactExtractInput, tree: Tree): FactCandidate[]
   return out;
 }
 
+/**
+ * MCP tool registrations (`server.tool("name", …)` / `server.registerTool("name", …)`, the `@modelcontextprotocol/sdk`
+ * `McpServer` API). The tool name is the first (string) argument; the handler is the last one when it names a
+ * function (`registerTool` often passes an inline closure instead). Single-object forms (`registerTool(def)`) carry
+ * no name and stay out.
+ */
+export function jsMcpTools(input: FactExtractInput, tree: Tree): FactCandidate[] {
+  if (input.file.scope === "test" || !/\.(tool|registerTool)\s*\(/.test(input.text)) return [];
+  const ev = importEvidence(input, ["@modelcontextprotocol/sdk"]);
+  if (ev.length === 0) return [];
+  const out: FactCandidate[] = [];
+  for (const c of capsFor(tree, JS.mcp)) {
+    const call = c.mcp;
+    const nameNode = c["mcp.name"];
+    if (!call || !nameNode) continue;
+    const name = stringValue(nameNode);
+    if (name === null || name === "") continue;
+    const args = call.childForFieldName("arguments")?.namedChildren.filter((x): x is Node => x !== null) ?? [];
+    const handlers = args.length > 1 ? handlerNames(args[args.length - 1]) : [];
+    const recv = c["mcp.recv"]?.text ?? "";
+    out.push(
+      candidate(
+        "route.mcp@1",
+        "route",
+        input,
+        lineOf(call),
+        { method: "TOOL", pattern: name, framework: "mcp", ...(handlers.length > 0 ? { handler: handlers[0], handlers } : {}) },
+        [...ev, `recv:${recv}`],
+      ),
+    );
+  }
+  return out;
+}
+
 /** True when `node` is the left operand of `??` / `||` (a default is visible in the same expression). */
 function hasDefaultAt(node: Node): boolean {
   let cur: Node = node;

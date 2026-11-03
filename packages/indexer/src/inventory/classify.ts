@@ -1,5 +1,5 @@
 // S0 path-phase rules (indexer spec §2.3, first match wins). Content rules R11–R13 run in the Worker (content.ts).
-import { DEFAULT_DENY_GLOBS, type FileClass, isAgentDocReadable, type RepoPath, type SourceLang } from "@mitori/core";
+import { DEFAULT_DENY_GLOBS, type FileClass, isAgentDocReadable, isAgentSkillBundledReadable, type RepoPath, type SourceLang } from "@mitori/core";
 import { type FileScope, type GrammarId, INVENTORY_LIMITS, type IndexerExcludeReason, type InventoryRuleId, LANG_GRAMMAR } from "../contract.ts";
 import { basename, extOf, langOfPath } from "../lang/detect.ts";
 import { isTestFile } from "../lang/testfile.ts";
@@ -63,15 +63,26 @@ export interface CompiledSettings {
   deny: GlobMatcher;
   /** Deny globs beyond the defaults (user/repo/docDir origin): the agent-doc read exception never covers these. */
   denyCustom: GlobMatcher;
+  /** Default deny minus the agent-instruction dir globs: the read exception only excuses those four [CR wp32d-1]. */
+  denyNonAgent: GlobMatcher;
   include: GlobMatcher;
   exclude: GlobMatcher;
 }
 
 const DEFAULT_DENY_SET: ReadonlySet<string> = new Set<string>(DEFAULT_DENY_GLOBS);
 
+/** The four DEFAULT_DENY_GLOBS the skill / command doc exception may excuse (nothing else). */
+const AGENT_DIR_DENY_GLOBS: ReadonlySet<string> = new Set([".claude/**", ".codex/**", ".agents/**", ".cursor/**"]);
+
 export function compileSettings(s: PathRuleInput["settings"]): CompiledSettings {
   const custom = [...s.denyGlobs.filter((g) => !DEFAULT_DENY_SET.has(g)), ...(s.userDenyGlobs ?? [])];
-  return { deny: globMatcher(s.denyGlobs), denyCustom: globMatcher(custom), include: globMatcher(s.include), exclude: globMatcher(s.exclude) };
+  return {
+    deny: globMatcher(s.denyGlobs),
+    denyCustom: globMatcher(custom),
+    denyNonAgent: globMatcher(s.denyGlobs.filter((g) => !AGENT_DIR_DENY_GLOBS.has(g))),
+    include: globMatcher(s.include),
+    exclude: globMatcher(s.exclude),
+  };
 }
 
 const INCLUDED_NEEDS_CONTENT: ReadonlySet<FileClass> = new Set(["source", "test", "docs", "config"]);
@@ -116,7 +127,10 @@ export function classifyPathWith(input: Omit<PathRuleInput, "settings">, setting
   // (router scope, patch apply, snapshot) matches DEFAULT_DENY_GLOBS directly and is unaffected.
   // [CR wp30b-1] the exception covers default-deny matches only: a user/repo/docDir deny glob (denyCustom) still
   // denies agent docs (userDenyGlobs keeps provenance when the glob duplicates a default).
-  if (settings.deny.test(path) && !(isAgentDocReadable(path) && !isSecretPath(path) && !settings.denyCustom.test(path)))
+  // [CR wp32d-1] the exception excuses only the four agent-dir globs: a deny outside them (denyNonAgent, e.g.
+  // `**/.envrc`) or a secret still denies, for skill-bundled code and for the WP30 text docs alike.
+  const agentReadable = isAgentDocReadable(path) || isAgentSkillBundledReadable(path);
+  if (settings.deny.test(path) && !(agentReadable && !isSecretPath(path) && !settings.denyCustom.test(path) && !settings.denyNonAgent.test(path)))
     return isSecretPath(path) ? out("secret", "R01.deny", "secret") : out("ignored", "R01.deny", "deny_glob");
   const included = settings.include.test(path);
   if (!included && settings.exclude.test(path)) return out("ignored", "R02.user_exclude", "user_exclude");

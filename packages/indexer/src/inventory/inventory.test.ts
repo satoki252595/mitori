@@ -57,6 +57,17 @@ describe("IDX-AT-01 path rules R00–R20 (first match wins)", () => {
     expect(at(".claude/settings.json", base)).toEqual(["ignored", "deny_glob", "R01.deny"]);
     expect(at(".claude/settings.json", base, [".claude/**"])).toEqual(["ignored", "deny_glob", "R01.deny"]);
   });
+  test("WP32d-1 R01: skill-bundled code reads as source/config, its hooks and secrets stay denied", () => {
+    expect(cls(".claude/skills/x/cli/src/a.ts")).toEqual(["source", "-", "R19.source"]);
+    expect(cls(".agents/skills/jobbank-search/cli/src/cli.ts")).toEqual(["source", "-", "R19.source"]);
+    expect(cls(".claude/skills/x/SKILL.md")).toEqual(["docs", "-", "R17.docs"]);
+    expect(cls(".claude/skills/x/.envrc")).toEqual(["ignored", "deny_glob", "R01.deny"]);
+    expect(cls(".agents/skills/x/.cargo/config.toml")).toEqual(["ignored", "deny_glob", "R01.deny"]);
+    expect(cls(".claude/skills/x/.env")).toEqual(["secret", "secret", "R01.deny"]);
+    expect(cls(".claude/skills/x/hooks/notify.sh")).toEqual(["ignored", "deny_glob", "R01.deny"]);
+    expect(cls(".claude/skills/x/settings.json")).toEqual(["ignored", "deny_glob", "R01.deny"]);
+    expect(cls(".claude/skills/x/mcp.json")).toEqual(["ignored", "deny_glob", "R01.deny"]);
+  });
   test("R02 user exclude / R03 include", () => {
     const s = { ...settings, exclude: ["legacy/**"], include: ["legacy/keep.ts", "vendor/ours/**"] };
     expect(cls("legacy/a.ts", 10, { settings: s })).toEqual(["ignored", "user_exclude", "R02.user_exclude"]);

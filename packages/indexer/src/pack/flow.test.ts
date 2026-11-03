@@ -71,6 +71,70 @@ describe("IDX-U flow bodies (gen I4, spec §7.8 / §7.3 slice rules)", () => {
     });
 });
 
+describe("WP32c doc-seed flow bodies: command / skill docs quote their own lines", () => {
+  const docPath = ".agents/skills/apply/SKILL.md" as RepoPath;
+  const scriptPath = ".agents/skills/apply/cli/run.py" as RepoPath;
+  const docText = [
+    "# Apply",
+    "",
+    "This skill applies to a job.",
+    ...Array.from({ length: 36 }, (_, i) => `background ${i}`),
+    "## 手順",
+    "1. read the posting",
+    "2. score it with the scorer",
+    "3. write the files",
+    ...Array.from({ length: 10 }, (_, i) => `note ${i}`),
+    "Run `bun run cli/run.py --help` to start.",
+  ].join("\n");
+  const scriptText = ["def main():", "    run()", "", "", "def helper():", "    return 1", ""].join("\n");
+  const files = new Map<RepoPath, StageFile>([
+    [docPath, sf(docPath, { class: "docs" })],
+    [
+      scriptPath,
+      sf(scriptPath, {
+        symbols: [
+          { name: "main", start: 1, end: 2 },
+          { name: "helper", start: 5, end: 6 },
+        ],
+      }),
+    ],
+  ]);
+  const seed = { k: 1, kind: "entry" as const, label: "apply", path: docPath, line: 1, modules: [], files: [docPath] };
+  const io = { text: (p: RepoPath) => (p === docPath ? docText : p === scriptPath ? scriptText : null), estimate: estimateCode };
+
+  test("WP32c-1 head, procedure section and the referenced script body follow in order", () => {
+    const slices = flowBodies(seed, files, 100_000, io);
+    expect(slices.length).toBeGreaterThan(0);
+    expect(slices[0]).toMatchObject({ path: docPath, start: 1 });
+    const docLines = slices.filter((s) => s.path === docPath).flatMap((s) => s.text.split("\n").filter((l) => l !== "⋮"));
+    expect(docLines.some((l) => l.includes("1. read the posting"))).toBe(true);
+    expect(docLines.some((l) => l.includes("Run `bun run cli/run.py --help` to start."))).toBe(true);
+    const script = slices.filter((s) => s.path === scriptPath);
+    expect(script.length).toBeGreaterThan(0);
+    expect(script.map((s) => s.text).join("\n")).toContain("def main():");
+    // the doc head comes before the bundled script body
+    const firstDoc = slices.findIndex((s) => s.path === docPath);
+    const firstScript = slices.findIndex((s) => s.path === scriptPath);
+    expect(firstDoc).toBeLessThan(firstScript);
+  });
+
+  test("WP32c-2 code seeds are unchanged: a handler seed still starts at its handler", () => {
+    const code = {
+      k: 1,
+      kind: "entry" as const,
+      label: "main",
+      path: scriptPath,
+      line: 1,
+      handler: `${scriptPath}#main` as `${string}#${string}`,
+      modules: ["m" as ModuleId],
+      files: [scriptPath],
+    };
+    const slices = flowBodies(code, files, 100_000, io);
+    expect(slices[0]).toMatchObject({ path: scriptPath, start: 1 });
+    expect(slices.every((s) => s.path === scriptPath)).toBe(true);
+  });
+});
+
 describe("IDX-U flow bodies: long bodies, merging, secrets", () => {
   test("a 250-line handler keeps 80 lines + ⋮; adjacent callees merge; secrets are redacted in place", () => {
     const text = [
@@ -473,5 +537,240 @@ describe("WP30-B agent docs seed flows", () => {
     // without the agent docs the product ranking is exactly the old one
     const bare = { ...p.facts, facts: [...p.facts.facts, entry], scopes: [...p.facts.scopes, "main"] as never };
     expect(flowSeeds(st, bare).map((s) => s.label)).toEqual(["src/main"]);
+  });
+});
+
+describe("WP32 evals / bench areas stay out of the seeds while the product has entries", () => {
+  test("entries under evals/, benches/ and bench/ are not offered; alone they still seed", async () => {
+    const { p, sources } = await callRepo({
+      "tool/cli.py":
+        "from .core import analyze\ndef run(path):\n    return analyze(path)\ndef main():\n    print(run('a'))\nif __name__ == '__main__':\n    main()\n",
+      "tool/core.py": "def analyze(path):\n    return len(path)\n",
+      "evals/run.py": "def main():\n    print('eval')\nif __name__ == '__main__':\n    main()\n",
+      "benches/speed.py": "def main():\n    print('bench')\nif __name__ == '__main__':\n    main()\n",
+      "bench/manual.py": "def main():\n    print('manual')\nif __name__ == '__main__':\n    main()\n",
+    });
+    const seeds = flowSeeds(p.structure, p.facts, 8, sources);
+    expect(seeds.length).toBeGreaterThan(0);
+    for (const s of seeds) for (const f of s.files) expect(f).not.toMatch(/(^|\/)(evals?|bench(es)?)\//);
+    // without any product entry, the evals entry still seeds (like website / docs / demos do)
+    const alone = await callRepo({
+      "evals/run.py": "def main():\n    print('eval')\nif __name__ == '__main__':\n    main()\n",
+    });
+    expect(flowSeeds(alone.p.structure, alone.p.facts, 8, alone.sources).length).toBeGreaterThan(0);
+  });
+
+  test("one small binary contributes at most 3 cli / entry seeds; routes of one file are unaffected", async () => {
+    const lib = "def work(n):\n    return n\n";
+    const helpers = [0, 1, 2, 3].map((i) => `def helper${i}():\n    return work(${i})\n`).join("");
+    const { p, sources } = await callRepo({
+      "bin/main.py": `from lib import work\n${helpers}def main():\n    print(helper0())\nif __name__ == '__main__':\n    main()\n`,
+      "lib.py": lib,
+    });
+    const seeds = flowSeeds(p.structure, p.facts, 8, sources);
+    const fromMain = seeds.filter((s) => s.files.includes("bin/main.py" as RepoPath));
+    // entry + 4 same-file callables collapse to 3; the shared lib is still covered
+    expect(fromMain.length).toBeLessThanOrEqual(3);
+    expect(seeds.some((s) => s.files.includes("lib.py" as RepoPath))).toBe(true);
+    // deterministic
+    expect(flowSeeds(p.structure, p.facts, 8, sources)).toEqual(seeds);
+  });
+
+  test("the product's command (rich CLI surface) comes before a helper binary's, one seed per binary", async () => {
+    const clap = (prog: string, variants: string) =>
+      [
+        "use clap::{Parser, Subcommand};",
+        "#[derive(Parser)]",
+        `#[command(name = "${prog}")]`,
+        "struct Cli {",
+        "    #[command(subcommand)]",
+        "    command: Command,",
+        "}",
+        "#[derive(Subcommand)]",
+        "enum Command {",
+        ...variants.split("\n"),
+        "}",
+        "",
+      ].join("\n");
+    const { p, sources } = await callRepo({
+      // sorts first by path, but offers a single subcommand
+      "a-poor.rs": clap("apoor", "    Run {\n        #[arg(long)]\n        what: String,\n    },"),
+      // the product's command: four subcommands from one file collapse to one seed, ahead of the helper
+      "z-rich.rs": clap(
+        "zrich",
+        "    Serve {\n        #[arg(long)]\n        port: Option<u16>,\n    },\n    Import {\n        #[arg(long)]\n        dry_run: bool,\n    },\n    Export {\n        #[arg(long)]\n        format: String,\n    },\n    Sync {\n        #[arg(long)]\n        force: bool,\n    },",
+      ),
+    });
+    const seeds = flowSeeds(p.structure, p.facts, 8, sources);
+    expect(seeds.map((s) => s.label)).toEqual(["zrich serve", "apoor run"]);
+    // deterministic
+    expect(flowSeeds(p.structure, p.facts, 8, sources)).toEqual(seeds);
+  });
+});
+
+describe("WP32b instruction-doc seeds: README mentions and per-label dedup", () => {
+  test("WP32b-1 same-tier commands rank by root README mentions, ties by path", () => {
+    const files = [
+      sf("src/main.ts", { symbols: [{ name: "main" }] }),
+      sf("README.md", { class: "docs" }),
+      sf(".claude/commands/apply.md", { class: "docs" }),
+      sf(".claude/commands/interview.md", { class: "docs" }),
+      sf(".claude/commands/scrape.md", { class: "docs" }),
+    ];
+    const texts: Record<string, string> = {
+      "src/main.ts": "export function main() {}\n",
+      "README.md": "# Jobs\n\nUse /scrape then /scrape again, then /apply.\n",
+      ".claude/commands/apply.md": "# Apply\n",
+      ".claude/commands/interview.md": "# Interview\n",
+      ".claude/commands/scrape.md": "# Scrape\n",
+    };
+    const p = runPipeline(input(files, texts));
+    const st = p.structure;
+    const entry = { kind: "entry", detector: "entry.test@1", path: "src/main.ts", line: 1, blob: "b0", entry: "main", label: "src/main" } as const;
+    const docs = [
+      { kind: "existing_doc", detector: "doc.existing@1", path: "README.md", line: 1, blob: "b0", role: "readme", title: "Jobs" },
+      { kind: "existing_doc", detector: "doc.existing@1", path: ".claude/commands/apply.md", line: 1, blob: "b0", role: "command", title: "Apply" },
+      {
+        kind: "existing_doc",
+        detector: "doc.existing@1",
+        path: ".claude/commands/interview.md",
+        line: 1,
+        blob: "b0",
+        role: "command",
+        title: "Interview",
+      },
+      { kind: "existing_doc", detector: "doc.existing@1", path: ".claude/commands/scrape.md", line: 1, blob: "b0", role: "command", title: "Scrape" },
+    ] as const;
+    const withDocs = {
+      ...p.facts,
+      facts: [...p.facts.facts, entry, ...docs],
+      scopes: [...p.facts.scopes, "main", "main", "main", "main", "main"] as never,
+    };
+    const src = { files: new Map<RepoPath, StageFile>(), text: (x: RepoPath) => texts[x] ?? null };
+    // /scrape ×2, /apply ×1, /interview ×0 in the README; file order would put /scrape last
+    expect(flowSeeds(st, withDocs, 8, src).map((s) => s.label)).toEqual(["src/main", "/scrape", "/apply", "/interview"]);
+  });
+
+  test("WP32b-2 one seed per skill name: off-configs first, then shorter path, then path order", () => {
+    const files = [
+      sf("src/main.ts", { symbols: [{ name: "main" }] }),
+      sf("skills/context-mode/SKILL.md", { class: "docs" }),
+      sf("configs/antigravity-cli/skills/context-mode/SKILL.md", { class: "docs" }),
+      sf("configs/copilot-cli/skills/context-mode/SKILL.md", { class: "docs" }),
+      sf(".claude/skills/context-mode-ops/SKILL.md", { class: "docs" }),
+      sf("skills/dup/SKILL.md", { class: "docs" }),
+      sf("other/skills/dup/SKILL.md", { class: "docs" }),
+      sf("configs/b/skills/cfg/SKILL.md", { class: "docs" }),
+      sf("configs/a/skills/cfg/SKILL.md", { class: "docs" }),
+    ];
+    const texts: Record<string, string> = { "src/main.ts": "export function main() {}\n", "README.md": "# T\n" };
+    const p = runPipeline(input(files, texts));
+    const st = p.structure;
+    const entry = { kind: "entry", detector: "entry.test@1", path: "src/main.ts", line: 1, blob: "b0", entry: "main", label: "src/main" } as const;
+    const skill = (path: RepoPath) => ({ kind: "existing_doc", detector: "doc.existing@1", path, line: 1, blob: "b0", role: "skill", title: "S" }) as const;
+    const docs = [
+      skill("skills/context-mode/SKILL.md"),
+      skill("configs/antigravity-cli/skills/context-mode/SKILL.md"),
+      skill("configs/copilot-cli/skills/context-mode/SKILL.md"),
+      skill(".claude/skills/context-mode-ops/SKILL.md"),
+      skill("skills/dup/SKILL.md"),
+      skill("other/skills/dup/SKILL.md"),
+      skill("configs/b/skills/cfg/SKILL.md"),
+      skill("configs/a/skills/cfg/SKILL.md"),
+    ] as const;
+    const withDocs = {
+      ...p.facts,
+      facts: [...p.facts.facts, entry, ...docs],
+      scopes: [...p.facts.scopes, "main", ...docs.map(() => "main")] as never,
+    };
+    const seeds = flowSeeds(st, withDocs);
+    expect(seeds.map((s) => s.label)).toEqual(["src/main", "context-mode-ops", "cfg", "context-mode", "dup"]);
+    const byLabel = new Map(seeds.map((s) => [s.label, s.path]));
+    expect(byLabel.get("context-mode")).toBe("skills/context-mode/SKILL.md");
+    expect(byLabel.get("dup")).toBe("skills/dup/SKILL.md");
+    expect(byLabel.get("cfg")).toBe("configs/a/skills/cfg/SKILL.md");
+  });
+});
+
+describe("WP32f skill-bundled code seeds stay one skill entry", () => {
+  test("WP32f-1 a manifest-redirected entry file does not expand its same-file helpers into seeds", async () => {
+    const { p, sources } = await callRepo({
+      "pkg/main.py": "from lib import work\ndef main():\n    print(work())\nif __name__ == '__main__':\n    main()\n",
+      "pkg/lib.py": "def work():\n    return 1\n",
+      ".agents/skills/apply/package.json": '{"name": "apply", "main": "cli/src/cli.py"}',
+      ".agents/skills/apply/cli/src/cli.py": "from .helper import check\ndef main():\n    print(check())\ndef rejectFlag(flag):\n    return check(flag)\n",
+      ".agents/skills/apply/cli/src/helper.py": "def check(flag=None):\n    return True\n",
+    });
+    const seeds = flowSeeds(p.structure, p.facts, 8, sources);
+    expect(seeds.some((s) => s.label === "rejectFlag")).toBe(false);
+    // the bundled CLI still seeds once (its main walk reaches the helper)
+    const bundled = seeds.filter((s) => s.files.some((f) => f.startsWith(".agents/skills/apply/cli/")));
+    expect(bundled).toHaveLength(1);
+    expect(seeds.some((s) => s.files.includes("pkg/main.py" as RepoPath))).toBe(true);
+  });
+
+  test("WP32f-2 skill code is one tier-2 seed per skill, none when its SKILL.md seeds, root skills/ untouched", () => {
+    const files = [
+      sf("src/main.ts", { symbols: [{ name: "main" }] }),
+      sf(".agents/skills/apply/SKILL.md", { class: "docs" }),
+      sf(".agents/skills/apply/cli/src/cli.ts", { symbols: [{ name: "main" }] }),
+      sf("skills/cm/cli.ts", { symbols: [{ name: "main" }] }),
+    ];
+    const texts: Record<string, string> = { "src/main.ts": "export function main() {}\n" };
+    const p = runPipeline(input(files, texts));
+    const st = p.structure;
+    const entry = { kind: "entry", detector: "entry.test@1", path: "src/main.ts", line: 1, blob: "b0", entry: "main", label: "src/main" } as const;
+    const nodeEntry = {
+      kind: "entry",
+      detector: "entry.node@1",
+      path: ".agents/skills/apply/package.json",
+      line: 2,
+      blob: "b0",
+      entry: "main",
+      label: ".agents/skills/apply/cli/src/cli.ts",
+    } as const;
+    const nodeCli = { kind: "cli", detector: "cli.test@1", path: ".agents/skills/apply/cli/src/cli.ts", line: 1, blob: "b0", command: "apply run" } as const;
+    const rootEntry = {
+      kind: "entry",
+      detector: "entry.test@1",
+      path: "skills/cm/cli.ts",
+      line: 1,
+      blob: "b0",
+      entry: "main",
+      label: "skills/cm/cli.ts",
+    } as const;
+    const rootCli = { kind: "cli", detector: "cli.test@1", path: "skills/cm/cli.ts", line: 1, blob: "b0", command: "cm run" } as const;
+    const skillDoc = {
+      kind: "existing_doc",
+      detector: "doc.existing@1",
+      path: ".agents/skills/apply/SKILL.md",
+      line: 1,
+      blob: "b0",
+      role: "skill",
+      title: "Apply",
+    } as const;
+    const facts = (extra: readonly unknown[]) =>
+      ({
+        ...p.facts,
+        facts: [...p.facts.facts, entry, nodeEntry, nodeCli, rootEntry, rootCli, ...extra],
+        scopes: [...p.facts.scopes, "main", "main", "main", "main", "main", ...extra.map(() => "main")] as never,
+      }) as typeof p.facts;
+    // single-file walks (no handler): the tiny fixture puts every file in one module, so without texts
+    // same-module entry walks would collapse onto each other before the skill cap is even exercised
+    const src = { files: new Map(), text: () => null };
+    // with the SKILL.md seed the bundled code contributes no seed of its own
+    const withDoc = flowSeeds(st, facts([skillDoc]), 8, src);
+    expect(withDoc.some((s) => s.files.some((f) => f.startsWith(".agents/skills/apply/cli/")))).toBe(false);
+    expect(withDoc.some((s) => s.path === ".agents/skills/apply/SKILL.md")).toBe(true);
+    // without it the skill contributes exactly one seed, after the product entries
+    const withoutDoc = flowSeeds(st, facts([]), 8, src);
+    const bundled = withoutDoc.filter((s) => s.files.some((f) => f.startsWith(".agents/skills/apply/cli/")));
+    expect(bundled).toHaveLength(1);
+    // the skill-tier code seed stays behind the product entries
+    const labels = withoutDoc.map((s) => s.label);
+    expect(labels.indexOf("src/main")).toBeLessThan(labels.indexOf((bundled[0] as (typeof withoutDoc)[number]).label));
+    // outside the agent dirs the root skills/ entries keep both of their seeds
+    const rooted = withoutDoc.filter((s) => s.files.some((f) => f.startsWith("skills/cm/")));
+    expect(rooted.length).toBe(2);
   });
 });
