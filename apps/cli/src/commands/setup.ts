@@ -10,8 +10,8 @@ import { integrationSetup } from "./setup-integrations.ts";
 import { prepareProviderPin } from "./setup-pin.ts";
 import { PROVIDERS, type Provider, SESSION_PROVIDERS, setupPatch } from "./setup-presets.ts";
 
-export function binaryOf(provider: Provider, explicit?: string): string | undefined {
-  if (provider !== "claude" && provider !== "muse" && provider !== "codex") return undefined;
+export function binaryOf(provider: Provider, explicit?: string, opts: { cli?: boolean } = {}): string | undefined {
+  if (provider !== "claude" && provider !== "muse" && provider !== "codex" && !(provider === "grok" && opts.cli)) return undefined;
   const found = explicit ? resolve(explicit) : Bun.which(provider);
   if (!found) throw usage(`${provider} is not on PATH; use --binary /absolute/path or install/login with its official instructions`);
   let binary = realpathSync(found);
@@ -41,6 +41,7 @@ export async function run(io: Io): Promise<number> {
       api: { type: "boolean" },
       native: { type: "boolean" },
       "max-estimated-usd": { type: "string" },
+      cli: { type: "boolean" },
     },
     "setup",
   );
@@ -49,22 +50,26 @@ export async function run(io: Io): Promise<number> {
   const preview = values.print === true;
   if (!preview) requireTty(io, "mitori setup");
   if (values.api && provider !== "grok") throw usage("--api is only needed to select Grok API instead of its official Build session");
+  if (values.cli && provider !== "grok") throw usage("--cli is only needed to select the Grok Build CLI engine instead of its session");
+  if (values.api && values.cli) throw usage("--api and --cli cannot be combined");
   if (values.native && provider !== "codex") throw usage("--native is supported for Codex only");
   if (values["max-estimated-usd"] !== undefined && !values.native) throw usage("--max-estimated-usd requires Codex --native");
   if (
     provider === "grok" &&
     !values.api &&
+    !values.cli &&
     [values.model, values["base-url"], values["key-env"], values["in-price"], values["out-price"]].some((v) => v !== undefined)
   )
-    throw usage("Grok Build uses its own model and subscription; add --api for explicit API settings");
+    throw usage("Grok Build uses its own model and subscription; add --api for explicit API settings or --cli for the CLI engine");
   if (values["key-env"] && !/^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(values["key-env"])) throw usage("--key-env names an environment variable, not a key");
   if ((values["in-price"] === undefined) !== (values["out-price"] === undefined)) throw usage("provide both --in-price and --out-price");
-  const binary = provider === "codex" && !values.native ? undefined : binaryOf(provider, values.binary);
+  const binary = provider === "codex" && !values.native ? undefined : binaryOf(provider, values.binary, { cli: values.cli === true });
   const effort = oneOf(values.effort, ["low", "medium", "high", "xhigh", "max"] as const, "effort", "setup");
   const patch = setupPatch({
     provider,
     api: values.api === true,
     native: values.native === true,
+    cli: values.cli === true,
     ...(values["max-estimated-usd"] !== undefined ? { maxEstimatedUsd: Number(values["max-estimated-usd"]) } : {}),
     ...(binary ? { binary } : {}),
     ...(values.model ? { model: values.model } : {}),
@@ -78,9 +83,10 @@ export async function run(io: Io): Promise<number> {
   if (!preview && binary) {
     if (provider === "claude") patch.pins = { claude: await prepareProviderPin(binary, io, "Claude") };
     if (provider === "codex" && values.native) patch.pins = { codex: await prepareProviderPin(binary, io, "Codex") };
+    if (provider === "grok" && values.cli) patch.pins = { grok: await prepareProviderPin(binary, io, "Grok") };
   }
   let instructions = "";
-  if (SESSION_PROVIDERS.has(provider) && !values.api && !values.native) {
+  if (SESSION_PROVIDERS.has(provider) && !values.api && !values.native && !values.cli) {
     if (!values.repo) throw usage("external sessions need --repo /absolute/path/to/your/repository");
     const workspace = realpathSync(resolve(io.cwd, values.repo));
     if (!statSync(workspace).isDirectory()) throw usage("--repo must name a directory");
@@ -120,6 +126,8 @@ export async function run(io: Io): Promise<number> {
   if (provider === "muse") io.out("Museの認証とlean起動条件を確認してください。新しいnativeバージョンは実検証記録と区別してください。\n");
   if (provider === "codex" && values.native)
     io.out("Codexのサブスク認証を使います。表示額はAPI換算の推計で、native reasoningの厳密な費用上限ではありません。\n");
+  if (provider === "grok" && values.cli)
+    io.out("Grok Build CLIを使います。未ログインなら端末で `grok login` を実行してください。単発のテキスト生成のみで、agent/patchやツール実行は行いません。\n");
   if (instructions) io.out(instructions);
   return 0;
 }

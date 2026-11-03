@@ -19,7 +19,7 @@ import { type ChildHandle, type Engine, type EngineRequest, type EngineRun, SIGI
 import { type FileId, type FollowIo, type FollowPorts, followPinUpdate, sameFileId } from "../follow.ts";
 import { RESULT_META, RelayRun, zeroUsage } from "../util/run.ts";
 import type { Timers } from "../util/timers.ts";
-import { CODEX_VERSION, codexCatalog, codexPreflight } from "./codex-policy.ts";
+import { CODEX_VERSION, codexCatalog, codexPreflight, codexPricing } from "./codex-policy.ts";
 import { buildCodexSpawn, extractJsonFromText } from "./index.ts";
 
 /** Provider plan / rate refusals ("You've hit your usage limit … try again at …"). */
@@ -136,7 +136,7 @@ export function createCodexEngine(deps: CodexDeps): Engine {
     let version = "";
     try {
       if (!cfg().enabled) throw new MitoriError("E_AGENT_NOT_INSTALLED", "Codex is disabled");
-      if (!cfg().pricing) throw new MitoriError("E_CFG_INVALID", "Codex requires explicit API-equivalent pricing");
+      if (!codexPricing(cfg(), cfg().model)) throw new MitoriError("E_CFG_INVALID", "Codex requires explicit API-equivalent pricing");
       if (!(Number.isFinite(cfg().maxEstimatedSpendUsd) && (cfg().maxEstimatedSpendUsd ?? 0) > 0))
         throw new MitoriError("E_CFG_INVALID", "Codex requires explicit estimated spend consent; native thinking has no hard token cap");
       if (!deps.fs) throw new MitoriError("E_PRECONDITION", "Codex filesystem ports are not wired");
@@ -213,9 +213,11 @@ export function createCodexEngine(deps: CodexDeps): Engine {
         const settings = cfg();
         // Refuse unknown pricing/consent before any native call (even a detect probe).
         if (!settings.enabled) throw new MitoriError("E_AGENT_NOT_INSTALLED", "Codex is disabled");
-        if (!settings.pricing || !(settings.maxEstimatedSpendUsd && Number.isFinite(settings.maxEstimatedSpendUsd)))
-          throw new MitoriError("E_CFG_INVALID", "Codex needs explicit pricing and estimated spend consent (native thinking is not hard-capped)");
         if (!/^codex:[^\s]{1,100}$/u.test(req.model)) throw new MitoriError("E_INVALID_INPUT", "Codex requests must name an exact codex:<model> id");
+        const slug = req.model.slice("codex:".length);
+        const pricing = codexPricing(settings, slug);
+        if (!pricing || !(settings.maxEstimatedSpendUsd && Number.isFinite(settings.maxEstimatedSpendUsd)))
+          throw new MitoriError("E_CFG_INVALID", "Codex needs explicit pricing and estimated spend consent (native thinking is not hard-capped)");
         if (
           [req.budget.usd, req.budget.outTokens, req.budget.inTokens, req.budget.ms].some((n) => !Number.isFinite(n) || n <= 0) ||
           req.budget.usd > settings.maxEstimatedSpendUsd
@@ -224,7 +226,7 @@ export function createCodexEngine(deps: CodexDeps): Engine {
         const maxCalls = req.mode === "agent" ? (settings.maxPatchSteps ?? 2) : 0;
         if (!Number.isInteger(maxCalls) || maxCalls < (req.mode === "agent" ? 1 : 0) || maxCalls > 8)
           throw new MitoriError("E_CFG_INVALID", "Codex maxPatchSteps must be 1–8");
-        const preflight = codexPreflight({ ...req, outTokens: req.budget.outTokens, maxCalls }, settings.pricing);
+        const preflight = codexPreflight({ ...req, outTokens: req.budget.outTokens, maxCalls }, pricing);
         const input = preflight.inTokens;
         if (preflight.inTokens > req.budget.inTokens || preflight.usd > req.budget.usd)
           throw new MitoriError("E_BUDGET_EXCEEDED", "Codex conservative preflight exceeds the confirmed turn budget");
@@ -257,7 +259,7 @@ export function createCodexEngine(deps: CodexDeps): Engine {
             emptyCwd: cwd,
             schemaFile: req.jsonSchema ? await deps.sandbox.systemPromptFile(JSON.stringify(req.jsonSchema)) : null,
             lastMessageFile: `${prepared.root}/last-message.txt`,
-            modelCatalogFile: await deps.sandbox.systemPromptFile(codexCatalog(model, req.mode === "agent")),
+            modelCatalogFile: await deps.sandbox.systemPromptFile(codexCatalog(model, req.mode === "agent", req.effort)),
             systemPromptFile: await deps.sandbox.systemPromptFile(
               `Only apply_patch is available in agent mode. Never run commands, use network, delegate or read outside the supplied context.\n${req.system}`,
             ),
@@ -399,12 +401,7 @@ export function createCodexEngine(deps: CodexDeps): Engine {
           usage.in = input * (calls + 1);
           usage.out = observedBytes;
         }
-        usage.apiUsd = priceUsage(
-          req.model,
-          { in: usage.in, out: usage.out, cacheRead: usage.cacheRead, cacheWrite5m: 0, cacheWrite1h: 0 },
-          false,
-          settings.pricing,
-        );
+        usage.apiUsd = priceUsage(req.model, { in: usage.in, out: usage.out, cacheRead: usage.cacheRead, cacheWrite5m: 0, cacheWrite1h: 0 }, false, pricing);
         // The meter judges a turn that ran; an earlier error/timeout/cancel stays the reported cause (usage is still recorded).
         if (
           (stop === null || stop === "budget") &&

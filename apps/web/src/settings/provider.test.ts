@@ -113,3 +113,13 @@ test("guided setup passes the chosen reasoning effort only to presets whose CLI 
   expect(providerSetupCommand({ provider: "ollama", model: "qwen3", effort: "high" })).not.toContain("--effort");
   expect(() => providerSetupCommand({ provider: "muse", effort: "ultra" as never })).toThrow();
 });
+
+test("WP36-C guided setup builds the Grok CLI command without API or session options", () => {
+  expect(providerSetupCommand({ provider: "grok", cli: true })).toBe("bun run start -- setup grok --cli");
+  expect(providerSetupCommand({ provider: "grok", cli: true, model: "grok-4.7", effort: "high" })).toContain("--cli --model 'grok-4.7' --effort 'high'");
+  expect(providerSetupCommand({ provider: "grok", cli: true, model: "grok-4.6", inputPrice: 3, outputPrice: 9 })).toContain("--in-price '3' --out-price '9'");
+  expect(providerSetupCommand({ provider: "grok", cli: true })).not.toContain("--api");
+  expect(providerSetupCommand({ provider: "grok", cli: true })).not.toContain("--repo");
+  expect(() => providerSetupCommand({ provider: "grok", cli: true, api: true })).toThrow();
+  expect(() => providerSetupCommand({ provider: "codex", cli: true as never })).toThrow();
+});

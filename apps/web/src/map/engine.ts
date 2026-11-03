@@ -83,6 +83,17 @@ export function setupCommandFor(engine: EngineId, ctx: SetupContext, launcher?: 
         launcher,
       );
     }
+    if (engine === "grok-cli") {
+      return providerSetupCommand(
+        {
+          provider: "grok",
+          cli: true,
+          ...(ctx.model ? { model: ctx.model } : {}),
+          ...(ctx.effort ? { effort: ctx.effort } : {}),
+        },
+        launcher,
+      );
+    }
     return null;
   } catch {
     return null;
@@ -112,6 +123,7 @@ export function fixSteps(
       ...(opts.setupCmd ? [{ key: "providerSetupCmd", cmd: opts.setupCmd }] : [{ key: "providerSetup" }]),
       { key: "recheck" },
     ];
+  if (engine === "grok-cli" && p === "notLoggedIn") return [{ key: "login", cmd: "grok login" }, { key: "recheck" }];
   if (engine !== "claude-cli")
     return [...(p === "notInstalled" && engine !== "anthropic-api" ? [{ key: "installNix" }] : []), { key: "providerSetup" }, { key: "recheck" }];
   switch (p) {

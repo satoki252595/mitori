@@ -221,7 +221,8 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
     const P = 11550 + 450; // system + pack + ε_cli
     const O = Math.round(Math.min(3500, 900 + 0.06 * 14100)); // 1746
     const th = Math.round(150 + 0.05 * O);
-    const usd = (w: 0 | 1) => (w * P * 2.5 + (1 - w) * P * 0.2 + 14100 * 2.5 + (O + th) * 10) / 1e6;
+    // Sonnet cache read is 0.10/MTok (PRICING 2026-11-03, WP36-A correction from 0.2).
+    const usd = (w: 0 | 1) => (w * P * 2.5 + (1 - w) * P * 0.1 + 14100 * 2.5 + (O + th) * 10) / 1e6;
     const cold = estimator.task({ ...t, estimate: { ...t.estimate } }, "claude-cli", false);
     expect(cold).toMatchObject({ prefix: 11550, tail: 14100, out: O, thinking: th, cacheWrite: P + 14100, cacheRead: 0, uncached: 0 });
     expect(cold.apiUsd).toBeCloseTo(usd(1), 6);
@@ -237,7 +238,7 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
     const e = withRetry(t, warm, "claude-cli");
     const read = 14100 + P;
     expect(e).toMatchObject({ cacheRead: Math.round(P + r * read), cacheWrite: Math.round(14100 + r * (O + th)), out: Math.round(O + r * k * O) });
-    expect(e.apiUsd).toBeCloseTo(usd(0) + (r * (read * 0.2 + (O + th) * 2.5 + k * (O + th) * 10)) / 1e6, 6);
+    expect(e.apiUsd).toBeCloseTo(usd(0) + (r * (read * 0.1 + (O + th) * 2.5 + k * (O + th) * 10)) / 1e6, 6);
     expect(withRetry(t, warm, "session")).toBe(warm);
   });
 

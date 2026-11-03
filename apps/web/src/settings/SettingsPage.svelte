@@ -64,14 +64,17 @@ let guidedCommand = $state("");
 let guidedError = $state(false);
 let reloading = $state(false);
 let useApi = $state(false);
+let useGrokCli = $state(false);
 let useCodexNative = $state(true);
 let codexMaxUsd = $state<number | undefined>(1);
 let signingIn = $state(false);
 let loginResult = $state<"opened" | "fallback" | "">("");
 const setupExternal = $derived(
-  ["cursor", "antigravity"].includes(simpleProvider) || (simpleProvider === "codex" && !useCodexNative) || (simpleProvider === "grok" && !useApi),
+  ["cursor", "antigravity"].includes(simpleProvider) ||
+    (simpleProvider === "codex" && !useCodexNative) ||
+    (simpleProvider === "grok" && !useApi && !useGrokCli),
 );
-const setupEffort = $derived(simpleProvider === "muse" || (simpleProvider === "codex" && useCodexNative));
+const setupEffort = $derived(simpleProvider === "muse" || (simpleProvider === "codex" && useCodexNative) || (simpleProvider === "grok" && useGrokCli));
 /** The engine generation uses now; other engines' missing logins are not problems for this person. */
 const activeEngine = $derived(s.session.settings?.settings.defaultGenEngine);
 /** Previous selections the re-setup command keeps (loaded settings); absent when unknown. */
@@ -94,7 +97,7 @@ function setupCtxFor(engine: EngineId): SetupContext {
 const museSetup = $derived(setupCommandFor("generic", setupCtxFor("generic"), s.session.settings?.launcher) ?? "");
 const claudeSetup = $derived(setupCommandFor("claude-cli", {}, s.session.settings?.launcher) ?? "");
 const codexSetup = $derived(setupCommandFor("codex-cli", setupCtxFor("codex-cli"), s.session.settings?.launcher) ?? "");
-const setupHttp = $derived(["ollama", "lmstudio", "openai"].includes(simpleProvider) || (simpleProvider === "grok" && useApi));
+const setupHttp = $derived(["ollama", "lmstudio", "openai"].includes(simpleProvider) || (simpleProvider === "grok" && useApi && !useGrokCli));
 const authProvider = $derived(PROVIDER_AUTH_IDS.includes(simpleProvider as ProviderAuthId) ? (simpleProvider as ProviderAuthId) : null);
 const authCommand = $derived(authProvider ? providerAuthCommand(authProvider, s.session.settings?.launcher) : "");
 const setupLocalApi = $derived(/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?\/v1\/?$/u.test(simpleBaseUrl));
@@ -102,7 +105,7 @@ const setupPrices = $derived(
   simpleProvider === "openai" ||
     (simpleProvider === "codex" && useCodexNative && !!simpleModel.trim() && simpleModel.trim() !== "gpt-6.1-sol") ||
     (simpleProvider === "muse" && !!simpleModel.trim() && simpleModel.trim() !== "muse-spark-1.3-contributor") ||
-    (simpleProvider === "grok" && useApi && !!simpleModel.trim() && simpleModel.trim() !== "grok-4.7") ||
+    (simpleProvider === "grok" && (useApi || useGrokCli) && !!simpleModel.trim() && simpleModel.trim() !== "grok-4.7") ||
     (["ollama", "lmstudio"].includes(simpleProvider) && (!setupLocalApi || /(?:[:-]cloud)$/i.test(simpleModel.trim()))),
 );
 const PROVIDER_NAMES: Record<SetupProvider, string> = {
@@ -161,6 +164,11 @@ $effect(() => {
     simpleModel = cfg.engines["codex-cli"].model;
     simpleEffort = cfg.reasoning.gen;
     codexMaxUsd = cfg.engines["codex-cli"].maxEstimatedSpendUsd;
+  } else if (provider === "grok-cli") {
+    chooseSetup("grok");
+    useGrokCli = true;
+    simpleModel = cfg.engines["grok-cli"].model;
+    simpleEffort = cfg.reasoning.gen;
   }
   initialized = true;
 });
@@ -168,6 +176,7 @@ $effect(() => {
 function chooseSetup(value: SetupProvider) {
   simpleProvider = value;
   useApi = false;
+  useGrokCli = false;
   useCodexNative = true;
   loginResult = "";
   simpleModel = value === "muse" ? "muse-spark-1.3-contributor" : value === "grok" ? "grok-4.7" : value === "codex" ? "gpt-6.1-sol" : "";
@@ -214,6 +223,7 @@ function createSetup(e: SubmitEvent) {
         provider: simpleProvider,
         api: useApi,
         native: simpleProvider === "codex" && useCodexNative,
+        cli: simpleProvider === "grok" && useGrokCli,
         maxEstimatedUsd: codexMaxUsd,
         model: simpleModel,
         repo: setupRepo || s.workspace.status?.info.root,
@@ -380,7 +390,8 @@ async function saveProvider(e: SubmitEvent) {
         {#each SETUP_PROVIDERS as name (name)}<option value={name}>{name === "openai" ? t("settings.openaiCompatible") : PROVIDER_NAMES[name]}</option>{/each}
       </select></label>
       {#if simpleProvider === "grok"}
-        <label class="row check"><input type="checkbox" bind:checked={useApi} /><span>{t("settings.useApi")}</span></label>
+        <label class="row check"><input type="checkbox" bind:checked={useApi} onchange={() => { if (useApi) useGrokCli = false; }} /><span>{t("settings.useApi")}</span></label>
+        <label class="row check"><input type="checkbox" bind:checked={useGrokCli} onchange={() => { if (useGrokCli) useApi = false; }} /><span>{t("settings.useGrokCli")}</span></label>
       {/if}
       {#if simpleProvider === "codex"}
         <label class="row check"><input type="checkbox" bind:checked={useCodexNative} /><span>{t("settings.codexNative")}</span></label>
@@ -442,7 +453,8 @@ async function saveProvider(e: SubmitEvent) {
     <form onsubmit={saveProvider} oninput={() => (saved = false)}>
       <label class="row"><span>{t("settings.provider")}</span><select bind:value={provider} disabled={!initialized}>
         {#if provider === "codex-cli"}<option value="codex-cli" disabled>codex-cli</option>{/if}
-        {#each ["claude-cli", "anthropic-api", "session", "generic"] as engine (engine)}<option value={engine}>{engine}</option>{/each}
+        {#if provider === "grok-cli"}<option value="grok-cli" disabled>grok-cli</option>{/if}
+        {#each ["claude-cli", "anthropic-api", "session", "codex-cli", "grok-cli", "generic"] as engine (engine)}<option value={engine}>{engine}</option>{/each}
       </select></label>
       <button type="button" class="btn btn-sec btn-s" disabled={!initialized} onclick={musePreset}>{t("settings.musePreset")}</button>
       {#if provider === "generic"}

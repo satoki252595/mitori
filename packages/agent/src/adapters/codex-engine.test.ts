@@ -135,6 +135,21 @@ test("Codex tool-free output still rejects authoritative token usage above the c
   expect(res.usage.out).toBe(2001);
 });
 
+test("WP36-B per-model prices apply to the requested model, others fall back to pricing", async () => {
+  const x = setup();
+  const terra = { inPerMTok: 2, outPerMTok: 12, cacheReadPerMTok: 0.2 };
+  x.settings.engines["codex-cli"].pricingByModel = { "gpt-5.6-terra": terra };
+  const res = await x.engine.run({ ...r, model: "codex:gpt-5.6-terra" }, new AbortController().signal).result;
+  expect(res.stop).toBe("end");
+  expect(res.usage.apiUsd).toBeCloseTo((80 * 2 + 20 * 0.2 + 10 * 12) / 1_000_000, 9);
+  const fallback = await x.engine.run(r, new AbortController().signal).result;
+  expect(fallback.stop).toBe("end");
+  expect(fallback.usage.apiUsd).toBe(0.000102);
+  delete x.settings.engines["codex-cli"].pricing;
+  const refused = await x.engine.run(r, new AbortController().signal).result;
+  expect(refused.error?.code).toBe("E_CFG_INVALID");
+});
+
 test("Codex unknown prices and absent spend consent refuse before any native spawn", async () => {
   for (const field of ["pricing", "maxEstimatedSpendUsd"] as const) {
     const x = setup();

@@ -305,6 +305,17 @@ describe("AGT-U-I01…I14 claude-cli spawn invariants (CLAUDE_CLI_INVARIANTS)", 
     expect(() => ctxFor("answer", { model: "sonnet" as EngineRequest["model"] })).toThrow(/full Claude model id/);
   });
 
+  test("WP36-A new Claude ids pass through --model; aliases stay rejected", () => {
+    for (const model of ["claude-haiku-5-5", "claude-fable-5-1", "claude-haiku-4-5", "claude-sonnet-5-5", "claude-opus-5-5"] as const) {
+      const c = ctxFor("answer", { model });
+      expect(after(c.spec.argv, "--model")).toBe(model);
+      expect(allViolations(c.spec, c)).toEqual([]);
+    }
+    for (const alias of ["sonnet", "opus", "haiku", "fable", "claude-sonnet-5", "claude-opus-5-5-20261101x"]) {
+      expect(() => ctxFor("answer", { model: alias as EngineRequest["model"] })).toThrow(/full Claude model id/);
+    }
+  });
+
   test("AGT-U-I08 new files add Write; unsafe paths cannot become permission rules (SEC-09)", () => {
     const c = ctxFor("agent", { writeScope: ["src/new.ts", "src/old.ts"], newFiles: ["src/new.ts"] });
     expect(after(c.spec.argv, "--tools")).toBe("Read,Edit,Glob,Grep,Write");

@@ -66,6 +66,92 @@ test("setup preview and non-TTY refusal cause no daemon/model/config changes; co
   expect((daemon.calls("PATCH /settings")[0]?.body as { patch: object } | undefined)?.patch).not.toHaveProperty("engines");
 });
 
+test("WP36-A Claude setup accepts haiku-5-5 and fable-5-1, still rejects aliases", () => {
+  for (const model of ["claude-haiku-5-5", "claude-fable-5-1", "claude-haiku-4-5"] as const) {
+    const patch = setupPatch({ provider: "claude", model });
+    expect(patch.models?.answer).toBe(model);
+  }
+  expect(() => setupPatch({ provider: "claude", model: "sonnet" })).toThrow("unsupported Claude model id");
+});
+
+test("WP36-B Codex native setup carries 5.6 default prices per model", () => {
+  const terra = setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 0.5, model: "gpt-5.6-terra" });
+  expect(terra.engines?.["codex-cli"]?.pricing).toEqual({ inPerMTok: 2, outPerMTok: 12, cacheReadPerMTok: 0.2 });
+  expect(terra.engines?.["codex-cli"]?.pricingByModel?.["gpt-5.6-luna"]).toEqual({ inPerMTok: 0.2, outPerMTok: 1.2, cacheReadPerMTok: 0.02 });
+  const luna = setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 0.5, model: "gpt-5.6-luna" });
+  expect(luna.engines?.["codex-cli"]?.pricing).toEqual({ inPerMTok: 0.2, outPerMTok: 1.2, cacheReadPerMTok: 0.02 });
+  expect(luna.engines?.["codex-cli"]?.pricingByModel?.["gpt-5.6-terra"]).toEqual({ inPerMTok: 2, outPerMTok: 12, cacheReadPerMTok: 0.2 });
+  expect(luna.models?.answer).toBe("codex:gpt-5.6-luna");
+  expect(() => setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 0.5, model: "gpt-6-luna" })).toThrow("--in-price");
+});
+
+test("WP36-C Grok CLI setup defaults to grok-4.7 and requires prices for other models", () => {
+  const patch = setupPatch({ provider: "grok", cli: true });
+  expect(patch).toMatchObject({
+    defaultEngine: "grok-cli",
+    defaultGenEngine: "grok-cli",
+    models: { answer: "grok:grok-4.7" },
+    engines: { "grok-cli": { enabled: true, binary: "grok", model: "grok-4.7", pricing: { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 2 } } },
+  });
+  expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-4.6" })).toThrow("--in-price");
+  const custom = setupPatch({ provider: "grok", cli: true, model: "grok-4.6", pricing: { inPerMTok: 3, outPerMTok: 9, cacheReadPerMTok: 3 } });
+  expect(custom.models?.answer).toBe("grok:grok-4.6");
+  expect(() => setupPatch({ provider: "grok", cli: true, api: true })).toThrow("--cli");
+  // session setup is unchanged
+  expect(setupPatch({ provider: "grok" })).toMatchObject({ defaultGenEngine: "session" });
+});
+
+test("WP36-D adding one provider keeps the other engines' settings", async () => {
+  const d = await startFakeDaemon();
+  daemon = d;
+  const store: { settings: Record<string, unknown>; version: number } = {
+    settings: { engines: { "claude-cli": { enabled: true, binary: "claude" }, "codex-cli": { enabled: true, binary: "codex" } } },
+    version: 1,
+  };
+  d.route("GET /settings", () => ({ settings: store.settings, path: `${d.home}/config.json`, version: store.version }));
+  d.route("PATCH /settings/exec", (c) => {
+    const body = c.body as { path: string; value: unknown };
+    const segs = body.path.split(".");
+    let node = store.settings;
+    for (const seg of segs.slice(0, -1)) {
+      const next = (node as Record<string, unknown>)[seg];
+      if (typeof next !== "object" || next === null) (node as Record<string, unknown>)[seg] = {};
+      node = (node as Record<string, unknown>)[seg] as Record<string, unknown>;
+    }
+    (node as Record<string, unknown>)[segs.at(-1) as string] = body.value;
+    store.version += 1;
+    return { settings: store.settings, path: `${d.home}/config.json`, version: store.version };
+  });
+  d.route("PATCH /settings", (c) => {
+    const body = c.body as { version: number; patch: Record<string, unknown> };
+    if (body.version !== store.version) throw new ApiFail(409, "E_CONFLICT");
+    store.version += 1;
+    return { settings: store.settings, path: `${d.home}/config.json`, version: store.version };
+  });
+  const preview = testIo({ argv: ["grok", "--cli", "--print"], home: d.home, cwd: d.repo });
+  expect(await runCommand("setup", preview)).toBe(0);
+  expect(JSON.parse(preview.stdout)).toMatchObject({ engines: { "grok-cli": { enabled: true } } });
+  expect(JSON.parse(preview.stdout).engines).not.toHaveProperty("claude-cli");
+  expect(JSON.parse(preview.stdout).engines).not.toHaveProperty("codex-cli");
+  // a real save writes only its own engine/model keys; the stored siblings survive
+  const binary = join(d.dir, "grok");
+  writeFileSync(binary, `#!${process.execPath}\nconsole.log("grok 1.0.70");\n`, { mode: 0o700 });
+  expect(await runCommand("setup", testIo({ argv: ["grok", "--cli", "--binary", binary], home: d.home, cwd: d.repo, tty: true, answer: true }))).toBe(0);
+  expect(store.settings).toMatchObject({
+    engines: {
+      "claude-cli": { enabled: true, binary: "claude" },
+      "codex-cli": { enabled: true, binary: "codex" },
+      "grok-cli": { enabled: true, binary: realpathSync(binary), model: "grok-4.7" },
+    },
+  });
+  expect(
+    d
+      .calls("PATCH /settings/exec")
+      .map((c) => (c.body as { path: string }).path)
+      .sort(),
+  ).toEqual(["engines.grok-cli", "pins.grok"]);
+});
+
 test("Codex native setup needs spend consent, routes all roles, and previews without probing or connecting", async () => {
   expect(() => setupPatch({ provider: "codex", native: true })).toThrow("--max-estimated-usd");
   expect(() => setupPatch({ provider: "codex", native: true, maxEstimatedUsd: Infinity })).toThrow("--max-estimated-usd");

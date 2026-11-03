@@ -1,5 +1,5 @@
 /** Human setup presets. No provider credentials or execution settings come from the repository. */
-import type { DeepPartial, EngineSettings, GlobalSettings, ModelId, ReasoningEffort } from "@mitori/core";
+import { CLAUDE_MODEL_IDS, type DeepPartial, type EngineSettings, type GlobalSettings, type ModelId, type ReasoningEffort } from "@mitori/core";
 import { usage } from "./io.ts";
 
 export const PROVIDERS = ["claude", "muse", "grok", "ollama", "lmstudio", "openai", "codex", "cursor", "antigravity"] as const;
@@ -36,6 +36,8 @@ export interface SetupInput {
   provider: Provider;
   api?: boolean;
   native?: boolean;
+  /** `setup grok --cli`: use the Grok Build CLI engine instead of the Build session. */
+  cli?: boolean;
   maxEstimatedUsd?: number;
   binary?: string;
   model?: string;
@@ -53,14 +55,23 @@ function models(model: ModelId): GlobalSettings["models"] {
 export function setupPatch(input: SetupInput): DeepPartial<GlobalSettings> {
   const { provider } = input;
   if (input.native && provider !== "codex") throw usage("--native is supported for Codex only");
+  if (input.cli && (provider !== "grok" || input.api)) throw usage("--cli selects the Grok Build CLI engine (not with --api)");
   if (provider === "codex" && input.native) {
     const model = input.model ?? "gpt-6.1-sol";
     const maxEstimatedSpendUsd = input.maxEstimatedUsd;
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,91}$/.test(model)) throw usage("invalid Codex model id");
     if (maxEstimatedSpendUsd === undefined || !Number.isFinite(maxEstimatedSpendUsd) || maxEstimatedSpendUsd <= 0)
       throw usage("Codex native needs --max-estimated-usd N; native reasoning has no hard spending cap");
-    // Standard API-equivalent prices, verified 2026-10-11; subscription billing is provider-owned.
-    const pricing = input.pricing ?? (model === "gpt-6.1-sol" ? { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 } : undefined);
+    // Standard API-equivalent prices; subscription billing is provider-owned.
+    // gpt-5.6 pair: OpenAI 2026-07-30 revision (cache read = 0.1× input); gpt-6-luna has no public price.
+    const known: Record<string, NonNullable<EngineSettings["codex-cli"]["pricing"]>> = {
+      "gpt-6.1-sol": { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+      "gpt-5.6-terra": { inPerMTok: 2, outPerMTok: 12, cacheReadPerMTok: 0.2 },
+      "gpt-5.6-luna": { inPerMTok: 0.2, outPerMTok: 1.2, cacheReadPerMTok: 0.02 },
+    };
+    const pricing = input.pricing ?? known[model];
+    // Keep the other known prices on the engine so switching models needs no re-setup.
+    const pricingByModel = Object.fromEntries(Object.entries(known).filter(([slug]) => slug !== model));
     if (!pricing || !Object.values(pricing).every((n) => Number.isFinite(n) && n >= 0) || (pricing.inPerMTok === 0 && pricing.outPerMTok === 0))
       throw usage("custom Codex models need nonzero --in-price and --out-price");
     const effort = input.effort ?? "high";
@@ -68,16 +79,42 @@ export function setupPatch(input: SetupInput): DeepPartial<GlobalSettings> {
       defaultEngine: "codex-cli",
       defaultGenEngine: "codex-cli",
       ui: { defaultExecPath: "push" },
-      engines: { "codex-cli": { enabled: true, binary: input.binary ?? "codex", model, pricing, maxEstimatedSpendUsd } },
+      engines: {
+        "codex-cli": {
+          enabled: true,
+          binary: input.binary ?? "codex",
+          model,
+          pricing,
+          ...(Object.keys(pricingByModel).length ? { pricingByModel } : {}),
+          maxEstimatedSpendUsd,
+        },
+      },
       models: models(`codex:${model}`),
       reasoning: { answer: effort, patch: effort, agent: effort, gen: effort, genOverview: effort },
     };
   }
-  if (SESSION_PROVIDERS.has(provider) && !input.api)
+  if (provider === "grok" && input.cli && !input.api) {
+    const model = input.model ?? "grok-4.7";
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,91}$/.test(model)) throw usage("invalid Grok model id");
+    // Existing preset price (grok-4.7, checked 2026-10-06); other models need explicit prices.
+    const pricing = input.pricing ?? (model === "grok-4.7" ? { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 2 } : undefined);
+    if (!pricing || !Object.values(pricing).every((n) => Number.isFinite(n) && n >= 0))
+      throw usage("other Grok CLI models need --in-price and --out-price (USD per million tokens)");
+    const effort = input.effort ?? "high";
+    return {
+      defaultEngine: "grok-cli",
+      defaultGenEngine: "grok-cli",
+      ui: { defaultExecPath: "push" },
+      engines: { "grok-cli": { enabled: true, binary: input.binary ?? "grok", model, pricing } },
+      models: models(`grok:${model}`),
+      reasoning: { answer: effort, patch: effort, agent: effort, gen: effort, genOverview: effort },
+    };
+  }
+  if (SESSION_PROVIDERS.has(provider) && !input.api && !input.cli)
     return { defaultEngine: "session", defaultGenEngine: "session", engines: { session: { enabled: true } }, ui: { defaultExecPath: "copy" } };
   if (provider === "claude") {
     const model = input.model ?? "claude-sonnet-5-5";
-    if (!["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-4-5"].includes(model)) throw usage("unsupported Claude model id", "mitori setup --help");
+    if (!(CLAUDE_MODEL_IDS as readonly string[]).includes(model)) throw usage("unsupported Claude model id", "mitori setup --help");
     return {
       defaultEngine: "claude-cli",
       defaultGenEngine: "claude-cli",

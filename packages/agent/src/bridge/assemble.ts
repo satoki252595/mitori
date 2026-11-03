@@ -19,6 +19,7 @@ import {
 import { createAnthropicApiEngine, type FetchLike } from "../adapters/anthropic-engine.ts";
 import { createCodexEngine } from "../adapters/codex-engine.ts";
 import { createGenericEngine } from "../adapters/generic-engine.ts";
+import { createGrokEngine } from "../adapters/grok-engine.ts";
 import { createClaudeCliEngine } from "../claude/engine.ts";
 import { type BridgeFs, createSandboxStore, EMPTY_REL } from "../claude/fsports.ts";
 import type { AgentScheduler, Engine, EngineResult, ScheduledRequest, Spawner, UsageLedger } from "../contract.ts";
@@ -252,6 +253,44 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     return e;
   };
 
+  const grok = createGrokEngine({
+    spawner: deps.spawner,
+    settings: deps.settings,
+    env: deps.env,
+    safePath: deps.safePath,
+    clock: deps.clock,
+    timers,
+    hasher: deps.hasher,
+    fs: ports?.fs ?? null,
+    sandbox,
+    log: deps.log,
+    prepareConfig: async () => {
+      if (!ports) throw new MitoriError("E_PRECONDITION", "Grok config storage is not wired");
+      // `GROK_HOME` overrides `~/.grok` (embedded headless docs); otherwise the login lives there.
+      const sourceRoot = deps.env.GROK_HOME ?? (deps.env.HOME ? `${deps.env.HOME}/.grok` : null);
+      if (!sourceRoot?.startsWith("/")) throw new MitoriError("E_CFG_INVALID", "Grok auth root must be absolute");
+      const id = Array.from(deps.random.bytes(16), (x) => x.toString(16).padStart(2, "0")).join("");
+      const rel = `run/grok/${id}`;
+      const root = `${home}/${rel}`;
+      if (ports.fs.stat(root)) throw new MitoriError("E_PRECONDITION", "Grok isolated config collision");
+      const cleanup = () => ports.safeWrite.remove(home, rel, "home");
+      try {
+        // An empty user config: no hooks, MCP, plugins, memory, rules or agents reach the turn.
+        await ports.safeWrite.write(home, `${rel}/config.toml`, "", "home");
+        const bytes = await authBytes(`${sourceRoot}/auth.json`);
+        let auth: "subscription" | "api-key" | "none" = "none";
+        if (bytes) {
+          auth = "subscription";
+          await ports.safeWrite.write(home, `${rel}/auth.json`, bytes, "home");
+        } else if (typeof deps.env.XAI_API_KEY === "string" && deps.env.XAI_API_KEY) auth = "api-key";
+        return { root, auth, cleanup };
+      } catch (err) {
+        await cleanup();
+        throw err;
+      }
+    },
+  });
+
   const engines: Record<EngineId, Engine | null> = {
     "claude-cli": withEvents(claude),
     "anthropic-api": withEvents(anthropic),
@@ -259,6 +298,7 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     // `session` is gen's in-session Pull engine (no process).
     session: null,
     "codex-cli": withEvents(codex),
+    "grok-cli": withEvents(grok),
   };
 
   const ledger = deps.ledger as Partial<UsageLedgerImpl>;

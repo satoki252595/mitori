@@ -55,6 +55,8 @@ export function providerSetupCommand(
     provider: SetupProvider;
     api?: boolean;
     native?: boolean;
+    /** Grok Build CLI engine instead of the session (`setup grok --cli`). */
+    cli?: boolean;
     maxEstimatedUsd?: number | undefined;
     model?: string;
     repo?: string | undefined;
@@ -62,20 +64,22 @@ export function providerSetupCommand(
     keyEnv?: string;
     inputPrice?: number | undefined;
     outputPrice?: number | undefined;
-    /** Reasoning effort for providers whose CLI preset takes one (Muse, native Codex). */
+    /** Reasoning effort for providers whose CLI preset takes one (Muse, native Codex, Grok CLI). */
     effort?: ReasoningEffort | undefined;
   },
   launcher?: LauncherCommand | undefined,
 ): string {
   if (!SETUP_PROVIDERS.includes(input.provider)) throw new Error("settings.providerInvalid");
   if (input.native && input.provider !== "codex") throw new Error("settings.providerInvalid");
+  if (input.cli && input.provider !== "grok") throw new Error("settings.providerInvalid");
+  if (input.cli && input.api) throw new Error("settings.providerInvalid");
   const args: string[] = [];
   const add = (flag: string, value: string) => {
     args.push(flag, shellQuote(value));
   };
   const model = input.model?.trim();
   if (model && (/\s/u.test(model) || [...model].some((c) => c.charCodeAt(0) < 32))) throw new Error("settings.providerInvalid");
-  if ((["codex", "cursor", "antigravity"].includes(input.provider) && !input.native) || (input.provider === "grok" && !input.api)) {
+  if ((["codex", "cursor", "antigravity"].includes(input.provider) && !input.native) || (input.provider === "grok" && !input.api && !input.cli)) {
     if (!input.repo?.trim() || [...input.repo].some((c) => c.charCodeAt(0) < 32)) throw new Error("settings.providerInvalid");
     add("--repo", input.repo.trim());
   } else {
@@ -85,15 +89,16 @@ export function providerSetupCommand(
       args.push("--native");
       add("--max-estimated-usd", String(input.maxEstimatedUsd));
     }
-    if (input.provider === "grok") args.push("--api");
+    if (input.provider === "grok" && input.cli) args.push("--cli");
+    else if (input.provider === "grok") args.push("--api");
     let remoteApi = false;
     if (["ollama", "lmstudio", "openai"].includes(input.provider) && !model) throw new Error("settings.providerInvalid");
     if (model) add("--model", model);
-    if (input.effort && (input.provider === "muse" || input.native)) {
+    if (input.effort && (input.provider === "muse" || input.native || (input.provider === "grok" && input.cli))) {
       if (!EFFORTS.includes(input.effort)) throw new Error("settings.providerInvalid");
       add("--effort", input.effort);
     }
-    if (["grok", "ollama", "lmstudio", "openai"].includes(input.provider)) {
+    if (["grok", "ollama", "lmstudio", "openai"].includes(input.provider) && !(input.provider === "grok" && input.cli)) {
       const baseUrl =
         input.baseUrl?.trim() ||
         ({ grok: "https://api.x.ai/v1", ollama: "http://127.0.0.1:11434/v1", lmstudio: "http://127.0.0.1:1234/v1" } as Record<string, string>)[input.provider];

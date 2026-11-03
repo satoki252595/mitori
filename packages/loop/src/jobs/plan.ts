@@ -133,6 +133,7 @@ const ENGINE_CAPS: Record<EngineId, { tools: boolean; jsonSchema: boolean }> = {
   "anthropic-api": { tools: false, jsonSchema: true },
   generic: { tools: false, jsonSchema: false },
   session: { tools: false, jsonSchema: false },
+  "grok-cli": { tools: false, jsonSchema: true },
 };
 
 /** A router / scope error as a MitoriError (`params.actions` stays comma-separated, CR m1-86 b). */

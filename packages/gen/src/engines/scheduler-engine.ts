@@ -14,6 +14,7 @@ const CAPS: Readonly<Record<Exclude<GenEngineId, "session">, GenEngineCaps>> = {
   "anthropic-api": { streaming: true, batch: true, countTokens: true, structuredOutputs: true, serverFallback: true, explicitCache: true },
   generic: { streaming: true, batch: false, countTokens: false, structuredOutputs: false, serverFallback: false, explicitCache: false },
   "codex-cli": { streaming: true, batch: false, countTokens: false, structuredOutputs: true, serverFallback: false, explicitCache: false },
+  "grok-cli": { streaming: true, batch: false, countTokens: false, structuredOutputs: true, serverFallback: false, explicitCache: false },
 };
 
 /** Wrap one scheduler turn as a GenCallRun. */

@@ -432,6 +432,15 @@
 | CR wp32e-1 | 利用者（WP32c–f 作り直し、AI 用コマンド・スキルの主要な流れ化） | accepted | gen `summarizePromptInput()`（追加、LLM 不要）・`bench/measure/gen-inspect.ts --prompt-input <prompt名>`（`--module <id>` 併用可） | `gatherInputs` のスロット別行数・トークン数、`===` 見出し別行数、見出し無し行を表示（`--parent-symbols` と同流儀） |
 | CR wp32f-1 | 利用者（WP32c–f 作り直し、AI 用コマンド・スキルの主要な流れ化） | accepted | indexer `flowSeeds`（`FlowSeed` 型は不変）: skill 同梱コード候補は tier 2・skill 毎 1 件（entry→cli→route、SKILL.md seed あれば零、agent 外 `skills/` は対象外）、同ファイル展開は自ファイル起点 entry のみ（`entry.node@1` の解決先は展開しない） | `rejectFlag` のような小関数が製品・コマンド seed を押し出す問題を修正。`Handler.do_POST`・`functools.partial` 由来 seed・同一ファイル 3 件 cap は維持 |
 
+## 21. Orca の LLM を mitori で使う（2026-11-03、WP36）
+
+| id | requester | 決定 | 適用先 | 理由・備考 |
+|---|---|---|---|---|
+| CR wp36-1 | 利用者（Orca の Claude モデル一覧） | accepted | core `ClaudeModelId` に `claude-haiku-5-5`・`claude-fable-5-1`（追加）、`CLAUDE_MODEL_IDS`（追加・正本）、`ModelPrice.longContext?`（追加・任意）、`PRICING`・`PRICING_VERSION`（`"2026-11-03"`）。settings・setup・Web・help・README は正本から作る。`priceUsage` の二段階適用 | Orca 一覧の haiku-5-5・fable-5-1 が拒否されていた。sonnet cache read 0.2→0.10 の誤り修正。haiku-4-5 は残す。別名は従来どおり拒否。`outTokPerSec`（fable 50・haiku-5-5 150）は仮値で実行時校正。出典 `docs/design/cr-requests/WP36.md` |
+| CR wp36-2 | 利用者（Orca の Codex モデル一覧） | accepted | agent `codexCatalog(model, agent, effort)`（`default_reasoning_level` に要求 effort）、`codexPricing`（追加）、engine・gen の解決。core `EngineSettings["codex-cli"].pricingByModel?`（追加・任意）。setup 既定価格に `gpt-5.6-terra`・`gpt-5.6-luna` | catalog が `low` 固定で effort が届かなかった。`-c` と catalog の両方で渡す（`codex exec --help` に `--effort` 無し）。未価格は従来どおり起動前拒否（上限予約にしない）。`ultra` は対象外。`gpt-6-luna` は公式価格無しのため既定価格なし |
+| CR wp36-3 | 利用者（Grok Build CLI を直接使う） | accepted | core `EngineId` に `grok-cli`、`ModelId` に `` `grok:${string}` ``、`EngineSettings["grok-cli"]`（追加）。agent `grok-policy.ts`・`grok-engine.ts`（追加）と bridge 配線。`setup grok --cli`、Web 接続コマンド・engine カード手順 | 単発テキスト生成のみ（agent/patch・tool request 拒否）。呼び出しごと専用 `GROK_HOME`＋空 `config.toml`＋認証コピーのみ、終了・失敗・キャンセルで削除。tool 実行検知は失敗、usage 欠落は byte 推計。実 grok 呼び出しは未実行（fake のみ）。出典 `docs/design/cr-requests/WP36.md` |
+| CR wp36-4 | 利用者（複数の LLM を並べて使う） | accepted | Web 使う AI に `codex-cli`・`grok-cli`、Grok ガイド設定の CLI 選択（`--api` と排他）、役割モデルの `grok:`/`codex:` 受理（契約変更なし・deep merge 維持） | engine 一覧は daemon の `GET /engines` に追従し追加列挙なし。doctor・help・README・検証状況を更新 |
+
 ## 19. 各社 CLI 更新への自動追従（2026-10-13、WP28）
 
 | id | requester | 決定 | 適用先 | 理由・備考 |

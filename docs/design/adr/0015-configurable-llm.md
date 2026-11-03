@@ -33,6 +33,19 @@ HTTP usage の prompt / completion があればその報告値を使い、total 
 
 provider の登録時は `api` を一つの接続として置き換え、Grok → ローカル切替で元の keyEnv を残さない。CLI protocol を明示して戻すと古い api metadata を取り除く。その他の部分設定は既存 deep merge を維持する。
 
+## 2026-11-03 追記: Grok Build CLI（WP36、CR wp36-3）と Codex effort（CR wp36-2）
+
+Grok は generic の HTTP ではなく公式 CLI（`grok` 1.0.70）を直接使う engine（`grok-cli`）を追加した。Muse（§4）と同じ考え方で、呼び出しごとに mitori home 内の専用 `GROK_HOME` を SafeWriter で作り、空の `config.toml` と認証ファイルだけを regular/non-symlink 確認つきでコピーし、終了・失敗・キャンセルで消す。根拠は `grok --help`・`grok agent --help`・`grok inspect`・バイナリ内蔵の headless 文書（いずれもネットワーク不要の実測）:
+
+- 設定の読み場所は `~/.grok`（auth.json・config.toml・hooks/skills/memory/sessions・`leader.sock`）で、`GROK_HOME` が上書きする（内蔵文書の `$HOME` / `$GROK_HOME` 記述と `GROK_LEADER_SOCKET`・`leader.sock` 既定 `~/.grok/leader.sock` で確認）。`--leader-socket` を隔離 root 内に向け、利用者の leader プロセスに繋がない。`HOME` も同時に置き換え、`~/.claude` 互換読み・project の AGENTS.md/skills（`--cwd` は検証済み空 dir）・memory が届かない。
+- 組み込み tool を全部外すのは `--tools` の空指定ではできない（内蔵文書: 何も指名しない entry は他を残して警告するだけ）。shell route の id（`run_terminal_cmd`・`task` 等）・表示名（`spawn_subagent`・`CallMcpTool` 等）・daemon route 名・`Agent` を `--disallowed-tools` で全列挙する。未知 entry は警告だけで何も残さないため過剰列挙は安全。`--max-turns 1`・`--no-subagents`・`--no-plan`・`--disable-web-search`・`--prompt-file`（stdin 空）・`--verbatim` を付け、`--always-approve` や permission bypass は使わない。
+- 出力は `--output-format streaming-json`（`text` 蓄積・`end.usage` の input/output/cache_read/cache_creation/reasoning、tool 系 event の検知で失敗。`--output-format json` には usage が無い）。ログイン状態は LLM を呼ばず `grok models`（未ログインは "You are not authenticated."）で出す。
+- 特定できなかった部分: `streaming-json` の event 名の網羅（未知の非 tool 系は無視、tool 系は type 名と `tool_use`/`tool_result` block で検知）、`--json-schema` の実機受理、`end.stopReason` の語彙（`end` 到達は成功扱い）。いずれも fake の子プロセスと cassette だけで検証し、実 grok 呼び出しは未実行（作業時は未ログイン）。
+
+Codex は `-c model_reasoning_effort=<e>`（従来の argv）に加え、生成する model catalog の `default_reasoning_level` に要求の effort を入れる。`codex exec --help` に `--effort` flag は無く、`-c` override が 0.160.0 の検証済み profile と一致する。catalog だけでは古い版が effort を無視する可能性があり、`-c` だけでは catalog 既定が `low` のまま残るため両方で渡す。`ultra` は mitori の `ReasoningEffort` に無いため対象外。
+
+追記の回帰: `scripts/nd bun test packages/agent/src/adapters/grok-policy.test.ts packages/agent/src/adapters/grok-engine.test.ts packages/agent/src/adapters/adapters.test.ts packages/agent/src/adapters/codex-engine.test.ts`、`scripts/nd bun test packages/server/src/settings/settings.test.ts`、`scripts/nd bun test apps/web/src/settings/provider.test.ts`、`scripts/nd bunx --no-install tsc -b packages/agent packages/server --pretty false`（いずれも成功。daemon/client の socket・HTTP 系は sandbox の bind 制限で環境要因、ホストで再実行）。
+
 追記の回帰: `scripts/nd bun test packages/agent/src/adapters/generic-http.test.ts`（8件成功）、`scripts/nd bun test packages/server/src/settings/settings.test.ts`（19件成功、接続切替・rollback を含む）、`scripts/nd bunx --no-install tsc -b packages/agent packages/server --pretty false`（成功）。
 
 - 検証対象: Muse Code `1.4.2-R4684.1`、2026-10-04、この Mac。`exec --help` で上記 option、モデル profile で `max` 対応を確認。`config status` の enterprise defaults/policy はこの機械では absent。

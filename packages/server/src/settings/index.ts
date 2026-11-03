@@ -46,6 +46,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
     session: { enabled: true },
     "anthropic-api": { enabled: false, keySource: "env", envVar: "ANTHROPIC_API_KEY", useBatch: true, monthlyCapUsd: 0 },
     "codex-cli": { enabled: false, binary: "codex", model: "" },
+    "grok-cli": { enabled: false, binary: "grok", model: "" },
     generic: { enabled: false, argv: [] },
   },
   models: {
