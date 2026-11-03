@@ -31,6 +31,24 @@ export const EFFORTS: readonly ReasoningEffort[] = ["low", "medium", "high", "xh
 export const SETUP_PROVIDERS = ["claude", "muse", "grok", "ollama", "lmstudio", "openai", "codex", "cursor", "antigravity"] as const;
 export type SetupProvider = (typeof SETUP_PROVIDERS)[number];
 
+/**
+ * Engines the advanced details select offers directly. The CLI engines stay guided-only: their
+ * models and execution settings are set through the guided commands above, never PATCHed here.
+ */
+export const ADVANCED_ENGINES = ["claude-cli", "anthropic-api", "session", "generic"] as const;
+
+/**
+ * Keep the guided Grok model on its mode's default when toggling API/CLI: the API preset bills
+ * grok-4.7 while the CLI runs grok-4.7-build-fast, and sending the CLI default with --api needs
+ * explicit prices so the command builder rejects it. A custom model is left alone.
+ */
+export function syncGrokGuidedModel(current: string, opts: { api: boolean; cli: boolean }): string {
+  const model = current.trim();
+  if (opts.api && !opts.cli && model === "grok-4.7-build-fast") return "grok-4.7";
+  if (opts.cli && !opts.api && model === "grok-4.7") return "grok-4.7-build-fast";
+  return current;
+}
+
 /** Keep endpoint validation aligned with the API adapter, before generating any executable command. */
 function apiSettings(baseUrl: string, keyEnv: string | undefined): { baseUrl: string; keyEnv?: string } {
   const url = new URL(baseUrl);

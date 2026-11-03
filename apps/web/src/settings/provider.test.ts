@@ -1,5 +1,13 @@
 import { expect, test } from "bun:test";
-import { genericProviderCommand, genericProviderPatch, MUSE_ARGS, providerAuthCommand, providerSetupCommand } from "./provider.ts";
+import {
+  ADVANCED_ENGINES,
+  genericProviderCommand,
+  genericProviderPatch,
+  MUSE_ARGS,
+  providerAuthCommand,
+  providerSetupCommand,
+  syncGrokGuidedModel,
+} from "./provider.ts";
 
 const input = {
   model: "generic:muse-spark-1.3-contributor" as const,
@@ -123,4 +131,22 @@ test("WP36h-5 guided setup builds the Grok CLI command without API or session op
   expect(providerSetupCommand({ provider: "grok", cli: true })).not.toContain("--repo");
   expect(() => providerSetupCommand({ provider: "grok", cli: true, api: true })).toThrow();
   expect(() => providerSetupCommand({ provider: "codex", cli: true as never })).toThrow();
+});
+
+test("WP36i-3 guided Grok mode toggle keeps the mode's default model and leaves custom ones alone", () => {
+  expect(syncGrokGuidedModel("grok-4.7-build-fast", { api: true, cli: false })).toBe("grok-4.7");
+  expect(syncGrokGuidedModel("grok-4.7", { api: false, cli: true })).toBe("grok-4.7-build-fast");
+  expect(syncGrokGuidedModel("grok-4.6", { api: true, cli: false })).toBe("grok-4.6");
+  expect(syncGrokGuidedModel("grok-4.6", { api: false, cli: true })).toBe("grok-4.6");
+  expect(syncGrokGuidedModel("", { api: false, cli: true })).toBe("");
+  expect(syncGrokGuidedModel("grok-4.7-build-fast", { api: false, cli: false })).toBe("grok-4.7-build-fast");
+  // the synced API default builds a command with no explicit prices; the unsynced CLI default is rejected
+  expect(providerSetupCommand({ provider: "grok", api: true, model: "grok-4.7" })).toContain("setup grok --api");
+  expect(() => providerSetupCommand({ provider: "grok", api: true, model: "grok-4.7-build-fast" })).toThrow();
+});
+
+test("WP36i-4 advanced details offer only directly editable engines; CLI engines stay guided-only", () => {
+  expect([...ADVANCED_ENGINES]).toEqual(["claude-cli", "anthropic-api", "session", "generic"]);
+  expect(ADVANCED_ENGINES).not.toContain("codex-cli");
+  expect(ADVANCED_ENGINES).not.toContain("grok-cli");
 });

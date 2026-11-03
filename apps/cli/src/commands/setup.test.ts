@@ -182,14 +182,15 @@ test("WP36-D adding one provider keeps the other engines' settings", async () =>
     store.version += 1;
     return { settings: store.settings, path: `${d.home}/config.json`, version: store.version };
   });
-  const preview = testIo({ argv: ["grok", "--cli", "--print"], home: d.home, cwd: d.repo });
+  // a fake executable keeps the preview independent of a host-installed `grok` (WP36i)
+  const binary = join(d.dir, "grok");
+  writeFileSync(binary, `#!${process.execPath}\nconsole.log("grok 1.0.70");\n`, { mode: 0o700 });
+  const preview = testIo({ argv: ["grok", "--cli", "--binary", binary, "--print"], home: d.home, cwd: d.repo });
   expect(await runCommand("setup", preview)).toBe(0);
   expect(JSON.parse(preview.stdout)).toMatchObject({ engines: { "grok-cli": { enabled: true } } });
   expect(JSON.parse(preview.stdout).engines).not.toHaveProperty("claude-cli");
   expect(JSON.parse(preview.stdout).engines).not.toHaveProperty("codex-cli");
   // a real save writes only its own engine/model keys; the stored siblings survive
-  const binary = join(d.dir, "grok");
-  writeFileSync(binary, `#!${process.execPath}\nconsole.log("grok 1.0.70");\n`, { mode: 0o700 });
   expect(await runCommand("setup", testIo({ argv: ["grok", "--cli", "--binary", binary], home: d.home, cwd: d.repo, tty: true, answer: true }))).toBe(0);
   expect(store.settings).toMatchObject({
     engines: {

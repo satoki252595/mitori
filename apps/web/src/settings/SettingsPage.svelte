@@ -13,6 +13,7 @@ import { t } from "../shell/index.ts";
 import { markAfterPaint } from "../shell/perf.ts";
 import { setReaderLevel, useStores } from "../stores/app.svelte.ts";
 import {
+  ADVANCED_ENGINES,
   EFFORTS,
   genericProviderCommand,
   genericProviderPatch,
@@ -21,6 +22,7 @@ import {
   providerSetupCommand,
   SETUP_PROVIDERS,
   type SetupProvider,
+  syncGrokGuidedModel,
 } from "./provider.ts";
 
 const s = useStores();
@@ -401,8 +403,8 @@ async function saveProvider(e: SubmitEvent) {
         {#each SETUP_PROVIDERS as name (name)}<option value={name}>{name === "openai" ? t("settings.openaiCompatible") : PROVIDER_NAMES[name]}</option>{/each}
       </select></label>
       {#if simpleProvider === "grok"}
-        <label class="row check"><input type="checkbox" bind:checked={useApi} onchange={() => { if (useApi) useGrokCli = false; }} /><span>{t("settings.useApi")}</span></label>
-        <label class="row check"><input type="checkbox" bind:checked={useGrokCli} onchange={() => { if (useGrokCli) useApi = false; }} /><span>{t("settings.useGrokCli")}</span></label>
+        <label class="row check"><input type="checkbox" bind:checked={useApi} onchange={() => { if (useApi) useGrokCli = false; simpleModel = syncGrokGuidedModel(simpleModel, { api: useApi, cli: useGrokCli }); }} /><span>{t("settings.useApi")}</span></label>
+        <label class="row check"><input type="checkbox" bind:checked={useGrokCli} onchange={() => { if (useGrokCli) useApi = false; simpleModel = syncGrokGuidedModel(simpleModel, { api: useApi, cli: useGrokCli }); }} /><span>{t("settings.useGrokCli")}</span></label>
       {/if}
       {#if simpleProvider === "codex"}
         <label class="row check"><input type="checkbox" bind:checked={useCodexNative} /><span>{t("settings.codexNative")}</span></label>
@@ -431,7 +433,7 @@ async function saveProvider(e: SubmitEvent) {
         <p class="note">{t("settings.externalSetup")}</p>
         <label class="row"><span>{t("settings.setupRepo")}</span><input class="mono" bind:value={setupRepo} required={!s.workspace.status?.info.root} placeholder={s.workspace.status?.info.root ?? "/path/to/repository"} /></label>
       {:else}
-        <label class="row"><span>{t(["ollama", "lmstudio", "openai"].includes(simpleProvider) ? "settings.quickModel" : "settings.quickModelOptional")}</span><input class="mono" bind:value={simpleModel} required={["ollama", "lmstudio", "openai"].includes(simpleProvider)} placeholder={simpleProvider === "claude" ? "claude-sonnet-5-5" : simpleProvider === "muse" ? "muse-spark-1.3-contributor" : simpleProvider === "grok" ? "grok-4.7-build-fast" : "model-name"} /></label>
+        <label class="row"><span>{t(["ollama", "lmstudio", "openai"].includes(simpleProvider) ? "settings.quickModel" : "settings.quickModelOptional")}</span><input class="mono" bind:value={simpleModel} required={["ollama", "lmstudio", "openai"].includes(simpleProvider)} placeholder={simpleProvider === "claude" ? "claude-sonnet-5-5" : simpleProvider === "muse" ? "muse-spark-1.3-contributor" : simpleProvider === "grok" ? (useGrokCli ? "grok-4.7-build-fast" : "grok-4.7") : "model-name"} /></label>
         {#if setupHttp}
           <label class="row"><span>{t("settings.apiUrl")}</span><input class="mono" type="url" required bind:value={simpleBaseUrl} /></label>
           {#if simpleProvider === "grok" || simpleProvider === "openai" || !setupLocalApi}
@@ -466,7 +468,7 @@ async function saveProvider(e: SubmitEvent) {
       <label class="row"><span>{t("settings.provider")}</span><select bind:value={provider} disabled={!initialized}>
         {#if provider === "codex-cli"}<option value="codex-cli" disabled>codex-cli</option>{/if}
         {#if provider === "grok-cli"}<option value="grok-cli" disabled>grok-cli</option>{/if}
-        {#each ["claude-cli", "anthropic-api", "session", "codex-cli", "grok-cli", "generic"] as engine (engine)}<option value={engine}>{engine}</option>{/each}
+        {#each ADVANCED_ENGINES as engine (engine)}<option value={engine}>{engine}</option>{/each}
       </select></label>
       <button type="button" class="btn btn-sec btn-s" disabled={!initialized} onclick={musePreset}>{t("settings.musePreset")}</button>
       {#if provider === "generic"}
