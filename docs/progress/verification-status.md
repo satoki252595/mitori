@@ -32,7 +32,7 @@ Windowsの後続確認は2026-10-12 JST（実ログは2026-10-11 UTC）の[実Wi
 | Codex | 両方の設定プレビュー・MCP接続・実回答成功 | native 0.160.0 / gpt-6.1-solでJev/m3e生成・ソース照合を確認。本人projectのMCPも8ツール確認。外部MCPセッションからの生成、請求額・契約残量は未確認 |
 | Cursor | 両方の設定プレビュー・公式CLIのMCP接続成功 | 本人project設定で8ツールを確認。外部セッションからの文書生成は未実行 |
 | Grok Build | 両方の設定プレビュー・公式CLIのMCP接続成功 | 本人project設定で8ツールを確認。公式ログイン状態は未確認、外部セッションからの文書生成は未実行 |
-| Grok Build CLI | 設定プレビューのみ（`setup grok --cli`） | fakeの子プロセスとcassetteだけで検証、実行は未確認（作業時は未ログイン）。単発テキスト生成のみでagent/patch・ツール実行なし |
+| Grok Build CLI | 両方の設定プレビュー・実回答成功 | `setup grok --cli`（既定 `grok-4.7-build-fast`・low）。2026-11-03 に ai-job-search の実生成 11/11・L1 95.9 %（12.7 分、報告額 $2.85）を確認。単発テキスト生成のみでagent/patch・ツール実行なし |
 | Antigravity | 両方の設定プレビュー・公式アプリのMCP接続成功 | 本体2.12.2の共通設定で8ツールを確認。project設定の制約は上記参照。公式ログイン状態は未確認、外部セッションからの文書生成は未実行 |
 
 LM Studioの確認は取得済みGGUF `qwen/qwen3.8-27b`によるNix・通常ローカルの短いExplainまでで、本格的な文書生成は未検証です。[実検証記録](docs/progress/remaining-20261011/lmstudio-explain.md)。
@@ -90,4 +90,18 @@ PR #20 で2件の修正を統合した。`mitori setup` は engines・pins を c
 - 各 OS の runner で配布物を開き、`mitori --version`（`0.1.0` と既存の build id）と `mitori doctor`（LLM を呼ばない自己診断）を実行する。全操作・各 LLM での実生成の確認は対象外。
 - macOS バイナリは未署名・未公証のため、初回は Gatekeeper に止められる。`xattr -d com.apple.quarantine` で外す手順は README に書く。
 - 実機の OS レベル日本語変換（IME 確定）の実操作確認は未実施。W3C UI Events・MDN の推奨ガードに照らした実装と自動テストは対応済み。
+
+## 2026-11-03〜04 の追加結果（Orca の LLM 対応、#26・#28・#32・#33・#34）
+
+詳細は [orca-llms-20261103](orca-llms-20261103/README.md)。Orca 1.4.230 の `agent-model-catalog.json` の agent は claude・codex・grok。opencode は Mac に無く対象外。
+
+- **#26**: 同じ名前のファイルの区別。ビューアー JS は rebase 後 60,058 B で予算（60,000 B）超過 → 59,447 B。
+- **#28**: MCP ツール・Rust ルートを入口に。
+- **#32**: v0.1.0 の配布の仕組み。tag `v*` で 4 OS のアーカイブ・SHA256SUMS・build provenance・Release の下書き。workflow_dispatch の試運転では build・4 つの verify（ubuntu-24.04 x64、ubuntu-24.04-arm、macos-15、windows-2025 で `--version` と `doctor`）がすべて成功。tag はまだ作っていない（公開は人の判断）。
+- **#33**: ホストと同じ target のバイナリが Nix の loader を参照していた問題。CI で作った linux-x64 が Nix の外で `cannot execute: required file not found`。公式 Bun runtime を sha256 固定で使い、`/nix/store` 参照を build で拒否。
+- **#34**: Claude に `claude-haiku-5-5`・`claude-fable-5-1`、価格を 2026-11-03 の公式表に（Sonnet 5.5 の cache read 0.2→0.10 の誤りを修正、Haiku 5.5 は入力 100k 超で上の段）。Codex に effort を渡す、モデルごとの価格。effort ごとの thinking 予算を見積りと出力上限に入れる。見積り超過で結果を捨てず、実行全体の確認済み上限で止める。Grok Build CLI の engine（`grok-cli`、`grok:<model>`）。`setup claude` の既定 effort は high。
+- **実生成**（ai-job-search、11 タスク、concurrency 2。L1 は主張と出典の一致、vacuous を除く）: Muse high（比較）11/11・L1 99.1 %・4.1 分、Claude Sonnet 5.5 low（旧 setup 既定）11/11・L1 84.2 %・1.7 分、Sonnet 5.5 high 7/11（thinking が出力上限を使い切り本文なし、`E_GEN_COVERAGE_LOW`）→ 11/11・L1 95.2 %・7.0 分、Codex gpt-5.6-luna high 3/11（見積り超過で結果を破棄、`E_BUDGET_EXCEEDED`）→ 11/11・L1 85.5 %・9.5 分、Grok grok-4.7-build-fast low 11/11・L1 95.9 %・12.7 分・報告額 $2.85。
+- **Grok で分かったこと**（grok 1.0.70）: `enter_plan_mode` だけを外すとセッションが作れない。`--tools ""` と旧 denylist では `write` など 22 個の組み込みツールが残り、モデルがファイルを書こうとした（許可待ちで止まり実害なし）。X 検索はサーバー側のツールで、オプションでは消えず、repo 名が X 検索に送られた（1 回）。隔離 `config.toml` の `features.backend_tools = false` で止まる。grok-4.7 は推論が長い（gen.module 1 件: low 355 秒、medium は 20 分でも本文 0 字。build-fast low は 117 秒）。`max_completion_tokens` は推論を止めない。キャンセル時に子プロセスが取り残された（修正済み）。既定は build-fast・low、timeout 最低 900 秒。価格は報告額からの逆算（build-fast in 4 / out 12、grok-4.7 in 2 / out 6）。
+- **費用**（API 換算）: Grok は実験を含めて約 $10。Claude と Codex はサブスク枠。
+- **browsers ジョブ**: 2026-11-03〜04 は Mac の負荷（利用者の別作業）で事前校正が 1.12〜1.15 になり、数回止まった（コードの失敗ではない）。
 

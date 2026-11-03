@@ -96,7 +96,7 @@ Bunが古くても`bun run start`は新しいBun（`$BUN_INSTALL`・`~/.bun`・P
 | --- | --- | --- |
 | Claude Code | `bun run start -- setup claude [--model claude-sonnet-5-5]` | 画面から生成・説明・修正提案（`claude-sonnet-5-5`・`claude-opus-5-5`・`claude-haiku-5-5`・`claude-haiku-4-5`・`claude-fable-5-1`）。`--effort`省略時は`high` |
 | Muse | `bun run start -- setup muse --effort high` | 画面から生成・説明・修正提案。`--effort`省略時は`max` |
-| Codex | `bun run start -- setup codex --native --max-estimated-usd 1` | 画面から生成・説明・修正提案 |
+| Codex | `bun run start -- setup codex --native [--effort high] --max-estimated-usd 1` | 画面から生成・説明・修正提案（`--effort`省略時は`high`） |
 | Ollama | `bun run start -- setup ollama --model MODEL_ID` | 起動済みのOllamaとローカルモデル |
 | LM Studio | `bun run start -- setup lmstudio --model MODEL_ID` | 起動済みのローカルサーバー |
 | Cursor | `bun run start -- setup cursor --repo /absolute/path/to/your/repository` | 普段のCursorのセッションで生成（MCP・準備/取り込み） |
