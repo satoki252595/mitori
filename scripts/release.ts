@@ -9,6 +9,7 @@ import { join, resolve } from "node:path";
 import { TARGETS, type Target } from "./build-bin.ts";
 import { LOCK, sha256Hex } from "./gen-assets.ts";
 import { ROOT } from "./lib/repo.ts";
+import { verifyBuiltBinary } from "./lib/standalone-check.ts";
 
 /** Built binary under dist/ (`windows-x64` keeps the `.exe`). */
 export function binName(target: Target): string {
@@ -40,6 +41,9 @@ if (import.meta.main) {
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
   const sums: string[] = [];
+  // build:bin already checks each binary, but the release exit re-checks: a Nix-dependent
+  // binary must never be packed (WP37c).
+  for (const t of TARGETS) verifyBuiltBinary(join("dist", binName(t)), t);
   const targets = TARGETS.map((t) => {
     const bin = join(ROOT, "dist", binName(t));
     const stage = join(out, ".stage", t);
