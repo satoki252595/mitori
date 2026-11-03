@@ -7,6 +7,7 @@ import {
   type EngineId,
   type EngineStatus,
   type EventSink,
+  type FsReader,
   type GlobalSettings,
   type Hasher,
   type Logger,
@@ -23,7 +24,6 @@ import { createCodexEngine } from "../adapters/codex-engine.ts";
 import { createGenericEngine } from "../adapters/generic-engine.ts";
 import { createGrokEngine } from "../adapters/grok-engine.ts";
 import { GROK_ISOLATED_CONFIG_TOML } from "../adapters/grok-policy.ts";
-import { runProbe } from "../claude/detect.ts";
 import { createClaudeCliEngine } from "../claude/engine.ts";
 import { type BridgeFs, createSandboxStore, EMPTY_REL } from "../claude/fsports.ts";
 import { resolveOnSafePath } from "../claude/resolve.ts";
@@ -64,6 +64,16 @@ export interface BridgeDeps {
   events: EventSink<SseEventPayload>;
   home: string;
   env: Readonly<Record<string, string | undefined>>;
+}
+
+/**
+ * `ln` command for the isolated HOME link (WP40e): macOS ships `/bin/ln` under SIP, so it is used
+ * when present. Otherwise the safe-PATH entry itself is executed — never its realpath, which may be
+ * a multicall binary (Nix `ln` → `coreutils`, busybox) whose basename no longer runs as `ln`.
+ */
+export function selectLnCommand(fs: FsReader, ln: { path: string }): string {
+  if (fs.stat("/bin/ln")?.isFile) return "/bin/ln";
+  return ln.path;
 }
 
 const CJK_RE = /[぀-ヿ㐀-鿿豈-﫿ｦ-ﾟ]/g;
@@ -281,13 +291,59 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
         // created through the injected spawner with `ln` resolved on the safe PATH — no shell, no new port.
         const ln = resolveOnSafePath(ports.fs, deps.safePath, "ln");
         if (!ln) throw new MitoriError("E_PRECONDITION", "Antigravity isolation needs `ln` on the safe PATH");
-        const linked = await runProbe(deps.spawner, timers, {
-          command: ln.realpath,
-          argv: ["-s", ports.fs.realpath(source) ?? source, link],
-          env: { PATH: deps.safePath },
-          cwd: "/",
-        });
-        if (linked.code !== 0) throw new MitoriError("E_PRECONDITION", "Antigravity isolated HOME link failed");
+        const command = selectLnCommand(ports.fs, ln);
+        let code = -1;
+        let errHead = "";
+        try {
+          const child = deps.spawner.spawn({
+            command,
+            argv: ["-s", ports.fs.realpath(source) ?? source, link],
+            env: { PATH: deps.safePath },
+            cwd: "/",
+            stdin: "",
+            keepStdinOpen: false,
+            timeoutMs: 10_000,
+            processGroup: true,
+          });
+          child.closeStdin();
+          const kill = timers.set(() => {
+            try {
+              child.kill("SIGKILL");
+            } catch {
+              // gone
+            }
+          }, 10_000);
+          const errLines: string[] = [];
+          const drainOut = (async () => {
+            for await (const _ of child.stdout) {
+              // `ln -s` prints nothing on success
+            }
+          })();
+          const drainErr = (async () => {
+            for await (const line of child.stderr) {
+              errLines.push(line);
+              if (errLines.length > 20) errLines.shift();
+            }
+          })();
+          code = await child.exited;
+          await Promise.allSettled([drainOut, drainErr]);
+          timers.clear(kill);
+          errHead = (
+            errLines
+              .join("\n")
+              .split("\n")
+              .find((l) => l.trim() !== "") ?? errLines.join("\n")
+          ).slice(0, 200);
+        } catch {
+          code = -1;
+        }
+        if (code !== 0)
+          throw new MitoriError(
+            "E_PRECONDITION",
+            errHead
+              ? `Antigravity isolated HOME link failed (ln exited ${code}: ${secrets.redact(errHead).text})`
+              : `Antigravity isolated HOME link failed (ln exited ${code})`,
+          );
         return { home: `${root}/home`, work: `${root}/work`, auth: "subscription" as const, cleanup };
       } catch (err) {
         await cleanup();
