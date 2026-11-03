@@ -17,4 +17,6 @@ mitori は手元の clone を読むローカルツールである。報告は次
 ## 公開情報
 
 ライセンスは MIT（ルートの [LICENSE](LICENSE)）。同梱する依存は
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を読む。
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を読む。配布バイナリの検証は
+`SHA256SUMS`（`shasum -a 256 -c SHA256SUMS --ignore-missing`）と build provenance
+（`gh attestation verify <アーカイブ> --repo satoki252595/mitori`）で行う。

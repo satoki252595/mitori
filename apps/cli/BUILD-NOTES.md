@@ -7,7 +7,7 @@ binary copied into a directory without `node_modules`.
 ## 1. Pipeline
 
 ```
-bun run build:bin [--target darwin-arm64|linux-x64|all] [--lock <file>]
+bun run build:bin [--target darwin-arm64|linux-arm64|linux-x64|windows-x64|all] [--lock <file>]
   └ scripts/gen-assets.ts
       1. verify apps/cli/src/build/assets.lock.json (sha256 + size + installed package version; mismatch ⇒ exit 1)
       2. brotli-pack the 9 pinned files → dist/.build/pinned/*.br   (cached by sha256 in node_modules/.cache/mitori-assets)
@@ -17,7 +17,7 @@ bun run build:bin [--target darwin-arm64|linux-x64|all] [--lock <file>]
   └ bun build dist/.build/entry.ts apps/cli/src/build/workers/{parse,compute}.ts --compile --minify --root=<repo>
         --define globalThis.__MITORI_TEST__=false --no-compile-autoload-dotenv --no-compile-autoload-bunfig
 bun run size                    apps/cli/src/build/size.ts: bin.size gate per dist/mitori-<target>
-bun scripts/release.ts          --target all + size gate + mitori-<ver>-<target>.tar.gz + SHA256SUMS + release.json
+bun scripts/release.ts          --target all + size gate + mitori-<ver>-<target>.tar.gz (.zip on windows-x64) + SHA256SUMS + release.json
 ```
 
 - **Entry**: the compile entry is the generated `dist/.build/entry.ts`: it imports `assets.gen.ts` (which calls
