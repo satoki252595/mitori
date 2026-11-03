@@ -63,7 +63,7 @@ import {
   normalizeForKeyWith,
   synthCassette,
 } from "./fakes/cassette.ts";
-import { createFakeSpawner, type ScriptedChild, type ScriptLine, scriptedChild } from "./fakes/child.ts";
+import { createFakeSpawner, type FakeSpawner, type ScriptedChild, type ScriptLine, scriptedChild } from "./fakes/child.ts";
 import { createFakeClock, type FakeClock } from "./fakes/clock.ts";
 import { testSettings } from "./fakes/settings.ts";
 import type { FileId } from "./follow.ts";
@@ -791,4 +791,32 @@ export function loadAgentStream(name: string, root = join(import.meta.dir, "../.
 /** A scripted child from raw recorded lines (`$CWD` restored). */
 export function streamChild(lines: readonly string[], cwd: string, extra: Partial<ScriptedChild> = {}): ScriptedChild {
   return { lines: lines.map((l) => ({ line: l.split("$CWD").join(cwd) })), ...extra };
+}
+
+/* ------------------------------------------------------- agy fixtures (WP40f) */
+
+const AGY_FIXTURE_DIR = join(import.meta.dir, "../test/fixtures/agy-1.4.12");
+
+/** Raw text of one recorded `agy` fixture (host-captured, agy 1.4.12; local paths redacted by the orchestrator). */
+export function readAgyFixture(name: string): string {
+  return readFileSync(join(AGY_FIXTURE_DIR, name), "utf8");
+}
+
+/** Non-empty lines of a recorded fixture (`help.stdout` is empty by design: real `agy --help` writes 0 bytes there). */
+export function agyFixtureLines(name: string): string[] {
+  return readAgyFixture(name)
+    .split("\n")
+    .filter((l) => l.length > 0);
+}
+
+/**
+ * Script the `--version` / `models` / `--help` probes from the recorded agy 1.4.12 fixtures (WP40f): the fake
+ * replays the real stdout/stderr split — `--help` is empty on stdout (exit 0) with the help on stderr, `models`
+ * lists on stdout with a `Fetching...` progress line on stderr (`exit-codes.txt` records exit 0 for all three).
+ */
+export function scriptAgyProbes(s: FakeSpawner): FakeSpawner {
+  return s
+    .script((x) => x.argv[0] === "--version", { stdout: agyFixtureLines("version.stdout"), stderr: agyFixtureLines("version.stderr") })
+    .script((x) => x.argv[0] === "models", { stdout: agyFixtureLines("models.stdout"), stderr: agyFixtureLines("models.stderr") })
+    .script((x) => x.argv[0] === "--help", { stdout: agyFixtureLines("help.stdout"), stderr: agyFixtureLines("help.stderr") });
 }

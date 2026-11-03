@@ -5,18 +5,13 @@ import { join } from "node:path";
 import { createFsReader, createSafeWriter, createSpawner, systemClock } from "@mitori/platform";
 import { ANTIGRAVITY_AGENT } from "../adapters/antigravity-policy.ts";
 import { resolveOnSafePath } from "../claude/resolve.ts";
-import { createFakeSpawner, createTestBridge } from "../testing.ts";
+import { createFakeSpawner, createTestBridge, scriptAgyProbes } from "../testing.ts";
 import { timersFor } from "../util/timers.ts";
 import { selectLnCommand } from "./assemble.ts";
 
-const HELP = "--input-format --output-format --model --agent --disable-slash-commands -p, --print";
-
 function baseSpawner(lnImpl: (spec: { argv: readonly string[] }) => boolean, lnChild: { stdout?: string[]; stderr?: string[]; exitCode?: number }) {
-  return createFakeSpawner()
-    .script((s) => s.argv[0] === "--version", { stdout: ["1.4.12"] })
-    .script((s) => s.argv[0] === "models", { stdout: ["gemini-3.8-flash-low"] })
-    .script((s) => s.argv[0] === "--help", { stdout: [HELP] })
-    .script(lnImpl, lnChild);
+  // probes は実物どおり fixture 再生 (--help は stdout 空・stderr にヘルプ)。
+  return scriptAgyProbes(createFakeSpawner()).script(lnImpl, lnChild);
 }
 
 test("WP40e-1 antigravity isolation runs ln via its PATH entry, not its multicall realpath", async () => {

@@ -89,12 +89,15 @@ export function parseAuthStatus(text: string): { auth: AuthKind; plan?: string; 
   return withPlan({ auth: "unknown" as AuthKind });
 }
 
-/** Run a short probe command; never throws. */
+/**
+ * Run a short probe command; never throws. `out` is stdout, `err` is stderr (kept because some CLIs
+ * document flags on stderr; callers must not log it — probe stderr may contain account details).
+ */
 export async function runProbe(
   spawner: Spawner,
   timers: Timers,
   spec: Omit<SpawnSpec, "stdin" | "keepStdinOpen" | "timeoutMs" | "processGroup">,
-): Promise<{ code: number; out: string }> {
+): Promise<{ code: number; out: string; err: string }> {
   try {
     const child = spawner.spawn({ ...spec, stdin: "", keepStdinOpen: false, timeoutMs: PROBE_TIMEOUT_MS, processGroup: true });
     child.closeStdin();
@@ -106,20 +109,19 @@ export async function runProbe(
       }
     }, PROBE_TIMEOUT_MS);
     const lines: string[] = [];
+    const errLines: string[] = [];
     const drain = (async () => {
       for await (const l of child.stdout) lines.push(l);
     })();
     const drainErr = (async () => {
-      for await (const _ of child.stderr) {
-        // discarded: probe stderr may contain account details
-      }
+      for await (const l of child.stderr) errLines.push(l);
     })();
     const code = await child.exited;
     await Promise.allSettled([drain, drainErr]);
     timers.clear(t);
-    return { code, out: lines.join("\n") };
+    return { code, out: lines.join("\n"), err: errLines.join("\n") };
   } catch {
-    return { code: -1, out: "" };
+    return { code: -1, out: "", err: "" };
   }
 }
 

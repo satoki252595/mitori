@@ -1,10 +1,19 @@
 import { expect, test } from "bun:test";
 import type { BinaryPin } from "@mitori/core";
 import { type EngineRequest, SIGINT_GRACE_MS } from "../contract.ts";
-import { createFakeClock, createFakeSpawner, createTestBridge, createTestLogger, testHasher, testSettings } from "../testing.ts";
+import {
+  agyFixtureLines,
+  createFakeClock,
+  createFakeSpawner,
+  createTestBridge,
+  createTestLogger,
+  readAgyFixture,
+  scriptAgyProbes,
+  testHasher,
+  testSettings,
+} from "../testing.ts";
 import { timersFor } from "../util/timers.ts";
 import { createAntigravityEngine } from "./antigravity-engine.ts";
-import { AGY_REQUIRED_FLAGS } from "./antigravity-policy.ts";
 
 const r: EngineRequest = {
   ref: "j_agy",
@@ -22,29 +31,14 @@ const r: EngineRequest = {
   persistSession: false,
   budget: { inTokens: 30000, outTokens: 2000, usd: 0.5, ms: 10000 },
 };
-const line = (x: object) => JSON.stringify(x);
-const okTurn = [
-  line({ event: "init", init: { model: "gemini-3.8-flash-low", tools: Array.from({ length: 60 }, (_, i) => `tool_${i}`) } }),
-  line({ event: "step_update", step_update: { step_type: "agent_response", text_delta: "Hello " } }),
-  line({ event: "step_update", step_update: { step_type: "agent_response", text_delta: "world" } }),
-  line({
-    event: "result",
-    result: {
-      status: "SUCCESS",
-      response: "Hello world",
-      num_turns: 1,
-      usage: { input_tokens: 2200, output_tokens: 10, thinking_tokens: 5, cache_read_tokens: 100, total_tokens: 2315 },
-    },
-  }),
-];
+/** Recorded agy turn fixtures (WP40f): the `-p=` run replays the real stream-json bytes. */
+const successTurn = agyFixtureLines("success-stdin.stream.jsonl");
 
-function setup(records: string[] = okTurn, auth: Uint8Array | null = new TextEncoder().encode("keychain")) {
-  const spawner = createFakeSpawner()
-    .script((s) => s.argv[0] === "--version", { stdout: ["1.4.12"] })
-    .script((s) => s.argv[0] === "models", { stdout: ["gemini-3.8-flash-low\ngemini-3.8-flash-medium\ngemini-3.8-flash-high"] })
+function setup(records: readonly string[] = successTurn, opts: { stderr?: readonly string[]; exitCode?: number; auth?: Uint8Array | null } = {}) {
+  const { stderr = [], exitCode = 0, auth = new TextEncoder().encode("keychain") } = opts;
+  const spawner = scriptAgyProbes(createFakeSpawner())
     .script((s) => s.argv[0] === "-s", { stdout: [] })
-    .script((s) => s.argv[0] === "--help", { stdout: ["--input-format --output-format --model --agent --disable-slash-commands -p, --print"] })
-    .script((s) => s.argv.includes("-p="), { stdout: records });
+    .script((s) => s.argv.includes("-p="), { stdout: [...records], stderr: [...stderr], exitCode });
   const b = createTestBridge({
     spawner,
     env: { HOME: "/home/u", PATH: "/usr/bin:/bin", USER: "u" },
@@ -75,15 +69,27 @@ test("WP40-3 antigravity detect reports install and login without calling an LLM
   expect(spawner.calls.every((c) => ["--version", "--help", "models", "-s"].includes(c.argv[0] as string))).toBe(true);
 });
 
+test("WP40f-1 antigravity detect is ready when --help arrives on stderr only", async () => {
+  // 実物 (agy 1.4.12) は help.stdout が 0 バイト・exit 0 でヘルプを stderr に出す。stdout だけ見ていた頃は
+  // E_AGENT_CAPABILITY で止まった (gen-real --engine antigravity-cli の実測)。
+  expect(agyFixtureLines("help.stdout")).toEqual([]);
+  expect(readAgyFixture("help.stderr")).toContain("--input-format");
+  const { b } = setup();
+  const st = await b.engines["antigravity-cli"]!.detect();
+  expect(st.problems).toEqual([]);
+  expect(st).toMatchObject({ engine: "antigravity-cli", installed: true, auth: "subscription" });
+});
+
 test("WP40-4 antigravity answer turn isolates HOME/workdir, hides the prompt, and prices terminal usage", async () => {
   const { b, spawner } = setup();
   const res = await b.engines["antigravity-cli"]!.run(r, new AbortController().signal).result;
   expect(res.stop).toBe("end");
-  expect(res.text).toBe("Hello world");
-  // thinking tokens are billed as output: 10 + 5
-  expect(res.usage).toMatchObject({ in: 2200, out: 15, thinking: 5, cacheRead: 100 });
+  // the recorded stdin turn reports usage input 2160 / output 2 / thinking 0 / cache-read 0. Text is "OK5":
+  // the usage-carrying agent_response step returns before its "\n" text_delta is appended (fold の早期 return)。
+  expect(res.text).toBe("OK5");
+  expect(res.usage).toMatchObject({ in: 2160, out: 2, thinking: 0, cacheRead: 0 });
   // priceUsage rounds to micro-USD
-  expect(res.usage.apiUsd).toBe(Math.round(2200 * 1.5 + 100 * 0.15 + 15 * 7.5) / 1_000_000);
+  expect(res.usage.apiUsd).toBe(Math.round(2160 * 1.5 + 0 * 0.15 + 2 * 7.5) / 1_000_000);
   expect(res.usageEstimated).toBe(false);
   expect(res.auth).toBe("subscription");
   const native = spawner.calls.find((c) => c.argv.includes("-p="))!;
@@ -135,48 +141,39 @@ test("WP40-5 antigravity refuses agent/patch modes, tool requests and inexact mo
 });
 
 test("WP40-6 antigravity fails a turn that ran a tool, without using its text", async () => {
-  const { b } = setup([
-    line({ event: "step_update", step_update: { step_type: "agent_response", text_delta: "let me check" } }),
-    line({ event: "step_update", step_update: { step_type: "tool", tool_name: "run_command", state: "ERROR" } }),
-    line({
-      event: "result",
-      result: { status: "SUCCESS", response: "", usage: { input_tokens: 1, output_tokens: 1, thinking_tokens: 0, cache_read_tokens: 0, total_tokens: 2 } },
-    }),
-  ]);
+  // 実物の tool-step 記録をそのまま再生 (tool run_command が auto-denied され、stderr に jetski の説明が出る)。
+  const { b } = setup(agyFixtureLines("tool-step.stream.jsonl"), { stderr: agyFixtureLines("tool-step.stderr") });
   const res = await b.engines["antigravity-cli"]!.run(r, new AbortController().signal).result;
   expect(res.stop).toBe("error");
   expect(res.error?.code).toBe("E_AGENT_PROTOCOL");
   expect(res.error?.message).toContain("run_command");
-  expect(res.text).not.toContain("let me check");
-  expect(res.usage).toMatchObject({ in: 0, out: 0, apiUsd: 0 });
+  expect(res.text).toBe("");
+  // usage は tool step の前に報告済み (7244/399+362/0) なので残る。報告が無い turn だけ zero になる (engine の設計どおり)。
+  expect(res.usage).toMatchObject({ in: 7244, out: 761, thinking: 362, cacheRead: 0 });
+  expect(res.usage.apiUsd).toBe(Math.round(7244 * 1.5 + 0 * 0.15 + 761 * 7.5) / 1_000_000);
 });
 
 test("WP40-6 antigravity denied_actions fail the turn", async () => {
-  const { b } = setup([
-    line({
-      event: "result",
-      result: {
-        status: "SUCCESS",
-        response: "ok",
-        usage: { input_tokens: 10, output_tokens: 1, thinking_tokens: 0, cache_read_tokens: 0, total_tokens: 11 },
-        denied_actions: ["run_command"],
-      },
-    }),
-  ]);
+  // fixture に denied(文字列配列)形が無いので、success-stdin の result に denied_actions だけ足した最小変形。
+  const denied = successTurn.map((l) => {
+    const o = JSON.parse(l) as { event?: string; result?: Record<string, unknown> };
+    if (o.event === "result" && o.result) o.result.denied_actions = ["run_command"];
+    return JSON.stringify(o);
+  });
+  const { b } = setup(denied);
   const res = await b.engines["antigravity-cli"]!.run(r, new AbortController().signal).result;
   expect(res.stop).toBe("error");
   expect(res.error?.code).toBe("E_AGENT_PROTOCOL");
 });
 
 test("WP40-7 antigravity stops at once on the stderr login URL and guides to mitori auth antigravity", async () => {
-  const spawner = createFakeSpawner()
-    .script((s) => s.argv[0] === "--version", { stdout: ["1.4.12"] })
-    .script((s) => s.argv[0] === "models", { stdout: ["gemini-3.8-flash-low"] })
+  // 実物の auth-missing 記録をそのまま再生 (stderr の Google OAuth URL で即時停止する)。
+  // turn の exit は未採取のため、model 到達前の失敗形を保つ exit 1 としている。
+  const spawner = scriptAgyProbes(createFakeSpawner())
     .script((s) => s.argv[0] === "-s", { stdout: [] })
-    .script((s) => s.argv[0] === "--help", { stdout: ["--input-format --output-format --model --agent --disable-slash-commands -p, --print"] })
     .script((s) => s.argv.includes("-p="), {
-      stdout: [line({ event: "init", init: {} })],
-      stderr: ["Visit https://accounts.google.com/o/oauth2/auth?client_id=agy to sign in"],
+      stdout: agyFixtureLines("auth-missing.stream.jsonl"),
+      stderr: agyFixtureLines("auth-missing.stderr"),
       exitCode: 1,
     });
   const b = createTestBridge({
@@ -207,7 +204,8 @@ test("WP40-7 antigravity stops at once on the stderr login URL and guides to mit
 });
 
 test("WP40-7 antigravity maps authentication failed or timed out to E_AGENT_AUTH", async () => {
-  const { b } = setup([line({ event: "result", result: { status: "ERROR", error: "authentication failed or timed out", num_turns: 0 } })]);
+  // 実物の auth-missing turn (stdout の ERROR 行) をそのまま再生。stderr が無くても E_AGENT_AUTH になる。
+  const { b } = setup(agyFixtureLines("auth-missing.stream.jsonl"));
   const res = await b.engines["antigravity-cli"]!.run(r, new AbortController().signal).result;
   expect(res.stop).toBe("error");
   expect(res.error?.code).toBe("E_AGENT_AUTH");
@@ -216,11 +214,8 @@ test("WP40-7 antigravity maps authentication failed or timed out to E_AGENT_AUTH
 
 test("WP40-8 antigravity cancels a hanging turn with SIGINT then SIGKILL, in its own process group", async () => {
   const clock = createFakeClock();
-  const spawner = createFakeSpawner()
-    .script((s) => s.argv[0] === "--version", { stdout: ["1.4.12"] })
-    .script((s) => s.argv[0] === "models", { stdout: ["gemini-3.8-flash-low"] })
+  const spawner = scriptAgyProbes(createFakeSpawner())
     .script((s) => s.argv[0] === "-s", { stdout: [] })
-    .script((s) => s.argv[0] === "--help", { stdout: ["--input-format --output-format --model --agent --disable-slash-commands -p, --print"] })
     .script((s) => s.argv.includes("-p="), { hang: true });
   const b = createTestBridge({
     spawner,
@@ -262,11 +257,8 @@ test("WP40-8 antigravity cancels a hanging turn with SIGINT then SIGKILL, in its
 
 test("WP40-8 antigravity closeAll kills a live child on daemon stop without a run cancel", async () => {
   const clock = createFakeClock();
-  const spawner = createFakeSpawner()
-    .script((s) => s.argv[0] === "--version", { stdout: ["1.4.12"] })
-    .script((s) => s.argv[0] === "models", { stdout: ["gemini-3.8-flash-low"] })
+  const spawner = scriptAgyProbes(createFakeSpawner())
     .script((s) => s.argv[0] === "-s", { stdout: [] })
-    .script((s) => s.argv[0] === "--help", { stdout: ["--input-format --output-format --model --agent --disable-slash-commands -p, --print"] })
     .script((s) => s.argv.includes("-p="), { hang: true });
   const b = createTestBridge({
     spawner,
@@ -304,11 +296,8 @@ test("WP40-8 antigravity closeAll kills a live child on daemon stop without a ru
 
 test("WP40-8 antigravity timeout names the seconds and records zero usage without a usage event", async () => {
   const clock = createFakeClock();
-  const spawner = createFakeSpawner()
-    .script((s) => s.argv[0] === "--version", { stdout: ["1.4.12"] })
-    .script((s) => s.argv[0] === "models", { stdout: ["gemini-3.8-flash-low"] })
+  const spawner = scriptAgyProbes(createFakeSpawner())
     .script((s) => s.argv[0] === "-s", { stdout: [] })
-    .script((s) => s.argv[0] === "--help", { stdout: ["--input-format --output-format --model --agent --disable-slash-commands -p, --print"] })
     .script((s) => s.argv.includes("-p="), { hang: true });
   const b = createTestBridge({
     spawner,
@@ -343,24 +332,28 @@ test("WP40-8 antigravity timeout names the seconds and records zero usage withou
 });
 
 test("WP40-9 antigravity without a usage event byte-estimates; without prices it reserves the cap", async () => {
-  const bare = [
-    line({ event: "step_update", step_update: { step_type: "agent_response", text_delta: "OK" } }),
-    line({ event: "result", result: { status: "SUCCESS", response: "OK" } }),
-  ];
-  const { b } = setup(bare);
+  // fixture に usage 無しの成功形が無いので、success-stdin から usage だけ落とした最小変形。
+  const noUsage = successTurn.map((l) => {
+    const o = JSON.parse(l) as { step_update?: Record<string, unknown>; result?: Record<string, unknown> };
+    if (o.step_update) delete o.step_update.usage;
+    if (o.result) delete o.result.usage;
+    return JSON.stringify(o);
+  });
+  const { b } = setup(noUsage);
   const res = await b.engines["antigravity-cli"]!.run(r, new AbortController().signal).result;
   expect(res.stop).toBe("end");
-  expect(res.text).toBe("OK");
+  expect(res.text).toBe("OK5\n");
   expect(res.usageEstimated).toBe(true);
-  expect(res.usage.out).toBe(new TextEncoder().encode("OK").length);
+  expect(res.usage.out).toBe(new TextEncoder().encode("OK5\n").length);
   expect(res.usage.apiUsd).toBeGreaterThan(0);
 });
 
 test("WP40-C antigravity without login reports auth none and never runs", async () => {
+  // 未ログイン時の models 出力は未採取のため、--version/--help だけ fixture 再生し models だけ手書き。
   const unauth = createFakeSpawner()
-    .script((s) => s.argv[0] === "--version", { stdout: ["1.4.12"] })
+    .script((s) => s.argv[0] === "--version", { stdout: agyFixtureLines("version.stdout"), stderr: agyFixtureLines("version.stderr") })
     .script((s) => s.argv[0] === "models", { stdout: ["Please sign in with Google to use Antigravity."], exitCode: 1 })
-    .script((s) => s.argv[0] === "--help", { stdout: ["--input-format --output-format --model --agent --disable-slash-commands -p, --print"] });
+    .script((s) => s.argv[0] === "--help", { stdout: agyFixtureLines("help.stdout"), stderr: agyFixtureLines("help.stderr") });
   const b = createTestBridge({
     spawner: unauth,
     env: { HOME: "/home/u", PATH: "/usr/bin" },
@@ -380,11 +373,9 @@ test("WP40-C antigravity without login reports auth none and never runs", async 
 });
 
 test("WP40-C antigravity records zero usage when nothing reached the model", async () => {
-  const spawner = createFakeSpawner()
-    .script((s) => s.argv[0] === "--version", { stdout: ["1.4.12"] })
-    .script((s) => s.argv[0] === "models", { stdout: ["gemini-3.8-flash-low"] })
+  // stdout 無し・exit 非 0 の失敗形は未採取のため、turn だけ手書き (stderr は tool-step 記録の jetski 行に準じた文面)。
+  const spawner = scriptAgyProbes(createFakeSpawner())
     .script((s) => s.argv[0] === "-s", { stdout: [] })
-    .script((s) => s.argv[0] === "--help", { stdout: ["--input-format --output-format --model --agent --disable-slash-commands -p, --print"] })
     .script((s) => s.argv.includes("-p="), { stdout: [], stderr: ["jetski: no output produced — the turn was stopped"], exitCode: 1 });
   const b = createTestBridge({
     spawner,
@@ -409,7 +400,6 @@ test("WP40-C antigravity records zero usage when nothing reached the model", asy
 });
 
 test("WP40-b3 antigravity follows a moved pin only through --version and the --help capability gate", async () => {
-  const help = [...AGY_REQUIRED_FLAGS.map((f) => (f === "-p" ? "-p, --print" : f))].join("\n");
   const pin: BinaryPin = {
     path: "/opt/link/agy",
     realpath: "/opt/native/agy-old",
@@ -429,13 +419,8 @@ test("WP40-b3 antigravity follows a moved pin only through --version and the --h
     },
   });
   settings.pins.agy = pin;
-  const spawner = createFakeSpawner()
-    .script((s) => s.argv[0] === "--version", { stdout: ["1.4.12"] })
-    .script((s) => s.argv[0] === "--help", { stdout: [help] })
-    .script((s) => s.argv[0] === "models", { stdout: ["gemini-3.8-flash-low"] })
-    .script((s) => s.argv[0] === "-s", { stdout: [] })
-    .script((s) => s.argv[0] === "--help", { stdout: ["--input-format --output-format --model --agent --disable-slash-commands -p, --print"] })
-    .script((s) => s.argv.includes("-p="), { stdout: okTurn });
+  // follow の --help 能力ゲートも実物どおり stderr 再生 (2 本目の到達不能な --help 手書きは落とした)。
+  const spawner = scriptAgyProbes(createFakeSpawner()).script((s) => s.argv[0] === "-s", { stdout: [] });
   const clock = createFakeClock();
   const engine = createAntigravityEngine({
     spawner,
@@ -490,9 +475,13 @@ test("WP40-b3 antigravity keeps the human-review error when the follow candidate
     },
   });
   settings.pins.agy = pin;
+  // fixture の help.stderr から mitori が渡す flag 行だけ抜いた最小変形 (version は fixture の 1.4.12 のまま)。
+  const noFlagHelp = readAgyFixture("help.stderr")
+    .split("\n")
+    .filter((l) => !/--input-format|--output-format|--model|--agent|--disable-slash-commands|--print|^\s*-p[\s,]/.test(l));
   const spawner = createFakeSpawner()
-    .script((s) => s.argv[0] === "--version", { stdout: ["9.9.9"] })
-    .script((s) => s.argv[0] === "--help", { stdout: ["agy without the flags mitori needs"] });
+    .script((s) => s.argv[0] === "--version", { stdout: agyFixtureLines("version.stdout"), stderr: agyFixtureLines("version.stderr") })
+    .script((s) => s.argv[0] === "--help", { stdout: [], stderr: noFlagHelp });
   const clock = createFakeClock();
   const engine = createAntigravityEngine({
     spawner,
@@ -526,9 +515,13 @@ test("WP40-b3 antigravity keeps the human-review error when the follow candidate
 });
 
 test("WP40b-1 antigravity unknown agent ERROR fails with guidance naming the agent", async () => {
-  const { b } = setup([
-    line({ event: "result", result: { status: "ERROR", error: 'error: unknown agent "mitori-text" (no custom agents are available)', num_turns: 0 } }),
-  ]);
+  // fixture に unknown-agent 形が無いので、auth-missing の error 値だけ置き換えた最小変形 (文字列置換だと JSON が壊れる)。
+  const unknownAgent = agyFixtureLines("auth-missing.stream.jsonl").map((l) => {
+    const o = JSON.parse(l) as { result?: Record<string, unknown> };
+    if (o.result) o.result.error = 'error: unknown agent "mitori-text" (no custom agents are available)';
+    return JSON.stringify(o);
+  });
+  const { b } = setup(unknownAgent);
   const res = await b.engines["antigravity-cli"]!.run(r, new AbortController().signal).result;
   expect(res.stop).toBe("error");
   expect(res.error?.message).toContain("unknown agent");
@@ -538,11 +531,9 @@ test("WP40b-1 antigravity unknown agent ERROR fails with guidance naming the age
 });
 
 test("WP40b-1 antigravity unknown agent on stderr (no result) fails with the same guidance", async () => {
-  const spawner = createFakeSpawner()
-    .script((s) => s.argv[0] === "--version", { stdout: ["1.4.12"] })
-    .script((s) => s.argv[0] === "models", { stdout: ["gemini-3.8-flash-low"] })
+  // result 無し・stderr のみ形は未採取のため turn だけ手書き (probes は fixture 再生)。
+  const spawner = scriptAgyProbes(createFakeSpawner())
     .script((s) => s.argv[0] === "-s", { stdout: [] })
-    .script((s) => s.argv[0] === "--help", { stdout: ["--input-format --output-format --model --agent --disable-slash-commands -p, --print"] })
     .script((s) => s.argv.includes("-p="), {
       stdout: [],
       stderr: ['error: unknown agent "mitori-text" (no custom agents are available)'],

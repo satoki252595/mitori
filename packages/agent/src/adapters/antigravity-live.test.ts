@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createFsReader, createHasher, createSafeWriter, createSpawner, cryptoRandom, noopMetrics, systemClock } from "@mitori/platform";
+import { createAgentBridge } from "../bridge/index.ts";
 import type { EngineRequest } from "../contract.ts";
+import { createTestLogger, memLedger, testSettings } from "../testing.ts";
 import { ANTIGRAVITY_AGENT_MD, antigravityFoldLine, buildAntigravitySpawn, emptyAntigravityTurn } from "./antigravity-policy.ts";
 
 // Host-only: needs the real `agy` binary and a macOS keychain login (subscription auth).
@@ -194,6 +197,59 @@ describe("WP40-10 antigravity live (host only)", () => {
         expect(r.errText).not.toMatch(/no output produced/i);
       } finally {
         rmSync(r.root, { recursive: true, force: true });
+      }
+    },
+    150_000,
+  );
+});
+
+describe("WP40f-2 antigravity live through assemble (host only)", () => {
+  live(
+    "detect is ready and one answer turn returns text with usage, then removes its isolation root",
+    async () => {
+      const bin = agyBinary();
+      expect(bin.startsWith("/")).toBe(true);
+      const userHome = process.env.HOME ?? "";
+      expect(existsSync(join(userHome, "Library/Keychains"))).toBe(true);
+      // 本物の platform ports で assemble した engine を使う (policy 単体では WP40/40b/40e/40f の配線ミスを見つけられない)。
+      const daemonHome = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), "mitori-agy-assemble-")));
+      try {
+        const settings = testSettings({
+          engines: { "antigravity-cli": { enabled: true, binary: bin, model: "gemini-3.8-flash" } },
+        });
+        const { engines } = createAgentBridge({
+          stateWrite: async (_label, fn) => fn(),
+          random: cryptoRandom,
+          metrics: noopMetrics,
+          safePath: process.env.PATH ?? "/usr/bin:/bin",
+          settings: () => settings,
+          spawner: createSpawner(),
+          ledger: memLedger(),
+          log: createTestLogger(),
+          clock: systemClock,
+          hasher: createHasher(),
+          events: { emit: () => {} },
+          home: daemonHome,
+          env: { HOME: userHome, PATH: process.env.PATH, USER: process.env.USER },
+          safeWrite: createSafeWriter(),
+          fs: createFsReader(),
+        });
+        const engine = engines["antigravity-cli"];
+        expect(engine).not.toBeNull();
+        const st = await engine!.detect();
+        expect(st.problems).toEqual([]);
+        expect(st).toMatchObject({ installed: true, auth: "subscription" });
+        expect(st.version).not.toBe("");
+        const res = await engine!.run(liveRequest("Reply with exactly: OK"), new AbortController().signal).result;
+        expect(res.stop).toBe("end");
+        expect(res.text).toContain("OK");
+        expect(res.usageEstimated).toBe(false);
+        expect(res.usage.in).toBeGreaterThan(0);
+        // detect・run の隔離ルートは消えている。
+        const iso = join(daemonHome, "run", "antigravity");
+        expect(!existsSync(iso) || readdirSync(iso).length === 0).toBe(true);
+      } finally {
+        rmSync(daemonHome, { recursive: true, force: true });
       }
     },
     150_000,

@@ -64,6 +64,19 @@ const LOGIN_HINT = "Antigravity にログインしていません。`mitori auth
 /** `agy models` output when nobody is signed in (no LLM is ever called by detect). */
 const AGY_UNAUTHENTICATED_RE = /not logged in|not signed in|sign in|authenticate|no auth|login/i;
 
+/**
+ * Probe text on both routes (WP40f): real `agy --help` writes 0 bytes to stdout (exit 0) and the help
+ * to stderr; `models` adds a progress line on stderr. stdout stays first so the version first-line holds.
+ */
+const probeText = (r: { out: string; err: string }): string => (r.err ? `${r.out}\n${r.err}` : r.out);
+
+/** First non-empty probe line (the version, whichever route carried it). */
+const firstLine = (text: string): string =>
+  text
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => l !== "") ?? "";
+
 /** Isolated single-turn text generation via the Antigravity CLI (no agent/patch modes, no tools). */
 export function createAntigravityEngine(deps: AntigravityDeps): Engine {
   const cfg = () => deps.settings().engines["antigravity-cli"];
@@ -107,8 +120,9 @@ export function createAntigravityEngine(deps: AntigravityDeps): Engine {
       ownership: (p) => follow.ownership(p),
       runVersion: async (candidate) => {
         const r = await runProbe(deps.spawner, deps.timers, { command: candidate, argv: ["--version"], env: probeEnv, cwd: "/" });
-        if (r.code !== 0 || new TextEncoder().encode(r.out).byteLength > 4096) return null;
-        return r.out.split("\n")[0]?.trim() ?? null;
+        const text = probeText(r);
+        if (r.code !== 0 || new TextEncoder().encode(text).byteLength > 4096) return null;
+        return firstLine(text) || null;
       },
       euid: follow.euid,
       platform: follow.platform,
@@ -124,7 +138,8 @@ export function createAntigravityEngine(deps: AntigravityDeps): Engine {
     if (!candidate) return fail(resolved);
     // The engine capability gate runs against the new binary: every flag mitori passes must be documented.
     const help = await runProbe(deps.spawner, deps.timers, { command: candidate.realpath, argv: ["--help"], env: probeEnv, cwd: "/" });
-    if (help.code !== 0 || new TextEncoder().encode(help.out).byteLength > 65536 || !antigravityCapabilityOk(help.out)) return fail(candidate.realpath);
+    const helpText = probeText(help);
+    if (help.code !== 0 || new TextEncoder().encode(helpText).byteLength > 65536 || !antigravityCapabilityOk(helpText)) return fail(candidate.realpath);
     failedFollow = null;
     const now = deps.clock.iso();
     const next: BinaryPin = {
@@ -195,15 +210,16 @@ export function createAntigravityEngine(deps: AntigravityDeps): Engine {
       try {
         const env = { ...scrubEnv({ ...deps.env, PATH: deps.safePath }, []), HOME: isolated.home };
         const ver = await runProbe(deps.spawner, deps.timers, { command: bin, argv: ["--version"], env, cwd: isolated.work });
-        version = ver.out.split("\n")[0]?.trim() ?? "";
+        version = firstLine(probeText(ver));
         if (ver.code !== 0 || !version) throw new MitoriError("E_AGENT_CAPABILITY", "Antigravity binary did not answer --version");
         const gate = AGY_REQUIRED_FLAGS.map((f) => (f === "-p" ? "--print" : f));
         const help = await runProbe(deps.spawner, deps.timers, { command: bin, argv: ["--help"], env, cwd: isolated.work });
-        if (help.code !== 0 || !gate.every((f) => help.out.includes(f)))
+        const helpText = probeText(help);
+        if (help.code !== 0 || !gate.every((f) => helpText.includes(f)))
           throw new MitoriError("E_AGENT_CAPABILITY", "Antigravity binary lacks a flag mitori passes; update mitori for this agy");
         // Login state without calling an LLM: `agy models` lists the effort-suffixed models when signed in.
         const models = await runProbe(deps.spawner, deps.timers, { command: bin, argv: ["models"], env, cwd: isolated.work });
-        if (models.code !== 0 || AGY_UNAUTHENTICATED_RE.test(models.out)) throw new MitoriError("E_AGENT_AUTH", LOGIN_HINT);
+        if (models.code !== 0 || AGY_UNAUTHENTICATED_RE.test(probeText(models))) throw new MitoriError("E_AGENT_AUTH", LOGIN_HINT);
         auth = isolated.auth === "none" ? "none" : "subscription";
         if (auth === "none") throw new MitoriError("E_AGENT_AUTH", LOGIN_HINT);
       } finally {
