@@ -4,7 +4,7 @@
 
 脆弱性を見つけたら、公開の Issue には書かず、GitHub の非公開の脆弱性報告
 （リポジトリの Security タブ → "Report a vulnerability"）で送る。
-再現手順・影響の範囲・確認した版（`mitori --version` の `0.0.0+<build>`）を書く。
+再現手順・影響の範囲・確認した版（`mitori --version` の出力。例 `0.1.0+<build>`）を書く。
 
 ## 対応範囲
 

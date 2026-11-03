@@ -7,12 +7,11 @@ describe("WP37 version canonical", () => {
     expect(checkVersions({ root: "0.1.0", cli: "0.1.0" })).toEqual([]);
   });
 
-  test("WP37 committed manifests agree and cli reports 0.1.0", async () => {
+  test("WP37b committed manifests agree and cli reports the manifest version", async () => {
     const root = (await Bun.file("package.json").json()) as { version: string };
     const cli = (await Bun.file("apps/cli/package.json").json()) as { version: string };
     expect(checkVersions({ root: root.version, cli: cli.version })).toEqual([]);
-    expect(cli.version).toBe("0.1.0");
     const { cliVersion } = await import("../apps/cli/src/main.ts");
-    expect(cliVersion().startsWith("0.1.0")).toBe(true);
+    expect(cliVersion().startsWith(cli.version)).toBe(true);
   });
 });

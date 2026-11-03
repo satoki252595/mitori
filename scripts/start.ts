@@ -143,9 +143,9 @@ export function sourceFingerprint(root: string, files: readonly string[], runtim
 }
 
 /**
- * The build id for this working tree (`0.0.0+<build>`'s suffix), exported to the CLI through `BUILD_ENV`
- * so the daemon version handshake notices rebuilt sources. Never throws: without sources (no git) the CLI
- * keeps plain `0.0.0`. Exported for tests.
+ * The build id for this working tree (the `+<build>` suffix of the CLI version in `apps/cli/package.json`),
+ * exported to the CLI through `BUILD_ENV` so the daemon version handshake notices rebuilt sources. Never
+ * throws: without sources (no git) the CLI keeps the plain package.json version. Exported for tests.
  */
 export function exportBuildId(root = ROOT, files: readonly string[] = buildFileList(), runtime: string = Bun.version): string | undefined {
   try {

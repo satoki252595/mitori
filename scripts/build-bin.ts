@@ -10,7 +10,7 @@ import { ROOT } from "./lib/repo.ts";
 export const TARGETS = ["darwin-arm64", "linux-arm64", "linux-x64", "windows-x64"] as const;
 export type Target = (typeof TARGETS)[number];
 
-/** `bun build` argv for one target. `buildId` bakes the source build id (`0.0.0+<build>`) into the binary. */
+/** `bun build` argv for one target. `buildId` bakes the source build id (`<cli version>+<build>`) into the binary. */
 export function compileArgs(entry: string, workers: readonly string[], target: Target, outfile: string, opts: { buildId?: string } = {}): string[] {
   return [
     "build",

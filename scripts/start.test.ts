@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
+import cliPkg from "../apps/cli/package.json";
 import { BUILD_ENV } from "./lib/build-id.ts";
 import { ROOT } from "./lib/repo.ts";
 import {
@@ -49,13 +50,17 @@ test("startup refreshes changed/deleted source and missing output, and reuses in
   }
 });
 
-test("the ordinary Bun start command accepts --version without building assets or calling an LLM", () => {
+// The product version comes from `apps/cli/package.json` (WP37's single source of truth); never pin it here.
+const CLI_BASE: string = cliPkg.version;
+const CLI_BASE_RE = CLI_BASE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+test("WP37b the ordinary Bun start command accepts --version without building assets or calling an LLM", () => {
   const proc = Bun.spawnSync([process.execPath, "run", "start", "--", "--version"], { stdout: "pipe", stderr: "pipe" });
   expect(proc.exitCode).toBe(0);
-  expect(new TextDecoder().decode(proc.stdout)).toMatch(/^mitori 0\.0\.0(\+[0-9a-f]{12})? \(api 1\)\n$/);
+  expect(new TextDecoder().decode(proc.stdout)).toMatch(new RegExp(`^mitori ${CLI_BASE_RE}(\\+[0-9a-f]{12})? \\(api 1\\)\\n$`));
 });
 
-test("start passes the source build id to its children through the env", async () => {
+test("WP37b start passes the source build id to its children through the env", async () => {
   const root = mkdtempSync(join(tmpdir(), "mitori-start-bid-"));
   const saved = process.env[BUILD_ENV];
   try {
@@ -64,7 +69,7 @@ test("start passes the source build id to its children through the env", async (
     expect(first).toMatch(/^[0-9a-f]{12}$/);
     expect(process.env[BUILD_ENV]).toBe(first);
     const { cliVersion } = await import("../apps/cli/src/main.ts");
-    expect(cliVersion()).toBe(`0.0.0+${first}`);
+    expect(cliVersion()).toBe(`${CLI_BASE}+${first}`);
     writeFileSync(join(root, "a.ts"), "two");
     expect(exportBuildId(root, ["a.ts"], "runtime-1")).not.toBe(first);
   } finally {
