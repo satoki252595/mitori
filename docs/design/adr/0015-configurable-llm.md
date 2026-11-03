@@ -112,6 +112,16 @@ live テスト（`MITORI_LIVE=1`、ホストのみ）に 1 件追加: 「まず 
 
 追記の回帰: `scripts/nd bun test packages/agent/src/adapters/grok-engine.test.ts packages/agent/src/adapters/codex-engine.test.ts packages/agent/src/adapters/adapters.test.ts apps/cli/src/commands/setup.test.ts apps/web/src/settings/provider.test.ts packages/gen/src/planner/planner.test.ts packages/gen/src/orchestrator/execute.test.ts packages/server/src/settings/settings.test.ts`、`scripts/nd bun run check`、`scripts/nd bun run golden`。実 LLM は呼ばない。
 
+## WP40: Gemini を Antigravity CLI（agy）経由で使う（2026-11-04 ホスト実測）
+
+- 呼び出しは `--input-format stream-json --output-format stream-json --model <id-effort> --agent mitori-text --disable-slash-commands -p=`（`-p=` が最後。後ろに flag を置くと prompt と誤読する）。prompt は argv に載せず、stdin に 1 行 `{"event":"user","message":{"content":"<prompt>"}}` を書いて閉じる（ホスト確認済み）。
+- 1 行 1 JSON: `init`（`tools` は 60 個のまま並ぶので当てにしない）、`step_update`（`agent_response` の `text_delta` を連結したものが本文。`tool` など他 `step_type` は fail-closed）、`result`（`status`・`response`・`usage{input_tokens,output_tokens,thinking_tokens,cache_read_tokens}`・`denied_actions`）。
+- 隔離は呼び出しごとの一時 HOME（中身は `Library/Keychains` → 本物の `~/Library/Keychains` の symlink だけ。認証は macOS のキーチェーン）と空の作業ディレクトリ（中身は `.agents/agents/mitori-text.md` だけ。frontmatter `tools: []`・`mainAgent: true`・`subagent: false`、`--agent mitori-text`）。入力の固定分は約 2,200 トークン（本物の HOME だと 10,000〜15,500）。
+- モデルは `gemini-4-argon`・`gemini-3.8-flash`、effort は low|medium|high（id の末尾）。既定 `gemini-3.8-flash`・effort low（速さ優先）。価格は第三者のまとめの上限側の値（公式表は未確認）: Argon in $4 / out $20 / cache 読み $0.20、Flash in $1.50 / out $7.50 / cache 読み 0.1×入力。thinking は出力として数える。
+- 認証が無いと stderr に Google のログイン URL を出して 60 秒待つ → URL を見たら子をすぐ止めて `mitori auth antigravity` を案内する（待たない）。
+
+追記の回帰: `scripts/nd bun test packages/agent/src/adapters/antigravity-policy.test.ts packages/agent/src/adapters/antigravity-engine.test.ts packages/agent/src/adapters/antigravity-live.test.ts apps/cli/src/commands/setup.test.ts apps/web/src/settings/provider.test.ts packages/web/src/map/map.test.ts packages/gen/src/planner/planner.test.ts packages/gen/src/orchestrator/execute.test.ts packages/server/src/settings/settings.test.ts`、`scripts/nd bun run check`、`scripts/nd bun run golden`。live 以外は実 LLM を呼ばない。
+
 ## Sources
 
 2026-10-04 に [Muse Code Configuration and context](https://dev.meta.ai/docs/muse-code/configuration)（headless flags、user settings、managed config）と [Muse Code Developer Docs: Hooks](https://meta-models.github.io/muse-code-sdk/next/guides/extend/hooks/)（managed/user hook は project trust を要しない）を確認。[Extending Muse Code](https://meta-models.github.io/muse-code-sdk/next/guides/extend/) は MCP の旧表記も設定で受け付けると記載する。環境 gate と管理 hook override の効き方は公開仕様ではなく上記バージョンのローカル実測による。

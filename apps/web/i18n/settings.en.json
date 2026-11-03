@@ -109,5 +109,6 @@
   "settings.codexChanged": "The Codex binary changed. Run this in a terminal to verify and register the new version.",
   "settings.codexVersion": "mitori supports Codex {version}. Re-running setup will not fix this; updating mitori (git pull) may support the new version",
   "settings.useGrokCli": "Run directly via the Build CLI (one-shot text only)",
+  "settings.useAntigravityCli": "Run directly via the Antigravity CLI (one-shot text only)",
   "settings.grokSlowWarn": "Grok medium+ effort can take 10+ minutes per task."
 }

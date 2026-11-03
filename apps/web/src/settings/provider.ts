@@ -44,6 +44,7 @@ function catalogKeyFor(provider: SetupProvider, opts: { api?: boolean | undefine
   if (provider === "muse") return "muse";
   if (provider === "grok" && opts.cli && !opts.api) return "grok-cli";
   if (provider === "grok" && opts.api && !opts.cli) return "grok-api";
+  if (provider === "antigravity" && opts.cli) return "antigravity";
   return null;
 }
 
@@ -80,7 +81,7 @@ export function setupModelPriceKnown(
   const key = catalogKeyFor(provider, opts);
   if (key === null) return null;
   const slug = modelSlug?.trim() || MODEL_CATALOG[key].defaultModel.split(":").at(-1);
-  const prefix = key === "claude" ? "" : key === "codex" ? "codex:" : key === "grok-cli" ? "grok:" : "generic:";
+  const prefix = key === "claude" ? "" : key === "codex" ? "codex:" : key === "grok-cli" ? "grok:" : key === "antigravity" ? "antigravity:" : "generic:";
   const entry = MODEL_CATALOG[key].models.find((m) => m.id === `${prefix}${slug}`);
   if (!entry) return false;
   return entry.pricing !== null;
@@ -91,6 +92,7 @@ export function switchSetupHint(modelId: string): string {
   const slug = modelId.split(":").at(-1) ?? modelId;
   if (modelId.startsWith("codex:")) return `mitori setup codex --native --model '${slug}' --max-estimated-usd <n> [--in-price <n> --out-price <n>]`;
   if (modelId.startsWith("grok:")) return `mitori setup grok --cli --model '${slug}' [--in-price <n> --out-price <n>]`;
+  if (modelId.startsWith("antigravity:")) return `mitori setup antigravity --cli --model '${slug}' [--in-price <n> --out-price <n>]`;
   if (modelId === "generic:grok-4.7") return `mitori setup grok --api --model 'grok-4.7' --in-price <n> --out-price <n>`;
   if (modelId.startsWith("generic:muse-")) return `mitori setup muse --model '${slug}'`;
   if (modelId.startsWith("generic:")) return `mitori setup <provider> --model '${slug}' --in-price <n> --out-price <n>`;
@@ -113,10 +115,10 @@ export function switchErrorKey(reason: string | undefined): string {
   }
 }
 
-/** Default effort of a quick-setup provider (Claude high, Codex high, Grok low, Muse max, others high). */
+/** Default effort of a quick-setup provider (Claude high, Codex high, Grok/Antigravity low, Muse max, others high). */
 export function setupDefaultEffort(provider: SetupProvider): ReasoningEffort {
   if (provider === "muse") return "max";
-  if (provider === "grok") return "low";
+  if (provider === "grok" || provider === "antigravity") return "low";
   return "high";
 }
 
@@ -129,6 +131,7 @@ export function switchableModels(settings: GlobalSettings): SetupModelOption[] {
   if (settings.engines["claude-cli"]?.enabled) views.push("claude");
   if (settings.engines["codex-cli"]?.enabled) views.push("codex");
   if (settings.engines["grok-cli"]?.enabled) views.push("grok-cli");
+  if (settings.engines["antigravity-cli"]?.enabled) views.push("antigravity");
   if (settings.engines.generic?.enabled) views.push("muse", "grok-api");
   const out: SetupModelOption[] = [];
   const seen = new Set<string>();
@@ -203,7 +206,7 @@ export function providerSetupCommand(
     provider: SetupProvider;
     api?: boolean;
     native?: boolean;
-    /** Grok Build CLI engine instead of the session (`setup grok --cli`). */
+    /** CLI engine instead of the session (`setup grok --cli`, `setup antigravity --cli`). */
     cli?: boolean;
     maxEstimatedUsd?: number | undefined;
     model?: string;
@@ -219,7 +222,7 @@ export function providerSetupCommand(
 ): string {
   if (!SETUP_PROVIDERS.includes(input.provider)) throw new Error("settings.providerInvalid");
   if (input.native && input.provider !== "codex") throw new Error("settings.providerInvalid");
-  if (input.cli && input.provider !== "grok") throw new Error("settings.providerInvalid");
+  if (input.cli && input.provider !== "grok" && input.provider !== "antigravity") throw new Error("settings.providerInvalid");
   if (input.cli && input.api) throw new Error("settings.providerInvalid");
   const args: string[] = [];
   const add = (flag: string, value: string) => {
@@ -227,7 +230,11 @@ export function providerSetupCommand(
   };
   const model = input.model?.trim();
   if (model && (/\s/u.test(model) || [...model].some((c) => c.charCodeAt(0) < 32))) throw new Error("settings.providerInvalid");
-  if ((["codex", "cursor", "antigravity"].includes(input.provider) && !input.native) || (input.provider === "grok" && !input.api && !input.cli)) {
+  if (
+    (["codex", "cursor"].includes(input.provider) && !input.native) ||
+    (input.provider === "antigravity" && !input.cli) ||
+    (input.provider === "grok" && !input.api && !input.cli)
+  ) {
     if (!input.repo?.trim() || [...input.repo].some((c) => c.charCodeAt(0) < 32)) throw new Error("settings.providerInvalid");
     add("--repo", input.repo.trim());
   } else {
@@ -238,11 +245,18 @@ export function providerSetupCommand(
       add("--max-estimated-usd", String(input.maxEstimatedUsd));
     }
     if (input.provider === "grok" && input.cli) args.push("--cli");
+    else if (input.provider === "antigravity" && input.cli) args.push("--cli");
     else if (input.provider === "grok") args.push("--api");
     let remoteApi = false;
     if (["ollama", "lmstudio", "openai"].includes(input.provider) && !model) throw new Error("settings.providerInvalid");
     if (model) add("--model", model);
-    if (input.effort && (input.provider === "claude" || input.provider === "muse" || input.native || (input.provider === "grok" && input.cli))) {
+    if (
+      input.effort &&
+      (input.provider === "claude" ||
+        input.provider === "muse" ||
+        input.native ||
+        ((input.provider === "grok" || input.provider === "antigravity") && input.cli))
+    ) {
       if (!EFFORTS.includes(input.effort)) throw new Error("settings.providerInvalid");
       add("--effort", input.effort);
     }

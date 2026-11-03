@@ -211,8 +211,40 @@ test("WP36i-4 advanced details offer only directly editable engines; CLI engines
   expect(ADVANCED_ENGINES).not.toContain("grok-cli");
 });
 
+test("WP40-3 antigravity guided setup builds the CLI command and lists both models", () => {
+  expect(providerSetupCommand({ provider: "antigravity", cli: true })).toBe("bun run start -- setup antigravity --cli");
+  expect(providerSetupCommand({ provider: "antigravity", cli: true, model: "gemini-4-argon", effort: "high" })).toContain(
+    "--cli --model 'gemini-4-argon' --effort 'high'",
+  );
+  expect(providerSetupCommand({ provider: "antigravity", cli: true, model: "gemini-3.8-flash" })).not.toContain("--in-price");
+  expect(providerSetupCommand({ provider: "antigravity", cli: true, model: "gemini-3.8-flash", inputPrice: 2, outputPrice: 8 })).toContain(
+    "--in-price '2' --out-price '8'",
+  );
+  expect(providerSetupCommand({ provider: "antigravity", cli: true })).not.toContain("--api");
+  expect(providerSetupCommand({ provider: "antigravity", cli: true })).not.toContain("--repo");
+  expect(providerSetupCommand({ provider: "antigravity", cli: true, model: "gemini-3.8-flash", effort: "low" })).not.toContain("--base-url");
+  expect(() => providerSetupCommand({ provider: "antigravity", cli: true, api: true })).toThrow();
+  expect(() => providerSetupCommand({ provider: "antigravity", cli: true, effort: "xhigh" as never })).not.toThrow();
+  expect(switchSetupHint("antigravity:gemini-3.8-flash")).toContain("setup antigravity --cli");
+  expect(setupDefaultEffort("antigravity")).toBe("low");
+  expect(setupDefaultModel("antigravity", { cli: true })).toBe("antigravity:gemini-3.8-flash");
+  expect(setupModelOptions("antigravity", { cli: true }).map((o) => o.id)).toEqual(["antigravity:gemini-3.8-flash", "antigravity:gemini-4-argon"]);
+  expect(setupModelOptions("antigravity", {})).toEqual([]);
+  const withAgy = switchableModels({
+    engines: { "antigravity-cli": { enabled: true } },
+    models: { answer: "antigravity:gemini-3.8-flash" },
+  } as unknown as GlobalSettings);
+  expect(withAgy.map((o) => o.id)).toContain("antigravity:gemini-4-argon");
+  expect(withAgy.map((o) => o.id)).not.toContain("grok:grok-4.7-build-fast");
+});
+
 test("WP39b-2 catalog price lookup matches each catalog entry (null = needs prices)", () => {
-  const cases: { view: ModelCatalogKey; provider: "claude" | "codex" | "muse" | "grok"; opts: { api?: boolean; cli?: boolean }; slug: string }[] = [];
+  const cases: {
+    view: ModelCatalogKey;
+    provider: "claude" | "codex" | "muse" | "grok" | "antigravity";
+    opts: { api?: boolean; cli?: boolean };
+    slug: string;
+  }[] = [];
   for (const [view, catalog] of Object.entries(MODEL_CATALOG) as [ModelCatalogKey, (typeof MODEL_CATALOG)[ModelCatalogKey]][])
     for (const m of catalog.models) {
       const slug = m.id.split(":").at(-1) as string;
@@ -221,6 +253,7 @@ test("WP39b-2 catalog price lookup matches each catalog entry (null = needs pric
       if (view === "muse") cases.push({ view, provider: "muse", opts: {}, slug });
       if (view === "grok-cli") cases.push({ view, provider: "grok", opts: { cli: true }, slug });
       if (view === "grok-api") cases.push({ view, provider: "grok", opts: { api: true }, slug });
+      if (view === "antigravity") cases.push({ view, provider: "antigravity", opts: { cli: true }, slug });
     }
   expect(cases.length).toBeGreaterThan(5);
   for (const c of cases) {

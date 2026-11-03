@@ -393,6 +393,11 @@ describe("AC-U-EN engine card: exact steps, the last one re-probes", () => {
     expect(setupCommandFor("grok-cli", { model: "grok-4.7", effort: "high" })).toContain("setup grok --cli");
     expect(setupCommandFor("grok-cli", { model: "grok-4.7", effort: "high" })).toContain("--model 'grok-4.7'");
   });
+  test("WP40-3 antigravity-cli setup command selects the CLI with the previous model and effort", () => {
+    expect(setupCommandFor("antigravity-cli", { model: "gemini-4-argon", effort: "high" })).toContain("setup antigravity --cli");
+    expect(setupCommandFor("antigravity-cli", { model: "gemini-4-argon", effort: "high" })).toContain("--model 'gemini-4-argon'");
+    expect(setupCommandFor("antigravity-cli", {})).toBe("bun run start -- setup antigravity --cli");
+  });
   test("a Muse self-update that removed the configured binary gets the one setup command, not install guidance", () => {
     const gone: EngineStatus = {
       engine: "generic",

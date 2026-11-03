@@ -381,7 +381,7 @@ export const INCLUDED_CLASSES = [
  * - `codex-cli`: isolated `codex exec`, native apply_patch only in agent mode.
  * - `generic`: global-config `cmd` reading the prompt on stdin, reply on stdout (no usage data).
  */
-export type EngineId = "claude-cli" | "session" | "anthropic-api" | "codex-cli" | "grok-cli" | "generic";
+export type EngineId = "claude-cli" | "session" | "anthropic-api" | "codex-cli" | "grok-cli" | "antigravity-cli" | "generic";
 
 /** Engines that can run generation [CONS-28]. */
 export type GenEngineId = EngineId;
@@ -396,7 +396,7 @@ export type ClaudeModelId = "claude-fable-5-1" | "claude-opus-5-5" | "claude-son
 export const CLAUDE_MODEL_IDS = ["claude-haiku-5-5", "claude-haiku-4-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1"] as const satisfies readonly ClaudeModelId[];
 
 /** Any model reference. Non-Claude models are namespaced by engine. */
-export type ModelId = ClaudeModelId | `codex:${string}` | `grok:${string}` | `generic:${string}`;
+export type ModelId = ClaudeModelId | `codex:${string}` | `grok:${string}` | `antigravity:${string}` | `generic:${string}`;
 
 /** Reasoning effort passed to the engine (`--effort` / `output_config.effort`). */
 export type ReasoningEffort = "low" | "medium" | "high" | "xhigh" | "max";
@@ -418,6 +418,13 @@ export const THINKING_BUDGET_TOKENS = { low: 1024, medium: 4096, high: 8192, xhi
  * read ≈ 3,900 (grok 1.0.70, host-measured 2026-11-03, WP36e); 4,000 covers it including the cache.
  */
 export const GROK_FIXED_INPUT_TOKENS = 4_000;
+
+/**
+ * Fixed antigravity-cli input overhead per call (tokens): the isolated HOME plus the tools-less
+ * agent adds ≈ 2,200 tokens to every turn (host-measured 2026-11-04, WP40; real HOME would add
+ * 10,000–15,500 with hooks and plugins). Provisional until the host re-measures on real calls.
+ */
+export const ANTIGRAVITY_FIXED_INPUT_TOKENS = 2_200;
 
 /** Generation effort tiers (D13 default `standard`). Scope formulas live in gen. */
 export type Effort = "overview" | "standard" | "complete";
@@ -593,7 +600,7 @@ export interface ModelCatalogView {
 }
 
 /** Setup providers with a fixed model list (`ollama` / `openai` / sessions stay free-form). */
-export type ModelCatalogKey = "claude" | "codex" | "grok-cli" | "grok-api" | "muse";
+export type ModelCatalogKey = "claude" | "codex" | "grok-cli" | "grok-api" | "muse" | "antigravity";
 
 const claudePrice = (id: ClaudeModelId): ModelCatalogPrice => ({
   inPerMTok: PRICING[id].inPerMTok,
@@ -658,6 +665,19 @@ export const MODEL_CATALOG = {
     defaultEffort: "max",
     models: [
       { id: "generic:muse-spark-1.3-contributor", displayName: "Muse Spark 1.3 Contributor", efforts: ALL_EFFORTS, defaultEffort: "max", pricing: { inPerMTok: 0.1, outPerMTok: 0.2, cacheReadPerMTok: 0.002 } },
+    ],
+  },
+  // WP40: Gemini via the Antigravity CLI (`agy`, subscription login). Prices are the higher published
+  // estimates (no official table confirmed, 2026-11-04): Argon in $4 / out $20 (regular price from
+  // 12/1; $2/$10 until 11/30) with cache read $0.20; Flash in $1.50 / out $7.50 (2027-01-01 price,
+  // currently $0.75/$3.75) with cache read at 0.1x input. thinking tokens are billed as output.
+  antigravity: {
+    engine: "antigravity-cli",
+    defaultModel: "antigravity:gemini-3.8-flash",
+    defaultEffort: "low",
+    models: [
+      { id: "antigravity:gemini-3.8-flash", displayName: "Gemini 3.8 Flash", efforts: ["low", "medium", "high"], defaultEffort: "low", pricing: { inPerMTok: 1.5, outPerMTok: 7.5, cacheReadPerMTok: 0.15 } },
+      { id: "antigravity:gemini-4-argon", displayName: "Gemini 4 Argon", efforts: ["low", "medium", "high"], defaultEffort: "low", pricing: { inPerMTok: 4, outPerMTok: 20, cacheReadPerMTok: 0.2 } },
     ],
   },
 } as const satisfies Record<ModelCatalogKey, ModelCatalogView>;
@@ -3313,6 +3333,21 @@ export interface EngineSettings {
     /** Hard timeout of a generation turn in milliseconds (default per mode). */
     turnMs?: number;
   };
+  /** antigravity-cli: isolated single-turn text generation via the Antigravity CLI (`agy`); no agent/patch modes, no tools. */
+  "antigravity-cli": {
+    /** Enabled (default false). */
+    enabled: boolean;
+    /** Binary path or command name resolved on PATH (`agy`). */
+    binary: string;
+    /** Default model id (e.g. `gemini-3.8-flash`; the effort suffix is appended per request). */
+    model: string;
+    /** Explicit API-equivalent prices; absent reserves the caller's USD cap like generic. */
+    pricing?: { inPerMTok: number; outPerMTok: number; cacheReadPerMTok: number };
+    /** Per-model explicit API-equivalent prices (key = model id); unknown models use `pricing`. */
+    pricingByModel?: Record<string, { inPerMTok: number; outPerMTok: number; cacheReadPerMTok: number }>;
+    /** Hard timeout of a generation turn in milliseconds (default per mode). */
+    turnMs?: number;
+  };
   /** Generic text-only CLI or OpenAI-compatible Chat Completions. */
   generic: {
     /** Enabled. */
@@ -3525,7 +3560,7 @@ export interface GlobalSettings {
    * Binaries resolved once and pinned (path, realpath, sha256, version); a change ⇒ `E_ENGINE_BINARY_CHANGED`
    * until re-confirmed on the engine card [SEC-10]. Written only by the daemon after a human confirmation.
    */
-  pins: Partial<Record<"claude" | "git" | "gh" | "codex" | "grok", BinaryPin>>;
+  pins: Partial<Record<"claude" | "git" | "gh" | "codex" | "grok" | "agy", BinaryPin>>;
   /** Limits. */
   limits: Limits;
   /** Scheduler. */

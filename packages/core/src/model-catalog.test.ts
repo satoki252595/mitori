@@ -64,6 +64,22 @@ test("WP39-1 claude catalog prices match PRICING (moved, not changed)", () => {
   }
 });
 
+test("WP40-1 antigravity catalog lists Flash (default, low) and Argon with high-estimate prices", () => {
+  const view = MODEL_CATALOG.antigravity;
+  expect(view.engine).toBe("antigravity-cli");
+  expect(view.defaultModel).toBe("antigravity:gemini-3.8-flash");
+  expect(view.defaultEffort).toBe("low");
+  const byId = new Map(view.models.map((m) => [m.id, m]));
+  // cheapest first (Flash before Argon)
+  expect(view.models.map((m) => m.id)).toEqual(["antigravity:gemini-3.8-flash", "antigravity:gemini-4-argon"]);
+  expect(byId.get("antigravity:gemini-3.8-flash")?.pricing).toEqual({ inPerMTok: 1.5, outPerMTok: 7.5, cacheReadPerMTok: 0.15 });
+  expect(byId.get("antigravity:gemini-4-argon")?.pricing).toEqual({ inPerMTok: 4, outPerMTok: 20, cacheReadPerMTok: 0.2 });
+  for (const m of view.models) {
+    expect([...m.efforts]).toEqual(["low", "medium", "high"]);
+    expect(m.defaultEffort).toBe("low");
+  }
+});
+
 test("WP39-1 muse catalog is the single contributor model with max; grok-api keeps grok-4.7", () => {
   expect(MODEL_CATALOG.muse.models.map((m) => m.id)).toEqual(["generic:muse-spark-1.3-contributor"]);
   expect(MODEL_CATALOG.muse.models[0]?.pricing).toEqual({ inPerMTok: 0.1, outPerMTok: 0.2, cacheReadPerMTok: 0.002 });

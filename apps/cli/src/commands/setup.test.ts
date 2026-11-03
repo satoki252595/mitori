@@ -467,6 +467,7 @@ test("WP39b-2 every catalog entry follows its price: priced needs no --in-price,
         if (view === "codex") return setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 1, model: slug });
         if (view === "grok-cli") return setupPatch({ provider: "grok", cli: true, model: slug });
         if (view === "grok-api") return setupPatch({ provider: "grok", api: true, model: slug });
+        if (view === "antigravity") return setupPatch({ provider: "antigravity", cli: true, model: slug });
         return setupPatch({ provider: "muse", binary: "/native/muse-bin-v1", model: slug });
       };
       if (priced) expect(run()).toBeDefined();
@@ -475,6 +476,173 @@ test("WP39b-2 every catalog entry follows its price: priced needs no --in-price,
   // custom slugs stay price-unknown on every catalog engine
   expect(() => setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 1, model: "custom-xyz" })).toThrow("--in-price");
   expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-9" })).toThrow("--in-price");
+});
+
+test("WP40-11 Antigravity CLI setup defaults to gemini-3.8-flash/low with Flash prices", () => {
+  const patch = setupPatch({ provider: "antigravity", cli: true });
+  expect(patch).toMatchObject({
+    defaultEngine: "antigravity-cli",
+    defaultGenEngine: "antigravity-cli",
+    reasoning: { answer: "low", patch: "low", agent: "low", gen: "low", genOverview: "low" },
+    models: { answer: "antigravity:gemini-3.8-flash" },
+    engines: {
+      "antigravity-cli": {
+        enabled: true,
+        binary: "agy",
+        model: "gemini-3.8-flash",
+        pricing: { inPerMTok: 1.5, outPerMTok: 7.5, cacheReadPerMTok: 0.15 },
+        pricingByModel: { "gemini-4-argon": { inPerMTok: 4, outPerMTok: 20, cacheReadPerMTok: 0.2 } },
+        turnMs: 1_200_000,
+      },
+    },
+  });
+  const argon = setupPatch({ provider: "antigravity", cli: true, model: "gemini-4-argon" });
+  expect(argon.models?.answer).toBe("antigravity:gemini-4-argon");
+  expect(argon.engines?.["antigravity-cli"]?.pricing).toEqual({ inPerMTok: 4, outPerMTok: 20, cacheReadPerMTok: 0.2 });
+  expect(argon.engines?.["antigravity-cli"]?.pricingByModel?.["gemini-3.8-flash"]).toEqual({ inPerMTok: 1.5, outPerMTok: 7.5, cacheReadPerMTok: 0.15 });
+  expect(() => setupPatch({ provider: "antigravity", cli: true, model: "custom-xyz" })).toThrow("--in-price");
+  const custom = setupPatch({
+    provider: "antigravity",
+    cli: true,
+    model: "custom-xyz",
+    pricing: { inPerMTok: 1, outPerMTok: 2, cacheReadPerMTok: 0.1 },
+  });
+  expect(custom.models?.answer).toBe("antigravity:custom-xyz");
+  // session setup is unchanged (MCP integration guidance, no engine change)
+  expect(setupPatch({ provider: "antigravity" })).toMatchObject({ defaultGenEngine: "session" });
+});
+
+test("WP40-11 Antigravity CLI setup only takes low/medium/high efforts", () => {
+  expect(() => setupPatch({ provider: "antigravity", cli: true, model: "gemini-3.8-flash", effort: "medium" })).not.toThrow();
+  expect(() => setupPatch({ provider: "antigravity", cli: true, model: "gemini-3.8-flash", effort: "xhigh" })).toThrow("low|medium|high");
+  expect(() => setupPatch({ provider: "antigravity", cli: true, model: "gemini-4-argon", effort: "max" })).toThrow("low|medium|high");
+});
+
+test("WP40-11 Antigravity --list-models prints the CLI table; the session keeps its guidance", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-agy-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    const list = async (argv: string[]) => {
+      const io = testIo({ argv, home, cwd: repo, tty: false });
+      expect(await runCommand("setup", io)).toBe(0);
+      return io.stdout;
+    };
+    const table = await list(["antigravity", "--cli", "--list-models"]);
+    expect(table).toContain("antigravity:gemini-3.8-flash | low|medium|high | 1.5/7.5/0.15");
+    expect(table).toContain("antigravity:gemini-4-argon | low|medium|high | 4/20/0.2");
+    const session = await list(["antigravity", "--list-models"]);
+    expect(session).toContain("antigravity:gemini-3.8-flash | low|medium|high | 1.5/7.5/0.15");
+    expect(session).toContain("antigravity:gemini-4-argon | low|medium|high | 4/20/0.2");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP40b-3 Antigravity --list-models without --cli lists the same CLI models", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-agy-list-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    const io = testIo({ argv: ["antigravity", "--list-models"], home, cwd: repo, tty: false });
+    expect(await runCommand("setup", io)).toBe(0);
+    expect(io.stdout).toContain("antigravity:gemini-3.8-flash | low|medium|high | 1.5/7.5/0.15");
+    expect(io.stdout).toContain("antigravity:gemini-4-argon | low|medium|high | 4/20/0.2");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP40-11 Antigravity CLI setup previews the engine JSON without probing or connecting", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-agy-preview-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    const binary = join(dir, "agy");
+    writeFileSync(binary, `#!${process.execPath}\nconsole.log("1.4.12");\n`, { mode: 0o700 });
+    const preview = testIo({ argv: ["antigravity", "--cli", "--binary", binary, "--print"], home, cwd: repo });
+    expect(await runCommand("setup", preview)).toBe(0);
+    expect(JSON.parse(preview.stdout)).toMatchObject({
+      defaultEngine: "antigravity-cli",
+      engines: { "antigravity-cli": { enabled: true, model: "gemini-3.8-flash" } },
+      models: { answer: "antigravity:gemini-3.8-flash" },
+    });
+    expect(JSON.parse(preview.stdout)).not.toHaveProperty("pins");
+    // --binary / --effort / --model flow into the preview; no daemon is touched
+    const custom = testIo({ argv: ["antigravity", "--cli", "--binary", binary, "--model", "gemini-4-argon", "--effort", "high", "--print"], home, cwd: repo });
+    expect(await runCommand("setup", custom)).toBe(0);
+    expect(JSON.parse(custom.stdout)).toMatchObject({
+      engines: { "antigravity-cli": { model: "gemini-4-argon" } },
+      reasoning: { answer: "high" },
+    });
+    // the session setup stays a session (no engine change, no binary needed)
+    const session = testIo({ argv: ["antigravity", "--repo", repo, "--print"], home, cwd: repo });
+    expect(await runCommand("setup", session)).toBe(0);
+    expect(session.stdout).toContain('"defaultGenEngine": "session"');
+    expect(session.stdout).not.toContain("antigravity-cli");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP40b-2 Antigravity CLI setup resolves agy on PATH without --binary", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-agy-path-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    const binDir = join(dir, "bin");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(join(binDir, "agy"), `#!${process.execPath}\nconsole.log("1.4.12");\n`, { mode: 0o700 });
+    const preview = testIo({ argv: ["antigravity", "--cli", "--print"], home, cwd: repo, env: { PATH: binDir } });
+    expect(await runCommand("setup", preview)).toBe(0);
+    expect(JSON.parse(preview.stdout).engines?.["antigravity-cli"]?.binary).toBe(realpathSync(join(binDir, "agy")));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP40b-2 Antigravity CLI setup without agy on PATH names agy in the error", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-agy-missing-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    // a PATH with no agy: the error must name the real command (`agy`), not the provider
+    const io = testIo({ argv: ["antigravity", "--cli", "--print"], home, cwd: repo, env: { PATH: dir } });
+    expect(await runCommand("setup", io)).toBe(2);
+    expect(io.stderr).toContain("agy is not on PATH");
+    expect(io.stderr).not.toContain("antigravity is not on PATH");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP40-11 Antigravity CLI setup pins agy and saves the engine through exec", async () => {
+  const d = await startFakeDaemon();
+  daemon = d;
+  const store: { settings: Record<string, unknown>; version: number } = { settings: {}, version: 1 };
+  d.route("GET /settings", () => ({ settings: store.settings, path: `${d.home}/config.json`, version: store.version }));
+  const saved: { path: string; value: unknown }[] = [];
+  d.route("PATCH /settings/exec", (c) => {
+    const body = c.body as { path: string; value: unknown };
+    saved.push(body);
+    store.version += 1;
+    return { settings: store.settings, path: `${d.home}/config.json`, version: store.version };
+  });
+  d.route("PATCH /settings", () => ({ settings: store.settings, path: `${d.home}/config.json`, version: store.version + 1 }));
+  const binary = join(d.dir, "agy");
+  writeFileSync(binary, `#!${process.execPath}\nconsole.log("1.4.12");\n`, { mode: 0o700 });
+  expect(await runCommand("setup", testIo({ argv: ["antigravity", "--cli", "--binary", binary], home: d.home, cwd: d.repo, tty: true, answer: true }))).toBe(0);
+  expect(saved.map((s) => s.path).sort()).toEqual(["engines.antigravity-cli", "pins.agy"]);
 });
 
 test("external generation prep binds --repo when invoked from the mitori checkout", async () => {

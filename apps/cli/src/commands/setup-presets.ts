@@ -45,7 +45,7 @@ export interface SetupInput {
   provider: Provider;
   api?: boolean;
   native?: boolean;
-  /** `setup grok --cli`: use the Grok Build CLI engine instead of the Build session. */
+  /** `setup grok --cli` / `setup antigravity --cli`: use the CLI engine instead of the session. */
   cli?: boolean;
   maxEstimatedUsd?: number;
   binary?: string;
@@ -76,6 +76,7 @@ function catalogView(input: Pick<SetupInput, "provider" | "api" | "cli" | "nativ
   if (input.provider === "grok" && input.cli && !input.api) return "grok-cli";
   if (input.provider === "grok" && input.api && !input.cli) return "grok-api";
   if (input.provider === "muse") return "muse";
+  if (input.provider === "antigravity" && input.cli) return "antigravity";
   return null;
 }
 
@@ -89,7 +90,7 @@ function checkEffort(input: Pick<SetupInput, "provider" | "api" | "cli" | "nativ
   const view = catalogView(input);
   if (view === null) return;
   const full = (input.model ?? MODEL_CATALOG[view].defaultModel.split(":").at(-1)) as string;
-  const prefix = view === "claude" ? "" : view === "codex" ? "codex:" : view === "grok-cli" ? "grok:" : "generic:";
+  const prefix = view === "claude" ? "" : view === "codex" ? "codex:" : view === "grok-cli" ? "grok:" : view === "antigravity" ? "antigravity:" : "generic:";
   const id = `${prefix}${full}`;
   const entry = MODEL_CATALOG[view].models.find((m) => m.id === id);
   if (!entry) return;
@@ -102,8 +103,40 @@ function checkEffort(input: Pick<SetupInput, "provider" | "api" | "cli" | "nativ
 export function setupPatch(input: SetupInput): DeepPartial<GlobalSettings> {
   const { provider } = input;
   if (input.native && provider !== "codex") throw usage("--native is supported for Codex only");
-  if (input.cli && (provider !== "grok" || input.api)) throw usage("--cli selects the Grok Build CLI engine (not with --api)");
+  if (input.cli && ((provider !== "grok" && provider !== "antigravity") || input.api))
+    throw usage("--cli selects the Grok Build CLI or Antigravity CLI engine (not with --api)");
   checkEffort(input);
+  if (provider === "antigravity" && input.cli && !input.api) {
+    const model = input.model ?? "gemini-3.8-flash";
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,91}$/.test(model)) throw usage("invalid Antigravity model id");
+    // WP40: higher published estimates (no official table confirmed, 2026-11-04): Flash in 1.5 /
+    // out 7.5 (cache read 0.15); Argon in 4 / out 20 (cache read 0.2). thinking is billed as output.
+    const known = knownPrices("antigravity");
+    const pricing = input.pricing ?? known[model];
+    if (!pricing || !Object.values(pricing).every((n) => Number.isFinite(n) && n >= 0))
+      throw usage("other Antigravity models need --in-price and --out-price (USD per million tokens)");
+    // Keep the other known price on the engine so switching models needs no re-setup.
+    const pricingByModel = Object.fromEntries(Object.entries(known).filter(([slug]) => slug !== model));
+    // --effort omitted ⇒ low (fast; the host decides whether measurements change this)
+    const effort = input.effort ?? "low";
+    return {
+      defaultEngine: "antigravity-cli",
+      defaultGenEngine: "antigravity-cli",
+      ui: { defaultExecPath: "push" },
+      engines: {
+        "antigravity-cli": {
+          enabled: true,
+          binary: input.binary ?? "agy",
+          model,
+          pricing,
+          ...(Object.keys(pricingByModel).length ? { pricingByModel } : {}),
+          turnMs: 1_200_000,
+        },
+      },
+      models: models(`antigravity:${model}`),
+      reasoning: { answer: effort, patch: effort, agent: effort, gen: effort, genOverview: effort },
+    };
+  }
   if (provider === "codex" && input.native) {
     const model = input.model ?? "gpt-6.1-sol";
     const maxEstimatedSpendUsd = input.maxEstimatedUsd;
@@ -277,6 +310,7 @@ const VIEW_LEAD: Record<ModelCatalogKey, { ja: string; en: string }> = {
   "grok-cli": { ja: "Grok Build CLIで直接実行するモデルの一覧", en: "Models for direct Grok Build CLI runs" },
   "grok-api": { ja: "Grok APIで使うモデルの一覧", en: "Models for the Grok API" },
   muse: { ja: "Museで使うモデルの一覧", en: "Models for Muse" },
+  antigravity: { ja: "Antigravity CLIで直接実行するモデルの一覧", en: "Models for direct Antigravity CLI runs" },
 };
 
 /**
@@ -296,7 +330,10 @@ export function listModelsTable(provider: Provider, opts: { api?: boolean; cli?:
             ? "grok-cli"
             : provider === "grok" && opts.api && !opts.cli
               ? "grok-api"
-              : null;
+              : // the Antigravity CLI list is the only model list (the session uses the external tool's model)
+                provider === "antigravity"
+                ? "antigravity"
+                : null;
   if (view === null) {
     if (lang === "ja")
       lines.push(

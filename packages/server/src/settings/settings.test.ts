@@ -141,6 +141,35 @@ describe("settings defaults and schema", () => {
     expect(validate(merged, GLOBAL_SPEC)).toEqual([]);
     expect(code(tryParse('{"models":{"answer":"claude-fable-5"}}'))).toBe("E_CFG_INVALID"); // short ids stay forbidden
   });
+  test("WP40-4 antigravity: model ids validate, pins accept agy, defaults carry the CLI binary", () => {
+    // the id pattern validates at parse time (engine-enabled is checked daemon-side, like grok)
+    expect(parseGlobalSettings('{"models":{"answer":"antigravity:gemini-3.8-flash"}}').models.answer).toBe("antigravity:gemini-3.8-flash");
+    expect(DEFAULT_GLOBAL_SETTINGS.engines["antigravity-cli"]).toEqual({ enabled: false, binary: "agy", model: "", turnMs: 1_200_000 });
+    const configured = {
+      defaultEngine: "antigravity-cli",
+      defaultGenEngine: "antigravity-cli",
+      engines: {
+        "antigravity-cli": {
+          enabled: true,
+          binary: "agy",
+          model: "gemini-3.8-flash",
+          pricing: { inPerMTok: 1.5, outPerMTok: 7.5, cacheReadPerMTok: 0.15 },
+          pricingByModel: { "gemini-4-argon": { inPerMTok: 4, outPerMTok: 20, cacheReadPerMTok: 0.2 } },
+          turnMs: 1_200_000,
+        },
+      },
+      pins: { agy: { path: "agy", realpath: "/u/bin/agy", sha256: "aa".repeat(32), version: "1.4.12", pinnedAt: "2026-11-04T00:00:00.000Z", by: "user" } },
+      models: { answer: "antigravity:gemini-3.8-flash", genModule: "antigravity:gemini-4-argon" },
+    };
+    const parsed = parseGlobalSettings(JSON.stringify(configured));
+    expect(parsed.models.answer).toBe("antigravity:gemini-3.8-flash");
+    expect(parsed.models.genModule).toBe("antigravity:gemini-4-argon");
+    expect(parsed.engines["antigravity-cli"]?.model).toBe("gemini-3.8-flash");
+    expect(parsed.pins.agy?.version).toBe("1.4.12");
+    expect(validate(parsed, GLOBAL_SPEC)).toEqual([]);
+    expect(code(tryParse('{"pins":{"agy":{}}}'))).toBe("E_CFG_INVALID");
+    expect(code(tryParse('{"pins":{"unknown":{}}}'))).toBe("E_CFG_INVALID");
+  });
 });
 
 function tryParse(text: string): unknown {

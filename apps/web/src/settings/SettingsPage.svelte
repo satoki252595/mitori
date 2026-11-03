@@ -86,6 +86,7 @@ let guidedError = $state(false);
 let reloading = $state(false);
 let useApi = $state(false);
 let useGrokCli = $state(false);
+let useAntigravityCli = $state(false);
 let useCodexNative = $state(true);
 let codexMaxUsd = $state<number | undefined>(1);
 let signingIn = $state(false);
@@ -99,18 +100,25 @@ let switchSaved = $state<"gen" | "answer" | null>(null);
 /** Server refusal of a model switch: localized reason key plus the re-setup command (null when no setup helps). */
 let switchError = $state<{ kind: "gen" | "answer"; key: string; command: string | null } | null>(null);
 const setupExternal = $derived(
-  ["cursor", "antigravity"].includes(simpleProvider) ||
+  ["cursor"].includes(simpleProvider) ||
     (simpleProvider === "codex" && !useCodexNative) ||
-    (simpleProvider === "grok" && !useApi && !useGrokCli),
+    (simpleProvider === "grok" && !useApi && !useGrokCli) ||
+    (simpleProvider === "antigravity" && !useAntigravityCli),
 );
 const setupEffort = $derived(
-  simpleProvider === "claude" || simpleProvider === "muse" || (simpleProvider === "codex" && useCodexNative) || (simpleProvider === "grok" && useGrokCli),
+  simpleProvider === "claude" ||
+    simpleProvider === "muse" ||
+    (simpleProvider === "codex" && useCodexNative) ||
+    (simpleProvider === "grok" && useGrokCli) ||
+    (simpleProvider === "antigravity" && useAntigravityCli),
 );
+/** CLI engine behind the quick-setup provider (Grok Build CLI or Antigravity CLI instead of the session). */
+const guidedCli = $derived(simpleProvider === "grok" ? useGrokCli : simpleProvider === "antigravity" ? useAntigravityCli : false);
 /** Catalog models of the quick-setup provider (empty for free-form providers and external sessions). */
-const modelOptions = $derived(setupModelOptions(simpleProvider, { api: useApi, cli: useGrokCli }));
-/** Model id typed for a custom entry (a slug for codex/grok/muse, a bare id for claude). */
+const modelOptions = $derived(setupModelOptions(simpleProvider, { api: useApi, cli: guidedCli }));
+/** Model id typed for a custom entry (a slug for codex/grok/antigravity/muse, a bare id for claude). */
 const effectiveModel = $derived((customModel ? customText : simpleModel).trim());
-/** Slug without the `codex:` / `grok:` / `generic:` prefix. */
+/** Slug without the `codex:` / `grok:` / `antigravity:` / `generic:` prefix. */
 const modelSlug = $derived(effectiveModel.split(":").at(-1) ?? "");
 const selectedOption = $derived(customModel ? undefined : modelOptions.find((o) => o.id === simpleModel));
 /** Usable efforts of the chosen model (all when custom or free-form; empty when the model ignores effort). */
@@ -145,6 +153,13 @@ function setupCtxFor(engine: EngineId): SetupContext {
       ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
     };
   }
+  if (engine === "antigravity-cli") {
+    const agy = cfg?.engines["antigravity-cli"];
+    return {
+      ...(agy?.model ? { model: agy.model } : {}),
+      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
+    };
+  }
   return {};
 }
 const museSetup = $derived(setupCommandFor("generic", setupCtxFor("generic"), s.session.settings?.launcher) ?? "");
@@ -155,12 +170,13 @@ const authProvider = $derived(PROVIDER_AUTH_IDS.includes(simpleProvider as Provi
 const authCommand = $derived(authProvider ? providerAuthCommand(authProvider, s.session.settings?.launcher) : "");
 const setupLocalApi = $derived(/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?\/v1\/?$/u.test(simpleBaseUrl));
 /** Price-known catalog entries need no explicit prices (same list the CLI reads). */
-const setupPriceKnown = $derived(setupModelPriceKnown(simpleProvider, { api: useApi, cli: useGrokCli }, modelSlug));
+const setupPriceKnown = $derived(setupModelPriceKnown(simpleProvider, { api: useApi, cli: guidedCli }, modelSlug));
 const setupPrices = $derived(
   simpleProvider === "openai" ||
     (simpleProvider === "codex" && useCodexNative && setupPriceKnown === false) ||
     (simpleProvider === "muse" && setupPriceKnown === false) ||
     (simpleProvider === "grok" && (useApi || useGrokCli) && setupPriceKnown === false) ||
+    (simpleProvider === "antigravity" && useAntigravityCli && setupPriceKnown === false) ||
     (["ollama", "lmstudio"].includes(simpleProvider) && setupPriceKnown === null && (!setupLocalApi || /(?:[:-]cloud)$/i.test(modelSlug))),
 );
 const PROVIDER_NAMES: Record<SetupProvider, string> = {
@@ -224,6 +240,11 @@ $effect(() => {
     useGrokCli = true;
     applyQuickModel(`grok:${cfg.engines["grok-cli"].model}`);
     simpleEffort = cfg.reasoning.gen;
+  } else if (provider === "antigravity-cli") {
+    chooseSetup("antigravity");
+    useAntigravityCli = true;
+    applyQuickModel(`antigravity:${cfg.engines["antigravity-cli"].model}`);
+    simpleEffort = cfg.reasoning.gen;
   }
   genSwitchModel = cfg.models.genModule;
   genSwitchEffort = cfg.reasoning.gen;
@@ -236,6 +257,7 @@ function chooseSetup(value: SetupProvider) {
   simpleProvider = value;
   useApi = false;
   useGrokCli = false;
+  useAntigravityCli = false;
   useCodexNative = true;
   loginResult = "";
   customModel = false;
@@ -265,6 +287,17 @@ function afterGrokModeChange() {
   if (!customModel && !opts.some((o) => o.id === simpleModel)) {
     simpleModel = setupDefaultModel("grok", { api: useApi, cli: useGrokCli });
     simpleEffort = setupDefaultEffort("grok");
+  }
+  guidedCommand = "";
+  guidedError = false;
+}
+
+/** Keep the previous Antigravity model only when it belongs to the CLI mode; custom text is kept. */
+function afterAntigravityModeChange() {
+  const opts = setupModelOptions("antigravity", { cli: useAntigravityCli });
+  if (!customModel && !opts.some((o) => o.id === simpleModel)) {
+    simpleModel = setupDefaultModel("antigravity", { cli: useAntigravityCli });
+    simpleEffort = setupDefaultEffort("antigravity");
   }
   guidedCommand = "";
   guidedError = false;
@@ -336,14 +369,14 @@ async function saveSwitch(kind: "gen" | "answer") {
 }
 
 function applyQuickModel(fullId: string) {
-  const opts = setupModelOptions(simpleProvider, { api: useApi, cli: useGrokCli });
+  const opts = setupModelOptions(simpleProvider, { api: useApi, cli: guidedCli });
   if (opts.some((o) => o.id === fullId)) {
     customModel = false;
     customText = "";
     simpleModel = fullId;
   } else if (opts.length > 0) {
     customModel = true;
-    customText = fullId.replace(/^(codex|grok|generic):/, "");
+    customText = fullId.replace(/^(codex|grok|antigravity|generic):/, "");
     simpleModel = "";
   } else {
     customModel = false;
@@ -377,7 +410,7 @@ function createSetup(e: SubmitEvent) {
         provider: simpleProvider,
         api: useApi,
         native: simpleProvider === "codex" && useCodexNative,
-        cli: simpleProvider === "grok" && useGrokCli,
+        cli: guidedCli,
         maxEstimatedUsd: codexMaxUsd,
         model: modelOptions.length > 0 ? modelSlug : effectiveModel,
         repo: setupRepo || s.workspace.status?.info.root,
@@ -547,6 +580,9 @@ async function saveProvider(e: SubmitEvent) {
         <label class="row check"><input type="checkbox" bind:checked={useApi} onchange={() => { if (useApi) useGrokCli = false; afterGrokModeChange(); }} /><span>{t("settings.useApi")}</span></label>
         <label class="row check"><input type="checkbox" bind:checked={useGrokCli} onchange={() => { if (useGrokCli) useApi = false; afterGrokModeChange(); }} /><span>{t("settings.useGrokCli")}</span></label>
       {/if}
+      {#if simpleProvider === "antigravity"}
+        <label class="row check"><input type="checkbox" bind:checked={useAntigravityCli} onchange={() => afterAntigravityModeChange()} /><span>{t("settings.useAntigravityCli")}</span></label>
+      {/if}
       {#if simpleProvider === "codex"}
         <label class="row check"><input type="checkbox" bind:checked={useCodexNative} /><span>{t("settings.codexNative")}</span></label>
         {#if useCodexNative}
@@ -623,6 +659,7 @@ async function saveProvider(e: SubmitEvent) {
       <label class="row"><span>{t("settings.provider")}</span><select bind:value={provider} disabled={!initialized}>
         {#if provider === "codex-cli"}<option value="codex-cli" disabled>codex-cli</option>{/if}
         {#if provider === "grok-cli"}<option value="grok-cli" disabled>grok-cli</option>{/if}
+        {#if provider === "antigravity-cli"}<option value="antigravity-cli" disabled>antigravity-cli</option>{/if}
         {#each ADVANCED_ENGINES as engine (engine)}<option value={engine}>{engine}</option>{/each}
       </select></label>
       <button type="button" class="btn btn-sec btn-s" disabled={!initialized} onclick={musePreset}>{t("settings.musePreset")}</button>

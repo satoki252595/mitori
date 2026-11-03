@@ -94,6 +94,17 @@ export function setupCommandFor(engine: EngineId, ctx: SetupContext, launcher?: 
         launcher,
       );
     }
+    if (engine === "antigravity-cli") {
+      return providerSetupCommand(
+        {
+          provider: "antigravity",
+          cli: true,
+          ...(ctx.model ? { model: ctx.model } : {}),
+          ...(ctx.effort ? { effort: ctx.effort } : {}),
+        },
+        launcher,
+      );
+    }
     return null;
   } catch {
     return null;

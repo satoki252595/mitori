@@ -11,10 +11,14 @@ import { integrationSetup } from "./setup-integrations.ts";
 import { prepareProviderPin } from "./setup-pin.ts";
 import { listModelsTable, PROVIDERS, type Provider, SESSION_PROVIDERS, setupPatch } from "./setup-presets.ts";
 
-export function binaryOf(provider: Provider, explicit?: string, opts: { cli?: boolean } = {}): string | undefined {
-  if (provider !== "claude" && provider !== "muse" && provider !== "codex" && !(provider === "grok" && opts.cli)) return undefined;
-  const found = explicit ? resolve(explicit) : Bun.which(provider);
-  if (!found) throw usage(`${provider} is not on PATH; use --binary /absolute/path or install/login with its official instructions`);
+export function binaryOf(provider: Provider, explicit?: string, opts: { cli?: boolean; path?: string } = {}): string | undefined {
+  if (provider !== "claude" && provider !== "muse" && provider !== "codex" && !(provider === "grok" && opts.cli) && !(provider === "antigravity" && opts.cli))
+    return undefined;
+  // the Antigravity CLI executable is `agy`, not `antigravity` (host 2026-11-04: ~/.local/bin/agy)
+  const command = provider === "antigravity" ? "agy" : provider;
+  // PATH comes from the caller so tests can point at a fixture dir (bare Bun.which ignores a reassigned process.env.PATH)
+  const found = explicit ? resolve(explicit) : opts.path === undefined ? Bun.which(command) : Bun.which(command, { PATH: opts.path });
+  if (!found) throw usage(`${command} is not on PATH; use --binary /absolute/path or install/login with its official instructions`);
   let binary = realpathSync(found);
   if (provider === "muse" && !/\/muse-bin(?:-[^/]+)?$/.test(binary)) {
     const marker = join(dirname(binary), ".muse-version");
@@ -56,7 +60,8 @@ export async function run(io: Io): Promise<number> {
   const preview = values.print === true;
   if (!preview) requireTty(io, "mitori setup");
   if (values.api && provider !== "grok") throw usage("--api is only needed to select Grok API instead of its official Build session");
-  if (values.cli && provider !== "grok") throw usage("--cli is only needed to select the Grok Build CLI engine instead of its session");
+  if (values.cli && provider !== "grok" && provider !== "antigravity")
+    throw usage("--cli is only needed to select the Grok Build CLI or Antigravity CLI engine instead of its session");
   if (values.api && values.cli) throw usage("--api and --cli cannot be combined");
   if (values.native && provider !== "codex") throw usage("--native is supported for Codex only");
   if (values["max-estimated-usd"] !== undefined && !values.native) throw usage("--max-estimated-usd requires Codex --native");
@@ -69,7 +74,13 @@ export async function run(io: Io): Promise<number> {
     throw usage("Grok Build uses its own model and subscription; add --api for explicit API settings or --cli for the CLI engine");
   if (values["key-env"] && !/^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(values["key-env"])) throw usage("--key-env names an environment variable, not a key");
   if ((values["in-price"] === undefined) !== (values["out-price"] === undefined)) throw usage("provide both --in-price and --out-price");
-  const binary = provider === "codex" && !values.native ? undefined : binaryOf(provider, values.binary, { cli: values.cli === true });
+  const binary =
+    provider === "codex" && !values.native
+      ? undefined
+      : binaryOf(provider, values.binary, {
+          cli: values.cli === true,
+          ...(typeof io.env.PATH === "string" ? { path: io.env.PATH } : {}),
+        });
   const effort = oneOf(values.effort, ["low", "medium", "high", "xhigh", "max"] as const, "effort", "setup");
   const patch = setupPatch({
     provider,
@@ -90,6 +101,7 @@ export async function run(io: Io): Promise<number> {
     if (provider === "claude") patch.pins = { claude: await prepareProviderPin(binary, io, "Claude") };
     if (provider === "codex" && values.native) patch.pins = { codex: await prepareProviderPin(binary, io, "Codex") };
     if (provider === "grok" && values.cli) patch.pins = { grok: await prepareProviderPin(binary, io, "Grok") };
+    if (provider === "antigravity" && values.cli) patch.pins = { agy: await prepareProviderPin(binary, io, "Antigravity") };
   }
   // WP36h: grok reasons for 10+ minutes per task on medium+ (host-measured); warn but do not stop.
   if (provider === "grok" && values.cli === true && (effort ?? "low") !== "low")
@@ -137,6 +149,10 @@ export async function run(io: Io): Promise<number> {
     io.out("Codexのサブスク認証を使います。表示額はAPI換算の推計で、native reasoningの厳密な費用上限ではありません。\n");
   if (provider === "grok" && values.cli)
     io.out("Grok Build CLIを使います。未ログインなら端末で `grok login` を実行してください。単発のテキスト生成のみで、agent/patchやツール実行は行いません。\n");
+  if (provider === "antigravity" && values.cli)
+    io.out(
+      "Antigravity CLIを使います。未ログインなら `mitori auth antigravity` の案内に従ってサインインしてください。単発のテキスト生成のみで、agent/patchやツール実行は行いません。\n",
+    );
   if (instructions) io.out(instructions);
   return 0;
 }

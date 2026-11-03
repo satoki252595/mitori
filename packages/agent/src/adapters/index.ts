@@ -8,6 +8,20 @@ import { type AnthropicApiRequest, CLAUDE_MODE_DEFAULTS, CODEX_ARGV_TEMPLATE, ty
 import { anthropicRequest } from "./anthropic-request.ts";
 import { CODEX_DISABLED_FEATURES, codexFilesystem } from "./codex-policy.ts";
 
+export {
+  AGY_AUTH_URL_RE,
+  AGY_AUTHENTICATED_RE,
+  AGY_REQUIRED_FLAGS,
+  AGY_UNKNOWN_AGENT_RE,
+  ANTIGRAVITY_AGENT,
+  ANTIGRAVITY_AGENT_DESCRIPTION,
+  ANTIGRAVITY_AGENT_MD,
+  antigravityCapabilityOk,
+  antigravityFoldLine,
+  antigravityPricing,
+  buildAntigravitySpawn,
+  emptyAntigravityTurn,
+} from "./antigravity-policy.ts";
 export { codexCatalog, codexPreflight, codexPricing } from "./codex-policy.ts";
 export { buildGrokSpawn, emptyGrokTurn, GROK_DENIED_TOOLS, GROK_UNAUTHENTICATED_RE, grokFoldLine, grokPricing } from "./grok-policy.ts";
 

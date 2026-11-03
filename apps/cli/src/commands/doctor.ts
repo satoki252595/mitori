@@ -60,12 +60,14 @@ export async function run(io: Io): Promise<number> {
   const genModule = genModuleSetting?.startsWith("generic:") ? genModuleSetting.slice("generic:".length) : undefined;
   const codex = gs?.engines?.["codex-cli"];
   const grok = gs?.engines?.["grok-cli"];
+  const antigravity = gs?.engines?.["antigravity-cli"];
   const hintCtx = {
     ...(gs?.reasoning?.gen ? { museEffort: gs.reasoning.gen } : {}),
     ...(genModule ? { museModel: genModule } : {}),
     ...(codex?.model ? { codexModel: codex.model } : {}),
     ...(codex?.maxEstimatedSpendUsd ? { codexMaxUsd: codex.maxEstimatedSpendUsd } : {}),
     ...(grok?.model ? { grokModel: grok.model } : {}),
+    ...(antigravity?.model ? { antigravityModel: antigravity.model } : {}),
   };
   for (const e of st.engines) {
     const problem = e.problems[0];

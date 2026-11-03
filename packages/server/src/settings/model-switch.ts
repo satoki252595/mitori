@@ -26,6 +26,7 @@ const REASONING_MODEL: Record<keyof GlobalSettings["reasoning"], keyof ModelDefa
 const engineOf = (id: ModelId): EngineId => {
   if (id.startsWith("codex:")) return "codex-cli";
   if (id.startsWith("grok:")) return "grok-cli";
+  if (id.startsWith("antigravity:")) return "antigravity-cli";
   if (id.startsWith("generic:")) return "generic";
   return "claude-cli";
 };
@@ -35,9 +36,11 @@ const setupHint = (engine: EngineId): string =>
     ? "run `mitori setup codex --native --model <slug> --max-estimated-usd <n> [--in-price <n> --out-price <n>]`"
     : engine === "grok-cli"
       ? "run `mitori setup grok --cli --model <id> [--in-price <n> --out-price <n>]`"
-      : engine === "generic"
-        ? "run `mitori setup <provider> --model <id> --in-price <n> --out-price <n>`"
-        : "run `mitori setup claude --model <id>`";
+      : engine === "antigravity-cli"
+        ? "run `mitori setup antigravity --cli --model <id> [--in-price <n> --out-price <n>]`"
+        : engine === "generic"
+          ? "run `mitori setup <provider> --model <id> --in-price <n> --out-price <n>`"
+          : "run `mitori setup claude --model <id>`";
 
 /** Known API-equivalent prices for (engine, slug) in the current settings; undefined = 価格非公開. */
 function knownPrice(current: GlobalSettings, engine: EngineId, slug: string): { inPerMTok: number; outPerMTok: number; cacheReadPerMTok: number } | undefined {
@@ -45,7 +48,7 @@ function knownPrice(current: GlobalSettings, engine: EngineId, slug: string): { 
     const p = (PRICING as Record<string, { inPerMTok: number; outPerMTok: number; cacheReadPerMTok: number }>)[slug];
     return p === undefined ? undefined : { inPerMTok: p.inPerMTok, outPerMTok: p.outPerMTok, cacheReadPerMTok: p.cacheReadPerMTok };
   }
-  if (engine === "codex-cli" || engine === "grok-cli") {
+  if (engine === "codex-cli" || engine === "grok-cli" || engine === "antigravity-cli") {
     const cfg = current.engines[engine];
     return cfg.pricingByModel?.[slug] ?? (cfg.model === slug ? cfg.pricing : undefined);
   }

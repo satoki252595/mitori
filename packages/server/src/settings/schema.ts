@@ -57,9 +57,12 @@ function partialObj<T>(fields: { [K in keyof T]-?: Spec }): Spec {
   return { t: "obj", fields: fields as Record<string, Spec>, optional: Object.keys(fields) };
 }
 
-const MODEL: Spec = { t: "str", pattern: new RegExp(`^(${CLAUDE_MODEL_IDS.join("|")}|codex:[^\\s]{1,100}|grok:[^\\s]{1,100}|generic:[^\\s]{1,100})$`) };
-const ENGINE = oneOf("claude-cli", "session", "anthropic-api", "codex-cli", "grok-cli", "generic");
-const GEN_ENGINE = oneOf("claude-cli", "anthropic-api", "session", "codex-cli", "grok-cli", "generic");
+const MODEL: Spec = {
+  t: "str",
+  pattern: new RegExp(`^(${CLAUDE_MODEL_IDS.join("|")}|codex:[^\\s]{1,100}|grok:[^\\s]{1,100}|antigravity:[^\\s]{1,100}|generic:[^\\s]{1,100})$`),
+};
+const ENGINE = oneOf("claude-cli", "session", "anthropic-api", "codex-cli", "grok-cli", "antigravity-cli", "generic");
+const GEN_ENGINE = oneOf("claude-cli", "anthropic-api", "session", "codex-cli", "grok-cli", "antigravity-cli", "generic");
 const EFFORT = oneOf("overview", "standard", "complete");
 const LANG = oneOf("ja", "en");
 const READER = oneOf("newcomer", "standard", "expert");
@@ -126,6 +129,20 @@ const engines = obj<EngineSettings>({
       pricing: obj<NonNullable<EngineSettings["grok-cli"]["pricing"]>>({ inPerMTok: num(0), outPerMTok: num(0), cacheReadPerMTok: num(0) }),
       pricingByModel: map(
         obj<NonNullable<EngineSettings["grok-cli"]["pricing"]>>({ inPerMTok: num(0), outPerMTok: num(0), cacheReadPerMTok: num(0) }),
+        /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/,
+      ),
+      turnMs: int(1_000, 3_600_000),
+    },
+    ["pricing", "pricingByModel", "turnMs"],
+  ),
+  "antigravity-cli": obj<EngineSettings["antigravity-cli"]>(
+    {
+      enabled: bool,
+      binary: str,
+      model: { t: "str", max: 128 },
+      pricing: obj<NonNullable<EngineSettings["antigravity-cli"]["pricing"]>>({ inPerMTok: num(0), outPerMTok: num(0), cacheReadPerMTok: num(0) }),
+      pricingByModel: map(
+        obj<NonNullable<EngineSettings["antigravity-cli"]["pricing"]>>({ inPerMTok: num(0), outPerMTok: num(0), cacheReadPerMTok: num(0) }),
         /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/,
       ),
       turnMs: int(1_000, 3_600_000),
@@ -232,7 +249,7 @@ export const GLOBAL_SPEC: Spec = obj<GlobalSettings>({
   engines,
   models,
   reasoning: obj<GlobalSettings["reasoning"]>({ answer: REASONING, patch: REASONING, agent: REASONING, gen: REASONING, genOverview: REASONING }),
-  pins: map(pin, /^(claude|git|gh|codex|grok)$/),
+  pins: map(pin, /^(claude|git|gh|codex|grok|agy)$/),
   limits,
   scheduler,
   review,
