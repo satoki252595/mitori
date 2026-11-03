@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { EngineRequest } from "../contract.ts";
+import { type EngineRequest, SIGINT_GRACE_MS } from "../contract.ts";
 import { createFakeClock, createFakeSpawner, createTestBridge, testHasher, testSettings } from "../testing.ts";
 import { timersFor } from "../util/timers.ts";
 import { createCodexEngine } from "./codex-engine.ts";
@@ -283,6 +283,14 @@ test("Codex plan quota refusal keeps the provider's reset text, meters nothing a
   expect(x.cleans()).toBeGreaterThan(0);
 });
 
+test("WP36d-3 codex meters nothing when the turn never ran", async () => {
+  const x = setup([{ type: "thread.started", thread_id: "t" }, { type: "turn.started" }, { type: "error", message: "could not start session" }]);
+  const res = await x.engine.run(r, new AbortController().signal).result;
+  expect(res.stop).toBe("error");
+  expect(res.error?.code).toBe("E_AGENT_EXIT");
+  expect(res.usage).toMatchObject({ in: 0, out: 0, apiUsd: 0 });
+});
+
 test("Codex failure after the turn ran stays an error and keeps the conservative meter", async () => {
   const x = setup([
     { type: "item.completed", item: { id: "r", type: "reasoning", text: "thinking" } },
@@ -294,4 +302,68 @@ test("Codex failure after the turn ran stays an error and keeps the conservative
   expect(res.error?.message).toBe("stream disconnected");
   expect(res.usageEstimated).toBe(true);
   expect(res.usage.apiUsd).toBeGreaterThan(0);
+});
+
+test("WP36h-3 codex cancels a hanging turn with SIGINT then SIGKILL, leaving no child behind", async () => {
+  const clock = createFakeClock();
+  const settings = testSettings({
+    engines: {
+      "codex-cli": {
+        enabled: true,
+        binary: "/opt/link/codex",
+        model: "test-model",
+        pricing: { inPerMTok: 1, outPerMTok: 2, cacheReadPerMTok: 0.1 },
+        maxEstimatedSpendUsd: 0.1,
+        maxPatchSteps: 2,
+      },
+    },
+  });
+  settings.pins.codex = {
+    path: "/opt/link/codex",
+    realpath: "/opt/native/codex",
+    sha256: testHasher.sha256("native"),
+    version: "codex-cli 0.160.0",
+    pinnedAt: "2026-10-05T00:00:00Z" as never,
+  };
+  const spawner = createFakeSpawner()
+    .script((s) => s.argv[0] === "--version", { stdout: ["codex-cli 0.160.0"] })
+    .script((s) => s.argv[0] === "exec", { hang: true });
+  let cleans = 0;
+  const engine = createCodexEngine({
+    settings: () => settings,
+    env: { HOME: "/user" },
+    safePath: "/opt/native:/usr/bin",
+    spawner,
+    clock,
+    timers: timersFor(clock),
+    hasher: testHasher,
+    fs: {
+      realpath: (p) => (p === "/opt/link/codex" ? "/opt/native/codex" : p),
+      stat: (p) => (p.includes("codex") ? { isFile: true, isDir: false, isSymlink: false, size: 6, mtimeNs: 0n, ino: 1n } : null),
+      read: async () => new TextEncoder().encode("native"),
+      readHead: async () => new Uint8Array(),
+      readdir: () => [],
+    },
+    sandbox: { ensureEmptyCwd: async () => "/isolated/empty", systemPromptFile: async (text) => `/isolated/sp/${testHasher.sha256(text)}` },
+    prepareConfig: async () => ({
+      root: "/isolated/codex",
+      auth: "subscription" as const,
+      cleanup: async () => {
+        cleans++;
+      },
+    }),
+  });
+  const ctl = new AbortController();
+  const run = engine.run(r, ctl.signal);
+  await Bun.sleep(5);
+  const child = spawner.children.find((c) => c.spec.argv[0] === "exec")!;
+  expect(child.spec.processGroup).toBe(true);
+  ctl.abort();
+  await Bun.sleep(1);
+  expect(child.signals).toEqual(["SIGINT"]);
+  clock.advance(SIGINT_GRACE_MS + 1);
+  const res = await run.result;
+  expect(res.stop).toBe("cancelled");
+  expect(child.signals).toEqual(["SIGINT", "SIGKILL"]);
+  expect(cleans).toBe(2);
 });

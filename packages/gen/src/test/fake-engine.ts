@@ -20,7 +20,7 @@ export interface ScriptReply {
   continuations?: number;
   /** Error details. */
   error?: {
-    code: "E_AGENT_EXIT" | "E_AGENT_AUTH_SOURCE" | "E_AGENT_TIMEOUT" | "E_AGENT_RATE_LIMIT" | "E_BUDGET_EXCEEDED";
+    code: "E_AGENT_EXIT" | "E_AGENT_AUTH_SOURCE" | "E_AGENT_TIMEOUT" | "E_AGENT_RATE_LIMIT" | "E_BUDGET_EXCEEDED" | "E_AGENT_CAPABILITY";
     message: string;
     retryable: boolean;
   };

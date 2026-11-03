@@ -93,7 +93,7 @@ export function runTaskId(deps: Pick<GenDeps, "hasher">, run: GenRunId, planId: 
 
 /** Engine adapter for an engine id. */
 export function engineFor(deps: GenDeps, id: EngineId, s = deps.settings()): GenEngine {
-  if (id !== "claude-cli" && id !== "anthropic-api" && id !== "generic" && id !== "codex-cli")
+  if (id !== "claude-cli" && id !== "anthropic-api" && id !== "generic" && id !== "codex-cli" && id !== "grok-cli")
     throw new MitoriError("E_INVALID_INPUT", `engine ${id} cannot run a push generation`, { params: { engine: id } });
   if (!s.global.engines[id].enabled) throw new MitoriError("E_AGENT_NOT_INSTALLED", `engine ${id} is not enabled`, { params: { engine: id } });
   return (
@@ -585,8 +585,14 @@ export class Runner {
       return;
     }
     const ctx: RunCtx = { id: live.run.id, trigger: live.run.trigger, engine, gather: this.gatherEnv(live), cancelled: () => live.run.state === "cancelled" };
-    const turnMs = this.s().global.engines.generic.turnMs;
-    if (engine.id === "generic" && turnMs !== undefined) ctx.turnMs = turnMs;
+    if (engine.id === "generic") {
+      const turnMs = this.s().global.engines.generic.turnMs;
+      if (turnMs !== undefined) ctx.turnMs = turnMs;
+    } else if (engine.id === "grok-cli") {
+      // WP36h: caps the 3×-estimate grok timeout (buildCall defaults to the 1,200 s grok turn cap).
+      const turnMs = this.s().global.engines["grok-cli"].turnMs;
+      if (turnMs !== undefined) ctx.turnMs = turnMs;
+    }
     if (live.run.pinned) ctx.packSnapshot = live.run.pinned.snapshot;
     if (live.run.estimate?.seconds) ctx.runSeconds = live.run.estimate.seconds.p50;
     executeTask(env, ctx, row, abort.signal, {

@@ -16,6 +16,8 @@ export interface EngineHintContext {
   /** Codex `--model` / `--max-estimated-usd` carried over from settings. */
   codexModel?: string;
   codexMaxUsd?: number;
+  /** Grok `--model` carried over from settings. */
+  grokModel?: string;
 }
 
 /**
@@ -52,6 +54,13 @@ export function engineUpdateHint(s: EngineHintStatus, ctx: EngineHintContext, la
     return ja
       ? `Codexの実行ファイルが変わりました: \`${bin} setup codex --native${maxUsd}${model}\` を実行してください`
       : `The Codex binary changed: run \`${bin} setup codex --native${maxUsd}${model}\``;
+  }
+  if (s.engine === "grok-cli") {
+    if (!s.problems.some((p) => p.code === "E_AGENT_CAPABILITY" && /binary changed|not pinned/i.test(p.message))) return null;
+    const model = ctx.grokModel ? ` --model ${ctx.grokModel}` : "";
+    return ja
+      ? `Grokの実行ファイルが変わりました: \`${bin} setup grok --cli${model}\` を実行してください`
+      : `The Grok binary changed: run \`${bin} setup grok --cli${model}\``;
   }
   return null;
 }

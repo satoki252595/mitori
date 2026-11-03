@@ -73,6 +73,13 @@ const setupCtx = $derived.by((): SetupContext => {
       ...(codex?.maxEstimatedSpendUsd ? { codexMaxUsd: codex.maxEstimatedSpendUsd } : {}),
     };
   }
+  if (engineStatus.engine === "grok-cli") {
+    const grok = cfg?.engines["grok-cli"];
+    return {
+      ...(grok?.model ? { model: grok.model } : {}),
+      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
+    };
+  }
   return {};
 });
 const estimates = $derived(Object.fromEntries(EFFORTS.map((e) => [e, s.gen.estimates.get(s.gen.key(e))])) as Partial<Record<Effort, GenEstimate>>);

@@ -1,6 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import type { EngineRequest } from "../contract.ts";
-import { buildGrokSpawn, emptyGrokTurn, GROK_DENIED_TOOLS, GROK_REQUIRED_FLAGS, grokCapabilityOk, grokFoldLine } from "./grok-policy.ts";
+import {
+  buildGrokSpawn,
+  emptyGrokTurn,
+  GROK_DENIED_TOOLS,
+  GROK_ISOLATED_CONFIG_TOML,
+  GROK_REQUIRED_FLAGS,
+  grokCapabilityOk,
+  grokFoldLine,
+} from "./grok-policy.ts";
 
 const req = (o: Partial<EngineRequest> = {}): EngineRequest => ({
   ref: "j_grok",
@@ -29,15 +37,43 @@ const paths = {
 
 const settings = { enabled: true, binary: "grok", model: "grok-4.7" };
 
-describe("WP36b-3 grok spawn builder (single-turn text-only, plain json)", () => {
-  test("prompt file + json + model + effort + one turn + no tools + empty cwd + verbatim + isolated leader", () => {
+/** grok 1.0.70 の組み込み 22 個 + plan mode の出入りの pair（ホスト実測、WP36e）。 */
+const WP36E_DENIED = [
+  "run_terminal_command",
+  "read_file",
+  "search_replace",
+  "list_dir",
+  "grep",
+  "kill_command_or_subagent",
+  "todo_write",
+  "get_command_or_subagent_output",
+  "scheduler_create",
+  "scheduler_delete",
+  "scheduler_list",
+  "monitor",
+  "search_tool",
+  "use_tool",
+  "workflow",
+  "ask_user_question",
+  "send_feedback",
+  "image_gen",
+  "image_edit",
+  "image_to_video",
+  "reference_to_video",
+  "write",
+  "enter_plan_mode",
+  "exit_plan_mode",
+] as const;
+
+describe("WP36e-3 grok spawn builder (single-turn text-only, streaming-json)", () => {
+  test("prompt file + streaming-json + model + effort + one turn + no tools + empty cwd + verbatim + isolated leader", () => {
     const s = buildGrokSpawn(req(), settings, paths, { HOME: "/home/u", PATH: "/usr/bin" });
     expect(s.command).toBe("/opt/native/grok");
     expect(s.argv).toEqual([
       "--prompt-file",
       "/isolated/sp/prompt.txt",
       "--output-format",
-      "json",
+      "streaming-json",
       "-m",
       "grok-4.7",
       "--reasoning-effort",
@@ -65,23 +101,8 @@ describe("WP36b-3 grok spawn builder (single-turn text-only, plain json)", () =>
     expect(s.env.GROK_HOME).toBe("/isolated/grok");
   });
 
-  test("denylist removes reads, edits, shell, web, subagents and MCP meta-tools", () => {
-    for (const tool of [
-      "read_file",
-      "search_replace",
-      "run_terminal_cmd",
-      "task",
-      "Agent",
-      "web_search",
-      "web_fetch",
-      "CallMcpTool",
-      "use_tool",
-      "memory",
-      "workflow",
-    ]) {
-      expect(GROK_DENIED_TOOLS as readonly string[]).toContain(tool);
-    }
-    expect(GROK_DENIED_TOOLS as readonly string[]).not.toContain("--always-approve");
+  test("denylist is exactly the 22 built-ins plus the plan-mode pair, nothing stale", () => {
+    expect([...GROK_DENIED_TOOLS]).toEqual([...WP36E_DENIED]);
   });
 
   test("XAI_API_KEY never reaches the child (metered API would replace the subscription); others neither", () => {
@@ -109,32 +130,71 @@ describe("WP36b-3 grok spawn builder (single-turn text-only, plain json)", () =>
   });
 });
 
-describe("WP36-C grok streaming-json fold", () => {
+describe("WP36f-1 isolated grok config (backend tools stay off)", () => {
+  test("the per-turn config.toml disables web search and every server-side feature", () => {
+    // Host-measured (WP36f): this exact content took the same argv/prompt from 3 backend
+    // `tool_call`s to 0. Byte-exact: the engine and the live test write this constant as-is.
+    expect(GROK_ISOLATED_CONFIG_TOML).toBe(
+      `disable_web_search = true
+
+[features]
+backend_tools = false
+session_search = false
+write_file = false
+web_fetch = false
+image_gen = false
+video_gen = false
+ask_user_question = false
+feedback = false
+telemetry = "off"
+campaigns = false
+codebase_indexing = false
+session_recap = false
+turn_summary = false
+title_refresh = false
+auto_wake = false
+`,
+    );
+  });
+});
+
+describe("WP36e-1 grok streaming-json fold", () => {
   const line = (x: object) => JSON.stringify(x);
-  test("text accumulates, end carries usage, thought is ignored", () => {
+  test("available_commands + text + thought + usage + end fold into a clean turn", () => {
     let t = emptyGrokTurn();
+    t = grokFoldLine(t, line({ type: "available_commands", tools: [] }));
     t = grokFoldLine(t, line({ type: "text", data: "Hello " }));
     t = grokFoldLine(t, line({ type: "thought", data: "thinking" }));
     t = grokFoldLine(t, line({ type: "text", data: "world" }));
     t = grokFoldLine(
       t,
       line({
-        type: "end",
-        stopReason: "end_turn",
-        usage: { input_tokens: 100, output_tokens: 10, cache_read_input_tokens: 20, cache_creation_input_tokens: 5, reasoning_tokens: 3 },
+        type: "usage",
+        usage: { input_tokens: 661, output_tokens: 26, cache_read_input_tokens: 3200, cache_creation_input_tokens: 0, reasoning_tokens: 25 },
       }),
     );
+    t = grokFoldLine(t, line({ type: "end", stopReason: "end_turn" }));
     expect(t.text).toBe("Hello world");
     expect(t.ended).toBe(true);
     expect(t.stopReason).toBe("end_turn");
-    expect(t.usage).toEqual({ in: 80, cacheRead: 20, cacheWrite: 5, out: 10, thinking: 3 });
+    // streaming-json reports the uncached input and the cache read side by side (host: 661 + 3200)
+    expect(t.usage).toEqual({ in: 661, cacheRead: 3200, cacheWrite: 0, out: 26, thinking: 25 });
     expect(t.toolCall).toBeNull();
+    expect(t.unknownTools).toBeNull();
   });
 
-  test("any tool event is recorded for the caller to fail", () => {
+  test("a non-empty available_commands records the unknown tools for the caller to fail-closed", () => {
+    const t = grokFoldLine(emptyGrokTurn(), line({ type: "available_commands", tools: ["write", "brand_new_tool"] }));
+    expect(t.unknownTools).toEqual(["write", "brand_new_tool"]);
+    expect(t.toolCall).toBeNull();
+    expect(t.ended).toBe(false);
+  });
+
+  test("any tool or permission event is recorded for the caller to fail", () => {
     for (const event of [
       { type: "tool_call", toolName: "read_file" },
       { type: "tool_call_update", status: "completed" },
+      { type: "permission_required", toolName: "write" },
       { type: "assistant", content: [{ type: "tool_use", name: "bash" }] },
     ]) {
       const t = grokFoldLine(emptyGrokTurn(), line(event));
@@ -145,41 +205,12 @@ describe("WP36-C grok streaming-json fold", () => {
 
   test("stream errors, invalid usage and non-JSON lines are protocol failures", () => {
     expect(grokFoldLine(emptyGrokTurn(), line({ type: "error", message: "boom" })).streamError).toBe("boom");
-    expect(() => grokFoldLine(emptyGrokTurn(), line({ type: "usage", usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 2 } }))).toThrow(
-      /cached input exceeds/,
-    );
+    expect(() => grokFoldLine(emptyGrokTurn(), line({ type: "usage", usage: { input_tokens: 1 } }))).toThrow(/usage event is invalid/);
     expect(() => grokFoldLine(emptyGrokTurn(), "plain log line")).toThrow(/streaming-json/);
     expect(() => grokFoldLine(emptyGrokTurn(), line({ noType: true }))).toThrow(/no type/);
   });
 
-  test("bare {text, stopReason} object ends the turn without usage", () => {
-    const t = grokFoldLine(emptyGrokTurn(), line({ text: "done", stopReason: "end_turn", sessionId: "s", requestId: "r" }));
-    expect(t.text).toBe("done");
-    expect(t.ended).toBe(true);
-    expect(t.usage).toBeNull();
-  });
-
-  test("WP36b-3 the single json object carries usage, turn count and cost", () => {
-    const t = grokFoldLine(
-      emptyGrokTurn(),
-      line({
-        text: "OK",
-        stopReason: "end_turn",
-        usage: { input_tokens: 17943, cache_read_input_tokens: 8832, cache_creation_input_tokens: 0, output_tokens: 25, reasoning_tokens: 24 },
-        num_turns: 1,
-        total_cost_usd: 0.040452,
-        modelUsage: {},
-      }),
-    );
-    expect(t.text).toBe("OK");
-    expect(t.ended).toBe(true);
-    expect(t.stopReason).toBe("end_turn");
-    expect(t.usage).toEqual({ in: 17943 - 8832, cacheRead: 8832, cacheWrite: 0, out: 25, thinking: 24 });
-    expect(t.turns).toBe(1);
-    expect(t.reportedUsd).toBeCloseTo(0.040452, 9);
-  });
-
-  test("WP36b-3 grokCapabilityOk requires every spawned flag", () => {
+  test("WP36e-1 grokCapabilityOk requires every spawned flag", () => {
     const help = [...GROK_REQUIRED_FLAGS, "-m, --model"].join("\n");
     expect(grokCapabilityOk(help)).toBe(true);
     expect(grokCapabilityOk(help.replace("--leader-socket", ""))).toBe(false);

@@ -94,18 +94,35 @@ export function setupPatch(input: SetupInput): DeepPartial<GlobalSettings> {
     };
   }
   if (provider === "grok" && input.cli && !input.api) {
-    const model = input.model ?? "grok-4.7";
+    const model = input.model ?? "grok-4.7-build-fast";
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,91}$/.test(model)) throw usage("invalid Grok model id");
-    // Existing preset price (grok-4.7, checked 2026-10-06); other models need explicit prices.
-    const pricing = input.pricing ?? (model === "grok-4.7" ? { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 2 } : undefined);
+    // Preset prices are the inverse of grok's own reported USD (not an official price table, WP36h):
+    // build-fast ≈ in 4 / out 12, grok-4.7 ≈ in 2 / out 6 (USD per million tokens, host-measured 2026-11-03).
+    const known: Record<string, NonNullable<EngineSettings["grok-cli"]["pricing"]>> = {
+      "grok-4.7-build-fast": { inPerMTok: 4, outPerMTok: 12, cacheReadPerMTok: 1 },
+      "grok-4.7": { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 0.5 },
+    };
+    const pricing = input.pricing ?? known[model];
     if (!pricing || !Object.values(pricing).every((n) => Number.isFinite(n) && n >= 0))
       throw usage("other Grok CLI models need --in-price and --out-price (USD per million tokens)");
-    const effort = input.effort ?? "high";
+    // Keep the other known price on the engine so switching models needs no re-setup.
+    const pricingByModel = Object.fromEntries(Object.entries(known).filter(([slug]) => slug !== model));
+    // --effort omitted ⇒ low (medium+ reasons for 10+ minutes per task on the measured calls, WP36h)
+    const effort = input.effort ?? "low";
     return {
       defaultEngine: "grok-cli",
       defaultGenEngine: "grok-cli",
       ui: { defaultExecPath: "push" },
-      engines: { "grok-cli": { enabled: true, binary: input.binary ?? "grok", model, pricing } },
+      engines: {
+        "grok-cli": {
+          enabled: true,
+          binary: input.binary ?? "grok",
+          model,
+          pricing,
+          ...(Object.keys(pricingByModel).length ? { pricingByModel } : {}),
+          turnMs: 1_200_000,
+        },
+      },
       models: models(`grok:${model}`),
       reasoning: { answer: effort, patch: effort, agent: effort, gen: effort, genOverview: effort },
     };
@@ -123,8 +140,14 @@ export function setupPatch(input: SetupInput): DeepPartial<GlobalSettings> {
       engines: {
         "claude-cli": { enabled: true, binary: input.binary ?? "claude", inheritUserSettings: false, envPassthrough: [], warmPool: 0, persistSessions: false },
       },
-      // --effort omitted ⇒ reasoning untouched (current defaults stay; WP36b)
-      ...(input.effort ? { reasoning: { answer: input.effort, patch: input.effort, agent: input.effort, gen: input.effort, genOverview: input.effort } } : {}),
+      // --effort omitted ⇒ high on all five scopes (WP36c)
+      reasoning: {
+        answer: input.effort ?? "high",
+        patch: input.effort ?? "high",
+        agent: input.effort ?? "high",
+        gen: input.effort ?? "high",
+        genOverview: input.effort ?? "high",
+      },
     };
   }
   const local = provider === "ollama" || provider === "lmstudio";

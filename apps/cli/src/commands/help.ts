@@ -122,29 +122,29 @@ mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in
   setup: {
     ja: `mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> [options]
   既存のLLMを設定し、TTYで1回確認して保存します。インストール・モデル呼出しは行いません。
-  --model ID                     ローカル/任意APIのモデル（Grok既定grok-4.7、Muse既定contributor）
+  --model ID                     ローカル/任意APIのモデル（Grok既定grok-4.7-build-fast、Muse既定contributor）
   --repo /absolute/repo          Codex/Cursor/Antigravity/Grokの外部セッションとMCP対象
   --api                         Grokで外部セッションの代わりに有料APIを選択
-  --cli [--model grok-4.7]        Grokで外部セッションの代わりにBuild CLIを選択（単発テキスト生成のみ）
+  --cli [--model grok-4.7-build-fast]  Grokで外部セッションの代わりにBuild CLIを選択（単発テキスト生成のみ）
   --native --max-estimated-usd N Codexのサブスク認証で直接実行（推計上限、厳密な費用上限ではない）
   --binary /absolute/path        Claude/Muse/Codex/Grok CLIの実行ファイル
   --base-url URL --key-env NAME  OpenAI互換APIのURLとキーの環境変数名（キー自体は保存しない）
   --in-price N --out-price N     任意remoteモデルのUSD/百万token単価
-  --effort low|medium|high|xhigh|max  Muse・Claudeの推論強度（Muse既定max、Claudeは省略時そのまま。HTTPへは送らない）
+  --effort low|medium|high|xhigh|max  Muse・Claude・Grok CLIの推論強度（Muse既定max、Claude既定high、Grok CLI既定low。medium以上は1タスク10分超えあり。HTTPへは送らない）
   --print                        設定・連携手順の表示だけ（保存・接続しない）
   例: mitori setup grok --repo /absolute/repo（既存セッション） / mitori setup grok --api（XAI_API_KEY）
 `,
     en: `mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> [options]
   Configure an existing provider after one terminal confirmation. No installs or model calls.
-  --model ID                     Required for local/custom APIs; Grok defaults to grok-4.7, Muse to contributor
+  --model ID                     Required for local/custom APIs; Grok defaults to grok-4.7-build-fast, Muse to contributor
   --repo /absolute/repo          External Codex/Cursor/Antigravity/Grok session and MCP workspace
   --api                         Select metered Grok API instead of an existing external session
-  --cli [--model grok-4.7]        Select the Grok Build CLI instead of an external session (one-shot text only)
+  --cli [--model grok-4.7-build-fast]  Select the Grok Build CLI instead of an external session (one-shot text only)
   --native --max-estimated-usd N Run Codex directly with subscription auth (estimated, not hard spending cap)
   --binary /absolute/path        Claude/Muse/Codex/Grok CLI native executable
   --base-url URL --key-env NAME  OpenAI-compatible URL and credential environment variable name
   --in-price N --out-price N     Custom remote model prices in USD per million tokens
-  --effort low|medium|high|xhigh|max  Muse/Claude reasoning effort (Muse default max, Claude unchanged when omitted; HTTP does not send effort)
+  --effort low|medium|high|xhigh|max  Muse/Claude/Grok CLI reasoning effort (Muse default max, Claude default high, Grok CLI default low; medium+ can exceed 10 min/task; HTTP does not send effort)
   --print                        Preview settings/instructions without saving or connecting
   Examples: mitori setup grok --repo /absolute/repo (existing session) / mitori setup grok --api (XAI_API_KEY)
 `,

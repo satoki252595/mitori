@@ -40,4 +40,14 @@ describe("WP28 engineUpdateHint: one re-setup line (spec §B)", () => {
     expect(en).toContain("0.160.0");
     expect(engineUpdateHint({ engine: "session", problems: [] }, {}, "ja")).toBeNull();
   });
+
+  test("WP36c-3 Grok changed ⇒ setup grok --cli keeps the model; other problems ⇒ null", () => {
+    const changed = {
+      engine: "grok-cli" as const,
+      problems: [{ code: "E_AGENT_CAPABILITY", message: "Grok binary changed; repin after human review" }],
+    };
+    expect(engineUpdateHint(changed, { grokModel: "grok-4.7" }, "ja")).toContain("`mitori setup grok --cli --model grok-4.7`");
+    expect(engineUpdateHint(changed, {}, "en")).toContain("`mitori setup grok --cli`");
+    expect(engineUpdateHint({ engine: "grok-cli", problems: [{ code: "E_AGENT_AUTH", message: "x" }] }, {}, "ja")).toBeNull();
+  });
 });

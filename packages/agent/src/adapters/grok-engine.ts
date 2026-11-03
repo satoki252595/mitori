@@ -55,6 +55,8 @@ const LOGIN_HINT = "Grok is not logged in; run `grok login` in a terminal, then 
 export function createGrokEngine(deps: GrokDeps): Engine {
   const cfg = () => deps.settings().engines["grok-cli"];
   const secrets = createSecretScanner();
+  /** Live spawned children (daemon stop closes them even when the job record is gone, WP36h). */
+  const live = new Set<ChildHandle>();
   /** Trust-on-first-use pin of this daemon (until the composition root persists it into settings). */
   let tofu: BinaryPin | undefined;
   /** Latest vendor-update follow of this daemon (shown as 「旧版→新版」; lost on restart, the log keeps it). */
@@ -254,6 +256,7 @@ export function createGrokEngine(deps: GrokDeps): Engine {
           return;
         }
         child = deps.spawner.spawn(spec);
+        live.add(child);
         const started = deps.clock.now();
         let stopped: "cancel" | "timeout" | null = null;
         let kill: unknown = null;
@@ -278,11 +281,18 @@ export function createGrokEngine(deps: GrokDeps): Engine {
         outer.onStopEarly = () => interrupt("cancel");
         const turn = deps.timers.set(() => interrupt("timeout"), spec.timeoutMs);
         const stderr: string[] = [];
+        // A `permission required:` line on stderr means the model tried a tool the headless
+        // permission mode stopped (WP36e): a tool execution, failed like any tool event.
+        let permissionHit: string | null = null;
         const errPump = (async () => {
           try {
             for await (const l of child!.stderr) {
               stderr.push(secrets.redact(l).text.slice(0, 1000));
               if (stderr.length > 8) stderr.shift();
+              if (permissionHit === null && /permission required:/i.test(l)) {
+                permissionHit = l.slice(0, 160);
+                interrupt("cancel");
+              }
             }
           } catch {
             /* stderr closed abruptly */
@@ -292,6 +302,18 @@ export function createGrokEngine(deps: GrokDeps): Engine {
         let emitted = 0;
         let readBytes = 0;
         let failure: MitoriError | null = null;
+        /** First stream tool event seen (`tool_call`, `tool_call_update`, `server_tool_use`, …). */
+        let toolStop: string | null = null;
+        const toolStopError = (toolCall: string): MitoriError => {
+          const name = toolCall.includes(":") ? toolCall.slice(toolCall.indexOf(":") + 1) : toolCall;
+          return new MitoriError("E_AGENT_PROTOCOL", `grok がツール "${name}" を使おうとしたので止めました`);
+        };
+        const shortVer = status.version?.match(/\d+\.\d+\.\d+/)?.[0] ?? status.version ?? "unknown";
+        const unknownToolsError = (tools: string[]): MitoriError =>
+          new MitoriError(
+            "E_AGENT_PROTOCOL",
+            `grok ${shortVer} に mitori が知らないツールがあります（${tools.slice(0, 8).join(", ")}）。mitori の更新が必要です`,
+          );
         try {
           for await (const line of child.stdout) {
             readBytes += bytes(line);
@@ -301,6 +323,27 @@ export function createGrokEngine(deps: GrokDeps): Engine {
               continue;
             }
             folded = grokFoldLine(folded, line);
+            // fail-closed: a newer grok offering tools mitori does not know is stopped at once,
+            // before the model can run anything.
+            if (folded.unknownTools !== null) {
+              failure = unknownToolsError(folded.unknownTools);
+              interrupt("cancel");
+              break;
+            }
+            // fail-closed (WP36f): ANY tool event — backend `X search` included, which arrives
+            // with `available_commands: []` — kills the child at once, before later lines run.
+            // A tool stop is never retried: the same prompt would use the tool again.
+            if (folded.toolCall !== null && failure === null) {
+              toolStop = folded.toolCall;
+              failure = toolStopError(folded.toolCall);
+              interrupt("cancel");
+              break;
+            }
+            if (permissionHit !== null) {
+              failure = new MitoriError("E_AGENT_PROTOCOL", `grok executed a forbidden tool in text-only mode: ${permissionHit}`);
+              interrupt("cancel");
+              break;
+            }
             if ((req.mode === "answer" || req.mode === "generate") && folded.text.length > emitted) {
               outer.events.push({ t: "text", delta: folded.text.slice(emitted), at: deps.clock.now() });
               emitted = folded.text.length;
@@ -312,6 +355,9 @@ export function createGrokEngine(deps: GrokDeps): Engine {
         }
         const exit = await child.exited.catch(() => -1);
         await errPump.catch(() => {});
+        // The stderr line may arrive after stdout closed: a late permission hit still fails the turn.
+        if (failure === null && permissionHit !== null)
+          failure = new MitoriError("E_AGENT_PROTOCOL", `grok executed a forbidden tool in text-only mode: ${permissionHit}`);
         deps.timers.clear(turn);
         if (kill !== null) deps.timers.clear(kill);
         signal.removeEventListener("abort", onAbort);
@@ -348,6 +394,32 @@ export function createGrokEngine(deps: GrokDeps): Engine {
           usage.apiUsd = req.budget.usd;
           usage.pricingVer = "grok-unpriced-budget@1";
         }
+        // WP36f: mitori stopped the turn itself (a tool event or the timeout) and grok reported
+        // no usage — the WP36d rule applies: record zero, never a byte estimate or a cap reserve.
+        // A reported usage event is kept as-is (the model did run before the stop).
+        if ((toolStop !== null || permissionHit !== null || stopped === "timeout") && folded.usage === null) {
+          usage.in = 0;
+          usage.out = 0;
+          usage.apiUsd = 0;
+        }
+        // WP36d: the turn never reached the model (session creation failed, e.g. a tool
+        // require-pair the grok version enforces): no usage, no text, no tool ran, and the
+        // stream never ended. Nothing was spent, so record zero — never a byte estimate.
+        // A launch-settings mismatch fails identically on every call, so it is not retried.
+        const preModel =
+          stopped === null &&
+          failure === null &&
+          folded.usage === null &&
+          folded.text === "" &&
+          folded.toolCall === null &&
+          folded.unknownTools === null &&
+          !folded.ended &&
+          (folded.streamError !== null || exit !== 0);
+        if (preModel) {
+          usage.in = 0;
+          usage.out = 0;
+          usage.apiUsd = 0;
+        }
         const text = folded.text;
         const res = {
           stop: "end",
@@ -376,6 +448,12 @@ export function createGrokEngine(deps: GrokDeps): Engine {
           // Truncated (`max_tokens`, …): the budget stop keeps text + usage for the coverage retry.
           res.stop = "budget";
           res.error = { code: "E_BUDGET_EXCEEDED", message: `grok stopped at ${folded.stopReason}`, retryable: false };
+        } else if (stopped === "cancel") res.stop = "cancelled";
+        else if (stopped === "timeout") {
+          // WP36f: mitori's own kill leaves no end record and the child exits 130 — report the
+          // timeout (with seconds), never the generic 130 exit line. Checked before `!ended`.
+          res.stop = "error";
+          res.error = { code: "E_AGENT_TIMEOUT", message: `grok が時間内（${Math.round(spec.timeoutMs / 1000)} 秒）に終わりませんでした`, retryable: true };
         } else if (!folded.ended) {
           res.stop = "error";
           res.error = {
@@ -384,10 +462,6 @@ export function createGrokEngine(deps: GrokDeps): Engine {
             retryable: true,
             stderrTail: tail(),
           };
-        } else if (stopped === "cancel") res.stop = "cancelled";
-        else if (stopped === "timeout") {
-          res.stop = "error";
-          res.error = { code: "E_AGENT_TIMEOUT", message: "engine timeout (turn)", retryable: true };
         } else if (req.mode === "answer" || req.mode === "generate") res.text = text;
         else {
           const j = extractJsonFromText(text);
@@ -397,6 +471,18 @@ export function createGrokEngine(deps: GrokDeps): Engine {
             res.error = { code: "E_AGENT_PROTOCOL", message: j.error.message, retryable: true };
           }
           res.text = text;
+        }
+        if (preModel && res.error) {
+          // The grok version rejected mitori's launch settings before the model ran: say which
+          // grok this was and that mitori needs an update, so the user can act on it.
+          const short = status.version?.match(/\d+\.\d+\.\d+/)?.[0] ?? status.version ?? "unknown";
+          const detail = ((folded.streamError ?? tail().join(" | ")) || `exit ${exit}`).slice(0, 300);
+          res.error = {
+            code: "E_AGENT_CAPABILITY",
+            message: `grok ${short} could not create a session with mitori's launch settings (the model never ran, no usage is recorded); update mitori for grok ${short}: ${detail}`,
+            retryable: false,
+            stderrTail: tail(),
+          };
         }
         let cleanupFailed = false;
         try {
@@ -408,6 +494,7 @@ export function createGrokEngine(deps: GrokDeps): Engine {
           res.stop = "error";
           res.error = { code: "E_AGENT_EXIT", message: "isolated grok config cleanup failed", retryable: false };
         }
+        if (child) live.delete(child);
         const at = deps.clock.now();
         if (res.error) outer.events.push({ t: "error", code: res.error.code, message: res.error.message, retryable: res.error.retryable, at });
         outer.events.push({ t: "usage", usage: res.usage, final: !!folded.usage, at });
@@ -423,6 +510,7 @@ export function createGrokEngine(deps: GrokDeps): Engine {
           } catch {
             /* gone */
           }
+          live.delete(child);
         }
         if (prepared) await prepared.cleanup().catch(() => {});
         const e = MitoriError.from(err);
@@ -432,5 +520,26 @@ export function createGrokEngine(deps: GrokDeps): Engine {
     return outer;
   };
 
-  return { id: "grok-cli", detect, run };
+  // Daemon stop (scheduler drain) closes live children the way claude-cli does: SIGINT now
+  // (the process group, so grandchildren die too), SIGKILL after the grace period (WP36h).
+  const closeAll = async (): Promise<void> => {
+    const closing = [...live];
+    for (const c of closing) {
+      try {
+        c.kill("SIGINT");
+      } catch {
+        /* gone */
+      }
+      deps.timers.set(() => {
+        try {
+          c.kill("SIGKILL");
+        } catch {
+          /* gone */
+        }
+      }, SIGINT_GRACE_MS);
+    }
+    await Promise.allSettled(closing.map((c) => c.exited));
+  };
+
+  return { id: "grok-cli", detect, run, closeAll };
 }

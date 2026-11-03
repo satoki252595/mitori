@@ -92,6 +92,13 @@ function setupCtxFor(engine: EngineId): SetupContext {
       ...(codex?.maxEstimatedSpendUsd ? { codexMaxUsd: codex.maxEstimatedSpendUsd } : {}),
     };
   }
+  if (engine === "grok-cli") {
+    const grok = cfg?.engines["grok-cli"];
+    return {
+      ...(grok?.model ? { model: grok.model } : {}),
+      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
+    };
+  }
   return {};
 }
 const museSetup = $derived(setupCommandFor("generic", setupCtxFor("generic"), s.session.settings?.launcher) ?? "");
@@ -105,7 +112,11 @@ const setupPrices = $derived(
   simpleProvider === "openai" ||
     (simpleProvider === "codex" && useCodexNative && !!simpleModel.trim() && simpleModel.trim() !== "gpt-6.1-sol") ||
     (simpleProvider === "muse" && !!simpleModel.trim() && simpleModel.trim() !== "muse-spark-1.3-contributor") ||
-    (simpleProvider === "grok" && (useApi || useGrokCli) && !!simpleModel.trim() && simpleModel.trim() !== "grok-4.7") ||
+    (simpleProvider === "grok" &&
+      (useApi || useGrokCli) &&
+      !!simpleModel.trim() &&
+      simpleModel.trim() !== "grok-4.7" &&
+      !(useGrokCli && !useApi && simpleModel.trim() === "grok-4.7-build-fast")) ||
     (["ollama", "lmstudio"].includes(simpleProvider) && (!setupLocalApi || /(?:[:-]cloud)$/i.test(simpleModel.trim()))),
 );
 const PROVIDER_NAMES: Record<SetupProvider, string> = {
@@ -179,8 +190,8 @@ function chooseSetup(value: SetupProvider) {
   useGrokCli = false;
   useCodexNative = true;
   loginResult = "";
-  simpleModel = value === "muse" ? "muse-spark-1.3-contributor" : value === "grok" ? "grok-4.7" : value === "codex" ? "gpt-6.1-sol" : "";
-  simpleEffort = value === "muse" ? "max" : "high";
+  simpleModel = value === "muse" ? "muse-spark-1.3-contributor" : value === "grok" ? "grok-4.7-build-fast" : value === "codex" ? "gpt-6.1-sol" : "";
+  simpleEffort = value === "muse" ? "max" : value === "grok" ? "low" : "high";
   simpleBaseUrl =
     value === "grok"
       ? "https://api.x.ai/v1"
@@ -420,7 +431,7 @@ async function saveProvider(e: SubmitEvent) {
         <p class="note">{t("settings.externalSetup")}</p>
         <label class="row"><span>{t("settings.setupRepo")}</span><input class="mono" bind:value={setupRepo} required={!s.workspace.status?.info.root} placeholder={s.workspace.status?.info.root ?? "/path/to/repository"} /></label>
       {:else}
-        <label class="row"><span>{t(["ollama", "lmstudio", "openai"].includes(simpleProvider) ? "settings.quickModel" : "settings.quickModelOptional")}</span><input class="mono" bind:value={simpleModel} required={["ollama", "lmstudio", "openai"].includes(simpleProvider)} placeholder={simpleProvider === "claude" ? "claude-sonnet-5-5" : simpleProvider === "muse" ? "muse-spark-1.3-contributor" : simpleProvider === "grok" ? "grok-4.7" : "model-name"} /></label>
+        <label class="row"><span>{t(["ollama", "lmstudio", "openai"].includes(simpleProvider) ? "settings.quickModel" : "settings.quickModelOptional")}</span><input class="mono" bind:value={simpleModel} required={["ollama", "lmstudio", "openai"].includes(simpleProvider)} placeholder={simpleProvider === "claude" ? "claude-sonnet-5-5" : simpleProvider === "muse" ? "muse-spark-1.3-contributor" : simpleProvider === "grok" ? "grok-4.7-build-fast" : "model-name"} /></label>
         {#if setupHttp}
           <label class="row"><span>{t("settings.apiUrl")}</span><input class="mono" type="url" required bind:value={simpleBaseUrl} /></label>
           {#if simpleProvider === "grok" || simpleProvider === "openai" || !setupLocalApi}
@@ -435,6 +446,7 @@ async function saveProvider(e: SubmitEvent) {
           {/if}
         {#if setupEffort}
           <label class="row"><span>{t("settings.quickEffort")}</span><select bind:value={simpleEffort}>{#each EFFORTS as level (level)}<option value={level}>{level}</option>{/each}</select></label>
+          {#if simpleProvider === "grok" && useGrokCli && simpleEffort !== "low"}<p class="note">{t("settings.grokSlowWarn")}</p>{/if}
         {/if}
         {#if simpleProvider === "muse"}<p class="note">{t("settings.museSubscription")} <a href="https://dev.meta.ai/docs/muse-code/auth" target="_blank" rel="noopener noreferrer">{t("settings.officialLoginGuide")}</a></p><p class="note">{t("settings.museContributor")}</p>{/if}
       {/if}

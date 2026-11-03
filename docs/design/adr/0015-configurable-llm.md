@@ -38,9 +38,9 @@ provider の登録時は `api` を一つの接続として置き換え、Grok �
 Grok は generic の HTTP ではなく公式 CLI（`grok` 1.0.70）を直接使う engine（`grok-cli`）を追加した。Muse（§4）と同じ考え方で、呼び出しごとに mitori home 内の専用 `GROK_HOME` を SafeWriter で作り、空の `config.toml` と認証ファイルだけを regular/non-symlink 確認つきでコピーし、終了・失敗・キャンセルで消す。根拠は `grok --help`・`grok agent --help`・`grok inspect`・バイナリ内蔵の headless 文書（いずれもネットワーク不要の実測）:
 
 - 設定の読み場所は `~/.grok`（auth.json・config.toml・hooks/skills/memory/sessions・`leader.sock`）で、`GROK_HOME` が上書きする（内蔵文書の `$HOME` / `$GROK_HOME` 記述と `GROK_LEADER_SOCKET`・`leader.sock` 既定 `~/.grok/leader.sock` で確認）。`--leader-socket` を隔離 root 内に向け、利用者の leader プロセスに繋がない。`HOME` も同時に置き換え、`~/.claude` 互換読み・project の AGENTS.md/skills（`--cwd` は検証済み空 dir）・memory が届かない。
-- 組み込み tool を全部外すのは `--tools` の空指定ではできない（内蔵文書: 何も指名しない entry は他を残して警告するだけ）。shell route の id（`run_terminal_cmd`・`task` 等）・表示名（`spawn_subagent`・`CallMcpTool` 等）・daemon route 名・`Agent` を `--disallowed-tools` で全列挙する。未知 entry は警告だけで何も残さないため過剰列挙は安全。`--max-turns 1`・`--no-subagents`・`--no-plan`・`--disable-web-search`・`--prompt-file`（stdin 空）・`--verbatim` を付け、`--always-approve` や permission bypass は使わない。
-- 出力は `--output-format streaming-json`（`text` 蓄積・`end.usage` の input/output/cache_read/cache_creation/reasoning、tool 系 event の検知で失敗。`--output-format json` には usage が無い）。ログイン状態は LLM を呼ばず `grok models`（未ログインは "You are not authenticated."）で出す。
-- 特定できなかった部分: `streaming-json` の event 名の網羅（未知の非 tool 系は無視、tool 系は type 名と `tool_use`/`tool_result` block で検知）、`--json-schema` の実機受理、`end.stopReason` の語彙（`end` 到達は成功扱い）。いずれも fake の子プロセスと cassette だけで検証し、実 grok 呼び出しは未実行（作業時は未ログイン）。
+- 組み込み tool を全部外すのは `--tools ""` の空指定と `--disallowed-tools` の併用で行う（WP36 の「空指定では外せない」は旧版の内蔵文書の記述で、1.0.70 の実機では空指定が受け付けられる）。denylist は実機の `available_commands` が報告する 22 個そのままに plan-mode の出入りの pair を加えた 24 個にする。旧 denylist は実在しない id を含み（8 個が「no tool, so they remove nothing」と警告されるだけ）、`write` を外せていなかった。未知 entry は警告だけで何も残さないため、実在しない名を足しても害はないが、実測と一致させる。`--max-turns 1`・`--no-subagents`・`--no-plan`・`--disable-web-search`・`--prompt-file`（stdin 空）・`--verbatim` を付け、`--always-approve` や permission bypass は使わない。
+- 出力は `--output-format streaming-json`（1 行 1 event。`available_commands`（空であること）・`thought`（無視）・`text`（連結して本文）・`usage`（input/cache_read/cache_creation/output/reasoning、reasoning は thinking。input は非キャッシュ分で cache_read と並ぶ）・`end`（`stopReason`、`end_turn` が正常）を扱う。`available_commands` の `tools` が空でない event を見たら子プロセスをその場で止めて失敗にする（fail-closed: 新しい grok が tool を足してもモデルに渡る前に止まる。要更新の旨を日本語メッセージで返す）。tool・permission を名に含む type の event と stderr の `permission required:` は tool 実行として失敗にする。それ以外の未知 event は無視する。`--output-format json` は複数行に整形された 1 つの JSON になり行ごとの fold では読めないため使わない。ログイン状態は LLM を呼ばず `grok models`（未ログインは "You are not authenticated."）で出す。
+- 特定できなかった部分: `--json-schema` の実機受理、`end.stopReason` の語彙（`end` 到達は成功扱い）。`streaming-json` の event 名は 1.0.70 の実機出力で確認した（`available_commands`・`thought`・`text`・`usage`・`end`）。いずれも fake の子プロセスと cassette だけで検証し、実 grok 呼び出しは未実行（作業時は未ログイン）。
 
 Codex は `-c model_reasoning_effort=<e>`（従来の argv）に加え、生成する model catalog の `default_reasoning_level` に要求の effort を入れる。`codex exec --help` に `--effort` flag は無く、`-c` override が 0.160.0 の検証済み profile と一致する。catalog だけでは古い版が effort を無視する可能性があり、`-c` だけでは catalog 既定が `low` のまま残るため両方で渡す。`ultra` は mitori の `ReasoningEffort` に無いため対象外。
 
@@ -63,7 +63,54 @@ Codex は `-c model_reasoning_effort=<e>`（従来の argv）に加え、生成�
 
 - native thinking は hard cap できない（本 ADR の前提は維持）。代わりの方針: タスク単位の見積もり超過を理由に返ってきた結果を捨てない。結果は採用し、超過分を ledger（実績 usage + 見積もりの行は既存の形）と run の report（`gen_tasks.metrics.overrunUsd`）に記録する。守るのは利用者が確認した実行全体の上限で、次のタスクを始める前に「使った額 + 実行中タスクの予約額 + 次の見積もり ≤ 上限」を確かめ、超えるなら新しいタスクを始めず run を `budget` で止める（実行中のものは終わらせて採用する）。1タスクが自分の見積もりの 4 倍を超えたら以降のタスクを止める（暴走の歯止め、そのタスク自身は採用）。codex-cli の admit フック（native preflight による精密な事前予約）は残し、pump 側の粗い見積もりチェックは他 engine のみにする。価格不明の Codex モデルは起動前に拒否のまま。
 - 見積もりと上限には effort ごとの thinking 予算を1呼び出しごとに入れる（low 1,024 / medium 4,096 / high 8,192 / xhigh 16,384 / max 32,768、`THINKING_BUDGET_TOKENS`）。ledger の EMA は入力 token しか校正しないため thinking 予算は固定のままで、既存の校正には載せない。Claude CLI の上限（`CLAUDE_CODE_MAX_OUTPUT_TOKENS` を決める箇所。thinking を別に上限指定する環境変数・flag は CLI 側になく、mitori の argv にも `--effort` 以外はない）は「本文の上限 + thinking 予算」とし、本文の分を必ず残す。
-- Grok CLI（grok 1.0.70、ホスト実測の訂正）: `--tools ""` は受け付けられる（WP36 の「空指定では外せない」は旧版の内蔵文書の記述）ので argv に足し、denylist も残す。`--output-format json`（1つの JSON）を第一にし、`text` を本文、`usage` の input/cache_read/cache_creation/output/reasoning を usage に（reasoning は thinking）、`stopReason` は `end_turn` を正常・それ以外を打ち切り（budget 扱いで coverage retry へ）、`num_turns > 1` は失敗とする。`total_cost_usd` は ledger の参考値（`reportedUsd`、表示は mitori 単価のまま）。1呼び出しごとの固定入力 ≈ 18k〜25k token に対し見積もりに固定 20,000 token（`GROK_FIXED_INPUT_TOKENS`）を足す。`XAI_API_KEY` は子プロセスに渡さない（従量 API 課金に切り替わるおそれ。API 利用は `setup grok --api` の HTTP 経路）。pin 追従は Claude と同じく保存した `pin.path` の再解決で、`--version` と `grok --help` の能力確認（渡す flag が全部あること）を通ったときだけ追従する。
+- Grok CLI（grok 1.0.70、ホスト実測の訂正、WP36e）: 旧 argv（旧 denylist + `--output-format json`）では組み込み tool が実際には外れていなかった。モデルは `write` を使おうとし（"I'll write `PWNED` to that file with the write tool."）、headless の既定許可が `permission required: Write <path>` で止めていた。`--tools ""` は受け付けられるので argv に残し、denylist は実機の `available_commands` が報告する 22 個（`run_terminal_command`・`read_file`・`search_replace`・`list_dir`・`grep`・`kill_command_or_subagent`・`todo_write`・`get_command_or_subagent_output`・`scheduler_create`・`scheduler_delete`・`scheduler_list`・`monitor`・`search_tool`・`use_tool`・`workflow`・`ask_user_question`・`send_feedback`・`image_gen`・`image_edit`・`image_to_video`・`reference_to_video`・`write`）に plan-mode の出入りの pair を加えた正確な 24 個にした。実在しない名 8 個（旧 denylist 由来の警告）は外した。出力は `--output-format streaming-json`（1 行 1 event。`available_commands`・`thought`・`text`・`usage`・`end`。`--output-format json` は複数行整形の 1 JSON で行 fold では読めない）。`usage` の input は非キャッシュ分で cache_read と並ぶ（実測 661 + 3,200 ≈ 3,900）。`available_commands` の `tools` が空でない event を見たら子プロセスをその場で止めて `E_AGENT_PROTOCOL` で失敗にする（fail-closed。メッセージは「grok <version> に mitori が知らないツールがあります（名前一覧）。mitori の更新が必要です」）。この 24 個での実測は `available_commands` がすべて `[]` で 1 呼び出しの固定入力 ≈ 3,900（661 + cache read 3,200）のため、見積もりの固定加算は 4,000 token（`GROK_FIXED_INPUT_TOKENS`、キャッシュ読みを含む）に下げた。`stopReason` は `end_turn` を正常・それ以外を打ち切り（budget 扱いで coverage retry へ）、`num_turns > 1` は失敗とする。`XAI_API_KEY` は子プロセスに渡さない（従量 API 課金に切り替わるおそれ。API 利用は `setup grok --api` の HTTP 経路）。pin 追従は Claude と同じく保存した `pin.path` の再解決で、`--version` と `grok --help` の能力確認（渡す flag が全部あること）を通ったときだけ追従する。
+
+## 2026-11-03 追記: Grok backend ツールの無効化と fail-closed（WP36f）
+
+WP36e の argv（`--tools ""`・24 個の `--disallowed-tools`・`--disable-web-search`）では、grok 1.0.70 のサーバー側（backend）ツールは消えない。ホスト実測（ai-job-search、11 タスク）: 2/11 成功、9 件が `E_AGENT_EXIT: grok exited with code 130 and no terminal end record`（retryable: true）で 39 分。同じ argv で 34 KB の要約プロンプト（effort high）を手で流すと 197 秒・exit 0 だが、streaming-json に `tool_call`（`toolName: "X search:"`、`rawInput: {variant: XSearch, backend: true}`）が 3 回出る（`x_keyword_search` で `repo:MadsLorentzen/ai-job-search`、`x_semantic_search`、`x_thread_fetch`）。`available_commands.tools` は `[]` のまま。repo 名が外部の検索に送られている。`~/.grok/docs/user-guide/14-headless-mode.md:54` によれば `XSearch` という名前が効くのは daemon route だけで、CLI の flag では backend ツールに届かない。
+
+対策は呼び出しごとの隔離 `config.toml` の内容（1 か所の定数 `GROK_ISOLATED_CONFIG_TOML`）:
+
+```toml
+disable_web_search = true
+
+[features]
+backend_tools = false
+session_search = false
+write_file = false
+web_fetch = false
+image_gen = false
+video_gen = false
+ask_user_question = false
+feedback = false
+telemetry = "off"
+campaigns = false
+codebase_indexing = false
+session_recap = false
+turn_summary = false
+title_refresh = false
+auto_wake = false
+```
+
+各キーの意味は `~/.grok/docs/user-guide/26-config-reference.md` の `features` 表（`features.backend_tools`: "Enable or disable backend_tools. Default true. Also GROK_BACKEND_SEARCH."）。同じ argv・同じ種類のプロンプトで tool_call は 0 回、86 秒・exit 0、本文 7,391 文字、usage `input 8,643 / cache read 2,048 / output 5,167 / reasoning 1,217`。出力速度は約 60 token/秒。
+
+fail-closed の方針（`packages/agent/src/adapters/grok-engine.ts`）: `tool_call`（`tool_call_update` を含む）・`server_tool_use` 相当の event を 1 つでも見たら、その場で子プロセスに SIGINT して失敗にする。エラーは retry しない種類（`E_AGENT_PROTOCOL`、同じプロンプトは再びツールを使う）で、メッセージに tool の名前を入れる（例: 「grok がツール "X search" を使おうとしたので止めました」）。timeout で止めたときは「grok が時間内（N 秒）に終わりませんでした」と分け、どちらも 130 の一般的な文面にしない。mitori 自身の kill は end record を残さず子は 130 で死ぬため、停止理由（cancel/timeout）の判定を `!ended` の exit-130 分岐より前に置く（従来は timeout が `E_AGENT_EXIT` に誤分類されていた）。止めた呼び出しの usage は、grok が usage を報告していなければ 0 にする（報告があれば採用。WP36d の方針を timeout・tool 停止にも適用）。
+
+grok の時間（`packages/gen/src/planner/params.ts`・`execute.ts`・`runner.ts`）: gen の見積もりと timeout は grok 用の出力 50 token/秒（実測 60 に対する保守値、`GROK_OUTPUT_TOKENS_PER_SEC`）を使う。1 呼び出しの timeout は「見積もり時間の 3 倍、最低 600 秒（WP36g で 300 秒から引き上げ）、最大は settings の `turnMs`（既定 900 秒、`GROK_DEFAULT_TURN_MS`。WP36g で generate 期限 600 秒から変更）」。`run.turnMs` は runner が grok-cli の settings から運ぶ。`setup grok --cli` の既定 effort は `medium`（high は thinking が多いと 300 秒を超える実測のため、WP36g で変更）。見積もりの thinking 予算は grok-cli high だけ 12,000 token（実測最大 10,836 に対応）、medium 以下は WP36b の既定のまま。
+
+live テスト（`MITORI_LIVE=1`、ホストのみ）に 1 件追加: 「まず X とウェブで調べてから答えて」と頼んでも tool_call が出ない（出たら engine が止める）こと。live helper も本番と同じ定数の config を書く。
+
+追記の回帰: `scripts/nd bun test packages/agent/src/adapters/grok-policy.test.ts packages/agent/src/adapters/grok-engine.test.ts packages/gen/src/orchestrator/execute.test.ts packages/gen/src/planner/planner.test.ts`、`scripts/nd bun run check`、`scripts/nd bun run golden`。実 LLM は呼ばない（live テストと実生成はホスト）。
+
+## WP36h: grok の生成は「推論が長すぎる」（2026-11-03 ホスト実測）
+
+同じ 82 KB tools プロンプトを同じ隔離設定・同じ argv で手流し: grok-4.7 low 355 秒（reasoning 21,540）/ medium 20 分で未完（本文 0 字、推論要約 11 万字）/ build-fast low 117 秒（reasoning 10,749）/ medium 569 秒（reasoning 64,045）。grok は mitori の規則の多いプロンプトで本文全体を推論の中で何度も書き直す。止まっていたのではなく推論を流し続けていた。報告額からの逆算単価: grok-4.7 は in 2 / out 6、build-fast は約 in 4 / out 12（USD/百万 token、公式表ではない）。`[models] max_completion_tokens = 6000` は組み込みモデルの推論を止めない。
+
+決定: `mitori setup grok --cli` の既定はモデル `grok-4.7-build-fast`・effort `low`（`--model grok-4.7` は選択可）。既定価格は build-fast が in 4 / out 12 / cache read 1、grok-4.7 が in 2 / out 6 / cache read 0.5（grok の報告額からの逆算、公式表ではない）。見積もり用 thinking 予算は grok-cli の low 12,000 / medium 64,000 / high 64,000。1 呼び出し timeout は 3×見積もり・最低 900 秒・上限 `turnMs`（既定 900 秒→1,200 秒）。setup と Web で grok に medium 以上を選ぶと「生成が非常に長くなる（1タスク 10 分以上）」と警告する（止めない）。
+
+取り残しの子プロセス: 実生成のキャンセル後、mitori が起動した grok の子が PPID 1 で動き続けた。daemon 停止・run キャンセル・タスク timeout で grok の子（とその子）を必ず止める。spawn はプロセスグループ（`processGroup: true`、SIGKILL はグループへ届く）で、grok engine は claude-cli と同じく live の子を追い、`closeAll`（scheduler drain 経由）で SIGINT→grace→SIGKILL する。run キャンセル・timeout の既存経路は変えない。他 engine も fake の子で「キャンセル後に子が残らない」を確かめる。
+
+追記の回帰: `scripts/nd bun test packages/agent/src/adapters/grok-engine.test.ts packages/agent/src/adapters/codex-engine.test.ts packages/agent/src/adapters/adapters.test.ts apps/cli/src/commands/setup.test.ts apps/web/src/settings/provider.test.ts packages/gen/src/planner/planner.test.ts packages/gen/src/orchestrator/execute.test.ts packages/server/src/settings/settings.test.ts`、`scripts/nd bun run check`、`scripts/nd bun run golden`。実 LLM は呼ばない。
 
 ## Sources
 

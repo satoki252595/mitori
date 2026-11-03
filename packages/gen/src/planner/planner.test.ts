@@ -341,7 +341,7 @@ describe("estimates (GEN-G-002, GEN-U-003, GEN-U-004, AC-25, PT-04)", () => {
 });
 
 describe("WP36b-1 thinking budget in estimates", () => {
-  const moduleTask = (model: ModelId, effort: "low" | "high"): PlannedTask => ({
+  const moduleTask = (model: ModelId, effort: "low" | "medium" | "high"): PlannedTask => ({
     id: "gt_0000000001",
     stage: "S5",
     prompt: "gen.module",
@@ -368,11 +368,27 @@ describe("WP36b-1 thinking budget in estimates", () => {
     expect(e.seconds).toBeCloseTo(1.0 + 4.0 + (1746 + 2373) / 140, 1);
   });
 
-  test("grok-cli adds the fixed 20,000 input overhead and the effort budget", () => {
+  test("WP36h-6 grok-cli thinking budget follows the measured reasoning (low 12,000, medium/high 64,000)", () => {
+    const { estimator } = setup();
+    const low = estimator.task(moduleTask("grok:grok-4.7-build-fast", "low"), "grok-cli", false);
+    expect(low.uncached).toBe(14100 + 4000);
+    // host-measured low reports 10,749 reasoning tokens per call (ai-job-search, 2026-11-03)
+    expect(low.thinking).toBe(12000);
+    const medium = estimator.task(moduleTask("grok:grok-4.7-build-fast", "medium"), "grok-cli", false);
+    expect(medium.thinking).toBe(64000);
+    const high = estimator.task(moduleTask("grok:grok-4.7", "high"), "grok-cli", false);
+    // host-measured high reports 64,045 reasoning tokens per call (ai-job-search, 2026-11-03)
+    expect(high.thinking).toBe(64000);
+    // Claude keeps the WP36b budget
+    expect(estimator.task(moduleTask("claude-opus-5-5", "high"), "claude-cli", false).thinking).toBe(2373 + 8192);
+  });
+
+  test("WP36f-3 grok-cli estimates wall time at 50 output tok/s", () => {
     const { estimator } = setup();
     const e = estimator.task(moduleTask("grok:grok-4.7", "high"), "grok-cli", false);
-    expect(e.uncached).toBe(14100 + 20000);
-    expect(e.thinking).toBe(8192);
+    // startup 1.0 + ttft 10 + visible output 1,746 / 50 (thinking budget rides the cap, not the clock)
+    expect(e.seconds).toBeCloseTo(1.0 + 10 + 1746 / 50, 1);
+    expect(speedOf("grok:grok-4.7", "high", "grok-cli")).toBe(50);
   });
 });
 

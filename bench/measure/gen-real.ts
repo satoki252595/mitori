@@ -198,7 +198,7 @@ const report: Record<string, unknown> = {
   engine: { id: engine, version: status?.version, plan: status?.plan, billing: status?.billing, pin: status?.pin?.by ?? null },
   models: prev.models,
   reasoning: prev.reasoning,
-  pricing: engine === "generic" || engine === "codex-cli" ? prev.engines[engine].pricing : undefined,
+  pricing: engine === "generic" || engine === "codex-cli" || engine === "grok-cli" ? prev.engines[engine].pricing : undefined,
   otherClaudeProcesses: otherClaude,
   openMs,
   estimate: est,

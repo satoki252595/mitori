@@ -114,7 +114,7 @@ export function providerSetupCommand(
       input.provider === "openai" ||
       (input.provider === "codex" && !!model && model !== "gpt-6.1-sol") ||
       (input.provider === "muse" && !!model && model !== "muse-spark-1.3-contributor") ||
-      (input.provider === "grok" && !!model && model !== "grok-4.7") ||
+      (input.provider === "grok" && !!model && (input.cli ? model !== "grok-4.7" && model !== "grok-4.7-build-fast" : model !== "grok-4.7")) ||
       (["ollama", "lmstudio"].includes(input.provider) && remoteApi) ||
       cloud;
     if (needsPrices || input.inputPrice !== undefined || input.outputPrice !== undefined) {

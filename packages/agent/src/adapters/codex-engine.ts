@@ -395,9 +395,9 @@ export function createCodexEngine(deps: CodexDeps): Engine {
         deps.timers.clear(turn);
         if (kill !== null) deps.timers.clear(kill);
         signal.removeEventListener("abort", onAbort);
-        // A quota refusal before any item never ran the turn: nothing was processed, so nothing is metered.
-        const refused = (failure as MitoriError | null)?.code === "E_AGENT_RATE_LIMIT" && !ran;
-        if (!terminal && !refused) {
+        // The turn never ran (no item record: quota refusal, session-creation failure, …): the model
+        // processed nothing, so nothing is metered — record zero, never a byte estimate (WP36d).
+        if (!terminal && ran) {
           usage.in = input * (calls + 1);
           usage.out = observedBytes;
         }

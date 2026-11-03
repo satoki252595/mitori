@@ -129,6 +129,7 @@ describe("settings defaults and schema", () => {
     expect(merged.engines["claude-cli"]).toEqual(DEFAULT_GLOBAL_SETTINGS.engines["claude-cli"]);
     expect(merged.engines["codex-cli"]).toEqual(DEFAULT_GLOBAL_SETTINGS.engines["codex-cli"]);
     expect(merged.engines["grok-cli"].model).toBe("grok-4.7");
+    expect(DEFAULT_GLOBAL_SETTINGS.engines["grok-cli"].turnMs).toBe(1_200_000); // WP36h-6
     expect(validate(merged, GLOBAL_SPEC)).toEqual([]);
     expect(code(tryParse('{"models":{"answer":"claude-fable-5"}}'))).toBe("E_CFG_INVALID"); // short ids stay forbidden
   });

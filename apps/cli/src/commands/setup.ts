@@ -85,6 +85,9 @@ export async function run(io: Io): Promise<number> {
     if (provider === "codex" && values.native) patch.pins = { codex: await prepareProviderPin(binary, io, "Codex") };
     if (provider === "grok" && values.cli) patch.pins = { grok: await prepareProviderPin(binary, io, "Grok") };
   }
+  // WP36h: grok reasons for 10+ minutes per task on medium+ (host-measured); warn but do not stop.
+  if (provider === "grok" && values.cli === true && (effort ?? "low") !== "low")
+    io.err("Grok の medium 以上の effort は生成が非常に長くなります（1タスク 10 分以上）。\n");
   let instructions = "";
   if (SESSION_PROVIDERS.has(provider) && !values.api && !values.native && !values.cli) {
     if (!values.repo) throw usage("external sessions need --repo /absolute/path/to/your/repository");

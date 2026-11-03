@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
-import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { DeepPartial, GenEstimate, GlobalSettings } from "@mitori/core";
 import { createHasher } from "@mitori/platform";
@@ -74,10 +75,12 @@ test("WP36-A Claude setup accepts haiku-5-5 and fable-5-1, still rejects aliases
   expect(() => setupPatch({ provider: "claude", model: "sonnet" })).toThrow("unsupported Claude model id");
 });
 
-test("WP36b-4 Claude setup writes reasoning only when --effort is given", () => {
-  expect(setupPatch({ provider: "claude" })).not.toHaveProperty("reasoning");
-  expect(setupPatch({ provider: "claude", effort: "high" })).toMatchObject({
+test("WP36c-4 Claude setup defaults to high on all five scopes when --effort is omitted", () => {
+  expect(setupPatch({ provider: "claude" })).toMatchObject({
     reasoning: { answer: "high", patch: "high", agent: "high", gen: "high", genOverview: "high" },
+  });
+  expect(setupPatch({ provider: "claude", effort: "low" })).toMatchObject({
+    reasoning: { answer: "low", patch: "low", agent: "low", gen: "low", genOverview: "low" },
   });
 });
 
@@ -92,20 +95,64 @@ test("WP36-B Codex native setup carries 5.6 default prices per model", () => {
   expect(() => setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 0.5, model: "gpt-6-luna" })).toThrow("--in-price");
 });
 
-test("WP36-C Grok CLI setup defaults to grok-4.7 and requires prices for other models", () => {
+test("WP36h-5 Grok CLI setup defaults to low effort and a 1,200 s turnMs", () => {
+  const patch = setupPatch({ provider: "grok", cli: true });
+  expect(patch).toMatchObject({
+    reasoning: { answer: "low", patch: "low", agent: "low", gen: "low", genOverview: "low" },
+    engines: { "grok-cli": { enabled: true, turnMs: 1_200_000 } },
+  });
+  expect(setupPatch({ provider: "grok", cli: true, effort: "high" })).toMatchObject({
+    reasoning: { answer: "high", patch: "high", agent: "high", gen: "high", genOverview: "high" },
+  });
+});
+
+test("WP36h-5 Grok CLI setup defaults to grok-4.7-build-fast with inverse-reported prices", () => {
   const patch = setupPatch({ provider: "grok", cli: true });
   expect(patch).toMatchObject({
     defaultEngine: "grok-cli",
     defaultGenEngine: "grok-cli",
-    models: { answer: "grok:grok-4.7" },
-    engines: { "grok-cli": { enabled: true, binary: "grok", model: "grok-4.7", pricing: { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 2 } } },
+    models: { answer: "grok:grok-4.7-build-fast" },
+    engines: {
+      "grok-cli": {
+        enabled: true,
+        binary: "grok",
+        model: "grok-4.7-build-fast",
+        pricing: { inPerMTok: 4, outPerMTok: 12, cacheReadPerMTok: 1 },
+        pricingByModel: { "grok-4.7": { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 0.5 } },
+      },
+    },
   });
+  const other = setupPatch({ provider: "grok", cli: true, model: "grok-4.7" });
+  expect(other.models?.answer).toBe("grok:grok-4.7");
+  expect(other.engines?.["grok-cli"]?.pricing).toEqual({ inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 0.5 });
+  expect(other.engines?.["grok-cli"]?.pricingByModel?.["grok-4.7-build-fast"]).toEqual({ inPerMTok: 4, outPerMTok: 12, cacheReadPerMTok: 1 });
   expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-4.6" })).toThrow("--in-price");
   const custom = setupPatch({ provider: "grok", cli: true, model: "grok-4.6", pricing: { inPerMTok: 3, outPerMTok: 9, cacheReadPerMTok: 3 } });
   expect(custom.models?.answer).toBe("grok:grok-4.6");
   expect(() => setupPatch({ provider: "grok", cli: true, api: true })).toThrow("--cli");
   // session setup is unchanged
   expect(setupPatch({ provider: "grok" })).toMatchObject({ defaultGenEngine: "session" });
+});
+
+test("WP36h-5 Grok CLI setup warns on medium+ effort but still previews", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-warn-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    const binary = join(dir, "grok");
+    writeFileSync(binary, `#!${process.execPath}\nconsole.log("grok 1.0.70");\n`, { mode: 0o700 });
+    const warned = testIo({ argv: ["grok", "--cli", "--binary", binary, "--effort", "medium", "--print"], home, cwd: repo });
+    expect(await runCommand("setup", warned)).toBe(0);
+    expect(warned.stderr).toContain("10 分");
+    expect(JSON.parse(warned.stdout)).toMatchObject({ models: { answer: "grok:grok-4.7-build-fast" } });
+    const quiet = testIo({ argv: ["grok", "--cli", "--binary", binary, "--print"], home, cwd: repo });
+    expect(await runCommand("setup", quiet)).toBe(0);
+    expect(quiet.stderr).not.toContain("10 分");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("WP36-D adding one provider keeps the other engines' settings", async () => {
@@ -148,7 +195,7 @@ test("WP36-D adding one provider keeps the other engines' settings", async () =>
     engines: {
       "claude-cli": { enabled: true, binary: "claude" },
       "codex-cli": { enabled: true, binary: "codex" },
-      "grok-cli": { enabled: true, binary: realpathSync(binary), model: "grok-4.7" },
+      "grok-cli": { enabled: true, binary: realpathSync(binary), model: "grok-4.7-build-fast" },
     },
   });
   expect(

@@ -47,7 +47,7 @@ import {
 } from "../contract.ts";
 import { createAssembler } from "../line/assembler.ts";
 import { createLineValidator, planRetry } from "../line/index.ts";
-import { maxOutOf, outTarget, thinkingBudget, thinkingOf } from "../planner/params.ts";
+import { GROK_DEFAULT_TURN_MS, grokTimeoutMs, maxOutOf, outTarget, thinkingBudget, thinkingOf } from "../planner/params.ts";
 import { type GatherEnv, gatherInputs } from "../prompts/inputs.ts";
 import { translateTarget } from "../prompts/renderer.ts";
 import { genFlowSeeds } from "../prompts/seeds.ts";
@@ -101,7 +101,7 @@ export interface RunCtx {
   packSnapshot?: Xxh3;
   /** Estimated run duration p50 (s): anthropic-api writes BP1/BP2 with the 1h TTL above `ttl1hAboveSec` (§8.3). */
   runSeconds?: number;
-  /** Provider-specific generation turn deadline (generic settings), still bounded by server schema. */
+  /** Provider-specific generation turn deadline (generic/grok-cli settings), still bounded by server schema. */
   turnMs?: number;
 }
 
@@ -187,7 +187,7 @@ export function buildCall(
   // WP36b: the fixed effort thinking budget rides every call — the claude-cli cap is body + budget
   // (CLAUDE_CODE_MAX_OUTPUT_TOKENS covers thinking too; the CLI offers no separate thinking cap),
   // other engines meter/preflight against spec maxOut + budget.
-  const tb = thinkingBudget(task.effort);
+  const tb = thinkingBudget(task.effort, run.engine.id);
   const cli = run.engine.id === "claude-cli";
   const version = promptVersion(prompts, task.prompt);
   const call: GenCall = {
@@ -205,9 +205,11 @@ export function buildCall(
     timeoutMs:
       run.engine.id === "codex-cli"
         ? CLAUDE_MODE_DEFAULTS.generate.turnMs
-        : run.engine.id === "generic" && run.turnMs !== undefined
-          ? run.turnMs
-          : Math.max(120_000, 4 * task.estimate.seconds * 1000),
+        : run.engine.id === "grok-cli"
+          ? grokTimeoutMs(task.estimate.seconds, run.turnMs ?? GROK_DEFAULT_TURN_MS)
+          : run.engine.id === "generic" && run.turnMs !== undefined
+            ? run.turnMs
+            : Math.max(120_000, 4 * task.estimate.seconds * 1000),
     attempt,
     ttl: cli ? p.cliCacheTtl.default : (run.runSeconds ?? task.estimate.seconds) > p.ttl1hAboveSec ? "1h" : "5m",
   };
@@ -470,8 +472,16 @@ export async function executeTask(env: ExecEnv, run: RunCtx, row: TaskRow, signa
   let out = await consume(env, callRun, (r, n) => validator.validate(r, n), sink, rendered.ctx);
   turns.push({ ...out, attempt: 1 });
   usage = addUsage(usage, out.result.usage);
-  // §8.2: a transport failure without output is re-dispatched once; auth / installation errors fail the run at once
-  if (out.result.stop === "error" && out.verdicts.length === 0 && !run.cancelled() && !signal.aborted && !fatal(out.result.error)) {
+  // §8.2: a retryable transport failure without output is re-dispatched once; auth / installation
+  // errors and non-retryable settings failures (identical on every call) fail at once
+  if (
+    out.result.stop === "error" &&
+    out.verdicts.length === 0 &&
+    !run.cancelled() &&
+    !signal.aborted &&
+    !fatal(out.result.error) &&
+    out.result.error?.retryable !== false
+  ) {
     await callRun.close();
     callRun = await start(call);
     if (callRun === null) return unadmitted();

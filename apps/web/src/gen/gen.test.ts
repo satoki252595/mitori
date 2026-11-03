@@ -273,7 +273,7 @@ describe("byte-upper note (usage-less generic engines estimate in UTF-8 bytes)",
     expect(isByteUpperEstimate("generic", "muse-jsonl")).toBe(true);
     expect(isByteUpperEstimate("generic", undefined)).toBe(true);
     expect(isByteUpperEstimate("generic", "openai-chat")).toBe(false);
-    for (const engine of ["claude-cli", "session", "anthropic-api", "codex-cli"] as const) {
+    for (const engine of ["claude-cli", "session", "anthropic-api", "codex-cli", "grok-cli"] as const) {
       expect(isByteUpperEstimate(engine, undefined)).toBe(false);
     }
   });

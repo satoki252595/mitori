@@ -30,77 +30,84 @@ export function grokCapabilityOk(help: string): boolean {
 
 /**
  * Built-in tools removed from every grok turn (`--disallowed-tools`, comma-separated).
- * Shell-route ids first (`run_terminal_cmd`, `task`, …), then the display-name spellings the model
- * is shown (`run_terminal_command`, `spawn_subagent`, …), then daemon-route names (`StrReplace`,
- * `CallMcpTool`, …) so a renamed route still loses the tool. Unknown entries only warn on stderr
- * and remove nothing, so over-enumeration is safe.
- * `--tools ""` (accepted since the 1.0.70 host measurement, WP36b) empties the toolset first; the
- * denylist stays as a second bar so a renamed built-in cannot slip back in.
+ * Exactly the 22 names grok 1.0.70 reports in `available_commands` on the host
+ * (2026-11-03, WP36e) plus the plan-mode pair, which stays together: grok refuses
+ * session creation when only one side is denied (`exit_plan_mode` without
+ * `enter_plan_mode`, WP36d). Stale names are gone: unknown entries only warn on
+ * stderr (`no tool, so they remove nothing`) and remove nothing, so the old
+ * over-enumerated list left `write` in place while warning about 8 phantom names.
+ * `--tools ""` empties the toolset first; the denylist stays as a second bar.
  */
+/**
+ * The per-turn isolated `config.toml` (WP36f): `--tools ""` + `--disallowed-tools` + `--disable-web-search`
+ * do NOT stop the server-side (backend) tools — host-measured grok 1.0.70 still ran `X search` three times
+ * (`tool_call` with `variant: XSearch, backend: true`) on the same 34 KB prompt while `available_commands`
+ * stayed `[]`, leaking the repo name to the external search. Only this file content stopped it (same argv and
+ * prompt: 3 tool_calls → 0, 197 s → 86 s, usage in 8,643 / cache read 2,048 / out 5,167 / reasoning 1,217).
+ * Key source: `~/.grok/docs/user-guide/26-config-reference.md` (`features.backend_tools`: "Enable or disable
+ * backend_tools. Default true. Also GROK_BACKEND_SEARCH." — every key below is from that `features` table).
+ * Why flags are not enough: `~/.grok/docs/user-guide/14-headless-mode.md:54` — the name `XSearch` only takes
+ * effect on the daemon route, so no CLI flag list reaches the backend tool. Written byte-exact by the bridge
+ * (`prepareConfig`) and the live test; tested in `grok-policy.test.ts`.
+ */
+export const GROK_ISOLATED_CONFIG_TOML = `disable_web_search = true
+
+[features]
+backend_tools = false
+session_search = false
+write_file = false
+web_fetch = false
+image_gen = false
+video_gen = false
+ask_user_question = false
+feedback = false
+telemetry = "off"
+campaigns = false
+codebase_indexing = false
+session_recap = false
+turn_summary = false
+title_refresh = false
+auto_wake = false
+`;
+
 export const GROK_DENIED_TOOLS = [
+  "run_terminal_command",
   "read_file",
   "search_replace",
-  "grep",
   "list_dir",
-  "run_terminal_cmd",
-  "run_terminal_command",
-  "bash",
-  "web_search",
-  "web_fetch",
-  "todo_write",
-  "task",
-  "spawn_subagent",
-  "kill_task",
+  "grep",
   "kill_command_or_subagent",
-  "get_task_output",
+  "todo_write",
   "get_command_or_subagent_output",
-  "wait_tasks",
-  "wait_commands_or_subagents",
+  "scheduler_create",
+  "scheduler_delete",
+  "scheduler_list",
+  "monitor",
   "search_tool",
   "use_tool",
-  "lsp",
-  "enter_plan_mode",
   "workflow",
-  "monitor",
-  "execute",
-  "StrReplace",
-  "EditNotebook",
-  "Delete",
-  "Shell",
-  "Await",
-  "ReadLints",
-  "SwitchMode",
-  "AskQuestion",
-  "CreatePlan",
-  "CallMcpTool",
-  "GetMcpTools",
-  "FetchMcpResource",
-  "ListMcpResources",
-  "GenerateImage",
-  "GenerateVideo",
-  "CreateGoal",
-  "UpdateGoal",
-  "XSearch",
-  "Read",
-  "Grep",
-  "Glob",
-  "TodoWrite",
-  "WebSearch",
-  "WebFetch",
-  "Write",
-  "memory",
-  "Agent",
+  "ask_user_question",
+  "send_feedback",
+  "image_gen",
+  "image_edit",
+  "image_to_video",
+  "reference_to_video",
+  "write",
+  "enter_plan_mode",
+  "exit_plan_mode",
 ] as const;
 
 /** "You are not authenticated." (and siblings) without ever calling an LLM. */
 export const GROK_UNAUTHENTICATED_RE = /not authenticated|not logged in|no auth|sign in/i;
 
-/** One folded grok turn (`--output-format json`; `streaming-json` events stay tolerated). */
+/** One folded grok turn (`--output-format streaming-json`, one event per line). */
 export interface GrokTurn {
   /** Accumulated `text` deltas. */
   text: string;
   /** Terminal usage when the output carried it (else the caller byte-estimates). */
   usage: { in: number; cacheRead: number; cacheWrite: number; out: number; thinking: number } | null;
+  /** Tools named by a non-empty `available_commands` event: a newer grok than mitori knows. */
+  unknownTools: string[] | null;
   /** First tool event seen (`<type>:<name>`), if the turn executed a tool. */
   toolCall: string | null;
   /** Error object carried by the stream, if any. */
@@ -119,6 +126,7 @@ export interface GrokTurn {
 export const emptyGrokTurn = (): GrokTurn => ({
   text: "",
   usage: null,
+  unknownTools: null,
   toolCall: null,
   streamError: null,
   ended: false,
@@ -129,18 +137,18 @@ export const emptyGrokTurn = (): GrokTurn => ({
 
 const safeInt = (v: unknown): number | null => (Number.isSafeInteger(v) && (v as number) >= 0 ? (v as number) : null);
 
-/** Token usage carried by a `usage` event or the single json object (null when absent). */
+/** Token usage carried by a `usage` event (null when absent). */
 function grokUsageOf(raw: unknown): GrokTurn["usage"] {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const u = raw as Record<string, unknown>;
   const input = safeInt(u.input_tokens);
   const output = safeInt(u.output_tokens);
   if (input === null || output === null) throw new MitoriError("E_AGENT_PROTOCOL", "grok usage event is invalid");
-  const cached = safeInt(u.cache_read_input_tokens) ?? 0;
-  if (cached > input) throw new MitoriError("E_AGENT_PROTOCOL", "grok cached input exceeds total input");
+  // streaming-json reports the uncached input and the cache read side by side (host: 661 + 3200);
+  // the fixed call cost is their sum (WP36e).
   return {
-    in: input - cached,
-    cacheRead: cached,
+    in: input,
+    cacheRead: safeInt(u.cache_read_input_tokens) ?? 0,
     cacheWrite: safeInt(u.cache_creation_input_tokens) ?? 0,
     out: output,
     thinking: safeInt(u.reasoning_tokens) ?? 0,
@@ -148,12 +156,16 @@ function grokUsageOf(raw: unknown): GrokTurn["usage"] {
 }
 
 /**
- * Fold one grok stdout line into the turn. `text` deltas accumulate, the terminal record carries
- * usage, and ANY tool event (`tool_call`, `tool_use`, …) is recorded — the caller fails the turn
- * when `toolCall` is set. Unknown non-tool events are ignored so a newer CLI cannot break the
- * parser; non-JSON stdout lines are a protocol violation (headless logs go to stderr).
- * `--output-format json` emits one `{text, stopReason, usage, num_turns, total_cost_usd, …}` object;
- * `streaming-json` events stay accepted line by line.
+ * Fold one grok stdout line into the turn. `available_commands` names the tools the turn may
+ * use: a non-empty list means a newer grok than mitori knows (`unknownTools`, fail-closed).
+ * `text` deltas accumulate, `thought` is ignored, `usage` carries input/cache_read/cache_creation/
+ * output/reasoning (reasoning is thinking), and `end` closes the turn (`end_turn` is normal).
+ * ANY tool or permission event (`tool_call`, `permission_required`, `tool_use` blocks, …) is
+ * recorded — the caller fails the turn when `toolCall` is set. Other unknown events are ignored
+ * so a newer CLI cannot break the parser; non-JSON stdout lines are a protocol violation
+ * (headless logs go to stderr).
+ * `--output-format streaming-json` emits one event per line; `--output-format json`
+ * pretty-prints several lines and is unreadable here.
  */
 export function grokFoldLine(state: GrokTurn, line: string): GrokTurn {
   if (!line.trim()) return state;
@@ -166,22 +178,15 @@ export function grokFoldLine(state: GrokTurn, line: string): GrokTurn {
     throw new MitoriError("E_AGENT_PROTOCOL", "grok stdout is not streaming-json");
   }
   const type = typeof obj.type === "string" ? obj.type : null;
-  if (type === null) {
-    // Plain `--output-format json`: one terminal object with text, usage, turn count and cost.
-    if (typeof obj.text === "string") {
-      const turns = safeInt(obj.num_turns);
-      const cost = obj.total_cost_usd;
-      return {
-        ...state,
-        text: state.text + (obj.text as string),
-        ended: true,
-        stopReason: typeof obj.stopReason === "string" ? (obj.stopReason as string) : "end_turn",
-        usage: grokUsageOf(obj.usage) ?? state.usage,
-        turns: turns ?? state.turns,
-        reportedUsd: typeof cost === "number" && cost >= 0 && Number.isFinite(cost) ? cost : state.reportedUsd,
-      };
-    }
-    throw new MitoriError("E_AGENT_PROTOCOL", "grok stdout line has no type");
+  if (type === null) throw new MitoriError("E_AGENT_PROTOCOL", "grok stdout line has no type");
+  if (type === "available_commands") {
+    if (!Array.isArray(obj.tools) || !obj.tools.every((t) => typeof t === "string"))
+      throw new MitoriError("E_AGENT_PROTOCOL", "grok available_commands event is invalid");
+    const tools = obj.tools as string[];
+    if (tools.length === 0) return state;
+    const seen = new Set(state.unknownTools ?? []);
+    for (const t of tools.slice(0, 32)) seen.add(t.slice(0, 120));
+    return { ...state, unknownTools: [...seen] };
   }
   if (type === "text" && typeof obj.data === "string") return { ...state, text: state.text + (obj.data as string) };
   if (type === "thought" || type === "progress" || type === "system" || type === "session") return state;
@@ -190,6 +195,8 @@ export function grokFoldLine(state: GrokTurn, line: string): GrokTurn {
   }
   if (type === "end") {
     let next: GrokTurn = { ...state, ended: true, stopReason: typeof obj.stopReason === "string" ? (obj.stopReason as string) : null };
+    const turns = safeInt(obj.num_turns);
+    if (turns !== null) next = { ...next, turns };
     if (obj.usage && typeof obj.usage === "object") next = { ...grokFoldLine(next, JSON.stringify({ type: "usage", usage: obj.usage })), ended: true };
     return next;
   }
@@ -202,8 +209,9 @@ export function grokFoldLine(state: GrokTurn, line: string): GrokTurn {
           : "grok failed";
     return { ...state, streamError: message.slice(0, 500) };
   }
-  // Any tool-shaped event means the turn executed a tool: fail it (tool names travel in several fields).
-  if (type.toLowerCase().includes("tool")) {
+  // Any tool-shaped or permission-shaped event means the turn executed a tool: fail it (tool
+  // names travel in several fields).
+  if (type.toLowerCase().includes("tool") || type.toLowerCase().includes("permission")) {
     const detail = typeof obj.toolName === "string" ? (obj.toolName as string) : typeof obj.name === "string" ? (obj.name as string) : type;
     return { ...state, toolCall: state.toolCall ?? `${type}:${detail}`.slice(0, 160) };
   }
@@ -240,11 +248,13 @@ export interface GrokSpawnPaths {
 }
 
 /**
- * Single-turn text-only `grok` spawn: `--prompt-file` (stdin empty), single-object `json` output,
- * `-m`, `--reasoning-effort`, `--max-turns 1`, `--no-subagents`, `--no-plan`, `--disable-web-search`,
- * `--tools ""` plus every built-in tool denied, `--cwd` the empty sandbox, `--verbatim`, and the
- * leader socket inside the isolated root (no `--always-approve`, no permission-mode bypass).
- * Never `--resume`/`-c`: each turn starts fresh and the isolated root is deleted afterwards.
+ * Single-turn text-only `grok` spawn: `--prompt-file` (stdin empty), `--output-format
+ * streaming-json` (one event per line: `available_commands`, `thought`, `text`, `usage`, `end`),
+ * `-m`, `--reasoning-effort`, `--max-turns 1`, `--no-subagents`, `--no-plan`,
+ * `--disable-web-search`, `--tools ""` plus every built-in tool denied, `--cwd` the empty
+ * sandbox, `--verbatim`, and the leader socket inside the isolated root (no `--always-approve`,
+ * no permission-mode bypass). Never `--resume`/`-c`: each turn starts fresh and the isolated
+ * root is deleted afterwards.
  */
 export function buildGrokSpawn(
   req: EngineRequest,
@@ -264,7 +274,7 @@ export function buildGrokSpawn(
     "--prompt-file",
     paths.promptFile,
     "--output-format",
-    "json",
+    "streaming-json",
     "-m",
     model,
     "--reasoning-effort",

@@ -413,11 +413,11 @@ export const THINKING_BUDGET_TOKENS = { low: 1024, medium: 4096, high: 8192, xhi
 >;
 
 /**
- * Fixed grok-cli input overhead per call (tokens). Even an "OK"-only turn reports ≈ 18k input tokens
- * (subscription session + tool definitions the text-only flags cannot remove); 20k is the measured floor
- * (grok 1.0.70, 2026-11-03, WP36b).
+ * Fixed grok-cli input overhead per call (tokens). With the toolset emptied (`--tools ""` plus the
+ * exact 22 + plan-pair denylist), an "OK"-only turn reports 661 uncached input tokens + 3,200 cache
+ * read ≈ 3,900 (grok 1.0.70, host-measured 2026-11-03, WP36e); 4,000 covers it including the cache.
  */
-export const GROK_FIXED_INPUT_TOKENS = 20_000;
+export const GROK_FIXED_INPUT_TOKENS = 4_000;
 
 /** Generation effort tiers (D13 default `standard`). Scope formulas live in gen. */
 export type Effort = "overview" | "standard" | "complete";

@@ -20,6 +20,7 @@ import { createAnthropicApiEngine, type FetchLike } from "../adapters/anthropic-
 import { createCodexEngine } from "../adapters/codex-engine.ts";
 import { createGenericEngine } from "../adapters/generic-engine.ts";
 import { createGrokEngine } from "../adapters/grok-engine.ts";
+import { GROK_ISOLATED_CONFIG_TOML } from "../adapters/grok-policy.ts";
 import { createClaudeCliEngine } from "../claude/engine.ts";
 import { type BridgeFs, createSandboxStore, EMPTY_REL } from "../claude/fsports.ts";
 import type { AgentScheduler, Engine, EngineResult, ScheduledRequest, Spawner, UsageLedger } from "../contract.ts";
@@ -277,8 +278,9 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
       if (ports.fs.stat(root)) throw new MitoriError("E_PRECONDITION", "Grok isolated config collision");
       const cleanup = () => ports.safeWrite.remove(home, rel, "home");
       try {
-        // An empty user config: no hooks, MCP, plugins, memory, rules or agents reach the turn.
-        await ports.safeWrite.write(home, `${rel}/config.toml`, "", "home");
+        // The backend-tool kill file (WP36f): flags alone cannot stop server-side tools, so every
+        // turn gets this config — no hooks, MCP, plugins, memory, rules, agents, or backend search.
+        await ports.safeWrite.write(home, `${rel}/config.toml`, GROK_ISOLATED_CONFIG_TOML, "home");
         const bytes = await authBytes(`${sourceRoot}/auth.json`);
         // Subscription login only: XAI_API_KEY must not flip the turn to metered API billing
         // (WP36b; API users take the HTTP path via `setup grok --api`).
