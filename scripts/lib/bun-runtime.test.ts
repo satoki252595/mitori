@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   extractBunFromZip,
+  OFFICIAL_RUNTIME_SHA256,
   officialRuntimeAsset,
   officialRuntimeSha256,
   officialRuntimeUrls,
@@ -76,8 +77,8 @@ describe("WP37c official Bun runtime", () => {
 
 describe("WP37d official Bun runtime hash pinning", () => {
   test("WP37d pinned 1.4.2 zip hashes match SHASUMS256.txt", () => {
-    expect(officialRuntimeSha256("1.4.2", "linux-x64")).toBe("36368faef7527875d5ffa52e53cd48021741f2a83eb6208a8dd64068d42a913");
-    expect(officialRuntimeSha256("1.4.2", "linux-arm64")).toBe("54328bbc2d9c8e0c9f2cbf544d66c57a83b84139e34909e5ee81758f1ac8fda7");
+    expect(officialRuntimeSha256("1.4.2", "linux-x64")).toBe("36368faef7527875d5ffa52e53cd48021741f2a83eb6208a8dd64068d422a913");
+    expect(officialRuntimeSha256("1.4.2", "linux-arm64")).toBe("54328bbc2d9c8e0c9f892c544d66c57a83b84139e34909e5ee81758f1ac8fda7");
     expect(officialRuntimeSha256("1.4.2", "darwin-arm64")).toBe("90987a3a16d7db556d886ac3d551e7b6d3edf0a1cf43acaed622e8676be1d12f");
   });
 
@@ -135,4 +136,10 @@ describe("WP37d official Bun runtime hash pinning", () => {
     expect(() => verifyExtractedRuntime(new TextEncoder().encode("#!/bin/sh\necho hi\n"), "linux-x64")).toThrow(/standalone/);
     verifyExtractedRuntime(new Uint8Array([1]), "windows-x64");
   });
+});
+
+// A hand-copied digest once lost a character and only the CI download caught it.
+test("WP37d every pinned runtime digest is a full 64-digit sha256", () => {
+  for (const rows of Object.values(OFFICIAL_RUNTIME_SHA256))
+    for (const [asset, hex] of Object.entries(rows)) expect([asset, /^[0-9a-f]{64}$/.test(hex)]).toEqual([asset, true]);
 });

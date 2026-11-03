@@ -23,8 +23,8 @@ const RELEASE_BASE = "https://github.com/oven-sh/bun/releases/download";
 export const OFFICIAL_RUNTIME_SHA256: Record<string, Record<string, string>> = {
   "1.4.2": {
     "bun-darwin-aarch64.zip": "90987a3a16d7db556d886ac3d551e7b6d3edf0a1cf43acaed622e8676be1d12f",
-    "bun-linux-aarch64.zip": "54328bbc2d9c8e0c9f2cbf544d66c57a83b84139e34909e5ee81758f1ac8fda7",
-    "bun-linux-x64.zip": "36368faef7527875d5ffa52e53cd48021741f2a83eb6208a8dd64068d42a913",
+    "bun-linux-aarch64.zip": "54328bbc2d9c8e0c9f892c544d66c57a83b84139e34909e5ee81758f1ac8fda7",
+    "bun-linux-x64.zip": "36368faef7527875d5ffa52e53cd48021741f2a83eb6208a8dd64068d422a913",
   },
 };
 
