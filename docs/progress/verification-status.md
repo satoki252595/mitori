@@ -83,3 +83,10 @@ PR #20 で2件の修正を統合した。`mitori setup` は engines・pins を c
 - **#26〜#30 の CI 状態**: #27・#29・#30 はマージ済み。#26・#28 は browsers 待ち（Mac が静かなときに再実行してマージ）。browsers ジョブの chromium の速さのテスト4件（地図の部屋カード ≤100 ms、本文の段階切替 ≤50 ms、節の移動 ≤100 ms、streaming の位置 ≤4 px）は Mac の負荷 5〜12 の下で main でも落ちる（負荷が下がった時の再実行で判断）。
 - **WP29 の性能（React 規模のメモリ）**: react（2,847 ファイル）の cold scan で、開始前 100 MB → S0（Worker 8本起動）430 MB → S1 783 MB → S2〜S4 ほぼ横ばい。ピークは S1 の Worker ごとの WASM メモリ（8本で約 320 MB）で決まる。Worker 数と速さは W=8（764〜797 MB・1,156〜1,200 ms）、W=6（692〜700 MB・1,279〜1,348 ms）、W=4（641〜701 MB・1,622〜1,773 ms）。Go 7k（上限 1,500 ms、現在 1,449）を悪化させずに 700 MB に届く手は無い。
 
+## 配布物の検証範囲（WP37、初版 `0.1.0`）
+
+- 対象は4アーカイブ（`mitori-0.1.0-darwin-arm64.tar.gz`・`mitori-0.1.0-linux-x64.tar.gz`・`mitori-0.1.0-linux-arm64.tar.gz`・`mitori-0.1.0-windows-x64.zip`）と `SHA256SUMS`・`release.json`。全アーカイブに build provenance を付ける。
+- 各 OS の runner で配布物を開き、`mitori --version`（`0.1.0` と既存の build id）と `mitori doctor`（LLM を呼ばない自己診断）を実行する。全操作・各 LLM での実生成の確認は対象外。
+- macOS バイナリは未署名・未公証のため、初回は Gatekeeper に止められる。`xattr -d com.apple.quarantine` で外す手順は README に書く。
+- 実機の OS レベル日本語変換（IME 確定）の実操作確認は未実施。W3C UI Events・MDN の推奨ガードに照らした実装と自動テストは対応済み。
+

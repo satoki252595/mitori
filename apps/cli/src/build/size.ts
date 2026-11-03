@@ -25,7 +25,7 @@ if (import.meta.main) {
   const root = resolve(import.meta.dir, "../../../..");
   const dist = join(root, "dist");
   const host = `mitori-${process.platform === "win32" ? "windows" : process.platform}-${process.arch}${process.platform === "win32" ? ".exe" : ""}`;
-  const bins = existsSync(dist) ? readdirSync(dist).filter((f) => /^mitori-(darwin-arm64|linux-x64|windows-x64\.exe)$/.test(f)) : [];
+  const bins = existsSync(dist) ? readdirSync(dist).filter((f) => /^mitori-(darwin-arm64|linux-arm64|linux-x64|windows-x64\.exe)$/.test(f)) : [];
   if (!bins.includes(host)) {
     console.error(`size: dist/${host} is missing — run \`bun run build:bin\` first`);
     process.exit(1);

@@ -1,0 +1,183 @@
+# Release (WP37): tag `v*` builds the four distribution archives, verifies each one on its
+# own runner, attests provenance, and opens a **draft** GitHub Release for a human to publish.
+# `workflow_dispatch` is a dry run: it builds and verifies but creates no Release and no attestation.
+# Only GitHub-hosted runners are used (no self-hosted Mac). Actions are pinned to commit SHAs; the only
+# secret is `GITHUB_TOKEN`.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 4G
+
+      - name: Install (frozen lockfile; dependency lifecycle scripts never run, trustedDependencies = [])
+        run: nix develop .#ci --command bun install --frozen-lockfile
+
+      - name: Tag matches apps/cli/package.json
+        run: |
+          version="$(nix develop .#ci --command bun -e 'process.stdout.write(JSON.parse(require("fs").readFileSync("apps/cli/package.json", "utf8")).version)')"
+          echo "package version: ${version}"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            expected="${GITHUB_REF_NAME#v}"
+            if [ "${version}" != "${expected}" ]; then
+              echo "release: tag ${GITHUB_REF_NAME} does not match apps/cli/package.json ${version}" >&2
+              exit 1
+            fi
+          fi
+
+      - name: ci:pr (check + unit + fixtures --verify + golden + size)
+        run: nix develop .#ci --command bun run ci:pr
+
+      - name: Windows job launcher (embedded in the Windows binary; zig in .#windowsCross)
+        run: nix develop .#windowsCross --command bun scripts/build-windows-job.ts
+
+      - name: Build release archives
+        run: nix develop .#ci --command bun scripts/release.ts
+
+      - name: List archives
+        run: ls -la dist/release && cat dist/release/SHA256SUMS
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dist-release
+          path: |
+            dist/release/mitori-*
+            dist/release/SHA256SUMS
+            dist/release/release.json
+          retention-days: 30
+
+  verify:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            archive: linux-x64.tar.gz
+            inner: mitori
+            shell: bash
+          - os: ubuntu-24.04-arm
+            archive: linux-arm64.tar.gz
+            inner: mitori
+            shell: bash
+          - os: macos-15
+            archive: darwin-arm64.tar.gz
+            inner: mitori
+            shell: bash
+          - os: windows-2025
+            archive: windows-x64.zip
+            inner: mitori.exe
+            shell: pwsh
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: dist-release
+          path: dist-release
+
+      - name: Verify checksum and smoke-test (bash)
+        if: matrix.shell == 'bash'
+        run: |
+          cd dist-release
+          sha256sum -c SHA256SUMS --ignore-missing
+          tar -xzf "mitori-"*"-${{ matrix.archive }}"
+          ./"${{ matrix.inner }}" --version
+          ./"${{ matrix.inner }}" doctor
+
+      - name: Verify checksum and smoke-test (pwsh)
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: |
+          Set-Location dist-release
+          $sums = Get-Content SHA256SUMS
+          $file = (Get-ChildItem "mitori-*-${{ matrix.archive }}").Name
+          $expected = ($sums | Where-Object { $_ -match [regex]::Escape($file) } | ForEach-Object { ($_ -split '\s+')[0] })
+          $actual = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $expected) { throw "SHA256 mismatch for ${file}: ${actual} != ${expected}" }
+          Expand-Archive $file -DestinationPath smoke
+          & ".\smoke\${{ matrix.inner }}" --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & ".\smoke\${{ matrix.inner }}" doctor
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  attest:
+    # Tags only: a dry run must not leave provenance records for archives that are never published.
+    if: ${{ github.ref_type == 'tag' }}
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: dist-release
+          path: dist-release
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist-release/mitori-*
+            dist-release/SHA256SUMS
+            dist-release/release.json
+
+  draft:
+    if: ${{ github.ref_type == 'tag' }}
+    needs: [build, verify, attest]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: dist-release
+          path: dist-release
+
+      - name: Extract CHANGELOG section for this tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v want="## ${version}" 'index($0, want) == 1 { hit = 1; next } /^## / && hit { exit } hit { print }' CHANGELOG.md > /tmp/release-notes.md
+          if [ ! -s /tmp/release-notes.md ]; then
+            echo "release: CHANGELOG.md has no section for ${version}" >&2
+            exit 1
+          fi
+          cat /tmp/release-notes.md
+
+      - name: Create draft Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --draft --verify-tag --notes-file /tmp/release-notes.md \
+            dist-release/mitori-* dist-release/SHA256SUMS dist-release/release.json

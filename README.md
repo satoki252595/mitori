@@ -6,6 +6,38 @@
 
 ## まず使う
 
+### 配布バイナリで使う
+
+Bun は不要です。[Releases](https://github.com/satoki252595/mitori/releases)から自分の OS のアーカイブ（macOS `*-darwin-arm64.tar.gz`、Linux `*-linux-(x64|arm64).tar.gz`、Windows `*-windows-x64.zip`）と `SHA256SUMS` を取ります。
+
+```sh
+shasum -a 256 -c SHA256SUMS --ignore-missing
+gh attestation verify <アーカイブ> --repo satoki252595/mitori
+```
+
+Windows では `shasum` の代わりに `Get-FileHash <アーカイブ> -Algorithm SHA256` を使い、表示された値が `SHA256SUMS` の該当行と一致することを確かめます。
+
+macOS はバイナリが未署名・未公証のため、初回は Gatekeeper に止められます。配布元を自分で確かめたうえで、次で外します。
+
+```sh
+tar -xzf mitori-*-darwin-arm64.tar.gz
+xattr -d com.apple.quarantine ./mitori
+./mitori --version
+./mitori doctor
+```
+
+`xattr -d` は「このファイルは自分が確認した配布物である」と macOS に宣言する操作です。身に覚えのないファイルには使わないでください。
+
+使う LLM（[普段のLLMを使う](#普段のllmを使う)のいずれか1つ）にログイン済みであることを確かめ、最初のコマンドを実行します。
+
+```sh
+./mitori /absolute/path/to/your/repository
+```
+
+データの置き場所は `~/.mitori`（`MITORI_HOME` で変更可）と対象 repo の `.mitori/` です。消すときは mitori を止めてからこの2つを消します。
+
+### ソースから使う
+
 手元の**Bun 1.4.2以上とGit**を使います。LLM・対象言語のテストやlintも、普段使っているツールをPATHから利用します。
 
 ```sh
@@ -164,7 +196,7 @@ mitori内のAI変更はアンカーと対象範囲を確認し、side repoでテ
 | Linux x64 / arm64 | 配布バイナリとCI、Dockerでの起動を確認 |
 | Windows x64 | 配布バイナリの自己診断と選択した操作をCIで確認（全操作・各LLMでの生成は未確認） |
 
-バイナリは`bun run build:bin`で作れます（macOS `dist/mitori-darwin-arm64`、Linux `dist/mitori-linux-x64`）。ライセンスはMIT（[ライセンス](#ライセンス)）です。各環境・各LLMの確認の詳細は[検証状況](docs/progress/verification-status.md)にあります。
+配布バイナリは [Releases](https://github.com/satoki252595/mitori/releases) から取ります（[配布バイナリで使う](#配布バイナリで使う)。検証は `SHA256SUMS` と build provenance（`gh attestation verify`）で行います。自分で作る場合は`bun run build:bin`（macOS `dist/mitori-darwin-arm64`、Linux `dist/mitori-linux-(x64|arm64)`、Windows `dist/mitori-windows-x64.exe`）。ライセンスはMIT（[ライセンス](#ライセンス)）です。各環境・各LLMの確認の詳細は[検証状況](docs/progress/verification-status.md)にあります。
 
 ## ライセンス
 

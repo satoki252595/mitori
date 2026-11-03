@@ -1,4 +1,4 @@
-// Source build id for the daemon version handshake (WP15 の続き): `0.0.0+<build>`.
+// Source build id for the daemon version handshake (WP15 の続き): `<cli version>+<build>`.
 // `start.ts` computes it from the working tree and passes it to the CLI via `BUILD_ENV`;
 // `build-bin.ts` bakes the same value into the compiled binary with `--define`.
 import { createHash } from "node:crypto";

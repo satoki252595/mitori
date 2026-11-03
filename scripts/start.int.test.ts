@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import cliPkg from "../apps/cli/package.json";
 import { ROOT } from "./lib/repo.ts";
 
 test("an absolute Bun run start preserves its runtime in setup launch commands when PATH shadows bun", () => {
@@ -39,7 +40,7 @@ test.if(!!process.env.MITORI_TEST_OLD_BUN)(
       stderr: "pipe",
     });
     expect(p.exitCode).toBe(0);
-    expect(new TextDecoder().decode(p.stdout)).toBe("mitori 0.0.0 (api 1)\n");
+    expect(new TextDecoder().decode(p.stdout)).toBe(`mitori ${(cliPkg as { version: string }).version} (api 1)\n`);
     const err = new TextDecoder().decode(p.stderr);
     const notices = err.split("\n").filter((line) => line.includes("is too old; using"));
     expect(notices).toHaveLength(1);

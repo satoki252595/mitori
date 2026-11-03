@@ -13,6 +13,7 @@ const STEPS: [name: string, argv: string[]][] = [
   ["cr-ledger", ["bun", "scripts/check-cr-ledger.ts"]],
   ["budgets", ["bun", "scripts/check-budgets.ts"]],
   ["contract-index", ["bun", "scripts/contract-index.ts", "--check"]],
+  ["version", ["bun", "scripts/check-version.ts"]],
 ];
 
 export async function runCheckStep(name: string, argv: string[]) {
