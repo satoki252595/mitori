@@ -1,5 +1,14 @@
 /** Human setup presets. No provider credentials or execution settings come from the repository. */
-import { CLAUDE_MODEL_IDS, type DeepPartial, type EngineSettings, type GlobalSettings, type ModelId, type ReasoningEffort } from "@mitori/core";
+import {
+  CLAUDE_MODEL_IDS,
+  type DeepPartial,
+  type EngineSettings,
+  type GlobalSettings,
+  MODEL_CATALOG,
+  type ModelCatalogKey,
+  type ModelId,
+  type ReasoningEffort,
+} from "@mitori/core";
 import { usage } from "./io.ts";
 
 export const PROVIDERS = ["claude", "muse", "grok", "ollama", "lmstudio", "openai", "codex", "cursor", "antigravity"] as const;
@@ -51,11 +60,50 @@ function models(model: ModelId): GlobalSettings["models"] {
   return { answer: model, patch: model, agent: model, genModule: model, genOverview: model, genLeaf: model, judge: model, rewrite: model, escalate: model };
 }
 
+/** Priced entries of a catalog view, keyed by model slug (price-unknown models stay custom). */
+function knownPrices(view: ModelCatalogKey): Record<string, NonNullable<EngineSettings["codex-cli"]["pricing"]>> {
+  return Object.fromEntries(
+    MODEL_CATALOG[view].models
+      .filter((m) => m.pricing !== null)
+      .map((m) => [m.id.split(":").at(-1) as string, m.pricing as NonNullable<EngineSettings["codex-cli"]["pricing"]>]),
+  );
+}
+
+/** The catalog view a setup run configures (null for free-form providers and external sessions). */
+function catalogView(input: Pick<SetupInput, "provider" | "api" | "cli" | "native">): ModelCatalogKey | null {
+  if (input.provider === "claude") return "claude";
+  if (input.provider === "codex" && input.native) return "codex";
+  if (input.provider === "grok" && input.cli && !input.api) return "grok-cli";
+  if (input.provider === "grok" && input.api && !input.cli) return "grok-api";
+  if (input.provider === "muse") return "muse";
+  return null;
+}
+
+/**
+ * An explicit `--effort` must be one the listed model accepts (usage error naming the usable ones).
+ * Unlisted models and omitted `--effort` keep the old behavior; `claude-haiku-4-5` ignores effort,
+ * so an explicit `--effort` for it is rejected while stored defaults stay untouched.
+ */
+function checkEffort(input: Pick<SetupInput, "provider" | "api" | "cli" | "native" | "model" | "effort">): void {
+  if (input.effort === undefined) return;
+  const view = catalogView(input);
+  if (view === null) return;
+  const full = (input.model ?? MODEL_CATALOG[view].defaultModel.split(":").at(-1)) as string;
+  const prefix = view === "claude" ? "" : view === "codex" ? "codex:" : view === "grok-cli" ? "grok:" : "generic:";
+  const id = `${prefix}${full}`;
+  const entry = MODEL_CATALOG[view].models.find((m) => m.id === id);
+  if (!entry) return;
+  if (entry.efforts.length === 0) throw usage(`model ${id} does not take --effort`, "mitori setup --help");
+  if (!(entry.efforts as readonly string[]).includes(input.effort))
+    throw usage(`model ${id} takes --effort ${(entry.efforts as readonly string[]).join("|")}`, "mitori setup --help");
+}
+
 /** Explicit prices for known presets; custom remote models cannot silently inherit another model's rates. */
 export function setupPatch(input: SetupInput): DeepPartial<GlobalSettings> {
   const { provider } = input;
   if (input.native && provider !== "codex") throw usage("--native is supported for Codex only");
   if (input.cli && (provider !== "grok" || input.api)) throw usage("--cli selects the Grok Build CLI engine (not with --api)");
+  checkEffort(input);
   if (provider === "codex" && input.native) {
     const model = input.model ?? "gpt-6.1-sol";
     const maxEstimatedSpendUsd = input.maxEstimatedUsd;
@@ -64,11 +112,7 @@ export function setupPatch(input: SetupInput): DeepPartial<GlobalSettings> {
       throw usage("Codex native needs --max-estimated-usd N; native reasoning has no hard spending cap");
     // Standard API-equivalent prices; subscription billing is provider-owned.
     // gpt-5.6 pair: OpenAI 2026-07-30 revision (cache read = 0.1× input); gpt-6-luna has no public price.
-    const known: Record<string, NonNullable<EngineSettings["codex-cli"]["pricing"]>> = {
-      "gpt-6.1-sol": { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
-      "gpt-5.6-terra": { inPerMTok: 2, outPerMTok: 12, cacheReadPerMTok: 0.2 },
-      "gpt-5.6-luna": { inPerMTok: 0.2, outPerMTok: 1.2, cacheReadPerMTok: 0.02 },
-    };
+    const known = knownPrices("codex");
     const pricing = input.pricing ?? known[model];
     // Keep the other known prices on the engine so switching models needs no re-setup.
     const pricingByModel = Object.fromEntries(Object.entries(known).filter(([slug]) => slug !== model));
@@ -98,10 +142,7 @@ export function setupPatch(input: SetupInput): DeepPartial<GlobalSettings> {
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,91}$/.test(model)) throw usage("invalid Grok model id");
     // Preset prices are the inverse of grok's own reported USD (not an official price table, WP36h):
     // build-fast ≈ in 4 / out 12, grok-4.7 ≈ in 2 / out 6 (USD per million tokens, host-measured 2026-11-03).
-    const known: Record<string, NonNullable<EngineSettings["grok-cli"]["pricing"]>> = {
-      "grok-4.7-build-fast": { inPerMTok: 4, outPerMTok: 12, cacheReadPerMTok: 1 },
-      "grok-4.7": { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 0.5 },
-    };
+    const known = knownPrices("grok-cli");
     const pricing = input.pricing ?? known[model];
     if (!pricing || !Object.values(pricing).every((n) => Number.isFinite(n) && n >= 0))
       throw usage("other Grok CLI models need --in-price and --out-price (USD per million tokens)");
@@ -156,14 +197,17 @@ export function setupPatch(input: SetupInput): DeepPartial<GlobalSettings> {
     throw usage("name your installed/available model with --model <id>", "mitori setup --help");
   const cloud = local && /(?:[:-]cloud)$/i.test(model);
   if (cloud && !input.pricing) throw usage("cloud models need explicit --in-price and --out-price; choose an installed local model");
+  // Fixed-model prices come from the catalog (same values, moved not changed).
+  const musePrice = MODEL_CATALOG.muse.models.find((m) => m.id === "generic:muse-spark-1.3-contributor")?.pricing ?? undefined;
+  const grokApiPrice = MODEL_CATALOG["grok-api"].models.find((m) => m.id === "generic:grok-4.7")?.pricing ?? undefined;
   const pricing =
     input.pricing ??
     (local
       ? { inPerMTok: 0, outPerMTok: 0, cacheReadPerMTok: 0 }
       : provider === "muse" && model === "muse-spark-1.3-contributor"
-        ? { inPerMTok: 0.1, outPerMTok: 0.2, cacheReadPerMTok: 0.002 }
+        ? musePrice
         : provider === "grok" && model === "grok-4.7"
-          ? { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 2 }
+          ? grokApiPrice
           : undefined);
   if (!pricing) throw usage("custom remote models need --in-price and --out-price (USD per million tokens)");
   if (!Object.values(pricing).every((n) => Number.isFinite(n) && n >= 0)) throw usage("prices must be finite non-negative numbers");
@@ -222,4 +266,59 @@ export function setupPatch(input: SetupInput): DeepPartial<GlobalSettings> {
     models: models(`generic:${model}`),
     reasoning: { answer: effort, patch: effort, agent: effort, gen: effort, genOverview: effort },
   };
+}
+
+const priceCell = (p: { inPerMTok: number; outPerMTok: number; cacheReadPerMTok: number } | null, lang: "ja" | "en"): string =>
+  p === null ? (lang === "ja" ? "価格非公開" : "price unknown") : `${p.inPerMTok}/${p.outPerMTok}/${p.cacheReadPerMTok}`;
+
+const VIEW_LEAD: Record<ModelCatalogKey, { ja: string; en: string }> = {
+  claude: { ja: "Claude Codeで使うモデルの一覧", en: "Models for Claude Code" },
+  codex: { ja: "Codexで直接実行するモデルの一覧", en: "Models for direct Codex runs" },
+  "grok-cli": { ja: "Grok Build CLIで直接実行するモデルの一覧", en: "Models for direct Grok Build CLI runs" },
+  "grok-api": { ja: "Grok APIで使うモデルの一覧", en: "Models for the Grok API" },
+  muse: { ja: "Museで使うモデルの一覧", en: "Models for Muse" },
+};
+
+/**
+ * `setup <provider> --list-models`: the selectable models, usable efforts, defaults and prices.
+ * TTY 不要、設定は変えない。Free-form providers and external sessions get a guidance line instead.
+ */
+export function listModelsTable(provider: Provider, opts: { api?: boolean; cli?: boolean }, lang: "ja" | "en"): string {
+  const lines: string[] = [];
+  const view: ModelCatalogKey | null =
+    provider === "claude"
+      ? "claude"
+      : provider === "codex"
+        ? "codex"
+        : provider === "muse"
+          ? "muse"
+          : provider === "grok" && opts.cli && !opts.api
+            ? "grok-cli"
+            : provider === "grok" && opts.api && !opts.cli
+              ? "grok-api"
+              : null;
+  if (view === null) {
+    if (lang === "ja")
+      lines.push(
+        provider === "grok"
+          ? "Grok Buildのセッションは外部ツールのモデルを使います。一覧は `setup grok --cli --list-models`（CLI）か `setup grok --api --list-models`（API）で出ます。"
+          : `${provider}に決まったモデル一覧はありません。--model で手元のモデル名を指定してください。`,
+      );
+    else
+      lines.push(
+        provider === "grok"
+          ? "A Grok Build session uses the external tool's own model. List CLI models with `setup grok --cli --list-models` or the API model with `setup grok --api --list-models`."
+          : `${provider} has no fixed model list. Name an installed model with --model.`,
+      );
+    return `${lines.join("\n")}\n`;
+  }
+  const catalog = MODEL_CATALOG[view];
+  const defaults =
+    lang === "ja" ? `（既定: ${catalog.defaultModel} / ${catalog.defaultEffort}）` : ` (defaults: ${catalog.defaultModel} / ${catalog.defaultEffort})`;
+  lines.push(`${VIEW_LEAD[view][lang]}${defaults}`);
+  lines.push(
+    lang === "ja" ? "モデル | 使えるeffort | 価格USD/百万token（入力/出力/キャッシュ読み）" : "model | usable efforts | price USD/MTok (in/out/cache-read)",
+  );
+  for (const m of catalog.models) lines.push(`${m.id} | ${(m.efforts as readonly string[]).join("|") || "-"} | ${priceCell(m.pricing, lang)}`);
+  return `${lines.join("\n")}\n`;
 }

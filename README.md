@@ -104,6 +104,8 @@ Bunが古くても`bun run start`は新しいBun（`$BUN_INSTALL`・`~/.bun`・P
 | Grok Build | `bun run start -- setup grok --repo /absolute/path/to/your/repository` | 普段のGrok Buildのセッションで生成 |
 | Grok Build CLI | `bun run start -- setup grok --cli [--model grok-4.7-build-fast]` | 画面から単発テキスト生成（agent/patch・ツール実行なし）。`--effort`省略時は`low`（medium以上は1タスク10分超えあり） |
 
+**モデルとeffortの選び方**: 選べるモデルと使えるeffort・既定・価格は`bun run start -- setup <プロバイダー> --list-models`で確認できます（設定は変えません）。既定はClaudeがhigh、Codexがhigh、Grok Build CLIがlow、Museがmaxで、モデルごとに使えるeffortが決まっています（Grok Build CLIにmaxはなく、`claude-haiku-4-5`はeffortを受け付けません）。設定後はブラウザの設定→「モデルと推論の強さ」で、設定済みのengineの範囲で2つのまとまり（生成・回答と修正）のモデルと強さを変えられます。実行ファイルや単価の変更は端末のsetupのままです。
+
 **Claude Code・Museの自動更新にはmitoriが自動で追従します。** 各社のツールが新しい版に入れ替わると、mitoriは同じ場所（`setup`で登録した場所）から新しい版を見つけ、実行ファイルの置き場所・持ち主・版・安全設定を確かめ直してから切り替え、画面に「新しい版に自動で切り替えました（旧版 → 新版）」と表示します。モデルや思考の強さなどの設定はそのまま残ります。確かめられなかったときは自動では切り替えず、地図のエンジンカードと設定画面に理由とコピーできるコマンド（`bun run start -- setup …`、前の設定を引き継ぎ）を示し、生成の失敗時と`bun run start -- doctor`にも同じ1行を出します。表示されたコマンドを端末で実行すると直ります。Codexはmitoriで確認済みの版（`0.160.0`）だけを使うため、別の版に更新された場合は自動では切り替えません。setupのやり直しでは直らないので、mitoriを更新（`git pull`）してください。
 
 **普段のAIのセッションで生成する場合**（Cursor・Antigravity・Muse・Grok Build・Codexなど）は、画面の**生成手順をコピー**を押し、そのAIに貼り付けます。AIが準備パケットを読み、生成した文書をmitoriへ取り込みます。対象のソースやGitは変更しません。生成後のレビュー対応は、AIに次のように依頼できます。

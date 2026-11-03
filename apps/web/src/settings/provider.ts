@@ -1,4 +1,12 @@
-import { type DeepPartial, type GlobalSettings, PROVIDER_AUTH_IDS, type ProviderAuthId, type ReasoningEffort } from "@mitori/core";
+import {
+  type DeepPartial,
+  type GlobalSettings,
+  MODEL_CATALOG,
+  type ModelCatalogKey,
+  PROVIDER_AUTH_IDS,
+  type ProviderAuthId,
+  type ReasoningEffort,
+} from "@mitori/core";
 
 /** Generation's existing minimum turn deadline; an explicit value resets a previously saved override. */
 const DEFAULT_TURN_MS = 120_000;
@@ -15,6 +23,128 @@ export function launcherPrefix(launcher?: LauncherCommand | undefined): string {
 }
 
 export { shellQuote };
+
+/** One catalog model for the quick-setup `<select>` (plus the 「その他（手入力）」 entry the UI adds). */
+export interface SetupModelOption {
+  /** Full model id as stored in settings. */
+  id: string;
+  /** Display name. */
+  displayName: string;
+  /** Efforts this model accepts (empty = the engine ignores effort). */
+  efforts: readonly ReasoningEffort[];
+  /** Default effort (null when the model ignores effort). */
+  defaultEffort: ReasoningEffort | null;
+  /** False for 価格非公開 models (setup needs explicit prices). */
+  priceKnown: boolean;
+}
+
+function catalogKeyFor(provider: SetupProvider, opts: { api?: boolean | undefined; cli?: boolean | undefined }): ModelCatalogKey | null {
+  if (provider === "claude") return "claude";
+  if (provider === "codex") return "codex";
+  if (provider === "muse") return "muse";
+  if (provider === "grok" && opts.cli && !opts.api) return "grok-cli";
+  if (provider === "grok" && opts.api && !opts.cli) return "grok-api";
+  return null;
+}
+
+/** Catalog models of a quick-setup provider (empty for free-form providers and external sessions). */
+export function setupModelOptions(provider: SetupProvider, opts: { api?: boolean; cli?: boolean }): SetupModelOption[] {
+  const key = catalogKeyFor(provider, opts);
+  if (key === null) return [];
+  return MODEL_CATALOG[key].models.map((m) => ({
+    id: m.id,
+    displayName: m.displayName,
+    efforts: m.efforts,
+    defaultEffort: m.defaultEffort,
+    priceKnown: m.pricing !== null,
+  }));
+}
+
+/** Default model id of a quick-setup provider ("" for free-form providers). */
+export function setupDefaultModel(provider: SetupProvider, opts: { api?: boolean; cli?: boolean }): string {
+  const key = catalogKeyFor(provider, opts);
+  return key === null ? "" : MODEL_CATALOG[key].defaultModel;
+}
+
+/**
+ * Whether a quick-setup model slug has a known price (the CLI reads the same catalog:
+ * priced entries need no `--in-price` / `--out-price`). Null for free-form providers
+ * and external sessions (the old endpoint/cloud rules decide there); an empty slug selects
+ * the provider default, and an unlisted slug is price-unknown.
+ */
+export function setupModelPriceKnown(
+  provider: SetupProvider,
+  opts: { api?: boolean | undefined; cli?: boolean | undefined },
+  modelSlug: string | undefined,
+): boolean | null {
+  const key = catalogKeyFor(provider, opts);
+  if (key === null) return null;
+  const slug = modelSlug?.trim() || MODEL_CATALOG[key].defaultModel.split(":").at(-1);
+  const prefix = key === "claude" ? "" : key === "codex" ? "codex:" : key === "grok-cli" ? "grok:" : "generic:";
+  const entry = MODEL_CATALOG[key].models.find((m) => m.id === `${prefix}${slug}`);
+  if (!entry) return false;
+  return entry.pricing !== null;
+}
+
+/** `mitori setup ...` command re-registering a switched-to model with its prices (mirrors the server hint). */
+export function switchSetupHint(modelId: string): string {
+  const slug = modelId.split(":").at(-1) ?? modelId;
+  if (modelId.startsWith("codex:")) return `mitori setup codex --native --model '${slug}' --max-estimated-usd <n> [--in-price <n> --out-price <n>]`;
+  if (modelId.startsWith("grok:")) return `mitori setup grok --cli --model '${slug}' [--in-price <n> --out-price <n>]`;
+  if (modelId === "generic:grok-4.7") return `mitori setup grok --api --model 'grok-4.7' --in-price <n> --out-price <n>`;
+  if (modelId.startsWith("generic:muse-")) return `mitori setup muse --model '${slug}'`;
+  if (modelId.startsWith("generic:")) return `mitori setup <provider> --model '${slug}' --in-price <n> --out-price <n>`;
+  return `mitori setup claude --model '${slug}'`;
+}
+
+/** Server model-switch refusal reasons (`params.reason` of the `E_INVALID_INPUT` error) to i18n keys. */
+export function switchErrorKey(reason: string | undefined): string {
+  switch (reason) {
+    case "price-unknown":
+      return "settings.switchPriceUnknown";
+    case "engine-missing":
+      return "settings.switchEngineMissing";
+    case "model-unknown":
+      return "settings.switchModelUnknown";
+    case "effort-unsupported":
+      return "settings.switchBadEffort";
+    default:
+      return "settings.providerInvalid";
+  }
+}
+
+/** Default effort of a quick-setup provider (Claude high, Codex high, Grok low, Muse max, others high). */
+export function setupDefaultEffort(provider: SetupProvider): ReasoningEffort {
+  if (provider === "muse") return "max";
+  if (provider === "grok") return "low";
+  return "high";
+}
+
+/**
+ * Models the settings-page switcher can offer: catalog models of the enabled engines, plus models
+ * already in use (custom entries stay selectable so a switch never strands the current value).
+ */
+export function switchableModels(settings: GlobalSettings): SetupModelOption[] {
+  const views: ModelCatalogKey[] = [];
+  if (settings.engines["claude-cli"]?.enabled) views.push("claude");
+  if (settings.engines["codex-cli"]?.enabled) views.push("codex");
+  if (settings.engines["grok-cli"]?.enabled) views.push("grok-cli");
+  if (settings.engines.generic?.enabled) views.push("muse", "grok-api");
+  const out: SetupModelOption[] = [];
+  const seen = new Set<string>();
+  for (const view of views)
+    for (const m of MODEL_CATALOG[view].models) {
+      if (seen.has(m.id)) continue;
+      seen.add(m.id);
+      out.push({ id: m.id, displayName: m.displayName, efforts: m.efforts, defaultEffort: m.defaultEffort, priceKnown: m.pricing !== null });
+    }
+  for (const id of Object.values(settings.models)) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({ id, displayName: id, efforts: EFFORTS, defaultEffort: null, priceKnown: true });
+  }
+  return out;
+}
 
 export function providerAuthCommand(provider: ProviderAuthId, launcher?: LauncherCommand | undefined): string {
   if (!PROVIDER_AUTH_IDS.includes(provider)) throw new Error("settings.providerInvalid");
@@ -112,7 +242,7 @@ export function providerSetupCommand(
     let remoteApi = false;
     if (["ollama", "lmstudio", "openai"].includes(input.provider) && !model) throw new Error("settings.providerInvalid");
     if (model) add("--model", model);
-    if (input.effort && (input.provider === "muse" || input.native || (input.provider === "grok" && input.cli))) {
+    if (input.effort && (input.provider === "claude" || input.provider === "muse" || input.native || (input.provider === "grok" && input.cli))) {
       if (!EFFORTS.includes(input.effort)) throw new Error("settings.providerInvalid");
       add("--effort", input.effort);
     }
@@ -128,13 +258,11 @@ export function providerSetupCommand(
       if (api.keyEnv) add("--key-env", api.keyEnv);
     }
     const cloud = ["ollama", "lmstudio"].includes(input.provider) && /(?:[:-]cloud)$/i.test(model ?? "");
+    // Priced catalog entries need no explicit prices (same list the CLI reads); price-unknown
+    // entries and custom slugs do. Free-form providers keep the old endpoint/cloud rules.
+    const priceKnown = setupModelPriceKnown(input.provider, { api: input.api, cli: input.cli }, model);
     const needsPrices =
-      input.provider === "openai" ||
-      (input.provider === "codex" && !!model && model !== "gpt-6.1-sol") ||
-      (input.provider === "muse" && !!model && model !== "muse-spark-1.3-contributor") ||
-      (input.provider === "grok" && !!model && (input.cli ? model !== "grok-4.7" && model !== "grok-4.7-build-fast" : model !== "grok-4.7")) ||
-      (["ollama", "lmstudio"].includes(input.provider) && remoteApi) ||
-      cloud;
+      input.provider === "openai" || priceKnown === false || (priceKnown === null && ((["ollama", "lmstudio"].includes(input.provider) && remoteApi) || cloud));
     if (needsPrices || input.inputPrice !== undefined || input.outputPrice !== undefined) {
       if (
         ![input.inputPrice, input.outputPrice].every((v) => typeof v === "number" && Number.isFinite(v) && v >= 0) ||

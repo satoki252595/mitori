@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { DeepPartial, GenEstimate, GlobalSettings } from "@mitori/core";
+import { MODEL_CATALOG } from "@mitori/core";
 import { createHasher } from "@mitori/platform";
 import { estimateText } from "./gen.ts";
 import { runCommand } from "./index.ts";
@@ -147,6 +148,10 @@ test("WP36h-5 Grok CLI setup warns on medium+ effort but still previews", async 
     expect(await runCommand("setup", warned)).toBe(0);
     expect(warned.stderr).toContain("10 分");
     expect(JSON.parse(warned.stdout)).toMatchObject({ models: { answer: "grok:grok-4.7-build-fast" } });
+    // WP39-5: xhigh also warns (it is within the grok-cli effort range)
+    const xhigh = testIo({ argv: ["grok", "--cli", "--binary", binary, "--effort", "xhigh", "--print"], home, cwd: repo });
+    expect(await runCommand("setup", xhigh)).toBe(0);
+    expect(xhigh.stderr).toContain("10 分");
     const quiet = testIo({ argv: ["grok", "--cli", "--binary", binary, "--print"], home, cwd: repo });
     expect(await runCommand("setup", quiet)).toBe(0);
     expect(quiet.stderr).not.toContain("10 分");
@@ -369,6 +374,107 @@ test("CR setup-save-1: a failed save says what is stored and the same command co
   const retry = testIo({ argv, home: d.home, cwd: d.repo, tty: true, answer: true });
   expect(await runCommand("setup", retry)).toBe(0);
   expect(d.calls("PATCH /settings")).toHaveLength(2);
+});
+
+test("WP39-2 listed model with an unsupported effort is a usage error naming the usable efforts", () => {
+  expect(() => setupPatch({ provider: "claude", model: "claude-sonnet-5-5", effort: "low" })).not.toThrow();
+  expect(() => setupPatch({ provider: "claude", model: "claude-haiku-4-5", effort: "low" })).toThrow("--effort");
+  expect(() => setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 1, model: "gpt-5.6-terra", effort: "max" })).not.toThrow();
+  expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-4.7-build-fast", effort: "max" })).toThrow("low|medium|high|xhigh");
+  const grok45 = { inPerMTok: 1, outPerMTok: 2, cacheReadPerMTok: 1 } as const;
+  expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-4.5", effort: "xhigh", pricing: grok45 })).toThrow("low|medium|high");
+  expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-4.5", effort: "high", pricing: grok45 })).not.toThrow();
+  // price-unknown models still need explicit prices (unchanged)
+  expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-4.5", effort: "high" })).toThrow("--in-price");
+  expect(() => setupPatch({ provider: "muse", binary: "/native/muse-bin-v1", model: "muse-spark-1.3-contributor", effort: "max" })).not.toThrow();
+  // unlisted models keep the old behavior (explicit prices decide)
+  expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-9", effort: "xhigh" })).toThrow("--in-price");
+  expect(
+    setupPatch({ provider: "grok", cli: true, model: "grok-9", effort: "xhigh", pricing: { inPerMTok: 1, outPerMTok: 2, cacheReadPerMTok: 1 } }).models?.answer,
+  ).toBe("grok:grok-9");
+});
+
+test("WP39-2 omitted --effort never fails the catalog check (stored defaults are kept)", () => {
+  expect(setupPatch({ provider: "claude", model: "claude-haiku-4-5" }).reasoning?.answer).toBe("high");
+  expect(setupPatch({ provider: "grok", cli: true, model: "grok-4.5", pricing: { inPerMTok: 1, outPerMTok: 2, cacheReadPerMTok: 1 } }).reasoning?.answer).toBe(
+    "low",
+  );
+});
+
+test("WP39-2 --list-models prints the provider table without a TTY and changes nothing", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-list-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    const list = async (argv: string[], env?: Record<string, string | undefined>) => {
+      const io = testIo({ argv, home, cwd: repo, tty: false, ...(env ? { env } : {}) });
+      expect(await runCommand("setup", io)).toBe(0);
+      return io.stdout;
+    };
+    expect(await list(["claude", "--list-models"])).toContain("claude-sonnet-5-5");
+    expect(await list(["claude", "--list-models"])).toContain("low|medium|high|xhigh|max");
+    expect(await list(["claude", "--list-models"])).toContain("claude-haiku-4-5");
+    const grok = await list(["grok", "--cli", "--list-models"]);
+    expect(grok).toContain("grok-4.7-build-fast");
+    expect(grok).not.toContain("max");
+    expect(await list(["grok", "--api", "--list-models"])).toContain("grok-4.7");
+    const codex = await list(["codex", "--list-models"]);
+    expect(codex).toContain("gpt-6.1-sol");
+    expect(codex).toContain("gpt-6-luna");
+    expect(await list(["muse", "--list-models"])).toContain("muse-spark-1.3-contributor");
+    // providers without a fixed list explain instead of failing
+    expect(await list(["ollama", "--list-models"])).not.toContain("low|medium");
+    expect(daemon?.seen ?? []).toHaveLength(0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP39-2 --list-models golden (ja)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-golden-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    const io = testIo({ argv: ["codex", "--list-models"], home, cwd: repo, tty: false, env: { MITORI_LANG: "ja" } });
+    expect(await runCommand("setup", io)).toBe(0);
+    expect(io.stdout).toBe(
+      [
+        "Codexで直接実行するモデルの一覧（既定: codex:gpt-6.1-sol / high）",
+        "モデル | 使えるeffort | 価格USD/百万token（入力/出力/キャッシュ読み）",
+        "codex:gpt-6.1-sol | low|medium|high|xhigh|max | 2/10/0.1",
+        "codex:gpt-5.6-terra | low|medium|high|xhigh|max | 2/12/0.2",
+        "codex:gpt-5.6-luna | low|medium|high|xhigh|max | 0.2/1.2/0.02",
+        "codex:gpt-6-luna | low|medium|high|xhigh|max | 価格非公開",
+        "",
+      ].join("\n"),
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP39b-2 every catalog entry follows its price: priced needs no --in-price, null needs it (web reads the same list)", () => {
+  for (const [view, catalog] of Object.entries(MODEL_CATALOG) as [keyof typeof MODEL_CATALOG, (typeof MODEL_CATALOG)[keyof typeof MODEL_CATALOG]][])
+    for (const m of catalog.models) {
+      const slug = m.id.split(":").at(-1) as string;
+      const priced = m.pricing !== null;
+      const run = (): unknown => {
+        if (view === "claude") return setupPatch({ provider: "claude", model: slug });
+        if (view === "codex") return setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 1, model: slug });
+        if (view === "grok-cli") return setupPatch({ provider: "grok", cli: true, model: slug });
+        if (view === "grok-api") return setupPatch({ provider: "grok", api: true, model: slug });
+        return setupPatch({ provider: "muse", binary: "/native/muse-bin-v1", model: slug });
+      };
+      if (priced) expect(run()).toBeDefined();
+      else expect(run).toThrow("--in-price");
+    }
+  // custom slugs stay price-unknown on every catalog engine
+  expect(() => setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 1, model: "custom-xyz" })).toThrow("--in-price");
+  expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-9" })).toThrow("--in-price");
 });
 
 test("external generation prep binds --repo when invoked from the mitori checkout", async () => {

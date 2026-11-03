@@ -1,6 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { writeFileSync } from "node:fs";
-import { DEFAULT_DENY_GLOBS, type GlobalSettings, MitoriError, type SseEventPayload, type WorkspaceInfo, type WorkspaceKey } from "@mitori/core";
+import {
+  DEFAULT_DENY_GLOBS,
+  type DeepPartial,
+  type GlobalSettings,
+  MitoriError,
+  type SseEventPayload,
+  type WorkspaceInfo,
+  type WorkspaceKey,
+} from "@mitori/core";
 import { fsReader, fsSafeWriter, removeDir, silentLogger, tempDir } from "../http/test/fakes.ts";
 import { checkSettingsPatch, DEFAULT_GLOBAL_SETTINGS, resolveSettings } from "./index.ts";
 import { deepMerge } from "./merge.ts";
@@ -403,5 +411,132 @@ describe("SRV-I-027 settings service", () => {
   test("settings type guard: GlobalSettings stays assignable", () => {
     const g: GlobalSettings = DEFAULT_GLOBAL_SETTINGS;
     expect(g.schemaVersion).toBe(1);
+  });
+
+  test("WP39-4 model/effort switch passes within configured engines", async () => {
+    const { home, s } = await svc();
+    try {
+      await s.patchExec({
+        path: "engines.codex-cli",
+        value: {
+          enabled: true,
+          binary: "codex",
+          model: "gpt-6.1-sol",
+          pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+          pricingByModel: { "gpt-5.6-luna": { inPerMTok: 0.2, outPerMTok: 1.2, cacheReadPerMTok: 0.02 } },
+          maxEstimatedSpendUsd: 1,
+        },
+        confirm: true,
+      });
+      const v = s.view().version;
+      const after = await s.patch({ version: v, patch: { models: { answer: "codex:gpt-5.6-luna" }, reasoning: { answer: "low" } } });
+      expect(after.settings.models.answer).toBe("codex:gpt-5.6-luna");
+      expect(after.settings.reasoning.answer).toBe("low");
+      expect(after.settings.engines["codex-cli"].model).toBe("gpt-6.1-sol");
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("WP39-4 switch to an unconfigured engine, a price-unknown model, or a rejected effort is refused", async () => {
+    const { home, s } = await svc();
+    try {
+      const v = s.view().version;
+      expect(await s.patch({ version: v, patch: { models: { answer: "grok:grok-4.7-build-fast" } } }).then(() => "ok", code)).toBe("E_INVALID_INPUT");
+      await s.patchExec({
+        path: "engines.codex-cli",
+        value: {
+          enabled: true,
+          binary: "codex",
+          model: "gpt-6.1-sol",
+          pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+          maxEstimatedSpendUsd: 1,
+        },
+        confirm: true,
+      });
+      const v2 = s.view().version;
+      // gpt-6-luna has no public price and none is configured: setup with --in-price/--out-price first
+      expect(await s.patch({ version: v2, patch: { models: { answer: "codex:gpt-6-luna" } } }).then(() => "ok", code)).toBe("E_INVALID_INPUT");
+      await s.patchExec({
+        path: "engines.grok-cli",
+        value: {
+          enabled: true,
+          binary: "grok",
+          model: "grok-4.5",
+          pricing: { inPerMTok: 3, outPerMTok: 9, cacheReadPerMTok: 3 },
+          turnMs: 1_200_000,
+        },
+        confirm: true,
+      });
+      const v3 = s.view().version;
+      expect(await s.patch({ version: v3, patch: { models: { answer: "grok:grok-4.5" }, reasoning: { answer: "max" } } }).then(() => "ok", code)).toBe(
+        "E_INVALID_INPUT",
+      );
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("WP39b-3 model-switch refusals carry a reason the web maps to i18n", async () => {
+    const { home, s } = await svc();
+    try {
+      const v = s.view().version;
+      const reasonOf = async (patch: DeepPartial<GlobalSettings>): Promise<string> =>
+        await s.patch({ version: v, patch }).then(
+          () => "ok",
+          (e) => (e instanceof MitoriError ? String(e.params?.reason) : String(e)),
+        );
+      // grok-cli is not configured here: engine-missing
+      expect(await reasonOf({ models: { answer: "grok:grok-4.7-build-fast" } })).toBe("engine-missing");
+      // codex-cli is configured below without the luna price: price-unknown
+      await s.patchExec({
+        path: "engines.codex-cli",
+        value: {
+          enabled: true,
+          binary: "codex",
+          model: "gpt-6.1-sol",
+          pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+          maxEstimatedSpendUsd: 1,
+        },
+        confirm: true,
+      });
+      const v2 = s.view().version;
+      const priceReason = await s.patch({ version: v2, patch: { models: { answer: "codex:gpt-6-luna" } } }).then(
+        () => "ok",
+        (e) => (e instanceof MitoriError ? String(e.params?.reason) : String(e)),
+      );
+      expect(priceReason).toBe("price-unknown");
+      const effortReason = await s.patch({ version: v2, patch: { reasoning: { answer: "max" }, models: { answer: "codex:gpt-6-luna" } } }).then(
+        () => "ok",
+        (e) => (e instanceof MitoriError ? String(e.params?.reason) : String(e)),
+      );
+      expect(["price-unknown", "effort-unsupported"]).toContain(effortReason);
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("WP39-4 haiku-4-5 keeps stored reasoning (effort is ignored, not rejected)", async () => {
+    const { home, s } = await svc();
+    try {
+      const v = s.view().version;
+      const after = await s.patch({ version: v, patch: { models: { answer: "claude-haiku-4-5" }, reasoning: { answer: "max" } } });
+      expect(after.settings.models.answer).toBe("claude-haiku-4-5");
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("WP39-4 an engine argv cannot ride along with a model switch (CLI engines stay guided-only)", async () => {
+    const { home, s } = await svc();
+    try {
+      const v = s.view().version;
+      expect(
+        await s.patch({ version: v, patch: { models: { answer: "claude-sonnet-5-5" }, engines: { generic: { argv: ["evil"] } } } }).then(() => "ok", code),
+      ).toBe("E_FORBIDDEN_KEY");
+      expect(s.current().engines.generic.argv).toEqual([]);
+    } finally {
+      removeDir(home);
+    }
   });
 });

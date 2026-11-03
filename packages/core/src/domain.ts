@@ -544,6 +544,138 @@ export const PRICING = {
   },
 } as const satisfies Record<ClaudeModelId, ModelPrice>;
 
+/* ============================================================================
+ * 4b. Model catalog (WP39): the one selectable-model list per setup provider.
+ * Keys are setup providers (grok-cli = the `grok-cli` engine, grok-api/muse = the
+ * `generic` engine with a fixed model); each view names the engine it configures.
+ * Prices are moved here unchanged from `setup-presets.ts` / the generic presets
+ * (Claude triples derive from {@link PRICING}); `pricing: null` = 価格非公開.
+ * [CR wp39-1]
+ * ========================================================================== */
+
+/** API-equivalent price triple shown in the catalog (USD per million tokens). */
+export interface ModelCatalogPrice {
+  /** Uncached input. */
+  inPerMTok: number;
+  /** Output. */
+  outPerMTok: number;
+  /** Cache read. */
+  cacheReadPerMTok: number;
+}
+
+/** One selectable model: id, display name, usable efforts, default effort, price or price-unknown. */
+export interface ModelCatalogEntry {
+  /** Full model id as stored in settings (`codex:` / `grok:` / `generic:` prefixed outside Claude). */
+  id: ModelId;
+  /** Display name (language-neutral). */
+  displayName: string;
+  /**
+   * Efforts this model accepts. Empty = the engine ignores effort for this model
+   * (claude-haiku-4-5: claude-cli still passes `--effort`, anthropic-api drops it).
+   */
+  efforts: readonly ReasoningEffort[];
+  /** Default effort (null when the model ignores effort). */
+  defaultEffort: ReasoningEffort | null;
+  /** Known API-equivalent prices; null = 価格非公開 (needs explicit `--in-price` / `--out-price`). */
+  pricing: ModelCatalogPrice | null;
+}
+
+/** Selectable-model list of one setup provider and the engine it configures. */
+export interface ModelCatalogView {
+  /** Engine this view configures. */
+  engine: EngineId;
+  /** Default model for `setup` (the preset default). */
+  defaultModel: ModelId;
+  /** Default effort when `--effort` is omitted (the preset default). */
+  defaultEffort: ReasoningEffort;
+  /** Selectable models, cheapest first where prices are known. */
+  models: readonly ModelCatalogEntry[];
+}
+
+/** Setup providers with a fixed model list (`ollama` / `openai` / sessions stay free-form). */
+export type ModelCatalogKey = "claude" | "codex" | "grok-cli" | "grok-api" | "muse";
+
+const claudePrice = (id: ClaudeModelId): ModelCatalogPrice => ({
+  inPerMTok: PRICING[id].inPerMTok,
+  outPerMTok: PRICING[id].outPerMTok,
+  cacheReadPerMTok: PRICING[id].cacheReadPerMTok,
+});
+
+const ALL_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const satisfies readonly ReasoningEffort[];
+const GROK_CLI_EFFORTS = ["low", "medium", "high", "xhigh"] as const satisfies readonly ReasoningEffort[];
+
+/**
+ * The one selectable-model list (WP39). Prices are the current values, moved not changed:
+ * codex/grok-cli/grok-api triples from `setup-presets.ts`, muse from the generic preset,
+ * Claude triples from {@link PRICING}.
+ */
+export const MODEL_CATALOG = {
+  claude: {
+    engine: "claude-cli",
+    defaultModel: "claude-sonnet-5-5",
+    defaultEffort: "high",
+    models: [
+      { id: "claude-haiku-5-5", displayName: "Claude Haiku 5.5", efforts: ALL_EFFORTS, defaultEffort: "high", pricing: claudePrice("claude-haiku-5-5") },
+      { id: "claude-haiku-4-5", displayName: "Claude Haiku 4.5", efforts: [], defaultEffort: null, pricing: claudePrice("claude-haiku-4-5") },
+      { id: "claude-sonnet-5-5", displayName: "Claude Sonnet 5.5", efforts: ALL_EFFORTS, defaultEffort: "high", pricing: claudePrice("claude-sonnet-5-5") },
+      { id: "claude-opus-5-5", displayName: "Claude Opus 5.5", efforts: ALL_EFFORTS, defaultEffort: "high", pricing: claudePrice("claude-opus-5-5") },
+      { id: "claude-fable-5-1", displayName: "Claude Fable 5.1", efforts: ALL_EFFORTS, defaultEffort: "high", pricing: claudePrice("claude-fable-5-1") },
+    ],
+  },
+  codex: {
+    engine: "codex-cli",
+    defaultModel: "codex:gpt-6.1-sol",
+    defaultEffort: "high",
+    models: [
+      { id: "codex:gpt-6.1-sol", displayName: "Codex GPT-6.1 Sol", efforts: ALL_EFFORTS, defaultEffort: "high", pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 } },
+      { id: "codex:gpt-5.6-terra", displayName: "Codex GPT-5.6 Terra", efforts: ALL_EFFORTS, defaultEffort: "high", pricing: { inPerMTok: 2, outPerMTok: 12, cacheReadPerMTok: 0.2 } },
+      { id: "codex:gpt-5.6-luna", displayName: "Codex GPT-5.6 Luna", efforts: ALL_EFFORTS, defaultEffort: "high", pricing: { inPerMTok: 0.2, outPerMTok: 1.2, cacheReadPerMTok: 0.02 } },
+      { id: "codex:gpt-6-luna", displayName: "Codex GPT-6 Luna", efforts: ALL_EFFORTS, defaultEffort: "high", pricing: null },
+    ],
+  },
+  "grok-cli": {
+    engine: "grok-cli",
+    defaultModel: "grok:grok-4.7-build-fast",
+    defaultEffort: "low",
+    models: [
+      { id: "grok:grok-4.7-build-fast", displayName: "Grok 4.7 Build Fast", efforts: GROK_CLI_EFFORTS, defaultEffort: "low", pricing: { inPerMTok: 4, outPerMTok: 12, cacheReadPerMTok: 1 } },
+      { id: "grok:grok-4.7", displayName: "Grok 4.7", efforts: GROK_CLI_EFFORTS, defaultEffort: "low", pricing: { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 0.5 } },
+      { id: "grok:grok-4.6", displayName: "Grok 4.6", efforts: GROK_CLI_EFFORTS, defaultEffort: "low", pricing: null },
+      { id: "grok:grok-4.5", displayName: "Grok 4.5", efforts: ["low", "medium", "high"], defaultEffort: "low", pricing: null },
+    ],
+  },
+  "grok-api": {
+    engine: "generic",
+    defaultModel: "generic:grok-4.7",
+    defaultEffort: "high",
+    models: [
+      { id: "generic:grok-4.7", displayName: "Grok 4.7 (API)", efforts: ALL_EFFORTS, defaultEffort: "high", pricing: { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 2 } },
+    ],
+  },
+  muse: {
+    engine: "generic",
+    defaultModel: "generic:muse-spark-1.3-contributor",
+    defaultEffort: "max",
+    models: [
+      { id: "generic:muse-spark-1.3-contributor", displayName: "Muse Spark 1.3 Contributor", efforts: ALL_EFFORTS, defaultEffort: "max", pricing: { inPerMTok: 0.1, outPerMTok: 0.2, cacheReadPerMTok: 0.002 } },
+    ],
+  },
+} as const satisfies Record<ModelCatalogKey, ModelCatalogView>;
+
+/** Find a catalog entry by full model id, with the view holding it (null when unlisted). */
+export function findCatalogModel(id: ModelId): { view: ModelCatalogKey; entry: ModelCatalogEntry } | null {
+  for (const [view, catalog] of Object.entries(MODEL_CATALOG) as [ModelCatalogKey, ModelCatalogView][]) {
+    const entry = catalog.models.find((m) => m.id === id) as ModelCatalogEntry | undefined;
+    if (entry) return { view, entry };
+  }
+  return null;
+}
+
+/** Efforts a listed model accepts (null when the model is not listed). */
+export function effortsForModel(id: ModelId): readonly ReasoningEffort[] | null {
+  return findCatalogModel(id)?.entry.efforts ?? null;
+}
+
 /** Text kinds with distinct chars/token ratios. */
 export type TextKind = "code" | "markdown_en" | "markdown_ja" | "minified" | "lock" | "json" | "css";
 

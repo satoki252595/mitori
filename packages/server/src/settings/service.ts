@@ -20,6 +20,7 @@ import {
 } from "@mitori/core";
 import { checkSettingsPatch, DEFAULT_GLOBAL_SETTINGS } from "./index.ts";
 import { deepMerge, diffFrom, isPlainObject, patchAt } from "./merge.ts";
+import { checkModelSwitch } from "./model-switch.ts";
 import { GLOBAL_SPEC, OVERRIDES_SPEC, validate } from "./schema.ts";
 
 export const CONFIG_FILE = "config.json";
@@ -202,6 +203,8 @@ export async function createSettingsService(opts: {
         const partial = validate(body.patch, GLOBAL_SPEC, { partial: true });
         if (partial.length > 0) throw invalid(partial);
         const next = deepMerge(settings, body.patch);
+        // Web model/effort switch: models.* / reasoning.* stay within configured engines (WP39).
+        checkModelSwitch(settings, next);
         // workspace overrides written through the global patch obey the same docDir rule as PATCH /ws/:ws/settings
         if (isPlainObject(body.patch.workspaces))
           for (const ws of Object.keys(body.patch.workspaces) as WorkspaceKey[]) checkOverrides(next.workspaces[ws] ?? {}, docDirRule(ws));

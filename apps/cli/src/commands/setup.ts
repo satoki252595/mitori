@@ -3,12 +3,13 @@ import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { DeepPartial, GlobalSettings } from "@mitori/core";
 import { oneOf, parse } from "./args.ts";
+import { helpLang } from "./help.ts";
 import { type Io, usage } from "./io.ts";
 import { selfCommand } from "./process-io.ts";
 import { connect, requireTty } from "./session.ts";
 import { integrationSetup } from "./setup-integrations.ts";
 import { prepareProviderPin } from "./setup-pin.ts";
-import { PROVIDERS, type Provider, SESSION_PROVIDERS, setupPatch } from "./setup-presets.ts";
+import { listModelsTable, PROVIDERS, type Provider, SESSION_PROVIDERS, setupPatch } from "./setup-presets.ts";
 
 export function binaryOf(provider: Provider, explicit?: string, opts: { cli?: boolean } = {}): string | undefined {
   if (provider !== "claude" && provider !== "muse" && provider !== "codex" && !(provider === "grok" && opts.cli)) return undefined;
@@ -42,11 +43,16 @@ export async function run(io: Io): Promise<number> {
       native: { type: "boolean" },
       "max-estimated-usd": { type: "string" },
       cli: { type: "boolean" },
+      "list-models": { type: "boolean" },
     },
     "setup",
   );
   const provider = oneOf(positionals[0], PROVIDERS, "provider", "setup");
   if (!provider || positionals.length !== 1) throw usage(`choose ${PROVIDERS.join(" | ")}`, "mitori setup --help");
+  if (values["list-models"] === true) {
+    io.out(listModelsTable(provider, { api: values.api === true, cli: values.cli === true }, helpLang(io.env)));
+    return 0;
+  }
   const preview = values.print === true;
   if (!preview) requireTty(io, "mitori setup");
   if (values.api && provider !== "grok") throw usage("--api is only needed to select Grok API instead of its official Build session");

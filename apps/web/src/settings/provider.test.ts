@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import type { GlobalSettings } from "@mitori/core";
+import { MODEL_CATALOG, type ModelCatalogKey } from "@mitori/core";
 import {
   ADVANCED_ENGINES,
   genericProviderCommand,
@@ -6,6 +8,13 @@ import {
   MUSE_ARGS,
   providerAuthCommand,
   providerSetupCommand,
+  setupDefaultEffort,
+  setupDefaultModel,
+  setupModelOptions,
+  setupModelPriceKnown,
+  switchableModels,
+  switchErrorKey,
+  switchSetupHint,
   syncGrokGuidedModel,
 } from "./provider.ts";
 
@@ -145,8 +154,111 @@ test("WP36i-3 guided Grok mode toggle keeps the mode's default model and leaves 
   expect(() => providerSetupCommand({ provider: "grok", api: true, model: "grok-4.7-build-fast" })).toThrow();
 });
 
+test("WP39-3 quick setup emits --model and --effort for catalog providers, including Claude", () => {
+  expect(providerSetupCommand({ provider: "claude", model: "claude-sonnet-5-5", effort: "high" })).toBe(
+    "bun run start -- setup claude --model 'claude-sonnet-5-5' --effort 'high'",
+  );
+  expect(providerSetupCommand({ provider: "codex", native: true, maxEstimatedUsd: 1, model: "gpt-6.1-sol", effort: "low" })).toContain(
+    "--model 'gpt-6.1-sol' --effort 'low'",
+  );
+  expect(providerSetupCommand({ provider: "grok", cli: true, model: "grok-4.5", effort: "high", inputPrice: 3, outputPrice: 9 })).toContain(
+    "--model 'grok-4.5' --effort 'high'",
+  );
+  expect(providerSetupCommand({ provider: "claude" })).not.toContain("--effort");
+});
+
+test("WP39-3 catalog options per provider with usable efforts and provider defaults", () => {
+  expect(setupDefaultModel("claude", {})).toBe("claude-sonnet-5-5");
+  expect(setupDefaultModel("codex", {})).toBe("codex:gpt-6.1-sol");
+  expect(setupDefaultModel("grok", { cli: true })).toBe("grok:grok-4.7-build-fast");
+  expect(setupDefaultModel("grok", { api: true })).toBe("generic:grok-4.7");
+  expect(setupDefaultModel("muse", {})).toBe("generic:muse-spark-1.3-contributor");
+  expect(setupModelOptions("ollama", {})).toEqual([]);
+  expect(setupDefaultEffort("claude")).toBe("high");
+  expect(setupDefaultEffort("codex")).toBe("high");
+  expect(setupDefaultEffort("grok")).toBe("low");
+  expect(setupDefaultEffort("muse")).toBe("max");
+  const grokCli = setupModelOptions("grok", { cli: true });
+  expect(grokCli.map((o) => o.id)).toEqual(["grok:grok-4.7-build-fast", "grok:grok-4.7", "grok:grok-4.6", "grok:grok-4.5"]);
+  expect(grokCli.find((o) => o.id === "grok:grok-4.5")?.efforts).toEqual(["low", "medium", "high"]);
+  expect(grokCli.find((o) => o.id === "grok:grok-4.6")?.priceKnown).toBe(false);
+  const claude = setupModelOptions("claude", {});
+  expect(claude.find((o) => o.id === "claude-haiku-4-5")?.efforts).toEqual([]);
+  expect(claude.find((o) => o.id === "claude-sonnet-5-5")?.efforts).toEqual(["low", "medium", "high", "xhigh", "max"]);
+  expect(setupModelOptions("grok", { api: true }).map((o) => o.id)).toEqual(["generic:grok-4.7"]);
+  expect(setupModelOptions("grok", {})).toEqual([]);
+});
+
+test("WP39-4 switcher offers catalog models of enabled engines plus in-use customs", () => {
+  const base = { engines: { "claude-cli": { enabled: true }, session: { enabled: true } } } as GlobalSettings;
+  const onlyClaude = switchableModels({ ...base, models: { answer: "claude-sonnet-5-5" } } as GlobalSettings);
+  expect(onlyClaude.map((o) => o.id)).toContain("claude-haiku-4-5");
+  expect(onlyClaude.map((o) => o.id)).not.toContain("codex:gpt-6.1-sol");
+  const withCodex = switchableModels({
+    ...base,
+    engines: { ...base.engines, "codex-cli": { enabled: true } },
+    models: { answer: "codex:gpt-6.1-sol", patch: "generic:custom-local" },
+  } as unknown as GlobalSettings);
+  expect(withCodex.map((o) => o.id)).toContain("codex:gpt-6.1-sol");
+  expect(withCodex.map((o) => o.id)).toContain("generic:custom-local");
+  expect(withCodex.map((o) => o.id)).not.toContain("grok:grok-4.7-build-fast");
+  expect(withCodex.find((o) => o.id === "claude-haiku-4-5")?.efforts).toEqual([]);
+});
+
 test("WP36i-4 advanced details offer only directly editable engines; CLI engines stay guided-only", () => {
   expect([...ADVANCED_ENGINES]).toEqual(["claude-cli", "anthropic-api", "session", "generic"]);
   expect(ADVANCED_ENGINES).not.toContain("codex-cli");
   expect(ADVANCED_ENGINES).not.toContain("grok-cli");
+});
+
+test("WP39b-2 catalog price lookup matches each catalog entry (null = needs prices)", () => {
+  const cases: { view: ModelCatalogKey; provider: "claude" | "codex" | "muse" | "grok"; opts: { api?: boolean; cli?: boolean }; slug: string }[] = [];
+  for (const [view, catalog] of Object.entries(MODEL_CATALOG) as [ModelCatalogKey, (typeof MODEL_CATALOG)[ModelCatalogKey]][])
+    for (const m of catalog.models) {
+      const slug = m.id.split(":").at(-1) as string;
+      if (view === "claude") cases.push({ view, provider: "claude", opts: {}, slug });
+      if (view === "codex") cases.push({ view, provider: "codex", opts: {}, slug });
+      if (view === "muse") cases.push({ view, provider: "muse", opts: {}, slug });
+      if (view === "grok-cli") cases.push({ view, provider: "grok", opts: { cli: true }, slug });
+      if (view === "grok-api") cases.push({ view, provider: "grok", opts: { api: true }, slug });
+    }
+  expect(cases.length).toBeGreaterThan(5);
+  for (const c of cases) {
+    const entry = MODEL_CATALOG[c.view].models.find((m) => m.id.split(":").at(-1) === c.slug);
+    expect(setupModelPriceKnown(c.provider, c.opts, c.slug)).toBe(entry?.pricing !== null);
+  }
+  // custom slugs and empty providers stay price-unknown / free-form
+  expect(setupModelPriceKnown("codex", {}, "custom-xyz")).toBe(false);
+  expect(setupModelPriceKnown("grok", { cli: true }, "grok-9")).toBe(false);
+  expect(setupModelPriceKnown("ollama", {}, "some-local")).toBeNull();
+});
+
+test("WP39b-2 priced catalog models need no --in-price/--out-price; price-unknown and custom do", () => {
+  const codex = { provider: "codex", native: true, maxEstimatedUsd: 1 } as const;
+  expect(providerSetupCommand({ ...codex, model: "gpt-5.6-luna" })).toContain("--model 'gpt-5.6-luna'");
+  expect(providerSetupCommand({ ...codex, model: "gpt-5.6-terra" })).toContain("--model 'gpt-5.6-terra'");
+  expect(providerSetupCommand({ ...codex, model: "gpt-6.1-sol" })).toContain("--model 'gpt-6.1-sol'");
+  expect(() => providerSetupCommand({ ...codex, model: "gpt-6-luna" })).toThrow("settings.providerInvalid");
+  expect(() => providerSetupCommand({ ...codex, model: "custom-xyz" })).toThrow("settings.providerInvalid");
+  expect(providerSetupCommand({ ...codex, model: "gpt-6-luna", inputPrice: 1, outputPrice: 2 })).toContain("--in-price '1'");
+  expect(providerSetupCommand({ provider: "grok", cli: true, model: "grok-4.7-build-fast" })).toContain("grok-4.7-build-fast");
+  expect(providerSetupCommand({ provider: "grok", api: true, model: "grok-4.7" })).toContain("grok-4.7");
+  expect(() => providerSetupCommand({ provider: "grok", cli: true, model: "grok-4.5" })).toThrow("settings.providerInvalid");
+  expect(() => providerSetupCommand({ provider: "grok", cli: true, model: "grok-9" })).toThrow("settings.providerInvalid");
+});
+
+test("WP39b-3 switch setup hint names the setup command of the model's engine", () => {
+  expect(switchSetupHint("codex:gpt-6-luna")).toContain("mitori setup codex");
+  expect(switchSetupHint("grok:grok-4.5")).toContain("mitori setup grok");
+  expect(switchSetupHint("generic:grok-4.7")).toContain("mitori setup");
+  expect(switchSetupHint("claude-sonnet-5-5")).toContain("mitori setup claude");
+});
+
+test("WP39b-3 server refusal reasons map to their i18n keys", () => {
+  expect(switchErrorKey("price-unknown")).toBe("settings.switchPriceUnknown");
+  expect(switchErrorKey("engine-missing")).toBe("settings.switchEngineMissing");
+  expect(switchErrorKey("model-unknown")).toBe("settings.switchModelUnknown");
+  expect(switchErrorKey("effort-unsupported")).toBe("settings.switchBadEffort");
+  expect(switchErrorKey(undefined)).toBe("settings.providerInvalid");
+  expect(switchErrorKey("something-new")).toBe("settings.providerInvalid");
 });
