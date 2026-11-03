@@ -61,6 +61,12 @@ export const SHARED_KEYS: readonly string[] = [
   "ctx.about.static",
   "ctx.about.title",
   "ctx.about.trust",
+  "map.room.files",
+  "map.room.fresh",
+  "map.room.read",
+  "map.room.stale",
+  "map.room.static",
+  "map.room.threads",
   "map.stage",
   "map.plan.counts",
   "map.plan.title",
@@ -106,13 +112,18 @@ export const SHARED_PREFIXES: readonly string[] = [
   "claim.title.",
   "toc.state.",
   "level.",
-  "map.room.",
   "map.zoom.",
   "map.aria.",
   "palette.announce.",
   "term.",
   "header.theme.",
 ];
+
+/**
+ * Dropped families: `map.room.` narrowed to the exact keys above — the app-only `flows` / `generate` / `change`
+ * strings live in web-only snippets (`map/RoomCard.svelte` `top` / `actions`, passed from `MapPage.svelte`),
+ * so the export viewer no longer bundles them (EXP-I-05).
+ */
 
 /** The viewer's keys of one shared catalog file (exact keys + prefixes). */
 export function pickShared(shared: Readonly<Record<string, string>>): Record<string, string> {

@@ -10,7 +10,7 @@ import { FENCE_LANG } from "./shiki.ts";
 import { spliceBody } from "./splice.ts";
 
 /** Renderer version (cache key component). Bump on ANY change of the produced HTML. */
-const RENDERER_VERSION = "doc-render@1";
+const RENDERER_VERSION = "doc-render@2";
 const MEM_MAX = 8192;
 
 /** Renderer factory [CONS-26]. Highlighting runs in the compute Worker. */

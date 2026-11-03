@@ -103,12 +103,36 @@ describe("DOC-U-010 HTML_CONTRACT rendering", () => {
     });
     expect(html).toContain(`<span class="${HTML_CONTRACT.claim.cls}" data-claim="cl_00000001" data-verdict="verified">`);
     expect(html).toContain(
-      `<a class="mcite" data-cite="internal/session/store.go:40-58" data-blob="${"a".repeat(40)}" href="/w/${ws}/code/internal/session/store.go#L40-L58"><span class="cs">store.go:40</span><span class="cl">internal/session/store.go:40-58</span></a>`,
+      `<a class="mcite" data-cite="internal/session/store.go:40-58" data-blob="${"a".repeat(40)}" href="/w/${ws}/code/internal/session/store.go#L40-L58" title="internal/session/store.go:40-58" aria-label="internal/session/store.go:40-58"><span class="cs">store.go:40</span><span class="cl">internal/session/store.go:40-58</span></a>`,
     );
     expect(html).toContain('data-claim="cl_00000002" data-verdict="inferred"');
     // moved cite: same cached body, new chip
     const moved = r.splice(body, [claim("cl_00000001", "internal/session/store.go", 43, 61)], { ws, level: "standard" });
     expect(moved).toContain("#L43-L61");
+    assertSafe(html);
+  });
+  test("WP31: same-named cites in one block show their shortest parent; hover and screen readers get the full path", async () => {
+    const { r } = renderer();
+    const body = "<p>A1x1B2y2C</p>";
+    const html = r.splice(body, [claim("cl_00000001", "src/adapters/a/index.ts", 3, 9), claim("cl_00000002", "src/adapters/b/index.ts", 5, 5)], {
+      ws,
+      level: "standard",
+    });
+    expect(html).toContain('<span class="cs">a/index.ts:3</span>');
+    expect(html).toContain('<span class="cs">b/index.ts:5</span>');
+    expect(html).toContain('title="src/adapters/a/index.ts:3-9" aria-label="src/adapters/a/index.ts:3-9"');
+    expect(html).toContain('title="src/adapters/b/index.ts:5-5" aria-label="src/adapters/b/index.ts:5-5"');
+    assertSafe(html);
+  });
+  test("WP31: a lone rootlike cite shows its parent directory; a root file stays bare", async () => {
+    const { r } = renderer();
+    const html = r.splice("<p>A1x1B2y2C</p>", [claim("cl_00000001", ".cursor-plugin/README.md", 7, 7), claim("cl_00000002", "README.md", 1, 1)], {
+      ws,
+      level: "standard",
+    });
+    expect(html).toContain('<span class="cs">.cursor-plugin/README.md:7</span>');
+    expect(html).toContain('<span class="cs">README.md:1</span>');
+    expect(html).toContain('title=".cursor-plugin/README.md:7-7"');
     assertSafe(html);
   });
   test("newcomer level puts chips at the paragraph end", async () => {
