@@ -69,6 +69,7 @@
 | browsers ジョブの速さのテスト | chromium の4件（地図の部屋カード ≤100 ms、本文の段階切替 ≤50 ms、節の移動 ≤100 ms、streaming の位置 ≤4 px）が Mac の負荷 5〜12 の下で main でも落ちる | 負荷が下がった時の再実行で判断する |
 | #26・#28 | browsers 待ち | Mac が静かなときに browsers を再実行してマージする |
 | context-mode の §0 の出典 | 主な出典が `.cursor-plugin/README.md`（10 回、ルート README 3 回）のまま | 内容は同じ製品の説明で誤りではない。対応は未定 |
+| リリース | 仕組みあり・初回 tag 未作成（公開は人の判断）。`0.1.0`、4アーカイブ＋SHA256SUMS＋provenance、下書き Release を人が解除 | 初回 tag `v0.1.0` の作成・push と下書きの公開は人が行う |
 
 ## 4. 再開手順
 

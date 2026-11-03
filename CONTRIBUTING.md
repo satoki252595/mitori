@@ -15,6 +15,7 @@ scripts/nd bun test
 ## PR の関門
 
 `bun run ci:pr`（= check + test + `fixtures:build --verify` + golden + size）が通ること。
+配布物に触れたら `bun scripts/release.ts --out <一時 dir>` で4アーカイブと `SHA256SUMS` ができること。
 依存を足し引きしたら `bun run notices` で `THIRD_PARTY_NOTICES.md` を作り直す
 （`bun scripts/third-party-notices.ts --check` が通ること）。
 

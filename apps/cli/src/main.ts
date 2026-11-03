@@ -8,7 +8,7 @@ import { withBuild } from "./build/build-id.ts";
 
 const API_VERSION = 1;
 
-/** `0.0.0+<build>` when the build id is known (start.ts / compiled binary), else `0.0.0`. */
+/** `<package.json version>+<build>` when the build id is known (start.ts / compiled binary), else the plain package.json version. */
 export function cliVersion(): string {
   return withBuild(pkg.version);
 }

@@ -7,7 +7,7 @@ binary copied into a directory without `node_modules`.
 ## 1. Pipeline
 
 ```
-bun run build:bin [--target darwin-arm64|linux-x64|all] [--lock <file>]
+bun run build:bin [--target darwin-arm64|linux-arm64|linux-x64|windows-x64|all] [--lock <file>]
   └ scripts/gen-assets.ts
       1. verify apps/cli/src/build/assets.lock.json (sha256 + size + installed package version; mismatch ⇒ exit 1)
       2. brotli-pack the 9 pinned files → dist/.build/pinned/*.br   (cached by sha256 in node_modules/.cache/mitori-assets)
@@ -17,7 +17,7 @@ bun run build:bin [--target darwin-arm64|linux-x64|all] [--lock <file>]
   └ bun build dist/.build/entry.ts apps/cli/src/build/workers/{parse,compute}.ts --compile --minify --root=<repo>
         --define globalThis.__MITORI_TEST__=false --no-compile-autoload-dotenv --no-compile-autoload-bunfig
 bun run size                    apps/cli/src/build/size.ts: bin.size gate per dist/mitori-<target>
-bun scripts/release.ts          --target all + size gate + mitori-<ver>-<target>.tar.gz + SHA256SUMS + release.json
+bun scripts/release.ts          --target all + size gate + mitori-<ver>-<target>.tar.gz (.zip on windows-x64) + SHA256SUMS + release.json
 ```
 
 - **Entry**: the compile entry is the generated `dist/.build/entry.ts`: it imports `assets.gen.ts` (which calls
@@ -114,3 +114,11 @@ bun scripts/release.ts          --target all + size gate + mitori-<ver>-<target>
   Worker message; assert on `p.then(() => null, (e) => e.message)` instead (see `build/workers/workers.test.ts`).
 - linux-x64 is cross-compiled and size-gated here but was not executed locally (no amd64 image); the PR CI job runs
   `bun run test` (incl. `test/skeleton`) on ubuntu, which builds and exercises the native linux-x64 binary.
+
+## 7. Nix-patched runtime (WP37c)
+
+- `bun build --compile` reuses the running bun when host == target, so a Nix build baked `/nix/store/…/ld-linux-x86-64.so.2`
+  into linux-x64 and it failed outside Nix (exit 127); host builds now compile against a fetched official runtime
+  (`--compile-executable-path`, cached under `node_modules/.cache/mitori-bun-runtime`), and both build exits fail on a
+  `/nix/store` PT_INTERP/RUNPATH (Linux) or dylib (macOS), checked by a small TS ELF/Mach-O reader (`readelf` is absent).
+- Official runtime zips are hash-pinned (`OFFICIAL_RUNTIME_SHA256` in `scripts/lib/bun-runtime.ts`, verified after download and on every cache hit): bun の版を上げるときは `SHASUMS256.txt` から3行（darwin-aarch64/linux-aarch64/linux-x64）を更新する。
