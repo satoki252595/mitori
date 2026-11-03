@@ -34,7 +34,7 @@ export function repoPath(input: string): RepoPath {
  * Basenames that read as repo-root files: on screen a bare `README.md:7` is taken for the root file, so a
  * namesake elsewhere always shows a parent directory (WP31). Root files stay bare.
  */
-const ROOTLIKE = /^(README(\.md)?|index\.(ts|tsx|js)|__init__\.py|main\.go|lib\.rs|package\.json|Cargo\.toml|go\.mod|Makefile|Dockerfile)$/;
+const ROOTLIKE = /^(README(\.md)?|index\.(tsx?|js)|__init__\.py|main\.go|lib\.rs|package\.json|Cargo\.toml|go\.mod|[MD]akefile)$/;
 
 /**
  * Display labels that tell same-named files apart inside one context (one room's file chips, one block's cite
@@ -44,19 +44,18 @@ const ROOTLIKE = /^(README(\.md)?|index\.(ts|tsx|js)|__init__\.py|main\.go|lib\.
  * longer than `max` characters lose their head (`…/…/index.ts`). Order and length of the output follow `paths`.
  */
 export function displayPaths(paths: readonly string[], max = 32): string[] {
+  const base = (p: string) => p.slice(p.lastIndexOf("/") + 1);
   return paths.map((p) => {
-    const d = p.lastIndexOf("/");
-    const base = p.slice(d + 1);
-    let label = base;
-    // another path in this context with the same basename (contexts are tiny: a room's chips, a block's cites)
-    const ambiguous = paths.some((q) => q !== p && q.slice(q.lastIndexOf("/") + 1) === base);
-    if (d > 0 && (ambiguous || ROOTLIKE.test(base))) {
-      // widen the tail segment by segment until no other path in this context shares it
-      let s = d;
+    const b = base(p);
+    let label = b;
+    // contexts are tiny (a room's chips, a block's cites): widen the tail segment by segment while a rival
+    // shares it whole (`xa/b.ts` must not match the tail `a/b.ts`); a rootlike basename (`README.md`, `index.ts`)
+    // below the root always shows a parent, root files stay bare
+    if (p.lastIndexOf("/") > 0 && (ROOTLIKE.test(b) || paths.some((q) => q !== p && base(q) === b))) {
+      let s = p.lastIndexOf("/");
       for (;;) {
         const prev = p.lastIndexOf("/", s - 1);
         const cand = p.slice(prev + 1);
-        // a rival shares whole segments (`xa/b.ts` must not match the tail `a/b.ts`)
         if (prev < 0 || !paths.some((q) => q !== p && (q === cand || q.endsWith(`/${cand}`)))) {
           label = cand;
           break;
@@ -65,10 +64,10 @@ export function displayPaths(paths: readonly string[], max = 32): string[] {
       }
     }
     if (label.length > max) {
-      // drop the head only, never the basename: `…/<kept tail><base>`, or the bare basename when even that
-      // overflows (the hover title and the screen-reader label always carry the full path)
-      const keep = max - 2 - base.length;
-      label = keep > 0 ? `…/${label.slice(label.length - base.length - keep)}` : base;
+      // drop the head only, never the basename (the hover title and the screen-reader label always carry
+      // the full path): `…/<kept tail><base>`, or the bare basename when even that overflows
+      const keep = max - 2 - b.length;
+      label = keep > 0 ? `…/${label.slice(label.length - b.length - keep)}` : b;
     }
     return label;
   });

@@ -177,7 +177,7 @@ export function decorateTable(table: HTMLTableElement, codeHref: ((path: string,
       const dir = document.createElement("span");
       dir.className = "cd";
       // an ambiguous chip names its distinguishing directory even below expert level (whose CSS hides `.cd`)
-      const prefix = short === base ? null : short.slice(0, short.length - base.length);
+      const prefix = short.slice(0, short.length - base.length) || null;
       dir.textContent = prefix ?? text.slice(0, slash + 1);
       if (prefix !== null) dir.style.display = "inline";
       code.textContent = text.slice(slash + 1);

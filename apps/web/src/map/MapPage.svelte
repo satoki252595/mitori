@@ -249,6 +249,9 @@ const roomFlows = $derived.by(() => {
   });
 });
 
+/** ① … ⑳ (U+2460 + n − 1), plain digits beyond (room card flow buttons). */
+const circled = (n: number) => (n >= 1 && n <= 20 ? String.fromCodePoint(0x2460 + n - 1) : String(n));
+
 // the room in the URL (`?room=`) is selected on load
 $effect(() => {
   if (route.name === "map" && route.room && model?.byId.has(route.room)) untrack(() => (s.map.selected = route.room ?? null));
@@ -492,6 +495,8 @@ const planCounts = $derived(
 
         {#if selected && RoomCard}
           {@const sec = sectionOf(selected)}
+          {@const changeHref = sec && selected.change && ws ? HREFS.doc(ws, sec, selected.change) : null}
+          {@const genTokens = genEstimateFor(selected)}
           <div class="room-float" class:left={cardLeft}>
             <RoomCard
               title={selected.zoneLabel ? `${selected.zoneLabel} › ${selected.label}` : selected.label}
@@ -500,13 +505,23 @@ const planCounts = $derived(
               threads={selected.threads}
               section={sec}
               sectionLabel={sec ? (s.doc.index?.numbers.get(sec) ?? "") : ""}
-              genTokens={genEstimateFor(selected)}
-              flows={roomFlows}
-              changeHref={sec && selected.change && ws ? HREFS.doc(ws, sec, selected.change) : null}
-              onflow={toggleFlow}
               onread={() => open(selected.id)}
-              ongenerate={() => prioritize(selected)}
-            />
+            >
+              {#snippet top()}
+                {#if roomFlows.length}
+                  <p class="flows">
+                    <span class="lab">{t("map.room.flows")}</span>
+                    {#each roomFlows as f (f.section)}
+                      <button type="button" class="flow" aria-pressed={f.on} onclick={() => toggleFlow(f.section)}>&sect;{f.num} {f.steps.map(circled).join("")}</button>
+                    {/each}
+                  </p>
+                {/if}
+              {/snippet}
+              {#snippet actions()}
+                {#if changeHref}<a class="btn btn-sec btn-s" href={changeHref}>{t("map.room.change")}</a>{/if}
+                {#if genTokens !== null}<button type="button" class="btn btn-sec btn-s" onclick={() => prioritize(selected)}>{t("map.room.generate", { k: fmtTokensImpl(genTokens, { approx: true }) })}</button>{/if}
+              {/snippet}
+            </RoomCard>
           </div>
         {/if}
 
@@ -587,6 +602,31 @@ const planCounts = $derived(
     container: map / inline-size;
     min-width: 0;
     padding: 0 40px 40px;
+  }
+  /* room card app-only extras (the `top` / `actions` snippets passed to RoomCard) */
+  .flows {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin: 0 0 12px;
+    font-size: var(--fs-label);
+    color: var(--muted);
+  }
+  .flow {
+    min-height: 24px;
+    padding: 0 8px;
+    border: 1px solid var(--rule-2);
+    border-radius: var(--r-chip);
+    background: var(--sheet);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: var(--fs-label);
+  }
+  .flow[aria-pressed="true"] {
+    background: var(--flow-tag-bg);
+    border-color: var(--flow-tag-bg);
+    color: var(--flow-tag-fg);
   }
   /* ---------------------------------------------------------------- ① hero + card */
   .top {

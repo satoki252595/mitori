@@ -1,16 +1,9 @@
 /** Server/legacy-only derivation of the map presentation from indexed modules and layout. */
 import type { MapView } from "./api.ts";
 import type { BlockId, DiagramNode, ModuleInfo } from "./domain.ts";
-import type { EdgeModel, PlanModel, RoomModel, ZoneModel } from "./map-model.ts";
+import { type EdgeModel, fmtLocShort, type PlanModel, type RoomModel, type ZoneModel } from "./map-model.ts";
 import { displayPaths } from "./paths.ts";
 
-const fmtLocShort = (n: number) =>
-  n >= 1000
-    ? `${(n / 1000)
-        .toFixed(1)
-        .replace(/(\.\d*?)0+$/, "$1")
-        .replace(/\.$/, "")}k`
-    : String(n);
 function commonDir(paths: readonly string[]): string {
   if (paths.length === 0) return "";
   const split = paths.map((p) => p.split("/").slice(0, -1));

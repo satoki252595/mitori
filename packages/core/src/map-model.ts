@@ -11,7 +11,8 @@
 import type { MapView } from "./api.ts";
 import type { BlockId, ModuleId, SectionId } from "./domain.ts";
 
-const fmtLocShort = (n: number) =>
+/** Short LOC text (`3.5k`); shared with `buildPlanModel`'s chips so the two never drift. */
+export const fmtLocShort = (n: number) =>
   n >= 1000
     ? `${(n / 1000)
         .toFixed(1)
