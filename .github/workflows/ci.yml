@@ -52,8 +52,11 @@ jobs:
       - name: ci:pr (check incl. budgets-merge --check + unit + fixtures --verify + golden + size)
         run: nix develop .#ci --command bun run ci:pr
 
-      - name: Binary smoke (linux-x64)
-        run: nix develop .#ci --command bash -c 'bun run build:bin && ./dist/mitori-linux-x64 --version'
+      - name: Build binary (linux-x64)
+        run: nix develop .#ci --command bun run build:bin
+
+      - name: Binary smoke outside Nix (linux-x64)
+        run: ./dist/mitori-linux-x64 --version
 
   browsers:
     # Internal PRs only: a fork cannot execute code on the user's Mac.
