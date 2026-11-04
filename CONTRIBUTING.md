@@ -12,6 +12,8 @@ scripts/nd bun run check
 scripts/nd bun test
 ```
 
+ブラウザを起動できない環境では `MITORI_NO_BROWSERS=1` を付ける（対応テストは起動前に skip、shots は exit 77。サンドボックス内は必須）。
+
 ## PR の関門
 
 `bun run ci:pr`（= check + test + `fixtures:build --verify` + golden + size）が通ること。

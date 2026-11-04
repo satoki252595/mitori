@@ -4,6 +4,10 @@
  */
 import type { PageLike } from "../contract.ts";
 import { compose, imeKey } from "./ime.ts";
+
+/** Browser-launch gate: false under `MITORI_NO_BROWSERS=1` (WP40g, see `browsers.ts`). */
+export { browsersAllowed } from "./browsers.ts";
+
 import { servedBytes as servedBytesImpl } from "./served.ts";
 import { axe, cls, domNodes, focusNotObscured, interactions, marks, mountedCodeLines, throttleCpu } from "./ui.ts";
 

@@ -13,6 +13,7 @@ const STEPS: [name: string, argv: string[]][] = [
   ["cr-ledger", ["bun", "scripts/check-cr-ledger.ts"]],
   ["budgets", ["bun", "scripts/check-budgets.ts"]],
   ["contract-index", ["bun", "scripts/contract-index.ts", "--check"]],
+  ["browsers", ["bun", "scripts/check-browsers.ts"]],
   ["version", ["bun", "scripts/check-version.ts"]],
 ];
 

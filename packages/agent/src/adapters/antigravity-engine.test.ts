@@ -84,9 +84,10 @@ test("WP40-4 antigravity answer turn isolates HOME/workdir, hides the prompt, an
   const { b, spawner } = setup();
   const res = await b.engines["antigravity-cli"]!.run(r, new AbortController().signal).result;
   expect(res.stop).toBe("end");
-  // the recorded stdin turn reports usage input 2160 / output 2 / thinking 0 / cache-read 0. Text is "OK5":
-  // the usage-carrying agent_response step returns before its "\n" text_delta is appended (fold の早期 return)。
-  expect(res.text).toBe("OK5");
+  // the recorded stdin turn reports usage input 2160 / output 2 / thinking 0 / cache-read 0. Text is the
+  // terminal result.response verbatim ("OK5\n"): the usage-carrying DONE step_update carries the last "\n"
+  // text_delta with it (WP40g; dropping that row used to lose the tail).
+  expect(res.text).toBe("OK5\n");
   expect(res.usage).toMatchObject({ in: 2160, out: 2, thinking: 0, cacheRead: 0 });
   // priceUsage rounds to micro-USD
   expect(res.usage.apiUsd).toBe(Math.round(2160 * 1.5 + 0 * 0.15 + 2 * 7.5) / 1_000_000);
@@ -123,6 +124,37 @@ test("WP40-4 antigravity answer turn isolates HOME/workdir, hides the prompt, an
   expect(b.fs.writes.some((w) => w.path === `${work}/.agents/agents/mitori-text.md` && w.kind === "home")).toBe(true);
   // temporary isolation roots are removed afterwards
   expect([...b.fs.files.keys()].filter((p) => p.includes("/run/antigravity/"))).toEqual([]);
+});
+
+test("WP40g-2 antigravity keeps the body chunk riding on the usage-carrying DONE row", async () => {
+  // success-stdin の変形: ACTIVE 行の "OK5" を "OK" に短くし、usage 付き DONE 行の "\n" を "5\n" に延ばした
+  // （response "OK5\n" は不変）。旧 fold は DONE 行の delta を捨てるので本文が "OK" に欠ける。
+  const tailOnDoneRow = successTurn.map((l) => {
+    const o = JSON.parse(l) as { event?: string; step_update?: Record<string, unknown> };
+    if (o.event === "step_update" && o.step_update?.step_type === "agent_response") {
+      if (o.step_update.usage !== undefined) o.step_update.text_delta = "5\n";
+      else o.step_update.text_delta = "OK";
+    }
+    return JSON.stringify(o);
+  });
+  const { b } = setup(tailOnDoneRow);
+  const res = await b.engines["antigravity-cli"]!.run(r, new AbortController().signal).result;
+  expect(res.stop).toBe("end");
+  expect(res.text).toBe("OK5\n");
+  expect(res.usageEstimated).toBe(false);
+});
+
+test("WP40g-2 antigravity fails when the terminal response and the streamed text largely disagree", async () => {
+  // success-stdin の変形: response だけ空にした（deltas は "OK5\n" のまま）。どちらが正しいか分からないので protocol エラー。
+  const emptyResponse = successTurn.map((l) => {
+    const o = JSON.parse(l) as { event?: string; result?: Record<string, unknown> };
+    if (o.event === "result" && o.result) o.result.response = "";
+    return JSON.stringify(o);
+  });
+  const { b } = setup(emptyResponse);
+  const res = await b.engines["antigravity-cli"]!.run(r, new AbortController().signal).result;
+  expect(res.stop).toBe("error");
+  expect(res.error?.code).toBe("E_AGENT_PROTOCOL");
 });
 
 test("WP40-5 antigravity refuses agent/patch modes, tool requests and inexact models before spawning", async () => {

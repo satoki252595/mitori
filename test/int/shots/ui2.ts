@@ -13,6 +13,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { synth } from "@mitori/agent/testing";
+import { browsersAllowed } from "@mitori/testkit";
 import { chromium, type Page } from "@playwright/test";
 import { FAKE_CLAUDE_CONFIG, fakeClaude } from "../fake-claude.ts";
 import { startInt } from "../harness.ts";
@@ -46,6 +47,11 @@ const want = (name: string) => ONLY.size === 0 || ONLY.has(name);
 if (!existsSync(join(SRC, "package.json"))) {
   console.error(`[ui2] ${SRC} is not a checkout of m3e-canvas (set MITORI_UI2_REPO or MITORI_REFS, or bun run corpus:fetch --only m3e-canvas)`);
   process.exit(78);
+}
+// WP40g: never attempt the launch under MITORI_NO_BROWSERS=1 (the sandbox aborts GUI registration).
+if (!browsersAllowed()) {
+  console.error("[ui2] MITORI_NO_BROWSERS=1 — browser launch disabled, exiting 77 (skip)");
+  process.exit(77);
 }
 let browser: Awaited<ReturnType<typeof chromium.launch>>;
 try {

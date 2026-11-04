@@ -17,7 +17,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { synth } from "@mitori/agent/testing";
 import type { ThreadDetail } from "@mitori/core";
-import { buildFixture } from "@mitori/testkit";
+import { browsersAllowed, buildFixture } from "@mitori/testkit";
 import { chromium } from "@playwright/test";
 import { FAKE_CLAUDE_CONFIG, fakeClaude } from "../fake-claude.ts";
 import { startInt } from "../harness.ts";
@@ -40,6 +40,11 @@ type J = Record<string, any>;
 let skew = 0;
 const clock = { now: () => Date.now() + skew, iso: () => new Date(Date.now() + skew).toISOString() };
 
+// WP40g: never attempt the launch under MITORI_NO_BROWSERS=1 (the sandbox aborts GUI registration).
+if (!browsersAllowed()) {
+  console.error("[ux] MITORI_NO_BROWSERS=1 — browser launch disabled, exiting 77 (skip)");
+  process.exit(77);
+}
 let browser: Awaited<ReturnType<typeof chromium.launch>>;
 try {
   browser = await chromium.launch({ channel: "chrome", headless: true });

@@ -46,8 +46,14 @@ export const AGY_UNKNOWN_AGENT_RE = /unknown agent/i;
 
 /** One folded antigravity turn (`--output-format stream-json`, one event per line). */
 export interface AntigravityTurn {
-  /** Accumulated `agent_response` `text_delta`s. */
+  /**
+   * Turn text. Streaming `agent_response` `text_delta`s accumulate here for progress display; once the
+   * terminal `result` arrives on SUCCESS this becomes `result.response` verbatim (WP40g: the last
+   * `agent_response` chunk may ride with the usage row, so deltas alone can drop the tail).
+   */
   text: string;
+  /** Terminal `result.response` (null until the `result` arrives or when it is not a string). */
+  response: string | null;
   /** Terminal usage when the `result` carried it (else the caller byte-estimates). */
   usage: { in: number; out: number; thinking: number; cacheRead: number } | null;
   /** First non-`user_input`/`agent_response` step (`<step_type>:<tool_name>`), if the turn ran a tool. */
@@ -65,6 +71,7 @@ export interface AntigravityTurn {
 /** Empty fold state. */
 export const emptyAntigravityTurn = (): AntigravityTurn => ({
   text: "",
+  response: null,
   usage: null,
   toolStep: null,
   denied: null,
@@ -90,11 +97,13 @@ function antigravityUsageOf(raw: unknown): AntigravityTurn["usage"] {
 /**
  * Fold one agy stdout line into the turn. `init` is ignored entirely: with the tools-less agent its
  * `tools` still lists 60 entries, so the list cannot gate anything. `step_update` accumulates
- * `agent_response` `text_delta`s and ignores `user_input`; any other `step_type` (`tool`, …) records
- * the tool and the caller fails the turn. The `result` closes the turn (`SUCCESS` is normal) and
- * carries usage (`input_tokens`, `output_tokens` + `thinking_tokens` billed as output,
- * `cache_read_tokens`) and `denied_actions`. Unknown events are ignored so a newer CLI cannot break
- * the parser; non-JSON stdout lines are a protocol violation (headless logs go to stderr).
+ * `agent_response` `text_delta`s (usage rows included) and ignores `user_input`; any other
+ * `step_type` (`tool`, …) records the tool and the caller fails the turn. The `result` closes the
+ * turn (`SUCCESS` is normal) and carries the authoritative `response`, usage (`input_tokens`,
+ * `output_tokens` + `thinking_tokens` billed as output, `cache_read_tokens`) and `denied_actions` —
+ * a `response` that largely disagrees with the streamed deltas is a protocol violation. Unknown events
+ * are ignored so a newer CLI cannot break the parser; non-JSON stdout lines are a protocol violation
+ * (headless logs go to stderr).
  */
 export function antigravityFoldLine(state: AntigravityTurn, line: string): AntigravityTurn {
   if (!line.trim()) return state;
@@ -113,16 +122,19 @@ export function antigravityFoldLine(state: AntigravityTurn, line: string): Antig
     const su = obj.step_update;
     if (!su || typeof su !== "object" || Array.isArray(su)) throw new MitoriError("E_AGENT_PROTOCOL", "agy step_update is invalid");
     const s = su as Record<string, unknown>;
+    // usage rides on an `agent_response` row too (the terminal DONE carries the last `text_delta` with it):
+    // record the usage but keep folding the row's text below instead of returning early (WP40g).
+    let next = state;
     if (s.usage !== undefined && s.usage !== null) {
       const u = antigravityUsageOf(s.usage);
-      if (u) return { ...state, usage: u };
+      if (u) next = { ...next, usage: u };
     }
     const stepType = typeof s.step_type === "string" ? s.step_type : null;
     if (stepType === null) throw new MitoriError("E_AGENT_PROTOCOL", "agy step_update has no step_type");
     if (stepType === "agent_response") {
       if (s.text_delta !== undefined && typeof s.text_delta !== "string") throw new MitoriError("E_AGENT_PROTOCOL", "agy text_delta is invalid");
       const text = typeof s.text_delta === "string" ? s.text_delta : "";
-      const next = text ? { ...state, text: state.text + text } : state;
+      if (text) next = { ...next, text: next.text + text };
       if (s.state === "ERROR" && state.toolStep === null && s.tool_name === undefined) return { ...next, streamError: next.streamError ?? "agy step failed" };
       return next;
     }
@@ -148,6 +160,15 @@ export function antigravityFoldLine(state: AntigravityTurn, line: string): Antig
       if (u) next = { ...next, usage: u };
       else if (status === "SUCCESS") throw new MitoriError("E_AGENT_PROTOCOL", "agy result usage is invalid");
     }
+    if (status === "SUCCESS") {
+      // The response is the turn text (the real agy writes the whole body here): the streamed deltas are
+      // progress display only. When they largely disagree neither side can be trusted (WP40g).
+      if (typeof res.response !== "string") throw new MitoriError("E_AGENT_PROTOCOL", "agy result response is invalid");
+      if (!sameAntigravityBody(res.response, next.text)) throw new MitoriError("E_AGENT_PROTOCOL", "agy result response and streamed text disagree");
+      next = { ...next, text: res.response, response: res.response };
+    } else if (typeof res.response === "string") {
+      next = { ...next, response: res.response };
+    }
     if (status !== "SUCCESS") {
       const message = typeof res.error === "string" && res.error ? res.error : `agy failed with status ${status ?? "unknown"}`;
       next = { ...next, streamError: message.slice(0, 500) };
@@ -156,6 +177,15 @@ export function antigravityFoldLine(state: AntigravityTurn, line: string): Antig
   }
   return state;
 }
+
+/**
+ * True when the terminal `result.response` and the streamed `text_delta` concatenation agree (WP40g).
+ * Only newline differences are forgiven; anything else means neither side can be trusted.
+ */
+const sameAntigravityBody = (response: string, streamed: string): boolean => {
+  const norm = (s: string): string => s.replace(/\r\n/g, "\n").replace(/[\r\n]+$/, "");
+  return norm(response) === norm(streamed);
+};
 
 /** API-equivalent prices for one Antigravity model id: per-model entry first, then the engine `pricing`. */
 export function antigravityPricing(

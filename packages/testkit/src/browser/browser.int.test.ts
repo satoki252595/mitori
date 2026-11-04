@@ -1,12 +1,14 @@
 // WP-12 (S10): the Playwright helpers against real browsers. Skipped when the browser binaries are not installed
 // (the PR CI image gets them with the e2e job); on the maintainer's machine they run against the Playwright cache.
+// WP40g: `MITORI_NO_BROWSERS=1` skips these too, before any launch is attempted (the sandbox cannot register
+// a GUI app, so a launch aborts and leaves a host crash report).
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { brotliCompressSync, gzipSync } from "node:zlib";
 import { MitoriError } from "@mitori/core";
 import { type Browser, type BrowserType, chromium, type Page, webkit } from "playwright-core";
 import type { PageLike } from "../contract.ts";
-import { ime, servedBytes, ui } from "./index.ts";
+import { browsersAllowed, ime, servedBytes, ui } from "./index.ts";
 import { OBSERVERS_SOURCE } from "./observers.ts";
 
 const installed = (bt: BrowserType): boolean => {
@@ -16,11 +18,11 @@ const installed = (bt: BrowserType): boolean => {
     return false;
   }
 };
-const HAVE_CHROMIUM = installed(chromium);
-const HAVE_WEBKIT = installed(webkit);
+const HAVE_CHROMIUM = browsersAllowed() && installed(chromium);
+const HAVE_WEBKIT = browsersAllowed() && installed(webkit);
 const as = (p: Page): PageLike => p as unknown as PageLike;
 
-describe.skipIf(!HAVE_CHROMIUM)("TK-BROWSER-01 ui helpers (chromium)", () => {
+describe.skipIf(!HAVE_CHROMIUM)("TK-BROWSER-01 ui helpers (chromium; skip without a launchable browser or with MITORI_NO_BROWSERS=1)", () => {
   let browser: Browser;
   beforeAll(async () => {
     browser = await chromium.launch();
@@ -199,7 +201,7 @@ const IME_PAGE = `<input id="i"><div id="ce" contenteditable="true"></div><scrip
 const types = (log: string[]): string[] => log.map((l) => l.split(":")[0] as string);
 
 function imeSuite(name: string, bt: BrowserType, order: "chromium" | "webkit", have: boolean) {
-  describe.skipIf(!have)(`TK-BROWSER-02 ime (${name}, ${order} order)`, () => {
+  describe.skipIf(!have)(`TK-BROWSER-02 ime (${name}, ${order} order; skip without a launchable browser or with MITORI_NO_BROWSERS=1)`, () => {
     let browser: Browser;
     let page: Page;
     beforeAll(async () => {
@@ -271,7 +273,7 @@ imeSuite("chromium", chromium, "chromium", HAVE_CHROMIUM);
 imeSuite("chromium", chromium, "webkit", HAVE_CHROMIUM);
 imeSuite("webkit", webkit, "webkit", HAVE_WEBKIT);
 
-describe.skipIf(!HAVE_CHROMIUM)("TK-BROWSER-03 ime Safari order", () => {
+describe.skipIf(!HAVE_CHROMIUM)("TK-BROWSER-03 ime Safari order (skip without a launchable browser or with MITORI_NO_BROWSERS=1)", () => {
   test("synthetic order: Enter keydown (composing) → compositionend → Enter keydown (not composing, still 229)", async () => {
     const browser = await chromium.launch();
     const page = await browser.newPage();

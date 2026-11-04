@@ -150,13 +150,15 @@ describe("WP40-2 antigravity stream fold (init is untrusted, text comes from age
 
   test("denied_actions fail the turn even on SUCCESS", () => {
     let t = emptyAntigravityTurn();
+    // WP40g: no streamed deltas here, so the response must be empty to stay consistent (else the fold
+    // rejects the turn as a response/delta disagreement before the denied check below).
     t = antigravityFoldLine(
       t,
       line({
         event: "result",
         result: {
           status: "SUCCESS",
-          response: "ok",
+          response: "",
           usage: { input_tokens: 1, output_tokens: 1, thinking_tokens: 0, cache_read_tokens: 0, total_tokens: 2 },
           denied_actions: ["run_command"],
         },
@@ -178,5 +180,41 @@ describe("WP40-2 antigravity stream fold (init is untrusted, text comes from age
     const t = antigravityFoldLine(emptyAntigravityTurn(), line({ event: "something_new", something_new: {} }));
     expect(t.text).toBe("");
     expect(t.toolStep).toBeNull();
+  });
+});
+
+describe("WP40g-1 antigravity stream fold (response is authoritative, usage rows keep their delta)", () => {
+  const usage = { input_tokens: 2160, output_tokens: 2, thinking_tokens: 0, cache_read_tokens: 0, total_tokens: 2162 };
+  const doneLine = (text_delta: string, extra: Record<string, unknown> = {}) =>
+    line({ event: "step_update", step_update: { step_type: "agent_response", state: "DONE", text_delta, usage, ...extra } });
+  const successLine = (response: unknown) => line({ event: "result", result: { status: "SUCCESS", response, num_turns: 1, usage } });
+
+  test("a text_delta on the usage-carrying DONE row is appended, not dropped", () => {
+    let t = emptyAntigravityTurn();
+    t = antigravityFoldLine(t, line({ event: "step_update", step_update: { step_type: "agent_response", state: "ACTIVE", text_delta: "OK" } }));
+    t = antigravityFoldLine(t, doneLine("5\n"));
+    t = antigravityFoldLine(t, successLine("OK5\n"));
+    expect(t.text).toBe("OK5\n");
+    expect(t.response).toBe("OK5\n");
+    expect(t.usage).toEqual({ in: 2160, out: 2, thinking: 0, cacheRead: 0 });
+  });
+
+  test("a trailing-newline difference between response and deltas is forgiven", () => {
+    let t = emptyAntigravityTurn();
+    t = antigravityFoldLine(t, line({ event: "step_update", step_update: { step_type: "agent_response", text_delta: "OK5" } }));
+    t = antigravityFoldLine(t, successLine("OK5\n"));
+    expect(t.text).toBe("OK5\n");
+  });
+
+  test("an empty response with streamed text (or the reverse) is a protocol violation", () => {
+    let t = emptyAntigravityTurn();
+    t = antigravityFoldLine(t, line({ event: "step_update", step_update: { step_type: "agent_response", text_delta: "OK5" } }));
+    expect(() => antigravityFoldLine(t, successLine(""))).toThrow("disagree");
+    const empty = antigravityFoldLine(emptyAntigravityTurn(), line({ event: "step_update", step_update: { step_type: "agent_response" } }));
+    expect(() => antigravityFoldLine(empty, successLine("OK5"))).toThrow("disagree");
+  });
+
+  test("a SUCCESS result without a string response is a protocol violation", () => {
+    expect(() => antigravityFoldLine(emptyAntigravityTurn(), successLine(undefined))).toThrow("response is invalid");
   });
 });
