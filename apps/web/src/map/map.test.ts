@@ -1,7 +1,17 @@
 /** S1 map pure parts (ux.md §4.2.3, UXP-15): camera maths, zoom stages, LOD, plan model + SVG, engine problems. */
 import { describe, expect, test } from "bun:test";
-import type { EngineStatus, MapView } from "@mitori/core";
-import { buildPlanModel, hydratePlan, MAP_SVG_LABELS, mapSvgPresentation, planData, renderPlanSvg } from "@mitori/core";
+import {
+  buildPlanModel,
+  ENGINE_IDS,
+  type EngineStatus,
+  type GlobalSettings,
+  hydratePlan,
+  MAP_SVG_LABELS,
+  type MapView,
+  mapSvgPresentation,
+  planData,
+  renderPlanSvg,
+} from "@mitori/core";
 import { ROOM_LOD, UI_THRESHOLDS } from "../contract.ts";
 import { cameraForK, centreOn, fitCamera, K_MAX, K_MIN, lerpCamera, lodClass, STAGE_K, stageOf, stepStageK, zoomAt } from "./camera.ts";
 import {
@@ -14,6 +24,7 @@ import {
   museUpdated,
   policyAcknowledged,
   setupCommandFor,
+  setupContextFor,
 } from "./engine.ts";
 import { generatedTokens, heroAreas, heroMeta, oneSentence } from "./hero.ts";
 import {
@@ -392,6 +403,32 @@ describe("AC-U-EN engine card: exact steps, the last one re-probes", () => {
     expect(fixSteps("capabilityLost", "grok-cli").at(-1)?.key).toBe("recheck");
     expect(setupCommandFor("grok-cli", { model: "grok-4.7", effort: "high" })).toContain("setup grok --cli");
     expect(setupCommandFor("grok-cli", { model: "grok-4.7", effort: "high" })).toContain("--model 'grok-4.7'");
+  });
+  test("WP40c-4 setupContextFor keeps the previous model/effort for every engine that has one", () => {
+    const cfg = {
+      models: { genModule: "generic:muse-x" },
+      reasoning: { gen: "high" },
+      engines: {
+        "codex-cli": { model: "gpt-1", maxEstimatedSpendUsd: 2 },
+        "grok-cli": { model: "grok-4.7" },
+        "antigravity-cli": { model: "gemini-4-argon" },
+      },
+    } as unknown as GlobalSettings;
+    expect(setupContextFor("generic", cfg)).toEqual({ model: "muse-x", effort: "high" });
+    expect(setupContextFor("codex-cli", cfg)).toEqual({ model: "gpt-1", effort: "high", codexMaxUsd: 2 });
+    expect(setupContextFor("grok-cli", cfg)).toEqual({ model: "grok-4.7", effort: "high" });
+    expect(setupContextFor("antigravity-cli", cfg)).toEqual({ model: "gemini-4-argon", effort: "high" });
+    expect(setupContextFor("claude-cli", cfg)).toEqual({});
+    expect(setupContextFor("session", cfg)).toEqual({});
+    expect(setupContextFor("anthropic-api", cfg)).toEqual({});
+    expect(setupContextFor("grok-cli", undefined)).toEqual({});
+    // every core engine id is classified: a future engine cannot silently fall through
+    for (const engine of ENGINE_IDS) expect(() => setupContextFor(engine, cfg)).not.toThrow();
+  });
+  test("WP40-3 antigravity-cli setup command selects the CLI with the previous model and effort", () => {
+    expect(setupCommandFor("antigravity-cli", { model: "gemini-4-argon", effort: "high" })).toContain("setup antigravity --cli");
+    expect(setupCommandFor("antigravity-cli", { model: "gemini-4-argon", effort: "high" })).toContain("--model 'gemini-4-argon'");
+    expect(setupCommandFor("antigravity-cli", {})).toBe("bun run start -- setup antigravity --cli");
   });
   test("a Muse self-update that removed the configured binary gets the one setup command, not install guidance", () => {
     const gone: EngineStatus = {

@@ -7,6 +7,7 @@ import {
   type EngineId,
   type EngineStatus,
   type EventSink,
+  type FsReader,
   type GlobalSettings,
   type Hasher,
   type Logger,
@@ -17,12 +18,15 @@ import {
   type SseEventPayload,
 } from "@mitori/core";
 import { createAnthropicApiEngine, type FetchLike } from "../adapters/anthropic-engine.ts";
+import { createAntigravityEngine } from "../adapters/antigravity-engine.ts";
+import { ANTIGRAVITY_AGENT, ANTIGRAVITY_AGENT_MD } from "../adapters/antigravity-policy.ts";
 import { createCodexEngine } from "../adapters/codex-engine.ts";
 import { createGenericEngine } from "../adapters/generic-engine.ts";
 import { createGrokEngine } from "../adapters/grok-engine.ts";
 import { GROK_ISOLATED_CONFIG_TOML } from "../adapters/grok-policy.ts";
 import { createClaudeCliEngine } from "../claude/engine.ts";
 import { type BridgeFs, createSandboxStore, EMPTY_REL } from "../claude/fsports.ts";
+import { resolveOnSafePath } from "../claude/resolve.ts";
 import type { AgentScheduler, Engine, EngineResult, ScheduledRequest, Spawner, UsageLedger } from "../contract.ts";
 import type { FollowPorts } from "../follow.ts";
 import type { UsageLedgerImpl } from "../ledger/ledger.ts";
@@ -60,6 +64,16 @@ export interface BridgeDeps {
   events: EventSink<SseEventPayload>;
   home: string;
   env: Readonly<Record<string, string | undefined>>;
+}
+
+/**
+ * `ln` command for the isolated HOME link (WP40e): macOS ships `/bin/ln` under SIP, so it is used
+ * when present. Otherwise the safe-PATH entry itself is executed — never its realpath, which may be
+ * a multicall binary (Nix `ln` → `coreutils`, busybox) whose basename no longer runs as `ln`.
+ */
+export function selectLnCommand(fs: FsReader, ln: { path: string }): string {
+  if (fs.stat("/bin/ln")?.isFile) return "/bin/ln";
+  return ln.path;
 }
 
 const CJK_RE = /[぀-ヿ㐀-鿿豈-﫿ｦ-ﾟ]/g;
@@ -236,6 +250,108 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     },
   });
 
+  const antigravity = createAntigravityEngine({
+    spawner: deps.spawner,
+    settings: deps.settings,
+    env: deps.env,
+    safePath: deps.safePath,
+    clock: deps.clock,
+    timers,
+    hasher: deps.hasher,
+    fs: ports?.fs ?? null,
+    ...(deps.pin ? { pin: (p: BinaryPin) => deps.pin?.("antigravity-cli", p) ?? Promise.resolve() } : {}),
+    ...(deps.follow ? { follow: deps.follow } : {}),
+    log: deps.log,
+    prepareIsolation: async () => {
+      if (!ports) throw new MitoriError("E_PRECONDITION", "Antigravity isolation storage is not wired");
+      // The user's real HOME: only `Library/Keychains` is linked into the isolated HOME, so agy keeps
+      // its macOS keychain login while `~/.gemini` (hooks, plugins, MCP, skills, history) stays unread.
+      const userHome = deps.env.HOME;
+      if (!userHome?.startsWith("/")) throw new MitoriError("E_CFG_INVALID", "Antigravity needs an absolute HOME to isolate");
+      const id = Array.from(deps.random.bytes(16), (x) => x.toString(16).padStart(2, "0")).join("");
+      const rel = `run/antigravity/${id}`;
+      const root = `${home}/${rel}`;
+      // Never remove outside the isolation root (mirrors the empty-var-rm guard: a fixed non-empty prefix).
+      const cleanup = () => {
+        if (!rel.startsWith("run/antigravity/") || rel.length <= "run/antigravity/".length)
+          throw new MitoriError("E_PRECONDITION", "refusing to remove outside the antigravity isolation root");
+        return ports.safeWrite.remove(home, rel, "home");
+      };
+      try {
+        // The tools-less agent definition: this workdir holds nothing else (host-verified, agy 1.4.12).
+        await ports.safeWrite.write(home, `${rel}/work/.agents/agents/${ANTIGRAVITY_AGENT}.md`, ANTIGRAVITY_AGENT_MD, "home");
+        // Materialize the isolated HOME's Library (a keep file creates the parents, then goes away).
+        await ports.safeWrite.write(home, `${rel}/home/Library/.mitori-keep`, "", "home");
+        await ports.safeWrite.remove(home, `${rel}/home/Library/.mitori-keep`, "home");
+        const source = `${userHome.replace(/\/+$/, "")}/Library/Keychains`;
+        if (!ports.fs.stat(source)?.isDir) return { home: `${root}/home`, work: `${root}/work`, auth: "none" as const, cleanup };
+        const link = `${root}/home/Library/Keychains`;
+        if (ports.fs.stat(link)) throw new MitoriError("E_PRECONDITION", "Antigravity isolated HOME collision");
+        // No symlink port exists on SafeWriter (it refuses symlinks by design, SEC-01), so the link is
+        // created through the injected spawner with `ln` resolved on the safe PATH — no shell, no new port.
+        const ln = resolveOnSafePath(ports.fs, deps.safePath, "ln");
+        if (!ln) throw new MitoriError("E_PRECONDITION", "Antigravity isolation needs `ln` on the safe PATH");
+        const command = selectLnCommand(ports.fs, ln);
+        let code = -1;
+        let errHead = "";
+        try {
+          const child = deps.spawner.spawn({
+            command,
+            argv: ["-s", ports.fs.realpath(source) ?? source, link],
+            env: { PATH: deps.safePath },
+            cwd: "/",
+            stdin: "",
+            keepStdinOpen: false,
+            timeoutMs: 10_000,
+            processGroup: true,
+          });
+          child.closeStdin();
+          const kill = timers.set(() => {
+            try {
+              child.kill("SIGKILL");
+            } catch {
+              // gone
+            }
+          }, 10_000);
+          const errLines: string[] = [];
+          const drainOut = (async () => {
+            for await (const _ of child.stdout) {
+              // `ln -s` prints nothing on success
+            }
+          })();
+          const drainErr = (async () => {
+            for await (const line of child.stderr) {
+              errLines.push(line);
+              if (errLines.length > 20) errLines.shift();
+            }
+          })();
+          code = await child.exited;
+          await Promise.allSettled([drainOut, drainErr]);
+          timers.clear(kill);
+          errHead = (
+            errLines
+              .join("\n")
+              .split("\n")
+              .find((l) => l.trim() !== "") ?? errLines.join("\n")
+          ).slice(0, 200);
+        } catch {
+          code = -1;
+        }
+        if (code !== 0)
+          throw new MitoriError(
+            "E_PRECONDITION",
+            errHead
+              ? `Antigravity isolated HOME link failed (ln exited ${code}: ${secrets.redact(errHead).text})`
+              : `Antigravity isolated HOME link failed (ln exited ${code})`,
+          );
+        return { home: `${root}/home`, work: `${root}/work`, auth: "subscription" as const, cleanup };
+      } catch (err) {
+        await cleanup();
+        throw err;
+      }
+    },
+  });
+
   // `engines.updated` whenever a detect() result changes
   const statuses = new Map<EngineId, string>();
   const latest = new Map<EngineId, EngineStatus>();
@@ -305,6 +421,7 @@ export function assembleBridge(deps: BridgeDeps & Partial<BridgeExtraDeps>): { s
     session: null,
     "codex-cli": withEvents(codex),
     "grok-cli": withEvents(grok),
+    "antigravity-cli": withEvents(antigravity),
   };
 
   const ledger = deps.ledger as Partial<UsageLedgerImpl>;

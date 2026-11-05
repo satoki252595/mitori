@@ -33,6 +33,7 @@ Windowsの後続確認は2026-10-12 JST（実ログは2026-10-11 UTC）の[実Wi
 | Cursor | 両方の設定プレビュー・公式CLIのMCP接続成功 | 本人project設定で8ツールを確認。外部セッションからの文書生成は未実行 |
 | Grok Build | 両方の設定プレビュー・公式CLIのMCP接続成功 | 本人project設定で8ツールを確認。公式ログイン状態は未確認、外部セッションからの文書生成は未実行 |
 | Grok Build CLI | 両方の設定プレビュー・実回答成功 | `setup grok --cli`（既定 `grok-4.7-build-fast`・low）。2026-11-03 に ai-job-search の実生成 11/11・L1 95.9 %（12.7 分、報告額 $2.85）を確認。単発テキスト生成のみでagent/patch・ツール実行なし |
+| Gemini（antigravity-cli） | `setup antigravity --cli`（既定 `antigravity:gemini-3.8-flash`・low、macOS のみ） | 2026-11-05 に ai-job-search の実生成 11/11・L1 93.6 %（102 pass/7 fail、190.7 秒、API 換算 $0.539、サブスクのため請求なし）を確認。1 タスクで 8 行が未生成（`E_GEN_OUTPUT_INVALID`、dropped 8）。単発テキスト生成のみで agent/patch・ツール実行なし |
 | Antigravity | 両方の設定プレビュー・公式アプリのMCP接続成功 | 本体2.12.2の共通設定で8ツールを確認。project設定の制約は上記参照。公式ログイン状態は未確認、外部セッションからの文書生成は未実行 |
 
 LM Studioの確認は取得済みGGUF `qwen/qwen3.8-27b`によるNix・通常ローカルの短いExplainまでで、本格的な文書生成は未検証です。[実検証記録](docs/progress/remaining-20261011/lmstudio-explain.md)。

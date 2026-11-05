@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { writeFileSync } from "node:fs";
-import { DEFAULT_DENY_GLOBS, type GlobalSettings, MitoriError, type SseEventPayload, type WorkspaceInfo, type WorkspaceKey } from "@mitori/core";
+import {
+  DEFAULT_DENY_GLOBS,
+  type DeepPartial,
+  ENGINE_IDS,
+  type GlobalSettings,
+  MitoriError,
+  type SseEventPayload,
+  type WorkspaceInfo,
+  type WorkspaceKey,
+} from "@mitori/core";
 import { fsReader, fsSafeWriter, removeDir, silentLogger, tempDir } from "../http/test/fakes.ts";
 import { checkSettingsPatch, DEFAULT_GLOBAL_SETTINGS, resolveSettings } from "./index.ts";
 import { deepMerge } from "./merge.ts";
@@ -132,6 +141,43 @@ describe("settings defaults and schema", () => {
     expect(DEFAULT_GLOBAL_SETTINGS.engines["grok-cli"].turnMs).toBe(1_200_000); // WP36h-6
     expect(validate(merged, GLOBAL_SPEC)).toEqual([]);
     expect(code(tryParse('{"models":{"answer":"claude-fable-5"}}'))).toBe("E_CFG_INVALID"); // short ids stay forbidden
+  });
+  test("WP40-4 antigravity: model ids validate, pins accept agy, defaults carry the CLI binary", () => {
+    // the id pattern validates at parse time (engine-enabled is checked daemon-side, like grok)
+    expect(parseGlobalSettings('{"models":{"answer":"antigravity:gemini-3.8-flash"}}').models.answer).toBe("antigravity:gemini-3.8-flash");
+    expect(DEFAULT_GLOBAL_SETTINGS.engines["antigravity-cli"]).toEqual({ enabled: false, binary: "agy", model: "", turnMs: 1_200_000 });
+    const configured = {
+      defaultEngine: "antigravity-cli",
+      defaultGenEngine: "antigravity-cli",
+      engines: {
+        "antigravity-cli": {
+          enabled: true,
+          binary: "agy",
+          model: "gemini-3.8-flash",
+          pricing: { inPerMTok: 1.5, outPerMTok: 7.5, cacheReadPerMTok: 0.15 },
+          pricingByModel: { "gemini-4-argon": { inPerMTok: 4, outPerMTok: 20, cacheReadPerMTok: 0.2 } },
+          turnMs: 1_200_000,
+        },
+      },
+      pins: { agy: { path: "agy", realpath: "/u/bin/agy", sha256: "aa".repeat(32), version: "1.4.12", pinnedAt: "2026-11-04T00:00:00.000Z", by: "user" } },
+      models: { answer: "antigravity:gemini-3.8-flash", genModule: "antigravity:gemini-4-argon" },
+    };
+    const parsed = parseGlobalSettings(JSON.stringify(configured));
+    expect(parsed.models.answer).toBe("antigravity:gemini-3.8-flash");
+    expect(parsed.models.genModule).toBe("antigravity:gemini-4-argon");
+    expect(parsed.engines["antigravity-cli"]?.model).toBe("gemini-3.8-flash");
+    expect(parsed.pins.agy?.version).toBe("1.4.12");
+    expect(validate(parsed, GLOBAL_SPEC)).toEqual([]);
+    expect(code(tryParse('{"pins":{"agy":{}}}'))).toBe("E_CFG_INVALID");
+    expect(code(tryParse('{"pins":{"unknown":{}}}'))).toBe("E_CFG_INVALID");
+  });
+  test("WP40d-1 dataPolicyAck accepts every engine id including antigravity-cli", () => {
+    const ack = { at: "2026-11-04T00:00:00.000Z", shownAt: "2026-11-04T00:00:00.000Z", plan: "pro" };
+    const dataPolicyAck = Object.fromEntries(ENGINE_IDS.map((id) => [id, ack]));
+    const parsed = parseGlobalSettings(JSON.stringify({ privacy: { dataPolicyAck } }));
+    expect(new Set(Object.keys(parsed.privacy.dataPolicyAck))).toEqual(new Set(ENGINE_IDS));
+    expect(validate(parsed, GLOBAL_SPEC)).toEqual([]);
+    expect(code(tryParse('{"privacy":{"dataPolicyAck":{"unknown":{}}}}'))).toBe("E_CFG_INVALID");
   });
 });
 
@@ -403,5 +449,132 @@ describe("SRV-I-027 settings service", () => {
   test("settings type guard: GlobalSettings stays assignable", () => {
     const g: GlobalSettings = DEFAULT_GLOBAL_SETTINGS;
     expect(g.schemaVersion).toBe(1);
+  });
+
+  test("WP39-4 model/effort switch passes within configured engines", async () => {
+    const { home, s } = await svc();
+    try {
+      await s.patchExec({
+        path: "engines.codex-cli",
+        value: {
+          enabled: true,
+          binary: "codex",
+          model: "gpt-6.1-sol",
+          pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+          pricingByModel: { "gpt-5.6-luna": { inPerMTok: 0.2, outPerMTok: 1.2, cacheReadPerMTok: 0.02 } },
+          maxEstimatedSpendUsd: 1,
+        },
+        confirm: true,
+      });
+      const v = s.view().version;
+      const after = await s.patch({ version: v, patch: { models: { answer: "codex:gpt-5.6-luna" }, reasoning: { answer: "low" } } });
+      expect(after.settings.models.answer).toBe("codex:gpt-5.6-luna");
+      expect(after.settings.reasoning.answer).toBe("low");
+      expect(after.settings.engines["codex-cli"].model).toBe("gpt-6.1-sol");
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("WP39-4 switch to an unconfigured engine, a price-unknown model, or a rejected effort is refused", async () => {
+    const { home, s } = await svc();
+    try {
+      const v = s.view().version;
+      expect(await s.patch({ version: v, patch: { models: { answer: "grok:grok-4.7-build-fast" } } }).then(() => "ok", code)).toBe("E_INVALID_INPUT");
+      await s.patchExec({
+        path: "engines.codex-cli",
+        value: {
+          enabled: true,
+          binary: "codex",
+          model: "gpt-6.1-sol",
+          pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+          maxEstimatedSpendUsd: 1,
+        },
+        confirm: true,
+      });
+      const v2 = s.view().version;
+      // gpt-6-luna has no public price and none is configured: setup with --in-price/--out-price first
+      expect(await s.patch({ version: v2, patch: { models: { answer: "codex:gpt-6-luna" } } }).then(() => "ok", code)).toBe("E_INVALID_INPUT");
+      await s.patchExec({
+        path: "engines.grok-cli",
+        value: {
+          enabled: true,
+          binary: "grok",
+          model: "grok-4.5",
+          pricing: { inPerMTok: 3, outPerMTok: 9, cacheReadPerMTok: 3 },
+          turnMs: 1_200_000,
+        },
+        confirm: true,
+      });
+      const v3 = s.view().version;
+      expect(await s.patch({ version: v3, patch: { models: { answer: "grok:grok-4.5" }, reasoning: { answer: "max" } } }).then(() => "ok", code)).toBe(
+        "E_INVALID_INPUT",
+      );
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("WP39b-3 model-switch refusals carry a reason the web maps to i18n", async () => {
+    const { home, s } = await svc();
+    try {
+      const v = s.view().version;
+      const reasonOf = async (patch: DeepPartial<GlobalSettings>): Promise<string> =>
+        await s.patch({ version: v, patch }).then(
+          () => "ok",
+          (e) => (e instanceof MitoriError ? String(e.params?.reason) : String(e)),
+        );
+      // grok-cli is not configured here: engine-missing
+      expect(await reasonOf({ models: { answer: "grok:grok-4.7-build-fast" } })).toBe("engine-missing");
+      // codex-cli is configured below without the luna price: price-unknown
+      await s.patchExec({
+        path: "engines.codex-cli",
+        value: {
+          enabled: true,
+          binary: "codex",
+          model: "gpt-6.1-sol",
+          pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+          maxEstimatedSpendUsd: 1,
+        },
+        confirm: true,
+      });
+      const v2 = s.view().version;
+      const priceReason = await s.patch({ version: v2, patch: { models: { answer: "codex:gpt-6-luna" } } }).then(
+        () => "ok",
+        (e) => (e instanceof MitoriError ? String(e.params?.reason) : String(e)),
+      );
+      expect(priceReason).toBe("price-unknown");
+      const effortReason = await s.patch({ version: v2, patch: { reasoning: { answer: "max" }, models: { answer: "codex:gpt-6-luna" } } }).then(
+        () => "ok",
+        (e) => (e instanceof MitoriError ? String(e.params?.reason) : String(e)),
+      );
+      expect(["price-unknown", "effort-unsupported"]).toContain(effortReason);
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("WP39-4 haiku-4-5 keeps stored reasoning (effort is ignored, not rejected)", async () => {
+    const { home, s } = await svc();
+    try {
+      const v = s.view().version;
+      const after = await s.patch({ version: v, patch: { models: { answer: "claude-haiku-4-5" }, reasoning: { answer: "max" } } });
+      expect(after.settings.models.answer).toBe("claude-haiku-4-5");
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("WP39-4 an engine argv cannot ride along with a model switch (CLI engines stay guided-only)", async () => {
+    const { home, s } = await svc();
+    try {
+      const v = s.view().version;
+      expect(
+        await s.patch({ version: v, patch: { models: { answer: "claude-sonnet-5-5" }, engines: { generic: { argv: ["evil"] } } } }).then(() => "ok", code),
+      ).toBe("E_FORBIDDEN_KEY");
+      expect(s.current().engines.generic.argv).toEqual([]);
+    } finally {
+      removeDir(home);
+    }
   });
 });

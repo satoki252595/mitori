@@ -18,6 +18,8 @@ export interface EngineHintContext {
   codexMaxUsd?: number;
   /** Grok `--model` carried over from settings. */
   grokModel?: string;
+  /** Antigravity `--model` carried over from settings. */
+  antigravityModel?: string;
 }
 
 /**
@@ -61,6 +63,13 @@ export function engineUpdateHint(s: EngineHintStatus, ctx: EngineHintContext, la
     return ja
       ? `Grokの実行ファイルが変わりました: \`${bin} setup grok --cli${model}\` を実行してください`
       : `The Grok binary changed: run \`${bin} setup grok --cli${model}\``;
+  }
+  if (s.engine === "antigravity-cli") {
+    if (!s.problems.some((p) => p.code === "E_AGENT_CAPABILITY" && /binary changed|not pinned/i.test(p.message))) return null;
+    const model = ctx.antigravityModel ? ` --model ${ctx.antigravityModel}` : "";
+    return ja
+      ? `Antigravityの実行ファイルが変わりました: \`${bin} setup antigravity --cli${model}\` を実行してください`
+      : `The Antigravity binary changed: run \`${bin} setup antigravity --cli${model}\``;
   }
   return null;
 }

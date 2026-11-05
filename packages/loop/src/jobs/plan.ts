@@ -134,6 +134,7 @@ const ENGINE_CAPS: Record<EngineId, { tools: boolean; jsonSchema: boolean }> = {
   generic: { tools: false, jsonSchema: false },
   session: { tools: false, jsonSchema: false },
   "grok-cli": { tools: false, jsonSchema: true },
+  "antigravity-cli": { tools: false, jsonSchema: true },
 };
 
 /** A router / scope error as a MitoriError (`params.actions` stays comma-separated, CR m1-86 b). */
@@ -351,12 +352,15 @@ function providerPrices(engine: EngineId, settings: EngineSettings): EngineSetti
       ? settings["codex-cli"].pricing
       : engine === "grok-cli"
         ? settings["grok-cli"].pricing
-        : undefined;
+        : engine === "antigravity-cli"
+          ? settings["antigravity-cli"].pricing
+          : undefined;
 }
 
 /** List price of a call; configurable providers refuse unknown prices. */
 function price(model: ModelId, inTok: number, outTok: number, cacheRead = 0, prices?: EngineSettings["generic"]["pricing"]): number {
-  if (!(model in PRICING) && !model.startsWith("generic:") && !model.startsWith("codex:") && !model.startsWith("grok:")) return 0;
+  if (!(model in PRICING) && !model.startsWith("generic:") && !model.startsWith("codex:") && !model.startsWith("grok:") && !model.startsWith("antigravity:"))
+    return 0;
   return priceUsage(model, { in: inTok, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead, out: outTok }, false, prices);
 }
 

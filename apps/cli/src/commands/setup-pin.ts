@@ -10,7 +10,7 @@ import { homeOf } from "./session.ts";
 const VERSION_TIMEOUT_MS = 5_000;
 const VERSION_MAX_BYTES = 4_096;
 
-export async function prepareProviderPin(binary: string, io: Io, provider: "Claude" | "Codex" | "Grok"): Promise<BinaryPin> {
+export async function prepareProviderPin(binary: string, io: Io, provider: "Claude" | "Codex" | "Grok" | "Antigravity"): Promise<BinaryPin> {
   if (!isAbsolute(binary)) throw usage(`${provider} needs an absolute executable path`);
   const realpath = realpathSync(binary);
   if (!statSync(realpath).isFile()) throw usage(`the ${provider} executable must be a regular file`);

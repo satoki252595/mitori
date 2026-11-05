@@ -13,6 +13,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import type { GenEstimate } from "@mitori/core";
+import { browsersAllowed } from "@mitori/testkit";
 import { type Browser, chromium, type Page } from "@playwright/test";
 import { FAKE_CLAUDE_CONFIG, fakeClaude } from "../fake-claude.ts";
 import { startInt } from "../harness.ts";
@@ -164,6 +165,11 @@ async function generationShot(browser: Browser, src: string): Promise<void> {
 }
 
 mkdirSync(OUT, { recursive: true });
+// WP40g: never attempt the launch under MITORI_NO_BROWSERS=1 (the sandbox aborts GUI registration).
+if (!browsersAllowed()) {
+  console.error("[m1] MITORI_NO_BROWSERS=1 — browser launch disabled, exiting 77 (skip)");
+  process.exit(77);
+}
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const results: Run[] = [];
 try {

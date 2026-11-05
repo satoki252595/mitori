@@ -446,3 +446,9 @@
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
 | CR wp28-1 | 利用者（各社のアップデートに自動対応・検知して再設定） | accepted | core `BinaryPin.by` に `"auto-update"`・`previousVersion?`、api `EngineStatus.followed?`、server settings schema の pin 検証 | SEC-10 の再確認を、承認済みの入口（保存済み `pin.path` の再解決・Muse `.muse-version` 同一dir）・同じ `--version` 検査・capability 再確認・表示つき自動追従に緩める判断。CR m1-65 の初回 pin と同じ考え方。任意追加のみで既存読み手に影響なし |
+
+## 22. モデルと effort を利用者が選べるようにする（2026-11-04、WP39）
+
+| id | requester | 決定 | 適用先 | 理由・備考 |
+|---|---|---|---|---|
+| CR wp39-1 | WP39（モデルと effort の選択） | accepted | core `MODEL_CATALOG`（追加）・`ModelCatalogKey`・`ModelCatalogView`・`ModelCatalogEntry`・`ModelCatalogPrice`（追加）・`findCatalogModel`・`effortsForModel`（追加、純関数）。`setup-presets.ts`・web `provider.ts`・server `settings/model-switch.ts`・estimator はこの一覧を参照。価格の数値は現行のまま移すだけ | 選べるモデルと使える effort・既定・価格の一覧を1か所に集める。キーは設定プロバイダー（grok-cli は `grok-cli` engine、grok-api・muse は `generic` engineの固定モデル）。`claude-haiku-4-5` は effort を受け付けない（`efforts: []`）が、保存済みの reasoning 値は残す。`codex:gpt-6-luna`・`grok:grok-4.6`・`grok:grok-4.5` は価格非公開（`pricing: null`）。`terra` の `ultra` は出さない |

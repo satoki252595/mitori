@@ -4,9 +4,27 @@
   a stretch item (☆).
 -->
 <script lang="ts">
-import { type EngineId, type GenEngineId, PROVIDER_AUTH_IDS, type ProviderAuthId, type ReaderLevel, type ReasoningEffort } from "@mitori/core";
+import {
+  type DeepPartial,
+  type EngineId,
+  type GenEngineId,
+  type GlobalSettings,
+  type ModelId,
+  PROVIDER_AUTH_IDS,
+  type ProviderAuthId,
+  type ReaderLevel,
+  type ReasoningEffort,
+} from "@mitori/core";
 import { onMount } from "svelte";
-import { claudeBinaryChanged, codexBinaryChanged, codexVerifiedVersion, museUpdated, type SetupContext, setupCommandFor } from "../map/engine.ts";
+import {
+  claudeBinaryChanged,
+  codexBinaryChanged,
+  codexVerifiedVersion,
+  museUpdated,
+  type SetupContext,
+  setupCommandFor,
+  setupContextFor,
+} from "../map/engine.ts";
 import { copyText } from "../shell/clipboard.ts";
 import { authDisplayKind } from "../shell/fmt.ts";
 import { t } from "../shell/index.ts";
@@ -21,8 +39,15 @@ import {
   providerAuthCommand,
   providerSetupCommand,
   SETUP_PROVIDERS,
+  type SetupModelOption,
   type SetupProvider,
-  syncGrokGuidedModel,
+  setupDefaultEffort,
+  setupDefaultModel,
+  setupModelOptions,
+  setupModelPriceKnown,
+  switchableModels,
+  switchErrorKey,
+  switchSetupHint,
 } from "./provider.ts";
 
 const s = useStores();
@@ -56,6 +81,8 @@ let providerError = $state(false);
 let setupCommand = $state("");
 let simpleProvider = $state<SetupProvider>("claude");
 let simpleModel = $state("");
+let customModel = $state(false);
+let customText = $state("");
 let simpleBaseUrl = $state("");
 let simpleKeyEnv = $state("");
 let simpleInputPrice = $state<number | undefined>();
@@ -67,41 +94,54 @@ let guidedError = $state(false);
 let reloading = $state(false);
 let useApi = $state(false);
 let useGrokCli = $state(false);
+let useAntigravityCli = $state(false);
 let useCodexNative = $state(true);
 let codexMaxUsd = $state<number | undefined>(1);
 let signingIn = $state(false);
 let loginResult = $state<"opened" | "fallback" | "">("");
+let genSwitchModel = $state("");
+let genSwitchEffort = $state<ReasoningEffort>("high");
+let answerSwitchModel = $state("");
+let answerSwitchEffort = $state<ReasoningEffort>("high");
+let switchSaving = $state<"gen" | "answer" | null>(null);
+let switchSaved = $state<"gen" | "answer" | null>(null);
+/** Server refusal of a model switch: localized reason key plus the re-setup command (null when no setup helps). */
+let switchError = $state<{ kind: "gen" | "answer"; key: string; command: string | null } | null>(null);
 const setupExternal = $derived(
-  ["cursor", "antigravity"].includes(simpleProvider) ||
+  ["cursor"].includes(simpleProvider) ||
     (simpleProvider === "codex" && !useCodexNative) ||
-    (simpleProvider === "grok" && !useApi && !useGrokCli),
+    (simpleProvider === "grok" && !useApi && !useGrokCli) ||
+    (simpleProvider === "antigravity" && !useAntigravityCli),
 );
-const setupEffort = $derived(simpleProvider === "muse" || (simpleProvider === "codex" && useCodexNative) || (simpleProvider === "grok" && useGrokCli));
+const setupEffort = $derived(
+  simpleProvider === "claude" ||
+    simpleProvider === "muse" ||
+    (simpleProvider === "codex" && useCodexNative) ||
+    (simpleProvider === "grok" && useGrokCli) ||
+    (simpleProvider === "antigravity" && useAntigravityCli),
+);
+/** CLI engine behind the quick-setup provider (Grok Build CLI or Antigravity CLI instead of the session). */
+const guidedCli = $derived(simpleProvider === "grok" ? useGrokCli : simpleProvider === "antigravity" ? useAntigravityCli : false);
+/** Catalog models of the quick-setup provider (empty for free-form providers and external sessions). */
+const modelOptions = $derived(setupModelOptions(simpleProvider, { api: useApi, cli: guidedCli }));
+/** Model id typed for a custom entry (a slug for codex/grok/antigravity/muse, a bare id for claude). */
+const effectiveModel = $derived((customModel ? customText : simpleModel).trim());
+/** Slug without the `codex:` / `grok:` / `antigravity:` / `generic:` prefix. */
+const modelSlug = $derived(effectiveModel.split(":").at(-1) ?? "");
+const selectedOption = $derived(customModel ? undefined : modelOptions.find((o) => o.id === simpleModel));
+/** Usable efforts of the chosen model (all when custom or free-form; empty when the model ignores effort). */
+const effortChoices = $derived(selectedOption ? [...selectedOption.efforts] : [...EFFORTS]);
+/** Models the post-setup switcher can offer (catalog models of enabled engines + in-use customs). */
+const switchSettings = $derived(s.session.settings?.settings);
+const switchOptions = $derived<SetupModelOption[]>(switchSettings ? switchableModels(switchSettings) : []);
+const switchEntry = (model: string): SetupModelOption | undefined => switchOptions.find((o) => o.id === model);
+const genEffortChoices = $derived(switchEntry(genSwitchModel) ? [...(switchEntry(genSwitchModel)?.efforts ?? [])] : [...EFFORTS]);
+const answerEffortChoices = $derived(switchEntry(answerSwitchModel) ? [...(switchEntry(answerSwitchModel)?.efforts ?? [])] : [...EFFORTS]);
 /** The engine generation uses now; other engines' missing logins are not problems for this person. */
 const activeEngine = $derived(s.session.settings?.settings.defaultGenEngine);
 /** Previous selections the re-setup command keeps (loaded settings); absent when unknown. */
 function setupCtxFor(engine: EngineId): SetupContext {
-  const cfg = s.session.settings?.settings;
-  if (engine === "generic") {
-    const model = cfg?.models.genModule.startsWith("generic:") ? cfg.models.genModule.slice("generic:".length) : undefined;
-    return { ...(model ? { model } : {}), ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}) };
-  }
-  if (engine === "codex-cli") {
-    const codex = cfg?.engines["codex-cli"];
-    return {
-      ...(codex?.model ? { model: codex.model } : {}),
-      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
-      ...(codex?.maxEstimatedSpendUsd ? { codexMaxUsd: codex.maxEstimatedSpendUsd } : {}),
-    };
-  }
-  if (engine === "grok-cli") {
-    const grok = cfg?.engines["grok-cli"];
-    return {
-      ...(grok?.model ? { model: grok.model } : {}),
-      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
-    };
-  }
-  return {};
+  return setupContextFor(engine, s.session.settings?.settings);
 }
 const museSetup = $derived(setupCommandFor("generic", setupCtxFor("generic"), s.session.settings?.launcher) ?? "");
 const claudeSetup = $derived(setupCommandFor("claude-cli", {}, s.session.settings?.launcher) ?? "");
@@ -110,16 +150,15 @@ const setupHttp = $derived(["ollama", "lmstudio", "openai"].includes(simpleProvi
 const authProvider = $derived(PROVIDER_AUTH_IDS.includes(simpleProvider as ProviderAuthId) ? (simpleProvider as ProviderAuthId) : null);
 const authCommand = $derived(authProvider ? providerAuthCommand(authProvider, s.session.settings?.launcher) : "");
 const setupLocalApi = $derived(/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?\/v1\/?$/u.test(simpleBaseUrl));
+/** Price-known catalog entries need no explicit prices (same list the CLI reads). */
+const setupPriceKnown = $derived(setupModelPriceKnown(simpleProvider, { api: useApi, cli: guidedCli }, modelSlug));
 const setupPrices = $derived(
   simpleProvider === "openai" ||
-    (simpleProvider === "codex" && useCodexNative && !!simpleModel.trim() && simpleModel.trim() !== "gpt-6.1-sol") ||
-    (simpleProvider === "muse" && !!simpleModel.trim() && simpleModel.trim() !== "muse-spark-1.3-contributor") ||
-    (simpleProvider === "grok" &&
-      (useApi || useGrokCli) &&
-      !!simpleModel.trim() &&
-      simpleModel.trim() !== "grok-4.7" &&
-      !(useGrokCli && !useApi && simpleModel.trim() === "grok-4.7-build-fast")) ||
-    (["ollama", "lmstudio"].includes(simpleProvider) && (!setupLocalApi || /(?:[:-]cloud)$/i.test(simpleModel.trim()))),
+    (simpleProvider === "codex" && useCodexNative && setupPriceKnown === false) ||
+    (simpleProvider === "muse" && setupPriceKnown === false) ||
+    (simpleProvider === "grok" && (useApi || useGrokCli) && setupPriceKnown === false) ||
+    (simpleProvider === "antigravity" && useAntigravityCli && setupPriceKnown === false) ||
+    (["ollama", "lmstudio"].includes(simpleProvider) && setupPriceKnown === null && (!setupLocalApi || /(?:[:-]cloud)$/i.test(modelSlug))),
 );
 const PROVIDER_NAMES: Record<SetupProvider, string> = {
   claude: "Claude Code",
@@ -163,10 +202,10 @@ $effect(() => {
     if (model.includes("muse-")) chooseSetup("muse");
     else if (model.includes("grok-")) chooseSetup("grok");
     else if (protocol === "openai-chat") chooseSetup(baseUrl.includes(":11434/") ? "ollama" : baseUrl.includes(":1234/") ? "lmstudio" : "openai");
-    simpleModel = model.replace(/^generic:/, "");
+    if (protocol === "openai-chat" && simpleProvider === "grok") useApi = true;
+    applyQuickModel(model);
     simpleEffort = cfg.reasoning.gen;
     if (protocol === "openai-chat") {
-      if (simpleProvider === "grok") useApi = true;
       simpleBaseUrl = baseUrl;
       simpleKeyEnv = keyEnv;
       simpleInputPrice = inputPrice;
@@ -174,15 +213,24 @@ $effect(() => {
     }
   } else if (provider === "codex-cli") {
     chooseSetup("codex");
-    simpleModel = cfg.engines["codex-cli"].model;
+    applyQuickModel(`codex:${cfg.engines["codex-cli"].model}`);
     simpleEffort = cfg.reasoning.gen;
     codexMaxUsd = cfg.engines["codex-cli"].maxEstimatedSpendUsd;
   } else if (provider === "grok-cli") {
     chooseSetup("grok");
     useGrokCli = true;
-    simpleModel = cfg.engines["grok-cli"].model;
+    applyQuickModel(`grok:${cfg.engines["grok-cli"].model}`);
+    simpleEffort = cfg.reasoning.gen;
+  } else if (provider === "antigravity-cli") {
+    chooseSetup("antigravity");
+    useAntigravityCli = true;
+    applyQuickModel(`antigravity:${cfg.engines["antigravity-cli"].model}`);
     simpleEffort = cfg.reasoning.gen;
   }
+  genSwitchModel = cfg.models.genModule;
+  genSwitchEffort = cfg.reasoning.gen;
+  answerSwitchModel = cfg.models.answer;
+  answerSwitchEffort = cfg.reasoning.answer;
   initialized = true;
 });
 
@@ -190,10 +238,13 @@ function chooseSetup(value: SetupProvider) {
   simpleProvider = value;
   useApi = false;
   useGrokCli = false;
+  useAntigravityCli = false;
   useCodexNative = true;
   loginResult = "";
-  simpleModel = value === "muse" ? "muse-spark-1.3-contributor" : value === "grok" ? "grok-4.7-build-fast" : value === "codex" ? "gpt-6.1-sol" : "";
-  simpleEffort = value === "muse" ? "max" : value === "grok" ? "low" : "high";
+  customModel = false;
+  customText = "";
+  simpleModel = setupDefaultModel(value, {});
+  simpleEffort = setupDefaultEffort(value);
   simpleBaseUrl =
     value === "grok"
       ? "https://api.x.ai/v1"
@@ -209,6 +260,110 @@ function chooseSetup(value: SetupProvider) {
   simpleOutputPrice = undefined;
   guidedCommand = "";
   guidedError = false;
+}
+
+/** Keep the previous grok model only when it belongs to the newly selected mode; custom text is kept. */
+function afterGrokModeChange() {
+  const opts = setupModelOptions("grok", { api: useApi, cli: useGrokCli });
+  if (!customModel && !opts.some((o) => o.id === simpleModel)) {
+    simpleModel = setupDefaultModel("grok", { api: useApi, cli: useGrokCli });
+    simpleEffort = setupDefaultEffort("grok");
+  }
+  guidedCommand = "";
+  guidedError = false;
+}
+
+/** Keep the previous Antigravity model only when it belongs to the CLI mode; custom text is kept. */
+function afterAntigravityModeChange() {
+  const opts = setupModelOptions("antigravity", { cli: useAntigravityCli });
+  if (!customModel && !opts.some((o) => o.id === simpleModel)) {
+    simpleModel = setupDefaultModel("antigravity", { cli: useAntigravityCli });
+    simpleEffort = setupDefaultEffort("antigravity");
+  }
+  guidedCommand = "";
+  guidedError = false;
+}
+
+function selectQuickModel(value: string) {
+  guidedCommand = "";
+  guidedError = false;
+  if (value === "__custom") {
+    customModel = true;
+    return;
+  }
+  customModel = false;
+  simpleModel = value;
+  const opt = modelOptions.find((o) => o.id === value);
+  if (opt && opt.efforts.length > 0 && !(opt.efforts as readonly string[]).includes(simpleEffort))
+    simpleEffort = opt.defaultEffort ?? setupDefaultEffort(simpleProvider);
+}
+
+function selectSwitchModel(kind: "gen" | "answer", value: string) {
+  switchSaved = null;
+  switchError = null;
+  if (kind === "gen") genSwitchModel = value;
+  else answerSwitchModel = value;
+  const entry = switchEntry(value);
+  const effort = kind === "gen" ? genSwitchEffort : answerSwitchEffort;
+  if (entry && entry.efforts.length > 0 && !(entry.efforts as readonly string[]).includes(effort)) {
+    const next = entry.defaultEffort ?? effort;
+    if (kind === "gen") genSwitchEffort = next;
+    else answerSwitchEffort = next;
+  }
+}
+
+async function saveSwitch(kind: "gen" | "answer") {
+  if (switchSaving) return;
+  const model = (kind === "gen" ? genSwitchModel : answerSwitchModel) as ModelId;
+  switchSaving = kind;
+  switchSaved = null;
+  switchError = null;
+  try {
+    const effort = kind === "gen" ? genSwitchEffort : answerSwitchEffort;
+    const entry = switchEntry(model);
+    const withReasoning = !entry || entry.efforts.length > 0;
+    const patch: DeepPartial<GlobalSettings> =
+      kind === "gen"
+        ? {
+            models: { genModule: model, genOverview: model, genLeaf: model },
+            ...(withReasoning ? { reasoning: { gen: effort, genOverview: effort } } : {}),
+          }
+        : {
+            models: { answer: model, patch: model, agent: model, judge: model, rewrite: model, escalate: model },
+            ...(withReasoning ? { reasoning: { answer: effort, patch: effort, agent: effort } } : {}),
+          };
+    // The server refusal carries `params.reason`; show its i18n reason and the re-setup command.
+    const err = await s.prefs.patchDetailed(patch);
+    if (err) {
+      const reason = typeof err.params?.reason === "string" ? err.params.reason : undefined;
+      const key = switchErrorKey(reason);
+      switchError = { kind, key, command: key === "settings.switchBadEffort" ? null : switchSetupHint(model) };
+      return;
+    }
+    await s.session.loadSettings();
+    switchSaved = kind;
+  } catch {
+    switchError = { kind, key: "settings.providerInvalid", command: switchSetupHint(model) };
+  } finally {
+    switchSaving = null;
+  }
+}
+
+function applyQuickModel(fullId: string) {
+  const opts = setupModelOptions(simpleProvider, { api: useApi, cli: guidedCli });
+  if (opts.some((o) => o.id === fullId)) {
+    customModel = false;
+    customText = "";
+    simpleModel = fullId;
+  } else if (opts.length > 0) {
+    customModel = true;
+    customText = fullId.replace(/^(codex|grok|antigravity|generic):/, "");
+    simpleModel = "";
+  } else {
+    customModel = false;
+    customText = "";
+    simpleModel = fullId.replace(/^generic:/, "");
+  }
 }
 
 async function signIn() {
@@ -236,15 +391,15 @@ function createSetup(e: SubmitEvent) {
         provider: simpleProvider,
         api: useApi,
         native: simpleProvider === "codex" && useCodexNative,
-        cli: simpleProvider === "grok" && useGrokCli,
+        cli: guidedCli,
         maxEstimatedUsd: codexMaxUsd,
-        model: simpleModel,
+        model: modelOptions.length > 0 ? modelSlug : effectiveModel,
         repo: setupRepo || s.workspace.status?.info.root,
         baseUrl: simpleBaseUrl,
         keyEnv: simpleKeyEnv,
         inputPrice: simpleInputPrice,
         outputPrice: simpleOutputPrice,
-        ...(setupEffort ? { effort: simpleEffort } : {}),
+        ...(setupEffort && effortChoices.length > 0 ? { effort: simpleEffort } : {}),
       },
       s.session.settings?.launcher,
     );
@@ -403,8 +558,11 @@ async function saveProvider(e: SubmitEvent) {
         {#each SETUP_PROVIDERS as name (name)}<option value={name}>{name === "openai" ? t("settings.openaiCompatible") : PROVIDER_NAMES[name]}</option>{/each}
       </select></label>
       {#if simpleProvider === "grok"}
-        <label class="row check"><input type="checkbox" bind:checked={useApi} onchange={() => { if (useApi) useGrokCli = false; simpleModel = syncGrokGuidedModel(simpleModel, { api: useApi, cli: useGrokCli }); }} /><span>{t("settings.useApi")}</span></label>
-        <label class="row check"><input type="checkbox" bind:checked={useGrokCli} onchange={() => { if (useGrokCli) useApi = false; simpleModel = syncGrokGuidedModel(simpleModel, { api: useApi, cli: useGrokCli }); }} /><span>{t("settings.useGrokCli")}</span></label>
+        <label class="row check"><input type="checkbox" bind:checked={useApi} onchange={() => { if (useApi) useGrokCli = false; afterGrokModeChange(); }} /><span>{t("settings.useApi")}</span></label>
+        <label class="row check"><input type="checkbox" bind:checked={useGrokCli} onchange={() => { if (useGrokCli) useApi = false; afterGrokModeChange(); }} /><span>{t("settings.useGrokCli")}</span></label>
+      {/if}
+      {#if simpleProvider === "antigravity"}
+        <label class="row check"><input type="checkbox" bind:checked={useAntigravityCli} onchange={() => afterAntigravityModeChange()} /><span>{t("settings.useAntigravityCli")}</span></label>
       {/if}
       {#if simpleProvider === "codex"}
         <label class="row check"><input type="checkbox" bind:checked={useCodexNative} /><span>{t("settings.codexNative")}</span></label>
@@ -433,7 +591,17 @@ async function saveProvider(e: SubmitEvent) {
         <p class="note">{t("settings.externalSetup")}</p>
         <label class="row"><span>{t("settings.setupRepo")}</span><input class="mono" bind:value={setupRepo} required={!s.workspace.status?.info.root} placeholder={s.workspace.status?.info.root ?? "/path/to/repository"} /></label>
       {:else}
-        <label class="row"><span>{t(["ollama", "lmstudio", "openai"].includes(simpleProvider) ? "settings.quickModel" : "settings.quickModelOptional")}</span><input class="mono" bind:value={simpleModel} required={["ollama", "lmstudio", "openai"].includes(simpleProvider)} placeholder={simpleProvider === "claude" ? "claude-sonnet-5-5" : simpleProvider === "muse" ? "muse-spark-1.3-contributor" : simpleProvider === "grok" ? (useGrokCli ? "grok-4.7-build-fast" : "grok-4.7") : "model-name"} /></label>
+        {#if modelOptions.length > 0}
+          <label class="row"><span>{t("settings.quickModelOptional")}</span><select value={customModel ? "__custom" : simpleModel} onchange={(e) => selectQuickModel(e.currentTarget.value)}>
+            {#each modelOptions as o (o.id)}<option value={o.id}>{o.displayName}</option>{/each}
+            <option value="__custom">{t("settings.quickModelCustom")}</option>
+          </select></label>
+          {#if customModel}
+            <label class="row"><span>{t("settings.quickModelCustom")}</span><input class="mono" bind:value={customText} placeholder="model-name" /></label>
+          {/if}
+        {:else}
+          <label class="row"><span>{t(["ollama", "lmstudio", "openai"].includes(simpleProvider) ? "settings.quickModel" : "settings.quickModelOptional")}</span><input class="mono" bind:value={simpleModel} required={["ollama", "lmstudio", "openai"].includes(simpleProvider)} placeholder="model-name" /></label>
+        {/if}
         {#if setupHttp}
           <label class="row"><span>{t("settings.apiUrl")}</span><input class="mono" type="url" required bind:value={simpleBaseUrl} /></label>
           {#if simpleProvider === "grok" || simpleProvider === "openai" || !setupLocalApi}
@@ -447,7 +615,11 @@ async function saveProvider(e: SubmitEvent) {
             <label class="row"><span>{t("settings.priceOutput")}</span><input type="number" min="0" step="any" required bind:value={simpleOutputPrice} /></label>
           {/if}
         {#if setupEffort}
-          <label class="row"><span>{t("settings.quickEffort")}</span><select bind:value={simpleEffort}>{#each EFFORTS as level (level)}<option value={level}>{level}</option>{/each}</select></label>
+          {#if effortChoices.length > 0}
+            <label class="row"><span>{t("settings.quickEffort")}</span><select bind:value={simpleEffort}>{#each effortChoices as level (level)}<option value={level}>{level}</option>{/each}</select></label>
+          {:else}
+            <p class="note">{t("settings.quickEffortUnsupported")}</p>
+          {/if}
           {#if simpleProvider === "grok" && useGrokCli && simpleEffort !== "low"}<p class="note">{t("settings.grokSlowWarn")}</p>{/if}
         {/if}
         {#if simpleProvider === "muse"}<p class="note">{t("settings.museSubscription")} <a href="https://dev.meta.ai/docs/muse-code/auth" target="_blank" rel="noopener noreferrer">{t("settings.officialLoginGuide")}</a></p><p class="note">{t("settings.museContributor")}</p>{/if}
@@ -468,6 +640,7 @@ async function saveProvider(e: SubmitEvent) {
       <label class="row"><span>{t("settings.provider")}</span><select bind:value={provider} disabled={!initialized}>
         {#if provider === "codex-cli"}<option value="codex-cli" disabled>codex-cli</option>{/if}
         {#if provider === "grok-cli"}<option value="grok-cli" disabled>grok-cli</option>{/if}
+        {#if provider === "antigravity-cli"}<option value="antigravity-cli" disabled>antigravity-cli</option>{/if}
         {#each ADVANCED_ENGINES as engine (engine)}<option value={engine}>{engine}</option>{/each}
       </select></label>
       <button type="button" class="btn btn-sec btn-s" disabled={!initialized} onclick={musePreset}>{t("settings.musePreset")}</button>
@@ -543,6 +716,49 @@ async function saveProvider(e: SubmitEvent) {
       <p class="note">{t("app.loading")}</p>
     {/each}
   </section>
+
+  <section>
+    <h2>{t("settings.modelSwitch")}</h2>
+    <p class="note">{t("settings.modelSwitchLead")}</p>
+    {#if switchOptions.length > 0}
+      <div class="group" role="group" aria-labelledby="gen-switch-t">
+        <h3 class="gname" id="gen-switch-t">{t("settings.genGroup")}</h3>
+        <label class="row"><span>{t("settings.quickModel")}</span><select value={genSwitchModel} onchange={(e) => selectSwitchModel("gen", e.currentTarget.value)}>
+          {#each switchOptions as o (o.id)}<option value={o.id}>{o.displayName}</option>{/each}
+        </select></label>
+        {#if genEffortChoices.length > 0}
+          <label class="row"><span>{t("settings.quickEffort")}</span><select bind:value={genSwitchEffort}>{#each genEffortChoices as level (level)}<option value={level}>{level}</option>{/each}</select></label>
+        {:else}
+          <p class="note">{t("settings.quickEffortUnsupported")}</p>
+        {/if}
+        {#if genSwitchModel.startsWith("grok:") && genSwitchEffort !== "low"}<p class="note">{t("settings.grokSlowWarn")}</p>{/if}
+        <button type="button" class="btn btn-pri btn-s" disabled={switchSaving !== null} onclick={() => saveSwitch("gen")}>{t(switchSaving === "gen" ? "settings.providerSaving" : "settings.modelSwitchSaveGen")}</button>
+        {#if switchSaved === "gen"}<p class="note" role="status">{t("settings.providerSaved")}</p>{/if}
+        {#if switchError?.kind === "gen"}
+          <p class="bad" role="alert">{t(switchError.key)}</p>
+          {#if switchError.command}<pre class="mono">{switchError.command}</pre>{/if}
+        {/if}
+      </div>
+      <div class="group" role="group" aria-labelledby="answer-switch-t">
+        <h3 class="gname" id="answer-switch-t">{t("settings.answerGroup")}</h3>
+        <label class="row"><span>{t("settings.quickModel")}</span><select value={answerSwitchModel} onchange={(e) => selectSwitchModel("answer", e.currentTarget.value)}>
+          {#each switchOptions as o (o.id)}<option value={o.id}>{o.displayName}</option>{/each}
+        </select></label>
+        {#if answerEffortChoices.length > 0}
+          <label class="row"><span>{t("settings.quickEffort")}</span><select bind:value={answerSwitchEffort}>{#each answerEffortChoices as level (level)}<option value={level}>{level}</option>{/each}</select></label>
+        {:else}
+          <p class="note">{t("settings.quickEffortUnsupported")}</p>
+        {/if}
+        {#if answerSwitchModel.startsWith("grok:") && answerSwitchEffort !== "low"}<p class="note">{t("settings.grokSlowWarn")}</p>{/if}
+        <button type="button" class="btn btn-pri btn-s" disabled={switchSaving !== null} onclick={() => saveSwitch("answer")}>{t(switchSaving === "answer" ? "settings.providerSaving" : "settings.modelSwitchSaveAnswer")}</button>
+        {#if switchSaved === "answer"}<p class="note" role="status">{t("settings.providerSaved")}</p>{/if}
+        {#if switchError?.kind === "answer"}
+          <p class="bad" role="alert">{t(switchError.key)}</p>
+          {#if switchError.command}<pre class="mono">{switchError.command}</pre>{/if}
+        {/if}
+      </div>
+    {/if}
+  </section>
 </main>
 
 <style>
@@ -562,6 +778,14 @@ async function saveProvider(e: SubmitEvent) {
     font-size: var(--fs-h3);
     color: var(--ink);
     margin: 28px 0 10px;
+  }
+  .gname {
+    font-size: var(--fs-ui-l);
+    color: var(--ink);
+    margin: 18px 0 4px;
+  }
+  .group {
+    margin-bottom: 12px;
   }
   .row {
     display: flex;

@@ -24,7 +24,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { synth } from "@mitori/agent/testing";
 import { API_PREFIX } from "@mitori/core";
-import { buildFixture } from "@mitori/testkit";
+import { browsersAllowed, buildFixture } from "@mitori/testkit";
 import { chromium, type Page } from "@playwright/test";
 import { FAKE_CLAUDE_CONFIG, fakeClaude } from "../fake-claude.ts";
 import { startInt } from "../harness.ts";
@@ -242,6 +242,11 @@ async function optimisticCardMs(page: Page): Promise<number | null> {
 if (ENGINE !== "fake" && !existsSync(BIN)) {
   console.error(`${BIN} missing`);
   process.exit(2);
+}
+// WP40g: never attempt the launch under MITORI_NO_BROWSERS=1 (the sandbox aborts GUI registration).
+if (!browsersAllowed()) {
+  console.error("[live] MITORI_NO_BROWSERS=1 — browser launch disabled, exiting 77 (skip)");
+  process.exit(77);
 }
 let browser: Awaited<ReturnType<typeof chromium.launch>>;
 try {

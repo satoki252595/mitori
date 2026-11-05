@@ -101,7 +101,7 @@ export interface RunCtx {
   packSnapshot?: Xxh3;
   /** Estimated run duration p50 (s): anthropic-api writes BP1/BP2 with the 1h TTL above `ttl1hAboveSec` (§8.3). */
   runSeconds?: number;
-  /** Provider-specific generation turn deadline (generic/grok-cli settings), still bounded by server schema. */
+  /** Provider-specific generation turn deadline (generic/grok-cli/antigravity-cli settings), still bounded by server schema. */
   turnMs?: number;
 }
 
@@ -207,9 +207,12 @@ export function buildCall(
         ? CLAUDE_MODE_DEFAULTS.generate.turnMs
         : run.engine.id === "grok-cli"
           ? grokTimeoutMs(task.estimate.seconds, run.turnMs ?? GROK_DEFAULT_TURN_MS)
-          : run.engine.id === "generic" && run.turnMs !== undefined
-            ? run.turnMs
-            : Math.max(120_000, 4 * task.estimate.seconds * 1000),
+          : // WP40 provisional: agy reuses the grok 3×-estimate shape until host measures it.
+            run.engine.id === "antigravity-cli"
+            ? grokTimeoutMs(task.estimate.seconds, run.turnMs ?? GROK_DEFAULT_TURN_MS)
+            : run.engine.id === "generic" && run.turnMs !== undefined
+              ? run.turnMs
+              : Math.max(120_000, 4 * task.estimate.seconds * 1000),
     attempt,
     ttl: cli ? p.cliCacheTtl.default : (run.runSeconds ?? task.estimate.seconds) > p.ttl1hAboveSec ? "1h" : "5m",
   };

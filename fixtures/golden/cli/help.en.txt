@@ -57,15 +57,16 @@ mitori config set <path> <value>
 ## setup
 mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> [options]
   Configure an existing provider after one terminal confirmation. No installs or model calls.
-  --model ID                     Required for local/custom APIs; Grok defaults to grok-4.7-build-fast, Muse to contributor
+  --model ID                     Required for local/custom APIs; Grok defaults to grok-4.7-build-fast, Muse to contributor, Antigravity CLI to gemini-3.8-flash
   --repo /absolute/repo          External Codex/Cursor/Antigravity/Grok session and MCP workspace
   --api                         Select metered Grok API instead of an existing external session
-  --cli [--model grok-4.7-build-fast]  Select the Grok Build CLI instead of an external session (one-shot text only)
+  --cli [--model grok-4.7-build-fast]  Select the Grok/Antigravity CLI instead of an external session (one-shot text only; Antigravity default gemini-3.8-flash)
   --native --max-estimated-usd N Run Codex directly with subscription auth (estimated, not hard spending cap)
-  --binary /absolute/path        Claude/Muse/Codex/Grok CLI native executable
+  --binary /absolute/path        Claude/Muse/Codex/Grok/Antigravity CLI native executable
   --base-url URL --key-env NAME  OpenAI-compatible URL and credential environment variable name
   --in-price N --out-price N     Custom remote model prices in USD per million tokens
-  --effort low|medium|high|xhigh|max  Muse/Claude/Grok CLI reasoning effort (Muse default max, Claude default high, Grok CLI default low; medium+ can exceed 10 min/task; HTTP does not send effort)
+  --effort low|medium|high|xhigh|max  Muse/Claude/Grok CLI/Antigravity CLI reasoning effort (Muse default max, Claude default high, Grok CLI and Antigravity CLI default low; Antigravity CLI takes low|medium|high only; Grok medium+ can exceed 10 min/task; HTTP does not send effort)
+  --list-models                  List the selectable models with usable efforts, defaults and prices (changes nothing)
   --print                        Preview settings/instructions without saving or connecting
   Examples: mitori setup grok --repo /absolute/repo (existing session) / mitori setup grok --api (XAI_API_KEY)
 

@@ -17,6 +17,7 @@ import { parseArgs } from "node:util";
 import {
   API_PREFIX,
   type DaemonStatus,
+  ENGINE_IDS,
   type EngineStatus,
   type FileEntry,
   type GenEstimate,
@@ -32,6 +33,7 @@ import {
   type WorkspaceSummary,
 } from "@mitori/core";
 import { startServerDaemon } from "../../apps/cli/src/daemon/server.ts";
+import { SUBSCRIPTION_ENGINES } from "../../packages/agent/src/scheduler/scheduler.ts";
 import { openSse } from "../../packages/server/src/http/test/sse-reader.ts";
 import { deepMerge } from "../../packages/server/src/settings/merge.ts";
 import { parseGlobalSettings } from "../../packages/server/src/settings/service.ts";
@@ -59,9 +61,10 @@ const { values: a } = parseArgs({
 
 if (!a.repo) throw new Error("--repo <dir> is required");
 const repo = resolve(a.repo);
-const engine = a.engine as "claude-cli" | "anthropic-api" | "codex-cli" | "grok-cli" | "generic";
-if (!["claude-cli", "anthropic-api", "codex-cli", "grok-cli", "generic"].includes(engine))
-  throw new Error("--engine must be claude-cli, anthropic-api, codex-cli, grok-cli or generic");
+// session never spawns: every other core engine id runs here (derived so a new engine needs no edit).
+const REAL_ENGINES = ENGINE_IDS.filter((e) => e !== "session");
+const engine = a.engine as (typeof REAL_ENGINES)[number];
+if (!(REAL_ENGINES as readonly string[]).includes(engine)) throw new Error(`--engine must be ${REAL_ENGINES.join(", ")}`);
 const live = a.run === true;
 const maxUsd = a["max-usd"] === undefined ? Number.NaN : Number(a["max-usd"]);
 if (live && (process.env.MITORI_LIVE !== "1" || !(maxUsd > 0))) {
@@ -138,12 +141,7 @@ for (let i = 0; i < 200 && !status; i++) {
 log(
   `engine ${engine}: installed=${status?.installed} auth=${status?.auth} billing=${status?.billing} plan=${status?.plan} version=${status?.version} pin=${status?.pin?.by ?? "-"} problems=${JSON.stringify(status?.problems ?? [])}`,
 );
-if (
-  live &&
-  (!status?.installed ||
-    ((engine === "claude-cli" || engine === "codex-cli" || engine === "grok-cli") && status.auth !== "subscription") ||
-    status.problems.length > 0)
-) {
+if (live && (!status?.installed || (SUBSCRIPTION_ENGINES.has(engine) && status.auth !== "subscription") || status.problems.length > 0)) {
   log(`${engine} is not ready: refusing to run`);
   await stop(3);
 }
@@ -198,7 +196,8 @@ const report: Record<string, unknown> = {
   engine: { id: engine, version: status?.version, plan: status?.plan, billing: status?.billing, pin: status?.pin?.by ?? null },
   models: prev.models,
   reasoning: prev.reasoning,
-  pricing: engine === "generic" || engine === "codex-cli" || engine === "grok-cli" ? prev.engines[engine].pricing : undefined,
+  // codex/grok/antigravity/generic carry explicit prices in config; claude/anthropic use the built-in table.
+  pricing: "pricing" in prev.engines[engine] ? prev.engines[engine].pricing : undefined,
   otherClaudeProcesses: otherClaude,
   openMs,
   estimate: est,

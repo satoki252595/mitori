@@ -1,5 +1,5 @@
 /** Generation-engine usability for S1 (UXP-15, AC-U-EN). Pure. */
-import type { BinaryPin, DataPolicyAck, EngineId, EngineStatus, ReasoningEffort } from "@mitori/core";
+import type { BinaryPin, DataPolicyAck, EngineId, EngineStatus, GlobalSettings, ReasoningEffort } from "@mitori/core";
 import { type LauncherCommand, providerSetupCommand } from "../settings/provider.ts";
 
 export type EngineProblem = "notInstalled" | "notLoggedIn" | "capabilityLost";
@@ -60,6 +60,33 @@ export interface SetupContext {
 }
 
 /**
+ * Previous selections the re-setup command keeps (from loaded settings); absent when unknown.
+ * Shared by the map engine card and the settings page so a new engine needs one edit (WP40c).
+ */
+export function setupContextFor(engine: EngineId, cfg: GlobalSettings | undefined): SetupContext {
+  if (engine === "generic") {
+    const model = cfg?.models.genModule.startsWith("generic:") ? cfg.models.genModule.slice("generic:".length) : undefined;
+    return { ...(model ? { model } : {}), ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}) };
+  }
+  if (engine === "codex-cli") {
+    const codex = cfg?.engines["codex-cli"];
+    return {
+      ...(codex?.model ? { model: codex.model } : {}),
+      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
+      ...(codex?.maxEstimatedSpendUsd ? { codexMaxUsd: codex.maxEstimatedSpendUsd } : {}),
+    };
+  }
+  if (engine === "grok-cli" || engine === "antigravity-cli") {
+    const sub = cfg?.engines[engine];
+    return {
+      ...(sub?.model ? { model: sub.model } : {}),
+      ...(cfg?.reasoning.gen ? { effort: cfg.reasoning.gen } : {}),
+    };
+  }
+  return {};
+}
+
+/**
  * The re-setup command for an engine whose binary changed without being followed (spec §B), or `null`
  * when this engine needs no command. Previous selections (Muse `--effort`/`--model`, Codex model/budget)
  * carry over; a command that cannot be built (e.g. Codex without a budget) is `null` and the card falls
@@ -87,6 +114,17 @@ export function setupCommandFor(engine: EngineId, ctx: SetupContext, launcher?: 
       return providerSetupCommand(
         {
           provider: "grok",
+          cli: true,
+          ...(ctx.model ? { model: ctx.model } : {}),
+          ...(ctx.effort ? { effort: ctx.effort } : {}),
+        },
+        launcher,
+      );
+    }
+    if (engine === "antigravity-cli") {
+      return providerSetupCommand(
+        {
+          provider: "antigravity",
           cli: true,
           ...(ctx.model ? { model: ctx.model } : {}),
           ...(ctx.effort ? { effort: ctx.effort } : {}),

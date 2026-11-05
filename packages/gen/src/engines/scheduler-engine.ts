@@ -15,6 +15,7 @@ const CAPS: Readonly<Record<Exclude<GenEngineId, "session">, GenEngineCaps>> = {
   generic: { streaming: true, batch: false, countTokens: false, structuredOutputs: false, serverFallback: false, explicitCache: false },
   "codex-cli": { streaming: true, batch: false, countTokens: false, structuredOutputs: true, serverFallback: false, explicitCache: false },
   "grok-cli": { streaming: true, batch: false, countTokens: false, structuredOutputs: true, serverFallback: false, explicitCache: false },
+  "antigravity-cli": { streaming: true, batch: false, countTokens: false, structuredOutputs: true, serverFallback: false, explicitCache: false },
 };
 
 /** Wrap one scheduler turn as a GenCallRun. */

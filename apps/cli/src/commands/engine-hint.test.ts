@@ -50,4 +50,14 @@ describe("WP28 engineUpdateHint: one re-setup line (spec §B)", () => {
     expect(engineUpdateHint(changed, {}, "en")).toContain("`mitori setup grok --cli`");
     expect(engineUpdateHint({ engine: "grok-cli", problems: [{ code: "E_AGENT_AUTH", message: "x" }] }, {}, "ja")).toBeNull();
   });
+
+  test("WP40-5 Antigravity changed ⇒ setup antigravity --cli keeps the model; other problems ⇒ null", () => {
+    const changed = {
+      engine: "antigravity-cli" as const,
+      problems: [{ code: "E_AGENT_CAPABILITY", message: "Antigravity binary changed; repin after human review" }],
+    };
+    expect(engineUpdateHint(changed, { antigravityModel: "gemini-4-argon" }, "ja")).toContain("`mitori setup antigravity --cli --model gemini-4-argon`");
+    expect(engineUpdateHint(changed, {}, "en")).toContain("`mitori setup antigravity --cli`");
+    expect(engineUpdateHint({ engine: "antigravity-cli", problems: [{ code: "E_AGENT_AUTH", message: "x" }] }, {}, "ja")).toBeNull();
+  });
 });

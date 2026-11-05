@@ -8,7 +8,16 @@
  * `localStorage` until the server took it, and a new page sends it before it lets the server's copy win.
  */
 import type { ApiClient } from "@mitori/client";
-import { type DeepPartial, type Effort, type GlobalSettings, MitoriError, type ReaderLevel, type SettingsView, type UiLang } from "@mitori/core";
+import {
+  type DeepPartial,
+  type Effort,
+  type GlobalSettings,
+  MitoriError,
+  type MitoriErrorData,
+  type ReaderLevel,
+  type SettingsView,
+  type UiLang,
+} from "@mitori/core";
 import type { UiCookie } from "../contract.ts";
 import { cookieValue, EFFORT_CODES, EFFORT_OF_CODE, LEVEL_CODES, LEVEL_OF_CODE, parseUiCookieFields, uiCookieString } from "../shell/cookie.ts";
 import { getJson, readCookies, removeItem, setJson, writeCookie } from "../shell/storage.ts";
@@ -29,7 +38,7 @@ export class PrefsState {
   editor = $state<"vscode" | "cursor" | "none">("none");
   #pending: DeepPartial<GlobalSettings> = {};
   #timer: ReturnType<typeof setTimeout> | null = null;
-  #writes: Promise<boolean> = Promise.resolve(true);
+  #writes: Promise<unknown> = Promise.resolve();
   #version = 0;
   private readonly api: ApiClient;
 
@@ -145,16 +154,29 @@ export class PrefsState {
 
   /** Immediate settings patch (privacy acks): no debounce. */
   patchNow(patch: DeepPartial<GlobalSettings>): Promise<boolean> {
-    // Serialize every write, including immediate privacy acks, so an older retry cannot overwrite a newer edit.
-    this.#writes = this.#writes.then(() => this.#sendPatch(patch));
-    return this.#writes;
+    return this.#enqueue(patch).then((err) => err === null);
   }
 
-  async #sendPatch(patch: DeepPartial<GlobalSettings>): Promise<boolean> {
+  /**
+   * Immediate patch returning the server error (null on success): the settings-page model
+   * switch maps the refusal reason to i18n. Serialized on the same queue as {@link patchNow}.
+   */
+  patchDetailed(patch: DeepPartial<GlobalSettings>): Promise<MitoriErrorData | null> {
+    return this.#enqueue(patch);
+  }
+
+  /** Serialize every write, including immediate privacy acks, so an older retry cannot overwrite a newer edit. */
+  #enqueue(patch: DeepPartial<GlobalSettings>): Promise<MitoriErrorData | null> {
+    const next = this.#writes.then(() => this.#sendPatch(patch));
+    this.#writes = next;
+    return next;
+  }
+
+  async #sendPatch(patch: DeepPartial<GlobalSettings>): Promise<MitoriErrorData | null> {
     try {
       const v = await this.api.call("PATCH /settings", { params: {}, body: { version: this.#version, patch } });
       this.#version = v.version;
-      return true;
+      return null;
     } catch (err) {
       if (MitoriError.is(err, "E_CONFLICT")) {
         // re-read the version and retry once with our own change
@@ -163,12 +185,12 @@ export class PrefsState {
           this.#version = cur.version;
           const v = await this.api.call("PATCH /settings", { params: {}, body: { version: this.#version, patch } });
           this.#version = v.version;
-          return true;
-        } catch {
-          return false;
+          return null;
+        } catch (retryErr) {
+          return MitoriError.from(retryErr).toData();
         }
       }
-      return false;
+      return MitoriError.from(err).toData();
     }
   }
 

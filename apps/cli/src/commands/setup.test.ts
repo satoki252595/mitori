@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { DeepPartial, GenEstimate, GlobalSettings } from "@mitori/core";
+import { MODEL_CATALOG } from "@mitori/core";
 import { createHasher } from "@mitori/platform";
 import { estimateText } from "./gen.ts";
 import { runCommand } from "./index.ts";
@@ -147,6 +148,10 @@ test("WP36h-5 Grok CLI setup warns on medium+ effort but still previews", async 
     expect(await runCommand("setup", warned)).toBe(0);
     expect(warned.stderr).toContain("10 分");
     expect(JSON.parse(warned.stdout)).toMatchObject({ models: { answer: "grok:grok-4.7-build-fast" } });
+    // WP39-5: xhigh also warns (it is within the grok-cli effort range)
+    const xhigh = testIo({ argv: ["grok", "--cli", "--binary", binary, "--effort", "xhigh", "--print"], home, cwd: repo });
+    expect(await runCommand("setup", xhigh)).toBe(0);
+    expect(xhigh.stderr).toContain("10 分");
     const quiet = testIo({ argv: ["grok", "--cli", "--binary", binary, "--print"], home, cwd: repo });
     expect(await runCommand("setup", quiet)).toBe(0);
     expect(quiet.stderr).not.toContain("10 分");
@@ -369,6 +374,275 @@ test("CR setup-save-1: a failed save says what is stored and the same command co
   const retry = testIo({ argv, home: d.home, cwd: d.repo, tty: true, answer: true });
   expect(await runCommand("setup", retry)).toBe(0);
   expect(d.calls("PATCH /settings")).toHaveLength(2);
+});
+
+test("WP39-2 listed model with an unsupported effort is a usage error naming the usable efforts", () => {
+  expect(() => setupPatch({ provider: "claude", model: "claude-sonnet-5-5", effort: "low" })).not.toThrow();
+  expect(() => setupPatch({ provider: "claude", model: "claude-haiku-4-5", effort: "low" })).toThrow("--effort");
+  expect(() => setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 1, model: "gpt-5.6-terra", effort: "max" })).not.toThrow();
+  expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-4.7-build-fast", effort: "max" })).toThrow("low|medium|high|xhigh");
+  const grok45 = { inPerMTok: 1, outPerMTok: 2, cacheReadPerMTok: 1 } as const;
+  expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-4.5", effort: "xhigh", pricing: grok45 })).toThrow("low|medium|high");
+  expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-4.5", effort: "high", pricing: grok45 })).not.toThrow();
+  // price-unknown models still need explicit prices (unchanged)
+  expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-4.5", effort: "high" })).toThrow("--in-price");
+  expect(() => setupPatch({ provider: "muse", binary: "/native/muse-bin-v1", model: "muse-spark-1.3-contributor", effort: "max" })).not.toThrow();
+  // unlisted models keep the old behavior (explicit prices decide)
+  expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-9", effort: "xhigh" })).toThrow("--in-price");
+  expect(
+    setupPatch({ provider: "grok", cli: true, model: "grok-9", effort: "xhigh", pricing: { inPerMTok: 1, outPerMTok: 2, cacheReadPerMTok: 1 } }).models?.answer,
+  ).toBe("grok:grok-9");
+});
+
+test("WP39-2 omitted --effort never fails the catalog check (stored defaults are kept)", () => {
+  expect(setupPatch({ provider: "claude", model: "claude-haiku-4-5" }).reasoning?.answer).toBe("high");
+  expect(setupPatch({ provider: "grok", cli: true, model: "grok-4.5", pricing: { inPerMTok: 1, outPerMTok: 2, cacheReadPerMTok: 1 } }).reasoning?.answer).toBe(
+    "low",
+  );
+});
+
+test("WP39-2 --list-models prints the provider table without a TTY and changes nothing", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-list-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    const list = async (argv: string[], env?: Record<string, string | undefined>) => {
+      const io = testIo({ argv, home, cwd: repo, tty: false, ...(env ? { env } : {}) });
+      expect(await runCommand("setup", io)).toBe(0);
+      return io.stdout;
+    };
+    expect(await list(["claude", "--list-models"])).toContain("claude-sonnet-5-5");
+    expect(await list(["claude", "--list-models"])).toContain("low|medium|high|xhigh|max");
+    expect(await list(["claude", "--list-models"])).toContain("claude-haiku-4-5");
+    const grok = await list(["grok", "--cli", "--list-models"]);
+    expect(grok).toContain("grok-4.7-build-fast");
+    expect(grok).not.toContain("max");
+    expect(await list(["grok", "--api", "--list-models"])).toContain("grok-4.7");
+    const codex = await list(["codex", "--list-models"]);
+    expect(codex).toContain("gpt-6.1-sol");
+    expect(codex).toContain("gpt-6-luna");
+    expect(await list(["muse", "--list-models"])).toContain("muse-spark-1.3-contributor");
+    // providers without a fixed list explain instead of failing
+    expect(await list(["ollama", "--list-models"])).not.toContain("low|medium");
+    expect(daemon?.seen ?? []).toHaveLength(0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP39-2 --list-models golden (ja)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-golden-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    const io = testIo({ argv: ["codex", "--list-models"], home, cwd: repo, tty: false, env: { MITORI_LANG: "ja" } });
+    expect(await runCommand("setup", io)).toBe(0);
+    expect(io.stdout).toBe(
+      [
+        "Codexで直接実行するモデルの一覧（既定: codex:gpt-6.1-sol / high）",
+        "モデル | 使えるeffort | 価格USD/百万token（入力/出力/キャッシュ読み）",
+        "codex:gpt-6.1-sol | low|medium|high|xhigh|max | 2/10/0.1",
+        "codex:gpt-5.6-terra | low|medium|high|xhigh|max | 2/12/0.2",
+        "codex:gpt-5.6-luna | low|medium|high|xhigh|max | 0.2/1.2/0.02",
+        "codex:gpt-6-luna | low|medium|high|xhigh|max | 価格非公開",
+        "",
+      ].join("\n"),
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP39b-2 every catalog entry follows its price: priced needs no --in-price, null needs it (web reads the same list)", () => {
+  for (const [view, catalog] of Object.entries(MODEL_CATALOG) as [keyof typeof MODEL_CATALOG, (typeof MODEL_CATALOG)[keyof typeof MODEL_CATALOG]][])
+    for (const m of catalog.models) {
+      const slug = m.id.split(":").at(-1) as string;
+      const priced = m.pricing !== null;
+      const run = (): unknown => {
+        if (view === "claude") return setupPatch({ provider: "claude", model: slug });
+        if (view === "codex") return setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 1, model: slug });
+        if (view === "grok-cli") return setupPatch({ provider: "grok", cli: true, model: slug });
+        if (view === "grok-api") return setupPatch({ provider: "grok", api: true, model: slug });
+        if (view === "antigravity") return setupPatch({ provider: "antigravity", cli: true, model: slug });
+        return setupPatch({ provider: "muse", binary: "/native/muse-bin-v1", model: slug });
+      };
+      if (priced) expect(run()).toBeDefined();
+      else expect(run).toThrow("--in-price");
+    }
+  // custom slugs stay price-unknown on every catalog engine
+  expect(() => setupPatch({ provider: "codex", native: true, maxEstimatedUsd: 1, model: "custom-xyz" })).toThrow("--in-price");
+  expect(() => setupPatch({ provider: "grok", cli: true, model: "grok-9" })).toThrow("--in-price");
+});
+
+test("WP40-11 Antigravity CLI setup defaults to gemini-3.8-flash/low with Flash prices", () => {
+  const patch = setupPatch({ provider: "antigravity", cli: true });
+  expect(patch).toMatchObject({
+    defaultEngine: "antigravity-cli",
+    defaultGenEngine: "antigravity-cli",
+    reasoning: { answer: "low", patch: "low", agent: "low", gen: "low", genOverview: "low" },
+    models: { answer: "antigravity:gemini-3.8-flash" },
+    engines: {
+      "antigravity-cli": {
+        enabled: true,
+        binary: "agy",
+        model: "gemini-3.8-flash",
+        pricing: { inPerMTok: 1.5, outPerMTok: 7.5, cacheReadPerMTok: 0.15 },
+        pricingByModel: { "gemini-4-argon": { inPerMTok: 4, outPerMTok: 20, cacheReadPerMTok: 0.2 } },
+        turnMs: 1_200_000,
+      },
+    },
+  });
+  const argon = setupPatch({ provider: "antigravity", cli: true, model: "gemini-4-argon" });
+  expect(argon.models?.answer).toBe("antigravity:gemini-4-argon");
+  expect(argon.engines?.["antigravity-cli"]?.pricing).toEqual({ inPerMTok: 4, outPerMTok: 20, cacheReadPerMTok: 0.2 });
+  expect(argon.engines?.["antigravity-cli"]?.pricingByModel?.["gemini-3.8-flash"]).toEqual({ inPerMTok: 1.5, outPerMTok: 7.5, cacheReadPerMTok: 0.15 });
+  expect(() => setupPatch({ provider: "antigravity", cli: true, model: "custom-xyz" })).toThrow("--in-price");
+  const custom = setupPatch({
+    provider: "antigravity",
+    cli: true,
+    model: "custom-xyz",
+    pricing: { inPerMTok: 1, outPerMTok: 2, cacheReadPerMTok: 0.1 },
+  });
+  expect(custom.models?.answer).toBe("antigravity:custom-xyz");
+  // session setup is unchanged (MCP integration guidance, no engine change)
+  expect(setupPatch({ provider: "antigravity" })).toMatchObject({ defaultGenEngine: "session" });
+});
+
+test("WP40-11 Antigravity CLI setup only takes low/medium/high efforts", () => {
+  expect(() => setupPatch({ provider: "antigravity", cli: true, model: "gemini-3.8-flash", effort: "medium" })).not.toThrow();
+  expect(() => setupPatch({ provider: "antigravity", cli: true, model: "gemini-3.8-flash", effort: "xhigh" })).toThrow("low|medium|high");
+  expect(() => setupPatch({ provider: "antigravity", cli: true, model: "gemini-4-argon", effort: "max" })).toThrow("low|medium|high");
+});
+
+test("WP40-11 Antigravity --list-models prints the CLI table; the session keeps its guidance", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-agy-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    const list = async (argv: string[]) => {
+      const io = testIo({ argv, home, cwd: repo, tty: false });
+      expect(await runCommand("setup", io)).toBe(0);
+      return io.stdout;
+    };
+    const table = await list(["antigravity", "--cli", "--list-models"]);
+    expect(table).toContain("antigravity:gemini-3.8-flash | low|medium|high | 1.5/7.5/0.15");
+    expect(table).toContain("antigravity:gemini-4-argon | low|medium|high | 4/20/0.2");
+    const session = await list(["antigravity", "--list-models"]);
+    expect(session).toContain("antigravity:gemini-3.8-flash | low|medium|high | 1.5/7.5/0.15");
+    expect(session).toContain("antigravity:gemini-4-argon | low|medium|high | 4/20/0.2");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP40b-3 Antigravity --list-models without --cli lists the same CLI models", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-agy-list-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    const io = testIo({ argv: ["antigravity", "--list-models"], home, cwd: repo, tty: false });
+    expect(await runCommand("setup", io)).toBe(0);
+    expect(io.stdout).toContain("antigravity:gemini-3.8-flash | low|medium|high | 1.5/7.5/0.15");
+    expect(io.stdout).toContain("antigravity:gemini-4-argon | low|medium|high | 4/20/0.2");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP40-11 Antigravity CLI setup previews the engine JSON without probing or connecting", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-agy-preview-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    const binary = join(dir, "agy");
+    writeFileSync(binary, `#!${process.execPath}\nconsole.log("1.4.12");\n`, { mode: 0o700 });
+    const preview = testIo({ argv: ["antigravity", "--cli", "--binary", binary, "--print"], home, cwd: repo });
+    expect(await runCommand("setup", preview)).toBe(0);
+    expect(JSON.parse(preview.stdout)).toMatchObject({
+      defaultEngine: "antigravity-cli",
+      engines: { "antigravity-cli": { enabled: true, model: "gemini-3.8-flash" } },
+      models: { answer: "antigravity:gemini-3.8-flash" },
+    });
+    expect(JSON.parse(preview.stdout)).not.toHaveProperty("pins");
+    // --binary / --effort / --model flow into the preview; no daemon is touched
+    const custom = testIo({ argv: ["antigravity", "--cli", "--binary", binary, "--model", "gemini-4-argon", "--effort", "high", "--print"], home, cwd: repo });
+    expect(await runCommand("setup", custom)).toBe(0);
+    expect(JSON.parse(custom.stdout)).toMatchObject({
+      engines: { "antigravity-cli": { model: "gemini-4-argon" } },
+      reasoning: { answer: "high" },
+    });
+    // the session setup stays a session (no engine change, no binary needed)
+    const session = testIo({ argv: ["antigravity", "--repo", repo, "--print"], home, cwd: repo });
+    expect(await runCommand("setup", session)).toBe(0);
+    expect(session.stdout).toContain('"defaultGenEngine": "session"');
+    expect(session.stdout).not.toContain("antigravity-cli");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP40b-2 Antigravity CLI setup resolves agy on PATH without --binary", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-agy-path-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    const binDir = join(dir, "bin");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(join(binDir, "agy"), `#!${process.execPath}\nconsole.log("1.4.12");\n`, { mode: 0o700 });
+    const preview = testIo({ argv: ["antigravity", "--cli", "--print"], home, cwd: repo, env: { PATH: binDir } });
+    expect(await runCommand("setup", preview)).toBe(0);
+    expect(JSON.parse(preview.stdout).engines?.["antigravity-cli"]?.binary).toBe(realpathSync(join(binDir, "agy")));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP40b-2 Antigravity CLI setup without agy on PATH names agy in the error", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-agy-missing-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    // a PATH with no agy: the error must name the real command (`agy`), not the provider
+    const io = testIo({ argv: ["antigravity", "--cli", "--print"], home, cwd: repo, env: { PATH: dir } });
+    expect(await runCommand("setup", io)).toBe(2);
+    expect(io.stderr).toContain("agy is not on PATH");
+    expect(io.stderr).not.toContain("antigravity is not on PATH");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP40-11 Antigravity CLI setup pins agy and saves the engine through exec", async () => {
+  const d = await startFakeDaemon();
+  daemon = d;
+  const store: { settings: Record<string, unknown>; version: number } = { settings: {}, version: 1 };
+  d.route("GET /settings", () => ({ settings: store.settings, path: `${d.home}/config.json`, version: store.version }));
+  const saved: { path: string; value: unknown }[] = [];
+  d.route("PATCH /settings/exec", (c) => {
+    const body = c.body as { path: string; value: unknown };
+    saved.push(body);
+    store.version += 1;
+    return { settings: store.settings, path: `${d.home}/config.json`, version: store.version };
+  });
+  d.route("PATCH /settings", () => ({ settings: store.settings, path: `${d.home}/config.json`, version: store.version + 1 }));
+  const binary = join(d.dir, "agy");
+  writeFileSync(binary, `#!${process.execPath}\nconsole.log("1.4.12");\n`, { mode: 0o700 });
+  expect(await runCommand("setup", testIo({ argv: ["antigravity", "--cli", "--binary", binary], home: d.home, cwd: d.repo, tty: true, answer: true }))).toBe(0);
+  expect(saved.map((s) => s.path).sort()).toEqual(["engines.antigravity-cli", "pins.agy"]);
 });
 
 test("external generation prep binds --repo when invoked from the mitori checkout", async () => {

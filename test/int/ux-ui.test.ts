@@ -3,36 +3,43 @@
 // in-prose suggestion, the decluttered Review header, a Fix with nothing to point at (the hint, no 412), co-editing (a
 // human writes a cited sentence, the Fix on it has its 対象コード by itself, the sentence's rewrite accepted in prose),
 // and a promoted answer's INSERT proposal rejected. `test/int/shots/ux.ts` holds the checks (exit 77 = no Chrome here
-// → the test passes without running); it also fails on any page error (an effect loop) and any 412 / 5xx.
+// → the test passes without running; `MITORI_NO_BROWSERS=1` skips before spawning); it also fails on any page error
+// (an effect loop) and any 412 / 5xx.
 import { expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { browsersAllowed } from "@mitori/testkit";
 
 const ROOT = resolve(import.meta.dir, "../..");
 
-test("UX-UI: Fix without @, suggestions in prose, Review header, hint, co-editing, insert proposals — real web UI", async () => {
-  const gen = Bun.spawnSync([process.execPath, "scripts/gen-assets.ts"], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
-  expect(gen.exitCode, gen.stderr.toString()).toBe(0);
-  const out = mkdtempSync(join(tmpdir(), "mitori-ux-ui-"));
-  try {
-    const proc = Bun.spawn([process.execPath, "test/int/shots/ux.ts", "--out", out], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
-    const [stdout, stderr, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
-    if (code === 77) {
-      console.log("UX-UI: Google Chrome is not installed — skipped");
-      return;
+const skipBrowsers = test.skipIf(!browsersAllowed());
+skipBrowsers(
+  "UX-UI: Fix without @, suggestions in prose, Review header, hint, co-editing, insert proposals — real web UI (skip with MITORI_NO_BROWSERS=1)",
+  async () => {
+    const gen = Bun.spawnSync([process.execPath, "scripts/gen-assets.ts"], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
+    expect(gen.exitCode, gen.stderr.toString()).toBe(0);
+    const out = mkdtempSync(join(tmpdir(), "mitori-ux-ui-"));
+    try {
+      const proc = Bun.spawn([process.execPath, "test/int/shots/ux.ts", "--out", out], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
+      const [stdout, stderr, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
+      if (code === 77) {
+        console.log("UX-UI: Google Chrome is not installed — skipped");
+        return;
+      }
+      expect(
+        code,
+        `${stderr
+          .split("\n")
+          .filter((l) => !l.includes("] shot "))
+          .join("\n")}\n${stdout.slice(-1500)}`,
+      ).toBe(0);
+      const result = JSON.parse(stdout) as { failure?: string; consoleErrors: string[]; badResponses: string[] };
+      expect(result.failure).toBeUndefined();
+      expect(result.consoleErrors).toEqual([]);
+    } finally {
+      rmSync(out, { recursive: true, force: true });
     }
-    expect(
-      code,
-      `${stderr
-        .split("\n")
-        .filter((l) => !l.includes("] shot "))
-        .join("\n")}\n${stdout.slice(-1500)}`,
-    ).toBe(0);
-    const result = JSON.parse(stdout) as { failure?: string; consoleErrors: string[]; badResponses: string[] };
-    expect(result.failure).toBeUndefined();
-    expect(result.consoleErrors).toEqual([]);
-  } finally {
-    rmSync(out, { recursive: true, force: true });
-  }
-}, 240_000);
+  },
+  240_000,
+);

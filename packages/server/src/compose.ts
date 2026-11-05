@@ -299,7 +299,16 @@ export async function createServer(deps: ServerDeps): Promise<ServerHandle> {
     // CR-PENDING(WP-INT): cr-requests/WP-05.md #2 — SafeWriter / FsReader for system-prompt files and the sandbox.
     ...({ safeWrite: deps.safeWrite, fs: deps.fs } as object),
     pin: async (engine, pin) => {
-      const key = engine === "claude-cli" ? "pins.claude" : engine === "codex-cli" ? "pins.codex" : engine === "grok-cli" ? "pins.grok" : null;
+      const key =
+        engine === "claude-cli"
+          ? "pins.claude"
+          : engine === "codex-cli"
+            ? "pins.codex"
+            : engine === "grok-cli"
+              ? "pins.grok"
+              : engine === "antigravity-cli"
+                ? "pins.agy"
+                : null;
       if (!key) return;
       await svc.settings.patchExec({ path: key, value: pin, confirm: true });
     },

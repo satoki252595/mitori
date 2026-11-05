@@ -7,6 +7,7 @@
  */
 import type { UsageLedger } from "@mitori/agent";
 import {
+  ANTIGRAVITY_FIXED_INPUT_TOKENS,
   CALIBRATION,
   CHARS_PER_TOKEN,
   type ClaudeModelId,
@@ -166,12 +167,15 @@ export function createEstimator(
     // grok-cli reports ≈ 4k fixed input tokens per call (661 uncached + 3,200 cache read, WP36e);
     // priced at the fallback input rate (grok models have no PRICING entry, same basis as this row).
     const grokIn = engine === "grok-cli" ? GROK_FIXED_INPUT_TOKENS : 0;
+    // antigravity-cli adds ≈ 2.2k fixed input tokens per call (isolated HOME + tools-less agent, WP40).
+    const agyIn = engine === "antigravity-cli" ? ANTIGRAVITY_FIXED_INPUT_TOKENS : 0;
     const usd =
       (w * p * pw +
         (1 - w) * p * pr.cacheReadPerMTok +
         tau * tail * pw +
         (1 - tau) * tail * pr.inPerMTok +
         grokIn * pr.inPerMTok +
+        agyIn * pr.inPerMTok +
         (o + th + tb) * pr.outPerMTok) /
       1e6;
     const sigma = engine === "session" ? 0 : startupOf(engine);
@@ -182,7 +186,7 @@ export function createEstimator(
       thinking: th + tb,
       cacheWrite: cold ? 0 : Math.round(w * p + tau * tail),
       cacheRead: cold ? 0 : Math.round((1 - w) * p),
-      uncached: Math.round((cold ? p + tail : (1 - tau) * tail) + grokIn),
+      uncached: Math.round((cold ? p + tail : (1 - tau) * tail) + grokIn + agyIn),
       apiUsd: round6(usd),
       seconds: Math.round((sigma + ttftOf(t.model, t.effort, engine) + (o + th) / speedOf(t.model, t.effort, engine)) * 10) / 10,
     };
