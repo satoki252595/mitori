@@ -66,11 +66,11 @@ test("@wp10a Muse setup keeps execution registration on the CLI and saves only m
   await page.getByText("詳細設定（独自CLI・API）", { exact: true }).click();
   await page.getByRole("button", { name: "Muse Spark 1.3 Contributor / maxを入力" }).click();
   await page.getByLabel("実行ファイルと引数（JSON配列）").fill(JSON.stringify(patch.engines?.generic?.argv));
-  await page.getByRole("button", { name: "エンジン設定を保存" }).click();
+  await page.getByRole("button", { name: "エンジン設定を保存", exact: true }).click();
   await expect(page.locator("details pre")).toContainText("bun run start -- config set engines.generic");
   expect((await mockLog()).filter((r) => r.method === "PATCH")).toHaveLength(0);
   Object.assign(view.settings.engines.generic, patch.engines?.generic);
-  await page.getByRole("button", { name: "エンジン設定を保存" }).click();
+  await page.getByRole("button", { name: "エンジン設定を保存", exact: true }).click();
   await expect.poll(async () => (await mockLog()).filter((r) => r.method === "PATCH").length).toBe(1);
   const saved = (await mockLog()).find((r) => r.method === "PATCH")?.body as { patch: Record<string, unknown> };
   expect(saved.patch.engines).toBeUndefined();
@@ -109,7 +109,7 @@ test("@wp10a Codex guided setup defaults to bounded native execution and retains
   await page.getByRole("combobox", { name: "使うAI", exact: true }).selectOption("codex");
   const native = page.getByLabel("mitoriの画面から直接実行する");
   await expect(native).toBeChecked();
-  await expect(page.getByLabel("モデル名（任意）", { exact: true })).toHaveValue("gpt-6.1-sol");
+  await expect(page.getByRole("combobox", { name: "モデル名（任意）", exact: true })).toHaveValue("codex:gpt-6.1-sol");
   await expect(page.getByLabel("1ターンのAPI換算推計上限（USD）")).toHaveValue("1");
   await page.getByRole("button", { name: "接続コマンドを作る" }).click();
   await expect(page.locator("form pre").first()).toContainText("setup codex --native --max-estimated-usd '1' --model 'gpt-6.1-sol'");
@@ -130,6 +130,68 @@ test("@wp10a Codex guided setup defaults to bounded native execution and retains
   await expect(page.getByText("Codexのモデルと実行設定は、上の「使うAI」でCodexを選び、接続コマンドから設定してください。", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "エンジン設定を保存", exact: true })).toBeDisabled();
   expect((await mockLog()).filter((r) => r.method === "PATCH")).toHaveLength(0);
+});
+
+test("@wp39c guided model select narrows the effort choices", async ({ page }) => {
+  await configure({});
+  await page.goto(`/w/${WS}/settings`);
+  await waitMark(page, "mitori:section:rendered");
+  const guided = page.locator("form").first();
+  await guided.getByRole("combobox", { name: "使うAI", exact: true }).selectOption("claude");
+  const model = guided.getByRole("combobox", { name: "モデル名（任意）", exact: true });
+  await expect(model).toHaveValue("claude-sonnet-5-5");
+  await model.selectOption("claude-haiku-4-5");
+  await expect(guided.getByText("このモデルはeffortを受け付けない", { exact: true })).toBeVisible();
+  await expect(guided.getByRole("combobox", { name: "思考の強さ", exact: true })).toHaveCount(0);
+  await model.selectOption("claude-sonnet-5-5");
+  await expect(guided.getByRole("combobox", { name: "思考の強さ", exact: true })).toBeVisible();
+});
+
+test("@wp39c generation switch saves only the generation models and effort", async ({ page }) => {
+  await configure({});
+  const view = structuredClone(settings(DEFAULTS));
+  await page.route("**/api/v1/settings", async (route) => {
+    if (route.request().method() === "GET") await route.fulfill({ json: view });
+    else await route.continue();
+  });
+  await page.goto(`/w/${WS}/settings`);
+  await waitMark(page, "mitori:section:rendered");
+  const gen = page.getByRole("group", { name: "生成", exact: true });
+  await gen.getByRole("combobox", { name: "モデル名", exact: true }).selectOption("claude-opus-5-5");
+  await gen.getByRole("combobox", { name: "思考の強さ", exact: true }).selectOption("high");
+  await gen.getByRole("button", { name: "生成のモデルを保存", exact: true }).click();
+  await expect.poll(async () => (await mockLog()).filter((r) => r.method === "PATCH").length, { timeout: 4000 }).toBe(1);
+  const saved = (await mockLog()).find((r) => r.method === "PATCH")?.body as { patch: Record<string, unknown> };
+  expect(saved.patch.models).toEqual({ genModule: "claude-opus-5-5", genOverview: "claude-opus-5-5", genLeaf: "claude-opus-5-5" });
+  expect(saved.patch.reasoning).toEqual({ gen: "high", genOverview: "high" });
+  expect(saved.patch.engines).toBeUndefined();
+  await expect(gen.getByRole("status")).toContainText("保存しました");
+});
+
+test("@wp39c price-unknown switch is refused with the Japanese guidance", async ({ page }) => {
+  await configure({});
+  const view = structuredClone(settings(DEFAULTS));
+  view.settings.engines["codex-cli"].enabled = true;
+  await page.route("**/api/v1/settings", async (route) => {
+    if (route.request().method() === "GET") await route.fulfill({ json: view });
+    else
+      await route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: { code: "E_INVALID_INPUT", message: "price", retryable: false, params: { field: "models.genModule", reason: "price-unknown" } },
+        }),
+      });
+  });
+  await page.goto(`/w/${WS}/settings`);
+  await waitMark(page, "mitori:section:rendered");
+  const gen = page.getByRole("group", { name: "生成", exact: true });
+  await gen.getByRole("combobox", { name: "モデル名", exact: true }).selectOption("codex:gpt-6-luna");
+  await gen.getByRole("button", { name: "生成のモデルを保存", exact: true }).click();
+  await expect(
+    gen.getByText("このモデルは単価が未設定のため切り替えできません。下のコマンドを端末で実行して単価を登録してください。", { exact: true }),
+  ).toBeVisible();
+  await expect(gen.locator("pre")).toContainText("mitori setup codex");
 });
 
 test("@wp10a settings: editor (⇧O target) and single-key switch are saved in one debounced PATCH", async ({ page }) => {

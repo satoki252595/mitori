@@ -592,7 +592,7 @@ async function saveProvider(e: SubmitEvent) {
         <label class="row"><span>{t("settings.setupRepo")}</span><input class="mono" bind:value={setupRepo} required={!s.workspace.status?.info.root} placeholder={s.workspace.status?.info.root ?? "/path/to/repository"} /></label>
       {:else}
         {#if modelOptions.length > 0}
-          <label class="row"><span>{t("settings.quickModel")}</span><select value={customModel ? "__custom" : simpleModel} onchange={(e) => selectQuickModel(e.currentTarget.value)}>
+          <label class="row"><span>{t("settings.quickModelOptional")}</span><select value={customModel ? "__custom" : simpleModel} onchange={(e) => selectQuickModel(e.currentTarget.value)}>
             {#each modelOptions as o (o.id)}<option value={o.id}>{o.displayName}</option>{/each}
             <option value="__custom">{t("settings.quickModelCustom")}</option>
           </select></label>
@@ -721,8 +721,8 @@ async function saveProvider(e: SubmitEvent) {
     <h2>{t("settings.modelSwitch")}</h2>
     <p class="note">{t("settings.modelSwitchLead")}</p>
     {#if switchOptions.length > 0}
-      <div class="group">
-        <h3 class="gname">{t("settings.genGroup")}</h3>
+      <div class="group" role="group" aria-labelledby="gen-switch-t">
+        <h3 class="gname" id="gen-switch-t">{t("settings.genGroup")}</h3>
         <label class="row"><span>{t("settings.quickModel")}</span><select value={genSwitchModel} onchange={(e) => selectSwitchModel("gen", e.currentTarget.value)}>
           {#each switchOptions as o (o.id)}<option value={o.id}>{o.displayName}</option>{/each}
         </select></label>
@@ -732,15 +732,15 @@ async function saveProvider(e: SubmitEvent) {
           <p class="note">{t("settings.quickEffortUnsupported")}</p>
         {/if}
         {#if genSwitchModel.startsWith("grok:") && genSwitchEffort !== "low"}<p class="note">{t("settings.grokSlowWarn")}</p>{/if}
-        <button type="button" class="btn btn-pri btn-s" disabled={switchSaving !== null} onclick={() => saveSwitch("gen")}>{t(switchSaving === "gen" ? "settings.providerSaving" : "settings.providerSave")}</button>
+        <button type="button" class="btn btn-pri btn-s" disabled={switchSaving !== null} onclick={() => saveSwitch("gen")}>{t(switchSaving === "gen" ? "settings.providerSaving" : "settings.modelSwitchSaveGen")}</button>
         {#if switchSaved === "gen"}<p class="note" role="status">{t("settings.providerSaved")}</p>{/if}
         {#if switchError?.kind === "gen"}
           <p class="bad" role="alert">{t(switchError.key)}</p>
           {#if switchError.command}<pre class="mono">{switchError.command}</pre>{/if}
         {/if}
       </div>
-      <div class="group">
-        <h3 class="gname">{t("settings.answerGroup")}</h3>
+      <div class="group" role="group" aria-labelledby="answer-switch-t">
+        <h3 class="gname" id="answer-switch-t">{t("settings.answerGroup")}</h3>
         <label class="row"><span>{t("settings.quickModel")}</span><select value={answerSwitchModel} onchange={(e) => selectSwitchModel("answer", e.currentTarget.value)}>
           {#each switchOptions as o (o.id)}<option value={o.id}>{o.displayName}</option>{/each}
         </select></label>
@@ -750,7 +750,7 @@ async function saveProvider(e: SubmitEvent) {
           <p class="note">{t("settings.quickEffortUnsupported")}</p>
         {/if}
         {#if answerSwitchModel.startsWith("grok:") && answerSwitchEffort !== "low"}<p class="note">{t("settings.grokSlowWarn")}</p>{/if}
-        <button type="button" class="btn btn-pri btn-s" disabled={switchSaving !== null} onclick={() => saveSwitch("answer")}>{t(switchSaving === "answer" ? "settings.providerSaving" : "settings.providerSave")}</button>
+        <button type="button" class="btn btn-pri btn-s" disabled={switchSaving !== null} onclick={() => saveSwitch("answer")}>{t(switchSaving === "answer" ? "settings.providerSaving" : "settings.modelSwitchSaveAnswer")}</button>
         {#if switchSaved === "answer"}<p class="note" role="status">{t("settings.providerSaved")}</p>{/if}
         {#if switchError?.kind === "answer"}
           <p class="bad" role="alert">{t(switchError.key)}</p>
