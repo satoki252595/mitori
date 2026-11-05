@@ -71,6 +71,8 @@
 - **Grok で分かったこと**（grok 1.0.70）: `enter_plan_mode` だけを外すとセッションが作れない。`--tools ""` と旧 denylist では `write` など 22 個の組み込みツールが残り、モデルがファイルを書こうとした（許可待ちで止まり実害なし）。X 検索はサーバー側のツールで、オプションでは消えず、repo 名が X 検索に送られた（1 回）。隔離 `config.toml` の `features.backend_tools = false` で止まる。grok-4.7 は推論が長い（gen.module 1 件: low 355 秒、medium は 20 分でも本文 0 字。build-fast low は 117 秒）。`max_completion_tokens` は推論を止めない。キャンセル時に子プロセスが取り残された（修正済み）。既定は build-fast・low、timeout 最低 900 秒。価格は報告額からの逆算（build-fast in 4 / out 12、grok-4.7 in 2 / out 6）。
 - **費用**（API 換算）: Grok は実験を含めて約 $10。Claude と Codex はサブスク枠。
 
+2026-11-05 の追加分（WP39: provider ごとのモデル・effort 選択、WP40〜40h: Gemini 対応）。使える LLM に Gemini（antigravity-cli、macOS のみ）が加わった。`mitori setup <provider> --list-models` で一覧を出し、web の設定画面の「モデルと推論の強さ」で設定済み engine の中の生成用・回答用のモデルと effort を切り替える。Gemini は agy（Antigravity CLI、サブスク）経由で `antigravity:gemini-3.8-flash`（既定・low）・`antigravity:gemini-4-argon` を使う。隔離は呼び出しごとの一時 HOME（キーチェーンの symlink だけ）とツールなし agent 定義で、prompt は stdin に載せる。詳細は [orca-llms-20261103](progress/orca-llms-20261103/README.md)。実生成（ai-job-search 11 タスク、concurrency 2）は Gemini 3.8 Flash/low で 11/11・L1 93.6 %・190.7 秒・API 換算 $0.539（サブスクのため請求なし）。
+
 ## 3. 残っていること
 
 | 残件 | 状態 | 次の一手 |
@@ -79,7 +81,9 @@
 | Go 7k の正式時間 | 中央値 1,449 ms（p95 1,486、上限内）・目標 1,200 ms は WARN（前回から変わらず） | 目標 1,200 ms への新しい案は未着手（`muse/wp16` は効果なしで不採用） |
 | React RSS の目標 700 MB | 792.2 MB で WARN（上限 1,000 MB 内。ABBA の main 側 16回の中央値は 774.8 MB、前回から変わらず） | WP29 で測定済み。ピークは S1 の Worker ごとの WASM メモリ（8本で約 320 MB）で決まる。Go 7k（上限 1,500 ms、現在 1,449）を悪化させずに 700 MB に届く手は無い。目標値の見直しか Worker 数の方針を決める |
 | browsers ジョブの速さのテスト | chromium の4件（地図の部屋カード ≤100 ms、本文の段階切替 ≤50 ms、節の移動 ≤100 ms、streaming の位置 ≤4 px）が Mac の負荷 5〜12 の下で main でも落ちる。2026-11-03〜04 は利用者の別作業の負荷で事前校正が 1.12〜1.15 になり、数回止まった（コードの失敗ではない） | 負荷が下がった時の再実行で判断する |
-| 使う LLM の登録 | #34 で対応済み。`setup` は人の端末でのみ動く | 利用者が端末で `mitori setup claude`・`setup codex --native …`・`setup grok --cli` を実行して使う LLM を登録する |
+| 使う LLM の登録 | #34・WP39・WP40 で対応済み。`setup` は人の端末でのみ動く | 利用者が端末で `mitori setup claude`・`setup codex --native …`・`setup grok --cli`・`setup antigravity --cli`（macOS のみ）を実行して使う LLM を登録する |
+| Gemini の価格を公式表で確認 | 未確認。第三者のまとめの高いほうを単価にしている | 公式表で確かめて core の MODEL_CATALOG を直す |
+| agy の更新で出力が変わったら fixtures を採り直す | `packages/agent/test/fixtures/agy-*` は agy 1.4.12 の記録の再生（path と nonce は mask） | 出力が変わったら採り直す |
 | context-mode の §0 の出典 | 主な出典が `.cursor-plugin/README.md`（10 回、ルート README 3 回）のまま | 内容は同じ製品の説明で誤りではない。対応は未定 |
 | リリース | 試運転は成功（build・4 verify）。tag 未作成（公開は人の判断）。`0.1.0`、4アーカイブ＋SHA256SUMS＋provenance、下書き Release を人が解除 | 初回 tag `v0.1.0` の作成・push と下書きの公開は人が行う |
 | macOS の署名・公証 | 未署名・未公証（Apple Developer Program が年 $99 で承認が要る） | 有料、承認待ち。人が判断する |
