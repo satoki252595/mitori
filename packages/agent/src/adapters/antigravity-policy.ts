@@ -58,6 +58,8 @@ export interface AntigravityTurn {
   usage: { in: number; out: number; thinking: number; cacheRead: number } | null;
   /** First non-`user_input`/`agent_response` step (`<step_type>:<tool_name>`), if the turn ran a tool. */
   toolStep: string | null;
+  /** True once an `error_message` step arrived (a failure precursor even when the `result` says SUCCESS). */
+  errorMessage: boolean;
   /** Terminal `denied_actions` (null until the `result` arrives). */
   denied: string[] | null;
   /** Error carried by the stream, if any. */
@@ -74,6 +76,7 @@ export const emptyAntigravityTurn = (): AntigravityTurn => ({
   response: null,
   usage: null,
   toolStep: null,
+  errorMessage: false,
   denied: null,
   streamError: null,
   status: null,
@@ -97,8 +100,9 @@ function antigravityUsageOf(raw: unknown): AntigravityTurn["usage"] {
 /**
  * Fold one agy stdout line into the turn. `init` is ignored entirely: with the tools-less agent its
  * `tools` still lists 60 entries, so the list cannot gate anything. `step_update` accumulates
- * `agent_response` `text_delta`s (usage rows included) and ignores `user_input`; any other
- * `step_type` (`tool`, …) records the tool and the caller fails the turn. The `result` closes the
+ * `agent_response` `text_delta`s (usage rows included) and ignores `user_input`; `error_message`
+ * records a failure precursor (failed even on a SUCCESS `result`); any other `step_type`
+ * (`tool`, …) records the tool and the caller fails the turn. The `result` closes the
  * turn (`SUCCESS` is normal) and carries the authoritative `response`, usage (`input_tokens`,
  * `output_tokens` + `thinking_tokens` billed as output, `cache_read_tokens`) and `denied_actions` —
  * a `response` that largely disagrees with the streamed deltas is a protocol violation. Unknown events
@@ -139,6 +143,9 @@ export function antigravityFoldLine(state: AntigravityTurn, line: string): Antig
       return next;
     }
     if (stepType === "user_input") return state;
+    // `error_message` is agy's own failure notice (e.g. a reset connection): a precursor the
+    // result may still call SUCCESS, so the engine fails the turn without using its text.
+    if (stepType === "error_message") return { ...next, errorMessage: true };
     // fail-closed: any other step ran something mitori did not allow (tool, …).
     if (state.toolStep !== null) return state;
     const tool = typeof s.tool_name === "string" && s.tool_name ? s.tool_name : stepType;

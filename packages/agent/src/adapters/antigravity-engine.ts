@@ -65,6 +65,16 @@ const LOGIN_HINT = "Antigravity にログインしていません。`mitori auth
 const AGY_UNAUTHENTICATED_RE = /not logged in|not signed in|sign in|authenticate|no auth|login/i;
 
 /**
+ * Post-`result` shutdown (WP40h, agy 1.5.0): the turn ends at the terminal `result`, but agy
+ * keeps running minutes longer. Close stdin, wait this long for the exit, then SIGTERM the
+ * process group and wait `SIGINT_GRACE_MS` more for SIGKILL — the tool KillPolicy signal
+ * (`KILL_POLICY.tool`: SIGTERM → 2 s) with the engine grace (8 s). A SUCCESS `result` stays
+ * success whatever the exit code is.
+ */
+const RESULT_CLOSE_GRACE_MS = 2_000;
+const RESULT_TERM_GRACE_MS = SIGINT_GRACE_MS;
+
+/**
  * Probe text on both routes (WP40f): real `agy --help` writes 0 bytes to stdout (exit 0) and the help
  * to stderr; `models` adds a progress line on stderr. stdout stays first so the version first-line holds.
  */
@@ -332,6 +342,8 @@ export function createAntigravityEngine(deps: AntigravityDeps): Engine {
         let failure: MitoriError | null = null;
         /** First non-text `step_update` seen (`<step_type>:<tool_name>`), if the turn ran a tool. */
         let toolStop: string | null = null;
+        /** True once the terminal `result` arrived: the turn ends there even when agy keeps running. */
+        let sawResult = false;
         try {
           for await (const line of child.stdout) {
             readBytes += bytes(line);
@@ -358,18 +370,78 @@ export function createAntigravityEngine(deps: AntigravityDeps): Engine {
               outer.events.push({ t: "text", delta: folded.text.slice(emitted), at: deps.clock.now() });
               emitted = folded.text.length;
             }
+            // WP40h: the terminal `result` ends the turn (agy 1.5.0 keeps running minutes longer),
+            // so stop reading here and shut the child down below. A SUCCESS `result` stays success.
+            if (folded.ended) {
+              sawResult = true;
+              break;
+            }
           }
         } catch (err) {
           failure ??= MitoriError.from(err);
           interrupt("cancel");
         }
-        const exit = await child.exited.catch(() => -1);
-        await errPump.catch(() => {});
-        // The stderr line may arrive after stdout closed: a late auth URL still fails the turn as auth.
-        if (failure === null && authFailure !== null) failure = new MitoriError("E_AGENT_AUTH", `${LOGIN_HINT}（${authFailure}）`);
-        deps.timers.clear(turn);
-        if (kill !== null) deps.timers.clear(kill);
-        signal.removeEventListener("abort", onAbort);
+        let exit: number;
+        if (sawResult) {
+          // The turn is over: the budget timeout must not fail it while the lingerer is reaped.
+          deps.timers.clear(turn);
+          if (kill !== null) {
+            deps.timers.clear(kill);
+            kill = null;
+          }
+          signal.removeEventListener("abort", onAbort);
+          outer.onStopEarly = () => {};
+          const exitedFirst = (ms: number): Promise<boolean> => {
+            let timer: unknown = null;
+            const timeout = new Promise<"timeout">((resolve) => {
+              timer = deps.timers.set(() => resolve("timeout"), ms);
+            });
+            return Promise.race([
+              child!.exited.then(
+                () => "exited" as const,
+                () => "exited" as const,
+              ),
+              timeout,
+            ]).then((winner) => {
+              if (winner === "exited" && timer !== null) deps.timers.clear(timer);
+              return winner === "exited";
+            });
+          };
+          try {
+            child!.closeStdin();
+          } catch {
+            /* gone */
+          }
+          // `KILL_POLICY.tool` (SIGTERM → 2 s) with the engine grace (8 s): close, wait, SIGTERM, SIGKILL.
+          let shutdown: "clean" | "term" | "kill" = "clean";
+          if (!(await exitedFirst(RESULT_CLOSE_GRACE_MS))) {
+            shutdown = "term";
+            try {
+              child!.kill("SIGTERM");
+            } catch {
+              /* gone */
+            }
+            if (!(await exitedFirst(RESULT_TERM_GRACE_MS))) {
+              shutdown = "kill";
+              try {
+                child!.kill("SIGKILL");
+              } catch {
+                /* gone */
+              }
+            }
+          }
+          exit = await child!.exited.catch(() => -1);
+          await errPump.catch(() => {});
+          if (shutdown !== "clean") deps.log?.debug("agent.antigravity.result_shutdown", { shutdown, exit });
+        } else {
+          exit = await child!.exited.catch(() => -1);
+          await errPump.catch(() => {});
+          // The stderr line may arrive after stdout closed: a late auth URL still fails the turn as auth.
+          if (failure === null && authFailure !== null) failure = new MitoriError("E_AGENT_AUTH", `${LOGIN_HINT}（${authFailure}）`);
+          deps.timers.clear(turn);
+          if (kill !== null) deps.timers.clear(kill);
+          signal.removeEventListener("abort", onAbort);
+        }
         const usage = zeroUsage();
         const modelId = req.model.startsWith("antigravity:") ? req.model.slice("antigravity:".length) : settings.model;
         const pricing = antigravityPricing(settings, modelId);
@@ -423,7 +495,8 @@ export function createAntigravityEngine(deps: AntigravityDeps): Engine {
           usage.out = 0;
           usage.apiUsd = 0;
         }
-        const text = toolStop !== null ? "" : folded.text;
+        // An `error_message` precursor fails the turn without using the body (WP40h).
+        const text = toolStop !== null || folded.errorMessage ? "" : folded.text;
         const res = {
           stop: "end",
           usage,
@@ -457,6 +530,9 @@ export function createAntigravityEngine(deps: AntigravityDeps): Engine {
             };
           else
             res.error = { code: "E_AGENT_EXIT", message: folded.streamError ?? `agy failed with status ${folded.status}`, retryable: true, stderrTail: tail() };
+        } else if (folded.errorMessage) {
+          res.stop = "error";
+          res.error = { code: "E_AGENT_EXIT", message: "agy が error_message を報告したため失敗にしました", retryable: true, stderrTail: tail() };
         } else if (stopped === "cancel") res.stop = "cancelled";
         else if (stopped === "timeout") {
           res.stop = "error";

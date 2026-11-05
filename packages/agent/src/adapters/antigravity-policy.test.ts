@@ -217,4 +217,17 @@ describe("WP40g-1 antigravity stream fold (response is authoritative, usage rows
   test("a SUCCESS result without a string response is a protocol violation", () => {
     expect(() => antigravityFoldLine(emptyAntigravityTurn(), successLine(undefined))).toThrow("response is invalid");
   });
+
+  test("WP40h an error_message step is a failure precursor, not a tool step", () => {
+    let t = emptyAntigravityTurn();
+    t = antigravityFoldLine(
+      t,
+      line({
+        event: "step_update",
+        step_update: { step_type: "error_message", state: "DONE", duration_seconds: 0 },
+      }),
+    );
+    expect(t.toolStep).toBeNull();
+    expect(t.errorMessage).toBe(true);
+  });
 });

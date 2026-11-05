@@ -562,6 +562,128 @@ test("WP40b-1 antigravity unknown agent ERROR fails with guidance naming the age
   expect(res.error?.message).toContain("setup");
 });
 
+test("WP40h-1 antigravity ends the turn at result and stops a lingering child as success", async () => {
+  // 実物 (agy 1.5.0): result の 24〜33 秒後にプロセスが 2 分以上残る。result 到来で turn 終了とし、
+  // stdin を閉じて 2 秒待ち、終わらなければ SIGTERM（さらに 8 秒で SIGKILL）する。SUCCESS は成功扱い。
+  const clock = createFakeClock();
+  const spawner = scriptAgyProbes(createFakeSpawner())
+    .script((s) => s.argv[0] === "-s", { stdout: [] })
+    .script((s) => s.argv.includes("-p="), { stdout: [...successTurn], hang: true });
+  const b = createTestBridge({
+    spawner,
+    clock,
+    env: { HOME: "/home/u", PATH: "/usr/bin:/bin", USER: "u" },
+    settings: (s) => {
+      s.engines["antigravity-cli"] = {
+        enabled: true,
+        binary: "/opt/native/agy",
+        model: "gemini-3.8-flash",
+        pricing: { inPerMTok: 1.5, outPerMTok: 7.5, cacheReadPerMTok: 0.15 },
+      };
+    },
+  });
+  b.fs.files.set("/opt/native/agy", new TextEncoder().encode("native"));
+  b.fs.files.set("/usr/bin/ln", new TextEncoder().encode("ln"));
+  b.fs.files.set("/home/u/Library/Keychains/login.keychain-db", new TextEncoder().encode("keychain"));
+  b.fs.dirs.add("/home/u/Library");
+  b.fs.dirs.add("/home/u/Library/Keychains");
+  const engine = b.engines["antigravity-cli"]!;
+  const run = engine.run(r, new AbortController().signal);
+  await Bun.sleep(10);
+  clock.advance(2000);
+  await Bun.sleep(5);
+  const res = await run.result;
+  expect(res.stop).toBe("end");
+  expect(res.text).toBe("OK5\n");
+  expect(res.usageEstimated).toBe(false);
+  const child = spawner.children.find((c) => c.spec.argv.includes("-p="))!;
+  expect(child.signals).toEqual(["SIGTERM"]);
+  expect(await child.exited).toBe(143);
+  // 子は回収済みで daemon stop は何もしない
+  await engine.closeAll!();
+  expect(child.signals).toEqual(["SIGTERM"]);
+  expect(b.log.lines.some((l) => l.lvl === "debug" && l.msg.includes("antigravity"))).toBe(true);
+});
+
+test("WP40h-2 antigravity SIGTERMs a lingering child then SIGKILLs when SIGTERM is ignored", async () => {
+  const clock = createFakeClock();
+  const spawner = scriptAgyProbes(createFakeSpawner())
+    .script((s) => s.argv[0] === "-s", { stdout: [] })
+    .script((s) => s.argv.includes("-p="), { stdout: [...successTurn], hang: true });
+  const b = createTestBridge({
+    spawner,
+    clock,
+    env: { HOME: "/home/u", PATH: "/usr/bin:/bin", USER: "u" },
+    settings: (s) => {
+      s.engines["antigravity-cli"] = {
+        enabled: true,
+        binary: "/opt/native/agy",
+        model: "gemini-3.8-flash",
+        pricing: { inPerMTok: 1.5, outPerMTok: 7.5, cacheReadPerMTok: 0.15 },
+      };
+    },
+  });
+  b.fs.files.set("/opt/native/agy", new TextEncoder().encode("native"));
+  b.fs.files.set("/usr/bin/ln", new TextEncoder().encode("ln"));
+  b.fs.files.set("/home/u/Library/Keychains/login.keychain-db", new TextEncoder().encode("keychain"));
+  b.fs.dirs.add("/home/u/Library");
+  b.fs.dirs.add("/home/u/Library/Keychains");
+  const engine = b.engines["antigravity-cli"]!;
+  const run = engine.run(r, new AbortController().signal);
+  await Bun.sleep(10);
+  const child = spawner.children.find((c) => c.spec.argv.includes("-p="))!;
+  // 初回の SIGTERM を無視する fake (2 回目の SIGKILL で終わる)
+  const origKill = child.kill.bind(child);
+  let termIgnored = false;
+  (child as { kill: (s: "SIGINT" | "SIGTERM" | "SIGKILL") => void }).kill = (s) => {
+    if (s === "SIGTERM" && !termIgnored) {
+      termIgnored = true;
+      (child.signals as string[]).push(s);
+      return;
+    }
+    return origKill(s);
+  };
+  clock.advance(2000);
+  await Bun.sleep(5);
+  clock.advance(8000);
+  await Bun.sleep(5);
+  const res = await run.result;
+  expect(res.stop).toBe("end");
+  expect(res.text).toBe("OK5\n");
+  expect(child.signals).toEqual(["SIGTERM", "SIGKILL"]);
+  expect(await child.exited).toBe(137);
+});
+
+test("WP40h-3 antigravity fails a SUCCESS result preceded by error_message without using its text", async () => {
+  // fixture に error_message 形が無いので、success-stdin の result 直前に実物形の変種を挿した最小変形。
+  const withErrorMessage = (() => {
+    const out: string[] = [];
+    for (const l of successTurn) {
+      const o = JSON.parse(l) as { event?: string };
+      if (o.event === "result")
+        out.push(
+          JSON.stringify({
+            event: "step_update",
+            step_update: {
+              conversation_id: "af38552f-d88b-4606-85f2-769b22f46b89",
+              step_index: 2,
+              state: "DONE",
+              step_type: "error_message",
+              duration_seconds: 0,
+            },
+          }),
+        );
+      out.push(l);
+    }
+    return out;
+  })();
+  const { b } = setup(withErrorMessage);
+  const res = await b.engines["antigravity-cli"]!.run(r, new AbortController().signal).result;
+  expect(res.stop).toBe("error");
+  expect(res.error?.retryable).toBe(true);
+  expect(res.text).toBe("");
+});
+
 test("WP40b-1 antigravity unknown agent on stderr (no result) fails with the same guidance", async () => {
   // result 無し・stderr のみ形は未採取のため turn だけ手書き (probes は fixture 再生)。
   const spawner = scriptAgyProbes(createFakeSpawner())

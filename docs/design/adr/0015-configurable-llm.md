@@ -122,6 +122,23 @@ live テスト（`MITORI_LIVE=1`、ホストのみ）に 1 件追加: 「まず 
 
 追記の回帰: `scripts/nd bun test packages/agent/src/adapters/antigravity-policy.test.ts packages/agent/src/adapters/antigravity-engine.test.ts packages/agent/src/adapters/antigravity-live.test.ts apps/cli/src/commands/setup.test.ts apps/web/src/settings/provider.test.ts packages/web/src/map/map.test.ts packages/gen/src/planner/planner.test.ts packages/gen/src/orchestrator/execute.test.ts packages/server/src/settings/settings.test.ts`、`scripts/nd bun run check`、`scripts/nd bun run golden`。live 以外は実 LLM を呼ばない。
 
+## WP40h: agy は result の後に終わらない・error_message・manage_task（2026-11-05 ホスト実測）
+
+ai-job-search の live 生成（gemini-3.8-flash / low）で S5 module の 3 件が `E_AGENT_TIMEOUT`（900 秒）になった。section は 10〜30 秒で終わっていた。agy の入出力を記録して調べた（記録は手元だけ、リポジトリには入れない）:
+
+- module の prompt（72〜100 KB）でも、agy は 24〜33 秒で `{"event":"result","result":{"status":"SUCCESS",...}}` を出す。その後プロセスが終わらない（stdin はファイルで EOF 済みでも 2 分以上残る）。agy のログ: `Print mode: stream input closed after 1 turn(s)` → `CLI store manager shutting down` → `Stopping conversation stream` のあと止まる。SIGTERM で `Got signal terminated, shutting down` → 約 5 秒後に `Language server shutdown timed out` で終わる。
+- 短い prompt（overview・section）では result の直後に終わる。agy 側の終了処理のハングで、mitori は exit を待って 900 秒で timeout にしていた。
+- 長い live 実行中に Mac がスリープすると、agy の通信が `connection reset by peer` で切れ、`error_message` ステップと再試行が続いた（環境要因。mitori の不具合ではない）。
+
+決定:
+
+1. `result` イベントを受け取ったらその turn は終わりとする。stdin を閉じ、2 秒待って終わらなければプロセスグループに SIGTERM、さらに 8 秒で SIGKILL（tool KillPolicy の SIGTERM → 2 s と engine の grace 8 s。`packages/agent` の engine は注入された Timers port で待つため、`packages/platform` の `stopChild` は直接使わず同じ方針を実装する）。`result.status` が SUCCESS なら停止は成功扱い（exit code で失敗にしない）。停止したことは debug ログ（`agent.antigravity.result_shutdown`）に残す。
+2. `result` の前に exit した、`result` が来ないまま turnMs を超えた、は今まで通り失敗。
+3. `step_type:"error_message"` は失敗の前兆として扱い、`result` が SUCCESS でも本文を使わず失敗にする（retryable の `E_AGENT_EXIT`）。fixture に無いため、実物の形 `{"event":"step_update","step_update":{"conversation_id":"…","step_index":2,"state":"DONE","step_type":"error_message","duration_seconds":0}}` を元にした変種で回帰する。
+4. 別件の安全事実: `tools: []` の agent でも `manage_task` だけは呼べて実行される（`{"Action":"list"}` → "No background tasks are currently running."）。`search_web`・`read_url_content`・`view_file`・`invoke_subagent`・`ask_question` は使えないと答えて呼ばれなかった。mitori は tool ステップで fail closed するので結果は捨てられる（正しい）。
+
+追記の回帰: `scripts/nd bun test packages/agent/src/adapters/antigravity-policy.test.ts packages/agent/src/adapters/antigravity-engine.test.ts`、`scripts/nd bun run check`、`scripts/nd bun run golden`。live はオーケストレーターが実行する。
+
 ## Sources
 
 2026-10-04 に [Muse Code Configuration and context](https://dev.meta.ai/docs/muse-code/configuration)（headless flags、user settings、managed config）と [Muse Code Developer Docs: Hooks](https://meta-models.github.io/muse-code-sdk/next/guides/extend/hooks/)（managed/user hook は project trust を要しない）を確認。[Extending Muse Code](https://meta-models.github.io/muse-code-sdk/next/guides/extend/) は MCP の旧表記も設定で受け付けると記載する。環境 gate と管理 hook override の効き方は公開仕様ではなく上記バージョンのローカル実測による。
