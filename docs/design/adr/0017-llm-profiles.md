@@ -27,6 +27,8 @@
 3. `mitori setup <provider>` は毎回 `engines.<id>` と `engineProfiles.<id>` を保存し、既定
    （`defaultEngine`・`defaultGenEngine` と全体の `models.*`・`reasoning.*`）を変えるのは
    `--default` 付き・同じ engine の再設定・TTY の切り替え確認で「はい」と答えたときだけにする。
+   今の既定 engine が未登録（claude-cli なら `pins.claude` が無い、など）なら、確認せずに新しい engine を既定にする
+   （工場出荷の既定 claude-cli が、使わない人の既定に残らないように。WP41b）。
    `--keep-default` で確認なしに登録だけ残す。両方の同時指定は usage エラー。
    `generic` 枠に別の中身がすでにあるときは、保存の確認のあとで置き換えを警告する。
 4. 呼び出すたびに選ぶ。生成の見積もりカードは、登録済みで有効なすべての生成 engine を
