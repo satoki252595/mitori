@@ -6,7 +6,7 @@
   ［設計書で開く ↵］［地図で見る］ on all.
 -->
 <script lang="ts">
-import { type InboxItem, type JobEstimate, MitoriError, type RepoPath, type ThreadDetail, type ThreadId } from "@mitori/core";
+import { type InboxItem, type JobEstimate, MitoriError, profileFor, type RepoPath, type ThreadDetail, type ThreadId } from "@mitori/core";
 import { DOC_EDIT_CHOICES } from "../contract.ts";
 import { gateBadge } from "../jobs/gates.ts";
 import { errorText, fmtTokens, fmtUsd, t } from "../shell/index.ts";
@@ -80,10 +80,14 @@ function sameScope(): { context?: { add: { path: RepoPath; start: number; end: n
 async function askEscalate() {
   const ws = s.workspace.key;
   if (!ws || !thId) return;
+  // engine に合うモデルを使う (web から model を決め打ちしない): profileFor に任せる
+  const settings = s.session.settings?.settings;
+  const engine = job?.engine ?? settings?.defaultEngine ?? "claude-cli";
+  const model = settings ? profileFor(settings, engine).models.escalate : "claude-opus-5-5";
   try {
     escalate = await s.api.call("POST /ws/:ws/jobs/estimate", {
       params: { ws },
-      body: { kind: "fix", threads: [thId], mode: "agent", model: s.session.settings?.settings.models.escalate ?? "claude-opus-5-5", ...sameScope() },
+      body: { kind: "fix", threads: [thId], mode: "agent", engine, model, ...sameScope() },
     });
   } catch (err) {
     s.bottom.toast({ id: "loop.error", kind: "error", key: "review.toast.failed", params: { error: errorText(MitoriError.from(err).toData()) } });

@@ -38,6 +38,7 @@ let {
   policyAcked,
   breakdownOpen,
   engineStatus,
+  engines = null,
   detecting = false,
   scan,
   busy,
@@ -61,6 +62,8 @@ let {
   policyAcked: boolean;
   breakdownOpen: boolean;
   engineStatus: EngineStatus | null;
+  /** 全 engine の状態 (見積もりカードの engine 候補の無効化用)。 */
+  engines?: readonly EngineStatus[] | null;
   /** Engines not probed yet: tiles and the button wait. */
   detecting?: boolean;
   scan: ScanSummaryView | null;
@@ -254,7 +257,7 @@ const scopeText = $derived(est ? t(`gen.card.scope.${effort}`, { n: moduleChapte
   {#if est}
     <details class="brk" open={breakdownOpen} ontoggle={(e) => e.currentTarget.open && loadBreakdown()}>
       <summary>{t("gen.card.breakdown")}</summary>
-      {#if Breakdown}<Breakdown {est} {engine} {onengine} />{/if}
+      {#if Breakdown}<Breakdown {est} {engine} {onengine} statuses={engines ?? null} />{/if}
     </details>
   {/if}
 </section>

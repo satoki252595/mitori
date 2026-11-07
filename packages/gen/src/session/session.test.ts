@@ -1,5 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import type { GenTaskId, ModelId, PrepInfo, PrepReq, PromptVersion } from "@mitori/core";
+import type { EngineId, GenTaskId, ModelId, PrepInfo, PrepReq, PromptVersion } from "@mitori/core";
 import { GEN_PROMPTS, PREP_README_LINES, type PrepTaskEntry } from "../contract.ts";
 import { ApplySink } from "../orchestrator/apply.ts";
 import { validRouter } from "../test/fake-engine.ts";
@@ -145,16 +145,21 @@ describe("GEN-U-051 ingest checks: fingerprint, expiry, drift", () => {
 
 describe("GEN-U-052 / GEN-U-053 / GEN-U-054 same validator, partial ingest, server-stamped provenance", () => {
   test("omitted session models remain neutral after fresh/switched setup and cached replay preserves declared provenance", async () => {
-    const cases: { prior: ModelId; declared?: ModelId; expected: ModelId }[] = [
-      { prior: "claude-sonnet-5-5", expected: "generic:session" },
-      { prior: "generic:grok-4.7", expected: "generic:session" },
-      { prior: "generic:grok-4.7", declared: "codex:gpt-test", expected: "codex:gpt-test" },
-      { prior: "claude-sonnet-5-5", declared: "generic:actual-local", expected: "generic:actual-local" },
+    // WP41b-1: 通常の実行と session で同じ cache key になるよう、defaultGenEngine を
+    // prior の名前空間に合う engine にする (食い違うと profileFor の解決値が変わり cache を外す)。
+    const cases: { prior: ModelId; engine: EngineId; declared?: ModelId; expected: ModelId }[] = [
+      { prior: "claude-sonnet-5-5", engine: "claude-cli", expected: "generic:session" },
+      { prior: "generic:grok-4.7", engine: "generic", expected: "generic:session" },
+      { prior: "generic:grok-4.7", engine: "generic", declared: "codex:gpt-test", expected: "codex:gpt-test" },
+      { prior: "claude-sonnet-5-5", engine: "claude-cli", declared: "generic:actual-local", expected: "generic:actual-local" },
     ];
-    for (const { prior, declared, expected } of cases) {
+    for (const { prior, engine, declared, expected } of cases) {
       const settings = testSettings();
       settings.global.models.genModule = prior;
+      settings.global.defaultGenEngine = engine;
+      if (engine === "generic") settings.global.engines.generic = { enabled: true, argv: [], pricing: { inPerMTok: 2, outPerMTok: 6, cacheReadPerMTok: 2 } };
       const h = makeHarness({ settings });
+      if (engine === "generic") h.deps.engines.generic = { ...h.engine, id: "generic" };
       const options: PrepReq = { effort: "standard", scope: ["s6/session"] };
       const packet = await h.gen.session.prep(options);
       answer(h, packet);

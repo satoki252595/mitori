@@ -7,7 +7,7 @@ import { MODEL_CATALOG } from "@mitori/core";
 import { createHasher } from "@mitori/platform";
 import { estimateText } from "./gen.ts";
 import { runCommand } from "./index.ts";
-import { setupPatch } from "./setup-presets.ts";
+import { decideDefaultSwitch, engineDisplayName, genericEngineChanged, genericLabel, isEngineRegistered, setupEngine, setupPatch } from "./setup-presets.ts";
 import { ApiFail, type FakeDaemon, startFakeDaemon, testIo } from "./test/fake-daemon.ts";
 
 let daemon: FakeDaemon | undefined;
@@ -655,4 +655,221 @@ test("external generation prep binds --repo when invoked from the mitori checkou
   expect(d.calls("POST /ws/:ws/gen/prep")).toHaveLength(1);
   const invalid = testIo({ argv: ["--prep", "--repo", `${d.home}/missing`], home: d.home, cwd: d.dir });
   expect(await runCommand("gen", invalid)).toBe(2);
+});
+
+test("WP41-3 2つ目の setup で既定は変わらない (--keep-default・TTY いいえ)、--default で変わる", async () => {
+  const d = await startFakeDaemon();
+  daemon = d;
+  const binary = join(d.dir, "grok");
+  writeFileSync(binary, `#!${process.execPath}\nconsole.log("grok 1.0.70");\n`, { mode: 0o700 });
+  d.route("GET /settings", () => ({
+    // 登録済みの codex-cli が既定: 切り替えは確認される (WP41b-3)
+    settings: {
+      defaultEngine: "codex-cli",
+      defaultGenEngine: "codex-cli",
+      engines: { "codex-cli": { enabled: true, binary: "codex" } },
+      pins: { codex: { path: "codex", realpath: "/u/bin/codex", sha256: "aa".repeat(32), version: "codex-cli 0.160.0", by: "user" } },
+    },
+    path: `${d.home}/config.json`,
+    version: 1,
+  }));
+  d.route("PATCH /settings/exec", () => ({ settings: {}, path: "", version: 2 }));
+  let saved: Record<string, unknown> = {};
+  d.route("PATCH /settings", (c) => {
+    saved = (c.body as { patch: Record<string, unknown> }).patch;
+    return { settings: {}, path: "", version: 3 };
+  });
+  const base = (argv: string[], ioExtra: Record<string, unknown> = {}) =>
+    testIo({ argv: ["grok", "--cli", "--binary", binary, ...argv], home: d.home, cwd: d.repo, tty: true, ...ioExtra });
+  // TTY で「いいえ」: 登録だけ残り、既定は codex-cli のまま
+  expect(await runCommand("setup", base([], { answers: [true, false] }))).toBe(0);
+  expect(saved).not.toHaveProperty("defaultEngine");
+  expect(saved).not.toHaveProperty("defaultGenEngine");
+  expect(saved).not.toHaveProperty("models");
+  expect(saved).toHaveProperty("engineProfiles");
+  expect((saved.engineProfiles as Record<string, { models: { answer: string } }>)["grok-cli"]?.models.answer).toBe("grok:grok-4.7-build-fast");
+  // --keep-default: 切り替えを聞かず、既定は変わらない
+  saved = {};
+  const kept = base(["--keep-default"], { answers: [true] });
+  expect(await runCommand("setup", kept)).toBe(0);
+  expect(kept.stderr).not.toContain("切り替えますか");
+  expect(saved).not.toHaveProperty("defaultEngine");
+  expect(saved).toHaveProperty("engineProfiles");
+  // --default: 既定が grok-cli に変わる
+  saved = {};
+  expect(await runCommand("setup", base(["--default"], { answers: [true] }))).toBe(0);
+  expect(saved).toMatchObject({ defaultEngine: "grok-cli", defaultGenEngine: "grok-cli", models: { answer: "grok:grok-4.7-build-fast" } });
+  expect(saved).toHaveProperty("engineProfiles");
+});
+
+test("WP41b-3 isEngineRegistered は設定から登録済みを判定する", () => {
+  // 工場出荷の既定 claude-cli: pins が無ければ未登録
+  expect(isEngineRegistered({}, "claude-cli")).toBe(false);
+  expect(isEngineRegistered({ pins: {} }, "claude-cli")).toBe(false);
+  expect(isEngineRegistered({ pins: { claude: { path: "claude" } } }, "claude-cli")).toBe(true);
+  // codex-cli は enabled かつ pins.codex
+  expect(isEngineRegistered({ engines: { "codex-cli": { enabled: true } }, pins: { codex: { path: "codex" } } }, "codex-cli")).toBe(true);
+  expect(isEngineRegistered({ engines: { "codex-cli": { enabled: true } } }, "codex-cli")).toBe(false);
+  expect(isEngineRegistered({ engines: { "codex-cli": { enabled: false } }, pins: { codex: { path: "codex" } } }, "codex-cli")).toBe(false);
+  expect(isEngineRegistered({ pins: { grok: { path: "grok" } } }, "grok-cli")).toBe(true);
+  expect(isEngineRegistered({}, "grok-cli")).toBe(false);
+  expect(isEngineRegistered({ pins: { agy: { path: "agy" } } }, "antigravity-cli")).toBe(true);
+  expect(isEngineRegistered({}, "antigravity-cli")).toBe(false);
+  expect(isEngineRegistered({ engines: { generic: { enabled: true } } }, "generic")).toBe(true);
+  expect(isEngineRegistered({ engines: { generic: { enabled: false } } }, "generic")).toBe(false);
+  expect(isEngineRegistered({ engines: { "anthropic-api": { enabled: true } } }, "anthropic-api")).toBe(true);
+  expect(isEngineRegistered({}, "anthropic-api")).toBe(false);
+  // session は利用者が選んだものなので聞く対象にする
+  expect(isEngineRegistered({}, "session")).toBe(true);
+});
+
+test("WP41b-3 decideDefaultSwitch は未登録なら聞かずに切り替える", () => {
+  const base = { target: "generic" as const, makeDefault: false, keepDefault: false };
+  // 未登録の既定 (初めての setup) は switch
+  expect(decideDefaultSwitch({ ...base, curDefault: "claude-cli", registered: false })).toBe("switch");
+  // 登録済みの別の engine は ask
+  expect(decideDefaultSwitch({ ...base, curDefault: "codex-cli", registered: true })).toBe("ask");
+  // 同じ engine・--default・既定なしは switch
+  expect(decideDefaultSwitch({ ...base, curDefault: "generic", registered: true })).toBe("switch");
+  expect(decideDefaultSwitch({ ...base, curDefault: "codex-cli", registered: true, makeDefault: true })).toBe("switch");
+  expect(decideDefaultSwitch({ ...base, curDefault: undefined, registered: false })).toBe("switch");
+  // --keep-default は未登録でも keep
+  expect(decideDefaultSwitch({ ...base, curDefault: "claude-cli", registered: false, keepDefault: true })).toBe("keep");
+  expect(decideDefaultSwitch({ ...base, curDefault: "codex-cli", registered: true, keepDefault: true })).toBe("keep");
+});
+
+test("WP41b-3 engineDisplayName は利用者に分かる名前を返す", () => {
+  expect(engineDisplayName("claude-cli")).toBe("Claude");
+  expect(engineDisplayName("codex-cli")).toBe("Codex");
+  expect(engineDisplayName("grok-cli")).toBe("Grok");
+  expect(engineDisplayName("antigravity-cli")).toBe("Gemini");
+  expect(engineDisplayName("session")).toBe("セッション");
+  expect(engineDisplayName("generic", { protocol: "muse-jsonl" })).toBe("Muse");
+  expect(engineDisplayName("generic", { protocol: "openai-chat", api: { baseUrl: "http://localhost:11434/v1" } })).toBe("ローカルAPI");
+  expect(engineDisplayName("generic", { protocol: "openai-chat", api: { baseUrl: "https://api.x.ai/v1" } })).toBe("API");
+});
+
+test("WP41b-3 未登録の claude-cli が既定なら聞かずに切り替わる (初めての setup muse)", async () => {
+  const d = await startFakeDaemon();
+  daemon = d;
+  const binary = join(d.dir, "muse-bin-v1");
+  writeFileSync(binary, `#!${process.execPath}\nconsole.log("muse 1.0");\n`, { mode: 0o700 });
+  d.route("GET /settings", () => ({
+    settings: { defaultEngine: "claude-cli", defaultGenEngine: "claude-cli", engines: { "claude-cli": { enabled: true, binary: "claude" } } },
+    path: `${d.home}/config.json`,
+    version: 1,
+  }));
+  d.route("PATCH /settings/exec", () => ({ settings: {}, path: "", version: 2 }));
+  let saved: Record<string, unknown> = {};
+  d.route("PATCH /settings", (c) => {
+    saved = (c.body as { patch: Record<string, unknown> }).patch;
+    return { settings: {}, path: "", version: 3 };
+  });
+  // 確認は保存の1回だけ (切り替えを聞かれない): answers を1つだけ渡す
+  const io = testIo({ argv: ["muse", "--binary", binary], home: d.home, cwd: d.repo, tty: true, answers: [true] });
+  expect(await runCommand("setup", io)).toBe(0);
+  expect(saved).toMatchObject({
+    defaultEngine: "generic",
+    defaultGenEngine: "generic",
+    models: { patch: "generic:muse-spark-1.3-contributor" },
+  });
+  expect(saved).toHaveProperty("engineProfiles");
+  expect(io.stdout).toContain("既定のLLMは Muse です。");
+});
+
+test("WP41b-3 --keep-default は未登録の既定でも変えない", async () => {
+  const d = await startFakeDaemon();
+  daemon = d;
+  d.route("GET /settings", () => ({
+    settings: { defaultEngine: "claude-cli", defaultGenEngine: "claude-cli", engines: { "claude-cli": { enabled: true, binary: "claude" } } },
+    path: `${d.home}/config.json`,
+    version: 1,
+  }));
+  d.route("PATCH /settings/exec", () => ({ settings: {}, path: "", version: 2 }));
+  let saved: Record<string, unknown> = {};
+  d.route("PATCH /settings", (c) => {
+    saved = (c.body as { patch: Record<string, unknown> }).patch;
+    return { settings: {}, path: "", version: 3 };
+  });
+  const io = testIo({ argv: ["ollama", "--model", "qwen3:8b", "--keep-default"], home: d.home, cwd: d.repo, tty: true, answers: [true] });
+  expect(await runCommand("setup", io)).toBe(0);
+  expect(saved).not.toHaveProperty("defaultEngine");
+  expect(saved).not.toHaveProperty("defaultGenEngine");
+  expect(saved).not.toHaveProperty("models");
+  expect(saved).toHaveProperty("engineProfiles");
+  expect(io.stdout).toContain("既定は Claude のままです。");
+});
+
+test("WP41-3 --default と --keep-default の同時指定は usage エラー", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-flags-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    expect(await runCommand("setup", testIo({ argv: ["grok", "--cli", "--default", "--keep-default"], home, cwd: repo, tty: false }))).toBe(2);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP41-3 setupEngine は provider と mode から engine を決める", () => {
+  expect(setupEngine({ provider: "claude" })).toBe("claude-cli");
+  expect(setupEngine({ provider: "codex", native: true })).toBe("codex-cli");
+  expect(setupEngine({ provider: "codex" })).toBe("session");
+  expect(setupEngine({ provider: "grok", cli: true })).toBe("grok-cli");
+  expect(setupEngine({ provider: "grok", api: true })).toBe("generic");
+  expect(setupEngine({ provider: "grok" })).toBe("session");
+  expect(setupEngine({ provider: "antigravity", cli: true })).toBe("antigravity-cli");
+  expect(setupEngine({ provider: "antigravity" })).toBe("session");
+  expect(setupEngine({ provider: "muse" })).toBe("generic");
+  expect(setupEngine({ provider: "ollama" })).toBe("generic");
+  expect(setupEngine({ provider: "cursor" })).toBe("session");
+});
+
+test("WP41-3 generic の置き換え判定は argv・protocol・api を見る", () => {
+  const muse = { argv: ["/native/muse-bin-v1", "exec"], protocol: "muse-jsonl" as const };
+  const local = { argv: [], protocol: "openai-chat" as const, api: { baseUrl: "http://localhost:11434/v1" } };
+  expect(genericLabel(muse)).toBe("Muse");
+  expect(genericLabel(local)).toBe("ローカルAPI");
+  expect(genericLabel({ argv: [], protocol: "openai-chat" as const, api: { baseUrl: "https://api.x.ai/v1", keyEnv: "XAI_API_KEY" } })).toBe("API");
+  expect(genericEngineChanged(muse, { ...muse })).toBe(false);
+  expect(genericEngineChanged(muse, local)).toBe(true);
+  expect(genericEngineChanged(local, { ...local, api: { baseUrl: "http://localhost:11434/v1", keyEnv: "OTHER" } })).toBe(true);
+});
+
+test("WP41-3 --print の patch に engineProfiles が入る (daemon 不要)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mitori-setup-print-"));
+  try {
+    const home = join(dir, "home");
+    const repo = join(dir, "repo");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(repo, { recursive: true });
+    const binary = join(dir, "grok");
+    writeFileSync(binary, `#!${process.execPath}\nconsole.log("grok 1.0.70");\n`, { mode: 0o700 });
+    const io = testIo({ argv: ["grok", "--cli", "--binary", binary, "--print"], home, cwd: repo });
+    expect(await runCommand("setup", io)).toBe(0);
+    expect(JSON.parse(io.stdout).engineProfiles["grok-cli"].models.answer).toBe("grok:grok-4.7-build-fast");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("WP41-3 generic の中身が違うときは置き換え警告が出る", async () => {
+  const d = await startFakeDaemon();
+  daemon = d;
+  d.route("GET /settings", () => ({
+    settings: {
+      defaultEngine: "generic",
+      defaultGenEngine: "generic",
+      engines: { generic: { enabled: true, argv: ["/native/muse-bin-v1", "exec"], protocol: "muse-jsonl" } },
+    },
+    path: `${d.home}/config.json`,
+    version: 1,
+  }));
+  d.route("PATCH /settings/exec", () => ({ settings: {}, path: "", version: 2 }));
+  d.route("PATCH /settings", () => ({ settings: {}, path: "", version: 3 }));
+  const io = testIo({ argv: ["ollama", "--model", "qwen3:8b"], home: d.home, cwd: d.repo, tty: true, answers: [true] });
+  expect(await runCommand("setup", io)).toBe(0);
+  expect(io.stderr).toContain("今の Muse の設定を置き換えます");
 });

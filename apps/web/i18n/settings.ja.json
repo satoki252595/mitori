@@ -79,7 +79,7 @@
   "settings.quickModelCustom": "その他（手入力）",
   "settings.quickModelOptional": "モデル名（任意）",
   "settings.modelSwitch": "モデルと推論の強さ",
-  "settings.modelSwitchLead": "設定済みのLLMの中から、生成と回答・修正のそれぞれでモデルと推論の強さを選べます。起動のしかたや単価は変わりません。",
+  "settings.modelSwitchLead": "設定済みのLLMの中から、生成と回答・修正のそれぞれで既定のLLM・モデル・推論の強さを選べます。起動のしかたや単価は変わりません。",
   "settings.modelSwitchSaveGen": "生成のモデルを保存",
   "settings.modelSwitchSaveAnswer": "回答・修正のモデルを保存",
   "settings.switchBadEffort": "このモデルは指定のeffortを受け付けません。選択肢から選び直してください。",
@@ -112,5 +112,8 @@
   "settings.codexVersion": "mitoriで確認済みのCodexは{version}です。setupをやり直しても直りません。mitoriを更新（git pull）すると新しい版に対応している場合があります",
   "settings.useGrokCli": "Build CLIで直接実行する（単発テキスト生成のみ）",
   "settings.useAntigravityCli": "Antigravity CLIで直接実行する（単発テキスト生成のみ）",
-  "settings.grokSlowWarn": "Grokのmedium以上のeffortは生成が非常に長くなります（1タスク10分以上）。"
+  "settings.grokSlowWarn": "Grokのmedium以上のeffortは生成が非常に長くなります（1タスク10分以上）。",
+  "settings.defaultLlm": "既定のLLM",
+  "settings.defaultSave": "既定のLLMを保存",
+  "settings.profileLlm": "対象のLLM"
 }

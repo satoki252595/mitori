@@ -6,7 +6,7 @@
  * CR-PENDING(WP-06b): `GenOrchestrator` has no entry point for it yet (cr-requests/WP-06b.md R3); loop's `promote`
  * proposes the raw link-converted Markdown without claims until the server routes it here.
  */
-import { type BlockId, type EngineId, MitoriError, type ModelId, type ProposalId, type ThreadId } from "@mitori/core";
+import { type BlockId, type EngineId, MitoriError, type ModelId, type ProposalId, profileFor, type ThreadId } from "@mitori/core";
 import type { GeneratedBlock, GeneratedClaim, RawCite } from "@mitori/doc";
 import { deriveSpans, normalizeMarkers } from "../line/mdscan.ts";
 import type { Services } from "../orchestrator/runner.ts";
@@ -71,7 +71,7 @@ export async function promoteAnswer(svc: Services, input: AnswerPromotion): Prom
     md,
     claims,
     gen: {
-      model: input.model ?? s.global.models.answer,
+      model: input.model ?? profileFor(s.global, input.engine ?? "claude-cli").models.answer,
       engine: input.engine ?? "claude-cli",
       stage: "S8",
       promptVer: "answer_promote@1",

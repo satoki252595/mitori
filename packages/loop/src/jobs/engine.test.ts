@@ -1,7 +1,7 @@
 // cr-requests/agent.md #9 (the first turn's input limit counts the system prompt and the schema) and nonfunc F10 (the
 // estimate counts what every call reads from the cache besides the bundle).
 import { describe, expect, test } from "bun:test";
-import type { JobId } from "@mitori/core";
+import type { EffectiveSettings, JobId } from "@mitori/core";
 import { createBundleBuilder } from "../bundle/index.ts";
 import { thread } from "../bundle/test/builders.ts";
 import { world } from "../bundle/test/world.ts";
@@ -200,5 +200,80 @@ describe("F10 fixed reads in the estimate", () => {
     doc.route.decision.contract = "docpatch/1";
     expect(profileOf(doc).promptVer).toBe("loop.docpatch@1");
     expect(engineRequest(doc, "j_1" as JobId, ctx([])).promptVer).toBe("loop.docpatch@1");
+  });
+});
+
+describe("WP41-2 engine profiles", () => {
+  const profileWorld = () => {
+    const w = world({ files: { "src/a.ts": "export const a = 1;\n" } });
+    const s = w.deps.settings();
+    return {
+      w,
+      settings: () => ({
+        ...s,
+        global: {
+          ...s.global,
+          engines: {
+            ...(s.global.engines ?? {}),
+            "codex-cli": {
+              enabled: true,
+              binary: "codex",
+              model: "gpt-5.6-luna",
+              pricing: { inPerMTok: 0.2, outPerMTok: 1.2, cacheReadPerMTok: 0.02 },
+            },
+          },
+          engineProfiles: {
+            "codex-cli": { models: { answer: "codex:gpt-5.6-luna" as const }, reasoning: { answer: "max" as const } },
+          },
+        },
+      }),
+    };
+  };
+  const ask = (w: ReturnType<typeof profileWorld>["w"], settings: () => EffectiveSettings) => {
+    const t = thread({
+      intent: "question",
+      ask: "What does a mean?",
+      anchor: { primary: "code", code: { path: "src/a.ts", start: 1, end: 1, blob: "0".repeat(40), snippet: "0".repeat(16) } },
+    });
+    return {
+      t,
+      deps: {
+        ...w.deps,
+        settings,
+        indexer: { ...w.deps.indexer, snapshot: () => null },
+        review: { get: () => t },
+        bundles: createBundleBuilder({ ...w.deps, settings }),
+        engines: () => [],
+        clock: { now: () => Date.parse("2026-10-11T00:00:00Z"), iso: () => "2026-10-11T00:00:00Z" },
+        unwritable: async () => [],
+        gates: async () => [],
+        history: () => [],
+      } as unknown as PlanDeps,
+    };
+  };
+
+  test("engine を指定した job はその engine のプロファイルモデルと effort を使う", async () => {
+    const { w, settings } = profileWorld();
+    const { t, deps } = ask(w, settings);
+    const planned = await planJob(deps, { kind: "explain" as const, threads: [t.id], engine: "codex-cli" as const });
+    expect(planned.route.engine).toBe("codex-cli");
+    expect(planned.route.decision.model).toBe("codex:gpt-5.6-luna");
+    expect(planned.route.decision.effort).toBe("max");
+  });
+
+  test("名前空間の合わない JobReq.model は日本語の案内付きで拒否される", async () => {
+    const { w, settings } = profileWorld();
+    const { t, deps } = ask(w, settings);
+    const err = await planJob(deps, {
+      kind: "explain" as const,
+      threads: [t.id],
+      engine: "grok-cli" as const,
+      model: "claude-sonnet-5-5" as const,
+    }).then(
+      () => null,
+      (e: unknown) => e as { code: string; message: string },
+    );
+    expect(err?.code).toBe("E_INVALID_INPUT");
+    expect(err?.message).toContain("grok-cli");
   });
 });

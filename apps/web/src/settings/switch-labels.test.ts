@@ -28,11 +28,12 @@ test("WP39c-1 model-switch save buttons have distinct labels in both languages",
 });
 
 test("WP39d-1 model-switch lead reads as a screen sentence in both languages", () => {
+  // WP41: 既定のLLMの切り替えもこの section で行う
   expect(ja["settings.modelSwitchLead"]).toBe(
-    "設定済みのLLMの中から、生成と回答・修正のそれぞれでモデルと推論の強さを選べます。起動のしかたや単価は変わりません。",
+    "設定済みのLLMの中から、生成と回答・修正のそれぞれで既定のLLM・モデル・推論の強さを選べます。起動のしかたや単価は変わりません。",
   );
   expect(en["settings.modelSwitchLead"]).toBe(
-    "Choose the model and reasoning effort for generation and for answers & fixes from your configured LLMs. Launch setup and pricing stay the same.",
+    "Choose the default LLM, model, and reasoning effort for generation and for answers and fixes, from the LLMs you set up. Startup and prices stay the same.",
   );
 });
 

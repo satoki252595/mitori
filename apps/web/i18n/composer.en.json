@@ -115,5 +115,11 @@
   "composer.toast.pull": "⇧F hands it to mitori review ({n} waiting)",
   "composer.toast.sendFailed": "Could not send: {error}",
   "toast.copy.prompt": "Prompt copied (≈{k} tok)",
-  "toast.draft.offline": "The daemon is unreachable, so the draft was saved in this browser"
+  "toast.draft.offline": "The daemon is unreachable, so the draft was saved in this browser",
+  "composer.llm.label": "LLM",
+  "composer.llm.why.textOnly": "text-only",
+  "composer.llm.why.sessionOnly": "not for sends",
+  "composer.llm.why.notInstalled": "missing",
+  "composer.llm.why.capabilityLost": "update needed",
+  "composer.llm.why.notLoggedIn": "logged out"
 }

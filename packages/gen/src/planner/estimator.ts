@@ -22,13 +22,14 @@ import {
   MitoriError,
   type ModelId,
   PRICING,
+  profileFor,
   type SubscriptionWindow,
   tokenBand,
   WINDOW_PRIORS,
 } from "@mitori/core";
 import type { GenIdSource } from "@mitori/doc";
 import { GEN_ESTIMATE_PARAMS, type GenEstimator, type GenPlan, type PlannedTask, type ScheduleSimulation, type TaskEstimate } from "../contract.ts";
-import { groupOf, outTarget, speedOf, startupOf, thinkingBudget, thinkingOf, ttftOf } from "./params.ts";
+import { groupOf, outTarget, speedOf, startupOf, tasksForEngine, thinkingBudget, thinkingOf, ttftOf } from "./params.ts";
 
 /** Ports of the estimator. */
 export interface EstimatorDeps {
@@ -211,10 +212,11 @@ export function createEstimator(
 
   /** Expected per-task figures in plan order for `engine` (calibrated, with the expected retry). */
   function durations(plan: GenPlan, engine: EngineId): { t: PlannedTask; e: TaskEstimate }[] {
-    const warm = warmFlags(plan.tasks);
+    const tasks = tasksForEngine(plan.tasks, engine, deps.settings());
+    const warm = warmFlags(tasks);
     const byte = engine === "generic" && isByteUpperProtocol(deps.settings().global.engines.generic.protocol);
     const prices = engine === "generic" || engine === "codex-cli" ? deps.settings().global.engines[engine].pricing : undefined;
-    return plan.tasks.map((t, i) => {
+    return tasks.map((t, i) => {
       const raw = task(t, engine, warm[i] ?? false);
       if (!byte) return { t, e: withRetry(t, calibrated(t, raw, engine), engine, prices) };
       // Counts and $ ride the byte figures (the retry re-reads byte-counted input); wall time still follows
@@ -354,6 +356,10 @@ export function createEstimator(
       });
     if (s.global.engines["anthropic-api"].enabled && engine !== "anthropic-api" && !cold) alternatives.push(alternative(plan, "anthropic-api", concurrency));
     if (engine === "anthropic-api") alternatives.unshift(alternative(plan, "anthropic-api", concurrency));
+    // WP41: 登録済みで有効な生成 engine はカードに並べる (今の 3 つの並びは変えない)
+    for (const alt of ["codex-cli", "grok-cli", "antigravity-cli", "generic"] as const)
+      if (alt !== engine && !alternatives.some((a) => a.engine === alt) && s.global.engines[alt].enabled)
+        alternatives.push(alternative(plan, alt, concurrency));
 
     const window = deps.window();
     const kappa = deps.ledger.windowFactor();
@@ -382,7 +388,7 @@ export function createEstimator(
     const est: GenEstimate = {
       id: deps.ids.next("estimate") as GenEstimate["id"],
       engine,
-      model: s.global.models.genModule,
+      model: profileFor(s.global, engine).models.genModule,
       inTokens: inTok,
       cacheReadTokens: cr,
       cacheWriteTokens: cw,

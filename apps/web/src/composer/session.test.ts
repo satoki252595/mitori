@@ -145,15 +145,27 @@ describe("LIVE-02 the estimate follows the saved text", () => {
   });
 
   test("before a server estimate, question/change predictions use their configured answer/patch model", () => {
-    for (const [intent, role, other] of [
-      ["question", "answer", "patch"],
-      ["change", "patch", "answer"],
+    for (const [intent, role] of [
+      ["question", "answer"],
+      ["change", "patch"],
     ] as const) {
       const { c, s, calls } = fixture();
       s.session.settings = {
         settings: {
           defaultEngine: "generic",
-          models: { [role]: "generic:muse-spark-1.3-contributor", [other]: "claude-sonnet-5-5" },
+          models: {
+            answer: "claude-sonnet-5-5",
+            patch: "claude-sonnet-5-5",
+            agent: "claude-sonnet-5-5",
+            genModule: "claude-sonnet-5-5",
+            genOverview: "claude-opus-5-5",
+            genLeaf: "claude-haiku-4-5",
+            judge: "claude-sonnet-5-5",
+            rewrite: "claude-sonnet-5-5",
+            escalate: "claude-opus-5-5",
+            [role]: "generic:muse-spark-1.3-contributor",
+          },
+          reasoning: { answer: "low", patch: "low", agent: "medium", gen: "low", genOverview: "medium" },
           engines: { generic: { pricing: { inPerMTok: 0.1, outPerMTok: 0.2, cacheReadPerMTok: 0.002 } } },
         },
       } as never;

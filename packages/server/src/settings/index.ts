@@ -62,6 +62,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
     escalate: "claude-opus-5-5",
   },
   reasoning: { answer: "low", patch: "low", agent: "medium", gen: "low", genOverview: "medium" },
+  engineProfiles: {},
   pins: {},
   limits: {
     confirmAboveTokens: 100_000,

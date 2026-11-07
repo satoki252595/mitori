@@ -52,6 +52,7 @@ export function testSettings(over: DeepPartial<GlobalSettings> = {}): GlobalSett
       escalate: "claude-opus-5-5",
     },
     reasoning: { answer: "low", patch: "low", agent: "medium", gen: "low", genOverview: "medium" },
+    engineProfiles: {},
     pins: { claude: TEST_CLAUDE_PIN },
     limits: {
       confirmAboveTokens: 100_000,

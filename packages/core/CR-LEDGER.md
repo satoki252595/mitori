@@ -452,3 +452,9 @@
 | id | requester | 決定 | 適用先 | 理由・備考 |
 |---|---|---|---|---|
 | CR wp39-1 | WP39（モデルと effort の選択） | accepted | core `MODEL_CATALOG`（追加）・`ModelCatalogKey`・`ModelCatalogView`・`ModelCatalogEntry`・`ModelCatalogPrice`（追加）・`findCatalogModel`・`effortsForModel`（追加、純関数）。`setup-presets.ts`・web `provider.ts`・server `settings/model-switch.ts`・estimator はこの一覧を参照。価格の数値は現行のまま移すだけ | 選べるモデルと使える effort・既定・価格の一覧を1か所に集める。キーは設定プロバイダー（grok-cli は `grok-cli` engine、grok-api・muse は `generic` engineの固定モデル）。`claude-haiku-4-5` は effort を受け付けない（`efforts: []`）が、保存済みの reasoning 値は残す。`codex:gpt-6-luna`・`grok:grok-4.6`・`grok:grok-4.5` は価格非公開（`pricing: null`）。`terra` の `ultra` は出さない |
+
+## 23. 複数の LLM を登録し呼び出すたびに選べるようにする（2026-11-07、WP41）
+
+| id | requester | 決定 | 適用先 | 理由・備考 |
+|---|---|---|---|---|
+| CR wp41-1 | WP41（LLM をまとめて登録し呼び出すたびに選ぶ） | accepted | core `EngineProfile`・`MODEL_ROLE_KEYS`・`REASONING_MODEL`・`modelFitsEngine`・`engineForModel`・`catalogDefaultModel`・`catalogDefaultEffort`・`profileFor`（追加、純関数）、`GlobalSettings.engineProfiles`（追加、既定 `{}`、schemaVersion は上げない）、`SETTING_SCOPES` に `engineProfiles`（global のみ）。server settings schema の `engineProfiles` 検証、server `settings/model-switch.ts` のプロファイル検証 | 呼び出しごとの engine に合うモデル・effort を1か所で解決する。古い設定ファイル（キー無し）はそのまま読める。Claude の素 id は claude-cli・anthropic-api で共有。`genLeaf` と `session` は全体値のまま |

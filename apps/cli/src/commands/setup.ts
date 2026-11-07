@@ -9,7 +9,19 @@ import { selfCommand } from "./process-io.ts";
 import { connect, requireTty } from "./session.ts";
 import { integrationSetup } from "./setup-integrations.ts";
 import { prepareProviderPin } from "./setup-pin.ts";
-import { listModelsTable, PROVIDERS, type Provider, SESSION_PROVIDERS, setupPatch } from "./setup-presets.ts";
+import {
+  decideDefaultSwitch,
+  engineDisplayName,
+  genericEngineChanged,
+  genericLabel,
+  isEngineRegistered,
+  listModelsTable,
+  PROVIDERS,
+  type Provider,
+  SESSION_PROVIDERS,
+  setupEngine,
+  setupPatch,
+} from "./setup-presets.ts";
 
 export function binaryOf(provider: Provider, explicit?: string, opts: { cli?: boolean; path?: string } = {}): string | undefined {
   if (provider !== "claude" && provider !== "muse" && provider !== "codex" && !(provider === "grok" && opts.cli) && !(provider === "antigravity" && opts.cli))
@@ -48,11 +60,16 @@ export async function run(io: Io): Promise<number> {
       "max-estimated-usd": { type: "string" },
       cli: { type: "boolean" },
       "list-models": { type: "boolean" },
+      default: { type: "boolean" },
+      "keep-default": { type: "boolean" },
     },
     "setup",
   );
   const provider = oneOf(positionals[0], PROVIDERS, "provider", "setup");
   if (!provider || positionals.length !== 1) throw usage(`choose ${PROVIDERS.join(" | ")}`, "mitori setup --help");
+  const makeDefault = values.default === true;
+  const keepDefault = values["keep-default"] === true;
+  if (makeDefault && keepDefault) throw usage("--default と --keep-default は同時に指定できません", "mitori setup --help");
   if (values["list-models"] === true) {
     io.out(listModelsTable(provider, { api: values.api === true, cli: values.cli === true }, helpLang(io.env)));
     return 0;
@@ -114,6 +131,16 @@ export async function run(io: Io): Promise<number> {
     const [command, ...args] = selfCommand();
     instructions = integrationSetup(provider as "codex" | "cursor" | "antigravity" | "grok", { command, args, workspace });
   }
+  // WP41: 登録は engine ごと。engineProfiles.<id> にこの provider のモデル・effort を残す
+  const target = setupEngine({ provider, api: values.api === true, native: values.native === true, cli: values.cli === true });
+  if (patch.models !== undefined || patch.reasoning !== undefined) {
+    (patch as Record<string, unknown>).engineProfiles = {
+      [target]: {
+        ...(patch.models !== undefined ? { models: patch.models } : {}),
+        ...(patch.reasoning !== undefined ? { reasoning: patch.reasoning } : {}),
+      },
+    };
+  }
   io.out(`${JSON.stringify(patch, null, 2)}\n`);
   if (preview) {
     if (instructions) io.out(instructions);
@@ -121,6 +148,35 @@ export async function run(io: Io): Promise<number> {
   }
   if (!(await io.confirm("このLLM設定を保存しますか？ / Save this provider?"))) return 1;
   const s = await connect(io);
+  // WP41: 既定の切り替えは登録と分ける。今の既定と同じ engine なら今まで通り更新する
+  const current = (await s.api.call("GET /settings", { params: {} })) as { settings?: Partial<GlobalSettings> };
+  const cur = current.settings ?? {};
+  const curDefault = cur.defaultEngine ?? cur.defaultGenEngine;
+  const nextGeneric = patch.engines?.generic;
+  const curGeneric = cur.engines?.generic;
+  if (target === "generic" && nextGeneric && curGeneric && genericEngineChanged(curGeneric, nextGeneric))
+    io.err(`今の ${genericLabel(curGeneric)} の設定を置き換えます。\n`);
+  // WP41b-3: 今の既定が未登録 (使っていない工場出荷の既定など) なら聞かずに切り替える
+  const curLabel = curDefault === undefined ? "未設定" : engineDisplayName(curDefault, cur.engines?.generic);
+  const targetLabel = engineDisplayName(target, patch.engines?.generic ?? cur.engines?.generic);
+  const decision = decideDefaultSwitch({
+    curDefault,
+    target,
+    makeDefault,
+    keepDefault,
+    registered: curDefault === undefined || isEngineRegistered(cur, curDefault),
+  });
+  let switchDefault: boolean;
+  if (decision === "keep") switchDefault = false;
+  else if (decision === "switch") switchDefault = true;
+  else if (!(await io.confirm(`既定のLLMを ${curLabel} から ${targetLabel} に切り替えますか？ / Switch the default LLM?`))) switchDefault = false;
+  else switchDefault = true;
+  if (!switchDefault) {
+    delete patch.defaultEngine;
+    delete patch.defaultGenEngine;
+    delete patch.models;
+    delete patch.reasoning;
+  }
   let execSaved = false;
   try {
     for (const [key, value] of Object.entries(patch.pins ?? {}))
@@ -142,6 +198,7 @@ export async function run(io: Io): Promise<number> {
     throw e;
   }
   io.out("保存しました。ブラウザの設定を再読み込みしてください。モデルの呼び出しは行っていません。\n");
+  io.out(switchDefault ? `既定のLLMは ${targetLabel} です。\n` : `既定は ${curLabel} のままです。呼び出すときに選べます。\n`);
   if (provider === "grok" && values.api)
     io.out("GrokにはXAI_API_KEY（または指定した環境変数）が必要です。既存daemonは環境を引き継ぎません。キーを設定したターミナルから再起動してください。\n");
   if (provider === "muse") io.out("Museの認証とlean起動条件を確認してください。新しいnativeバージョンは実検証記録と区別してください。\n");

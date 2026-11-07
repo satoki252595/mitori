@@ -697,6 +697,7 @@ export class Loop {
           kind: c.kind,
           threads: [th],
           estimateId: est.estimate.id,
+          engine: c.llm,
           ...(c.docFix ? { docFix: true } : {}),
           ...(Object.keys(context).length ? { context } : {}),
           ...(c.override?.mode ? { mode: c.override.mode } : {}),

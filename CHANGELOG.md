@@ -14,6 +14,7 @@ Windows は `.zip`）・SHA256SUMS・release.json を取る。検証は `SHA256S
 - 使える LLM（いずれか1つにログイン済みであること）: Claude Code・Muse・Codex・Ollama・LM Studio・Cursor・Antigravity・Grok Build・Grok Build CLI・Gemini（antigravity-cli、macOS のみ）。API キーは不要で、各公式ツールのログインを使う。
 - Orca の一覧に合わせた対応: Claude は `claude-haiku-5-5`・`claude-fable-5-1`（価格は 2026-11-03 の公式表）、Codex は effort とモデルごとの価格、Grok Build CLI（`grok-cli`）は画面から単発テキスト生成（既定 `grok-4.7-build-fast`・low）。
 - provider ごとのモデルと effort の選択（WP39）: core の MODEL_CATALOG を setup・web・server が使い、`setup <provider> --list-models` で一覧を出す。web の設定画面の「モデルと推論の強さ」で設定済み engine の中の生成用・回答用の切り替えができる。
+- LLM ごとの設定と呼び出しごとの選択（WP41）: 複数の LLM をまとめて登録し、呼び出すたびに選べる。engine ごとのモデル・effort（`engineProfiles`）を `profileFor` で解決し、`setup` は登録と既定の切り替えを分ける（`--default`・`--keep-default`）。web の設定画面で既定の LLM を切り替え、生成の見積もりカードと回答・修正の送信欄の「使うLLM」で選ぶ。`mitori gen --llm <プロバイダー>` でも選べる。e2e はホストで実行する。
 - Gemini（WP40〜40h）: agy（Antigravity CLI、サブスク）経由で `antigravity:gemini-3.8-flash`（既定・low）・`antigravity:gemini-4-argon` を使う。呼び出しごとの一時 HOME（キーチェーンの symlink だけ）とツールなし agent 定義で隔離し、prompt は stdin に載せる。生成と回答のみ。ai-job-search 11 タスクで 11/11・L1 93.6 %・190.7 秒・API 換算 $0.539（サブスクのため請求なし）。
 - 同じ名前のファイルを区別して表示する。MCP ツール・Rust ルートを入口にする。ホストと同じ target のバイナリは Nix の loader を参照しない（公式 Bun runtime を sha256 固定で使う）。
 - 対応 OS: macOS Apple Silicon・Linux x64 / arm64・Windows x64。データの置き場所は `~/.mitori` と対象 repo の `.mitori/`。

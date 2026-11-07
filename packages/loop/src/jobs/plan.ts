@@ -20,9 +20,11 @@ import {
   type JobReq,
   MitoriError,
   type ModelId,
+  modelFitsEngine,
   newId,
   PRICING,
   priceUsage,
+  profileFor,
   type Random,
   type RepoPath,
   type Result,
@@ -212,6 +214,16 @@ export async function planJob(deps: PlanDeps, req: JobReq, opts: PlanOptions = {
   const s = deps.settings();
   const { limits } = s.global;
   const engineId: EngineId = req.engine ?? s.global.defaultEngine;
+  const prof = profileFor(s.global, engineId);
+  // 明示の model はその engine の名前空間に合うものだけ受け付ける (WP41)
+  if (req.model !== undefined && !modelFitsEngine(req.model, engineId))
+    throw new MitoriError(
+      "E_INVALID_INPUT",
+      `model ${req.model} は engine ${engineId} では使えません。${engineId} のモデルを選ぶか、engine を変えてください。`,
+      {
+        params: { model: req.model, engine: engineId },
+      },
+    );
   const statuses = deps.engines();
   const status = statuses.find((e) => e.engine === engineId) ?? null;
   const changes = threads.every((t) => t.intent === "change" || t.intent === "doc_edit");
@@ -255,7 +267,7 @@ export async function planJob(deps: PlanDeps, req: JobReq, opts: PlanOptions = {
 
   // 2. patch-bundle size for the router (change intents only)
   let probe: Bundle | null = null;
-  if (changes && scope.writeScope.length > 0) probe = await bundleFor("patch", scope, prelim("patch", s.global.models.patch), "patch/1");
+  if (changes && scope.writeScope.length > 0) probe = await bundleFor("patch", scope, prelim("patch", prof.models.patch), "patch/1");
   const input = {
     intents: threads.map((t) => t.intent),
     single: !notes,
@@ -303,7 +315,8 @@ export async function planJob(deps: PlanDeps, req: JobReq, opts: PlanOptions = {
   if (total > limits.confirmAboveTokens) reasons.push("over_token_threshold");
   // the final escalation is a proposal: R1, or any agent job on the escalation model (the web's "escalate" asks for
   // mode=agent + model=escalate explicitly), runs only after the human confirmed its cost (spec §3.5, L9)
-  const escalated = mode === "agent" && outcome.decision.model === s.global.models.escalate && s.global.models.escalate !== s.global.models.agent;
+  const outProf = profileFor(s.global, outcome.engine);
+  const escalated = mode === "agent" && outcome.decision.model === outProf.models.escalate && outProf.models.escalate !== outProf.models.agent;
   if (outcome.decision.requiresConfirm || escalated) reasons.push("escalation");
   if (status?.auth === "api-key") reasons.push("api_key_billing");
   const [p50, p90] = SECONDS[mode];
@@ -345,15 +358,16 @@ export async function planJob(deps: PlanDeps, req: JobReq, opts: PlanOptions = {
   };
 }
 
-function providerPrices(engine: EngineId, settings: EngineSettings): EngineSettings["generic"]["pricing"] {
+function providerPrices(engine: EngineId, settings: EngineSettings | undefined): EngineSettings["generic"]["pricing"] {
+  if (!settings) return undefined;
   return engine === "generic"
-    ? settings.generic.pricing
+    ? settings.generic?.pricing
     : engine === "codex-cli"
-      ? settings["codex-cli"].pricing
+      ? settings["codex-cli"]?.pricing
       : engine === "grok-cli"
-        ? settings["grok-cli"].pricing
+        ? settings["grok-cli"]?.pricing
         : engine === "antigravity-cli"
-          ? settings["antigravity-cli"].pricing
+          ? settings["antigravity-cli"]?.pricing
           : undefined;
 }
 

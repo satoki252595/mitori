@@ -1,12 +1,24 @@
 <!-- Optional details: SSR supplies this synchronously; enhanced cards load it when opened. -->
 <script lang="ts">
-import type { EngineId, GenEstimate } from "@mitori/core";
+import type { EngineId, EngineStatus, GenEstimate } from "@mitori/core";
+import { engineProblem } from "../map/engine.ts";
 import { fmtTokensImpl, fmtUsdImpl } from "../shell/fmt.ts";
 import { t } from "../shell/index.ts";
 import { estimateValidity, stageRows } from "./estimate.ts";
 
-let { est, engine, onengine }: { est: GenEstimate; engine: EngineId; onengine: (e: EngineId) => void } = $props();
+let {
+  est,
+  engine,
+  onengine,
+  statuses = null,
+}: { est: GenEstimate; engine: EngineId; onengine: (e: EngineId) => void; statuses?: readonly EngineStatus[] | null } = $props();
 const validity = $derived(estimateValidity(est, Date.now()));
+/** 使えない engine (未ログインなど) は理由付きで選べない。 */
+const unusable = (id: EngineId): string | null => {
+  if (id === "session" || statuses === null) return null;
+  const problem = engineProblem(statuses.find((s) => s.engine === id) ?? null);
+  return problem === null ? null : t(`engine.${problem}.title`, { engine: id });
+};
 </script>
 
 <table>
@@ -21,10 +33,11 @@ const validity = $derived(estimateValidity(est, Date.now()));
 <fieldset class="eng">
   <legend>{t("gen.card.engineLabel")}</legend>
   {#each est.alternatives as alt (alt.engine)}
+    {@const why = unusable(alt.engine)}
     <label
-      ><input type="radio" name="mitori-engine" value={alt.engine} checked={alt.engine === engine} onchange={() => onengine(alt.engine)} />
+      ><input type="radio" name="mitori-engine" value={alt.engine} checked={alt.engine === engine} disabled={why !== null} onchange={() => onengine(alt.engine)} />
       <span class="mono">{alt.engine}</span>
-      <span>{t("gen.card.alt", { c: alt.concurrency, usd: fmtUsdImpl(alt.apiUsd, "gen") })}{#if alt.sessionTokens}{t("gen.card.altSession", { k: fmtTokensImpl(alt.sessionTokens) })}{/if}{#if alt.uncalibrated}{t("gen.card.uncalibrated")}{/if}</span>
+      <span>{t("gen.card.alt", { c: alt.concurrency, usd: fmtUsdImpl(alt.apiUsd, "gen") })}{#if alt.sessionTokens}{t("gen.card.altSession", { k: fmtTokensImpl(alt.sessionTokens) })}{/if}{#if alt.uncalibrated}{t("gen.card.uncalibrated")}{/if}{#if why} ({t("gen.card.altDisabled")}: {why}){/if}</span>
     </label>
   {/each}
 </fieldset>

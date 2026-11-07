@@ -6,6 +6,7 @@ import {
   type GenStage,
   type ModelId,
   PRICING,
+  profileFor,
   type ReasoningEffort,
   THINKING_BUDGET_TOKENS,
 } from "@mitori/core";
@@ -48,18 +49,31 @@ export function modelOf(
   s: EffectiveSettings,
 ): { model: ModelId; effort: ReasoningEffort | null } {
   const key = modelKeyOf(prompt, mode, engine);
-  const model = s.global.models[key];
+  const prof = profileFor(s.global, engine);
+  const model = prof.models[key];
   const spec = GEN_PROMPTS[prompt];
   const modeEffort = mode
     ? (spec as { modes?: Readonly<Record<string, { effort?: ReasoningEffort | null }>> }).modes?.[baseMode(mode) ?? mode]?.effort
     : undefined;
   let effort: ReasoningEffort | null = modeEffort !== undefined ? modeEffort : spec.effort;
-  if (key === "genOverview") effort = s.global.reasoning.genOverview;
-  else if (key === "genModule") effort = s.global.reasoning.gen;
+  if (key === "genOverview") effort = prof.reasoning.genOverview;
+  else if (key === "genModule") effort = prof.reasoning.gen;
   if (engine === "generic" || engine === "codex-cli" || engine === "grok-cli" || engine === "antigravity-cli")
-    effort = key === "genOverview" ? s.global.reasoning.genOverview : s.global.reasoning.gen;
+    effort = key === "genOverview" ? prof.reasoning.genOverview : prof.reasoning.gen;
   if (engine === "anthropic-api" && model === "claude-haiku-4-5") effort = null;
   return { model, effort };
+}
+
+/**
+ * Plan tasks with the model/effort of another engine (WP41): the estimate card prices every
+ * registered engine with its own `profileFor` values instead of the planning engine's.
+ */
+export function tasksForEngine(tasks: readonly PlannedTask[], engine: EngineId, s: EffectiveSettings): PlannedTask[] {
+  return tasks.map((t) => {
+    if (t.cached) return { ...t };
+    const { model, effort } = modelOf(t.prompt, t.mode, engine, s);
+    return { ...t, model, effort };
+  });
 }
 
 /** Max output tokens of a prompt mode (§5.3). */

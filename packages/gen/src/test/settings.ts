@@ -42,6 +42,7 @@ export function testSettings(over: { global?: Partial<GlobalSettings>; docLang?:
       escalate: "claude-opus-5-5",
     },
     reasoning: { answer: "low", patch: "low", agent: "medium", gen: "low", genOverview: "medium" },
+    engineProfiles: {},
     pins: {},
     limits: {
       confirmAboveTokens: 100_000,

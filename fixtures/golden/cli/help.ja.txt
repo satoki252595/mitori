@@ -31,7 +31,7 @@ mitori digest [--max-tokens N]
   1 行の状況（doc の版・未解決 thread・古い block）。SessionStart hook 用。daemon が無ければ何も出しません。
 
 ## gen
-mitori gen [--effort overview|standard|complete] [--scope <section>…]      見積りを出して TTY で確認してから生成
+mitori gen [--effort overview|standard|complete] [--scope <section>…] [--llm <provider>]   見積りを出して TTY で確認してから生成
 mitori gen --prep [--effort E] [--scope <section>…] [--continue <pr_id>]   この session の agent が書く packet を作る
 mitori gen --ingest <pr_id> [--partial] [--model <model id>]             agent が書いた out/*.ndjson を取り込む
   --repo /absolute/repo は起動元フォルダに関係なく対象repoを指定します。
@@ -65,7 +65,9 @@ mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> 
   --binary /absolute/path        Claude/Muse/Codex/Grok/Antigravity CLIの実行ファイル
   --base-url URL --key-env NAME  OpenAI互換APIのURLとキーの環境変数名（キー自体は保存しない）
   --in-price N --out-price N     任意remoteモデルのUSD/百万token単価
+  --default / --keep-default     既定のLLMにする / 既定は変えずに登録だけする（同時指定は不可。無指定では、登録済みの別のLLMが既定なら切り替えを確認する）
   --effort low|medium|high|xhigh|max  Muse・Claude・Grok CLI・Antigravity CLIの推論強度（Muse既定max、Claude既定high、Grok CLI・Antigravity CLI既定low。Antigravity CLIはlow|medium|highのみ。Grok medium以上は1タスク10分超えあり。HTTPへは送らない）
+  複数のLLMをまとめて登録して、呼び出すときに選ぶ。同じengineの再設定は既定も更新する
   --list-models                  選べるモデルと使えるeffort・既定・価格を出す（設定は変えない）
   --print                        設定・連携手順の表示だけ（保存・接続しない）
   例: mitori setup grok --repo /absolute/repo（既存セッション） / mitori setup grok --api（XAI_API_KEY）

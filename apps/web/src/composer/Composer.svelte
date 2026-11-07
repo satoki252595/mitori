@@ -6,7 +6,7 @@
   path under 「詳細 ▸」 (UXP-14). Keys go through the registry (`composer` scope while this layer is on top).
 -->
 <script lang="ts">
-import { DEFAULT_LIMITS, type ExecMode, type SymbolEntry, type ThreadIntent, tokenBand } from "@mitori/core";
+import { DEFAULT_LIMITS, type EngineId, type ExecMode, type SymbolEntry, type ThreadIntent, tokenBand } from "@mitori/core";
 import { onMount, tick } from "svelte";
 import { COMPOSER_DENSITY, type ExecPath } from "../contract.ts";
 import { VisibleClock } from "../gen/visibility.ts";
@@ -16,6 +16,7 @@ import { useStores } from "../stores/app.svelte.ts";
 import { loopOf } from "../threads/loop.svelte.ts";
 import EstimateChip from "./EstimateChip.svelte";
 import { focusWhenShown } from "./focus.ts";
+import { llmOptions } from "./llm.ts";
 import { dropMention, type MentionQuery, mentionAt } from "./mention.ts";
 import { instrTokens } from "./predict.ts";
 import RouterChip from "./RouterChip.svelte";
@@ -53,7 +54,13 @@ function chipLabel(it: { key: string; kind: string; label: string }): string {
 /** The `@` mention a server estimate item (`code:<path>:<a>-<b>`) was made from — it carries the mention's ×, so the chip is not shown twice. */
 const mentionOf = (key: string): number => c.mentions.findIndex((m) => key === `code:${m.path}:${m.start}-${m.end}`);
 const limits = $derived(s.session.settings?.settings.limits ?? DEFAULT_LIMITS);
-const engineId = $derived(est?.estimate.engine ?? s.session.settings?.settings.defaultEngine ?? "claude-cli");
+const engineId = $derived(c.llm);
+/** LLM select の mode 判定 (pull・copy は job を走らせないので絞らない)。 */
+const llmMode = $derived.by((): ExecMode | null => {
+  if (c.path !== "push") return null;
+  return p.mode === "answer" || p.mode === "patch" || p.mode === "agent" ? p.mode : null;
+});
+const llmOpts = $derived(s.session.settings ? llmOptions(s.session.settings.settings, s.session.engines, llmMode) : []);
 const billing = $derived(est?.estimate.billing ?? s.session.engine(engineId)?.billing ?? "unknown");
 const seconds = $derived(usualBand(p.mode, est?.history));
 const docPrimary = $derived(c.target.anchor.primary === "doc");
@@ -514,6 +521,11 @@ const sendLabel = $derived(
       <button type="button" class="path" onclick={cyclePath} aria-label={t("composer.path.label", { path: pathLabel })}><span class="pi" aria-hidden="true">{c.path === "push" ? "⚡" : c.path === "pull" ? "⤴" : "⧉"}</span>{pathLabel}</button>
     {/if}
     <span class="grow"></span>
+    {#if c.runsJob && llmOpts.length > 0}
+      <label class="llm"><span>{t("composer.llm.label")}</span><select value={c.llm} onchange={(e) => c.setLlm(e.currentTarget.value as EngineId)} aria-label={t("composer.llm.label")}>
+        {#each llmOpts as o (o.engine)}<option value={o.engine} disabled={o.disabled}>{o.engine}{o.disabled && o.reason ? ` (${t(`composer.llm.why.${o.reason}`)})` : ""}</option>{/each}
+      </select></label>
+    {/if}
     {#if loggedOut}<span class="engine-off" role="status">{t("composer.engineOff", { engine: engineId })}</span>{/if}
     <button type="button" class="btn btn-pri btn-s send" disabled={!canSend} onclick={(e) => void send(e.timeStamp)}>{sendLabel}<kbd>{s.keys.label("Mod+Enter")}</kbd></button>
   </footer>
@@ -1000,6 +1012,23 @@ const sendLabel = $derived(
   }
   .cm-f .grow {
     flex: 1;
+  }
+  .llm {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-label);
+    color: var(--muted);
+  }
+  .llm select {
+    height: 24px;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-input);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: var(--fs-label);
+    padding: 0 4px;
+    max-width: 220px;
   }
   .path {
     display: inline-flex;

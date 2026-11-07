@@ -80,13 +80,13 @@ export const HELP: Readonly<Record<string, Help>> = {
 `,
   },
   gen: {
-    ja: `mitori gen [--effort overview|standard|complete] [--scope <section>…]      見積りを出して TTY で確認してから生成
+    ja: `mitori gen [--effort overview|standard|complete] [--scope <section>…] [--llm <provider>]   見積りを出して TTY で確認してから生成
 mitori gen --prep [--effort E] [--scope <section>…] [--continue <pr_id>]   この session の agent が書く packet を作る
 mitori gen --ingest <pr_id> [--partial] [--model <model id>]             agent が書いた out/*.ndjson を取り込む
   --repo /absolute/repo は起動元フォルダに関係なく対象repoを指定します。
   --prep / --ingest は mitori 自身は API を使いません。exit 0=妥当 / 1=誤り（直して再実行）/ 3=期限切れ・fingerprint 不一致。
 `,
-    en: `mitori gen [--effort overview|standard|complete] [--scope <section>…]      estimate, confirm on a TTY, generate
+    en: `mitori gen [--effort overview|standard|complete] [--scope <section>…] [--llm <provider>]   estimate, confirm on a TTY, generate
 mitori gen --prep [--effort E] [--scope <section>…] [--continue <pr_id>]   build a packet for the agent of this session
 mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in the agent's out/*.ndjson
   --repo /absolute/repo selects the repository regardless of the working directory.
@@ -130,7 +130,9 @@ mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in
   --binary /absolute/path        Claude/Muse/Codex/Grok/Antigravity CLIの実行ファイル
   --base-url URL --key-env NAME  OpenAI互換APIのURLとキーの環境変数名（キー自体は保存しない）
   --in-price N --out-price N     任意remoteモデルのUSD/百万token単価
+  --default / --keep-default     既定のLLMにする / 既定は変えずに登録だけする（同時指定は不可。無指定では、登録済みの別のLLMが既定なら切り替えを確認する）
   --effort low|medium|high|xhigh|max  Muse・Claude・Grok CLI・Antigravity CLIの推論強度（Muse既定max、Claude既定high、Grok CLI・Antigravity CLI既定low。Antigravity CLIはlow|medium|highのみ。Grok medium以上は1タスク10分超えあり。HTTPへは送らない）
+  複数のLLMをまとめて登録して、呼び出すときに選ぶ。同じengineの再設定は既定も更新する
   --list-models                  選べるモデルと使えるeffort・既定・価格を出す（設定は変えない）
   --print                        設定・連携手順の表示だけ（保存・接続しない）
   例: mitori setup grok --repo /absolute/repo（既存セッション） / mitori setup grok --api（XAI_API_KEY）
@@ -145,7 +147,9 @@ mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in
   --binary /absolute/path        Claude/Muse/Codex/Grok/Antigravity CLI native executable
   --base-url URL --key-env NAME  OpenAI-compatible URL and credential environment variable name
   --in-price N --out-price N     Custom remote model prices in USD per million tokens
+  --default / --keep-default     Make it the default LLM / only register without changing the default (mutually exclusive; without either, replacing another registered default asks first)
   --effort low|medium|high|xhigh|max  Muse/Claude/Grok CLI/Antigravity CLI reasoning effort (Muse default max, Claude default high, Grok CLI and Antigravity CLI default low; Antigravity CLI takes low|medium|high only; Grok medium+ can exceed 10 min/task; HTTP does not send effort)
+  Register several LLMs up front and pick one per call. Re-running setup for the same engine also updates the defaults
   --list-models                  List the selectable models with usable efforts, defaults and prices (changes nothing)
   --print                        Preview settings/instructions without saving or connecting
   Examples: mitori setup grok --repo /absolute/repo (existing session) / mitori setup grok --api (XAI_API_KEY)

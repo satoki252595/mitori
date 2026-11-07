@@ -9,7 +9,7 @@
  */
 import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import type { Effort, GenEstimate, IngestReport, ModelId, PrepId, SectionId } from "@mitori/core";
+import type { Effort, EngineId, GenEstimate, IngestReport, ModelId, PrepId, SectionId } from "@mitori/core";
 import { MitoriError } from "@mitori/core";
 import { oneOf, parse } from "./args.ts";
 import { errorLines } from "./check.ts";
@@ -26,6 +26,32 @@ const prepArg = (raw: string | undefined, flag: string): PrepId => {
   if (raw === undefined || !PREP_RE.test(raw)) throw usage(`${flag} needs a packet id (pr_…)`, "mitori gen --help");
   return raw as PrepId;
 };
+
+/**
+ * `--llm <provider>` (WP41: `mitori setup` と同じプロバイダ名) を生成 engine にする。
+ * grok は CLI 枠、codex は native 枠 (session 枠を使うときはブラウザか `--ingest` 側で)。
+ */
+export function llmEngineOf(raw: string): EngineId {
+  switch (raw) {
+    case "claude":
+      return "claude-cli";
+    case "muse":
+    case "ollama":
+    case "lmstudio":
+    case "openai":
+      return "generic";
+    case "grok":
+      return "grok-cli";
+    case "codex":
+      return "codex-cli";
+    case "cursor":
+      return "session";
+    case "antigravity":
+      return "antigravity-cli";
+    default:
+      throw usage(`unknown LLM ${raw} (choose claude | muse | grok | ollama | lmstudio | openai | codex | cursor | antigravity)`, "mitori gen --help");
+  }
+}
 
 /** `mitori.prep/1` header block (spec §10.5). */
 export function prepText(p: { id: string; tasks: number; expiresAt: string; dir: string; readme: string }): string {
@@ -65,6 +91,7 @@ export async function run(io: Io): Promise<number> {
       scope: { type: "string", multiple: true },
       partial: { type: "boolean" },
       model: { type: "string" },
+      llm: { type: "string" },
     },
     "gen",
   );
@@ -131,7 +158,10 @@ export async function run(io: Io): Promise<number> {
   requireTty(io, "mitori gen", "start the generation from the browser, or use `mitori gen --prep` from an agent session");
   const s = await connectWorkspace(io);
   const ws = s.ws.info.key;
-  const est = await whenReady(io, () => s.api.call("POST /ws/:ws/gen/estimate", { params: { ws }, body: { effort, ...(scope.length ? { scope } : {}) } }));
+  const llm = values.llm === undefined ? undefined : llmEngineOf(values.llm);
+  const est = await whenReady(io, () =>
+    s.api.call("POST /ws/:ws/gen/estimate", { params: { ws }, body: { effort, ...(scope.length ? { scope } : {}), ...(llm ? { engine: llm } : {}) } }),
+  );
   io.err(estimateText(est, lang));
   if (!(await io.confirm(lang === "ja" ? "生成を始めますか？" : "Start the generation?"))) {
     io.err(lang === "ja" ? "中止しました\n" : "cancelled\n");
