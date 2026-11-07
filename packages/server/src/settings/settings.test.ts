@@ -578,3 +578,138 @@ describe("SRV-I-027 settings service", () => {
     }
   });
 });
+
+describe("WP41-4 engine profiles", () => {
+  async function svc() {
+    const home = tempDir();
+    const published: SseEventPayload[] = [];
+    const s = await createSettingsService({
+      home,
+      fs: fsReader,
+      safeWrite: fsSafeWriter(),
+      publish: (p) => void published.push(p),
+      log: silentLogger,
+    });
+    return { home, s };
+  }
+  const codexEngine = {
+    enabled: true,
+    binary: "codex",
+    model: "gpt-6.1-sol",
+    pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+    pricingByModel: { "gpt-5.6-luna": { inPerMTok: 0.2, outPerMTok: 1.2, cacheReadPerMTok: 0.02 } },
+    maxEstimatedSpendUsd: 1,
+  };
+
+  test("プロファイルの保存は検証される (未設定 engine・使えない effort は拒否)", async () => {
+    const { home, s } = await svc();
+    try {
+      const v = s.view().version;
+      // codex-cli 未設定のままでは engine-missing
+      expect(
+        await s.patch({ version: v, patch: { engineProfiles: { "codex-cli": { models: { answer: "codex:gpt-6.1-sol" } } } } }).then(() => "ok", code),
+      ).toBe("E_INVALID_INPUT");
+      await s.patchExec({ path: "engines.codex-cli", value: codexEngine, confirm: true });
+      const v2 = s.view().version;
+      const after = await s.patch({
+        version: v2,
+        patch: { engineProfiles: { "codex-cli": { models: { answer: "codex:gpt-5.6-luna" } } } },
+      });
+      expect(after.settings.engineProfiles?.["codex-cli"]?.models?.answer).toBe("codex:gpt-5.6-luna");
+      // 使えない effort は拒否される
+      // 使えない effort は拒否される (grok-4.5 は low|medium|high のみ)
+      await s.patchExec({
+        path: "engines.grok-cli",
+        value: { enabled: true, binary: "grok", model: "grok-4.5", pricing: { inPerMTok: 3, outPerMTok: 9, cacheReadPerMTok: 3 }, turnMs: 1_200_000 },
+        confirm: true,
+      });
+      const v3 = s.view().version;
+      expect(
+        await s
+          .patch({ version: v3, patch: { engineProfiles: { "grok-cli": { models: { answer: "grok:grok-4.5" }, reasoning: { answer: "xhigh" } } } } })
+          .then(() => "ok", code),
+      ).toBe("E_INVALID_INPUT");
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("既定の切り替えで全体の models・reasoning がプロファイル値に揃う", async () => {
+    const { home, s } = await svc();
+    try {
+      await s.patchExec({ path: "engines.codex-cli", value: codexEngine, confirm: true });
+      const v = s.view().version;
+      const after = await s.patch({
+        version: v,
+        patch: {
+          defaultEngine: "codex-cli",
+          defaultGenEngine: "codex-cli",
+          models: {
+            answer: "codex:gpt-6.1-sol",
+            patch: "codex:gpt-6.1-sol",
+            agent: "codex:gpt-6.1-sol",
+            genModule: "codex:gpt-6.1-sol",
+            genOverview: "codex:gpt-6.1-sol",
+            judge: "codex:gpt-6.1-sol",
+            rewrite: "codex:gpt-6.1-sol",
+            escalate: "codex:gpt-6.1-sol",
+          },
+          reasoning: { answer: "high", patch: "high", agent: "high", gen: "high", genOverview: "high" },
+          engineProfiles: { "codex-cli": { models: { answer: "codex:gpt-6.1-sol" }, reasoning: { answer: "high" } } },
+        },
+      });
+      expect(after.settings.defaultEngine).toBe("codex-cli");
+      expect(after.settings.models.answer).toBe("codex:gpt-6.1-sol");
+      expect(after.settings.reasoning.answer).toBe("high");
+      expect(after.settings.engineProfiles?.["codex-cli"]?.models?.answer).toBe("codex:gpt-6.1-sol");
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("exec の値は web から変えられない (engines は E_FORBIDDEN_KEY のまま)", async () => {
+    const { home, s } = await svc();
+    try {
+      const v = s.view().version;
+      expect(
+        await s.patch({ version: v, patch: { engineProfiles: { "codex-cli": { models: { answer: "codex:gpt-6.1-sol" } } } } }).then(() => "ok", code),
+      ).toBe("E_INVALID_INPUT");
+      expect(await s.patch({ version: v, patch: { engines: { "codex-cli": codexEngine } } }).then(() => "ok", code)).toBe("E_FORBIDDEN_KEY");
+    } finally {
+      removeDir(home);
+    }
+  });
+
+  test("WP41b-2 一覧に無い generic モデルは engine の価格があれば通り、無ければ setup 案内で拒否", async () => {
+    const { home, s } = await svc();
+    try {
+      // setup と同じ2段の保存: 先に exec で engines.generic を登録する (価格なし)
+      await s.patchExec({
+        path: "engines.generic",
+        value: { enabled: true, argv: [], protocol: "openai-chat", api: { baseUrl: "http://localhost:11434/v1" } },
+        confirm: true,
+      });
+      const v0 = s.view().version;
+      // 一覧に無く価格も無ければ今まで通り拒否 (setup の案内つき)
+      expect(await s.patch({ version: v0, patch: { models: { genModule: "generic:new-model-xyz" } } }).then(() => "ok", code)).toBe("E_INVALID_INPUT");
+      // engine に価格を付けると通る: 続けて通常の PATCH で models・reasoning・engineProfiles.generic
+      await s.patchExec({ path: "engines.generic.pricing", value: { inPerMTok: 0.5, outPerMTok: 1, cacheReadPerMTok: 0.5 }, confirm: true });
+      const v = s.view().version;
+      const after = await s.patch({
+        version: v,
+        patch: {
+          models: { genModule: "generic:new-model-xyz", genOverview: "generic:new-model-xyz" },
+          reasoning: { gen: "high", genOverview: "high" },
+          engineProfiles: {
+            generic: { models: { genModule: "generic:new-model-xyz", genOverview: "generic:new-model-xyz" }, reasoning: { gen: "high", genOverview: "high" } },
+          },
+        },
+      });
+      expect(after.settings.models.genModule).toBe("generic:new-model-xyz");
+      expect(after.settings.engineProfiles?.generic?.models?.genModule).toBe("generic:new-model-xyz");
+      expect(after.settings.engineProfiles?.generic?.reasoning?.gen).toBe("high");
+    } finally {
+      removeDir(home);
+    }
+  });
+});

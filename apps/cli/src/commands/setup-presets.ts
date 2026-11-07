@@ -2,6 +2,7 @@
 import {
   CLAUDE_MODEL_IDS,
   type DeepPartial,
+  type EngineId,
   type EngineSettings,
   type GlobalSettings,
   MODEL_CATALOG,
@@ -14,6 +15,114 @@ import { usage } from "./io.ts";
 export const PROVIDERS = ["claude", "muse", "grok", "ollama", "lmstudio", "openai", "codex", "cursor", "antigravity"] as const;
 export type Provider = (typeof PROVIDERS)[number];
 export const SESSION_PROVIDERS = new Set<Provider>(["codex", "cursor", "antigravity", "grok"]);
+
+/**
+ * setup provider → 保存する engine (WP41: 登録は engine ごと)。session は外部セッション、
+ * generic は Muse・Grok API・ローカル/任意 API で共有する枠。
+ */
+export function setupEngine(input: Pick<SetupInput, "provider" | "api" | "cli" | "native">): EngineId {
+  const { provider } = input;
+  if (provider === "claude") return "claude-cli";
+  if (provider === "codex") return input.native ? "codex-cli" : "session";
+  if (provider === "grok") return input.cli ? "grok-cli" : input.api ? "generic" : "session";
+  if (provider === "antigravity") return input.cli ? "antigravity-cli" : "session";
+  if (provider === "muse" || provider === "ollama" || provider === "lmstudio" || provider === "openai") return "generic";
+  return "session";
+}
+
+/**
+ * 今の既定 engine が「登録済み」か (WP41b-3)。工場出荷の既定 claude-cli は pins が無ければ
+ * 未登録とし、聞かずに新しい engine を既定にする。session は利用者が選んだものなので聞く対象にする。
+ */
+export function isEngineRegistered(
+  settings: {
+    engines?: { "codex-cli"?: { enabled?: boolean }; generic?: { enabled?: boolean }; "anthropic-api"?: { enabled?: boolean } };
+    pins?: { claude?: unknown; codex?: unknown; grok?: unknown; agy?: unknown };
+  },
+  engine: EngineId,
+): boolean {
+  switch (engine) {
+    case "claude-cli":
+      return settings.pins?.claude !== undefined;
+    case "codex-cli":
+      return settings.engines?.["codex-cli"]?.enabled === true && settings.pins?.codex !== undefined;
+    case "grok-cli":
+      return settings.pins?.grok !== undefined;
+    case "antigravity-cli":
+      return settings.pins?.agy !== undefined;
+    case "generic":
+      return settings.engines?.generic?.enabled === true;
+    case "anthropic-api":
+      return settings.engines?.["anthropic-api"]?.enabled === true;
+    case "session":
+      return true;
+  }
+}
+
+/**
+ * 既定の切り替え方 (WP41b-3)。`keep` は登録だけ、`switch` は聞かずに切り替え、`ask` は確認する。
+ * 今の既定と同じ engine・`--default`・既定なしはそのまま更新し、未登録の既定 (使っていない
+ * 工場出荷の既定など) も聞かずに切り替える。登録済みの別の engine のときだけ確認する。
+ */
+export function decideDefaultSwitch(input: {
+  curDefault: EngineId | undefined;
+  target: EngineId;
+  makeDefault: boolean;
+  keepDefault: boolean;
+  registered: boolean;
+}): "switch" | "keep" | "ask" {
+  if (input.keepDefault) return "keep";
+  if (input.makeDefault || input.curDefault === undefined || input.curDefault === input.target) return "switch";
+  if (!input.registered) return "switch";
+  return "ask";
+}
+
+/**
+ * 利用者に見せる engine の名前 (setup の確認・保存後の文用)。generic は今の枠の中身で呼ぶ
+ * (genericLabel と同じ分け方。argv は名前に関係しない)。
+ */
+export function engineDisplayName(engine: EngineId, generic?: { protocol?: string; api?: { baseUrl?: string } }): string {
+  switch (engine) {
+    case "claude-cli":
+    case "anthropic-api":
+      return "Claude";
+    case "codex-cli":
+      return "Codex";
+    case "grok-cli":
+      return "Grok";
+    case "antigravity-cli":
+      return "Gemini";
+    case "session":
+      return "セッション";
+    case "generic":
+      if (generic?.protocol === "muse-jsonl") return "Muse";
+      if (generic?.protocol === "openai-chat") return /localhost|127\.0\.0\.1|\[::1\]/.test(generic.api?.baseUrl ?? "") ? "ローカルAPI" : "API";
+      return generic === undefined ? "generic" : "カスタムコマンド";
+  }
+}
+
+/** 今の generic 枠の中身の呼び名 (置き換え警告用)。 */
+export function genericLabel(eng: Pick<EngineSettings["generic"], "protocol" | "api"> & { argv?: readonly unknown[] }): string {
+  if (eng.protocol === "muse-jsonl") return "Muse";
+  if (eng.protocol === "openai-chat") {
+    const url = eng.api?.baseUrl ?? "";
+    return /localhost|127\.0\.0\.1|\[::1\]/.test(url) ? "ローカルAPI" : "API";
+  }
+  return "カスタムコマンド";
+}
+
+/** generic 枠の中身 (argv・protocol・api) が変わるか。 */
+export function genericEngineChanged(
+  current: Pick<EngineSettings["generic"], "protocol" | "api"> & { argv?: readonly unknown[] },
+  next: Pick<EngineSettings["generic"], "protocol" | "api"> & { argv?: readonly unknown[] },
+): boolean {
+  return (
+    JSON.stringify(current.argv ?? []) !== JSON.stringify(next.argv ?? []) ||
+    (current.protocol ?? "text") !== (next.protocol ?? "text") ||
+    (current.api?.baseUrl ?? "") !== (next.api?.baseUrl ?? "") ||
+    (current.api?.keyEnv ?? "") !== (next.api?.keyEnv ?? "")
+  );
+}
 
 // ADR-0015 profile; kept equal to the adapter's required flags, never the auto-updating Muse launcher.
 const MUSE_ARGS = [

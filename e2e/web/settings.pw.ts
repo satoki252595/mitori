@@ -147,7 +147,7 @@ test("@wp39c guided model select narrows the effort choices", async ({ page }) =
   await expect(guided.getByRole("combobox", { name: "思考の強さ", exact: true })).toBeVisible();
 });
 
-test("@wp39c generation switch saves only the generation models and effort", async ({ page }) => {
+test("@wp41 generation profile saves the engine profile and the default's globals", async ({ page }) => {
   await configure({});
   const view = structuredClone(settings(DEFAULTS));
   await page.route("**/api/v1/settings", async (route) => {
@@ -162,9 +162,67 @@ test("@wp39c generation switch saves only the generation models and effort", asy
   await gen.getByRole("button", { name: "生成のモデルを保存", exact: true }).click();
   await expect.poll(async () => (await mockLog()).filter((r) => r.method === "PATCH").length, { timeout: 4000 }).toBe(1);
   const saved = (await mockLog()).find((r) => r.method === "PATCH")?.body as { patch: Record<string, unknown> };
-  expect(saved.patch.models).toEqual({ genModule: "claude-opus-5-5", genOverview: "claude-opus-5-5", genLeaf: "claude-opus-5-5" });
+  expect(saved.patch.engineProfiles).toEqual({
+    "claude-cli": { models: { genModule: "claude-opus-5-5", genOverview: "claude-opus-5-5" }, reasoning: { gen: "high", genOverview: "high" } },
+  });
+  expect(saved.patch.models).toEqual({ genModule: "claude-opus-5-5", genOverview: "claude-opus-5-5" });
   expect(saved.patch.reasoning).toEqual({ gen: "high", genOverview: "high" });
   expect(saved.patch.engines).toBeUndefined();
+  await expect(gen.getByRole("status")).toContainText("保存しました");
+});
+
+test("@wp41 settings: switching the default LLM aligns the global models and reasoning", async ({ page }) => {
+  await configure({});
+  const view = structuredClone(settings(DEFAULTS));
+  view.settings.engines["codex-cli"] = {
+    enabled: true,
+    binary: "codex",
+    model: "gpt-6.1-sol",
+    pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+  };
+  await page.route("**/api/v1/settings", async (route) => {
+    if (route.request().method() === "GET") await route.fulfill({ json: view });
+    else await route.continue();
+  });
+  await page.goto(`/w/${WS}/settings`);
+  await waitMark(page, "mitori:section:rendered");
+  const gen = page.getByRole("group", { name: "生成", exact: true });
+  await gen.getByRole("combobox", { name: "既定のLLM", exact: true }).selectOption("codex-cli");
+  await gen.getByRole("button", { name: "既定のLLMを保存", exact: true }).click();
+  await expect.poll(async () => (await mockLog()).filter((r) => r.method === "PATCH").length, { timeout: 4000 }).toBe(1);
+  const saved = (await mockLog()).find((r) => r.method === "PATCH")?.body as { patch: Record<string, unknown> };
+  expect(saved.patch.defaultGenEngine).toBe("codex-cli");
+  expect(saved.patch.models).toMatchObject({ genModule: "codex:gpt-6.1-sol", genOverview: "codex:gpt-6.1-sol" });
+  expect(saved.patch.reasoning).toMatchObject({ gen: "high", genOverview: "high" });
+  expect(saved.patch).not.toHaveProperty("defaultEngine");
+  await expect(gen.getByRole("status")).toContainText("保存しました");
+});
+
+test("@wp41 settings: editing another LLM writes only its engine profile", async ({ page }) => {
+  await configure({});
+  const view = structuredClone(settings(DEFAULTS));
+  view.settings.engines["codex-cli"] = {
+    enabled: true,
+    binary: "codex",
+    model: "gpt-6.1-sol",
+    pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+  };
+  await page.route("**/api/v1/settings", async (route) => {
+    if (route.request().method() === "GET") await route.fulfill({ json: view });
+    else await route.continue();
+  });
+  await page.goto(`/w/${WS}/settings`);
+  await waitMark(page, "mitori:section:rendered");
+  const gen = page.getByRole("group", { name: "生成", exact: true });
+  await gen.getByRole("combobox", { name: "対象のLLM", exact: true }).selectOption("codex-cli");
+  await gen.getByRole("combobox", { name: "モデル名", exact: true }).selectOption("codex:gpt-6.1-sol");
+  await gen.getByRole("button", { name: "生成のモデルを保存", exact: true }).click();
+  await expect.poll(async () => (await mockLog()).filter((r) => r.method === "PATCH").length, { timeout: 4000 }).toBe(1);
+  const saved = (await mockLog()).find((r) => r.method === "PATCH")?.body as { patch: Record<string, unknown> };
+  expect(saved.patch.engineProfiles).toMatchObject({ "codex-cli": { models: { genModule: "codex:gpt-6.1-sol" } } });
+  expect(saved.patch).not.toHaveProperty("models");
+  expect(saved.patch).not.toHaveProperty("reasoning");
+  expect(saved.patch).not.toHaveProperty("defaultGenEngine");
   await expect(gen.getByRole("status")).toContainText("保存しました");
 });
 

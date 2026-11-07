@@ -1,10 +1,14 @@
 import {
   type DeepPartial,
+  type EngineId,
   type GlobalSettings,
   MODEL_CATALOG,
   type ModelCatalogKey,
+  type ModelDefaults,
+  type ModelId,
   PROVIDER_AUTH_IDS,
   type ProviderAuthId,
+  profileFor,
   type ReasoningEffort,
 } from "@mitori/core";
 
@@ -97,6 +101,58 @@ export function switchSetupHint(modelId: string): string {
   if (modelId.startsWith("generic:muse-")) return `mitori setup muse --model '${slug}'`;
   if (modelId.startsWith("generic:")) return `mitori setup <provider> --model '${slug}' --in-price <n> --out-price <n>`;
   return `mitori setup claude --model '${slug}'`;
+}
+
+/** 設定画面のまとまり: 生成と回答・修正 (モデルと reasoning の担当分けは既存の切り替えと同じ)。 */
+export type SettingsGroup = "gen" | "answer";
+
+/** まとまりが担当する `models.*` と `reasoning.*` (`genLeaf` は Batch 専用のため対象外)。 */
+export function groupKeys(group: SettingsGroup): { models: (keyof ModelDefaults)[]; reasoning: (keyof GlobalSettings["reasoning"])[] } {
+  return group === "gen"
+    ? { models: ["genModule", "genOverview"], reasoning: ["gen", "genOverview"] }
+    : { models: ["answer", "patch", "agent", "judge", "rewrite", "escalate"], reasoning: ["answer", "patch", "agent"] };
+}
+
+/**
+ * 既定のLLMの切り替え patch (WP41): `defaultGenEngine` / `defaultEngine` と、そのまとまりの
+ * 全体の `models.*`・`reasoning.*` を `profileFor` の値に揃える。`saveProvider` の不整合もこれで直す。
+ */
+export function defaultSwitchPatch(settings: GlobalSettings, engine: EngineId, group: SettingsGroup): DeepPartial<GlobalSettings> {
+  const prof = profileFor(settings, engine);
+  const { models, reasoning } = groupKeys(group);
+  return {
+    ...(group === "gen" ? { defaultGenEngine: engine } : { defaultEngine: engine }),
+    models: Object.fromEntries(models.map((k) => [k, prof.models[k]])),
+    reasoning: Object.fromEntries(reasoning.map((k) => [k, prof.reasoning[k]])),
+  } as DeepPartial<GlobalSettings>;
+}
+
+/**
+ * プロファイルの保存 patch (WP41): `engineProfiles.<id>` に書き、対象が既定の LLM なら
+ * 全体の `models.*`・`reasoning.*` も同じ値にする。
+ */
+export function profileSavePatch(
+  settings: GlobalSettings,
+  engine: EngineId,
+  group: SettingsGroup,
+  model: ModelId,
+  effort: ReasoningEffort,
+): DeepPartial<GlobalSettings> {
+  const { models, reasoning } = groupKeys(group);
+  const patch: DeepPartial<GlobalSettings> = {
+    engineProfiles: {
+      [engine]: {
+        models: Object.fromEntries(models.map((k) => [k, model])),
+        reasoning: Object.fromEntries(reasoning.map((k) => [k, effort])),
+      },
+    },
+  } as DeepPartial<GlobalSettings>;
+  const isDefault = (group === "gen" ? settings.defaultGenEngine : settings.defaultEngine) === engine;
+  if (isDefault) {
+    (patch as { models?: unknown }).models = Object.fromEntries(models.map((k) => [k, model]));
+    (patch as { reasoning?: unknown }).reasoning = Object.fromEntries(reasoning.map((k) => [k, effort]));
+  }
+  return patch;
 }
 
 /** Server model-switch refusal reasons (`params.reason` of the `E_INVALID_INPUT` error) to i18n keys. */

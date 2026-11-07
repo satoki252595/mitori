@@ -12,11 +12,13 @@ import {
   type CodeTargets,
   type ContextAdjust,
   DEFAULT_LIMITS,
+  type EngineId,
   type EstimateItem,
   INTENT_JOB_KIND,
   type JobEstimate,
   MitoriError,
   type ModelId,
+  profileFor,
   type SectionId,
   type ThreadDetail,
   type ThreadId,
@@ -97,6 +99,8 @@ export class ComposerSession {
   /** The targets request is in flight. */
   targetsLoading = $state(false);
   path = $state<ExecPath>("push");
+  /** 明示の LLM 選択 (null = 既定のLLM)。`JobReq.engine` で送り、model は `profileFor` に任せる。 */
+  #llm: EngineId | null = null;
   override = $state.raw<ComposerState["override"]>(undefined);
   stale = $state(false);
   save = $state<SaveState>("idle");
@@ -162,15 +166,29 @@ export class ComposerSession {
     };
   }
 
+  /** 使うLLM: 選んだ engine、無ければ既定のLLM。 */
+  get llm(): EngineId {
+    return this.#llm ?? this.#s.session.settings?.settings.defaultEngine ?? "claude-cli";
+  }
+
+  /** LLM を選び直す (見積もりを取り直す)。 */
+  setLlm(engine: EngineId): void {
+    this.#llm = engine;
+    this.estimate = undefined;
+    this.#scheduleEstimate();
+  }
+
   predicted: Prediction = $derived.by(() => {
     const settings = this.#s.session.settings?.settings;
+    const engine = this.llm;
+    const prof = settings ? profileFor(settings, engine) : null;
     const prediction = predict({
       chips: this.chips,
       body: this.body,
       intent: this.intent,
       outTokens: this.estimate?.estimate.outTokens ?? 0,
-      model: this.estimate?.estimate.model ?? (answerIntent(this.sentIntent) ? settings?.models.answer : settings?.models.patch) ?? DEFAULT_MODEL,
-      engine: this.estimate?.estimate.engine ?? settings?.defaultEngine ?? "claude-cli",
+      model: this.estimate?.estimate.model ?? (answerIntent(this.sentIntent) ? prof?.models.answer : prof?.models.patch) ?? DEFAULT_MODEL,
+      engine,
       ...(settings?.engines.generic.pricing ? { genericPricing: settings.engines.generic.pricing } : {}),
       limits: settings?.limits ?? DEFAULT_LIMITS,
       override: this.override,
@@ -560,6 +578,7 @@ export class ComposerSession {
         body: {
           kind: this.kind,
           threads: [th],
+          engine: this.llm,
           ...(this.docFix ? { docFix: true } : {}),
           ...(Object.keys(context).length ? { context } : {}),
           ...(this.override?.mode ? { mode: this.override.mode } : {}),

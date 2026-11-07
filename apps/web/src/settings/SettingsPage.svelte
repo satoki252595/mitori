@@ -5,13 +5,13 @@
 -->
 <script lang="ts">
 import {
-  type DeepPartial,
+  ENGINE_IDS,
   type EngineId,
   type GenEngineId,
-  type GlobalSettings,
   type ModelId,
   PROVIDER_AUTH_IDS,
   type ProviderAuthId,
+  profileFor,
   type ReaderLevel,
   type ReasoningEffort,
 } from "@mitori/core";
@@ -32,10 +32,12 @@ import { markAfterPaint } from "../shell/perf.ts";
 import { setReaderLevel, useStores } from "../stores/app.svelte.ts";
 import {
   ADVANCED_ENGINES,
+  defaultSwitchPatch,
   EFFORTS,
   genericProviderCommand,
   genericProviderPatch,
   MUSE_ARGS,
+  profileSavePatch,
   providerAuthCommand,
   providerSetupCommand,
   SETUP_PROVIDERS,
@@ -103,10 +105,16 @@ let genSwitchModel = $state("");
 let genSwitchEffort = $state<ReasoningEffort>("high");
 let answerSwitchModel = $state("");
 let answerSwitchEffort = $state<ReasoningEffort>("high");
-let switchSaving = $state<"gen" | "answer" | null>(null);
-let switchSaved = $state<"gen" | "answer" | null>(null);
+/** 既定のLLM (select の値)。 */
+let genDefaultLlm = $state<GenEngineId>("claude-cli");
+let answerDefaultLlm = $state<EngineId>("claude-cli");
+/** プロファイルを編集する LLM (select の値)。 */
+let genEditLlm = $state<EngineId>("claude-cli");
+let answerEditLlm = $state<EngineId>("claude-cli");
+let switchSaving = $state<"gen" | "answer" | "genDefault" | "answerDefault" | null>(null);
+let switchSaved = $state<"gen" | "answer" | "genDefault" | "answerDefault" | null>(null);
 /** Server refusal of a model switch: localized reason key plus the re-setup command (null when no setup helps). */
-let switchError = $state<{ kind: "gen" | "answer"; key: string; command: string | null } | null>(null);
+let switchError = $state<{ kind: "gen" | "answer" | "genDefault" | "answerDefault"; key: string; command: string | null } | null>(null);
 const setupExternal = $derived(
   ["cursor"].includes(simpleProvider) ||
     (simpleProvider === "codex" && !useCodexNative) ||
@@ -134,6 +142,8 @@ const effortChoices = $derived(selectedOption ? [...selectedOption.efforts] : [.
 /** Models the post-setup switcher can offer (catalog models of enabled engines + in-use customs). */
 const switchSettings = $derived(s.session.settings?.settings);
 const switchOptions = $derived<SetupModelOption[]>(switchSettings ? switchableModels(switchSettings) : []);
+/** 登録済みで有効な engine (既定のLLMと編集対象の候補)。 */
+const enabledEngines = $derived(switchSettings ? (ENGINE_IDS as readonly EngineId[]).filter((e) => switchSettings.engines[e]?.enabled) : []);
 const switchEntry = (model: string): SetupModelOption | undefined => switchOptions.find((o) => o.id === model);
 const genEffortChoices = $derived(switchEntry(genSwitchModel) ? [...(switchEntry(genSwitchModel)?.efforts ?? [])] : [...EFFORTS]);
 const answerEffortChoices = $derived(switchEntry(answerSwitchModel) ? [...(switchEntry(answerSwitchModel)?.efforts ?? [])] : [...EFFORTS]);
@@ -227,10 +237,15 @@ $effect(() => {
     applyQuickModel(`antigravity:${cfg.engines["antigravity-cli"].model}`);
     simpleEffort = cfg.reasoning.gen;
   }
-  genSwitchModel = cfg.models.genModule;
-  genSwitchEffort = cfg.reasoning.gen;
-  answerSwitchModel = cfg.models.answer;
-  answerSwitchEffort = cfg.reasoning.answer;
+  genDefaultLlm = cfg.defaultGenEngine;
+  answerDefaultLlm = cfg.defaultEngine;
+  genEditLlm = cfg.defaultGenEngine;
+  answerEditLlm = cfg.defaultEngine;
+  // 初期値は `profileFor` の解決値 (既定の LLM のプロファイル)
+  genSwitchModel = profileFor(cfg, genEditLlm).models.genModule;
+  genSwitchEffort = profileFor(cfg, genEditLlm).reasoning.gen;
+  answerSwitchModel = profileFor(cfg, answerEditLlm).models.answer;
+  answerSwitchEffort = profileFor(cfg, answerEditLlm).reasoning.answer;
   initialized = true;
 });
 
@@ -312,28 +327,42 @@ function selectSwitchModel(kind: "gen" | "answer", value: string) {
   }
 }
 
-async function saveSwitch(kind: "gen" | "answer") {
+/** 編集対象の LLM のプロファイル値をモデル・effort の select に読み込む。 */
+function loadProfileValues(kind: "gen" | "answer") {
+  const cfg = s.session.settings?.settings;
+  if (!cfg) return;
+  const target = kind === "gen" ? genEditLlm : answerEditLlm;
+  const prof = profileFor(cfg, target);
+  if (kind === "gen") {
+    genSwitchModel = prof.models.genModule;
+    genSwitchEffort = prof.reasoning.gen;
+  } else {
+    answerSwitchModel = prof.models.answer;
+    answerSwitchEffort = prof.reasoning.answer;
+  }
+}
+
+function selectEditLlm(kind: "gen" | "answer", engine: EngineId) {
+  switchSaved = null;
+  switchError = null;
+  if (kind === "gen") genEditLlm = engine;
+  else answerEditLlm = engine;
+  loadProfileValues(kind);
+}
+
+/** プロファイルの保存: `engineProfiles.<id>` に書き、対象が既定の LLM なら全体も揃える。 */
+async function saveProfile(kind: "gen" | "answer") {
   if (switchSaving) return;
+  const cfg = s.session.settings?.settings;
+  if (!cfg) return;
+  const target = kind === "gen" ? genEditLlm : answerEditLlm;
   const model = (kind === "gen" ? genSwitchModel : answerSwitchModel) as ModelId;
+  const effort = kind === "gen" ? genSwitchEffort : answerSwitchEffort;
   switchSaving = kind;
   switchSaved = null;
   switchError = null;
   try {
-    const effort = kind === "gen" ? genSwitchEffort : answerSwitchEffort;
-    const entry = switchEntry(model);
-    const withReasoning = !entry || entry.efforts.length > 0;
-    const patch: DeepPartial<GlobalSettings> =
-      kind === "gen"
-        ? {
-            models: { genModule: model, genOverview: model, genLeaf: model },
-            ...(withReasoning ? { reasoning: { gen: effort, genOverview: effort } } : {}),
-          }
-        : {
-            models: { answer: model, patch: model, agent: model, judge: model, rewrite: model, escalate: model },
-            ...(withReasoning ? { reasoning: { answer: effort, patch: effort, agent: effort } } : {}),
-          };
-    // The server refusal carries `params.reason`; show its i18n reason and the re-setup command.
-    const err = await s.prefs.patchDetailed(patch);
+    const err = await s.prefs.patchDetailed(profileSavePatch(cfg, target, kind, model, effort));
     if (err) {
       const reason = typeof err.params?.reason === "string" ? err.params.reason : undefined;
       const key = switchErrorKey(reason);
@@ -344,6 +373,35 @@ async function saveSwitch(kind: "gen" | "answer") {
     switchSaved = kind;
   } catch {
     switchError = { kind, key: "settings.providerInvalid", command: switchSetupHint(model) };
+  } finally {
+    switchSaving = null;
+  }
+}
+
+/** 既定のLLMの切り替え: 既定と全体の models・reasoning を `profileFor` の値に揃える。 */
+async function saveDefault(kind: "gen" | "answer") {
+  if (switchSaving) return;
+  const cfg = s.session.settings?.settings;
+  if (!cfg) return;
+  const target = kind === "gen" ? genDefaultLlm : answerDefaultLlm;
+  const saving = (kind === "gen" ? "genDefault" : "answerDefault") as "genDefault" | "answerDefault";
+  switchSaving = saving;
+  switchSaved = null;
+  switchError = null;
+  try {
+    const err = await s.prefs.patchDetailed(defaultSwitchPatch(cfg, target, kind));
+    if (err) {
+      const reason = typeof err.params?.reason === "string" ? err.params.reason : undefined;
+      const key = switchErrorKey(reason);
+      switchError = { kind: saving, key, command: key === "settings.switchBadEffort" ? null : switchSetupHint(cfg.models.genModule) };
+      return;
+    }
+    await s.session.loadSettings();
+    await s.session.loadEngines();
+    if (kind === "gen" && s.session.settings) await s.gen.setEngine(s.session.settings.settings.defaultGenEngine);
+    switchSaved = saving;
+  } catch {
+    switchError = { kind: saving, key: "settings.providerInvalid", command: null };
   } finally {
     switchSaving = null;
   }
@@ -440,6 +498,11 @@ function musePreset() {
 async function saveProvider(e: SubmitEvent) {
   e.preventDefault();
   if (saving || !initialized || provider === "codex-cli") return;
+  const cfg = s.session.settings?.settings;
+  if (!cfg) {
+    providerError = true;
+    return;
+  }
   saving = true;
   saved = false;
   providerError = false;
@@ -456,7 +519,8 @@ async function saveProvider(e: SubmitEvent) {
             pricing: { inPerMTok: inputPrice ?? NaN, outPerMTok: outputPrice ?? NaN, cacheReadPerMTok: cachePrice ?? NaN },
             ...(timeoutSeconds === undefined ? {} : { turnMs: timeoutSeconds * 1000 }),
           })
-        : { defaultGenEngine: provider };
+        : // `defaultGenEngine` だけを変えると models が前の engine のまま残る: 既定の切り替えと同じ揃え方にする (WP41)
+          defaultSwitchPatch(cfg, provider, "gen");
     if (provider === "generic") {
       const current = (await s.session.loadSettings())?.settings.engines.generic;
       const next = patch.engines?.generic;
@@ -723,6 +787,18 @@ async function saveProvider(e: SubmitEvent) {
     {#if switchOptions.length > 0}
       <div class="group" role="group" aria-labelledby="gen-switch-t">
         <h3 class="gname" id="gen-switch-t">{t("settings.genGroup")}</h3>
+        <label class="row"><span>{t("settings.defaultLlm")}</span><select value={genDefaultLlm} onchange={(e) => { genDefaultLlm = e.currentTarget.value as GenEngineId; switchSaved = null; switchError = null; }}>
+          {#each enabledEngines as e (e)}<option value={e}>{e}</option>{/each}
+        </select></label>
+        <button type="button" class="btn btn-pri btn-s" disabled={switchSaving !== null} onclick={() => saveDefault("gen")}>{t(switchSaving === "genDefault" ? "settings.providerSaving" : "settings.defaultSave")}</button>
+        {#if switchSaved === "genDefault"}<p class="note" role="status">{t("settings.providerSaved")}</p>{/if}
+        {#if switchError?.kind === "genDefault"}
+          <p class="bad" role="alert">{t(switchError.key)}</p>
+          {#if switchError.command}<pre class="mono">{switchError.command}</pre>{/if}
+        {/if}
+        <label class="row"><span>{t("settings.profileLlm")}</span><select value={genEditLlm} onchange={(e) => selectEditLlm("gen", e.currentTarget.value as EngineId)}>
+          {#each enabledEngines as e (e)}<option value={e}>{e}</option>{/each}
+        </select></label>
         <label class="row"><span>{t("settings.quickModel")}</span><select value={genSwitchModel} onchange={(e) => selectSwitchModel("gen", e.currentTarget.value)}>
           {#each switchOptions as o (o.id)}<option value={o.id}>{o.displayName}</option>{/each}
         </select></label>
@@ -732,7 +808,7 @@ async function saveProvider(e: SubmitEvent) {
           <p class="note">{t("settings.quickEffortUnsupported")}</p>
         {/if}
         {#if genSwitchModel.startsWith("grok:") && genSwitchEffort !== "low"}<p class="note">{t("settings.grokSlowWarn")}</p>{/if}
-        <button type="button" class="btn btn-pri btn-s" disabled={switchSaving !== null} onclick={() => saveSwitch("gen")}>{t(switchSaving === "gen" ? "settings.providerSaving" : "settings.modelSwitchSaveGen")}</button>
+        <button type="button" class="btn btn-pri btn-s" disabled={switchSaving !== null} onclick={() => saveProfile("gen")}>{t(switchSaving === "gen" ? "settings.providerSaving" : "settings.modelSwitchSaveGen")}</button>
         {#if switchSaved === "gen"}<p class="note" role="status">{t("settings.providerSaved")}</p>{/if}
         {#if switchError?.kind === "gen"}
           <p class="bad" role="alert">{t(switchError.key)}</p>
@@ -741,6 +817,18 @@ async function saveProvider(e: SubmitEvent) {
       </div>
       <div class="group" role="group" aria-labelledby="answer-switch-t">
         <h3 class="gname" id="answer-switch-t">{t("settings.answerGroup")}</h3>
+        <label class="row"><span>{t("settings.defaultLlm")}</span><select value={answerDefaultLlm} onchange={(e) => { answerDefaultLlm = e.currentTarget.value as EngineId; switchSaved = null; switchError = null; }}>
+          {#each enabledEngines as e (e)}<option value={e}>{e}</option>{/each}
+        </select></label>
+        <button type="button" class="btn btn-pri btn-s" disabled={switchSaving !== null} onclick={() => saveDefault("answer")}>{t(switchSaving === "answerDefault" ? "settings.providerSaving" : "settings.defaultSave")}</button>
+        {#if switchSaved === "answerDefault"}<p class="note" role="status">{t("settings.providerSaved")}</p>{/if}
+        {#if switchError?.kind === "answerDefault"}
+          <p class="bad" role="alert">{t(switchError.key)}</p>
+          {#if switchError.command}<pre class="mono">{switchError.command}</pre>{/if}
+        {/if}
+        <label class="row"><span>{t("settings.profileLlm")}</span><select value={answerEditLlm} onchange={(e) => selectEditLlm("answer", e.currentTarget.value as EngineId)}>
+          {#each enabledEngines as e (e)}<option value={e}>{e}</option>{/each}
+        </select></label>
         <label class="row"><span>{t("settings.quickModel")}</span><select value={answerSwitchModel} onchange={(e) => selectSwitchModel("answer", e.currentTarget.value)}>
           {#each switchOptions as o (o.id)}<option value={o.id}>{o.displayName}</option>{/each}
         </select></label>
@@ -750,7 +838,7 @@ async function saveProvider(e: SubmitEvent) {
           <p class="note">{t("settings.quickEffortUnsupported")}</p>
         {/if}
         {#if answerSwitchModel.startsWith("grok:") && answerSwitchEffort !== "low"}<p class="note">{t("settings.grokSlowWarn")}</p>{/if}
-        <button type="button" class="btn btn-pri btn-s" disabled={switchSaving !== null} onclick={() => saveSwitch("answer")}>{t(switchSaving === "answer" ? "settings.providerSaving" : "settings.modelSwitchSaveAnswer")}</button>
+        <button type="button" class="btn btn-pri btn-s" disabled={switchSaving !== null} onclick={() => saveProfile("answer")}>{t(switchSaving === "answer" ? "settings.providerSaving" : "settings.modelSwitchSaveAnswer")}</button>
         {#if switchSaved === "answer"}<p class="note" role="status">{t("settings.providerSaved")}</p>{/if}
         {#if switchError?.kind === "answer"}
           <p class="bad" role="alert">{t(switchError.key)}</p>

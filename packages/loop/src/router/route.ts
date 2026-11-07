@@ -2,7 +2,9 @@ import {
   type EffectiveSettings,
   type EngineId,
   INTENT_JOB_KIND,
+  type ModelDefaults,
   type ModelId,
+  profileFor,
   type ReasoningEffort,
   type Result,
   type RouteDecision,
@@ -33,7 +35,11 @@ function groupOf(intents: readonly ThreadIntent[]): Group {
 
 /** Pure router (spec §3.4): the first matching row of `ROUTER_RULES` after R0/R0b/R7/R8 and the override rules. */
 export function routeDecision(input: RouteInputExt, settings: EffectiveSettings): Result<RouteOutcome> {
-  const { limits, models, reasoning } = settings.global;
+  const { limits } = settings.global;
+  // その呼び出しの engine のプロファイルを使う (WP41)
+  const prof = profileFor(settings.global, input.engine.id);
+  const models: ModelDefaults = prof.models;
+  const reasoning = prof.reasoning;
   const intents = [...new Set(input.intents)].sort();
   if (intents.length === 0 || input.threads < 1) return fail("E_INVALID_INPUT", "nothing to route: no threads");
 
@@ -160,6 +166,10 @@ export function routeDecision(input: RouteInputExt, settings: EffectiveSettings)
         params: { engine: input.engine.id },
       });
     }
+    // agent 実行は claude-cli に寄せるので、モデルと effort も claude 枠に揃える (WP41)
+    const claude = profileFor(settings.global, "claude-cli");
+    const key = decision.contract === "docpatch/1" ? "rewrite" : "agent";
+    decision = { ...decision, model: claude.models[key], effort: key === "agent" ? claude.reasoning.agent : claude.reasoning.answer };
     engine = "claude-cli";
     notes.push("agent mode は claude-cli で実行");
   }

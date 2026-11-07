@@ -8,7 +8,7 @@ import { testClock, testHasher, testIds } from "../test/ports.ts";
 import { type FakeRepo, M_AUTH, M_CLI, M_CORE, M_HTTP, M_SESSION, sampleRepo } from "../test/repo.ts";
 import { testSettings } from "../test/settings.ts";
 import { createEstimator, isByteUpperProtocol, toByteUpper, withRetry } from "./estimator.ts";
-import { speedOf, ttftOf } from "./params.ts";
+import { speedOf, tasksForEngine, ttftOf } from "./params.ts";
 import { createPlanner } from "./planner.ts";
 
 const hasher = testHasher();
@@ -450,11 +450,12 @@ describe("generic byte-upper estimates (usage-less engines record UTF-8 bytes as
   });
 
   test("default protocol (text) is byte-upper; the plan estimate is larger than claude-cli with identical seconds", () => {
-    // token-based reference on the same plan (openai-chat reports usage, so it never byte-scales)
+    // token-based reference on the same plan (openai-chat reports usage, so it never byte-scales).
+    // WP41: the generic engine estimates with its own profile (Muse, max) instead of the plan's Claude models.
     const { planner, estimator: http } = setup(sampleRepo(), genericSettings("openai-chat"));
     const plan = planner.plan({ effort: "standard" });
     const tok = http.estimate(plan, "generic", 3);
-    const cli = http.estimate(plan, "claude-cli", 3);
+    expect(tok.model).toBe("generic:muse-spark-1.3-contributor");
     const totalIn = (e: typeof tok) => e.inTokens + e.cacheWriteTokens + e.cacheReadTokens;
     for (const protocol of ["text", "muse-jsonl", undefined] as const) {
       const { estimator } = setup(sampleRepo(), genericSettings(protocol));
@@ -466,10 +467,7 @@ describe("generic byte-upper estimates (usage-less engines record UTF-8 bytes as
       expect(inRatio).toBeLessThan(3.76);
       expect(g.outTokens / tok.outTokens).toBeCloseTo(3.75, 1);
       expect(g.apiUsd).toBeGreaterThan(tok.apiUsd);
-      expect(totalIn(g)).toBeGreaterThan(totalIn(cli));
-      expect(g.apiUsd).toBeGreaterThan(cli.apiUsd);
       expect(g.seconds).toEqual(tok.seconds);
-      expect(g.seconds).toEqual(cli.seconds);
     }
   });
 
@@ -477,11 +475,13 @@ describe("generic byte-upper estimates (usage-less engines record UTF-8 bytes as
     const { planner, estimator } = setup(sampleRepo(), genericSettings("openai-chat"));
     const plan = planner.plan({ effort: "standard" });
     const g = estimator.estimate(plan, "generic", 3);
-    const c = estimator.estimate(plan, "claude-cli", 3);
+    expect(g.model).toBe("generic:muse-spark-1.3-contributor");
+    const { estimator: upper } = setup(sampleRepo(), genericSettings("text"));
+    const u = upper.estimate(plan, "generic", 3);
     const totalIn = (e: typeof g) => e.inTokens + e.cacheWriteTokens + e.cacheReadTokens;
-    expect(totalIn(g)).toBeLessThan(totalIn(c));
-    expect(g.outTokens / c.outTokens).toBe(1);
-    expect(g.seconds).toEqual(c.seconds);
+    expect(totalIn(g) * 2).toBeLessThan(totalIn(u));
+    expect(g.outTokens * 2).toBeLessThan(u.outTokens);
+    expect(g.seconds).toEqual(u.seconds);
   });
 
   test("only text / muse-jsonl generic protocols are byte-upper", () => {
@@ -500,4 +500,84 @@ test("non-Claude engines estimate time from measured end-to-end speed: reasoning
   expect(speedOf(muse, "medium")).toBeGreaterThan(speedOf(muse, "max"));
   // Claude keeps its own measured table
   expect(speedOf("claude-sonnet-5-5", "high")).toBe(135);
+});
+
+describe("WP41-2 engine profiles", () => {
+  test("engine を指定した plan はプロファイルのモデルと effort を使う", () => {
+    const s = testSettings({
+      global: {
+        engineProfiles: { "codex-cli": { models: { genModule: "codex:gpt-5.6-luna" as ModelId }, reasoning: { gen: "max" } } },
+      },
+    });
+    s.global.engines["codex-cli"] = {
+      enabled: true,
+      binary: "codex",
+      model: "gpt-5.6-luna",
+      pricing: { inPerMTok: 0.2, outPerMTok: 1.2, cacheReadPerMTok: 0.02 },
+    };
+    const { planner, estimator } = setup(sampleRepo(), s);
+    const plan = planner.plan({ effort: "standard", engine: "codex-cli" });
+    expect(plan.engine).toBe("codex-cli");
+    const mod = plan.tasks.find((t) => t.prompt === "gen.module");
+    expect(mod?.model).toBe("codex:gpt-5.6-luna");
+    expect(mod?.effort).toBe("max");
+    const est = estimator.estimate(plan, "codex-cli", 3);
+    expect(est.model).toBe("codex:gpt-5.6-luna");
+  });
+
+  test("プロファイル無しでは名前空間の合う全体値、合わなければ一覧の既定を使う", () => {
+    const s = testSettings();
+    s.global.engines["codex-cli"] = {
+      enabled: true,
+      binary: "codex",
+      model: "gpt-6.1-sol",
+      pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+    };
+    const { planner, estimator } = setup(sampleRepo(), s);
+    const plan = planner.plan({ effort: "standard", engine: "codex-cli" });
+    expect(plan.tasks.find((t) => t.prompt === "gen.module")?.model).toBe("codex:gpt-6.1-sol");
+    expect(estimator.estimate(plan, "codex-cli", 3).model).toBe("codex:gpt-6.1-sol");
+    const claude = planner.plan({ effort: "standard", engine: "claude-cli" });
+    expect(claude.tasks.find((t) => t.prompt === "gen.module")?.model).toBe("claude-sonnet-5-5");
+  });
+});
+
+describe("WP41-2 estimate alternatives", () => {
+  const priced = () => {
+    const s = testSettings();
+    s.global.engines["codex-cli"] = {
+      enabled: true,
+      binary: "codex",
+      model: "gpt-6.1-sol",
+      pricing: { inPerMTok: 2, outPerMTok: 10, cacheReadPerMTok: 0.1 },
+    };
+    s.global.engines["grok-cli"] = {
+      enabled: true,
+      binary: "grok",
+      model: "grok-4.7-build-fast",
+      pricing: { inPerMTok: 4, outPerMTok: 12, cacheReadPerMTok: 1 },
+      turnMs: 1_200_000,
+    };
+    return s;
+  };
+
+  test("見積もりカードの候補に登録済みの生成 engine が並ぶ (今の並びは変えない)", () => {
+    const s = priced();
+    const { planner, estimator } = setup(sampleRepo(), s);
+    const plan = planner.plan({ effort: "standard" });
+    const alt = estimator.estimate(plan, "claude-cli", 3).alternatives.map((a) => a.engine);
+    expect(alt).toEqual(["claude-cli", "session", "codex-cli", "grok-cli"]);
+  });
+
+  test("候補の見積もりはその engine のプロファイルのモデル・価格・effortで出る", () => {
+    const s = priced();
+    s.global.engineProfiles = { "codex-cli": { models: { genModule: "codex:gpt-5.6-luna" }, reasoning: { gen: "max" } } };
+    const { planner, estimator } = setup(sampleRepo(), s);
+    const plan = planner.plan({ effort: "standard" });
+    const adapted = tasksForEngine(plan.tasks, "codex-cli", s);
+    expect(adapted.find((t) => t.prompt === "gen.module")?.model).toBe("codex:gpt-5.6-luna");
+    expect(adapted.find((t) => t.prompt === "gen.module")?.effort).toBe("max");
+    const alt = estimator.estimate(plan, "claude-cli", 3).alternatives.find((a) => a.engine === "codex-cli");
+    expect(alt?.apiUsd).toBeGreaterThan(0);
+  });
 });

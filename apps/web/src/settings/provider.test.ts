@@ -3,9 +3,11 @@ import type { GlobalSettings } from "@mitori/core";
 import { MODEL_CATALOG, type ModelCatalogKey } from "@mitori/core";
 import {
   ADVANCED_ENGINES,
+  defaultSwitchPatch,
   genericProviderCommand,
   genericProviderPatch,
   MUSE_ARGS,
+  profileSavePatch,
   providerAuthCommand,
   providerSetupCommand,
   setupDefaultEffort,
@@ -294,4 +296,45 @@ test("WP39b-3 server refusal reasons map to their i18n keys", () => {
   expect(switchErrorKey("effort-unsupported")).toBe("settings.switchBadEffort");
   expect(switchErrorKey(undefined)).toBe("settings.providerInvalid");
   expect(switchErrorKey("something-new")).toBe("settings.providerInvalid");
+});
+
+test("WP41-5 defaultSwitchPatch は既定と全体の models・reasoning を profileFor の値に揃える", () => {
+  const settings = {
+    defaultEngine: "claude-cli",
+    defaultGenEngine: "claude-cli",
+    models: {
+      answer: "claude-sonnet-5-5",
+      patch: "claude-sonnet-5-5",
+      agent: "claude-sonnet-5-5",
+      genModule: "claude-sonnet-5-5",
+      genOverview: "claude-opus-5-5",
+      genLeaf: "claude-haiku-4-5",
+      judge: "claude-sonnet-5-5",
+      rewrite: "claude-sonnet-5-5",
+      escalate: "claude-opus-5-5",
+    },
+    reasoning: { answer: "low", patch: "low", agent: "medium", gen: "low", genOverview: "medium" },
+    engineProfiles: { "codex-cli": { models: { genModule: "codex:gpt-5.6-luna" }, reasoning: { gen: "max" } } },
+  } as unknown as GlobalSettings;
+  const patch = defaultSwitchPatch(settings, "codex-cli", "gen");
+  expect(patch.defaultGenEngine).toBe("codex-cli");
+  expect(patch.models).toMatchObject({ genModule: "codex:gpt-5.6-luna", genOverview: "codex:gpt-6.1-sol" });
+  expect(patch.models).not.toHaveProperty("genLeaf");
+  expect(patch.reasoning).toMatchObject({ gen: "max", genOverview: "high" });
+  expect(patch).not.toHaveProperty("defaultEngine");
+});
+
+test("WP41-5 profileSavePatch はプロファイルに書き、既定の LLM なら全体も揃える", () => {
+  const settings = {
+    defaultEngine: "claude-cli",
+    defaultGenEngine: "claude-cli",
+  } as unknown as GlobalSettings;
+  const own = profileSavePatch(settings, "claude-cli", "answer", "claude-haiku-5-5", "low");
+  expect(own.engineProfiles?.["claude-cli"]?.models?.answer).toBe("claude-haiku-5-5");
+  expect(own.models?.answer).toBe("claude-haiku-5-5");
+  expect(own.reasoning?.answer).toBe("low");
+  const other = profileSavePatch(settings, "codex-cli", "answer", "codex:gpt-5.6-luna", "high");
+  expect(other.engineProfiles?.["codex-cli"]?.models?.answer).toBe("codex:gpt-5.6-luna");
+  expect(other).not.toHaveProperty("models");
+  expect(other).not.toHaveProperty("reasoning");
 });

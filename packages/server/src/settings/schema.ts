@@ -7,6 +7,7 @@
 import type {
   BinaryPin,
   DataPolicyAck,
+  EngineProfile,
   EngineSettings,
   GateDeclaration,
   GlobalSettings,
@@ -177,6 +178,29 @@ const models = obj<ModelDefaults>({
   escalate: MODEL,
 });
 
+/** `engineProfiles.<engine>` (WP41): models・reasoning ともに部分形、空も可。 */
+function profileSpec(): Spec {
+  const profileModels = partialObj<ModelDefaults>({
+    answer: MODEL,
+    patch: MODEL,
+    agent: MODEL,
+    genModule: MODEL,
+    genOverview: MODEL,
+    genLeaf: MODEL,
+    judge: MODEL,
+    rewrite: MODEL,
+    escalate: MODEL,
+  });
+  const profileReasoning = partialObj<GlobalSettings["reasoning"]>({
+    answer: REASONING,
+    patch: REASONING,
+    agent: REASONING,
+    gen: REASONING,
+    genOverview: REASONING,
+  });
+  return obj<EngineProfile>({ models: profileModels, reasoning: profileReasoning }, ["models", "reasoning"]);
+}
+
 const limits = obj<Limits>({
   confirmAboveTokens: int(0),
   jobMaxUsd: num(0),
@@ -251,6 +275,7 @@ export const GLOBAL_SPEC: Spec = obj<GlobalSettings>({
   engines,
   models,
   reasoning: obj<GlobalSettings["reasoning"]>({ answer: REASONING, patch: REASONING, agent: REASONING, gen: REASONING, genOverview: REASONING }),
+  engineProfiles: map(profileSpec(), ENGINE_KEY),
   pins: map(pin, /^(claude|git|gh|codex|grok|agy)$/),
   limits,
   scheduler,

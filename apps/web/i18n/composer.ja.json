@@ -115,5 +115,11 @@
   "composer.toast.pull": "⇧Fでmitori reviewに渡します（待機中{n}）",
   "composer.toast.sendFailed": "送信できませんでした: {error}",
   "toast.copy.prompt": "プロンプトをコピーしました（≈{k} tok）",
-  "toast.draft.offline": "daemonに接続できないため、下書きをこのブラウザに保存しました"
+  "toast.draft.offline": "daemonに接続できないため、下書きをこのブラウザに保存しました",
+  "composer.llm.label": "使うLLM",
+  "composer.llm.why.textOnly": "単発テキストのみ",
+  "composer.llm.why.sessionOnly": "送信には使えません",
+  "composer.llm.why.notInstalled": "未検出",
+  "composer.llm.why.capabilityLost": "要更新",
+  "composer.llm.why.notLoggedIn": "未ログイン"
 }

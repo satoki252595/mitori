@@ -113,6 +113,28 @@ describe("mitori gen (spec §10.5, gL-7)", () => {
     expect(await runCommand("gen", io(["--ingest", "nope"]))).toBe(2);
   });
 
+  test("WP41-3 push --llm codex sends the codex-cli engine to the estimate", async () => {
+    d.route("POST /ws/:ws/gen/estimate", (c) => {
+      expect(c.body).toMatchObject({ effort: "standard", engine: "codex-cli" });
+      return {
+        id: "es_aaaaaaaa",
+        effort: "standard",
+        engine: "codex-cli",
+        inTokens: 60_000,
+        cacheReadTokens: 20_000,
+        cacheWriteTokens: 4_000,
+        outTokens: 10_700,
+        apiUsd: 1.234,
+        seconds: { p50: 300, p90: 500 },
+        billing: "subscription-window",
+      };
+    });
+    d.route("POST /ws/:ws/gen/runs", () => ({ id: "gr_aaaaaaaa", state: "running" }));
+    const yes = io(["--llm", "codex"], { tty: true, answer: true });
+    expect(await runCommand("gen", yes)).toBe(0);
+    expect(d.calls("POST /ws/:ws/gen/runs")[0]?.body).toEqual({ estimateId: "es_aaaaaaaa", confirm: true });
+  });
+
   test("push: the estimate, a TTY confirmation, then POST /gen/runs (declining starts nothing)", async () => {
     d.route("POST /ws/:ws/gen/estimate", () => ({
       id: "es_aaaaaaaa",

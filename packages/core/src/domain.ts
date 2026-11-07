@@ -3398,6 +3398,114 @@ export interface ModelDefaults {
   escalate: ModelId;
 }
 
+/**
+ * Per-engine model/effort profile (WP41)。`models`・`reasoning` と同じ扱い
+ * (global のみ、exec ではない)。`mitori setup <provider>` が登録のたびに
+ * `engineProfiles.<engine>` を保存し、呼び出し側は `profileFor` で引く。
+ */
+export interface EngineProfile {
+  /** Role → model (全体の {@link ModelDefaults} の部分形)。 */
+  models: Partial<ModelDefaults>;
+  /** Mode → effort (全体の `reasoning` の部分形)。 */
+  reasoning: Partial<Record<ExecMode | "gen" | "genOverview", ReasoningEffort>>;
+}
+
+/** `ModelDefaults` の role 一覧 (`profileFor` が順に解決する)。 */
+export const MODEL_ROLE_KEYS = [
+  "answer",
+  "patch",
+  "agent",
+  "genModule",
+  "genOverview",
+  "genLeaf",
+  "judge",
+  "rewrite",
+  "escalate",
+] as const satisfies readonly (keyof ModelDefaults)[];
+
+/** `reasoning` の key → 対応する `models` の role。 */
+export const REASONING_MODEL: Record<ExecMode | "gen" | "genOverview", keyof ModelDefaults> = {
+  answer: "answer",
+  patch: "patch",
+  agent: "agent",
+  gen: "genModule",
+  genOverview: "genOverview",
+};
+
+/** Model id の名前空間から engine を求める (Claude の素 id は `claude-cli`、session は外部ツールのため対象外)。 */
+export function engineForModel(id: ModelId): EngineId {
+  if (id.startsWith("codex:")) return "codex-cli";
+  if (id.startsWith("grok:")) return "grok-cli";
+  if (id.startsWith("antigravity:")) return "antigravity-cli";
+  if (id.startsWith("generic:")) return "generic";
+  return "claude-cli";
+}
+
+/** Model id の名前空間が engine のものか (session は外部ツールのため常に真)。 */
+export function modelFitsEngine(id: ModelId, engine: EngineId): boolean {
+  if (engine === "session") return true;
+  if (engine === "claude-cli" || engine === "anthropic-api") return !(id.includes(":"));
+  if (engine === "codex-cli") return id.startsWith("codex:");
+  if (engine === "grok-cli") return id.startsWith("grok:");
+  if (engine === "antigravity-cli") return id.startsWith("antigravity:");
+  return id.startsWith("generic:");
+}
+
+/** `MODEL_CATALOG` のその engine の既定モデル (generic は muse 枠、anthropic-api は claude 枠)。 */
+export function catalogDefaultModel(engine: EngineId): ModelId {
+  if (engine === "codex-cli") return MODEL_CATALOG.codex.defaultModel;
+  if (engine === "grok-cli") return MODEL_CATALOG["grok-cli"].defaultModel;
+  if (engine === "antigravity-cli") return MODEL_CATALOG.antigravity.defaultModel;
+  if (engine === "generic") return MODEL_CATALOG.muse.defaultModel;
+  return MODEL_CATALOG.claude.defaultModel;
+}
+
+/** `MODEL_CATALOG` のその engine の既定 effort。 */
+export function catalogDefaultEffort(engine: EngineId): ReasoningEffort {
+  if (engine === "codex-cli") return MODEL_CATALOG.codex.defaultEffort;
+  if (engine === "grok-cli") return MODEL_CATALOG["grok-cli"].defaultEffort;
+  if (engine === "antigravity-cli") return MODEL_CATALOG.antigravity.defaultEffort;
+  if (engine === "generic") return MODEL_CATALOG.muse.defaultEffort;
+  return MODEL_CATALOG.claude.defaultEffort;
+}
+
+/**
+ * Engine ごとの解決済みモデル・effort (WP41)。役割ごとに次の順で決める:
+ * 1. `engineProfiles[engine]` にあればそれ。
+ * 2. 無ければ、全体の `models[role]` がその engine の名前空間ならそれ。
+ * 3. それも無ければ `MODEL_CATALOG` のその engine の既定モデル。
+ * `genLeaf` (anthropic-api Batch 専用) と `session` engine は全体の値をそのまま使う。
+ * effort も同じ順で決め、モデルが受け付けない effort はそのモデルの既定 effort にする
+ * (`claude-haiku-4-5` のように effort を無視するモデルは受け取った値を保つ)。
+ */
+export function profileFor(
+  global: Pick<GlobalSettings, "models" | "reasoning" | "engineProfiles">,
+  engine: EngineId,
+): { models: ModelDefaults; reasoning: GlobalSettings["reasoning"] } {
+  if (engine === "session") return { models: { ...global.models }, reasoning: { ...global.reasoning } };
+  const profile = global.engineProfiles?.[engine];
+  const models = { ...global.models };
+  for (const role of MODEL_ROLE_KEYS) {
+    if (role === "genLeaf") continue;
+    const override = profile?.models[role];
+    if (override !== undefined) {
+      models[role] = override;
+      continue;
+    }
+    if (!modelFitsEngine(global.models[role], engine)) models[role] = catalogDefaultModel(engine);
+  }
+  const reasoning = { ...global.reasoning };
+  for (const key of Object.keys(REASONING_MODEL) as (keyof typeof REASONING_MODEL)[]) {
+    const override = profile?.reasoning[key];
+    const next = override ?? (modelFitsEngine(global.models[REASONING_MODEL[key]], engine) ? global.reasoning[key] : catalogDefaultEffort(engine));
+    const entry = findCatalogModel(models[REASONING_MODEL[key]]);
+    if (entry && entry.entry.efforts.length > 0 && !(entry.entry.efforts as readonly ReasoningEffort[]).includes(next))
+      reasoning[key] = entry.entry.defaultEffort ?? next;
+    else reasoning[key] = next;
+  }
+  return { models, reasoning };
+}
+
 /** Spend/size limits (global-only). */
 export interface Limits {
   /** Estimates above this many tokens require confirmation (default 100k). */
@@ -3568,6 +3676,11 @@ export interface GlobalSettings {
   /** Reasoning effort per mode (`genOverview` default `medium`) [CR gen-C3]. */
   reasoning: Record<ExecMode | "gen" | "genOverview", ReasoningEffort>;
   /**
+   * Per-engine model/effort profiles (WP41)。古い設定ファイル (キーが無い) は
+   * そのまま読める (schemaVersion は上げない): 無いときは `{}` と同じ。
+   */
+  engineProfiles: Partial<Record<EngineId, EngineProfile>>;
+  /**
    * Binaries resolved once and pinned (path, realpath, sha256, version); a change ⇒ `E_ENGINE_BINARY_CHANGED`
    * until re-confirmed on the engine card [SEC-10]. Written only by the daemon after a human confirmation.
    */
@@ -3700,6 +3813,7 @@ export const SETTING_SCOPES = {
   engines: { scopes: ["global"], trust: false, exec: true },
   models: { scopes: ["global"], trust: false, exec: false },
   reasoning: { scopes: ["global"], trust: false, exec: false },
+  engineProfiles: { scopes: ["global"], trust: false, exec: false },
   limits: { scopes: ["global"], trust: false, exec: true },
   scheduler: { scopes: ["global"], trust: false, exec: false },
   review: { scopes: ["global"], trust: false, exec: true },

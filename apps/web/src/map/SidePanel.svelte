@@ -128,6 +128,7 @@ function setEffort(e: Effort) {
               {policyAcked}
               breakdownOpen={breakdown || s.doc.level === "expert"}
               {engineStatus}
+              engines={s.session.engines}
               detecting={!enginesLoaded}
               {scan}
               busy={s.gen.starting}

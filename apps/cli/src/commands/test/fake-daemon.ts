@@ -216,10 +216,13 @@ export function testIo(o: {
   stdin?: string;
   tty?: boolean;
   answer?: boolean;
+  /** Answers consumed in order by confirm(); falls back to `answer` when exhausted. */
+  answers?: boolean[];
   startedAt?: string;
   onSpawn?: () => void;
 }): TestIo {
   const now = () => performance.timeOrigin + performance.now();
+  const queue = [...(o.answers ?? [])];
   const io: TestIo = {
     argv: o.argv,
     version: VERSION,
@@ -247,7 +250,8 @@ export function testIo(o: {
     bin: "mitori",
     isTTY: o.tty ?? false,
     async confirm() {
-      return o.answer ?? false;
+      const next = queue.shift();
+      return next ?? o.answer ?? false;
     },
     spawnDaemon(home) {
       io.spawned.push(home);

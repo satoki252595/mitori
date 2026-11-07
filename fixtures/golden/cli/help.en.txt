@@ -31,7 +31,7 @@ mitori digest [--max-tokens N]
   One status line (doc revision, open threads, stale blocks) for a SessionStart hook. Prints nothing without a daemon.
 
 ## gen
-mitori gen [--effort overview|standard|complete] [--scope <section>…]      estimate, confirm on a TTY, generate
+mitori gen [--effort overview|standard|complete] [--scope <section>…] [--llm <provider>]   estimate, confirm on a TTY, generate
 mitori gen --prep [--effort E] [--scope <section>…] [--continue <pr_id>]   build a packet for the agent of this session
 mitori gen --ingest <pr_id> [--partial] [--model <model id>]             take in the agent's out/*.ndjson
   --repo /absolute/repo selects the repository regardless of the working directory.
@@ -65,7 +65,9 @@ mitori setup <claude|muse|grok|ollama|lmstudio|openai|codex|cursor|antigravity> 
   --binary /absolute/path        Claude/Muse/Codex/Grok/Antigravity CLI native executable
   --base-url URL --key-env NAME  OpenAI-compatible URL and credential environment variable name
   --in-price N --out-price N     Custom remote model prices in USD per million tokens
+  --default / --keep-default     Make it the default LLM / only register without changing the default (mutually exclusive; without either, replacing another registered default asks first)
   --effort low|medium|high|xhigh|max  Muse/Claude/Grok CLI/Antigravity CLI reasoning effort (Muse default max, Claude default high, Grok CLI and Antigravity CLI default low; Antigravity CLI takes low|medium|high only; Grok medium+ can exceed 10 min/task; HTTP does not send effort)
+  Register several LLMs up front and pick one per call. Re-running setup for the same engine also updates the defaults
   --list-models                  List the selectable models with usable efforts, defaults and prices (changes nothing)
   --print                        Preview settings/instructions without saving or connecting
   Examples: mitori setup grok --repo /absolute/repo (existing session) / mitori setup grok --api (XAI_API_KEY)
